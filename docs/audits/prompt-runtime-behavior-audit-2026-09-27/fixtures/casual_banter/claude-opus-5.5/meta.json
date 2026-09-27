@@ -1,0 +1,10 @@
+{
+  "fixtureId": "casual_banter",
+  "modelId": "claude-opus-5.5",
+  "systemSha256": "4552c5d1b741cf4f3bcc190286c95a29c55058d7f18209f53ef540291974e3fa",
+  "userSha256": "1c2dd36d1bc363bd3911417c7245695cd819a4d993cb0fa884275d341c94baac",
+  "systemTokensEst": 8044,
+  "userTokensEst": 1118,
+  "historyTokensEst": 171,
+  "totalAssembledEst": 9333
+}

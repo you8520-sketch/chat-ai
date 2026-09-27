@@ -1,0 +1,26 @@
+{
+  "exactMain": "c127d3030f50d5b8214cf87b920bf44a5503d80c",
+  "modelId": "claude-opus-5.5",
+  "displayName": "Claude Opus 5.5",
+  "fixtureId": "tension_action",
+  "fixtureLabel": "TENSION / ACTION",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "resolved_model": "claude-opus-5.5",
+  "latency_s": 51.752,
+  "usage": {
+    "prompt_tokens": 8938,
+    "completion_tokens": 3843,
+    "total_tokens": 12781,
+    "cache_creation_input_tokens": 7964
+  },
+  "saw_done": true,
+  "error": null,
+  "systemSha256": "4552c5d1b741cf4f3bcc190286c95a29c55058d7f18209f53ef540291974e3fa",
+  "userSha256": "7a2ee977a2bbd8265a80ca021ae0b351c1f384ed049d8c69ba8c666330457be4",
+  "systemTokensEst": 8044,
+  "outputChars": 2831,
+  "outputTokensEst": 2548,
+  "providerActualPromptTokens": 8938,
+  "providerActualCompletionTokens": 3843
+}

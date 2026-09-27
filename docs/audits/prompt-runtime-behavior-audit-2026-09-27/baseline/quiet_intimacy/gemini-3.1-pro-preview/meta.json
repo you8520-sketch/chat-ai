@@ -1,0 +1,25 @@
+{
+  "exactMain": "c127d3030f50d5b8214cf87b920bf44a5503d80c",
+  "modelId": "gemini-3.1-pro-preview",
+  "displayName": "Gemini 3.1 Pro Preview",
+  "fixtureId": "quiet_intimacy",
+  "fixtureLabel": "QUIET RELATIONSHIP / INTIMACY",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "resolved_model": "gemini-3.1-pro-preview",
+  "latency_s": 68.364,
+  "usage": {
+    "completion_tokens": 2519,
+    "prompt_tokens": 5493,
+    "total_tokens": 8012
+  },
+  "saw_done": true,
+  "error": null,
+  "systemSha256": "37764fb853a593af34ea3f91077f2634fe78f501ebc79b10d20310c1b6c126d0",
+  "userSha256": "dfc7f437e31a843a924ff51c8400cb17365322403fef2d8aec366ba393212686",
+  "systemTokensEst": 8320,
+  "outputChars": 3999,
+  "outputTokensEst": 3600,
+  "providerActualPromptTokens": 5493,
+  "providerActualCompletionTokens": 2519
+}

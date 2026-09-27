@@ -1,0 +1,10 @@
+{
+  "fixtureId": "tension_action",
+  "modelId": "claude-opus-5.5",
+  "systemSha256": "4552c5d1b741cf4f3bcc190286c95a29c55058d7f18209f53ef540291974e3fa",
+  "userSha256": "7a2ee977a2bbd8265a80ca021ae0b351c1f384ed049d8c69ba8c666330457be4",
+  "systemTokensEst": 8044,
+  "userTokensEst": 1155,
+  "historyTokensEst": 225,
+  "totalAssembledEst": 9424
+}

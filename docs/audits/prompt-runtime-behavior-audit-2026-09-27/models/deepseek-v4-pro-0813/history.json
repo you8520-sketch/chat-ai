@@ -1,0 +1,22 @@
+[
+  {
+    "role": "user",
+    "chars": 27,
+    "tokensEst": 25
+  },
+  {
+    "role": "assistant",
+    "chars": 97,
+    "tokensEst": 88
+  },
+  {
+    "role": "user",
+    "chars": 68,
+    "tokensEst": 62
+  },
+  {
+    "role": "assistant",
+    "chars": 90,
+    "tokensEst": 81
+  }
+]

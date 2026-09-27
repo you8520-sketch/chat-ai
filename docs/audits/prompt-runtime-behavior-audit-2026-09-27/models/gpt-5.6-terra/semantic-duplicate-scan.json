@@ -1,0 +1,62 @@
+[
+  {
+    "semantic": "show_emotion_through_behavior",
+    "patternHits": 3,
+    "present": true,
+    "likelyDuplicatedInPayload": true
+  },
+  {
+    "semantic": "do_not_reexplain_shown_emotion",
+    "patternHits": 3,
+    "present": true,
+    "likelyDuplicatedInPayload": true
+  },
+  {
+    "semantic": "avoid_repetitive_micro_action",
+    "patternHits": 1,
+    "present": true,
+    "likelyDuplicatedInPayload": false
+  },
+  {
+    "semantic": "environment_affects_scene",
+    "patternHits": 2,
+    "present": true,
+    "likelyDuplicatedInPayload": true
+  },
+  {
+    "semantic": "inner_thought_affects_choice",
+    "patternHits": 2,
+    "present": true,
+    "likelyDuplicatedInPayload": true
+  },
+  {
+    "semantic": "dialogue_reflects_personality",
+    "patternHits": 3,
+    "present": true,
+    "likelyDuplicatedInPayload": true
+  },
+  {
+    "semantic": "advance_to_next_meaningful_change",
+    "patternHits": 2,
+    "present": true,
+    "likelyDuplicatedInPayload": true
+  },
+  {
+    "semantic": "sensory_specificity",
+    "patternHits": 3,
+    "present": true,
+    "likelyDuplicatedInPayload": true
+  },
+  {
+    "semantic": "korean_narration_register",
+    "patternHits": 2,
+    "present": true,
+    "likelyDuplicatedInPayload": true
+  },
+  {
+    "semantic": "response_length_owner",
+    "patternHits": 2,
+    "present": true,
+    "likelyDuplicatedInPayload": true
+  }
+]

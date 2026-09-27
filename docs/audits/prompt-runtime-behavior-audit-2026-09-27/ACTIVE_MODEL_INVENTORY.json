@@ -1,0 +1,728 @@
+[
+  {
+    "modelId": "deepseek-v4-pro-0813",
+    "displayName": "DeepSeek V4 Pro",
+    "provider": "cheaperinference",
+    "tier": "pro",
+    "hint": "Reasoning",
+    "recommended": true,
+    "userSelectable": true,
+    "runtimeActive": true,
+    "selectedProseRoute": "legacy",
+    "sharedNovelV2Env": "(unset=OFF)",
+    "proseVNextEnv": "(unset=OFF)",
+    "deepSeekMainRpFamily": true,
+    "deepSeekV4Pro": true,
+    "deepSeekV41Flash": false,
+    "gemini31Pro": false,
+    "modelSpecificAdapters": {
+      "deepSeekXmlStructure": false,
+      "deepSeekStyleOnlyReminder": true,
+      "deepSeekAppearanceVariationRule": true,
+      "deepSeekLengthAdapterEnv": "OFF(default)",
+      "gemini31UserAgencySupplement": false,
+      "gemini31SystemLayoutRecency": true
+    },
+    "userTailLengthOwner": true,
+    "terminalReminder": "DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY + USER_TAIL_LENGTH_OWNER_SENTENCE",
+    "tokenInventory": {
+      "actualAssembledSystemEst": 8300,
+      "actualAssembledSystemChars": 9222,
+      "promptAuditSystemRules": 6888,
+      "promptAuditCharacterSetting": 761,
+      "promptAuditWorldLore": 0,
+      "promptAuditMemory": 58,
+      "promptAuditPersona": 432,
+      "promptAuditUserNote": 0,
+      "promptAuditDialogueExamples": 0,
+      "promptAuditRecentConversation": 1735,
+      "totalAssembledEst": 10035,
+      "currentUserTurnEst": 1479,
+      "historyEst": 257,
+      "systemRuleBuckets": {
+        "proseStyle": 3102,
+        "agency": 1704,
+        "layout": 670,
+        "modelAdapter": 0,
+        "lengthRelated": 0,
+        "otherRules": 1412
+      },
+      "proseStyleSectionEst": 3237,
+      "xmlTags": {
+        "PERSONA": false,
+        "WORLD_LORE": true,
+        "LONG_TERM_MEMORY": true
+      }
+    },
+    "sectionCount": 11,
+    "systemSha256": "38f0862bd483ec9f65b4b3d23fed24cf999dcd70300aa12d05db5adfb40d27d8",
+    "userSha256": "8cc423a45e9af93a47ad37286229939c88a9bba13006fe82bb25c1a6a907ceb3",
+    "semanticDuplicateScan": [
+      {
+        "semantic": "show_emotion_through_behavior",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "do_not_reexplain_shown_emotion",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "avoid_repetitive_micro_action",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "environment_affects_scene",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "inner_thought_affects_choice",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "dialogue_reflects_personality",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "advance_to_next_meaningful_change",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "sensory_specificity",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "korean_narration_register",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "response_length_owner",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      }
+    ]
+  },
+  {
+    "modelId": "deepseek-v4.1-flash",
+    "displayName": "DeepSeek V4.1 Flash",
+    "provider": "cheaperinference",
+    "tier": "pro",
+    "hint": "",
+    "recommended": false,
+    "userSelectable": true,
+    "runtimeActive": true,
+    "selectedProseRoute": "legacy",
+    "sharedNovelV2Env": "(unset=OFF)",
+    "proseVNextEnv": "(unset=OFF)",
+    "deepSeekMainRpFamily": true,
+    "deepSeekV4Pro": false,
+    "deepSeekV41Flash": true,
+    "gemini31Pro": false,
+    "modelSpecificAdapters": {
+      "deepSeekXmlStructure": false,
+      "deepSeekStyleOnlyReminder": true,
+      "deepSeekAppearanceVariationRule": true,
+      "deepSeekLengthAdapterEnv": "OFF(default)",
+      "gemini31UserAgencySupplement": false,
+      "gemini31SystemLayoutRecency": true
+    },
+    "userTailLengthOwner": true,
+    "terminalReminder": "DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY + USER_TAIL_LENGTH_OWNER_SENTENCE",
+    "tokenInventory": {
+      "actualAssembledSystemEst": 8300,
+      "actualAssembledSystemChars": 9222,
+      "promptAuditSystemRules": 6888,
+      "promptAuditCharacterSetting": 761,
+      "promptAuditWorldLore": 0,
+      "promptAuditMemory": 58,
+      "promptAuditPersona": 432,
+      "promptAuditUserNote": 0,
+      "promptAuditDialogueExamples": 0,
+      "promptAuditRecentConversation": 1735,
+      "totalAssembledEst": 10035,
+      "currentUserTurnEst": 1479,
+      "historyEst": 257,
+      "systemRuleBuckets": {
+        "proseStyle": 3102,
+        "agency": 1704,
+        "layout": 670,
+        "modelAdapter": 0,
+        "lengthRelated": 0,
+        "otherRules": 1412
+      },
+      "proseStyleSectionEst": 3237,
+      "xmlTags": {
+        "PERSONA": false,
+        "WORLD_LORE": true,
+        "LONG_TERM_MEMORY": true
+      }
+    },
+    "sectionCount": 11,
+    "systemSha256": "38f0862bd483ec9f65b4b3d23fed24cf999dcd70300aa12d05db5adfb40d27d8",
+    "userSha256": "8cc423a45e9af93a47ad37286229939c88a9bba13006fe82bb25c1a6a907ceb3",
+    "semanticDuplicateScan": [
+      {
+        "semantic": "show_emotion_through_behavior",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "do_not_reexplain_shown_emotion",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "avoid_repetitive_micro_action",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "environment_affects_scene",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "inner_thought_affects_choice",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "dialogue_reflects_personality",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "advance_to_next_meaningful_change",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "sensory_specificity",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "korean_narration_register",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "response_length_owner",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      }
+    ]
+  },
+  {
+    "modelId": "gemini-3.1-pro-preview",
+    "displayName": "Gemini 3.1 Pro Preview",
+    "provider": "cheaperinference",
+    "tier": "pro",
+    "hint": "Google",
+    "recommended": false,
+    "userSelectable": true,
+    "runtimeActive": true,
+    "selectedProseRoute": "legacy",
+    "sharedNovelV2Env": "(unset=OFF)",
+    "proseVNextEnv": "(unset=OFF)",
+    "deepSeekMainRpFamily": false,
+    "deepSeekV4Pro": false,
+    "deepSeekV41Flash": false,
+    "gemini31Pro": true,
+    "modelSpecificAdapters": {
+      "deepSeekXmlStructure": false,
+      "deepSeekStyleOnlyReminder": false,
+      "deepSeekAppearanceVariationRule": false,
+      "deepSeekLengthAdapterEnv": "OFF(default)",
+      "gemini31UserAgencySupplement": true,
+      "gemini31SystemLayoutRecency": true
+    },
+    "userTailLengthOwner": true,
+    "terminalReminder": "USER_TAIL_LENGTH_OWNER_SENTENCE (+ layout line)",
+    "tokenInventory": {
+      "actualAssembledSystemEst": 8320,
+      "actualAssembledSystemChars": 9244,
+      "promptAuditSystemRules": 7107,
+      "promptAuditCharacterSetting": 711,
+      "promptAuditWorldLore": 0,
+      "promptAuditMemory": 58,
+      "promptAuditPersona": 432,
+      "promptAuditUserNote": 0,
+      "promptAuditDialogueExamples": 0,
+      "promptAuditRecentConversation": 1417,
+      "totalAssembledEst": 9737,
+      "currentUserTurnEst": 1161,
+      "historyEst": 257,
+      "systemRuleBuckets": {
+        "proseStyle": 3102,
+        "agency": 1980,
+        "layout": 670,
+        "modelAdapter": 0,
+        "lengthRelated": 0,
+        "otherRules": 1355
+      },
+      "proseStyleSectionEst": 3237,
+      "xmlTags": {
+        "PERSONA": false,
+        "WORLD_LORE": false,
+        "LONG_TERM_MEMORY": false
+      }
+    },
+    "sectionCount": 11,
+    "systemSha256": "37764fb853a593af34ea3f91077f2634fe78f501ebc79b10d20310c1b6c126d0",
+    "userSha256": "dfc7f437e31a843a924ff51c8400cb17365322403fef2d8aec366ba393212686",
+    "semanticDuplicateScan": [
+      {
+        "semantic": "show_emotion_through_behavior",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "do_not_reexplain_shown_emotion",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "avoid_repetitive_micro_action",
+        "patternHits": 1,
+        "present": true,
+        "likelyDuplicatedInPayload": false
+      },
+      {
+        "semantic": "environment_affects_scene",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "inner_thought_affects_choice",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "dialogue_reflects_personality",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "advance_to_next_meaningful_change",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "sensory_specificity",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "korean_narration_register",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "response_length_owner",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      }
+    ]
+  },
+  {
+    "modelId": "gemini-3.7-flash",
+    "displayName": "Gemini 3.7 Flash",
+    "provider": "cheaperinference",
+    "tier": "pro",
+    "hint": "Google",
+    "recommended": false,
+    "userSelectable": true,
+    "runtimeActive": true,
+    "selectedProseRoute": "legacy",
+    "sharedNovelV2Env": "(unset=OFF)",
+    "proseVNextEnv": "(unset=OFF)",
+    "deepSeekMainRpFamily": false,
+    "deepSeekV4Pro": false,
+    "deepSeekV41Flash": false,
+    "gemini31Pro": false,
+    "modelSpecificAdapters": {
+      "deepSeekXmlStructure": false,
+      "deepSeekStyleOnlyReminder": false,
+      "deepSeekAppearanceVariationRule": false,
+      "deepSeekLengthAdapterEnv": "OFF(default)",
+      "gemini31UserAgencySupplement": false,
+      "gemini31SystemLayoutRecency": true
+    },
+    "userTailLengthOwner": true,
+    "terminalReminder": "USER_TAIL_LENGTH_OWNER_SENTENCE (+ layout line)",
+    "tokenInventory": {
+      "actualAssembledSystemEst": 8044,
+      "actualAssembledSystemChars": 8937,
+      "promptAuditSystemRules": 6831,
+      "promptAuditCharacterSetting": 711,
+      "promptAuditWorldLore": 0,
+      "promptAuditMemory": 58,
+      "promptAuditPersona": 432,
+      "promptAuditUserNote": 0,
+      "promptAuditDialogueExamples": 0,
+      "promptAuditRecentConversation": 1417,
+      "totalAssembledEst": 9461,
+      "currentUserTurnEst": 1161,
+      "historyEst": 257,
+      "systemRuleBuckets": {
+        "proseStyle": 3102,
+        "agency": 1704,
+        "layout": 670,
+        "modelAdapter": 0,
+        "lengthRelated": 0,
+        "otherRules": 1355
+      },
+      "proseStyleSectionEst": 3237,
+      "xmlTags": {
+        "PERSONA": false,
+        "WORLD_LORE": false,
+        "LONG_TERM_MEMORY": false
+      }
+    },
+    "sectionCount": 11,
+    "systemSha256": "4552c5d1b741cf4f3bcc190286c95a29c55058d7f18209f53ef540291974e3fa",
+    "userSha256": "dfc7f437e31a843a924ff51c8400cb17365322403fef2d8aec366ba393212686",
+    "semanticDuplicateScan": [
+      {
+        "semantic": "show_emotion_through_behavior",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "do_not_reexplain_shown_emotion",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "avoid_repetitive_micro_action",
+        "patternHits": 1,
+        "present": true,
+        "likelyDuplicatedInPayload": false
+      },
+      {
+        "semantic": "environment_affects_scene",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "inner_thought_affects_choice",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "dialogue_reflects_personality",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "advance_to_next_meaningful_change",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "sensory_specificity",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "korean_narration_register",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "response_length_owner",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      }
+    ]
+  },
+  {
+    "modelId": "gpt-5.6-terra",
+    "displayName": "GPT-5.6 Terra",
+    "provider": "cheaperinference",
+    "tier": "pro",
+    "hint": "OpenAI · Thinking OFF",
+    "recommended": false,
+    "userSelectable": true,
+    "runtimeActive": true,
+    "selectedProseRoute": "legacy",
+    "sharedNovelV2Env": "(unset=OFF)",
+    "proseVNextEnv": "(unset=OFF)",
+    "deepSeekMainRpFamily": false,
+    "deepSeekV4Pro": false,
+    "deepSeekV41Flash": false,
+    "gemini31Pro": false,
+    "modelSpecificAdapters": {
+      "deepSeekXmlStructure": false,
+      "deepSeekStyleOnlyReminder": false,
+      "deepSeekAppearanceVariationRule": false,
+      "deepSeekLengthAdapterEnv": "OFF(default)",
+      "gemini31UserAgencySupplement": false,
+      "gemini31SystemLayoutRecency": true
+    },
+    "userTailLengthOwner": true,
+    "terminalReminder": "USER_TAIL_LENGTH_OWNER_SENTENCE (+ layout line)",
+    "tokenInventory": {
+      "actualAssembledSystemEst": 8044,
+      "actualAssembledSystemChars": 8937,
+      "promptAuditSystemRules": 6831,
+      "promptAuditCharacterSetting": 711,
+      "promptAuditWorldLore": 0,
+      "promptAuditMemory": 58,
+      "promptAuditPersona": 432,
+      "promptAuditUserNote": 0,
+      "promptAuditDialogueExamples": 0,
+      "promptAuditRecentConversation": 1417,
+      "totalAssembledEst": 9461,
+      "currentUserTurnEst": 1161,
+      "historyEst": 257,
+      "systemRuleBuckets": {
+        "proseStyle": 3102,
+        "agency": 1704,
+        "layout": 670,
+        "modelAdapter": 0,
+        "lengthRelated": 0,
+        "otherRules": 1355
+      },
+      "proseStyleSectionEst": 3237,
+      "xmlTags": {
+        "PERSONA": false,
+        "WORLD_LORE": false,
+        "LONG_TERM_MEMORY": false
+      }
+    },
+    "sectionCount": 11,
+    "systemSha256": "4552c5d1b741cf4f3bcc190286c95a29c55058d7f18209f53ef540291974e3fa",
+    "userSha256": "dfc7f437e31a843a924ff51c8400cb17365322403fef2d8aec366ba393212686",
+    "semanticDuplicateScan": [
+      {
+        "semantic": "show_emotion_through_behavior",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "do_not_reexplain_shown_emotion",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "avoid_repetitive_micro_action",
+        "patternHits": 1,
+        "present": true,
+        "likelyDuplicatedInPayload": false
+      },
+      {
+        "semantic": "environment_affects_scene",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "inner_thought_affects_choice",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "dialogue_reflects_personality",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "advance_to_next_meaningful_change",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "sensory_specificity",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "korean_narration_register",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "response_length_owner",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      }
+    ]
+  },
+  {
+    "modelId": "claude-opus-5.5",
+    "displayName": "Claude Opus 5.5",
+    "provider": "cheaperinference",
+    "tier": "pro",
+    "hint": "Anthropic",
+    "recommended": false,
+    "userSelectable": true,
+    "runtimeActive": true,
+    "selectedProseRoute": "legacy",
+    "sharedNovelV2Env": "(unset=OFF)",
+    "proseVNextEnv": "(unset=OFF)",
+    "deepSeekMainRpFamily": false,
+    "deepSeekV4Pro": false,
+    "deepSeekV41Flash": false,
+    "gemini31Pro": false,
+    "modelSpecificAdapters": {
+      "deepSeekXmlStructure": false,
+      "deepSeekStyleOnlyReminder": false,
+      "deepSeekAppearanceVariationRule": false,
+      "deepSeekLengthAdapterEnv": "OFF(default)",
+      "gemini31UserAgencySupplement": false,
+      "gemini31SystemLayoutRecency": true
+    },
+    "userTailLengthOwner": true,
+    "terminalReminder": "USER_TAIL_LENGTH_OWNER_SENTENCE (+ layout line)",
+    "tokenInventory": {
+      "actualAssembledSystemEst": 8044,
+      "actualAssembledSystemChars": 8937,
+      "promptAuditSystemRules": 6831,
+      "promptAuditCharacterSetting": 711,
+      "promptAuditWorldLore": 0,
+      "promptAuditMemory": 58,
+      "promptAuditPersona": 432,
+      "promptAuditUserNote": 0,
+      "promptAuditDialogueExamples": 0,
+      "promptAuditRecentConversation": 1417,
+      "totalAssembledEst": 9461,
+      "currentUserTurnEst": 1161,
+      "historyEst": 257,
+      "systemRuleBuckets": {
+        "proseStyle": 3102,
+        "agency": 1704,
+        "layout": 670,
+        "modelAdapter": 0,
+        "lengthRelated": 0,
+        "otherRules": 1355
+      },
+      "proseStyleSectionEst": 3237,
+      "xmlTags": {
+        "PERSONA": false,
+        "WORLD_LORE": false,
+        "LONG_TERM_MEMORY": false
+      }
+    },
+    "sectionCount": 11,
+    "systemSha256": "4552c5d1b741cf4f3bcc190286c95a29c55058d7f18209f53ef540291974e3fa",
+    "userSha256": "dfc7f437e31a843a924ff51c8400cb17365322403fef2d8aec366ba393212686",
+    "semanticDuplicateScan": [
+      {
+        "semantic": "show_emotion_through_behavior",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "do_not_reexplain_shown_emotion",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "avoid_repetitive_micro_action",
+        "patternHits": 1,
+        "present": true,
+        "likelyDuplicatedInPayload": false
+      },
+      {
+        "semantic": "environment_affects_scene",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "inner_thought_affects_choice",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "dialogue_reflects_personality",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "advance_to_next_meaningful_change",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "sensory_specificity",
+        "patternHits": 3,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "korean_narration_register",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      },
+      {
+        "semantic": "response_length_owner",
+        "patternHits": 2,
+        "present": true,
+        "likelyDuplicatedInPayload": true
+      }
+    ]
+  }
+]

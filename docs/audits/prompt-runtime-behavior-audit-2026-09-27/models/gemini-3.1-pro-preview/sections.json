@@ -1,0 +1,101 @@
+[
+  {
+    "order": 1,
+    "id": "openrouter-korean-prose-top",
+    "label": "[TOP] OpenRouter Korean prose",
+    "category": "systemRules",
+    "role": "system",
+    "chars": 819,
+    "estimatedTokens": 738
+  },
+  {
+    "order": 2,
+    "id": "runtime-prompt-contamination-guard",
+    "label": "[TOP] Runtime prompt contamination guard",
+    "category": "systemRules",
+    "role": "system",
+    "chars": 887,
+    "estimatedTokens": 799
+  },
+  {
+    "order": 3,
+    "id": "no-godmodding",
+    "label": "[0a] No godmodding (user agency)",
+    "category": "systemRules",
+    "role": "system",
+    "chars": 1403,
+    "estimatedTokens": 1263
+  },
+  {
+    "order": 4,
+    "id": "rule-historical-truth-canonical-memory",
+    "label": "[0a1] Historical truth (canonical memory)",
+    "category": "systemRules",
+    "role": "system",
+    "chars": 470,
+    "estimatedTokens": 423
+  },
+  {
+    "order": 5,
+    "id": "character-core-identity",
+    "label": "[2] Structured character canon (every turn)",
+    "category": "characterSetting",
+    "role": "system",
+    "chars": 789,
+    "estimatedTokens": 711
+  },
+  {
+    "order": 6,
+    "id": "identity-and-rules",
+    "label": "[0] Identity & Rules (absolute)",
+    "category": "persona",
+    "role": "system",
+    "chars": 479,
+    "estimatedTokens": 432
+  },
+  {
+    "order": 7,
+    "id": "prose-style-xml-bundle",
+    "label": "[1.4] Prose style policy (XML)",
+    "category": "systemRules",
+    "role": "system",
+    "chars": 2626,
+    "estimatedTokens": 2364
+  },
+  {
+    "order": 8,
+    "id": "current-memory",
+    "label": "[3] Current Memory",
+    "category": "memory",
+    "role": "system",
+    "chars": 64,
+    "estimatedTokens": 58
+  },
+  {
+    "order": 9,
+    "id": "narrative-style",
+    "label": "[7] Style Mode",
+    "category": "systemRules",
+    "role": "system",
+    "chars": 147,
+    "estimatedTokens": 133
+  },
+  {
+    "order": 10,
+    "id": "rule-output-layout-recency",
+    "label": "Output layout recency (Korean webnovel paragraph breaks)",
+    "category": "systemRules",
+    "role": "system",
+    "chars": 744,
+    "estimatedTokens": 670
+  },
+  {
+    "order": 11,
+    "id": "user-persona-reference-owner",
+    "label": "User persona reference owner (current-turn gender and naming)",
+    "category": "systemRules",
+    "role": "system",
+    "chars": 796,
+    "estimatedTokens": 717
+  }
+]

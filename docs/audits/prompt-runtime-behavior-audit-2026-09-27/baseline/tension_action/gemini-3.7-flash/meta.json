@@ -1,0 +1,25 @@
+{
+  "exactMain": "c127d3030f50d5b8214cf87b920bf44a5503d80c",
+  "modelId": "gemini-3.7-flash",
+  "displayName": "Gemini 3.7 Flash",
+  "fixtureId": "tension_action",
+  "fixtureLabel": "TENSION / ACTION",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "resolved_model": "gemini-3.7-flash",
+  "latency_s": 7.469,
+  "usage": {
+    "completion_tokens": 1013,
+    "prompt_tokens": 5313,
+    "total_tokens": 6326
+  },
+  "saw_done": true,
+  "error": null,
+  "systemSha256": "4552c5d1b741cf4f3bcc190286c95a29c55058d7f18209f53ef540291974e3fa",
+  "userSha256": "7a2ee977a2bbd8265a80ca021ae0b351c1f384ed049d8c69ba8c666330457be4",
+  "systemTokensEst": 8044,
+  "outputChars": 1540,
+  "outputTokensEst": 1386,
+  "providerActualPromptTokens": 5313,
+  "providerActualCompletionTokens": 1013
+}

@@ -1,0 +1,30 @@
+{
+  "exactMain": "c127d3030f50d5b8214cf87b920bf44a5503d80c",
+  "modelId": "deepseek-v4.1-flash",
+  "displayName": "DeepSeek V4.1 Flash",
+  "fixtureId": "tension_action",
+  "fixtureLabel": "TENSION / ACTION",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "resolved_model": "deepseek-v4.1-flash",
+  "latency_s": 13.13,
+  "usage": {
+    "prompt_tokens": 6387,
+    "completion_tokens": 1577,
+    "total_tokens": 7964,
+    "prompt_tokens_details": {
+      "cached_tokens": 5248
+    },
+    "prompt_cache_hit_tokens": 5248,
+    "prompt_cache_miss_tokens": 1139
+  },
+  "saw_done": true,
+  "error": null,
+  "systemSha256": "38f0862bd483ec9f65b4b3d23fed24cf999dcd70300aa12d05db5adfb40d27d8",
+  "userSha256": "1b81e9c181a16b7e64d44c025d22576f2a4e8edf7e5083889a104f62033e61e8",
+  "systemTokensEst": 8300,
+  "outputChars": 2121,
+  "outputTokensEst": 1909,
+  "providerActualPromptTokens": 6387,
+  "providerActualCompletionTokens": 1577
+}

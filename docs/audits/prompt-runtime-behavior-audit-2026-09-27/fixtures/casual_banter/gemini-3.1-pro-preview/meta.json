@@ -1,0 +1,10 @@
+{
+  "fixtureId": "casual_banter",
+  "modelId": "gemini-3.1-pro-preview",
+  "systemSha256": "37764fb853a593af34ea3f91077f2634fe78f501ebc79b10d20310c1b6c126d0",
+  "userSha256": "1c2dd36d1bc363bd3911417c7245695cd819a4d993cb0fa884275d341c94baac",
+  "systemTokensEst": 8320,
+  "userTokensEst": 1118,
+  "historyTokensEst": 171,
+  "totalAssembledEst": 9609
+}

@@ -1,0 +1,37 @@
+{
+  "provider": "cheaperinference",
+  "model": "deepseek-v4-pro-0813",
+  "messages": [
+    {
+      "role": "system",
+      "contentChars": 9222,
+      "contentTokensEst": 8300
+    },
+    {
+      "role": "user",
+      "contentChars": 27,
+      "contentTokensEst": 25
+    },
+    {
+      "role": "assistant",
+      "contentChars": 97,
+      "contentTokensEst": 88
+    },
+    {
+      "role": "user",
+      "contentChars": 68,
+      "contentTokensEst": 62
+    },
+    {
+      "role": "assistant",
+      "contentChars": 90,
+      "contentTokensEst": 81
+    },
+    {
+      "role": "user",
+      "contentChars": 1643,
+      "contentTokensEst": 1479,
+      "notes": "current user turn (includes DeepSeek style reminder / USER_TAIL when applicable)"
+    }
+  ]
+}

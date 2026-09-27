@@ -1,0 +1,18 @@
+{
+  "chars": 1029,
+  "paragraphs": 10,
+  "quotedDialogueSpans": 5,
+  "abstractEmotionExplanation": 0,
+  "facialPhysicalReaction": 6,
+  "breathOrPulse": 1,
+  "habitualUnconsciousBehavior": 4,
+  "environmentInteraction": 12,
+  "spatialDescription": 5,
+  "appearanceDetail": 3,
+  "sensoryDetail": 6,
+  "characterToCharacterExchange": true,
+  "repeatedMicroActionHeuristic": 0,
+  "innerThoughtMarkers": 0,
+  "layoutBlankLineBetweenDialogueHeuristic": 9,
+  "endsWithIncompleteHangulLatinDigit": false
+}

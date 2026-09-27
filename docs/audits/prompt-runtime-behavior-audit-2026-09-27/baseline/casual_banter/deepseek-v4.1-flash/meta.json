@@ -1,0 +1,30 @@
+{
+  "exactMain": "c127d3030f50d5b8214cf87b920bf44a5503d80c",
+  "modelId": "deepseek-v4.1-flash",
+  "displayName": "DeepSeek V4.1 Flash",
+  "fixtureId": "casual_banter",
+  "fixtureLabel": "CASUAL BANTER",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "resolved_model": "deepseek-v4.1-flash",
+  "latency_s": 7.67,
+  "usage": {
+    "prompt_tokens": 6309,
+    "completion_tokens": 803,
+    "total_tokens": 7112,
+    "prompt_tokens_details": {
+      "cached_tokens": 5248
+    },
+    "prompt_cache_hit_tokens": 5248,
+    "prompt_cache_miss_tokens": 1061
+  },
+  "saw_done": true,
+  "error": null,
+  "systemSha256": "38f0862bd483ec9f65b4b3d23fed24cf999dcd70300aa12d05db5adfb40d27d8",
+  "userSha256": "751f51695d6313b4f24a387fc88b5126b3365d8e0d858a6e218d4d6e11b39236",
+  "systemTokensEst": 8300,
+  "outputChars": 1029,
+  "outputTokensEst": 927,
+  "providerActualPromptTokens": 6309,
+  "providerActualCompletionTokens": 803
+}

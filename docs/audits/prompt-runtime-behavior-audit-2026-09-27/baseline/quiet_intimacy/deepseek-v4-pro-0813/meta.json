@@ -1,0 +1,31 @@
+{
+  "exactMain": "c127d3030f50d5b8214cf87b920bf44a5503d80c",
+  "modelId": "deepseek-v4-pro-0813",
+  "displayName": "DeepSeek V4 Pro",
+  "fixtureId": "quiet_intimacy",
+  "fixtureLabel": "QUIET RELATIONSHIP / INTIMACY",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "resolved_model": "deepseek-v4-pro-0813",
+  "latency_s": 28.746,
+  "usage": {
+    "prompt_tokens": 6414,
+    "completion_tokens": 451,
+    "total_tokens": 6865,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    }
+  },
+  "saw_done": true,
+  "error": null,
+  "systemSha256": "38f0862bd483ec9f65b4b3d23fed24cf999dcd70300aa12d05db5adfb40d27d8",
+  "userSha256": "8cc423a45e9af93a47ad37286229939c88a9bba13006fe82bb25c1a6a907ceb3",
+  "systemTokensEst": 8300,
+  "outputChars": 600,
+  "outputTokensEst": 540,
+  "providerActualPromptTokens": 6414,
+  "providerActualCompletionTokens": 451
+}

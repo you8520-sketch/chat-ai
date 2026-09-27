@@ -1,0 +1,19 @@
+{
+  "method": "estimated_section_allocation",
+  "meaning": "Admin receipt '시스템 프롬프트: ~N 입력 토큰 추정 배분' is NOT a direct tokenize of the system string. It is proportional: round((sysRulesEst / sum(sectionEsts)) * provider_prompt_tokens).",
+  "formula": {
+    "A_provider_actual_input": "primaryStage.input / provider prompt_tokens (canonical billable)",
+    "B_receipt_system_row": "alloc(sysRulesEst) where sysRulesEst = promptAudit.breakdown.systemRules (local estimateTokens on category=systemRules sections), then scaled to A",
+    "C_actual_assembled_system_estimate": "estimateTokens(final systemPrompt string) — diet baseline",
+    "D_systemRules_category_estimate": "sum estimateTokens(section.text) for category systemRules",
+    "E_prose_style_section_estimate": "subset of systemRules matching prose/style/IMMERSIVE/NARRATION REGISTER sections",
+    "F_remaining_sections_estimate": "characterSetting + worldLore + memory + persona + userNote + dialogueExamples (+ history outside system)"
+  },
+  "sourceFiles": [
+    "src/lib/billingReceiptSectionBreakdown.ts",
+    "src/app/api/chat/route.ts (sectionEsts + draftInput)",
+    "src/services/promptAudit.ts",
+    "src/lib/promptTokenAccounting.ts"
+  ],
+  "warning": "Do not treat receipt system row as exact provider per-section measurement. Diet decisions use actual assembled inventory (C/D/E/F)."
+}

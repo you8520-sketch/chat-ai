@@ -1,0 +1,13 @@
+{
+  "exactMain": "c127d3030f50d5b8214cf87b920bf44a5503d80c",
+  "generatedAt": "2026-09-27T03:02:23.308Z",
+  "fixtureCount": 3,
+  "modelCount": 6,
+  "productionPromptMutated": false,
+  "proseGatesDefault": {
+    "PROSE_VNEXT_ENABLED": null,
+    "SHARED_NOVEL_PROSE_V2_ENABLED": null,
+    "SNPV2_DEEPSEEK_LENGTH_ARM": null,
+    "GEMINI31_TERMINAL_LAYOUT_OWNER_ONLY": null
+  }
+}

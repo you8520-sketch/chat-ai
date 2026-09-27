@@ -1,0 +1,10 @@
+{
+  "fixtureId": "tension_action",
+  "modelId": "deepseek-v4-pro-0813",
+  "systemSha256": "38f0862bd483ec9f65b4b3d23fed24cf999dcd70300aa12d05db5adfb40d27d8",
+  "userSha256": "1b81e9c181a16b7e64d44c025d22576f2a4e8edf7e5083889a104f62033e61e8",
+  "systemTokensEst": 8300,
+  "userTokensEst": 1474,
+  "historyTokensEst": 225,
+  "totalAssembledEst": 9999
+}

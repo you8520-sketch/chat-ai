@@ -1,0 +1,37 @@
+{
+  "exactMain": "c127d3030f50d5b8214cf87b920bf44a5503d80c",
+  "modelId": "gpt-5.6-terra",
+  "displayName": "GPT-5.6 Terra",
+  "fixtureId": "tension_action",
+  "fixtureLabel": "TENSION / ACTION",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "resolved_model": "gpt-5.6-terra",
+  "latency_s": 27.702,
+  "usage": {
+    "prompt_tokens": 5440,
+    "completion_tokens": 1876,
+    "total_tokens": 7316,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 5437,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "saw_done": true,
+  "error": null,
+  "systemSha256": "4552c5d1b741cf4f3bcc190286c95a29c55058d7f18209f53ef540291974e3fa",
+  "userSha256": "7a2ee977a2bbd8265a80ca021ae0b351c1f384ed049d8c69ba8c666330457be4",
+  "systemTokensEst": 8044,
+  "outputChars": 2803,
+  "outputTokensEst": 2523,
+  "providerActualPromptTokens": 5440,
+  "providerActualCompletionTokens": 1876
+}

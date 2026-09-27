@@ -1,0 +1,10 @@
+{
+  "fixtureId": "casual_banter",
+  "modelId": "deepseek-v4-pro-0813",
+  "systemSha256": "38f0862bd483ec9f65b4b3d23fed24cf999dcd70300aa12d05db5adfb40d27d8",
+  "userSha256": "751f51695d6313b4f24a387fc88b5126b3365d8e0d858a6e218d4d6e11b39236",
+  "systemTokensEst": 8300,
+  "userTokensEst": 1437,
+  "historyTokensEst": 171,
+  "totalAssembledEst": 9908
+}

@@ -1,0 +1,37 @@
+{
+  "exactMain": "c127d3030f50d5b8214cf87b920bf44a5503d80c",
+  "modelId": "claude-opus-5.5",
+  "displayName": "Claude Opus 5.5",
+  "fixtureId": "casual_banter",
+  "fixtureLabel": "CASUAL BANTER",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "resolved_model": "claude-opus-5.5",
+  "latency_s": 52.79,
+  "usage": {
+    "prompt_tokens": 8817,
+    "completion_tokens": 3540,
+    "total_tokens": 12357,
+    "is_byok": true,
+    "prompt_tokens_details": {
+      "cached_tokens": 7964,
+      "cache_write_tokens": 216,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 394,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "saw_done": true,
+  "error": null,
+  "systemSha256": "4552c5d1b741cf4f3bcc190286c95a29c55058d7f18209f53ef540291974e3fa",
+  "userSha256": "1c2dd36d1bc363bd3911417c7245695cd819a4d993cb0fa884275d341c94baac",
+  "systemTokensEst": 8044,
+  "outputChars": 2870,
+  "outputTokensEst": 2583,
+  "providerActualPromptTokens": 8817,
+  "providerActualCompletionTokens": 3540
+}

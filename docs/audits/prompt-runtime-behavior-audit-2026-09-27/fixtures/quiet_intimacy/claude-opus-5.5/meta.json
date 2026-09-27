@@ -1,0 +1,10 @@
+{
+  "fixtureId": "quiet_intimacy",
+  "modelId": "claude-opus-5.5",
+  "systemSha256": "4552c5d1b741cf4f3bcc190286c95a29c55058d7f18209f53ef540291974e3fa",
+  "userSha256": "dfc7f437e31a843a924ff51c8400cb17365322403fef2d8aec366ba393212686",
+  "systemTokensEst": 8044,
+  "userTokensEst": 1161,
+  "historyTokensEst": 257,
+  "totalAssembledEst": 9462
+}

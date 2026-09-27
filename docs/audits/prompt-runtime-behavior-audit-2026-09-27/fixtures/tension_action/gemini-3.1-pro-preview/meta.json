@@ -1,0 +1,10 @@
+{
+  "fixtureId": "tension_action",
+  "modelId": "gemini-3.1-pro-preview",
+  "systemSha256": "37764fb853a593af34ea3f91077f2634fe78f501ebc79b10d20310c1b6c126d0",
+  "userSha256": "7a2ee977a2bbd8265a80ca021ae0b351c1f384ed049d8c69ba8c666330457be4",
+  "systemTokensEst": 8320,
+  "userTokensEst": 1155,
+  "historyTokensEst": 225,
+  "totalAssembledEst": 9700
+}
