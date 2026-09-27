@@ -73,3 +73,53 @@ Gemini 3.1 visible length tracks its reasoning-token share (samples with no repo
 - Dormant VNext / Shared Novel V2 / Muse M1 prose bodies still carry the old block layout.
 - `scenePacingController` fallback anchors and `proseStyleStep2Variants` still reference retired headers (non-production paths).
 - Split prose vs content-policy accounting inside `buildAdvancedProseNsfwGuidelines`.
+
+---
+
+# Correction pass (after PR review)
+
+Base: main `894ef1d6587aba484fc99555a0b0d1b9c3a90297` merged in; no prompt-owner files changed on main.
+
+## Gemini 3.1 Pro — Control A vs Candidate B (one candidate) + same-session legacy control
+
+Visible chars, reasoning-reported cohort only (unreported samples listed separately; they run ~3700–3900 chars in every arm).
+
+| fixture | legacy five blocks (L) | Control A (current) | Candidate B | unreported (A / B) |
+|---|---|---|---|---|
+| quiet | 351, 496, 657, 750, 1536 (med 657) | 460, 724, 955, 1082 (med 840) | 382, 502, 982, 1204 (med 742) | 3863 / 3748 |
+| banter | 585, 611, 761, 984, 1626 (med 761) | 827, 854, 1073, 1077, 1146 (med 1073) | 408, 461, 607, 1251 (med 534) | — / 3946 |
+| tension | — | 1368, 1801, 3747 (med 1801) | 455, 686 (med 571) | — / 3908 |
+
+Reasoning share of completion is 0.6–0.8 in every arm. Candidate B did not lengthen quiet/banter and shortened banter/tension → not adopted. In the same session the legacy prose is not longer than Control A, so the earlier before/after gap is dominated by provider reasoning allocation, not by the compact prose. `[COMMON PROSE]` stays at Control A (599 tok).
+
+## [19+ INTIMACY] — 414 → 237 local tokens
+
+Removed: the euphemism example list (kept as one semantic: direct standard anatomical names instead of metaphor/location/pronoun), and "대사량 … 질문이나 반응 확인 대사" (dialogue economy owned by `[COMMON PROSE]` and the terminal dialogue budget). Added nothing outside the target semantics (continuity of character/relationship, direct naming, tension cues, contact→reaction→next action chain). Adult policy / CNC / age boundary unchanged.
+
+Adult fixture, 6 active models × 2 per arm: refusals 0/24, fade-out 0/24. Genital euphemism: old 1 (Gemini 3.1 "그곳에"), new 0. Explicit standard naming present in both arms where the scene reached it.
+
+## Beard / body hair
+
+Root cause (proved): `resolveHairDescriptionPolicy` → `allowsBeard/allowsBodyHair` reached only `coreMasterInput`, which no cheaperinference/OpenRouter path renders; `buildBodyHairDescriptionRule` has no callers. Enforcement was the post-generation sanitizer only, which misses "까칠(해진) 턱(선)", "까슬한 턱선", "면도 흔적".
+
+Fix: the character canon `[외형]` section now carries `외형의 털: 머리카락·눈썹뿐이다.` (or `…·설정의 수염/체모뿐이다.`). Character-scoped; USER_PERSONA untouched; sanitizer unchanged.
+
+Face-touch fixture, male character without beard:
+
+| wording | Gemini 3.1 invented stubble | Gemini 3.1 absence echo | Gemini 3.7 |
+|---|---|---|---|
+| before (no fact) | 1/9 ("까칠해진 턱선", not caught by sanitizer) | 0/9 | 0/9 |
+| v1 "수염·체모: 설정에 없음 — 수염 자국·까칠한 턱…" | 0/9 | 3/9 ("수염 자국 하나 없이") | 0/6 |
+| v2 (kept) "외형의 털: 머리카락·눈썹뿐이다." | 1/9 ("까칠해진 턱") | 0/9 | 0/4 |
+| v3 "…턱과 뺨은 매끈하다." | 0/9 | 9/9 "매끈한 턱선", 2/9 "수염 자국 하나 없이" | 0/4 |
+
+Beard canon (variant B) kept 4/4; persona beard (variant D) described 4/4.
+
+User-persona coupling (found, not changed): the sanitizer uses the character-derived policy on the whole reply, so a persona's explicit beard sentences are deleted (3/3 in variant D).
+
+## Follow-ups
+
+- Subject-aware hair sanitizer (character vs USER_PERSONA).
+- Stubble wording gaps in `BEARD_IN_OUTPUT` (optional; not the primary owner).
+- `buildBodyHairDescriptionRule` — confirmed unused; delete candidate.
+- Gemini 3.1 visible-length variance tied to reasoning allocation (provider behaviour, not prose).
