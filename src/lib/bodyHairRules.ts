@@ -52,6 +52,31 @@ export function resolveHairDescriptionPolicy(
   };
 }
 
+/**
+ * Character appearance canon fact for facial/body hair the setting does not specify.
+ * Scoped to the AI character only — USER_PERSONA appearance is owned elsewhere.
+ */
+export function buildCharacterHairCanonFact(policy: HairDescriptionPolicy): string | null {
+  const beardAbsent = policy.charGender !== "female" && !policy.allowsBeard;
+  const bodyHairAbsent = !policy.allowsBodyHair;
+  if (beardAbsent && bodyHairAbsent) return "수염·체모: 설정에 없음 — 수염 자국·까칠한 턱·체모를 새로 만들지 않는다.";
+  if (beardAbsent) return "수염: 설정에 없음 — 수염 자국·까칠한 턱을 새로 만들지 않는다.";
+  if (bodyHairAbsent) return "체모: 설정에 없음 — 새로 만들지 않는다.";
+  return null;
+}
+
+const APPEARANCE_HEADER_RE = /\[(?:외형|외모|Appearance)[^\]]*\]/i;
+
+/** Place the hair canon fact inside the character canon's appearance section. */
+export function applyCharacterHairCanonFact(canonBlock: string, fact: string | null): string {
+  if (!fact) return canonBlock;
+  const match = APPEARANCE_HEADER_RE.exec(canonBlock);
+  if (!match) return `${canonBlock.trimEnd()}\n\n[외형]\n${fact}`;
+  const insertAt = match.index + match[0].length;
+  return `${canonBlock.slice(0, insertAt)}\n${fact}${canonBlock.slice(insertAt)}`;
+}
+
+/** @deprecated Unused parallel prompt builder — the character canon fact above is the owner. */
 export function buildBodyHairDescriptionRule(policy: HairDescriptionPolicy): string {
   const lines = [
     `[수염·음모(체모) 묘사 — 필수]
