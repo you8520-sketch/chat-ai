@@ -9,6 +9,7 @@ import {
   validateBillingFxSnapshotForLiveGrade,
 } from "@/lib/billingFxSnapshot";
 import {
+  normalizeBillableUsage,
   type NormalizedBillableUsage,
   type UserBillableUsageCoverage,
   validateNormalizedBillableUsage,
@@ -547,6 +548,44 @@ export function computePublishedUserChargeWithSnapshot(
     input.adjustment,
     { liveGradeFx: true, chargeSnapshotOrigin: "exact_published_catalog" }
   );
+}
+
+export function computePublishedStandardPreviewPoints(input: {
+  modelId: string;
+  promptTokens: number;
+  outputTokens: number;
+  effectiveKrwPerUsd: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+}): number | null {
+  if (!Number.isFinite(input.effectiveKrwPerUsd) || input.effectiveKrwPerUsd <= 0) {
+    return null;
+  }
+  const resolved = resolvePublishedPricingExact(input.modelId);
+  if (!resolved || !validatePublishedModelPricingForLiveGrade(resolved.pricing)) {
+    return null;
+  }
+  const usage = normalizeBillableUsage({
+    modelId: input.modelId,
+    promptTokens: input.promptTokens,
+    outputTokens: input.outputTokens,
+    cacheReadTokens: input.cacheReadTokens,
+    cacheWriteTokens: input.cacheWriteTokens,
+  });
+  if (!validateNormalizedBillableUsage(usage)) return null;
+
+  const policy = resolvePolicyForModel(resolved.canonicalModelId, resolved.pricing);
+  if (evaluateTierGate(usage, policy, resolved.pricing)) return null;
+  if (evaluateCacheGate(usage, policy, resolved.pricing)) return null;
+
+  const referenceCostUsd = computeBillingReferenceCostUsd(usage, resolved.pricing);
+  const referenceCostKrw = roundKrwTenths(
+    convertUsdToKrwPure(referenceCostUsd, input.effectiveKrwPerUsd)
+  );
+  const standardUserChargeKrw = roundKrwTenths(
+    referenceCostKrw / (1 - resolved.pricing.targetMargin)
+  );
+  return ceilPublishedChargePoints(standardUserChargeKrw);
 }
 
 /**
