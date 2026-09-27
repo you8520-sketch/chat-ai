@@ -295,6 +295,9 @@ export async function runPendingLiveExperiments(
       }
     }
 
+    if (gateDecision === "WATCH_INSUFFICIENT_EVIDENCE" && decision !== "WATCH_IMPLEMENTATION_PR_PENDING") {
+      gateDecision = decision;
+    }
     const updated = updateCandidate(candidate, {
       now: deps.now,
       architectureFingerprint: deps.architectureFingerprint,
