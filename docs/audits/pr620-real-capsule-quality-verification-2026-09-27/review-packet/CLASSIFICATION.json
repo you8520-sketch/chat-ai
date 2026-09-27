@@ -1,0 +1,6 @@
+{
+  "classification": "DEEPSEEK_STYLE_COMPLIANCE_GAP",
+  "lengthExcluded": true,
+  "newProviderCallsDuringCorrection": 0,
+  "note": "Style-only re-review of committed raw prose. GPT/user final judgment on raw files."
+}

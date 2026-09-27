@@ -1,0 +1,146 @@
+{
+  "model": "deepseek-v4-pro-0813",
+  "snapshot": "SNAPSHOT_A_T1",
+  "rep": 1,
+  "capsuleHash": "251ae04247be8ac62c66e8af3b58c0797c94e4938cb3a7a5dec92893da7ab03e",
+  "promptHash": "842d3c20a4f44bad8bb2699c031e8be5f136967d5bd67c21c0d13b5860cd4899",
+  "snapshotFingerprint": "88dc47becaa706e43241e82803c7b515000e1080670eac4bf50a477f893b23a5",
+  "providerCallCount": 1,
+  "visibleChars": 2752,
+  "prompt_tokens": 13342,
+  "completion_tokens": 2144,
+  "reasoning_tokens": 0,
+  "finish_reason": "stop",
+  "latencyMs": 44716,
+  "httpStatus": 200,
+  "error": null,
+  "occurrences": {
+    "DIRECT_EMOTION_LABEL": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SHOW_THROUGH_BEHAVIOR": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 72,
+          "text": "정작 숙소에 들어오면 한결 편해지는 표정이 보인다는 걸, 이제는 조태형도 어느 정도 알게 된 시점이었다. 처음 로비에서 마주쳤을 때의 어색함은 몇 번의 임무를 함께하면서 제법 옅어"
+        }
+      ]
+    },
+    "INNER_MONOLOGUE_OVERUSE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 926,
+          "text": "웬만하면 다 먹는데.” 조태형은 별생각 없이 물어보고는 곧장 시선을 냄비로 돌렸다. 뭔가를 계속 말하는 편이 편한 사람처럼, 그는 부엌에서 혼자서도 쉴 새 없이 움직이며 말을 이"
+        }
+      ]
+    },
+    "SENSORY_GROUNDING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 734,
+          "text": "에 올렸다. 물을 틀어 대충 헹구는 소리가 작은 공간에 차올랐다. 조태형은 여전히 느긋한 말투로, 하지만 손은 제법 빠르게 움직이며 반찬통 뚜껑을 하나씩 열어 안을 확인했다. “"
+        }
+      ]
+    },
+    "ENVIRONMENT_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 5,
+          "text": "조태형은 소파에 느긋하게 기대앉은 렌의 모습을 흘끗 보며 피식 웃었다. 임무 내내 저러다가도 정작 숙소에 들어오면 한결 편해지는 표정이 보인다는 걸, 이제는 조태형도 어느 정도 알"
+        }
+      ]
+    },
+    "APPEARANCE_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 160,
+          "text": "함께하면서 제법 옅어졌다. 그는 재킷을 벗어 현관 근처 의자 등받이에 아무렇게나 걸쳐두고는 손목을 가볍게 풀었다. 검은 반지 낀 손가락이 후드티 소매 끝을 한 번 잡아당기다가"
+        }
+      ]
+    },
+    "SPATIAL_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 5,
+          "text": "조태형은 소파에 느긋하게 기대앉은 렌의 모습을 흘끗 보며 피식 웃었다. 임무 내내 저러다가도 정작 숙소에 들어오면 한결 편해지는 표정이 보인다는 걸, 이제는 조태형도 어느 정도 알"
+        }
+      ]
+    },
+    "BODY_POSITION_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 14,
+          "text": "조태형은 소파에 느긋하게 기대앉은 렌의 모습을 흘끗 보며 피식 웃었다. 임무 내내 저러다가도 정작 숙소에 들어오면 한결 편해지는 표정이 보인다는 걸, 이제는 조태형도 어느 정도 알"
+        }
+      ]
+    },
+    "CHARACTER_VOICE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 1,
+          "text": "조태형은 소파에 느긋하게 기대앉은 렌의 모습을 흘끗 보며 피식 웃었다. 임무 내내 저러다가도 정작 숙소에 들어오면 한결 편해지는 표정이 보인다는 걸, 이제는 조태형도 어느 정도 알"
+        }
+      ]
+    },
+    "DIALOGUE_NATURALNESS": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 266,
+          "text": "쪽으로 느릿하게 걸음을 옮겼다. “아아…… 그러게. 말만 꺼냈지 정작 뭐가 들었는지도 까먹었네.” 냉장고 문을 열자 서늘한 공기와 함께 형광빛이 조태형의 얼굴 위로 내려앉았다"
+        }
+      ]
+    },
+    "RELATIONSHIP_ATMOSPHERE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 67,
+          "text": "러다가도 정작 숙소에 들어오면 한결 편해지는 표정이 보인다는 걸, 이제는 조태형도 어느 정도 알게 된 시점이었다. 처음 로비에서 마주쳤을 때의 어색함은 몇 번의 임무를 함께하면서"
+        }
+      ]
+    },
+    "SEMANTIC_REPETITION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "MICRO_ACTION_LOOP": {
+      "hit": false,
+      "excerpts": []
+    },
+    "EXPLANATION_AFTER_SHOWING": {
+      "hit": false,
+      "excerpts": []
+    },
+    "PSEUDO_CLINICAL_EXPLANATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "AGENCY_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "REGISTER_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "LAYOUT_VIOLATION": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 262,
+          "text": "냉장고 쪽으로 느릿하게 걸음을 옮겼다. “아아…… 그러게. 말만 꺼냈지 정작 뭐가 들었는지도 까먹었네.” 냉장고 문을 열자 서늘한 공기와 함께 형광빛이 조태형의 얼굴 위로 내"
+        }
+      ]
+    }
+  }
+}

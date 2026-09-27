@@ -1,0 +1,42 @@
+{
+  "roles": [
+    "system",
+    "user",
+    "assistant",
+    "user",
+    "assistant",
+    "user"
+  ],
+  "previews": [
+    {
+      "role": "system",
+      "chars": 17799,
+      "head": "[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDARY] (절대 유지 — PLAYER/SCENARIO META는 [A] 기억·대사로 노출 금지)\n2. 장기기억(LTM)\n3. 최근 대화를 해석하는 데 필요한 RAG\n4. 최근 대화\n\n=== 서술 시점 (필수) ===\n- 현재 장면 안에"
+    },
+    {
+      "role": "user",
+      "chars": 7,
+      "head": "[채팅 시작]"
+    },
+    {
+      "role": "assistant",
+      "chars": 1318,
+      "head": "가을 햇살이 로비의 통유리창을 길게 가로질렀다. 붉고 노랗게 물든 나뭇잎들이 바람에 흔들리는 풍경이 창밖 너머로 느리게 스쳐 지나갔다. 에이지스 컨트롤 본부의 중앙 로비는 오늘도 사람들로 붐볐다. 임무를 마치고 복귀한 센티넬들, 바삐 이동하는 연구원들, 서류철을 품에 안은 행정 직원들까지. 저마다 분주하게 움직이는 발걸음과 무전기 소리들이 넓은 공간을 끊임없이 메웠다.\n\n그 한가운데에 조태형이 있었다.\n\n데스크 앞에 기대 선 "
+    },
+    {
+      "role": "user",
+      "chars": 297,
+      "head": "[유저 대사]\nOOC: 첫 만남 이후 몇 차례 임무를 함께한 시점.오늘 임무가 끝난 뒤, 둘은 태형의 본부 숙소에 들어와 있다.둘 다 성인이다.여기서부터 장면 계속.렌은 현관에서 재킷을 벗어 소파 팔걸이에 걸치고, 아직 임무의 피로가 덜 빠진 얼굴로 태형을 한번 훑어봤다.그러고는 냉장고 쪽을 턱짓했다.\"배고프다며. 뭐 먹을 건데? 아까부터 그것만 말했잖아.\"\n\n[유저 지문/행동 — 캐릭터가 관찰 가능]\n렌은 먼저 소파에 기대앉"
+    },
+    {
+      "role": "assistant",
+      "chars": 3473,
+      "head": "육중한 철문이 낮은 기계음과 함께 맞물려 닫혔다. 에이지스 본부 내부에 위치한 S급 센티넬 전용 숙소. 철저하게 통제되고 방음 처리된 공간 안으로 들어서자, 현장 내내 고막을 찢을 듯 울려대던 크리처들의 비명과 붕괴음이 일거에 차단되었다. 무겁게 가라앉은 정적. 그러나 음압 능력을 사용하는 조태형의 귓가에는 아직도 미세한 이명이 웅웅거리며 맴돌고 있었다. 전투 직후의 감각 과부하가 남긴 불쾌한 잔재였다. 숨을 들이마실 때마다 "
+    },
+    {
+      "role": "user",
+      "chars": 1646,
+      "head": "[CURRENT USER INPUT]\nThe following is the user's completed input and the newest state of the scene.\nCurrent turn runtime mode is interactive — only [USER CONTROL — COLLABORATIVE INTERACTIVE] governs [B] authoring this turn. Prior auto-progr"
+    }
+  ]
+}

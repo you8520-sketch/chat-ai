@@ -1,0 +1,135 @@
+{
+  "recordedAt": "2026-09-27T12:54:09.261Z",
+  "exactMain": "7a7ba46a9222f828fbdab6ce2b9d166ec4f604ed",
+  "models": {
+    "deepseek": "deepseek-v4-pro-0813",
+    "gemini37": "gemini-3.7-flash"
+  },
+  "sharedProse": {
+    "owner": "advancedProseNsfwGuidelines.ts → COMMON_PROSE_BLOCK",
+    "injectionCountDeepSeek": 1,
+    "injectionCountGemini37": 1,
+    "commonProseShaPrefix": "7d9992715736"
+  },
+  "deepSeekLegacyReminders": {
+    "bottomStyleInSystemOrLastUser": false,
+    "lengthSingleCallBlock": false
+  },
+  "snapshotBHistorySignals": {
+    "messageCount": 4,
+    "t1AssistantChars": 3473,
+    "shortHistoryLengthExtraActive": true,
+    "openingPeelWouldApply": true,
+    "openingPeelAppliedOnB": true
+  },
+  "wireHashes": {
+    "deepseek": {
+      "systemSha": "9553f557fe831a13e80853bdba8a14895573c6ff87de274e8b9d4fe8e640ddee",
+      "lastUserSha": "887628102cabaee2e4b88a8842e03e2e3d2b5e3890633e5e7d444a430131aff5",
+      "fullMessagesSha": "24bc505fb34c3215544ecaf30632b3cc7b732d143725df590b34766684295dbc"
+    },
+    "gemini37": {
+      "systemSha": "50fa7c8abd812e7d4002d4d930283fe39fc7ab6298bad3684f8f9e3cdc67124e",
+      "lastUserSha": "0bf8b07ee0d9f4094870704b5bdd49a629a2e47031a25b6e376fdae55958a700",
+      "fullMessagesSha": "6a2521f4b3285cb8103bce57a28ba0d14c23baf35dd9c77e2f40274c092d6b42"
+    }
+  },
+  "pr1124LiveRunPromptHashes": {
+    "deepseekB_r1_r2_r3": "9553f557fe831a13e80853bdba8a14895573c6ff87de274e8b9d4fe8e640ddee",
+    "gemini37B_r1_r2_r3": "50fa7c8abd812e7d4002d4d930283fe39fc7ab6298bad3684f8f9e3cdc67124e",
+    "matchesCurrentWire": {
+      "deepseek": true,
+      "note": "PR1124 promptHash is system-only fingerprint from benchmark harness"
+    }
+  },
+  "ownerSections": [
+    {
+      "id": "openrouter-korean-prose-top",
+      "chars": 819,
+      "generator": "contextBuilder.buildContext",
+      "sourceFile": "src/services/contextBuilder.ts"
+    },
+    {
+      "id": "runtime-prompt-contamination-guard",
+      "chars": 951,
+      "generator": "contextBuilder.buildContext",
+      "sourceFile": "src/services/contextBuilder.ts"
+    },
+    {
+      "id": "no-godmodding",
+      "chars": 1096,
+      "generator": "contextBuilder.buildContext",
+      "sourceFile": "src/services/contextBuilder.ts"
+    },
+    {
+      "id": "rule-historical-truth-canonical-memory",
+      "chars": 470,
+      "generator": "contextBuilder.buildContext",
+      "sourceFile": "src/services/contextBuilder.ts"
+    },
+    {
+      "id": "character-core-identity",
+      "chars": 10252,
+      "generator": "contextBuilder.buildContext",
+      "sourceFile": "src/services/contextBuilder.ts"
+    },
+    {
+      "id": "private-speech-control",
+      "chars": 462,
+      "generator": "contextBuilder.buildContext",
+      "sourceFile": "src/services/contextBuilder.ts"
+    },
+    {
+      "id": "identity-and-rules",
+      "chars": 368,
+      "generator": "contextBuilder.buildContext",
+      "sourceFile": "src/services/contextBuilder.ts"
+    },
+    {
+      "id": "prose-style-xml-bundle",
+      "chars": 1311,
+      "generator": "contextBuilder.buildContext",
+      "sourceFile": "src/services/contextBuilder.ts"
+    },
+    {
+      "id": "narrative-style",
+      "chars": 102,
+      "generator": "contextBuilder.buildContext",
+      "sourceFile": "src/services/contextBuilder.ts"
+    },
+    {
+      "id": "rule-output-layout-recency",
+      "chars": 744,
+      "generator": "contextBuilder.buildContext",
+      "sourceFile": "src/services/contextBuilder.ts"
+    },
+    {
+      "id": "user-persona-reference-owner",
+      "chars": 820,
+      "generator": "contextBuilder.buildContext",
+      "sourceFile": "src/services/contextBuilder.ts"
+    },
+    {
+      "id": "narrative-pov-owner",
+      "chars": 604,
+      "generator": "contextBuilder.buildContext",
+      "sourceFile": "src/services/contextBuilder.ts"
+    }
+  ],
+  "messageRoleSequence": {
+    "deepseek": [
+      "system",
+      "user",
+      "assistant",
+      "user"
+    ],
+    "gemini37": [
+      "system",
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+      "user"
+    ]
+  }
+}

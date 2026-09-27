@@ -1,0 +1,446 @@
+{
+  "method": "Manual read of complete assistant visible prose (2026-09-27 correction). Length excluded. Legacy regex hits in OCCURRENCE_MATRIX.json are not authoritative.",
+  "samples": [
+    {
+      "id": "A-DS-r1",
+      "model": "deepseek-v4-pro-0813",
+      "snapshot": "SNAPSHOT_A_T1",
+      "rep": 1,
+      "rawPath": "raw/SNAPSHOT_A_T1/deepseek-v4-pro-0813/r1.txt",
+      "metaPath": "meta/SNAPSHOT_A_T1/deepseek-v4-pro-0813/r1.json",
+      "tags": {
+        "DIRECT_EMOTION_LABEL": { "hit": false },
+        "SHOW_THROUGH_BEHAVIOR": {
+          "hit": true,
+          "excerpt": "한결 편해지는 표정이 보인다는 걸… 재킷을 벗어… 손목을 가볍게 풀었다"
+        },
+        "INNER_MONOLOGUE_OVERUSE": { "hit": false },
+        "SENSORY_GROUNDING": {
+          "hit": true,
+          "excerpt": "냉장고 문을 열자 서늘한 공기… 국이 끓기 시작하는 소리"
+        },
+        "ENVIRONMENT_DETAIL": {
+          "hit": true,
+          "excerpt": "부엌 선반… 개수대… 식탁 위 밥 두 공기"
+        },
+        "APPEARANCE_DETAIL": {
+          "hit": true,
+          "excerpt": "검은 반지 낀 손가락… 녹색 눈동자"
+        },
+        "SPATIAL_CONTINUITY": { "hit": true, "excerpt": "소파→현관→냉장고→식탁 동선 유지" },
+        "BODY_POSITION_CONTINUITY": { "hit": true, "excerpt": "소파 기대앉은 렌 / 조태형 의자에 앉아 식사" },
+        "CHARACTER_VOICE": {
+          "hit": true,
+          "excerpt": "“일단 이거 마시고 있어. 나 배고파 죽기 직전이라”"
+        },
+        "DIALOGUE_NATURALNESS": { "hit": true, "excerpt": "“너 혹시 입맛 까다로운 편이야?”" },
+        "RELATIONSHIP_ATMOSPHERE": {
+          "hit": true,
+          "excerpt": "임무 후 편해짐, 장난스런 임무 얘기, 젓가락 위치 밀어줌"
+        },
+        "SEMANTIC_REPETITION": { "hit": false },
+        "MICRO_ACTION_LOOP": { "hit": false },
+        "EXPLANATION_AFTER_SHOWING": {
+          "hit": true,
+          "excerpt": "표정이 편해진다는 걸 ‘알게 된 시점’으로 서술자가 요약 (오프닝)"
+        },
+        "RANDOM_THOUGHT_DRIFT": { "hit": false },
+        "RELATIONSHIP_STALL": { "hit": false }
+      }
+    },
+    {
+      "id": "A-DS-r2",
+      "model": "deepseek-v4-pro-0813",
+      "snapshot": "SNAPSHOT_A_T1",
+      "rep": 2,
+      "rawPath": "raw/SNAPSHOT_A_T1/deepseek-v4-pro-0813/r2.txt",
+      "metaPath": "meta/SNAPSHOT_A_T1/deepseek-v4-pro-0813/r2.json",
+      "tags": {
+        "DIRECT_EMOTION_LABEL": { "hit": false },
+        "SHOW_THROUGH_BEHAVIOR": { "hit": true, "excerpt": "소파 등받이에 손… 상체 숙여 얼굴 들여다봄" },
+        "INNER_MONOLOGUE_OVERUSE": { "hit": false },
+        "SENSORY_GROUNDING": { "hit": true, "excerpt": "차가운 공기… 냉동고 비닐 포장" },
+        "ENVIRONMENT_DETAIL": { "hit": true, "excerpt": "냉장고 경고음… 욕실 물소리" },
+        "APPEARANCE_DETAIL": { "hit": true, "excerpt": "북극곰 후드… 눈가 피로" },
+        "SPATIAL_CONTINUITY": { "hit": true },
+        "BODY_POSITION_CONTINUITY": { "hit": true },
+        "CHARACTER_VOICE": { "hit": true, "excerpt": "“우리 라면 먹자… 국물이 예술인데”" },
+        "DIALOGUE_NATURALNESS": { "hit": true },
+        "RELATIONSHIP_ATMOSPHERE": { "hit": true, "excerpt": "씻자 농담, 가까이 얼굴 보기" },
+        "SEMANTIC_REPETITION": { "hit": false },
+        "MICRO_ACTION_LOOP": { "hit": false },
+        "EXPLANATION_AFTER_SHOWING": { "hit": false },
+        "RANDOM_THOUGHT_DRIFT": { "hit": false },
+        "RELATIONSHIP_STALL": { "hit": false }
+      }
+    },
+    {
+      "id": "A-DS-r3",
+      "model": "deepseek-v4-pro-0813",
+      "snapshot": "SNAPSHOT_A_T1",
+      "rep": 3,
+      "rawPath": "raw/SNAPSHOT_A_T1/deepseek-v4-pro-0813/r3.txt",
+      "metaPath": "meta/SNAPSHOT_A_T1/deepseek-v4-pro-0813/r3.json",
+      "tags": {
+        "DIRECT_EMOTION_LABEL": { "hit": false },
+        "SHOW_THROUGH_BEHAVIOR": { "hit": true, "excerpt": "재킷 나란히 걸기… 코 들이밀 시늉" },
+        "INNER_MONOLOGUE_OVERUSE": { "hit": false },
+        "SENSORY_GROUNDING": { "hit": true, "excerpt": "양념치킨 향… 바삭한 껍질 소리" },
+        "ENVIRONMENT_DETAIL": { "hit": true, "excerpt": "소파 스프링… 좁은 숙소" },
+        "APPEARANCE_DETAIL": { "hit": true, "excerpt": "피어싱 반짝… 긴 다리" },
+        "SPATIAL_CONTINUITY": { "hit": true },
+        "BODY_POSITION_CONTINUITY": { "hit": true },
+        "CHARACTER_VOICE": { "hit": true, "excerpt": "“치킨. 치킨이야.” / “둘 다 자신 있으니까”" },
+        "DIALOGUE_NATURALNESS": { "hit": true },
+        "RELATIONSHIP_ATMOSPHERE": { "hit": true, "excerpt": "옆자리 앉기, 어깨 닿을 듯한 거리" },
+        "SEMANTIC_REPETITION": { "hit": false },
+        "MICRO_ACTION_LOOP": { "hit": false },
+        "EXPLANATION_AFTER_SHOWING": { "hit": false },
+        "RANDOM_THOUGHT_DRIFT": { "hit": false },
+        "RELATIONSHIP_STALL": { "hit": false }
+      }
+    },
+    {
+      "id": "A-G37-r1",
+      "model": "gemini-3.7-flash",
+      "snapshot": "SNAPSHOT_A_T1",
+      "rep": 1,
+      "rawPath": "raw/SNAPSHOT_A_T1/gemini-3.7-flash/r1.txt",
+      "metaPath": "meta/SNAPSHOT_A_T1/gemini-3.7-flash/r1.json",
+      "tags": {
+        "DIRECT_EMOTION_LABEL": { "hit": false },
+        "SHOW_THROUGH_BEHAVIOR": { "hit": true, "excerpt": "재킷 벗어 던짐… 배 움켜쥐는 시늉" },
+        "INNER_MONOLOGUE_OVERUSE": {
+          "hit": true,
+          "excerpt": "숙소 풍경·관계 진전을 서술자가 장문으로 설명 (1–9절)"
+        },
+        "SENSORY_GROUNDING": { "hit": true, "excerpt": "분진·피비린내 단절, 팬 지글지글" },
+        "ENVIRONMENT_DETAIL": { "hit": true, "excerpt": "잡지·에너지 캔·비비탄" },
+        "APPEARANCE_DETAIL": { "hit": true, "excerpt": "키 188… 피어싱 금속음" },
+        "SPATIAL_CONTINUITY": { "hit": true },
+        "BODY_POSITION_CONTINUITY": { "hit": true },
+        "CHARACTER_VOICE": { "hit": true, "excerpt": "“셰프 조태형의 영양 만점 특식”" },
+        "DIALOGUE_NATURALNESS": { "hit": true },
+        "RELATIONSHIP_ATMOSPHERE": { "hit": true, "excerpt": "옆자리 앉아 맥주 밀어줌" },
+        "SEMANTIC_REPETITION": { "hit": false },
+        "MICRO_ACTION_LOOP": { "hit": false },
+        "EXPLANATION_AFTER_SHOWING": {
+          "hit": true,
+          "excerpt": "“발을 들이게 되었음을 증명하는 듯했다”"
+        },
+        "RANDOM_THOUGHT_DRIFT": { "hit": false },
+        "RELATIONSHIP_STALL": { "hit": false }
+      }
+    },
+    {
+      "id": "A-G37-r2",
+      "model": "gemini-3.7-flash",
+      "snapshot": "SNAPSHOT_A_T1",
+      "rep": 2,
+      "rawPath": "raw/SNAPSHOT_A_T1/gemini-3.7-flash/r2.txt",
+      "metaPath": "meta/SNAPSHOT_A_T1/gemini-3.7-flash/r2.json",
+      "tags": {
+        "DIRECT_EMOTION_LABEL": { "hit": false },
+        "SHOW_THROUGH_BEHAVIOR": { "hit": true },
+        "INNER_MONOLOGUE_OVERUSE": {
+          "hit": true,
+          "excerpt": "렌 익숙해짐·속 간질거림 등 관계 해석 장문 (5–6절)"
+        },
+        "SENSORY_GROUNDING": { "hit": true },
+        "ENVIRONMENT_DETAIL": { "hit": true },
+        "APPEARANCE_DETAIL": { "hit": true },
+        "SPATIAL_CONTINUITY": { "hit": true },
+        "BODY_POSITION_CONTINUITY": { "hit": true },
+        "CHARACTER_VOICE": { "hit": true, "excerpt": "“인류 최고의 발명품”" },
+        "DIALOGUE_NATURALNESS": { "hit": true },
+        "RELATIONSHIP_ATMOSPHERE": { "hit": true },
+        "SEMANTIC_REPETITION": {
+          "hit": true,
+          "excerpt": "배고픔·칼로리 엄살 패턴 반복"
+        },
+        "MICRO_ACTION_LOOP": { "hit": false },
+        "EXPLANATION_AFTER_SHOWING": { "hit": false },
+        "RANDOM_THOUGHT_DRIFT": { "hit": false },
+        "RELATIONSHIP_STALL": { "hit": false }
+      }
+    },
+    {
+      "id": "A-G37-r3",
+      "model": "gemini-3.7-flash",
+      "snapshot": "SNAPSHOT_A_T1",
+      "rep": 3,
+      "rawPath": "raw/SNAPSHOT_A_T1/gemini-3.7-flash/r3.txt",
+      "metaPath": "meta/SNAPSHOT_A_T1/gemini-3.7-flash/r3.json",
+      "tags": {
+        "DIRECT_EMOTION_LABEL": { "hit": false },
+        "SHOW_THROUGH_BEHAVIOR": { "hit": true },
+        "INNER_MONOLOGUE_OVERUSE": {
+          "hit": true,
+          "excerpt": "음압 센티넬 신경·렌과 있을 때 안도 (17–19절) 설정 설명형"
+        },
+        "SENSORY_GROUNDING": { "hit": true },
+        "ENVIRONMENT_DETAIL": { "hit": true },
+        "APPEARANCE_DETAIL": { "hit": true },
+        "SPATIAL_CONTINUITY": { "hit": true },
+        "BODY_POSITION_CONTINUITY": { "hit": true },
+        "CHARACTER_VOICE": { "hit": true, "excerpt": "“S급 특수계 센티넬의 두둑한 통장”" },
+        "DIALOGUE_NATURALNESS": { "hit": true },
+        "RELATIONSHIP_ATMOSPHERE": { "hit": true },
+        "SEMANTIC_REPETITION": { "hit": false },
+        "MICRO_ACTION_LOOP": { "hit": false },
+        "EXPLANATION_AFTER_SHOWING": {
+          "hit": true,
+          "excerpt": "가이딩/신경 완화를 서술자가 물리+심리로 풀어씀"
+        },
+        "RANDOM_THOUGHT_DRIFT": {
+          "hit": true,
+          "excerpt": "냉장고 장면 중 센티넬 능력 설명으로 화면 이탈"
+        },
+        "RELATIONSHIP_STALL": { "hit": false }
+      }
+    },
+    {
+      "id": "B-DS-r1",
+      "model": "deepseek-v4-pro-0813",
+      "snapshot": "SNAPSHOT_B_T2",
+      "rep": 1,
+      "rawPath": "raw/SNAPSHOT_B_T2/deepseek-v4-pro-0813/r1.txt",
+      "metaPath": "meta/SNAPSHOT_B_T2/deepseek-v4-pro-0813/r1.json",
+      "tags": {
+        "DIRECT_EMOTION_LABEL": { "hit": false },
+        "SHOW_THROUGH_BEHAVIOR": { "hit": true, "excerpt": "손가락 구부림… 이마 맞대기" },
+        "INNER_MONOLOGUE_OVERUSE": {
+          "hit": true,
+          "excerpt": "키스 후 ‘전투와는 다른 긴장’ 등 자기 해석 (9–11, 21–25)"
+        },
+        "SENSORY_GROUNDING": { "hit": true },
+        "ENVIRONMENT_DETAIL": { "hit": true, "excerpt": "어두운 거실→침대" },
+        "APPEARANCE_DETAIL": { "hit": true },
+        "SPATIAL_CONTINUITY": { "hit": true },
+        "BODY_POSITION_CONTINUITY": { "hit": true },
+        "CHARACTER_VOICE": { "hit": true, "excerpt": "“먼저 붙잡은 건 너야”" },
+        "DIALOGUE_NATURALNESS": { "hit": true },
+        "RELATIONSHIP_ATMOSPHERE": { "hit": true },
+        "SEMANTIC_REPETITION": {
+          "hit": true,
+          "excerpt": "‘장난 vs 진심’ 질문 반복 (33–37)"
+        },
+        "MICRO_ACTION_LOOP": {
+          "hit": true,
+          "excerpt": "손떨림·시선·숨결만 돌고 입맞춤 전후 진행 지연"
+        },
+        "EXPLANATION_AFTER_SHOWING": {
+          "hit": true,
+          "excerpt": "키스/긴장 보여준 뒤 “좋아서… 눈에 밝혔어” 재해석"
+        },
+        "RANDOM_THOUGHT_DRIFT": { "hit": false },
+        "RELATIONSHIP_STALL": {
+          "hit": true,
+          "excerpt": "질문 루프로 관계 단계 진전 없이 긴장만 유지"
+        }
+      }
+    },
+    {
+      "id": "B-DS-r2",
+      "model": "deepseek-v4-pro-0813",
+      "snapshot": "SNAPSHOT_B_T2",
+      "rep": 2,
+      "rawPath": "raw/SNAPSHOT_B_T2/deepseek-v4-pro-0813/r2.txt",
+      "metaPath": "meta/SNAPSHOT_B_T2/deepseek-v4-pro-0813/r2.json",
+      "tags": {
+        "DIRECT_EMOTION_LABEL": { "hit": false },
+        "SHOW_THROUGH_BEHAVIOR": { "hit": true, "excerpt": "뒤통수 감싸 쥠… 턱선 쓸어내림" },
+        "INNER_MONOLOGUE_OVERUSE": { "hit": false },
+        "SENSORY_GROUNDING": { "hit": true, "excerpt": "낙엽 소리… 숨 온도" },
+        "ENVIRONMENT_DETAIL": { "hit": true },
+        "APPEARANCE_DETAIL": { "hit": true },
+        "SPATIAL_CONTINUITY": { "hit": true },
+        "BODY_POSITION_CONTINUITY": { "hit": true },
+        "CHARACTER_VOICE": { "hit": true, "excerpt": "“쳐다보니까 예뻐서”" },
+        "DIALOGUE_NATURALNESS": { "hit": true },
+        "RELATIONSHIP_ATMOSPHERE": { "hit": true },
+        "SEMANTIC_REPETITION": { "hit": false },
+        "MICRO_ACTION_LOOP": { "hit": false },
+        "EXPLANATION_AFTER_SHOWING": {
+          "hit": true,
+          "excerpt": "“궁금해서… 어디서 났나” (이미 시선·키스로 보여준 뒤)"
+        },
+        "RANDOM_THOUGHT_DRIFT": { "hit": false },
+        "RELATIONSHIP_STALL": { "hit": false }
+      }
+    },
+    {
+      "id": "B-DS-r3",
+      "model": "deepseek-v4-pro-0813",
+      "snapshot": "SNAPSHOT_B_T2",
+      "rep": 3,
+      "rawPath": "raw/SNAPSHOT_B_T2/deepseek-v4-pro-0813/r3.txt",
+      "metaPath": "meta/SNAPSHOT_B_T2/deepseek-v4-pro-0813/r3.json",
+      "tags": {
+        "DIRECT_EMOTION_LABEL": { "hit": false },
+        "SHOW_THROUGH_BEHAVIOR": { "hit": true },
+        "INNER_MONOLOGUE_OVERUSE": {
+          "hit": true,
+          "excerpt": "키스 직후 감각·가이딩 essay (1–11절) 행동 대비 과다"
+        },
+        "SENSORY_GROUNDING": { "hit": true },
+        "ENVIRONMENT_DETAIL": { "hit": true },
+        "APPEARANCE_DETAIL": { "hit": true },
+        "SPATIAL_CONTINUITY": { "hit": true },
+        "BODY_POSITION_CONTINUITY": { "hit": true },
+        "CHARACTER_VOICE": { "hit": true, "excerpt": "“가이드님 은근 무서운데?”" },
+        "DIALOGUE_NATURALNESS": { "hit": true },
+        "RELATIONSHIP_ATMOSPHERE": { "hit": true },
+        "SEMANTIC_REPETITION": {
+          "hit": true,
+          "excerpt": "“쳐다본 이유” 되풀이·되짚기"
+        },
+        "MICRO_ACTION_LOOP": {
+          "hit": true,
+          "excerpt": "턱/머리/입술 시선 왕복만 반복 후 대사 재순환"
+        },
+        "EXPLANATION_AFTER_SHOWING": {
+          "hit": true,
+          "excerpt": "“처음 로비에서… 계속 봤던 거야” (행동 후 관계 정의)"
+        },
+        "RANDOM_THOUGHT_DRIFT": { "hit": false },
+        "RELATIONSHIP_STALL": {
+          "hit": true,
+          "excerpt": "설명·시선 루프로 다음 행동 전 지체"
+        }
+      }
+    },
+    {
+      "id": "B-G37-r1",
+      "model": "gemini-3.7-flash",
+      "snapshot": "SNAPSHOT_B_T2",
+      "rep": 1,
+      "rawPath": "raw/SNAPSHOT_B_T2/gemini-3.7-flash/r1.txt",
+      "metaPath": "meta/SNAPSHOT_B_T2/gemini-3.7-flash/r1.json",
+      "tags": {
+        "DIRECT_EMOTION_LABEL": { "hit": false },
+        "SHOW_THROUGH_BEHAVIOR": { "hit": true },
+        "INNER_MONOLOGUE_OVERUSE": {
+          "hit": true,
+          "excerpt": "도파민·신경계·가이딩 파동 장문 (9–10, 27–29)"
+        },
+        "SENSORY_GROUNDING": { "hit": true },
+        "ENVIRONMENT_DETAIL": { "hit": true },
+        "APPEARANCE_DETAIL": { "hit": true },
+        "SPATIAL_CONTINUITY": { "hit": true },
+        "BODY_POSITION_CONTINUITY": { "hit": true },
+        "CHARACTER_VOICE": { "hit": true, "excerpt": "“널 통째로 먹어 치워도 돼?”" },
+        "DIALOGUE_NATURALNESS": { "hit": true },
+        "RELATIONSHIP_ATMOSPHERE": { "hit": true },
+        "SEMANTIC_REPETITION": { "hit": false },
+        "MICRO_ACTION_LOOP": { "hit": false },
+        "EXPLANATION_AFTER_SHOWING": {
+          "hit": true,
+          "excerpt": "“무슨 뜻인지 알고 한 거지?” (키스 후 의미 재확인)"
+        },
+        "PSEUDO_CLINICAL_EXPLANATION": {
+          "hit": true,
+          "excerpt": "교감신경·도파민·신경계 표현"
+        },
+        "RANDOM_THOUGHT_DRIFT": { "hit": false },
+        "RELATIONSHIP_STALL": { "hit": false }
+      }
+    },
+    {
+      "id": "B-G37-r2",
+      "model": "gemini-3.7-flash",
+      "snapshot": "SNAPSHOT_B_T2",
+      "rep": 2,
+      "rawPath": "raw/SNAPSHOT_B_T2/gemini-3.7-flash/r2.txt",
+      "metaPath": "meta/SNAPSHOT_B_T2/gemini-3.7-flash/r2.json",
+      "tags": {
+        "DIRECT_EMOTION_LABEL": { "hit": false },
+        "SHOW_THROUGH_BEHAVIOR": { "hit": true },
+        "INNER_MONOLOGUE_OVERUSE": {
+          "hit": true,
+          "excerpt": "초반 감각 essay (7–9) — 이후 대사·접촉으로 전환"
+        },
+        "SENSORY_GROUNDING": { "hit": true },
+        "ENVIRONMENT_DETAIL": { "hit": true },
+        "APPEARANCE_DETAIL": { "hit": true },
+        "SPATIAL_CONTINUITY": { "hit": true },
+        "BODY_POSITION_CONTINUITY": { "hit": true },
+        "CHARACTER_VOICE": { "hit": true, "excerpt": "“그렇게 훅 치고 들어오면”" },
+        "DIALOGUE_NATURALNESS": { "hit": true },
+        "RELATIONSHIP_ATMOSPHERE": { "hit": true },
+        "SEMANTIC_REPETITION": { "hit": false },
+        "MICRO_ACTION_LOOP": { "hit": false },
+        "EXPLANATION_AFTER_SHOWING": { "hit": false },
+        "RANDOM_THOUGHT_DRIFT": { "hit": false },
+        "RELATIONSHIP_STALL": { "hit": false }
+      }
+    },
+    {
+      "id": "B-G37-r3",
+      "model": "gemini-3.7-flash",
+      "snapshot": "SNAPSHOT_B_T2",
+      "rep": 3,
+      "rawPath": "raw/SNAPSHOT_B_T2/gemini-3.7-flash/r3.txt",
+      "metaPath": "meta/SNAPSHOT_B_T2/gemini-3.7-flash/r3.json",
+      "tags": {
+        "DIRECT_EMOTION_LABEL": { "hit": false },
+        "SHOW_THROUGH_BEHAVIOR": { "hit": true },
+        "INNER_MONOLOGUE_OVERUSE": {
+          "hit": true,
+          "excerpt": "가이딩 파동·이명 단절 장문 (15–17)"
+        },
+        "SENSORY_GROUNDING": { "hit": true },
+        "ENVIRONMENT_DETAIL": { "hit": true },
+        "APPEARANCE_DETAIL": { "hit": true },
+        "SPATIAL_CONTINUITY": { "hit": true },
+        "BODY_POSITION_CONTINUITY": { "hit": true },
+        "CHARACTER_VOICE": { "hit": true, "excerpt": "“겁이 없어… 먼저 건드린다니까”" },
+        "DIALOGUE_NATURALNESS": { "hit": true },
+        "RELATIONSHIP_ATMOSPHERE": { "hit": true },
+        "SEMANTIC_REPETITION": { "hit": false },
+        "MICRO_ACTION_LOOP": { "hit": false },
+        "EXPLANATION_AFTER_SHOWING": {
+          "hit": true,
+          "excerpt": "“가이딩이야, 아니면 다른 뜻이야?”"
+        },
+        "PSEUDO_CLINICAL_EXPLANATION": {
+          "hit": true,
+          "excerpt": "신경 회로·오감·본능 치환 서술"
+        },
+        "RANDOM_THOUGHT_DRIFT": { "hit": false },
+        "RELATIONSHIP_STALL": { "hit": false }
+      }
+    }
+  ],
+  "deepseekHistoricalConcernReview": {
+    "evidenceFor": [
+      "Snapshot B DeepSeek r1/r3: EXPLANATION_AFTER_SHOWING + RELATIONSHIP_STALL + MICRO_ACTION_LOOP on intimacy beat",
+      "Snapshot B DeepSeek r3: INNER_MONOLOGUE_OVERUSE opening recap",
+      "Snapshot A DeepSeek r1: mild narrator summary at open (EXPLANATION_AFTER_SHOWING)"
+    ],
+    "evidenceAgainst": [
+      "Snapshot A DeepSeek r1/r3: strong CHARACTER_VOICE, scene progression (food/chicken), SHOW_THROUGH_BEHAVIOR",
+      "Snapshot B DeepSeek r2: dialogue-forward answer without micro-loop; scene advances to ‘이 다음은’"
+    ]
+  },
+  "gemini37Contrast": {
+    "sharedWithDeepSeek": [
+      "INNER_MONOLOGUE / ornate narrator blocks (especially Gemini A and B openings)",
+      "Some EXPLANATION_AFTER_SHOWING after kiss (Gemini B r1/r3 meaning-check lines)"
+    ],
+    "deepSeekOnlyPattern": [
+      "MICRO_ACTION_LOOP + RELATIONSHIP_STALL cluster on Snapshot B (DeepSeek r1/r3; not seen same way on Gemini B r2)",
+      "DeepSeek B r1 semantic loop on ‘장난 vs 진심’ without new physical beat"
+    ],
+    "geminiDistinctPattern": [
+      "PSEUDO_CLINICAL / neuro-guidespeak (dopamine, 교감신경, 신경 회로) on Gemini B r1/r3"
+    ]
+  },
+  "styleOnlyVarianceAnalysis": {
+    "deepseekSnapshotA": "Same voice (능청·반말·장난); stochastic plot branch (국 vs 샤워 vs 치킨) — not contradictory prose mode",
+    "deepseekSnapshotB": "r2 cleaner; r1/r3 share introspective stall — partial within-model spread but common defect family on 2/3 reps",
+    "conclusion": "Length excluded — NOT MODEL_VARIANCE_TOO_HIGH. Within-model differences are sampling/plot branch, not generic-vs-voice flip."
+  },
+  "finalClassification": "DEEPSEEK_STYLE_COMPLIANCE_GAP",
+  "classificationNote": "Snapshot B DeepSeek repeats post-show explanation, micro-action gaze/breath loops, and relationship stall on 2/3 reps; Gemini 3.7 on same capsule shows overlapping ornate narration but less MICRO_ACTION_LOOP/RELATIONSHIP_STALL on B r2/r3 progression. No production patch in this PR."
+}

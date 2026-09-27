@@ -1,0 +1,136 @@
+{
+  "model": "gemini-3.7-flash",
+  "snapshot": "SNAPSHOT_A_T1",
+  "rep": 3,
+  "capsuleHash": "251ae04247be8ac62c66e8af3b58c0797c94e4938cb3a7a5dec92893da7ab03e",
+  "promptHash": "6b285eacb4e7f9be19c0fd1e45972eae28b30e99bbe38dff780b8889dd3544c1",
+  "snapshotFingerprint": "2bc5216a67936a8c200c064ea829b51811049bd4640da832054316950bab31a8",
+  "providerCallCount": 1,
+  "visibleChars": 2591,
+  "prompt_tokens": 11334,
+  "completion_tokens": 1693,
+  "reasoning_tokens": null,
+  "finish_reason": "stop",
+  "latencyMs": 18910,
+  "httpStatus": 200,
+  "error": null,
+  "occurrences": {
+    "DIRECT_EMOTION_LABEL": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SHOW_THROUGH_BEHAVIOR": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 263,
+          "text": "냄새가 섞여 공기 중으로 흩어졌다. 어깨를 크게 한 번 돌리자 뼈마디가 맞물리며 우두둑 소리를 냈다. 몇 번의 임무를 연달아 치르며 몸에 쌓인 잔여 파동의 흔적 탓에 목덜미가 뻐근"
+        }
+      ]
+    },
+    "INNER_MONOLOGUE_OVERUSE": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SENSORY_GROUNDING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 210,
+          "text": "내렸다. 유광 블랙 원단이 스치는 소리와 함께 은은한 여성용 향수 냄새, 그리고 희미한 화약 냄새가 섞여 공기 중으로 흩어졌다. 어깨를 크게 한 번 돌리자 뼈마디가 맞물리며 우두"
+        }
+      ]
+    },
+    "ENVIRONMENT_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 14,
+          "text": "임무가 끝난 직후의 본부 숙소는 늘 어스름한 정적 속에 잠겨 있었다. 게이트 내부에서 뿜어져 나오던 비릿한 피비린내와 신경을 긁어대던 진동, 크리처들의 파열음이 사라진 자리는 지나"
+        }
+      ]
+    },
+    "APPEARANCE_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 362,
+          "text": "근했다. 소파 팔걸이에 자연스럽게 재킷을 걸쳐 두고 먼저 자리를 잡는 렌의 모습에, 태형의 입꼬리가 호를 그리며 매끄럽게 말려 올라갔다. 피로가 채 가시지 않은 기색으로 소파 깊"
+        }
+      ]
+    },
+    "SPATIAL_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 348,
+          "text": "의 흔적 탓에 목덜미가 뻐근했다. 소파 팔걸이에 자연스럽게 재킷을 걸쳐 두고 먼저 자리를 잡는 렌의 모습에, 태형의 입꼬리가 호를 그리며 매끄럽게 말려 올라갔다. 피로가 채 가시"
+        }
+      ]
+    },
+    "BODY_POSITION_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 46,
+          "text": "적 속에 잠겨 있었다. 게이트 내부에서 뿜어져 나오던 비릿한 피비린내와 신경을 긁어대던 진동, 크리처들의 파열음이 사라진 자리는 지나치게 넓고 휑했다. 문이 닫히며 도어록이 맞물리"
+        }
+      ]
+    },
+    "CHARACTER_VOICE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 154,
+          "text": "음만이 두 사람의 복귀를 알렸다. 태형은 현관에 들어서자마자 거추장스럽던 전술 자켓의 지퍼를 거칠게 내렸다. 유광 블랙 원단이 스치는 소리와 함께 은은한 여성용 향수 냄새, 그리"
+        }
+      ]
+    },
+    "DIALOGUE_NATURALNESS": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 719,
+          "text": "특유의 시원한 실루엣을 그렸다. \"아, 진짜. 우리 렌은 센티넬 목숨보다 밥이 먼저인가 봐? 나 방금 게이트에서 네 뒤통수 지켜주느라 진동 제어하느라 기운 다 빠졌거든. 가이딩"
+        }
+      ]
+    },
+    "RELATIONSHIP_ATMOSPHERE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 488,
+          "text": "제법 익숙해진 자만이 보일 수 있는 편안함이었다. 처음 만났을 때만 해도 소란스러운 로비 한구석에서 서늘한 기운을 풍기며 다가오기 힘든 벽을 치던 사람이, 이제는 제 숙소 소파에"
+        }
+      ]
+    },
+    "SEMANTIC_REPETITION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "MICRO_ACTION_LOOP": {
+      "hit": false,
+      "excerpts": []
+    },
+    "EXPLANATION_AFTER_SHOWING": {
+      "hit": false,
+      "excerpts": []
+    },
+    "PSEUDO_CLINICAL_EXPLANATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "AGENCY_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "REGISTER_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "LAYOUT_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    }
+  }
+}

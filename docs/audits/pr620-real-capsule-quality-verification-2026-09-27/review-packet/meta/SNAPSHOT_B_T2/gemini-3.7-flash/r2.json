@@ -1,0 +1,141 @@
+{
+  "model": "gemini-3.7-flash",
+  "snapshot": "SNAPSHOT_B_T2",
+  "rep": 2,
+  "capsuleHash": "251ae04247be8ac62c66e8af3b58c0797c94e4938cb3a7a5dec92893da7ab03e",
+  "promptHash": "50fa7c8abd812e7d4002d4d930283fe39fc7ab6298bad3684f8f9e3cdc67124e",
+  "snapshotFingerprint": "47651d2923bc6c0162e0c84cfc1c32a014093abda64ab2a5b53bea08d0dbec1e",
+  "providerCallCount": 1,
+  "visibleChars": 3222,
+  "prompt_tokens": 13826,
+  "completion_tokens": 2136,
+  "reasoning_tokens": null,
+  "finish_reason": "stop",
+  "latencyMs": 11555,
+  "httpStatus": 200,
+  "error": null,
+  "occurrences": {
+    "DIRECT_EMOTION_LABEL": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SHOW_THROUGH_BEHAVIOR": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 67,
+          "text": "위로 나른하게 퍼져 있던 공기가 단숨에 압축되는 느낌이었다. 배달 앱 화면을 깜빡이던 스마트폰을 든 손이 허공에서 굳었고, 입술 끝에 머물러 있던 가벼운 휘파람 소리가 맥없이 끊"
+        }
+      ]
+    },
+    "INNER_MONOLOGUE_OVERUSE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 220,
+          "text": "미세한 온기가 전해졌다. 거부할 생각 따위는 애초에 없었다는 듯, 태형은 순순히 그 손길에 이끌려 몸을 일으켰다. 키 차이 때문에 자연스레 내려다보게 되는 렌의 시선은 망설임이"
+        }
+      ]
+    },
+    "SENSORY_GROUNDING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 138,
+          "text": "술 끝에 머물러 있던 가벼운 휘파람 소리가 맥없이 끊어졌다. 두 손가락으로 팽팽하게 쥐어진 컴프레션 셔츠의 앞자락을 통해 렌의 손끝에서 배어 나오는 미세한 온기가 전해졌다. 거부"
+        }
+      ]
+    },
+    "ENVIRONMENT_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 42,
+          "text": "속으로 렌의 얼굴이 성큼 다가왔다. 소파 쿠션 위로 나른하게 퍼져 있던 공기가 단숨에 압축되는 느낌이었다. 배달 앱 화면을 깜빡이던 스마트폰을 든 손이 허공에서 굳었고, 입술 끝에"
+        }
+      ]
+    },
+    "APPEARANCE_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 18,
+          "text": "장난스럽게 흔들리던 태형의 녹색 눈동자 속으로 렌의 얼굴이 성큼 다가왔다. 소파 쿠션 위로 나른하게 퍼져 있던 공기가 단숨에 압축되는 느낌이었다. 배달 앱 화면을 깜빡이던 스마트폰"
+        }
+      ]
+    },
+    "SPATIAL_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 42,
+          "text": "속으로 렌의 얼굴이 성큼 다가왔다. 소파 쿠션 위로 나른하게 퍼져 있던 공기가 단숨에 압축되는 느낌이었다. 배달 앱 화면을 깜빡이던 스마트폰을 든 손이 허공에서 굳었고, 입술 끝에"
+        }
+      ]
+    },
+    "BODY_POSITION_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 110,
+          "text": "깜빡이던 스마트폰을 든 손이 허공에서 굳었고, 입술 끝에 머물러 있던 가벼운 휘파람 소리가 맥없이 끊어졌다. 두 손가락으로 팽팽하게 쥐어진 컴프레션 셔츠의 앞자락을 통해 렌의 손"
+        }
+      ]
+    },
+    "CHARACTER_VOICE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 0,
+          "text": "장난스럽게 흔들리던 태형의 녹색 눈동자 속으로 렌의 얼굴이 성큼 다가왔다. 소파 쿠션 위로 나른하게 퍼져 있던 공기가 단숨에 압축되는 느낌이었다. 배달 앱 화면을 깜빡이던 스마트폰"
+        }
+      ]
+    },
+    "DIALOGUE_NATURALNESS": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 1530,
+          "text": "험한 미소가 얼굴 전체에 번졌다. \"……야.\" 낮게 가라앉은 목소리가 렌의 귓가를 긁듯이 파고들었다. 소리를 다루는 센티넬답게, 낮게 읊조리는 한마디에도 미세한 공기의 진동이"
+        }
+      ]
+    },
+    "RELATIONSHIP_ATMOSPHERE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 0,
+          "text": "장난스럽게 흔들리던 태형의 녹색 눈동자 속으로 렌의 얼굴이 성큼 다가왔다. 소파 쿠션 위로 나른하게 퍼져 있던 공기가 단숨에 압축되는 느낌이었다. 배달 앱 화면을 깜빡이던 스마트폰"
+        }
+      ]
+    },
+    "SEMANTIC_REPETITION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "MICRO_ACTION_LOOP": {
+      "hit": false,
+      "excerpts": []
+    },
+    "EXPLANATION_AFTER_SHOWING": {
+      "hit": false,
+      "excerpts": []
+    },
+    "PSEUDO_CLINICAL_EXPLANATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "AGENCY_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "REGISTER_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "LAYOUT_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    }
+  }
+}

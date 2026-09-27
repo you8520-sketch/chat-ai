@@ -1,0 +1,151 @@
+{
+  "model": "deepseek-v4-pro-0813",
+  "snapshot": "SNAPSHOT_B_T2",
+  "rep": 2,
+  "capsuleHash": "251ae04247be8ac62c66e8af3b58c0797c94e4938cb3a7a5dec92893da7ab03e",
+  "promptHash": "9553f557fe831a13e80853bdba8a14895573c6ff87de274e8b9d4fe8e640ddee",
+  "snapshotFingerprint": "d81132d8052cda36109a9825fa06fea83c2391cd6b86669e3777358c4c5d056f",
+  "providerCallCount": 1,
+  "visibleChars": 2567,
+  "prompt_tokens": 16415,
+  "completion_tokens": 2010,
+  "reasoning_tokens": 0,
+  "finish_reason": "stop",
+  "latencyMs": 39221,
+  "httpStatus": 200,
+  "error": null,
+  "occurrences": {
+    "DIRECT_EMOTION_LABEL": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SHOW_THROUGH_BEHAVIOR": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 115,
+          "text": "미소를 입가에 건 채, 장난스러운 시선으로 뚫어져라 바라보고 있었다. 하지만 렌은 예상과 달리 대답 대신 손을 뻗어 태형의 재킷 앞자락을 두 손가락으로 가볍게 잡았다. \"아까부"
+        }
+      ]
+    },
+    "INNER_MONOLOGUE_OVERUSE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 305,
+          "text": "은 정말 겁이 없단 말이지. 그렇게 생각하며 그가 뭐라 받아칠까 입술을 열려는 순간, 렌은 태형의 옷자락을 잡은 채 침대 쪽으로 몇 걸음 물러났다. 끌려가듯 상체가 앞으로 쏠렸지만"
+        }
+      ]
+    },
+    "SENSORY_GROUNDING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 22,
+          "text": "이에서 내려다본 렌의 얼굴은 로비의 따뜻한 햇살 아래서 한층 또렷했다. 태형은 상대가 무슨 말을 할지, 어떤 반응을 보일지 느긋하게 기다리는 중이었다. 특유의 능글맞은 미소를 입가"
+        }
+      ]
+    },
+    "ENVIRONMENT_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 18,
+          "text": "가까이에서 내려다본 렌의 얼굴은 로비의 따뜻한 햇살 아래서 한층 또렷했다. 태형은 상대가 무슨 말을 할지, 어떤 반응을 보일지 느긋하게 기다리는 중이었다. 특유의 능글맞은 미소를"
+        }
+      ]
+    },
+    "APPEARANCE_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 165,
+          "text": "달리 대답 대신 손을 뻗어 태형의 재킷 앞자락을 두 손가락으로 가볍게 잡았다. \"아까부터 자꾸 쳐다보던데. 왜?\" 그 짧은 한마디와 함께 렌이 한 걸음 가까이 붙었다. 경계심"
+        }
+      ]
+    },
+    "SPATIAL_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 0,
+          "text": "가까이에서 내려다본 렌의 얼굴은 로비의 따뜻한 햇살 아래서 한층 또렷했다. 태형은 상대가 무슨 말을 할지, 어떤 반응을 보일지 느긋하게 기다리는 중이었다. 특유의 능글맞은 미소를"
+        }
+      ]
+    },
+    "BODY_POSITION_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 4,
+          "text": "가까이에서 내려다본 렌의 얼굴은 로비의 따뜻한 햇살 아래서 한층 또렷했다. 태형은 상대가 무슨 말을 할지, 어떤 반응을 보일지 느긋하게 기다리는 중이었다. 특유의 능글맞은 미소를"
+        }
+      ]
+    },
+    "CHARACTER_VOICE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 42,
+          "text": "따뜻한 햇살 아래서 한층 또렷했다. 태형은 상대가 무슨 말을 할지, 어떤 반응을 보일지 느긋하게 기다리는 중이었다. 특유의 능글맞은 미소를 입가에 건 채, 장난스러운 시선으로 뚫어"
+        }
+      ]
+    },
+    "DIALOGUE_NATURALNESS": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 191,
+          "text": "을 두 손가락으로 가볍게 잡았다. \"아까부터 자꾸 쳐다보던데. 왜?\" 그 짧은 한마디와 함께 렌이 한 걸음 가까이 붙었다. 경계심이라곤 눈곱만큼도 없는 그 움직임에 태형은 오히"
+        }
+      ]
+    },
+    "RELATIONSHIP_ATMOSPHERE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 76,
+          "text": "할지, 어떤 반응을 보일지 느긋하게 기다리는 중이었다. 특유의 능글맞은 미소를 입가에 건 채, 장난스러운 시선으로 뚫어져라 바라보고 있었다. 하지만 렌은 예상과 달리 대답 대신 손"
+        }
+      ]
+    },
+    "SEMANTIC_REPETITION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "MICRO_ACTION_LOOP": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 1175,
+          "text": "뻗었다. 흐트러진 머리카락 사이로 손가락을 천천히 밀어 넣으며, 손바닥으로 뒷머리를 감싸듯 잡았다. 그대로 엄지손가락으로 귀 뒤의 연한 살을 느리게 쓸어내렸다. 손끝에서부터 상대"
+        }
+      ]
+    },
+    "EXPLANATION_AFTER_SHOWING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 1087,
+          "text": "아래 감춰져 있던 무언가가 스치는 듯했다. 곧, 태형의 낮은 웃음소리가 짧게 터져 나왔다. \"하…… 이거 참.\" 태형은 한 손을 들어 렌의 뒤통수 쪽으로 뻗었다. 흐트러진 머"
+        }
+      ]
+    },
+    "PSEUDO_CLINICAL_EXPLANATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "AGENCY_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "REGISTER_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "LAYOUT_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    }
+  }
+}
