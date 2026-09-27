@@ -1,20 +1,54 @@
 import type { OfficialSupplyBatchConfig } from "@/lib/officialSupply/store";
-import type { StyleReference } from "@/lib/officialSupply/types";
+import type { OfficialCharacterDraft, StyleReference } from "@/lib/officialSupply/types";
 
-export const PILOT_STYLE_PROOF_BATCH_KEY = "pilot-romance-fantasy-01";
-export const PILOT_STYLE_PROOF_STYLE_KEY = "romance_fantasy_v1";
+export const PILOT_STYLE_PROOF_BATCH_KEY = "pilot-romance-fantasy-02-style-proof";
+export const PILOT_STYLE_PROOF_SOURCE_STYLE_KEY = "romance_fantasy_v1";
+export const PILOT_STYLE_PROOF_STYLE_KEY = "romance_fantasy_v2";
 export const PILOT_STYLE_PROOF_CANDIDATE_ID = "rf-02";
+
+export const PILOT_STYLE_PROOF_SOURCE_DRAFT_KEYS = Array.from(
+  { length: 10 },
+  (_, index) => `pilot-rf-${String(index + 1).padStart(2, "0")}`
+) as readonly string[];
+
+export function pilotStyleProofDraftKey(sourceDraftKey: string): string {
+  const match = /^pilot-rf-(\d{2})$/.exec(sourceDraftKey);
+  if (!match) throw new Error(`unexpected pilot source draft key ${sourceDraftKey}`);
+  return `pilot-rf-v2-${match[1]}`;
+}
+
 export const PILOT_STYLE_PROOF_DRAFT_KEYS = [
-  "pilot-rf-01",
-  "pilot-rf-02",
-  "pilot-rf-09",
+  pilotStyleProofDraftKey("pilot-rf-01"),
+  pilotStyleProofDraftKey("pilot-rf-02"),
+  pilotStyleProofDraftKey("pilot-rf-09"),
 ] as const;
+
 export const PILOT_STYLE_PROOF_SLOT_KEY = "rep";
 export const PILOT_STYLE_PROOF_ASSET_LIMIT = PILOT_STYLE_PROOF_DRAFT_KEYS.length;
 export const PILOT_STYLE_PROOF_LIVE_ENV = "OFFICIAL_STYLE_PROOF_LIVE";
 export const PILOT_STYLE_PROOF_CANDIDATE_ENV = "OFFICIAL_STYLE_PROOF_CANDIDATE";
 export const PILOT_STYLE_SEED_PATH =
-  "/official-supply/style-seeds/romance-fantasy-rf-02-v1.svg";
+  "/official-supply/style-seeds/romance-fantasy-rf-02-v2.svg";
+
+/**
+ * Version the execution identity without cloning the committed character content.
+ * The source bible/appearance/asset plan remain canonical in the existing pilot files;
+ * only the supply-pipeline draft/style identifiers change for the v2 proof run.
+ */
+export function buildPilotStyleProofDraft(
+  source: OfficialCharacterDraft
+): OfficialCharacterDraft {
+  if (source.styleKey !== PILOT_STYLE_PROOF_SOURCE_STYLE_KEY) {
+    throw new Error(
+      `source draft ${source.draftKey} style=${source.styleKey}; expected ${PILOT_STYLE_PROOF_SOURCE_STYLE_KEY}`
+    );
+  }
+  return {
+    ...source,
+    draftKey: pilotStyleProofDraftKey(source.draftKey),
+    styleKey: PILOT_STYLE_PROOF_STYLE_KEY,
+  };
+}
 
 export const PILOT_STYLE_PROOF_BATCH_CONFIG: OfficialSupplyBatchConfig = {
   rollout: { maxWorlds: 1, maxCharacters: 10 },
@@ -72,6 +106,6 @@ export function buildPilotStyleSeed(
     url: resolvePilotStyleSeedUrl(env),
     provenance: "platform_owned",
     note:
-      "Original platform-authored abstract court-lighting/palette seed. It contains no external artwork, artist imitation target, character identity, logo, or watermark.",
+      "Original platform-authored abstract v2 court-lighting/palette seed. It contains no external artwork, artist imitation target, character identity, logo, or watermark.",
   };
 }

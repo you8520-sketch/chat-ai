@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1536" viewBox="0 0 1024 1536">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#172033"/>
+      <stop offset="0.48" stop-color="#2b1830"/>
+      <stop offset="1" stop-color="#101727"/>
+    </linearGradient>
+    <radialGradient id="faceLight" cx="50%" cy="31%" r="38%">
+      <stop offset="0" stop-color="#fff1dc" stop-opacity="0.98"/>
+      <stop offset="0.32" stop-color="#f4cdb7" stop-opacity="0.66"/>
+      <stop offset="0.68" stop-color="#c67988" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#7f2945" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4d89c"/>
+      <stop offset="1" stop-color="#a8783c"/>
+    </linearGradient>
+    <linearGradient id="hairSheen" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#202838"/>
+      <stop offset="0.5" stop-color="#68758a"/>
+      <stop offset="1" stop-color="#24283a"/>
+    </linearGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="18"/></filter>
+  </defs>
+
+  <rect width="1024" height="1536" fill="url(#bg)"/>
+  <ellipse cx="512" cy="470" rx="388" ry="420" fill="url(#faceLight)" filter="url(#soft)"/>
+
+  <!-- abstract card-readability silhouette; no character identity -->
+  <path d="M190 1220 C270 1010 372 930 512 920 C652 930 754 1010 834 1220 L890 1536 H134 Z"
+        fill="#182031" stroke="#8d6a45" stroke-width="5"/>
+  <path d="M355 1008 C414 970 610 970 669 1008 L640 1370 H384 Z"
+        fill="#28243a" stroke="url(#gold)" stroke-width="5"/>
+
+  <!-- bright face window -->
+  <ellipse cx="512" cy="690" rx="170" ry="205" fill="#f2cdb6" opacity="0.34"/>
+  <path d="M354 696 C366 535 430 452 512 435 C594 452 658 535 670 696"
+        fill="url(#hairSheen)" stroke="#78859a" stroke-width="5"/>
+
+  <!-- eye / mouth readability guides -->
+  <path d="M405 670 C450 646 474 646 505 666" fill="none" stroke="#f5dfd1" stroke-width="10" opacity="0.72"/>
+  <path d="M519 666 C550 646 574 646 619 670" fill="none" stroke="#f5dfd1" stroke-width="10" opacity="0.72"/>
+  <path d="M449 770 C486 790 538 790 575 770" fill="none" stroke="#b75f70" stroke-width="8" opacity="0.75"/>
+
+  <!-- court-status accents kept secondary to face -->
+  <path d="M370 1050 L512 1150 L654 1050" fill="none" stroke="url(#gold)" stroke-width="10"/>
+  <path d="M126 350 L286 286 M898 350 L738 286 M170 1348 L312 1276 M854 1348 L712 1276"
+        stroke="#d2b06c" stroke-width="4" opacity="0.5"/>
+</svg>
