@@ -18,19 +18,21 @@ import {
   runOfficialAssetSlot,
 } from "@/lib/officialSupply/runner";
 import {
-  PILOT_STYLE_PROOF_ASSET_LIMIT,
   PILOT_STYLE_PROOF_BATCH_CONFIG,
-  PILOT_STYLE_PROOF_BATCH_KEY,
   PILOT_STYLE_PROOF_CANDIDATE_ID,
-  PILOT_STYLE_PROOF_DRAFT_KEYS,
   PILOT_STYLE_PROOF_SOURCE_DRAFT_KEYS,
   PILOT_STYLE_PROOF_SOURCE_STYLE_KEY,
   PILOT_STYLE_PROOF_SLOT_KEY,
-  PILOT_STYLE_PROOF_STYLE_KEY,
-  buildPilotStyleProofDraft,
-  buildPilotStyleSeed,
   pilotStyleProofOptedIn,
 } from "@/lib/officialSupply/pilotStyleProof";
+import {
+  PILOT_STYLE_PROOF_V3_ASSET_LIMIT,
+  PILOT_STYLE_PROOF_V3_BATCH_KEY,
+  PILOT_STYLE_PROOF_V3_DRAFT_KEYS,
+  PILOT_STYLE_PROOF_V3_STYLE_KEY,
+  buildUserOwnedRofanProofDraft,
+  buildUserOwnedRofanStyleSeed,
+} from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import {
   OfficialSupplyGateError,
   OfficialSupplyStore,
@@ -48,7 +50,7 @@ const ROOT = process.cwd();
 const PILOT_DIR = path.join(ROOT, "src/lib/officialSupply/pilot");
 const CHAR_DIR = path.join(PILOT_DIR, "characters");
 const PACKET_DIR = path.join(getDataDir(), "official-supply-style-proof");
-const PACKET_PATH = path.join(PACKET_DIR, `${PILOT_STYLE_PROOF_STYLE_KEY}.json`);
+const PACKET_PATH = path.join(PACKET_DIR, `${PILOT_STYLE_PROOF_V3_STYLE_KEY}.json`);
 const STAGING_USER: SessionUser = {
   id: 0,
   nickname: "official-style-proof",
@@ -106,24 +108,25 @@ function loadCharacters(): PilotCharacterFile[] {
     if (source.draftKey !== sourceDraftKey || source.draft.draftKey !== sourceDraftKey) {
       throw new Error(`${sourceDraftKey} source identity drifted; STOP before provider calls`);
     }
+    const draft = buildUserOwnedRofanProofDraft(source.draft);
     return {
       ...source,
-      draftKey: buildPilotStyleProofDraft(source.draft).draftKey,
-      draft: buildPilotStyleProofDraft(source.draft),
+      draftKey: draft.draftKey,
+      draft,
     };
   });
 }
 
 function ensureBatch(store: OfficialSupplyStore): void {
   try {
-    const existing = store.getBatch(PILOT_STYLE_PROOF_BATCH_KEY);
+    const existing = store.getBatch(PILOT_STYLE_PROOF_V3_BATCH_KEY);
     assertSame("pilot batch config", existing.config, PILOT_STYLE_PROOF_BATCH_CONFIG);
     if (existing.status !== "active") {
       throw new Error(`pilot batch is ${existing.status}: ${existing.pauseReason ?? ""}`);
     }
   } catch (error) {
     if (!missing(error, "batch_not_found")) throw error;
-    store.createBatch(PILOT_STYLE_PROOF_BATCH_KEY, PILOT_STYLE_PROOF_BATCH_CONFIG);
+    store.createBatch(PILOT_STYLE_PROOF_V3_BATCH_KEY, PILOT_STYLE_PROOF_BATCH_CONFIG);
   }
 }
 
@@ -135,27 +138,27 @@ function ensureStyle(store: OfficialSupplyStore, source: PilotStyleFile): void {
   }
   let style: OfficialGenreStyle;
   try {
-    style = store.getStyle(PILOT_STYLE_PROOF_STYLE_KEY);
+    style = store.getStyle(PILOT_STYLE_PROOF_V3_STYLE_KEY);
     assertSame("pilot style candidates", style.candidates, source.candidates);
-    if (style.proofAssetLimit !== PILOT_STYLE_PROOF_ASSET_LIMIT) {
+    if (style.proofAssetLimit !== PILOT_STYLE_PROOF_V3_ASSET_LIMIT) {
       throw new Error(
-        `pilot style proof limit is ${style.proofAssetLimit}; expected ${PILOT_STYLE_PROOF_ASSET_LIMIT}`
+        `pilot style proof limit is ${style.proofAssetLimit}; expected ${PILOT_STYLE_PROOF_V3_ASSET_LIMIT}`
       );
     }
   } catch (error) {
     if (!missing(error, "style_not_found")) throw error;
     style = store.proposeStyle({
-      styleKey: PILOT_STYLE_PROOF_STYLE_KEY,
+      styleKey: PILOT_STYLE_PROOF_V3_STYLE_KEY,
       genre: source.genre,
       candidates: source.candidates,
-      proofAssetLimit: PILOT_STYLE_PROOF_ASSET_LIMIT,
+      proofAssetLimit: PILOT_STYLE_PROOF_V3_ASSET_LIMIT,
     });
   }
 
-  const seed = buildPilotStyleSeed();
+  const seed = buildUserOwnedRofanStyleSeed();
   if (style.stage === "candidates_proposed") {
     style = store.approveStyleCandidate(
-      PILOT_STYLE_PROOF_STYLE_KEY,
+      PILOT_STYLE_PROOF_V3_STYLE_KEY,
       PILOT_STYLE_PROOF_CANDIDATE_ID,
       seed,
       REVIEWER
@@ -191,7 +194,7 @@ function ensureCharacter(
     }
   } catch (error) {
     if (!missing(error, "character_not_found")) throw error;
-    record = store.addCharacterDraft(PILOT_STYLE_PROOF_BATCH_KEY, file.draft, {
+    record = store.addCharacterDraft(PILOT_STYLE_PROOF_V3_BATCH_KEY, file.draft, {
       isStyleProof,
     });
   }
@@ -242,7 +245,7 @@ function ensureCharacter(
 async function main(): Promise<void> {
   if (!pilotStyleProofOptedIn()) {
     console.log(
-      `[official-style-proof] NOT_RUN: set OFFICIAL_STYLE_PROOF_LIVE=1 and OFFICIAL_STYLE_PROOF_CANDIDATE=${PILOT_STYLE_PROOF_CANDIDATE_ID}`
+      `[official-style-proof] NOT_RUN: target=${PILOT_STYLE_PROOF_V3_STYLE_KEY}; set OFFICIAL_STYLE_PROOF_LIVE=1 and OFFICIAL_STYLE_PROOF_CANDIDATE=${PILOT_STYLE_PROOF_CANDIDATE_ID}`
     );
     return;
   }
@@ -256,12 +259,12 @@ async function main(): Promise<void> {
   ensureBatch(store);
   ensureStyle(store, styleSource);
 
-  const proofSet = new Set<string>(PILOT_STYLE_PROOF_DRAFT_KEYS);
+  const proofSet = new Set<string>(PILOT_STYLE_PROOF_V3_DRAFT_KEYS);
   for (const file of characters) {
     ensureCharacter(store, file, proofSet.has(file.draftKey));
   }
 
-  if (store.evaluateBatchPortfolio(PILOT_STYLE_PROOF_BATCH_KEY).ok !== true) {
+  if (store.evaluateBatchPortfolio(PILOT_STYLE_PROOF_V3_BATCH_KEY).ok !== true) {
     throw new Error("pilot portfolio QA failed after canonical hydration");
   }
 
@@ -276,7 +279,7 @@ async function main(): Promise<void> {
   };
 
   const proofs: Array<Record<string, unknown>> = [];
-  for (const draftKey of PILOT_STYLE_PROOF_DRAFT_KEYS) {
+  for (const draftKey of PILOT_STYLE_PROOF_V3_DRAFT_KEYS) {
     const before = store.getAsset(draftKey, PILOT_STYLE_PROOF_SLOT_KEY);
     if (before.kind !== "representative") {
       throw new Error(`${draftKey}/${PILOT_STYLE_PROOF_SLOT_KEY} is not representative`);
@@ -334,10 +337,10 @@ async function main(): Promise<void> {
     });
   }
 
-  const started = store.countStyleProofSlotsStarted(PILOT_STYLE_PROOF_STYLE_KEY);
-  if (started !== PILOT_STYLE_PROOF_ASSET_LIMIT) {
+  const started = store.countStyleProofSlotsStarted(PILOT_STYLE_PROOF_V3_STYLE_KEY);
+  if (started !== PILOT_STYLE_PROOF_V3_ASSET_LIMIT) {
     throw new Error(
-      `proof attempts started=${started}; expected exactly ${PILOT_STYLE_PROOF_ASSET_LIMIT}`
+      `proof attempts started=${started}; expected exactly ${PILOT_STYLE_PROOF_V3_ASSET_LIMIT}`
     );
   }
 
@@ -357,7 +360,7 @@ async function main(): Promise<void> {
     }
   }
 
-  const style = store.getStyle(PILOT_STYLE_PROOF_STYLE_KEY);
+  const style = store.getStyle(PILOT_STYLE_PROOF_V3_STYLE_KEY);
   if (style.stage !== "candidate_approved") {
     throw new Error(
       `style became ${style.stage}; human review must happen before STYLE_LOCK`
