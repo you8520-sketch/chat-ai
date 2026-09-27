@@ -13,7 +13,15 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      SESSION_SECRET: "01234567890123456789012345678901"
+      WITHDRAWAL_ENCRYPTION_KEY: "01234567890123456789012345678901"
+      DISABLE_PAYOUT_SCHEDULER: "1"
+      DISABLE_FINANCE_SCHEDULER: "1"
+      DISABLE_DERIVED_CACHE_WORKER: "1"
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      DISABLE_WEB_PUSH: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
