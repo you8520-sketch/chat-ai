@@ -2,6 +2,7 @@ name: Validate authorial-habit JEV benchmark
 
 # Benchmark-only semantic refinement for existing authorialHabitAudit regex candidates.
 # CI never performs live provider calls.
+# Confidence diagnostics remain benchmark-only.
 on:
   pull_request:
     paths:
