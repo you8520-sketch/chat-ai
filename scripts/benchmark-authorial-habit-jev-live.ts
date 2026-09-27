@@ -50,6 +50,26 @@ void runAuthorialHabitJevBenchmark().then((result) => {
           actualProviderCostCoverage: result.jev.actualProviderCostCoverage,
           latencyMs: result.jev.latencyMs,
         },
+        diagnostics: {
+          disagreements: result.jev.rows
+            .filter((row) => row.verdict !== row.expectedVerdict)
+            .map((row) => ({
+              fixtureId: row.fixtureId,
+              expectedVerdict: row.expectedVerdict,
+              verdict: row.verdict,
+              choiceConfidence: row.choiceConfidence ?? null,
+              choiceProbabilities: row.choiceProbabilities ?? null,
+            })),
+          turnEnd: result.jev.rows
+            .filter((row) => row.fixtureId.startsWith("AH_END_"))
+            .map((row) => ({
+              fixtureId: row.fixtureId,
+              expectedVerdict: row.expectedVerdict,
+              verdict: row.verdict,
+              choiceConfidence: row.choiceConfidence ?? null,
+              choiceProbabilities: row.choiceProbabilities ?? null,
+            })),
+        },
         combined: result.combined,
       },
       null,
