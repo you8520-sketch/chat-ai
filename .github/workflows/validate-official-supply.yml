@@ -38,6 +38,9 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck:app
 
+      - name: Proof operator defaults to zero calls
+        run: npm run official-supply:style-proof
+
       - name: Official supply regressions
         run: >-
           node --conditions=react-server --import tsx
