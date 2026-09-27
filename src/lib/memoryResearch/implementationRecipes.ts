@@ -25,6 +25,7 @@ export type ImplementationRecipe = {
 };
 
 const QWEN_CONFIG_PATH = "src/lib/memory/memory-episodic-semantic-config.ts";
+const QWEN_RUNTIME_TEST_PATH = "src/lib/memory/memory-episodic-semantic-discovery.test.ts";
 
 export const IMPLEMENTATION_RECIPES: readonly ImplementationRecipe[] = [
   {
@@ -32,7 +33,7 @@ export const IMPLEMENTATION_RECIPES: readonly ImplementationRecipe[] = [
     candidateKey: "github:qwenlm/qwen3-embedding",
     recipeVersion: "1",
     requiredLiveRecipeId: "qwen3-embedding-vs-bge-m3",
-    allowedPaths: [QWEN_CONFIG_PATH],
+    allowedPaths: [QWEN_CONFIG_PATH, QWEN_RUNTIME_TEST_PATH],
     requiresRuntimeActivationReview: true,
     stopConditions: [
       "Do not merge until the deployed EPISODIC_SEMANTIC_DISCOVERY_ENABLED and EPISODIC_SEMANTIC_MODEL values are explicitly verified.",
@@ -54,6 +55,32 @@ export const IMPLEMENTATION_RECIPES: readonly ImplementationRecipe[] = [
             '    status: "APPROVED",',
           description:
             "Promote only the existing Qwen3 embedding config from provisional to benchmark-approved; runtime selection/flag remain separate owners.",
+        },
+        {
+          path: QWEN_RUNTIME_TEST_PATH,
+          before: '  it("runtime gate enables only the approved BGE config", () => {',
+          after: '  it("runtime gate enables approved configs and still rejects unknown models", () => {',
+          description: "Update the existing runtime-gate regression title to reflect more than one approved config.",
+        },
+        {
+          path: QWEN_RUNTIME_TEST_PATH,
+          before:
+            '    assert.deepEqual(\n' +
+            '      resolveEpisodicSemanticRuntime({\n' +
+            '        EPISODIC_SEMANTIC_DISCOVERY_ENABLED: "1",\n' +
+            '        EPISODIC_SEMANTIC_MODEL: "qwen3_embedding_8b",\n' +
+            '      } as NodeJS.ProcessEnv),\n' +
+            '      { enabled: false, reason: "config_provisional_live_benchmark_pending" }\n' +
+            '    );',
+          after:
+            '    assert.deepEqual(\n' +
+            '      resolveEpisodicSemanticRuntime({\n' +
+            '        EPISODIC_SEMANTIC_DISCOVERY_ENABLED: "1",\n' +
+            '        EPISODIC_SEMANTIC_MODEL: "qwen3_embedding_8b",\n' +
+            '      } as NodeJS.ProcessEnv),\n' +
+            '      { enabled: true, model: EPISODIC_SEMANTIC_MODEL_CANDIDATES.qwen3_embedding_8b }\n' +
+            '    );',
+          description: "Keep the existing activation-gate regression aligned with the approved config while preserving flag and model-key gating.",
         },
       ];
     },
