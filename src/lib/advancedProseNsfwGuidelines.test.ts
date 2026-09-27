@@ -27,17 +27,15 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.doesNotMatch(block, /\[NATURAL PROSE\]/);
     assert.doesNotMatch(block, /\[SHOW BEFORE TELL\]/);
     assert.doesNotMatch(block, /\[NO TEMPLATE WRITING\]/);
-    assert.match(block, /\[NARRATION REGISTER\]/);
+    assert.match(block, /\[COMMON PROSE\]/);
     assert.match(block, /\[SCENE FLOW\]/);
-    assert.match(block, /\[RHYTHM\]/);
-    assert.match(block, /\[IMMERSIVE PROSE\]/);
-    assert.match(block, /생각·연상·기억·오해·감정·판단/);
+    for (const retired of [/\[NARRATION REGISTER\]/, /\[RHYTHM\]/, /\[SENSATION\]/, /\[IMMERSIVE PROSE\]/, /\[WEBNOVEL BREATH\]/]) {
+      assert.doesNotMatch(block, retired);
+    }
+    assert.match(block, /해체\(-다\/-했다\)/);
+    assert.match(block, /표정·시선·호흡·습관·접촉·거리·행동·선택/);
     assert.match(block, /뜻이었다/);
-    assert.match(block, /감정은 이름으로 단정·요약하는 서술보다/);
-    assert.match(block, /행동·감각·신체 반응·시선·호흡·거리·침묵·생각의 흐름과 선택/);
-    assert.match(block, /실제 대사나 내적 언어에서 직접 자각하거나 말하는 순간/);
-    assert.match(block, /브리핑으로 만들지 않는다/);
-    assert.match(block, /\[WEBNOVEL BREATH\]/);
+    assert.match(block, /설정 설명 없이/);
     assert.doesNotMatch(block, /\[EMOTION & INNER EXPERIENCE\]/);
     assert.doesNotMatch(block, /\[NO POST-HOC VERDICT\]/);
     assert.doesNotMatch(block, /\[DIALOGUE NATURALNESS\]/);
@@ -87,14 +85,15 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.match(block, /실존 인물/);
     assert.match(block, /강압·비동의·CNC/);
     assert.match(block, /\[19\+ INTIMACY\]/);
-    assert.match(block, /해부학적 명칭/);
-    assert.match(block, /'좁은 곳', '은밀한 곳'/);
-    assert.match(block, /신체 부위의 이름을 장소·대명사·완곡어로 돌려 쓰지 않는다/);
-    assert.match(block, /신체 행동은 접촉·자세·방향·강도·리듬/);
-    assert.match(block, /대사량은 캐릭터 성격과 현재 장면에 맡기며/);
+    assert.match(block, /표준 해부학 명칭으로 직접 쓰고/);
+    assert.match(block, /비유·장소어·대명사 대신/);
+    assert.match(block, /접촉·자세·방향·강도·리듬의 변화가 감각·신체 반응·심리로/);
+    assert.match(block, /성격·말투·관계 단계와 현재 분위기를 그대로 잇는다/);
+    // Dialogue economy is owned by [COMMON PROSE], not the adult style block.
+    assert.doesNotMatch(block, /대사량은/);
     assert.doesNotMatch(block, /티키타카/);
     assert.doesNotMatch(block, /슬로 모션 — 한 동작을 마찰/);
-    assert.match(block, /\[NARRATION REGISTER\]/);
+    assert.match(block, /\[COMMON PROSE\]/);
     assert.doesNotMatch(block, /성기·귀두·음경/);
     assert.doesNotMatch(block, /모드 B/);
     assert.ok(block.indexOf(ADULT_CONTENT_POLICY_BLOCK) < block.indexOf("[19+ INTIMACY]"));
@@ -113,8 +112,9 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
 
   it("exports NSFW intimacy section constant", () => {
     assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /\[19\+ INTIMACY\]/);
-    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /신체 행동은 접촉·자세·방향·강도·리듬/);
-    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /정확한 표준 해부학적 명칭/);
+    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /접촉·자세·방향·강도·리듬의 변화/);
+    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /표준 해부학 명칭/);
+    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /시선·호흡·거리·접촉 전후의 반응·망설임·주도권 변화/);
     assert.doesNotMatch(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /티키타카/);
   });
 
@@ -124,10 +124,10 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.ok(p2.includes(DIALOGUE_NARRATION_P2_WITH_DENSE));
   });
 
-  it("P1 placement adds dense rule under [NARRATION REGISTER]", () => {
+  it("P1 placement adds dense rule under [COMMON PROSE]", () => {
     const sample = `${PROSE_STYLE_SECTION}\nExtra line.`;
     const p1 = applyDenseNarrationPlacementP1(sample);
-    assert.match(p1, /\[NARRATION REGISTER\]\n- Keep a continuous scene beat's action/);
+    assert.match(p1, /\[COMMON PROSE\]\n- Keep a continuous scene beat's action/);
     assert.ok(p1.includes(DENSE_NARRATION_LIGHTWEIGHT_RULE));
   });
 

@@ -91,7 +91,7 @@ describe("buildContext — Qwen OpenRouter prose rules", () => {
     );
 
     assert.ok(built.systemPrompt.includes("[19+ INTIMACY]"));
-    assert.ok(built.systemPrompt.includes("해부학적 명칭"));
+    assert.ok(built.systemPrompt.includes("표준 해부학 명칭"));
     assert.ok(!built.systemPrompt.includes("Explicit Sensory Mode"));
     assert.ok(!built.systemPrompt.includes("=== 19+ 컨텍스트 ==="));
     assert.ok(!built.systemPrompt.includes("=== 19+ 플랫폼 컨텍스트 ==="));

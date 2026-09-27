@@ -10,9 +10,8 @@ import { PROSE_STYLE_SECTION } from "@/lib/advancedProseNsfwGuidelines";
 describe("KOREAN WEBNOVEL STYLE (deprecated alias)", () => {
   it("aliases PROSE_STYLE_SECTION", () => {
     assert.equal(KOREAN_WEBNOVEL_STYLE_BLOCK, PROSE_STYLE_SECTION);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /\[NARRATION REGISTER\]/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /\[RHYTHM\]/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /\[WEBNOVEL BREATH\]/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /\[COMMON PROSE\]/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /\[SCENE FLOW\]/);
     assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /\[PROSE STYLE\]/);
     assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /OUTPUT LAYOUT/);
     assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /일상·대화/);
@@ -24,9 +23,9 @@ describe("KOREAN WEBNOVEL STYLE (deprecated alias)", () => {
     assert.equal(DYNAMIC_PROSE_STYLING_BLOCK, KOREAN_WEBNOVEL_STYLE_BLOCK);
   });
 
-  it("keeps compact layout rules", () => {
+  it("keeps compact narration rules", () => {
     assert.match(KOREAN_WEBNOVEL_STYLE, /해체\(-다/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /명사 단편 행/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /말줄임 \.\.\./);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /자연스러운 한국어 완결문/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /파편문·말줄임은/);
   });
 });

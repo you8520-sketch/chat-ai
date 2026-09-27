@@ -1,7 +1,7 @@
 /**
  * Scene pacing guidance — not a fixed generation checklist.
  * Scene Mode calm/tension/combat values remain available via [RUNTIME STYLE].
- * Style immersion lives in [IMMERSIVE PROSE]; this block only paces, not shortens.
+ * Style lives in [COMMON PROSE]; this block only paces, not shortens.
  */
 
 export const SCENE_FLOW_BLOCK = `[SCENE FLOW]

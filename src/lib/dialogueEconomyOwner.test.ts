@@ -28,7 +28,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 import { buildContext } from "@/services/contextBuilder";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import {
-  IMMERSIVE_PROSE_BLOCK,
+  COMMON_PROSE_BLOCK,
   PROSE_STYLE_SECTION,
   buildAdvancedProseNsfwGuidelines,
 } from "@/lib/advancedProseNsfwGuidelines";
@@ -93,17 +93,17 @@ function countOccurrences(text: string, needle: string): number {
 
 describe("P1 — canonical common dialogue-economy owner", () => {
   it("RC-A fixed: common prose owns dialogue share + same-speaker concentration exactly once", () => {
-    const block = IMMERSIVE_PROSE_BLOCK;
+    const block = COMMON_PROSE_BLOCK;
     assert.equal(countOccurrences(block, DIALOGUE_ECONOMY_MARKER), 1);
     assert.equal(countOccurrences(PROSE_STYLE_SECTION, DIALOGUE_ECONOMY_MARKER), 1);
     const bundle = buildAdvancedProseNsfwGuidelines({ nsfwEnabled: false });
     assert.equal(countOccurrences(bundle, DIALOGUE_ECONOMY_MARKER), 1);
   });
 
-  it("§9 — integrated into existing IMMERSIVE_PROSE_BLOCK (no new standalone block)", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /\[IMMERSIVE PROSE\]/);
-    assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /\[DIALOGUE ECONOMY\]/);
-    assert.ok(PROSE_STYLE_SECTION.includes(IMMERSIVE_PROSE_BLOCK));
+  it("§9 — integrated into the common prose owner (no new standalone block)", () => {
+    assert.match(COMMON_PROSE_BLOCK, /\[COMMON PROSE\]/);
+    assert.doesNotMatch(COMMON_PROSE_BLOCK, /\[DIALOGUE ECONOMY\]/);
+    assert.ok(PROSE_STYLE_SECTION.includes(COMMON_PROSE_BLOCK));
   });
 
   it("§4 — positive form: no fixed ratio, no hard numeric dialogue limit", () => {
@@ -113,36 +113,35 @@ describe("P1 — canonical common dialogue-economy owner", () => {
       /대사량.*[0-9]+/,
       /dialogue.*quota/i,
     ]) {
-      assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, forbidden);
+      assert.doesNotMatch(COMMON_PROSE_BLOCK, forbidden);
     }
     // Positive execution instruction, not prohibition-only.
-    assert.match(IMMERSIVE_PROSE_BLOCK, /대사는 장면의 관계·판단·행동을 바꾸는 말에 집중하고/);
+    assert.match(COMMON_PROSE_BLOCK, /관계·판단·행동을 바꾸는 말에 집중한다/);
   });
 
   it("§11 — same-speaker consolidation is compact, not a giant monologue", () => {
-    const block = IMMERSIVE_PROSE_BLOCK;
+    const block = COMMON_PROSE_BLOCK;
     // Consolidate into ONE SUFFICIENT utterance (충분한 — not giant), then move on.
     assert.match(block, /하나의 충분한 발화로 묶는다/);
-    assert.match(block, /나머지는 행동·감각·심리·관찰·환경 변화가 전개한다/);
     assert.doesNotMatch(block, /긴 독백|장문 독백/);
-    // The remainder is explicitly narration-owned — consolidation must not
-    // become a long single speech block that fills the scene.
+    // Quiet scenes stay observation/action-led so consolidation cannot become
+    // a long speech block that fills the scene.
     assert.ok(
-      block.indexOf("하나의 충분한 발화로 묶는다") < block.indexOf("나머지는 행동·감각·심리·관찰·환경 변화가 전개한다")
+      block.indexOf("하나의 충분한 발화로 묶는다") < block.indexOf("관찰과 행동이")
     );
   });
 
   it("§14 — scene matrix semantics present in the common owner", () => {
-    const block = IMMERSIVE_PROSE_BLOCK;
+    const block = COMMON_PROSE_BLOCK;
     const scenes: Array<[string, RegExp]> = [
       ["A quiet dyad", /조용한 1:1/],
-      ["B intimate dyad", /내면·관찰·행동과 결과가 중심/],
+      ["B intimate dyad", /관찰과 행동이/],
       ["C investigation", /조사/],
       ["D combat", /전투/],
       ["E ensemble banter", /다인 대화/],
       ["F argument", /논쟁/],
-      ["G silent character", /침묵·본업·퇴장도 자연스럽다/],
-      ["H talkative character", /다인 대화·논쟁·작전은 대화가 중심이라 자연스럽게 늘어난다/],
+      ["G silent character", /침묵·퇴장도 자연스럽다/],
+      ["H talkative character", /다인 대화·논쟁은 대사가 중심/],
     ];
     for (const [name, pattern] of scenes) {
       assert.match(block, pattern, name);
@@ -220,7 +219,7 @@ describe("P1 — protected invariants", () => {
   });
 
   it("§20 — token budget: common prose growth is bounded", () => {
-    const commonTokens = estimateTokens(IMMERSIVE_PROSE_BLOCK);
+    const commonTokens = estimateTokens(COMMON_PROSE_BLOCK);
     // The common block must stay well under a 3,000-token ceiling (29K P3 headroom).
     assert.ok(commonTokens < 3000, `common prose tokens ${commonTokens}`);
   });

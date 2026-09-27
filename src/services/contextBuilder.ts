@@ -176,7 +176,6 @@ import {
   createDeepSeekXmlBuffers,
   flushDeepSeekXmlBuffers,
   logDeepSeekContextStructure,
-  prependDeepSeekStyleOnlyReminder,
   resolveDeepSeekLoreXmlGroup,
   resolveDeepSeekShortHistoryLengthExtra,
   resolveDeepSeekShortUserTurnExtra,
@@ -1401,14 +1400,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     const userBodyWithOpening = deepSeekOpeningSceneContext
       ? `${deepSeekOpeningSceneContext}\n\n${userTurnContent}`
       : userTurnContent;
-    // Production DeepSeek: style-only reminder + optional momentum.
+    // Style is owned by [COMMON PROSE]; DeepSeek keeps only optional momentum here.
     // Competing length owners (DEEPSEEK LENGTH / SHORT HISTORY / SHORT USER / REGEN) OFF.
     // Sole numeric length owner remains USER_TAIL_LENGTH_OWNER_SENTENCE.
-    const deepSeekUserExtras = [deepSeekMomentumExtra].filter(Boolean).join("\n");
-    userTurnContent = prependDeepSeekStyleOnlyReminder(
-      userBodyWithOpening,
-      deepSeekUserExtras || null
-    );
+    const body = userBodyWithOpening.trim();
+    userTurnContent = deepSeekMomentumExtra
+      ? `${deepSeekMomentumExtra}\n\n${body}`
+      : body;
   } else if (deepSeekLengthStackOnly) {
     // Probe / canary length-stack-only mode — keep thin-history nudges only.
     const lengthStack = [

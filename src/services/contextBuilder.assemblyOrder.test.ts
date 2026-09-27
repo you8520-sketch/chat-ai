@@ -119,7 +119,7 @@ describe("buildContext — persona-before-prose assembly order", () => {
 
     const split = built.openRouterSystemSplit;
     assert.ok(split);
-    assert.match(split!.characterSettingsBlock, /\[NARRATION REGISTER\]/);
+    assert.match(split!.characterSettingsBlock, /\[COMMON PROSE\]/);
     assert.match(split!.systemRulesBlock, /\[CHARACTER KNOWLEDGE BOUNDARY\]/);
     assert.match(built.systemPrompt, /\[CHARACTER CANON — Hero MAY KNOW/);
     assert.match(built.systemPrompt, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
@@ -285,7 +285,7 @@ describe("buildContext — persona-before-prose assembly order", () => {
       sectionOrder(ids, "character-core-identity") <
         sectionOrder(ids, "rule-advanced-prose-nsfw")
     );
-    assert.match(built.systemPrompt, /\[NARRATION REGISTER\]/);
+    assert.match(built.systemPrompt, /\[COMMON PROSE\]/);
     assert.match(built.systemPrompt, /\[CHARACTER CANON — Hero MAY KNOW/);
   });
 });

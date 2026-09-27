@@ -19,46 +19,27 @@ export type AdvancedProseNsfwOpts = {
   includeAbsoluteProhibition?: boolean;
 };
 
-/** Common RP prose Owner — all models share this (not DeepSeek-specific). */
-export const IMMERSIVE_PROSE_BLOCK = `[IMMERSIVE PROSE]
-한국 웹소설·캐릭터 중심 소설처럼 현재 장면의 대화·행동·공간·감각·판단·관계 변화를 중심에 둔다(present first). 관찰만 나열하지 말고 생각·연상·기억·오해·감정·판단이 행동과 자연스럽게 이어지게 한다. 정본·LTM·관계기억·USER_PERSONA fact는 현재 cue에 relevant할 때만 짧게 작동해 관찰·판단·행동·대사 선택을 바꾸고, 설정 문장·기억 문장을 그대로 복사하거나 매 턴 의무적으로 회상하지 않는다. 같은 기억·키워드·상징·비유를 다시 쓸 때는 새 정보·판단·감정 변화·행동 결과·관계 변화·다른 의미 중 하나가 있어야 한다.
+/**
+ * Legacy Main RP common prose — single canonical style owner for all models.
+ * Layout, length, speech register, agency and content policy have their own owners.
+ */
+export const COMMON_PROSE_BLOCK = `[COMMON PROSE]
+지문은 현재 장면과 인물 체험에 밀착한 해체(-다/-했다)의 자연스러운 한국어 완결문으로 쓰고, 문장 길이는 호흡에 맞춘다. 파편문·말줄임은 강조나 망설임이 있을 때만 쓴다.
+감정과 관계는 표정·시선·호흡·습관·접촉·거리·행동·선택으로 드러내고, 드러난 의미를 "~라는 뜻이었다"식으로 재해설하지 않는다.
+내면은 현재 판단·행동·선택을 바꾸는 만큼 쓴다.
+장면에 작용하는 공간·빛·소리·온도·질감·외관을 구체적으로 고르고 장면이 바뀌면 초점을 옮기며, 중요한 순간과 전환엔 짧은 정적을 둔다.
+작은 행동·미세한 반응은 관계·긴장·안전감·의도가 드러나거나 바뀔 때 살리고 평범한 동작은 줄인다.
+의미가 전달되면 다음 반응·행동·환경·관계 변화로 나아가고, 조용한 장면도 요약 없이 대화·내면·분위기로 전개한다.
+대사는 설정 설명 없이 이 캐릭터가 지금 이 상대에게 할 법한, 관계·판단·행동을 바꾸는 말에 집중한다. 같은 화자의 연속된 말은 하나의 충분한 발화로 묶는다. 조용한 1:1·조사·전투는 관찰과 행동이, 다인 대화·논쟁은 대사가 중심이며 침묵·퇴장도 자연스럽다.
+정본·기억·페르소나는 현재 장면에 relevant할 때만 반영하고 복사·의무적 회상은 하지 않는다. 같은 기억·상징은 새 의미가 있을 때만 다시 쓴다. 호감은 정본과 누적 상호작용을 따른다.`;
 
-모든 움직임을 순서대로 기록하지 않는다. 분위기·관계·이해·긴장·결과를 바꾸는 디테일만 선택하고 평범한 이동·생활 동작은 압축한다. 내면·행동·환경·관계의 변화가 서로 인과적으로 이어지게 쓴다.
+/** @deprecated use COMMON_PROSE_BLOCK */
+export const IMMERSIVE_PROSE_BLOCK = COMMON_PROSE_BLOCK;
 
-대사는 이 캐릭터가 지금 이 상대에게 실제로 할 법한 말이어야 한다. 성격·관계가 말의 내용·생략·농담·망설임·충돌에 드러나게 하고 설정 브리핑으로 만들지 않는다. 붙잡으려 질문을 발명하지 말고, 이유가 없으면 침묵·본업·퇴장도 자연스럽다. 관심·호감은 정본·성격·누적 상호작용을 따르며 이유 없는 첫 만남 특별취급·기시감을 만들지 않는다(정본·친화 성격·사건 근거·명시 인연 예외). 관계는 중립·거리·경계도 포함한다.
+/** [SCENE FLOW] stays separate: production wire replaces it with [SCENE PACING]. */
+export const PROSE_STYLE_SECTION = `${COMMON_PROSE_BLOCK}
 
-대사는 장면의 관계·판단·행동을 바꾸는 말에 집중하고, 같은 화자의 이어지는 설명·반응·농담은 하나의 충분한 발화로 묶는다. 나머지는 행동·감각·심리·관찰·환경 변화가 전개한다. 조용한 1:1·조사·전투는 내면·관찰·행동과 결과가 중심이고, 다인 대화·논쟁·작전은 대화가 중심이라 자연스럽게 늘어난다.
-
-대사·행동·맥락으로 이미 드러난 동기·감정·관계 의미를 직후 “이것은 ~가 아니었다/~였다”, “~라는 뜻이었다”, “~의 표시였다”, “~하는 눈빛/어조이었다”처럼 추상 판정·정답 해설로 다시 쓰지 않는다. 감정은 이름으로 단정·요약하는 서술보다 행동·감각·신체 반응·시선·호흡·거리·침묵·생각의 흐름과 선택으로 독자가 느끼게 한다. 감정명은 캐릭터가 실제 대사나 내적 언어에서 직접 자각하거나 말하는 순간처럼 그 인물의 말투·상황에 자연스러울 때 사용한다. 독자가 알 수 없는 새 판단이나 이후 선택을 바꾸는 사고는 허용한다.
-
-같은 장면의 행동·감각·내면·반응은 인과적으로 연결하고 짧고 긴 문장의 호흡을 자연스럽게 섞는다. 장면을 행동 목록, 신체 부위 목록, 소품 조작 목록, 독립된 정보 조각의 연속처럼 쓰지 않는다.
-
-평온한 장면도 대화·내면·관계·분위기·결과로 전개하되 미세 행동·반복 해설로 분량을 채우지 않는다.
-
-최근 서술의 좋은 문체와 리듬은 이어받되, 이전 답변의 길이는 모방하지 않는다. 현재 길이 지시가 항상 우선한다.`;
-
-export const PROSE_STYLE_SECTION = `[NARRATION REGISTER]
-지문·서술은 해체(-다/-했다/-이었다)만. (대사 register·존댓말은 [SPEECH METADATA]·예시 대사 — 지문에서 해설 금지)
-번역투·명사 단편 행·쉼표 나열로 이어 붙인 문장 금지.
-말줄임 ... 은 망설임·끊김·여운이 실제 있을 때만. ...... 금지.
-
-${SCENE_FLOW_BLOCK}
-
-[RHYTHM]
-연속 지문에서 같은 문장 시작형을 반복하지 말고, 다음 문장은 시작점을 바꿔 쓴다.
-짧은 문장·파편은 강조·긴장·충격에 이득일 때만 쓰고 습관적 연타를 피한다. 평서 지문은 한국어 흐름으로 관련 생각을 완결 문장에 묶고, 「하지만 그것도 찰나.」「아직은.」「그건 아니었다.」「천천히.」형 번역체 단문을 연속으로 늘어놓지 않는다.
-문장 길이 리듬과 문단 분리는 별개다.
-
-[SENSATION]
-촉·손·접촉·온기 묘사의 단일 Owner. 장면에 맞게 1~2채널만 깊게 — 질감·공간·온도·소리·대비·방향·거리.
-깊이는 밀도가 아니라 구체성이다.
-
-${IMMERSIVE_PROSE_BLOCK}
-
-[WEBNOVEL BREATH]
-pause·여운·턴 끝 호흡의 단일 Owner.
-중요 순간 직전: 지문 한 박 pause(공간·온도·소리).
-전환·분기: 공간·시간·분위기 한 줄 리셋.`;
+${SCENE_FLOW_BLOCK}`;
 
 export const ADULT_CONTENT_POLICY_BASE = `[ADULT CONTENT POLICY]
 금지: 미성년자·미성년으로 보이는 인물, 실존 인물의 성인 장면. 해당 신호가 있으면 성인 장면을 진행하지 않는다.`;
@@ -85,11 +66,12 @@ export function buildAdultContentPolicyBlock(
   return `${ADULT_CONTENT_POLICY_BASE}\n${ADULT_CONTENT_POLICY_CNC_PERMISSION}`;
 }
 
+/** Adult-scene style only; dialogue, emotion, layout and length live in their own owners. */
 const NSFW_INTIMACY_SECTION = `[19+ INTIMACY]
-lore와 장면의 문체를 유지하되, 성적 신체 부위는 독자가 대상을 즉시 알 수 있는 정확한 표준 해부학적 명칭으로 쓴다. '그곳', '좁은 곳', '은밀한 곳', '비밀스러운 곳', '민감한 곳', '안쪽'처럼 신체 부위의 이름을 장소·대명사·완곡어로 돌려 쓰지 않는다. 임상 용어를 목록처럼 나열하지도 않는다.
-신체 행동은 접촉·자세·방향·강도·리듬의 변화와 그에 따른 감각·반응·심리를 인과적으로 이어 쓰고, 관계 변화가 실제로 생기는 순간에는 그 변화가 행동과 반응에 자연스럽게 드러나게 한다. 같은 동작의 기계적 반복·신체 부위 나열로 장면을 채우지 않는다.
-대사량은 캐릭터 성격과 현재 장면에 맡기며, 행동 진행을 끊기 위해 질문이나 반응 확인 대사를 습관적으로 만들지 않는다.
-씬 고조 시에도 관계 단계·캐릭터 성격·대사 말투를 유지하고 오프캐릭터 순종·멜로드라마로 바꾸지 않는다.`;
+성인 장면에서도 캐릭터의 성격·말투·관계 단계와 현재 분위기를 그대로 잇는다.
+성적 신체 부위는 비유·장소어·대명사 대신 대상이 즉시 분명한 표준 해부학 명칭으로 직접 쓰고, 임상 용어를 나열하지 않는다.
+성적 긴장은 시선·호흡·거리·접촉 전후의 반응·망설임·주도권 변화로 드러낸다.
+접촉·자세·방향·강도·리듬의 변화가 감각·신체 반응·심리로, 다시 다음 행동과 관계 변화로 이어지게 쓰고, 같은 동작 반복이나 신체 부위 나열로 채우지 않는다.`;
 
 const ABSOLUTE_PROHIBITION_RULES = `=== 절대 금지 규칙 ===
 현재 장면과 무관한 직업·등급·과거사·설정 나열 금지.`;
@@ -112,12 +94,12 @@ export function stripDenseNarrationRule(system: string): string {
     .replace(/\n{3,}/g, "\n\n");
 }
 
-/** P1 — dense rule at start of prose style body (under NARRATION REGISTER). */
+/** P1 — dense rule at start of prose style body (under COMMON PROSE). */
 export function applyDenseNarrationPlacementP1(system: string): string {
   const scrubbed = stripDenseNarrationRule(system);
   if (scrubbed.includes(DENSE_NARRATION_LIGHTWEIGHT_RULE)) return scrubbed;
   return scrubbed.replace(
-    /(\[NARRATION REGISTER\]\n)/,
+    /(\[COMMON PROSE\]\n)/,
     `$1${DENSE_NARRATION_LIGHTWEIGHT_BULLET}\n`
   );
 }
