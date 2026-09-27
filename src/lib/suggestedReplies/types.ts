@@ -1,7 +1,7 @@
 /** Background Flash — next-user RP suggestions (not widget extract). */
 
 export const SUGGESTED_REPLY_MIN_CHARS = 50;
-export const SUGGESTED_REPLY_MAX_CHARS = 200;
+export const SUGGESTED_REPLY_MAX_CHARS = 150;
 export const SUGGESTED_REPLY_COUNT = 3;
 
 export const SUGGESTED_REPLIES_REQUEST_KIND = "background-suggested-replies-extract";
