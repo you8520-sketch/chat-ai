@@ -79,3 +79,69 @@ describe("cheaperInferenceCatalogPricing.server tier parser", () => {
     assert.equal(parsed.aboveThreshold, undefined);
   });
 });
+
+
+describe("CheaperInference catalog capability evidence", () => {
+  it("parses documented aliases/type/endpoint/capabilities and catalog version metadata", () => {
+    const parsed = parseCatalogPricing(
+      {
+        id: "next-rp-model",
+        type: "text",
+        endpoint: "/v1/chat/completions",
+        provider: "ExampleAI",
+        aliases: ["example/next-rp-model", " example/next-rp-model-v1 "],
+        capabilities: {
+          streaming: true,
+          reasoning: true,
+          vision: false,
+        },
+        pricing: {
+          input_per_million: 1,
+          output_per_million: 5,
+        },
+      },
+      Date.parse("2026-09-27T00:00:00Z"),
+      {
+        pricingVersion: "sha256:abc",
+        pricingCheckedAt: "2026-09-27T00:00:00Z",
+        pricingUpdatedAt: "2026-09-26T23:59:00Z",
+      }
+    );
+    assert.ok(parsed);
+    assert.equal(parsed!.catalogType, "text");
+    assert.equal(parsed!.catalogEndpoint, "/v1/chat/completions");
+    assert.equal(parsed!.catalogProvider, "ExampleAI");
+    assert.deepEqual(parsed!.catalogAliases, [
+      "example/next-rp-model",
+      "example/next-rp-model-v1",
+    ]);
+    assert.deepEqual(parsed!.catalogCapabilities, {
+      streaming: true,
+      reasoning: true,
+      vision: false,
+      video: undefined,
+    });
+    assert.equal(parsed!.catalogPricingVersion, "sha256:abc");
+    assert.equal(parsed!.catalogPricingCheckedAt, "2026-09-27T00:00:00Z");
+    assert.equal(parsed!.catalogPricingUpdatedAt, "2026-09-26T23:59:00Z");
+  });
+
+  it("accepts top-level capability booleans as a compatibility fallback", () => {
+    const parsed = parseCatalogPricing(
+      {
+        id: "fallback-capability-model",
+        type: "text",
+        endpoint: "/v1/chat/completions",
+        streaming: true,
+        reasoning: false,
+        pricing: {
+          input_per_million: 1,
+          output_per_million: 5,
+        },
+      },
+      Date.now()
+    )!;
+    assert.equal(parsed.catalogCapabilities?.streaming, true);
+    assert.equal(parsed.catalogCapabilities?.reasoning, false);
+  });
+});
