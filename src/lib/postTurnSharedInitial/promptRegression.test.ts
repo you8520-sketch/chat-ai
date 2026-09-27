@@ -246,8 +246,12 @@ describe("Shared Suggested Replies length owner", () => {
     assert.match(
       system,
       new RegExp(
-        `each text ${SUGGESTED_REPLY_MIN_CHARS}–${SUGGESTED_REPLY_MAX_CHARS} characters`
+        `${SUGGESTED_REPLY_MIN_CHARS}–${SUGGESTED_REPLY_MAX_CHARS} characters`
       )
+    );
+    assert.match(
+      system,
+      /Combine one concise action or narration beat with at least one spoken line/i
     );
     assert.doesNotMatch(system, /50–200 characters/);
   });

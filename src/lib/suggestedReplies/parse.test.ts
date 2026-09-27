@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
   clientNeedsSuggestedRepliesPoll,
@@ -30,13 +32,19 @@ describe("suggested reply kinds", () => {
     assert.doesNotMatch(SUGGESTED_REPLIES_CAPTION, /대사만/);
   });
 
-  it("labels natural, twist, and banter with short Korean hints", () => {
+  it("keeps internal kind metadata for telemetry (not user-facing UI)", () => {
     assert.equal(suggestedReplyKindMeta("natural").label, "정석");
     assert.equal(suggestedReplyKindMeta("twist").label, "한 수");
     assert.equal(suggestedReplyKindMeta("banter").label, "드립");
     assert.match(suggestedReplyKindMeta("natural").hint, /자연/);
     assert.match(suggestedReplyKindMeta("twist").hint, /각도/);
     assert.match(suggestedReplyKindMeta("banter").hint, /재치/);
+
+    const barSource = readFileSync(
+      join(process.cwd(), "src/components/SuggestedRepliesBar.tsx"),
+      "utf8"
+    );
+    assert.doesNotMatch(barSource, /suggestedReplyKindMeta/);
   });
 });
 

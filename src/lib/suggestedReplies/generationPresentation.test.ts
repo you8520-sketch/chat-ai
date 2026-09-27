@@ -25,6 +25,7 @@ import {
 } from "@/lib/suggestedReplies/parse";
 import { resolveClientAsyncRecordsFromMessageRow } from "@/lib/clientAsyncRecordRead";
 import { SUGGESTED_REPLY_KINDS, type SuggestedReplyItem } from "@/lib/suggestedReplies/types";
+import { buildSuggestedReplyCoreGenerationRules } from "@/lib/suggestedReplies/promptStyle";
 
 const CHAT_ID = 99001;
 const USER_ID = 99002;
@@ -401,14 +402,18 @@ describe("suggested replies generation vs presentation", () => {
     assert.equal(keys.size, 3);
   });
 
-  it("I — persona voice fields remain in shared prompt owner", () => {
+  it("I — persona voice fields remain shared while NPC guard comes from canonical prompt style owner", () => {
     const prompt = readFileSync(
       join(process.cwd(), "src/lib/postTurnSharedInitial/prompt.ts"),
       "utf8"
     );
     assert.match(prompt, /personaSpeechExamples/);
     assert.match(prompt, /USER SPEECH EXAMPLES/);
-    assert.match(prompt, /Do not write as the character\/NPC/);
+    assert.match(prompt, /buildSuggestedReplyCoreGenerationRules/);
+    assert.match(
+      buildSuggestedReplyCoreGenerationRules(),
+      /Do not write as the character\/NPC/
+    );
   });
 
   it("ineligible turns stay terminal — htmlFlash/ooc/empty prose owner unchanged", () => {

@@ -18,6 +18,8 @@ describe("suggested replies extract prompt", () => {
     assert.match(system, /kind": "twist"/);
     assert.match(system, /kind": "banter"/);
     assert.match(system, /USER persona/);
+    assert.match(system, /Combine one concise action or narration beat with at least one spoken line/i);
+    assert.match(system, /plain Korean prose/i);
   });
 
   it("includes persona speech examples and this-turn prose", () => {
