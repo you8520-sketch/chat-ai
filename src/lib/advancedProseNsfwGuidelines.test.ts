@@ -85,11 +85,12 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.match(block, /실존 인물/);
     assert.match(block, /강압·비동의·CNC/);
     assert.match(block, /\[19\+ INTIMACY\]/);
-    assert.match(block, /해부학적 명칭/);
-    assert.match(block, /'좁은 곳', '은밀한 곳'/);
-    assert.match(block, /신체 부위의 이름을 장소·대명사·완곡어로 돌려 쓰지 않는다/);
-    assert.match(block, /신체 행동은 접촉·자세·방향·강도·리듬/);
-    assert.match(block, /대사량은 캐릭터 성격과 현재 장면에 맡기며/);
+    assert.match(block, /표준 해부학 명칭으로 직접 쓰고/);
+    assert.match(block, /비유·장소어·대명사 대신/);
+    assert.match(block, /접촉·자세·방향·강도·리듬의 변화가 감각·신체 반응·심리로/);
+    assert.match(block, /성격·말투·관계 단계와 현재 분위기를 그대로 잇는다/);
+    // Dialogue economy is owned by [COMMON PROSE], not the adult style block.
+    assert.doesNotMatch(block, /대사량은/);
     assert.doesNotMatch(block, /티키타카/);
     assert.doesNotMatch(block, /슬로 모션 — 한 동작을 마찰/);
     assert.match(block, /\[COMMON PROSE\]/);
@@ -111,8 +112,9 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
 
   it("exports NSFW intimacy section constant", () => {
     assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /\[19\+ INTIMACY\]/);
-    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /신체 행동은 접촉·자세·방향·강도·리듬/);
-    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /정확한 표준 해부학적 명칭/);
+    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /접촉·자세·방향·강도·리듬의 변화/);
+    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /표준 해부학 명칭/);
+    assert.match(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /시선·호흡·거리·접촉 전후의 반응·망설임·주도권 변화/);
     assert.doesNotMatch(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /티키타카/);
   });
 

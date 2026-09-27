@@ -22,6 +22,7 @@ import { buildContext } from "@/services/contextBuilder";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import {
   COMMON_PROSE_BLOCK,
+  NSFW_EXPLICIT_SENSORY_WRITING_BLOCK,
   PROSE_STYLE_SECTION,
 } from "@/lib/advancedProseNsfwGuidelines";
 import { SCENE_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
@@ -33,6 +34,8 @@ import { DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY } from "@/lib/deepseekPromptStructu
 
 /** Agreed cap for the single common prose owner (local estimateTokens). */
 const COMMON_PROSE_TOKEN_CAP = 600;
+/** Adult style-only owner cap; adult policy/boundary blocks are separate owners. */
+const ADULT_STYLE_TOKEN_CAP = 250;
 
 const RETIRED_LEGACY_PROSE_HEADERS = [
   "[NARRATION REGISTER]",
@@ -96,6 +99,12 @@ describe("Legacy Main RP common prose budget gate", () => {
   it("common prose owner stays within the agreed token cap", () => {
     const tokens = estimateTokens(COMMON_PROSE_BLOCK);
     assert.ok(tokens <= COMMON_PROSE_TOKEN_CAP, `common prose ${tokens} > ${COMMON_PROSE_TOKEN_CAP}`);
+  });
+
+  it("adult style owner stays compact and does not re-own dialogue economy", () => {
+    const tokens = estimateTokens(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK);
+    assert.ok(tokens <= ADULT_STYLE_TOKEN_CAP, `adult style ${tokens} > ${ADULT_STYLE_TOKEN_CAP}`);
+    assert.doesNotMatch(NSFW_EXPLICIT_SENSORY_WRITING_BLOCK, /대사량|질문|반응 확인/);
   });
 
   it("prose style section = common owner + scene-flow pacing anchor only", () => {
