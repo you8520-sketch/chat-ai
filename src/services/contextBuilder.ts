@@ -4,7 +4,6 @@ import {
   applyCharacterHairCanonFact,
   buildCharacterHairCanonFactFromAppearanceText,
   collectCharacterSettingText,
-  resolveHairDescriptionPolicy,
 } from "@/lib/bodyHairRules";
 import { filterExampleDialogInSetting } from "@/lib/exampleDialogSceneFilter";
 import { isMuseExampleDialogBoundaryEnabledForUser } from "@/lib/museExampleDialogBoundaryPolicy";
@@ -498,8 +497,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     currentTurnDelegated,
     completedTurns: input.completedTurns ?? 0,
     hasMindReading: hasMindReading || settingHasMindReadingAbility(effectiveCharacterSettingText),
-    allowsBeard: hairPolicy.allowsBeard,
-    allowsBodyHair: hairPolicy.allowsBodyHair,
     party: input.party,
     tailFormatActive: !isOpenRouter,
     statusWindowTailActive: statusWindowPolicy.everyTurn,
