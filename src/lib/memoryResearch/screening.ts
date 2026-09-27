@@ -84,6 +84,12 @@ export function screenCandidate(
   if (!observation.evidence.hasReproducibleCode && !observation.evidence.hasPublishedBenchmark) {
     return stop("WATCH_INSUFFICIENT_EVIDENCE", "no reproducible code or published benchmark behind the claim");
   }
+  if (observation.category === "memory_benchmark") {
+    return stop(
+      "WATCH_NO_BENCHMARK_HOOK",
+      "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)"
+    );
+  }
   if (!applicableOwners.some((owner) => BENCHMARK_HOOKED_OWNERS.includes(owner))) {
     return stop(
       "WATCH_NO_BENCHMARK_HOOK",

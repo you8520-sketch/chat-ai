@@ -269,21 +269,36 @@ export const ARXIV_QUERIES: readonly string[] = [
 
 const ARXIV_DELAY_MS = 3100;
 
-const CATEGORY_KEYWORDS: ReadonlyArray<[CandidateCategory, RegExp]> = [
-  ["memory_benchmark", /\bbenchmark|\bdataset\b|LoCoMo|LongMemEval/i],
+/** Title-level cues win; `memory_benchmark` is only ever assigned from the title. */
+const TITLE_KEYWORDS: ReadonlyArray<[CandidateCategory, RegExp]> = [
+  ["memory_benchmark", /benchmark|bench\b|evaluation|dataset/i],
+  ["temporal_memory", /temporal|time|chronolog|supersed/i],
+  ["graph_memory", /graph/i],
+  ["reranker_model", /re-?rank/i],
+  ["embedding_model", /embedding/i],
+  ["long_context", /long[- ]context|context window|kv cache/i],
+  ["summary_method", /summari[sz]|consolidat/i],
+  ["companion_roleplay_memory", /role-?play|companion|persona/i],
+  ["rag_retrieval", /retrieval|\bRAG\b/i],
+];
+
+const ABSTRACT_KEYWORDS: ReadonlyArray<[CandidateCategory, RegExp]> = [
   ["temporal_memory", /temporal|time-aware|chronolog|supersed|knowledge update/i],
-  ["graph_memory", /knowledge graph|graph memory|graph-based/i],
+  ["graph_memory", /knowledge graph|graph memory|graph-based|hypergraph/i],
   ["reranker_model", /re-?rank/i],
   ["embedding_model", /embedding model|dense retriev/i],
   ["long_context", /long[- ]context|context window/i],
   ["summary_method", /summari[sz]/i],
   ["companion_roleplay_memory", /role-?play|companion|persona/i],
-  ["rag_retrieval", /retrieval|RAG\b/i],
+  ["rag_retrieval", /retrieval|\bRAG\b/i],
 ];
 
-export function classifyText(text: string): CandidateCategory {
-  for (const [category, pattern] of CATEGORY_KEYWORDS) {
-    if (pattern.test(text)) return category;
+export function classifyText(title: string, summary: string): CandidateCategory {
+  for (const [category, pattern] of TITLE_KEYWORDS) {
+    if (pattern.test(title)) return category;
+  }
+  for (const [category, pattern] of ABSTRACT_KEYWORDS) {
+    if (pattern.test(summary)) return category;
   }
   return "conversational_memory";
 }
@@ -333,7 +348,7 @@ export function parseArxivAtom(xml: string): ResearchObservation[] {
       publishedAt: tag(block, "published"),
       summary: summary.slice(0, 600),
       claimedAdvantage: (summary.match(/[^.]*(outperform|improv|state-of-the-art|surpass)[^.]*\./i)?.[0] ?? "").trim().slice(0, 300),
-      category: classifyText(text),
+      category: classifyText(title, summary),
       evidence: {
         hasReproducibleCode: /github\.com|code (is|will be) (publicly )?available|open-?source/i.test(summary),
         hasPublishedBenchmark: /LoCoMo|LongMemEval|benchmark|MSC\b/i.test(summary),

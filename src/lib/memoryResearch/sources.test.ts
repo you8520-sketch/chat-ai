@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import {
   arxivSource,
+  classifyText,
   githubWatchlistSource,
   GITHUB_WATCHLIST,
   parseArxivAtom,
@@ -51,7 +52,7 @@ it("arXiv Atom parsing: stable key without version, version kept, keyword catego
   const [a, b] = parseArxivAtom(ATOM);
   assert.equal(a!.candidateKey, "arxiv:2609.01234");
   assert.equal(a!.version, "v2");
-  assert.equal(a!.category, "memory_benchmark");
+  assert.equal(a!.category, "temporal_memory", "abstract mentioning a benchmark is not a benchmark release");
   assert.equal(a!.evidence.hasReproducibleCode, true);
   assert.equal(a!.evidence.hasPublishedBenchmark, true);
   assert.match(a!.claimedAdvantage, /outperforms/);
@@ -59,6 +60,13 @@ it("arXiv Atom parsing: stable key without version, version kept, keyword catego
   assert.equal(b!.category, "graph_memory");
   assert.deepEqual(b!.infraRequirements, ["graph_database"]);
   assert.equal(b!.evidence.hasReproducibleCode, false);
+});
+
+it("classification: memory_benchmark only from the title; title cues beat abstract cues", () => {
+  assert.equal(classifyText("DolphinBench: Mapping the Pareto Frontier of Agent Memory", "retrieval"), "memory_benchmark");
+  assert.equal(classifyText("CueMem: Cue-Guided Context Reconstruction", "evaluated on the LoCoMo benchmark with retrieval"), "rag_retrieval");
+  assert.equal(classifyText("EdgeMem: Multi-Anchor Hypergraph", "retrieval"), "graph_memory");
+  assert.equal(classifyText("RuleMem: Active Rule Memory", "we evaluate on LongMemEval"), "conversational_memory");
 });
 
 it("GitHub watchlist: repo + latest release; 404 release = unversioned; per-repo failures isolated", async () => {
