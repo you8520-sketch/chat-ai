@@ -100,12 +100,12 @@ function classifyLegacyAmbiguous(factId: string, raw: string): "LEGACY_UNMARKED_
 }
 
 describe("PR-C canon visibility — versioning", () => {
-  it("Plan V2 / Compiler V3 constants", () => {
+  it("Plan V2 / Compiler V4 constants", () => {
     assert.equal(CANON_PLAN_VERSION, 2);
-    assert.equal(CANON_COMPILER_VERSION, 3);
+    assert.equal(CANON_COMPILER_VERSION, 4);
     const plan = compile(`[이름]\n테스트`);
     assert.equal(plan.version, 2);
-    assert.equal(plan.compilerVersion, 3);
+    assert.equal(plan.compilerVersion, 4);
     assert.ok(plan.chunks.every((c) => c.visibility));
   });
 });

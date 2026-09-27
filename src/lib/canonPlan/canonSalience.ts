@@ -15,10 +15,12 @@ import type { CanonChunkSalience } from "@/lib/canonPlan/types";
 
 /** Identity / speech / ability section titles (existing semantics). */
 export const CORE_SECTION_TITLE =
-  /(?:^|\[)(?:name|identity|alias|appearance|personality|current\s*status|말투|외형|외모|성격|정체성|이름|호칭|별명|현재\s*신분|speech|abilities|능력|저주|curse|hidden\s*(?:condition|ability)|숨겨진\s*(?:조건|능력|저주))/i;
+  /(?:^|\[)(?:name|identity|alias|appearance|personality|current\s*status|말투|외형|외모|성격|정체성|이름|호칭|별명|현재\s*신분|직업|speech|abilities|능력|저주|curse|hidden\s*(?:condition|ability)|숨겨진\s*(?:조건|능력|저주))/i;
 
 export const CORE_IDENTITY_BODY =
-  /^(?:이름|name|본명|별명|정체성|직업|신분|종족|나이|성별)/i;
+  /^(?:이름|name|본명|별명|정체성|직업|신분|종족|나이|성별)\s*[:：·\s]+\S/i;
+
+const EXAMPLE_DIALOGUE_SECTION = /(?:예시\s*대(?:사|화)|example\s*dialog|speech\s*examples?)/i;
 
 /**
  * Fix #1 — conservative explicit law/rule SECTION titles (not bare 법칙|규칙).
@@ -210,6 +212,24 @@ export type SalienceDecision = {
   reason: SaliencePromotionReason;
 };
 
+/**
+ * Heterogeneous `[정체성]` sections may embed world/mechanics lists.
+ * Promote to CORE only when the chunk body is identity-sized, not encyclopedic.
+ */
+export function shouldPromoteCharacterIdentitySectionChunk(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (CORE_IDENTITY_BODY.test(t.slice(0, 48))) return true;
+  // Compact/spaced markdown leftovers mean the parent identity section still
+  // contains unsplit encyclopedia — do not promote the blob as CORE.
+  if (/^#{1,3}\S|^#{1,3}\s/m.test(t)) return false;
+  if (/^-\s*\*\*/m.test(t)) return false;
+  const bulletLines = t.split("\n").filter((line) => /^[-*]\s/.test(line.trim())).length;
+  if (bulletLines >= 3) return false;
+  if (t.length > 900) return false;
+  return true;
+}
+
 export function inferSalienceWithReason(chunk: {
   text: string;
   bucket: CanonKnowledgeBucket;
@@ -241,8 +261,14 @@ export function inferSalienceWithReason(chunk: {
   }
 
   if (chunk.bucket === "character") {
+    if (EXAMPLE_DIALOGUE_SECTION.test(chunk.sectionTitle)) {
+      return { salience: "dormant", reason: "DEFAULT_DORMANT" };
+    }
     if (CORE_SECTION_TITLE.test(chunk.sectionTitle)) {
-      return { salience: "core", reason: "IDENTITY_SECTION" };
+      if (shouldPromoteCharacterIdentitySectionChunk(chunk.text)) {
+        return { salience: "core", reason: "IDENTITY_SECTION" };
+      }
+      return { salience: "dormant", reason: "DEFAULT_DORMANT" };
     }
     if (CORE_IDENTITY_BODY.test(chunk.text.slice(0, 48))) {
       return { salience: "core", reason: "IDENTITY_BODY" };

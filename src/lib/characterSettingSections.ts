@@ -1,12 +1,12 @@
 import type { ChunkCategory } from "@/types";
 
 const HEADER_PATTERNS: { re: RegExp; category: ChunkCategory }[] = [
-  { re: /^(?:#{1,3}\s*)?(?:이름|성명|캐릭터\s*명|정체성|identity)/i, category: "identity" },
-  { re: /^(?:#{1,3}\s*)?(?:성격|personality|성향|기질)/i, category: "personality" },
+  { re: /^(?:#{1,3}\s*)?(?:이름|성명|캐릭터\s*명|정체성|직업|identity)/i, category: "identity" },
+  { re: /^(?:#{1,3}\s*)?(?:성격|personality|성향|기질|관심사|취미)/i, category: "personality" },
   { re: /^(?:#{1,3}\s*)?(?:말투|어조|대사|speech|말\s*버릇|호칭|금지\s*말투)/i, category: "speech" },
   { re: /^(?:#{1,3}\s*)?(?:배경|과거|서사|background|history|생애)/i, category: "background" },
   { re: /^(?:#{1,3}\s*)?(?:관계|인간관계|relationship|가족|친구|연인)/i, category: "relationships" },
-  { re: /^(?:#{1,3}\s*)?(?:능력|스킬|외형|외모|abilities|skill|외모\s*묘사)/i, category: "abilities" },
+  { re: /^(?:#{1,3}\s*)?(?:능력|스킬|외형|외모|체형|의상|abilities|skill|외모\s*묘사)/i, category: "abilities" },
   { re: /^(?:#{1,3}\s*)?(?:세계관|world|설정|배경\s*설정|시대|무대)/i, category: "world" },
 ];
 
@@ -75,6 +75,56 @@ function parseInlineBracketHeader(line: string): { label: string; body: string }
   return { label: m[1].trim(), body: (m[2] ?? "").trim() };
 }
 
+/** Compact (`#센티넬`) and spaced (`# 센티넬`) ATX headings. */
+const MARKDOWN_HEADING_RE = /^(#{1,3})(?:\s+|(?=\S))(.+)$/;
+
+const LABEL_REST_IS_SENTENCE =
+  /^(?:은|는|이|가|을|를|의|에|에서|으로|로|와|과|도|만|부터|까지|처럼|같이|사용|발동|발휘|때문에|위해|대한|관련|수치|상태)/;
+
+/** `과거·트라우마**: …` / `가족관계**: …` — markdown-bold field used as a heading. */
+const BOLD_LABEL_HEADING_RE = /^((?!\*\*|[-*]\s)[^\n]{2,40})\*\*[:：ㅣ|]/;
+
+export function matchExplicitSectionHeading(line: string): { label: string } | null {
+  const markdown = line.match(MARKDOWN_HEADING_RE);
+  if (markdown?.[2]?.trim()) return { label: markdown[2].trim() };
+  const bracket = line.match(/^【(.+?)】$/) || line.match(/^\[(.+?)\]$/);
+  if (bracket?.[1]?.trim()) return { label: bracket[1].trim() };
+  if (/^[-*]\s+\*\*/.test(line)) return null;
+  const bold = line.match(BOLD_LABEL_HEADING_RE);
+  if (bold?.[1]?.trim()) return { label: bold[1].replace(/\*+$/g, "").trim() };
+  return null;
+}
+
+/**
+ * Plain category labels (`능력`, `성격:`) are headers.
+ * Ordinary prose that merely begins with a category word is not
+ * (`능력 사용 시 가이딩 수치가 지속적으로 소모됨`).
+ */
+export function isPlainCategoryLabelHeader(line: string): boolean {
+  const n = normalizeLine(line);
+  if (!n || n.length > 48) return false;
+  for (const { re } of HEADER_PATTERNS) {
+    const m = n.match(re);
+    if (!m) continue;
+    const rest = n.slice(m[0].length).trim();
+    if (!rest) return true;
+    if (/^[:：]\s*$/.test(rest)) return true;
+    if (/^[:：]\s+\S/.test(rest)) {
+      const value = rest.replace(/^[:：]\s+/, "");
+      return value.length <= 32 && !/[.!?。함됨다요]$/.test(value);
+    }
+    if (LABEL_REST_IS_SENTENCE.test(rest)) return false;
+    if (rest.length > 12) return false;
+    if (/[다요함됨까네]\s*$/.test(rest)) return false;
+    return false;
+  }
+  return false;
+}
+
+export function isStructuralSectionHeader(line: string): boolean {
+  return matchExplicitSectionHeading(line) != null || isPlainCategoryLabelHeader(line);
+}
+
 const INLINE_SECTION_LABEL_RE =
   /^(?:이름|성명|현재\s*신분|외형|외모|성격|성향|말투|배경|과거|관계|능력|세계관|상태창|시스템|피의\s*저주|name|identity|personality|system\s*command)/i;
 
@@ -129,22 +179,15 @@ function splitIntoSections(combined: string): { title: string; body: string; hin
       continue;
     }
 
-    const headerMatch =
-      line.match(/^#{1,3}\s+(.+)$/) ||
-      line.match(/^【(.+?)】$/) ||
-      line.match(/^\[(.+?)\]$/);
-
-    let headerCategory: ChunkCategory | undefined;
-    let headerLabel: string | undefined;
-    if (headerMatch) {
-      headerLabel = headerMatch[1] ?? line;
-      headerCategory = resolveHeaderCategory(headerLabel);
-    }
-
-    if (headerMatch || HEADER_PATTERNS.some(({ re }) => re.test(normalizeLine(line)))) {
+    const explicitHeading = matchExplicitSectionHeading(line);
+    const plainLabel = !explicitHeading && isPlainCategoryLabelHeader(line);
+    if (explicitHeading || plainLabel) {
+      const headerLabel = explicitHeading?.label ?? normalizeLine(line);
       flush();
-      currentTitle = headerLabel ? formatSectionTitle(headerLabel) : normalizeLine(line);
-      currentHint = headerCategory ?? detectCategory(currentTitle);
+      currentTitle = formatSectionTitle(headerLabel);
+      currentHint = resolveHeaderCategory(headerLabel) ?? detectCategory(currentTitle);
+      const boldRemainder = line.match(/^[^\n]{2,40}\*\*[:：ㅣ|]\s*(\S.*)$/);
+      if (boldRemainder?.[1]) currentLines.push(boldRemainder[1]);
       continue;
     }
 
