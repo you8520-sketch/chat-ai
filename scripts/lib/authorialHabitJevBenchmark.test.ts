@@ -251,7 +251,11 @@ describe("authorial habit JEV benchmark execution isolation", () => {
     assert.equal(result.totalProviderCalls, 0);
     assert.equal(result.jev.preflightFailureCount, 1);
     assert.equal(result.jev.failureCount, 1);
+    assert.equal(result.jev.unresolvedCount, 1);
     assert.equal(result.jev.malformedCount, 0);
+    assert.equal(result.combined.jevNeedsReviewVolume, 1);
+    assert.equal(result.combined.jevTotalReviewVolume, 1);
+    assert.equal(result.combined.totalReviewVolumeReductionVsScannerOnly, 0);
     assert.equal(result.jev.actualProviderCostCoverage, "none");
     assert.equal(result.jev.actualProviderCostUsd, null);
     assert.equal(result.jev.reportedProviderCostUsd, null);
