@@ -2,7 +2,7 @@ import { estimateTokens } from "@/lib/ai";
 import { resolveCharacterGender } from "@/lib/characterGender";
 import {
   applyCharacterHairCanonFact,
-  buildCharacterHairCanonFactFromSetting,
+  buildCharacterHairCanonFactFromAppearanceText,
   collectCharacterSettingText,
   resolveHairDescriptionPolicy,
 } from "@/lib/bodyHairRules";
@@ -28,6 +28,7 @@ import {
   CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK_COMPACT,
 } from "@/lib/characterKnowledgeBoundary";
 import {
+  extractMainCharacterAppearanceBody,
   promoteAppearanceChunkImportance,
 } from "@/lib/visualAnchor";
 import {
@@ -432,7 +433,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   });
   const charGender = resolveCharacterGender(input.gender);
   const userGender = resolveCharacterGender(input.userPersonaGender ?? "other");
-  const hairPolicy = resolveHairDescriptionPolicy(charGender, effectiveCharacterSettingText, userGender);
+  const characterHairAppearanceText =
+    extractMainCharacterAppearanceBody(chunks, input.charName, {
+      personaName: input.personaDisplayName,
+    }) ?? "";
 
   const persona = input.userPersona?.trim();
   const rawNote = input.userNote?.trim() || "";
@@ -746,7 +750,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     if (!coreBlock) return;
     const coreBlockWithHairFact = applyCharacterHairCanonFact(
       coreBlock,
-      buildCharacterHairCanonFactFromSetting(charGender, effectiveCharacterSettingText)
+      buildCharacterHairCanonFactFromAppearanceText(charGender, characterHairAppearanceText)
     );
     const coreBlockForModel =
       deepSeekAppearanceRuleMode && /\[(?:외형|외모|Appearance)[^\]]*\]/i.test(coreBlockWithHairFact)
