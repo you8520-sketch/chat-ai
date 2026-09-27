@@ -158,6 +158,9 @@ async function main() {
     await import("../src/lib/chatDisplayLength");
   const { DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY } =
     await import("../src/lib/deepseekPromptStructure");
+  const { INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION } = await import(
+    "../src/lib/currentTurnUserAuthoringDelegation"
+  );
 
   const modelFilter = listFilter(process.env.MODELS);
   const fixtureFilter = listFilter(process.env.FIXTURES);
@@ -227,7 +230,7 @@ async function main() {
       nsfw: false,
       gender: "male",
       userPersonaGender: "other",
-      userImpersonation: false,
+      currentTurnAuthoringDelegation: INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
       novelModeEnabled: false,
       targetResponseChars: 3200,
       completedTurns: 3,
