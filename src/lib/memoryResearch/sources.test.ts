@@ -3,7 +3,9 @@ import { it } from "node:test";
 import {
   arxivSource,
   classifyText,
+  githubDiscoverySource,
   githubWatchlistSource,
+  GITHUB_DISCOVERY_QUERIES,
   GITHUB_WATCHLIST,
   parseArxivAtom,
   type SourceContext,
@@ -87,6 +89,111 @@ it("GitHub watchlist: repo + latest release; 404 release = unversioned; per-repo
   assert.match(out.errors[0]!, /letta.*ECONNRESET/);
   assert.match(out.errors[1]!, /graphrag: repo HTTP 500/);
   assert.ok(c.calls.every((u) => u.startsWith("https://api.github.com/repos/")));
+});
+
+it("GitHub discovery finds new active repos, excludes curated/duplicate results, and keeps them inside normal research metadata", async () => {
+  const c = ctx(async (url) => {
+    if (url.includes("/search/repositories")) {
+      if (url.includes(encodeURIComponent(GITHUB_DISCOVERY_QUERIES[0]!))) {
+        return response(200, {
+          incomplete_results: false,
+          items: [
+            {
+              full_name: "NewOrg/MemoryEngine",
+              html_url: "https://github.com/NewOrg/MemoryEngine",
+              description: "Temporal long-term agent memory with benchmark results",
+              archived: false,
+              fork: false,
+              pushed_at: "2026-09-27T00:00:00Z",
+              stargazers_count: 900,
+              topics: ["agent-memory", "temporal"],
+              language: "TypeScript",
+            },
+            {
+              full_name: "mem0ai/mem0",
+              description: "curated duplicate",
+              archived: false,
+              fork: false,
+              pushed_at: "2026-09-27T00:00:00Z",
+              stargazers_count: 9999,
+            },
+          ],
+        });
+      }
+      return response(200, {
+        incomplete_results: false,
+        items: [
+          {
+            full_name: "NewOrg/MemoryEngine",
+            description: "same repo from another query",
+            archived: false,
+            fork: false,
+            pushed_at: "2026-09-27T00:00:00Z",
+            stargazers_count: 900,
+          },
+          {
+            full_name: "FreshLab/RetrievalMemory",
+            html_url: "https://github.com/FreshLab/RetrievalMemory",
+            description: "RAG retrieval memory for long conversations",
+            archived: false,
+            fork: false,
+            pushed_at: "2026-09-26T00:00:00Z",
+            stargazers_count: 120,
+            language: "Python",
+          },
+        ],
+      });
+    }
+    if (url.endsWith("/repos/NewOrg/MemoryEngine/releases/latest")) {
+      return response(200, { tag_name: "v2.0.0", published_at: "2026-09-25T00:00:00Z" });
+    }
+    if (url.endsWith("/repos/FreshLab/RetrievalMemory/releases/latest")) return response(404, {});
+    throw new Error(`unexpected URL ${url}`);
+  });
+
+  const out = await githubDiscoverySource(GITHUB_DISCOVERY_QUERIES, 4).collect(c);
+  assert.deepEqual(
+    out.observations.map((o) => [o.candidateKey, o.version]),
+    [
+      ["github:neworg/memoryengine", "v2.0.0"],
+      ["github:freshlab/retrievalmemory", null],
+    ]
+  );
+  const temporal = out.observations[0]!;
+  assert.equal(temporal.evidence.hasReproducibleCode, true);
+  assert.equal(temporal.evidence.hasPublishedBenchmark, true);
+  assert.deepEqual(temporal.privacyImplications, ["none"]);
+  assert.deepEqual(temporal.riskFlags, []);
+  assert.ok(c.calls.filter((url) => url.includes("/search/repositories")).length === 2);
+  assert.ok(c.calls.every((url) => !url.includes("/repos/mem0ai/mem0/releases/latest")), "curated repo never consumes discovery release budget");
+  assert.ok(c.calls.some((url) => url.includes("pushed%3A%3E%3D2025-09-28")), "discovery query is activity-bounded");
+});
+
+it("GitHub discovery is bounded by the shared HTTP budget and reports incomplete search without trusting partiality", async () => {
+  const c = ctx(async (url) => {
+    if (url.includes("/search/repositories")) {
+      return response(200, {
+        incomplete_results: true,
+        items: [
+          {
+            full_name: "X/Y",
+            description: "agent memory",
+            archived: false,
+            fork: false,
+            pushed_at: "2026-09-27T00:00:00Z",
+            stargazers_count: 100,
+          },
+        ],
+      });
+    }
+    return response(404, {});
+  }, 2);
+
+  const out = await githubDiscoverySource(["agent memory", "long-term memory"], 4).collect(c);
+  assert.equal(c.budget.used, 2);
+  assert.equal(out.observations.length, 1);
+  assert.match(out.errors.join(" "), /incomplete_results=true/);
+  assert.match(out.errors.join(" "), /budget 2 exhausted/);
 });
 
 it("HTTP budget caps source calls; arXiv queries are spaced ≥3s apart", async () => {
