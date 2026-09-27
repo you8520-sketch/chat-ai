@@ -1,0 +1,72 @@
+{
+  "TRANSPORT_GATE_PASS": true,
+  "T1_PRIMARY_STYLE_EXEMPLAR_PRESENT": true,
+  "T1": {
+    "label": "T1",
+    "present": true,
+    "ROLE": "assistant",
+    "WIRE_POSITION": 2,
+    "SOURCE_CHARS": 3473,
+    "TRANSPORTED_CHARS": 3473,
+    "BYTE_IDENTICAL": true,
+    "WHITESPACE_NORMALIZED_EQUIVALENT": true,
+    "TRUNCATED": false,
+    "TRANSFORMED": false
+  },
+  "T2_PRIMARY_STYLE_EXEMPLAR_PRESENT": true,
+  "T2": {
+    "label": "T2",
+    "present": true,
+    "ROLE": "assistant",
+    "WIRE_POSITION": 4,
+    "SOURCE_CHARS": 3173,
+    "TRANSPORTED_CHARS": 3173,
+    "BYTE_IDENTICAL": true,
+    "WHITESPACE_NORMALIZED_EQUIVALENT": true,
+    "TRUNCATED": false,
+    "TRANSFORMED": false
+  },
+  "RECENT_PRIMARY_ASSISTANT_MESSAGES_IN_FALLBACK": 2,
+  "RECENT_PRIMARY_ASSISTANT_CHARS_IN_FALLBACK": 6646,
+  "CREATOR_OPENING_PRESENT": false,
+  "T3_GEMINI_GOLD_PRESENT_IN_FALLBACK_CONTEXT": false,
+  "GEMINI_REFUSAL_PRESENT_IN_FALLBACK_CONTEXT": false,
+  "role_order_map": [
+    {
+      "index": 0,
+      "role": "system",
+      "semantic_source": "system",
+      "preview": "[CANON / SCOPE / KNOWLEDGE] === 설정 적용 우선"
+    },
+    {
+      "index": 1,
+      "role": "user",
+      "semantic_source": "user_turn",
+      "preview": "[유저 대사] OOC: 첫 만남 이후 몇 차례 임무를 함께한 시점.오늘 "
+    },
+    {
+      "index": 2,
+      "role": "assistant",
+      "semantic_source": "opening_or_early_assistant",
+      "preview": "육중한 철문이 낮은 기계음과 함께 맞물려 닫혔다. 에이지스 본부 내부에 "
+    },
+    {
+      "index": 3,
+      "role": "user",
+      "semantic_source": "user_turn",
+      "preview": "[유저 지문/행동 — 캐릭터가 관찰 가능] 렌은 태형이 가까이 있는 사이"
+    },
+    {
+      "index": 4,
+      "role": "assistant",
+      "semantic_source": "primary_assistant_persisted_visible",
+      "preview": "렌의 손가락이 컴프레션 셔츠 위로 남은 전술복 자락을 쥐었을 때, 조태형"
+    },
+    {
+      "index": 5,
+      "role": "user",
+      "semantic_source": "user_turn",
+      "preview": "[System Reminder: 지문은 -다/-했다체(경어 금지), 실제"
+    }
+  ]
+}
