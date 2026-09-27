@@ -52,6 +52,8 @@ export type AtomicNonnumericVariantSwitchInput = {
   /** @internal test-only */
   __testThrowAfterMessageUpdate?: boolean;
   /** @internal test-only */
+  __testThrowAfterRelationshipReprojection?: boolean;
+  /** @internal test-only */
   __testThrowAfterEpisodic?: boolean;
   /** @internal test-only */
   __testThrowAfterTriggerSupersession?: boolean;
@@ -220,7 +222,11 @@ export function executeAtomicNonnumericVariantSwitch(
       selectedFacts: selected.statusWidgetValues?.extracted_facts ?? [],
       selectedRequestId,
       selectedGenerationSequence,
+      activeRelationshipMetaAfter: txnVariants[txnActive]?.relationshipMetaAfter,
+      selectedRelationshipMetaAfter: selected.relationshipMetaAfter,
       __testThrowAfterMessageUpdate: input.__testThrowAfterMessageUpdate,
+      __testThrowAfterRelationshipReprojection:
+        input.__testThrowAfterRelationshipReprojection,
       __testThrowAfterEpisodic: input.__testThrowAfterEpisodic,
       __testThrowAfterTriggerSupersession: input.__testThrowAfterTriggerSupersession,
       __testThrowAfterS4Activation: input.__testThrowAfterS4Activation,
