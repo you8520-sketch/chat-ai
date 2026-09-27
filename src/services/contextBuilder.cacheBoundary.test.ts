@@ -68,7 +68,7 @@ describe("OpenRouter cache boundaries", () => {
     const split = built.openRouterSystemSplit;
     assert.ok(split);
 
-    assert.match(split!.characterSettingsBlock, /\[NARRATION REGISTER\]/);
+    assert.match(split!.characterSettingsBlock, /\[COMMON PROSE\]/);
     assert.match(split!.dynamicBlock, /\[USER LOREBOOK/);
     assert.doesNotMatch(split!.characterSettingsBlock, /\[USER LOREBOOK/);
 
@@ -76,7 +76,7 @@ describe("OpenRouter cache boundaries", () => {
     assert.equal(blocks[0]?.cache_control?.type, "ephemeral");
     assert.equal(blocks[1]?.cache_control?.type, "ephemeral");
     assert.equal(blocks[2]?.cache_control, undefined);
-    assert.match(blocks[1]!.text, /\[NARRATION REGISTER\]/);
+    assert.match(blocks[1]!.text, /\[COMMON PROSE\]/);
     assert.match(blocks[2]!.text, /\[USER LOREBOOK/);
   });
 
@@ -117,6 +117,6 @@ describe("OpenRouter cache boundaries", () => {
 
     const proseTokens = estimateTokens(built.openRouterSystemSplit!.characterSettingsBlock);
     assert.ok(proseTokens > 700, `expected prose+character cache block >700 tok, got ${proseTokens}`);
-    assert.match(built.openRouterSystemSplit!.characterSettingsBlock, /\[NARRATION REGISTER\]/);
+    assert.match(built.openRouterSystemSplit!.characterSettingsBlock, /\[COMMON PROSE\]/);
   });
 });
