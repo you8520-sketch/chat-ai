@@ -77,9 +77,14 @@ describe("character hair canon fact", () => {
     assert.doesNotMatch(appearance, /수염|까칠|자국/);
   });
 
-  it("male with canonical beard: no absence fact", () => {
+  it("male with canonical beard preserves beard while keeping body-hair absence", () => {
     const system = assemble({ gender: "male", appearance: "키 178cm, 짧게 다듬은 턱수염." });
-    assert.equal(buildCharacterHairCanonFactFromAppearanceText("male", "짧게 다듬은 턱수염."), null);
+    assert.equal(
+      buildCharacterHairCanonFactFromAppearanceText("male", "짧게 다듬은 턱수염."),
+      "facial_hair=canon; body_hair=none"
+    );
+    assert.match(appearanceSection(system), /facial_hair=canon; body_hair=none/);
+    assert.match(appearanceSection(system), /facial_hair=canon; body_hair=none/);
     assert.doesNotMatch(appearanceSection(system), /facial_hair=none/);
   });
 
