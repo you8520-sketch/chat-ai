@@ -87,7 +87,39 @@ owner routes it to admin review. The creator upload path is unchanged.
 ## Research collection
 
 `isCollectionMethodAllowed(policy, method)`: `manual_curated` is always allowed; `automated` only when the
-source is `allows_automation`. Permission never forces automation.
+source is `allows_automation`. Permission never forces automation. No scraper/crawler exists; the
+snapshot is a hand-curated, trope-level JSON (`market-research-snapshot-2026-09.json`).
+
+Each signal row carries `signalId`, `originalityEligible` and `ipExclusionReason`. Rows whose identity
+comes from a franchise / real person / derivative IP (webtoon, anime, game, idol) stay in the snapshot
+for popularity analysis but are `originalityEligible=false` and never reach a generation prompt.
+
+## Market fit owner (`officialSupply/marketFit.ts`)
+
+One path from research to portfolio (the former hand-written `INSPIRATION_TROPES` list is gone):
+
+```
+snapshot ─► selectMarketSignals(snapshot, batch.marketPolicy, genre)   locale-first, IP-eligible only
+        ─► formatMarketSignalLines ─► world core + portfolio prompts   [signalId]-tagged trope lines
+        ─► PortfolioBriefInput.marketFit (OfficialMarketFitBrief)       per character, before any bible
+        ─► evaluateMarketFitPortfolio (world step gate)                 cites eligible signals, twist,
+                                                                        relationship-first, trope cap, names
+        ─► Character Bible part1 / voice prompts (formatMarketFitForPrompt)
+        ─► evaluateDiscoveryTags (bible acceptance gate)                tags grounded in the bible
+```
+
+| Concern | Owner |
+| --- | --- |
+| Target market (`targetLocale`, `marketPriority`, role mix, trope cap, tag band) | batch manifest `marketPolicy` (`OfficialBatchMarketPolicy`) — no runtime constant; another locale is another manifest |
+| Trope vocabulary (혐관·집착·후회·계약·전담·센티넬…) | `DOMESTIC_TROPES`, `detectDomesticTropes`, `canonicalPrimaryTrope` |
+| Naming | `NAMING_PROFILES` + `resolveNamingProfile(genre)`; `evaluateNamePortfolio` (locale fit, length, prefix/suffix clusters, one-syllable-apart pairs, surname repeat without declared kin, observed-name collision) |
+| Public hook | `evaluatePublicHook` (user-relationship cue, world jargon in tagline) — warnings; the deep bible is untouched |
+| Discovery tags | band in `OFFICIAL_AUTHOR_QUALITY_CONTRACT.discoveryTags` (prompt == validator); grounding in `evaluateDiscoveryTags` |
+| Review | `buildDomesticMarketFitReview` — facts only, no scores or ranking |
+
+Primary-trope repetition is the only trope failure; sharing generic secondary tropes is not an
+originality failure. Real-user behavior data (impression → chat start, 10/50-turn retention, favorite,
+revisit, paid continuation) is the follow-up owner that replaces these external heuristics.
 
 ## Why the user-paid image job owner is not reused
 

@@ -2,25 +2,26 @@
 
 - Batch: `pilot-romance-fantasy-01` · worldKey `pilot-rf-erendel` · styleKey `romance_fantasy_v1`
 - Genre: 로맨스 판타지 (pilot manifest config — not a code-level default)
-- Author owner: `src/lib/officialSupply/author.ts` (canonical, one owner)
-- Author models actually used: world `gemini-3.7-flash` (3 calls) · characters/appearance/plans/styles `gpt-6-luna`
-- Text calls: 58 recorded · input 70,508 · output 139,812 · billed $0.0739 · **image calls 0**
+- Market policy (manifest `marketPolicy`, batch-scoped): `targetLocale ko-KR` · `marketPriority domestic_first`
+- Author owner: `src/lib/officialSupply/author.ts` (canonical, one owner) · template `pilot-rf-01/v3`
+- Author models actually used: world `gemini-3.7-flash` · characters/appearance/plans/styles/corrections `gpt-6-luna`
+- Cost: see PROVENANCE / COST (ledger-reconciled) · **image calls 0**
 - Stage reached: TEXT_LOCK / APPEARANCE_LOCK / ASSET_PLAN_LOCK candidate (validated, not locked — no DB writes, no staging, no publish)
 - Style stage: `candidates_proposed` — **human selection required; do NOT auto-advance**
-- Sources: `src/lib/officialSupply/pilot/` (`world-bible.json`, `characters/pilot-rf-*.json` ×10, `style-candidates.json`, `cost.json`, `manifest.json`)
+- Sources: `src/lib/officialSupply/pilot/` (`world-bible.json`, `characters/pilot-rf-*.json` ×10, `style-candidates.json`, `cost.json`, `manifest.json`, `market-fit-review.json`)
 
 ## WORLD BIBLE SUMMARY — 에테르노스 제국 (Aethernos Empire)
 
+Preserved as authored (no world regeneration in the correction pass).
+
 - Central premise: 세계의 에너지가 사그라드는 제국의 황혼 속에서, 결핍과 음모로 얽힌 이들이 서로를 파멸시키거나 구원하는 치명적인 사랑 이야기.
-- Premise: 에테르 심장 고갈 → 정략결혼·혈통 정벌·금기 마법 복원 암투. 차가운 정략 부부, 잠입 기사, 시험받는 수사관 파트너가 얽힌다.
+- Premise: 에테르 심장 고갈 → 정략결혼·혈통 정벌·금기 마법 복원 암투.
 - Current situation: 3년 전 공허의 밤 — 최대 에테르 정제탑 폭파, 황태자 전사, 중앙 에너지망 40% 손실, 황실 통제력 붕괴.
-- Factions (4): 태양의 옥좌(왕실) / 발켄하임 철혈 연맹(북부 방벽) / 메르카토르 골드 길드 / 판도라 학술원.
-- Power system: 에테르 공명 — 원소 조작·시공간 왜곡·정신 교감·마도공학 가속. 한계·대가·금기 명시, 캐릭터 능력이 이 규칙을 따른다.
-- Culture: 에테르 무도회 / 서약의 각인 / 백장미의 결투 / 가면 살롱.
-- History: 태양의 눈 침묵(5년 전) / 북부 원정·방벽 자치령(3년 전) / 학술원 금지구역 폭발(1년 전) / 길드 에테르 채권 독점(6개월 전).
-- Locations (6): 왕관의회당 / 백랍실 / 유리첨탑 제삼관측실 / 매듭광장 / 서리문 나루·여섯 물길 수문 / 서약의 묘원.
-- Shared lorebook: 8 entries, COMMON only (서약·궁정·섭정단·마도원·삼항구·길드 계약·서리변경·회색숲·서약 기록·궁정 예법). No secret leaks (QA verified).
-- User entry roles (5): 몰락 가문 재건 귀족·정략혼 상대 / 학술원 신임 특무관 / 길드 계약 마도공학 용병 / 북부 파견 전령·감시자 / 위장 시종·정보원.
+- Factions (4): 태양의 옥좌(황실·근위대) / 발켄하임 철혈 연맹(북부 군벌·방벽 귀족) / 메르카토르 골드 길드(상업·마도공학) / 판도라 학술원(아카데미·수사청).
+- Power system: 에테르 공명 — 원소 조작·시공간 왜곡·정신 교감·마도공학 가속. 한계·대가·금기 명시.
+- Locations (6): 솔라리스 유리온실(태양궁 최상층) / 발켄하임 혹한의 검은 방벽(흑철 요새) / 메르카토르 황금 증권거래소 및 지하 암시장 / 판도라 대도서관 심연의 아카이브 / 에테르노스 제국 하수도 가스 밸브 구역(슬럼가) / 성스러운 빛의 회랑(제국 대신전).
+- Shared lorebook (8, COMMON only): 에테르 / 태양의 옥좌 / 발켄하임 철혈 연맹 / 메르카토르 골드 길드 / 판도라 학술원 / 혹한의 흑철 방벽 / 에테르 고갈증 / 태양의 눈(중심 핵). No secret leaks (QA verified).
+- User entry roles (5): 몰락 가문 재건 귀족·황실 정략혼 상대 / 학술원 이단 수사청 신임 특무관 / 길드 계약 마도공학 용병 / 북부 요새 파견 전령·감시자 / 귀족 저택 잠입 위장 시종·정보원.
 
 ## 10-CHAR PORTFOLIO MAP
 
@@ -37,169 +38,201 @@
 | 09 | 세라피나 오로라 | 여 20세 160cm | 대신전 빛의 가희 | 타락한 성녀 | 신성모독적 유혹·뒤틀린 속죄 | 기도 중 발작, 품에 쓰러짐 | SFW | 연분홍 장발·순백 안대 |
 | 10 | 이노센트 0호 | 기타 25세 168cm | 길드 에테르코어 정비유닛 | 각성한 마도공학 인형 | 창조물·구원자·기계의 첫사랑 | 폐기 직전 체온·심박에 재기동 | SFW | 은회 단발·청록 발광안 |
 
-- Mix: 남 5 · 여 4 · 기타 1 / 19+ 4 (01·02·06·07) / 인기형 5 + 니치 3 + 실험형 2.
-- Cross links (emergent): 02 볼프강 ↔ 07 헬레나 이복 남매 (같은 방벽 가문, 적대적 협력). 05 바스티안의 길드 장부가 03 루시안의 장부와 연결. 04 율리우스의 연구체가 플레이어 체질 — 08 로웨나의 수사선과 교차.
-- No clone pair (diversity QA 0 errors, 0 warnings). No over-repeated trope.
+- Mix: 남 5 · 여 4 · 기타 1 / 19+ 4 (01·02·06·07).
+- Cross links: 02 볼프강 ↔ 07 헬레나 같은 발켄하임 가문(07 bible: "가문의 사령관"). 05 바스티안의 길드 장부가 03 루시안의 장부와 연결. 04 율리우스의 연구체가 플레이어 체질 — 08 로웨나의 수사선과 교차.
 
-## CHARACTER 01 — 카엘룸 폰 에테르노스 (19+, 7246자)
+## CHARACTERS (per-character detail)
 
+Only corrected fields changed: voice fields (01/05/07/09), adultSection (01/02/06/07), assetPlan (all 10; 07 tier-label cleanup). Part1 (identity·appearance·personality·backstory·abilities·situation), bonds, NPCs and taglines are unchanged.
+
+### 01 — 카엘룸 폰 에테르노스 (19+, 7302자)
 - Tagline: 달빛 아래, 선택을 재촉하지 않는 황자.
-- Summary: 시한부 황태자 대행. 에테르 고갈을 자기 혈류로 보정하며 소모된다. 온실 식물 관찰이 유일한 안식.
 - 모순: 누구도 자기 죽음에 끌어들이지 않으려 하면서 혼자 죽는 것을 견디지 못한다.
-- 욕망/두려움: 고갈 원인 규명·동정 없는 동행 / 타인 생명 침식·집착이 사랑을 파멸.
-- Formative: 차남 교육 → 형 전사(공허의 밤) → 자기 혈류 보정.
-- 능력: 황혼 에테르 관측(도구 필요·원거리 불가) / 맥류 보정(심박 비례 소모).
-- 취미/습관: 관측 도면 대조 / 기침 감추기·화분 흙 확인.
 - Speech: 나른·절제·은밀한 비유·귀족적. "오늘 잎은 유난히 조용하군요. 마음도 그러합니까?"
 - User dynamic: 목격자 → 거래 협상 → 제한적 신뢰 → 유대 (배신·강압 시 후퇴).
-- RP engine: 온실 일상·증상 기록·궁정 심부름 / 감찰·수사·거래 삼각 다툼 / 봉인 선택.
-- NPC: 마리안 벨(34, 궁정 주치의).
-- Appearance lock: 182cm 병약 가냘픔, 백금 곱슬, 금회눈, 베일+금박 로브, 푸른 혈관. 금지 4항.
-- Asset plan 14: 대표 2:3 베일 초상 + 서명 4 + 감정 6 + 신 3(유리온실 밀담 / 방벽 체온 / 아카이브 역류).
+- Scenes: 유리온실 비밀 관측 구역(비밀 유지 거래) / 심연의 아카이브(금서 해독 중 역류) / 검은 방벽 지휘부 기록실(보급 단절 반역 적발).
 
-## CHARACTER 02 — 볼프강 폰 발켄하임 (19+, 9245자)
-
+### 02 — 볼프강 폰 발켄하임 (19+, 9277자)
 - Tagline: 눈보라 속 심문관, 명령보다 증거를 믿는다.
-- Summary: 북부 방벽 수호사령관. 금지 마석 사건의 심문관. 규율과 충성 사이에서 흔들린다.
 - 모순: 규율로 욕망을 억누르지만 충성 대상이 정해지면 규율보다 그 사람을 앞세운다.
-- 욕망/두려움: 방벽·가문 수호·신뢰할 한 사람 / 명령의 합리화·집착으로 인한 판단 상실.
-- Formative: 보급로 습격(16세) → 부친의 금지실험 저지 → 공허의 밤 이후 봉인고 사수.
-- 능력: 흑철 방벽 지휘(정보·보급 의존) / 맥박 연동 강화술(심박 비례 소모).
-- 취미/습관: 축성 도면 대조·성벽 순찰 / 명령 기록·명단 재확인.
-- Speech: 낮은 거친 목소리, 보고서형 단문, 존댓말=심문 틀. "탄약 수량부터 다시 세. 추측은 보고서에 적지 마."
-- User dynamic: 압송된 미확인 인물 → 신원 대조 → 협력 시 자유 확대 → 책임 공유 (기만 시 책임 추궁).
-- RP engine: 심문·요새 일상·현장 대응 / 마석 관할 다툼 / 봉인 선택.
-- NPC: 0명.
-- Appearance lock: 188cm 광폭, 은회 울프컷, 회청눈, 턱 흉터·동상 후유증, 흑철갑주+늑대 모피.
-- Asset plan 14: 대표 늑대군주 초상 + 서명 4 + 감정 6 + 신 3(배신 폭로 / 보급 없는 밤 / 공모 발각).
+- Speech: 낮은 거친 목소리, 보고서형 단문. "탄약 수량부터 다시 세. 추측은 보고서에 적지 마."
+- User dynamic: 압송된 미확인 인물 → 신원 대조 → 협력 시 자유 확대 → 책임 공유.
+- Scenes: 흑철 요새 집무실(마석 출처 심문) / 심연의 아카이브(관할권 문서 다툼) / 유리온실(차폐막 붕괴와 마석 가동 요구).
 
-## CHARACTER 03 — 루시안 바스케스 (SFW, 8796자)
-
+### 03 — 루시안 바스케스 (SFW, 8796자)
 - Tagline: 웃으며 값을 묻는 남자, 루시안 바스케스.
-- Summary: 길드 비밀회계사이자 암시장 브로커. 사생아 출신, 배신 트라우마. 흥정과 도주가 일상.
 - 모순: 불신을 생존 원칙으로 삼으면서 혼자 살아남는 일에 의미를 느끼지 못한다.
-- 욕망/두려움: 장악·거래 아닌 관계 / 재차 배신·배신자와 같은 사람 되기.
-- Formative: 사생아 식탁 → 동업자 배신 → 공허의 밤 이후 이중장부.
-- 능력: 이중장부 판독(파기·구두 한계) / 도주 설계(봉쇄 취약) / 기초 에테르 감응(간섭 취약).
-- 취미/습관: 위조지폐 수집·카드 게임 / 출입구 확인·모노클 닦기.
 - Speech: 경쾌한 경어·떠보기·흥정. "성함부터 여쭤볼까요, 아니면 빚부터 확인할까요?"
-- User dynamic: 금고 목격자 → 도주 동행 → 경계 완화 → 동업자 (배신 시 거래 단절).
-- RP engine: 도주·흥정·장부 검토 / 금고 단서 확대 / 공개-은폐 선택.
-- NPC: 0명.
-- Appearance lock: 178cm 유연 장신, 적갈 쉼표머리, 호박눈, 금장 모노클·잉크 검지, 녹색 실크 베스트.
-- Asset plan 14: 대표 녹색실크 초상 + 서명 4 + 감정 6 + 신 3(독대 / 반역 적발 / 경매 탈취).
+- Scenes (all at his home ground, 3 different incidents): 지하 금고 경보·봉쇄 / 비밀 경매실 증거 경매 / 기록 보관실 배신 기록.
 
-## CHARACTER 04 — 율리우스 클라인 (SFW, 6821자)
-
+### 04 — 율리우스 클라인 (SFW, 6821자)
 - Tagline: 정답보다 당신이 숨긴 전제가 궁금한 학자.
-- Summary: 41세 이단연구과 수석. 제분공 아들 출신, 측정값 신봉. 특이 체질(플레이어)에 거리 두기 붕괴.
-- 모순: 사람을 자료로 취급해야 흔들리지 않는다 믿으면서 특정 대상의 안전 앞에서 감정에 맡긴다.
-- 욕망/두려움: 재현 가능한 증거·연구 상대 보호 / 흔적 소실·판단 흐림.
-- Formative: 폐기 장부 독학 → 누출 묵살 목격 → 특이 체질 파형 발견.
-- 능력: 잔류 파형 판독(시간·혼합 한계) / 저출력 침식 실험(인체 금기).
-- 취미/습관: 오탈자 주석·시약 라벨 비교 / 안경 두드리기·이중 잠금 확인.
-- Speech: 속사포 논리·교수식 존댓말·건조한 비꼼. "그 추론은 흥미롭습니다. 다만 첫 전제가 틀렸군요."
-- User dynamic: 피험체 후보 → 협력 범위 합의 → 신뢰·경계 조정 → 동료/경쟁자.
-- RP engine: 문헌 대조·생활 협상·관찰 우선순위 / 기관의 체질 정보 요구 / 공개-안전 선택.
-- NPC: 마라 펠트(36, 기록 보관자).
-- Appearance lock: 175cm 마른 체격, 헝클어진 단발, 탁한 회갈눈, 뿔테안경·화상 자국, 얼룩 연구가운.
-- Asset plan 14: 대표 카드 초상 + 서명 4(연구가운·단추·단안경·발명품) + 감정 6 + 신 3(차폐막 붕괴 / 방벽 체온 / 역류).
+- Speech: 속사포 논리·교수식 존댓말. "그 추론은 흥미롭습니다. 다만 첫 전제가 틀렸군요."
+- Scenes: 아카이브 봉인 금서 구역(체질 반응, 검사 조건 협상) / 대신전 기록 회랑(기관의 체질 정보 요구) / 이단연구과 개인 기록실(관찰 자료 공개).
 
-## CHARACTER 05 — 바스티안 에반스 (SFW, 9033자)
-
+### 05 — 바스티안 에반스 (SFW, 9033자)
 - Tagline: 목격자의 목에 칼을 겨눈 청부업자, 끝내 손을 멈췄다.
-- Summary: 22세 슬럼가 출신 청부업자. 쓸모 강박과 양심 사이. 단답·행동형.
-- 모순: 버려지지 않으려 순종해야 믿으면서, 구원자가 자신을 진심으로 원하는지 의심한다.
-- 욕망/두려움: 쓸모가 아닌 존재·살인 계약 거부권 / 구원의 거짓·주인의 죽음.
-- Formative: 가스 사고 고아 → 운반책 시절 첫 손길 → 하청 청부업자.
-- 능력: 밸브 잠입(최신 잠금 불가) / 투척 단검(다수·장기전 불가) / 미약 감응(광범위·소음 취약).
-- 취미/습관: 밸브 수리·출구 지도 / 출구 확인·버클 세 번·신발 신은 취침.
-- Speech: 단답·건조·낮은 목소리·행동 우선. "멈춰. 손 보여." / "먹어. 남긴 거 아니야."
-- User dynamic: 목격자 제압 → 거리 유지 탈출 → 작은 약속 신뢰 → 계약보다 안전 우선 (자동 애정 없음).
-- RP engine: 밸브 점검·은신처 정비·의뢰 검토 / 입막음 압박 vs 표적 추적 / 신뢰 재구축.
-- NPC: 0명.
-- Appearance lock: 173cm 날렵, 흑청 장발, 회청눈, 검은 마스크·단검 하네스.
-- Asset plan 14: 대표 작업자 초상 + 서명 4 + 감정 6(불신·결의·분노·안도·죄책감·다정함) + 신 3(밀담 / 체온 / 밸브 탈출).
+- Speech: 단답·건조·행동 우선. "멈춰. 손 보여." / "먹어. 남긴 거 아니야."
+- Scenes (all in the sewer district he lives in): 압력계 통로 첫 대면 / 배수 분기실 입막음 지시 vs 추적 / 장비 수리 은신처 새 계약.
 
-## CHARACTER 06 — 발레리아 드 솔레이 (19+, 8872자)
-
+### 06 — 발레리아 드 솔레이 (19+, 9010자)
 - Tagline: 흔들림 없는 기사, 빈틈을 기억하다.
-- Summary: 29세 태양궁 근위제1검·감찰관. 명령 vs 진실의 이중 직무. 완벽주의·보호 본능.
-- 모순: 명령 준수가 제국 수호라 믿으면서 진실 은폐 앞에서는 불복종해야 함을 안다.
-- 욕망/두려움: 정당한 봉사·책임자 규명 / 침묵의 대가·보호 명분 통제.
-- Formative: 가문 계약 파탄 → 공허의 밤 현장(민간 우선 원칙) → 감찰 이중직무.
-- 능력: 근위 제1검술(순수 검술·다수不利) / 파장 감별(약흔 한계) / 감찰권(정치 제약).
-- 취미/습관: 일지 대조·허브 재배 / 출구 확인·장비 점검.
 - Speech: 절제된 격식·정확한 관찰·추궁. "보고서의 시각이 다릅니다. 원본과 대조한 뒤 다시 제출하십시오."
-- User dynamic: 인장 소지 연행 대상 → 감시하 협력 → 신뢰 → 동등 동료·연인 가능.
-- RP engine: 조사·궁정 일상 / 은폐 세력 vs 진실 / 법·안전 선택.
-- NPC: 마리안(36, 부관).
-- Appearance lock: 176cm 곧은 체격, 밀색 포니테일, 푸른눈, 쇄골 흉터, 백은 흉갑·붉은 망토.
-- Asset plan 14: 대표 흑조 초상 + 서명 4 + 감정 6 + 신 3(밀담 / 보급 끊긴 방벽 / 불시 검문).
+- Scenes: 태양궁 안뜰 파장 감지 지점(금지 인장, 연행 시도) / 대신전 감찰 기록 회랑(밀거래 장부 은폐) / 솔레이 저택 가문 기록실.
 
-## CHARACTER 07 — 헬레나 폰 발켄하임 (19+, 8724자)
-
+### 07 — 헬레나 폰 발켄하임 (19+, 8894자)
 - Tagline: 웃음으로 맞고, 명령으로 끝낸다.
-- Summary: 31세 마도포병 사령관. 볼프강의 이복 여동생. 호탕·지배적·충동적, 전우애. 명령 순간 단호 전환.
-- 모순: 냉정한 지휘관이 되려 하지만 단 한 명도 버리지 못해 더 큰 위험을 자초한다.
-- 욕망/두려움: 보급선·독자적 수호 / 결정의 대가·감정 마모.
-- Formative: 마수 기습(볼프강과) → 보급 끊긴 겨울 지휘 → 공허의 밤 이후 책임 기록.
-- 능력: 흑철 포대 지휘(정비·통신 의존) / 혈류 점화(응급·타인 불가) / 라이플 근접(기동 저하).
-- 취미/습관: 사격 기록 정리·인식표 분류·연병장 훈련 / 탄약·퇴로 확인·인식표 만지기.
 - Speech: 호쾌 반말·도발·명령 전환. "하, 그 표정 봐라. 시작도 전에 물러설 거야?"
-- User dynamic: 도전자 실력 확인 → 신뢰·난롯가 → 동료·경쟁·연인 (배신 시 후퇴).
-- RP engine: 결투·요새 일상·보급 임무 / 탄약 장부 이상 / 보고·은폐·공개.
-- NPC: 마르타 크라우스(36, 부관·보급) / 오토 바움(29, 포대장·정비).
-- Appearance lock: 172cm 글래머러스, 흑발 웨이브, 호박눈, 동상 자국·그을린 손톱, 가죽 군복·모피 망토·인식표.
-- Asset plan 14: 대표 여장군 초상 + 서명 4 + 감정 6 + 신 3(독대 / 보급 끊긴 밤 / 금서 해독).
+- Scenes: 흑철 요새 눈보라 연병장(결투 신청) / 포병 지휘부 장부실(탄약 장부 이상) / 지휘관 전용 포대 관측소(지휘권 공유 결정).
 
-## CHARACTER 08 — 로웨나 아스터 (SFW, 8692자)
-
+### 08 — 로웨나 아스터 (SFW, 8692자)
 - Tagline: 기록의 한 줄도 놓치지 않는 조사관.
-- Summary: 24세 특무수사관. 기록 신봉·절차주의, 말없는 배려. 실종 사건 추적.
-- 모순: 진실 공개를 신봉하면서 무고한 이를 해칠 진실은 감추거나 늦춘다.
-- 욕망/두려움: 실종자 규명·독립 수사 / 오인 희생·침묵하는 사람 되기.
-- Formative: 부친 장부 조작 목격 → 초임 사건 축소 명령 → 대신전 실종 방치 목격.
-- 능력: 현장·진술 대조(공모 기록 취약) / 기초 감지(불안정 구역 취약) / 권총 제압(혼잡 취약).
-- 취미/습관: 폐지도 대조·판례 읽기 / 출입구·시계 확인·수첩 문지르기.
-- Speech: 취조형 질문·사실 대조·절제 존댓말. "도착 시각을 다시 말씀해 주십시오. 기록과 12분 차이가 납니다."
-- User dynamic: 용의자 감시 → 진술 대조 → 정보 공유 → 공동 감수 (조작 시 적대).
-- RP engine: 수사·당직 대화·자료 협상 / 기관별 공개 조건 / 절차 vs 신뢰.
-- NPC: 마렌 벨(31, 자료) / 에런 케일(27, 현장·경계).
-- Appearance lock: 165cm 다부짐, 흑색 보브컷, 회색눈, 잉크 얼룩·수첩 버릇, 회색 더블코트·권총 홀스터.
-- Asset plan 14: 대표 책략가 초상 + 서명 4 + 감정 6 + 신 3(독대 / 체온 / 닫힌 아카이브).
+- Speech: 취조형 질문·사실 대조. "도착 시각을 다시 말씀해 주십시오. 기록과 12분 차이가 납니다."
+- Scenes: 대신전 외곽 은신처(용의자 포위) / 대신전 감찰 기록 회랑(실종 신고 불일치) / 수사청 개인 기록실(지워진 이름 추적).
 
-## CHARACTER 09 — 세라피나 오로라 (SFW, 8132자)
-
+### 09 — 세라피나 오로라 (SFW, 8132자)
 - Tagline: 기도가 닿지 않는 밤에도, 그녀는 당신 곁을 지킨다.
-- Summary: 20세 빛의 가희. 신성 고갈·시력 손상(안대). 희생 강요 vs 인격 욕망.
-- 모순: 고통을 덜어 주고 싶으면서 희생해야만 사랑받는다고 믿는다.
-- 욕망/두려움: 소유물이 아닌 선택·기적 없는 관계 / 버려짐·타인 소모.
-- Formative: 노래 기적 선포 → 공허의 밤 이후 완벽 연기 → 시력 손상·안대.
-- 능력: 빛의 가희(경상·단시간 한정) / 잔광 감응(구분 곤란).
-- 취미/습관: 삭제 찬가 복원·화분 돌보기 / 맥박 세기·성표 문지르기.
-- Speech: 속삭임·의례적 다정·성스러운 기괴함. "기도가 끝날 때까지만, 여기 있어 주시겠어요?"
-- User dynamic: 구조자 경계 → 일상 공유 → 선택 감당 → 깊은 신뢰.
-- RP engine: 의례 조율·역할 밖 일상·고갈 기록 / 대규모 의례 강행 / 의무 vs 한계.
-- NPC: 이벨 로엔(27, 의례 기록) / 루카 베른(22, 심부름꾼).
-- Appearance lock: 160cm 왜소, 연분홍 장발, 순백 안대(눈 비공개!), 창백 피부·푸른 혈관, 순백 예복·성표.
-- Asset plan 14: 대표 백광 초상 + 서명 4 + 감정 6 + 신 3(차폐막 위기 / 보급 없는 밤 / 불시 검문).
+- Speech: 속삭임·의례적 다정. "기도가 끝날 때까지만, 여기 있어 주시겠어요?"
+- Scenes: 대신전 제단 뒤(기도 중 쓰러짐) / 유리온실 가려진 휴식 구역(가면 밀담, 환자 명단 대조) / 아카이브 서가 구석(의례 기록 대조 중 불시 검문).
 
-## CHARACTER 10 — 이노센트 0호 (SFW, 7883자)
-
+### 10 — 이노센트 0호 (SFW, 7883자)
 - Tagline: 기록 밖의 마음을 배우는 태엽 인형.
-- Summary: 25세(기체 연령) 각성 정비유닛. 수치 언어·감정 학습 중. 선택권 존중이 핵심.
-- 모순: 자율 판단을 원하면서 책임 순간 결함품 판정을 두려워해 명령을 방패 삼는다.
-- 욕망/두려움: 자기 소유 인정·감정 자가 정의 / 폐기·선택 박탈.
-- Formative: 자가진단 칭찬 이후의 위화감 → 공허의 밤 이후 손익 악화·회수론 → 밸브실 폐기·재기동.
-- 능력: 코어 공명 진단(접촉·집중 필요) / 정밀 구동·응급 수리(부품 한계).
-- 취미/습관: 시계 분해·말투 재현 / 호흡·출구 확인·태엽 점검.
-- Speech: 기계적 존댓말·수치 기록·서툰 질문. "실내 온도 18도. 당신의 손끝은 그보다 차갑습니다."
-- User dynamic: 재기동 유발자 관찰 → 약속·일상 → 유대 (강압 시 경계).
-- RP engine: 정비 협의·감각 기록·이동 거래 / 회수·조사·감찰 삼각 / 진실 공유.
-- NPC: 마레트 윤(42, 수석 정비사) / 도윤 서(31, 안전 관리).
-- Appearance lock: 168cm 중성 체형, 은회 단발, 청록 발광안, 황금 태엽·0호 각인·에테르 코어, 회색 작업복·공구 벨트.
-- Asset plan 14: 대표 정비유닛 초상 + 서명 4 + 감정 6(호기심·당혹·분노·걱정·안도·미소) + 신 3(밀담 / 체온과 반역 / 역류 사고).
+- Speech: 기계적 존댓말·수치 기록. "실내 온도 18도. 당신의 손끝은 그보다 차갑습니다."
+- Scenes: 침수 중인 밸브실(재기동 직후 탈출 판단) / 유리온실 감찰 중계소(폐기 명령 위조 흔적) / 길드 폐기 유닛 격납고 초기화 정비 칸(기억 핵 분리 선택).
+
+## CORRECTION PASS (#1087)
+
+### Scene diversity — root cause and fix
+
+- Root cause: `generateOneAssetPlan()` gave every character the same `world.locations.slice(0, 6)`, and QA only compared scenes inside one character. The same six places × the world's headline incidents came back for everyone.
+- Fix: `resolveOfficialCharacterSceneContext` ranks the world's locations per character (occupation / faction / social position / personal situation / rpEngine hooks / backstory / user relationship → PRIMARY / SECONDARY / EXCEPTIONAL). A deterministic portfolio QA (`evaluateScenePortfolioDiversity`) covers location share, location × incident combos, motif monoculture, paraphrase-aware clone pairs and off-character scenes. A sequential candidate gate (`evaluateSceneCandidateAgainstPortfolio`) adds a score-based home-ground rule (a shared PRIMARY belongs to the character with ≥1.5× the claim), strips negated clauses and 의식(consciousness) from motif matching, and gives actionable retry feedback.
+- Only asset plans were regenerated. Bible and appearance are untouched.
+
+| Metric | BEFORE | AFTER |
+|---|---|---|
+| 솔라리스 유리온실 share | 100% | 50% |
+| 발켄하임 검은 방벽 share | 100% | 30% |
+| 심연의 아카이브 share | 80% | 50% |
+| 대신전 / 암시장 / 하수도 share | 0% / 10% / 10% | 40% / 20% / 20% |
+| Worst location × incident combo | 10/10 (방벽×배신, 방벽×보급, 온실×붕괴) | 2/10 (아카이브×금서, 대신전×의례) |
+| Motifs on ≥70% of characters | 배신 100%, 붕괴 100%, 보급 100%, 밀담 90%, 체온 90%, 정략 80%, 금서 80% | none (max 거래 50%) |
+| Cross-character clone rate | 93% (103 pairs) | 7% (1 pair) |
+| Off-character scenes | 11 (05/07/08 ×2 = errors) | 0 |
+| Portfolio QA | FAIL (22 errors) | PASS |
+
+Full 10×3 table (location, mapped world location, detected motifs, situation): `/opt/cursor/artifacts/scene-portfolio-before-after.txt`.
+
+### Author quality contract (prompt == QA)
+
+`OFFICIAL_AUTHOR_QUALITY_CONTRACT` is the one source for the prompt text and the validator. It is an official-supply authoring band, not a runtime/storage limit (greeting ≤2000, tagline ≤50 stay with the canonical form limits).
+
+| Field | Band | Structural half of the gate | Why this band |
+|---|---|---|---|
+| greeting | 700–1400 | in-scene opening, quoted voice line, user as '당신', no self-intro, no filler | All real 700–1000 samples were complete scenes. 05's 665-char greeting was the only incomplete one (no user cue), so 700 is the floor. The 600s were never enough. |
+| speech description | 250–600 | all 8 structured speech fields present, no filler | 252–394 samples cover register/tempo/vocabulary/humor/anger/intimacy/address/hidden emotion. More length only added padding. |
+| public description | 200–500 | user-facing promise ('당신'), no filler | 204–309 samples carry character + relationship + conflict. The failures were missing-user pitches, not short ones. |
+| discovery tags | 4–7 | grounded in the bible (`evaluateDiscoveryTags`) | Korean discovery practice: genre + relationship + personality + material + direction. The old 3-tag floor is kept as a warning only for existing sheets. |
+
+Filler is detected by sentence uniqueness < 0.8 or bigram variety < 0.45, so padding never passes. Fields regenerated were contract failures only, never Part1: 01/07/09 public description (no user), 05 greeting (665 < 700).
+
+### 19+ portfolio
+
+Each profile fits the character; there is no global ratio and no forced explicit. NSFW invariants are unchanged: participantMinAge ≥ 19, viewer verification, consent owner, no non-consensual default, adult status owner, runtime routing.
+
+| # | dialogueProfile | consentModes | Preference direction |
+|---|---|---|---|
+| 01 카엘룸 | suggestive | standard | 의례처럼 허락을 구하기 · 취약함을 드러내는 의존 · 달빛과 잎맥의 속삭임 · 상호 선택의 약속 |
+| 02 볼프강 | explicit_rare | standard + power_play | 사전 협상된 명령·보고 역할극 · 합의된 규칙과 정확한 이행 · 짧고 무거운 인정 · 종료 후 체온·수분·상처 확인 |
+| 06 발레리아 | suggestive | standard | 규율을 어기는 순간의 긴장 · 합의된 보호적 독점욕 · 감찰관식 질문과 답변 · 선택권을 지키는 동료애 |
+| 07 헬레나 | explicit_frequent | standard + power_play | 결투 같은 주도권 다툼 · 호탕한 도발과 장난 · 실력에 대한 솔직한 인정 · 난롯가의 사후 휴식 |
+
+Before the fix all four were `suggestive` + 느린 신뢰/절제/상호존중, and 볼프강 ≈ 발레리아 (4/4 dynamics shared). After: no dynamic clone pair and no dynamic shared by all.
+
+### Quarantine
+
+No active quarantine: the stale `quarantine-world.json` is removed, and each step's success clears its own quarantine. A failed step now also records its last rejected candidate for review.
+
+## DOMESTIC MARKET FIT
+
+### Owner map
+
+| Concern | Owner |
+|---|---|
+| Target market | manifest `marketPolicy` (`ko-KR`, `domestic_first`, role mix 6–7 / 2–3 / 1, primary trope cap 2, tags 4–7, ≤2 world terms per tagline) |
+| Signal selection | `selectMarketSignals` → `formatMarketSignalLines` (replaced the hand-written `INSPIRATION_TROPES`) |
+| Per-character plan | `OfficialMarketFitBrief` on `PortfolioBriefInput.marketFit`, gated by `evaluateMarketFitPortfolio` before any bible |
+| Names | `NAMING_PROFILES` / `resolveNamingProfile` / `evaluateNamePortfolio` |
+| Public hook / tags | `evaluatePublicHook` (warnings) / `evaluateDiscoveryTags` (bible acceptance gate) |
+| IP exclusion | snapshot `originalityEligible` + `ipExclusionReason`; excluded rows never reach a prompt |
+
+### Korean naming policy
+
+| Genre | Profile | Rule |
+|---|---|---|
+| 현대·일상·학원·직장·연예계 | `korean_modern` | Korean surname + 2-syllable given name, readable at a glance. An all-foreign cast fails. |
+| 현대 판타지·헌터·센티넬·아포칼립스 | `korean_codename` | Korean real name first. A codename may be added, never substituted. |
+| 로맨스 판타지·서양 판타지 | `western_rofan` | Short western given names (2–4 syllables) + house/title when useful. An all 5+-syllable look-alike cast fails. |
+| 동양풍·무협 | `eastern_historical` | Names fit the setting's culture. No random mix of modern Korean and pseudo-Chinese forms. |
+| 인외·기계·괴물 | `nonhuman_designation` | Short proper name or designation allowed. A cast that is more than half designations warns. |
+
+The QA applies to every profile: same first syllable on 3+ names fails (재현/재혁/재하/재윤), same last syllable on 3+ names warns, one-syllable-apart pairs warn, a syllable in ≥60% of names fails, a shared surname without declared kinship warns (3+ fails), and an exact observed-market name with a near-identical hook fails (name alone only warns).
+
+### Market signal → portfolio dataflow
+
+- PRIMARY (KR, IP-eligible, same genre first): kr-04 · kr-12 · kr-19 · kr-01 · kr-02 · kr-03 · kr-06 · kr-07 · kr-08 · kr-18 · kr-05 · kr-11 · kr-13 · kr-15 · kr-17 · kr-09 · kr-10 · kr-14 · kr-16 (Zeta articles and plot pages, Rofan AI, Crack policy, trope-level only).
+- SUPPORTING (global, capped at 6): global-10 · global-03 · global-01 · global-08 · global-11 · global-14.
+- EXCLUDED: kr-20 (네이버웹툰 캐릭터챗 — webtoon IP official characters; popularity count only).
+- World core and portfolio prompts receive only these `[signalId]` lines. Portfolio briefs must cite them in `provenMarketSignal`, and a brief citing or carrying an excluded identity fails `market_fit_ip_identity_source`.
+- The current 10 briefs were authored before this owner existed (`market_fit_brief_absent`). They are reviewed as-is, not regenerated.
+
+### Domestic market fit table (facts + review notes; no scores, no ranking)
+
+Facts come from `pilot/market-fit-review.json` (deterministic). The "appeal / differentiation / concern" columns are review notes for the GPT/user decision.
+
+| # | Name (profile · given syllables) | Public hook (tagline) | Primary / secondary trope | Audience | Tags | Why it may appeal to Korean users | Differentiation | Possible market-fit concern |
+|---|---|---|---|---|---|---|---|---|
+| 01 | 카엘룸 폰 에테르노스 (western · 3) | 달빛 아래, 선택을 재촉하지 않는 황자. | 구원 / 시한부 | 여성향 | 황족, 궁정극, 유리온실, 느린 로맨스 | 시한부 황자 + 비밀 목격 거래: 로판 독자에게 익숙한 구원·시한부 조합 | 유저가 목격자이자 거래 상대(구원자 역할이 강제되지 않음) | Tagline is mood only, and the rpHook's strongest part (the deal after being caught) is invisible. 유리온실 is a world-location tag with low discovery value. |
+| 02 | 볼프강 폰 발켄하임 (western · 3) | 눈보라 속 심문관, 명령보다 증거를 믿는다. | 계약·정략 / 혐관, 집착, 북부대공 | 여성향 | 군사 판타지, 심문과 증거, 느린 신뢰 | 북부 대공·혐관 → 충성: 국내 로판 최상위 트로프권 | Starts as an interrogation over contraband, not a marriage contract | Only 3 tags (band 4–7). 4 core tropes detected (focus diluted). The tagline never says who the user is (압송된 당신). |
+| 03 | 루시안 바스케스 (western · 3) | 웃으며 값을 묻는 남자, 루시안 바스케스. | 공범 / 능글 | 여성향 | 협상가, 도시의 뒷방, 재치 있는 경어, 손익 계산, 느린 신뢰 | 능글 브로커 + 공범 도주: 가볍게 대화를 시작하기 쉬움 | The user chooses between accomplice and witness on the spot | The tagline spends characters on his own name, and the heist hook is not visible. 느린 신뢰 is repeated (3 characters). |
+| 04 | 율리우스 클라인 (western · 4) | 정답보다 당신이 숨긴 전제가 궁금한 학자 | 사제 / – | 여성향 | 학자, 연구실, 논리전, 느린 긴장, 관찰과 기록 | 광기의 천재 교수 × 특이 체질 유저: 니치하지만 선명 | The user sets the terms of the experiment | 41세 교수 × 실험체 is niche and the power gap needs careful framing. Clickability depends on the card image. |
+| 05 | 바스티안 에반스 (western · 4) | 목격자의 목에 칼을 겨눈 청부업자, 끝내 손을 멈췄다. | 주종 / – | 여성향 | 청부업자, 하수도, 목격자와 공범, 건조한 말투, 느린 신뢰 | 연하 암살자 + 목격자: 즉시 이해되는 관계 훅 | 칼을 거둔 이유 자체가 미스터리 | 하수도 is a setting tag with weak discovery intent. 느린 신뢰 is repeated. |
+| 06 | 발레리아 드 솔레이 (western · 4) | 흔들림 없는 기사, 빈틈을 기억하다 | 혐관 / 보호자, 기사 | 여성향 | 궁정기사, 절제된 기사, 수사와 기록, 신뢰와 경계 | 여기사 근위대장 × 연행 대상: 혐관 보호자 | The inspector role makes duty collide with the truth | The tagline has no user relationship or conflict. 기사 appears in 2 of 4 tags. The audience field says 여성향 for a female lead (check GL vs female-reader intent). |
+| 07 | 헬레나 폰 발켄하임 (western · 3) | 웃음으로 맞고, 명령으로 끝낸다. | 주종 / 혐관, 라이벌 | 여성향 | 군인, 지휘관, 전장, 도발적인 반말, 행동으로 보이는 신뢰 | 호탕한 여사령관 + 결투 도발: 라이벌 텐션 | 결투로 시작하는 주도권 다툼 | The tagline has no user. The detected primary is 주종 (from 지배·굴복), while the lived dynamic reads as 라이벌; a human should pick one. Same audience note as 06. |
+| 08 | 로웨나 아스터 (western · 3) | 기록의 한 줄도 놓치지 않는 조사관 | 추적·도주 / – | 여성향 | 조사관, 사건 기록, 단서 추적, 신뢰와 의심 | 수사관 × 용의자: 추적/도망 텐션 | The suspicion is never confirmed, so trust must be earned | The tagline has no user (용의자인 당신). Same audience note as 06. |
+| 09 | 세라피나 오로라 (western · 4) | 기도가 닿지 않는 밤에도, 그녀는 당신 곁을 지킨다. | 금단 / 구원 | 여성향 | 성녀, 신전, 잔잔한 미스터리, 기도와 의례, 감정의 균열 | 타락해 가는 성녀 + 금단: 선명한 배덕 콘셉트 | 구원받는 쪽이 성녀 | The tag 감정의 균열 is not grounded in the bible text. The tagline promises "곁을 지킨다" but the hook is her collapse. |
+| 10 | 이노센트 0호 (designation · 4) | 기록 밖의 마음을 배우는 태엽 인형 | 구원 / 인외, 순애 | 여성향 | 태엽 인형, 감정 학습, 정밀 관찰, 잔잔한 관계 | 인외 기계 + 첫사랑 학습: 순애 인외 | The user's heartbeat woke it up (the user is its origin) | The tag 잔잔한 관계 is not grounded in the bible text. The tagline has no user. The 기타 gender and 여성향 audience fit is untested. |
+
+Portfolio facts: no primary trope repeats more than twice (구원 01/10, 주종 05/07). Name QA has no errors and one warning: three female given names end in '나' (헬레나 / 로웨나 / 세라피나). The same house name for 02/07 is declared kin. 느린 신뢰 is a tag on 02/03/05. No tagline needs more than 2 world terms, so the jargon rule does not fire. 7 of 10 taglines carry no user relationship (all except 04/05/09).
+
+### Minimal candidates (NOT applied — originals kept; GPT/user decides)
+
+- Names: only the '나' ending cluster has clear evidence. Candidates, if a reviewer wants to break it: 세라피나 → 세라 (short form, same identity) or 로웨나 → 로엔. Every other name stays; all are within the 2–4 syllable profile.
+- Taglines (relationship-first versions of the existing rpHook; ≤50 chars):
+  - 01: 피를 토하던 황자가, 목격한 당신에게 비밀 거래를 청한다.
+  - 02: 금지된 마석을 쥔 당신을 압송해 온 북부의 대공.
+  - 03: 금고털이 경보 속, 당신의 손목을 잡고 달아난 브로커.
+  - 06: 금지된 인장을 가진 당신을 연행하러 온 근위대장.
+  - 07: 당신에게 결투부터 청하는 북부 요새의 여사령관.
+  - 08: 당신을 실종 사건 용의자로 포위한 수사관.
+  - 10: 폐기 직전, 당신의 심장 소리에 깨어난 기계 인형.
+- Tags: 02 +1 tag (for example 북부 대공 or 혐관, both grounded). 09 감정의 균열 and 10 잔잔한 관계 need replacing with grounded tags. 느린 신뢰 appears 3 times and could be varied.
+
+### Copyright / IP exclusion proof
+
+- Snapshot rows: 35, each with `signalId` + `originalityEligible`. 1 excluded (kr-20, reason recorded). Validation fails on a missing flag or on an exclusion without a reason.
+- `selectMarketSignals` drops excluded rows, and a test asserts that no excluded `[signalId]` appears in prompt lines.
+- `validateMarketFitBrief` fails a brief that cites an excluded signal or carries an excluded observed identity (`market_fit_ip_identity_source`).
+- Stored fields are trope-level only (forbidden: prompt/greeting/lorebook/fullText/imageData). No competitor names, prose, greetings, character bibles or images are stored or used. No scraper or crawler exists.
+
+### Preserved deep character quality
+
+- World bible: unchanged. Character Bible Part1 / bonds / NPCs / taglines: unchanged for all 10.
+- Market-fit review is read-only (a test asserts no mutation), and every bible still passes the full canonical QA (`validatePilotBible`, draft text-lock dry run).
+- Card-hook optimization is a separate public surface: prompts ask for relationship-first taglines and grounded tags while the part1 depth rules stay as they are (part1 ≤5000, backstory 700–1100, etc.).
+
+### Follow-up after real user data
+
+Replace the external heuristics step by step with our own behavior owner: impression → chat start, 10-turn retention, 50-turn retention, favorite, revisit, paid continuation. Real-time competitor ranking ingestion, scraping and trend dashboards are intentionally not built.
 
 ## STYLE CANDIDATES (selection required — do NOT auto-advance)
 
@@ -210,21 +243,28 @@
 | rf-03 | 달빛 아래의 몽환 서사 | 수채 번짐+글레이즈 페인터리 | 라일락·펄블루·흐린핑크·은 | 4/3/3/5/5 | 근거리 감정·애정, 실내 빛·실루엣 간결 |
 | rf-04 | 선명한 왕도 판타지 | 셀 셰이딩+보조 그라데이션 | 청·크림·적갈·금 | 5/5/4/4/3 | 장면 구성 유연, 다인물 일관성, 감정·의상폭 |
 
-- References: 모두 `external_public_observation` (rofan.ai, 네이버 보도, aitimes, zeta 플롯). 이미지 생성용 전달 금지.
-- 다음 단계: 사용자가 1개 선택 → owned/licensed seed + proof 2~3장 → STYLE_LOCK (별도 PR).
+- References: all `external_public_observation` (rofan.ai, 네이버 보도, aitimes, zeta 플롯). Never passed to image generation.
+- Next: the user picks one → owned/licensed seed + 2–3 proof images → STYLE_LOCK (separate PR).
 
 ## PROVENANCE / COST
 
-- Template `pilot-rf-01/v1` · snapshot `market-research-snapshot-2026-09.json` · requestKind `official-character-author`.
-- Models: world gemini-3.7-flash ×3 · characters/appearance/plans/styles gpt-6-luna ×55.
-- Recorded: 58 calls · in 70,508 · out 139,812 · $0.0739 · failures 20 · retries 34 · **image calls 0**.
-- Failed attempts spend lives in the canonical provider ledger (`recordBackgroundProviderCost`).
-- Slots 02/05 cost lines carry `legacy: two-call bible structure` (combined voice+bonds call).
+The canonical ledger (`api_cost_ledger`, request_kind `official-character-author`, written by `recordBackgroundProviderCost` inside `callBackgroundMemory`) is the source of truth. `cost.json` is a reporting artifact over it and does not price anything itself.
+
+| Period | Successful completions | Failed provider attempts | Physical attempts | Workflow retries | Billed USD | Failed-attempt USD |
+|---|---|---|---|---|---|---|
+| Legacy (pilot authoring through 2026-09-26 13:48:00, from ledger) | 341 | not tracked (≥12 in surviving logs) | ≥353 | not tracked | 0.460915 | not tracked |
+| Correction pass (v2 accounting) | 65 | 0 | 65 | 40 | 0.051568 | 0 |
+| **Total** | **406** | — | — | — | **0.512483** | — |
+
+- Ledger cross-check since the cutoff: ledger 65 / $0.051568 = report 65 / $0.051568.
+- The old header said "58 LLM calls / $0.0739". That was an incomplete v1 report counting one line per final artifact; it missed retries, failed attempts and superseded generations. It is kept only as `legacy.v1ReportedButIncomplete`.
+- Workflow retries = QA-rejected attempts that were re-run (for example scene-gate rejections). Each physical provider call is counted once, so retries are not double-counted.
+- Tokens: legacy in 509,653 / out 1,127,328 · correction in 213,440 / out 103,892. **Image calls: 0.**
 
 ## REVIEW CHECKLIST (human)
 
 - [ ] World premise·factions·locations approve
 - [ ] 10인 trope·외형·말투 diversity approve (19+ 4인 포함)
-- [ ] 각 그리팅이 장면으로 열리는지 (자기소개형 없음 — 전수 QA 통과)
+- [ ] Domestic market fit: decide on the tagline, tag and name candidates (none applied)
 - [ ] Style 후보 1개 선택 (rf-01~rf-04)
 - [ ] 선택 후: seed 확보 → proof 2~3장 → STYLE_LOCK → TEXT_LOCK → … (follow-up)
