@@ -583,7 +583,12 @@ function compileForBrief(bible: OfficialCharacterBible, brief: PortfolioBriefInp
   });
 }
 
-function assertBibleAndDraft(bible: OfficialCharacterBible, brief: PortfolioBriefInput): OfficialCharacterDraft {
+/** `checkTags: false` only for edits that leave tags untouched (e.g. relationship cleanup). */
+function assertBibleAndDraft(
+  bible: OfficialCharacterBible,
+  brief: PortfolioBriefInput,
+  opts: { checkTags?: boolean } = {}
+): OfficialCharacterDraft {
   if (bible.identity.name !== brief.name) {
     throw new OfficialSupplyGateError("author_bible_rejected", `slot ${brief.slot}: bible name "${bible.identity.name}" ≠ brief "${brief.name}"`);
   }
@@ -595,8 +600,8 @@ function assertBibleAndDraft(bible: OfficialCharacterBible, brief: PortfolioBrie
       bibleQa
     );
   }
-  const tagQa = evaluateDiscoveryTags({ tags: bible.publicProfile.tags, bible }, MANIFEST.marketPolicy);
-  if (!tagQa.ok) {
+  const tagQa = evaluateDiscoveryTags({ tags: bible.publicProfile.tags, bible, hook: brief }, MANIFEST.marketPolicy);
+  if (opts.checkTags !== false && !tagQa.ok) {
     throw new OfficialSupplyGateError("author_tags_rejected", `slot ${brief.slot} tags: ${tagQa.errors.map((e) => e.message).join("; ")}`, tagQa);
   }
   const draft = compileForBrief(bible, brief);
@@ -662,7 +667,7 @@ async function generateOneCharacter(
       for (let repair = 0; repair < 2; repair += 1) {
         const issues = [
           ...validatePilotBible(accepted, { adultExpected: brief.adultCandidate }).errors,
-          ...evaluateDiscoveryTags({ tags: accepted.publicProfile.tags, bible: accepted }, MANIFEST.marketPolicy).errors,
+          ...evaluateDiscoveryTags({ tags: accepted.publicProfile.tags, bible: accepted, hook: brief }, MANIFEST.marketPolicy).errors,
         ];
         if (issues.length === 0) break;
         const fields = voiceFieldsFor(issues.map((e) => e.code));
@@ -773,7 +778,13 @@ function stepPortfolioQa(): void {
   for (const e of diversity.errors) console.log(`  - ${e.code}: ${e.message}`);
   const intent = evaluateCastIntent(drafts.map((d) => d.gender as CastGender), MANIFEST.castIntent);
   console.log("[pilot] cast intent ok:", intent.ok, intent.errors.map((e) => e.message));
-  const roles = evaluateCastRoleDiversity(castRoleEntries(world.portfolio));
+  // Authored voices, not just the brief direction, decide the speech-archetype check.
+  const roles = evaluateCastRoleDiversity(
+    castRoleEntries(world.portfolio).map((entry, i) => {
+      const speech = files[i]!.bible.speech;
+      return { ...entry, speechDirection: `${entry.speechDirection} ${speech.register} ${speech.keywords.join(" ")}` };
+    })
+  );
   console.log("[pilot] cast roles ok:", roles.ok, roles.errors.map((e) => e.message), "royal/ducal:", roles.royalOrDuke);
   const snapshot = readJson<{ signals: { source: string; scenarioHook?: string; worldMechanic?: string }[] }>(
     SNAPSHOT_PATH
@@ -1312,16 +1323,19 @@ function stepPublicFix(): void {
 function stepCastCleanup(): void {
   const world = readWorld();
   const castNames = new Set(world.portfolio.map((b) => b.name));
-  const removed = new Set(MANIFEST.replacement.replacedNames);
+  // Sheets refer to siblings by full or given name ("발레리아").
+  const removed = new Set(MANIFEST.replacement.replacedNames.flatMap((n) => [n, n.split(/\s+/)[0]!]));
   for (const brief of world.portfolio) {
     const file = readChar(brief.slot);
-    const dangling = file.bible.otherRelationships.filter((r) => removed.has(r.target) && !castNames.has(r.target));
+    const dangling = file.bible.otherRelationships.filter((r) => removed.has(r.target.trim()) && !castNames.has(r.target.trim()));
     if (dangling.length === 0) continue;
     const bible: OfficialCharacterBible = {
       ...file.bible,
       otherRelationships: file.bible.otherRelationships.filter((r) => !dangling.includes(r)),
     };
-    const draft = assertBibleAndDraft(bible, file.brief);
+    const draft = assertBibleAndDraft(bible, file.brief, { checkTags: false });
+    const tagQa = evaluateDiscoveryTags({ tags: bible.publicProfile.tags, bible, hook: file.brief }, MANIFEST.marketPolicy);
+    for (const e of tagQa.errors) console.warn(`[pilot] cast-cleanup ${file.draftKey}: review finding — ${e.message}`);
     writeJson(charPath(brief.slot), {
       ...file,
       bible,

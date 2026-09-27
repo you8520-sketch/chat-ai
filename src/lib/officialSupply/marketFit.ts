@@ -283,13 +283,18 @@ export function bibleSearchText(bible: OfficialCharacterBible): string {
 
 export const DISCOVERY_TAG_HARD_MAX = 9;
 
+/** Canonical hook fields that compile into the draft (`draft.hook`). */
+export type DiscoveryTagHook = { archetype: string; relationshipTrope: string; rpHook: string };
+
+/** Tags must be supported by the character sheet: the bible plus its compiled canonical hook. */
 export function evaluateDiscoveryTags(
-  input: { tags: readonly string[]; bible: OfficialCharacterBible },
+  input: { tags: readonly string[]; bible: OfficialCharacterBible; hook?: DiscoveryTagHook },
   policy: Pick<OfficialBatchMarketPolicy, "coreTags">
 ): QaResult {
   const errors: QaIssue[] = [];
   const warnings: QaIssue[] = [];
-  const text = bibleSearchText(input.bible);
+  const hookText = input.hook ? ` ${input.hook.archetype} ${input.hook.relationshipTrope} ${input.hook.rpHook}` : "";
+  const text = bibleSearchText(input.bible) + hookText;
   const tokens = tagStems(text);
   const n = input.tags.length;
   if (n > DISCOVERY_TAG_HARD_MAX) {
@@ -924,7 +929,7 @@ export function buildDomesticMarketFitReview(input: {
     const bible = c.bible;
     const tags = bible.publicProfile.tags;
     for (const tag of tags) tagHolders.set(tag, [...(tagHolders.get(tag) ?? []), c.draftKey]);
-    const tagQa = evaluateDiscoveryTags({ tags, bible }, policy);
+    const tagQa = evaluateDiscoveryTags({ tags, bible, hook: c.brief }, policy);
     const hookQa = evaluatePublicHook(
       { tagline: bible.publicProfile.tagline, description: bible.publicProfile.description, worldTerms: terms },
       policy

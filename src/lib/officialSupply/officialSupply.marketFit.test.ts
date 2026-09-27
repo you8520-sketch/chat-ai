@@ -242,6 +242,8 @@ describe("Korean naming policy", () => {
     const western = parseCharacterName("볼프강 폰 발켄하임");
     assert.deepEqual([western.kind, western.givenName, western.familyName, western.givenSyllables], ["western", "볼프강", "발켄하임", 3]);
     assert.equal(parseCharacterName("이노센트 0호").kind, "designation");
+    assert.equal(parseCharacterName("가브리엘").kind, "western");
+    assert.equal(parseCharacterName("김도윤").kind, "korean");
   });
 
   it("1. Korean modern cast with only foreign names fails", () => {
@@ -295,7 +297,8 @@ describe("Korean naming policy", () => {
 });
 
 describe("public hook + discovery tags", () => {
-  const base = pilot.find((c) => c.draftKey === "pilot-rf-04")!.bible;
+  const baseChar = pilot.find((c) => c.draftKey === "pilot-rf-07")!;
+  const base = baseChar.bible;
 
   it("6. a public hook without any user relationship is a production warning", () => {
     const qa = evaluatePublicHook({ tagline: "흔들림 없는 기사, 빈틈을 기억하다", description: "제국 최강의 기사다.", worldTerms: [] }, POLICY);
@@ -313,9 +316,15 @@ describe("public hook + discovery tags", () => {
     assert.ok(codes(qa).warnings.includes("tagline_world_jargon"));
   });
 
+  it("tags may be grounded by the canonical hook that compiles into the draft", () => {
+    const hook = { archetype: "타락한 성녀", relationshipTrope: "신성모독적 유혹", rpHook: "기계의 첫사랑" };
+    assert.ok(evaluateDiscoveryTags({ tags: ["금단"], bible: base }, POLICY).errors.length === 1);
+    assert.deepEqual(evaluateDiscoveryTags({ tags: ["금단", "순애"], bible: base, hook }, POLICY).errors, []);
+  });
+
   it("8. tags must be supported by the bible; keyword stuffing fails", () => {
-    assert.deepEqual(evaluateDiscoveryTags({ tags: base.publicProfile.tags, bible: base }, POLICY).errors, []);
-    const off = evaluateDiscoveryTags({ tags: ["학자", "연구실", "아이돌", "오메가버스"], bible: base }, POLICY);
+    assert.deepEqual(evaluateDiscoveryTags({ tags: base.publicProfile.tags, bible: base, hook: baseChar.brief }, POLICY).errors, []);
+    const off = evaluateDiscoveryTags({ tags: [...base.publicProfile.tags.slice(0, 2), "아이돌", "오메가버스"], bible: base }, POLICY);
     assert.deepEqual(off.errors.map((e) => e.message), [
       'tag "아이돌" is not supported by the Character Bible',
       'tag "오메가버스" is not supported by the Character Bible',
@@ -362,7 +371,7 @@ describe("domestic market fit review of the committed pilot", () => {
     assert.deepEqual(review.portfolio.names.errors, []);
     assert.deepEqual(
       pilot.map((c) => c.bible.identity.name),
-      ["카엘룸 폰 에테르노스", "볼프강 폰 발켄하임", "루시안 바스케스", "율리우스 클라인", "바스티안 에반스", "발레리아 드 솔레이", "헬레나 폰 발켄하임", "로웨나 아스터", "세라피나 오로라", "이노센트 0호"]
+      ["카엘룸 폰 에테르노스", "볼프강 폰 발켄하임", "루시안 바스케스", "율리우스 클라인", "바스티안 에반스", "에드릭", "테오", "노엘 벨로체", "세라피나 오로라", "이노센트 0호"]
     );
   });
 

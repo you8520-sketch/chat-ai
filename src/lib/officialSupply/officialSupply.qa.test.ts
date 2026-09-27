@@ -39,9 +39,13 @@ import {
   evaluateWorldTermCollisions,
 } from "@/lib/officialSupply/worldQa";
 import {
+  evaluateCastIntent,
   evaluatePortfolioBalance,
   isCollectionMethodAllowed,
+  isSingleGenderIntent,
   validateResearchSnapshot,
+  type CastGender,
+  type OfficialCastIntent,
   type ResearchSnapshot,
 } from "@/lib/officialSupply/research";
 import { validateStyleProposal, validateStyleSeedForApproval } from "@/lib/officialSupply/style";
@@ -443,8 +447,20 @@ describe("style candidates and research snapshot", () => {
     assert.deepEqual(qa.errors, []);
     assert.deepEqual(qa.warnings, []);
     assert.ok(snapshot.platforms.every((p) => p.collectionMethod === "manual_curated"));
-    assert.equal(snapshot.platforms.length, 9);
-    assert.equal(snapshot.signals.length, 35);
+    assert.equal(snapshot.platforms.length, 13);
+    assert.equal(snapshot.signals.length, 56);
+    const domestic = ["Crack", "Caveduck", "Rofan AI", "Plaitoon", "Zeta", "WHIF", "Melting"];
+    for (const name of domestic) {
+      const platform = snapshot.platforms.find((p) => p.name.startsWith(name));
+      assert.ok(platform && platform.region === "KR", `${name} missing`);
+    }
+    for (const name of ["Caveduck", "Plaitoon", "WHIF", "Melting"]) {
+      const platform = snapshot.platforms.find((p) => p.name.startsWith(name))!;
+      assert.equal(platform.automationPolicy, "not_checked", `${name}: permission never inferred`);
+    }
+    const licensed = snapshot.signals.find((s) => s.archetype?.includes("공식 라이선스"));
+    assert.equal(licensed?.originalityEligible, false);
+    assert.ok((snapshot.visualTrends ?? []).length >= 8);
     assert.ok(snapshot.signals.some((s) => s.adultDemand) && snapshot.signals.some((s) => !s.adultDemand));
     assert.ok(snapshot.signals.some((s) => s.popularitySignal === "niche"));
     assert.ok(snapshot.signals.some((s) => s.seasonal));
@@ -461,5 +477,63 @@ describe("style candidates and research snapshot", () => {
     assert.ok(codes.includes("portfolio_adult_share"));
     assert.ok(codes.includes("portfolio_genre_share"));
     assert.equal(evaluatePortfolioBalance(entries, { ...policy, adultShareMax: 0.7, maxGenreShare: 0.7 }).ok, true);
+  });
+});
+
+describe("batch-scoped cast intent (no genre gender rule, no balanced default)", () => {
+  const intent = (male: number, female: number, other: number, audience: OfficialCastIntent["targetAudience"] = "female_oriented"): OfficialCastIntent => ({
+    targetAudience: audience,
+    romanceTargetProfile: "test",
+    desiredGenderMix: { male, female, other },
+    rationale: "test",
+  });
+  const cast = (spec: string): CastGender[] =>
+    spec.split("").map((c) => (c === "m" ? "male" : c === "f" ? "female" : "other"));
+  const drafts = (genders: CastGender[]) =>
+    genders.map((gender, i) => testDraft({ draftKey: `c${i}`, name: `인물${i}호`, vocabulary: [HWANG_VOCAB, KNIGHT_VOCAB][i % 2]!.map((w) => `${w}${i}`), gender }));
+
+  it("a female-oriented rofan batch intends 8M / 1F / 1 other and must match exactly", () => {
+    const rofan = intent(8, 1, 1);
+    assert.equal(evaluateCastIntent(cast("mmmmmmmmfo"), rofan).ok, true);
+    const old = evaluateCastIntent(cast("mmmmmffffo"), rofan);
+    assert.ok(old.errors.some((e) => e.code === "cast_intent_gender_mix"));
+  });
+
+  it("BL and GL batches declare their own single-gender mix; ensemble batches can be balanced", () => {
+    assert.equal(evaluateCastIntent(cast("mmmmmmmmmm"), intent(10, 0, 0)).ok, true);
+    assert.equal(evaluateCastIntent(cast("ffffffffff"), intent(0, 10, 0)).ok, true);
+    assert.equal(evaluateCastIntent(cast("mmmmmfffff"), intent(5, 5, 0, "mixed")).ok, true);
+    assert.equal(evaluateCastIntent(cast("mmmmmmmmmm"), intent(5, 5, 0, "mixed")).ok, false);
+    assert.equal(isSingleGenderIntent(intent(10, 0, 0)), true);
+    assert.equal(isSingleGenderIntent(intent(8, 1, 1)), false);
+  });
+
+  it("world diversity never pushes a cast toward 50:50", () => {
+    const skewed = evaluateWorldDiversity(drafts(cast("mmmmmmmmfo")));
+    assert.ok(!skewed.warnings.some((w) => w.code === "single_gender_world"));
+    const bl = drafts(cast("mmmmmm"));
+    assert.ok(evaluateWorldDiversity(bl).warnings.some((w) => w.code === "single_gender_world"));
+    assert.ok(!evaluateWorldDiversity(bl, { intendedSingleGender: true }).warnings.some((w) => w.code === "single_gender_world"));
+  });
+});
+
+describe("visual trend observations stay abstract", () => {
+  const base: ResearchSnapshot = {
+    observedAt: "2026-09-27",
+    platforms: [{ name: "P", region: "KR", url: "https://p", automationPolicy: "not_checked", collectionMethod: "manual_curated", notes: "" }],
+    signals: [],
+  };
+  it("attribute-level observations pass; images, URLs, artist targets and unknown platforms fail", () => {
+    const ok = validateResearchSnapshot({ ...base, visualTrends: [{ trendId: "v1", platforms: ["P"], appliesTo: "card", observation: "얼굴 가독성이 카드 첫인상이다" }] });
+    assert.deepEqual(ok.errors, []);
+    const bad = validateResearchSnapshot({
+      ...base,
+      visualTrends: [
+        { trendId: "v1", platforms: ["P"], appliesTo: "card", observation: "https://cdn.example/card.png 같은 얼굴" },
+        { trendId: "v2", platforms: ["Q"], appliesTo: "all", observation: "in the style of someone" },
+      ],
+    });
+    const codes = bad.errors.map((e) => e.code);
+    assert.ok(codes.includes("visual_trend_not_abstract") && codes.includes("visual_trend_platform_unknown"));
   });
 });

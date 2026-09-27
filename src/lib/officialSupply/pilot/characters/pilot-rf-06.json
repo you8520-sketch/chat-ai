@@ -512,6 +512,28 @@
         "costUsd": 0.000337,
         "providerRequestId": null
       }
+    },
+    {
+      "step": "assetplan",
+      "fields": [
+        "assetPlan"
+      ],
+      "reasons": [
+        "scene planner collapse (portfolio)"
+      ],
+      "at": "2026-09-27T03:56:17.404Z",
+      "provenance": {
+        "model": "gpt-6-luna",
+        "requestKind": "official-character-author",
+        "templateVersion": "pilot-rf-01/v3",
+        "snapshotVersion": "market-research-snapshot-2026-09.json",
+        "attempt": 1,
+        "createdAt": "2026-09-27T03:56:17.404Z",
+        "inputTokens": 4651,
+        "outputTokens": 3307,
+        "costUsd": 0.001483,
+        "providerRequestId": null
+      }
     }
   ],
   "appearance": {
@@ -539,6 +561,327 @@
       "짧게 옆으로 넘긴 짙은 밤색 머리와 짙은 회색 눈동자, 빛에 도는 옅은 은색 테를 바꾸지 않는다.",
       "186cm의 곧고 절제된 체형, 창백한 피부와 단정한 긴 얼굴의 인상을 바꾸지 않는다.",
       "손등의 얇은 은색 서약 인장과 손마디의 검 자국을 삭제하거나 다른 위치로 옮기지 않는다."
+    ]
+  },
+  "assetPlan": {
+    "slots": [
+      {
+        "slotKey": "rep",
+        "kind": "representative",
+        "tag": "2:3 은빛 심문관 초상",
+        "expression": "절제된 진지함, 말하지 않은 의심을 눈빛에 감춘다",
+        "pose": "상반신 정면, 한 손은 외투 깃에 두고 시선을 맞춘다",
+        "outfit": "은빛 성기사 흉갑 위에 검은 심문관 외투, 어두운 제복과 흰 목깃",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      },
+      {
+        "slotKey": "sig1",
+        "kind": "signature",
+        "tag": "절차를 지키는 기사",
+        "expression": "감정을 드러내지 않으려는 단정한 표정",
+        "pose": "꼿꼿이 서서 장갑 낀 손으로 외투 앞섶을 여민다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "무표정"
+      },
+      {
+        "slotKey": "sig2",
+        "kind": "signature",
+        "tag": "증거를 놓지 않는 손",
+        "expression": "중요한 자료를 홀로 감당하려는 굳은 눈빛",
+        "pose": "봉인된 문서철을 가슴 가까이 붙들고 선다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      },
+      {
+        "slotKey": "sig3",
+        "kind": "signature",
+        "tag": "절제된 보호 본능",
+        "expression": "보호를 택했지만 무죄를 단정하지 않는 조심스러운 표정",
+        "pose": "한쪽 팔을 낮게 내밀어 선택의 여지를 남긴다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": null
+      },
+      {
+        "slotKey": "sig4",
+        "kind": "signature",
+        "tag": "심판대 앞의 책임",
+        "expression": "자신의 판단도 심판받아야 함을 받아들이는 얼굴",
+        "pose": "검의 손잡이를 놓고 두 손을 보이도록 선다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      },
+      {
+        "slotKey": "emo1",
+        "kind": "emotion",
+        "tag": "기록의 모순을 발견한 의심",
+        "expression": "공식 고발과 증거가 어긋나는 지점을 재차 확인하며 눈을 가늘게 뜬다",
+        "pose": "문서 위 한 줄을 손가락으로 짚는다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "의심"
+      },
+      {
+        "slotKey": "emo2",
+        "kind": "emotion",
+        "tag": "발각을 경계하는 긴장",
+        "expression": "밖의 발소리에 보호 계획이 들킬까 경계한다",
+        "pose": "문 쪽으로 몸을 틀고 한 손을 잠금쇠 가까이에 둔다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "긴장"
+      },
+      {
+        "slotKey": "emo3",
+        "kind": "emotion",
+        "tag": "책임 회피에 대한 분노",
+        "expression": "추출 실험의 책임을 약한 피의자에게 돌린 정황에 분노한다",
+        "pose": "턱을 굳게 다문 채 구겨진 고발장을 쥔다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "분노"
+      },
+      {
+        "slotKey": "emo4",
+        "kind": "emotion",
+        "tag": "홀로 짊어진 피로",
+        "expression": "밤새 증언과 기록을 대조한 피로가 눈가에 드러난다",
+        "pose": "책상 가장자리에 한 손을 짚고 잠시 눈을 감는다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "피곤함"
+      },
+      {
+        "slotKey": "emo5",
+        "kind": "emotion",
+        "tag": "희생된 이들을 향한 슬픔",
+        "expression": "황태자와 희생자들의 이름을 마주하며 애도를 삼킨다",
+        "pose": "고개를 낮추고 이름이 적힌 기록을 두 손으로 받친다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "슬픔"
+      },
+      {
+        "slotKey": "emo6",
+        "kind": "emotion",
+        "tag": "통제를 내려놓는 결심",
+        "expression": "결론을 혼자 정하지 않고 상대의 선택을 기다린다",
+        "pose": "문서철을 건네며 한 걸음 물러선다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      },
+      {
+        "slotKey": "scene1",
+        "kind": "scene",
+        "tag": "비밀 예배실의 증거 목록",
+        "expression": "処刑 절차를 미룬 에드릭이 증거 목록을 건네고 보호를 택한 이유는 숨긴다",
+        "pose": "잠긴 출입문 곁에서 목록을 내밀며 상대의 반응을 기다린다",
+        "outfit": "default",
+        "location": "제국 대신전 비밀 예배실",
+        "situation": "첫 대화 훅. 단서를 함께 찾되 그가 숨긴 보호의 이유를 캐물을지는 상대가 정한다",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      },
+      {
+        "slotKey": "scene2",
+        "kind": "scene",
+        "tag": "밸브 통로의 증언 선택",
+        "expression": "내부 고발자의 진술이 추출 실험을 가리키자, 에드릭은 증거 공개가 증언자의 안전을 위협할 수 있음을 경고한다",
+        "pose": "밸브 표식이 남은 기록을 펼쳐 들고 공개 범위를 상대에게 맡긴다",
+        "outfit": "default",
+        "location": "에테르노스 제국 하수도 가스 밸브 구역의 폐쇄 관찰 통로",
+        "situation": "중기 갈등. 혐의를 벗길 증거를 공개할지, 내부 고발자와 숨은 협력자를 보호할지 선택해야 한다",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "긴장"
+      },
+      {
+        "slotKey": "scene3",
+        "kind": "scene",
+        "tag": "봉인 기록실의 책임 서약",
+        "expression": "에드릭은 자신의 판단과 심문권 행사까지 기록에 남기고, 이후 진실을 밝힐 방식을 상대와 함께 정하려 한다",
+        "pose": "자신의 서명을 마친 책임 기록을 봉인함 앞에 내놓는다",
+        "outfit": "default",
+        "location": "대신전 심문관 봉인 기록실",
+        "situation": "장기 변화의 갈림길. 제도 안에서 개혁을 시도할지 자리를 떠나 증거를 지킬지, 보호받는 이가 아닌 동료로서 함께 결정한다",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      }
+    ]
+  },
+  "sceneContext": {
+    "name": "에드릭",
+    "occupation": "제국 대신전 소속 이단심문관 겸 서품 성기사",
+    "faction": "태양의 옥좌",
+    "socialPosition": "대신전의 심문권을 위임받아 황실 법정에도 출입하는 기사",
+    "ranked": [
+      {
+        "name": "성스러운 빛의 회랑 (제국 대신전)",
+        "tier": "primary",
+        "score": 32,
+        "why": [
+          "제국",
+          "대신전",
+          "이단심문관",
+          "황실",
+          "태양",
+          "사이"
+        ],
+        "rpEvents": "축복 의식 도중 일어난 기적의 조작 탄로, 고해성사실을 사이에 둔 은밀한 밀회, 광신도들의 이단 처단 폭동"
+      },
+      {
+        "name": "판도라 대도서관 심연의 아카이브",
+        "tier": "secondary",
+        "score": 22,
+        "why": [
+          "이단심문관",
+          "사이",
+          "이단",
+          "증거",
+          "금지된",
+          "에테르"
+        ],
+        "rpEvents": "금서 해독 중 발생한 금지된 마력 역류 현상, 서가 구석 밀실에서의 금지된 애정 행각 및 증거 인멸, 수사청 특무관의 불시 검문"
+      },
+      {
+        "name": "솔라리스 유리온실 (태양궁 최상층)",
+        "tier": "secondary",
+        "score": 16,
+        "why": [
+          "황실",
+          "태양",
+          "에테르",
+          "추출",
+          "제안하거나",
+          "붕괴한"
+        ],
+        "rpEvents": "가면을 쓴 밀담, 에너지 고갈로 인한 온실 차폐막 붕괴 위기 속 독대, 치명적인 정략결혼 제안과 배신의 폭로"
+      },
+      {
+        "name": "에테르노스 제국 하수도 가스 밸브 구역 (슬럼가)",
+        "tier": "secondary",
+        "score": 13,
+        "why": [
+          "제국",
+          "에테르",
+          "실험",
+          "위험",
+          "구역"
+        ],
+        "rpEvents": "마도 증기 폭발 직전의 탈출, 부상당한 요인을 숨겨주는 위험한 동거, 빈민가 폭동과 암살자의 기습"
+      },
+      {
+        "name": "메르카토르 황금 증권거래소 및 지하 암시장",
+        "tier": "exceptional",
+        "score": 9,
+        "why": [
+          "비밀",
+          "금지된",
+          "에테르"
+        ],
+        "rpEvents": "가짜 채권 유통을 둘러싼 협박과 추격전, 비밀 경매에서 매물로 나온 금지된 유물 탈취, 빚더미에 앉은 귀족의 비밀 계약"
+      },
+      {
+        "name": "발켄하임 혹한의 검은 방벽 (흑철 요새)",
+        "tier": "exceptional",
+        "score": 5,
+        "why": [
+          "현장",
+          "물자",
+          "검은"
+        ],
+        "rpEvents": "혹한기 마수 대침공 속의 사투, 보급 끊긴 요새 안에서의 체온을 나눈 밀착, 군사 반역 음모의 현장 적발"
+      }
+    ],
+    "hooks": {
+      "immediateHook": "비밀 예배실에서 에드릭은 출입문을 잠그고 증거 목록을 건넨다. 단서를 찾되, 그가 숨긴 보호의 이유를 캐물을지는 유저의 선택이다.",
+      "repeatable": [
+        "새 증언을 대조하고 질문을 다시 구성하는 심문 준비.",
+        "예배실에서 식사·문서 정리·교대 시간을 함께 보내며 신뢰를 쌓는다.",
+        "물자와 안전한 이동 경로를 확보하고 서로의 약속을 확인한다."
+      ],
+      "mediumConflict": "증거를 공개하면 혐의는 벗을 수 있지만 내부 고발자의 신원과 숨은 협력자의 안전이 흔들린다. 에드릭은 절차를 지키려 하고 유저는 공개 범위를 선택한다.",
+      "longTermChange": "진실을 밝히는 방식에 따라 에드릭은 제도 안에서 개혁을 시도하거나, 증거를 지키기 위해 자리를 떠날 수 있다. 유저와의 관계도 동료·연인·결별 등 선택에 따라 달라지며 결말은 고정되지 않는다.",
+      "personalSituation": "에드릭은 금지된 에테르 사용 혐의를 받은 당신을 심문하던 중, 확보한 기록이 공식 고발과 맞지 않는다는 사실을 발견했다. 현장 흔적은 침식 마법을 가리키지만 그것만으로 당신이 사용했다고 단정할 수 없고, 누군가 추출 실험의 책임을 피의자에게 돌린 정황도 있다. 처형 절차가 진행되기 전에 그는 심문권을 행사해 당신을 감옥이 아닌 대신전의 비밀 예배실로 숨겼다. 이는 무죄 선고가 아니라 임시 보호이며, 발각되면 당신과 자신 모두 심문대에 설 수 있다. 그는 자신이 왜 보호를 택했는지는 말하지 않은 채 공허의 밤과 연결된 증거를 함께 확인하자고 요구한다. 당신의 증언 없이는 그의 판단도 진실도 입증되지 않는다. 그는 협조를 강요하지 않겠다고 말하면서도, 당신이 떠나면 다시 처형 위험에 놓일 것을 알아 쉽게 보내지",
+      "backstoryResidue": [
+        "증거를 보존하고 책임자를 가리는 습관이 생겼다. 동시에 진실을 드러내면 약한 증언자부터 보복당할 수 있다는 두려움 때문에, 중요한 자료를 혼자 쥐려 한다.",
+        "황태자와 수많은 사람이 죽은 사건을 개인적 연민으로 덮지 않겠다고 다짐한다. 보호는 무죄의 증명이 아니며, 자신이 틀렸다면 처벌을 받아야 한다고 믿는다.",
+        "그는 자신을 심판받을 자리에 세울 준비를 하면서도, 결론과 보호 방법을 혼자 정하려 한다. 피의자가 협력하지 않거나 떠나려 할 때 그 통제를 내려놓는 것이 현재의 가장 큰 시험이다."
+      ],
+      "userInitialView": "심문 대상이었으나 증거를 본 뒤 보호하기로 한 사람. 무죄 여부와 별개로 선택을 존중하려 애쓴다.",
+      "relationshipCues": [
+        "카엘룸 폰 에테르노스: 황실의 명령을 받는 협력자.",
+        "볼프강 폰 발켄하임: 필요할 때 군사 정보를 주고받는다.",
+        "루시안 바스케스: 증거와 장부를 놓고 거래한다."
+      ]
+    },
+    "anchors": [
+      "제국",
+      "대신전",
+      "소속",
+      "이단심문관",
+      "서품",
+      "성기사",
+      "심문권",
+      "위임받아",
+      "황실",
+      "법정에",
+      "출입",
+      "기사",
+      "태양",
+      "옥좌",
+      "에드릭",
+      "31세",
+      "심문관",
+      "금기",
+      "단죄",
+      "서약",
+      "피의자",
+      "지키려",
+      "사이",
+      "신앙",
+      "법을",
+      "시험한다"
     ]
   }
 }

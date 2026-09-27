@@ -198,5 +198,23 @@
     "costUsd": 0.000943,
     "providerRequestId": null
   },
-  "note": "사용자 선택 전. candidate_approved/style_locked로 자동 진행하지 않는다."
+  "note": "사용자 선택 전. candidate_approved/style_locked로 자동 진행하지 않는다.",
+  "humanReview": {
+    "leadingProofDirection": "rf-02",
+    "fallback": "rf-04",
+    "canonicalStage": "candidates_proposed",
+    "candidateApproved": false,
+    "whyNotApproved": "approveStyleCandidate() requires a platform-owned or licensed style seed; none exists yet, so the owner is not bypassed.",
+    "decidedBy": "PR #1087 human review",
+    "proofInterpretation": [
+      "painterly/semi-real webtoon finish (vt-02)",
+      "brighter face exposure; burgundy/navy shadow must not eat the face (vt-07)",
+      "clean skin and stronger eye catchlights; detail carried by eyes and hair (vt-03)",
+      "card-size facial readability first at 2:3 bust/half-body (vt-01, vt-04)",
+      "differentiated male jaw/body types across the 8 male leads; the female lead keeps equal quality (vt-08)",
+      "court/uniform status cues legible without costume microdetail outranking the face (vt-05, vt-06)"
+    ],
+    "visualTrendSource": "docs/official-supply/market-research-snapshot-2026-09.json visualTrends (abstract, no images)",
+    "noImagesGenerated": true
+  }
 }

@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "successfulCompletions": 115,
+  "successfulCompletions": 117,
   "failedProviderAttempts": 5,
-  "physicalAttempts": 120,
+  "physicalAttempts": 122,
   "workflowRetries": 60,
-  "billedCostUsd": 0.105096,
+  "billedCostUsd": 0.10807699999999999,
   "failedAttemptCostUsd": 0,
-  "inputTokens": 345041,
-  "outputTokens": 229535,
+  "inputTokens": 353853,
+  "outputTokens": 236084,
   "imageCalls": 0,
   "lines": [
     {
@@ -1214,6 +1214,26 @@
       "inputTokens": 4313,
       "outputTokens": 1398,
       "costUsd": 0.000866
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4651,
+      "outputTokens": 3307,
+      "costUsd": 0.001483
+    },
+    {
+      "task": "asset_plan",
+      "draftKey": "pilot-rf-08",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 4161,
+      "outputTokens": 3242,
+      "costUsd": 0.001498
     }
   ],
   "legacy": {
@@ -1234,7 +1254,7 @@
   },
   "ledgerCrossCheck": {
     "since": "2026-09-26 13:48:00",
-    "ledgerSuccessfulCompletions": 65,
-    "ledgerBilledCostUsd": 0.051568
+    "ledgerSuccessfulCompletions": 117,
+    "ledgerBilledCostUsd": 0.108077
   }
 }

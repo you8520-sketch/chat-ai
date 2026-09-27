@@ -30,7 +30,24 @@ import {
 import { validateStyleProposal } from "@/lib/officialSupply/style";
 import type { OfficialAppearanceLock, OfficialAssetPlan, OfficialCharacterDraft } from "@/lib/officialSupply/types";
 import { evaluateOriginality, evaluateWorldDiversity } from "@/lib/officialSupply/worldQa";
-import { evaluatePortfolioBalance } from "@/lib/officialSupply/research";
+import {
+  castGenderCounts,
+  evaluateCastIntent,
+  evaluatePortfolioBalance,
+  type CastGender,
+  type OfficialCastIntent,
+  type ResearchSnapshot,
+} from "@/lib/officialSupply/research";
+import {
+  evaluateCastRoleDiversity,
+  evaluateDiscoveryTags,
+  evaluateMarketTropePortfolio,
+  evaluateNamePortfolio,
+  hasUserRelationshipCue,
+  observedMarketNames,
+  validateMarketFitBrief,
+  type OfficialBatchMarketPolicy,
+} from "@/lib/officialSupply/marketFit";
 import { listActiveQuarantines } from "@/lib/officialSupply/pilotArtifacts";
 import { evaluateScenePortfolioDiversity, resolveOfficialCharacterSceneContext } from "@/lib/officialSupply/scenePortfolio";
 
@@ -239,10 +256,17 @@ describe("official pilot content (romance fantasy 01)", () => {
     const drafts = chars().map((f) => f.draft);
     const qa = evaluateWorldDiversity(drafts);
     assert.equal(qa.errors.length, 0, JSON.stringify(qa.errors));
-    const genders = new Set(drafts.map((d) => d.gender));
-    assert.ok(genders.size >= 2, "single-gender pilot");
-    assert.ok(drafts.filter((d) => d.gender === "male").length >= 4, "male under-represented");
-    assert.ok(drafts.filter((d) => d.gender === "female").length >= 3, "female under-represented");
+  });
+
+  it("cast gender matches the batch-scoped manifest intent (8M / 1F / 1 other), not a balanced default", () => {
+    const m = manifest() as unknown as { castIntent: OfficialCastIntent; slotGenders: CastGender[] };
+    const drafts = chars().map((f) => f.draft);
+    const genders = drafts.map((d) => d.gender as CastGender);
+    assert.deepEqual(m.castIntent.desiredGenderMix, { male: 8, female: 1, other: 1 });
+    assert.equal(evaluateCastIntent(genders, m.castIntent).ok, true);
+    assert.deepEqual(genders, m.slotGenders);
+    assert.deepEqual(castGenderCounts(genders), m.castIntent.desiredGenderMix);
+    assert.equal(m.castIntent.targetAudience, "female_oriented");
   });
 
   it("originality: no distinctive competitor copy in any sheet", () => {
@@ -395,6 +419,8 @@ describe("official pilot content (romance fantasy 01)", () => {
       "voice-fix": ["greeting", "publicDescription", "speech"],
       "adult-fix": ["adultSection"],
       assetplan: ["assetPlan"],
+      "public-fix": ["tagline", "tags"],
+      "cast-cleanup": ["otherRelationships"],
     };
     for (const file of chars()) {
       for (const revision of (file as unknown as { revisions?: { step: string; fields: string[] }[] }).revisions ?? []) {
@@ -412,6 +438,8 @@ describe("official pilot content (romance fantasy 01)", () => {
       "src/lib/officialSupply/bible.ts",
       "src/lib/officialSupply/scenePortfolio.ts",
       "src/lib/officialSupply/pilotArtifacts.ts",
+      "src/lib/officialSupply/marketFit.ts",
+      "src/lib/officialSupply/research.ts",
       "scripts/official-supply-pilot-author.ts",
     ];
     for (const file of files) {
@@ -429,5 +457,134 @@ describe("official pilot content (romance fantasy 01)", () => {
     const route = fs.readFileSync(path.join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
     assert.match(page, /if \(c\.nsfw === 1 && !user\.is_adult\) \{/);
     assert.match(route, /if \(ch\.nsfw && !user\.is_adult\) \{/);
+  });
+});
+
+describe("pilot cast correction: 06-08 replaced by male romance targets", () => {
+  type Replacement = { replacedNames: string[]; slots: { slot: number; gender: string; adultCandidate: boolean }[] };
+  type PublicDecision = { tagline?: string; replaceTags?: [string, string][]; addTags?: string[] };
+  const m = () =>
+    manifest() as unknown as {
+      replacement: Replacement;
+      publicSurfaceDecisions: Record<string, PublicDecision>;
+      marketPolicy: OfficialBatchMarketPolicy;
+    };
+  const snapshot = () =>
+    readJson<ResearchSnapshot>(path.join(process.cwd(), "docs/official-supply/market-research-snapshot-2026-09.json"));
+
+  it("replaced slots carry valid market-fit briefs, relationship-first hooks and grounded 4-7 tags", () => {
+    const { bible: world } = worldBible();
+    const { replacement, marketPolicy } = m();
+    const files = chars();
+    for (const plan of replacement.slots) {
+      const brief = world.portfolio.find((b) => b.slot === plan.slot)!;
+      const file = files.find((f) => f.slot === plan.slot)!;
+      assert.ok(!replacement.replacedNames.includes(brief.name), `slot ${plan.slot} still holds a replaced character`);
+      assert.equal(file.bible.identity.gender, plan.gender);
+      assert.equal(brief.adultCandidate, plan.adultCandidate);
+      assert.ok(brief.marketFit, `slot ${plan.slot}: marketFit missing`);
+      const qa = validateMarketFitBrief(brief.marketFit!, {
+        snapshot: snapshot(),
+        policy: marketPolicy,
+        adultCandidate: brief.adultCandidate,
+        expectedNamingProfile: "western_rofan",
+      });
+      assert.deepEqual(qa.errors, [], `slot ${plan.slot}`);
+      assert.ok(hasUserRelationshipCue(file.bible.publicProfile.tagline), `slot ${plan.slot} tagline: ${file.bible.publicProfile.tagline}`);
+      assert.ok(hasUserRelationshipCue(brief.rpHook));
+      const tags = evaluateDiscoveryTags({ tags: file.bible.publicProfile.tags, bible: file.bible, hook: brief }, marketPolicy);
+      assert.deepEqual(tags.errors, [], `slot ${plan.slot}`);
+      assert.ok(file.bible.publicProfile.tags.length >= 4 && file.bible.publicProfile.tags.length <= 7);
+      assert.equal(file.bible.identity.name, brief.name);
+    }
+  });
+
+  it("new names are clean in the full-cast name QA and keep the western_rofan profile", () => {
+    const { bible: world } = worldBible();
+    const qa = evaluateNamePortfolio(
+      world.portfolio.map((b) => ({
+        draftKey: String(b.slot),
+        name: b.name,
+        namingProfile: b.gender === "other" ? ("nonhuman_designation" as const) : ("western_rofan" as const),
+      })),
+      { observed: observedMarketNames(snapshot()) }
+    );
+    assert.deepEqual(qa.errors, []);
+    const replacedNames = m().replacement.slots.map((s) => world.portfolio.find((b) => b.slot === s.slot)!.name);
+    for (const issue of qa.warnings) {
+      assert.ok(!replacedNames.some((n) => issue.message.includes(n)), issue.message);
+    }
+  });
+
+  it("role diversity: no occupation/hook/silhouette/speech clone and at most 2 royal/ducal leads", () => {
+    const { bible: world } = worldBible();
+    const files = chars();
+    const qa = evaluateCastRoleDiversity(
+      world.portfolio.map((b, i) => ({
+        draftKey: String(b.slot),
+        name: b.name,
+        occupation: b.occupation,
+        archetype: b.archetype,
+        socialPosition: b.socialPosition,
+        visualSilhouette: b.visualSilhouette,
+        rpHook: b.rpHook,
+        speechDirection: `${b.speechDirection} ${files[i]!.bible.speech.register} ${files[i]!.bible.speech.keywords.join(" ")}`,
+      }))
+    );
+    assert.deepEqual(qa.errors, []);
+    assert.ok(qa.royalOrDuke.length <= 2, qa.royalOrDuke.join(","));
+    const tropes = evaluateMarketTropePortfolio(
+      world.portfolio.map((b) => ({ draftKey: String(b.slot), primaryTrope: b.marketFit?.relationshipTrope.primary ?? b.relationshipTrope, secondaryTropes: [] })),
+      m().marketPolicy
+    );
+    assert.deepEqual(tropes.errors, []);
+  });
+
+  it("human-approved public-surface decisions are applied exactly (tagline / tags only)", () => {
+    const files = chars();
+    for (const [draftKey, decision] of Object.entries(m().publicSurfaceDecisions)) {
+      const file = files.find((f) => f.draftKey === draftKey)!;
+      if (decision.tagline) assert.equal(file.bible.publicProfile.tagline, decision.tagline);
+      for (const [from, to] of decision.replaceTags ?? []) {
+        assert.ok(!file.bible.publicProfile.tags.includes(from) && file.bible.publicProfile.tags.includes(to), `${draftKey}: ${from}→${to}`);
+      }
+      for (const add of decision.addTags ?? []) assert.ok(file.bible.publicProfile.tags.includes(add));
+      assert.equal(file.draft.tagline, file.bible.publicProfile.tagline);
+      assert.deepEqual(file.draft.tags, file.bible.publicProfile.tags);
+    }
+    const kept = ["pilot-rf-04", "pilot-rf-05", "pilot-rf-09"];
+    const taglines: Record<string, string> = {
+      "pilot-rf-04": "정답보다 당신이 숨긴 전제가 궁금한 학자",
+      "pilot-rf-05": "목격자의 목에 칼을 겨눈 청부업자, 끝내 손을 멈췄다.",
+      "pilot-rf-09": "기도가 닿지 않는 밤에도, 그녀는 당신 곁을 지킨다.",
+    };
+    for (const key of kept) assert.equal(files.find((f) => f.draftKey === key)!.bible.publicProfile.tagline, taglines[key]);
+  });
+
+  it("no sheet keeps a relationship to a character outside the current cast", () => {
+    const { bible: world } = worldBible();
+    const cast = new Set(world.portfolio.flatMap((b) => [b.name, b.name.split(/\s+/)[0]!]));
+    for (const file of chars()) {
+      for (const rel of file.bible.otherRelationships) {
+        assert.ok(cast.has(rel.target.trim()), `${file.draftKey}: relationship to ${rel.target}`);
+      }
+      const text = JSON.stringify({ bible: file.bible, draft: file.draft, plan: file.assetPlan });
+      for (const removed of m().replacement.replacedNames) {
+        assert.ok(!text.includes(removed.split(/\s+/)[0]!), `${file.draftKey} mentions ${removed}`);
+      }
+    }
+  });
+
+  it("style: rf-02 is only the human-selected proof direction; canonical stage stays candidates_proposed", () => {
+    const board = readJson<{
+      stage: string;
+      humanReview: { leadingProofDirection: string; fallback: string; canonicalStage: string; candidateApproved: boolean; noImagesGenerated: boolean };
+    }>(path.join(PILOT_DIR, "style-candidates.json"));
+    assert.equal(board.stage, "candidates_proposed");
+    assert.equal(board.humanReview.canonicalStage, "candidates_proposed");
+    assert.equal(board.humanReview.leadingProofDirection, "rf-02");
+    assert.equal(board.humanReview.fallback, "rf-04");
+    assert.equal(board.humanReview.candidateApproved, false);
+    assert.equal(board.humanReview.noImagesGenerated, true);
   });
 });

@@ -490,6 +490,28 @@
         "costUsd": 0.00041,
         "providerRequestId": null
       }
+    },
+    {
+      "step": "assetplan",
+      "fields": [
+        "assetPlan"
+      ],
+      "reasons": [
+        "scene planner collapse (portfolio)"
+      ],
+      "at": "2026-09-27T03:56:38.397Z",
+      "provenance": {
+        "model": "gpt-6-luna",
+        "requestKind": "official-character-author",
+        "templateVersion": "pilot-rf-01/v3",
+        "snapshotVersion": "market-research-snapshot-2026-09.json",
+        "attempt": 1,
+        "createdAt": "2026-09-27T03:56:38.397Z",
+        "inputTokens": 4161,
+        "outputTokens": 3242,
+        "costUsd": 0.001498,
+        "providerRequestId": null
+      }
     }
   ],
   "appearance": {
@@ -518,6 +540,319 @@
       "모래빛의 귀를 덮고 목덜미에 닿는 흐트러진 머리와 짙은 바다색 눈을 바꾸지 않는다.",
       "183cm의 마른 장신 체형과 옅게 그을린 피부, 곧은 자세를 바꾸지 않는다.",
       "감청색 코트의 낡은 가문 문장과 왼손 손목의 항해용 나침반 끈을 제거하거나 다른 위치로 옮기지 않는다."
+    ]
+  },
+  "assetPlan": {
+    "slots": [
+      {
+        "slotKey": "rep",
+        "kind": "representative",
+        "tag": "2:3 해상귀족 협상 초상",
+        "expression": "예의를 갖춘 무표정에 상대의 답을 기다리는 시선",
+        "pose": "상반신을 정면으로 세우고 항로 기록 봉투를 한 손에 든다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": null
+      },
+      {
+        "slotKey": "sig1",
+        "kind": "signature",
+        "tag": "기록을 지키는 후계자",
+        "expression": "차분하고 빈틈없는 표정",
+        "pose": "항로 차트를 몸 가까이 접어 든다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": null
+      },
+      {
+        "slotKey": "sig2",
+        "kind": "signature",
+        "tag": "절제된 외교인의 태도",
+        "expression": "정중하지만 쉽게 마음을 내주지 않는 미소",
+        "pose": "장갑 낀 손으로 코트의 단추를 여민다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "미소"
+      },
+      {
+        "slotKey": "sig3",
+        "kind": "signature",
+        "tag": "출입구를 살피는 시선",
+        "expression": "주변의 동선을 놓치지 않는 진지한 눈빛",
+        "pose": "벽 가까이에 서서 출입구와 시계를 함께 확인한다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      },
+      {
+        "slotKey": "sig4",
+        "kind": "signature",
+        "tag": "귀국을 담보로 한 인질",
+        "expression": "담담함 아래 눌러 둔 단호함",
+        "pose": "어깨를 곧게 펴고 협상 상대를 마주한다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": null
+      },
+      {
+        "slotKey": "emo1",
+        "kind": "emotion",
+        "tag": "예의를 두른 경계",
+        "expression": "입가에는 옅은 미소가 있지만 눈빛은 경계한다",
+        "pose": "상대와 적당한 거리를 두고 서류를 가슴께에 든다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "미소"
+      },
+      {
+        "slotKey": "emo2",
+        "kind": "emotion",
+        "tag": "약속을 재는 불신",
+        "expression": "상대의 말을 검증하듯 눈을 가늘게 뜬다",
+        "pose": "손목시계를 확인하며 대답을 기다린다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "의심"
+      },
+      {
+        "slotKey": "emo3",
+        "kind": "emotion",
+        "tag": "삼킨 귀향의 그리움",
+        "expression": "애써 감춘 슬픔이 잠깐 얼굴에 번진다",
+        "pose": "접힌 항로 지도를 내려다보며 손끝으로 가장자리를 누른다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "슬픔"
+      },
+      {
+        "slotKey": "emo4",
+        "kind": "emotion",
+        "tag": "노출된 좌표의 긴장",
+        "expression": "예상치 못한 증거 앞에 숨을 멈춘 듯 굳는다",
+        "pose": "봉투를 움켜쥐고 시선을 문 쪽으로 돌린다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "긴장"
+      },
+      {
+        "slotKey": "emo5",
+        "kind": "emotion",
+        "tag": "조건을 지키려는 결의",
+        "expression": "타협의 여지를 남기면서도 뜻은 굽히지 않는 표정",
+        "pose": "증거 서류를 탁자 위에 펼쳐 손으로 짚는다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      },
+      {
+        "slotKey": "emo6",
+        "kind": "emotion",
+        "tag": "확인된 약속의 안도",
+        "expression": "상대가 약속을 이행한 것을 확인하고 긴장을 조금 푼다",
+        "pose": "시계를 덮고 고개를 작게 끄덕인다",
+        "outfit": "default",
+        "location": null,
+        "situation": null,
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": null
+      },
+      {
+        "slotKey": "scene1",
+        "kind": "scene",
+        "tag": "접견 데크의 귀국 조건",
+        "expression": "공개 접견 중에도 상대의 권한을 가늠하는 침착한 표정",
+        "pose": "검증 가능한 항로 기록 한 장을 내보이며 상대를 똑바로 바라본다",
+        "outfit": "default",
+        "location": "솔라리스 유리온실, 태양궁 최상층 외교 접견 데크",
+        "situation": "첫 대화에서 노엘은 항로 기록 전체를 넘기지 않고 검증 가능한 구간만 제시한다. 대신 유저가 자신의 귀국 조건을 직접 협상하라고 요구하며, 유저의 권한이 어디까지인지 답을 재촉한다. 접견 데크의 출입 기록에는 노엘의 퇴궁 시각이 조작된 흔적이 있어 둘 다 상대의 선택을 확인해야 한다.",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      },
+      {
+        "slotKey": "scene2",
+        "kind": "scene",
+        "tag": "위조된 항로 증언의 검증",
+        "expression": "자신에게 씌워진 혐의보다 좌표가 노출될 위험을 먼저 살핀다",
+        "pose": "서명 대조표를 들어 증거의 불일치를 가리킨다",
+        "outfit": "default",
+        "location": "성스러운 빛의 회랑, 제국 대신전 사절단 서명 검증대",
+        "situation": "중기 갈등에서 길드 사절이 노엘의 서명을 붙인 항로 사본을 공개하고, 황실과 방벽 측은 기록의 진위를 문제 삼는다. 위조를 입증하려면 숨겨 둔 좌표 일부를 공개해야 하는 상황에서 노엘은 민간 항로의 안전과 자신의 결백 중 무엇을 먼저 지킬지 선택해야 한다. 유저는 증거를 공동 보관할지 공개 검증에 넘길지 결정한다.",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "긴장"
+      },
+      {
+        "slotKey": "scene3",
+        "kind": "scene",
+        "tag": "공동 봉인의 항로 검증실",
+        "expression": "결말을 강요하지 않고도 함께 책임질 수 있는지 살피는 표정",
+        "pose": "봉인된 항로 지도를 탁자 중앙에 놓고 유저에게 결정권을 내어 준다",
+        "outfit": "default",
+        "location": "태양궁 외교 인질관, 노엘의 잠금 항로 검증실",
+        "situation": "장기 변화의 갈림길에서 노엘은 봉인된 항로 기록의 공개 범위를 정하기 위해 유저를 자신의 검증실로 부른다. 일부 항로를 공개하면 귀국 협상에 힘이 실릴 수 있지만 해안 공동체가 위험해질 수 있다. 그는 어느 쪽도 미리 정답으로 두지 않고, 유저와 함께 공개 범위와 책임을 기록할지 결정하려 한다.",
+        "characterPresence": "required",
+        "depiction": "standard",
+        "personTag": "진지함"
+      }
+    ]
+  },
+  "sceneContext": {
+    "name": "노엘 벨로체",
+    "occupation": "벨로체 해상 항로 기록의 관리인, 휴전 협상 당사자",
+    "faction": "태양의 옥좌",
+    "socialPosition": "몰락한 해상 귀족 가문의 후계자이자 외교 인질",
+    "ranked": [
+      {
+        "name": "솔라리스 유리온실 (태양궁 최상층)",
+        "tier": "primary",
+        "score": 13,
+        "why": [
+          "외교",
+          "태양",
+          "황실",
+          "에테르",
+          "접견",
+          "제안"
+        ],
+        "rpEvents": "가면을 쓴 밀담, 에너지 고갈로 인한 온실 차폐막 붕괴 위기 속 독대, 치명적인 정략결혼 제안과 배신의 폭로"
+      },
+      {
+        "name": "메르카토르 황금 증권거래소 및 지하 암시장",
+        "tier": "primary",
+        "score": 13,
+        "why": [
+          "귀족",
+          "비밀",
+          "정보",
+          "에테르",
+          "소리에"
+        ],
+        "rpEvents": "가짜 채권 유통을 둘러싼 협박과 추격전, 비밀 경매에서 매물로 나온 금지된 유물 탈취, 빚더미에 앉은 귀족의 비밀 계약"
+      },
+      {
+        "name": "성스러운 빛의 회랑 (제국 대신전)",
+        "tier": "primary",
+        "score": 13,
+        "why": [
+          "귀족",
+          "태양",
+          "대신",
+          "황실",
+          "회랑",
+          "소리에"
+        ],
+        "rpEvents": "축복 의식 도중 일어난 기적의 조작 탄로, 고해성사실을 사이에 둔 은밀한 밀회, 광신도들의 이단 처단 폭동"
+      },
+      {
+        "name": "발켄하임 혹한의 검은 방벽 (흑철 요새)",
+        "tier": "secondary",
+        "score": 6,
+        "why": [
+          "귀족",
+          "방벽",
+          "물자"
+        ],
+        "rpEvents": "혹한기 마수 대침공 속의 사투, 보급 끊긴 요새 안에서의 체온을 나눈 밀착, 군사 반역 음모의 현장 적발"
+      },
+      {
+        "name": "판도라 대도서관 심연의 아카이브",
+        "tier": "exceptional",
+        "score": 5,
+        "why": [
+          "권한",
+          "증거",
+          "에테르",
+          "위험"
+        ],
+        "rpEvents": "금서 해독 중 발생한 금지된 마력 역류 현상, 서가 구석 밀실에서의 금지된 애정 행각 및 증거 인멸, 수사청 특무관의 불시 검문"
+      },
+      {
+        "name": "에테르노스 제국 하수도 가스 밸브 구역 (슬럼가)",
+        "tier": "exceptional",
+        "score": 4,
+        "why": [
+          "에테르",
+          "제국",
+          "위험",
+          "탈출"
+        ],
+        "rpEvents": "마도 증기 폭발 직전의 탈출, 부상당한 요인을 숨겨주는 위험한 동거, 빈민가 폭동과 암살자의 기습"
+      }
+    ],
+    "hooks": {
+      "immediateHook": "노엘은 항로 기록을 내놓는 대가로 유저가 직접 귀국 조건을 협상하라 요구한다. 양측 모두 상대가 사라지면 목적을 잃는다.",
+      "repeatable": [
+        "조건과 증거를 맞바꾸는 협상, 약속 이행 확인.",
+        "나침반과 시계를 살피며 출입구·인물 동선을 점검.",
+        "식사나 서류 정리 중 사소한 질문으로 서로의 기준을 떠본다."
+      ],
+      "mediumConflict": "기록의 진위와 숨긴 좌표가 드러나며 황실·방벽·길드가 귀국 조건에 개입한다. 노엘은 보호와 감시를 구분해야 한다.",
+      "longTermChange": "유저의 선택에 따라 동맹·경쟁·신뢰하는 동행자로 변한다. 귀국 여부와 항로의 공개 범위는 함께 결정하며 결말은 고정하지 않는다.",
+      "personalSituation": "노엘은 26세다. 벨로체 가문의 후계자이자 휴전 협상이 끝날 때까지 수도를 떠날 수 없는 외교 인질이다. 가문은 해상 항로와 항만 수입을 잃어 몰락했고, 그가 가진 비밀 항로 기록만이 가문의 몫과 귀국 조건을 요구할 지렛대로 남았다. 그는 기록 전체를 넘기지 않으면 협상이 깨질 수 있다는 점도, 전부 넘기면 가문이 더는 필요 없는 존재로 취급될 수 있다는 점도 안다. 황실 협상관인 당신과 그는 휴전 조항을 두고 대립해 왔다. 이제 노엘은 검증 가능한 항로 정보를 내놓는 대신, 당신이 그의 귀국 조건을 직접 협상하라고 요구한다. 그는 당신을 믿지 않으며 당신에게 권한이 어디까지 있는지도 시험하려 한다. 반대로 당신이 그를 협상에서 배제하거나 사라지게 두면 항로의 진위와 조건을 보증할 사람이 없어지고, 양쪽 모",
+      "backstoryResidue": [
+        "그는 정보를 생존 수단이자 책임으로 본다. 무엇을 공개할지 결정하기 전에는 상대가 그 정보로 누구를 위험에 빠뜨릴지부터 따진다.",
+        "그가 예의를 지키면서 호의를 의심하는 까닭이다. 귀국을 원하면서도 성급한 탈출보다 상대와 맺은 조건을 직접 확인하려 한다."
+      ],
+      "userInitialView": "휴전 협상에서 맞선 상대. 유저의 말보다 선택과 약속 이행을 살핀다.",
+      "relationshipCues": [
+        "카엘룸 폰 에테르노스: 황실 협상 창구.",
+        "볼프강 폰 발켄하임: 휴전의 군사 보증인.",
+        "루시안 바스케스: 항로 정보의 거래 상대."
+      ]
+    },
+    "anchors": [
+      "벨로체",
+      "해상",
+      "항로",
+      "관리인",
+      "휴전",
+      "협상",
+      "당사자",
+      "몰락한",
+      "귀족",
+      "가문",
+      "후계자이자",
+      "외교",
+      "인질",
+      "태양",
+      "옥좌",
+      "감시하",
+      "체류",
+      "비밀",
+      "카드",
+      "후계자"
     ]
   }
 }
