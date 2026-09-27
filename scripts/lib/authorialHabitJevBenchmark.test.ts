@@ -295,6 +295,47 @@ describe("authorial habit JEV benchmark execution isolation", () => {
     assert.equal(result.jev.reportedProviderCostUsd, 0.0001);
   });
 
+  it("separates transport failures from malformed provider responses", async () => {
+    const fixture = AUTHORIAL_HABIT_JEV_CORPUS[0]!;
+    const env = {
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "1",
+      [REAL_JEV_AUTHORIAL_HABIT_PROBE_ENV]: "1",
+      [OPENROUTER_JEV_BENCHMARK_ENV]: "benchmark-only-key",
+    } as NodeJS.ProcessEnv;
+
+    globalThis.fetch = (async () => {
+      throw new Error("synthetic transport failure");
+    }) as typeof fetch;
+
+    const transport = await runAuthorialHabitJevBenchmark({
+      env,
+      fixtures: [fixture],
+      log: () => {},
+    });
+    assert.equal(transport.status, "RAN");
+    if (transport.status !== "RAN") return;
+    assert.equal(transport.totalProviderCalls, 1);
+    assert.equal(transport.jev.failureCount, 1);
+    assert.equal(transport.jev.malformedCount, 0);
+
+    globalThis.fetch = (async () =>
+      new Response("not-json", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })) as typeof fetch;
+
+    const malformed = await runAuthorialHabitJevBenchmark({
+      env,
+      fixtures: [fixture],
+      log: () => {},
+    });
+    assert.equal(malformed.status, "RAN");
+    if (malformed.status !== "RAN") return;
+    assert.equal(malformed.totalProviderCalls, 1);
+    assert.equal(malformed.jev.failureCount, 1);
+    assert.equal(malformed.jev.malformedCount, 1);
+  });
+
   it("does not wire authorial benchmark into production /api/chat route", () => {
     const routeSource = readFileSync(
       new URL("../../src/app/api/chat/route.ts", import.meta.url),
