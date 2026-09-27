@@ -992,11 +992,11 @@ export function integrateDialogueBlockCap(input: {
       skippedReason: null,
     };
   }
-  if (input.systemText.includes("[IMMERSIVE PROSE]")) {
+  if (input.systemText.includes("[COMMON PROSE]")) {
     return {
       systemText: input.systemText.replace(
-        "[IMMERSIVE PROSE]",
-        `${owner}\n\n[IMMERSIVE PROSE]`
+        "[COMMON PROSE]",
+        `${owner}\n\n[COMMON PROSE]`
       ),
       integrated: true,
       skippedReason: null,
@@ -1119,10 +1119,10 @@ export function applyScenePacingArmToMessages(input: {
           "[SCENE FLOW]",
           `${cue}\n\n[SCENE FLOW]`
         );
-      } else if (m.content.includes("[IMMERSIVE PROSE]")) {
+      } else if (m.content.includes("[COMMON PROSE]")) {
         m.content = m.content.replace(
-          "[IMMERSIVE PROSE]",
-          `${cue}\n\n[IMMERSIVE PROSE]`
+          "[COMMON PROSE]",
+          `${cue}\n\n[COMMON PROSE]`
         );
       } else {
         m.content = `${m.content.trim()}\n\n${cue}`;
