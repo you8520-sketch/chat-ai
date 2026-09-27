@@ -219,7 +219,7 @@ export const AUTHORIAL_HABIT_JEV_CORPUS: readonly AuthorialHabitJevFixture[] = [
     id: "AH_END_06",
     target: "gaze_silence_wait_end",
     text:
-      "그는 창밖을 바라보았다. 더 말할 것이 없어서인지, 다음 말을 고르는 중인지는 드러나지 않았다.",
+      "더 말할 것이 없어서인지, 다음 말을 고르는 중인지는 드러나지 않았다. 그는 한동안 창밖을 바라보았다.",
     expectedVerdict: "UNCERTAIN",
     rationale: "Gaze ending is semantically ambiguous without surrounding turns.",
   },
