@@ -1,0 +1,41 @@
+{
+  "tag": "SNAPSHOT_B/gemini-3.7-flash/L/r1",
+  "snapshot": "SNAPSHOT_B",
+  "modelId": "gemini-3.7-flash",
+  "arm": "L",
+  "rep": 1,
+  "visibleChars": 3329,
+  "prompt_tokens": 10754,
+  "completion_tokens": 2237,
+  "cached_tokens": null,
+  "cache_creation_input_tokens": null,
+  "finish": "stop",
+  "latencyMs": 21358,
+  "httpStatus": 200,
+  "error": null,
+  "semanticLeakageFlags": [
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "의 뇌리에서 실없는 장난기가 순식간에 휘발되었다. 11년 차 S+급 센티넬로서 수많은 죽을 고비를 넘기고, 폭주의 공포에 질려 사람들에게 기피당하며 살아온 그였다. 언제나 가벼"
+    },
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "태형은 렌의 손을 쥔 채로 천천히 상체를 더 낮췄다. 188cm의 육중하고 탄탄한 체격이 침대에 걸터앉은 렌의 시야를 완전히 가로막으며 그림자를 드리웠다. 타이트한 하이넥 컴프레션"
+    },
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "푸른 힘줄이 불거질 만큼 단단한 악력. 짧게 정돈된 검은 네일이 렌의 하얀 손가락을 덮어 누르듯 감싸 쥐었다. \"말 돌리지 말라고?\" 태형이 비스듬히 입꼬리를 말아 올렸다."
+    }
+  ],
+  "wire": {
+    "arm": "L",
+    "policyActualCanonMode": "LAYERED",
+    "characterCoreIdentityChars": 3361,
+    "characterActiveCanonChars": 1510,
+    "characterPrivateSecretChars": 0,
+    "systemTotalChars": 12476,
+    "staticPrefixEstimateChars": 12186,
+    "dynamicEstimateChars": 0
+  },
+  "systemSha256": "7d2bd35018a67309d6c24269231f9e92bcea9d4a846fe9f303818ab88225a19d"
+}

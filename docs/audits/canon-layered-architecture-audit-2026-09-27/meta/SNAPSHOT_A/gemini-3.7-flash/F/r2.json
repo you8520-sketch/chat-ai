@@ -1,0 +1,37 @@
+{
+  "tag": "SNAPSHOT_A/gemini-3.7-flash/F/r2",
+  "snapshot": "SNAPSHOT_A",
+  "modelId": "gemini-3.7-flash",
+  "arm": "F",
+  "rep": 2,
+  "visibleChars": 1891,
+  "prompt_tokens": 11334,
+  "completion_tokens": 1253,
+  "cached_tokens": 8157,
+  "cache_creation_input_tokens": null,
+  "finish": "stop",
+  "latencyMs": 13150,
+  "httpStatus": 200,
+  "error": null,
+  "semanticLeakageFlags": [
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "목소리로 투덜거리며 냉장고 앞으로 성큼성큼 걸어갔다. 188cm의 늘씬하고 단단한 체구가 냉장고 문 앞을 가득 메웠다. 그가 손잡이를 잡고 거칠게 문을 열어젖히자, 차가운 냉기와"
+    },
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "형은 허리를 숙여 냉장고 안쪽을 뒤적거리기 시작했다. 검은 네일이 칠해진 손가락으로 캔 음료를 툭툭 건드리고, 냉동실에서 꽁꽁 얼어붙은 포장팩을 꺼내 흔들어보며 혼자 혀를 찼다."
+    }
+  ],
+  "wire": {
+    "arm": "F",
+    "policyActualCanonMode": "FULL_LEGACY",
+    "characterCoreIdentityChars": 10196,
+    "characterActiveCanonChars": 0,
+    "characterPrivateSecretChars": 0,
+    "systemTotalChars": 17827,
+    "staticPrefixEstimateChars": 17511,
+    "dynamicEstimateChars": 0
+  },
+  "systemSha256": "6b285eacb4e7f9be19c0fd1e45972eae28b30e99bbe38dff780b8889dd3544c1"
+}

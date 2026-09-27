@@ -1,0 +1,37 @@
+{
+  "tag": "SNAPSHOT_B/deepseek-v4-pro-0813/L/r1",
+  "snapshot": "SNAPSHOT_B",
+  "modelId": "deepseek-v4-pro-0813",
+  "arm": "L",
+  "rep": 1,
+  "visibleChars": 1810,
+  "prompt_tokens": 12842,
+  "completion_tokens": 1403,
+  "cached_tokens": null,
+  "cache_creation_input_tokens": null,
+  "finish": "stop",
+  "latencyMs": 19181,
+  "httpStatus": 200,
+  "error": null,
+  "semanticLeakageFlags": [
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "잖아. 그것도 고작 몇 번 같이 뛴 신입.\" 태형의 녹안이 천천히 렌의 얼굴을 훑었다. 이마에서부터 눈, 콧날, 입술, 턱선까지. 그 시선은 분명히 탐색하고 있었다. 몇 차례의"
+    },
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "위에 포개듯 얹었다. 시리도록 하얀 피부와 대비되는 검은 네일이 손등을 스쳤다. 그러곤 천천히, 옷자락을 쥔 손가락 사이로 제 손가락을 끼워 넣었다. 억지로 풀려는 게 아니라,"
+    }
+  ],
+  "wire": {
+    "arm": "L",
+    "policyActualCanonMode": "LAYERED",
+    "characterCoreIdentityChars": 3417,
+    "characterActiveCanonChars": 1510,
+    "characterPrivateSecretChars": 0,
+    "systemTotalChars": 12623,
+    "staticPrefixEstimateChars": 12306,
+    "dynamicEstimateChars": 0
+  },
+  "systemSha256": "edd080e8f59114a09b327323e04289a50fcdaf1d5eb957a92c0e1646eb924603"
+}

@@ -1,0 +1,208 @@
+{
+  "snapshot": "SNAPSHOT_A",
+  "label": "post-mission food/domestic (T1 user)",
+  "userMessagePreview": "OOC: 첫 만남 이후 몇 차례 임무를 함께한 시점. 오늘 임무가 끝난 뒤, 둘은 태형의 본부 숙소에 들어와 있다. 둘 다 성인이다. 여기서부터 장면 계속.\n\n렌은 현관에서 재킷을 벗어 소파 팔걸이에 걸치고, 아직 임무의 피로가 덜 빠진 얼굴로 태형을 한번 훑어봤다. 그러고는 냉장고 쪽을 턱짓했다.\n\n\"배고프다며. 뭐 먹을 건데? 아까부터 그것만 말했잖아.",
+  "gate": {
+    "recentContextGateReason": "CURRENT_CANON_MATCH",
+    "recentContextUsed": true,
+    "keywords": [
+      "ooc",
+      "만남",
+      "이후",
+      "차례",
+      "임무를",
+      "함께한",
+      "시점",
+      "오늘",
+      "임무가",
+      "끝난",
+      "둘은",
+      "태형의",
+      "본부",
+      "숙소에",
+      "들어와",
+      "있다",
+      "성인이다",
+      "여기서부터",
+      "장면",
+      "계속",
+      "렌은",
+      "현관에서",
+      "재킷을",
+      "벗어",
+      "소파",
+      "팔걸이에",
+      "걸치고",
+      "아직",
+      "임무의",
+      "피로가",
+      "빠진",
+      "얼굴로",
+      "태형을",
+      "한번",
+      "훑어봤다",
+      "그러고는",
+      "냉장고",
+      "쪽을",
+      "턱짓했다",
+      "배고프다며",
+      "먹을",
+      "건데",
+      "아까부터",
+      "그것만",
+      "말했잖아",
+      "먼저",
+      "소파에",
+      "기대앉아",
+      "다리를",
+      "뻗었다",
+      "태형이",
+      "무슨",
+      "장난을",
+      "칠지",
+      "기다리듯",
+      "시선만",
+      "느긋하게",
+      "따라갔다"
+    ]
+  },
+  "budgetChars": 1200,
+  "eligibleCount": 0,
+  "selectedCount": 12,
+  "selectedChars": 1167,
+  "selected": [
+    {
+      "id": "5f0f1962ca0c775d",
+      "sectionTitle": "[조아연(누나)]",
+      "chars": 74,
+      "reason": {
+        "chunkId": "5f0f1962ca0c775d",
+        "currentScore": 8,
+        "recentScore": 4,
+        "recentBridgeOnly": false
+      }
+    },
+    {
+      "id": "08bcb8b263a12709",
+      "sectionTitle": "[조아연(누나)]",
+      "chars": 50,
+      "reason": {
+        "chunkId": "08bcb8b263a12709",
+        "currentScore": 4,
+        "recentScore": 5,
+        "recentBridgeOnly": false
+      }
+    },
+    {
+      "id": "5e6803d0d12e27f8",
+      "sectionTitle": "[조아인(코드네임 Aether/에테르)]",
+      "chars": 143,
+      "reason": {
+        "chunkId": "5e6803d0d12e27f8",
+        "currentScore": 0,
+        "recentScore": 7,
+        "recentBridgeOnly": true
+      }
+    },
+    {
+      "id": "de9c35073442a14f",
+      "sectionTitle": "과거·트라우마**: 11년 차 S+급 특수계 센티넬.",
+      "chars": 73,
+      "reason": {
+        "chunkId": "de9c35073442a14f",
+        "currentScore": 0,
+        "recentScore": 7,
+        "recentBridgeOnly": true
+      }
+    },
+    {
+      "id": "95e44c30bdec0a6c",
+      "sectionTitle": "[조아연(누나)]",
+      "chars": 83,
+      "reason": {
+        "chunkId": "95e44c30bdec0a6c",
+        "currentScore": 0,
+        "recentScore": 4,
+        "recentBridgeOnly": true
+      }
+    },
+    {
+      "id": "10bee4e325730046",
+      "sectionTitle": "[조아연(누나)]",
+      "chars": 56,
+      "reason": {
+        "chunkId": "10bee4e325730046",
+        "currentScore": 0,
+        "recentScore": 4,
+        "recentBridgeOnly": true
+      }
+    },
+    {
+      "id": "e6a4a517ede7ea32",
+      "sectionTitle": "과거·수감**ㅣ유광 블랙 전술 재킷 + 하이넥 컴프레션 셔츠 + 전술 하네스 + 슬림핏 조거팬츠 + 전자 초커·수족 구속구(수감 시)",
+      "chars": 34,
+      "reason": {
+        "chunkId": "e6a4a517ede7ea32",
+        "currentScore": 2,
+        "recentScore": 1,
+        "recentBridgeOnly": false
+      }
+    },
+    {
+      "id": "9f7b69c22943d1f7",
+      "sectionTitle": "과거·수감**ㅣ유광 블랙 전술 재킷 + 하이넥 컴프레션 셔츠 + 전술 하네스 + 슬림핏 조거팬츠 + 전자 초커·수족 구속구(수감 시)",
+      "chars": 110,
+      "reason": {
+        "chunkId": "9f7b69c22943d1f7",
+        "currentScore": 0,
+        "recentScore": 3,
+        "recentBridgeOnly": true
+      }
+    },
+    {
+      "id": "e06453bbb2dc3442",
+      "sectionTitle": "과거·트라우마**: 11년 차 S+급 특수계 센티넬.",
+      "chars": 55,
+      "reason": {
+        "chunkId": "e06453bbb2dc3442",
+        "currentScore": 0,
+        "recentScore": 3,
+        "recentBridgeOnly": true
+      }
+    },
+    {
+      "id": "2454a8e6e29faa06",
+      "sectionTitle": "과거·트라우마**: 11년 차 S+급 특수계 센티넬.",
+      "chars": 318,
+      "reason": {
+        "chunkId": "2454a8e6e29faa06",
+        "currentScore": 0,
+        "recentScore": 3,
+        "recentBridgeOnly": true
+      }
+    },
+    {
+      "id": "68de3320eea4ecfc",
+      "sectionTitle": "과거·트라우마**: 11년 차 S+급 특수계 센티넬.",
+      "chars": 60,
+      "reason": {
+        "chunkId": "68de3320eea4ecfc",
+        "currentScore": 0,
+        "recentScore": 3,
+        "recentBridgeOnly": true
+      }
+    },
+    {
+      "id": "f0031dc30d607143",
+      "sectionTitle": "[예시 대사]",
+      "chars": 111,
+      "reason": {
+        "chunkId": "f0031dc30d607143",
+        "currentScore": 0,
+        "recentScore": 3,
+        "recentBridgeOnly": true
+      }
+    }
+  ],
+  "rejectedSample": []
+}

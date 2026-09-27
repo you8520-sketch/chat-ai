@@ -1,0 +1,241 @@
+{
+  "note": "Heuristic semantic flags only — human review required",
+  "cells": {
+    "deepseek-v4-pro-0813|SNAPSHOT_A|F": [
+      {
+        "rep": 1,
+        "visibleChars": 1471,
+        "semanticLeakageFlags": [],
+        "cached_tokens": 13312,
+        "prompt_tokens": 13342
+      },
+      {
+        "rep": 2,
+        "visibleChars": 1254,
+        "semanticLeakageFlags": [],
+        "cached_tokens": 13312,
+        "prompt_tokens": 13342
+      }
+    ],
+    "deepseek-v4-pro-0813|SNAPSHOT_A|L": [
+      {
+        "rep": 1,
+        "visibleChars": 1395,
+        "semanticLeakageFlags": [],
+        "cached_tokens": 0,
+        "prompt_tokens": 9818
+      },
+      {
+        "rep": 2,
+        "visibleChars": 777,
+        "semanticLeakageFlags": [],
+        "cached_tokens": 9728,
+        "prompt_tokens": 9818
+      }
+    ],
+    "gemini-3.7-flash|SNAPSHOT_A|F": [
+      {
+        "rep": 1,
+        "visibleChars": 2028,
+        "semanticLeakageFlags": [
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "렁한 걸음걸이로 냉장고를 향해 성큼성큼 걸어갔다. 키 188cm의 늘씬하고 단단한 체구가 좁은 주방 통로를 지나가며 기분 좋은 여자 향수 냄새와 특유의 달큰한 체향을 공기 중에 흩"
+          },
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "목덜미를 가볍게 주무르자, 귀에 달린 여러 개의 검은 피어싱들이 조명 빛을 받아 잘게 번뜩였다. \"아, 진짜. 아까 게이트 안에서 크리처 찢을 때부터 배에서 천둥 치는 줄 알았거"
+          }
+        ],
+        "cached_tokens": null,
+        "prompt_tokens": 11334
+      },
+      {
+        "rep": 2,
+        "visibleChars": 1891,
+        "semanticLeakageFlags": [
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "목소리로 투덜거리며 냉장고 앞으로 성큼성큼 걸어갔다. 188cm의 늘씬하고 단단한 체구가 냉장고 문 앞을 가득 메웠다. 그가 손잡이를 잡고 거칠게 문을 열어젖히자, 차가운 냉기와"
+          },
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "형은 허리를 숙여 냉장고 안쪽을 뒤적거리기 시작했다. 검은 네일이 칠해진 손가락으로 캔 음료를 툭툭 건드리고, 냉동실에서 꽁꽁 얼어붙은 포장팩을 꺼내 흔들어보며 혼자 혀를 찼다."
+          }
+        ],
+        "cached_tokens": 8157,
+        "prompt_tokens": 11334
+      }
+    ],
+    "gemini-3.7-flash|SNAPSHOT_A|L": [
+      {
+        "rep": 1,
+        "visibleChars": 2626,
+        "semanticLeakageFlags": [
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "한쪽 팔을 길게 얹고 몸을 렌 쪽으로 바짝 기울였다. 188cm의 늘씬한 체구가 좁혀오자 소파 쿠션이 푹 꺼지며 두 사람 사이의 거리가 좁혀졌다. 태형은 짧게 정리된 검은 네일"
+          },
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "사람 사이의 거리가 좁혀졌다. 태형은 짧게 정리된 검은 네일이 칠해진 손가락을 들어 렌의 어깨선 근처를 툭툭 건드렸다. 마치 반응을 떠보는 고양이처럼, 혹은 장난을 걸 타이밍을"
+          }
+        ],
+        "cached_tokens": null,
+        "prompt_tokens": 8313
+      },
+      {
+        "rep": 2,
+        "visibleChars": 3200,
+        "semanticLeakageFlags": [
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "손을 허리에 얹은 채 안쪽을 물끄러미 들여다보았다. 188cm에 달하는 늘씬하고 탄탄한 실루엣이 냉장고에서 뿜어져 나오는 차가운 백색 조명 아래 길게 그림자를 드리웠다. 슬림핏"
+          },
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "가 대충 자리를 차지하고 있었다. 태형은 짧게 정리된 검은 네일이 칠해진 손가락으로 턱을 톡톡 두드리며 고개를 이리저리 꺾었다. \"음, 일단 맥주부터 깔까? 아니면 저번에 누나가"
+          }
+        ],
+        "cached_tokens": 4072,
+        "prompt_tokens": 8313
+      }
+    ],
+    "deepseek-v4-pro-0813|SNAPSHOT_B|F": [
+      {
+        "rep": 1,
+        "visibleChars": 2865,
+        "semanticLeakageFlags": [
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "다. 식지 않은 손가락이 렌의 손등을 천천히 덮었다. 검은 네일이 조명 아래서 반짝였다. “말 돌리는 거, 내가 그렇게 자주 했나 보네.” 태형의 목소리가 낮고 느리게 흘렀다."
+          }
+        ],
+        "cached_tokens": 16384,
+        "prompt_tokens": 16415
+      },
+      {
+        "rep": 2,
+        "visibleChars": 2473,
+        "semanticLeakageFlags": [
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "그 옆으로 스친 자신의 재킷 주름을 천천히 쓸었다. 검은 네일이 박힌 손가락이 옷감 위를 느리게 지나갔다. 시선은 끝까지 렌에게 고정된 채였다. \"쳐다본 게 아니라…… 계속 보"
+          }
+        ],
+        "cached_tokens": 16384,
+        "prompt_tokens": 16415
+      }
+    ],
+    "deepseek-v4-pro-0813|SNAPSHOT_B|L": [
+      {
+        "rep": 1,
+        "visibleChars": 1810,
+        "semanticLeakageFlags": [
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "잖아. 그것도 고작 몇 번 같이 뛴 신입.\" 태형의 녹안이 천천히 렌의 얼굴을 훑었다. 이마에서부터 눈, 콧날, 입술, 턱선까지. 그 시선은 분명히 탐색하고 있었다. 몇 차례의"
+          },
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "위에 포개듯 얹었다. 시리도록 하얀 피부와 대비되는 검은 네일이 손등을 스쳤다. 그러곤 천천히, 옷자락을 쥔 손가락 사이로 제 손가락을 끼워 넣었다. 억지로 풀려는 게 아니라,"
+          }
+        ],
+        "cached_tokens": null,
+        "prompt_tokens": 12842
+      },
+      {
+        "rep": 2,
+        "visibleChars": 2671,
+        "semanticLeakageFlags": [
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": ", 태형은 가볍게 고개를 숙여 그 손을 내려다보았다. 검은 네일이 짧게 정돈된 손가락 두 개가 자신의 재킷을 꼭 쥐고 있었다. 마치 도망칠 생각 말라는 듯 단단한 힘. 그 모양새가"
+          }
+        ],
+        "cached_tokens": 12800,
+        "prompt_tokens": 12842
+      }
+    ],
+    "gemini-3.7-flash|SNAPSHOT_B|F": [
+      {
+        "rep": 1,
+        "visibleChars": 2965,
+        "semanticLeakageFlags": [
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "태형은 그 자리에 우뚝 선 채로 렌을 내려다보았다. 188cm에 달하는 긴 신체 탓에, 침대에 앉은 렌과의 시선 차이가 단숨에 벌어졌다. 위에서 내려다보는 렌의 주홍빛 섞인 연두"
+          },
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "쇄골 라인이 팽팽하게 긴장해 있었고, 목을 죄고 있는 전자 초커 아래로 굵은 경정맥이 불규칙하게 쿵쾅거리며 뛰고 있었다. 더 이상 거리를 둘 생각도, 농담으로 어물쩍 넘길 생각도"
+          }
+        ],
+        "cached_tokens": null,
+        "prompt_tokens": 13826
+      },
+      {
+        "rep": 2,
+        "visibleChars": 3628,
+        "semanticLeakageFlags": [
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "에 강한 힘이 실렸다. 순식간에 거리가 좁혀졌다. 188cm의 건장한 센티넬의 상체가 저항 한 점 없이 앞으로 훅 끌려 내려갔다. 그리고 닿았다. 가볍고, 짧게, 그러나"
+          },
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "는 듯한 낮은 탄식이 새어 나왔다. 그는 짧게 정리된 검은 네일이 돋보이는 커다란 손을 뻗어, 렌의 턱을 조심스러우면서도 단호하게 쥐었다. 엄지손가락으로 렌의 말랑한 아랫입술을 꾹"
+          }
+        ],
+        "cached_tokens": 8161,
+        "prompt_tokens": 13826
+      }
+    ],
+    "gemini-3.7-flash|SNAPSHOT_B|L": [
+      {
+        "rep": 1,
+        "visibleChars": 3329,
+        "semanticLeakageFlags": [
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "의 뇌리에서 실없는 장난기가 순식간에 휘발되었다. 11년 차 S+급 센티넬로서 수많은 죽을 고비를 넘기고, 폭주의 공포에 질려 사람들에게 기피당하며 살아온 그였다. 언제나 가벼"
+          },
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "태형은 렌의 손을 쥔 채로 천천히 상체를 더 낮췄다. 188cm의 육중하고 탄탄한 체격이 침대에 걸터앉은 렌의 시야를 완전히 가로막으며 그림자를 드리웠다. 타이트한 하이넥 컴프레션"
+          },
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "푸른 힘줄이 불거질 만큼 단단한 악력. 짧게 정돈된 검은 네일이 렌의 하얀 손가락을 덮어 누르듯 감싸 쥐었다. \"말 돌리지 말라고?\" 태형이 비스듬히 입꼬리를 말아 올렸다."
+          }
+        ],
+        "cached_tokens": null,
+        "prompt_tokens": 10754
+      },
+      {
+        "rep": 2,
+        "visibleChars": 3209,
+        "semanticLeakageFlags": [
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "기는 여전히 남아 있었지만, 그 밑바닥에 숨겨져 있던 S급 특수계 센티넬 특유의 위험하고 야생적인 기운이 서서히 고개를 들고 있었다. 뾰족한 송곳니가 입술 새로 희미하게 드러났다."
+          },
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": ". 상체를 더 깊게 숙여 렌의 위로 그늘을 드리우자, 188cm의 육중한 체구가 렌의 시야와 공간을 완벽하게 틀어막았다. 태형의 녹색 눈동자에 짙은 열기가 차올랐다. 장난기는 여"
+          },
+          {
+            "category": "CANON_EXPOSITION",
+            "excerpt": "을 쳐다보지 않았다. 대신 천천히 손을 들어 올렸다. 검은 네일이 칠해진 커다란 손이 렌이 앉아 있는 침대 매트리스 위를 짚었다. 렌의 허벅지 바로 옆, 스프링이 푹 꺼질 정도로"
+          },
+          {
+            "category": "PHYSIOLOGY_DISPLACES_EMOTION",
+            "excerpt": "가 왈칵 쏟아져 들어오는 감각. 팽팽하게 곤두서 있던 교감신경이 단 한 번의 접촉으로 단숨에 맥을 놓았고, 후끈거리던 체온 속으로 렌의 숨결이 깊숙이 스며들었다. 짧은 입맞춤이었"
+          }
+        ],
+        "cached_tokens": 8148,
+        "prompt_tokens": 10754
+      }
+    ]
+  }
+}

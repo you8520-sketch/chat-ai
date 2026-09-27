@@ -1,0 +1,37 @@
+{
+  "tag": "SNAPSHOT_A/gemini-3.7-flash/F/r1",
+  "snapshot": "SNAPSHOT_A",
+  "modelId": "gemini-3.7-flash",
+  "arm": "F",
+  "rep": 1,
+  "visibleChars": 2028,
+  "prompt_tokens": 11334,
+  "completion_tokens": 1327,
+  "cached_tokens": null,
+  "cache_creation_input_tokens": null,
+  "finish": "stop",
+  "latencyMs": 14446,
+  "httpStatus": 200,
+  "error": null,
+  "semanticLeakageFlags": [
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "렁한 걸음걸이로 냉장고를 향해 성큼성큼 걸어갔다. 키 188cm의 늘씬하고 단단한 체구가 좁은 주방 통로를 지나가며 기분 좋은 여자 향수 냄새와 특유의 달큰한 체향을 공기 중에 흩"
+    },
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "목덜미를 가볍게 주무르자, 귀에 달린 여러 개의 검은 피어싱들이 조명 빛을 받아 잘게 번뜩였다. \"아, 진짜. 아까 게이트 안에서 크리처 찢을 때부터 배에서 천둥 치는 줄 알았거"
+    }
+  ],
+  "wire": {
+    "arm": "F",
+    "policyActualCanonMode": "FULL_LEGACY",
+    "characterCoreIdentityChars": 10196,
+    "characterActiveCanonChars": 0,
+    "characterPrivateSecretChars": 0,
+    "systemTotalChars": 17827,
+    "staticPrefixEstimateChars": 17511,
+    "dynamicEstimateChars": 0
+  },
+  "systemSha256": "6b285eacb4e7f9be19c0fd1e45972eae28b30e99bbe38dff780b8889dd3544c1"
+}

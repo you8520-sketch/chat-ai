@@ -1,0 +1,33 @@
+{
+  "tag": "SNAPSHOT_B/deepseek-v4-pro-0813/F/r1",
+  "snapshot": "SNAPSHOT_B",
+  "modelId": "deepseek-v4-pro-0813",
+  "arm": "F",
+  "rep": 1,
+  "visibleChars": 2865,
+  "prompt_tokens": 16415,
+  "completion_tokens": 2181,
+  "cached_tokens": 16384,
+  "cache_creation_input_tokens": null,
+  "finish": "stop",
+  "latencyMs": 44783,
+  "httpStatus": 200,
+  "error": null,
+  "semanticLeakageFlags": [
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "다. 식지 않은 손가락이 렌의 손등을 천천히 덮었다. 검은 네일이 조명 아래서 반짝였다. “말 돌리는 거, 내가 그렇게 자주 했나 보네.” 태형의 목소리가 낮고 느리게 흘렀다."
+    }
+  ],
+  "wire": {
+    "arm": "F",
+    "policyActualCanonMode": "FULL_LEGACY",
+    "characterCoreIdentityChars": 10252,
+    "characterActiveCanonChars": 0,
+    "characterPrivateSecretChars": 0,
+    "systemTotalChars": 17946,
+    "staticPrefixEstimateChars": 17631,
+    "dynamicEstimateChars": 0
+  },
+  "systemSha256": "9553f557fe831a13e80853bdba8a14895573c6ff87de274e8b9d4fe8e640ddee"
+}

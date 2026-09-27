@@ -1,0 +1,108 @@
+{
+  "rows": [
+    {
+      "snapshot": "SNAPSHOT_A",
+      "modelId": "deepseek-v4-pro-0813",
+      "arm": "F",
+      "policyActualCanonMode": "FULL_LEGACY",
+      "characterCoreIdentityChars": 10252,
+      "characterActiveCanonChars": 0,
+      "characterPrivateSecretChars": 0,
+      "systemTotalChars": 17974,
+      "staticPrefixEstimateChars": 17631,
+      "dynamicEstimateChars": 0,
+      "systemSha256": "842d3c20a4f44bad8bb2699c031e8be5f136967d5bd67c21c0d13b5860cd4899"
+    },
+    {
+      "snapshot": "SNAPSHOT_A",
+      "modelId": "deepseek-v4-pro-0813",
+      "arm": "L",
+      "policyActualCanonMode": "LAYERED",
+      "characterCoreIdentityChars": 3417,
+      "characterActiveCanonChars": 1574,
+      "characterPrivateSecretChars": 0,
+      "systemTotalChars": 12715,
+      "staticPrefixEstimateChars": 12370,
+      "dynamicEstimateChars": 0,
+      "systemSha256": "0233087e4056718b310ec9f5dce8910d4d5b6dba3459c750d0459913d2072c9a"
+    },
+    {
+      "snapshot": "SNAPSHOT_A",
+      "modelId": "gemini-3.7-flash",
+      "arm": "F",
+      "policyActualCanonMode": "FULL_LEGACY",
+      "characterCoreIdentityChars": 10196,
+      "characterActiveCanonChars": 0,
+      "characterPrivateSecretChars": 0,
+      "systemTotalChars": 17827,
+      "staticPrefixEstimateChars": 17511,
+      "dynamicEstimateChars": 0,
+      "systemSha256": "6b285eacb4e7f9be19c0fd1e45972eae28b30e99bbe38dff780b8889dd3544c1"
+    },
+    {
+      "snapshot": "SNAPSHOT_A",
+      "modelId": "gemini-3.7-flash",
+      "arm": "L",
+      "policyActualCanonMode": "LAYERED",
+      "characterCoreIdentityChars": 3361,
+      "characterActiveCanonChars": 1574,
+      "characterPrivateSecretChars": 0,
+      "systemTotalChars": 12568,
+      "staticPrefixEstimateChars": 12250,
+      "dynamicEstimateChars": 0,
+      "systemSha256": "a5e8d1a0107e95e1545f71454b9906350f18bd2a981583b8a72b3f6c846f2f2b"
+    },
+    {
+      "snapshot": "SNAPSHOT_B",
+      "modelId": "deepseek-v4-pro-0813",
+      "arm": "F",
+      "policyActualCanonMode": "FULL_LEGACY",
+      "characterCoreIdentityChars": 10252,
+      "characterActiveCanonChars": 0,
+      "characterPrivateSecretChars": 0,
+      "systemTotalChars": 17946,
+      "staticPrefixEstimateChars": 17631,
+      "dynamicEstimateChars": 0,
+      "systemSha256": "9553f557fe831a13e80853bdba8a14895573c6ff87de274e8b9d4fe8e640ddee"
+    },
+    {
+      "snapshot": "SNAPSHOT_B",
+      "modelId": "deepseek-v4-pro-0813",
+      "arm": "L",
+      "policyActualCanonMode": "LAYERED",
+      "characterCoreIdentityChars": 3417,
+      "characterActiveCanonChars": 1510,
+      "characterPrivateSecretChars": 0,
+      "systemTotalChars": 12623,
+      "staticPrefixEstimateChars": 12306,
+      "dynamicEstimateChars": 0,
+      "systemSha256": "edd080e8f59114a09b327323e04289a50fcdaf1d5eb957a92c0e1646eb924603"
+    },
+    {
+      "snapshot": "SNAPSHOT_B",
+      "modelId": "gemini-3.7-flash",
+      "arm": "F",
+      "policyActualCanonMode": "FULL_LEGACY",
+      "characterCoreIdentityChars": 10196,
+      "characterActiveCanonChars": 0,
+      "characterPrivateSecretChars": 0,
+      "systemTotalChars": 17799,
+      "staticPrefixEstimateChars": 17511,
+      "dynamicEstimateChars": 0,
+      "systemSha256": "50fa7c8abd812e7d4002d4d930283fe39fc7ab6298bad3684f8f9e3cdc67124e"
+    },
+    {
+      "snapshot": "SNAPSHOT_B",
+      "modelId": "gemini-3.7-flash",
+      "arm": "L",
+      "policyActualCanonMode": "LAYERED",
+      "characterCoreIdentityChars": 3361,
+      "characterActiveCanonChars": 1510,
+      "characterPrivateSecretChars": 0,
+      "systemTotalChars": 12476,
+      "staticPrefixEstimateChars": 12186,
+      "dynamicEstimateChars": 0,
+      "systemSha256": "7d2bd35018a67309d6c24269231f9e92bcea9d4a846fe9f303818ab88225a19d"
+    }
+  ]
+}

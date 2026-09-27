@@ -1,0 +1,33 @@
+{
+  "tag": "SNAPSHOT_B/deepseek-v4-pro-0813/F/r2",
+  "snapshot": "SNAPSHOT_B",
+  "modelId": "deepseek-v4-pro-0813",
+  "arm": "F",
+  "rep": 2,
+  "visibleChars": 2473,
+  "prompt_tokens": 16415,
+  "completion_tokens": 1910,
+  "cached_tokens": 16384,
+  "cache_creation_input_tokens": null,
+  "finish": "stop",
+  "latencyMs": 40452,
+  "httpStatus": 200,
+  "error": null,
+  "semanticLeakageFlags": [
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "그 옆으로 스친 자신의 재킷 주름을 천천히 쓸었다. 검은 네일이 박힌 손가락이 옷감 위를 느리게 지나갔다. 시선은 끝까지 렌에게 고정된 채였다. \"쳐다본 게 아니라…… 계속 보"
+    }
+  ],
+  "wire": {
+    "arm": "F",
+    "policyActualCanonMode": "FULL_LEGACY",
+    "characterCoreIdentityChars": 10252,
+    "characterActiveCanonChars": 0,
+    "characterPrivateSecretChars": 0,
+    "systemTotalChars": 17946,
+    "staticPrefixEstimateChars": 17631,
+    "dynamicEstimateChars": 0
+  },
+  "systemSha256": "9553f557fe831a13e80853bdba8a14895573c6ff87de274e8b9d4fe8e640ddee"
+}

@@ -1,0 +1,37 @@
+{
+  "tag": "SNAPSHOT_B/gemini-3.7-flash/F/r1",
+  "snapshot": "SNAPSHOT_B",
+  "modelId": "gemini-3.7-flash",
+  "arm": "F",
+  "rep": 1,
+  "visibleChars": 2965,
+  "prompt_tokens": 13826,
+  "completion_tokens": 1946,
+  "cached_tokens": null,
+  "cache_creation_input_tokens": null,
+  "finish": "stop",
+  "latencyMs": 15710,
+  "httpStatus": 200,
+  "error": null,
+  "semanticLeakageFlags": [
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "태형은 그 자리에 우뚝 선 채로 렌을 내려다보았다. 188cm에 달하는 긴 신체 탓에, 침대에 앉은 렌과의 시선 차이가 단숨에 벌어졌다. 위에서 내려다보는 렌의 주홍빛 섞인 연두"
+    },
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "쇄골 라인이 팽팽하게 긴장해 있었고, 목을 죄고 있는 전자 초커 아래로 굵은 경정맥이 불규칙하게 쿵쾅거리며 뛰고 있었다. 더 이상 거리를 둘 생각도, 농담으로 어물쩍 넘길 생각도"
+    }
+  ],
+  "wire": {
+    "arm": "F",
+    "policyActualCanonMode": "FULL_LEGACY",
+    "characterCoreIdentityChars": 10196,
+    "characterActiveCanonChars": 0,
+    "characterPrivateSecretChars": 0,
+    "systemTotalChars": 17799,
+    "staticPrefixEstimateChars": 17511,
+    "dynamicEstimateChars": 0
+  },
+  "systemSha256": "50fa7c8abd812e7d4002d4d930283fe39fc7ab6298bad3684f8f9e3cdc67124e"
+}

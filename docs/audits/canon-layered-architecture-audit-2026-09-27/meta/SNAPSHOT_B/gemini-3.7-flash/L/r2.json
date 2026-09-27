@@ -1,0 +1,45 @@
+{
+  "tag": "SNAPSHOT_B/gemini-3.7-flash/L/r2",
+  "snapshot": "SNAPSHOT_B",
+  "modelId": "gemini-3.7-flash",
+  "arm": "L",
+  "rep": 2,
+  "visibleChars": 3209,
+  "prompt_tokens": 10754,
+  "completion_tokens": 2115,
+  "cached_tokens": 8148,
+  "cache_creation_input_tokens": null,
+  "finish": "stop",
+  "latencyMs": 21206,
+  "httpStatus": 200,
+  "error": null,
+  "semanticLeakageFlags": [
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "기는 여전히 남아 있었지만, 그 밑바닥에 숨겨져 있던 S급 특수계 센티넬 특유의 위험하고 야생적인 기운이 서서히 고개를 들고 있었다. 뾰족한 송곳니가 입술 새로 희미하게 드러났다."
+    },
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": ". 상체를 더 깊게 숙여 렌의 위로 그늘을 드리우자, 188cm의 육중한 체구가 렌의 시야와 공간을 완벽하게 틀어막았다. 태형의 녹색 눈동자에 짙은 열기가 차올랐다. 장난기는 여"
+    },
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "을 쳐다보지 않았다. 대신 천천히 손을 들어 올렸다. 검은 네일이 칠해진 커다란 손이 렌이 앉아 있는 침대 매트리스 위를 짚었다. 렌의 허벅지 바로 옆, 스프링이 푹 꺼질 정도로"
+    },
+    {
+      "category": "PHYSIOLOGY_DISPLACES_EMOTION",
+      "excerpt": "가 왈칵 쏟아져 들어오는 감각. 팽팽하게 곤두서 있던 교감신경이 단 한 번의 접촉으로 단숨에 맥을 놓았고, 후끈거리던 체온 속으로 렌의 숨결이 깊숙이 스며들었다. 짧은 입맞춤이었"
+    }
+  ],
+  "wire": {
+    "arm": "L",
+    "policyActualCanonMode": "LAYERED",
+    "characterCoreIdentityChars": 3361,
+    "characterActiveCanonChars": 1510,
+    "characterPrivateSecretChars": 0,
+    "systemTotalChars": 12476,
+    "staticPrefixEstimateChars": 12186,
+    "dynamicEstimateChars": 0
+  },
+  "systemSha256": "7d2bd35018a67309d6c24269231f9e92bcea9d4a846fe9f303818ab88225a19d"
+}

@@ -1,0 +1,37 @@
+{
+  "tag": "SNAPSHOT_A/gemini-3.7-flash/L/r1",
+  "snapshot": "SNAPSHOT_A",
+  "modelId": "gemini-3.7-flash",
+  "arm": "L",
+  "rep": 1,
+  "visibleChars": 2626,
+  "prompt_tokens": 8313,
+  "completion_tokens": 1768,
+  "cached_tokens": null,
+  "cache_creation_input_tokens": null,
+  "finish": "stop",
+  "latencyMs": 19597,
+  "httpStatus": 200,
+  "error": null,
+  "semanticLeakageFlags": [
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "한쪽 팔을 길게 얹고 몸을 렌 쪽으로 바짝 기울였다. 188cm의 늘씬한 체구가 좁혀오자 소파 쿠션이 푹 꺼지며 두 사람 사이의 거리가 좁혀졌다. 태형은 짧게 정리된 검은 네일"
+    },
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "사람 사이의 거리가 좁혀졌다. 태형은 짧게 정리된 검은 네일이 칠해진 손가락을 들어 렌의 어깨선 근처를 툭툭 건드렸다. 마치 반응을 떠보는 고양이처럼, 혹은 장난을 걸 타이밍을"
+    }
+  ],
+  "wire": {
+    "arm": "L",
+    "policyActualCanonMode": "LAYERED",
+    "characterCoreIdentityChars": 3361,
+    "characterActiveCanonChars": 1574,
+    "characterPrivateSecretChars": 0,
+    "systemTotalChars": 12568,
+    "staticPrefixEstimateChars": 12250,
+    "dynamicEstimateChars": 0
+  },
+  "systemSha256": "a5e8d1a0107e95e1545f71454b9906350f18bd2a981583b8a72b3f6c846f2f2b"
+}

@@ -1,0 +1,37 @@
+{
+  "tag": "SNAPSHOT_B/gemini-3.7-flash/F/r2",
+  "snapshot": "SNAPSHOT_B",
+  "modelId": "gemini-3.7-flash",
+  "arm": "F",
+  "rep": 2,
+  "visibleChars": 3628,
+  "prompt_tokens": 13826,
+  "completion_tokens": 2466,
+  "cached_tokens": 8161,
+  "cache_creation_input_tokens": null,
+  "finish": "stop",
+  "latencyMs": 16812,
+  "httpStatus": 200,
+  "error": null,
+  "semanticLeakageFlags": [
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "에 강한 힘이 실렸다. 순식간에 거리가 좁혀졌다. 188cm의 건장한 센티넬의 상체가 저항 한 점 없이 앞으로 훅 끌려 내려갔다. 그리고 닿았다. 가볍고, 짧게, 그러나"
+    },
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "는 듯한 낮은 탄식이 새어 나왔다. 그는 짧게 정리된 검은 네일이 돋보이는 커다란 손을 뻗어, 렌의 턱을 조심스러우면서도 단호하게 쥐었다. 엄지손가락으로 렌의 말랑한 아랫입술을 꾹"
+    }
+  ],
+  "wire": {
+    "arm": "F",
+    "policyActualCanonMode": "FULL_LEGACY",
+    "characterCoreIdentityChars": 10196,
+    "characterActiveCanonChars": 0,
+    "characterPrivateSecretChars": 0,
+    "systemTotalChars": 17799,
+    "staticPrefixEstimateChars": 17511,
+    "dynamicEstimateChars": 0
+  },
+  "systemSha256": "50fa7c8abd812e7d4002d4d930283fe39fc7ab6298bad3684f8f9e3cdc67124e"
+}

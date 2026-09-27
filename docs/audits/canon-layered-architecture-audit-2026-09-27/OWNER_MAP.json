@@ -1,0 +1,30 @@
+{
+  "owners": {
+    "canonCompilation": "src/lib/canonPlan/compiler.ts → compileCanonPlanV1",
+    "coreClassification": "src/lib/canonPlan/canonSalience.ts (inferSalience) + coreIds in compiler",
+    "activeClassification": "salience !== core && not player/scenario_meta",
+    "dormantClassification": "inferSalience → dormant",
+    "activeRetrieval": "src/lib/canonPlan/activeSelector.ts → selectActiveCanonChunks",
+    "activeBudget": "CanonPlanV1.retrieval.activeBudgetChars (default 1200)",
+    "archiveRetrieval": "src/lib/memory/archiveSelective.ts (when isSelectiveArchiveActive)",
+    "knowledgeVisibility": "src/lib/canonPlan/canonVisibility.ts + characterKnowledgeBoundary",
+    "runtimeCanonMode": "src/lib/canonInjectionPolicy.ts → resolveCanonInjectionPolicy + isLayeredCanonActive",
+    "rolloutCanary": "canonInjectionPolicy + canonInjectionCohort",
+    "cachePlacement": "contextBuilder pushSection cacheRules vs dynamic (not content policy owner)",
+    "characterCoreRendering": "layered: coreRenderer.renderCoreCanonBlock; full: buildCharacterCanonBlock"
+  },
+  "staleComments": [
+    {
+      "file": "src/services/contextBuilder.ts",
+      "line": 240,
+      "text": "full character profile every turn",
+      "classification": "STALE — layered mode injects CORE+ACTIVE; comment predates LAYERED"
+    },
+    {
+      "file": "src/services/contextBuilder.ts",
+      "line": 761,
+      "sectionTitle": "Structured character canon (every turn)",
+      "classification": "KEEP label — section still every turn; content varies by mode"
+    }
+  ]
+}

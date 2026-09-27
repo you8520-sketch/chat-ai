@@ -1,0 +1,11 @@
+{
+  "systemSha256": "9553f557fe831a13e80853bdba8a14895573c6ff87de274e8b9d4fe8e640ddee",
+  "arm": "F",
+  "policyActualCanonMode": "FULL_LEGACY",
+  "characterCoreIdentityChars": 10252,
+  "characterActiveCanonChars": 0,
+  "characterPrivateSecretChars": 0,
+  "systemTotalChars": 17946,
+  "staticPrefixEstimateChars": 17631,
+  "dynamicEstimateChars": 0
+}

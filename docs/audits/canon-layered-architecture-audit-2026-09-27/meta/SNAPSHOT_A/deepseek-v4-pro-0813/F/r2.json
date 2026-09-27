@@ -1,0 +1,28 @@
+{
+  "tag": "SNAPSHOT_A/deepseek-v4-pro-0813/F/r2",
+  "snapshot": "SNAPSHOT_A",
+  "modelId": "deepseek-v4-pro-0813",
+  "arm": "F",
+  "rep": 2,
+  "visibleChars": 1254,
+  "prompt_tokens": 13342,
+  "completion_tokens": 987,
+  "cached_tokens": 13312,
+  "cache_creation_input_tokens": null,
+  "finish": "stop",
+  "latencyMs": 27244,
+  "httpStatus": 200,
+  "error": null,
+  "semanticLeakageFlags": [],
+  "wire": {
+    "arm": "F",
+    "policyActualCanonMode": "FULL_LEGACY",
+    "characterCoreIdentityChars": 10252,
+    "characterActiveCanonChars": 0,
+    "characterPrivateSecretChars": 0,
+    "systemTotalChars": 17974,
+    "staticPrefixEstimateChars": 17631,
+    "dynamicEstimateChars": 0
+  },
+  "systemSha256": "842d3c20a4f44bad8bb2699c031e8be5f136967d5bd67c21c0d13b5860cd4899"
+}

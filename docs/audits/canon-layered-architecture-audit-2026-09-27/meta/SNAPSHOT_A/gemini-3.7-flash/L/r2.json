@@ -1,0 +1,37 @@
+{
+  "tag": "SNAPSHOT_A/gemini-3.7-flash/L/r2",
+  "snapshot": "SNAPSHOT_A",
+  "modelId": "gemini-3.7-flash",
+  "arm": "L",
+  "rep": 2,
+  "visibleChars": 3200,
+  "prompt_tokens": 8313,
+  "completion_tokens": 2100,
+  "cached_tokens": 4072,
+  "cache_creation_input_tokens": null,
+  "finish": "stop",
+  "latencyMs": 21708,
+  "httpStatus": 200,
+  "error": null,
+  "semanticLeakageFlags": [
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "손을 허리에 얹은 채 안쪽을 물끄러미 들여다보았다. 188cm에 달하는 늘씬하고 탄탄한 실루엣이 냉장고에서 뿜어져 나오는 차가운 백색 조명 아래 길게 그림자를 드리웠다. 슬림핏"
+    },
+    {
+      "category": "CANON_EXPOSITION",
+      "excerpt": "가 대충 자리를 차지하고 있었다. 태형은 짧게 정리된 검은 네일이 칠해진 손가락으로 턱을 톡톡 두드리며 고개를 이리저리 꺾었다. \"음, 일단 맥주부터 깔까? 아니면 저번에 누나가"
+    }
+  ],
+  "wire": {
+    "arm": "L",
+    "policyActualCanonMode": "LAYERED",
+    "characterCoreIdentityChars": 3361,
+    "characterActiveCanonChars": 1574,
+    "characterPrivateSecretChars": 0,
+    "systemTotalChars": 12568,
+    "staticPrefixEstimateChars": 12250,
+    "dynamicEstimateChars": 0
+  },
+  "systemSha256": "a5e8d1a0107e95e1545f71454b9906350f18bd2a981583b8a72b3f6c846f2f2b"
+}

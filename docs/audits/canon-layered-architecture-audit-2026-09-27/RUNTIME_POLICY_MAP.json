@@ -1,0 +1,62 @@
+{
+  "productionEnvActivation": "PRODUCTION_ENV_ACTIVATION_UNCONFIRMED",
+  "codeDefaultEnvAssumption": "unset → CANON_INJECTION_ROLLOUT_STAGE=D0",
+  "models": {
+    "deepseek_v4_pro_0813": {
+      "modelId": "deepseek-v4-pro-0813",
+      "injectionEnabled": false,
+      "shadowOnly": true,
+      "canonMode": "FULL_LEGACY",
+      "archiveMode": "FULL_ALWAYS",
+      "rolloutStage": "D0",
+      "forceFullLegacy": false,
+      "canaryActualInjection": false,
+      "actualCanonMode": "FULL_LEGACY",
+      "actualArchiveMode": "FULL_ALWAYS",
+      "masterCanaryEnabled": false,
+      "canaryPercent": 0,
+      "cohortEligible": false,
+      "cohortBucket": 2282,
+      "cohortEligibilityReason": "PERCENT_ZERO"
+    },
+    "openrouter_deepseek_v4_pro_0813_backup": {
+      "modelId": "deepseek/deepseek-v4-pro-0813",
+      "injectionEnabled": false,
+      "shadowOnly": true,
+      "canonMode": "FULL_LEGACY",
+      "archiveMode": "FULL_ALWAYS",
+      "rolloutStage": "D0",
+      "forceFullLegacy": false,
+      "canaryActualInjection": false,
+      "actualCanonMode": "FULL_LEGACY",
+      "actualArchiveMode": "FULL_ALWAYS",
+      "masterCanaryEnabled": false,
+      "canaryPercent": 0,
+      "cohortEligible": false,
+      "cohortBucket": 2282,
+      "cohortEligibilityReason": "PERCENT_ZERO"
+    },
+    "gemini_37_flash": {
+      "modelId": "gemini-3.7-flash",
+      "injectionEnabled": false,
+      "shadowOnly": true,
+      "canonMode": "FULL_LEGACY",
+      "archiveMode": "FULL_ALWAYS",
+      "rolloutStage": "D0",
+      "forceFullLegacy": false,
+      "canaryActualInjection": false,
+      "actualCanonMode": "FULL_LEGACY",
+      "actualArchiveMode": "FULL_ALWAYS",
+      "masterCanaryEnabled": false,
+      "canaryPercent": 0,
+      "cohortEligible": false,
+      "cohortBucket": null,
+      "cohortEligibilityReason": "N/A"
+    }
+  },
+  "interpretation": {
+    "whyWireLooksFullLegacy": "layeredCanonActive requires canonPlan AND isLayeredCanonActive(policy). Code default D0 → actualCanonMode FULL_LEGACY + shadowOnly. PR620 quality harness omitted canonPlan/policy → always buildCharacterCanonBlock (~10k).",
+    "geminiLayeredPath": "none — generic + muse/gemini-3.6 paths stay FULL_LEGACY (PR #284 experiment not merged)",
+    "deepSeekLayeredPath": "requires CANON_INJECTION_ENABLED + CANON_INJECTION_DEEPSEEK_CANARY + stage≥D2 + cohort eligible"
+  }
+}

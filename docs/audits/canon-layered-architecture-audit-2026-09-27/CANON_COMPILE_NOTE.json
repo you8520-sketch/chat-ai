@@ -1,0 +1,15 @@
+{
+  "note": "Local DB lacks production character=10 creator_raw; compiled from PR620 T1 wire CHARACTER bucket (stripped headers). WORLD/SCENARIO from wire remain in FULL arm only.",
+  "charOnlyRawChars": 5239,
+  "characterCoreWireChars": 10210,
+  "metrics": {
+    "totalChunks": 157,
+    "coreChunks": 87,
+    "dormantChunks": 70,
+    "coreChars": 2139,
+    "totalChars": 5065,
+    "coreRatio": 0.42230997038499507
+  },
+  "coreRenderChars": 3322,
+  "activeBudgetChars": 1200
+}
