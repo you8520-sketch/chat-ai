@@ -500,6 +500,7 @@ export async function mergeRelationshipMetaFromTurn(opts: {
         delta: opts.mainModelDelta ?? {},
         sourceUserMessageId: opts.sourceUserMessageId,
         boundarySnapshot: opts.boundarySnapshot,
+        assistantMessageId: opts.assistantMessageId,
         generationScope: opts.generationScope,
         __testThrowOnSave: opts.__testThrowOnSave,
       });
@@ -547,6 +548,7 @@ export async function mergeRelationshipMetaFromTurn(opts: {
         delta: opts.sharedInitialDelta ?? {},
         sourceUserMessageId: opts.sourceUserMessageId,
         boundarySnapshot: opts.boundarySnapshot,
+        assistantMessageId: opts.assistantMessageId,
         generationScope: opts.generationScope,
         __testThrowOnSave: opts.__testThrowOnSave,
       });
@@ -642,6 +644,7 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
         delta: opts.sharedInitialDelta ?? {},
         sourceUserMessageId: opts.sourceUserMessageId,
         boundarySnapshot: opts.boundarySnapshot,
+        assistantMessageId: opts.assistantMessageId,
         generationScope: opts.generationScope,
         __testThrowOnSave: opts.__testThrowOnSave,
       });
