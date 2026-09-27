@@ -64,6 +64,45 @@ export function saveChatRelationshipMeta(chatId: number, meta: MemoryMeta): void
   saveChatRelationshipMetaCore(getDb(), chatId, meta);
 }
 
+function parseRelationshipMetaBeforeSnapshot(
+  raw: string | null | undefined,
+  names: HonorificNames
+): MemoryMeta | null {
+  if (!raw?.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return normalizeMemoryMeta(parseMemoryMeta(raw), names);
+  } catch {
+    return null;
+  }
+}
+
+export function loadRelationshipMetaBeforeSnapshotCore(
+  db: Database.Database,
+  assistantMessageId: number,
+  names: HonorificNames
+): MemoryMeta | null {
+  const row = db
+    .prepare("SELECT memory_relationship_before_json FROM messages WHERE id=? AND role='assistant'")
+    .get(assistantMessageId) as { memory_relationship_before_json: string | null } | undefined;
+  return parseRelationshipMetaBeforeSnapshot(row?.memory_relationship_before_json ?? null, names);
+}
+
+function persistRelationshipMetaBeforeSnapshotCore(
+  db: Database.Database,
+  chatId: number,
+  assistantMessageId: number,
+  meta: MemoryMeta
+): void {
+  db.prepare(
+    `UPDATE messages
+     SET memory_relationship_before_json=?
+     WHERE id=? AND chat_id=? AND role='assistant'
+       AND memory_relationship_before_json IS NULL`
+  ).run(JSON.stringify(meta), assistantMessageId, chatId);
+}
+
 export function removeRelationshipMetaItem(
   meta: MemoryMeta,
   category: RelationshipMetaCategory,
@@ -107,8 +146,18 @@ export function rollbackRelationshipMetaForDeletedTurnCore(
     names: HonorificNames;
     deletedUserText: string;
     deletedAssistantText: string;
+    relationshipMetaBeforeJson?: string | null;
   }
 ): MemoryMeta {
+  const before = parseRelationshipMetaBeforeSnapshot(
+    opts.relationshipMetaBeforeJson,
+    opts.names
+  );
+  if (before) {
+    saveChatRelationshipMetaCore(db, opts.chatId, before);
+    return before;
+  }
+
   const rows = db
     .prepare(
       "SELECT role, content FROM messages WHERE chat_id=? ORDER BY id ASC"
@@ -145,6 +194,7 @@ export function rollbackRelationshipMetaForDeletedTurn(opts: {
   names: HonorificNames;
   deletedUserText: string;
   deletedAssistantText: string;
+  relationshipMetaBeforeJson?: string | null;
 }): MemoryMeta {
   return rollbackRelationshipMetaForDeletedTurnCore(getDb(), opts);
 }
@@ -164,6 +214,7 @@ export function applyRelationshipDeltaToChat(opts: {
   delta: RelationshipMetaDelta;
   sourceUserMessageId?: number | null;
   boundarySnapshot?: MemorySourceBoundary;
+  assistantMessageId?: number;
   generationScope?: AssistantGenerationScope;
   __testThrowOnSave?: boolean;
 }): RelationshipMetaApplyResult {
@@ -205,7 +256,7 @@ export function applyRelationshipDeltaToChat(opts: {
 
     // Merge the delta into the projection as it exists at commit time. Never
     // overwrite a reset with a stale pre-extraction JSON snapshot.
-    const prev = loadChatRelationshipMeta(opts.chatId);
+    const prev = loadChatRelationshipMetaCore(db, opts.chatId);
     const prevNormalized = normalizeMemoryMeta(prev, opts.names);
     const durableDelta = restrictRelationshipMetaDeltaToDurableAutoFacts(opts.delta);
     if (!hasRelationshipDelta(durableDelta)) {
@@ -213,16 +264,27 @@ export function applyRelationshipDeltaToChat(opts: {
         if (opts.__testThrowOnSave) {
           throw new Error("relationship meta save failed (test)");
         }
-        saveChatRelationshipMeta(opts.chatId, prevNormalized);
+        saveChatRelationshipMetaCore(db, opts.chatId, prevNormalized);
       }
       return { meta: prevNormalized, accepted: true };
+    }
+
+    const assistantMessageId =
+      opts.assistantMessageId ?? opts.generationScope?.assistantMessageId;
+    if (assistantMessageId != null) {
+      persistRelationshipMetaBeforeSnapshotCore(
+        db,
+        opts.chatId,
+        assistantMessageId,
+        prevNormalized
+      );
     }
 
     const merged = mergeMemoryMeta(prevNormalized, durableDelta, opts.names);
     if (opts.__testThrowOnSave) {
       throw new Error("relationship meta save failed (test)");
     }
-    saveChatRelationshipMeta(opts.chatId, merged);
+    saveChatRelationshipMetaCore(db, opts.chatId, merged);
     return { meta: merged, accepted: true };
   }).immediate();
 }
@@ -312,6 +374,7 @@ async function runProviderBackedRelationshipMerge(
       delta: extractResult.delta,
       sourceUserMessageId: opts.sourceUserMessageId,
       boundarySnapshot: opts.boundarySnapshot,
+      assistantMessageId: opts.assistantMessageId,
       generationScope: generationScope ?? undefined,
       __testThrowOnSave: opts.__testThrowOnSave,
     });
