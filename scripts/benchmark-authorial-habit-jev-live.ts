@@ -35,6 +35,7 @@ void runAuthorialHabitJevBenchmark().then((result) => {
           habitPresentCount: result.jev.habitPresentCount,
           contextuallyJustifiedCount: result.jev.contextuallyJustifiedCount,
           uncertainCount: result.jev.uncertainCount,
+          unresolvedCount: result.jev.unresolvedCount,
           malformedCount: result.jev.malformedCount,
           failureCount: result.jev.failureCount,
           humanLabelAgreementCount: result.jev.humanLabelAgreementCount,
