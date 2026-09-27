@@ -18,6 +18,7 @@ export type ImplementationRecipe = {
   candidateKey: string;
   recipeVersion: string;
   requiredLiveRecipeId: string;
+  requiredLiveRecipeVersion: string;
   allowedPaths: readonly string[];
   requiresRuntimeActivationReview: boolean;
   stopConditions: readonly string[];
@@ -33,6 +34,7 @@ export const IMPLEMENTATION_RECIPES: readonly ImplementationRecipe[] = [
     candidateKey: "github:qwenlm/qwen3-embedding",
     recipeVersion: "1",
     requiredLiveRecipeId: "qwen3-embedding-vs-bge-m3",
+    requiredLiveRecipeVersion: "1",
     allowedPaths: [QWEN_CONFIG_PATH, QWEN_RUNTIME_TEST_PATH],
     requiresRuntimeActivationReview: true,
     stopConditions: [
