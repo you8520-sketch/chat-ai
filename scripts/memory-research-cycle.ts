@@ -177,7 +177,12 @@ function implementationPrs(): void {
         { stdio: "inherit" }
       );
     },
-    { mainSha, generationId, tempDir: tmpdir() }
+    {
+      mainSha,
+      architectureFingerprint: computeArchitectureFingerprint((p) => readFileSync(p, "utf8")),
+      generationId,
+      tempDir: tmpdir(),
+    }
   );
   writeFileSync(required("results"), `${JSON.stringify(results, null, 2)}\n`);
   for (const result of results) {
