@@ -42,6 +42,9 @@ export type LiveExperimentReport = {
   records: LiveExperimentRecord[];
 };
 
+export const LIVE_EXPERIMENT_MAX_CANDIDATES = 2;
+export const LIVE_EXPERIMENT_MAX_REPORTED_COST_USD = 0.1;
+
 export type LiveExperimentDeps = {
   now: Date;
   architectureFingerprint: string;
@@ -154,9 +157,10 @@ export async function runPendingLiveExperiments(
     records: [],
   };
 
-  const pending = Object.values(candidates).filter(
+  const allPending = Object.values(candidates).filter(
     (candidate) => candidate.state === "WATCH" && candidate.lastDecision === "WATCH_LIVE_EXPERIMENT_PENDING"
   );
+  const pending = allPending.slice(0, LIVE_EXPERIMENT_MAX_CANDIDATES);
   if (pending.length === 0) {
     report.status = "NOT_RUN";
     report.finishedAt = new Date().toISOString();
@@ -319,6 +323,10 @@ export async function runPendingLiveExperiments(
       candidateModel: arm.model,
       actualCostUsd: (reference.actualProviderCostUsd ?? 0) + (arm.actualProviderCostUsd ?? 0),
     });
+
+    if (report.actualCostUsd >= LIVE_EXPERIMENT_MAX_REPORTED_COST_USD) {
+      break;
+    }
   }
 
   report.finishedAt = new Date().toISOString();
