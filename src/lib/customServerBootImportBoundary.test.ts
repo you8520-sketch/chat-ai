@@ -384,7 +384,12 @@ describe("server.js boot contract", () => {
     const nextRequireIndex = serverJs.indexOf('require("next")');
     const prepareIndex = serverJs.indexOf("app.prepare()");
     const scopedHelperIndex = serverJs.indexOf("withCustomServerBootImportBoundary");
-    const backgroundInvokeIndex = serverJs.indexOf("void runBackgroundInitialization()");
+    const backgroundInvokeIndex = Math.max(
+      serverJs.indexOf("void runBackgroundInitialization()"),
+      serverJs.indexOf(
+        "runOfficialStyleProofV2BootOnce().finally(() => runBackgroundInitialization())"
+      )
+    );
 
     assert.ok(nextRequireIndex >= 0);
     assert.ok(prepareIndex >= 0);
