@@ -147,9 +147,12 @@ describe("deepseekV41FlashIntegration", () => {
 
   it("J — V4.1 published price stable under CI procurement swings", () => {
     const pricing = getPublishedPricing(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL);
-    assert.equal(pricing.billingReferenceInputUsdPerMillion, 0.3);
-    assert.equal(pricing.billingReferenceOutputUsdPerMillion, 1.2);
+    assert.equal(pricing.billingReferenceInputUsdPerMillion, 0.15);
+    assert.equal(pricing.billingReferenceOutputUsdPerMillion, 0.6);
+    assert.equal(pricing.billingReferenceCacheReadUsdPerMillion, 0.007);
     assert.equal(pricing.targetMargin, 0.6);
+    assert.equal(pricing.minimumMarginFloor, 0.5);
+    assert.equal(pricing.pricingVersion, 2);
     const baseline = charge(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, NORMAL_USAGE);
     assert.equal(baseline.status, "complete");
     if (baseline.status !== "complete") return;
@@ -232,7 +235,7 @@ describe("deepseekV41FlashIntegration", () => {
     assert.equal(r.status, "complete");
     if (r.status === "complete") {
       assert.equal(r.snapshot.canonicalModelId, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL);
-      assert.equal(r.snapshot.pricingVersion, 1);
+      assert.equal(r.snapshot.pricingVersion, 2);
     }
   });
 
