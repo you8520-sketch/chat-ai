@@ -15,6 +15,8 @@ export type ResearchPlatform = {
 
 /** Trope-level public signal. Full prompts, greetings, lorebooks or images are never stored. */
 export type ResearchSignal = {
+  /** Stable key so market-fit briefs can cite the exact signal they build on. */
+  signalId: string;
   source: string;
   sourceUrl: string;
   region: "KR" | "GLOBAL";
@@ -28,6 +30,15 @@ export type ResearchSignal = {
   popularitySignal: "top" | "mid" | "niche";
   adultDemand: boolean;
   seasonal: string | null;
+  /**
+   * False for signals whose identity comes from a franchise, real person or
+   * derivative UGC (webtoon/anime/game/idol IP). Such rows still count for
+   * popularity analysis but never feed official character generation.
+   */
+  originalityEligible: boolean;
+  ipExclusionReason: string | null;
+  /** Publicly observed character name, only for exact-collision QA. Null when unrecorded. */
+  observedCharacterName?: string | null;
 };
 
 export type ResearchSnapshot = {
@@ -83,11 +94,24 @@ export function validateResearchSnapshot(snapshot: ResearchSnapshot): QaResult {
       });
     }
   }
+  const seenIds = new Set<string>();
   snapshot.signals.forEach((signal, index) => {
     const at = `signal[${index}]`;
     const record = signal as unknown as Record<string, unknown>;
     for (const key of FORBIDDEN_SIGNAL_KEYS) {
       if (key in record) errors.push({ code: "forbidden_signal_field", message: `${at}.${key} must not be stored` });
+    }
+    if (typeof signal.signalId !== "string" || !signal.signalId.trim()) {
+      errors.push({ code: "signal_id_missing", message: `${at} needs a stable signalId` });
+    } else if (seenIds.has(signal.signalId)) {
+      errors.push({ code: "signal_id_duplicate", message: `${at} duplicates ${signal.signalId}` });
+    } else {
+      seenIds.add(signal.signalId);
+    }
+    if (typeof signal.originalityEligible !== "boolean") {
+      errors.push({ code: "originality_flag_missing", message: `${at} needs originalityEligible` });
+    } else if (!signal.originalityEligible && !signal.ipExclusionReason?.trim()) {
+      errors.push({ code: "ip_exclusion_reason_missing", message: `${at} is IP-excluded without a reason` });
     }
     if (!/^https?:\/\//.test(signal.sourceUrl)) {
       errors.push({ code: "source_url_invalid", message: `${at} needs a public source URL` });

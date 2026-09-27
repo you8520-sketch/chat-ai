@@ -13,6 +13,14 @@
  */
 import { ASSET_PERSON_TAGS } from "@/lib/assetPersonTags";
 import { CREATOR_ASSET_TAG_MAX } from "@/lib/characterAssets";
+import {
+  formatMarketFitForPrompt,
+  MARKET_FIT_SKELETON,
+  NAMING_PROFILES,
+  type MarketRole,
+  type NamingProfileKey,
+  type OfficialMarketFitBrief,
+} from "@/lib/officialSupply/marketFit";
 import type { OfficialCharacterSceneContext } from "@/lib/officialSupply/scenePortfolio";
 
 /**
@@ -27,11 +35,13 @@ export const OFFICIAL_AUTHOR_QUALITY_CONTRACT = {
   greeting: { min: 700, max: 1400 },
   speechDescription: { min: 250, max: 600 },
   publicDescription: { min: 200, max: 500 },
+  /** Core discovery tags: genre · relationship · personality · material · direction. */
+  discoveryTags: { min: 4, max: 7 },
 } as const;
 
 const Q = OFFICIAL_AUTHOR_QUALITY_CONTRACT;
 
-export const OFFICIAL_AUTHOR_TEMPLATE_VERSION = "pilot-rf-01/v2";
+export const OFFICIAL_AUTHOR_TEMPLATE_VERSION = "pilot-rf-01/v3";
 export const OFFICIAL_AUTHOR_SNAPSHOT_VERSION = "market-research-snapshot-2026-09.json";
 
 export type OfficialAuthorTask =
@@ -70,8 +80,8 @@ export type WorldBibleInput = {
   genre: string;
   worldKey: string;
   styleKey: string;
-  /** Trope-level inspiration only (scenarioHook ≤120 chars each). Never full text. */
-  inspirationTropes: string[];
+  /** Batch market target (manifest policy), e.g. ko-KR / domestic_first. */
+  market: WorldMarketInput;
   /** Fixed manifest slots: exactly 10 for the pilot. */
   slots: number;
   /** Desired adult-candidate count for this manifest (not a global rule). */
@@ -82,11 +92,23 @@ export type WorldBibleInput = {
   slotGenders: ("male" | "female" | "other")[];
 };
 
+/** Market input for world/portfolio calls — trope-level signal lines only (`selectMarketSignals`). */
+export type WorldMarketInput = {
+  targetLocale: string;
+  marketPriority: string;
+  /** `formatMarketSignalLines` output: signalId-tagged, IP-eligible, locale-first. */
+  signalLines: string[];
+  namingProfile: NamingProfileKey;
+  marketRoleMix: Record<MarketRole, { min: number; max: number }>;
+  maxPrimaryTropeRepeat: number;
+  coreTags: { min: number; max: number };
+};
+
 const WORLD_CORE_SKELETON = `{"name": "", "genre": "", "subgenre": "", "tone": "", "era": "", "techLevel": "", "regions": "", "societyForm": "", "premise": "", "centralPremise": "", "situation": {"biggestEvent": "", "beneficiaries": "", "threatened": "", "upcomingChange": ""}, "factions": [{"name": "", "purpose": "", "leadership": "", "means": "", "relations": "", "publicView": ""}], "powerSystem": {"capabilities": "", "users": "", "acquisition": "", "ranks": "", "limits": "", "costs": "", "socialImpact": "", "taboos": ""}, "society": {}, "culture": [{"name": "", "detail": ""}]}`;
 
 const WORLD_ATLAS_SKELETON = `{"locations": [{"name": "", "purpose": "", "mood": "", "users": "", "rpEvents": ""}], "history": [{"event": "", "impact": ""}], "knowledge": {"common": [""], "faction": [""], "characterLocal": [""], "authorOnly": [""]}, "userEntry": {"allowedRoles": ["", ""], "note": ""}, "lorebook": [{"entryKey": "", "name": "", "keywords": [""], "content": ""}]}`;
 
-const WORLD_PORTFOLIO_SKELETON = `{"portfolio": [{"slot": 1, "name": "", "gender": "", "age": 0, "archetype": "", "relationshipTrope": "", "occupation": "", "faction": "", "socialPosition": "", "personalityCore": "", "visualSilhouette": "", "rpHook": "", "adultCandidate": false, "speechDirection": "", "audience": ""}]}`;
+const WORLD_PORTFOLIO_SKELETON = `{"portfolio": [{"slot": 1, "marketFit": ${MARKET_FIT_SKELETON}, "name": "", "gender": "", "age": 0, "archetype": "", "relationshipTrope": "", "occupation": "", "faction": "", "socialPosition": "", "personalityCore": "", "visualSilhouette": "", "rpHook": "", "adultCandidate": false, "speechDirection": "", "audience": ""}]}`;
 
 export function buildWorldBibleSystem(): string {
   return [
@@ -100,9 +122,12 @@ export function buildWorldBibleSystem(): string {
 export function buildWorldCoreUser(input: WorldBibleInput): string {
   return [
     `장르: ${input.genre}`,
+    `대상 시장: ${input.market.targetLocale} (${input.market.marketPriority})`,
     "",
-    "트로프 영감(표현이 아니라 방향만 참고):",
-    ...input.inspirationTropes.map((t) => `- ${t}`),
+    "시장 신호(트로프·훅 구조·장치 수준만 참고. 경쟁작 문장·이름·고유 설정 복제 금지):",
+    ...input.market.signalLines,
+    "세계관은 깊게 쓰되, 캐릭터 카드 첫 노출에서는 대상 시장 독자가 바로 아는 역할 어휘(황태자·기사단장·마탑주·북부 대공 등)로",
+    "설명될 수 있어야 한다. 고유 신조어는 내부 깊이를 위해 쓴다.",
     "",
     "이번 호출(core) 출력 필드:",
     "- name(세계관 이름), genre, subgenre, tone, era, techLevel, regions, societyForm",
@@ -152,9 +177,14 @@ export type WorldPortfolioInput = {
   genderMix: string;
   /** Fixed gender per slot (index slot-1). The model must not change these. */
   slotGenders: ("male" | "female" | "other")[];
+  market: WorldMarketInput;
 };
 
 export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
+  const m = input.market;
+  const mix = (Object.entries(m.marketRoleMix) as [MarketRole, { min: number; max: number }][])
+    .map(([role, band]) => `${role} ${band.min}~${band.max}`)
+    .join(", ");
   return [
     `세계관: ${input.worldName} — ${input.centralPremise}`,
     `세력: ${input.factionNames.join(" / ")}`,
@@ -164,13 +194,33 @@ export function buildWorldPortfolioUser(input: WorldPortfolioInput): string {
     `성별 구성: ${input.genderMix} (반드시 준수. 전원 단일 성별 금지)`,
     `슬롯별 성별 고정표(절대 변경 금지, 이름도 성별에 맞게): ${input.slotGenders.map((g, i) => `${i + 1}번 ${g}`).join(", ")}`,
     "",
+    `대상 시장: ${m.targetLocale} (${m.marketPriority})`,
+    "시장 신호(PRIMARY 우선, 트로프·훅 구조만 참고):",
+    ...m.signalLines,
+    "",
+    "상품 기획 순서(관계 우선): ① 캐릭터가 유저에게 누구인가 ② 둘 사이에 지금 무슨 문제가 있는가",
+    "③ 유저가 왜 대화해야 하는가 ④ 기대할 감정 경험 ⑤ 그 뒤에 세계관 장치.",
+    "각 브리프는 먼저 marketFit을 채운 뒤 나머지 필드를 marketFit에 맞춰 쓴다. marketFit 규칙:",
+    `- targetLocale은 "${m.targetLocale}". provenMarketSignal은 위 목록의 [signalId]만 1~3개 인용.`,
+    "- relationshipTrope.primary 1개 + secondary 0~2개(핵심 트로프는 1~3개로 선명하게, 나머지는 부가 맛).",
+    `- 같은 primary 트로프는 최대 ${m.maxPrimaryTropeRepeat}명. 비슷한 트로프를 공유해도 유저와의 실제 역학은 달라야 한다.`,
+    "- differentiationTwist: 인기 트로프 + 고유 차별점(역할 역전·직업 충돌·과거 사건·정치적 이해관계·특이 능력·유저와의 비대칭 정보 중 1개 이상).",
+    `- marketRole은 proven·proven_twist·experimental 중 하나. 이번 배치 구성: ${mix}.`,
+    "- userRelationship: 유저의 역할/관계. oneLineConflict: '유저와의 관계 + 지금의 갈등 + 대화할 이유'를 한 문장으로,",
+    "  세계관 고유명사 없이 대상 시장 독자가 바로 아는 역할 어휘로 쓴다.",
+    `- namingProfile은 "${m.namingProfile}" (${NAMING_PROFILES[m.namingProfile].guidance})`,
+    `- discoveryTags ${m.coreTags.min}~${m.coreTags.max}개: 장르·관계·성격·소재·방향성을 섞되 캐릭터 핵심 경험만. 인기 키워드 억지 삽입 금지.`,
+    "- adultDemandSignal: 성인 후보면 성인 수요가 있는 [signalId], 아니면 null. 성인 후보도 관계 훅·캐릭터성·직업·갈등·말투가 먼저다.",
+    "- originalityExclusions: 닮지 말아야 할 경쟁작·원작 요소(이름·외형·설정) 목록.",
+    "",
     "이번 호출(portfolio) 출력 필드: portfolio 배열. 각 브리프는",
-    "slot·name(20자 이내, 서로 겹치지 않게)·gender·age(19세 이상)·archetype·relationshipTrope·occupation·",
+    "slot·marketFit·name(20자 이내, 서로 겹치지 않게)·gender·age(19세 이상)·archetype·relationshipTrope(=marketFit primary)·occupation·",
     "faction(위 목록에서)·socialPosition·personalityCore·visualSilhouette·rpHook·adultCandidate·speechDirection·audience.",
+    `이름은 namingProfile을 따른다: ${NAMING_PROFILES[m.namingProfile].guidance}`,
+    "같은 첫 음절·끝 음절이 3명 이상 반복되거나 한 음절만 다른 이름 쌍, 가족이 아닌데 같은 성/가문명을 쓰는 것 금지.",
     "10명 모두 역할·세력·신분·성격핵·관계 트로프·외형 실루엣·RP 훅이 달라야 한다.",
-    "냉미남·집착남·황태자·계약관계·검은머리·190cm 클론 금지. 같은 트로프 반복 금지.",
-    "인기형 5 + 니치/팬덤형 3 + 실험형 2 방향. 성별·연령·신분 분산.",
-    "경쟁작의 고유 명칭·문장·설정을 복제하지 않는다.",
+    "냉미남·집착남·황태자·계약관계·검은머리·190cm 클론 금지.",
+    "성별·연령·신분 분산. 경쟁작의 고유 명칭·문장·설정·캐릭터 이름을 복제하지 않는다.",
     "최상위 키는 정확히 portfolio 하나이며, 브리프 키도 빠뜨리지 않는다.",
     "아래 빈 틀을 복제·확장해 JSON 한 개만 출력한다.",
     WORLD_PORTFOLIO_SKELETON,
@@ -197,6 +247,8 @@ export type PortfolioBriefInput = {
   adultCandidate: boolean;
   speechDirection: string;
   audience: "all" | "female" | "male";
+  /** Planned before the bible (`marketFit.ts`). Absent on briefs authored before the owner existed. */
+  marketFit?: OfficialMarketFitBrief | null;
 };
 
 export type CharacterBible1Input = {
@@ -247,6 +299,7 @@ export function buildCharacterBible1User(input: CharacterBible1Input): string {
     `성격핵: ${b.personalityCore} / 외형: ${b.visualSilhouette}`,
     `RP 훅: ${b.rpHook}`,
     `성인 후보: ${b.adultCandidate ? "예" : "아니오"}`,
+    ...(b.marketFit ? ["", ...formatMarketFitForPrompt(b.marketFit), "내부 설정은 깊게 유지하되 위 관계·갈등이 바이블 전체의 축이 되게 쓴다."] : []),
     "",
     "세계 맥락(모순 금지):",
     input.worldContext,
@@ -269,6 +322,8 @@ export type CharacterVoiceInput = {
   part1Recap: string;
   /** 0~3; brief may demand specific NPCs. */
   npcDemand: string;
+  /** Market fit brief — the public card is built on its relationship + conflict. */
+  marketFit?: OfficialMarketFitBrief | null;
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
   feedback?: string;
 };
@@ -295,7 +350,10 @@ export function buildCharacterVoiceSystem(): string {
     "- 같은 문장·묘사를 반복해 분량을 채우지 않는다.",
     "",
     `공개 프로필: tagline은 반드시 50자 이내 훅 한 줄. description은 반드시 ${Q.publicDescription.min}자 이상 ${Q.publicDescription.max}자 이하`,
-    "pitch(캐릭터·관계·경험·갈등 중 2개 이상, 비밀 노출 금지). 유저를 '당신'으로 부르며 어떤 관계/경험인지 드러낸다. tags 3~6개.",
+    "pitch(캐릭터·관계·경험·갈등 중 2개 이상, 비밀 노출 금지). 유저를 '당신'으로 부르며 어떤 관계/경험인지 드러낸다.",
+    "- tagline은 분위기 문구가 아니라 '이 캐릭터가 당신에게 누구이고 지금 무슨 문제가 있는지'가 한눈에 보이는 관계 훅.",
+    "  세계관 고유명사는 최대 2개, 장르 독자가 바로 아는 역할 어휘(황자·기사단장·청부업자 등)를 쓴다.",
+    `- tags ${Q.discoveryTags.min}~${Q.discoveryTags.max}개: 장르·관계·성격·소재·방향성을 섞고, 바이블에 실제로 있는 경험만 쓴다(인기 키워드 억지 삽입 금지).`,
     "SFW 시트의 공개 텍스트(tagline·description·greeting·tags)에는 다음 음절을 어떤 단어의 일부로도 쓰지 않는다:",
     "섹스, 성교, 성행위, 자위, 사정, 삽입, 오르가즘, 포르노, 야설, 야동.",
     "'사정' 대신 사연/형편/경위를 쓴다.",
@@ -312,6 +370,7 @@ export function buildCharacterVoiceUser(input: CharacterVoiceInput): string {
     `말투 방향: ${input.speechDirection}`,
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
     `NPC 요구: ${input.npcDemand}`,
+    ...(input.marketFit ? ["", ...formatMarketFitForPrompt(input.marketFit)] : []),
     "",
     "전반부 요약:",
     input.part1Recap,

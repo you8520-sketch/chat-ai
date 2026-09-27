@@ -12,6 +12,7 @@
  *   --step=adult-fix              re-author only adultSection toward the manifest adult plan
  *   --step=styles
  *   --step=cost-reconcile         summarize the canonical ledger into cost.json
+ *   --step=market-fit-review      offline facts-only Domestic Market Fit review (no rewrites)
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -52,7 +53,22 @@ import {
   type OfficialAuthorTransport,
   type OfficialVoiceRevisionField,
 } from "@/lib/officialSupply/author";
-import type { AdultProfilePlan, OfficialAuthorTask, PortfolioBriefInput } from "@/lib/officialSupply/authorPrompts";
+import {
+  OFFICIAL_AUTHOR_QUALITY_CONTRACT,
+  type AdultProfilePlan,
+  type OfficialAuthorTask,
+  type PortfolioBriefInput,
+  type WorldMarketInput,
+} from "@/lib/officialSupply/authorPrompts";
+import {
+  buildDomesticMarketFitReview,
+  evaluateDiscoveryTags,
+  evaluateMarketFitPortfolio,
+  formatMarketSignalLines,
+  resolveNamingProfile,
+  selectMarketSignals,
+  type OfficialBatchMarketPolicy,
+} from "@/lib/officialSupply/marketFit";
 import {
   ADULT_DYNAMICS,
   compileOfficialDraftFromBible,
@@ -63,7 +79,7 @@ import {
   type OfficialWorldBible,
 } from "@/lib/officialSupply/bible";
 import { clearQuarantine, writeQuarantine } from "@/lib/officialSupply/pilotArtifacts";
-import { evaluatePortfolioBalance } from "@/lib/officialSupply/research";
+import { evaluatePortfolioBalance, validateResearchSnapshot, type ResearchSnapshot } from "@/lib/officialSupply/research";
 import {
   buildSceneAvoidList,
   evaluateSceneCandidateAgainstPortfolio,
@@ -132,25 +148,42 @@ const MANIFEST = {
   snapshotVersion: OFFICIAL_AUTHOR_SNAPSHOT_VERSION,
   portfolioPolicy: { adultShareMin: 0.3, adultShareMax: 0.5, maxGenreShare: 1, minDistinctGenres: 1 },
   adultPlan: ADULT_PLAN,
+  /** Batch product policy: this pilot targets the Korean launch market (not a global constant). */
+  marketPolicy: {
+    targetLocale: "ko-KR",
+    signalRegion: "KR",
+    marketPriority: "domestic_first",
+    maxSupportingSignals: 6,
+    marketRoleMix: {
+      proven: { min: 6, max: 7 },
+      proven_twist: { min: 2, max: 3 },
+      experimental: { min: 1, max: 1 },
+    },
+    maxPrimaryTropeRepeat: 2,
+    coreTags: OFFICIAL_AUTHOR_QUALITY_CONTRACT.discoveryTags,
+    maxTaglineWorldTerms: 2,
+  } satisfies OfficialBatchMarketPolicy,
 };
 
-/** Trope-level inspiration only — short directions, never competitor prose. */
-const INSPIRATION_TROPES = [
-  "정략결혼 후 후회하는 남편",
-  "적대 관계에서 연인으로",
-  "철벽 직업인의 경계 해제",
-  "잠입 임무와 금지된 사랑",
-  "동거에서 시작되는 관계",
-  "궁정 음모 속 약혼",
-  "마법과 로맨스의 결합",
-  "복수를 위한 계약 결혼",
-  "차가운 남편이 서서히 녹음",
-  "조사 파트너의 비밀",
-  "길드/아카데미 세계관",
-  "비극 속 집착과 애정",
-  "오래된 친구의 연애 전환",
-  "신분 차를 넘는 신뢰",
-];
+function readSnapshot(): ResearchSnapshot {
+  const snapshot = readJson<ResearchSnapshot>(SNAPSHOT_PATH);
+  const qa = validateResearchSnapshot(snapshot);
+  if (!qa.ok) throw new Error(`research snapshot invalid: ${qa.errors.map((e) => e.code).join(",")}`);
+  return snapshot;
+}
+
+function worldMarketInput(snapshot: ResearchSnapshot): WorldMarketInput {
+  const policy = MANIFEST.marketPolicy;
+  return {
+    targetLocale: policy.targetLocale,
+    marketPriority: policy.marketPriority,
+    signalLines: formatMarketSignalLines(selectMarketSignals(snapshot, policy, MANIFEST.genre)),
+    namingProfile: resolveNamingProfile(MANIFEST.genre),
+    marketRoleMix: policy.marketRoleMix,
+    maxPrimaryTropeRepeat: policy.maxPrimaryTropeRepeat,
+    coreTags: policy.coreTags,
+  };
+}
 
 /** Public trend URLs from the committed snapshot (observation only). */
 const REFERENCE_URLS = [
@@ -316,6 +349,8 @@ async function runWorkflowStep<T>(input: {
   maxAttempts: number;
   quarantineKey: string;
   run: (transport: OfficialAuthorTransport, attempt: number, feedback: string | undefined) => Promise<T>;
+  /** Last gate-rejected candidate, recorded in the quarantine for review. */
+  lastRejected?: () => unknown;
 }): Promise<T> {
   let feedback: string | undefined;
   let lastError: unknown = null;
@@ -334,13 +369,13 @@ async function runWorkflowStep<T>(input: {
       lastError = error;
       const message = String((error as Error)?.message ?? error);
       // Provider errors carry no content signal; QA rejections become next-attempt feedback.
-      if (!/CheaperInference 5\d\d|aborted|fetch failed/.test(message)) feedback = message.slice(0, 800);
+      if (!/CheaperInference 5\d\d|aborted|fetch failed/.test(message)) feedback = message.slice(0, 2000);
       console.warn(`[pilot] ${input.label} attempt ${attempt} failed:`, message.slice(0, 300));
       saveCost(input.report);
       if (attempt < input.maxAttempts) await sleep(8000 * attempt);
     }
   }
-  writeQuarantine(PILOT_DIR, input.quarantineKey, lastError);
+  writeQuarantine(PILOT_DIR, input.quarantineKey, lastError, new Date(), input.lastRejected?.());
   throw lastError;
 }
 
@@ -392,6 +427,7 @@ async function pool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>
 
 async function stepWorld(modelId: string, maxAttempts: number): Promise<void> {
   const report = loadCost();
+  const snapshot = readSnapshot();
   await runWorkflowStep({
     report,
     draftKey: "world",
@@ -405,7 +441,7 @@ async function stepWorld(modelId: string, maxAttempts: number): Promise<void> {
           genre: MANIFEST.genre,
           worldKey: MANIFEST.worldKey,
           styleKey: MANIFEST.styleKey,
-          inspirationTropes: INSPIRATION_TROPES,
+          market: worldMarketInput(snapshot),
           slots: MANIFEST.slots,
           adultCandidates: MANIFEST.adultCandidates,
           genderMix: MANIFEST.genderMix,
@@ -414,6 +450,14 @@ async function stepWorld(modelId: string, maxAttempts: number): Promise<void> {
         modelId,
         attempt,
       });
+      // Market fit is planned before any Character Bible: gate it here.
+      const marketQa = evaluateMarketFitPortfolio(
+        bible.portfolio.map((b) => ({ draftKey: draftKeyFor(b.slot), name: b.name, adultCandidate: b.adultCandidate, marketFit: b.marketFit })),
+        { snapshot, policy: MANIFEST.marketPolicy, genre: MANIFEST.genre }
+      );
+      if (!marketQa.ok) {
+        throw new OfficialSupplyGateError("author_market_fit_rejected", marketQa.errors.map((e) => `${e.code}: ${e.message}`).join("; "), marketQa);
+      }
       for (const provenance of provenances) recordRun("world", "world_bible", provenance);
       writeJson(path.join(PILOT_DIR, "world-bible.json"), { bible, provenances });
       console.log(`[pilot] world bible ok: ${bible.name} (attempt ${attempt})`);
@@ -469,6 +513,10 @@ function assertBibleAndDraft(bible: OfficialCharacterBible, brief: PortfolioBrie
       bibleQa
     );
   }
+  const tagQa = evaluateDiscoveryTags({ tags: bible.publicProfile.tags, bible }, MANIFEST.marketPolicy);
+  if (!tagQa.ok) {
+    throw new OfficialSupplyGateError("author_tags_rejected", `slot ${brief.slot} tags: ${tagQa.errors.map((e) => e.message).join("; ")}`, tagQa);
+  }
   const draft = compileForBrief(bible, brief);
   const draftQa = validatePilotDraftForTextLock(draft, []);
   if (!draftQa.ok) {
@@ -512,6 +560,7 @@ async function generateOneCharacter(
           adultCandidate: brief.adultCandidate,
           speechDirection: brief.speechDirection,
           npcDemand: "특별한 이유가 없으면 1~2명을 만든다. 0명은 기존 관계망만으로 충분할 때만 허용.",
+          marketFit: brief.marketFit,
           feedback,
         },
         bonds: {
@@ -699,12 +748,14 @@ async function planOneCharacterScenes(input: {
 }): Promise<CharFile> {
   const { file, world, planned } = input;
   const context = resolveOfficialCharacterSceneContext({ world, bible: file.bible, brief: file.brief });
+  let rejectedScenes: unknown;
   return runWorkflowStep({
     report: input.report,
     draftKey: file.draftKey,
     label: `assetplan slot ${file.slot}`,
     maxAttempts: input.maxAttempts,
     quarantineKey: `assetplan-${file.draftKey}`,
+    lastRejected: () => rejectedScenes,
     run: async (transport, attempt, feedback) => {
       const avoid = buildSceneAvoidList(planned, world.locations, context);
       const { plan, completion } = await generateOfficialAssetPlan({
@@ -726,6 +777,9 @@ async function planOneCharacterScenes(input: {
       const candidate: ScenePortfolioEntry = { draftKey: file.draftKey, name: file.bible.identity.name, plan, context };
       const portfolioQa = evaluateSceneCandidateAgainstPortfolio(candidate, planned, world.locations);
       if (!portfolioQa.ok) {
+        rejectedScenes = plan.slots
+          .filter((s) => s.kind === "scene")
+          .map((s) => ({ slotKey: s.slotKey, location: s.location, situation: s.situation }));
         throw new OfficialSupplyGateError(
           "author_scene_portfolio_rejected",
           portfolioQa.errors.map((e) => `${e.code}: ${e.message}`).join("; "),
@@ -899,6 +953,29 @@ async function stepAdultFix(modelId: string, maxAttempts: number): Promise<void>
   if (!qa.ok) throw new Error("adult portfolio diversity failed");
 }
 
+/** Offline: facts-only Domestic Market Fit review of the committed cast (no scores, no rewrites). */
+function stepMarketFitReview(): void {
+  const world = readWorld();
+  const review = buildDomesticMarketFitReview({
+    world,
+    snapshot: readSnapshot(),
+    policy: MANIFEST.marketPolicy,
+    genre: MANIFEST.genre,
+    characters: world.portfolio.map((b) => {
+      const file = readChar(b.slot);
+      return { draftKey: file.draftKey, brief: file.brief, bible: file.bible };
+    }),
+  });
+  writeJson(path.join(PILOT_DIR, "market-fit-review.json"), review);
+  for (const row of review.rows) {
+    console.log(`[pilot] ${row.draftKey} ${row.name} | ${row.primaryTrope} | "${row.publicTagline}" | ${row.findings.join(" ; ") || "-"}`);
+  }
+  const p = review.portfolio;
+  console.log("[pilot] names:", [...p.names.errors, ...p.names.warnings].map((i) => `${i.code}: ${i.message}`));
+  console.log("[pilot] tropes:", p.tropes.primaryCounts, [...p.tropes.errors, ...p.tropes.warnings].map((i) => i.message));
+  console.log("[pilot] repeated tags:", p.repeatedTags);
+}
+
 async function stepStyles(modelId: string, maxAttempts: number): Promise<void> {
   const report = loadCost();
   await runWorkflowStep({
@@ -945,7 +1022,7 @@ function parseArgs(): { step: string; slot?: number; from?: number; concurrency:
 
 async function main(): Promise<void> {
   const { step, slot, from, concurrency, maxAttempts } = parseArgs();
-  const offline = step === "portfolio-qa" || step === "cost-reconcile";
+  const offline = step === "portfolio-qa" || step === "cost-reconcile" || step === "market-fit-review";
   if (!offline && process.env.OFFICIAL_PILOT_LIVE !== "1") {
     console.error("[pilot] refusing: set OFFICIAL_PILOT_LIVE=1 to run live provider generation.");
     process.exit(2);
@@ -976,6 +1053,8 @@ async function main(): Promise<void> {
       return stepStyles(modelId, maxAttempts);
     case "cost-reconcile":
       return stepCostReconcile();
+    case "market-fit-review":
+      return stepMarketFitReview();
     default:
       throw new Error(`unknown step ${step}`);
   }

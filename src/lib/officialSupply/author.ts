@@ -65,6 +65,7 @@ import {
   evaluateSupportingNpcs,
   mergeQa,
 } from "@/lib/officialSupply/characterText";
+import { coerceMarketFitBrief } from "@/lib/officialSupply/marketFit";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import { validateStyleProposal } from "@/lib/officialSupply/style";
 import {
@@ -551,6 +552,7 @@ function coerceWorldBible(
       adultCandidate: brief.adultCandidate === true,
       speechDirection: typeof brief.speechDirection === "string" ? brief.speechDirection : "",
       audience,
+      marketFit: coerceMarketFitBrief(brief.marketFit),
     };
   });
   return {
@@ -677,6 +679,7 @@ export async function generateOfficialWorldBible(input: {
     adultCandidates: input.world.adultCandidates,
     genderMix: input.world.genderMix,
     slotGenders: input.world.slotGenders,
+    market: input.world.market,
   };
   const portfolioCompletion = await complete(buildWorldPortfolioUser(portfolioInput));
   const portfolioData = parseAuthorJson(portfolioCompletion.text, "world_bible");

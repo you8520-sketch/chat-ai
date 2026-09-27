@@ -948,7 +948,13 @@ export function validateCharacterBible(
   if (!nonEmpty(profile.tagline)) errors.push(err("bible_tagline_missing", "publicProfile.tagline is required"));
   else if (profile.tagline.length > 50) errors.push(err("bible_tagline_limit", "tagline must fit the 50-char canonical limit"));
   const tags = profile.tags ?? [];
-  if (tags.length < 3 || tags.length > 6) errors.push(err("bible_tags", `publicProfile.tags 3-6 required, got ${tags.length}`));
+  const tagBand = OFFICIAL_AUTHOR_QUALITY_CONTRACT.discoveryTags;
+  if (tags.length === 0 || tags.length > tagBand.max) {
+    errors.push(err("bible_tags", `publicProfile.tags ${tagBand.min}-${tagBand.max} required, got ${tags.length}`));
+  } else if (tags.length < tagBand.min) {
+    // Sheets authored under the earlier 3-tag floor stay valid; the review surfaces them.
+    warnings.push(err("bible_tags_few", `publicProfile.tags ${tags.length} < ${tagBand.min} core tags`));
+  }
 
   const secrets = bible.secrets ?? [];
   if (secrets.length < 1 || secrets.length > 4) {
