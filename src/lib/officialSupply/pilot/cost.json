@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "successfulCompletions": 5,
+  "successfulCompletions": 10,
   "failedProviderAttempts": 0,
-  "physicalAttempts": 5,
-  "workflowRetries": 1,
-  "billedCostUsd": 0.004077,
+  "physicalAttempts": 10,
+  "workflowRetries": 2,
+  "billedCostUsd": 0.0055390000000000005,
   "failedAttemptCostUsd": 0,
-  "inputTokens": 7680,
-  "outputTokens": 9814,
+  "inputTokens": 12533,
+  "outputTokens": 12972,
   "imageCalls": 0,
   "lines": [
     {
@@ -59,6 +59,56 @@
       "inputTokens": 1480,
       "outputTokens": 1733,
       "costUsd": 0.000735
+    },
+    {
+      "task": "adult_profile",
+      "draftKey": "pilot-rf-01",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 864,
+      "outputTokens": 620,
+      "costUsd": 0.000277
+    },
+    {
+      "task": "adult_profile",
+      "draftKey": "pilot-rf-02",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 1088,
+      "outputTokens": 603,
+      "costUsd": 0.000306
+    },
+    {
+      "task": "adult_profile",
+      "draftKey": "pilot-rf-06",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 986,
+      "outputTokens": 660,
+      "costUsd": 0.0003
+    },
+    {
+      "task": "adult_profile",
+      "draftKey": "pilot-rf-07",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 940,
+      "outputTokens": 568,
+      "costUsd": 0.000264
+    },
+    {
+      "task": "adult_profile",
+      "draftKey": "pilot-rf-07",
+      "workflowAttempt": 2,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 975,
+      "outputTokens": 707,
+      "costUsd": 0.000315
     }
   ],
   "legacy": {

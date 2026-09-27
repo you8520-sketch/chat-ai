@@ -734,8 +734,13 @@ export const ADULT_DYNAMICS = {
 
 export type AdultDynamic = keyof typeof ADULT_DYNAMICS;
 
-export function extractAdultDynamics(section: Pick<BibleAdultSection, "preferenceKeywords" | "tone">): AdultDynamic[] {
-  const text = `${section.preferenceKeywords.join(" ")} ${section.tone}`;
+/**
+ * Dynamics are read from the declared `preferenceKeywords` only — `tone` is
+ * free prose that routinely names a dynamic in order to negate it
+ * ("명령처럼 꾸미지 않는다"), which would be a false positive.
+ */
+export function extractAdultDynamics(section: Pick<BibleAdultSection, "preferenceKeywords">): AdultDynamic[] {
+  const text = section.preferenceKeywords.join(" ");
   return (Object.keys(ADULT_DYNAMICS) as AdultDynamic[]).filter((key) => ADULT_DYNAMICS[key].re.test(text));
 }
 
