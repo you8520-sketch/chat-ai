@@ -61,6 +61,7 @@ function makeDb(): Database.Database {
       is_refunded INTEGER DEFAULT 0,
       status_meta TEXT,
       deduction_slices TEXT,
+      memory_relationship_before_json TEXT,
       updated_at TEXT
     );
 
@@ -692,18 +693,25 @@ describe("Phase B1-D1 — last-turn numeric delete", () => {
     );
   });
 
-  it("D10c normalized relationship item from deleted natural-language turn does not survive", () => {
+  it("D10c normalized relationship item deletion restores exact pre-turn projection provenance", () => {
     const db = makeDb();
+    const before = {
+      honorifics: [],
+      items: ["민수: 낡은 열쇠"],
+      thoughts: [],
+      promises: [],
+    };
     db.prepare("INSERT INTO chats (id, memory_meta) VALUES (1, ?)").run(
       JSON.stringify({
-        honorifics: [],
-        items: ["민수: 은색 반지"],
-        thoughts: [],
-        promises: [],
+        ...before,
+        items: ["민수: 낡은 열쇠, 은색 반지"],
       })
     );
     insertMsg(db, 1, 1, "user", "민수는 은색 반지를 주머니에 넣었다.");
     insertMsg(db, 2, 1, "assistant", "반지는 민수의 손에 남았다.");
+    db.prepare(
+      "UPDATE messages SET memory_relationship_before_json=? WHERE id=2"
+    ).run(JSON.stringify(before));
 
     executeLastTurnDeleteTransaction(db, {
       chatId: 1,
@@ -721,7 +729,7 @@ describe("Phase B1-D1 — last-turn numeric delete", () => {
         }
       ).memory_meta
     ) as { items: string[] };
-    assert.deepEqual(meta.items, []);
+    assert.deepEqual(meta.items, ["민수: 낡은 열쇠"]);
   });
 
   it("D10d relationship rollback failure aborts the whole last-turn delete transaction", () => {
