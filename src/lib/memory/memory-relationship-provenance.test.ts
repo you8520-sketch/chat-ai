@@ -254,5 +254,47 @@ describe("relationship projection provenance", () => {
     assert.deepEqual(afterRegen.variants[1]?.relationshipMetaAfter?.items, [
       "Tester: old-key, token",
     ]);
+
+
+  it("persists relationshipMetaAfter for a valid zero-delta generation", async () => {
+    await mergeRelationshipMetaFromTurn({
+      chatId: CHAT_ID,
+      names: NAMES,
+      userMessage: "Nothing changes.",
+      assistantMessage: "The scene continues unchanged.",
+      route: "safe",
+      mainModelTailParsed: true,
+      mainModelDelta: {},
+      sourceUserMessageId: USER_MSG_ID,
+      boundarySnapshot: getMemorySourceBoundary(CHAT_ID),
+      assistantMessageId: ASSISTANT_MSG_ID,
+      generationScope: {
+        assistantMessageId: ASSISTANT_MSG_ID,
+        generationSequence: 0,
+        generationRequestId: null,
+      },
+    });
+
+    assert.equal(readBeforeJson(), null, "zero delta should not need delete provenance");
+    const stored = normalizeMessageVariants(
+      getDb()
+        .prepare(
+          "SELECT content, model, usage, alternates, active_variant FROM messages WHERE id=?"
+        )
+        .get(ASSISTANT_MSG_ID) as {
+        content: string;
+        model: string;
+        usage: string | null;
+        alternates: string | null;
+        active_variant: number | null;
+      }
+    );
+    assert.deepEqual(stored.variants[0]?.relationshipMetaAfter?.items, [
+      "Tester: old-key",
+    ]);
+    assert.deepEqual(loadChatRelationshipMeta(CHAT_ID, NAMES).items, [
+      "Tester: old-key",
+    ]);
+  });
   });
 });
