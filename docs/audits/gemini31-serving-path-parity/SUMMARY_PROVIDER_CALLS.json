@@ -1,0 +1,9 @@
+{
+  "phase1_ci_calls": 3,
+  "phase1_or_failed_then_rerun_calls": 6,
+  "phase1_or_successful_calls": 6,
+  "per_sample_invariant": 1,
+  "openrouter_key_note": "Production OPENROUTER_API_KEY returned 401 User not found on chat; used OPENROUTER_JEV_BENCHMARK_API_KEY for B/C",
+  "total_provider_calls_including_failed_or_attempt": 15,
+  "successful_comparable_calls": 9
+}

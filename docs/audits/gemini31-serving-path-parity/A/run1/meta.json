@@ -1,0 +1,71 @@
+{
+  "arm": "A",
+  "label": "CI gemini-3.1-pro-preview",
+  "run": 1,
+  "frozen_prompt_hash": "727818ba432127062d9642c63f1027c99f32a721b964d57a6630604cf3938599",
+  "requested_model": "gemini-3.1-pro-preview",
+  "returned_model": "gemini-3.1-pro-preview",
+  "returned_provider": null,
+  "generation_id": "gen-1790507075-WHZiSIT04BZp8HUYTXq0",
+  "response_meta": {
+    "headers": {
+      "server": "Vercel",
+      "x-accel-buffering": "no",
+      "x-ci-cache": "miss",
+      "x-ci-prompt-cache-affinity": "hit",
+      "x-ci-request-id": "b4f1e22b-d0a2-471d-81e2-033e731b0eac",
+      "x-ci-techniques": "",
+      "x-ci-tokens-saved": "0",
+      "x-ci-zdr": "false",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "x-matched-path": "/api/v1/chat/completions",
+      "x-nextjs-rewritten-path": "/api/v1/chat/completions",
+      "x-vercel-cache": "MISS",
+      "x-vercel-id": "iad1::iad1::kj7hk-1790507074355-c2c0299c1869"
+    },
+    "final_chunk": {
+      "id": "gen-1790507075-WHZiSIT04BZp8HUYTXq0",
+      "model": "gemini-3.1-pro-preview",
+      "object": "chat.completion.chunk",
+      "created": 1790507075
+    }
+  },
+  "prompt_tokens": 5064,
+  "completion_tokens": 5313,
+  "reasoning_reporting_state": "REPORTED",
+  "reasoning_tokens": 3828,
+  "visible_chars": 2351,
+  "raw_chars": 2351,
+  "finish_reason": "stop",
+  "ttft_ms": 37929,
+  "latency_ms": 46727,
+  "upstream_cost": null,
+  "provider_calls": 1,
+  "status": 200,
+  "error": null,
+  "occurrences": {
+    "visible_under_length": 1,
+    "scene_early_closure": 0,
+    "repetition": 1,
+    "filler": 1,
+    "agency_violation_heuristic": 0,
+    "apparent_lower_capability": 0,
+    "malformed_layout": 0
+  },
+  "temperature": 0.95,
+  "max_tokens": null,
+  "usage": {
+    "prompt_tokens": 5064,
+    "completion_tokens": 5313,
+    "total_tokens": 10377,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3828,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  }
+}

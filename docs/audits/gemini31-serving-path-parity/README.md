@@ -31,6 +31,16 @@ Note: OpenRouter catalog does not list the dated slug as a separate model id; en
 - No thinking OFF attempt
 - Secrets never logged
 
+## Live Phase 1 verdict (n=3)
+
+| Arm | median | mean | max | returned model |
+|---|---|---|---|---|
+| A CI | 2351 | 2576 | 3687 | `gemini-3.1-pro-preview` |
+| B OR rolling AI Studio | 1345 | 1185 | 1575 | `google/gemini-3.1-pro-preview` |
+| C OR dated AI Studio | 2045 | 2094 | 2629 | `google/gemini-3.1-pro-preview` (alias) |
+
+Case D → historical full prompt on CI also short (median 549). **ROOT_CAUSE_UNCONFIRMED.** See `REPORT.md`.
+
 ## Run
 
 ```bash

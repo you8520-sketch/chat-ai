@@ -1,0 +1,35 @@
+{
+  "arm": "HIST",
+  "run": 1,
+  "historical_commit": "692d2e9722947b7f818015495c4b0b6715a16270",
+  "frozen_prompt_hash": "f2181ff350a05b06ed863a3d67f679f7a8aab21580a2291220c5ac48080c6ac6",
+  "requested_model": "gemini-3.1-pro-preview",
+  "returned_model": "gemini-3.1-pro-preview",
+  "generation_id": "gen-1790507607-m28JIbYs3rv399yf7uX6",
+  "prompt_tokens": 5065,
+  "completion_tokens": 1857,
+  "reasoning_reporting_state": "REPORTED",
+  "reasoning_tokens": 1457,
+  "visible_chars": 621,
+  "finish_reason": "stop",
+  "latency_ms": 22572,
+  "provider_calls": 1,
+  "status": 200,
+  "error": null,
+  "usage": {
+    "prompt_tokens": 5065,
+    "completion_tokens": 1857,
+    "total_tokens": 6922,
+    "prompt_tokens_details": {
+      "cached_tokens": 4690,
+      "cache_creation_input_tokens": 4690
+    },
+    "cache_creation_input_tokens": 4690,
+    "completion_tokens_details": {
+      "reasoning_tokens": 1457,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    },
+    "cached_tokens": 4690
+  }
+}

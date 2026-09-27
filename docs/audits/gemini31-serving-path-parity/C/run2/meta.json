@@ -1,0 +1,71 @@
+{
+  "arm": "C",
+  "label": "OR dated-20260219 + AI Studio pin",
+  "run": 2,
+  "frozen_prompt_hash": "727818ba432127062d9642c63f1027c99f32a721b964d57a6630604cf3938599",
+  "requested_model": "google/gemini-3.1-pro-preview-20260219",
+  "returned_model": "google/gemini-3.1-pro-preview",
+  "returned_provider": "Google AI Studio",
+  "generation_id": "gen-1790507416-C2cqPpo4JZvGGCMCKA9F",
+  "response_meta": {
+    "headers": {
+      "server": "cloudflare",
+      "x-content-type-options": "nosniff",
+      "x-generation-id": "gen-1790507416-C2cqPpo4JZvGGCMCKA9F"
+    },
+    "final_chunk": {
+      "id": "gen-1790507416-C2cqPpo4JZvGGCMCKA9F",
+      "model": "google/gemini-3.1-pro-preview",
+      "provider": "Google AI Studio",
+      "object": "chat.completion.chunk",
+      "created": 1790507416
+    }
+  },
+  "prompt_tokens": 5070,
+  "completion_tokens": 4792,
+  "reasoning_reporting_state": "REPORTED",
+  "reasoning_tokens": 3161,
+  "visible_chars": 2629,
+  "raw_chars": 2629,
+  "finish_reason": "stop",
+  "ttft_ms": 36080,
+  "latency_ms": 47090,
+  "upstream_cost": 0.067644,
+  "provider_calls": 1,
+  "status": 200,
+  "error": null,
+  "occurrences": {
+    "visible_under_length": 1,
+    "scene_early_closure": 0,
+    "repetition": 1,
+    "filler": 1,
+    "agency_violation_heuristic": 0,
+    "apparent_lower_capability": 0,
+    "malformed_layout": 0
+  },
+  "temperature": 0.95,
+  "max_tokens": null,
+  "usage": {
+    "prompt_tokens": 5070,
+    "completion_tokens": 4792,
+    "total_tokens": 9862,
+    "cost": 0.067644,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.067644,
+      "upstream_inference_prompt_cost": 0.01014,
+      "upstream_inference_completions_cost": 0.057504
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3161,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  }
+}

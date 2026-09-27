@@ -83,6 +83,14 @@ function sha256(text: string): string {
 function sanitizeSecrets(text: string): string {
   return sanitizeBenchmarkCredentialText(text)
     .replace(/OPENROUTER_API_KEY=\S+/gi, "OPENROUTER_API_KEY=[REDACTED]")
+    .replace(
+      /OPENROUTER_JEV_BENCHMARK_API_KEY=\S+/gi,
+      "OPENROUTER_JEV_BENCHMARK_API_KEY=[REDACTED]",
+    )
+    .replace(
+      /OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY=\S+/gi,
+      "OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY=[REDACTED]",
+    )
     .replace(/Bearer\s+[A-Za-z0-9._\-]+/g, "Bearer [REDACTED]")
     .replace(/sk-or-v1-[A-Za-z0-9]+/g, "[REDACTED_OR_KEY]")
     .replace(/sk-[A-Za-z0-9]{20,}/g, "[REDACTED_KEY]");
@@ -495,12 +503,27 @@ async function main() {
   const ciKey = exitIfBenchmarkCheaperInferenceApiKeyMissing(
     "SERVING_PARITY_NOT_RUN",
   );
-  const orKey = process.env.OPENROUTER_API_KEY?.trim();
+  // Prefer dedicated OR benchmark keys — production OPENROUTER_API_KEY may be
+  // present but chat-disabled ("User not found"). Never log key material.
+  const orKey =
+    process.env.OPENROUTER_JEV_BENCHMARK_API_KEY?.trim() ||
+    process.env.OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY?.trim() ||
+    process.env.OPENROUTER_API_KEY?.trim() ||
+    null;
   if (!orKey) {
-    console.log("SERVING_PARITY_NOT_RUN — missing OPENROUTER_API_KEY");
+    console.log(
+      "SERVING_PARITY_NOT_RUN — missing OPENROUTER_JEV_BENCHMARK_API_KEY (or EMBEDDINGS / OPENROUTER_API_KEY)",
+    );
     console.log("provider calls=0");
     process.exit(0);
   }
+  const orKeySource =
+    process.env.OPENROUTER_JEV_BENCHMARK_API_KEY?.trim() === orKey
+      ? "OPENROUTER_JEV_BENCHMARK_API_KEY"
+      : process.env.OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY?.trim() === orKey
+        ? "OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY"
+        : "OPENROUTER_API_KEY";
+  console.log(`[cred] openrouter_key_source=${orKeySource}`);
 
   const armDefs: Record<
     ArmId,

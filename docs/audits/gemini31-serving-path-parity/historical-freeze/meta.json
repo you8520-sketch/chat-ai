@@ -1,0 +1,8 @@
+{
+  "historical_commit": "692d2e9722947b7f818015495c4b0b6715a16270",
+  "frozen_prompt_hash": "f2181ff350a05b06ed863a3d67f679f7a8aab21580a2291220c5ac48080c6ac6",
+  "user_tail_snippet": "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현",
+  "user_tail_is_old_generative": true,
+  "density_live": false,
+  "message_count": 6
+}

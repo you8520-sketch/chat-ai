@@ -1,6 +1,6 @@
 {
   "EXACT_MAIN_GPT_CONFIRMED": "63ffa76e21a6f8cb88e31cc43c6378e87d3e8059",
-  "LOCAL_HEAD": "63ffa76e21a6f8cb88e31cc43c6378e87d3e8059",
+  "LOCAL_HEAD": "810522e82e222a638b9b0256ee0e848d003a7177",
   "main_rp_gemini_registry": {
     "ci_preview": "gemini-3.1-pro-preview",
     "or_rolling": "google/gemini-3.1-pro-preview",
