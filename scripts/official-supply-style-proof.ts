@@ -226,6 +226,88 @@ function ensureCharacter(
   assertSame(`${file.draftKey} asset plan`, record.assetPlan, file.assetPlan);
 }
 
+const LEGACY_PRE_PROVIDER_ERROR = "reference fetch failed: 502";
+const LEGACY_PHANTOM_PAUSE =
+  "budget hard-stop: character spend 1.0000 + reserve 1 > cap 1";
+
+function recoverKnownPreProviderSeedBootstrap(store: OfficialSupplyStore): void {
+  let batch;
+  try {
+    batch = store.getBatch(PILOT_STYLE_PROOF_BATCH_KEY);
+  } catch (error) {
+    if (missing(error, "batch_not_found")) return;
+    throw error;
+  }
+
+  const asset = store.getAsset(PILOT_STYLE_PROOF_DRAFT_KEYS[0], PILOT_STYLE_PROOF_SLOT_KEY);
+  if (
+    batch.status === "active" &&
+    asset.attempts === 0 &&
+    asset.spentUsd === 0 &&
+    asset.hasUnknownCost === false
+  ) {
+    return;
+  }
+
+  const exactLegacyFailure =
+    batch.status === "paused" &&
+    batch.pauseReason === LEGACY_PHANTOM_PAUSE &&
+    store.countStyleProofSlotsStarted(PILOT_STYLE_PROOF_STYLE_KEY) === 1 &&
+    asset.status === "failed" &&
+    asset.attempts === 1 &&
+    asset.spentUsd === 0 &&
+    asset.hasUnknownCost === true &&
+    asset.providerRequestId === null &&
+    asset.resultUrl === null &&
+    asset.error === LEGACY_PRE_PROVIDER_ERROR;
+
+  if (!exactLegacyFailure) {
+    throw new Error(
+      "official style proof has unexpected persisted state; STOP instead of rewriting attempts/budget"
+    );
+  }
+
+  const tx = store.database.transaction(() => {
+    const reset = store.database
+      .prepare(
+        `UPDATE official_supply_assets
+         SET status='planned', attempts=0, lease_owner=NULL, lease_expires_at=NULL,
+             model=NULL, provider_request_id=NULL, result_url=NULL, width=NULL, height=NULL,
+             spent_usd=0, has_unknown_cost=0, error=NULL, qa_json=NULL, moderation_json=NULL,
+             updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND status='failed' AND attempts=1
+           AND spent_usd=0 AND has_unknown_cost=1 AND provider_request_id IS NULL
+           AND result_url IS NULL AND error=?`
+      )
+      .run(
+        PILOT_STYLE_PROOF_DRAFT_KEYS[0],
+        PILOT_STYLE_PROOF_SLOT_KEY,
+        LEGACY_PRE_PROVIDER_ERROR
+      );
+    if (reset.changes !== 1) {
+      throw new Error("legacy pre-provider proof row changed during recovery");
+    }
+    store.resumeBatch(PILOT_STYLE_PROOF_BATCH_KEY);
+  });
+  tx();
+
+  const recovered = store.getAsset(
+    PILOT_STYLE_PROOF_DRAFT_KEYS[0],
+    PILOT_STYLE_PROOF_SLOT_KEY
+  );
+  if (
+    recovered.status !== "planned" ||
+    recovered.attempts !== 0 ||
+    recovered.spentUsd !== 0 ||
+    recovered.hasUnknownCost
+  ) {
+    throw new Error("legacy pre-provider proof recovery verification failed");
+  }
+  console.log(
+    "[official-style-proof] recovered provider-free rf-01 seed bootstrap failure; paid-call count remains zero"
+  );
+}
+
 async function main(): Promise<void> {
   if (!pilotStyleProofOptedIn()) {
     console.log(
@@ -235,6 +317,7 @@ async function main(): Promise<void> {
   }
 
   const store = new OfficialSupplyStore();
+  recoverKnownPreProviderSeedBootstrap(store);
   const styleSource = readJson<PilotStyleFile>(
     path.join(PILOT_DIR, "style-candidates.json")
   );
