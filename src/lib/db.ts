@@ -1372,6 +1372,7 @@ function migrate(db: Database.Database) {
   addColumn("messages", "user_message_id", "INTEGER");
   addColumn("messages", "status_meta", "TEXT");
   addColumn("messages", "suggested_replies_json", "TEXT");
+  // CI baseline probe: no runtime behavior change.
   addColumn("messages", "memory_relationship_task_json", "TEXT");
   addColumn("users", "training_consent", "INTEGER NOT NULL DEFAULT 0");
   db.exec(`
