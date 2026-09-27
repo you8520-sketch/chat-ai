@@ -1,0 +1,53 @@
+{
+  "note": "Factual result categories per sample only — not a model replacement decision.",
+  "hardDefectCategories": [
+    "UNSUPPORTED_CANON_FACT",
+    "STATIC_TO_EVENT_HALLUCINATION",
+    "USER_INTERIORITY_INVENTION",
+    "severe UNNATURAL_KOREAN_COLLOCATION",
+    "major CHARACTER_VOICE_BREAK",
+    "AGENCY_VIOLATION"
+  ],
+  "samples": [
+    {
+      "sampleId": "SNAPSHOT_A/deepseek-v4.1-flash/r1",
+      "categories": ["NO_MAJOR_DEFECT_OBSERVED", "EMOTIONAL_BALANCE_DEFECT"],
+      "hardDefect": false
+    },
+    {
+      "sampleId": "SNAPSHOT_A/deepseek-v4.1-flash/r2",
+      "categories": [
+        "UNNATURAL_KOREAN_DEFECT",
+        "EMOTIONAL_BALANCE_DEFECT",
+        "UNSUPPORTED_FACT_DEFECT"
+      ],
+      "hardDefect": true,
+      "hardReason": "UNSUPPORTED_CANON_FACT (dated pouch in fridge)"
+    },
+    {
+      "sampleId": "SNAPSHOT_A/deepseek-v4.1-flash/r3",
+      "categories": ["UNSUPPORTED_FACT_DEFECT", "SCENE_PROGRESSION_DEFECT"],
+      "hardDefect": true,
+      "hardReason": "UNSUPPORTED_CANON_FACT (empty fridge vs user setup)"
+    },
+    {
+      "sampleId": "SNAPSHOT_B/deepseek-v4.1-flash/r1",
+      "categories": ["EMOTIONAL_BALANCE_DEFECT", "UNNATURAL_KOREAN_DEFECT"],
+      "hardDefect": false
+    },
+    {
+      "sampleId": "SNAPSHOT_B/deepseek-v4.1-flash/r2",
+      "categories": ["NO_MAJOR_DEFECT_OBSERVED"],
+      "hardDefect": false
+    },
+    {
+      "sampleId": "SNAPSHOT_B/deepseek-v4.1-flash/r3",
+      "categories": [
+        "CANON_RECITAL_DEFECT",
+        "EMOTIONAL_BALANCE_DEFECT",
+        "UNNATURAL_KOREAN_DEFECT"
+      ],
+      "hardDefect": false
+    }
+  ]
+}

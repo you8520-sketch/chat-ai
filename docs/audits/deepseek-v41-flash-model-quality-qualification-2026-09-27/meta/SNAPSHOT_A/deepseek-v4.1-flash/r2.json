@@ -1,0 +1,31 @@
+{
+  "sampleId": "SNAPSHOT_A/deepseek-v4.1-flash/r2",
+  "snapshot": "SNAPSHOT_A",
+  "rep": 2,
+  "model": "deepseek-v4.1-flash",
+  "providerCallCount": 1,
+  "visibleChars": 3156,
+  "promptHash": "5be415774ee8ee292450a7563cfeaa2cd77110371a6ea5253d964a75761496a1",
+  "historyHash": "b7e596e8434d7171663fec125f44773bc55e316dd5f62ce47988bbc3949e6ca1",
+  "currentUserHash": "4fc34515c61aa8a2e85b480cf86ce7ad5f707063757713ea68188120f949dfc6",
+  "finish": "stop",
+  "latencyMs": 143312,
+  "httpStatus": 200,
+  "error": null,
+  "usage": {
+    "prompt_tokens": 7153,
+    "completion_tokens": 2387,
+    "total_tokens": 9540,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 7040,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+  }
+}

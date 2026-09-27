@@ -1,0 +1,47 @@
+{
+  "snapshotLabel": "ordinary domestic / food / banter",
+  "promptHashSystemSha256": "5be415774ee8ee292450a7563cfeaa2cd77110371a6ea5253d964a75761496a1",
+  "historyHashSha256": "b7e596e8434d7171663fec125f44773bc55e316dd5f62ce47988bbc3949e6ca1",
+  "currentUserHashSha256": "4fc34515c61aa8a2e85b480cf86ce7ad5f707063757713ea68188120f949dfc6",
+  "systemChars": 9003,
+  "canonCoreIds": [
+    "f8aaccf26f750f40",
+    "2381c33987613bf8",
+    "b2b89012e6f05df3",
+    "cf37677940f9cab3",
+    "25fa011ae88db732",
+    "19ef608544681247",
+    "46fd13b829264fe5",
+    "c81e571e6d751df1",
+    "4bf050e089eda0b9",
+    "9cf7bc07ec621a1e",
+    "9942f302857fb626",
+    "4a8c1a7120f437dd",
+    "ca175b2cf3f9c9f8",
+    "10c1f69f638289a5",
+    "959cc0a8fc643287",
+    "7d19045fc7186dd5",
+    "ed10038a9c1a0732",
+    "1566e9b9bd24d8af",
+    "489843ed0aea4bec",
+    "fb7d5dbe08e28bd7",
+    "c5f36935dbf9627d",
+    "14ba4c3aa0cf26c3",
+    "07879760c75c309b",
+    "7395c4d34ff839ff",
+    "ddf9b1da2bed51db",
+    "087b26f79c14a5b8"
+  ],
+  "activeChunkIds": [],
+  "activeSectionTitles": [],
+  "wire": {
+    "model": "deepseek-v4.1-flash",
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "max_tokens": null,
+    "temperature": 0.92
+  },
+  "v4ProExperimentalLengthAdapterOnWire": false
+}

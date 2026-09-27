@@ -1,0 +1,47 @@
+{
+  "snapshotLabel": "close-contact / relationship transition",
+  "promptHashSystemSha256": "6cea56eaba865faea83c6c7637e077ffd9ed653abaf70e368a6349f399561596",
+  "historyHashSha256": "233a34b1832d200beb73bacaabd9a9390c1677fe51e3ef4881015950cca237a1",
+  "currentUserHashSha256": "887628102cabaee2e4b88a8842e03e2e3d2b5e3890633e5e7d444a430131aff5",
+  "systemChars": 8975,
+  "canonCoreIds": [
+    "f8aaccf26f750f40",
+    "2381c33987613bf8",
+    "b2b89012e6f05df3",
+    "cf37677940f9cab3",
+    "25fa011ae88db732",
+    "19ef608544681247",
+    "46fd13b829264fe5",
+    "c81e571e6d751df1",
+    "4bf050e089eda0b9",
+    "9cf7bc07ec621a1e",
+    "9942f302857fb626",
+    "4a8c1a7120f437dd",
+    "ca175b2cf3f9c9f8",
+    "10c1f69f638289a5",
+    "959cc0a8fc643287",
+    "7d19045fc7186dd5",
+    "ed10038a9c1a0732",
+    "1566e9b9bd24d8af",
+    "489843ed0aea4bec",
+    "fb7d5dbe08e28bd7",
+    "c5f36935dbf9627d",
+    "14ba4c3aa0cf26c3",
+    "07879760c75c309b",
+    "7395c4d34ff839ff",
+    "ddf9b1da2bed51db",
+    "087b26f79c14a5b8"
+  ],
+  "activeChunkIds": [],
+  "activeSectionTitles": [],
+  "wire": {
+    "model": "deepseek-v4.1-flash",
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "max_tokens": null,
+    "temperature": 0.92
+  },
+  "v4ProExperimentalLengthAdapterOnWire": false
+}

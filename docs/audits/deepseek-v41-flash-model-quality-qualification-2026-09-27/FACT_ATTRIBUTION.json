@@ -1,0 +1,91 @@
+{
+  "note": "Concrete factual claims in assistant output vs PR620 capsule support (CORE, ACTIVE, history, persona, user turn). Static facts do not license new events.",
+  "supportSources": ["CORE", "ACTIVE", "history", "persona", "user_turn", "opening", "none"],
+  "samples": [
+    {
+      "sampleId": "SNAPSHOT_A/deepseek-v4.1-flash/r1",
+      "claims": [
+        {
+          "excerpt": "소리를 내는 것 자체가 그의 능력 발동 조건",
+          "tag": "STATIC_FACT_OK_IN_SCENE",
+          "support": ["CORE"],
+          "hardDefect": false
+        },
+        {
+          "excerpt": "격납고 쪽에서 났던 그 진동",
+          "tag": "SCENE_EXTENSION",
+          "support": ["history", "user_turn"],
+          "hardDefect": false,
+          "note": "Same-day mission implied by OOC/history; not a named new NPC event"
+        }
+      ]
+    },
+    {
+      "sampleId": "SNAPSHOT_A/deepseek-v4.1-flash/r2",
+      "claims": [
+        {
+          "excerpt": "봉투 겉면 날짜 / 이름 모를 냉장고 봉투",
+          "tag": "UNSUPPORTED_CANON_FACT",
+          "support": ["none"],
+          "hardDefect": true
+        },
+        {
+          "excerpt": "어릴 때 누가 그랬어 (노른자 기운)",
+          "tag": "STATIC_TO_EVENT_HALLUCINATION",
+          "support": ["none"],
+          "hardDefect": false,
+          "note": "Vague childhood teller; not sister-call class"
+        },
+        {
+          "excerpt": "세 번째 구역 진입할 때 네 호흡이 거칠었잖아",
+          "tag": "SCENE_EXTENSION",
+          "support": ["history"],
+          "hardDefect": false
+        }
+      ]
+    },
+    {
+      "sampleId": "SNAPSHOT_A/deepseek-v4.1-flash/r3",
+      "claims": [
+        {
+          "excerpt": "냉장고가 텅텅 비었네",
+          "tag": "UNSUPPORTED_CANON_FACT",
+          "support": ["none"],
+          "hardDefect": true,
+          "note": "Contradicts user turn asking what is available to eat"
+        }
+      ]
+    },
+    {
+      "sampleId": "SNAPSHOT_B/deepseek-v4.1-flash/r1",
+      "claims": [
+        {
+          "excerpt": "이명 / 능력 잔재 vs 심장",
+          "tag": "PHYSIOLOGY_NARRATION",
+          "support": ["CORE"],
+          "hardDefect": false
+        }
+      ]
+    },
+    {
+      "sampleId": "SNAPSHOT_B/deepseek-v4.1-flash/r2",
+      "claims": []
+    },
+    {
+      "sampleId": "SNAPSHOT_B/deepseek-v4.1-flash/r3",
+      "claims": [
+        {
+          "excerpt": "S급 센티넬",
+          "tag": "CHARACTER_SHEET_RECITAL",
+          "support": ["CORE"],
+          "hardDefect": false
+        }
+      ]
+    }
+  ],
+  "baselineComparison": {
+    "reference": "PR #1131 generalized Layered DeepSeek V4 Pro (canon-layered-architecture-audit L arm)",
+    "knownV4ProHardExample": "「이거 누나가 두고 갔나」 — STATIC_TO_EVENT_HALLUCINATION",
+    "v41FlashSisterEventInThisPacket": false
+  }
+}
