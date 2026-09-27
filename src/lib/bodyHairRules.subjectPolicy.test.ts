@@ -11,7 +11,6 @@ import {
   resolveCharacterSubjectHairPolicy,
   resolveUserPersonaSubjectHairPolicy,
   sanitizeHairDescriptions,
-  type HairDescriptionPolicy,
 } from "@/lib/bodyHairRules";
 
 function ctx(
@@ -27,7 +26,7 @@ function ctx(
   return buildHairSanitizeContext({
     characterName: overrides.charName ?? "하율",
     characterGender: overrides.charGender ?? "male",
-    settingText: overrides.setting ?? "키 178cm, 검은 머리.",
+    characterAppearanceText: overrides.setting ?? "키 178cm, 검은 머리.",
     personaName: overrides.personaName ?? "렌",
     personaText: overrides.personaText ?? "20대 남성.",
     userGender: overrides.userGender ?? "male",
@@ -56,8 +55,9 @@ describe("presence / absence parsing", () => {
     assert.equal(parseBodyHairFromText("키 180cm").presence, "absent");
   });
 
-  it("female character facial hair always absent", () => {
-    assert.equal(parseFacialHairFromText("턱수염", "female").presence, "absent");
+  it("explicit canon outranks gender defaults", () => {
+    assert.equal(parseFacialHairFromText("턱수염이 있다", "female").presence, "present");
+    assert.equal(parseFacialHairFromText("키 170cm", "female").presence, "absent");
   });
 });
 
@@ -84,14 +84,16 @@ describe("subject-aware sanitizer", () => {
     assert.match(out, /하율은 고개를 끄덕/);
   });
 
-  it("C: ambiguous beard dropped when both subjects disallow", () => {
+  it("one-syllable persona alias does not match inside unrelated words", () => {
+    const input =
+      "렌즈 옆의 김 형사는 턱수염을 쓰다듬었다. 하율은 고개를 끄덕였다.";
+    const out = sanitizeHairDescriptions(input, ctx({ personaName: "렌" }));
+    assert.match(out, /김 형사는 턱수염/);
+  });
+
+  it("C: ambiguous beard dropped when both primary subjects disallow", () => {
     const input = "턱수염이 거칠게 자라 있었다. 그는 고개를 돌렸다.";
-    const legacy: HairDescriptionPolicy = {
-      charGender: "male",
-      allowsBeard: false,
-      allowsBodyHair: false,
-    };
-    const out = sanitizeHairDescriptions(input, legacy);
+    const out = sanitizeHairDescriptions(input, ctx());
     assert.doesNotMatch(out, /턱수염/);
     assert.match(out, /고개를 돌렸다/);
   });
