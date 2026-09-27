@@ -45,6 +45,7 @@ describe("sharedNovelProseModelAdapters", () => {
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
     );
     assert.ok(b?.includes(DEEPSEEK_LENGTH_ARM_B_SENTENCE));
+    assert.ok(b?.includes("[DEEPSEEK COMPLETION]"));
     assert.ok(b?.includes(DEEPSEEK_LENGTH_SAFETY_SENTENCE));
     assert.equal(resolveDeepSeekLengthAdapterSection(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL), null);
 

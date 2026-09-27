@@ -29,13 +29,22 @@ export const SNPV2_DEEPSEEK_LENGTH_ARM_ENV = "SNPV2_DEEPSEEK_LENGTH_ARM";
 
 export type DeepSeekLengthArm = "A" | "B" | "C";
 
-/** Anti-filler safety — always paired after DeepSeek length sentences (B/C). */
+/** Anti-filler safety — always paired after DeepSeek completion sentences (B/C). */
 export const DEEPSEEK_LENGTH_SAFETY_SENTENCE =
   "분량을 늘리기 위해 새로운 NPC·별도 사건·불필요한 질문·설정 설명·같은 감정의 반복 해석을 추가하지 않는다. 현재 장면에서 실제로 발생하는 변화만 전개한다.";
 
-/** Arm B — safe scene-unit completion (DeepSeek-only). */
-export const DEEPSEEK_LENGTH_ARM_B_SENTENCE =
-  "이번 응답에서는 현재 장면을 중간에서 성급하게 끊지 말고, 인물의 행동·반응·판단과 그에 따른 장면 변화를 충분히 전개하여 하나의 실질적인 장면 단위를 완성한다.";
+/**
+ * Candidate B / production candidate — thin scene-completion adapter (V4 Pro only).
+ * Not a style owner; does not restate numeric length targets (USER_TAIL owns numbers).
+ */
+export const DEEPSEEK_COMPLETION_ADAPTER_SENTENCES = [
+  "현재 응답에서는 공통 길이 목표에 맞는 충분한 장면 단위를 완성한다.",
+  "짧은 사용자 입력이나 최근 답변 길이는 현재 응답의 분량 기준이 아니다.",
+  "행동·반응·판단·대화·환경과 관계의 다음 변화를 현재 장면의 인과 안에서 충분히 전개한다.",
+].join("\n");
+
+/** @deprecated Alias — Arm B now uses DEEPSEEK_COMPLETION_ADAPTER_SENTENCES. */
+export const DEEPSEEK_LENGTH_ARM_B_SENTENCE = DEEPSEEK_COMPLETION_ADAPTER_SENTENCES;
 
 /**
  * Arm C — exact production terminal strong phrase (comparison only).
@@ -81,13 +90,18 @@ export function buildDeepSeekLengthAdapterBlock(
 ): string | null {
   if (arm === "A") return null;
   if (arm === "B") {
-    return `[DEEPSEEK LENGTH ADAPTER — B]
-${DEEPSEEK_LENGTH_ARM_B_SENTENCE}
+    return `[DEEPSEEK COMPLETION]
+${DEEPSEEK_COMPLETION_ADAPTER_SENTENCES}
 ${DEEPSEEK_LENGTH_SAFETY_SENTENCE}`;
   }
   return `[DEEPSEEK LENGTH ADAPTER — C]
 ${DEEPSEEK_LENGTH_ARM_C_SENTENCE}
 ${DEEPSEEK_LENGTH_SAFETY_SENTENCE}`;
+}
+
+/** Production candidate block (Arm B body). */
+export function buildDeepSeekCompletionAdapterBlock(): string {
+  return buildDeepSeekLengthAdapterBlock("B")!;
 }
 
 /**
