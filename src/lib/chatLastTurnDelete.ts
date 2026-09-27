@@ -5,6 +5,8 @@
  * LLM calls: 0.
  */
 import type Database from "better-sqlite3";
+import type { HonorificNames } from "@/lib/chatMemory";
+import { rollbackRelationshipMetaForDeletedTurnCore } from "@/lib/memory/memory-relationship-meta";
 import {
   countAssistantGenerationTurns,
   incrementCharacterTotalTurns,
@@ -31,6 +33,8 @@ export type ExecuteLastTurnDeleteInput = {
   __testThrowAfterNumericRestore?: boolean;
   /** @internal test-only — throw after persona/S3/S4 rewind, before message deletes */
   __testThrowAfterPersonaSecretRewind?: boolean;
+  /** Relationship projection rollback participates in the same delete transaction when supplied. */
+  relationshipMetaNames?: HonorificNames;
   /** @internal test-only — throw after message deletes start failing mid-way */
   __testThrowAfterMessageDelete?: boolean;
 };
@@ -72,6 +76,22 @@ export function executeLastTurnDeleteTransaction(
   }
 
   const run = db.transaction(() => {
+    const deletedUserText = input.relationshipMetaNames
+      ? (
+          db
+            .prepare("SELECT content FROM messages WHERE id=? AND chat_id=?")
+            .get(input.userMessageId, input.chatId) as { content: string } | undefined
+        )?.content ?? ""
+      : "";
+    const deletedAssistantText =
+      input.relationshipMetaNames && input.assistantMessageId != null
+        ? (
+            db
+              .prepare("SELECT content FROM messages WHERE id=? AND chat_id=?")
+              .get(input.assistantMessageId, input.chatId) as { content: string } | undefined
+          )?.content ?? ""
+        : "";
+
     let numericAffectedStateCount = 0;
     if (input.revertNumeric && input.assistantMessageId != null) {
       const reverted = revertNumericStateForDeletedAssistantCore(db, {
@@ -119,6 +139,16 @@ export function executeLastTurnDeleteTransaction(
         throw new Error("TEST_THROW_AFTER_MESSAGE_DELETE");
       }
     }
+
+    if (input.relationshipMetaNames) {
+      rollbackRelationshipMetaForDeletedTurnCore(db, {
+        chatId: input.chatId,
+        names: input.relationshipMetaNames,
+        deletedUserText,
+        deletedAssistantText,
+      });
+    }
+
     if (engagementDelta > 0) {
       incrementCharacterTotalTurns(db, input.characterId, -engagementDelta);
     }

@@ -40,6 +40,11 @@ function makeDb(): Database.Database {
     );
     INSERT INTO characters (id, total_turns) VALUES (7, 10);
 
+    CREATE TABLE chats (
+      id INTEGER PRIMARY KEY,
+      memory_meta TEXT NOT NULL DEFAULT '{}'
+    );
+
     CREATE TABLE messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id INTEGER NOT NULL,
@@ -636,6 +641,104 @@ describe("Phase B1-D1 — last-turn numeric delete", () => {
       (db.prepare(`SELECT COUNT(*) AS c FROM messages`).get() as { c: number }).c,
       0
     );
+  });
+
+  it("D10b relationship items/promises from deleted turn are removed atomically", () => {
+    const db = makeDb();
+    db.prepare("INSERT INTO chats (id, memory_meta) VALUES (1, ?)").run(
+      JSON.stringify({
+        honorifics: [],
+        items: ["민수: 은색 반지"],
+        thoughts: [],
+        promises: [{ text: "비 오는 날 우산을 가져오기로 했다" }],
+      })
+    );
+    insertMsg(db, 1, 1, "user", "이전 유저 턴");
+    insertMsg(db, 2, 1, "assistant", "이전 어시스턴트 턴");
+    insertMsg(
+      db,
+      3,
+      1,
+      "user",
+      "민수: 은색 반지\n비 오는 날 우산을 가져오기로 했다"
+    );
+    insertMsg(db, 4, 1, "assistant", "둘은 약속을 확인했다.");
+
+    executeLastTurnDeleteTransaction(db, {
+      chatId: 1,
+      characterId: 7,
+      userMessageId: 3,
+      assistantMessageId: 4,
+      revertNumeric: false,
+      relationshipMetaNames: { charName: "레온", userName: "민수" },
+    });
+
+    const meta = JSON.parse(
+      (
+        db.prepare("SELECT memory_meta FROM chats WHERE id=1").get() as {
+          memory_meta: string;
+        }
+      ).memory_meta
+    ) as { items: string[]; promises: Array<{ text: string }> };
+    assert.deepEqual(meta.items, []);
+    assert.deepEqual(meta.promises, []);
+    assert.deepEqual(
+      (
+        db.prepare("SELECT id FROM messages WHERE chat_id=1 ORDER BY id").all() as Array<{
+          id: number;
+        }>
+      ).map((row) => row.id),
+      [1, 2]
+    );
+  });
+
+  it("D10c relationship rollback failure aborts the whole last-turn delete transaction", () => {
+    const db = makeDb();
+    db.prepare("INSERT INTO chats (id, memory_meta) VALUES (1, ?)").run(
+      JSON.stringify({
+        honorifics: [],
+        items: ["민수: 은색 반지"],
+        thoughts: [],
+        promises: [],
+      })
+    );
+    insertMsg(db, 1, 1, "user", "민수: 은색 반지");
+    insertMsg(db, 2, 1, "assistant", "반지를 챙겼다.");
+
+    db.exec(`
+      CREATE TRIGGER fail_relationship_meta_rollback_d10c
+      BEFORE UPDATE OF memory_meta ON chats
+      WHEN OLD.id = 1
+      BEGIN
+        SELECT RAISE(ABORT, 'TEST_RELATIONSHIP_META_ROLLBACK_FAIL');
+      END;
+    `);
+
+    assert.throws(
+      () =>
+        executeLastTurnDeleteTransaction(db, {
+          chatId: 1,
+          characterId: 7,
+          userMessageId: 1,
+          assistantMessageId: 2,
+          revertNumeric: false,
+          relationshipMetaNames: { charName: "레온", userName: "민수" },
+        }),
+      /TEST_RELATIONSHIP_META_ROLLBACK_FAIL/
+    );
+
+    assert.equal(
+      (db.prepare("SELECT COUNT(*) AS c FROM messages WHERE chat_id=1").get() as { c: number }).c,
+      2
+    );
+    const meta = JSON.parse(
+      (
+        db.prepare("SELECT memory_meta FROM chats WHERE id=1").get() as {
+          memory_meta: string;
+        }
+      ).memory_meta
+    ) as { items: string[] };
+    assert.deepEqual(meta.items, ["민수: 은색 반지"]);
   });
 
   it("D12 trigger cleanup failure rolls back numeric+messages+episodic+triggers+engagement", () => {

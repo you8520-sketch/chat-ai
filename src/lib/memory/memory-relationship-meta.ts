@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import type Database from "better-sqlite3";
 import { BACKGROUND_OPENROUTER_MODEL, type Route } from "@/lib/ai";
 import { type RelationshipMetaExtractResult } from "@/lib/ai";
 import { buildPlatformAsyncTurnLedgerContext } from "@/lib/providerCostLedger";
@@ -35,8 +36,11 @@ export type RelationshipMetaApplyResult = {
   rejectReason?: "stale_epoch_rejected" | "stale_generation_rejected";
 };
 
-export function loadChatRelationshipMeta(chatId: number, names?: HonorificNames): MemoryMeta {
-  const db = getDb();
+export function loadChatRelationshipMetaCore(
+  db: Database.Database,
+  chatId: number,
+  names?: HonorificNames
+): MemoryMeta {
   const row = db
     .prepare("SELECT memory_meta FROM chats WHERE id=?")
     .get(chatId) as { memory_meta: string } | undefined;
@@ -44,9 +48,20 @@ export function loadChatRelationshipMeta(chatId: number, names?: HonorificNames)
   return names ? normalizeMemoryMeta(meta, names) : meta;
 }
 
-export function saveChatRelationshipMeta(chatId: number, meta: MemoryMeta): void {
-  const db = getDb();
+export function loadChatRelationshipMeta(chatId: number, names?: HonorificNames): MemoryMeta {
+  return loadChatRelationshipMetaCore(getDb(), chatId, names);
+}
+
+export function saveChatRelationshipMetaCore(
+  db: Database.Database,
+  chatId: number,
+  meta: MemoryMeta
+): void {
   db.prepare("UPDATE chats SET memory_meta=? WHERE id=?").run(JSON.stringify(meta), chatId);
+}
+
+export function saveChatRelationshipMeta(chatId: number, meta: MemoryMeta): void {
+  saveChatRelationshipMetaCore(getDb(), chatId, meta);
 }
 
 export function removeRelationshipMetaItem(
@@ -85,13 +100,15 @@ export function clearChatRelationshipMeta(chatId: number): void {
  * Conservative: only removes entries that are exact substring matches of the
  * deleted turn's text and are absent from all other turns.
  */
-export function rollbackRelationshipMetaForDeletedTurn(opts: {
-  chatId: number;
-  names: HonorificNames;
-  deletedUserText: string;
-  deletedAssistantText: string;
-}): MemoryMeta {
-  const db = getDb();
+export function rollbackRelationshipMetaForDeletedTurnCore(
+  db: Database.Database,
+  opts: {
+    chatId: number;
+    names: HonorificNames;
+    deletedUserText: string;
+    deletedAssistantText: string;
+  }
+): MemoryMeta {
   const rows = db
     .prepare(
       "SELECT role, content FROM messages WHERE chat_id=? ORDER BY id ASC"
@@ -100,7 +117,7 @@ export function rollbackRelationshipMetaForDeletedTurn(opts: {
   const survivingText = rows.map((r) => r.content).join("\n");
 
   const deletedText = `${opts.deletedUserText}\n${opts.deletedAssistantText}`;
-  const meta = loadChatRelationshipMeta(opts.chatId, opts.names);
+  const meta = loadChatRelationshipMetaCore(db, opts.chatId, opts.names);
 
   const filterOut = (text: string): boolean => {
     const t = text.trim();
@@ -119,8 +136,17 @@ export function rollbackRelationshipMetaForDeletedTurn(opts: {
     currentLocation: meta.currentLocation,
   };
 
-  saveChatRelationshipMeta(opts.chatId, next);
+  saveChatRelationshipMetaCore(db, opts.chatId, next);
   return next;
+}
+
+export function rollbackRelationshipMetaForDeletedTurn(opts: {
+  chatId: number;
+  names: HonorificNames;
+  deletedUserText: string;
+  deletedAssistantText: string;
+}): MemoryMeta {
+  return rollbackRelationshipMetaForDeletedTurnCore(getDb(), opts);
 }
 
 function hasRelationshipDelta(delta: RelationshipMetaDelta): boolean {
