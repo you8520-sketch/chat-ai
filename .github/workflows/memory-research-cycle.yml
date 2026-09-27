@@ -53,6 +53,7 @@ jobs:
       contents: read
     outputs:
       accepted_count: ${{ steps.cycle.outputs.accepted_count }}
+      implementation_pending_count: ${{ steps.cycle.outputs.implementation_pending_count }}
       cycle_status: ${{ steps.cycle.outputs.cycle_status }}
       cycle_key: ${{ steps.cycle.outputs.cycle_key }}
       main_sha: ${{ steps.sha.outputs.main_sha }}
@@ -228,8 +229,77 @@ jobs:
           path: memory-live-out
           retention-days: 90
 
+  implementation_prs:
+    needs: [research, live_experiments]
+    if: >-
+      always() &&
+      needs.research.result == 'success' &&
+      needs.research.outputs.cycle_status == 'COMPLETED' &&
+      inputs.dry_run != true &&
+      (
+        needs.research.outputs.implementation_pending_count != '0' ||
+        (
+          needs.live_experiments.result == 'success' &&
+          needs.live_experiments.outputs.ready_for_implementation != '0'
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.research.outputs.main_sha }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: memory-research-out
+          path: memory-research-out
+
+      - uses: actions/download-artifact@v4
+        if: needs.live_experiments.result == 'success'
+        with:
+          name: memory-live-out
+          path: memory-live-out
+
+      - name: Select newest research ledger
+        shell: bash
+        run: |
+          if [[ -f memory-live-out/ledger.json ]]; then
+            cp memory-live-out/ledger.json memory-research-out/ledger.json
+          fi
+
+      - name: Generate fail-closed implementation Draft PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node --conditions=react-server --import tsx scripts/memory-research-cycle.ts implementation-prs \
+            --ledger memory-research-out/ledger.json \
+            --main-sha "${{ needs.research.outputs.main_sha }}" \
+            --generation-id "${{ github.run_id }}-${{ github.run_attempt }}" \
+            --results "$RUNNER_TEMP/implementation-results.json"
+          mkdir -p implementation-results
+          cp "$RUNNER_TEMP/implementation-results.json" implementation-results/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: memory-research-implementation-results
+          path: implementation-results
+          retention-days: 90
+
   persist:
-    needs: [research, draft_prs, live_experiments]
+    needs: [research, draft_prs, live_experiments, implementation_prs]
     if: >-
       always() &&
       needs.research.result == 'success' &&
@@ -267,6 +337,12 @@ jobs:
         with:
           name: memory-live-out
           path: memory-live-out
+      - uses: actions/download-artifact@v4
+        if: needs.implementation_prs.result == 'success'
+        with:
+          name: memory-research-implementation-results
+          path: implementation-results
+
 
       - name: Prefer live-experiment ledger when that phase ran
         shell: bash
@@ -280,6 +356,12 @@ jobs:
           node --conditions=react-server --import tsx scripts/memory-research-cycle.ts apply-draft-results
           --ledger memory-research-out/ledger.json
           --results draft-results/draft-results.json
+
+      - name: Record implementation Draft PR outcomes in ledger
+        run: >-
+          node --conditions=react-server --import tsx scripts/memory-research-cycle.ts apply-implementation-results
+          --ledger memory-research-out/ledger.json
+          --results implementation-results/implementation-results.json
 
       - name: Push ledger to data branch (never merged into main)
         shell: bash
