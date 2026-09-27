@@ -5,6 +5,7 @@
  *   run                 --mode weekly|monthly_deep --ledger <file> --out <dir> --main-sha <sha> [--force]
  *   draft-prs           --packets <out/packets.json> --results <file>
  *   apply-draft-results --ledger <file> --results <file>
+ *   live-experiments     --ledger <file> --out <dir>
  *
  * `run` makes 0 paid provider calls: sources are free metadata APIs under a
  * per-cycle HTTP budget, and the benchmark lab is network-guarded.
@@ -22,6 +23,8 @@ import { computeArchitectureFingerprint } from "@/lib/memoryResearch/ownerMap";
 import type { DraftPrPacket } from "@/lib/memoryResearch/prPacket";
 import { renderCycleReportMarkdown } from "@/lib/memoryResearch/report";
 import { defaultSources, type SourceFetch } from "@/lib/memoryResearch/sources";
+import { runPendingLiveExperiments } from "@/lib/memoryResearch/liveExperimentRunner";
+import { runEpisodicEmbeddingLiveBenchmark } from "./lib/episodicEmbeddingLiveBenchmark";
 
 function arg(name: string): string | null {
   const i = process.argv.indexOf(`--${name}`);
@@ -82,6 +85,48 @@ async function run(): Promise<void> {
   writeOutput("accepted_count", String(report.draftPrPackets.length));
 }
 
+async function liveExperiments(): Promise<void> {
+  const ledgerPath = required("ledger");
+  const outDir = required("out");
+  const ledger = parseLedger(readFileSync(ledgerPath, "utf8"));
+  const { ledger: next, report } = await runPendingLiveExperiments(ledger, {
+    now: new Date(),
+    architectureFingerprint: computeArchitectureFingerprint((p) => readFileSync(p, "utf8")),
+    runBenchmark: (modelIds) =>
+      runEpisodicEmbeddingLiveBenchmark({
+        env: process.env,
+        modelIds,
+        log: (line) => console.log(`[memory-live-experiment] ${line}`),
+      }),
+  });
+
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(join(outDir, "ledger.json"), serializeLedger(next));
+  writeFileSync(join(outDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
+  writeFileSync(
+    join(outDir, "report.md"),
+    [
+      "# Memory live experiment",
+      "",
+      `status: ${report.status}`,
+      `evaluated: ${report.evaluated}`,
+      `readyForImplementation: ${report.readyForImplementation}`,
+      `rejected: ${report.rejected}`,
+      `watch: ${report.watch}`,
+      `actualCostUsd: ${report.actualCostUsd.toFixed(6)}`,
+      "",
+      ...report.records.map(
+        (r) =>
+          `- ${r.candidateKey}: ${r.status} / ${r.decision ?? "NO_DECISION"} / cost=${r.actualCostUsd.toFixed(6)} / ${r.reason}`
+      ),
+      "",
+    ].join("\n")
+  );
+  writeOutput("live_status", report.status);
+  writeOutput("ready_for_implementation", String(report.readyForImplementation));
+  writeOutput("actual_cost_usd", report.actualCostUsd.toFixed(6));
+}
+
 function draftPrs(): void {
   const packets = JSON.parse(readFileSync(required("packets"), "utf8")) as DraftPrPacket[];
   const results = openDraftPrs(
@@ -108,11 +153,16 @@ if (command === "run") {
     console.error(error);
     process.exit(1);
   });
+} else if (command === "live-experiments") {
+  liveExperiments().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
 } else if (command === "draft-prs") {
   draftPrs();
 } else if (command === "apply-draft-results") {
   applyResults();
 } else {
-  console.error("usage: memory-research-cycle.ts run|draft-prs|apply-draft-results ...");
+  console.error("usage: memory-research-cycle.ts run|live-experiments|draft-prs|apply-draft-results ...");
   process.exit(2);
 }
