@@ -60,7 +60,11 @@ function seedProductionRemoteCore(db: Database.Database): void {
       ('target_response_chars_unified_3200'),
       ('memory_capacity_fixed_10000'),
       ('character_adult_status_metadata_v1');
-    CREATE TABLE messages (request_id TEXT, memory_relationship_task_json TEXT);
+    CREATE TABLE messages (
+      request_id TEXT,
+      memory_relationship_task_json TEXT,
+      memory_relationship_before_json TEXT
+    );
     CREATE TABLE users (comment_report_restricted_until TEXT);
     CREATE TABLE profile_comments (delete_reason TEXT);
     CREATE TABLE characters (id INTEGER, total_turns INTEGER);
@@ -179,16 +183,20 @@ function runMemoryRetirementMigrations(db: Database.Database): void {
   dropChatsMemoryColumnOnce(db);
 }
 
-function ensureMemoryRelationshipTaskColumn(db: Database.Database): void {
+function ensureMemoryRelationshipColumns(db: Database.Database): void {
   const cols = db.prepare(`PRAGMA table_info(messages)`).all() as Array<{ name: string }>;
-  if (!cols.some((col) => col.name === "memory_relationship_task_json")) {
+  const names = new Set(cols.map((col) => col.name));
+  if (!names.has("memory_relationship_task_json")) {
     db.exec(`ALTER TABLE messages ADD COLUMN memory_relationship_task_json TEXT`);
+  }
+  if (!names.has("memory_relationship_before_json")) {
+    db.exec(`ALTER TABLE messages ADD COLUMN memory_relationship_before_json TEXT`);
   }
 }
 
 function runV6DirectUpgradeMigrations(db: Database.Database): void {
   runMemoryRetirementMigrations(db);
-  ensureMemoryRelationshipTaskColumn(db);
+  ensureMemoryRelationshipColumns(db);
 }
 
 function seedV2HistoricalProductionCore(db: Database.Database): void {
@@ -549,6 +557,7 @@ describe("one current remote schema owner", () => {
       db.exec(`
         ALTER TABLE messages ADD COLUMN request_id TEXT;
         ALTER TABLE messages ADD COLUMN memory_relationship_task_json TEXT;
+        ALTER TABLE messages ADD COLUMN memory_relationship_before_json TEXT;
       `);
     });
 
