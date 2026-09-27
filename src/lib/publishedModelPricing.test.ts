@@ -105,7 +105,15 @@ describe("publishedModelPricing", () => {
     if (charge.status === "complete") assert.equal(charge.snapshot.finalPoints, 100);
   });
 
-  it("V4.1 standard preview and live published charge share one arithmetic owner", () => {
+  it("V4.1 uses official peak/list reference rates and one arithmetic owner", () => {
+    const pricing = getPublishedPricing(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL);
+    assert.equal(pricing.billingReferenceInputUsdPerMillion, 0.15);
+    assert.equal(pricing.billingReferenceOutputUsdPerMillion, 0.6);
+    assert.equal(pricing.billingReferenceCacheReadUsdPerMillion, 0.007);
+    assert.equal(pricing.targetMargin, 0.6);
+    assert.equal(pricing.minimumMarginFloor, 0.5);
+    assert.equal(pricing.pricingVersion, 2);
+
     const fx: BillingFxSnapshot = {
       mode: "daily_kst",
       dateKey: "2026-08-28",
@@ -137,7 +145,7 @@ describe("publishedModelPricing", () => {
     assert.equal(live.status, "complete");
     if (live.status === "complete") {
       assert.equal(preview, live.snapshot.finalPoints);
-      assert.equal(live.snapshot.pricingVersion, 1);
+      assert.equal(live.snapshot.pricingVersion, 2);
       assert.equal(live.snapshot.targetMargin, 0.6);
     }
   });
