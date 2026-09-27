@@ -2,48 +2,68 @@
 
 ## Git
 
-| | SHA |
-|--|-----|
-| **EXACT MAIN (start)** | `dbbebd5c6600c9f5d2b0f4f0a12733348ff840f1` |
-| **EXACT HEAD** | (branch commit at PR time) |
-| **User cited main** | `9e46fcbe9630fcbc5bb8c7071b050e7e09401f80` (superseded by fetch) |
+- Start main: `dbbebd5c6600c9f5d2b0f4f0a12733348ff840f1`
+- Synced main during review: `1d5ebcf0c63feacea82b0e790ed91a55f5cd3808`
+- Final HEAD: see PR #1104 after this audit-doc commit.
 
 ## BEFORE — owner map
 
-| Stage | Canonical owner |
-|-------|-----------------|
-| Character setting → policy | `resolveHairDescriptionPolicy` in `bodyHairRules.ts` (keyword `BEARD_IN_SETTING` on whole setting) |
-| Prompt appearance fact | **None** on main (no canon hair fact injected) |
-| USER_PERSONA appearance | Persona text + `buildUserPersonaReferencePrompt` / identity block (`contextBuilder.ts`) |
-| Post-output sanitizer | `sanitizeHairDescriptions(text, HairDescriptionPolicy)` — **character** `allowsBeard`/`allowsBodyHair` applied to **every** sentence |
-| Stream/final parity | Same `hairPolicy` in `route.ts` stream trace + saved-text paths |
+| Stage | Before |
+|---|---|
+| Character hair source | Whole joined character setting, so NPC/world beard terms could contaminate the primary character policy |
+| Presence parsing | Beard/body-hair keyword existence; `수염 없음` could be read as present |
+| USER_PERSONA | No independent hair policy |
+| Prompt appearance fact | None |
+| Sanitizer | One character-derived policy applied to mixed-subject output |
+| Core prompt plumbing | Unused `allowsBeard` / `allowsBodyHair` fields survived despite producing no prompt text |
 
-## ROOT CAUSE (reproduced)
+## ROOT CAUSE — deterministic proof
 
-1. **Parser:** `settingAllowsBeardDescription("수염 없음") === true` because `수염` substring matched before absence semantics.
-2. **Sanitizer cross-subject:** With character beard disallowed, `렌의 턱수염…` sentences were dropped even when persona canon allows beard (global policy).
-3. **NPC:** Third-party beard sentences (e.g. `김 형사는 턱수염`) were dropped under character restrictive policy.
-4. **Attribution gap:** Single-character persona names (e.g. `렌`) were excluded from `userPersonaNames` (`length < 2`), forcing ambiguous attribution → conservative KEEP when character allowed beard.
+1. `수염 없음` was misclassified as beard-present.
+2. Character-only policy deleted legitimate USER_PERSONA beard sentences.
+3. Character-only policy could delete third-party/NPC beard sentences.
+4. Single-syllable persona aliases needed support, but substring matching must not turn words such as `렌즈` into persona references.
+5. Whole-setting hair parsing allowed NPC/world beard text to enable beard on the primary character.
+6. Gender defaults could overwrite explicit canon instead of allowing explicit traits to win.
 
 ## AFTER
 
-- **ONE SUBJECT = ONE POLICY:** `SubjectHairPolicy` + `resolveCharacterSubjectHairPolicy` / `resolveUserPersonaSubjectHairPolicy`.
-- **Prompt fact:** `facial_hair=none; body_hair=none` injected once under `[외형]` via `buildCharacterHairCanonFactFromSetting` (no Korean stubble vocabulary).
-- **Sanitizer:** `buildHairSanitizeContext` + subject attribution (character name / persona name / NPC heuristic / ambiguous conservative rule).
-- **Removed:** `buildBodyHairDescriptionRule` (zero callers).
+- **ONE SUBJECT = ONE POLICY:** `SubjectHairPolicy` with independent character and USER_PERSONA resolution.
+- Character policy source is scoped with `extractMainCharacterAppearanceBody(...)`; world/NPC lore is not hair-policy input.
+- Presence parsing evaluates explicit absence/presence, then product default.
+- Explicit canon wins regardless of gender default.
+- Character prompt uses one compact structured appearance fact under the existing `[외형]` owner:
+  - absent/absent: `facial_hair=none; body_hair=none`
+  - canonical beard + absent body hair: `facial_hair=canon; body_hair=none`
+  - both canonical: no extra fact.
+- Sanitizer receives `HairSanitizeContext`, attributes explicit character/persona names conservatively, preserves likely NPC/third-party sentences, and only removes ambiguous hair text when both primary subjects disallow it.
+- Korean alias matching is particle/boundary-aware, so single-syllable names work without matching unrelated words such as `렌즈`.
+- Existing no-violation byte identity / paragraph / CRLF / idempotence behavior remains covered.
 
-## PROMPT BUDGET
+## REMOVED
 
-Structured fact ≈ 35 characters (~32 local tokens heuristic) per character when restrictions apply; 0 change to COMMON PROSE / NSFW owners.
+- `buildBodyHairDescriptionRule` parallel prompt owner.
+- Legacy `HairDescriptionPolicy` compatibility path and adapter.
+- Dead `allowsBeard` / `allowsBodyHair` inputs from `CoreMasterPromptInput` and context assembly.
+
+## LIVE GEMINI 3.1 EVIDENCE
+
+Original post-fix probe:
+`LABEL=hair-fix-g31 FIXTURES=beard_closeup MODELS=gemini-3.1-pro-preview BEARD_VARIANT=A REPEAT=2`
+
+- The no-beard fixture wire contained `facial_hair=none; body_hair=none`.
+- 2/2 outputs contained no invented beard/stubble terms.
+- Later review corrections preserve the same no-beard fact for that fixture; they tighten source scope, canon priority, alias attribution, and legacy cleanup rather than adding new prose instructions.
+- This is supporting evidence, not a statistical estimate of model hallucination probability.
+
+## PROMPT BUDGET / OWNER BOUNDARY
+
+Hair facts remain a small structured fact in the existing appearance owner.
+COMMON PROSE and 19+ INTIMACY are unchanged.
+No new model-specific hair prompt or parallel section was added.
 
 ## FINAL CLASSIFICATION
 
-**ROOT_CAUSE_FIXED** (deterministic tests + parser/sanitizer/attribution proofs).
+**ROOT_CAUSE_FIXED** for the deterministic parser, owner, source-scope, and cross-subject sanitizer defects.
 
-## LIVE GEMINI (post-fix)
-
-`LABEL=hair-fix-g31 FIXTURES=beard_closeup MODELS=gemini-3.1-pro-preview BEARD_VARIANT=A REPEAT=2`
-
-- Wire prompt includes `facial_hair=none; body_hair=none` under `[외형]`.
-- `r1/raw.txt` and `r2/raw.txt`: no `수염` / `턱수염` / `까칠` / `면도` in model output (jaw-contact user message only).
-- Artifacts: `/opt/cursor/artifacts/prose-diet/hair-fix-g31/`
+Model-level hallucination frequency remains stochastic; the live Gemini sample is deliberately reported as limited evidence rather than a guaranteed rate reduction.
