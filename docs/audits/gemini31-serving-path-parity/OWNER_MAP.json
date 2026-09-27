@@ -1,0 +1,21 @@
+{
+  "EXACT_MAIN_GPT_CONFIRMED": "63ffa76e21a6f8cb88e31cc43c6378e87d3e8059",
+  "LOCAL_HEAD": "63ffa76e21a6f8cb88e31cc43c6378e87d3e8059",
+  "main_rp_gemini_registry": {
+    "ci_preview": "gemini-3.1-pro-preview",
+    "or_rolling": "google/gemini-3.1-pro-preview",
+    "or_dated_requested": "google/gemini-3.1-pro-preview-20260219",
+    "note": "OR dated slug not listed as separate catalog id; endpoints API aliases to rolling id while endpoint names show …-20260219"
+  },
+  "cheaper_inference_adapter": "src/lib/cheaperInferenceConfig.ts adaptCheaperInferenceChatBody → reasoning_effort=low",
+  "openrouter_direct_transport": "src/lib/openRouterClient.ts + openRouterConfig.ts",
+  "gemini_reasoning_owner": "OPENROUTER_RP_REASONING_GEMINI_3_PRO effort=low; CI strips reasoning object and sets reasoning_effort=low",
+  "temperature_owner": "GEMINI_PRO_GENERATION_PARAMS.temperature=0.95",
+  "prompt_assembly_owner": "contextBuilder + assemblePrimaryRpRequest (frozen once for all arms)",
+  "response_model_capture": "final stream chunk .model / .provider / headers (non-secret)",
+  "usage_reasoning_parser": "completion_tokens_details.reasoning_tokens → REPORTED|UNREPORTED (never coerce missing→0)",
+  "narrative_density_live": false,
+  "user_tail_present": true,
+  "common_prose_present": true,
+  "density_constant_exists_but": "[NARRATIVE DENSITY]\nTARGET/FLOOR는 [AI_CAST]의 현재 심리·관찰·감각·판단·"
+}
