@@ -183,16 +183,20 @@ function runMemoryRetirementMigrations(db: Database.Database): void {
   dropChatsMemoryColumnOnce(db);
 }
 
-function ensureMemoryRelationshipTaskColumn(db: Database.Database): void {
+function ensureMemoryRelationshipColumns(db: Database.Database): void {
   const cols = db.prepare(`PRAGMA table_info(messages)`).all() as Array<{ name: string }>;
-  if (!cols.some((col) => col.name === "memory_relationship_task_json")) {
+  const names = new Set(cols.map((col) => col.name));
+  if (!names.has("memory_relationship_task_json")) {
     db.exec(`ALTER TABLE messages ADD COLUMN memory_relationship_task_json TEXT`);
+  }
+  if (!names.has("memory_relationship_before_json")) {
+    db.exec(`ALTER TABLE messages ADD COLUMN memory_relationship_before_json TEXT`);
   }
 }
 
 function runV6DirectUpgradeMigrations(db: Database.Database): void {
   runMemoryRetirementMigrations(db);
-  ensureMemoryRelationshipTaskColumn(db);
+  ensureMemoryRelationshipColumns(db);
 }
 
 function seedV2HistoricalProductionCore(db: Database.Database): void {
