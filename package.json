@@ -24,7 +24,8 @@
     "training:export": "tsx scripts/training-weekly-export.ts",
     "dump:system-prompt": "tsx scripts/dump-system-prompt.ts",
     "prod": "npm run build && npm run start",
-    "prod:fast": "powershell -ExecutionPolicy Bypass -File ./scripts/run-prod.ps1"
+    "prod:fast": "powershell -ExecutionPolicy Bypass -File ./scripts/run-prod.ps1",
+    "official-supply:style-proof": "node --conditions=react-server --import tsx scripts/official-supply-style-proof.ts"
   },
   "dependencies": {
     "@3d-dice/dice-box-threejs": "^0.0.12",
