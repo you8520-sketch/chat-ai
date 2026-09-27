@@ -46,13 +46,6 @@ export type SubjectHairPolicy = {
   };
 };
 
-export type HairDescriptionPolicy = {
-  charGender: CharacterGender;
-  userGender?: CharacterGender;
-  allowsBeard: boolean;
-  allowsBodyHair: boolean;
-};
-
 export type HairSanitizeContext = {
   character: SubjectHairPolicy;
   userPersona: SubjectHairPolicy;
@@ -155,30 +148,6 @@ export function subjectAllowsBodyHair(policy: SubjectHairPolicy): boolean {
   return policy.bodyHair === "present";
 }
 
-/** @deprecated Use parseFacialHairFromText — keyword-only helper kept for tests. */
-export function settingAllowsBeardDescription(settingText: string): boolean {
-  return parseFacialHairFromText(settingText, "male").presence === "present";
-}
-
-/** @deprecated Use parseBodyHairFromText */
-export function settingAllowsBodyHairDescription(settingText: string): boolean {
-  return parseBodyHairFromText(settingText).presence === "present";
-}
-
-export function resolveHairDescriptionPolicy(
-  charGender: CharacterGender,
-  settingText: string,
-  userGender?: CharacterGender
-): HairDescriptionPolicy {
-  const character = resolveCharacterSubjectHairPolicy(charGender, settingText);
-  return {
-    charGender,
-    userGender,
-    allowsBeard: subjectAllowsFacialHair(character),
-    allowsBodyHair: subjectAllowsBodyHair(character),
-  };
-}
-
 export function buildHairSanitizeContext(input: {
   characterName: string;
   characterGender: CharacterGender;
@@ -229,23 +198,10 @@ function facialHairFactValue(policy: SubjectHairPolicy): string | null {
  * Compact structured hair fact for character appearance canon (AI subject only).
  */
 export function buildCharacterHairCanonFact(
-  policy: SubjectHairPolicy | HairDescriptionPolicy
+  policy: SubjectHairPolicy
 ): string | null {
-  if ("subject" in policy) {
-    if (policy.subject !== "character") return null;
-    return facialHairFactValue(policy);
-  }
-  const synthetic: SubjectHairPolicy = {
-    subject: "character",
-    gender: policy.charGender,
-    facialHair: policy.allowsBeard ? "present" : "absent",
-    bodyHair: policy.allowsBodyHair ? "present" : "absent",
-    evidence: {
-      facialHair: policy.allowsBeard ? "explicit_present" : "default_absent",
-      bodyHair: policy.allowsBodyHair ? "explicit_present" : "default_absent",
-    },
-  };
-  return facialHairFactValue(synthetic);
+  if (policy.subject !== "character") return null;
+  return facialHairFactValue(policy);
 }
 
 /** Prefer SubjectHairPolicy from resolveCharacterSubjectHairPolicy for accurate facts. */
@@ -306,42 +262,6 @@ function looksLikeThirdPartyNpc(sentence: string, ctx: HairSanitizeContext): boo
     return true;
   }
   return false;
-}
-
-function isHairSanitizeContext(value: HairDescriptionPolicy | HairSanitizeContext): value is HairSanitizeContext {
-  return "character" in value && "userPersona" in value;
-}
-
-function legacyPolicyToSanitizeContext(policy: HairDescriptionPolicy): HairSanitizeContext {
-  return {
-    character: {
-      subject: "character",
-      gender: policy.charGender,
-      facialHair: policy.allowsBeard ? "present" : "absent",
-      bodyHair: policy.allowsBodyHair ? "present" : "absent",
-      evidence: {
-        facialHair: policy.allowsBeard ? "explicit_present" : "default_absent",
-        bodyHair: policy.allowsBodyHair ? "explicit_present" : "default_absent",
-      },
-    },
-    userPersona: {
-      subject: "user_persona",
-      gender: policy.userGender ?? "other",
-      facialHair:
-        policy.userGender === "female"
-          ? "absent"
-          : policy.allowsBeard
-            ? "unknown"
-            : "unknown",
-      bodyHair: policy.userGender === "female" ? "absent" : "unknown",
-      evidence: {
-        facialHair: policy.userGender === "female" ? "default_absent" : "unknown",
-        bodyHair: policy.userGender === "female" ? "default_absent" : "unknown",
-      },
-    },
-    characterNames: [],
-    userPersonaNames: [],
-  };
 }
 
 function shouldEnforceFacialHairOnSubject(
@@ -420,12 +340,8 @@ function policyFullyPermissive(ctx: HairSanitizeContext): boolean {
 /** AI 출력 후 안전망 — subject-aware 문장 제거 (문단·공백 구조 보존) */
 export function sanitizeHairDescriptions(
   text: string,
-  policyOrContext: HairDescriptionPolicy | HairSanitizeContext
+  ctx: HairSanitizeContext
 ): string {
-  const ctx = isHairSanitizeContext(policyOrContext)
-    ? policyOrContext
-    : legacyPolicyToSanitizeContext(policyOrContext);
-
   if (policyFullyPermissive(ctx)) return text;
 
   if (!text || !hasAnyHairViolation(text, ctx)) return text;
