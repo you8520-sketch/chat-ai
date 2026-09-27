@@ -29,6 +29,7 @@ import { MAIN_RP_MODEL_IDS, isGemini31ProModel } from "@/lib/chatModels";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
 import { GEMINI31_USER_AGENCY_SUPPLEMENT_TITLE } from "@/lib/gemini31UserAgencyAdapter";
 import { buildCompactTerminalLayoutRecencyLine } from "@/lib/webnovelOutputFormat";
+import { DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY } from "@/lib/deepseekPromptStructure";
 
 /** Agreed cap for the single common prose owner (local estimateTokens). */
 const COMMON_PROSE_TOKEN_CAP = 600;
@@ -122,6 +123,12 @@ describe("Legacy Main RP common prose budget gate", () => {
       assert.equal(count(lastUser, USER_TAIL_LENGTH_OWNER_SENTENCE), 1);
       assert.ok(lastUser.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
       assert.equal(count(system, USER_TAIL_LENGTH_OWNER_SENTENCE), 0);
+    });
+
+    it(`${modelId}: retired DeepSeek style reminder stays out of the payload`, () => {
+      const { system, lastUser } = assemble(modelId);
+      assert.equal(count(`${system}\n${lastUser}`, DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY), 0);
+      assert.equal(count(lastUser, "[System Reminder:"), 0);
     });
 
     it(`${modelId}: Gemini 3.1 agency adapter only on Gemini 3.1`, () => {

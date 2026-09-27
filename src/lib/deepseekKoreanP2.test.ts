@@ -190,7 +190,7 @@ describe("P2 — DeepSeek final prompt contract", () => {
     assert.equal(count(sys, "확정된 행동의 주체·대상·방향은 이번 응답의 기준으로 유지한다"), 1);
     assert.equal(count(sys, COLLABORATIVE_INTERACTIVE_OWNER_TITLE), 1);
     assert.equal(count(sys, "[SPEECH METADATA — INVISIBLE INSTRUCTIONS]"), 1);
-    assert.equal(count(full, DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY), 1);
+    assert.equal(count(full, DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY), 0);
     assert.equal(count(full, DEEPSEEK_LENGTH_SINGLE_CALL_BLOCK), 0);
     assert.equal(count(tail, USER_TAIL_LENGTH_OWNER_SENTENCE), 1);
     assert.ok(tail.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
@@ -229,12 +229,11 @@ describe("P2 — active-4 regression (common owner unchanged for non-DeepSeek)",
     }
   });
 
-  it("DeepSeek is the only active model with the style reminder", () => {
+  it("no active model carries the retired DeepSeek style reminder", () => {
     for (const [label, provider, modelId] of ACTIVE_4) {
       const built = buildContext(buildInput(POLITE_STANDARD_CHUNKS, { modelId, provider }));
       const tail = built.history[built.history.length - 1]?.content ?? "";
-      const expected = label === "deepseek" ? 1 : 0;
-      assert.equal(count(tail, "[System Reminder:"), expected, `${label} style reminder count`);
+      assert.equal(count(tail, "[System Reminder:"), 0, `${label} style reminder count`);
     }
   });
 });
