@@ -57,6 +57,7 @@ stretched or cropped, to protect identity). Chat LD (800×1200), comic and TRPG 
 | Lorebook | `insertCreatorLorebookForOwner` (extracted from `/api/lorebooks`), attach via canonical save + `CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT` |
 | Image model | `resolveChatImageGenerationModel()` via `resolveOfficialAssetImageModel()` (no constant, no own env) |
 | Provider transport + safety fallback | `callOpenAiImageEditWithSafetyFallback` |
+| Text author (world/character bible → draft) | `generateOfficialWorldBible` / `generateOfficialCharacterBible` + `compileOfficialDraftFromBible` (`officialSupply/author.ts`, `bible.ts`, `authorPrompts.ts`) — canonical background-text transport (`callBackgroundMemory`), background-primary model resolver, `json_object` structured output, platform-funded ledger. No user billing/points, no creator rewards, no chat semantics, no image calls |
 | Gender lock / safety text | `buildImageGenderLockPrompt`, `buildIllustrationSafeDepiction`, `STRICT_SAFE_DEPICTION` |
 | Upload storage | `storeUpload` |
 | Asset moderation | `analyzeAssetImage` (+ `recordVisionCostAttempts`) via `visionOfficialAssetModerator`; one decision owner `officialModerationVerdict` for representative and RP |
@@ -86,7 +87,46 @@ owner routes it to admin review. The creator upload path is unchanged.
 ## Research collection
 
 `isCollectionMethodAllowed(policy, method)`: `manual_curated` is always allowed; `automated` only when the
-source is `allows_automation`. Permission never forces automation.
+source is `allows_automation`. Permission never forces automation. No scraper/crawler exists; the
+snapshot is a hand-curated, trope-level JSON (`market-research-snapshot-2026-09.json`).
+
+Each signal row carries `signalId`, `originalityEligible` and `ipExclusionReason`. Rows whose identity
+comes from a franchise / real person / derivative IP (webtoon, anime, game, idol) stay in the snapshot
+for popularity analysis but are `originalityEligible=false` and never reach a generation prompt.
+
+## Market fit owner (`officialSupply/marketFit.ts`)
+
+One path from research to portfolio (the former hand-written `INSPIRATION_TROPES` list is gone):
+
+```
+snapshot ─► selectMarketSignals(snapshot, batch.marketPolicy, genre)   locale-first, IP-eligible only
+        ─► formatMarketSignalLines ─► world core + portfolio prompts   [signalId]-tagged trope lines
+        ─► PortfolioBriefInput.marketFit (OfficialMarketFitBrief)       per character, before any bible
+        ─► evaluateMarketFitPortfolio (world step gate)                 cites eligible signals, twist,
+                                                                        relationship-first, trope cap, names
+        ─► Character Bible part1 / voice prompts (formatMarketFitForPrompt)
+        ─► evaluateDiscoveryTags (bible acceptance gate)                tags grounded in the bible
+```
+
+| Concern | Owner |
+| --- | --- |
+| Target market (`targetLocale`, `marketPriority`, role mix, trope cap, tag band) | batch manifest `marketPolicy` (`OfficialBatchMarketPolicy`) — no runtime constant; another locale is another manifest |
+| Trope vocabulary (혐관·집착·후회·계약·전담·센티넬…) | `DOMESTIC_TROPES`, `detectDomesticTropes`, `canonicalPrimaryTrope` |
+| Naming | `NAMING_PROFILES` + `resolveNamingProfile(genre)`; `evaluateNamePortfolio` (locale fit, length, prefix/suffix clusters, one-syllable-apart pairs, surname repeat without declared kin, observed-name collision) |
+| Public hook | `evaluatePublicHook` (user-relationship cue, world jargon in tagline) — warnings; the deep bible is untouched |
+| Discovery tags | band in `OFFICIAL_AUTHOR_QUALITY_CONTRACT.discoveryTags` (prompt == validator); grounding in `evaluateDiscoveryTags` |
+| Review | `buildDomesticMarketFitReview` — facts only, no scores or ranking |
+
+| Cast gender intent | manifest `castIntent` (`OfficialCastIntent`: targetAudience, romanceTargetProfile, desiredGenderMix, rationale) checked by `evaluateCastIntent` (`research.ts`); `evaluateWorldDiversity(..., { intendedSingleGender })` never pushes toward 50:50 |
+| Cast role diversity | `evaluateCastRoleDiversity` — occupation / hook / silhouette / speech clones, ≤2 royal/ducal leads |
+| Visual trends | snapshot `visualTrends` (`ResearchVisualTrend`, attribute-only, validated) → style-board `humanReview` notes; never an image-provider input |
+| Cast relationships | `castRelationships.ts`: `resolveOfficialCastRelationshipTarget` (one canonical member or reject: ambiguous / self / removed / unknown), `normalizeOfficialCastRelationships` (canonical full-name persistence, duplicate reject), `reconcileReplacementPublicRelationships` (public-only awareness), `evaluateCastRelationshipGraph` (portfolio QA) |
+| World region consistency | `internalWorldRegions` + `evaluateInternalRegionConsistency` (`worldQa.ts`): a sheet tied to an internal region must not use foreign/enemy/defeated-state identity |
+| Slot replacement | `generateOfficialPortfolioReplacement` (same portfolio rules via `marketFitRuleLines`) → only the named slots; world fields and kept briefs untouched, recorded in `world-bible.json` `portfolioRevisions` |
+
+Primary-trope repetition is the only trope failure; sharing generic secondary tropes is not an
+originality failure. Real-user behavior data (impression → chat start, 10/50-turn retention, favorite,
+revisit, paid continuation) is the follow-up owner that replaces these external heuristics.
 
 ## Why the user-paid image job owner is not reused
 
@@ -127,8 +167,8 @@ this after save. Publishing / site-managed account is a follow-up.
 
 ## Follow-ups (not in this PR)
 
-- Site-managed official account + creator CP/earnings exclusion, publish step (`PUBLISH_CANDIDATE → PUBLISHED`).
-- LLM text-author adapter producing `OfficialCharacterDraft` (drafts can be authored by operators today).
+- Site-managed official account + creator CP/earnings exclusion, publish step — DONE in #1082.
+- Pilot content (romance-fantasy world ×1 + 10 characters + style board) — DONE in `pilot/` + `docs/official-supply/pilot-romance-fantasy-01.md`; awaiting human style selection.
 - Operator CLI / admin review UI, AI quality scoring, bulk review.
 - Zero-reference first anchor: the canonical transport is `/v1/images/edits` (≥1 reference), so the first
   anchor uses the approved owned/licensed style seed. Adding a generation endpoint is a provider-owner decision.

@@ -19,6 +19,7 @@
     "start": "tsx server.js",
     "start:next": "next start",
     "payout:run": "tsx scripts/run-payout-once.ts",
+    "official-supply:pilot-author": "node --conditions=react-server --import tsx scripts/official-supply-pilot-author.ts",
     "training:analyze": "tsx scripts/training-daily-analysis.ts",
     "training:export": "tsx scripts/training-weekly-export.ts",
     "dump:system-prompt": "tsx scripts/dump-system-prompt.ts",

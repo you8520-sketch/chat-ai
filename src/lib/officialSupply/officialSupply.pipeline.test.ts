@@ -709,6 +709,7 @@ describe("adult validation stays canonical (no official bypass)", () => {
     const dir = path.join(process.cwd(), "src/lib/officialSupply");
     for (const file of fs.readdirSync(dir)) {
       if (file.endsWith(".test.ts")) continue;
+      if (!fs.statSync(path.join(dir, file)).isFile()) continue;
       const source = fs.readFileSync(path.join(dir, file), "utf8");
       assert.doesNotMatch(
         source,
