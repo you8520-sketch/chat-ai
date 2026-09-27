@@ -546,7 +546,11 @@ describe("jev decisions regression gates", () => {
     const ledger = fs.readFileSync("src/lib/providerCostLedger.ts", "utf8");
     assert.doesNotMatch(ledger, /jev/i);
     const provenance = fs.readFileSync("src/lib/auxProviderProvenance.ts", "utf8");
-    assert.doesNotMatch(provenance, /jev/i);
+    // The generic Decisions transport still does not own a dedicated provider
+    // family. A feature-specific requestKind may be explicitly allow-listed as
+    // OTHER_ASYNC for attribution without creating a new canonical owner.
+    assert.doesNotMatch(provenance, /JEV_DECISIONS_REQUEST_KIND|background-jev-decision/);
+    assert.match(provenance, /scene-boundary-jev-qa/);
     const usage = fs.readFileSync("src/lib/openRouterUsage.ts", "utf8");
     assert.doesNotMatch(usage, /jev/i);
   });

@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { buildOpenRouterHeaders, resolveOpenRouterApiKey } from "@/lib/openRouterConfig";
 import { parseOpenRouterUsage } from "@/lib/openRouterUsage";
-import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
+import { recordBackgroundProviderCost, type ProviderCostLedgerContext } from "@/lib/providerCostLedger";
 import { buildAuxProviderCallLogInput, logAuxProviderCall } from "@/lib/auxProviderProvenance";
 
 /**
@@ -109,6 +109,12 @@ export type JevDecisionsLedgerOptions = {
   db?: Database.Database;
   persistInTests?: boolean;
   requestKind?: string;
+  /**
+   * Optional call provenance only. This does not change user billing or the
+   * canonical background cost settlement; it lets aux-provider logs correlate
+   * a Decisions call with the generation that scheduled it.
+   */
+  provenanceContext?: ProviderCostLedgerContext | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -383,6 +389,7 @@ export async function callJevDecisions(opts: {
       model,
       messages: { state: opts.state, questions: opts.questions },
       requestKind,
+      ledgerContext: opts.ledger?.provenanceContext ?? null,
     })
   );
 
