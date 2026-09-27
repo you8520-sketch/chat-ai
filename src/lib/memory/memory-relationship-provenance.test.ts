@@ -191,6 +191,22 @@ describe("relationship projection provenance", () => {
     assert.deepEqual(loadChatRelationshipMeta(CHAT_ID, NAMES).items, [
       "Tester: old-key, coin",
     ]);
+    const afterFirst = normalizeMessageVariants(
+      getDb()
+        .prepare(
+          "SELECT content, model, usage, alternates, active_variant FROM messages WHERE id=?"
+        )
+        .get(ASSISTANT_MSG_ID) as {
+        content: string;
+        model: string;
+        usage: string | null;
+        alternates: string | null;
+        active_variant: number | null;
+      }
+    );
+    assert.deepEqual(afterFirst.variants[0]?.relationshipMetaAfter?.items, [
+      "Tester: old-key, coin",
+    ]);
 
     const generationScope = finalizeRegeneration("regen-provenance");
     assert.equal(readBeforeJson(), firstSnapshot, "regen bootstrap/finalize must preserve pre-turn baseline");
@@ -216,6 +232,26 @@ describe("relationship projection provenance", () => {
 
     assert.equal(readBeforeJson(), firstSnapshot, "later generation must not overwrite pre-turn baseline");
     assert.deepEqual(loadChatRelationshipMeta(CHAT_ID, NAMES).items, [
+      "Tester: old-key, token",
+    ]);
+
+    const afterRegen = normalizeMessageVariants(
+      getDb()
+        .prepare(
+          "SELECT content, model, usage, alternates, active_variant FROM messages WHERE id=?"
+        )
+        .get(ASSISTANT_MSG_ID) as {
+        content: string;
+        model: string;
+        usage: string | null;
+        alternates: string | null;
+        active_variant: number | null;
+      }
+    );
+    assert.deepEqual(afterRegen.variants[0]?.relationshipMetaAfter?.items, [
+      "Tester: old-key, coin",
+    ]);
+    assert.deepEqual(afterRegen.variants[1]?.relationshipMetaAfter?.items, [
       "Tester: old-key, token",
     ]);
   });
