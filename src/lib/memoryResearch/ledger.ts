@@ -45,6 +45,7 @@ export function serializeLedger(ledger: ResearchLedger): string {
 }
 
 export type DraftPrResult = { candidateKey: string; url: string | null; error: string | null };
+export type ImplementationPrResultRecord = { candidateKey: string; url: string | null; error: string | null };
 
 /** Records Draft PR outcomes; failures leave `draftPrUrl` null so the next cycle re-emits the packet. */
 export function applyDraftPrResults(ledger: ResearchLedger, results: readonly DraftPrResult[]): ResearchLedger {
@@ -53,6 +54,28 @@ export function applyDraftPrResults(ledger: ResearchLedger, results: readonly Dr
     const c = candidates[r.candidateKey];
     if (!c || c.state !== "ACCEPTED" || !r.url) continue;
     candidates[r.candidateKey] = { ...c, draftPrUrl: r.url };
+  }
+  return { ...ledger, candidates };
+}
+
+
+/** Records implementation Draft PR outcomes without changing the candidate decision/state. */
+export function applyImplementationPrResults(
+  ledger: ResearchLedger,
+  results: readonly ImplementationPrResultRecord[]
+): ResearchLedger {
+  const candidates = { ...ledger.candidates };
+  for (const result of results) {
+    const candidate = candidates[result.candidateKey];
+    if (
+      !candidate ||
+      candidate.state !== "WATCH" ||
+      candidate.lastDecision !== "WATCH_IMPLEMENTATION_PR_PENDING" ||
+      !result.url
+    ) {
+      continue;
+    }
+    candidates[result.candidateKey] = { ...candidate, implementationPrUrl: result.url };
   }
   return { ...ledger, candidates };
 }
