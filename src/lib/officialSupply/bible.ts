@@ -1,6 +1,6 @@
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import type { AdultConsentMode, AdultDialogueProfile } from "@/lib/adultSceneRouting";
-import type { PortfolioBriefInput } from "@/lib/officialSupply/authorPrompts";
+import { OFFICIAL_AUTHOR_QUALITY_CONTRACT, type PortfolioBriefInput } from "@/lib/officialSupply/authorPrompts";
 import {
   qaResult,
   type OfficialCharacterDraft,
@@ -635,6 +635,150 @@ export function validateWorldBible(
   return qaResult(errors, warnings);
 }
 
+/**
+ * Padding detector: repeated sentences or collapsed character-bigram
+ * variety. Real pilot prose sits at bigram variety ≥0.78; padded text that
+ * loops phrases to reach a length band drops far below.
+ */
+export function isFillerProse(text: string): boolean {
+  const sentences = text
+    .split(/(?<=[.!?…”"])\s+|\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (sentences.length >= 4 && new Set(sentences).size / sentences.length < 0.8) return true;
+  const compact = text.replace(/\s+/g, "");
+  if (compact.length >= 200) {
+    const grams: string[] = [];
+    for (let i = 0; i < compact.length - 1; i++) grams.push(compact.slice(i, i + 2));
+    if (new Set(grams).size / grams.length < 0.45) return true;
+  }
+  return false;
+}
+
+const USER_CUE_RE = /(당신|\{\{user\}\})/;
+const QUOTED_LINE_RE = /[“"「][^”"」]{2,}[”"」]/;
+const SELF_INTRO_OPENER_RE = /^\s*[“"「]?\s*(나는|저는|내\s*이름은|제\s*이름은)/;
+const SPEECH_COVERAGE_FIELDS = [
+  "register",
+  "tempo",
+  "vocabulary",
+  "humorStyle",
+  "angryStyle",
+  "intimateStyle",
+  "addressStyle",
+  "hiddenEmotionStyle",
+] as const;
+
+/**
+ * The deterministic half of `OFFICIAL_AUTHOR_QUALITY_CONTRACT`: production
+ * length bands plus structural coverage for greeting, speech and public
+ * profile. Official-supply author gate only — runtime limits are untouched.
+ */
+export function evaluateAuthorQualityContract(
+  bible: Pick<OfficialCharacterBible, "greeting" | "speech" | "publicProfile">
+): QaResult {
+  const errors: QaIssue[] = [];
+  const band = (code: string, label: string, value: number, range: { min: number; max: number }) => {
+    if (value < range.min || value > range.max) {
+      errors.push(err(code, `${label} ${value} chars (production band ${range.min}-${range.max})`));
+    }
+  };
+  const C = OFFICIAL_AUTHOR_QUALITY_CONTRACT;
+
+  const greeting = bible.greeting ?? "";
+  if (!nonEmpty(greeting)) {
+    errors.push(err("bible_greeting_missing", "greeting is required"));
+  } else {
+    band("bible_greeting_band", "greeting", greeting.length, C.greeting);
+    if (!QUOTED_LINE_RE.test(greeting)) errors.push(err("bible_greeting_no_voice", "greeting needs at least one quoted line"));
+    if (!USER_CUE_RE.test(greeting)) errors.push(err("bible_greeting_no_user", "greeting must place the user (당신) in the scene"));
+    if (SELF_INTRO_OPENER_RE.test(greeting)) errors.push(err("bible_greeting_self_intro", "greeting opens as a self-introduction"));
+    if (isFillerProse(greeting)) errors.push(err("bible_greeting_filler", "greeting repeats itself to reach length"));
+  }
+
+  const speech = bible.speech ?? ({} as OfficialCharacterBible["speech"]);
+  band("bible_speech_band", "speech.description", (speech.description ?? "").length, C.speechDescription);
+  const missing = SPEECH_COVERAGE_FIELDS.filter((key) => !nonEmpty(speech[key]));
+  if (missing.length) errors.push(err("bible_speech_coverage", `speech missing ${missing.join(",")}`));
+  if (nonEmpty(speech.description) && isFillerProse(speech.description)) {
+    errors.push(err("bible_speech_filler", "speech.description repeats itself to reach length"));
+  }
+
+  const pitch = bible.publicProfile?.description ?? "";
+  band("bible_pitch_band", "publicProfile.description", pitch.length, C.publicDescription);
+  if (nonEmpty(pitch) && !USER_CUE_RE.test(pitch)) {
+    errors.push(err("bible_pitch_no_user", "public pitch must say what the user (당신) gets from this character"));
+  }
+  if (nonEmpty(pitch) && isFillerProse(pitch)) errors.push(err("bible_pitch_filler", "public pitch repeats itself"));
+  return qaResult(errors);
+}
+
+/**
+ * Adult relationship dynamics lexicon. Consent/respect vocabulary is the
+ * shared safety baseline (expected on every sheet) and is never counted as a
+ * "dynamic"; everything else describes the character's own adult style.
+ */
+export const ADULT_DYNAMICS = {
+  slow_trust: { label: "느린 신뢰·천천히", re: /(느린|천천히|서서히|신뢰\s*기반|신뢰가\s*쌓)/ },
+  restraint: { label: "절제·조심", re: /(절제|조심|억누|자제)/ },
+  caretaking: { label: "돌봄·보살핌", re: /(돌봄|돌보|보살|배려|사후)/ },
+  power_exchange: { label: "권력 교환·주도권", re: /(주도권|명령|지배|복종|권력|통제권|보고)/ },
+  rivalry: { label: "라이벌·겨루기", re: /(라이벌|경쟁|결투|겨루|승부|제압)/ },
+  teasing: { label: "도발·장난", re: /(도발|장난|놀림|농담|짓궂)/ },
+  praise: { label: "칭찬·인정", re: /(칭찬|인정|호탕한\s*찬사|잘했)/ },
+  possessive: { label: "독점·소유(합의)", re: /(독점|소유|내\s*것|질투)/ },
+  ritual: { label: "의례·허락 구하기", re: /(의례|의식|허락을\s*구|허락\s*구하|맹세)/ },
+  whisper_verbal: { label: "속삭임·언어적 긴장", re: /(속삭|언어적|말로|목소리)/ },
+  dependence: { label: "의존·취약함", re: /(의존|취약|기대|매달)/ },
+} as const;
+
+export type AdultDynamic = keyof typeof ADULT_DYNAMICS;
+
+export function extractAdultDynamics(section: Pick<BibleAdultSection, "preferenceKeywords" | "tone">): AdultDynamic[] {
+  const text = `${section.preferenceKeywords.join(" ")} ${section.tone}`;
+  return (Object.keys(ADULT_DYNAMICS) as AdultDynamic[]).filter((key) => ADULT_DYNAMICS[key].re.test(text));
+}
+
+/**
+ * Pilot adult-portfolio diversity (no global profile ratio): adult sheets
+ * must not converge on the same adult dynamics. Identical dialogue profiles
+ * across every adult sheet are only a warning — character fit decides that.
+ */
+export function evaluateAdultPortfolioDiversity(bibles: readonly OfficialCharacterBible[]): QaResult {
+  const errors: QaIssue[] = [];
+  const warnings: QaIssue[] = [];
+  const adults = bibles.filter((b) => b.nsfw && b.adultSection);
+  const dyn = adults.map((b) => extractAdultDynamics(b.adultSection!));
+  for (let i = 0; i < adults.length; i++) {
+    for (let j = i + 1; j < adults.length; j++) {
+      const a = new Set(dyn[i]);
+      const b = new Set(dyn[j]);
+      let shared = 0;
+      for (const x of a) if (b.has(x)) shared += 1;
+      const union = a.size + b.size - shared;
+      if (union > 0 && shared / union >= 0.6) {
+        errors.push(err(
+          "adult_dynamic_clone",
+          `${adults[i]!.identity.name} ~ ${adults[j]!.identity.name}: ${shared}/${union} adult dynamics shared`
+        ));
+      }
+    }
+  }
+  if (adults.length >= 3) {
+    const everywhere = (Object.keys(ADULT_DYNAMICS) as AdultDynamic[]).filter((key) => dyn.every((d) => d.includes(key)));
+    if (everywhere.length) {
+      errors.push(err(
+        "adult_dynamic_monoculture",
+        `every adult sheet leans on: ${everywhere.map((k) => ADULT_DYNAMICS[k].label).join(", ")}`
+      ));
+    }
+    if (new Set(adults.map((b) => b.adultSection!.dialogueProfile)).size === 1) {
+      warnings.push(warn("adult_profile_uniform", `all adult sheets use ${adults[0]!.adultSection!.dialogueProfile}`));
+    }
+  }
+  return qaResult(errors, warnings);
+}
+
 export function validateCharacterBible(
   bible: OfficialCharacterBible,
   opts: { adultExpected: boolean }
@@ -757,11 +901,6 @@ export function validateCharacterBible(
   if (speechKeywords.length < 4 || speechKeywords.length > 8) {
     errors.push(err("bible_speech_keywords", `speech.keywords 4-8 required, got ${speechKeywords.length}`));
   }
-  if ((speech.description ?? "").length < 250) {
-    errors.push(err("bible_speech_thin", "speech.description must be ≥250 chars"));
-  } else if (speech.description.length > 500) {
-    warnings.push(warn("bible_speech_band", `speech.description ${speech.description.length} chars (> 500)`));
-  }
   const exampleCount = (speech.examples ?? "").split("\n").map((s) => s.trim()).filter(Boolean).length;
   if (exampleCount < 4) errors.push(err("bible_speech_examples", `dialogue examples ≥4 required, got ${exampleCount}`));
   if ((speech.examples ?? "").length > 500) {
@@ -793,18 +932,16 @@ export function validateCharacterBible(
     errors.push(err("bible_engine_missing", "rpEngine needs mediumConflict + longTermChange"));
   }
 
-  if (!nonEmpty(bible.greeting)) errors.push(err("bible_greeting_missing", "greeting is required"));
-  else if (bible.greeting.length > 2000) errors.push(err("bible_greeting_limit", "greeting must fit the 2000-char canonical limit"));
-  else if (bible.greeting.length < 700 || bible.greeting.length > 1400) {
-    warnings.push(warn("bible_greeting_band", `greeting ${bible.greeting.length} chars (target 700-1400)`));
+  if (bible.greeting && bible.greeting.length > 2000) {
+    errors.push(err("bible_greeting_limit", "greeting must fit the 2000-char canonical limit"));
   }
+  const contract = evaluateAuthorQualityContract(bible);
+  errors.push(...contract.errors);
+  warnings.push(...contract.warnings);
 
   const profile = bible.publicProfile ?? { tagline: "", description: "", tags: [] };
   if (!nonEmpty(profile.tagline)) errors.push(err("bible_tagline_missing", "publicProfile.tagline is required"));
   else if (profile.tagline.length > 50) errors.push(err("bible_tagline_limit", "tagline must fit the 50-char canonical limit"));
-  if ((profile.description ?? "").length < 200) {
-    errors.push(err("bible_pitch_thin", "publicProfile.description must be ≥200 chars"));
-  }
   const tags = profile.tags ?? [];
   if (tags.length < 3 || tags.length > 6) errors.push(err("bible_tags", `publicProfile.tags 3-6 required, got ${tags.length}`));
 

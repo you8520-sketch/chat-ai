@@ -6,11 +6,14 @@ import {
   resolveBackgroundTextModelId,
 } from "@/lib/ai";
 import type Database from "better-sqlite3";
+import { CompatibleCompletionError } from "@/lib/openRouterCompletion";
 import { isAssetPersonTag } from "@/lib/assetPersonTags";
 import { isCharacterGenre } from "@/lib/characterGenres";
 import { evaluateAppearanceLock } from "@/lib/officialSupply/appearance";
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
 import {
+  buildAdultProfileSystem,
+  buildAdultProfileUser,
   buildAppearanceSystem,
   buildAppearanceUser,
   buildAssetPlanSystem,
@@ -31,6 +34,7 @@ import {
   OFFICIAL_AUTHOR_SNAPSHOT_VERSION,
   OFFICIAL_AUTHOR_TEMPERATURE,
   OFFICIAL_AUTHOR_TEMPLATE_VERSION,
+  type AdultProfilePlan,
   type AppearanceInput,
   type AssetPlanInput,
   type CharacterBible1Input,
@@ -159,13 +163,7 @@ export const liveOfficialAuthorTransport: OfficialAuthorTransport = {
         responseFormat: "json_object",
       }
     );
-    if (usage.finishReason === "length") {
-      throw new OfficialSupplyGateError(
-        "author_truncated",
-        `${input.task}: output hit maxTokens; split the task instead of patching`
-      );
-    }
-    return {
+    const completion: OfficialAuthorRawCompletion = {
       text,
       model,
       inputTokens: usage.inputTokens,
@@ -173,8 +171,137 @@ export const liveOfficialAuthorTransport: OfficialAuthorTransport = {
       costUsd: usage.cheaperInferenceBilledCostUsd ?? usage.upstreamCostUsd ?? null,
       providerRequestId: usage.providerRequestId ?? null,
     };
+    if (usage.finishReason === "length") throw new OfficialAuthorTruncatedError(input.task, completion);
+    return completion;
   },
 };
+
+/** A billed provider response that hit maxTokens — counted as a failed physical attempt, never parsed. */
+export class OfficialAuthorTruncatedError extends OfficialSupplyGateError {
+  constructor(
+    task: OfficialAuthorTask,
+    public readonly completion: OfficialAuthorRawCompletion
+  ) {
+    super("author_truncated", `${task}: output hit maxTokens; split the task instead of patching`);
+    this.name = "OfficialAuthorTruncatedError";
+  }
+}
+
+// ── Physical-attempt cost accounting ─────────────────────────────────────────
+
+export type OfficialAuthorAttemptOutcome = "success" | "provider_failed" | "truncated";
+
+export type OfficialAuthorAttemptLine = {
+  task: OfficialAuthorTask;
+  draftKey: string | null;
+  /** Workflow (step/character) attempt this physical call belonged to. */
+  workflowAttempt: number;
+  outcome: OfficialAuthorAttemptOutcome;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number | null;
+  error?: string;
+};
+
+/**
+ * Reporting summary over the canonical cost owner. Every physical provider
+ * call is one line — successful completions (billed even if a later QA gate
+ * rejects them) and failed attempts are counted separately; workflow retries
+ * are counted by the caller once per re-run step, never per line.
+ */
+export type OfficialAuthorCostReport = {
+  version: 2;
+  successfulCompletions: number;
+  failedProviderAttempts: number;
+  physicalAttempts: number;
+  workflowRetries: number;
+  billedCostUsd: number;
+  failedAttemptCostUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  imageCalls: 0;
+  lines: OfficialAuthorAttemptLine[];
+};
+
+export function createAuthorCostReport(): OfficialAuthorCostReport {
+  return {
+    version: 2,
+    successfulCompletions: 0,
+    failedProviderAttempts: 0,
+    physicalAttempts: 0,
+    workflowRetries: 0,
+    billedCostUsd: 0,
+    failedAttemptCostUsd: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    imageCalls: 0,
+    lines: [],
+  };
+}
+
+function recordAttemptLine(report: OfficialAuthorCostReport, line: OfficialAuthorAttemptLine): void {
+  report.lines.push(line);
+  report.physicalAttempts += 1;
+  report.inputTokens += line.inputTokens;
+  report.outputTokens += line.outputTokens;
+  const cost = line.costUsd ?? 0;
+  if (line.outcome === "success") {
+    report.successfulCompletions += 1;
+    report.billedCostUsd += cost;
+  } else {
+    report.failedProviderAttempts += 1;
+    report.billedCostUsd += cost;
+    report.failedAttemptCostUsd += cost;
+  }
+}
+
+/** One re-run of a workflow step (character/world/plan), counted once. */
+export function recordWorkflowRetry(report: OfficialAuthorCostReport): void {
+  report.workflowRetries += 1;
+}
+
+/** Wraps a transport so every physical call (success or failure) is recorded exactly once. */
+export function withAuthorAccounting(
+  inner: OfficialAuthorTransport,
+  report: OfficialAuthorCostReport,
+  context: { draftKey: string | null; workflowAttempt: number }
+): OfficialAuthorTransport {
+  return {
+    label: `${inner.label}+accounting`,
+    async completeJson(input) {
+      try {
+        const completion = await inner.completeJson(input);
+        recordAttemptLine(report, {
+          task: input.task,
+          draftKey: context.draftKey,
+          workflowAttempt: context.workflowAttempt,
+          outcome: "success",
+          model: completion.model,
+          inputTokens: completion.inputTokens,
+          outputTokens: completion.outputTokens,
+          costUsd: completion.costUsd,
+        });
+        return completion;
+      } catch (error) {
+        const truncated = error instanceof OfficialAuthorTruncatedError ? error.completion : null;
+        const usage = error instanceof CompatibleCompletionError ? error.usage : null;
+        recordAttemptLine(report, {
+          task: input.task,
+          draftKey: context.draftKey,
+          workflowAttempt: context.workflowAttempt,
+          outcome: truncated ? "truncated" : "provider_failed",
+          model: truncated?.model ?? input.modelId ?? resolveOfficialAuthorModelId(),
+          inputTokens: truncated?.inputTokens ?? usage?.inputTokens ?? 0,
+          outputTokens: truncated?.outputTokens ?? usage?.outputTokens ?? 0,
+          costUsd: truncated?.costUsd ?? usage?.cheaperInferenceBilledCostUsd ?? usage?.upstreamCostUsd ?? null,
+          error: String((error as Error)?.message ?? error).slice(0, 200),
+        });
+        throw error;
+      }
+    },
+  };
+}
 
 function stripCodeFence(text: string): string {
   const trimmed = text.trim();
@@ -310,17 +437,6 @@ export type OfficialAuthorProvenance = {
   outputTokens: number;
   costUsd: number | null;
   providerRequestId: string | null;
-};
-
-export type OfficialAuthorCostLine = {
-  task: OfficialAuthorTask;
-  draftKey: string | null;
-  model: string;
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number | null;
-  attempts: number;
-  failedAttempts: number;
 };
 
 export function provenanceFor(
@@ -692,6 +808,121 @@ function strArray(value: unknown): string[] {
   return optionalStringArray(value);
 }
 
+export type OfficialVoiceRevisionField = "greeting" | "publicDescription" | "speech";
+
+/**
+ * Minimal voice correction: re-runs ONLY the voice third and copies back only
+ * the fields named in `fields`. Part1 (identity, appearance source,
+ * personality, backstory, abilities, habits), bonds, NPCs, tagline and tags
+ * are never touched.
+ */
+export async function reviseOfficialCharacterVoice(input: {
+  transport: OfficialAuthorTransport;
+  bible: OfficialCharacterBible;
+  voice: Omit<CharacterVoiceInput, "part1Recap" | "feedback">;
+  fields: readonly OfficialVoiceRevisionField[];
+  reasons: string[];
+  modelId?: string;
+}): Promise<{ bible: OfficialCharacterBible; completion: OfficialAuthorRawCompletion }> {
+  const current = input.bible;
+  const keep = [
+    input.fields.includes("greeting") ? "" : `greeting는 기존 그대로 두어도 된다.`,
+    input.fields.includes("publicDescription")
+      ? `기존 publicProfile.description(같은 인물·관계를 유지하고 반려 사유만 고친다): ${current.publicProfile.description}`
+      : "",
+    input.fields.includes("greeting")
+      ? `기존 greeting(같은 장면·훅·목소리를 유지하고 반려 사유만 고친다, 분량 채우기 반복 금지):\n${current.greeting}`
+      : "",
+  ].filter(Boolean);
+  const completion = await input.transport.completeJson({
+    task: "character_bible_voice",
+    system: buildCharacterVoiceSystem(),
+    user: buildCharacterVoiceUser({
+      ...input.voice,
+      part1Recap: buildPart1Recap(current as unknown as Record<string, unknown>),
+      feedback: [...input.reasons, ...keep].join("\n"),
+    }),
+    schemaName: "official_character_bible_voice",
+    schema: CHARACTER_VOICE_SCHEMA,
+    modelId: input.modelId,
+  });
+  const voiceHalf = parseAuthorJson(completion.text, "character_bible_voice");
+  if (!isRecord(voiceHalf)) throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_voice: object required");
+  const self = current as unknown as Record<string, unknown>;
+  const fresh = assembleOfficialCharacterBible(self, { ...voiceHalf, npcs: current.npcs }, self);
+  const next: OfficialCharacterBible = {
+    ...current,
+    greeting: input.fields.includes("greeting") ? fresh.greeting : current.greeting,
+    publicProfile: input.fields.includes("publicDescription")
+      ? { ...current.publicProfile, description: fresh.publicProfile.description }
+      : current.publicProfile,
+    speech: input.fields.includes("speech") ? { ...fresh.speech } : current.speech,
+  };
+  return { bible: next, completion };
+}
+
+/**
+ * Minimal adult correction: rewrites ONLY `adultSection` toward a pilot-scoped,
+ * character-fit plan. Age, orientation and the canonical consent enums stay
+ * owned by the plan/validator; SFW sheets are rejected outright.
+ */
+export async function reviseOfficialAdultProfile(input: {
+  transport: OfficialAuthorTransport;
+  bible: OfficialCharacterBible;
+  participantMinAge: number;
+  plan: AdultProfilePlan;
+  siblingDynamics: string[];
+  feedback?: string;
+  modelId?: string;
+}): Promise<{ bible: OfficialCharacterBible; completion: OfficialAuthorRawCompletion }> {
+  const current = input.bible;
+  if (!current.nsfw || !current.adultSection) {
+    throw new OfficialSupplyGateError("adult_revision_on_sfw", `${current.identity.name} is not an adult sheet`);
+  }
+  const recap = [
+    `성격: ${current.personality.keywords.join(", ")}`,
+    `내적 모순: ${current.contradiction}`,
+    `말투: ${current.speech.keywords.join(", ")} — 친밀할 때 ${current.speech.intimateStyle}`,
+    `유저 관계: ${current.userRelationship.progression.join(" → ")}`,
+  ].join("\n");
+  const completion = await input.transport.completeJson({
+    task: "adult_profile",
+    system: buildAdultProfileSystem(),
+    user: buildAdultProfileUser({
+      name: current.identity.name,
+      age: current.identity.age,
+      participantMinAge: input.participantMinAge,
+      orientation: current.adultSection.orientation,
+      characterRecap: recap,
+      plan: input.plan,
+      siblingDynamics: input.siblingDynamics,
+      feedback: input.feedback,
+    }),
+    schemaName: "official_adult_profile",
+    schema: { type: "object", properties: { adultSection: { type: "object" } } },
+    modelId: input.modelId,
+  });
+  const data = parseAuthorJson(completion.text, "adult_profile");
+  const raw = isRecord(data) && isRecord(data.adultSection) ? data.adultSection : null;
+  if (!raw) throw new OfficialSupplyGateError("author_shape_invalid", "adult_profile: adultSection object required");
+  const next: OfficialCharacterBible = {
+    ...current,
+    adultSection: {
+      // Orientation and the canonical enums come from the existing sheet / plan, never the model.
+      orientation: current.adultSection.orientation,
+      hookSummary: String(raw.hookSummary ?? ""),
+      dialogueProfile: input.plan.dialogueProfile,
+      consentModes: [...input.plan.consentModes],
+      tone: String(raw.tone ?? ""),
+      preferenceKeywords: strArray(raw.preferenceKeywords),
+      boundaries: strArray(raw.boundaries),
+      consentBehavior: String(raw.consentBehavior ?? ""),
+      scenarioExamples: strArray(raw.scenarioExamples),
+    },
+  };
+  return { bible: next, completion };
+}
+
 /** Merge the three structured thirds into one validated-shape bible. */
 export function assembleOfficialCharacterBible(
   half1: Record<string, unknown>,
@@ -1033,41 +1264,6 @@ export function validatePilotAssetPlan(
   plan: OfficialAssetPlan
 ): QaResult {
   return evaluateAssetPlan(draft, plan);
-}
-
-export function emptyCostReport(): {
-  calls: number;
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  failures: number;
-  retries: number;
-  lines: OfficialAuthorCostLine[];
-} {
-  return { calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, failures: 0, retries: 0, lines: [] };
-}
-
-export function addCostLine(
-  report: ReturnType<typeof emptyCostReport>,
-  completion: OfficialAuthorRawCompletion,
-  input: { task: OfficialAuthorTask; draftKey: string | null; attempts: number; failedAttempts: number }
-): void {
-  report.calls += 1;
-  report.inputTokens += completion.inputTokens;
-  report.outputTokens += completion.outputTokens;
-  report.costUsd += completion.costUsd ?? 0;
-  report.failures += input.failedAttempts;
-  report.retries += Math.max(0, input.attempts - 1);
-  report.lines.push({
-    task: input.task,
-    draftKey: input.draftKey,
-    model: completion.model,
-    inputTokens: completion.inputTokens,
-    outputTokens: completion.outputTokens,
-    costUsd: completion.costUsd,
-    attempts: input.attempts,
-    failedAttempts: input.failedAttempts,
-  });
 }
 
 export function pilotQaSummary(qa: QaResult): { errors: string[]; warnings: string[] } {

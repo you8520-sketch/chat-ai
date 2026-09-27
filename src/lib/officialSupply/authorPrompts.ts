@@ -7,13 +7,30 @@
  * World + character are never generated together in one call.
  *
  * Canonical hard limits respected here (not redefined):
- * - name ≤20, tagline ≤50, greeting ≤2000 (target 900~1400)
+ * - name ≤20, tagline ≤50, greeting ≤2000 (production band: OFFICIAL_AUTHOR_QUALITY_CONTRACT)
  * - speech.examples ≤500 total, speech.forbidden ≤500
  * - lorebook content ≤800, name ≤40, keywords ≤10
  */
 import { ASSET_PERSON_TAGS } from "@/lib/assetPersonTags";
+import type { OfficialCharacterSceneContext } from "@/lib/officialSupply/scenePortfolio";
 
-export const OFFICIAL_AUTHOR_TEMPLATE_VERSION = "pilot-rf-01/v1";
+/**
+ * Canonical official-supply author quality contract — the ONE source for both
+ * the author prompts and the deterministic bible validator. These are
+ * production-authoring bands, not runtime/storage ceilings (greeting ≤2000,
+ * tagline ≤50 etc. stay owned by `characterFormLimits`). Length is only half
+ * the gate: structural coverage (see `evaluateAuthorQualityContract`) is the
+ * other half, so short-but-complete prose passes and padded prose fails.
+ */
+export const OFFICIAL_AUTHOR_QUALITY_CONTRACT = {
+  greeting: { min: 700, max: 1400 },
+  speechDescription: { min: 250, max: 600 },
+  publicDescription: { min: 200, max: 500 },
+} as const;
+
+const Q = OFFICIAL_AUTHOR_QUALITY_CONTRACT;
+
+export const OFFICIAL_AUTHOR_TEMPLATE_VERSION = "pilot-rf-01/v2";
 export const OFFICIAL_AUTHOR_SNAPSHOT_VERSION = "market-research-snapshot-2026-09.json";
 
 export type OfficialAuthorTask =
@@ -23,6 +40,7 @@ export type OfficialAuthorTask =
   | "character_bible_bonds"
   | "appearance"
   | "asset_plan"
+  | "adult_profile"
   | "style_board";
 
 export const OFFICIAL_AUTHOR_MAX_TOKENS: Record<OfficialAuthorTask, number> = {
@@ -32,6 +50,7 @@ export const OFFICIAL_AUTHOR_MAX_TOKENS: Record<OfficialAuthorTask, number> = {
   character_bible_bonds: 8000,
   appearance: 3000,
   asset_plan: 5000,
+  adult_profile: 4000,
   style_board: 9000,
 };
 
@@ -42,6 +61,7 @@ export const OFFICIAL_AUTHOR_TEMPERATURE: Record<OfficialAuthorTask, number> = {
   character_bible_bonds: 0.75,
   appearance: 0.6,
   asset_plan: 0.6,
+  adult_profile: 0.7,
   style_board: 0.7,
 };
 
@@ -260,18 +280,21 @@ export function buildCharacterVoiceSystem(): string {
     "",
     "speech 규칙:",
     "- 존댓말/반말·문장 길이·속도감·어휘·자주/거의 안 쓰는 표현·욕설·농담·호칭·감정 은폐/분노/친밀 시 말투를 모두 설계.",
-    "- keywords 4~8개. description은 반드시 400자 이상 600자 이하.",
+    `- keywords 4~8개. description은 반드시 ${Q.speechDescription.min}자 이상 ${Q.speechDescription.max}자 이하.`,
+    "- register·tempo·vocabulary·humorStyle·angryStyle·intimateStyle·addressStyle·hiddenEmotionStyle은 하나도 비우지 않는다.",
     "- examples는 서로 다른 상황의 대사 4~6개를 각각 별도 줄로(줄바꿈 구분), 전체 합 500자 이내.",
     "  이름을 가려도 구별되는 목소리. 클론 말투 금지.",
     "- forbidden 500자 이내: 절대 하지 않을 말투.",
     "- behaviorRules 3~7개. 부정문 나열보다 행동 논리.",
     "",
-    "greeting 규칙(실제 RP 첫 장면, 반드시 900자 이상 1400자 이하):",
+    `greeting 규칙(실제 RP 첫 장면, 반드시 ${Q.greeting.min}자 이상 ${Q.greeting.max}자 이하):`,
     "- 장소·상황·분위기·캐릭터 행동·목소리·유저가 그 자리에 있는 최소 단서·반응 여지.",
+    "- 캐릭터의 대사를 따옴표로 최소 1줄 넣고, 유저를 '당신'으로 지칭한다.",
     "- 소개문·자기소개·세계관 설명 덤프 금지. 이후 RP 문체의 스타일 앵커가 되는 웹소설형 출력.",
+    "- 같은 문장·묘사를 반복해 분량을 채우지 않는다.",
     "",
-    "공개 프로필: tagline은 반드시 50자 이내 훅 한 줄. description은 반드시 300자 이상 500자 이하",
-    "pitch(캐릭터·관계·경험·갈등 중 2개 이상, 비밀 노출 금지). tags 3~6개.",
+    `공개 프로필: tagline은 반드시 50자 이내 훅 한 줄. description은 반드시 ${Q.publicDescription.min}자 이상 ${Q.publicDescription.max}자 이하`,
+    "pitch(캐릭터·관계·경험·갈등 중 2개 이상, 비밀 노출 금지). 유저를 '당신'으로 부르며 어떤 관계/경험인지 드러낸다. tags 3~6개.",
     "SFW 시트의 공개 텍스트(tagline·description·greeting·tags)에는 다음 음절을 어떤 단어의 일부로도 쓰지 않는다:",
     "섹스, 성교, 성행위, 자위, 사정, 삽입, 오르가즘, 포르노, 야설, 야동.",
     "'사정' 대신 사연/형편/경위를 쓴다.",
@@ -397,9 +420,13 @@ export function buildAppearanceUser(input: AppearanceInput): string {
 export type AssetPlanInput = {
   name: string;
   adult: boolean;
-  /** Meaningful places from the bible/world (not generic 침실/거리/정원). */
-  meaningfulPlaces: string[];
   defaultOutfit: string;
+  /** Character-specific ranked locations + hooks (`resolveOfficialCharacterSceneContext`). */
+  scene: OfficialCharacterSceneContext;
+  /** Portfolio-aware avoid list from previously planned siblings (`buildSceneAvoidList`). */
+  avoid: { combos: string[]; overusedMotifs: string[] };
+  /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
+  feedback?: string;
 };
 
 export function buildAssetPlanSystem(): string {
@@ -411,7 +438,12 @@ export function buildAssetPlanSystem(): string {
     "- representative: 2:3 카드 초상 태그. 다른 슬롯과 태그가 겹치면 안 된다.",
     "- signature 4: 캐릭터 핵심 분위기. emotion 6: 캐릭터 맞춤형 감정(중복 허용).",
     "- scene 3: 캐릭터+장면. location+situation 필수, 서로 다른 장소. 장면 자체가 RP 훅이어야 한다.",
-    "  단순 침실/거리/정원 금지 — 설정과 관계에 의미 있는 장소를 고른다.",
+    "  단순 침실/거리/정원 금지 — 이 캐릭터의 직업·소속·RP 훅·과거와 의미 있게 연결된 장소를 고른다.",
+    "  scene1: PRIMARY 장소(또는 그 안의 캐릭터 고유 공간) + 첫 대화 훅이나 반복 일상에서 나온 사건.",
+    "  scene2: PRIMARY 또는 SECONDARY 장소 + 중기 갈등에서 나온 사건(scene1과 다른 사건 유형).",
+    "  scene3: 캐릭터 고유 장소(일상·과거에서 나온 구체적 공간) 또는 장기 변화와 직결될 때만 EXCEPTIONAL 장소.",
+    "  세 장면은 사건·관계 설정·걸린 것·행동 선택이 서로 달라야 한다.",
+    "  '피해야 할 조합'에 있는 장소×사건 조합과 과다 사용 사건은 쓰지 않는다. 다른 캐릭터와 같은 장면을 만들지 않는다.",
     "- 모든 슬롯 characterPresence=required. 배경만(background-only) 금지.",
     "- representative는 depiction=standard 고정. 성인 시트가 아니면 전 슬롯 standard.",
     `- personTag는 다음 목록 중 감정과 정확히 일치할 때만 쓰고, 아니면 null(목록 외 표현 절대 금지): ${ASSET_PERSON_TAGS.join(", ")}.`,
@@ -420,10 +452,36 @@ export function buildAssetPlanSystem(): string {
 }
 
 export function buildAssetPlanUser(input: AssetPlanInput): string {
+  const s = input.scene;
+  const tier = (t: "primary" | "secondary" | "exceptional") =>
+    s.ranked
+      .filter((r) => r.tier === t)
+      .map((r) => `- ${r.name}: ${r.rpEvents}${r.why.length ? ` (연결: ${r.why.join("·")})` : ""}`)
+      .join("\n") || "- (없음)";
   return [
     `캐릭터: ${input.name} (성인 시트: ${input.adult ? "예" : "아니오"})`,
+    `직업/소속/신분: ${s.occupation} / ${s.faction} / ${s.socialPosition}`,
     `기본 의상: ${input.defaultOutfit}`,
-    `의미 있는 장소 후보:\n${input.meaningfulPlaces.map((p) => `- ${p}`).join("\n")}`,
+    "",
+    `PRIMARY 장소:\n${tier("primary")}`,
+    `SECONDARY 장소:\n${tier("secondary")}`,
+    `EXCEPTIONAL 장소(특수 사건에서만):\n${tier("exceptional")}`,
+    "",
+    "캐릭터 고유 재료:",
+    `- 첫 대화 훅: ${s.hooks.immediateHook}`,
+    `- 반복 일상: ${s.hooks.repeatable.join(" / ")}`,
+    `- 중기 갈등: ${s.hooks.mediumConflict}`,
+    `- 장기 변화: ${s.hooks.longTermChange}`,
+    `- 현재 상황: ${s.hooks.personalSituation}`,
+    `- 과거가 남긴 것: ${s.hooks.backstoryResidue.join(" / ")}`,
+    `- 유저 첫인식: ${s.hooks.userInitialView}`,
+    s.hooks.relationshipCues.length ? `- 관계 단서: ${s.hooks.relationshipCues.join(" / ")}` : "",
+    "",
+    input.avoid.combos.length
+      ? `피해야 할 조합(이미 다른 캐릭터가 사용):\n${input.avoid.combos.map((c) => `- ${c}`).join("\n")}`
+      : "",
+    input.avoid.overusedMotifs.length ? `과다 사용 사건(쓰지 않는다): ${input.avoid.overusedMotifs.join(", ")}` : "",
+    "",
     "슬롯 고정표(정확히 이 14슬롯, 키·종류 그대로):",
     "rep/representative, sig1/signature, sig2/signature, sig3/signature, sig4/signature,",
     "emo1/emotion, emo2/emotion, emo3/emotion, emo4/emotion, emo5/emotion, emo6/emotion,",
@@ -431,6 +489,69 @@ export function buildAssetPlanUser(input: AssetPlanInput): string {
     "슬롯 예시(모든 키를 채운다):",
     `{"slotKey": "sig1", "kind": "signature", "tag": "태그", "expression": "표정", "pose": "자세", "outfit": "default", "location": null, "situation": null, "characterPresence": "required", "depiction": "standard", "personTag": null}`,
     "위 구조의 slots 배열 JSON 한 개만 출력한다.",
+    input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
+  ].join("\n");
+}
+
+/**
+ * Pilot-scoped adult direction for one character (manifest config, not a
+ * global ratio). Profile/consent values are canonical enums.
+ */
+export type AdultProfilePlan = {
+  dialogueProfile: "suggestive" | "explicit_rare" | "explicit_frequent";
+  consentModes: ("standard" | "power_play")[];
+  /** Character-fit adult dynamics in plain words (e.g. "협상된 권력 교환, 명령과 칭찬"). */
+  direction: string;
+};
+
+export type AdultProfileInput = {
+  name: string;
+  age: number;
+  participantMinAge: number;
+  orientation: string;
+  /** Personality / contradiction / relationship recap so adult canon stays in character. */
+  characterRecap: string;
+  plan: AdultProfilePlan;
+  /** Adult dynamics other adult sheets in this world already lean on (avoid repeating). */
+  siblingDynamics: string[];
+  feedback?: string;
+};
+
+export function buildAdultProfileSystem(): string {
+  return [
+    "너는 성인 롤플레잉 캐릭터의 성인 관계 캐논만 쓰는 작가다. 캐릭터 본체는 이미 완성되어 있고, adultSection만 다시 쓴다.",
+    "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
+    "",
+    "불변 규칙(절대 변경 금지):",
+    "- 모든 참여자는 19세 이상. 나이·participantMinAge를 바꾸지 않는다. 미성년 연상 표현 금지.",
+    "- 합의가 기본값이다. 비합의를 기본 전제로 삼지 않으며 cnc 계열을 쓰지 않는다.",
+    "- power_play가 있으면 사전 합의·중단 신호·사후 확인을 반드시 서술한다.",
+    "- 노골적 행위 묘사 금지. 성격·말투·관계 역학·합의 방식이 성인 맥락에서도 유지되는지를 쓴다.",
+    "- 캐릭터 고유의 성향으로 쓴다. 다른 성인 캐릭터가 이미 쓰는 역학은 반복하지 않는다.",
+    "",
+    "필드:",
+    "- orientation(기존 값 유지)·hookSummary(성인 관계 캐논 요약 1~2문장).",
+    "- dialogueProfile·consentModes는 지정값 그대로.",
+    "- tone 200~300자·preferenceKeywords 4~8개(캐릭터 고유 역학)·boundaries 3~6개(캐릭터 성격과 연결)·",
+    "  consentBehavior 200~300자(의사 확인·거절 반응·속도·권력관계 처리)·scenarioExamples 2~3개(짧고 행동 중심).",
+  ].join("\n");
+}
+
+export function buildAdultProfileUser(input: AdultProfileInput): string {
+  return [
+    `캐릭터: ${input.name} (${input.age}세, participantMinAge ${input.participantMinAge})`,
+    `orientation(유지): ${input.orientation}`,
+    `지정 dialogueProfile: ${input.plan.dialogueProfile}`,
+    `지정 consentModes: ${input.plan.consentModes.join(", ")}`,
+    `성향 방향(캐릭터 적합성 기준): ${input.plan.direction}`,
+    input.siblingDynamics.length ? `다른 성인 캐릭터가 쓰는 역학(반복 금지): ${input.siblingDynamics.join(" / ")}` : "",
+    "",
+    "캐릭터 요약:",
+    input.characterRecap,
+    "",
+    "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
+    `{"adultSection": {"orientation": "", "hookSummary": "", "dialogueProfile": "${input.plan.dialogueProfile}", "consentModes": ${JSON.stringify(input.plan.consentModes)}, "tone": "", "preferenceKeywords": ["", "", "", ""], "boundaries": ["", "", ""], "consentBehavior": "", "scenarioExamples": ["", ""]}}`,
+    input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
 }
 

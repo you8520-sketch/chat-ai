@@ -18,12 +18,44 @@
     "female",
     "other"
   ],
-  "templateVersion": "pilot-rf-01/v1",
+  "templateVersion": "pilot-rf-01/v2",
   "snapshotVersion": "market-research-snapshot-2026-09.json",
   "portfolioPolicy": {
     "adultShareMin": 0.3,
     "adultShareMax": 0.5,
     "maxGenreShare": 1,
     "minDistinctGenres": 1
+  },
+  "adultPlan": {
+    "pilot-rf-01": {
+      "dialogueProfile": "suggestive",
+      "consentModes": [
+        "standard"
+      ],
+      "direction": "의례처럼 허락을 구하는 친밀함, 병약함에서 오는 의존과 취약함을 드러내는 순간, 달빛·잎맥 비유의 속삭임"
+    },
+    "pilot-rf-02": {
+      "dialogueProfile": "explicit_rare",
+      "consentModes": [
+        "standard",
+        "power_play"
+      ],
+      "direction": "사전에 협상된 권력 교환(명령·보고 역할극), 규칙을 지킨 상대에 대한 짧고 무거운 인정, 끝난 뒤 체온·물·상처를 확인하는 사후 돌봄"
+    },
+    "pilot-rf-06": {
+      "dialogueProfile": "suggestive",
+      "consentModes": [
+        "standard"
+      ],
+      "direction": "규율을 스스로 깨는 순간의 긴장, 합의된 보호적 독점욕(질투를 감추지 않되 선택을 빼앗지 않음), 감찰관식 질문으로 쌓이는 언어적 긴장"
+    },
+    "pilot-rf-07": {
+      "dialogueProfile": "explicit_frequent",
+      "consentModes": [
+        "standard",
+        "power_play"
+      ],
+      "direction": "결투처럼 주도권을 뺏고 빼앗기는 라이벌 긴장, 호탕한 도발과 장난, 상대의 실력을 대놓고 칭찬하는 인정"
+    }
   }
 }
