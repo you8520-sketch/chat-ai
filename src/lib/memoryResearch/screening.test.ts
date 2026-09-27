@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { screenCandidate } from "@/lib/memoryResearch/screening";
+import { findLiveExperimentRecipe } from "@/lib/memoryResearch/liveExperimentRecipes";
 import { observation, wideSyntheticAdapter } from "@/lib/memoryResearch/labFixtures.test";
 
 const now = new Date("2026-09-28T00:00:00Z");
@@ -46,4 +47,17 @@ it("screening routes benchmarkable candidates by hook/adapter availability", () 
     "REJECTED_PRIVACY_EXPOSURE",
     "an adapter never bypasses privacy/boundary rules"
   );
+});
+
+
+it("Qwen3 embedding routes to the isolated live experiment queue instead of a generic missing-adapter WATCH", () => {
+  const obs = observation({ candidateKey: "github:qwenlm/qwen3-embedding", category: "embedding_model" });
+  const recipe = findLiveExperimentRecipe(obs.candidateKey);
+  assert.ok(recipe);
+  const result = screenCandidate(obs, undefined, now, recipe);
+  assert.equal(result.outcome, "STOP");
+  if (result.outcome === "STOP") {
+    assert.equal(result.decision, "WATCH_LIVE_EXPERIMENT_PENDING");
+    assert.deepEqual(result.applicableOwners, ["embedding_index"]);
+  }
 });
