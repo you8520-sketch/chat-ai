@@ -1,8 +1,9 @@
 /**
  * Authorial Habit lexical candidate → bounded JEV semantic refinement.
  *
- * Benchmark-only owner. This file does not schedule runtime provider calls,
- * mutate prompts, rewrite RP output, or change billing.
+ * Shared semantic-shape owner for benchmark and read-only runtime shadow.
+ * This file does not schedule provider calls, mutate prompts, rewrite RP
+ * output, or change user billing.
  */
 import {
   analyzeAuthorialHabits,
@@ -24,6 +25,13 @@ export const AUTHORIAL_HABIT_JEV_VERDICTS = [
 ] as const satisfies readonly AuthorialHabitSemanticVerdict[];
 
 const EXCERPT_MAX_CHARS = 1200;
+
+export const AUTHORIAL_HABIT_TARGETS: readonly AuthorialHabitTarget[] = [
+  "hand_finger_anchor",
+  "explain_interpret_conclude",
+  "simile_machi_cherom",
+  "gaze_silence_wait_end",
+] as const;
 
 const TARGET_CATEGORIES: Record<AuthorialHabitTarget, readonly HabitCategory[]> = {
   hand_finger_anchor: ["hand_anchor", "finger_anchor"],
@@ -82,11 +90,14 @@ export function takeAuthorialHabitExcerpt(text: string, maxChars = EXCERPT_MAX_C
   return normalized.slice(-maxChars);
 }
 
-export function evaluateAuthorialHabitCandidate(
-  fixture: Pick<AuthorialHabitJevFixture, "id" | "target" | "text">
-): AuthorialHabitCandidateEvaluation {
-  const metrics = analyzeAuthorialHabits(fixture.id, "jev-benchmark", fixture.text);
-  const categories = TARGET_CATEGORIES[fixture.target].map((category) => ({
+export function evaluateAuthorialHabitTarget(input: {
+  id: string;
+  source: string;
+  target: AuthorialHabitTarget;
+  text: string;
+}): AuthorialHabitCandidateEvaluation {
+  const metrics = analyzeAuthorialHabits(input.id, input.source, input.text);
+  const categories = TARGET_CATEGORIES[input.target].map((category) => ({
     category,
     hits: metrics.hitsByCategory[category] ?? 0,
     densityPer1k: metrics.densityPer1k[category] ?? 0,
@@ -109,6 +120,17 @@ export function evaluateAuthorialHabitCandidate(
   };
 }
 
+export function evaluateAuthorialHabitCandidate(
+  fixture: Pick<AuthorialHabitJevFixture, "id" | "target" | "text">
+): AuthorialHabitCandidateEvaluation {
+  return evaluateAuthorialHabitTarget({
+    id: fixture.id,
+    source: "jev-benchmark",
+    target: fixture.target,
+    text: fixture.text,
+  });
+}
+
 export function buildAuthorialHabitJevQuestions(): JevDecisionQuestions {
   return {
     [AUTHORIAL_HABIT_JEV_QUESTION_ID]: {
@@ -127,13 +149,14 @@ export function buildAuthorialHabitJevQuestions(): JevDecisionQuestions {
   };
 }
 
-export function buildAuthorialHabitJevState(input: {
-  fixture: AuthorialHabitJevFixture;
+export function buildAuthorialHabitJevStateFromText(input: {
+  target: AuthorialHabitTarget;
+  text: string;
   signals: AuthorialHabitLexicalSignals;
 }): AuthorialHabitJevState {
   return {
     task: "authorial_habit_quality_triage",
-    target: input.fixture.target,
+    target: input.target,
     lexicalSignals: {
       hitCount: input.signals.hitCount,
       maxDensityPer1k: input.signals.maxDensityPer1k,
@@ -141,8 +164,19 @@ export function buildAuthorialHabitJevState(input: {
       endingTags: [...input.signals.endingTags],
       topPhrases: input.signals.topPhrases.map((row) => ({ ...row })),
     },
-    excerpt: takeAuthorialHabitExcerpt(input.fixture.text),
+    excerpt: takeAuthorialHabitExcerpt(input.text),
   };
+}
+
+export function buildAuthorialHabitJevState(input: {
+  fixture: AuthorialHabitJevFixture;
+  signals: AuthorialHabitLexicalSignals;
+}): AuthorialHabitJevState {
+  return buildAuthorialHabitJevStateFromText({
+    target: input.fixture.target,
+    text: input.fixture.text,
+    signals: input.signals,
+  });
 }
 
 export function parseAuthorialHabitJevVerdict(
