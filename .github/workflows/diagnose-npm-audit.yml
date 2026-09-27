@@ -1,4 +1,4 @@
-name: Diagnose npm audit
+name: Apply npm security lockfile
 
 on:
   pull_request:
@@ -8,10 +8,11 @@ on:
       - ".github/workflows/diagnose-npm-audit.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -24,58 +25,62 @@ jobs:
       DISABLE_WEB_PUSH: "1"
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
+
+      - name: Regenerate lockfile from reviewed overrides
+        run: npm install --package-lock-only --ignore-scripts
+
       - run: npm ci
-      - name: Dependency tree
-        shell: bash
+
+      - name: Verify exact patched dependency tree
         run: |
-          npm ls esbuild nanoid postcss next --all || true
-          echo "--- next@15.5.24 dependencies ---"
-          npm view next@15.5.24 dependencies --json
-          echo "--- package versions ---"
+          npm ls esbuild nanoid postcss next --all
           node - <<'NODE'
-          for (const name of ["next","postcss","nanoid","esbuild"]) {
-            try {
-              console.log(name, require(name + "/package.json").version)
-            } catch (error) {
-              console.log(name, "not-resolvable-from-root")
-            }
+          const versions = {
+            esbuild: require("esbuild/package.json").version,
+            nanoid: require("nanoid/package.json").version,
+            postcss: require("postcss/package.json").version,
+            next: require("next/package.json").version,
           }
+          console.log(versions)
+          if (versions.esbuild !== "0.28.1") process.exit(2)
+          if (versions.nanoid !== "3.3.18") process.exit(3)
+          if (versions.postcss !== "8.5.23") process.exit(4)
+          if (versions.next !== "15.5.25") process.exit(5)
           NODE
 
-      - name: npm audit JSON
+      - name: Require zero npm audit findings
         shell: bash
         run: |
-          set +e
-          npm audit --json
-          code=$?
-          echo "npm_audit_exit_code=$code"
-          exit 0
-
-      - name: Test minimal fixed-version overrides
-        shell: bash
-        run: |
+          npm audit --json > /tmp/audit.json
           node - <<'NODE'
-          const fs = require("fs")
-          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"))
-          pkg.overrides = {
-            ...(pkg.overrides || {}),
-            esbuild: "0.28.1",
-            nanoid: "3.3.18",
-            postcss: "8.5.23"
+          const report = require("/tmp/audit.json")
+          if (report.metadata?.vulnerabilities?.total !== 0) {
+            console.error(report.metadata?.vulnerabilities)
+            process.exit(6)
           }
-          fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n")
+          console.log(report.metadata.vulnerabilities)
           NODE
-          npm install --package-lock-only --ignore-scripts
-          npm ci
-          npm ls esbuild nanoid postcss next --all || true
-          set +e
-          npm audit --json
-          audit_code=$?
-          set -e
-          echo "candidate_audit_exit_code=$audit_code"
-          npm run typecheck:app
-          npm run build
+
+      - run: npm run typecheck:app
+      - run: npm run build
+
+      - name: Commit regenerated package-lock only
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "package-lock already current"
+            exit 0
+          fi
+          git commit -m "fix(security): refresh lockfile for patched transitive dependencies"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
