@@ -57,12 +57,12 @@ export function resolveHairDescriptionPolicy(
  * Scoped to the AI character only — USER_PERSONA appearance is owned elsewhere.
  */
 export function buildCharacterHairCanonFact(policy: HairDescriptionPolicy): string | null {
-  const beardAbsent = policy.charGender !== "female" && !policy.allowsBeard;
-  const bodyHairAbsent = !policy.allowsBodyHair;
-  if (beardAbsent && bodyHairAbsent) return "수염·체모: 설정에 없음 — 수염 자국·까칠한 턱·체모를 새로 만들지 않는다.";
-  if (beardAbsent) return "수염: 설정에 없음 — 수염 자국·까칠한 턱을 새로 만들지 않는다.";
-  if (bodyHairAbsent) return "체모: 설정에 없음 — 새로 만들지 않는다.";
-  return null;
+  const beardAllowed = policy.charGender !== "female" && policy.allowsBeard;
+  if ((beardAllowed || policy.charGender === "female") && policy.allowsBodyHair) return null;
+  const present = ["머리카락", "눈썹"];
+  if (beardAllowed) present.push("설정의 수염");
+  if (policy.allowsBodyHair) present.push("설정의 체모");
+  return `외형의 털: ${present.join("·")}뿐이다.`;
 }
 
 const APPEARANCE_HEADER_RE = /\[(?:외형|외모|Appearance)[^\]]*\]/i;
