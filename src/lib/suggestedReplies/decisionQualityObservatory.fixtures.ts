@@ -5,6 +5,8 @@ export type SuggestedRepliesDecisionQualityFixture = {
   label: string;
   rawModelText: string;
   expectedValid: boolean;
+  /** Production parser acceptance after canonical recoverable normalization. */
+  expectedAccepted?: boolean;
   expectedIssues: SuggestedRepliesDecisionQualityIssue[];
 };
 
@@ -98,6 +100,18 @@ export const SUGGESTED_REPLIES_DECISION_QUALITY_CORPUS: SuggestedRepliesDecision
       { kind: "banter", text: text("드립 반응 ") },
     ]),
     expectedValid: false,
+    expectedIssues: ["text_out_of_bounds"],
+  },
+  {
+    id: "SRDQ-08B",
+    label: "text above contract maximum but canonically recoverable",
+    rawModelText: raw([
+      { kind: "natural", text: text("정석 반응 ", 201) },
+      { kind: "twist", text: text("한 수 반응 ") },
+      { kind: "banter", text: text("드립 반응 ") },
+    ]),
+    expectedValid: false,
+    expectedAccepted: true,
     expectedIssues: ["text_out_of_bounds"],
   },
   {
