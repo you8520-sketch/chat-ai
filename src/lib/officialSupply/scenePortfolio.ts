@@ -28,12 +28,12 @@ const STOPWORDS = new Set([
 ]);
 
 /** Korean-friendly word tokens (≥2 chars, trailing particles stripped). */
-export function sceneTokens(text: string): Set<string> {
+export function sceneTokens(text: string, opts: { keepStopwords?: boolean } = {}): Set<string> {
   const out = new Set<string>();
   for (const raw of text.split(/[^가-힣A-Za-z0-9]+/)) {
     let word = raw.trim();
     if (word.length > 2) word = word.replace(PARTICLE_SUFFIX_RE, "");
-    if (word.length < 2 || STOPWORDS.has(word)) continue;
+    if (word.length < 2 || (!opts.keepStopwords && STOPWORDS.has(word))) continue;
     out.add(word);
   }
   return out;
@@ -64,7 +64,8 @@ export const SCENE_MOTIFS = {
   interrogation: { label: "심문·연행·검문", re: /(심문|취조|연행|체포|검문|포위|압송)/ },
   deal: { label: "거래·경매·흥정", re: /(경매|밀거래|흥정|거래|채권|장부)/ },
   heist_escape: { label: "탈취·도주·추격", re: /(탈취|도주|탈출|추격|잠입|금고)/ },
-  ritual: { label: "의례·기도", re: /(의식|의례|기도|예배|축복|성가|제단)/ },
+  // 의식 also means "consciousness" (의식을 잃다); only the ceremony sense counts.
+  ritual: { label: "의례·기도", re: /(의식(?!\s*(을|이|은)?\s*(잃|흐려|흐릿|불명|되찾|없|돌아|차리))|의례|기도|예배|축복|성가|제단)/ },
   repair: { label: "정비·수리", re: /(정비|수리|분해|조립|코어|부품)/ },
   duel_training: { label: "결투·훈련", re: /(결투|대련|훈련|연무|사격|검술)/ },
   healing: { label: "치료·간호", re: /(치료|치유|간호|응급|약초|상처)/ },
@@ -82,8 +83,12 @@ export type SceneMotif = keyof typeof SCENE_MOTIFS;
  */
 export const GENERIC_SCENE_MOTIFS: ReadonlySet<SceneMotif> = new Set<SceneMotif>(["investigation", "study"]);
 
+/** "거래나 추격이 아니라 …" names what the scene is NOT — drop that clause before matching. */
+const NEGATED_CLAUSE_RE = /[^.,;!?\n]{0,24}(?:이|가)\s*아니(?:라|다|고|며)/g;
+
 export function extractSceneMotifs(text: string): SceneMotif[] {
-  return (Object.keys(SCENE_MOTIFS) as SceneMotif[]).filter((key) => SCENE_MOTIFS[key].re.test(text));
+  const affirmed = text.replace(NEGATED_CLAUSE_RE, " ");
+  return (Object.keys(SCENE_MOTIFS) as SceneMotif[]).filter((key) => SCENE_MOTIFS[key].re.test(affirmed));
 }
 
 function specificMotifs(motifs: readonly SceneMotif[]): SceneMotif[] {
@@ -270,6 +275,8 @@ export const SCENE_PORTFOLIO_THRESHOLDS = {
   cloneRateError: 0.25,
   /** Scenes per character allowed without any character anchor. */
   maxUnanchoredScenes: 1,
+  /** A shared PRIMARY location belongs to the character with ≥1.5× the relevance score. */
+  homeGroundScoreRatio: 1.5,
 } as const;
 
 export function collectPortfolioScenes(
@@ -447,8 +454,8 @@ export function evaluateSceneCandidateAgainstPortfolio(
   const mine = collectPortfolioScenes([candidate], worldLocations);
   const theirs = collectPortfolioScenes(planned, worldLocations);
   const t = SCENE_PORTFOLIO_THRESHOLDS;
-  const tierIn = (context: OfficialCharacterSceneContext | undefined, location: string) =>
-    context?.ranked.find((r) => r.name === location)?.tier;
+  const rankIn = (context: OfficialCharacterSceneContext | undefined, location: string) =>
+    context?.ranked.find((r) => r.name === location);
   const contextOf = new Map(planned.map((p) => [p.draftKey, p.context] as const));
   const labels = (motifs: readonly SceneMotif[]) => specificMotifs(motifs).map((m) => SCENE_MOTIFS[m].label).join("·") || "-";
   for (const scene of mine) {
@@ -456,12 +463,21 @@ export function evaluateSceneCandidateAgainstPortfolio(
     for (const other of theirs) {
       if (!scene.worldLocation || scene.worldLocation !== other.worldLocation) continue;
       if (jaccard(specific, specificMotifs(other.motifs)) >= t.clonePairMotifJaccard) {
-        const message = `${scene.slotKey} clones ${other.name}/${other.slotKey} at ${scene.worldLocation} [${labels(other.motifs)}]`;
         // Home-ground rule: at the candidate's own PRIMARY location a sibling
-        // visitor is the intruder — the final portfolio QA arbitrates, not this gate.
-        const home = tierIn(candidate.context, scene.worldLocation) === "primary";
-        const siblingHome = tierIn(contextOf.get(other.draftKey), scene.worldLocation) === "primary";
-        if (home && !siblingHome) warnings.push({ code: "scene_clone_of_sibling", message });
+        // with a clearly weaker claim is the visitor — the final portfolio QA
+        // arbitrates, not this gate.
+        const mineRank = rankIn(candidate.context, scene.worldLocation);
+        const theirRank = rankIn(contextOf.get(other.draftKey), scene.worldLocation);
+        const home =
+          mineRank?.tier === "primary" &&
+          (theirRank?.tier !== "primary" || mineRank.score >= t.homeGroundScoreRatio * theirRank.score);
+        const siblingOwns =
+          theirRank?.tier === "primary" && (mineRank?.tier !== "primary" || theirRank.score >= t.homeGroundScoreRatio * mineRank.score);
+        const fix = siblingOwns
+          ? `이곳은 ${other.name}의 주 무대 — 이 장면은 다른 장소(캐릭터 고유 공간 포함)로 옮길 것`
+          : `이 장소를 쓰려면 [${labels(other.motifs)}]가 아닌 사건으로 바꿀 것`;
+        const message = `${scene.slotKey} clones ${other.name}/${other.slotKey} at ${scene.worldLocation} [${labels(other.motifs)}] → ${fix}`;
+        if (home) warnings.push({ code: "scene_clone_of_sibling", message });
         else errors.push({ code: "scene_clone_of_sibling", message });
       }
     }
@@ -489,6 +505,11 @@ export function evaluateSceneCandidateAgainstPortfolio(
   const backdrop = new Set(
     perScene.length >= 2 ? perScene[0]!.filter((m) => perScene.every((set) => set.includes(m))) : []
   );
+  const usedMotifs = new Set(perScene.flat());
+  const unusedExamples = (Object.keys(SCENE_MOTIFS) as SceneMotif[])
+    .filter((m) => !GENERIC_SCENE_MOTIFS.has(m) && !usedMotifs.has(m))
+    .map((m) => SCENE_MOTIFS[m].label)
+    .join(", ");
   for (let i = 0; i < mine.length; i++) {
     for (let j = i + 1; j < mine.length; j++) {
       const a = perScene[i]!.filter((m) => !backdrop.has(m));
@@ -497,7 +518,7 @@ export function evaluateSceneCandidateAgainstPortfolio(
       if (monotone || (a.length && jaccard(a, b) >= t.intraCloneMotifJaccard)) {
         errors.push({
           code: "scene_intra_clone",
-          message: `${mine[i]!.slotKey} ~ ${mine[j]!.slotKey}: same incident type [${labels(mine[i]!.motifs)}]`,
+          message: `${mine[i]!.slotKey} ~ ${mine[j]!.slotKey}: same incident type [${labels(mine[i]!.motifs)}] → 직업 배경은 유지하되 장면마다 다른 사건을 중심에 둘 것 (아직 안 쓴 사건 예: ${unusedExamples})`,
         });
       }
     }

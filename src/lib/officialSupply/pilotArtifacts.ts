@@ -11,13 +11,16 @@ export function quarantinePath(dir: string, key: string): string {
   return path.join(dir, `quarantine-${key}.json`);
 }
 
-export function writeQuarantine(dir: string, key: string, error: unknown, now = new Date()): void {
+/** `rejected` = the last candidate the gate refused, kept so a reviewer can see why. */
+export function writeQuarantine(dir: string, key: string, error: unknown, now = new Date(), rejected?: unknown): void {
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(
-    quarantinePath(dir, key),
-    `${JSON.stringify({ key, error: String((error as Error)?.message ?? error).slice(0, 1000), at: now.toISOString() }, null, 2)}\n`,
-    "utf8"
-  );
+  const record = {
+    key,
+    error: String((error as Error)?.message ?? error).slice(0, 2000),
+    at: now.toISOString(),
+    ...(rejected === undefined ? {} : { rejected }),
+  };
+  fs.writeFileSync(quarantinePath(dir, key), `${JSON.stringify(record, null, 2)}\n`, "utf8");
 }
 
 export function clearQuarantine(dir: string, key: string): boolean {

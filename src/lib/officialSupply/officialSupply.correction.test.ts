@@ -184,6 +184,29 @@ describe("scene portfolio diversity (canonical owner)", () => {
     assert.equal(evaluateSceneCandidateAgainstPortfolio(distinct, planned, LOCATIONS).ok, true);
   });
 
+  it("home ground: a shared PRIMARY belongs to the character with ≥1.5× the claim", () => {
+    const temple = "빛의 회랑 대신전";
+    const scored = (key: string, score: number) => {
+      const c = contextFor(key, temple, ["신관"]);
+      return { ...c, ranked: c.ranked.map((r) => (r.name === temple ? { ...r, score } : r)) };
+    };
+    const knight = entry("knight", [[temple, "축복식 도중 금지된 인장을 발견한다"]], scored("knight", 27));
+    const priestess = entry("priestess", [[temple, "새벽 기도 중 성가가 끊긴다"]], scored("priestess", 49));
+    const owner = evaluateSceneCandidateAgainstPortfolio(priestess, [knight], LOCATIONS);
+    assert.ok(owner.ok && owner.warnings.some((w) => w.code === "scene_clone_of_sibling"));
+    const visitor = evaluateSceneCandidateAgainstPortfolio(knight, [priestess], LOCATIONS);
+    assert.ok(visitor.errors.some((e) => e.code === "scene_clone_of_sibling" && e.message.includes("주 무대")));
+    const tie = evaluateSceneCandidateAgainstPortfolio(entry("p2", [[temple, "기도"]], scored("p2", 30)), [knight], LOCATIONS);
+    assert.ok(tie.errors.some((e) => e.code === "scene_clone_of_sibling"));
+  });
+
+  it("negated clauses do not count as the scene's incident; 의식을 잃다 is not a ritual", () => {
+    assert.deepEqual(extractSceneMotifs("거래나 추격이 아니라 폐기 명령의 책임을 밝힌다"), []);
+    assert.deepEqual(extractSceneMotifs("경매장에서 채권을 흥정한다"), ["deal"]);
+    assert.deepEqual(extractSceneMotifs("복도에서 의식을 잃고 쓰러진다"), []);
+    assert.deepEqual(extractSceneMotifs("제단 앞 축복 의식"), ["ritual"]);
+  });
+
   it("a diverse 10×3 portfolio stays under the clone-rate ceiling", () => {
     const incidents = ["밀담", "경매 흥정", "금서 해독", "밸브 정비", "기도", "결투 훈련", "응급 치료", "무도회", "도주", "심문"];
     const entries = incidents.map((inc, i) =>
