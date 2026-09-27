@@ -34,7 +34,9 @@ export class OfficialImageTransportError extends Error {
   constructor(
     message: string,
     public readonly costUsd: number | null,
-    public readonly hasUnknownAttemptCost: boolean
+    public readonly hasUnknownAttemptCost: boolean,
+    /** False only when the failure happened before any provider request was started. */
+    public readonly providerAttempted = true
   ) {
     super(message);
     this.name = "OfficialImageTransportError";
@@ -229,6 +231,10 @@ export async function runOfficialAssetSlot(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (error instanceof OfficialImageTransportError && !error.providerAttempted) {
+      deps.store.failSlotBeforeProvider(draftKey, slotKey, deps.workerId, message);
+      return { status: "failed", error: message };
+    }
     if (error instanceof OfficialImageTransportError) {
       deps.store.recordSpend(draftKey, slotKey, {
         costUsd: error.costUsd ?? 0,

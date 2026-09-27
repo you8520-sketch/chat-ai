@@ -719,3 +719,57 @@ describe("adult validation stays canonical (no official bypass)", () => {
     }
   });
 });
+
+describe("pre-provider preparation failures", () => {
+  it("do not consume a provider attempt, proof quota, or budget reserve", async () => {
+    const batch = await freshBatch(
+      store,
+      {
+        budgetUsd: { batch: 3, perGenre: 3, perWorld: 3, perCharacter: 1 },
+        reservePerImageUsd: 1,
+        maxAttemptsPerSlot: 1,
+      },
+      "candidate"
+    );
+    const draftKey = `pre-provider-${batch.styleKey}`;
+    lockThroughPlan(
+      store,
+      batch,
+      uniqueDraft(draftKey, HWANG_VOCAB, "레온하르트"),
+      { isStyleProof: true }
+    );
+
+    const world = new FakeWorld();
+    const deps = world.deps(store);
+    deps.transport = {
+      generate: async () => {
+        throw new OfficialImageTransportError(
+          "reference preparation failed: reference fetch failed: 502",
+          0,
+          false,
+          false
+        );
+      },
+    };
+
+    const failed = await runOfficialAssetSlot(deps, draftKey, "rep");
+    assert.deepEqual(failed, {
+      status: "failed",
+      error: "reference preparation failed: reference fetch failed: 502",
+    });
+
+    const afterFailure = store.getAsset(draftKey, "rep");
+    assert.equal(afterFailure.status, "failed");
+    assert.equal(afterFailure.attempts, 0);
+    assert.equal(afterFailure.spentUsd, 0);
+    assert.equal(afterFailure.hasUnknownCost, false);
+    assert.equal(afterFailure.providerRequestId, null);
+    assert.equal(store.countStyleProofSlotsStarted(batch.styleKey), 0);
+    assert.equal(store.getBatch(batch.batchKey).status, "active");
+
+    const retried = await runOfficialAssetSlot(world.deps(store), draftKey, "rep");
+    assert.equal(retried.status, "generated");
+    assert.equal(world.calls.length, 1);
+    assert.equal(store.getAsset(draftKey, "rep").attempts, 1);
+  });
+});

@@ -11,9 +11,10 @@ import {
   aggregateKnownProviderCostUsd,
 } from "@/lib/openAiImageSafetyFallback";
 import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
-import { filenameFromUploadUrl, resolveExistingUploadPath, storeUpload } from "@/lib/uploadStorage";
+import { storeUpload } from "@/lib/uploadStorage";
 import { analyzeAssetImage } from "@/lib/vision";
 import { recordVisionCostAttempts } from "@/lib/visionCost";
+import { prepareOfficialImageReferences } from "@/lib/officialSupply/referencePreparation";
 import {
   OfficialImageTransportError,
   type OfficialAssetModerator,
@@ -24,33 +25,6 @@ import {
 } from "@/lib/officialSupply/runner";
 
 const OFFICIAL_ASSET_REQUEST_KIND = "official-character-asset-image";
-const MAX_REFERENCE_BYTES = 20 * 1024 * 1024;
-
-async function readReference(source: string): Promise<Buffer> {
-  const uploadName = filenameFromUploadUrl(source);
-  if (uploadName) {
-    const local = resolveExistingUploadPath(uploadName);
-    if (!local) throw new Error(`reference not found: ${source}`);
-    return fs.promises.readFile(local);
-  }
-  if (/^https:\/\//i.test(source)) {
-    const response = await fetch(source, { headers: { Accept: "image/*" } });
-    if (!response.ok) throw new Error(`reference fetch failed: ${response.status}`);
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length > MAX_REFERENCE_BYTES) throw new Error("reference too large");
-    return buffer;
-  }
-  throw new Error(`unsupported reference source: ${source}`);
-}
-
-async function referenceToDataUrl(source: string): Promise<string> {
-  const optimized = await sharp(await readReference(source), { failOn: "none", animated: false })
-    .rotate()
-    .resize({ width: 1536, height: 1536, fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 90, effort: 4 })
-    .toBuffer();
-  return `data:image/webp;base64,${optimized.toString("base64")}`;
-}
 
 function recordLedger(model: string, costUsd: number | null, providerRequestId: string | null, outcome: "success" | "failed_with_usage" | "failed_without_usage") {
   recordBackgroundProviderCost({
@@ -74,7 +48,7 @@ function recordLedger(model: string, costUsd: number | null, providerRequestId: 
  */
 export const openAiOfficialImageTransport: OfficialImageTransport = {
   async generate(input) {
-    const references = await Promise.all(input.references.map(referenceToDataUrl));
+    const references = await prepareOfficialImageReferences(input.references);
     try {
       const result = await callOpenAiImageEditWithSafetyFallback({
         model: input.model,
