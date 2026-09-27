@@ -97,7 +97,14 @@ async function resultFor(kind: "wide" | "narrow"): Promise<LiveBenchmarkResult> 
   const candidateRun = await runLabArm({ ...adapter.buildMode(), strict: false });
   assert.equal(candidateRun.status, "RAN");
   if (candidateRun.status !== "RAN") throw new Error("candidate failed");
-  const reference = arm(recipe.referenceModel.modelId, baselineRun.summary);
+  // The real reference is BGE-M3, so it has the same semantic transport
+  // shape as the candidate. Reuse lexical quality metrics but mirror the
+  // candidate's embedding-call accounting to model that reference correctly.
+  const referenceSummary: LabRunSummary = {
+    ...baselineRun.summary,
+    embeddingCalls: { ...candidateRun.summary.embeddingCalls },
+  };
+  const reference = arm(recipe.referenceModel.modelId, referenceSummary);
   const candidate = arm(recipe.candidateModel.modelId, candidateRun.summary);
   return {
     status: "RAN",
