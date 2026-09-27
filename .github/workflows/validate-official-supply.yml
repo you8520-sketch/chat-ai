@@ -41,6 +41,9 @@ jobs:
       - name: Proof operator defaults to zero calls
         run: npm run official-supply:style-proof
 
+      - name: Anchor operator defaults to zero calls
+        run: npm run official-supply:generate-rofan-v4-anchors
+
       - name: Official supply regressions
         run: >-
           node --conditions=react-server --import tsx
