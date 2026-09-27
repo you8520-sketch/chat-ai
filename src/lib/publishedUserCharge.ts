@@ -347,6 +347,31 @@ function computeBillingReferenceCostUsd(
   );
 }
 
+function computePublishedStandardCharge(
+  usage: NormalizedBillableUsage,
+  pricing: PublishedModelPricing,
+  effectiveKrwPerUsd: number
+): {
+  billingReferenceCostUsd: number;
+  billingReferenceCostKrw: number;
+  standardUserChargeKrw: number;
+  standardPoints: number;
+} {
+  const billingReferenceCostUsd = computeBillingReferenceCostUsd(usage, pricing);
+  const billingReferenceCostKrw = roundKrwTenths(
+    convertUsdToKrwPure(billingReferenceCostUsd, effectiveKrwPerUsd)
+  );
+  const standardUserChargeKrw = roundKrwTenths(
+    billingReferenceCostKrw / (1 - pricing.targetMargin)
+  );
+  return {
+    billingReferenceCostUsd,
+    billingReferenceCostKrw,
+    standardUserChargeKrw,
+    standardPoints: ceilPublishedChargePoints(standardUserChargeKrw),
+  };
+}
+
 function buildSnapshot(
   requestedModelId: string,
   resolved: ResolvedPublishedPricing,
@@ -358,12 +383,14 @@ function buildSnapshot(
 ): PublishedUserChargeSnapshot {
   const pricing = resolved.pricing;
   const applicability = buildPublishedApplicabilitySnapshot(resolved.canonicalModelId, pricing);
-  const billingReferenceCostUsd = computeBillingReferenceCostUsd(usage, pricing);
-  const billingReferenceCostKrw = roundKrwTenths(
-    convertUsdToKrwPure(billingReferenceCostUsd, fxSnapshot.effectiveKrwPerUsd)
-  );
-  const standardUserChargeKrw = roundKrwTenths(
-    billingReferenceCostKrw / (1 - pricing.targetMargin)
+  const {
+    billingReferenceCostUsd,
+    billingReferenceCostKrw,
+    standardUserChargeKrw,
+  } = computePublishedStandardCharge(
+    usage,
+    pricing,
+    fxSnapshot.effectiveKrwPerUsd
   );
 
   let finalUserChargeKrw = standardUserChargeKrw;
@@ -578,14 +605,11 @@ export function computePublishedStandardPreviewPoints(input: {
   if (evaluateTierGate(usage, policy, resolved.pricing)) return null;
   if (evaluateCacheGate(usage, policy, resolved.pricing)) return null;
 
-  const referenceCostUsd = computeBillingReferenceCostUsd(usage, resolved.pricing);
-  const referenceCostKrw = roundKrwTenths(
-    convertUsdToKrwPure(referenceCostUsd, input.effectiveKrwPerUsd)
-  );
-  const standardUserChargeKrw = roundKrwTenths(
-    referenceCostKrw / (1 - resolved.pricing.targetMargin)
-  );
-  return ceilPublishedChargePoints(standardUserChargeKrw);
+  return computePublishedStandardCharge(
+    usage,
+    resolved.pricing,
+    input.effectiveKrwPerUsd
+  ).standardPoints;
 }
 
 /**
