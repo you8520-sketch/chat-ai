@@ -75,13 +75,14 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   "deepseek-v4.1-flash": {
     modelId: "deepseek-v4.1-flash",
     commercialPricingOwner: "target_margin",
-    billingReferenceInputUsdPerMillion: 0.3,
-    billingReferenceOutputUsdPerMillion: 1.2,
-    billingReferenceCacheReadUsdPerMillion: 0.006,
+    // CheaperInference official peak/list cap (2026-09-28); live market discounts are procurement-only.
+    billingReferenceInputUsdPerMillion: 0.15,
+    billingReferenceOutputUsdPerMillion: 0.6,
+    billingReferenceCacheReadUsdPerMillion: 0.007,
     targetMargin: 0.6,
     minimumMarginFloor: 0.5,
-    pricingVersion: 1,
-    publishedAt: "2026-09-21T00:00:00.000Z",
+    pricingVersion: 2,
+    publishedAt: "2026-09-27T16:25:00.000Z",
   },
   "meta/muse-spark-1.1": {
     modelId: "meta/muse-spark-1.1",
