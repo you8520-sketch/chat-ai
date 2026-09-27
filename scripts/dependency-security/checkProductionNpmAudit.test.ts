@@ -20,13 +20,26 @@ function loadFixture(name: string): unknown {
 describe("checkProductionNpmAudit", () => {
   const baseline = loadBaseline(JSON.parse(readFileSync(BASELINE_PATH, "utf8")));
 
-  it("passes when only known baseline high advisories are present", () => {
-    const report = parseAuditReport(loadFixture("baseline-high-only.json"));
+  it("ships no accepted production HIGH advisories after the dependency fix", () => {
+    assert.equal(baseline.acceptedHigh.length, 0);
+  });
+
+  it("fails if the formerly baselined nanoid/postcss HIGH advisories reappear", () => {
+    const report = parseAuditReport(loadFixture("former-highs.json"));
     const result = checkProductionNpmAudit(report, baseline);
-    assert.equal(result.ok, true);
-    assert.equal(result.exitCode, 0);
+    assert.equal(result.ok, false);
+    assert.equal(result.exitCode, 1);
     assert.equal(result.summary.newCritical.length, 0);
-    assert.equal(result.summary.newHigh.length, 0);
+    assert.equal(result.summary.newHigh.length, 4);
+    assert.deepEqual(
+      new Set(result.summary.newHigh.map((entry) => entry.id)),
+      new Set([
+        "GHSA-28WG-GHJ8-5HJV",
+        "GHSA-2V37-7H3G-55P8",
+        "GHSA-6G55-P6WH-862Q",
+        "GHSA-R28C-9Q8G-F849",
+      ])
+    );
   });
 
   it("fails when a new high advisory appears", () => {
@@ -47,12 +60,24 @@ describe("checkProductionNpmAudit", () => {
     assert.equal(result.summary.newCritical[0]?.id, "GHSA-2XP9-VWfh-VXW4".toUpperCase());
   });
 
-  it("passes with stale baseline notice when a baselined high disappears", () => {
-    const report = parseAuditReport(loadFixture("baseline-removed.json"));
-    const result = checkProductionNpmAudit(report, baseline);
+  it("retains stale-baseline detection for future temporary exceptions", () => {
+    const syntheticBaseline = loadBaseline({
+      version: 1,
+      acceptedHigh: [
+        {
+          id: "GHSA-AAAA-BBBB-CCCC",
+          package: "synthetic-package",
+        },
+      ],
+    });
+    const report = parseAuditReport({
+      auditReportVersion: 2,
+      vulnerabilities: {},
+    });
+    const result = checkProductionNpmAudit(report, syntheticBaseline);
     assert.equal(result.ok, true);
     assert.equal(result.exitCode, 0);
-    assert.ok(result.summary.staleBaseline.length >= 2);
+    assert.equal(result.summary.staleBaseline.length, 1);
     assert.ok(result.messages.some((line) => line.includes("STALE BASELINE")));
   });
 
