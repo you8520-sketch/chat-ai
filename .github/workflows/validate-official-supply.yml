@@ -44,6 +44,9 @@ jobs:
       - name: Anchor operator defaults to zero calls
         run: npm run official-supply:generate-rofan-v4-anchors
 
+      - name: Lucian canonical sync defaults to zero mutations
+        run: npm run official-supply:sync-lucian-canon
+
       - name: Official supply regressions
         run: >-
           node --conditions=react-server --import tsx

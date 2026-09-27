@@ -27,7 +27,8 @@
     "prod:fast": "powershell -ExecutionPolicy Bypass -File ./scripts/run-prod.ps1",
     "official-supply:style-proof": "node --conditions=react-server --import tsx scripts/official-supply-style-proof.ts",
     "official-supply:cluster-b-v4-style-proof": "node --conditions=react-server --import tsx scripts/official-supply-cluster-b-v4-style-proof.ts",
-    "official-supply:generate-rofan-v4-anchors": "node --conditions=react-server --import tsx scripts/official-supply-generate-rofan-v4-anchors.ts"
+    "official-supply:generate-rofan-v4-anchors": "node --conditions=react-server --import tsx scripts/official-supply-generate-rofan-v4-anchors.ts",
+    "official-supply:sync-lucian-canon": "node --conditions=react-server --import tsx scripts/official-supply-sync-lucian-canon.ts"
   },
   "dependencies": {
     "@3d-dice/dice-box-threejs": "^0.0.12",
