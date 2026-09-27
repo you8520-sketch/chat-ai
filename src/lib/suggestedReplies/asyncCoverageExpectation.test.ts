@@ -92,6 +92,21 @@ describe("Suggested Replies async coverage owner", () => {
     assert.equal(result.taskFailed, false);
   });
 
+  it("shared-initial terminal quality failure is cost-complete at zero repair calls", () => {
+    const result = resolveSuggestedRepliesExpectation({
+      usage: {} as Usage,
+      record: record({
+        replies: [],
+        failed: true,
+      }),
+      repairLedgerRowCount: 0,
+      sharedInitialPhysicalRowCount: 1,
+    });
+    assert.equal(result.expectationState, "not_expected");
+    assert.equal(result.skipReason, "post_turn_shared_initial_terminal_no_repair");
+    assert.equal(result.taskFailed, true);
+  });
+
   it("shared-initial satisfied trio is not expected when no repair call exists", () => {
     const result = resolveSuggestedRepliesExpectation({
       usage: {

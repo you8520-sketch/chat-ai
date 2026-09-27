@@ -117,20 +117,6 @@ export function resolveSuggestedRepliesExpectation(input: {
     usage: input.usage,
     sharedInitialPhysicalRowCount: input.sharedInitialPhysicalRowCount ?? 0,
   });
-  if (
-    sharedSatisfied &&
-    input.record &&
-    suggestedRepliesHaveContent(input.record.replies) &&
-    !input.record.pending &&
-    input.repairLedgerRowCount === 0
-  ) {
-    return {
-      family,
-      label: ASYNC_FAMILY_LABELS[family],
-      expectationState: "not_expected",
-      skipReason: "post_turn_shared_initial_satisfied",
-    };
-  }
 
   if (!input.record) {
     return {
@@ -159,11 +145,28 @@ export function resolveSuggestedRepliesExpectation(input: {
     };
   }
 
+  const hasReplies = suggestedRepliesHaveContent(input.record.replies);
+  if (sharedSatisfied && input.repairLedgerRowCount === 0) {
+    return {
+      family,
+      label: ASYNC_FAMILY_LABELS[family],
+      // The one shared physical call already consumed this generation's
+      // provider budget. No standalone repair call can still appear, so the
+      // repair-cost family is complete at zero even when suggestion quality
+      // failed. Preserve taskFailed only as a content-quality diagnostic.
+      expectationState: "not_expected",
+      skipReason: hasReplies
+        ? "post_turn_shared_initial_satisfied"
+        : "post_turn_shared_initial_terminal_no_repair",
+      taskFailed: input.record.failed === true && !hasReplies,
+    };
+  }
+
   return {
     family,
     label: ASYNC_FAMILY_LABELS[family],
     expectationState: "terminal",
-    taskFailed: input.record.failed === true && !suggestedRepliesHaveContent(input.record.replies),
+    taskFailed: input.record.failed === true && !hasReplies,
   };
 }
 
