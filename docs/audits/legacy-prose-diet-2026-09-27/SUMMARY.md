@@ -98,28 +98,17 @@ Removed: the euphemism example list (kept as one semantic: direct standard anato
 
 Adult fixture, 6 active models × 2 per arm: refusals 0/24, fade-out 0/24. Genital euphemism: old 1 (Gemini 3.1 "그곳에"), new 0. Explicit standard naming present in both arms where the scene reached it.
 
-## Beard / body hair
+## Beard / body hair — audited, runtime fix not retained
 
-Root cause (proved): `resolveHairDescriptionPolicy` → `allowsBeard/allowsBodyHair` reached only `coreMasterInput`, which no cheaperinference/OpenRouter path renders; `buildBodyHairDescriptionRule` has no callers. Enforcement was the post-generation sanitizer only, which misses "까칠(해진) 턱(선)", "까슬한 턱선", "면도 흔적".
+Root cause was reproduced: `resolveHairDescriptionPolicy` computes `allowsBeard/allowsBodyHair`, but the cheaperinference/OpenRouter prompt path does not render those values; `buildBodyHairDescriptionRule` has no callers. The post-generation sanitizer therefore carries most enforcement and misses some stubble-adjacent wording.
 
-Fix: the character canon `[외형]` section now carries `외형의 털: 머리카락·눈썹뿐이다.` (or `…·설정의 수염/체모뿐이다.`). Character-scoped; USER_PERSONA untouched; sanitizer unchanged.
+The attempted character-canon fact was **reverted before merge**. It produced no measured reduction on Gemini 3.1 (invented stubble 1/9 before vs 1/9 with the kept candidate), and the wording `외형의 털: 머리카락·눈썹뿐이다.` was broader than the requested beard constraint. More explicit variants suppressed the symptom but were echoed into prose.
 
-Face-touch fixture, male character without beard:
-
-| wording | Gemini 3.1 invented stubble | Gemini 3.1 absence echo | Gemini 3.7 |
-|---|---|---|---|
-| before (no fact) | 1/9 ("까칠해진 턱선", not caught by sanitizer) | 0/9 | 0/9 |
-| v1 "수염·체모: 설정에 없음 — 수염 자국·까칠한 턱…" | 0/9 | 3/9 ("수염 자국 하나 없이") | 0/6 |
-| v2 (kept) "외형의 털: 머리카락·눈썹뿐이다." | 1/9 ("까칠해진 턱") | 0/9 | 0/4 |
-| v3 "…턱과 뺨은 매끈하다." | 0/9 | 9/9 "매끈한 턱선", 2/9 "수염 자국 하나 없이" | 0/4 |
-
-Beard canon (variant B) kept 4/4; persona beard (variant D) described 4/4.
-
-User-persona coupling (found, not changed): the sanitizer uses the character-derived policy on the whole reply, so a persona's explicit beard sentences are deleted (3/3 in variant D).
+Existing user-persona coupling remains unchanged: the sanitizer applies a character-derived policy to the whole reply and can delete a persona's legitimate beard description. This requires a subject-aware design rather than a stronger global prompt/regex.
 
 ## Follow-ups
 
-- Subject-aware hair sanitizer (character vs USER_PERSONA).
-- Stubble wording gaps in `BEARD_IN_OUTPUT` (optional; not the primary owner).
-- `buildBodyHairDescriptionRule` — confirmed unused; delete candidate.
+- Beard/body-hair owner redesign: subject-aware character vs USER_PERSONA handling, then re-test generation prevention before adding runtime prompt text.
+- Stubble wording gaps in `BEARD_IN_OUTPUT` (optional fallback only; not the primary fix).
+- `buildBodyHairDescriptionRule` — confirmed unused; delete candidate after the owner redesign is settled.
 - Gemini 3.1 visible-length variance tied to reasoning allocation (provider behaviour, not prose).
