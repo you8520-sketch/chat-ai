@@ -366,7 +366,7 @@ describe("G10-SD1 Scene Pacing Controller API=0", () => {
 [genre_tone] 아포칼립스: cold survival.
 [SCENE MODE] 아포칼립스 → tension (pacing hint for [SCENE FLOW] only — not a cue to shorten).
 
-[IMMERSIVE PROSE]
+[COMMON PROSE]
 ok`;
     const stripped = stripGenreSceneModePacingHint(src);
     assert.doesNotMatch(stripped, /\[SCENE MODE\]/);
@@ -384,7 +384,7 @@ ok`;
     const base = [
       {
         role: "system",
-        content: `[CORE RP]\nok\n${SCENE_FLOW_BLOCK}\n[IMMERSIVE PROSE]\nimm`,
+        content: `[CORE RP]\nok\n${SCENE_FLOW_BLOCK}\n[COMMON PROSE]\nimm`,
       },
       { role: "user", content: "hi" },
     ];
@@ -410,7 +410,7 @@ ok`;
     const base = [
       {
         role: "system",
-        content: `[CORE RP]\nok\n${SCENE_FLOW_BLOCK}\n[IMMERSIVE PROSE]\nimm`,
+        content: `[CORE RP]\nok\n${SCENE_FLOW_BLOCK}\n[COMMON PROSE]\nimm`,
       },
       { role: "user", content: "hi" },
     ];
@@ -473,7 +473,7 @@ ok`;
     const base = [
       {
         role: "system",
-        content: `[CORE RP]\nok\n${SCENE_FLOW_BLOCK}\n[IMMERSIVE PROSE]\nimm`,
+        content: `[CORE RP]\nok\n${SCENE_FLOW_BLOCK}\n[COMMON PROSE]\nimm`,
       },
       { role: "user", content: "hi" },
     ];
@@ -545,7 +545,7 @@ ok`;
     const base = [
       {
         role: "system",
-        content: `[CORE RP]\nok\n${SCENE_FLOW_BLOCK}\n[IMMERSIVE PROSE]\nimm\n${DIALOGUE_NARRATION_STRUCTURE_RULE}\n[LENGTH]\nlen`,
+        content: `[CORE RP]\nok\n${SCENE_FLOW_BLOCK}\n[COMMON PROSE]\nimm\n${DIALOGUE_NARRATION_STRUCTURE_RULE}\n[LENGTH]\nlen`,
       },
       { role: "user", content: "hi" },
     ];
