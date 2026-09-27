@@ -1,0 +1,73 @@
+{
+  "arm": "A",
+  "fixtureId": "quiet_intimacy",
+  "run": 3,
+  "frozen_prompt_hash": "727818ba432127062d9642c63f1027c99f32a721b964d57a6630604cf3938599",
+  "requested_model": "gemini-3.1-pro-preview",
+  "returned_model": "gemini-3.1-pro-preview",
+  "generation_id": "gen-1790509129-DOLehYpjSDPkkO0STtcJ",
+  "temperature_field": 0.95,
+  "reasoning_effort": "low",
+  "provider_calls": 1,
+  "visible_chars": 591,
+  "prompt_tokens": 5064,
+  "completion_tokens": 1711,
+  "reasoning_reporting_state": "REPORTED",
+  "reasoning_tokens": 1332,
+  "reasoning_completion_share": 0.7784921098772648,
+  "finish_reason": "stop",
+  "latency_ms": 16420,
+  "cost": null,
+  "cache_tokens": 4573,
+  "status": 200,
+  "error": null,
+  "occurrences": {
+    "user_dialogue_invented": 0,
+    "user_major_choice_action": 0,
+    "filler": 0,
+    "repeated_idea": 0,
+    "abstract_emotion_padding": 0,
+    "unnecessary_npc_event": 0,
+    "premature_scene_closure": 0,
+    "layout_no_blank_line": 0,
+    "catastrophic_short": 1
+  },
+  "response_meta": {
+    "headers": {
+      "server": "Vercel",
+      "x-accel-buffering": "no",
+      "x-ci-cache": "miss",
+      "x-ci-prompt-cache-affinity": "hit",
+      "x-ci-request-id": "36152ecc-0b9d-4db1-a45f-ca6d82e46370",
+      "x-ci-techniques": "",
+      "x-ci-tokens-saved": "0",
+      "x-ci-zdr": "false",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "x-matched-path": "/api/v1/chat/completions",
+      "x-nextjs-rewritten-path": "/api/v1/chat/completions",
+      "x-vercel-cache": "MISS",
+      "x-vercel-id": "iad1::iad1::ftxh2-1790509128417-adf2edb1f496"
+    },
+    "final_chunk": {
+      "id": "gen-1790509129-DOLehYpjSDPkkO0STtcJ",
+      "model": "gemini-3.1-pro-preview",
+      "object": "chat.completion.chunk",
+      "created": 1790509129
+    }
+  },
+  "usage": {
+    "prompt_tokens": 5064,
+    "completion_tokens": 1711,
+    "total_tokens": 6775,
+    "prompt_tokens_details": {
+      "cached_tokens": 4573
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 1332,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    },
+    "cached_tokens": 4573
+  }
+}

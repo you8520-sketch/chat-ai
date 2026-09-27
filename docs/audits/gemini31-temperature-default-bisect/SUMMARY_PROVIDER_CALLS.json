@@ -1,0 +1,5 @@
+{
+  "provider_calls_total": 12,
+  "per_sample": 1,
+  "arm_c_stopped": "{\"error\":{\"type\":\"api_error\",\"message\":\"No compatible route completed this request.\"}}"
+}

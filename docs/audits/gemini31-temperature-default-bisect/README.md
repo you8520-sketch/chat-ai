@@ -14,6 +14,16 @@ Investigation only until evidence. Main RP = exactly 1 provider call.
 | B | `gemini-3.1-pro-preview` | **OMITTED** |
 | C | `gemini-3.1-pro` | **OMITTED** + `reasoning_effort=low` |
 
+## Live Phase 1 verdict (n=5)
+
+| Arm | median | mean | &lt;1500 | ≥3200 |
+|---|---|---|---|---|
+| A preview@0.95 | 1981 | 2003 | 1 | 1 |
+| B preview omit temp | 1258 | 1245 | 3 | 0 |
+| C `gemini-3.1-pro` omit | STOP (503 no compatible route) | — | — | — |
+
+**ROOT_CAUSE_UNCONFIRMED** — B does not beat A. PRODUCTION DIFF=0. See `REPORT.md`.
+
 ## Run
 
 ```bash

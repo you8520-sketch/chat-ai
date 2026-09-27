@@ -1,0 +1,6 @@
+{
+  "reason": "model rejected request (likely reasoning_effort=low or model contract)",
+  "status": 503,
+  "error": "{\"error\":{\"type\":\"api_error\",\"message\":\"No compatible route completed this request.\"}}",
+  "run": 2
+}
