@@ -155,7 +155,7 @@ describe("official asset prompts", () => {
     const rep = plan.slots.find((s) => s.kind === "representative")!;
     const { primaryPrompt } = buildOfficialAssetPrompts({ draft, appearance, style, slot: rep });
     assert.match(primaryPrompt, /vertical 2:3/);
-    assert.match(primaryPrompt, /style reference only/);
+    assert.match(primaryPrompt, /STYLE ONLY/i);
   });
 
   it("nsfw metadata alone never widens depiction; adult allowance needs a confirmed-adult slot opt-in", () => {

@@ -6,6 +6,7 @@ import {
   resolveOfficialAssetImageModel,
 } from "@/lib/officialSupply/imageProfile";
 import { buildOfficialAssetPrompts, OFFICIAL_ASSET_TEMPLATE_ID } from "@/lib/officialSupply/imagePrompt";
+import { resolveOfficialStyleGenerationReferences } from "@/lib/officialSupply/style";
 import { OfficialSupplyGateError, type OfficialSupplyStore } from "@/lib/officialSupply/store";
 import type { OfficialAssetModeration } from "@/lib/officialSupply/types";
 
@@ -200,9 +201,9 @@ export async function runOfficialAssetSlot(
   }
   const references =
     plan.kind === "representative"
-      ? [style.styleSeed.url]
+      ? resolveOfficialStyleGenerationReferences(style.styleSeed)
       : [deps.store.representativeAsset(draftKey).resultUrl ?? ""];
-  if (references.some((ref) => !ref)) {
+  if (references.length === 0 || references.some((ref) => !ref)) {
     deps.store.failSlot(draftKey, slotKey, deps.workerId, "missing reference");
     return { status: "failed", error: "missing reference" };
   }

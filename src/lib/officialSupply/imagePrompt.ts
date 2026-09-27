@@ -86,7 +86,13 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
   ]);
   const referenceRule =
     slot.kind === "representative"
-      ? "REFERENCE IMAGE: style reference only. Create a brand-new original person; do not copy the face, hair, outfit, pose or identity of anyone in the reference."
+      ? [
+          "REFERENCE IMAGE(S): STYLE ONLY.",
+          "Use the supplied image(s) solely for drawing/rendering language, facial illustration treatment, coloring, lighting, hair rendering density, material detail, detail density, and overall polish.",
+          "Create a brand-new original person.",
+          "Do not copy any reference person's face identity, hairstyle, hair color, eye color, outfit design, jewelry, marks/tattoos/scars, pose, or background.",
+          "The IDENTITY LOCK / Appearance Lock below is the sole character-identity owner and overrides any resemblance to the style references.",
+        ].join(" ")
       : "REFERENCE IMAGE: the approved identity anchor of this same character. Keep the exact same person; only expression, pose, outfit variant and setting change.";
   const moment = [
     `Expression: ${slot.expression}.`,

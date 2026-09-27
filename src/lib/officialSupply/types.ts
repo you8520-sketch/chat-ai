@@ -94,6 +94,12 @@ export type StyleReference = {
   url: string;
   provenance: StyleReferenceProvenance;
   note: string;
+  /**
+   * Optional companion style-only images (platform_owned / licensed).
+   * Used only on the approved style seed root. Never character-identity anchors.
+   * Nested entries must not themselves carry further companions.
+   */
+  styleOnlyVisualReferences?: StyleReference[];
 };
 
 export type VisualStyleCandidate = {

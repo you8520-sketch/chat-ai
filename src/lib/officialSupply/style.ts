@@ -12,6 +12,8 @@ export const OFFICIAL_STYLE_KEY_RE = /^[a-z0-9]+(?:_[a-z0-9]+)*_v\d+$/;
 export const STYLE_CANDIDATES_MIN = 3;
 export const STYLE_CANDIDATES_MAX = 5;
 export const DEFAULT_STYLE_PROOF_ASSET_LIMIT = 3;
+/** Representative generation may send at most this many style-only images (primary + companions). */
+export const OFFICIAL_STYLE_GENERATION_REF_MAX = 3;
 
 /**
  * Product-level visual direction for the domestic-first romance-fantasy line.
@@ -31,6 +33,26 @@ const COPY_TARGET_RE = /(?:화풍\s*복제|그림체\s*복제|style of\s+\S+|in 
 
 export function isGenerationSafeReference(reference: StyleReference | null | undefined): boolean {
   return reference?.provenance === "platform_owned" || reference?.provenance === "licensed";
+}
+
+/**
+ * URLs the representative slot sends to the image provider as STYLE-ONLY references.
+ * Appearance Lock remains the character identity owner — these images must never
+ * override face/hair/outfit/age canon.
+ */
+export function resolveOfficialStyleGenerationReferences(
+  seed: StyleReference | null | undefined
+): string[] {
+  if (!seed?.url.trim()) return [];
+  const companions = (seed.styleOnlyVisualReferences ?? [])
+    .map((ref) => ref.url.trim())
+    .filter(Boolean);
+  const urls: string[] = [];
+  for (const url of [seed.url.trim(), ...companions]) {
+    if (!urls.includes(url)) urls.push(url);
+    if (urls.length >= OFFICIAL_STYLE_GENERATION_REF_MAX) break;
+  }
+  return urls;
 }
 
 function suitabilityScoreOk(value: number): boolean {
@@ -105,6 +127,22 @@ export function validateStyleSeedForApproval(seed: StyleReference | null | undef
   if (!seed?.url.trim()) return "style seed reference is required before any paid generation";
   if (!isGenerationSafeReference(seed)) {
     return "only platform-owned or licensed references may be sent to the image provider";
+  }
+  const companions = seed.styleOnlyVisualReferences ?? [];
+  if (companions.length > OFFICIAL_STYLE_GENERATION_REF_MAX - 1) {
+    return `at most ${OFFICIAL_STYLE_GENERATION_REF_MAX - 1} companion style-only references are allowed`;
+  }
+  for (const [index, ref] of companions.entries()) {
+    if (!ref.url.trim()) return `styleOnlyVisualReferences[${index}] url is required`;
+    if (!isGenerationSafeReference(ref)) {
+      return `styleOnlyVisualReferences[${index}] must be platform-owned or licensed`;
+    }
+    if (ref.styleOnlyVisualReferences?.length) {
+      return `styleOnlyVisualReferences[${index}] must not nest further companions`;
+    }
+  }
+  if (resolveOfficialStyleGenerationReferences(seed).length > OFFICIAL_STYLE_GENERATION_REF_MAX) {
+    return `style generation references exceed max ${OFFICIAL_STYLE_GENERATION_REF_MAX}`;
   }
   return null;
 }

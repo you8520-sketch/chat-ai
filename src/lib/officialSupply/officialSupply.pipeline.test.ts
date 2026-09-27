@@ -311,6 +311,52 @@ describe("anchor-first generation, retries and idempotency", () => {
     assert.equal(last.references[0], store.representativeAsset("anchor-1").resultUrl);
   });
 
+  it("representative retry/regen keeps all approved style-only companions on every provider attempt", async () => {
+    const world = new FakeWorld();
+    batchSeq += 1;
+    const styleKey = `romance_fantasy_v${batchSeq}`;
+    const batchKey = `batch-multi-ref-${batchSeq}`;
+    const multiSeed = {
+      url: "/uploads/style-primary.webp",
+      provenance: "platform_owned" as const,
+      note: "STYLE ONLY primary",
+      styleOnlyVisualReferences: [
+        { url: "/uploads/style-companion-a.webp", provenance: "platform_owned" as const, note: "STYLE ONLY a" },
+        { url: "/uploads/style-companion-b.webp", provenance: "platform_owned" as const, note: "STYLE ONLY b" },
+      ],
+    };
+    store.createBatch(batchKey, testBatchConfig({ budgetUsd: { batch: 100 }, maxAttemptsPerSlot: 4 }));
+    store.proposeStyle({
+      styleKey,
+      genre: "로맨스 판타지",
+      candidates: ["c1", "c2", "c3"].map(testStyleCandidate),
+    });
+    store.approveStyleCandidate(styleKey, "c2", multiSeed, "owner");
+    const persisted = store.getStyle(styleKey).styleSeed;
+    assert.equal(persisted?.styleOnlyVisualReferences?.length, 2);
+    lockThroughPlan(
+      store,
+      { batchKey, styleKey, worldKey: `world-multi-${batchSeq}` },
+      uniqueDraft("multi-ref-1", HWANG_VOCAB, "레온하르트"),
+      { isStyleProof: true }
+    );
+    world.failNextProvider = [{ message: "provider timeout", costUsd: 0.05 }];
+    const deps = world.deps(store);
+    assert.equal((await runOfficialAssetSlot(deps, "multi-ref-1", "rep")).status, "failed");
+    assert.equal((await runOfficialAssetSlot(deps, "multi-ref-1", "rep")).status, "generated");
+    assert.equal(world.calls.length, 2);
+    const expected = [
+      "/uploads/style-primary.webp",
+      "/uploads/style-companion-a.webp",
+      "/uploads/style-companion-b.webp",
+    ];
+    for (const call of world.calls) {
+      assert.deepEqual(call.references, expected);
+    }
+    assert.match(world.calls[0]!.primaryPrompt, /STYLE ONLY/i);
+    assert.match(world.calls[1]!.primaryPrompt, /Do not copy any reference person's face identity/i);
+  });
+
   it("uses the canonical effective model (env override) and records it per asset", async () => {
     const world = new FakeWorld();
     const batch = await freshBatch(store);

@@ -110,7 +110,7 @@ describe("romance-fantasy rf-02 style proof gate", () => {
     }
   });
 
-  it("the v2 operator contains no v1 persisted-state recovery or quota reset", () => {
+  it("the current proof operator contains no persisted-state recovery or quota reset", () => {
     const source = fs.readFileSync(
       path.join(process.cwd(), "scripts/official-supply-style-proof.ts"),
       "utf8"
