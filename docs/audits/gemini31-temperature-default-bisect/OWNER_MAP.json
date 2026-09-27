@@ -1,0 +1,16 @@
+{
+  "EXACT_MAIN": "a8c343fc4b9f3bb1180d628707aa87218e77433b",
+  "LOCAL_HEAD": "a8c343fc4b9f3bb1180d628707aa87218e77433b",
+  "GEMINI_PRO_GENERATION_PARAMS": {
+    "temperature": 0.95
+  },
+  "temperature_0_95_consumers": "normalizeOpenRouterGenerationParams → isGeminiProOpenRouterModel/isGemini31ProModel (id includes gemini-3.1-pro)",
+  "gemini_37_flash": "isCheaperInferenceGemini37FlashModel — NOT in Gemini Pro temperature path; own reasoning_effort=low",
+  "gemini_37_unaffected_by_pro_temp": true,
+  "ci_preview_is_31_pro_family": true,
+  "ci_pro_is_31_pro_family": true,
+  "ci_37_is_37": true,
+  "reasoning_adapt": "isCheaperInferenceGemini31ProModel matches PREVIEW only → reasoning_effort=low; bare gemini-3.1-pro falls through to none unless harness sets low",
+  "billing_pricing": "unchanged — investigation only",
+  "cache_owner": "CI prompt-cache headers / session affinity (not mutated)"
+}
