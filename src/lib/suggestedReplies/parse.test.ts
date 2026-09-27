@@ -41,12 +41,14 @@ describe("suggested reply kinds", () => {
 });
 
 describe("suggested reply length", () => {
-  it("rejects shorter than 50 characters", () => {
-    assert.equal(normalizeSuggestedReply("짧다"), null);
-    assert.equal(normalizeSuggestedReply(padReply("짧은대사 ", 49)), null);
+  it("accepts non-empty short text while the raw quality contract still targets 50 characters", () => {
+    assert.equal(normalizeSuggestedReply("짧다"), "짧다");
+    const short = padReply("짧은대사 ", 49);
+    assert.equal(normalizeSuggestedReply(short), short);
+    assert.equal(normalizeSuggestedReply("   "), null);
   });
 
-  it("accepts 50–200 characters and clips longer text", () => {
+  it("accepts target-length text and clips longer text", () => {
     const minOk = padReply("*한숨을 쉬며* \"그건 아니야.\" ", SUGGESTED_REPLY_MIN_CHARS);
     const maxOk = padReply("*한숨을 쉬며* \"그건 아니야.\" ", SUGGESTED_REPLY_MAX_CHARS);
     assert.equal(normalizeSuggestedReply(minOk), minOk);
@@ -159,7 +161,7 @@ describe("parseSuggestedRepliesFromModelText", () => {
     assert.equal(replies[2]?.text, banter);
   });
 
-  it("still fails closed when raw model text is below the canonical minimum", () => {
+  it("accepts under-target raw text when the canonical three-kind structure is usable", () => {
     const natural = padReply("*고개를 들며* \"계속 말해 봐.\" ", 72);
     const twist = "너무 짧다";
     const banter = padReply("*웃으며* \"그럼 이번엔 네 차례야.\" ", 72);
@@ -173,7 +175,11 @@ describe("parseSuggestedRepliesFromModelText", () => {
           ],
         })
       ),
-      []
+      [
+        { kind: "natural", text: natural },
+        { kind: "twist", text: twist },
+        { kind: "banter", text: banter },
+      ]
     );
   });
 
