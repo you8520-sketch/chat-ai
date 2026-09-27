@@ -1057,14 +1057,32 @@ export function compileOfficialDraftFromBible(
     throw new OfficialSupplyGateError("author_shape_invalid", `${task}: at most 3 supporting NPCs`);
   }
 
-  const identityLine = `${id.name}(${id.age}세, ${id.occupation} · ${id.socialPosition} · ${id.affiliation}). ${id.worldRole}.`;
+  const cleanSentence = (value: string): string =>
+    value.trim().replace(/[.!?。！？]+$/u, "");
+  const stripOwnedHeightPrefix = (value: string): string =>
+    value
+      .trim()
+      .replace(new RegExp(`^\\s*${id.heightCm}\\s*cm(?:의)?\\s*`), "")
+      .trim();
+
+  const identityLine = [
+    `${id.name}(${id.age}세, ${id.occupation} · ${id.socialPosition} · ${id.affiliation}).`,
+    `${cleanSentence(id.worldRole)}.`,
+  ].join(" ");
   const appearanceSummary = [
-    `${bible.appearance.faceShape}에 ${bible.appearance.eyes}(${bible.appearance.eyeColor})`,
-    `${bible.appearance.hairColor} ${bible.appearance.hairstyle}(${bible.appearance.hairLength})`,
-    `${id.heightCm}cm ${bible.appearance.build}, ${bible.appearance.skin} 피부`,
-    `특징: ${bible.appearance.distinguishingFeatures}`,
-    `평소 ${bible.appearance.usualExpression}. ${bible.appearance.defaultOutfit} 차림, ${bible.appearance.accessories}.`,
-    `인상: ${bible.appearance.impression}`,
+    `얼굴: ${cleanSentence(bible.appearance.faceShape)}.`,
+    `눈: ${cleanSentence(bible.appearance.eyes)} 눈동자: ${cleanSentence(bible.appearance.eyeColor)}.`,
+    `머리색: ${cleanSentence(bible.appearance.hairColor)} 헤어스타일: ${cleanSentence(
+      bible.appearance.hairstyle
+    )} 길이: ${cleanSentence(bible.appearance.hairLength)}.`,
+    `키: ${id.heightCm}cm. 체격: ${cleanSentence(
+      stripOwnedHeightPrefix(bible.appearance.build)
+    )}. 피부: ${cleanSentence(bible.appearance.skin)}.`,
+    `특징: ${cleanSentence(bible.appearance.distinguishingFeatures)}.`,
+    `표정: ${cleanSentence(bible.appearance.usualExpression)}.`,
+    `기본 복장: ${cleanSentence(bible.appearance.defaultOutfit)}.`,
+    `액세서리: ${cleanSentence(bible.appearance.accessories)}.`,
+    `인상: ${cleanSentence(bible.appearance.impression)}.`,
   ].join(" ");
   const valuesText = [
     `원하는 것: ${bible.values.desires.join(" / ")}`,
