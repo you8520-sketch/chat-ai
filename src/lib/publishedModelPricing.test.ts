@@ -4,9 +4,15 @@ import { getPublishedPricing, listExactPublishedCatalogEntries } from "./publish
 import { evaluateGemini37V2AcceptanceGates } from "./gemini37PricingPolicy";
 import { evaluatePremiumPricingGates } from "./premiumPricingCalibration";
 import { requirePrimaryBenchmark } from "./marketUsageBenchmarks";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "./chatModels";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+} from "./chatModels";
 import { normalizeBillableUsage } from "./billingUsage";
-import { computePublishedUserChargeWithSnapshot } from "./publishedUserCharge";
+import {
+  computePublishedStandardPreviewPoints,
+  computePublishedUserChargeWithSnapshot,
+} from "./publishedUserCharge";
 import { isPublishedCacheBreakdownPriceNeutral } from "./modelPublishedPricingPolicy";
 import type { BillingFxSnapshot } from "./billingFxSnapshot";
 
@@ -97,6 +103,43 @@ describe("publishedModelPricing", () => {
     });
     assert.equal(charge.status, "complete");
     if (charge.status === "complete") assert.equal(charge.snapshot.finalPoints, 100);
+  });
+
+  it("V4.1 standard preview and live published charge share one arithmetic owner", () => {
+    const fx: BillingFxSnapshot = {
+      mode: "daily_kst",
+      dateKey: "2026-08-28",
+      usdToKrw: 1530,
+      effectiveKrwPerUsd: 1560.6,
+      source: "api_daily",
+      overseasFeeRate: 0.02,
+      locked: true,
+    };
+    const inputTokens = 22_000;
+    const outputTokens = 1_500;
+    const preview = computePublishedStandardPreviewPoints({
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      promptTokens: inputTokens,
+      outputTokens,
+      effectiveKrwPerUsd: fx.effectiveKrwPerUsd,
+    });
+    const live = computePublishedUserChargeWithSnapshot({
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      usage: normalizeBillableUsage({
+        modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+        promptTokens: inputTokens,
+        outputTokens,
+      }),
+      usageCoverage: "complete",
+      fxSnapshot: fx,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(live.status, "complete");
+    if (live.status === "complete") {
+      assert.equal(preview, live.snapshot.finalPoints);
+      assert.equal(live.snapshot.pricingVersion, 1);
+      assert.equal(live.snapshot.targetMargin, 0.6);
+    }
   });
 
   it("Opus 5.5 published user charge is cache-partition price-neutral", () => {
