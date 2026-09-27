@@ -1,0 +1,231 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { afterEach, beforeEach, describe, it } from "node:test";
+
+import {
+  AUTHORIAL_HABIT_JEV_CORPUS,
+} from "@/lib/authorialHabitJevCorpus";
+import {
+  AUTHORIAL_HABIT_JEV_QUESTION_ID,
+  assertAuthorialHabitJevStateHasNoPrivateIdentifiers,
+  buildAuthorialHabitJevQuestions,
+  buildAuthorialHabitJevState,
+  evaluateAuthorialHabitCandidate,
+  parseAuthorialHabitJevVerdict,
+} from "@/lib/authorialHabitJevJudge";
+import { JEV_DECISIONS_URL } from "@/lib/jevDecisions";
+import {
+  OPENROUTER_JEV_BENCHMARK_ENV,
+  REAL_JEV_AUTHORIAL_HABIT_PROBE_ENV,
+  resolveOptInJevAuthorialHabitBenchmarkApiKey,
+  sanitizeAuthorialHabitBenchmarkCredentialText,
+  withIsolatedAuthorialHabitBenchmarkOpenRouterKey,
+} from "./authorialHabitJevBenchmarkCredential";
+import {
+  assertAuthorialHabitCandidateLabelBalance,
+  runAuthorialHabitJevBenchmark,
+  scanAuthorialHabitCorpus,
+} from "./authorialHabitJevBenchmark";
+
+let savedFetch: typeof fetch;
+let savedProdKey: string | undefined;
+
+beforeEach(() => {
+  savedFetch = globalThis.fetch;
+  savedProdKey = process.env.OPENROUTER_API_KEY;
+});
+
+afterEach(() => {
+  globalThis.fetch = savedFetch;
+  if (savedProdKey === undefined) delete process.env.OPENROUTER_API_KEY;
+  else process.env.OPENROUTER_API_KEY = savedProdKey;
+});
+
+describe("authorial habit JEV benchmark corpus", () => {
+  it("keeps a balanced scanner-positive corpus across semantic labels", () => {
+    const scan = scanAuthorialHabitCorpus();
+    const balance = assertAuthorialHabitCandidateLabelBalance();
+    assert.equal(AUTHORIAL_HABIT_JEV_CORPUS.length, 24);
+    assert.equal(scan.totalFixtures, 24);
+    assert.equal(balance.ok, true, balance.detail);
+    assert.ok(balance.habitPresent >= 6);
+    assert.ok(balance.justified >= 6);
+    assert.ok(balance.uncertain >= 3);
+  });
+
+  it("uses existing authorialHabitAudit as lexical candidate owner", () => {
+    for (const fixture of AUTHORIAL_HABIT_JEV_CORPUS) {
+      const evaluated = evaluateAuthorialHabitCandidate(fixture);
+      assert.equal(
+        evaluated.candidate,
+        true,
+        `${fixture.id} should be scanner-positive for benchmark refinement`
+      );
+      assert.ok(evaluated.signals.hitCount > 0);
+    }
+  });
+
+  it("builds bounded, identifier-free JEV state and strict verdict parsing", () => {
+    const fixture = AUTHORIAL_HABIT_JEV_CORPUS[0]!;
+    const evaluated = evaluateAuthorialHabitCandidate(fixture);
+    const state = buildAuthorialHabitJevState({
+      fixture,
+      signals: evaluated.signals,
+    });
+    assert.ok(state.excerpt.length <= 1200);
+    assert.deepEqual(
+      assertAuthorialHabitJevStateHasNoPrivateIdentifiers(
+        state as unknown as Record<string, unknown>
+      ),
+      []
+    );
+    const questions = buildAuthorialHabitJevQuestions();
+    assert.equal(questions[AUTHORIAL_HABIT_JEV_QUESTION_ID]?.type, "choice");
+    assert.equal(
+      parseAuthorialHabitJevVerdict({
+        [AUTHORIAL_HABIT_JEV_QUESTION_ID]: {
+          type: "choice",
+          choice: "HABIT_PRESENT",
+        },
+      }),
+      "HABIT_PRESENT"
+    );
+    assert.equal(
+      parseAuthorialHabitJevVerdict({
+        [AUTHORIAL_HABIT_JEV_QUESTION_ID]: {
+          type: "choice",
+          choice: "NOT_REAL",
+        },
+      }),
+      null
+    );
+  });
+});
+
+describe("authorial habit JEV benchmark credential isolation", () => {
+  it("requires triple opt-in and never falls back to production key", () => {
+    const env = {
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0",
+      [REAL_JEV_AUTHORIAL_HABIT_PROBE_ENV]: "1",
+      [OPENROUTER_JEV_BENCHMARK_ENV]: "bench-key",
+      OPENROUTER_API_KEY: "prod-key-must-not-be-used",
+    } as NodeJS.ProcessEnv;
+    assert.equal(resolveOptInJevAuthorialHabitBenchmarkApiKey(env), null);
+    env.REGULAR_TEST_REAL_PROVIDER_CALLS = "1";
+    env[REAL_JEV_AUTHORIAL_HABIT_PROBE_ENV] = "0";
+    assert.equal(resolveOptInJevAuthorialHabitBenchmarkApiKey(env), null);
+    env[REAL_JEV_AUTHORIAL_HABIT_PROBE_ENV] = "1";
+    delete env[OPENROUTER_JEV_BENCHMARK_ENV];
+    assert.equal(resolveOptInJevAuthorialHabitBenchmarkApiKey(env), null);
+    env[OPENROUTER_JEV_BENCHMARK_ENV] = "bench-key";
+    assert.equal(resolveOptInJevAuthorialHabitBenchmarkApiKey(env), "bench-key");
+  });
+
+  it("temporarily shadows canonical env and restores previous production value", async () => {
+    process.env.OPENROUTER_API_KEY = "prod-process-key";
+    const inside = await withIsolatedAuthorialHabitBenchmarkOpenRouterKey(
+      "bench-process-key",
+      async () => process.env.OPENROUTER_API_KEY
+    );
+    assert.equal(inside, "bench-process-key");
+    assert.equal(process.env.OPENROUTER_API_KEY, "prod-process-key");
+  });
+
+  it("redacts both benchmark and production credential forms", () => {
+    const text = sanitizeAuthorialHabitBenchmarkCredentialText(
+      "OPENROUTER_JEV_BENCHMARK_API_KEY=bench-secret OPENROUTER_API_KEY=prod-secret Bearer token-secret"
+    );
+    assert.doesNotMatch(text, /bench-secret|prod-secret|token-secret/);
+    assert.match(text, /OPENROUTER_JEV_BENCHMARK_API_KEY=\[REDACTED\]/);
+    assert.match(text, /OPENROUTER_API_KEY=\[REDACTED\]/);
+    assert.match(text, /Bearer \[REDACTED\]/);
+  });
+});
+
+describe("authorial habit JEV benchmark execution isolation", () => {
+  it("missing opt-in returns NOT_RUN with zero HTTP/provider calls", async () => {
+    let fetchCalls = 0;
+    globalThis.fetch = (async () => {
+      fetchCalls += 1;
+      throw new Error("fetch must not run");
+    }) as typeof fetch;
+
+    const result = await runAuthorialHabitJevBenchmark({
+      env: {
+        OPENROUTER_API_KEY: "prod-key-must-never-be-used",
+      } as NodeJS.ProcessEnv,
+      fixtures: [AUTHORIAL_HABIT_JEV_CORPUS[0]!],
+      log: () => {},
+    });
+
+    assert.equal(result.status, "NOT_RUN");
+    assert.equal(result.providerCalls, 0);
+    assert.equal(fetchCalls, 0);
+  });
+
+  it("full opt-in uses benchmark key on official Decisions endpoint and ledger=null", async () => {
+    const seen: Array<{ url: string; auth: string; body: Record<string, unknown> }> = [];
+    process.env.OPENROUTER_API_KEY = "prod-process-key-must-be-restored";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      seen.push({
+        url: String(url),
+        auth: headers.Authorization ?? "",
+        body,
+      });
+      return Response.json({
+        id: "dec_authorial_fixture",
+        model: "typesafe/jev-1.13-20260917",
+        answers: {
+          [AUTHORIAL_HABIT_JEV_QUESTION_ID]: {
+            type: "choice",
+            choice: "HABIT_PRESENT",
+            probabilities: {
+              HABIT_PRESENT: 0.9,
+              CONTEXTUALLY_JUSTIFIED: 0.05,
+              UNCERTAIN: 0.05,
+            },
+            confidence: 0.9,
+          },
+        },
+        usage: {
+          input_tokens: 42,
+          output_tokens: 8,
+          cost: 0.00002,
+        },
+      });
+    }) as typeof fetch;
+
+    const result = await runAuthorialHabitJevBenchmark({
+      env: {
+        REGULAR_TEST_REAL_PROVIDER_CALLS: "1",
+        [REAL_JEV_AUTHORIAL_HABIT_PROBE_ENV]: "1",
+        [OPENROUTER_JEV_BENCHMARK_ENV]: "benchmark-only-key",
+        OPENROUTER_API_KEY: "prod-env-object-key-must-never-be-used",
+      } as NodeJS.ProcessEnv,
+      fixtures: [AUTHORIAL_HABIT_JEV_CORPUS[0]!],
+      log: () => {},
+    });
+
+    assert.equal(result.status, "RAN");
+    if (result.status !== "RAN") return;
+    assert.equal(result.totalProviderCalls, 1);
+    assert.equal(result.productionMutationEnabled, false);
+    assert.equal(result.runtimeHookEnabled, false);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0]?.url, JEV_DECISIONS_URL);
+    assert.equal(seen[0]?.auth, "Bearer benchmark-only-key");
+    assert.notEqual(seen[0]?.auth, "Bearer prod-env-object-key-must-never-be-used");
+    assert.equal(process.env.OPENROUTER_API_KEY, "prod-process-key-must-be-restored");
+  });
+
+  it("does not wire authorial benchmark into production /api/chat route", () => {
+    const routeSource = readFileSync(
+      new URL("../../src/app/api/chat/route.ts", import.meta.url),
+      "utf8"
+    );
+    assert.doesNotMatch(routeSource, /authorialHabitJev/i);
+    assert.doesNotMatch(routeSource, /authorial-habit-jev/i);
+  });
+});
