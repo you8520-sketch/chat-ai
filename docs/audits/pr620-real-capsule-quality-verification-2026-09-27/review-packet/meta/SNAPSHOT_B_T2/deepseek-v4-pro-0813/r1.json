@@ -1,0 +1,151 @@
+{
+  "model": "deepseek-v4-pro-0813",
+  "snapshot": "SNAPSHOT_B_T2",
+  "rep": 1,
+  "capsuleHash": "251ae04247be8ac62c66e8af3b58c0797c94e4938cb3a7a5dec92893da7ab03e",
+  "promptHash": "9553f557fe831a13e80853bdba8a14895573c6ff87de274e8b9d4fe8e640ddee",
+  "snapshotFingerprint": "d81132d8052cda36109a9825fa06fea83c2391cd6b86669e3777358c4c5d056f",
+  "providerCallCount": 1,
+  "visibleChars": 2645,
+  "prompt_tokens": 16415,
+  "completion_tokens": 2083,
+  "reasoning_tokens": 0,
+  "finish_reason": "stop",
+  "latencyMs": 42222,
+  "httpStatus": 200,
+  "error": null,
+  "occurrences": {
+    "DIRECT_EMOTION_LABEL": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SHOW_THROUGH_BEHAVIOR": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 5,
+          "text": "조태형의 손끝이 핸드폰 화면 위를 천천히 쓸어내리다가 멈췄다. 옆에서 불쑥 끼어든 손길이 재킷 앞자락을 두 손가락으로 집어 올렸기 때문이다. 흔들림 없는 힘, 예고 없는 당김. 태"
+        }
+      ]
+    },
+    "INNER_MONOLOGUE_OVERUSE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 1543,
+          "text": "재킷 벗던 모습이랑, 그거만 자꾸 생각나더라고.” 그는 렌의 뒤통수 쪽으로 손을 뻗어 손가락 하나로 짧은 머리카락 끝을 살짝 쓸어 넘겼다. 가볍고 조심스러운 손길이었지만, 그"
+        }
+      ]
+    },
+    "SENSORY_GROUNDING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 170,
+          "text": "자꾸 쳐다보던데. 왜?” 렌의 목소리는 평소보다 훨씬 낮았다. 물러서는 걸음에 이끌려 태형도 따라갔다. 핸드폰은 어느새 손에서 빠져 소파 쿠션 위로 나뒹굴었다. 어두운 거실 안"
+        }
+      ]
+    },
+    "ENVIRONMENT_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 226,
+          "text": "갔다. 핸드폰은 어느새 손에서 빠져 소파 쿠션 위로 나뒹굴었다. 어두운 거실 안, 침실로 이어지는 짧은 동선을 따라 두 사람의 그림자가 천천히 밀려갔다. 렌의 등이 침대 가장자리에"
+        }
+      ]
+    },
+    "APPEARANCE_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 50,
+          "text": "멈췄다. 옆에서 불쑥 끼어든 손길이 재킷 앞자락을 두 손가락으로 집어 올렸기 때문이다. 흔들림 없는 힘, 예고 없는 당김. 태형은 거부하지 않았다. 오히려 그 작은 손아귀에 몸을"
+        }
+      ]
+    },
+    "SPATIAL_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 35,
+          "text": "위를 천천히 쓸어내리다가 멈췄다. 옆에서 불쑥 끼어든 손길이 재킷 앞자락을 두 손가락으로 집어 올렸기 때문이다. 흔들림 없는 힘, 예고 없는 당김. 태형은 거부하지 않았다. 오히"
+        }
+      ]
+    },
+    "BODY_POSITION_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 37,
+          "text": "를 천천히 쓸어내리다가 멈췄다. 옆에서 불쑥 끼어든 손길이 재킷 앞자락을 두 손가락으로 집어 올렸기 때문이다. 흔들림 없는 힘, 예고 없는 당김. 태형은 거부하지 않았다. 오히려"
+        }
+      ]
+    },
+    "CHARACTER_VOICE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 1,
+          "text": "조태형의 손끝이 핸드폰 화면 위를 천천히 쓸어내리다가 멈췄다. 옆에서 불쑥 끼어든 손길이 재킷 앞자락을 두 손가락으로 집어 올렸기 때문이다. 흔들림 없는 힘, 예고 없는 당김. 태"
+        }
+      ]
+    },
+    "DIALOGUE_NATURALNESS": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 145,
+          "text": "에 몸을 맡기듯 상체를 기울였다. “아까부터 자꾸 쳐다보던데. 왜?” 렌의 목소리는 평소보다 훨씬 낮았다. 물러서는 걸음에 이끌려 태형도 따라갔다. 핸드폰은 어느새 손에서 빠져"
+        }
+      ]
+    },
+    "RELATIONSHIP_ATMOSPHERE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 154,
+          "text": "상체를 기울였다. “아까부터 자꾸 쳐다보던데. 왜?” 렌의 목소리는 평소보다 훨씬 낮았다. 물러서는 걸음에 이끌려 태형도 따라갔다. 핸드폰은 어느새 손에서 빠져 소파 쿠션 위로"
+        }
+      ]
+    },
+    "SEMANTIC_REPETITION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "MICRO_ACTION_LOOP": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 2180,
+          "text": "은 거기서 말을 멈췄다. 대신 렌의 손가락 사이로 제 손가락을 천천히 밀어 넣었다. 깍지를 끼는 것도 아닌, 그저 서로의 손가락 뼈가 닿을 만큼만. 마치 이 좁은 접촉이 자신의 답"
+        }
+      ]
+    },
+    "EXPLANATION_AFTER_SHOWING": {
+      "hit": false,
+      "excerpts": []
+    },
+    "PSEUDO_CLINICAL_EXPLANATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "AGENCY_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "REGISTER_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "LAYOUT_VIOLATION": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 141,
+          "text": "손아귀에 몸을 맡기듯 상체를 기울였다. “아까부터 자꾸 쳐다보던데. 왜?” 렌의 목소리는 평소보다 훨씬 낮았다. 물러서는 걸음에 이끌려 태형도 따라갔다. 핸드폰은 어느새 손에"
+        }
+      ]
+    }
+  }
+}

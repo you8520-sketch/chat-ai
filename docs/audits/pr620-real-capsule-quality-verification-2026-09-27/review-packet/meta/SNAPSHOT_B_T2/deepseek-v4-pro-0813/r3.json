@@ -1,0 +1,151 @@
+{
+  "model": "deepseek-v4-pro-0813",
+  "snapshot": "SNAPSHOT_B_T2",
+  "rep": 3,
+  "capsuleHash": "251ae04247be8ac62c66e8af3b58c0797c94e4938cb3a7a5dec92893da7ab03e",
+  "promptHash": "9553f557fe831a13e80853bdba8a14895573c6ff87de274e8b9d4fe8e640ddee",
+  "snapshotFingerprint": "d81132d8052cda36109a9825fa06fea83c2391cd6b86669e3777358c4c5d056f",
+  "providerCallCount": 1,
+  "visibleChars": 3309,
+  "prompt_tokens": 16415,
+  "completion_tokens": 2611,
+  "reasoning_tokens": 0,
+  "finish_reason": "stop",
+  "latencyMs": 46723,
+  "httpStatus": 200,
+  "error": null,
+  "occurrences": {
+    "DIRECT_EMOTION_LABEL": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SHOW_THROUGH_BEHAVIOR": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 19,
+          "text": "입술이 떨어지자마자, 태형은 잠시 숨을 멈췄다. 불과 몇 초 전까지만 해도 이 상황은 자신이 주도하고 있다고 생각했다. 늘 그랬듯 상대를 가볍게 놀리고, 반응을 즐기고, 애매한"
+        }
+      ]
+    },
+    "INNER_MONOLOGUE_OVERUSE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 62,
+          "text": "이 상황은 자신이 주도하고 있다고 생각했다. 늘 그랬듯 상대를 가볍게 놀리고, 반응을 즐기고, 애매한 거리에서 적당히 흔들어 보는 것. 그런데 렌은 그 틈을 비집고 들어와 재킷"
+        }
+      ]
+    },
+    "SENSORY_GROUNDING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 289,
+          "text": ". 이번엔 말 돌리지 말라던 낮은 목소리가 귓가에 맴돌았다. 그리고 이어진 짧은 입맞춤. 그 순간, 태형의 온 감각이 렌에게 집중되었다. 원래부터 감각이 남들보다 예민하게 열려"
+        }
+      ]
+    },
+    "ENVIRONMENT_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 822,
+          "text": "손을 감싸자, 그의 체온이 태형의 손바닥에 스며들었다. \"아까부터 자꾸 쳐다보던데, 왜냐고.\" 렌이 이미 했던 말이 다시 한 번 태형의 머릿속에서 되풀이되었다. 태형은 침대 가"
+        }
+      ]
+    },
+    "APPEARANCE_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 139,
+          "text": "그런데 렌은 그 틈을 비집고 들어와 재킷 앞자락을 잡더니, 한 발, 두 발, 침대 쪽으로 태형을 끌어당겼다. 붙잡힌 옷자락은 아직도 렌의 손가락 사이에 남아 있었다. 닫힌 거리에"
+        }
+      ]
+    },
+    "SPATIAL_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 100,
+          "text": "게 놀리고, 반응을 즐기고, 애매한 거리에서 적당히 흔들어 보는 것. 그런데 렌은 그 틈을 비집고 들어와 재킷 앞자락을 잡더니, 한 발, 두 발, 침대 쪽으로 태형을 끌어당겼다."
+        }
+      ]
+    },
+    "BODY_POSITION_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 103,
+          "text": "리고, 반응을 즐기고, 애매한 거리에서 적당히 흔들어 보는 것. 그런데 렌은 그 틈을 비집고 들어와 재킷 앞자락을 잡더니, 한 발, 두 발, 침대 쪽으로 태형을 끌어당겼다. 붙잡힌"
+        }
+      ]
+    },
+    "CHARACTER_VOICE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 12,
+          "text": "입술이 떨어지자마자, 태형은 잠시 숨을 멈췄다. 불과 몇 초 전까지만 해도 이 상황은 자신이 주도하고 있다고 생각했다. 늘 그랬듯 상대를 가볍게 놀리고, 반응을 즐기고, 애매한"
+        }
+      ]
+    },
+    "DIALOGUE_NATURALNESS": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 834,
+          "text": "온이 태형의 손바닥에 스며들었다. \"아까부터 자꾸 쳐다보던데, 왜냐고.\" 렌이 이미 했던 말이 다시 한 번 태형의 머릿속에서 되풀이되었다. 태형은 침대 가장자리에 걸터앉은 렌을"
+        }
+      ]
+    },
+    "RELATIONSHIP_ATMOSPHERE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 100,
+          "text": "게 놀리고, 반응을 즐기고, 애매한 거리에서 적당히 흔들어 보는 것. 그런데 렌은 그 틈을 비집고 들어와 재킷 앞자락을 잡더니, 한 발, 두 발, 침대 쪽으로 태형을 끌어당겼다."
+        }
+      ]
+    },
+    "SEMANTIC_REPETITION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "MICRO_ACTION_LOOP": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 2640,
+          "text": "잡고 있는 렌의 손을 천천히 풀어 손가락 사이에 자신의 손가락을 끼웠다. \"말 돌리지 말라며. 나 제법 솔직하게 대답했는데, 이번엔 네 차례야.\" 태형이 렌의 손가락을 쥔 채"
+        }
+      ]
+    },
+    "EXPLANATION_AFTER_SHOWING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 668,
+          "text": "도 뭉쳐 있던 신경이 스르르 풀리는 듯했다. 하지만 동시에 그 이완감은 태형을 훨씬 더 깊은 곳으로 끌어당겼다. 지금 이 온기에서 떨어지고 싶지 않다는 충동이 꼬리를 물고 치솟았다"
+        }
+      ]
+    },
+    "PSEUDO_CLINICAL_EXPLANATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "AGENCY_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "REGISTER_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "LAYOUT_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    }
+  }
+}

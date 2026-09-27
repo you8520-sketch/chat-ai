@@ -1,0 +1,141 @@
+{
+  "model": "deepseek-v4-pro-0813",
+  "snapshot": "SNAPSHOT_A_T1",
+  "rep": 3,
+  "capsuleHash": "251ae04247be8ac62c66e8af3b58c0797c94e4938cb3a7a5dec92893da7ab03e",
+  "promptHash": "842d3c20a4f44bad8bb2699c031e8be5f136967d5bd67c21c0d13b5860cd4899",
+  "snapshotFingerprint": "88dc47becaa706e43241e82803c7b515000e1080670eac4bf50a477f893b23a5",
+  "providerCallCount": 1,
+  "visibleChars": 1823,
+  "prompt_tokens": 13342,
+  "completion_tokens": 1443,
+  "reasoning_tokens": 0,
+  "finish_reason": "stop",
+  "latencyMs": 34844,
+  "httpStatus": 200,
+  "error": null,
+  "occurrences": {
+    "DIRECT_EMOTION_LABEL": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SHOW_THROUGH_BEHAVIOR": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 103,
+          "text": "를 뻗고 앉아 느긋하게 이쪽을 보는 눈빛이 꼭 집에 돌아온 지 오래된 사람 같았다. “아, 배고픈 건 사실이고.” 태형이 어깨를 으쓱이며 현관 쪽으로 몸을 돌렸다. 검은 전술"
+        }
+      ]
+    },
+    "INNER_MONOLOGUE_OVERUSE": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SENSORY_GROUNDING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 785,
+          "text": "결정한 듯 통 뚜껑을 열었다. 기름 냄새와 함께 양념치킨 특유의 달큰한 향이 좁은 숙소 안으로 퍼졌다. “아, 냄새만 맡아도 살 것 같네.” 태형은 흐뭇한 얼굴로 치킨 한 조각"
+        }
+      ]
+    },
+    "ENVIRONMENT_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 5,
+          "text": "조태형은 소파에 퍼질러 앉은 렌의 모습을 한참이나 흐뭇하게 내려다봤다. 임무가 끝난 직후라 그런지 평소보다 훨씬 늘어져 있는 태가 역력했다. 긴 다리를 뻗고 앉아 느긋하게 이쪽을"
+        }
+      ]
+    },
+    "APPEARANCE_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 103,
+          "text": "를 뻗고 앉아 느긋하게 이쪽을 보는 눈빛이 꼭 집에 돌아온 지 오래된 사람 같았다. “아, 배고픈 건 사실이고.” 태형이 어깨를 으쓱이며 현관 쪽으로 몸을 돌렸다. 검은 전술"
+        }
+      ]
+    },
+    "SPATIAL_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 5,
+          "text": "조태형은 소파에 퍼질러 앉은 렌의 모습을 한참이나 흐뭇하게 내려다봤다. 임무가 끝난 직후라 그런지 평소보다 훨씬 늘어져 있는 태가 역력했다. 긴 다리를 뻗고 앉아 느긋하게 이쪽을"
+        }
+      ]
+    },
+    "BODY_POSITION_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 13,
+          "text": "조태형은 소파에 퍼질러 앉은 렌의 모습을 한참이나 흐뭇하게 내려다봤다. 임무가 끝난 직후라 그런지 평소보다 훨씬 늘어져 있는 태가 역력했다. 긴 다리를 뻗고 앉아 느긋하게 이쪽을"
+        }
+      ]
+    },
+    "CHARACTER_VOICE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 1,
+          "text": "조태형은 소파에 퍼질러 앉은 렌의 모습을 한참이나 흐뭇하게 내려다봤다. 임무가 끝난 직후라 그런지 평소보다 훨씬 늘어져 있는 태가 역력했다. 긴 다리를 뻗고 앉아 느긋하게 이쪽을"
+        }
+      ]
+    },
+    "DIALOGUE_NATURALNESS": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 131,
+          "text": "돌아온 지 오래된 사람 같았다. “아, 배고픈 건 사실이고.” 태형이 어깨를 으쓱이며 현관 쪽으로 몸을 돌렸다. 검은 전술 재킷을 벗어 건네받은 것도 아닌데 소파 팔걸이에 걸"
+        }
+      ]
+    },
+    "RELATIONSHIP_ATMOSPHERE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 927,
+          "text": "소파 쪽으로 슬쩍 흘겨보며, 렌이 기다리는 시선으로 자신을 보고 있다는 걸 즐기듯 입꼬리를 올렸다. “너도 먹을 거지? 나 혼자 먹으려고 꺼낸 거 아니야.” 소파로 다가온 태"
+        }
+      ]
+    },
+    "SEMANTIC_REPETITION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "MICRO_ACTION_LOOP": {
+      "hit": false,
+      "excerpts": []
+    },
+    "EXPLANATION_AFTER_SHOWING": {
+      "hit": false,
+      "excerpts": []
+    },
+    "PSEUDO_CLINICAL_EXPLANATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "AGENCY_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "REGISTER_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "LAYOUT_VIOLATION": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 127,
+          "text": "꼭 집에 돌아온 지 오래된 사람 같았다. “아, 배고픈 건 사실이고.” 태형이 어깨를 으쓱이며 현관 쪽으로 몸을 돌렸다. 검은 전술 재킷을 벗어 건네받은 것도 아닌데 소파 팔걸"
+        }
+      ]
+    }
+  }
+}

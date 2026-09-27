@@ -1,0 +1,141 @@
+{
+  "model": "deepseek-v4-pro-0813",
+  "snapshot": "SNAPSHOT_A_T1",
+  "rep": 2,
+  "capsuleHash": "251ae04247be8ac62c66e8af3b58c0797c94e4938cb3a7a5dec92893da7ab03e",
+  "promptHash": "842d3c20a4f44bad8bb2699c031e8be5f136967d5bd67c21c0d13b5860cd4899",
+  "snapshotFingerprint": "88dc47becaa706e43241e82803c7b515000e1080670eac4bf50a477f893b23a5",
+  "providerCallCount": 1,
+  "visibleChars": 1219,
+  "prompt_tokens": 13342,
+  "completion_tokens": 970,
+  "reasoning_tokens": 0,
+  "finish_reason": "stop",
+  "latencyMs": 26097,
+  "httpStatus": 200,
+  "error": null,
+  "occurrences": {
+    "DIRECT_EMOTION_LABEL": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SHOW_THROUGH_BEHAVIOR": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 89,
+          "text": "복도 바닥을 부드럽게 스치고, 그는 어깨를 한 번 으쓱이며 거실로 들어왔다. 후드티 소매를 팔꿈치까지 밀어 올린 채 냉장고 앞에 우두커니 서서는 안을 들여다보았다. 차가운 공기가"
+        }
+      ]
+    },
+    "INNER_MONOLOGUE_OVERUSE": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SENSORY_GROUNDING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 161,
+          "text": "우두커니 서서는 안을 들여다보았다. 차가운 공기가 얼굴로 퍼져 나왔다. “야, 그러게. 아까부터 배고프다고 그렇게 말했는데 너 반응이 너무 없더라.” 문을 연 채 상체를 살짝"
+        }
+      ]
+    },
+    "ENVIRONMENT_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 7,
+          "text": "태형은 렌이 소파에 몸을 맡기는 모습을 한참 지켜보다가, 이내 신발을 벗어 현관에 아무렇게나 던지듯 정리했다. 검은 양말이 복도 바닥을 부드럽게 스치고, 그는 어깨를 한 번 으쓱이"
+        }
+      ]
+    },
+    "APPEARANCE_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 279,
+          "text": "개만 돌려 소파 쪽을 보았다. 녹색 눈이 형광등 불빛에 장난스럽게 반짝였다. “우리 라면 먹자. 냉동고에 소고기 있던데 넣고 끓이면 진짜 맛있어. 내가 끓이면 국물이 예술인데.”"
+        }
+      ]
+    },
+    "SPATIAL_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 7,
+          "text": "태형은 렌이 소파에 몸을 맡기는 모습을 한참 지켜보다가, 이내 신발을 벗어 현관에 아무렇게나 던지듯 정리했다. 검은 양말이 복도 바닥을 부드럽게 스치고, 그는 어깨를 한 번 으쓱이"
+        }
+      ]
+    },
+    "BODY_POSITION_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 146,
+          "text": "밀어 올린 채 냉장고 앞에 우두커니 서서는 안을 들여다보았다. 차가운 공기가 얼굴로 퍼져 나왔다. “야, 그러게. 아까부터 배고프다고 그렇게 말했는데 너 반응이 너무 없더라.”"
+        }
+      ]
+    },
+    "CHARACTER_VOICE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 0,
+          "text": "태형은 렌이 소파에 몸을 맡기는 모습을 한참 지켜보다가, 이내 신발을 벗어 현관에 아무렇게나 던지듯 정리했다. 검은 양말이 복도 바닥을 부드럽게 스치고, 그는 어깨를 한 번 으쓱이"
+        }
+      ]
+    },
+    "DIALOGUE_NATURALNESS": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 182,
+          "text": "가운 공기가 얼굴로 퍼져 나왔다. “야, 그러게. 아까부터 배고프다고 그렇게 말했는데 너 반응이 너무 없더라.” 문을 연 채 상체를 살짝 숙이고 냉장고 안을 훑던 그가 고개만"
+        }
+      ]
+    },
+    "RELATIONSHIP_ATMOSPHERE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 290,
+          "text": "보았다. 녹색 눈이 형광등 불빛에 장난스럽게 반짝였다. “우리 라면 먹자. 냉동고에 소고기 있던데 넣고 끓이면 진짜 맛있어. 내가 끓이면 국물이 예술인데.” 냉장고 문에 기대"
+        }
+      ]
+    },
+    "SEMANTIC_REPETITION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "MICRO_ACTION_LOOP": {
+      "hit": false,
+      "excerpts": []
+    },
+    "EXPLANATION_AFTER_SHOWING": {
+      "hit": false,
+      "excerpts": []
+    },
+    "PSEUDO_CLINICAL_EXPLANATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "AGENCY_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "REGISTER_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "LAYOUT_VIOLATION": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 178,
+          "text": "다. 차가운 공기가 얼굴로 퍼져 나왔다. “야, 그러게. 아까부터 배고프다고 그렇게 말했는데 너 반응이 너무 없더라.” 문을 연 채 상체를 살짝 숙이고 냉장고 안을 훑던 그가"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,257 @@
+{
+  "sharedFingerprintBase": "90c9bd87ad3bc175f6468f63a33170544daa9a00e174a964e55613a48c990e10",
+  "snapshots": {
+    "SNAPSHOT_A_T1": {
+      "historySha": "70821ec04f9a9895a4aa26f3e56a715afebec54ca90eda21dcae506d97f261b7",
+      "currentUserSha": "dfb5250c4c902011935d221faa8a28455fc63869b5062b2ab970e6fbd90da3dd",
+      "deepseek": {
+        "systemSha": "842d3c20a4f44bad8bb2699c031e8be5f136967d5bd67c21c0d13b5860cd4899",
+        "lastUserSha": "4fc34515c61aa8a2e85b480cf86ce7ad5f707063757713ea68188120f949dfc6"
+      },
+      "gemini37": {
+        "systemSha": "6b285eacb4e7f9be19c0fd1e45972eae28b30e99bbe38dff780b8889dd3544c1",
+        "lastUserSha": "20a5c62826c54e89be16bb15b3e68e0045c23d2255d33c5f2f2977096a159383"
+      },
+      "crossModelSystemShaMatch": false,
+      "crossModelLastUserShaMatch": false,
+      "ownerInventoryDeepSeek": {
+        "commonProseCount": 1,
+        "commonProseShaPrefix": "7d9992715736",
+        "deepseekBottomStyleCount": 0,
+        "deepseekLengthSingleCallCount": 0,
+        "sections": [
+          {
+            "id": "openrouter-korean-prose-top",
+            "chars": 819
+          },
+          {
+            "id": "runtime-prompt-contamination-guard",
+            "chars": 951
+          },
+          {
+            "id": "no-godmodding",
+            "chars": 1096
+          },
+          {
+            "id": "rule-historical-truth-canonical-memory",
+            "chars": 470
+          },
+          {
+            "id": "character-core-identity",
+            "chars": 10252
+          },
+          {
+            "id": "private-speech-control",
+            "chars": 462
+          },
+          {
+            "id": "identity-and-rules",
+            "chars": 368
+          },
+          {
+            "id": "prose-style-xml-bundle",
+            "chars": 1311
+          },
+          {
+            "id": "narrative-style",
+            "chars": 102
+          },
+          {
+            "id": "rule-output-layout-recency",
+            "chars": 744
+          },
+          {
+            "id": "user-persona-reference-owner",
+            "chars": 820
+          },
+          {
+            "id": "narrative-pov-owner",
+            "chars": 604
+          }
+        ]
+      },
+      "ownerInventoryGemini37": {
+        "commonProseCount": 1,
+        "commonProseShaPrefix": "7d9992715736",
+        "deepseekBottomStyleCount": 0,
+        "deepseekLengthSingleCallCount": 0,
+        "sections": [
+          {
+            "id": "openrouter-korean-prose-top",
+            "chars": 819
+          },
+          {
+            "id": "runtime-prompt-contamination-guard",
+            "chars": 887
+          },
+          {
+            "id": "no-godmodding",
+            "chars": 1096
+          },
+          {
+            "id": "rule-historical-truth-canonical-memory",
+            "chars": 470
+          },
+          {
+            "id": "character-core-identity",
+            "chars": 10196
+          },
+          {
+            "id": "private-speech-control",
+            "chars": 462
+          },
+          {
+            "id": "identity-and-rules",
+            "chars": 368
+          },
+          {
+            "id": "prose-style-xml-bundle",
+            "chars": 1311
+          },
+          {
+            "id": "narrative-style",
+            "chars": 102
+          },
+          {
+            "id": "rule-output-layout-recency",
+            "chars": 744
+          },
+          {
+            "id": "user-persona-reference-owner",
+            "chars": 820
+          },
+          {
+            "id": "narrative-pov-owner",
+            "chars": 604
+          }
+        ]
+      }
+    },
+    "SNAPSHOT_B_T2": {
+      "historySha": "f8596b87de6b9318749364f58264cb313e9871081d6e28c9b62ccd2fd82f7d74",
+      "currentUserSha": "9e24ae15ec34146a4f777b644b5f92c63df64314a2f56ff841321b1f9ed153de",
+      "deepseek": {
+        "systemSha": "9553f557fe831a13e80853bdba8a14895573c6ff87de274e8b9d4fe8e640ddee",
+        "lastUserSha": "887628102cabaee2e4b88a8842e03e2e3d2b5e3890633e5e7d444a430131aff5"
+      },
+      "gemini37": {
+        "systemSha": "50fa7c8abd812e7d4002d4d930283fe39fc7ab6298bad3684f8f9e3cdc67124e",
+        "lastUserSha": "0bf8b07ee0d9f4094870704b5bdd49a629a2e47031a25b6e376fdae55958a700"
+      },
+      "crossModelSystemShaMatch": false,
+      "crossModelLastUserShaMatch": false,
+      "ownerInventoryDeepSeek": {
+        "commonProseCount": 1,
+        "commonProseShaPrefix": "7d9992715736",
+        "deepseekBottomStyleCount": 0,
+        "deepseekLengthSingleCallCount": 0,
+        "sections": [
+          {
+            "id": "openrouter-korean-prose-top",
+            "chars": 819
+          },
+          {
+            "id": "runtime-prompt-contamination-guard",
+            "chars": 951
+          },
+          {
+            "id": "no-godmodding",
+            "chars": 1096
+          },
+          {
+            "id": "rule-historical-truth-canonical-memory",
+            "chars": 470
+          },
+          {
+            "id": "character-core-identity",
+            "chars": 10252
+          },
+          {
+            "id": "private-speech-control",
+            "chars": 462
+          },
+          {
+            "id": "identity-and-rules",
+            "chars": 368
+          },
+          {
+            "id": "prose-style-xml-bundle",
+            "chars": 1311
+          },
+          {
+            "id": "narrative-style",
+            "chars": 102
+          },
+          {
+            "id": "rule-output-layout-recency",
+            "chars": 744
+          },
+          {
+            "id": "user-persona-reference-owner",
+            "chars": 820
+          },
+          {
+            "id": "narrative-pov-owner",
+            "chars": 604
+          }
+        ]
+      },
+      "ownerInventoryGemini37": {
+        "commonProseCount": 1,
+        "commonProseShaPrefix": "7d9992715736",
+        "deepseekBottomStyleCount": 0,
+        "deepseekLengthSingleCallCount": 0,
+        "sections": [
+          {
+            "id": "openrouter-korean-prose-top",
+            "chars": 819
+          },
+          {
+            "id": "runtime-prompt-contamination-guard",
+            "chars": 887
+          },
+          {
+            "id": "no-godmodding",
+            "chars": 1096
+          },
+          {
+            "id": "rule-historical-truth-canonical-memory",
+            "chars": 470
+          },
+          {
+            "id": "character-core-identity",
+            "chars": 10196
+          },
+          {
+            "id": "private-speech-control",
+            "chars": 462
+          },
+          {
+            "id": "identity-and-rules",
+            "chars": 368
+          },
+          {
+            "id": "prose-style-xml-bundle",
+            "chars": 1311
+          },
+          {
+            "id": "narrative-style",
+            "chars": 102
+          },
+          {
+            "id": "rule-output-layout-recency",
+            "chars": 744
+          },
+          {
+            "id": "user-persona-reference-owner",
+            "chars": 820
+          },
+          {
+            "id": "narrative-pov-owner",
+            "chars": 604
+          }
+        ]
+      }
+    }
+  }
+}

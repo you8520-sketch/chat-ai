@@ -1,0 +1,141 @@
+{
+  "model": "gemini-3.7-flash",
+  "snapshot": "SNAPSHOT_A_T1",
+  "rep": 1,
+  "capsuleHash": "251ae04247be8ac62c66e8af3b58c0797c94e4938cb3a7a5dec92893da7ab03e",
+  "promptHash": "6b285eacb4e7f9be19c0fd1e45972eae28b30e99bbe38dff780b8889dd3544c1",
+  "snapshotFingerprint": "2bc5216a67936a8c200c064ea829b51811049bd4640da832054316950bab31a8",
+  "providerCallCount": 1,
+  "visibleChars": 2710,
+  "prompt_tokens": 11334,
+  "completion_tokens": 1804,
+  "reasoning_tokens": null,
+  "finish_reason": "stop",
+  "latencyMs": 18455,
+  "httpStatus": 200,
+  "error": null,
+  "occurrences": {
+    "DIRECT_EMOTION_LABEL": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SHOW_THROUGH_BEHAVIOR": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 279,
+          "text": "었다. 태형은 문이 닫히기 무섭게 어깨에 걸치고 있던 무거운 유광 전술 재킷을 벗어 바닥에 툭 떨어뜨렸다. 귓가에 걸린 피어싱들이 고개를 흔들 때마다 잘그락거리며 맑은 금속음을"
+        }
+      ]
+    },
+    "INNER_MONOLOGUE_OVERUSE": {
+      "hit": false,
+      "excerpts": []
+    },
+    "SENSORY_GROUNDING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 51,
+          "text": "들었다. 게이트 내부의 퀴퀴한 분진 냄새와 피비린내, 날카롭게 곤두섰던 신경의 잔향이 닫힌 철문 너머로 서서히 단절되었다. 에이지스 본부 숙소 특유의 단조로운 백색 조명이 켜지자,"
+        }
+      ]
+    },
+    "ENVIRONMENT_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 0,
+          "text": "현관 센서등이 켜지며 실내의 건조한 공기가 한꺼번에 밀려들었다. 게이트 내부의 퀴퀴한 분진 냄새와 피비린내, 날카롭게 곤두섰던 신경의 잔향이 닫힌 철문 너머로 서서히 단절되었다."
+        }
+      ]
+    },
+    "APPEARANCE_DETAIL": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 146,
+          "text": "켜지자, 방 안의 익숙한 풍경이 한눈에 들어왔다. 정리라고는 거의 되어 있지 않은 널브러진 잡지들과 옷가지, 한구석에 쌓인 에너지 드링크 캔, 그리고 창가에 아무렇게나 던져진 비"
+        }
+      ]
+    },
+    "SPATIAL_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 347,
+          "text": "피어싱들이 고개를 흔들 때마다 잘그락거리며 맑은 금속음을 냈다. \"아, 진짜 온몸이 쑤셔 죽겠네. 이번 게이트는 무슨 크리처들이 그렇게 떼거리로 기어 나오냐? 귀찮아 죽을 뻔했"
+        }
+      ]
+    },
+    "BODY_POSITION_CONTINUITY": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 4,
+          "text": "현관 센서등이 켜지며 실내의 건조한 공기가 한꺼번에 밀려들었다. 게이트 내부의 퀴퀴한 분진 냄새와 피비린내, 날카롭게 곤두섰던 신경의 잔향이 닫힌 철문 너머로 서서히 단절되었다."
+        }
+      ]
+    },
+    "CHARACTER_VOICE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 238,
+          "text": "게나 던져진 비비탄 총 몇 자루가 조태형의 생활감을 적나라하게 드러내고 있었다. 태형은 문이 닫히기 무섭게 어깨에 걸치고 있던 무거운 유광 전술 재킷을 벗어 바닥에 툭 떨어뜨렸다"
+        }
+      ]
+    },
+    "DIALOGUE_NATURALNESS": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 365,
+          "text": "그락거리며 맑은 금속음을 냈다. \"아, 진짜 온몸이 쑤셔 죽겠네. 이번 게이트는 무슨 크리처들이 그렇게 떼거리로 기어 나오냐? 귀찮아 죽을 뻔했어.\" 엄살을 잔뜩 섞어 툴툴거"
+        }
+      ]
+    },
+    "RELATIONSHIP_ATMOSPHERE": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 347,
+          "text": "피어싱들이 고개를 흔들 때마다 잘그락거리며 맑은 금속음을 냈다. \"아, 진짜 온몸이 쑤셔 죽겠네. 이번 게이트는 무슨 크리처들이 그렇게 떼거리로 기어 나오냐? 귀찮아 죽을 뻔했"
+        }
+      ]
+    },
+    "SEMANTIC_REPETITION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "MICRO_ACTION_LOOP": {
+      "hit": false,
+      "excerpts": []
+    },
+    "EXPLANATION_AFTER_SHOWING": {
+      "hit": true,
+      "excerpts": [
+        {
+          "offset": 721,
+          "text": "럽게 발을 들이게 되었음을 증명하는 듯했다. \"배고프다며. 뭐 먹을 건데? 아까부터 그것만 말했잖아.\" 렌의 건조한 목소리가 거실의 썰렁한 공기를 가르고 날아왔다. 태형은 그"
+        }
+      ]
+    },
+    "PSEUDO_CLINICAL_EXPLANATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "AGENCY_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "REGISTER_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    },
+    "LAYOUT_VIOLATION": {
+      "hit": false,
+      "excerpts": []
+    }
+  }
+}
