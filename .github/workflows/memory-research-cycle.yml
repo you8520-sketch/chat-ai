@@ -1,0 +1,230 @@
+name: Memory research cycle
+
+# Automated Memory Improvement System:
+# DISCOVER → SCREEN → EXPERIMENT → BENCHMARK → ACCEPT/REJECT → DRAFT PR → REVIEW.
+# Runs outside the production runtime (not in schedulerDefinitions.ts): it needs
+# outbound research HTTP, CPU for the benchmark lab, and a repo-scoped token for
+# Draft PRs — none of which belong in the Railway server. Paid provider calls: 0.
+# Never merges and never enables auto-merge.
+# Prerequisite for the Draft PR job: repository Settings → Actions → General →
+# "Allow GitHub Actions to create and approve pull requests". Without it the
+# job records the failure in the ledger and the next cycle re-emits the packet.
+# GITHUB_TOKEN-created PRs do not trigger pull_request workflows; re-run memory
+# CI on the Draft PR branch before review (the research job already ran it).
+
+on:
+  schedule:
+    # Weekly broad research: Monday 01:17 UTC (10:17 KST).
+    - cron: "17 1 * * 1"
+    # Monthly deep review: 1st of month 02:43 UTC (11:43 KST).
+    - cron: "43 2 1 * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Cycle mode"
+        type: choice
+        options: [weekly, monthly_deep]
+        default: weekly
+      force:
+        description: "Re-run even if this cycle key already completed"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Do not persist the ledger or open Draft PRs"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: memory-research-cycle
+  cancel-in-progress: false
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      accepted_count: ${{ steps.cycle.outputs.accepted_count }}
+      cycle_status: ${{ steps.cycle.outputs.cycle_status }}
+      cycle_key: ${{ steps.cycle.outputs.cycle_key }}
+      main_sha: ${{ steps.sha.outputs.main_sha }}
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      OPENROUTER_API_KEY: ""
+      OPENAI_API_KEY: ""
+      CHEAPER_INFERENCE_API_KEY: ""
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - id: sha
+        run: echo "main_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - id: mode
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event.schedule }}" == "43 2 1 * *" ]]; then
+            echo "mode=monthly_deep" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=weekly" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Load research ledger (data branch, read-only)
+        shell: bash
+        run: |
+          if git fetch --depth=1 origin memory-research-ledger 2>/dev/null; then
+            git show FETCH_HEAD:ledger.json > "$RUNNER_TEMP/ledger.json" || true
+          fi
+          ls -la "$RUNNER_TEMP"
+
+      - name: Memory CI gate (benchmark owner + research lab)
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory-rp-benchmark.test.ts src/lib/memoryResearch/*.test.ts
+
+      - name: Run research cycle
+        id: cycle
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          scripts/memory-research-cycle.ts run
+          --mode ${{ steps.mode.outputs.mode }}
+          --ledger "$RUNNER_TEMP/ledger.json"
+          --out memory-research-out
+          --main-sha ${{ steps.sha.outputs.main_sha }}
+          ${{ inputs.force && '--force' || '' }}
+
+      - name: Cycle summary
+        if: always()
+        run: cat memory-research-out/report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: memory-research-out
+          path: memory-research-out
+          retention-days: 90
+
+  draft_prs:
+    needs: research
+    if: >-
+      needs.research.outputs.cycle_status == 'COMPLETED' &&
+      needs.research.outputs.accepted_count != '0' &&
+      inputs.dry_run != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.research.outputs.main_sha }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: memory-research-out
+          path: memory-research-out
+
+      - name: Open Draft PRs (ACCEPTED only, never merged)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node --conditions=react-server --import tsx scripts/memory-research-cycle.ts draft-prs \
+            --packets memory-research-out/packets.json \
+            --results "$RUNNER_TEMP/draft-results.json"
+          mkdir -p draft-results && cp "$RUNNER_TEMP/draft-results.json" draft-results/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: memory-research-draft-results
+          path: draft-results
+          retention-days: 90
+
+  persist:
+    needs: [research, draft_prs]
+    if: >-
+      always() &&
+      needs.research.result == 'success' &&
+      needs.research.outputs.cycle_status == 'COMPLETED' &&
+      inputs.dry_run != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.research.outputs.main_sha }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: memory-research-out
+          path: memory-research-out
+
+      - uses: actions/download-artifact@v4
+        if: needs.draft_prs.result == 'success'
+        with:
+          name: memory-research-draft-results
+          path: draft-results
+
+      - name: Record Draft PR outcomes in ledger
+        run: >-
+          node --conditions=react-server --import tsx scripts/memory-research-cycle.ts apply-draft-results
+          --ledger memory-research-out/ledger.json
+          --results draft-results/draft-results.json
+
+      - name: Push ledger to data branch (never merged into main)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin memory-research-ledger 2>/dev/null; then
+            git worktree add ledger-wt FETCH_HEAD
+            git -C ledger-wt checkout -B memory-research-ledger
+          else
+            git worktree add --detach ledger-wt
+            git -C ledger-wt checkout --orphan memory-research-ledger
+            git -C ledger-wt rm -rf --quiet . 2>/dev/null || true
+          fi
+          mkdir -p ledger-wt/cycles
+          cp memory-research-out/ledger.json ledger-wt/ledger.json
+          cp memory-research-out/cycles/*.json ledger-wt/cycles/
+          git -C ledger-wt add ledger.json cycles
+          if git -C ledger-wt diff --cached --quiet; then
+            echo "ledger unchanged"
+            exit 0
+          fi
+          git -C ledger-wt commit -m "memory-research: ledger for ${{ needs.research.outputs.cycle_key }}"
+          git -C ledger-wt push origin HEAD:refs/heads/memory-research-ledger

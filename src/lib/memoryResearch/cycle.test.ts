@@ -1,0 +1,199 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { it } from "node:test";
+import { runLabArm } from "@/lib/memoryResearch/benchmarkLab";
+import { cycleKeyFor, runResearchCycle, type CycleDeps } from "@/lib/memoryResearch/cycle";
+import type { ExperimentAdapter } from "@/lib/memoryResearch/experiments";
+import { applyDraftPrResults, emptyLedger, parseLedger, serializeLedger, type ResearchLedger } from "@/lib/memoryResearch/ledger";
+import { narrowSyntheticAdapter, observation, wideSyntheticAdapter } from "@/lib/memoryResearch/labFixtures.test";
+import { computeArchitectureFingerprint } from "@/lib/memoryResearch/ownerMap";
+import { missingPacketSections } from "@/lib/memoryResearch/prPacket";
+import { githubWatchlistSource, GITHUB_WATCHLIST, type SourceAdapter } from "@/lib/memoryResearch/sources";
+import type { ResearchObservation } from "@/lib/memoryResearch/types";
+
+const MAIN_SHA = "0123456789abcdef0123456789abcdef01234567";
+const WEEK1 = new Date("2026-09-28T01:17:00Z");
+const WEEK2 = new Date("2026-10-05T01:17:00Z");
+const WEEK3 = new Date("2026-10-12T01:17:00Z");
+
+function staticSource(id: string, observations: ResearchObservation[]): SourceAdapter {
+  return { id, kind: "github_repository", collect: async () => ({ sourceId: id, observations, errors: [] }) };
+}
+
+const throwingSource: SourceAdapter = {
+  id: "broken_source",
+  kind: "arxiv",
+  collect: async () => {
+    throw new Error("source adapter crashed");
+  },
+};
+
+const OBS = {
+  wide: observation({ candidateKey: "github:fixture/wide", version: "v1.0.0" }),
+  narrow: observation({ candidateKey: "github:fixture/narrow", version: "v1.0.0" }),
+  noAdapter: observation({ candidateKey: "github:fixture/embedding-no-adapter", version: "v3" }),
+  graphInfra: observation({ candidateKey: "github:fixture/graph", category: "graph_memory", infraRequirements: ["graph_database"] }),
+};
+
+const ADAPTERS: ExperimentAdapter[] = [
+  wideSyntheticAdapter("github:fixture/wide"),
+  narrowSyntheticAdapter("github:fixture/narrow"),
+];
+
+function deps(now: Date, overrides: Partial<CycleDeps> = {}): CycleDeps {
+  return {
+    mode: "weekly",
+    now,
+    mainSha: MAIN_SHA,
+    architectureFingerprint: "arch-fixture",
+    sources: [
+      staticSource("fixture_primary", [OBS.wide, OBS.narrow, OBS.noAdapter, OBS.graphInfra]),
+      staticSource("fixture_secondary", [OBS.wide]),
+      throwingSource,
+      githubWatchlistSource(GITHUB_WATCHLIST.slice(0, 1)),
+    ],
+    sourceContext: {
+      fetch: async () => {
+        throw new Error("getaddrinfo ENOTFOUND api.github.com");
+      },
+      budget: { limit: 40, used: 0 },
+      now,
+      githubToken: null,
+      sleep: async () => {},
+    },
+    adapters: ADAPTERS,
+    runArm: runLabArm,
+    ...overrides,
+  };
+}
+
+function roundTrip(ledger: ResearchLedger): ResearchLedger {
+  return parseLedger(serializeLedger(ledger));
+}
+
+it("cycle keys: ISO week for weekly, calendar month for monthly deep review", () => {
+  assert.equal(cycleKeyFor("weekly", WEEK1), "weekly-2026-W40");
+  assert.equal(cycleKeyFor("weekly", new Date("2027-01-01T00:00:00Z")), "weekly-2026-W53");
+  assert.equal(cycleKeyFor("monthly_deep", WEEK1), "monthly-2026-09");
+});
+
+it("full cycle: isolation, dedupe, screening, real benchmark gates, ACCEPTED-only complete Draft PR packet", async () => {
+  const archBefore = computeArchitectureFingerprint((p) => readFileSync(p, "utf8"));
+  const { ledger, report } = await runResearchCycle(emptyLedger(), deps(WEEK1));
+
+  assert.equal(report.status, "COMPLETED");
+  assert.equal(report.counts.sourcesChecked, 4);
+  assert.equal(report.counts.sourcesFailed, 2, "throwing adapter + network-failing adapter");
+  assert.match(report.sources.find((s) => s.sourceId === "broken_source")!.errors[0]!, /crashed/);
+  assert.match(report.sources.find((s) => s.sourceId === "github_watchlist")!.errors[0]!, /ENOTFOUND/);
+  assert.equal(report.counts.observations, 5);
+  assert.equal(report.counts.newCandidates, 4);
+  assert.equal(report.counts.skippedDuplicates, 1);
+  assert.deepEqual(report.skipped, [{ candidateKey: "github:fixture/wide", reason: "duplicate_in_cycle" }]);
+  assert.equal(report.baseline.status, "RAN");
+
+  const byKey = Object.fromEntries(report.decisions.map((d) => [d.candidateKey, d]));
+  assert.equal(byKey["github:fixture/wide"]!.decision, "ACCEPTED_QUALITY_GAIN");
+  assert.deepEqual(byKey["github:fixture/wide"]!.trail, ["RESEARCHED", "SCREENED", "EXPERIMENT_ELIGIBLE", "BENCHMARKED", "ACCEPTED"]);
+  assert.equal(byKey["github:fixture/narrow"]!.decision, "REJECTED_FALSE_MEMORY_REGRESSION");
+  assert.equal(byKey["github:fixture/embedding-no-adapter"]!.decision, "WATCH_NO_EXPERIMENT_ADAPTER");
+  assert.equal(byKey["github:fixture/graph"]!.decision, "REJECTED_INFRA_COMPLEXITY");
+  assert.deepEqual(
+    [report.counts.watch, report.counts.reject, report.counts.benchmarked, report.counts.accept],
+    [1, 2, 2, 1]
+  );
+
+  assert.equal(report.draftPrPackets.length, 1, "quality regression never yields a Draft PR");
+  const packet = report.draftPrPackets[0]!;
+  assert.equal(packet.candidateKey, "github:fixture/wide");
+  assert.equal(packet.decision, "ACCEPTED_QUALITY_GAIN");
+  assert.deepEqual(missingPacketSections(packet.body), []);
+  assert.match(packet.body, new RegExp(MAIN_SHA));
+  assert.match(packet.body, /falseMemoryRate \| 0 \| 0 \| 0/);
+  assert.doesNotMatch(packet.body, /\/100|total score/i, "raw metrics only, no composite score");
+  assert.deepEqual(report.cleanupCandidates, ["github:fixture/narrow@1"]);
+
+  assert.equal(report.providerCalls.paidProviderCalls, 0);
+  assert.equal(report.estimatedCostUsd, 0);
+  assert.equal(report.productionTouched, false);
+  assert.equal(ledger.candidates["github:fixture/narrow"]!.priorRejectionReason, byKey["github:fixture/narrow"]!.reason);
+  assert.equal(ledger.cycles.length, 1);
+  assert.equal(
+    computeArchitectureFingerprint((p) => readFileSync(p, "utf8")),
+    archBefore,
+    "a research cycle alone never changes production memory owners"
+  );
+});
+
+it("next cycles: rejected same-version skipped, ACCEPTED re-emits until its Draft PR exists, new release re-evaluates", async () => {
+  const first = await runResearchCycle(emptyLedger(), deps(WEEK1));
+
+  const second = await runResearchCycle(roundTrip(first.ledger), deps(WEEK2));
+  const skipped2 = Object.fromEntries(second.report.skipped.map((s) => [s.candidateKey, s.reason]));
+  assert.equal(skipped2["github:fixture/narrow"], "rejected_same_version");
+  assert.equal(skipped2["github:fixture/graph"], "rejected_same_version");
+  assert.equal(skipped2["github:fixture/embedding-no-adapter"], "watch_cooldown");
+  assert.equal(second.report.decisions.find((d) => d.candidateKey === "github:fixture/wide")?.trigger, "draft_pr_retry");
+  assert.equal(second.report.counts.benchmarked, 1, "only the PR-retry candidate is re-benchmarked");
+
+  const withPr = applyDraftPrResults(roundTrip(second.ledger), [
+    { candidateKey: "github:fixture/wide", url: "https://github.com/o/r/pull/9", error: null },
+  ]);
+  const newRelease = observation({ candidateKey: "github:fixture/narrow", version: "v1.1.0" });
+  const third = await runResearchCycle(
+    withPr,
+    deps(WEEK3, { sources: [staticSource("fixture_primary", [OBS.wide, newRelease, OBS.graphInfra])] })
+  );
+  const skipped3 = Object.fromEntries(third.report.skipped.map((s) => [s.candidateKey, s.reason]));
+  assert.equal(skipped3["github:fixture/wide"], "accepted_pending_review");
+  assert.equal(third.report.draftPrPackets.length, 0, "no duplicate Draft PR once one exists");
+  const narrow = third.report.decisions.find((d) => d.candidateKey === "github:fixture/narrow")!;
+  assert.equal(narrow.trigger, "new_version");
+  assert.equal(narrow.decision, "REJECTED_FALSE_MEMORY_REGRESSION");
+  assert.equal(third.ledger.candidates["github:fixture/narrow"]!.version, "v1.1.0");
+  assert.equal(third.ledger.candidates["github:fixture/narrow"]!.evaluations.length, 2);
+});
+
+it("same cycle key is idempotent unless forced", async () => {
+  const first = await runResearchCycle(emptyLedger(), deps(WEEK1, { sources: [staticSource("s", [OBS.noAdapter])] }));
+  const again = await runResearchCycle(first.ledger, deps(WEEK1, { sources: [staticSource("s", [OBS.noAdapter])] }));
+  assert.equal(again.report.status, "SKIPPED_ALREADY_RAN");
+  assert.equal(again.ledger, first.ledger);
+  const forced = await runResearchCycle(first.ledger, deps(WEEK1, { sources: [staticSource("s", [OBS.noAdapter])], force: true }));
+  assert.equal(forced.report.status, "COMPLETED");
+  assert.equal(forced.report.skipped[0]?.reason, "watch_cooldown");
+});
+
+it("benchmark failure isolation: unhealthy baseline or crashing arm → WATCH_BENCHMARK_FAILED, no packets", async () => {
+  const failingBaseline = await runResearchCycle(
+    emptyLedger(),
+    deps(WEEK1, {
+      sources: [staticSource("s", [OBS.wide])],
+      runArm: async (mode) => ({ status: "FAILED", label: mode.label, error: "invariant#3 failed", httpCallsAttempted: 0 }),
+    })
+  );
+  assert.equal(failingBaseline.report.baseline.status, "FAILED");
+  assert.equal(failingBaseline.report.decisions[0]!.decision, "WATCH_BENCHMARK_FAILED");
+  assert.equal(failingBaseline.report.draftPrPackets.length, 0);
+
+  const crashing: ExperimentAdapter = {
+    ...wideSyntheticAdapter("github:fixture/wide"),
+    buildMode: () => {
+      throw new Error("adapter bug");
+    },
+  };
+  const crashed = await runResearchCycle(
+    emptyLedger(),
+    deps(WEEK1, { sources: [staticSource("s", [OBS.wide])], adapters: [crashing] })
+  );
+  assert.equal(crashed.report.decisions[0]!.decision, "WATCH_BENCHMARK_FAILED");
+  assert.match(crashed.report.decisions[0]!.reason, /adapter bug/);
+  assert.equal(crashed.report.draftPrPackets.length, 0);
+});
+
+it("ledger rejects unknown schema and round-trips deterministically", async () => {
+  assert.throws(() => parseLedger('{"schemaVersion":2,"candidates":{},"cycles":[]}'), /schemaVersion/);
+  assert.deepEqual(parseLedger(null), emptyLedger());
+  const { ledger } = await runResearchCycle(emptyLedger(), deps(WEEK1, { sources: [staticSource("s", [OBS.graphInfra, OBS.noAdapter])] }));
+  assert.equal(serializeLedger(parseLedger(serializeLedger(ledger))), serializeLedger(ledger));
+});

@@ -7,11 +7,14 @@ import {
 } from "@/lib/memory/memory-rp-benchmark";
 import {
   BASELINE_MODE,
+  EXPANDED_BASELINE_CASE_IDS,
+  EXPANDED_BASELINE_KNOWN_GAPS,
   measureMilestoneRetention,
   openDb,
   runBenchmarkCases,
   seed,
   type BenchmarkMode,
+  type BenchmarkRun,
   type BenchmarkTransportProbe,
 } from "@/lib/memory/memory-rp-benchmark-suite";
 import { JEV_DECISIONS_URL } from "@/lib/jevDecisions";
@@ -40,6 +43,14 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = savedFetch!;
 });
+
+function original1072Metrics(run: BenchmarkRun) {
+  const expanded = new Set(EXPANDED_BASELINE_CASE_IDS);
+  return computeBenchmarkMetrics(
+    run.outcomes.filter((o) => !expanded.has(o.caseId)),
+    run.coverage
+  );
+}
 
 it("RP memory benchmark executes all requested categories against real canonical owners", async () => {
   const { outcomes, metrics } = await runBenchmarkCases(BASELINE_MODE, transportProbe);
@@ -73,6 +84,33 @@ it("RP memory benchmark executes all requested categories against real canonical
   }
 });
 
+it("expanded baseline: horizons + behavior categories measured on current main with pinned known gaps", async () => {
+  const { outcomes, metrics } = await runBenchmarkCases(BASELINE_MODE, transportProbe);
+  const byId = new Map(outcomes.map((o) => [o.caseId, o]));
+  for (const caseId of EXPANDED_BASELINE_CASE_IDS) {
+    const o = byId.get(caseId);
+    assert.ok(o, `${caseId} must execute`);
+    if (!o.final || o.final.expectedAnswerIds.length === 0) continue;
+    const finalHit = o.final.expectedAnswerIds.every((id) => o.final!.injectedFactIds.includes(id));
+    const candidateHit = o.candidate
+      ? o.candidate.expectedAnswerIds.every((id) => o.candidate!.candidateIds.includes(id))
+      : finalHit;
+    const gap = EXPANDED_BASELINE_KNOWN_GAPS[caseId];
+    assert.equal(finalHit, gap === undefined, `${caseId} final outcome vs pinned baseline`);
+    assert.equal(candidateHit, gap !== "candidate", `${caseId} candidate outcome vs pinned baseline`);
+  }
+  assert.equal(metrics.precision.status, "MEASURED");
+  assert.equal(metrics.precision.value, 1);
+  assert.equal(metrics.falseMemoryRate.status, "MEASURED");
+  assert.equal(metrics.falseMemoryRate.value, 0);
+  assert.equal(metrics.irrelevantInjectionRate.value, 0);
+  assert.equal(metrics.relationshipRoleConsistency.value, 1);
+  assert.equal(metrics.distinctiveUtteranceRecall.value, 0, "known gap: distinctive-utterance-01");
+  assert.equal(metrics.correctionSupersessionAccuracy.value, 1);
+  const falseMemory = byId.get("false-memory-negative-01")!;
+  assert.deepEqual(falseMemory.final?.injectedFactIds, []);
+});
+
 /**
  * Milestone retention under semantic budget pressure: many old critical
  * historical milestones compete with semantically matching facts and a
@@ -97,16 +135,21 @@ it("semantic shadow (synthetic embedder): same cases, same metric semantics, bud
     console.info(
       `[RpMemoryBenchmark] mode=${mode.label} knownGap=${JSON.stringify(run.knownGap)} milestoneRetention=${retention.retained}/${retention.total} milestoneCaseSemantic=${JSON.stringify(retention.semantic)}`
     );
-    // Target: known gap flips (asserted inside the case); no metric regresses.
+    // Target: known gap flips (asserted inside the case); no #1072 metric regresses.
+    // The #1072 no-regression claim is scoped to its own case set; the
+    // expanded-baseline cases are the research lab's surface and are judged
+    // by its gates (see memoryResearch/benchmarkLab.test.ts).
     assert.equal(run.knownGap.candidateHit, true);
     assert.equal(run.knownGap.finalHit, true);
     assert.equal(run.knownGap.semantic?.added, 1, "known-gap answer enters as a novel ID into unused capacity");
     assert.equal(retention.retained, baselineRetention.retained, "semantic never costs lexical milestone slots");
-    assert.equal(run.metrics.falseInjectionRate.eligibleCases, baseline.metrics.falseInjectionRate.eligibleCases);
-    assert.ok(run.metrics.falseInjectionRate.value! <= baseline.metrics.falseInjectionRate.value!);
-    assert.ok(run.metrics.staleStateRecallRate.value! <= baseline.metrics.staleStateRecallRate.value!);
-    assert.ok(run.metrics.candidateRecallAtK.value! >= baseline.metrics.candidateRecallAtK.value!);
-    assert.ok(run.metrics.finalRecallAt8.value! >= baseline.metrics.finalRecallAt8.value!);
+    const baseline1072 = original1072Metrics(baseline);
+    const run1072 = original1072Metrics(run);
+    assert.equal(run1072.falseInjectionRate.eligibleCases, baseline1072.falseInjectionRate.eligibleCases);
+    assert.ok(run1072.falseInjectionRate.value! <= baseline1072.falseInjectionRate.value!);
+    assert.ok(run1072.staleStateRecallRate.value! <= baseline1072.staleStateRecallRate.value!);
+    assert.ok(run1072.candidateRecallAtK.value! >= baseline1072.candidateRecallAtK.value!);
+    assert.ok(run1072.finalRecallAt8.value! >= baseline1072.finalRecallAt8.value!);
     assert.equal(run.metrics.wrongObserverKnowledgeLeakCount.value, 0);
     assert.deepEqual(run.invariantViolations, []);
     assert.equal(run.metrics.providerCallsPerTurn.value, 0, "synthetic embedder; real provider HTTP = 0");

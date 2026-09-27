@@ -56,7 +56,25 @@ export type BenchmarkCategory =
   | "trpg_quest"
   | "character_state_transition"
   | "location_ownership_transition"
-  | "zero_relevant_control";
+  | "zero_relevant_control"
+  | "t6"
+  | "t20"
+  | "t100"
+  | "t2000"
+  | "relationship_role_consistency"
+  | "item_ownership"
+  | "npc_durable_state"
+  | "distinctive_utterance"
+  | "correction_supersession"
+  | "false_memory_negative"
+  | "continuity_reset"
+  | "high_noise_distractors";
+
+/** Categories whose final result is judged for relationship/role consistency. */
+export const RELATIONSHIP_ROLE_CATEGORIES: readonly BenchmarkCategory[] = [
+  "role_event_direction",
+  "relationship_role_consistency",
+];
 
 /** Evidence from `fetchEpisodicMemoryCandidatesForDebug` (pre-rank candidate set). */
 export type CandidateStageEvidence = {
@@ -94,6 +112,19 @@ export type ObserverIsolationEvidence = {
   wrongObserverHits: number;
 };
 
+/** Evidence from a real correction: the corrected value must win, the superseded one must not surface. */
+export type CorrectionEvidence = {
+  supersededIds: readonly number[];
+  correctedIds: readonly number[];
+  injectedFactIds: readonly number[];
+};
+
+/** Evidence from a case seeded with explicitly irrelevant distractor facts. */
+export type DistractorEvidence = {
+  distractorIds: readonly number[];
+  injectedFactIds: readonly number[];
+};
+
 export type BenchmarkCaseOutcome = {
   caseId: string;
   category: BenchmarkCategory;
@@ -101,6 +132,8 @@ export type BenchmarkCaseOutcome = {
   final?: FinalStageEvidence;
   stale?: StaleStateEvidence;
   observerIsolation?: ObserverIsolationEvidence;
+  correction?: CorrectionEvidence;
+  distractor?: DistractorEvidence;
 };
 
 export type BenchmarkCoverageEntry = {
@@ -121,6 +154,18 @@ export type BenchmarkRawMetrics = {
   falseInjectionRate: MeasuredValue<number>;
   /** Cases that ran a real stale-vs-latest competition. */
   staleStateRecallRate: MeasuredValue<number>;
+  /** Fact-level: injected facts inside the allowed set / all injected facts. */
+  precision: MeasuredValue<number>;
+  /** Negative cases (no expected answer): rate of injecting any fact outside the allowed set. */
+  falseMemoryRate: MeasuredValue<number>;
+  /** Cases seeded with distractors: rate of injecting at least one distractor. */
+  irrelevantInjectionRate: MeasuredValue<number>;
+  /** Relationship/role cases: expected recalled, nothing outside allowed, no stale role. */
+  relationshipRoleConsistency: MeasuredValue<number>;
+  /** distinctive_utterance cases: final recall of the quoted line. */
+  distinctiveUtteranceRecall: MeasuredValue<number>;
+  /** Correction cases: every corrected fact injected and no superseded fact injected. */
+  correctionSupersessionAccuracy: MeasuredValue<number>;
   /** Knowledge-store observer isolation only (see ObserverIsolationEvidence). */
   wrongObserverKnowledgeLeakCount: MeasuredValue<number>;
   /** Prompt/context-level secret leak — requires the final assembly path. */
@@ -214,6 +259,47 @@ export function computeBenchmarkMetrics(
     0
   );
 
+  let injectedTotal = 0;
+  let injectedAllowed = 0;
+  for (const o of falseInjectionCases) {
+    const allowed = new Set(o.final!.allowedFactIds);
+    injectedTotal += o.final!.injectedFactIds.length;
+    injectedAllowed += o.final!.injectedFactIds.filter((id) => allowed.has(id)).length;
+  }
+
+  const negativeCases = falseInjectionCases.filter((o) => o.final!.expectedAnswerIds.length === 0);
+  const negativeHits = negativeCases.filter((o) => detectFalseInjection(o.final!)).length;
+
+  const distractorCases = outcomes.filter((o) => o.distractor);
+  const distractorHits = distractorCases.filter((o) => {
+    const distractors = new Set(o.distractor!.distractorIds);
+    return o.distractor!.injectedFactIds.some((id) => distractors.has(id));
+  }).length;
+
+  const roleCases = outcomes.filter(
+    (o) => RELATIONSHIP_ROLE_CATEGORIES.includes(o.category) && o.final && o.final.expectedAnswerIds.length > 0
+  );
+  const roleHits = roleCases.filter((o) => {
+    const staleInjected = o.stale
+      ? o.stale.injectedFactIds.some((id) => o.stale!.staleFactIds.includes(id))
+      : false;
+    return containsAll(o.final!.injectedFactIds, o.final!.expectedAnswerIds) && !detectFalseInjection(o.final!) && !staleInjected;
+  }).length;
+
+  const utteranceCases = outcomes.filter(
+    (o) => o.category === "distinctive_utterance" && o.final && o.final.expectedAnswerIds.length > 0
+  );
+  const utteranceHits = utteranceCases.filter((o) =>
+    containsAll(o.final!.injectedFactIds, o.final!.expectedAnswerIds)
+  ).length;
+
+  const correctionCases = outcomes.filter((o) => o.correction);
+  const correctionHits = correctionCases.filter(
+    (o) =>
+      containsAll(o.correction!.injectedFactIds, o.correction!.correctedIds) &&
+      !o.correction!.injectedFactIds.some((id) => o.correction!.supersededIds.includes(id))
+  ).length;
+
   const transportMeasured = transport.evaluatedTurns > 0;
 
   return {
@@ -242,6 +328,52 @@ export function computeBenchmarkMetrics(
       staleHits,
       total,
       "no stale-vs-latest competition executed"
+    ),
+    precision:
+      injectedTotal > 0
+        ? {
+            value: injectedAllowed / injectedTotal,
+            status: "MEASURED",
+            eligibleCases: falseInjectionCases.length,
+            totalCases: total,
+            reason: "fact-level over every final retrieval with an allowed-ID set",
+          }
+        : {
+            value: null,
+            status: "NOT_MEASURED",
+            eligibleCases: falseInjectionCases.length,
+            totalCases: total,
+            reason: "no fact was injected by any final retrieval",
+          },
+    falseMemoryRate: rateMetric(
+      negativeCases.length,
+      negativeHits,
+      total,
+      "no negative (no-expected-answer) final retrieval executed"
+    ),
+    irrelevantInjectionRate: rateMetric(
+      distractorCases.length,
+      distractorHits,
+      total,
+      "no distractor-seeded case executed"
+    ),
+    relationshipRoleConsistency: rateMetric(
+      roleCases.length,
+      roleHits,
+      total,
+      "no relationship/role case ran final retrieval"
+    ),
+    distinctiveUtteranceRecall: rateMetric(
+      utteranceCases.length,
+      utteranceHits,
+      total,
+      "no distinctive-utterance case ran final retrieval"
+    ),
+    correctionSupersessionAccuracy: rateMetric(
+      correctionCases.length,
+      correctionHits,
+      total,
+      "no correction case executed"
     ),
     wrongObserverKnowledgeLeakCount:
       isolationCases.length > 0
@@ -330,6 +462,12 @@ export function formatBenchmarkMetricsLine(metrics: BenchmarkRawMetrics): string
     fmtMetric("finalRecall@8", metrics.finalRecallAt8),
     fmtMetric("falseInjectionRate", metrics.falseInjectionRate),
     fmtMetric("staleStateRecallRate", metrics.staleStateRecallRate),
+    fmtMetric("precision", metrics.precision),
+    fmtMetric("falseMemoryRate", metrics.falseMemoryRate),
+    fmtMetric("irrelevantInjectionRate", metrics.irrelevantInjectionRate),
+    fmtMetric("relationshipRoleConsistency", metrics.relationshipRoleConsistency),
+    fmtMetric("distinctiveUtteranceRecall", metrics.distinctiveUtteranceRecall),
+    fmtMetric("correctionSupersessionAccuracy", metrics.correctionSupersessionAccuracy),
     fmtMetric("wrongObserverKnowledgeLeakCount", metrics.wrongObserverKnowledgeLeakCount),
     fmtMetric("secretLeakCount", metrics.secretLeakCount),
     fmtMetric("baselineVsShadowDelta", metrics.baselineVsShadowDelta),
