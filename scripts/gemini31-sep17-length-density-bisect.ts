@@ -783,17 +783,20 @@ async function main() {
           : sorted.length % 2
             ? sorted[(sorted.length - 1) / 2]
             : (sorted[sorted.length / 2 - 1]! + sorted[sorted.length / 2]!) / 2;
-      return {
+      return [
         arm,
-        n: vals.length,
-        min: sorted[0] ?? null,
-        p25: sorted[Math.floor((sorted.length - 1) * 0.25)] ?? null,
-        median,
-        mean: Math.round(mean),
-        p75: sorted[Math.floor((sorted.length - 1) * 0.75)] ?? null,
-        max: sorted[sorted.length - 1] ?? null,
-        values: vals,
-      };
+        {
+          arm,
+          n: vals.length,
+          min: sorted[0] ?? null,
+          p25: sorted[Math.floor((sorted.length - 1) * 0.25)] ?? null,
+          median,
+          mean: Math.round(mean),
+          p75: sorted[Math.floor((sorted.length - 1) * 0.75)] ?? null,
+          max: sorted[sorted.length - 1] ?? null,
+          values: vals,
+        },
+      ] as const;
     }),
   );
   write("DISTRIBUTION.json", dist);

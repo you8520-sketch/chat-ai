@@ -1,0 +1,50 @@
+{
+  "arm": "B",
+  "fixtureId": "quiet_intimacy",
+  "run": 3,
+  "label": "OLD LENGTH ONLY — pre-Sep17 USER_TAIL + current NARRATIVE_DENSITY",
+  "promptHash": "40decc71f91c0ab853ac6e963e31c0b2c00fbd7a4432dcf31cdfdd08d133ee86",
+  "userTailVariant": "old",
+  "densityVariant": "absent",
+  "densityLiveInjected": false,
+  "provider_calls": 1,
+  "visibleChars": 4098,
+  "rawChars": 4098,
+  "completionTokens": 9384,
+  "reasoningTokens": 6859,
+  "reasoning_completion_share": 0.730924978687127,
+  "promptTokens": 5028,
+  "finish_reason": "stop",
+  "latencyMs": 75465,
+  "costUsd": 0.0858648,
+  "status": 200,
+  "error": null,
+  "occurrences": {
+    "user_new_dialogue_invented_heuristic": 0,
+    "user_major_choice_invented": 0,
+    "user_major_action_invented": 0,
+    "ai_npc_meaningful_progression": 3,
+    "repeated_emotion_clusters": 0,
+    "micro_action_filler": 0,
+    "backstory_memory_padding": 2,
+    "unnecessary_npc_event": 0,
+    "abstract_explanation": 0
+  },
+  "temperature": 0.95,
+  "reasoning_effort": "low",
+  "max_tokens": null,
+  "usage": {
+    "prompt_tokens": 5028,
+    "completion_tokens": 9384,
+    "total_tokens": 14412,
+    "prompt_tokens_details": {
+      "cached_tokens": 4573
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 6859,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    },
+    "cached_tokens": 4573
+  }
+}

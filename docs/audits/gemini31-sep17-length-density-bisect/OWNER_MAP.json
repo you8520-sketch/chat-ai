@@ -1,6 +1,6 @@
 {
   "EXACT_MAIN_CONFIRMED_BY_GPT": "45d79ca86fc7083fb4f590671a88d666ba6cc2c5",
-  "LOCAL_HEAD": "45d79ca86fc7083fb4f590671a88d666ba6cc2c5",
+  "LOCAL_HEAD": "a8d323e6940d05e3096eeae450e5fa9885c89f75",
   "numeric_visible_target": {
     "owner": "USER_TAIL_LENGTH_OWNER_SENTENCE (한국어 3,200자 이상)",
     "constants": "UNIFIED_TIER_AIM_CHARS=3200 in responseLengthConstants.ts"

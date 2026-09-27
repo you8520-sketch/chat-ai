@@ -1,0 +1,5 @@
+{
+  "provider_calls_total": 20,
+  "per_sample_invariant": 1,
+  "note": "No continuation / retry / recovery calls were issued"
+}
