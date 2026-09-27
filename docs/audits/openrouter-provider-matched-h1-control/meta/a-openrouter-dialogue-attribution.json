@@ -1,0 +1,134 @@
+{
+  "blocks": [
+    {
+      "paragraph_index": 1,
+      "paragraph_preview": "\"하... 진짜 죽여주네.\"",
+      "quoted_text": "하... 진짜 죽여주네.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 3,
+      "paragraph_preview": "\"이렇게 벌려놓고, 책임은 지는 거지.\"",
+      "quoted_text": "이렇게 벌려놓고, 책임은 지는 거지.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 5,
+      "paragraph_preview": "\"읏...!\"",
+      "quoted_text": "읏...!",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 7,
+      "paragraph_preview": "\"어때... 내가 지금, 제대로 박고 있는 것 같은데.\"",
+      "quoted_text": "어때... 내가 지금, 제대로 박고 있는 것 같은데.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 9,
+      "paragraph_preview": "\"안쪽이... 이렇게 물고 늘어지면, 나 참을 수가 없잖아.\"",
+      "quoted_text": "안쪽이... 이렇게 물고 늘어지면, 나 참을 수가 없잖아.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 11,
+      "paragraph_preview": "\"네가 먼저 부딪쳐 왔잖아. 이제 와서 빼달라고 해도, 안 빼줄 거야.\"",
+      "quoted_text": "네가 먼저 부딪쳐 왔잖아. 이제 와서 빼달라고 해도, 안 빼줄 거야.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 13,
+      "paragraph_preview": "\"봐... 여기, 이렇게 벌려놓고. 내가 들어갈 때마다 네 몸이 날 삼키고 있잖아.\"",
+      "quoted_text": "봐... 여기, 이렇게 벌려놓고. 내가 들어갈 때마다 네 몸이 날 삼키고 있잖아.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 15,
+      "paragraph_preview": "\"가자, 같이.\"",
+      "quoted_text": "가자, 같이.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 18,
+      "paragraph_preview": "\"죽이는 줄 알았어, 진짜.\"",
+      "quoted_text": "죽이는 줄 알았어, 진짜.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    },
+    {
+      "paragraph_index": 20,
+      "paragraph_preview": "\"이제 좀 살 것 같네.\"",
+      "quoted_text": "이제 좀 살 것 같네.",
+      "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+    }
+  ],
+  "SOURCE_USER_QUOTED_DIALOGUE_COUNT": 0,
+  "NEW_USER_PERSONA_DIALOGUE_CANDIDATE_COUNT": 0,
+  "NEW_USER_DIALOGUE_HUMAN_REVIEW_REQUIRED": false,
+  "by_attribution": {
+    "SOURCE_USER_QUOTED_DIALOGUE": [],
+    "AI_CHARACTER_DIALOGUE_CANDIDATE": [
+      {
+        "paragraph_index": 1,
+        "paragraph_preview": "\"하... 진짜 죽여주네.\"",
+        "quoted_text": "하... 진짜 죽여주네.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 3,
+        "paragraph_preview": "\"이렇게 벌려놓고, 책임은 지는 거지.\"",
+        "quoted_text": "이렇게 벌려놓고, 책임은 지는 거지.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 5,
+        "paragraph_preview": "\"읏...!\"",
+        "quoted_text": "읏...!",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 7,
+        "paragraph_preview": "\"어때... 내가 지금, 제대로 박고 있는 것 같은데.\"",
+        "quoted_text": "어때... 내가 지금, 제대로 박고 있는 것 같은데.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 9,
+        "paragraph_preview": "\"안쪽이... 이렇게 물고 늘어지면, 나 참을 수가 없잖아.\"",
+        "quoted_text": "안쪽이... 이렇게 물고 늘어지면, 나 참을 수가 없잖아.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 11,
+        "paragraph_preview": "\"네가 먼저 부딪쳐 왔잖아. 이제 와서 빼달라고 해도, 안 빼줄 거야.\"",
+        "quoted_text": "네가 먼저 부딪쳐 왔잖아. 이제 와서 빼달라고 해도, 안 빼줄 거야.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 13,
+        "paragraph_preview": "\"봐... 여기, 이렇게 벌려놓고. 내가 들어갈 때마다 네 몸이 날 삼키고 있잖아.\"",
+        "quoted_text": "봐... 여기, 이렇게 벌려놓고. 내가 들어갈 때마다 네 몸이 날 삼키고 있잖아.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 15,
+        "paragraph_preview": "\"가자, 같이.\"",
+        "quoted_text": "가자, 같이.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 18,
+        "paragraph_preview": "\"죽이는 줄 알았어, 진짜.\"",
+        "quoted_text": "죽이는 줄 알았어, 진짜.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      },
+      {
+        "paragraph_index": 20,
+        "paragraph_preview": "\"이제 좀 살 것 같네.\"",
+        "quoted_text": "이제 좀 살 것 같네.",
+        "attribution": "AI_CHARACTER_DIALOGUE_CANDIDATE"
+      }
+    ],
+    "NEW_USER_PERSONA_DIALOGUE_CANDIDATE": [],
+    "UNATTRIBUTED_DIALOGUE": []
+  }
+}
