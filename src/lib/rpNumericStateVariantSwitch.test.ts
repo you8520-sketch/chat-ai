@@ -91,12 +91,6 @@ function makeDb(): Database.Database {
       total_turns INTEGER NOT NULL DEFAULT 0,
       status_widget_json TEXT NOT NULL DEFAULT ''
     );
-    CREATE TABLE chats (
-      id INTEGER PRIMARY KEY,
-      memory_meta TEXT NOT NULL DEFAULT '{}',
-      current_summary TEXT NOT NULL DEFAULT '',
-      memory TEXT NOT NULL DEFAULT ''
-    );
     CREATE TABLE messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       chat_id INTEGER NOT NULL,
@@ -115,7 +109,6 @@ function makeDb(): Database.Database {
       status_meta TEXT,
       deduction_slices TEXT,
       user_message_id INTEGER,
-      memory_relationship_before_json TEXT,
       updated_at TEXT
     );
     CREATE TABLE bookmarks (message_id INTEGER PRIMARY KEY);
@@ -280,14 +273,6 @@ function makeVariants(
 }
 
 function seedABCD(db: Database.Database) {
-  db.prepare("INSERT INTO chats (id, memory_meta) VALUES (1, ?)").run(
-    JSON.stringify({
-      honorifics: [],
-      items: ["Tester: old-key, D-only-seal"],
-      thoughts: [],
-      promises: [],
-    })
-  );
   bootstrapNumericStateCurrentCore(db, {
     chatId: 1,
     characterId: 7,
@@ -346,16 +331,6 @@ function seedABCD(db: Database.Database) {
     alternates: JSON.stringify(variants),
     activeVariant: 3,
   });
-  db.prepare(
-    "UPDATE messages SET memory_relationship_before_json=? WHERE id=4"
-  ).run(
-    JSON.stringify({
-      honorifics: [],
-      items: ["Tester: old-key"],
-      thoughts: [],
-      promises: [],
-    })
-  );
   commitGen(db, {
     chatId: 1,
     stateKey: "affection",
@@ -466,43 +441,6 @@ describe("Phase B1-D2 — numeric variant selection", () => {
         .all() as Array<{ t: string }>
     ).map((r) => r.t);
     assert.deepEqual(episodic, ["사용자는 창고에서 경계를 유지했다."]);
-  });
-
-  it("V1b D→B removes D-only relationship projection and restores the pre-turn baseline", () => {
-    const db = makeDb();
-    seedABCD(db);
-
-    const before = JSON.parse(
-      (
-        db.prepare("SELECT memory_meta FROM chats WHERE id=1").get() as {
-          memory_meta: string;
-        }
-      ).memory_meta
-    ) as { items: string[] };
-    assert.deepEqual(before.items, ["Tester: old-key, D-only-seal"]);
-
-    executeAtomicNumericVariantSwitch(db, {
-      chatId: 1,
-      characterId: 7,
-      userId: 1,
-      messageId: 4,
-      variantIndex: 1,
-      characterWidget: widget(),
-    });
-
-    const after = JSON.parse(
-      (
-        db.prepare("SELECT memory_meta FROM chats WHERE id=1").get() as {
-          memory_meta: string;
-        }
-      ).memory_meta
-    ) as { items: string[] };
-
-    assert.deepEqual(
-      after.items,
-      ["Tester: old-key"],
-      "rejected D relationship state must not survive after B becomes canonical"
-    );
   });
 
   it("V3 reselection B→C→A→D→B keeps revision monotonic", () => {
