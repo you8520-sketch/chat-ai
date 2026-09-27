@@ -191,15 +191,36 @@ describe("memoryRelationshipTask production path regression", () => {
     assert.equal(ledgerCount(), 0);
   });
 
-  it("C4 — main tail skip writes durable marker without provider call", async () => {
+  it("C4 — main tail skip writes durable marker + pre-turn provenance without provider call", async () => {
+    getDb().prepare("UPDATE chats SET memory_meta=? WHERE id=?").run(
+      JSON.stringify({
+        honorifics: [],
+        items: ["Tester: key"],
+        thoughts: [],
+        promises: [],
+      }),
+      CHAT_ID
+    );
     await scheduleBase({
       relationshipTailParsed: true,
-      relationshipDeltaFromMain: { items: ["Tester: ring"] },
+      relationshipDeltaFromMain: { items: ["Tester: key, ring"] },
     });
     const marker = loadMessageMemoryRelationshipTask(ASSISTANT_MSG_ID);
     assert.equal(marker?.state, "skipped");
     assert.equal(marker?.reason, "main_model_tail_satisfied");
     assert.equal(ledgerCount(), 0);
+    const row = getDb()
+      .prepare(
+        "SELECT memory_relationship_before_json AS v FROM messages WHERE id=?"
+      )
+      .get(ASSISTANT_MSG_ID) as { v: string | null };
+    assert.ok(row.v);
+    assert.deepEqual(JSON.parse(row.v!), {
+      honorifics: [],
+      items: ["Tester: key"],
+      thoughts: [],
+      promises: [],
+    });
   });
 
   it("C5 — pre-reset skip writes durable marker without provider call", async () => {
