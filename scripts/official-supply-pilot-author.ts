@@ -864,7 +864,10 @@ function stepPortfolioQa(): void {
   console.log("[pilot] relationships ok:", graph.ok, graph.errors.map((e) => e.message), `edges ${graph.stats.edges}, one-way ${graph.stats.oneWay.length}`);
   const regions = internalWorldRegions(world.regions);
   for (const f of files) {
-    const region = evaluateInternalRegionConsistency(JSON.stringify({ brief: f.brief, bible: f.bible, plan: f.assetPlan }), regions);
+    const region = evaluateInternalRegionConsistency(
+      JSON.stringify({ brief: f.brief, bible: f.bible, plan: f.assetPlan, sceneContext: f.sceneContext }),
+      regions
+    );
     if (!region.ok) console.log(`[pilot] world conflict ${f.draftKey}:`, region.errors.map((e) => e.message));
   }
   const snapshot = readJson<{ signals: { source: string; scenarioHook?: string; worldMechanic?: string }[] }>(
@@ -1482,7 +1485,7 @@ function replaceTermsDeep<T>(value: T, terms: readonly [string, string][]): T {
   return value;
 }
 
-/** Offline: manifest-declared world-consistency repairs for one sheet (brief, bible, asset-plan wording). */
+/** Offline: manifest-declared world-consistency repairs for one sheet (brief, bible, asset-plan and scene-context wording). */
 function stepConsistencyFix(): void {
   const worldFile = readJson<WorldFile>(WORLD_PATH);
   for (const patch of MANIFEST.consistencyPatches) {
@@ -1492,7 +1495,12 @@ function stepConsistencyFix(): void {
     const applied = patch.rewrites.map(([dotted, from, to]) => patchString(root, dotted, from, to));
     const fixed = replaceTermsDeep(root, patch.terms) as { brief: PortfolioBriefInput; bible: OfficialCharacterBible };
     const assetPlan = file.assetPlan ? replaceTermsDeep(file.assetPlan, patch.terms) : file.assetPlan;
-    if (JSON.stringify(fixed) === JSON.stringify({ brief: file.brief, bible: file.bible }) && JSON.stringify(assetPlan) === JSON.stringify(file.assetPlan)) {
+    const sceneContext = file.sceneContext ? replaceTermsDeep(file.sceneContext, patch.terms) : file.sceneContext;
+    if (
+      JSON.stringify(fixed) === JSON.stringify({ brief: file.brief, bible: file.bible }) &&
+      JSON.stringify(assetPlan) === JSON.stringify(file.assetPlan) &&
+      JSON.stringify(sceneContext) === JSON.stringify(file.sceneContext)
+    ) {
       console.log(`[pilot] consistency-fix ${patch.draftKey}: already applied`);
       continue;
     }
@@ -1509,6 +1517,7 @@ function stepConsistencyFix(): void {
       bible: fixed.bible,
       draft,
       assetPlan,
+      sceneContext,
       charCount: officialSubstantiveCharCount(draft),
       revisions: [
         ...(file.revisions ?? []),
