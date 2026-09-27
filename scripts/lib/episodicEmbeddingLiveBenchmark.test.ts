@@ -99,7 +99,7 @@ describe("live embedding benchmark runner", () => {
       for (const field of [
         "model", "dimensions", "queryRttMs", "batchRttMs", "candidateRecall", "finalRecall", "falseInjectionRate",
         "staleStateRate", "knownGap", "knownGapSemantic", "milestoneRetention", "milestoneCaseSemantic",
-        "providerCalls", "inputTokens", "actualProviderCostUsd", "failureCount", "invariantViolations",
+        "providerCalls", "inputTokens", "actualProviderCostUsd", "failureCount", "invariantViolations", "summary",
       ]) {
         assert.ok(field in arm, `${arm.model} missing ${field}`);
       }
@@ -107,7 +107,24 @@ describe("live embedding benchmark runner", () => {
       assert.ok(arm.providerCalls > 0 && arm.inputTokens > 0);
       assert.ok((arm.actualProviderCostUsd ?? 0) > 0);
       assert.ok(arm.queryRttMs.count > 0 && arm.batchRttMs.count > 0);
+      assert.ok(arm.summary.evaluatedTurns > 0);
+      assert.ok(arm.summary.embeddingCalls.query > 0 && arm.summary.embeddingCalls.index > 0);
     }
     assert.equal(lines.length, 3);
   });
+});
+
+
+it("modelIds bounds an automated live run to the requested model subset", async () => {
+  const result = await runEpisodicEmbeddingLiveBenchmark({
+    env: FULL_OPT_IN,
+    modelIds: ["qwen/qwen3-embedding-8b"],
+    log: () => {},
+  });
+  assert.equal(result.status, "RAN");
+  if (result.status !== "RAN") return;
+  assert.deepEqual(result.arms.map((arm) => arm.model), ["qwen/qwen3-embedding-8b"]);
+  assert.ok(result.baselineSummary.evaluatedTurns > 0);
+  assert.ok(fetchCalls.length > 0);
+  assert.ok(fetchCalls.every((call) => call.body.model === "qwen/qwen3-embedding-8b"));
 });
