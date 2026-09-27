@@ -184,7 +184,7 @@ describe("deepseekPhase2PublishedBillingCutover — golden fixtures", () => {
     assert.equal(decision.telemetry.pricingVersion, 1);
   });
 
-  it("V4.1 Phase2 OFF → legacy phase2_deepseek_billing_disabled (no procurement fallback)", () => {
+  it("V4.1 direct selection is mandatory published even when Phase2 flag is OFF", () => {
     const stage: StageUsage = {
       ...completeDeepSeekStage({ stage: "primary" }),
       model: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
@@ -197,12 +197,16 @@ describe("deepseekPhase2PublishedBillingCutover — golden fixtures", () => {
       billingWaiverReason: null,
       legacyWaiverMinimum: 0,
       fxSnapshot: FX_DETERMINISTIC,
+      phase1PublishedBillingEnabled: false,
       phase2DeepSeekPublishedBillingEnabled: false,
     });
-    assert.equal(decision.contract, "legacy");
-    assert.equal(decision.reason, "phase2_deepseek_billing_disabled");
-    assert.equal(decision.points, 42);
+    assert.equal(decision.contract, "published_phase2");
+    assert.equal(decision.reason, "phase2_deepseek_live_grade");
+    assert.ok(decision.points > 0);
+    assert.notEqual(decision.points, 42);
+    assert.equal(decision.telemetry.pricingVersion, 1);
   });
+
 
   it("absent cache_write field → complete usage via proven-zero owner", () => {
     const stage = completeDeepSeekStage({ stage: "primary" });
