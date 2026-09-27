@@ -7,10 +7,14 @@ import {
 } from "@/lib/statusWidget/extractNormalize";
 import { collectWidgetJsonKeys } from "@/lib/statusWidget/prompt";
 import type { PostTurnSharedInitialInput, PostTurnSharedInitialMode } from "./types";
+import {
+  SUGGESTED_REPLY_MAX_CHARS,
+  SUGGESTED_REPLY_MIN_CHARS,
+} from "@/lib/suggestedReplies/types";
 
 const SHARED_SUGGESTIONS_OUTPUT_RULES = `SUGGESTED REPLIES section — write the USER's next roleplay turn options.
 Return in suggestedReplies.items exactly 3 objects: natural, twist, banter (one each).
-Korean only in text; each text 50–200 characters; mix dialogue and *stage direction*.
+Korean only in text; each text ${SUGGESTED_REPLY_MIN_CHARS}–${SUGGESTED_REPLY_MAX_CHARS} characters; mix dialogue and *stage direction*.
 Write as the USER persona named in [USER] — match voice from [SUGGESTED REPLIES VOICE CONTEXT] when provided.
 Do not write as the character/NPC.
 Kinds must differ in intent/action, not just tone:
