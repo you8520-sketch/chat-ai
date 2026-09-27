@@ -8,13 +8,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { sanitizeHairDescriptions, type HairDescriptionPolicy } from "@/lib/bodyHairRules";
+import { buildHairSanitizeContext, sanitizeHairDescriptions } from "@/lib/bodyHairRules";
 
-const restrictive: HairDescriptionPolicy = {
-  charGender: "male",
-  allowsBeard: false,
-  allowsBodyHair: false,
-};
+const restrictive = buildHairSanitizeContext({
+  characterName: "조태형",
+  characterGender: "male",
+  characterAppearanceText: "",
+  personaName: "렌",
+  personaText: "",
+  userGender: "male",
+});
 
 const fixturePath = join(process.cwd(), "src/lib/__fixtures__/hairSanitizerRegressionRaw.txt");
 const raw = readFileSync(fixturePath, "utf8");
