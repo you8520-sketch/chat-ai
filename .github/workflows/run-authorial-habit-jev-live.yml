@@ -1,0 +1,62 @@
+name: Run authorial-habit JEV live benchmark
+
+# Explicit one-shot live probe gate for the same-repository Draft PR only.
+# Adding .github/authorial-habit-jev-live.trigger starts the probe.
+# Removing the trigger causes this workflow to exit before any provider call.
+on:
+  pull_request:
+    paths:
+      - ".github/authorial-habit-jev-live.trigger"
+
+permissions:
+  contents: read
+
+jobs:
+  live_benchmark:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "1"
+      REAL_JEV_AUTHORIAL_HABIT_PROBE: "1"
+      OPENROUTER_JEV_BENCHMARK_API_KEY: ${{ secrets.OPENROUTER_JEV_BENCHMARK_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check explicit one-shot trigger
+        id: trigger
+        shell: bash
+        run: |
+          if [[ -f .github/authorial-habit-jev-live.trigger ]]; then
+            echo "run_live=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_live=0" >> "$GITHUB_OUTPUT"
+            echo "Trigger absent; provider calls=0."
+          fi
+
+      - name: Require dedicated benchmark credential
+        if: steps.trigger.outputs.run_live == '1'
+        shell: bash
+        run: |
+          if [[ -z "$OPENROUTER_JEV_BENCHMARK_API_KEY" ]]; then
+            echo "::error::OPENROUTER_JEV_BENCHMARK_API_KEY repository secret is required."
+            exit 2
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.trigger.outputs.run_live == '1'
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.trigger.outputs.run_live == '1'
+        run: npm ci
+
+      - name: Run bounded live benchmark
+        if: steps.trigger.outputs.run_live == '1'
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          scripts/benchmark-authorial-habit-jev-live.ts
