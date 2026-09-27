@@ -100,6 +100,7 @@ export const SUGGESTED_REPLIES_DECISION_QUALITY_CORPUS: SuggestedRepliesDecision
       { kind: "banter", text: text("드립 반응 ") },
     ]),
     expectedValid: false,
+    expectedAccepted: true,
     expectedIssues: ["text_out_of_bounds"],
   },
   {
