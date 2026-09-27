@@ -7,6 +7,7 @@ import { parseCharacterFormBody, type SessionUser } from "@/lib/characterFormSav
 import {
   OFFICIAL_AUTHOR_SNAPSHOT_VERSION,
   OFFICIAL_AUTHOR_TEMPLATE_VERSION,
+  stripPromptTierLabel,
   validatePilotAppearance,
   validatePilotAssetPlan,
   validatePilotBible,
@@ -382,6 +383,11 @@ describe("official pilot content (romance fantasy 01)", () => {
     assert.equal(qa.ok, true, JSON.stringify(qa.errors));
     assert.ok(qa.stats.cloneRate <= 0.25);
     for (const share of Object.values(qa.stats.locationShare)) assert.ok(share < 0.8);
+    for (const f of files) {
+      for (const slot of f.assetPlan!.slots) {
+        assert.equal(slot.location, slot.location === null ? null : stripPromptTierLabel(slot.location), `${f.draftKey}/${slot.slotKey}`);
+      }
+    }
   });
 
   it("corrections touched only the allowed sections (voice fields / adultSection / assetPlan)", () => {

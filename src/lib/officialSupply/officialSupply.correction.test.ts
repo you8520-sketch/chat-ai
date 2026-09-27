@@ -16,6 +16,7 @@ import {
   recordWorkflowRetry,
   reviseOfficialAdultProfile,
   reviseOfficialCharacterVoice,
+  stripPromptTierLabel,
   withAuthorAccounting,
   type OfficialAuthorRawCompletion,
   type OfficialAuthorTransport,
@@ -198,6 +199,12 @@ describe("scene portfolio diversity (canonical owner)", () => {
     assert.ok(visitor.errors.some((e) => e.code === "scene_clone_of_sibling" && e.message.includes("주 무대")));
     const tie = evaluateSceneCandidateAgainstPortfolio(entry("p2", [[temple, "기도"]], scored("p2", 30)), [knight], LOCATIONS);
     assert.ok(tie.errors.some((e) => e.code === "scene_clone_of_sibling"));
+  });
+
+  it("copied prompt tier labels are stripped from planned locations", () => {
+    assert.equal(stripPromptTierLabel("PRIMARY: 흑철 요새 연병장"), "흑철 요새 연병장");
+    assert.equal(stripPromptTierLabel("SECONDARY 장소: 아카이브"), "아카이브");
+    assert.equal(stripPromptTierLabel("황실 유리온실"), "황실 유리온실");
   });
 
   it("negated clauses do not count as the scene's incident; 의식을 잃다 is not a ritual", () => {

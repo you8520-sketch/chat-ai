@@ -1173,6 +1173,13 @@ export async function generateOfficialAppearanceLock(input: {
 const ASSET_SLOT_KINDS = new Set(["representative", "signature", "emotion", "scene"]);
 const ASSET_DEPICTIONS = new Set(["standard", "adult_grounded_non_explicit"]);
 
+const PROMPT_TIER_LABEL_RE = /^\s*(?:PRIMARY|SECONDARY|EXCEPTIONAL)(?:\s*장소)?\s*[:：]\s*/i;
+
+/** The planner prompt groups locations under tier labels; a copied label is not part of the place name. */
+export function stripPromptTierLabel(location: string): string {
+  return location.replace(PROMPT_TIER_LABEL_RE, "");
+}
+
 export async function generateOfficialAssetPlan(input: {
   transport: OfficialAuthorTransport;
   plan: AssetPlanInput;
@@ -1209,7 +1216,7 @@ export async function generateOfficialAssetPlan(input: {
         expression: typeof slot.expression === "string" ? slot.expression : "",
         pose: typeof slot.pose === "string" ? slot.pose : "",
         outfit: typeof slot.outfit === "string" ? slot.outfit : "default",
-        location: typeof slot.location === "string" ? slot.location : null,
+        location: typeof slot.location === "string" ? stripPromptTierLabel(slot.location) : null,
         situation: typeof slot.situation === "string" ? slot.situation : null,
         characterPresence: "required" as const,
         depiction: depiction as OfficialAssetPlan["slots"][number]["depiction"],
