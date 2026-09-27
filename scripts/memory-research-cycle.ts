@@ -18,12 +18,20 @@ import { formatBenchmarkMetricsLine } from "@/lib/memory/memory-rp-benchmark";
 import { DEFAULT_HTTP_BUDGET, runResearchCycle, type CycleMode } from "@/lib/memoryResearch/cycle";
 import { openDraftPrs } from "@/lib/memoryResearch/draftPr";
 import { EXPERIMENT_ADAPTERS } from "@/lib/memoryResearch/experiments";
-import {\n  applyDraftPrResults,\n  applyImplementationPrResults,\n  parseLedger,\n  serializeLedger,\n  type DraftPrResult,\n  type ImplementationPrResultRecord,\n} from "@/lib/memoryResearch/ledger";
+import {
+  applyDraftPrResults,
+  applyImplementationPrResults,
+  parseLedger,
+  serializeLedger,
+  type DraftPrResult,
+  type ImplementationPrResultRecord,
+} from "@/lib/memoryResearch/ledger";
 import { computeArchitectureFingerprint } from "@/lib/memoryResearch/ownerMap";
 import type { DraftPrPacket } from "@/lib/memoryResearch/prPacket";
 import { renderCycleReportMarkdown } from "@/lib/memoryResearch/report";
 import { defaultSources, type SourceFetch } from "@/lib/memoryResearch/sources";
-import { runPendingLiveExperiments } from "@/lib/memoryResearch/liveExperimentRunner";\nimport { openImplementationDraftPrs } from "@/lib/memoryResearch/implementationPr";
+import { runPendingLiveExperiments } from "@/lib/memoryResearch/liveExperimentRunner";
+import { openImplementationDraftPrs } from "@/lib/memoryResearch/implementationPr";
 import { runEpisodicEmbeddingLiveBenchmark } from "./lib/episodicEmbeddingLiveBenchmark";
 
 function arg(name: string): string | null {
@@ -218,6 +226,10 @@ if (command === "run") {
     console.error(error);
     process.exit(1);
   });
+} else if (command === "implementation-prs") {
+  implementationPrs();
+} else if (command === "apply-implementation-results") {
+  applyImplementationResults();
 } else if (command === "draft-prs") {
   draftPrs();
 } else if (command === "apply-draft-results") {
