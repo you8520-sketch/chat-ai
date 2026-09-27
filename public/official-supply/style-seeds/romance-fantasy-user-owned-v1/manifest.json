@@ -1,0 +1,98 @@
+{
+  "bundleId": "romance-fantasy-user-owned-v1",
+  "provenance": "platform_owned",
+  "ownershipNote": "User-authored original character artwork contributed as STYLE-ONLY references. The contributor retains character IP; official pipeline may use rendering language only. These assets must never be treated as character-identity anchors or auto-linked to any uploaded site character.",
+  "identitySeparation": {
+    "styleOwns": [
+      "line quality",
+      "facial illustration treatment",
+      "eye/nose/mouth rendering language",
+      "skin treatment",
+      "hair rendering density",
+      "coloring",
+      "lighting",
+      "material rendering",
+      "detail density",
+      "overall polish",
+      "women-oriented rofan aesthetic",
+      "mobile face-first hierarchy"
+    ],
+    "characterOwns": [
+      "face identity",
+      "hairstyle",
+      "hair color",
+      "eye color",
+      "build",
+      "age",
+      "outfit",
+      "scars/marks",
+      "jewelry",
+      "pose",
+      "background"
+    ]
+  },
+  "generationPolicy": {
+    "maxStyleReferencesPerRepresentativeCall": 3,
+    "defaultGenerationSet": ["primary/p1-face-rendering.webp", "primary/p2-costume-material-female.webp", "primary/p3-lighting-composition.webp"],
+    "note": "PRIMARY catalog may list 5; first provider proof uses only the defaultGenerationSet of 3."
+  },
+  "primary": [
+    {
+      "id": "P1",
+      "role": "face_rendering",
+      "path": "primary/p1-face-rendering.webp",
+      "sourceFile": "ca7d036e-3d84-4b8b-9ea1-3967791b5a67.webp",
+      "why": "Face-first polished male lead; clear eye/skin/hair finish on clean background."
+    },
+    {
+      "id": "P2",
+      "role": "costume_material_female",
+      "path": "primary/p2-costume-material-female.webp",
+      "sourceFile": "111f5776-0035-4d71-837c-b0e86e332ebf.webp",
+      "why": "Only female axis in set; gold embroidery / fabric / gem material language with readable face."
+    },
+    {
+      "id": "P3",
+      "role": "lighting_composition",
+      "path": "primary/p3-lighting-composition.webp",
+      "sourceFile": "52dcbe81-72f3-4508-848d-eca02b288601.webp",
+      "why": "Different identity cluster; rim light + atmosphere while face stays top of hierarchy."
+    },
+    {
+      "id": "P4",
+      "role": "face_armor_metal_catalog",
+      "path": "catalog/p4-face-armor-metal.webp",
+      "sourceFile": "0443606d-6502-4298-a0f7-0afee8ee78b4.webp",
+      "why": "Cool purple/silver metal language; alternate male identity. Catalog only unless 3-ref fidelity fails.",
+      "generationDefault": false
+    },
+    {
+      "id": "P5",
+      "role": "face_skin_hair_catalog",
+      "path": "catalog/p5-face-skin-hair.webp",
+      "sourceFile": "351d05d3-43ce-4e75-be89-33f9e632bb5d.webp",
+      "why": "High-contrast skin/hair polish; alternate identity. Catalog only unless 3-ref fidelity fails.",
+      "generationDefault": false
+    }
+  ],
+  "holdout": [
+    {
+      "id": "H1",
+      "path": "holdout/h1-overhead-pov.webp",
+      "sourceFile": "0e3db14c-0b08-408e-ba71-5a63b63e541c.webp",
+      "why": "Different POV; validate style family without pose copy."
+    },
+    {
+      "id": "H2",
+      "path": "holdout/h2-side-profile.webp",
+      "sourceFile": "2732762a-518f-48fe-be62-bb1f831821de.webp",
+      "why": "Side profile angle holdout."
+    },
+    {
+      "id": "H3",
+      "path": "holdout/h3-event-situation.webp",
+      "sourceFile": "ddd79b70-5b58-4bd6-827d-a93d1236973c.webp",
+      "why": "Event/situation holdout; check rendering language not prop copy."
+    }
+  ]
+}
