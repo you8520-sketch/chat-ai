@@ -136,7 +136,7 @@ export function openImplementationDraftPrs(
         "--json",
         "url",
         "--jq",
-        ".[0].url // \\\"\\\"",
+        ".[0].url // \"\"",
       ]);
       if (existing) {
         results.push({ candidateKey: candidate.candidateKey, url: existing, error: null });
