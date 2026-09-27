@@ -167,6 +167,31 @@ describe("official pilot content (romance fantasy 01)", () => {
     }
   });
 
+  it("Lucian canonical height is 184cm across world brief, bible and appearance lock", () => {
+    const { bible: world } = worldBible();
+    const lucian = chars().find((file) => file.draftKey === "pilot-rf-03");
+    assert.ok(lucian);
+    const brief = world.portfolio.find((item) => item.slot === 3);
+    assert.ok(brief);
+
+    assert.equal(lucian!.bible.identity.heightCm, 184);
+    assert.equal(lucian!.appearance!.identity.heightCm, 184);
+    assert.match(lucian!.brief.visualSilhouette, /184cm/);
+    assert.match(brief!.visualSilhouette, /184cm/);
+    assert.doesNotMatch(JSON.stringify(lucian), /178cm/);
+  });
+
+  it("compiled character cores contain no legacy Korean suffix-assembly artifacts", () => {
+    for (const file of chars()) {
+      const core = file.draft.sections.characterCore;
+      assert.doesNotMatch(core, /(\\d{3})cm\\s+\\1cm/u, file.draftKey);
+      assert.doesNotMatch(core, /\\.에\\s/u, file.draftKey);
+      assert.doesNotMatch(core, /피부\\.?\\s*피부/u, file.draftKey);
+      assert.doesNotMatch(core, /\\.\\s*차림[,. ]/u, file.draftKey);
+      assert.doesNotMatch(core, /\\.\\./u, file.draftKey);
+    }
+  });
+
   it("stored drafts are exactly what the canonical compiler produces from the bibles", () => {
     const m = manifest();
     const { bible: world } = worldBible();
