@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1536" viewBox="0 0 1024 1536">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="0.45" stop-color="#241522"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </linearGradient>
+    <radialGradient id="warm" cx="50%" cy="34%" r="42%">
+      <stop offset="0" stop-color="#f6d7ad" stop-opacity="0.94"/>
+      <stop offset="0.28" stop-color="#c58c72" stop-opacity="0.46"/>
+      <stop offset="1" stop-color="#7b1f33" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f1d08b"/>
+      <stop offset="1" stop-color="#8b6736"/>
+    </linearGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="22"/></filter>
+  </defs>
+  <rect width="1024" height="1536" fill="url(#bg)"/>
+  <ellipse cx="512" cy="505" rx="420" ry="470" fill="url(#warm)" filter="url(#soft)"/>
+  <path d="M150 1200 C260 990 350 910 512 900 C674 910 764 990 874 1200 L920 1536 H104 Z"
+        fill="#171a27" stroke="#745432" stroke-width="6"/>
+  <path d="M334 1010 C412 954 612 954 690 1010 L654 1390 H370 Z"
+        fill="#2b2430" stroke="#b99458" stroke-width="5"/>
+  <path d="M370 1060 L512 1165 L654 1060" fill="none" stroke="url(#gold)" stroke-width="12"/>
+  <circle cx="512" cy="720" r="198" fill="#d8a98d" opacity="0.22"/>
+  <path d="M349 708 C360 540 430 454 512 438 C594 454 664 540 675 708"
+        fill="#202333" stroke="#a57951" stroke-width="5"/>
+  <path d="M393 704 C430 620 594 620 631 704" fill="none" stroke="#f4d8bf" stroke-width="10" opacity="0.45"/>
+  <path d="M392 762 C448 792 576 792 632 762" fill="none" stroke="#8e4251" stroke-width="8" opacity="0.55"/>
+  <path d="M115 320 L286 250 M909 320 L738 250 M170 1340 L305 1260 M854 1340 L719 1260"
+        stroke="#c9a56a" stroke-width="4" opacity="0.52"/>
+  <g opacity="0.38" fill="#c9a56a">
+    <circle cx="156" cy="299" r="9"/><circle cx="868" cy="299" r="9"/>
+    <circle cx="198" cy="1320" r="8"/><circle cx="826" cy="1320" r="8"/>
+  </g>
+</svg>
