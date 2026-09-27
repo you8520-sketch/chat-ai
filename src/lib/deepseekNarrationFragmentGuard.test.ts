@@ -13,7 +13,7 @@ import {
 } from "@/lib/deepseekPromptStructure";
 import { buildRegenerateUserPrompt } from "@/lib/continueNarrative";
 import {
-  IMMERSIVE_PROSE_BLOCK,
+  COMMON_PROSE_BLOCK,
   PROSE_STYLE_SECTION,
 } from "@/lib/advancedProseNsfwGuidelines";
 import { buildWebnovelOutputLayoutRecencyBlock } from "@/lib/webnovelOutputFormat";
@@ -49,7 +49,7 @@ describe("DeepSeek narration fragment guard (prompt snapshot)", () => {
   it("does not inject the DeepSeek-only guard into shared prose / OUTPUT LAYOUT", () => {
     assert.doesNotMatch(PROSE_STYLE_SECTION, /대사는 캐릭터 말투에 따라 짧을 수 있다/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /한두 단어짜리 파편문을 습관적으로/);
-    assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /대사는 캐릭터 말투에 따라 짧을 수 있다/);
+    assert.doesNotMatch(COMMON_PROSE_BLOCK, /대사는 캐릭터 말투에 따라 짧을 수 있다/);
     const layout = buildWebnovelOutputLayoutRecencyBlock();
     assert.doesNotMatch(layout, /대사는 캐릭터 말투에 따라 짧을 수 있다/);
     assert.doesNotMatch(layout, /한두 단어짜리 파편문을 습관적으로/);
@@ -147,16 +147,11 @@ describe("DeepSeek narration fragment guard (prompt snapshot)", () => {
     assert.match(layout, /대사는 독립 문단으로 표시한다/);
   });
 
-  it("does not stack DeepSeek anti-fragment into RHYTHM / IMMERSIVE", () => {
-    const rhythm = PROSE_STYLE_SECTION.slice(
-      PROSE_STYLE_SECTION.indexOf("[RHYTHM]"),
-      PROSE_STYLE_SECTION.indexOf("[SENSATION]")
-    );
-    assert.doesNotMatch(rhythm, /대사는 캐릭터 말투에 따라 짧을 수 있다/);
-    assert.doesNotMatch(rhythm, /짧은 문장마다 새 문단/);
-    assert.match(rhythm, /강조·긴장·충격/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /모든 움직임을 순서대로 기록하지 않는다/);
-    assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /한두 단어짜리 파편문/);
+  it("does not stack DeepSeek anti-fragment into COMMON PROSE", () => {
+    assert.doesNotMatch(COMMON_PROSE_BLOCK, /대사는 캐릭터 말투에 따라 짧을 수 있다/);
+    assert.doesNotMatch(COMMON_PROSE_BLOCK, /짧은 문장마다 새 문단/);
+    assert.doesNotMatch(COMMON_PROSE_BLOCK, /한두 단어짜리 파편문/);
+    assert.match(COMMON_PROSE_BLOCK, /파편문·말줄임은 강조나 망설임이 있을 때만 쓴다/);
   });
 
   it("reports DeepSeek-only reminder token delta", () => {

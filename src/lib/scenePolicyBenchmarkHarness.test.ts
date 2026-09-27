@@ -40,6 +40,7 @@ import {
   verifyThreeArmParity,
 } from "@/lib/scenePolicyBenchmarkHarness";
 import { buildSceneDirective } from "@/lib/sceneDirective";
+import { COMMON_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
 import { BENCHMARK_CHAR_NAME } from "@/lib/scenePolicyBenchmarkDataset";
 import { estimateTokens } from "@/lib/tokenEstimate";
 
@@ -483,7 +484,7 @@ describe("scene policy benchmark cost owner COST1-COST5", () => {
 });
 
 describe("scene policy benchmark strip safety", () => {
-  it("stripSceneOwnedSections does not eat adjacent [RHYTHM] section", () => {
+  it("stripSceneOwnedSections does not eat the adjacent [COMMON PROSE] section", () => {
     const fixture = SCENE_POLICY_BENCHMARK_FIXTURES[0]!;
     const v2 = buildBenchmarkArmPayload({ fixture, arm: "v2" });
     const policyInput = buildScenePolicyInputFromFixture(fixture);
@@ -499,8 +500,8 @@ describe("scene policy benchmark strip safety", () => {
       sceneBlockArtifact: v2.sceneBlockArtifact,
     });
     const stripped = stripSceneOwnedSections(v2.systemPrompt, strips);
-    assert.ok(stripped.includes("[RHYTHM]"));
-    assert.ok(stripped.includes("[IMMERSIVE PROSE]"));
+    assert.ok(stripped.includes("[COMMON PROSE]"));
+    assert.ok(stripped.includes(COMMON_PROSE_BLOCK.split("\n").at(-1)!));
     assert.ok(!stripped.includes("[PRIVATE SCENE PACING RULE]"));
     void v1Directive;
   });

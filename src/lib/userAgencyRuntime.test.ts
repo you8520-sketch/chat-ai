@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { AUTO_PROGRESSION_BLOCK_TITLE } from "@/lib/autoProgressionRules";
-import { IMMERSIVE_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
+import { COMMON_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
 import {
   buildNoGodmoddingBlock,
   COLLABORATIVE_INTERACTIVE_OWNER_BLOCK,
@@ -27,12 +27,10 @@ const user = "테스트_유저";
 const ai = "테스트_AI";
 
 const CALLBACK_SEMANTIC_MARKERS = [
-  "present first",
-  "relevant할 때만",
-  "그대로 복사",
-  "매 턴 의무적으로 회상",
-  "같은 기억·키워드·상징·비유",
-  "설정 문장·기억 문장",
+  "현재 장면에 relevant할 때만",
+  "복사·의무적 회상은 하지 않는다",
+  "같은 기억·상징은 새 의미가 있을 때만",
+  "정본·기억·페르소나는",
 ] as const;
 
 function buildInteractive(
@@ -173,13 +171,15 @@ describe("LEN — length vs user agency gates", () => {
     assert.match(NARRATIVE_DENSITY_BLOCK, /\[AI_CAST\]의 현재 심리/);
   });
 
-  it("LEN3 immersive prose forbids micro-action/emotion paraphrase filler", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /미세 행동·반복 해설/);
+  it("LEN3 common prose keeps micro-action meaningful and forbids emotion re-explanation", () => {
+    assert.match(COMMON_PROSE_BLOCK, /미세한 반응은 관계·긴장·안전감·의도가 드러나거나 바뀔 때 살리고/);
+    assert.match(COMMON_PROSE_BLOCK, /평범한 동작은 줄인다/);
+    assert.match(COMMON_PROSE_BLOCK, /재해설하지 않는다/);
   });
 
-  it("LEN4 immersive prose forbids fabricated canon echo obligation", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /relevant할 때만/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /의무적으로 회상하지 않는다/);
+  it("LEN4 common prose forbids fabricated canon echo obligation", () => {
+    assert.match(COMMON_PROSE_BLOCK, /relevant할 때만/);
+    assert.match(COMMON_PROSE_BLOCK, /의무적 회상은 하지 않는다/);
   });
 
   it("LEN5 adult handoff local reciprocal response preserved in wrapper", () => {
@@ -189,23 +189,23 @@ describe("LEN — length vs user agency gates", () => {
 });
 
 describe("CTX — contextual callback gates", () => {
-  it("CTX1–3 present-first + transform canon to action (not explain)", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /present first/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /행동·대사 선택을 바꾸/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /설정 문장·기억 문장을 그대로 복사/);
+  it("CTX1–3 present-first + canon used only when relevant (not recited)", () => {
+    assert.match(COMMON_PROSE_BLOCK, /현재 장면과 인물 체험에 밀착/);
+    assert.match(COMMON_PROSE_BLOCK, /현재 장면에 relevant할 때만 반영/);
+    assert.match(COMMON_PROSE_BLOCK, /복사·의무적 회상은 하지 않는다/);
   });
 
   it("CTX4 irrelevant memory — no mandatory callback quota", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /의무적으로 회상하지 않는다/);
+    assert.match(COMMON_PROSE_BLOCK, /의무적 회상은 하지 않는다/);
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /매 턴 callback 의무/);
   });
 
   it("CTX5 anti-fixation requires new function on reuse", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /새 정보·판단·감정 변화·행동 결과/);
+    assert.match(COMMON_PROSE_BLOCK, /새 의미가 있을 때만 다시 쓴다/);
   });
 
   it("CTX6 no verbatim canon/memory echo", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /그대로 복사/);
+    assert.match(COMMON_PROSE_BLOCK, /복사·의무적 회상/);
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /문장 그대로 echo/);
   });
 
@@ -239,20 +239,20 @@ describe("CTX — contextual callback gates", () => {
   });
 
   it("CTX9 present scene first — no unnecessary flashback expansion", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /현재 장면/);
+    assert.match(COMMON_PROSE_BLOCK, /현재 장면/);
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /flashback/);
   });
 
   it("CTX10 same memory/keyword non-functional repetition forbidden", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /같은 기억·키워드·상징·비유/);
+    assert.match(COMMON_PROSE_BLOCK, /같은 기억·상징/);
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /무기능 반복/);
   });
 });
 
 describe("OWNER — responsibility consolidation gates", () => {
-  it("OWNER1 contextual callback semantics live in IMMERSIVE PROSE only", () => {
-    const proseHits = countMarkerHits(IMMERSIVE_PROSE_BLOCK, CALLBACK_SEMANTIC_MARKERS);
-    assert.ok(proseHits >= 4, "IMMERSIVE PROSE must own callback contract");
+  it("OWNER1 contextual callback semantics live in COMMON PROSE only", () => {
+    const proseHits = countMarkerHits(COMMON_PROSE_BLOCK, CALLBACK_SEMANTIC_MARKERS);
+    assert.equal(proseHits, CALLBACK_SEMANTIC_MARKERS.length, "COMMON PROSE must own callback contract");
     assert.equal(
       countMarkerHits(COLLABORATIVE_INTERACTIVE_OWNER_BLOCK, CALLBACK_SEMANTIC_MARKERS),
       0
@@ -308,7 +308,7 @@ describe("OWNER — responsibility consolidation gates", () => {
   });
 
   it("OWNER8 NARRATIVE DENSITY does not duplicate full contextual-callback contract", () => {
-    assert.match(NARRATIVE_DENSITY_BLOCK, /\[IMMERSIVE PROSE\]를 따른다/);
+    assert.match(NARRATIVE_DENSITY_BLOCK, /\[COMMON PROSE\]를 따른다/);
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /present first/);
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /relevant할 때만/);
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /그대로 복사/);

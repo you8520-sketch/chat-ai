@@ -9,19 +9,19 @@ import {
 import { buildLengthInstruction } from "@/lib/responseLength";
 import { buildWebnovelOutputLayoutRecencyBlock } from "@/lib/webnovelOutputFormat";
 import { buildNovelModeUserPersonaRules } from "@/lib/userPersonaNarrationRules";
-import { IMMERSIVE_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
+import { COMMON_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
 
 describe("scene continuity vs paragraph layout — disambiguated prose rules", () => {
-  it("NARRATIVE DENSITY is a short length pointer; style lives in IMMERSIVE PROSE", () => {
+  it("NARRATIVE DENSITY is a short length pointer; style lives in COMMON PROSE", () => {
     assert.match(NARRATIVE_DENSITY_BLOCK, /\[NARRATIVE DENSITY\]/);
     assert.match(NARRATIVE_DENSITY_BLOCK, /모든 중간 동작을 기록하지 않는다/);
     assert.match(NARRATIVE_DENSITY_BLOCK, /생략은 짧게 쓰라는 뜻이 아니다/);
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /중간 단계를 건너뛰지/);
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /신체 접촉/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /\[IMMERSIVE PROSE\]/);
+    assert.match(COMMON_PROSE_BLOCK, /\[COMMON PROSE\]/);
   });
 
-  it("REACTION VARIETY absorbed into IMMERSIVE PROSE (not re-injected)", () => {
+  it("REACTION VARIETY absorbed into COMMON PROSE (not re-injected)", () => {
     assert.equal(NO_GENERIC_REACTIONS_BLOCK, REACTION_VARIETY_BLOCK);
     assert.equal(REACTION_VARIETY_BLOCK, "");
     assert.doesNotMatch(buildLengthInstruction(), /\[REACTION VARIETY\]/);

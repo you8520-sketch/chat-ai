@@ -3,7 +3,7 @@
 /** Core continuation (no numeric length ownership). */
 export const SCENE_CONTINUATION_PRIORITY_BLOCK_CORE = `[SCENE CONTINUATION PRIORITY]
 Never stop at the first satisfying ending.
-분위기·세계 움직임으로 이어가되, 억지 질문·훅으로 유저를 붙잡지 않는다. (pause·여운은 [WEBNOVEL BREATH])`;
+분위기·세계 움직임으로 이어가되, 억지 질문·훅으로 유저를 붙잡지 않는다. (pause·여운은 [COMMON PROSE])`;
 
 /** Production early-stop floor line — omitted on Terra terminal-owner diagnosis path. */
 export const SCENE_CONTINUATION_EARLY_STOP_LINE =

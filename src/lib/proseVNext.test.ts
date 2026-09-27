@@ -61,9 +61,8 @@ describe("Prose VNext via proseStyleSection seam (one-slot replacement)", () => 
     });
     assert.equal(viaUndef, legacy);
     assert.ok(legacy.includes(PROSE_STYLE_SECTION));
-    assert.match(legacy, /\[IMMERSIVE PROSE\]/);
-    assert.match(legacy, /\[SENSATION\]/);
-    assert.match(legacy, /\[WEBNOVEL BREATH\]/);
+    assert.match(legacy, /\[COMMON PROSE\]/);
+    assert.match(legacy, /\[SCENE FLOW\]/);
   });
 
   it("E: VNext ON preserves wrappers + mechanical shell", () => {

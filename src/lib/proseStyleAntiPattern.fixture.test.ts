@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  IMMERSIVE_PROSE_BLOCK,
+  COMMON_PROSE_BLOCK,
   PROSE_STYLE_SECTION,
 } from "@/lib/advancedProseNsfwGuidelines";
 import { NARRATIVE_DENSITY_BLOCK, REACTION_VARIETY_BLOCK } from "@/lib/sceneExpansionPolicy";
@@ -20,39 +20,31 @@ import { buildNoGodmoddingBlock } from "@/lib/noGodmodding";
  * No live API.
  */
 describe("prose style anti-pattern fixtures (static)", () => {
-  it("A: IMMERSIVE PROSE owns micro-action / selective detail (common)", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /\[IMMERSIVE PROSE\]/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /모든 움직임을 순서대로 기록하지 않는다/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /행동 목록, 신체 부위 목록, 소품 조작 목록/);
-    assert.match(PROSE_STYLE_SECTION, /\[IMMERSIVE PROSE\]/);
+  it("A: COMMON PROSE owns micro-action / selective detail", () => {
+    assert.match(COMMON_PROSE_BLOCK, /\[COMMON PROSE\]/);
+    assert.match(COMMON_PROSE_BLOCK, /작은 행동·미세한 반응은/);
+    assert.match(COMMON_PROSE_BLOCK, /평범한 동작은 줄인다/);
+    assert.match(PROSE_STYLE_SECTION, /\[COMMON PROSE\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[MOVEMENT & DETAIL\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[BODY AND PROP INVENTORY\]/);
     assert.match(NARRATIVE_DENSITY_BLOCK, /생략은 짧게 쓰라는 뜻이 아니다/);
   });
 
-  it("B: rejects post-hoc narrator gloss via IMMERSIVE PROSE", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /뜻이었다/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /표시였다/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /이것은 ~가 아니었다/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /추상 판정·정답 해설/);
-    assert.match(
-      IMMERSIVE_PROSE_BLOCK,
-      /이미 충분히 드러난 생각·관계 해석·외형·능력·감각 효과·과거는 새 변화에 필요한 만큼만 짧게 참조하고/
-    );
-    assert.match(IMMERSIVE_PROSE_BLOCK, /새 반응·판단·행동·환경 변화로 이어간다/);
-    assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /\[CANON RECITAL/);
+  it("B: rejects post-hoc narrator gloss via COMMON PROSE", () => {
+    assert.match(COMMON_PROSE_BLOCK, /드러난 의미를 "~라는 뜻이었다"식으로 재해설하지 않는다/);
+    assert.match(COMMON_PROSE_BLOCK, /의미가 전달되면 다음 반응·행동·환경·관계 변화로 나아가고/);
+    assert.doesNotMatch(COMMON_PROSE_BLOCK, /\[CANON RECITAL/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[NO POST-HOC VERDICT\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /감정 이름·해석·결론 없이/);
   });
 
   it("C: rejects world-briefing dialogue packing", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /브리핑으로 만들지 않는다/);
+    assert.match(COMMON_PROSE_BLOCK, /대사는 설정 설명 없이/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[DIALOGUE NATURALNESS\]/);
   });
 
-  it("D: allows direct emotion / inner experience", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /생각·연상·기억·오해·감정·판단/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /관찰만 나열하지 말고/);
+  it("D: allows inner experience that changes judgment/action", () => {
+    assert.match(COMMON_PROSE_BLOCK, /내면은 현재 판단·행동·선택을 바꾸는 만큼 쓴다/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[EMOTION & INNER EXPERIENCE\]/);
   });
 

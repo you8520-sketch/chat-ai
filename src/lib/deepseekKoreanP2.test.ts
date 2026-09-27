@@ -8,7 +8,7 @@ import {
 } from "@/lib/deepseekPromptStructure";
 import {
   PROSE_STYLE_SECTION,
-  IMMERSIVE_PROSE_BLOCK,
+  COMMON_PROSE_BLOCK,
 } from "@/lib/advancedProseNsfwGuidelines";
 import { COLLABORATIVE_INTERACTIVE_OWNER_TITLE } from "@/lib/noGodmodding";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
@@ -120,7 +120,7 @@ describe("P2 — DeepSeek native Korean / register quality fixtures", () => {
     const sys = built.systemPrompt;
     assert.ok(sys.includes("다나까체") || sys.includes("격식체"), "formal speech present");
     // Narration register stays -다체 (not honorific).
-    assert.ok(sys.includes("지문·서술은 해체"), "narration -다체 owner present");
+    assert.ok(sys.includes("해체(-다/-했다)의 자연스러운 한국어 완결문"), "narration -다체 owner present");
   });
 
   it("D — relationship-dependent register: current relationship metadata present and no generic flattening", () => {
@@ -148,17 +148,18 @@ describe("P2 — DeepSeek native Korean / register quality fixtures", () => {
   it("G — narration/dialogue split: -다체 narration vs character dialogue register owners separated", () => {
     const built = buildDeepSeek(POLITE_STANDARD_CHUNKS);
     const sys = built.systemPrompt;
-    assert.ok(sys.includes("[NARRATION REGISTER]"), "narration register section");
-    assert.match(sys, /지문·서술은 해체\(-다/);
-    // Dialogue register is delegated to speech metadata / example dialog.
-    assert.match(sys, /대사 register·존댓말은 \[SPEECH METADATA\]/);
+    assert.equal(count(sys, "[COMMON PROSE]"), 1, "common prose owner");
+    assert.match(sys, /지문은 [^\n]*해체\(-다\/-했다\)/);
+    // Dialogue register is owned by speech metadata, not by the narration line.
+    assert.equal(count(sys, "[SPEECH METADATA — INVISIBLE INSTRUCTIONS]"), 1);
+    assert.match(sys, /말투·존댓말·register·tone·어조는 대사/);
   });
 
   it("H — dialogue economy preserved (P1 common prose still present)", () => {
     const built = buildDeepSeek(POLITE_STANDARD_CHUNKS);
     const sys = built.systemPrompt;
-    assert.equal(count(sys, "같은 화자의 이어지는"), 1);
-    assert.ok(sys.includes(IMMERSIVE_PROSE_BLOCK.split("\n")[0] ?? ""), "IMMERSIVE PROSE present");
+    assert.equal(count(sys, "같은 화자의 연속된 말은"), 1);
+    assert.ok(sys.includes(COMMON_PROSE_BLOCK), "COMMON PROSE present");
   });
 
   it("I — role binding preserved (P0 common owner still present)", () => {
@@ -183,9 +184,9 @@ describe("P2 — DeepSeek final prompt contract", () => {
     const tail = built.history[built.history.length - 1]?.content ?? "";
     const full = `${sys}\n\n${tail}`;
 
-    assert.equal(count(sys, "[NARRATION REGISTER]"), 1);
-    assert.equal(count(sys, "[IMMERSIVE PROSE]"), 1);
-    assert.equal(count(sys, "같은 화자의 이어지는"), 1);
+    assert.equal(count(sys, "[COMMON PROSE]"), 1);
+    assert.equal(count(sys, "[IMMERSIVE PROSE]"), 0);
+    assert.equal(count(sys, "같은 화자의 연속된 말은"), 1);
     assert.equal(count(sys, "확정된 행동의 주체·대상·방향은 이번 응답의 기준으로 유지한다"), 1);
     assert.equal(count(sys, COLLABORATIVE_INTERACTIVE_OWNER_TITLE), 1);
     assert.equal(count(sys, "[SPEECH METADATA — INVISIBLE INSTRUCTIONS]"), 1);
@@ -221,9 +222,8 @@ describe("P2 — active-4 regression (common owner unchanged for non-DeepSeek)",
         buildInput(POLITE_STANDARD_CHUNKS, { modelId, provider })
       );
       const sys = built.systemPrompt;
-      assert.equal(count(sys, "[NARRATION REGISTER]"), 1, `${label} NARRATION REGISTER`);
-      assert.equal(count(sys, "[IMMERSIVE PROSE]"), 1, `${label} IMMERSIVE PROSE`);
-      assert.equal(count(sys, "같은 화자의 이어지는"), 1, `${label} dialogue economy`);
+      assert.equal(count(sys, "[COMMON PROSE]"), 1, `${label} COMMON PROSE`);
+      assert.equal(count(sys, "같은 화자의 연속된 말은"), 1, `${label} dialogue economy`);
       assert.equal(count(sys, COLLABORATIVE_INTERACTIVE_OWNER_TITLE), 1, `${label} role binding`);
       assert.equal(count(sys, "[SPEECH METADATA — INVISIBLE INSTRUCTIONS]"), 1, `${label} speech metadata`);
     }
