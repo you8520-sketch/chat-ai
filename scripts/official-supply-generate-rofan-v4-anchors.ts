@@ -9,6 +9,7 @@ import {
   PILOT_CLUSTER_B_PROOF_SLOT_KEY,
   PILOT_CLUSTER_B_PROOF_SOURCE_DRAFT_KEYS,
   pilotClusterBStyleProofDraftKey,
+  pilotClusterBStyleProofOptedIn,
 } from "@/lib/officialSupply/pilotClusterBStyleProof";
 import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
 import {
@@ -137,6 +138,13 @@ function preflight(store: OfficialSupplyStore): void {
 }
 
 async function main(): Promise<void> {
+  if (!pilotClusterBStyleProofOptedIn()) {
+    console.log(
+      `[rofan-v4-anchor-batch] NOT_RUN: set OFFICIAL_STYLE_PROOF_LIVE=1 and OFFICIAL_STYLE_PROOF_CANDIDATE=${PILOT_STYLE_PROOF_CANDIDATE_ID}`
+    );
+    return;
+  }
+
   const store = new OfficialSupplyStore();
   preflight(store);
 
