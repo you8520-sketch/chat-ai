@@ -52,24 +52,24 @@
       "candidateId": "rf-02",
       "label": "황혼의 궁정 드라마",
       "dna": {
-        "faceProportion": "턱선이 조금 더 뚜렷하고 광대와 눈썹 구조가 분명한 균형형 얼굴",
-        "eyeShape": "눈매가 길고 눈꺼풀 선이 선명하며 시선 방향으로 긴장감을 전달",
-        "noseMouthDetail": "콧대와 입술 아래에 명확한 음영을 넣고 입꼬리 변화로 감정을 구분",
-        "lineDensity": "얼굴에는 중간 밀도의 선을 쓰고 의상 주름과 장식에는 선택적으로 세부선을 집중",
-        "rendering": "부드러운 페인팅 기반에 단단한 가장자리와 깊은 그림자를 섞은 드라마틱 렌더링",
-        "skinRendering": "따뜻한 중간톤 피부와 턱선·목의 구조적 음영, 제한된 윤광",
-        "hairRendering": "큰 실루엣은 단단하게 정리하고 앞머리와 장발 끝에 방향성 있는 가닥선을 추가",
-        "bodyProportion": "어깨와 허리의 차이가 뚜렷하고 남성 인물은 넓은 상체, 여성 인물은 길고 날렵한 선으로 구분",
-        "costumeComplexity": "제복과 궁정복의 절개선, 금속 단추, 자수 문양을 서사적으로 강조",
-        "palette": "버건디, 먹색, 앤틱 골드, 딥 네이비의 저채도 팔레트",
-        "lightSoftness": "측면에서 들어오는 따뜻한 빛과 얼굴 일부에 맺히는 부드러운 하이라이트",
-        "contrast": "중고 대비로 인물과 배경의 위계를 뚜렷하게 분리",
-        "backgroundDensity": "회랑과 접견실은 건축선을 분명히 하되 장식은 초점면 밖에서 단순화",
-        "framing": "허리 위 대치 구도와 비스듬한 시선 축을 활용",
-        "atmosphere": "권력 관계와 숨겨진 감정이 공존하는 긴장감 있는 분위기"
+        "faceProportion": "작고 정돈된 중안부와 매끈한 광대선, 또렷하지만 과하게 넓거나 길지 않은 턱선으로 성숙한 인물도 세련된 미형을 유지",
+        "eyeShape": "가로로 길고 선명한 눈매와 또렷한 홍채·캐치라이트로 냉미, 긴장, 유혹을 작은 카드에서도 읽히게 표현",
+        "noseMouthDetail": "콧대와 입술은 깨끗한 선과 절제된 부드러운 음영으로 정리하고 표정 변화는 눈과 입꼬리에 집중",
+        "lineDensity": "얼굴선은 깨끗하고 선명하게 유지하고 머리카락·의상·장신구에만 선택적으로 세부선을 집중",
+        "rendering": "선명한 웹툰·애니메이션 기반 셀 표현에 부드러운 그라데이션과 세미리얼 볼륨을 섞은 polished digital rendering",
+        "skinRendering": "깨끗하고 매끈한 피부, 얼굴 중앙의 밝은 노출과 절제된 홍조·반사광으로 인물의 얼굴 가독성을 우선",
+        "hairRendering": "큰 헤어 실루엣은 또렷하게 유지하면서 풍성한 가닥, 윤광, 방향성 있는 하이라이트로 머리카락의 밀도와 움직임을 강조",
+        "bodyProportion": "남성은 넓은 어깨·목선·흉곽·자세로 성숙한 남성성을 전달하고 얼굴 비례는 세련되게 유지, 여성은 길고 우아한 실루엣을 유지",
+        "costumeComplexity": "제복·궁정복·갑옷·보석의 계급감은 선명하게 읽히되 장식 세부가 얼굴과 표정을 앞서지 않게 구성",
+        "palette": "버건디, 블랙, 딥 네이비, 앤틱 골드를 기반으로 캐릭터별 보석색 포인트를 선명하게 분화",
+        "lightSoftness": "얼굴은 충분히 밝게 노출하고 측면광·림라이트·부드러운 하이라이트로 헤어와 의상에 깊이를 더함",
+        "contrast": "중고 대비를 사용하되 눈·피부·얼굴 윤곽이 깊은 그림자에 잠기지 않게 인물 우선으로 제어",
+        "backgroundDensity": "궁정·요새·정원 등은 큰 형태와 빛으로 분위기를 전달하고 카드에서는 얼굴 주변 배경을 단순화",
+        "framing": "2:3 카드에서 얼굴이 상단 1/3에 또렷하게 읽히는 흉상·반신 중심, 관계 장면에서는 시선과 거리감이 먼저 보이는 구도",
+        "atmosphere": "세련된 로맨스 판타지의 긴장, 냉미, 유혹, 권력 관계를 표정과 시선으로 전달하는 국내 여성향 중심 분위기"
       },
       "suitability": {
-        "card": 4,
+        "card": 5,
         "rpLandscape": 5,
         "maleCharacters": 5,
         "femaleCharacters": 4,
@@ -82,9 +82,9 @@
         "identityConsistencyDifficulty": "중상"
       },
       "strengths": [
-        "남성 인물의 체격과 표정을 또렷하게 차별화하기 좋다",
-        "의상과 조명만으로 궁정 내 권력 관계를 빠르게 전달한다",
-        "긴장과 호감이 섞인 장면에서 시선 연출이 강하다"
+        "국내 여성향 카드에서 미형 얼굴과 시선이 작은 썸네일에서도 빠르게 읽힌다",
+        "성숙한 남성의 존재감을 얼굴 노화보다 체격·자세·의상·표정으로 분리해 표현하기 좋다",
+        "궁정 제복과 권력 긴장을 유지하면서 냉미·유혹·다정 등 캐릭터별 감정 차이를 분화하기 좋다"
       ],
       "references": [
         {
@@ -198,7 +198,7 @@
     "costUsd": 0.000943,
     "providerRequestId": null
   },
-  "note": "사용자 선택 전. candidate_approved/style_locked로 자동 진행하지 않는다.",
+  "note": "국내 여성향 first-party 성과 레퍼런스에서 추상화한 상품 방향을 rf-02 DNA에 반영. 특정 이미지·작가·작품 복제 없이 candidate stage는 candidates_proposed 유지.",
   "humanReview": {
     "leadingProofDirection": "rf-02",
     "fallback": "rf-04",
@@ -207,12 +207,12 @@
     "whyNotApproved": "approveStyleCandidate() requires a platform-owned or licensed style seed; none exists yet, so the owner is not bypassed.",
     "decidedBy": "PR #1087 human review",
     "proofInterpretation": [
-      "painterly/semi-real webtoon finish (vt-02)",
-      "brighter face exposure; burgundy/navy shadow must not eat the face (vt-07)",
-      "clean skin and stronger eye catchlights; detail carried by eyes and hair (vt-03)",
-      "card-size facial readability first at 2:3 bust/half-body (vt-01, vt-04)",
-      "differentiated male jaw/body types across the 8 male leads; the female lead keeps equal quality (vt-08)",
-      "court/uniform status cues legible without costume microdetail outranking the face (vt-05, vt-06)"
+      "domestic women-oriented handsome face readability first",
+      "clean smooth skin, sharp expressive eyes and detailed glossy hair",
+      "mature male presence through physique/posture/authority rather than older-looking facial treatment",
+      "polished webtoon/anime + soft volumetric digital rendering",
+      "2:3 card crop keeps the face bright and legible before costume/background detail",
+      "court/uniform status cues remain clear while character silhouettes and palettes stay differentiated"
     ],
     "visualTrendSource": "docs/official-supply/market-research-snapshot-2026-09.json visualTrends (abstract, no images)",
     "noImagesGenerated": true
