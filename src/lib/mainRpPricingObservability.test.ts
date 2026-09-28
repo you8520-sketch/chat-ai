@@ -87,6 +87,7 @@ function productionChargeAtBenchmark(
   const phase1Models = new Set([
     CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
     CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+    CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
   ]);
   const phase2Models = new Set([
     CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
