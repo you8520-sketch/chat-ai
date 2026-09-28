@@ -18,6 +18,8 @@ import {
 } from "@/lib/episodicMemoryFacts";
 import { reconcileS4KnowledgeForVariantSwitch } from "@/lib/knowledgeTransferVariant";
 import { resolveCanonicalSourceUserMessageIdCore } from "@/lib/memory/memory-source-boundary";
+import { reprojectRelationshipMetaForVariantSwitchCore } from "@/lib/memory/memory-relationship-meta";
+import type { MemoryMeta } from "@/lib/chatMemory";
 import {
   isSuccessfulDurableGenerationStatus,
   SUCCESSFUL_DURABLE_GENERATION_STATUSES,
@@ -300,8 +302,13 @@ export type AtomicVariantSwitchInput = {
   selectedFacts: ExtractedStatusFact[] | null | undefined;
   selectedRequestId: string | null;
   selectedGenerationSequence: number | null;
+  /** Internal generation snapshots; chats.memory_meta remains the canonical current owner. */
+  activeRelationshipMetaAfter?: MemoryMeta | null;
+  selectedRelationshipMetaAfter?: MemoryMeta | null;
   /** @internal test-only failure injection */
   __testThrowAfterMessageUpdate?: boolean;
+  /** @internal test-only failure injection */
+  __testThrowAfterRelationshipReprojection?: boolean;
   /** @internal test-only failure injection */
   __testThrowAfterEpisodic?: boolean;
   /** @internal test-only failure injection */
@@ -355,6 +362,15 @@ export function executeVariantSwitchMutationCore(
   }
   if (input.__testThrowAfterMessageUpdate) {
     throw new Error("TEST_THROW_AFTER_MESSAGE_UPDATE");
+  }
+
+  reprojectRelationshipMetaForVariantSwitchCore(db, {
+    chatId: input.chatId,
+    activeRelationshipMetaAfter: input.activeRelationshipMetaAfter,
+    selectedRelationshipMetaAfter: input.selectedRelationshipMetaAfter,
+  });
+  if (input.__testThrowAfterRelationshipReprojection) {
+    throw new Error("TEST_THROW_AFTER_RELATIONSHIP_REPROJECTION");
   }
 
   supersedeStatusTriggerEventsForSourceMessage(
