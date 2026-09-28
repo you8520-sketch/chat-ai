@@ -125,6 +125,9 @@ export async function POST(req: Request) {
       narrativePov: String(source.narrative_pov ?? "third_person"),
       povCharacterName: String(source.pov_character_name ?? ""),
       userAuthoringLevel: parseUserAuthoringLevel(source.user_authoring_level),
+      autoProgressionAuthoringLevel: parseUserAuthoringLevel(
+        source.auto_progression_authoring_level
+      ),
     });
     const messageIdMap = new Map<number, number>();
 

@@ -11,10 +11,11 @@
  * replay only USER messages from the current semantics epoch (version >= 2).
  * Assistant text, memory, lorebook, and model output are never authority.
  *
- * Persisted OFF means "inherit the visible base level". Persisted LIMITED is
- * therefore reserved for an explicit OOC override that narrows NORMAL/ALLOW to
- * zero co-author authority. Effective currentMode still reports OFF when no
- * user-character authoring capability is active.
+ * Persisted OFF means "no explicit OOC override; inherit the turn-specific visible base".
+ * Any persistent OOC directive is stored as an absolute scope so it can override
+ * both interactive and auto-progression bases consistently. Persisted LIMITED
+ * therefore means an explicit zero-authority override. Effective currentMode
+ * still reports OFF when no user-character authoring capability is active.
  *
  * TURN-ONLY directives never mutate the persisted override. Prompt ownership is
  * expressed once by the effective authoring owner after base + override resolve.
@@ -33,6 +34,8 @@ import {
   type UserCoauthorSlotOp,
 } from "@/lib/userCoauthorDirective";
 import {
+  AUTO_PROGRESSION_USER_AUTHORING_LEVEL_COLUMN,
+  DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL,
   DEFAULT_USER_AUTHORING_LEVEL,
   USER_AUTHORING_LEVEL_COLUMN,
   capabilitiesFromUserAuthoringLevel,
@@ -78,9 +81,12 @@ export type AppliedUserCoauthorDirective = {
 
 type CoauthorDb = Pick<Database.Database, "exec" | "prepare">;
 
+const DEFAULT_DIRECT_USER_AUTHORING_LEVEL: UserAuthoringLevel = "LIMITED";
+export type UserAuthoringTurnScope = "interactive" | "auto_progression";
+
 export function capabilitiesFromUserCoauthorMode(
   mode: UserCoauthorMode,
-  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
+  baseLevel: UserAuthoringLevel = DEFAULT_DIRECT_USER_AUTHORING_LEVEL
 ): UserCoauthorCapabilities {
   const base = capabilitiesFromUserAuthoringLevel(baseLevel);
   switch (parseUserCoauthorMode(mode)) {
@@ -133,7 +139,7 @@ export function capabilitiesFromUserCoauthorMode(
 
 export function booleansFromUserCoauthorMode(
   mode: UserCoauthorMode,
-  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
+  baseLevel: UserAuthoringLevel = DEFAULT_DIRECT_USER_AUTHORING_LEVEL
 ): UserCoauthorBooleans {
   const capabilities = capabilitiesFromUserCoauthorMode(mode, baseLevel);
   return {
@@ -180,7 +186,7 @@ export function effectiveUserCoauthorModeFromCapabilities(
 
 export function userCoauthorModeFromCapabilities(
   flags: UserCoauthorCapabilities,
-  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
+  baseLevel: UserAuthoringLevel = DEFAULT_DIRECT_USER_AUTHORING_LEVEL
 ): UserCoauthorMode {
   const base = capabilitiesFromUserAuthoringLevel(baseLevel);
   if (sameCapabilities(flags, base)) return "OFF";
@@ -244,7 +250,7 @@ function anyAuthoringCapability(flags: UserCoauthorCapabilities): boolean {
 export function applyUserCoauthorDirective(
   persistentMode: UserCoauthorMode,
   directive: UserCoauthorDirective,
-  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
+  baseLevel: UserAuthoringLevel = DEFAULT_DIRECT_USER_AUTHORING_LEVEL
 ): AppliedUserCoauthorDirective {
   const normalizedBase = parseUserAuthoringLevel(baseLevel);
   const persistentBefore = parseUserCoauthorMode(persistentMode);
@@ -310,7 +316,11 @@ export function applyUserCoauthorDirective(
   const currentMode = effectiveUserCoauthorModeFromCapabilities(nextCapabilities);
   const persistentAfter =
     directive.duration === "persistent"
-      ? userCoauthorModeFromCapabilities(nextCapabilities, normalizedBase)
+      ? (() => {
+          const explicitMode =
+            effectiveUserCoauthorModeFromCapabilities(nextCapabilities);
+          return explicitMode === "OFF" ? "LIMITED" : explicitMode;
+        })()
       : persistentBefore;
   const active = anyAuthoringCapability(nextCapabilities);
   const allowAiCastIrreversibleExpansion =
@@ -354,7 +364,9 @@ export function resolveEffectiveUserAuthoring(input: {
   return applyUserCoauthorDirective(
     parseUserCoauthorMode(input.persistentMode),
     resolveUserCoauthorDirective({ currentUserInput: input.currentUserInput }),
-    parseUserAuthoringLevel(input.baseLevel)
+    parseUserAuthoringLevel(
+      input.baseLevel ?? DEFAULT_DIRECT_USER_AUTHORING_LEVEL
+    )
   );
 }
 
@@ -364,7 +376,7 @@ export function resolveEffectiveUserAuthoring(input: {
  */
 export function recomputeUserCoauthorModeFromUserMessages(
   userContents: Array<string | null | undefined>,
-  baseLevel: UserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL
+  baseLevel: UserAuthoringLevel = DEFAULT_DIRECT_USER_AUTHORING_LEVEL
 ): UserCoauthorMode {
   let mode: UserCoauthorMode = DEFAULT_USER_COAUTHOR_MODE;
   for (const content of userContents) {
@@ -396,6 +408,14 @@ export function ensureUserAuthoringLevelColumn(db: CoauthorDb): void {
   );
 }
 
+export function ensureAutoProgressionUserAuthoringLevelColumn(db: CoauthorDb): void {
+  if (!tableExists(db, "chats")) return;
+  if (columnExists(db, "chats", AUTO_PROGRESSION_USER_AUTHORING_LEVEL_COLUMN)) return;
+  db.exec(
+    `ALTER TABLE chats ADD COLUMN ${AUTO_PROGRESSION_USER_AUTHORING_LEVEL_COLUMN} TEXT NOT NULL DEFAULT '${DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL}'`
+  );
+}
+
 export function ensureUserCoauthorModeColumn(db: CoauthorDb): void {
   if (!tableExists(db, "chats")) return;
   if (columnExists(db, "chats", USER_COAUTHOR_MODE_COLUMN)) return;
@@ -414,6 +434,7 @@ export function ensureUserCoauthorSemanticsVersionColumn(db: CoauthorDb): void {
 
 export function ensureUserCoauthorSchema(db: CoauthorDb): void {
   ensureUserAuthoringLevelColumn(db);
+  ensureAutoProgressionUserAuthoringLevelColumn(db);
   ensureUserCoauthorModeColumn(db);
   ensureUserCoauthorSemanticsVersionColumn(db);
 }
@@ -427,7 +448,23 @@ export function readUserAuthoringLevel(
   const row = db
     .prepare(`SELECT ${USER_AUTHORING_LEVEL_COLUMN} AS level FROM chats WHERE id=?`)
     .get(chatId) as { level?: unknown } | undefined;
-  return parseUserAuthoringLevel(row?.level);
+  return parseUserAuthoringLevel(row?.level ?? DEFAULT_USER_AUTHORING_LEVEL);
+}
+
+export function readAutoProgressionUserAuthoringLevel(
+  db: CoauthorDb,
+  chatId: number
+): UserAuthoringLevel {
+  ensureAutoProgressionUserAuthoringLevelColumn(db);
+  if (!tableExists(db, "chats")) return DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL;
+  const row = db
+    .prepare(
+      `SELECT ${AUTO_PROGRESSION_USER_AUTHORING_LEVEL_COLUMN} AS level FROM chats WHERE id=?`
+    )
+    .get(chatId) as { level?: unknown } | undefined;
+  return parseUserAuthoringLevel(
+    row?.level ?? DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL
+  );
 }
 
 export function readUserCoauthorMode(db: CoauthorDb, chatId: number): UserCoauthorMode {
@@ -458,18 +495,34 @@ export function persistUserCoauthorMode(
  * reconstruct an old persistent OOC override on fork/edit/delete/regen.
  * Caller owns the surrounding transaction when combined with other settings.
  */
-export function persistUserAuthoringLevelAndResetOocAuthority(
+export function persistUserAuthoringPreferencesAndResetOocAuthority(
   db: CoauthorDb,
   chatId: number,
-  level: UserAuthoringLevel
+  input: {
+    interactiveLevel?: UserAuthoringLevel;
+    autoProgressionLevel?: UserAuthoringLevel;
+  }
 ): void {
   ensureUserCoauthorSchema(db);
   if (!tableExists(db, "chats")) return;
+
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  if (input.interactiveLevel !== undefined) {
+    sets.push(`${USER_AUTHORING_LEVEL_COLUMN}=?`);
+    values.push(parseUserAuthoringLevel(input.interactiveLevel));
+  }
+  if (input.autoProgressionLevel !== undefined) {
+    sets.push(`${AUTO_PROGRESSION_USER_AUTHORING_LEVEL_COLUMN}=?`);
+    values.push(parseUserAuthoringLevel(input.autoProgressionLevel));
+  }
+  if (sets.length === 0) return;
+
+  sets.push(`${USER_COAUTHOR_MODE_COLUMN}='OFF'`);
   db.prepare(
-    `UPDATE chats
-     SET ${USER_AUTHORING_LEVEL_COLUMN}=?, ${USER_COAUTHOR_MODE_COLUMN}='OFF'
-     WHERE id=?`
-  ).run(parseUserAuthoringLevel(level), chatId);
+    `UPDATE chats SET ${sets.join(", ")} WHERE id=?`
+  ).run(...values, chatId);
+
   if (!tableExists(db, "messages")) return;
   db.prepare(
     `UPDATE messages
@@ -481,6 +534,16 @@ export function persistUserAuthoringLevelAndResetOocAuthority(
     chatId,
     CURRENT_USER_COAUTHOR_SEMANTICS_VERSION
   );
+}
+
+export function persistUserAuthoringLevelAndResetOocAuthority(
+  db: CoauthorDb,
+  chatId: number,
+  level: UserAuthoringLevel
+): void {
+  persistUserAuthoringPreferencesAndResetOocAuthority(db, chatId, {
+    interactiveLevel: level,
+  });
 }
 
 export function parseUserCoauthorSemanticsVersion(raw: unknown): number {
@@ -601,7 +664,8 @@ function hasCurrentUserCoauthorSemanticsEpoch(
 export function resolveEffectiveUserAuthoringFromChatColumn(
   db: CoauthorDb,
   chatId: number,
-  currentUserInput?: string | null
+  currentUserInput?: string | null,
+  options: { scope?: UserAuthoringTurnScope } = {}
 ): AppliedUserCoauthorDirective {
   // v1 marked every USER message and used the older two-scope parser. Never
   // replay or inherit that hidden mode under the new three-level/absolute
@@ -609,9 +673,13 @@ export function resolveEffectiveUserAuthoringFromChatColumn(
   const persistentMode = hasCurrentUserCoauthorSemanticsEpoch(db, chatId)
     ? readUserCoauthorMode(db, chatId)
     : DEFAULT_USER_COAUTHOR_MODE;
+  const baseLevel =
+    options.scope === "auto_progression"
+      ? readAutoProgressionUserAuthoringLevel(db, chatId)
+      : readUserAuthoringLevel(db, chatId);
   return resolveEffectiveUserAuthoring({
     persistentMode,
-    baseLevel: readUserAuthoringLevel(db, chatId),
+    baseLevel,
     currentUserInput,
   });
 }
@@ -619,9 +687,13 @@ export function resolveEffectiveUserAuthoringFromChatColumn(
 export function resolveEffectiveUserAuthoringForRegeneration(
   db: CoauthorDb,
   chatId: number,
-  parentUserMessageId: number
+  parentUserMessageId: number,
+  options: { scope?: UserAuthoringTurnScope } = {}
 ): AppliedUserCoauthorDirective {
-  const baseLevel = readUserAuthoringLevel(db, chatId);
+  const baseLevel =
+    options.scope === "auto_progression"
+      ? readAutoProgressionUserAuthoringLevel(db, chatId)
+      : readUserAuthoringLevel(db, chatId);
   const persistentBefore = recomputeUserCoauthorModeFromEligibleMessages(db, chatId, {
     beforeMessageId: parentUserMessageId,
   });

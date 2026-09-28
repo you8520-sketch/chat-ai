@@ -27,7 +27,8 @@ Date: 2026-09-26
 
 | Responsibility | Owner |
 | --- | --- |
-| Visible persistent base preference | `chats.user_authoring_level` (`LIMITED | NORMAL | ALLOW`) |
+| Ordinary-input visible base preference | `chats.user_authoring_level` (`LIMITED | NORMAL | ALLOW`) |
+| Auto-progression visible base preference | `chats.auto_progression_authoring_level` (`LIMITED | NORMAL | ALLOW`) |
 | Persistent/turn OOC override | `chats.user_coauthor_mode` + versioned USER OOC messages |
 | Effective policy resolution | `resolveEffectiveUserAuthoring*()` in `userCoauthorState.ts` |
 | OOC parsing | `userCoauthorDirective.ts` |
@@ -44,9 +45,13 @@ Date: 2026-09-26
 
 1. Explicit current leading OOC
 2. Existing persistent OOC override
-3. Visible chat base setting
+3. Turn-specific visible chat base setting:
+   - ordinary input → `user_authoring_level`
+   - auto progression → `auto_progression_authoring_level`
 
-Changing the visible setting clears the hidden persistent OOC override and starts a new authoring-authority epoch. Conversation text remains intact; old USER messages lose only their authority to resurrect a prior override during fork/edit/delete/regeneration reconstruction.
+Both visible preferences default to `NORMAL` for newly created rooms. They are independent: changing one does not copy its value into the other.
+
+Persistent OOC state is base-independent: `OFF` means no explicit override, while `LIMITED / DIALOGUE / ACTIONS / FULL / NOVEL / ABSOLUTE` are explicit scopes applied above either visible base. Changing either visible preference clears the hidden persistent OOC override and starts a new authoring-authority epoch. Conversation text remains intact; old USER messages lose only their authority to resurrect a prior override during fork/edit/delete/regeneration reconstruction.
 
 ## BEFORE
 
@@ -58,26 +63,35 @@ Changing the visible setting clears the hidden persistent OOC override and start
 
 ## PROBLEM
 
-A new 3-level setting added as another independent prompt rule would create conflicting owners:
-- ALLOW could permit inner POV while continue/regeneration tails still forbid it.
-- Auto progression could independently widen/narrow [B].
-- Hidden persistent OOC state could disagree with the visible slider.
-- Fork/edit/delete reconstruction could resurrect an old OOC override after a slider change.
+The first three-level implementation used one visible `user_authoring_level` for both ordinary input and auto progression. That removed the product distinction between "how much the AI may co-author [B] during a normal user turn" and "how much the AI may co-author [B] when the user explicitly presses auto progression".
+
+Simply adding a second prompt rule would create conflicting owners:
+- ordinary ALLOW could accidentally widen auto progression, or vice versa;
+- continue/regeneration tails could disagree with the selected turn-specific level;
+- a persistent OOC revoke represented as `OFF` could disappear when the other base is wider;
+- fork/regeneration could restore the wrong base;
+- duplicated prompt wording could drift between interactive and auto paths.
 
 ## AFTER
 
-- One effective authoring policy is resolved from base + override.
-- Auto progression owns only whether the scene advances; it consumes the effective [B] scope.
+- One capability mapping remains canonical: `LIMITED / NORMAL / ALLOW` is converted to the same authoring capabilities regardless of turn kind.
+- Ordinary input and auto progression now have separate persistent preferences, both defaulting to `NORMAL` for new rooms.
+- Production chooses exactly one base by turn kind, then applies the existing OOC owner above it.
+- Auto progression still owns only whether the scene advances; it does not define a second prompt-level authorship policy.
 - Prompt wrappers and scene directives short-reference the effective owner instead of restating a competing scope.
-- Regeneration receives exact authoring-active and dialogue-allowed flags separately.
+- Regeneration chooses the base belonging to the original turn kind; regeneration of an auto-progress turn therefore cannot silently fall back to the ordinary-input preference.
+- Persistent OOC scopes are absolute across both bases. `OFF` is only "no override"; an explicit persistent full revoke is stored as `LIMITED`.
 - ALLOW can keep AI-cast irreversible expansion even when an OOC override narrows [B].
 - ALLOW/ABSOLUTE widens what may be authored, not how emotion is written. The common prose owner prefers scene evidence (action, sensation, body response, gaze, breath, distance, silence, thought flow, choice) over narrator emotion labels such as “불안했다/무서웠다/걱정됐다”; natural in-character dialogue/internal wording such as “무서워” remains allowed.
-- Existing chats default to LIMITED.
-- A level chosen before the first room exists is carried by the first normal chat POST and persisted in the initial chat INSERT, so the first AI reply uses that selected level.
-- Forks inherit the visible base level and reconstruct only current-epoch OOC authority.
+- A pre-chat choice is carried by the first normal chat POST and both visible preferences are persisted in the initial chat INSERT.
+- Forks inherit both visible preferences and reconstruct only current-epoch OOC authority.
+- The settings panel exposes two three-step sliders, and the auto-progression button displays the currently selected auto level.
 
 ## REMOVED / CONSOLIDATED
 
+- Kept one shared `LIMITED / NORMAL / ALLOW → capability` resolver instead of adding separate interactive/auto prompt policies.
+- Normalized persistent OOC state so `OFF` has one meaning only: no explicit override.
+- Removed the semantic coupling where one visible slider controlled both ordinary input and auto progression.
 - Removed obsolete hard-coded auto-progress [B] inner-POV prohibitions from competing prompt/tail owners.
 - Removed unconditional regen prohibition when the effective owner allows [B] dialogue.
 - Demoted legacy persona/user-note impersonation from production `/api/chat` authoring authority.
@@ -97,6 +111,8 @@ A new 3-level setting added as another independent prompt rule would create conf
 ## Data cleanup classification
 
 ### KEEP
+- `user_authoring_level`: ordinary-input preference.
+- `auto_progression_authoring_level`: auto-progression preference.
 - `user_coauthor_mode`: active OOC override state.
 - `user_coauthor_semantics_version`: reconstruction authority epoch.
 - legacy `user_impersonation` physical column: retained only for rollback/data audit. Phase 2A removes production runtime readers/writers and fork mirroring; the column remains at its physical default for new/forked chats.
@@ -111,6 +127,11 @@ A new 3-level setting added as another independent prompt rule would create conf
 
 ## Regression risks
 
+- ordinary-input preference accidentally affecting auto progression
+- auto-progression preference accidentally affecting ordinary input
+- explicit OOC revoke being lost when the other visible base is wider
+- auto-progress regeneration resolving the ordinary-input base
+- fork copying only one visible preference
 - pre-chat slider change being lost on the first turn
 - slider save vs immediate send race
 - navigation during slider persistence
@@ -128,9 +149,14 @@ A new 3-level setting added as another independent prompt rule would create conf
 
 Required before completion:
 - app typecheck
-- userAuthoringPolicy test
-- first-turn pre-chat level transport test
-- fork base/override reconstruction test
+- production build
+- userAuthoringPolicy test, including independent ordinary/auto base resolution
+- default NORMAL / malformed fail-closed test
+- persistent OOC-above-both-bases regression
+- first-turn transport for both visible preferences
+- dual-slider UI source regression
+- fork inheritance for both preferences
+- regeneration turn-kind base regression
 - H4.4 test
 - userCoauthor authority/epoch test
 - current-turn delegation test
