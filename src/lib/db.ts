@@ -19,7 +19,6 @@ import {
 } from "@/lib/boardPosts";
 import { seedGlobalLorebookEntries } from "@/lib/globalLorebook";
 import {
-  backfillCharacterEngagementStats,
   ensureCharacterChatUsersTable,
   seedCharacterChatUsersLedgerFromChats,
 } from "@/lib/characterEngagementStats";
@@ -1951,14 +1950,12 @@ function migrateCharacterEngagementStats(db: Database.Database) {
       value TEXT NOT NULL DEFAULT ''
     );
   `);
-  // v2 once recounted live rooms into chats_count/total_turns. Do not re-run that overwrite.
-  const done = db
-    .prepare("SELECT value FROM app_meta WHERE key='engagement_stats_v2'")
-    .get() as { value: string } | undefined;
-  if (done?.value !== "1") {
-    backfillCharacterEngagementStats(db);
-    db.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('engagement_stats_v2', '1')").run();
-  }
+  // Retire the old v2 live-room recount without re-running it. This also makes rollback
+  // to the old migration harmless on databases created after lifetime counters became canonical.
+  db.prepare(
+    "INSERT OR IGNORE INTO app_meta (key, value) VALUES ('engagement_stats_v2', '1')"
+  ).run();
+
   // v3: durable unique-user ledger. Seed from remaining chats only; never rewrite lifetime counters.
   const ledgerDone = db
     .prepare("SELECT value FROM app_meta WHERE key='engagement_stats_v3'")
