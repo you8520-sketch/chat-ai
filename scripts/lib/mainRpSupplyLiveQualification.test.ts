@@ -58,7 +58,12 @@ function endpoint(modelId: SelectedAI, providerName = "FixtureProvider"): Supply
     uptimeLast1dPercent: 99.9,
     uptimeLast30mPercent: 100,
     status: 0,
-    supportedParameters: ["reasoning", "max_tokens"],
+    supportedParameters: [
+      "reasoning",
+      "include_reasoning",
+      "max_tokens",
+      "temperature",
+    ],
     provider: {
       name: providerName,
       slug: "fixture-provider",
@@ -159,6 +164,60 @@ describe("Main RP supply live candidate selection", () => {
       selection.candidates.length
     );
     assert.ok(selection.estimatedRawEndpointRateUsd <= 5);
+  });
+
+  it("skips a cheaper endpoint that cannot accept the actual production request parameters and selects the next compatible endpoint", () => {
+    const report = radarReport();
+    const model = report.models.find(
+      (row) => row.modelId === "gemini-3.7-flash"
+    )!;
+    const base = model.comparisons[0]!;
+    model.comparisons = [
+      {
+        ...base,
+        providerName: "Google",
+        provider: {
+          ...base.provider!,
+          name: "Google",
+          slug: "google-vertex",
+        },
+        supportedParameters: [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+        ],
+      },
+      {
+        ...base,
+        providerName: "Google AI Studio",
+        provider: {
+          ...base.provider!,
+          name: "Google AI Studio",
+          slug: "google-ai-studio",
+        },
+        supportedParameters: [
+          "reasoning",
+          "include_reasoning",
+          "max_tokens",
+          "temperature",
+        ],
+      },
+    ];
+
+    const selection = selectMainRpSupplyLiveCandidates(report);
+    const chosen = selection.candidates.find(
+      (row) => row.modelId === "gemini-3.7-flash"
+    );
+    assert.equal(chosen?.providerSlug, "google-ai-studio");
+    assert.ok(
+      selection.skipped.some(
+        (row) =>
+          row.modelId === "gemini-3.7-flash" &&
+          row.providerName === "Google" &&
+          row.reason ===
+            "required_request_parameters_not_advertised:temperature"
+      )
+    );
   });
 
   it("does not pay-test endpoints without factual savings/uptime/performance evidence", () => {
