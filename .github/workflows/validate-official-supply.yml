@@ -50,8 +50,14 @@ jobs:
       - name: Lucian variation operator defaults to zero calls
         run: npm run official-supply:generate-lucian-variations
 
+      - name: Romance studio bootstrap defaults to zero mutations
+        run: npm run official-supply:bootstrap-romance-studio
+
       - name: Lucian finalizer defaults to zero mutations
         run: npm run official-supply:finalize-lucian-v4
+
+      - name: Lucian publisher defaults to zero mutations
+        run: npm run official-supply:publish-lucian-v4
 
       - name: Official supply regressions
         run: >-
