@@ -50,6 +50,25 @@ jobs:
       - name: Lucian variation operator defaults to zero calls
         run: npm run official-supply:generate-lucian-variations
 
+      - name: Fetch Lucian v4 visual QA packet
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa/lucian-v4
+          base="https://chat-ai-production-3e84.up.railway.app/uploads"
+          for slot in rep sig1 sig2 sig3 sig4 emo1 emo2 emo3 emo4 emo5 emo6 scene1 scene2 scene3; do
+            curl --fail --location --silent --show-error               "$base/official-pilot-rf-v4-03__${slot}-a1.webp"               --output "qa/lucian-v4/${slot}.webp"
+            test -s "qa/lucian-v4/${slot}.webp"
+          done
+
+      - name: Upload Lucian v4 visual QA packet
+        uses: actions/upload-artifact@v4
+        with:
+          name: lucian-v4-visual-qa
+          path: qa/lucian-v4/*.webp
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Official supply regressions
         run: >-
           node --conditions=react-server --import tsx
