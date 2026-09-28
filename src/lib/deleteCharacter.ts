@@ -59,6 +59,7 @@ export function deleteUserCharacter(
     db.prepare("DELETE FROM chat_memories WHERE character_id=?").run(characterId);
     db.prepare(`DELETE FROM messages WHERE chat_id IN (${chatSub})`).run(characterId);
     db.prepare("DELETE FROM chats WHERE character_id=?").run(characterId);
+    db.prepare("DELETE FROM character_chat_users WHERE character_id=?").run(characterId);
 
     db.prepare("DELETE FROM likes WHERE character_id=?").run(characterId);
     db.prepare(
