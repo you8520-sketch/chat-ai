@@ -17,6 +17,7 @@ import {
   composeOfficialCreatorComment,
   composeOfficialPublicDescription,
   evaluateOfficialCreatorComment,
+  evaluateOfficialPlayerGenderNeutral,
   evaluateOfficialPublicDescription,
   officialPlayStartChoices,
   OFFICIAL_PUBLIC_INTRO_SECTIONS,
@@ -167,13 +168,14 @@ describe("official detailed intro + creator comment", () => {
       const qa = evaluateOfficialCreatorComment(comment, draft.description);
       assert.deepEqual(qa.errors, [], `${file.draftKey}: ${JSON.stringify(qa.errors)}`);
       assert.match(comment, /지금 상황/);
-      assert.match(comment, /추천 플레이/);
+      assert.match(comment, /추천 플레이 방향/);
+      assert.match(comment, /이런 식으로 시작해 보세요/);
       assert.match(comment, /가능한 관계/);
       assert.match(comment, /저장된 첫 인사 한 줄로 시작/);
       assert.doesNotMatch(comment, /\[캐릭터 설정\]/);
       assert.doesNotMatch(comment, /(신뢰|호감|경계).{0,8}(낮음|높음|미정)/);
       assert.doesNotMatch(comment, /첫 장면에서는 목적 한 가지만|반응을 보세요|따라 누구와/);
-      assert.doesNotMatch(comment, /고르세요|중에서 먼저|첫 수를 정해|선택지/);
+      assert.doesNotMatch(comment, /고르세요|중에서 먼저|첫 수를 정해|선택지|에피소드/);
       const choices = officialPlayStartChoices(draft);
       assert.ok(choices.length >= 2 && choices.length <= 3, `${file.draftKey} choices ${JSON.stringify(choices)}`);
       assert.ok(
@@ -181,7 +183,7 @@ describe("official detailed intro + creator comment", () => {
         `${file.draftKey} non-action ${JSON.stringify(choices)}`
       );
       assert.ok(!choices.some((choice) => file.brief.rpHook.includes(choice) && choice.length > 20));
-      starts.add(comment.match(/추천 플레이<\/b><br>([^<]+)/)?.[1] ?? "");
+      starts.add(comment.match(/추천 플레이 방향<\/b><br>([^<]+)/)?.[1] ?? "");
       assert.ok(!draft.description.includes(comment.replace(/<[^>]+>/g, "").trim()));
     }
     const lucian = sampleChars().find((file) => file.draftKey === "pilot-rf-03")!;
@@ -190,6 +192,38 @@ describe("official detailed intro + creator comment", () => {
       ["도주에 협력할지", "거리를 둘지"]
     );
     assert.equal(starts.size, 3);
+  });
+
+  it("compiled greeting, public intro, and creator comment stay player-gender neutral", () => {
+    const files = fs
+      .readdirSync(path.join(PILOT_DIR, "characters"))
+      .filter((name) => name.endsWith(".json"))
+      .map((name) => readJson<PilotChar>(path.join(PILOT_DIR, "characters", name)));
+    for (const file of files) {
+      const draft = compileOfficialDraftFromBible(file.bible, compileKeys(file));
+      const comment = composeOfficialCreatorComment(draft);
+      const qa = evaluateOfficialPlayerGenderNeutral({
+        greeting: draft.greeting,
+        description: draft.description,
+        comment,
+      });
+      assert.deepEqual(qa.errors, [], `${file.draftKey}: ${JSON.stringify(qa.errors)}`);
+      assert.match(draft.greeting, /당신/);
+    }
+    assert.ok(
+      evaluateOfficialPlayerGenderNeutral({
+        greeting: "문가에 선 왕자비를 향해 손을 내밀었다.",
+      }).errors.some((issue) => issue.code === "official_player_gender_locked")
+    );
+    assert.ok(
+      evaluateOfficialPlayerGenderNeutral({
+        description: "당신은 그 남자 플레이어로 시작한다.",
+      }).errors.some((issue) => issue.code === "official_player_gender_locked")
+    );
+    const prompt = fs.readFileSync(path.join(process.cwd(), "src/lib/officialSupply/authorPrompts.ts"), "utf8");
+    assert.match(prompt, /오프닝은 하나다/);
+    assert.match(prompt, /아가씨\/도련님\/왕자비\/신부/);
+    assert.doesNotMatch(prompt, /에피소드를 만들|N개의 에피소드|episode picker/);
   });
 
   it("form body keeps the compiled intro and adds creator_comment without changing publish owner", () => {

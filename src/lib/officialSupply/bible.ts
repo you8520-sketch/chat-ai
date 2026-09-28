@@ -1,7 +1,10 @@
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import type { AdultConsentMode, AdultDialogueProfile } from "@/lib/adultSceneRouting";
 import { OFFICIAL_AUTHOR_QUALITY_CONTRACT, type PortfolioBriefInput } from "@/lib/officialSupply/authorPrompts";
-import { composeOfficialPublicDescription } from "@/lib/officialSupply/publicProfileText";
+import {
+  composeOfficialPublicDescription,
+  evaluateOfficialPlayerGenderNeutral,
+} from "@/lib/officialSupply/publicProfileText";
 import {
   qaResult,
   type OfficialCharacterDraft,
@@ -695,6 +698,7 @@ export function evaluateAuthorQualityContract(
     if (!USER_CUE_RE.test(greeting)) errors.push(err("bible_greeting_no_user", "greeting must place the user (당신) in the scene"));
     if (SELF_INTRO_OPENER_RE.test(greeting)) errors.push(err("bible_greeting_self_intro", "greeting opens as a self-introduction"));
     if (isFillerProse(greeting)) errors.push(err("bible_greeting_filler", "greeting repeats itself to reach length"));
+    errors.push(...evaluateOfficialPlayerGenderNeutral({ greeting }).errors);
   }
 
   const speech = bible.speech ?? ({} as OfficialCharacterBible["speech"]);

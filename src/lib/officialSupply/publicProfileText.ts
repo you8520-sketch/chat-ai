@@ -21,6 +21,10 @@ export const OFFICIAL_PUBLIC_INTRO_MAX_CHARS = PROFILE_BIOGRAPHY_LIMIT;
 
 const HTML_TAG_RE = /<\/?[a-z][\s\S]*>/i;
 const USER_CUE_RE = /당신/;
+/** Player-side gender/role locks. Character identity words are not in this set. */
+const PLAYER_ADDRESS_LOCK_RE = /아가씨|도련님|왕자비|신부/;
+const PLAYER_GENDER_COLLOCATE_RE =
+  /(?:당신|플레이어|유저).{0,16}(?:여자|남자|여성|남성)|(?:여자|남자|여성|남성).{0,16}(?:당신|플레이어|유저)/;
 
 function nonEmpty(value: string | null | undefined): value is string {
   return Boolean(value && value.trim());
@@ -277,6 +281,31 @@ export function evaluateOfficialPublicDescription(description: string, name?: st
   if (/[가-힣](?:보다|하며|하고)\s*\//.test(looks)) {
     errors.push({ code: "public_intro_looks_truncated", message: "detailed intro looks must not cut a source sentence mid-clause" });
   }
+  errors.push(...evaluateOfficialPlayerGenderNeutral({ description: text }).errors);
+  return qaResult(errors);
+}
+
+/** Player/user side of greeting, public intro, and creator comment must stay gender-neutral. */
+export function evaluateOfficialPlayerGenderNeutral(surfaces: {
+  greeting?: string;
+  description?: string;
+  comment?: string;
+}): QaResult {
+  const errors: QaIssue[] = [];
+  for (const [surface, raw] of [
+    ["greeting", surfaces.greeting],
+    ["description", surfaces.description],
+    ["comment", surfaces.comment],
+  ] as const) {
+    const text = (raw ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (!text) continue;
+    if (PLAYER_ADDRESS_LOCK_RE.test(text) || PLAYER_GENDER_COLLOCATE_RE.test(text)) {
+      errors.push({
+        code: "official_player_gender_locked",
+        message: `${surface} must not hard-code player gender or titled player roles`,
+      });
+    }
+  }
   return qaResult(errors);
 }
 
@@ -340,7 +369,9 @@ function draftPlayGuideParts(draft: OfficialCharacterDraft): {
   const choices = officialPlayStartChoices(draft);
   const greetingLock = "채팅은 저장된 첫 인사 한 줄로 시작합니다.";
   const startLine =
-    choices.length > 0 ? `추천 방향: ${choices.join(" · ")}. ${greetingLock}` : greetingLock;
+    choices.length > 0
+      ? `이런 식으로 시작해 보세요: ${choices.join(" · ")}. ${greetingLock}`
+      : `이런 식으로 시작해 보세요. ${greetingLock}`;
   const relation = [draft.hook.relationshipTrope, clipPhrase(userRole, 36)].filter(nonEmpty).join(" · ");
   return {
     situation: firstSentence(draft.hook.rpHook, 140) || firstSentence(draft.tagline, 80),
@@ -354,7 +385,7 @@ export function composeOfficialCreatorComment(draft: OfficialCharacterDraft): st
   const parts = draftPlayGuideParts(draft);
   return [
     `<p><b>지금 상황</b><br>${escapeHtml(parts.situation)}</p>`,
-    `<p><b>추천 플레이</b><br>${escapeHtml(parts.start)}</p>`,
+    `<p><b>추천 플레이 방향</b><br>${escapeHtml(parts.start)}</p>`,
     `<p><b>가능한 관계</b><br>${escapeHtml(parts.relation)}</p>`,
   ].join("\n");
 }
@@ -372,7 +403,7 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
       message: "official creator comment may use only simple <p><b><br> markup",
     });
   }
-  if (!trimmed.includes("지금 상황") || !trimmed.includes("추천 플레이") || !trimmed.includes("가능한 관계")) {
+  if (!trimmed.includes("지금 상황") || !trimmed.includes("추천 플레이 방향") || !trimmed.includes("가능한 관계")) {
     errors.push({ code: "creator_comment_guide_missing", message: "creator comment must be a play guide (situation / recommended play / relation)" });
   }
   for (const section of [
@@ -408,20 +439,21 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
       message: "creator comment start line must be character-specific, not a shared generic cue",
     });
   }
-  if (/고르세요|중에서 먼저|첫 수를 정해|선택지/.test(commentPlain)) {
+  if (/고르세요|중에서 먼저|첫 수를 정해|선택지|에피소드/.test(commentPlain)) {
     errors.push({
       code: "creator_comment_selectable_start",
-      message: "creator comment must not imply selectable alternate starts; runtime has a single greeting",
+      message: "creator comment must not imply selectable alternate starts or episodes; runtime has a single greeting",
     });
   }
-  const startLine = trimmed.match(/추천 플레이<\/b><br>([^<]+)/)?.[1] ?? "";
-  if (!/저장된 첫 인사 한 줄로 시작/.test(startLine)) {
+  const startLine = trimmed.match(/추천 플레이 방향<\/b><br>([^<]+)/)?.[1] ?? "";
+  if (!/이런 식으로 시작해 보세요/.test(startLine) || !/저장된 첫 인사 한 줄로 시작/.test(startLine)) {
     errors.push({
       code: "creator_comment_single_greeting",
-      message: "creator comment must state that chat starts from the stored greeting",
+      message: "creator comment must advise a play direction and state that chat starts from the stored greeting",
     });
   }
-  const directionParts = (startLine.match(/추천 방향:\s*([^.]+)/)?.[1] ?? "")
+  errors.push(...evaluateOfficialPlayerGenderNeutral({ comment: trimmed }).errors);
+  const directionParts = (startLine.match(/이런 식으로 시작해 보세요:\s*([^.]+)/)?.[1] ?? "")
     .split(/\s*·\s*/)
     .map((part) => part.trim())
     .filter(Boolean);
