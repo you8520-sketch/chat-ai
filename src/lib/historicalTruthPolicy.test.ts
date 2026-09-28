@@ -91,6 +91,21 @@ describe("historical truth — production miss-path owner matrix", () => {
     );
   });
 
+  it("bounds user-source evidence to the facts the source actually establishes", () => {
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /근거.*직접.*확정.*범위|직접.*확정.*사실.*범위/
+    );
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /몇 차례 임무.*구체|구체.*임무/
+    );
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /평소.*좋아.*기억.*과거|과거.*식사|시장/
+    );
+  });
+
   it("preserves harmless user-backstory inference and current-scene progression", () => {
     assert.match(
       HISTORICAL_TRUTH_POLICY_BLOCK,
