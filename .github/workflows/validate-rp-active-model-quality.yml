@@ -59,6 +59,10 @@ jobs:
         run: |
           if [[ -f .github/rp-active-model-quality-live.trigger ]]; then
             echo "run_live=1" >> "$GITHUB_OUTPUT"
+            case_ids="$(sed -n 's/^case_ids=//p' .github/rp-active-model-quality-live.trigger | tail -n 1)"
+            if [[ -n "$case_ids" ]]; then
+              echo "RP_ACTIVE_MODEL_QUALITY_CASE_IDS=$case_ids" >> "$GITHUB_ENV"
+            fi
           else
             echo "run_live=0" >> "$GITHUB_OUTPUT"
             echo "Trigger absent; provider calls=0."
@@ -83,7 +87,7 @@ jobs:
         if: steps.trigger.outputs.run_live == '1'
         run: npm ci
 
-      - name: Run bounded 3-model / 4-case live evidence
+      - name: Run bounded active-model live evidence
         if: steps.trigger.outputs.run_live == '1'
         run: >-
           node --conditions=react-server --import tsx

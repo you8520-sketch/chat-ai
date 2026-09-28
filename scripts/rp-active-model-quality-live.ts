@@ -62,7 +62,14 @@ async function main(): Promise<void> {
   const runId =
     process.env.GITHUB_RUN_ID?.trim() ||
     `manual-${new Date().toISOString().slice(0, 16)}`;
-  const report = await runRpActiveModelQualityLive({ apiKey, runId });
+  const caseIdsRaw = process.env.RP_ACTIVE_MODEL_QUALITY_CASE_IDS?.trim() ?? "";
+  const caseIds = caseIdsRaw
+    ? (caseIdsRaw
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean) as Parameters<typeof runRpActiveModelQualityLive>[0]["caseIds"])
+    : undefined;
+  const report = await runRpActiveModelQualityLive({ apiKey, runId, caseIds });
 
   mkdirSync(OUTPUT_DIR, { recursive: true });
   writeFileSync(

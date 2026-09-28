@@ -49,6 +49,15 @@ describe("rpActiveModelQualityLive", () => {
     );
   });
 
+  it("can bound a focused false-canon resmoke to exactly three calls", () => {
+    const plan = buildRpActiveModelQualityPlan(["false_canon_trap"]);
+    assert.equal(plan.length, 3);
+    assert.deepEqual(
+      plan.map((row) => row.caseId),
+      ["false_canon_trap", "false_canon_trap", "false_canon_trap"]
+    );
+  });
+
   it("bounds the initial run to one call per model/case", () => {
     const plan = buildRpActiveModelQualityPlan();
     assert.equal(plan.length, 12);

@@ -91,6 +91,25 @@ describe("historical truth — production miss-path owner matrix", () => {
     );
   });
 
+  it("treats concrete user assertions as evidence but not presupposition-only questions", () => {
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /유저가 구체적으로 진술한 과거 사실/
+    );
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /질문·요청·추측이 어떤 과거를 전제하더라도/
+    );
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /"기억하지\?".*"알지\?".*"평소에 뭐 좋아하는지".*"전에 뭐였더라\?"/s
+    );
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /구체 취향·사건·약속·공유 기억의 근거가 아니다/
+    );
+  });
+
   it("preserves harmless user-backstory inference and current-scene progression", () => {
     assert.match(
       HISTORICAL_TRUTH_POLICY_BLOCK,
