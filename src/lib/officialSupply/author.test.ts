@@ -280,7 +280,8 @@ describe("official author adapter", () => {
     const bible = fakeBible(false);
     assert.equal(validatePilotBible(bible, { adultExpected: false }).ok, true);
     const draft = compileOfficialDraftFromBible(bible, STAGING_KEYS);
-    assert.equal(validatePilotDraftForTextLock(draft, []).ok, true);
+    const lock = validatePilotDraftForTextLock(draft, []);
+    assert.equal(lock.ok, true, JSON.stringify(lock.errors));
     const total = officialSubstantiveCharCount(draft);
     assert.ok(total >= 3000, `thin sheet: ${total}`);
   });
@@ -290,7 +291,8 @@ describe("official author adapter", () => {
     assert.equal(validatePilotBible(bible, { adultExpected: true }).ok, true);
     const draft = compileOfficialDraftFromBible(bible, STAGING_KEYS);
     assert.equal(draft.adult.nsfw, true);
-    assert.equal(validatePilotDraftForTextLock(draft, []).ok, true);
+    const lock = validatePilotDraftForTextLock(draft, []);
+    assert.equal(lock.ok, true, JSON.stringify(lock.errors));
   });
 
   it("under-19 main character is rejected", () => {

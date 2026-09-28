@@ -217,6 +217,7 @@ describe("official pilot content (romance fantasy 01)", () => {
         styleKey: m.styleKey,
         genres: ["로맨스 판타지"],
         audience: file.brief.audience,
+        worldName: world.name,
         hook: {
           archetype: brief.archetype,
           relationshipTrope: brief.relationshipTrope,

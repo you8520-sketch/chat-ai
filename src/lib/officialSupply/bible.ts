@@ -1,6 +1,7 @@
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import type { AdultConsentMode, AdultDialogueProfile } from "@/lib/adultSceneRouting";
 import { OFFICIAL_AUTHOR_QUALITY_CONTRACT, type PortfolioBriefInput } from "@/lib/officialSupply/authorPrompts";
+import { composeOfficialPublicDescription } from "@/lib/officialSupply/publicProfileText";
 import {
   qaResult,
   type OfficialCharacterDraft,
@@ -1025,6 +1026,8 @@ export type CompileKeys = {
   genres: OfficialCharacterDraft["genres"];
   audience: OfficialCharacterDraft["audience"];
   hook: OfficialCharacterDraft["hook"];
+  /** Display name for the public intro world header. Optional on older call sites. */
+  worldName?: string;
 };
 
 function joinParagraphs(parts: string[]): string {
@@ -1179,7 +1182,17 @@ export function compileOfficialDraftFromBible(
     styleKey: keys.styleKey,
     name: id.name,
     tagline,
-    description: bible.publicProfile.description,
+    description: composeOfficialPublicDescription({
+      worldName: keys.worldName,
+      rpHook: keys.hook.rpHook,
+      relationshipTrope: keys.hook.relationshipTrope,
+      identity: id,
+      appearance: bible.appearance,
+      personality: bible.personality,
+      abilities: bible.abilities,
+      situation: bible.situation,
+      userRole: bible.userRelationship.userRole,
+    }),
     greeting: bible.greeting,
     gender: id.gender as OfficialCharacterDraft["gender"],
     age: id.age,

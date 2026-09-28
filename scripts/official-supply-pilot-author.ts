@@ -641,6 +641,7 @@ function compileForBrief(bible: OfficialCharacterBible, brief: PortfolioBriefInp
     styleKey: MANIFEST.styleKey,
     genres: ["로맨스 판타지"],
     audience: brief.audience,
+    worldName: readWorld().name,
     hook: {
       archetype: brief.archetype,
       relationshipTrope: brief.relationshipTrope,
