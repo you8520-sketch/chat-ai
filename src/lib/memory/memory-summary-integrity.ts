@@ -248,6 +248,36 @@ const PRIOR_USER_RELATIONSHIP_MARKER =
 const USER_RELATIONSHIP_SUPPORT_MARKER =
   /(?:만난\s*적|봤잖|만났잖|아는\s*사이|알던|안부|전에|예전에|지난번|그때|약속|함께|친분|인연|관계)/i;
 
+
+const DIRECT_USER_SHARED_HISTORY_SUPPORT =
+  /(?:우리.{0,16}(?:전에|예전에|지난번|만났|함께|약속)|그때\s*우리|네가.{0,12}약속|너랑.{0,12}(?:전에|예전에|지난번|만났|함께|약속))/i;
+const RELATIONSHIP_SUPPORT_STOPWORDS = new Set([
+  "전에", "예전", "예전에", "지난번", "그때", "함께", "관계", "인연", "친분",
+  "약속", "유저", "사용자", "우리", "너랑", "네가",
+]);
+
+function normalizeRelationshipSupportToken(token: string): string {
+  return token
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    .replace(/(?:이랑|랑|하고|에게서|으로|에서|에게|께서|부터|까지|처럼|보다|은|는|이|가|을|를|의|에|와|과|도|만|로)$/u, "");
+}
+
+function relationshipSupportTokens(text: string): string[] {
+  return [...new Set(
+    (text.match(/[가-힣A-Za-z0-9_]{2,}/g) ?? [])
+      .map(normalizeRelationshipSupportToken)
+      .filter((token) => token.length >= 2 && !RELATIONSHIP_SUPPORT_STOPWORDS.has(token))
+  )];
+}
+
+function userSourceSupportsPriorRelationship(summary: string, userText: string): boolean {
+  if (DIRECT_USER_SHARED_HISTORY_SUPPORT.test(userText)) return true;
+  if (!USER_RELATIONSHIP_SUPPORT_MARKER.test(userText)) return false;
+  const summaryTokens = new Set(relationshipSupportTokens(summary));
+  return relationshipSupportTokens(userText).some((token) => summaryTokens.has(token));
+}
+
 const ATTRIBUTED_RELATIONSHIP_CLAIM_MARKER =
   /(?:말했|말하였다|밝혔|밝혔다|주장했|주장하였다|전했|전하였다|언급했|언급하였다|설명했|설명하였다|부탁했다고\s*말)/i;
 
@@ -263,8 +293,9 @@ function summaryInventsUnsupportedUserRelationship(
   userPersona?: string | null
 ): boolean {
   if (!PRIOR_USER_RELATIONSHIP_MARKER.test(summary)) return false;
-  // A user-side relational cue is enough to preserve the user's authored past.
-  if (USER_RELATIONSHIP_SUPPORT_MARKER.test(source.user)) return false;
+  // Preserve user-authored past only when the user text actually supports this
+  // relationship, not merely because it contains an unrelated temporal cue.
+  if (userSourceSupportsPriorRelationship(summary, source.user)) return false;
   // Preserve "the character said/claimed X" as an attributed claim; the guard
   // blocks only promotion to objective shared-history fact.
   if (ATTRIBUTED_RELATIONSHIP_CLAIM_MARKER.test(summary)) return false;
