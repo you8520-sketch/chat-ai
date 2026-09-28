@@ -46,9 +46,9 @@ function renderIdentityLock(lock: OfficialAppearanceLock): string {
     .join("\n");
 }
 
-function framingForSlot(slot: OfficialAssetSlotPlan): string {
+function framingForSlot(slot: OfficialAssetSlotPlan, draftKey: string): string {
   const profile = officialImageProfileForSlot(slot.kind);
-  const shot = resolveOfficialSlotShot(slot);
+  const shot = resolveOfficialSlotShot(slot, draftKey);
   const shotLine = renderOfficialShotResponsibility(shot);
   switch (slot.kind) {
     case "representative":
@@ -145,7 +145,7 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     .filter(Boolean)
     .join(" ");
   const primaryPrompt = [
-    framingForSlot(slot),
+    framingForSlot(slot, draft.draftKey),
     referenceRule,
     `Character: ${draft.name}, age ${draft.age}.`,
     renderIdentityLock(appearance),
@@ -158,7 +158,7 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     "Exactly one person unless the situation explicitly needs unnamed background extras. No text, speech bubbles, captions, logos, signatures or watermarks.",
   ].join("\n");
   const strictFallbackPrompt = [
-    framingForSlot(slot),
+    framingForSlot(slot, draft.draftKey),
     referenceRule,
     STRICT_SAFE_DEPICTION,
     "STRICT PROVIDER-SAFE FALLBACK — modest, fully clothed, non-explicit.",
@@ -166,7 +166,7 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     renderIdentityLock(appearance),
     buildMatureMaleVisualAgePrompt(draft) ?? "",
     genderLock,
-    renderOfficialShotResponsibility(resolveOfficialSlotShot(slot)),
+    renderOfficialShotResponsibility(resolveOfficialSlotShot(slot, draft.draftKey)),
     `Expression: ${slot.expression}.`,
     slot.kind === "scene"
       ? `Setting: ${slot.location}. Scene, not portrait — the character must be visible inside the place and incident.`

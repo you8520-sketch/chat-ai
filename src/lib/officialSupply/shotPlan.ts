@@ -236,10 +236,60 @@ const KIND_FALLBACK: Record<OfficialAssetSlotKind, OfficialSlotShotResponsibilit
   scene: OFFICIAL_SLOT_SHOT_PLAN.scene1!,
 };
 
-export function resolveOfficialSlotShot(slot: Pick<OfficialAssetSlotPlan, "slotKey" | "kind">): OfficialSlotShotResponsibility {
+const KIND_FAMILY_KEYS: Record<OfficialAssetSlotKind, readonly string[]> = {
+  representative: ["rep"],
+  signature: ["sig1", "sig2", "sig3", "sig4"],
+  emotion: ["emo1", "emo2", "emo3", "emo4", "emo5", "emo6"],
+  scene: ["scene1", "scene2", "scene3"],
+};
+
+const KIND_ROTATE_SALT: Record<OfficialAssetSlotKind, number> = {
+  representative: 0,
+  signature: 1,
+  emotion: 11,
+  scene: 23,
+};
+
+/** Deterministic FNV-1a seed so the same draft always gets the same rotation. */
+export function officialShotSeed(draftKey: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < draftKey.length; i += 1) {
+    hash ^= draftKey.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function rotateItems<T>(items: readonly T[], offset: number): T[] {
+  const count = items.length;
+  if (count === 0) return [];
+  const shift = ((offset % count) + count) % count;
+  return items.slice(shift).concat(items.slice(0, shift));
+}
+
+/**
+ * Resolve the shot for a slot. Representative stays the card bust.
+ * Signature / emotion / scene families rotate by draftKey so two official
+ * characters do not share the same 14-slot storyboard order.
+ */
+export function resolveOfficialSlotShot(
+  slot: Pick<OfficialAssetSlotPlan, "slotKey" | "kind">,
+  draftKey = ""
+): OfficialSlotShotResponsibility {
   const planned = OFFICIAL_SLOT_SHOT_PLAN[slot.slotKey];
-  if (planned && planned.kind === slot.kind) return planned;
-  return { ...KIND_FALLBACK[slot.kind], slotKey: slot.slotKey, kind: slot.kind };
+  const base =
+    planned && planned.kind === slot.kind
+      ? planned
+      : { ...KIND_FALLBACK[slot.kind], slotKey: slot.slotKey, kind: slot.kind };
+  if (!draftKey || slot.kind === "representative") {
+    return { ...base, slotKey: slot.slotKey, kind: slot.kind };
+  }
+  const familyKeys = KIND_FAMILY_KEYS[slot.kind];
+  const familyShots = familyKeys.map((key) => OFFICIAL_SLOT_SHOT_PLAN[key]!);
+  const rotated = rotateItems(familyShots, officialShotSeed(draftKey) + KIND_ROTATE_SALT[slot.kind]);
+  const index = familyKeys.indexOf(slot.slotKey);
+  const picked = index >= 0 ? rotated[index]! : base;
+  return { ...picked, slotKey: slot.slotKey, kind: slot.kind };
 }
 
 export function officialShotComboKey(shot: OfficialSlotShotResponsibility): string {
@@ -289,7 +339,7 @@ const SLOT_ORDER = [
  * Structural diversity QA for a 14-slot set. Responsibilities are resolved
  * from slot keys, so a well-formed official plan inherits the canonical table.
  */
-export function evaluateOfficialShotPlan(slots: readonly OfficialAssetSlotPlan[]): QaResult {
+export function evaluateOfficialShotPlan(slots: readonly OfficialAssetSlotPlan[], draftKey = ""): QaResult {
   const errors: QaIssue[] = [];
   const comboCounts = new Map<string, string[]>();
   let bustCount = 0;
@@ -298,7 +348,7 @@ export function evaluateOfficialShotPlan(slots: readonly OfficialAssetSlotPlan[]
   );
 
   for (const slot of slots) {
-    const shot = resolveOfficialSlotShot(slot);
+    const shot = resolveOfficialSlotShot(slot, draftKey);
     if (slot.kind === "scene" && shot.background !== "scene") {
       errors.push({
         code: "scene_shot_not_scenic",
@@ -327,8 +377,8 @@ export function evaluateOfficialShotPlan(slots: readonly OfficialAssetSlotPlan[]
     });
   }
   for (let i = 1; i < ordered.length; i += 1) {
-    const prev = resolveOfficialSlotShot(ordered[i - 1]!);
-    const next = resolveOfficialSlotShot(ordered[i]!);
+    const prev = resolveOfficialSlotShot(ordered[i - 1]!, draftKey);
+    const next = resolveOfficialSlotShot(ordered[i]!, draftKey);
     if (prev.distance === "bust" && next.distance === "bust") {
       errors.push({
         code: "bust_shot_consecutive",

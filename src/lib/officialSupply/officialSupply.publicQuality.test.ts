@@ -18,11 +18,14 @@ import {
   composeOfficialPublicDescription,
   evaluateOfficialCreatorComment,
   evaluateOfficialPublicDescription,
+  officialPlayStartChoices,
   OFFICIAL_PUBLIC_INTRO_SECTIONS,
+  publicAppearanceFacts,
 } from "@/lib/officialSupply/publicProfileText";
 import {
   evaluateOfficialShotPlan,
   officialShotComboKey,
+  officialShotSeed,
   OFFICIAL_SLOT_SHOT_PLAN,
   resolveOfficialSlotShot,
 } from "@/lib/officialSupply/shotPlan";
@@ -77,11 +80,24 @@ describe("official slot shot responsibilities", () => {
   });
 
   it("keeps representative as the only required bust card and never consecutive busts", () => {
-    const shots = testAssetPlan().slots.map(resolveOfficialSlotShot);
+    const shots = testAssetPlan().slots.map((slot) => resolveOfficialSlotShot(slot, "pilot-rf-01"));
     const busts = shots.filter((shot) => shot.distance === "bust");
     assert.equal(busts.length, 1);
     assert.equal(busts[0]?.slotKey, "rep");
     assert.ok(shots.filter((shot) => shot.kind === "scene").every((shot) => shot.background === "scene"));
+  });
+
+  it("rotates non-rep families by draftKey so two characters do not share the same storyboard", () => {
+    const slots = testAssetPlan().slots;
+    const a = slots.map((slot) => officialShotComboKey(resolveOfficialSlotShot(slot, "pilot-rf-01")));
+    const b = slots.map((slot) => officialShotComboKey(resolveOfficialSlotShot(slot, "pilot-rf-03")));
+    assert.notDeepEqual(a, b);
+    assert.equal(officialShotSeed("pilot-rf-01"), officialShotSeed("pilot-rf-01"));
+    const sig1a = resolveOfficialSlotShot({ slotKey: "sig1", kind: "signature" }, "pilot-rf-01");
+    const sig1b = resolveOfficialSlotShot({ slotKey: "sig1", kind: "signature" }, "pilot-rf-03");
+    assert.notEqual(officialShotComboKey(sig1a), officialShotComboKey(sig1b));
+    assert.equal(evaluateOfficialShotPlan(slots, "pilot-rf-01").errors.length, 0);
+    assert.equal(evaluateOfficialShotPlan(slots, "pilot-rf-03").errors.length, 0);
   });
 
   it("builds prompts with different shot responsibilities; scene is not a portrait", () => {
@@ -128,10 +144,18 @@ describe("official detailed intro + creator comment", () => {
       assert.match(draft.description, new RegExp(`${file.bible.identity.heightCm}cm`));
       assert.doesNotMatch(draft.description, /<\/?[a-z][\s\S]*>/i);
       assert.notEqual(draft.description, file.bible.publicProfile.description);
+      const facts = publicAppearanceFacts(file.bible.appearance);
+      assert.ok(facts.length >= 3 && facts.length <= 5, `${file.draftKey} look facts ${facts.length}`);
+      assert.match(draft.description, new RegExp(facts[0]!.slice(0, 8).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     }
+    const lucian = sampleChars().find((file) => file.draftKey === "pilot-rf-03")!;
+    const lucianDraft = compileOfficialDraftFromBible(lucian.bible, compileKeys(lucian));
+    assert.match(lucianDraft.description, /호박/);
+    assert.match(lucianDraft.description, /구리빛|모노클|갈색/);
   });
 
   it("creator comment is a play guide and not a copy of the detailed intro", () => {
+    const starts = new Set<string>();
     for (const file of sampleChars()) {
       const draft = compileOfficialDraftFromBible(file.bible, compileKeys(file));
       const comment = composeOfficialCreatorComment(draft);
@@ -142,9 +166,13 @@ describe("official detailed intro + creator comment", () => {
       assert.match(comment, /가능한 관계/);
       assert.doesNotMatch(comment, /\[캐릭터 설정\]/);
       assert.doesNotMatch(comment, /(신뢰|호감|경계).{0,8}(낮음|높음|미정)/);
-      assert.match(comment, /로 시작해, 첫 장면에서는 목적 한 가지만 밝히고 반응을 보세요/);
+      assert.doesNotMatch(comment, /첫 장면에서는 목적 한 가지만|반응을 보세요|따라 누구와/);
+      const choices = officialPlayStartChoices(draft);
+      assert.ok(choices.length >= 2, `${file.draftKey} choices ${JSON.stringify(choices)}`);
+      starts.add(comment.match(/이렇게 시작해 보세요<\/b><br>([^<]+)/)?.[1] ?? "");
       assert.ok(!draft.description.includes(comment.replace(/<[^>]+>/g, "").trim()));
     }
+    assert.equal(starts.size, 3);
   });
 
   it("form body keeps the compiled intro and adds creator_comment without changing publish owner", () => {
@@ -169,5 +197,15 @@ describe("official detailed intro + creator comment", () => {
     const pitch = composeOfficialPublicDescription;
     assert.ok(evaluateOfficialPublicDescription("황자가 온실에서 당신을 기다린다. 거래가 시작된다.").errors.length > 0);
     assert.equal(typeof pitch, "function");
+  });
+});
+
+describe("official shot QA path stays non-persistent", () => {
+  it("QA script uses prompt/image owners and never writes production rows", () => {
+    const source = fs.readFileSync(path.join(process.cwd(), "scripts/official-supply-quality-shot-qa.ts"), "utf8");
+    assert.match(source, /buildOfficialAssetPrompts/);
+    assert.match(source, /callOpenAiImageEditWithSafetyFallback/);
+    assert.match(source, /\/opt\/cursor\/artifacts\/official-shot-qa/);
+    assert.doesNotMatch(source, /runOfficialAssetSlot|OfficialSupplyStore|publishOfficialSupplyCharacter|stageOfficialCharacterPrivately|storeUpload/);
   });
 });

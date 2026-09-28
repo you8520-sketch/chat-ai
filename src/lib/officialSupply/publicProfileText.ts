@@ -109,8 +109,17 @@ export type OfficialPublicIntroInput = {
   };
   appearance: {
     impression: string;
-    usualExpression: string;
-    defaultOutfit: string;
+    usualExpression?: string;
+    defaultOutfit?: string;
+    hairColor?: string;
+    hairstyle?: string;
+    hairLength?: string;
+    eyes?: string;
+    eyeColor?: string;
+    skin?: string;
+    build?: string;
+    distinguishingFeatures?: string;
+    accessories?: string;
   };
   personality: { keywords: string[]; behavioral: string };
   abilities: Array<{ name: string; scope: string }>;
@@ -118,15 +127,39 @@ export type OfficialPublicIntroInput = {
   userRole: string;
 };
 
+function clipPhrase(text: string, maxChars: number): string {
+  return firstSentence(text, maxChars)
+    .replace(/^[.\s]+/u, "")
+    .replace(/[.!?。！？]+$/u, "")
+    .replace(/\d+\s*cm의?\s*/gi, "")
+    .trim();
+}
+
+function fieldPhrase(text: string | undefined, maxChars: number): string {
+  return clipPhrase((text ?? "").replace(/[.!?。！？]+$/u, ""), maxChars);
+}
+
+/** Public identifying looks: 3–5 of hair / eyes / skin / build / marks / outfit. */
+export function publicAppearanceFacts(appearance: OfficialPublicIntroInput["appearance"]): string[] {
+  const hair = [fieldPhrase(appearance.hairColor, 24), fieldPhrase(appearance.hairstyle, 28)].filter(nonEmpty).join(", ");
+  const eyes = [fieldPhrase(appearance.eyeColor, 20), fieldPhrase(appearance.eyes, 24)].filter(nonEmpty).join(", ");
+  const facts = [
+    hair,
+    eyes,
+    fieldPhrase(appearance.skin, 36),
+    fieldPhrase(appearance.build, 36),
+    fieldPhrase(appearance.distinguishingFeatures, 56),
+    fieldPhrase(appearance.defaultOutfit, 56),
+  ].filter(nonEmpty);
+  if (facts.length < 3 && appearance.accessories) facts.push(clipPhrase(appearance.accessories, 40));
+  if (facts.length < 3 && appearance.impression) facts.push(clipPhrase(appearance.impression, 48));
+  return facts.slice(0, 5);
+}
+
 export function composeOfficialPublicDescription(input: OfficialPublicIntroInput): string {
   const id = input.identity;
-  const appearance = input.appearance;
   const worldBody = firstSentences(input.situation.worldContext, 280, 3);
-  const looks = firstSentences(
-    [appearance.impression, appearance.usualExpression, appearance.defaultOutfit].filter(nonEmpty).join(" "),
-    160,
-    2
-  );
+  const looks = publicAppearanceFacts(input.appearance).join(" / ");
   const personality = [
     input.personality.keywords.slice(0, 4).join("·"),
     firstSentence(input.personality.behavioral, 120),
@@ -227,16 +260,74 @@ export function evaluateOfficialPublicDescription(description: string, name?: st
   if (!/직업\/소속/.test(text) || !/외형:/.test(text) || !/성격:/.test(text) || !/능력\/역할:/.test(text)) {
     errors.push({ code: "public_intro_facts_missing", message: "detailed intro must cover occupation, looks, personality, role" });
   }
+  const looks = text.match(/외형:\s*([^\n]+)/)?.[1] ?? "";
+  const lookCues = [/머리|헤어|곱슬|단발/, /눈|눈동|호박|금빛|회색/, /피부|구리|창백/, /체형|체격/, /모노클|흉터|검상|식별|반지|베일/, /복식|베스트|로브|제복|코트|갑옷|셔츠/];
+  if (looks.length < 50 || lookCues.filter((cue) => cue.test(looks)).length < 2) {
+    errors.push({
+      code: "public_intro_looks_thin",
+      message: "detailed intro looks must include 3–5 public identifying features (hair/eyes/skin/build/marks/outfit)",
+    });
+  }
   return qaResult(errors);
 }
 
-function playStartCue(userRole: string): string {
-  let cue = firstSentence(userRole, 48).replace(/[.!?。！？]+$/u, "").trim();
-  cue = cue
-    .replace(/\s*로 시작한다$/u, "")
-    .replace(/(입니다|이에요|예요|이다|다)$/u, "")
+function isMeterOrSecret(text: string): boolean {
+  return /(신뢰|호감|경계).{0,8}(낮음|높음|미정|\d)/.test(text) || /속내:|숨김|비밀:/.test(text);
+}
+
+function uniquePhrases(values: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    const key = value.replace(/\s+/g, "").replace(/하기$/u, "");
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(value);
+  }
+  return out;
+}
+
+function extractPlayChoices(text: string): string[] {
+  if (!text || isMeterOrSecret(text)) return [];
+  const choices: string[] = [];
+  const midDot = text.match(/([가-힣]{2,8})·([가-힣]{2,8})·([가-힣]{2,8})/);
+  if (midDot) {
+    choices.push(`${midDot[1]}하기`, `${midDot[2]}하기`, `${midDot[3]}하기`);
+  }
+  for (const match of text.matchAll(
+    /([가-힣]{2,12}(?:에\s*)?(?:협력|거리|거래|공개|봉인|계약|진실|도주|조사)[가-힣]{0,6}(?:할지|둘지|받을지|지킬지|풀지|좇을지|따를지))/g
+  )) {
+    const phrase = match[1]?.replace(/\s+/g, " ").trim();
+    if (phrase && !/^(따라|하고|의|를|을)\s*/.test(phrase)) choices.push(phrase);
+  }
+  const roleList = text.match(/([가-힣]{2,10}자|[가-힣]{2,8} 사람)(?:,|·|\/|등)/g);
+  if (roleList) {
+    for (const item of roleList) {
+      const role = item.replace(/[,·\/등]/g, "").trim();
+      if (role) choices.push(`${role}로 움직이기`);
+    }
+  }
+  return uniquePhrases(choices).slice(0, 3);
+}
+
+export function officialPlayStartChoices(draft: OfficialCharacterDraft): string[] {
+  const rel = draft.sections.relationshipsAndDrives;
+  const userRole = pickPrefixed(rel, "유저 역할");
+  const progress = pickPrefixed(rel, "관계 진행");
+  const mid = pickPrefixed(rel, "중기 갈등");
+  const firstStep = progress
+    .split(/\s*→\s*/)[0]
+    ?.replace(/^(?:첫 단계|초기|첫째 단계):\s*/u, "")
     .trim();
-  return cue;
+  const fromSources = [
+    ...extractPlayChoices(userRole),
+    ...extractPlayChoices(mid),
+    firstStep && !isMeterOrSecret(firstStep) && /협상|협력|거절|도주|조사|선택|조건|거리|칼|거래/.test(firstStep)
+      ? clipPhrase(firstStep, 42)
+      : "",
+    firstSentence(draft.hook.rpHook, 36),
+  ].filter(nonEmpty);
+  return uniquePhrases(fromSources).slice(0, 3);
 }
 
 function draftPlayGuideParts(draft: OfficialCharacterDraft): {
@@ -246,18 +337,16 @@ function draftPlayGuideParts(draft: OfficialCharacterDraft): {
 } {
   const rel = draft.sections.relationshipsAndDrives;
   const userRole = pickPrefixed(rel, "유저 역할");
-  const progress = pickPrefixed(rel, "관계 진행");
-  const situation = firstSentence(draft.hook.rpHook, 140);
-  const cue = playStartCue(userRole);
-  const startLine = cue
-    ? `${cue}로 시작해, 첫 장면에서는 목적 한 가지만 밝히고 반응을 보세요.`
-    : "첫 만남에서 목적 한 가지만 말하고 상대의 반응을 보세요.";
-  const relation = [draft.hook.relationshipTrope, userRole, progress.split("→")[0]?.trim()]
-    .filter(nonEmpty)
-    .slice(0, 3)
-    .join(" · ");
+  const choices = officialPlayStartChoices(draft);
+  const startLine =
+    choices.length >= 2
+      ? `${choices.join(", ")} 중에서 먼저 고르세요.`
+      : choices[0]
+        ? `${choices[0]}로 첫 수를 정해 보세요.`
+        : `${clipPhrase(userRole || draft.hook.relationshipTrope || "첫 만남", 36)}로 첫 수를 정해 보세요.`;
+  const relation = [draft.hook.relationshipTrope, clipPhrase(userRole, 36)].filter(nonEmpty).join(" · ");
   return {
-    situation: situation || firstSentence(draft.tagline, 80),
+    situation: firstSentence(draft.hook.rpHook, 140) || firstSentence(draft.tagline, 80),
     start: startLine,
     relation: relation || draft.hook.relationshipTrope,
   };
@@ -306,13 +395,19 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
   if (commentPlain.length >= 80 && introPlain.includes(commentPlain.slice(0, 80))) {
     errors.push({ code: "creator_comment_copy", message: "creator comment repeats the detailed intro lead" });
   }
-  if (!USER_CUE_RE.test(commentPlain) && !/당신|역할|시작/.test(commentPlain)) {
+  if (!USER_CUE_RE.test(commentPlain) && !/당신|역할|시작|고르|선택/.test(commentPlain)) {
     errors.push({ code: "creator_comment_no_play", message: "creator comment must tell the player how to start" });
   }
   if (/(신뢰|호감|경계).{0,8}(낮음|높음|미정|\d)/.test(commentPlain)) {
     errors.push({
       code: "creator_comment_stats",
       message: "creator comment must not dump relationship meters; it is a play start guide",
+    });
+  }
+  if (/첫 장면에서는 목적 한 가지만|반응을 보세요/.test(commentPlain)) {
+    errors.push({
+      code: "creator_comment_generic",
+      message: "creator comment start line must be character-specific, not a shared generic cue",
     });
   }
   return qaResult(errors);

@@ -96,7 +96,7 @@ export function evaluateAssetPlan(draft: OfficialCharacterDraft, plan: OfficialA
   if (new Set(sceneLocations).size !== sceneLocations.length) {
     warnings.push({ code: "scene_location_repeated", message: "special scenes reuse a location" });
   }
-  const shotQa = evaluateOfficialShotPlan(plan.slots);
+  const shotQa = evaluateOfficialShotPlan(plan.slots, draft.draftKey);
   errors.push(...shotQa.errors);
   warnings.push(...shotQa.warnings);
   return qaResult(errors, warnings);
