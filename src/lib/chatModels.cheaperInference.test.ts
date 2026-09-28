@@ -10,6 +10,7 @@ import {
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
   SELECTED_AI_OPTIONS,
   USER_SELECTABLE_AI_OPTIONS,
   isAnthropicModel,
@@ -88,22 +89,28 @@ test("GPT-6 Luna is the current hidden Cheaper Inference background model", () =
   );
 });
 
-test("GPT-5.6 Terra is a selectable Cheaper Inference model", () => {
+test("GPT-6 Sol replaces Terra as the selectable Cheaper Inference premium model", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
-      (option) => option.id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL
+      (option) => option.id === CHEAPER_INFERENCE_GPT_6_SOL_MODEL
     ),
     true
   );
   assert.equal(
-    selectedAIProvider(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL),
+    USER_SELECTABLE_AI_OPTIONS.some(
+      (option) => option.id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL
+    ),
+    false
+  );
+  assert.equal(
+    selectedAIProvider(CHEAPER_INFERENCE_GPT_6_SOL_MODEL),
     "cheaperinference"
   );
-  assert.equal(selectedAILabel(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL), "GPT-5.6 Terra");
-  assert.equal(isCheaperInferenceModel(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL), true);
+  assert.equal(selectedAILabel(CHEAPER_INFERENCE_GPT_6_SOL_MODEL), "GPT-6 Sol");
+  assert.equal(isCheaperInferenceModel(CHEAPER_INFERENCE_GPT_6_SOL_MODEL), true);
   assert.equal(
     resolveSelectedAI(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL),
-    CHEAPER_INFERENCE_GPT_56_TERRA_MODEL
+    CHEAPER_INFERENCE_GPT_6_SOL_MODEL
   );
 });
 
