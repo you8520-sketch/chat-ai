@@ -216,10 +216,15 @@ describe("chatBillingContractDispatch — contract selection", () => {
     assert.equal(short.contract, "published_phase1");
     assert.ok(short.points > 0);
 
+    const longStage: StageUsage = {
+      ...completePrimaryStage(CHEAPER_INFERENCE_GPT_6_SOL_MODEL, 1_000),
+      input: 272_001,
+      apiReportedInputTokens: 272_001,
+    };
     const long = resolveChatBillingContract({
       deliveredModelId: CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
       selectedModelId: CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
-      stages: [completePrimaryStage(CHEAPER_INFERENCE_GPT_6_SOL_MODEL, 272_001, 1_000)],
+      stages: [longStage],
       legacyFinalPoints: 777,
       billingWaiverReason: null,
       legacyWaiverMinimum: 0,
