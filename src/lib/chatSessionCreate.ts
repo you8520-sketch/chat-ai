@@ -13,6 +13,7 @@ import {
 } from "@/lib/rpDiagnosticCanary";
 import { scheduleGreetingSuggestedRepliesExtraction } from "@/lib/suggestedReplies/job";
 import {
+  DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL,
   DEFAULT_USER_AUTHORING_LEVEL,
   parseUserAuthoringLevel,
   type UserAuthoringLevel,
@@ -28,6 +29,7 @@ export type CreateChatSessionInput = {
   targetResponseChars?: number;
   adultHandoffEnabled?: boolean;
   userAuthoringLevel?: UserAuthoringLevel;
+  autoProgressionAuthoringLevel?: UserAuthoringLevel;
 };
 
 /** 새 채팅방 생성 + 첫 메시지(greeting) 삽입 */
@@ -65,8 +67,8 @@ export function createChatSession(input: CreateChatSessionInput): number {
 
   const info = db
     .prepare(
-      `INSERT INTO chats (user_id, character_id, mode, gemini_model, user_note, selected_persona_id, target_response_chars, memory_capacity, adult_handoff_enabled, user_authoring_level)
-       VALUES (?,?,?,?,?,?,?,?,?,?)`
+      `INSERT INTO chats (user_id, character_id, mode, gemini_model, user_note, selected_persona_id, target_response_chars, memory_capacity, adult_handoff_enabled, user_authoring_level, auto_progression_authoring_level)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       input.userId,
@@ -78,7 +80,11 @@ export function createChatSession(input: CreateChatSessionInput): number {
       targetResponseChars,
       MEMORY_CAPACITY_DEFAULT,
       input.adultHandoffEnabled === true ? 1 : 0,
-      parseUserAuthoringLevel(input.userAuthoringLevel ?? DEFAULT_USER_AUTHORING_LEVEL)
+      parseUserAuthoringLevel(input.userAuthoringLevel ?? DEFAULT_USER_AUTHORING_LEVEL),
+      parseUserAuthoringLevel(
+        input.autoProgressionAuthoringLevel ??
+          DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL
+      )
     );
 
   const chatId = Number(info.lastInsertRowid);
