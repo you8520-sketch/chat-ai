@@ -58,7 +58,7 @@ function endpoint(modelId: SelectedAI): SupplyEndpointEvidence {
     uptimeLast1dPercent: 99.9,
     uptimeLast30mPercent: 100,
     status: 0,
-    supportedParameters: ["reasoning", "max_tokens"],
+    supportedParameters: ["reasoning", "include_reasoning", "max_tokens", "temperature"],
     provider: {
       name: "FixtureProvider",
       slug: "fixture-provider",
