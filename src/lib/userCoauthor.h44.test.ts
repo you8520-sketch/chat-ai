@@ -119,12 +119,12 @@ describe("H4.4 P1–P10 command semantics", () => {
     assert.deepEqual(modeOf(applied), { current: "DIALOGUE", persistent: "DIALOGUE" });
   });
 
-  it("P7 — persistent FULL + 이제 내 대사나 행동은 쓰지 마 → OFF", () => {
+  it("P7 — persistent FULL + 이제 내 대사나 행동은 쓰지 마 → explicit LIMITED", () => {
     const applied = resolveEffectiveUserAuthoring({
       persistentMode: "FULL",
       currentUserInput: "OOC: 이제 내 대사나 행동은 쓰지 마.",
     });
-    assert.deepEqual(modeOf(applied), { current: "OFF", persistent: "OFF" });
+    assert.deepEqual(modeOf(applied), { current: "OFF", persistent: "LIMITED" });
   });
 
   it("P8 — persistent FULL + 이번 턴은 대사는 내가 쓸게 → current ACTIONS, persistent FULL", () => {
@@ -190,18 +190,18 @@ describe("H4.4 T1–T10 regressions", () => {
     assert.deepEqual(modeOf(next), { current: "FULL", persistent: "FULL" });
   });
 
-  it("T3 — persistent grant then revoke then next OFF", () => {
+  it("T3 — persistent grant then revoke remains explicit LIMITED", () => {
     const afterRevoke = recomputeUserCoauthorModeFromUserMessages([
       "OOC: 내 캐릭터도 같이 써줘.",
       "OOC: 이제 내 대사나 행동은 쓰지 마.",
     ]);
-    assert.equal(afterRevoke, "OFF");
+    assert.equal(afterRevoke, "LIMITED");
     const next = resolveEffectiveUserAuthoring({
       persistentMode: afterRevoke,
       currentUserInput: "그만하자.",
       previousUserInput: "OOC: 이제 내 대사나 행동은 쓰지 마.",
     });
-    assert.deepEqual(modeOf(next), { current: "OFF", persistent: "OFF" });
+    assert.deepEqual(modeOf(next), { current: "OFF", persistent: "LIMITED" });
   });
 
   it("T4 — persistent FULL + turn-only dialogue deny, following turn FULL", () => {
