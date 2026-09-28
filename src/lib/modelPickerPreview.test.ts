@@ -34,11 +34,10 @@ import {
   type ModelPickerMessageSample,
 } from "@/lib/modelPickerPreview";
 
-const OPENROUTER_DEEPSEEK_V4_PRO_MODEL =
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+const ACTIVE_DEEPSEEK_MODEL =
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
 
 const ACTIVE = [
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -63,9 +62,9 @@ function assistantUsage(
 }
 
 describe("modelPickerPreview V2", () => {
-  it("shows the canonical 6 in the default user picker preview", () => {
+  it("shows the canonical 5 in the default user picker preview", () => {
     const preview = buildModelPickerPreview({ messages: [] });
-    assert.equal(preview.models.length, 6);
+    assert.equal(preview.models.length, 5);
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL)
     );
@@ -73,8 +72,9 @@ describe("modelPickerPreview V2", () => {
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),
       false
     );
-    assert.ok(
-      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL)
+    assert.equal(
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
+      false
     );
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL)
@@ -90,9 +90,9 @@ describe("modelPickerPreview V2", () => {
     );
   });
 
-  it("covers all active models", () => {
+  it("covers representative active models", () => {
     const preview = buildModelPickerPreview({ messages: [], modelIds: [...ACTIVE] });
-    assert.equal(preview.models.length, 4);
+    assert.equal(preview.models.length, 3);
     for (const id of ACTIVE) {
       const row = preview.models.find((m) => m.modelId === id);
       assert.ok(row, id);
@@ -132,12 +132,12 @@ describe("modelPickerPreview V2", () => {
 
   it("uses p30+recent blend under sanity cap — stays below aim", () => {
     const { tokens } = resolveModelPickerOutputTokens({
-      modelId: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+      modelId: ACTIVE_DEEPSEEK_MODEL,
       targetResponseChars: DEFAULT_TARGET_RESPONSE_CHARS,
       messages: [
-        assistantUsage(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 1700),
-        assistantUsage(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 1800),
-        assistantUsage(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 1900),
+        assistantUsage(ACTIVE_DEEPSEEK_MODEL, 1700),
+        assistantUsage(ACTIVE_DEEPSEEK_MODEL, 1800),
+        assistantUsage(ACTIVE_DEEPSEEK_MODEL, 1900),
       ],
     });
     // newest=1900, p30=1700 → round(1700*0.75 + 1900*0.25)=1750
@@ -147,13 +147,13 @@ describe("modelPickerPreview V2", () => {
 
   it("caps extreme sample medians to aim×0.9", () => {
     const messages = [
-      assistantUsage(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 2000),
-      assistantUsage(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 2200),
-      assistantUsage(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 2400),
+      assistantUsage(ACTIVE_DEEPSEEK_MODEL, 2000),
+      assistantUsage(ACTIVE_DEEPSEEK_MODEL, 2200),
+      assistantUsage(ACTIVE_DEEPSEEK_MODEL, 2400),
       assistantUsage(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 8000),
     ];
     const ds = resolveModelPickerOutputTokens({
-      modelId: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+      modelId: ACTIVE_DEEPSEEK_MODEL,
       messages,
     });
     // newest-first: 2400,2200,2000 → p30=2000 → blend 2000*0.75+2400*0.25=2100
@@ -176,20 +176,20 @@ describe("modelPickerPreview V2", () => {
     const messages: ModelPickerMessageSample[] = [
       {
         role: "assistant",
-        model: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+        model: ACTIVE_DEEPSEEK_MODEL,
         usage: {
-          selectedAI: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+          selectedAI: ACTIVE_DEEPSEEK_MODEL,
           apiOutputTokens: 999,
         },
         variants: [
-          { usage: { selectedAI: OPENROUTER_DEEPSEEK_V4_PRO_MODEL, apiOutputTokens: 999 } },
-          { usage: { selectedAI: OPENROUTER_DEEPSEEK_V4_PRO_MODEL, apiOutputTokens: 2100 } },
+          { usage: { selectedAI: ACTIVE_DEEPSEEK_MODEL, apiOutputTokens: 999 } },
+          { usage: { selectedAI: ACTIVE_DEEPSEEK_MODEL, apiOutputTokens: 2100 } },
         ],
         activeVariant: 1,
       },
     ];
     const samples = collectModelOutputSamples({
-      modelId: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+      modelId: ACTIVE_DEEPSEEK_MODEL,
       messages,
     });
     assert.deepEqual(samples, [2100]);
@@ -239,16 +239,16 @@ describe("modelPickerPreview V2", () => {
     const preview = buildModelPickerPreview({
       messages: [],
       modelIds: [
-        OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+        ACTIVE_DEEPSEEK_MODEL,
         CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
       ],
       assembledSnapshotTokensByModel: {
-        [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: deepSeekInput,
+        [ACTIVE_DEEPSEEK_MODEL]: deepSeekInput,
         [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: geminiInput,
       },
     });
     const deepSeek = preview.models.find(
-      (row) => row.modelId === OPENROUTER_DEEPSEEK_V4_PRO_MODEL
+      (row) => row.modelId === ACTIVE_DEEPSEEK_MODEL
     )!;
     const gemini = preview.models.find(
       (row) => row.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
@@ -258,12 +258,11 @@ describe("modelPickerPreview V2", () => {
     assert.equal(gemini.estimatedInputTokens, geminiInput);
     assert.equal(
       deepSeek.estimatedPoints,
-      computeCheaperInferenceMarketPreviewCost(
-        deepSeekInput,
-        deepSeek.estimatedOutputTokens,
-        deepSeek.modelId,
-        0.15
-      )
+      computeStablePublishedPreviewPoints({
+        modelId: deepSeek.modelId,
+        inputTokens: deepSeekInput,
+        outputTokens: deepSeek.estimatedOutputTokens,
+      })
     );
     assert.equal(
       gemini.estimatedPoints,
@@ -281,11 +280,11 @@ describe("modelPickerPreview V2", () => {
     const preview = buildModelPickerPreview({
       messages: [],
       modelIds: [
-        OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+        ACTIVE_DEEPSEEK_MODEL,
         CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
       ],
       assembledSnapshotTokensByModel: {
-        [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 20_000,
+        [ACTIVE_DEEPSEEK_MODEL]: 20_000,
         [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: 10_000,
       },
       draftInput,
@@ -373,10 +372,10 @@ describe("modelPickerPreview V2", () => {
   it("uses Terra receipts only for Terra estimates and keeps DeepSeek separate", () => {
     const preview = buildModelPickerPreview({
       messages: [assistantUsage(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, 1800)],
-      modelIds: [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL],
+      modelIds: [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL],
     });
     const terra = preview.models.find((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL);
-    const deepSeek = preview.models.find((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    const deepSeek = preview.models.find((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL);
     assert.equal(terra?.supported, true);
     assert.ok((terra?.estimatedPoints ?? 0) > 0);
     assert.equal(deepSeek?.supported, true);
@@ -421,7 +420,7 @@ describe("modelPickerPreview V2", () => {
     const afterTrim = resolveModelPickerBaseInputTokens({
       assembledSnapshotTokens: 8000,
       messages: [
-        assistantUsage(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 2000, { apiInputTokens: 11_000 }),
+        assistantUsage(ACTIVE_DEEPSEEK_MODEL, 2000, { apiInputTokens: 11_000 }),
       ],
     });
     assert.equal(afterTrim.tokens, 8000);
@@ -429,7 +428,7 @@ describe("modelPickerPreview V2", () => {
 
   it("cold-start uses calibrated per-model baselines", () => {
     const deepSeek = resolveModelPickerOutputTokens({
-      modelId: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+      modelId: ACTIVE_DEEPSEEK_MODEL,
       messages: [],
     });
     const gem = resolveModelPickerOutputTokens({
@@ -438,12 +437,12 @@ describe("modelPickerPreview V2", () => {
     });
     assert.equal(
       deepSeek.tokens,
-      MODEL_PICKER_MEASURED_COLD_BASELINES[OPENROUTER_DEEPSEEK_V4_PRO_MODEL]
+      MODEL_PICKER_MEASURED_COLD_BASELINES[ACTIVE_DEEPSEEK_MODEL]
     );
     assert.equal(
       gem.tokens,
       MODEL_PICKER_MEASURED_COLD_BASELINES[CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]
     );
-    assert.ok(resolveColdOutputBaseline(OPENROUTER_DEEPSEEK_V4_PRO_MODEL) < 2000);
+    assert.ok(resolveColdOutputBaseline(ACTIVE_DEEPSEEK_MODEL) < 2000);
   });
 });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   SELECTED_AI_OPTIONS,
@@ -23,19 +23,19 @@ describe("Luna retirement from Main RP (auxiliary/background only)", () => {
   it("stored Luna selections resolve to the default Main RP model", () => {
     assert.equal(
       resolveSelectedAI(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
-      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
     );
     assert.equal(
       resolveSelectedAI("gpt-5.6-luna"),
-      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
     );
     assert.equal(
       resolveSelectedAI(CHEAPER_INFERENCE_GPT_6_LUNA_MODEL),
-      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
     );
     assert.equal(
       resolveSelectedAI("gpt-6-luna"),
-      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
     );
   });
 

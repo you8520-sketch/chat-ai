@@ -1,8 +1,8 @@
 /**
- * Main RP model registry — canonical 6-model role invariant.
+ * Main RP model registry — canonical 5-model role invariant.
  *
  * ONE source of truth: MAIN_RP_MODEL_IDS / MAIN_RP_USER_SELECTABLE_OPTIONS.
- * Exactly 6 Main RP models; all others are MainRP=false (auxiliary/vision/
+ * Exactly 5 Main RP models; all others are MainRP=false (auxiliary/vision/
  * historical only). API=0.
  */
 import assert from "node:assert/strict";
@@ -33,22 +33,21 @@ import {
 
 const REPO_ROOT = resolve(process.cwd());
 
-describe("Main RP canonical 6-model registry", () => {
-  it("MAIN_RP_MODEL_COUNT=6 and picker count=6 (single source of truth)", () => {
-    assert.equal(MAIN_RP_MODEL_IDS.length, 6);
-    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 6);
-    assert.equal(SELECTED_AI_OPTIONS.length, 6);
-    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 6);
-    assert.equal(userSelectableAIOptionsForUser(false).length, 6);
-    assert.equal(userSelectableAIOptionsForUser(true).length, 6);
+describe("Main RP canonical 5-model registry", () => {
+  it("MAIN_RP_MODEL_COUNT=5 and picker count=5 (single source of truth)", () => {
+    assert.equal(MAIN_RP_MODEL_IDS.length, 5);
+    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 5);
+    assert.equal(SELECTED_AI_OPTIONS.length, 5);
+    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 5);
+    assert.equal(userSelectableAIOptionsForUser(false).length, 5);
+    assert.equal(userSelectableAIOptionsForUser(true).length, 5);
   });
 
-  it("canonical 6 are the exact expected ids and all selectable", () => {
+  it("canonical 5 are the exact expected ids and all selectable", () => {
     assert.deepEqual(
       [...MAIN_RP_MODEL_IDS].sort(),
       [
         CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-        CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
         CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
         CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
         CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -65,6 +64,7 @@ describe("Main RP canonical 6-model registry", () => {
   it("retired models are MainRP=false and never selectable (even for admins)", () => {
     const retired = [
       CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       OPENROUTER_GEMINI_36_FLASH_MODEL,
       CLAUDE_OPUS_MODEL,
@@ -111,14 +111,15 @@ describe("Main RP canonical 6-model registry", () => {
   });
 
   it("SELECTED_AI is the exact canonical literal union (not widened to string)", () => {
-    const typed: SelectedAI = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
-    const v41Typed: SelectedAI = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+    const typed: SelectedAI = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
     assert.ok(typeof typed === "string");
-    assert.ok(typeof v41Typed === "string");
     assert.deepEqual(
       [...MAIN_RP_MODEL_IDS],
       MAIN_RP_USER_SELECTABLE_OPTIONS.map((o) => o.id)
     );
+    // @ts-expect-error — retired DeepSeek V4 Pro must NOT be assignable to SelectedAI.
+    const _v4ProRejected: SelectedAI = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+    void _v4ProRejected;
     // @ts-expect-error — a retired model id must NOT be assignable to SelectedAI.
     const _retiredRejected: SelectedAI = CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
     void _retiredRejected;
@@ -140,6 +141,7 @@ describe("Main RP canonical 6-model registry", () => {
   it("RETIRED_MODEL_IN_MAIN_RP_MATRIX=0 — main Rp registry never lists retired ids", () => {
     const retiredIds = [
       CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       OPENROUTER_GEMINI_36_FLASH_MODEL,
       CLAUDE_OPUS_MODEL,

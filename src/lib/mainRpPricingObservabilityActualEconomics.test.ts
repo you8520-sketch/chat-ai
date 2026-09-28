@@ -25,6 +25,7 @@ import {
 } from "@/lib/mainRpPricingActualEconomics";
 import {
   buildMainRpPricingObservabilityProjection,
+  listMainRpObservabilityModelIds,
   readFinanceSummaryForControlPlane,
 } from "@/lib/mainRpPricingObservability";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
@@ -507,7 +508,7 @@ describe("mainRpPricingObservability B2B actual production economics", () => {
       krw: 50,
     });
     const projection = buildMainRpPricingObservabilityProjection({ db, now: NOW });
-    assert.equal(projection.models.length, MAIN_RP_MODEL_IDS.length);
+    assert.equal(projection.models.length, listMainRpObservabilityModelIds().length);
     const terra = projection.models.find(
       (row) => row.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL
     )!;

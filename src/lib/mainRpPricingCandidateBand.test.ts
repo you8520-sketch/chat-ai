@@ -14,7 +14,10 @@ import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   MAIN_RP_MODEL_IDS,
 } from "@/lib/chatModels";
-import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
+import {
+  buildMainRpPricingObservabilityProjection,
+  MAIN_RP_OBSERVABILITY_MODEL_IDS,
+} from "@/lib/mainRpPricingObservability";
 import type { ActualProductionEconomicsObservation } from "@/lib/mainRpPricingActualEconomics";
 import {
   composePricingCandidateObservation,
@@ -598,7 +601,7 @@ describe("mainRpPricingCandidateBand — deterministic margin search", () => {
 });
 
 describe("mainRpPricingCandidateBand — integration", () => {
-  it("projection includes CANDIDATE domain for all Main RP models", () => {
+  it("projection includes CANDIDATE domain for all observable pricing models", () => {
     clearCheaperInferenceCatalogPricingForTest();
     const db = makeDb();
     insertCompletedCiSnapshot(db, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, "2026-09-22T03:00:00.000Z", {
@@ -618,7 +621,11 @@ describe("mainRpPricingCandidateBand — integration", () => {
       now: NOW,
       db,
     });
-    assert.equal(projection.models.length, MAIN_RP_MODEL_IDS.length);
+    assert.equal(projection.models.length, MAIN_RP_OBSERVABILITY_MODEL_IDS.length);
+    assert.deepEqual(
+      projection.models.map((row) => row.modelId),
+      [...MAIN_RP_OBSERVABILITY_MODEL_IDS]
+    );
     for (const row of projection.models) {
       assert.equal(row.candidate.domain, "CANDIDATE");
       assert.equal(row.candidate.currentTargetMargin, getPublishedPricing(row.modelId).targetMargin);

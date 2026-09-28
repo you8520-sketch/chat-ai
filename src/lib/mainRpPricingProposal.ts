@@ -12,6 +12,7 @@
 
 import { createHash } from "node:crypto";
 import type Database from "better-sqlite3";
+import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import type {
   MainRpPricingObservabilityProjection,
   MainRpPricingObservabilityRow,
@@ -291,9 +292,12 @@ export function syncMainRpPricingCandidateRecords(
   let superseded = 0;
 
   const observedAt = projection.generatedAt;
-  const observedModelIds = new Set(projection.models.map((row) => row.modelId));
+  const activeRows = projection.models.filter((row) =>
+    MAIN_RP_MODEL_IDS.includes(row.modelId as (typeof MAIN_RP_MODEL_IDS)[number])
+  );
+  const observedModelIds = new Set(activeRows.map((row) => row.modelId));
 
-  for (const row of projection.models) {
+  for (const row of activeRows) {
     const fingerprint = buildMainRpPricingCandidateFingerprint(row);
     const latest = readLatestForModel(db, row.modelId);
     const evidenceJson = JSON.stringify(evidenceForRow(row, projection));

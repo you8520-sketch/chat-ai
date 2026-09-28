@@ -4,7 +4,7 @@
  */
 
 import type { AdminFinanceSummary, FinanceMarginCoverage } from "@/lib/adminFinance";
-import { MAIN_RP_USER_SELECTABLE_OPTIONS } from "@/lib/chatModels";
+import { selectedAILabel } from "@/lib/chatModels";
 
 export type ActualProductionUsageState = "NO_USAGE" | "HAS_ACTIVITY" | "FINANCE_UNAVAILABLE";
 
@@ -86,11 +86,9 @@ export function resolveSupplementalCostEvidence(
 
 /** Finance identity keys for a Main RP model (id + display label). */
 export function financeModelIdentityKeys(modelId: string): readonly string[] {
-  const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
-    (candidate) => candidate.id.toLowerCase() === modelId.trim().toLowerCase()
-  );
-  if (!option) return [modelId.trim()];
-  return [option.id, option.label];
+  const id = modelId.trim();
+  const label = selectedAILabel(id).trim();
+  return label && label.toLowerCase() !== id.toLowerCase() ? [id, label] : [id];
 }
 
 function identityMatches(modelKey: string, modelId: string): boolean {

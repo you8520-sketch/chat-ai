@@ -53,6 +53,7 @@ const FX_FIXTURE: BillingFxSnapshot = {
 
 const NOW = new Date("2026-09-22T12:00:00.000Z");
 const MAIN_RP_SET = new Set<string>(MAIN_RP_MODEL_IDS);
+const OBSERVABILITY_SET = new Set<string>(listMainRpObservabilityModelIds());
 
 function withBillingEnv(
   env: { phase1?: string; phase2?: string },
@@ -326,11 +327,16 @@ describe("mainRpPricingObservability", () => {
       fxSnapshot: FX_FIXTURE,
       now: NOW,
     });
+    assert.equal(MAIN_RP_MODEL_IDS.length, 5);
     assert.equal(listMainRpObservabilityModelIds().length, 6);
     assert.equal(projection.models.length, 6);
+    assert.ok(
+      listMainRpObservabilityModelIds().includes(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
+      "retired V4 Pro must remain visible in historical finance observability"
+    );
     assert.equal("mainHead" in projection, false);
     for (const row of projection.models) {
-      assert.ok(MAIN_RP_SET.has(row.modelId));
+      assert.ok(OBSERVABILITY_SET.has(row.modelId));
       assert.equal(row.market.domain, "MARKET");
       assert.equal(row.provider.domain, "PROVIDER");
       assert.equal(row.procurement.domain, "PROCUREMENT");
