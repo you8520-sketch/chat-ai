@@ -5208,6 +5208,8 @@ export default function ChatClient({
         onNarrativePovChange={setNarrativePov}
         userAuthoringLevel={userAuthoringLevel}
         onUserAuthoringLevelChange={handleUserAuthoringLevelChange}
+        autoProgressionAuthoringLevel={autoProgressionAuthoringLevel}
+        onAutoProgressionAuthoringLevelChange={handleAutoProgressionAuthoringLevelChange}
         userAuthoringSaving={userAuthoringSaving}
         displayPrefs={displayPrefs}
         onDisplayPrefsChange={handleDisplayPrefsChange}
