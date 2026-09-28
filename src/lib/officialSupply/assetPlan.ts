@@ -1,6 +1,7 @@
 import { CREATOR_ASSET_TAG_MAX, normalizeCreatorAssetTag } from "@/lib/characterAssets";
 import { isAssetPersonTag } from "@/lib/assetPersonTags";
 import { ADULT_SCENE_MIN_AGE } from "@/lib/participantMinAge";
+import { evaluateOfficialShotPlan } from "@/lib/officialSupply/shotPlan";
 import {
   qaResult,
   type OfficialAssetPlan,
@@ -95,5 +96,8 @@ export function evaluateAssetPlan(draft: OfficialCharacterDraft, plan: OfficialA
   if (new Set(sceneLocations).size !== sceneLocations.length) {
     warnings.push({ code: "scene_location_repeated", message: "special scenes reuse a location" });
   }
+  const shotQa = evaluateOfficialShotPlan(plan.slots, draft.draftKey);
+  errors.push(...shotQa.errors);
+  warnings.push(...shotQa.warnings);
   return qaResult(errors, warnings);
 }

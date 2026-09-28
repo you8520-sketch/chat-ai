@@ -3,6 +3,7 @@ import { characterAdultTextBlob, findAdultTermsInText } from "@/lib/characterAdu
 import { AI_LEARNING_LIMIT } from "@/lib/characterFormLimits";
 import { sanitizeCharacterGenres } from "@/lib/characterGenres";
 import { ADULT_SCENE_MIN_AGE, validateNsfwParticipantAgeContract } from "@/lib/participantMinAge";
+import { composeOfficialCreatorComment } from "@/lib/officialSupply/publicProfileText";
 import {
   qaResult,
   type OfficialCharacterDraft,
@@ -104,6 +105,7 @@ export function buildOfficialCharacterFormBody(input: {
     name: draft.name,
     tagline: draft.tagline,
     description: draft.description,
+    creator_comment: composeOfficialCreatorComment(draft),
     greeting: draft.greeting,
     world: draft.sections.worldAndSituation,
     system_prompt: composeOfficialSystemPrompt(draft, input.appearanceBlock),

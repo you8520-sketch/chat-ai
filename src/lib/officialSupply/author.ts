@@ -67,6 +67,12 @@ import {
   evaluateSupportingNpcs,
   mergeQa,
 } from "@/lib/officialSupply/characterText";
+import {
+  composeOfficialCreatorComment,
+  evaluateOfficialCreatorComment,
+  evaluateOfficialPlayerGenderNeutral,
+  evaluateOfficialPublicDescription,
+} from "@/lib/officialSupply/publicProfileText";
 import { coerceMarketFitBrief } from "@/lib/officialSupply/marketFit";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import { validateStyleProposal } from "@/lib/officialSupply/style";
@@ -1149,6 +1155,9 @@ export function validatePilotDraftForTextLock(
     evaluateOfficialTextLength(draft),
     evaluateSupportingNpcs(draft),
     evaluateAgeAndAdultConsistency(draft),
+    evaluateOfficialPublicDescription(draft.description, draft.name),
+    evaluateOfficialCreatorComment(composeOfficialCreatorComment(draft), draft.description),
+    evaluateOfficialPlayerGenderNeutral({ greeting: draft.greeting }),
     evaluateWorldDiversity([draft, ...siblings]),
     evaluateOriginality(draft, corpus, worldTerms)
   );
