@@ -5,6 +5,7 @@ on:
     paths:
       - "src/lib/worldShares.ts"
       - "src/lib/worldShares.test.ts"
+      - "src/lib/worlds.test.ts"
       - "src/lib/worldShares.borrow.test.ts"
       - "src/lib/worldPermissions.ts"
       - "src/lib/worldLibrary.ts"
@@ -14,12 +15,15 @@ on:
       - "src/lib/trpg/catalog.ts"
       - "src/lib/trpg/worldAccess.ts"
       - "src/lib/trpg/scenarioTemplates.ts"
+      - "src/lib/trpg/engineCreate.ts"
+      - "src/lib/trpg/worldBlueprintArtifact.ts"
       - "src/app/api/worlds/**"
       - "src/app/api/world-shares/**"
       - "src/app/api/world-borrows/**"
       - "src/components/StudioClient.tsx"
       - "src/components/WorldApplyClient.tsx"
       - "src/components/CreateCharacter.tsx"
+      - "src/components/CreateWorld.tsx"
       - "src/components/studioWorldActions.regression.test.ts"
       - "src/app/studio/page.tsx"
       - "src/app/world/apply/**"
@@ -41,6 +45,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck:app
+      - run: node --conditions=react-server --import tsx --test src/lib/worlds.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/worldShares.test.ts
       - run: node --conditions=react-server --import tsx --test src/lib/worldShares.borrow.test.ts
       - run: node --import tsx --test src/components/studioWorldActions.regression.test.ts
