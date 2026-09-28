@@ -223,7 +223,7 @@ describe("post-STYLE_LOCK batch promotion", () => {
   it("promotes the exact proof config once and rejects config drift or unlocked styles", async () => {
     batchSeq += 1;
     const batchKey = `promotion-${batchSeq}`;
-    const styleKey = `promotion-style-${batchSeq}`;
+    const styleKey = `romance_fantasy_v${10000 + batchSeq}`;
     store.createBatch(batchKey, PILOT_STYLE_PROOF_BATCH_CONFIG);
     store.proposeStyle({
       styleKey,
