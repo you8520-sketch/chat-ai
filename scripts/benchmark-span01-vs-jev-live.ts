@@ -110,6 +110,44 @@ const SCENE_FIXTURES: Array<{
   { id: "SB_UNCERTAIN_02", expected: "INSUFFICIENT_CONTEXT", prose: "내일이라는 단어가 메모장 한쪽에 남아 있었다.", signals: ["future_meeting_request"] },
 ];
 
+function toSpanCompatibleState(
+  suite: Row["suite"],
+  rawState: string | Record<string, unknown> | string[]
+): Record<string, unknown> {
+  if (typeof rawState === "string" || Array.isArray(rawState)) {
+    return {
+      input: [{ role: "system", content: "Evaluate the assistant output under the supplied benchmark task." }],
+      output: { role: "assistant", content: typeof rawState === "string" ? rawState : rawState.join("\n") },
+    };
+  }
+  const state = { ...rawState };
+  let outputText = "";
+  if (suite === "authorial_habit") {
+    outputText = typeof state.excerpt === "string" ? state.excerpt : "";
+    delete state.excerpt;
+  } else if (suite === "completion_integrity") {
+    outputText = typeof state.finalProseTail === "string" ? state.finalProseTail : "";
+    delete state.finalProseTail;
+  } else {
+    outputText =
+      typeof state.assistantOutputUnderReview === "string"
+        ? state.assistantOutputUnderReview
+        : "";
+    delete state.assistantOutputUnderReview;
+  }
+  return {
+    input: [
+      {
+        role: "system",
+        content:
+          "Benchmark task metadata and canonical constraints:\n" +
+          JSON.stringify(state),
+      },
+    ],
+    output: { role: "assistant", content: outputText },
+  };
+}
+
 function parseSceneVerdict(answers: Record<string, { type?: string; choice?: string }>): SceneBoundaryJevVerdict | null {
   const row = answers.boundary_verdict;
   const choice = row?.type === "choice" && typeof row.choice === "string" ? row.choice.trim() : "";
@@ -136,7 +174,9 @@ async function callOne(input: {
       () =>
         callJevDecisions({
           model: input.model,
-          state: input.state,
+          state: input.model.startsWith("respan/")
+            ? toSpanCompatibleState(input.suite, input.state)
+            : input.state,
           questions: input.questions,
           ledger: null,
           timeoutMs: 60_000,
