@@ -1,6 +1,7 @@
 import type { Usage } from "@/lib/chatUsage";
 import { serializeUsageForPublicClient } from "@/lib/billingReceiptAccess";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
+import type { MemoryMeta } from "@/lib/chatMemory";
 
 export type MessageVariant = {
   content: string;
@@ -13,6 +14,8 @@ export type MessageVariant = {
   generationSequence?: number;
   requestId?: string | null;
   sourceMessageId?: number | null;
+  /** Internal-only canonical relationship projection after this generation. Never serialize to clients. */
+  relationshipMetaAfter?: MemoryMeta | null;
 };
 
 export function parseMessageVariants(raw: string | null | undefined): MessageVariant[] {
@@ -109,14 +112,18 @@ export function serializeVariantsForClient(
   activeVariant: number,
   options?: SerializeVariantsForClientOptions
 ) {
-  const clientVariants = variants.map((v) => ({
-    ...v,
-    usage: v.usage
-      ? serializeUsageForPublicClient(v.usage, {
-          keepInternal: options?.keepInternalAdultRouting,
-        })
-      : null,
-  }));
+  const clientVariants = variants.map((v) => {
+    const clientVariant = { ...v };
+    delete clientVariant.relationshipMetaAfter;
+    return {
+      ...clientVariant,
+      usage: v.usage
+        ? serializeUsageForPublicClient(v.usage, {
+            keepInternal: options?.keepInternalAdultRouting,
+          })
+        : null,
+    };
+  });
   return { variants: clientVariants, activeVariant, variantCount: clientVariants.length };
 }
 
