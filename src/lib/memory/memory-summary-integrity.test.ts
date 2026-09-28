@@ -200,14 +200,16 @@ describe("rolling summary source grounding", () => {
     assert.equal(
       isRollingSummaryGroundedInDialogue(
         "태형의 누나는 렌을 알고 있으며 태형에게 렌의 안부를 전해 달라고 했다.",
-        dialogue
+        dialogue,
+        "이름/호칭: 렌"
       ),
       false
     );
     assert.equal(
       isRollingSummaryGroundedInDialogue(
         "태형은 누나가 렌에게 안부를 전해 달라고 했다고 말했다.",
-        dialogue
+        dialogue,
+        "이름/호칭: 렌"
       ),
       true
     );
@@ -219,7 +221,21 @@ describe("rolling summary source grounding", () => {
     assert.equal(
       isRollingSummaryGroundedInDialogue(
         "렌은 태형의 누나와 전에 만난 적이 있고, 태형에게 안부를 전해 달라고 했다.",
-        dialogue
+        dialogue,
+        "이름/호칭: 렌"
+      ),
+      true
+    );
+  });
+
+  it("does not block unrelated character backstory", () => {
+    const dialogue =
+      "[1턴]\n유저: 가족 이야기도 해줘.\n태형: 태형은 누나와 예전에 한동안 함께 살았다고 말했다.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "태형은 누나와 예전에 한동안 함께 살았다.",
+        dialogue,
+        "이름/호칭: 렌"
       ),
       true
     );
