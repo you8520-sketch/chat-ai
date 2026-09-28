@@ -141,6 +141,8 @@ describe("official detailed intro + creator comment", () => {
       assert.match(comment, /이렇게 시작해 보세요/);
       assert.match(comment, /가능한 관계/);
       assert.doesNotMatch(comment, /\[캐릭터 설정\]/);
+      assert.doesNotMatch(comment, /(신뢰|호감|경계).{0,8}(낮음|높음|미정)/);
+      assert.match(comment, /로 시작해, 첫 장면에서는 목적 한 가지만 밝히고 반응을 보세요/);
       assert.ok(!draft.description.includes(comment.replace(/<[^>]+>/g, "").trim()));
     }
   });

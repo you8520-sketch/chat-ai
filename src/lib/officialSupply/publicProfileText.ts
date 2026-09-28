@@ -230,6 +230,15 @@ export function evaluateOfficialPublicDescription(description: string, name?: st
   return qaResult(errors);
 }
 
+function playStartCue(userRole: string): string {
+  let cue = firstSentence(userRole, 48).replace(/[.!?。！？]+$/u, "").trim();
+  cue = cue
+    .replace(/\s*로 시작한다$/u, "")
+    .replace(/(입니다|이에요|예요|이다|다)$/u, "")
+    .trim();
+  return cue;
+}
+
 function draftPlayGuideParts(draft: OfficialCharacterDraft): {
   situation: string;
   start: string;
@@ -237,15 +246,12 @@ function draftPlayGuideParts(draft: OfficialCharacterDraft): {
 } {
   const rel = draft.sections.relationshipsAndDrives;
   const userRole = pickPrefixed(rel, "유저 역할");
-  const start = pickPrefixed(rel, "시작점") || pickPrefixed(rel, "첫인식");
   const progress = pickPrefixed(rel, "관계 진행");
   const situation = firstSentence(draft.hook.rpHook, 140);
-  const statLike = /신뢰|호감|경계/.test(start) && /\d/.test(start);
-  const startLine =
-    (!statLike && firstSentence(start, 120)) ||
-    (userRole
-      ? `${firstSentence(userRole, 40).replace(/[.!?。！？]+$/u, "")}로 시작해, 첫 장면에서는 목적 한 가지만 밝히고 반응을 보세요.`
-      : "첫 만남에서 목적 한 가지만 말하고 상대의 반응을 보세요.");
+  const cue = playStartCue(userRole);
+  const startLine = cue
+    ? `${cue}로 시작해, 첫 장면에서는 목적 한 가지만 밝히고 반응을 보세요.`
+    : "첫 만남에서 목적 한 가지만 말하고 상대의 반응을 보세요.";
   const relation = [draft.hook.relationshipTrope, userRole, progress.split("→")[0]?.trim()]
     .filter(nonEmpty)
     .slice(0, 3)
@@ -302,6 +308,12 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
   }
   if (!USER_CUE_RE.test(commentPlain) && !/당신|역할|시작/.test(commentPlain)) {
     errors.push({ code: "creator_comment_no_play", message: "creator comment must tell the player how to start" });
+  }
+  if (/(신뢰|호감|경계).{0,8}(낮음|높음|미정|\d)/.test(commentPlain)) {
+    errors.push({
+      code: "creator_comment_stats",
+      message: "creator comment must not dump relationship meters; it is a play start guide",
+    });
   }
   return qaResult(errors);
 }
