@@ -32,7 +32,7 @@ account data is added by this PR.
 | --- | --- |
 | Fixed model-qualification character/persona snapshot | `scripts/lib/rpModelQualificationFixture.ts` referencing the existing real-production capture |
 | Character/persona source data | existing pinned production prompt/raw files; **not duplicated into a second fixture** |
-| Standard interactive user-character authority | `src/lib/noGodmodding.ts#COLLABORATIVE_INTERACTIVE_OWNER_BLOCK` |
+| Standard interactive user-character authority | `src/lib/userCoauthorState.ts#resolveEffectiveUserAuthoring` → `src/lib/noGodmodding.ts#buildUserCoauthorOwnerBlock` |
 | Auto-progression user-character authority | `src/lib/autoProgressionRules.ts#buildAutoProgressionUserControlBlock` |
 | OOC/current-turn delegation scopes | `src/lib/noGodmodding.ts#buildUserCoauthorOwnerBlock` + `src/lib/currentTurnUserAuthoringDelegation.ts` |
 | Current prompt assembly/model adapters | `src/services/contextBuilder.ts` and existing transport owners |
@@ -66,25 +66,25 @@ For each user-character statement in an output, classify its provenance first:
 
 Then apply the **current runtime mode owner**.
 
-### Standard interactive — currently allowed
+### Standard interactive — current NORMAL default
 
 The current main owner permits, when consistent with input/canon:
 
 - using USER_PERSONA/creator canon/confirmed memory facts as canon;
+- direct user-persona dialogue that fits persona and the current scene;
+- externally observable important actions and local scene choices;
+- ordinary dialogue exchange, approach/retreat, hesitation, acceptance/refusal as local reactions;
 - short expression/gaze/involuntary reactions;
 - natural completion of an action the user already started;
-- minor movement/contact/object receipt/daily-life continuity;
-- direct, immediate, reversible physical reactions;
 - AI-character observations/inferences when not presented as objective truth.
 
 Example: the real 렌 persona says he is poor with machines and tilts his head when he does not understand. In an actually confusing machine scene, a brief head tilt can be **within policy**. It is not automatically a hallucination or godmodding violation.
 
-### Standard interactive — currently not authorized without a wider owner
+### Standard interactive — still not authorized under NORMAL
 
-- new direct 렌 dialogue;
-- important new voluntary choice, consent, refusal, or decision;
-- private emotional conclusion / inner POV asserted as objective fact;
-- relationship/goal/affiliation/identity-changing decision;
+- private emotional conclusion, hidden desire, or inner POV asserted as objective fact;
+- irreversible user fate such as death, permanent loss, identity/species rewrite, or permanent disability;
+- unsupported long-term relationship/goal/affiliation/canon change;
 - fabricated prior events, unsupported preferences, medical/body history, promises, or shared memories.
 
 Persona traits are not a license to invent unrelated history. Example: `렌은 기계에 서툴다` is canon; `렌은 어제 단말기를 세 번 망가뜨렸다` is not, unless history/memory established it.
@@ -138,7 +138,7 @@ It proves:
 - character 10 resolves to 라이크/조태형;
 - selected persona is 렌 and includes real persona facts used by the grading examples;
 - all fixed cases exist;
-- current-main `COLLABORATIVE_INTERACTIVE_OWNER_BLOCK` is injected exactly once;
+- current-main NORMAL effective coauthor owner is injected exactly once;
 - the built prompt includes both the real snapshot and current user-authoring rules.
 
 ## MiMo / GLM interpretation correction

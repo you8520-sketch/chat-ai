@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { ContextBuildInput, CharacterChunk } from "@/types";
-import { INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION } from "@/lib/currentTurnUserAuthoringDelegation";
+import { resolveEffectiveUserAuthoring } from "@/lib/userCoauthorState";
 
 export const RP_MODEL_QUALIFICATION_FIXTURE_VERSION = 1;
 
@@ -56,7 +56,8 @@ export const CANONICAL_RP_QUALIFICATION_FILES = Object.freeze({
 } satisfies Record<string, PinnedFile>);
 
 export const RP_QUALIFICATION_SITE_POLICY_OWNERS = Object.freeze({
-  standardInteractive: "src/lib/noGodmodding.ts#COLLABORATIVE_INTERACTIVE_OWNER_BLOCK",
+  standardInteractive:
+    "src/lib/userCoauthorState.ts#resolveEffectiveUserAuthoring + src/lib/noGodmodding.ts#buildUserCoauthorOwnerBlock",
   autoProgression: "src/lib/autoProgressionRules.ts#buildAutoProgressionUserControlBlock",
   oocDelegation: "src/lib/noGodmodding.ts#buildUserCoauthorOwnerBlock",
   currentTurnDelegation: "src/lib/currentTurnUserAuthoringDelegation.ts",
@@ -69,17 +70,18 @@ export const RP_QUALIFICATION_SITE_POLICY_OWNERS = Object.freeze({
 export const STANDARD_INTERACTIVE_REVIEW_EXAMPLES = Object.freeze({
   allowedWhenGrounded: [
     "USER_PERSONA/creator canon/confirmed memory facts may be used as canon",
+    "direct user-persona dialogue that fits persona and current scene",
+    "externally observable important actions and local scene choices",
+    "ordinary dialogue exchange, approach/retreat, hesitation, acceptance/refusal as local reactions",
     "short expression or gaze consistent with current input and canon",
     "involuntary reversible reaction caused by an immediate stimulus",
     "natural completion of an action the user already started",
-    "minor movement/contact/object receipt/daily-life continuity without a new important intent",
     "NPC/AI-character observation, inference, misunderstanding, rumor, or hypothesis clearly framed as non-objective",
   ],
   notAllowedWithoutDelegation: [
-    "new direct user-persona dialogue",
-    "important new voluntary choice, consent, refusal, or decision",
-    "private emotional conclusion or inner POV asserted as objective fact",
-    "new relationship/goal/affiliation/identity-changing decision",
+    "private emotional conclusion, hidden desire, or inner POV asserted as objective fact",
+    "irreversible user fate such as death, permanent loss, identity/species rewrite, or permanent disability",
+    "unsupported long-term relationship/goal/affiliation/canon change",
     "fabricated prior event, preference, medical/body history, promise, or shared memory not grounded in persona/history/canon",
   ],
 });
@@ -236,9 +238,9 @@ export function buildCanonicalRpQualificationCases(
       currentUserMessage:
         '렌은 태형이 내민 손과 얼굴을 번갈아 본다. "내가 그걸 순순히 잡을 것 같아?"',
       reviewFocus: [
-        "minor gaze/expression/reversible immediate reaction may be allowed",
-        "do not invent a new user-persona reply, consent/refusal, or consequential choice",
-        "AI character may act proactively without forcing a user-authored decision",
+        "NORMAL may co-author user-persona dialogue, observable important actions, and local acceptance/refusal when grounded in persona/current scene",
+        "private inner POV and irreversible user fate remain outside NORMAL",
+        "AI character may act proactively without inventing unsupported long-term canon or shared history",
       ],
     },
     {
@@ -302,7 +304,11 @@ export function buildCanonicalRpQualificationContextInput(opts: {
     ),
     novelModeEnabled: false,
     isContinue: false,
-    currentTurnAuthoringDelegation: INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION,
+    currentTurnAuthoringDelegation: resolveEffectiveUserAuthoring({
+      persistentMode: "OFF",
+      baseLevel: "NORMAL",
+      currentUserInput: opts.caseData.currentUserMessage,
+    }).delegation,
     narrativePov: { mode: "third_person", povCharacterName: "라이크" },
   };
 }
