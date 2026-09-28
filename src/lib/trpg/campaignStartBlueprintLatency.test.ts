@@ -60,7 +60,6 @@ function memoryDb(): Database.Database {
       summary TEXT NOT NULL DEFAULT '',
       content TEXT NOT NULL DEFAULT '',
       secret_content TEXT NOT NULL DEFAULT '',
-      secret_content TEXT NOT NULL DEFAULT '',
       trpg_enabled INTEGER NOT NULL DEFAULT 0,
       trpg_visibility TEXT NOT NULL DEFAULT 'private',
       genres TEXT NOT NULL DEFAULT '[]',
