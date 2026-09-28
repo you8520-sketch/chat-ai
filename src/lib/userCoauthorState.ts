@@ -448,7 +448,7 @@ export function readUserAuthoringLevel(
   const row = db
     .prepare(`SELECT ${USER_AUTHORING_LEVEL_COLUMN} AS level FROM chats WHERE id=?`)
     .get(chatId) as { level?: unknown } | undefined;
-  return parseUserAuthoringLevel(row?.level);
+  return parseUserAuthoringLevel(row?.level ?? DEFAULT_USER_AUTHORING_LEVEL);
 }
 
 export function readAutoProgressionUserAuthoringLevel(
