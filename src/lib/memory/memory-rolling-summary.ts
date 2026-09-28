@@ -136,6 +136,8 @@ export const ROLLING_SUMMARY_EPISTEMIC_POLICY = `[CANONICAL GROUNDING — REQUIR
 - Output the event summary itself. Never repeat, paraphrase, or explain these summary instructions.
 - Write a normal, concise RP scene summary. Character perception, sensation, and estimates ("파장을 감지했다", "안정을 느꼈다", "S급으로 추정되는") are scene content — state them plainly as what the character experienced.
 - Only for strong claims that would change canon (각성, 정체, 등급 상승, 배신, 기억상실): if the source had them as a character's guess, keep the guess framing ("추측했다", "가능성이 제기됐다").
+- For any pre-existing relationship/history involving the USER and a character/NPC/family/organization, USER text/canon/memory is the grounding source. An ASSISTANT-only claim stays attributed as what the character said; never rewrite it as objective shared history.
+- Character backstory that does not create a prior relationship with the USER may be summarized normally.
 - "널 본 기억이 안 난다" does NOT mean global amnesia or "기억을 잃었다".
 - Do not expose turn numbers, source checklists, or prompt wording in the final summary.`;
 
