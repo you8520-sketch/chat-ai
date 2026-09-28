@@ -115,6 +115,25 @@ describe("three-level user authoring policy", () => {
     assert.equal(allow.delegation.allowAiCastIrreversibleExpansion, true);
   });
 
+  it("persistent OOC revoke overrides both independent base preferences", () => {
+    const revoke = resolveEffectiveUserAuthoring({
+      persistentMode: "OFF",
+      baseLevel: "LIMITED",
+      currentUserInput: "OOC: 이제 내 대사나 행동은 쓰지 마.",
+    });
+    assert.equal(revoke.persistentAfter, "LIMITED");
+
+    const autoAfterRevoke = resolveEffectiveUserAuthoring({
+      persistentMode: revoke.persistentAfter,
+      baseLevel: "ALLOW",
+      currentUserInput: "",
+    });
+    assert.equal(autoAfterRevoke.delegation.allowDialogue, false);
+    assert.equal(autoAfterRevoke.delegation.allowMajorActions, false);
+    assert.equal(autoAfterRevoke.delegation.allowInnerPov, false);
+    assert.equal(autoAfterRevoke.delegation.allowIrreversibleFate, false);
+  });
+
   it("ALLOW + explicit 완전히 자유 opens irreversible fate as an OOC override", () => {
     const applied = resolveEffectiveUserAuthoring({
       persistentMode: "OFF",
