@@ -18,7 +18,10 @@ import {
   ensureDefaultBoardPost,
 } from "@/lib/boardPosts";
 import { seedGlobalLorebookEntries } from "@/lib/globalLorebook";
-import { backfillCharacterEngagementStats } from "@/lib/characterEngagementStats";
+import {
+  ensureCharacterChatUsersTable,
+  seedCharacterChatUsersLedgerFromChats,
+} from "@/lib/characterEngagementStats";
 import { ensureCharacterClicksTable } from "@/lib/characterClicks";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import { inferAdultStatusFromLegacyText } from "@/lib/adultSceneRouting";
@@ -188,6 +191,14 @@ function init(db: Database.Database) {
   );
   CREATE INDEX IF NOT EXISTS idx_character_clicks_user_recent
     ON character_clicks(user_id, last_clicked_at DESC);
+  CREATE TABLE IF NOT EXISTS character_chat_users (
+    character_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    first_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (character_id, user_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_character_chat_users_user
+    ON character_chat_users(user_id);
   CREATE TABLE IF NOT EXISTS follows (
     user_id INTEGER NOT NULL,
     creator_id INTEGER NOT NULL,
@@ -1682,6 +1693,7 @@ function migrate(db: Database.Database) {
       );
   `);
   ensureCharacterClicksTable(db);
+  ensureCharacterChatUsersTable(db);
   // Phase B1-A — empty numeric tables only; no chat backfill / no route wiring.
   ensureRpNumericStateTables(db);
   ensureTrpgTables(db);
@@ -1940,13 +1952,19 @@ function migrateCharacterEngagementStats(db: Database.Database) {
       value TEXT NOT NULL DEFAULT ''
     );
   `);
-  // v2 recounts total_turns including successful regenerate variants (alternates length - 1).
-  const done = db
-    .prepare("SELECT value FROM app_meta WHERE key='engagement_stats_v2'")
+  // Retire the old v2 live-room recount without re-running it. This also makes rollback
+  // to the old migration harmless on databases created after lifetime counters became canonical.
+  db.prepare(
+    "INSERT OR IGNORE INTO app_meta (key, value) VALUES ('engagement_stats_v2', '1')"
+  ).run();
+
+  // v3: durable unique-user ledger. Seed from remaining chats only; never rewrite lifetime counters.
+  const ledgerDone = db
+    .prepare("SELECT value FROM app_meta WHERE key='engagement_stats_v3'")
     .get() as { value: string } | undefined;
-  if (done?.value === "1") return;
-  backfillCharacterEngagementStats(db);
-  db.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('engagement_stats_v2', '1')").run();
+  if (ledgerDone?.value === "1") return;
+  seedCharacterChatUsersLedgerFromChats(db);
+  db.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('engagement_stats_v3', '1')").run();
 }
 
 /** SQLite DEFAULT 2000 → 앱 기본 4000 (한 번만, 이후 2000은 사용자가 직접 선택한 값) */
