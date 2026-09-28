@@ -1,0 +1,12 @@
+{
+  "generatedAt": "2026-08-30T04:10:31.310Z",
+  "DOES_CI_RETURN_REASONING_DETAILS": "YES",
+  "DOES_CI_RETURN_GEMINI_SIGNATURE": "NO",
+  "reasoning_details_type": "reasoning.text",
+  "reasoning_details_format": "google-gemini-v1",
+  "CONTINUITY_AB_RESULT": "SAME_OR_SLOWER",
+  "CI_LOW_VS_OR_LOW": "D-A CI reasoning >> OR",
+  "CI_REASONING_P50": 1148,
+  "OR_REASONING_P50": 559,
+  "full_artifacts_path": "/opt/cursor/artifacts/gemini31-phase-d-reasoning/"
+}
