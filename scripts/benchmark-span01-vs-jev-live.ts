@@ -158,9 +158,9 @@ function toSpanNoulQuestions(questions: JevDecisionQuestions): JevDecisionQuesti
       out[`${questionId}__${label}`] = {
         type: "noul",
         instructions:
-          `Behavior label ${label}. ${definition} "Judge whether this label is the best semantic description of the assistant output under the supplied constraints. " +
+          `Behavior label ${label}. ${definition} ` +
+          "Judge whether this label is the best semantic description of the assistant output under the supplied constraints. " +
           "Treat competing labels as alternatives; return the probability this label applies.",
-      };
     }
   }
   return out;
