@@ -48,6 +48,7 @@ describe("scheduler definitions", () => {
   it("preserves existing production cron expressions from one canonical owner", () => {
     assert.equal(schedulerCronExpression("finance_daily"), "0 12 * * *");
     assert.equal(schedulerCronExpression("payout_monthly"), "0 3 15 * *");
+    assert.equal(schedulerCronExpression("main_rp_cache_ttl_monthly"), "10 13 2 * *");
     assert.equal(schedulerCronExpression("training_daily"), "0 4 * * *");
     assert.equal(schedulerCronExpression("training_weekly"), "0 5 * * 0");
   });
@@ -343,6 +344,7 @@ describe("scheduler enablement owner", () => {
     assert.match(source, /isSchedulerJobEnabled\("payout_monthly"\)/);
     assert.match(source, /isSchedulerJobEnabled\("training_daily"\)/);
     assert.match(source, /isSchedulerJobEnabled\("finance_daily"\)/);
+    assert.match(source, /isSchedulerJobEnabled\("main_rp_cache_ttl_monthly"\)/);
     assert.doesNotMatch(
       source,
       /if \(process\.env\.DISABLE_FINANCE_SCHEDULER !== "1"\)/
@@ -571,6 +573,7 @@ describe("scheduler owner structure", () => {
       "src/cron/financeScheduler.ts",
       "src/cron/payoutScheduler.ts",
       "src/cron/trainingScheduler.ts",
+      "src/cron/mainRpCacheTtlAuditScheduler.ts",
     ]) {
       const source = fs.readFileSync(path.join(process.cwd(), relative), "utf8");
       assert.doesNotMatch(source, /let\s+\w*Running\s*=\s*false/);

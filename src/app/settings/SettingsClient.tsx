@@ -176,6 +176,12 @@ export default function SettingsClient({ user, pendingCommentReviews = 0 }: Prop
               운영 예외함
             </Link>
             <Link
+              href="/admin/automation-reports"
+              className={SETTINGS_ACTION_LINK_CLASS}
+            >
+              자동화 보고서
+            </Link>
+            <Link
               href="/admin/payout"
               className={SETTINGS_ACTION_LINK_CLASS}
             >
