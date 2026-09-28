@@ -16,7 +16,8 @@ export function isLegacyBorrowedWorld(row: Pick<WorldRow, "shared_from_nickname"
 export function loadOwnedWorldRow(userId: number, worldId: number): WorldRow | undefined {
   return getDb()
     .prepare(
-      `SELECT id, creator_id, name, summary, content, created_at, updated_at,
+      `SELECT id, creator_id, name, summary, content,
+              COALESCE(secret_content, '') AS secret_content, created_at, updated_at,
               COALESCE(shared_from_nickname, '') AS shared_from_nickname,
               COALESCE(trpg_enabled, 0) AS trpg_enabled,
               COALESCE(trpg_visibility, 'private') AS trpg_visibility,
