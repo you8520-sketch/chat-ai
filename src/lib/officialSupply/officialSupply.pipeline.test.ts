@@ -1,3 +1,4 @@
+import { ROFAN_V4_PRODUCTION_BATCH_CONFIG } from "@/lib/officialSupply/pilotProduction";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -215,6 +216,88 @@ after(() => {
   globalThis.fetch = originalFetch;
   uninstallIsolatedTestDatabase();
   assert.deepEqual(egressAttempts, [], "official supply pipeline made network calls");
+});
+
+describe("post-STYLE_LOCK batch promotion", () => {
+  it("promotes the exact proof config once and rejects config drift or unlocked styles", async () => {
+    batchSeq += 1;
+    const batchKey = `promotion-${batchSeq}`;
+    const styleKey = `promotion-style-${batchSeq}`;
+    store.createBatch(batchKey, PILOT_STYLE_PROOF_BATCH_CONFIG);
+    store.proposeStyle({
+      styleKey,
+      genre: "로맨스 판타지",
+      candidates: ["c1", "c2", "c3"].map(testStyleCandidate),
+    });
+    store.approveStyleCandidate(styleKey, "c2", SEED, "owner");
+
+    lockThroughPlan(
+      store,
+      { batchKey, styleKey, worldKey: `promotion-world-${batchSeq}` },
+      uniqueDraft(`promotion-proof-${batchSeq}`, HWANG_VOCAB, "레온하르트"),
+      { isStyleProof: true }
+    );
+
+    assert.throws(
+      () =>
+        store.promoteBatchConfigAfterStyleLock(
+          batchKey,
+          PILOT_STYLE_PROOF_BATCH_CONFIG,
+          ROFAN_V4_PRODUCTION_BATCH_CONFIG
+        ),
+      (e: OfficialSupplyGateError) => e.code === "style_not_locked"
+    );
+
+    const world = new FakeWorld();
+    await runOfficialAssetSlot(
+      world.deps(store),
+      `promotion-proof-${batchSeq}`,
+      "rep"
+    );
+    store.decideStyleProof(styleKey, "approve", "owner");
+
+    const promoted = store.promoteBatchConfigAfterStyleLock(
+      batchKey,
+      PILOT_STYLE_PROOF_BATCH_CONFIG,
+      ROFAN_V4_PRODUCTION_BATCH_CONFIG
+    );
+    assert.deepEqual(promoted.config, ROFAN_V4_PRODUCTION_BATCH_CONFIG);
+
+    const again = store.promoteBatchConfigAfterStyleLock(
+      batchKey,
+      PILOT_STYLE_PROOF_BATCH_CONFIG,
+      ROFAN_V4_PRODUCTION_BATCH_CONFIG
+    );
+    assert.deepEqual(again.config, ROFAN_V4_PRODUCTION_BATCH_CONFIG);
+
+    store.database
+      .prepare("UPDATE official_supply_batches SET config_json=? WHERE batch_key=?")
+      .run(
+        JSON.stringify({
+          ...ROFAN_V4_PRODUCTION_BATCH_CONFIG,
+          reservePerImageUsd: 0.99,
+        }),
+        batchKey
+      );
+    assert.throws(
+      () =>
+        store.promoteBatchConfigAfterStyleLock(
+          batchKey,
+          PILOT_STYLE_PROOF_BATCH_CONFIG,
+          ROFAN_V4_PRODUCTION_BATCH_CONFIG
+        ),
+      (e: OfficialSupplyGateError) => e.code === "batch_config_drift"
+    );
+  });
+
+  it("production limits cover a complete 14-image first pass with retry headroom", () => {
+    const cfg = ROFAN_V4_PRODUCTION_BATCH_CONFIG;
+    const firstPassReserve = 14 * cfg.reservePerImageUsd;
+    assert.ok(firstPassReserve < (cfg.budgetUsd.perCharacter ?? 0));
+    assert.equal(cfg.maxAttemptsPerSlot, 2);
+    assert.ok((cfg.budgetUsd.perCharacter ?? 0) >= 2.5);
+    assert.ok(cfg.budgetUsd.batch >= 20);
+  });
 });
 
 describe("user approval gates block paid calls", () => {
