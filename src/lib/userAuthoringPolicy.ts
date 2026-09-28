@@ -22,10 +22,10 @@ export const LIMITED_USER_AUTHORING_CAPABILITIES: UserAuthoringCapabilities = {
 };
 
 export function parseUserAuthoringLevel(raw: unknown): UserAuthoringLevel {
-  if (raw == null || String(raw).trim() === "") return DEFAULT_USER_AUTHORING_LEVEL;
-  const value = String(raw).trim().toUpperCase();
+  const value = String(raw ?? "").trim().toUpperCase();
   if (value === "LIMITED" || value === "NORMAL" || value === "ALLOW") return value;
-  // Invalid persisted/input values fail closed instead of silently widening authority.
+  // Parsing is fail-closed. Product defaults are supplied explicitly by the
+  // room/session owners instead of being inferred from malformed data.
   return "LIMITED";
 }
 
