@@ -246,7 +246,7 @@ describe("rolling summary source grounding", () => {
       "[1턴]\n유저: 첫 만남 이후 몇 차례 임무를 함께했어.\n태형: 너 그 브레이크 진입 때 내가 뒤에서 소리 냈는데 그냥 들어갔잖아.";
     assert.equal(
       isRollingSummaryGroundedInDialogue(
-        "렌과 태형은 브레이크 진입 임무를 함께했고, 태형이 뒤에서 소리를 냈다.",
+        "렌과 태형은 아까 브레이크 진입 임무를 함께했고, 태형이 뒤에서 소리를 냈다.",
         dialogue,
         "이름/호칭: 렌"
       ),
