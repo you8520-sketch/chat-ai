@@ -40,6 +40,13 @@ describe("characterEngagementStats", () => {
       chats_count: number;
     };
     assert.equal(row.chats_count, 2);
+    db.prepare("DELETE FROM chats").run();
+    assert.equal(registerCharacterChatUser(db, 1, 1), false);
+    assert.equal(registerCharacterChatUser(db, 1, 2), false);
+    const afterDelete = db.prepare("SELECT chats_count FROM characters WHERE id=1").get() as {
+      chats_count: number;
+    };
+    assert.equal(afterDelete.chats_count, 2);
   });
 
   it("incrementCharacterTotalTurns tracks user turns", () => {
@@ -80,7 +87,7 @@ describe("characterEngagementStats", () => {
     assert.equal(countChatEngagementTurns(db, 10), 2);
   });
 
-  it("adjustCharacterStatsOnChatDelete decrements turns including regens", () => {
+  it("adjustCharacterStatsOnChatDelete is a no-op for lifetime counters", () => {
     const db = openTestDb();
     db.prepare("INSERT INTO chats (id, user_id, character_id) VALUES (10, 1, 1)").run();
     db.prepare(
@@ -95,12 +102,11 @@ describe("characterEngagementStats", () => {
       chats_count: number;
       total_turns: number;
     };
-    // 2 user + 1 regen = 3
-    assert.equal(row.total_turns, 0);
-    assert.equal(row.chats_count, 0);
+    assert.equal(row.total_turns, 3);
+    assert.equal(row.chats_count, 1);
   });
 
-  it("backfillCharacterEngagementStats aggregates from chats and messages including regens", () => {
+  it("backfillCharacterEngagementStats seeds ledger without rewriting lifetime counters", () => {
     const db = openTestDb();
     db.prepare(
       "INSERT INTO chats (id, user_id, character_id) VALUES (1, 1, 1), (2, 2, 1), (3, 2, 1)"
@@ -116,13 +122,22 @@ describe("characterEngagementStats", () => {
       JSON.stringify([{ content: "a1" }, { content: "a2" }]),
       JSON.stringify([{ content: "greet" }])
     );
+    db.prepare("UPDATE characters SET chats_count=9, total_turns=40").run();
     backfillCharacterEngagementStats(db);
     const row = db.prepare("SELECT chats_count, total_turns FROM characters WHERE id=1").get() as {
       chats_count: number;
       total_turns: number;
     };
-    assert.equal(row.chats_count, 2);
-    // chat1: 2 user + 1 regen; chat2: 1 user; chat3 greeting: 0 → 4
-    assert.equal(row.total_turns, 4);
+    assert.equal(row.chats_count, 9);
+    assert.equal(row.total_turns, 40);
+    assert.equal(registerCharacterChatUser(db, 1, 1), false);
+    assert.equal(registerCharacterChatUser(db, 1, 2), false);
+    assert.equal(registerCharacterChatUser(db, 1, 3), true);
+    const after = db.prepare("SELECT chats_count, total_turns FROM characters WHERE id=1").get() as {
+      chats_count: number;
+      total_turns: number;
+    };
+    assert.equal(after.chats_count, 10);
+    assert.equal(after.total_turns, 40);
   });
 });

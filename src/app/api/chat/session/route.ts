@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { adjustCharacterStatsOnChatDelete } from "@/lib/characterEngagementStats";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
 import { parseChatSessionDeleteIds } from "@/lib/chatSessionDeleteIds";
 import { deleteChatOwnedDerivedRows } from "@/lib/chatOwnedDataCleanup";
@@ -80,7 +79,6 @@ export async function DELETE(req: Request) {
 
   db.transaction(() => {
     for (const chat of chats) {
-      adjustCharacterStatsOnChatDelete(db, chat.character_id, user.id, chat.id);
       deleteChatOwnedDerivedRows(db, chat.id, user.id);
     }
   })();

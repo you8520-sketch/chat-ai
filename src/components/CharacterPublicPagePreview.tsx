@@ -27,7 +27,10 @@ function ChatBubbleIcon({ className }: { className?: string }) {
 function ImageStackIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M3 7l9 6 9-6M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 4.5h11.2A1.8 1.8 0 0 1 20 6.3V8" />
+      <rect x="3.2" y="7.2" width="15.6" height="12.2" rx="2" />
+      <circle cx="7.8" cy="11.2" r="1.35" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m4 17.2 3.6-3.5 2.4 2.2 3.5-4.1 4.3 5.4" />
     </svg>
   );
 }
@@ -129,7 +132,7 @@ export default function CharacterPublicPagePreview({
   likes?: number;
   /** 누적 대화 턴 */
   totalTurns?: number;
-  /** 이용 유저 수 */
+  /** 누적 이용 유저 수 */
   users?: number;
   /** @deprecated totalTurns */
   chats?: number;

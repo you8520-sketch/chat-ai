@@ -35,7 +35,31 @@ export function countChatEngagementTurns(db: Database.Database, chatId: number):
   return userTurns.n + regenExtra;
 }
 
-/** 유저 메시지 저장 또는 성공한 재생성 1건당 캐릭터 누적 턴 +1 */
+export function ensureCharacterChatUsersTable(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS character_chat_users (
+      character_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      first_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (character_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_character_chat_users_user
+      ON character_chat_users(user_id);
+  `);
+}
+
+/** Best-effort seed from remaining chats. Deleted rooms cannot restore lost unique users. */
+export function seedCharacterChatUsersLedgerFromChats(db: Database.Database): void {
+  ensureCharacterChatUsersTable(db);
+  db.exec(`
+    INSERT OR IGNORE INTO character_chat_users (character_id, user_id)
+    SELECT DISTINCT character_id, user_id
+    FROM chats
+    WHERE character_id IS NOT NULL AND user_id IS NOT NULL
+  `);
+}
+
+/** 유저 메시지 저장 또는 성공한 재생성 1건당 캐릭터 누적 턴 +1. 채팅방 삭제로 깎지 않는다. */
 export function incrementCharacterTotalTurns(
   db: Database.Database,
   characterId: number,
@@ -47,62 +71,45 @@ export function incrementCharacterTotalTurns(
   ).run(delta, delta, characterId);
 }
 
-/** 새 채팅방 생성 직전 호출 — 해당 유저가 캐릭터와 처음 대화하면 chats_count(이용 유저 수) +1 */
+/**
+ * 해당 캐릭터와 한 번이라도 대화를 시작한 유저면 chats_count(누적 이용자수) +1.
+ * chats 행이 아니라 (character_id, user_id) ledger가 first-user owner다.
+ */
 export function registerCharacterChatUser(
   db: Database.Database,
   characterId: number,
   userId: number
 ): boolean {
-  const prior = db
-    .prepare("SELECT COUNT(*) AS n FROM chats WHERE character_id=? AND user_id=?")
-    .get(characterId, userId) as { n: number };
-  if (prior.n > 0) return false;
+  if (!characterId || !userId) return false;
+  ensureCharacterChatUsersTable(db);
+  const result = db
+    .prepare(
+      "INSERT OR IGNORE INTO character_chat_users (character_id, user_id) VALUES (?, ?)"
+    )
+    .run(characterId, userId);
+  if (result.changes === 0) return false;
   db.prepare("UPDATE characters SET chats_count = chats_count + 1 WHERE id=?").run(characterId);
   return true;
 }
 
-/** 채팅방 삭제 시 누적 턴·이용 유저 수 보정 (재생성 턴 포함) */
+/**
+ * @deprecated Lifetime counters are not adjusted on room delete.
+ * Kept as a no-op so leftover callers cannot decrement totals.
+ */
 export function adjustCharacterStatsOnChatDelete(
-  db: Database.Database,
-  characterId: number,
-  userId: number,
-  chatId: number
+  _db: Database.Database,
+  _characterId: number,
+  _userId: number,
+  _chatId: number
 ): void {
-  const turns = countChatEngagementTurns(db, chatId);
-  incrementCharacterTotalTurns(db, characterId, -turns);
-
-  const remaining = db
-    .prepare("SELECT COUNT(*) AS n FROM chats WHERE character_id=? AND user_id=? AND id != ?")
-    .get(characterId, userId, chatId) as { n: number };
-  if (remaining.n === 0) {
-    db.prepare(
-      "UPDATE characters SET chats_count = CASE WHEN chats_count > 0 THEN chats_count - 1 ELSE 0 END WHERE id=?"
-    ).run(characterId);
-  }
+  return;
 }
 
-/** 기존 DB — messages·chats 기준 일회 백필 (재생성 variant 포함) */
+/**
+ * One-time / repair helper: seed the unique-user ledger from remaining chats.
+ * Does not overwrite characters.chats_count or characters.total_turns —
+ * those are lifetime accumulators and must not be recounted from live rooms.
+ */
 export function backfillCharacterEngagementStats(db: Database.Database): void {
-  db.exec(`
-    UPDATE characters SET chats_count = COALESCE((
-      SELECT COUNT(DISTINCT ch.user_id)
-      FROM chats ch
-      WHERE ch.character_id = characters.id
-    ), 0);
-  `);
-
-  const characters = db.prepare("SELECT id FROM characters").all() as Array<{ id: number }>;
-  const chatsForCharacter = db.prepare(
-    "SELECT id FROM chats WHERE character_id=?"
-  );
-  const updateTurns = db.prepare("UPDATE characters SET total_turns=? WHERE id=?");
-
-  for (const character of characters) {
-    const chats = chatsForCharacter.all(character.id) as Array<{ id: number }>;
-    let total = 0;
-    for (const chat of chats) {
-      total += countChatEngagementTurns(db, chat.id);
-    }
-    updateTurns.run(total, character.id);
-  }
+  seedCharacterChatUsersLedgerFromChats(db);
 }
