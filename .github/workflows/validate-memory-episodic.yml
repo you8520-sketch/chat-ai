@@ -8,6 +8,10 @@ on:
     paths:
       - ".github/workflows/validate-memory-episodic.yml"
       - "src/lib/episodicMemoryFacts.ts"
+      - "src/lib/historicalTruthPolicy.ts"
+      - "src/lib/historicalTruthPolicy.test.ts"
+      - "src/lib/memory/memory-summary-integrity.ts"
+      - "src/lib/memory/memory-summary-integrity.test.ts"
       - "src/lib/memory/memory-batch-source-guard.ts"
       - "src/lib/memory/memory-episodic-extract.ts"
       - "src/lib/memory/memory-episodic-hardening.test.ts"
@@ -122,6 +126,9 @@ jobs:
 
       - name: Episodic hardening regression (E1–E14 / R1)
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-hardening.test.ts
+
+      - name: Shared-history provenance regressions
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/historicalTruthPolicy.test.ts src/lib/memory/memory-summary-integrity.test.ts
 
       - name: Episodic ownership decoupling
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-ownership.test.ts

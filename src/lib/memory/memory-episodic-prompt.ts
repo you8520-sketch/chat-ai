@@ -13,8 +13,9 @@ export const EPISODIC_FACTS_EXTRACT_INSTRUCTIONS = `Structured facts for long-te
 - importance MUST be one of: critical, important, normal.
 - fact_text MUST be one complete Korean sentence understandable without surrounding conversation.
 - evidence_type MUST be one of: explicit_user_statement, explicit_scene_event, explicit_character_claim.
-- evidence_type means: explicit_user_statement = the CURRENT USER directly stated it; explicit_scene_event = a concrete observable action/event completed in current RAW; explicit_character_claim = a character explicitly said/revealed/claimed it.
-- Never label the assistant's interpretation, deduction, guess, or scene improvisation as evidence. There is no assistant_inference evidence type.
+- evidence_type means: explicit_user_statement = the CURRENT USER directly stated it; explicit_scene_event = a concrete observable action/event that actually occurs in the CURRENT RAW scene; explicit_character_claim = a character explicitly said/revealed/claimed it.
+- A pre-existing relationship/history involving the user (prior meeting, familiarity, shared event, promise, third-party knowledge such as "X knows the user" or "send the user my regards") is NOT an explicit_scene_event merely because the assistant narrated it. If only the character/assistant asserts it, preserve attribution as explicit_character_claim; if no durable value, omit it.
+- Never label the assistant's interpretation, deduction, guess, or scene improvisation as independent evidence. There is no assistant_inference evidence type.
 - Character/world canon is already owned by a higher-authority source and MUST NOT be copied into extracted_facts.
 - Episodic facts store concrete historical events, explicit durable facts, decisions, preferences, and disclosures.
 - Source-of-truth boundary: promises and their fulfillment/cancellation belong ONLY to the Relationship Durable Ledger. Ownership, possession, acquisition, loss, transfer, or gifting of items also belongs ONLY to that ledger. Never copy those into extracted_facts.

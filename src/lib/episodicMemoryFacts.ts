@@ -286,6 +286,31 @@ function normalizeEvidenceToken(token: string): string {
     .replace(/(?:에게서|으로서|으로|에서|에게|께서|부터|까지|처럼|보다|은|는|이|가|을|를|의|에|와|과|도|만|로)$/u, "");
 }
 
+const PRIOR_USER_RELATIONSHIP_FACT =
+  /(?:만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|전에.{0,24}(?:만났|함께|약속|알았|연락)|예전에.{0,24}(?:만났|함께|약속|알았|연락)|지난번.{0,24}(?:만났|함께|약속|알았|연락)|그때\s*우리|네가\s*약속했|유저와.{0,16}(?:친분|인연|관계)|사용자와.{0,16}(?:친분|인연|관계))/i;
+
+function assistantInventedUserRelationshipHasUserSupport(
+  fact: Pick<EpisodicExtractedFact, "category" | "value" | "fact_text" | "evidence_type">,
+  sourceUserText?: string | null,
+  batchUserSources?: readonly EpisodicBatchUserSource[]
+): boolean {
+  if (fact.category !== "relationship" || fact.evidence_type !== "explicit_scene_event") {
+    return true;
+  }
+  if (!PRIOR_USER_RELATIONSHIP_FACT.test(`${fact.value ?? ""}\n${fact.fact_text ?? ""}`)) {
+    return true;
+  }
+  if (batchUserSources?.length) {
+    return batchUserSources.some((source) =>
+      explicitUserStatementHasRawSupport(fact, source.text)
+    );
+  }
+  if (sourceUserText !== undefined) {
+    return explicitUserStatementHasRawSupport(fact, sourceUserText ?? "");
+  }
+  return false;
+}
+
 function explicitUserStatementHasRawSupport(
   fact: Pick<EpisodicExtractedFact, "value" | "fact_text">,
   sourceUserText: string
@@ -322,11 +347,24 @@ export function resolveExplicitUserStatementProvenance(
 }
 
 export function detectUnsupportedEvidenceFact(
-  fact: Pick<EpisodicExtractedFact, "value" | "fact_text" | "evidence_type">,
+  fact: Pick<EpisodicExtractedFact, "category" | "value" | "fact_text" | "evidence_type">,
   sourceUserText?: string | null,
   batchUserSources?: readonly EpisodicBatchUserSource[]
-): "higher_authority_canon_source" | "unsupported_explicit_user_statement" | null {
+):
+  | "higher_authority_canon_source"
+  | "unsupported_explicit_user_statement"
+  | "unsupported_assistant_user_relationship"
+  | null {
   if (fact.evidence_type === "canon") return "higher_authority_canon_source";
+  if (
+    !assistantInventedUserRelationshipHasUserSupport(
+      fact,
+      sourceUserText,
+      batchUserSources
+    )
+  ) {
+    return "unsupported_assistant_user_relationship";
+  }
   if (fact.evidence_type === "explicit_user_statement") {
     if (batchUserSources && batchUserSources.length > 0) {
       if (!resolveExplicitUserStatementProvenance(fact, batchUserSources).supported) {

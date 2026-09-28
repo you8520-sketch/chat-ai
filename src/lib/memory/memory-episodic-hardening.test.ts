@@ -394,6 +394,43 @@ describe("memory episodic hardening regression", () => {
     assert.notEqual(row.source_user_message_id, 5);
   });
 
+  it("B0 assistant-invented user↔third-party relationship cannot persist as objective scene history", () => {
+    const inventedUserRelationship = {
+      category: "relationship" as const,
+      subject: "ren_taehyung_sister",
+      attribute: "scene_event",
+      value: "existing_acquaintance_regards",
+      importance: "important" as const,
+      fact_text: "태형의 누나는 렌을 알고 있으며 태형에게 렌의 안부를 전해 달라고 했다.",
+      evidence_type: "explicit_scene_event" as const,
+    };
+    const batchUserSources = [{ turn: 5, messageId: 5, text: "뭐 먹을까?" }];
+    assert.equal(
+      detectUnsupportedEvidenceFact(inventedUserRelationship, null, batchUserSources),
+      "unsupported_assistant_user_relationship"
+    );
+  });
+
+  it("B0 attributed character claim may be stored as a claim without canonizing the user relationship", () => {
+    const attributedClaim = {
+      category: "relationship" as const,
+      subject: "taehyung_sister",
+      attribute: "scene_event",
+      value: "regards_claim",
+      importance: "important" as const,
+      fact_text: "태형은 누나가 렌에게 안부를 전해 달라고 했다고 말했다.",
+      evidence_type: "explicit_character_claim" as const,
+    };
+    assert.equal(
+      detectUnsupportedEvidenceFact(
+        attributedClaim,
+        null,
+        [{ turn: 5, messageId: 5, text: "뭐 먹을까?" }]
+      ),
+      null
+    );
+  });
+
   it("B unsupported user fact is rejected", () => {
     const batchUserSources = [{ turn: 5, messageId: 5, text: "유저 턴 5" }];
     assert.equal(

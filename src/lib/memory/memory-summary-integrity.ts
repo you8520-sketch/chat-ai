@@ -236,6 +236,80 @@ const EPISTEMIC_MARKER =
 const SOURCE_UNCERTAINTY_MARKER =
   /(?:추측|의심|가능성|확실하지|모른|아마|일지도|일\s*수|듯|것\s*같|보인|여긴|판단|진단)/i;
 
+
+/**
+ * Prior/shared-relationship assertions are high-risk when they originate only
+ * from assistant prose. Current-scene actions remain free-form; this guard
+ * targets claims that presuppose a pre-existing user↔character/NPC social edge.
+ */
+const PRIOR_USER_RELATIONSHIP_MARKER =
+  /(?:만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|전에.{0,24}(?:만났|함께|약속|알았|연락)|예전에.{0,24}(?:만났|함께|약속|알았|연락)|지난번.{0,24}(?:만났|함께|약속|알았|연락)|그때\s*우리|네가\s*약속했|유저와.{0,16}(?:친분|인연|관계)|사용자와.{0,16}(?:친분|인연|관계))/i;
+
+const USER_RELATIONSHIP_SUPPORT_MARKER =
+  /(?:만난\s*적|봤잖|만났잖|아는\s*사이|알던|안부|전에|예전에|지난번|그때|약속|함께|친분|인연|관계)/i;
+
+
+const DIRECT_USER_SHARED_HISTORY_SUPPORT =
+  /(?:우리.{0,16}(?:전에|예전에|지난번|만났|함께|약속)|그때\s*우리|네가.{0,12}약속|너랑.{0,12}(?:전에|예전에|지난번|만났|함께|약속))/i;
+const RELATIONSHIP_SUPPORT_STOPWORDS = new Set([
+  "전에", "예전", "예전에", "지난번", "그때", "함께", "관계", "인연", "친분",
+  "약속", "유저", "사용자", "우리", "너랑", "네가",
+]);
+
+function normalizeRelationshipSupportToken(token: string): string {
+  return token
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    .replace(/(?:이랑|랑|하고|에게서|으로|에서|에게|께서|부터|까지|처럼|보다|은|는|이|가|을|를|의|에|와|과|도|만|로)$/u, "");
+}
+
+function relationshipSupportTokens(text: string): string[] {
+  return [...new Set(
+    (text.match(/[가-힣A-Za-z0-9_]{2,}/g) ?? [])
+      .map(normalizeRelationshipSupportToken)
+      .filter((token) => token.length >= 2 && !RELATIONSHIP_SUPPORT_STOPWORDS.has(token))
+  )];
+}
+
+function userSourceSupportsPriorRelationship(summary: string, userText: string): boolean {
+  if (DIRECT_USER_SHARED_HISTORY_SUPPORT.test(userText)) return true;
+  if (!USER_RELATIONSHIP_SUPPORT_MARKER.test(userText)) return false;
+  const summaryTokens = new Set(relationshipSupportTokens(summary));
+  return relationshipSupportTokens(userText).some((token) => summaryTokens.has(token));
+}
+
+const ATTRIBUTED_RELATIONSHIP_CLAIM_MARKER =
+  /(?:말했|말하였다|밝혔|밝혔다|주장했|주장하였다|전했|전하였다|언급했|언급하였다|설명했|설명하였다|부탁했다고\s*말)/i;
+
+function resolveSummaryUserName(userPersona?: string | null): string | null {
+  const match = userPersona?.match(/(?:^|\n)이름\/호칭:\s*([^\n]+)/);
+  const name = match?.[1]?.trim() ?? "";
+  return name || null;
+}
+
+function summaryInventsUnsupportedUserRelationship(
+  summary: string,
+  source: { user: string; assistant: string },
+  userPersona?: string | null
+): boolean {
+  if (!PRIOR_USER_RELATIONSHIP_MARKER.test(summary)) return false;
+  // Preserve user-authored past only when the user text actually supports this
+  // relationship, not merely because it contains an unrelated temporal cue.
+  if (userSourceSupportsPriorRelationship(summary, source.user)) return false;
+  // Preserve "the character said/claimed X" as an attributed claim; the guard
+  // blocks only promotion to objective shared-history fact.
+  if (ATTRIBUTED_RELATIONSHIP_CLAIM_MARKER.test(summary)) return false;
+
+  const userName = resolveSummaryUserName(userPersona);
+  const summaryNamesUser =
+    /(?:유저|사용자)/.test(summary) || (!!userName && summary.includes(userName));
+  if (!summaryNamesUser) return false;
+
+  // This guard is specifically for a user-related prior relationship sourced
+  // only from assistant raw, not unrelated character backstory.
+  return PRIOR_USER_RELATIONSHIP_MARKER.test(source.assistant);
+}
+
 const STRONG_UNCERTAIN_CLAIM =
   /(?:각성|폭주|등급\s*상승|정체|정체성|임신|중독|저주|기억상실|조종|세뇌|배신)/i;
 const CLAIM_TOKEN_STOPWORDS = new Set([
@@ -275,11 +349,15 @@ function splitDialogueSources(dialogue: string): { user: string; assistant: stri
 /** Conservative source check for known certainty inflation before DB persistence. */
 export function isRollingSummaryGroundedInDialogue(
   summary: string,
-  dialogue: string
+  dialogue: string,
+  userPersona?: string | null
 ): boolean {
   if (isLikelySummaryInstructionEcho(summary)) return false;
 
   const source = splitDialogueSources(dialogue);
+  if (summaryInventsUnsupportedUserRelationship(summary, source, userPersona)) {
+    return false;
+  }
   if (STRONG_GLOBAL_MEMORY_LOSS.test(summary) && !STRONG_GLOBAL_MEMORY_LOSS.test(dialogue)) {
     return false;
   }

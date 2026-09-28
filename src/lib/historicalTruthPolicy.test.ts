@@ -80,6 +80,28 @@ describe("historical truth — production miss-path owner matrix", () => {
     assert.doesNotMatch(built.systemPrompt, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
   });
 
+  it("assistant cannot invent prior user relationships or third-party familiarity", () => {
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /유저.*등장인물|등장인물.*유저|제3자|가족|조직/
+    );
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /만난 적|알고 있|안부|약속|공유 사건/
+    );
+  });
+
+  it("preserves harmless user-backstory inference and current-scene progression", () => {
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /유저의 독립적인 과거 빈칸.*가볍게 추정/
+    );
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /현재 장면에서 새로 발생하는 만남·행동·관계 진전.*창작/
+    );
+  });
+
   it("co-narration mode owner does not duplicate full historical truth body", () => {
     const block = buildNoGodmoddingBlock("A", "B", "coNarration");
     assert.doesNotMatch(block, /\[HISTORICAL TRUTH — CANONICAL MEMORY\]/);

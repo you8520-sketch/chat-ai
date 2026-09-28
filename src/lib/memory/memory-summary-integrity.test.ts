@@ -194,6 +194,66 @@ describe("rolling summary source grounding", () => {
     );
   });
 
+  it("does not canonize an assistant-invented user↔third-party relationship edge", () => {
+    const dialogue =
+      "[1턴]\n유저: 뭐 먹을까?\n태형: 태형은 휴대폰을 내려놓으며 말했다. 누나가 렌한테 안부 전해달래.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "태형의 누나는 렌을 알고 있으며 태형에게 렌의 안부를 전해 달라고 했다.",
+        dialogue,
+        "이름/호칭: 렌"
+      ),
+      false
+    );
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "태형은 누나가 렌에게 안부를 전해 달라고 했다고 말했다.",
+        dialogue,
+        "이름/호칭: 렌"
+      ),
+      true
+    );
+  });
+
+  it("allows a user-related third-party relationship edge when the user source confirms it", () => {
+    const dialogue =
+      "[1턴]\n유저: 네 누나랑 지난번에 봤잖아. 안부 전해줘.\n태형: 태형은 고개를 끄덕였다.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "렌은 태형의 누나와 전에 만난 적이 있고, 태형에게 안부를 전해 달라고 했다.",
+        dialogue,
+        "이름/호칭: 렌"
+      ),
+      true
+    );
+  });
+
+  it("does not treat an unrelated 'before' cue as corroboration", () => {
+    const dialogue =
+      "[1턴]\n유저: 전에 먹었던 메뉴 뭐였지?\n태형: 태형은 휴대폰을 내려놓으며 말했다. 누나가 렌한테 안부 전해달래.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "태형의 누나는 렌과 아는 사이이며 태형에게 렌의 안부를 전해 달라고 했다.",
+        dialogue,
+        "이름/호칭: 렌"
+      ),
+      false
+    );
+  });
+
+  it("does not block unrelated character backstory", () => {
+    const dialogue =
+      "[1턴]\n유저: 가족 이야기도 해줘.\n태형: 태형은 누나와 예전에 한동안 함께 살았다고 말했다.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "태형은 누나와 예전에 한동안 함께 살았다.",
+        dialogue,
+        "이름/호칭: 렌"
+      ),
+      true
+    );
+  });
+
   it("accepts a normal RP scene summary that paraphrases character perception", () => {
     const dialogue =
       "[1턴]\n유저: 나 본 적 있어?\n라이크: 라이크는 렌의 체향에서 최소 S급 이상으로 추정되는 가이딩 파장을 감지했다. 곁에 있으면 감각 과부하가 사라지는 것을 느꼈다.\n\n[2턴]\n유저: 맛있는 거 먹으러 가자\n라이크: 라이크는 렌을 번화가로 데려갔다.";
