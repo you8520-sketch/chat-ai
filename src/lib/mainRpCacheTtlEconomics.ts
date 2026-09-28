@@ -140,7 +140,7 @@ export function resolveMainRpCacheTtlRates(): MainRpCacheTtlRateSnapshot {
   const standard = OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION;
   return {
     standardInputUsdPerMillion: standard,
-    cacheReadUsdPerMillion: standard * 0.05,
+    cacheReadUsdPerMillion: standard * 0.1,
     fiveMinuteWriteUsdPerMillion: standard * 1.25,
     oneHourWriteUsdPerMillionHypothetical: standard * 2,
     source: "fallback",
