@@ -1,0 +1,29 @@
+name: Capture official shot QA artifact
+
+on:
+  push:
+    branches:
+      - ops/capture-official-shot-qa-artifact
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download persisted contact sheet
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 \
+            "https://chat-ai-production-3e84.up.railway.app/uploads/official-shot-qa-v2-contact-sheet.png" \
+            --output official-shot-qa-v2-contact-sheet.png
+          file official-shot-qa-v2-contact-sheet.png
+          test -s official-shot-qa-v2-contact-sheet.png
+      - name: Upload contact sheet
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-shot-qa-v2-contact-sheet
+          path: official-shot-qa-v2-contact-sheet.png
+          if-no-files-found: error
+          retention-days: 1
