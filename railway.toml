@@ -4,7 +4,7 @@ buildCommand = "npm run build && npm prune --omit=dev"
 nixpacksConfigPath = "nixpacks.toml"
 
 [deploy]
-startCommand = "npm run start"
+startCommand = "npm run official-supply:approve-anchor && npm run start"
 healthcheckPath = "/health"
-healthcheckTimeout = 120
-restartPolicyType = "on_failure"
+healthcheckTimeout = 180
+restartPolicyType = "never"

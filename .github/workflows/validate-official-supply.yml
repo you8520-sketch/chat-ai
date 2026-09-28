@@ -44,6 +44,9 @@ jobs:
       - name: Anchor operator defaults to zero calls
         run: npm run official-supply:generate-rofan-v4-anchors
 
+      - name: Anchor approval operator defaults to zero mutations
+        run: npm run official-supply:approve-anchor
+
       - name: Official supply regressions
         run: >-
           node --conditions=react-server --import tsx
