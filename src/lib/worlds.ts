@@ -6,7 +6,20 @@ export const WORLD_NAME_LIMIT = 40;
 export const WORLD_SUMMARY_LIMIT = 160;
 export const WORLD_CONTENT_LIMIT = 10000;
 
-export const WORLD_SELECT_COLUMNS = `id, creator_id, name, summary, content, created_at, updated_at,
+export function worldContentBundleCharCount(content: string, secretContent: string): number {
+  return content.trim().length + secretContent.trim().length;
+}
+
+export function worldPrivatePromptContent(content: string, secretContent: string): string {
+  const publicContent = content.trim();
+  const secret = secretContent.trim();
+  return [publicContent, secret ? `[비밀 설정 — AI 전용]\n${secret}` : ""]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export const WORLD_SELECT_COLUMNS = `id, creator_id, name, summary, content,
+              COALESCE(secret_content, '') AS secret_content, created_at, updated_at,
               COALESCE(shared_from_nickname, '') AS shared_from_nickname,
               COALESCE(trpg_enabled, 0) AS trpg_enabled,
               COALESCE(trpg_visibility, 'private') AS trpg_visibility,
@@ -19,6 +32,7 @@ export type WorldRow = {
   name: string;
   summary: string;
   content: string;
+  secret_content?: string;
   created_at: string;
   updated_at: string;
   shared_from_nickname?: string;
@@ -33,6 +47,8 @@ export type WorldListItem = {
   name: string;
   summary: string;
   content: string;
+  /** 제작자 전용. 공유/빌림/public catalog에는 포함하지 않는다. */
+  secretContent?: string;
   createdAt: string;
   updatedAt: string;
   /** 공유받아 추가된 경우 원 작성자 닉네임 */
@@ -98,6 +114,7 @@ export function rowToWorldListItem(row: WorldRow): WorldListItem {
     name: row.name,
     summary: row.summary,
     content: row.content,
+    secretContent: row.secret_content ?? "",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     ...(sharedFrom ? { sharedFromNickname: sharedFrom } : {}),
