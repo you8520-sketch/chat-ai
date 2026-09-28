@@ -418,7 +418,7 @@ describe("memory episodic hardening regression", () => {
       attribute: "scene_event",
       value: "break_infiltration_mission",
       importance: "important" as const,
-      fact_text: "렌과 태형은 브레이크 진입 임무를 함께했고 태형이 뒤에서 소리를 냈다.",
+      fact_text: "렌과 태형은 아까 브레이크 진입 임무를 함께했고 태형이 뒤에서 소리를 냈다.",
       evidence_type: "explicit_scene_event" as const,
     };
     assert.equal(
