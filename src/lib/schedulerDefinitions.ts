@@ -12,6 +12,17 @@ export const SCHEDULER_DEFINITIONS = {
     missingCatchupPolicy: "same_day",
     staleAfterMinutes: 90,
   },
+  main_rp_cache_ttl_monthly: {
+    label: "Main RP 캐시 TTL 월간 경제성 감사",
+    cadence: "monthly",
+    dayOfMonth: 2,
+    hour: 13,
+    minute: 10,
+    safeFailedRetry: true,
+    safeStaleReclaim: true,
+    missingCatchupPolicy: "latest_due",
+    staleAfterMinutes: 60,
+  },
   payout_monthly: {
     label: "크리에이터 월간 출금 배치",
     cadence: "monthly",
@@ -55,6 +66,8 @@ export function isSchedulerJobEnabled(jobName: SchedulerJobName): boolean {
       return process.env.DISABLE_FINANCE_SCHEDULER !== "1";
     case "payout_monthly":
       return process.env.DISABLE_PAYOUT_SCHEDULER !== "1";
+    case "main_rp_cache_ttl_monthly":
+      return process.env.DISABLE_MAIN_RP_CACHE_TTL_AUDIT !== "1";
     case "training_daily":
     case "training_weekly":
       return (
