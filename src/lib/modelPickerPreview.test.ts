@@ -8,6 +8,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
 } from "@/lib/chatModels";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
@@ -41,6 +42,7 @@ const ACTIVE = [
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
 ] as const;
 
 function assistantUsage(
@@ -80,7 +82,11 @@ describe("modelPickerPreview V2", () => {
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL)
     );
     assert.ok(
-      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_6_SOL_MODEL)
+    );
+    assert.equal(
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL),
+      false
     );
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)
@@ -90,9 +96,26 @@ describe("modelPickerPreview V2", () => {
     );
   });
 
+  it("GPT-6 Sol short-context preview uses the official published owner", () => {
+    const inputTokens = 42_839;
+    const outputTokens = 2_756;
+    const published = computeStablePublishedPreviewPoints({
+      modelId: CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
+      inputTokens,
+      outputTokens,
+    });
+    const preview = computePreviewTurnPoints({
+      modelId: CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
+      inputTokens,
+      outputTokens,
+    });
+    assert.ok(published != null && published > 0);
+    assert.equal(preview, published);
+  });
+
   it("covers representative active models", () => {
     const preview = buildModelPickerPreview({ messages: [], modelIds: [...ACTIVE] });
-    assert.equal(preview.models.length, 3);
+    assert.equal(preview.models.length, 4);
     for (const id of ACTIVE) {
       const row = preview.models.find((m) => m.modelId === id);
       assert.ok(row, id);
@@ -369,17 +392,19 @@ describe("modelPickerPreview V2", () => {
     assert.equal(preview.models[0]?.estimatedPoints ?? null, null);
   });
 
-  it("uses Terra receipts only for Terra estimates and keeps DeepSeek separate", () => {
+  it("does not let retired Terra receipts skew GPT-6 Sol estimates", () => {
     const preview = buildModelPickerPreview({
-      messages: [assistantUsage(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, 1800)],
-      modelIds: [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL],
+      messages: [assistantUsage(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, 8_000)],
+      modelIds: [CHEAPER_INFERENCE_GPT_6_SOL_MODEL],
     });
-    const terra = preview.models.find((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL);
-    const deepSeek = preview.models.find((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL);
-    assert.equal(terra?.supported, true);
-    assert.ok((terra?.estimatedPoints ?? 0) > 0);
-    assert.equal(deepSeek?.supported, true);
-    assert.notEqual(terra?.outputBasis, "unsupported");
+    const sol = preview.models[0];
+    assert.equal(sol?.modelId, CHEAPER_INFERENCE_GPT_6_SOL_MODEL);
+    assert.equal(sol?.supported, true);
+    assert.equal(sol?.outputBasis, "cold_baseline");
+    assert.equal(
+      sol?.estimatedOutputTokens,
+      MODEL_PICKER_MEASURED_COLD_BASELINES[CHEAPER_INFERENCE_GPT_6_SOL_MODEL]
+    );
   });
 
   it("retires Muse from active picker estimates while keeping historical parsing", () => {
