@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { worldPrivatePromptContent } from "@/lib/worlds";
 import { loadWorldForTrpg } from "./catalog";
 import { blueprintSourceFingerprint } from "./blueprintSourceFingerprint";
 import { hashWorldSnapshot } from "./scenarioDraft";
@@ -42,7 +43,7 @@ export function loadWorldSnapshotForBlueprint(
   const name = extra?.name ?? "";
   const updatedAt = extra?.updated_at ?? "";
   const summary = world.summary;
-  const content = world.content;
+  const content = worldPrivatePromptContent(world.content, world.secret_content);
   return {
     id: world.id,
     name,
