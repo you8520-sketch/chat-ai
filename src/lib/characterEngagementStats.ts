@@ -1,4 +1,15 @@
 import type Database from "better-sqlite3";
+import { parseMessageVariants } from "@/lib/messageAlternates";
+
+/** Completed assistant generations for one playable turn (initial + successful regens). */
+export function countAssistantGenerationTurns(
+  alternatesJson: string | null | undefined,
+  content: string | null | undefined
+): number {
+  const variants = parseMessageVariants(alternatesJson);
+  if (variants.length > 0) return variants.length;
+  return content?.trim() ? 1 : 0;
+}
 
 export function ensureCharacterChatUsersTable(db: Database.Database): void {
   db.exec(`
