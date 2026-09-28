@@ -192,6 +192,7 @@ export function createTrpgCampaign(
       if (world && (canUseWorldForTrpg(world, opts.viewerUserId) || world.creator_id === template.creatorId)) {
         sourceWorldId = world.id;
         worldBrief = [world.name, world.summary, world.content, worldBrief].filter((x) => x?.trim()).join("\n\n");
+        gmSecret = mergeGmPrivateNotes(gmSecret, world.secret_content);
       }
     }
     const mobBrief = scenarioMobNpcWorldBrief(template.npcs);
@@ -219,6 +220,7 @@ export function createTrpgCampaign(
     authorUserId = world.creator_id;
     title = `${world.name} TRPG`;
     worldBrief = [world.summary, world.content].filter((x) => x.trim()).join("\n\n");
+    gmSecret = mergeGmPrivateNotes(gmSecret, world.secret_content);
   }
 
   for (const characterId of companionIds) {
