@@ -1076,72 +1076,54 @@ export function compileOfficialDraftFromBible(
     `${id.name}(${id.age}세, ${id.occupation} · ${id.socialPosition} · ${id.affiliation}).`,
     `${cleanSentence(id.worldRole)}.`,
   ].join(" ");
-  const appearanceSummary = [
-    `얼굴: ${cleanSentence(bible.appearance.faceShape)}.`,
-    `눈: ${cleanSentence(bible.appearance.eyes)}. 눈동자: ${cleanSentence(bible.appearance.eyeColor)}.`,
-    `머리색: ${cleanSentence(bible.appearance.hairColor)}. 헤어스타일: ${cleanSentence(
-      bible.appearance.hairstyle
-    )}. 길이: ${cleanSentence(bible.appearance.hairLength)}.`,
-    `키: ${id.heightCm}cm. 체격: ${cleanSentence(
-      stripOwnedHeightPrefix(bible.appearance.build)
-    )}. 피부: ${cleanSentence(bible.appearance.skin)}.`,
-    `특징: ${cleanSentence(bible.appearance.distinguishingFeatures)}.`,
-    `표정: ${cleanSentence(bible.appearance.usualExpression)}.`,
-    `기본 복장: ${cleanSentence(bible.appearance.defaultOutfit)}.`,
-    `액세서리: ${cleanSentence(bible.appearance.accessories)}.`,
-    `인상: ${cleanSentence(bible.appearance.impression)}.`,
-  ].join(" ");
+
   const valuesText = [
-    `원하는 것: ${bible.values.desires.join(" / ")}`,
-    `두려운 것: ${bible.values.fears.join(" / ")}`,
+    `목표/욕망: ${bible.values.desires.join(" / ")}`,
+    `두려움: ${bible.values.fears.join(" / ")}`,
     `가치관: ${bible.values.coreValues.join(" / ")}`,
-    `포기 못 하는 것: ${bible.values.nonNegotiable.join(" / ")}`,
+    `금기/넘지 않는 선: ${bible.values.nonNegotiable.join(" / ")}`,
   ].join("\n");
   const backstoryText = bible.backstory.events
-    .map((event) => `· ${event.event} 당시 선택: ${event.choice} 남은 것: ${event.residue}`)
+    .map((event) => `· ${event.event} → 당시 선택: ${event.choice} → 현재 흔적: ${event.residue}`)
     .join("\n");
   const abilityText = bible.abilities
     .map((ability) => {
-      const limit = [ability.limit, ability.cost].filter(nonEmpty).join(" / ");
-      return `· ${ability.name}(${ability.level}): ${ability.scope}${limit ? ` [한계·대가: ${limit}]` : ""} ${ability.usage}`;
+      const constraint = [ability.limit, ability.cost].filter(nonEmpty).join(" / ");
+      const usage = cleanSentence(ability.usage);
+      return `· ${ability.name}: ${cleanSentence(ability.scope)}${constraint ? ` [한계·대가: ${constraint}]` : ""}${usage ? ` — ${usage}` : ""}`;
     })
     .join("\n");
   const habitsText = [
     `취미: ${bible.habits.hobbies.join(" / ")}`,
     `습관: ${bible.habits.habits.join(" / ")}`,
+    `호불호: 좋아함 ${bible.habits.likes.join(" / ")} · 싫어함 ${bible.habits.dislikes.join(" / ")}`,
     `일상: ${bible.dailyLife}`,
   ].join("\n");
 
   const characterCore = joinParagraphs([
-    identityLine,
-    appearanceSummary,
-    bible.personality.behavioral,
+    `기본 스펙: ${identityLine}`,
+    `성격 키워드: ${bible.personality.keywords.join(" / ")}`,
+    `성격·행동: ${bible.personality.behavioral}`,
     `내적 모순: ${bible.contradiction}`,
     valuesText,
-    backstoryText,
-    abilityText,
+    `과거 서사:\n${backstoryText}`,
+    `능력·권력:\n${abilityText}`,
     habitsText,
   ]);
 
-  const otherPublic = bible.otherRelationships.map((rel) =>
-    [`· ${rel.target}(공개): ${rel.public}`, rel.privateOpinion ? `속내: ${rel.privateOpinion}` : ""]
-      .filter(Boolean)
-      .join(" ")
-  );
+  const personaFlexRule =
+    `유저 관계 원칙: 유저의 이름·신분·성별·${id.name}과의 기존 관계는 유저 페르소나와 대화에서 명시된 설정을 우선한다. 도입부가 관계를 명시적으로 고정하지 않는 한 현재 장면만 고정한다.`;
   const relationshipsAndDrives = joinParagraphs([
-    `첫인식: ${bible.userRelationship.initialView}`,
-    `유저 역할: ${bible.userRelationship.userRole}`,
-    `시작점: ${bible.userRelationship.startingPoint}`,
-    `관계 진행: ${bible.userRelationship.progression.join(" → ")}`,
-    otherPublic.length ? otherPublic.join("\n") : "",
-    `욕망과 두려움: ${bible.values.desires.join(" / ")} vs ${bible.values.fears.join(" / ")}`,
+    personaFlexRule,
+    `현재 인식: ${bible.userRelationship.initialView}`,
+    `현재 장면에서의 유저 위치: ${bible.userRelationship.userRole}`,
+    `시작 상황: ${bible.userRelationship.startingPoint}`,
+    `관계 변화 가능성: ${bible.userRelationship.progression.join(" → ")}`,
     `중기 갈등: ${bible.rpEngine.mediumConflict}`,
     `장기 변화: ${bible.rpEngine.longTermChange}`,
   ]);
 
-  const extraCanon = joinParagraphs([
-    `호불호: 좋아하는 것 ${bible.habits.likes.join(" / ")} / 싫어하는 것 ${bible.habits.dislikes.join(" / ")}`,
-  ]);
+  const extraCanon = "";
 
   const speechTraits = [
     `구어체: ${bible.speech.register} · 문장 ${bible.speech.sentenceLength} · 속도 ${bible.speech.tempo}`,
@@ -1153,10 +1135,6 @@ export function compileOfficialDraftFromBible(
     `감정 은폐: ${bible.speech.hiddenEmotionStyle} · 분노: ${bible.speech.angryStyle} · 친밀: ${bible.speech.intimateStyle}`,
     `행동 규칙: ${bible.behaviorRules.join(" / ")}`,
   ].join("\n");
-
-  const hiddenRels = bible.otherRelationships
-    .map((rel) => (nonEmpty(rel.hidden) ? `${rel.target}에 대한 숨김: ${rel.hidden}` : ""))
-    .filter(Boolean);
 
   const eligibleNpcAges = bible.npcs
     .filter((npc) => npc.adultEligible && npc.age != null)
@@ -1221,7 +1199,8 @@ export function compileOfficialDraftFromBible(
     },
     supportingNpcs: bible.npcs,
     hook: keys.hook,
-    secrets: [...bible.secrets, ...hiddenRels],
+    // Other playable-character relationships are lorebook candidates, not always-on character canon.
+    secrets: [...bible.secrets],
     adult: adult as OfficialCharacterDraft["adult"],
   };
 }
