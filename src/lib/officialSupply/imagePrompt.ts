@@ -5,6 +5,11 @@ import { buildMatureMaleVisualAgePrompt, renderAppearanceBlock } from "@/lib/off
 import { adultDepictionAllowed } from "@/lib/officialSupply/assetPlan";
 import { officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
 import {
+  renderOfficialShotResponsibility,
+  renderOfficialStyleFramingOverride,
+  resolveOfficialSlotShot,
+} from "@/lib/officialSupply/shotPlan";
+import {
   isClusterBGraphicStyleSeed,
   resolveOfficialAssetStyleDna,
   ROFAN_CLUSTER_B_GRAPHIC_STYLE_DIRECTION,
@@ -43,23 +48,31 @@ function renderIdentityLock(lock: OfficialAppearanceLock): string {
 
 function framingForSlot(slot: OfficialAssetSlotPlan): string {
   const profile = officialImageProfileForSlot(slot.kind);
+  const shot = resolveOfficialSlotShot(slot);
+  const shotLine = renderOfficialShotResponsibility(shot);
   switch (slot.kind) {
     case "representative":
       return [
         `Create one vertical ${profile.aspect} character card portrait (${profile.width}x${profile.height}).`,
         "Head and upper body, face clearly readable in the upper third (the card crops from the top).",
         "Personality readable at first glance. Keep the background simple and uncluttered; no important features near the edges.",
+        shotLine,
       ].join(" ");
     case "signature":
     case "emotion":
       return [
         `Create one horizontal ${profile.aspect} roleplay illustration (${profile.width}x${profile.height}).`,
-        "The character is the clear subject, face and upper body readable; supporting background only.",
+        "This is a distinct cut of the same character — not another bust-card portrait.",
+        "Follow the shot responsibility for face direction, camera, crop, and pose. Do not default to face-and-upper-body.",
+        shotLine,
       ].join(" ");
     case "scene":
       return [
-        `Create one horizontal ${profile.aspect} roleplay scene illustration (${profile.width}x${profile.height}).`,
-        `The character MUST appear prominently in the scene at ${slot.location}. This is not a background-only image.`,
+        `Create one horizontal ${profile.aspect} roleplay SCENE illustration (${profile.width}x${profile.height}).`,
+        `This is a scene, not a portrait substitute. Location and incident must be readable: ${slot.location}.`,
+        "Show spatial depth, environment, and the character acting inside the situation.",
+        "Do not crop as a bust/card portrait with a blurred backdrop. The character is visible in the scene, but the place and event share the frame.",
+        shotLine,
       ].join(" ");
     default: {
       const exhaustive: never = slot.kind;
@@ -139,6 +152,7 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     buildMatureMaleVisualAgePrompt(draft) ?? "",
     genderLock,
     renderStyleDna(effectiveStyle),
+    renderOfficialStyleFramingOverride(slot.kind),
     buildIllustrationSafeDepiction({ adultGrounded }),
     moment,
     "Exactly one person unless the situation explicitly needs unnamed background extras. No text, speech bubbles, captions, logos, signatures or watermarks.",
@@ -152,8 +166,11 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     renderIdentityLock(appearance),
     buildMatureMaleVisualAgePrompt(draft) ?? "",
     genderLock,
+    renderOfficialShotResponsibility(resolveOfficialSlotShot(slot)),
     `Expression: ${slot.expression}.`,
-    slot.kind === "scene" ? `Setting: ${slot.location}. The character must be visible.` : "",
+    slot.kind === "scene"
+      ? `Setting: ${slot.location}. Scene, not portrait — the character must be visible inside the place and incident.`
+      : "",
     "No text, logos or watermarks.",
   ]
     .filter(Boolean)

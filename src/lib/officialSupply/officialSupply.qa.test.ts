@@ -146,9 +146,10 @@ describe("official asset prompts", () => {
     assert.match(primaryPrompt, /confirmed MALE/);
     assert.ok(primaryPrompt.includes(BASE_IMAGE_SAFE_DEPICTION));
     assert.ok(!primaryPrompt.includes(ADULT_GROUNDED_NON_EXPLICIT_ALLOWANCE));
-    assert.match(primaryPrompt, /MUST appear prominently/);
+    assert.match(primaryPrompt, /SCENE illustration/);
+    assert.match(primaryPrompt, /not a portrait substitute/);
     assert.match(primaryPrompt, /3:2/);
-    assert.match(strictFallbackPrompt, /must be visible/);
+    assert.match(strictFallbackPrompt, /Scene, not portrait/);
   });
 
   it("representative prompt is 2:3 card framing with a style-only reference", () => {
