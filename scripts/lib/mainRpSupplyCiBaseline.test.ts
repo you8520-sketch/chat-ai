@@ -72,7 +72,6 @@ function endpoint(modelId: SelectedAI): SupplyEndpointEvidence {
 }
 
 function radarReport(opts?: {
-  missingBaselineModel?: SelectedAI;
   input?: number;
   output?: number;
 }) {
@@ -80,9 +79,10 @@ function radarReport(opts?: {
     MAIN_RP_MODEL_IDS.map((id) => [id, [endpoint(id)]])
   );
   const ci = Object.fromEntries(
-    MAIN_RP_MODEL_IDS
-      .filter((id) => id !== opts?.missingBaselineModel)
-      .map((id) => [id, catalog(id, opts?.input ?? 0.3, opts?.output ?? 1.2)])
+    MAIN_RP_MODEL_IDS.map((id) => [
+      id,
+      catalog(id, opts?.input ?? 0.3, opts?.output ?? 1.2),
+    ])
   );
   return buildMainRpSupplyRadarReport({
     endpointsByModel: endpointsByModel as Parameters<
@@ -92,6 +92,17 @@ function radarReport(opts?: {
     credentialSource: "fixture",
     generatedAt: "2026-09-28T00:00:00.000Z",
   });
+}
+
+const BASE_RADAR = radarReport();
+const BASE_SELECTION = selectMainRpSupplyLiveCandidates(BASE_RADAR);
+
+function cloneBaseRadar() {
+  return structuredClone(BASE_RADAR);
+}
+
+function cloneBaseSelection() {
+  return structuredClone(BASE_SELECTION);
 }
 
 function turn(
@@ -127,8 +138,8 @@ function turn(
 
 describe("same-prompt current CI baseline guard", () => {
   it("keeps only radar candidates with a grounded CI catalog baseline and bounded cost", () => {
-    const radar = radarReport();
-    const selection = selectMainRpSupplyLiveCandidates(radar);
+    const radar = cloneBaseRadar();
+    const selection = cloneBaseSelection();
     const plan = applyCurrentCiBaselineBudgetGuard(radar, selection);
 
     assert.ok(plan.entries.length > 0);
@@ -146,11 +157,10 @@ describe("same-prompt current CI baseline guard", () => {
   });
 
   it("fails closed for a candidate whose current CI catalog baseline is missing", () => {
-    const baseline = radarReport();
-    const selection = selectMainRpSupplyLiveCandidates(baseline);
+    const selection = cloneBaseSelection();
     const target = selection.candidates[0]!.modelId;
 
-    const missing = radarReport();
+    const missing = cloneBaseRadar();
     const targetModel = missing.models.find((row) => row.modelId === target)!;
     targetModel.currentProcurement = null;
     const plan = applyCurrentCiBaselineBudgetGuard(missing, selection);
@@ -170,7 +180,7 @@ describe("same-prompt current CI baseline guard", () => {
 
   it("prevents current CI baseline spend from silently exceeding the monthly estimate guard", () => {
     const radar = radarReport({ input: 200, output: 200 });
-    const selection = selectMainRpSupplyLiveCandidates(radar);
+    const selection = cloneBaseSelection();
     const plan = applyCurrentCiBaselineBudgetGuard(radar, selection);
 
     assert.ok(
@@ -187,8 +197,8 @@ describe("same-prompt current CI baseline guard", () => {
 
 describe("same-prompt current CI request parity", () => {
   it("uses the same frozen two-turn fixture and CI session-affinity owner", () => {
-    const radar = radarReport();
-    const selection = selectMainRpSupplyLiveCandidates(radar);
+    const radar = cloneBaseRadar();
+    const selection = cloneBaseSelection();
     const plan = applyCurrentCiBaselineBudgetGuard(radar, selection);
     const entry = plan.entries[0]!;
     const [turn1] = buildDeterministicSupplyProbeTurns();
@@ -232,8 +242,8 @@ describe("same-prompt current CI request parity", () => {
 
 describe("candidate vs current CI comparison semantics", () => {
   it("compares factual transport/cache/cost evidence without a winner or quality score", () => {
-    const radar = radarReport();
-    const selection = selectMainRpSupplyLiveCandidates(radar);
+    const radar = cloneBaseRadar();
+    const selection = cloneBaseSelection();
     const plan = applyCurrentCiBaselineBudgetGuard(radar, selection);
     const candidate = plan.entries[0]!.candidate;
     const candidateResult: SupplyLiveCandidateResult = {
