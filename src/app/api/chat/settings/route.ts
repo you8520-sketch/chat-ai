@@ -8,7 +8,7 @@ import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
 import { resolveNarrativePov } from "@/lib/narrativePov";
 import { parseUserAuthoringLevel, USER_AUTHORING_LEVELS } from "@/lib/userAuthoringPolicy";
-import { persistUserAuthoringLevelAndResetOocAuthority } from "@/lib/userCoauthorState";
+import { persistUserAuthoringPreferencesAndResetOocAuthority } from "@/lib/userCoauthorState";
 import {
   displayModeFromEngineMode,
   parseIncomingStatusWidgetDisplayMode,
@@ -62,6 +62,7 @@ export async function PATCH(req: Request) {
     narrativePov,
     povCharacterName,
     userAuthoringLevel: userAuthoringLevelInput,
+    autoProgressionAuthoringLevel: autoProgressionAuthoringLevelInput,
     adultHandoffEnabled: adultHandoffEnabledInput,
   } = body;
   if (!chatId) return Response.json({ error: "채팅방 ID가 필요합니다." }, { status: 400 });
@@ -81,6 +82,22 @@ export async function PATCH(req: Request) {
     );
   }
 
+  const autoProgressionAuthoringLevel =
+    autoProgressionAuthoringLevelInput === undefined
+      ? undefined
+      : parseUserAuthoringLevel(autoProgressionAuthoringLevelInput);
+  if (
+    autoProgressionAuthoringLevelInput !== undefined &&
+    !USER_AUTHORING_LEVELS.includes(
+      String(autoProgressionAuthoringLevelInput).trim().toUpperCase() as (typeof USER_AUTHORING_LEVELS)[number]
+    )
+  ) {
+    return Response.json(
+      { error: "autoProgressionAuthoringLevel must be LIMITED, NORMAL, or ALLOW." },
+      { status: 400 }
+    );
+  }
+
   const userAdultVerified = effectiveIsAdult(user.is_adult);
   const adultHandoffEnabled = parseAdultHandoffEnabled(
     adultHandoffEnabledInput ?? body.adult_handoff_enabled
@@ -95,6 +112,7 @@ export async function PATCH(req: Request) {
   const db = getDb();
   const chat = db.prepare(
     `SELECT ch.id, ch.narrative_pov, ch.pov_character_name, ch.user_authoring_level,
+            ch.auto_progression_authoring_level,
             c.name, COALESCE(c.content_kind, 'character') AS content_kind
      FROM chats ch JOIN characters c ON c.id = ch.character_id
      WHERE ch.id=? AND ch.user_id=?`
@@ -103,6 +121,7 @@ export async function PATCH(req: Request) {
     narrative_pov: string | null;
     pov_character_name: string | null;
     user_authoring_level: string | null;
+    auto_progression_authoring_level: string | null;
     name: string;
     content_kind: string;
   } | undefined;
@@ -178,6 +197,10 @@ export async function PATCH(req: Request) {
   const shouldPersistUserAuthoringLevel =
     userAuthoringLevel !== undefined &&
     parseUserAuthoringLevel(chat.user_authoring_level) !== userAuthoringLevel;
+  const shouldPersistAutoProgressionAuthoringLevel =
+    autoProgressionAuthoringLevel !== undefined &&
+    parseUserAuthoringLevel(chat.auto_progression_authoring_level) !==
+      autoProgressionAuthoringLevel;
 
   const sets: string[] = [];
   const vals: unknown[] = [];
@@ -211,7 +234,11 @@ export async function PATCH(req: Request) {
     sets.push("adult_handoff_enabled=?");
     vals.push(adultHandoffEnabled ? 1 : 0);
   }
-  if (sets.length === 0 && userAuthoringLevel === undefined) {
+  if (
+    sets.length === 0 &&
+    userAuthoringLevel === undefined &&
+    autoProgressionAuthoringLevel === undefined
+  ) {
     return Response.json({ error: "변경할 설정이 없습니다." }, { status: 400 });
   }
 
@@ -224,11 +251,22 @@ export async function PATCH(req: Request) {
           user.id
         );
       }
-      if (shouldPersistUserAuthoringLevel && userAuthoringLevel !== undefined) {
-        persistUserAuthoringLevelAndResetOocAuthority(
+      if (
+        shouldPersistUserAuthoringLevel ||
+        shouldPersistAutoProgressionAuthoringLevel
+      ) {
+        persistUserAuthoringPreferencesAndResetOocAuthority(
           db,
           Number(chatId),
-          userAuthoringLevel
+          {
+            ...(shouldPersistUserAuthoringLevel && userAuthoringLevel !== undefined
+              ? { interactiveLevel: userAuthoringLevel }
+              : {}),
+            ...(shouldPersistAutoProgressionAuthoringLevel &&
+            autoProgressionAuthoringLevel !== undefined
+              ? { autoProgressionLevel: autoProgressionAuthoringLevel }
+              : {}),
+          }
         );
       }
     })();
@@ -243,6 +281,9 @@ export async function PATCH(req: Request) {
     narrativePov: resolvedNarrativePov.mode,
     povCharacterName: resolvedNarrativePov.povCharacterName,
     ...(userAuthoringLevel !== undefined ? { userAuthoringLevel } : {}),
+    ...(autoProgressionAuthoringLevel !== undefined
+      ? { autoProgressionAuthoringLevel }
+      : {}),
     ...(adultHandoffEnabled !== undefined ? { adultHandoffEnabled } : {}),
   });
 }

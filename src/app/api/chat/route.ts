@@ -63,6 +63,7 @@ import { computeShadowPricing, resolveActualTurnCostCoverage } from "@/lib/shado
 import { warmShadowBillingFxPrefetch } from "@/lib/shadowBillingExchangeRate";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import {
+  DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL,
   DEFAULT_USER_AUTHORING_LEVEL,
   USER_AUTHORING_LEVELS,
   parseUserAuthoringLevel,
@@ -805,6 +806,23 @@ export async function POST(req: Request) {
     const initialUserAuthoringLevel = parseUserAuthoringLevel(
       requestedInitialAuthoringRaw ?? DEFAULT_USER_AUTHORING_LEVEL
     );
+    const requestedInitialAutoAuthoringRaw = body.autoProgressionAuthoringLevel;
+    if (
+      requestedInitialAutoAuthoringRaw !== undefined &&
+      !USER_AUTHORING_LEVELS.includes(
+        String(requestedInitialAutoAuthoringRaw).trim().toUpperCase() as
+          (typeof USER_AUTHORING_LEVELS)[number]
+      )
+    ) {
+      return Response.json(
+        { error: "autoProgressionAuthoringLevel must be LIMITED, NORMAL, or ALLOW." },
+        { status: 400 }
+      );
+    }
+    const initialAutoProgressionAuthoringLevel = parseUserAuthoringLevel(
+      requestedInitialAutoAuthoringRaw ??
+        DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL
+    );
     const initialTargetChars =
       targetResponseCharsInput != null
         ? normalizeTargetResponseChars(targetResponseCharsInput)
@@ -828,6 +846,7 @@ export async function POST(req: Request) {
       targetResponseChars: initialTargetChars,
       adultHandoffEnabled: roomAdultModeEnabled,
       userAuthoringLevel: initialUserAuthoringLevel,
+      autoProgressionAuthoringLevel: initialAutoProgressionAuthoringLevel,
     });
     chat = db.prepare("SELECT * FROM chats WHERE id=? AND user_id=?").get(newChatId, user.id) as typeof chat;
   } else {
@@ -937,7 +956,8 @@ export async function POST(req: Request) {
   const currentTurnDelegation = resolveEffectiveUserAuthoringFromChatColumn(
     db,
     chat.id,
-    autoProgressionEnabled ? "" : typeof message === "string" ? message : ""
+    autoProgressionEnabled ? "" : typeof message === "string" ? message : "",
+    { scope: autoProgressionEnabled ? "auto_progression" : "interactive" }
   ).delegation;
   let runtimeMode = resolveChatRuntimeMode({
     isContinue: isContinue === true,
@@ -1184,11 +1204,14 @@ export async function POST(req: Request) {
     (regenerate && isContinueUserMessage(storedUserMessage));
   const effectiveUserAuthoring =
     regenerate && userMessageId != null
-      ? resolveEffectiveUserAuthoringForRegeneration(db, chat.id, userMessageId)
+      ? resolveEffectiveUserAuthoringForRegeneration(db, chat.id, userMessageId, {
+          scope: autoContinueContext ? "auto_progression" : "interactive",
+        })
       : resolveEffectiveUserAuthoringFromChatColumn(
           db,
           chat.id,
-          autoContinueContext ? "" : storedUserMessage
+          autoContinueContext ? "" : storedUserMessage,
+          { scope: autoContinueContext ? "auto_progression" : "interactive" }
         );
   const currentTurnDelegationForTurn = effectiveUserAuthoring.delegation;
   runtimeMode = resolveChatRuntimeMode({

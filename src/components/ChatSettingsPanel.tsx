@@ -128,6 +128,8 @@ type Props = {
   onNarrativePovChange: (value: NarrativePov) => void;
   userAuthoringLevel: UserAuthoringLevel;
   onUserAuthoringLevelChange: (value: UserAuthoringLevel) => void;
+  autoProgressionAuthoringLevel: UserAuthoringLevel;
+  onAutoProgressionAuthoringLevelChange: (value: UserAuthoringLevel) => void;
   userAuthoringSaving?: boolean;
   displayPrefs: ChatDisplayPrefs;
   onDisplayPrefsChange: (prefs: ChatDisplayPrefs) => void;
@@ -177,6 +179,8 @@ export default function ChatSettingsPanel({
   onNarrativePovChange,
   userAuthoringLevel,
   onUserAuthoringLevelChange,
+  autoProgressionAuthoringLevel,
+  onAutoProgressionAuthoringLevelChange,
   userAuthoringSaving = false,
   displayPrefs,
   onDisplayPrefsChange,
@@ -376,6 +380,8 @@ export default function ChatSettingsPanel({
         onNarrativePovChange={onNarrativePovChange}
         userAuthoringLevel={userAuthoringLevel}
         onUserAuthoringLevelChange={onUserAuthoringLevelChange}
+        autoProgressionAuthoringLevel={autoProgressionAuthoringLevel}
+        onAutoProgressionAuthoringLevelChange={onAutoProgressionAuthoringLevelChange}
         userAuthoringSaving={userAuthoringSaving}
         characterWidgetJson={characterWidgetJson}
         statusWidgetMode={statusWidgetMode}
@@ -866,6 +872,8 @@ function DisplaySection({
   onNarrativePovChange,
   userAuthoringLevel,
   onUserAuthoringLevelChange,
+  autoProgressionAuthoringLevel,
+  onAutoProgressionAuthoringLevelChange,
   userAuthoringSaving = false,
   characterWidgetJson,
   statusWidgetMode,
@@ -884,6 +892,8 @@ function DisplaySection({
   onNarrativePovChange: (value: NarrativePov) => void;
   userAuthoringLevel: UserAuthoringLevel;
   onUserAuthoringLevelChange: (value: UserAuthoringLevel) => void;
+  autoProgressionAuthoringLevel: UserAuthoringLevel;
+  onAutoProgressionAuthoringLevelChange: (value: UserAuthoringLevel) => void;
   userAuthoringSaving?: boolean;
   characterWidgetJson: string;
   statusWidgetMode: StatusWidgetSourceMode;
@@ -906,8 +916,17 @@ function DisplaySection({
           />
         )}
         <UserAuthoringLevelSection
+          title="일반 입력 시 내 행동/대사 서술"
+          helpText="일반 메시지를 보냈을 때 AI가 내 캐릭터를 어디까지 함께 집필할지 정합니다."
           level={userAuthoringLevel}
           onChange={onUserAuthoringLevelChange}
+          saving={userAuthoringSaving}
+        />
+        <UserAuthoringLevelSection
+          title="자동진행 시 내 행동/대사 서술"
+          helpText="자동진행 버튼을 눌렀을 때 AI가 내 캐릭터를 어디까지 함께 집필할지 따로 정합니다."
+          level={autoProgressionAuthoringLevel}
+          onChange={onAutoProgressionAuthoringLevelChange}
           saving={userAuthoringSaving}
         />
         <StatusWidgetChatSettings
@@ -969,10 +988,14 @@ const USER_AUTHORING_LEVEL_OPTIONS: Array<{
 ];
 
 function UserAuthoringLevelSection({
+  title,
+  helpText,
   level,
   onChange,
   saving,
 }: {
+  title: string;
+  helpText: string;
   level: UserAuthoringLevel;
   onChange: (value: UserAuthoringLevel) => void;
   saving: boolean;
@@ -984,10 +1007,10 @@ function UserAuthoringLevelSection({
   return (
     <section className="space-y-3 border-b border-white/10 pb-5 text-xs">
       <div>
-        <p className="font-bold text-violet-300">내 행동/대사 서술</p>
+        <p className="font-bold text-violet-300">{title}</p>
         <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">
-          AI가 내 캐릭터를 어디까지 함께 집필할지 정하는 기본값입니다. 다음 AI 답변부터 적용됩니다.
-          명시적인 OOC 집필 지시는 이 기본값보다 우선하며, 이 설정을 직접 바꾸면 이전의 지속 OOC override는 종료됩니다.
+          {helpText} 다음 해당 답변부터 적용됩니다. 명시적인 OOC 집필 지시는 이 기본값보다 우선하며,
+          이 설정을 직접 바꾸면 이전의 지속 OOC override는 종료됩니다.
         </p>
       </div>
       <div className="relative px-1 pt-1">

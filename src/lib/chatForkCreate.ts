@@ -5,8 +5,8 @@ export const FORK_CHAT_INSERT_SQL = `INSERT INTO chats (
   user_id, character_id, mode, memory_pending, memory_meta,
   memory_archived_turns, gemini_model, user_note, selected_persona_id,
   target_response_chars, title, writing_style_override, memory_capacity,
-  narrative_pov, pov_character_name, user_authoring_level
-) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+  narrative_pov, pov_character_name, user_authoring_level, auto_progression_authoring_level
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
 export type ForkChatInsertParams = {
   userId: number;
@@ -25,6 +25,7 @@ export type ForkChatInsertParams = {
   narrativePov: string;
   povCharacterName: string;
   userAuthoringLevel: string;
+  autoProgressionAuthoringLevel: string;
 };
 
 export function insertForkChatRow(db: Database.Database, params: ForkChatInsertParams): number {
@@ -44,7 +45,8 @@ export function insertForkChatRow(db: Database.Database, params: ForkChatInsertP
     params.memoryCapacity,
     params.narrativePov,
     params.povCharacterName,
-    params.userAuthoringLevel
+    params.userAuthoringLevel,
+    params.autoProgressionAuthoringLevel
   );
   return Number(info.lastInsertRowid);
 }

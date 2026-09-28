@@ -6,6 +6,7 @@ import {
   CURRENT_USER_COAUTHOR_SEMANTICS_VERSION,
   ensureUserCoauthorSchema,
   markUserMessageCoauthorSemanticsVersion,
+  readAutoProgressionUserAuthoringLevel,
   readUserAuthoringLevel,
   readUserCoauthorMode,
   recomputeAndPersistUserCoauthorMode,
@@ -32,7 +33,8 @@ function openDb(): Database.Database {
       memory_capacity INTEGER NOT NULL DEFAULT 0,
       narrative_pov TEXT NOT NULL DEFAULT 'third_person',
       pov_character_name TEXT,
-      user_authoring_level TEXT NOT NULL DEFAULT 'LIMITED'
+      user_authoring_level TEXT NOT NULL DEFAULT 'NORMAL',
+      auto_progression_authoring_level TEXT NOT NULL DEFAULT 'NORMAL'
     );
     CREATE TABLE messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,6 +67,7 @@ describe("user authoring fork ownership", () => {
       narrativePov: "third_person",
       povCharacterName: "",
       userAuthoringLevel: "ALLOW",
+      autoProgressionAuthoringLevel: "NORMAL",
     });
 
     const grant = db
@@ -82,6 +85,7 @@ describe("user authoring fork ownership", () => {
     assert.equal(legacyMirror.user_impersonation, 0, "retired mirror stays at physical default");
 
     assert.equal(readUserAuthoringLevel(db, childId), "ALLOW");
+    assert.equal(readAutoProgressionUserAuthoringLevel(db, childId), "NORMAL");
     assert.equal(recomputeAndPersistUserCoauthorMode(db, childId), "ABSOLUTE");
     assert.equal(readUserCoauthorMode(db, childId), "ABSOLUTE");
   });
@@ -105,9 +109,11 @@ describe("user authoring fork ownership", () => {
       narrativePov: "third_person",
       povCharacterName: "",
       userAuthoringLevel: "ALLOW",
+      autoProgressionAuthoringLevel: "NORMAL",
     });
 
     assert.equal(readUserAuthoringLevel(db, childId), "ALLOW");
+    assert.equal(readAutoProgressionUserAuthoringLevel(db, childId), "NORMAL");
     assert.equal(recomputeAndPersistUserCoauthorMode(db, childId), "OFF");
     assert.equal(readUserCoauthorMode(db, childId), "OFF");
   });

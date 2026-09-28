@@ -14,6 +14,7 @@ import {
   persistUserAuthoringLevelAndResetOocAuthority,
   persistUserCoauthorAfterSuccessfulUserInsert,
   persistUserCoauthorMode,
+  readAutoProgressionUserAuthoringLevel,
   readUserAuthoringLevel,
   readUserCoauthorMode,
   readUserCoauthorSemanticsVersion,
@@ -55,7 +56,9 @@ function openAuthorityDb(): Database.Database {
     );
   `);
   ensureUserCoauthorSchema(db);
-  db.prepare("INSERT INTO chats (id) VALUES (1)").run();
+  db.prepare(
+    "INSERT INTO chats (id, user_authoring_level, auto_progression_authoring_level) VALUES (1, 'LIMITED', 'NORMAL')"
+  ).run();
   return db;
 }
 
@@ -76,7 +79,7 @@ function insertUser(
 }
 
 describe("user coauthor authority + semantics epoch", () => {
-  it("A — migration defaults chats OFF and existing messages version 0", () => {
+  it("A — migration defaults both visible preferences to NORMAL, OOC OFF, messages version 0", () => {
     const db = new Database(":memory:");
     db.exec(`
       CREATE TABLE chats (id INTEGER PRIMARY KEY);
@@ -85,7 +88,8 @@ describe("user coauthor authority + semantics epoch", () => {
       INSERT INTO messages (id, chat_id, role, content) VALUES (3773, 735, 'user', '${PUBLIC_FULL_GRANT}');
     `);
     ensureUserCoauthorSchema(db);
-    assert.equal(readUserAuthoringLevel(db, 735), "LIMITED");
+    assert.equal(readUserAuthoringLevel(db, 735), "NORMAL");
+    assert.equal(readAutoProgressionUserAuthoringLevel(db, 735), "NORMAL");
     assert.equal(readUserCoauthorMode(db, 735), "OFF");
     assert.equal(readUserCoauthorSemanticsVersion(db, 3773), LEGACY_USER_COAUTHOR_SEMANTICS_VERSION);
     assert.equal(recomputeAndPersistUserCoauthorMode(db, 735), "OFF");
@@ -123,14 +127,14 @@ describe("user coauthor authority + semantics epoch", () => {
     assert.equal(readUserCoauthorMode(db, 1), "ACTIONS");
   });
 
-  it("E — full revoke sets OFF", () => {
+  it("E — full revoke stores explicit LIMITED", () => {
     const db = openAuthorityDb();
     insertUser(db, PUBLIC_FULL_GRANT);
     persistUserCoauthorMode(db, 1, "FULL");
     const applied = resolveEffectiveUserAuthoringFromChatColumn(db, 1, PUBLIC_REVOKE);
-    assert.equal(applied.persistentAfter, "OFF");
+    assert.equal(applied.persistentAfter, "LIMITED");
     persistUserCoauthorMode(db, 1, applied.persistentAfter);
-    assert.equal(readUserCoauthorMode(db, 1), "OFF");
+    assert.equal(readUserCoauthorMode(db, 1), "LIMITED");
   });
 
   it("F + required legacy regression — version 0 grant is ignored", () => {
@@ -169,7 +173,7 @@ describe("user coauthor authority + semantics epoch", () => {
     assert.equal(next.persistentAfter, "OFF");
   });
 
-  it("required sequence — legacy ignored, then new grant FULL, ordinary stays, revoke OFF", () => {
+  it("required sequence — legacy ignored, then new grant FULL, ordinary stays, revoke LIMITED", () => {
     const db = openAuthorityDb();
     insertUser(db, PUBLIC_FULL_GRANT, LEGACY_USER_COAUTHOR_SEMANTICS_VERSION);
     assert.equal(readUserCoauthorMode(db, 1), "OFF");
@@ -187,7 +191,7 @@ describe("user coauthor authority + semantics epoch", () => {
 
     const revoke = resolveEffectiveUserAuthoringFromChatColumn(db, 1, PUBLIC_REVOKE);
     persistUserCoauthorMode(db, 1, revoke.persistentAfter);
-    assert.equal(readUserCoauthorMode(db, 1), "OFF");
+    assert.equal(readUserCoauthorMode(db, 1), "LIMITED");
   });
 
   it("G — editing a legacy message into an explicit grant marks 1 and FULL", () => {
@@ -268,17 +272,17 @@ describe("user coauthor authority + semantics epoch", () => {
     assert.equal(recomputeAndPersistUserCoauthorMode(db, 2), "OFF");
   });
 
-  it("F4 — fork after new FULL then revoke is OFF", () => {
+  it("F4 — fork after new FULL then revoke keeps explicit LIMITED", () => {
     const db = openAuthorityDb();
     insertUser(db, PUBLIC_FULL_GRANT);
     insertUser(db, PUBLIC_REVOKE);
-    assert.equal(recomputeAndPersistUserCoauthorMode(db, 1), "OFF");
+    assert.equal(recomputeAndPersistUserCoauthorMode(db, 1), "LIMITED");
     db.prepare("INSERT INTO chats (id) VALUES (2)").run();
     db.prepare(
       `INSERT INTO messages (chat_id, role, content, user_coauthor_semantics_version)
        SELECT 2, role, content, user_coauthor_semantics_version FROM messages WHERE chat_id=1`
     ).run();
-    assert.equal(recomputeAndPersistUserCoauthorMode(db, 2), "OFF");
+    assert.equal(recomputeAndPersistUserCoauthorMode(db, 2), "LIMITED");
   });
 
   it("K — regeneration does not resurrect a legacy grant", () => {
