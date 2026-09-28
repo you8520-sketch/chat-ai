@@ -19,6 +19,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
 } from "@/lib/chatModels";
 import {
   CHAT_BILLING_CONTRACT_DISPATCH_OWNER,
@@ -208,6 +209,25 @@ describe("chatBillingContractDispatch — contract selection", () => {
       assert.equal(decision.contract, "published_phase1", modelId);
       assert.ok(decision.points > 0, modelId);
     }
+  });
+
+  it("GPT-6 Sol short context uses published Phase1 and 272K+ falls back to the official-tier legacy owner", () => {
+    const short = dispatchCompleteModel(CHEAPER_INFERENCE_GPT_6_SOL_MODEL, 2_756);
+    assert.equal(short.contract, "published_phase1");
+    assert.ok(short.points > 0);
+
+    const long = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
+      stages: [completePrimaryStage(CHEAPER_INFERENCE_GPT_6_SOL_MODEL, 272_001, 1_000)],
+      legacyFinalPoints: 777,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: AUDIT_FX_SNAPSHOT,
+      phase1PublishedBillingEnabled: true,
+    });
+    assert.equal(long.contract, "legacy");
+    assert.equal(long.points, 777);
   });
 
   it("Opus 5.5 exact prompt/output with omitted cache fields remains published and chargeable", () => {
@@ -412,6 +432,7 @@ describe("chatBillingContractDispatch — Phase 1 closure matrix", () => {
         CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
         CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
         CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+        CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
       ]);
     } finally {
       clearAuditLegacyFxForTest();
