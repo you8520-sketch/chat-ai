@@ -8,6 +8,7 @@ import {
 } from "@/lib/worldPermissions";
 import {
   rowToWorldListItem,
+  worldPrivatePromptContent,
   WORLD_SELECT_COLUMNS,
   type WorldListItem,
   type WorldRow,
@@ -205,7 +206,8 @@ export function resolveWorldSelectionForUser(
     const db = getDb();
     const row = db
       .prepare(
-        `SELECT id, creator_id, name, summary, content, created_at, updated_at,
+        `SELECT id, creator_id, name, summary, content,
+                COALESCE(secret_content, '') AS secret_content, created_at, updated_at,
                 COALESCE(shared_from_nickname, '') AS shared_from_nickname
          FROM worlds WHERE id = ? AND creator_id = ?`
       )
@@ -213,7 +215,7 @@ export function resolveWorldSelectionForUser(
     if (!row) return { ok: false, error: "선택한 세계관을 찾을 수 없습니다." };
     return {
       ok: true,
-      content: row.content,
+      content: worldPrivatePromptContent(row.content, row.secret_content ?? ""),
       libraryKind: isLegacyBorrowedWorld(row) ? "legacy_borrowed" : "owned",
       sourceWorldShareId: null,
       worldId: row.id,
