@@ -80,6 +80,17 @@ describe("historical truth — production miss-path owner matrix", () => {
     assert.doesNotMatch(built.systemPrompt, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
   });
 
+  it("assistant-only past/offscreen history remains attributed until corroborated", () => {
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /assistant.*단독.*과거.*주장|과거.*장면 밖.*assistant.*주장/i
+    );
+    assert.match(
+      HISTORICAL_TRUTH_POLICY_BLOCK,
+      /USER.*정본.*기억.*확인|확인.*USER.*정본.*기억/i
+    );
+  });
+
   it("co-narration mode owner does not duplicate full historical truth body", () => {
     const block = buildNoGodmoddingBlock("A", "B", "coNarration");
     assert.doesNotMatch(block, /\[HISTORICAL TRUTH — CANONICAL MEMORY\]/);
