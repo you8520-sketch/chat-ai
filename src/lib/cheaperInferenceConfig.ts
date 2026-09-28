@@ -13,6 +13,7 @@ import {
   isDeepSeekV4ProModel,
   isGptLunaFamilyModel,
   isGpt56TerraModel,
+  isGpt6SolModel,
   normalizeDeepSeekV4FlashModelId,
   normalizeDeepSeekV4ProModelId,
 } from "@/lib/chatModels";
@@ -145,7 +146,7 @@ export function applyCheaperInferenceModelReasoningPolicy(
     adapted.reasoning_effort = "low";
     return adapted;
   }
-  if (isGptLunaFamilyModel(model) || isGpt56TerraModel(model)) {
+  if (isGptLunaFamilyModel(model) || isGpt56TerraModel(model) || isGpt6SolModel(model)) {
     adapted.reasoning = { effort: "none" };
     adapted.reasoning_effort = "none";
     delete adapted.thinking;
