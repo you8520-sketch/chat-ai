@@ -1,39 +1,4 @@
 import type Database from "better-sqlite3";
-import { parseMessageVariants } from "@/lib/messageAlternates";
-
-/** Completed generations for one assistant row (initial + successful regens). */
-export function countAssistantGenerationTurns(
-  alternatesJson: string | null | undefined,
-  content: string | null | undefined
-): number {
-  const variants = parseMessageVariants(alternatesJson);
-  if (variants.length > 0) return variants.length;
-  return content?.trim() ? 1 : 0;
-}
-
-/**
- * Engagement turns for a chat:
- * - each user message counts as 1 (initial send)
- * - each successful regenerate adds +1 (extra assistant variants beyond the first)
- * Greeting-only assistant rows with a single variant do not add extras.
- */
-export function countChatEngagementTurns(db: Database.Database, chatId: number): number {
-  const userTurns = db
-    .prepare("SELECT COUNT(*) AS n FROM messages WHERE chat_id=? AND role='user'")
-    .get(chatId) as { n: number };
-  const assistants = db
-    .prepare(
-      `SELECT content, alternates FROM messages WHERE chat_id=? AND role='assistant'`
-    )
-    .all(chatId) as Array<{ content: string; alternates: string | null }>;
-
-  let regenExtra = 0;
-  for (const row of assistants) {
-    const gens = countAssistantGenerationTurns(row.alternates, row.content);
-    if (gens > 1) regenExtra += gens - 1;
-  }
-  return userTurns.n + regenExtra;
-}
 
 export function ensureCharacterChatUsersTable(db: Database.Database): void {
   db.exec(`
@@ -90,26 +55,4 @@ export function registerCharacterChatUser(
   if (result.changes === 0) return false;
   db.prepare("UPDATE characters SET chats_count = chats_count + 1 WHERE id=?").run(characterId);
   return true;
-}
-
-/**
- * @deprecated Lifetime counters are not adjusted on room delete.
- * Kept as a no-op so leftover callers cannot decrement totals.
- */
-export function adjustCharacterStatsOnChatDelete(
-  _db: Database.Database,
-  _characterId: number,
-  _userId: number,
-  _chatId: number
-): void {
-  return;
-}
-
-/**
- * One-time / repair helper: seed the unique-user ledger from remaining chats.
- * Does not overwrite characters.chats_count or characters.total_turns —
- * those are lifetime accumulators and must not be recounted from live rooms.
- */
-export function backfillCharacterEngagementStats(db: Database.Database): void {
-  seedCharacterChatUsersLedgerFromChats(db);
 }
