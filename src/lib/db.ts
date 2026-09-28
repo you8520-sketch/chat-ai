@@ -650,8 +650,10 @@ function migrate(db: Database.Database) {
   addColumn("chats", "adult_handoff_enabled", "INTEGER NOT NULL DEFAULT 0");
   /** Explicit OOC authoring override: OFF(inherit base) | LIMITED | DIALOGUE | ACTIONS | FULL | NOVEL | ABSOLUTE. */
   addColumn("chats", "user_coauthor_mode", "TEXT NOT NULL DEFAULT 'OFF'");
-  /** Visible persistent base preference: LIMITED | NORMAL | ALLOW. */
-  addColumn("chats", "user_authoring_level", "TEXT NOT NULL DEFAULT 'LIMITED'");
+  /** Visible persistent base preference for ordinary interactive turns: LIMITED | NORMAL | ALLOW. */
+  addColumn("chats", "user_authoring_level", "TEXT NOT NULL DEFAULT 'NORMAL'");
+  /** Visible persistent base preference for auto progression turns: LIMITED | NORMAL | ALLOW. */
+  addColumn("chats", "auto_progression_authoring_level", "TEXT NOT NULL DEFAULT 'NORMAL'");
   /**
    * Message semantics epoch for user co-authoring reconstruction.
    * 0/1 = legacy semantics (never replayed by the three-level authoring owner).
