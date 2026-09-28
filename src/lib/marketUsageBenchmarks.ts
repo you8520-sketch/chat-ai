@@ -25,6 +25,28 @@ export const GEMINI37_BENCHMARK_A_ID = "gemini37_competitor_a";
 export const GEMINI37_BENCHMARK_B_ID = "gemini37_competitor_b";
 
 export const MODEL_MARKET_BENCHMARKS: Record<string, MarketUsageBenchmark[]> = {
+  "gpt-6-sol": [
+    {
+      id: "gpt6sol_competitor_a",
+      modelId: "gpt-6-sol",
+      inputTokens: 42_839,
+      displayedOutputTokens: 2_756,
+      reasoningAccounting: "unknown",
+      competitorChargePoints: 205.7,
+      sourceLabel: "competitor observed GPT-6 Sol A",
+    },
+    {
+      id: "gpt6sol_competitor_b",
+      modelId: "gpt-6-sol",
+      inputTokens: 40_483,
+      displayedOutputTokens: 2_797,
+      displayedReasoningTokens: 57,
+      reasoningAccounting: "unknown",
+      visibleChars: 4_745,
+      competitorChargePoints: 246,
+      sourceLabel: "competitor observed GPT-6 Sol B",
+    },
+  ],
   "gemini-3.7-flash": [
     {
       id: GEMINI37_BENCHMARK_A_ID,
