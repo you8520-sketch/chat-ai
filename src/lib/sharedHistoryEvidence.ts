@@ -11,6 +11,9 @@
  * separate relationship-history heuristics.
  */
 
+const HARD_PRIOR_SHARED_RELATIONSHIP_CUE =
+  /(?:만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|전에.{0,24}(?:만났|함께|약속|알았|연락)|예전에.{0,24}(?:만났|함께|약속|알았|연락)|지난번.{0,24}(?:만났|함께|약속|알았|연락)|그때\s*우리|네가\s*약속했|(?:유저|사용자).{0,18}(?:친분|인연|관계))/i;
+
 const PRIOR_SHARED_HISTORY_CUE =
   /(?:만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|네가\s*약속했|전에|예전에|지난번|저번(?:에)?|어제|그때|아까|몇\s*(?:차례|번)|그동안|그.{1,30}때|(?:유저|사용자).{0,18}(?:친분|인연|관계))/i;
 
@@ -52,6 +55,14 @@ export function sharedHistorySupportTokens(text: string): string[] {
 
 export function looksLikePriorSharedUserHistory(text: string): boolean {
   return PRIOR_SHARED_HISTORY_CUE.test(text);
+}
+
+/**
+ * Conservative legacy/read-time detector. Use this only when the RAW user
+ * source is unavailable, so old stored milestones are not guessed invalid.
+ */
+export function looksLikeHardPriorSharedUserRelationship(text: string): boolean {
+  return HARD_PRIOR_SHARED_RELATIONSHIP_CUE.test(text);
 }
 
 /**
