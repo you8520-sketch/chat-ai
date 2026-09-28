@@ -332,6 +332,57 @@ export class OfficialSupplyStore {
       .run(batchKey);
   }
 
+  /**
+   * One-way config promotion after every style used by the batch is locked.
+   * Idempotent for the target config and fail-closed on config drift.
+   */
+  promoteBatchConfigAfterStyleLock(
+    batchKey: string,
+    expectedCurrent: OfficialSupplyBatchConfig,
+    next: OfficialSupplyBatchConfig
+  ): OfficialSupplyBatch {
+    const current = this.getBatch(batchKey);
+    if (current.status !== "active") {
+      throw new OfficialSupplyGateError(
+        "batch_paused",
+        `batch ${batchKey} is paused: ${current.pauseReason ?? ""}`
+      );
+    }
+
+    const currentJson = JSON.stringify(current.config);
+    const expectedJson = JSON.stringify(expectedCurrent);
+    const nextJson = JSON.stringify(next);
+    if (currentJson === nextJson) return current;
+    if (currentJson !== expectedJson) {
+      throw new OfficialSupplyGateError(
+        "batch_config_drift",
+        `batch ${batchKey} config differs from both expected proof config and production config`
+      );
+    }
+
+    const unlocked = this.db
+      .prepare(
+        `SELECT DISTINCT c.style_key, s.stage
+           FROM official_supply_characters c
+           JOIN official_supply_styles s ON s.style_key=c.style_key
+          WHERE c.batch_key=? AND s.stage<>'style_locked'`
+      )
+      .all(batchKey) as Array<{ style_key: string; stage: string }>;
+    if (unlocked.length > 0) {
+      throw new OfficialSupplyGateError(
+        "style_not_locked",
+        `batch ${batchKey} contains unlocked styles: ${unlocked
+          .map((row) => `${row.style_key}=${row.stage}`)
+          .join(",")}`
+      );
+    }
+
+    this.db
+      .prepare("UPDATE official_supply_batches SET config_json=? WHERE batch_key=?")
+      .run(nextJson, batchKey);
+    return this.getBatch(batchKey);
+  }
+
   // ── Genre style (STYLE_CANDIDATE_APPROVAL / STYLE_PROOF_APPROVAL) ──────────
 
   proposeStyle(input: {
