@@ -90,6 +90,10 @@ on:
       - ".github/workflows/main-rp-monthly-cache-audit.yml"
       - "scripts/lib/mainRpSupplyRadar.ts"
       - "scripts/lib/mainRpSupplyRadar.test.ts"
+      - "scripts/lib/mainRpSupplyLiveQualificationCredential.ts"
+      - "scripts/lib/mainRpSupplyLiveQualification.ts"
+      - "scripts/lib/mainRpSupplyLiveQualification.test.ts"
+      - "scripts/main-rp-supply-live-qualification.ts"
       - "scripts/main-rp-supply-radar.ts"
       - ".github/workflows/main-rp-supply-radar.yml"
       - "src/services/contextBuilder.ts"
@@ -174,6 +178,7 @@ jobs:
           scripts/lib/rpModelQualificationPacket.test.ts
           scripts/lib/mainRpMonthlyCacheAudit.test.ts
           scripts/lib/mainRpSupplyRadar.test.ts
+          scripts/lib/mainRpSupplyLiveQualification.test.ts
           src/lib/modelPickerPreview.test.ts
           src/lib/cheaperInferenceConfig.test.ts
 
