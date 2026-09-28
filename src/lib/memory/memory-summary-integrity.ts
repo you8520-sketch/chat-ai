@@ -236,6 +236,29 @@ const EPISTEMIC_MARKER =
 const SOURCE_UNCERTAINTY_MARKER =
   /(?:추측|의심|가능성|확실하지|모른|아마|일지도|일\s*수|듯|것\s*같|보인|여긴|판단|진단)/i;
 
+
+/**
+ * Prior/shared-relationship assertions are high-risk when they originate only
+ * from assistant prose. Current-scene actions remain free-form; this guard
+ * targets claims that presuppose a pre-existing user↔character/NPC social edge.
+ */
+const PRIOR_USER_RELATIONSHIP_MARKER =
+  /(?:만난\s*적|아는\s*사이|알고\s*있|알던\s*사이|안부.{0,12}(?:전|부탁|물)|전에.{0,24}(?:만났|함께|약속|알았)|예전에.{0,24}(?:만났|함께|약속|알았)|지난번.{0,24}(?:만났|함께|약속|알았)|그때\s*우리|네가\s*약속했|유저와.{0,16}(?:친분|인연|관계)|사용자와.{0,16}(?:친분|인연|관계))/i;
+
+const USER_RELATIONSHIP_SUPPORT_MARKER =
+  /(?:만난\s*적|봤잖|만났잖|아는\s*사이|알고\s*있|알던|안부|전에|예전에|지난번|그때|약속|함께|친분|인연|관계)/i;
+
+function summaryInventsUnsupportedUserRelationship(
+  summary: string,
+  source: { user: string; assistant: string }
+): boolean {
+  if (!PRIOR_USER_RELATIONSHIP_MARKER.test(summary)) return false;
+  // A user-side relational cue is enough to preserve the user's authored past.
+  if (USER_RELATIONSHIP_SUPPORT_MARKER.test(source.user)) return false;
+  // This guard is specifically for relationship content sourced from assistant raw.
+  return PRIOR_USER_RELATIONSHIP_MARKER.test(source.assistant);
+}
+
 const STRONG_UNCERTAIN_CLAIM =
   /(?:각성|폭주|등급\s*상승|정체|정체성|임신|중독|저주|기억상실|조종|세뇌|배신)/i;
 const CLAIM_TOKEN_STOPWORDS = new Set([
@@ -280,6 +303,9 @@ export function isRollingSummaryGroundedInDialogue(
   if (isLikelySummaryInstructionEcho(summary)) return false;
 
   const source = splitDialogueSources(dialogue);
+  if (summaryInventsUnsupportedUserRelationship(summary, source)) {
+    return false;
+  }
   if (STRONG_GLOBAL_MEMORY_LOSS.test(summary) && !STRONG_GLOBAL_MEMORY_LOSS.test(dialogue)) {
     return false;
   }
