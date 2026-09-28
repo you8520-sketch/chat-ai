@@ -58,6 +58,27 @@ describe("first-turn user authoring transport", () => {
     );
   });
 
+  it("exposes independent three-level controls for ordinary input and auto progression", () => {
+    const settings = source("src/components/ChatSettingsPanel.tsx");
+    const client = source("src/app/chat/[id]/ChatClient.tsx");
+    assert.match(settings, /일반 입력 시 내 행동\/대사 서술/);
+    assert.match(settings, /자동진행 시 내 행동\/대사 서술/);
+    assert.match(settings, /autoProgressionAuthoringLevel/);
+    assert.match(client, /자동진행 · \{autoProgressionAuthoringLevel/);
+  });
+
+  it("routes ordinary and auto turns to different base scopes", () => {
+    const route = source("src/app/api/chat/route.ts");
+    assert.match(
+      route,
+      /scope:\s*autoProgressionEnabled \? "auto_progression" : "interactive"/
+    );
+    assert.match(
+      route,
+      /scope:\s*autoContinueContext \? "auto_progression" : "interactive"/
+    );
+  });
+
   it("injects persona speech style only when the effective owner allows B dialogue", () => {
     const route = source("src/app/api/chat/route.ts");
     assert.match(
