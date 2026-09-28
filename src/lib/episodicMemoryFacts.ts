@@ -345,7 +345,7 @@ export function resolveExplicitUserStatementProvenance(
 }
 
 export function detectUnsupportedEvidenceFact(
-  fact: Pick<EpisodicExtractedFact, "value" | "fact_text" | "evidence_type">,
+  fact: Pick<EpisodicExtractedFact, "category" | "value" | "fact_text" | "evidence_type">,
   sourceUserText?: string | null,
   batchUserSources?: readonly EpisodicBatchUserSource[]
 ):
@@ -356,7 +356,7 @@ export function detectUnsupportedEvidenceFact(
   if (fact.evidence_type === "canon") return "higher_authority_canon_source";
   if (
     !assistantInventedUserRelationshipHasUserSupport(
-      fact as Pick<EpisodicExtractedFact, "category" | "value" | "fact_text" | "evidence_type">,
+      fact,
       sourceUserText,
       batchUserSources
     )
