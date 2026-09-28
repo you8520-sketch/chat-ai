@@ -474,6 +474,41 @@ describe("turnBillableUsage — cache evidence", () => {
     );
   });
 
+  it("Opus 5.5 reported cache write above capped prompt stays chargeable when cache partition is price-neutral", () => {
+    const r = resolveTurnBillableUsage({
+      stages: [
+        stage({
+          stage: "primary",
+          model: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+          input: 40_771,
+          output: 3_808,
+          apiReportedInputTokens: 40_771,
+          apiOutputTokens: 3_808,
+          cacheWriteTokens: 39_702,
+          usageReportingEvidence: {
+            cacheRead: "reported_valid",
+            cacheWrite: "reported_valid",
+            reasoning: "reported_valid",
+          },
+        }),
+      ],
+      modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+      promptAuditTotal: 36_369,
+    });
+
+    assert.equal(r.status, "resolved", JSON.stringify(r.diagnostics));
+    assert.equal(r.usageCoverage, "complete", JSON.stringify(r.diagnostics));
+    assert.equal(r.usage?.promptTokens, 36_369);
+    assert.equal(r.usage?.cacheReadTokens, 0);
+    assert.equal(r.usage?.cacheWriteTokens, 0);
+    assert.equal(r.diagnostics.cacheWriteReported, true);
+    assert.equal(r.diagnostics.fieldSources.cacheWrite, "PROVIDER_REPORTED_EXACT");
+    assert.equal(
+      r.diagnostics.coverageReasons.includes("cache_exceeds_capped_prompt"),
+      false
+    );
+  });
+
   it("D — explicit cache → complete when all evidence present", () => {
     const r = resolveTurnBillableUsage({
       stages: [
