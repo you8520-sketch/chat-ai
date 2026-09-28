@@ -128,11 +128,11 @@ test("price comparison uses canonical tracker representative workload and expose
     pricingCheckedAt:null,
     pricingUpdatedAt:null,
   });
-  assert.ok(comparison.representativeUncachedCostUsd != null);
-  assert.ok(comparison.currentCiRepresentativeUncachedCostUsd != null);
-  assert.equal(comparison.cheaperThanCurrentCiRepresentativeUncached,true);
-  assert.ok((comparison.representativeUncachedCostDeltaPercent ?? 0)<0);
-  assert.ok(comparison.evidenceFlags.includes("LOWER_REPRESENTATIVE_UNCACHED_COST_THAN_CURRENT_CI"));
+  assert.ok(comparison.rawEndpointRepresentativeUncachedRateUsd != null);
+  assert.ok(comparison.currentCiRepresentativeUncachedProcurementUsd != null);
+  assert.equal(comparison.lowerRawEndpointRateThanCurrentCi,true);
+  assert.ok((comparison.rawEndpointRateDeltaVsCurrentCiPercent ?? 0)<0);
+  assert.ok(comparison.evidenceFlags.includes("LOWER_RAW_ENDPOINT_RATE_THAN_CURRENT_CI"));
   assert.equal("score" in comparison,false);
 });
 

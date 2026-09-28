@@ -159,13 +159,13 @@ export type ProcurementBaseline = {
 };
 
 export type SupplyComparison = SupplyEndpointEvidence & {
-  representativeUncachedCostUsd: number | null;
-  currentCiRepresentativeUncachedCostUsd: number | null;
-  representativeUncachedCostDeltaPercent: number | null;
+  rawEndpointRepresentativeUncachedRateUsd: number | null;
+  currentCiRepresentativeUncachedProcurementUsd: number | null;
+  rawEndpointRateDeltaVsCurrentCiPercent: number | null;
   inputPriceDeltaPercent: number | null;
   outputPriceDeltaPercent: number | null;
   cacheReadPriceDeltaPercent: number | null;
-  cheaperThanCurrentCiRepresentativeUncached: boolean | null;
+  lowerRawEndpointRateThanCurrentCi: boolean | null;
   evidenceFlags: string[];
 };
 
@@ -177,7 +177,7 @@ export type SupplyModelReport = {
   endpointCount: number;
   providersDiscovered: string[];
   comparisons: SupplyComparison[];
-  cheaperEndpointCount: number;
+  lowerRawEndpointRateCount: number;
   evidenceFingerprint: string;
 };
 
@@ -323,16 +323,16 @@ export function compareSupplyEndpoint(
   if (endpoint.cacheReadUsdPerMillion != null || endpoint.supportsImplicitCaching === true) {
     flags.push("CACHE_EVIDENCE_PRESENT");
   }
-  if (costDelta != null && costDelta < 0) flags.push("LOWER_REPRESENTATIVE_UNCACHED_COST_THAN_CURRENT_CI");
+  if (costDelta != null && costDelta < 0) flags.push("LOWER_RAW_ENDPOINT_RATE_THAN_CURRENT_CI");
   if (!endpoint.quantization) flags.push("QUANTIZATION_UNSPECIFIED");
   if (!endpoint.provider?.privacyPolicyUrl) flags.push("PRIVACY_POLICY_METADATA_MISSING");
   if (!endpoint.provider?.statusPageUrl) flags.push("STATUS_PAGE_METADATA_MISSING");
 
   return {
     ...endpoint,
-    representativeUncachedCostUsd: candidateCost,
-    currentCiRepresentativeUncachedCostUsd: baselineCost,
-    representativeUncachedCostDeltaPercent: costDelta,
+    rawEndpointRepresentativeUncachedRateUsd: candidateCost,
+    currentCiRepresentativeUncachedProcurementUsd: baselineCost,
+    rawEndpointRateDeltaVsCurrentCiPercent: costDelta,
     inputPriceDeltaPercent: deltaPct(
       endpoint.inputUsdPerMillion,
       baseline?.inputUsdPerMillion ?? null
@@ -345,7 +345,7 @@ export function compareSupplyEndpoint(
       endpoint.cacheReadUsdPerMillion,
       baseline?.cacheReadUsdPerMillion ?? null
     ),
-    cheaperThanCurrentCiRepresentativeUncached:
+    lowerRawEndpointRateThanCurrentCi:
       costDelta == null ? null : costDelta < 0,
     evidenceFlags: flags,
   };
@@ -367,8 +367,8 @@ export function buildMainRpSupplyRadarReport(input: {
     const comparisons = endpoints
       .map((endpoint) => compareSupplyEndpoint(endpoint, baseline))
       .sort((a, b) => {
-        const ac = a.representativeUncachedCostUsd ?? Number.POSITIVE_INFINITY;
-        const bc = b.representativeUncachedCostUsd ?? Number.POSITIVE_INFINITY;
+        const ac = a.rawEndpointRepresentativeUncachedRateUsd ?? Number.POSITIVE_INFINITY;
+        const bc = b.rawEndpointRepresentativeUncachedRateUsd ?? Number.POSITIVE_INFINITY;
         if (ac !== bc) return ac - bc;
         return a.providerName.localeCompare(b.providerName);
       });
@@ -380,8 +380,8 @@ export function buildMainRpSupplyRadarReport(input: {
       endpointCount: comparisons.length,
       providersDiscovered: [...new Set(comparisons.map((x) => x.providerName))].sort(),
       comparisons,
-      cheaperEndpointCount: comparisons.filter(
-        (x) => x.cheaperThanCurrentCiRepresentativeUncached === true
+      lowerRawEndpointRateCount: comparisons.filter(
+        (x) => x.lowerRawEndpointRateThanCurrentCi === true
       ).length,
       evidenceFingerprint: sha(
         comparisons.map((x) => ({
@@ -423,7 +423,7 @@ export function buildMainRpSupplyRadarReport(input: {
     notes: [
       "OBSERVE_ONLY: no production routing/pricing/model registry mutation.",
       "OpenRouter endpoint metrics are market-observed evidence, not this site's own live provider benchmark.",
-      "OpenRouter network endpoint price is not assumed to equal a provider's direct-contract price.",
+      "OpenRouter endpoint rates are screening evidence only: they exclude account/platform fees and are not assumed to equal a provider's direct-contract price or final cash procurement cost.",
       "No composite quality score or automatic provider winner is produced.",
       "Paid live qualification is a separate follow-up using the canonical RP qualification fixture.",
     ],
@@ -482,14 +482,14 @@ export function renderMainRpSupplyRadarMarkdown(report: MainRpSupplyRadarReport)
         ? `Current CI: input $${ci.inputUsdPerMillion ?? "?"}/M · output $${ci.outputUsdPerMillion ?? "?"}/M · cache read $${ci.cacheReadUsdPerMillion ?? "?"}/M`
         : "Current CI: unavailable"
     );
-    lines.push(`OpenRouter market endpoints: ${model.endpointCount} · cheaper representative endpoints: ${model.cheaperEndpointCount}`, "");
-    lines.push("| Provider | In/M | Out/M | Cache/M | Latency p50 | TPS p50 | Uptime 1d | Δ representative |");
+    lines.push(`OpenRouter market endpoints: ${model.endpointCount} · lower raw endpoint-rate candidates: ${model.lowerRawEndpointRateCount}`, "");
+    lines.push("| Provider | In/M | Out/M | Cache/M | Latency p50 | TPS p50 | Uptime 1d | Δ raw endpoint rate |");
     lines.push("|---|---:|---:|---:|---:|---:|---:|---:|");
     for (const e of model.comparisons) {
       const pct =
-        e.representativeUncachedCostDeltaPercent == null
+        e.rawEndpointRateDeltaVsCurrentCiPercent == null
           ? "n/a"
-          : `${(e.representativeUncachedCostDeltaPercent * 100).toFixed(1)}%`;
+          : `${(e.rawEndpointRateDeltaVsCurrentCiPercent * 100).toFixed(1)}%`;
       lines.push(
         `| ${e.providerName} | ${e.inputUsdPerMillion ?? "n/a"} | ${e.outputUsdPerMillion ?? "n/a"} | ${e.cacheReadUsdPerMillion ?? "n/a"} | ${e.latencyP50SecondsLast30m ?? "n/a"} | ${e.throughputP50TokensPerSecondLast30m ?? "n/a"} | ${e.uptimeLast1dPercent ?? "n/a"} | ${pct} |`
       );
