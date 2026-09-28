@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { worldPrivatePromptContent } from "@/lib/worlds";
 import { canUseCharacterInTrpg, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { parseGenresJson } from "@/lib/characterGenres";
 import { defsFromKeys, isCanonicalStatKey, parseStatKeys, preservedLegacyStatKeysFromStored } from "./stats";
@@ -161,11 +162,19 @@ function linkedWorldBundleText(
 ): { worldSummary: string; worldContent: string } {
   if (!worldId) return { worldSummary: "", worldContent: "" };
   try {
-    const row = db.prepare(`SELECT summary, content FROM worlds WHERE id=?`).get(worldId) as
-      | { summary: string | null; content: string | null }
+    const row = db
+      .prepare(`SELECT summary, content, COALESCE(secret_content, '') AS secret_content FROM worlds WHERE id=?`)
+      .get(worldId) as
+      | { summary: string | null; content: string | null; secret_content: string | null }
       | undefined;
     if (!row) return { worldSummary: "", worldContent: "" };
-    return { worldSummary: String(row.summary ?? ""), worldContent: String(row.content ?? "") };
+    return {
+      worldSummary: String(row.summary ?? ""),
+      worldContent: worldPrivatePromptContent(
+        String(row.content ?? ""),
+        String(row.secret_content ?? "")
+      ),
+    };
   } catch {
     return { worldSummary: "", worldContent: "" };
   }
