@@ -1,7 +1,7 @@
 [build]
 builder = "RAILPACK"
-buildCommand = "npm ci"
+buildCommand = "echo rp-qual-disabled"
 
 [deploy]
-startCommand = "node --conditions=react-server --import tsx scripts/tmp-mimo-v26-canonical-two-run.ts"
+startCommand = "node -e \"process.exit(0)\""
 restartPolicyType = "NEVER"
