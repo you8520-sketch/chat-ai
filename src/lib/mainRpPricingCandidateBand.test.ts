@@ -10,7 +10,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   MAIN_RP_MODEL_IDS,
 } from "@/lib/chatModels";
@@ -715,23 +715,25 @@ describe("mainRpPricingCandidateBand — integration", () => {
     assert.ok(row.candidate.minimumSafeTargetMargin != null);
   });
 
-  it("Terra published anchor does not become hard comparable ceiling", () => {
+  it("GPT-6 Sol hard benchmarks bound the target margin without changing the 13% price", () => {
     clearCheaperInferenceCatalogPricingForTest();
     const db = makeDb();
-    insertCompletedCiSnapshot(db, CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, "2026-09-22T03:00:00.000Z", {
+    insertCompletedCiSnapshot(db, CHEAPER_INFERENCE_GPT_6_SOL_MODEL, "2026-09-22T03:00:00.000Z", {
       input: 1.4,
-      output: 8.4,
+      output: 7,
       discount: 30,
     });
     const row = buildMainRpPricingObservabilityProjection({
       fxSnapshot: FX_FIXTURE,
       now: NOW,
       db,
-    }).models.find((candidate) => candidate.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)!;
-    assert.equal(row.market.comparabilityStatus, "published_anchor");
-    assert.equal(row.candidate.market.hardBenchmarkCount, 0);
-    assert.equal(row.candidate.maximumCompetitiveTargetMargin, null);
-    assert.equal(row.candidate.status, "HOLD_NO_HARD_MARKET_EVIDENCE");
+    }).models.find((candidate) => candidate.modelId === CHEAPER_INFERENCE_GPT_6_SOL_MODEL)!;
+    assert.equal(row.market.comparabilityStatus, "hard_comparable");
+    assert.equal(row.candidate.market.hardBenchmarkCount, 2);
+    assert.ok(row.candidate.maximumCompetitiveTargetMargin != null);
+    assert.equal(row.candidate.currentTargetMargin, 0.13);
+    assert.equal(row.candidate.status, "KEEP_CURRENT");
+    assert.equal(row.candidate.candidateTargetMargin, 0.13);
   });
 
   it("P — candidate projection does not mutate published catalog", () => {
