@@ -33,7 +33,13 @@ it("only the workflow CLI consumes the lab outside its own directory", () => {
 });
 
 it("research cadence is not an in-process production scheduler job", () => {
-  assert.deepEqual(Object.keys(SCHEDULER_DEFINITIONS).sort(), ["finance_daily", "payout_monthly", "training_daily", "training_weekly"]);
+  assert.deepEqual(Object.keys(SCHEDULER_DEFINITIONS).sort(), [
+    "finance_daily",
+    "main_rp_cache_ttl_monthly",
+    "payout_monthly",
+    "training_daily",
+    "training_weekly",
+  ]);
   assert.doesNotMatch(readFileSync("server.js", "utf8"), /memoryResearch|memory-research/);
 });
 
