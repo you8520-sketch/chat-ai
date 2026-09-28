@@ -15,6 +15,10 @@ import {
   type MemorySourceBoundary,
 } from "@/lib/memory/memory-source-boundary";
 import { EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES } from "@/lib/historicalTruthPolicy";
+import {
+  looksLikePriorSharedUserHistory,
+  userTextSupportsPriorSharedHistoryClaim,
+} from "@/lib/sharedHistoryEvidence";
 import { sanitizeRecalledMemoryFactText } from "@/lib/runtimePromptContaminationGuard";
 import {
   decodeEmbeddingBlob,
@@ -286,9 +290,6 @@ function normalizeEvidenceToken(token: string): string {
     .replace(/(?:에게서|으로서|으로|에서|에게|께서|부터|까지|처럼|보다|은|는|이|가|을|를|의|에|와|과|도|만|로)$/u, "");
 }
 
-const PRIOR_USER_RELATIONSHIP_FACT =
-  /(?:만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|전에.{0,24}(?:만났|함께|약속|알았|연락)|예전에.{0,24}(?:만났|함께|약속|알았|연락)|지난번.{0,24}(?:만났|함께|약속|알았|연락)|그때\s*우리|네가\s*약속했|유저와.{0,16}(?:친분|인연|관계)|사용자와.{0,16}(?:친분|인연|관계))/i;
-
 function assistantInventedUserRelationshipHasUserSupport(
   fact: Pick<EpisodicExtractedFact, "category" | "value" | "fact_text" | "evidence_type">,
   sourceUserText?: string | null,
@@ -297,16 +298,17 @@ function assistantInventedUserRelationshipHasUserSupport(
   if (fact.category !== "relationship" || fact.evidence_type !== "explicit_scene_event") {
     return true;
   }
-  if (!PRIOR_USER_RELATIONSHIP_FACT.test(`${fact.value ?? ""}\n${fact.fact_text ?? ""}`)) {
+  const claimText = `${fact.value ?? ""}\n${fact.fact_text ?? ""}`;
+  if (!looksLikePriorSharedUserHistory(claimText)) {
     return true;
   }
   if (batchUserSources?.length) {
     return batchUserSources.some((source) =>
-      explicitUserStatementHasRawSupport(fact, source.text)
+      userTextSupportsPriorSharedHistoryClaim(claimText, source.text)
     );
   }
   if (sourceUserText !== undefined) {
-    return explicitUserStatementHasRawSupport(fact, sourceUserText ?? "");
+    return userTextSupportsPriorSharedHistoryClaim(claimText, sourceUserText ?? "");
   }
   return false;
 }
