@@ -289,9 +289,6 @@ function normalizeEvidenceToken(token: string): string {
 const PRIOR_USER_RELATIONSHIP_FACT =
   /(?:만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|전에.{0,24}(?:만났|함께|약속|알았|연락)|예전에.{0,24}(?:만났|함께|약속|알았|연락)|지난번.{0,24}(?:만났|함께|약속|알았|연락)|그때\s*우리|네가\s*약속했|유저와.{0,16}(?:친분|인연|관계)|사용자와.{0,16}(?:친분|인연|관계))/i;
 
-const USER_RELATIONSHIP_SOURCE_SUPPORT =
-  /(?:만난\s*적|봤잖|만났잖|아는\s*사이|알던|안부|전에|예전에|지난번|그때|약속|함께|친분|인연|관계)/i;
-
 function assistantInventedUserRelationshipHasUserSupport(
   fact: Pick<EpisodicExtractedFact, "category" | "value" | "fact_text" | "evidence_type">,
   sourceUserText?: string | null,
@@ -303,10 +300,15 @@ function assistantInventedUserRelationshipHasUserSupport(
   if (!PRIOR_USER_RELATIONSHIP_FACT.test(`${fact.value ?? ""}\n${fact.fact_text ?? ""}`)) {
     return true;
   }
-  const userText = batchUserSources?.length
-    ? batchUserSources.map((source) => source.text).join("\n")
-    : sourceUserText ?? "";
-  return USER_RELATIONSHIP_SOURCE_SUPPORT.test(userText);
+  if (batchUserSources?.length) {
+    return batchUserSources.some((source) =>
+      explicitUserStatementHasRawSupport(fact, source.text)
+    );
+  }
+  if (sourceUserText !== undefined) {
+    return explicitUserStatementHasRawSupport(fact, sourceUserText ?? "");
+  }
+  return false;
 }
 
 function explicitUserStatementHasRawSupport(
