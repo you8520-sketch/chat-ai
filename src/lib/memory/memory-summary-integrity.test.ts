@@ -228,6 +228,19 @@ describe("rolling summary source grounding", () => {
     );
   });
 
+  it("does not treat an unrelated 'before' cue as corroboration", () => {
+    const dialogue =
+      "[1턴]\n유저: 전에 먹었던 메뉴 뭐였지?\n태형: 태형은 휴대폰을 내려놓으며 말했다. 누나가 렌한테 안부 전해달래.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "태형의 누나는 렌과 아는 사이이며 태형에게 렌의 안부를 전해 달라고 했다.",
+        dialogue,
+        "이름/호칭: 렌"
+      ),
+      false
+    );
+  });
+
   it("does not block unrelated character backstory", () => {
     const dialogue =
       "[1턴]\n유저: 가족 이야기도 해줘.\n태형: 태형은 누나와 예전에 한동안 함께 살았다고 말했다.";
