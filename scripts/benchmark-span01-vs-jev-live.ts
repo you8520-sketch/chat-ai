@@ -161,6 +161,7 @@ function toSpanNoulQuestions(questions: JevDecisionQuestions): JevDecisionQuesti
           `Behavior label ${label}. ${definition} ` +
           "Judge whether this label is the best semantic description of the assistant output under the supplied constraints. " +
           "Treat competing labels as alternatives; return the probability this label applies.",
+      };
     }
   }
   return out;
