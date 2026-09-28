@@ -28,6 +28,17 @@ describe("code health isolation", () => {
     assert.doesNotMatch(readFileSync("src/lib/schedulerDefinitions.ts", "utf8"), /codeHealth|code-health/);
   });
 
+  it("serializes weekly/monthly writes to the shared ledger and audits production JSON too", () => {
+    const weekly = readFileSync(".github/workflows/code-health-weekly-audit.yml", "utf8");
+    const monthly = readFileSync(".github/workflows/code-health-monthly-cleanup.yml", "utf8");
+    assert.match(weekly, /group:\s*code-health-ledger/);
+    assert.match(monthly, /group:\s*code-health-ledger/);
+    assert.doesNotMatch(weekly, /:\!\*\.json/);
+    assert.doesNotMatch(monthly, /:\!\*\.json/);
+    assert.match(weekly, /git diff --exit-code -- \. ':!artifacts'/);
+    assert.match(monthly, /git diff --exit-code -- \. ':!artifacts'/);
+  });
+
   it("weekly audit and monthly cleanup never mutate production or auto-merge", () => {
     assert.equal(CODE_HEALTH_AUDIT_MUTATES_PRODUCTION, false);
     assert.equal(CODE_HEALTH_CLEANUP_AUTO_MERGE, false);
