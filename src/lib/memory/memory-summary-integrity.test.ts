@@ -194,6 +194,37 @@ describe("rolling summary source grounding", () => {
     );
   });
 
+  it("does not canonize an assistant-only offscreen past event", () => {
+    const dialogue =
+      "[1턴]\n유저: 뭐 먹을까?\n태형: 태형은 문득 떠올랐다는 듯 말했다. 누나가 어제 연락해서 밥 챙기라고 했다.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "태형의 누나는 어제 연락해서 밥을 챙기라고 했다.",
+        dialogue
+      ),
+      false
+    );
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "태형은 누나가 어제 연락해서 밥을 챙기라고 했다고 말했다.",
+        dialogue
+      ),
+      true
+    );
+  });
+
+  it("allows an offscreen past event when the user source independently confirms it", () => {
+    const dialogue =
+      "[1턴]\n유저: 누나가 어제 연락해서 밥 챙기라고 했지?\n태형: 태형은 고개를 끄덕였다.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "태형의 누나는 어제 연락해서 밥을 챙기라고 했다.",
+        dialogue
+      ),
+      true
+    );
+  });
+
   it("accepts a normal RP scene summary that paraphrases character perception", () => {
     const dialogue =
       "[1턴]\n유저: 나 본 적 있어?\n라이크: 라이크는 렌의 체향에서 최소 S급 이상으로 추정되는 가이딩 파장을 감지했다. 곁에 있으면 감각 과부하가 사라지는 것을 느꼈다.\n\n[2턴]\n유저: 맛있는 거 먹으러 가자\n라이크: 라이크는 렌을 번화가로 데려갔다.";
