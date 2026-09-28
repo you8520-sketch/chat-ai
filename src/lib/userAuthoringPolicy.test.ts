@@ -9,8 +9,8 @@ import {
 } from "@/lib/userCoauthorState";
 
 describe("three-level user authoring policy", () => {
-  it("normalizes unknown/legacy values to LIMITED", () => {
-    assert.equal(parseUserAuthoringLevel(undefined), "LIMITED");
+  it("defaults missing values to NORMAL while invalid values fail closed", () => {
+    assert.equal(parseUserAuthoringLevel(undefined), "NORMAL");
     assert.equal(parseUserAuthoringLevel("unknown"), "LIMITED");
     assert.equal(parseUserAuthoringLevel("normal"), "NORMAL");
     assert.equal(parseUserAuthoringLevel("allow"), "ALLOW");
