@@ -6082,6 +6082,7 @@ export default function ChatClient({
             <div className="flex shrink-0 flex-col gap-1">
               <button
                 type="button"
+                aria-label="자동진행"
                 onClick={sendContinue}
                 disabled={inputLocked || !canContinue}
                 title={`AI 답변 직후 서사를 이어갑니다. 자동진행 서술 범위: ${
