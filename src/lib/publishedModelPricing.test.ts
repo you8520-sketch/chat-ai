@@ -3,10 +3,11 @@ import { describe, it } from "node:test";
 import { getPublishedPricing, listExactPublishedCatalogEntries } from "./publishedModelPricing";
 import { evaluateGemini37V2AcceptanceGates } from "./gemini37PricingPolicy";
 import { evaluatePremiumPricingGates } from "./premiumPricingCalibration";
-import { requirePrimaryBenchmark } from "./marketUsageBenchmarks";
+import { getMarketBenchmarks, requirePrimaryBenchmark } from "./marketUsageBenchmarks";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
 } from "./chatModels";
 import { normalizeBillableUsage } from "./billingUsage";
 import {
@@ -140,6 +141,34 @@ describe("publishedModelPricing", () => {
       assert.equal(live.snapshot.pricingVersion, 1);
       assert.equal(live.snapshot.targetMargin, 0.6);
     }
+  });
+
+  it("GPT-6 Sol official Standard pricing stays market-calibrated at 13%", () => {
+    const sol = getPublishedPricing(CHEAPER_INFERENCE_GPT_6_SOL_MODEL);
+    assert.equal(sol.modelId, CHEAPER_INFERENCE_GPT_6_SOL_MODEL);
+    assert.equal(sol.billingReferenceInputUsdPerMillion, 2);
+    assert.equal(sol.billingReferenceCacheReadUsdPerMillion, 0.2);
+    assert.equal(sol.billingReferenceCacheWriteUsdPerMillion, 2.5);
+    assert.equal(sol.billingReferenceOutputUsdPerMillion, 10);
+    assert.equal(sol.targetMargin, 0.13);
+    assert.equal(sol.minimumMarginFloor, 0.05);
+    assert.equal(sol.pricingApplicability, "base_tier_only");
+    assert.equal(sol.publishedBaseTierMaxPromptTokens, 272_000);
+
+    const benchmarks = getMarketBenchmarks(CHEAPER_INFERENCE_GPT_6_SOL_MODEL);
+    assert.equal(benchmarks.length, 2);
+    assert.equal(benchmarks[0]?.competitorChargePoints, 205.7);
+    assert.equal(benchmarks[1]?.competitorChargePoints, 246);
+
+    assert.equal(
+      computePublishedStandardPreviewPoints({
+        modelId: CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
+        promptTokens: 42_839,
+        outputTokens: 2_756,
+        effectiveKrwPerUsd: 1560.6,
+      }),
+      204
+    );
   });
 
   it("Opus 5.5 published user charge is cache-partition price-neutral", () => {
