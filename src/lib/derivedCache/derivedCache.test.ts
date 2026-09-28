@@ -358,9 +358,20 @@ async function runDeferredRaceAfterSave(input: {
   const workerPromise = processDerivedCacheJob(input.db, input.job);
   await waitFor(() => input.deferred.pendingCount > 0);
   await input.save();
-  while (input.deferred.pendingCount > 0) {
-    const body = input.deferred.bodies[input.deferred.calls - input.deferred.pendingCount] ?? "";
-    resolveDeferredFetchBody(input.deferred, body);
+
+  // A stale worker can issue another provider call after the save completes.
+  // Keep draining newly-created deferred fetches until the worker actually settles.
+  while (true) {
+    while (input.deferred.pendingCount > 0) {
+      const body =
+        input.deferred.bodies[input.deferred.calls - input.deferred.pendingCount] ?? "";
+      resolveDeferredFetchBody(input.deferred, body);
+    }
+    const state = await Promise.race([
+      workerPromise.then(() => "done" as const),
+      new Promise<"pending">((resolve) => setTimeout(() => resolve("pending"), 15)),
+    ]);
+    if (state === "done") break;
   }
   await workerPromise;
 }
