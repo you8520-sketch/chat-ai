@@ -1,0 +1,70 @@
+name: Validate code health audit
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/codeHealth/**"
+      - "src/lib/adminAutomationReports.ts"
+      - "src/lib/adminAutomationReports.test.ts"
+      - "src/app/admin/automation-reports/page.tsx"
+      - "src/lib/schedulerDefinitions.ts"
+      - "src/lib/schedulerRunRegistry.ts"
+      - "src/lib/schedulerRunRegistry.test.ts"
+      - "scripts/code-health-audit.ts"
+      - "scripts/code-health-monthly-cleanup.ts"
+      - "package.json"
+      - ".github/workflows/code-health-weekly-audit.yml"
+      - ".github/workflows/code-health-monthly-cleanup.yml"
+      - ".github/workflows/validate-code-health-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SESSION_SECRET: "01234567890123456789012345678901"
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      OPENROUTER_API_KEY: ""
+      OPENAI_API_KEY: ""
+      CHEAPER_INFERENCE_API_KEY: ""
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Diff hygiene
+        run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+      - name: App typecheck
+        run: npm run typecheck:app
+      - name: Code health + automation report regressions
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
+          src/lib/codeHealth/audit.test.ts
+          src/lib/codeHealth/cleanup.test.ts
+          src/lib/codeHealth/reports.test.ts
+          src/lib/codeHealth/isolation.test.ts
+          src/lib/adminAutomationReports.test.ts
+          src/lib/schedulerRunRegistry.test.ts
+      - name: Production build
+        run: npm run build
+      - name: Prove weekly CLI does not write outside out dir
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/code-health-cli-out
+          node --conditions=react-server --import tsx scripts/code-health-audit.ts \
+            --out /tmp/code-health-cli-out \
+            --ledger /tmp/code-health-cli-out/ledger.json \
+            --main-sha cli-proof
+          test -f /tmp/code-health-cli-out/weekly.json
+          test -f /tmp/code-health-cli-out/REPORT.md
+          git diff --exit-code -- . ':!artifacts'

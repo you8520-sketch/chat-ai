@@ -3,6 +3,11 @@ import { redirect } from "next/navigation";
 
 import { requireAdminUser } from "@/lib/adminAuth";
 import { fetchGithubScheduledAutomationProjection } from "@/lib/adminAutomationReports";
+import {
+  fetchCodeHealthAdminProjection,
+  formatCodeHealthDeltaLines,
+  type CodeHealthAdminCard,
+} from "@/lib/codeHealth/reports";
 import { getDb } from "@/lib/db";
 import { listMainRpCacheTtlReports } from "@/lib/mainRpCacheTtlEconomics";
 import { listSchedulerRunOverview } from "@/lib/schedulerRunRegistry";
@@ -42,6 +47,115 @@ function badgeClass(state: string): string {
   return "bg-amber-500/15 text-amber-300";
 }
 
+function codeHealthStatusLabel(status: CodeHealthAdminCard["status"]): string {
+  switch (status) {
+    case "SUCCESS":
+      return "SUCCESS";
+    case "WARNING":
+      return "WARNING";
+    case "FAILED":
+      return "FAILED";
+    case "EMPTY":
+      return "기록 없음";
+    case "UNAVAILABLE":
+      return "UNAVAILABLE";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
+function CodeHealthCard({ card }: { card: CodeHealthAdminCard }) {
+  const counts = card.counts;
+  return (
+    <section className="rounded-2xl border border-cyan-500/20 bg-cyan-950/10 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-black text-cyan-200">
+            {card.kind === "weekly" ? "Weekly Code Health" : "Monthly Cleanup"}
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+            {card.kind === "weekly"
+              ? "주 1회 read-only 코드 헬스 감사입니다. production 코드를 수정하지 않으며, 분석기 결과는 삭제 증거가 아닙니다."
+              : "월 1회 이전 weekly 결과를 합쳐 cleanup candidate set만 만듭니다. 자동 merge하지 않습니다."}
+          </p>
+        </div>
+        <span className={"rounded px-2 py-1 text-xs font-bold " + badgeClass(card.status)}>
+          {codeHealthStatusLabel(card.status)}
+        </span>
+      </div>
+      <p className="mt-3 text-xs text-zinc-500">실행 시각 · {fmtDate(card.ranAt)}</p>
+      {counts ? (
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="rounded-xl bg-black/20 p-3">
+            <p className="text-[11px] text-zinc-500">신규 발견</p>
+            <p className="mt-1 font-bold">{counts.newFindings}</p>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <p className="text-[11px] text-zinc-500">resolved</p>
+            <p className="mt-1 font-bold">{counts.resolved}</p>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <p className="text-[11px] text-zinc-500">SAFE_TO_DELETE</p>
+            <p className="mt-1 font-bold">{counts.safeToDelete}</p>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <p className="text-[11px] text-zinc-500">REQUIRED_CLEANUP</p>
+            <p className="mt-1 font-bold">{counts.requiredCleanup}</p>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <p className="text-[11px] text-zinc-500">FOLLOW_UP</p>
+            <p className="mt-1 font-bold">{counts.followUp}</p>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <p className="text-[11px] text-zinc-500">duplicate owner</p>
+            <p className="mt-1 font-bold">{counts.duplicateOwners}</p>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <p className="text-[11px] text-zinc-500">unused file / export / dep</p>
+            <p className="mt-1 font-bold">
+              {counts.unusedFiles} / {counts.unusedExports} / {counts.unusedDependencies}
+            </p>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <p className="text-[11px] text-zinc-500">obsolete flag/env · CI anomaly</p>
+            <p className="mt-1 font-bold">
+              {counts.obsoleteFlagsEnvs} · {counts.runtimeCiAnomalies}
+            </p>
+          </div>
+        </div>
+      ) : null}
+      <div className="mt-3 rounded-xl border border-white/5 p-3 text-xs text-zinc-400">
+        <p className="text-[11px] text-zinc-500">지난 실행 대비 delta</p>
+        <ul className="mt-1 space-y-0.5">
+          {formatCodeHealthDeltaLines(card.delta).map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </div>
+      {card.kind === "monthly" ? (
+        <p className="mt-3 text-xs text-zinc-500">
+          cleanup Draft PR: {card.draftPrCreated ? "생성됨" : "없음"}
+          {card.eligibleCount != null ? ` · eligible ${card.eligibleCount}` : ""}
+        </p>
+      ) : null}
+      {card.githubRunUrl ? (
+        <div className="mt-3">
+          <a
+            href={card.githubRunUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-white/5"
+          >
+            상세 GitHub run / report ↗
+          </a>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function ttlRecommendationLabel(value: string): string {
   if (value === "KEEP_5M") return "5분 TTL 유지가 유리";
   if (value === "ONE_HOUR_WOULD_BE_CHEAPER_IF_SUPPORTED") {
@@ -56,6 +170,7 @@ export default async function AdminAutomationReportsPage() {
 
   const db = getDb();
   const github = await fetchGithubScheduledAutomationProjection();
+  const codeHealth = await fetchCodeHealthAdminProjection(github.groups);
   const ttlReports = listMainRpCacheTtlReports(db, 12);
   const schedulers = listSchedulerRunOverview(db);
   const latestTtl = ttlReports[0] ?? null;
@@ -64,6 +179,9 @@ export default async function AdminAutomationReportsPage() {
   ).length;
   const schedulerProblems = schedulers.filter((row) =>
     ["FAILED", "STALE", "STALE_BLOCKED", "MISSING"].includes(row.state)
+  ).length;
+  const codeHealthProblems = [codeHealth.weekly.status, codeHealth.monthly.status].filter(
+    (status) => status === "WARNING" || status === "FAILED" || status === "UNAVAILABLE"
   ).length;
 
   return (
@@ -101,11 +219,16 @@ export default async function AdminAutomationReportsPage() {
         <div className="rounded-2xl border border-white/10 bg-[#11131a] p-4">
           <p className="text-xs text-zinc-500">확인 필요</p>
           <p className="mt-2 text-2xl font-black text-amber-300">
-            {githubFailures + schedulerProblems}건
+            {githubFailures + schedulerProblems + codeHealthProblems}건
           </p>
           <p className="mt-1 text-xs text-zinc-600">실패·누락·stale 최신 상태</p>
         </div>
       </section>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <CodeHealthCard card={codeHealth.weekly} />
+        <CodeHealthCard card={codeHealth.monthly} />
+      </div>
 
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">

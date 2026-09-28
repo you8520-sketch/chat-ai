@@ -15,6 +15,7 @@ import {
   shouldAttemptRuntimeRecovery,
 } from "@/lib/schedulerRunRegistry";
 import {
+  SCHEDULER_DEFINITIONS,
   isSchedulerJobEnabled,
   schedulerCronExpression,
 } from "@/lib/schedulerDefinitions";
@@ -45,6 +46,14 @@ function makeStale(
 }
 
 describe("scheduler definitions", () => {
+  it("does not register code-health jobs on the Railway durable scheduler", () => {
+    assert.equal("code_health_weekly" in SCHEDULER_DEFINITIONS, false);
+    assert.equal("code_health_monthly" in SCHEDULER_DEFINITIONS, false);
+    const names = Object.keys(SCHEDULER_DEFINITIONS);
+    assert.equal(names.includes("finance_daily"), true);
+    assert.equal(names.some((name) => name.includes("code_health") || name.includes("codeHealth")), false);
+  });
+
   it("preserves existing production cron expressions from one canonical owner", () => {
     assert.equal(schedulerCronExpression("finance_daily"), "0 12 * * *");
     assert.equal(schedulerCronExpression("payout_monthly"), "0 3 15 * *");
