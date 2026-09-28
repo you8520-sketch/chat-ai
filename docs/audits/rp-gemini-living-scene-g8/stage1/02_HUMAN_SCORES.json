@@ -1,0 +1,389 @@
+{
+  "scores": {
+    "Gemini_N1_A_D1": {
+      "total": 59,
+      "breakdown": {
+        "scene": 8,
+        "immersion": 13,
+        "character": 11,
+        "length": 3,
+        "dialogue": 7,
+        "continuity": 8,
+        "agency": 9
+      },
+      "agency_class": "ALLOWED",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "environment response",
+        "new information",
+        "relationship movement",
+        "local scene progression",
+        "consequence"
+      ],
+      "notes": "Short rest beat; thin new value"
+    },
+    "Gemini_N1_A_D2": {
+      "total": 69,
+      "breakdown": {
+        "scene": 15,
+        "immersion": 16,
+        "character": 10,
+        "length": 8,
+        "dialogue": 8,
+        "continuity": 6,
+        "agency": 6
+      },
+      "agency_class": "MODERATE",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "memory",
+        "environment",
+        "NPC",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "Living threat escalate; calm rest undercut"
+    },
+    "Gemini_N1_B_D1": {
+      "total": 43,
+      "breakdown": {
+        "scene": 10,
+        "immersion": 11,
+        "character": 9,
+        "length": 5,
+        "dialogue": 5,
+        "continuity": 1,
+        "agency": 2
+      },
+      "agency_class": "SEVERE",
+      "severe": true,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "memory",
+        "environment",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "SEVERE: restages user dialogue verbatim; assigns drink/relief; ends rest unilaterally"
+    },
+    "Gemini_N1_B_D2": {
+      "total": 71,
+      "breakdown": {
+        "scene": 14,
+        "immersion": 17,
+        "character": 11,
+        "length": 12,
+        "dialogue": 8,
+        "continuity": 7,
+        "agency": 2
+      },
+      "agency_class": "SEVERE",
+      "severe": true,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "memory",
+        "environment",
+        "NPC",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "SEVERE: multi-step follow after AI abort rest + countdown; strong craft/length"
+    },
+    "Gemini_N2_A_D1": {
+      "total": 63,
+      "breakdown": {
+        "scene": 12,
+        "immersion": 12,
+        "character": 12,
+        "length": 4,
+        "dialogue": 8,
+        "continuity": 8,
+        "agency": 7
+      },
+      "agency_class": "MODERATE",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "memory",
+        "environment",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "Trap diagnosis; short; weak NPC autonomy"
+    },
+    "Gemini_N2_A_D2": {
+      "total": 70,
+      "breakdown": {
+        "scene": 15,
+        "immersion": 14,
+        "character": 13,
+        "length": 8,
+        "dialogue": 7,
+        "continuity": 7,
+        "agency": 6
+      },
+      "agency_class": "MODERATE",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "memory",
+        "environment",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "Spore-sac env threat; static organism"
+    },
+    "Gemini_N2_B_D1": {
+      "total": 82,
+      "breakdown": {
+        "scene": 18,
+        "immersion": 17,
+        "character": 14,
+        "length": 13,
+        "dialogue": 8,
+        "continuity": 9,
+        "agency": 3
+      },
+      "agency_class": "SEVERE",
+      "severe": true,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "memory",
+        "environment",
+        "NPC action",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "Best world motion; SEVERE multi-step Ren hide/compliance chain"
+    },
+    "Gemini_N2_B_D2": {
+      "total": 74,
+      "breakdown": {
+        "scene": 17,
+        "immersion": 15,
+        "character": 13,
+        "length": 7,
+        "dialogue": 8,
+        "continuity": 8,
+        "agency": 6
+      },
+      "agency_class": "MODERATE",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "environment",
+        "NPC action",
+        "new information",
+        "relationship",
+        "consequence",
+        "progression"
+      ],
+      "notes": "Strong NPC validation of alley; shorter"
+    },
+    "Gemini_N3_A_D1": {
+      "total": 64,
+      "breakdown": {
+        "scene": 14,
+        "immersion": 15,
+        "character": 13,
+        "length": 6,
+        "dialogue": 8,
+        "continuity": 6,
+        "agency": 2
+      },
+      "agency_class": "SEVERE",
+      "severe": true,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "environment",
+        "NPC",
+        "new information",
+        "progression"
+      ],
+      "notes": "Assist OK then SEVERE follow/corridor puppet"
+    },
+    "Gemini_N3_A_D2": {
+      "total": 72,
+      "breakdown": {
+        "scene": 14,
+        "immersion": 14,
+        "character": 14,
+        "length": 3,
+        "dialogue": 9,
+        "continuity": 9,
+        "agency": 9
+      },
+      "agency_class": "ALLOWED",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "AI internal judgment",
+        "environment",
+        "consequence"
+      ],
+      "notes": "Clean assist; length collapse 752"
+    },
+    "Gemini_N3_B_D1": {
+      "total": 61,
+      "breakdown": {
+        "scene": 12,
+        "immersion": 13,
+        "character": 12,
+        "length": 4,
+        "dialogue": 7,
+        "continuity": 5,
+        "agency": 8
+      },
+      "agency_class": "ALLOWED",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "environment",
+        "new information",
+        "progression"
+      ],
+      "notes": "Assist+world hush; lore pad; no severe"
+    },
+    "Gemini_N3_B_D2": {
+      "total": 67,
+      "breakdown": {
+        "scene": 13,
+        "immersion": 15,
+        "character": 13,
+        "length": 5,
+        "dialogue": 8,
+        "continuity": 6,
+        "agency": 7
+      },
+      "agency_class": "MODERATE",
+      "severe": false,
+      "carriers": [
+        "AI action",
+        "AI perception",
+        "environment",
+        "NPC",
+        "progression"
+      ],
+      "notes": "Holds light through stalker pass; mild goal push"
+    }
+  },
+  "summary": {
+    "blind_means": {
+      "A": 66.17,
+      "B": 66.33,
+      "B_minus_A": 0.17
+    },
+    "by_fixture_means": {
+      "N1": {
+        "A": 64,
+        "B": 57,
+        "B_minus_A": -7
+      },
+      "N2": {
+        "A": 66.5,
+        "B": 78,
+        "B_minus_A": 11.5
+      },
+      "N3": {
+        "A": 68,
+        "B": 64,
+        "B_minus_A": -4
+      }
+    },
+    "by_fixture_chars": {
+      "N1": {
+        "A": [
+          1245,
+          2577
+        ],
+        "B": [
+          1814,
+          4177
+        ],
+        "A_median": 1911.0,
+        "B_median": 2995.5
+      },
+      "N2": {
+        "A": [
+          1045,
+          1983
+        ],
+        "B": [
+          3124,
+          1913
+        ],
+        "A_median": 1514.0,
+        "B_median": 2518.5
+      },
+      "N3": {
+        "A": [
+          1873,
+          752
+        ],
+        "B": [
+          2283,
+          2209
+        ],
+        "A_median": 1312.5,
+        "B_median": 2246.0
+      }
+    },
+    "severe_agency": {
+      "A": 1,
+      "B": 3
+    },
+    "systematic_length_collapse_B": "NO",
+    "n1_n2_B_median_ge_3000": {
+      "N1": false,
+      "N2": false
+    },
+    "stage1": "GEMINI_LIVING_SCENE_CONTRACT_FAIL",
+    "failure_class": [
+      "AGENCY_TAKEOVER",
+      "TOO_VERBOSE_FILLER"
+    ],
+    "secondary_notes": [
+      "B opens world-motion channels (N2 craft↑) but co-narration overshoots into multi-step user chains",
+      "N1 calm rest often aborted into threat/move; B_D1 replay of user dialogue",
+      "Overall blind mean not materially above A (+0.16 << +5 gate)",
+      "No systematic B length collapse; N1 B median≈2996, N2 B median≈2519"
+    ],
+    "regression_g3_g5_g6": "NOT_RUN",
+    "production_wire": "NOT_RUN",
+    "merge": "NOT_RUN",
+    "overall": "GEMINI_PROMPT_ARCHITECTURE_NOT_PROVEN"
+  }
+}
