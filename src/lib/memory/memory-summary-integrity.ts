@@ -248,6 +248,9 @@ const PRIOR_USER_RELATIONSHIP_MARKER =
 const USER_RELATIONSHIP_SUPPORT_MARKER =
   /(?:만난\s*적|봤잖|만났잖|아는\s*사이|알고\s*있|알던|안부|전에|예전에|지난번|그때|약속|함께|친분|인연|관계)/i;
 
+const ATTRIBUTED_RELATIONSHIP_CLAIM_MARKER =
+  /(?:말했|말하였다|밝혔|밝혔다|주장했|주장하였다|전했|전하였다|언급했|언급하였다|설명했|설명하였다|부탁했다고\s*말)/i;
+
 function summaryInventsUnsupportedUserRelationship(
   summary: string,
   source: { user: string; assistant: string }
@@ -255,6 +258,9 @@ function summaryInventsUnsupportedUserRelationship(
   if (!PRIOR_USER_RELATIONSHIP_MARKER.test(summary)) return false;
   // A user-side relational cue is enough to preserve the user's authored past.
   if (USER_RELATIONSHIP_SUPPORT_MARKER.test(source.user)) return false;
+  // Preserve "the character said/claimed X" as an attributed claim; the guard
+  // blocks only promotion to objective shared-history fact.
+  if (ATTRIBUTED_RELATIONSHIP_CLAIM_MARKER.test(summary)) return false;
   // This guard is specifically for relationship content sourced from assistant raw.
   return PRIOR_USER_RELATIONSHIP_MARKER.test(source.assistant);
 }
