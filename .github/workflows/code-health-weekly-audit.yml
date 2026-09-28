@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: code-health-weekly-audit
+  group: code-health-ledger
   cancel-in-progress: false
 
 jobs:
@@ -77,7 +77,7 @@ jobs:
       - name: Prove weekly job did not mutate production
         run: |
           test "${{ steps.audit.outputs.production_mutated }}" = "false"
-          git diff --exit-code -- . ':!artifacts' ':!*.json'
+          git diff --exit-code -- . ':!artifacts'
 
       - name: Write job summary
         if: always()
