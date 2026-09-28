@@ -128,31 +128,37 @@ export type OfficialPublicIntroInput = {
 };
 
 function clipPhrase(text: string, maxChars: number): string {
-  return firstSentence(text, maxChars)
-    .replace(/^[.\s]+/u, "")
-    .replace(/[.!?。！？]+$/u, "")
-    .replace(/\d+\s*cm의?\s*/gi, "")
-    .trim();
+  const phrase = completePhrase(text);
+  if (!phrase) return "";
+  if (phrase.length <= maxChars) return phrase;
+  return phrase.slice(0, maxChars).replace(/\s+\S*$/, "").trim() || phrase;
 }
 
-function fieldPhrase(text: string | undefined, maxChars: number): string {
-  return clipPhrase((text ?? "").replace(/[.!?。！？]+$/u, ""), maxChars);
+/** First complete source phrase — never mid-clause clipped. */
+function completePhrase(text: string | undefined): string {
+  const raw = (text ?? "").replace(/\s+/g, " ").trim();
+  if (!raw) return "";
+  const first = raw.split(/(?<=[.!?。！？])\s+/).filter(Boolean)[0] ?? raw;
+  return first.replace(/[.!?。！？]+$/u, "").replace(/\d+\s*cm의?\s*/gi, "").trim();
 }
 
-/** Public identifying looks: 3–5 of hair / eyes / skin / build / marks / outfit. */
+function labeledFact(label: string, ...parts: Array<string | undefined>): string {
+  const body = parts.map((part) => completePhrase(part)).filter(nonEmpty).join(", ");
+  return body ? `${label}: ${body}` : "";
+}
+
+/** Public identifying looks: 3–5 labeled complete phrases from canonical fields. */
 export function publicAppearanceFacts(appearance: OfficialPublicIntroInput["appearance"]): string[] {
-  const hair = [fieldPhrase(appearance.hairColor, 24), fieldPhrase(appearance.hairstyle, 28)].filter(nonEmpty).join(", ");
-  const eyes = [fieldPhrase(appearance.eyeColor, 20), fieldPhrase(appearance.eyes, 24)].filter(nonEmpty).join(", ");
   const facts = [
-    hair,
-    eyes,
-    fieldPhrase(appearance.skin, 36),
-    fieldPhrase(appearance.build, 36),
-    fieldPhrase(appearance.distinguishingFeatures, 56),
-    fieldPhrase(appearance.defaultOutfit, 56),
+    labeledFact("머리", appearance.hairColor, appearance.hairstyle),
+    labeledFact("눈", appearance.eyeColor, appearance.eyes),
+    labeledFact("피부", appearance.skin),
+    labeledFact("체형", appearance.build),
+    labeledFact("특징", appearance.distinguishingFeatures),
+    labeledFact("복식", appearance.defaultOutfit),
   ].filter(nonEmpty);
-  if (facts.length < 3 && appearance.accessories) facts.push(clipPhrase(appearance.accessories, 40));
-  if (facts.length < 3 && appearance.impression) facts.push(clipPhrase(appearance.impression, 48));
+  if (facts.length < 3 && appearance.accessories) facts.push(labeledFact("소품", appearance.accessories));
+  if (facts.length < 3 && appearance.impression) facts.push(labeledFact("인상", appearance.impression));
   return facts.slice(0, 5);
 }
 
@@ -261,12 +267,15 @@ export function evaluateOfficialPublicDescription(description: string, name?: st
     errors.push({ code: "public_intro_facts_missing", message: "detailed intro must cover occupation, looks, personality, role" });
   }
   const looks = text.match(/외형:\s*([^\n]+)/)?.[1] ?? "";
-  const lookCues = [/머리|헤어|곱슬|단발/, /눈|눈동|호박|금빛|회색/, /피부|구리|창백/, /체형|체격/, /모노클|흉터|검상|식별|반지|베일/, /복식|베스트|로브|제복|코트|갑옷|셔츠/];
-  if (looks.length < 50 || lookCues.filter((cue) => cue.test(looks)).length < 2) {
+  const lookLabels = [/머리:/, /눈:/, /피부:/, /체형:/, /특징:/, /복식:/];
+  if (looks.length < 40 || lookLabels.filter((cue) => cue.test(looks)).length < 3) {
     errors.push({
       code: "public_intro_looks_thin",
-      message: "detailed intro looks must include 3–5 public identifying features (hair/eyes/skin/build/marks/outfit)",
+      message: "detailed intro looks must include 3–5 labeled public identifying features",
     });
+  }
+  if (/[가-힣](?:보다|하며|하고)\s*\//.test(looks)) {
+    errors.push({ code: "public_intro_looks_truncated", message: "detailed intro looks must not cut a source sentence mid-clause" });
   }
   return qaResult(errors);
 }
@@ -295,7 +304,7 @@ function extractPlayChoices(text: string): string[] {
     choices.push(`${midDot[1]}하기`, `${midDot[2]}하기`, `${midDot[3]}하기`);
   }
   for (const match of text.matchAll(
-    /([가-힣]{2,12}(?:에\s*)?(?:협력|거리|거래|공개|봉인|계약|진실|도주|조사)[가-힣]{0,6}(?:할지|둘지|받을지|지킬지|풀지|좇을지|따를지))/g
+    /((?:[가-힣]{1,12}(?:에\s+|를\s+|을\s+))?(?:협력|거리|거래|공개|봉인|계약|진실|도주|조사)(?:에\s+|를\s+|을\s+)?(?:할지|둘지|받을지|지킬지|풀지|좇을지|따를지))/g
   )) {
     const phrase = match[1]?.replace(/\s+/g, " ").trim();
     if (phrase && !/^(따라|하고|의|를|을)\s*/.test(phrase)) choices.push(phrase);
@@ -310,24 +319,15 @@ function extractPlayChoices(text: string): string[] {
   return uniquePhrases(choices).slice(0, 3);
 }
 
+const ACTION_CHOICE_RE = /(?:하기|할지|둘지|받을지|지킬지|풀지|좇을지|따를지|움직이기)$/u;
+
 export function officialPlayStartChoices(draft: OfficialCharacterDraft): string[] {
   const rel = draft.sections.relationshipsAndDrives;
   const userRole = pickPrefixed(rel, "유저 역할");
-  const progress = pickPrefixed(rel, "관계 진행");
   const mid = pickPrefixed(rel, "중기 갈등");
-  const firstStep = progress
-    .split(/\s*→\s*/)[0]
-    ?.replace(/^(?:첫 단계|초기|첫째 단계):\s*/u, "")
-    .trim();
-  const fromSources = [
-    ...extractPlayChoices(userRole),
-    ...extractPlayChoices(mid),
-    firstStep && !isMeterOrSecret(firstStep) && /협상|협력|거절|도주|조사|선택|조건|거리|칼|거래/.test(firstStep)
-      ? clipPhrase(firstStep, 42)
-      : "",
-    firstSentence(draft.hook.rpHook, 36),
-  ].filter(nonEmpty);
-  return uniquePhrases(fromSources).slice(0, 3);
+  return uniquePhrases([...extractPlayChoices(userRole), ...extractPlayChoices(mid)])
+    .filter((choice) => ACTION_CHOICE_RE.test(choice))
+    .slice(0, 3);
 }
 
 function draftPlayGuideParts(draft: OfficialCharacterDraft): {
@@ -409,6 +409,16 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
       code: "creator_comment_generic",
       message: "creator comment start line must be character-specific, not a shared generic cue",
     });
+  }
+  const startLine = trimmed.match(/이렇게 시작해 보세요<\/b><br>([^<]+)/)?.[1] ?? "";
+  if (/중에서 먼저 고르세요/.test(startLine)) {
+    const parts = startLine.replace(/\s*중에서 먼저 고르세요\.?$/u, "").split(/,\s*/);
+    if (parts.some((part) => !ACTION_CHOICE_RE.test(part.trim()))) {
+      errors.push({
+        code: "creator_comment_narrative_choice",
+        message: "creator comment choices must be player actions, not truncated hook narration",
+      });
+    }
   }
   return qaResult(errors);
 }

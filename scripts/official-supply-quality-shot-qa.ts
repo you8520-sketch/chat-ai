@@ -28,8 +28,12 @@ import { OpenAiImageError } from "@/lib/openAiImageEdit";
 
 const LIVE_ENV = "OFFICIAL_QUALITY_SHOT_QA_LIVE";
 const DRAFT_KEY = "pilot-rf-03";
-const ARTIFACT_DIR = "/opt/cursor/artifacts/official-shot-qa";
+const DEFAULT_ARTIFACT_DIR = "/opt/cursor/artifacts/official-shot-qa";
 const MAX_SLOTS = 6;
+
+function qaArtifactDir(): string {
+  return process.env.OFFICIAL_QUALITY_SHOT_QA_ARTIFACT_DIR?.trim() || DEFAULT_ARTIFACT_DIR;
+}
 
 type PilotFile = {
   draftKey: string;
@@ -42,10 +46,11 @@ type PilotFile = {
 type StyleFile = { candidates: Array<{ dna: VisualStyleDna }> };
 
 function stop(reason: string, extra: Record<string, unknown> = {}): never {
-  fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+  const artifactDir = qaArtifactDir();
+  fs.mkdirSync(artifactDir, { recursive: true });
   const payload = { status: "STOP", reason, draftKey: DRAFT_KEY, providerCalls: extra.providerCalls ?? 0, ...extra };
-  fs.writeFileSync(path.join(ARTIFACT_DIR, "STOP.json"), JSON.stringify(payload, null, 2));
-  fs.writeFileSync(path.join(ARTIFACT_DIR, "STOP.md"), `# Official shot QA STOP\n\n${reason}\n\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\`\n`);
+  fs.writeFileSync(path.join(artifactDir, "STOP.json"), JSON.stringify(payload, null, 2));
+  fs.writeFileSync(path.join(artifactDir, "STOP.md"), `# Official shot QA STOP\n\n${reason}\n\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\`\n`);
   throw new Error(`OFFICIAL_QUALITY_SHOT_QA STOP: ${reason}`);
 }
 
@@ -80,6 +85,17 @@ async function styleOnlyReference(): Promise<string> {
   return `data:image/webp;base64,${buffer.toString("base64")}`;
 }
 
+async function resolveReference(): Promise<string> {
+  const refPath = process.env.OFFICIAL_QUALITY_SHOT_QA_REFERENCE_PATH?.trim();
+  if (!refPath) return styleOnlyReference();
+  if (!fs.existsSync(refPath) || !fs.statSync(refPath).isFile()) {
+    stop(`OFFICIAL_QUALITY_SHOT_QA_REFERENCE_PATH is set but the file is missing: ${refPath}`);
+  }
+  const ext = path.extname(refPath).toLowerCase();
+  const mime = ext === ".png" ? "image/png" : ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : "image/webp";
+  return `data:${mime};base64,${fs.readFileSync(refPath).toString("base64")}`;
+}
+
 async function writeContactSheet(
   cells: Array<{ slotKey: string; shot: string; file: string }>
 ): Promise<string> {
@@ -112,9 +128,14 @@ async function writeContactSheet(
       top: Math.floor(index / cols) * 390,
     }))
   );
-  const out = path.join(ARTIFACT_DIR, "contact-sheet.png");
+  const out = path.join(qaArtifactDir(), "contact-sheet.png");
   await sheet.png().toFile(out);
-  return out;
+  const copyTo = process.env.OFFICIAL_QUALITY_SHOT_QA_CONTACT_SHEET_PATH?.trim();
+  if (copyTo) {
+    fs.mkdirSync(path.dirname(copyTo), { recursive: true });
+    fs.copyFileSync(out, copyTo);
+  }
+  return copyTo || out;
 }
 
 async function main(): Promise<void> {
@@ -148,8 +169,9 @@ async function main(): Promise<void> {
     },
   });
   const slots = pickQaSlots(file.assetPlan.slots, draft.draftKey);
-  const reference = await styleOnlyReference();
-  fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+  const reference = await resolveReference();
+  const artifactDir = qaArtifactDir();
+  fs.mkdirSync(artifactDir, { recursive: true });
 
   const calls: Array<Record<string, unknown>> = [];
   const cells: Array<{ slotKey: string; shot: string; file: string }> = [];
@@ -183,7 +205,7 @@ async function main(): Promise<void> {
         });
       }
       knownCost += result.knownProviderCostUsd;
-      const filePath = path.join(ARTIFACT_DIR, `${slot.slotKey}.webp`);
+      const filePath = path.join(artifactDir, `${slot.slotKey}.webp`);
       fs.writeFileSync(filePath, result.buffer);
       const shotLabel = `${shot.faceDirection} / ${shot.cameraAngle} / ${shot.distance} / ${shot.poseFamily}`;
       cells.push({ slotKey: slot.slotKey, shot: shotLabel, file: filePath });
@@ -214,7 +236,7 @@ async function main(): Promise<void> {
     contactSheet: sheet,
     slots: calls,
   };
-  fs.writeFileSync(path.join(ARTIFACT_DIR, "report.json"), JSON.stringify(report, null, 2));
+  fs.writeFileSync(path.join(artifactDir, "report.json"), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
 }
 

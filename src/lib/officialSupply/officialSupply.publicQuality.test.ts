@@ -146,12 +146,17 @@ describe("official detailed intro + creator comment", () => {
       assert.notEqual(draft.description, file.bible.publicProfile.description);
       const facts = publicAppearanceFacts(file.bible.appearance);
       assert.ok(facts.length >= 3 && facts.length <= 5, `${file.draftKey} look facts ${facts.length}`);
+      assert.ok(facts.every((fact) => /^(머리|눈|피부|체형|특징|복식|소품|인상): /.test(fact)));
+      assert.doesNotMatch(draft.description, /[가-힣](?:보다|하며|하고)\s*\//);
       assert.match(draft.description, new RegExp(facts[0]!.slice(0, 8).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     }
     const lucian = sampleChars().find((file) => file.draftKey === "pilot-rf-03")!;
     const lucianDraft = compileOfficialDraftFromBible(lucian.bible, compileKeys(lucian));
-    assert.match(lucianDraft.description, /호박/);
-    assert.match(lucianDraft.description, /구리빛|모노클|갈색/);
+    assert.match(lucianDraft.description, /머리:.*갈색/);
+    assert.match(lucianDraft.description, /눈:.*호박/);
+    assert.match(lucianDraft.description, /피부:.*구리빛/);
+    assert.match(lucianDraft.description, /특징:.*모노클/);
+    assert.doesNotMatch(lucianDraft.description, /표정보다\s*\//);
   });
 
   it("creator comment is a play guide and not a copy of the detailed intro", () => {
@@ -168,10 +173,20 @@ describe("official detailed intro + creator comment", () => {
       assert.doesNotMatch(comment, /(신뢰|호감|경계).{0,8}(낮음|높음|미정)/);
       assert.doesNotMatch(comment, /첫 장면에서는 목적 한 가지만|반응을 보세요|따라 누구와/);
       const choices = officialPlayStartChoices(draft);
-      assert.ok(choices.length >= 2, `${file.draftKey} choices ${JSON.stringify(choices)}`);
+      assert.ok(choices.length >= 2 && choices.length <= 3, `${file.draftKey} choices ${JSON.stringify(choices)}`);
+      assert.ok(
+        choices.every((choice) => /(?:하기|할지|둘지|받을지|지킬지|풀지|좇을지|따를지|움직이기)$/.test(choice)),
+        `${file.draftKey} non-action ${JSON.stringify(choices)}`
+      );
+      assert.ok(!choices.some((choice) => file.brief.rpHook.includes(choice) && choice.length > 20));
       starts.add(comment.match(/이렇게 시작해 보세요<\/b><br>([^<]+)/)?.[1] ?? "");
       assert.ok(!draft.description.includes(comment.replace(/<[^>]+>/g, "").trim()));
     }
+    const lucian = sampleChars().find((file) => file.draftKey === "pilot-rf-03")!;
+    assert.deepEqual(
+      officialPlayStartChoices(compileOfficialDraftFromBible(lucian.bible, compileKeys(lucian))),
+      ["도주에 협력할지", "거리를 둘지"]
+    );
     assert.equal(starts.size, 3);
   });
 
@@ -205,6 +220,9 @@ describe("official shot QA path stays non-persistent", () => {
     const source = fs.readFileSync(path.join(process.cwd(), "scripts/official-supply-quality-shot-qa.ts"), "utf8");
     assert.match(source, /buildOfficialAssetPrompts/);
     assert.match(source, /callOpenAiImageEditWithSafetyFallback/);
+    assert.match(source, /OFFICIAL_QUALITY_SHOT_QA_ARTIFACT_DIR/);
+    assert.match(source, /OFFICIAL_QUALITY_SHOT_QA_REFERENCE_PATH/);
+    assert.match(source, /OFFICIAL_QUALITY_SHOT_QA_CONTACT_SHEET_PATH/);
     assert.match(source, /\/opt\/cursor\/artifacts\/official-shot-qa/);
     assert.doesNotMatch(source, /runOfficialAssetSlot|OfficialSupplyStore|publishOfficialSupplyCharacter|stageOfficialCharacterPrivately|storeUpload/);
   });
