@@ -78,7 +78,7 @@ async function main(){
     market_evidence:report.marketEvidence,
     current_procurement_evidence:report.currentProcurementEvidence,
     endpoints_discovered:report.models.reduce((n,m)=>n+m.endpointCount,0),
-    cheaper_endpoints:report.models.reduce((n,m)=>n+m.cheaperEndpointCount,0),
+    lower_raw_endpoint_rate_candidates:report.models.reduce((n,m)=>n+m.lowerRawEndpointRateCount,0),
     errors,
     jsonPath,
     mdPath,
