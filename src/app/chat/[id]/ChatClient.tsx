@@ -92,6 +92,7 @@ import { stripInternalTagLeakage, stripRpMetaPreamble } from "@/lib/narrativeRul
 import { stripRepeatedTrailingQuoteMarks } from "@/lib/trailingQuoteSanitizer";
 import type { NarrativePov } from "@/lib/narrativePov";
 import {
+  DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL,
   DEFAULT_USER_AUTHORING_LEVEL,
   type UserAuthoringLevel,
 } from "@/lib/userAuthoringPolicy";
@@ -943,6 +944,7 @@ export default function ChatClient({
   contentKind = "character",
   initialNarrativePov = "third_person",
   initialUserAuthoringLevel = DEFAULT_USER_AUTHORING_LEVEL,
+  initialAutoProgressionAuthoringLevel = DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL,
   personaSecretSettings = { canEdit: false, discoveryActive: false },
 }: {
   character: { id: number; name: string; emoji: string; hue: number; nsfw: number; official?: number };
@@ -984,6 +986,7 @@ export default function ChatClient({
   contentKind?: "character" | "simulation";
   initialNarrativePov?: NarrativePov;
   initialUserAuthoringLevel?: UserAuthoringLevel;
+  initialAutoProgressionAuthoringLevel?: UserAuthoringLevel;
   personaSecretSettings?: PersonaSecretSettingsCapability;
   showSecretDiscoveryInspector?: boolean;
 }) {
@@ -1352,6 +1355,8 @@ export default function ChatClient({
   const [narrativePov, setNarrativePov] = useState<NarrativePov>(initialNarrativePov);
   const [userAuthoringLevel, setUserAuthoringLevel] =
     useState<UserAuthoringLevel>(initialUserAuthoringLevel);
+  const [autoProgressionAuthoringLevel, setAutoProgressionAuthoringLevel] =
+    useState<UserAuthoringLevel>(initialAutoProgressionAuthoringLevel);
   const [userAuthoringSaving, setUserAuthoringSaving] = useState(false);
   const userAuthoringSavePromiseRef = useRef<Promise<boolean> | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -1538,13 +1543,24 @@ export default function ChatClient({
     });
   }, [persistChatSettings]);
 
-  const handleUserAuthoringLevelChange = useCallback(
-    async (next: UserAuthoringLevel) => {
-      if (next === userAuthoringLevel || userAuthoringSavePromiseRef.current) return;
-      const previous = userAuthoringLevel;
-      setUserAuthoringLevel(next);
+  const persistAuthoringLevel = useCallback(
+    async (
+      kind: "interactive" | "auto_progression",
+      next: UserAuthoringLevel
+    ) => {
+      const current =
+        kind === "interactive" ? userAuthoringLevel : autoProgressionAuthoringLevel;
+      if (next === current || userAuthoringSavePromiseRef.current) return;
+
+      const previous = current;
+      if (kind === "interactive") setUserAuthoringLevel(next);
+      else setAutoProgressionAuthoringLevel(next);
       if (!chatId) return;
       const requestChatId = chatId;
+      const field =
+        kind === "interactive"
+          ? "userAuthoringLevel"
+          : "autoProgressionAuthoringLevel";
 
       const savePromise = (async (): Promise<boolean> => {
         setUserAuthoringSaving(true);
@@ -1552,33 +1568,47 @@ export default function ChatClient({
           const res = await fetch("/api/chat/settings", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chatId, userAuthoringLevel: next }),
+            body: JSON.stringify({ chatId, [field]: next }),
           });
           const data = (await res.json().catch(() => null)) as {
             error?: string;
             userAuthoringLevel?: UserAuthoringLevel;
+            autoProgressionAuthoringLevel?: UserAuthoringLevel;
           } | null;
           if (!res.ok) {
             if (chatIdRef.current === requestChatId) {
-              setUserAuthoringLevel(previous);
-              setToastMsg(data?.error || "내 행동/대사 서술 설정 저장에 실패했습니다.");
+              if (kind === "interactive") setUserAuthoringLevel(previous);
+              else setAutoProgressionAuthoringLevel(previous);
+              setToastMsg(
+                data?.error ||
+                  (kind === "interactive"
+                    ? "일반 입력 서술 설정 저장에 실패했습니다."
+                    : "자동진행 서술 설정 저장에 실패했습니다.")
+              );
             }
             return false;
           }
-          if (
-            data?.userAuthoringLevel === "LIMITED" ||
-            data?.userAuthoringLevel === "NORMAL" ||
-            data?.userAuthoringLevel === "ALLOW"
-          ) {
+
+          const saved =
+            kind === "interactive"
+              ? data?.userAuthoringLevel
+              : data?.autoProgressionAuthoringLevel;
+          if (saved === "LIMITED" || saved === "NORMAL" || saved === "ALLOW") {
             if (chatIdRef.current === requestChatId) {
-              setUserAuthoringLevel(data.userAuthoringLevel);
+              if (kind === "interactive") setUserAuthoringLevel(saved);
+              else setAutoProgressionAuthoringLevel(saved);
             }
           }
           return true;
         } catch {
           if (chatIdRef.current === requestChatId) {
-            setUserAuthoringLevel(previous);
-            setToastMsg("내 행동/대사 서술 설정 저장 중 오류가 발생했습니다.");
+            if (kind === "interactive") setUserAuthoringLevel(previous);
+            else setAutoProgressionAuthoringLevel(previous);
+            setToastMsg(
+              kind === "interactive"
+                ? "일반 입력 서술 설정 저장 중 오류가 발생했습니다."
+                : "자동진행 서술 설정 저장 중 오류가 발생했습니다."
+            );
           }
           return false;
         } finally {
@@ -1595,7 +1625,17 @@ export default function ChatClient({
         }
       }
     },
-    [chatId, userAuthoringLevel]
+    [autoProgressionAuthoringLevel, chatId, userAuthoringLevel]
+  );
+
+  const handleUserAuthoringLevelChange = useCallback(
+    (next: UserAuthoringLevel) => persistAuthoringLevel("interactive", next),
+    [persistAuthoringLevel]
+  );
+
+  const handleAutoProgressionAuthoringLevelChange = useCallback(
+    (next: UserAuthoringLevel) => persistAuthoringLevel("auto_progression", next),
+    [persistAuthoringLevel]
   );
 
   const saveUserNote = useCallback(
@@ -4267,6 +4307,7 @@ export default function ChatClient({
           selectedPersonaId,
           targetResponseChars,
           userAuthoringLevel,
+          autoProgressionAuthoringLevel,
         }),
       });
 
@@ -6041,10 +6082,20 @@ export default function ChatClient({
                 type="button"
                 onClick={sendContinue}
                 disabled={inputLocked || !canContinue}
-                title="AI 답변 직후 서사를 이어갑니다. 유저 행동·대사도 함께 출력됩니다."
+                title={`AI 답변 직후 서사를 이어갑니다. 자동진행 서술 범위: ${
+                  autoProgressionAuthoringLevel === "LIMITED"
+                    ? "제한"
+                    : autoProgressionAuthoringLevel === "ALLOW"
+                      ? "허용"
+                      : "보통"
+                }`}
                 className="rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 disabled:opacity-40"
               >
-                자동진행
+                자동진행 · {autoProgressionAuthoringLevel === "LIMITED"
+                  ? "제한"
+                  : autoProgressionAuthoringLevel === "ALLOW"
+                    ? "허용"
+                    : "보통"}
               </button>
               <button
                 type="button"
