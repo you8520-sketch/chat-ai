@@ -327,10 +327,30 @@ export function resolveTurnBillableUsage(
     coverageReasons.push("cache_write_unreported");
   }
 
-  const cacheReadTokens = cacheReadReported ? Math.max(0, Math.floor(Number(rawCacheRead) || 0)) : 0;
-  const cacheWriteTokens = cacheWriteReported ? Math.max(0, Math.floor(Number(rawCacheWrite) || 0)) : 0;
+  const reportedCacheReadTokens = cacheReadReported
+    ? Math.max(0, Math.floor(Number(rawCacheRead) || 0))
+    : 0;
+  const reportedCacheWriteTokens = cacheWriteReported
+    ? Math.max(0, Math.floor(Number(rawCacheWrite) || 0))
+    : 0;
 
-  if (cacheReadTokens + cacheWriteTokens > routeTotalInput) {
+  /**
+   * Published price-neutral cache models (currently Opus 5.5) charge the same USER P
+   * regardless of prompt cache partition. Provider cache-creation counters can be based
+   * on a broader/tokenizer-specific prefix than the route's prompt-audit billing cap, so
+   * using those raw partition counters in NormalizedBillableUsage can create an impossible
+   * cache>prompt state and incorrectly fail closed to 0P.
+   *
+   * Keep the raw provider cache evidence on StageUsage/receipt diagnostics, but normalize
+   * USER billing usage as an unpartitioned prompt when cache partition is price-neutral.
+   */
+  const cacheReadTokens = cacheBreakdownPriceNeutral ? 0 : reportedCacheReadTokens;
+  const cacheWriteTokens = cacheBreakdownPriceNeutral ? 0 : reportedCacheWriteTokens;
+
+  if (
+    !cacheBreakdownPriceNeutral &&
+    reportedCacheReadTokens + reportedCacheWriteTokens > routeTotalInput
+  ) {
     coverageReasons.push("cache_exceeds_capped_prompt");
   }
 
@@ -395,7 +415,10 @@ export function resolveTurnBillableUsage(
     reasoningTokens: summedApiReasoning,
   });
 
-  if (cacheReadTokens + cacheWriteTokens > routeTotalInput) {
+  if (
+    !cacheBreakdownPriceNeutral &&
+    reportedCacheReadTokens + reportedCacheWriteTokens > routeTotalInput
+  ) {
     return {
       status: "unavailable",
       usage: null,
