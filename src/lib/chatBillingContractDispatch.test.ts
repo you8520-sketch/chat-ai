@@ -237,6 +237,43 @@ describe("chatBillingContractDispatch — contract selection", () => {
     assert.notEqual(decision.points, 0);
   });
 
+  it("Opus 5.5 cold cache-write telemetry above prompt cap does not fail closed to 0P", () => {
+    const stages: StageUsage[] = [
+      {
+        stage: "primary",
+        model: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+        input: 40_771,
+        output: 3_808,
+        apiReportedInputTokens: 40_771,
+        apiOutputTokens: 3_808,
+        cacheWriteTokens: 39_702,
+        estimated: false,
+        usageReportingEvidence: {
+          cacheRead: "reported_valid",
+          cacheWrite: "reported_valid",
+          reasoning: "reported_valid",
+        },
+      },
+    ];
+
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+      stages,
+      promptAuditTotal: 36_369,
+      legacyFinalPoints: 438,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: AUDIT_FX_SNAPSHOT,
+      phase1PublishedBillingEnabled: false,
+    });
+
+    assert.equal(decision.contract, "published_phase1");
+    assert.ok(decision.points > 0);
+    assert.equal(decision.telemetry.publishedCandidateStatus, "resolved");
+    assert.equal(decision.telemetry.appliedFailClosedPolicy, null);
+  });
+
   it("Opus 5.5 gate OFF → published_phase1 (mandatory published, not legacy)", () => {
     const gatedOff = resolveChatBillingContract({
       deliveredModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
