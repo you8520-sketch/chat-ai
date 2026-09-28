@@ -1,4 +1,5 @@
 import { ROFAN_V4_PRODUCTION_BATCH_CONFIG } from "@/lib/officialSupply/pilotProduction";
+import { PILOT_STYLE_PROOF_BATCH_CONFIG } from "@/lib/officialSupply/pilotStyleProof";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
