@@ -12,6 +12,7 @@
  * - TRAINING_RUN_ON_BOOT=1      기동 시 daily analysis 1회 (개발용)
  * - DISABLE_FINANCE_SCHEDULER=1 운영비 12시 집계 비활성화
  * - FINANCE_RUN_ON_BOOT=1       기동 시 운영비 스냅샷 즉시 저장
+ * - DISABLE_MAIN_RP_CACHE_TTL_AUDIT=1  월간 Main RP 캐시 TTL 경제성 감사 비활성화
  */
 const bootStart = Date.now();
 
@@ -133,6 +134,25 @@ async function runBackgroundInitialization() {
     }
   } else {
     console.log("[server] finance scheduler disabled (DISABLE_FINANCE_SCHEDULER=1)");
+  }
+
+  if (isSchedulerJobEnabled("main_rp_cache_ttl_monthly")) {
+    try {
+      const cacheTtlMod = await importBackgroundModule(
+        "./src/cron/mainRpCacheTtlAuditScheduler.ts"
+      );
+      requireCustomServerBootFunction(
+        cacheTtlMod,
+        "startMainRpCacheTtlAuditScheduler",
+        "./src/cron/mainRpCacheTtlAuditScheduler.ts"
+      )();
+    } catch (err) {
+      console.error("[server] Main RP cache TTL audit scheduler 시작 실패:", err);
+    }
+  } else {
+    console.log(
+      "[server] Main RP cache TTL audit scheduler disabled (DISABLE_MAIN_RP_CACHE_TTL_AUDIT=1)"
+    );
   }
 
   try {
