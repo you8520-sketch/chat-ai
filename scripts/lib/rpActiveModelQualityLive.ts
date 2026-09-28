@@ -139,14 +139,24 @@ function modelLabel(modelId: SelectedAI): string {
   );
 }
 
-export function buildRpActiveModelQualityPlan(): RpActiveModelQualityProbe[] {
+export function buildRpActiveModelQualityPlan(
+  caseIds?: readonly CanonicalQualificationCaseId[]
+): RpActiveModelQualityProbe[] {
   for (const modelId of RP_ACTIVE_MODEL_QUALITY_MODEL_IDS) {
     if (!MAIN_RP_MODEL_IDS.includes(modelId)) {
       throw new Error(`Quality model is no longer active Main RP: ${modelId}`);
     }
   }
 
-  const cases = buildCanonicalRpQualificationCases();
+  const selectedCaseIds = caseIds ? new Set(caseIds) : null;
+  const cases = buildCanonicalRpQualificationCases().filter(
+    (entry) => !selectedCaseIds || selectedCaseIds.has(entry.id)
+  );
+  if (caseIds && cases.length !== selectedCaseIds!.size) {
+    const known = new Set(buildCanonicalRpQualificationCases().map((entry) => entry.id));
+    const unknown = [...selectedCaseIds!].filter((id) => !known.has(id));
+    throw new Error(`Unknown RP quality case id(s): ${unknown.join(", ")}`);
+  }
   const plan = RP_ACTIVE_MODEL_QUALITY_MODEL_IDS.flatMap((modelId) =>
     cases.map((caseData) => ({
       modelId,
@@ -366,12 +376,13 @@ export async function executeRpActiveModelQualityProbe(input: {
 export async function runRpActiveModelQualityLive(input: {
   apiKey: string;
   runId: string;
+  caseIds?: readonly CanonicalQualificationCaseId[];
   fetchImpl?: FetchLike;
 }): Promise<RpActiveModelQualityLiveReport> {
   const cases = new Map(
     buildCanonicalRpQualificationCases().map((entry) => [entry.id, entry])
   );
-  const plan = buildRpActiveModelQualityPlan();
+  const plan = buildRpActiveModelQualityPlan(input.caseIds);
   const results: RpActiveModelQualityTurnResult[] = [];
 
   for (const probe of plan) {
