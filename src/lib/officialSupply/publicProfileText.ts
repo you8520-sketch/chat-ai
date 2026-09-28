@@ -338,12 +338,9 @@ function draftPlayGuideParts(draft: OfficialCharacterDraft): {
   const rel = draft.sections.relationshipsAndDrives;
   const userRole = pickPrefixed(rel, "유저 역할");
   const choices = officialPlayStartChoices(draft);
+  const greetingLock = "채팅은 저장된 첫 인사 한 줄로 시작합니다.";
   const startLine =
-    choices.length >= 2
-      ? `${choices.join(", ")} 중에서 먼저 고르세요.`
-      : choices[0]
-        ? `${choices[0]}로 첫 수를 정해 보세요.`
-        : `${clipPhrase(userRole || draft.hook.relationshipTrope || "첫 만남", 36)}로 첫 수를 정해 보세요.`;
+    choices.length > 0 ? `추천 방향: ${choices.join(" · ")}. ${greetingLock}` : greetingLock;
   const relation = [draft.hook.relationshipTrope, clipPhrase(userRole, 36)].filter(nonEmpty).join(" · ");
   return {
     situation: firstSentence(draft.hook.rpHook, 140) || firstSentence(draft.tagline, 80),
@@ -352,11 +349,12 @@ function draftPlayGuideParts(draft: OfficialCharacterDraft): {
   };
 }
 
+/** Play advice only. Current runtime has one stored greeting; this is not a selectable intro. */
 export function composeOfficialCreatorComment(draft: OfficialCharacterDraft): string {
   const parts = draftPlayGuideParts(draft);
   return [
     `<p><b>지금 상황</b><br>${escapeHtml(parts.situation)}</p>`,
-    `<p><b>이렇게 시작해 보세요</b><br>${escapeHtml(parts.start)}</p>`,
+    `<p><b>추천 플레이</b><br>${escapeHtml(parts.start)}</p>`,
     `<p><b>가능한 관계</b><br>${escapeHtml(parts.relation)}</p>`,
   ].join("\n");
 }
@@ -374,8 +372,8 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
       message: "official creator comment may use only simple <p><b><br> markup",
     });
   }
-  if (!trimmed.includes("지금 상황") || !trimmed.includes("이렇게 시작해") || !trimmed.includes("가능한 관계")) {
-    errors.push({ code: "creator_comment_guide_missing", message: "creator comment must be a play guide (situation / start / relation)" });
+  if (!trimmed.includes("지금 상황") || !trimmed.includes("추천 플레이") || !trimmed.includes("가능한 관계")) {
+    errors.push({ code: "creator_comment_guide_missing", message: "creator comment must be a play guide (situation / recommended play / relation)" });
   }
   for (const section of [
     `[${OFFICIAL_PUBLIC_INTRO_SECTIONS.world}`,
@@ -395,8 +393,8 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
   if (commentPlain.length >= 80 && introPlain.includes(commentPlain.slice(0, 80))) {
     errors.push({ code: "creator_comment_copy", message: "creator comment repeats the detailed intro lead" });
   }
-  if (!USER_CUE_RE.test(commentPlain) && !/당신|역할|시작|고르|선택/.test(commentPlain)) {
-    errors.push({ code: "creator_comment_no_play", message: "creator comment must tell the player how to start" });
+  if (!USER_CUE_RE.test(commentPlain) && !/당신|역할|추천|방향|첫 인사/.test(commentPlain)) {
+    errors.push({ code: "creator_comment_no_play", message: "creator comment must recommend how to play the single greeting start" });
   }
   if (/(신뢰|호감|경계).{0,8}(낮음|높음|미정|\d)/.test(commentPlain)) {
     errors.push({
@@ -410,15 +408,28 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
       message: "creator comment start line must be character-specific, not a shared generic cue",
     });
   }
-  const startLine = trimmed.match(/이렇게 시작해 보세요<\/b><br>([^<]+)/)?.[1] ?? "";
-  if (/중에서 먼저 고르세요/.test(startLine)) {
-    const parts = startLine.replace(/\s*중에서 먼저 고르세요\.?$/u, "").split(/,\s*/);
-    if (parts.some((part) => !ACTION_CHOICE_RE.test(part.trim()))) {
-      errors.push({
-        code: "creator_comment_narrative_choice",
-        message: "creator comment choices must be player actions, not truncated hook narration",
-      });
-    }
+  if (/고르세요|중에서 먼저|첫 수를 정해|선택지/.test(commentPlain)) {
+    errors.push({
+      code: "creator_comment_selectable_start",
+      message: "creator comment must not imply selectable alternate starts; runtime has a single greeting",
+    });
+  }
+  const startLine = trimmed.match(/추천 플레이<\/b><br>([^<]+)/)?.[1] ?? "";
+  if (!/저장된 첫 인사 한 줄로 시작/.test(startLine)) {
+    errors.push({
+      code: "creator_comment_single_greeting",
+      message: "creator comment must state that chat starts from the stored greeting",
+    });
+  }
+  const directionParts = (startLine.match(/추천 방향:\s*([^.]+)/)?.[1] ?? "")
+    .split(/\s*·\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (directionParts.some((part) => !ACTION_CHOICE_RE.test(part))) {
+    errors.push({
+      code: "creator_comment_narrative_choice",
+      message: "recommended play directions must be player actions, not truncated hook narration",
+    });
   }
   return qaResult(errors);
 }

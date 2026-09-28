@@ -167,11 +167,13 @@ describe("official detailed intro + creator comment", () => {
       const qa = evaluateOfficialCreatorComment(comment, draft.description);
       assert.deepEqual(qa.errors, [], `${file.draftKey}: ${JSON.stringify(qa.errors)}`);
       assert.match(comment, /지금 상황/);
-      assert.match(comment, /이렇게 시작해 보세요/);
+      assert.match(comment, /추천 플레이/);
       assert.match(comment, /가능한 관계/);
+      assert.match(comment, /저장된 첫 인사 한 줄로 시작/);
       assert.doesNotMatch(comment, /\[캐릭터 설정\]/);
       assert.doesNotMatch(comment, /(신뢰|호감|경계).{0,8}(낮음|높음|미정)/);
       assert.doesNotMatch(comment, /첫 장면에서는 목적 한 가지만|반응을 보세요|따라 누구와/);
+      assert.doesNotMatch(comment, /고르세요|중에서 먼저|첫 수를 정해|선택지/);
       const choices = officialPlayStartChoices(draft);
       assert.ok(choices.length >= 2 && choices.length <= 3, `${file.draftKey} choices ${JSON.stringify(choices)}`);
       assert.ok(
@@ -179,7 +181,7 @@ describe("official detailed intro + creator comment", () => {
         `${file.draftKey} non-action ${JSON.stringify(choices)}`
       );
       assert.ok(!choices.some((choice) => file.brief.rpHook.includes(choice) && choice.length > 20));
-      starts.add(comment.match(/이렇게 시작해 보세요<\/b><br>([^<]+)/)?.[1] ?? "");
+      starts.add(comment.match(/추천 플레이<\/b><br>([^<]+)/)?.[1] ?? "");
       assert.ok(!draft.description.includes(comment.replace(/<[^>]+>/g, "").trim()));
     }
     const lucian = sampleChars().find((file) => file.draftKey === "pilot-rf-03")!;
@@ -206,6 +208,11 @@ describe("official detailed intro + creator comment", () => {
     assert.match(publishSource, /function publishOfficialSupplyCharacter/);
     assert.match(stagingSource, /buildOfficialCharacterFormBody/);
     assert.doesNotMatch(publishSource, /composeOfficialPublicDescription|composeOfficialCreatorComment/);
+    const startChat = fs.readFileSync(path.join(process.cwd(), "src/components/StartChatButton.tsx"), "utf8");
+    assert.doesNotMatch(
+      `${publishSource}\n${stagingSource}\n${startChat}`,
+      /introVariant|selectedIntro|scenarioSnapshot|intro_id/
+    );
   });
 
   it("public intro evaluator rejects a one-paragraph pitch", () => {
