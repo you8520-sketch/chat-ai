@@ -107,10 +107,16 @@ describe("stable published billing fail-closed — regression matrix", () => {
   beforeEach(() => installAuditLegacyFxForTest());
   afterEach(() => clearAuditLegacyFxForTest());
 
-  it("A — V4.1 normal no-cache → published_phase2", () => {
+  it("A — V4.1 normal no-cache → published_phase2 from official PEAK reference + target margin", () => {
     const decision = dispatchV41([NORMAL_STAGE]);
     assert.equal(decision.contract, "published_phase2");
     assert.ok(decision.points > 0);
+    assert.equal(decision.publishedSnapshot.billingReferenceInputUsdPerMillion, 0.3);
+    assert.equal(decision.publishedSnapshot.billingReferenceOutputUsdPerMillion, 1.2);
+    assert.equal(decision.publishedSnapshot.billingReferenceCacheReadUsdPerMillion, 0.006);
+    assert.equal(decision.publishedSnapshot.targetMargin, 0.6);
+    assert.equal(decision.publishedSnapshot.minimumMarginFloor, 0.5);
+    assert.equal(decision.publishedSnapshot.pricingVersion, 1);
   });
 
   it("B — V4.1 cache-read → published_phase2", () => {
