@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import Database from "better-sqlite3";
 import {
   capabilitiesFromUserAuthoringLevel,
   parseUserAuthoringLevel,
 } from "@/lib/userAuthoringPolicy";
 import {
   resolveEffectiveUserAuthoring,
+  resolveEffectiveUserAuthoringFromChatColumn,
 } from "@/lib/userCoauthorState";
 
 describe("three-level user authoring policy", () => {
@@ -41,6 +43,46 @@ describe("three-level user authoring policy", () => {
       allowInnerPov: true,
       allowIrreversibleFate: false,
     });
+  });
+
+  it("resolves interactive and auto-progression preferences independently", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE chats (
+        id INTEGER PRIMARY KEY,
+        user_authoring_level TEXT NOT NULL DEFAULT 'NORMAL',
+        auto_progression_authoring_level TEXT NOT NULL DEFAULT 'NORMAL',
+        user_coauthor_mode TEXT NOT NULL DEFAULT 'OFF'
+      );
+      CREATE TABLE messages (
+        id INTEGER PRIMARY KEY,
+        chat_id INTEGER NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL DEFAULT '',
+        user_coauthor_semantics_version INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+    db.prepare(
+      "INSERT INTO chats (id, user_authoring_level, auto_progression_authoring_level) VALUES (1, 'LIMITED', 'ALLOW')"
+    ).run();
+
+    const interactive = resolveEffectiveUserAuthoringFromChatColumn(
+      db,
+      1,
+      "그를 바라본다.",
+      { scope: "interactive" }
+    ).delegation;
+    const auto = resolveEffectiveUserAuthoringFromChatColumn(db, 1, "", {
+      scope: "auto_progression",
+    }).delegation;
+
+    assert.equal(interactive.allowDialogue, false);
+    assert.equal(interactive.allowMajorActions, false);
+    assert.equal(interactive.allowInnerPov, false);
+    assert.equal(auto.allowDialogue, true);
+    assert.equal(auto.allowMajorActions, true);
+    assert.equal(auto.allowInnerPov, true);
+    db.close();
   });
 
   it("chat-setting base becomes the effective delegation without fabricating an OOC source", () => {
