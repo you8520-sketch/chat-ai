@@ -9,6 +9,7 @@ import {
 } from "@/lib/userAuthoringPolicy";
 import {
   resolveEffectiveUserAuthoring,
+  resolveEffectiveUserAuthoringForRegeneration,
   resolveEffectiveUserAuthoringFromChatColumn,
 } from "@/lib/userCoauthorState";
 
@@ -113,6 +114,51 @@ describe("three-level user authoring policy", () => {
     assert.equal(allow.delegation.allowInnerPov, true);
     assert.equal(allow.delegation.allowIrreversibleFate, false);
     assert.equal(allow.delegation.allowAiCastIrreversibleExpansion, true);
+  });
+
+  it("regeneration resolves the base from the original turn kind", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE chats (
+        id INTEGER PRIMARY KEY,
+        user_authoring_level TEXT NOT NULL DEFAULT 'NORMAL',
+        auto_progression_authoring_level TEXT NOT NULL DEFAULT 'NORMAL',
+        user_coauthor_mode TEXT NOT NULL DEFAULT 'OFF'
+      );
+      CREATE TABLE messages (
+        id INTEGER PRIMARY KEY,
+        chat_id INTEGER NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL DEFAULT '',
+        user_coauthor_semantics_version INTEGER NOT NULL DEFAULT 0
+      );
+      INSERT INTO chats (
+        id, user_authoring_level, auto_progression_authoring_level
+      ) VALUES (1, 'LIMITED', 'ALLOW');
+      INSERT INTO messages (
+        id, chat_id, role, content, user_coauthor_semantics_version
+      ) VALUES (10, 1, 'user', '자동진행', 0);
+    `);
+
+    const interactive = resolveEffectiveUserAuthoringForRegeneration(
+      db,
+      1,
+      10,
+      { scope: "interactive" }
+    ).delegation;
+    const auto = resolveEffectiveUserAuthoringForRegeneration(
+      db,
+      1,
+      10,
+      { scope: "auto_progression" }
+    ).delegation;
+
+    assert.equal(interactive.allowDialogue, false);
+    assert.equal(interactive.allowInnerPov, false);
+    assert.equal(auto.allowDialogue, true);
+    assert.equal(auto.allowMajorActions, true);
+    assert.equal(auto.allowInnerPov, true);
+    db.close();
   });
 
   it("persistent OOC revoke overrides both independent base preferences", () => {
