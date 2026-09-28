@@ -394,31 +394,31 @@ describe("memory episodic hardening regression", () => {
     assert.notEqual(row.source_user_message_id, 5);
   });
 
-  it("B0 assistant-only offscreen past event cannot persist as an objective scene event", () => {
-    const assistantOnlyPast = {
+  it("B0 assistant-invented user↔third-party relationship cannot persist as objective scene history", () => {
+    const inventedUserRelationship = {
       category: "relationship" as const,
-      subject: "taehyung_sister",
+      subject: "ren_taehyung_sister",
       attribute: "scene_event",
-      value: "meal_reminder_call",
+      value: "existing_acquaintance_regards",
       importance: "important" as const,
-      fact_text: "태형의 누나는 어제 연락해서 밥을 챙기라고 했다.",
+      fact_text: "태형의 누나는 렌을 알고 있으며 태형에게 렌의 안부를 전해 달라고 했다.",
       evidence_type: "explicit_scene_event" as const,
     };
     const batchUserSources = [{ turn: 5, messageId: 5, text: "뭐 먹을까?" }];
     assert.equal(
-      detectUnsupportedEvidenceFact(assistantOnlyPast, null, batchUserSources),
-      "unsupported_assistant_historical_scene_event"
+      detectUnsupportedEvidenceFact(inventedUserRelationship, null, batchUserSources),
+      "unsupported_assistant_user_relationship"
     );
   });
 
-  it("B0 attributed assistant past claim remains representable as explicit_character_claim", () => {
+  it("B0 attributed character claim may be stored as a claim without canonizing the user relationship", () => {
     const attributedClaim = {
       category: "relationship" as const,
       subject: "taehyung_sister",
       attribute: "scene_event",
-      value: "meal_reminder_call_claim",
+      value: "regards_claim",
       importance: "important" as const,
-      fact_text: "태형은 누나가 어제 연락해서 밥을 챙기라고 했다고 말했다.",
+      fact_text: "태형은 누나가 렌에게 안부를 전해 달라고 했다고 말했다.",
       evidence_type: "explicit_character_claim" as const,
     };
     assert.equal(
