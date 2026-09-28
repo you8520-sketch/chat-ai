@@ -140,12 +140,20 @@ describe("gmProviderStreamDisplay", () => {
     );
   });
 
-  it("LIVE_ASSET_RESOLUTION=false until canonical reveal complete", () => {
+  it("LIVE_ASSET_RESOLUTION during provider stream; canonical still waits for reveal complete", () => {
     const raw =
       "장면.\n[캐릭터에셋: 12|분노]\n[캐릭터에셋: 13|웃음]\n[태그: 대합실]";
-    const live = stripLiveGmNarrationText(raw);
-    assert.match(live, /장면/, "LIVE_TEXT_STREAMING=true");
-    assert.doesNotMatch(live, /캐릭터에셋/, "LIVE_ASSET_RESOLUTION=false");
+    const liveDraft = resolveTrpgGmPacingSource({ gmStreamDraft: raw, canonicalNarration: null });
+    assert.match(liveDraft, /\[캐릭터에셋: 12\|분노\]/, "DRAFT_MARKER_PRESENT=true");
+    assert.equal(
+      resolveTrpgGmLiveAssetResolution({
+        canonicalCommitted: false,
+        revealComplete: false,
+        liveStreaming: true,
+      }),
+      true,
+      "VALID_MARKER_REVEALED_BEFORE_STREAM_END=true"
+    );
     assert.equal(
       resolveTrpgGmLiveAssetResolution({ canonicalCommitted: false, revealComplete: false }),
       false
