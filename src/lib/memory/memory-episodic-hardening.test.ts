@@ -411,6 +411,46 @@ describe("memory episodic hardening regression", () => {
     );
   });
 
+  it("B0 broad user history does not support an invented specific mission episode", () => {
+    const fact = {
+      category: "relationship" as const,
+      subject: "ren_taehyung",
+      attribute: "scene_event",
+      value: "break_infiltration_mission",
+      importance: "important" as const,
+      fact_text: "렌과 태형은 브레이크 진입 임무를 함께했고 태형이 뒤에서 소리를 냈다.",
+      evidence_type: "explicit_scene_event" as const,
+    };
+    assert.equal(
+      detectUnsupportedEvidenceFact(
+        fact,
+        null,
+        [{ turn: 5, messageId: 5, text: "첫 만남 이후 몇 차례 임무를 함께했어." }]
+      ),
+      "unsupported_assistant_user_relationship"
+    );
+  });
+
+  it("B0 preference presupposition does not support an invented market episode", () => {
+    const fact = {
+      category: "relationship" as const,
+      subject: "ren_taehyung",
+      attribute: "scene_event",
+      value: "market_grape_trip",
+      importance: "important" as const,
+      fact_text: "렌과 태형은 저번에 시장에 함께 가서 포도를 샀다.",
+      evidence_type: "explicit_scene_event" as const,
+    };
+    assert.equal(
+      detectUnsupportedEvidenceFact(
+        fact,
+        null,
+        [{ turn: 5, messageId: 5, text: "내가 평소에 뭐 좋아하는지 기억하지? 아무거나 골라봐." }]
+      ),
+      "unsupported_assistant_user_relationship"
+    );
+  });
+
   it("B0 attributed character claim may be stored as a claim without canonizing the user relationship", () => {
     const attributedClaim = {
       category: "relationship" as const,
