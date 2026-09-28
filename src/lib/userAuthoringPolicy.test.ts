@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import {
+  DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL,
+  DEFAULT_USER_AUTHORING_LEVEL,
   capabilitiesFromUserAuthoringLevel,
   parseUserAuthoringLevel,
 } from "@/lib/userAuthoringPolicy";
@@ -11,8 +13,10 @@ import {
 } from "@/lib/userCoauthorState";
 
 describe("three-level user authoring policy", () => {
-  it("defaults missing values to NORMAL while invalid values fail closed", () => {
-    assert.equal(parseUserAuthoringLevel(undefined), "NORMAL");
+  it("uses NORMAL product defaults while malformed parsing remains fail-closed", () => {
+    assert.equal(DEFAULT_USER_AUTHORING_LEVEL, "NORMAL");
+    assert.equal(DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL, "NORMAL");
+    assert.equal(parseUserAuthoringLevel(undefined), "LIMITED");
     assert.equal(parseUserAuthoringLevel("unknown"), "LIMITED");
     assert.equal(parseUserAuthoringLevel("normal"), "NORMAL");
     assert.equal(parseUserAuthoringLevel("allow"), "ALLOW");
