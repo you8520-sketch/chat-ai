@@ -19,6 +19,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
   CLAUDE_OPUS_MODEL,
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
@@ -51,7 +52,7 @@ describe("Main RP canonical 5-model registry", () => {
         CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
         CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
         CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-        CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+        CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
       ].sort()
     );
     for (const modelId of MAIN_RP_MODEL_IDS) {
@@ -64,6 +65,7 @@ describe("Main RP canonical 5-model registry", () => {
   it("retired models are MainRP=false and never selectable (even for admins)", () => {
     const retired = [
       CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -123,6 +125,9 @@ describe("Main RP canonical 5-model registry", () => {
     // @ts-expect-error — a retired model id must NOT be assignable to SelectedAI.
     const _retiredRejected: SelectedAI = CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
     void _retiredRejected;
+    // @ts-expect-error — retired Terra must migrate to Sol, not remain assignable.
+    const _terraRejected: SelectedAI = CHEAPER_INFERENCE_GPT_56_TERRA_MODEL;
+    void _terraRejected;
     // @ts-expect-error — Opus 5 retired from Main RP union.
     const _opusRejected: SelectedAI = CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL;
     void _opusRejected;
@@ -141,6 +146,7 @@ describe("Main RP canonical 5-model registry", () => {
   it("RETIRED_MODEL_IN_MAIN_RP_MATRIX=0 — main Rp registry never lists retired ids", () => {
     const retiredIds = [
       CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+      CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       OPENROUTER_GEMINI_36_FLASH_MODEL,
