@@ -50,6 +50,9 @@ jobs:
       - name: Lucian variation operator defaults to zero calls
         run: npm run official-supply:generate-lucian-variations
 
+      - name: Lucian finalizer defaults to zero mutations
+        run: npm run official-supply:finalize-lucian-v4
+
       - name: Official supply regressions
         run: >-
           node --conditions=react-server --import tsx
