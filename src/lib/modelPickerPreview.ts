@@ -97,8 +97,8 @@ export function canonicalizePreviewModelId(
 ): SelectedAI | null {
   const raw = usage?.selectedAI || usage?.model || messageModel || "";
   if (!raw.trim()) return null;
-  // Retired Muse samples must not skew active-model picker estimates.
-  if (isMuseModel(raw)) return null;
+  // Retired model samples must not skew the replacement model's picker estimates.
+  if (isMuseModel(raw) || isGpt56TerraModel(raw)) return null;
   const resolved = resolveSelectedAI(raw, raw);
   return isActivePickerModel(resolved) ? resolved : null;
 }
