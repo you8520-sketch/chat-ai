@@ -1,0 +1,46 @@
+name: Run Span-01 vs JEV live benchmark
+
+on:
+  pull_request:
+    paths:
+      - ".github/span01-vs-jev-live.trigger"
+      - ".github/workflows/run-span01-vs-jev-live.yml"
+      - "scripts/benchmark-span01-vs-jev-live.ts"
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "1"
+      REAL_SPAN_JEV_COMPARISON: "1"
+      OPENROUTER_JEV_BENCHMARK_API_KEY: ${{ secrets.OPENROUTER_JEV_BENCHMARK_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: Require dedicated benchmark credential
+        shell: bash
+        run: |
+          test -n "$OPENROUTER_JEV_BENCHMARK_API_KEY" || {
+            echo "::error::OPENROUTER_JEV_BENCHMARK_API_KEY repository secret is required."
+            exit 2
+          }
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Run bounded live classifier comparison
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          scripts/benchmark-span01-vs-jev-live.ts
+      - name: Upload comparison report
+        uses: actions/upload-artifact@v4
+        with:
+          name: span01-vs-jev-report
+          path: artifacts/decision-classifier-comparison/report.json
