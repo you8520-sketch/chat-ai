@@ -1,0 +1,148 @@
+name: Weekly Code Health audit
+
+# Repo-level read-only static health audit.
+# Not a Railway/production scheduler — same owner family as memory-research-cycle
+# and main-rp-monthly-cache-audit. Never patches production source.
+# Writes GitHub summary + artifacts + optional data-branch ledger. Never commits to main.
+
+on:
+  schedule:
+    # Monday 04:17 UTC = 13:17 KST. Avoids memory-research Monday 01:17 UTC.
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Skip persisting the code-health ledger data branch"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-health-weekly-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    outputs:
+      run_status: ${{ steps.audit.outputs.run_status }}
+      production_mutated: ${{ steps.audit.outputs.production_mutated }}
+      main_sha: ${{ steps.sha.outputs.main_sha }}
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      OPENROUTER_API_KEY: ""
+      OPENAI_API_KEY: ""
+      CHEAPER_INFERENCE_API_KEY: ""
+      CODE_HEALTH_AUDIT_OUT_DIR: artifacts/code-health-weekly
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - id: sha
+        run: echo "main_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Regression — code health audit
+        run: npm run test:code-health-audit
+
+      - name: Load previous ledger (data branch, read-only)
+        shell: bash
+        run: |
+          mkdir -p "$CODE_HEALTH_AUDIT_OUT_DIR"
+          if git fetch --depth=1 origin code-health-ledger 2>/dev/null; then
+            git show FETCH_HEAD:ledger.json > "$CODE_HEALTH_AUDIT_OUT_DIR/ledger.json" || true
+          fi
+
+      - name: Run weekly read-only audit
+        id: audit
+        run: >
+          node --conditions=react-server --import tsx
+          scripts/code-health-audit.ts
+          --out "$CODE_HEALTH_AUDIT_OUT_DIR"
+          --ledger "$CODE_HEALTH_AUDIT_OUT_DIR/ledger.json"
+          --main-sha "${{ steps.sha.outputs.main_sha }}"
+
+      - name: Prove weekly job did not mutate production
+        run: |
+          test "${{ steps.audit.outputs.production_mutated }}" = "false"
+          git diff --exit-code -- . ':!artifacts' ':!*.json'
+
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            echo "## Weekly Code Health"
+            echo ""
+            echo "- runStatus: \`${{ steps.audit.outputs.run_status }}\`"
+            echo "- productionMutated: \`${{ steps.audit.outputs.production_mutated }}\`"
+            echo "- auto-patch: **no**"
+            echo ""
+            if [ -f "$CODE_HEALTH_AUDIT_OUT_DIR/REPORT.md" ]; then
+              cat "$CODE_HEALTH_AUDIT_OUT_DIR/REPORT.md"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: code-health-weekly
+          path: artifacts/code-health-weekly
+          retention-days: 90
+
+  persist:
+    needs: audit
+    if: >-
+      always() &&
+      needs.audit.result == 'success' &&
+      (github.event_name != 'workflow_dispatch' || inputs.dry_run != true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.audit.outputs.main_sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: code-health-weekly
+          path: artifacts/code-health-weekly
+
+      - name: Push ledger to data branch (never merged into main)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin code-health-ledger 2>/dev/null; then
+            git worktree add ledger-wt FETCH_HEAD
+            git -C ledger-wt checkout -B code-health-ledger
+          else
+            git worktree add --detach ledger-wt
+            git -C ledger-wt checkout --orphan code-health-ledger
+            git -C ledger-wt rm -rf --quiet . 2>/dev/null || true
+          fi
+          mkdir -p ledger-wt/weekly
+          cp artifacts/code-health-weekly/ledger.json ledger-wt/ledger.json
+          cp artifacts/code-health-weekly/latest-weekly.json ledger-wt/latest-weekly.json
+          cp artifacts/code-health-weekly/REPORT.md ledger-wt/weekly/${{ needs.audit.outputs.main_sha }}.md
+          git -C ledger-wt add ledger.json latest-weekly.json weekly
+          if git -C ledger-wt diff --cached --quiet; then
+            echo "ledger unchanged"
+            exit 0
+          fi
+          git -C ledger-wt commit -m "code-health: weekly ledger for ${{ needs.audit.outputs.main_sha }}"
+          git -C ledger-wt push origin HEAD:refs/heads/code-health-ledger

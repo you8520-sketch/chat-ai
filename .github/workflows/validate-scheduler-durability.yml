@@ -16,6 +16,7 @@ on:
       - "src/lib/mainRpCacheTtlEconomics.test.ts"
       - "src/lib/adminAutomationReports.ts"
       - "src/lib/adminAutomationReports.test.ts"
+      - "src/lib/codeHealth/**"
       - "src/app/admin/automation-reports/page.tsx"
       - "src/app/settings/SettingsClient.tsx"
       - "src/lib/payoutSchedule.ts"
@@ -54,5 +55,7 @@ jobs:
           src/lib/schedulerRunRegistry.test.ts
           src/lib/mainRpCacheTtlEconomics.test.ts
           src/lib/adminAutomationReports.test.ts
+          src/lib/codeHealth/isolation.test.ts
+          src/lib/codeHealth/reports.test.ts
       - name: Production build
         run: npm run build

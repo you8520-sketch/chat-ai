@@ -1,0 +1,203 @@
+name: Monthly Code Health cleanup
+
+# Merges prior weekly audits into a bounded cleanup candidate set.
+# Creates a Draft PR only when every gate passes. Never auto-merges.
+# Not a Railway/production scheduler.
+
+on:
+  schedule:
+    # 3rd of each month 04:17 UTC = 13:17 KST (after monthly cache audit on the 2nd).
+    - cron: "17 4 3 * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Do not persist ledger or open a Draft PR"
+        type: boolean
+        default: true
+      create_pr:
+        description: "Open a Draft PR when eligible SAFE_TO_DELETE unused files exist"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-health-monthly-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    outputs:
+      run_status: ${{ steps.cleanup.outputs.run_status }}
+      eligible_count: ${{ steps.cleanup.outputs.eligible_count }}
+      draft_pr_created: ${{ steps.cleanup.outputs.draft_pr_created }}
+      auto_merged: ${{ steps.cleanup.outputs.auto_merged }}
+      main_sha: ${{ steps.sha.outputs.main_sha }}
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      OPENROUTER_API_KEY: ""
+      OPENAI_API_KEY: ""
+      CHEAPER_INFERENCE_API_KEY: ""
+      CODE_HEALTH_CLEANUP_OUT_DIR: artifacts/code-health-monthly
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - id: sha
+        run: echo "main_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Regression — code health audit / cleanup
+        run: npm run test:code-health-audit
+
+      - name: Load ledger (data branch, read-only)
+        shell: bash
+        run: |
+          mkdir -p "$CODE_HEALTH_CLEANUP_OUT_DIR"
+          if git fetch --depth=1 origin code-health-ledger 2>/dev/null; then
+            git show FETCH_HEAD:ledger.json > "$CODE_HEALTH_CLEANUP_OUT_DIR/ledger.json" || true
+          fi
+
+      - name: Generate monthly cleanup candidate set
+        id: cleanup
+        run: >
+          node --conditions=react-server --import tsx
+          scripts/code-health-monthly-cleanup.ts
+          --out "$CODE_HEALTH_CLEANUP_OUT_DIR"
+          --ledger "$CODE_HEALTH_CLEANUP_OUT_DIR/ledger.json"
+          --main-sha "${{ steps.sha.outputs.main_sha }}"
+
+      - name: Prove monthly job did not auto-merge or mutate production by default
+        run: |
+          test "${{ steps.cleanup.outputs.auto_merged }}" = "false"
+          test "${{ steps.cleanup.outputs.draft_pr_created }}" = "false"
+          git diff --exit-code -- . ':!artifacts' ':!*.json'
+
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            echo "## Monthly Cleanup"
+            echo ""
+            echo "- runStatus: \`${{ steps.cleanup.outputs.run_status }}\`"
+            echo "- eligible: \`${{ steps.cleanup.outputs.eligible_count }}\`"
+            echo "- draft PR created by planner: \`${{ steps.cleanup.outputs.draft_pr_created }}\`"
+            echo "- auto-merge: **no**"
+            echo ""
+            if [ -f "$CODE_HEALTH_CLEANUP_OUT_DIR/REPORT.md" ]; then
+              cat "$CODE_HEALTH_CLEANUP_OUT_DIR/REPORT.md"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: code-health-monthly
+          path: artifacts/code-health-monthly
+          retention-days: 90
+
+  draft_pr:
+    needs: cleanup
+    if: >-
+      needs.cleanup.result == 'success' &&
+      needs.cleanup.outputs.eligible_count != '0' &&
+      inputs.dry_run != true &&
+      (github.event_name == 'schedule' || inputs.create_pr == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.cleanup.outputs.main_sha }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: code-health-monthly
+          path: artifacts/code-health-monthly
+
+      - name: Open bounded cleanup Draft PR (never merged)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          branch="code-health-cleanup-${{ needs.cleanup.outputs.main_sha }}"
+          git checkout -b "$branch"
+          mkdir -p docs/audit
+          cp artifacts/code-health-monthly/REPORT.md docs/audit/code-health-cleanup-latest.md
+          cp artifacts/code-health-monthly/eligible.json docs/audit/code-health-cleanup-eligible.json
+          git add docs/audit/code-health-cleanup-latest.md docs/audit/code-health-cleanup-eligible.json
+          git commit -m "chore(code-health): monthly cleanup candidate set"
+          git push -u origin "$branch"
+          gh pr create --draft --title "chore: monthly code-health cleanup candidates" \
+            --body "$(cat artifacts/code-health-monthly/REPORT.md)" \
+            --base main --head "$branch"
+
+  persist:
+    needs: [cleanup, draft_pr]
+    if: >-
+      always() &&
+      needs.cleanup.result == 'success' &&
+      (github.event_name != 'workflow_dispatch' || inputs.dry_run != true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.cleanup.outputs.main_sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: code-health-monthly
+          path: artifacts/code-health-monthly
+
+      - name: Push monthly ledger to data branch (never merged into main)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin code-health-ledger 2>/dev/null; then
+            git worktree add ledger-wt FETCH_HEAD
+            git -C ledger-wt checkout -B code-health-ledger
+          else
+            git worktree add --detach ledger-wt
+            git -C ledger-wt checkout --orphan code-health-ledger
+            git -C ledger-wt rm -rf --quiet . 2>/dev/null || true
+          fi
+          mkdir -p ledger-wt/monthly
+          cp artifacts/code-health-monthly/ledger.json ledger-wt/ledger.json
+          cp artifacts/code-health-monthly/latest-monthly.json ledger-wt/latest-monthly.json
+          cp artifacts/code-health-monthly/REPORT.md ledger-wt/monthly/${{ needs.cleanup.outputs.main_sha }}.md
+          git -C ledger-wt add ledger.json latest-monthly.json monthly
+          if git -C ledger-wt diff --cached --quiet; then
+            echo "ledger unchanged"
+            exit 0
+          fi
+          git -C ledger-wt commit -m "code-health: monthly ledger for ${{ needs.cleanup.outputs.main_sha }}"
+          git -C ledger-wt push origin HEAD:refs/heads/code-health-ledger
