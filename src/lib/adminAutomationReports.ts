@@ -82,28 +82,36 @@ export async function fetchGithubScheduledAutomationProjection(
   fetchImpl: typeof fetch = fetch
 ): Promise<GithubAutomationProjection> {
   try {
-    const response = await fetchImpl(
-      `https://api.github.com/repos/${AUTOMATION_REPORTS_GITHUB_REPO}/actions/runs?event=schedule&per_page=100`,
-      {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "User-Agent": "chat-ai-admin-automation-reports",
-        },
-        cache: "no-store",
+    const rawRuns: Array<Record<string, unknown>> = [];
+    for (let page = 1; page <= 5; page += 1) {
+      const response = await fetchImpl(
+        `https://api.github.com/repos/${AUTOMATION_REPORTS_GITHUB_REPO}/actions/runs?event=schedule&per_page=100&page=${page}`,
+        {
+          headers: {
+            Accept: "application/vnd.github+json",
+            "User-Agent": "chat-ai-admin-automation-reports",
+          },
+          cache: "no-store",
+        }
+      );
+      if (!response.ok) {
+        return {
+          status: "UNAVAILABLE",
+          error: `GitHub Actions API ${response.status}`,
+          groups: [],
+        };
       }
-    );
-    if (!response.ok) {
-      return {
-        status: "UNAVAILABLE",
-        error: `GitHub Actions API ${response.status}`,
-        groups: [],
+      const body = (await response.json()) as {
+        workflow_runs?: Array<Record<string, unknown>>;
       };
+      const pageRuns = body.workflow_runs ?? [];
+      rawRuns.push(...pageRuns);
+      if (pageRuns.length < 100) break;
     }
-    const body = (await response.json()) as { workflow_runs?: Array<Record<string, unknown>> };
     return {
       status: "OK",
       error: null,
-      groups: groupGithubScheduledAutomationRuns(body.workflow_runs ?? []),
+      groups: groupGithubScheduledAutomationRuns(rawRuns),
     };
   } catch (error) {
     return {
