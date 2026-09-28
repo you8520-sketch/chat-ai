@@ -81,7 +81,11 @@ export function classifyCandidate(
     evidenceCompleteForDelete(candidate) &&
     structuralStops.length === 0 &&
     !isKeepPath(candidate.path) &&
-    !isProtectedBoundaryPath(candidate.path)
+    !isProtectedBoundaryPath(candidate.path) &&
+    !candidate.path.startsWith("src/app/") &&
+    !candidate.path.startsWith("src/components/") &&
+    !candidate.path.startsWith("src/lib/") &&
+    !candidate.path.startsWith("public/")
   ) {
     classification = "SAFE_TO_DELETE";
   } else if (classification === "SAFE_TO_DELETE") {

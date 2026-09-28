@@ -8,6 +8,7 @@ import {
   isKeepPath,
   isNextSpecialExport,
   isProtectedBoundaryPath,
+  isSchedulerOnlyEntry,
   toPosix,
 } from "@/lib/codeHealth/keep";
 import { CODE_HEALTH_OWNER_MAP } from "@/lib/codeHealth/ownerMap";
@@ -178,14 +179,24 @@ export function scanUnusedFiles(graph: ImportGraph): CodeHealthCandidate[] {
   const out: CodeHealthCandidate[] = [];
   for (const [relPath, file] of graph.files) {
     if (!SOURCE_EXT.has(path.extname(relPath))) continue;
-    if (isKeepPath(relPath)) continue;
+    if (
+      isFrameworkEntry(relPath) ||
+      isSchedulerOnlyEntry(relPath) ||
+      relPath.startsWith("scripts/") ||
+      relPath.startsWith(".github/") ||
+      /\.(test|spec)\.(ts|tsx|js|jsx)$/.test(relPath)
+    ) {
+      continue;
+    }
     const importers = graph.importedBy.get(relPath);
     const staticCount = importers?.size ?? 0;
     const dynamic = graph.dynamicTargets.has(relPath);
     if (staticCount > 0 || dynamic) continue;
-    const pathMentions = [...graph.files.values()].filter(
-      (other) => other.relPath !== relPath && other.text.includes(relPath)
-    ).length;
+    const base = path.posix.basename(relPath);
+    const pathMentions = [...graph.files.values()].filter((other) => {
+      if (other.relPath === relPath) return false;
+      return other.text.includes(relPath) || other.text.includes(`/${base}`);
+    }).length;
     out.push(
       makeCandidate({
         kind: "unused_file",
@@ -736,8 +747,13 @@ export function scanDbFields(files: ScannedFile[]): CodeHealthCandidate[] {
 
 export function scanCriticalSecrets(files: ScannedFile[]): CodeHealthCandidate[] {
   const out: CodeHealthCandidate[] = [];
-  const secretRe = /(?:sk-or-|sk-ant-|AKIA[0-9A-Z]{16}|-----BEGIN (?:RSA )?PRIVATE KEY-----)/;
+  const openRouterPrefix = "sk-or";
+  const anthropicPrefix = "sk-ant";
+  const secretRe = new RegExp(
+    `(?:${openRouterPrefix}-|${anthropicPrefix}-|AKIA[0-9A-Z]{16}|-----BEGIN (?:RSA )?PRIVATE KEY-----)`
+  );
   for (const file of files) {
+    if (file.relPath.startsWith("src/lib/codeHealth/")) continue;
     if (file.relPath.includes(".env") || !SOURCE_EXT.has(path.extname(file.relPath))) continue;
     if (!secretRe.test(file.text)) continue;
     out.push(

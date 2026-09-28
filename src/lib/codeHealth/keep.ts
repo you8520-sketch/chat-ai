@@ -80,7 +80,7 @@ const NEXT_SPECIAL_EXPORTS = new Set([
 ]);
 
 const STOP_PATH_RE =
-  /(^|\/)(auth|adminAuth|isAdminUser|adult|billing|payout|payment|portone|pricing|chatModels|openRouterAdult|db)\b/i;
+  /(^|\/)(auth|adminAuth|isAdminUser|adult|billing|payout|payment|portone|pricing|chatModels|openRouterAdult|db)\b|Adult|Billing|Withdrawal|Payout|Pricing/i;
 
 export function toPosix(relPath: string): string {
   return relPath.split(path.sep).join("/");
@@ -146,6 +146,28 @@ export function isWorkflowEntry(relPath: string): boolean {
   return toPosix(relPath).startsWith(".github/");
 }
 
+export function isRuntimeAssetEntry(relPath: string): boolean {
+  const posix = toPosix(relPath);
+  return posix.startsWith("public/") || posix.startsWith("src/types/") || posix.endsWith(".d.ts");
+}
+
+export function isColocatedAppOrUiEntry(relPath: string): boolean {
+  const posix = toPosix(relPath);
+  return posix.startsWith("src/app/") || posix.startsWith("src/components/");
+}
+
+export function isConcurrentForkEntry(relPath: string): boolean {
+  return /\.concurrentFork\.(ts|tsx|js)$/.test(toPosix(relPath));
+}
+
+export function isAmbiguousRuntimeEntry(relPath: string): boolean {
+  return (
+    isRuntimeAssetEntry(relPath) ||
+    isColocatedAppOrUiEntry(relPath) ||
+    isConcurrentForkEntry(relPath)
+  );
+}
+
 export function isKeepPath(relPath: string): boolean {
   return (
     isFrameworkEntry(relPath) ||
@@ -154,7 +176,8 @@ export function isKeepPath(relPath: string): boolean {
     isTestEntry(relPath) ||
     isMigrationOrSchemaEntry(relPath) ||
     isProviderAdapterEntry(relPath) ||
-    isWorkflowEntry(relPath)
+    isWorkflowEntry(relPath) ||
+    isAmbiguousRuntimeEntry(relPath)
   );
 }
 

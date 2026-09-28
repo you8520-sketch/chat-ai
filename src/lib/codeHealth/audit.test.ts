@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import { renderWeeklyMarkdown, runWeeklyCodeHealthAudit } from "@/lib/codeHealth/audit";
 import { classifyCandidate } from "@/lib/codeHealth/classify";
 import { isFrameworkEntry, isKeepPath, isSchedulerOnlyEntry } from "@/lib/codeHealth/keep";
-import { buildImportGraph, scanUnusedFiles, walkSourceFiles } from "@/lib/codeHealth/scan";
+import { buildImportGraph, scanCriticalSecrets, scanUnusedFiles, walkSourceFiles } from "@/lib/codeHealth/scan";
 import type { CodeHealthCandidate } from "@/lib/codeHealth/types";
 import { CODE_HEALTH_AUDIT_MUTATES_PRODUCTION, formatTrend } from "@/lib/codeHealth/types";
 
@@ -21,10 +21,10 @@ function writeTree(root: string, files: Record<string, string>): void {
 
 function unusedFileCandidate(overrides: Partial<CodeHealthCandidate> = {}): CodeHealthCandidate {
   return {
-    id: "unused_file:src/lib/orphan.ts:",
+    id: "unused_file:fixtures/orphan.ts:",
     kind: "unused_file",
     classification: "UNCONFIRMED",
-    path: "src/lib/orphan.ts",
+    path: "fixtures/orphan.ts",
     symbol: null,
     summary: "orphan",
     evidence: {
@@ -51,6 +51,9 @@ describe("code health keep / false-positive fixtures", () => {
     assert.equal(isKeepPath("scripts/code-health-audit.ts"), true);
     assert.equal(isKeepPath("src/lib/chatModels.test.ts"), true);
     assert.equal(isKeepPath("src/lib/orphan.ts"), false);
+    assert.equal(isKeepPath("src/components/ChatSessionList.tsx"), true);
+    assert.equal(isKeepPath("public/sw.js"), true);
+    assert.equal(isKeepPath("src/types/dice-box-threejs.d.ts"), true);
   });
 
   it("does not treat a dynamically imported module as an unused file", () => {
@@ -102,6 +105,17 @@ describe("code health classification", () => {
     assert.ok(classified.stopReasons.includes("static_analyzer_false_positive_unresolved"));
   });
 
+  it("does not treat the auditor's own detector source as an embedded secret", () => {
+    const hits = scanCriticalSecrets([
+      {
+        relPath: "src/lib/codeHealth/scan.ts",
+        absPath: "/tmp/scan.ts",
+        text: 'const openRouterPrefix = "sk-or";\n',
+      },
+    ]);
+    assert.deepEqual(hits, []);
+  });
+
   it("marks critical findings as REQUIRED_CLEANUP / BUGFIX and never as auto-patch", () => {
     const classified = classifyCandidate(
       unusedFileCandidate({
@@ -128,6 +142,7 @@ describe("weekly read-only audit", () => {
       ".env.example": "USED_FLAG=1\nORPHAN_FLAG_ENABLED=1\n",
       "src/lib/used.ts": `export const used = process.env.USED_FLAG;\n`,
       "src/lib/orphan.ts": `export const orphan = 1;\n`,
+      "fixtures/orphan.ts": `export const leftover = 1;\n`,
       "src/app/page.tsx": `import { used } from "@/lib/used";\nexport default function Page() { return used; }\n`,
     });
     const before = fs.readdirSync(path.join(root, "src/lib")).sort();
@@ -140,7 +155,11 @@ describe("weekly read-only audit", () => {
     assert.deepEqual(after, before);
     assert.equal(report.productionMutated, false);
     assert.equal(report.kind, "weekly");
-    assert.ok(report.candidates.some((c) => c.path === "src/lib/orphan.ts"));
+    const libOrphan = report.candidates.find((c) => c.path === "src/lib/orphan.ts");
+    const fixtureOrphan = report.candidates.find((c) => c.path === "fixtures/orphan.ts");
+    assert.ok(libOrphan);
+    assert.notEqual(libOrphan?.classification, "SAFE_TO_DELETE");
+    assert.equal(fixtureOrphan?.classification, "SAFE_TO_DELETE");
     assert.ok(report.candidates.some((c) => c.symbol === "ORPHAN_FLAG_ENABLED"));
     assert.ok(report.candidates.some((c) => c.symbol === "leftover"));
     assert.match(renderWeeklyMarkdown(report), /Weekly Code Health/);
