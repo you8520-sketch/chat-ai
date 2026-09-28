@@ -12,18 +12,24 @@ jobs:
   capture:
     runs-on: ubuntu-latest
     steps:
-      - name: Download persisted contact sheet
+      - name: Download persisted contact sheet and current Lucian page
         run: |
           set -euo pipefail
           curl --fail --location --retry 3 \
             "https://chat-ai-production-3e84.up.railway.app/uploads/official-shot-qa-v2-contact-sheet.png" \
             --output official-shot-qa-v2-contact-sheet.png
+          curl --fail --location --retry 3 \
+            "https://chat-ai-production-3e84.up.railway.app/character/50" \
+            --output lucian-character-50.html
           file official-shot-qa-v2-contact-sheet.png
           test -s official-shot-qa-v2-contact-sheet.png
-      - name: Upload contact sheet
+          test -s lucian-character-50.html
+      - name: Upload QA evidence
         uses: actions/upload-artifact@v4
         with:
-          name: official-shot-qa-v2-contact-sheet
-          path: official-shot-qa-v2-contact-sheet.png
+          name: official-shot-qa-v2-evidence
+          path: |
+            official-shot-qa-v2-contact-sheet.png
+            lucian-character-50.html
           if-no-files-found: error
           retention-days: 1
