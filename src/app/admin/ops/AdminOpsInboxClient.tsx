@@ -14,6 +14,7 @@ const SOURCE_LABEL: Record<AdminOpsIncidentSource, string> = {
   scheduler: "스케줄러",
   payout: "크리에이터 출금",
   point_refund: "포인트 환불",
+  procurement: "조달/계약",
 };
 
 function ageLabel(ageMinutes: number | null): string {
@@ -96,6 +97,7 @@ export default function AdminOpsInboxClient({
           ["scheduler", SOURCE_LABEL.scheduler],
           ["payout", SOURCE_LABEL.payout],
           ["point_refund", SOURCE_LABEL.point_refund],
+          ["procurement", SOURCE_LABEL.procurement],
         ] as const).map(([id, label]) => (
           <button
             key={id}

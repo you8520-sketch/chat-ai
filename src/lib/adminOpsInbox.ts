@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { buildOpenRouterContractWatchProjection } from "@/lib/openRouterContractWatch";
 import {
   ensurePayoutTransferAttemptsSchema,
   type PayoutAttemptState,
@@ -206,6 +207,33 @@ export function listAdminOpsIncidents(
       occurredAt,
       ageMinutes: age,
       href: null,
+    });
+  }
+
+  const contractWatch = buildOpenRouterContractWatchProjection(db, now);
+  if (contractWatch.quoteReviewRecommended) {
+    const coverage =
+      contractWatch.exactCallCoverageRatio == null
+        ? "exact coverage unavailable"
+        : `exact call coverage ${(contractWatch.exactCallCoverageRatio * 100).toFixed(1)}%`;
+    incidents.push({
+      id: "procurement:openrouter-contract-review",
+      source: "procurement",
+      severity: "warning",
+      state: contractWatch.status,
+      title: "OpenRouter 계약/견적 검토 시점",
+      summary:
+        `최근 ${contractWatch.windowDays}일 OpenRouter-addressable settled exact AI spend가 ` +
+        `${contractWatch.settledExactUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}로 ` +
+        `내부 견적 검토 marker ${contractWatch.reviewMarkerUsd.toLocaleString("en-US")}를 넘었습니다. ` +
+        `OpenRouter Enterprise 자격 확정이 아니라 영업 견적을 받아 현재 조달비와 비교할 시점이라는 알림입니다. ` +
+        coverage,
+      sourceRef:
+        `rolling-${contractWatch.windowDays}d settled-exact / ` +
+        `providers=${contractWatch.providers.join(",") || "none"}`,
+      occurredAt: contractWatch.windowEnd,
+      ageMinutes: ageMinutes(nowMs, contractWatch.windowEnd),
+      href: "/admin/pricing",
     });
   }
 

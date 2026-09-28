@@ -12,6 +12,8 @@ on:
       - "src/lib/providerCostReconciliation.ts"
       - "src/lib/providerCostReconciliation.targeted.test.ts"
       - "src/lib/providerCostLedger.ts"
+      - "src/lib/openRouterContractWatch.ts"
+      - "src/lib/openRouterContractWatch.test.ts"
       - "src/lib/providerCostSingleOwner.test.ts"
       - "src/lib/auxProviderProvenance.ts"
       - "src/lib/trpg/replySuggestions.ts"

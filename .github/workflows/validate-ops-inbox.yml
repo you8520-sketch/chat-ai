@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "src/lib/adminOpsInbox.ts"
+      - "src/lib/openRouterContractWatch.ts"
+      - "src/lib/openRouterContractWatch.test.ts"
       - "src/lib/adminOpsInboxShared.ts"
       - "src/lib/adminOpsInbox.test.ts"
       - "src/lib/schedulerDefinitions.ts"
@@ -41,5 +43,7 @@ jobs:
         run: npm run typecheck:app
       - name: Ops inbox regression
         run: node --conditions=react-server --import tsx --test src/lib/adminOpsInbox.test.ts
+      - name: OpenRouter contract watch regression
+        run: node --conditions=react-server --import tsx --test src/lib/openRouterContractWatch.test.ts
       - name: Production build
         run: npm run build
