@@ -380,6 +380,8 @@ export default function ChatSettingsPanel({
         onNarrativePovChange={onNarrativePovChange}
         userAuthoringLevel={userAuthoringLevel}
         onUserAuthoringLevelChange={onUserAuthoringLevelChange}
+        autoProgressionAuthoringLevel={autoProgressionAuthoringLevel}
+        onAutoProgressionAuthoringLevelChange={onAutoProgressionAuthoringLevelChange}
         userAuthoringSaving={userAuthoringSaving}
         characterWidgetJson={characterWidgetJson}
         statusWidgetMode={statusWidgetMode}
@@ -870,6 +872,8 @@ function DisplaySection({
   onNarrativePovChange,
   userAuthoringLevel,
   onUserAuthoringLevelChange,
+  autoProgressionAuthoringLevel,
+  onAutoProgressionAuthoringLevelChange,
   userAuthoringSaving = false,
   characterWidgetJson,
   statusWidgetMode,
