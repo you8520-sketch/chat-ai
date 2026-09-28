@@ -63,6 +63,13 @@ const DEFAULT_POLICIES: Record<string, Omit<ModelPricingPolicy, "modelId">> = {
     expectedProviderModelId: "gpt-5.6-terra",
     pricingMode: "standard",
   },
+  "gpt-6-sol": {
+    provider: "cheaperinference",
+    baselineMode: "PROVIDER_STANDARD",
+    autoApply: false,
+    expectedProviderModelId: "gpt-6-sol",
+    pricingMode: "tier_aware",
+  },
   "claude-opus-5": {
     provider: "cheaperinference",
     baselineMode: "PROVIDER_STANDARD",
