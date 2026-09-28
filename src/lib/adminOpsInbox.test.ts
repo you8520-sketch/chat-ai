@@ -6,6 +6,7 @@ import { ADMIN_OPS_STUCK_EXECUTION_MINUTES } from "@/lib/adminOpsInboxShared";
 import { ensurePayoutTransferAttemptsSchema } from "@/lib/payoutTransferAttempts";
 import { ensurePointChargeRefundAttemptsSchema } from "@/lib/pointChargeRefundAttempts";
 import { ensureSchedulerRunRegistrySchema } from "@/lib/schedulerRunRegistry";
+import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
 
 process.env.DISABLE_PAYOUT_SCHEDULER = "1";
 process.env.DISABLE_TRAINING_PIPELINE = "1";
@@ -164,6 +165,53 @@ describe("admin ops inbox projection", () => {
     const incidents = listAdminOpsIncidents(database, NOW);
     assert.equal(incidents.some((row) => row.id === "payout:51"), false);
     assert.equal(incidents.some((row) => row.id === "point_refund:52"), false);
+
+    database.close();
+  });
+});
+
+
+describe("admin ops procurement contract watch", () => {
+  it("surfaces one read-only quote-review warning from canonical settled spend", () => {
+    const database = db();
+    recordBackgroundProviderCost(
+      {
+        provider: "cheaperinference",
+        model: "fixture-model",
+        requestKind: "ops-contract-watch",
+        costCenter: "chat_turn",
+        providerRequestId: "ops-contract-watch-1",
+        inputTokens: 1000,
+        outputTokens: 500,
+        cheaperInferenceBilledCostUsd: 25_000,
+        outcome: "success",
+        persistInTests: true,
+      },
+      database
+    );
+    database
+      .prepare(
+        "UPDATE api_cost_ledger SET created_at='2026-09-20 12:00:00' WHERE provider_request_id='ops-contract-watch-1'"
+      )
+      .run();
+
+    const incidents = listAdminOpsIncidents(database, NOW);
+    const contract = incidents.find(
+      (row) => row.id === "procurement:openrouter-contract-review"
+    );
+    assert.ok(contract);
+    assert.equal(contract?.source, "procurement");
+    assert.equal(contract?.severity, "warning");
+    assert.equal(contract?.state, "QUOTE_REVIEW");
+    assert.equal(contract?.href, "/admin/pricing");
+    assert.match(contract?.summary ?? "", /Enterprise 자격 확정이 아니라/);
+
+    const parallel = database
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%contract_watch%'"
+      )
+      .all();
+    assert.deepEqual(parallel, []);
 
     database.close();
   });
