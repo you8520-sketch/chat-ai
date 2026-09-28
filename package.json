@@ -29,10 +29,7 @@
     "official-supply:cluster-b-v4-style-proof": "node --conditions=react-server --import tsx scripts/official-supply-cluster-b-v4-style-proof.ts",
     "official-supply:generate-rofan-v4-anchors": "node --conditions=react-server --import tsx scripts/official-supply-generate-rofan-v4-anchors.ts",
     "official-supply:approve-anchor": "node --conditions=react-server --import tsx scripts/official-supply-approve-anchor.ts",
-    "official-supply:generate-lucian-variations": "node --conditions=react-server --import tsx scripts/official-supply-generate-lucian-variations.ts",
-    "official-supply:finalize-lucian-v4": "node --conditions=react-server --import tsx scripts/official-supply-finalize-lucian-v4.ts",
-    "official-supply:bootstrap-romance-studio": "node --conditions=react-server --import tsx scripts/official-supply-bootstrap-romance-studio.ts",
-    "official-supply:publish-lucian-v4": "node --conditions=react-server --import tsx scripts/official-supply-publish-lucian-v4.ts"
+    "official-supply:generate-lucian-variations": "node --conditions=react-server --import tsx scripts/official-supply-generate-lucian-variations.ts"
   },
   "dependencies": {
     "@3d-dice/dice-box-threejs": "^0.0.12",
