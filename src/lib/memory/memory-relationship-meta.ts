@@ -27,6 +27,10 @@ import {
   isCurrentAssistantGeneration,
   type AssistantGenerationScope,
 } from "@/lib/assistantGenerationScope";
+import {
+  generationSequenceForVariant,
+  normalizeMessageVariants,
+} from "@/lib/messageAlternates";
 
 export type { RelationshipMetaCategory };
 
@@ -101,6 +105,100 @@ function persistRelationshipMetaBeforeSnapshotCore(
      WHERE id=? AND chat_id=? AND role='assistant'
        AND memory_relationship_before_json IS NULL`
   ).run(JSON.stringify(meta), assistantMessageId, chatId);
+}
+
+
+function parseRelationshipMetaObjectSnapshot(value: unknown): MemoryMeta | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  try {
+    return parseMemoryMeta(JSON.stringify(value));
+  } catch {
+    return null;
+  }
+}
+
+function persistRelationshipMetaAfterSnapshotForGenerationCore(
+  db: Database.Database,
+  opts: {
+    chatId: number;
+    assistantMessageId: number;
+    generationScope: AssistantGenerationScope;
+    meta: MemoryMeta;
+  }
+): void {
+  const row = db
+    .prepare(
+      `SELECT content, model, usage, alternates, active_variant
+       FROM messages WHERE id=? AND chat_id=? AND role='assistant'`
+    )
+    .get(opts.assistantMessageId, opts.chatId) as
+    | {
+        content: string;
+        model: string;
+        usage: string | null;
+        alternates: string | null;
+        active_variant: number | null;
+      }
+    | undefined;
+  if (!row) return;
+
+  const { variants, activeVariant } = normalizeMessageVariants(row);
+  const active = variants[activeVariant];
+  if (!active) return;
+  if (
+    generationSequenceForVariant(active, activeVariant) !==
+    opts.generationScope.generationSequence
+  ) {
+    return;
+  }
+  const expectedRequestId = opts.generationScope.generationRequestId?.trim() || null;
+  const activeRequestId = active.requestId?.trim() || null;
+  if (expectedRequestId && activeRequestId && expectedRequestId !== activeRequestId) {
+    return;
+  }
+
+  variants[activeVariant] = {
+    ...active,
+    relationshipMetaAfter: opts.meta,
+  };
+  db.prepare(
+    "UPDATE messages SET alternates=? WHERE id=? AND chat_id=? AND role='assistant'"
+  ).run(JSON.stringify(variants), opts.assistantMessageId, opts.chatId);
+}
+
+export type RelationshipVariantReprojectionResult =
+  | "applied"
+  | "already_selected"
+  | "external_drift_preserved"
+  | "missing_provenance";
+
+export function reprojectRelationshipMetaForVariantSwitchCore(
+  db: Database.Database,
+  opts: {
+    chatId: number;
+    activeRelationshipMetaAfter?: MemoryMeta | null;
+    selectedRelationshipMetaAfter?: MemoryMeta | null;
+  }
+): RelationshipVariantReprojectionResult {
+  const active = parseRelationshipMetaObjectSnapshot(
+    opts.activeRelationshipMetaAfter
+  );
+  const selected = parseRelationshipMetaObjectSnapshot(
+    opts.selectedRelationshipMetaAfter
+  );
+  if (!active || !selected) return "missing_provenance";
+
+  const current = loadChatRelationshipMetaCore(db, opts.chatId);
+  const currentJson = JSON.stringify(current);
+  const activeJson = JSON.stringify(active);
+  if (currentJson !== activeJson) {
+    return "external_drift_preserved";
+  }
+
+  const selectedJson = JSON.stringify(selected);
+  if (currentJson === selectedJson) return "already_selected";
+  saveChatRelationshipMetaCore(db, opts.chatId, selected);
+  return "applied";
 }
 
 export function removeRelationshipMetaItem(
@@ -266,6 +364,14 @@ export function applyRelationshipDeltaToChat(opts: {
         }
         saveChatRelationshipMetaCore(db, opts.chatId, prevNormalized);
       }
+      if (opts.assistantMessageId != null && opts.generationScope) {
+        persistRelationshipMetaAfterSnapshotForGenerationCore(db, {
+          chatId: opts.chatId,
+          assistantMessageId: opts.assistantMessageId,
+          generationScope: opts.generationScope,
+          meta: prevNormalized,
+        });
+      }
       return { meta: prevNormalized, accepted: true };
     }
 
@@ -285,6 +391,14 @@ export function applyRelationshipDeltaToChat(opts: {
       throw new Error("relationship meta save failed (test)");
     }
     saveChatRelationshipMetaCore(db, opts.chatId, merged);
+    if (assistantMessageId != null && opts.generationScope) {
+      persistRelationshipMetaAfterSnapshotForGenerationCore(db, {
+        chatId: opts.chatId,
+        assistantMessageId,
+        generationScope: opts.generationScope,
+        meta: merged,
+      });
+    }
     return { meta: merged, accepted: true };
   }).immediate();
 }
