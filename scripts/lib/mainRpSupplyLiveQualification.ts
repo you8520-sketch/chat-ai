@@ -142,8 +142,10 @@ function num(value: unknown): number | null {
   return null;
 }
 
-function controlSignatureForModel(modelId: SelectedAI): CiControlSignature {
-  const packet = buildActiveRpModelQualificationPacket();
+function controlSignatureForModel(
+  modelId: SelectedAI,
+  packet: ReturnType<typeof buildActiveRpModelQualificationPacket>
+): CiControlSignature {
   const model = packet.models.find((entry) => entry.modelId === modelId);
   const casePacket = model?.cases.find(
     (entry) => entry.caseId === "production_midchat_t1"
@@ -222,7 +224,8 @@ function pairRawEndpointRateEstimate(endpoint: SupplyComparison): number | null 
 
 function factualCandidateReason(
   modelId: SelectedAI,
-  endpoint: SupplyComparison
+  endpoint: SupplyComparison,
+  parity: CiControlSignature
 ): string | null {
   if (endpoint.lowerRawEndpointRateThanCurrentCi !== true) {
     return "raw_endpoint_rate_not_lower_than_current_ci";
@@ -258,7 +261,6 @@ function factualCandidateReason(
     return "required_reasoning_parameter_not_advertised";
   }
 
-  const parity = controlSignatureForModel(modelId);
   if (!parity.ok) return parity.reason;
 
   const estimate = pairRawEndpointRateEstimate(endpoint);
@@ -279,9 +281,10 @@ export function selectMainRpSupplyLiveCandidates(
   const candidates: SupplyLiveCandidate[] = [];
   const skipped: SupplyLiveSkippedCandidate[] = [];
   let estimatedRawEndpointRateUsd = 0;
+  const qualificationPacket = buildActiveRpModelQualificationPacket();
 
   for (const model of report.models) {
-    const parity = controlSignatureForModel(model.modelId);
+    const parity = controlSignatureForModel(model.modelId, qualificationPacket);
     const sorted = [...model.comparisons].sort((a, b) => {
       const ac =
         a.rawEndpointRepresentativeUncachedRateUsd ?? Number.POSITIVE_INFINITY;
@@ -293,7 +296,7 @@ export function selectMainRpSupplyLiveCandidates(
 
     let selected = false;
     for (const endpoint of sorted) {
-      const reason = factualCandidateReason(model.modelId, endpoint);
+      const reason = factualCandidateReason(model.modelId, endpoint, parity);
       if (reason) {
         skipped.push({
           modelId: model.modelId,
