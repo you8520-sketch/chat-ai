@@ -71,6 +71,8 @@ export function composeOfficialSystemPrompt(
     ["관계·갈등·행동원리", draft.sections.relationshipsAndDrives],
     ["보조 인물", draft.supportingNpcs.map(formatSupportingNpcLine).join("\n")],
     ["기타 설정", draft.sections.extraCanon],
+    // Explicit locked-secret title is consumed by the canonical canon-plan visibility owner.
+    ["비밀 — 캐릭터는 앎", draft.secrets.join("\n")],
     ["성인 관계 성향", draft.adult.nsfw ? `${draft.adult.orientation}\n${draft.adult.adultHookSummary}` : ""],
     ["외형", appearanceBlock],
   ]);
