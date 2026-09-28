@@ -1,6 +1,6 @@
 export const ADMIN_OPS_STUCK_EXECUTION_MINUTES = 30;
 
-export type AdminOpsIncidentSource = "scheduler" | "payout" | "point_refund";
+export type AdminOpsIncidentSource = "scheduler" | "payout" | "point_refund" | "procurement";
 export type AdminOpsIncidentSeverity = "critical" | "warning";
 
 export type AdminOpsIncident = {

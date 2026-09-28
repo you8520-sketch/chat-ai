@@ -23,7 +23,7 @@ export type CharacterRow = {
   likes: number;
   /** 누적 대화 턴 (전체 유저 합) */
   total_turns: number;
-  /** 이용 유저 수 (DISTINCT user_id) */
+  /** 누적 이용 유저 수 (character_chat_users ledger) */
   chats_count: number;
   created_at: string;
   audience?: string;
