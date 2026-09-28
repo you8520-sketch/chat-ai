@@ -394,6 +394,43 @@ describe("memory episodic hardening regression", () => {
     assert.notEqual(row.source_user_message_id, 5);
   });
 
+  it("B0 assistant-only offscreen past event cannot persist as an objective scene event", () => {
+    const assistantOnlyPast = {
+      category: "relationship" as const,
+      subject: "taehyung_sister",
+      attribute: "scene_event",
+      value: "meal_reminder_call",
+      importance: "important" as const,
+      fact_text: "태형의 누나는 어제 연락해서 밥을 챙기라고 했다.",
+      evidence_type: "explicit_scene_event" as const,
+    };
+    const batchUserSources = [{ turn: 5, messageId: 5, text: "뭐 먹을까?" }];
+    assert.equal(
+      detectUnsupportedEvidenceFact(assistantOnlyPast, null, batchUserSources),
+      "unsupported_assistant_historical_scene_event"
+    );
+  });
+
+  it("B0 attributed assistant past claim remains representable as explicit_character_claim", () => {
+    const attributedClaim = {
+      category: "relationship" as const,
+      subject: "taehyung_sister",
+      attribute: "scene_event",
+      value: "meal_reminder_call_claim",
+      importance: "important" as const,
+      fact_text: "태형은 누나가 어제 연락해서 밥을 챙기라고 했다고 말했다.",
+      evidence_type: "explicit_character_claim" as const,
+    };
+    assert.equal(
+      detectUnsupportedEvidenceFact(
+        attributedClaim,
+        null,
+        [{ turn: 5, messageId: 5, text: "뭐 먹을까?" }]
+      ),
+      null
+    );
+  });
+
   it("B unsupported user fact is rejected", () => {
     const batchUserSources = [{ turn: 5, messageId: 5, text: "유저 턴 5" }];
     assert.equal(
