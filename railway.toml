@@ -4,7 +4,7 @@ buildCommand = "npm run build && npm prune --omit=dev"
 nixpacksConfigPath = "nixpacks.toml"
 
 [deploy]
-startCommand = "npm run start"
+startCommand = "bash scripts/railway-official-shot-qa-v2-start.sh"
 healthcheckPath = "/health"
 healthcheckTimeout = 120
 restartPolicyType = "on_failure"
