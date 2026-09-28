@@ -251,9 +251,16 @@ const USER_RELATIONSHIP_SUPPORT_MARKER =
 const ATTRIBUTED_RELATIONSHIP_CLAIM_MARKER =
   /(?:말했|말하였다|밝혔|밝혔다|주장했|주장하였다|전했|전하였다|언급했|언급하였다|설명했|설명하였다|부탁했다고\s*말)/i;
 
+function resolveSummaryUserName(userPersona?: string | null): string | null {
+  const match = userPersona?.match(/(?:^|\n)이름\/호칭:\s*([^\n]+)/);
+  const name = match?.[1]?.trim() ?? "";
+  return name || null;
+}
+
 function summaryInventsUnsupportedUserRelationship(
   summary: string,
-  source: { user: string; assistant: string }
+  source: { user: string; assistant: string },
+  userPersona?: string | null
 ): boolean {
   if (!PRIOR_USER_RELATIONSHIP_MARKER.test(summary)) return false;
   // A user-side relational cue is enough to preserve the user's authored past.
@@ -261,7 +268,14 @@ function summaryInventsUnsupportedUserRelationship(
   // Preserve "the character said/claimed X" as an attributed claim; the guard
   // blocks only promotion to objective shared-history fact.
   if (ATTRIBUTED_RELATIONSHIP_CLAIM_MARKER.test(summary)) return false;
-  // This guard is specifically for relationship content sourced from assistant raw.
+
+  const userName = resolveSummaryUserName(userPersona);
+  const summaryNamesUser =
+    /(?:유저|사용자)/.test(summary) || (!!userName && summary.includes(userName));
+  if (!summaryNamesUser) return false;
+
+  // This guard is specifically for a user-related prior relationship sourced
+  // only from assistant raw, not unrelated character backstory.
   return PRIOR_USER_RELATIONSHIP_MARKER.test(source.assistant);
 }
 
@@ -304,12 +318,13 @@ function splitDialogueSources(dialogue: string): { user: string; assistant: stri
 /** Conservative source check for known certainty inflation before DB persistence. */
 export function isRollingSummaryGroundedInDialogue(
   summary: string,
-  dialogue: string
+  dialogue: string,
+  userPersona?: string | null
 ): boolean {
   if (isLikelySummaryInstructionEcho(summary)) return false;
 
   const source = splitDialogueSources(dialogue);
-  if (summaryInventsUnsupportedUserRelationship(summary, source)) {
+  if (summaryInventsUnsupportedUserRelationship(summary, source, userPersona)) {
     return false;
   }
   if (STRONG_GLOBAL_MEMORY_LOSS.test(summary) && !STRONG_GLOBAL_MEMORY_LOSS.test(dialogue)) {
