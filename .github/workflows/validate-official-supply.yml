@@ -47,6 +47,9 @@ jobs:
       - name: Anchor approval operator defaults to zero mutations
         run: npm run official-supply:approve-anchor
 
+      - name: Lucian variation operator defaults to zero calls
+        run: npm run official-supply:generate-lucian-variations
+
       - name: Official supply regressions
         run: >-
           node --conditions=react-server --import tsx
