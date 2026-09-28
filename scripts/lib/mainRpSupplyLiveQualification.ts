@@ -201,9 +201,44 @@ function controlSignatureForModel(
   };
 }
 
-function endpointSupportsReasoning(endpoint: SupplyComparison): boolean {
-  const params = new Set(endpoint.supportedParameters.map((value) => value.toLowerCase()));
-  return params.has("reasoning") || params.has("reasoning_effort");
+const OPENROUTER_ROUTING_ENVELOPE_KEYS = new Set([
+  "model",
+  "messages",
+  "stream",
+  "stream_options",
+  "session_id",
+  "provider",
+  "user",
+  "metadata",
+  "plugins",
+  "transforms",
+  "models",
+  "route",
+]);
+
+function requiredProviderParameterKeysForCandidate(
+  candidate: SupplyLiveCandidate
+): string[] {
+  const [turn] = buildDeterministicSupplyProbeTurns();
+  const body = buildSupplyProbeRequestBody({
+    candidate,
+    turn,
+    sessionId: "supply-preflight",
+  });
+  return Object.keys(body)
+    .filter((key) => !OPENROUTER_ROUTING_ENVELOPE_KEYS.has(key))
+    .map((key) => key.toLowerCase())
+    .sort();
+}
+
+function unsupportedProviderParameterKeys(
+  endpoint: SupplyComparison,
+  required: readonly string[]
+): string[] {
+  const supported = new Set(
+    endpoint.supportedParameters.map((value) => value.toLowerCase())
+  );
+  return required.filter((key) => !supported.has(key));
 }
 
 function pairRawEndpointRateEstimate(endpoint: SupplyComparison): number | null {
@@ -257,10 +292,6 @@ function factualCandidateReason(
   if (!endpoint.provider.privacyPolicyUrl) {
     return "provider_privacy_metadata_missing";
   }
-  if (!endpointSupportsReasoning(endpoint)) {
-    return "required_reasoning_parameter_not_advertised";
-  }
-
   if (!parity.ok) return parity.reason;
 
   const estimate = pairRawEndpointRateEstimate(endpoint);
@@ -282,6 +313,7 @@ export function selectMainRpSupplyLiveCandidates(
   const skipped: SupplyLiveSkippedCandidate[] = [];
   let estimatedRawEndpointRateUsd = 0;
   const qualificationPacket = buildActiveRpModelQualificationPacket();
+  const requiredProviderParametersByModel = new Map<SelectedAI, string[]>();
 
   for (const model of report.models) {
     const parity = controlSignatureForModel(model.modelId, qualificationPacket);
@@ -314,6 +346,46 @@ export function selectMainRpSupplyLiveCandidates(
         continue;
       }
       const estimate = pairRawEndpointRateEstimate(endpoint)!;
+      const candidate: SupplyLiveCandidate = {
+        modelId: model.modelId,
+        openRouterSlug: model.openRouterSlug,
+        providerName: endpoint.providerName,
+        providerSlug: endpoint.provider!.slug!,
+        quantization: endpoint.quantization,
+        rawEndpointRateDeltaVsCurrentCiPercent:
+          endpoint.rawEndpointRateDeltaVsCurrentCiPercent!,
+        inputUsdPerMillion: endpoint.inputUsdPerMillion!,
+        outputUsdPerMillion: endpoint.outputUsdPerMillion!,
+        cacheReadUsdPerMillion: endpoint.cacheReadUsdPerMillion,
+        marketLatencyP50SecondsLast30m:
+          endpoint.latencyP50SecondsLast30m!,
+        marketThroughputP50TokensPerSecondLast30m:
+          endpoint.throughputP50TokensPerSecondLast30m!,
+        marketUptimeLast1dPercent: endpoint.uptimeLast1dPercent!,
+        marketUptimeLast30mPercent: endpoint.uptimeLast30mPercent!,
+        controlEffort: parity.effort,
+        estimatedPairRawEndpointRateUsd: estimate,
+      };
+      const requiredProviderParameters =
+        requiredProviderParametersByModel.get(model.modelId) ??
+        requiredProviderParameterKeysForCandidate(candidate);
+      requiredProviderParametersByModel.set(
+        model.modelId,
+        requiredProviderParameters
+      );
+      const unsupported = unsupportedProviderParameterKeys(
+        endpoint,
+        requiredProviderParameters
+      );
+      if (unsupported.length > 0) {
+        skipped.push({
+          modelId: model.modelId,
+          providerName: endpoint.providerName,
+          reason: `required_request_parameters_not_advertised:${unsupported.join(",")}`,
+        });
+        continue;
+      }
+
       if (
         estimatedRawEndpointRateUsd + estimate >
         MAIN_RP_SUPPLY_LIVE_MAX_RAW_RATE_ESTIMATE_USD
@@ -334,26 +406,7 @@ export function selectMainRpSupplyLiveCandidates(
         continue;
       }
 
-      candidates.push({
-        modelId: model.modelId,
-        openRouterSlug: model.openRouterSlug,
-        providerName: endpoint.providerName,
-        providerSlug: endpoint.provider!.slug!,
-        quantization: endpoint.quantization,
-        rawEndpointRateDeltaVsCurrentCiPercent:
-          endpoint.rawEndpointRateDeltaVsCurrentCiPercent!,
-        inputUsdPerMillion: endpoint.inputUsdPerMillion!,
-        outputUsdPerMillion: endpoint.outputUsdPerMillion!,
-        cacheReadUsdPerMillion: endpoint.cacheReadUsdPerMillion,
-        marketLatencyP50SecondsLast30m:
-          endpoint.latencyP50SecondsLast30m!,
-        marketThroughputP50TokensPerSecondLast30m:
-          endpoint.throughputP50TokensPerSecondLast30m!,
-        marketUptimeLast1dPercent: endpoint.uptimeLast1dPercent!,
-        marketUptimeLast30mPercent: endpoint.uptimeLast30mPercent!,
-        controlEffort: parity.effort,
-        estimatedPairRawEndpointRateUsd: estimate,
-      });
+      candidates.push(candidate);
       estimatedRawEndpointRateUsd += estimate;
       selected = true;
       break;
