@@ -10,6 +10,7 @@ import {
 } from "@/lib/openRouterModelPricing";
 import {
   MAIN_RP_USER_SELECTABLE_OPTIONS,
+  selectedAILabel,
 } from "@/lib/chatModels";
 import type { Usage } from "@/lib/chatUsage";
 import {
@@ -556,11 +557,7 @@ function readOwnedMessageIds(db: Database.Database): Set<number> {
 function ledgerModelLabel(model: string): string {
   const trimmed = model.trim();
   if (!trimmed) return "알 수 없음";
-  const key = trimmed.toLowerCase();
-  const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
-    (candidate) => candidate.id.toLowerCase() === key
-  );
-  return option?.label ?? trimmed;
+  return selectedAILabel(trimmed);
 }
 
 /**

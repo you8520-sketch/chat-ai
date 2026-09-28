@@ -229,27 +229,22 @@ export type SelectedAIOptionMeta = {
 /**
  * CANONICAL Main RP picker — ONE source of truth.
  *
- * DeepSeek V4 Pro / DeepSeek V4.1 Flash / Gemini 3.1 Pro Preview /
+ * DeepSeek V4.1 Flash / Gemini 3.1 Pro Preview /
  * Gemini 3.7 Flash / GPT-5.6 Terra / Claude Opus 5.5.
+ * DeepSeek V4 Pro is retired from user Main RP but remains for historical
+ * receipt/billing/provider compatibility.
  * Claude Opus 5 remains retired from user Main RP. Luna, DeepSeek V4 Flash 0731,
  * Gemini 3.6 Flash, old Opus slugs, Muse, Qwen, GLM, Kimi, … are NOT Main RP.
  * Their constants remain only for auxiliary/background use or historical receipt/billing.
  */
 export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
   {
-    id: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-    label: DEEPSEEK_DISPLAY_NAME,
-    provider: "cheaperinference",
-    tier: "pro",
-    hint: "Reasoning",
-    recommended: true,
-  },
-  {
     id: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
     label: DEEPSEEK_V41_FLASH_DISPLAY_NAME,
     provider: "cheaperinference",
     tier: "pro",
     hint: "",
+    recommended: true,
   },
   {
     id: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
@@ -297,9 +292,9 @@ export function isMainRpModel(modelId: string): boolean {
 /** @deprecated use MAIN_RP_USER_SELECTABLE_OPTIONS — registry kept for tests/historical imports */
 export const SELECTED_AI_OPTIONS = MAIN_RP_USER_SELECTABLE_OPTIONS;
 
-/** 신규·미선택 사용자 기본값 — CheaperInference DeepSeek V4 Pro */
+/** 신규·미선택 사용자 기본값 — CheaperInference DeepSeek V4.1 Flash */
 export const DEFAULT_SELECTED_AI: SelectedAI =
-  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
 
 /** Main RP picker — canonical registry only. */
 export const USER_SELECTABLE_AI_OPTIONS = MAIN_RP_USER_SELECTABLE_OPTIONS;
@@ -600,11 +595,11 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "anthropic/claude-opus-latest": DEFAULT_SELECTED_AI,
   "anthropic/claude-opus-4.5": DEFAULT_SELECTED_AI,
   [CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL]: DEFAULT_SELECTED_AI,
-  deepseek: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  "deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  "deepseek-v4-pro-0813": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  "deepseek-4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  "deepseek/deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  deepseek: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  "deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  "deepseek-v4-pro-0813": CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  "deepseek-4-pro": CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  "deepseek/deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   /** DeepSeek V4 Flash 퇴역 — 저장된 선택값은 기본 모델로 이전 (aux/TRPG 상수는 유지) */
   "deepseek-v4-flash": DEFAULT_SELECTED_AI,
   "deepseek-v4-flash-0731": DEFAULT_SELECTED_AI,
@@ -667,6 +662,9 @@ export function selectedAILabel(id: string): string {
   }
   if (isCheaperInferenceClaudeOpus5Model(id)) {
     return CLAUDE_OPUS_5_DISPLAY_NAME;
+  }
+  if (isDeepSeekV4ProModel(id)) {
+    return DEEPSEEK_DISPLAY_NAME;
   }
   if (isCheaperInferenceDeepSeekV4FlashModel(id)) {
     return DEEPSEEK_V4_FLASH_DISPLAY_NAME;

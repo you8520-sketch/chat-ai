@@ -17,7 +17,10 @@ import {
   currentKstMonthKey,
   type AdminFinanceSummary,
 } from "@/lib/adminFinance";
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  MAIN_RP_MODEL_IDS,
+} from "@/lib/chatModels";
 import {
   composeActualProductionEconomics,
   type ActualProductionEconomicsObservation,
@@ -240,6 +243,16 @@ export type MainRpPricingObservabilityRow = {
   candidate: PricingCandidateObservation;
   gemini37RootCause?: Gemini37MarginFloorRootCauseReport;
 };
+
+/**
+ * Admin finance visibility is intentionally broader than the current picker.
+ * Retired models remain observable so historical revenue/cost does not disappear
+ * when a model is removed from Main RP selection.
+ */
+export const MAIN_RP_OBSERVABILITY_MODEL_IDS: readonly string[] = [
+  ...MAIN_RP_MODEL_IDS,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+];
 
 export type MainRpPricingObservabilityProjection = {
   generatedAt: string;
@@ -1058,12 +1071,12 @@ export function buildMainRpPricingObservabilityProjection(params?: {
     trackerPhase: "OBSERVE_ONLY",
     actualEconomicsMonthKey: financeSummary?.monthKey ?? null,
     financeGeneratedAt: financeSummary?.generatedAt ?? null,
-    models: MAIN_RP_MODEL_IDS.map((modelId) =>
+    models: MAIN_RP_OBSERVABILITY_MODEL_IDS.map((modelId) =>
       buildModelRow(modelId, fxSnapshot, nowIso, now, db, financeSummary)
     ),
   };
 }
 
 export function listMainRpObservabilityModelIds(): readonly string[] {
-  return MAIN_RP_MODEL_IDS;
+  return MAIN_RP_OBSERVABILITY_MODEL_IDS;
 }

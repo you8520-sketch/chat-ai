@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -39,7 +40,7 @@ test("Claude Opus 5 stays Cheaper Inference but is retired from Main RP picker",
   assert.equal(selectedAILabel(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), "Claude Opus 5");
   assert.equal(
     resolveSelectedAI(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),
-    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
   );
   assert.equal(isAnthropicModel(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), true);
   assert.equal(isCheaperInferenceModel(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), true);
@@ -64,7 +65,7 @@ test("GPT-5.6 Luna stays Cheaper Inference but is temporarily hidden from picker
   assert.equal(isCheaperInferenceModel(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL), true);
   assert.equal(
     resolveSelectedAI(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
-    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
   );
 });
 
@@ -83,7 +84,7 @@ test("GPT-6 Luna is the current hidden Cheaper Inference background model", () =
   assert.equal(isCheaperInferenceModel(CHEAPER_INFERENCE_GPT_6_LUNA_MODEL), true);
   assert.equal(
     resolveSelectedAI(CHEAPER_INFERENCE_GPT_6_LUNA_MODEL),
-    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
   );
 });
 
@@ -164,20 +165,25 @@ test("Gemini 3.7 Flash is a selectable Cheaper Inference chat model", () => {
   );
 });
 
-test("DeepSeek V4 Pro migrates to the selectable Cheaper Inference model", () => {
+test("DeepSeek V4 Pro is retired from Main RP and migrates to V4.1 Flash", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
     ),
-    true
+    false
   );
   assert.equal(
-    selectedAIProvider(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
+    selectedAIProvider(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL),
     "cheaperinference"
   );
+  assert.equal(selectedAILabel(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL), "DeepSeek V4 Pro");
   assert.equal(
     resolveSelectedAI("deepseek/deepseek-v4-pro"),
-    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
+  );
+  assert.equal(
+    resolveSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
+    CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
   );
   assert.equal(
     isCheaperInferenceModel(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
@@ -202,7 +208,7 @@ test("DeepSeek V4 Flash is retired from Main RP but stays Cheaper Inference auxi
   );
   assert.equal(
     resolveSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
-    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
   );
   assert.equal(
     isCheaperInferenceModel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
