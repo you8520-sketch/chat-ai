@@ -80,14 +80,14 @@ describe("historical truth — production miss-path owner matrix", () => {
     assert.doesNotMatch(built.systemPrompt, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
   });
 
-  it("assistant-only past/offscreen history remains attributed until corroborated", () => {
+  it("assistant cannot invent prior user relationships or third-party familiarity", () => {
     assert.match(
       HISTORICAL_TRUTH_POLICY_BLOCK,
-      /assistant.*단독.*과거.*주장|과거.*장면 밖.*assistant.*주장/i
+      /유저.*등장인물|등장인물.*유저|제3자|가족|조직/
     );
     assert.match(
       HISTORICAL_TRUTH_POLICY_BLOCK,
-      /USER.*정본.*기억.*확인|확인.*USER.*정본.*기억/i
+      /만난 적|알고 있|안부|약속|공유 사건/
     );
   });
 
