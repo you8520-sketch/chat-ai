@@ -7,10 +7,12 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
   isCheaperInferenceGemini31ProModel,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
   isGpt56TerraModel,
+  isGpt6SolModel,
   isMuseModel,
   MAIN_RP_MODEL_IDS,
   resolveSelectedAI,
@@ -71,6 +73,7 @@ export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerAct
     [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: 1400,
     [CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL]: 1400,
     [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL]: 1400,
+    [CHEAPER_INFERENCE_GPT_6_SOL_MODEL]: 1400,
   };
 
 /** Output-token band used when deriving low/high point labels. */
@@ -193,7 +196,7 @@ export function resolveColdOutputBaseline(modelId: string): number {
   }
   if (isDeepSeekV4ProModel(modelId)) return Math.round(aim * 0.5);
   if (isMuseModel(modelId)) return Math.round(aim * 0.48);
-  if (isGpt56TerraModel(modelId)) return Math.round(aim * 0.5);
+  if (isGpt56TerraModel(modelId) || isGpt6SolModel(modelId)) return Math.round(aim * 0.5);
   return Math.round(aim * 0.4);
 }
 
@@ -374,7 +377,10 @@ export function computeStablePublishedPreviewPoints(opts: {
   inputTokens: number;
   outputTokens: number;
 }): number | null {
-  if (opts.modelId !== CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL) {
+  if (
+    opts.modelId !== CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL &&
+    opts.modelId !== CHEAPER_INFERENCE_GPT_6_SOL_MODEL
+  ) {
     return null;
   }
   return computePublishedStandardPreviewPoints({
@@ -393,8 +399,9 @@ export function computePreviewTurnPoints(opts: {
   if (!isActivePickerModel(opts.modelId)) {
     return null;
   }
-  // V4.1 is stable-published and must preview from the same canonical published owner.
-  // Other legacy/market-priced models keep their existing preview owners.
+  // Stable official-reference models preview from the same canonical published owner.
+  // GPT-6 Sol falls back to the long-context token owner above 272K, where the base-tier
+  // published preview intentionally returns null. Other market-priced models keep their owners.
   return (
     computeStablePublishedPreviewPoints(opts) ??
     computeCheaperInferenceMarketPreviewCost(
