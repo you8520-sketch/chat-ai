@@ -49,8 +49,6 @@ export function createChatSession(input: CreateChatSessionInput): number {
     input.targetResponseChars ?? DEFAULT_TARGET_RESPONSE_CHARS
   );
 
-  registerCharacterChatUser(db, input.characterId, input.userId);
-
   const contentKindRow = db
     .prepare("SELECT content_kind FROM characters WHERE id=?")
     .get(input.characterId) as { content_kind?: string } | undefined;
@@ -88,6 +86,7 @@ export function createChatSession(input: CreateChatSessionInput): number {
     );
 
   const chatId = Number(info.lastInsertRowid);
+  registerCharacterChatUser(db, input.characterId, input.userId);
 
   if (greetingForInsert.trim()) {
     const greetingInfo = db
