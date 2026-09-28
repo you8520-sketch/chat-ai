@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { describe, it } from "node:test";
 import {
+  countAssistantGenerationTurns,
   incrementCharacterTotalTurns,
   registerCharacterChatUser,
   seedCharacterChatUsersLedgerFromChats,
@@ -35,6 +36,17 @@ describe("characterEngagementStats", () => {
       chats_count: number;
     };
     assert.equal(row.chats_count, 2);
+  });
+
+  it("countAssistantGenerationTurns keeps successful regens in last-turn rollback", () => {
+    assert.equal(countAssistantGenerationTurns("[]", "initial"), 1);
+    assert.equal(
+      countAssistantGenerationTurns(
+        JSON.stringify([{ content: "v1" }, { content: "v2" }, { content: "v3" }]),
+        "v3"
+      ),
+      3
+    );
   });
 
   it("incrementCharacterTotalTurns remains the single event counter, including explicit negative last-turn adjustments", () => {
