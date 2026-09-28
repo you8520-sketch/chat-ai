@@ -107,7 +107,7 @@ test("provider and endpoint market evidence parse without inventing missing metr
   assert.equal(row.provider?.statusPageUrl,"https://status.example.com");
   assert.equal(row.inputUsdPerMillion,0.14);
   assert.equal(row.outputUsdPerMillion,0.42);
-  assert.equal(row.cacheReadUsdPerMillion,0.0042);
+  assert.ok(Math.abs((row.cacheReadUsdPerMillion ?? 0)-0.0042)<1e-12);
   assert.equal(row.latencyP50SecondsLast30m,1.55);
   assert.equal(row.throughputP50TokensPerSecondLast30m,62);
   assert.equal(row.uptimeLast1dPercent,99.85);
