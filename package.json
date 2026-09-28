@@ -31,7 +31,8 @@
     "official-supply:approve-anchor": "node --conditions=react-server --import tsx scripts/official-supply-approve-anchor.ts",
     "official-supply:generate-lucian-variations": "node --conditions=react-server --import tsx scripts/official-supply-generate-lucian-variations.ts",
     "audit:main-rp-monthly-cache": "node --conditions=react-server --import tsx scripts/main-rp-monthly-cache-audit.ts",
-    "test:main-rp-monthly-cache-audit": "node --conditions=react-server --import tsx --test scripts/lib/mainRpMonthlyCacheAudit.test.ts"
+    "test:main-rp-monthly-cache-audit": "node --conditions=react-server --import tsx --test scripts/lib/mainRpMonthlyCacheAudit.test.ts",
+    "official-supply:review-character": "node --conditions=react-server --import tsx scripts/official-supply-character-review.ts"
   },
   "dependencies": {
     "@3d-dice/dice-box-threejs": "^0.0.12",
