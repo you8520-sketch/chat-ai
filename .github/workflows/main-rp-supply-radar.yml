@@ -16,7 +16,7 @@ concurrency:
 jobs:
   radar:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     env:
       REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
       OPENROUTER_SUPPLY_RADAR_API_KEY: ${{ secrets.OPENROUTER_SUPPLY_RADAR_API_KEY }}
@@ -36,6 +36,7 @@ jobs:
           node --conditions=react-server --import tsx --test --test-concurrency=1
           scripts/lib/mainRpSupplyRadar.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
+          scripts/lib/mainRpSupplyCiBaseline.test.ts
       - name: Read-only external supply scan
         run: node --conditions=react-server --import tsx scripts/main-rp-supply-radar.ts
       - name: Assert zero generation calls
@@ -63,6 +64,10 @@ jobs:
           if [ -f artifacts/main-rp-supply-radar/live/LIVE-QUALIFICATION.md ]; then
             printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
             cat artifacts/main-rp-supply-radar/live/LIVE-QUALIFICATION.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f artifacts/main-rp-supply-radar/live/COMPARISON.md ]; then
+            printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
+            cat artifacts/main-rp-supply-radar/live/COMPARISON.md >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload monthly supply evidence
         if: always()
