@@ -1,0 +1,625 @@
+{
+  "cycleKey": "weekly-2026-W40",
+  "mode": "weekly",
+  "status": "COMPLETED",
+  "startedAt": "2026-09-28T06:54:24.371Z",
+  "finishedAt": "2026-09-28T06:54:40.569Z",
+  "mainSha": "a6df3e19d2604a58ac62361c7ef5582fb737621f",
+  "architectureFingerprint": "14ec3e4d22443188",
+  "sources": [
+    {
+      "sourceId": "github_watchlist",
+      "observations": 14,
+      "errors": [],
+      "failed": false
+    },
+    {
+      "sourceId": "github_discovery",
+      "observations": 5,
+      "errors": [],
+      "failed": false
+    },
+    {
+      "sourceId": "arxiv_queries",
+      "observations": 28,
+      "errors": [],
+      "failed": false
+    }
+  ],
+  "counts": {
+    "sourcesChecked": 3,
+    "sourcesFailed": 0,
+    "observations": 47,
+    "newCandidates": 47,
+    "skippedDuplicates": 0,
+    "evaluated": 47,
+    "watch": 36,
+    "reject": 11,
+    "benchmarked": 0,
+    "accept": 0,
+    "draftPrPackets": 0
+  },
+  "skipped": [],
+  "decisions": [
+    {
+      "candidateKey": "github:mem0ai/mem0",
+      "version": "ts-v3.3.1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "REJECTED"
+      ],
+      "decision": "REJECTED_OWNER_CONFLICT",
+      "reason": "would create a parallel owner for an existing canonical memory responsibility"
+    },
+    {
+      "candidateKey": "github:getzep/graphiti",
+      "version": "v0.30.2",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "REJECTED"
+      ],
+      "decision": "REJECTED_INFRA_COMPLEXITY",
+      "reason": "wholesale adoption needs graph_database, python_runtime; only a TypeScript-native port of the technique is evaluable"
+    },
+    {
+      "candidateKey": "github:letta-ai/letta",
+      "version": "0.16.8",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "REJECTED"
+      ],
+      "decision": "REJECTED_OWNER_CONFLICT",
+      "reason": "would create a parallel owner for an existing canonical memory responsibility"
+    },
+    {
+      "candidateKey": "github:microsoft/graphrag",
+      "version": "v3.2.0",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "REJECTED"
+      ],
+      "decision": "REJECTED_INFRA_COMPLEXITY",
+      "reason": "wholesale adoption needs python_runtime; only a TypeScript-native port of the technique is evaluable"
+    },
+    {
+      "candidateKey": "github:hkuds/lightrag",
+      "version": "v1.5.7",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "REJECTED"
+      ],
+      "decision": "REJECTED_INFRA_COMPLEXITY",
+      "reason": "wholesale adoption needs python_runtime, graph_database; only a TypeScript-native port of the technique is evaluable"
+    },
+    {
+      "candidateKey": "github:topoteretes/cognee",
+      "version": "v1.6.1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "REJECTED"
+      ],
+      "decision": "REJECTED_INFRA_COMPLEXITY",
+      "reason": "wholesale adoption needs python_runtime, graph_database, vector_database; only a TypeScript-native port of the technique is evaluable"
+    },
+    {
+      "candidateKey": "github:langchain-ai/langmem",
+      "version": null,
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "REJECTED"
+      ],
+      "decision": "REJECTED_OWNER_CONFLICT",
+      "reason": "would create a parallel owner for an existing canonical memory responsibility"
+    },
+    {
+      "candidateKey": "github:agentscope-ai/reme",
+      "version": "v0.4.1.12",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "REJECTED"
+      ],
+      "decision": "REJECTED_INFRA_COMPLEXITY",
+      "reason": "wholesale adoption needs python_runtime; only a TypeScript-native port of the technique is evaluable"
+    },
+    {
+      "candidateKey": "github:vectorize-io/hindsight",
+      "version": "v0.10.1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "REJECTED"
+      ],
+      "decision": "REJECTED_INFRA_COMPLEXITY",
+      "reason": "wholesale adoption needs python_runtime; only a TypeScript-native port of the technique is evaluable"
+    },
+    {
+      "candidateKey": "github:snap-research/locomo",
+      "version": null,
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "REJECTED"
+      ],
+      "decision": "REJECTED_UNMAINTAINED",
+      "reason": "no repository activity for 776 days"
+    },
+    {
+      "candidateKey": "github:xiaowu0162/longmemeval",
+      "version": null,
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)"
+    },
+    {
+      "candidateKey": "github:xiaowu0162/longmemeval-v2",
+      "version": null,
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)"
+    },
+    {
+      "candidateKey": "github:flagopen/flagembedding",
+      "version": "v1.4.2",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_EXPERIMENT_ADAPTER",
+      "reason": "benchmarkable owner, but no lab experiment adapter is registered"
+    },
+    {
+      "candidateKey": "github:qwenlm/qwen3-embedding",
+      "version": null,
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_LIVE_EXPERIMENT_PENDING",
+      "reason": "safe live recipe qwen3-embedding-vs-bge-m3@1 is registered; await the isolated monthly live benchmark"
+    },
+    {
+      "candidateKey": "github:demondamon/agenticx",
+      "version": "v0.6.0",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet"
+    },
+    {
+      "candidateKey": "github:volcengine/openviking",
+      "version": "v0.4.22",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_EXPERIMENT_ADAPTER",
+      "reason": "benchmarkable owner, but no lab experiment adapter is registered"
+    },
+    {
+      "candidateKey": "github:tencentcloud/octop",
+      "version": "v1.0.2b4",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet"
+    },
+    {
+      "candidateKey": "github:superiorlu/aitreasurebox",
+      "version": null,
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet"
+    },
+    {
+      "candidateKey": "github:bytedance/deer-flow",
+      "version": "v2.1.0",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet"
+    },
+    {
+      "candidateKey": "arxiv:2609.28575",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)"
+    },
+    {
+      "candidateKey": "arxiv:2609.24971",
+      "version": "v2",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)"
+    },
+    {
+      "candidateKey": "arxiv:2609.21940",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, reranking_scoring yet"
+    },
+    {
+      "candidateKey": "arxiv:2609.12354",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, reranking_scoring yet"
+    },
+    {
+      "candidateKey": "arxiv:2608.30508",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)"
+    },
+    {
+      "candidateKey": "arxiv:2608.29606",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for relationship_durable, episodic_facts yet"
+    },
+    {
+      "candidateKey": "arxiv:2608.17534",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for prompt_packing, raw_history yet"
+    },
+    {
+      "candidateKey": "arxiv:2608.16551",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, relationship_durable, prompt_packing yet"
+    },
+    {
+      "candidateKey": "arxiv:2608.12990",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for rolling_summary, medium_term, global_current_memory yet"
+    },
+    {
+      "candidateKey": "arxiv:2608.08300",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_INSUFFICIENT_EVIDENCE",
+      "reason": "no reproducible code or published benchmark behind the claim"
+    },
+    {
+      "candidateKey": "arxiv:2609.31255",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_INSUFFICIENT_EVIDENCE",
+      "reason": "no reproducible code or published benchmark behind the claim"
+    },
+    {
+      "candidateKey": "arxiv:2609.30558",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, reranking_scoring yet"
+    },
+    {
+      "candidateKey": "arxiv:2609.27279",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, reranking_scoring yet"
+    },
+    {
+      "candidateKey": "arxiv:2609.25913",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_INSUFFICIENT_EVIDENCE",
+      "reason": "no reproducible code or published benchmark behind the claim"
+    },
+    {
+      "candidateKey": "arxiv:2609.25563",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_INSUFFICIENT_EVIDENCE",
+      "reason": "no reproducible code or published benchmark behind the claim"
+    },
+    {
+      "candidateKey": "arxiv:2609.23986",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_EXPERIMENT_ADAPTER",
+      "reason": "benchmarkable owner, but no lab experiment adapter is registered"
+    },
+    {
+      "candidateKey": "arxiv:2609.21533",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for relationship_durable, episodic_facts yet"
+    },
+    {
+      "candidateKey": "arxiv:2609.18182",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_EXPERIMENT_ADAPTER",
+      "reason": "benchmarkable owner, but no lab experiment adapter is registered"
+    },
+    {
+      "candidateKey": "arxiv:2609.08273",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, reranking_scoring yet"
+    },
+    {
+      "candidateKey": "arxiv:2609.05339",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_INSUFFICIENT_EVIDENCE",
+      "reason": "no reproducible code or published benchmark behind the claim"
+    },
+    {
+      "candidateKey": "arxiv:2609.26780",
+      "version": "v2",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "REJECTED"
+      ],
+      "decision": "REJECTED_INFRA_COMPLEXITY",
+      "reason": "wholesale adoption needs gpu_inference; only a TypeScript-native port of the technique is evaluable"
+    },
+    {
+      "candidateKey": "arxiv:2609.19610",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for prompt_packing, raw_history yet"
+    },
+    {
+      "candidateKey": "arxiv:2609.08566",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for prompt_packing, raw_history yet"
+    },
+    {
+      "candidateKey": "arxiv:2609.03915",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, reranking_scoring yet"
+    },
+    {
+      "candidateKey": "arxiv:2608.24189",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)"
+    },
+    {
+      "candidateKey": "arxiv:2608.22310",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_EXPERIMENT_ADAPTER",
+      "reason": "benchmarkable owner, but no lab experiment adapter is registered"
+    },
+    {
+      "candidateKey": "arxiv:2608.16303",
+      "version": "v1",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, reranking_scoring yet"
+    },
+    {
+      "candidateKey": "arxiv:2608.01708",
+      "version": "v2",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for relationship_durable, episodic_facts yet"
+    }
+  ],
+  "baseline": {
+    "status": "RAN",
+    "metricsLine": "cases=35 candidateRecall@K=0.929[MEASURED, eligibleCases=28/35] finalRecall@8=0.857[MEASURED, eligibleCases=28/35] falseInjectionRate=0[MEASURED, eligibleCases=33/35] staleStateRecallRate=0[MEASURED, eligibleCases=5/35] precision=1[MEASURED, eligibleCases=33/35] falseMemoryRate=0[MEASURED, eligibleCases=5/35] irrelevantInjectionRate=0[MEASURED, eligibleCases=1/35] relationshipRoleConsistency=1[MEASURED, eligibleCases=2/35] distinctiveUtteranceRecall=0[MEASURED, eligibleCases=1/35] correctionSupersessionAccuracy=1[MEASURED, eligibleCases=1/35] wrongObserverKnowledgeLeakCount=0[MEASURED, eligibleCases=1/35] secretLeakCount=null[NOT_MEASURED, eligibleCases=0/35] baselineVsShadowDelta=null[NOT_APPLICABLE] providerCallsPerTurn=0[MEASURED] jevInvocationRate=0[MEASURED] jevP50=null[NOT_APPLICABLE] jevP95=null[NOT_APPLICABLE] jevCostPer1k=null[NOT_APPLICABLE] promptTokenDelta=null[NOT_APPLICABLE] fallbackParity=null[NOT_APPLICABLE]",
+    "error": null
+  },
+  "benchmarks": [],
+  "providerCalls": {
+    "paidProviderCalls": 0,
+    "paidProviderCallBudget": 0,
+    "httpCalls": 38,
+    "httpBudget": 48
+  },
+  "estimatedCostUsd": 0,
+  "draftPrPackets": [],
+  "cleanupCandidates": [],
+  "productionTouched": false
+}
