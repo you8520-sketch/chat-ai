@@ -8,6 +8,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
   isCheaperInferenceModel,
   isCheaperInferenceClaudeOpus5Model,
   isCheaperInferenceDeepSeekV4FlashModel,
@@ -18,6 +19,7 @@ import {
   isGemini36FlashModel,
   isGpt56LunaModel,
   isGpt56TerraModel,
+  isGpt6SolModel,
   isMuseModel,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -29,6 +31,7 @@ import {
 } from "./chatModels";
 import { getEffectiveKrwPerUsd } from "./exchangeRate";
 import { resolveCheaperInferenceCatalogPricing } from "./cheaperInferenceCatalogPricing";
+import { getPublishedPricing } from "./publishedModelPricing";
 import {
   applySitePromotionToCharge,
   type SitePromotionChargeAdjustment,
@@ -63,6 +66,13 @@ export const CHEAPER_INFERENCE_GPT_56_TERRA_INPUT_USD_PER_MILLION = 2;
 export const CHEAPER_INFERENCE_GPT_56_TERRA_CACHED_INPUT_USD_PER_MILLION = 0.2;
 export const CHEAPER_INFERENCE_GPT_56_TERRA_CACHE_WRITE_USD_PER_MILLION = 2;
 export const CHEAPER_INFERENCE_GPT_56_TERRA_OUTPUT_USD_PER_MILLION = 12;
+
+/** GPT-6 Sol official Standard long-context tier (>272K input tokens). */
+export const GPT_6_SOL_LONG_CONTEXT_THRESHOLD_TOKENS = 272_000;
+export const GPT_6_SOL_LONG_CONTEXT_INPUT_USD_PER_MILLION = 4;
+export const GPT_6_SOL_LONG_CONTEXT_CACHED_INPUT_USD_PER_MILLION = 0.4;
+export const GPT_6_SOL_LONG_CONTEXT_CACHE_WRITE_USD_PER_MILLION = 5;
+export const GPT_6_SOL_LONG_CONTEXT_OUTPUT_USD_PER_MILLION = 15;
 /** Gemini 3.7 Flash current CheaperInference fallback. Live catalog wins when available. */
 export const CHEAPER_INFERENCE_GEMINI_37_FLASH_INPUT_USD_PER_MILLION = 0.525;
 export const CHEAPER_INFERENCE_GEMINI_37_FLASH_CACHED_INPUT_USD_PER_MILLION = 0.0525;
@@ -176,6 +186,34 @@ const CHEAPER_INFERENCE_TERRA_PRICING: ReasoningTokenPricing = {
   grossMargin: CHEAPER_INFERENCE_GPT_56_TERRA_GROSS_MARGIN,
 };
 
+const GPT_6_SOL_PUBLISHED_PRICING = getPublishedPricing(
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL
+);
+
+/**
+ * GPT-6 Sol user pricing is anchored to the official OpenAI Standard list rates.
+ * CheaperInference current/discounted procurement rates must never change the user price.
+ */
+const CHEAPER_INFERENCE_GPT_6_SOL_PRICING: ReasoningTokenPricing = {
+  modelId: CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
+  inputUsdPerMillion: GPT_6_SOL_PUBLISHED_PRICING.billingReferenceInputUsdPerMillion,
+  cacheReadUsdPerMillion:
+    GPT_6_SOL_PUBLISHED_PRICING.billingReferenceCacheReadUsdPerMillion ??
+    GPT_6_SOL_PUBLISHED_PRICING.billingReferenceInputUsdPerMillion,
+  cacheWriteUsdPerMillion:
+    GPT_6_SOL_PUBLISHED_PRICING.billingReferenceCacheWriteUsdPerMillion ??
+    GPT_6_SOL_PUBLISHED_PRICING.billingReferenceInputUsdPerMillion,
+  outputUsdPerMillion: GPT_6_SOL_PUBLISHED_PRICING.billingReferenceOutputUsdPerMillion,
+  grossMargin: GPT_6_SOL_PUBLISHED_PRICING.targetMargin,
+  longContextThresholdTokens: GPT_6_SOL_LONG_CONTEXT_THRESHOLD_TOKENS,
+  longContextInputUsdPerMillion: GPT_6_SOL_LONG_CONTEXT_INPUT_USD_PER_MILLION,
+  longContextCacheReadUsdPerMillion:
+    GPT_6_SOL_LONG_CONTEXT_CACHED_INPUT_USD_PER_MILLION,
+  longContextCacheWriteUsdPerMillion:
+    GPT_6_SOL_LONG_CONTEXT_CACHE_WRITE_USD_PER_MILLION,
+  longContextOutputUsdPerMillion: GPT_6_SOL_LONG_CONTEXT_OUTPUT_USD_PER_MILLION,
+};
+
 const CHEAPER_INFERENCE_CLAUDE_OPUS_5_PRICING: ReasoningTokenPricing = {
   modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   inputUsdPerMillion:
@@ -266,6 +304,9 @@ function resolveReasoningTokenPricing(modelId: string): ReasoningTokenPricing | 
   }
   if (isDeepSeekV4ProModel(modelId)) return DEEPSEEK_PRICING;
   if (isGemini36FlashModel(modelId)) return GEMINI_36_PRICING;
+  if (isGpt6SolModel(modelId)) {
+    return CHEAPER_INFERENCE_GPT_6_SOL_PRICING;
+  }
   if (isGpt56TerraModel(modelId)) {
     return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_TERRA_PRICING);
   }
@@ -599,6 +640,7 @@ export function computeOpenRouterTurnBilling(
   const rates = resolveOpenRouterReasoningPointRates(opts.modelId);
   const upstreamCostUsd =
     isCheaperInferenceModel(opts.modelId) &&
+    !isGpt6SolModel(opts.modelId) &&
     typeof opts.upstreamCostUsd === "number" &&
     Number.isFinite(opts.upstreamCostUsd) &&
     opts.upstreamCostUsd > 0
