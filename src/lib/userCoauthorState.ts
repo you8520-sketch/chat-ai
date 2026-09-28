@@ -11,10 +11,11 @@
  * replay only USER messages from the current semantics epoch (version >= 2).
  * Assistant text, memory, lorebook, and model output are never authority.
  *
- * Persisted OFF means "inherit the visible base level". Persisted LIMITED is
- * therefore reserved for an explicit OOC override that narrows NORMAL/ALLOW to
- * zero co-author authority. Effective currentMode still reports OFF when no
- * user-character authoring capability is active.
+ * Persisted OFF means "no explicit OOC override; inherit the turn-specific visible base".
+ * Any persistent OOC directive is stored as an absolute scope so it can override
+ * both interactive and auto-progression bases consistently. Persisted LIMITED
+ * therefore means an explicit zero-authority override. Effective currentMode
+ * still reports OFF when no user-character authoring capability is active.
  *
  * TURN-ONLY directives never mutate the persisted override. Prompt ownership is
  * expressed once by the effective authoring owner after base + override resolve.
@@ -315,7 +316,11 @@ export function applyUserCoauthorDirective(
   const currentMode = effectiveUserCoauthorModeFromCapabilities(nextCapabilities);
   const persistentAfter =
     directive.duration === "persistent"
-      ? userCoauthorModeFromCapabilities(nextCapabilities, normalizedBase)
+      ? (() => {
+          const explicitMode =
+            effectiveUserCoauthorModeFromCapabilities(nextCapabilities);
+          return explicitMode === "OFF" ? "LIMITED" : explicitMode;
+        })()
       : persistentBefore;
   const active = anyAuthoringCapability(nextCapabilities);
   const allowAiCastIrreversibleExpansion =
