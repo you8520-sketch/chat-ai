@@ -13,7 +13,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   MAIN_RP_MODEL_IDS,
 } from "@/lib/chatModels";
@@ -160,11 +160,11 @@ function seedMainRpCatalogs(fetchedAt: number): void {
     discountPercent: 30,
     fetchedAt,
   });
-  seedCatalog(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, {
+  seedCatalog(CHEAPER_INFERENCE_GPT_6_SOL_MODEL, {
     inputUsdPerMillion: 1.4,
-    outputUsdPerMillion: 8.4,
+    outputUsdPerMillion: 7,
     referenceInputUsdPerMillion: 2,
-    referenceOutputUsdPerMillion: 12,
+    referenceOutputUsdPerMillion: 10,
     discountPercent: 30,
     fetchedAt,
   });
@@ -482,16 +482,17 @@ describe("mainRpPricingObservability", () => {
     });
   });
 
-  it("published anchor (Terra) has no arbitrary token delta", () => {
+  it("GPT-6 Sol uses the hard competitor workload instead of an opaque published anchor", () => {
     seedMainRpCatalogs(Date.parse("2026-09-22T03:00:00.000Z"));
     const projection = buildMainRpPricingObservabilityProjection({
       fxSnapshot: FX_FIXTURE,
       now: NOW,
     });
-    const terra = projection.models.find((r) => r.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)!;
-    assert.equal(terra.market.comparabilityStatus, "published_anchor");
-    assert.equal(terra.market.differenceVsBenchmarkPoints, null);
-    assert.equal(terra.market.ourChargeAtBenchmarkPoints, null);
+    const sol = projection.models.find((r) => r.modelId === CHEAPER_INFERENCE_GPT_6_SOL_MODEL)!;
+    assert.equal(sol.market.comparabilityStatus, "hard_comparable");
+    assert.equal(sol.market.competitorPoints, 205.7);
+    assert.ok((sol.market.ourChargeAtBenchmarkPoints ?? 0) > 0);
+    assert.ok(sol.market.differenceVsBenchmarkPoints != null);
   });
 
   it("DeepSeek without token benchmark is absent — not hard_comparable", () => {
@@ -574,9 +575,9 @@ describe("mainRpPricingObservability", () => {
     }).models.find((r) => r.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)!;
     assert.equal(stale.procurement.ciFreshnessState, "STALE");
 
-    seedCatalog(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, {
+    seedCatalog(CHEAPER_INFERENCE_GPT_6_SOL_MODEL, {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       fetchedAt: Date.parse("2026-09-22T03:00:00.000Z"),
     });
     const cacheFallbackDb = makeDb();
@@ -584,7 +585,7 @@ describe("mainRpPricingObservability", () => {
       fxSnapshot: FX_FIXTURE,
       now: NOW,
       db: cacheFallbackDb,
-    }).models.find((r) => r.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)!;
+    }).models.find((r) => r.modelId === CHEAPER_INFERENCE_GPT_6_SOL_MODEL)!;
     assert.equal(cacheFallback.procurement.ciFreshnessState, "STALE");
     assert.equal(cacheFallback.procurement.ciEvidenceSource, "live_catalog_cache");
     assert.equal(cacheFallback.procurement.provenance, "CI_STALE_ESTIMATE");
@@ -624,7 +625,7 @@ describe("mainRpPricingObservability", () => {
       fxSnapshot: FX_FIXTURE,
       now: NOW,
       db,
-    }).models.find((r) => r.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)!;
+    }).models.find((r) => r.modelId === CHEAPER_INFERENCE_GPT_6_SOL_MODEL)!;
     assert.equal(absent.procurement.ciFreshnessState, "ABSENT");
     assert.equal(absent.procurement.ciEvidenceSource, "none");
     assert.equal(absent.procurement.provenance, "UNKNOWN");
