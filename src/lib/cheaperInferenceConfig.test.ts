@@ -179,6 +179,23 @@ test("GPT-6 Luna disables reasoning with official effort none", () => {
   });
 });
 
+test("GPT-6 Sol disables reasoning with official effort none", () => {
+  const body = {
+    model: "gpt-6-sol",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "high" },
+    include_reasoning: true,
+    reasoning_effort: "high",
+  };
+
+  assert.deepEqual(adaptCheaperInferenceChatBody(body), {
+    model: "gpt-6-sol",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "none" },
+    reasoning_effort: "none",
+  });
+});
+
 test("GPT-5.6 Terra disables reasoning with official effort none", () => {
   const body = {
     model: "gpt-5.6-terra",
