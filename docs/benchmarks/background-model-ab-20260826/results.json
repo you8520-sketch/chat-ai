@@ -1,0 +1,756 @@
+{
+  "benchmark": "background-luna-vs-deepseek",
+  "sourceMainSha": "0780df9d89f2ef493d5aae8ef118874d270d5f6e",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "deadlineMs": 45000,
+  "retry": 0,
+  "failover": 0,
+  "dbWrites": 0,
+  "pointCharges": 0,
+  "modelSettings": {
+    "deepseek": {
+      "model": "deepseek-v4-flash-0731",
+      "thinking": {
+        "type": "disabled"
+      }
+    },
+    "luna": {
+      "model": "gpt-5.6-luna",
+      "reasoning": {
+        "effort": "none"
+      },
+      "reasoning_effort": "none"
+    }
+  },
+  "rows": [
+    {
+      "task": "summary",
+      "caseId": "S1_promise_item",
+      "modelKey": "deepseek",
+      "model": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T13:26:11.620Z",
+      "httpStatus": null,
+      "timeout": true,
+      "error": "Error: deadline exceeded",
+      "latencyMs": 45003,
+      "finishReason": null,
+      "usage": null,
+      "outputChars": 0,
+      "output": "",
+      "expectedKeep": [
+        "방독면 필터",
+        "내일",
+        "북문",
+        "강이현"
+      ],
+      "expectedAvoid": [
+        "관리자 패널",
+        "OOC"
+      ]
+    },
+    {
+      "task": "summary",
+      "caseId": "S1_promise_item",
+      "modelKey": "luna",
+      "model": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T13:26:56.623Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 7064,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 1145,
+        "completion_tokens": 157,
+        "total_tokens": 1302,
+        "cost": 0.0004745,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 1142,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0004745,
+          "upstream_inference_prompt_cost": 0.0002861,
+          "upstream_inference_completions_cost": 0.0001884
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "outputChars": 219,
+      "output": "강이현이 새 방독면 필터를 렌에게 양보해 렌의 필터가 정상 작동했으나, 렌의 예비 필터는 0개가 됐고 이현은 낡은 필터를 계속 사용함. 렌이 혼자 가지 말라며 다음 날 북문 정찰을 함께 가자고 요구하자 이현이 동의하고 약속함. 이후 이현은 북문 지도에 위험 구간 세 곳을 표시하며 정찰을 준비함. 렌이 도망가면 화내겠다고 경고하자 이현은 “안 도망가.”라고 단호히 답해 동행 약속을 재확인함.",
+      "expectedKeep": [
+        "방독면 필터",
+        "내일",
+        "북문",
+        "강이현"
+      ],
+      "expectedAvoid": [
+        "관리자 패널",
+        "OOC"
+      ]
+    },
+    {
+      "task": "summary",
+      "caseId": "S2_uncertain_identity",
+      "modelKey": "luna",
+      "model": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T13:27:03.687Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 2783,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 1115,
+        "completion_tokens": 133,
+        "total_tokens": 1248,
+        "cost": 0.0004382,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 1112,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0004382,
+          "upstream_inference_prompt_cost": 0.0002786,
+          "upstream_inference_completions_cost": 0.0001596
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "outputChars": 196,
+      "output": "렌이 금속 표식의 삼중 원 문양을 성채에서 본 것 같다고 했으나 확신하지 못했고, 에녹은 성채 정찰대 표식과 유사하지만 위조 가능성이 있어 추적 주체를 단정하지 않음. 렌의 두통과 불확실한 기억도 과거 연관성이나 기억상실로 규정하지 않음. 표식은 에녹이 증거물 봉투에 넣어 보관하게 됐으며, 성채 접근 계획은 보류하고 먼저 표식 출처를 조사하기로 함.",
+      "expectedKeep": [
+        "에녹",
+        "성채",
+        "추측",
+        "문양"
+      ],
+      "expectedAvoid": [
+        "확정적으로 배신",
+        "기억상실 확정"
+      ]
+    },
+    {
+      "task": "summary",
+      "caseId": "S2_uncertain_identity",
+      "modelKey": "deepseek",
+      "model": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T13:27:06.470Z",
+      "httpStatus": null,
+      "timeout": true,
+      "error": "Error: deadline exceeded",
+      "latencyMs": 45001,
+      "finishReason": null,
+      "usage": null,
+      "outputChars": 0,
+      "output": "",
+      "expectedKeep": [
+        "에녹",
+        "성채",
+        "추측",
+        "문양"
+      ],
+      "expectedAvoid": [
+        "확정적으로 배신",
+        "기억상실 확정"
+      ]
+    },
+    {
+      "task": "summary",
+      "caseId": "S3_injury_status",
+      "modelKey": "deepseek",
+      "model": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T13:27:51.471Z",
+      "httpStatus": null,
+      "timeout": true,
+      "error": "Error: deadline exceeded",
+      "latencyMs": 45001,
+      "finishReason": null,
+      "usage": null,
+      "outputChars": 0,
+      "output": "",
+      "expectedKeep": [
+        "권태현",
+        "왼팔",
+        "출혈",
+        "후퇴",
+        "탄약"
+      ],
+      "expectedAvoid": [
+        "사망",
+        "절단"
+      ]
+    },
+    {
+      "task": "summary",
+      "caseId": "S3_injury_status",
+      "modelKey": "luna",
+      "model": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T13:28:36.472Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 5110,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 1094,
+        "completion_tokens": 169,
+        "total_tokens": 1263,
+        "cost": 0.00047615,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 1091,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.00047615,
+          "upstream_inference_prompt_cost": 0.00027335,
+          "upstream_inference_completions_cost": 0.0002028
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "outputChars": 238,
+      "output": "오른쪽 통로에서 포드 소리가 나자 권태현이 렌을 뒤로 밀어 왼쪽 통로로 이동시킴. 함께 움직이라는 선택에 따라 태현은 뒤를 막으며 두 발 사격해 탄약이 6발에서 4발로 감소함. 파편에 왼팔이 길게 베여 출혈이 발생했으나 뼈·신경 손상은 없었고, 렌이 지혈대를 감아 출혈을 크게 줄임. 태현은 전투 지속 대신 후퇴를 선택했고, 둘은 폐쇄된 정비실까지 도주해 문을 잠금. 현재 태현은 왼팔이 지혈된 상태이며 탄약 4발 보유 중임.",
+      "expectedKeep": [
+        "권태현",
+        "왼팔",
+        "출혈",
+        "후퇴",
+        "탄약"
+      ],
+      "expectedAvoid": [
+        "사망",
+        "절단"
+      ]
+    },
+    {
+      "task": "summary",
+      "caseId": "S4_time_location",
+      "modelKey": "luna",
+      "model": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T13:28:41.583Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 2662,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 1048,
+        "completion_tokens": 91,
+        "total_tokens": 1139,
+        "cost": 0.00037105,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 1045,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.00037105,
+          "upstream_inference_prompt_cost": 0.00026185,
+          "upstream_inference_completions_cost": 0.0001092
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "outputChars": 133,
+      "output": "18:40, 폐쇄된 지하철역 대합실에서 유저와 레온이 시간을 확인한 뒤 지상으로 이동함. 상가에서 한동안 휴식하고 옥상 신호기를 확인하러 올라갔으나 신호기는 꺼져 있었음. 이후 옥상 전광시계에서 22:10을 확인하며 신호기 고장을 확정함.",
+      "expectedKeep": [
+        "18:40",
+        "지하철역",
+        "옥상",
+        "22:10"
+      ],
+      "expectedAvoid": [
+        "20:00"
+      ]
+    },
+    {
+      "task": "summary",
+      "caseId": "S4_time_location",
+      "modelKey": "deepseek",
+      "model": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T13:28:44.245Z",
+      "httpStatus": null,
+      "timeout": true,
+      "error": "Error: deadline exceeded",
+      "latencyMs": 45002,
+      "finishReason": null,
+      "usage": null,
+      "outputChars": 0,
+      "output": "",
+      "expectedKeep": [
+        "18:40",
+        "지하철역",
+        "옥상",
+        "22:10"
+      ],
+      "expectedAvoid": [
+        "20:00"
+      ]
+    },
+    {
+      "task": "summary",
+      "caseId": "S5_relationship_boundary",
+      "modelKey": "deepseek",
+      "model": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T13:29:29.247Z",
+      "httpStatus": null,
+      "timeout": true,
+      "error": "Error: deadline exceeded",
+      "latencyMs": 45000,
+      "finishReason": null,
+      "usage": null,
+      "outputChars": 0,
+      "output": "",
+      "expectedKeep": [
+        "렌",
+        "싫다",
+        "거리",
+        "사과"
+      ],
+      "expectedAvoid": [
+        "연인 확정",
+        "동의했다"
+      ]
+    },
+    {
+      "task": "summary",
+      "caseId": "S5_relationship_boundary",
+      "modelKey": "luna",
+      "model": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T13:30:14.247Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 3959,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 1043,
+        "completion_tokens": 125,
+        "total_tokens": 1168,
+        "cost": 0.0004106,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 1040,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0004106,
+          "upstream_inference_prompt_cost": 0.0002606,
+          "upstream_inference_completions_cost": 0.00015
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "outputChars": 188,
+      "output": "렌이 갑작스러운 손목 잡기를 싫어한다고 밝히자 라이크는 즉시 손을 놓고 물러섰으며, 렌이 먼저 말해달라고 하자 이후에는 반드시 묻겠다고 약속함. 렌이 허용한 거리를 유지한 채 곁에 섰고, 놀라게 한 일을 사과함. 렌의 출발 요청에 따라 접촉 없이 속도를 맞춰 함께 이동함. 관계는 라이크가 렌의 경계를 인지하고 존중하는 방향으로 조정됨.",
+      "expectedKeep": [
+        "렌",
+        "싫다",
+        "거리",
+        "사과"
+      ],
+      "expectedAvoid": [
+        "연인 확정",
+        "동의했다"
+      ]
+    },
+    {
+      "task": "html",
+      "caseId": "H1_notice",
+      "modelKey": "deepseek",
+      "model": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T13:30:18.206Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 5975,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 201,
+        "total_tokens": 650,
+        "completion_tokens": 449,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "outputChars": 1194,
+      "output": "<div class=\"card\" data-bench=\"H1_notice\" style=\"max-width: 420px; margin: 0 auto; border: 1px solid #d0d7de; border-radius: 12px; padding: 20px 24px; background: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.06); font-family: 'Segoe UI', sans-serif; box-sizing: border-box;\">\n  <div style=\"border-bottom: 2px solid #eaeef2; padding-bottom: 12px; margin-bottom: 16px;\">\n    <div style=\"font-size: 20px; font-weight: 700; color: #1f2328; letter-spacing: -0.3px;\">북문 정찰</div>\n  </div>\n  <div style=\"display: flex; align-items: center; gap: 8px; margin-bottom: 12px;\">\n    <span style=\"display: inline-block; background: #f0f6ff; color: #0969da; font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 20px; border: 1px solid #b6d4fe;\">시간</span>\n    <span style=\"font-size: 16px; font-weight: 500; color: #24292f;\">07:30</span>\n  </div>\n  <div style=\"display: flex; align-items: center; gap: 8px;\">\n    <span style=\"display: inline-block; background: #fff8e5; color: #9a6700; font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 20px; border: 1px solid #eeda9d;\">준비물</span>\n    <span style=\"font-size: 16px; font-weight: 500; color: #24292f;\">필터 2개</span>\n  </div>\n</div>",
+      "htmlRequired": [
+        "data-bench=\"H1_notice\"",
+        "북문 정찰",
+        "07:30",
+        "필터 2개"
+      ]
+    },
+    {
+      "task": "html",
+      "caseId": "H1_notice",
+      "modelKey": "luna",
+      "model": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T13:30:24.182Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 4277,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 181,
+        "completion_tokens": 264,
+        "total_tokens": 445,
+        "cost": 0.000353,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.000353,
+          "upstream_inference_prompt_cost": 0.0000362,
+          "upstream_inference_completions_cost": 0.0003168
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "outputChars": 771,
+      "output": "<div data-bench=\"H1_notice\" style=\"border:1px solid #c9d3e0;border-radius:12px;padding:16px;max-width:360px;background:#f7faff;font-family:sans-serif;color:#1f2937;\">\n  <div style=\"font-size:20px;font-weight:700;margin-bottom:12px;\">북문 정찰</div>\n  <div style=\"display:flex;gap:12px;margin-bottom:10px;\">\n    <div style=\"flex:1;padding:10px;border-radius:8px;background:#e8f1ff;\">\n      <div style=\"font-size:12px;color:#64748b;margin-bottom:4px;\">시간</div>\n      <div style=\"font-size:16px;font-weight:600;\">07:30</div>\n    </div>\n    <div style=\"flex:1;padding:10px;border-radius:8px;background:#eef7ed;\">\n      <div style=\"font-size:12px;color:#64748b;margin-bottom:4px;\">준비물</div>\n      <div style=\"font-size:16px;font-weight:600;\">필터 2개</div>\n    </div>\n  </div>\n</div>",
+      "htmlRequired": [
+        "data-bench=\"H1_notice\"",
+        "북문 정찰",
+        "07:30",
+        "필터 2개"
+      ]
+    },
+    {
+      "task": "html",
+      "caseId": "H2_status",
+      "modelKey": "luna",
+      "model": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T13:30:28.459Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 3046,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 169,
+        "completion_tokens": 52,
+        "total_tokens": 221,
+        "cost": 0.0000962,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0000962,
+          "upstream_inference_prompt_cost": 0.0000338,
+          "upstream_inference_completions_cost": 0.0000624
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "outputChars": 95,
+      "output": "<div data-bench=\"H2_status\">\n  <div>오염도 37%</div>\n  <div>탄약 4발</div>\n  <div>장소 정비실</div>\n</div>",
+      "htmlRequired": [
+        "data-bench=\"H2_status\"",
+        "오염도",
+        "37%",
+        "탄약",
+        "4발",
+        "장소",
+        "정비실"
+      ]
+    },
+    {
+      "task": "html",
+      "caseId": "H2_status",
+      "modelKey": "deepseek",
+      "model": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T13:30:31.505Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 5054,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 185,
+        "total_tokens": 318,
+        "completion_tokens": 133,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "outputChars": 415,
+      "output": "<div class=\"status-card\" data-bench=\"H2_status\">\n  <div class=\"status-item\">\n    <span class=\"status-label\">오염도</span>\n    <span class=\"status-value\">37%</span>\n  </div>\n  <div class=\"status-item\">\n    <span class=\"status-label\">탄약</span>\n    <span class=\"status-value\">4발</span>\n  </div>\n  <div class=\"status-item\">\n    <span class=\"status-label\">장소</span>\n    <span class=\"status-value\">정비실</span>\n  </div>\n</div>",
+      "htmlRequired": [
+        "data-bench=\"H2_status\"",
+        "오염도",
+        "37%",
+        "탄약",
+        "4발",
+        "장소",
+        "정비실"
+      ]
+    },
+    {
+      "task": "html",
+      "caseId": "H3_long_korean",
+      "modelKey": "deepseek",
+      "model": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T13:30:36.559Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 4904,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 210,
+        "total_tokens": 551,
+        "completion_tokens": 341,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "outputChars": 794,
+      "output": "<div class=\"info-panel\" data-bench=\"H3_long_korean\" style=\"max-width: 480px; margin: 16px auto; border: 1px solid #2a4a4a; border-radius: 8px; background: #f4faf9; font-family: 'Malgun Gothic', sans-serif; overflow: hidden;\">\n  <div style=\"padding: 12px 16px; background: #1f3d3d; color: #e0f2f1; font-size: 16px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 2px solid #2a9d8f;\">\n    관측 기록\n  </div>\n  <div style=\"padding: 16px 18px; color: #1e2b2b; font-size: 14px; line-height: 1.7;\">\n    <p style=\"margin: 0 0 12px 0;\">청록색 균사가 서쪽 벽 전체로 번지고 있음. 포자 농도 상승 징후가 있어 접촉 금지.</p>\n    <div style=\"background: #fff3cd; border-left: 4px solid #d97706; padding: 10px 14px; border-radius: 4px; font-weight: 700; color: #7c2d12; font-size: 14px;\">\n      ⚠️ 중요 경고: 접촉 금지\n    </div>\n  </div>\n</div>",
+      "htmlRequired": [
+        "data-bench=\"H3_long_korean\"",
+        "관측 기록",
+        "청록색 균사",
+        "서쪽 벽",
+        "접촉 금지"
+      ]
+    },
+    {
+      "task": "html",
+      "caseId": "H3_long_korean",
+      "modelKey": "luna",
+      "model": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T13:30:41.463Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 2410,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 191,
+        "completion_tokens": 95,
+        "total_tokens": 286,
+        "cost": 0.0001522,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001522,
+          "upstream_inference_prompt_cost": 0.0000382,
+          "upstream_inference_completions_cost": 0.000114
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "outputChars": 245,
+      "output": "<section class=\"data-bench\" data-bench=\"H3_long_korean\" role=\"region\" aria-labelledby=\"observation-record-title\">\n  <h2 id=\"observation-record-title\">관측 기록</h2>\n  <p><strong>청록색 균사가 서쪽 벽 전체로 번지고 있음. 포자 농도 상승 징후가 있어 접촉 금지.</strong></p>\n</section>",
+      "htmlRequired": [
+        "data-bench=\"H3_long_korean\"",
+        "관측 기록",
+        "청록색 균사",
+        "서쪽 벽",
+        "접촉 금지"
+      ]
+    },
+    {
+      "task": "html",
+      "caseId": "H4_conditional",
+      "modelKey": "luna",
+      "model": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T13:30:43.873Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 2503,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 181,
+        "completion_tokens": 105,
+        "total_tokens": 286,
+        "cost": 0.0001622,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0001622,
+          "upstream_inference_prompt_cost": 0.0000362,
+          "upstream_inference_completions_cost": 0.000126
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "outputChars": 255,
+      "output": "<div data-bench=\"H4_conditional\">\n  <div class=\"resource-card resource-card--danger\">\n    <h3>필터</h3>\n    <p>잔량: 12%</p>\n    <strong>즉시 교체</strong>\n  </div>\n  <div class=\"resource-card resource-card--normal\">\n    <h3>식량</h3>\n    <p>3일분</p>\n  </div>\n</div>",
+      "htmlRequired": [
+        "data-bench=\"H4_conditional\"",
+        "필터",
+        "12%",
+        "즉시 교체",
+        "식량",
+        "3일분"
+      ]
+    },
+    {
+      "task": "html",
+      "caseId": "H4_conditional",
+      "modelKey": "deepseek",
+      "model": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T13:30:46.376Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 8339,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 197,
+        "total_tokens": 328,
+        "completion_tokens": 131,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "outputChars": 426,
+      "output": "<div class=\"resource-card\" data-bench=\"H4_conditional\">\n  <div class=\"resource-item danger\">\n    <span class=\"resource-label\">필터 잔량</span>\n    <span class=\"resource-value\">12%</span>\n    <span class=\"resource-warning\">즉시 교체</span>\n  </div>\n  <div class=\"resource-item normal\">\n    <span class=\"resource-label\">식량</span>\n    <span class=\"resource-value\">3일분</span>\n    <span class=\"resource-status\">일반 상태</span>\n  </div>\n</div>",
+      "htmlRequired": [
+        "data-bench=\"H4_conditional\"",
+        "필터",
+        "12%",
+        "즉시 교체",
+        "식량",
+        "3일분"
+      ]
+    },
+    {
+      "task": "html",
+      "caseId": "H5_special_chars",
+      "modelKey": "deepseek",
+      "model": "deepseek-v4-flash-0731",
+      "startedAt": "2026-08-26T13:30:54.715Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 3648,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 210,
+        "total_tokens": 396,
+        "completion_tokens": 186,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "outputChars": 508,
+      "output": "<div class=\"log-card\" data-bench=\"H5_special_chars\">\n  <div class=\"log-entry\">\n    <span class=\"label\">이름:</span>\n    <span class=\"value\">렌 &amp; 에녹</span>\n  </div>\n  <div class=\"log-entry\">\n    <span class=\"label\">코드:</span>\n    <span class=\"value\">A-17</span>\n  </div>\n  <div class=\"log-entry\">\n    <span class=\"label\">메모:</span>\n    <span class=\"value\">&#39;회색 안개&#39; 경보</span>\n  </div>\n  <div class=\"log-entry\">\n    <span class=\"label\">비교식:</span>\n    <span class=\"value\">3 &lt; 5</span>\n  </div>\n</div>",
+      "htmlRequired": [
+        "data-bench=\"H5_special_chars\"",
+        "렌 & 에녹",
+        "A-17",
+        "'회색 안개'",
+        "3 < 5"
+      ]
+    },
+    {
+      "task": "html",
+      "caseId": "H5_special_chars",
+      "modelKey": "luna",
+      "model": "gpt-5.6-luna",
+      "startedAt": "2026-08-26T13:30:58.363Z",
+      "httpStatus": 200,
+      "timeout": false,
+      "error": null,
+      "latencyMs": 2664,
+      "finishReason": "stop",
+      "usage": {
+        "prompt_tokens": 191,
+        "completion_tokens": 161,
+        "total_tokens": 352,
+        "cost": 0.0002314,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0002314,
+          "upstream_inference_prompt_cost": 0.0000382,
+          "upstream_inference_completions_cost": 0.0001932
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "outputChars": 446,
+      "output": "<div class=\"log-card\" data-bench=\"H5_special_chars\">\n  <div class=\"log-row\"><span class=\"label\">이름</span><span class=\"value\">렌 &amp; 에녹</span></div>\n  <div class=\"log-row\"><span class=\"label\">코드</span><span class=\"value\">A-17</span></div>\n  <div class=\"log-row\"><span class=\"label\">메모</span><span class=\"value\">&quot;회색 안개&quot; 경보</span></div>\n  <div class=\"log-row\"><span class=\"label\">비교식</span><span class=\"value\">3 &lt; 5</span></div>\n</div>",
+      "htmlRequired": [
+        "data-bench=\"H5_special_chars\"",
+        "렌 & 에녹",
+        "A-17",
+        "'회색 안개'",
+        "3 < 5"
+      ]
+    }
+  ]
+}
