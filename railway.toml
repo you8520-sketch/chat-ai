@@ -4,7 +4,7 @@ buildCommand = "npm run build && npm prune --omit=dev"
 nixpacksConfigPath = "nixpacks.toml"
 
 [deploy]
-startCommand = "npm run official-supply:finalize-lucian-v4 && npm run start"
+startCommand = "npm run official-supply:bootstrap-romance-studio && npm run official-supply:finalize-lucian-v4 && npm run official-supply:publish-lucian-v4 && npm run start"
 healthcheckPath = "/health"
-healthcheckTimeout = 300
+healthcheckTimeout = 600
 restartPolicyType = "never"
