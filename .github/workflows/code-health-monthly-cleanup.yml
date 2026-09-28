@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: code-health-monthly-cleanup
+  group: code-health-ledger
   cancel-in-progress: false
 
 jobs:
@@ -83,7 +83,7 @@ jobs:
         run: |
           test "${{ steps.cleanup.outputs.auto_merged }}" = "false"
           test "${{ steps.cleanup.outputs.draft_pr_created }}" = "false"
-          git diff --exit-code -- . ':!artifacts' ':!*.json'
+          git diff --exit-code -- . ':!artifacts'
 
       - name: Write job summary
         if: always()
