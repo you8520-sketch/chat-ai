@@ -1,0 +1,104 @@
+name: Main RP monthly cache audit (read-only)
+
+# External read-only observability — not a Railway/production scheduler.
+# Uses usage/reporting credentials only (no inference). provider generation calls = 0.
+# Writes GitHub Actions summary + artifacts; does NOT auto-commit to main.
+
+on:
+  schedule:
+    # 2nd of each month 03:17 UTC — previous calendar month is complete.
+    - cron: "17 3 2 * *"
+  workflow_dispatch:
+    inputs:
+      year_month:
+        description: "UTC calendar month to audit (YYYY-MM). Empty = previous completed month."
+        required: false
+        type: string
+        default: ""
+      dry_run:
+        description: "Skip uploading durable artifacts (still prints summary JSON)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-rp-monthly-cache-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      OPENROUTER_API_KEY: ""
+      OPENAI_API_KEY: ""
+      # Never use production inference key for this audit.
+      CHEAPER_INFERENCE_API_KEY: ""
+      CHEAPER_INFERENCE_USAGE_API_KEY: ${{ secrets.CHEAPER_INFERENCE_USAGE_API_KEY }}
+      CHEAPER_INFERENCE_BENCHMARK_API_KEY: ${{ secrets.CHEAPER_INFERENCE_BENCHMARK_API_KEY }}
+      MAIN_RP_CACHE_AUDIT_YEAR_MONTH: ${{ inputs.year_month }}
+      MAIN_RP_CACHE_AUDIT_OUT_DIR: artifacts/main-rp-monthly-cache-audit
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Regression — monthly cache auditor
+        run: >
+          node --conditions=react-server --import tsx --test
+          scripts/lib/mainRpMonthlyCacheAudit.test.ts
+
+      - name: Run monthly cache audit (read-only)
+        id: audit
+        run: |
+          set -euo pipefail
+          mkdir -p "$MAIN_RP_CACHE_AUDIT_OUT_DIR"
+          node --conditions=react-server --import tsx scripts/main-rp-monthly-cache-audit.ts | tee audit-stdout.json
+          echo "provider_generation_calls=$(node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("audit-stdout.json","utf8")); process.stdout.write(String(j.providerGenerationCalls ?? "missing"))')" >> "$GITHUB_OUTPUT"
+          echo "run_status=$(node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("audit-stdout.json","utf8")); process.stdout.write(String(j.runStatus ?? "missing"))')" >> "$GITHUB_OUTPUT"
+
+      - name: Prove provider generation calls = 0
+        run: |
+          test "${{ steps.audit.outputs.provider_generation_calls }}" = "0"
+
+      - name: Write job summary
+        if: always()
+        run: |
+          {
+            echo "## Main RP monthly cache audit"
+            echo ""
+            echo "- runStatus: \`${{ steps.audit.outputs.run_status }}\`"
+            echo "- providerGenerationCalls: \`${{ steps.audit.outputs.provider_generation_calls }}\`"
+            echo "- auto-commit to main: **no**"
+            echo ""
+            if [ -f "$MAIN_RP_CACHE_AUDIT_OUT_DIR/REPORT.md" ]; then
+              cat "$MAIN_RP_CACHE_AUDIT_OUT_DIR/REPORT.md"
+            elif [ -f audit-stdout.json ]; then
+              echo '```json'
+              cat audit-stdout.json
+              echo '```'
+            else
+              echo "_No report artifact (job may have failed before write)._"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload audit artifacts
+        if: ${{ always() && (github.event_name != 'workflow_dispatch' || inputs.dry_run != true) }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-rp-monthly-cache-audit
+          path: |
+            artifacts/main-rp-monthly-cache-audit/**
+            audit-stdout.json
+          if-no-files-found: warn
+          retention-days: 90
