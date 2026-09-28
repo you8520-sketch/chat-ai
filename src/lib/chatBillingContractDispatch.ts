@@ -13,6 +13,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
 } from "@/lib/chatModels";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 import {
@@ -33,6 +34,7 @@ export const PHASE1_PUBLISHED_MODELS = [
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+  CHEAPER_INFERENCE_GPT_6_SOL_MODEL,
 ] as const;
 
 /** Phase 2 Published DeepSeek models — V4 Pro + V4.1 Flash (not Phase 1). */
