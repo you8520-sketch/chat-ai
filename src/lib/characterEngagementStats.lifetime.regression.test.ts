@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import Database from "better-sqlite3";
 import { describe, it } from "node:test";
 import {
-  adjustCharacterStatsOnChatDelete,
   incrementCharacterTotalTurns,
   registerCharacterChatUser,
 } from "@/lib/characterEngagementStats";
@@ -47,12 +46,7 @@ function insertChat(db: Database.Database, userId: number): number {
   return Number(info.lastInsertRowid);
 }
 
-function deleteChatRoom(
-  db: Database.Database,
-  userId: number,
-  chatId: number
-): void {
-  adjustCharacterStatsOnChatDelete(db, 1, userId, chatId);
+function deleteChatRoom(db: Database.Database, chatId: number): void {
   db.prepare("DELETE FROM messages WHERE chat_id=?").run(chatId);
   db.prepare("DELETE FROM chats WHERE id=?").run(chatId);
 }
@@ -87,8 +81,8 @@ describe("character lifetime engagement stats policy", () => {
     ).run(chatA1, chatA1, chatA1, JSON.stringify([{ content: "r1" }, { content: "r2" }]));
 
     // 4. Delete every room → counters must not drop
-    deleteChatRoom(db, 1, chatA1);
-    deleteChatRoom(db, 1, chatA2);
+    deleteChatRoom(db, chatA1);
+    deleteChatRoom(db, chatA2);
     assert.equal(stats(db).total_turns, 4);
     assert.equal(stats(db).chats_count, 1);
 
@@ -103,6 +97,23 @@ describe("character lifetime engagement stats policy", () => {
     const finalStats = stats(db);
     assert.equal(finalStats.chats_count, 2);
     assert.equal(finalStats.total_turns, 4);
+  });
+});
+
+describe("character total_turn runtime writers", () => {
+  it("keeps user-send and successful-regeneration increments wired to the canonical counter", () => {
+    const source = readFileSync(
+      new URL("../../src/app/api/chat/route.ts", import.meta.url),
+      "utf8"
+    );
+    assert.match(
+      source,
+      /onUserInserted:[\s\S]{0,500}incrementCharacterTotalTurns\(db, ch\.id\)/
+    );
+    assert.match(
+      source,
+      /Successful regenerate counts as an engagement turn[\s\S]{0,300}if \(finalizeWrote\)[\s\S]{0,200}incrementCharacterTotalTurns\(db, ch\.id, 1\)/
+    );
   });
 });
 
