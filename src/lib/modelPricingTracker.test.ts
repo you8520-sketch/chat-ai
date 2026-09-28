@@ -326,11 +326,11 @@ describe("model pricing tracker regression fixtures", () => {
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6-sol", {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
+      referenceOutputUsdPerMillion: 10,
       discountPercent: 30,
     });
 
@@ -388,11 +388,11 @@ describe("model pricing tracker regression fixtures", () => {
       referenceInputUsdPerMillion: 0.375,
       referenceOutputUsdPerMillion: 1.875,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6-sol", {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
+      referenceOutputUsdPerMillion: 10,
     });
 
     await runModelPricingTracker({
@@ -626,11 +626,11 @@ describe("PR #992 correction fixtures (provenance + run-claim atomicity)", () =>
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6-sol", {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
+      referenceOutputUsdPerMillion: 10,
       discountPercent: 30,
     });
 
@@ -673,11 +673,11 @@ describe("PR #992 correction fixtures (provenance + run-claim atomicity)", () =>
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6-sol", {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
+      referenceOutputUsdPerMillion: 10,
       discountPercent: 30,
     });
 
@@ -815,11 +815,11 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6-sol", {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
+      referenceOutputUsdPerMillion: 10,
       discountPercent: 30,
     });
 
@@ -869,11 +869,11 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6-sol", {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
+      referenceOutputUsdPerMillion: 10,
       discountPercent: 30,
     });
 
@@ -988,11 +988,11 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6-sol", {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
+      referenceOutputUsdPerMillion: 10,
       discountPercent: 30,
     });
     const retry = await runModelPricingTracker({
@@ -1288,11 +1288,11 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       discountPercent: 40,
       fetchedAt: sourceMs,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6-sol", {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
+      referenceOutputUsdPerMillion: 10,
       discountPercent: 30,
       fetchedAt: sourceMs,
     });
@@ -1345,11 +1345,11 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       discountPercent: 40,
       fetchedAt,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6-sol", {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
+      referenceOutputUsdPerMillion: 10,
       discountPercent: 30,
       fetchedAt,
     });
@@ -1849,11 +1849,11 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       discountPercent: 40,
       fetchedAt,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6-sol", {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
+      referenceOutputUsdPerMillion: 10,
       discountPercent: 30,
       fetchedAt,
     });
@@ -2086,11 +2086,11 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6-sol", {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
+      referenceOutputUsdPerMillion: 10,
       discountPercent: 30,
     });
 
@@ -2500,11 +2500,11 @@ describe("provider model discovery production-path integration", () => {
       discountPercent: 40,
       fetchedAt,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6-sol", {
       inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
+      outputUsdPerMillion: 7,
       referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
+      referenceOutputUsdPerMillion: 10,
       discountPercent: 30,
       fetchedAt,
     });
