@@ -849,9 +849,9 @@ export default function CreateCharacter({
         const ref = worldLibraryRef(picked);
         setSelectedWorldRef(ref);
         setForm((f) => ({
-        ...f,
-        world: worldPrivatePromptContent(picked.content, picked.secretContent ?? ""),
-      }));
+          ...f,
+          world: worldPrivatePromptContent(picked.content, picked.secretContent ?? ""),
+        }));
       }
     }
   }, [worldsLoading, savedWorlds, selectedWorldRef, initialWorldBorrowId, initialWorldId]);
