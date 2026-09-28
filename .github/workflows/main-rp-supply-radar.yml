@@ -1,0 +1,61 @@
+name: Monthly Main RP supply radar
+
+on:
+  schedule:
+    # 04th day 03:47 UTC = 12:47 KST. Runs after the monthly cache audit.
+    - cron: "47 3 4 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-rp-monthly-supply-radar
+  cancel-in-progress: false
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      OPENROUTER_SUPPLY_RADAR_API_KEY: ${{ secrets.OPENROUTER_SUPPLY_RADAR_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      CHEAPER_INFERENCE_USAGE_API_KEY: ${{ secrets.CHEAPER_INFERENCE_USAGE_API_KEY }}
+      CHEAPER_INFERENCE_BENCHMARK_API_KEY: ${{ secrets.CHEAPER_INFERENCE_BENCHMARK_API_KEY }}
+      MAIN_RP_SUPPLY_RADAR_OUTPUT_DIR: artifacts/main-rp-supply-radar
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Supply radar deterministic regression
+        run: node --conditions=react-server --import tsx --test scripts/lib/mainRpSupplyRadar.test.ts
+      - name: Read-only external supply scan
+        run: node --conditions=react-server --import tsx scripts/main-rp-supply-radar.ts
+      - name: Assert zero generation calls
+        shell: bash
+        run: |
+          test -f artifacts/main-rp-supply-radar/report.json
+          node - <<'NODE'
+          const fs = require("fs");
+          const r = JSON.parse(fs.readFileSync("artifacts/main-rp-supply-radar/report.json","utf8"));
+          if (r.providerGenerationCalls !== 0) throw new Error("provider generation call invariant violated");
+          NODE
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f artifacts/main-rp-supply-radar/REPORT.md ]; then
+            cat artifacts/main-rp-supply-radar/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload monthly supply evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: main-rp-supply-radar
+          path: artifacts/main-rp-supply-radar
+          if-no-files-found: error
+          retention-days: 365

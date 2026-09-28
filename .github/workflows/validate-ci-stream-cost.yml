@@ -86,6 +86,10 @@ on:
       - "scripts/main-rp-monthly-cache-audit.ts"
       - "scripts/main-rp-cache-health-readonly.ts"
       - ".github/workflows/main-rp-monthly-cache-audit.yml"
+      - "scripts/lib/mainRpSupplyRadar.ts"
+      - "scripts/lib/mainRpSupplyRadar.test.ts"
+      - "scripts/main-rp-supply-radar.ts"
+      - ".github/workflows/main-rp-supply-radar.yml"
       - "src/services/contextBuilder.ts"
       - "src/lib/noGodmodding.ts"
       - "src/components/admin/ProviderModelDiscoverySection.tsx"
@@ -167,6 +171,7 @@ jobs:
           src/lib/mainRpModelRegistry.test.ts
           scripts/lib/rpModelQualificationPacket.test.ts
           scripts/lib/mainRpMonthlyCacheAudit.test.ts
+          scripts/lib/mainRpSupplyRadar.test.ts
           src/lib/modelPickerPreview.test.ts
           src/lib/cheaperInferenceConfig.test.ts
 
