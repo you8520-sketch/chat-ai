@@ -18,6 +18,7 @@ import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
 import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
+  worldContentBundleCharCount,
   WORLD_SELECT_COLUMNS,
   WORLD_SUMMARY_LIMIT,
   parseWorldTrpgFlags,
@@ -67,6 +68,10 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   const name = b.name != null ? String(b.name).trim().slice(0, WORLD_NAME_LIMIT) : existing.name;
   const summary = b.summary != null ? String(b.summary).trim().slice(0, WORLD_SUMMARY_LIMIT) : existing.summary;
   const content = b.content != null ? String(b.content).trim() : existing.content;
+  const secretContent =
+    b.secretContent != null || b.secret_content != null
+      ? String(b.secretContent ?? b.secret_content ?? "").trim()
+      : existing.secret_content ?? "";
   const trpgFlags =
     b.trpgEnabled != null || b.trpgVisibility != null
       ? parseWorldTrpgFlags({
@@ -87,9 +92,11 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
 
   if (!name) return NextResponse.json({ error: "세계관 이름을 입력해 주세요." }, { status: 400 });
   if (!content) return NextResponse.json({ error: "세계관 본문을 입력해 주세요." }, { status: 400 });
-  if (content.length > WORLD_CONTENT_LIMIT) {
+  if (worldContentBundleCharCount(content, secretContent) > WORLD_CONTENT_LIMIT) {
     return NextResponse.json(
-      { error: `세계관 본문은 ${WORLD_CONTENT_LIMIT.toLocaleString()}자 이하여야 합니다.` },
+      {
+        error: `세계관 본문 + 비밀 설정은 합쳐서 ${WORLD_CONTENT_LIMIT.toLocaleString()}자 이하여야 합니다.`,
+      },
       { status: 400 }
     );
   }
@@ -105,6 +112,9 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   }
 
   const contentChanged = b.content != null && content !== existing.content;
+  const secretContentChanged =
+    (b.secretContent != null || b.secret_content != null) &&
+    secretContent !== (existing.secret_content ?? "");
   const nameChanged = b.name != null && name !== existing.name;
   const summaryChanged = b.summary != null && summary !== existing.summary;
   const previousTrpgEnabled = Number(existing.trpg_enabled ?? 0) === 1;
@@ -114,13 +124,13 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
     nextTrpgEnabled,
     nameChanged,
     summaryChanged,
-    contentChanged,
+    contentChanged: contentChanged || secretContentChanged,
   };
   const shouldEnqueueBlueprint = shouldEnqueueWorldBlueprintPregen(blueprintTriggerInput);
 
   const updateResult = db
     .prepare(
-      `UPDATE worlds SET name = ?, summary = ?, content = ?, trpg_enabled = ?, trpg_visibility = ?, genres = ?, cover_url = ?, updated_at = datetime('now'),
+      `UPDATE worlds SET name = ?, summary = ?, content = ?, secret_content = ?, trpg_enabled = ?, trpg_visibility = ?, genres = ?, cover_url = ?, updated_at = datetime('now'),
      content_en = CASE WHEN ? THEN '' ELSE content_en END,
      content_translation_fingerprint = CASE WHEN ? THEN '' ELSE content_translation_fingerprint END
      WHERE id = ? AND creator_id = ?`
@@ -129,6 +139,7 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
       name,
       summary,
       content,
+      secretContent,
       trpgFlags.trpgEnabled,
       trpgFlags.trpgVisibility,
       genresJson,
@@ -150,7 +161,7 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   if (contentChanged && updateResult.changes > 0) {
     enqueueWorldTranslationJob(db, id, content);
   }
-  if ((contentChanged || enqueuedBlueprint) && updateResult.changes > 0) {
+  if ((contentChanged || secretContentChanged || enqueuedBlueprint) && updateResult.changes > 0) {
     kickDerivedCacheWorker();
   }
 
