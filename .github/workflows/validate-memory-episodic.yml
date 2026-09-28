@@ -75,6 +75,11 @@ on:
       - "src/lib/memory/memory-relationship-meta.ts"
       - "src/lib/memory/memoryRelationshipTask.production.test.ts"
       - "src/lib/memory/memory-relationship-provenance.test.ts"
+      - "src/lib/memory/memory-relationship-variant-switch.test.ts"
+      - "src/lib/messageAlternates.ts"
+      - "src/lib/nonnumericVariantSwitchAtomic.ts"
+      - "src/lib/rpDerivedStateLifecycle.ts"
+      - "src/lib/rpNumericState/variantSwitchAtomic.ts"
       - "src/lib/chatLastTurnDelete.ts"
       - "src/app/api/chat/turn/route.ts"
       - "src/app/api/chat/fork/route.ts"
@@ -147,6 +152,9 @@ jobs:
 
       - name: Relationship provenance lifecycle
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memoryRelationshipTask.production.test.ts src/lib/memory/memory-relationship-provenance.test.ts
+
+      - name: Canonical variant relationship parity
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-relationship-variant-switch.test.ts
 
       - name: Remote schema memory reachability
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/remoteSchemaMemoryReachability.test.ts
