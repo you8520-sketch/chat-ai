@@ -5,7 +5,10 @@ import {
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   type SelectedAI,
 } from "@/lib/chatModels";
-import { COLLABORATIVE_INTERACTIVE_OWNER_TITLE } from "@/lib/noGodmodding";
+import {
+  COLLABORATIVE_INTERACTIVE_OWNER_TITLE,
+  USER_COAUTHOR_OWNER_TITLE,
+} from "@/lib/noGodmodding";
 import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
 import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
 import { buildContext } from "@/services/contextBuilder";
@@ -17,7 +20,7 @@ import {
   type CanonicalQualificationCaseId,
 } from "./rpModelQualificationFixture";
 
-export const RP_MODEL_QUALIFICATION_PACKET_VERSION = 1;
+export const RP_MODEL_QUALIFICATION_PACKET_VERSION = 2;
 
 export const RP_MODEL_QUALIFICATION_PACKET_OWNERS = Object.freeze({
   activeModelRegistry: "src/lib/chatModels.ts#MAIN_RP_USER_SELECTABLE_OPTIONS",
@@ -39,8 +42,11 @@ function sha256Json(value: unknown): string {
   return sha256Text(JSON.stringify(value));
 }
 
-function count(text: string, needle: string): number {
-  return text.split(needle).length - 1;
+function countSectionHeader(text: string, title: string): number {
+  return text
+    .split("\n")
+    .filter((line) => line.trim() === title)
+    .length;
 }
 
 function wireControls(body: JsonObject): JsonObject {
@@ -79,6 +85,7 @@ export type RpModelQualificationCasePacket = {
     changed: string[];
   };
   collaborativeOwnerCount: number;
+  effectiveCoauthorOwnerCount: number;
 };
 
 export type RpModelQualificationModelPacket = {
@@ -151,9 +158,13 @@ function buildCasePacket(
     requestBodyKeys: Object.keys(body).sort(),
     wireControls: wireControls(body),
     adaptationKeyDiff: wire.adaptationKeyDiff,
-    collaborativeOwnerCount: count(
+    collaborativeOwnerCount: countSectionHeader(
       built.systemPrompt,
       COLLABORATIVE_INTERACTIVE_OWNER_TITLE
+    ),
+    effectiveCoauthorOwnerCount: countSectionHeader(
+      built.systemPrompt,
+      USER_COAUTHOR_OWNER_TITLE
     ),
   };
 }

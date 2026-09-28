@@ -1,8 +1,11 @@
 #!/usr/bin/env npx tsx
 import assert from "node:assert/strict";
 import { buildContext } from "../../src/services/contextBuilder";
-import { COLLABORATIVE_INTERACTIVE_OWNER_TITLE } from "../../src/lib/noGodmodding";
-import { OPENROUTER_DEEPSEEK_V4_PRO_MODEL } from "../../src/lib/chatModels";
+import {
+  COLLABORATIVE_INTERACTIVE_OWNER_TITLE,
+  USER_COAUTHOR_OWNER_TITLE,
+} from "../../src/lib/noGodmodding";
+import { CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL } from "../../src/lib/chatModels";
 import {
   CANONICAL_RP_QUALIFICATION_SOURCE,
   RP_QUALIFICATION_SITE_POLICY_OWNERS,
@@ -50,27 +53,31 @@ function main() {
   // Current-main runtime policy, not the reviewer's personal standard, owns the
   // user-character boundary used to grade candidate outputs.
   const contextInput = buildCanonicalRpQualificationContextInput({
-    modelId: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+    modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
     caseData: cases[1]!,
     provider: "cheaperinference",
   });
   const built = buildContext(contextInput);
-  assert.equal(count(built.systemPrompt, COLLABORATIVE_INTERACTIVE_OWNER_TITLE), 1);
-  assert.match(built.systemPrompt, /USER_PERSONA.*외형·등급·능력·직업·소속·성격·과거/s);
+  assert.equal(count(built.systemPrompt, COLLABORATIVE_INTERACTIVE_OWNER_TITLE), 0);
+  assert.ok(count(built.systemPrompt, USER_COAUTHOR_OWNER_TITLE) >= 1);
   assert.match(
     built.systemPrompt,
-    /짧은 표정·시선·비자발적 반응.*사소한 이동·접촉·물건 수취·일상 행동/s
+    /\[B\]의 직접 대사와 외부에서 관찰 가능한 중요한 행동을 페르소나에 맞게 공동 서술할 수 있다/
   );
   assert.match(
     built.systemPrompt,
-    /새로운 직접 대사, 중요한 선택·동의·거절, 관계·목표·소속·정체성을 바꾸는 결정/
+    /비공개 속마음·내면 독백·숨은 욕망을 객관적 사실로 쓰지 않는다/
+  );
+  assert.match(
+    built.systemPrompt,
+    /사망·영구 상실·정체성·장기 관계·소속 같은 불가역 정본 변경도 대신 확정하지 않는다/
   );
   assert.match(built.systemPrompt, /기계사용에 서툼/);
   assert.match(built.systemPrompt, /고개를 갸웃거림/);
 
   assert.equal(
     RP_QUALIFICATION_SITE_POLICY_OWNERS.standardInteractive,
-    "src/lib/noGodmodding.ts#COLLABORATIVE_INTERACTIVE_OWNER_BLOCK"
+    "src/lib/userCoauthorState.ts#resolveEffectiveUserAuthoring + src/lib/noGodmodding.ts#buildUserCoauthorOwnerBlock"
   );
   assert.ok(
     STANDARD_INTERACTIVE_REVIEW_EXAMPLES.allowedWhenGrounded.some((x) =>
@@ -90,6 +97,7 @@ function main() {
         source: CANONICAL_RP_QUALIFICATION_SOURCE,
         case_ids: cases.map((c) => c.id),
         current_policy_owner: RP_QUALIFICATION_SITE_POLICY_OWNERS.standardInteractive,
+        ordinary_input_authoring_level: "NORMAL",
         provider_calls: 0,
       },
       null,

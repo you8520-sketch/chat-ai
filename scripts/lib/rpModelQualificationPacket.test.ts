@@ -16,7 +16,7 @@ import { buildCanonicalRpQualificationCases } from "./rpModelQualificationFixtur
 function main() {
   const packet = buildActiveRpModelQualificationPacket();
 
-  assert.equal(packet.packetVersion, 1);
+  assert.equal(packet.packetVersion, 2);
   assert.equal(packet.providerCalls, 0);
   assert.equal(packet.runtimeObservations, "NOT_RUN");
   assert.deepEqual(packet.activeModelIds, MAIN_RP_MODEL_IDS);
@@ -38,7 +38,8 @@ function main() {
     );
 
     for (const casePacket of model.cases) {
-      assert.equal(casePacket.collaborativeOwnerCount, 1);
+      assert.equal(casePacket.collaborativeOwnerCount, 0);
+      assert.equal(casePacket.effectiveCoauthorOwnerCount, 1);
       assert.ok(casePacket.systemPromptChars > 1000);
       assert.equal(casePacket.systemPromptSha256.length, 64);
       assert.equal(casePacket.wireMessagesSha256.length, 64);
