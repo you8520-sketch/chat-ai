@@ -15,6 +15,7 @@ export type TrpgWorldAccessRow = {
   name: string;
   summary: string;
   content: string;
+  secret_content: string;
   trpg_enabled: number;
   trpg_visibility: string;
   shared_from_nickname?: string;
@@ -40,6 +41,7 @@ export function loadWorldForTrpg(db: Database.Database, id: number): TrpgWorldAc
     (db
       .prepare(
         `SELECT id, creator_id, name, summary, content,
+                COALESCE(secret_content, '') AS secret_content,
                 COALESCE(trpg_enabled, 0) AS trpg_enabled,
                 COALESCE(trpg_visibility, 'private') AS trpg_visibility,
                 COALESCE(shared_from_nickname, '') AS shared_from_nickname

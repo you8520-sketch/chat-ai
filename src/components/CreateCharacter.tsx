@@ -40,7 +40,7 @@ import {
 } from "@/lib/statusWidget";
 
 import type { CharacterWorldSourceKind } from "@/lib/worldPermissions";
-import { isBorrowAvailableForNewUse } from "@/lib/worlds";
+import { isBorrowAvailableForNewUse, worldPrivatePromptContent } from "@/lib/worlds";
 import type { WorldListItem } from "@/lib/worlds";
 import {
   isReadOnlyWorldLibraryRef,
@@ -832,7 +832,10 @@ export default function CreateCharacter({
         const ref = worldLibraryRef(picked);
         setSelectedWorldRef(ref);
         setWorldSourceKind("borrowed_snapshot");
-        setForm((f) => ({ ...f, world: picked.content }));
+        setForm((f) => ({
+          ...f,
+          world: worldPrivatePromptContent(picked.content, picked.secretContent ?? ""),
+        }));
         setInitialBorrowUnavailable(false);
       } else if (picked) {
         setInitialBorrowUnavailable(true);
@@ -845,7 +848,10 @@ export default function CreateCharacter({
       if (picked) {
         const ref = worldLibraryRef(picked);
         setSelectedWorldRef(ref);
-        setForm((f) => ({ ...f, world: picked.content }));
+        setForm((f) => ({
+          ...f,
+          world: worldPrivatePromptContent(picked.content, picked.secretContent ?? ""),
+        }));
       }
     }
   }, [worldsLoading, savedWorlds, selectedWorldRef, initialWorldBorrowId, initialWorldId]);
@@ -870,7 +876,10 @@ export default function CreateCharacter({
             ? "legacy_borrowed_snapshot"
             : "owned"
       );
-      setForm((f) => ({ ...f, world: picked.content }));
+      setForm((f) => ({
+        ...f,
+        world: worldPrivatePromptContent(picked.content, picked.secretContent ?? ""),
+      }));
     } else if (ref.startsWith("saved-share:")) {
       setWorldSourceKind("borrowed_snapshot");
     }

@@ -24,10 +24,10 @@ describe("worldShares", () => {
     const db = getDb();
     const info = db
       .prepare(
-        `INSERT INTO worlds (creator_id, name, summary, content, updated_at)
-         VALUES (?, ?, ?, ?, datetime('now'))`
+        `INSERT INTO worlds (creator_id, name, summary, content, secret_content, updated_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now'))`
       )
-      .run(911, "테스트 세계", "요약", "본문 내용입니다.");
+      .run(911, "테스트 세계", "요약", "본문 내용입니다.", "공유되면 안 되는 비밀");
     const worldId = Number(info.lastInsertRowid);
 
     const created = createWorldShare(911, worldId);
@@ -40,6 +40,7 @@ describe("worldShares", () => {
     assert.equal(pub!.authorNickname, "world-sharer");
     assert.equal(pub!.name, "테스트 세계");
     assert.equal(pub!.content, "본문 내용입니다.");
+    assert.doesNotMatch(JSON.stringify(pub), /공유되면 안 되는 비밀/);
 
     const borrowed = borrowWorldShareToUser(912, created.share.share_slug);
     assert.equal(borrowed.ok, true);
@@ -48,6 +49,7 @@ describe("worldShares", () => {
     assert.equal(borrowed.world.name, "테스트 세계");
     assert.equal(borrowed.world.sharedFromNickname, "world-sharer");
     assert.equal(borrowed.world.content, "본문 내용입니다.");
+    assert.doesNotMatch(JSON.stringify(borrowed.world), /공유되면 안 되는 비밀/);
     assert.equal(borrowed.world.libraryKind, "borrowed");
     assert.equal(borrowed.world.readOnly, true);
 

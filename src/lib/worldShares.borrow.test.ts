@@ -20,6 +20,8 @@ import {
 } from "@/lib/characterFormSave";
 import { canUseWorldForTrpg } from "@/lib/trpg/worldAccess";
 import { loadTrpgCatalog } from "@/lib/trpg/catalog";
+import { createTrpgCampaign } from "@/lib/trpg/engineCreate";
+import { loadWorldSnapshotForBlueprint } from "@/lib/trpg/worldBlueprintArtifact";
 import { insertScenarioTemplate } from "@/lib/trpg/scenarioTemplates";
 import { canEditWorld, canShareWorld, loadOwnedWorldRow } from "@/lib/worldPermissions";
 import { loadUserWorldLibrary } from "@/lib/worldLibrary";
@@ -113,6 +115,59 @@ describe("world borrow ownership foundation", () => {
     assert.equal(pub!.name, "스냅샷 세계");
     assert.equal(pub!.content, "v1 본문");
     assert.equal(pub!.summary, "v1 요약");
+  });
+
+  it("W2b owned world secret is included in private character snapshot but not public content", () => {
+    seedUser(1080, "secret-owner");
+    const worldId = seedOwnedWorld(1080, "비밀 세계", "공개 세계관");
+    getDb()
+      .prepare("UPDATE worlds SET secret_content = ? WHERE id = ?")
+      .run("황제는 이미 교체된 인형이다.", worldId);
+
+    const parsed = parseCharacterFormBody(
+      minimalCharacterBody({ world_id: worldId }),
+      { id: 1080, nickname: "secret-owner", is_adult: 1 }
+    );
+    assert.equal(parsed.ok, true, !parsed.ok ? parsed.error : "");
+    if (!parsed.ok) return;
+
+    assert.match(parsed.data.world, /공개 세계관/);
+    assert.match(parsed.data.world, /비밀 설정 — AI 전용/);
+    assert.match(parsed.data.world, /황제는 이미 교체된 인형이다/);
+  });
+
+  it("W2c TRPG keeps world secret in GM-only notes and blueprint source", () => {
+    seedUser(1081, "trpg-secret-owner");
+    const worldId = seedOwnedWorld(1081, "TRPG 비밀 세계", "플레이어 공개 세계");
+    getDb()
+      .prepare("UPDATE worlds SET secret_content = ? WHERE id = ?")
+      .run("북쪽 성문 아래에 봉인된 왕이 있다.", worldId);
+
+    const campaignId = createTrpgCampaign(getDb(), {
+      hostUserId: 1081,
+      hostNickname: "비밀주인",
+      viewerUserId: 1081,
+      worldId,
+    });
+    const campaign = getDb()
+      .prepare("SELECT world_brief, gm_secret FROM trpg_campaigns WHERE id = ?")
+      .get(campaignId) as { world_brief: string; gm_secret: string };
+
+    assert.match(campaign.world_brief, /플레이어 공개 세계/);
+    assert.doesNotMatch(campaign.world_brief, /봉인된 왕/);
+    assert.match(campaign.gm_secret, /봉인된 왕/);
+
+    const before = loadWorldSnapshotForBlueprint(getDb(), worldId);
+    assert.ok(before);
+    assert.match(before!.content, /비밀 설정 — AI 전용/);
+    assert.match(before!.content, /봉인된 왕/);
+
+    getDb()
+      .prepare("UPDATE worlds SET secret_content = ? WHERE id = ?")
+      .run("북쪽 성문 아래 봉인은 이미 깨졌다.", worldId);
+    const after = loadWorldSnapshotForBlueprint(getDb(), worldId);
+    assert.ok(after);
+    assert.notEqual(after!.sourceFingerprint, before!.sourceFingerprint);
   });
 
   it("W3 borrow creates reference not worlds row", () => {

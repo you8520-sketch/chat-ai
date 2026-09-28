@@ -578,6 +578,7 @@ function migrate(db: Database.Database) {
       name TEXT NOT NULL,
       summary TEXT NOT NULL DEFAULT '',
       content TEXT NOT NULL DEFAULT '',
+      secret_content TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -610,6 +611,7 @@ function migrate(db: Database.Database) {
   addColumn("worlds", "trpg_visibility", "TEXT NOT NULL DEFAULT 'private'");
   addColumn("worlds", "genres", "TEXT NOT NULL DEFAULT '[]'");
   addColumn("worlds", "cover_url", "TEXT NOT NULL DEFAULT ''");
+  addColumn("worlds", "secret_content", "TEXT NOT NULL DEFAULT ''");
   db.exec(`
     CREATE TABLE IF NOT EXISTS keyword_lorebooks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

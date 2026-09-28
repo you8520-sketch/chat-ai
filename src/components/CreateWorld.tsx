@@ -15,6 +15,7 @@ import { cropImageFileToSquare } from "@/lib/worldCoverCrop";
 import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
+  worldContentBundleCharCount,
   WORLD_SUMMARY_LIMIT,
   parseWorldStudioKind,
   type WorldListItem,
@@ -114,6 +115,7 @@ function WorldForm({ worldId }: { worldId?: number }) {
   const [name, setName] = useState("");
   const [summary, setSummary] = useState("");
   const [content, setContent] = useState("");
+  const [secretContent, setSecretContent] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
   const [genres, setGenres] = useState<CharacterGenre[]>([]);
   const [trpgEnabled, setTrpgEnabled] = useState(false);
@@ -137,6 +139,7 @@ function WorldForm({ worldId }: { worldId?: number }) {
         setName(data.world.name);
         setSummary(data.world.summary);
         setContent(data.world.content);
+        setSecretContent(data.world.secretContent ?? "");
         setCoverUrl(data.world.coverUrl ?? "");
         setGenres(data.world.genres ?? []);
         setTrpgEnabled(data.world.trpgEnabled);
@@ -182,8 +185,10 @@ function WorldForm({ worldId }: { worldId?: number }) {
       setError("세계관 본문을 입력해 주세요.");
       return;
     }
-    if (content.length > WORLD_CONTENT_LIMIT) {
-      setError(`세계관 본문은 ${WORLD_CONTENT_LIMIT.toLocaleString()}자 이하여야 합니다.`);
+    if (worldContentBundleCharCount(content, secretContent) > WORLD_CONTENT_LIMIT) {
+      setError(
+        `세계관 본문 + 비밀 설정은 합쳐서 ${WORLD_CONTENT_LIMIT.toLocaleString()}자 이하여야 합니다.`
+      );
       return;
     }
 
@@ -193,7 +198,15 @@ function WorldForm({ worldId }: { worldId?: number }) {
       const res = await fetch(isEdit ? `/api/worlds/${worldId}` : "/api/worlds", {
         method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, summary, content, coverUrl, genres, trpgEnabled }),
+        body: JSON.stringify({
+          name,
+          summary,
+          content,
+          secretContent,
+          coverUrl,
+          genres,
+          trpgEnabled,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -327,16 +340,49 @@ function WorldForm({ worldId }: { worldId?: number }) {
           </div>
         ) : null}
 
-        <StudioTextarea
-          label="세계관 본문 *"
-          rows={14}
-          placeholder={
-            "시대와 배경, 주요 지역, 세력 관계, 마법/기술 규칙, 사회 구조, 금기, 분위기 등을 자유롭게 작성하세요.\n\n캐릭터 제작 시 이 내용이 「세계관 / 배경」란에 자동으로 채워집니다."
-          }
-          value={content}
-          counter={{ now: content.length, max: WORLD_CONTENT_LIMIT }}
-          onChange={(e) => setContent(e.target.value.slice(0, WORLD_CONTENT_LIMIT))}
-        />
+        <div className="space-y-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className={studioType.label}>세계관 설정</p>
+              <p className={cn(studioType.helper, "mt-1")}>
+                본문과 비밀 설정을 합쳐 전체 {WORLD_CONTENT_LIMIT.toLocaleString()}자까지 사용할 수 있습니다.
+                비밀 설정에는 별도 글자수 한도가 없습니다.
+              </p>
+            </div>
+            <span
+              className={cn(
+                "text-xs font-semibold tabular-nums",
+                worldContentBundleCharCount(content, secretContent) > WORLD_CONTENT_LIMIT
+                  ? "text-rose-400"
+                  : "text-zinc-400"
+              )}
+            >
+              {worldContentBundleCharCount(content, secretContent).toLocaleString()} /{" "}
+              {WORLD_CONTENT_LIMIT.toLocaleString()}자
+            </span>
+          </div>
+
+          <StudioTextarea
+            label="세계관 본문 *"
+            rows={14}
+            placeholder={
+              "시대와 배경, 주요 지역, 세력 관계, 마법/기술 규칙, 사회 구조, 금기, 분위기 등을 자유롭게 작성하세요.\n\n캐릭터 제작 시 이 내용이 「세계관 / 배경」란에 자동으로 채워집니다."
+            }
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+          />
+
+          <StudioTextarea
+            label="비밀 설정"
+            rows={8}
+            placeholder="플레이어에게 직접 공개하지 않을 진실, 숨겨진 관계, 배후 세력, 반전, 세계의 비밀 규칙 등을 작성하세요."
+            value={secretContent}
+            onChange={(e) => setSecretContent(e.target.value)}
+          />
+          <p className={cn(studioType.helper, "-mt-2")}>
+            제작자 전용 비공개 정보입니다. 공유·공개 화면에는 노출하지 않고, 캐릭터·시뮬레이션·TRPG의 AI 설정에만 사용합니다.
+          </p>
+        </div>
 
         <div className="flex flex-wrap gap-3">
           <StudioButton href="/create" variant="secondary">
@@ -349,7 +395,11 @@ function WorldForm({ worldId }: { worldId?: number }) {
         formId={FORM_ID}
         saveType="submit"
         saveLabel={loading ? "저장 중…" : isEdit ? "세계관 저장" : "세계관 저장"}
-        saveDisabled={loading || uploading}
+        saveDisabled={
+          loading ||
+          uploading ||
+          worldContentBundleCharCount(content, secretContent) > WORLD_CONTENT_LIMIT
+        }
         error={error || null}
       />
     </>

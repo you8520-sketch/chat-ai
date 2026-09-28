@@ -1,7 +1,27 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { squareCropRect } from "./worldCoverCrop";
-import { parseWorldStudioKind, sanitizeWorldCoverUrl } from "./worlds";
+import {
+  parseWorldStudioKind,
+  sanitizeWorldCoverUrl,
+  worldContentBundleCharCount,
+  worldPrivatePromptContent,
+} from "./worlds";
+
+describe("world private setting helpers", () => {
+  it("counts public + secret settings under one shared limit without a secret-only cap", () => {
+    assert.equal(worldContentBundleCharCount("가".repeat(6_000), "나".repeat(4_000)), 10_000);
+    assert.equal(worldContentBundleCharCount(" 본문 ", " 비밀 "), 4);
+  });
+
+  it("labels secret settings only in private AI prompt material", () => {
+    assert.equal(worldPrivatePromptContent("공개 세계", ""), "공개 세계");
+    const combined = worldPrivatePromptContent("공개 세계", "왕은 이미 죽었다.");
+    assert.match(combined, /공개 세계/);
+    assert.match(combined, /비밀 설정 — AI 전용/);
+    assert.match(combined, /왕은 이미 죽었다/);
+  });
+});
 
 describe("world cover helpers", () => {
   it("accepts app uploads and public Vercel Blob uploads", () => {
