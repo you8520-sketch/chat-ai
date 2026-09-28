@@ -16,6 +16,7 @@ import {
 } from "@/lib/memory/memory-source-boundary";
 import { EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES } from "@/lib/historicalTruthPolicy";
 import {
+  looksLikeHardPriorSharedUserRelationship,
   looksLikePriorSharedUserHistory,
   userTextSupportsPriorSharedHistoryClaim,
 } from "@/lib/sharedHistoryEvidence";
@@ -310,7 +311,10 @@ function assistantInventedUserRelationshipHasUserSupport(
   if (sourceUserText !== undefined) {
     return userTextSupportsPriorSharedHistoryClaim(claimText, sourceUserText ?? "");
   }
-  return false;
+  // Retrieval of already-stored facts may not carry RAW user provenance.
+  // Preserve existing milestones unless they match the older high-confidence
+  // contamination shape; write-time validation above owns expanded granularity.
+  return !looksLikeHardPriorSharedUserRelationship(claimText);
 }
 
 function explicitUserStatementHasRawSupport(
