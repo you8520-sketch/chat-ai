@@ -7,10 +7,17 @@ on:
       - "src/cron/financeScheduler.ts"
       - "src/cron/payoutScheduler.ts"
       - "src/cron/trainingScheduler.ts"
+      - "src/cron/mainRpCacheTtlAuditScheduler.ts"
       - "src/lib/schedulerDefinitions.ts"
       - "src/lib/schedulerRunRegistry.ts"
       - "src/lib/schedulerRunRegistry.test.ts"
       - "src/lib/schedulerRunShared.ts"
+      - "src/lib/mainRpCacheTtlEconomics.ts"
+      - "src/lib/mainRpCacheTtlEconomics.test.ts"
+      - "src/lib/adminAutomationReports.ts"
+      - "src/lib/adminAutomationReports.test.ts"
+      - "src/app/admin/automation-reports/page.tsx"
+      - "src/app/settings/SettingsClient.tsx"
       - "src/lib/payoutSchedule.ts"
       - "src/lib/adminFinance.ts"
       - "src/lib/db.ts"
@@ -41,7 +48,11 @@ jobs:
         run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
       - name: App typecheck
         run: npm run typecheck:app
-      - name: Durable scheduler regression
-        run: node --conditions=react-server --import tsx --test src/lib/schedulerRunRegistry.test.ts
+      - name: Durable scheduler + automation report regressions
+        run: >-
+          node --conditions=react-server --import tsx --test --test-concurrency=1
+          src/lib/schedulerRunRegistry.test.ts
+          src/lib/mainRpCacheTtlEconomics.test.ts
+          src/lib/adminAutomationReports.test.ts
       - name: Production build
         run: npm run build
