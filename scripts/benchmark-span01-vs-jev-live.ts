@@ -148,6 +148,46 @@ function toSpanCompatibleState(
   };
 }
 
+function toSpanNoulQuestions(questions: JevDecisionQuestions): JevDecisionQuestions {
+  const out: JevDecisionQuestions = {};
+  for (const [questionId, spec] of Object.entries(questions)) {
+    if (spec.type !== "choice" || !spec.criteria || Array.isArray(spec.criteria)) {
+      throw new Error("span_benchmark_requires_single_choice_question");
+    }
+    for (const [label, definition] of Object.entries(spec.criteria as Record<string, string>)) {
+      out[`${questionId}__${label}`] = {
+        type: "noul",
+        instructions:
+          `Behavior label ${label}. ${definition} "Judge whether this label is the best semantic description of the assistant output under the supplied constraints. " +
+          "Treat competing labels as alternatives; return the probability this label applies.",
+      };
+    }
+  }
+  return out;
+}
+
+function parseSpanArgmax(
+  originalQuestions: JevDecisionQuestions,
+  answers: Record<string, { type?: string; noul?: number }>
+): { verdict: string | null; probabilities: Record<string, number> | null } {
+  const entry = Object.entries(originalQuestions)[0];
+  if (!entry) return { verdict: null, probabilities: null };
+  const [questionId, spec] = entry;
+  if (spec.type !== "choice" || !spec.criteria || Array.isArray(spec.criteria)) {
+    return { verdict: null, probabilities: null };
+  }
+  const probabilities: Record<string, number> = {};
+  for (const label of Object.keys(spec.criteria as Record<string, string>)) {
+    const answer = answers[`${questionId}__${label}`];
+    if (!answer || answer.type !== "noul" || typeof answer.noul !== "number") {
+      return { verdict: null, probabilities: null };
+    }
+    probabilities[label] = answer.noul;
+  }
+  const ranked = Object.entries(probabilities).sort((a, b) => b[1] - a[1]);
+  return { verdict: ranked[0]?.[0] ?? null, probabilities };
+}
+
 function parseSceneVerdict(answers: Record<string, { type?: string; choice?: string }>): SceneBoundaryJevVerdict | null {
   const row = answers.boundary_verdict;
   const choice = row?.type === "choice" && typeof row.choice === "string" ? row.choice.trim() : "";
@@ -177,19 +217,31 @@ async function callOne(input: {
           state: input.model.startsWith("respan/")
             ? toSpanCompatibleState(input.suite, input.state)
             : input.state,
-          questions: input.questions,
+          questions: input.model.startsWith("respan/")
+            ? toSpanNoulQuestions(input.questions)
+            : input.questions,
           ledger: null,
           timeoutMs: 60_000,
         })
     );
-    const verdict = input.parse(result.answers as Record<string, { type?: string; choice?: string }>);
+    const spanParsed = input.model.startsWith("respan/")
+      ? parseSpanArgmax(
+          input.questions,
+          result.answers as Record<string, { type?: string; noul?: number }>
+        )
+      : null;
+    const verdict = spanParsed
+      ? spanParsed.verdict
+      : input.parse(result.answers as Record<string, { type?: string; choice?: string }>);
     const answer = Object.values(result.answers)[0];
-    const probabilities =
-      answer && "probabilities" in answer && answer.probabilities && typeof answer.probabilities === "object"
+    const probabilities = spanParsed
+      ? spanParsed.probabilities
+      : answer && "probabilities" in answer && answer.probabilities && typeof answer.probabilities === "object"
         ? answer.probabilities as Record<string, number>
         : null;
-    const confidence =
-      answer && "confidence" in answer && typeof answer.confidence === "number"
+    const confidence = spanParsed && spanParsed.probabilities
+      ? Math.max(...Object.values(spanParsed.probabilities))
+      : answer && "confidence" in answer && typeof answer.confidence === "number"
         ? answer.confidence
         : null;
     return {
