@@ -390,6 +390,47 @@ export function composeOfficialCreatorComment(draft: OfficialCharacterDraft): st
   ].join("\n");
 }
 
+
+const PLAYER_GENDER_FIXED_ROLE_RE =
+  /(?:여자|남자|여성|남성|아가씨|도련님|영애|영식|공녀|왕자비|황태자비|신부|신랑)/u;
+const PLAYER_CUE_NEAR_GENDER_RE =
+  /(?:당신|플레이어|유저)(?:은|는|이|가|을|를|의|에게|께|도|와|과)?[^.!?。！？\n]{0,32}(?:여자|남자|여성|남성|아가씨|도련님|영애|영식|공녀|왕자비|황태자비|신부|신랑)/u;
+const PLAYER_GENDERED_VOCATIVE_RE =
+  /[“"'‘’](?:아가씨|도련님|영애|영식|왕자비|황태자비)(?:[,，.!?…\s”"'’‘])/u;
+
+/**
+ * Official characters use one opening that must work for any player persona.
+ * This gate targets the player side only; the character's own gendered identity remains intact.
+ */
+export function evaluateOfficialPlayerGenderNeutrality(
+  draft: OfficialCharacterDraft,
+  creatorComment = composeOfficialCreatorComment(draft)
+): QaResult {
+  const errors: QaIssue[] = [];
+  const userRole = pickPrefixed(draft.sections.relationshipsAndDrives, "유저 역할");
+  const scopedPlayerText = [
+    userRole,
+    draft.hook.relationshipTrope,
+    draft.hook.rpHook,
+  ]
+    .filter(nonEmpty)
+    .join("\n");
+  const userFacingText = [draft.greeting, draft.description, creatorComment].join("\n");
+
+  if (
+    PLAYER_GENDER_FIXED_ROLE_RE.test(scopedPlayerText) ||
+    PLAYER_CUE_NEAR_GENDER_RE.test(userFacingText) ||
+    PLAYER_GENDERED_VOCATIVE_RE.test(draft.greeting)
+  ) {
+    errors.push({
+      code: "official_player_gender_fixed",
+      message:
+        "official opening/play guidance must keep the player gender-neutral; use role/context terms such as 당신, 상대, 목격자, 계약자, 방문객, 동행자",
+    });
+  }
+  return qaResult(errors);
+}
+
 export function evaluateOfficialCreatorComment(comment: string, description: string): QaResult {
   const errors: QaIssue[] = [];
   const trimmed = comment.trim();
