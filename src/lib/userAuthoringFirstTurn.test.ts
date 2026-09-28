@@ -18,26 +18,43 @@ describe("first-turn user authoring transport", () => {
       client.indexOf("handlePostStreamResult", client.indexOf("message: text,"))
     );
     assert.match(normalSend, /userAuthoringLevel/);
+    assert.match(normalSend, /autoProgressionAuthoringLevel/);
   });
 
   it("validates the level only at new-chat creation and passes it to the canonical session owner", () => {
     const route = source("src/app/api/chat/route.ts");
     const newChatStart = route.indexOf("const requestedInitialAuthoringRaw = body.userAuthoringLevel");
     const createCall = route.indexOf("userAuthoringLevel: initialUserAuthoringLevel", newChatStart);
+    const autoCreateCall = route.indexOf(
+      "autoProgressionAuthoringLevel: initialAutoProgressionAuthoringLevel",
+      newChatStart
+    );
     assert.ok(newChatStart > 0);
     assert.ok(createCall > newChatStart);
+    assert.ok(autoCreateCall > createCall);
     assert.match(
       route.slice(newChatStart, createCall + 80),
       /userAuthoringLevel must be LIMITED, NORMAL, or ALLOW/
+    );
+    assert.match(
+      route.slice(newChatStart, autoCreateCall + 100),
+      /autoProgressionAuthoringLevel must be LIMITED, NORMAL, or ALLOW/
     );
   });
 
   it("persists the validated level in the chat INSERT instead of relying on the DB default", () => {
     const session = source("src/lib/chatSessionCreate.ts");
-    assert.match(session, /adult_handoff_enabled, user_authoring_level/);
+    assert.match(
+      session,
+      /adult_handoff_enabled, user_authoring_level, auto_progression_authoring_level/
+    );
     assert.match(
       session,
       /parseUserAuthoringLevel\(input\.userAuthoringLevel \?\? DEFAULT_USER_AUTHORING_LEVEL\)/
+    );
+    assert.match(
+      session,
+      /input\.autoProgressionAuthoringLevel[\s\S]*DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL/
     );
   });
 
