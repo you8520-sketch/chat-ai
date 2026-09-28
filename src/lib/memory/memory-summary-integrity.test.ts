@@ -194,31 +194,31 @@ describe("rolling summary source grounding", () => {
     );
   });
 
-  it("does not canonize an assistant-only offscreen past event", () => {
+  it("does not canonize an assistant-invented user↔third-party relationship edge", () => {
     const dialogue =
-      "[1턴]\n유저: 뭐 먹을까?\n태형: 태형은 문득 떠올랐다는 듯 말했다. 누나가 어제 연락해서 밥 챙기라고 했다.";
+      "[1턴]\n유저: 뭐 먹을까?\n태형: 태형은 휴대폰을 내려놓으며 말했다. 누나가 렌한테 안부 전해달래.";
     assert.equal(
       isRollingSummaryGroundedInDialogue(
-        "태형의 누나는 어제 연락해서 밥을 챙기라고 했다.",
+        "태형의 누나는 렌을 알고 있으며 태형에게 렌의 안부를 전해 달라고 했다.",
         dialogue
       ),
       false
     );
     assert.equal(
       isRollingSummaryGroundedInDialogue(
-        "태형은 누나가 어제 연락해서 밥을 챙기라고 했다고 말했다.",
+        "태형은 누나가 렌에게 안부를 전해 달라고 했다고 말했다.",
         dialogue
       ),
       true
     );
   });
 
-  it("allows an offscreen past event when the user source independently confirms it", () => {
+  it("allows a user-related third-party relationship edge when the user source confirms it", () => {
     const dialogue =
-      "[1턴]\n유저: 누나가 어제 연락해서 밥 챙기라고 했지?\n태형: 태형은 고개를 끄덕였다.";
+      "[1턴]\n유저: 네 누나랑 지난번에 봤잖아. 안부 전해줘.\n태형: 태형은 고개를 끄덕였다.";
     assert.equal(
       isRollingSummaryGroundedInDialogue(
-        "태형의 누나는 어제 연락해서 밥을 챙기라고 했다.",
+        "렌은 태형의 누나와 전에 만난 적이 있고, 태형에게 안부를 전해 달라고 했다.",
         dialogue
       ),
       true
