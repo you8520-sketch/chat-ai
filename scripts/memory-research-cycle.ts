@@ -11,10 +11,14 @@
  * per-cycle HTTP budget, and the benchmark lab is network-guarded.
  */
 import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { formatBenchmarkMetricsLine } from "@/lib/memory/memory-rp-benchmark";
+import {
+  parseBaselineHistorySnapshot,
+  type BaselineHistorySnapshot,
+} from "@/lib/memoryResearch/baselineTrend";
 import { DEFAULT_HTTP_BUDGET, runResearchCycle, type CycleMode } from "@/lib/memoryResearch/cycle";
 import { openDraftPrs } from "@/lib/memoryResearch/draftPr";
 import { EXPERIMENT_ADAPTERS } from "@/lib/memoryResearch/experiments";
@@ -26,7 +30,10 @@ import {
   type DraftPrResult,
   type ImplementationPrResultRecord,
 } from "@/lib/memoryResearch/ledger";
-import { computeArchitectureFingerprint } from "@/lib/memoryResearch/ownerMap";
+import {
+  computeArchitectureFingerprint,
+  computeBenchmarkDefinitionFingerprint,
+} from "@/lib/memoryResearch/ownerMap";
 import type { DraftPrPacket } from "@/lib/memoryResearch/prPacket";
 import { renderCycleReportMarkdown } from "@/lib/memoryResearch/report";
 import { defaultSources, type SourceFetch } from "@/lib/memoryResearch/sources";
@@ -58,6 +65,23 @@ function writeFileEnsuringDir(path: string, contents: string): void {
   writeFileSync(path, contents);
 }
 
+function loadBaselineHistory(dir: string | null): BaselineHistorySnapshot[] {
+  if (!dir || !existsSync(dir)) return [];
+  const out: BaselineHistorySnapshot[] = [];
+  for (const name of readdirSync(dir)) {
+    if (!name.endsWith(".json")) continue;
+    try {
+      const parsed = JSON.parse(readFileSync(join(dir, name), "utf8")) as unknown;
+      const snapshot = parseBaselineHistorySnapshot(parsed);
+      if (snapshot) out.push(snapshot);
+    } catch {
+      // Historical/corrupt files are ignored individually; current research
+      // cycle must not fail because an older artifact predates the snapshot schema.
+    }
+  }
+  return out;
+}
+
 function promptPackingSentinel(): void {
   const outDir = required("out");
   mkdirSync(outDir, { recursive: true });
@@ -80,6 +104,8 @@ async function run(): Promise<void> {
   const ledgerPath = required("ledger");
   const outDir = required("out");
   const mainSha = required("main-sha");
+  const historyDir = arg("history-dir");
+  const baselineHistory = loadBaselineHistory(historyDir);
   const ledger = parseLedger(existsSync(ledgerPath) ? readFileSync(ledgerPath, "utf8") : null);
   const networkFetch = globalThis.fetch.bind(globalThis);
   const sourceFetch: SourceFetch = (url, init) => networkFetch(url, { headers: init.headers, signal: AbortSignal.timeout(20_000) });
@@ -89,6 +115,8 @@ async function run(): Promise<void> {
     now: new Date(),
     mainSha,
     architectureFingerprint: computeArchitectureFingerprint((p) => readFileSync(p, "utf8")),
+    benchmarkDefinitionFingerprint: computeBenchmarkDefinitionFingerprint((p) => readFileSync(p, "utf8")),
+    baselineHistory,
     sources: defaultSources(),
     sourceContext: {
       fetch: sourceFetch,
