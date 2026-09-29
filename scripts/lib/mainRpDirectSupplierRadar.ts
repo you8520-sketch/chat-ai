@@ -146,17 +146,14 @@ export function parseDirectSupplierPublicPage(
       text.match(/Cache\s*read(?:\s*\/\s*1M)?[\s\S]{0,100}?\$([0-9.]+)/i)
     );
   } else if (supplier === "aireiter") {
-    const inputMatch = text.match(
-      /Input[\s\S]{0,240}?AIReiter\s*\$([0-9.]+)(?:\s*per\s*1M\s*tokens)?/i
+    // Anchor to the canonical pricing strip. Marketing copy above it frequently
+    // contains words like "output", which must never become a price delimiter.
+    const pricingStrip = text.match(
+      /Input\s+Official\s*\$[0-9.]+(?:\s*per\s*1M\s*tokens)?\s*AIReiter\s*\$([0-9.]+)(?:\s*per\s*1M\s*tokens)?\s*Output\s+Official\s*\$[0-9.]+(?:\s*per\s*1M\s*tokens)?\s*AIReiter\s*\$([0-9.]+)(?:\s*per\s*1M\s*tokens)?(?:\s*Cache\s*read\s+Official\s*\$[0-9.]+(?:\s*per\s*1M\s*tokens)?\s*AIReiter\s*\$([0-9.]+))?/i
     );
-    const outputMatch = text.match(
-      /Output[\s\S]{0,240}?AIReiter\s*\$([0-9.]+)(?:\s*per\s*1M\s*tokens)?/i
-    );
-    input = numeric(inputMatch);
-    output = numeric(outputMatch);
-    cacheRead = numeric(
-      text.match(/Cache\s*read[\s\S]{0,240}?AIReiter\s*\$([0-9.]+)/i)
-    );
+    input = numeric(pricingStrip, 1);
+    output = numeric(pricingStrip, 2);
+    cacheRead = numeric(pricingStrip, 3);
   } else {
     const pair = text.match(
       /DIT\s+in\s*\/\s*out\s*\$([0-9.]+)\s*\/\s*\$([0-9.]+)/i
