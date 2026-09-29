@@ -5,6 +5,7 @@ on:
     paths:
       - "src/lib/chatModels.ts"
       - "src/lib/openRouterConfig.ts"
+      - "src/lib/mainRpOpenRouterRoutes.json"
       - "src/lib/openRouterClient.ts"
       - "src/lib/openRouterAdult.ts"
       - "src/app/api/chat/route.ts"
@@ -64,5 +65,6 @@ jobs:
           scripts/lib/mainRpDirectSupplierRadar.test.ts
           scripts/lib/mainRpSupplyPromotionHistory.test.ts
           scripts/lib/mainRpSupplyPromotionProposal.test.ts
+          scripts/lib/mainRpSupplyAutoDraft.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
           scripts/lib/mainRpSupplyCiBaseline.test.ts
