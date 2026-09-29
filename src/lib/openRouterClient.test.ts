@@ -159,6 +159,21 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.equal(OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH.effort, "low");
   });
 
+  it("omits deprecated sampling parameters for Gemini 3.8 Flash", () => {
+    const body = buildOpenRouterRequestBody(
+      OPENROUTER_GEMINI_38_FLASH_MODEL,
+      [{ role: "user", content: "test" }],
+      true,
+      3500,
+      "chat-1",
+      undefined,
+      { temperature: 1.1, top_p: 0.9 }
+    ) as Record<string, unknown>;
+    assert.equal(body.temperature, undefined);
+    assert.equal(body.top_p, undefined);
+    assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH);
+  });
+
   it("disables reasoning for Qwen RP requests", () => {
     const body = buildOpenRouterRequestBody(
       OPENROUTER_QWEN_37_MAX_MODEL,
@@ -308,6 +323,16 @@ describe("resolveRegenerateGenerationOverrides", () => {
   it("keeps Gemini 3.6 sampling parameters omitted on regenerate", () => {
     const overrides = resolveRegenerateGenerationOverrides(
       OPENROUTER_GEMINI_36_FLASH_MODEL,
+      3500
+    );
+    assert.equal(overrides.temperature, undefined);
+    assert.equal(overrides.top_p, undefined);
+    assert.ok(overrides.seed != null);
+  });
+
+  it("keeps Gemini 3.8 sampling parameters omitted on regenerate", () => {
+    const overrides = resolveRegenerateGenerationOverrides(
+      OPENROUTER_GEMINI_38_FLASH_MODEL,
       3500
     );
     assert.equal(overrides.temperature, undefined);
