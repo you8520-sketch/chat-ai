@@ -27,19 +27,36 @@ function proposal(
 }
 
 describe("Benchmark Case Port Planner", () => {
-  it("routes trajectory recall into the existing deterministic RP benchmark", () => {
+  it("splits trajectory recall by canonical owner instead of inventing one generic retrieval owner", () => {
     const plan = buildBenchmarkCasePortPlan(
       proposal("trajectory_recall", "PARTIAL_COVERAGE")
     );
-    assert.equal(plan.readiness, "READY_DETERMINISTIC_FIXTURE");
-    assert.match(plan.canonicalOwner, /memory-rp-benchmark-suite/);
-    assert.deepEqual(plan.proposedCaseIds, [
-      "active-expired-commitment-01",
-      "persona-update-current-01",
-    ]);
+    assert.equal(plan.readiness, "MIXED_OWNER_PLAN");
+    assert.match(plan.canonicalOwner, /no single trajectory memory owner/i);
+    assert.ok(plan.forbidden.includes("duplicate promise owner"));
     assert.ok(plan.reuseMetrics.includes("staleStateRecallRate"));
-    assert.ok(plan.reuseMetrics.includes("correctionSupersessionAccuracy"));
-    assert.ok(plan.forbidden.includes("LLM-as-judge"));
+
+    const active = plan.subplans?.find((row) => row.family === "active_commitment");
+    const expired = plan.subplans?.find((row) => row.family === "expired_commitment");
+    const userState = plan.subplans?.find((row) => row.family === "user_state_change");
+    const temporal = plan.subplans?.find((row) => row.family === "temporal_order");
+    const persona = plan.subplans?.find((row) => row.family === "persona_voice_protection_update");
+
+    assert.equal(active?.readiness, "READY_DURABLE_LEDGER_FIXTURE");
+    assert.match(active?.canonicalOwner ?? "", /Relationship Durable promises/);
+    assert.ok(active?.targetPaths.includes("src/lib/chatMemory.ts"));
+
+    assert.equal(expired?.readiness, "READY_DURABLE_LEDGER_FIXTURE");
+    assert.match(expired?.rationale ?? "", /fulfillment\/expiry/);
+
+    assert.equal(userState?.readiness, "READY_DETERMINISTIC_FIXTURE");
+    assert.match(userState?.rationale ?? "", /latest-state-replacement|correction-supersession/);
+
+    assert.equal(temporal?.readiness, "READY_DETERMINISTIC_FIXTURE");
+    assert.match(temporal?.canonicalOwner ?? "", /TEMPORAL_REASONING/);
+
+    assert.equal(persona?.readiness, "HARNESS_EXTENSION_REQUIRED");
+    assert.deepEqual(persona?.proposedCaseIds, []);
   });
 
   it("routes forgetting fidelity to source-mutation lifecycle owners instead of the retrieval suite", () => {
@@ -106,7 +123,8 @@ describe("Benchmark Case Port Planner", () => {
     ];
     const markdown = renderBenchmarkCasePortPlansMarkdown(plans);
     assert.match(markdown, /Benchmark Case Port Planner/);
-    assert.match(markdown, /READY_DETERMINISTIC_FIXTURE/);
+    assert.match(markdown, /MIXED_OWNER_PLAN/);
+    assert.match(markdown, /READY_DURABLE_LEDGER_FIXTURE/);
     assert.match(markdown, /HARNESS_EXTENSION_REQUIRED/);
     assert.match(markdown, /No external dataset or judge is copied/);
     assert.match(markdown, /no benchmark file is edited automatically/i);
