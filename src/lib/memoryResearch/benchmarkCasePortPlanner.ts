@@ -17,6 +17,7 @@ export type CasePortReadiness =
   | "NO_PORT_REQUIRED";
 
 export type BenchmarkCasePortPlan = {
+  planKey: string;
   candidateKey: string;
   sourceVersion: string | null;
   ability: ExternalBenchmarkAbility;
@@ -35,6 +36,7 @@ function noPort(
   rationale: string
 ): BenchmarkCasePortPlan {
   return {
+    planKey: `${proposal.ability}:no-port`,
     candidateKey: proposal.candidateKey,
     sourceVersion: proposal.sourceVersion,
     ability: proposal.ability,
@@ -68,48 +70,13 @@ export function buildBenchmarkCasePortPlan(
 
   switch (proposal.ability) {
     case "trajectory_recall":
-      return {
-        candidateKey: proposal.candidateKey,
-        sourceVersion: proposal.sourceVersion,
-        ability: proposal.ability,
-        readiness: "READY_DETERMINISTIC_FIXTURE",
-        canonicalOwner:
-          "src/lib/memory/memory-rp-benchmark-suite.ts + src/lib/memory/memory-rp-benchmark.ts",
-        targetPaths: [
-          "src/lib/memory/memory-rp-benchmark-suite.ts",
-          "src/lib/memory/memory-rp-benchmark.ts",
-          "src/lib/memory/memory-rp-benchmark.test.ts",
-        ],
-        proposedCaseIds: [
-          "active-expired-commitment-01",
-          "persona-update-current-01",
-        ],
-        reuseMetrics: [
-          "candidateRecallAtK",
-          "finalRecallAt8",
-          "staleStateRecallRate",
-          "falseMemoryRate",
-          "correctionSupersessionAccuracy",
-        ],
-        requirements: [
-          "Use locally-authored synthetic facts only.",
-          "Active-vs-expired commitment must place both plausible states in history and require only the current state.",
-          "Persona update must distinguish a legitimate current update from the original mutable state without changing immutable role identity.",
-          "Add case IDs to existing raw capability groups; do not create a composite score.",
-        ],
-        forbidden: [
-          "external benchmark conversations",
-          "external answer keys",
-          "LLM-as-judge",
-          "provider calls",
-          "new memory owner",
-        ],
-        rationale:
-          "The missing trajectory subcases can be expressed as canonical state/supersession retrieval with existing deterministic metrics.",
-      };
+      throw new Error(
+        "trajectory_recall must be decomposed by buildBenchmarkCasePortPlansForProposal"
+      );
 
     case "forgetting_fidelity":
       return {
+        planKey: "forgetting_fidelity",
         candidateKey: proposal.candidateKey,
         sourceVersion: proposal.sourceVersion,
         ability: proposal.ability,
@@ -143,6 +110,7 @@ export function buildBenchmarkCasePortPlan(
 
     case "persona_continuity":
       return {
+        planKey: "persona_continuity",
         candidateKey: proposal.candidateKey,
         sourceVersion: proposal.sourceVersion,
         ability: proposal.ability,
@@ -175,6 +143,7 @@ export function buildBenchmarkCasePortPlan(
 
     case "persona_conditioned_insight":
       return {
+        planKey: "persona_conditioned_insight",
         candidateKey: proposal.candidateKey,
         sourceVersion: proposal.sourceVersion,
         ability: proposal.ability,
@@ -213,10 +182,103 @@ export function buildBenchmarkCasePortPlan(
   }
 }
 
+export function buildBenchmarkCasePortPlansForProposal(
+  proposal: BenchmarkAdoptionProposal
+): BenchmarkCasePortPlan[] {
+  if (proposal.ability !== "trajectory_recall") {
+    return [buildBenchmarkCasePortPlan(proposal)];
+  }
+
+  if (
+    proposal.status === "ALREADY_COVERED" ||
+    proposal.status === "INSUFFICIENT_EVIDENCE"
+  ) {
+    return [noPort(proposal, "Trajectory capability does not require a new local plan.")];
+  }
+
+  return [
+    {
+      planKey: "trajectory_recall:commitment_lifecycle",
+      candidateKey: proposal.candidateKey,
+      sourceVersion: proposal.sourceVersion,
+      ability: proposal.ability,
+      readiness: "READY_MUTATION_LIFECYCLE_FIXTURE",
+      canonicalOwner:
+        "src/lib/chatMemory.ts::MemoryPromise/mergeMemoryMeta + durable relationship projection lifecycle",
+      targetPaths: [
+        "src/lib/chatMemory.test.ts",
+        "src/lib/memory/memory-relationship-provenance.test.ts",
+        "src/lib/memory/memoryRelationshipTask.production.test.ts",
+      ],
+      proposedCaseIds: ["active-expired-commitment-lifecycle-01"],
+      reuseMetrics: [],
+      requirements: [
+        "Use the canonical promisesAdd/promisesRemove projection rather than episodic facts.",
+        "Prove an active promise remains in formatted Relationship Memory.",
+        "Prove fulfilled/expired removal deletes it from the durable projection and prompt formatting.",
+        "If source mutation/regen is involved, preserve existing relationship provenance semantics.",
+      ],
+      forbidden: [
+        "episodic duplicate of a formal promise",
+        "new promise status store",
+        "external benchmark conversations",
+        "LLM-as-judge",
+        "provider calls",
+      ],
+      rationale:
+        "Formal promises are explicitly ledger-owned and are removed when fulfilled or expired. Active/expired commitment is therefore a durable-projection lifecycle test, not an episodic retrieval case.",
+    },
+    {
+      planKey: "trajectory_recall:persona_update",
+      candidateKey: proposal.candidateKey,
+      sourceVersion: proposal.sourceVersion,
+      ability: proposal.ability,
+      readiness: "HARNESS_EXTENSION_REQUIRED",
+      canonicalOwner: "canonical mutable character-persona owner not established",
+      targetPaths: [],
+      proposedCaseIds: ["persona-update-current-01"],
+      reuseMetrics: [],
+      requirements: [
+        "First determine whether the product permits in-conversation updates to character persona, and which current owner stores such an update.",
+        "Separate mutable relationship/state evolution from immutable authored character persona.",
+        "Do not treat relationship-role change or ordinary episodic state replacement as proof of persona-update support.",
+      ],
+      forbidden: [
+        "inventing a mutable persona owner",
+        "mapping persona update to episodic facts by convenience",
+        "production prompt changes",
+        "LLM-as-judge",
+      ],
+      rationale:
+        "ANCHOR's persona-update question is broader than the site's existing role/state transition fixtures. Without a confirmed mutable persona owner, implementing a fixture would manufacture semantics the runtime may not support.",
+    },
+    {
+      planKey: "trajectory_recall:existing_temporal_user_state",
+      candidateKey: proposal.candidateKey,
+      sourceVersion: proposal.sourceVersion,
+      ability: proposal.ability,
+      readiness: "NO_PORT_REQUIRED",
+      canonicalOwner:
+        "existing DYNAMIC_STATE_TRACKING + TEMPORAL_REASONING + PREMISE_AWARENESS groups",
+      targetPaths: [],
+      proposedCaseIds: [],
+      reuseMetrics: [
+        "staleStateRecallRate",
+        "correctionSupersessionAccuracy",
+        "falseMemoryRate",
+      ],
+      requirements: [],
+      forbidden: ["duplicate temporal-order fixture", "duplicate user-state fixture"],
+      rationale:
+        "Temporal order and user-state changes are already represented by current state replacement, correction, horizon, and invalidated-history cases.",
+    },
+  ];
+}
+
 export function buildBenchmarkCasePortPlans(
   proposals: readonly BenchmarkAdoptionProposal[]
 ): BenchmarkCasePortPlan[] {
-  return proposals.map(buildBenchmarkCasePortPlan);
+  return proposals.flatMap(buildBenchmarkCasePortPlansForProposal);
 }
 
 export function renderBenchmarkCasePortPlansMarkdown(
@@ -234,12 +296,12 @@ export function renderBenchmarkCasePortPlansMarkdown(
   }
 
   lines.push(
-    "| benchmark | ability | readiness | canonical owner | proposed local case(s) |",
+    "| benchmark | plan | readiness | canonical owner | proposed local case(s) |",
     "|---|---|---|---|---|"
   );
   for (const plan of plans) {
     lines.push(
-      `| ${plan.candidateKey} | ${plan.ability} | ${plan.readiness} | ${plan.canonicalOwner.replace(/\|/g, "/")} | ${plan.proposedCaseIds.join(", ") || "-"} |`
+      `| ${plan.candidateKey} | ${plan.planKey} | ${plan.readiness} | ${plan.canonicalOwner.replace(/\|/g, "/")} | ${plan.proposedCaseIds.join(", ") || "-"} |`
     );
   }
   lines.push("");

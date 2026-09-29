@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   buildBenchmarkCasePortPlan,
+  buildBenchmarkCasePortPlansForProposal,
   renderBenchmarkCasePortPlansMarkdown,
 } from "@/lib/memoryResearch/benchmarkCasePortPlanner";
 import type { BenchmarkAdoptionProposal } from "@/lib/memoryResearch/benchmarkAdoptionBridge";
@@ -27,19 +28,35 @@ function proposal(
 }
 
 describe("Benchmark Case Port Planner", () => {
-  it("routes trajectory recall into the existing deterministic RP benchmark", () => {
-    const plan = buildBenchmarkCasePortPlan(
+  it("decomposes trajectory recall by canonical owner instead of forcing it into episodic retrieval", () => {
+    const plans = buildBenchmarkCasePortPlansForProposal(
       proposal("trajectory_recall", "PARTIAL_COVERAGE")
     );
-    assert.equal(plan.readiness, "READY_DETERMINISTIC_FIXTURE");
-    assert.match(plan.canonicalOwner, /memory-rp-benchmark-suite/);
-    assert.deepEqual(plan.proposedCaseIds, [
-      "active-expired-commitment-01",
-      "persona-update-current-01",
+    assert.deepEqual(
+      plans.map((plan) => [plan.planKey, plan.readiness]),
+      [
+        ["trajectory_recall:commitment_lifecycle", "READY_MUTATION_LIFECYCLE_FIXTURE"],
+        ["trajectory_recall:persona_update", "HARNESS_EXTENSION_REQUIRED"],
+        ["trajectory_recall:existing_temporal_user_state", "NO_PORT_REQUIRED"],
+      ]
+    );
+
+    const commitment = plans[0]!;
+    assert.match(commitment.canonicalOwner, /MemoryPromise\/mergeMemoryMeta/);
+    assert.ok(commitment.targetPaths.includes("src/lib/chatMemory.test.ts"));
+    assert.deepEqual(commitment.proposedCaseIds, [
+      "active-expired-commitment-lifecycle-01",
     ]);
-    assert.ok(plan.reuseMetrics.includes("staleStateRecallRate"));
-    assert.ok(plan.reuseMetrics.includes("correctionSupersessionAccuracy"));
-    assert.ok(plan.forbidden.includes("LLM-as-judge"));
+    assert.ok(commitment.requirements.some((row) => /promisesAdd\/promisesRemove/.test(row)));
+    assert.ok(commitment.forbidden.includes("episodic duplicate of a formal promise"));
+
+    const personaUpdate = plans[1]!;
+    assert.equal(personaUpdate.targetPaths.length, 0);
+    assert.ok(personaUpdate.forbidden.includes("inventing a mutable persona owner"));
+
+    const covered = plans[2]!;
+    assert.deepEqual(covered.proposedCaseIds, []);
+    assert.ok(covered.reuseMetrics.includes("correctionSupersessionAccuracy"));
   });
 
   it("routes forgetting fidelity to source-mutation lifecycle owners instead of the retrieval suite", () => {
@@ -101,12 +118,16 @@ describe("Benchmark Case Port Planner", () => {
 
   it("renders plans as implementation guidance without claiming auto-edit or external judge use", () => {
     const plans = [
-      buildBenchmarkCasePortPlan(proposal("trajectory_recall", "PARTIAL_COVERAGE")),
-      buildBenchmarkCasePortPlan(proposal("persona_continuity", "CASE_PORT_WORTHY")),
+      ...buildBenchmarkCasePortPlansForProposal(
+        proposal("trajectory_recall", "PARTIAL_COVERAGE")
+      ),
+      buildBenchmarkCasePortPlan(
+        proposal("persona_continuity", "CASE_PORT_WORTHY")
+      ),
     ];
     const markdown = renderBenchmarkCasePortPlansMarkdown(plans);
     assert.match(markdown, /Benchmark Case Port Planner/);
-    assert.match(markdown, /READY_DETERMINISTIC_FIXTURE/);
+    assert.match(markdown, /READY_MUTATION_LIFECYCLE_FIXTURE/);
     assert.match(markdown, /HARNESS_EXTENSION_REQUIRED/);
     assert.match(markdown, /No external dataset or judge is copied/);
     assert.match(markdown, /no benchmark file is edited automatically/i);
