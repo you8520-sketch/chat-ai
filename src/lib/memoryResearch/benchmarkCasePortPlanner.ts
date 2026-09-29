@@ -211,7 +211,7 @@ export function buildBenchmarkCasePortPlansForProposal(
       requirements: [
         "Use the canonical promisesAdd/promisesRemove projection rather than episodic facts.",
         "Prove an active promise remains in formatted Relationship Memory.",
-        "Prove fulfilled/expired removal deletes it from the durable projection and prompt formatting.",
+        "Prove a relationship delta carrying promisesRemove deletes the fulfilled/expired promise from the durable projection and prompt formatting.",
         "If source mutation/regen is involved, preserve existing relationship provenance semantics.",
       ],
       forbidden: [
@@ -222,7 +222,7 @@ export function buildBenchmarkCasePortPlansForProposal(
         "provider calls",
       ],
       rationale:
-        "Formal promises are explicitly ledger-owned and are removed when fulfilled or expired. Active/expired commitment is therefore a durable-projection lifecycle test, not an episodic retrieval case.",
+        "Formal promises are explicitly ledger-owned. The current runtime does not own wall-clock expiry; removal occurs when relationship extraction emits promisesRemove for a fulfilled/expired promise. Active/expired commitment is therefore a durable-projection lifecycle test, not an episodic retrieval case.",
     },
     {
       planKey: "trajectory_recall:persona_update",
