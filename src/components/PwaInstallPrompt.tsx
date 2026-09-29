@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
 // v4 could be set by the former Android fallback even when no native install
 // action existed. Do not let that stale dismissal hide the real install prompt.
@@ -152,7 +153,9 @@ export default function PwaInstallPrompt() {
         />
         <div className="min-w-0 flex-1">
           <p className="font-bold">
-            {showIconMigration ? "하비 AI 앱 아이콘이 새로 바뀌었어요" : "하비 AI를 앱처럼 사용하세요"}
+            {showIconMigration
+              ? `${SITE_DISPLAY_NAME} 앱 아이콘이 새로 바뀌었어요`
+              : `${SITE_DISPLAY_NAME}를 앱처럼 사용하세요`}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-zinc-400">
             {showIconMigration
@@ -164,7 +167,9 @@ export default function PwaInstallPrompt() {
 
       {showIosGuide ? (
         <div className="mt-3 rounded-xl bg-white/[0.06] px-3 py-2.5 text-xs leading-relaxed text-zinc-300">
-          {showIconMigration ? "기존 아이콘을 삭제한 뒤 Safari에서 하비 AI를 다시 열고 " : null}
+          {showIconMigration
+            ? `기존 아이콘을 삭제한 뒤 Safari에서 ${SITE_DISPLAY_NAME}를 다시 열고 `
+            : null}
           아래의 <strong className="text-white">공유</strong> 버튼을 누른 다음
           <strong className="text-violet-300"> 홈 화면에 추가</strong>를 선택하세요.
         </div>

@@ -15,6 +15,7 @@ import UserPreferenceControls from "./UserPreferenceControls";
 import ExpiringPointsPopup from "./ExpiringPointsPopup";
 import { getPointBalance } from "@/lib/points";
 import { isPaymentsEnabled } from "@/lib/portoneConfig";
+import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
 export default async function Header() {
   const user = await getSessionUser();
@@ -35,7 +36,7 @@ export default async function Header() {
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <Link
               href="/"
-              aria-label="하비 AI 홈"
+              aria-label={`${SITE_DISPLAY_NAME} 홈`}
               className="group flex shrink-0 items-center gap-2.5 text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl"
             >
               <span className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-[0.7rem] border border-violet-300/25 shadow-[0_0_24px_rgba(124,58,237,.26)] transition group-hover:rotate-[-3deg] group-hover:scale-105">
@@ -49,7 +50,7 @@ export default async function Header() {
                 />
               </span>
               <span className="hidden tracking-[-0.035em] sm:inline">
-                하비 <span className="text-violet-400">AI</span>
+                {SITE_DISPLAY_NAME}
               </span>
             </Link>
             <HeaderMainNavRow />

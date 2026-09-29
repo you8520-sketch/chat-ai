@@ -1,18 +1,19 @@
 import Link from "next/link";
+import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
 export default function OfflinePage() {
   return (
     <section className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
       <img
         src="/icons/icon-door-v2-192.png"
-        alt="하비 AI"
+        alt={SITE_DISPLAY_NAME}
         width={88}
         height={88}
         className="rounded-2xl shadow-2xl shadow-violet-950/50"
       />
       <h1 className="mt-6 text-2xl font-bold text-white">인터넷 연결을 확인해 주세요</h1>
       <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-        하비 AI의 대화와 콘텐츠를 불러오려면 인터넷 연결이 필요합니다.
+        {SITE_DISPLAY_NAME}의 대화와 콘텐츠를 불러오려면 인터넷 연결이 필요합니다.
       </p>
       <Link
         href="/"

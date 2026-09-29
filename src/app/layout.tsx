@@ -5,11 +5,16 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import ChatRoomDocumentClass from "@/components/ChatRoomDocumentClass";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
+import { SITE_DESCRIPTION, SITE_DISPLAY_NAME, SITE_PAGE_TITLE } from "@/lib/siteBrand";
+import { getConfiguredPublicOrigin } from "@/lib/publicOrigin";
+
+const configuredPublicOrigin = getConfiguredPublicOrigin();
 
 export const metadata: Metadata = {
-  title: "하비 AI - AI 캐릭터 채팅",
-  description: "AI 캐릭터와 대화하는 채팅 플랫폼",
-  applicationName: "하비 AI",
+  title: SITE_PAGE_TITLE,
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_DISPLAY_NAME,
+  ...(configuredPublicOrigin ? { metadataBase: new URL(configuredPublicOrigin) } : {}),
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -23,7 +28,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "하비 AI",
+    title: SITE_DISPLAY_NAME,
   },
 };
 
