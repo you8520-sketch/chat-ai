@@ -1,3 +1,4 @@
+import mainRpOpenRouterRoutesJson from "@/lib/mainRpOpenRouterRoutes.json";
 import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 import {
   CLAUDE_OPUS_MODEL_LEGACY,
@@ -8,6 +9,7 @@ import {
   OPENROUTER_GEMINI_38_FLASH_MODEL,
   GEMINI_38_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
   coerceUserSelectableAI,
   isOpenRouterSelectedAI,
   type SelectedAI,
@@ -99,41 +101,59 @@ export function resolveRpOpenRouterModelId(modelId: string): string {
   return DEPRECATED_OPENROUTER_MODELS[normalized] ?? normalized;
 }
 
+type MainRpOpenRouterRouteRegistryEntry = {
+  providerSlug: string;
+  providerLabel: string;
+  serviceTier: "flex" | null;
+};
+
+const MAIN_RP_OPENROUTER_ROUTE_REGISTRY =
+  mainRpOpenRouterRoutesJson as Record<string, MainRpOpenRouterRouteRegistryEntry>;
+
 export type MainRpOpenRouterRoutePolicy = {
   provider: {
-    only: ["google-ai-studio"];
+    only: [string];
     allow_fallbacks: false;
     require_parameters: true;
   };
-  serviceTier: "flex";
+  serviceTier?: "flex";
 };
 
-const GOOGLE_AI_STUDIO_MAIN_RP_MODELS = new Set([
-  OPENROUTER_GEMINI_31_PRO_MODEL,
-  OPENROUTER_GEMINI_37_FLASH_MODEL,
-  OPENROUTER_GEMINI_38_FLASH_MODEL,
-]);
+function resolveMainRpRouteRegistryKey(modelId: string): string | null {
+  const normalized = normalizeOpenRouterModelId(modelId).toLowerCase();
+  if (MAIN_RP_OPENROUTER_ROUTE_REGISTRY[normalized]) return normalized;
+
+  const resolved = resolveRpOpenRouterModelId(modelId);
+  const selected = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
+    (option) =>
+      option.provider === "openrouter" &&
+      resolveRpOpenRouterModelId(option.id) === resolved
+  );
+  return selected?.id ?? null;
+}
 
 /**
- * Canonical Main-RP OpenRouter route policy owner.
- * Gemini 3.1/3.7/3.8 are pinned to Google AI Studio and explicitly request
- * OpenRouter's flex service tier. Flex is the cost/latency owner; do not add a
- * second price-sort heuristic here.
+ * Canonical Main-RP OpenRouter sub-provider route owner.
+ * Provider pin + optional service tier live in mainRpOpenRouterRoutes.json so
+ * evidence-backed automation can propose one small, reviewable route diff.
  * Privacy/data-retention policy is intentionally not duplicated here; account
  * privacy settings remain the canonical owner for those constraints.
  */
 export function resolveMainRpOpenRouterRoutePolicy(
   modelId: string
 ): MainRpOpenRouterRoutePolicy | null {
-  const resolved = resolveRpOpenRouterModelId(modelId);
-  if (!GOOGLE_AI_STUDIO_MAIN_RP_MODELS.has(resolved)) return null;
+  const key = resolveMainRpRouteRegistryKey(modelId);
+  if (!key) return null;
+  const route = MAIN_RP_OPENROUTER_ROUTE_REGISTRY[key];
+  if (!route?.providerSlug) return null;
+
   return {
     provider: {
-      only: ["google-ai-studio"],
+      only: [route.providerSlug],
       allow_fallbacks: false,
       require_parameters: true,
     },
-    serviceTier: "flex",
+    ...(route.serviceTier === "flex" ? { serviceTier: "flex" as const } : {}),
   };
 }
 
