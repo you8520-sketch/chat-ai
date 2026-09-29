@@ -81,7 +81,7 @@ it("prompt_packing leftover policy is A/Bable through BenchmarkMode.packing", ()
   assert.equal(mode.packing?.longTermMemoryText?.length, 2500);
 });
 
-it("reranking_scoring selection bounds change injected count without a new scorer", async () => {
+it("episodic_selection bounds change injected count without a parallel scorer", async () => {
   const baseline = await runBenchmarkCases(BASELINE_MODE, transportProbe);
   const capped = await runBenchmarkCases(selectionMode("selection-max-facts-1", { maxFacts: 1 }), transportProbe);
   assert.ok(baseline.injectedFactCount > 0);
