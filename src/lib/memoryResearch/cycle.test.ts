@@ -251,7 +251,7 @@ it("benchmark adoption proposals emit only when a benchmark candidate is re-eval
       .sort(),
     [
       ["persona_continuity", "HARNESS_EXTENSION_REQUIRED"],
-      ["trajectory_recall:commitment_lifecycle", "READY_MUTATION_LIFECYCLE_FIXTURE"],
+      ["trajectory_recall:commitment_lifecycle", "NO_PORT_REQUIRED"],
       ["trajectory_recall:existing_temporal_user_state", "NO_PORT_REQUIRED"],
       ["trajectory_recall:persona_update", "HARNESS_EXTENSION_REQUIRED"],
     ]
@@ -262,7 +262,7 @@ it("benchmark adoption proposals emit only when a benchmark candidate is re-eval
       .sort(),
     [
       ["persona_continuity", "LLM_JUDGE_REQUIRED"],
-      ["trajectory_recall:commitment_lifecycle", "READY_LOCAL_DETERMINISTIC"],
+      ["trajectory_recall:commitment_lifecycle", "NO_ACTION"],
       ["trajectory_recall:existing_temporal_user_state", "NO_ACTION"],
       ["trajectory_recall:persona_update", "OWNER_UNRESOLVED"],
     ]

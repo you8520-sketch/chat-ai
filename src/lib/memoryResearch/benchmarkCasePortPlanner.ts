@@ -198,23 +198,19 @@ export function buildBenchmarkCasePortPlansForProposal(
       candidateKey: proposal.candidateKey,
       sourceVersion: proposal.sourceVersion,
       ability: proposal.ability,
-      readiness: "READY_MUTATION_LIFECYCLE_FIXTURE",
+      readiness: "NO_PORT_REQUIRED",
       canonicalOwner:
-        "src/lib/chatMemory.ts::MemoryPromise/mergeMemoryMeta + durable relationship projection lifecycle",
-      targetPaths: [
-        "src/lib/chatMemory.test.ts",
-        "src/lib/memory/memory-relationship-provenance.test.ts",
-        "src/lib/memory/memoryRelationshipTask.production.test.ts",
-      ],
-      proposedCaseIds: ["active-expired-commitment-lifecycle-01"],
+        "existing durable Relationship Memory commitment lifecycle regression",
+      targetPaths: [],
+      proposedCaseIds: [],
       reuseMetrics: [],
       requirements: [
-        "Use the canonical promisesAdd/promisesRemove projection rather than episodic facts.",
-        "Prove an active promise remains in formatted Relationship Memory.",
-        "Prove fulfilled/expired removal deletes it from the durable projection and prompt formatting.",
-        "If source mutation/regen is involved, preserve existing relationship provenance semantics.",
+        "Keep the existing active-expired-commitment-lifecycle-01 regression as the canonical proof.",
+        "Relationship extraction supplies promisesAdd/promisesRemove; there is no separate wall-clock expiry owner in this path.",
+        "Re-open only if a concrete local commitment failure is not covered by the persisted ledger + prompt-projection regression.",
       ],
       forbidden: [
+        "duplicate active-expired commitment fixture",
         "episodic duplicate of a formal promise",
         "new promise status store",
         "external benchmark conversations",
@@ -222,7 +218,7 @@ export function buildBenchmarkCasePortPlansForProposal(
         "provider calls",
       ],
       rationale:
-        "Formal promises are explicitly ledger-owned and are removed when fulfilled or expired. Active/expired commitment is therefore a durable-projection lifecycle test, not an episodic retrieval case.",
+        "The local commitment gap is already closed by the merged durable-ledger regression: an active promise is persisted/projected, and a later promisesRemove delta removes it from stored Relationship Memory and prompt output. Re-proposing the same case would duplicate an existing canonical proof.",
     },
     {
       planKey: "trajectory_recall:persona_update",
