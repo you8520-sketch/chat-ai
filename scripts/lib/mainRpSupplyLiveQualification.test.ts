@@ -20,7 +20,9 @@ import {
   buildSupplyLiveReport,
   buildSupplyLiveRequestHeaders,
   processOpenRouterSupplySseLine,
+  resolveSupplyLiveRequiredProviderParameterKeys,
   selectMainRpSupplyLiveCandidates,
+  type SupplyLiveCandidate,
 } from "./mainRpSupplyLiveQualification";
 import {
   resolveOptInOpenRouterSupplyBenchmarkApiKey,
@@ -108,12 +110,45 @@ function radarReport() {
       ci[option.id] = catalog(option.id);
     }
   }
-  return buildMainRpSupplyRadarReport({
+  const report = buildMainRpSupplyRadarReport({
     endpointsByModel,
     ciCatalogByModel: ci,
     credentialSource: "fixture",
     generatedAt: "2026-09-28T00:00:00.000Z",
   });
+
+  // Keep the fixture coupled to the actual production request contract instead
+  // of maintaining a second hand-written supported-parameter list.
+  const gemini = report.models.find((row) => row.modelId === "gemini-3.7-flash");
+  const alternate = gemini?.comparisons.find(
+    (row) => row.provider?.slug === "fixture-provider"
+  );
+  if (gemini && alternate?.provider?.slug) {
+    const candidate: SupplyLiveCandidate = {
+      modelId: gemini.modelId,
+      openRouterSlug: gemini.openRouterSlug,
+      providerName: alternate.providerName,
+      providerSlug: alternate.provider.slug,
+      quantization: alternate.quantization,
+      rawEndpointRateDeltaVsCurrentProcurementPercent:
+        alternate.rawEndpointRateDeltaVsCurrentProcurementPercent ?? -0.5,
+      inputUsdPerMillion: alternate.inputUsdPerMillion ?? 0.1,
+      outputUsdPerMillion: alternate.outputUsdPerMillion ?? 0.3,
+      cacheReadUsdPerMillion: alternate.cacheReadUsdPerMillion,
+      marketLatencyP50SecondsLast30m:
+        alternate.latencyP50SecondsLast30m ?? 1.2,
+      marketThroughputP50TokensPerSecondLast30m:
+        alternate.throughputP50TokensPerSecondLast30m ?? 70,
+      marketUptimeLast1dPercent: alternate.uptimeLast1dPercent ?? 99.9,
+      marketUptimeLast30mPercent: alternate.uptimeLast30mPercent ?? 100,
+      controlEffort: "low",
+      excludeReasoning: true,
+      estimatedPairRawEndpointRateUsd: 0.01,
+    };
+    alternate.supportedParameters =
+      resolveSupplyLiveRequiredProviderParameterKeys(candidate);
+  }
+  return report;
 }
 
 describe("Main RP supply live qualification credential", () => {
@@ -185,45 +220,20 @@ describe("Main RP supply live candidate selection", () => {
     const report = radarReport();
     const model = report.models.find((row) => row.modelId === "gemini-3.7-flash")!;
     const cheaper = model.comparisons.find((row) => row.provider?.slug === "fixture-provider")!;
+    const required = [...cheaper.supportedParameters];
+    assert.ok(required.includes("reasoning"), "production request must require reasoning");
     model.comparisons = [
       {
         ...cheaper,
         providerName: "Google Vertex",
         provider: { ...cheaper.provider!, name: "Google Vertex", slug: "google-vertex" },
-        supportedParameters: [
-          "include_reasoning",
-          "max_tokens",
-          "temperature",
-          "top_p",
-          "frequency_penalty",
-          "presence_penalty",
-          "repetition_penalty",
-          "seed",
-          "response_format",
-          "tools",
-          "tool_choice",
-          "structured_outputs",
-        ],
+        supportedParameters: required.filter((key) => key !== "reasoning"),
       },
       {
         ...cheaper,
         providerName: "Compatible Alternative",
         provider: { ...cheaper.provider!, name: "Compatible Alternative", slug: "compatible" },
-        supportedParameters: [
-          "reasoning",
-          "include_reasoning",
-          "max_tokens",
-          "temperature",
-          "top_p",
-          "frequency_penalty",
-          "presence_penalty",
-          "repetition_penalty",
-          "seed",
-          "response_format",
-          "tools",
-          "tool_choice",
-          "structured_outputs",
-        ],
+        supportedParameters: required,
       },
     ];
 
