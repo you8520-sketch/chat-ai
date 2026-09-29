@@ -308,6 +308,129 @@ describe("Main RP supply live candidate selection", () => {
       false
     );
   });
+
+  it("skips cheaper but interactive-RP-unfit latency/throughput endpoints and selects the next healthy supplier", () => {
+    const report = isolateCheaperAlternate(radarReport(), "deepseek-v4.1-flash");
+    const model = report.models.find(
+      (row) => row.modelId === "deepseek-v4.1-flash"
+    )!;
+    const base = model.comparisons.find(
+      (row) => row.provider?.slug === "fixture-provider"
+    )!;
+
+    model.comparisons = [
+      {
+        ...base,
+        providerName: "Cheapest High Latency",
+        provider: {
+          ...base.provider!,
+          name: "Cheapest High Latency",
+          slug: "high-latency",
+        },
+        rawEndpointRepresentativeUncachedRateUsd: 0.001,
+        lowerRawEndpointRateThanCurrentProcurement: true,
+        rawEndpointRateDeltaVsCurrentProcurementPercent: -0.7,
+        uptimeLast1dPercent: 99.95,
+        uptimeLast30mPercent: 100,
+        latencyP50SecondsLast30m: 3.4,
+        throughputP50TokensPerSecondLast30m: 80,
+      },
+      {
+        ...base,
+        providerName: "Second Cheapest Low Throughput",
+        provider: {
+          ...base.provider!,
+          name: "Second Cheapest Low Throughput",
+          slug: "low-throughput",
+        },
+        rawEndpointRepresentativeUncachedRateUsd: 0.002,
+        lowerRawEndpointRateThanCurrentProcurement: true,
+        rawEndpointRateDeltaVsCurrentProcurementPercent: -0.6,
+        uptimeLast1dPercent: 99.95,
+        uptimeLast30mPercent: 100,
+        latencyP50SecondsLast30m: 1.2,
+        throughputP50TokensPerSecondLast30m: 5,
+      },
+      {
+        ...base,
+        providerName: "Healthy Alternative",
+        provider: {
+          ...base.provider!,
+          name: "Healthy Alternative",
+          slug: "healthy-alternative",
+        },
+        rawEndpointRepresentativeUncachedRateUsd: 0.003,
+        lowerRawEndpointRateThanCurrentProcurement: true,
+        rawEndpointRateDeltaVsCurrentProcurementPercent: -0.3,
+        uptimeLast1dPercent: 99.95,
+        uptimeLast30mPercent: 100,
+        latencyP50SecondsLast30m: 1.4,
+        throughputP50TokensPerSecondLast30m: 45,
+      },
+    ];
+
+    const selection = selectMainRpSupplyLiveCandidates(report);
+    const chosen = selection.candidates.find(
+      (row) => row.modelId === "deepseek-v4.1-flash"
+    );
+    assert.equal(chosen?.providerSlug, "healthy-alternative");
+    assert.ok(
+      selection.skipped.some(
+        (row) =>
+          row.providerName === "Cheapest High Latency" &&
+          row.reason === "market_latency_p50_above_3s_or_missing"
+      )
+    );
+    assert.ok(
+      selection.skipped.some(
+        (row) =>
+          row.providerName === "Second Cheapest Low Throughput" &&
+          row.reason === "market_throughput_p50_below_30_tps_or_missing"
+      )
+    );
+  });
+
+  it("requires 99.8% uptime before spending a live qualification call", () => {
+    const report = isolateCheaperAlternate(radarReport(), "deepseek-v4.1-flash");
+    const model = report.models.find(
+      (row) => row.modelId === "deepseek-v4.1-flash"
+    )!;
+    const base = model.comparisons.find(
+      (row) => row.provider?.slug === "fixture-provider"
+    )!;
+    model.comparisons = [
+      {
+        ...base,
+        providerName: "99.79 Percent Provider",
+        provider: {
+          ...base.provider!,
+          name: "99.79 Percent Provider",
+          slug: "below-uptime-floor",
+        },
+        lowerRawEndpointRateThanCurrentProcurement: true,
+        rawEndpointRateDeltaVsCurrentProcurementPercent: -0.5,
+        uptimeLast1dPercent: 99.79,
+        uptimeLast30mPercent: 100,
+        latencyP50SecondsLast30m: 1,
+        throughputP50TokensPerSecondLast30m: 80,
+      },
+    ];
+
+    const selection = selectMainRpSupplyLiveCandidates(report);
+    assert.equal(
+      selection.candidates.some(
+        (row) => row.modelId === "deepseek-v4.1-flash"
+      ),
+      false
+    );
+    assert.ok(
+      selection.skipped.some(
+        (row) =>
+          row.providerName === "99.79 Percent Provider" &&
+          row.reason === "uptime_1d_below_99_8_or_missing"
+      )
+    );
+  });
 });
 
 describe("Main RP supply live deterministic pair and wire guard", () => {

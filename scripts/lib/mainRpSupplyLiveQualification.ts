@@ -26,7 +26,9 @@ export const MAIN_RP_SUPPLY_LIVE_MAX_CANDIDATES = 5;
 export const MAIN_RP_SUPPLY_LIVE_MAX_PROVIDER_CALLS = 10;
 export const MAIN_RP_SUPPLY_LIVE_MAX_RAW_RATE_ESTIMATE_USD = 5;
 export const MAIN_RP_SUPPLY_LIVE_MIN_RAW_RATE_SAVINGS = 0.1;
-export const MAIN_RP_SUPPLY_LIVE_MIN_UPTIME_PERCENT = 99;
+export const MAIN_RP_SUPPLY_LIVE_MIN_UPTIME_PERCENT = 99.8;
+export const MAIN_RP_SUPPLY_LIVE_MAX_MARKET_LATENCY_P50_SECONDS = 3;
+export const MAIN_RP_SUPPLY_LIVE_MIN_MARKET_THROUGHPUT_P50_TPS = 30;
 export const MAIN_RP_SUPPLY_LIVE_TARGET_CHARS = 1200;
 export const MAIN_RP_SUPPLY_LIVE_TIMEOUT_MS = 90_000;
 export const OPENROUTER_GENERATION_METADATA_URL =
@@ -294,19 +296,27 @@ function factualCandidateReason(
     endpoint.uptimeLast1dPercent == null ||
     endpoint.uptimeLast1dPercent < MAIN_RP_SUPPLY_LIVE_MIN_UPTIME_PERCENT
   ) {
-    return "uptime_1d_below_99_or_missing";
+    return "uptime_1d_below_99_8_or_missing";
   }
   if (
     endpoint.uptimeLast30mPercent == null ||
     endpoint.uptimeLast30mPercent < MAIN_RP_SUPPLY_LIVE_MIN_UPTIME_PERCENT
   ) {
-    return "uptime_30m_below_99_or_missing";
+    return "uptime_30m_below_99_8_or_missing";
   }
-  if (endpoint.latencyP50SecondsLast30m == null) {
-    return "market_latency_evidence_missing";
+  if (
+    endpoint.latencyP50SecondsLast30m == null ||
+    endpoint.latencyP50SecondsLast30m >
+      MAIN_RP_SUPPLY_LIVE_MAX_MARKET_LATENCY_P50_SECONDS
+  ) {
+    return "market_latency_p50_above_3s_or_missing";
   }
-  if (endpoint.throughputP50TokensPerSecondLast30m == null) {
-    return "market_throughput_evidence_missing";
+  if (
+    endpoint.throughputP50TokensPerSecondLast30m == null ||
+    endpoint.throughputP50TokensPerSecondLast30m <
+      MAIN_RP_SUPPLY_LIVE_MIN_MARKET_THROUGHPUT_P50_TPS
+  ) {
+    return "market_throughput_p50_below_30_tps_or_missing";
   }
   if (!endpoint.provider?.slug) return "provider_slug_missing";
   if (!endpoint.provider.privacyPolicyUrl) {
