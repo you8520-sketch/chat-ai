@@ -1,0 +1,99 @@
+{
+  "latestMainSha": "80140cf8afc59de38d849eb9323e7ccdf32ea3fb",
+  "realProviderCalls": 4,
+  "providerAttempts": [
+    {
+      "seq": 1,
+      "role": "gm_opening",
+      "model": "gemini-3.7-flash",
+      "max_tokens": 65536,
+      "stream": true,
+      "attempt": 1
+    },
+    {
+      "seq": 2,
+      "role": "bot_1",
+      "model": "gemini-3.7-flash",
+      "max_tokens": 65536,
+      "stream": false,
+      "attempt": 2
+    },
+    {
+      "seq": 3,
+      "role": "bot_2",
+      "model": "gemini-3.7-flash",
+      "max_tokens": 65536,
+      "stream": false,
+      "attempt": 3
+    },
+    {
+      "seq": 4,
+      "role": "gm_normal",
+      "model": "gemini-3.7-flash",
+      "max_tokens": 65536,
+      "stream": true,
+      "attempt": 4
+    }
+  ],
+  "openingTotalMs": 25320,
+  "normalRoundTotalMs": 60884,
+  "openingGm": {
+    "model": "gemini-3.7-flash",
+    "maxTokens": 65536,
+    "inputTokens": 4027,
+    "outputTokens": 1743,
+    "finishReason": "stop",
+    "semanticDone": true,
+    "elapsedMs": 25288,
+    "upstreamCostUsd": null
+  },
+  "normalGm": {
+    "model": "gemini-3.7-flash",
+    "maxTokens": 65536,
+    "inputTokens": 6749,
+    "outputTokens": 1228,
+    "finishReason": "stop",
+    "semanticDone": true,
+    "elapsedMs": 23305,
+    "upstreamCostUsd": null
+  },
+  "bots": [
+    {
+      "role": "bot_1",
+      "name": "강이현",
+      "rawChars": 509,
+      "canonicalChars": 509,
+      "outputTokens": 372,
+      "finishReason": null,
+      "finalSentenceComplete": true,
+      "intentChars": 66,
+      "actionType": "investigate",
+      "botProseApplicationClippedAt800": false
+    },
+    {
+      "role": "bot_2",
+      "name": "권태현",
+      "rawChars": 378,
+      "canonicalChars": 378,
+      "outputTokens": 330,
+      "finishReason": null,
+      "finalSentenceComplete": true,
+      "intentChars": 58,
+      "actionType": "defend",
+      "botProseApplicationClippedAt800": false
+    }
+  ],
+  "openingNarratorFormalPoliteMatches": [],
+  "normalNarratorFormalPoliteMatches": [],
+  "characterAUniqueInGmInput": true,
+  "characterBUniqueInGmInput": true,
+  "magicAcademyAbsentFromGmInput": true,
+  "botFullCampaignWorldPresent": true,
+  "maxTokensAll65536": true,
+  "botApplicationProseHardClipObserved": false,
+  "truncationObserved": false,
+  "fixtureNotes": {
+    "blueprintProviderCall": false,
+    "warmArtifact": "casPublishWorldBlueprintArtifact on worldId=1 fixture (no provider generation)"
+  }
+}
