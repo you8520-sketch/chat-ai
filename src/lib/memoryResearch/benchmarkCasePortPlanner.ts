@@ -77,8 +77,6 @@ export function buildBenchmarkCasePortPlan(
     case "forgetting_fidelity":
       return {
         planKey: "forgetting_fidelity",
-        planKey: "persona_continuity",
-        planKey: "persona_conditioned_insight",
         candidateKey: proposal.candidateKey,
         sourceVersion: proposal.sourceVersion,
         ability: proposal.ability,
@@ -112,6 +110,7 @@ export function buildBenchmarkCasePortPlan(
 
     case "persona_continuity":
       return {
+        planKey: "persona_continuity",
         candidateKey: proposal.candidateKey,
         sourceVersion: proposal.sourceVersion,
         ability: proposal.ability,
@@ -144,6 +143,7 @@ export function buildBenchmarkCasePortPlan(
 
     case "persona_conditioned_insight":
       return {
+        planKey: "persona_conditioned_insight",
         candidateKey: proposal.candidateKey,
         sourceVersion: proposal.sourceVersion,
         ability: proposal.ability,
