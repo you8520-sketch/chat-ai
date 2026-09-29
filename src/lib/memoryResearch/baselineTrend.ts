@@ -7,6 +7,7 @@
  */
 import {
   compareQuality,
+  QUALITY_METRICS,
   type LabRunSummary,
   type MetricComparison,
 } from "@/lib/memoryResearch/gates";
@@ -25,6 +26,7 @@ export type BaselineTrendStatus =
   | "REBASE"
   | "STABLE"
   | "IMPROVED"
+  | "EVIDENCE_GAP"
   | "REGRESSION";
 
 export type BaselineTrendReport = {
@@ -35,6 +37,7 @@ export type BaselineTrendReport = {
   comparisons: MetricComparison[];
   regressedMetrics: string[];
   improvedMetrics: string[];
+  notComparableCoreMetrics: string[];
   promptTokensPerTurn: {
     previous: number | null;
     current: number;
@@ -129,6 +132,7 @@ export function evaluateBaselineQualityTrend(input: {
       comparisons: [],
       regressedMetrics: [],
       improvedMetrics: [],
+      notComparableCoreMetrics: [],
       promptTokensPerTurn: {
         previous: null,
         current: currentTokens,
@@ -149,6 +153,16 @@ export function evaluateBaselineQualityTrend(input: {
   const improvedMetrics = comparisons
     .filter((row) => row.verdict === "improved")
     .map((row) => row.key);
+  const coreKeys = new Set(
+    QUALITY_METRICS.filter((metric) => metric.core).map((metric) => metric.key)
+  );
+  const notComparableCoreMetrics = comparisons
+    .filter(
+      (row) =>
+        row.verdict === "not_comparable" &&
+        coreKeys.has(row.key)
+    )
+    .map((row) => row.key);
 
   const previousTokens = perTurn(previous.baseline);
   const tokenDelta = currentTokens - previousTokens;
@@ -160,9 +174,11 @@ export function evaluateBaselineQualityTrend(input: {
   const status: BaselineTrendStatus =
     regressedMetrics.length > 0
       ? "REGRESSION"
-      : improvedMetrics.length > 0
-        ? "IMPROVED"
-        : "STABLE";
+      : notComparableCoreMetrics.length > 0
+        ? "EVIDENCE_GAP"
+        : improvedMetrics.length > 0
+          ? "IMPROVED"
+          : "STABLE";
 
   return {
     status,
@@ -172,6 +188,7 @@ export function evaluateBaselineQualityTrend(input: {
     comparisons,
     regressedMetrics,
     improvedMetrics,
+    notComparableCoreMetrics,
     promptTokensPerTurn: {
       previous: previousTokens,
       current: currentTokens,
@@ -182,7 +199,9 @@ export function evaluateBaselineQualityTrend(input: {
     note:
       status === "REGRESSION"
         ? "One or more canonical raw quality metrics regressed; improvements do not offset regressions."
-        : tokenWarning
+        : status === "EVIDENCE_GAP"
+          ? "One or more core quality metrics are no longer comparable to the previous compatible baseline."
+          : tokenWarning
           ? "Quality metrics did not regress, but prompt tokens per evaluated turn increased by more than 5%."
           : "No canonical raw quality regression detected against the latest compatible snapshot.",
   };
@@ -205,6 +224,7 @@ export function renderBaselineQualityTrendMarkdown(
     `- prompt tokens/evaluated turn: ${report.promptTokensPerTurn.current.toFixed(2)} (delta ${pct}${report.promptTokensPerTurn.warning ? ", WARNING" : ""})`,
     `- regressed metrics: ${report.regressedMetrics.join(", ") || "none"}`,
     `- improved metrics: ${report.improvedMetrics.join(", ") || "none"}`,
+    `- non-comparable core metrics: ${report.notComparableCoreMetrics.join(", ") || "none"}`,
     `- note: ${report.note}`,
     "",
   ];
