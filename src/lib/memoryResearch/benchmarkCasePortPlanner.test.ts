@@ -35,20 +35,21 @@ describe("Benchmark Case Port Planner", () => {
     assert.deepEqual(
       plans.map((plan) => [plan.planKey, plan.readiness]),
       [
-        ["trajectory_recall:commitment_lifecycle", "READY_MUTATION_LIFECYCLE_FIXTURE"],
+        ["trajectory_recall:commitment_lifecycle", "NO_PORT_REQUIRED"],
         ["trajectory_recall:persona_update", "HARNESS_EXTENSION_REQUIRED"],
         ["trajectory_recall:existing_temporal_user_state", "NO_PORT_REQUIRED"],
       ]
     );
 
     const commitment = plans[0]!;
-    assert.match(commitment.canonicalOwner, /MemoryPromise\/mergeMemoryMeta/);
-    assert.ok(commitment.targetPaths.includes("src/lib/chatMemory.test.ts"));
-    assert.deepEqual(commitment.proposedCaseIds, [
-      "active-expired-commitment-lifecycle-01",
-    ]);
+    assert.equal(commitment.readiness, "NO_PORT_REQUIRED");
+    assert.match(commitment.canonicalOwner, /existing durable Relationship Memory/i);
+    assert.deepEqual(commitment.targetPaths, []);
+    assert.deepEqual(commitment.proposedCaseIds, []);
+    assert.ok(commitment.requirements.some((row) => /active-expired-commitment-lifecycle-01/.test(row)));
     assert.ok(commitment.requirements.some((row) => /promisesAdd\/promisesRemove/.test(row)));
-    assert.ok(commitment.forbidden.includes("episodic duplicate of a formal promise"));
+    assert.ok(commitment.forbidden.includes("duplicate active-expired commitment fixture"));
+    assert.match(commitment.rationale, /already closed by the merged durable-ledger regression/i);
 
     const personaUpdate = plans[1]!;
     assert.equal(personaUpdate.targetPaths.length, 0);
@@ -128,7 +129,7 @@ describe("Benchmark Case Port Planner", () => {
     ];
     const markdown = renderBenchmarkCasePortPlansMarkdown(plans);
     assert.match(markdown, /Benchmark Case Port Planner/);
-    assert.match(markdown, /READY_MUTATION_LIFECYCLE_FIXTURE/);
+    assert.match(markdown, /NO_PORT_REQUIRED/);
     assert.match(markdown, /HARNESS_EXTENSION_REQUIRED/);
     assert.match(markdown, /No external dataset or judge is copied/);
     assert.match(markdown, /no benchmark file is edited automatically/i);
