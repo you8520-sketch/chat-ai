@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import MAIN_RP_OPENROUTER_ROUTES from "../../config/main-rp-openrouter-routes.json";
+import {
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
+} from "./chatModels";
 import {
   buildOpenRouterHeaders,
   resolveMainRpOpenRouterRoutePolicy,
+  resolveRpOpenRouterModelId,
 } from "./openRouterConfig";
 
 test("OpenRouter headers use configured referer and canonical title by default", () => {
@@ -37,25 +42,36 @@ test("OpenRouter title environment override remains authoritative", () => {
 });
 
 
-test("Main RP OpenRouter route data preserves current Google AI Studio flex routes", () => {
-  for (const model of [
-    "gemini-3.1-pro-preview",
-    "gemini-3.7-flash",
-    "gemini-3.8-flash",
-  ]) {
-    const route = resolveMainRpOpenRouterRoutePolicy(model);
+test("Main RP OpenRouter route resolver is a pure consumer of the canonical JSON owner", () => {
+  for (const option of MAIN_RP_USER_SELECTABLE_OPTIONS) {
+    const route = resolveMainRpOpenRouterRoutePolicy(option.id);
+    if (option.provider !== "openrouter") {
+      assert.equal(route, null);
+      continue;
+    }
+    const wireModel = resolveRpOpenRouterModelId(option.id);
+    const entry = (
+      MAIN_RP_OPENROUTER_ROUTES as Record<
+        string,
+        { providerSlug: string; serviceTier: "flex" | null }
+      >
+    )[wireModel];
+    assert.ok(entry, `missing canonical route entry for ${wireModel}`);
     assert.deepEqual(route, {
       provider: {
-        only: ["google-ai-studio"],
+        only: [entry.providerSlug],
         allow_fallbacks: false,
         require_parameters: true,
       },
-      serviceTier: "flex",
+      serviceTier: entry.serviceTier,
     });
   }
 });
 
-test("Main RP OpenRouter route owner returns null for non-OpenRouter Main RP models", () => {
-  assert.equal(resolveMainRpOpenRouterRoutePolicy("deepseek-v4.1-flash"), null);
-  assert.equal(resolveMainRpOpenRouterRoutePolicy("gpt-5.6-terra"), null);
+test("canonical route JSON has no orphan entry outside active OpenRouter Main RP models", () => {
+  const expected = MAIN_RP_USER_SELECTABLE_OPTIONS
+    .filter((option) => option.provider === "openrouter")
+    .map((option) => resolveRpOpenRouterModelId(option.id))
+    .sort();
+  assert.deepEqual(Object.keys(MAIN_RP_OPENROUTER_ROUTES).sort(), expected);
 });
