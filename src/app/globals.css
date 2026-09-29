@@ -410,7 +410,10 @@ body {
 }
 
 /* Keep the desktop chat portrait and settings rails sticky for the full page. */
-html.chat-room-active .site-header {
+html.chat-room-active .site-header,
+html.chat-room-active .site-legal-footer,
+html.character-intro-embed-active .site-legal-footer,
+html.dice-lab-active .site-legal-footer {
   display: none;
 }
 
