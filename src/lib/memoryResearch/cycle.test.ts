@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { it } from "node:test";
 import { runLabArm } from "@/lib/memoryResearch/benchmarkLab";
+import { parseBaselineHistorySnapshot } from "@/lib/memoryResearch/baselineTrend";
 import { cycleKeyFor, runResearchCycle, type CycleDeps } from "@/lib/memoryResearch/cycle";
 import type { ExperimentAdapter } from "@/lib/memoryResearch/experiments";
 import { applyDraftPrResults, emptyLedger, parseLedger, serializeLedger, type ResearchLedger } from "@/lib/memoryResearch/ledger";
@@ -46,6 +47,7 @@ function deps(now: Date, overrides: Partial<CycleDeps> = {}): CycleDeps {
     now,
     mainSha: MAIN_SHA,
     architectureFingerprint: "arch-fixture",
+    benchmarkDefinitionFingerprint: "bench-fixture",
     sources: [
       staticSource("fixture_primary", [OBS.wide, OBS.narrow, OBS.noAdapter, OBS.graphInfra]),
       staticSource("fixture_secondary", [OBS.wide]),
@@ -91,6 +93,9 @@ it("full cycle: isolation, dedupe, screening, real benchmark gates, ACCEPTED-onl
   assert.equal(report.counts.skippedDuplicates, 1);
   assert.deepEqual(report.skipped, [{ candidateKey: "github:fixture/wide", reason: "duplicate_in_cycle" }]);
   assert.equal(report.baseline.status, "RAN");
+  assert.ok(report.baseline.summary);
+  assert.equal(report.benchmarkDefinitionFingerprint, "bench-fixture");
+  assert.equal(report.baselineTrend?.status, "NO_HISTORY");
 
   const byKey = Object.fromEntries(report.decisions.map((d) => [d.candidateKey, d]));
   assert.equal(byKey["github:fixture/wide"]!.decision, "ACCEPTED_QUALITY_GAIN");
@@ -123,6 +128,27 @@ it("full cycle: isolation, dedupe, screening, real benchmark gates, ACCEPTED-onl
     archBefore,
     "a research cycle alone never changes production memory owners"
   );
+});
+
+it("baseline trend compares only against injected structured prior-cycle evidence", async () => {
+  const first = await runResearchCycle(
+    emptyLedger(),
+    deps(WEEK1, { sources: [], adapters: [] })
+  );
+  const snapshot = parseBaselineHistorySnapshot(first.report);
+  assert.ok(snapshot);
+
+  const second = await runResearchCycle(
+    emptyLedger(),
+    deps(WEEK2, {
+      sources: [],
+      adapters: [],
+      baselineHistory: [snapshot],
+    })
+  );
+  assert.equal(second.report.baselineTrend?.status, "STABLE");
+  assert.equal(second.report.baselineTrend?.comparedCycleKey, first.report.cycleKey);
+  assert.equal(second.report.baselineTrend?.regressedMetrics.length, 0);
 });
 
 it("next cycles: rejected same-version skipped, ACCEPTED re-emits until its Draft PR exists, new release re-evaluates", async () => {
