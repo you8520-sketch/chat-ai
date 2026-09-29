@@ -36,6 +36,24 @@ describe("memory prompt-packing sentinel", () => {
     }
   });
 
+
+  it("surfaces the current default episodic dynamic-budget starvation condition without failing production invariants", () => {
+    const probe = audit.episodicDynamicBudget;
+    assert.ok(probe.dynamicMemoryTotalMaxChars > 0);
+    const baseline = probe.rows.find((row) => row.higherPriorityChars === 0);
+    const belowCap = probe.rows
+      .filter((row) => row.higherPriorityChars < probe.dynamicMemoryTotalMaxChars)
+      .at(-1);
+    const atCap = probe.rows.find(
+      (row) => row.higherPriorityChars === probe.dynamicMemoryTotalMaxChars
+    );
+    assert.ok((baseline?.injectedFacts ?? 0) > 0);
+    assert.ok((belowCap?.injectedFacts ?? 0) > 0);
+    assert.equal(atCap?.injectedFacts, 0);
+    assert.equal(probe.starvationDetected, true);
+    assert.ok(audit.invariants.every((i) => i.ok), JSON.stringify(audit.invariants));
+  });
+
   it("does not mislabel semantic overlap as measured duplicate waste", () => {
     assert.equal(audit.interpretation.literalDuplicateClaim, "NOT_MEASURED");
     const md = renderMemoryPromptPackingAuditMarkdown(audit);
