@@ -9,6 +9,11 @@ on:
     # without increasing provider-generation calls.
     - cron: "47 3 8,15,22 * *"
   workflow_dispatch:
+  # One-shot history-reader smoke. This probe branch/PR is never merged.
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/main-rp-supply-radar.yml"
 
 permissions:
   contents: read
