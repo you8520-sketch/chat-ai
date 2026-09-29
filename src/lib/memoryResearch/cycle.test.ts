@@ -154,6 +154,62 @@ it("next cycles: rejected same-version skipped, ACCEPTED re-emits until its Draf
   assert.equal(third.ledger.candidates["github:fixture/narrow"]!.evaluations.length, 2);
 });
 
+
+it("companion bridge emits proposals only when the official-doc candidate is actually re-evaluated", async () => {
+  const official: ResearchObservation = {
+    candidateKey: "official:kindroid:memory-docs",
+    sourceKind: "official_companion_docs",
+    sourceUrl: "https://kindroid.ai/docs/article/llm-guides/",
+    title: "Kindroid official memory docs",
+    version: "docs-v1",
+    publishedAt: null,
+    summary:
+      "Cascaded summarized history keeps older context. Long-term memory recalls up to nine journal entries.",
+    claimedAdvantage: "bounded journal recall plus cascaded summarized context",
+    category: "companion_roleplay_memory",
+    evidence: {
+      hasReproducibleCode: false,
+      hasPublishedBenchmark: false,
+      archived: false,
+      lastActivityAt: null,
+    },
+    infraRequirements: ["none"],
+    privacyImplications: ["none"],
+    migrationRequirement: "none",
+    riskFlags: [],
+  };
+  const source: SourceAdapter = {
+    id: "official_companion_memory_docs",
+    kind: "official_companion_docs",
+    collect: async () => ({
+      sourceId: "official_companion_memory_docs",
+      observations: [official],
+      errors: [],
+    }),
+  };
+
+  const first = await runResearchCycle(
+    emptyLedger(),
+    deps(WEEK1, { sources: [source], adapters: [] })
+  );
+  assert.equal(first.report.decisions[0]?.decision, "WATCH_INSUFFICIENT_EVIDENCE");
+  assert.deepEqual(
+    first.report.companionExperimentProposals.map((proposal) => proposal.technique).sort(),
+    ["bounded_long_term_recall", "cascaded_summary_history"]
+  );
+
+  const second = await runResearchCycle(
+    roundTrip(first.ledger),
+    deps(WEEK2, { sources: [source], adapters: [] })
+  );
+  assert.equal(second.report.skipped[0]?.reason, "watch_cooldown");
+  assert.equal(
+    second.report.companionExperimentProposals.length,
+    0,
+    "unchanged official docs must not repeat the same bridge proposal every weekly cycle"
+  );
+});
+
 it("same cycle key is idempotent unless forced", async () => {
   const first = await runResearchCycle(emptyLedger(), deps(WEEK1, { sources: [staticSource("s", [OBS.noAdapter])] }));
   const again = await runResearchCycle(first.ledger, deps(WEEK1, { sources: [staticSource("s", [OBS.noAdapter])] }));
