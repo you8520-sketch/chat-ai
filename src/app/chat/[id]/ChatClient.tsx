@@ -206,6 +206,10 @@ import {
   shouldStartChatStreamFollow,
 } from "@/lib/chatLiveFollow";
 import {
+  peekReadingProgressResolveStats,
+  resolveChatReadingProgressDocumentY,
+} from "@/lib/chatLiveFollowReadingProgress";
+import {
   clearChatBillingPresentations,
   completeChatBillingPresentation,
   createChatBillingPresentationOwner,
@@ -297,6 +301,7 @@ import {
   CHAT_MOBILE_PORTRAIT_IMAGE_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
   ensureChatDisplayWebFontsLoaded,
+  isStreamSpeedOnlyDisplayPrefsChange,
   resolveClientDisplayPrefs,
   saveChatDisplayPrefs,
   type ChatDisplayPrefs,
@@ -2550,6 +2555,37 @@ export default function ChatClient({
           liveFollowScrollInFlightRef.current = false;
         });
       },
+      resolveReadingDocumentY: () => {
+        const article = streamingMessageArticleRef.current;
+        const quoteRoot =
+          article?.querySelector<HTMLElement>("[data-quote-assistant]") ?? null;
+        const fallbackSentinel = resolveActiveAssistantStreamEnd({
+          endRef: activeAssistantStreamEndRef,
+          activeRequestId: activeAssistantStreamRequestIdRef.current,
+          root: quoteSelectContainerRef.current,
+        });
+        const sample = resolveChatReadingProgressDocumentY({
+          scrollY: window.scrollY,
+          quoteRoot,
+          fallbackSentinel,
+        });
+        const stats = peekReadingProgressResolveStats();
+        bottomRef.current?.setAttribute(
+          "data-chat-reading-progress-resolve-ms",
+          String(stats.lastMs)
+        );
+        bottomRef.current?.setAttribute(
+          "data-chat-reading-progress-resolve-max-ms",
+          String(stats.maxMs)
+        );
+        if (sample) {
+          bottomRef.current?.setAttribute(
+            "data-chat-reading-target-top",
+            String(sample.documentY - window.scrollY)
+          );
+        }
+        return sample?.documentY ?? null;
+      },
       resolveTargetElement: () =>
         resolveActiveAssistantStreamEnd({
           endRef: activeAssistantStreamEndRef,
@@ -2563,7 +2599,7 @@ export default function ChatClient({
         }) && isChatLiveReadingActiveNow(),
       isContentGrowing: () =>
         visualRevealPendingCountRef.current > 0 || loading || inFlightRef.current,
-      // Reuse the shared stepwise target chase; line-level canvas growth starts it.
+      // Geometry-damped camera follows rendered sentinel growth, not reveal cadence.
       getMotionProfile: () =>
         resolveChatLiveFollowMotionProfile({
           streamIntervalMs: displayPrefsRef.current.streamIntervalMs,
@@ -5127,14 +5163,25 @@ export default function ChatClient({
 
   const handleDisplayPrefsChange = useCallback(
     (next: ChatDisplayPrefs) => {
+      const streamSpeedOnly = isStreamSpeedOnlyDisplayPrefsChange(
+        displayPrefsRef.current,
+        next
+      );
       const scrollY = typeof window === "undefined" ? null : window.scrollY;
-      followStreamRef.current = false;
-      userScrollLockRef.current = true;
+      if (!streamSpeedOnly) {
+        followStreamRef.current = false;
+        userScrollLockRef.current = true;
+      }
       setDisplayPrefs(next);
       saveChatDisplayPrefs(next);
-      if (scrollY != null) {
+      if (!streamSpeedOnly && scrollY != null) {
         requestAnimationFrame(() => {
           window.scrollTo({ top: scrollY, behavior: "instant" });
+        });
+      }
+      if (streamSpeedOnly && isChatLiveReadingActiveNow()) {
+        requestAnimationFrame(() => {
+          liveFollowAnimatorRef.current?.notifyTargetUpdate();
         });
       }
       // Keep account prefs in sync so SSR re-entry does not reset 에셋 ON/OFF.
@@ -5165,7 +5212,7 @@ export default function ChatClient({
         })();
       }, 400);
     },
-    [chatId]
+    [chatId, isChatLiveReadingActiveNow]
   );
 
   const handleSuggestedRepliesDisable = useCallback(() => {

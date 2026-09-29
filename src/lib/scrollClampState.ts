@@ -30,6 +30,142 @@ export const TARGET_CHASE_SETTLE_TOLERANCE_MS = 240;
  */
 export const TARGET_CHASE_WRAP_SPAN_MULTIPLIER = 1.75;
 
+/** Nominal RAF sample interval for browser motion proofs (ms). */
+export const VISUAL_MOTION_SAMPLE_INTERVAL_MS = 16;
+/** Integer 1px steps separated by ≥2 nominal frames read as a visible staircase. */
+export const VISUAL_STAIRCASE_MIN_INTER_STEP_GAP_MS = VISUAL_MOTION_SAMPLE_INTERVAL_MS * 2;
+
+/**
+ * Transport-health only: integer root scroll pauses between 1px quanta are expected
+ * scheduling debt, not proof of perceptual smoothness. Do not use this metric as a
+ * visual-camera-quality gate.
+ */
+export function measureIntegerTransportCruiseDutyCycle(
+  samples: Array<{ t: number; scrollY: number }>,
+  maxExpectedInterStepGapMs = INTEGER_CADENCE_P95_INTER_STEP_GAP_MS
+): number {
+  if (samples.length < 2) return 0;
+  let cruiseActiveMs = 0;
+  let lastScrollStepMs = samples[0]!.t;
+  let previousScrollY = samples[0]!.scrollY;
+
+  for (let index = 1; index < samples.length; index += 1) {
+    const previous = samples[index - 1]!;
+    const current = samples[index]!;
+    const dtMs = Math.max(1, current.t - previous.t);
+    if (current.scrollY > previousScrollY) {
+      lastScrollStepMs = current.t;
+      previousScrollY = current.scrollY;
+    }
+    const sinceLastStepMs = current.t - lastScrollStepMs;
+    const inCruiseEpoch =
+      current.scrollY > previous.scrollY || sinceLastStepMs <= maxExpectedInterStepGapMs;
+    if (inCruiseEpoch) cruiseActiveMs += dtMs;
+  }
+
+  const totalMs = Math.max(1, samples.at(-1)!.t - samples[0]!.t);
+  return cruiseActiveMs / totalMs;
+}
+
+/** @deprecated Use measureIntegerTransportCruiseDutyCycle — transport health only. */
+export const measureIntegerCruiseMotionDutyCycle = measureIntegerTransportCruiseDutyCycle;
+
+export type VisualCameraQualityMetrics = {
+  LONGEST_STATIONARY_FRAME_RUN: number;
+  LONGEST_STATIONARY_DURATION_MS: number;
+  MEDIAN_FRAME_DISPLACEMENT_PX: number;
+  P95_FRAME_DISPLACEMENT_PX: number;
+  INTEGER_STAIRCASE_DETECTED: boolean;
+  PERCEPTUAL_SMOOTHNESS_MET: boolean;
+};
+
+/**
+ * Visual camera trajectory from displayed root scrollY samples.
+ * Detects integer 1px / multi-frame pause cadence — distinct from transport health.
+ */
+export function measureVisualCameraQuality(
+  samples: Array<{ t: number; scrollY: number }>
+): VisualCameraQualityMetrics {
+  if (samples.length < 2) {
+    return {
+      LONGEST_STATIONARY_FRAME_RUN: 0,
+      LONGEST_STATIONARY_DURATION_MS: 0,
+      MEDIAN_FRAME_DISPLACEMENT_PX: 0,
+      P95_FRAME_DISPLACEMENT_PX: 0,
+      INTEGER_STAIRCASE_DETECTED: false,
+      PERCEPTUAL_SMOOTHNESS_MET: false,
+    };
+  }
+
+  let longestStationaryFrameRun = 0;
+  let currentStationaryRun = 0;
+  let longestStationaryDurationMs = 0;
+  let currentStationaryDurationMs = 0;
+  const frameDisplacements: number[] = [];
+  const positiveSteps: number[] = [];
+  const interStepGapsMs: number[] = [];
+  let lastPositiveStepMs: number | null = null;
+
+  for (let index = 1; index < samples.length; index += 1) {
+    const previous = samples[index - 1]!;
+    const current = samples[index]!;
+    const dtMs = Math.max(1, current.t - previous.t);
+    const step = current.scrollY - previous.scrollY;
+    frameDisplacements.push(Math.abs(step));
+
+    if (step === 0) {
+      currentStationaryRun += 1;
+      currentStationaryDurationMs += dtMs;
+    } else {
+      longestStationaryFrameRun = Math.max(longestStationaryFrameRun, currentStationaryRun);
+      longestStationaryDurationMs = Math.max(longestStationaryDurationMs, currentStationaryDurationMs);
+      currentStationaryRun = 0;
+      currentStationaryDurationMs = 0;
+      if (step > 0) {
+        positiveSteps.push(step);
+        if (lastPositiveStepMs != null) {
+          interStepGapsMs.push(Math.max(0, current.t - lastPositiveStepMs));
+        }
+        lastPositiveStepMs = current.t;
+      }
+    }
+  }
+  longestStationaryFrameRun = Math.max(longestStationaryFrameRun, currentStationaryRun);
+  longestStationaryDurationMs = Math.max(longestStationaryDurationMs, currentStationaryDurationMs);
+
+  const medianPositiveStepPx = percentile(positiveSteps, 0.5);
+  const p95InterStepGapMs = percentile(interStepGapsMs, 0.95);
+  const integerStaircaseDetected =
+    positiveSteps.length >= 8 &&
+    medianPositiveStepPx > 0 &&
+    medianPositiveStepPx <= INTEGER_CADENCE_MAX_STEP_PX &&
+    p95InterStepGapMs >= VISUAL_STAIRCASE_MIN_INTER_STEP_GAP_MS;
+
+  return {
+    LONGEST_STATIONARY_FRAME_RUN: longestStationaryFrameRun,
+    LONGEST_STATIONARY_DURATION_MS: longestStationaryDurationMs,
+    MEDIAN_FRAME_DISPLACEMENT_PX: percentile(frameDisplacements, 0.5),
+    P95_FRAME_DISPLACEMENT_PX: percentile(frameDisplacements, 0.95),
+    INTEGER_STAIRCASE_DETECTED: integerStaircaseDetected,
+    PERCEPTUAL_SMOOTHNESS_MET: !integerStaircaseDetected,
+  };
+}
+
+/** Trim sample edges so duty cycle / stop-gap gates measure active scroll motion only. */
+export function sliceActiveScrollMotionFrames(frames: MotionProofFrame[]): MotionProofFrame[] {
+  if (frames.length <= 2) return frames;
+  let firstMoveIndex = -1;
+  let lastMoveIndex = -1;
+  for (let index = 1; index < frames.length; index += 1) {
+    if (frames[index]!.scrollY > frames[index - 1]!.scrollY) {
+      if (firstMoveIndex === -1) firstMoveIndex = index - 1;
+      lastMoveIndex = index;
+    }
+  }
+  if (firstMoveIndex === -1 || lastMoveIndex === -1) return frames;
+  return frames.slice(firstMoveIndex, lastMoveIndex + 1);
+}
+
 export function resolveTargetChaseMaxInterStepGapMs(
   streamIntervalMs: number,
   charsPerTick = 1
@@ -88,6 +224,7 @@ export type ScrollMotionClassification =
   | "MOTION_GATE_FAILED";
 
 export type ContinuousMotionProof = {
+  /** Transport-health gates only — not visual smoothness. */
   passed: boolean;
   classification: ScrollMotionClassification;
   reasons: string[];
@@ -96,6 +233,9 @@ export type ContinuousMotionProof = {
   AVAILABLE_DOWNWARD_SCROLL_PX: number;
   TARGET_REQUIRES_DOWNWARD_SCROLL: boolean;
   TOTAL_SCROLL_RANGE_PX: number;
+  /** Transport-health cruise duty (not visual smoothness). */
+  TRANSPORT_CRUISE_DUTY: number;
+  /** @deprecated Alias for TRANSPORT_CRUISE_DUTY. */
   MOTION_DUTY_CYCLE: number;
   MAX_VISIBLE_STOP_GAP_MS: number;
   DIRECTION_REVERSAL_COUNT: number;
@@ -105,6 +245,7 @@ export type ContinuousMotionProof = {
   PROGRAMMATIC_SELF_DETACH: boolean;
   cadence: IntegerScrollCadenceMetrics;
   metrics: ScrollMotionContinuityMetrics | null;
+  visual: VisualCameraQualityMetrics;
 };
 
 function percentile(values: number[], p: number): number {
@@ -235,6 +376,9 @@ export function evaluateContinuousMotionProof(opts: {
   maxFrameVelocityPxPerSec?: number;
   ignoreMaxFrameVelocity?: boolean;
   ignoreStopStartOscillation?: boolean;
+  /** Legacy stepwise fixtures may include principled line-wrap settle pauses. */
+  ignoreMotionDutyCycle?: boolean;
+  ignoreMaxVisibleStopGap?: boolean;
 }): ContinuousMotionProof {
   const frames = opts.frames;
   const start = opts.startGeometry;
@@ -289,17 +433,26 @@ export function evaluateContinuousMotionProof(opts: {
     previousT = frame.t;
   }
 
+  const activeMotionFrames = sliceActiveScrollMotionFrames(frames);
+  const activeMotionSamples = activeMotionFrames.map((frame) => ({
+    t: frame.t,
+    scrollY: frame.scrollY,
+  }));
   const metrics =
-    frames.length >= 2
-      ? measureScrollMotionContinuity(
-          frames.map((frame) => ({ t: frame.t, scrollY: frame.scrollY })),
-          { velocityThresholdPxPerSec: 4 }
-        )
+    activeMotionSamples.length >= 2
+      ? measureScrollMotionContinuity(activeMotionSamples, { velocityThresholdPxPerSec: 4 })
       : null;
   const cadence = measureIntegerScrollCadence(frames, {
     maxStepPx: opts.maxStepPx,
     includeCatchUpSteps: opts.includeCatchUpSteps,
   });
+  const visual = measureVisualCameraQuality(activeMotionSamples);
+  const usesIntegerCadenceGate =
+    cadence.MEDIAN_POSITIVE_STEP_PX > 0 &&
+    cadence.MEDIAN_POSITIVE_STEP_PX <= INTEGER_CADENCE_MAX_STEP_PX;
+  const transportCruiseDuty = usesIntegerCadenceGate
+    ? measureIntegerTransportCruiseDutyCycle(activeMotionSamples)
+    : metrics?.motionDutyCycle ?? 0;
 
   if (clampAllowed) {
     return {
@@ -311,7 +464,8 @@ export function evaluateContinuousMotionProof(opts: {
       AVAILABLE_DOWNWARD_SCROLL_PX: start.AVAILABLE_DOWNWARD_SCROLL_PX,
       TARGET_REQUIRES_DOWNWARD_SCROLL: start.TARGET_REQUIRES_DOWNWARD_SCROLL,
       TOTAL_SCROLL_RANGE_PX: scrollRangePx,
-      MOTION_DUTY_CYCLE: metrics?.motionDutyCycle ?? 0,
+      TRANSPORT_CRUISE_DUTY: transportCruiseDuty,
+      MOTION_DUTY_CYCLE: transportCruiseDuty,
       MAX_VISIBLE_STOP_GAP_MS: metrics?.maxVisibleStopGapMs ?? 0,
       DIRECTION_REVERSAL_COUNT: metrics?.directionReversalCount ?? directionReversalCount,
       LARGE_JUMP_COUNT: largeJumpCount,
@@ -320,6 +474,7 @@ export function evaluateContinuousMotionProof(opts: {
       PROGRAMMATIC_SELF_DETACH: programmaticSelfDetach,
       cadence,
       metrics,
+      visual,
     };
   }
 
@@ -370,6 +525,16 @@ export function evaluateContinuousMotionProof(opts: {
   if (!opts.ignoreStopStartOscillation && metrics?.stopStartOscillation) {
     reasons.push("STOP_START_OSCILLATION");
   }
+  if (!opts.ignoreMotionDutyCycle && transportCruiseDuty < MOTION_DUTY_CYCLE_MIN) {
+    reasons.push("TRANSPORT_CRUISE_DUTY_LOW");
+  }
+  if (
+    !opts.ignoreMaxVisibleStopGap &&
+    metrics &&
+    metrics.maxVisibleStopGapMs > MAX_VISIBLE_STOP_GAP_MS_LIMIT
+  ) {
+    reasons.push("MAX_VISIBLE_STOP_GAP_MS");
+  }
 
   const classification = classifyProof({
     requireMotion: opts.requireMotion,
@@ -388,7 +553,8 @@ export function evaluateContinuousMotionProof(opts: {
     AVAILABLE_DOWNWARD_SCROLL_PX: start.AVAILABLE_DOWNWARD_SCROLL_PX,
     TARGET_REQUIRES_DOWNWARD_SCROLL: start.TARGET_REQUIRES_DOWNWARD_SCROLL,
     TOTAL_SCROLL_RANGE_PX: scrollRangePx,
-    MOTION_DUTY_CYCLE: metrics?.motionDutyCycle ?? 0,
+    TRANSPORT_CRUISE_DUTY: transportCruiseDuty,
+    MOTION_DUTY_CYCLE: transportCruiseDuty,
     MAX_VISIBLE_STOP_GAP_MS: metrics?.maxVisibleStopGapMs ?? 0,
     DIRECTION_REVERSAL_COUNT: reversals,
     LARGE_JUMP_COUNT: largeJumps,
@@ -397,19 +563,20 @@ export function evaluateContinuousMotionProof(opts: {
     PROGRAMMATIC_SELF_DETACH: programmaticSelfDetach,
     cadence,
     metrics,
+    visual,
   };
 }
 
 export function formatContinuousMotionProof(proof: ContinuousMotionProof): string {
   return [
     `classification=${proof.classification}`,
-    `passed=${proof.passed}`,
+    `transportPassed=${proof.passed}`,
     `MAX_SCROLL_Y=${proof.MAX_SCROLL_Y}`,
     `CURRENT_SCROLL_Y=${proof.CURRENT_SCROLL_Y}`,
     `AVAILABLE_DOWNWARD_SCROLL_PX=${proof.AVAILABLE_DOWNWARD_SCROLL_PX}`,
     `TARGET_REQUIRES_DOWNWARD_SCROLL=${proof.TARGET_REQUIRES_DOWNWARD_SCROLL}`,
     `TOTAL_SCROLL_RANGE_PX=${proof.TOTAL_SCROLL_RANGE_PX}`,
-    `MOTION_DUTY_CYCLE=${proof.MOTION_DUTY_CYCLE}`,
+    `TRANSPORT_CRUISE_DUTY=${proof.TRANSPORT_CRUISE_DUTY}`,
     `MAX_VISIBLE_STOP_GAP_MS=${proof.MAX_VISIBLE_STOP_GAP_MS}`,
     `DIRECTION_REVERSAL_COUNT=${proof.DIRECTION_REVERSAL_COUNT}`,
     `LARGE_JUMP_COUNT=${proof.LARGE_JUMP_COUNT}`,
@@ -424,6 +591,12 @@ export function formatContinuousMotionProof(proof: ContinuousMotionProof): strin
     `MAX_FRAME_VELOCITY=${proof.MAX_FRAME_VELOCITY}`,
     `FOLLOW_LATEST_ALWAYS_TRUE=${proof.FOLLOW_LATEST_ALWAYS_TRUE}`,
     `PROGRAMMATIC_SELF_DETACH=${proof.PROGRAMMATIC_SELF_DETACH}`,
-    `reasons=${proof.reasons.join(",") || "none"}`,
+    `transportReasons=${proof.reasons.join(",") || "none"}`,
+    `LONGEST_STATIONARY_FRAME_RUN=${proof.visual.LONGEST_STATIONARY_FRAME_RUN}`,
+    `LONGEST_STATIONARY_DURATION_MS=${proof.visual.LONGEST_STATIONARY_DURATION_MS}`,
+    `MEDIAN_FRAME_DISPLACEMENT_PX=${proof.visual.MEDIAN_FRAME_DISPLACEMENT_PX}`,
+    `P95_FRAME_DISPLACEMENT_PX=${proof.visual.P95_FRAME_DISPLACEMENT_PX}`,
+    `INTEGER_STAIRCASE_DETECTED=${proof.visual.INTEGER_STAIRCASE_DETECTED}`,
+    `PERCEPTUAL_SMOOTHNESS_MET=${proof.visual.PERCEPTUAL_SMOOTHNESS_MET}`,
   ].join("\n");
 }

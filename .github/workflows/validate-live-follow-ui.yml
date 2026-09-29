@@ -9,6 +9,8 @@ on:
       - "tests/ui/**"
       - "src/app/chat/**"
       - "src/lib/chatLiveFollow.ts"
+      - "src/lib/chatLiveFollowReadingProgress.ts"
+      - "src/lib/liveReadingFollow.ts"
       - "src/lib/chatBillingPresentation.ts"
       - "src/lib/integerScrollTransport.ts"
       - "src/lib/emotionTag.ts"
