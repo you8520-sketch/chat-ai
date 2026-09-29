@@ -49,6 +49,8 @@ jobs:
       REGULAR_TEST_REAL_PROVIDER_CALLS: "1"
       RP_ACTIVE_MODEL_QUALITY_LIVE: "1"
       CHEAPER_INFERENCE_BENCHMARK_API_KEY: ${{ secrets.CHEAPER_INFERENCE_BENCHMARK_API_KEY }}
+      OPENROUTER_SUPPLY_BENCHMARK_API_KEY: ${{ secrets.OPENROUTER_SUPPLY_BENCHMARK_API_KEY }}
+      OPENROUTER_API_KEY: ""
       RP_ACTIVE_MODEL_QUALITY_OUTPUT_DIR: artifacts/rp-active-model-quality
     steps:
       - uses: actions/checkout@v5
@@ -74,6 +76,10 @@ jobs:
         run: |
           if [[ -z "$CHEAPER_INFERENCE_BENCHMARK_API_KEY" ]]; then
             echo "::error::CHEAPER_INFERENCE_BENCHMARK_API_KEY repository secret is required."
+            exit 2
+          fi
+          if [[ -z "$OPENROUTER_SUPPLY_BENCHMARK_API_KEY" ]]; then
+            echo "::error::OPENROUTER_SUPPLY_BENCHMARK_API_KEY repository secret is required."
             exit 2
           fi
 
