@@ -6,6 +6,11 @@
  */
 import { runLabArm, type LabArmResult } from "@/lib/memoryResearch/benchmarkLab";
 import {
+  evaluateBaselineQualityTrend,
+  type BaselineHistorySnapshot,
+  type BaselineTrendReport,
+} from "@/lib/memoryResearch/baselineTrend";
+import {
   assessBenchmarkHarnessFeasibilityBatch,
   type HarnessFeasibilityEvidence,
 } from "@/lib/memoryResearch/benchmarkHarnessFeasibility";
@@ -87,6 +92,7 @@ export type CycleReport = {
   finishedAt: string;
   mainSha: string;
   architectureFingerprint: string;
+  benchmarkDefinitionFingerprint: string;
   sources: Array<{ sourceId: string; observations: number; errors: string[]; failed: boolean }>;
   counts: {
     sourcesChecked: number;
@@ -103,7 +109,8 @@ export type CycleReport = {
   };
   skipped: Array<{ candidateKey: string; reason: SkipReason | "duplicate_in_cycle" }>;
   decisions: CycleDecisionRecord[];
-  baseline: { status: LabArmResult["status"]; metricsLine: string | null; error: string | null };
+  baseline: { status: LabArmResult["status"]; metricsLine: string | null; error: string | null; summary: LabRunSummary | null };
+  baselineTrend: BaselineTrendReport | null;
   benchmarks: CycleBenchmarkRecord[];
   providerCalls: { paidProviderCalls: number; paidProviderCallBudget: number; httpCalls: number; httpBudget: number };
   estimatedCostUsd: number;
@@ -122,6 +129,8 @@ export type CycleDeps = {
   now: Date;
   mainSha: string;
   architectureFingerprint: string;
+  benchmarkDefinitionFingerprint?: string;
+  baselineHistory?: readonly BaselineHistorySnapshot[];
   sources: readonly SourceAdapter[];
   sourceContext: SourceContext;
   adapters: readonly ExperimentAdapter[];
@@ -153,6 +162,7 @@ export async function runResearchCycle(
     finishedAt: startedAt,
     mainSha: deps.mainSha,
     architectureFingerprint: deps.architectureFingerprint,
+    benchmarkDefinitionFingerprint: deps.benchmarkDefinitionFingerprint ?? "unknown",
     sources: [],
     counts: {
       sourcesChecked: 0,
@@ -169,7 +179,8 @@ export async function runResearchCycle(
     },
     skipped: [],
     decisions: [],
-    baseline: { status: "FAILED", metricsLine: null, error: "not run" },
+    baseline: { status: "FAILED", metricsLine: null, error: "not run", summary: null },
+    baselineTrend: null,
     benchmarks: [],
     providerCalls: {
       paidProviderCalls: 0,
@@ -224,9 +235,16 @@ export async function runResearchCycle(
       status: "RAN",
       metricsLine: deps.formatMetricsLine ? deps.formatMetricsLine(baseline) : null,
       error: null,
+      summary: baseline,
     };
+    report.baselineTrend = evaluateBaselineQualityTrend({
+      current: baseline,
+      benchmarkDefinitionFingerprint: report.benchmarkDefinitionFingerprint,
+      history: deps.baselineHistory ?? [],
+    });
   } else {
-    report.baseline = { status: "FAILED", metricsLine: null, error: baselineArm.error };
+    report.baseline = { status: "FAILED", metricsLine: null, error: baselineArm.error, summary: null };
+    report.baselineTrend = null;
   }
 
   const candidates = { ...ledger.candidates };
