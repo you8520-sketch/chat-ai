@@ -90,8 +90,16 @@ describe("RP Memory Benchmark Adoption Radar", () => {
       "DYNAMIC_STATE_TRACKING",
       "PREMISE_AWARENESS",
     ]);
-    assert.match(forgetting.gap ?? "", /derived-tier forgetting-residue/i);
-    assert.match(forgetting.nextAction, /full-pipeline deletion-residue/i);
+    assert.match(
+      forgetting.coverage,
+      /canonical last-turn deletion including summary-seal episodic provenance rollback/i
+    );
+    assert.match(
+      forgetting.gap ?? "",
+      /no additional concrete local destructive path/i
+    );
+    assert.match(forgetting.nextAction, /Keep the benchmark on watch/i);
+    assert.match(forgetting.nextAction, /without full derived-tier invalidation proof/i);
   });
 
   it("does not create duplicate case families for abilities already represented locally", () => {
