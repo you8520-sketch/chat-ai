@@ -59,7 +59,7 @@ const endpointsPayload={
           input_cache_read:"0.0000000042"
         },
         supports_implicit_caching:true,
-        latency_last_30m:{p50:1.55},
+        latency_last_30m:{p50:1550},
         throughput_last_30m:{p50:62},
         uptime_last_1d:99.85,
         uptime_last_30m:100,
