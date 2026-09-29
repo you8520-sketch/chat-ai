@@ -5,6 +5,7 @@ on:
     paths:
       - "src/lib/chatModels.ts"
       - "src/lib/openRouterConfig.ts"
+      - "config/main-rp-openrouter-routes.json"
       - "src/lib/openRouterClient.ts"
       - "src/lib/openRouterAdult.ts"
       - "src/app/api/chat/route.ts"
@@ -48,6 +49,7 @@ jobs:
           node --conditions=react-server --import tsx --test --test-concurrency=1
           src/lib/chatModels.gemini.test.ts
           src/lib/mainRpModelRegistry.test.ts
+          src/lib/openRouterConfig.test.ts
           src/lib/openRouterClient.test.ts
       - name: Published pricing routing compatibility
         run: >-
@@ -64,5 +66,6 @@ jobs:
           scripts/lib/mainRpDirectSupplierRadar.test.ts
           scripts/lib/mainRpSupplyPromotionHistory.test.ts
           scripts/lib/mainRpSupplyPromotionProposal.test.ts
+          scripts/lib/mainRpSupplyAutoDraftPr.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
           scripts/lib/mainRpSupplyCiBaseline.test.ts
