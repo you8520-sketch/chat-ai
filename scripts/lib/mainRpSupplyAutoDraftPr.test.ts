@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import type { MainRpSupplyRadarReport } from "./mainRpSupplyRadar";
@@ -266,5 +267,16 @@ describe("Main RP supplier auto Draft PR planner", () => {
     });
     assert.ok(text.indexOf('"a/model"') < text.indexOf('"z/model"'));
     assert.ok(text.endsWith("\n"));
+  });
+
+  it("runner has no merge API and scopes write automation to Draft PR creation", () => {
+    const source = readFileSync(
+      new URL("../main-rp-supply-auto-draft-pr.ts", import.meta.url),
+      "utf8"
+    );
+    assert.doesNotMatch(source, /\/merge(?:s|\b)|merge_pull|automaticMerge\s*=\s*true/i);
+    assert.match(source, /draft:\s*true/);
+    assert.match(source, /STOP_REPOSITORY_PR_CREATION_SETTING/);
+    assert.match(source, /deleteAutomationBranch/);
   });
 });
