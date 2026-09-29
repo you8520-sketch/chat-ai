@@ -180,6 +180,37 @@ test("price comparison is relative to the actual current-procurement baseline",(
   assert.equal("score" in comparison,false);
 });
 
+test("route-derived endpoint fixture resolves as current OpenRouter procurement for every active OpenRouter model",()=>{
+  for (const option of MAIN_RP_USER_SELECTABLE_OPTIONS) {
+    if (option.provider !== "openrouter") continue;
+    const endpoint = routedEndpoint(option.id);
+    const route = resolveMainRpOpenRouterRoutePolicy(option.id);
+    assert.ok(route);
+    assert.equal(endpoint.provider?.slug, route.provider.only[0]);
+    if (route.serviceTier === "flex") {
+      assert.match(
+        `${endpoint.providerName} ${endpoint.providerTag ?? ""}`.toLowerCase(),
+        /flex/
+      );
+    }
+    const report = buildMainRpSupplyRadarReport({
+      endpointsByModel: { [option.id]: [endpoint] },
+      ciCatalogByModel: null,
+    });
+    const row = report.models.find((item)=>item.modelId===option.id)!;
+    assert.ok(
+      row.currentProcurement,
+      JSON.stringify({
+        modelId: option.id,
+        route,
+        endpointProvider: endpoint.provider,
+        endpointProviderName: endpoint.providerName,
+        endpointProviderTag: endpoint.providerTag,
+      })
+    );
+  }
+});
+
 test("report follows mixed current providers and stays OBSERVE_ONLY",()=>{
   const endpointsByModel: Record<string, SupplyEndpointEvidence[]> = {};
   const ci: Record<string,CatalogPricingEvidence> = {};
