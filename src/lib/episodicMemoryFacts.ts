@@ -91,6 +91,8 @@ export type EpisodicMemoryFactRecord = EpisodicExtractedFact & {
   metadata: string;
 };
 
+export type EpisodicDynamicBudgetPolicy = "baseline" | "reserved_floor" | "shared_allocator";
+
 export type GetEpisodicMemoryForPromptInput = {
   chatId: number;
   characterId?: number | null;
@@ -107,6 +109,11 @@ export type GetEpisodicMemoryForPromptInput = {
   maxChars?: number;
   minAgeTurns?: number;
   dynamicMemoryTotalMaxChars?: number;
+  /**
+   * Packing-arm override for deterministic A/B/C comparison.
+   * Production omits this and uses reserved_floor.
+   */
+  dynamicBudgetPolicy?: EpisodicDynamicBudgetPolicy;
   /**
    * Optional semantic query from the canonical semantic runtime. Absent/null
    * keeps exact lexical Retrieval V2 (no semantic lane, no semantic evidence).
@@ -144,6 +151,15 @@ const EPISODIC_MEMORY_STATE_RECONCILE_PER_KEY_LIMIT = 1;
 /** RAW4 keeps N-3..N; recall starts at N-4 (= minAgeTurns 5 when currentTurn=N+1). */
 const EPISODIC_MEMORY_DEFAULT_MIN_AGE_TURNS = 5;
 const DYNAMIC_MEMORY_TOTAL_MAX_CHARS = 2500;
+/**
+ * Fact-text floor reserved only when a relevance-pass candidate exists.
+ * Does not raise DYNAMIC_MEMORY_TOTAL_MAX_CHARS or EPISODIC_MEMORY_PROMPT_MAX_CHARS.
+ * Shared-allocator (C) uses the same floor but reports a higher-priority cap so
+ * total Global+Relationship+lorebook+episodic stays ≤ the 2500 envelope.
+ */
+export const EPISODIC_DYNAMIC_RESERVED_FLOOR_CHARS = 320;
+export const DEFAULT_EPISODIC_DYNAMIC_BUDGET_POLICY: EpisodicDynamicBudgetPolicy =
+  "reserved_floor";
 const IMPORTANCE_RANK: Record<EpisodicFactImportance, number> = {
   critical: 3,
   important: 2,
@@ -1405,6 +1421,83 @@ function higherPriorityDynamicTextLength(input: GetEpisodicMemoryForPromptInput)
   ].reduce((sum, text) => sum + (text?.length ?? 0), 0);
 }
 
+export type EpisodicDynamicCharBudget = {
+  policy: EpisodicDynamicBudgetPolicy;
+  leftoverChars: number;
+  effectiveMaxChars: number;
+  reservedFloorApplied: boolean;
+  /**
+   * Implied cap for Global+archive + Relationship + lorebook so the four
+   * leftover layers stay inside DYNAMIC_MEMORY_TOTAL_MAX_CHARS.
+   * reserved_floor leaves this at the total (does not truncate those layers).
+   * shared_allocator shrinks it by the episodic allocation.
+   */
+  higherPriorityCapChars: number;
+};
+
+function resolveReservedFloorChars(maxChars: number, requested?: number): number {
+  const raw = requested ?? EPISODIC_DYNAMIC_RESERVED_FLOOR_CHARS;
+  return Math.max(100, Math.min(maxChars, Math.trunc(raw)));
+}
+
+/**
+ * Single leftover-budget owner for episodic fact-text selection.
+ * Medium-term and RAW history are outside this envelope.
+ */
+export function allocateEpisodicDynamicCharBudget(input: {
+  maxChars: number;
+  dynamicMemoryTotalMaxChars: number;
+  higherPriorityDynamicChars: number;
+  hasRelevancePassCandidates: boolean;
+  policy?: EpisodicDynamicBudgetPolicy;
+  reservedFloorChars?: number;
+}): EpisodicDynamicCharBudget {
+  const policy = input.policy ?? DEFAULT_EPISODIC_DYNAMIC_BUDGET_POLICY;
+  const leftoverChars = Math.max(
+    0,
+    input.dynamicMemoryTotalMaxChars - input.higherPriorityDynamicChars
+  );
+  const floor = input.hasRelevancePassCandidates
+    ? resolveReservedFloorChars(input.maxChars, input.reservedFloorChars)
+    : 0;
+
+  switch (policy) {
+    case "baseline": {
+      return {
+        policy,
+        leftoverChars,
+        effectiveMaxChars: Math.min(input.maxChars, leftoverChars),
+        reservedFloorApplied: false,
+        higherPriorityCapChars: input.dynamicMemoryTotalMaxChars,
+      };
+    }
+    case "reserved_floor": {
+      const effectiveMaxChars = Math.min(input.maxChars, Math.max(leftoverChars, floor));
+      return {
+        policy,
+        leftoverChars,
+        effectiveMaxChars,
+        reservedFloorApplied: floor > leftoverChars,
+        higherPriorityCapChars: input.dynamicMemoryTotalMaxChars,
+      };
+    }
+    case "shared_allocator": {
+      const effectiveMaxChars = Math.min(input.maxChars, Math.max(leftoverChars, floor));
+      return {
+        policy,
+        leftoverChars,
+        effectiveMaxChars,
+        reservedFloorApplied: floor > leftoverChars,
+        higherPriorityCapChars: Math.max(0, input.dynamicMemoryTotalMaxChars - effectiveMaxChars),
+      };
+    }
+    default: {
+      const _exhaustive: never = policy;
+      return _exhaustive;
+    }
+  }
+}
+
 export type EpisodicCandidateLane =
   | "recent"
   | "relevance"
@@ -2594,8 +2687,14 @@ export function getEpisodicMemoryForPrompt(
     });
 
     const higherPriorityDynamicChars = higherPriorityDynamicTextLength(input);
-    const dynamicAvailableChars = dynamicMemoryTotalMaxChars - higherPriorityDynamicChars;
-    const effectiveMaxChars = Math.min(maxChars, Math.max(0, dynamicAvailableChars));
+    const dynamicBudget = allocateEpisodicDynamicCharBudget({
+      maxChars,
+      dynamicMemoryTotalMaxChars,
+      higherPriorityDynamicChars,
+      hasRelevancePassCandidates: rankedAll.length > 0,
+      policy: input.dynamicBudgetPolicy,
+    });
+    const effectiveMaxChars = dynamicBudget.effectiveMaxChars;
     const selected: EpisodicMemoryFactRecord[] = [];
     let usedChars = 0;
     for (const fact of rankedAll) {
@@ -2704,6 +2803,7 @@ export function inspectEpisodicMemoryFactsForDebug(
     maxFacts?: number;
     maxChars?: number;
     dynamicMemoryTotalMaxChars?: number;
+    dynamicBudgetPolicy?: EpisodicDynamicBudgetPolicy;
   },
   env = process.env
 ): EpisodicMemoryDebugFact[] {
@@ -2792,7 +2892,13 @@ export function inspectEpisodicMemoryFactsForDebug(
     relationshipMemoryText: opts.relationshipMemoryText,
     lorebookText: opts.lorebookText,
   });
-  const effectiveMaxChars = Math.min(maxChars, Math.max(0, dynamicMemoryTotalMaxChars - higherPriorityDynamicChars));
+  const effectiveMaxChars = allocateEpisodicDynamicCharBudget({
+    maxChars,
+    dynamicMemoryTotalMaxChars,
+    higherPriorityDynamicChars,
+    hasRelevancePassCandidates: eligible.length > 0,
+    policy: opts.dynamicBudgetPolicy,
+  }).effectiveMaxChars;
   const selectedIds = new Set<number>();
   let usedChars = 0;
   for (const fact of eligible) {

@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/validate-memory-episodic.yml"
       - "src/lib/episodicMemoryFacts.ts"
+      - "src/lib/episodicMemoryPackingBudget.test.ts"
       - "src/lib/historicalTruthPolicy.ts"
       - "src/lib/historicalTruthPolicy.test.ts"
       - "src/lib/memory/memory-summary-integrity.ts"
@@ -128,6 +129,9 @@ jobs:
 
       - name: Episodic Retrieval V2 regression
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-retrieval-v2.test.ts
+
+      - name: Episodic packing budget starvation
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/episodicMemoryPackingBudget.test.ts
 
       - name: Episodic hardening regression (E1–E14 / R1)
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-hardening.test.ts
