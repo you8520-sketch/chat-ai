@@ -32,6 +32,10 @@ import { renderCycleReportMarkdown } from "@/lib/memoryResearch/report";
 import { defaultSources, type SourceFetch } from "@/lib/memoryResearch/sources";
 import { runPendingLiveExperiments } from "@/lib/memoryResearch/liveExperimentRunner";
 import { openImplementationDraftPrs } from "@/lib/memoryResearch/implementationPr";
+import {
+  buildMemoryPromptPackingAudit,
+  renderMemoryPromptPackingAuditMarkdown,
+} from "@/lib/memoryResearch/promptPackingAudit";
 import { runEpisodicEmbeddingLiveBenchmark } from "./lib/episodicEmbeddingLiveBenchmark";
 
 function arg(name: string): string | null {
@@ -52,6 +56,22 @@ function writeOutput(key: string, value: string): void {
 function writeFileEnsuringDir(path: string, contents: string): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, contents);
+}
+
+function promptPackingSentinel(): void {
+  const outDir = required("out");
+  mkdirSync(outDir, { recursive: true });
+  const audit = buildMemoryPromptPackingAudit();
+  const markdown = renderMemoryPromptPackingAuditMarkdown(audit);
+  writeFileSync(join(outDir, "report.json"), `${JSON.stringify(audit, null, 2)}\n`);
+  writeFileSync(join(outDir, "REPORT.md"), markdown);
+  console.log(markdown);
+  const failed = audit.invariants.filter((invariant) => !invariant.ok);
+  if (failed.length > 0) {
+    throw new Error(
+      `memory prompt-packing invariant drift: ${failed.map((invariant) => invariant.id).join(", ")}`
+    );
+  }
 }
 
 async function run(): Promise<void> {
@@ -226,6 +246,8 @@ if (command === "run") {
     console.error(error);
     process.exit(1);
   });
+} else if (command === "prompt-packing-sentinel") {
+  promptPackingSentinel();
 } else if (command === "live-experiments") {
   liveExperiments().catch((error) => {
     console.error(error);
@@ -240,6 +262,6 @@ if (command === "run") {
 } else if (command === "apply-draft-results") {
   applyResults();
 } else {
-  console.error("usage: memory-research-cycle.ts run|live-experiments|implementation-prs|draft-prs|apply-draft-results|apply-implementation-results ...");
+  console.error("usage: memory-research-cycle.ts run|prompt-packing-sentinel|live-experiments|implementation-prs|draft-prs|apply-draft-results|apply-implementation-results ...");
   process.exit(2);
 }
