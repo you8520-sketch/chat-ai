@@ -1,0 +1,9 @@
+[CURRENT USER INPUT]
+The following is the user's completed input and the newest state of the scene.
+Continue from what it changes now rather than restating or explaining the input.
+[B]'s new dialogue, consequential choices, consent/refusal, and decisions that change relationship, goal, affiliation, or identity remain user-authored.
+Minor reversible expression, gaze, involuntary reaction, natural completion of an already-started action, and small movement/contact/object-handling/daily continuity may be co-narrated when consistent with [USER CONTROL — COLLABORATIVE INTERACTIVE].
+[유저 대사]
+같이 갈래?
+[유저 지문/행동 — 캐릭터가 관찰 가능]
+두리번
