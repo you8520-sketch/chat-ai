@@ -6,9 +6,13 @@
  *   Uses the workflow's read-only GITHUB_TOKEN.
  * - arXiv export API (Atom) for a few fixed memory queries, 3 s apart per
  *   arXiv API etiquette.
- * Both are rate-bounded by a shared per-cycle HTTP budget. No LLM/provider
+ * - A tiny allowlist of official companion-product docs (Nomi, Kindroid,
+ *   Character.AI). Only memory-relevant text is fingerprinted, so unrelated
+ *   marketing/page edits do not create research churn.
+ * All are rate-bounded by a shared per-cycle HTTP budget. No LLM/provider
  * calls: summaries come from source metadata, classification is keyword-based.
  */
+import { createHash } from "node:crypto";
 import type {
   CandidateCategory,
   CandidateRiskFlag,
@@ -423,6 +427,176 @@ export function githubDiscoverySource(
   };
 }
 
+export type OfficialCompanionDocTarget = {
+  product: "nomi" | "kindroid" | "character_ai";
+  title: string;
+  urls: readonly string[];
+  claimedAdvantage: string;
+};
+
+/**
+ * Official/public documentation only. These are architecture/product claims,
+ * not benchmark evidence and never bypass the normal research gates.
+ */
+export const OFFICIAL_COMPANION_DOC_TARGETS: readonly OfficialCompanionDocTarget[] = [
+  {
+    product: "nomi",
+    title: "Nomi",
+    urls: [
+      "https://nomi.ai/updates/",
+      "https://nomi.ai/updates/mind-map-2-0-bringing-nomi-memory-into-view/",
+    ],
+    claimedAdvantage:
+      "layered short/medium/long-term memory with Identity Core and Mind Map high-level context",
+  },
+  {
+    product: "kindroid",
+    title: "Kindroid",
+    urls: [
+      "https://kindroid.ai/docs/article/llm-guides/",
+      "https://kindroid.ai/v2/docs/api-documentation/",
+    ],
+    claimedAdvantage:
+      "large cascaded summarized history with bounded long-term/journal recall and separate core setup",
+  },
+  {
+    product: "character_ai",
+    title: "Character.AI",
+    urls: [
+      "https://support.character.ai/hc/en-us/articles/24327914463003-Pinned-Memories",
+      "https://support.character.ai/hc/en-us/articles/50609303987099-6-Refining-and-Testing-your-Character",
+    ],
+    claimedAdvantage:
+      "user-controlled pinned/fixed chat memory alongside automatic memory features",
+  },
+] as const;
+
+export const OFFICIAL_COMPANION_DOC_URL_COUNT = OFFICIAL_COMPANION_DOC_TARGETS.reduce(
+  (sum, target) => sum + target.urls.length,
+  0
+);
+
+const MEMORY_EVIDENCE_PATTERN =
+  /\b(memory|memories|remember|context|journal|cascad(?:ed|ing)?|recall(?:ed|ing)?|long[- ]term|short[- ]term|medium[- ]term|mind map|identity core|pinned|auto[- ]memor|backstory|scene anchor|consolidat(?:e|ed|ion)|lorebook)\b/i;
+
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_, raw: string) => String.fromCodePoint(Number(raw)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, raw: string) => String.fromCodePoint(parseInt(raw, 16)));
+}
+
+function htmlToEvidenceLines(html: string): string[] {
+  const withBreaks = html
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<\/(?:p|li|h[1-6]|div|section|article|tr|td|th)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, " ");
+  return decodeHtmlEntities(withBreaks)
+    .split(/\n+/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+/**
+ * Stable evidence extractor for official product docs.
+ * Only memory-relevant lines participate in the fingerprint, so unrelated
+ * pricing/image/navigation edits do not create a fake "new memory version".
+ */
+export function extractOfficialCompanionMemoryEvidence(html: string): string {
+  const seen = new Set<string>();
+  const lines: string[] = [];
+  for (const line of htmlToEvidenceLines(html)) {
+    if (!MEMORY_EVIDENCE_PATTERN.test(line)) continue;
+    const bounded = line.slice(0, 500);
+    if (seen.has(bounded)) continue;
+    seen.add(bounded);
+    lines.push(bounded);
+    if (lines.length >= 60) break;
+  }
+  return lines.join("\n");
+}
+
+function companionDocVersion(product: OfficialCompanionDocTarget["product"], evidence: string): string {
+  return `docs-${createHash("sha256").update(product).update("\0").update(evidence).digest("hex").slice(0, 16)}`;
+}
+
+export function officialCompanionDocsSource(
+  targets: readonly OfficialCompanionDocTarget[] = OFFICIAL_COMPANION_DOC_TARGETS
+): SourceAdapter {
+  return {
+    id: "official_companion_memory_docs",
+    kind: "official_companion_docs",
+    async collect(ctx) {
+      const observations: ResearchObservation[] = [];
+      const errors: string[] = [];
+
+      for (const target of targets) {
+        const evidenceParts: string[] = [];
+        for (const url of target.urls) {
+          try {
+            const res = await budgetedFetch(ctx, url, {
+              Accept: "text/html,application/xhtml+xml",
+              "User-Agent": "memory-research-cycle",
+            });
+            if (!res.ok) {
+              errors.push(`${target.product}: ${url} HTTP ${res.status}`);
+              continue;
+            }
+            const evidence = extractOfficialCompanionMemoryEvidence(await res.text());
+            if (!evidence) {
+              errors.push(`${target.product}: no memory evidence at ${url}`);
+              continue;
+            }
+            evidenceParts.push(`${url}\n${evidence}`);
+          } catch (error) {
+            errors.push(
+              `${target.product}: ${error instanceof Error ? error.message : String(error)}`.slice(0, 300)
+            );
+            if (error instanceof HttpBudgetExhaustedError) break;
+          }
+        }
+
+        if (evidenceParts.length === 0) continue;
+        const evidence = evidenceParts.join("\n---\n");
+        observations.push({
+          candidateKey: `official:${target.product}:memory-docs`,
+          sourceKind: "official_companion_docs",
+          sourceUrl: target.urls[0]!,
+          title: `${target.title} official memory architecture/docs`,
+          version: companionDocVersion(target.product, evidence),
+          publishedAt: null,
+          summary: evidence.replace(/\s+/g, " ").slice(0, 600),
+          claimedAdvantage: target.claimedAdvantage,
+          category: "companion_roleplay_memory",
+          evidence: {
+            hasReproducibleCode: false,
+            hasPublishedBenchmark: false,
+            archived: false,
+            lastActivityAt: null,
+          },
+          infraRequirements: ["none"],
+          privacyImplications: ["none"],
+          migrationRequirement: "none",
+          riskFlags: [],
+        });
+
+        if (ctx.budget.used >= ctx.budget.limit) break;
+      }
+
+      return { sourceId: "official_companion_memory_docs", observations, errors };
+    },
+  };
+}
+
 export const ARXIV_QUERIES: readonly string[] = [
   'all:"long-term memory" AND all:conversational',
   'all:"agent memory" AND (all:temporal OR all:graph)',
@@ -554,5 +728,5 @@ export function arxivSource(queries: readonly string[] = ARXIV_QUERIES, maxResul
 }
 
 export function defaultSources(): SourceAdapter[] {
-  return [githubWatchlistSource(), githubDiscoverySource(), arxivSource()];
+  return [githubWatchlistSource(), githubDiscoverySource(), officialCompanionDocsSource(), arxivSource()];
 }
