@@ -42,6 +42,7 @@ jobs:
           scripts/lib/mainRpSupplyRadar.test.ts
           scripts/lib/mainRpDirectSupplierRadar.test.ts
           scripts/lib/mainRpSupplyPromotionHistory.test.ts
+          scripts/lib/mainRpSupplyPromotionProposal.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
           scripts/lib/mainRpSupplyCiBaseline.test.ts
       - name: Read-only external supply scan
@@ -67,6 +68,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node --conditions=react-server --import tsx scripts/main-rp-supply-promotion-history.ts
+      - name: Supply promotion proposal packet
+        if: always()
+        run: node --conditions=react-server --import tsx scripts/main-rp-supply-promotion-proposal.ts
       - name: Job summary
         if: always()
         shell: bash
@@ -89,6 +93,10 @@ jobs:
           if [ -f artifacts/main-rp-supply-radar/PROMOTION-HISTORY.md ]; then
             printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
             cat artifacts/main-rp-supply-radar/PROMOTION-HISTORY.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f artifacts/main-rp-supply-radar/PROMOTION-PROPOSALS.md ]; then
+            printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
+            cat artifacts/main-rp-supply-radar/PROMOTION-PROPOSALS.md >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload supply evidence
         if: always()
