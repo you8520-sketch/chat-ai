@@ -19,7 +19,6 @@ import {
 import {
   auditActualSafetyGates,
   buildFullPromptBudgetMatrix,
-  buildN10VsN15Evidence,
 } from "@/lib/memory/memory-medium-term-prompt-budget-audit";
 
 export type MemoryPromptPackingModelSnapshot = {
@@ -75,7 +74,6 @@ export function buildMemoryPromptPackingAudit(
 
   const models = MAIN_RP_MODEL_IDS.map((modelId) => {
     const matrix = buildFullPromptBudgetMatrix(currentTurnFixture, modelId, "near-real");
-    const evidence = buildN10VsN15Evidence(modelId, currentTurnFixture, "near-real");
     const safety = auditActualSafetyGates(matrix);
     return {
       modelId,
@@ -83,7 +81,8 @@ export function buildMemoryPromptPackingAudit(
       n15InputTokens: matrix.n15.estimatedInputTokens,
       n15DeltaInputTokens: matrix.n15.deltaInputTokensVsBaseline,
       n15MediumTokens: matrix.n15.mediumTokens,
-      n15MinusN10InputTokens: evidence.n15MinusN10InputTokens,
+      n15MinusN10InputTokens:
+        matrix.n15.deltaInputTokensVsBaseline - matrix.n10.deltaInputTokensVsBaseline,
       n15TruncatedMemory: matrix.n15.truncatedMemory,
       n15CriticalSectionOmitted: matrix.n15.criticalSectionOmitted,
       n15CriticalSectionTrimmed: matrix.n15.criticalSectionTrimmed,
