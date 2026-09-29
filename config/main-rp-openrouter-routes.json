@@ -4,8 +4,8 @@
     "serviceTier": "flex"
   },
   "google/gemini-3.7-flash": {
-    "providerSlug": "google-ai-studio",
-    "serviceTier": "flex"
+    "providerSlug": "fixture-promoted-provider",
+    "serviceTier": null
   },
   "google/gemini-3.8-flash": {
     "providerSlug": "google-ai-studio",
