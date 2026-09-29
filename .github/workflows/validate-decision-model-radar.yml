@@ -1,0 +1,49 @@
+name: Validate decision model radar
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/decision-model-radar-weekly.yml"
+      - ".github/workflows/validate-decision-model-radar.yml"
+      - "scripts/decision-model-radar.ts"
+      - "scripts/lib/decisionModelComparison.ts"
+      - "src/lib/decisionModelRadar.ts"
+      - "src/lib/decisionModelRadar.test.ts"
+      - "src/lib/decisionModelRadarReports.ts"
+      - "src/lib/decisionModelRadarReports.test.ts"
+      - "src/lib/decisionModelRadarIsolation.test.ts"
+      - "src/app/admin/automation-reports/page.tsx"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      DECISION_MODEL_RADAR_LIVE: "0"
+      OPENROUTER_API_KEY: ""
+      OPENROUTER_JEV_BENCHMARK_API_KEY: ""
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: git diff --check
+      - run: npm run lint
+      - run: npm run typecheck:app
+      - name: Decision radar deterministic regressions
+        run: >-
+          node --conditions=react-server --import tsx --test --test-concurrency=1
+          src/lib/decisionModelRadar.test.ts
+          src/lib/decisionModelRadarReports.test.ts
+          src/lib/decisionModelRadarIsolation.test.ts
+      - name: Production build
+        env:
+          SESSION_SECRET: decision-radar-ci-session-secret
+        run: npm run build
