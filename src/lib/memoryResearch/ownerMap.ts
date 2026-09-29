@@ -110,6 +110,7 @@ export const AUTOMATION_OWNER_MAP: Readonly<Record<string, string>> = {
   runtime_cron_jobs: "src/cron/{finance,payout,training}Scheduler.ts",
   training_analysis: "src/lib/training/* (production RP quality analysis/export)",
   memory_research_cycle: ".github/workflows/memory-research-cycle.yml → scripts/memory-research-cycle.ts → src/lib/memoryResearch/cycle.ts",
+  memory_prompt_packing_sentinel: "src/lib/memoryResearch/promptPackingSentinel.ts (read-only evidence appended to the existing research cycle report)",
   memory_research_ledger: "orphan branch `memory-research-ledger` (ledger.json + cycles/*.json)",
   memory_research_draft_pr: "src/lib/memoryResearch/draftPr.ts (ACCEPTED-only, `gh pr create --draft`)",
   provider_cost_accounting: "src/lib/providerCostLedger.ts (production spend; research cycle makes 0 paid calls)",
