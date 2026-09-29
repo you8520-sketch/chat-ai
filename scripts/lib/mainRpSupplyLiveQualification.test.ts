@@ -399,6 +399,7 @@ describe("Main RP supply live candidate selection", () => {
     );
   });
 
+  // Real run 36536506840: Relace timed out, then Wafer completed both turns.
   it("retains up to three healthy cheaper alternatives for one model in price order", () => {
     const report = isolateCheaperAlternate(radarReport(), "deepseek-v4.1-flash");
     const model = report.models.find(
