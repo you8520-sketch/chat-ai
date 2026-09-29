@@ -56,10 +56,12 @@ describe("Companion Memory Experiment Bridge", () => {
       "semantic_retrieval",
       "embedding_index",
       "prompt_packing",
-      "reranking_scoring",
-      "global_current_memory",
+      "episodic_selection",
     ]);
     assert.equal(isBenchmarkOwnerHooked("prompt_packing"), true);
+    assert.equal(isBenchmarkOwnerHooked("episodic_selection"), true);
+    assert.equal(isBenchmarkOwnerHooked("reranking_scoring"), false);
+    assert.equal(isBenchmarkOwnerHooked("global_current_memory"), false);
     assert.equal(isBenchmarkOwnerHooked("relationship_durable"), false);
     assert.equal(isBenchmarkOwnerHooked("episodic_facts"), false);
   });
@@ -79,12 +81,12 @@ describe("Companion Memory Experiment Bridge", () => {
       "global_current_memory",
       "relationship_durable",
     ]);
-    assert.equal(identity.benchmarkHookReady, true);
+    assert.equal(identity.benchmarkHookReady, false);
     assert.match(identity.nextAction, /existing Global\/Relationship owners/);
 
     const mindMap = byTechnique(proposals, "mind_map");
     assert.equal(mindMap.classification, "OWNER_CONFLICT");
-    assert.equal(mindMap.benchmarkHookReady, true);
+    assert.equal(mindMap.benchmarkHookReady, false);
     assert.match(mindMap.nextAction, /Do not add a graph DB or second writable memory owner/);
   });
 
@@ -110,7 +112,7 @@ describe("Companion Memory Experiment Bridge", () => {
     assert.equal(recall.classification, "BENCHMARK_WORTHY");
     assert.deepEqual(recall.targetOwners, [
       "episodic_facts",
-      "reranking_scoring",
+      "episodic_selection",
       "prompt_packing",
     ]);
     assert.equal(recall.benchmarkHookReady, true);
@@ -128,7 +130,7 @@ describe("Companion Memory Experiment Bridge", () => {
     const pinned = byTechnique(proposals, "pinned_memory");
     assert.equal(pinned.classification, "FOLLOW_UP");
     assert.deepEqual(pinned.targetOwners, ["prompt_packing"]);
-    assert.equal(pinned.benchmarkHookReady, true);
+    assert.equal(pinned.benchmarkHookReady, false);
     assert.match(pinned.nextAction, /user-authored lore\/persona owner/);
   });
 
