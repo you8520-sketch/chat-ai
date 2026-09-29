@@ -1,3 +1,4 @@
+import mainRpOpenRouterRoutesJson from "@/lib/mainRpOpenRouterRoutes.json";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
@@ -79,20 +80,28 @@ describe("Gemini Main RP routing", () => {
     );
   });
 
-  it("pins all active Gemini routes to Google AI Studio Flex with no provider fallback", () => {
+  it("resolves every active Gemini route from the canonical sub-provider registry", () => {
+    const registry = mainRpOpenRouterRoutesJson as Record<
+      string,
+      { providerSlug: string; providerLabel: string; serviceTier: "flex" | null }
+    >;
     for (const modelId of [
       CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
       CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
       GEMINI_38_FLASH_MODEL,
     ]) {
+      const route = registry[modelId];
+      assert.ok(route, `missing route registry entry for ${modelId}`);
       assert.deepEqual(resolveMainRpOpenRouterRoutePolicy(modelId), {
         provider: {
-          only: ["google-ai-studio"],
+          only: [route.providerSlug],
           allow_fallbacks: false,
           require_parameters: true,
         },
-        serviceTier: "flex",
+        ...(route.serviceTier === "flex" ? { serviceTier: "flex" } : {}),
       });
+      const option = USER_SELECTABLE_AI_OPTIONS.find((row) => row.id === modelId);
+      assert.equal(option?.hint, route.providerLabel);
     }
   });
 
