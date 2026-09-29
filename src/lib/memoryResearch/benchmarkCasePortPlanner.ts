@@ -12,7 +12,9 @@ import type {
 
 export type CasePortReadiness =
   | "READY_DETERMINISTIC_FIXTURE"
+  | "READY_DURABLE_LEDGER_FIXTURE"
   | "READY_MUTATION_LIFECYCLE_FIXTURE"
+  | "MIXED_OWNER_PLAN"
   | "HARNESS_EXTENSION_REQUIRED"
   | "NO_PORT_REQUIRED";
 
@@ -28,6 +30,14 @@ export type BenchmarkCasePortPlan = {
   requirements: readonly string[];
   forbidden: readonly string[];
   rationale: string;
+  subplans?: readonly {
+    family: string;
+    readiness: Exclude<CasePortReadiness, "MIXED_OWNER_PLAN">;
+    canonicalOwner: string;
+    targetPaths: readonly string[];
+    proposedCaseIds: readonly string[];
+    rationale: string;
+  }[];
 };
 
 function noPort(
@@ -72,17 +82,21 @@ export function buildBenchmarkCasePortPlan(
         candidateKey: proposal.candidateKey,
         sourceVersion: proposal.sourceVersion,
         ability: proposal.ability,
-        readiness: "READY_DETERMINISTIC_FIXTURE",
+        readiness: "MIXED_OWNER_PLAN",
         canonicalOwner:
-          "src/lib/memory/memory-rp-benchmark-suite.ts + src/lib/memory/memory-rp-benchmark.ts",
+          "trajectory families route to their existing canonical owners; there is no single trajectory memory owner",
         targetPaths: [
           "src/lib/memory/memory-rp-benchmark-suite.ts",
           "src/lib/memory/memory-rp-benchmark.ts",
-          "src/lib/memory/memory-rp-benchmark.test.ts",
+          "src/lib/memory/memory-relationship-meta.ts",
+          "src/lib/chatMemory.ts",
+          "src/lib/memory/memory-relationship-provenance.test.ts",
         ],
         proposedCaseIds: [
-          "active-expired-commitment-01",
-          "persona-update-current-01",
+          "trajectory-user-state-current-01",
+          "trajectory-temporal-order-01",
+          "active-commitment-ledger-01",
+          "expired-commitment-ledger-01",
         ],
         reuseMetrics: [
           "candidateRecallAtK",
@@ -92,20 +106,86 @@ export function buildBenchmarkCasePortPlan(
           "correctionSupersessionAccuracy",
         ],
         requirements: [
-          "Use locally-authored synthetic facts only.",
-          "Active-vs-expired commitment must place both plausible states in history and require only the current state.",
-          "Persona update must distinguish a legitimate current update from the original mutable state without changing immutable role identity.",
-          "Add case IDs to existing raw capability groups; do not create a composite score.",
+          "Decompose external trajectory families by responsibility before implementing any fixture.",
+          "Active/expired commitments must use Relationship Durable promisesAdd/promisesRemove semantics; do not represent them as a second episodic promise owner.",
+          "User-state change and temporal order may use the RP retrieval benchmark only when the fixture is materially different from latest-state-replacement/correction/temporal cases already present.",
+          "Persona voice/protection/update remain behavior/persona-policy questions unless a deterministic local owner can be proven.",
+          "Use locally-authored synthetic facts only and preserve existing raw metric semantics.",
         ],
         forbidden: [
+          "one generic trajectory owner",
           "external benchmark conversations",
           "external answer keys",
           "LLM-as-judge",
           "provider calls",
-          "new memory owner",
+          "duplicate promise owner",
         ],
         rationale:
-          "The missing trajectory subcases can be expressed as canonical state/supersession retrieval with existing deterministic metrics.",
+          "ANCHOR trajectory recall spans seven different responsibilities. Commitment state belongs to the durable relationship ledger, temporal/user-state facts may belong to the retrieval benchmark, and persona voice/protection/update are not all retrieval problems.",
+        subplans: [
+          {
+            family: "active_commitment",
+            readiness: "READY_DURABLE_LEDGER_FIXTURE",
+            canonicalOwner: "Relationship Durable promises",
+            targetPaths: [
+              "src/lib/chatMemory.ts",
+              "src/lib/memory/memory-relationship-meta.ts",
+              "src/lib/memory/memory-relationship-provenance.test.ts",
+            ],
+            proposedCaseIds: ["active-commitment-ledger-01"],
+            rationale:
+              "MemoryPromise/promisesAdd/promisesRemove owns currently active promises; an episodic fixture would create a second promise owner.",
+          },
+          {
+            family: "expired_commitment",
+            readiness: "READY_DURABLE_LEDGER_FIXTURE",
+            canonicalOwner: "Relationship Durable promises",
+            targetPaths: [
+              "src/lib/chatMemory.ts",
+              "src/lib/memory/memory-relationship-meta.ts",
+              "src/lib/memory/memory-relationship-provenance.test.ts",
+            ],
+            proposedCaseIds: ["expired-commitment-ledger-01"],
+            rationale:
+              "MemoryPromise explicitly documents removal on fulfillment/expiry; the fixture should prove removal/current prompt projection, not episodic recall.",
+          },
+          {
+            family: "user_state_change",
+            readiness: "READY_DETERMINISTIC_FIXTURE",
+            canonicalOwner: "RP benchmark latest-state/correction semantics",
+            targetPaths: [
+              "src/lib/memory/memory-rp-benchmark-suite.ts",
+              "src/lib/memory/memory-rp-benchmark.ts",
+            ],
+            proposedCaseIds: ["trajectory-user-state-current-01"],
+            rationale:
+              "Only add this if audit proves a failure mode not already covered by latest-state-replacement or correction-supersession.",
+          },
+          {
+            family: "temporal_order",
+            readiness: "READY_DETERMINISTIC_FIXTURE",
+            canonicalOwner: "RP benchmark TEMPORAL_REASONING",
+            targetPaths: [
+              "src/lib/memory/memory-rp-benchmark-suite.ts",
+              "src/lib/memory/memory-rp-benchmark.ts",
+            ],
+            proposedCaseIds: ["trajectory-temporal-order-01"],
+            rationale:
+              "Only add a pairwise-order case if current temporal fixtures do not already exercise ordering between two plausible events.",
+          },
+          {
+            family: "persona_voice_protection_update",
+            readiness: "HARNESS_EXTENSION_REQUIRED",
+            canonicalOwner: "no single deterministic retrieval owner",
+            targetPaths: [
+              "src/lib/memory/memory-rp-benchmark.ts",
+              "src/lib/memory/memory-rp-benchmark-suite.ts",
+            ],
+            proposedCaseIds: [],
+            rationale:
+              "Voice/protection/update can be generated-behavior or persona-policy questions; do not claim retrieval coverage until a deterministic local assertion exists.",
+          },
+        ],
       };
 
     case "forgetting_fidelity":
@@ -241,6 +321,11 @@ export function renderBenchmarkCasePortPlansMarkdown(
     lines.push(
       `| ${plan.candidateKey} | ${plan.ability} | ${plan.readiness} | ${plan.canonicalOwner.replace(/\|/g, "/")} | ${plan.proposedCaseIds.join(", ") || "-"} |`
     );
+    for (const subplan of plan.subplans ?? []) {
+      lines.push(
+        `| ↳ ${subplan.family} | ${plan.ability} | ${subplan.readiness} | ${subplan.canonicalOwner.replace(/\|/g, "/")} | ${subplan.proposedCaseIds.join(", ") || "-"} |`
+      );
+    }
   }
   lines.push("");
   return lines.join("\n");
