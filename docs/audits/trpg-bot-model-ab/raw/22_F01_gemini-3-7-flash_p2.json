@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F01",
+  "model": "gemini-3.7-flash",
+  "pass": 2,
+  "call_index": 22,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 8055,
+  "output_token_count": 318,
+  "cached_input_tokens": 4077,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 18686,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "카일은 어깨를 으쓱하며 짧게 혀를 찼다. 몸을 비집고 먼저 들어가려는 리더의 앞을 막아서듯, 재빠른 손놀림으로 단검 칼집을 툭 건드렸다.\n\n\"잠깐, 성급하게 굴지 마. 네가 어깨로 밀었다가 천장이라도 내려앉으면 다 같이 깔린다고.\"\n\n말은 툭툭 내뱉었지만, 카일의 시선은 이미 좁아진 틈새와 바닥의 마법진 잔해를 날카롭게 훑고 있었다. 실버크로우의 끄나풀들이 언제 들이닥칠지 모르는 마당에, 이런 조잡한 함정 따위에 발목을 잡힐 수는 없었다. 그는 낮은 자세로 몸을 웅크린 채 틈새 주변의 석재 균열과 인계철선 유무를 살폈다.\n\n\"내가 먼저 볼게. 너는 뒤에서 숨만 쉬어.\"\n\n카일은 조심스럽게 발을 디디며, 무너진 석재 틈새에 숨겨진 물리적 트랩이나 잔류 마력의 흔적이 있는지 확인하기 위해 손끝을 뻗었다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n<<<INTENT>>>\n카일은 유저가 진입하기 전 붕괴된 석실 입구 틈새에 함정이나 붕괴 위험이 있는지 조사하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 494,
+    "outputTokenEstimate": 274,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "카일은 어깨를 으쓱하며 짧게 혀를 찼다. 몸을 비집고 먼저 들어가려는 리더의 앞을 막아서듯, 재빠른 손놀림으로 단검 칼집을 툭 건드렸다.\n\n\"잠깐, 성급하게 굴지 마. 네가 어깨로 밀었다가 천장이라도 내려앉으면 다 같이 깔린다고.\"\n\n말은 툭툭 내뱉었지만, 카일의 시선은 이미 좁아진 틈새와 바닥의 마법진 잔해를 날카롭게 훑고 있었다. 실버크로우의 끄나풀들이 언제 들이닥칠지 모르는 마당에, 이런 조잡한 함정 따위에 발목을 잡힐 수는 없었다. 그는 낮은 자세로 몸을 웅크린 채 틈새 주변의 석재 균열과 인계철선 유무를 살폈다.\n\n\"내가 먼저 볼게. 너는 뒤에서 숨만 쉬어.\"\n\n카일은 조심스럽게 발을 디디며, 무너진 석재 틈새에 숨겨진 물리적 트랩이나 잔류 마력의 흔적이 있는지 확인하기 위해 손끝을 뻗었다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "카일은 유저가 진입하기 전 붕괴된 석실 입구 틈새에 함정이나 붕괴 위험이 있는지 조사하려 했다."
+  }
+}

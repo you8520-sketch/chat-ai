@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F06",
+  "model": "gemini-3.7-flash",
+  "pass": 2,
+  "call_index": 31,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 7932,
+  "output_token_count": 284,
+  "cached_input_tokens": 4077,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 12769,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "석실 안쪽에서 번쩍인 붉은 섬광을 확인한 순간, 유저의 발소리가 앞을 향해 튀어나갔다. 좁아진 통로 바닥에 흩어진 석재 부스러기가 거칠게 짓밟히는 소리가 울렸다.\n\n손등에 감아둔 붕대 틈으로 피가 살짝 배어 나왔지만 통증을 신경 쓸 틈은 없었다. 묵직한 강철 방패를 단단히 고쳐 쥐고, 지체 없이 지면을 박차며 앞장선 그의 뒤를 바짝 쫓았다.\n\n\"내 뒤로.\"\n\n낮게 깔린 목소리와 함께 몸을 비스듬히 기울이며 유저의 측면을 파고들었다. 문틈 사이로 뿜어져 나올지 모를 마력 파편이나 기습을 가로막을 수 있도록, 방패의 각도를 비틀어 전방 상단을 견고하게 덮었다. 언제든 충격을 받아낼 수 있도록 두 다리에 무게를 실었다.\n\n<<<ACTION_TYPE>>>\ndefend\n<<<INTENT>>>\n렌은 돌진하는 유저의 앞을 방패로 가로막아 세우며 문틈에서 날아올 공격에 대비해 전방을 방어하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 444,
+    "outputTokenEstimate": 247,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "석실 안쪽에서 번쩍인 붉은 섬광을 확인한 순간, 유저의 발소리가 앞을 향해 튀어나갔다. 좁아진 통로 바닥에 흩어진 석재 부스러기가 거칠게 짓밟히는 소리가 울렸다.\n\n손등에 감아둔 붕대 틈으로 피가 살짝 배어 나왔지만 통증을 신경 쓸 틈은 없었다. 묵직한 강철 방패를 단단히 고쳐 쥐고, 지체 없이 지면을 박차며 앞장선 그의 뒤를 바짝 쫓았다.\n\n\"내 뒤로.\"\n\n낮게 깔린 목소리와 함께 몸을 비스듬히 기울이며 유저의 측면을 파고들었다. 문틈 사이로 뿜어져 나올지 모를 마력 파편이나 기습을 가로막을 수 있도록, 방패의 각도를 비틀어 전방 상단을 견고하게 덮었다. 언제든 충격을 받아낼 수 있도록 두 다리에 무게를 실었다.",
+    "parsedActionType": "defend",
+    "parsedIntent": "렌은 돌진하는 유저의 앞을 방패로 가로막아 세우며 문틈에서 날아올 공격에 대비해 전방을 방어하려 했다."
+  }
+}
