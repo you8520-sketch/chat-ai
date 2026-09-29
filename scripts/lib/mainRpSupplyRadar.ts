@@ -112,6 +112,11 @@ function perTokenToPerMillion(v: unknown): number | null {
 function metricP50(v: unknown): number | null {
   return num(asObj(v)?.p50);
 }
+
+function latencyP50Seconds(v: unknown): number | null {
+  const milliseconds = metricP50(v);
+  return milliseconds == null ? null : milliseconds / 1_000;
+}
 function sha(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
@@ -273,7 +278,7 @@ export function parseOpenRouterEndpoints(
         typeof row.supports_implicit_caching === "boolean"
           ? row.supports_implicit_caching
           : null,
-      latencyP50SecondsLast30m: metricP50(row.latency_last_30m),
+      latencyP50SecondsLast30m: latencyP50Seconds(row.latency_last_30m),
       throughputP50TokensPerSecondLast30m: metricP50(row.throughput_last_30m),
       uptimeLast1dPercent: num(row.uptime_last_1d),
       uptimeLast30mPercent: num(row.uptime_last_30m),
