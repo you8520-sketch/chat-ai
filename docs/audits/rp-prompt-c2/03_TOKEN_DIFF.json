@@ -1,0 +1,17 @@
+{
+  "A_nsfw_on": 1709,
+  "B_nsfw_on": 1679,
+  "reduction_on": 30,
+  "percent_on": 1.76,
+  "A_nsfw_off": 1572,
+  "B_nsfw_off": 1542,
+  "reduction_off": 30,
+  "percent_off": 1.91,
+  "token_gate": {
+    "target_band": "1450~1550 NSFW ON preferred",
+    "b_on": 1679,
+    "under_1400_fail_review": false,
+    "live_allowed_if_exact_dupes": true,
+    "note": "Aggressive stretch to hit 8% by deleting non-duplicates is FORBIDDEN. Exact-dupe-only reduction may be <8%."
+  }
+}
