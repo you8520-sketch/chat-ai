@@ -116,7 +116,7 @@ jobs:
       - name: Memory prompt-packing sentinel
         run: >-
           node --conditions=react-server --import tsx
-          scripts/memory-prompt-packing-sentinel.ts
+          scripts/memory-research-cycle.ts prompt-packing-sentinel
           --out memory-research-out/prompt-packing
 
       - name: Cycle summary
