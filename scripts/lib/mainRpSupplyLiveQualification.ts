@@ -35,7 +35,7 @@ export const OPENROUTER_GENERATION_METADATA_URL =
 type JsonObject = Record<string, unknown>;
 type FetchLike = typeof fetch;
 
-export type SupplyLiveControlEffort = "none" | "low";
+export type SupplyLiveControlEffort = "none" | "minimal" | "low";
 
 export type SupplyLiveCandidate = {
   modelId: SelectedAI;
@@ -43,7 +43,7 @@ export type SupplyLiveCandidate = {
   providerName: string;
   providerSlug: string;
   quantization: string | null;
-  rawEndpointRateDeltaVsCurrentCiPercent: number;
+  rawEndpointRateDeltaVsCurrentProcurementPercent: number;
   inputUsdPerMillion: number;
   outputUsdPerMillion: number;
   cacheReadUsdPerMillion: number | null;
@@ -52,6 +52,7 @@ export type SupplyLiveCandidate = {
   marketUptimeLast1dPercent: number;
   marketUptimeLast30mPercent: number;
   controlEffort: SupplyLiveControlEffort;
+  excludeReasoning: boolean;
   estimatedPairRawEndpointRateUsd: number;
 };
 
@@ -124,7 +125,7 @@ export type MainRpSupplyLiveQualificationReport = {
 };
 
 type CiControlSignature =
-  | { ok: true; effort: SupplyLiveControlEffort }
+  | { ok: true; effort: SupplyLiveControlEffort; excludeReasoning: boolean }
   | { ok: false; reason: string };
 
 function asObj(value: unknown): JsonObject | null {
@@ -151,7 +152,7 @@ function controlSignatureForModel(
     (entry) => entry.caseId === "production_midchat_t1"
   );
   if (!casePacket) {
-    return { ok: false, reason: "canonical_ci_wire_controls_missing" };
+    return { ok: false, reason: "canonical_wire_controls_missing" };
   }
   const controls = casePacket.wireControls;
 
@@ -178,7 +179,7 @@ function controlSignatureForModel(
       asObj(controls.thinking)?.type === "disabled" &&
       controls.reasoning_effort === "none"
     ) {
-      return { ok: true, effort: "none" };
+      return { ok: true, effort: "none", excludeReasoning: true };
     }
     return {
       ok: false,
@@ -186,14 +187,32 @@ function controlSignatureForModel(
     };
   }
 
-  if (controls.reasoning_effort === "low") {
-    return { ok: true, effort: "low" };
+  if (asObj(controls.reasoning)?.effort === "minimal") {
+    return {
+      ok: true,
+      effort: "minimal",
+      excludeReasoning: asObj(controls.reasoning)?.exclude === true,
+    };
+  }
+  if (
+    controls.reasoning_effort === "low" ||
+    asObj(controls.reasoning)?.effort === "low"
+  ) {
+    return {
+      ok: true,
+      effort: "low",
+      excludeReasoning: asObj(controls.reasoning)?.exclude === true,
+    };
   }
   if (
     controls.reasoning_effort === "none" ||
     asObj(controls.reasoning)?.effort === "none"
   ) {
-    return { ok: true, effort: "none" };
+    return {
+      ok: true,
+      effort: "none",
+      excludeReasoning: asObj(controls.reasoning)?.exclude !== false,
+    };
   }
   return {
     ok: false,
@@ -208,6 +227,7 @@ const OPENROUTER_ROUTING_ENVELOPE_KEYS = new Set([
   "stream_options",
   "session_id",
   "provider",
+  "service_tier",
   "user",
   "metadata",
   "plugins",
@@ -216,7 +236,7 @@ const OPENROUTER_ROUTING_ENVELOPE_KEYS = new Set([
   "route",
 ]);
 
-function requiredProviderParameterKeysForCandidate(
+export function resolveSupplyLiveRequiredProviderParameterKeys(
   candidate: SupplyLiveCandidate
 ): string[] {
   const [turn] = buildDeterministicSupplyProbeTurns();
@@ -262,10 +282,10 @@ function factualCandidateReason(
   endpoint: SupplyComparison,
   parity: CiControlSignature
 ): string | null {
-  if (endpoint.lowerRawEndpointRateThanCurrentCi !== true) {
-    return "raw_endpoint_rate_not_lower_than_current_ci";
+  if (endpoint.lowerRawEndpointRateThanCurrentProcurement !== true) {
+    return "raw_endpoint_rate_not_lower_than_current_procurement";
   }
-  const delta = endpoint.rawEndpointRateDeltaVsCurrentCiPercent;
+  const delta = endpoint.rawEndpointRateDeltaVsCurrentProcurementPercent;
   if (delta == null || delta > -MAIN_RP_SUPPLY_LIVE_MIN_RAW_RATE_SAVINGS) {
     return "raw_endpoint_savings_below_10pct_screen";
   }
@@ -352,8 +372,8 @@ export function selectMainRpSupplyLiveCandidates(
         providerName: endpoint.providerName,
         providerSlug: endpoint.provider!.slug!,
         quantization: endpoint.quantization,
-        rawEndpointRateDeltaVsCurrentCiPercent:
-          endpoint.rawEndpointRateDeltaVsCurrentCiPercent!,
+        rawEndpointRateDeltaVsCurrentProcurementPercent:
+          endpoint.rawEndpointRateDeltaVsCurrentProcurementPercent!,
         inputUsdPerMillion: endpoint.inputUsdPerMillion!,
         outputUsdPerMillion: endpoint.outputUsdPerMillion!,
         cacheReadUsdPerMillion: endpoint.cacheReadUsdPerMillion,
@@ -364,11 +384,12 @@ export function selectMainRpSupplyLiveCandidates(
         marketUptimeLast1dPercent: endpoint.uptimeLast1dPercent!,
         marketUptimeLast30mPercent: endpoint.uptimeLast30mPercent!,
         controlEffort: parity.effort,
+        excludeReasoning: parity.excludeReasoning,
         estimatedPairRawEndpointRateUsd: estimate,
       };
       const requiredProviderParameters =
         requiredProviderParametersByModel.get(model.modelId) ??
-        requiredProviderParameterKeysForCandidate(candidate);
+        resolveSupplyLiveRequiredProviderParameterKeys(candidate);
       requiredProviderParametersByModel.set(
         model.modelId,
         requiredProviderParameters
@@ -492,12 +513,15 @@ export function applyCandidateControlAndProviderPin(
     include_reasoning: false,
   };
 
+  // Candidate qualification owns the alternate provider route. Do not inherit
+  // the current production route's service tier or a parallel privacy policy.
+  // Model controls remain identical; route/service-class is the variable tested.
+  delete next.service_tier;
   delete next.reasoning_effort;
-  if (candidate.controlEffort === "none") {
-    next.reasoning = { effort: "none", exclude: true };
-  } else {
-    next.reasoning = { effort: "low" };
-  }
+  next.reasoning = {
+    effort: candidate.controlEffort,
+    ...(candidate.excludeReasoning ? { exclude: true } : {}),
+  };
   return next;
 }
 
@@ -899,7 +923,7 @@ export function renderSupplyLiveReportMarkdown(
       `- market uptime 1d/30m: ${c.marketUptimeLast1dPercent}% / ${c.marketUptimeLast30mPercent}%`,
       `- market latency p50: ${c.marketLatencyP50SecondsLast30m}s`,
       `- market throughput p50: ${c.marketThroughputP50TokensPerSecondLast30m} tok/s`,
-      `- raw endpoint-rate delta vs current CI: ${(c.rawEndpointRateDeltaVsCurrentCiPercent * 100).toFixed(1)}%`,
+      `- raw endpoint-rate delta vs current procurement: ${(c.rawEndpointRateDeltaVsCurrentProcurementPercent * 100).toFixed(1)}%`,
       `- transport status: **${result.transportStatus}**`,
       `- second-turn cache read observed: ${result.secondTurnCacheReadObserved}`,
       ""

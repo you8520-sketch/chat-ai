@@ -49,6 +49,7 @@ export type ModelPublishedPricingPolicy = {
 export { GEMINI31_BASE_TIER_PROMPT_THRESHOLD } from "@/lib/premiumModelIds";
 
 const GEMINI37_MODEL_ID = "gemini-3.7-flash";
+const GEMINI38_MODEL_ID = "gemini-3.8-flash";
 
 const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPolicy> = {
   [GEMINI31_MODEL_ID]: {
@@ -59,6 +60,11 @@ const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPoli
   },
   [GEMINI37_MODEL_ID]: {
     modelId: GEMINI37_MODEL_ID,
+    pricingApplicability: "tier_aware",
+    cacheSemanticStatus: "unknown",
+  },
+  [GEMINI38_MODEL_ID]: {
+    modelId: GEMINI38_MODEL_ID,
     pricingApplicability: "tier_aware",
     cacheSemanticStatus: "unknown",
   },

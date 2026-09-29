@@ -165,6 +165,12 @@ export const OPENROUTER_RP_REASONING_GEMINI_FLASH = {
   exclude: true,
 } as const;
 
+/** Gemini 3.7/3.8 Flash do not support minimal; use lowest supported effort. */
+export const OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH = {
+  effort: "low",
+  exclude: true,
+} as const;
+
 /** Gemini 3.x Pro RP — lowest supported thinking (full disable unsupported) */
 export const OPENROUTER_RP_REASONING_GEMINI_3_PRO = {
   effort: "low",
@@ -199,10 +205,16 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
   }
 
   if (isGeminiFlashOpenRouterModel(modelId)) {
-    body.reasoning = { ...OPENROUTER_RP_REASONING_GEMINI_FLASH };
-    console.log("[openrouter-reasoning] gemini-flash-minimal", {
+    const isGemini37Or38 =
+      normalized.includes("gemini-3.7-flash") ||
+      normalized.includes("gemini-3.8-flash");
+    const reasoning = isGemini37Or38
+      ? OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH
+      : OPENROUTER_RP_REASONING_GEMINI_FLASH;
+    body.reasoning = { ...reasoning };
+    console.log("[openrouter-reasoning] gemini-flash", {
       model: normalized,
-      effort: OPENROUTER_RP_REASONING_GEMINI_FLASH.effort,
+      effort: reasoning.effort,
       exclude: true,
       include_reasoning: false,
     });
@@ -238,6 +250,10 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
       observed_provider_reasoning: "see deepseek-provider-failover telemetry",
     });
   }
+}
+
+function isGemini38FlashModel(modelId?: string | null): boolean {
+  return (modelId ?? "").trim().toLowerCase().includes("gemini-3.8-flash");
 }
 
 /** OpenRouter RP — API max_tokens coerce fallback (Gemini 3.1 cap) */
@@ -306,9 +322,9 @@ export function normalizeOpenRouterGenerationParams(
     base.seed = Math.floor(overrides.seed);
   }
 
-  // Gemini 3.6+ 공식 API: sampling parameters are deprecated and may become 400s.
-  // OpenRouter currently lists them for compatibility, but omit them proactively.
-  if (isGemini36FlashModel(modelId ?? "")) {
+  // Gemini 3.6 / 3.8 official API guidance: sampling parameters are omitted.
+  // 3.8 explicitly rejects migration configs that retain temperature/top_p.
+  if (isGemini36FlashModel(modelId ?? "") || isGemini38FlashModel(modelId)) {
     delete base.temperature;
     delete base.top_p;
   }
@@ -330,7 +346,7 @@ export function resolveRegenerateGenerationOverrides(
   modelId: string,
   targetResponseChars?: number | null
 ): OpenRouterGenerationOverrides {
-  if (isGemini36FlashModel(modelId)) {
+  if (isGemini36FlashModel(modelId) || isGemini38FlashModel(modelId)) {
     return { seed: Math.floor(Math.random() * 2_147_483_647) };
   }
   const base = normalizeOpenRouterGenerationParams(

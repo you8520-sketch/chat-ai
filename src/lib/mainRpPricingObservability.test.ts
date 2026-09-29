@@ -327,9 +327,12 @@ describe("mainRpPricingObservability", () => {
       fxSnapshot: FX_FIXTURE,
       now: NOW,
     });
-    assert.equal(MAIN_RP_MODEL_IDS.length, 5);
-    assert.equal(listMainRpObservabilityModelIds().length, 6);
-    assert.equal(projection.models.length, 6);
+    const expectedObservabilityCount = MAIN_RP_MODEL_IDS.length + 1;
+    assert.equal(
+      listMainRpObservabilityModelIds().length,
+      expectedObservabilityCount
+    );
+    assert.equal(projection.models.length, expectedObservabilityCount);
     assert.ok(
       listMainRpObservabilityModelIds().includes(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL),
       "retired V4 Pro must remain visible in historical finance observability"

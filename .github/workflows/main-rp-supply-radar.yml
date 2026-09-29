@@ -1,9 +1,11 @@
-name: Monthly Main RP supply radar
+name: Main RP supply radar
 
 on:
   schedule:
-    # 04th day 03:47 UTC = 12:47 KST. Runs after the monthly cache audit.
-    - cron: "47 3 4 * *"
+    # 01st day: full monthly scan + bounded live qualification.
+    - cron: "47 3 1 * *"
+    # 15th day: read-only mid-month procurement/price/health scan only.
+    - cron: "47 3 15 * *"
   workflow_dispatch:
 
 permissions:
@@ -49,6 +51,7 @@ jobs:
           if (r.providerGenerationCalls !== 0) throw new Error("provider generation call invariant violated");
           NODE
       - name: Bounded live candidate qualification
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '47 3 1 * *'
         env:
           REGULAR_TEST_REAL_PROVIDER_CALLS: "1"
           MAIN_RP_SUPPLY_LIVE_QUALIFICATION: "1"
@@ -69,11 +72,11 @@ jobs:
             printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
             cat artifacts/main-rp-supply-radar/live/COMPARISON.md >> "$GITHUB_STEP_SUMMARY"
           fi
-      - name: Upload monthly supply evidence
+      - name: Upload supply evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: main-rp-supply-radar
+          name: main-rp-supply-radar-${{ github.run_id }}
           path: artifacts/main-rp-supply-radar
           if-no-files-found: error
           retention-days: 365

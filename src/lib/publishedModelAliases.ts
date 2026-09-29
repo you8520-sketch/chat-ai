@@ -4,6 +4,8 @@
 
 const PUBLISHED_MODEL_ALIASES: Record<string, string> = {
   "google/gemini-3.1-pro-preview": "gemini-3.1-pro-preview",
+  "google/gemini-3.7-flash": "gemini-3.7-flash",
+  "google/gemini-3.8-flash": "gemini-3.8-flash",
   "deepseek-v4-pro": "deepseek-v4-pro-0813",
   "deepseek/deepseek-v4-pro": "deepseek-v4-pro-0813",
   "deepseek/deepseek-v4-pro-0813": "deepseek-v4-pro-0813",

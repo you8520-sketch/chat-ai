@@ -1,8 +1,9 @@
 /**
  * Canonical Main RP monthly prompt-cache audit owner (read-only).
  *
- * Derives audit targets from MAIN_RP_USER_SELECTABLE_OPTIONS — never a hand-written
- * model list. Collects CheaperInference usage/catalog evidence only.
+ * Derives CheaperInference audit targets from MAIN_RP_USER_SELECTABLE_OPTIONS —
+ * never a hand-written model list. OpenRouter-routed models are intentionally
+ * excluded from this CI usage/catalog audit instead of being misclassified.
  * provider generation calls = 0. Does not mutate production prompt/routing/billing.
  */
 import { createHash } from "node:crypto";
@@ -10,6 +11,7 @@ import { createHash } from "node:crypto";
 import {
   isAnthropicModel,
   MAIN_RP_MODEL_IDS,
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
   type SelectedAI,
 } from "@/lib/chatModels";
 import { CHEAPER_INFERENCE_BASE_URL } from "@/lib/cheaperInferenceConfig";
@@ -273,9 +275,14 @@ export function priorCalendarMonthWindow(window: CalendarMonthWindow): CalendarM
  * Never invent a parallel manual list; retired models are excluded automatically.
  */
 export function resolveMainRpMonthlyCacheAuditModels(
-  registryIds: readonly string[] = MAIN_RP_MODEL_IDS
+  registryIds?: readonly string[]
 ): string[] {
-  return registryIds.map((id) => id.trim().toLowerCase()).filter(Boolean);
+  const ids =
+    registryIds ??
+    MAIN_RP_USER_SELECTABLE_OPTIONS
+      .filter((option) => option.provider === "cheaperinference")
+      .map((option) => option.id);
+  return ids.map((id) => id.trim().toLowerCase()).filter(Boolean);
 }
 
 export function resolveCacheMechanism(modelId: string): CacheMechanismEvidence {

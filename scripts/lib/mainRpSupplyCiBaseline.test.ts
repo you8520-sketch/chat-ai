@@ -156,13 +156,26 @@ describe("same-prompt current CI baseline guard", () => {
     );
   });
 
-  it("fails closed for a candidate whose current CI catalog baseline is missing", () => {
+  it("fails closed for a current-CI candidate whose catalog baseline is missing", () => {
     const selection = cloneBaseSelection();
-    const target = selection.candidates[0]!.modelId;
-
     const missing = cloneBaseRadar();
+    const targetCandidate = selection.candidates.find((candidate) =>
+      missing.models.find(
+        (row) =>
+          row.modelId === candidate.modelId &&
+          row.currentProcurement?.provider === "cheaperinference"
+      )
+    );
+    assert.ok(targetCandidate, "fixture must include at least one current-CI candidate");
+    const target = targetCandidate.modelId;
+
     const targetModel = missing.models.find((row) => row.modelId === target)!;
-    targetModel.currentProcurement = null;
+    assert.equal(targetModel.currentProcurement?.provider, "cheaperinference");
+    targetModel.currentProcurement = {
+      ...targetModel.currentProcurement!,
+      inputUsdPerMillion: null,
+      outputUsdPerMillion: null,
+    };
     const plan = applyCurrentCiBaselineBudgetGuard(missing, selection);
 
     assert.equal(

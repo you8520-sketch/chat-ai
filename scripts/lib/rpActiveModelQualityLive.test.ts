@@ -7,6 +7,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  selectedAIProvider,
 } from "@/lib/chatModels";
 import {
   buildCanonicalRpQualificationCases,
@@ -84,7 +85,7 @@ describe("rpActiveModelQualityLive", () => {
     );
   });
 
-  it("builds the real current-main CI wire for every requested model", () => {
+  it("builds the real current-main provider wire for every requested model", () => {
     const caseData = buildCanonicalRpQualificationCases()[0]!;
     for (const modelId of RP_ACTIVE_MODEL_QUALITY_MODEL_IDS) {
       const request = buildRpActiveModelQualityRequest({
@@ -92,13 +93,22 @@ describe("rpActiveModelQualityLive", () => {
         caseData,
         sessionId: "quality-test-session",
       });
-      assert.equal(request.body.model, modelId);
+      const provider = selectedAIProvider(modelId);
+      assert.equal(request.provider, provider);
+      assert.equal(request.evidence.provider, provider);
       assert.equal(request.body.stream, true);
       assert.deepEqual(request.body.stream_options, { include_usage: true });
       assert.equal(request.evidence.authoringLevel, "NORMAL");
       assert.equal(request.evidence.targetResponseChars, caseData.targetResponseChars);
       assert.ok(request.evidence.systemPromptChars > 0);
-      assert.match(request.url, /^https:\/\/api\.cheaperinference\.com\/v1\/chat\/completions\?/);
+      if (provider === "openrouter") {
+        assert.match(request.url, /^https:\/\/openrouter\.ai\/api\/v1\/chat\/completions$/);
+        assert.match(String(request.body.model), /^google\//);
+        assert.ok(request.body.provider);
+      } else {
+        assert.equal(request.body.model, modelId);
+        assert.match(request.url, /^https:\/\/api\.cheaperinference\.com\/v1\/chat\/completions\?/);
+      }
     }
   });
 
@@ -126,7 +136,10 @@ describe("rpActiveModelQualityLive", () => {
     };
 
     const result = await executeRpActiveModelQualityProbe({
-      apiKey: "benchmark-test-key",
+      credentials: {
+        cheaperinference: "benchmark-test-key",
+        openrouter: "openrouter-test-key",
+      },
       probe,
       caseData,
       sessionId: "quality-test-session",
@@ -137,6 +150,7 @@ describe("rpActiveModelQualityLive", () => {
     assert.equal(calls, 1);
     assert.equal(result.status, "COMPLETE");
     assert.equal(result.httpStatus, 200);
+    assert.equal(result.provider, "cheaperinference");
     assert.equal(result.text, "태형은 고개를 기울였다.");
     assert.equal(result.promptTokens, 100);
     assert.equal(result.completionTokens, 20);

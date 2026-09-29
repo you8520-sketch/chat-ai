@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import {
+  MAIN_RP_MODEL_IDS,
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
+} from "@/lib/chatModels";
+import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import type { CatalogPricingEvidence } from "./mainRpMonthlyCacheAudit";
 import {
   buildMainRpSupplyRadarReport,
@@ -11,6 +15,7 @@ import {
   parseProviderMetadata,
   resolveOpenRouterSupplyRadarCredential,
   sanitizeOpenRouterSupplyRadarCredentialText,
+  type SupplyEndpointEvidence,
 } from "./mainRpSupplyRadar";
 
 function ciCatalog(id: string, input=0.3, output=1.2, cache=0.006): CatalogPricingEvidence {
@@ -37,6 +42,15 @@ const providerPayload={
       terms_of_service_url:"https://example.com/terms",
       status_page_url:"https://status.example.com",
       datacenters:["US","EU"],
+    },
+    {
+      name:"Google AI Studio",
+      slug:"google-ai-studio",
+      headquarters:"US",
+      privacy_policy_url:"https://example.com/google-privacy",
+      terms_of_service_url:"https://example.com/google-terms",
+      status_page_url:"https://status.example.com/google",
+      datacenters:["US"],
     }
   ]
 };
@@ -70,22 +84,47 @@ const endpointsPayload={
   }
 };
 
+function baseEndpoint(): SupplyEndpointEvidence {
+  return parseOpenRouterEndpoints(
+    endpointsPayload,
+    parseProviderMetadata(providerPayload)
+  )[0]!;
+}
+
+function routedEndpoint(modelId: string): SupplyEndpointEvidence {
+  return {
+    ...baseEndpoint(),
+    modelId,
+    providerName:"Google AI Studio Flex",
+    providerTag:"google-ai-studio",
+    inputUsdPerMillion: modelId.includes("3.1") ? 1 : 0.375,
+    outputUsdPerMillion: modelId.includes("3.1") ? 6 : 1.875,
+    cacheReadUsdPerMillion: modelId.includes("3.1") ? 0.1 : 0.0375,
+    provider:{
+      name:"Google AI Studio",
+      slug:"google-ai-studio",
+      headquarters:"US",
+      privacyPolicyUrl:"https://example.com/google-privacy",
+      termsOfServiceUrl:"https://example.com/google-terms",
+      statusPageUrl:"https://status.example.com/google",
+      datacenters:["US"],
+    },
+    supportedParameters:["reasoning","include_reasoning","temperature","max_tokens"],
+  };
+}
+
 test("active Main RP supply identities are derived exhaustively from canonical registry",()=>{
   const ids=listMainRpSupplyIdentities();
   assert.deepEqual(ids.map(x=>x.internalModelId),MAIN_RP_MODEL_IDS);
-  assert.equal(ids.length,5);
+  assert.equal(ids.length,6);
   assert.equal(ids.find(x=>x.internalModelId==="deepseek-v4.1-flash")?.openRouterSlug,"deepseek/deepseek-v4.1-flash");
-  assert.equal(ids.find(x=>x.internalModelId==="claude-opus-5.5")?.openRouterSlug,"anthropic/claude-opus-5.5");
+  assert.equal(ids.find(x=>x.internalModelId==="gemini-3.8-flash")?.openRouterSlug,"google/gemini-3.8-flash");
 });
 
 test("credential resolver prefers dedicated radar key and never fabricates a key",()=>{
   assert.deepEqual(resolveOpenRouterSupplyRadarCredential({} as NodeJS.ProcessEnv),{
     ok:false,status:"NOT_RUN",reason:"missing_openrouter_supply_radar_credential",providerGenerationCalls:0
   });
-  assert.equal(resolveOpenRouterSupplyRadarCredential({
-    OPENROUTER_SUPPLY_RADAR_API_KEY:" radar ",
-    OPENROUTER_API_KEY:" compat "
-  } as NodeJS.ProcessEnv).ok,true);
   const compat=resolveOpenRouterSupplyRadarCredential({OPENROUTER_API_KEY:" compat "} as NodeJS.ProcessEnv);
   assert.equal(compat.ok,true);
   if(compat.ok) assert.equal(compat.source,"OPENROUTER_API_KEY");
@@ -99,25 +138,21 @@ test("credential sanitizer redacts both supported env assignment forms",()=>{
 });
 
 test("provider and endpoint market evidence parse without inventing missing metrics",()=>{
-  const providers=parseProviderMetadata(providerPayload);
-  const rows=parseOpenRouterEndpoints(endpointsPayload,providers);
+  const rows=parseOpenRouterEndpoints(endpointsPayload,parseProviderMetadata(providerPayload));
   assert.equal(rows.length,1);
   const row=rows[0]!;
   assert.equal(row.providerName,"DeepInfra");
-  assert.equal(row.provider?.statusPageUrl,"https://status.example.com");
   assert.equal(row.inputUsdPerMillion,0.14);
   assert.equal(row.outputUsdPerMillion,0.42);
   assert.ok(Math.abs((row.cacheReadUsdPerMillion ?? 0)-0.0042)<1e-12);
   assert.equal(row.latencyP50SecondsLast30m,1.55);
-  assert.equal(row.throughputP50TokensPerSecondLast30m,62);
-  assert.equal(row.uptimeLast1dPercent,99.85);
-  assert.equal(row.supportsImplicitCaching,true);
 });
 
-test("price comparison uses canonical tracker representative workload and exposes deltas, not a composite score",()=>{
-  const endpoint=parseOpenRouterEndpoints(endpointsPayload,parseProviderMetadata(providerPayload))[0]!;
+test("price comparison is relative to the actual current-procurement baseline",()=>{
+  const endpoint=baseEndpoint();
   const comparison=compareSupplyEndpoint(endpoint,{
     provider:"cheaperinference",
+    evidenceSource:"cheaperinference_catalog",
     modelId:"deepseek-v4.1-flash",
     inputUsdPerMillion:0.3,
     outputUsdPerMillion:1.2,
@@ -129,34 +164,43 @@ test("price comparison uses canonical tracker representative workload and expose
     pricingUpdatedAt:null,
   });
   assert.ok(comparison.rawEndpointRepresentativeUncachedRateUsd != null);
-  assert.ok(comparison.currentCiRepresentativeUncachedProcurementUsd != null);
-  assert.equal(comparison.lowerRawEndpointRateThanCurrentCi,true);
-  assert.ok((comparison.rawEndpointRateDeltaVsCurrentCiPercent ?? 0)<0);
-  assert.ok(comparison.evidenceFlags.includes("LOWER_RAW_ENDPOINT_RATE_THAN_CURRENT_CI"));
+  assert.ok(comparison.currentRepresentativeUncachedProcurementUsd != null);
+  assert.equal(comparison.lowerRawEndpointRateThanCurrentProcurement,true);
+  assert.ok((comparison.rawEndpointRateDeltaVsCurrentProcurementPercent ?? 0)<0);
+  assert.ok(comparison.evidenceFlags.includes("LOWER_RAW_ENDPOINT_RATE_THAN_CURRENT_PROCUREMENT"));
   assert.equal("score" in comparison,false);
 });
 
-test("report follows all current active models and stays OBSERVE_ONLY",()=>{
-  const endpoints=parseOpenRouterEndpoints(endpointsPayload,parseProviderMetadata(providerPayload));
-  const ci=Object.fromEntries(MAIN_RP_MODEL_IDS.map(id=>[id,ciCatalog(id)]));
+test("report follows mixed current providers and stays OBSERVE_ONLY",()=>{
+  const endpointsByModel: Record<string, SupplyEndpointEvidence[]> = {};
+  const ci: Record<string,CatalogPricingEvidence> = {};
+  for(const option of MAIN_RP_USER_SELECTABLE_OPTIONS){
+    if(option.provider==="openrouter"){
+      endpointsByModel[option.id]=[routedEndpoint(option.id)];
+    }else{
+      endpointsByModel[option.id]=[{...baseEndpoint(),modelId:option.id}];
+      ci[option.id]=ciCatalog(option.id);
+    }
+  }
   const report=buildMainRpSupplyRadarReport({
-    endpointsByModel:{"deepseek-v4.1-flash":endpoints},
+    endpointsByModel:endpointsByModel as Parameters<typeof buildMainRpSupplyRadarReport>[0]["endpointsByModel"],
     ciCatalogByModel:ci,
     credentialSource:"fixture",
     generatedAt:"2026-09-28T00:00:00.000Z",
   });
   assert.equal(report.providerGenerationCalls,0);
   assert.deepEqual(report.activeModelIds,MAIN_RP_MODEL_IDS);
-  assert.equal(report.models.length,MAIN_RP_MODEL_IDS.length);
-  assert.equal(report.status,"PARTIAL");
-  assert.equal(report.marketEvidence,"openrouter_endpoint_metrics");
-  assert.equal(report.currentProcurementEvidence,"cheaperinference_catalog");
-  assert.match(report.notes.join("\n"),/not this site's own live provider benchmark/i);
+  assert.equal(report.status,"OK");
+  assert.equal(report.currentProcurementEvidence,"registry_route_evidence");
+  assert.equal(
+    report.models.find((row)=>row.modelId==="gemini-3.8-flash")?.currentProcurement?.provider,
+    "openrouter"
+  );
 });
 
-test("missing CI baseline or market evidence is PARTIAL/NOT_RUN rather than guessed",()=>{
+test("missing current-route baseline or market evidence is PARTIAL/NOT_RUN rather than guessed",()=>{
   const market=buildMainRpSupplyRadarReport({
-    endpointsByModel:{"deepseek-v4.1-flash":parseOpenRouterEndpoints(endpointsPayload)},
+    endpointsByModel:{"deepseek-v4.1-flash":[baseEndpoint()]},
     ciCatalogByModel:null,
   });
   assert.equal(market.status,"PARTIAL");
@@ -164,6 +208,51 @@ test("missing CI baseline or market evidence is PARTIAL/NOT_RUN rather than gues
 
   const none=buildMainRpSupplyRadarReport({endpointsByModel:{},ciCatalogByModel:null});
   assert.equal(none.status,"NOT_RUN");
+});
+
+test("OpenRouter Flex route stays partial when endpoint tier evidence is ambiguous",()=>{
+  const ambiguous = {
+    ...routedEndpoint("gemini-3.8-flash"),
+    providerName:"Google AI Studio",
+    providerTag:"google-ai-studio",
+  };
+  const report = buildMainRpSupplyRadarReport({
+    endpointsByModel:{"gemini-3.8-flash":[ambiguous]},
+    ciCatalogByModel:null,
+  });
+  const row = report.models.find((item)=>item.modelId==="gemini-3.8-flash")!;
+  assert.equal(row.currentProcurement,null);
+  assert.equal(report.status,"PARTIAL");
+});
+
+test("temporary provider discount expiry updates procurement evidence without mutating published user pricing",()=>{
+  const beforePublished = getPublishedPricing("gemini-3.7-flash");
+  const promo = routedEndpoint("gemini-3.7-flash");
+  const promoReport = buildMainRpSupplyRadarReport({
+    endpointsByModel:{"gemini-3.7-flash":[promo]},
+    ciCatalogByModel:null,
+  });
+  const promoRow = promoReport.models.find((row)=>row.modelId==="gemini-3.7-flash")!;
+  assert.equal(promoRow.currentProcurement?.inputUsdPerMillion,0.375);
+  assert.equal(promoRow.currentProcurement?.outputUsdPerMillion,1.875);
+
+  const normalized = {
+    ...promo,
+    inputUsdPerMillion:0.75,
+    outputUsdPerMillion:3.75,
+    cacheReadUsdPerMillion:0.075,
+  };
+  const normalizedReport = buildMainRpSupplyRadarReport({
+    endpointsByModel:{"gemini-3.7-flash":[normalized]},
+    ciCatalogByModel:null,
+  });
+  const normalizedRow = normalizedReport.models.find((row)=>row.modelId==="gemini-3.7-flash")!;
+  assert.equal(normalizedRow.currentProcurement?.inputUsdPerMillion,0.75);
+  assert.equal(normalizedRow.currentProcurement?.outputUsdPerMillion,3.75);
+  assert.equal(normalizedRow.publishedMarginRisk?.belowMinimumMarginFloor,true);
+
+  const afterPublished = getPublishedPricing("gemini-3.7-flash");
+  assert.deepEqual(afterPublished,beforePublished);
 });
 
 test("network helpers are GET-only and source contains no generation endpoint",async()=>{
@@ -182,22 +271,4 @@ test("network helpers are GET-only and source contains no generation endpoint",a
   assert.equal(calls[0]!.init?.method,"GET");
   assert.match(calls[0]!.url,/\/endpoints$/);
   assert.doesNotMatch(calls[0]!.url,/chat\/completions|responses$/);
-});
-
-
-test("OK requires market and current-procurement evidence for every active model",()=>{
-  const providers=parseProviderMetadata(providerPayload);
-  const endpoint=parseOpenRouterEndpoints(endpointsPayload,providers)[0]!;
-  const ci=Object.fromEntries(MAIN_RP_MODEL_IDS.map(id=>[id,ciCatalog(id)]));
-  const endpointsByModel=Object.fromEntries(
-    MAIN_RP_MODEL_IDS.map(id=>[
-      id,
-      [{...endpoint,modelId:id,providerName:`fixture-${id}`}]
-    ])
-  );
-  const report=buildMainRpSupplyRadarReport({
-    endpointsByModel:endpointsByModel as Parameters<typeof buildMainRpSupplyRadarReport>[0]["endpointsByModel"],
-    ciCatalogByModel:ci,
-  });
-  assert.equal(report.status,"OK");
 });

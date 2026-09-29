@@ -1465,9 +1465,9 @@ export async function POST(req: Request) {
 
   const effectiveSelectedAI =
     adultDeliveryPlan.primaryModelId as SelectedAI;
-  const primaryProvider = isCheaperInferenceModel(effectiveSelectedAI)
-    ? "cheaperinference"
-    : selectedAIProvider(effectiveSelectedAI);
+  // Canonical active Main-RP provider owner: registry metadata only.
+  // Historical model-family helpers must not override a current selectable route.
+  const primaryProvider = selectedAIProvider(effectiveSelectedAI);
   const cheaperPricingRefreshed =
     primaryProvider === "cheaperinference"
       ? await refreshCheaperInferenceCatalogPricing()

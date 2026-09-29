@@ -8,6 +8,7 @@ import {
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
+  selectedAIProvider,
   type SelectedAI,
 } from "@/lib/chatModels";
 import {
@@ -15,6 +16,11 @@ import {
   buildCheaperInferenceHeaders,
 } from "@/lib/cheaperInferenceConfig";
 import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
+import {
+  OPENROUTER_CHAT_COMPLETIONS_URL,
+  buildOpenRouterHeaders,
+  resolveOpenRouterModelId,
+} from "@/lib/openRouterConfig";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
 import { buildContext } from "@/services/contextBuilder";
 import {
@@ -63,8 +69,11 @@ export type RpActiveModelQualityProbe = {
   reviewFocus: readonly string[];
 };
 
+export type RpActiveModelQualityProvider = "cheaperinference" | "openrouter";
+
 export type RpActiveModelQualityTurnResult = {
   modelId: RpActiveModelQualityProbe["modelId"];
+  provider: RpActiveModelQualityProvider;
   caseId: CanonicalQualificationCaseId;
   httpStatus: number;
   finishReason: string | null;
@@ -84,6 +93,7 @@ export type RpActiveModelQualityTurnResult = {
     systemPromptChars: number;
     requestBodySha256: string;
     wireControls: JsonObject;
+    provider: RpActiveModelQualityProvider;
     authoringLevel: "NORMAL";
     allowDialogue: true;
     allowMajorActions: true;
@@ -179,14 +189,19 @@ export function buildRpActiveModelQualityRequest(input: {
   caseData: CanonicalQualificationCase;
   sessionId: string;
 }): {
+  provider: RpActiveModelQualityProvider;
   url: string;
   body: JsonObject;
   evidence: RpActiveModelQualityTurnResult["requestEvidence"];
 } {
+  const provider = selectedAIProvider(input.modelId);
+  if (provider !== "cheaperinference" && provider !== "openrouter") {
+    throw new Error(`Unsupported Main RP quality provider: ${provider}`);
+  }
   const contextInput = buildCanonicalRpQualificationContextInput({
     modelId: input.modelId,
     caseData: input.caseData,
-    provider: "cheaperinference",
+    provider,
   });
   const delegation = contextInput.currentTurnAuthoringDelegation;
   if (
@@ -201,13 +216,17 @@ export function buildRpActiveModelQualityRequest(input: {
   }
 
   const built = buildContext(contextInput);
+  const wireModelId =
+    provider === "openrouter"
+      ? resolveOpenRouterModelId(input.modelId)
+      : input.modelId;
   const wire = assemblePrimaryRpRequest({
     system: built.systemPrompt,
     history: built.history ?? [],
-    modelId: input.modelId,
+    modelId: wireModelId,
     targetResponseChars: input.caseData.targetResponseChars,
     messageOpts: {
-      transportProvider: "cheaperinference",
+      transportProvider: provider,
       charName: CANONICAL_RP_QUALIFICATION_SOURCE.characterName,
       personaName: CANONICAL_RP_QUALIFICATION_SOURCE.personaName,
       sessionId: input.sessionId,
@@ -221,9 +240,13 @@ export function buildRpActiveModelQualityRequest(input: {
   };
 
   return {
-    url: buildCheaperInferenceChatCompletionsUrl({
-      promptCacheSession: input.sessionId,
-    }),
+    provider,
+    url:
+      provider === "openrouter"
+        ? OPENROUTER_CHAT_COMPLETIONS_URL
+        : buildCheaperInferenceChatCompletionsUrl({
+            promptCacheSession: input.sessionId,
+          }),
     body,
     evidence: {
       targetResponseChars: input.caseData.targetResponseChars,
@@ -231,6 +254,7 @@ export function buildRpActiveModelQualityRequest(input: {
       systemPromptChars: built.systemPrompt.length,
       requestBodySha256: sha256(JSON.stringify(body)),
       wireControls: controls(body),
+      provider,
       authoringLevel: "NORMAL",
       allowDialogue: true,
       allowMajorActions: true,
@@ -275,7 +299,7 @@ function flushSse(
 }
 
 export async function executeRpActiveModelQualityProbe(input: {
-  apiKey: string;
+  credentials: Record<RpActiveModelQualityProvider, string>;
   probe: RpActiveModelQualityProbe;
   caseData: CanonicalQualificationCase;
   sessionId: string;
@@ -305,10 +329,16 @@ export async function executeRpActiveModelQualityProbe(input: {
   let error: string | null = null;
 
   try {
+    const apiKey = input.credentials[request.provider]?.trim();
+    if (!apiKey) {
+      throw new Error(`missing_${request.provider}_benchmark_credential`);
+    }
     const response = await fetchImpl(request.url, {
       method: "POST",
       headers: {
-        ...buildCheaperInferenceHeaders(input.apiKey),
+        ...(request.provider === "openrouter"
+          ? buildOpenRouterHeaders(apiKey)
+          : buildCheaperInferenceHeaders(apiKey)),
         Accept: "text/event-stream",
       },
       body: JSON.stringify(request.body),
@@ -340,7 +370,7 @@ export async function executeRpActiveModelQualityProbe(input: {
   const usage = parseCompatibleUsage({
     usage: state.usage,
     headers: responseHeaders,
-    transportProvider: "cheaperinference",
+    transportProvider: request.provider,
   });
   const totalSeconds = Math.max(0, (now() - started) / 1000);
   const complete =
@@ -352,6 +382,7 @@ export async function executeRpActiveModelQualityProbe(input: {
 
   return {
     modelId: input.probe.modelId,
+    provider: request.provider,
     caseId: input.probe.caseId,
     httpStatus,
     finishReason: state.finishReason,
@@ -374,7 +405,7 @@ export async function executeRpActiveModelQualityProbe(input: {
 }
 
 export async function runRpActiveModelQualityLive(input: {
-  apiKey: string;
+  credentials: Record<RpActiveModelQualityProvider, string>;
   runId: string;
   caseIds?: readonly CanonicalQualificationCaseId[];
   fetchImpl?: FetchLike;
@@ -399,7 +430,7 @@ export async function runRpActiveModelQualityLive(input: {
     // Exactly one generation attempt per planned model/case. No retry/fallback.
     results.push(
       await executeRpActiveModelQualityProbe({
-        apiKey: input.apiKey,
+        credentials: input.credentials,
         probe,
         caseData,
         sessionId,
@@ -428,7 +459,7 @@ export async function runRpActiveModelQualityLive(input: {
       "Terra 5.6 and Gemini 3.1 Pro Preview are intentionally excluded from this round at user request.",
       "All cases use the frozen deployed 조태형(라이크)+관리자 페르소나 렌 fixture with current-main prompt/wire assembly.",
       "Ordinary interactive user-authoring is current product default NORMAL: dialogue/actions allowed, private inner POV and irreversible user fate not allowed.",
-      "One provider attempt per model/case; no retry or fallback generation.",
+      "Each probe follows the canonical Main-RP registry provider. One provider attempt per model/case; no retry/fallback generation.",
     ],
   };
 }
@@ -452,13 +483,13 @@ export function renderRpActiveModelQualityMarkdown(
     "",
     "## Runtime evidence",
     "",
-    "| Model | Case | Status | HTTP | chars | prompt tok | output tok | reasoning tok | cache read | cost USD | seconds |",
-    "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+    "| Model | Provider | Case | Status | HTTP | chars | prompt tok | output tok | reasoning tok | cache read | cost USD | seconds |",
+    "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
   ];
 
   for (const result of report.results) {
     lines.push(
-      `| ${modelLabel(result.modelId)} | ${result.caseId} | ${result.status} | ${result.httpStatus} | ${result.visibleChars} | ${result.promptTokens} | ${result.completionTokens} | ${result.reasoningTokens} | ${result.cacheReadTokens} | ${result.providerReportedCostUsd ?? "n/a"} | ${result.totalSeconds.toFixed(2)} |`
+      `| ${modelLabel(result.modelId)} | ${result.provider} | ${result.caseId} | ${result.status} | ${result.httpStatus} | ${result.visibleChars} | ${result.promptTokens} | ${result.completionTokens} | ${result.reasoningTokens} | ${result.cacheReadTokens} | ${result.providerReportedCostUsd ?? "n/a"} | ${result.totalSeconds.toFixed(2)} |`
     );
   }
 

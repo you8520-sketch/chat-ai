@@ -470,14 +470,16 @@ test("previous calendar month window is UTC exclusive end", () => {
   assert.equal(w.endAt, "2026-09-01 00:00:00");
 });
 
-test("owners map + no manual MODELS in monthly auditor or legacy wrapper", () => {
+test("owners map + CI-only registry derivation + no manual MODELS in monthly auditor or legacy wrapper", () => {
   assert.equal(
     MAIN_RP_MONTHLY_CACHE_AUDIT_OWNERS.activeModelRegistry,
     "src/lib/chatModels.ts#MAIN_RP_USER_SELECTABLE_OPTIONS"
   );
   assert.deepEqual(
     resolveMainRpMonthlyCacheAuditModels(),
-    MAIN_RP_USER_SELECTABLE_OPTIONS.map((o) => o.id)
+    MAIN_RP_USER_SELECTABLE_OPTIONS
+      .filter((o) => o.provider === "cheaperinference")
+      .map((o) => o.id)
   );
 
   const monthlySrc = readFileSync(

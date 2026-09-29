@@ -50,11 +50,17 @@ function writeNotRun(reason: string): void {
 }
 
 async function main(): Promise<void> {
-  const apiKey = resolveOptInTestCheaperInferenceApiKey(
+  const ciApiKey = resolveOptInTestCheaperInferenceApiKey(
     RP_ACTIVE_MODEL_QUALITY_LIVE_FLAG
   );
-  if (!apiKey) {
-    writeNotRun("missing_explicit_live_opt_in_or_benchmark_credential");
+  const globalOptIn = process.env.REGULAR_TEST_REAL_PROVIDER_CALLS?.trim() === "1";
+  const qualityOptIn = process.env[RP_ACTIVE_MODEL_QUALITY_LIVE_FLAG]?.trim() === "1";
+  const openRouterApiKey =
+    globalOptIn && qualityOptIn
+      ? process.env.OPENROUTER_SUPPLY_BENCHMARK_API_KEY?.trim() || null
+      : null;
+  if (!ciApiKey || !openRouterApiKey) {
+    writeNotRun("missing_explicit_live_opt_in_or_required_benchmark_credential");
     console.log("NOT_RUN — provider calls=0");
     return;
   }
@@ -69,7 +75,14 @@ async function main(): Promise<void> {
         .map((value) => value.trim())
         .filter(Boolean) as Parameters<typeof runRpActiveModelQualityLive>[0]["caseIds"])
     : undefined;
-  const report = await runRpActiveModelQualityLive({ apiKey, runId, caseIds });
+  const report = await runRpActiveModelQualityLive({
+    credentials: {
+      cheaperinference: ciApiKey,
+      openrouter: openRouterApiKey,
+    },
+    runId,
+    caseIds,
+  });
 
   mkdirSync(OUTPUT_DIR, { recursive: true });
   writeFileSync(

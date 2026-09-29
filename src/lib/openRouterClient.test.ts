@@ -12,6 +12,7 @@ import {
   isQwenOpenRouterModel,
   GEMINI_PRO_GENERATION_PARAMS,
   OPENROUTER_RP_REASONING_GEMINI_FLASH,
+  OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH,
   OPENROUTER_RP_REASONING_GEMINI_3_PRO,
   OPENROUTER_RP_REASONING_MUSE_SPARK,
   OPENROUTER_RP_REASONING_OFF,
@@ -24,6 +25,8 @@ import {
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
+  OPENROUTER_GEMINI_37_FLASH_MODEL,
+  OPENROUTER_GEMINI_38_FLASH_MODEL,
   OPENROUTER_GLM_52_MODEL,
   OPENROUTER_KIMI_K3_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
@@ -136,6 +139,39 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.equal(body.include_reasoning, false);
     assert.equal(body.temperature, undefined);
     assert.equal(body.top_p, undefined);
+  });
+
+  it("uses low reasoning for Gemini 3.7 and 3.8 Flash because minimal is unsupported", () => {
+    for (const modelId of [
+      OPENROUTER_GEMINI_37_FLASH_MODEL,
+      OPENROUTER_GEMINI_38_FLASH_MODEL,
+    ]) {
+      const body = buildOpenRouterRequestBody(
+        modelId,
+        [{ role: "user", content: "test" }],
+        true,
+        3500,
+        "chat-1"
+      ) as Record<string, unknown>;
+      assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH);
+      assert.equal(body.include_reasoning, false);
+    }
+    assert.equal(OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH.effort, "low");
+  });
+
+  it("omits deprecated sampling parameters for Gemini 3.8 Flash", () => {
+    const body = buildOpenRouterRequestBody(
+      OPENROUTER_GEMINI_38_FLASH_MODEL,
+      [{ role: "user", content: "test" }],
+      true,
+      3500,
+      "chat-1",
+      undefined,
+      { temperature: 1.1, top_p: 0.9 }
+    ) as Record<string, unknown>;
+    assert.equal(body.temperature, undefined);
+    assert.equal(body.top_p, undefined);
+    assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH);
   });
 
   it("disables reasoning for Qwen RP requests", () => {
@@ -287,6 +323,16 @@ describe("resolveRegenerateGenerationOverrides", () => {
   it("keeps Gemini 3.6 sampling parameters omitted on regenerate", () => {
     const overrides = resolveRegenerateGenerationOverrides(
       OPENROUTER_GEMINI_36_FLASH_MODEL,
+      3500
+    );
+    assert.equal(overrides.temperature, undefined);
+    assert.equal(overrides.top_p, undefined);
+    assert.ok(overrides.seed != null);
+  });
+
+  it("keeps Gemini 3.8 sampling parameters omitted on regenerate", () => {
+    const overrides = resolveRegenerateGenerationOverrides(
+      OPENROUTER_GEMINI_38_FLASH_MODEL,
       3500
     );
     assert.equal(overrides.temperature, undefined);
