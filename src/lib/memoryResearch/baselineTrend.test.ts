@@ -124,6 +124,27 @@ describe("Memory Quality Trend Sentinel", () => {
     assert.match(report.note, /improvements do not offset regressions/i);
   });
 
+  it("flags a core metric that becomes non-comparable as EVIDENCE_GAP", () => {
+    const current = summary();
+    current.metrics.finalRecallAt8 = {
+      value: null,
+      status: "NOT_MEASURED",
+      eligibleCases: 0,
+      totalCases: 10,
+      reason: "final owner did not execute",
+    };
+    const report = evaluateBaselineQualityTrend({
+      current,
+      benchmarkDefinitionFingerprint: "bench-a",
+      history: [
+        history("weekly-1", "2026-09-20T00:00:00.000Z", summary()),
+      ],
+    });
+    assert.equal(report.status, "EVIDENCE_GAP");
+    assert.deepEqual(report.notComparableCoreMetrics, ["finalRecallAt8"]);
+    assert.match(report.note, /no longer comparable/i);
+  });
+
   it("warns on >5% prompt-token growth without fabricating a quality regression", () => {
     const report = evaluateBaselineQualityTrend({
       current: summary({}, 1100, 100),
