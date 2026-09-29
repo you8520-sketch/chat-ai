@@ -142,6 +142,10 @@ describe("Main RP supply promotion proposal packet", () => {
     assert.equal(gemini.draftRoutePrEligible, true);
     assert.equal(gemini.stopReason, null);
     assert.equal(gemini.automaticMergeEligible, false);
+    assert.deepEqual(gemini.testedRoute, {
+      providerSlug: "alternative-studio",
+      serviceTier: null,
+    });
 
     const deepseek = packet.proposals.find(
       (row) => row.modelId === "deepseek-v4.1-flash"
