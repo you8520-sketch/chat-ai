@@ -70,7 +70,7 @@ describe("decision model radar catalog", () => {
     });
     assert.equal(parsed.length, 1);
     assert.equal(parsed[0]!.id, "upstage/solar-decide");
-    assert.equal(parsed[0]!.promptUsdPerMillion, 0.05);
+    assert.ok(Math.abs((parsed[0]!.promptUsdPerMillion ?? 0) - 0.05) < 1e-12);
     assert.equal(parsed[0]!.outputUsdPerMillion, 0);
     assert.ok(parsed[0]!.fingerprint.length >= 32);
   });
