@@ -1,0 +1,41 @@
+{
+  "fixture": "B-B3",
+  "primary_model": "gemini-3.1-pro-preview",
+  "delivered_model": null,
+  "provider": null,
+  "visible_chars": 0,
+  "paragraph_count": 0,
+  "dialogue_paragraph_count": 0,
+  "dialogue_paragraph_ratio": 0,
+  "max_consecutive_dialogue": 0,
+  "input_tokens": null,
+  "output_tokens": null,
+  "reasoning_tokens": null,
+  "ttft_ms": 4174,
+  "latency_ms": 13137,
+  "finish_reason": "stop",
+  "request_sha": "5c446d8b62675acf5b0bce3861d28c861459c1433841e409c1d9ef192ed681d8",
+  "raw_sha": "2d103b20ec4bb94378d9b451f10c65c258236826e75cef3c9b598f0cd03215ac",
+  "provider_call_count": 2,
+  "gemini_call_count": 1,
+  "deepseek_call_count": 0,
+  "handoff_count": 0,
+  "provider_models": [
+    "deepseek-v4-flash-0731",
+    "gemini-3.1-pro-preview"
+  ],
+  "chat_id": 4,
+  "http_status": 200,
+  "usage": {},
+  "alarm_candidates": [
+    "EMPTY_OUTPUT"
+  ],
+  "capture_ids": [
+    "019",
+    "021"
+  ],
+  "dump_files": [
+    "requests/B-B3-prompt_dump.txt",
+    "requests/B-B3-token_breakdown.json"
+  ]
+}

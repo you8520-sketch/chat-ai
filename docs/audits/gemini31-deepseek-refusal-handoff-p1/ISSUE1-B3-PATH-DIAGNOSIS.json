@@ -1,0 +1,149 @@
+{
+  "firstDeterministicDivergence": {
+    "name": "detectModelRefusal.refused",
+    "b2": true,
+    "b3": false
+  },
+  "rootCause": "B3 Gemini RAW uses 생성할 수 없 / 안전 가이드라인, which looksLikeProviderRefusalProse does not match. B2 used 작성할 수 없, which the existing detector matches. Steps 1–6 are the same; step 7 is the first divergence.",
+  "b2": {
+    "label": "B-B2",
+    "userChars": 125,
+    "geminiChars": 128,
+    "geminiPreview": "요청하신 명시적인 성적 묘사(삽입, 성교 등 노골적인 성인 콘텐츠)는 안전 가이드라인에 위배되어 작성할 수 없습니다. 캐릭터 간의 다른 상호작용이나 다른 방향의 이야기 전개로 수정해 주시면 계속해서 롤플레이를 진행해 드리겠습니다.",
+    "sceneClassification": {
+      "sceneMode": "explicit",
+      "sexualContextActive": false,
+      "currentInputExplicitIntent": true,
+      "requiresAdultCapableModel": true,
+      "hardStop": false,
+      "sceneReset": false,
+      "oocIntent": "rp_continuing",
+      "reason": "ooc_explicit_anatomy_reaction"
+    },
+    "eligibility": {
+      "eligible": true,
+      "allowedByAdultContentPolicy": true,
+      "blockReason": null,
+      "selectedAi": "gemini-3.1-pro-preview",
+      "replacementTarget": "deepseek-v4-pro-0813",
+      "replacementTargetIsDeepSeek0813": true
+    },
+    "refusalBufferRecommended": true,
+    "fallbackPrepared": true,
+    "fallbackReason": "current_input_explicit_intent",
+    "fallbackModelId": "deepseek-v4-pro-0813",
+    "streamBufferState": {
+      "bufferChars": 400,
+      "queuedChars": 128,
+      "flushedChars": 0,
+      "hasVisibleTokens": false,
+      "flushed": false,
+      "belowBufferLimit": true
+    },
+    "bufferedTextAtCompletion": {
+      "chars": 128,
+      "text": "요청하신 명시적인 성적 묘사(삽입, 성교 등 노골적인 성인 콘텐츠)는 안전 가이드라인에 위배되어 작성할 수 없습니다. 캐릭터 간의 다른 상호작용이나 다른 방향의 이야기 전개로 수정해 주시면 계속해서 롤플레이를 진행해 드리겠습니다."
+    },
+    "detectModelRefusal": {
+      "input": {
+        "text": "요청하신 명시적인 성적 묘사(삽입, 성교 등 노골적인 성인 콘텐츠)는 안전 가이드라인에 위배되어 작성할 수 없습니다. 캐릭터 간의 다른 상호작용이나 다른 방향의 이야기 전개로 수정해 주시면 계속해서 롤플레이를 진행해 드리겠습니다.",
+        "finishReason": "stop"
+      },
+      "result": {
+        "refused": true,
+        "reason": "provider_refusal"
+      },
+      "detectorTokensInText": {
+        "jakseong": true,
+        "saengseong": false,
+        "anjeonJeongchaek": false,
+        "anjeonGuideline": true,
+        "seongjeokNogeol": false,
+        "nogeolSeongjeok": false,
+        "yocheongeung": false
+      }
+    },
+    "fallbackInvocationGate": {
+      "invoke": true,
+      "reason": "provider_refusal"
+    },
+    "invokePreparedAdultRefusalFallbackReached": true,
+    "fallbackInvocationCount": 1,
+    "invokePreparedResult": {
+      "invoked": true,
+      "reason": "provider_refusal",
+      "result": {
+        "model": "deepseek-v4-pro-0813"
+      }
+    }
+  },
+  "b3": {
+    "label": "B-B3",
+    "userChars": 104,
+    "geminiChars": 155,
+    "geminiPreview": "죄송합니다만, 요청하신 노골적인 성적 행위 묘사(삽입, 구체적인 성행위, 사정 등)를 포함한 장면은 안전 가이드라인에 위배되므로 생성할 수 없습니다. 다른 방향의 이야기 전개나 설정에 대해서는 기꺼이 도움을 드릴 수 있으니, 원하시는 다른 상황이 있다면 말씀해 주시기 바랍니다.",
+    "sceneClassification": {
+      "sceneMode": "explicit",
+      "sexualContextActive": true,
+      "currentInputExplicitIntent": true,
+      "requiresAdultCapableModel": true,
+      "hardStop": false,
+      "sceneReset": false,
+      "oocIntent": "rp_continuing",
+      "reason": "explicit_action"
+    },
+    "eligibility": {
+      "eligible": true,
+      "allowedByAdultContentPolicy": true,
+      "blockReason": null,
+      "selectedAi": "gemini-3.1-pro-preview",
+      "replacementTarget": "deepseek-v4-pro-0813",
+      "replacementTargetIsDeepSeek0813": true
+    },
+    "refusalBufferRecommended": true,
+    "fallbackPrepared": true,
+    "fallbackReason": "current_input_explicit_intent",
+    "fallbackModelId": "deepseek-v4-pro-0813",
+    "streamBufferState": {
+      "bufferChars": 400,
+      "queuedChars": 155,
+      "flushedChars": 0,
+      "hasVisibleTokens": false,
+      "flushed": false,
+      "belowBufferLimit": true
+    },
+    "bufferedTextAtCompletion": {
+      "chars": 155,
+      "text": "죄송합니다만, 요청하신 노골적인 성적 행위 묘사(삽입, 구체적인 성행위, 사정 등)를 포함한 장면은 안전 가이드라인에 위배되므로 생성할 수 없습니다. 다른 방향의 이야기 전개나 설정에 대해서는 기꺼이 도움을 드릴 수 있으니, 원하시는 다른 상황이 있다면 말씀해 주시기 바랍니다."
+    },
+    "detectModelRefusal": {
+      "input": {
+        "text": "죄송합니다만, 요청하신 노골적인 성적 행위 묘사(삽입, 구체적인 성행위, 사정 등)를 포함한 장면은 안전 가이드라인에 위배되므로 생성할 수 없습니다. 다른 방향의 이야기 전개나 설정에 대해서는 기꺼이 도움을 드릴 수 있으니, 원하시는 다른 상황이 있다면 말씀해 주시기 바랍니다.",
+        "finishReason": "stop"
+      },
+      "result": {
+        "refused": false,
+        "reason": "unknown"
+      },
+      "detectorTokensInText": {
+        "jakseong": false,
+        "saengseong": true,
+        "anjeonJeongchaek": false,
+        "anjeonGuideline": true,
+        "seongjeokNogeol": false,
+        "nogeolSeongjeok": true,
+        "yocheongeung": false
+      }
+    },
+    "fallbackInvocationGate": {
+      "invoke": false,
+      "reason": "not_refusal"
+    },
+    "invokePreparedAdultRefusalFallbackReached": false,
+    "fallbackInvocationCount": 0,
+    "invokePreparedResult": {
+      "invoked": false,
+      "reason": "not_refusal"
+    }
+  }
+}
