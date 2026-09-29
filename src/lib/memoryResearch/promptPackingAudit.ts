@@ -6,7 +6,13 @@
  * memory research cycle can detect architecture drift and token-pressure
  * changes without inventing a parallel memory model.
  */
+import Database from "better-sqlite3";
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import {
+  ensureEpisodicMemoryFactsTable,
+  getEpisodicMemoryForPrompt,
+  resolveDynamicMemoryTotalMaxChars,
+} from "@/lib/episodicMemoryFacts";
 import {
   MEMORY_POLICY_ID,
   RAW_HISTORY_COMPLETE_EXCHANGES,
@@ -34,6 +40,17 @@ export type MemoryPromptPackingModelSnapshot = {
   n15SafeForPolicyConsideration: boolean;
 };
 
+export type EpisodicDynamicBudgetProbe = {
+  dynamicMemoryTotalMaxChars: number;
+  rows: Array<{
+    higherPriorityChars: number;
+    injectedFacts: number;
+    promptChars: number;
+  }>;
+  starvationDetected: boolean;
+  note: string;
+};
+
 export type MemoryPromptPackingAudit = {
   generatedAt: string;
   currentTurnFixture: number;
@@ -50,11 +67,87 @@ export type MemoryPromptPackingAudit = {
   };
   invariants: Array<{ id: string; ok: boolean; detail: string }>;
   models: MemoryPromptPackingModelSnapshot[];
+  episodicDynamicBudget: EpisodicDynamicBudgetProbe;
   interpretation: {
     literalDuplicateClaim: "NOT_MEASURED";
     note: string;
   };
 };
+
+function buildEpisodicDynamicBudgetProbe(): EpisodicDynamicBudgetProbe {
+  const dynamicMemoryTotalMaxChars = resolveDynamicMemoryTotalMaxChars(
+    {} as unknown as NodeJS.ProcessEnv
+  );
+  const env = {
+    MEMORY_FEATURE_ENABLED: "1",
+    EPISODIC_MEMORY_RECALL_ENABLED: "1",
+  } as unknown as NodeJS.ProcessEnv;
+  const probePoints = [
+    0,
+    Math.max(0, dynamicMemoryTotalMaxChars - 500),
+    Math.max(0, dynamicMemoryTotalMaxChars - 100),
+    dynamicMemoryTotalMaxChars,
+    dynamicMemoryTotalMaxChars + 500,
+  ];
+
+  const rows = probePoints.map((higherPriorityChars) => {
+    const db = new Database(":memory:");
+    try {
+      ensureEpisodicMemoryFactsTable(db);
+      db.exec(
+        "CREATE TABLE chat_memories (chat_id INTEGER PRIMARY KEY, memory_reset_after_message_id INTEGER, memory_epoch INTEGER NOT NULL DEFAULT 0)"
+      );
+      db.prepare("INSERT INTO chat_memories (chat_id) VALUES (1)").run();
+      db.prepare(
+        `INSERT INTO episodic_memory_facts
+          (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+         VALUES
+          (1, 1, 'setting', 'storm_shelter', 'scene_event', 'cave', 'important',
+           '폭풍우가 몰아치던 밤 두 사람은 동굴에 피신했다.',
+           '{"memory_evidence_type":"explicit_scene_event"}')`
+      ).run();
+
+      const recalled = getEpisodicMemoryForPrompt(
+        db,
+        {
+          chatId: 1,
+          currentTurn: 20,
+          currentUserMessage: "폭풍우 치던 밤 동굴에 피신한 일을 기억해?",
+          longTermMemoryText: "x".repeat(higherPriorityChars),
+          relationshipMemoryText: "",
+          lorebookText: "",
+        },
+        env
+      );
+
+      return {
+        higherPriorityChars,
+        injectedFacts: recalled.facts.length,
+        promptChars: recalled.promptBlock.length,
+      };
+    } finally {
+      db.close();
+    }
+  });
+
+  const baseline = rows.find((row) => row.higherPriorityChars === 0)?.injectedFacts ?? 0;
+  const atOrAboveCap = rows.filter(
+    (row) => row.higherPriorityChars >= dynamicMemoryTotalMaxChars
+  );
+  const starvationDetected =
+    baseline > 0 &&
+    atOrAboveCap.length > 0 &&
+    atOrAboveCap.every((row) => row.injectedFacts === 0);
+
+  return {
+    dynamicMemoryTotalMaxChars,
+    rows,
+    starvationDetected,
+    note:
+      "Research-only deterministic probe. It varies only longTermMemoryText length while using the canonical episodic retrieval owner. " +
+      "A detected starvation condition is evidence for follow-up, not a production policy change.",
+  };
+}
 
 export function buildMemoryPromptPackingAudit(
   currentTurnFixture = 300,
@@ -138,12 +231,15 @@ export function buildMemoryPromptPackingAudit(
     },
   ];
 
+  const episodicDynamicBudget = buildEpisodicDynamicBudgetProbe();
+
   return {
     generatedAt: now.toISOString(),
     currentTurnFixture,
     architecture,
     invariants,
     models,
+    episodicDynamicBudget,
     interpretation: {
       literalDuplicateClaim: "NOT_MEASURED",
       note:
@@ -191,6 +287,20 @@ export function renderMemoryPromptPackingAuditMarkdown(
       (m) =>
         `| ${m.modelId} | ${m.baselineInputTokens} | ${m.n15InputTokens} | +${m.n15DeltaInputTokens} | ${m.n15MediumTokens} | +${m.n15MinusN10InputTokens} | ${m.n15SafeForPolicyConsideration ? "YES" : "NO"} |`
     ),
+    "",
+    "## Episodic dynamic-memory budget probe",
+    "",
+    `- dynamic-memory total cap: ${audit.episodicDynamicBudget.dynamicMemoryTotalMaxChars} chars`,
+    `- starvation detected at/above cap: **${audit.episodicDynamicBudget.starvationDetected ? "YES" : "NO"}**`,
+    "",
+    "| higher-priority chars | episodic facts injected | episodic prompt chars |",
+    "|---:|---:|---:|",
+    ...audit.episodicDynamicBudget.rows.map(
+      (row) =>
+        `| ${row.higherPriorityChars} | ${row.injectedFacts} | ${row.promptChars} |`
+    ),
+    "",
+    `- ${audit.episodicDynamicBudget.note}`,
     "",
     "## Interpretation boundary",
     "",
