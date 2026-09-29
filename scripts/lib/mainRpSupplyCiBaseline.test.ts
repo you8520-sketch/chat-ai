@@ -170,7 +170,12 @@ describe("same-prompt current CI baseline guard", () => {
     const target = targetCandidate.modelId;
 
     const targetModel = missing.models.find((row) => row.modelId === target)!;
-    targetModel.currentProcurement = null;
+    assert.equal(targetModel.currentProcurement?.provider, "cheaperinference");
+    targetModel.currentProcurement = {
+      ...targetModel.currentProcurement!,
+      inputUsdPerMillion: null,
+      outputUsdPerMillion: null,
+    };
     const plan = applyCurrentCiBaselineBudgetGuard(missing, selection);
 
     assert.equal(
