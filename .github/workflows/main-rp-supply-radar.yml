@@ -4,8 +4,10 @@ on:
   schedule:
     # 01st day: full monthly scan + bounded live qualification.
     - cron: "47 3 1 * *"
-    # 15th day: read-only mid-month procurement/price/health scan only.
-    - cron: "47 3 15 * *"
+    # 08th/15th/22nd: read-only procurement/price/health snapshots.
+    # Together with the 01st run this yields four durable market snapshots/month
+    # without increasing provider-generation calls.
+    - cron: "47 3 8,15,22 * *"
   workflow_dispatch:
 
 permissions:
