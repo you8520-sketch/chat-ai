@@ -13,7 +13,6 @@ function measured(value: number, eligible = 2, total = 2) {
   return {
     value,
     status: "MEASURED" as const,
-    reason: null,
     eligibleCases: eligible,
     totalCases: total,
   };
@@ -57,7 +56,6 @@ function summary(overrides: {
     fallbackParity: {
       value: true,
       status: "MEASURED" as const,
-      reason: null,
       eligibleCases: 2,
       totalCases: 2,
     },
