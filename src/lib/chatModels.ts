@@ -1,3 +1,5 @@
+import MAIN_RP_OPENROUTER_ROUTES from "../../config/main-rp-openrouter-routes.json";
+
 /** 채팅방 AI 선택 (selectedAI) — 사용자 전역 선택 */
 /** 유저가 보내는 메시지 최대 글자 수 */
 export const CHAT_MESSAGE_MAX = 1500;
@@ -167,6 +169,21 @@ export const GEMINI_38_FLASH_MODEL = "gemini-3.8-flash";
 /** OpenRouter — Gemini 3.8 Flash. */
 export const OPENROUTER_GEMINI_38_FLASH_MODEL = "google/gemini-3.8-flash";
 
+type MainRpOpenRouterHintRoute = {
+  providerSlug: string;
+  serviceTier: "flex" | null;
+};
+
+const MAIN_RP_OPENROUTER_HINT_ROUTES =
+  MAIN_RP_OPENROUTER_ROUTES as Record<string, MainRpOpenRouterHintRoute>;
+
+function mainRpOpenRouterProviderHint(wireModel: string): string {
+  const slug = MAIN_RP_OPENROUTER_HINT_ROUTES[wireModel]?.providerSlug?.trim();
+  if (!slug) return "OpenRouter";
+  if (slug === "google-ai-studio") return "Google AI Studio";
+  return `OpenRouter · ${slug}`;
+}
+
 /** OpenRouter — Gemini 2.0 Flash (legacy 백그라운드 비전 상수 — asset vision default는 Qwen3.8 Flash) */
 export const OPENROUTER_GEMINI_20_FLASH_MODEL = "google/gemini-2.0-flash-001";
 
@@ -261,21 +278,21 @@ export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
     label: GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
     provider: "openrouter",
     tier: "pro",
-    hint: "Google AI Studio",
+    hint: mainRpOpenRouterProviderHint(OPENROUTER_GEMINI_31_PRO_MODEL),
   },
   {
     id: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
     label: GEMINI_37_FLASH_DISPLAY_NAME,
     provider: "openrouter",
     tier: "pro",
-    hint: "Google AI Studio",
+    hint: mainRpOpenRouterProviderHint(OPENROUTER_GEMINI_37_FLASH_MODEL),
   },
   {
     id: GEMINI_38_FLASH_MODEL,
     label: GEMINI_38_FLASH_DISPLAY_NAME,
     provider: "openrouter",
     tier: "pro",
-    hint: "Google AI Studio",
+    hint: mainRpOpenRouterProviderHint(OPENROUTER_GEMINI_38_FLASH_MODEL),
   },
   {
     id: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
