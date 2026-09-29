@@ -37,6 +37,7 @@ jobs:
         run: >-
           node --conditions=react-server --import tsx --test --test-concurrency=1
           scripts/lib/mainRpSupplyRadar.test.ts
+          scripts/lib/mainRpDirectSupplierRadar.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
           scripts/lib/mainRpSupplyCiBaseline.test.ts
       - name: Read-only external supply scan
@@ -63,6 +64,10 @@ jobs:
         run: |
           if [ -f artifacts/main-rp-supply-radar/REPORT.md ]; then
             cat artifacts/main-rp-supply-radar/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f artifacts/main-rp-supply-radar/DIRECT-SUPPLIERS.md ]; then
+            printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
+            cat artifacts/main-rp-supply-radar/DIRECT-SUPPLIERS.md >> "$GITHUB_STEP_SUMMARY"
           fi
           if [ -f artifacts/main-rp-supply-radar/live/LIVE-QUALIFICATION.md ]; then
             printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
