@@ -246,10 +246,14 @@ it("benchmark adoption proposals emit only when a benchmark candidate is re-eval
     ["persona_continuity", "trajectory_recall"]
   );
   assert.deepEqual(
-    first.report.benchmarkCasePortPlans.map((plan) => [plan.ability, plan.readiness]).sort(),
+    first.report.benchmarkCasePortPlans
+      .map((plan) => [plan.planKey, plan.readiness])
+      .sort(),
     [
       ["persona_continuity", "HARNESS_EXTENSION_REQUIRED"],
-      ["trajectory_recall", "READY_DETERMINISTIC_FIXTURE"],
+      ["trajectory_recall:commitment_lifecycle", "READY_MUTATION_LIFECYCLE_FIXTURE"],
+      ["trajectory_recall:existing_temporal_user_state", "NO_PORT_REQUIRED"],
+      ["trajectory_recall:persona_update", "HARNESS_EXTENSION_REQUIRED"],
     ]
   );
 
