@@ -90,7 +90,7 @@ export function buildBenchmarkCasePortPlan(
           "src/lib/memory/memory-rp-benchmark.ts",
           "src/lib/memory/memory-relationship-meta.ts",
           "src/lib/chatMemory.ts",
-          "src/lib/memory/memory-relationship-provenance.test.ts",
+          "src/lib/chatMemory.test.ts",
         ],
         proposedCaseIds: [
           "trajectory-user-state-current-01",
@@ -130,7 +130,7 @@ export function buildBenchmarkCasePortPlan(
             targetPaths: [
               "src/lib/chatMemory.ts",
               "src/lib/memory/memory-relationship-meta.ts",
-              "src/lib/memory/memory-relationship-provenance.test.ts",
+              "src/lib/chatMemory.test.ts",
             ],
             proposedCaseIds: ["active-commitment-ledger-01"],
             rationale:
@@ -143,11 +143,11 @@ export function buildBenchmarkCasePortPlan(
             targetPaths: [
               "src/lib/chatMemory.ts",
               "src/lib/memory/memory-relationship-meta.ts",
-              "src/lib/memory/memory-relationship-provenance.test.ts",
+              "src/lib/chatMemory.test.ts",
             ],
             proposedCaseIds: ["expired-commitment-ledger-01"],
             rationale:
-              "MemoryPromise explicitly documents removal on fulfillment/expiry; the fixture should prove removal/current prompt projection, not episodic recall.",
+              "The durable ledger removes a fulfilled/expired promise when the extracted delta supplies promisesRemove; there is no wall-clock expiry owner here. The fixture should prove delta-driven removal/current prompt projection, not episodic recall.",
           },
           {
             family: "user_state_change",
