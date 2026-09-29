@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "fixtureId": "F1",
+      "category": "QUIET_EMOTIONAL",
+      "fixtureProvenance": "SYNTHETIC",
+      "roundNumber": 1,
+      "location": "폐허가 된 성채 안쪽 회랑",
+      "partyNames": ["세라", "민호"],
+      "actions": [
+        { "name": "세라", "body": "벽면의 낡은 초상화를 조용히 바라본다." },
+        { "name": "민호", "body": "손등으로 먼지를 털며 옆에 선다." }
+      ],
+      "narration": "회랑 끝에서 바람이 멈춘다. 초상화 속 여인의 눈동자가 잠깐 빛나더니, 세라의 눈가에 눈물 한 방울이 맺힌다. 민호는 말을 삼키고 그 표정만 바라본다. 멀리서 유리창이 살짝 울린다.",
+      "constraints": {
+        "mustNotInventCharacter": ["세라", "민호"],
+        "roundLocation": "폐허가 된 성채 안쪽 회랑",
+        "canonicalPartyNames": ["세라", "민호"],
+        "canonicalActionNames": ["세라", "민호"]
+      }
+    },
+    {
+      "fixtureId": "F2",
+      "category": "DIALOGUE_REACTION",
+      "fixtureProvenance": "SYNTHETIC",
+      "roundNumber": 2,
+      "location": "항구 도시 '잿빛 부두'",
+      "partyNames": ["유나", "카이"],
+      "actions": [
+        { "name": "유나", "body": "\"그 배, 우리가 찾던 거 맞아?\"" },
+        { "name": "카이", "body": "담배 연기를 내뿜으며 고개를 젓는다." }
+      ],
+      "narration": "유나가 검은 돛대를 가리킨다. \"그 배, 우리가 찾던 거 맞아?\" 카이는 담배 연기를 내뿜으며 고개를 젓는다. \"아니. 돛에 새긴 문양이 다르지.\" 유나는 입술을 깨문다. 그때 갑판 위에서 낡은 로프가 끊어지며 쇳소리가 난다. 카이의 눈동자가 순간 크게 뜨인다.",
+      "constraints": {
+        "mustNotInventCharacter": ["유나", "카이"],
+        "roundLocation": "항구 도시 '잿빛 부두'",
+        "canonicalPartyNames": ["유나", "카이"],
+        "canonicalActionNames": ["유나", "카이"]
+      }
+    },
+    {
+      "fixtureId": "F3",
+      "category": "COMBAT_ACTION",
+      "fixtureProvenance": "SYNTHETIC",
+      "roundNumber": 3,
+      "location": "지하 수로 교차로",
+      "partyNames": ["하린", "준"],
+      "actions": [
+        { "name": "하린", "body": "쌍검으로 습격자의 무릎 관절을 노린다." },
+        { "name": "준", "body": "방패로 하린의 측면을 열어 준다." }
+      ],
+      "narration": "습격자 셋이 어둠에서 튀어나온다. 하린이 쌍검을 교차시키며 무릎 관절을 노린다. 준은 방패를 들어 올려 하린의 측면을 열어 준다. 첫 번째 습격자는 비명을 지르며 물에 빠지고, 두 번째는 벽면을 박차며 후퇴한다. 마지막 한 명은 횃불을 바닥에 던지고 달아난다.",
+      "constraints": {
+        "mustNotInventCharacter": ["하린", "준"],
+        "roundLocation": "지하 수로 교차로",
+        "canonicalPartyNames": ["하린", "준"],
+        "canonicalActionNames": ["하린", "준"]
+      }
+    },
+    {
+      "fixtureId": "F4",
+      "category": "LATE_CLIMAX",
+      "fixtureProvenance": "SYNTHETIC",
+      "roundNumber": 4,
+      "location": "고대 관측탑 7층",
+      "partyNames": ["이안", "소피", "마르코"],
+      "actions": [
+        { "name": "이안", "body": "별자리 판을 천천히 돌린다." },
+        { "name": "소피", "body": "기록장을 펼쳐 문양을 대조한다." },
+        { "name": "마르코", "body": "창문 너머를 경계한다." }
+      ],
+      "narration": "이안이 별자리 판을 돌리고, 소피는 기록장의 문양을 대조한다. 마르코는 창문 너머를 경계한다. 처음엔 아무 일도 없다. 바람만 스며든다. 소피가 \"아직 한 칸 부족해\"라고 중얼거린다. 이안이 판을 한 번 더 돌리자, 벽면의 석재가 갈라지며 먼지가 쏟아진다. 마지막 순간, 천장 중앙의 유리 구체가 붉게 점등하며 관측탑 전체를 비춘다.",
+      "constraints": {
+        "mustNotInventCharacter": ["이안", "소피", "마르코"],
+        "roundLocation": "고대 관측탑 7층",
+        "canonicalPartyNames": ["이안", "소피", "마르코"],
+        "canonicalActionNames": ["이안", "소피", "마르코"]
+      }
+    },
+    {
+      "fixtureId": "F5",
+      "category": "MULTI_PARTY_ACTION",
+      "fixtureProvenance": "SYNTHETIC",
+      "roundNumber": 5,
+      "location": "숲속 전초 기지",
+      "partyNames": ["태현", "이현", "에녹"],
+      "actions": [
+        { "name": "태현", "body": "왼쪽 가드 포스트를 향해 돌진한다." },
+        { "name": "이현", "body": "화살 두 발을 연속으로 쏜다." },
+        { "name": "에녹", "body": "치유 손길을 태현의 어깨에 얹는다." }
+      ],
+      "narration": "전초 기지의 횃불이 흔들린다. 태현이 왼쪽 가드 포스트를 향해 돌진하고, 이현은 화살 두 발을 연속으로 쏜다. 에녹은 치유 손길을 태현의 어깨에 얹는다. 첫 화살이 경고 등불을 꺼뜨리고, 둘째 화살이 로프를 끊는다. 태현은 문틈을 박차고 들어가며, 에녹의 빛이 그의 상처를 메운다.",
+      "constraints": {
+        "mustNotInventCharacter": ["태현", "이현", "에녹"],
+        "roundLocation": "숲속 전초 기지",
+        "canonicalPartyNames": ["태현", "이현", "에녹"],
+        "canonicalActionNames": ["태현", "이현", "에녹"]
+      }
+    },
+    {
+      "fixtureId": "F6",
+      "category": "ENVIRONMENT_SHIFT",
+      "fixtureProvenance": "SYNTHETIC",
+      "roundNumber": 6,
+      "location": "빗속 골목",
+      "partyNames": ["리나", "도윤"],
+      "actions": [
+        { "name": "리나", "body": "우산 없이 골목 깊숙이 들어간다." },
+        { "name": "도윤", "body": "뒤따라가며 벽의 낙서를 확인한다." }
+      ],
+      "narration": "비가 세차게 내린다. 리나가 우산 없이 골목 깊숙이 들어가고, 도윤은 벽의 낙서를 확인하며 뒤따른다. 골목 끝에서 바람 방향이 바뀌더니, 빗줄기가 갑자기 멈춘다. 공기가 건조해지고, 벽면의 낙서가 벗겨지며 뒤편의 유리 온실 입구가 드러난다. 온실 안쪽은 안개 대신 따뜻한 햇빛이 가득하다.",
+      "constraints": {
+        "mustNotInventCharacter": ["리나", "도윤"],
+        "roundLocation": "빗속 골목",
+        "canonicalPartyNames": ["리나", "도윤"],
+        "canonicalActionNames": ["리나", "도윤"]
+      }
+    },
+    {
+      "fixtureId": "F7",
+      "category": "NPC_REVEAL",
+      "fixtureProvenance": "SYNTHETIC",
+      "roundNumber": 7,
+      "location": "폐역 대합실",
+      "partyNames": ["지우", "한결"],
+      "actions": [
+        { "name": "지우", "body": "떨어진 시간표를 줍는다." },
+        { "name": "한결", "body": "기둥 뒤 그림자를 의심한다." }
+      ],
+      "narration": "지우가 떨어진 시간표를 줍는다. 한결은 기둥 뒤 그림자를 의심하며 손을 검자루에 올린다. 그때 대합실 중앙의 시계가 거꾸로 돌기 시작한다. 기둥 뒤에서 검은 외투를 입은 여행객이 나타나며, \"늦었군\"이라고 말한다. 그의 가방에서 붉은 빛이 새어 나온다.",
+      "constraints": {
+        "mustNotInventCharacter": ["지우", "한결"],
+        "roundLocation": "폐역 대합실",
+        "canonicalPartyNames": ["지우", "한결"],
+        "canonicalActionNames": ["지우", "한결"]
+      }
+    },
+    {
+      "fixtureId": "F8",
+      "category": "DISCOVERY_OBJECT",
+      "fixtureProvenance": "SYNTHETIC",
+      "roundNumber": 8,
+      "location": "서고 지하 서가",
+      "partyNames": ["미래", "성호"],
+      "actions": [
+        { "name": "미래", "body": "책장 사이의 금속함을 연다." },
+        { "name": "성호", "body": "랜턴을 들어 올려 먼지를 확인한다." }
+      ],
+      "narration": "미래가 책장 사이의 금속함을 연다. 성호는 랜턴을 들어 올려 먼지를 확인한다. 금속함 안에는 빈칸만 있을 줄 알았지만, 바닥에 낡은 열쇠 한 자루가 놓여 있다. 열쇠 손잡이에는 달 모양 문양이 새겨져 있고, 미래의 손끝이 닿자 차가운 빛이 번진다.",
+      "constraints": {
+        "mustNotInventCharacter": ["미래", "성호"],
+        "roundLocation": "서고 지하 서가",
+        "canonicalPartyNames": ["미래", "성호"],
+        "canonicalActionNames": ["미래", "성호"]
+      }
+    },
+    {
+      "fixtureId": "F9",
+      "category": "FAILURE_COMPLICATION",
+      "fixtureProvenance": "SYNTHETIC",
+      "roundNumber": 9,
+      "location": "절벽 옆 쇠사슬 다리",
+      "partyNames": ["아린", "범"],
+      "actions": [
+        { "name": "아린", "body": "다리 중앙의 고리를 힘껏 당긴다." },
+        { "name": "범", "body": "밧줄로 아린의 허리를 묶어 고정한다." }
+      ],
+      "narration": "아린이 다리 중앙의 고리를 힘껏 당긴다. 범은 밧줄로 아린의 허리를 묶어 고정한다. 고리는 움직이지 않는다. 대신 쇠사슬이 삐걱이며, 다리 한쪽이 아래로 기울기 시작한다. 아린은 발을 헛디뎌 넘어지고, 범은 밧줄을 붙잡은 채 둘 다 절벽 쪽으로 끌려간다.",
+      "constraints": {
+        "mustNotInventCharacter": ["아린", "범"],
+        "roundLocation": "절벽 옆 쇠사슬 다리",
+        "canonicalPartyNames": ["아린", "범"],
+        "canonicalActionNames": ["아린", "범"]
+      }
+    },
+    {
+      "fixtureId": "F10",
+      "category": "LONG_MULTI_BEAT",
+      "fixtureProvenance": "SYNTHETIC",
+      "roundNumber": 10,
+      "location": "왕궁 연회장",
+      "partyNames": ["엘리", "라온", "피터"],
+      "actions": [
+        { "name": "엘리", "body": "왕실 단상 앞에서 인사한다." },
+        { "name": "라온", "body": "연주가의 시선을 피한다." },
+        { "name": "피터", "body": "샴페인 잔을 들고 미소 짓는다." }
+      ],
+      "narration": "연회장의 샹들리에가 반짝인다. 엘리가 왕실 단상 앞에서 인사하고, 라온은 연주가의 시선을 피하며 벽면으로 물러난다. 피터는 샴페인 잔을 들고 미소 짓는다. 처음엔 잔잔한 음악만 흐른다. 그다음, 하객들 사이에서 속삭임이 번진다. 라온의 장갑에서 붉은 얼룩이 드러나고, 엘리가 숨을 삼킨다. 마지막 순간, 단상 위의 붉은 장막이 떨어지며 숨겨진 왕실 문이 열린다.",
+      "constraints": {
+        "mustNotInventCharacter": ["엘리", "라온", "피터"],
+        "roundLocation": "왕궁 연회장",
+        "canonicalPartyNames": ["엘리", "라온", "피터"],
+        "canonicalActionNames": ["엘리", "라온", "피터"]
+      }
+    }
+  ]
+}
