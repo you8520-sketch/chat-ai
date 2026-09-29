@@ -1378,7 +1378,11 @@ export function assemblePrimaryRpRequest(opts: {
     const routePolicy = resolveMainRpOpenRouterRoutePolicy(modelId);
     if (routePolicy) {
       requestBodyBeforeAdapt.provider = routePolicy.provider;
-      requestBodyBeforeAdapt.service_tier = routePolicy.serviceTier;
+      if (routePolicy.serviceTier) {
+        requestBodyBeforeAdapt.service_tier = routePolicy.serviceTier;
+      } else {
+        delete requestBodyBeforeAdapt.service_tier;
+      }
     }
   }
   const requestBody = adaptRequestBodyForTransport(
