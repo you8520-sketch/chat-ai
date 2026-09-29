@@ -31,6 +31,7 @@ import {
   resolveRpOpenRouterModelId,
 } from "@/lib/openRouterConfig";
 import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
+import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
 
 describe("Gemini Main RP routing", () => {
   it("routes Gemini 3.1 through OpenRouter while preserving the provider-neutral stored id", () => {
@@ -102,6 +103,32 @@ describe("Gemini Main RP routing", () => {
       });
       const option = USER_SELECTABLE_AI_OPTIONS.find((row) => row.id === modelId);
       assert.equal(option?.hint, route.providerLabel);
+    }
+  });
+
+  it("applies the canonical route registry to the actual production request body", () => {
+    for (const modelId of [
+      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      GEMINI_38_FLASH_MODEL,
+    ]) {
+      const policy = resolveMainRpOpenRouterRoutePolicy(modelId);
+      assert.ok(policy);
+      const assembled = assemblePrimaryRpRequest({
+        system: "system",
+        history: [{ role: "user", content: "hello" }],
+        modelId: resolveOpenRouterModelId(modelId),
+        messageOpts: {
+          transportProvider: "openrouter",
+          charName: "테스트",
+          personaName: "테스트 유저",
+          sessionId: "route-registry-test",
+        },
+        stream: true,
+      });
+      const body = assembled.requestBodyBeforeAdapt as Record<string, unknown>;
+      assert.deepEqual(body.provider, policy.provider);
+      assert.equal(body.service_tier, policy.serviceTier);
     }
   });
 
