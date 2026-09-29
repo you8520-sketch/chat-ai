@@ -6,7 +6,10 @@ import {
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
 } from "@/lib/chatModels";
-import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
+import {
+  resolveMainRpOpenRouterRoutePolicy,
+  resolveOpenRouterModelId,
+} from "@/lib/openRouterConfig";
 import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
 import {
   RP_MODEL_QUALIFICATION_PACKET_OWNERS,
@@ -58,8 +61,17 @@ function main() {
       );
       assert.equal(casePacket.wireControls.stream, true);
       if (model.provider === "openrouter") {
+        const route = resolveMainRpOpenRouterRoutePolicy(model.modelId);
+        assert.ok(route, `${model.modelId}: canonical OpenRouter route required`);
         assert.ok(casePacket.requestBodyKeys.includes("provider"));
-        assert.equal(casePacket.wireControls.service_tier, "flex");
+        assert.deepEqual(casePacket.wireControls.provider, route.provider);
+        if (route.serviceTier == null) {
+          assert.equal(casePacket.wireControls.service_tier, undefined);
+          assert.equal(casePacket.requestBodyKeys.includes("service_tier"), false);
+        } else {
+          assert.equal(casePacket.wireControls.service_tier, route.serviceTier);
+          assert.ok(casePacket.requestBodyKeys.includes("service_tier"));
+        }
       }
       assert.ok(casePacket.requestBodyKeys.includes("messages"));
       assert.ok(casePacket.requestBodyKeys.includes("model"));
