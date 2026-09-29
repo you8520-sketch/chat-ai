@@ -20,6 +20,10 @@ export type SupplyPromotionProposal = {
   transitionKind: SupplyTransitionKind;
   draftRoutePrEligible: boolean;
   automaticMergeEligible: false;
+  testedRoute: {
+    providerSlug: string;
+    serviceTier: null;
+  };
   stopReason: string | null;
   evidence: {
     qualifyingMarketSnapshots: number;
@@ -118,6 +122,12 @@ function proposalFromEvidence(input: {
     transitionKind: transition.kind,
     draftRoutePrEligible: transition.draftRoutePrEligible,
     automaticMergeEligible: false,
+    testedRoute: {
+      providerSlug: input.evidence.providerSlug,
+      // Live qualification explicitly removes service_tier so promotion may
+      // only propose the exact no-tier route shape that was repeatedly tested.
+      serviceTier: null,
+    },
     stopReason: transition.stopReason,
     evidence: {
       qualifyingMarketSnapshots: input.evidence.qualifyingMarketSnapshots,
@@ -160,7 +170,7 @@ export function buildMainRpSupplyPromotionProposalPacket(input: {
     automaticMergeEligibleCount: 0,
     notes: [
       "This packet is advisory evidence. It never mutates routing or pricing.",
-      "Same-OpenRouter-transport promotion may proceed to a Draft route PR after exact route-policy diff/test generation.",
+      "Same-OpenRouter-transport promotion may proceed to a Draft route PR only with the exact tested provider pin and no service_tier.",
       "Cross-provider procurement changes are a STOP condition until billing, provider-cost, receipt provenance, and transport-control parity are reviewed.",
       "No proposal is eligible for automatic merge.",
     ],
