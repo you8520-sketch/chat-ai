@@ -9,6 +9,10 @@ on:
     # without increasing provider-generation calls.
     - cron: "47 3 8,15,22 * *"
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/main-rp-supply-radar.yml"
 
 permissions:
   contents: read
@@ -72,6 +76,48 @@ jobs:
       - name: Supply promotion proposal packet
         if: always()
         run: node --conditions=react-server --import tsx scripts/main-rp-supply-promotion-proposal.ts
+      - name: Inject synthetic auto-Draft dry-run fixture
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+          const path = "artifacts/main-rp-supply-radar/promotion-proposals.json";
+          const packet = {
+            version: 1,
+            generatedAt: new Date().toISOString(),
+            proposals: [{
+              modelId: "gemini-3.7-flash",
+              candidateProviderName: "Synthetic Qualified Provider",
+              candidateProviderSlug: "synthetic-qualified-provider",
+              proposedRoute: {
+                providerSlug: "synthetic-qualified-provider",
+                providerLabel: "Synthetic Qualified Provider",
+                serviceTier: null
+              },
+              currentProcurementProvider: "openrouter",
+              transitionKind: "SAME_OPENROUTER_TRANSPORT",
+              draftRoutePrEligible: true,
+              automaticMergeEligible: false,
+              stopReason: null,
+              evidence: {
+                qualifyingMarketSnapshots: 4,
+                marketObservationSpanDays: 21,
+                completeLivePairs: 2,
+                liveObservationSpanDays: 21,
+                latestSavingsPercent: 20,
+                worstCandidateTotalVsBaselineRatio: 0.8,
+                worstCandidateTtftVsBaselineRatio: 0.9
+              },
+              requiredReviewOwners: []
+            }],
+            draftRoutePrEligibleCount: 1,
+            crossProviderReviewRequiredCount: 0,
+            automaticMergeEligibleCount: 0,
+            notes: ["synthetic dry-run fixture"]
+          };
+          fs.writeFileSync(path, JSON.stringify(packet, null, 2) + "\n");
+          NODE
       - name: Job summary
         if: always()
         shell: bash
@@ -111,7 +157,7 @@ jobs:
   auto-draft:
     name: Evidence-gated supply route Draft PR
     needs: radar
-    if: needs.radar.result == 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    if: needs.radar.result == 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -122,6 +168,7 @@ jobs:
       MAIN_RP_SUPPLY_RADAR_OUTPUT_DIR: artifacts/main-rp-supply-radar
       REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
       MAIN_RP_SUPPLY_LIVE_QUALIFICATION: "0"
+      MAIN_RP_SUPPLY_AUTO_DRAFT_DRY_RUN: "1"
     steps:
       - uses: actions/checkout@v5
         with:
