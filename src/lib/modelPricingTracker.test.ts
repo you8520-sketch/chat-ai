@@ -469,13 +469,6 @@ describe("model pricing tracker regression fixtures", () => {
       referenceInputUsdPerMillion: 0.375,
       referenceOutputUsdPerMillion: 1.875,
     });
-    seedCatalog("gpt-5.6-terra", {
-      inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
-      referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
-    });
-
     await runModelPricingTracker({
       db,
       now: FIXED_NOW,
