@@ -63,11 +63,13 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
 } from "@/lib/chatModels";
 import { listProviderModelDiscoveries } from "@/lib/providerModelDiscovery";
 
 const GEMINI = CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL;
 const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+const TERRA = CHEAPER_INFERENCE_GPT_56_TERRA_MODEL;
 const FIXED_NOW = new Date("2026-09-20T03:00:00.000Z");
 
 function makeDb(): Database.Database {
@@ -107,6 +109,85 @@ function seedCatalog(
 before(() => {
   clearCheaperInferenceCatalogPricingForTest();
   resetDeepSeekOfficialProviderPricingForTest();
+});
+
+describe("current procurement provider ownership", () => {
+  it("derives active Main RP provider from the canonical picker registry", () => {
+    assert.equal(getModelPricingPolicy("gemini-3.1-pro-preview")?.provider, "openrouter");
+    assert.equal(getModelPricingPolicy("gemini-3.7-flash")?.provider, "openrouter");
+    assert.equal(getModelPricingPolicy("gemini-3.8-flash")?.provider, "openrouter");
+    assert.equal(getModelPricingPolicy("deepseek-v4.1-flash")?.provider, "cheaperinference");
+    assert.equal(getModelPricingPolicy(TERRA)?.provider, "cheaperinference");
+  });
+
+  it("keeps CI snapshot provenance on CheaperInference even when examining CI evidence for an OpenRouter-routed model", () => {
+    const policy = getModelPricingPolicy(GEMINI)!;
+    const catalog = seedCatalog(GEMINI, {
+      inputUsdPerMillion: 0.8,
+      outputUsdPerMillion: 4.8,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+    });
+    const current = buildCiCurrentSnapshot({
+      policy,
+      catalog,
+      observedAt: FIXED_NOW.toISOString(),
+    });
+    const reference = buildCiReferenceSnapshot({
+      policy,
+      catalog,
+      observedAt: FIXED_NOW.toISOString(),
+    })!;
+    assert.equal(policy.provider, "openrouter");
+    assert.equal(current.provider, "cheaperinference");
+    assert.equal(reference.provider, "cheaperinference");
+  });
+
+  it("does not persist CI current procurement or CI margin evidence for an OpenRouter-routed Main RP model", async () => {
+    clearCheaperInferenceCatalogPricingForTest();
+    const db = makeDb();
+    seedCatalog(GEMINI, {
+      inputUsdPerMillion: 0.01,
+      outputUsdPerMillion: 0.01,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 99,
+    });
+    seedCatalog(TERRA, {
+      inputUsdPerMillion: 1.4,
+      outputUsdPerMillion: 8.4,
+      referenceInputUsdPerMillion: 2,
+      referenceOutputUsdPerMillion: 12,
+      discountPercent: 30,
+    });
+    seedCatalog("deepseek-v4.1-flash", {
+      inputUsdPerMillion: 0.15,
+      outputUsdPerMillion: 0.6,
+      referenceInputUsdPerMillion: 0.3,
+      referenceOutputUsdPerMillion: 1.2,
+      discountPercent: 50,
+    });
+
+    const result = await runModelPricingTracker({
+      db,
+      now: new Date("2026-09-30T03:00:00.000Z"),
+      phase: "OBSERVE_ONLY",
+      skipCatalogRefresh: true,
+      skipOfficialProviderRefresh: true,
+    });
+    assert.equal(result.status, "completed");
+    assert.equal(
+      readLatestSnapshot(db, GEMINI, "cheaper_inference_models_current"),
+      null
+    );
+    assert.equal(
+      readLatestSnapshot(db, GEMINI, "cheaper_inference_models_reference"),
+      null
+    );
+    assert.ok(readLatestSnapshot(db, GEMINI, "published_billing_baseline"));
+    assert.ok(readLatestSnapshot(db, TERRA, "cheaper_inference_models_current"));
+    assert.equal(result.marginFloorBreaches.includes(GEMINI), false);
+  });
 });
 
 describe("model pricing tracker regression fixtures", () => {
@@ -369,7 +450,7 @@ describe("model pricing tracker regression fixtures", () => {
   it("snapshots are append-only across runs", async () => {
     const db = makeDb();
     const observedAt = FIXED_NOW.toISOString();
-    seedCatalog(GEMINI, {
+    seedCatalog(TERRA, {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -388,13 +469,6 @@ describe("model pricing tracker regression fixtures", () => {
       referenceInputUsdPerMillion: 0.375,
       referenceOutputUsdPerMillion: 1.875,
     });
-    seedCatalog("gpt-5.6-terra", {
-      inputUsdPerMillion: 1.4,
-      outputUsdPerMillion: 8.4,
-      referenceInputUsdPerMillion: 2,
-      referenceOutputUsdPerMillion: 12,
-    });
-
     await runModelPricingTracker({
       db,
       now: FIXED_NOW,
@@ -403,7 +477,7 @@ describe("model pricing tracker regression fixtures", () => {
       skipOfficialProviderRefresh: true,
     });
 
-    seedCatalog(GEMINI, {
+    seedCatalog(TERRA, {
       inputUsdPerMillion: 0.8,
       outputUsdPerMillion: 4.8,
       referenceInputUsdPerMillion: 2,
@@ -421,7 +495,7 @@ describe("model pricing tracker regression fixtures", () => {
 
     const count = db.prepare(`SELECT COUNT(*) AS c FROM model_price_snapshots`).get() as { c: number };
     assert.ok(count.c > 0);
-    const latest = readLatestSnapshot(db, GEMINI, "cheaper_inference_models_current");
+    const latest = readLatestSnapshot(db, TERRA, "cheaper_inference_models_current");
     assert.ok(latest);
     assert.equal(latest?.rates.discountPercent, 60);
     assert.notEqual(latest?.observedAt, observedAt);

@@ -471,8 +471,27 @@ export async function runModelPricingTracker(params?: {
       const bundle = getModelPricingPolicyWithPublished(modelId);
       if (!bundle) continue;
       const { policy, published } = bundle;
-      const catalog = resolveCheaperInferenceCatalogPricing(modelId);
 
+      // Published billing baseline is provider-independent commercial evidence
+      // and is always recorded. Current procurement ownership comes from the
+      // active Main-RP registry through modelPricingPolicy.
+      const publishedSnapshot = buildPublishedBaselineSnapshot({
+        policy,
+        published,
+        observedAt: startedAt,
+      });
+      publishedSnapshotsByModelId.set(modelId, publishedSnapshot);
+      insertPriceSnapshot(db, attemptId, publishedSnapshot);
+      snapshotCount += 1;
+
+      // CheaperInference catalog refresh/discovery remains global, but its
+      // per-model current/reference prices are not the current procurement
+      // owner for OpenRouter-routed models. Supply radar owns those routes.
+      if (policy.provider !== "cheaperinference") {
+        continue;
+      }
+
+      const catalog = resolveCheaperInferenceCatalogPricing(modelId);
       if (!catalog) {
         const parserEvent = classifyParserFailure({
           modelId,
@@ -495,13 +514,8 @@ export async function runModelPricingTracker(params?: {
 
       // `observed_at` on a CI snapshot is the SOURCE observation time — the
       // catalog's own fetchedAt from the live /v1/models response — never the
-      // tracker start time or the persistence time. The published-code baseline
-      // is not a source observation, so it records the attempt start time.
+      // tracker start time or the persistence time.
       const sourceObservedAt = new Date(catalog.fetchedAt).toISOString();
-      const publishedSnapshot = buildPublishedBaselineSnapshot({ policy, published, observedAt: startedAt });
-      publishedSnapshotsByModelId.set(modelId, publishedSnapshot);
-      insertPriceSnapshot(db, attemptId, publishedSnapshot);
-      snapshotCount += 1;
 
       const ciCurrent = buildCiCurrentSnapshot({ policy, catalog, observedAt: sourceObservedAt });
       const prevCurrent = readLatestSnapshot(db, modelId, "cheaper_inference_models_current");

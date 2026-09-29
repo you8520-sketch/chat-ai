@@ -67,7 +67,7 @@ export function buildCiCurrentSnapshot(params: {
     discountPercent: catalog.discountPercent ?? null,
   };
   return {
-    provider: policy.provider,
+    provider: "cheaperinference",
     modelId: policy.modelId,
     providerModelId: catalog.modelId,
     pricingMode: "procurement_current",
@@ -109,7 +109,7 @@ export function buildCiReferenceSnapshot(params: {
     discountPercent: null,
   };
   return {
-    provider: policy.provider,
+    provider: "cheaperinference",
     modelId: policy.modelId,
     providerModelId: catalog.modelId,
     // Snapshot semantics = what CI actually published (its reference/list
