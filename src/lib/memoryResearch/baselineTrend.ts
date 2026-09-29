@@ -54,6 +54,7 @@ export type BaselineTrendReport = {
   lostPositiveCases: string[];
   gainedPositiveCases: string[];
   promptTokensPerTurnDelta: number | null;
+  promptTokenTrend: "INCREASED" | "DECREASED" | "UNCHANGED" | "NOT_COMPARABLE";
   invariantViolationDelta: number | null;
   note: string;
 };
@@ -130,6 +131,7 @@ export function compareBaselineSnapshots(
       lostPositiveCases: [],
       gainedPositiveCases: [],
       promptTokensPerTurnDelta: null,
+      promptTokenTrend: "NOT_COMPARABLE",
       invariantViolationDelta: null,
       note: "Current deterministic baseline did not run successfully.",
     };
@@ -146,6 +148,7 @@ export function compareBaselineSnapshots(
       lostPositiveCases: [],
       gainedPositiveCases: [],
       promptTokensPerTurnDelta: null,
+      promptTokenTrend: "NOT_COMPARABLE",
       invariantViolationDelta: null,
       note: "No prior baseline snapshot is available yet.",
     };
@@ -160,6 +163,7 @@ export function compareBaselineSnapshots(
       lostPositiveCases: [],
       gainedPositiveCases: [],
       promptTokensPerTurnDelta: null,
+      promptTokenTrend: "NOT_COMPARABLE",
       invariantViolationDelta: null,
       note:
         "Benchmark definition fingerprint changed; aggregate metrics are intentionally not compared across different case definitions.",
@@ -233,6 +237,12 @@ export function compareBaselineSnapshots(
     lostPositiveCases,
     gainedPositiveCases,
     promptTokensPerTurnDelta,
+    promptTokenTrend:
+      promptTokensPerTurnDelta > 0
+        ? "INCREASED"
+        : promptTokensPerTurnDelta < 0
+          ? "DECREASED"
+          : "UNCHANGED",
     invariantViolationDelta,
     note:
       promptTokensPerTurnDelta > 0
@@ -248,7 +258,7 @@ export function renderBaselineTrendMarkdown(report: BaselineTrendReport): string
     `- status: **${report.status}**`,
     `- previous comparable cycle: ${report.previousCycleKey ?? "-"}`,
     `- benchmark fingerprint: ${report.benchmarkFingerprint ?? "-"}`,
-    `- prompt tokens/turn delta: ${report.promptTokensPerTurnDelta == null ? "-" : report.promptTokensPerTurnDelta.toFixed(2)}`,
+    `- prompt tokens/turn delta: ${report.promptTokensPerTurnDelta == null ? "-" : report.promptTokensPerTurnDelta.toFixed(2)} (${report.promptTokenTrend})`,
     `- invariant violation delta: ${report.invariantViolationDelta == null ? "-" : report.invariantViolationDelta}`,
     `- lost positive cases: ${report.lostPositiveCases.join(", ") || "-"}`,
     `- gained positive cases: ${report.gainedPositiveCases.join(", ") || "-"}`,
