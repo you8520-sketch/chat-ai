@@ -541,6 +541,7 @@ export function officialCompanionDocsSource(
 
       for (const target of targets) {
         const evidenceParts: string[] = [];
+        let targetFailed = false;
         for (const url of target.urls) {
           try {
             const res = await budgetedFetch(ctx, url, {
@@ -549,11 +550,13 @@ export function officialCompanionDocsSource(
             });
             if (!res.ok) {
               errors.push(`${target.product}: ${url} HTTP ${res.status}`);
+              targetFailed = true;
               continue;
             }
             const evidence = extractOfficialCompanionMemoryEvidence(await res.text());
             if (!evidence) {
               errors.push(`${target.product}: no memory evidence at ${url}`);
+              targetFailed = true;
               continue;
             }
             evidenceParts.push(`${url}\n${evidence}`);
@@ -561,11 +564,15 @@ export function officialCompanionDocsSource(
             errors.push(
               `${target.product}: ${error instanceof Error ? error.message : String(error)}`.slice(0, 300)
             );
+            targetFailed = true;
             if (error instanceof HttpBudgetExhaustedError) break;
           }
         }
 
-        if (evidenceParts.length === 0) continue;
+        // A partial product snapshot is not a trustworthy version. Fail closed
+        // for this product so transient 403/503/markup failures cannot create
+        // fake "new memory architecture" versions.
+        if (targetFailed || evidenceParts.length !== target.urls.length) continue;
         const evidence = evidenceParts.join("\n---\n");
         observations.push({
           candidateKey: `official:${target.product}:memory-docs`,
