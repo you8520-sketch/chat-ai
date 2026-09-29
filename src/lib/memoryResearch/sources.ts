@@ -572,7 +572,10 @@ export function officialCompanionDocsSource(
         // A partial product snapshot is not a trustworthy version. Fail closed
         // for this product so transient 403/503/markup failures cannot create
         // fake "new memory architecture" versions.
-        if (targetFailed || evidenceParts.length !== target.urls.length) continue;
+        if (targetFailed || evidenceParts.length !== target.urls.length) {
+          if (ctx.budget.used >= ctx.budget.limit) break;
+          continue;
+        }
         const evidence = evidenceParts.join("\n---\n");
         observations.push({
           candidateKey: `official:${target.product}:memory-docs`,
