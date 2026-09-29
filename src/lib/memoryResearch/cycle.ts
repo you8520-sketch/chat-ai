@@ -6,6 +6,10 @@
  */
 import { runLabArm, type LabArmResult } from "@/lib/memoryResearch/benchmarkLab";
 import {
+  assessBenchmarkHarnessFeasibilityBatch,
+  type HarnessFeasibilityEvidence,
+} from "@/lib/memoryResearch/benchmarkHarnessFeasibility";
+import {
   buildBenchmarkCasePortPlans,
   type BenchmarkCasePortPlan,
 } from "@/lib/memoryResearch/benchmarkCasePortPlanner";
@@ -109,6 +113,7 @@ export type CycleReport = {
   companionExperimentProposals: CompanionExperimentProposal[];
   benchmarkAdoptionProposals: BenchmarkAdoptionProposal[];
   benchmarkCasePortPlans: BenchmarkCasePortPlan[];
+  benchmarkHarnessFeasibility: HarnessFeasibilityEvidence[];
   productionTouched: false;
 };
 
@@ -178,6 +183,7 @@ export async function runResearchCycle(
     companionExperimentProposals: [],
     benchmarkAdoptionProposals: [],
     benchmarkCasePortPlans: [],
+    benchmarkHarnessFeasibility: [],
     productionTouched: false,
   };
 
@@ -256,7 +262,11 @@ export async function runResearchCycle(
     report.companionExperimentProposals.push(...buildCompanionExperimentProposals(obs));
     const adoptionProposals = buildBenchmarkAdoptionProposals(obs);
     report.benchmarkAdoptionProposals.push(...adoptionProposals);
-    report.benchmarkCasePortPlans.push(...buildBenchmarkCasePortPlans(adoptionProposals));
+    const casePortPlans = buildBenchmarkCasePortPlans(adoptionProposals);
+    report.benchmarkCasePortPlans.push(...casePortPlans);
+    report.benchmarkHarnessFeasibility.push(
+      ...assessBenchmarkHarnessFeasibilityBatch(casePortPlans)
+    );
 
     const evaluated = await evaluateObservation(obs, adapter, liveRecipe, baseline, report, deps.now, runArm);
     assertValidTrail(evaluated.trail);

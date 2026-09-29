@@ -76,36 +76,32 @@ export function buildBenchmarkCasePortPlan(
 
     case "forgetting_fidelity":
       return {
-        planKey: "forgetting_fidelity",
+        planKey: "forgetting_fidelity:current_local_gap_closed",
         candidateKey: proposal.candidateKey,
         sourceVersion: proposal.sourceVersion,
         ability: proposal.ability,
-        readiness: "READY_MUTATION_LIFECYCLE_FIXTURE",
+        readiness: "NO_PORT_REQUIRED",
         canonicalOwner:
-          "source-mutation invalidation + summary integrity regressions",
-        targetPaths: [
-          "src/lib/memory/memory-premerge-blockers.test.ts",
-          "src/lib/memory/memory-summary-integrity.test.ts",
-          "src/lib/memory/memory-source-boundary.test.ts",
-        ],
-        proposedCaseIds: ["derived-memory-deletion-residue-01"],
+          "existing source-mutation + last-turn delete derived-memory invalidation regressions",
+        targetPaths: [],
+        proposedCaseIds: [],
         reuseMetrics: [
           "staleStateRecallRate",
           "falseMemoryRate",
         ],
         requirements: [
-          "Create source text, derived summary/current-memory evidence, then delete or rewind the source.",
-          "Prove stale source-derived content is absent or invalidated across derived memory tiers, not only the raw message row.",
-          "Keep the fixture in mutation-lifecycle tests unless it can be represented without faking production deletion semantics.",
+          "Keep Memora-style forgetting on the research watchlist because its broader task semantics exceed the site's current delete/update product surface.",
+          "Re-open case planning only when a concrete local destructive path lacks deterministic derived-tier invalidation proof.",
         ],
         forbidden: [
+          "duplicate derived-memory-deletion-residue fixture",
           "new forgetting score",
           "copying Memora FAMA",
           "external judge",
           "production cleanup migration",
         ],
         rationale:
-          "The gap is lifecycle invalidation across derived tiers, not ordinary retrieval ranking, so the mutation-test owner is the correct harness.",
+          "The concrete local gap previously identified by the radar is now covered: source edits invalidate/reseal derived summaries, and canonical last-turn delete atomically removes both single-generation and summary-seal episodic provenance with rollback proof. The broader external forgetting benchmark remains PARTIAL_COVERAGE evidence, but there is no currently justified local case to port.",
       };
 
     case "persona_continuity":

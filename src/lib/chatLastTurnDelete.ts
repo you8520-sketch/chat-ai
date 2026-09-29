@@ -11,7 +11,10 @@ import {
   countAssistantGenerationTurns,
   incrementCharacterTotalTurns,
 } from "@/lib/characterEngagementStats";
-import { deleteEpisodicMemoryFactsByAssistantMessageIds } from "@/lib/episodicMemoryFacts";
+import {
+  deleteEpisodicMemoryFactsByAssistantMessageIds,
+  invalidateSummarySealBatchEpisodicFactsForSourceMutation,
+} from "@/lib/episodicMemoryFacts";
 import { rewindPersonaSecretStateForDeletedMessages } from "@/lib/personaSecretLifecycleCleanup";
 import { deleteStatusTriggerEventsForSourceMessage } from "@/lib/rpDerivedStateLifecycle";
 import {
@@ -124,6 +127,15 @@ export function executeLastTurnDeleteTransaction(
       deleteEpisodicMemoryFactsByAssistantMessageIds(db, input.chatId, [
         input.assistantMessageId,
       ]);
+      // Summary-seal episodic rows use batch provenance arrays rather than the
+      // single assistant_message_id field. Invalidate any batch that depended
+      // on the deleted canonical turn inside this same transaction so a failed
+      // or delayed reseal can never resurrect deleted-turn memory later.
+      invalidateSummarySealBatchEpisodicFactsForSourceMutation(db, {
+        chatId: input.chatId,
+        affectedUserMessageIds: [input.userMessageId],
+        affectedAssistantMessageIds: [input.assistantMessageId],
+      });
       // Must not swallow: trigger cleanup failure must abort the whole
       // last-turn delete transaction (numeric + messages + episodic + engagement).
       deleteStatusTriggerEventsForSourceMessage(
