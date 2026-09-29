@@ -266,8 +266,10 @@ describe("Main RP supply live candidate selection", () => {
         ...cheaper,
         providerName: "Missing Reasoning",
         provider: { ...cheaper.provider!, name: "Missing Reasoning", slug: "missing-reasoning" },
+        inputUsdPerMillion: (cheaper.inputUsdPerMillion ?? 0.1) / 2,
+        outputUsdPerMillion: (cheaper.outputUsdPerMillion ?? 0.3) / 2,
         lowerRawEndpointRateThanCurrentProcurement: true,
-        rawEndpointRateDeltaVsCurrentProcurementPercent: -0.5,
+        rawEndpointRateDeltaVsCurrentProcurementPercent: -0.75,
         supportedParameters: required.filter((key) => key !== "reasoning"),
       },
       {
