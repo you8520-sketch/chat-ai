@@ -150,9 +150,50 @@ describe("same-prompt current CI baseline guard", () => {
       plan.estimatedCatalogRateUsd <=
         MAIN_RP_SUPPLY_CI_BASELINE_MAX_ESTIMATED_USD
     );
-    assert.deepEqual(
-      plan.selection.candidates.map((row) => row.modelId),
+    const baselineModels = new Set(
       plan.entries.map((row) => row.candidate.modelId)
+    );
+    assert.equal(baselineModels.size, plan.entries.length);
+    assert.ok(
+      plan.selection.candidates.every((row) =>
+        baselineModels.has(row.modelId)
+      )
+    );
+  });
+
+  it("runs only one current-CI baseline plan entry for multiple candidates of the same model", () => {
+    const radar = cloneBaseRadar();
+    const selection = cloneBaseSelection();
+    const target = selection.candidates.find((candidate) =>
+      radar.models.some(
+        (row) =>
+          row.modelId === candidate.modelId &&
+          row.currentProcurement?.provider === "cheaperinference"
+      )
+    );
+    assert.ok(target, "fixture must include a current-CI candidate");
+
+    selection.candidates = [
+      ...selection.candidates,
+      {
+        ...target,
+        providerName: `${target.providerName} Backup`,
+        providerSlug: `${target.providerSlug}-backup`,
+      },
+    ];
+
+    const plan = applyCurrentCiBaselineBudgetGuard(radar, selection);
+    assert.equal(
+      plan.entries.filter(
+        (entry) => entry.candidate.modelId === target.modelId
+      ).length,
+      1
+    );
+    assert.equal(
+      plan.selection.candidates.filter(
+        (candidate) => candidate.modelId === target.modelId
+      ).length,
+      2
     );
   });
 
@@ -308,5 +349,10 @@ describe("candidate vs current CI comparison semantics", () => {
       /missing_cheaper_inference_benchmark_credential/
     );
     assert.doesNotMatch(source, /CHEAPER_INFERENCE_API_KEY/);
+    assert.match(
+      source,
+      /const modelCandidates = selection\.candidates\.filter/
+    );
+    assert.match(source, /if \(result\.livePairComplete\) break;/);
   });
 });
