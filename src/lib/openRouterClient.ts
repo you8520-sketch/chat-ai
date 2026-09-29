@@ -252,6 +252,10 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
   }
 }
 
+function isGemini38FlashModel(modelId?: string | null): boolean {
+  return (modelId ?? "").trim().toLowerCase().includes("gemini-3.8-flash");
+}
+
 /** OpenRouter RP — API max_tokens coerce fallback (Gemini 3.1 cap) */
 export const OPENROUTER_MAX_OUTPUT_TOKENS = 8192;
 
@@ -318,9 +322,9 @@ export function normalizeOpenRouterGenerationParams(
     base.seed = Math.floor(overrides.seed);
   }
 
-  // Gemini 3.6+ 공식 API: sampling parameters are deprecated and may become 400s.
-  // OpenRouter currently lists them for compatibility, but omit them proactively.
-  if (isGemini36FlashModel(modelId ?? "")) {
+  // Gemini 3.6 / 3.8 official API guidance: sampling parameters are omitted.
+  // 3.8 explicitly rejects migration configs that retain temperature/top_p.
+  if (isGemini36FlashModel(modelId ?? "") || isGemini38FlashModel(modelId)) {
     delete base.temperature;
     delete base.top_p;
   }
@@ -342,7 +346,7 @@ export function resolveRegenerateGenerationOverrides(
   modelId: string,
   targetResponseChars?: number | null
 ): OpenRouterGenerationOverrides {
-  if (isGemini36FlashModel(modelId)) {
+  if (isGemini36FlashModel(modelId) || isGemini38FlashModel(modelId)) {
     return { seed: Math.floor(Math.random() * 2_147_483_647) };
   }
   const base = normalizeOpenRouterGenerationParams(
