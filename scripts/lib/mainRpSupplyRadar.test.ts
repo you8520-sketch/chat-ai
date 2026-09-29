@@ -6,6 +6,7 @@ import {
   MAIN_RP_USER_SELECTABLE_OPTIONS,
 } from "@/lib/chatModels";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
+import { resolveMainRpOpenRouterRoutePolicy } from "@/lib/openRouterConfig";
 import type { CatalogPricingEvidence } from "./mainRpMonthlyCacheAudit";
 import {
   buildMainRpSupplyRadarReport,
@@ -92,21 +93,29 @@ function baseEndpoint(): SupplyEndpointEvidence {
 }
 
 function routedEndpoint(modelId: string): SupplyEndpointEvidence {
+  const route = resolveMainRpOpenRouterRoutePolicy(modelId);
+  assert.ok(route, `${modelId}: canonical OpenRouter route required`);
+  const providerSlug = route.provider.only[0]!;
+  const providerDisplay =
+    providerSlug === "google-ai-studio" ? "Google AI Studio" : providerSlug;
   return {
     ...baseEndpoint(),
     modelId,
-    providerName:"Google AI Studio Flex",
-    providerTag:"google-ai-studio",
+    providerName:
+      route.serviceTier === "flex"
+        ? `${providerDisplay} Flex`
+        : providerDisplay,
+    providerTag:providerSlug,
     inputUsdPerMillion: modelId.includes("3.1") ? 1 : 0.375,
     outputUsdPerMillion: modelId.includes("3.1") ? 6 : 1.875,
     cacheReadUsdPerMillion: modelId.includes("3.1") ? 0.1 : 0.0375,
     provider:{
-      name:"Google AI Studio",
-      slug:"google-ai-studio",
+      name:providerDisplay,
+      slug:providerSlug,
       headquarters:"US",
-      privacyPolicyUrl:"https://example.com/google-privacy",
-      termsOfServiceUrl:"https://example.com/google-terms",
-      statusPageUrl:"https://status.example.com/google",
+      privacyPolicyUrl:`https://example.com/${providerSlug}-privacy`,
+      termsOfServiceUrl:`https://example.com/${providerSlug}-terms`,
+      statusPageUrl:`https://status.example.com/${providerSlug}`,
       datacenters:["US"],
     },
     supportedParameters:["reasoning","include_reasoning","temperature","max_tokens"],
