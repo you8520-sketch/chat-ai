@@ -113,6 +113,7 @@ describe("Memory baseline trend sentinel", () => {
     assert.equal(trend.status, "REGRESSION");
     assert.deepEqual(trend.lostPositiveCases, ["case-b"]);
     assert.equal(trend.promptTokensPerTurnDelta, 30);
+    assert.equal(trend.promptTokenTrend, "INCREASED");
     assert.match(trend.note, /token increase is evidence/i);
   });
 
@@ -123,6 +124,7 @@ describe("Memory baseline trend sentinel", () => {
       { cycleKey: "weekly-1", baseline: before },
     ]);
     assert.equal(trend.status, "BENCHMARK_CHANGED");
+    assert.equal(trend.promptTokenTrend, "NOT_COMPARABLE");
     assert.deepEqual(trend.metricDeltas, []);
     assert.match(trend.note, /not compared/i);
   });
