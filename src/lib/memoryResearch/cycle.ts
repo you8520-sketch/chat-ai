@@ -41,7 +41,7 @@ export type CycleMode = "weekly" | "monthly_deep";
 
 /** Paid provider calls the cycle may make. Research + deterministic lab = 0 by construction. */
 export const PAID_PROVIDER_CALL_BUDGET = 0;
-export const DEFAULT_HTTP_BUDGET = 48;
+export const DEFAULT_HTTP_BUDGET = 56;
 
 export function cycleKeyFor(mode: CycleMode, now: Date): string {
   if (mode === "monthly_deep") {
