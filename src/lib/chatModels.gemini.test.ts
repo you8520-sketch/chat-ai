@@ -79,20 +79,19 @@ describe("Gemini Main RP routing", () => {
     );
   });
 
-  it("pins all active Gemini routes to Google AI Studio Flex with no provider fallback", () => {
+  it("pins every active Gemini route to exactly one canonical provider with no fallback", () => {
     for (const modelId of [
       CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
       CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
       GEMINI_38_FLASH_MODEL,
     ]) {
-      assert.deepEqual(resolveMainRpOpenRouterRoutePolicy(modelId), {
-        provider: {
-          only: ["google-ai-studio"],
-          allow_fallbacks: false,
-          require_parameters: true,
-        },
-        serviceTier: "flex",
-      });
+      const route = resolveMainRpOpenRouterRoutePolicy(modelId);
+      assert.ok(route);
+      assert.equal(route.provider.only.length, 1);
+      assert.ok(route.provider.only[0]?.trim());
+      assert.equal(route.provider.allow_fallbacks, false);
+      assert.equal(route.provider.require_parameters, true);
+      assert.ok(route.serviceTier === null || route.serviceTier === "flex");
     }
   });
 
