@@ -294,23 +294,38 @@ it("official companion source turns official memory-doc changes into versioned W
   assert.notEqual(first.out.observations[0]!.version, memoryChanged.out.observations[0]!.version);
 });
 
-it("official companion source isolates a failed page and never invents evidence from it", async () => {
-  const target = [{
-    product: "nomi" as const,
-    title: "Nomi",
-    urls: ["https://official.example/updates", "https://official.example/mind-map"],
-    claimedAdvantage: "layered companion memory",
-  }];
+it("official companion source fails closed per product while other products continue", async () => {
+  const targets = [
+    {
+      product: "nomi" as const,
+      title: "Nomi",
+      urls: ["https://official.example/nomi-updates", "https://official.example/nomi-mind-map"],
+      claimedAdvantage: "layered companion memory",
+    },
+    {
+      product: "kindroid" as const,
+      title: "Kindroid",
+      urls: ["https://official.example/kindroid-memory"],
+      claimedAdvantage: "cascaded memory with bounded recall",
+    },
+  ];
   const c = ctx(async (url) => {
-    if (url.endsWith("/updates")) return response(503, "temporary outage");
-    return response(200, "<article><p>Mind Map context connects long-term memories.</p></article>");
+    if (url.endsWith("/nomi-updates")) return response(503, "temporary outage");
+    if (url.endsWith("/nomi-mind-map")) {
+      return response(200, "<article><p>Mind Map context connects long-term memories.</p></article>");
+    }
+    if (url.endsWith("/kindroid-memory")) {
+      return response(200, "<article><p>Cascaded memory context and journal recall are available.</p></article>");
+    }
+    return response(404, "");
   });
 
-  const out = await officialCompanionDocsSource(target).collect(c);
+  const out = await officialCompanionDocsSource(targets).collect(c);
   assert.equal(out.observations.length, 1);
+  assert.equal(out.observations[0]!.candidateKey, "official:kindroid:memory-docs");
   assert.equal(out.errors.length, 1);
-  assert.match(out.errors[0]!, /503/);
-  assert.match(out.observations[0]!.summary, /Mind Map context/);
+  assert.match(out.errors[0]!, /nomi.*503/);
+  assert.doesNotMatch(out.observations[0]!.summary, /Mind Map/);
 });
 
 it("official companion radar allowlist stays bounded to the three selected products", () => {
