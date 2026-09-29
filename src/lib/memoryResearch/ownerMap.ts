@@ -174,6 +174,17 @@ export function computeArchitectureFingerprint(readFile: (path: string) => strin
   return hash.digest("hex").slice(0, 16);
 }
 
+/** Fingerprint only the canonical deterministic benchmark definition/fixtures. */
+export function computeBenchmarkDefinitionFingerprint(
+  readFile: (path: string) => string
+): string {
+  const hash = createHash("sha256");
+  for (const path of [...MEMORY_OWNER_MAP.memory_benchmark.paths].sort()) {
+    hash.update(path).update("\0").update(readFile(path)).update("\0");
+  }
+  return hash.digest("hex").slice(0, 16);
+}
+
 /** Every file whose content defines the architecture a benchmark decision was made against. */
 export function architectureFingerprintPaths(): string[] {
   const all = new Set<string>();
