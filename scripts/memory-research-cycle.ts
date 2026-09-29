@@ -2,7 +2,7 @@
  * Memory research cycle CLI (GitHub Actions entry point; never run by the
  * production server).
  *
- *   run                 --mode weekly|monthly_deep --ledger <file> --out <dir> --main-sha <sha> [--force]
+ *   run                 --mode weekly|monthly_deep --ledger <file> [--history-dir <cycles>] --out <dir> --main-sha <sha> [--force]
  *   draft-prs           --packets <out/packets.json> --results <file>
  *   apply-draft-results --ledger <file> --results <file>
  *   live-experiments     --ledger <file> --out <dir>
