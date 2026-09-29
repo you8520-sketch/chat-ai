@@ -465,7 +465,7 @@ describe("pre-merge blocker regression", () => {
       turnEnd: 5,
       assistantMessageId: null,
       summary:
-        `레온과 렌은 오래된 정원에서 ${keptMarker}이 새겨진 열쇠를 확인하고 다음 행선지를 함께 정했다.`,
+        `레온과 렌은 오래된 정원에서 ${keptMarker}이 새겨진 열쇠를 확인했다. 두 사람은 열쇠의 출처를 함께 추적하기로 하고 정원 북쪽 회랑을 다음 행선지로 정했으며, 서로 확인한 사실과 계획을 차분히 정리했다.`,
       summaryKind: "main_canon",
       playableTurnCount: 10,
     });
@@ -480,7 +480,7 @@ describe("pre-merge blocker regression", () => {
       turnEnd: 10,
       assistantMessageId: null,
       summary:
-        `두 사람은 항구의 등대에서 ${deletedMarker}을 확인하고 열 번째 턴까지 이어지는 사건을 마무리했다.`,
+        `두 사람은 항구의 등대에서 ${deletedMarker}을 확인했다. 이후 등대 지하 통로와 주변 창고를 조사하고 발견한 흔적을 대조했으며, 열 번째 턴에 해당 사건의 단서를 정리하고 다음 행동을 결정하며 장면을 마무리했다.`,
       summaryKind: "main_canon",
       playableTurnCount: 10,
     });
