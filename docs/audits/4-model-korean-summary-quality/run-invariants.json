@@ -1,0 +1,17 @@
+{
+  "fixture_count": 20,
+  "model_count": 4,
+  "calls_per_model": {
+    "GLM-5.3-Flash": 20,
+    "Gemini 3.1 Flash-Lite": 20,
+    "DeepSeek V4 Flash": 20,
+    "DeepSeek V4 Flash-0731": 20
+  },
+  "expected_primary_calls": 80,
+  "actual_primary_calls": 80,
+  "retry_calls": 0,
+  "fallback_calls": 0,
+  "continuation_calls": 0,
+  "recovery_calls": 0,
+  "regeneration_calls": 0
+}
