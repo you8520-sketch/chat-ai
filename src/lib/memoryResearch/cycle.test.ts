@@ -256,6 +256,17 @@ it("benchmark adoption proposals emit only when a benchmark candidate is re-eval
       ["trajectory_recall:persona_update", "HARNESS_EXTENSION_REQUIRED"],
     ]
   );
+  assert.deepEqual(
+    first.report.benchmarkHarnessFeasibility
+      .map((row) => [row.planKey, row.status])
+      .sort(),
+    [
+      ["persona_continuity", "LLM_JUDGE_REQUIRED"],
+      ["trajectory_recall:commitment_lifecycle", "READY_LOCAL_DETERMINISTIC"],
+      ["trajectory_recall:existing_temporal_user_state", "NO_ACTION"],
+      ["trajectory_recall:persona_update", "OWNER_UNRESOLVED"],
+    ]
+  );
 
   const second = await runResearchCycle(
     roundTrip(first.ledger),
@@ -271,6 +282,11 @@ it("benchmark adoption proposals emit only when a benchmark candidate is re-eval
     second.report.benchmarkCasePortPlans.length,
     0,
     "unchanged benchmark capabilities must not repeat case-port plans every weekly cycle"
+  );
+  assert.equal(
+    second.report.benchmarkHarnessFeasibility.length,
+    0,
+    "unchanged benchmark capabilities must not repeat harness-feasibility evidence every weekly cycle"
   );
 });
 
