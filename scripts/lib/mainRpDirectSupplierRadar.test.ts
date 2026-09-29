@@ -23,10 +23,13 @@ const ONEMUX_FIXTURE = `
 const AIREITER_FIXTURE = `
   <html><body>
     <h1>GPT-5.6 Terra AI Chat Playground and API</h1>
+    <p>Try it for streaming output, cache usage, and Chat Completions API access.</p>
     <div>OpenAI Chat Completions</div>
-    <div>Input Official $2.00 per 1M tokens AIReiter $0.60 per 1M tokens</div>
-    <div>Output Official $12.00 per 1M tokens AIReiter $3.60 per 1M tokens</div>
-    <div>Cache read Official $0.20 per 1M tokens AIReiter $0.06 per 1M tokens</div>
+    <div>
+      Input Official $2.00 per 1M tokens AIReiter $0.60 per 1M tokens
+      Output Official $12.00 per 1M tokens AIReiter $3.60 per 1M tokens
+      Cache read Official $0.20 per 1M tokens AIReiter $0.06 per 1M tokens
+    </div>
   </body></html>
 `;
 
