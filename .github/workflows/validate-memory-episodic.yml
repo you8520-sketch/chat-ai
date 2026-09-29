@@ -78,6 +78,10 @@ on:
       - "src/lib/memory/memoryRelationshipTask.production.test.ts"
       - "src/lib/memory/memory-relationship-provenance.test.ts"
       - "src/lib/memory/memory-relationship-variant-switch.test.ts"
+      - "src/lib/chatMemory.ts"
+      - "src/lib/chatMemory.test.ts"
+      - "src/lib/relationshipMemoryTail.ts"
+      - "src/lib/relationshipMemoryTail.test.ts"
       - "src/lib/messageAlternates.ts"
       - "src/lib/nonnumericVariantSwitchAtomic.ts"
       - "src/lib/rpDerivedStateLifecycle.ts"
@@ -155,8 +159,8 @@ jobs:
       - name: Last-turn relationship + numeric delete atomicity
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/rpNumericStateTurnDelete.test.ts
 
-      - name: Relationship provenance lifecycle
-        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memoryRelationshipTask.production.test.ts src/lib/memory/memory-relationship-provenance.test.ts
+      - name: Relationship provenance + durable promise lifecycle
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memoryRelationshipTask.production.test.ts src/lib/memory/memory-relationship-provenance.test.ts src/lib/chatMemory.test.ts src/lib/relationshipMemoryTail.test.ts
 
       - name: Canonical variant relationship parity
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-relationship-variant-switch.test.ts
