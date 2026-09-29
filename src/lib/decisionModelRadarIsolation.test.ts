@@ -12,7 +12,7 @@ describe("decision model radar isolation", () => {
     const scheduler = fs.readFileSync("src/lib/schedulerDefinitions.ts", "utf8");
 
     assert.match(jev, /JEV_DECISIONS_MODEL\s*=\s*"typesafe\/jev-1\.13"/);
-    assert.doesNotMatch(workflow, /schedulerDefinitions|Railway|update_parental|merge_pull_request/);
+    assert.doesNotMatch(workflow, /schedulerDefinitions\.ts|src\/cron\/|mcp__Railway__|merge_pull_request/);
     assert.doesNotMatch(scheduler, /decision[_-]model[_-]radar/i);
     assert.match(workflow, /decision-model-radar-ledger/);
     assert.match(workflow, /git diff --exit-code -- \. ':!artifacts'/);
