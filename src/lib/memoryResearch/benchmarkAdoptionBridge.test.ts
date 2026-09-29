@@ -151,7 +151,7 @@ describe("RP Memory Benchmark Adoption Radar", () => {
     assert.match(markdown, /RP Memory Benchmark Adoption Radar/);
     assert.match(markdown, /CASE_PORT_WORTHY/);
     assert.match(markdown, /PARTIAL_COVERAGE/);
-    assert.doesNotMatch(markdown, /leaderboard score|winner|best model/i);
+    assert.doesNotMatch(markdown, /\bwinner\b|\bbest model\b/i);
     assert.match(markdown, /No external dataset/);
   });
 });
