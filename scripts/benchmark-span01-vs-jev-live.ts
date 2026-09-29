@@ -37,6 +37,7 @@ const MODELS = [
   "typesafe/jev-1.13",
   "respan/span-01-lite",
   "respan/span-01",
+  "upstage/solar-decide",
 ] as const;
 
 type ModelId = (typeof MODELS)[number];
