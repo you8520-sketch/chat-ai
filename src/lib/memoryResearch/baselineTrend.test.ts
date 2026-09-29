@@ -8,6 +8,7 @@ import {
   unavailableBaselineTrend,
 } from "@/lib/memoryResearch/baselineTrend";
 import type { LabRunSummary } from "@/lib/memoryResearch/gates";
+import { computeBenchmarkDefinitionFingerprint } from "@/lib/memoryResearch/ownerMap";
 
 function measured(value: number, eligible = 2, total = 2) {
   return {
@@ -75,6 +76,21 @@ function summary(overrides: {
 }
 
 describe("Memory baseline trend sentinel", () => {
+
+  it("fingerprints only the canonical deterministic benchmark definition inputs", () => {
+    const fp1 = computeBenchmarkDefinitionFingerprint((path) =>
+      path.endsWith("memory-rp-benchmark.ts") ? "metrics-v1" : "suite-v1"
+    );
+    const fp2 = computeBenchmarkDefinitionFingerprint((path) =>
+      path.endsWith("memory-rp-benchmark.ts") ? "metrics-v1" : "suite-v1"
+    );
+    const fp3 = computeBenchmarkDefinitionFingerprint((path) =>
+      path.endsWith("memory-rp-benchmark.ts") ? "metrics-v1" : "suite-v2"
+    );
+    assert.equal(fp1, fp2);
+    assert.notEqual(fp1, fp3);
+  });
+
   it("starts with NO_HISTORY and keeps a compact deterministic snapshot", () => {
     const snapshot = buildBaselineSnapshot(summary(), "bench-v1");
     assert.equal(snapshot.benchmarkFingerprint, "bench-v1");
