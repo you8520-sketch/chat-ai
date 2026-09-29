@@ -236,7 +236,7 @@ const OPENROUTER_ROUTING_ENVELOPE_KEYS = new Set([
   "route",
 ]);
 
-function requiredProviderParameterKeysForCandidate(
+export function resolveSupplyLiveRequiredProviderParameterKeys(
   candidate: SupplyLiveCandidate
 ): string[] {
   const [turn] = buildDeterministicSupplyProbeTurns();
@@ -389,7 +389,7 @@ export function selectMainRpSupplyLiveCandidates(
       };
       const requiredProviderParameters =
         requiredProviderParametersByModel.get(model.modelId) ??
-        requiredProviderParameterKeysForCandidate(candidate);
+        resolveSupplyLiveRequiredProviderParameterKeys(candidate);
       requiredProviderParametersByModel.set(
         model.modelId,
         requiredProviderParameters
