@@ -130,15 +130,15 @@ describe("Benchmark Harness Feasibility Gate", () => {
         plan({
           planKey: "trajectory_recall:commitment_lifecycle",
           ability: "trajectory_recall",
-          readiness: "READY_MUTATION_LIFECYCLE_FIXTURE",
-          canonicalOwner: "relationship",
+          readiness: "NO_PORT_REQUIRED",
+          canonicalOwner: "existing durable relationship lifecycle proof",
         })
       ),
     ];
     const markdown = renderBenchmarkHarnessFeasibilityMarkdown(rows);
     assert.match(markdown, /Benchmark Harness Feasibility Gate/);
     assert.match(markdown, /LLM_JUDGE_REQUIRED/);
-    assert.match(markdown, /READY_LOCAL_DETERMINISTIC/);
+    assert.match(markdown, /NO_ACTION/);
     assert.match(markdown, /does not call providers\/judges/i);
   });
 });
