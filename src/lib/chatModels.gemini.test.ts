@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import MAIN_RP_OPENROUTER_ROUTES from "../../config/main-rp-openrouter-routes.json";
 import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
@@ -22,6 +23,7 @@ import {
   isValidSelectedAI,
   resolveSelectedAI,
   selectedAILabel,
+  selectedAIOptionMeta,
   selectedAIProvider,
 } from "@/lib/chatModels";
 import {
@@ -77,6 +79,25 @@ describe("Gemini Main RP routing", () => {
       isCheaperInferenceGemini37FlashModel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
       true
     );
+  });
+
+  it("derives the user-facing sub-provider hint from the same canonical route owner", () => {
+    const routes = MAIN_RP_OPENROUTER_ROUTES as Record<
+      string,
+      { providerSlug: string; serviceTier: "flex" | null }
+    >;
+    for (const modelId of [
+      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      GEMINI_38_FLASH_MODEL,
+    ]) {
+      const wireModel = resolveRpOpenRouterModelId(modelId);
+      const slug = routes[wireModel]?.providerSlug;
+      assert.ok(slug);
+      const expected =
+        slug === "google-ai-studio" ? "Google AI Studio" : `OpenRouter · ${slug}`;
+      assert.equal(selectedAIOptionMeta(modelId)?.hint, expected);
+    }
   });
 
   it("pins every active Gemini route to exactly one canonical provider with no fallback", () => {
