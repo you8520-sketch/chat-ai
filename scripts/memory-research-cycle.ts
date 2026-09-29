@@ -25,6 +25,7 @@ import { EXPERIMENT_ADAPTERS } from "@/lib/memoryResearch/experiments";
 import {
   applyDraftPrResults,
   applyImplementationPrResults,
+  LEDGER_CYCLE_HISTORY_LIMIT,
   parseLedger,
   serializeLedger,
   type DraftPrResult,
@@ -79,7 +80,9 @@ function loadBaselineHistory(dir: string | null): BaselineHistorySnapshot[] {
       // cycle must not fail because an older artifact predates the snapshot schema.
     }
   }
-  return out;
+  return out
+    .sort((a, b) => Date.parse(a.finishedAt) - Date.parse(b.finishedAt))
+    .slice(-LEDGER_CYCLE_HISTORY_LIMIT);
 }
 
 function promptPackingSentinel(): void {
