@@ -113,6 +113,7 @@ export function unavailableBaselineTrend(note: string): BaselineTrendReport {
     lostPositiveCases: [],
     gainedPositiveCases: [],
     promptTokensPerTurnDelta: null,
+    promptTokenTrend: "NOT_COMPARABLE",
     invariantViolationDelta: null,
     note,
   };
