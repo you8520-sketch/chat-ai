@@ -14,6 +14,7 @@ import {
   type SupplyEndpointEvidence,
 } from "./mainRpSupplyRadar";
 import {
+  MAIN_RP_SUPPLY_LIVE_MAX_CANDIDATES_PER_MODEL,
   MAIN_RP_SUPPLY_LIVE_MAX_PROVIDER_CALLS,
   applyCandidateControlAndProviderPin,
   buildDeterministicSupplyProbeTurns,
@@ -216,9 +217,17 @@ describe("Main RP supply live candidate selection", () => {
       selection.candidates.some((row) => row.modelId === "claude-opus-5.5"),
       false
     );
-    assert.equal(
-      new Set(selection.candidates.map((row) => row.modelId)).size,
-      selection.candidates.length
+    const countsByModel = new Map<string, number>();
+    for (const candidate of selection.candidates) {
+      countsByModel.set(
+        candidate.modelId,
+        (countsByModel.get(candidate.modelId) ?? 0) + 1
+      );
+    }
+    assert.ok(
+      [...countsByModel.values()].every(
+        (count) => count <= MAIN_RP_SUPPLY_LIVE_MAX_CANDIDATES_PER_MODEL
+      )
     );
   });
 
@@ -390,6 +399,50 @@ describe("Main RP supply live candidate selection", () => {
     );
   });
 
+  it("retains up to three healthy cheaper alternatives for one model in price order", () => {
+    const report = isolateCheaperAlternate(radarReport(), "deepseek-v4.1-flash");
+    const model = report.models.find(
+      (row) => row.modelId === "deepseek-v4.1-flash"
+    )!;
+    const base = model.comparisons.find(
+      (row) => row.provider?.slug === "fixture-provider"
+    )!;
+
+    model.comparisons = [1, 2, 3, 4].map((rank) => ({
+      ...base,
+      providerName: `Healthy ${rank}`,
+      provider: {
+        ...base.provider!,
+        name: `Healthy ${rank}`,
+        slug: `healthy-${rank}`,
+      },
+      rawEndpointRepresentativeUncachedRateUsd: rank * 0.001,
+      lowerRawEndpointRateThanCurrentProcurement: true,
+      rawEndpointRateDeltaVsCurrentProcurementPercent:
+        -0.6 + (rank - 1) * 0.05,
+      uptimeLast1dPercent: 99.95,
+      uptimeLast30mPercent: 100,
+      latencyP50SecondsLast30m: 1 + rank * 0.1,
+      throughputP50TokensPerSecondLast30m: 70 - rank,
+    }));
+
+    const selection = selectMainRpSupplyLiveCandidates(report);
+    const deepseek = selection.candidates.filter(
+      (row) => row.modelId === "deepseek-v4.1-flash"
+    );
+    assert.deepEqual(
+      deepseek.map((row) => row.providerSlug),
+      ["healthy-1", "healthy-2", "healthy-3"]
+    );
+    assert.ok(
+      selection.skipped.some(
+        (row) =>
+          row.providerName === "Healthy 4" &&
+          row.reason === "per_model_candidate_count_guard"
+      )
+    );
+  });
+
   it("requires 99.8% uptime before spending a live qualification call", () => {
     const report = isolateCheaperAlternate(radarReport(), "deepseek-v4.1-flash");
     const model = report.models.find(
@@ -492,6 +545,49 @@ describe("Main RP supply live deterministic pair and wire guard", () => {
 });
 
 describe("Main RP supply live report semantics", () => {
+  it("treats a model as qualified when a later ordered alternative completes the two-turn pair", () => {
+    const original = selectMainRpSupplyLiveCandidates(radarReport()).candidates[0]!;
+    const fallback: SupplyLiveCandidate = {
+      ...original,
+      providerName: "Fallback Healthy",
+      providerSlug: "fallback-healthy",
+    };
+    const selection = {
+      candidates: [original, fallback],
+      skipped: [],
+      maxProviderGenerationCalls: MAIN_RP_SUPPLY_LIVE_MAX_PROVIDER_CALLS,
+      estimatedRawEndpointRateUsd:
+        original.estimatedPairRawEndpointRateUsd +
+        fallback.estimatedPairRawEndpointRateUsd,
+    };
+    const report = buildSupplyLiveReport({
+      selection,
+      results: [
+        {
+          candidate: original,
+          turns: [],
+          providerGenerationCalls: 1,
+          livePairComplete: false,
+          secondTurnCacheReadObserved: false,
+          transportStatus: "PAIR_INCOMPLETE",
+          interpretation: [],
+        },
+        {
+          candidate: fallback,
+          turns: [],
+          providerGenerationCalls: 2,
+          livePairComplete: true,
+          secondTurnCacheReadObserved: true,
+          transportStatus: "PAIR_COMPLETE",
+          interpretation: [],
+        },
+      ],
+      generatedAt: "2026-09-29T00:00:00.000Z",
+    });
+    assert.equal(report.status, "OK");
+    assert.equal(report.providerGenerationCalls, 3);
+  });
+
   it("does not create a composite quality winner and enforces provider call cap", () => {
     const report = buildSupplyLiveReport({
       selection: selectMainRpSupplyLiveCandidates(radarReport()),
