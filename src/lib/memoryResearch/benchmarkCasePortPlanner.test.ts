@@ -48,6 +48,8 @@ describe("Benchmark Case Port Planner", () => {
       "active-expired-commitment-lifecycle-01",
     ]);
     assert.ok(commitment.requirements.some((row) => /promisesAdd\/promisesRemove/.test(row)));
+    assert.ok(commitment.requirements.some((row) => /relationship delta carrying promisesRemove/.test(row)));
+    assert.match(commitment.rationale, /does not own wall-clock expiry/);
     assert.ok(commitment.forbidden.includes("episodic duplicate of a formal promise"));
 
     const personaUpdate = plans[1]!;
