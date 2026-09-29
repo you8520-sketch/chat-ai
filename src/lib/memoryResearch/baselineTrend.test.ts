@@ -54,7 +54,13 @@ function summary(overrides: {
     jevP95LatencyMs: measured(0),
     jevCostPer1000Turns: measured(0),
     promptTokenDelta: measured(0),
-    fallbackParity: measured(1),
+    fallbackParity: {
+      value: true,
+      status: "MEASURED" as const,
+      reason: null,
+      eligibleCases: 2,
+      totalCases: 2,
+    },
   } as LabRunSummary["metrics"];
 
   return {
