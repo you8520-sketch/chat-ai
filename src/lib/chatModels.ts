@@ -1,3 +1,5 @@
+import mainRpOpenRouterRoutesJson from "@/lib/mainRpOpenRouterRoutes.json";
+
 /** 채팅방 AI 선택 (selectedAI) — 사용자 전역 선택 */
 /** 유저가 보내는 메시지 최대 글자 수 */
 export const CHAT_MESSAGE_MAX = 1500;
@@ -236,6 +238,17 @@ export type SelectedAIOptionMeta = {
   recommended?: boolean;
 };
 
+type MainRpOpenRouterRouteHintEntry = {
+  providerLabel: string;
+};
+
+const MAIN_RP_OPENROUTER_ROUTE_HINTS =
+  mainRpOpenRouterRoutesJson as Record<string, MainRpOpenRouterRouteHintEntry>;
+
+function mainRpOpenRouterRouteHint(modelId: string): string {
+  return MAIN_RP_OPENROUTER_ROUTE_HINTS[modelId]?.providerLabel ?? "OpenRouter";
+}
+
 /**
  * CANONICAL Main RP picker — ONE source of truth.
  *
@@ -261,21 +274,21 @@ export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
     label: GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
     provider: "openrouter",
     tier: "pro",
-    hint: "Google AI Studio",
+    hint: mainRpOpenRouterRouteHint(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
   },
   {
     id: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
     label: GEMINI_37_FLASH_DISPLAY_NAME,
     provider: "openrouter",
     tier: "pro",
-    hint: "Google AI Studio",
+    hint: mainRpOpenRouterRouteHint(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
   },
   {
     id: GEMINI_38_FLASH_MODEL,
     label: GEMINI_38_FLASH_DISPLAY_NAME,
     provider: "openrouter",
     tier: "pro",
-    hint: "Google AI Studio",
+    hint: mainRpOpenRouterRouteHint(GEMINI_38_FLASH_MODEL),
   },
   {
     id: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
