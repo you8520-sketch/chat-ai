@@ -3,7 +3,10 @@
  * Margin fields (targetMargin, minimumMarginFloor, pricingVersion) remain in publishedModelPricing.ts.
  */
 
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import {
+  MAIN_RP_MODEL_IDS,
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
+} from "@/lib/chatModels";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 import {
   getPublishedPricing,
@@ -80,6 +83,10 @@ const DEFAULT_POLICIES: Record<string, Omit<ModelPricingPolicy, "modelId">> = {
 };
 
 function inferProvider(modelId: string): ModelPricingPolicy["provider"] {
+  const active = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
+    (option) => option.id === modelId
+  );
+  if (active) return active.provider;
   if (modelId.includes("/")) return "openrouter";
   return "cheaperinference";
 }
@@ -88,7 +95,11 @@ export function getModelPricingPolicy(modelId: string): ModelPricingPolicy | nul
   const canonical = canonicalizePublishedModelId(modelId);
   const explicit = DEFAULT_POLICIES[canonical];
   if (explicit) {
-    return { modelId: canonical, ...explicit };
+    return {
+      modelId: canonical,
+      ...explicit,
+      provider: inferProvider(canonical),
+    };
   }
   if (!listPublishedModelIds().includes(canonical)) return null;
   return {
