@@ -63,7 +63,7 @@ self.addEventListener("fetch", (event) => {
 
 self.addEventListener("push", (event) => {
   let payload = {
-    title: "하비 AI",
+    title: "새 알림",
     body: "새 알림이 도착했습니다.",
     url: "/notifications",
     tag: "hobby-ai-notification",

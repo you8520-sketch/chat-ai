@@ -21,6 +21,7 @@ import {
   type SidebarNavIconId,
 } from "./SidebarNavIcons";
 import { cn } from "@/lib/studioDesign";
+import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
 export type SidebarNavItem = {
   href: string;
@@ -168,8 +169,7 @@ export default function SidebarShell({ user, recentActivity, blurNsfw, navItems 
                 : "gap-1 px-2.5 text-sm font-black",
             )}
           >
-            <span>하비</span>
-            <span className="text-violet-300">AI</span>
+            <span>{SITE_DISPLAY_NAME}</span>
           </Link>
         )}
 
