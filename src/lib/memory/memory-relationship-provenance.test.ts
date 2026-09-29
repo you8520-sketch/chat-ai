@@ -18,10 +18,12 @@ import {
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
 import {
+  applyRelationshipDeltaToChat,
   loadChatRelationshipMeta,
   mergeRelationshipMetaAfterRegenerate,
   mergeRelationshipMetaFromTurn,
 } from "@/lib/memory/memory-relationship-meta";
+import { formatMemoryMetaForPrompt } from "@/lib/chatMemory";
 import { getOrCreateChatMemory } from "@/lib/memory/memory-db";
 import { getMemorySourceBoundary } from "@/lib/memory/memory-source-boundary";
 import {
@@ -254,6 +256,47 @@ describe("relationship projection provenance", () => {
     assert.deepEqual(afterRegen.variants[1]?.relationshipMetaAfter?.items, [
       "Tester: old-key, token",
     ]);
+  });
+
+  it("active-expired-commitment-lifecycle-01 keeps only active durable promises in prompt memory", () => {
+    const promise = {
+      text: "내일 밤 북문에서 만나기로 했다.",
+      deadline: "내일 밤",
+    };
+
+    const active = applyRelationshipDeltaToChat({
+      chatId: CHAT_ID,
+      names: NAMES,
+      delta: { promisesAdd: [promise] },
+      sourceUserMessageId: USER_MSG_ID,
+      boundarySnapshot: getMemorySourceBoundary(CHAT_ID),
+    });
+
+    assert.equal(active.accepted, true);
+    assert.deepEqual(active.meta.promises, [promise]);
+    const activePrompt = formatMemoryMetaForPrompt(active.meta);
+    assert.ok(activePrompt);
+    assert.match(activePrompt!, /약속:/);
+    assert.match(activePrompt!, /내일 밤 북문에서 만나기로 했다/);
+    assert.match(activePrompt!, /기한: 내일 밤/);
+
+    // Resolution/expiry is represented by the canonical promisesRemove delta.
+    // This test does not invent a separate clock-driven expiry owner.
+    const resolved = applyRelationshipDeltaToChat({
+      chatId: CHAT_ID,
+      names: NAMES,
+      delta: { promisesRemove: [promise.text] },
+      sourceUserMessageId: USER_MSG_ID,
+      boundarySnapshot: getMemorySourceBoundary(CHAT_ID),
+    });
+
+    assert.equal(resolved.accepted, true);
+    assert.deepEqual(resolved.meta.promises, []);
+    assert.deepEqual(loadChatRelationshipMeta(CHAT_ID, NAMES).promises, []);
+
+    const resolvedPrompt = formatMemoryMetaForPrompt(resolved.meta) ?? "";
+    assert.doesNotMatch(resolvedPrompt, /약속:/);
+    assert.doesNotMatch(resolvedPrompt, /내일 밤 북문에서 만나기로 했다/);
   });
 
   it("persists relationshipMetaAfter for a valid zero-delta generation", async () => {
