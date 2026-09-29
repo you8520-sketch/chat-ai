@@ -78,7 +78,7 @@ export const MEMORY_OWNER_MAP: Readonly<Record<MemoryOwnerId, OwnerEntry>> = {
     paths: ["src/lib/episodicMemoryFacts.ts"],
   },
   episodic_selection: {
-    responsibility: "Post-rank episodic selection bounds (fact count / char budget / candidate bound)",
+    responsibility: "Episodic retrieval/selection bounds (candidate count / fact count / char budget)",
     paths: ["src/lib/episodicMemoryFacts.ts"],
   },
   prompt_packing: {
