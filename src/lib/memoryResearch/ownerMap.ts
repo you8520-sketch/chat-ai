@@ -119,6 +119,7 @@ export const AUTOMATION_OWNER_MAP: Readonly<Record<string, string>> = {
   memory_research_benchmark_adoption: "src/lib/memoryResearch/benchmarkAdoptionBridge.ts (external benchmark ability → local deterministic case-coverage evidence only)",
   memory_research_case_port_planner: "src/lib/memoryResearch/benchmarkCasePortPlanner.ts (benchmark gap → correct local harness/fixture plan; no auto-edit)",
   memory_research_harness_feasibility: "src/lib/memoryResearch/benchmarkHarnessFeasibility.ts (case-port plan → measurement feasibility / provider-judge boundary evidence only)",
+  memory_research_baseline_trend: "src/lib/memoryResearch/baselineTrend.ts (same-benchmark deterministic baseline drift evidence across research cycles)",
   memory_research_ledger: "orphan branch `memory-research-ledger` (ledger.json + cycles/*.json)",
   memory_research_draft_pr: "src/lib/memoryResearch/draftPr.ts (ACCEPTED-only, `gh pr create --draft`)",
   provider_cost_accounting: "src/lib/providerCostLedger.ts (production spend; research cycle makes 0 paid calls)",
@@ -183,4 +184,15 @@ export function architectureFingerprintPaths(): string[] {
     }
   }
   return [...all].sort();
+}
+
+/** Fingerprint only the deterministic benchmark definition/case harness. */
+export function computeBenchmarkDefinitionFingerprint(
+  readFile: (path: string) => string
+): string {
+  const hash = createHash("sha256");
+  for (const path of MEMORY_OWNER_MAP.memory_benchmark.paths) {
+    hash.update(path).update("\0").update(readFile(path)).update("\0");
+  }
+  return hash.digest("hex").slice(0, 16);
 }
