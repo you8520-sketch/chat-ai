@@ -44,6 +44,34 @@ describe("formatMemoryMetaForPrompt", () => {
   });
 });
 
+describe("relationship promise lifecycle", () => {
+  it("removes fulfilled or expired formal promise from durable prompt state", () => {
+    const promiseText = "다음 만남에 책을 가져오기로 함";
+    const active = mergeMemoryMeta(EMPTY_MEMORY_META, {
+      promisesAdd: [{ text: promiseText, deadline: "토요일" }],
+    });
+
+    assert.deepEqual(active.promises, [
+      { text: promiseText, deadline: "토요일" },
+    ]);
+    const activePrompt = formatMemoryMetaForPrompt(active);
+    assert.ok(activePrompt);
+    assert.match(activePrompt!, /다음 만남에 책을 가져오기로 함/);
+    assert.match(activePrompt!, /기한: 토요일/);
+
+    const fulfilled = mergeMemoryMeta(active, {
+      promisesRemove: [promiseText],
+    });
+
+    assert.deepEqual(fulfilled.promises, []);
+    assert.equal(
+      formatMemoryMetaForPrompt(fulfilled),
+      null,
+      "fulfilled/expired promise must not survive in Relationship Durable prompt"
+    );
+  });
+});
+
 describe("clampThoughtContent", () => {
   it("truncates long text at word or punctuation boundary", () => {
     const long =
