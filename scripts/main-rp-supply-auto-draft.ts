@@ -116,19 +116,17 @@ async function main(): Promise<void> {
   const baseSha = process.env.GITHUB_SHA?.trim() || "";
 
   for (const mutation of plan.mutations) {
-    if (!dryRun) {
-      const preflight = runPreflight(mutation);
-      if (!preflight.ok) {
-        executions.push({
-          modelId: mutation.modelId,
-          candidateProviderSlug: mutation.candidateProviderSlug,
-          status: "PREFLIGHT_FAILED",
-          pullRequestUrl: null,
-          branchName: mutation.branchName,
-          error: preflight.error,
-        });
-        continue;
-      }
+    const preflight = runPreflight(mutation);
+    if (!preflight.ok) {
+      executions.push({
+        modelId: mutation.modelId,
+        candidateProviderSlug: mutation.candidateProviderSlug,
+        status: "PREFLIGHT_FAILED",
+        pullRequestUrl: null,
+        branchName: mutation.branchName,
+        error: preflight.error,
+      });
+      continue;
     }
 
     if (!repo || !token || !baseSha) {
