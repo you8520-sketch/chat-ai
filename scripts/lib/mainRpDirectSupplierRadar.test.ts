@@ -20,6 +20,8 @@ const ONEMUX_FIXTURE = `
   </body></html>
 `;
 
+// Keep marketing "output" copy before the canonical price strip: this reproduces
+// the live-page false match that originally misread Gemini output price as input price.
 const AIREITER_FIXTURE = `
   <html><body>
     <h1>GPT-5.6 Terra AI Chat Playground and API</h1>
