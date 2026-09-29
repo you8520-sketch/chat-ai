@@ -314,10 +314,6 @@ function base64Utf8(value: string): string {
   return Buffer.from(value, "utf8").toString("base64");
 }
 
-function ownerFromRepo(repo: string): string {
-  return repo.split("/")[0] ?? "";
-}
-
 export type GitHubDraftExecutionResult = {
   modelId: string;
   candidateProviderSlug: string;
@@ -326,6 +322,7 @@ export type GitHubDraftExecutionResult = {
     | "DRY_RUN"
     | "EXISTING_OPEN_PR"
     | "STALE_MAIN_STOP"
+    | "PREFLIGHT_FAILED"
     | "FAILED";
   pullRequestUrl: string | null;
   branchName: string | null;
