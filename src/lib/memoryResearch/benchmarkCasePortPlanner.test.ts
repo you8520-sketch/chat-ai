@@ -59,16 +59,17 @@ describe("Benchmark Case Port Planner", () => {
     assert.ok(covered.reuseMetrics.includes("correctionSupersessionAccuracy"));
   });
 
-  it("routes forgetting fidelity to source-mutation lifecycle owners instead of the retrieval suite", () => {
+  it("does not re-port the resolved local forgetting-residue gap", () => {
     const plan = buildBenchmarkCasePortPlan(
       proposal("forgetting_fidelity", "PARTIAL_COVERAGE")
     );
-    assert.equal(plan.readiness, "READY_MUTATION_LIFECYCLE_FIXTURE");
-    assert.deepEqual(plan.proposedCaseIds, ["derived-memory-deletion-residue-01"]);
-    assert.ok(plan.targetPaths.includes("src/lib/memory/memory-premerge-blockers.test.ts"));
-    assert.ok(plan.targetPaths.includes("src/lib/memory/memory-summary-integrity.test.ts"));
-    assert.ok(!plan.targetPaths.includes("src/lib/memory/memory-rp-benchmark-suite.ts"));
-    assert.ok(plan.forbidden.includes("copying Memora FAMA"));
+    assert.equal(plan.readiness, "NO_PORT_REQUIRED");
+    assert.equal(plan.planKey, "forgetting_fidelity:current_local_gap_closed");
+    assert.deepEqual(plan.proposedCaseIds, []);
+    assert.deepEqual(plan.targetPaths, []);
+    assert.ok(plan.forbidden.includes("duplicate derived-memory-deletion-residue fixture"));
+    assert.match(plan.rationale, /last-turn delete atomically removes/i);
+    assert.match(plan.rationale, /broader external forgetting benchmark remains PARTIAL_COVERAGE/i);
   });
 
   it("blocks persona continuity from being mislabeled as a retrieval fixture", () => {
