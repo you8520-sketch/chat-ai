@@ -180,12 +180,12 @@ async function main(): Promise<void> {
     `manual-${new Date().toISOString().slice(0, 16)}`;
 
   for (const entry of baselinePlan.entries) {
-    const candidate = entry.candidate;
+    const baselineCandidate = entry.candidate;
     try {
       const ciSessionId = [
         "supply-ci",
         runId,
-        safePart(candidate.modelId),
+        safePart(baselineCandidate.modelId),
       ]
         .join("-")
         .slice(0, 256);
@@ -198,32 +198,39 @@ async function main(): Promise<void> {
       );
     } catch (error) {
       errors.push(
-        `${candidate.modelId}/current-ci: ${sanitizeError(error)}`
+        `${baselineCandidate.modelId}/current-ci: ${sanitizeError(error)}`
       );
     }
 
-    try {
-      const candidateSessionId = [
-        "supply-live",
-        runId,
-        safePart(candidate.modelId),
-        safePart(candidate.providerSlug),
-      ]
-        .join("-")
-        .slice(0, 256);
-      candidateResults.push(
-        await runOpenRouterSupplyCandidatePair({
+    const modelCandidates = selection.candidates.filter(
+      (candidate) => candidate.modelId === baselineCandidate.modelId
+    );
+    for (const candidate of modelCandidates) {
+      try {
+        const candidateSessionId = [
+          "supply-live",
+          runId,
+          safePart(candidate.modelId),
+          safePart(candidate.providerSlug),
+        ]
+          .join("-")
+          .slice(0, 256);
+        const result = await runOpenRouterSupplyCandidatePair({
           apiKey: openRouterCredential.apiKey,
           candidate,
           sessionId: candidateSessionId,
-        })
-      );
-    } catch (error) {
-      errors.push(
-        `${candidate.modelId}/${candidate.providerName}: ${sanitizeError(
-          error
-        )}`
-      );
+        });
+        candidateResults.push(result);
+        // Alternatives are ordered by price after factual preflight. Stop
+        // spending once this model has one complete two-turn transport proof.
+        if (result.livePairComplete) break;
+      } catch (error) {
+        errors.push(
+          `${candidate.modelId}/${candidate.providerName}: ${sanitizeError(
+            error
+          )}`
+        );
+      }
     }
   }
 
