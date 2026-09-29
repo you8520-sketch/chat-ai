@@ -184,3 +184,14 @@ export function architectureFingerprintPaths(): string[] {
   }
   return [...all].sort();
 }
+
+/** Fingerprint only the deterministic benchmark definition/case harness. */
+export function computeBenchmarkDefinitionFingerprint(
+  readFile: (path: string) => string
+): string {
+  const hash = createHash("sha256");
+  for (const path of MEMORY_OWNER_MAP.memory_benchmark.paths) {
+    hash.update(path).update("\0").update(readFile(path)).update("\0");
+  }
+  return hash.digest("hex").slice(0, 16);
+}
