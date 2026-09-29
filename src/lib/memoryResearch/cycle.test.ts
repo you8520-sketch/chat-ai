@@ -249,7 +249,7 @@ it("benchmark adoption proposals emit only when a benchmark candidate is re-eval
     first.report.benchmarkCasePortPlans.map((plan) => [plan.ability, plan.readiness]).sort(),
     [
       ["persona_continuity", "HARNESS_EXTENSION_REQUIRED"],
-      ["trajectory_recall", "READY_DETERMINISTIC_FIXTURE"],
+      ["trajectory_recall", "MIXED_OWNER_PLAN"],
     ]
   );
 
