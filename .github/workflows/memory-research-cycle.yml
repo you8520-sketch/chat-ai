@@ -113,9 +113,21 @@ jobs:
           --main-sha ${{ steps.sha.outputs.main_sha }}
           ${{ inputs.force && '--force' || '' }}
 
+      - name: Memory prompt-packing sentinel
+        run: >-
+          node --conditions=react-server --import tsx
+          scripts/memory-prompt-packing-sentinel.ts
+          --out memory-research-out/prompt-packing
+
       - name: Cycle summary
         if: always()
-        run: cat memory-research-out/report.md >> "$GITHUB_STEP_SUMMARY" || true
+        shell: bash
+        run: |
+          cat memory-research-out/report.md >> "$GITHUB_STEP_SUMMARY" || true
+          if [[ -f memory-research-out/prompt-packing/REPORT.md ]]; then
+            printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
+            cat memory-research-out/prompt-packing/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - uses: actions/upload-artifact@v4
         if: always()
