@@ -33,6 +33,10 @@ import { defaultSources, type SourceFetch } from "@/lib/memoryResearch/sources";
 import { runPendingLiveExperiments } from "@/lib/memoryResearch/liveExperimentRunner";
 import { openImplementationDraftPrs } from "@/lib/memoryResearch/implementationPr";
 import { runEpisodicEmbeddingLiveBenchmark } from "./lib/episodicEmbeddingLiveBenchmark";
+import {
+  buildPromptPackingSentinelReport,
+  renderPromptPackingSentinelMarkdown,
+} from "@/lib/memoryResearch/promptPackingSentinel";
 
 function arg(name: string): string | null {
   const i = process.argv.indexOf(`--${name}`);
@@ -85,9 +89,16 @@ async function run(): Promise<void> {
   mkdirSync(join(outDir, "cycles"), { recursive: true });
   writeFileSync(join(outDir, "ledger.json"), serializeLedger(next));
   writeFileSync(join(outDir, "cycles", `${report.cycleKey}.json`), `${JSON.stringify(report, null, 2)}\n`);
-  writeFileSync(join(outDir, "report.md"), renderCycleReportMarkdown(report));
+  const sentinel = buildPromptPackingSentinelReport();
+  const cycleMarkdown = renderCycleReportMarkdown(report);
+  const sentinelMarkdown = renderPromptPackingSentinelMarkdown(sentinel);
+  writeFileSync(join(outDir, "report.md"), `${cycleMarkdown}\n${sentinelMarkdown}`);
+  writeFileSync(
+    join(outDir, "prompt-packing-sentinel.json"),
+    `${JSON.stringify(sentinel, null, 2)}\n`
+  );
   writeFileSync(join(outDir, "packets.json"), `${JSON.stringify(report.draftPrPackets, null, 2)}\n`);
-  console.log(renderCycleReportMarkdown(report));
+  console.log(`${cycleMarkdown}\n${sentinelMarkdown}`);
   writeOutput("cycle_key", report.cycleKey);
   writeOutput("cycle_status", report.status);
   writeOutput("accepted_count", String(report.draftPrPackets.length));
