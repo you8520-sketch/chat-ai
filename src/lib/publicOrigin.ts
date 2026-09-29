@@ -1,5 +1,5 @@
-/** Browser-facing origin for OAuth redirects — Google rejects `0.0.0.0`. */
-export function resolvePublicOrigin(req: Request): string {
+/** Configured public origin owner shared by metadata and request-time URLs. */
+export function getConfiguredPublicOrigin(): string | null {
   const configured =
     process.env.GOOGLE_OAUTH_ORIGIN?.trim() ||
     process.env.NEXTAUTH_URL?.trim() ||
@@ -8,9 +8,16 @@ export function resolvePublicOrigin(req: Request): string {
     try {
       return new URL(configured).origin;
     } catch {
-      /* invalid env URL — fall through */
+      /* invalid env URL — use request-derived origin */
     }
   }
+  return null;
+}
+
+/** Browser-facing origin for OAuth redirects — Google rejects `0.0.0.0`. */
+export function resolvePublicOrigin(req: Request): string {
+  const configured = getConfiguredPublicOrigin();
+  if (configured) return configured;
 
   const url = new URL(req.url);
   const forwardedHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();

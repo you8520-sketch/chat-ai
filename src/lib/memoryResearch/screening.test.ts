@@ -35,6 +35,14 @@ it("screening STOP rules (owner conflict, destructive, privacy, boundary, billin
 
 it("screening routes benchmarkable candidates by hook/adapter availability", () => {
   assert.equal(decision(observation({ candidateKey: "github:c/d", category: "graph_memory" })), "WATCH_NO_BENCHMARK_HOOK");
+  assert.equal(
+    decision(observation({ candidateKey: "github:c/d", category: "prompt_packing" })),
+    "WATCH_NO_EXPERIMENT_ADAPTER"
+  );
+  assert.equal(
+    decision(observation({ candidateKey: "github:c/d", category: "companion_roleplay_memory" })),
+    "WATCH_NO_EXPERIMENT_ADAPTER"
+  );
   assert.equal(decision(observation({ candidateKey: "github:c/d", category: "embedding_model" })), "WATCH_NO_EXPERIMENT_ADAPTER");
   assert.equal(decision(observation({ candidateKey: "github:c/d", category: "embedding_model" }), true), "EXPERIMENT_ELIGIBLE");
   assert.equal(

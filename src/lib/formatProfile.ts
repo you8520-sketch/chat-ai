@@ -8,6 +8,7 @@ import {
 } from "@/lib/openRouterConfig";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
 import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
+import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
 export type ProfileData = {
   name: string | null;
@@ -19,7 +20,7 @@ export type ProfileData = {
 
 export const FORMAT_PROFILE_MODEL = OPENROUTER_DEEPSEEK_V4_PRO_MODEL;
 
-const FORMAT_PROMPT = `너는 캐릭터 프로필 **디자인** 편집기야. 사용자 줄글의 **모든 내용을 100% 보존**하면서, 하비 AI 공통 마크다운 레이아웃(## 메인 캐릭터, ## 서브 캐릭터, - **라벨:** 목록)만 적용해 JSON으로 분류해.
+const FORMAT_PROMPT = `너는 캐릭터 프로필 **디자인** 편집기야. 사용자 줄글의 **모든 내용을 100% 보존**하면서, ${SITE_DISPLAY_NAME} 공통 마크다운 레이아웃(## 메인 캐릭터, ## 서브 캐릭터, - **라벨:** 목록)만 적용해 JSON으로 분류해.
 요약·축약·의역·재작성 금지. HTML·인라인 CSS 금지. description에는 원문 전체를 마크다운 디자인만 적용해 넣을 것 (최대 ${PROFILE_BIOGRAPHY_LIMIT.toLocaleString()}자).
 {
 "name": "캐릭터 이름",

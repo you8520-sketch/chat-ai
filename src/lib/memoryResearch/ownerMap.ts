@@ -17,6 +17,7 @@ export type MemoryOwnerId =
   | "semantic_retrieval"
   | "embedding_index"
   | "reranking_scoring"
+  | "episodic_selection"
   | "prompt_packing"
   | "memory_lifecycle"
   | "memory_benchmark"
@@ -76,6 +77,10 @@ export const MEMORY_OWNER_MAP: Readonly<Record<MemoryOwnerId, OwnerEntry>> = {
     responsibility: "Final composite scoring of episodic candidates",
     paths: ["src/lib/episodicMemoryFacts.ts"],
   },
+  episodic_selection: {
+    responsibility: "Episodic retrieval/selection bounds (candidate count / fact count / char budget)",
+    paths: ["src/lib/episodicMemoryFacts.ts"],
+  },
   prompt_packing: {
     responsibility: "Memory prompt layers + budgets",
     paths: [
@@ -110,14 +115,38 @@ export const AUTOMATION_OWNER_MAP: Readonly<Record<string, string>> = {
   runtime_cron_jobs: "src/cron/{finance,payout,training}Scheduler.ts",
   training_analysis: "src/lib/training/* (production RP quality analysis/export)",
   memory_research_cycle: ".github/workflows/memory-research-cycle.yml → scripts/memory-research-cycle.ts → src/lib/memoryResearch/cycle.ts",
+  memory_research_companion_bridge: "src/lib/memoryResearch/companionExperimentBridge.ts (official-doc technique → canonical-owner experiment-routing evidence only)",
+  memory_research_benchmark_adoption: "src/lib/memoryResearch/benchmarkAdoptionBridge.ts (external benchmark ability → local deterministic case-coverage evidence only)",
   memory_research_ledger: "orphan branch `memory-research-ledger` (ledger.json + cycles/*.json)",
   memory_research_draft_pr: "src/lib/memoryResearch/draftPr.ts (ACCEPTED-only, `gh pr create --draft`)",
   provider_cost_accounting: "src/lib/providerCostLedger.ts (production spend; research cycle makes 0 paid calls)",
   test_egress_policy: "src/lib/test/regularTestEgressPolicy.ts",
 };
 
-/** Owners the deterministic benchmark can currently A/B via `BenchmarkMode`. */
-export const BENCHMARK_HOOKED_OWNERS: readonly MemoryOwnerId[] = ["semantic_retrieval", "embedding_index"];
+/**
+ * Owners the deterministic benchmark can actually A/B through a mode input.
+ * Adding an id here does not register an experiment adapter and does not
+ * change production runtime.
+ *
+ * - semantic_retrieval / embedding_index → `mode.semantic`
+ * - prompt_packing → `mode.packing` leftover policy + supplied higher-priority texts
+ * - episodic_selection → `mode.selection` fact/char/candidate bounds
+ *
+ * Deliberately NOT marked as hooked:
+ * - reranking_scoring: score weights/order are not parameterized by BenchmarkMode
+ * - global_current_memory: the harness can supply emitted Global text as packing
+ *   input, but does not A/B Global compaction/checkpoint generation itself
+ */
+export const BENCHMARK_HOOKED_OWNERS: readonly MemoryOwnerId[] = [
+  "semantic_retrieval",
+  "embedding_index",
+  "prompt_packing",
+  "episodic_selection",
+];
+
+export function isBenchmarkOwnerHooked(owner: MemoryOwnerId): boolean {
+  return BENCHMARK_HOOKED_OWNERS.includes(owner);
+}
 
 export const CATEGORY_OWNERS: Readonly<Record<CandidateCategory, readonly MemoryOwnerId[]>> = {
   conversational_memory: ["episodic_facts", "rolling_summary", "global_current_memory"],

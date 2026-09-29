@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ToggleSwitch from "@/components/ToggleSwitch";
+import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
 type PushState = "loading" | "unsupported" | "unconfigured" | "off" | "on" | "blocked";
 
@@ -190,7 +191,7 @@ export default function PushNotificationManager() {
     state === "on"
       ? "공지·이벤트, 포인트 지급·소멸, 제작 캐릭터 승인, 신고·문의 처리 결과는 기본으로 받습니다. 좋아요·댓글은 아래에서 따로 켜 주세요."
       : state === "blocked"
-        ? "기기 설정에서 하비 AI의 알림 권한을 허용해 주세요."
+        ? `기기 설정에서 ${SITE_DISPLAY_NAME}의 알림 권한을 허용해 주세요.`
         : state === "unconfigured"
           ? "푸시 알림이 서버에서 꺼져 있습니다. 배포 후 잠시 뒤 다시 열어 주세요."
           : state === "unsupported"

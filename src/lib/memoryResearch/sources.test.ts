@@ -10,6 +10,10 @@ import {
   GITHUB_DISCOVERY_QUERIES,
   GITHUB_DISCOVERY_RESULTS_PER_QUERY,
   GITHUB_WATCHLIST,
+  OFFICIAL_COMPANION_DOC_TARGETS,
+  OFFICIAL_COMPANION_DOC_URL_COUNT,
+  extractOfficialCompanionMemoryEvidence,
+  officialCompanionDocsSource,
   parseArxivAtom,
   type SourceContext,
   type SourceFetch,
@@ -210,6 +214,136 @@ it("HTTP budget caps source calls; arXiv queries are spaced ≥3s apart", async 
 });
 
 
+it("official companion evidence fingerprint ignores unrelated page chrome/pricing edits", () => {
+  const before = extractOfficialCompanionMemoryEvidence(`
+    <html><body>
+      <nav>Subscribe for $10</nav>
+      <h2>Memory</h2>
+      <p>Long-term memory recalls important journal entries.</p>
+      <p>Cascaded context summarizes older conversation history.</p>
+      <footer>Build 101</footer>
+    </body></html>
+  `);
+  const afterUnrelatedEdit = extractOfficialCompanionMemoryEvidence(`
+    <html><body>
+      <nav>Subscribe for $20</nav>
+      <h2>Memory</h2>
+      <p>Long-term memory recalls important journal entries.</p>
+      <p>Cascaded context summarizes older conversation history.</p>
+      <footer>Build 999</footer>
+    </body></html>
+  `);
+  const afterMemoryEdit = extractOfficialCompanionMemoryEvidence(`
+    <html><body>
+      <nav>Subscribe for $20</nav>
+      <h2>Memory</h2>
+      <p>Long-term memory recalls up to nine journal entries.</p>
+      <p>Cascaded context summarizes older conversation history.</p>
+    </body></html>
+  `);
+
+  assert.equal(before, afterUnrelatedEdit);
+  assert.notEqual(before, afterMemoryEdit);
+});
+
+it("official companion source turns official memory-doc changes into versioned WATCH evidence only", async () => {
+  const target = [{
+    product: "kindroid" as const,
+    title: "Kindroid",
+    urls: ["https://official.example/memory", "https://official.example/api"],
+    claimedAdvantage: "bounded long-term recall plus cascaded summarized context",
+  }];
+
+  const collect = async (memoryLine: string, unrelated: string) => {
+    const c = ctx(async (url) => {
+      if (url.endsWith("/memory")) {
+        return response(200, `<main><p>${memoryLine}</p><p>${unrelated}</p></main>`);
+      }
+      if (url.endsWith("/api")) {
+        return response(200, "<main><p>Chat break can preserve cascaded memory context.</p></main>");
+      }
+      return response(404, "");
+    });
+    const out = await officialCompanionDocsSource(target).collect(c);
+    return { out, calls: c.calls };
+  };
+
+  const first = await collect(
+    "Long-term memory recalls three journal entries.",
+    "Voice generation costs $5."
+  );
+  const unrelatedOnly = await collect(
+    "Long-term memory recalls three journal entries.",
+    "Voice generation costs $9."
+  );
+  const memoryChanged = await collect(
+    "Long-term memory recalls nine journal entries.",
+    "Voice generation costs $9."
+  );
+
+  assert.equal(first.out.observations.length, 1);
+  const observation = first.out.observations[0]!;
+  assert.equal(observation.candidateKey, "official:kindroid:memory-docs");
+  assert.equal(observation.sourceKind, "official_companion_docs");
+  assert.equal(observation.category, "companion_roleplay_memory");
+  assert.equal(observation.evidence.hasReproducibleCode, false);
+  assert.equal(observation.evidence.hasPublishedBenchmark, false);
+  assert.deepEqual(observation.infraRequirements, ["none"]);
+  assert.equal(first.calls.length, 2);
+  assert.equal(first.out.observations[0]!.version, unrelatedOnly.out.observations[0]!.version);
+  assert.notEqual(first.out.observations[0]!.version, memoryChanged.out.observations[0]!.version);
+});
+
+it("official companion source fails closed per product while other products continue", async () => {
+  const targets = [
+    {
+      product: "nomi" as const,
+      title: "Nomi",
+      urls: ["https://official.example/nomi-updates", "https://official.example/nomi-mind-map"],
+      claimedAdvantage: "layered companion memory",
+    },
+    {
+      product: "kindroid" as const,
+      title: "Kindroid",
+      urls: ["https://official.example/kindroid-memory"],
+      claimedAdvantage: "cascaded memory with bounded recall",
+    },
+  ];
+  const c = ctx(async (url) => {
+    if (url.endsWith("/nomi-updates")) return response(503, "temporary outage");
+    if (url.endsWith("/nomi-mind-map")) {
+      return response(200, "<article><p>Mind Map context connects long-term memories.</p></article>");
+    }
+    if (url.endsWith("/kindroid-memory")) {
+      return response(200, "<article><p>Cascaded memory context and journal recall are available.</p></article>");
+    }
+    return response(404, "");
+  });
+
+  const out = await officialCompanionDocsSource(targets).collect(c);
+  assert.equal(out.observations.length, 1);
+  assert.equal(out.observations[0]!.candidateKey, "official:kindroid:memory-docs");
+  assert.equal(out.errors.length, 1);
+  assert.match(out.errors[0]!, /nomi.*503/);
+  assert.doesNotMatch(out.observations[0]!.summary, /Mind Map/);
+});
+
+it("official companion radar allowlist stays bounded to the three selected products", () => {
+  assert.deepEqual(
+    OFFICIAL_COMPANION_DOC_TARGETS.map((target) => target.product),
+    ["nomi", "kindroid", "character_ai"]
+  );
+  assert.equal(OFFICIAL_COMPANION_DOC_URL_COUNT, 6);
+  for (const target of OFFICIAL_COMPANION_DOC_TARGETS) {
+    for (const url of target.urls) {
+      assert.match(url, /^https:\/\//);
+      if (target.product === "nomi") assert.match(url, /^https:\/\/nomi\.ai\//);
+      if (target.product === "kindroid") assert.match(url, /^https:\/\/kindroid\.ai\//);
+      if (target.product === "character_ai") assert.match(url, /^https:\/\/support\.character\.ai\//);
+    }
+  }
+});
+
 it("curated watchlist covers current memory systems/benchmarks without starving default sources", () => {
   const repos = GITHUB_WATCHLIST.map((entry) => entry.repo.toLowerCase());
   assert.equal(new Set(repos).size, repos.length, "curated watchlist must not duplicate repositories");
@@ -217,6 +351,9 @@ it("curated watchlist covers current memory systems/benchmarks without starving 
     "agentscope-ai/reme",
     "vectorize-io/hindsight",
     "xiaowu0162/longmemeval-v2",
+    "salesforceairesearch/anchorbench",
+    "collab-gen/rolememo",
+    "geniesinc/memora",
   ]) {
     assert.ok(repos.includes(required), `missing current curated source ${required}`);
   }
@@ -224,6 +361,7 @@ it("curated watchlist covers current memory systems/benchmarks without starving 
   const worstCaseHttpCalls =
     GITHUB_WATCHLIST.length * 2 +
     GITHUB_DISCOVERY_QUERIES.length * (1 + GITHUB_DISCOVERY_RESULTS_PER_QUERY) +
+    OFFICIAL_COMPANION_DOC_URL_COUNT +
     ARXIV_QUERIES.length;
   assert.ok(
     DEFAULT_HTTP_BUDGET >= worstCaseHttpCalls,

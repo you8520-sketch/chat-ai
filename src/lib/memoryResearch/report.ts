@@ -1,4 +1,6 @@
 import type { CycleReport } from "@/lib/memoryResearch/cycle";
+import { renderBenchmarkAdoptionMarkdown } from "@/lib/memoryResearch/benchmarkAdoptionBridge";
+import { renderCompanionExperimentBridgeMarkdown } from "@/lib/memoryResearch/companionExperimentBridge";
 
 /** Human-readable cycle summary (the JSON report stays the source of truth). */
 export function renderCycleReportMarkdown(report: CycleReport): string {
@@ -30,6 +32,8 @@ export function renderCycleReportMarkdown(report: CycleReport): string {
       (s) => `- ${s.sourceId}: ${s.observations} observation(s)${s.failed ? " — FAILED" : ""}${s.errors.length > 0 ? ` — errors: ${s.errors.join(" | ")}` : ""}`
     ),
     "",
+    renderCompanionExperimentBridgeMarkdown(report.companionExperimentProposals),
+    renderBenchmarkAdoptionMarkdown(report.benchmarkAdoptionProposals),
     "## Baseline (current main)",
     "",
     `- status: ${report.baseline.status}${report.baseline.error ? ` — ${report.baseline.error}` : ""}`,

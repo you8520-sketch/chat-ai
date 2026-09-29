@@ -8,7 +8,7 @@
  */
 import type { MemoryOwnerId } from "@/lib/memoryResearch/ownerMap";
 
-export type ResearchSourceKind = "github_repository" | "arxiv";
+export type ResearchSourceKind = "github_repository" | "arxiv" | "official_companion_docs";
 
 export type CandidateCategory =
   | "conversational_memory"

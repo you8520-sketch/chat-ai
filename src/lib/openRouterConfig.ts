@@ -1,3 +1,4 @@
+import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 import {
   CLAUDE_OPUS_MODEL_LEGACY,
   OPENROUTER_CLAUDE_DEFAULT,
@@ -150,14 +151,14 @@ export function buildOpenRouterHeaders(apiKey?: string): Record<string, string> 
   const referer = process.env.OPENROUTER_HTTP_REFERER?.trim();
   if (!referer && process.env.NODE_ENV === "production") {
     console.warn(
-      "[OpenRouter] OPENROUTER_HTTP_REFERER is unset — set your production URL (e.g. https://your-app.up.railway.app)"
+      "[OpenRouter] OPENROUTER_HTTP_REFERER is unset — set your production site URL (e.g. https://hav.chat)"
     );
   }
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${key}`,
     "HTTP-Referer": referer || "http://localhost:3000",
-    "X-Title": process.env.OPENROUTER_APP_TITLE?.trim() || "PlayAI",
+    "X-Title": process.env.OPENROUTER_APP_TITLE?.trim() || SITE_DISPLAY_NAME,
   };
 }
 

@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/validate-memory-episodic.yml"
       - "src/lib/episodicMemoryFacts.ts"
+      - "src/lib/episodicMemoryPackingBudget.test.ts"
       - "src/lib/historicalTruthPolicy.ts"
       - "src/lib/historicalTruthPolicy.test.ts"
       - "src/lib/memory/memory-summary-integrity.ts"
@@ -59,6 +60,7 @@ on:
       - "src/lib/memory/memory-rp-benchmark-suite.ts"
       - "src/lib/memory/memory-rp-benchmark.ts"
       - "src/lib/memory/memory-rp-benchmark.test.ts"
+      - "src/lib/memory/memory-rp-benchmark-hooks.test.ts"
       - "src/lib/openRouterEmbeddings.ts"
       - "src/lib/openRouterEmbeddings.test.ts"
       - "scripts/lib/benchmarkOpenRouterEmbeddingsCredential.ts"
@@ -129,6 +131,9 @@ jobs:
       - name: Episodic Retrieval V2 regression
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-retrieval-v2.test.ts
 
+      - name: Episodic packing budget starvation
+        run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/episodicMemoryPackingBudget.test.ts
+
       - name: Episodic hardening regression (E1–E14 / R1)
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-episodic-hardening.test.ts
 
@@ -169,7 +174,7 @@ jobs:
         run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/openRouterEmbeddings.test.ts
 
       - name: Memory benchmark semantic regression
-        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory-rp-benchmark.test.ts
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory-rp-benchmark.test.ts src/lib/memory/memory-rp-benchmark-hooks.test.ts
 
       - name: Memory research lab (lifecycle, gates, sources, Draft PR, isolation)
         run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memoryResearch/*.test.ts
