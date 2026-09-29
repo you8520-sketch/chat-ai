@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: main-rp-monthly-supply-radar
@@ -40,6 +41,7 @@ jobs:
           node --conditions=react-server --import tsx --test --test-concurrency=1
           scripts/lib/mainRpSupplyRadar.test.ts
           scripts/lib/mainRpDirectSupplierRadar.test.ts
+          scripts/lib/mainRpSupplyPromotionHistory.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
           scripts/lib/mainRpSupplyCiBaseline.test.ts
       - name: Read-only external supply scan
@@ -60,6 +62,11 @@ jobs:
           MAIN_RP_SUPPLY_LIVE_QUALIFICATION: "1"
           OPENROUTER_SUPPLY_BENCHMARK_API_KEY: ${{ secrets.OPENROUTER_SUPPLY_BENCHMARK_API_KEY }}
         run: node --conditions=react-server --import tsx scripts/main-rp-supply-live-qualification.ts
+      - name: Supply promotion history gate
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --conditions=react-server --import tsx scripts/main-rp-supply-promotion-history.ts
       - name: Job summary
         if: always()
         shell: bash
@@ -78,6 +85,10 @@ jobs:
           if [ -f artifacts/main-rp-supply-radar/live/COMPARISON.md ]; then
             printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
             cat artifacts/main-rp-supply-radar/live/COMPARISON.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f artifacts/main-rp-supply-radar/PROMOTION-HISTORY.md ]; then
+            printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
+            cat artifacts/main-rp-supply-radar/PROMOTION-HISTORY.md >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload supply evidence
         if: always()
