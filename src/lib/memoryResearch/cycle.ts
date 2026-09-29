@@ -6,6 +6,10 @@
  */
 import { runLabArm, type LabArmResult } from "@/lib/memoryResearch/benchmarkLab";
 import {
+  buildBenchmarkCasePortPlans,
+  type BenchmarkCasePortPlan,
+} from "@/lib/memoryResearch/benchmarkCasePortPlanner";
+import {
   buildBenchmarkAdoptionProposals,
   type BenchmarkAdoptionProposal,
 } from "@/lib/memoryResearch/benchmarkAdoptionBridge";
@@ -104,6 +108,7 @@ export type CycleReport = {
   cleanupCandidates: string[];
   companionExperimentProposals: CompanionExperimentProposal[];
   benchmarkAdoptionProposals: BenchmarkAdoptionProposal[];
+  benchmarkCasePortPlans: BenchmarkCasePortPlan[];
   productionTouched: false;
 };
 
@@ -172,6 +177,7 @@ export async function runResearchCycle(
     cleanupCandidates: [],
     companionExperimentProposals: [],
     benchmarkAdoptionProposals: [],
+    benchmarkCasePortPlans: [],
     productionTouched: false,
   };
 
@@ -248,7 +254,9 @@ export async function runResearchCycle(
     if (!existing) report.counts.newCandidates += 1;
     report.counts.evaluated += 1;
     report.companionExperimentProposals.push(...buildCompanionExperimentProposals(obs));
-    report.benchmarkAdoptionProposals.push(...buildBenchmarkAdoptionProposals(obs));
+    const adoptionProposals = buildBenchmarkAdoptionProposals(obs);
+    report.benchmarkAdoptionProposals.push(...adoptionProposals);
+    report.benchmarkCasePortPlans.push(...buildBenchmarkCasePortPlans(adoptionProposals));
 
     const evaluated = await evaluateObservation(obs, adapter, liveRecipe, baseline, report, deps.now, runArm);
     assertValidTrail(evaluated.trail);

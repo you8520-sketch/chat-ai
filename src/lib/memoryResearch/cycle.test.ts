@@ -245,6 +245,13 @@ it("benchmark adoption proposals emit only when a benchmark candidate is re-eval
     first.report.benchmarkAdoptionProposals.map((proposal) => proposal.ability).sort(),
     ["persona_continuity", "trajectory_recall"]
   );
+  assert.deepEqual(
+    first.report.benchmarkCasePortPlans.map((plan) => [plan.ability, plan.readiness]).sort(),
+    [
+      ["persona_continuity", "HARNESS_EXTENSION_REQUIRED"],
+      ["trajectory_recall", "READY_DETERMINISTIC_FIXTURE"],
+    ]
+  );
 
   const second = await runResearchCycle(
     roundTrip(first.ledger),
@@ -255,6 +262,11 @@ it("benchmark adoption proposals emit only when a benchmark candidate is re-eval
     second.report.benchmarkAdoptionProposals.length,
     0,
     "unchanged benchmark capabilities must not repeat adoption proposals every weekly cycle"
+  );
+  assert.equal(
+    second.report.benchmarkCasePortPlans.length,
+    0,
+    "unchanged benchmark capabilities must not repeat case-port plans every weekly cycle"
   );
 });
 
