@@ -290,7 +290,8 @@ describe("Main RP supply live candidate selection", () => {
         (row) =>
           row.modelId === "gemini-3.8-flash" &&
           row.providerName === "Missing Reasoning" &&
-          row.reason === "required_request_parameters_not_advertised:reasoning"
+          row.reason.startsWith("required_request_parameters_not_advertised:") &&
+          row.reason.split(":")[1]?.split(",").includes("reasoning") === true
       )
     );
   });
