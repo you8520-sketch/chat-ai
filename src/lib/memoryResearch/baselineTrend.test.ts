@@ -9,6 +9,10 @@ import {
   type BaselineHistorySnapshot,
 } from "@/lib/memoryResearch/baselineTrend";
 import type { LabRunSummary } from "@/lib/memoryResearch/gates";
+import {
+  computeBenchmarkDefinitionFingerprint,
+  MEMORY_OWNER_MAP,
+} from "@/lib/memoryResearch/ownerMap";
 
 function measured(value: number): MeasuredValue<number> {
   return {
@@ -80,6 +84,29 @@ function history(
 }
 
 describe("Memory Quality Trend Sentinel", () => {
+  it("fingerprints only the canonical benchmark definition owner files", () => {
+    const seen: string[] = [];
+    const base = computeBenchmarkDefinitionFingerprint((path) => {
+      seen.push(path);
+      return `content:${path}`;
+    });
+    assert.deepEqual(
+      seen.sort(),
+      [...MEMORY_OWNER_MAP.memory_benchmark.paths].sort()
+    );
+
+    const same = computeBenchmarkDefinitionFingerprint(
+      (path) => `content:${path}`
+    );
+    const changed = computeBenchmarkDefinitionFingerprint((path) =>
+      path.endsWith("memory-rp-benchmark-suite.ts")
+        ? `changed:${path}`
+        : `content:${path}`
+    );
+    assert.equal(base, same);
+    assert.notEqual(base, changed);
+  });
+
   it("reports NO_HISTORY for the first structured snapshot", () => {
     const report = evaluateBaselineQualityTrend({
       current: summary(),
