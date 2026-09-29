@@ -14,6 +14,7 @@ import {
 export type BaselineHistorySnapshot = {
   cycleKey: string;
   mainSha: string;
+  finishedAt: string;
   architectureFingerprint: string;
   benchmarkDefinitionFingerprint: string;
   baseline: LabRunSummary;
@@ -62,6 +63,7 @@ export function parseBaselineHistorySnapshot(
   if (
     typeof row.cycleKey !== "string" ||
     typeof row.mainSha !== "string" ||
+    typeof row.finishedAt !== "string" ||
     typeof row.architectureFingerprint !== "string" ||
     typeof fingerprint !== "string" ||
     !baseline ||
@@ -92,6 +94,7 @@ export function parseBaselineHistorySnapshot(
   return {
     cycleKey: row.cycleKey,
     mainSha: row.mainSha,
+    finishedAt: row.finishedAt,
     architectureFingerprint: row.architectureFingerprint,
     benchmarkDefinitionFingerprint: fingerprint,
     baseline: summary as unknown as LabRunSummary,
@@ -104,9 +107,12 @@ export function evaluateBaselineQualityTrend(input: {
   history: readonly BaselineHistorySnapshot[];
 }): BaselineTrendReport {
   const currentTokens = perTurn(input.current);
-  const latestAny = input.history.at(-1) ?? null;
+  const ordered = [...input.history].sort(
+    (a, b) => Date.parse(a.finishedAt) - Date.parse(b.finishedAt)
+  );
+  const latestAny = ordered.at(-1) ?? null;
   const previous =
-    [...input.history]
+    [...ordered]
       .reverse()
       .find(
         (row) =>
