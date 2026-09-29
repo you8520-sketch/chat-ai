@@ -10,10 +10,6 @@ import {
   type BenchmarkTransportProbe,
 } from "@/lib/memory/memory-rp-benchmark-suite";
 import { JEV_DECISIONS_URL } from "@/lib/jevDecisions";
-import {
-  BENCHMARK_HOOKED_OWNERS,
-  isBenchmarkOwnerHooked,
-} from "@/lib/memoryResearch/ownerMap";
 
 let httpCallsObserved = 0;
 let jevCallsObserved = 0;
@@ -43,19 +39,6 @@ function packingMode(label: string, packing: NonNullable<BenchmarkMode["packing"
 function selectionMode(label: string, selection: NonNullable<BenchmarkMode["selection"]>): BenchmarkMode {
   return { ...BASELINE_MODE, label, selection, strict: false };
 }
-
-it("research hook owners are registered without creating adapters", () => {
-  assert.deepEqual(BENCHMARK_HOOKED_OWNERS, [
-    "semantic_retrieval",
-    "embedding_index",
-    "prompt_packing",
-    "reranking_scoring",
-    "global_current_memory",
-  ]);
-  assert.equal(isBenchmarkOwnerHooked("prompt_packing"), true);
-  assert.equal(isBenchmarkOwnerHooked("relationship_durable"), false);
-  assert.equal(isBenchmarkOwnerHooked("episodic_facts"), false);
-});
 
 it("omitted packing/selection arms match the lexical baseline", async () => {
   const baseline = await runBenchmarkCases(BASELINE_MODE, transportProbe);

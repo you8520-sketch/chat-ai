@@ -6,7 +6,11 @@ import {
   renderCompanionExperimentBridgeMarkdown,
   type CompanionExperimentProposal,
 } from "@/lib/memoryResearch/companionExperimentBridge";
-import { MEMORY_OWNER_MAP } from "@/lib/memoryResearch/ownerMap";
+import {
+  BENCHMARK_HOOKED_OWNERS,
+  isBenchmarkOwnerHooked,
+  MEMORY_OWNER_MAP,
+} from "@/lib/memoryResearch/ownerMap";
 import type { ResearchObservation } from "@/lib/memoryResearch/types";
 
 function officialObservation(input: {
@@ -47,6 +51,19 @@ function byTechnique(
 }
 
 describe("Companion Memory Experiment Bridge", () => {
+  it("registers packing/selection/Global hooks without treating unhooked owners as ready", () => {
+    assert.deepEqual(BENCHMARK_HOOKED_OWNERS, [
+      "semantic_retrieval",
+      "embedding_index",
+      "prompt_packing",
+      "reranking_scoring",
+      "global_current_memory",
+    ]);
+    assert.equal(isBenchmarkOwnerHooked("prompt_packing"), true);
+    assert.equal(isBenchmarkOwnerHooked("relationship_durable"), false);
+    assert.equal(isBenchmarkOwnerHooked("episodic_facts"), false);
+  });
+
   it("maps Nomi Identity Core to existing owners and flags wholesale Mind Map as an owner conflict", () => {
     const proposals = buildCompanionExperimentProposals(
       officialObservation({
