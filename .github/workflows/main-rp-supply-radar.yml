@@ -124,6 +124,8 @@ jobs:
       MAIN_RP_SUPPLY_RADAR_OUTPUT_DIR: artifacts/main-rp-supply-radar
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
