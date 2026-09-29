@@ -61,6 +61,22 @@ describe("relationshipMemoryTailParse", () => {
     assert.equal(delta.thoughtsRemove, undefined);
   });
 
+  it("preserves canonical promisesRemove so fulfilled commitments can leave durable memory", () => {
+    const promiseText = "다음 만남에 책을 가져오기로 함";
+    const delta = normalizeRelationshipMetaDeltaFromJson(
+      {
+        items: [],
+        promisesAdd: [],
+        promisesRemove: [promiseText],
+      },
+      "",
+      { charName: "레온", userName: "렌" }
+    );
+
+    assert.deepEqual(delta.promisesAdd, []);
+    assert.deepEqual(delta.promisesRemove, [promiseText]);
+  });
+
   it("does not strip unrelated trailing status widget JSON", () => {
     const prose = "RP";
     const statusJson = '{"시간":"밤","장소":"거리"}';
