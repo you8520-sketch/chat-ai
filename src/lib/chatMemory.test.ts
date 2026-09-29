@@ -216,6 +216,39 @@ describe("mergeMemoryMeta possession", () => {
   });
 });
 
+describe("mergeMemoryMeta promises", () => {
+  it("keeps active promises and removes a fulfilled/expired promise only when the durable delta requests removal", () => {
+    const active = mergeMemoryMeta(
+      EMPTY_MEMORY_META,
+      {
+        promisesAdd: [
+          { text: "다음 만남에 책을 가져오기", deadline: "다음 만남" },
+          { text: "축제 전까지 반지를 돌려주기", deadline: "축제 전" },
+        ],
+      }
+    );
+
+    assert.deepEqual(active.promises, [
+      { text: "다음 만남에 책을 가져오기", deadline: "다음 만남" },
+      { text: "축제 전까지 반지를 돌려주기", deadline: "축제 전" },
+    ]);
+    const activePrompt = formatMemoryMetaForPrompt(active) ?? "";
+    assert.match(activePrompt, /다음 만남에 책을 가져오기/);
+    assert.match(activePrompt, /축제 전까지 반지를 돌려주기/);
+
+    const afterRemoval = mergeMemoryMeta(active, {
+      promisesRemove: ["축제 전까지 반지를 돌려주기"],
+    });
+
+    assert.deepEqual(afterRemoval.promises, [
+      { text: "다음 만남에 책을 가져오기", deadline: "다음 만남" },
+    ]);
+    const prompt = formatMemoryMetaForPrompt(afterRemoval) ?? "";
+    assert.match(prompt, /다음 만남에 책을 가져오기/);
+    assert.doesNotMatch(prompt, /축제 전까지 반지를 돌려주기/);
+  });
+});
+
 describe("normalizeTurnThoughts", () => {
   it("limits per-turn extraction to THOUGHTS_PER_TURN_MAX", () => {
     const names = { charName: "레온", userName: "민수" };
