@@ -16,6 +16,8 @@ import {
   type SelectedAI,
 } from "@/lib/chatModels";
 import { REPRESENTATIVE_TRACKER_WORKLOAD } from "@/lib/modelPricingTracker";
+import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
+import { resolveMainRpOpenRouterRoutePolicy } from "@/lib/openRouterConfig";
 import type { CatalogPricingEvidence } from "./mainRpMonthlyCacheAudit";
 
 export const MAIN_RP_SUPPLY_RADAR_VERSION = 1;
@@ -69,6 +71,7 @@ const OPENROUTER_SLUG_ADAPTER: Record<SelectedAI, string> = {
   "deepseek-v4.1-flash": "deepseek/deepseek-v4.1-flash",
   "gemini-3.1-pro-preview": "google/gemini-3.1-pro-preview",
   "gemini-3.7-flash": "google/gemini-3.7-flash",
+  "gemini-3.8-flash": "google/gemini-3.8-flash",
   "gpt-5.6-terra": "openai/gpt-5.6-terra",
   "claude-opus-5.5": "anthropic/claude-opus-5.5",
 };
@@ -146,7 +149,8 @@ export type SupplyEndpointEvidence = {
 };
 
 export type ProcurementBaseline = {
-  provider: "cheaperinference";
+  provider: "cheaperinference" | "openrouter";
+  evidenceSource: "cheaperinference_catalog" | "openrouter_endpoint_market";
   modelId: string;
   inputUsdPerMillion: number | null;
   outputUsdPerMillion: number | null;
@@ -160,13 +164,24 @@ export type ProcurementBaseline = {
 
 export type SupplyComparison = SupplyEndpointEvidence & {
   rawEndpointRepresentativeUncachedRateUsd: number | null;
-  currentCiRepresentativeUncachedProcurementUsd: number | null;
-  rawEndpointRateDeltaVsCurrentCiPercent: number | null;
+  currentRepresentativeUncachedProcurementUsd: number | null;
+  rawEndpointRateDeltaVsCurrentProcurementPercent: number | null;
   inputPriceDeltaPercent: number | null;
   outputPriceDeltaPercent: number | null;
   cacheReadPriceDeltaPercent: number | null;
-  lowerRawEndpointRateThanCurrentCi: boolean | null;
+  lowerRawEndpointRateThanCurrentProcurement: boolean | null;
   evidenceFlags: string[];
+};
+
+export type PublishedMarginRiskEvidence = {
+  pricingVersion: number;
+  targetMargin: number;
+  minimumMarginFloor: number;
+  publishedReferenceRepresentativeUsd: number;
+  nominalRepresentativeRevenueUsd: number;
+  currentProcurementRepresentativeUsd: number;
+  estimatedGrossMarginAtCurrentProcurement: number;
+  belowMinimumMarginFloor: boolean;
 };
 
 export type SupplyModelReport = {
@@ -178,6 +193,7 @@ export type SupplyModelReport = {
   providersDiscovered: string[];
   comparisons: SupplyComparison[];
   lowerRawEndpointRateCount: number;
+  publishedMarginRisk: PublishedMarginRiskEvidence | null;
   evidenceFingerprint: string;
 };
 
@@ -188,7 +204,7 @@ export type MainRpSupplyRadarReport = {
   providerGenerationCalls: 0;
   activeModelIds: readonly SelectedAI[];
   credentialSource: string | null;
-  currentProcurementEvidence: "cheaperinference_catalog" | "unavailable";
+  currentProcurementEvidence: "registry_route_evidence" | "partial" | "unavailable";
   marketEvidence: "openrouter_endpoint_metrics" | "unavailable";
   notes: string[];
   models: SupplyModelReport[];
@@ -278,6 +294,7 @@ function baselineFromCatalog(
   if (!catalog || !catalog.id) return null;
   return {
     provider: "cheaperinference",
+    evidenceSource: "cheaperinference_catalog",
     modelId,
     inputUsdPerMillion: num(catalog.input_per_million),
     outputUsdPerMillion: num(catalog.output_per_million),
@@ -287,6 +304,62 @@ function baselineFromCatalog(
     pricingVersion: catalog.pricing_version,
     pricingCheckedAt: catalog.pricing_checked_at,
     pricingUpdatedAt: catalog.pricing_updated_at,
+  };
+}
+
+function baselineFromOpenRouterRoute(
+  modelId: SelectedAI,
+  endpoints: SupplyEndpointEvidence[]
+): ProcurementBaseline | null {
+  const routePolicy = resolveMainRpOpenRouterRoutePolicy(modelId);
+  if (!routePolicy) return null;
+  const allowed = new Set(
+    routePolicy.provider.only.map((value) => value.toLowerCase())
+  );
+  const matching = endpoints
+    .filter((endpoint) => {
+      const slug = endpoint.provider?.slug?.toLowerCase() ?? "";
+      return allowed.has(slug);
+    })
+    .filter((endpoint) => {
+      if (routePolicy.serviceTier !== "flex") return true;
+      const tierEvidence =
+        `${endpoint.providerName} ${endpoint.providerTag ?? ""}`.toLowerCase();
+      return tierEvidence.includes("flex");
+    })
+    .filter(
+      (endpoint) =>
+        endpoint.inputUsdPerMillion != null &&
+        endpoint.outputUsdPerMillion != null
+    )
+    .sort((a, b) => {
+      const ac = representativeUncachedCost(
+        a.inputUsdPerMillion,
+        a.outputUsdPerMillion
+      ) ?? Number.POSITIVE_INFINITY;
+      const bc = representativeUncachedCost(
+        b.inputUsdPerMillion,
+        b.outputUsdPerMillion
+      ) ?? Number.POSITIVE_INFINITY;
+      return ac - bc;
+    });
+  const current = matching[0];
+  if (!current) return null;
+  return {
+    provider: "openrouter",
+    evidenceSource: "openrouter_endpoint_market",
+    modelId,
+    inputUsdPerMillion: current.inputUsdPerMillion,
+    outputUsdPerMillion: current.outputUsdPerMillion,
+    cacheReadUsdPerMillion: current.cacheReadUsdPerMillion,
+    cacheWriteUsdPerMillion: current.cacheWriteUsdPerMillion,
+    cacheCapabilityAdvertised:
+      current.cacheReadUsdPerMillion != null ||
+      current.cacheWriteUsdPerMillion != null ||
+      current.supportsImplicitCaching === true,
+    pricingVersion: null,
+    pricingCheckedAt: null,
+    pricingUpdatedAt: null,
   };
 }
 
@@ -300,6 +373,40 @@ function representativeUncachedCost(inputPerM: number | null, outputPerM: number
 function deltaPct(candidate: number | null, baseline: number | null): number | null {
   if (candidate == null || baseline == null || baseline <= 0) return null;
   return (candidate - baseline) / baseline;
+}
+
+function buildPublishedMarginRiskEvidence(
+  modelId: SelectedAI,
+  baseline: ProcurementBaseline | null
+): PublishedMarginRiskEvidence | null {
+  if (!baseline) return null;
+  const exact = resolvePublishedPricingExact(modelId);
+  if (!exact) return null;
+  const pricing = exact.pricing;
+  const referenceCost = representativeUncachedCost(
+    pricing.billingReferenceInputUsdPerMillion,
+    pricing.billingReferenceOutputUsdPerMillion
+  );
+  const procurementCost = representativeUncachedCost(
+    baseline.inputUsdPerMillion,
+    baseline.outputUsdPerMillion
+  );
+  if (referenceCost == null || procurementCost == null) return null;
+  if (pricing.targetMargin >= 1) return null;
+  const nominalRevenue = referenceCost / (1 - pricing.targetMargin);
+  if (!Number.isFinite(nominalRevenue) || nominalRevenue <= 0) return null;
+  const estimatedGrossMargin = 1 - procurementCost / nominalRevenue;
+  return {
+    pricingVersion: pricing.pricingVersion,
+    targetMargin: pricing.targetMargin,
+    minimumMarginFloor: pricing.minimumMarginFloor,
+    publishedReferenceRepresentativeUsd: referenceCost,
+    nominalRepresentativeRevenueUsd: nominalRevenue,
+    currentProcurementRepresentativeUsd: procurementCost,
+    estimatedGrossMarginAtCurrentProcurement: estimatedGrossMargin,
+    belowMinimumMarginFloor:
+      estimatedGrossMargin < pricing.minimumMarginFloor,
+  };
 }
 
 export function compareSupplyEndpoint(
@@ -323,7 +430,7 @@ export function compareSupplyEndpoint(
   if (endpoint.cacheReadUsdPerMillion != null || endpoint.supportsImplicitCaching === true) {
     flags.push("CACHE_EVIDENCE_PRESENT");
   }
-  if (costDelta != null && costDelta < 0) flags.push("LOWER_RAW_ENDPOINT_RATE_THAN_CURRENT_CI");
+  if (costDelta != null && costDelta < 0) flags.push("LOWER_RAW_ENDPOINT_RATE_THAN_CURRENT_PROCUREMENT");
   if (!endpoint.quantization) flags.push("QUANTIZATION_UNSPECIFIED");
   if (!endpoint.provider?.privacyPolicyUrl) flags.push("PRIVACY_POLICY_METADATA_MISSING");
   if (!endpoint.provider?.statusPageUrl) flags.push("STATUS_PAGE_METADATA_MISSING");
@@ -331,8 +438,8 @@ export function compareSupplyEndpoint(
   return {
     ...endpoint,
     rawEndpointRepresentativeUncachedRateUsd: candidateCost,
-    currentCiRepresentativeUncachedProcurementUsd: baselineCost,
-    rawEndpointRateDeltaVsCurrentCiPercent: costDelta,
+    currentRepresentativeUncachedProcurementUsd: baselineCost,
+    rawEndpointRateDeltaVsCurrentProcurementPercent: costDelta,
     inputPriceDeltaPercent: deltaPct(
       endpoint.inputUsdPerMillion,
       baseline?.inputUsdPerMillion ?? null
@@ -345,7 +452,7 @@ export function compareSupplyEndpoint(
       endpoint.cacheReadUsdPerMillion,
       baseline?.cacheReadUsdPerMillion ?? null
     ),
-    lowerRawEndpointRateThanCurrentCi:
+    lowerRawEndpointRateThanCurrentProcurement:
       costDelta == null ? null : costDelta < 0,
     evidenceFlags: flags,
   };
@@ -359,11 +466,13 @@ export function buildMainRpSupplyRadarReport(input: {
 }): MainRpSupplyRadarReport {
   const models: SupplyModelReport[] = MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => {
     const identity = resolveOpenRouterSupplyIdentity(option.id);
-    const baseline = baselineFromCatalog(
-      option.id,
-      input.ciCatalogByModel?.[option.id]
-    );
     const endpoints = input.endpointsByModel[option.id] ?? [];
+    const baseline =
+      option.provider === "cheaperinference"
+        ? baselineFromCatalog(option.id, input.ciCatalogByModel?.[option.id])
+        : option.provider === "openrouter"
+          ? baselineFromOpenRouterRoute(option.id, endpoints)
+          : null;
     const comparisons = endpoints
       .map((endpoint) => compareSupplyEndpoint(endpoint, baseline))
       .sort((a, b) => {
@@ -381,8 +490,9 @@ export function buildMainRpSupplyRadarReport(input: {
       providersDiscovered: [...new Set(comparisons.map((x) => x.providerName))].sort(),
       comparisons,
       lowerRawEndpointRateCount: comparisons.filter(
-        (x) => x.lowerRawEndpointRateThanCurrentCi === true
+        (x) => x.lowerRawEndpointRateThanCurrentProcurement === true
       ).length,
+      publishedMarginRisk: buildPublishedMarginRiskEvidence(option.id, baseline),
       evidenceFingerprint: sha(
         comparisons.map((x) => ({
           providerName: x.providerName,
@@ -401,13 +511,13 @@ export function buildMainRpSupplyRadarReport(input: {
   });
 
   const hasAnyMarket = models.some((m) => m.endpointCount > 0);
-  const hasAnyCi = models.some((m) => m.currentProcurement != null);
+  const hasAnyProcurement = models.some((m) => m.currentProcurement != null);
   const hasAllMarket = models.every((m) => m.endpointCount > 0);
-  const hasAllCi = models.every((m) => m.currentProcurement != null);
+  const hasAllProcurement = models.every((m) => m.currentProcurement != null);
   const status: MainRpSupplyRadarReport["status"] =
-    hasAllMarket && hasAllCi
+    hasAllMarket && hasAllProcurement
       ? "OK"
-      : hasAnyMarket || hasAnyCi
+      : hasAnyMarket || hasAnyProcurement
         ? "PARTIAL"
         : "NOT_RUN";
 
@@ -418,12 +528,18 @@ export function buildMainRpSupplyRadarReport(input: {
     providerGenerationCalls: 0,
     activeModelIds: MAIN_RP_MODEL_IDS,
     credentialSource: input.credentialSource ?? null,
-    currentProcurementEvidence: hasAnyCi ? "cheaperinference_catalog" : "unavailable",
+    currentProcurementEvidence: hasAllProcurement
+      ? "registry_route_evidence"
+      : hasAnyProcurement
+        ? "partial"
+        : "unavailable",
     marketEvidence: hasAnyMarket ? "openrouter_endpoint_metrics" : "unavailable",
     notes: [
       "OBSERVE_ONLY: no production routing/pricing/model registry mutation.",
       "OpenRouter endpoint metrics are market-observed evidence, not this site's own live provider benchmark.",
+      "Current procurement follows the canonical Main-RP registry. OpenRouter Flex routes are treated as current procurement only when endpoint metadata explicitly identifies Flex; otherwise the report stays partial instead of guessing.",
       "OpenRouter endpoint rates are screening evidence only: they exclude account/platform fees and are not assumed to equal a provider's direct-contract price or final cash procurement cost.",
+      "Published user pricing is never mutated by this radar. Current procurement is compared against the published pricing owner only to flag margin-floor risk.",
       "No composite quality score or automatic provider winner is produced.",
       "Paid live qualification is a separate follow-up using the canonical RP qualification fixture.",
     ],
@@ -487,9 +603,9 @@ export function renderMainRpSupplyRadarMarkdown(report: MainRpSupplyRadarReport)
     lines.push("|---|---:|---:|---:|---:|---:|---:|---:|");
     for (const e of model.comparisons) {
       const pct =
-        e.rawEndpointRateDeltaVsCurrentCiPercent == null
+        e.rawEndpointRateDeltaVsCurrentProcurementPercent == null
           ? "n/a"
-          : `${(e.rawEndpointRateDeltaVsCurrentCiPercent * 100).toFixed(1)}%`;
+          : `${(e.rawEndpointRateDeltaVsCurrentProcurementPercent * 100).toFixed(1)}%`;
       lines.push(
         `| ${e.providerName} | ${e.inputUsdPerMillion ?? "n/a"} | ${e.outputUsdPerMillion ?? "n/a"} | ${e.cacheReadUsdPerMillion ?? "n/a"} | ${e.latencyP50SecondsLast30m ?? "n/a"} | ${e.throughputP50TokensPerSecondLast30m ?? "n/a"} | ${e.uptimeLast1dPercent ?? "n/a"} | ${pct} |`
       );

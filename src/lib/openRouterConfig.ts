@@ -3,6 +3,9 @@ import {
   OPENROUTER_CLAUDE_DEFAULT,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
+  OPENROUTER_GEMINI_37_FLASH_MODEL,
+  OPENROUTER_GEMINI_38_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   coerceUserSelectableAI,
   isOpenRouterSelectedAI,
@@ -20,6 +23,10 @@ const DEPRECATED_OPENROUTER_MODELS: Record<string, string> = {
   "gemini-3.1": OPENROUTER_GEMINI_31_PRO_MODEL,
   "gemini-3.1-pro-preview": OPENROUTER_GEMINI_31_PRO_MODEL,
   "google/gemini-3.1-pro-preview": OPENROUTER_GEMINI_31_PRO_MODEL,
+  "gemini-3.7-flash": OPENROUTER_GEMINI_37_FLASH_MODEL,
+  "google/gemini-3.7-flash": OPENROUTER_GEMINI_37_FLASH_MODEL,
+  [GEMINI_38_FLASH_MODEL]: OPENROUTER_GEMINI_38_FLASH_MODEL,
+  [OPENROUTER_GEMINI_38_FLASH_MODEL]: OPENROUTER_GEMINI_38_FLASH_MODEL,
   [OPENROUTER_MUSE_SPARK_11_MODEL]: OPENROUTER_GEMINI_36_FLASH_MODEL,
 };
 
@@ -89,6 +96,44 @@ export function resolveOpenRouterModelId(selectedAI?: string | null): string {
 export function resolveRpOpenRouterModelId(modelId: string): string {
   const normalized = normalizeOpenRouterModelId(modelId);
   return DEPRECATED_OPENROUTER_MODELS[normalized] ?? normalized;
+}
+
+export type MainRpOpenRouterRoutePolicy = {
+  provider: {
+    only: ["google-ai-studio"];
+    allow_fallbacks: false;
+    require_parameters: true;
+  };
+  serviceTier: "flex";
+};
+
+const GOOGLE_AI_STUDIO_MAIN_RP_MODELS = new Set([
+  OPENROUTER_GEMINI_31_PRO_MODEL,
+  OPENROUTER_GEMINI_37_FLASH_MODEL,
+  OPENROUTER_GEMINI_38_FLASH_MODEL,
+]);
+
+/**
+ * Canonical Main-RP OpenRouter route policy owner.
+ * Gemini 3.1/3.7/3.8 are pinned to Google AI Studio and explicitly request
+ * OpenRouter's flex service tier. Flex is the cost/latency owner; do not add a
+ * second price-sort heuristic here.
+ * Privacy/data-retention policy is intentionally not duplicated here; account
+ * privacy settings remain the canonical owner for those constraints.
+ */
+export function resolveMainRpOpenRouterRoutePolicy(
+  modelId: string
+): MainRpOpenRouterRoutePolicy | null {
+  const resolved = resolveRpOpenRouterModelId(modelId);
+  if (!GOOGLE_AI_STUDIO_MAIN_RP_MODELS.has(resolved)) return null;
+  return {
+    provider: {
+      only: ["google-ai-studio"],
+      allow_fallbacks: false,
+      require_parameters: true,
+    },
+    serviceTier: "flex",
+  };
 }
 
 export function resolveOpenRouterApiKey(): string {

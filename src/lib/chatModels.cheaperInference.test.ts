@@ -107,7 +107,7 @@ test("GPT-5.6 Terra is a selectable Cheaper Inference model", () => {
   );
 });
 
-test("Gemini 3.1 Pro Preview is a selectable Cheaper Inference model", () => {
+test("Gemini 3.1 Pro Preview keeps its historical CI id but routes through OpenRouter", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
@@ -116,7 +116,7 @@ test("Gemini 3.1 Pro Preview is a selectable Cheaper Inference model", () => {
   );
   assert.equal(
     selectedAIProvider(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
-    "cheaperinference"
+    "openrouter"
   );
   assert.equal(
     selectedAILabel(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
@@ -128,7 +128,7 @@ test("Gemini 3.1 Pro Preview is a selectable Cheaper Inference model", () => {
   );
 });
 
-test("Gemini 3.7 Flash is a selectable Cheaper Inference chat model", () => {
+test("Gemini 3.7 Flash keeps its historical CI id but routes through OpenRouter", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
@@ -137,7 +137,7 @@ test("Gemini 3.7 Flash is a selectable Cheaper Inference chat model", () => {
   );
   assert.equal(
     selectedAIProvider(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
-    "cheaperinference"
+    "openrouter"
   );
   assert.equal(
     selectedAILabel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),

@@ -6,6 +6,7 @@ import {
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
 } from "@/lib/chatModels";
+import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
 import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
 import {
   RP_MODEL_QUALIFICATION_PACKET_OWNERS,
@@ -27,7 +28,11 @@ function main() {
 
   const canonicalCases = buildCanonicalRpQualificationCases();
   for (const model of packet.models) {
-    assert.equal(model.provider, "cheaperinference");
+    const registry = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
+      (entry) => entry.id === model.modelId
+    );
+    assert.ok(registry);
+    assert.equal(model.provider, registry.provider);
     const exactPricing = resolvePublishedPricingExact(model.modelId);
     assert.ok(exactPricing, `${model.modelId}: exact published pricing required`);
     assert.equal(model.pricing.canonicalModelId, exactPricing.canonicalModelId);
@@ -45,8 +50,17 @@ function main() {
       assert.equal(casePacket.wireMessagesSha256.length, 64);
       assert.equal(casePacket.requestBodySha256.length, 64);
       assert.ok(casePacket.wireMessageCount >= 2);
-      assert.equal(casePacket.wireControls.model, model.modelId);
+      assert.equal(
+        casePacket.wireControls.model,
+        model.provider === "openrouter"
+          ? resolveOpenRouterModelId(model.modelId)
+          : model.modelId
+      );
       assert.equal(casePacket.wireControls.stream, true);
+      if (model.provider === "openrouter") {
+        assert.ok(casePacket.requestBodyKeys.includes("provider"));
+        assert.equal(casePacket.wireControls.service_tier, "flex");
+      }
       assert.ok(casePacket.requestBodyKeys.includes("messages"));
       assert.ok(casePacket.requestBodyKeys.includes("model"));
     }

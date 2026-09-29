@@ -165,6 +165,12 @@ export const OPENROUTER_RP_REASONING_GEMINI_FLASH = {
   exclude: true,
 } as const;
 
+/** Gemini 3.7/3.8 Flash do not support minimal; use lowest supported effort. */
+export const OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH = {
+  effort: "low",
+  exclude: true,
+} as const;
+
 /** Gemini 3.x Pro RP — lowest supported thinking (full disable unsupported) */
 export const OPENROUTER_RP_REASONING_GEMINI_3_PRO = {
   effort: "low",
@@ -199,10 +205,16 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
   }
 
   if (isGeminiFlashOpenRouterModel(modelId)) {
-    body.reasoning = { ...OPENROUTER_RP_REASONING_GEMINI_FLASH };
-    console.log("[openrouter-reasoning] gemini-flash-minimal", {
+    const isGemini37Or38 =
+      normalized.includes("gemini-3.7-flash") ||
+      normalized.includes("gemini-3.8-flash");
+    const reasoning = isGemini37Or38
+      ? OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH
+      : OPENROUTER_RP_REASONING_GEMINI_FLASH;
+    body.reasoning = { ...reasoning };
+    console.log("[openrouter-reasoning] gemini-flash", {
       model: normalized,
-      effort: OPENROUTER_RP_REASONING_GEMINI_FLASH.effort,
+      effort: reasoning.effort,
       exclude: true,
       include_reasoning: false,
     });

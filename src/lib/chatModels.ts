@@ -155,8 +155,17 @@ export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
   OPENROUTER_GEMINI_36_FLASH_MODEL,
 ];
 
-/** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
+/** OpenRouter — Gemini 3.1 Pro Preview. Internal stored id remains provider-neutral. */
 export const OPENROUTER_GEMINI_31_PRO_MODEL = "google/gemini-3.1-pro-preview";
+
+/** OpenRouter — Gemini 3.7 Flash. */
+export const OPENROUTER_GEMINI_37_FLASH_MODEL = "google/gemini-3.7-flash";
+
+/** Provider-neutral stored/Main-RP id for Gemini 3.8 Flash. */
+export const GEMINI_38_FLASH_MODEL = "gemini-3.8-flash";
+
+/** OpenRouter — Gemini 3.8 Flash. */
+export const OPENROUTER_GEMINI_38_FLASH_MODEL = "google/gemini-3.8-flash";
 
 /** OpenRouter — Gemini 2.0 Flash (legacy 백그라운드 비전 상수 — asset vision default는 Qwen3.8 Flash) */
 export const OPENROUTER_GEMINI_20_FLASH_MODEL = "google/gemini-2.0-flash-001";
@@ -209,6 +218,7 @@ export const GPT_6_LUNA_DISPLAY_NAME = "GPT-6 Luna";
 export const GEMINI_31_PRO_PREVIEW_DISPLAY_NAME = "Gemini 3.1 Pro Preview";
 
 export const GEMINI_37_FLASH_DISPLAY_NAME = "Gemini 3.7 Flash";
+export const GEMINI_38_FLASH_DISPLAY_NAME = "Gemini 3.8 Flash";
 
 /** @deprecated 기존 영수증 표시 호환용 */
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
@@ -229,8 +239,8 @@ export type SelectedAIOptionMeta = {
 /**
  * CANONICAL Main RP picker — ONE source of truth.
  *
- * DeepSeek V4.1 Flash / Gemini 3.1 Pro Preview /
- * Gemini 3.7 Flash / GPT-5.6 Terra / Claude Opus 5.5.
+ * DeepSeek V4.1 Flash / Gemini 3.1 Pro Preview / Gemini 3.7 Flash /
+ * Gemini 3.8 Flash / GPT-5.6 Terra / Claude Opus 5.5.
  * DeepSeek V4 Pro is retired from user Main RP but remains for historical
  * receipt/billing/provider compatibility.
  * Claude Opus 5 remains retired from user Main RP. Luna, DeepSeek V4 Flash 0731,
@@ -249,16 +259,23 @@ export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
   {
     id: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
     label: GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
-    provider: "cheaperinference",
+    provider: "openrouter",
     tier: "pro",
-    hint: "Google",
+    hint: "Google AI Studio",
   },
   {
     id: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
     label: GEMINI_37_FLASH_DISPLAY_NAME,
-    provider: "cheaperinference",
+    provider: "openrouter",
     tier: "pro",
-    hint: "Google",
+    hint: "Google AI Studio",
+  },
+  {
+    id: GEMINI_38_FLASH_MODEL,
+    label: GEMINI_38_FLASH_DISPLAY_NAME,
+    provider: "openrouter",
+    tier: "pro",
+    hint: "Google AI Studio",
   },
   {
     id: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
@@ -498,8 +515,14 @@ export function isGeminiFlashOpenRouterModel(modelId: string): boolean {
   return (
     id === OPENROUTER_GEMINI_31_FLASH_MODEL ||
     id === OPENROUTER_GEMINI_36_FLASH_MODEL ||
+    id === OPENROUTER_GEMINI_37_FLASH_MODEL ||
+    id === OPENROUTER_GEMINI_38_FLASH_MODEL ||
+    id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
+    id === GEMINI_38_FLASH_MODEL ||
     id.includes("gemini-3.1-flash") ||
     id.includes("gemini-3.6-flash") ||
+    id.includes("gemini-3.7-flash") ||
+    id.includes("gemini-3.8-flash") ||
     id.includes("gemini-3-flash")
   );
 }
@@ -511,7 +534,11 @@ export function isGeminiProOpenRouterModel(modelId: string): boolean {
 
 /** 현재·과거 Gemini 채팅 모델 공통 판별 */
 export function isGeminiChatOpenRouterModel(modelId: string): boolean {
-  return isGemini36FlashModel(modelId) || isGeminiProOpenRouterModel(modelId);
+  return (
+    isGemini36FlashModel(modelId) ||
+    isGeminiFlashOpenRouterModel(modelId) ||
+    isGeminiProOpenRouterModel(modelId)
+  );
 }
 
 /** OpenRouter Qwen 계열 (Qwen3.7 Max 등) */

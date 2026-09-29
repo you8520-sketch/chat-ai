@@ -13,6 +13,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
 } from "@/lib/chatModels";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 import {
@@ -31,6 +32,7 @@ export const CHAT_BILLING_CONTRACT_DISPATCH_OWNER =
 export const PHASE1_PUBLISHED_MODELS = [
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
 ] as const;
@@ -82,7 +84,7 @@ export type StablePublishedBillingAnomalyReason =
   | PublishedChargeBlockedReason;
 
 export function isPhase1PublishedBillingModel(modelId: string): boolean {
-  return PHASE1_PUBLISHED_MODEL_SET.has(modelId);
+  return PHASE1_PUBLISHED_MODEL_SET.has(canonicalizePublishedModelId(modelId));
 }
 
 export function isPhase2DeepSeekPublishedBillingModel(modelId: string): boolean {

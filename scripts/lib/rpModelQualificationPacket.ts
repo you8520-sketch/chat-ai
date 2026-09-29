@@ -10,6 +10,7 @@ import {
   USER_COAUTHOR_OWNER_TITLE,
 } from "@/lib/noGodmodding";
 import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
+import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
 import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
 import { buildContext } from "@/services/contextBuilder";
 import {
@@ -59,6 +60,8 @@ function wireControls(body: JsonObject): JsonObject {
     "reasoning",
     "reasoning_effort",
     "output_config",
+    "service_tier",
+    "provider",
     "stream",
   ] as const;
   const out: JsonObject = {};
@@ -91,7 +94,7 @@ export type RpModelQualificationCasePacket = {
 export type RpModelQualificationModelPacket = {
   modelId: SelectedAI;
   label: string;
-  provider: "cheaperinference";
+  provider: "cheaperinference" | "openrouter";
   pricing: {
     canonicalModelId: string;
     pricingVersion: number;
@@ -119,7 +122,7 @@ export type RpModelQualificationPacket = {
 
 function buildCasePacket(
   modelId: SelectedAI,
-  provider: "cheaperinference",
+  provider: "cheaperinference" | "openrouter",
   caseId: CanonicalQualificationCaseId
 ): RpModelQualificationCasePacket {
   const caseData = buildCanonicalRpQualificationCases().find((entry) => entry.id === caseId);
@@ -131,10 +134,12 @@ function buildCasePacket(
     provider,
   });
   const built = buildContext(contextInput);
+  const wireModelId =
+    provider === "openrouter" ? resolveOpenRouterModelId(modelId) : modelId;
   const wire = assemblePrimaryRpRequest({
     system: built.systemPrompt,
     history: built.history ?? [],
-    modelId,
+    modelId: wireModelId,
     targetResponseChars: caseData.targetResponseChars,
     messageOpts: {
       transportProvider: provider,
@@ -173,11 +178,6 @@ export function buildActiveRpModelQualificationPacket(): RpModelQualificationPac
   const cases = buildCanonicalRpQualificationCases();
 
   const models = MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => {
-    if (option.provider !== "cheaperinference") {
-      throw new Error(
-        `Canonical active-model qualification currently supports CheaperInference Main RP only: ${option.id}`
-      );
-    }
     const exactPricing = resolvePublishedPricingExact(option.id);
     if (!exactPricing) {
       throw new Error(

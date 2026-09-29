@@ -123,6 +123,16 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     pricingVersion: 2,
     publishedAt: "2026-08-28T14:00:00.000Z",
   },
+  "gemini-3.8-flash": {
+    modelId: "gemini-3.8-flash",
+    commercialPricingOwner: "target_margin",
+    billingReferenceInputUsdPerMillion: 0.375,
+    billingReferenceOutputUsdPerMillion: 1.875,
+    targetMargin: 0.55,
+    minimumMarginFloor: 0.5,
+    pricingVersion: 1,
+    publishedAt: "2026-09-28T00:00:00.000Z",
+  },
   "qwen-3-8-max": {
     modelId: "qwen-3-8-max",
     billingReferenceInputUsdPerMillion: 1.4,

@@ -41,6 +41,7 @@ import {
   resolveOpenRouterApiKey,
   resolveOpenRouterModelId,
   normalizeOpenRouterModelId,
+  resolveMainRpOpenRouterRoutePolicy,
   assertOpenRouterEndpoint,
 } from "@/lib/openRouterConfig";
 import {
@@ -1373,6 +1374,13 @@ export function assemblePrimaryRpRequest(opts: {
     opts.messageOpts?.maxTokensOverride,
     opts.messageOpts?.generationOverrides
   ) as Record<string, unknown>;
+  if (transport.provider === "openrouter") {
+    const routePolicy = resolveMainRpOpenRouterRoutePolicy(modelId);
+    if (routePolicy) {
+      requestBodyBeforeAdapt.provider = routePolicy.provider;
+      requestBodyBeforeAdapt.service_tier = routePolicy.serviceTier;
+    }
+  }
   const requestBody = adaptRequestBodyForTransport(
     requestBodyBeforeAdapt,
     transport,

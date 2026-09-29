@@ -18,6 +18,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
 } from "@/lib/chatModels";
 import {
@@ -198,10 +199,11 @@ describe("chatBillingContractDispatch — contract selection", () => {
   beforeEach(() => installAuditLegacyFxForTest());
   afterEach(() => clearAuditLegacyFxForTest());
 
-  it("G31/G37/Opus5 complete usage → published_phase1", () => {
+  it("G31/G37/G38/Opus5 complete usage → published_phase1", () => {
     for (const [modelId, output] of [
       [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 4307],
       [CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, 2500],
+      [GEMINI_38_FLASH_MODEL, 2500],
       [CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL, 500],
     ] as const) {
       const decision = dispatchCompleteModel(modelId, output);
@@ -447,6 +449,7 @@ describe("chatBillingContractDispatch — Phase 1 closure matrix", () => {
       assert.deepEqual([...PHASE1_PUBLISHED_MODELS], [
         CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
         CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+        GEMINI_38_FLASH_MODEL,
         CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
         CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
       ]);

@@ -1,8 +1,8 @@
 /**
- * Main RP model registry — canonical 5-model role invariant.
+ * Main RP model registry — canonical 6-model role invariant.
  *
  * ONE source of truth: MAIN_RP_MODEL_IDS / MAIN_RP_USER_SELECTABLE_OPTIONS.
- * Exactly 5 Main RP models; all others are MainRP=false (auxiliary/vision/
+ * Exactly 6 Main RP models; all others are MainRP=false (auxiliary/vision/
  * historical only). API=0.
  */
 import assert from "node:assert/strict";
@@ -19,6 +19,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  GEMINI_38_FLASH_MODEL,
   CLAUDE_OPUS_MODEL,
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
@@ -33,17 +34,17 @@ import {
 
 const REPO_ROOT = resolve(process.cwd());
 
-describe("Main RP canonical 5-model registry", () => {
-  it("MAIN_RP_MODEL_COUNT=5 and picker count=5 (single source of truth)", () => {
-    assert.equal(MAIN_RP_MODEL_IDS.length, 5);
-    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 5);
-    assert.equal(SELECTED_AI_OPTIONS.length, 5);
-    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 5);
-    assert.equal(userSelectableAIOptionsForUser(false).length, 5);
-    assert.equal(userSelectableAIOptionsForUser(true).length, 5);
+describe("Main RP canonical 6-model registry", () => {
+  it("MAIN_RP_MODEL_COUNT=6 and picker count=6 (single source of truth)", () => {
+    assert.equal(MAIN_RP_MODEL_IDS.length, 6);
+    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 6);
+    assert.equal(SELECTED_AI_OPTIONS.length, 6);
+    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 6);
+    assert.equal(userSelectableAIOptionsForUser(false).length, 6);
+    assert.equal(userSelectableAIOptionsForUser(true).length, 6);
   });
 
-  it("canonical 5 are the exact expected ids and all selectable", () => {
+  it("canonical 6 are the exact expected ids and all selectable", () => {
     assert.deepEqual(
       [...MAIN_RP_MODEL_IDS].sort(),
       [
@@ -51,6 +52,7 @@ describe("Main RP canonical 5-model registry", () => {
         CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
         CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
         CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+        GEMINI_38_FLASH_MODEL,
         CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
       ].sort()
     );
@@ -126,6 +128,18 @@ describe("Main RP canonical 5-model registry", () => {
     // @ts-expect-error — Opus 5 retired from Main RP union.
     const _opusRejected: SelectedAI = CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL;
     void _opusRejected;
+  });
+
+  it("canonical registry is the sole active provider owner for the chat route", () => {
+    const routeSrc = readFileSync(
+      resolve(REPO_ROOT, "src/app/api/chat/route.ts"),
+      "utf8"
+    );
+    assert.match(routeSrc, /const primaryProvider = selectedAIProvider\(effectiveSelectedAI\)/);
+    assert.doesNotMatch(
+      routeSrc,
+      /const primaryProvider = isCheaperInferenceModel\(effectiveSelectedAI\)/
+    );
   });
 
   it("RETIRED_RP_ADAPTER_COUNT=0 / RETIRED_RP_CANARY_COUNT=0 / RETIRED_RP_ENV_FLAG_COUNT=0", () => {

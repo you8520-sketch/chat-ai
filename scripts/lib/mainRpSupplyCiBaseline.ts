@@ -40,7 +40,10 @@ export type CurrentCiBaselinePlan = {
   entries: CurrentCiBaselinePlanEntry[];
   skipped: Array<{
     modelId: string;
-    reason: "current_ci_catalog_baseline_missing" | "current_ci_baseline_budget_guard";
+    reason:
+      | "current_route_not_cheaperinference"
+      | "current_ci_catalog_baseline_missing"
+      | "current_ci_baseline_budget_guard";
   }>;
   estimatedCatalogRateUsd: number;
   maxProviderGenerationCalls: number;
@@ -111,7 +114,14 @@ export function applyCurrentCiBaselineBudgetGuard(
 
   for (const candidate of selection.candidates) {
     const model = radar.models.find((row) => row.modelId === candidate.modelId);
-    const inputPerM = asNumber(model?.currentProcurement?.inputUsdPerMillion);
+    if (model?.currentProcurement?.provider !== "cheaperinference") {
+      skipped.push({
+        modelId: candidate.modelId,
+        reason: "current_route_not_cheaperinference",
+      });
+      continue;
+    }
+    const inputPerM = asNumber(model.currentProcurement.inputUsdPerMillion);
     const outputPerM = asNumber(model?.currentProcurement?.outputUsdPerMillion);
     if (inputPerM == null || outputPerM == null) {
       skipped.push({
@@ -448,7 +458,7 @@ export function buildSupplyTransportComparisonReport(input: {
       currentCiEstimatedPairCatalogRateUsd:
         baseline.estimatedPairCatalogRateUsd,
       marketRawEndpointRateDeltaVsCurrentCiPercent:
-        candidateResult.candidate.rawEndpointRateDeltaVsCurrentCiPercent,
+        candidateResult.candidate.rawEndpointRateDeltaVsCurrentProcurementPercent,
     });
   }
 

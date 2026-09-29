@@ -220,6 +220,36 @@ const GEMINI_31_PRO_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
+/**
+ * Google AI Studio Flex fallback for the pinned Gemini 3.1 route.
+ * Provider-reported USD remains authoritative when present.
+ */
+const GEMINI_31_PRO_GOOGLE_AI_STUDIO_FALLBACK_RATES: OpenRouterModelRates = {
+  family: "google",
+  label: "OpenRouter · Google AI Studio Flex fallback",
+  inputUsdPerM: 1,
+  outputUsdPerM: 6,
+  cacheReadUsdPerM: 0.1,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
+/**
+ * Post-intro Google AI Studio Flex fallback for Gemini 3.7/3.8 Flash.
+ * Google documents Flex at $0.75/$3.75 with $0.075 cache read from 2027-01-01.
+ * Runtime provider-reported USD and Supply Radar endpoint evidence remain
+ * authoritative when available.
+ */
+const GEMINI_37_38_FLASH_GOOGLE_AI_STUDIO_FALLBACK_RATES: OpenRouterModelRates = {
+  family: "google",
+  label: "OpenRouter · Google AI Studio Flex post-intro fallback",
+  inputUsdPerM: 0.75,
+  outputUsdPerM: 3.75,
+  cacheReadUsdPerM: 0.075,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
 /** Qwen3.7 Max — OpenRouter list (prompt cache supported) */
 const QWEN_37_MAX_RATES: OpenRouterModelRates = {
   family: "unknown",
@@ -364,6 +394,12 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   }
   if (id === "deepseek/deepseek-v4-flash") {
     return OPENROUTER_DEEPSEEK_V4_FLASH_RATES;
+  }
+  if (id === "google/gemini-3.1-pro-preview") {
+    return GEMINI_31_PRO_GOOGLE_AI_STUDIO_FALLBACK_RATES;
+  }
+  if (id === "google/gemini-3.7-flash" || id === "google/gemini-3.8-flash") {
+    return GEMINI_37_38_FLASH_GOOGLE_AI_STUDIO_FALLBACK_RATES;
   }
   if (id.includes("gemini-2.5-flash")) return GEMINI_25_FLASH_RATES;
   if (id.includes("gemini-3.6-flash")) return GEMINI_36_FLASH_RATES;

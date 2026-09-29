@@ -13,6 +13,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
 } from "@/lib/chatModels";
+import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
 
 export type BenchmarkFamily =
   | "B01_QUIET_STABLE"
@@ -85,9 +86,9 @@ export const BENCHMARK_DEFAULT_TARGET_CHARS = 3200;
 export type BenchmarkPilotModelDescriptor = {
   modelId: string;
   displayLabel: string;
-  pickerProvider: "cheaperinference";
-  transportProvider: "cheaperinference";
-  /** CheaperInference wire model id (bare slug, same as picker id). */
+  pickerProvider: "openrouter" | "cheaperinference";
+  transportProvider: "openrouter" | "cheaperinference";
+  /** Actual provider wire model id resolved from the canonical picker provider. */
   providerWireModelId: string;
 };
 
@@ -105,8 +106,11 @@ export function getBenchmarkPilotModelDescriptor(): BenchmarkPilotModelDescripto
     modelId: option.id,
     displayLabel: option.label,
     pickerProvider: option.provider,
-    transportProvider: "cheaperinference",
-    providerWireModelId: option.id,
+    transportProvider: option.provider,
+    providerWireModelId:
+      option.provider === "openrouter"
+        ? resolveOpenRouterModelId(option.id)
+        : option.id,
   };
 }
 

@@ -1,6 +1,9 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import {
+  MAIN_RP_MODEL_IDS,
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
+} from "@/lib/chatModels";
 import { resolveUsageReportingCheaperInferenceApiKey } from "./lib/cheaperInferenceUsageReportingCredential";
 import { fetchCatalogPricingForModels } from "./lib/mainRpMonthlyCacheAudit";
 import {
@@ -22,12 +25,15 @@ async function main(){
   const orCredential=resolveOpenRouterSupplyRadarCredential();
   const ciCredential=resolveUsageReportingCheaperInferenceApiKey();
 
+  const currentCiModelIds = MAIN_RP_USER_SELECTABLE_OPTIONS
+    .filter((option) => option.provider === "cheaperinference")
+    .map((option) => option.id);
   let ciCatalog: Awaited<ReturnType<typeof fetchCatalogPricingForModels>> | null=null;
-  if(ciCredential.ok){
+  if(ciCredential.ok && currentCiModelIds.length>0){
     try{
       ciCatalog=await fetchCatalogPricingForModels({
         apiKey:ciCredential.apiKey,
-        modelIds:MAIN_RP_MODEL_IDS,
+        modelIds:currentCiModelIds,
       });
     }catch(error){
       console.error("[supply-radar] CheaperInference catalog unavailable:",sanitizeOpenRouterSupplyRadarCredentialText(String(error)));

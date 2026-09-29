@@ -8,6 +8,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  GEMINI_38_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
 } from "@/lib/chatModels";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
@@ -62,9 +63,9 @@ function assistantUsage(
 }
 
 describe("modelPickerPreview V2", () => {
-  it("shows the canonical 5 in the default user picker preview", () => {
+  it("shows the canonical 6 in the default user picker preview", () => {
     const preview = buildModelPickerPreview({ messages: [] });
-    assert.equal(preview.models.length, 5);
+    assert.equal(preview.models.length, 6);
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL)
     );
@@ -87,6 +88,9 @@ describe("modelPickerPreview V2", () => {
     );
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)
+    );
+    assert.ok(
+      preview.models.some((m) => m.modelId === GEMINI_38_FLASH_MODEL)
     );
   });
 
