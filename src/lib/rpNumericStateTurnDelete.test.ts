@@ -190,6 +190,13 @@ describe("Phase B1-D1 — last-turn numeric delete", () => {
        VALUES (1, 7, 1, 3, 'preference', 'user', 'x', 'y', 'important', 't3 fact', '{"assistant_message_id":6}')`
     ).run();
     db.prepare(
+      `INSERT INTO episodic_memory_facts
+       (chat_id, character_id, user_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 7, 1, 3, 'event', 'batch', 'deleted_turn_residue', 'yes', 'important',
+               'batch-derived t3 fact that must not survive delete',
+               '{"extraction":"summary_seal_batch","batch_start":1,"batch_end":3,"source_user_message_ids":[1,3,5],"source_assistant_message_ids":[2,4,6],"source_fingerprint":"fixture"}')`
+    ).run();
+    db.prepare(
       `INSERT INTO status_trigger_events
        (chat_id, character_id, trigger_id, source_message_id, source_turn, event_key, effect_text, is_consumed)
        VALUES (1, 7, 'trig-t3', 6, 3, 'ek', 'fx', 0)`
@@ -229,6 +236,20 @@ describe("Phase B1-D1 — last-turn numeric delete", () => {
           .get() as { c: number }
       ).c,
       0
+    );
+    assert.equal(
+      (
+        db
+          .prepare(
+            `SELECT COUNT(*) AS c FROM episodic_memory_facts
+             WHERE chat_id=1
+               AND json_extract(metadata, '$.extraction') = 'summary_seal_batch'
+               AND fact_text LIKE '%deleted-turn memory%'`
+          )
+          .get() as { c: number }
+      ).c,
+      0,
+      "summary-seal episodic rows that depend on the deleted turn must be removed atomically"
     );
     assert.equal(
       (
@@ -825,6 +846,13 @@ describe("Phase B1-D1 — last-turn numeric delete", () => {
        VALUES (1, 7, 1, 2, 'preference', 'user', 'x', 'y', 'important', 't2 fact', '{"assistant_message_id":4}')`
     ).run();
     db.prepare(
+      `INSERT INTO episodic_memory_facts
+       (chat_id, character_id, user_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 7, 1, 2, 'event', 'batch', 'rollback_probe', 'yes', 'important',
+               'batch rollback probe',
+               '{"extraction":"summary_seal_batch","batch_start":1,"batch_end":2,"source_user_message_ids":[1,3],"source_assistant_message_ids":[2,4],"source_fingerprint":"fixture"}')`
+    ).run();
+    db.prepare(
       `INSERT INTO status_trigger_events
        (chat_id, character_id, trigger_id, source_message_id, source_turn, event_key, effect_text, is_consumed)
        VALUES (1, 7, 'trig-t2', 4, 2, 'ek', 'fx', 0)`
@@ -853,10 +881,20 @@ describe("Phase B1-D1 — last-turn numeric delete", () => {
         )
         .get() as { c: number }
     ).c;
+    const batchEpisodicBefore = (
+      db
+        .prepare(
+          `SELECT COUNT(*) AS c FROM episodic_memory_facts
+           WHERE chat_id=1
+             AND json_extract(metadata, '$.extraction') = 'summary_seal_batch'`
+        )
+        .get() as { c: number }
+    ).c;
     assert.equal(numericBefore, 44);
     assert.ok(eventsBefore >= 1);
     assert.equal(triggerBefore, 1);
     assert.equal(episodicBefore, 1);
+    assert.equal(batchEpisodicBefore, 1);
 
     // Deterministic failure: abort DELETE of the target assistant's trigger row.
     db.exec(`
@@ -911,6 +949,19 @@ describe("Phase B1-D1 — last-turn numeric delete", () => {
           .get() as { c: number }
       ).c,
       1
+    );
+    assert.equal(
+      (
+        db
+          .prepare(
+            `SELECT COUNT(*) AS c FROM episodic_memory_facts
+             WHERE chat_id=1
+               AND json_extract(metadata, '$.extraction') = 'summary_seal_batch'`
+          )
+          .get() as { c: number }
+      ).c,
+      batchEpisodicBefore,
+      "batch-derived episodic cleanup must roll back with the delete transaction"
     );
     assert.equal(
       (
