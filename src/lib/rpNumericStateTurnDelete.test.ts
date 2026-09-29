@@ -202,6 +202,19 @@ describe("Phase B1-D1 — last-turn numeric delete", () => {
        VALUES (1, 7, 'trig-t3', 6, 3, 'ek', 'fx', 0)`
     ).run();
 
+    assert.equal(
+      (
+        db
+          .prepare(
+            `SELECT COUNT(*) AS c FROM episodic_memory_facts
+             WHERE chat_id=1 AND attribute='deleted_turn_residue'`
+          )
+          .get() as { c: number }
+      ).c,
+      1,
+      "fixture must contain a batch-derived fact that depends on the soon-to-be-deleted turn"
+    );
+
     const result = executeLastTurnDeleteTransaction(db, {
       chatId: 1,
       characterId: 7,
@@ -243,8 +256,8 @@ describe("Phase B1-D1 — last-turn numeric delete", () => {
           .prepare(
             `SELECT COUNT(*) AS c FROM episodic_memory_facts
              WHERE chat_id=1
-               AND json_extract(metadata, '$.extraction') = 'summary_seal_batch'
-               AND fact_text LIKE '%deleted-turn memory%'`
+               AND attribute='deleted_turn_residue'
+               AND json_extract(metadata, '$.extraction') = 'summary_seal_batch'`
           )
           .get() as { c: number }
       ).c,
