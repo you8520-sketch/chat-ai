@@ -117,8 +117,27 @@ export const AUTOMATION_OWNER_MAP: Readonly<Record<string, string>> = {
   test_egress_policy: "src/lib/test/regularTestEgressPolicy.ts",
 };
 
-/** Owners the deterministic benchmark can currently A/B via `BenchmarkMode`. */
-export const BENCHMARK_HOOKED_OWNERS: readonly MemoryOwnerId[] = ["semantic_retrieval", "embedding_index"];
+/**
+ * Owners the deterministic benchmark can A/B via `BenchmarkMode`.
+ * Adding an id here does not register an experiment adapter and does not
+ * change production runtime.
+ *
+ * - semantic_retrieval / embedding_index → `mode.semantic`
+ * - prompt_packing → `mode.packing` leftover policy + higher-priority layer texts
+ * - reranking_scoring → `mode.selection` fact/char bounds on the canonical scorer
+ * - global_current_memory → `mode.packing.longTermMemoryText` (Global as packing input)
+ */
+export const BENCHMARK_HOOKED_OWNERS: readonly MemoryOwnerId[] = [
+  "semantic_retrieval",
+  "embedding_index",
+  "prompt_packing",
+  "reranking_scoring",
+  "global_current_memory",
+];
+
+export function isBenchmarkOwnerHooked(owner: MemoryOwnerId): boolean {
+  return BENCHMARK_HOOKED_OWNERS.includes(owner);
+}
 
 export const CATEGORY_OWNERS: Readonly<Record<CandidateCategory, readonly MemoryOwnerId[]>> = {
   conversational_memory: ["episodic_facts", "rolling_summary", "global_current_memory"],

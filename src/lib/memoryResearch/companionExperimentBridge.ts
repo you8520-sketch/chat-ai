@@ -6,7 +6,7 @@
  * changes prompts, or treats product claims as benchmark evidence.
  */
 import {
-  BENCHMARK_HOOKED_OWNERS,
+  isBenchmarkOwnerHooked,
   MEMORY_OWNER_MAP,
   type MemoryOwnerId,
 } from "@/lib/memoryResearch/ownerMap";
@@ -136,7 +136,7 @@ function excerptFor(text: string, pattern: RegExp): string {
 }
 
 function hookReady(owners: readonly MemoryOwnerId[]): boolean {
-  return owners.some((owner) => BENCHMARK_HOOKED_OWNERS.includes(owner));
+  return owners.some((owner) => isBenchmarkOwnerHooked(owner));
 }
 
 export function buildCompanionExperimentProposals(

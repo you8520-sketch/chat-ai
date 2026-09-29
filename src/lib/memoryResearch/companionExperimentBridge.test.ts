@@ -62,11 +62,12 @@ describe("Companion Memory Experiment Bridge", () => {
       "global_current_memory",
       "relationship_durable",
     ]);
-    assert.equal(identity.benchmarkHookReady, false);
+    assert.equal(identity.benchmarkHookReady, true);
     assert.match(identity.nextAction, /existing Global\/Relationship owners/);
 
     const mindMap = byTechnique(proposals, "mind_map");
     assert.equal(mindMap.classification, "OWNER_CONFLICT");
+    assert.equal(mindMap.benchmarkHookReady, true);
     assert.match(mindMap.nextAction, /Do not add a graph DB or second writable memory owner/);
   });
 
@@ -95,7 +96,7 @@ describe("Companion Memory Experiment Bridge", () => {
       "reranking_scoring",
       "prompt_packing",
     ]);
-    assert.equal(recall.benchmarkHookReady, false);
+    assert.equal(recall.benchmarkHookReady, true);
     assert.match(recall.hypothesis ?? "", /precision|prompt tokens/);
   });
 
@@ -110,6 +111,7 @@ describe("Companion Memory Experiment Bridge", () => {
     const pinned = byTechnique(proposals, "pinned_memory");
     assert.equal(pinned.classification, "FOLLOW_UP");
     assert.deepEqual(pinned.targetOwners, ["prompt_packing"]);
+    assert.equal(pinned.benchmarkHookReady, true);
     assert.match(pinned.nextAction, /user-authored lore\/persona owner/);
   });
 
