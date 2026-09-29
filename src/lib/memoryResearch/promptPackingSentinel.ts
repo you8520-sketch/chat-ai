@@ -80,7 +80,7 @@ const EPISODIC_RECALL_ENV = {
   EPISODIC_MEMORY_RECALL_ENABLED: "1",
   DYNAMIC_MEMORY_TOTAL_MAX_CHARS: "2500",
   EPISODIC_MEMORY_MAX_CHARS: "1000",
-} as NodeJS.ProcessEnv;
+} as unknown as NodeJS.ProcessEnv;
 
 function runEpisodicBudgetProbe(higherPriorityChars: number): EpisodicBudgetProbeRow {
   const db = new Database(":memory:");
