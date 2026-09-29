@@ -1,3 +1,4 @@
+import mainRpOpenRouterRoutesJson from "@/lib/mainRpOpenRouterRoutes.json";
 import type { SelectedAI } from "@/lib/chatModels";
 import type { MainRpSupplyRadarReport } from "./mainRpSupplyRadar";
 import type {
@@ -16,6 +17,11 @@ export type SupplyPromotionProposal = {
   modelId: SelectedAI;
   candidateProviderName: string;
   candidateProviderSlug: string;
+  proposedRoute: {
+    providerSlug: string;
+    providerLabel: string;
+    serviceTier: null;
+  } | null;
   currentProcurementProvider: "cheaperinference" | "openrouter" | null;
   transitionKind: SupplyTransitionKind;
   draftRoutePrEligible: boolean;
@@ -67,6 +73,7 @@ export function classifySupplyTransition(input: {
       draftRoutePrEligible: true,
       stopReason: null,
       requiredReviewOwners: [
+        "src/lib/mainRpOpenRouterRoutes.json",
         "src/lib/openRouterConfig.ts#resolveMainRpOpenRouterRoutePolicy",
         "src/lib/chatModels.ts#MAIN_RP_USER_SELECTABLE_OPTIONS",
         "scripts/lib/mainRpSupplyRadar.ts#currentProcurement",
@@ -110,15 +117,38 @@ function proposalFromEvidence(input: {
     modelId: input.evidence.modelId,
   });
   const transition = classifySupplyTransition({ currentProvider: provider });
+  const routeRegistry = mainRpOpenRouterRoutesJson as Record<
+    string,
+    { providerSlug: string; providerLabel: string; serviceTier: "flex" | null }
+  >;
+  const routeManaged = Boolean(routeRegistry[input.evidence.modelId]);
+  const sameTransportRouteEligible =
+    transition.kind === "SAME_OPENROUTER_TRANSPORT" && routeManaged;
+  const draftRoutePrEligible =
+    transition.draftRoutePrEligible && sameTransportRouteEligible;
+  const stopReason =
+    transition.kind === "SAME_OPENROUTER_TRANSPORT" && !routeManaged
+      ? "canonical_openrouter_route_registry_entry_missing"
+      : transition.stopReason;
   return {
     modelId: input.evidence.modelId,
     candidateProviderName: input.evidence.providerName,
     candidateProviderSlug: input.evidence.providerSlug,
+    proposedRoute: draftRoutePrEligible
+      ? {
+          providerSlug: input.evidence.providerSlug,
+          providerLabel: input.evidence.providerName,
+          // Live qualification deliberately removes the current production
+          // service tier so the alternate endpoint's own tested service class
+          // is the route being proposed.
+          serviceTier: null,
+        }
+      : null,
     currentProcurementProvider: provider,
     transitionKind: transition.kind,
-    draftRoutePrEligible: transition.draftRoutePrEligible,
+    draftRoutePrEligible,
     automaticMergeEligible: false,
-    stopReason: transition.stopReason,
+    stopReason,
     evidence: {
       qualifyingMarketSnapshots: input.evidence.qualifyingMarketSnapshots,
       marketObservationSpanDays: input.evidence.marketObservationSpanDays,
@@ -160,7 +190,7 @@ export function buildMainRpSupplyPromotionProposalPacket(input: {
     automaticMergeEligibleCount: 0,
     notes: [
       "This packet is advisory evidence. It never mutates routing or pricing.",
-      "Same-OpenRouter-transport promotion may proceed to a Draft route PR after exact route-policy diff/test generation.",
+      "Same-OpenRouter-transport promotion may proceed to a Draft route PR only through the canonical route registry; the proposed service tier is null because live qualification tests the alternate endpoint with inherited production service_tier removed.",
       "Cross-provider procurement changes are a STOP condition until billing, provider-cost, receipt provenance, and transport-control parity are reviewed.",
       "No proposal is eligible for automatic merge.",
     ],
@@ -183,18 +213,18 @@ export function renderMainRpSupplyPromotionProposalMarkdown(
     `- cross-provider review required: **${packet.crossProviderReviewRequiredCount}**`,
     `- automatic merge eligible: **0**`,
     "",
-    "| Model | Candidate | Current procurement | Transition | Draft route PR | Savings | Market span | Live pairs/span | Worst total | Worst TTFT | STOP |",
-    "|---|---|---|---|---|---:|---:|---|---:|---:|---|",
+    "| Model | Candidate | Proposed route | Current procurement | Transition | Draft route PR | Savings | Market span | Live pairs/span | Worst total | Worst TTFT | STOP |",
+    "|---|---|---|---|---|---|---:|---:|---|---:|---:|---|",
   ];
 
   for (const row of packet.proposals) {
     lines.push(
-      `| ${row.modelId} | ${row.candidateProviderName} (${row.candidateProviderSlug}) | ${row.currentProcurementProvider ?? "unknown"} | ${row.transitionKind} | ${row.draftRoutePrEligible ? "YES" : "NO"} | ${n(row.evidence.latestSavingsPercent, 1)}% | ${n(row.evidence.marketObservationSpanDays, 1)}d | ${row.evidence.completeLivePairs} / ${n(row.evidence.liveObservationSpanDays, 1)}d | ${n(row.evidence.worstCandidateTotalVsBaselineRatio, 3)} | ${n(row.evidence.worstCandidateTtftVsBaselineRatio, 3)} | ${row.stopReason ?? "none"} |`
+      `| ${row.modelId} | ${row.candidateProviderName} (${row.candidateProviderSlug}) | ${row.proposedRoute ? `${row.proposedRoute.providerSlug} / serviceTier=default` : "n/a"} | ${row.currentProcurementProvider ?? "unknown"} | ${row.transitionKind} | ${row.draftRoutePrEligible ? "YES" : "NO"} | ${n(row.evidence.latestSavingsPercent, 1)}% | ${n(row.evidence.marketObservationSpanDays, 1)}d | ${row.evidence.completeLivePairs} / ${n(row.evidence.liveObservationSpanDays, 1)}d | ${n(row.evidence.worstCandidateTotalVsBaselineRatio, 3)} | ${n(row.evidence.worstCandidateTtftVsBaselineRatio, 3)} | ${row.stopReason ?? "none"} |`
     );
   }
 
   if (!packet.proposals.length) {
-    lines.push("| — | — | — | — | — | — | — | — | — | — | no PROMOTION_READY evidence yet |");
+    lines.push("| — | — | — | — | — | — | — | — | — | — | — | no PROMOTION_READY evidence yet |");
   }
 
   lines.push("", "## Interpretation boundary", "");
