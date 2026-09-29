@@ -202,6 +202,39 @@ export const GITHUB_WATCHLIST: readonly WatchlistEntry[] = [
     riskFlags: [],
   },
   {
+    repo: "SalesforceAIResearch/AnchorBench",
+    category: "memory_benchmark",
+    claimedAdvantage:
+      "long-horizon companion benchmark separating persona continuity from trajectory recall across role/boundary/value/style and evolving relationship state",
+    hasPublishedBenchmark: true,
+    infraRequirements: ["none"],
+    privacyImplications: ["none"],
+    migrationRequirement: "none",
+    riskFlags: [],
+  },
+  {
+    repo: "Collab-Gen/RoleMemo",
+    category: "memory_benchmark",
+    claimedAdvantage:
+      "role-playing memory benchmark separating factual cognition from persona-conditioned insight and evaluating character-consistent response quality",
+    hasPublishedBenchmark: true,
+    infraRequirements: ["none"],
+    privacyImplications: ["none"],
+    migrationRequirement: "none",
+    riskFlags: [],
+  },
+  {
+    repo: "geniesinc/Memora",
+    category: "memory_benchmark",
+    claimedAdvantage:
+      "personalized long-term memory benchmark that evaluates remembering/reasoning/recommending while penalizing obsolete or invalidated memories via forgetting-aware evidence",
+    hasPublishedBenchmark: true,
+    infraRequirements: ["none"],
+    privacyImplications: ["none"],
+    migrationRequirement: "none",
+    riskFlags: [],
+  },
+  {
     repo: "FlagOpen/FlagEmbedding",
     category: "embedding_model",
     claimedAdvantage: "BGE embedding/reranker family (bge-m3 is the approved semantic-lane model)",

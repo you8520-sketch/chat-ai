@@ -6,6 +6,10 @@
  */
 import { runLabArm, type LabArmResult } from "@/lib/memoryResearch/benchmarkLab";
 import {
+  buildBenchmarkAdoptionProposals,
+  type BenchmarkAdoptionProposal,
+} from "@/lib/memoryResearch/benchmarkAdoptionBridge";
+import {
   buildCompanionExperimentProposals,
   type CompanionExperimentProposal,
 } from "@/lib/memoryResearch/companionExperimentBridge";
@@ -37,7 +41,7 @@ export type CycleMode = "weekly" | "monthly_deep";
 
 /** Paid provider calls the cycle may make. Research + deterministic lab = 0 by construction. */
 export const PAID_PROVIDER_CALL_BUDGET = 0;
-export const DEFAULT_HTTP_BUDGET = 48;
+export const DEFAULT_HTTP_BUDGET = 56;
 
 export function cycleKeyFor(mode: CycleMode, now: Date): string {
   if (mode === "monthly_deep") {
@@ -99,6 +103,7 @@ export type CycleReport = {
   /** Registered adapters whose candidate is REJECTED — delete from the lab. */
   cleanupCandidates: string[];
   companionExperimentProposals: CompanionExperimentProposal[];
+  benchmarkAdoptionProposals: BenchmarkAdoptionProposal[];
   productionTouched: false;
 };
 
@@ -166,6 +171,7 @@ export async function runResearchCycle(
     draftPrPackets: [],
     cleanupCandidates: [],
     companionExperimentProposals: [],
+    benchmarkAdoptionProposals: [],
     productionTouched: false,
   };
 
@@ -242,6 +248,7 @@ export async function runResearchCycle(
     if (!existing) report.counts.newCandidates += 1;
     report.counts.evaluated += 1;
     report.companionExperimentProposals.push(...buildCompanionExperimentProposals(obs));
+    report.benchmarkAdoptionProposals.push(...buildBenchmarkAdoptionProposals(obs));
 
     const evaluated = await evaluateObservation(obs, adapter, liveRecipe, baseline, report, deps.now, runArm);
     assertValidTrail(evaluated.trail);

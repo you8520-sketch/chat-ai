@@ -210,6 +210,54 @@ it("companion bridge emits proposals only when the official-doc candidate is act
   );
 });
 
+
+it("benchmark adoption proposals emit only when a benchmark candidate is re-evaluated", async () => {
+  const benchmark: ResearchObservation = {
+    candidateKey: "github:salesforceairesearch/anchorbench",
+    sourceKind: "github_repository",
+    sourceUrl: "https://github.com/SalesforceAIResearch/AnchorBench",
+    title: "SalesforceAIResearch/AnchorBench",
+    version: "fixture-v1",
+    publishedAt: null,
+    summary: "persona continuity and trajectory recall benchmark",
+    claimedAdvantage:
+      "persona continuity across role, boundaries, values and style; trajectory recall for active and expired commitments",
+    category: "memory_benchmark",
+    evidence: {
+      hasReproducibleCode: true,
+      hasPublishedBenchmark: true,
+      archived: false,
+      lastActivityAt: "2026-09-01T00:00:00Z",
+    },
+    infraRequirements: ["none"],
+    privacyImplications: ["none"],
+    migrationRequirement: "none",
+    riskFlags: [],
+  };
+  const source = staticSource("benchmark_fixture", [benchmark]);
+
+  const first = await runResearchCycle(
+    emptyLedger(),
+    deps(WEEK1, { sources: [source], adapters: [] })
+  );
+  assert.equal(first.report.decisions[0]?.decision, "WATCH_NO_BENCHMARK_HOOK");
+  assert.deepEqual(
+    first.report.benchmarkAdoptionProposals.map((proposal) => proposal.ability).sort(),
+    ["persona_continuity", "trajectory_recall"]
+  );
+
+  const second = await runResearchCycle(
+    roundTrip(first.ledger),
+    deps(WEEK2, { sources: [source], adapters: [] })
+  );
+  assert.equal(second.report.skipped[0]?.reason, "watch_cooldown");
+  assert.equal(
+    second.report.benchmarkAdoptionProposals.length,
+    0,
+    "unchanged benchmark capabilities must not repeat adoption proposals every weekly cycle"
+  );
+});
+
 it("same cycle key is idempotent unless forced", async () => {
   const first = await runResearchCycle(emptyLedger(), deps(WEEK1, { sources: [staticSource("s", [OBS.noAdapter])] }));
   const again = await runResearchCycle(first.ledger, deps(WEEK1, { sources: [staticSource("s", [OBS.noAdapter])] }));

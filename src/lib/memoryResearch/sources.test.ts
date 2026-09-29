@@ -351,6 +351,9 @@ it("curated watchlist covers current memory systems/benchmarks without starving 
     "agentscope-ai/reme",
     "vectorize-io/hindsight",
     "xiaowu0162/longmemeval-v2",
+    "salesforceairesearch/anchorbench",
+    "collab-gen/rolememo",
+    "geniesinc/memora",
   ]) {
     assert.ok(repos.includes(required), `missing current curated source ${required}`);
   }
