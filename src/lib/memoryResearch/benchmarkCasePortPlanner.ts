@@ -296,12 +296,12 @@ export function renderBenchmarkCasePortPlansMarkdown(
   }
 
   lines.push(
-    "| benchmark | ability | readiness | canonical owner | proposed local case(s) |",
+    "| benchmark | plan | readiness | canonical owner | proposed local case(s) |",
     "|---|---|---|---|---|"
   );
   for (const plan of plans) {
     lines.push(
-      `| ${plan.candidateKey} | ${plan.ability} | ${plan.readiness} | ${plan.canonicalOwner.replace(/\|/g, "/")} | ${plan.proposedCaseIds.join(", ") || "-"} |`
+      `| ${plan.candidateKey} | ${plan.planKey} | ${plan.readiness} | ${plan.canonicalOwner.replace(/\|/g, "/")} | ${plan.proposedCaseIds.join(", ") || "-"} |`
     );
   }
   lines.push("");
