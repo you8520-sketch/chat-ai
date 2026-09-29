@@ -102,7 +102,8 @@ export type DecisionRadarLedger = {
   models: Record<
     string,
     {
-      fingerprint: string;
+      lastObservedFingerprint: string;
+      lastBenchmarkedFingerprint: string | null;
       lastSeenAt: string;
       lastBenchmarkedAt: string | null;
       lastSummary: DecisionBenchmarkSummary | null;
@@ -121,7 +122,39 @@ export function parseDecisionRadarLedger(raw: string | null | undefined): Decisi
     const parsed = JSON.parse(raw) as Partial<DecisionRadarLedger>;
     return {
       version: 1,
-      models: parsed.models && typeof parsed.models === "object" ? parsed.models : {},
+      models:
+        parsed.models && typeof parsed.models === "object"
+          ? Object.fromEntries(
+              Object.entries(parsed.models).map(([id, raw]) => {
+                const row = raw as Record<string, unknown>;
+                const legacyFingerprint =
+                  typeof row.fingerprint === "string" ? row.fingerprint : null;
+                return [
+                  id,
+                  {
+                    lastObservedFingerprint:
+                      typeof row.lastObservedFingerprint === "string"
+                        ? row.lastObservedFingerprint
+                        : legacyFingerprint ?? "",
+                    lastBenchmarkedFingerprint:
+                      typeof row.lastBenchmarkedFingerprint === "string"
+                        ? row.lastBenchmarkedFingerprint
+                        : legacyFingerprint,
+                    lastSeenAt:
+                      typeof row.lastSeenAt === "string" ? row.lastSeenAt : "",
+                    lastBenchmarkedAt:
+                      typeof row.lastBenchmarkedAt === "string"
+                        ? row.lastBenchmarkedAt
+                        : null,
+                    lastSummary:
+                      row.lastSummary && typeof row.lastSummary === "object"
+                        ? (row.lastSummary as DecisionBenchmarkSummary)
+                        : null,
+                  },
+                ];
+              })
+            )
+          : {},
       runs: Array.isArray(parsed.runs) ? parsed.runs.slice(-52) : [],
     };
   } catch {
@@ -194,7 +227,7 @@ export function selectChangedDecisionCandidates(input: {
   const changed = input.catalog.filter((model) => {
     if (model.id === baselineModel) return false;
     const prior = input.ledger.models[model.id];
-    return !prior || prior.fingerprint !== model.fingerprint;
+    return !prior || prior.lastBenchmarkedFingerprint !== model.fingerprint;
   });
   return {
     changed,
@@ -270,7 +303,10 @@ export function upsertDecisionRadarLedger(input: {
     const previous = next.models[model.id];
     const benchmarked = summaries.get(model.id) ?? null;
     next.models[model.id] = {
-      fingerprint: model.fingerprint,
+      lastObservedFingerprint: model.fingerprint,
+      lastBenchmarkedFingerprint: benchmarked
+        ? model.fingerprint
+        : previous?.lastBenchmarkedFingerprint ?? null,
       lastSeenAt: now,
       lastBenchmarkedAt: benchmarked ? now : previous?.lastBenchmarkedAt ?? null,
       lastSummary: benchmarked ?? previous?.lastSummary ?? null,
