@@ -235,10 +235,11 @@ const GEMINI_31_PRO_GOOGLE_AI_STUDIO_FALLBACK_RATES: OpenRouterModelRates = {
 };
 
 /**
- * Post-intro Google AI Studio Flex fallback for Gemini 3.7/3.8 Flash.
- * Google documents Flex at $0.75/$3.75 with $0.075 cache read from 2027-01-01.
- * Runtime provider-reported USD and Supply Radar endpoint evidence remain
- * authoritative when available.
+ * Conservative post-intro fallback for the pinned Google AI Studio Flex route.
+ * Google documents the underlying 3.7/3.8 Standard price doubling on 2027-01-01;
+ * OpenRouter currently lists Flex at half of Standard before the same 50% intro
+ * discount. Runtime provider-reported USD and Supply Radar endpoint evidence
+ * remain authoritative; future Flex availability/pricing is not assumed.
  */
 const GEMINI_37_38_FLASH_GOOGLE_AI_STUDIO_FALLBACK_RATES: OpenRouterModelRates = {
   family: "google",
