@@ -192,6 +192,22 @@ function runValidation(plan: SupplyAutoDraftPlan): void {
   }
 }
 
+async function deleteAutomationBranch(input: {
+  context: { repo: string; token: string };
+  branchName: string;
+}): Promise<void> {
+  const response = await githubFetch(
+    input.context,
+    `/repos/${input.context.repo}/git/refs/heads/${input.branchName}`,
+    { method: "DELETE" }
+  );
+  if (!response.ok && response.status !== 404) {
+    throw new Error(
+      `GitHub API ${response.status} while cleaning automation branch ${input.branchName}`
+    );
+  }
+}
+
 async function createDraftPr(input: {
   context: {
     repo: string;
@@ -299,6 +315,19 @@ async function createDraftPr(input: {
         ? Number((error as { status?: number }).status)
         : null;
     if (status === 403) {
+      let cleanup = "temporary_branch_removed";
+      try {
+        await deleteAutomationBranch({
+          context: input.context,
+          branchName: input.plan.branchName,
+        });
+      } catch (cleanupError) {
+        cleanup =
+          "temporary_branch_cleanup_failed:" +
+          (cleanupError instanceof Error
+            ? cleanupError.message
+            : String(cleanupError));
+      }
       return {
         modelId: input.plan.modelId,
         candidateProviderSlug: input.plan.candidateProviderSlug,
@@ -307,7 +336,8 @@ async function createDraftPr(input: {
         pullRequestUrl: null,
         status: "STOP_REPOSITORY_PR_CREATION_SETTING",
         reason:
-          "GitHub Actions token could not create a PR; verify repository Actions setting 'Allow GitHub Actions to create and approve pull requests'. Branch was created but main was not changed.",
+          "GitHub Actions token could not create a PR; verify repository Actions setting 'Allow GitHub Actions to create and approve pull requests'. main was not changed; " +
+          cleanup,
       };
     }
     throw error;
