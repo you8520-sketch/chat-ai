@@ -110,9 +110,11 @@ export function applyCurrentCiBaselineBudgetGuard(
 ): CurrentCiBaselinePlan {
   const entries: CurrentCiBaselinePlanEntry[] = [];
   const skipped: CurrentCiBaselinePlan["skipped"] = [];
+  const plannedModelIds = new Set<SupplyLiveCandidate["modelId"]>();
   let estimatedCatalogRateUsd = 0;
 
   for (const candidate of selection.candidates) {
+    if (plannedModelIds.has(candidate.modelId)) continue;
     const model = radar.models.find((row) => row.modelId === candidate.modelId);
     if (model?.currentProcurement?.provider !== "cheaperinference") {
       skipped.push({
@@ -144,6 +146,7 @@ export function applyCurrentCiBaselineBudgetGuard(
     }
 
     entries.push({ candidate, estimatedPairCatalogRateUsd: estimate });
+    plannedModelIds.add(candidate.modelId);
     estimatedCatalogRateUsd += estimate;
   }
 
@@ -168,10 +171,13 @@ export function applyCurrentCiBaselineBudgetGuard(
       ],
       estimatedRawEndpointRateUsd:
         Math.round(
-          entries.reduce(
-            (sum, entry) => sum + entry.candidate.estimatedPairRawEndpointRateUsd,
-            0
-          ) * 1_000_000
+          selection.candidates
+            .filter((candidate) => allowed.has(candidate.modelId))
+            .reduce(
+              (sum, candidate) =>
+                sum + candidate.estimatedPairRawEndpointRateUsd,
+              0
+            ) * 1_000_000
         ) / 1_000_000,
     },
     entries,

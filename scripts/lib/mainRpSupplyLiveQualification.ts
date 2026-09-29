@@ -23,6 +23,7 @@ import type {
 
 export const MAIN_RP_SUPPLY_LIVE_QUALIFICATION_VERSION = 1;
 export const MAIN_RP_SUPPLY_LIVE_MAX_CANDIDATES = 5;
+export const MAIN_RP_SUPPLY_LIVE_MAX_CANDIDATES_PER_MODEL = 3;
 export const MAIN_RP_SUPPLY_LIVE_MAX_PROVIDER_CALLS = 10;
 export const MAIN_RP_SUPPLY_LIVE_MAX_RAW_RATE_ESTIMATE_USD = 5;
 export const MAIN_RP_SUPPLY_LIVE_MIN_RAW_RATE_SAVINGS = 0.1;
@@ -356,7 +357,7 @@ export function selectMainRpSupplyLiveCandidates(
       return a.providerName.localeCompare(b.providerName);
     });
 
-    let selected = false;
+    let selectedForModel = 0;
     for (const endpoint of sorted) {
       const reason = factualCandidateReason(model.modelId, endpoint, parity);
       if (reason) {
@@ -436,14 +437,23 @@ export function selectMainRpSupplyLiveCandidates(
         });
         continue;
       }
+      if (
+        selectedForModel >= MAIN_RP_SUPPLY_LIVE_MAX_CANDIDATES_PER_MODEL
+      ) {
+        skipped.push({
+          modelId: model.modelId,
+          providerName: endpoint.providerName,
+          reason: "per_model_candidate_count_guard",
+        });
+        continue;
+      }
 
       candidates.push(candidate);
       estimatedRawEndpointRateUsd += estimate;
-      selected = true;
-      break;
+      selectedForModel += 1;
     }
 
-    if (!selected && sorted.length === 0) {
+    if (selectedForModel === 0 && sorted.length === 0) {
       skipped.push({
         modelId: model.modelId,
         providerName: "none",
@@ -880,13 +890,20 @@ export function buildSupplyLiveReport(input: {
   if (calls > MAIN_RP_SUPPLY_LIVE_MAX_PROVIDER_CALLS) {
     throw new Error("Supply live report exceeded provider-call budget");
   }
+  const selectedModelIds = [
+    ...new Set(input.selection.candidates.map((candidate) => candidate.modelId)),
+  ];
+  const completedModelIds = new Set(
+    input.results
+      .filter((result) => result.livePairComplete)
+      .map((result) => result.candidate.modelId)
+  );
   const status: MainRpSupplyLiveQualificationReport["status"] =
     input.notRunReason
       ? "NOT_RUN"
-      : input.selection.candidates.length === 0
+      : selectedModelIds.length === 0
         ? "OK"
-        : input.results.length === input.selection.candidates.length &&
-            input.results.every((result) => result.livePairComplete)
+        : selectedModelIds.every((modelId) => completedModelIds.has(modelId))
           ? "OK"
           : "PARTIAL";
 
@@ -904,7 +921,7 @@ export function buildSupplyLiveReport(input: {
       "This is bounded supplier transport qualification, not automatic provider selection.",
       "No composite RP quality score is generated.",
       "OpenRouter endpoint raw rates exclude account/platform fee interpretation; final procurement economics remain a separate review.",
-      "At most one endpoint per active model and two generation calls per candidate are allowed.",
+      "Candidates are ordered alternatives. Up to three endpoints per active model may be preselected, with at most two generation calls per tested candidate and a global 10-call candidate budget.",
       "Claude Opus 5.5 is skipped until CI/OpenRouter thinking/output control parity is proven.",
     ],
   };
@@ -919,7 +936,8 @@ export function renderSupplyLiveReportMarkdown(
     `- status: **${report.status}**`,
     `- provider generation calls: **${report.providerGenerationCalls}/${report.maxProviderGenerationCalls}**`,
     `- selected candidates: ${report.selection.candidates.length}`,
-    `- estimated raw endpoint-rate spend before calls: $${report.selection.estimatedRawEndpointRateUsd.toFixed(4)}`,
+    `- tested candidates: ${report.results.length}`,
+    `- estimated raw endpoint-rate spend before calls: ${report.selection.estimatedRawEndpointRateUsd.toFixed(4)}`,
     "",
   ];
 
