@@ -118,6 +118,7 @@ export const AUTOMATION_OWNER_MAP: Readonly<Record<string, string>> = {
   memory_research_companion_bridge: "src/lib/memoryResearch/companionExperimentBridge.ts (official-doc technique → canonical-owner experiment-routing evidence only)",
   memory_research_benchmark_adoption: "src/lib/memoryResearch/benchmarkAdoptionBridge.ts (external benchmark ability → local deterministic case-coverage evidence only)",
   memory_research_case_port_planner: "src/lib/memoryResearch/benchmarkCasePortPlanner.ts (benchmark gap → correct local harness/fixture plan; no auto-edit)",
+  memory_research_harness_feasibility: "src/lib/memoryResearch/benchmarkHarnessFeasibility.ts (case-port plan → measurement feasibility / provider-judge boundary evidence only)",
   memory_research_ledger: "orphan branch `memory-research-ledger` (ledger.json + cycles/*.json)",
   memory_research_draft_pr: "src/lib/memoryResearch/draftPr.ts (ACCEPTED-only, `gh pr create --draft`)",
   provider_cost_accounting: "src/lib/providerCostLedger.ts (production spend; research cycle makes 0 paid calls)",
