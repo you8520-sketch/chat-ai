@@ -16,7 +16,7 @@ function response(status: number, body: unknown): Response {
 describe("decision model radar admin projection", () => {
   it("treats a missing data branch as an empty first-run state", async () => {
     const result = await fetchDecisionRadarLatestRaw(
-      async () => response(404, {}) as Promise<Response>
+      async () => response(404, {})
     );
     assert.equal(result.status, "EMPTY");
     assert.equal(result.raw, null);
@@ -58,7 +58,7 @@ describe("decision model radar admin projection", () => {
           history: [],
         },
       ],
-      async () => response(200, { content: encoded }) as Promise<Response>
+      async () => response(200, { content: encoded })
     );
     assert.equal(projected.status, "OK");
     assert.equal(projected.run?.status, "REVIEW_CANDIDATE");
