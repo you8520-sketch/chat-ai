@@ -95,7 +95,7 @@ it("episodic_selection bounds change injected count without a parallel scorer", 
   assert.equal(httpCallsObserved, 0);
 });
 
-it("global_current_memory packing text is A/Bable as longTermMemoryText", async () => {
+it("packing arm can model supplied Global-text pressure without claiming a Global compaction hook", async () => {
   const baseline = await runBenchmarkCases(BASELINE_MODE, transportProbe);
   const globalFilled = await runBenchmarkCases(
     packingMode("global-layer-filled", { longTermMemoryText: "x".repeat(2500), dynamicBudgetPolicy: "baseline" }),
