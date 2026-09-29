@@ -5,6 +5,10 @@
  * It never writes to production memory owners, the production DB, or prompts.
  */
 import { runLabArm, type LabArmResult } from "@/lib/memoryResearch/benchmarkLab";
+import {
+  buildCompanionExperimentProposals,
+  type CompanionExperimentProposal,
+} from "@/lib/memoryResearch/companionExperimentBridge";
 import { adapterFingerprint, findAdapter, type ExperimentAdapter } from "@/lib/memoryResearch/experiments";
 import { findLiveExperimentRecipe, liveExperimentRecipeFingerprint, type LiveExperimentRecipe } from "@/lib/memoryResearch/liveExperimentRecipes";
 import { evaluateGates, type GateResult, type LabRunSummary } from "@/lib/memoryResearch/gates";
@@ -94,6 +98,7 @@ export type CycleReport = {
   draftPrPackets: DraftPrPacket[];
   /** Registered adapters whose candidate is REJECTED — delete from the lab. */
   cleanupCandidates: string[];
+  companionExperimentProposals: CompanionExperimentProposal[];
   productionTouched: false;
 };
 
@@ -160,6 +165,7 @@ export async function runResearchCycle(
     estimatedCostUsd: 0,
     draftPrPackets: [],
     cleanupCandidates: [],
+    companionExperimentProposals: [],
     productionTouched: false,
   };
 
@@ -235,6 +241,7 @@ export async function runResearchCycle(
     }
     if (!existing) report.counts.newCandidates += 1;
     report.counts.evaluated += 1;
+    report.companionExperimentProposals.push(...buildCompanionExperimentProposals(obs));
 
     const evaluated = await evaluateObservation(obs, adapter, liveRecipe, baseline, report, deps.now, runArm);
     assertValidTrail(evaluated.trail);
