@@ -43,6 +43,7 @@ jobs:
           scripts/lib/mainRpDirectSupplierRadar.test.ts
           scripts/lib/mainRpSupplyPromotionHistory.test.ts
           scripts/lib/mainRpSupplyPromotionProposal.test.ts
+          scripts/lib/mainRpSupplyAutoDraft.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
           scripts/lib/mainRpSupplyCiBaseline.test.ts
       - name: Read-only external supply scan
@@ -104,5 +105,54 @@ jobs:
         with:
           name: main-rp-supply-radar-${{ github.run_id }}
           path: artifacts/main-rp-supply-radar
+          if-no-files-found: error
+          retention-days: 365
+
+  auto-draft:
+    name: Evidence-gated supply route Draft PR
+    needs: radar
+    if: needs.radar.result == 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    env:
+      MAIN_RP_SUPPLY_RADAR_OUTPUT_DIR: artifacts/main-rp-supply-radar
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      MAIN_RP_SUPPLY_LIVE_QUALIFICATION: "0"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Download supply evidence
+        uses: actions/download-artifact@v6
+        with:
+          name: main-rp-supply-radar-${{ github.run_id }}
+          path: artifacts/main-rp-supply-radar
+      - name: Evidence-gated Draft PR preflight and create
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --conditions=react-server --import tsx scripts/main-rp-supply-auto-draft.ts
+      - name: Auto-Draft summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f artifacts/main-rp-supply-radar/auto-draft/AUTO-DRAFT.md ]; then
+            cat artifacts/main-rp-supply-radar/auto-draft/AUTO-DRAFT.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload Auto-Draft evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: main-rp-supply-auto-draft-${{ github.run_id }}
+          path: artifacts/main-rp-supply-radar/auto-draft
           if-no-files-found: error
           retention-days: 365
