@@ -77,7 +77,6 @@ export function assessBenchmarkHarnessFeasibility(
 
   if (
     plan.readiness === "READY_DETERMINISTIC_FIXTURE" ||
-    plan.readiness === "READY_DURABLE_LEDGER_FIXTURE" ||
     plan.readiness === "READY_MUTATION_LIFECYCLE_FIXTURE"
   ) {
     return readyLocal(plan);
