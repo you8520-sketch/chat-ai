@@ -239,7 +239,27 @@ describe("Main RP supply live candidate selection", () => {
     const report = isolateCheaperAlternate(radarReport(), "gemini-3.8-flash");
     const model = report.models.find((row) => row.modelId === "gemini-3.8-flash")!;
     const cheaper = model.comparisons.find((row) => row.provider?.slug === "fixture-provider")!;
-    const required = [...cheaper.supportedParameters];
+    const productionCandidate: SupplyLiveCandidate = {
+      modelId: model.modelId,
+      openRouterSlug: model.openRouterSlug,
+      providerName: cheaper.providerName,
+      providerSlug: cheaper.provider!.slug!,
+      quantization: cheaper.quantization,
+      rawEndpointRateDeltaVsCurrentProcurementPercent: -0.5,
+      inputUsdPerMillion: cheaper.inputUsdPerMillion ?? 0.1,
+      outputUsdPerMillion: cheaper.outputUsdPerMillion ?? 0.3,
+      cacheReadUsdPerMillion: cheaper.cacheReadUsdPerMillion,
+      marketLatencyP50SecondsLast30m: cheaper.latencyP50SecondsLast30m ?? 1.2,
+      marketThroughputP50TokensPerSecondLast30m:
+        cheaper.throughputP50TokensPerSecondLast30m ?? 70,
+      marketUptimeLast1dPercent: cheaper.uptimeLast1dPercent ?? 99.9,
+      marketUptimeLast30mPercent: cheaper.uptimeLast30mPercent ?? 100,
+      controlEffort: "low",
+      excludeReasoning: true,
+      estimatedPairRawEndpointRateUsd: 0.01,
+    };
+    const required =
+      resolveSupplyLiveRequiredProviderParameterKeys(productionCandidate);
     assert.ok(required.includes("reasoning"), "production request must require reasoning");
     model.comparisons = [
       {
