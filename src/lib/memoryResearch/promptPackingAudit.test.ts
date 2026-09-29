@@ -5,9 +5,13 @@ import {
   renderMemoryPromptPackingAuditMarkdown,
 } from "@/lib/memoryResearch/promptPackingAudit";
 
+const audit = buildMemoryPromptPackingAudit(
+  300,
+  new Date("2026-09-29T00:00:00.000Z")
+);
+
 describe("memory prompt-packing sentinel", () => {
   it("locks the current summary5/raw4 owner split without enabling duplicate Medium on exact Global", () => {
-    const audit = buildMemoryPromptPackingAudit(300, new Date("2026-09-29T00:00:00.000Z"));
     assert.equal(audit.architecture.policyId, "summary5_raw4");
     assert.equal(audit.architecture.rollingSummaryInterval, 5);
     assert.equal(audit.architecture.rawRecentExchanges, 4);
@@ -21,7 +25,6 @@ describe("memory prompt-packing sentinel", () => {
   });
 
   it("records N15 token pressure for every active Main RP model without provider calls", () => {
-    const audit = buildMemoryPromptPackingAudit();
     assert.ok(audit.models.length > 0);
     for (const model of audit.models) {
       assert.ok(model.n15DeltaInputTokens > 0, model.modelId);
@@ -34,7 +37,6 @@ describe("memory prompt-packing sentinel", () => {
   });
 
   it("does not mislabel semantic overlap as measured duplicate waste", () => {
-    const audit = buildMemoryPromptPackingAudit();
     assert.equal(audit.interpretation.literalDuplicateClaim, "NOT_MEASURED");
     const md = renderMemoryPromptPackingAuditMarkdown(audit);
     assert.match(md, /providerGenerationCalls: 0/);
