@@ -61,5 +61,6 @@ jobs:
           node --conditions=react-server --import tsx --test --test-concurrency=1
           scripts/lib/mainRpMonthlyCacheAudit.test.ts
           scripts/lib/mainRpSupplyRadar.test.ts
+          scripts/lib/mainRpDirectSupplierRadar.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
           scripts/lib/mainRpSupplyCiBaseline.test.ts

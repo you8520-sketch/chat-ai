@@ -7,6 +7,10 @@ import {
 import { resolveUsageReportingCheaperInferenceApiKey } from "./lib/cheaperInferenceUsageReportingCredential";
 import { fetchCatalogPricingForModels } from "./lib/mainRpMonthlyCacheAudit";
 import {
+  collectDirectSupplierPublicEvidence,
+  renderDirectSupplierRadarMarkdown,
+} from "./lib/mainRpDirectSupplierRadar";
+import {
   buildMainRpSupplyRadarReport,
   fetchOpenRouterEndpointsForModel,
   fetchOpenRouterProviderMetadata,
@@ -72,10 +76,21 @@ async function main(){
     ciCatalogByModel:ciCatalog,
     credentialSource,
   });
+  const directSupplierReport=await collectDirectSupplierPublicEvidence({
+    currentRadar: report,
+  });
   const jsonPath=`${OUT_DIR}/report.json`;
   const mdPath=`${OUT_DIR}/REPORT.md`;
   writeFileSync(jsonPath,JSON.stringify({...report,errors},null,2));
   writeFileSync(mdPath,renderMainRpSupplyRadarMarkdown(report)+(errors.length?"\n## Collection notes\n\n"+errors.map(x=>`- ${x}`).join("\n")+"\n":""));
+  writeFileSync(
+    `${OUT_DIR}/direct-suppliers.json`,
+    JSON.stringify(directSupplierReport,null,2)
+  );
+  writeFileSync(
+    `${OUT_DIR}/DIRECT-SUPPLIERS.md`,
+    renderDirectSupplierRadarMarkdown(directSupplierReport)
+  );
 
   const summary={
     status:report.status,
@@ -85,6 +100,11 @@ async function main(){
     current_procurement_evidence:report.currentProcurementEvidence,
     endpoints_discovered:report.models.reduce((n,m)=>n+m.endpointCount,0),
     lower_raw_endpoint_rate_candidates:report.models.reduce((n,m)=>n+m.lowerRawEndpointRateCount,0),
+    direct_supplier_public_rows:directSupplierReport.evidence.length,
+    direct_supplier_ready_for_credentialled_live:directSupplierReport.evidence.filter(
+      row=>row.screeningStatus==="READY_FOR_CREDENTIALLED_LIVE_QUALIFICATION"
+    ).length,
+    direct_supplier_generation_calls:directSupplierReport.providerGenerationCalls,
     errors,
     jsonPath,
     mdPath,
