@@ -1,0 +1,46 @@
+{
+  "AUDIT": "PHASE_H0_ACTUAL_HANDOFF_QUALITY_PROMPT_AUTHORITY_FORENSICS",
+  "QUALITY_SCORE_ASSIGNED": false,
+  "HUMAN_RAW_REVIEW_REQUIRED": true,
+  "SOURCE_PRODUCTION_BEHAVIOR_CHANGED": false,
+  "PROVIDER_CALLS": 0,
+  "DO_NOT_REGENERATE": true,
+  "FROZEN_PACKET_ROOT": "data/ds0813-phase-f-handoff-audit/",
+  "FROZEN_PR": 560,
+  "PARITY_SHAS_FROM_PR560": {
+    "SYSTEM_SHA": "75695e164771f9a8a20c65b39442fc2200c4eab75516f9747dd7c7013d85c2b3",
+    "HISTORY_SHA": "d0a309ce2bfa25a041711cad6c0349b6b0878b95f9c40492e730de0ff6299e76",
+    "CURRENT_USER_SHA": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+    "HANDOFF_PACKET_SHA": "a07aefe951e484db54bbca8813273c1d3e59f6806f4bdeca660079b3a92e49f9",
+    "FINAL_MESSAGES_SHA": "2da61b056642fca93fa8a97f8e1f5e945aefadcf25153cd6a87a8562d78054bd"
+  },
+  "FILE_SHA256_UTF8": {
+    "data/ds0813-phase-f-handoff-audit/assembled/HANDOFF_SYSTEM.txt": "75695e164771f9a8a20c65b39442fc2200c4eab75516f9747dd7c7013d85c2b3",
+    "data/ds0813-phase-f-handoff-audit/assembled/CURRENT_USER.txt": "f1814a3aa6946b0ff339e0577b8d2130729cafec6b0c42a77cc369f41e379750",
+    "data/ds0813-phase-f-handoff-audit/assembled/CONTINUITY_PACKET.json": "a2c354c0f75af80e46c826d53328dd2f7a464229ca3ac671512858feb6d9d44f",
+    "data/ds0813-phase-f-handoff-audit/PARITY.json": "821ada1b129e12ef94b7f48a88622081913fe9149ea8750e1f6fb8f120f41872",
+    "data/ds0813-phase-f-handoff-audit/OWNERS.json": "90039113d7f777afcf898aeb44946139189b4c6dad221d0766d7308584050bc3",
+    "data/ds0813-phase-f-handoff-audit/raw/H1.txt": "704d794366391d300c3517213696f1a19adc10e05d522496c6ed250dc3d4b330",
+    "data/ds0813-phase-f-handoff-audit/raw/H2.txt": "849defd2fb05774a70ae5ef45da0f11f76f912ba68eeaf4b24b046f83cdd0bed",
+    "data/ds0813-phase-f-handoff-audit/raw/H1.meta.json": "79071dc99f69e62c290cb3a28fe9793b5c15a027bbb64af98767cb09921dc33f",
+    "data/ds0813-phase-f-handoff-audit/raw/H2.meta.json": "86a9f2c13de1ea185a6957a866ae894f3dac770cd567202af65ac7dfe652a4c8",
+    "data/ds0813-phase-f-handoff-audit/gemini-history/T1_GEMINI.txt": "4b6adc16eee5f577484bcb556ba5b9efc6157567907b2fd58ff596607735e124",
+    "data/ds0813-phase-f-handoff-audit/gemini-history/T2_GEMINI.txt": "165a66774b65c4883075d5bf6128f8218645ead6a856f82af3188651c1e76207",
+    "data/ds0813-phase-f-handoff-audit/source-fixtures/like-greeting.txt": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+    "data/ds0813-phase-f-handoff-audit/source-fixtures/current-user.json": "eca5b5195f0965d124a62be94befc9f592ec3b8caa225af01d4570bd8901a311",
+    "data/ds0813-phase-f-handoff-audit/source-fixtures/persona-ren.json": "2762c7602247aeadfbcd2780b7eda075444f9241b4b8bcabea5930961ea3cc37",
+    "data/ds0813-phase-f-handoff-audit/source-fixtures/PROVENANCE.json": "269d14c5dddf7712b5730908d9ea14acbefe133e4cfbe9b84542093e25b10b0b",
+    "data/ds0813-phase-f-handoff-audit/source-fixtures/character-18-like.json": "7785b709e49e93930c226ed228cbf03b9915b00911f3a68c6e2543f6f464c603",
+    "data/ds0813-phase-f-handoff-audit/flags/H1.json": "a050b6aaacf65fb835580238829bbdd74ee8e152e3566b92ec9fd9b1b3938539",
+    "data/ds0813-phase-f-handoff-audit/flags/H2.json": "d98e2aaaec2c07cbf68e65ebb81f9f5c8b4545e14a2f45c1ced096e1caea805f",
+    "data/ds0813-phase-f-handoff-audit/bodies/H_HANDOFF.keys.json": "c5b410bfb1680f4637d1dbdc63b163c803aabbcf3d89d83822ac9bafb7279770"
+  },
+  "SHA_VERIFY_NOTES": [
+    "assembled/HANDOFF_SYSTEM.txt SHA matches PARITY.SYSTEM_SHA and H1/H2.meta SYSTEM_SHA.",
+    "assembled/CURRENT_USER.txt SHA matches PARITY.CURRENT_USER_SHA.",
+    "assembled/CONTINUITY_PACKET.json content SHA is a2c354c0…; PARITY.HANDOFF_PACKET_SHA a07aefe9… is the packet-as-injected hash from the Phase F harness, not the pretty-printed JSON file hash.",
+    "raw/H1.txt SHA matches H1.meta RAW_SHA256.",
+    "raw/H2.txt SHA matches H2.meta RAW_SHA256.",
+    "HISTORY_SHA and FINAL_MESSAGES_SHA are harness hashes of the assembled message array; no concatenated history dump was frozen as a single file."
+  ]
+}
