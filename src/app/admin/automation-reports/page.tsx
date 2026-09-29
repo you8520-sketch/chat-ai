@@ -9,6 +9,7 @@ import {
   type CodeHealthAdminCard,
 } from "@/lib/codeHealth/reports";
 import { getDb } from "@/lib/db";
+import { fetchDecisionRadarAdminProjection } from "@/lib/decisionModelRadarReports";
 import { listMainRpCacheTtlReports } from "@/lib/mainRpCacheTtlEconomics";
 import { listSchedulerRunOverview } from "@/lib/schedulerRunRegistry";
 
@@ -171,6 +172,7 @@ export default async function AdminAutomationReportsPage() {
   const db = getDb();
   const github = await fetchGithubScheduledAutomationProjection();
   const codeHealth = await fetchCodeHealthAdminProjection(github.groups);
+  const decisionRadar = await fetchDecisionRadarAdminProjection(github.groups);
   const ttlReports = listMainRpCacheTtlReports(db, 12);
   const schedulers = listSchedulerRunOverview(db);
   const latestTtl = ttlReports[0] ?? null;
@@ -183,6 +185,13 @@ export default async function AdminAutomationReportsPage() {
   const codeHealthProblems = [codeHealth.weekly.status, codeHealth.monthly.status].filter(
     (status) => status === "WARNING" || status === "FAILED" || status === "UNAVAILABLE"
   ).length;
+  const decisionRadarProblems =
+    decisionRadar.status === "UNAVAILABLE" ||
+    ["FAILED", "PARTIAL", "REVIEW_CANDIDATE"].includes(
+      decisionRadar.run?.status ?? ""
+    )
+      ? 1
+      : 0;
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 text-zinc-100">
@@ -219,7 +228,7 @@ export default async function AdminAutomationReportsPage() {
         <div className="rounded-2xl border border-white/10 bg-[#11131a] p-4">
           <p className="text-xs text-zinc-500">확인 필요</p>
           <p className="mt-2 text-2xl font-black text-amber-300">
-            {githubFailures + schedulerProblems + codeHealthProblems}건
+            {githubFailures + schedulerProblems + codeHealthProblems + decisionRadarProblems}건
           </p>
           <p className="mt-1 text-xs text-zinc-600">실패·누락·stale 최신 상태</p>
         </div>
@@ -229,6 +238,148 @@ export default async function AdminAutomationReportsPage() {
         <CodeHealthCard card={codeHealth.weekly} />
         <CodeHealthCard card={codeHealth.monthly} />
       </div>
+
+      <section className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-black text-emerald-200">
+              Weekly Decision Model Radar
+            </h2>
+            <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+              OpenRouter Decisions 신모델을 주 1회 자동 발견하고, 새/변경 후보만 현재 JEV 업무
+              fixture로 비교합니다. 결과가 좋아도 production model pin은 자동 변경하지 않습니다.
+            </p>
+          </div>
+          <span
+            className={
+              "rounded px-2 py-1 text-xs font-bold " +
+              badgeClass(decisionRadar.run?.status ?? decisionRadar.status)
+            }
+          >
+            {decisionRadar.run?.status ?? decisionRadar.status}
+          </span>
+        </div>
+
+        {decisionRadar.run ? (
+          <>
+            <p className="mt-3 text-xs text-zinc-500">
+              실행 시각 · {fmtDate(decisionRadar.run.ranAt)}
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="rounded-xl bg-black/20 p-3">
+                <p className="text-[11px] text-zinc-500">발견 모델</p>
+                <p className="mt-1 font-bold">{decisionRadar.run.discoveredModels}</p>
+              </div>
+              <div className="rounded-xl bg-black/20 p-3">
+                <p className="text-[11px] text-zinc-500">신규/변경</p>
+                <p className="mt-1 font-bold">
+                  {decisionRadar.run.changedCandidates.length}
+                </p>
+              </div>
+              <div className="rounded-xl bg-black/20 p-3">
+                <p className="text-[11px] text-zinc-500">이번 주 benchmark</p>
+                <p className="mt-1 font-bold">
+                  {decisionRadar.run.benchmarkedCandidates.length}
+                </p>
+              </div>
+              <div className="rounded-xl bg-black/20 p-3">
+                <p className="text-[11px] text-zinc-500">provider calls</p>
+                <p className="mt-1 font-bold">{decisionRadar.run.providerCalls}</p>
+              </div>
+            </div>
+
+            {decisionRadar.run.baseline ? (
+              <div className="mt-3 rounded-xl border border-white/5 p-3 text-xs text-zinc-400">
+                기준 {decisionRadar.run.baseline.model} · accuracy{" "}
+                {decisionRadar.run.baseline.accuracy == null
+                  ? "n/a"
+                  : (decisionRadar.run.baseline.accuracy * 100).toFixed(1) + "%"}
+                {" · "}critical miss {decisionRadar.run.baseline.criticalMisses}
+                {" · "}p50 {decisionRadar.run.baseline.latencyMs.p50 ?? "n/a"}ms
+              </div>
+            ) : null}
+
+            {decisionRadar.run.evaluations.length ? (
+              <div className="mt-4 space-y-2">
+                {decisionRadar.run.evaluations.map((evaluation) => (
+                  <div
+                    key={evaluation.model}
+                    className="rounded-xl border border-white/5 bg-black/10 p-3 text-xs"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-bold text-zinc-200">{evaluation.model}</span>
+                      <span
+                        className={
+                          "rounded px-2 py-1 text-[11px] font-bold " +
+                          (evaluation.globalReplacementCandidate ||
+                          evaluation.suiteCandidates.length
+                            ? "bg-amber-500/15 text-amber-300"
+                            : "bg-white/5 text-zinc-500")
+                        }
+                      >
+                        {evaluation.globalReplacementCandidate
+                          ? "GLOBAL REVIEW"
+                          : evaluation.suiteCandidates.length
+                            ? "SUITE REVIEW"
+                            : "NO CHANGE"}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-zinc-500">
+                      accuracy{" "}
+                      {evaluation.summary.accuracy == null
+                        ? "n/a"
+                        : (evaluation.summary.accuracy * 100).toFixed(1) + "%"}
+                      {" · "}critical miss {evaluation.summary.criticalMisses}
+                      {" · "}cost{" "}
+                      {evaluation.summary.reportedCostUsd == null
+                        ? "n/a"
+                        : "$" + evaluation.summary.reportedCostUsd.toFixed(6)}
+                      {" · "}p50 {evaluation.summary.latencyMs.p50 ?? "n/a"}ms
+                    </p>
+                    {evaluation.suiteCandidates.length ? (
+                      <p className="mt-1 text-amber-300/90">
+                        JEV보다 우수한 업무 후보: {evaluation.suiteCandidates.join(", ")}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-zinc-500">
+                {decisionRadar.run.status === "NO_CHANGE"
+                  ? "이번 주에는 새로 비교할 Decisions 모델이 없습니다."
+                  : "비교 결과가 아직 없습니다."}
+              </p>
+            )}
+
+            {decisionRadar.run.deferredCandidates.length ? (
+              <p className="mt-3 text-xs text-zinc-500">
+                다음 실행으로 이월: {decisionRadar.run.deferredCandidates.join(", ")}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <p className="mt-4 text-sm text-zinc-500">
+            아직 정기 실행 결과가 없습니다. 첫 scheduled run 이후 여기에 표시됩니다.
+          </p>
+        )}
+
+        {decisionRadar.error ? (
+          <p className="mt-3 text-xs text-rose-300">{decisionRadar.error}</p>
+        ) : null}
+        {decisionRadar.githubRunUrl ? (
+          <div className="mt-4">
+            <a
+              href={decisionRadar.githubRunUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-white/5"
+            >
+              상세 GitHub benchmark / artifact ↗
+            </a>
+          </div>
+        ) : null}
+      </section>
 
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">

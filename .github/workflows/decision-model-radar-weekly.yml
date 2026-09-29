@@ -1,0 +1,140 @@
+name: Weekly Decision Model Radar
+
+# Discovers OpenRouter Decisions models and benchmarks only new/changed candidates.
+# Never changes the production JEV pin, routing, billing, prompts, or Railway scheduler.
+on:
+  schedule:
+    # Wednesday 04:37 UTC = 13:37 KST.
+    - cron: "37 4 * * 3"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run discovery/benchmark without persisting the radar ledger"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: decision-model-radar-ledger
+  cancel-in-progress: false
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      main_sha: ${{ steps.sha.outputs.main_sha }}
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "1"
+      DECISION_MODEL_RADAR_LIVE: "1"
+      OPENROUTER_JEV_BENCHMARK_API_KEY: ${{ secrets.OPENROUTER_JEV_BENCHMARK_API_KEY }}
+      DECISION_MODEL_RADAR_OUT_DIR: artifacts/decision-model-radar
+      DECISION_MODEL_RADAR_LEDGER_PATH: artifacts/decision-model-radar/ledger.json
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - id: sha
+        run: echo "main_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Decision radar deterministic regressions
+        run: >-
+          node --conditions=react-server --import tsx --test --test-concurrency=1
+          src/lib/decisionModelRadar.test.ts
+          src/lib/decisionModelRadarReports.test.ts
+
+      - name: Load previous radar ledger
+        shell: bash
+        run: |
+          mkdir -p "$DECISION_MODEL_RADAR_OUT_DIR"
+          if git fetch --depth=1 origin decision-model-radar-ledger 2>/dev/null; then
+            git show FETCH_HEAD:ledger.json > "$DECISION_MODEL_RADAR_LEDGER_PATH" || true
+          fi
+
+      - name: Discover and benchmark new Decisions models
+        env:
+          DECISION_MODEL_RADAR_MAIN_SHA: ${{ steps.sha.outputs.main_sha }}
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          scripts/decision-model-radar.ts
+
+      - name: Prove radar did not mutate production
+        shell: bash
+        run: git diff --exit-code -- . ':!artifacts'
+
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f artifacts/decision-model-radar/REPORT.md ]; then
+            cat artifacts/decision-model-radar/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload decision radar evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: decision-model-radar
+          path: artifacts/decision-model-radar
+          if-no-files-found: error
+          retention-days: 180
+
+  persist:
+    needs: radar
+    if: >-
+      always() &&
+      needs.radar.result == 'success' &&
+      (github.event_name != 'workflow_dispatch' || inputs.dry_run != true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.radar.outputs.main_sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: decision-model-radar
+          path: artifacts/decision-model-radar
+
+      - name: Push radar ledger to data branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin decision-model-radar-ledger 2>/dev/null; then
+            git worktree add radar-wt FETCH_HEAD
+            git -C radar-wt checkout -B decision-model-radar-ledger
+          else
+            git worktree add --detach radar-wt
+            git -C radar-wt checkout --orphan decision-model-radar-ledger
+            git -C radar-wt rm -rf --quiet . 2>/dev/null || true
+          fi
+          mkdir -p radar-wt/history
+          cp artifacts/decision-model-radar/ledger.json radar-wt/ledger.json
+          cp artifacts/decision-model-radar/latest.json radar-wt/latest.json
+          cp artifacts/decision-model-radar/REPORT.md "radar-wt/history/${{ needs.radar.outputs.main_sha }}.md"
+          git -C radar-wt add ledger.json latest.json history
+          if git -C radar-wt diff --cached --quiet; then
+            echo "radar ledger unchanged"
+            exit 0
+          fi
+          git -C radar-wt commit -m "decision-radar: weekly result for ${{ needs.radar.outputs.main_sha }}"
+          git -C radar-wt push origin HEAD:refs/heads/decision-model-radar-ledger
