@@ -196,7 +196,6 @@ export async function runResearchCycle(
   }
   report.providerCalls.httpCalls = deps.sourceContext.budget.used;
   report.counts.observations = observations.length;
-  report.companionExperimentProposals = observations.flatMap(buildCompanionExperimentProposals);
 
   // Baseline once per cycle: health snapshot + A/B reference.
   const baselineArm = await runArm(BASELINE_MODE);
@@ -242,6 +241,7 @@ export async function runResearchCycle(
     }
     if (!existing) report.counts.newCandidates += 1;
     report.counts.evaluated += 1;
+    report.companionExperimentProposals.push(...buildCompanionExperimentProposals(obs));
 
     const evaluated = await evaluateObservation(obs, adapter, liveRecipe, baseline, report, deps.now, runArm);
     assertValidTrail(evaluated.trail);
