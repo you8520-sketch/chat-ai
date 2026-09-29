@@ -337,7 +337,7 @@ export async function runDecisionModelComparison(input: {
       const evaluated = evaluateAuthorialHabitCandidate(fixture);
       if (!evaluated.candidate) continue;
       rows.push(await callOne({
-        benchmarkKey,
+        benchmarkKey: input.benchmarkKey,
         model,
         suite: "authorial_habit",
         fixtureId: fixture.id,
@@ -351,7 +351,7 @@ export async function runDecisionModelComparison(input: {
 
     for (const fixture of COMPLETION_FIXTURES) {
       rows.push(await callOne({
-        benchmarkKey,
+        benchmarkKey: input.benchmarkKey,
         model,
         suite: "completion_integrity",
         fixtureId: fixture.id,
@@ -371,7 +371,7 @@ export async function runDecisionModelComparison(input: {
 
     for (const fixture of SCENE_FIXTURES) {
       rows.push(await callOne({
-        benchmarkKey,
+        benchmarkKey: input.benchmarkKey,
         model,
         suite: "scene_boundary",
         fixtureId: fixture.id,
