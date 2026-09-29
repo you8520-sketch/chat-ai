@@ -269,6 +269,19 @@ describe("Main RP supplier auto Draft PR planner", () => {
     assert.ok(text.endsWith("\n"));
   });
 
+  it("write-capable workflow job never persists the GitHub write token into checkout credentials", () => {
+    const workflow = readFileSync(
+      new URL("../../.github/workflows/main-rp-supply-radar.yml", import.meta.url),
+      "utf8"
+    );
+    const writeJob = workflow.split("  auto-draft-provider-pr:")[1] ?? "";
+    assert.match(writeJob, /permissions:[\s\S]*contents:\s*write[\s\S]*pull-requests:\s*write/);
+    assert.match(
+      writeJob,
+      /uses:\s*actions\/checkout@v5[\s\S]{0,160}?persist-credentials:\s*false/
+    );
+  });
+
   it("runner has no merge API and scopes write automation to Draft PR creation", () => {
     const source = readFileSync(
       new URL("../main-rp-supply-auto-draft-pr.ts", import.meta.url),
