@@ -142,12 +142,18 @@ describe("Main RP supply promotion proposal packet", () => {
     assert.equal(gemini.draftRoutePrEligible, true);
     assert.equal(gemini.stopReason, null);
     assert.equal(gemini.automaticMergeEligible, false);
+    assert.deepEqual(gemini.proposedRoute, {
+      providerSlug: "alternative-studio",
+      providerLabel: "Alternative Studio",
+      serviceTier: null,
+    });
 
     const deepseek = packet.proposals.find(
       (row) => row.modelId === "deepseek-v4.1-flash"
     )!;
     assert.equal(deepseek.transitionKind, "CROSS_PROVIDER_PROCUREMENT");
     assert.equal(deepseek.draftRoutePrEligible, false);
+    assert.equal(deepseek.proposedRoute, null);
     assert.match(deepseek.stopReason ?? "", /billing_path_changes/);
   });
 
