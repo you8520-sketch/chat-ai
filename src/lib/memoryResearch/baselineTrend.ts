@@ -29,6 +29,7 @@ export type BaselineSnapshot = {
 };
 
 export type BaselineTrendStatus =
+  | "UNAVAILABLE"
   | "NO_HISTORY"
   | "BASELINE_FAILED"
   | "BENCHMARK_CHANGED"
@@ -100,6 +101,20 @@ function metricComparable(a: BaselineMetricSnapshot, b: BaselineMetricSnapshot):
     a.eligibleCases === b.eligibleCases &&
     a.totalCases === b.totalCases
   );
+}
+
+export function unavailableBaselineTrend(note: string): BaselineTrendReport {
+  return {
+    status: "UNAVAILABLE",
+    previousCycleKey: null,
+    benchmarkFingerprint: null,
+    metricDeltas: [],
+    lostPositiveCases: [],
+    gainedPositiveCases: [],
+    promptTokensPerTurnDelta: null,
+    invariantViolationDelta: null,
+    note,
+  };
 }
 
 export function compareBaselineSnapshots(
