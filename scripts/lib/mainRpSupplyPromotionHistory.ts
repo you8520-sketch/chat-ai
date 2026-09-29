@@ -205,6 +205,7 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
   const candidates: SupplyPromotionEvidence[] = [];
 
   for (const candidate of candidateMap.values()) {
+    if (!latest?.report.activeModelIds.includes(candidate.modelId)) continue;
     const marketRows = snapshots
       .map((snapshot) => ({
         snapshot,
