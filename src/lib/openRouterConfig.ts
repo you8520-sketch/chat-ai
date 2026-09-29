@@ -1,3 +1,4 @@
+import MAIN_RP_OPENROUTER_ROUTES from "../../config/main-rp-openrouter-routes.json";
 import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 import {
   CLAUDE_OPUS_MODEL_LEGACY,
@@ -101,39 +102,42 @@ export function resolveRpOpenRouterModelId(modelId: string): string {
 
 export type MainRpOpenRouterRoutePolicy = {
   provider: {
-    only: ["google-ai-studio"];
+    only: [string];
     allow_fallbacks: false;
     require_parameters: true;
   };
-  serviceTier: "flex";
+  serviceTier: "flex" | null;
 };
 
-const GOOGLE_AI_STUDIO_MAIN_RP_MODELS = new Set([
-  OPENROUTER_GEMINI_31_PRO_MODEL,
-  OPENROUTER_GEMINI_37_FLASH_MODEL,
-  OPENROUTER_GEMINI_38_FLASH_MODEL,
-]);
+type MainRpOpenRouterRouteConfigEntry = {
+  providerSlug: string;
+  serviceTier: "flex" | null;
+};
+
+const MAIN_RP_OPENROUTER_ROUTE_CONFIG =
+  MAIN_RP_OPENROUTER_ROUTES as Record<string, MainRpOpenRouterRouteConfigEntry>;
 
 /**
- * Canonical Main-RP OpenRouter route policy owner.
- * Gemini 3.1/3.7/3.8 are pinned to Google AI Studio and explicitly request
- * OpenRouter's flex service tier. Flex is the cost/latency owner; do not add a
- * second price-sort heuristic here.
- * Privacy/data-retention policy is intentionally not duplicated here; account
- * privacy settings remain the canonical owner for those constraints.
+ * Canonical Main-RP OpenRouter route owner.
+ * Provider slug + optional service tier live in config/main-rp-openrouter-routes.json.
+ * Code only normalizes that data into the OpenRouter request envelope.
  */
 export function resolveMainRpOpenRouterRoutePolicy(
   modelId: string
 ): MainRpOpenRouterRoutePolicy | null {
   const resolved = resolveRpOpenRouterModelId(modelId);
-  if (!GOOGLE_AI_STUDIO_MAIN_RP_MODELS.has(resolved)) return null;
+  const entry = MAIN_RP_OPENROUTER_ROUTE_CONFIG[resolved];
+  if (!entry) return null;
+  if (!entry.providerSlug.trim()) {
+    throw new Error(`[OpenRouter] empty Main RP provider slug for ${resolved}`);
+  }
   return {
     provider: {
-      only: ["google-ai-studio"],
+      only: [entry.providerSlug],
       allow_fallbacks: false,
       require_parameters: true,
     },
-    serviceTier: "flex",
+    serviceTier: entry.serviceTier,
   };
 }
 
