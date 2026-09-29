@@ -151,6 +151,24 @@ function radarReport() {
   return report;
 }
 
+function isolateCheaperAlternate(
+  report: ReturnType<typeof radarReport>,
+  modelId: SelectedAI
+) {
+  for (const model of report.models) {
+    model.comparisons = model.comparisons.map((row) => {
+      const isTargetAlternate =
+        model.modelId === modelId && row.provider?.slug === "fixture-provider";
+      return {
+        ...row,
+        lowerRawEndpointRateThanCurrentProcurement: isTargetAlternate,
+        rawEndpointRateDeltaVsCurrentProcurementPercent: isTargetAlternate ? -0.5 : 0,
+      };
+    });
+  }
+  return report;
+}
+
 describe("Main RP supply live qualification credential", () => {
   it("requires triple opt-in and never falls back to production OpenRouter key", () => {
     assert.deepEqual(
@@ -204,9 +222,10 @@ describe("Main RP supply live candidate selection", () => {
     );
   });
 
-  it("preserves current Gemini low-reasoning parity on alternate OpenRouter candidates", () => {
-    const selection = selectMainRpSupplyLiveCandidates(radarReport());
-    const gemini = selection.candidates.find((row) => row.modelId === "gemini-3.7-flash");
+  it("preserves current Gemini 3.8 low-reasoning parity on an alternate OpenRouter candidate", () => {
+    const report = isolateCheaperAlternate(radarReport(), "gemini-3.8-flash");
+    const selection = selectMainRpSupplyLiveCandidates(report);
+    const gemini = selection.candidates.find((row) => row.modelId === "gemini-3.8-flash");
     assert.ok(gemini);
     assert.equal(gemini.controlEffort, "low");
     const body = applyCandidateControlAndProviderPin(
@@ -217,34 +236,38 @@ describe("Main RP supply live candidate selection", () => {
   });
 
   it("skips an endpoint missing an actual production parameter before any paid call", () => {
-    const report = radarReport();
-    const model = report.models.find((row) => row.modelId === "gemini-3.7-flash")!;
+    const report = isolateCheaperAlternate(radarReport(), "gemini-3.8-flash");
+    const model = report.models.find((row) => row.modelId === "gemini-3.8-flash")!;
     const cheaper = model.comparisons.find((row) => row.provider?.slug === "fixture-provider")!;
     const required = [...cheaper.supportedParameters];
     assert.ok(required.includes("reasoning"), "production request must require reasoning");
     model.comparisons = [
       {
         ...cheaper,
-        providerName: "Google Vertex",
-        provider: { ...cheaper.provider!, name: "Google Vertex", slug: "google-vertex" },
+        providerName: "Missing Reasoning",
+        provider: { ...cheaper.provider!, name: "Missing Reasoning", slug: "missing-reasoning" },
+        lowerRawEndpointRateThanCurrentProcurement: true,
+        rawEndpointRateDeltaVsCurrentProcurementPercent: -0.5,
         supportedParameters: required.filter((key) => key !== "reasoning"),
       },
       {
         ...cheaper,
         providerName: "Compatible Alternative",
         provider: { ...cheaper.provider!, name: "Compatible Alternative", slug: "compatible" },
+        lowerRawEndpointRateThanCurrentProcurement: true,
+        rawEndpointRateDeltaVsCurrentProcurementPercent: -0.5,
         supportedParameters: required,
       },
     ];
 
     const selection = selectMainRpSupplyLiveCandidates(report);
-    const chosen = selection.candidates.find((row) => row.modelId === "gemini-3.7-flash");
+    const chosen = selection.candidates.find((row) => row.modelId === "gemini-3.8-flash");
     assert.equal(chosen?.providerSlug, "compatible");
     assert.ok(
       selection.skipped.some(
         (row) =>
-          row.modelId === "gemini-3.7-flash" &&
-          row.providerName === "Google Vertex" &&
+          row.modelId === "gemini-3.8-flash" &&
+          row.providerName === "Missing Reasoning" &&
           row.reason === "required_request_parameters_not_advertised:reasoning"
       )
     );
