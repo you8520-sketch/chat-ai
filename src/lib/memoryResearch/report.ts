@@ -1,4 +1,5 @@
 import type { CycleReport } from "@/lib/memoryResearch/cycle";
+import { renderBaselineQualityTrendMarkdown } from "@/lib/memoryResearch/baselineTrend";
 import { renderBenchmarkHarnessFeasibilityMarkdown } from "@/lib/memoryResearch/benchmarkHarnessFeasibility";
 import { renderBenchmarkCasePortPlansMarkdown } from "@/lib/memoryResearch/benchmarkCasePortPlanner";
 import { renderBenchmarkAdoptionMarkdown } from "@/lib/memoryResearch/benchmarkAdoptionBridge";
@@ -38,6 +39,7 @@ export function renderCycleReportMarkdown(report: CycleReport): string {
     renderBenchmarkAdoptionMarkdown(report.benchmarkAdoptionProposals),
     renderBenchmarkCasePortPlansMarkdown(report.benchmarkCasePortPlans),
     renderBenchmarkHarnessFeasibilityMarkdown(report.benchmarkHarnessFeasibility),
+    ...(report.baselineTrend ? [renderBaselineQualityTrendMarkdown(report.baselineTrend)] : []),
     "## Baseline (current main)",
     "",
     `- status: ${report.baseline.status}${report.baseline.error ? ` — ${report.baseline.error}` : ""}`,
