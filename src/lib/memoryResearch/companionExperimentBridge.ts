@@ -6,7 +6,7 @@
  * changes prompts, or treats product claims as benchmark evidence.
  */
 import {
-  BENCHMARK_HOOKED_OWNERS,
+  isBenchmarkOwnerHooked,
   MEMORY_OWNER_MAP,
   type MemoryOwnerId,
 } from "@/lib/memoryResearch/ownerMap";
@@ -70,7 +70,7 @@ const RULES: readonly TechniqueRule[] = [
     pattern:
       /(?:bounded|limited|up to|top[- ]?k)?.{0,40}(?:long[- ]term memory|journal|memory).{0,40}recall|recall.{0,40}(?:journal|long[- ]term memory)/i,
     classification: "BENCHMARK_WORTHY",
-    targetOwners: ["episodic_facts", "reranking_scoring", "prompt_packing"],
+    targetOwners: ["episodic_facts", "episodic_selection", "prompt_packing"],
     localCoverage:
       "Current episodic retrieval already performs bounded relevance-gated recall; exact recall count/budget policy can be compared without a new store.",
     hypothesis:
@@ -135,8 +135,12 @@ function excerptFor(text: string, pattern: RegExp): string {
   return compact.slice(start, Math.min(compact.length, match.index + match[0].length + 180)).trim();
 }
 
-function hookReady(owners: readonly MemoryOwnerId[]): boolean {
-  return owners.some((owner) => BENCHMARK_HOOKED_OWNERS.includes(owner));
+function hookReady(
+  classification: CompanionBridgeClassification,
+  owners: readonly MemoryOwnerId[]
+): boolean {
+  if (classification !== "BENCHMARK_WORTHY") return false;
+  return owners.some((owner) => isBenchmarkOwnerHooked(owner));
 }
 
 export function buildCompanionExperimentProposals(
@@ -186,7 +190,7 @@ export function buildCompanionExperimentProposals(
     technique: rule.technique,
     classification: rule.classification,
     targetOwners: rule.targetOwners,
-    benchmarkHookReady: hookReady(rule.targetOwners),
+    benchmarkHookReady: hookReady(rule.classification, rule.targetOwners),
     localCoverage: rule.localCoverage,
     hypothesis: rule.hypothesis,
     nextAction: rule.nextAction,

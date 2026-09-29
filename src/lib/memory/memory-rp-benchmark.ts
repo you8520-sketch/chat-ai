@@ -76,6 +76,90 @@ export const RELATIONSHIP_ROLE_CATEGORIES: readonly BenchmarkCategory[] = [
   "relationship_role_consistency",
 ];
 
+/**
+ * LongMemEval-style capability groups. These are raw case-id groupings over
+ * existing outcomes — not a composite score and not a parallel scorer.
+ */
+export type BenchmarkCapabilityGroup =
+  | "DYNAMIC_STATE_TRACKING"
+  | "PREMISE_AWARENESS"
+  | "TEMPORAL_REASONING"
+  | "IDENTITY_TRAJECTORY";
+
+export const BENCHMARK_CAPABILITY_CASE_IDS: Readonly<
+  Record<BenchmarkCapabilityGroup, readonly string[]>
+> = {
+  DYNAMIC_STATE_TRACKING: [
+    "item-ownership-01",
+    "location-ownership-transition-01",
+    "latest-state-replacement-01",
+    "character-state-transition-01",
+    "promise-01",
+    "relationship-role-consistency-01",
+  ],
+  PREMISE_AWARENESS: [
+    "persona-secret-wrong-observer-01",
+    "false-memory-negative-01",
+    "regeneration-rejected-event-01",
+    "delete-rewind-01",
+    "fork-variant-01",
+    "continuity-reset-01",
+    "user-canonical-vs-assistant-hallucination-01",
+  ],
+  TEMPORAL_REASONING: [
+    "horizon-t20-01",
+    "callback-75turn-01",
+    "t300-01",
+    "t1000-01",
+    "horizon-t2000-01",
+    "correction-supersession-01",
+    "first-never-01",
+    "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01",
+  ],
+  IDENTITY_TRAJECTORY: [
+    "relationship-role-consistency-01",
+    "role-event-direction-01",
+    "npc-durable-state-01",
+    "false-memory-negative-01",
+  ],
+};
+
+export type CapabilityGroupEvidence = {
+  group: BenchmarkCapabilityGroup;
+  caseIds: readonly string[];
+  measuredCases: number;
+  /** Positive cases whose expected answer was fully injected. Null when no positive final evidence. */
+  finalHits: number | null;
+};
+
+export function capabilityGroupEvidence(
+  outcomes: readonly BenchmarkCaseOutcome[]
+): CapabilityGroupEvidence[] {
+  const byId = new Map(outcomes.map((outcome) => [outcome.caseId, outcome]));
+  return (Object.keys(BENCHMARK_CAPABILITY_CASE_IDS) as BenchmarkCapabilityGroup[]).map((group) => {
+    const caseIds = BENCHMARK_CAPABILITY_CASE_IDS[group];
+    let measuredCases = 0;
+    let finalHits = 0;
+    let positiveFinals = 0;
+    for (const caseId of caseIds) {
+      const outcome = byId.get(caseId);
+      if (!outcome) continue;
+      measuredCases += 1;
+      if (!outcome.final || outcome.final.expectedAnswerIds.length === 0) continue;
+      positiveFinals += 1;
+      if (containsAll(outcome.final.injectedFactIds, outcome.final.expectedAnswerIds)) {
+        finalHits += 1;
+      }
+    }
+    return {
+      group,
+      caseIds,
+      measuredCases,
+      finalHits: positiveFinals === 0 ? null : finalHits,
+    };
+  });
+}
+
 /** Evidence from `fetchEpisodicMemoryCandidatesForDebug` (pre-rank candidate set). */
 export type CandidateStageEvidence = {
   expectedAnswerIds: readonly number[];

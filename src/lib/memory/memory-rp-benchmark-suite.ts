@@ -22,17 +22,21 @@ import {
   persistEpisodicMemoryFactsCore,
   reconcileEpisodicMemoryFactsForGeneration,
   replaceEpisodicMemoryFactsForCanonicalMutation,
+  type EpisodicDynamicBudgetPolicy,
+  type GetEpisodicMemoryForPromptInput,
 } from "@/lib/episodicMemoryFacts";
 import {
   getObserverSecretKnowledge,
   upsertObserverSecretKnowledge,
 } from "@/lib/personaSecretKnowledge";
 import {
+  capabilityGroupEvidence,
   computeBenchmarkMetrics,
   formatBenchmarkMetricsLine,
   type BenchmarkCaseOutcome,
   type BenchmarkCategory,
   type BenchmarkCoverageEntry,
+  type CapabilityGroupEvidence,
 } from "@/lib/memory/memory-rp-benchmark";
 import type { EpisodicSemanticModelConfig } from "@/lib/memory/memory-episodic-semantic-config";
 import {
@@ -48,6 +52,29 @@ const env = { MEMORY_FEATURE_ENABLED: "1", EPISODIC_MEMORY_RECALL_ENABLED: "1" }
 
 export type BenchmarkSemanticArm = { model: EpisodicSemanticModelConfig; embed: EpisodicEmbedder };
 
+/**
+ * Research-only packing input for leftover-budget / Global layer A/B.
+ * Omitted fields keep the current production-equivalent retrieval input
+ * (empty higher-priority texts + default leftover policy).
+ */
+export type BenchmarkPackingArm = {
+  dynamicBudgetPolicy?: EpisodicDynamicBudgetPolicy;
+  longTermMemoryText?: string | null;
+  relationshipMemoryText?: string | null;
+  lorebookText?: string | null;
+  dynamicMemoryTotalMaxChars?: number;
+};
+
+/**
+ * Research-only selection bounds for the canonical episodic scorer.
+ * Omitted fields keep production defaults (8 facts / 1000 chars).
+ */
+export type BenchmarkSelectionArm = {
+  maxFacts?: number;
+  maxChars?: number;
+  candidateLimit?: number;
+};
+
 export type BenchmarkMode = {
   label: string;
   /** null = exact lexical Retrieval V2 (the #1072 baseline). */
@@ -56,6 +83,8 @@ export type BenchmarkMode = {
   strict: boolean;
   /** Pinned known-gap outcome for deterministic runs; omitted for live arms (measured, not expected). */
   expectKnownGapHit?: boolean;
+  packing?: BenchmarkPackingArm;
+  selection?: BenchmarkSelectionArm;
 };
 
 export type BenchmarkTransportProbe = {
@@ -72,6 +101,8 @@ export const BASELINE_MODE: BenchmarkMode = {
 let activeMode: BenchmarkMode = BASELINE_MODE;
 let evaluatedTurns = 0;
 let promptTokensInjected = 0;
+let retrievedFactCount = 0;
+let injectedFactCount = 0;
 /** Query resolved by the latest `runRetrieval`, reused by diagnostics so they add no embedding call. */
 let lastSemanticQuery: EpisodicSemanticQuery | null = null;
 let violations: string[] = [];
@@ -137,6 +168,27 @@ export function saturate(db: Database.Database, count: number, startTurn: number
   }
 }
 
+function retrievalInput(
+  currentTurn: number,
+  query: string,
+  semanticQuery: EpisodicSemanticQuery | null
+): GetEpisodicMemoryForPromptInput {
+  return {
+    chatId: 1,
+    currentTurn,
+    currentUserMessage: query,
+    semanticQuery,
+    longTermMemoryText: activeMode.packing?.longTermMemoryText,
+    relationshipMemoryText: activeMode.packing?.relationshipMemoryText,
+    lorebookText: activeMode.packing?.lorebookText,
+    dynamicBudgetPolicy: activeMode.packing?.dynamicBudgetPolicy,
+    dynamicMemoryTotalMaxChars: activeMode.packing?.dynamicMemoryTotalMaxChars,
+    maxFacts: activeMode.selection?.maxFacts,
+    maxChars: activeMode.selection?.maxChars,
+    candidateLimit: activeMode.selection?.candidateLimit,
+  };
+}
+
 /** Runs the real candidate-discovery and final-retrieval owners for one turn. */
 async function runRetrieval(
   db: Database.Database,
@@ -146,10 +198,12 @@ async function runRetrieval(
   await indexIfSemantic(db);
   const semanticQuery = await semanticQueryFor(query);
   lastSemanticQuery = semanticQuery;
-  const input = { chatId: 1, currentTurn, currentUserMessage: query, semanticQuery };
+  const input = retrievalInput(currentTurn, query, semanticQuery);
   const pre = fetchEpisodicMemoryCandidatesForDebug(db, input, env);
   const ranked = getEpisodicMemoryForPrompt(db, input, env);
   evaluatedTurns += 1;
+  retrievedFactCount += pre.rows.length;
+  injectedFactCount += ranked.facts.length;
   if (ranked.promptBlock) promptTokensInjected += estimateTokens(ranked.promptBlock);
   return {
     candidateIds: pre.rows.map((r) => r.id),
@@ -192,6 +246,12 @@ export type BenchmarkRun = {
   evaluatedTurns: number;
   /** `estimateTokens` over every non-empty episodic prompt block this run produced. */
   promptTokensInjected: number;
+  /** Pre-rank candidate rows seen across evaluated retrievals. */
+  retrievedFactCount: number;
+  /** Facts that entered the episodic prompt block. */
+  injectedFactCount: number;
+  /** Raw LongMemEval-style groupings over existing outcomes. */
+  capabilityEvidence: CapabilityGroupEvidence[];
 };
 
 /**
@@ -235,6 +295,8 @@ export async function runBenchmarkCases(mode: BenchmarkMode, transport: Benchmar
   activeMode = mode;
   evaluatedTurns = 0;
   promptTokensInjected = 0;
+  retrievedFactCount = 0;
+  injectedFactCount = 0;
   violations = [];
   const transportBefore = transport.snapshot();
   const outcomes: BenchmarkCaseOutcome[] = [];
@@ -727,7 +789,18 @@ export async function runBenchmarkCases(mode: BenchmarkMode, transport: Benchmar
   console.info(`[RpMemoryBenchmark] mode=${mode.label} ${formatBenchmarkMetricsLine(metrics)}`);
   console.info(`[RpMemoryBenchmark] mode=${mode.label} coverage=${coverage.map((c) => `${c.category}:${c.executedCases}`).join(",")}`);
   activeMode = BASELINE_MODE;
-  return { outcomes, coverage, metrics, knownGap, invariantViolations: [...violations], evaluatedTurns, promptTokensInjected };
+  return {
+    outcomes,
+    coverage,
+    metrics,
+    knownGap,
+    invariantViolations: [...violations],
+    evaluatedTurns,
+    promptTokensInjected,
+    retrievedFactCount,
+    injectedFactCount,
+    capabilityEvidence: capabilityGroupEvidence(outcomes),
+  };
 }
 
 export function semanticAccounting(stats: ReturnType<typeof fetchEpisodicMemoryCandidatesForDebug>["stats"]): SemanticAccounting {
@@ -749,7 +822,11 @@ export async function measureMilestoneRetention(mode: BenchmarkMode): Promise<{ 
   saturate(db, 60, 80);
   const r = await runRetrieval(db, 300, "폭풍우 속 옛 공포가 되살아나는 밤");
   const candidates = new Set(r.candidateIds);
-  const input = { chatId: 1, currentTurn: 300, currentUserMessage: "폭풍우 속 옛 공포가 되살아나는 밤", semanticQuery: await semanticQueryFor("폭풍우 속 옛 공포가 되살아나는 밤") };
+  const input = retrievalInput(
+    300,
+    "폭풍우 속 옛 공포가 되살아나는 밤",
+    await semanticQueryFor("폭풍우 속 옛 공포가 되살아나는 밤")
+  );
   const semantic = semanticAccounting(fetchEpisodicMemoryCandidatesForDebug(db, input, env).stats);
   db.close();
   activeMode = BASELINE_MODE;

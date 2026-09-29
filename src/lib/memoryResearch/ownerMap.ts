@@ -17,6 +17,7 @@ export type MemoryOwnerId =
   | "semantic_retrieval"
   | "embedding_index"
   | "reranking_scoring"
+  | "episodic_selection"
   | "prompt_packing"
   | "memory_lifecycle"
   | "memory_benchmark"
@@ -76,6 +77,10 @@ export const MEMORY_OWNER_MAP: Readonly<Record<MemoryOwnerId, OwnerEntry>> = {
     responsibility: "Final composite scoring of episodic candidates",
     paths: ["src/lib/episodicMemoryFacts.ts"],
   },
+  episodic_selection: {
+    responsibility: "Episodic retrieval/selection bounds (candidate count / fact count / char budget)",
+    paths: ["src/lib/episodicMemoryFacts.ts"],
+  },
   prompt_packing: {
     responsibility: "Memory prompt layers + budgets",
     paths: [
@@ -117,8 +122,30 @@ export const AUTOMATION_OWNER_MAP: Readonly<Record<string, string>> = {
   test_egress_policy: "src/lib/test/regularTestEgressPolicy.ts",
 };
 
-/** Owners the deterministic benchmark can currently A/B via `BenchmarkMode`. */
-export const BENCHMARK_HOOKED_OWNERS: readonly MemoryOwnerId[] = ["semantic_retrieval", "embedding_index"];
+/**
+ * Owners the deterministic benchmark can actually A/B through a mode input.
+ * Adding an id here does not register an experiment adapter and does not
+ * change production runtime.
+ *
+ * - semantic_retrieval / embedding_index → `mode.semantic`
+ * - prompt_packing → `mode.packing` leftover policy + supplied higher-priority texts
+ * - episodic_selection → `mode.selection` fact/char/candidate bounds
+ *
+ * Deliberately NOT marked as hooked:
+ * - reranking_scoring: score weights/order are not parameterized by BenchmarkMode
+ * - global_current_memory: the harness can supply emitted Global text as packing
+ *   input, but does not A/B Global compaction/checkpoint generation itself
+ */
+export const BENCHMARK_HOOKED_OWNERS: readonly MemoryOwnerId[] = [
+  "semantic_retrieval",
+  "embedding_index",
+  "prompt_packing",
+  "episodic_selection",
+];
+
+export function isBenchmarkOwnerHooked(owner: MemoryOwnerId): boolean {
+  return BENCHMARK_HOOKED_OWNERS.includes(owner);
+}
 
 export const CATEGORY_OWNERS: Readonly<Record<CandidateCategory, readonly MemoryOwnerId[]>> = {
   conversational_memory: ["episodic_facts", "rolling_summary", "global_current_memory"],
