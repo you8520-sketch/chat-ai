@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import ChatRoomDocumentClass from "@/components/ChatRoomDocumentClass";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
+import { SiteLegalFooter } from "@/components/SiteLegalFooter";
 import { SITE_DESCRIPTION, SITE_DISPLAY_NAME, SITE_PAGE_TITLE } from "@/lib/siteBrand";
 import { getConfiguredPublicOrigin } from "@/lib/publicOrigin";
 
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Sidebar />
           <main className="flex min-w-0 flex-1 flex-col">{children}</main>
         </div>
+        <SiteLegalFooter />
       </body>
     </html>
   );
