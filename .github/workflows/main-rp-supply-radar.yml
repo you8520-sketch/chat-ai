@@ -7,6 +7,11 @@ on:
     # 15th day: read-only mid-month procurement/price/health scan only.
     - cron: "47 3 15 * *"
   workflow_dispatch:
+  # One-shot public-evidence validation trigger. This branch/PR is never merged.
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/main-rp-supply-radar.yml"
 
 permissions:
   contents: read
