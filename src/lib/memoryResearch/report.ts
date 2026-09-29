@@ -1,4 +1,5 @@
 import type { CycleReport } from "@/lib/memoryResearch/cycle";
+import { renderBenchmarkCasePortPlansMarkdown } from "@/lib/memoryResearch/benchmarkCasePortPlanner";
 import { renderBenchmarkAdoptionMarkdown } from "@/lib/memoryResearch/benchmarkAdoptionBridge";
 import { renderCompanionExperimentBridgeMarkdown } from "@/lib/memoryResearch/companionExperimentBridge";
 
@@ -34,6 +35,7 @@ export function renderCycleReportMarkdown(report: CycleReport): string {
     "",
     renderCompanionExperimentBridgeMarkdown(report.companionExperimentProposals),
     renderBenchmarkAdoptionMarkdown(report.benchmarkAdoptionProposals),
+    renderBenchmarkCasePortPlansMarkdown(report.benchmarkCasePortPlans),
     "## Baseline (current main)",
     "",
     `- status: ${report.baseline.status}${report.baseline.error ? ` — ${report.baseline.error}` : ""}`,
