@@ -172,6 +172,7 @@ function MemoryResearchCard({
   const run = projection.run;
   const state = run?.status ?? projection.status;
   const readiness = run?.readiness;
+  const promptPacking = run?.promptPackingAudit ?? null;
   const pipeline = projection.pipeline;
   const hasPipeline =
     pipeline.pendingLiveExperiments > 0 ||
@@ -307,6 +308,69 @@ function MemoryResearchCard({
               </p>
             ) : null}
           </div>
+
+          {promptPacking ? (
+            <details className="mt-3 rounded-xl border border-cyan-500/10 bg-cyan-950/5 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-cyan-200">
+                Prompt packing sentinel · {promptPacking.status} · invariant{" "}
+                {promptPacking.invariantPasses}/{promptPacking.invariantTotal}
+              </summary>
+              <div className="mt-3 text-xs text-zinc-400">
+                <p>
+                  policy {promptPacking.policyId || "unknown"} · RAW{" "}
+                  {promptPacking.rawRecentExchanges} · {promptPacking.rollingSummaryInterval}턴 요약 ·
+                  Medium N{promptPacking.mediumTermBlockCount} · fixture T
+                  {promptPacking.currentTurnFixture}
+                </p>
+                {promptPacking.generatedAt ? (
+                  <p className="mt-1 text-zinc-600">
+                    sentinel 생성 {fmtDate(promptPacking.generatedAt)}
+                  </p>
+                ) : null}
+                {promptPacking.failedInvariants.length ? (
+                  <p className="mt-2 text-rose-300">
+                    실패 invariant: {promptPacking.failedInvariants.join(", ")}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-emerald-300">
+                    prompt-packing invariant 전체 통과
+                  </p>
+                )}
+                {promptPacking.models.length ? (
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full min-w-[620px] text-left text-[11px]">
+                      <thead className="text-zinc-600">
+                        <tr>
+                          <th className="pb-1 pr-3">model</th>
+                          <th className="pb-1 pr-3">baseline</th>
+                          <th className="pb-1 pr-3">N15 input</th>
+                          <th className="pb-1 pr-3">N15 Δ</th>
+                          <th className="pb-1 pr-3">Medium</th>
+                          <th className="pb-1">safe</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {promptPacking.models.map((model) => (
+                          <tr key={model.modelId} className="border-t border-white/5">
+                            <td className="py-1 pr-3 font-mono text-cyan-100">
+                              {model.modelId}
+                            </td>
+                            <td className="py-1 pr-3">{model.baselineInputTokens}</td>
+                            <td className="py-1 pr-3">{model.n15InputTokens}</td>
+                            <td className="py-1 pr-3">+{model.n15DeltaInputTokens}</td>
+                            <td className="py-1 pr-3">{model.n15MediumTokens}</td>
+                            <td className="py-1">
+                              {model.safeForPolicyConsideration ? "YES" : "NO"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+              </div>
+            </details>
+          ) : null}
 
           {run.insights.length ? (
             <details className="mt-3 rounded-xl border border-fuchsia-500/10 p-3">
@@ -542,6 +606,7 @@ export default async function AdminAutomationReportsPage() {
     memoryResearch.status === "UNAVAILABLE" ||
     memoryResearch.run?.baselinePromotionBlocked === true ||
     memoryResearch.run?.productionTouched === true ||
+    memoryResearch.run?.promptPackingAudit?.status === "FAIL" ||
     memoryResearch.freshnessStatus === "STALE_CYCLE" ||
     memoryResearch.freshnessStatus === "PERSISTENCE_LAG"
       ? 1
