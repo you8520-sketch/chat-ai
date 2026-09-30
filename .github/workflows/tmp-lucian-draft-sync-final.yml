@@ -1,0 +1,47 @@
+name: TEMP Lucian final draft sync
+
+on:
+  push:
+    branches:
+      - tmp/lucian-draft-sync-final
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Compile exact Lucian draft and review
+        env:
+          OFFICIAL_REVIEW_DRAFT_JSON_PATH: /tmp/lucian-draft.json
+        run: npm run official-supply:review-character -- pilot-rf-03 /tmp/lucian-review.md
+      - name: Sync compiled draft on temp branch only
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const filePath = 'src/lib/officialSupply/pilot/characters/pilot-rf-03.json';
+          const file = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          file.draft = JSON.parse(fs.readFileSync('/tmp/lucian-draft.json', 'utf8'));
+          fs.writeFileSync(filePath, JSON.stringify(file, null, 2) + '\n');
+          NODE
+          if ! git diff --quiet -- src/lib/officialSupply/pilot/characters/pilot-rf-03.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/lib/officialSupply/pilot/characters/pilot-rf-03.json
+            git commit -m "test(official-supply): sync final Lucian compiled draft"
+            git push origin HEAD:tmp/lucian-draft-sync-final
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lucian-final-review-v3
+          path: |
+            /tmp/lucian-review.md
+            /tmp/lucian-draft.json
+          retention-days: 1
