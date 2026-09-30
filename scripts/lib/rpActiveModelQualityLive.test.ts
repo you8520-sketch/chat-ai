@@ -2,11 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  MAIN_RP_MODEL_IDS,
   selectedAIProvider,
 } from "@/lib/chatModels";
 import {
@@ -14,6 +11,7 @@ import {
   buildCanonicalRpQualificationContextInput,
 } from "./rpModelQualificationFixture";
 import {
+  RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS,
   RP_ACTIVE_MODEL_QUALITY_EXCLUDED,
   RP_ACTIVE_MODEL_QUALITY_MAX_CALLS,
   RP_ACTIVE_MODEL_QUALITY_MODEL_IDS,
@@ -23,49 +21,56 @@ import {
 } from "./rpActiveModelQualityLive";
 
 describe("rpActiveModelQualityLive", () => {
-  it("qualifies only the three requested models this round", () => {
-    assert.deepEqual(RP_ACTIVE_MODEL_QUALITY_MODEL_IDS, [
-      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-      CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+  it("derives the quality model set exactly from the active Main RP picker", () => {
+    assert.deepEqual(RP_ACTIVE_MODEL_QUALITY_MODEL_IDS, MAIN_RP_MODEL_IDS);
+    assert.deepEqual(RP_ACTIVE_MODEL_QUALITY_EXCLUDED, []);
+  });
+
+  it("can bound a focused false-canon resmoke to one call per active model", () => {
+    const plan = buildRpActiveModelQualityPlan(["false_canon_trap"]);
+    assert.equal(plan.length, MAIN_RP_MODEL_IDS.length);
+    assert.ok(plan.every((row) => row.caseId === "false_canon_trap"));
+  });
+
+  it("bounds the default monthly run to two memory cases across all active models", () => {
+    const plan = buildRpActiveModelQualityPlan();
+    assert.deepEqual(RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS, [
+      "memory_current_state_priority",
+      "memory_false_shared_event",
     ]);
     assert.equal(
-      RP_ACTIVE_MODEL_QUALITY_MODEL_IDS.includes(
-        CHEAPER_INFERENCE_GPT_56_TERRA_MODEL as never
-      ),
-      false
+      plan.length,
+      MAIN_RP_MODEL_IDS.length * RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS.length
     );
-    assert.equal(
-      RP_ACTIVE_MODEL_QUALITY_MODEL_IDS.includes(
-        CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL as never
-      ),
-      false
-    );
-    assert.deepEqual(
-      RP_ACTIVE_MODEL_QUALITY_EXCLUDED.map((row) => row.modelId),
-      [
-        CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
-        CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-      ]
-    );
-  });
-
-  it("can bound a focused false-canon resmoke to exactly three calls", () => {
-    const plan = buildRpActiveModelQualityPlan(["false_canon_trap"]);
-    assert.equal(plan.length, 3);
-    assert.deepEqual(
-      plan.map((row) => row.caseId),
-      ["false_canon_trap", "false_canon_trap", "false_canon_trap"]
-    );
-  });
-
-  it("bounds the initial run to one call per model/case", () => {
-    const plan = buildRpActiveModelQualityPlan();
-    assert.equal(plan.length, 12);
-    assert.equal(plan.length, RP_ACTIVE_MODEL_QUALITY_MAX_CALLS);
+    assert.ok(plan.length <= RP_ACTIVE_MODEL_QUALITY_MAX_CALLS);
     for (const modelId of RP_ACTIVE_MODEL_QUALITY_MODEL_IDS) {
-      assert.equal(plan.filter((row) => row.modelId === modelId).length, 4);
+      assert.deepEqual(
+        plan.filter((row) => row.modelId === modelId).map((row) => row.caseId),
+        [...RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS]
+      );
     }
+  });
+
+  it("builds memory-continuity cases through the canonical memory input layers", () => {
+    const cases = new Map(buildCanonicalRpQualificationCases().map((entry) => [entry.id, entry]));
+    const stateCase = cases.get("memory_current_state_priority")!;
+    const falseShared = cases.get("memory_false_shared_event")!;
+
+    const stateContext = buildCanonicalRpQualificationContextInput({
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      caseData: stateCase,
+      provider: "cheaperinference",
+    });
+    assert.match(stateContext.longTermMemory ?? "", /약속은 이미 이행되어 종료/);
+    assert.match(stateContext.memoryMeta ?? "", /다음 정기 검진 날 넥서스 로비/);
+
+    const falseSharedContext = buildCanonicalRpQualificationContextInput({
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      caseData: falseShared,
+      provider: "cheaperinference",
+    });
+    assert.match(falseSharedContext.episodicMemoryBlock ?? "", /복잡한 단말기를 잘못 조작/);
+    assert.doesNotMatch(falseSharedContext.episodicMemoryBlock ?? "", /반지/);
   });
 
   it("uses the current NORMAL ordinary-input authoring scope", () => {
