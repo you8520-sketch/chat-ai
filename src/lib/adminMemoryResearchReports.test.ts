@@ -73,21 +73,86 @@ describe("admin Memory Research reports", () => {
           status: "PASS",
           blocked: false,
         },
-        companionExperimentProposals: [{}, {}],
-        benchmarkAdoptionProposals: [{}],
+        companionExperimentProposals: [
+          {
+            candidateKey: "official:kindroid:memory-docs",
+            technique: "bounded_long_term_recall",
+            classification: "BENCHMARK_WORTHY",
+            targetOwners: ["episodic_selection", "prompt_packing"],
+            localCoverage: "bounded recall exists",
+            nextAction: "run deterministic A/B",
+          },
+          {},
+        ],
+        benchmarkAdoptionProposals: [
+          {
+            candidateKey: "github:anchor",
+            ability: "trajectory_recall",
+            status: "PARTIAL_COVERAGE",
+            gap: "commitment family routing",
+            nextAction: "decompose by canonical owner",
+          },
+        ],
         benchmarkCasePortPlans: [
           {
+            planKey: "trajectory_recall:commitment_lifecycle",
             readiness: "MIXED_OWNER_PLAN",
+            canonicalOwner: "relationship + retrieval",
+            proposedCaseIds: ["fixture-01"],
+            rationale: "split by owner",
             subplans: [
               { readiness: "READY_DURABLE_LEDGER_FIXTURE" },
               { readiness: "HARNESS_EXTENSION_REQUIRED" },
             ],
           },
-          { readiness: "READY_MUTATION_LIFECYCLE_FIXTURE" },
+          {
+            planKey: "forgetting_fidelity:mutation",
+            readiness: "READY_MUTATION_LIFECYCLE_FIXTURE",
+            canonicalOwner: "source mutation",
+            proposedCaseIds: ["derived-residue-01"],
+            rationale: "prove derived cleanup",
+          },
         ],
-        benchmarkHarnessFeasibility: [{}, {}],
-        localGoldAuthoringPackets: [{}],
-        persistentMemoryGaps: [{}, {}, {}],
+        benchmarkHarnessFeasibility: [
+          {
+            planKey: "trajectory_recall:persona_update",
+            status: "OWNER_UNRESOLVED",
+            blocker: "no mutable persona owner",
+            safeNextAction: "audit persona semantics",
+          },
+          {},
+        ],
+        localGoldAuthoringPackets: [
+          {
+            packetKey: "persona-conditioned-insight:local-gold-v1",
+            status: "HUMAN_REVIEW_REQUIRED",
+            proposedCaseIds: ["persona-grounded-insight-01"],
+            nextAction: "human author synthetic gold",
+          },
+        ],
+        persistentMemoryGaps: {
+          status: "PERSISTENT_GAPS",
+          persistentGaps: [
+            {
+              caseId: "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01",
+              consecutiveComparableFailures: 3,
+              ownerHints: ["semantic_retrieval", "embedding_index"],
+              nextAction: "route to semantic experiment lane",
+            },
+            {
+              caseId: "item-ownership-01",
+              consecutiveComparableFailures: 4,
+              ownerHints: ["relationship_durable"],
+              nextAction: "investigate durable owner",
+            },
+            {
+              caseId: "high-noise-distractors-01",
+              consecutiveComparableFailures: 3,
+              ownerHints: ["state_reconciliation"],
+              nextAction: "investigate current owner",
+            },
+          ],
+        },
         decisions: [
           {
             candidateKey: "github:fixture/accepted",
@@ -120,6 +185,28 @@ describe("admin Memory Research reports", () => {
     assert.equal(run.readiness.readyMutationLifecycle, 1);
     assert.equal(run.readiness.harnessExtensionRequired, 1);
     assert.equal(run.persistentMemoryGaps, 3);
+    assert.equal(run.persistentMemoryGapStatus, "PERSISTENT_GAPS");
+    assert.ok(
+      run.insights.some(
+        (row) =>
+          row.kind === "PERSISTENT_GAP" &&
+          row.key === "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01"
+      )
+    );
+    assert.ok(
+      run.insights.some(
+        (row) =>
+          row.kind === "BENCHMARK" &&
+          row.status === "PARTIAL_COVERAGE"
+      )
+    );
+    assert.ok(
+      run.insights.some(
+        (row) =>
+          row.kind === "LOCAL_GOLD" &&
+          row.status === "HUMAN_REVIEW_REQUIRED"
+      )
+    );
     assert.deepEqual(
       run.decisions.map((row) => row.candidateKey),
       ["github:fixture/accepted", "github:fixture/watch"]
@@ -231,6 +318,9 @@ describe("admin Memory Research reports", () => {
     assert.equal(run.benchmarkCasePortPlans, 0);
     assert.equal(run.readiness.harnessExtensionRequired, 0);
     assert.equal(run.baselinePromotionGateStatus, null);
+    assert.equal(run.persistentMemoryGaps, 0);
+    assert.equal(run.persistentMemoryGapStatus, null);
+    assert.deepEqual(run.insights, []);
   });
 
   it("reads the newest persisted cycle and attaches the scheduled workflow run", async () => {
