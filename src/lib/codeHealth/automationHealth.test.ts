@@ -160,9 +160,29 @@ describe("scheduled automation health", () => {
     });
     const row = report.rows[0]!;
     assert.equal(row.observedGapHours, 168);
-    assert.equal(row.staleAfterHours, 252);
+    assert.equal(row.staleAfterHours, 240);
     assert.equal(row.state, "STALE");
     assert.match(row.reasons.join(" "), /No scheduled trigger/);
+  });
+
+  it("detects a skipped weekly slot even when the current run just triggered", () => {
+    const report = buildScheduledAutomationHealthReport({
+      definitions: [definitions[0]!],
+      now: new Date("2026-09-30T12:00:00.000Z"),
+      groups: [
+        group(".github/workflows/weekly.yml", [
+          run(4, ".github/workflows/weekly.yml", "2026-09-30T04:17:00.000Z", null, "in_progress"),
+          run(3, ".github/workflows/weekly.yml", "2026-09-16T04:17:00.000Z", "success"),
+          run(2, ".github/workflows/weekly.yml", "2026-09-09T04:17:00.000Z", "success"),
+          run(1, ".github/workflows/weekly.yml", "2026-09-02T04:17:00.000Z", "success"),
+        ]),
+      ],
+    });
+    const row = report.rows[0]!;
+    assert.equal(row.observedGapHours, 336);
+    assert.equal(row.staleAfterHours, 240);
+    assert.equal(row.state, "STALE");
+    assert.match(row.reasons.join(" "), /Observed scheduled-run gap/);
   });
 
   it("fails closed as warning when GitHub scheduled-run projection is unavailable", () => {
