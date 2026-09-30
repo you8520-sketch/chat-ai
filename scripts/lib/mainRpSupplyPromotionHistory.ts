@@ -6,7 +6,7 @@ import {
   MAIN_RP_SUPPLY_LIVE_MIN_UPTIME_PERCENT,
   type MainRpSupplyLiveQualificationReport,
 } from "./mainRpSupplyLiveQualification";
-import type { SupplyTransportComparisonReport } from "./mainRpSupplyCiBaseline";
+import type { SupplyTransportComparisonReport } from "./mainRpSupplyCurrentBaseline";
 import type { MainRpSupplyRadarReport, SupplyComparison } from "./mainRpSupplyRadar";
 
 export const MAIN_RP_SUPPLY_PROMOTION_HISTORY_VERSION = 1;
@@ -34,6 +34,8 @@ export type SupplyPromotionStatus =
   | "INSUFFICIENT_LIVE_HISTORY"
   | "LIVE_HISTORY_SPAN_TOO_SHORT"
   | "BASELINE_COMPARISON_MISSING"
+  | "DEPLOY_ROUTE_PARITY_UNPROVEN"
+  | "OBSERVED_COST_SAVINGS_UNPROVEN"
   | "PERFORMANCE_REGRESSION";
 
 export type SupplyPromotionEvidence = {
@@ -53,6 +55,9 @@ export type SupplyPromotionEvidence = {
   latestMarketUptime30mPercent: number | null;
   worstCandidateTotalVsBaselineRatio: number | null;
   worstCandidateTtftVsBaselineRatio: number | null;
+  worstObservedCostDeltaVsCurrentPercent: number | null;
+  testedServiceTier: "flex" | null;
+  currentServiceTier: "flex" | null;
   reasons: string[];
 };
 
@@ -132,10 +137,24 @@ function comparisonRatios(input: {
   snapshots: SupplyHistorySnapshot[];
   modelId: SelectedAI;
   providerSlug: string;
-}): { total: number[]; ttft: number[]; missing: number } {
+}): {
+  total: number[];
+  ttft: number[];
+  observedCostDelta: number[];
+  missing: number;
+  routeParityMismatch: number;
+  currentOpenRouterComparisons: number;
+  testedServiceTiers: Array<"flex" | null>;
+  currentServiceTiers: Array<"flex" | null>;
+} {
   const total: number[] = [];
   const ttft: number[] = [];
+  const observedCostDelta: number[] = [];
+  const testedServiceTiers: Array<"flex" | null> = [];
+  const currentServiceTiers: Array<"flex" | null> = [];
   let missing = 0;
+  let routeParityMismatch = 0;
+  let currentOpenRouterComparisons = 0;
 
   for (const snapshot of input.snapshots) {
     const liveResult = snapshot.live?.results.find(
@@ -154,24 +173,50 @@ function comparisonRatios(input: {
     if (
       !row ||
       !row.candidatePairComplete ||
-      !row.currentCiPairComplete ||
+      !row.currentPairComplete ||
       row.candidateAverageTotalSeconds == null ||
-      row.currentCiAverageTotalSeconds == null ||
+      row.currentAverageTotalSeconds == null ||
       row.candidateAverageTtftSeconds == null ||
-      row.currentCiAverageTtftSeconds == null ||
-      row.currentCiAverageTotalSeconds <= 0 ||
-      row.currentCiAverageTtftSeconds <= 0
+      row.currentAverageTtftSeconds == null ||
+      row.currentAverageTotalSeconds <= 0 ||
+      row.currentAverageTtftSeconds <= 0
     ) {
       missing += 1;
       continue;
     }
+
     total.push(
-      row.candidateAverageTotalSeconds / row.currentCiAverageTotalSeconds
+      row.candidateAverageTotalSeconds / row.currentAverageTotalSeconds
     );
-    ttft.push(row.candidateAverageTtftSeconds / row.currentCiAverageTtftSeconds);
+    ttft.push(row.candidateAverageTtftSeconds / row.currentAverageTtftSeconds);
+    testedServiceTiers.push(row.candidateDeploymentServiceTier);
+    currentServiceTiers.push(row.currentServiceTier);
+
+    if (row.currentProvider === "openrouter") {
+      currentOpenRouterComparisons += 1;
+      if (row.candidateDeploymentServiceTier !== row.currentServiceTier) {
+        routeParityMismatch += 1;
+      }
+      if (row.candidateObservedCostDeltaVsCurrentPercent == null) {
+        missing += 1;
+      } else {
+        observedCostDelta.push(
+          row.candidateObservedCostDeltaVsCurrentPercent
+        );
+      }
+    }
   }
 
-  return { total, ttft, missing };
+  return {
+    total,
+    ttft,
+    observedCostDelta,
+    missing,
+    routeParityMismatch,
+    currentOpenRouterComparisons,
+    testedServiceTiers,
+    currentServiceTiers,
+  };
 }
 
 export function evaluateMainRpSupplyPromotionHistory(input: {
@@ -249,6 +294,18 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
     });
     const worstTotalRatio = ratios.total.length ? Math.max(...ratios.total) : null;
     const worstTtftRatio = ratios.ttft.length ? Math.max(...ratios.ttft) : null;
+    const worstObservedCostDelta =
+      ratios.observedCostDelta.length > 0
+        ? Math.max(...ratios.observedCostDelta)
+        : null;
+    const testedServiceTier =
+      ratios.testedServiceTiers.length > 0
+        ? ratios.testedServiceTiers.at(-1) ?? null
+        : null;
+    const currentServiceTier =
+      ratios.currentServiceTiers.length > 0
+        ? ratios.currentServiceTiers.at(-1) ?? null
+        : null;
 
     let status: SupplyPromotionStatus = "PROMOTION_READY";
     const reasons: string[] = [];
@@ -294,6 +351,20 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
     ) {
       status = "BASELINE_COMPARISON_MISSING";
       reasons.push("successful_live_pair_missing_current_baseline_comparison");
+    } else if (ratios.routeParityMismatch > 0) {
+      status = "DEPLOY_ROUTE_PARITY_UNPROVEN";
+      reasons.push(
+        `service_tier_mismatch_count=${ratios.routeParityMismatch}`
+      );
+    } else if (
+      ratios.currentOpenRouterComparisons > 0 &&
+      (worstObservedCostDelta == null ||
+        worstObservedCostDelta > -MAIN_RP_SUPPLY_LIVE_MIN_RAW_RATE_SAVINGS)
+    ) {
+      status = "OBSERVED_COST_SAVINGS_UNPROVEN";
+      reasons.push(
+        `worst_observed_cost_delta=${worstObservedCostDelta == null ? "missing" : worstObservedCostDelta.toFixed(3)} required<=-${MAIN_RP_SUPPLY_LIVE_MIN_RAW_RATE_SAVINGS}`
+      );
     } else if (
       worstTotalRatio > MAIN_RP_SUPPLY_PROMOTION_MAX_TOTAL_TIME_RATIO ||
       worstTtftRatio > MAIN_RP_SUPPLY_PROMOTION_MAX_TTFT_RATIO
@@ -331,6 +402,9 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
       latestMarketUptime30mPercent: latestEndpoint?.uptimeLast30mPercent ?? null,
       worstCandidateTotalVsBaselineRatio: worstTotalRatio,
       worstCandidateTtftVsBaselineRatio: worstTtftRatio,
+      worstObservedCostDeltaVsCurrentPercent: worstObservedCostDelta,
+      testedServiceTier,
+      currentServiceTier,
       reasons,
     });
   }
@@ -354,6 +428,7 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
       "Two complete canonical two-turn live pairs spanning >=14 days are required.",
       "Any recorded incomplete live pair for the same candidate blocks promotion until the history window moves past it.",
       "Candidate total response time must not exceed the current baseline and TTFT may be at most 1.25x the current baseline.",
+      "Same-OpenRouter promotion additionally requires exact service-tier parity and >=10% observed total_cost savings on every successful comparison.",
       "Direct suppliers without dedicated benchmark credentials are not eligible for this OpenRouter live-history gate.",
       "Production cutover remains a separate canary/rollback change.",
     ],
@@ -373,18 +448,18 @@ export function renderMainRpSupplyPromotionHistoryMarkdown(
     `- snapshots examined: **${report.snapshotsExamined}**`,
     `- promotion ready: **${report.promotionReadyCount}**`,
     "",
-    "| Model | Provider | Status | Market samples/span | Live complete/fail/span | Savings | Latency | TPS | Uptime 1d/30m | Worst total ratio | Worst TTFT ratio |",
-    "|---|---|---|---|---|---:|---:|---:|---:|---:|---:|",
+    "| Model | Provider | Status | Market samples/span | Live complete/fail/span | Market savings | Tier tested/current | Worst observed cost Δ | Latency | TPS | Uptime 1d/30m | Worst total ratio | Worst TTFT ratio |",
+    "|---|---|---|---|---|---:|---|---:|---:|---:|---:|---:|---:|",
   ];
 
   for (const row of report.candidates) {
     lines.push(
-      `| ${row.modelId} | ${row.providerName} | ${row.status} | ${row.qualifyingMarketSnapshots} / ${n(row.marketObservationSpanDays, 1)}d | ${row.completeLivePairs} / ${row.incompleteLivePairs} / ${n(row.liveObservationSpanDays, 1)}d | ${n(row.latestSavingsPercent, 1)}% | ${n(row.latestMarketLatencyP50Seconds, 3)}s | ${n(row.latestMarketThroughputP50TokensPerSecond, 1)} | ${n(row.latestMarketUptime1dPercent, 2)}% / ${n(row.latestMarketUptime30mPercent, 2)}% | ${n(row.worstCandidateTotalVsBaselineRatio, 3)} | ${n(row.worstCandidateTtftVsBaselineRatio, 3)} |`
+      `| ${row.modelId} | ${row.providerName} | ${row.status} | ${row.qualifyingMarketSnapshots} / ${n(row.marketObservationSpanDays, 1)}d | ${row.completeLivePairs} / ${row.incompleteLivePairs} / ${n(row.liveObservationSpanDays, 1)}d | ${n(row.latestSavingsPercent, 1)}% | ${row.testedServiceTier ?? "default"} / ${row.currentServiceTier ?? "default"} | ${row.worstObservedCostDeltaVsCurrentPercent == null ? "n/a" : n(row.worstObservedCostDeltaVsCurrentPercent * 100, 1) + "%"} | ${n(row.latestMarketLatencyP50Seconds, 3)}s | ${n(row.latestMarketThroughputP50TokensPerSecond, 1)} | ${n(row.latestMarketUptime1dPercent, 2)}% / ${n(row.latestMarketUptime30mPercent, 2)}% | ${n(row.worstCandidateTotalVsBaselineRatio, 3)} | ${n(row.worstCandidateTtftVsBaselineRatio, 3)} |`
     );
   }
 
   if (!report.candidates.length) {
-    lines.push("| — | — | no successful live candidate history yet | — | — | — | — | — | — | — | — |");
+    lines.push("| — | — | no successful live candidate history yet | — | — | — | — | — | — | — | — | — | — |");
   }
 
   lines.push("", "## Interpretation boundary", "");
