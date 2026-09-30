@@ -297,6 +297,53 @@ describe("GitHub Draft route PR executor", () => {
     assert.equal((createPull.body as Record<string, unknown>).draft, true);
   });
 
+  it("stops when another auto route PR for the same model is already open", async () => {
+    const plan = buildMainRpSupplyAutoDraftPlan({
+      packet: packet([proposal()]),
+      routeRegistry: registry(),
+      runId: "12345",
+    });
+    const mutation = plan.mutations[0]!;
+    const calls: string[] = [];
+    const fakeFetch = (async (
+      _url: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      calls.push(init?.method ?? "GET");
+      return new Response(
+        JSON.stringify([
+          {
+            title:
+              "[auto] Main RP supply route: gemini-3.7-flash → Another Provider",
+            html_url: "https://github.com/owner/repo/pull/41",
+            head: {
+              ref: "automation/supply-route/gemini-3.7-flash/another/old-run",
+            },
+          },
+        ]),
+        { status: 200 }
+      );
+    }) as typeof fetch;
+
+    const result = await executeGitHubDraftRoutePr({
+      repo: "owner/repo",
+      token: "token",
+      baseSha: "base-sha",
+      baseBranch: "main",
+      mutation,
+      dryRun: false,
+      fetchImpl: fakeFetch,
+    });
+
+    assert.equal(result.status, "CONFLICTING_OPEN_PR_STOP");
+    assert.equal(
+      result.pullRequestUrl,
+      "https://github.com/owner/repo/pull/41"
+    );
+    assert.match(result.error ?? "", /another_auto_route_pr/);
+    assert.deepEqual(calls, ["GET"]);
+  });
+
   it("stops before any write when main moved after evidence generation", async () => {
     const plan = buildMainRpSupplyAutoDraftPlan({
       packet: packet([proposal()]),
