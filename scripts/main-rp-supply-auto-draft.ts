@@ -204,6 +204,9 @@ async function main(): Promise<void> {
         existing_open_pr: executions.filter(
           (row) => row.status === "EXISTING_OPEN_PR"
         ).length,
+        conflicting_open_pr_stop: executions.filter(
+          (row) => row.status === "CONFLICTING_OPEN_PR_STOP"
+        ).length,
         preflight_failed: executions.filter(
           (row) => row.status === "PREFLIGHT_FAILED"
         ).length,
