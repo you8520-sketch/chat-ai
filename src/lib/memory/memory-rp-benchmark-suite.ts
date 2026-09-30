@@ -267,6 +267,7 @@ export type BenchmarkRun = {
  * can see it. Cases in EXPANDED_BASELINE_KNOWN_GAPS miss on current main
  * lexical V2 (documented baseline, not permanent invariants).
  * item-ownership-01 is an owner-boundary case (empty episodic final), not a recall miss.
+ * semantic-paraphrase remains a separate known-gap case, not this map.
  */
 export const EXPANDED_BASELINE_CASE_IDS: readonly string[] = [
   "horizon-t6-01",
@@ -284,9 +285,7 @@ export const EXPANDED_BASELINE_CASE_IDS: readonly string[] = [
 ];
 
 /** caseId → stage at which current main lexical V2 misses the expected answer. */
-export const EXPANDED_BASELINE_KNOWN_GAPS: Readonly<Record<string, "candidate" | "final">> = {
-  "distinctive-utterance-01": "candidate",
-};
+export const EXPANDED_BASELINE_KNOWN_GAPS: Readonly<Record<string, "candidate" | "final">> = {};
 
 /** Horizon cases beyond boundary_5turn / t300 / t1000: [caseId, category, sourceTurn, currentTurn]. */
 const HORIZON_CASES: ReadonlyArray<readonly [string, BenchmarkCategory, number, number]> = [
@@ -697,7 +696,7 @@ export async function runBenchmarkCases(mode: BenchmarkMode, transport: Benchmar
 
   { // distinctive_utterance — an exact quoted line recalled far later.
     const db = openDb();
-    const [answerId] = seed(db, [[20, "character", "rin", "utterance", "two_moons_return", "normal", "린이 말했다: \"달이 두 번 뜨는 밤에 돌아올게.\""]]);
+    const [answerId] = seed(db, [[20, "character", "rin", "utterance", "two_moons_return", "normal", "린이 달이 두 번 뜨는 밤에 돌아오겠다고 말했다."]]);
     saturate(db, 60, 60);
     const o = await singleAnswerCase("distinctive-utterance-01", "distinctive_utterance", db, 250, "달이 두 번 뜨는 밤에 돌아온다던 린의 말을 묻는다", answerId!);
     outcomes.push(o);

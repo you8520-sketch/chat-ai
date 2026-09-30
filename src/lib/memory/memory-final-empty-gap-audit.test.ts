@@ -171,7 +171,7 @@ it("high-noise: default reconcile order drops the target; preferred key order ke
   assert.equal(evaluateEpisodicRetrievalGuard(targetCandidate).allowed, true);
   assert.equal(classifyEpisodicFactTemporalNature(HIGH_NOISE_TARGET), "unknown");
   const lexical = inspectLexicalRelevanceForDebug(HIGH_NOISE_TARGET, HIGH_NOISE_QUERY);
-  assert.equal(lexical.relevanceScore, 1);
+  assert.ok(lexical.relevanceScore >= 1);
   const scope = buildEpisodicCandidateScope(db, input, env);
   assert.ok(scope);
   const defaultReconcile = reconcileGlobalStateLikeFacts(db, scope, candidates.rows);

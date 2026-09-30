@@ -1313,15 +1313,22 @@ function normalizeRetrievalToken(token: string): string {
 }
 
 function tokenizeForSimpleBoost(text: string): string[] {
-  return [
-    ...new Set(
-      text
-        .split(/[^a-z0-9가-힣_]+/i)
-        .map(normalizeRetrievalToken)
-        .filter((x) => x.length >= 2)
-        .slice(0, 32)
-    ),
-  ];
+  const seen = new Set<string>();
+  const tokens: string[] = [];
+  const push = (token: string) => {
+    if (token.length < 2 || seen.has(token) || tokens.length >= 32) return;
+    seen.add(token);
+    tokens.push(token);
+  };
+  for (const raw of text.split(/[^a-z0-9가-힣_]+/i)) {
+    if (!raw) continue;
+    // Keep the surface form before particle strip. Stripping 이/는/에 first
+    // then applying length>=2 drops the only tokens that still match stored
+    // Korean fact_text (달이→달, 뜨는→뜨, 밤에→밤).
+    push(raw.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ""));
+    push(normalizeRetrievalToken(raw));
+  }
+  return tokens;
 }
 
 function factSearchText(
@@ -1347,20 +1354,48 @@ export function inspectLexicalRelevanceForDebug(
   query: string
 ): {
   rawTokens: string[];
-  tokens: Array<{ raw: string; normalized: string; targetMatch: boolean }>;
+  tokensBeforeSlice: string[];
+  tokensAfterFirst5: string[];
+  tokens: Array<{
+    raw: string;
+    normalized: string;
+    lengthFilterPass: boolean;
+    relevanceLaneSelected: boolean;
+    sqlLike: string | null;
+    targetSubjectMatch: boolean;
+    targetAttributeMatch: boolean;
+    targetValueMatch: boolean;
+    targetFactTextMatch: boolean;
+  }>;
   relevanceScore: number;
   factSearchText: string;
 } {
   const haystack = factSearchText(fact);
   const rawTokens = query.split(/[^a-z0-9가-힣_]+/i).filter(Boolean);
+  const tokensBeforeSlice = tokenizeForSimpleBoost(query);
+  const tokensAfterFirst5 = tokensBeforeSlice.slice(0, 5);
+  const subject = String(fact.subject ?? "").toLowerCase();
+  const attribute = String(fact.attribute ?? "").toLowerCase();
+  const value = String(fact.value ?? "").toLowerCase();
+  const factText = String(sanitizeRecalledMemoryFactText(fact.fact_text) ?? "").toLowerCase();
   return {
     rawTokens,
+    tokensBeforeSlice,
+    tokensAfterFirst5,
     tokens: rawTokens.map((raw) => {
       const normalized = normalizeRetrievalToken(raw);
+      const lengthFilterPass = normalized.length >= 2;
+      const selected = lengthFilterPass && tokensAfterFirst5.includes(normalized);
       return {
         raw,
         normalized,
-        targetMatch: normalized.length >= 2 && haystack.includes(normalized),
+        lengthFilterPass,
+        relevanceLaneSelected: selected,
+        sqlLike: lengthFilterPass ? `%${normalized}%` : null,
+        targetSubjectMatch: lengthFilterPass && subject.includes(normalized),
+        targetAttributeMatch: lengthFilterPass && attribute.includes(normalized),
+        targetValueMatch: lengthFilterPass && value.includes(normalized),
+        targetFactTextMatch: lengthFilterPass && factText.includes(normalized),
       };
     }),
     relevanceScore: lexicalRelevance(fact, query),

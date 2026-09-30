@@ -112,7 +112,7 @@ it("expanded baseline: horizons + behavior categories measured on current main w
   assert.equal(metrics.falseMemoryRate.value, 0);
   assert.equal(metrics.irrelevantInjectionRate.value, 0);
   assert.equal(metrics.relationshipRoleConsistency.value, 1);
-  assert.equal(metrics.distinctiveUtteranceRecall.value, 0, "known gap: distinctive-utterance-01");
+  assert.equal(metrics.distinctiveUtteranceRecall.value, 1, "distinctive-utterance-01 must recall");
   assert.equal(metrics.correctionSupersessionAccuracy.value, 1);
   const falseMemory = byId.get("false-memory-negative-01")!;
   assert.deepEqual(falseMemory.final?.injectedFactIds, []);
