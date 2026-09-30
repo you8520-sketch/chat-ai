@@ -26,6 +26,91 @@ export type GithubAutomationProjection = {
   groups: GithubScheduledAutomationGroup[];
 };
 
+export type GithubSupplyAutoDraft = {
+  number: number;
+  title: string;
+  htmlUrl: string;
+  state: string;
+  draft: boolean;
+  createdAt: string;
+  updatedAt: string;
+  modelId: string;
+  candidateProviderSlug: string;
+};
+
+export type GithubSupplyAutoDraftProjection = {
+  status: "OK" | "UNAVAILABLE";
+  error: string | null;
+  drafts: GithubSupplyAutoDraft[];
+};
+
+const SUPPLY_AUTO_DRAFT_MARKER =
+  /<!--\s*main-rp-supply-auto:([^:>]+):([^>\s]+)\s*-->/;
+
+export function projectGithubSupplyAutoDrafts(
+  rawPulls: readonly Record<string, unknown>[]
+): GithubSupplyAutoDraft[] {
+  const drafts: GithubSupplyAutoDraft[] = [];
+  for (const raw of rawPulls) {
+    const body = asString(raw.body);
+    const marker = SUPPLY_AUTO_DRAFT_MARKER.exec(body);
+    if (!marker) continue;
+    drafts.push({
+      number: asNumber(raw.number),
+      title: asString(raw.title) || "Automated Main RP supplier promotion",
+      htmlUrl: asString(raw.html_url),
+      state: asString(raw.state) || "open",
+      draft: raw.draft === true,
+      createdAt: asString(raw.created_at),
+      updatedAt: asString(raw.updated_at),
+      modelId: marker[1]!.trim(),
+      candidateProviderSlug: marker[2]!.trim(),
+    });
+  }
+  return drafts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function fetchGithubSupplyAutoDraftProjection(
+  fetchImpl: typeof fetch = fetch
+): Promise<GithubSupplyAutoDraftProjection> {
+  try {
+    const rawPulls: Array<Record<string, unknown>> = [];
+    for (let page = 1; page <= 3; page += 1) {
+      const response = await fetchImpl(
+        `https://api.github.com/repos/${AUTOMATION_REPORTS_GITHUB_REPO}/pulls?state=open&per_page=100&page=${page}`,
+        {
+          headers: {
+            Accept: "application/vnd.github+json",
+            "User-Agent": "chat-ai-admin-automation-reports",
+          },
+          cache: "no-store",
+        }
+      );
+      if (!response.ok) {
+        return {
+          status: "UNAVAILABLE",
+          error: `GitHub Pull Requests API ${response.status}`,
+          drafts: [],
+        };
+      }
+      const pagePulls = (await response.json()) as Array<Record<string, unknown>>;
+      rawPulls.push(...pagePulls);
+      if (pagePulls.length < 100) break;
+    }
+    return {
+      status: "OK",
+      error: null,
+      drafts: projectGithubSupplyAutoDrafts(rawPulls),
+    };
+  } catch (error) {
+    return {
+      status: "UNAVAILABLE",
+      error: error instanceof Error ? error.message : "GitHub Pull Requests API unavailable",
+      drafts: [],
+    };
+  }
+}
+
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }

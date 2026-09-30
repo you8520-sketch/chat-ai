@@ -2,7 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { requireAdminUser } from "@/lib/adminAuth";
-import { fetchGithubScheduledAutomationProjection } from "@/lib/adminAutomationReports";
+import {
+  fetchGithubScheduledAutomationProjection,
+  fetchGithubSupplyAutoDraftProjection,
+} from "@/lib/adminAutomationReports";
 import {
   fetchCodeHealthAdminProjection,
   formatCodeHealthDeltaLines,
@@ -170,7 +173,10 @@ export default async function AdminAutomationReportsPage() {
   if (!admin) redirect("/login?next=/admin/automation-reports");
 
   const db = getDb();
-  const github = await fetchGithubScheduledAutomationProjection();
+  const [github, supplyDrafts] = await Promise.all([
+    fetchGithubScheduledAutomationProjection(),
+    fetchGithubSupplyAutoDraftProjection(),
+  ]);
   const codeHealth = await fetchCodeHealthAdminProjection(github.groups);
   const decisionRadar = await fetchDecisionRadarAdminProjection(github.groups);
   const ttlReports = listMainRpCacheTtlReports(db, 12);
@@ -228,7 +234,11 @@ export default async function AdminAutomationReportsPage() {
         <div className="rounded-2xl border border-white/10 bg-[#11131a] p-4">
           <p className="text-xs text-zinc-500">확인 필요</p>
           <p className="mt-2 text-2xl font-black text-amber-300">
-            {githubFailures + schedulerProblems + codeHealthProblems + decisionRadarProblems}건
+            {githubFailures +
+              schedulerProblems +
+              codeHealthProblems +
+              decisionRadarProblems +
+              supplyDrafts.drafts.length}건
           </p>
           <p className="mt-1 text-xs text-zinc-600">실패·누락·stale 최신 상태</p>
         </div>
@@ -474,6 +484,71 @@ export default async function AdminAutomationReportsPage() {
             </div>
           </details>
         ) : null}
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-black text-violet-200">Main RP 공급망 Draft 검토 대기</h2>
+            <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+              공급망 promotion gate를 통과해 자동 생성된 열린 PR을 GitHub 자체 상태에서
+              직접 읽습니다. 별도 DB 상태를 만들지 않으며 PR이 닫히거나 머지되면 이 목록에서도
+              자동으로 사라집니다.
+            </p>
+          </div>
+          <span className={"rounded px-2 py-1 text-xs font-bold " + badgeClass(
+            supplyDrafts.status === "OK" && supplyDrafts.drafts.length === 0 ? "success" : "warning"
+          )}>
+            {supplyDrafts.status === "OK"
+              ? `검토 대기 ${supplyDrafts.drafts.length}건`
+              : "UNAVAILABLE"}
+          </span>
+        </div>
+
+        {supplyDrafts.status !== "OK" ? (
+          <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-950/10 p-4 text-sm text-amber-200">
+            자동 생성 공급망 Draft 목록을 읽지 못했습니다: {supplyDrafts.error ?? "unknown"}
+          </div>
+        ) : supplyDrafts.drafts.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-4 text-sm text-emerald-200">
+            현재 검토 대기 중인 자동 공급망 Draft PR이 없습니다.
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {supplyDrafts.drafts.map((draft) => (
+              <article
+                key={draft.number}
+                className="rounded-xl border border-white/10 bg-black/15 p-4"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-violet-300">PR #{draft.number}</p>
+                    <h3 className="mt-1 font-bold text-zinc-100">{draft.title}</h3>
+                    <p className="mt-2 text-xs text-zinc-400">
+                      모델 <span className="font-mono text-zinc-200">{draft.modelId}</span>
+                      {" · "}후보 provider{" "}
+                      <span className="font-mono text-zinc-200">
+                        {draft.candidateProviderSlug}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-600">
+                      생성 {fmtDate(draft.createdAt)} · {draft.draft ? "Draft" : "Ready"} ·{" "}
+                      {draft.state}
+                    </p>
+                  </div>
+                  <a
+                    href={draft.htmlUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-white/5"
+                  >
+                    PR 검토하기 ↗
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="mt-6">
