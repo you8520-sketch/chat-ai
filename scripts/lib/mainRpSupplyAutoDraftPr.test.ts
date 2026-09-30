@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import type { MainRpSupplyRadarReport } from "./mainRpSupplyRadar";
@@ -415,6 +424,99 @@ describe("Main RP supplier auto Draft PR planner v2", () => {
       writeJob,
       /uses:\s*actions\/checkout@v5[\s\S]{0,180}?persist-credentials:\s*false/
     );
+  });
+
+  it("runner CLI consumes a no-plan artifact packet and exits without GitHub writes", () => {
+    const outDir = mkdtempSync(join(tmpdir(), "supply-auto-draft-noop-"));
+    mkdirSync(join(outDir, "live"), { recursive: true });
+
+    try {
+      writeFileSync(
+        join(outDir, "promotion-proposals.json"),
+        JSON.stringify({
+          version: 1,
+          generatedAt: GENERATED_AT,
+          proposals: [],
+          draftRoutePrEligibleCount: 0,
+          crossProviderReviewRequiredCount: 0,
+          automaticMergeEligibleCount: 0,
+          notes: [],
+        })
+      );
+      writeFileSync(
+        join(outDir, "report.json"),
+        JSON.stringify({
+          version: 1,
+          generatedAt: "2026-10-22T03:47:00.000Z",
+          status: "OK",
+          providerGenerationCalls: 0,
+          activeModelIds: [],
+          credentialSource: "fixture",
+          currentProcurementEvidence: "registry_route_evidence",
+          marketEvidence: "openrouter_endpoint_metrics",
+          notes: [],
+          models: [],
+        })
+      );
+      writeFileSync(
+        join(outDir, "live", "live-qualification.json"),
+        JSON.stringify({
+          version: 1,
+          generatedAt: GENERATED_AT,
+          status: "OK",
+          providerGenerationCalls: 0,
+          maxProviderGenerationCalls: 10,
+          activeModelIds: [],
+          selection: {
+            candidates: [],
+            skipped: [],
+            maxProviderGenerationCalls: 10,
+            estimatedRawEndpointRateUsd: 0,
+          },
+          results: [],
+          notes: [],
+        })
+      );
+
+      const result = spawnSync(
+        process.execPath,
+        [
+          "--conditions=react-server",
+          "--import",
+          "tsx",
+          "scripts/main-rp-supply-auto-draft-pr.ts",
+        ],
+        {
+          cwd: process.cwd(),
+          env: {
+            ...process.env,
+            MAIN_RP_SUPPLY_RADAR_OUTPUT_DIR: outDir,
+            MAIN_RP_SUPPLY_AUTO_DRAFT_DRY_RUN: "1",
+            GITHUB_TOKEN: "",
+            GITHUB_REPOSITORY: "",
+            GITHUB_SHA: "",
+          },
+          encoding: "utf8",
+          timeout: 30_000,
+        }
+      );
+
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      const output = JSON.parse(
+        readFileSync(join(outDir, "auto-draft-results.json"), "utf8")
+      ) as {
+        draftPrCreatedCount: number;
+        automaticMergeEligibleCount: number;
+        productionMainRouteMutations: number;
+        plans: unknown[];
+      };
+      assert.equal(output.draftPrCreatedCount, 0);
+      assert.equal(output.automaticMergeEligibleCount, 0);
+      assert.equal(output.productionMainRouteMutations, 0);
+      assert.deepEqual(output.plans, []);
+    } finally {
+      rmSync(outDir, { recursive: true, force: true });
+    }
   });
 
   it("runner contains Draft creation but no merge API or production-main mutation", () => {
