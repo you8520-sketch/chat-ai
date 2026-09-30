@@ -153,6 +153,7 @@ function comparisonEvidence(input: {
   let cacheRegressions = 0;
 
   for (const snapshot of input.snapshots) {
+    if ((snapshot.comparison?.version ?? 0) < 2) continue;
     const liveResult = snapshot.live?.results.find(
       (row) =>
         row.candidate.modelId === input.modelId &&
