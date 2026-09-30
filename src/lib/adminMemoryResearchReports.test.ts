@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  assessMemoryResearchFreshness,
   fetchMemoryResearchAdminProjection,
   MEMORY_RESEARCH_WORKFLOW_PATH,
   projectMemoryResearchAdminPipeline,
@@ -42,6 +43,60 @@ const groups: GithubScheduledAutomationGroup[] = [
 ];
 
 describe("admin Memory Research reports", () => {
+  it("classifies fresh, stale, and persistence-lag durable reports", () => {
+    const freshRun = projectMemoryResearchAdminRun(
+      JSON.stringify({
+        cycleKey: "weekly-2026-W40",
+        mode: "weekly",
+        status: "COMPLETED",
+        finishedAt: "2026-09-30T01:18:00Z",
+        mainSha: "abc",
+        counts: {},
+        providerCalls: {},
+        estimatedCostUsd: 0,
+        productionTouched: false,
+        decisions: [],
+      })
+    );
+    assert.ok(freshRun);
+
+    assert.deepEqual(
+      assessMemoryResearchFreshness(
+        freshRun,
+        null,
+        new Date("2026-10-01T00:00:00Z")
+      ),
+      { status: "FRESH", reason: null }
+    );
+
+    const stale = assessMemoryResearchFreshness(
+      freshRun,
+      null,
+      new Date("2026-10-09T02:00:00Z")
+    );
+    assert.equal(stale.status, "STALE_CYCLE");
+    assert.match(stale.reason ?? "", /older than/i);
+
+    const lag = assessMemoryResearchFreshness(
+      freshRun,
+      groups[0]!,
+      new Date("2026-09-30T02:00:00Z")
+    );
+    assert.equal(lag.status, "FRESH");
+
+    const olderRun = {
+      ...freshRun,
+      finishedAt: "2026-09-28T01:18:00Z",
+    };
+    const persistenceLag = assessMemoryResearchFreshness(
+      olderRun,
+      groups[0]!,
+      new Date("2026-09-30T02:00:00Z")
+    );
+    assert.equal(persistenceLag.status, "PERSISTENCE_LAG");
+    assert.match(persistenceLag.reason ?? "", /newer successful scheduled/i);
+  });
+
   it("projects current research fields and planner readiness without importing research runtime", () => {
     const run = projectMemoryResearchAdminRun(
       JSON.stringify({
@@ -384,6 +439,8 @@ describe("admin Memory Research reports", () => {
       /memory-research-ledger\/cycles\/weekly-2026-W40\.json/
     );
     assert.equal(seen.length, 2);
+    assert.equal(projection.freshnessStatus, "PERSISTENCE_LAG");
+    assert.match(projection.freshnessReason ?? "", /newer successful scheduled/i);
     assert.equal(projection.pipeline.pendingLiveExperiments, 1);
     assert.equal(
       projection.pipeline.items[0]?.candidateKey,
@@ -399,6 +456,7 @@ describe("admin Memory Research reports", () => {
     );
     assert.equal(projection.status, "UNAVAILABLE");
     assert.equal(projection.run, null);
+    assert.equal(projection.freshnessStatus, "UNKNOWN");
     assert.equal(projection.pipeline.pendingLiveExperiments, 0);
     assert.equal(projection.pipeline.items.length, 0);
     assert.match(projection.error ?? "", /503/);
