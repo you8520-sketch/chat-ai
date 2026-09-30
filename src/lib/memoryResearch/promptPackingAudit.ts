@@ -267,6 +267,24 @@ export function buildMemoryPromptPackingAudit(
   };
 }
 
+export function attachMemoryPromptPackingAuditToCycleJson(
+  rawCycleJson: string,
+  audit: MemoryPromptPackingAudit
+): string {
+  const parsed = JSON.parse(rawCycleJson) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("memory research cycle report must be a JSON object");
+  }
+  return `${JSON.stringify(
+    {
+      ...(parsed as Record<string, unknown>),
+      promptPackingAudit: audit,
+    },
+    null,
+    2
+  )}\n`;
+}
+
 export function renderMemoryPromptPackingAuditMarkdown(
   audit: MemoryPromptPackingAudit
 ): string {
