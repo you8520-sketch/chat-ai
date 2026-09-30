@@ -1,4 +1,5 @@
 import type { CurrentTurnAuthoringDelegation } from "@/lib/currentTurnUserAuthoringDelegation";
+import type { MemoryHealthTelemetry } from "@/lib/memory/memory-health-telemetry";
 
 export type FeedbackVote = 1 | -1;
 
@@ -91,6 +92,8 @@ export type GenerationContextInput = {
   regenerate?: boolean;
   variantIndex?: number;
   personaId?: number | null;
+  /** Compact internal memory-runtime health metadata; no prose or secret fact text. */
+  memoryHealth?: MemoryHealthTelemetry;
   /** Muse-only local acceptance telemetry (no auto-continuation). */
   museAcceptance?: Record<string, unknown>;
   /** Adult handoff telemetry. Public chat clients never receive this object. */
