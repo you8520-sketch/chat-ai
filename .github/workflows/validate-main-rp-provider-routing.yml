@@ -15,7 +15,7 @@ on:
       - "scripts/lib/mainRpMonthlyCacheAudit.ts"
       - "scripts/lib/mainRpSupplyRadar.ts"
       - "scripts/lib/mainRpSupplyLiveQualification.ts"
-      - "scripts/lib/mainRpSupplyCiBaseline.ts"
+      - "scripts/lib/mainRpSupplyCurrentBaseline.ts"
       - "scripts/lib/rpModelQualificationPacket.ts"
       - "**/*mainRp*test.ts"
       - "src/lib/chatModels.gemini.test.ts"
@@ -65,4 +65,4 @@ jobs:
           scripts/lib/mainRpSupplyPromotionHistory.test.ts
           scripts/lib/mainRpSupplyPromotionProposal.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
-          scripts/lib/mainRpSupplyCiBaseline.test.ts
+          scripts/lib/mainRpSupplyCurrentBaseline.test.ts
