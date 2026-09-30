@@ -512,6 +512,7 @@ import {
   logStatusMemoryPipelineDev,
   summarizeEpisodicFactPersistCandidates,
 } from "@/lib/episodicMemoryFacts";
+import { resolveEpisodicSemanticRuntime } from "@/lib/memory/memory-episodic-semantic-config";
 import { resolveEpisodicSemanticQuery } from "@/lib/memory/memory-episodic-semantic-jobs";
 import { stripExtractedFactsForClient } from "@/lib/statusWidget/parseValues";
 import {
@@ -1906,10 +1907,12 @@ export async function POST(req: Request) {
     userId: user.id,
     currentTurn: memorySourceEligibleCompletedTurns + 1,
   };
+  const episodicSemanticRuntime = resolveEpisodicSemanticRuntime();
   const episodicSemantic = await resolveEpisodicSemanticQuery({
     query: policyUserMessage,
     contentRoute: effectiveAdultRp ? "nsfw" : "safe",
     usableIndex: (model) => hasEpisodicSemanticIndexInScope(db, episodicRetrievalScope, model),
+    runtime: episodicSemanticRuntime,
   });
   const episodicMemory = getEpisodicMemoryForPrompt(db, {
     ...episodicRetrievalScope,
@@ -1938,6 +1941,8 @@ export async function POST(req: Request) {
       episodicBudgetBlockedCount: episodicMemory.debug.filter((d) =>
         Boolean(d.budget_reason)
       ).length,
+      episodicSemanticRuntime,
+      episodicSemanticQueryReason: episodicSemantic.reason,
       statusExtractCallCount: 0,
     })
   );
@@ -5757,6 +5762,8 @@ export async function POST(req: Request) {
             episodicBudgetBlockedCount: episodicMemory.debug.filter((d) =>
               Boolean(d.budget_reason)
             ).length,
+            episodicSemanticRuntime,
+            episodicSemanticQueryReason: episodicSemantic.reason,
             statusExtractCallCount:
               widgetExtractResult === "v3_extract" || widgetExtractResult === "v3_repair"
                 ? 1

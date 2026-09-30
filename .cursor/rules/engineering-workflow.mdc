@@ -1,0 +1,60 @@
+---
+description: HAV engineering overlay — pstack owns general process; this file owns HAV-only overrides
+alwaysApply: true
+---
+
+# HAV engineering workflow
+
+Official Cursor pstack (`cursor/plugins/pstack`) owns general engineering. Korean `pstack-guide-ko` is reference only. On conflict with that guide, follow official pstack. On the HAV invariants below, this file wins over pstack defaults, including `never-block-on-the-human`, opening-a-pr readiness, and shipping/autopilot merge.
+
+Do not vendor pstack. Do not copy pstack skill text into this repo. Do not add a second process rule.
+
+Factual source of truth: the current-main production/runtime execution path. Past chats and PR descriptions are not.
+
+## pstack owns — do not restate
+
+Playbooks stay in pstack: poteto-mode, bug-fix, feature, refactoring, architect, tdd, blast-radius, interrogate, autonomous-run.
+
+Adopted vocabulary and what it replaces here:
+
+- **Fix Root Causes** — replaces "patch the symptom / add a guard" as the default bugfix move
+- **Prove It Works** — replaces "typecheck passed" as done
+- **Subtract Before You Add** — replaces adding a parallel helper, prompt, or flag beside a live owner
+- **Attack the Premise** — replaces strengthening the same correction after 2+ failures
+- **Model the Domain** — replaces scattering a second owner for the same responsibility
+- **Boundary Discipline** — replaces re-validating inside after `regularTestEgressPolicy`, CI, or API boundaries
+- **Make Operations Idempotent** — replaces one-shot cleanup/research jobs that cannot rerun
+- **Sequence Work into Verifiable Units** — replaces mixing MUST FIX NOW with SAFE OPTIONAL in one PR
+- **Test Behavior, Not Implementation** — replaces pinning prompt strings or private helpers
+- **Guard the Context Window** — replaces dumping pstack plus HAV process into every task
+- **Encode Lessons in Structure** — replaces growing this file when a CI/runtime owner already exists
+
+## HAV overrides — this file wins
+
+**Owner map.** ONE RESPONSIBILITY = ONE CANONICAL OWNER. Confirm the live owner on current main before editing.
+
+**Change budget.** MUST FIX NOW / REQUIRED CLEANUP / SAFE OPTIONAL / SEPARATE FOLLOW-UP. After the user symptom is fixed, do only MUST FIX NOW + REQUIRED CLEANUP + direct regression. Record the rest and STOP.
+
+**Repeated failure.** Same symptom still fails after 2+ fixes in the same direction → Attack the Premise. Do not strengthen the previous correction.
+
+**Prompt / runtime.** Do not add a new prompt sentence as the first fix. Audit final assembly (`src/services/contextBuilder.ts` and the live section owners), order, duplication, model adapter, and recovery path. If you add a rule, find one to delete or merge.
+
+**Dead system cleanup.** Classify related dead code, duplicate helper, obsolete flag, stale prompt, or compatibility shim as SAFE TO DELETE / KEEP / FOLLOW-UP. Do not delete without writer / reader / existing data / rollback evidence.
+
+**Merge authority.** Default end state is a Draft PR. Do not use pstack opening-a-pr "ready, never draft", shipping, autopilot-full, or auto-merge as HAV defaults. Merge only after a separate GPT/user review.
+
+**Sensitive STOP.** These beat pstack `never-block-on-the-human`:
+
+- destructive DB migration
+- provider cost / billing structure
+- production invariant breakage
+- auth / security / permission
+- adult verification or other sensitive boundary
+- unexpected canonical owner
+- unrelated large architecture change
+
+Report evidence and options, then STOP.
+
+**Visual verification.** Do not record or attach video verification. If deployed UI needs a final visual check, list it as a PR manual verification item for the user after merge/deploy.
+
+**Unchanged owners.** `.cursor/rules/dev-server.mdc`, `.cursor/rules/utf8-encoding.mdc`, and `AGENTS.md` stay independent. Provider-call and production-mutation guards already live in `regularTestEgressPolicy`, path-filtered `validate-*` workflows, and research/cleanup jobs. Do not re-encode them as prose here.

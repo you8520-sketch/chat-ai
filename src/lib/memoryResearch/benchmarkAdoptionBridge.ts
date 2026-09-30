@@ -94,11 +94,11 @@ const RULES: readonly Rule[] = [
     status: "PARTIAL_COVERAGE",
     localGroups: ["DYNAMIC_STATE_TRACKING", "PREMISE_AWARENESS"],
     coverage:
-      "Current cases cover correction/supersession, stale state, edit/regen/fork/reset invalidation, and canonical last-turn deletion including summary-seal episodic provenance rollback.",
+      "Current cases cover correction/supersession, stale state, edit/regen/fork/reset invalidation, canonical last-turn deletion including summary-seal episodic provenance rollback, and derived-memory-deletion-residue-01 proving pruned summary text is absent from active summaries, stored recent_summary, and prompt-facing Global Current Memory.",
     gap:
-      "The external forgetting benchmark is broader than the site's current mutation surface; no additional concrete local destructive path is presently proven to lack derived-tier invalidation coverage.",
+      "The external forgetting benchmark is broader than the site's currently supported destructive/update surface; no additional concrete local mutation path is presently proven to lack derived-tier invalidation coverage.",
     nextAction:
-      "Keep the benchmark on watch. Re-open local case planning only when a real supported delete/update/rewind path is found without full derived-tier invalidation proof; reuse existing stale-state/false-memory metrics.",
+      "Keep the benchmark on watch. Re-open local case planning only when a real supported delete/update/rewind path is found without deterministic derived-tier invalidation proof; reuse existing stale-state/false-memory metrics.",
   },
   {
     ability: "dynamic_state_tracking",

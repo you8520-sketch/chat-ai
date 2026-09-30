@@ -2,6 +2,7 @@ import {
   buildCheaperInferenceChatCompletionsUrl,
   buildCheaperInferenceHeaders,
 } from "@/lib/cheaperInferenceConfig";
+import { OPENROUTER_CHAT_COMPLETIONS_URL, resolveMainRpOpenRouterRoutePolicy } from "@/lib/openRouterConfig";
 import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
 import { buildContext } from "@/services/contextBuilder";
@@ -10,10 +11,14 @@ import {
   buildCanonicalRpQualificationContextInput,
   type CanonicalQualificationCase,
 } from "./rpModelQualificationFixture";
-import type { MainRpSupplyRadarReport } from "./mainRpSupplyRadar";
+import {
+  selectCurrentOpenRouterRouteEndpoint,
+  type MainRpSupplyRadarReport,
+} from "./mainRpSupplyRadar";
 import {
   MAIN_RP_SUPPLY_LIVE_TARGET_CHARS,
   buildDeterministicSupplyProbeTurns,
+  executeOpenRouterSupplyProbe,
   processOpenRouterSupplySseLine,
   type SupplyLiveCandidate,
   type SupplyLiveCandidateResult,
@@ -21,60 +26,75 @@ import {
   type SupplyLiveTurnResult,
 } from "./mainRpSupplyLiveQualification";
 
-export const MAIN_RP_SUPPLY_CI_BASELINE_VERSION = 1;
-export const MAIN_RP_SUPPLY_CI_BASELINE_MAX_PROVIDER_CALLS = 10;
-export const MAIN_RP_SUPPLY_CI_BASELINE_MAX_ESTIMATED_USD = 10;
+export const MAIN_RP_SUPPLY_CURRENT_BASELINE_VERSION = 2;
+export const MAIN_RP_SUPPLY_CURRENT_BASELINE_MAX_PROVIDER_CALLS = 10;
+export const MAIN_RP_SUPPLY_CURRENT_BASELINE_MAX_ESTIMATED_USD = 10;
 export const MAIN_RP_SUPPLY_COMBINED_MAX_PROVIDER_CALLS = 20;
-export const MAIN_RP_SUPPLY_CI_BASELINE_TIMEOUT_MS = 90_000;
+export const MAIN_RP_SUPPLY_CURRENT_BASELINE_TIMEOUT_MS = 90_000;
 
 type JsonObject = Record<string, unknown>;
 type FetchLike = typeof fetch;
+export type CurrentBaselineProvider = "cheaperinference" | "openrouter";
 
-export type CurrentCiBaselinePlanEntry = {
+export type CurrentBaselinePlanEntry = {
   candidate: SupplyLiveCandidate;
-  estimatedPairCatalogRateUsd: number;
+  currentProvider: CurrentBaselineProvider;
+  currentProviderName: string;
+  currentProviderSlug: string | null;
+  currentServiceTier: "flex" | null;
+  estimatedPairCurrentRateUsd: number;
+  openRouterRouteCandidate: SupplyLiveCandidate | null;
 };
 
-export type CurrentCiBaselinePlan = {
+export type CurrentBaselinePlan = {
   selection: SupplyLiveSelection;
-  entries: CurrentCiBaselinePlanEntry[];
+  entries: CurrentBaselinePlanEntry[];
   skipped: Array<{
     modelId: string;
     reason:
-      | "current_route_not_cheaperinference"
-      | "current_ci_catalog_baseline_missing"
-      | "current_ci_baseline_budget_guard";
+      | "current_procurement_baseline_missing"
+      | "current_openrouter_route_policy_missing"
+      | "current_openrouter_route_endpoint_missing"
+      | "current_baseline_budget_guard";
   }>;
-  estimatedCatalogRateUsd: number;
+  estimatedCurrentRateUsd: number;
   maxProviderGenerationCalls: number;
 };
 
-export type CurrentCiBaselineResult = {
+export type CurrentBaselineResult = {
   modelId: SupplyLiveCandidate["modelId"];
+  currentProvider: CurrentBaselineProvider;
+  currentProviderName: string;
+  currentProviderSlug: string | null;
+  currentServiceTier: "flex" | null;
   turns: SupplyLiveTurnResult[];
   providerGenerationCalls: number;
   livePairComplete: boolean;
   secondTurnCacheReadObserved: boolean;
-  estimatedPairCatalogRateUsd: number;
+  estimatedPairCurrentRateUsd: number;
 };
 
 export type SupplyTransportComparisonRow = {
   modelId: SupplyLiveCandidate["modelId"];
   candidateProviderName: string;
   candidateProviderSlug: string;
+  currentProvider: CurrentBaselineProvider;
+  currentProviderName: string;
+  currentProviderSlug: string | null;
+  currentServiceTier: "flex" | null;
   candidatePairComplete: boolean;
-  currentCiPairComplete: boolean;
+  currentBaselinePairComplete: boolean;
   candidateSecondTurnCacheReadObserved: boolean;
-  currentCiSecondTurnCacheReadObserved: boolean;
+  currentBaselineSecondTurnCacheReadObserved: boolean;
   candidateAverageTtftSeconds: number | null;
-  currentCiAverageTtftSeconds: number | null;
+  currentBaselineAverageTtftSeconds: number | null;
   candidateAverageTotalSeconds: number | null;
-  currentCiAverageTotalSeconds: number | null;
+  currentBaselineAverageTotalSeconds: number | null;
   candidateObservedProviderCostUsd: number | null;
-  currentCiObservedBilledCostUsd: number | null;
+  currentBaselineObservedProviderCostUsd: number | null;
   candidateEstimatedPairRawEndpointRateUsd: number;
-  currentCiEstimatedPairCatalogRateUsd: number;
-  marketRawEndpointRateDeltaVsCurrentCiPercent: number;
+  currentBaselineEstimatedPairRateUsd: number;
+  marketRawEndpointRateDeltaVsCurrentBaselinePercent: number;
 };
 
 export type SupplyTransportComparisonReport = {
@@ -83,7 +103,7 @@ export type SupplyTransportComparisonReport = {
   providerGenerationCalls: number;
   maxProviderGenerationCalls: number;
   candidateGenerationCalls: number;
-  currentCiGenerationCalls: number;
+  currentBaselineGenerationCalls: number;
   rows: SupplyTransportComparisonRow[];
   notes: string[];
 };
@@ -97,61 +117,142 @@ function asNumber(value: unknown): number | null {
   return null;
 }
 
-function estimateCiPairUsd(inputPerM: number, outputPerM: number): number {
+function estimatePairUsd(inputPerM: number, outputPerM: number): number {
   return 2 * (
     inputPerM * 50_000 / 1_000_000 +
     outputPerM * 1_200 / 1_000_000
   );
 }
 
-export function applyCurrentCiBaselineBudgetGuard(
+function currentOpenRouterRouteCandidate(input: {
+  model: MainRpSupplyRadarReport["models"][number];
+  candidate: SupplyLiveCandidate;
+}): {
+  providerName: string;
+  providerSlug: string;
+  serviceTier: "flex" | null;
+  candidate: SupplyLiveCandidate;
+} | null {
+  const route = resolveMainRpOpenRouterRoutePolicy(input.candidate.modelId);
+  if (!route) return null;
+  const endpoint = selectCurrentOpenRouterRouteEndpoint(
+    input.candidate.modelId,
+    input.model.comparisons
+  );
+  const providerSlug = route.provider.only[0] ?? null;
+  if (!endpoint || !providerSlug) return null;
+  return {
+    providerName: endpoint.providerName,
+    providerSlug,
+    serviceTier: route.serviceTier,
+    candidate: {
+      ...input.candidate,
+      providerName: endpoint.providerName,
+      providerSlug,
+      quantization: endpoint.quantization,
+      rawEndpointRateDeltaVsCurrentProcurementPercent: 0,
+      inputUsdPerMillion:
+        endpoint.inputUsdPerMillion ?? input.candidate.inputUsdPerMillion,
+      outputUsdPerMillion:
+        endpoint.outputUsdPerMillion ?? input.candidate.outputUsdPerMillion,
+      cacheReadUsdPerMillion: endpoint.cacheReadUsdPerMillion,
+      marketLatencyP50SecondsLast30m:
+        endpoint.latencyP50SecondsLast30m ??
+        input.candidate.marketLatencyP50SecondsLast30m,
+      marketThroughputP50TokensPerSecondLast30m:
+        endpoint.throughputP50TokensPerSecondLast30m ??
+        input.candidate.marketThroughputP50TokensPerSecondLast30m,
+      marketUptimeLast1dPercent:
+        endpoint.uptimeLast1dPercent ??
+        input.candidate.marketUptimeLast1dPercent,
+      marketUptimeLast30mPercent:
+        endpoint.uptimeLast30mPercent ??
+        input.candidate.marketUptimeLast30mPercent,
+    },
+  };
+}
+
+export function applyCurrentBaselineBudgetGuard(
   radar: MainRpSupplyRadarReport,
   selection: SupplyLiveSelection
-): CurrentCiBaselinePlan {
-  const entries: CurrentCiBaselinePlanEntry[] = [];
-  const skipped: CurrentCiBaselinePlan["skipped"] = [];
+): CurrentBaselinePlan {
+  const entries: CurrentBaselinePlanEntry[] = [];
+  const skipped: CurrentBaselinePlan["skipped"] = [];
   const plannedModelIds = new Set<SupplyLiveCandidate["modelId"]>();
-  let estimatedCatalogRateUsd = 0;
+  let estimatedCurrentRateUsd = 0;
 
   for (const candidate of selection.candidates) {
     if (plannedModelIds.has(candidate.modelId)) continue;
     const model = radar.models.find((row) => row.modelId === candidate.modelId);
-    if (model?.currentProcurement?.provider !== "cheaperinference") {
+    const procurement = model?.currentProcurement ?? null;
+    const inputPerM = asNumber(procurement?.inputUsdPerMillion);
+    const outputPerM = asNumber(procurement?.outputUsdPerMillion);
+    if (!model || !procurement || inputPerM == null || outputPerM == null) {
       skipped.push({
         modelId: candidate.modelId,
-        reason: "current_route_not_cheaperinference",
-      });
-      continue;
-    }
-    const inputPerM = asNumber(model.currentProcurement.inputUsdPerMillion);
-    const outputPerM = asNumber(model?.currentProcurement?.outputUsdPerMillion);
-    if (inputPerM == null || outputPerM == null) {
-      skipped.push({
-        modelId: candidate.modelId,
-        reason: "current_ci_catalog_baseline_missing",
+        reason: "current_procurement_baseline_missing",
       });
       continue;
     }
 
-    const estimate = estimateCiPairUsd(inputPerM, outputPerM);
+    const estimate = estimatePairUsd(inputPerM, outputPerM);
     if (
-      estimatedCatalogRateUsd + estimate >
-      MAIN_RP_SUPPLY_CI_BASELINE_MAX_ESTIMATED_USD
+      estimatedCurrentRateUsd + estimate >
+      MAIN_RP_SUPPLY_CURRENT_BASELINE_MAX_ESTIMATED_USD
     ) {
       skipped.push({
         modelId: candidate.modelId,
-        reason: "current_ci_baseline_budget_guard",
+        reason: "current_baseline_budget_guard",
       });
       continue;
     }
 
-    entries.push({ candidate, estimatedPairCatalogRateUsd: estimate });
+    if (procurement.provider === "openrouter") {
+      const route = resolveMainRpOpenRouterRoutePolicy(candidate.modelId);
+      if (!route) {
+        skipped.push({
+          modelId: candidate.modelId,
+          reason: "current_openrouter_route_policy_missing",
+        });
+        continue;
+      }
+      const current = currentOpenRouterRouteCandidate({ model, candidate });
+      if (!current) {
+        skipped.push({
+          modelId: candidate.modelId,
+          reason: "current_openrouter_route_endpoint_missing",
+        });
+        continue;
+      }
+      entries.push({
+        candidate,
+        currentProvider: "openrouter",
+        currentProviderName: current.providerName,
+        currentProviderSlug: current.providerSlug,
+        currentServiceTier: current.serviceTier,
+        estimatedPairCurrentRateUsd: estimate,
+        openRouterRouteCandidate: current.candidate,
+      });
+    } else {
+      entries.push({
+        candidate,
+        currentProvider: "cheaperinference",
+        currentProviderName: "CheaperInference",
+        currentProviderSlug: null,
+        currentServiceTier: null,
+        estimatedPairCurrentRateUsd: estimate,
+        openRouterRouteCandidate: null,
+      });
+    }
     plannedModelIds.add(candidate.modelId);
-    estimatedCatalogRateUsd += estimate;
+    estimatedCurrentRateUsd += estimate;
   }
 
-  if (entries.length * 2 > MAIN_RP_SUPPLY_CI_BASELINE_MAX_PROVIDER_CALLS) {
-    throw new Error("Current CI baseline selection exceeded provider-call budget");
+  if (
+    entries.length * 2 >
+    MAIN_RP_SUPPLY_CURRENT_BASELINE_MAX_PROVIDER_CALLS
+  ) {
+    throw new Error("Current baseline selection exceeded provider-call budget");
   }
 
   const allowed = new Set(entries.map((entry) => entry.candidate.modelId));
@@ -165,7 +266,7 @@ export function applyCurrentCiBaselineBudgetGuard(
         ...selection.skipped,
         ...skipped.map((row) => ({
           modelId: row.modelId as SupplyLiveCandidate["modelId"],
-          providerName: "current-cheaperinference",
+          providerName: "current-production-route",
           reason: row.reason,
         })),
       ],
@@ -182,47 +283,54 @@ export function applyCurrentCiBaselineBudgetGuard(
     },
     entries,
     skipped,
-    estimatedCatalogRateUsd:
-      Math.round(estimatedCatalogRateUsd * 1_000_000) / 1_000_000,
-    maxProviderGenerationCalls: MAIN_RP_SUPPLY_CI_BASELINE_MAX_PROVIDER_CALLS,
+    estimatedCurrentRateUsd:
+      Math.round(estimatedCurrentRateUsd * 1_000_000) / 1_000_000,
+    maxProviderGenerationCalls:
+      MAIN_RP_SUPPLY_CURRENT_BASELINE_MAX_PROVIDER_CALLS,
   };
 }
 
-export function buildCurrentCiBaselineProbeRequest(input: {
-  candidate: SupplyLiveCandidate;
+export function buildCurrentBaselineProbeRequest(input: {
+  entry: CurrentBaselinePlanEntry;
   turn: CanonicalQualificationCase;
   sessionId: string;
 }): { body: JsonObject; url: string } {
+  const provider = input.entry.currentProvider;
   const contextInput = buildCanonicalRpQualificationContextInput({
-    modelId: input.candidate.modelId,
+    modelId: input.entry.candidate.modelId,
     caseData: input.turn,
-    provider: "cheaperinference",
+    provider,
   });
   contextInput.targetResponseChars = MAIN_RP_SUPPLY_LIVE_TARGET_CHARS;
   const built = buildContext(contextInput);
   const wire = assemblePrimaryRpRequest({
     system: built.systemPrompt,
     history: built.history ?? [],
-    modelId: input.candidate.modelId,
+    modelId:
+      provider === "openrouter"
+        ? input.entry.candidate.openRouterSlug
+        : input.entry.candidate.modelId,
     targetResponseChars: MAIN_RP_SUPPLY_LIVE_TARGET_CHARS,
     messageOpts: {
-      transportProvider: "cheaperinference",
+      transportProvider: provider,
       charName: CANONICAL_RP_QUALIFICATION_SOURCE.characterName,
       personaName: CANONICAL_RP_QUALIFICATION_SOURCE.personaName,
       sessionId: input.sessionId,
     },
     stream: true,
   });
-
   return {
     body: {
       ...(wire.requestBody as JsonObject),
       stream: true,
       stream_options: { include_usage: true },
     },
-    url: buildCheaperInferenceChatCompletionsUrl({
-      promptCacheSession: input.sessionId,
-    }),
+    url:
+      provider === "openrouter"
+        ? OPENROUTER_CHAT_COMPLETIONS_URL
+        : buildCheaperInferenceChatCompletionsUrl({
+            promptCacheSession: input.sessionId,
+          }),
   };
 }
 
@@ -258,9 +366,8 @@ function flush(
   buffer.value = "";
 }
 
-export async function executeCurrentCiBaselineProbe(input: {
+async function executeCurrentCheaperInferenceBaselineProbe(input: {
   apiKey: string;
-  candidate: SupplyLiveCandidate;
   body: JsonObject;
   url: string;
   turn: 1 | 2;
@@ -292,7 +399,7 @@ export async function executeCurrentCiBaselineProbe(input: {
         Accept: "text/event-stream",
       },
       body: JSON.stringify(input.body),
-      signal: AbortSignal.timeout(MAIN_RP_SUPPLY_CI_BASELINE_TIMEOUT_MS),
+      signal: AbortSignal.timeout(MAIN_RP_SUPPLY_CURRENT_BASELINE_TIMEOUT_MS),
     });
     httpStatus = response.status;
     responseHeaders = response.headers;
@@ -369,29 +476,49 @@ function isComplete(turn: SupplyLiveTurnResult): boolean {
   );
 }
 
-export async function runCurrentCiBaselinePair(input: {
-  apiKey: string;
-  entry: CurrentCiBaselinePlanEntry;
+export async function runCurrentBaselinePair(input: {
+  openRouterApiKey: string;
+  cheaperInferenceApiKey?: string | null;
+  entry: CurrentBaselinePlanEntry;
   sessionId: string;
   fetchImpl?: FetchLike;
-}): Promise<CurrentCiBaselineResult> {
+}): Promise<CurrentBaselineResult> {
   const turns = buildDeterministicSupplyProbeTurns();
   const results: SupplyLiveTurnResult[] = [];
 
   for (let index = 0; index < turns.length; index += 1) {
-    const request = buildCurrentCiBaselineProbeRequest({
-      candidate: input.entry.candidate,
+    const request = buildCurrentBaselineProbeRequest({
+      entry: input.entry,
       turn: turns[index]!,
       sessionId: input.sessionId,
     });
-    const result = await executeCurrentCiBaselineProbe({
-      apiKey: input.apiKey,
-      candidate: input.entry.candidate,
-      body: request.body,
-      url: request.url,
-      turn: (index + 1) as 1 | 2,
-      fetchImpl: input.fetchImpl,
-    });
+
+    let result: SupplyLiveTurnResult;
+    if (input.entry.currentProvider === "openrouter") {
+      const routeCandidate = input.entry.openRouterRouteCandidate;
+      if (!routeCandidate) {
+        throw new Error("current_openrouter_route_candidate_missing");
+      }
+      result = await executeOpenRouterSupplyProbe({
+        apiKey: input.openRouterApiKey,
+        candidate: routeCandidate,
+        body: request.body,
+        turn: (index + 1) as 1 | 2,
+        fetchImpl: input.fetchImpl,
+      });
+    } else {
+      const apiKey = input.cheaperInferenceApiKey?.trim();
+      if (!apiKey) {
+        throw new Error("missing_cheaper_inference_benchmark_credential");
+      }
+      result = await executeCurrentCheaperInferenceBaselineProbe({
+        apiKey,
+        body: request.body,
+        url: request.url,
+        turn: (index + 1) as 1 | 2,
+        fetchImpl: input.fetchImpl,
+      });
+    }
     results.push(result);
     if (!isComplete(result)) break;
   }
@@ -401,11 +528,15 @@ export async function runCurrentCiBaselinePair(input: {
   const secondTurn = results.find((turn) => turn.turn === 2) ?? null;
   return {
     modelId: input.entry.candidate.modelId,
+    currentProvider: input.entry.currentProvider,
+    currentProviderName: input.entry.currentProviderName,
+    currentProviderSlug: input.entry.currentProviderSlug,
+    currentServiceTier: input.entry.currentServiceTier,
     turns: results,
     providerGenerationCalls: results.length,
     livePairComplete,
     secondTurnCacheReadObserved: (secondTurn?.cacheReadTokens ?? 0) > 0,
-    estimatedPairCatalogRateUsd: input.entry.estimatedPairCatalogRateUsd,
+    estimatedPairCurrentRateUsd: input.entry.estimatedPairCurrentRateUsd,
   };
 }
 
@@ -424,46 +555,49 @@ function observedCost(turns: SupplyLiveTurnResult[]): number | null {
 
 export function buildSupplyTransportComparisonReport(input: {
   candidateResults: SupplyLiveCandidateResult[];
-  currentCiResults: CurrentCiBaselineResult[];
+  currentBaselineResults: CurrentBaselineResult[];
   generatedAt?: string;
 }): SupplyTransportComparisonReport {
   const rows: SupplyTransportComparisonRow[] = [];
 
   for (const candidateResult of input.candidateResults) {
-    const baseline = input.currentCiResults.find(
+    const baseline = input.currentBaselineResults.find(
       (row) => row.modelId === candidateResult.candidate.modelId
     );
     if (!baseline) continue;
-
     rows.push({
       modelId: candidateResult.candidate.modelId,
       candidateProviderName: candidateResult.candidate.providerName,
       candidateProviderSlug: candidateResult.candidate.providerSlug,
+      currentProvider: baseline.currentProvider,
+      currentProviderName: baseline.currentProviderName,
+      currentProviderSlug: baseline.currentProviderSlug,
+      currentServiceTier: baseline.currentServiceTier,
       candidatePairComplete: candidateResult.livePairComplete,
-      currentCiPairComplete: baseline.livePairComplete,
+      currentBaselinePairComplete: baseline.livePairComplete,
       candidateSecondTurnCacheReadObserved:
         candidateResult.secondTurnCacheReadObserved,
-      currentCiSecondTurnCacheReadObserved:
+      currentBaselineSecondTurnCacheReadObserved:
         baseline.secondTurnCacheReadObserved,
       candidateAverageTtftSeconds: average(
         candidateResult.turns.map((turn) => turn.ttftSeconds)
       ),
-      currentCiAverageTtftSeconds: average(
+      currentBaselineAverageTtftSeconds: average(
         baseline.turns.map((turn) => turn.ttftSeconds)
       ),
       candidateAverageTotalSeconds: average(
         candidateResult.turns.map((turn) => turn.totalSeconds)
       ),
-      currentCiAverageTotalSeconds: average(
+      currentBaselineAverageTotalSeconds: average(
         baseline.turns.map((turn) => turn.totalSeconds)
       ),
       candidateObservedProviderCostUsd: observedCost(candidateResult.turns),
-      currentCiObservedBilledCostUsd: observedCost(baseline.turns),
+      currentBaselineObservedProviderCostUsd: observedCost(baseline.turns),
       candidateEstimatedPairRawEndpointRateUsd:
         candidateResult.candidate.estimatedPairRawEndpointRateUsd,
-      currentCiEstimatedPairCatalogRateUsd:
-        baseline.estimatedPairCatalogRateUsd,
-      marketRawEndpointRateDeltaVsCurrentCiPercent:
+      currentBaselineEstimatedPairRateUsd:
+        baseline.estimatedPairCurrentRateUsd,
+      marketRawEndpointRateDeltaVsCurrentBaselinePercent:
         candidateResult.candidate.rawEndpointRateDeltaVsCurrentProcurementPercent,
     });
   }
@@ -472,28 +606,29 @@ export function buildSupplyTransportComparisonReport(input: {
     (sum, row) => sum + row.providerGenerationCalls,
     0
   );
-  const currentCiCalls = input.currentCiResults.reduce(
+  const currentBaselineCalls = input.currentBaselineResults.reduce(
     (sum, row) => sum + row.providerGenerationCalls,
     0
   );
-  const totalCalls = candidateCalls + currentCiCalls;
+  const totalCalls = candidateCalls + currentBaselineCalls;
   if (totalCalls > MAIN_RP_SUPPLY_COMBINED_MAX_PROVIDER_CALLS) {
     throw new Error("Combined supply comparison exceeded provider-call budget");
   }
 
   return {
-    version: MAIN_RP_SUPPLY_CI_BASELINE_VERSION,
+    version: MAIN_RP_SUPPLY_CURRENT_BASELINE_VERSION,
     generatedAt: input.generatedAt ?? new Date().toISOString(),
     providerGenerationCalls: totalCalls,
     maxProviderGenerationCalls: MAIN_RP_SUPPLY_COMBINED_MAX_PROVIDER_CALLS,
     candidateGenerationCalls: candidateCalls,
-    currentCiGenerationCalls: currentCiCalls,
+    currentBaselineGenerationCalls: currentBaselineCalls,
     rows,
     notes: [
-      "This is a factual side-by-side transport/cache comparison, not an automatic provider selection.",
-      "The candidate raw endpoint-rate estimate excludes OpenRouter account/platform fee interpretation.",
-      "Current CI observed cost is provider-reported billed evidence when present; candidate observed provider cost may represent upstream inference cost and is not assumed to be final cash procurement cost.",
-      "Two calls per side are not a statistical reliability sample. Market uptime metrics and the monthly CI cache audit remain the stability/history owners.",
+      "This is a factual side-by-side transport/cache comparison against the actual current production procurement route.",
+      "OpenRouter current baselines preserve the canonical provider pin and production service_tier.",
+      "CheaperInference current baselines use the dedicated benchmark credential when that model is currently routed through CheaperInference.",
+      "Candidate raw endpoint-rate estimates exclude OpenRouter account/platform fee interpretation.",
+      "Two calls per side are not a statistical reliability sample. Market uptime metrics and durable history remain the stability owners.",
       "Raw outputs remain review artifacts; no composite RP quality score is generated.",
     ],
   };
@@ -503,22 +638,24 @@ export function renderSupplyTransportComparisonMarkdown(
   report: SupplyTransportComparisonReport
 ): string {
   const lines = [
-    "# Main RP Supply — Candidate vs Current CI",
+    "# Main RP Supply — Candidate vs Current Production",
     "",
     `- provider generation calls: **${report.providerGenerationCalls}/${report.maxProviderGenerationCalls}**`,
     `- candidate calls: ${report.candidateGenerationCalls}`,
-    `- current CI baseline calls: ${report.currentCiGenerationCalls}`,
+    `- current baseline calls: ${report.currentBaselineGenerationCalls}`,
     "",
-    "| Model | Candidate | Candidate TTFT avg | CI TTFT avg | Candidate total avg | CI total avg | Candidate cache T2 | CI cache T2 | Candidate raw pair est. | CI catalog pair est. |",
-    "|---|---|---:|---:|---:|---:|---|---|---:|---:|",
+    "| Model | Candidate | Current route | Candidate TTFT avg | Current TTFT avg | Candidate total avg | Current total avg | Candidate cache T2 | Current cache T2 | Candidate raw pair est. | Current pair est. |",
+    "|---|---|---|---:|---:|---:|---:|---|---|---:|---:|",
   ];
-
   for (const row of report.rows) {
+    const currentRoute =
+      row.currentProvider === "openrouter"
+        ? `${row.currentProviderName} / ${row.currentProviderSlug ?? "unknown"} / serviceTier=${row.currentServiceTier ?? "default"}`
+        : row.currentProviderName;
     lines.push(
-      `| ${row.modelId} | ${row.candidateProviderName} | ${row.candidateAverageTtftSeconds ?? "n/a"} | ${row.currentCiAverageTtftSeconds ?? "n/a"} | ${row.candidateAverageTotalSeconds ?? "n/a"} | ${row.currentCiAverageTotalSeconds ?? "n/a"} | ${row.candidateSecondTurnCacheReadObserved} | ${row.currentCiSecondTurnCacheReadObserved} | $${row.candidateEstimatedPairRawEndpointRateUsd.toFixed(4)} | $${row.currentCiEstimatedPairCatalogRateUsd.toFixed(4)} |`
+      `| ${row.modelId} | ${row.candidateProviderName} | ${currentRoute} | ${row.candidateAverageTtftSeconds ?? "n/a"} | ${row.currentBaselineAverageTtftSeconds ?? "n/a"} | ${row.candidateAverageTotalSeconds ?? "n/a"} | ${row.currentBaselineAverageTotalSeconds ?? "n/a"} | ${row.candidateSecondTurnCacheReadObserved} | ${row.currentBaselineSecondTurnCacheReadObserved} | $${row.candidateEstimatedPairRawEndpointRateUsd.toFixed(4)} | $${row.currentBaselineEstimatedPairRateUsd.toFixed(4)} |`
     );
   }
-
   lines.push("", "## Interpretation boundary", "");
   for (const note of report.notes) lines.push(`- ${note}`);
   lines.push("");

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { LiveArmResult, LiveBenchmarkResult } from "../../../scripts/lib/episodicEmbeddingLiveBenchmark";
+import type { BaselineSnapshot } from "@/lib/memoryResearch/baselineTrend";
 import { runLabArm, runLabBaseline } from "@/lib/memoryResearch/benchmarkLab";
 import { narrowSyntheticAdapter, wideSyntheticAdapter } from "@/lib/memoryResearch/labFixtures.test";
 import { emptyLedger, type ResearchLedger } from "@/lib/memoryResearch/ledger";
@@ -163,4 +164,62 @@ it("missing benchmark opt-in leaves the candidate pending without mutating evide
   assert.equal(out.report.status, "NOT_RUN");
   assert.equal(out.ledger.candidates[CANDIDATE_KEY]!.lastDecision, "WATCH_LIVE_EXPERIMENT_PENDING");
   assert.equal(out.ledger.candidates[CANDIDATE_KEY]!.liveExperiment, undefined);
+});
+
+
+it("persistent semantic gap prioritizes the existing Qwen live recipe inside the unchanged max-2 budget", async () => {
+  const qwenLedger = pendingLedger();
+  const qwen = qwenLedger.candidates[CANDIDATE_KEY]!;
+  const ledger = emptyLedger();
+
+  const fake = (key: string): ResearchCandidate => ({
+    ...qwen,
+    candidateKey: key,
+    sourceUrl: "https://example.invalid/" + encodeURIComponent(key),
+    title: key,
+  });
+
+  // Deliberately put two unrelated pending candidates before Qwen. Without
+  // persistent-gap priority, slice(0, 2) would exclude Qwen this month.
+  ledger.candidates["github:example/unrelated-a"] = fake("github:example/unrelated-a");
+  ledger.candidates["github:example/unrelated-b"] = fake("github:example/unrelated-b");
+  ledger.candidates[CANDIDATE_KEY] = qwen;
+
+  const semanticCase = "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01";
+  const baseline = (): BaselineSnapshot => ({
+    benchmarkFingerprint: "fp-persistent-semantic",
+    cases: 1,
+    evaluatedTurns: 1,
+    promptTokensPerTurn: 0,
+    invariantViolationCount: 0,
+    metrics: {} as BaselineSnapshot["metrics"],
+    finalHitByCase: { [semanticCase]: false },
+  });
+  ledger.cycles = [
+    { cycleKey: "weekly-a", mode: "weekly", finishedAt: "2026-09-01T00:00:00Z", mainSha: "a".repeat(40), counts: {}, baseline: baseline() },
+    { cycleKey: "weekly-b", mode: "weekly", finishedAt: "2026-09-08T00:00:00Z", mainSha: "b".repeat(40), counts: {}, baseline: baseline() },
+    { cycleKey: "weekly-c", mode: "weekly", finishedAt: "2026-09-15T00:00:00Z", mainSha: "c".repeat(40), counts: {}, baseline: baseline() },
+  ];
+
+  const calls: string[][] = [];
+  const out = await runPendingLiveExperiments(ledger, {
+    now,
+    architectureFingerprint: "arch-1",
+    runBenchmark: async (modelIds) => {
+      calls.push([...modelIds]);
+      return { status: "NOT_RUN", reason: "fixture: no paid call", providerCalls: 0 };
+    },
+  });
+
+  assert.deepEqual(out.report.priorityCandidateKeys, [CANDIDATE_KEY]);
+  assert.equal(out.report.records.length, 2, "max candidate budget must remain 2");
+  assert.equal(out.report.records[0]!.candidateKey, CANDIDATE_KEY);
+  assert.deepEqual(out.report.records[0]!.priorityGapCaseIds, [semanticCase]);
+  assert.equal(calls.length, 1, "only the reviewed Qwen recipe should reach runBenchmark");
+  assert.deepEqual(calls[0], [recipe.referenceModel.modelId, recipe.candidateModel.modelId]);
+  assert.equal(
+    out.ledger.candidates[CANDIDATE_KEY]!.lastDecision,
+    "WATCH_LIVE_EXPERIMENT_PENDING",
+    "priority must not override lifecycle state when the live run is unavailable"
+  );
 });

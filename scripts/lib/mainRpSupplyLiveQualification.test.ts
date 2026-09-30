@@ -242,6 +242,11 @@ describe("Main RP supply live candidate selection", () => {
       gemini
     );
     assert.deepEqual(body.reasoning, { effort: "low", exclude: true });
+    assert.equal(
+      body.service_tier,
+      "flex",
+      "same-OpenRouter candidate must preserve production Flex service tier"
+    );
   });
 
   it("skips an endpoint missing an actual production parameter before any paid call", () => {

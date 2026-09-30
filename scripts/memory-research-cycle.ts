@@ -26,7 +26,10 @@ import {
   type DraftPrResult,
   type ImplementationPrResultRecord,
 } from "@/lib/memoryResearch/ledger";
-import { computeArchitectureFingerprint } from "@/lib/memoryResearch/ownerMap";
+import {
+  computeArchitectureFingerprint,
+  computeBenchmarkDefinitionFingerprint,
+} from "@/lib/memoryResearch/ownerMap";
 import type { DraftPrPacket } from "@/lib/memoryResearch/prPacket";
 import { renderCycleReportMarkdown } from "@/lib/memoryResearch/report";
 import { defaultSources, type SourceFetch } from "@/lib/memoryResearch/sources";
@@ -61,7 +64,12 @@ function writeFileEnsuringDir(path: string, contents: string): void {
 function promptPackingSentinel(): void {
   const outDir = required("out");
   mkdirSync(outDir, { recursive: true });
-  const audit = buildMemoryPromptPackingAudit();
+  const audit = buildMemoryPromptPackingAudit(300, new Date(), {
+    rollingSummarySource: readFileSync(
+      "src/lib/memory/memory-rolling-summary.ts",
+      "utf8"
+    ),
+  });
   const markdown = renderMemoryPromptPackingAuditMarkdown(audit);
   writeFileSync(join(outDir, "report.json"), `${JSON.stringify(audit, null, 2)}\n`);
   writeFileSync(join(outDir, "REPORT.md"), markdown);
@@ -89,6 +97,7 @@ async function run(): Promise<void> {
     now: new Date(),
     mainSha,
     architectureFingerprint: computeArchitectureFingerprint((p) => readFileSync(p, "utf8")),
+    benchmarkFingerprint: computeBenchmarkDefinitionFingerprint((p) => readFileSync(p, "utf8")),
     sources: defaultSources(),
     sourceContext: {
       fetch: sourceFetch,
@@ -111,6 +120,8 @@ async function run(): Promise<void> {
   writeOutput("cycle_key", report.cycleKey);
   writeOutput("cycle_status", report.status);
   writeOutput("accepted_count", String(report.draftPrPackets.length));
+  writeOutput("baseline_promotion_blocked", String(report.baselinePromotionGate.blocked));
+  writeOutput("baseline_promotion_gate_status", report.baselinePromotionGate.status);
   writeOutput(
     "implementation_pending_count",
     String(
@@ -153,10 +164,16 @@ async function liveExperiments(): Promise<void> {
       `rejected: ${report.rejected}`,
       `watch: ${report.watch}`,
       `actualCostUsd: ${report.actualCostUsd.toFixed(6)}`,
+      `persistent-gap priority: ${report.priorityCandidateKeys.join(", ") || "-"}`,
+      "",
+      ...report.gapRoutes.map(
+        (route) =>
+          `- gap ${route.caseId}: ${route.status} / owners=${route.ownerHints.join(", ") || "UNRESOLVED"} / candidates=${route.candidateKeys.join(", ") || "-"}`
+      ),
       "",
       ...report.records.map(
         (r) =>
-          `- ${r.candidateKey}: ${r.status} / ${r.decision ?? "NO_DECISION"} / cost=${r.actualCostUsd.toFixed(6)} / ${r.reason}`
+          `- ${r.candidateKey}: ${r.status} / ${r.decision ?? "NO_DECISION"} / cost=${r.actualCostUsd.toFixed(6)} / priorityGaps=${r.priorityGapCaseIds.join(", ") || "-"} / ${r.reason}`
       ),
       "",
     ].join("\n")
