@@ -236,6 +236,9 @@ describe("GitHub Draft route PR executor", () => {
       new Response(JSON.stringify({ content: { sha: "new-file" } }), {
         status: 200,
       }),
+      new Response(JSON.stringify({ object: { sha: "base-sha" } }), {
+        status: 200,
+      }),
       new Response(
         JSON.stringify({
           html_url: "https://github.com/owner/repo/pull/42",
@@ -272,7 +275,7 @@ describe("GitHub Draft route PR executor", () => {
     assert.equal(result.pullRequestUrl, "https://github.com/owner/repo/pull/42");
     assert.deepEqual(
       calls.map((call) => call.method),
-      ["GET", "GET", "POST", "GET", "PUT", "POST"]
+      ["GET", "GET", "POST", "GET", "PUT", "GET", "POST"]
     );
     assert.equal(
       calls.filter((call) => call.url.includes("/contents/")).length,
@@ -342,6 +345,63 @@ describe("GitHub Draft route PR executor", () => {
     );
     assert.match(result.error ?? "", /another_auto_route_pr/);
     assert.deepEqual(calls, ["GET"]);
+  });
+
+  it("deletes the just-created branch and stops if main moves before PR creation", async () => {
+    const plan = buildMainRpSupplyAutoDraftPlan({
+      packet: packet([proposal()]),
+      routeRegistry: registry(),
+      runId: "12345",
+    });
+    const mutation = plan.mutations[0]!;
+    const calls: Array<{ url: string; method: string }> = [];
+    const responses = [
+      new Response(JSON.stringify([]), { status: 200 }),
+      new Response(JSON.stringify({ object: { sha: "base-sha" } }), {
+        status: 200,
+      }),
+      new Response(JSON.stringify({ ref: "created" }), { status: 201 }),
+      new Response(JSON.stringify({ sha: "route-file-sha" }), { status: 200 }),
+      new Response(JSON.stringify({ content: { sha: "new-file" } }), {
+        status: 200,
+      }),
+      new Response(JSON.stringify({ object: { sha: "new-main" } }), {
+        status: 200,
+      }),
+      new Response("", { status: 204 }),
+    ];
+    const fakeFetch = (async (
+      url: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      calls.push({ url: String(url), method: init?.method ?? "GET" });
+      const next = responses.shift();
+      if (!next) throw new Error("unexpected fetch");
+      return next;
+    }) as typeof fetch;
+
+    const result = await executeGitHubDraftRoutePr({
+      repo: "owner/repo",
+      token: "token",
+      baseSha: "base-sha",
+      baseBranch: "main",
+      mutation,
+      dryRun: false,
+      fetchImpl: fakeFetch,
+    });
+
+    assert.equal(result.status, "STALE_MAIN_STOP");
+    assert.match(result.error ?? "", /actual_main=new-main/);
+    assert.deepEqual(
+      calls.map((call) => call.method),
+      ["GET", "GET", "POST", "GET", "PUT", "GET", "DELETE"]
+    );
+    assert.equal(
+      calls.some(
+        (call) => call.method === "POST" && call.url.endsWith("/pulls")
+      ),
+      false
+    );
   });
 
   it("stops before any write when main moved after evidence generation", async () => {
