@@ -1,0 +1,45 @@
+{
+  "KEY": "R_A",
+  "SYSTEM_SHA": "8bd6cd21a793b03a818df2f88b4352a6c024c7585667bc0d8773d84d31d61212",
+  "HISTORY_SHA": "cb8894f0598712f6f508c189a21b85c01d9b10f0de3db4533ee6dca7656c37cc",
+  "CURRENT_USER_SHA": "1fcca4740997c4e2add03619c49886bd70026b8b2eabf1f4b5e68f603043577c",
+  "SYSTEM_CHARS": 13243,
+  "CURRENT_USER_CHARS": 1157,
+  "thinking": {
+    "type": "disabled"
+  },
+  "reasoning_effort": null,
+  "reasoning": null,
+  "maxTokens": null,
+  "usedEnglish": false,
+  "chunkCount": 16,
+  "requestBody": {
+    "model": "deepseek-v4-pro-0813",
+    "thinking": {
+      "type": "disabled"
+    },
+    "temperature": 0.92
+  },
+  "history_roles": [
+    {
+      "role": "assistant",
+      "chars": 580
+    },
+    {
+      "role": "user",
+      "chars": 1157
+    }
+  ],
+  "current_user_has_style_reminder": true,
+  "current_user_has_current_input_header": true,
+  "current_user_has_user_tail_3200": true,
+  "current_user_has_short_history": false,
+  "current_user_has_single_call_block": false,
+  "system_has_user_tail": false,
+  "system_has_short_history": false,
+  "system_has_length_adapter": false,
+  "system_has_single_call_block": false,
+  "system_has_world_lore_xml": true,
+  "system_has_persona_xml": false,
+  "system_has_chat_history_xml": false
+}

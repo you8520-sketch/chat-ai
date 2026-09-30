@@ -1,0 +1,55 @@
+{
+  "PR": 493,
+  "URL": "https://github.com/you8520-sketch/chat-ai/pull/493",
+  "HEAD_REF": "cursor/deepseek-flood-local-preflight-f1-c691",
+  "TARGET_MODEL": "deepseek-v4-pro-0813",
+  "PROVIDER": "cheaperinference",
+  "TRANSPORT": {
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "reasoning_stream_events": [
+      0,
+      0
+    ],
+    "reasoning_chars": [
+      0,
+      0
+    ],
+    "TRUE_OFF_PARITY": true
+  },
+  "ABSENT": {
+    "SOURCE_MIRROR": false,
+    "COMPLETION": false,
+    "TURN_OWNERSHIP": false,
+    "ORIGIN_POINTER": false,
+    "MODEL_SPECIFIC_STYLE_ADAPTER": false,
+    "retry": 0,
+    "continuation": 0,
+    "fallback": 0
+  },
+  "VANILLA_OUTPUT_CHARS": [
+    3356,
+    3747
+  ],
+  "VANILLA_FINISH_REASON": [
+    "stop",
+    "stop"
+  ],
+  "SOURCE_GEMINI_ASSISTANT_CHARS": [
+    2534,
+    2630,
+    3517
+  ],
+  "EARLY_0813_VANILLA_LONG_OUTPUT_PROVEN": true,
+  "EARLY_0813_TRUE_ZERO_REASONING_PROVEN": true,
+  "EARLY_0813_LENGTH_ADAPTER_REQUIRED": false,
+  "CORRECTION": "Do not claim DeepSeek 0813 naturally outputs only 1700-2300 chars. That is disproven by PR #493.",
+  "SYSTEM_SHA": "8ab7541582ca8a831f1de2792468bff9163d9c0fa0d2af0fd2b7d135da4ecc23",
+  "HISTORY_SHA": "5ccafaaf4f45907ce9259522edbb14f6c339925af21ad98aa355e3a5fc72c4d5",
+  "CURRENT_USER_SHA": "a1a36509f4f5ec7e5230c48d3c0b8c15d357e401b8ac70f17b5389783c321215",
+  "TARGET_TEMPERATURE": 0.7,
+  "used_english": true,
+  "chunk_count": 21
+}

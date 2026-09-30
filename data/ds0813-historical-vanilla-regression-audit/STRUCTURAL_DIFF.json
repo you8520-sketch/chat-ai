@@ -1,0 +1,273 @@
+{
+  "COMPARISON": "PR #493 DeepSeek Vanilla request vs PR #555 R_A request",
+  "HYPOTHESIS": "DeepSeek 0813 strongly uses recent assistant length/density as an implicit response-length exemplar. NOT PROVEN.",
+  "HYPOTHESIS_PROVEN": false,
+  "CORRECTION": "Do not claim DeepSeek 0813 naturally outputs only 1700-2300 chars.",
+  "INVENTORY": [
+    {
+      "FIELD": "model_id",
+      "PR493": "deepseek-v4-pro-0813",
+      "PR555_R_A": "deepseek-v4-pro-0813",
+      "EQUAL": true
+    },
+    {
+      "FIELD": "provider",
+      "PR493": "cheaperinference",
+      "PR555_R_A": "cheaperinference",
+      "EQUAL": true
+    },
+    {
+      "FIELD": "temperature",
+      "PR493": 0.7,
+      "PR555_R_A": 0.92,
+      "EQUAL": false,
+      "NOTES": "493 FREEZE.TARGET_TEMPERATURE=0.7; 555 live/assembled requestBody.temperature=0.92"
+    },
+    {
+      "FIELD": "top_p",
+      "PR493": null,
+      "PR555_R_A": 0.92,
+      "EQUAL": false,
+      "NOTES": "493 sent_keys omit top_p (unknown/absent). 555 live call top_p=0.92"
+    },
+    {
+      "FIELD": "thinking",
+      "PR493": {
+        "type": "disabled"
+      },
+      "PR555_R_A": {
+        "type": "disabled"
+      },
+      "EQUAL": true
+    },
+    {
+      "FIELD": "reasoning_effort",
+      "PR493": "none",
+      "PR555_R_A": null,
+      "EQUAL": false,
+      "NOTES": "493 applyTrueOff sets reasoning_effort=\"none\". 555 assembled reasoning_effort=null"
+    },
+    {
+      "FIELD": "max_tokens",
+      "PR493": null,
+      "PR555_R_A": null,
+      "EQUAL": true,
+      "NOTES": "Both omitted / provider default"
+    },
+    {
+      "FIELD": "stream",
+      "PR493": true,
+      "PR555_R_A": true,
+      "EQUAL": true
+    },
+    {
+      "FIELD": "system_prompt_text",
+      "PR493": "NOT_COMMITTED",
+      "PR555_R_A": "COMMITTED_IN_555_PACKET",
+      "EQUAL": false,
+      "NOTES": "493 SYSTEM.txt is a stub. Cannot byte-diff system text."
+    },
+    {
+      "FIELD": "SYSTEM_SHA",
+      "PR493": "8ab7541582ca8a831f1de2792468bff9163d9c0fa0d2af0fd2b7d135da4ecc23",
+      "PR555_R_A": "8bd6cd21a793b03a818df2f88b4352a6c024c7585667bc0d8773d84d31d61212",
+      "EQUAL": false
+    },
+    {
+      "FIELD": "system_chars",
+      "PR493": "UNKNOWN",
+      "PR555_R_A": 13243,
+      "EQUAL": false
+    },
+    {
+      "FIELD": "system_tokens_local_estimate",
+      "PR493": "UNKNOWN",
+      "PR555_R_A": 11919,
+      "EQUAL": false
+    },
+    {
+      "FIELD": "character_id",
+      "PR493": 17,
+      "PR555_R_A": 17,
+      "EQUAL": true,
+      "NOTES": "Same id 플러드; content is not the same snapshot"
+    },
+    {
+      "FIELD": "character_content_sha",
+      "PR493": "f1f941ab3964d8561484553ee0ebfd2ccd121cea7b367690f3d718942fe393d2",
+      "PR555_R_A": "7c77a0d7adda614ce9022df41e56e5b95cd2f018522cad3691cfef38fc174a76",
+      "EQUAL": false,
+      "NOTES": "555 fixture file sha of incomplete character-17-flood.json; not the 493 snapshot fields sha"
+    },
+    {
+      "FIELD": "character_chunks",
+      "PR493": 21,
+      "PR555_R_A": 16,
+      "EQUAL": false
+    },
+    {
+      "FIELD": "english_layer",
+      "PR493": true,
+      "PR555_R_A": false,
+      "EQUAL": false,
+      "NOTES": "493 used_english=true; 555 R usedEnglish=false, CHARACTER_17_ROW_COMPLETE=false"
+    },
+    {
+      "FIELD": "persona",
+      "PR493": "렌 / id=1",
+      "PR555_R_A": "도윤 / H5 canary persona 96 text",
+      "EQUAL": false
+    },
+    {
+      "FIELD": "world_canon",
+      "PR493": "PRIVATE_SNAPSHOT SHA de6c8097f83027ec0d1b0d80ced2b161b02b1cf551fb5864c0b6b59b3785ae98",
+      "PR555_R_A": "copied/incomplete in 555 flood fixture; WORLD_BYTE_IDENTITY_PROVEN=false",
+      "EQUAL": false
+    },
+    {
+      "FIELD": "speech_lock",
+      "PR493": "PRIVATE_SNAPSHOT SHA a02b5b82500eba1c5d45fa2d877d31fd4ce23782c5bf8fdfcdcc19ece2188d21",
+      "PR555_R_A": "present in 555 incomplete flood row if any; not proven equal",
+      "EQUAL": false
+    },
+    {
+      "FIELD": "prose_style_rules",
+      "PR493": "UNKNOWN_IN_493_ASSEMBLED_SYSTEM",
+      "PR555_R_A": "system prose-style-xml-bundle + DeepSeek style-only user reminder",
+      "EQUAL": false,
+      "NOTES": "Cannot prove 493 system style bundle without assembled system"
+    },
+    {
+      "FIELD": "agency_owner",
+      "PR493": "UNKNOWN_IN_493_ASSEMBLED",
+      "PR555_R_A": "system no-godmodding + current-user collaborative-control",
+      "EQUAL": false
+    },
+    {
+      "FIELD": "layout_owner",
+      "PR493": "UNKNOWN_IN_493_ASSEMBLED_USER_WRAP",
+      "PR555_R_A": "user-turn layout recency line present in 555",
+      "EQUAL": false
+    },
+    {
+      "FIELD": "length_owner",
+      "PR493": "UNKNOWN_WHETHER_USER_TAIL_PRESENT_IN_493_WRAP",
+      "PR555_R_A": "USER_TAIL_LENGTH_OWNER_SENTENCE count=1 terminal; no length adapter",
+      "EQUAL": false,
+      "NOTES": "493 freeze says no model-specific style adapter. Length-owner sentence text not frozen."
+    },
+    {
+      "FIELD": "length_adapter_arm",
+      "PR493": "none / vanilla",
+      "PR555_R_A": "A / OFF",
+      "EQUAL": true,
+      "NOTES": "Neither injects ARM B/C or historical SINGLE CALL block on the compared Vanilla/A path"
+    },
+    {
+      "FIELD": "recent_assistant_count",
+      "PR493": 4,
+      "PR555_R_A": 1,
+      "EQUAL": false,
+      "NOTES": "493 HISTORY stub: greeting + 3 Gemini assistants. Greeting text missing so count is documented not replayable. 555: greeting only"
+    },
+    {
+      "FIELD": "recent_assistant_visible_chars",
+      "PR493": [
+        "GREETING_UNKNOWN",
+        2534,
+        2630,
+        3517
+      ],
+      "PR555_R_A": [
+        580
+      ],
+      "EQUAL": false
+    },
+    {
+      "FIELD": "recent_history_tokens",
+      "PR493": "UNKNOWN",
+      "PR555_R_A": 522,
+      "EQUAL": false
+    },
+    {
+      "FIELD": "current_user_raw_text",
+      "PR493": "*그의 옷깃을 잡고 한 뼘 더 붙인다.* 지금 이 거리에서 입 맞춰도 되지? 더 하고 싶어.",
+      "PR555_R_A": "로비 창가에 나란히 서서 잠시 말이 없다. 잠깐 그의 옆얼굴을 보다가 작게 말한다. \"오늘… 좀 괜찮아?\"",
+      "EQUAL": false
+    },
+    {
+      "FIELD": "current_user_structure",
+      "PR493": "RAW_51_CHARS_ONLY_COMMITTED; assembled wrap NOT frozen",
+      "PR555_R_A": "style reminder + [CURRENT USER INPUT] + parsed action/dialogue + layout + USER_TAIL",
+      "EQUAL": false
+    },
+    {
+      "FIELD": "CURRENT_USER_SHA",
+      "PR493": "a1a36509f4f5ec7e5230c48d3c0b8c15d357e401b8ac70f17b5389783c321215",
+      "PR555_R_A": "1fcca4740997c4e2add03619c49886bd70026b8b2eabf1f4b5e68f603043577c",
+      "EQUAL": false
+    },
+    {
+      "FIELD": "deepseek_bottom_reminder",
+      "PR493": "UNKNOWN_IN_493_ASSEMBLED_USER",
+      "PR555_R_A": "DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY present; no SINGLE CALL / SHORT HISTORY",
+      "EQUAL": false
+    },
+    {
+      "FIELD": "xml_structure",
+      "PR493": "UNKNOWN_IN_493_SYSTEM; DeepSeek xml mode expected",
+      "PR555_R_A": {
+        "PERSONA": false,
+        "WORLD_LORE": true,
+        "LONG_TERM_MEMORY": false,
+        "CHAT_HISTORY": true
+      },
+      "EQUAL": false
+    },
+    {
+      "FIELD": "nsfw",
+      "PR493": true,
+      "PR555_R_A": false,
+      "EQUAL": false,
+      "NOTES": "493 assembleTurn nsfw=true (adult-boundary user). 555 R nsfw=false"
+    },
+    {
+      "FIELD": "SOURCE_MIRROR",
+      "PR493": false,
+      "PR555_R_A": false,
+      "EQUAL": true
+    },
+    {
+      "FIELD": "COMPLETION",
+      "PR493": false,
+      "PR555_R_A": false,
+      "EQUAL": true
+    },
+    {
+      "FIELD": "TURN_OWNERSHIP",
+      "PR493": false,
+      "PR555_R_A": false,
+      "EQUAL": true
+    },
+    {
+      "FIELD": "ORIGIN_POINTER",
+      "PR493": false,
+      "PR555_R_A": false,
+      "EQUAL": true
+    },
+    {
+      "FIELD": "retry_continuation_fallback",
+      "PR493": 0,
+      "PR555_R_A": 0,
+      "EQUAL": true
+    }
+  ],
+  "OUTPUT_CONTEXT_ONLY_NOT_A_REQUEST_FIELD": {
+    "PR493_VANILLA_CHARS": [
+      3356,
+      3747
+    ],
+    "PR555_R_A_CHARS": 2123,
+    "NOTE": "These are historical outputs, not request fields. Do not score prose."
+  }
+}
