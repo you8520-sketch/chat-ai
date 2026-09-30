@@ -6,12 +6,12 @@ import {
   sanitizeBenchmarkCredentialText,
 } from "./lib/benchmarkCheaperInferenceCredential";
 import {
-  applyCurrentCiBaselineBudgetGuard,
+  applyCurrentProcurementBaselineBudgetGuard,
   buildSupplyTransportComparisonReport,
   renderSupplyTransportComparisonMarkdown,
-  runCurrentCiBaselinePair,
-  type CurrentCiBaselineResult,
-} from "./lib/mainRpSupplyCiBaseline";
+  runCurrentProcurementBaselinePair,
+  type CurrentProcurementBaselineResult,
+} from "./lib/mainRpSupplyCurrentBaseline";
 import type { MainRpSupplyRadarReport } from "./lib/mainRpSupplyRadar";
 import {
   buildSupplyLiveReport,
@@ -70,7 +70,7 @@ function writeTurnArtifacts(
 function writeArtifacts(input: {
   report: ReturnType<typeof buildSupplyLiveReport>;
   comparison: ReturnType<typeof buildSupplyTransportComparisonReport>;
-  currentCiResults: CurrentCiBaselineResult[];
+  currentResults: CurrentProcurementBaselineResult[];
   errors: string[];
 }): void {
   mkdirSync(LIVE_DIR, { recursive: true });
@@ -112,9 +112,9 @@ function writeArtifacts(input: {
     );
   }
 
-  for (const result of input.currentCiResults) {
+  for (const result of input.currentResults) {
     writeTurnArtifacts(
-      join(LIVE_DIR, "current-ci", safePart(result.modelId)),
+      join(LIVE_DIR, "current-procurement", safePart(result.modelId)),
       result.turns
     );
   }
@@ -125,18 +125,23 @@ async function main(): Promise<void> {
     readFileSync(RADAR_REPORT, "utf8")
   ) as MainRpSupplyRadarReport;
   const initialSelection = selectMainRpSupplyLiveCandidates(radar);
-  const baselinePlan = applyCurrentCiBaselineBudgetGuard(
+  const baselinePlan = applyCurrentProcurementBaselineBudgetGuard(
     radar,
     initialSelection
   );
   const selection = baselinePlan.selection;
   const openRouterCredential = resolveOptInOpenRouterSupplyBenchmarkApiKey();
-  const ciCredential = resolveOptInTestCheaperInferenceApiKey(LIVE_FLAG);
+  const needsCiCredential = baselinePlan.entries.some(
+    (entry) => entry.currentProvider === "cheaperinference"
+  );
+  const ciCredential = needsCiCredential
+    ? resolveOptInTestCheaperInferenceApiKey(LIVE_FLAG)
+    : null;
   const errors: string[] = [];
 
   const missingReason = !openRouterCredential.ok
     ? openRouterCredential.reason
-    : !ciCredential
+    : needsCiCredential && !ciCredential
       ? "missing_cheaper_inference_benchmark_credential"
       : null;
 
@@ -148,12 +153,12 @@ async function main(): Promise<void> {
     });
     const comparison = buildSupplyTransportComparisonReport({
       candidateResults: [],
-      currentCiResults: [],
+      currentResults: [],
     });
     writeArtifacts({
       report,
       comparison,
-      currentCiResults: [],
+      currentResults: [],
       errors,
     });
     console.log(
@@ -163,8 +168,8 @@ async function main(): Promise<void> {
           provider_generation_calls: 0,
           selected_candidates: selection.candidates.length,
           reason: missingReason,
-          current_ci_estimated_catalog_rate_usd:
-            baselinePlan.estimatedCatalogRateUsd,
+          current_baseline_estimated_rate_usd:
+            baselinePlan.estimatedCurrentRateUsd,
         },
         null,
         2
@@ -174,7 +179,7 @@ async function main(): Promise<void> {
   }
 
   const candidateResults: SupplyLiveCandidateResult[] = [];
-  const currentCiResults: CurrentCiBaselineResult[] = [];
+  const currentResults: CurrentProcurementBaselineResult[] = [];
   const runId =
     process.env.GITHUB_RUN_ID?.trim() ||
     `manual-${new Date().toISOString().slice(0, 16)}`;
@@ -182,23 +187,26 @@ async function main(): Promise<void> {
   for (const entry of baselinePlan.entries) {
     const baselineCandidate = entry.candidate;
     try {
-      const ciSessionId = [
-        "supply-ci",
+      const baselineSessionId = [
+        "supply-current",
         runId,
         safePart(baselineCandidate.modelId),
       ]
         .join("-")
         .slice(0, 256);
-      currentCiResults.push(
-        await runCurrentCiBaselinePair({
-          apiKey: ciCredential,
+      currentResults.push(
+        await runCurrentProcurementBaselinePair({
           entry,
-          sessionId: ciSessionId,
+          sessionId: baselineSessionId,
+          cheaperInferenceApiKey: ciCredential,
+          openRouterApiKey: openRouterCredential.ok
+            ? openRouterCredential.apiKey
+            : null,
         })
       );
     } catch (error) {
       errors.push(
-        `${baselineCandidate.modelId}/current-ci: ${sanitizeError(error)}`
+        `${baselineCandidate.modelId}/current-procurement: ${sanitizeError(error)}`
       );
     }
 
@@ -240,12 +248,12 @@ async function main(): Promise<void> {
   });
   const comparison = buildSupplyTransportComparisonReport({
     candidateResults,
-    currentCiResults,
+    currentResults,
   });
   writeArtifacts({
     report,
     comparison,
-    currentCiResults,
+    currentResults,
     errors,
   });
 
@@ -256,7 +264,7 @@ async function main(): Promise<void> {
         candidate_provider_generation_calls:
           report.providerGenerationCalls,
         current_ci_provider_generation_calls:
-          comparison.currentCiGenerationCalls,
+          comparison.currentBaselineGenerationCalls,
         total_provider_generation_calls:
           comparison.providerGenerationCalls,
         max_total_provider_generation_calls:
@@ -265,19 +273,19 @@ async function main(): Promise<void> {
         completed_candidate_pairs: candidateResults.filter(
           (result) => result.livePairComplete
         ).length,
-        completed_current_ci_pairs: currentCiResults.filter(
+        completed_current_baseline_pairs: currentResults.filter(
           (result) => result.livePairComplete
         ).length,
         candidate_second_turn_cache_hits: candidateResults.filter(
           (result) => result.secondTurnCacheReadObserved
         ).length,
-        current_ci_second_turn_cache_hits: currentCiResults.filter(
+        current_baseline_second_turn_cache_hits: currentResults.filter(
           (result) => result.secondTurnCacheReadObserved
         ).length,
         estimated_candidate_raw_endpoint_rate_usd:
           selection.estimatedRawEndpointRateUsd,
-        estimated_current_ci_catalog_rate_usd:
-          baselinePlan.estimatedCatalogRateUsd,
+        estimated_current_baseline_rate_usd:
+          baselinePlan.estimatedCurrentRateUsd,
         errors,
         output_dir: LIVE_DIR,
       },
