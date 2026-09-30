@@ -2462,7 +2462,12 @@ const DEFAULT_EPISODIC_RERANKING_POLICY = {
   milestoneBonus: 2,
 } as const;
 
-type ResolvedEpisodicRerankingPolicy = typeof DEFAULT_EPISODIC_RERANKING_POLICY;
+type ResolvedEpisodicRerankingPolicy = {
+  lexicalWeight: number;
+  importanceWeight: number;
+  recencyWeight: number;
+  milestoneBonus: number;
+};
 
 function boundedRerankingWeight(value: number | undefined, fallback: number): number {
   if (value == null || !Number.isFinite(value)) return fallback;
