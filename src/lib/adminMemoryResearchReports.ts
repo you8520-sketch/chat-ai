@@ -162,10 +162,13 @@ export function projectMemoryResearchAdminPipeline(
     const implementationPrUrl = asString(candidate.implementationPrUrl) || null;
     const live = asRecord(candidate.liveExperiment);
 
-    if (lastDecision === "WATCH_LIVE_EXPERIMENT_PENDING") {
+    if (lastDecision === "WATCH_LIVE_EXPERIMENT_PENDING" && !live) {
       pendingLiveExperiments += 1;
     }
-    if (lastDecision === "WATCH_IMPLEMENTATION_PR_PENDING") {
+    if (
+      lastDecision === "WATCH_IMPLEMENTATION_PR_PENDING" &&
+      !implementationPrUrl
+    ) {
       pendingImplementationPrs += 1;
     }
     if (live) recordedLiveExperiments += 1;
