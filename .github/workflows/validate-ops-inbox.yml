@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "src/lib/adminOpsInbox.ts"
+      - "src/lib/adminAutomationReports.ts"
       - "src/lib/openRouterContractWatch.ts"
       - "src/lib/openRouterContractWatch.test.ts"
       - "src/lib/adminOpsInboxShared.ts"

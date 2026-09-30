@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import type { GithubAutomationProjection } from "@/lib/adminAutomationReports";
 import { buildOpenRouterContractWatchProjection } from "@/lib/openRouterContractWatch";
 import {
   ensurePayoutTransferAttemptsSchema,
@@ -98,6 +99,67 @@ function schedulerIncidentSummary(
     default:
       return "운영 확인이 필요한 스케줄 상태입니다.";
   }
+}
+
+const GITHUB_AUTOMATION_IGNORED_CONCLUSIONS = new Set(["success", "neutral", "skipped"]);
+const GITHUB_AUTOMATION_CRITICAL_CONCLUSIONS = new Set([
+  "failure",
+  "timed_out",
+  "startup_failure",
+  "action_required",
+]);
+
+export function projectGithubAutomationIncidents(
+  projection: GithubAutomationProjection,
+  now: Date = new Date()
+): AdminOpsIncident[] {
+  if (projection.status !== "OK") return [];
+  const nowMs = now.getTime();
+  const incidents: AdminOpsIncident[] = [];
+
+  for (const group of projection.groups) {
+    const run = group.latest;
+    if (run.status !== "completed") continue;
+    const conclusion = (run.conclusion ?? "").trim().toLowerCase();
+    if (!conclusion || GITHUB_AUTOMATION_IGNORED_CONCLUSIONS.has(conclusion)) continue;
+
+    const severity: AdminOpsIncidentSeverity =
+      GITHUB_AUTOMATION_CRITICAL_CONCLUSIONS.has(conclusion) ? "critical" : "warning";
+    const occurredAt = run.updatedAt || run.createdAt;
+    incidents.push({
+      id: `github_automation:${group.key}`,
+      source: "github_automation",
+      severity,
+      state: conclusion.toUpperCase(),
+      title: `${group.name} · ${conclusion}`,
+      summary:
+        `최신 scheduled run #${run.runNumber}이 ${conclusion} 상태로 종료되었습니다. ` +
+        "자동 재실행은 하지 않으며 기존 자동화 보고서/워크플로에서 원인을 확인해야 합니다.",
+      sourceRef: `${group.path} / run #${run.runNumber}`,
+      occurredAt,
+      ageMinutes: ageMinutes(nowMs, occurredAt),
+      href: run.htmlUrl || "/admin/automation-reports",
+    });
+  }
+
+  return incidents;
+}
+
+export function mergeAdminOpsIncidents(
+  groups: readonly (readonly AdminOpsIncident[])[],
+  limit = 200
+): AdminOpsIncident[] {
+  const capped = Math.min(Math.max(1, Math.floor(limit)), 500);
+  return groups
+    .flatMap((group) => [...group])
+    .sort((a, b) => {
+      const severityDelta = severityRank(a.severity) - severityRank(b.severity);
+      if (severityDelta !== 0) return severityDelta;
+      const ageDelta = (b.ageMinutes ?? -1) - (a.ageMinutes ?? -1);
+      if (ageDelta !== 0) return ageDelta;
+      return a.id.localeCompare(b.id);
+    })
+    .slice(0, capped);
 }
 
 export function listAdminOpsIncidents(
@@ -314,14 +376,5 @@ export function listAdminOpsIncidents(
     });
   }
 
-  const capped = Math.min(Math.max(1, Math.floor(limit)), 500);
-  return incidents
-    .sort((a, b) => {
-      const severityDelta = severityRank(a.severity) - severityRank(b.severity);
-      if (severityDelta !== 0) return severityDelta;
-      const ageDelta = (b.ageMinutes ?? -1) - (a.ageMinutes ?? -1);
-      if (ageDelta !== 0) return ageDelta;
-      return a.id.localeCompare(b.id);
-    })
-    .slice(0, capped);
+  return mergeAdminOpsIncidents([incidents], limit);
 }
