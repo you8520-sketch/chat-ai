@@ -22,6 +22,8 @@ import {
   invalidateSummarySealBatchEpisodicFactsForSourceMutation,
 } from "@/lib/episodicMemoryFacts";
 import { getOrCreateChatMemory } from "./memory-db";
+import { reconcileMemoryAfterTurnDelete } from "./memory-reconcile";
+import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
 import {
   __setEpisodicExtractCallerForTests,
   extractAndPersistEpisodicFactsForSealedBatch,
@@ -440,6 +442,106 @@ describe("pre-merge blocker regression", () => {
       .get(CHAT) as { summary: string; turn_end: number };
     assert.equal(row.summary, "USER LOCKED PROSE");
     assert.equal(row.turn_end, 8);
+  });
+
+  it("derived-memory-deletion-residue-01 removes pruned summary text from stored and prompt-facing Global memory", () => {
+    seedBase();
+    seedTurns(
+      Array.from({ length: 10 }, (_, i) => ({
+        turn: i + 1,
+        user: `본편 유저 턴 ${i + 1}`,
+        assistant: `본편 캐릭터 응답 ${i + 1}`,
+      }))
+    );
+
+    const keptMarker = "청동열쇠기억표식";
+    const deletedMarker = "자주빛등대삭제표식";
+    const batch1 = persistValidatedSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      turnStart: 1,
+      turnEnd: 5,
+      assistantMessageId: null,
+      summary:
+        `레온과 렌은 오래된 정원에서 ${keptMarker}이 새겨진 열쇠를 확인했다. 두 사람은 열쇠의 출처를 함께 추적하기로 하고 정원 북쪽 회랑을 다음 행선지로 정했으며, 서로 확인한 사실과 계획을 차분히 정리했다.`,
+      summaryKind: "main_canon",
+      playableTurnCount: 10,
+    });
+    assert.equal(batch1.ok, true);
+
+    const batch2 = persistValidatedSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      tier: "free",
+      turnStart: 6,
+      turnEnd: 10,
+      assistantMessageId: null,
+      summary:
+        `두 사람은 항구의 등대에서 ${deletedMarker}을 확인했다. 이후 등대 지하 통로와 주변 창고를 조사하고 발견한 흔적을 대조했으며, 열 번째 턴에 해당 사건의 단서를 정리하고 다음 행동을 결정하며 장면을 마무리했다.`,
+      summaryKind: "main_canon",
+      playableTurnCount: 10,
+    });
+    assert.equal(batch2.ok, true);
+
+    const beforeStored = (
+      getDb()
+        .prepare("SELECT recent_summary FROM chat_memories WHERE chat_id=?")
+        .get(CHAT) as { recent_summary: string }
+    ).recent_summary;
+    assert.match(beforeStored, new RegExp(keptMarker));
+    assert.match(beforeStored, new RegExp(deletedMarker));
+
+    const beforeGlobal = resolveGlobalCurrentMemory(CHAT, 8000);
+    assert.match(beforeGlobal.text, new RegExp(deletedMarker));
+
+    const lastUser = getDb()
+      .prepare(
+        "SELECT id FROM messages WHERE chat_id=? AND role='user' ORDER BY id DESC LIMIT 1"
+      )
+      .get(CHAT) as { id: number };
+    getDb()
+      .prepare("DELETE FROM messages WHERE chat_id=? AND role='assistant' AND user_message_id=?")
+      .run(CHAT, lastUser.id);
+    getDb()
+      .prepare("DELETE FROM messages WHERE chat_id=? AND id=? AND role='user'")
+      .run(CHAT, lastUser.id);
+
+    const reconciled = reconcileMemoryAfterTurnDelete({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "BlkChar",
+      tier: "free",
+      memoryCapacity: 8000,
+      deletedUserMessageId: lastUser.id,
+      deletedPlayableTurn: 10,
+    });
+    assert.equal(reconciled, true);
+
+    const rows = getDb()
+      .prepare(
+        "SELECT turn_number, turn_end, summary FROM chat_turn_summaries WHERE chat_id=? AND inactive=0 ORDER BY turn_number"
+      )
+      .all(CHAT) as Array<{ turn_number: number; turn_end: number | null; summary: string }>;
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]?.turn_number, 1);
+    assert.equal(rows[0]?.turn_end, 5);
+    assert.doesNotMatch(rows.map((row) => row.summary).join("\n"), new RegExp(deletedMarker));
+
+    const afterStored = (
+      getDb()
+        .prepare("SELECT recent_summary FROM chat_memories WHERE chat_id=?")
+        .get(CHAT) as { recent_summary: string }
+    ).recent_summary;
+    assert.match(afterStored, new RegExp(keptMarker));
+    assert.doesNotMatch(afterStored, new RegExp(deletedMarker));
+
+    const afterGlobal = resolveGlobalCurrentMemory(CHAT, 8000);
+    assert.match(afterGlobal.text, new RegExp(keptMarker));
+    assert.doesNotMatch(afterGlobal.text, new RegExp(deletedMarker));
   });
 
   it("I episodic memory layer does not import status episodic aliases", () => {
