@@ -10,6 +10,7 @@ import {
 } from "@/lib/pointChargeRefundAttempts";
 import { listSchedulerRunOverview } from "@/lib/schedulerRunRegistry";
 import type { SchedulerRunOverviewState } from "@/lib/schedulerRunShared";
+import { WEB_PUSH_MAX_ATTEMPTS } from "@/lib/webPush";
 import {
   ADMIN_OPS_STUCK_EXECUTION_MINUTES,
   type AdminOpsIncident,
@@ -33,6 +34,13 @@ type PointRefundOpsRow = {
   failure_message: string;
   claimed_at: string;
   dispatched_at: string | null;
+};
+
+type WebPushOpsRow = {
+  id: number;
+  attempts: number;
+  claim_token: string | null;
+  claimed_until: string | null;
 };
 
 const SCHEDULER_INCIDENT_STATES = new Set<SchedulerRunOverviewState>([
@@ -208,6 +216,75 @@ export function listAdminOpsIncidents(
       ageMinutes: age,
       href: null,
     });
+  }
+
+  const webPushRows = db
+    .prepare(
+      `SELECT id, attempts, claim_token, claimed_until
+         FROM web_push_outbox
+        WHERE sent_at IS NULL
+          AND (
+            attempts >= 3
+            OR (claim_token IS NOT NULL AND claimed_until IS NOT NULL)
+          )
+        ORDER BY id DESC
+        LIMIT 500`
+    )
+    .all() as WebPushOpsRow[];
+
+  for (const row of webPushRows) {
+    if (row.attempts >= WEB_PUSH_MAX_ATTEMPTS) {
+      incidents.push({
+        id: `web_push:${row.id}`,
+        source: "web_push",
+        severity: "critical",
+        state: "EXHAUSTED",
+        title: `웹푸시 outbox #${row.id} · EXHAUSTED`,
+        summary:
+          `웹푸시 전송이 최대 ${WEB_PUSH_MAX_ATTEMPTS}회 시도 후 소진되어 자동 재시도가 중단되었습니다. ` +
+          "canonical outbox row를 확인해야 합니다.",
+        sourceRef: `outbox:${row.id} / attempts=${row.attempts}`,
+        occurredAt: "",
+        ageMinutes: null,
+        href: null,
+      });
+      continue;
+    }
+
+    if (row.attempts >= 3) {
+      incidents.push({
+        id: `web_push:${row.id}`,
+        source: "web_push",
+        severity: "warning",
+        state: "REPEATED_FAILURE",
+        title: `웹푸시 outbox #${row.id} · 반복 실패`,
+        summary:
+          `웹푸시 전송이 ${row.attempts}회 실패했습니다. ` +
+          "다음 재시도 시점과 backoff는 canonical outbox가 계속 소유합니다.",
+        sourceRef: `outbox:${row.id} / attempts=${row.attempts}`,
+        occurredAt: "",
+        ageMinutes: null,
+        href: null,
+      });
+      continue;
+    }
+
+    const staleAge = ageMinutes(nowMs, row.claimed_until);
+    if (row.claim_token && isStuck(staleAge)) {
+      incidents.push({
+        id: `web_push:${row.id}`,
+        source: "web_push",
+        severity: "warning",
+        state: "STALE_CLAIM",
+        title: `웹푸시 outbox #${row.id} · stale claim`,
+        summary:
+          "claim lease가 만료된 뒤에도 장시간 row가 남아 있습니다. 정상 delivery wake라면 stale reclaim 대상입니다.",
+        sourceRef: `outbox:${row.id}`,
+        occurredAt: row.claimed_until ?? "",
+        ageMinutes: staleAge,
+        href: null,
+      });
+    }
   }
 
   const contractWatch = buildOpenRouterContractWatchProjection(db, now);
