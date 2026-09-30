@@ -5,6 +5,7 @@ import {
 import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   buildOpenRouterHeaders,
+  resolveMainRpOpenRouterRoutePolicy,
 } from "@/lib/openRouterConfig";
 import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
 import { parseOpenRouterUsage } from "@/lib/openRouterUsage";
@@ -56,6 +57,11 @@ export type SupplyLiveCandidate = {
   marketUptimeLast30mPercent: number;
   controlEffort: SupplyLiveControlEffort;
   excludeReasoning: boolean;
+  /**
+   * Exact production service tier carried into alternate-provider validation.
+   * null means the current production route has no explicit service tier owner.
+   */
+  deploymentServiceTier: "flex" | null;
   estimatedPairRawEndpointRateUsd: number;
 };
 
@@ -348,6 +354,11 @@ export function selectMainRpSupplyLiveCandidates(
 
   for (const model of report.models) {
     const parity = controlSignatureForModel(model.modelId, qualificationPacket);
+    const currentRoutePolicy =
+      model.currentProcurement?.provider === "openrouter"
+        ? resolveMainRpOpenRouterRoutePolicy(model.modelId)
+        : null;
+    const deploymentServiceTier = currentRoutePolicy?.serviceTier ?? null;
     const sorted = [...model.comparisons].sort((a, b) => {
       const ac =
         a.rawEndpointRepresentativeUncachedRateUsd ?? Number.POSITIVE_INFINITY;
@@ -396,6 +407,7 @@ export function selectMainRpSupplyLiveCandidates(
         marketUptimeLast30mPercent: endpoint.uptimeLast30mPercent!,
         controlEffort: parity.effort,
         excludeReasoning: parity.excludeReasoning,
+        deploymentServiceTier,
         estimatedPairRawEndpointRateUsd: estimate,
       };
       const requiredProviderParameters =
@@ -533,10 +545,14 @@ export function applyCandidateControlAndProviderPin(
     include_reasoning: false,
   };
 
-  // Candidate qualification owns the alternate provider route. Do not inherit
-  // the current production route's service tier or a parallel privacy policy.
-  // Model controls remain identical; route/service-class is the variable tested.
-  delete next.service_tier;
+  // Candidate qualification owns only the alternate provider pin. Preserve the
+  // current production service tier when one exists so the qualified request is
+  // deploy-equivalent. Privacy remains the account-level canonical owner.
+  if (candidate.deploymentServiceTier) {
+    next.service_tier = candidate.deploymentServiceTier;
+  } else {
+    delete next.service_tier;
+  }
   delete next.reasoning_effort;
   next.reasoning = {
     effort: candidate.controlEffort,
