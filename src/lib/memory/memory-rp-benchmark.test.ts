@@ -116,6 +116,21 @@ it("expanded baseline: horizons + behavior categories measured on current main w
   assert.equal(metrics.correctionSupersessionAccuracy.value, 1);
   const falseMemory = byId.get("false-memory-negative-01")!;
   assert.deepEqual(falseMemory.final?.injectedFactIds, []);
+  for (const caseId of ["item-ownership-01", "distinctive-utterance-01", "high-noise-distractors-01", "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01"]) {
+    const o = byId.get(caseId);
+    assert.ok(o, `${caseId} must exist for stage dump`);
+    const candHit = o.candidate
+      ? o.candidate.expectedAnswerIds.every((id) => o.candidate!.candidateIds.includes(id))
+      : null;
+    const finHit = o.final
+      ? o.final.expectedAnswerIds.every((id) => o.final!.injectedFactIds.includes(id))
+      : null;
+    console.info(
+      `[RpMemoryBenchmark] knownGapStage ${caseId} persisted=TEST_SUBSTITUTE candidateEntered=${candHit} candidateCount=${o.candidate?.candidateIds.length ?? "n/a"} finalSelected=${finHit} injected=${o.final?.injectedFactIds.length ?? "n/a"} staleInjected=${
+        o.stale ? o.stale.injectedFactIds.some((id) => o.stale!.staleFactIds.includes(id)) : "n/a"
+      }`
+    );
+  }
 });
 
 /**
@@ -229,7 +244,14 @@ it("long-horizon store-size matrix measures 5/20/100/300/1000/2000 on production
       row.candidateCount.value != null && row.candidateCount.value <= 100,
       "production candidateLimit default is 100"
     );
+    assert.equal(row.candidateRecallAtK.value, 1, `lexical identity target must stay in candidates at scale ${row.scale}`);
+    assert.equal(row.finalRecallAtK.value, 1, `lexical identity target must stay in final set at scale ${row.scale}`);
+    assert.equal(row.identityContinuityRecall.value, 1);
+    assert.equal(row.falseInjectionRate.value, 0);
   }
+  assert.equal(matrix.firstDegradation.candidateRecall, null);
+  assert.equal(matrix.firstDegradation.finalRecall, null);
+  assert.equal(matrix.firstDegradation.packingSaturation, null);
 
   console.info(`[RpMemoryBenchmark] ${formatScaleMatrixLine(matrix)}`);
 });
