@@ -204,6 +204,23 @@ function MemoryResearchCard({
             {run.cycleKey} · {run.mode} · 완료 {fmtDate(run.finishedAt)}
             {run.mainSha ? ` · main ${run.mainSha.slice(0, 8)}` : ""}
           </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <span
+              className={
+                "rounded px-2 py-1 font-bold " +
+                (projection.freshnessStatus === "FRESH"
+                  ? "bg-emerald-500/15 text-emerald-300"
+                  : projection.freshnessStatus === "UNKNOWN"
+                    ? "bg-amber-500/15 text-amber-300"
+                    : "bg-rose-500/15 text-rose-300")
+              }
+            >
+              durable freshness · {projection.freshnessStatus}
+            </span>
+            {projection.freshnessReason ? (
+              <span className="text-zinc-500">{projection.freshnessReason}</span>
+            ) : null}
+          </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-xl bg-black/20 p-3">
@@ -524,7 +541,9 @@ export default async function AdminAutomationReportsPage() {
   const memoryResearchProblems =
     memoryResearch.status === "UNAVAILABLE" ||
     memoryResearch.run?.baselinePromotionBlocked === true ||
-    memoryResearch.run?.productionTouched === true
+    memoryResearch.run?.productionTouched === true ||
+    memoryResearch.freshnessStatus === "STALE_CYCLE" ||
+    memoryResearch.freshnessStatus === "PERSISTENCE_LAG"
       ? 1
       : 0;
 
