@@ -6,6 +6,7 @@ import type {
   SupplyPromotionProposal,
 } from "./mainRpSupplyPromotionProposal";
 
+// Monthly auto-Draft planner; write execution remains isolated in the scheduled workflow job.
 export const MAIN_RP_SUPPLY_AUTO_DRAFT_VERSION = 2;
 export const MAIN_RP_SUPPLY_AUTO_DRAFT_MAX_PRS_PER_RUN = 3;
 export const MAIN_RP_SUPPLY_AUTO_DRAFT_MAX_FRESHNESS_MS = 6 * 60 * 60 * 1_000;
