@@ -10,6 +10,7 @@ import {
 } from "@/lib/memoryResearch/lifecycle";
 import { observation } from "@/lib/memoryResearch/labFixtures.test";
 import type { CandidateLifecycleState, ResearchCandidate } from "@/lib/memoryResearch/types";
+import { architectureFingerprintPaths } from "@/lib/memoryResearch/ownerMap";
 
 const now = new Date("2026-09-28T01:17:00Z");
 const ctx = { now, adapterFingerprint: null, architectureFingerprint: "arch-1", deepReview: false };
@@ -101,6 +102,49 @@ it("dedupe: new candidate evaluates; same version skips; rejected same version n
     decideReevaluation(rejected, observation({ candidateKey: "github:x/y", version: null }), ctx),
     { evaluate: false, skip: "rejected_same_version" },
     "an unversioned observation never counts as a new version"
+  );
+});
+
+it("hook-blocked WATCH candidates re-evaluate on hook-capability architecture change before cooldown", () => {
+  const obs = observation({ candidateKey: "github:x/y" });
+  const hookBlocked = candidate("WATCH", {
+    lastDecision: "WATCH_NO_BENCHMARK_HOOK",
+    cooldownUntil: "2026-12-01T00:00:00Z",
+    evaluations: [
+      {
+        cycleKey: "weekly-2026-W38",
+        evaluatedAt: "2026-09-21T00:00:00Z",
+        version: "v1.0.0",
+        adapterFingerprint: null,
+        architectureFingerprint: "arch-1",
+        state: "WATCH",
+        decision: "WATCH_NO_BENCHMARK_HOOK",
+        reason: "",
+        stateTrail: ["RESEARCHED", "SCREENED", "WATCH"],
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    decideReevaluation(hookBlocked, obs, { ...ctx, architectureFingerprint: "arch-2" }),
+    { evaluate: true, trigger: "architecture_changed" }
+  );
+
+  const noAdapter = candidate("WATCH", {
+    lastDecision: "WATCH_NO_EXPERIMENT_ADAPTER",
+    cooldownUntil: "2026-12-01T00:00:00Z",
+  });
+  assert.deepEqual(
+    decideReevaluation(noAdapter, obs, { ...ctx, architectureFingerprint: "arch-2" }),
+    { evaluate: false, skip: "watch_cooldown" },
+    "generic metadata WATCH candidates must not reopen on unrelated architecture changes"
+  );
+});
+
+it("architecture fingerprint includes the research hook registry owner", () => {
+  assert.ok(
+    architectureFingerprintPaths().includes("src/lib/memoryResearch/ownerMap.ts"),
+    "BENCHMARK_HOOKED_OWNERS changes must affect the architecture fingerprint"
   );
 });
 
