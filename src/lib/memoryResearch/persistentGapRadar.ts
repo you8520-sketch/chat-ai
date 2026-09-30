@@ -59,17 +59,14 @@ function documentedKnownGap(caseId: string): boolean {
 }
 
 function ownerHintsFor(caseId: string): string[] {
-  if (
-    caseId === SEMANTIC_KNOWN_GAP_CASE_ID ||
-    caseId === "distinctive-utterance-01"
-  ) {
+  if (caseId === SEMANTIC_KNOWN_GAP_CASE_ID) {
     return ["semantic_retrieval", "embedding_index"];
   }
   if (caseId === "item-ownership-01") {
-    return ["relationship_durable", "episodic_selection"];
+    return ["relationship_durable"];
   }
   if (caseId === "high-noise-distractors-01") {
-    return ["episodic_selection", "reranking_scoring"];
+    return ["state_reconciliation"];
   }
   return [];
 }
