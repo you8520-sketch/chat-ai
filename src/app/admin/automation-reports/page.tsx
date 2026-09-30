@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 
 import { requireAdminUser } from "@/lib/adminAuth";
 import {
+  fetchMemoryResearchAdminProjection,
+  type MemoryResearchAdminProjection,
+} from "@/lib/adminMemoryResearchReports";
+import {
   fetchGithubScheduledAutomationProjection,
   fetchGithubSupplyAutoDraftProjection,
 } from "@/lib/adminAutomationReports";
@@ -160,6 +164,181 @@ function CodeHealthCard({ card }: { card: CodeHealthAdminCard }) {
   );
 }
 
+function MemoryResearchCard({
+  projection,
+}: {
+  projection: MemoryResearchAdminProjection;
+}) {
+  const run = projection.run;
+  const state = run?.status ?? projection.status;
+  const readiness = run?.readiness;
+
+  return (
+    <section className="mt-6 rounded-2xl border border-fuchsia-500/20 bg-fuchsia-950/10 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-black text-fuchsia-200">
+            Memory Research Cycle
+          </h2>
+          <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+            메모리 기술 탐색 → owner 충돌 검사 → deterministic benchmark → case-port 계획을
+            수행하는 정기 연구 자동화입니다. 이 화면은 durable research ledger를 read-only로
+            표시하며 production memory를 수정하지 않습니다.
+          </p>
+        </div>
+        <span className={"rounded px-2 py-1 text-xs font-bold " + badgeClass(state)}>
+          {state}
+        </span>
+      </div>
+
+      {run ? (
+        <>
+          <p className="mt-3 text-xs text-zinc-500">
+            {run.cycleKey} · {run.mode} · 완료 {fmtDate(run.finishedAt)}
+            {run.mainSha ? ` · main ${run.mainSha.slice(0, 8)}` : ""}
+          </p>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">sources / observations</p>
+              <p className="mt-1 font-bold">
+                {run.counts.sourcesChecked} / {run.counts.observations}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                source 실패 {run.counts.sourcesFailed}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">evaluated</p>
+              <p className="mt-1 font-bold">{run.counts.evaluated}</p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                신규 {run.counts.newCandidates}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">WATCH / REJECT / ACCEPT</p>
+              <p className="mt-1 font-bold">
+                {run.counts.watch} / {run.counts.reject} / {run.counts.accept}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                benchmark {run.counts.benchmarked}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">provider calls / cost</p>
+              <p className="mt-1 font-bold">
+                {run.paidProviderCalls} / {"$"}{run.estimatedCostUsd.toFixed(4)}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                source HTTP {run.httpCalls}/{run.httpBudget || "-"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">companion / benchmark proposals</p>
+              <p className="mt-1 font-bold">
+                {run.companionExperimentProposals} / {run.benchmarkAdoptionProposals}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">case-port / harness 분석</p>
+              <p className="mt-1 font-bold">
+                {run.benchmarkCasePortPlans} / {run.benchmarkHarnessFeasibility}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">persistent gaps / local gold</p>
+              <p className="mt-1 font-bold">
+                {run.persistentMemoryGaps} / {run.localGoldAuthoringPackets}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">Draft PR packets</p>
+              <p className="mt-1 font-bold">{run.counts.draftPrPackets}</p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                productionTouched {String(run.productionTouched)}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-white/5 p-3 text-xs text-zinc-400">
+            <p>
+              baseline promotion gate ·{" "}
+              <span className={run.baselinePromotionBlocked ? "text-amber-300" : "text-emerald-300"}>
+                {run.baselinePromotionGateStatus ?? "기록 없음"}
+                {run.baselinePromotionBlocked == null
+                  ? ""
+                  : run.baselinePromotionBlocked
+                    ? " · BLOCKED"
+                    : " · OPEN"}
+              </span>
+            </p>
+            {readiness ? (
+              <p className="mt-1 text-zinc-500">
+                case readiness · deterministic {readiness.readyDeterministic} · durable ledger{" "}
+                {readiness.readyDurableLedger} · mutation {readiness.readyMutationLifecycle} · mixed{" "}
+                {readiness.mixedOwner} · harness 필요 {readiness.harnessExtensionRequired}
+              </p>
+            ) : null}
+          </div>
+
+          {run.decisions.length ? (
+            <details className="mt-3 rounded-xl border border-white/5 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-zinc-300">
+                최신 주요 decision {run.decisions.length}건
+              </summary>
+              <div className="mt-2 space-y-2">
+                {run.decisions.map((decision) => (
+                  <div
+                    key={decision.candidateKey + decision.decision}
+                    className="rounded-lg bg-black/15 p-2 text-xs"
+                  >
+                    <p className="font-mono text-fuchsia-200">{decision.candidateKey}</p>
+                    <p className="mt-1 font-semibold text-zinc-300">{decision.decision}</p>
+                    <p className="mt-1 text-zinc-500">{decision.reason}</p>
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
+        </>
+      ) : (
+        <p className="mt-4 text-sm text-zinc-500">
+          {projection.status === "UNAVAILABLE"
+            ? "Memory Research durable report를 읽지 못했습니다."
+            : "아직 persisted Memory Research cycle이 없습니다."}
+        </p>
+      )}
+
+      {projection.error ? (
+        <p className="mt-3 text-xs text-rose-300">{projection.error}</p>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {projection.githubRunUrl ? (
+          <a
+            href={projection.githubRunUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-fuchsia-300 hover:bg-white/5"
+          >
+            최신 GitHub run / artifact ↗
+          </a>
+        ) : null}
+        {projection.persistedReportUrl ? (
+          <a
+            href={projection.persistedReportUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-fuchsia-300 hover:bg-white/5"
+          >
+            persisted cycle JSON ↗
+          </a>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function ttlRecommendationLabel(value: string): string {
   if (value === "KEEP_5M") return "5분 TTL 유지가 유리";
   if (value === "ONE_HOUR_WOULD_BE_CHEAPER_IF_SUPPORTED") {
@@ -177,8 +356,11 @@ export default async function AdminAutomationReportsPage() {
     fetchGithubScheduledAutomationProjection(),
     fetchGithubSupplyAutoDraftProjection(),
   ]);
-  const codeHealth = await fetchCodeHealthAdminProjection(github.groups);
-  const decisionRadar = await fetchDecisionRadarAdminProjection(github.groups);
+  const [codeHealth, decisionRadar, memoryResearch] = await Promise.all([
+    fetchCodeHealthAdminProjection(github.groups),
+    fetchDecisionRadarAdminProjection(github.groups),
+    fetchMemoryResearchAdminProjection(github.groups),
+  ]);
   const ttlReports = listMainRpCacheTtlReports(db, 12);
   const schedulers = listSchedulerRunOverview(db);
   const latestTtl = ttlReports[0] ?? null;
@@ -196,6 +378,12 @@ export default async function AdminAutomationReportsPage() {
     ["FAILED", "PARTIAL", "REVIEW_CANDIDATE"].includes(
       decisionRadar.run?.status ?? ""
     )
+      ? 1
+      : 0;
+  const memoryResearchProblems =
+    memoryResearch.status === "UNAVAILABLE" ||
+    memoryResearch.run?.baselinePromotionBlocked === true ||
+    memoryResearch.run?.productionTouched === true
       ? 1
       : 0;
 
@@ -238,6 +426,7 @@ export default async function AdminAutomationReportsPage() {
               schedulerProblems +
               codeHealthProblems +
               decisionRadarProblems +
+              memoryResearchProblems +
               supplyDrafts.drafts.length}건
           </p>
           <p className="mt-1 text-xs text-zinc-600">실패·누락·stale 최신 상태</p>
@@ -390,6 +579,8 @@ export default async function AdminAutomationReportsPage() {
           </div>
         ) : null}
       </section>
+
+      <MemoryResearchCard projection={memoryResearch} />
 
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
