@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import NovelText from "@/components/NovelText";
 import TaggedNovelText from "@/components/TaggedNovelText";
+import JsxComponentSandbox from "@/components/JsxComponentSandbox";
+import { useJsxComponentCatalog, useJsxHostBridge } from "@/components/JsxHostBridge";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { InlineAssetOrientationPolicy } from "@/lib/chatAssetPresentation";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
@@ -10,8 +12,11 @@ import {
   parseMarkdownPipeTable,
   partitionRichBlocksForDisplay,
   splitChatRichBlocks,
+  type ChatRichBlock,
 } from "@/lib/chatRichContent";
 import { sanitizeChatStatusHtml, sanitizeChatVisualCardHtml } from "@/lib/chatHtmlSanitize";
+import { findJsxComponent } from "@/lib/jsxComponent/catalog";
+import { isIncompleteJsxInvocation } from "@/lib/jsxComponent/invocation";
 
 function ChatMarkdownTable({ markdown }: { markdown: string }) {
   const parsed = useMemo(() => parseMarkdownPipeTable(markdown), [markdown]);
@@ -60,6 +65,33 @@ function ChatMarkdownTable({ markdown }: { markdown: string }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function ChatJsxCall({ block }: { block: Extract<ChatRichBlock, { kind: "jsx-call" }> }) {
+  const catalog = useJsxComponentCatalog();
+  const bridge = useJsxHostBridge();
+  const record = findJsxComponent(catalog, block.name);
+  if (!record) {
+    return (
+      <div className="mt-3 rounded-lg border border-white/10 bg-[#0a0a0e] px-3 py-2 text-xs text-zinc-400">
+        등록되지 않은 컴포넌트: {block.name}
+      </div>
+    );
+  }
+  return (
+    <div className="mt-3">
+      <JsxComponentSandbox
+        compiled={record.compiled}
+        props={block.props}
+        title={record.name}
+        chatSendEnabled={record.chatSend}
+        bridge={bridge}
+      />
+      {record.chatSend ? (
+        <p className="mt-1 text-[11px] text-amber-200/80">이 컴포넌트는 채팅 전송 기능을 사용합니다.</p>
+      ) : null}
     </div>
   );
 }
@@ -118,17 +150,23 @@ export default function ChatRichBlocks({
 }) {
   const displayContent = useMemo(() => {
     if (!streaming) return content;
-    const fenceIdx = content.lastIndexOf("```html");
-    if (fenceIdx < 0) return content;
-    const after = content.slice(fenceIdx + 7);
-    if (/```/.test(after)) return content;
-    return content.slice(0, fenceIdx).trimEnd();
+    let next = content;
+    const fenceIdx = next.lastIndexOf("```html");
+    if (fenceIdx >= 0) {
+      const after = next.slice(fenceIdx + 7);
+      if (!/```/.test(after)) next = next.slice(0, fenceIdx).trimEnd();
+    }
+    if (isIncompleteJsxInvocation(next)) {
+      const open = next.lastIndexOf("<");
+      next = next.slice(0, open).trimEnd();
+    }
+    return next;
   }, [content, streaming]);
 
   const { topHtml, body, bottomHtml } = useMemo(() => {
     const all = splitChatRichBlocks(displayContent);
     const filtered = proseOnly
-      ? all.filter((b) => b.kind === "novel" || b.kind === "html")
+      ? all.filter((b) => b.kind === "novel" || b.kind === "html" || b.kind === "jsx-call")
       : all;
     return partitionRichBlocksForDisplay(filtered);
   }, [displayContent, proseOnly]);
@@ -169,6 +207,9 @@ export default function ChatRichBlocks({
         }
         if (block.kind === "markdown-table") {
           return <ChatMarkdownTable key={`md-${i}`} markdown={block.text} />;
+        }
+        if (block.kind === "jsx-call") {
+          return <ChatJsxCall key={`jsx-${i}`} block={block} />;
         }
         return null;
       })}

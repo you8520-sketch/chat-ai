@@ -90,6 +90,8 @@ import {
   resolveHtmlVisualCardPolicyFromSources,
   stripRedundantHtmlVisualCardFromSource,
 } from "@/lib/htmlVisualCardPolicy";
+import { parseJsxComponentCatalog } from "@/lib/jsxComponent/catalog";
+import { resolveJsxComponentPromptBlock } from "@/lib/jsxComponent/prompt";
 import {
   sanitizePrimaryModelContextSource,
   sanitizePrimaryModelHistoryMessages,
@@ -1105,6 +1107,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         : "State window policy",
       "systemRules",
       statusWindowPolicy.policyBlock,
+      "dynamic"
+    );
+  }
+
+  const jsxManifest = resolveJsxComponentPromptBlock(
+    parseJsxComponentCatalog(input.jsxComponentCatalogJson)
+  );
+  if (jsxManifest) {
+    pushSection(
+      "jsx-component-manifest",
+      "JSX component manifest (compact, no source)",
+      "systemRules",
+      jsxManifest,
       "dynamic"
     );
   }

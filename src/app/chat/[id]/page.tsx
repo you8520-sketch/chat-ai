@@ -135,7 +135,7 @@ export default async function ChatPage({
 
   const c = db
     .prepare(
-      "SELECT id, name, emoji, hue, nsfw, greeting, assets, creator_id, creator_name, visibility, moderation_status, official, recommended_writing_style, status_window_prompt, status_widget_json, status_widget_allow_user_override, content_kind, simulation_cast, simulation_imports_json FROM characters WHERE id=?"
+      "SELECT id, name, emoji, hue, nsfw, greeting, assets, creator_id, creator_name, visibility, moderation_status, official, recommended_writing_style, status_window_prompt, status_widget_json, COALESCE(jsx_components_json, '') AS jsx_components_json, status_widget_allow_user_override, content_kind, simulation_cast, simulation_imports_json FROM characters WHERE id=?"
     )
     .get(id) as
     | {
@@ -576,6 +576,7 @@ export default async function ChatPage({
         displayModeFromEngineMode(statusWidgetEngineMode)
       }
       initialCharacterWidgetJson={(c as { status_widget_json?: string }).status_widget_json ?? ""}
+      initialJsxComponentsJson={(c as { jsx_components_json?: string }).jsx_components_json ?? ""}
       initialStatusWidgetStackOrder={parseStatusWidgetStackOrder(chat.status_widget_stack_order)}
       characterWidgetAllowUserOverride={
         (c as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0

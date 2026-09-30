@@ -508,7 +508,7 @@ function normalizeHtmlVisualCardInFullResponse(text: string, oocUserMessage = ""
     }
     if (block.kind === "novel" && block.text.trim()) {
       parts.push(block.text.trim());
-    } else if (block.kind === "markdown-table") {
+    } else if (block.kind === "markdown-table" || block.kind === "jsx-call") {
       parts.push(block.text);
     }
   }

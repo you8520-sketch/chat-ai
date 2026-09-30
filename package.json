@@ -14,8 +14,9 @@
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit --pretty false",
     "lint": "npm run typecheck:app",
     "test:regular": "node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test \"src/**/*.test.ts\"",
+    "build:jsx-sandbox": "tsx scripts/build-jsx-sandbox.ts",
     "test:ui": "playwright test",
-    "build": "next build",
+    "build": "tsx scripts/build-jsx-sandbox.ts && next build",
     "start": "tsx server.js",
     "start:next": "next start",
     "payout:run": "tsx scripts/run-payout-once.ts",
@@ -49,6 +50,7 @@
     "react-dom": "^19.1.0",
     "server-only": "^0.0.1",
     "sharp": "^0.35.4",
+    "sucrase": "^3.35.1",
     "tsx": "^4.22.4",
     "web-push": "^3.6.7"
   },
@@ -63,6 +65,7 @@
     "@types/react-dom": "^19",
     "@types/sharp": "^0.31.1",
     "@types/web-push": "^3.6.4",
+    "esbuild": "0.28.1",
     "jsdom": "25.0.1",
     "tailwindcss": "^4.1.7",
     "typescript": "^5"

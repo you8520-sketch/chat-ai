@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import ChatRichBlocks from "@/components/ChatRichBlocks";
 import StatusMetaCard from "@/components/StatusMetaCard";
 import StatusWidgetCard from "@/components/StatusWidgetCard";
+import { JsxHostBridgeProvider } from "@/components/JsxHostBridge";
+import type { JsxHostBridge } from "@/components/JsxComponentSandbox";
+import { parseJsxComponentCatalog } from "@/lib/jsxComponent/catalog";
 import StatusWidgetValuesEditor from "@/components/StatusWidgetValuesEditor";
 import NovelText from "@/components/NovelText";
 import {
@@ -937,6 +940,7 @@ export default function ChatClient({
   isCharacterCreator = false,
   initialStatusWidgetDisplayMode = null,
   initialCharacterWidgetJson = "",
+  initialJsxComponentsJson = "",
   initialStatusWidgetStackOrder = "character_first",
   characterWidgetAllowUserOverride = true,
   showFullBillingReceipt = false,
@@ -979,6 +983,7 @@ export default function ChatClient({
   isCharacterCreator?: boolean;
   initialStatusWidgetDisplayMode?: StatusWidgetDisplayMode | null;
   initialCharacterWidgetJson?: string;
+  initialJsxComponentsJson?: string;
   initialStatusWidgetStackOrder?: StatusWidgetStackOrder;
   characterWidgetAllowUserOverride?: boolean;
   showFullBillingReceipt?: boolean;
@@ -1037,6 +1042,25 @@ export default function ChatClient({
   const [editSaving, setEditSaving] = useState(false);
   const [mode, setMode] = useState(initialMode);
   const [input, setInput] = useState(() => loadChatMessageDraft(character.id, initialChatId));
+  const [jsxSendRequest, setJsxSendRequest] = useState<string | null>(null);
+  const jsxCatalog = useMemo(
+    () => parseJsxComponentCatalog(initialJsxComponentsJson),
+    [initialJsxComponentsJson]
+  );
+  const jsxBridge = useMemo<JsxHostBridge>(
+    () => ({
+      setChatDraft: (text) => {
+        setInput(text.slice(0, CHAT_MESSAGE_MAX));
+        setJsxSendRequest(null);
+      },
+      requestChatSend: (text) => {
+        const next = text.slice(0, CHAT_MESSAGE_MAX);
+        setInput(next);
+        setJsxSendRequest(next);
+      },
+    }),
+    []
+  );
   const draftScopeRef = useRef(`${character.id}:${initialChatId ?? "pending"}`);
   /**
    * USER INPUT DRAFT custody: send() clears the visible input immediately for UX,
@@ -4210,6 +4234,7 @@ export default function ChatClient({
     // the server confirms durable bootstrap via turn_persisted.
     inFlightInputRef.current = { requestId: "", text, characterId: character.id, chatId };
     setInput("");
+    setJsxSendRequest(null);
     setError("");
     setStreamPhase(null);
     setGenerationPrepUi({ phase: "preparing", badges: [] });
@@ -5262,6 +5287,7 @@ export default function ChatClient({
   );
 
   return (
+    <JsxHostBridgeProvider value={jsxBridge} catalog={jsxCatalog}>
     <div className="flex min-w-0 flex-1 items-stretch gap-0">
       <div
         className="chat-readability-root flex min-w-0 flex-1 flex-col"
@@ -5847,6 +5873,8 @@ export default function ChatClient({
                             <StatusWidgetCard
                               key={`${m.id}-widget-${w.source}-top`}
                               html={w.html}
+                              jsxCompiled={w.jsxCompiled}
+                              values={w.values}
                             />
                           ))}
                           {statusWindowPlacement === "top" ? statusMetaCard : null}
@@ -5903,6 +5931,8 @@ export default function ChatClient({
                             <StatusWidgetCard
                               key={`${m.id}-widget-${w.source}-bottom`}
                               html={w.html}
+                              jsxCompiled={w.jsxCompiled}
+                              values={w.values}
                             />
                           ))}
                           {statusWindowPlacement === "bottom" ? statusMetaCard : null}
@@ -6057,6 +6087,11 @@ export default function ChatClient({
               onDisable={handleSuggestedRepliesDisable}
             />
           )}
+          {jsxSendRequest ? (
+            <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-100">
+              컴포넌트가 채팅 전송을 요청했습니다. 아래 전송을 누르면 기존 채팅 경로로 전달됩니다.
+            </p>
+          ) : null}
           <div className="flex gap-1.5">
             <textarea
               ref={inputRef}
@@ -6174,5 +6209,6 @@ export default function ChatClient({
       <ChatImageGeneratorPanel showRailTrigger={false} />
 
     </div>
+    </JsxHostBridgeProvider>
   );
 }
