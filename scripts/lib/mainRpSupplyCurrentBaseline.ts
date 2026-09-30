@@ -152,7 +152,7 @@ function currentOpenRouterEndpoint(input: {
   const slug = row?.provider?.slug;
   if (!row || !slug) return null;
   return {
-    providerName: row.providerName,
+    providerName: row.provider?.name ?? row.providerName,
     providerSlug: slug,
     serviceTier: policy.serviceTier ?? null,
   };
