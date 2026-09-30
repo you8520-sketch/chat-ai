@@ -312,10 +312,10 @@ function baselineFromCatalog(
   };
 }
 
-function baselineFromOpenRouterRoute(
+export function selectCurrentOpenRouterRouteEndpoint(
   modelId: SelectedAI,
   endpoints: SupplyEndpointEvidence[]
-): ProcurementBaseline | null {
+): SupplyEndpointEvidence | null {
   const routePolicy = resolveMainRpOpenRouterRoutePolicy(modelId);
   if (!routePolicy) return null;
   const allowed = new Set(
@@ -348,7 +348,14 @@ function baselineFromOpenRouterRoute(
       ) ?? Number.POSITIVE_INFINITY;
       return ac - bc;
     });
-  const current = matching[0];
+  return matching[0] ?? null;
+}
+
+function baselineFromOpenRouterRoute(
+  modelId: SelectedAI,
+  endpoints: SupplyEndpointEvidence[]
+): ProcurementBaseline | null {
+  const current = selectCurrentOpenRouterRouteEndpoint(modelId, endpoints);
   if (!current) return null;
   return {
     provider: "openrouter",
@@ -597,11 +604,11 @@ export function renderMainRpSupplyRadarMarkdown(report: MainRpSupplyRadarReport)
   lines.push("");
   for (const model of report.models) {
     lines.push(`## ${model.label} (${model.modelId})`, "");
-    const ci = model.currentProcurement;
+    const current = model.currentProcurement;
     lines.push(
-      ci
-        ? `Current CI: input $${ci.inputUsdPerMillion ?? "?"}/M · output $${ci.outputUsdPerMillion ?? "?"}/M · cache read $${ci.cacheReadUsdPerMillion ?? "?"}/M`
-        : "Current CI: unavailable"
+      current
+        ? `Current procurement (${current.provider}): input ${current.inputUsdPerMillion ?? "?"}/M · output ${current.outputUsdPerMillion ?? "?"}/M · cache read ${current.cacheReadUsdPerMillion ?? "?"}/M`
+        : "Current procurement: unavailable"
     );
     lines.push(`OpenRouter market endpoints: ${model.endpointCount} · lower raw endpoint-rate candidates: ${model.lowerRawEndpointRateCount}`, "");
     lines.push("| Provider | In/M | Out/M | Cache/M | Latency p50 | TPS p50 | Uptime 1d | Δ raw endpoint rate |");

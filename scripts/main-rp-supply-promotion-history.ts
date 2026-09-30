@@ -11,7 +11,7 @@ import { join } from "node:path";
 
 import type { MainRpSupplyRadarReport } from "./lib/mainRpSupplyRadar";
 import type { MainRpSupplyLiveQualificationReport } from "./lib/mainRpSupplyLiveQualification";
-import type { SupplyTransportComparisonReport } from "./lib/mainRpSupplyCiBaseline";
+import type { SupplyTransportComparisonReport } from "./lib/mainRpSupplyCurrentBaseline";
 import {
   MAIN_RP_SUPPLY_PROMOTION_MAX_HISTORY_SNAPSHOTS,
   evaluateMainRpSupplyPromotionHistory,
