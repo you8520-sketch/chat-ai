@@ -143,7 +143,13 @@ export function decideReevaluation(
     return { evaluate: true, trigger: "new_evidence" };
   }
   const benchmarkDecided = last?.stateTrail.includes("BENCHMARKED") ?? false;
-  if (benchmarkDecided && last!.architectureFingerprint !== ctx.architectureFingerprint) {
+  const hookBlocked =
+    existing.state === "WATCH" &&
+    existing.lastDecision === "WATCH_NO_BENCHMARK_HOOK";
+  if (
+    (benchmarkDecided || hookBlocked) &&
+    last?.architectureFingerprint !== ctx.architectureFingerprint
+  ) {
     return { evaluate: true, trigger: "architecture_changed" };
   }
   if (existing.state === "WATCH") {
