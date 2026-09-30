@@ -1,0 +1,117 @@
+name: Validate RP example-literal provenance A/B
+
+on:
+  pull_request:
+    paths:
+      - "scripts/lib/rpModelQualificationFixture.ts"
+      - "scripts/lib/rpModelQualificationFixture.test.ts"
+      - "scripts/lib/rpActiveModelQualityLive.ts"
+      - "scripts/lib/rpExampleLiteralBoundaryAb.ts"
+      - "scripts/lib/rpExampleLiteralBoundaryAb.test.ts"
+      - "scripts/rp-example-literal-boundary-ab-live.ts"
+      - ".github/workflows/validate-rp-example-literal-boundary-ab.yml"
+      - ".github/rp-example-literal-boundary-ab.trigger"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rp-example-literal-ab-\${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Typecheck app
+        run: npm run typecheck:app
+      - name: Example-literal A/B regressions
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
+          scripts/lib/rpModelQualificationFixture.test.ts
+          scripts/lib/rpActiveModelQualityLive.test.ts
+          scripts/lib/rpExampleLiteralBoundaryAb.test.ts
+
+  live_evidence:
+    needs: deterministic
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "1"
+      RP_ACTIVE_MODEL_QUALITY_LIVE: "1"
+      CHEAPER_INFERENCE_BENCHMARK_API_KEY: \${{ secrets.CHEAPER_INFERENCE_BENCHMARK_API_KEY }}
+      OPENROUTER_SUPPLY_BENCHMARK_API_KEY: \${{ secrets.OPENROUTER_SUPPLY_BENCHMARK_API_KEY }}
+      OPENROUTER_API_KEY: ""
+      RP_EXAMPLE_LITERAL_AB_OUTPUT_DIR: artifacts/rp-example-literal-boundary-ab
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check explicit one-shot trigger
+        id: trigger
+        shell: bash
+        run: |
+          if [[ -f .github/rp-example-literal-boundary-ab.trigger ]]; then
+            echo "run_live=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_live=0" >> "$GITHUB_OUTPUT"
+            echo "Trigger absent; provider calls=0."
+          fi
+
+      - name: Require dedicated benchmark credentials
+        if: steps.trigger.outputs.run_live == '1'
+        shell: bash
+        run: |
+          if [[ -z "$CHEAPER_INFERENCE_BENCHMARK_API_KEY" ]]; then
+            echo "::error::CHEAPER_INFERENCE_BENCHMARK_API_KEY repository secret is required."
+            exit 2
+          fi
+          if [[ -z "$OPENROUTER_SUPPLY_BENCHMARK_API_KEY" ]]; then
+            echo "::error::OPENROUTER_SUPPLY_BENCHMARK_API_KEY repository secret is required."
+            exit 2
+          fi
+
+      - uses: actions/setup-node@v5
+        if: steps.trigger.outputs.run_live == '1'
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.trigger.outputs.run_live == '1'
+        run: npm ci
+
+      - name: Run bounded 6-call provenance A/B
+        if: steps.trigger.outputs.run_live == '1'
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          scripts/rp-example-literal-boundary-ab-live.ts
+
+      - name: Job summary
+        if: steps.trigger.outputs.run_live == '1' && always()
+        shell: bash
+        run: |
+          if [[ -f artifacts/rp-example-literal-boundary-ab/REPORT.md ]]; then
+            cat artifacts/rp-example-literal-boundary-ab/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload raw A/B evidence
+        if: steps.trigger.outputs.run_live == '1' && always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: rp-example-literal-boundary-ab-evidence
+          path: artifacts/rp-example-literal-boundary-ab
+          if-no-files-found: error
+          retention-days: 90
