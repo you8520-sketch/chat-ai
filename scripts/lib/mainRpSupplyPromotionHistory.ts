@@ -450,18 +450,18 @@ export function renderMainRpSupplyPromotionHistoryMarkdown(
     `- snapshots examined: **${report.snapshotsExamined}**`,
     `- promotion ready: **${report.promotionReadyCount}**`,
     "",
-    "| Model | Provider | Status | Market samples/span | Live complete/fail/span | Savings | Latency | TPS | Uptime 1d/30m | Worst total ratio | Worst TTFT ratio |",
-    "|---|---|---|---|---|---:|---:|---:|---:|---:|---:|",
+    "| Model | Provider | Status | Market samples/span | Live complete/fail/span | Savings | Latency | TPS | Uptime 1d/30m | Worst total ratio | Worst TTFT ratio | Worst observed cost ratio | Cache regressions |",
+    "|---|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|"
   ];
 
   for (const row of report.candidates) {
     lines.push(
-      `| ${row.modelId} | ${row.providerName} | ${row.status} | ${row.qualifyingMarketSnapshots} / ${n(row.marketObservationSpanDays, 1)}d | ${row.completeLivePairs} / ${row.incompleteLivePairs} / ${n(row.liveObservationSpanDays, 1)}d | ${n(row.latestSavingsPercent, 1)}% | ${n(row.latestMarketLatencyP50Seconds, 3)}s | ${n(row.latestMarketThroughputP50TokensPerSecond, 1)} | ${n(row.latestMarketUptime1dPercent, 2)}% / ${n(row.latestMarketUptime30mPercent, 2)}% | ${n(row.worstCandidateTotalVsBaselineRatio, 3)} | ${n(row.worstCandidateTtftVsBaselineRatio, 3)} |`
+      `| ${row.modelId} | ${row.providerName} | ${row.status} | ${row.qualifyingMarketSnapshots} / ${n(row.marketObservationSpanDays, 1)}d | ${row.completeLivePairs} / ${row.incompleteLivePairs} / ${n(row.liveObservationSpanDays, 1)}d | ${n(row.latestSavingsPercent, 1)}% | ${n(row.latestMarketLatencyP50Seconds, 3)}s | ${n(row.latestMarketThroughputP50TokensPerSecond, 1)} | ${n(row.latestMarketUptime1dPercent, 2)}% / ${n(row.latestMarketUptime30mPercent, 2)}% | ${n(row.worstCandidateTotalVsBaselineRatio, 3)} | ${n(row.worstCandidateTtftVsBaselineRatio, 3)} | ${n(row.worstObservedCostVsBaselineRatio, 3)} | ${row.cacheRegressionObservations} |`
     );
   }
 
   if (!report.candidates.length) {
-    lines.push("| — | — | no successful live candidate history yet | — | — | — | — | — | — | — | — |");
+    lines.push("| — | — | no successful live candidate history yet | — | — | — | — | — | — | — | — | — | — |");
   }
 
   lines.push("", "## Interpretation boundary", "");
