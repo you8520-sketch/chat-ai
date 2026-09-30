@@ -1,0 +1,82 @@
+name: Probe supply auto Draft dry run
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/probe-supply-auto-draft.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      MAIN_RP_SUPPLY_RADAR_OUTPUT_DIR: artifacts/main-rp-supply-radar
+      MAIN_RP_SUPPLY_AUTO_DRAFT_DRY_RUN: "1"
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      OPENROUTER_API_KEY: ""
+      CHEAPER_INFERENCE_API_KEY: ""
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Write synthetic PROMOTION_READY packet
+        shell: bash
+        run: |
+          mkdir -p artifacts/main-rp-supply-radar
+          cat > artifacts/main-rp-supply-radar/promotion-proposals.json <<'JSON'
+          {
+            "version": 1,
+            "generatedAt": "2026-09-30T00:00:00.000Z",
+            "draftRoutePrEligibleCount": 1,
+            "crossProviderReviewRequiredCount": 0,
+            "automaticMergeEligibleCount": 0,
+            "notes": [],
+            "proposals": [
+              {
+                "modelId": "gemini-3.7-flash",
+                "candidateProviderName": "Fixture Provider",
+                "candidateProviderSlug": "fixture-provider",
+                "currentProcurementProvider": "openrouter",
+                "transitionKind": "SAME_OPENROUTER_TRANSPORT",
+                "draftRoutePrEligible": true,
+                "automaticMergeEligible": false,
+                "stopReason": null,
+                "requiredReviewOwners": [],
+                "evidence": {
+                  "qualifyingMarketSnapshots": 4,
+                  "marketObservationSpanDays": 21,
+                  "completeLivePairs": 2,
+                  "liveObservationSpanDays": 21,
+                  "latestSavingsPercent": 15,
+                  "worstCandidateTotalVsBaselineRatio": 0.8,
+                  "worstCandidateTtftVsBaselineRatio": 0.9
+                }
+              }
+            ]
+          }
+          JSON
+      - name: Run auto-Draft in no-write dry mode
+        run: node --conditions=react-server --import tsx scripts/main-rp-supply-auto-draft.ts
+      - name: Assert no write side effects
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require("fs");
+          const p = "artifacts/main-rp-supply-radar/auto-draft-results.json";
+          const r = JSON.parse(fs.readFileSync(p, "utf8"));
+          if (r.dryRun !== true) throw new Error("dryRun must be true");
+          if (r.productionRouteMutations !== 0) throw new Error("production route mutation detected");
+          if (r.automaticMerges !== 0) throw new Error("automatic merge detected");
+          if (r.createdDrafts !== 1) throw new Error("expected one validated dry-run Draft");
+          const row = r.results[0];
+          if (row.status !== "CREATED" || row.draftPrUrl !== "DRY_RUN") {
+            throw new Error("dry-run branch validation did not complete");
+          }
+          NODE
+          git diff --exit-code
