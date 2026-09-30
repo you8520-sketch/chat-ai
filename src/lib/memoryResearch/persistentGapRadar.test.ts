@@ -10,9 +10,10 @@ import {
 const METRICS = {
   candidateRecallAtK: { value: 1, status: "MEASURED", eligibleCases: 1, totalCases: 1 },
   finalRecallAt8: { value: 1, status: "MEASURED", eligibleCases: 1, totalCases: 1 },
-  finalPrecision: { value: 1, status: "MEASURED", eligibleCases: 1, totalCases: 1 },
+  precision: { value: 1, status: "MEASURED", eligibleCases: 1, totalCases: 1 },
   falseInjectionRate: { value: 0, status: "MEASURED", eligibleCases: 1, totalCases: 1 },
   falseMemoryRate: { value: 0, status: "MEASURED", eligibleCases: 1, totalCases: 1 },
+  irrelevantInjectionRate: { value: 0, status: "MEASURED", eligibleCases: 1, totalCases: 1 },
   staleStateRecallRate: { value: 0, status: "MEASURED", eligibleCases: 1, totalCases: 1 },
   relationshipRoleConsistency: { value: 1, status: "MEASURED", eligibleCases: 1, totalCases: 1 },
   distinctiveUtteranceRecall: { value: 1, status: "MEASURED", eligibleCases: 1, totalCases: 1 },
