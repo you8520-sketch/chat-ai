@@ -9,7 +9,7 @@ import {
 import type { SupplyTransportComparisonReport } from "./mainRpSupplyCurrentBaseline";
 import type { MainRpSupplyRadarReport, SupplyComparison } from "./mainRpSupplyRadar";
 
-export const MAIN_RP_SUPPLY_PROMOTION_HISTORY_VERSION = 1;
+export const MAIN_RP_SUPPLY_PROMOTION_HISTORY_VERSION = 2;
 export const MAIN_RP_SUPPLY_PROMOTION_REQUIRED_MARKET_SNAPSHOTS = 4;
 export const MAIN_RP_SUPPLY_PROMOTION_REQUIRED_MARKET_SPAN_DAYS = 21;
 export const MAIN_RP_SUPPLY_PROMOTION_REQUIRED_LIVE_PAIRS = 2;
@@ -236,8 +236,14 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
   >();
 
   for (const snapshot of snapshots) {
+    if (snapshot.comparison?.version !== 2) continue;
     for (const result of snapshot.live?.results ?? []) {
-      if (!result.livePairComplete) continue;
+      if (
+        !result.livePairComplete ||
+        !("deploymentServiceTier" in result.candidate)
+      ) {
+        continue;
+      }
       candidateMap.set(providerKey(result.candidate.modelId, result.candidate.providerSlug), {
         modelId: result.candidate.modelId,
         providerName: result.candidate.providerName,
@@ -262,15 +268,17 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
       }))
       .filter((row) => isMarketQualified(row.endpoint));
 
-    const allLiveRows = snapshots.flatMap((snapshot) =>
-      (snapshot.live?.results ?? [])
+    const allLiveRows = snapshots.flatMap((snapshot) => {
+      if (snapshot.comparison?.version !== 2) return [];
+      return (snapshot.live?.results ?? [])
         .filter(
           (result) =>
+            "deploymentServiceTier" in result.candidate &&
             result.candidate.modelId === candidate.modelId &&
             result.candidate.providerSlug === candidate.providerSlug
         )
-        .map((result) => ({ snapshot, result }))
-    );
+        .map((result) => ({ snapshot, result }));
+    });
     const completeLiveRows = allLiveRows.filter((row) => row.result.livePairComplete);
     const incompleteLiveRows = allLiveRows.filter(
       (row) => !row.result.livePairComplete
@@ -429,6 +437,7 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
       "Any recorded incomplete live pair for the same candidate blocks promotion until the history window moves past it.",
       "Candidate total response time must not exceed the current baseline and TTFT may be at most 1.25x the current baseline.",
       "Same-OpenRouter promotion additionally requires exact service-tier parity and >=10% observed total_cost savings on every successful comparison.",
+      "Pre-v2 live/comparison artifacts are excluded from promotion live-history because they did not prove current-procurement and deployment-service-tier parity.",
       "Direct suppliers without dedicated benchmark credentials are not eligible for this OpenRouter live-history gate.",
       "Production cutover remains a separate canary/rollback change.",
     ],
