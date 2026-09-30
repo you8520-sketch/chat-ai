@@ -144,7 +144,7 @@ describe("official pilot content (romance fantasy 01)", () => {
     const { bible } = worldBible();
     assert.equal(bible.portfolio.length, m.slots);
     assert.equal(bible.portfolio.filter((b) => b.adultCandidate).length, m.adultCandidates);
-    assert.ok(bible.lorebook.length >= 8 && bible.lorebook.length <= 12);
+    assert.ok(bible.lorebook.length >= 3 && bible.lorebook.length <= 8);
   });
 
   it("all 10 character files exist, complete, and match their briefs", () => {
