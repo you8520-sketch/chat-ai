@@ -1926,26 +1926,26 @@ export async function POST(req: Request) {
     lorebookText: lorebookTextForEpisodicMemory,
     triggeredEventText: triggeredScenarioEventsBlock,
   });
-  logMemoryHealthTelemetry(
-    buildMemoryHealthTelemetry({
-      completedPlayableTurns: completedTurnsForMemoryCoverage,
-      summarizedThrough: effectiveSummarizedTurnCount,
-      realRawCompleteExchanges: providerHistoryHealth.realRawCompleteExchanges,
-      openingInRaw: providerHistoryHealth.openingPreludePresent,
-      bridgeInRaw: providerHistoryHealth.generalRouteBridgePresent,
-      episodicCandidateCount: episodicMemory.debug.length,
-      episodicInjectedCount: episodicMemory.facts.length,
-      episodicDuplicateBlockedCount: episodicMemory.debug.filter((d) =>
-        Boolean(d.duplicate_reason)
-      ).length,
-      episodicBudgetBlockedCount: episodicMemory.debug.filter((d) =>
-        Boolean(d.budget_reason)
-      ).length,
-      episodicSemanticRuntime,
-      episodicSemanticQueryReason: episodicSemantic.reason,
-      statusExtractCallCount: 0,
-    })
-  );
+  let memoryHealthTelemetryForSnapshot = buildMemoryHealthTelemetry({
+    completedPlayableTurns: completedTurnsForMemoryCoverage,
+    summarizedThrough: effectiveSummarizedTurnCount,
+    summaryHealthState: summaryHealthState ?? "MEMORY_DISABLED",
+    realRawCompleteExchanges: providerHistoryHealth.realRawCompleteExchanges,
+    openingInRaw: providerHistoryHealth.openingPreludePresent,
+    bridgeInRaw: providerHistoryHealth.generalRouteBridgePresent,
+    episodicCandidateCount: episodicMemory.debug.length,
+    episodicInjectedCount: episodicMemory.facts.length,
+    episodicDuplicateBlockedCount: episodicMemory.debug.filter((d) =>
+      Boolean(d.duplicate_reason)
+    ).length,
+    episodicBudgetBlockedCount: episodicMemory.debug.filter((d) =>
+      Boolean(d.budget_reason)
+    ).length,
+    episodicSemanticRuntime,
+    episodicSemanticQueryReason: episodicSemantic.reason,
+    statusExtractCallCount: 0,
+  });
+  logMemoryHealthTelemetry(memoryHealthTelemetryForSnapshot);
   const privateSpeechControlBlock = buildPrivateSpeechControlBlock(
     parseCreatorDescriptionCompiled(ch.creator_compiled_description_json)
   );
@@ -5747,29 +5747,29 @@ export async function POST(req: Request) {
               : 0,
           status_trigger_evaluated: shouldEvaluateCreatorTriggers,
         });
-        logMemoryHealthTelemetry(
-          buildMemoryHealthTelemetry({
-            completedPlayableTurns: completedTurnsForMemoryCoverage,
-            summarizedThrough: effectiveSummarizedTurnCount,
-            realRawCompleteExchanges: providerHistoryHealth.realRawCompleteExchanges,
-            openingInRaw: providerHistoryHealth.openingPreludePresent,
-            bridgeInRaw: providerHistoryHealth.generalRouteBridgePresent,
-            episodicCandidateCount: episodicMemory.debug.length,
-            episodicInjectedCount: episodicMemory.facts.length,
-            episodicDuplicateBlockedCount: episodicMemory.debug.filter((d) =>
-              Boolean(d.duplicate_reason)
-            ).length,
-            episodicBudgetBlockedCount: episodicMemory.debug.filter((d) =>
-              Boolean(d.budget_reason)
-            ).length,
-            episodicSemanticRuntime,
-            episodicSemanticQueryReason: episodicSemantic.reason,
-            statusExtractCallCount:
-              widgetExtractResult === "v3_extract" || widgetExtractResult === "v3_repair"
-                ? 1
-                : 0,
-          })
-        );
+        memoryHealthTelemetryForSnapshot = buildMemoryHealthTelemetry({
+          completedPlayableTurns: completedTurnsForMemoryCoverage,
+          summarizedThrough: effectiveSummarizedTurnCount,
+          summaryHealthState: summaryHealthState ?? "MEMORY_DISABLED",
+          realRawCompleteExchanges: providerHistoryHealth.realRawCompleteExchanges,
+          openingInRaw: providerHistoryHealth.openingPreludePresent,
+          bridgeInRaw: providerHistoryHealth.generalRouteBridgePresent,
+          episodicCandidateCount: episodicMemory.debug.length,
+          episodicInjectedCount: episodicMemory.facts.length,
+          episodicDuplicateBlockedCount: episodicMemory.debug.filter((d) =>
+            Boolean(d.duplicate_reason)
+          ).length,
+          episodicBudgetBlockedCount: episodicMemory.debug.filter((d) =>
+            Boolean(d.budget_reason)
+          ).length,
+          episodicSemanticRuntime,
+          episodicSemanticQueryReason: episodicSemantic.reason,
+          statusExtractCallCount:
+            widgetExtractResult === "v3_extract" || widgetExtractResult === "v3_repair"
+              ? 1
+              : 0,
+        });
+        logMemoryHealthTelemetry(memoryHealthTelemetryForSnapshot);
 
         if (shouldCommitCanonicalTurnState(generationSemantics)) {
         try {
@@ -6250,6 +6250,7 @@ export async function POST(req: Request) {
               personaKnowledgePrompt: personaKnowledgePromptDecisionMeta(
                 personaKnowledgePromptDecision
               ),
+              memoryHealth: memoryHealthTelemetryForSnapshot,
               ...(museAcceptanceFields
                 ? { museAcceptance: museAcceptanceFields }
                 : {}),
