@@ -1,4 +1,5 @@
 import type { CycleReport } from "@/lib/memoryResearch/cycle";
+import { renderPersistentMemoryGapMarkdown } from "@/lib/memoryResearch/persistentGapRadar";
 import { renderBaselineTrendMarkdown } from "@/lib/memoryResearch/baselineTrend";
 import { renderBenchmarkHarnessFeasibilityMarkdown } from "@/lib/memoryResearch/benchmarkHarnessFeasibility";
 import { renderBenchmarkCasePortPlansMarkdown } from "@/lib/memoryResearch/benchmarkCasePortPlanner";
@@ -39,6 +40,7 @@ export function renderCycleReportMarkdown(report: CycleReport): string {
     renderBenchmarkAdoptionMarkdown(report.benchmarkAdoptionProposals),
     renderBenchmarkCasePortPlansMarkdown(report.benchmarkCasePortPlans),
     renderBenchmarkHarnessFeasibilityMarkdown(report.benchmarkHarnessFeasibility),
+    renderPersistentMemoryGapMarkdown(report.persistentMemoryGaps),
     renderBaselineTrendMarkdown(report.baselineTrend),
     "## Baseline Promotion Gate",
     "",
