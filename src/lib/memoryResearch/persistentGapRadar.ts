@@ -66,10 +66,10 @@ function ownerHintsFor(caseId: string): string[] {
     return ["semantic_retrieval", "embedding_index"];
   }
   if (caseId === "item-ownership-01") {
-    return ["relationship_durable", "episodic_selection"];
+    return ["relationship_durable"];
   }
   if (caseId === "high-noise-distractors-01") {
-    return ["episodic_selection", "reranking_scoring"];
+    return ["state_reconciliation"];
   }
   return [];
 }

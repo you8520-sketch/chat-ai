@@ -20,7 +20,7 @@ it("baseline arm runs the canonical benchmark with zero network and zero embeddi
   assert.deepEqual(baseline.invariantViolations, []);
   assert.ok(baseline.evaluatedTurns > 0);
   assert.ok(baseline.promptTokensInjected > 0);
-  assert.equal(baseline.finalHitByCase["item-ownership-01"], false);
+  assert.equal(baseline.finalHitByCase["item-ownership-01"], true);
   assert.equal(baseline.finalHitByCase["t300-01"], true);
 });
 

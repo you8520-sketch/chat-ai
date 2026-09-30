@@ -1336,6 +1336,33 @@ function lexicalRelevance(fact: EpisodicExtractedFact, currentUserMessage: strin
   return Math.min(2, tokens.filter((token) => haystack.includes(token)).length);
 }
 
+/** Existing-owner diagnostic — same tokenizer/scorer as production ranking. */
+export function inspectLexicalRelevanceForDebug(
+  fact: Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text">,
+  query: string
+): {
+  rawTokens: string[];
+  tokens: Array<{ raw: string; normalized: string; targetMatch: boolean }>;
+  relevanceScore: number;
+  factSearchText: string;
+} {
+  const haystack = factSearchText(fact);
+  const rawTokens = query.split(/[^a-z0-9가-힣_]+/i).filter(Boolean);
+  return {
+    rawTokens,
+    tokens: rawTokens.map((raw) => {
+      const normalized = normalizeRetrievalToken(raw);
+      return {
+        raw,
+        normalized,
+        targetMatch: normalized.length >= 2 && haystack.includes(normalized),
+      };
+    }),
+    relevanceScore: lexicalRelevance(fact, query),
+    factSearchText: haystack,
+  };
+}
+
 function normalizeForMemoryDedupe(text: string): string {
   return text
     .toLowerCase()
@@ -1544,6 +1571,14 @@ export type EpisodicStateReconcileStats = {
   keysDroppedDueToCap: number;
   keysOmittedBlockedLatest: number;
   keysOmittedRawWindow: number;
+};
+
+export type ReconcileGlobalStateLikeFactsOptions = {
+  /**
+   * Spend the key-cap lookup budget on these rows first.
+   * Overflow keys are still dropped — this only changes which 25 keys are reconciled.
+   */
+  preferRowIds?: ReadonlySet<number>;
 };
 
 export type EpisodicLaneBudgets = {
@@ -1773,6 +1808,22 @@ function isStateLikeForGlobalReconciliation(row: EpisodicMemoryFactRecord): bool
   return nature !== "historical_event" && nature !== "clearly_temporary";
 }
 
+function lanePrefersStateReconcileBudget(lane: EpisodicCandidateLane): boolean {
+  switch (lane) {
+    case "relevance":
+    case "semantic":
+    case "milestone_critical":
+    case "milestone_important":
+      return true;
+    case "recent":
+      return false;
+    default: {
+      const _exhaustive: never = lane;
+      return _exhaustive;
+    }
+  }
+}
+
 function filterHistoricalMilestoneRows(
   rows: EpisodicMemoryFactRecord[],
   keepLimit: number
@@ -1816,11 +1867,25 @@ function fetchLatestBoundedStateRowForKey(
 export function reconcileGlobalStateLikeFacts(
   db: Database.Database,
   scope: EpisodicCandidateScope,
-  rows: EpisodicMemoryFactRecord[]
+  rows: EpisodicMemoryFactRecord[],
+  options?: ReconcileGlobalStateLikeFactsOptions
 ): { rows: EpisodicMemoryFactRecord[]; stats: EpisodicStateReconcileStats } {
-  const stateKeys = [
-    ...new Set(rows.filter(isStateLikeForGlobalReconciliation).map(episodicLogicalKey)),
-  ];
+  const stateRows = rows.filter(isStateLikeForGlobalReconciliation);
+  const seenKeys = new Set<string>();
+  const stateKeys: string[] = [];
+  const pushStateKey = (row: EpisodicMemoryFactRecord) => {
+    const key = episodicLogicalKey(row);
+    if (seenKeys.has(key)) return;
+    seenKeys.add(key);
+    stateKeys.push(key);
+  };
+  const preferRowIds = options?.preferRowIds;
+  if (preferRowIds && preferRowIds.size > 0) {
+    for (const row of stateRows) {
+      if (preferRowIds.has(row.id)) pushStateKey(row);
+    }
+  }
+  for (const row of stateRows) pushStateKey(row);
   const keysDiscovered = stateKeys.length;
   if (keysDiscovered === 0) {
     return {
@@ -2610,14 +2675,21 @@ export function getEpisodicMemoryForPrompt(
         });
       }
     }
+    const currentMessage = input.currentUserMessage ?? "";
+    const preferRowIds = new Set<number>();
+    for (const row of uncontaminatedRows) {
+      const lanes = laneById.get(row.id);
+      if (lanes?.some(lanePrefersStateReconcileBudget)) preferRowIds.add(row.id);
+      if (lexicalRelevance(row, currentMessage) > 0) preferRowIds.add(row.id);
+    }
     const { rows: stateReconciledRows, stats: stateReconcileStats } = reconcileGlobalStateLikeFacts(
       db,
       scope,
-      uncontaminatedRows
+      uncontaminatedRows,
+      { preferRowIds }
     );
     const resolved = resolveLatestFactsByLogicalKey(stateReconciledRows);
     const skippedConflictFactsCount = Math.max(0, stateReconciledRows.length - resolved.length);
-    const currentMessage = input.currentUserMessage ?? "";
     const debugById = new Map<number, EpisodicMemorySelectionDebug>();
     for (const fact of resolved) {
       debugById.set(fact.id, {
