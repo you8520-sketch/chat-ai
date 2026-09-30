@@ -216,7 +216,7 @@ const SLOT_REPLACEMENT = {
 const PUBLIC_SURFACE_DECISIONS: Record<string, { tagline?: string; replaceTags?: [string, string][]; addTags?: string[] }> = {
   "pilot-rf-01": { tagline: "피를 토하던 황자가, 목격한 당신에게 비밀 거래를 청한다." },
   "pilot-rf-02": { tagline: "금지된 마석을 쥔 당신을 압송해 온 북부의 대공.", replaceTags: [["느린 신뢰", "혐관"]], addTags: ["북부대공"] },
-  "pilot-rf-03": { tagline: "금고털이 경보 속, 당신의 손목을 잡고 달아난 브로커." },
+  "pilot-rf-03": { tagline: "금고 경보 속, 비밀 장부를 든 브로커와 탈출로가 겹쳤다." },
   "pilot-rf-09": { replaceTags: [["감정의 균열", "금단"]] },
   "pilot-rf-10": { tagline: "폐기 직전, 당신의 심장 소리에 깨어난 기계 인형.", replaceTags: [["잔잔한 관계", "순애"]] },
   // Its only support was a relationship to a removed character; 연구 협력 is what the bible actually shows.
