@@ -384,7 +384,7 @@ it("same cycle key is idempotent unless forced", async () => {
   assert.equal(forced.report.skipped[0]?.reason, "watch_cooldown");
 });
 
-it("benchmark failure isolation: unhealthy baseline or crashing arm → WATCH_BENCHMARK_FAILED, no packets", async () => {
+it("benchmark failure isolation: failed baseline freezes promotion; crashing candidate arm remains WATCH", async () => {
   const failingBaseline = await runResearchCycle(
     emptyLedger(),
     deps(WEEK1, {
@@ -393,7 +393,12 @@ it("benchmark failure isolation: unhealthy baseline or crashing arm → WATCH_BE
     })
   );
   assert.equal(failingBaseline.report.baseline.status, "FAILED");
-  assert.equal(failingBaseline.report.decisions[0]!.decision, "WATCH_BENCHMARK_FAILED");
+  assert.equal(failingBaseline.report.baselinePromotionGate.status, "BLOCKED_BASELINE_FAILED");
+  assert.equal(failingBaseline.report.decisions.length, 0);
+  assert.deepEqual(failingBaseline.report.skipped, [
+    { candidateKey: "github:fixture/wide", reason: "baseline_promotion_gate" },
+  ]);
+  assert.equal(failingBaseline.ledger.candidates["github:fixture/wide"], undefined);
   assert.equal(failingBaseline.report.draftPrPackets.length, 0);
 
   const crashing: ExperimentAdapter = {
@@ -406,6 +411,7 @@ it("benchmark failure isolation: unhealthy baseline or crashing arm → WATCH_BE
     emptyLedger(),
     deps(WEEK1, { sources: [staticSource("s", [OBS.wide])], adapters: [crashing] })
   );
+  assert.equal(crashed.report.baselinePromotionGate.status, "OPEN");
   assert.equal(crashed.report.decisions[0]!.decision, "WATCH_BENCHMARK_FAILED");
   assert.match(crashed.report.decisions[0]!.reason, /adapter bug/);
   assert.equal(crashed.report.draftPrPackets.length, 0);
