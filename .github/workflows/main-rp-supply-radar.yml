@@ -111,7 +111,7 @@ jobs:
   auto-draft:
     name: Evidence-gated supply route Draft PR
     needs: radar
-    if: needs.radar.result == 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    if: needs.radar.result == 'success' && github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
