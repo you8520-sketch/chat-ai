@@ -5,6 +5,8 @@ on:
     paths:
       - "src/lib/chatModels.ts"
       - "src/lib/openRouterConfig.ts"
+      - "config/main-rp-openrouter-routes.json"
+      - "src/lib/mainRpOpenRouterRouteConfig.test.ts"
       - "src/lib/openRouterClient.ts"
       - "src/lib/openRouterAdult.ts"
       - "src/app/api/chat/route.ts"
@@ -15,6 +17,8 @@ on:
       - "scripts/lib/mainRpMonthlyCacheAudit.ts"
       - "scripts/lib/mainRpSupplyRadar.ts"
       - "scripts/lib/mainRpSupplyLiveQualification.ts"
+      - "scripts/lib/mainRpSupplyAutoDraftPr.ts"
+      - "scripts/main-rp-supply-auto-draft-pr.ts"
       - "scripts/lib/mainRpSupplyCurrentBaseline.ts"
       - "scripts/lib/rpModelQualificationPacket.ts"
       - "**/*mainRp*test.ts"
@@ -48,6 +52,7 @@ jobs:
           node --conditions=react-server --import tsx --test --test-concurrency=1
           src/lib/chatModels.gemini.test.ts
           src/lib/mainRpModelRegistry.test.ts
+          src/lib/mainRpOpenRouterRouteConfig.test.ts
           src/lib/openRouterClient.test.ts
       - name: Published pricing routing compatibility
         run: >-
@@ -64,5 +69,6 @@ jobs:
           scripts/lib/mainRpDirectSupplierRadar.test.ts
           scripts/lib/mainRpSupplyPromotionHistory.test.ts
           scripts/lib/mainRpSupplyPromotionProposal.test.ts
+          scripts/lib/mainRpSupplyAutoDraftPr.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
           scripts/lib/mainRpSupplyCurrentBaseline.test.ts
