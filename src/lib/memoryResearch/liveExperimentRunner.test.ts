@@ -186,7 +186,7 @@ it("persistent semantic gap prioritizes the existing Qwen live recipe inside the
   ledger.candidates[CANDIDATE_KEY] = qwen;
 
   const semanticCase = "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01";
-  const baseline = (suffix: string): BaselineSnapshot => ({
+  const baseline = (): BaselineSnapshot => ({
     benchmarkFingerprint: "fp-persistent-semantic",
     cases: 1,
     evaluatedTurns: 1,
@@ -196,9 +196,9 @@ it("persistent semantic gap prioritizes the existing Qwen live recipe inside the
     finalHitByCase: { [semanticCase]: false },
   });
   ledger.cycles = [
-    { cycleKey: "weekly-a", mode: "weekly", finishedAt: "2026-09-01T00:00:00Z", mainSha: "a".repeat(40), counts: {}, baseline: baseline("a") },
-    { cycleKey: "weekly-b", mode: "weekly", finishedAt: "2026-09-08T00:00:00Z", mainSha: "b".repeat(40), counts: {}, baseline: baseline("b") },
-    { cycleKey: "weekly-c", mode: "weekly", finishedAt: "2026-09-15T00:00:00Z", mainSha: "c".repeat(40), counts: {}, baseline: baseline("c") },
+    { cycleKey: "weekly-a", mode: "weekly", finishedAt: "2026-09-01T00:00:00Z", mainSha: "a".repeat(40), counts: {}, baseline: baseline() },
+    { cycleKey: "weekly-b", mode: "weekly", finishedAt: "2026-09-08T00:00:00Z", mainSha: "b".repeat(40), counts: {}, baseline: baseline() },
+    { cycleKey: "weekly-c", mode: "weekly", finishedAt: "2026-09-15T00:00:00Z", mainSha: "c".repeat(40), counts: {}, baseline: baseline() },
   ];
 
   const calls: string[][] = [];
