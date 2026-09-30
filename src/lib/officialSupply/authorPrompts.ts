@@ -143,7 +143,7 @@ export function buildWorldCoreUser(input: WorldBibleInput): string {
     "- culture 3~6개: 이름·상세",
     "최상위 키는 정확히 name·genre·subgenre·tone·era·techLevel·regions·societyForm·premise·centralPremise·",
     "situation·factions·powerSystem·society·culture 이며 하나도 빠뜨리지 않는다.",
-    "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. 선택 배열(npcs·otherRelationships 등)은 실제 필요가 없으면 빈 배열을 유지한다.",
+    "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
     WORLD_CORE_SKELETON,
   ].join("\n");
 }
@@ -441,7 +441,7 @@ export function buildCharacterVoiceUser(input: CharacterVoiceInput): string {
     "전반부 요약:",
     input.part1Recap,
     "",
-    "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
+    "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. npcs는 실제 반복 역할이 필요할 때만 1~2명 추가하고, 필요 없으면 []를 유지한다.",
     VOICE_SKELETON,
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
@@ -497,7 +497,7 @@ export function buildCharacterBondsUser(input: CharacterBondsInput): string {
     "전반부 요약:",
     input.part1Recap,
     "",
-    "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다(성인 후보가 아니면 adultSection은 null).",
+    "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 실제 반복 등장·행동 변화가 필요한 인물만 넣고 없으면 []; 성인 후보가 아니면 adultSection은 null.",
     BONDS_SKELETON,
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
