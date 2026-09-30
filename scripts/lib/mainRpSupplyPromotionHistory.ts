@@ -268,17 +268,16 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
       }))
       .filter((row) => isMarketQualified(row.endpoint));
 
-    const allLiveRows = snapshots.flatMap((snapshot) => {
-      if (snapshot.comparison?.version !== 2) return [];
-      return (snapshot.live?.results ?? [])
+    const allLiveRows = snapshots.flatMap((snapshot) =>
+      (snapshot.live?.results ?? [])
         .filter(
           (result) =>
             "deploymentServiceTier" in result.candidate &&
             result.candidate.modelId === candidate.modelId &&
             result.candidate.providerSlug === candidate.providerSlug
         )
-        .map((result) => ({ snapshot, result }));
-    });
+        .map((result) => ({ snapshot, result }))
+    );
     const completeLiveRows = allLiveRows.filter((row) => row.result.livePairComplete);
     const incompleteLiveRows = allLiveRows.filter(
       (row) => !row.result.livePairComplete
