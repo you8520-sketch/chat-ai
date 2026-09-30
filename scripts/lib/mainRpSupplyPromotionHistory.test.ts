@@ -195,7 +195,7 @@ function snapshot(input: {
       input.live !== "complete"
         ? null
         : {
-            version: 1,
+            version: 2,
             generatedAt: when,
             providerGenerationCalls: 4,
             maxProviderGenerationCalls: 20,
