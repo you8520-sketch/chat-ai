@@ -23,7 +23,7 @@ export function isPortOneBrowserConfigured(): boolean {
 }
 
 export function isPortOneServerVerifyConfigured(): boolean {
-  return PORTONE_API_SECRET.length > 0;
+  return (process.env.PORTONE_API_SECRET?.trim() || PORTONE_API_SECRET).length > 0;
 }
 
 /** 클로즈베타 등 — `PORTONE_CHARGE_ENABLED=0`이면 충전·결제 UI·API 전면 비활성 */

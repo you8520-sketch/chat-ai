@@ -36,8 +36,18 @@ function parseCancellation(input: unknown): PortoneCancellationSnapshot | null {
   };
 }
 
+type PortOnePaymentLookup = (paymentId: string) => Promise<PortonePaymentSnapshot | null>;
+
+let paymentLookupOverride: PortOnePaymentLookup | null = null;
+
+/** Test-only: stub GET /payments/{id}. Production callers must not use this. */
+export function setPortOnePaymentLookupForTests(lookup: PortOnePaymentLookup | null): void {
+  paymentLookupOverride = lookup;
+}
+
 /** PortOne V2 REST — GET /payments/{paymentId} */
 export async function fetchPortOnePayment(paymentId: string): Promise<PortonePaymentSnapshot | null> {
+  if (paymentLookupOverride) return paymentLookupOverride(paymentId);
   if (!PORTONE_API_SECRET) return null;
 
   const res = await fetch(`${PORTONE_API_BASE}/payments/${encodeURIComponent(paymentId)}`, {

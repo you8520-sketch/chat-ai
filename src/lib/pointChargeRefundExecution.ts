@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
 import {
   canCancelChargeBatch,
+  getChargeBatchById,
   resolveChargeBatchForUser,
   type PointChargeBatchRow,
 } from "@/lib/chargeCancellation";
@@ -9,6 +10,7 @@ import { getPointBalanceOnDb, type PointBalance } from "@/lib/points";
 import {
   ensurePointChargeRefundAttemptsSchema,
   getPointChargeRefundAttempt,
+  getPointChargeRefundAttemptByPaymentId,
   insertRefundAttempt,
   markRefundAttemptDispatched,
   recordRefundAttemptState,
@@ -382,6 +384,46 @@ async function dispatchRefund(
     }
     default: {
       const _exhaustive: never = result;
+      return _exhaustive;
+    }
+  }
+}
+
+/**
+ * Webhook wake: lookup/reconciliation only.
+ * Never marks DISPATCHED and never calls provider cancel.
+ */
+export async function wakePointChargeRefundLookupByPaymentId(
+  paymentId: string,
+  db: Database.Database = getDb()
+): Promise<PointChargeRefundExecutionResult | { ok: true; status: "skipped"; message: string }> {
+  ensurePointChargeRefundAttemptsSchema(db);
+  const attempt = getPointChargeRefundAttemptByPaymentId(db, paymentId);
+  if (!attempt) {
+    return { ok: true, status: "skipped", message: "no local refund attempt" };
+  }
+
+  const batch = getChargeBatchById(attempt.charge_batch_id, db);
+  if (!batch) {
+    return { ok: true, status: "skipped", message: "no local charge batch" };
+  }
+
+  switch (attempt.state) {
+    case "CLAIMED":
+    case "FAILED":
+      return { ok: true, status: "skipped", message: `refund wake ignored in ${attempt.state}` };
+    case "SUCCEEDED":
+      return {
+        ok: true,
+        status: "refunded",
+        balance: finalizeRefundSuccess(db, batch),
+      };
+    case "DISPATCHED":
+    case "REQUESTED":
+    case "RECONCILIATION_REQUIRED":
+      return reconcileRefund(db, batch, attempt);
+    default: {
+      const _exhaustive: never = attempt.state;
       return _exhaustive;
     }
   }
