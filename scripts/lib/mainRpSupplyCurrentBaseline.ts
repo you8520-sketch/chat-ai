@@ -146,7 +146,6 @@ function currentOpenRouterEndpoint(input: {
     if (row.provider?.slug?.toLowerCase() !== providerSlug.toLowerCase()) {
       return false;
     }
-    if (route.serviceTier !== "flex") return true;
     return `${row.providerName} ${row.providerTag ?? ""}`
       .toLowerCase()
       .includes("flex");
