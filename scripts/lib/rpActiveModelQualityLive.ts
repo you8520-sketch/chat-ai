@@ -29,6 +29,7 @@ import {
   buildCanonicalRpQualificationContextInput,
   type CanonicalQualificationCase,
   type CanonicalQualificationCaseId,
+  type RpQualificationExampleLiteralMode,
 } from "./rpModelQualificationFixture";
 import { processOpenRouterSupplySseLine } from "./mainRpSupplyLiveQualification";
 
@@ -99,6 +100,7 @@ export type RpActiveModelQualityTurnResult = {
     allowMajorActions: true;
     allowInnerPov: false;
     allowIrreversibleFate: false;
+    exampleLiteralMode: RpQualificationExampleLiteralMode;
   };
   reviewFocus: readonly string[];
   status: "COMPLETE" | "FAILED";
@@ -188,6 +190,7 @@ export function buildRpActiveModelQualityRequest(input: {
   modelId: RpActiveModelQualityProbe["modelId"];
   caseData: CanonicalQualificationCase;
   sessionId: string;
+  exampleLiteralMode?: RpQualificationExampleLiteralMode;
 }): {
   provider: RpActiveModelQualityProvider;
   url: string;
@@ -202,6 +205,7 @@ export function buildRpActiveModelQualityRequest(input: {
     modelId: input.modelId,
     caseData: input.caseData,
     provider,
+    exampleLiteralMode: input.exampleLiteralMode ?? "raw",
   });
   const delegation = contextInput.currentTurnAuthoringDelegation;
   if (
@@ -260,6 +264,7 @@ export function buildRpActiveModelQualityRequest(input: {
       allowMajorActions: true,
       allowInnerPov: false,
       allowIrreversibleFate: false,
+      exampleLiteralMode: input.exampleLiteralMode ?? "raw",
     },
   };
 }
@@ -303,6 +308,7 @@ export async function executeRpActiveModelQualityProbe(input: {
   probe: RpActiveModelQualityProbe;
   caseData: CanonicalQualificationCase;
   sessionId: string;
+  exampleLiteralMode?: RpQualificationExampleLiteralMode;
   fetchImpl?: FetchLike;
   now?: () => number;
 }): Promise<RpActiveModelQualityTurnResult> {
@@ -312,6 +318,7 @@ export async function executeRpActiveModelQualityProbe(input: {
     modelId: input.probe.modelId,
     caseData: input.caseData,
     sessionId: input.sessionId,
+    exampleLiteralMode: input.exampleLiteralMode ?? "raw",
   });
   const state: SseState = {
     text: "",
