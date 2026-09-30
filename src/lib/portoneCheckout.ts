@@ -64,8 +64,10 @@ export function createPortoneCheckout(userId: number, packageId: PointChargePack
   };
 }
 
-export function getPortoneCheckoutByPaymentId(paymentId: string): PortoneCheckoutRow | null {
-  const db = getDb();
+export function getPortoneCheckoutByPaymentId(
+  paymentId: string,
+  db: Database.Database = getDb()
+): PortoneCheckoutRow | null {
   ensurePortoneCheckoutTable(db);
   return (
     (db
