@@ -114,6 +114,21 @@ describe("official character prompt standard v1", () => {
     assert.doesNotMatch(draft.tagline, /손목을 잡고/);
   });
 
+
+  it("keeps Lucian free of speculative sibling-character relationships", () => {
+    const { file, draft } = compileLucian();
+    assert.deepEqual(file.bible.otherRelationships, []);
+    assert.doesNotMatch(draft.sections.relationshipsAndDrives, /카엘룸|볼프강|율리우스|바스티안|세라피나|이노센트|에드릭|테오|노엘/);
+  });
+
+  it("uses only the approved first-character shared lorebook set", () => {
+    const world = readJson<{ bible: { lorebook: Array<{ entryKey: string }> } }>(path.join(PILOT_DIR, "world-bible.json"));
+    assert.deepEqual(
+      world.bible.lorebook.map((entry) => entry.entryKey),
+      ["mercator_guild", "aether_bonds", "mercator_exchange_underworld", "bio_aether_taboos"]
+    );
+  });
+
   it("routes character-known secrets through the canonical LOCKED_SECRET owner", () => {
     const { file, draft } = compileLucian();
     const runtimeAppearance = renderRuntimeAppearanceBlock(file.appearance);
