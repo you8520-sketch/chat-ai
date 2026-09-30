@@ -32,11 +32,17 @@ import {
 import {
   capabilityGroupEvidence,
   computeBenchmarkMetrics,
+  computeScaleMatrixFirstDegradation,
   formatBenchmarkMetricsLine,
+  LONG_HORIZON_SCALES,
+  scaleMatrixMeasured,
+  scaleMatrixNotApplicable,
   type BenchmarkCaseOutcome,
   type BenchmarkCategory,
   type BenchmarkCoverageEntry,
   type CapabilityGroupEvidence,
+  type LongHorizonScaleMatrix,
+  type LongHorizonScaleRow,
 } from "@/lib/memory/memory-rp-benchmark";
 import type { EpisodicSemanticModelConfig } from "@/lib/memory/memory-episodic-semantic-config";
 import {
@@ -806,6 +812,86 @@ export async function runBenchmarkCases(mode: BenchmarkMode, transport: Benchmar
 export function semanticAccounting(stats: ReturnType<typeof fetchEpisodicMemoryCandidatesForDebug>["stats"]): SemanticAccounting {
   const s = stats.semantic;
   return { admitted: s?.admitted ?? 0, novel: s?.novel ?? 0, overlap: s?.overlap ?? 0, added: s?.added ?? 0, droppedNoCapacity: s?.droppedNoCapacity ?? 0 };
+}
+
+/**
+ * Store-size matrix: one identity fact + (scale-1) filler facts, then one
+ * lexical-overlap retrieval on the production candidate + final owners.
+ * Persist uses the suite `seed()` INSERT (TEST_SUBSTITUTE). Capture/extract
+ * and full contextBuilder assembly are not executed.
+ */
+export async function measureLongHorizonScaleMatrix(
+  mode: BenchmarkMode
+): Promise<LongHorizonScaleMatrix> {
+  activeMode = mode;
+  const rows: LongHorizonScaleRow[] = [];
+  const query = "렌의 항구 야간 경비원 직업을 묻는다";
+  const na = (reason: string) => scaleMatrixNotApplicable(reason);
+
+  for (const scale of LONG_HORIZON_SCALES) {
+    const db = openDb();
+    const [answerId] = seed(db, [
+      [
+        1,
+        "character",
+        "ren",
+        "job",
+        "harbor_night_guard",
+        "important",
+        "렌은 항구 야간 경비원이다.",
+      ],
+    ]);
+    if (scale > 1) saturate(db, scale - 1, 2);
+    const persisted = (
+      db.prepare("SELECT COUNT(*) AS n FROM episodic_memory_facts WHERE chat_id=1").get() as {
+        n: number;
+      }
+    ).n;
+    const started = performance.now();
+    const r = await runRetrieval(db, scale + 10, query);
+    const latencyMs = performance.now() - started;
+    const candidateHit = includes(r.candidateIds, answerId!);
+    const finalHit = includes(r.injectedFactIds, answerId!);
+    const falseInjection = r.injectedFactIds.some((id) => id !== answerId);
+    const promptTokens = r.promptBlock ? estimateTokens(r.promptBlock) : 0;
+    db.close();
+
+    rows.push({
+      scale,
+      persistedFactCount: scaleMatrixMeasured(persisted, "COUNT(*) after seed+saturate"),
+      candidateCount: scaleMatrixMeasured(r.candidateIds.length, "fetchEpisodicMemoryCandidatesForDebug"),
+      candidateRecallAtK: scaleMatrixMeasured(candidateHit ? 1 : 0, "target in pre-rank candidate set"),
+      finalRecallAtK: scaleMatrixMeasured(finalHit ? 1 : 0, "target in getEpisodicMemoryForPrompt"),
+      falseInjectionRate: scaleMatrixMeasured(falseInjection ? 1 : 0, "any injected id other than the target"),
+      staleStateInjectionRate: na("this matrix has no stale-vs-latest pair"),
+      latestStateRecall: na("this matrix has no stale-vs-latest pair"),
+      historicalEventRecall: na("this matrix is store-size identity, not a historical-event case"),
+      relationshipContinuityRecall: na("this matrix does not seed a relationship trajectory"),
+      identityContinuityRecall: scaleMatrixMeasured(finalHit ? 1 : 0, "identity job fact in final prompt block"),
+      zeroRelevantPrecision: na("this matrix always has one relevant target"),
+      mutationIsolation: na("regen/edit/delete/fork/reset not executed in this matrix"),
+      observerIsolation: na("observer knowledge-store owner not executed in this matrix"),
+      promptTokenCount: scaleMatrixMeasured(promptTokens, "estimateTokens of episodic promptBlock only"),
+      injectedMemoryTokenCount: scaleMatrixMeasured(promptTokens, "same episodic block; contextBuilder not called"),
+      packingSaturation: scaleMatrixMeasured(
+        r.promptBlock.length / 1000,
+        "episodic promptBlock chars / EPISODIC_MEMORY_PROMPT_MAX_CHARS(1000)"
+      ),
+      latencyMs: scaleMatrixMeasured(latencyMs, "performance.now around production retrieval"),
+      dbRowCount: scaleMatrixMeasured(persisted, "same as persistedFactCount"),
+    });
+  }
+
+  activeMode = BASELINE_MODE;
+  return {
+    rows,
+    firstDegradation: computeScaleMatrixFirstDegradation(rows),
+    persistPath: "TEST_SUBSTITUTE",
+    retrievalPath: "PRODUCTION",
+    packingPath: "PRODUCTION_EPISODIC_BLOCK",
+    contextAssemblyPath: "NOT_EXECUTED",
+    captureExtractPath: "NOT_EXECUTED",
+  };
 }
 
 export async function measureMilestoneRetention(mode: BenchmarkMode): Promise<{ retained: number; total: number; semantic: SemanticAccounting }> {

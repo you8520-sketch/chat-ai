@@ -2,13 +2,20 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, it } from "node:test";
 import {
   computeBenchmarkMetrics,
+  computeScaleMatrixFirstDegradation,
   detectFalseInjection,
   formatBenchmarkMetricsLine,
+  formatScaleMatrixLine,
+  LONG_HORIZON_SCALES,
+  scaleMatrixMeasured,
+  scaleMatrixNotApplicable,
+  type LongHorizonScaleRow,
 } from "@/lib/memory/memory-rp-benchmark";
 import {
   BASELINE_MODE,
   EXPANDED_BASELINE_CASE_IDS,
   EXPANDED_BASELINE_KNOWN_GAPS,
+  measureLongHorizonScaleMatrix,
   measureMilestoneRetention,
   openDb,
   runBenchmarkCases,
@@ -109,6 +116,21 @@ it("expanded baseline: horizons + behavior categories measured on current main w
   assert.equal(metrics.correctionSupersessionAccuracy.value, 1);
   const falseMemory = byId.get("false-memory-negative-01")!;
   assert.deepEqual(falseMemory.final?.injectedFactIds, []);
+  for (const caseId of ["item-ownership-01", "distinctive-utterance-01", "high-noise-distractors-01", "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01"]) {
+    const o = byId.get(caseId);
+    assert.ok(o, `${caseId} must exist for stage dump`);
+    const candHit = o.candidate
+      ? o.candidate.expectedAnswerIds.every((id) => o.candidate!.candidateIds.includes(id))
+      : null;
+    const finHit = o.final
+      ? o.final.expectedAnswerIds.every((id) => o.final!.injectedFactIds.includes(id))
+      : null;
+    console.info(
+      `[RpMemoryBenchmark] knownGapStage ${caseId} persisted=TEST_SUBSTITUTE candidateEntered=${candHit} candidateCount=${o.candidate?.candidateIds.length ?? "n/a"} finalSelected=${finHit} injected=${o.final?.injectedFactIds.length ?? "n/a"} staleInjected=${
+        o.stale ? o.stale.injectedFactIds.some((id) => o.stale!.staleFactIds.includes(id)) : "n/a"
+      }`
+    );
+  }
 });
 
 /**
@@ -190,6 +212,83 @@ it("false-injection metric detects an injected fact outside the allowed set (neg
   assert.equal(metrics.falseInjectionRate.value, 0.5);
   assert.equal(metrics.finalRecallAt8.value, 1);
   console.info(`[RpMemoryBenchmark] negative proof: ${formatBenchmarkMetricsLine(metrics)}`);
+});
+
+it("long-horizon store-size matrix measures 5/20/100/300/1000/2000 on production retrieval", async () => {
+  const matrix = await measureLongHorizonScaleMatrix(BASELINE_MODE);
+  assert.deepEqual(
+    matrix.rows.map((row) => row.scale),
+    [...LONG_HORIZON_SCALES]
+  );
+  assert.equal(matrix.persistPath, "TEST_SUBSTITUTE");
+  assert.equal(matrix.retrievalPath, "PRODUCTION");
+  assert.equal(matrix.captureExtractPath, "NOT_EXECUTED");
+  assert.equal(matrix.contextAssemblyPath, "NOT_EXECUTED");
+  assert.equal(httpCallsObserved, 0);
+
+  for (const row of matrix.rows) {
+    assert.equal(row.persistedFactCount.value, row.scale);
+    assert.equal(row.persistedFactCount.status, "MEASURED");
+    assert.equal(row.candidateCount.status, "MEASURED");
+    assert.equal(row.candidateRecallAtK.status, "MEASURED");
+    assert.equal(row.finalRecallAtK.status, "MEASURED");
+    assert.equal(row.falseInjectionRate.status, "MEASURED");
+    assert.equal(row.identityContinuityRecall.status, "MEASURED");
+    assert.equal(row.promptTokenCount.status, "MEASURED");
+    assert.equal(row.latencyMs.status, "MEASURED");
+    assert.equal(row.staleStateInjectionRate.status, "NOT_APPLICABLE");
+    assert.equal(row.staleStateInjectionRate.value, null);
+    assert.equal(row.mutationIsolation.status, "NOT_APPLICABLE");
+    assert.equal(row.observerIsolation.status, "NOT_APPLICABLE");
+    assert.ok(
+      row.candidateCount.value != null && row.candidateCount.value <= 100,
+      "production candidateLimit default is 100"
+    );
+    assert.equal(row.candidateRecallAtK.value, 1, `lexical identity target must stay in candidates at scale ${row.scale}`);
+    assert.equal(row.finalRecallAtK.value, 1, `lexical identity target must stay in final set at scale ${row.scale}`);
+    assert.equal(row.identityContinuityRecall.value, 1);
+    assert.equal(row.falseInjectionRate.value, 0);
+  }
+  assert.equal(matrix.firstDegradation.candidateRecall, null);
+  assert.equal(matrix.firstDegradation.finalRecall, null);
+  assert.equal(matrix.firstDegradation.packingSaturation, null);
+
+  console.info(`[RpMemoryBenchmark] ${formatScaleMatrixLine(matrix)}`);
+});
+
+it("scale-matrix first-degradation helper records the first measured drop only", () => {
+  const na = scaleMatrixNotApplicable("n/a");
+  const stub = (scale: (typeof LONG_HORIZON_SCALES)[number], cand: number, fin: number, sat: number, ms: number): LongHorizonScaleRow => ({
+    scale,
+    persistedFactCount: scaleMatrixMeasured(scale),
+    candidateCount: scaleMatrixMeasured(8),
+    candidateRecallAtK: scaleMatrixMeasured(cand),
+    finalRecallAtK: scaleMatrixMeasured(fin),
+    falseInjectionRate: scaleMatrixMeasured(0),
+    staleStateInjectionRate: na,
+    latestStateRecall: na,
+    historicalEventRecall: na,
+    relationshipContinuityRecall: na,
+    identityContinuityRecall: scaleMatrixMeasured(fin),
+    zeroRelevantPrecision: na,
+    mutationIsolation: na,
+    observerIsolation: na,
+    promptTokenCount: scaleMatrixMeasured(40),
+    injectedMemoryTokenCount: scaleMatrixMeasured(40),
+    packingSaturation: scaleMatrixMeasured(sat),
+    latencyMs: scaleMatrixMeasured(ms),
+    dbRowCount: scaleMatrixMeasured(scale),
+  });
+  const degradation = computeScaleMatrixFirstDegradation([
+    stub(5, 1, 1, 0.2, 4),
+    stub(20, 1, 1, 0.4, 5),
+    stub(100, 1, 0, 1.0, 6),
+    stub(300, 0, 0, 1.1, 20),
+  ]);
+  assert.equal(degradation.candidateRecall, 300);
+  assert.equal(degradation.finalRecall, 100);
+  assert.equal(degradation.packingSaturation, 100);
+  assert.equal(degradation.latencyJump, 300);
 });
 
 it("unexecuted stages stay NOT_MEASURED instead of counting as 0", () => {

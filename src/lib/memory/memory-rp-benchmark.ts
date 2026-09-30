@@ -33,6 +33,119 @@ export type MeasuredValue<T> = {
   reason?: string;
 };
 
+/** Store-size scales for the long-horizon matrix. Turn distance is a separate family. */
+export const LONG_HORIZON_SCALES = [5, 20, 100, 300, 1000, 2000] as const;
+export type LongHorizonScale = (typeof LONG_HORIZON_SCALES)[number];
+
+export type LongHorizonScaleRow = {
+  scale: LongHorizonScale;
+  persistedFactCount: MeasuredValue<number>;
+  candidateCount: MeasuredValue<number>;
+  candidateRecallAtK: MeasuredValue<number>;
+  finalRecallAtK: MeasuredValue<number>;
+  falseInjectionRate: MeasuredValue<number>;
+  staleStateInjectionRate: MeasuredValue<number>;
+  latestStateRecall: MeasuredValue<number>;
+  historicalEventRecall: MeasuredValue<number>;
+  relationshipContinuityRecall: MeasuredValue<number>;
+  identityContinuityRecall: MeasuredValue<number>;
+  zeroRelevantPrecision: MeasuredValue<number>;
+  mutationIsolation: MeasuredValue<number>;
+  observerIsolation: MeasuredValue<number>;
+  promptTokenCount: MeasuredValue<number>;
+  injectedMemoryTokenCount: MeasuredValue<number>;
+  packingSaturation: MeasuredValue<number>;
+  latencyMs: MeasuredValue<number>;
+  dbRowCount: MeasuredValue<number>;
+};
+
+export type LongHorizonScaleMatrix = {
+  rows: LongHorizonScaleRow[];
+  firstDegradation: {
+    candidateRecall: LongHorizonScale | null;
+    finalRecall: LongHorizonScale | null;
+    packingSaturation: LongHorizonScale | null;
+    latencyJump: LongHorizonScale | null;
+  };
+  persistPath: "TEST_SUBSTITUTE";
+  retrievalPath: "PRODUCTION";
+  packingPath: "PRODUCTION_EPISODIC_BLOCK";
+  contextAssemblyPath: "NOT_EXECUTED";
+  captureExtractPath: "NOT_EXECUTED";
+};
+
+function measuredNumber(value: number, reason?: string): MeasuredValue<number> {
+  return { value, status: "MEASURED", reason };
+}
+
+function notApplicableNumber(reason: string): MeasuredValue<number> {
+  return { value: null, status: "NOT_APPLICABLE", reason };
+}
+
+export function scaleMatrixNotApplicable(reason: string): MeasuredValue<number> {
+  return notApplicableNumber(reason);
+}
+
+export function scaleMatrixMeasured(value: number, reason?: string): MeasuredValue<number> {
+  return measuredNumber(value, reason);
+}
+
+/** First scale where a 0/1 recall drops, packing hits 1.0, or latency doubles vs previous. */
+export function computeScaleMatrixFirstDegradation(
+  rows: readonly LongHorizonScaleRow[]
+): LongHorizonScaleMatrix["firstDegradation"] {
+  let candidateRecall: LongHorizonScale | null = null;
+  let finalRecall: LongHorizonScale | null = null;
+  let packingSaturation: LongHorizonScale | null = null;
+  let latencyJump: LongHorizonScale | null = null;
+  let previousLatency: number | null = null;
+
+  for (const row of rows) {
+    if (candidateRecall == null && row.candidateRecallAtK.status === "MEASURED" && row.candidateRecallAtK.value === 0) {
+      candidateRecall = row.scale;
+    }
+    if (finalRecall == null && row.finalRecallAtK.status === "MEASURED" && row.finalRecallAtK.value === 0) {
+      finalRecall = row.scale;
+    }
+    if (
+      packingSaturation == null &&
+      row.packingSaturation.status === "MEASURED" &&
+      row.packingSaturation.value != null &&
+      row.packingSaturation.value >= 1
+    ) {
+      packingSaturation = row.scale;
+    }
+    const latency = row.latencyMs.status === "MEASURED" ? row.latencyMs.value : null;
+    if (
+      latencyJump == null &&
+      previousLatency != null &&
+      latency != null &&
+      previousLatency > 0 &&
+      latency >= previousLatency * 2
+    ) {
+      latencyJump = row.scale;
+    }
+    if (latency != null) previousLatency = latency;
+  }
+
+  return { candidateRecall, finalRecall, packingSaturation, latencyJump };
+}
+
+export function formatScaleMatrixLine(matrix: LongHorizonScaleMatrix): string {
+  const curve = matrix.rows
+    .map((row) => {
+      const cand = row.candidateRecallAtK.value;
+      const fin = row.finalRecallAtK.value;
+      const n = row.candidateCount.value;
+      const sat = row.packingSaturation.value;
+      const ms = row.latencyMs.value;
+      return `${row.scale}:cand=${cand}@${n},final=${fin},sat=${sat == null ? "null" : sat.toFixed(2)},ms=${ms == null ? "null" : ms.toFixed(1)}`;
+    })
+    .join(" | ");
+  const d = matrix.firstDegradation;
+  return `scaleCurve ${curve} firstDrop cand=${d.candidateRecall} final=${d.finalRecall} sat=${d.packingSaturation} latency2x=${d.latencyJump}`;
+}
+
 export type BenchmarkCategory =
   | "boundary_5turn"
   | "callback_75turn"
