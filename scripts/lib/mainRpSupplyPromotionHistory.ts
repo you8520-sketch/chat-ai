@@ -6,7 +6,7 @@ import {
   MAIN_RP_SUPPLY_LIVE_MIN_UPTIME_PERCENT,
   type MainRpSupplyLiveQualificationReport,
 } from "./mainRpSupplyLiveQualification";
-import type { SupplyTransportComparisonReport } from "./mainRpSupplyCiBaseline";
+import type { SupplyTransportComparisonReport } from "./mainRpSupplyCurrentBaseline";
 import type { MainRpSupplyRadarReport, SupplyComparison } from "./mainRpSupplyRadar";
 
 export const MAIN_RP_SUPPLY_PROMOTION_HISTORY_VERSION = 1;
@@ -154,21 +154,21 @@ function comparisonRatios(input: {
     if (
       !row ||
       !row.candidatePairComplete ||
-      !row.currentCiPairComplete ||
+      !row.currentBaselinePairComplete ||
       row.candidateAverageTotalSeconds == null ||
-      row.currentCiAverageTotalSeconds == null ||
+      row.currentBaselineAverageTotalSeconds == null ||
       row.candidateAverageTtftSeconds == null ||
-      row.currentCiAverageTtftSeconds == null ||
-      row.currentCiAverageTotalSeconds <= 0 ||
-      row.currentCiAverageTtftSeconds <= 0
+      row.currentBaselineAverageTtftSeconds == null ||
+      row.currentBaselineAverageTotalSeconds <= 0 ||
+      row.currentBaselineAverageTtftSeconds <= 0
     ) {
       missing += 1;
       continue;
     }
     total.push(
-      row.candidateAverageTotalSeconds / row.currentCiAverageTotalSeconds
+      row.candidateAverageTotalSeconds / row.currentBaselineAverageTotalSeconds
     );
-    ttft.push(row.candidateAverageTtftSeconds / row.currentCiAverageTtftSeconds);
+    ttft.push(row.candidateAverageTtftSeconds / row.currentBaselineAverageTtftSeconds);
   }
 
   return { total, ttft, missing };

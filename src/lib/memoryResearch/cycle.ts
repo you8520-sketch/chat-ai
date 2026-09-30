@@ -6,6 +6,21 @@
  */
 import { runLabArm, type LabArmResult } from "@/lib/memoryResearch/benchmarkLab";
 import {
+  buildPersistentMemoryGapReport,
+  type PersistentMemoryGapReport,
+} from "@/lib/memoryResearch/persistentGapRadar";
+import {
+  buildBaselineSnapshot,
+  compareBaselineSnapshots,
+  unavailableBaselineTrend,
+  type BaselineSnapshot,
+  type BaselineTrendReport,
+} from "@/lib/memoryResearch/baselineTrend";
+import {
+  assessBenchmarkHarnessFeasibilityBatch,
+  type HarnessFeasibilityEvidence,
+} from "@/lib/memoryResearch/benchmarkHarnessFeasibility";
+import {
   buildBenchmarkCasePortPlans,
   type BenchmarkCasePortPlan,
 } from "@/lib/memoryResearch/benchmarkCasePortPlanner";
@@ -75,6 +90,54 @@ export type CycleBenchmarkRecord = {
   error: string | null;
 };
 
+export type BaselinePromotionGateStatus =
+  | "OPEN"
+  | "BLOCKED_BASELINE_FAILED"
+  | "BLOCKED_REGRESSION"
+  | "BLOCKED_MIXED";
+
+export type BaselinePromotionGate = {
+  status: BaselinePromotionGateStatus;
+  blocked: boolean;
+  reason: string;
+};
+
+export function baselinePromotionGateFor(
+  baselineStatus: "RAN" | "FAILED",
+  trendStatus: BaselineTrendReport["status"]
+): BaselinePromotionGate {
+  if (baselineStatus === "FAILED" || trendStatus === "BASELINE_FAILED") {
+    return {
+      status: "BLOCKED_BASELINE_FAILED",
+      blocked: true,
+      reason:
+        "Current deterministic memory baseline failed; automatic candidate promotion, live experiments, and implementation PRs are suspended.",
+    };
+  }
+  if (trendStatus === "REGRESSION") {
+    return {
+      status: "BLOCKED_REGRESSION",
+      blocked: true,
+      reason:
+        "Current deterministic memory baseline regressed against the latest comparable cycle; automatic promotion is suspended until the regression is resolved or the benchmark definition changes.",
+    };
+  }
+  if (trendStatus === "MIXED") {
+    return {
+      status: "BLOCKED_MIXED",
+      blocked: true,
+      reason:
+        "Current deterministic memory baseline contains both gains and regressions; automatic promotion is suspended because a regression is present.",
+    };
+  }
+  return {
+    status: "OPEN",
+    blocked: false,
+    reason:
+      "No comparable deterministic baseline regression is blocking automatic research promotion.",
+  };
+}
+
 export type CycleReport = {
   cycleKey: string;
   mode: CycleMode;
@@ -97,9 +160,14 @@ export type CycleReport = {
     accept: number;
     draftPrPackets: number;
   };
-  skipped: Array<{ candidateKey: string; reason: SkipReason | "duplicate_in_cycle" }>;
+  skipped: Array<{
+    candidateKey: string;
+    reason: SkipReason | "duplicate_in_cycle" | "baseline_promotion_gate";
+  }>;
   decisions: CycleDecisionRecord[];
   baseline: { status: LabArmResult["status"]; metricsLine: string | null; error: string | null };
+  baselineTrend: BaselineTrendReport;
+  baselinePromotionGate: BaselinePromotionGate;
   benchmarks: CycleBenchmarkRecord[];
   providerCalls: { paidProviderCalls: number; paidProviderCallBudget: number; httpCalls: number; httpBudget: number };
   estimatedCostUsd: number;
@@ -109,6 +177,8 @@ export type CycleReport = {
   companionExperimentProposals: CompanionExperimentProposal[];
   benchmarkAdoptionProposals: BenchmarkAdoptionProposal[];
   benchmarkCasePortPlans: BenchmarkCasePortPlan[];
+  benchmarkHarnessFeasibility: HarnessFeasibilityEvidence[];
+  persistentMemoryGaps: PersistentMemoryGapReport;
   productionTouched: false;
 };
 
@@ -117,6 +187,7 @@ export type CycleDeps = {
   now: Date;
   mainSha: string;
   architectureFingerprint: string;
+  benchmarkFingerprint?: string;
   sources: readonly SourceAdapter[];
   sourceContext: SourceContext;
   adapters: readonly ExperimentAdapter[];
@@ -165,6 +236,12 @@ export async function runResearchCycle(
     skipped: [],
     decisions: [],
     baseline: { status: "FAILED", metricsLine: null, error: "not run" },
+    baselineTrend: unavailableBaselineTrend("Benchmark fingerprint not provided."),
+    baselinePromotionGate: {
+      status: "OPEN",
+      blocked: false,
+      reason: "Baseline promotion gate has not been evaluated yet.",
+    },
     benchmarks: [],
     providerCalls: {
       paidProviderCalls: 0,
@@ -178,6 +255,8 @@ export async function runResearchCycle(
     companionExperimentProposals: [],
     benchmarkAdoptionProposals: [],
     benchmarkCasePortPlans: [],
+    benchmarkHarnessFeasibility: [],
+    persistentMemoryGaps: buildPersistentMemoryGapReport(null, ledger.cycles),
     productionTouched: false,
   };
 
@@ -209,9 +288,10 @@ export async function runResearchCycle(
   report.providerCalls.httpCalls = deps.sourceContext.budget.used;
   report.counts.observations = observations.length;
 
-  // Baseline once per cycle: health snapshot + A/B reference.
+  // Baseline once per cycle: health snapshot + A/B reference + longitudinal drift evidence.
   const baselineArm = await runArm(BASELINE_MODE);
   let baseline: LabRunSummary | null = null;
+  let baselineSnapshot: BaselineSnapshot | null = null;
   if (baselineArm.status === "RAN") {
     baseline = baselineArm.summary;
     report.baseline = {
@@ -219,9 +299,29 @@ export async function runResearchCycle(
       metricsLine: deps.formatMetricsLine ? deps.formatMetricsLine(baseline) : null,
       error: null,
     };
+    if (deps.benchmarkFingerprint) {
+      baselineSnapshot = buildBaselineSnapshot(baseline, deps.benchmarkFingerprint);
+      report.baselineTrend = compareBaselineSnapshots(baselineSnapshot, ledger.cycles);
+    } else {
+      report.baselineTrend = unavailableBaselineTrend(
+        "Benchmark fingerprint not provided; current baseline is not persisted for cross-cycle comparison."
+      );
+    }
   } else {
     report.baseline = { status: "FAILED", metricsLine: null, error: baselineArm.error };
+    report.baselineTrend = deps.benchmarkFingerprint
+      ? compareBaselineSnapshots(null, ledger.cycles)
+      : unavailableBaselineTrend("Benchmark fingerprint not provided and baseline failed.");
   }
+
+  report.baselinePromotionGate = baselinePromotionGateFor(
+    report.baseline.status,
+    report.baselineTrend.status
+  );
+  report.persistentMemoryGaps = buildPersistentMemoryGapReport(
+    baselineSnapshot,
+    ledger.cycles
+  );
 
   const candidates = { ...ledger.candidates };
   const seenThisCycle = new Set<string>();
@@ -252,12 +352,27 @@ export async function runResearchCycle(
       continue;
     }
     if (!existing) report.counts.newCandidates += 1;
-    report.counts.evaluated += 1;
     report.companionExperimentProposals.push(...buildCompanionExperimentProposals(obs));
     const adoptionProposals = buildBenchmarkAdoptionProposals(obs);
     report.benchmarkAdoptionProposals.push(...adoptionProposals);
-    report.benchmarkCasePortPlans.push(...buildBenchmarkCasePortPlans(adoptionProposals));
+    const casePortPlans = buildBenchmarkCasePortPlans(adoptionProposals);
+    report.benchmarkCasePortPlans.push(...casePortPlans);
+    report.benchmarkHarnessFeasibility.push(
+      ...assessBenchmarkHarnessFeasibilityBatch(casePortPlans)
+    );
 
+    if (report.baselinePromotionGate.blocked) {
+      report.skipped.push({
+        candidateKey: obs.candidateKey,
+        reason: "baseline_promotion_gate",
+      });
+      if (existing) {
+        candidates[obs.candidateKey] = { ...existing, lastSeenAt: nowIso };
+      }
+      continue;
+    }
+
+    report.counts.evaluated += 1;
     const evaluated = await evaluateObservation(obs, adapter, liveRecipe, baseline, report, deps.now, runArm);
     assertValidTrail(evaluated.trail);
     const state = decisionState(evaluated.decision);
@@ -350,6 +465,7 @@ export async function runResearchCycle(
         finishedAt: report.finishedAt,
         mainSha: deps.mainSha,
         counts: { ...report.counts, paidProviderCalls: 0, httpCalls: report.providerCalls.httpCalls },
+        ...(baselineSnapshot ? { baseline: baselineSnapshot } : {}),
       },
     ],
   };

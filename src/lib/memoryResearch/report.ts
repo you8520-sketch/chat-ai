@@ -1,4 +1,7 @@
 import type { CycleReport } from "@/lib/memoryResearch/cycle";
+import { renderPersistentMemoryGapMarkdown } from "@/lib/memoryResearch/persistentGapRadar";
+import { renderBaselineTrendMarkdown } from "@/lib/memoryResearch/baselineTrend";
+import { renderBenchmarkHarnessFeasibilityMarkdown } from "@/lib/memoryResearch/benchmarkHarnessFeasibility";
 import { renderBenchmarkCasePortPlansMarkdown } from "@/lib/memoryResearch/benchmarkCasePortPlanner";
 import { renderBenchmarkAdoptionMarkdown } from "@/lib/memoryResearch/benchmarkAdoptionBridge";
 import { renderCompanionExperimentBridgeMarkdown } from "@/lib/memoryResearch/companionExperimentBridge";
@@ -36,6 +39,17 @@ export function renderCycleReportMarkdown(report: CycleReport): string {
     renderCompanionExperimentBridgeMarkdown(report.companionExperimentProposals),
     renderBenchmarkAdoptionMarkdown(report.benchmarkAdoptionProposals),
     renderBenchmarkCasePortPlansMarkdown(report.benchmarkCasePortPlans),
+    renderBenchmarkHarnessFeasibilityMarkdown(report.benchmarkHarnessFeasibility),
+    renderPersistentMemoryGapMarkdown(report.persistentMemoryGaps),
+    renderBaselineTrendMarkdown(report.baselineTrend),
+    "## Baseline Promotion Gate",
+    "",
+    `- status: **${report.baselinePromotionGate.status}**`,
+    `- blocked: ${report.baselinePromotionGate.blocked ? "YES" : "NO"}`,
+    `- ${report.baselinePromotionGate.reason}`,
+    "",
+    "When blocked, discovery/reporting continues but candidate lifecycle mutation, automatic benchmark promotion, live experiments, and implementation Draft PRs are suspended.",
+    "",
     "## Baseline (current main)",
     "",
     `- status: ${report.baseline.status}${report.baseline.error ? ` — ${report.baseline.error}` : ""}`,

@@ -35,20 +35,21 @@ describe("Benchmark Case Port Planner", () => {
     assert.deepEqual(
       plans.map((plan) => [plan.planKey, plan.readiness]),
       [
-        ["trajectory_recall:commitment_lifecycle", "READY_MUTATION_LIFECYCLE_FIXTURE"],
+        ["trajectory_recall:commitment_lifecycle", "NO_PORT_REQUIRED"],
         ["trajectory_recall:persona_update", "HARNESS_EXTENSION_REQUIRED"],
         ["trajectory_recall:existing_temporal_user_state", "NO_PORT_REQUIRED"],
       ]
     );
 
     const commitment = plans[0]!;
-    assert.match(commitment.canonicalOwner, /MemoryPromise\/mergeMemoryMeta/);
-    assert.ok(commitment.targetPaths.includes("src/lib/chatMemory.test.ts"));
-    assert.deepEqual(commitment.proposedCaseIds, [
-      "active-expired-commitment-lifecycle-01",
-    ]);
+    assert.equal(commitment.readiness, "NO_PORT_REQUIRED");
+    assert.match(commitment.canonicalOwner, /existing durable Relationship Memory/i);
+    assert.deepEqual(commitment.targetPaths, []);
+    assert.deepEqual(commitment.proposedCaseIds, []);
+    assert.ok(commitment.requirements.some((row) => /active-expired-commitment-lifecycle-01/.test(row)));
     assert.ok(commitment.requirements.some((row) => /promisesAdd\/promisesRemove/.test(row)));
-    assert.ok(commitment.forbidden.includes("episodic duplicate of a formal promise"));
+    assert.ok(commitment.forbidden.includes("duplicate active-expired commitment fixture"));
+    assert.match(commitment.rationale, /already closed by the merged durable-ledger regression/i);
 
     const personaUpdate = plans[1]!;
     assert.equal(personaUpdate.targetPaths.length, 0);
@@ -59,16 +60,17 @@ describe("Benchmark Case Port Planner", () => {
     assert.ok(covered.reuseMetrics.includes("correctionSupersessionAccuracy"));
   });
 
-  it("routes forgetting fidelity to source-mutation lifecycle owners instead of the retrieval suite", () => {
+  it("does not re-port the resolved local forgetting-residue gap", () => {
     const plan = buildBenchmarkCasePortPlan(
       proposal("forgetting_fidelity", "PARTIAL_COVERAGE")
     );
-    assert.equal(plan.readiness, "READY_MUTATION_LIFECYCLE_FIXTURE");
-    assert.deepEqual(plan.proposedCaseIds, ["derived-memory-deletion-residue-01"]);
-    assert.ok(plan.targetPaths.includes("src/lib/memory/memory-premerge-blockers.test.ts"));
-    assert.ok(plan.targetPaths.includes("src/lib/memory/memory-summary-integrity.test.ts"));
-    assert.ok(!plan.targetPaths.includes("src/lib/memory/memory-rp-benchmark-suite.ts"));
-    assert.ok(plan.forbidden.includes("copying Memora FAMA"));
+    assert.equal(plan.readiness, "NO_PORT_REQUIRED");
+    assert.equal(plan.planKey, "forgetting_fidelity:current_local_gap_closed");
+    assert.deepEqual(plan.proposedCaseIds, []);
+    assert.deepEqual(plan.targetPaths, []);
+    assert.ok(plan.forbidden.includes("duplicate derived-memory-deletion-residue fixture"));
+    assert.match(plan.rationale, /last-turn delete atomically removes/i);
+    assert.match(plan.rationale, /broader external forgetting benchmark remains PARTIAL_COVERAGE/i);
   });
 
   it("blocks persona continuity from being mislabeled as a retrieval fixture", () => {
@@ -127,7 +129,7 @@ describe("Benchmark Case Port Planner", () => {
     ];
     const markdown = renderBenchmarkCasePortPlansMarkdown(plans);
     assert.match(markdown, /Benchmark Case Port Planner/);
-    assert.match(markdown, /READY_MUTATION_LIFECYCLE_FIXTURE/);
+    assert.match(markdown, /NO_PORT_REQUIRED/);
     assert.match(markdown, /HARNESS_EXTENSION_REQUIRED/);
     assert.match(markdown, /No external dataset or judge is copied/);
     assert.match(markdown, /no benchmark file is edited automatically/i);

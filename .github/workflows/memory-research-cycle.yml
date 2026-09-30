@@ -54,6 +54,8 @@ jobs:
     outputs:
       accepted_count: ${{ steps.cycle.outputs.accepted_count }}
       implementation_pending_count: ${{ steps.cycle.outputs.implementation_pending_count }}
+      baseline_promotion_blocked: ${{ steps.cycle.outputs.baseline_promotion_blocked }}
+      baseline_promotion_gate_status: ${{ steps.cycle.outputs.baseline_promotion_gate_status }}
       cycle_status: ${{ steps.cycle.outputs.cycle_status }}
       cycle_key: ${{ steps.cycle.outputs.cycle_key }}
       main_sha: ${{ steps.sha.outputs.main_sha }}
@@ -140,6 +142,7 @@ jobs:
     needs: research
     if: >-
       needs.research.outputs.cycle_status == 'COMPLETED' &&
+      needs.research.outputs.baseline_promotion_blocked != 'true' &&
       needs.research.outputs.accepted_count != '0' &&
       inputs.dry_run != true
     runs-on: ubuntu-latest
@@ -186,6 +189,7 @@ jobs:
     if: >-
       needs.research.result == 'success' &&
       needs.research.outputs.cycle_status == 'COMPLETED' &&
+      needs.research.outputs.baseline_promotion_blocked != 'true' &&
       (
         github.event.schedule == '43 2 1 * *' ||
         (github.event_name == 'workflow_dispatch' && inputs.run_live_experiments == true)
@@ -247,6 +251,7 @@ jobs:
       always() &&
       needs.research.result == 'success' &&
       needs.research.outputs.cycle_status == 'COMPLETED' &&
+      needs.research.outputs.baseline_promotion_blocked != 'true' &&
       inputs.dry_run != true &&
       (
         needs.research.outputs.implementation_pending_count != '0' ||
