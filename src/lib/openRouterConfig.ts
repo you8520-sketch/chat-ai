@@ -1,4 +1,3 @@
-import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 import {
   CLAUDE_OPUS_MODEL_LEGACY,
   OPENROUTER_CLAUDE_DEFAULT,
@@ -145,6 +144,22 @@ export function resolveOpenRouterApiKey(): string {
   return key;
 }
 
+/**
+ * X-Title is HTTP wire metadata, not the user-facing brand owner.
+ * Fetch/undici requires ByteString-compatible header values. Keep the Korean
+ * SITE_DISPLAY_NAME for UI and use a stable ASCII label on the wire.
+ */
+export const OPENROUTER_DEFAULT_WIRE_APP_TITLE = "Hav";
+
+export function resolveOpenRouterWireAppTitle(
+  value: string | null | undefined = process.env.OPENROUTER_APP_TITLE
+): string {
+  const candidate = value?.trim() ?? "";
+  return candidate && /^[\x20-\x7E]+$/.test(candidate)
+    ? candidate
+    : OPENROUTER_DEFAULT_WIRE_APP_TITLE;
+}
+
 /** OpenRouter 권장 헤더 포함 */
 export function buildOpenRouterHeaders(apiKey?: string): Record<string, string> {
   const key = apiKey?.trim() || resolveOpenRouterApiKey();
@@ -158,7 +173,7 @@ export function buildOpenRouterHeaders(apiKey?: string): Record<string, string> 
     "Content-Type": "application/json",
     Authorization: `Bearer ${key}`,
     "HTTP-Referer": referer || "http://localhost:3000",
-    "X-Title": process.env.OPENROUTER_APP_TITLE?.trim() || SITE_DISPLAY_NAME,
+    "X-Title": resolveOpenRouterWireAppTitle(),
   };
 }
 
