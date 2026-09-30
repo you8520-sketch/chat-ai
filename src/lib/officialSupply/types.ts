@@ -176,8 +176,12 @@ export type OfficialCharacterSpeech = {
   forbidden: string;
 };
 
+export type OfficialCharacterPromptStandard = "compact_rp_v1";
+
 export type OfficialCharacterDraft = {
   draftKey: string;
+  /** New official characters use compact_rp_v1; absent means pre-standard pilot content. */
+  promptStandard?: OfficialCharacterPromptStandard;
   worldKey: string;
   styleKey: string;
   name: string;
