@@ -403,6 +403,7 @@ export async function fetchMemoryResearchAdminProjection(
       run: null,
       githubRunUrl,
       persistedReportUrl: null,
+      pipeline: EMPTY_PIPELINE,
     };
   }
 
