@@ -17,6 +17,7 @@ on:
       - "scripts/lib/mainRpSupplyLiveQualification.ts"
       - "scripts/lib/mainRpSupplyAutoDraft.ts"
       - "scripts/main-rp-supply-auto-draft.ts"
+      - "scripts/main-rp-supply-route-assert.ts"
       - "scripts/lib/mainRpSupplyCurrentBaseline.ts"
       - "scripts/lib/rpModelQualificationPacket.ts"
       - "**/*mainRp*test.ts"
