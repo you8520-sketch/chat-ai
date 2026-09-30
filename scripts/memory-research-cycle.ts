@@ -120,6 +120,8 @@ async function run(): Promise<void> {
   writeOutput("cycle_key", report.cycleKey);
   writeOutput("cycle_status", report.status);
   writeOutput("accepted_count", String(report.draftPrPackets.length));
+  writeOutput("baseline_promotion_blocked", String(report.baselinePromotionGate.blocked));
+  writeOutput("baseline_promotion_gate_status", report.baselinePromotionGate.status);
   writeOutput(
     "implementation_pending_count",
     String(
