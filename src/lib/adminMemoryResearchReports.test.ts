@@ -128,6 +128,30 @@ describe("admin Memory Research reports", () => {
           status: "PASS",
           blocked: false,
         },
+        promptPackingAudit: {
+          generatedAt: "2026-09-30T01:18:01Z",
+          currentTurnFixture: 300,
+          architecture: {
+            policyId: "summary5_raw4",
+            rawRecentExchanges: 4,
+            rollingSummaryInterval: 5,
+            mediumTermBlockCount: 15,
+          },
+          invariants: [
+            { id: "canonical-policy-summary5-raw4", ok: true, detail: "ok" },
+            { id: "n15-does-not-drop-critical-prompt-sections", ok: true, detail: "ok" },
+          ],
+          models: [
+            {
+              modelId: "deepseek-v4.1-flash",
+              baselineInputTokens: 12000,
+              n15InputTokens: 15000,
+              n15DeltaInputTokens: 3000,
+              n15MediumTokens: 2400,
+              n15SafeForPolicyConsideration: true,
+            },
+          ],
+        },
         companionExperimentProposals: [
           {
             candidateKey: "official:kindroid:memory-docs",
@@ -241,6 +265,17 @@ describe("admin Memory Research reports", () => {
     assert.equal(run.readiness.harnessExtensionRequired, 1);
     assert.equal(run.persistentMemoryGaps, 3);
     assert.equal(run.persistentMemoryGapStatus, "PERSISTENT_GAPS");
+    assert.equal(run.promptPackingAudit?.status, "PASS");
+    assert.equal(run.promptPackingAudit?.policyId, "summary5_raw4");
+    assert.equal(run.promptPackingAudit?.rawRecentExchanges, 4);
+    assert.equal(run.promptPackingAudit?.rollingSummaryInterval, 5);
+    assert.equal(run.promptPackingAudit?.mediumTermBlockCount, 15);
+    assert.equal(run.promptPackingAudit?.invariantPasses, 2);
+    assert.equal(run.promptPackingAudit?.invariantTotal, 2);
+    assert.deepEqual(run.promptPackingAudit?.failedInvariants, []);
+    assert.equal(run.promptPackingAudit?.models[0]?.modelId, "deepseek-v4.1-flash");
+    assert.equal(run.promptPackingAudit?.models[0]?.n15InputTokens, 15000);
+
     assert.ok(
       run.insights.some(
         (row) =>
@@ -375,6 +410,7 @@ describe("admin Memory Research reports", () => {
     assert.equal(run.baselinePromotionGateStatus, null);
     assert.equal(run.persistentMemoryGaps, 0);
     assert.equal(run.persistentMemoryGapStatus, null);
+    assert.equal(run.promptPackingAudit, null);
     assert.deepEqual(run.insights, []);
   });
 
