@@ -58,9 +58,9 @@ async function main(): Promise<void> {
   for (const row of report.rows) {
     const dir = join(OUTPUT_DIR, safePart(row.modelId), row.arm);
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, \`\${row.caseId}.txt\`), row.text, "utf8");
+    writeFileSync(join(dir, `${row.caseId}.txt`), row.text, "utf8");
     const { text: _text, ...meta } = row;
-    writeFileSync(join(dir, \`\${row.caseId}.json\`), JSON.stringify(meta, null, 2), "utf8");
+    writeFileSync(join(dir, `${row.caseId}.json`), JSON.stringify(meta, null, 2), "utf8");
   }
 
   console.log(
