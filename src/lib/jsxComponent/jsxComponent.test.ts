@@ -33,6 +33,19 @@ describe("compileJsxComponentSource", () => {
       `export default function Board() { eval("1"); return <div />; }`
     );
     assert.equal(evaled.ok, false);
+
+    const guideStyle = compileJsxComponentSource(
+      `function StatusBoard({ hp = 0 }) {
+        const [open, setOpen] = useState(false);
+        useEffect(() => {}, []);
+        return <button type="button" onClick={() => setOpen(!open)}>{hp}:{String(open)}</button>;
+      }`,
+      "StatusBoard"
+    );
+    assert.equal(guideStyle.ok, true, "Teapot guide-style named component must compile without export default");
+    if (guideStyle.ok) {
+      assert.match(guideStyle.compiled, /typeof StatusBoard === "function"/);
+    }
   });
 });
 
@@ -166,10 +179,15 @@ describe("sandbox iframe contract", () => {
   it("uses opaque allow-scripts without same-origin and does not eval on host", () => {
     const frame = readFileSync("public/jsx-sandbox/frame.html", "utf8");
     const sandbox = readFileSync("src/components/JsxComponentSandbox.tsx", "utf8");
+    const runtime = readFileSync("src/lib/jsxComponent/sandboxRuntime.ts", "utf8");
     const client = readFileSync("src/app/chat/[id]/ChatClient.tsx", "utf8");
     assert.match(sandbox, /sandbox="allow-scripts"/);
     assert.doesNotMatch(sandbox, /allow-same-origin/);
-    assert.match(frame, /script-src 'self'/);
+    assert.match(frame, /script-src 'self' 'unsafe-eval'/);
+    assert.match(runtime, /event\.source !== parent/);
+    assert.match(runtime, /event\.origin !== window\.location\.origin/);
+    assert.match(runtime, /"useState"/);
+    assert.match(runtime, /React\.useState/);
     assert.match(client, /JsxHostBridgeProvider/);
     assert.match(client, /requestChatSend: \(text\) => \{/);
     assert.doesNotMatch(client, /requestChatSend:[\s\S]{0,220}send\(/);
