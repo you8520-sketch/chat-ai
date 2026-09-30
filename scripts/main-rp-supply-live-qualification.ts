@@ -263,7 +263,7 @@ async function main(): Promise<void> {
         status: report.status,
         candidate_provider_generation_calls:
           report.providerGenerationCalls,
-        current_ci_provider_generation_calls:
+        current_baseline_provider_generation_calls:
           comparison.currentBaselineGenerationCalls,
         total_provider_generation_calls:
           comparison.providerGenerationCalls,
