@@ -502,6 +502,44 @@ describe("STATE reconcile key cap", () => {
       "unreconciled stale state key must not pass through"
     );
   });
+
+  it("spends the key-cap budget on preferred rows first and still drops other overflow keys", () => {
+    const db = createDb();
+    const insert = db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, ?, 'preference', ?, 'favorite_drink', ?, 'important', ?, '{}')`
+    );
+    const candidates = [];
+    for (let i = 1; i <= 30; i++) {
+      insert.run(i, `user_${i}`, `drink_${i}`, `사용자 ${i}는 음료 ${i}번을 꾸준히 좋아한다.`);
+      candidates.push(
+        db.prepare("SELECT * FROM episodic_memory_facts WHERE source_turn=?").get(i)
+      );
+    }
+    const preferred = candidates[29] as { id: number };
+
+    const scope = buildEpisodicCandidateScope(db, { chatId: 1, currentTurn: 40 }, recallEnv);
+    assert.ok(scope);
+    const { rows, stats } = reconcileGlobalStateLikeFacts(
+      db,
+      scope!,
+      candidates as never[],
+      { preferRowIds: new Set([preferred.id]) }
+    );
+
+    assert.equal(stats.keysDiscovered, 30);
+    assert.ok(stats.keysDroppedDueToCap >= 5);
+    assert.ok(stats.keysReconciled <= 25);
+    assert.ok(
+      rows.some((r) => r.subject === "user_30"),
+      "preferred overflow key must consume a cap slot"
+    );
+    assert.ok(
+      !rows.some((r) => r.subject === "user_29"),
+      "non-preferred overflow key must still be dropped"
+    );
+  });
 });
 
 describe("STALE STATE resurrection — indirect query", () => {

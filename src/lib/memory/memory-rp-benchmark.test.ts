@@ -116,6 +116,19 @@ it("expanded baseline: horizons + behavior categories measured on current main w
   assert.equal(metrics.correctionSupersessionAccuracy.value, 1);
   const falseMemory = byId.get("false-memory-negative-01")!;
   assert.deepEqual(falseMemory.final?.injectedFactIds, []);
+  const ownership = byId.get("item-ownership-01")!;
+  assert.deepEqual(ownership.final?.injectedFactIds, [], "ledger-owned owner facts must not inject");
+  assert.equal(
+    ownership.candidate?.expectedAnswerIds.every((id) => ownership.candidate!.candidateIds.includes(id)),
+    true,
+    "TEST_SUBSTITUTE seed may still appear in candidates"
+  );
+  const highNoise = byId.get("high-noise-distractors-01")!;
+  assert.equal(
+    highNoise.final?.expectedAnswerIds.every((id) => highNoise.final!.injectedFactIds.includes(id)),
+    true,
+    "high-noise target must inject after relevance-key reconcile priority"
+  );
   for (const caseId of ["item-ownership-01", "distinctive-utterance-01", "high-noise-distractors-01", "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01"]) {
     const o = byId.get(caseId);
     assert.ok(o, `${caseId} must exist for stage dump`);
