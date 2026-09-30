@@ -5,6 +5,7 @@ import {
 import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   buildOpenRouterHeaders,
+  resolveMainRpOpenRouterRoutePolicy,
 } from "@/lib/openRouterConfig";
 import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
 import { parseOpenRouterUsage } from "@/lib/openRouterUsage";
@@ -533,10 +534,16 @@ export function applyCandidateControlAndProviderPin(
     include_reasoning: false,
   };
 
-  // Candidate qualification owns the alternate provider route. Do not inherit
-  // the current production route's service tier or a parallel privacy policy.
-  // Model controls remain identical; route/service-class is the variable tested.
-  delete next.service_tier;
+  // Candidate qualification owns the alternate provider pin, but a model that
+  // already runs through OpenRouter must keep the current production service
+  // tier. Otherwise "same transport" promotion would compare default-tier
+  // evidence against a Flex production route.
+  const currentRoute = resolveMainRpOpenRouterRoutePolicy(candidate.modelId);
+  if (currentRoute?.serviceTier) {
+    next.service_tier = currentRoute.serviceTier;
+  } else {
+    delete next.service_tier;
+  }
   delete next.reasoning_effort;
   next.reasoning = {
     effort: candidate.controlEffort,
@@ -922,6 +929,7 @@ export function buildSupplyLiveReport(input: {
       "No composite RP quality score is generated.",
       "OpenRouter endpoint raw rates exclude account/platform fee interpretation; final procurement economics remain a separate review.",
       "Candidates are ordered alternatives. Up to three endpoints per active model may be preselected, with at most two generation calls per tested candidate and a global 10-call candidate budget.",
+      "For models already routed through OpenRouter, candidate qualification preserves the production service_tier while replacing only the provider pin.",
       "Claude Opus 5.5 is skipped until CI/OpenRouter thinking/output control parity is proven.",
     ],
   };
