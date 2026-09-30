@@ -129,6 +129,8 @@ export type OfficialPublicIntroInput = {
   abilities: Array<{ name: string; scope: string }>;
   situation: { worldContext: string; personalSituation: string; userEntry: string };
   userRole: string;
+  /** compact_rp_v1: prior user-character relationship comes from the user persona/dialogue, not the card. */
+  personaFlexible?: boolean;
 };
 
 function clipPhrase(text: string, maxChars: number): string {
@@ -184,10 +186,15 @@ export function composeOfficialPublicDescription(input: OfficialPublicIntroInput
   const publicBackground =
     firstSentence(input.situation.personalSituation, 140) || firstSentence(id.worldRole, 90);
   const userRole = firstSentence(input.userRole, 80);
+  const relationLine = input.personaFlexible
+    ? "기존 관계는 페르소나 설정을 따르며, 현재 사건에서의 신뢰·협력·갈등은 실제 선택에 따라 달라집니다."
+    : input.relationshipTrope
+      ? `가능한 관계: ${input.relationshipTrope}.`
+      : "";
   const playBody = [
     withPeriod(firstSentence(input.rpHook, 140)),
     userRole ? `당신은 ${userRole.replace(/^당신은\s*/, "").replace(/[.!?。！？]+$/u, "")}.` : "",
-    input.relationshipTrope ? `가능한 관계: ${input.relationshipTrope}.` : "",
+    relationLine,
   ]
     .filter(nonEmpty)
     .join(" ");
@@ -328,7 +335,10 @@ function uniquePhrases(values: string[]): string[] {
 function extractPlayChoices(text: string): string[] {
   if (!text || isMeterOrSecret(text)) return [];
   const choices: string[] = [];
-  const midDot = text.match(/([가-힣]{2,8})·([가-힣]{2,8})·([가-힣]{2,8})/);
+  // Do not turn arbitrary metadata lists (e.g. 이름·신분·성별) into fake actions.
+  const midDot = text.match(
+    /((?:협력|거절|이탈|거리두기|거래|공개|봉인|계약|진실추적|도주|조사))·((?:협력|거절|이탈|거리두기|거래|공개|봉인|계약|진실추적|도주|조사))·((?:협력|거절|이탈|거리두기|거래|공개|봉인|계약|진실추적|도주|조사))/
+  );
   if (midDot) {
     choices.push(`${midDot[1]}하기`, `${midDot[2]}하기`, `${midDot[3]}하기`);
   }
@@ -372,7 +382,10 @@ function draftPlayGuideParts(draft: OfficialCharacterDraft): {
     choices.length > 0
       ? `이런 식으로 시작해 보세요: ${choices.join(" · ")}. ${greetingLock}`
       : `이런 식으로 시작해 보세요. ${greetingLock}`;
-  const relation = [draft.hook.relationshipTrope, clipPhrase(userRole, 36)].filter(nonEmpty).join(" · ");
+  const relation =
+    draft.promptStandard === "compact_rp_v1"
+      ? `페르소나의 기존 관계를 우선하며, 현재 사건의 선택에 따라 관계가 달라질 수 있습니다. ${clipPhrase(userRole, 42)}`
+      : [draft.hook.relationshipTrope, clipPhrase(userRole, 36)].filter(nonEmpty).join(" · ");
   return {
     situation: firstSentence(draft.hook.rpHook, 140) || firstSentence(draft.tagline, 80),
     start: startLine,
