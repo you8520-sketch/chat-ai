@@ -347,9 +347,8 @@ function flush(
   buffer.value = "";
 }
 
-export async function executeCurrentBaselineProbe(input: {
+export async function executeCheaperInferenceCurrentBaselineProbe(input: {
   apiKey: string;
-  candidate: SupplyLiveCandidate;
   body: JsonObject;
   url: string;
   turn: 1 | 2;
@@ -454,12 +453,31 @@ function isComplete(turn: SupplyLiveTurnResult): boolean {
     !turn.error &&
     turn.text.trim().length > 0 &&
     turn.finishReason != null &&
-    turn.sawDone
+    turn.sawDone &&
+    turn.servedProviderMatch !== false
   );
 }
 
+function currentOpenRouterProbeCandidate(
+  entry: CurrentBaselinePlanEntry
+): SupplyLiveCandidate {
+  if (!entry.currentProviderSlug) {
+    throw new Error("current_openrouter_provider_slug_missing");
+  }
+  return {
+    ...entry.candidate,
+    providerName: entry.currentProviderName,
+    providerSlug: entry.currentProviderSlug,
+    inputUsdPerMillion: entry.currentInputUsdPerMillion,
+    outputUsdPerMillion: entry.currentOutputUsdPerMillion,
+    estimatedPairRawEndpointRateUsd: entry.estimatedPairCurrentRateUsd,
+    rawEndpointRateDeltaVsCurrentProcurementPercent: 0,
+  };
+}
+
 export async function runCurrentBaselinePair(input: {
-  apiKey: string;
+  openRouterApiKey: string;
+  cheaperInferenceApiKey?: string | null;
   entry: CurrentBaselinePlanEntry;
   sessionId: string;
   fetchImpl?: FetchLike;
@@ -469,18 +487,34 @@ export async function runCurrentBaselinePair(input: {
 
   for (let index = 0; index < turns.length; index += 1) {
     const request = buildCurrentBaselineProbeRequest({
-      candidate: input.entry.candidate,
+      entry: input.entry,
       turn: turns[index]!,
       sessionId: input.sessionId,
     });
-    const result = await executeCurrentBaselineProbe({
-      apiKey: input.apiKey,
-      candidate: input.entry.candidate,
-      body: request.body,
-      url: request.url,
-      turn: (index + 1) as 1 | 2,
-      fetchImpl: input.fetchImpl,
-    });
+
+    let result: SupplyLiveTurnResult;
+    if (input.entry.currentProvider === "openrouter") {
+      result = await executeOpenRouterSupplyProbe({
+        apiKey: input.openRouterApiKey,
+        candidate: currentOpenRouterProbeCandidate(input.entry),
+        body: request.body,
+        turn: (index + 1) as 1 | 2,
+        fetchImpl: input.fetchImpl,
+      });
+    } else {
+      const apiKey = input.cheaperInferenceApiKey?.trim();
+      if (!apiKey) {
+        throw new Error("missing_cheaper_inference_benchmark_credential");
+      }
+      result = await executeCheaperInferenceCurrentBaselineProbe({
+        apiKey,
+        body: request.body,
+        url: request.url,
+        turn: (index + 1) as 1 | 2,
+        fetchImpl: input.fetchImpl,
+      });
+    }
+
     results.push(result);
     if (!isComplete(result)) break;
   }
@@ -490,11 +524,14 @@ export async function runCurrentBaselinePair(input: {
   const secondTurn = results.find((turn) => turn.turn === 2) ?? null;
   return {
     modelId: input.entry.candidate.modelId,
+    currentProvider: input.entry.currentProvider,
+    currentProviderName: input.entry.currentProviderName,
+    currentProviderSlug: input.entry.currentProviderSlug,
     turns: results,
     providerGenerationCalls: results.length,
     livePairComplete,
     secondTurnCacheReadObserved: (secondTurn?.cacheReadTokens ?? 0) > 0,
-    estimatedPairCatalogRateUsd: input.entry.estimatedPairCatalogRateUsd,
+    estimatedPairCurrentRateUsd: input.entry.estimatedPairCurrentRateUsd,
   };
 }
 
@@ -528,6 +565,9 @@ export function buildSupplyTransportComparisonReport(input: {
       modelId: candidateResult.candidate.modelId,
       candidateProviderName: candidateResult.candidate.providerName,
       candidateProviderSlug: candidateResult.candidate.providerSlug,
+      currentBaselineProvider: baseline.currentProvider,
+      currentBaselineProviderName: baseline.currentProviderName,
+      currentBaselineProviderSlug: baseline.currentProviderSlug,
       candidatePairComplete: candidateResult.livePairComplete,
       currentBaselinePairComplete: baseline.livePairComplete,
       candidateSecondTurnCacheReadObserved:
@@ -547,12 +587,12 @@ export function buildSupplyTransportComparisonReport(input: {
         baseline.turns.map((turn) => turn.totalSeconds)
       ),
       candidateObservedProviderCostUsd: observedCost(candidateResult.turns),
-      currentBaselineObservedBilledCostUsd: observedCost(baseline.turns),
+      currentBaselineObservedProviderCostUsd: observedCost(baseline.turns),
       candidateEstimatedPairRawEndpointRateUsd:
         candidateResult.candidate.estimatedPairRawEndpointRateUsd,
-      currentBaselineEstimatedPairCatalogRateUsd:
-        baseline.estimatedPairCatalogRateUsd,
-      marketRawEndpointRateDeltaVsCurrentCiPercent:
+      currentBaselineEstimatedPairRateUsd:
+        baseline.estimatedPairCurrentRateUsd,
+      marketRawEndpointRateDeltaVsCurrentBaselinePercent:
         candidateResult.candidate.rawEndpointRateDeltaVsCurrentProcurementPercent,
     });
   }
@@ -581,8 +621,9 @@ export function buildSupplyTransportComparisonReport(input: {
     notes: [
       "This is a factual side-by-side transport/cache comparison, not an automatic provider selection.",
       "The candidate raw endpoint-rate estimate excludes OpenRouter account/platform fee interpretation.",
-      "Current baseline observed cost is provider-reported billed evidence when present; candidate observed provider cost may represent upstream inference cost and is not assumed to be final cash procurement cost.",
-      "Two calls per side are not a statistical reliability sample. Market uptime metrics and the monthly CI cache audit remain the stability/history owners.",
+      "Current baseline follows the actual production procurement owner: CheaperInference models use the CI benchmark route; OpenRouter models use the canonical production provider pin and service tier.",
+      "For same-OpenRouter comparisons, candidate and current baseline provider-reported costs share the same OpenRouter metadata semantics. Cross-provider cost fields remain evidence only and are not assumed directly equivalent.",
+      "Two calls per side are not a statistical reliability sample. Market uptime metrics and the monthly cache/supply histories remain the stability owners."
       "Raw outputs remain review artifacts; no composite RP quality score is generated.",
     ],
   };
@@ -592,19 +633,19 @@ export function renderSupplyTransportComparisonMarkdown(
   report: SupplyTransportComparisonReport
 ): string {
   const lines = [
-    "# Main RP Supply — Candidate vs Current baseline",
+    "# Main RP Supply — Candidate vs Current Production Baseline",
     "",
     `- provider generation calls: **${report.providerGenerationCalls}/${report.maxProviderGenerationCalls}**`,
     `- candidate calls: ${report.candidateGenerationCalls}`,
-    `- current baseline baseline calls: ${report.currentBaselineGenerationCalls}`,
+    `- current baseline calls: ${report.currentBaselineGenerationCalls}`,
     "",
-    "| Model | Candidate | Candidate TTFT avg | CI TTFT avg | Candidate total avg | CI total avg | Candidate cache T2 | CI cache T2 | Candidate raw pair est. | current procurement pair est. |",
-    "|---|---|---:|---:|---:|---:|---|---|---:|---:|",
+    "| Model | Candidate | Current baseline | Candidate TTFT avg | Baseline TTFT avg | Candidate total avg | Baseline total avg | Candidate cache T2 | Baseline cache T2 | Candidate raw pair est. | Baseline pair est. |",
+    "|---|---|---|---:|---:|---:|---:|---|---|---:|---:|",
   ];
 
   for (const row of report.rows) {
     lines.push(
-      `| ${row.modelId} | ${row.candidateProviderName} | ${row.candidateAverageTtftSeconds ?? "n/a"} | ${row.currentBaselineAverageTtftSeconds ?? "n/a"} | ${row.candidateAverageTotalSeconds ?? "n/a"} | ${row.currentBaselineAverageTotalSeconds ?? "n/a"} | ${row.candidateSecondTurnCacheReadObserved} | ${row.currentBaselineSecondTurnCacheReadObserved} | $${row.candidateEstimatedPairRawEndpointRateUsd.toFixed(4)} | $${row.currentBaselineEstimatedPairCatalogRateUsd.toFixed(4)} |`
+      `| ${row.modelId} | ${row.candidateProviderName} | ${row.currentBaselineProviderName} (${row.currentBaselineProvider}) | ${row.candidateAverageTtftSeconds ?? "n/a"} | ${row.currentBaselineAverageTtftSeconds ?? "n/a"} | ${row.candidateAverageTotalSeconds ?? "n/a"} | ${row.currentBaselineAverageTotalSeconds ?? "n/a"} | ${row.candidateSecondTurnCacheReadObserved} | ${row.currentBaselineSecondTurnCacheReadObserved} | ${row.candidateEstimatedPairRawEndpointRateUsd.toFixed(4)} | ${row.currentBaselineEstimatedPairRateUsd.toFixed(4)} |`
     );
   }
 
