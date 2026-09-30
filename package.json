@@ -6,10 +6,10 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "tsx scripts/dev-server.ts",
+    "dev": "npm run build:jsx-sandbox && tsx scripts/dev-server.ts",
     "open": "powershell -NoProfile -Command \"Start-Process 'http://localhost:3000'\"",
-    "dev:safe": "tsx scripts/dev-server.ts",
-    "dev:next": "next dev -p 3001",
+    "dev:safe": "npm run build:jsx-sandbox && tsx scripts/dev-server.ts",
+    "dev:next": "npm run build:jsx-sandbox && next dev -p 3001",
     "typecheck": "tsc --noEmit",
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit --pretty false",
     "lint": "npm run typecheck:app",
