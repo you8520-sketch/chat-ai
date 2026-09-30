@@ -40,6 +40,9 @@ describe("buildLengthInstruction", () => {
     assert.equal(block, "");
     assert.equal(BOUNDED_LENGTH_OWNER_SENTENCE, "");
     assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다/);
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /여러 beat를 충분히 진행/);
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /새로운 beat와 실제 장면 변화로 확보/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /관찰·심리·판단·행동·대화·감각 변화를 먼저 깊게/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /최초로 확인 가능한 결과/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /TARGET_LENGTH/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /MINIMUM_FLOOR/);
