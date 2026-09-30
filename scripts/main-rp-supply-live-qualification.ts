@@ -6,11 +6,11 @@ import {
   sanitizeBenchmarkCredentialText,
 } from "./lib/benchmarkCheaperInferenceCredential";
 import {
-  applyCurrentBaselineBudgetGuard,
+  applyCurrentProcurementBaselineBudgetGuard,
   buildSupplyTransportComparisonReport,
   renderSupplyTransportComparisonMarkdown,
-  runCurrentBaselinePair,
-  type CurrentBaselineResult,
+  runCurrentProcurementBaselinePair,
+  type CurrentProcurementBaselineResult,
 } from "./lib/mainRpSupplyCurrentBaseline";
 import type { MainRpSupplyRadarReport } from "./lib/mainRpSupplyRadar";
 import {
@@ -70,7 +70,7 @@ function writeTurnArtifacts(
 function writeArtifacts(input: {
   report: ReturnType<typeof buildSupplyLiveReport>;
   comparison: ReturnType<typeof buildSupplyTransportComparisonReport>;
-  currentBaselineResults: CurrentBaselineResult[];
+  currentResults: CurrentProcurementBaselineResult[];
   errors: string[];
 }): void {
   mkdirSync(LIVE_DIR, { recursive: true });
@@ -112,14 +112,9 @@ function writeArtifacts(input: {
     );
   }
 
-  for (const result of input.currentBaselineResults) {
+  for (const result of input.currentResults) {
     writeTurnArtifacts(
-      join(
-        LIVE_DIR,
-        "current-baseline",
-        safePart(result.modelId),
-        result.currentProvider
-      ),
+      join(LIVE_DIR, "current-procurement", safePart(result.modelId)),
       result.turns
     );
   }
@@ -130,21 +125,25 @@ async function main(): Promise<void> {
     readFileSync(RADAR_REPORT, "utf8")
   ) as MainRpSupplyRadarReport;
   const initialSelection = selectMainRpSupplyLiveCandidates(radar);
-  const baselinePlan = applyCurrentBaselineBudgetGuard(
+  const baselinePlan = applyCurrentProcurementBaselineBudgetGuard(
     radar,
     initialSelection
   );
   const selection = baselinePlan.selection;
   const openRouterCredential = resolveOptInOpenRouterSupplyBenchmarkApiKey();
-  const ciCredential = resolveOptInTestCheaperInferenceApiKey(LIVE_FLAG);
+  const needsCiCredential = baselinePlan.entries.some(
+    (entry) => entry.currentProvider === "cheaperinference"
+  );
+  const ciCredential = needsCiCredential
+    ? resolveOptInTestCheaperInferenceApiKey(LIVE_FLAG)
+    : null;
   const errors: string[] = [];
 
-  // All alternate candidates are OpenRouter endpoints, so this credential is
-  // the only global requirement. CI credentials are required only for models
-  // whose actual current production route is CheaperInference.
   const missingReason = !openRouterCredential.ok
     ? openRouterCredential.reason
-    : null;
+    : needsCiCredential && !ciCredential
+      ? "missing_cheaper_inference_benchmark_credential"
+      : null;
 
   if (missingReason) {
     const report = buildSupplyLiveReport({
@@ -154,12 +153,12 @@ async function main(): Promise<void> {
     });
     const comparison = buildSupplyTransportComparisonReport({
       candidateResults: [],
-      currentBaselineResults: [],
+      currentResults: [],
     });
     writeArtifacts({
       report,
       comparison,
-      currentBaselineResults: [],
+      currentResults: [],
       errors,
     });
     console.log(
@@ -180,41 +179,34 @@ async function main(): Promise<void> {
   }
 
   const candidateResults: SupplyLiveCandidateResult[] = [];
-  const currentBaselineResults: CurrentBaselineResult[] = [];
+  const currentResults: CurrentProcurementBaselineResult[] = [];
   const runId =
     process.env.GITHUB_RUN_ID?.trim() ||
     `manual-${new Date().toISOString().slice(0, 16)}`;
 
   for (const entry of baselinePlan.entries) {
     const baselineCandidate = entry.candidate;
-
-    if (entry.currentProvider === "cheaperinference" && !ciCredential) {
-      errors.push(
-        `${baselineCandidate.modelId}/current-baseline: missing_cheaper_inference_benchmark_credential`
-      );
-      continue;
-    }
-
     try {
       const baselineSessionId = [
         "supply-current",
         runId,
         safePart(baselineCandidate.modelId),
-        entry.currentProvider,
       ]
         .join("-")
         .slice(0, 256);
-      currentBaselineResults.push(
-        await runCurrentBaselinePair({
-          openRouterApiKey: openRouterCredential.apiKey,
-          cheaperInferenceApiKey: ciCredential,
+      currentResults.push(
+        await runCurrentProcurementBaselinePair({
           entry,
           sessionId: baselineSessionId,
+          cheaperInferenceApiKey: ciCredential,
+          openRouterApiKey: openRouterCredential.ok
+            ? openRouterCredential.apiKey
+            : null,
         })
       );
     } catch (error) {
       errors.push(
-        `${baselineCandidate.modelId}/current-baseline: ${sanitizeError(error)}`
+        `${baselineCandidate.modelId}/current-procurement: ${sanitizeError(error)}`
       );
     }
 
@@ -256,12 +248,12 @@ async function main(): Promise<void> {
   });
   const comparison = buildSupplyTransportComparisonReport({
     candidateResults,
-    currentBaselineResults,
+    currentResults,
   });
   writeArtifacts({
     report,
     comparison,
-    currentBaselineResults,
+    currentResults,
     errors,
   });
 
@@ -281,13 +273,13 @@ async function main(): Promise<void> {
         completed_candidate_pairs: candidateResults.filter(
           (result) => result.livePairComplete
         ).length,
-        completed_current_baseline_pairs: currentBaselineResults.filter(
+        completed_current_baseline_pairs: currentResults.filter(
           (result) => result.livePairComplete
         ).length,
         candidate_second_turn_cache_hits: candidateResults.filter(
           (result) => result.secondTurnCacheReadObserved
         ).length,
-        current_baseline_second_turn_cache_hits: currentBaselineResults.filter(
+        current_baseline_second_turn_cache_hits: currentResults.filter(
           (result) => result.secondTurnCacheReadObserved
         ).length,
         estimated_candidate_raw_endpoint_rate_usd:

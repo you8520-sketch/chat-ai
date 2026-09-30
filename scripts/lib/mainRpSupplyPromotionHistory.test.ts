@@ -57,7 +57,10 @@ function endpoint(overrides: Partial<SupplyComparison> = {}): SupplyComparison {
   };
 }
 
-function candidateResult(complete: boolean): SupplyLiveCandidateResult {
+function candidateResult(
+  complete: boolean,
+  deploymentServiceTier: "flex" | null = null
+): SupplyLiveCandidateResult {
   return {
     candidate: {
       modelId: MODEL,
@@ -75,6 +78,7 @@ function candidateResult(complete: boolean): SupplyLiveCandidateResult {
       marketUptimeLast30mPercent: 99.95,
       controlEffort: "none",
       excludeReasoning: true,
+      deploymentServiceTier,
       estimatedPairRawEndpointRateUsd: 0.01,
     },
     turns: [],
@@ -94,10 +98,19 @@ function snapshot(input: {
   baselineTotal?: number;
   candidateTtft?: number;
   baselineTtft?: number;
+  currentProvider?: "cheaperinference" | "openrouter";
+  candidateServiceTier?: "flex" | null;
+  currentServiceTier?: "flex" | null;
+  observedCostDelta?: number | null;
 }): SupplyHistorySnapshot {
   const when = iso(input.day);
+  const currentProvider = input.currentProvider ?? "cheaperinference";
+  const candidateServiceTier = input.candidateServiceTier ?? null;
+  const currentServiceTier = input.currentServiceTier ?? null;
   const liveResult =
-    input.live == null ? null : candidateResult(input.live === "complete");
+    input.live == null
+      ? null
+      : candidateResult(input.live === "complete", candidateServiceTier);
   return {
     runId: `run-${input.day}`,
     report: {
@@ -116,8 +129,11 @@ function snapshot(input: {
           label: "DeepSeek V4.1 Flash",
           openRouterSlug: "deepseek/deepseek-v4.1-flash",
           currentProcurement: {
-            provider: "cheaperinference",
-            evidenceSource: "cheaperinference_catalog",
+            provider: currentProvider,
+            evidenceSource:
+              currentProvider === "openrouter"
+                ? "openrouter_endpoint_market"
+                : "cheaperinference_catalog",
             modelId: MODEL,
             inputUsdPerMillion: 0.15,
             outputUsdPerMillion: 0.6,
@@ -160,7 +176,7 @@ function snapshot(input: {
       input.live !== "complete"
         ? null
         : {
-            version: 1,
+            version: 2,
             generatedAt: when,
             providerGenerationCalls: 4,
             maxProviderGenerationCalls: 20,
@@ -171,23 +187,32 @@ function snapshot(input: {
                 modelId: MODEL,
                 candidateProviderName: "Wafer",
                 candidateProviderSlug: PROVIDER,
-                currentProvider: "cheaperinference",
-                currentProviderName: "CheaperInference",
-                currentProviderSlug: null,
-                currentServiceTier: null,
+                candidateDeploymentServiceTier: candidateServiceTier,
+                currentProvider,
+                currentProviderName:
+                  currentProvider === "openrouter"
+                    ? "Current OpenRouter"
+                    : "CheaperInference",
+                currentProviderSlug:
+                  currentProvider === "openrouter"
+                    ? "current-openrouter"
+                    : "cheaperinference",
+                currentServiceTier,
                 candidatePairComplete: true,
-                currentBaselinePairComplete: true,
+                currentPairComplete: true,
                 candidateSecondTurnCacheReadObserved: false,
-                currentBaselineSecondTurnCacheReadObserved: false,
+                currentSecondTurnCacheReadObserved: false,
                 candidateAverageTtftSeconds: input.candidateTtft ?? 1,
-                currentBaselineAverageTtftSeconds: input.baselineTtft ?? 1.5,
+                currentAverageTtftSeconds: input.baselineTtft ?? 1.5,
                 candidateAverageTotalSeconds: input.candidateTotal ?? 10,
-                currentBaselineAverageTotalSeconds: input.baselineTotal ?? 20,
-                candidateObservedProviderCostUsd: 0.01,
-                currentBaselineObservedProviderCostUsd: 0.02,
+                currentAverageTotalSeconds: input.baselineTotal ?? 20,
+                candidateObservedBilledCostUsd: 0.01,
+                currentObservedBilledCostUsd: 0.02,
+                candidateObservedCostDeltaVsCurrentPercent:
+                  input.observedCostDelta ?? -0.5,
                 candidateEstimatedPairRawEndpointRateUsd: 0.01,
-                currentBaselineEstimatedPairRateUsd: 0.016,
-                marketRawEndpointRateDeltaVsCurrentBaselinePercent: -0.2,
+                currentEstimatedPairRateUsd: 0.016,
+                marketRawEndpointRateDeltaVsCurrentPercent: -0.2,
               },
             ],
             notes: [],
@@ -257,6 +282,62 @@ describe("Main RP supplier promotion history gate", () => {
       ],
     });
     assert.equal(report.candidates[0]!.status, "INSUFFICIENT_LIVE_HISTORY");
+  });
+
+  it("requires exact service-tier parity for same-OpenRouter promotion", () => {
+    const report = evaluateMainRpSupplyPromotionHistory({
+      snapshots: [
+        snapshot({
+          day: 0,
+          live: "complete",
+          currentProvider: "openrouter",
+          candidateServiceTier: null,
+          currentServiceTier: "flex",
+        }),
+        snapshot({ day: 7 }),
+        snapshot({ day: 14 }),
+        snapshot({
+          day: 21,
+          live: "complete",
+          currentProvider: "openrouter",
+          candidateServiceTier: null,
+          currentServiceTier: "flex",
+        }),
+      ],
+    });
+    assert.equal(
+      report.candidates[0]!.status,
+      "DEPLOY_ROUTE_PARITY_UNPROVEN"
+    );
+  });
+
+  it("requires repeated observed OpenRouter total_cost savings, not sticker price alone", () => {
+    const report = evaluateMainRpSupplyPromotionHistory({
+      snapshots: [
+        snapshot({
+          day: 0,
+          live: "complete",
+          currentProvider: "openrouter",
+          candidateServiceTier: "flex",
+          currentServiceTier: "flex",
+          observedCostDelta: -0.05,
+        }),
+        snapshot({ day: 7 }),
+        snapshot({ day: 14 }),
+        snapshot({
+          day: 21,
+          live: "complete",
+          currentProvider: "openrouter",
+          candidateServiceTier: "flex",
+          currentServiceTier: "flex",
+          observedCostDelta: -0.05,
+        }),
+      ],
+    });
+    assert.equal(
+      report.candidates[0]!.status,
+      "OBSERVED_COST_SAVINGS_UNPROVEN"
+    );
   });
 
   it("does not promote a cheaper stable supplier that is slower than the current baseline", () => {

@@ -2,7 +2,10 @@ import {
   buildCheaperInferenceChatCompletionsUrl,
   buildCheaperInferenceHeaders,
 } from "@/lib/cheaperInferenceConfig";
-import { OPENROUTER_CHAT_COMPLETIONS_URL, resolveMainRpOpenRouterRoutePolicy } from "@/lib/openRouterConfig";
+import {
+  OPENROUTER_CHAT_COMPLETIONS_URL,
+  resolveMainRpOpenRouterRoutePolicy,
+} from "@/lib/openRouterConfig";
 import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
 import { buildContext } from "@/services/contextBuilder";
@@ -11,9 +14,9 @@ import {
   buildCanonicalRpQualificationContextInput,
   type CanonicalQualificationCase,
 } from "./rpModelQualificationFixture";
-import {
-  selectCurrentOpenRouterRouteEndpoint,
-  type MainRpSupplyRadarReport,
+import type {
+  MainRpSupplyRadarReport,
+  SupplyComparison,
 } from "./mainRpSupplyRadar";
 import {
   MAIN_RP_SUPPLY_LIVE_TARGET_CHARS,
@@ -34,38 +37,39 @@ export const MAIN_RP_SUPPLY_CURRENT_BASELINE_TIMEOUT_MS = 90_000;
 
 type JsonObject = Record<string, unknown>;
 type FetchLike = typeof fetch;
-export type CurrentBaselineProvider = "cheaperinference" | "openrouter";
 
-export type CurrentBaselinePlanEntry = {
+export type CurrentProcurementProvider = "cheaperinference" | "openrouter";
+
+export type CurrentProcurementBaselinePlanEntry = {
   candidate: SupplyLiveCandidate;
-  currentProvider: CurrentBaselineProvider;
+  currentProvider: CurrentProcurementProvider;
   currentProviderName: string;
-  currentProviderSlug: string | null;
+  currentProviderSlug: string;
   currentServiceTier: "flex" | null;
   estimatedPairCurrentRateUsd: number;
-  openRouterRouteCandidate: SupplyLiveCandidate | null;
 };
 
-export type CurrentBaselinePlan = {
+export type CurrentProcurementBaselinePlan = {
   selection: SupplyLiveSelection;
-  entries: CurrentBaselinePlanEntry[];
+  entries: CurrentProcurementBaselinePlanEntry[];
   skipped: Array<{
     modelId: string;
     reason:
-      | "current_procurement_baseline_missing"
+      | "current_procurement_missing"
+      | "current_procurement_rate_missing"
       | "current_openrouter_route_policy_missing"
-      | "current_openrouter_route_endpoint_missing"
+      | "current_openrouter_route_evidence_missing"
       | "current_baseline_budget_guard";
   }>;
   estimatedCurrentRateUsd: number;
   maxProviderGenerationCalls: number;
 };
 
-export type CurrentBaselineResult = {
+export type CurrentProcurementBaselineResult = {
   modelId: SupplyLiveCandidate["modelId"];
-  currentProvider: CurrentBaselineProvider;
+  currentProvider: CurrentProcurementProvider;
   currentProviderName: string;
-  currentProviderSlug: string | null;
+  currentProviderSlug: string;
   currentServiceTier: "flex" | null;
   turns: SupplyLiveTurnResult[];
   providerGenerationCalls: number;
@@ -78,23 +82,25 @@ export type SupplyTransportComparisonRow = {
   modelId: SupplyLiveCandidate["modelId"];
   candidateProviderName: string;
   candidateProviderSlug: string;
-  currentProvider: CurrentBaselineProvider;
+  candidateDeploymentServiceTier: "flex" | null;
+  currentProvider: CurrentProcurementProvider;
   currentProviderName: string;
-  currentProviderSlug: string | null;
+  currentProviderSlug: string;
   currentServiceTier: "flex" | null;
   candidatePairComplete: boolean;
-  currentBaselinePairComplete: boolean;
+  currentPairComplete: boolean;
   candidateSecondTurnCacheReadObserved: boolean;
-  currentBaselineSecondTurnCacheReadObserved: boolean;
+  currentSecondTurnCacheReadObserved: boolean;
   candidateAverageTtftSeconds: number | null;
-  currentBaselineAverageTtftSeconds: number | null;
+  currentAverageTtftSeconds: number | null;
   candidateAverageTotalSeconds: number | null;
-  currentBaselineAverageTotalSeconds: number | null;
-  candidateObservedProviderCostUsd: number | null;
-  currentBaselineObservedProviderCostUsd: number | null;
+  currentAverageTotalSeconds: number | null;
+  candidateObservedBilledCostUsd: number | null;
+  currentObservedBilledCostUsd: number | null;
+  candidateObservedCostDeltaVsCurrentPercent: number | null;
   candidateEstimatedPairRawEndpointRateUsd: number;
-  currentBaselineEstimatedPairRateUsd: number;
-  marketRawEndpointRateDeltaVsCurrentBaselinePercent: number;
+  currentEstimatedPairRateUsd: number;
+  marketRawEndpointRateDeltaVsCurrentPercent: number;
 };
 
 export type SupplyTransportComparisonReport = {
@@ -118,81 +124,106 @@ function asNumber(value: unknown): number | null {
 }
 
 function estimatePairUsd(inputPerM: number, outputPerM: number): number {
-  return 2 * (
-    inputPerM * 50_000 / 1_000_000 +
-    outputPerM * 1_200 / 1_000_000
+  return (
+    2 *
+    (inputPerM * 50_000 / 1_000_000 +
+      outputPerM * 1_200 / 1_000_000)
   );
 }
 
-function currentOpenRouterRouteCandidate(input: {
-  model: MainRpSupplyRadarReport["models"][number];
-  candidate: SupplyLiveCandidate;
+function currentOpenRouterEndpoint(input: {
+  modelId: SupplyLiveCandidate["modelId"];
+  comparisons: SupplyComparison[];
 }): {
   providerName: string;
   providerSlug: string;
-  serviceTier: "flex" | null;
-  candidate: SupplyLiveCandidate;
+  serviceTier: "flex";
 } | null {
-  const route = resolveMainRpOpenRouterRoutePolicy(input.candidate.modelId);
-  if (!route) return null;
-  const endpoint = selectCurrentOpenRouterRouteEndpoint(
-    input.candidate.modelId,
-    input.model.comparisons
-  );
-  const providerSlug = route.provider.only[0] ?? null;
-  if (!endpoint || !providerSlug) return null;
+  const route = resolveMainRpOpenRouterRoutePolicy(input.modelId);
+  if (!route || route.provider.only.length !== 1) return null;
+  const providerSlug = route.provider.only[0];
+  const endpoint = input.comparisons.find((row) => {
+    if (row.provider?.slug?.toLowerCase() !== providerSlug.toLowerCase()) {
+      return false;
+    }
+    return `${row.providerName} ${row.providerTag ?? ""}`
+      .toLowerCase()
+      .includes("flex");
+  });
+  if (!endpoint) return null;
   return {
     providerName: endpoint.providerName,
     providerSlug,
     serviceTier: route.serviceTier,
-    candidate: {
-      ...input.candidate,
-      providerName: endpoint.providerName,
-      providerSlug,
-      quantization: endpoint.quantization,
-      rawEndpointRateDeltaVsCurrentProcurementPercent: 0,
-      inputUsdPerMillion:
-        endpoint.inputUsdPerMillion ?? input.candidate.inputUsdPerMillion,
-      outputUsdPerMillion:
-        endpoint.outputUsdPerMillion ?? input.candidate.outputUsdPerMillion,
-      cacheReadUsdPerMillion: endpoint.cacheReadUsdPerMillion,
-      marketLatencyP50SecondsLast30m:
-        endpoint.latencyP50SecondsLast30m ??
-        input.candidate.marketLatencyP50SecondsLast30m,
-      marketThroughputP50TokensPerSecondLast30m:
-        endpoint.throughputP50TokensPerSecondLast30m ??
-        input.candidate.marketThroughputP50TokensPerSecondLast30m,
-      marketUptimeLast1dPercent:
-        endpoint.uptimeLast1dPercent ??
-        input.candidate.marketUptimeLast1dPercent,
-      marketUptimeLast30mPercent:
-        endpoint.uptimeLast30mPercent ??
-        input.candidate.marketUptimeLast30mPercent,
-    },
   };
 }
 
-export function applyCurrentBaselineBudgetGuard(
+export function applyCurrentProcurementBaselineBudgetGuard(
   radar: MainRpSupplyRadarReport,
   selection: SupplyLiveSelection
-): CurrentBaselinePlan {
-  const entries: CurrentBaselinePlanEntry[] = [];
-  const skipped: CurrentBaselinePlan["skipped"] = [];
+): CurrentProcurementBaselinePlan {
+  const entries: CurrentProcurementBaselinePlanEntry[] = [];
+  const skipped: CurrentProcurementBaselinePlan["skipped"] = [];
   const plannedModelIds = new Set<SupplyLiveCandidate["modelId"]>();
   let estimatedCurrentRateUsd = 0;
 
   for (const candidate of selection.candidates) {
     if (plannedModelIds.has(candidate.modelId)) continue;
     const model = radar.models.find((row) => row.modelId === candidate.modelId);
-    const procurement = model?.currentProcurement ?? null;
-    const inputPerM = asNumber(procurement?.inputUsdPerMillion);
-    const outputPerM = asNumber(procurement?.outputUsdPerMillion);
-    if (!model || !procurement || inputPerM == null || outputPerM == null) {
+    const baseline = model?.currentProcurement ?? null;
+    if (!model || !baseline) {
       skipped.push({
         modelId: candidate.modelId,
-        reason: "current_procurement_baseline_missing",
+        reason: "current_procurement_missing",
       });
       continue;
+    }
+
+    const inputPerM = asNumber(baseline.inputUsdPerMillion);
+    const outputPerM = asNumber(baseline.outputUsdPerMillion);
+    if (inputPerM == null || outputPerM == null) {
+      skipped.push({
+        modelId: candidate.modelId,
+        reason: "current_procurement_rate_missing",
+      });
+      continue;
+    }
+
+    let currentProviderName = "CheaperInference";
+    let currentProviderSlug = "cheaperinference";
+    let currentServiceTier: "flex" | null = null;
+
+    if (baseline.provider === "openrouter") {
+      const route = resolveMainRpOpenRouterRoutePolicy(candidate.modelId);
+      if (!route) {
+        skipped.push({
+          modelId: candidate.modelId,
+          reason: "current_openrouter_route_policy_missing",
+        });
+        continue;
+      }
+      const evidence = currentOpenRouterEndpoint({
+        modelId: candidate.modelId,
+        comparisons: model.comparisons,
+      });
+      if (!evidence) {
+        skipped.push({
+          modelId: candidate.modelId,
+          reason: "current_openrouter_route_evidence_missing",
+        });
+        continue;
+      }
+      currentProviderName = evidence.providerName;
+      currentProviderSlug = evidence.providerSlug;
+      currentServiceTier = evidence.serviceTier;
+
+      if (candidate.deploymentServiceTier !== currentServiceTier) {
+        skipped.push({
+          modelId: candidate.modelId,
+          reason: "current_openrouter_route_policy_missing",
+        });
+        continue;
+      }
     }
 
     const estimate = estimatePairUsd(inputPerM, outputPerM);
@@ -207,43 +238,14 @@ export function applyCurrentBaselineBudgetGuard(
       continue;
     }
 
-    if (procurement.provider === "openrouter") {
-      const route = resolveMainRpOpenRouterRoutePolicy(candidate.modelId);
-      if (!route) {
-        skipped.push({
-          modelId: candidate.modelId,
-          reason: "current_openrouter_route_policy_missing",
-        });
-        continue;
-      }
-      const current = currentOpenRouterRouteCandidate({ model, candidate });
-      if (!current) {
-        skipped.push({
-          modelId: candidate.modelId,
-          reason: "current_openrouter_route_endpoint_missing",
-        });
-        continue;
-      }
-      entries.push({
-        candidate,
-        currentProvider: "openrouter",
-        currentProviderName: current.providerName,
-        currentProviderSlug: current.providerSlug,
-        currentServiceTier: current.serviceTier,
-        estimatedPairCurrentRateUsd: estimate,
-        openRouterRouteCandidate: current.candidate,
-      });
-    } else {
-      entries.push({
-        candidate,
-        currentProvider: "cheaperinference",
-        currentProviderName: "CheaperInference",
-        currentProviderSlug: null,
-        currentServiceTier: null,
-        estimatedPairCurrentRateUsd: estimate,
-        openRouterRouteCandidate: null,
-      });
-    }
+    entries.push({
+      candidate,
+      currentProvider: baseline.provider,
+      currentProviderName,
+      currentProviderSlug,
+      currentServiceTier,
+      estimatedPairCurrentRateUsd: estimate,
+    });
     plannedModelIds.add(candidate.modelId);
     estimatedCurrentRateUsd += estimate;
   }
@@ -252,7 +254,9 @@ export function applyCurrentBaselineBudgetGuard(
     entries.length * 2 >
     MAIN_RP_SUPPLY_CURRENT_BASELINE_MAX_PROVIDER_CALLS
   ) {
-    throw new Error("Current baseline selection exceeded provider-call budget");
+    throw new Error(
+      "Current procurement baseline selection exceeded provider-call budget"
+    );
   }
 
   const allowed = new Set(entries.map((entry) => entry.candidate.modelId));
@@ -266,7 +270,7 @@ export function applyCurrentBaselineBudgetGuard(
         ...selection.skipped,
         ...skipped.map((row) => ({
           modelId: row.modelId as SupplyLiveCandidate["modelId"],
-          providerName: "current-production-route",
+          providerName: "current-procurement",
           reason: row.reason,
         })),
       ],
@@ -278,7 +282,8 @@ export function applyCurrentBaselineBudgetGuard(
               (sum, candidate) =>
                 sum + candidate.estimatedPairRawEndpointRateUsd,
               0
-            ) * 1_000_000
+            ) *
+            1_000_000
         ) / 1_000_000,
     },
     entries,
@@ -290,48 +295,98 @@ export function applyCurrentBaselineBudgetGuard(
   };
 }
 
-export function buildCurrentBaselineProbeRequest(input: {
-  entry: CurrentBaselinePlanEntry;
+function buildCurrentCiRequest(input: {
+  entry: CurrentProcurementBaselinePlanEntry;
   turn: CanonicalQualificationCase;
   sessionId: string;
 }): { body: JsonObject; url: string } {
-  const provider = input.entry.currentProvider;
   const contextInput = buildCanonicalRpQualificationContextInput({
     modelId: input.entry.candidate.modelId,
     caseData: input.turn,
-    provider,
+    provider: "cheaperinference",
   });
   contextInput.targetResponseChars = MAIN_RP_SUPPLY_LIVE_TARGET_CHARS;
   const built = buildContext(contextInput);
   const wire = assemblePrimaryRpRequest({
     system: built.systemPrompt,
     history: built.history ?? [],
-    modelId:
-      provider === "openrouter"
-        ? input.entry.candidate.openRouterSlug
-        : input.entry.candidate.modelId,
+    modelId: input.entry.candidate.modelId,
     targetResponseChars: MAIN_RP_SUPPLY_LIVE_TARGET_CHARS,
     messageOpts: {
-      transportProvider: provider,
+      transportProvider: "cheaperinference",
       charName: CANONICAL_RP_QUALIFICATION_SOURCE.characterName,
       personaName: CANONICAL_RP_QUALIFICATION_SOURCE.personaName,
       sessionId: input.sessionId,
     },
     stream: true,
   });
+
   return {
     body: {
       ...(wire.requestBody as JsonObject),
       stream: true,
       stream_options: { include_usage: true },
     },
-    url:
-      provider === "openrouter"
-        ? OPENROUTER_CHAT_COMPLETIONS_URL
-        : buildCheaperInferenceChatCompletionsUrl({
-            promptCacheSession: input.sessionId,
-          }),
+    url: buildCheaperInferenceChatCompletionsUrl({
+      promptCacheSession: input.sessionId,
+    }),
   };
+}
+
+function buildCurrentOpenRouterRequest(input: {
+  entry: CurrentProcurementBaselinePlanEntry;
+  turn: CanonicalQualificationCase;
+  sessionId: string;
+}): { body: JsonObject; url: string } {
+  const contextInput = buildCanonicalRpQualificationContextInput({
+    modelId: input.entry.candidate.modelId,
+    caseData: input.turn,
+    provider: "openrouter",
+  });
+  contextInput.targetResponseChars = MAIN_RP_SUPPLY_LIVE_TARGET_CHARS;
+  const built = buildContext(contextInput);
+  const wire = assemblePrimaryRpRequest({
+    system: built.systemPrompt,
+    history: built.history ?? [],
+    modelId: input.entry.candidate.openRouterSlug,
+    targetResponseChars: MAIN_RP_SUPPLY_LIVE_TARGET_CHARS,
+    messageOpts: {
+      transportProvider: "openrouter",
+      charName: CANONICAL_RP_QUALIFICATION_SOURCE.characterName,
+      personaName: CANONICAL_RP_QUALIFICATION_SOURCE.personaName,
+      sessionId: input.sessionId,
+    },
+    stream: true,
+  });
+  const body = {
+    ...(wire.requestBody as JsonObject),
+    stream: true,
+    stream_options: { include_usage: true },
+  };
+  const provider = body.provider as
+    | { only?: unknown; allow_fallbacks?: unknown; require_parameters?: unknown }
+    | undefined;
+  const only = Array.isArray(provider?.only) ? provider!.only : [];
+  if (
+    only.length !== 1 ||
+    only[0] !== input.entry.currentProviderSlug ||
+    body.service_tier !== input.entry.currentServiceTier
+  ) {
+    throw new Error(
+      `Current OpenRouter baseline route drift for ${input.entry.candidate.modelId}`
+    );
+  }
+  return { body, url: OPENROUTER_CHAT_COMPLETIONS_URL };
+}
+
+export function buildCurrentProcurementBaselineProbeRequest(input: {
+  entry: CurrentProcurementBaselinePlanEntry;
+  turn: CanonicalQualificationCase;
+  sessionId: string;
+}): { body: JsonObject; url: string } {
+  return input.entry.currentProvider === "cheaperinference"
+    ? buildCurrentCiRequest(input)
+    : buildCurrentOpenRouterRequest(input);
 }
 
 type StreamState = {
@@ -366,7 +421,7 @@ function flush(
   buffer.value = "";
 }
 
-async function executeCurrentCheaperInferenceBaselineProbe(input: {
+async function executeCurrentCiProbe(input: {
   apiKey: string;
   body: JsonObject;
   url: string;
@@ -459,7 +514,9 @@ async function executeCurrentCheaperInferenceBaselineProbe(input: {
     cacheReadTokens: breakdown.cacheReadTokens,
     cacheWriteTokens: breakdown.cacheWriteTokens,
     providerReportedCostUsd:
-      breakdown.cheaperInferenceBilledCostUsd ?? breakdown.upstreamCostUsd ?? null,
+      breakdown.cheaperInferenceBilledCostUsd ??
+      breakdown.upstreamCostUsd ??
+      null,
     providerMetadata: null,
     servedProviderMatch: null,
     error,
@@ -476,49 +533,60 @@ function isComplete(turn: SupplyLiveTurnResult): boolean {
   );
 }
 
-export async function runCurrentBaselinePair(input: {
-  openRouterApiKey: string;
-  cheaperInferenceApiKey?: string | null;
-  entry: CurrentBaselinePlanEntry;
+function currentOpenRouterCandidate(
+  entry: CurrentProcurementBaselinePlanEntry
+): SupplyLiveCandidate {
+  return {
+    ...entry.candidate,
+    providerName: entry.currentProviderName,
+    providerSlug: entry.currentProviderSlug,
+    rawEndpointRateDeltaVsCurrentProcurementPercent: 0,
+    deploymentServiceTier: entry.currentServiceTier,
+  };
+}
+
+export async function runCurrentProcurementBaselinePair(input: {
+  entry: CurrentProcurementBaselinePlanEntry;
   sessionId: string;
+  cheaperInferenceApiKey?: string | null;
+  openRouterApiKey?: string | null;
   fetchImpl?: FetchLike;
-}): Promise<CurrentBaselineResult> {
+}): Promise<CurrentProcurementBaselineResult> {
   const turns = buildDeterministicSupplyProbeTurns();
   const results: SupplyLiveTurnResult[] = [];
 
   for (let index = 0; index < turns.length; index += 1) {
-    const request = buildCurrentBaselineProbeRequest({
+    const request = buildCurrentProcurementBaselineProbeRequest({
       entry: input.entry,
       turn: turns[index]!,
       sessionId: input.sessionId,
     });
 
     let result: SupplyLiveTurnResult;
-    if (input.entry.currentProvider === "openrouter") {
-      const routeCandidate = input.entry.openRouterRouteCandidate;
-      if (!routeCandidate) {
-        throw new Error("current_openrouter_route_candidate_missing");
-      }
-      result = await executeOpenRouterSupplyProbe({
-        apiKey: input.openRouterApiKey,
-        candidate: routeCandidate,
-        body: request.body,
-        turn: (index + 1) as 1 | 2,
-        fetchImpl: input.fetchImpl,
-      });
-    } else {
-      const apiKey = input.cheaperInferenceApiKey?.trim();
-      if (!apiKey) {
+    if (input.entry.currentProvider === "cheaperinference") {
+      if (!input.cheaperInferenceApiKey) {
         throw new Error("missing_cheaper_inference_benchmark_credential");
       }
-      result = await executeCurrentCheaperInferenceBaselineProbe({
-        apiKey,
+      result = await executeCurrentCiProbe({
+        apiKey: input.cheaperInferenceApiKey,
         body: request.body,
         url: request.url,
         turn: (index + 1) as 1 | 2,
         fetchImpl: input.fetchImpl,
       });
+    } else {
+      if (!input.openRouterApiKey) {
+        throw new Error("missing_openrouter_supply_benchmark_credential");
+      }
+      result = await executeOpenRouterSupplyProbe({
+        apiKey: input.openRouterApiKey,
+        candidate: currentOpenRouterCandidate(input.entry),
+        body: request.body,
+        turn: (index + 1) as 1 | 2,
+        fetchImpl: input.fetchImpl,
+      });
     }
+
     results.push(result);
     if (!isComplete(result)) break;
   }
@@ -526,6 +594,7 @@ export async function runCurrentBaselinePair(input: {
   const livePairComplete =
     results.length === 2 && results.every((turn) => isComplete(turn));
   const secondTurn = results.find((turn) => turn.turn === 2) ?? null;
+
   return {
     modelId: input.entry.candidate.modelId,
     currentProvider: input.entry.currentProvider,
@@ -546,59 +615,95 @@ function average(values: Array<number | null>): number | null {
   return measured.reduce((sum, value) => sum + value, 0) / measured.length;
 }
 
-function observedCost(turns: SupplyLiveTurnResult[]): number | null {
-  const costs = turns
-    .map((turn) => turn.providerReportedCostUsd)
-    .filter((value): value is number => value != null);
-  return costs.length ? costs.reduce((sum, value) => sum + value, 0) : null;
+function sumMeasured(values: Array<number | null>): number | null {
+  const measured = values.filter((value): value is number => value != null);
+  return measured.length === values.length && measured.length > 0
+    ? measured.reduce((sum, value) => sum + value, 0)
+    : null;
+}
+
+function candidateBilledCost(turns: SupplyLiveTurnResult[]): number | null {
+  return sumMeasured(
+    turns.map((turn) => turn.providerMetadata?.totalCostUsd ?? null)
+  );
+}
+
+function currentBilledCost(
+  baseline: CurrentProcurementBaselineResult
+): number | null {
+  if (baseline.currentProvider === "openrouter") {
+    return sumMeasured(
+      baseline.turns.map(
+        (turn) => turn.providerMetadata?.totalCostUsd ?? null
+      )
+    );
+  }
+  return sumMeasured(
+    baseline.turns.map((turn) => turn.providerReportedCostUsd)
+  );
+}
+
+function deltaPct(candidate: number | null, current: number | null): number | null {
+  if (candidate == null || current == null || current <= 0) return null;
+  return (candidate - current) / current;
 }
 
 export function buildSupplyTransportComparisonReport(input: {
   candidateResults: SupplyLiveCandidateResult[];
-  currentBaselineResults: CurrentBaselineResult[];
+  currentResults: CurrentProcurementBaselineResult[];
   generatedAt?: string;
 }): SupplyTransportComparisonReport {
   const rows: SupplyTransportComparisonRow[] = [];
 
   for (const candidateResult of input.candidateResults) {
-    const baseline = input.currentBaselineResults.find(
+    const baseline = input.currentResults.find(
       (row) => row.modelId === candidateResult.candidate.modelId
     );
     if (!baseline) continue;
+
+    const candidateCost = candidateBilledCost(candidateResult.turns);
+    const currentCost = currentBilledCost(baseline);
+
     rows.push({
       modelId: candidateResult.candidate.modelId,
       candidateProviderName: candidateResult.candidate.providerName,
       candidateProviderSlug: candidateResult.candidate.providerSlug,
+      candidateDeploymentServiceTier:
+        candidateResult.candidate.deploymentServiceTier,
       currentProvider: baseline.currentProvider,
       currentProviderName: baseline.currentProviderName,
       currentProviderSlug: baseline.currentProviderSlug,
       currentServiceTier: baseline.currentServiceTier,
       candidatePairComplete: candidateResult.livePairComplete,
-      currentBaselinePairComplete: baseline.livePairComplete,
+      currentPairComplete: baseline.livePairComplete,
       candidateSecondTurnCacheReadObserved:
         candidateResult.secondTurnCacheReadObserved,
-      currentBaselineSecondTurnCacheReadObserved:
+      currentSecondTurnCacheReadObserved:
         baseline.secondTurnCacheReadObserved,
       candidateAverageTtftSeconds: average(
         candidateResult.turns.map((turn) => turn.ttftSeconds)
       ),
-      currentBaselineAverageTtftSeconds: average(
+      currentAverageTtftSeconds: average(
         baseline.turns.map((turn) => turn.ttftSeconds)
       ),
       candidateAverageTotalSeconds: average(
         candidateResult.turns.map((turn) => turn.totalSeconds)
       ),
-      currentBaselineAverageTotalSeconds: average(
+      currentAverageTotalSeconds: average(
         baseline.turns.map((turn) => turn.totalSeconds)
       ),
-      candidateObservedProviderCostUsd: observedCost(candidateResult.turns),
-      currentBaselineObservedProviderCostUsd: observedCost(baseline.turns),
+      candidateObservedBilledCostUsd: candidateCost,
+      currentObservedBilledCostUsd: currentCost,
+      candidateObservedCostDeltaVsCurrentPercent: deltaPct(
+        candidateCost,
+        currentCost
+      ),
       candidateEstimatedPairRawEndpointRateUsd:
         candidateResult.candidate.estimatedPairRawEndpointRateUsd,
-      currentBaselineEstimatedPairRateUsd:
-        baseline.estimatedPairCurrentRateUsd,
-      marketRawEndpointRateDeltaVsCurrentBaselinePercent:
-        candidateResult.candidate.rawEndpointRateDeltaVsCurrentProcurementPercent,
+      currentEstimatedPairRateUsd: baseline.estimatedPairCurrentRateUsd,
+      marketRawEndpointRateDeltaVsCurrentPercent:
+        candidateResult.candidate
+          .rawEndpointRateDeltaVsCurrentProcurementPercent,
     });
   }
 
@@ -606,11 +711,11 @@ export function buildSupplyTransportComparisonReport(input: {
     (sum, row) => sum + row.providerGenerationCalls,
     0
   );
-  const currentBaselineCalls = input.currentBaselineResults.reduce(
+  const currentCalls = input.currentResults.reduce(
     (sum, row) => sum + row.providerGenerationCalls,
     0
   );
-  const totalCalls = candidateCalls + currentBaselineCalls;
+  const totalCalls = candidateCalls + currentCalls;
   if (totalCalls > MAIN_RP_SUPPLY_COMBINED_MAX_PROVIDER_CALLS) {
     throw new Error("Combined supply comparison exceeded provider-call budget");
   }
@@ -621,14 +726,14 @@ export function buildSupplyTransportComparisonReport(input: {
     providerGenerationCalls: totalCalls,
     maxProviderGenerationCalls: MAIN_RP_SUPPLY_COMBINED_MAX_PROVIDER_CALLS,
     candidateGenerationCalls: candidateCalls,
-    currentBaselineGenerationCalls: currentBaselineCalls,
+    currentBaselineGenerationCalls: currentCalls,
     rows,
     notes: [
-      "This is a factual side-by-side transport/cache comparison against the actual current production procurement route.",
-      "OpenRouter current baselines preserve the canonical provider pin and production service_tier.",
-      "CheaperInference current baselines use the dedicated benchmark credential when that model is currently routed through CheaperInference.",
-      "Candidate raw endpoint-rate estimates exclude OpenRouter account/platform fee interpretation.",
-      "Two calls per side are not a statistical reliability sample. Market uptime metrics and durable history remain the stability owners.",
+      "This is a factual side-by-side transport/cache/cost comparison, not an automatic provider selection.",
+      "Current baseline is the actual registry-owned procurement route: CheaperInference or OpenRouter.",
+      "For current OpenRouter models, both baseline and candidate carry the production service tier exactly.",
+      "Same-OpenRouter observed billed cost uses OpenRouter generation metadata total_cost on both sides.",
+      "Cross-provider observed costs are retained as evidence but are not treated as automatically comparable procurement cash costs.",
       "Raw outputs remain review artifacts; no composite RP quality score is generated.",
     ],
   };
@@ -638,24 +743,22 @@ export function renderSupplyTransportComparisonMarkdown(
   report: SupplyTransportComparisonReport
 ): string {
   const lines = [
-    "# Main RP Supply — Candidate vs Current Production",
+    "# Main RP Supply — Candidate vs Current Procurement",
     "",
     `- provider generation calls: **${report.providerGenerationCalls}/${report.maxProviderGenerationCalls}**`,
     `- candidate calls: ${report.candidateGenerationCalls}`,
     `- current baseline calls: ${report.currentBaselineGenerationCalls}`,
     "",
-    "| Model | Candidate | Current route | Candidate TTFT avg | Current TTFT avg | Candidate total avg | Current total avg | Candidate cache T2 | Current cache T2 | Candidate raw pair est. | Current pair est. |",
-    "|---|---|---|---:|---:|---:|---:|---|---|---:|---:|",
+    "| Model | Candidate | Current route | Tier | Candidate TTFT | Current TTFT | Candidate total | Current total | Candidate cost | Current cost | Observed cost delta |",
+    "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|",
   ];
+
   for (const row of report.rows) {
-    const currentRoute =
-      row.currentProvider === "openrouter"
-        ? `${row.currentProviderName} / ${row.currentProviderSlug ?? "unknown"} / serviceTier=${row.currentServiceTier ?? "default"}`
-        : row.currentProviderName;
     lines.push(
-      `| ${row.modelId} | ${row.candidateProviderName} | ${currentRoute} | ${row.candidateAverageTtftSeconds ?? "n/a"} | ${row.currentBaselineAverageTtftSeconds ?? "n/a"} | ${row.candidateAverageTotalSeconds ?? "n/a"} | ${row.currentBaselineAverageTotalSeconds ?? "n/a"} | ${row.candidateSecondTurnCacheReadObserved} | ${row.currentBaselineSecondTurnCacheReadObserved} | $${row.candidateEstimatedPairRawEndpointRateUsd.toFixed(4)} | $${row.currentBaselineEstimatedPairRateUsd.toFixed(4)} |`
+      `| ${row.modelId} | ${row.candidateProviderName} | ${row.currentProviderName} | ${row.currentServiceTier ?? "default"} | ${row.candidateAverageTtftSeconds ?? "n/a"} | ${row.currentAverageTtftSeconds ?? "n/a"} | ${row.candidateAverageTotalSeconds ?? "n/a"} | ${row.currentAverageTotalSeconds ?? "n/a"} | ${row.candidateObservedBilledCostUsd ?? "n/a"} | ${row.currentObservedBilledCostUsd ?? "n/a"} | ${row.candidateObservedCostDeltaVsCurrentPercent == null ? "n/a" : (row.candidateObservedCostDeltaVsCurrentPercent * 100).toFixed(1) + "%"} |`
     );
   }
+
   lines.push("", "## Interpretation boundary", "");
   for (const note of report.notes) lines.push(`- ${note}`);
   lines.push("");

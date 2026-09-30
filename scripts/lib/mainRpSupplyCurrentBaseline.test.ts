@@ -3,50 +3,67 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it } from "node:test";
 
-import type { SelectedAI } from "@/lib/chatModels";
 import {
-  applyCurrentBaselineBudgetGuard,
-  buildCurrentBaselineProbeRequest,
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
+  type SelectedAI,
+} from "@/lib/chatModels";
+import type { CatalogPricingEvidence } from "./mainRpMonthlyCacheAudit";
+import {
+  applyCurrentProcurementBaselineBudgetGuard,
+  buildCurrentProcurementBaselineProbeRequest,
   buildSupplyTransportComparisonReport,
   MAIN_RP_SUPPLY_COMBINED_MAX_PROVIDER_CALLS,
   MAIN_RP_SUPPLY_CURRENT_BASELINE_MAX_ESTIMATED_USD,
   MAIN_RP_SUPPLY_CURRENT_BASELINE_MAX_PROVIDER_CALLS,
-  type CurrentBaselineResult,
+  type CurrentProcurementBaselineResult,
 } from "./mainRpSupplyCurrentBaseline";
 import {
-  compareSupplyEndpoint,
-  type MainRpSupplyRadarReport,
-  type ProcurementBaseline,
+  buildMainRpSupplyRadarReport,
   type SupplyEndpointEvidence,
 } from "./mainRpSupplyRadar";
 import {
   buildDeterministicSupplyProbeTurns,
   buildSupplyProbeRequestBody,
+  resolveSupplyLiveRequiredProviderParameterKeys,
+  selectMainRpSupplyLiveCandidates,
   type SupplyLiveCandidate,
   type SupplyLiveCandidateResult,
-  type SupplyLiveSelection,
   type SupplyLiveTurnResult,
 } from "./mainRpSupplyLiveQualification";
 
-function endpoint(input: {
-  modelId: string;
-  name: string;
-  slug: string;
-  tag?: string | null;
-  input: number;
-  output: number;
-}): SupplyEndpointEvidence {
+function catalog(id: string, input = 0.3, output = 1.2): CatalogPricingEvidence {
   return {
-    modelId: input.modelId,
-    providerName: input.name,
-    providerTag: input.tag ?? null,
-    quantization: null,
+    id,
+    input_per_million: input,
+    output_per_million: output,
+    cache_read_input_per_million: 0.03,
+    cache_write_input_per_million: null,
+    cacheCapabilityAdvertised: true,
+    pricing_version: "fixture-v1",
+    pricing_checked_at: "2026-09-30T00:00:00Z",
+    pricing_updated_at: "2026-09-30T00:00:00Z",
+  };
+}
+
+function endpoint(
+  modelId: SelectedAI,
+  providerName = "FixtureProvider",
+  providerSlug = "fixture-provider",
+  input = 0.1,
+  output = 0.3,
+  providerTag: string | null = providerSlug
+): SupplyEndpointEvidence {
+  return {
+    modelId,
+    providerName,
+    providerTag,
+    quantization: modelId.startsWith("deepseek") ? "fp8" : null,
     contextLength: 200_000,
     maxPromptTokens: 190_000,
     maxCompletionTokens: 8_192,
-    inputUsdPerMillion: input.input,
-    outputUsdPerMillion: input.output,
-    cacheReadUsdPerMillion: 0.01,
+    inputUsdPerMillion: input,
+    outputUsdPerMillion: output,
+    cacheReadUsdPerMillion: input / 10,
     cacheWriteUsdPerMillion: null,
     supportsImplicitCaching: true,
     latencyP50SecondsLast30m: 1.2,
@@ -54,10 +71,24 @@ function endpoint(input: {
     uptimeLast1dPercent: 99.9,
     uptimeLast30mPercent: 100,
     status: 0,
-    supportedParameters: ["reasoning", "include_reasoning", "temperature"],
+    supportedParameters: [
+      "reasoning",
+      "include_reasoning",
+      "max_tokens",
+      "temperature",
+      "top_p",
+      "frequency_penalty",
+      "presence_penalty",
+      "repetition_penalty",
+      "seed",
+      "response_format",
+      "tools",
+      "tool_choice",
+      "structured_outputs",
+    ],
     provider: {
-      name: input.name,
-      slug: input.slug,
+      name: providerName,
+      slug: providerSlug,
       headquarters: "US",
       privacyPolicyUrl: "https://example.com/privacy",
       termsOfServiceUrl: "https://example.com/terms",
@@ -67,171 +98,74 @@ function endpoint(input: {
   };
 }
 
-function candidate(input: {
-  modelId: SelectedAI;
-  openRouterSlug: string;
-  providerName?: string;
-  providerSlug?: string;
-}): SupplyLiveCandidate {
-  return {
-    modelId: input.modelId,
-    openRouterSlug: input.openRouterSlug,
-    providerName: input.providerName ?? "Alternative Studio",
-    providerSlug: input.providerSlug ?? "alternative-studio",
-    quantization: null,
-    rawEndpointRateDeltaVsCurrentProcurementPercent: -0.2,
-    inputUsdPerMillion: 0.2,
-    outputUsdPerMillion: 1,
-    cacheReadUsdPerMillion: 0.01,
-    marketLatencyP50SecondsLast30m: 1,
-    marketThroughputP50TokensPerSecondLast30m: 60,
-    marketUptimeLast1dPercent: 99.95,
-    marketUptimeLast30mPercent: 100,
-    controlEffort: "none",
-    excludeReasoning: true,
-    estimatedPairRawEndpointRateUsd: 0.02,
-  };
-}
+function radarReport() {
+  const endpointsByModel: Partial<Record<SelectedAI, SupplyEndpointEvidence[]>> = {};
+  const ci: Record<string, CatalogPricingEvidence> = {};
 
-function selection(...candidates: SupplyLiveCandidate[]): SupplyLiveSelection {
-  return {
-    candidates,
-    skipped: [],
-    maxProviderGenerationCalls: 10,
-    estimatedRawEndpointRateUsd: candidates.reduce(
-      (sum, row) => sum + row.estimatedPairRawEndpointRateUsd,
-      0
-    ),
-  };
-}
+  for (const option of MAIN_RP_USER_SELECTABLE_OPTIONS) {
+    if (option.provider === "openrouter") {
+      endpointsByModel[option.id] = [
+        endpoint(
+          option.id,
+          "Google AI Studio Flex",
+          "google-ai-studio",
+          0.4,
+          1.2,
+          "flex"
+        ),
+        endpoint(option.id, "FixtureProvider", "fixture-provider", 0.1, 0.3),
+      ];
+    } else {
+      endpointsByModel[option.id] = [endpoint(option.id)];
+      ci[option.id] = catalog(option.id);
+    }
+  }
 
-function modelReport(input: {
-  modelId: SelectedAI;
-  openRouterSlug: string;
-  baseline: ProcurementBaseline;
-  endpoints: SupplyEndpointEvidence[];
-}): MainRpSupplyRadarReport["models"][number] {
-  const comparisons = input.endpoints.map((row) =>
-    compareSupplyEndpoint(row, input.baseline)
-  );
-  return {
-    modelId: input.modelId,
-    label: input.modelId,
-    openRouterSlug: input.openRouterSlug,
-    currentProcurement: input.baseline,
-    endpointCount: comparisons.length,
-    providersDiscovered: comparisons.map((row) => row.providerName),
-    comparisons,
-    lowerRawEndpointRateCount: comparisons.filter(
-      (row) => row.lowerRawEndpointRateThanCurrentProcurement
-    ).length,
-    publishedMarginRisk: null,
-    evidenceFingerprint: "fixture",
-  };
-}
-
-function radar(models: MainRpSupplyRadarReport["models"]): MainRpSupplyRadarReport {
-  return {
-    version: 1,
-    generatedAt: "2026-09-30T00:00:00.000Z",
-    status: "OK",
-    providerGenerationCalls: 0,
-    activeModelIds: models.map((row) => row.modelId),
+  const report = buildMainRpSupplyRadarReport({
+    endpointsByModel,
+    ciCatalogByModel: ci,
     credentialSource: "fixture",
-    currentProcurementEvidence: "registry_route_evidence",
-    marketEvidence: "openrouter_endpoint_metrics",
-    notes: [],
-    models,
-  };
-}
+    generatedAt: "2026-09-30T00:00:00.000Z",
+  });
 
-function geminiFixture() {
-  const modelId = "gemini-3.7-flash" as const;
-  const openRouterSlug = "google/gemini-3.7-flash";
-  const baseline: ProcurementBaseline = {
-    provider: "openrouter",
-    evidenceSource: "openrouter_endpoint_market",
-    modelId,
-    inputUsdPerMillion: 0.3,
-    outputUsdPerMillion: 1.5,
-    cacheReadUsdPerMillion: 0.03,
-    cacheWriteUsdPerMillion: null,
-    cacheCapabilityAdvertised: true,
-    pricingVersion: null,
-    pricingCheckedAt: null,
-    pricingUpdatedAt: null,
-  };
-  const current = endpoint({
-    modelId: openRouterSlug,
-    name: "Google AI Studio Flex",
-    slug: "google-ai-studio",
-    tag: "flex",
-    input: 0.3,
-    output: 1.5,
-  });
-  const alternate = endpoint({
-    modelId: openRouterSlug,
-    name: "Alternative Studio",
-    slug: "alternative-studio",
-    input: 0.2,
-    output: 1,
-  });
-  const cand = candidate({ modelId, openRouterSlug });
-  return {
-    modelId,
-    cand,
-    radar: radar([
-      modelReport({
-        modelId,
-        openRouterSlug,
-        baseline,
-        endpoints: [current, alternate],
-      }),
-    ]),
-  };
-}
+  // Couple the alternate Gemini endpoint to the actual production request keys.
+  for (const modelId of [
+    "gemini-3.1-pro-preview",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
+  ] as const) {
+    const model = report.models.find((row) => row.modelId === modelId);
+    const alternate = model?.comparisons.find(
+      (row) => row.provider?.slug === "fixture-provider"
+    );
+    if (!model || !alternate?.provider?.slug) continue;
+    const candidate: SupplyLiveCandidate = {
+      modelId: model.modelId,
+      openRouterSlug: model.openRouterSlug,
+      providerName: alternate.providerName,
+      providerSlug: alternate.provider.slug,
+      quantization: alternate.quantization,
+      rawEndpointRateDeltaVsCurrentProcurementPercent:
+        alternate.rawEndpointRateDeltaVsCurrentProcurementPercent ?? -0.5,
+      inputUsdPerMillion: alternate.inputUsdPerMillion ?? 0.1,
+      outputUsdPerMillion: alternate.outputUsdPerMillion ?? 0.3,
+      cacheReadUsdPerMillion: alternate.cacheReadUsdPerMillion,
+      marketLatencyP50SecondsLast30m:
+        alternate.latencyP50SecondsLast30m ?? 1.2,
+      marketThroughputP50TokensPerSecondLast30m:
+        alternate.throughputP50TokensPerSecondLast30m ?? 70,
+      marketUptimeLast1dPercent: alternate.uptimeLast1dPercent ?? 99.9,
+      marketUptimeLast30mPercent: alternate.uptimeLast30mPercent ?? 100,
+      controlEffort: "low",
+      excludeReasoning: true,
+      deploymentServiceTier: "flex",
+      estimatedPairRawEndpointRateUsd: 0.01,
+    };
+    alternate.supportedParameters =
+      resolveSupplyLiveRequiredProviderParameterKeys(candidate);
+  }
 
-function deepseekFixture() {
-  const modelId = "deepseek-v4.1-flash" as const;
-  const openRouterSlug = "deepseek/deepseek-v4.1-flash";
-  const baseline: ProcurementBaseline = {
-    provider: "cheaperinference",
-    evidenceSource: "cheaperinference_catalog",
-    modelId,
-    inputUsdPerMillion: 0.15,
-    outputUsdPerMillion: 0.6,
-    cacheReadUsdPerMillion: 0.003,
-    cacheWriteUsdPerMillion: null,
-    cacheCapabilityAdvertised: true,
-    pricingVersion: "fixture",
-    pricingCheckedAt: null,
-    pricingUpdatedAt: null,
-  };
-  const alternate = endpoint({
-    modelId: openRouterSlug,
-    name: "Wafer",
-    slug: "wafer",
-    input: 0.08,
-    output: 0.4,
-  });
-  const cand = candidate({
-    modelId,
-    openRouterSlug,
-    providerName: "Wafer",
-    providerSlug: "wafer",
-  });
-  return {
-    modelId,
-    cand,
-    radar: radar([
-      modelReport({
-        modelId,
-        openRouterSlug,
-        baseline,
-        endpoints: [alternate],
-      }),
-    ]),
-  };
+  return report;
 }
 
 function turn(
@@ -239,12 +173,13 @@ function turn(
   ttft: number,
   total: number,
   cacheRead: number,
-  cost: number
+  billedCost: number,
+  openRouterTotalCost?: number
 ): SupplyLiveTurnResult {
   return {
     turn: turnNumber,
     httpStatus: 200,
-    generationId: null,
+    generationId: "gen",
     resolvedModel: "fixture",
     finishReason: "stop",
     sawDone: true,
@@ -258,54 +193,31 @@ function turn(
     reasoningTokens: 0,
     cacheReadTokens: cacheRead,
     cacheWriteTokens: 0,
-    providerReportedCostUsd: cost,
-    providerMetadata: null,
-    servedProviderMatch: null,
+    providerReportedCostUsd: billedCost,
+    providerMetadata:
+      openRouterTotalCost == null
+        ? null
+        : {
+            providerName: "FixtureProvider",
+            model: "fixture",
+            latencySeconds: ttft,
+            generationTimeSeconds: total - ttft,
+            nativeTokensCached: cacheRead,
+            totalCostUsd: openRouterTotalCost,
+            upstreamInferenceCostUsd: billedCost,
+          },
+    servedProviderMatch: true,
     error: null,
   };
 }
 
-describe("current production baseline owner", () => {
-  it("accepts the actual OpenRouter production route instead of filtering it as non-CI", () => {
-    const fixture = geminiFixture();
-    const plan = applyCurrentBaselineBudgetGuard(
-      fixture.radar,
-      selection(fixture.cand)
-    );
-    assert.equal(plan.entries.length, 1);
-    const entry = plan.entries[0]!;
-    assert.equal(entry.currentProvider, "openrouter");
-    assert.equal(entry.currentProviderSlug, "google-ai-studio");
-    assert.equal(entry.currentServiceTier, "flex");
-    assert.equal(entry.openRouterRouteCandidate?.providerSlug, "google-ai-studio");
-  });
+describe("current procurement baseline owner", () => {
+  it("plans one baseline per model for both CheaperInference and OpenRouter current routes", () => {
+    const radar = radarReport();
+    const selection = selectMainRpSupplyLiveCandidates(radar);
+    const plan = applyCurrentProcurementBaselineBudgetGuard(radar, selection);
 
-  it("keeps current CheaperInference models on the CI baseline path", () => {
-    const fixture = deepseekFixture();
-    const plan = applyCurrentBaselineBudgetGuard(
-      fixture.radar,
-      selection(fixture.cand)
-    );
-    const entry = plan.entries[0]!;
-    assert.equal(entry.currentProvider, "cheaperinference");
-    assert.equal(entry.currentProviderName, "CheaperInference");
-    assert.equal(entry.currentProviderSlug, null);
-    assert.equal(entry.currentServiceTier, null);
-  });
-
-  it("deduplicates current baseline calls when one model has multiple ordered candidates", () => {
-    const fixture = deepseekFixture();
-    const backup = {
-      ...fixture.cand,
-      providerName: "Backup",
-      providerSlug: "backup",
-    };
-    const plan = applyCurrentBaselineBudgetGuard(
-      fixture.radar,
-      selection(fixture.cand, backup)
-    );
-    assert.equal(plan.entries.length, 1);
-    assert.equal(plan.selection.candidates.length, 2);
+    assert.ok(plan.entries.length > 0);
     assert.ok(
       plan.entries.length * 2 <=
         MAIN_RP_SUPPLY_CURRENT_BASELINE_MAX_PROVIDER_CALLS
@@ -314,152 +226,189 @@ describe("current production baseline owner", () => {
       plan.estimatedCurrentRateUsd <=
         MAIN_RP_SUPPLY_CURRENT_BASELINE_MAX_ESTIMATED_USD
     );
+    assert.ok(
+      plan.entries.some((entry) => entry.currentProvider === "cheaperinference")
+    );
+    assert.ok(
+      plan.entries.some(
+        (entry) =>
+          entry.currentProvider === "openrouter" &&
+          entry.currentProviderSlug === "google-ai-studio" &&
+          entry.currentServiceTier === "flex"
+      )
+    );
+
+    const modelIds = new Set(plan.entries.map((entry) => entry.candidate.modelId));
+    assert.equal(modelIds.size, plan.entries.length);
+    assert.ok(
+      plan.selection.candidates.every((candidate) =>
+        modelIds.has(candidate.modelId)
+      )
+    );
   });
 
-  it("fails closed when the current procurement rate evidence is missing", () => {
-    const fixture = deepseekFixture();
-    fixture.radar.models[0]!.currentProcurement = {
-      ...fixture.radar.models[0]!.currentProcurement!,
-      inputUsdPerMillion: null,
-      outputUsdPerMillion: null,
-    };
-    const plan = applyCurrentBaselineBudgetGuard(
-      fixture.radar,
-      selection(fixture.cand)
-    );
-    assert.equal(plan.entries.length, 0);
-    assert.equal(plan.selection.candidates.length, 0);
+  it("deduplicates the current baseline when one model has multiple ordered candidates", () => {
+    const radar = radarReport();
+    const selection = selectMainRpSupplyLiveCandidates(radar);
+    const target = selection.candidates.find(
+      (candidate) => candidate.modelId === "gemini-3.7-flash"
+    )!;
+    selection.candidates = [
+      ...selection.candidates,
+      {
+        ...target,
+        providerName: "Backup",
+        providerSlug: "backup",
+      },
+    ];
+
+    const plan = applyCurrentProcurementBaselineBudgetGuard(radar, selection);
     assert.equal(
-      plan.skipped[0]?.reason,
-      "current_procurement_baseline_missing"
+      plan.entries.filter(
+        (entry) => entry.candidate.modelId === "gemini-3.7-flash"
+      ).length,
+      1
+    );
+    assert.equal(
+      plan.selection.candidates.filter(
+        (candidate) => candidate.modelId === "gemini-3.7-flash"
+      ).length,
+      2
     );
   });
-});
 
-describe("current production request parity", () => {
-  it("builds the OpenRouter baseline with the exact current Google AI Studio + Flex production route", () => {
-    const fixture = geminiFixture();
-    const plan = applyCurrentBaselineBudgetGuard(
-      fixture.radar,
-      selection(fixture.cand)
-    );
+  it("builds the exact current OpenRouter provider pin + flex service tier while the candidate keeps the same tier", () => {
+    const radar = radarReport();
+    const selection = selectMainRpSupplyLiveCandidates(radar);
+    const plan = applyCurrentProcurementBaselineBudgetGuard(radar, selection);
+    const entry = plan.entries.find(
+      (row) => row.candidate.modelId === "gemini-3.7-flash"
+    )!;
+    assert.equal(entry.currentProvider, "openrouter");
+
     const [turn1] = buildDeterministicSupplyProbeTurns();
-    const request = buildCurrentBaselineProbeRequest({
-      entry: plan.entries[0]!,
+    const current = buildCurrentProcurementBaselineProbeRequest({
+      entry,
       turn: turn1,
-      sessionId: "current-openrouter-baseline",
+      sessionId: "current-openrouter-fixture",
     });
-    assert.equal(request.url, "https://openrouter.ai/api/v1/chat/completions");
-    assert.equal(request.body.model, "google/gemini-3.7-flash");
-    assert.deepEqual(request.body.provider, {
-      only: ["google-ai-studio"],
-      allow_fallbacks: false,
-      require_parameters: true,
+    const provider = current.body.provider as Record<string, unknown>;
+    assert.deepEqual(provider.only, ["google-ai-studio"]);
+    assert.equal(provider.allow_fallbacks, false);
+    assert.equal(current.body.service_tier, "flex");
+
+    const candidate = buildSupplyProbeRequestBody({
+      candidate: entry.candidate,
+      turn: turn1,
+      sessionId: "candidate-openrouter-fixture",
     });
-    assert.equal(request.body.service_tier, "flex");
+    assert.deepEqual(
+      candidate.messages,
+      current.body.messages,
+      "current and candidate routes must receive the same assembled messages"
+    );
+    assert.equal(candidate.service_tier, "flex");
+    assert.deepEqual(
+      (candidate.provider as Record<string, unknown>).only,
+      [entry.candidate.providerSlug]
+    );
   });
 
-  it("tests a same-OpenRouter alternate provider with the same production Flex service tier", () => {
-    const fixture = geminiFixture();
+  it("keeps CI prompt-cache session affinity for current CI baselines", () => {
+    const radar = radarReport();
+    const selection = selectMainRpSupplyLiveCandidates(radar);
+    const plan = applyCurrentProcurementBaselineBudgetGuard(radar, selection);
+    const entry = plan.entries.find(
+      (row) => row.currentProvider === "cheaperinference"
+    )!;
     const [turn1] = buildDeterministicSupplyProbeTurns();
-    const request = buildSupplyProbeRequestBody({
-      candidate: fixture.cand,
+    const request = buildCurrentProcurementBaselineProbeRequest({
+      entry,
       turn: turn1,
-      sessionId: "candidate-openrouter-flex",
+      sessionId: "current-ci-fixture",
     });
-    assert.deepEqual(request.provider, {
-      only: ["alternative-studio"],
-      allow_fallbacks: false,
-      data_collection: "deny",
-      require_parameters: true,
-    });
-    assert.equal(request.service_tier, "flex");
-  });
-
-  it("keeps the CheaperInference session-affinity baseline behavior unchanged", () => {
-    const fixture = deepseekFixture();
-    const plan = applyCurrentBaselineBudgetGuard(
-      fixture.radar,
-      selection(fixture.cand)
-    );
-    const [turn1] = buildDeterministicSupplyProbeTurns();
-    const request = buildCurrentBaselineProbeRequest({
-      entry: plan.entries[0]!,
-      turn: turn1,
-      sessionId: "current-ci-baseline",
-    });
-    assert.equal(request.body.model, fixture.modelId);
-    assert.doesNotMatch(JSON.stringify(request.body), /"provider":\s*\{/);
+    assert.equal(request.body.model, entry.candidate.modelId);
     assert.match(request.url, /x-ci-prompt-cache-scope=session/);
-    assert.match(request.url, /x-ci-prompt-cache-session=current-ci-baseline/);
-  });
-
-  it("reuses the canonical live target-length owner", () => {
-    const source = readFileSync(
-      resolve(process.cwd(), "scripts/lib/mainRpSupplyCurrentBaseline.ts"),
-      "utf8"
-    );
-    assert.match(source, /MAIN_RP_SUPPLY_LIVE_TARGET_CHARS/);
-    assert.doesNotMatch(source, /targetResponseChars:\s*1200/);
+    assert.match(request.url, /x-ci-prompt-cache-session=current-ci-fixture/);
   });
 });
 
-describe("candidate vs current production comparison semantics", () => {
-  it("compares against a provider-agnostic current baseline without a winner or score", () => {
-    const fixture = geminiFixture();
-    const plan = applyCurrentBaselineBudgetGuard(
-      fixture.radar,
-      selection(fixture.cand)
-    );
-    const entry = plan.entries[0]!;
+describe("candidate vs current procurement comparison", () => {
+  it("uses generic current-route fields and comparable OpenRouter total_cost evidence", () => {
+    const radar = radarReport();
+    const selection = selectMainRpSupplyLiveCandidates(radar);
+    const plan = applyCurrentProcurementBaselineBudgetGuard(radar, selection);
+    const entry = plan.entries.find(
+      (row) => row.candidate.modelId === "gemini-3.7-flash"
+    )!;
+    const candidate = entry.candidate;
+
     const candidateResult: SupplyLiveCandidateResult = {
-      candidate: fixture.cand,
-      turns: [turn(1, 1, 3, 0, 0.02), turn(2, 0.8, 2.5, 500, 0.015)],
+      candidate,
+      turns: [
+        turn(1, 1, 3, 0, 0.01, 0.018),
+        turn(2, 0.8, 2.5, 500, 0.008, 0.012),
+      ],
       providerGenerationCalls: 2,
       livePairComplete: true,
       secondTurnCacheReadObserved: true,
       transportStatus: "PAIR_COMPLETE",
       interpretation: [],
     };
-    const baseline: CurrentBaselineResult = {
-      modelId: fixture.modelId,
+    const current: CurrentProcurementBaselineResult = {
+      modelId: candidate.modelId,
       currentProvider: "openrouter",
       currentProviderName: "Google AI Studio Flex",
       currentProviderSlug: "google-ai-studio",
       currentServiceTier: "flex",
-      turns: [turn(1, 1.5, 4, 0, 0.03), turn(2, 1, 3, 400, 0.02)],
+      turns: [
+        turn(1, 1.5, 4, 0, 0.02, 0.025),
+        turn(2, 1, 3, 400, 0.015, 0.02),
+      ],
       providerGenerationCalls: 2,
       livePairComplete: true,
       secondTurnCacheReadObserved: true,
       estimatedPairCurrentRateUsd: entry.estimatedPairCurrentRateUsd,
     };
+
     const report = buildSupplyTransportComparisonReport({
       candidateResults: [candidateResult],
-      currentBaselineResults: [baseline],
+      currentResults: [current],
       generatedAt: "2026-09-30T00:00:00.000Z",
     });
+
     assert.equal(report.providerGenerationCalls, 4);
     assert.ok(
       report.providerGenerationCalls <= MAIN_RP_SUPPLY_COMBINED_MAX_PROVIDER_CALLS
     );
-    assert.equal(report.currentBaselineGenerationCalls, 2);
-    assert.equal(report.rows[0]!.currentProvider, "openrouter");
-    assert.equal(report.rows[0]!.currentBaselineAverageTtftSeconds, 1.25);
-    assert.match(report.notes.join("\n"), /actual current production procurement route/i);
+    const row = report.rows[0]!;
+    assert.equal(row.currentProvider, "openrouter");
+    assert.equal(row.currentServiceTier, "flex");
+    assert.equal(row.candidateDeploymentServiceTier, "flex");
+    assert.equal(row.candidateObservedBilledCostUsd, 0.03);
+    assert.equal(row.currentObservedBilledCostUsd, 0.045);
+    assert.ok((row.candidateObservedCostDeltaVsCurrentPercent ?? 0) < -0.3);
+    assert.equal(row.currentAverageTtftSeconds, 1.25);
     assert.doesNotMatch(JSON.stringify(report), /qualityScore|winner|ranking/i);
   });
 
-  it("runner no longer globally requires a CI credential for OpenRouter-current models", () => {
+  it("runner only requires the CI benchmark credential when a CI current baseline exists", () => {
     const source = readFileSync(
       resolve(process.cwd(), "scripts/main-rp-supply-live-qualification.ts"),
       "utf8"
     );
-    assert.match(source, /runCurrentBaselinePair/);
-    assert.doesNotMatch(
+    assert.match(
       source,
-      /!ciCredential\s*\?\s*"missing_cheaper_inference_benchmark_credential"/
+      /needsCiCredential = baselinePlan\.entries\.some/
     );
-    assert.match(source, /currentProvider === "cheaperinference"/);
-    assert.match(source, /if \(result\.livePairComplete\) break;/);
+    assert.match(
+      source,
+      /entry\.currentProvider === "cheaperinference"/
+    );
+    assert.match(
+      source,
+      /runCurrentProcurementBaselinePair/
+    );
+    assert.doesNotMatch(source, /runCurrentCiBaselinePair/);
   });
 });

@@ -103,7 +103,7 @@ function radarReport() {
   for (const option of MAIN_RP_USER_SELECTABLE_OPTIONS) {
     if (option.provider === "openrouter") {
       endpointsByModel[option.id] = [
-        endpoint(option.id, "Google AI Studio", "google-ai-studio", 0.4, 1.2),
+        endpoint(option.id, "Google AI Studio Flex", "google-ai-studio", 0.4, 1.2),
         endpoint(option.id, "FixtureProvider", "fixture-provider", 0.1, 0.3),
       ];
     } else {
@@ -144,6 +144,7 @@ function radarReport() {
       marketUptimeLast30mPercent: alternate.uptimeLast30mPercent ?? 100,
       controlEffort: "low",
       excludeReasoning: true,
+      deploymentServiceTier: "flex",
       estimatedPairRawEndpointRateUsd: 0.01,
     };
     alternate.supportedParameters =
@@ -245,7 +246,7 @@ describe("Main RP supply live candidate selection", () => {
     assert.equal(
       body.service_tier,
       "flex",
-      "same-OpenRouter candidate must preserve production Flex service tier"
+      "alternate provider must be qualified on the current production service tier"
     );
   });
 
@@ -270,6 +271,7 @@ describe("Main RP supply live candidate selection", () => {
       marketUptimeLast30mPercent: cheaper.uptimeLast30mPercent ?? 100,
       controlEffort: "low",
       excludeReasoning: true,
+      deploymentServiceTier: "flex",
       estimatedPairRawEndpointRateUsd: 0.01,
     };
     const required =

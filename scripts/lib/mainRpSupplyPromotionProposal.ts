@@ -29,6 +29,9 @@ export type SupplyPromotionProposal = {
     latestSavingsPercent: number | null;
     worstCandidateTotalVsBaselineRatio: number | null;
     worstCandidateTtftVsBaselineRatio: number | null;
+    worstObservedCostDeltaVsCurrentPercent: number | null;
+    testedServiceTier: "flex" | null;
+    currentServiceTier: "flex" | null;
   };
   requiredReviewOwners: string[];
 };
@@ -129,6 +132,10 @@ function proposalFromEvidence(input: {
         input.evidence.worstCandidateTotalVsBaselineRatio,
       worstCandidateTtftVsBaselineRatio:
         input.evidence.worstCandidateTtftVsBaselineRatio,
+      worstObservedCostDeltaVsCurrentPercent:
+        input.evidence.worstObservedCostDeltaVsCurrentPercent,
+      testedServiceTier: input.evidence.testedServiceTier,
+      currentServiceTier: input.evidence.currentServiceTier,
     },
     requiredReviewOwners: transition.requiredReviewOwners,
   };
@@ -160,7 +167,7 @@ export function buildMainRpSupplyPromotionProposalPacket(input: {
     automaticMergeEligibleCount: 0,
     notes: [
       "This packet is advisory evidence. It never mutates routing or pricing.",
-      "Same-OpenRouter-transport promotion may proceed to a Draft route PR after exact route-policy diff/test generation.",
+      "Same-OpenRouter-transport promotion may proceed to a Draft route PR only after repeated exact service-tier live proof and observed total_cost savings have already passed the history gate.",
       "Cross-provider procurement changes are a STOP condition until billing, provider-cost, receipt provenance, and transport-control parity are reviewed.",
       "No proposal is eligible for automatic merge.",
     ],
@@ -183,18 +190,18 @@ export function renderMainRpSupplyPromotionProposalMarkdown(
     `- cross-provider review required: **${packet.crossProviderReviewRequiredCount}**`,
     `- automatic merge eligible: **0**`,
     "",
-    "| Model | Candidate | Current procurement | Transition | Draft route PR | Savings | Market span | Live pairs/span | Worst total | Worst TTFT | STOP |",
-    "|---|---|---|---|---|---:|---:|---|---:|---:|---|",
+    "| Model | Candidate | Current procurement | Transition | Draft route PR | Market savings | Tier tested/current | Worst observed cost Δ | Market span | Live pairs/span | Worst total | Worst TTFT | STOP |",
+    "|---|---|---|---|---|---:|---|---:|---:|---|---:|---:|---|",
   ];
 
   for (const row of packet.proposals) {
     lines.push(
-      `| ${row.modelId} | ${row.candidateProviderName} (${row.candidateProviderSlug}) | ${row.currentProcurementProvider ?? "unknown"} | ${row.transitionKind} | ${row.draftRoutePrEligible ? "YES" : "NO"} | ${n(row.evidence.latestSavingsPercent, 1)}% | ${n(row.evidence.marketObservationSpanDays, 1)}d | ${row.evidence.completeLivePairs} / ${n(row.evidence.liveObservationSpanDays, 1)}d | ${n(row.evidence.worstCandidateTotalVsBaselineRatio, 3)} | ${n(row.evidence.worstCandidateTtftVsBaselineRatio, 3)} | ${row.stopReason ?? "none"} |`
+      `| ${row.modelId} | ${row.candidateProviderName} (${row.candidateProviderSlug}) | ${row.currentProcurementProvider ?? "unknown"} | ${row.transitionKind} | ${row.draftRoutePrEligible ? "YES" : "NO"} | ${n(row.evidence.latestSavingsPercent, 1)}% | ${row.evidence.testedServiceTier ?? "default"} / ${row.evidence.currentServiceTier ?? "default"} | ${row.evidence.worstObservedCostDeltaVsCurrentPercent == null ? "n/a" : n(row.evidence.worstObservedCostDeltaVsCurrentPercent * 100, 1) + "%"} | ${n(row.evidence.marketObservationSpanDays, 1)}d | ${row.evidence.completeLivePairs} / ${n(row.evidence.liveObservationSpanDays, 1)}d | ${n(row.evidence.worstCandidateTotalVsBaselineRatio, 3)} | ${n(row.evidence.worstCandidateTtftVsBaselineRatio, 3)} | ${row.stopReason ?? "none"} |`
     );
   }
 
   if (!packet.proposals.length) {
-    lines.push("| — | — | — | — | — | — | — | — | — | — | no PROMOTION_READY evidence yet |");
+    lines.push("| — | — | — | — | — | — | — | — | — | — | — | — | no PROMOTION_READY evidence yet |");
   }
 
   lines.push("", "## Interpretation boundary", "");
