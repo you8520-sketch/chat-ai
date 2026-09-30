@@ -33,6 +33,8 @@ function history(): MainRpSupplyPromotionHistoryReport {
         latestMarketUptime30mPercent: 100,
         worstCandidateTotalVsBaselineRatio: 0.82,
         worstCandidateTtftVsBaselineRatio: 0.9,
+        worstObservedCostVsBaselineRatio: 0.8,
+        cacheRegressionObservations: 0,
         reasons: [],
       },
       {
@@ -52,6 +54,8 @@ function history(): MainRpSupplyPromotionHistoryReport {
         latestMarketUptime30mPercent: 99.95,
         worstCandidateTotalVsBaselineRatio: 0.5,
         worstCandidateTtftVsBaselineRatio: 0.8,
+        worstObservedCostVsBaselineRatio: null,
+        cacheRegressionObservations: 0,
         reasons: [],
       },
     ],
