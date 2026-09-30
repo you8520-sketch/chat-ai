@@ -51,7 +51,7 @@ export function patchMainRpOpenRouterProvider(
   const model = escapeRegExp(modelId);
   const pattern = new RegExp(
     "(\\\"" + model +
-      "\\\"\\\\s*:\\\\s*\\\\{[\\\\s\\\\S]{0,240}?providerSlug:\\\\s*\\\")([^\\\"]+)(\\\")",
+      "\\\"\\s*:\\s*\\{[\\s\\S]{0,240}?providerSlug:\\s*\\\")([^\\\"]+)(\\\")",
     "g"
   );
   const matches = [...input.source.matchAll(pattern)];
@@ -88,9 +88,9 @@ export function patchMainRpOpenRouterProvider(
 
   const rowPattern = new RegExp(
     "\\\"" + model +
-      "\\\"\\\\s*:\\\\s*\\\\{[\\\\s\\\\S]{0,300}?providerSlug:\\\\s*\\\"" +
+      "\\\"\\s*:\\s*\\{[\\s\\S]{0,300}?providerSlug:\\s*\\\"" +
       escapeRegExp(candidate) +
-      "\\\"[\\\\s\\\\S]{0,180}?serviceTier:\\\\s*\\\"flex\\\"[\\\\s\\\\S]{0,80}?\\\\}"
+      "\\\"[\\s\\S]{0,180}?serviceTier:\\s*\\\"flex\\\"[\\s\\S]{0,80}?\\}"
   );
   if (!rowPattern.test(source)) {
     throw new Error(
