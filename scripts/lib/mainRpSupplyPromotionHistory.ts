@@ -238,6 +238,7 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
   >();
 
   for (const snapshot of snapshots) {
+    if ((snapshot.comparison?.version ?? 0) < 2) continue;
     for (const result of snapshot.live?.results ?? []) {
       if (!result.livePairComplete) continue;
       candidateMap.set(providerKey(result.candidate.modelId, result.candidate.providerSlug), {
@@ -264,7 +265,9 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
       }))
       .filter((row) => isMarketQualified(row.endpoint));
 
-    const allLiveRows = snapshots.flatMap((snapshot) =>
+    const allLiveRows = snapshots
+      .filter((snapshot) => (snapshot.comparison?.version ?? 0) >= 2)
+      .flatMap((snapshot) =>
       (snapshot.live?.results ?? [])
         .filter(
           (result) =>
@@ -425,7 +428,7 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
     notes: [
       "PROMOTION_READY is evidence readiness only; it never mutates production routing.",
       "Four qualifying market snapshots spanning >=21 days are required.",
-      "Two complete canonical two-turn live pairs spanning >=14 days are required.",
+      "Two complete canonical two-turn live pairs spanning >=14 days are required; only current-baseline comparison schema v2+ counts as live evidence.",
       "Any recorded incomplete live pair for the same candidate blocks promotion until the history window moves past it.",
       "Candidate total response time must not exceed the current baseline and TTFT may be at most 1.25x the current baseline.",
       "For same-OpenRouter transitions, observed provider cost must be present and no higher than the actual current OpenRouter baseline in every successful comparison.",
