@@ -7,6 +7,10 @@ export const MEMORY_RESEARCH_LEDGER_BRANCH = "memory-research-ledger";
 export const MEMORY_RESEARCH_WORKFLOW_PATH =
   ".github/workflows/memory-research-cycle.yml";
 
+export const MEMORY_RESEARCH_STALE_AFTER_MS = 8 * 24 * 60 * 60 * 1000;
+export const MEMORY_RESEARCH_PERSISTENCE_LAG_TOLERANCE_MS =
+  30 * 60 * 1000;
+
 export type MemoryResearchAdminCounts = {
   sourcesChecked: number;
   sourcesFailed: number;
@@ -96,12 +100,20 @@ export type MemoryResearchAdminRun = {
   decisions: MemoryResearchAdminDecision[];
 };
 
+export type MemoryResearchFreshnessStatus =
+  | "FRESH"
+  | "STALE_CYCLE"
+  | "PERSISTENCE_LAG"
+  | "UNKNOWN";
+
 export type MemoryResearchAdminProjection = {
   status: "OK" | "EMPTY" | "UNAVAILABLE";
   error: string | null;
   run: MemoryResearchAdminRun | null;
   githubRunUrl: string | null;
   persistedReportUrl: string | null;
+  freshnessStatus: MemoryResearchFreshnessStatus;
+  freshnessReason: string | null;
   pipeline: MemoryResearchAdminPipeline;
 };
 
@@ -482,6 +494,62 @@ export function projectMemoryResearchAdminRun(
   };
 }
 
+export function assessMemoryResearchFreshness(
+  run: MemoryResearchAdminRun | null,
+  workflowGroup: GithubScheduledAutomationGroup | null,
+  now = new Date()
+): {
+  status: MemoryResearchFreshnessStatus;
+  reason: string | null;
+} {
+  if (!run) {
+    return {
+      status: "UNKNOWN",
+      reason: "Persisted Memory Research cycle is not available.",
+    };
+  }
+
+  const finishedAtMs = Date.parse(run.finishedAt);
+  if (!Number.isFinite(finishedAtMs)) {
+    return {
+      status: "UNKNOWN",
+      reason: "Persisted Memory Research finishedAt is invalid.",
+    };
+  }
+
+  const latestScheduled = workflowGroup?.latest ?? null;
+  const latestRunUpdatedAtMs = latestScheduled?.updatedAt
+    ? Date.parse(latestScheduled.updatedAt)
+    : Number.NaN;
+
+  if (
+    latestScheduled?.conclusion === "success" &&
+    Number.isFinite(latestRunUpdatedAtMs) &&
+    latestRunUpdatedAtMs >
+      finishedAtMs + MEMORY_RESEARCH_PERSISTENCE_LAG_TOLERANCE_MS
+  ) {
+    return {
+      status: "PERSISTENCE_LAG",
+      reason:
+        "A newer successful scheduled Memory Research run exists, but its durable cycle report is not the latest persisted report.",
+    };
+  }
+
+  const ageMs = now.getTime() - finishedAtMs;
+  if (Number.isFinite(ageMs) && ageMs > MEMORY_RESEARCH_STALE_AFTER_MS) {
+    return {
+      status: "STALE_CYCLE",
+      reason:
+        "The latest persisted Memory Research cycle is older than the allowed weekly freshness window.",
+    };
+  }
+
+  return {
+    status: "FRESH",
+    reason: null,
+  };
+}
+
 async function fetchGithubContentRaw(
   url: string,
   fetchImpl: typeof fetch
@@ -527,7 +595,8 @@ async function fetchGithubContentRaw(
 export async function fetchMemoryResearchAdminProjection(
   githubGroups: readonly GithubScheduledAutomationGroup[],
   fetchImpl: typeof fetch = fetch,
-  repo = AUTOMATION_REPORTS_GITHUB_REPO
+  repo = AUTOMATION_REPORTS_GITHUB_REPO,
+  now = new Date()
 ): Promise<MemoryResearchAdminProjection> {
   const workflowGroup =
     githubGroups.find((group) => group.path === MEMORY_RESEARCH_WORKFLOW_PATH) ??
@@ -545,6 +614,8 @@ export async function fetchMemoryResearchAdminProjection(
       run: null,
       githubRunUrl,
       persistedReportUrl: null,
+      freshnessStatus: "UNKNOWN",
+      freshnessReason: ledger.error ?? "Persisted Memory Research report is unavailable.",
       pipeline: EMPTY_PIPELINE,
     };
   }
@@ -558,6 +629,8 @@ export async function fetchMemoryResearchAdminProjection(
       run: null,
       githubRunUrl,
       persistedReportUrl: null,
+      freshnessStatus: "UNKNOWN",
+      freshnessReason: "No persisted Memory Research cycle is available yet.",
       pipeline,
     };
   }
@@ -575,6 +648,8 @@ export async function fetchMemoryResearchAdminProjection(
       run: null,
       githubRunUrl,
       persistedReportUrl: null,
+      freshnessStatus: "UNKNOWN",
+      freshnessReason: cycle.error ?? "Persisted Memory Research cycle is unavailable.",
       pipeline,
     };
   }
@@ -587,9 +662,13 @@ export async function fetchMemoryResearchAdminProjection(
       run: null,
       githubRunUrl,
       persistedReportUrl: null,
+      freshnessStatus: "UNKNOWN",
+      freshnessReason: "Persisted Memory Research cycle is malformed.",
       pipeline,
     };
   }
+
+  const freshness = assessMemoryResearchFreshness(run, workflowGroup, now);
 
   return {
     status: "OK",
@@ -600,6 +679,8 @@ export async function fetchMemoryResearchAdminProjection(
       `https://github.com/${repo}/blob/${MEMORY_RESEARCH_LEDGER_BRANCH}/cycles/${encodeURIComponent(
         cycleKey
       )}.json`,
+    freshnessStatus: freshness.status,
+    freshnessReason: freshness.reason,
     pipeline,
   };
 }
