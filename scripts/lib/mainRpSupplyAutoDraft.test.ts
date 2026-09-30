@@ -8,14 +8,15 @@ import {
   validateProviderSlug,
 } from "./mainRpSupplyAutoDraft";
 
-const SOURCE = \`
-export const MAIN_RP_OPENROUTER_ROUTE_POLICY_SOURCE = {
-  "google/gemini-3.7-flash": {
-    providerSlug: "google-ai-studio",
-    serviceTier: "flex",
-  },
-};
-\`;
+const SOURCE = [
+  "export const MAIN_RP_OPENROUTER_ROUTE_POLICY_SOURCE = {",
+  '  "google/gemini-3.7-flash": {',
+  '    providerSlug: "google-ai-studio",',
+  '    serviceTier: "flex",',
+  "  },",
+  "};",
+  "",
+].join("\n");
 
 describe("Main RP supply auto Draft patcher", () => {
   it("changes exactly one provider pin while preserving Flex service tier", () => {
