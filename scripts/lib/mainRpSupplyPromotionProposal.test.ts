@@ -33,6 +33,9 @@ function history(): MainRpSupplyPromotionHistoryReport {
         latestMarketUptime30mPercent: 100,
         worstCandidateTotalVsBaselineRatio: 0.82,
         worstCandidateTtftVsBaselineRatio: 0.9,
+        worstObservedCostDeltaVsCurrentPercent: -0.18,
+        testedServiceTier: "flex",
+        currentServiceTier: "flex",
         reasons: [],
       },
       {
@@ -52,6 +55,9 @@ function history(): MainRpSupplyPromotionHistoryReport {
         latestMarketUptime30mPercent: 99.95,
         worstCandidateTotalVsBaselineRatio: 0.5,
         worstCandidateTtftVsBaselineRatio: 0.8,
+        worstObservedCostDeltaVsCurrentPercent: null,
+        testedServiceTier: null,
+        currentServiceTier: null,
         reasons: [],
       },
     ],
@@ -142,6 +148,12 @@ describe("Main RP supply promotion proposal packet", () => {
     assert.equal(gemini.draftRoutePrEligible, true);
     assert.equal(gemini.stopReason, null);
     assert.equal(gemini.automaticMergeEligible, false);
+    assert.equal(gemini.evidence.testedServiceTier, "flex");
+    assert.equal(gemini.evidence.currentServiceTier, "flex");
+    assert.equal(
+      gemini.evidence.worstObservedCostDeltaVsCurrentPercent,
+      -0.18
+    );
 
     const deepseek = packet.proposals.find(
       (row) => row.modelId === "deepseek-v4.1-flash"
