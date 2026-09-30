@@ -1324,12 +1324,17 @@ function tokenizeForSimpleBoost(text: string): string[] {
   ];
 }
 
-function factSearchText(fact: EpisodicExtractedFact): string {
+function factSearchText(
+  fact: Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text">
+): string {
   const safeFactText = sanitizeRecalledMemoryFactText(fact.fact_text);
   return `${fact.subject} ${fact.attribute} ${fact.value} ${safeFactText}`.toLowerCase();
 }
 
-function lexicalRelevance(fact: EpisodicExtractedFact, currentUserMessage: string): number {
+function lexicalRelevance(
+  fact: Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text">,
+  currentUserMessage: string
+): number {
   const tokens = tokenizeForSimpleBoost(currentUserMessage);
   if (tokens.length === 0) return 0;
   const haystack = factSearchText(fact);
@@ -1577,6 +1582,7 @@ export type ReconcileGlobalStateLikeFactsOptions = {
   /**
    * Spend the key-cap lookup budget on these rows first.
    * Overflow keys are still dropped — this only changes which 25 keys are reconciled.
+   * Callers must not prefer semantic-only rows; that resurrects stale/false state.
    */
   preferRowIds?: ReadonlySet<number>;
 };
@@ -1811,10 +1817,10 @@ function isStateLikeForGlobalReconciliation(row: EpisodicMemoryFactRecord): bool
 function lanePrefersStateReconcileBudget(lane: EpisodicCandidateLane): boolean {
   switch (lane) {
     case "relevance":
-    case "semantic":
     case "milestone_critical":
     case "milestone_important":
       return true;
+    case "semantic":
     case "recent":
       return false;
     default: {
