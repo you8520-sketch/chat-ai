@@ -68,12 +68,39 @@ function mount(compiled: string, props: Record<string, unknown>): void {
   if (!mountEl) return;
   if (!root) root = createRoot(mountEl);
   try {
-    const factory = new Function("React", "sendToChat", "setChatDraft", compiled) as (
+    const factory = new Function(
+      "React",
+      "sendToChat",
+      "setChatDraft",
+      "useState",
+      "useEffect",
+      "useMemo",
+      "useCallback",
+      "useRef",
+      "useReducer",
+      compiled
+    ) as (
       react: typeof React,
       send: typeof sendToChat,
-      draft: typeof setChatDraft
+      draft: typeof setChatDraft,
+      useState: typeof React.useState,
+      useEffect: typeof React.useEffect,
+      useMemo: typeof React.useMemo,
+      useCallback: typeof React.useCallback,
+      useRef: typeof React.useRef,
+      useReducer: typeof React.useReducer
     ) => React.ComponentType<Record<string, unknown>>;
-    const Comp = factory(React, sendToChat, setChatDraft);
+    const Comp = factory(
+      React,
+      sendToChat,
+      setChatDraft,
+      React.useState,
+      React.useEffect,
+      React.useMemo,
+      React.useCallback,
+      React.useRef,
+      React.useReducer
+    );
     root.render(React.createElement(Comp, props));
     post("ready", {});
   } catch (error) {
@@ -95,6 +122,11 @@ runtimeWindow.setChatDraft = setChatDraft;
 runtimeWindow.React = React;
 
 window.addEventListener("message", (event) => {
+  // This public frame must never become a generic same-origin code executor when
+  // opened or embedded outside the HAV host. Only its actual parent on the same
+  // URL origin may mount/unmount creator code.
+  if (event.source !== parent) return;
+  if (event.origin !== window.location.origin) return;
   const data = event.data as HostMessage | undefined;
   if (!data || typeof data !== "object") return;
   if (data.type === "hav-jsx-unmount") {
