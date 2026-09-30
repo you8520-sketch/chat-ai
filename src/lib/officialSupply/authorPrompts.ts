@@ -164,7 +164,7 @@ export function buildWorldAtlasUser(input: WorldAtlasInput): string {
     "- history 3~6개: 현재에 영향을 주는 사건만(event·impact). 연대표 나열 금지",
     "- knowledge: common(대중 상식만, 비밀·정체·흑막·미래 표현 금지) / faction / characterLocal / authorOnly",
     "- userEntry: allowedRoles 2개 이상(귀족·고용인·방문자·계약 상대·신입 등, 단일 강제 금지) + note",
-    "- lorebook: COMMON 기반 8~12개. entryKey·name(40자 이내)·keywords(2~10개)·content(800자 이내)",
+    "- lorebook: 실제 RP에서 반복적으로 필요한 세계 정보만 3~8개. 개수 채우기 금지. entryKey·name(40자 이내)·keywords(2~10개)·content(800자 이내)",
     "최상위 키는 정확히 locations·history·knowledge·userEntry·lorebook이며 하나도 빠뜨리지 않는다.",
     "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
     WORLD_ATLAS_SKELETON,
