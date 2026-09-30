@@ -19,6 +19,10 @@ import { getDb } from "@/lib/db";
 import { fetchDecisionRadarAdminProjection } from "@/lib/decisionModelRadarReports";
 import { listMainRpCacheTtlReports } from "@/lib/mainRpCacheTtlEconomics";
 import { listSchedulerRunOverview } from "@/lib/schedulerRunRegistry";
+import {
+  buildSupplierDiscoveryReport,
+  type SupplierCandidateRecord,
+} from "@/lib/supplierDiscovery/discoverSuppliers";
 
 export const dynamic = "force-dynamic";
 
@@ -561,6 +565,57 @@ function MemoryResearchCard({
   );
 }
 
+function SupplierDiscoverySection({
+  candidate,
+}: {
+  candidate: SupplierCandidateRecord;
+}) {
+  const rows: Array<[string, string]> = [
+    ["discovery source", candidate.discoverySource],
+    ["public screening", `${candidate.publicScreenStatus} · ${candidate.publicScreenReasons.join(", ")}`],
+    ["지원 active RP 모델", candidate.supportedActiveModelIds.join(", ") || "공개 정보 없음"],
+    ["price advantage", `${candidate.priceAdvantage} · ${candidate.priceUnit}`],
+    ["stability", candidate.publicStabilityEvidence ?? "unverified"],
+    ["privacy / ZDR", candidate.privacyZdrStatus],
+    ["credential", candidate.credentialRequirement],
+    ["live qualification", `${candidate.liveQualification.status} · ${candidate.liveQualification.reason}`],
+    ["promotion readiness", candidate.promotion.readiness],
+    ["STOP reason", candidate.promotion.stopReason],
+  ];
+  return (
+    <article className="rounded-xl border border-white/10 bg-black/15 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="font-bold text-zinc-100">
+            {candidate.companyName}{" "}
+            <span className="font-mono text-sm text-zinc-400">{candidate.supplierId}</span>
+          </h3>
+          <p className="mt-1 text-xs text-zinc-500">
+            {candidate.website}
+            {candidate.apiDocsUrl ? ` · docs ${candidate.apiDocsUrl}` : ""}
+          </p>
+        </div>
+        <span className={"rounded px-2 py-1 text-xs font-bold " + badgeClass(candidate.status)}>
+          {candidate.status}
+        </span>
+      </div>
+      <dl className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+        {rows.map(([label, value]) => (
+          <div key={label} className="rounded-lg border border-white/5 px-3 py-2">
+            <dt className="text-[11px] text-zinc-500">{label}</dt>
+            <dd className="mt-1 break-words text-xs text-zinc-200">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-2 text-[11px] text-zinc-600">
+        evidence {candidate.evidenceFreshness} · route Draft PR{" "}
+        {candidate.promotion.draftRoutePrEligible ? "eligible" : "not eligible"} · automatic merge{" "}
+        {candidate.promotion.automaticMergeEligible ? "eligible" : "0"}
+      </p>
+    </article>
+  );
+}
+
 function ttlRecommendationLabel(value: string): string {
   if (value === "KEEP_5M") return "5분 TTL 유지가 유리";
   if (value === "ONE_HOUR_WOULD_BE_CHEAPER_IF_SUPPORTED") {
@@ -583,6 +638,7 @@ export default async function AdminAutomationReportsPage() {
     fetchDecisionRadarAdminProjection(github.groups),
     fetchMemoryResearchAdminProjection(github.groups),
   ]);
+  const supplierDiscovery = buildSupplierDiscoveryReport();
   const ttlReports = listMainRpCacheTtlReports(db, 12);
   const schedulers = listSchedulerRunOverview(db);
   const latestTtl = ttlReports[0] ?? null;
@@ -900,6 +956,33 @@ export default async function AdminAutomationReportsPage() {
             </div>
           </details>
         ) : null}
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-teal-500/20 bg-teal-950/10 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-black text-teal-200">독립 공급처 discovery</h2>
+            <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+              신규 독립 inference supplier 후보의 공개 심사 결과입니다. 후보 기록은 production
+              provider registry가 아니며, cross-provider route Draft PR을 만들지 않습니다.
+              provider generation calls {supplierDiscovery.providerGenerationCalls}.
+            </p>
+          </div>
+          <span className="rounded bg-amber-500/15 px-2 py-1 text-xs font-bold text-amber-300">
+            후보 {supplierDiscovery.candidates.length}건
+          </span>
+        </div>
+        <div className="mt-4 space-y-3">
+          {supplierDiscovery.candidates.map((candidate) => (
+            <SupplierDiscoverySection key={candidate.supplierId} candidate={candidate} />
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-zinc-500">
+          알려진 direct supplier: {supplierDiscovery.knownDirectSupplierIds.join(", ")}. 이 화면은
+          OpenRouter를 다시 호출하지 않습니다. 월간 supply radar artifact가 기존 endpoint owner의
+          provider 이름을 붙입니다. 유료 search API와 Artificial Analysis commercial API는
+          호출하지 않습니다.
+        </p>
       </section>
 
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">

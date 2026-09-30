@@ -2,13 +2,17 @@ import {
   MAIN_RP_MODEL_IDS,
   type SelectedAI,
 } from "@/lib/chatModels";
+import {
+  DIRECT_SUPPLIER_PUBLIC_RADAR_IDS,
+  type DirectSupplierId,
+} from "@/lib/supplierDiscovery/directSupplierTargets";
 import type { MainRpSupplyRadarReport } from "./mainRpSupplyRadar";
 
 export const DIRECT_SUPPLIER_RADAR_VERSION = 1;
 export const DIRECT_SUPPLIER_PUBLIC_STABILITY_FLOOR_PERCENT = 99.8;
 export const DIRECT_SUPPLIER_FETCH_TIMEOUT_MS = 20_000;
 
-export type DirectSupplierId = "onemux" | "aireiter" | "dit";
+export type { DirectSupplierId } from "@/lib/supplierDiscovery/directSupplierTargets";
 export type DirectSupplierProtocol =
   | "openai_compatible"
   | "anthropic_compatible"
@@ -74,9 +78,18 @@ export function directSupplierSourceUrl(
   modelId: SelectedAI
 ): string {
   const slug = slugForPublicPage(modelId);
-  if (supplier === "onemux") return `https://onemux.net/models/${slug}`;
-  if (supplier === "aireiter") return `https://aireiter.com/chat/${slug}`;
-  return `https://dit.ai/models/${ditVendor(modelId)}/${slug}`;
+  switch (supplier) {
+    case "onemux":
+      return `https://onemux.net/models/${slug}`;
+    case "aireiter":
+      return `https://aireiter.com/chat/${slug}`;
+    case "dit":
+      return `https://dit.ai/models/${ditVendor(modelId)}/${slug}`;
+    default: {
+      const _exhaustive: never = supplier;
+      return _exhaustive;
+    }
+  }
 }
 
 function decodeBasicEntities(value: string): string {
@@ -136,33 +149,44 @@ export function parseDirectSupplierPublicPage(
   let output: number | null = null;
   let cacheRead: number | null = null;
 
-  if (supplier === "onemux") {
-    const pair = text.match(
-      /Input\s*\/\s*1M\s*\$([0-9.]+)[\s\S]{0,220}?Output\s*\/\s*1M\s*\$([0-9.]+)/i
-    );
-    input = numeric(pair, 1);
-    output = numeric(pair, 2);
-    cacheRead = numeric(
-      text.match(/Cache\s*read(?:\s*\/\s*1M)?[\s\S]{0,100}?\$([0-9.]+)/i)
-    );
-  } else if (supplier === "aireiter") {
-    // Anchor to the canonical pricing strip. Marketing copy above it frequently
-    // contains words like "output", which must never become a price delimiter.
-    const pricingStrip = text.match(
-      /Input\s+Official\s*\$[0-9.]+(?:\s*per\s*1M\s*tokens)?\s*AIReiter\s*\$([0-9.]+)(?:\s*per\s*1M\s*tokens)?\s*Output\s+Official\s*\$[0-9.]+(?:\s*per\s*1M\s*tokens)?\s*AIReiter\s*\$([0-9.]+)(?:\s*per\s*1M\s*tokens)?(?:\s*Cache\s*read\s+Official\s*\$[0-9.]+(?:\s*per\s*1M\s*tokens)?\s*AIReiter\s*\$([0-9.]+))?/i
-    );
-    input = numeric(pricingStrip, 1);
-    output = numeric(pricingStrip, 2);
-    cacheRead = numeric(pricingStrip, 3);
-  } else {
-    const pair = text.match(
-      /DIT\s+in\s*\/\s*out\s*\$([0-9.]+)\s*\/\s*\$([0-9.]+)/i
-    );
-    input = numeric(pair, 1);
-    output = numeric(pair, 2);
-    cacheRead = numeric(
-      text.match(/DIT[\s\S]{0,180}?cache(?:d)?\s+(?:input|read)?[\s\S]{0,100}?\$([0-9.]+)/i)
-    );
+  switch (supplier) {
+    case "onemux": {
+      const pair = text.match(
+        /Input\s*\/\s*1M\s*\$([0-9.]+)[\s\S]{0,220}?Output\s*\/\s*1M\s*\$([0-9.]+)/i
+      );
+      input = numeric(pair, 1);
+      output = numeric(pair, 2);
+      cacheRead = numeric(
+        text.match(/Cache\s*read(?:\s*\/\s*1M)?[\s\S]{0,100}?\$([0-9.]+)/i)
+      );
+      break;
+    }
+    case "aireiter": {
+      // Anchor to the canonical pricing strip. Marketing copy above it frequently
+      // contains words like "output", which must never become a price delimiter.
+      const pricingStrip = text.match(
+        /Input\s+Official\s*\$[0-9.]+(?:\s*per\s*1M\s*tokens)?\s*AIReiter\s*\$([0-9.]+)(?:\s*per\s*1M\s*tokens)?\s*Output\s+Official\s*\$[0-9.]+(?:\s*per\s*1M\s*tokens)?\s*AIReiter\s*\$([0-9.]+)(?:\s*per\s*1M\s*tokens)?(?:\s*Cache\s*read\s+Official\s*\$[0-9.]+(?:\s*per\s*1M\s*tokens)?\s*AIReiter\s*\$([0-9.]+))?/i
+      );
+      input = numeric(pricingStrip, 1);
+      output = numeric(pricingStrip, 2);
+      cacheRead = numeric(pricingStrip, 3);
+      break;
+    }
+    case "dit": {
+      const pair = text.match(
+        /DIT\s+in\s*\/\s*out\s*\$([0-9.]+)\s*\/\s*\$([0-9.]+)/i
+      );
+      input = numeric(pair, 1);
+      output = numeric(pair, 2);
+      cacheRead = numeric(
+        text.match(/DIT[\s\S]{0,180}?cache(?:d)?\s+(?:input|read)?[\s\S]{0,100}?\$([0-9.]+)/i)
+      );
+      break;
+    }
+    default: {
+      const _exhaustive: never = supplier;
+      return _exhaustive;
+    }
   }
 
   return {
@@ -315,7 +339,6 @@ export async function collectDirectSupplierPublicEvidence(input: {
 }): Promise<MainRpDirectSupplierRadarReport> {
   const fetchImpl = input.fetchImpl ?? fetch;
   const now = input.now ?? (() => new Date());
-  const suppliers: DirectSupplierId[] = ["onemux", "aireiter", "dit"];
   const evidence: DirectSupplierEvidence[] = [];
 
   for (const modelId of MAIN_RP_MODEL_IDS) {
@@ -325,7 +348,7 @@ export async function collectDirectSupplierPublicEvidence(input: {
     const currentOutputUsdPerMillion =
       model?.currentProcurement?.outputUsdPerMillion ?? null;
 
-    for (const supplier of suppliers) {
+    for (const supplier of DIRECT_SUPPLIER_PUBLIC_RADAR_IDS) {
       const sourceUrl = directSupplierSourceUrl(supplier, modelId);
       const fetchedAt = now().toISOString();
       try {
