@@ -75,7 +75,7 @@ describe("RP Memory Benchmark Adoption Radar", () => {
     assert.match(insight.nextAction, /unsupported-inference/i);
   });
 
-  it("maps Memora forgetting to existing invalidation coverage plus a derived-tier residue gap", () => {
+  it("maps Memora forgetting to existing invalidation coverage without re-proposing the resolved local residue case", () => {
     const proposals = buildBenchmarkAdoptionProposals(
       benchmarkObservation({
         key: "memora",
@@ -90,8 +90,11 @@ describe("RP Memory Benchmark Adoption Radar", () => {
       "DYNAMIC_STATE_TRACKING",
       "PREMISE_AWARENESS",
     ]);
-    assert.match(forgetting.gap ?? "", /derived-tier forgetting-residue/i);
-    assert.match(forgetting.nextAction, /full-pipeline deletion-residue/i);
+    assert.match(forgetting.coverage, /derived-memory-deletion-residue-01/i);
+    assert.match(forgetting.coverage, /prompt-facing Global Current Memory/i);
+    assert.match(forgetting.gap ?? "", /no additional concrete local mutation path/i);
+    assert.match(forgetting.nextAction, /Keep the benchmark on watch/i);
+    assert.match(forgetting.nextAction, /without deterministic derived-tier invalidation proof/i);
   });
 
   it("does not create duplicate case families for abilities already represented locally", () => {
