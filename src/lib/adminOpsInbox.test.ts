@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
-import { listAdminOpsIncidents } from "@/lib/adminOpsInbox";
+import {
+  listAdminOpsIncidents,
+  mergeAdminOpsIncidents,
+  projectGithubAutomationIncidents,
+} from "@/lib/adminOpsInbox";
 import { ADMIN_OPS_STUCK_EXECUTION_MINUTES } from "@/lib/adminOpsInboxShared";
 import { ensurePayoutTransferAttemptsSchema } from "@/lib/payoutTransferAttempts";
 import { ensurePointChargeRefundAttemptsSchema } from "@/lib/pointChargeRefundAttempts";
@@ -258,6 +262,123 @@ describe("admin ops web push projection", () => {
     assert.equal(incidents.some((row) => row.id === "web_push:1"), false);
 
     database.close();
+  });
+});
+
+
+describe("admin ops GitHub scheduled automation projection", () => {
+  it("surfaces only the latest failed/cancelled scheduled runs", () => {
+    const projection = {
+      status: "OK" as const,
+      error: null,
+      groups: [
+        {
+          key: "Memory Cycle::.github/workflows/memory.yml",
+          name: "Memory Cycle",
+          path: ".github/workflows/memory.yml",
+          latest: {
+            id: 101,
+            name: "Memory Cycle",
+            path: ".github/workflows/memory.yml",
+            status: "completed",
+            conclusion: "failure",
+            runNumber: 12,
+            createdAt: "2026-09-23T08:00:00Z",
+            updatedAt: "2026-09-23T08:05:00Z",
+            htmlUrl: "https://github.com/example/run/101",
+          },
+          history: [],
+        },
+        {
+          key: "Supply Radar::.github/workflows/supply.yml",
+          name: "Supply Radar",
+          path: ".github/workflows/supply.yml",
+          latest: {
+            id: 102,
+            name: "Supply Radar",
+            path: ".github/workflows/supply.yml",
+            status: "completed",
+            conclusion: "cancelled",
+            runNumber: 22,
+            createdAt: "2026-09-23T08:10:00Z",
+            updatedAt: "2026-09-23T08:12:00Z",
+            htmlUrl: "https://github.com/example/run/102",
+          },
+          history: [],
+        },
+        {
+          key: "Healthy::.github/workflows/healthy.yml",
+          name: "Healthy",
+          path: ".github/workflows/healthy.yml",
+          latest: {
+            id: 103,
+            name: "Healthy",
+            path: ".github/workflows/healthy.yml",
+            status: "completed",
+            conclusion: "success",
+            runNumber: 7,
+            createdAt: "2026-09-23T08:20:00Z",
+            updatedAt: "2026-09-23T08:21:00Z",
+            htmlUrl: "https://github.com/example/run/103",
+          },
+          history: [],
+        },
+      ],
+    };
+
+    const incidents = projectGithubAutomationIncidents(projection, NOW);
+    const failed = incidents.find((row) => row.id.startsWith("github_automation:Memory Cycle"));
+    const cancelled = incidents.find((row) => row.id.startsWith("github_automation:Supply Radar"));
+
+    assert.equal(incidents.length, 2);
+    assert.equal(failed?.source, "github_automation");
+    assert.equal(failed?.severity, "critical");
+    assert.equal(failed?.state, "FAILURE");
+    assert.equal(cancelled?.severity, "warning");
+    assert.equal(cancelled?.state, "CANCELLED");
+    assert.equal(incidents.some((row) => row.title.startsWith("Healthy")), false);
+  });
+
+  it("does not invent incidents when the GitHub projection is unavailable", () => {
+    assert.deepEqual(
+      projectGithubAutomationIncidents({
+        status: "UNAVAILABLE",
+        error: "GitHub Actions API 403",
+        groups: [],
+      }, NOW),
+      []
+    );
+  });
+
+  it("merges external incidents through the same canonical severity/age sort", () => {
+    const merged = mergeAdminOpsIncidents([
+      [{
+        id: "warning",
+        source: "github_automation",
+        severity: "warning",
+        state: "CANCELLED",
+        title: "warning",
+        summary: "",
+        sourceRef: "",
+        occurredAt: "",
+        ageMinutes: 10,
+        href: null,
+      }],
+      [{
+        id: "critical",
+        source: "scheduler",
+        severity: "critical",
+        state: "FAILED",
+        title: "critical",
+        summary: "",
+        sourceRef: "",
+        occurredAt: "",
+        ageMinutes: 1,
+        href: null,
+      }],
+    ]);
+
+    assert.deepEqual(merged.map((row) => row.id), ["critical", "warning"]);
   });
 });
 
