@@ -9,6 +9,12 @@ on:
     # without increasing provider-generation calls.
     - cron: "47 3 8,15,22 * *"
   workflow_dispatch:
+  # One-shot same-repo baseline smoke. This probe PR is never merged.
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/main-rp-supply-radar.yml"
+      - "scripts/probe-current-openrouter-baseline.ts"
 
 permissions:
   contents: read
@@ -47,6 +53,13 @@ jobs:
           scripts/lib/mainRpSupplyCurrentBaseline.test.ts
       - name: Read-only external supply scan
         run: node --conditions=react-server --import tsx scripts/main-rp-supply-radar.ts
+      - name: One-shot current OpenRouter baseline smoke
+        if: github.event_name == 'pull_request'
+        env:
+          REGULAR_TEST_REAL_PROVIDER_CALLS: "1"
+          MAIN_RP_SUPPLY_LIVE_QUALIFICATION: "1"
+          OPENROUTER_SUPPLY_BENCHMARK_API_KEY: ${{ secrets.OPENROUTER_SUPPLY_BENCHMARK_API_KEY }}
+        run: node --conditions=react-server --import tsx scripts/probe-current-openrouter-baseline.ts
       - name: Assert zero generation calls
         shell: bash
         run: |
