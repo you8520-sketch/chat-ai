@@ -6,6 +6,8 @@ on:
       - "src/lib/codeHealth/**"
       - "src/lib/adminAutomationReports.ts"
       - "src/lib/adminAutomationReports.test.ts"
+      - "src/lib/adminMemoryResearchReports.ts"
+      - "src/lib/adminMemoryResearchReports.test.ts"
       - "src/app/admin/automation-reports/page.tsx"
       - "src/lib/schedulerDefinitions.ts"
       - "src/lib/schedulerRunRegistry.ts"
@@ -54,6 +56,7 @@ jobs:
           src/lib/codeHealth/reports.test.ts
           src/lib/codeHealth/isolation.test.ts
           src/lib/adminAutomationReports.test.ts
+          src/lib/adminMemoryResearchReports.test.ts
           src/lib/schedulerRunRegistry.test.ts
       - name: Production build
         run: npm run build
