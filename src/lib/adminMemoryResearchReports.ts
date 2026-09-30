@@ -35,6 +35,20 @@ export type MemoryResearchAdminDecision = {
   reason: string;
 };
 
+export type MemoryResearchAdminInsight = {
+  kind:
+    | "COMPANION"
+    | "BENCHMARK"
+    | "CASE_PORT"
+    | "HARNESS"
+    | "LOCAL_GOLD"
+    | "PERSISTENT_GAP";
+  key: string;
+  status: string;
+  summary: string;
+  nextAction: string;
+};
+
 export type MemoryResearchAdminPipelineItem = {
   candidateKey: string;
   state: string;
@@ -76,7 +90,9 @@ export type MemoryResearchAdminRun = {
   benchmarkHarnessFeasibility: number;
   localGoldAuthoringPackets: number;
   persistentMemoryGaps: number;
+  persistentMemoryGapStatus: string | null;
   readiness: MemoryResearchAdminReadinessCounts;
+  insights: MemoryResearchAdminInsight[];
   decisions: MemoryResearchAdminDecision[];
 };
 
@@ -109,6 +125,120 @@ function asBoolean(value: unknown): boolean | null {
 
 function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
+}
+
+function stringList(value: unknown): string[] {
+  return asArray(value).map(asString).filter(Boolean);
+}
+
+function projectMemoryResearchInsights(
+  cycle: Record<string, unknown>
+): MemoryResearchAdminInsight[] {
+  const insights: MemoryResearchAdminInsight[] = [];
+
+  for (const raw of asArray(cycle.companionExperimentProposals)) {
+    const row = asRecord(raw);
+    if (!row) continue;
+    const key = asString(row.candidateKey);
+    const technique = asString(row.technique);
+    const status = asString(row.classification);
+    if (!key || !status) continue;
+    const owners = stringList(row.targetOwners);
+    insights.push({
+      kind: "COMPANION",
+      key: technique ? `${key} · ${technique}` : key,
+      status,
+      summary:
+        asString(row.localCoverage) ||
+        (owners.length ? `owners: ${owners.join(", ")}` : ""),
+      nextAction: asString(row.nextAction),
+    });
+  }
+
+  for (const raw of asArray(cycle.benchmarkAdoptionProposals)) {
+    const row = asRecord(raw);
+    if (!row) continue;
+    const key = asString(row.candidateKey);
+    const ability = asString(row.ability);
+    const status = asString(row.status);
+    if (!key || !status) continue;
+    insights.push({
+      kind: "BENCHMARK",
+      key: ability ? `${key} · ${ability}` : key,
+      status,
+      summary: asString(row.gap) || asString(row.coverage),
+      nextAction: asString(row.nextAction),
+    });
+  }
+
+  for (const raw of asArray(cycle.benchmarkCasePortPlans)) {
+    const row = asRecord(raw);
+    if (!row) continue;
+    const key = asString(row.planKey) || asString(row.candidateKey);
+    const status = asString(row.readiness);
+    if (!key || !status) continue;
+    const cases = stringList(row.proposedCaseIds);
+    insights.push({
+      kind: "CASE_PORT",
+      key,
+      status,
+      summary:
+        [asString(row.canonicalOwner), cases.length ? `cases: ${cases.join(", ")}` : ""]
+          .filter(Boolean)
+          .join(" · "),
+      nextAction: asString(row.rationale),
+    });
+  }
+
+  for (const raw of asArray(cycle.benchmarkHarnessFeasibility)) {
+    const row = asRecord(raw);
+    if (!row) continue;
+    const key = asString(row.planKey) || asString(row.candidateKey);
+    const status = asString(row.status);
+    if (!key || !status) continue;
+    insights.push({
+      kind: "HARNESS",
+      key,
+      status,
+      summary: asString(row.blocker),
+      nextAction: asString(row.safeNextAction),
+    });
+  }
+
+  for (const raw of asArray(cycle.localGoldAuthoringPackets)) {
+    const row = asRecord(raw);
+    if (!row) continue;
+    const key = asString(row.packetKey) || asString(row.planKey);
+    const status = asString(row.status);
+    if (!key || !status) continue;
+    const cases = stringList(row.proposedCaseIds);
+    insights.push({
+      kind: "LOCAL_GOLD",
+      key,
+      status,
+      summary: cases.length ? `cases: ${cases.join(", ")}` : asString(row.targetHarness),
+      nextAction: asString(row.nextAction),
+    });
+  }
+
+  const persistent = asRecord(cycle.persistentMemoryGaps);
+  for (const raw of asArray(persistent?.persistentGaps)) {
+    const row = asRecord(raw);
+    if (!row) continue;
+    const caseId = asString(row.caseId);
+    if (!caseId) continue;
+    const failures = asNumber(row.consecutiveComparableFailures);
+    const owners = stringList(row.ownerHints);
+    insights.push({
+      kind: "PERSISTENT_GAP",
+      key: caseId,
+      status: failures ? `${failures} consecutive failures` : "PERSISTENT_GAP",
+      summary: owners.length ? `owners: ${owners.join(", ")}` : "",
+      nextAction: asString(row.nextAction),
+    });
+  }
+
+  return insights;
 }
 
 function decodeGithubContent(body: unknown): string | null {
@@ -280,6 +410,11 @@ export function projectMemoryResearchAdminRun(
   const providerCalls = asRecord(cycle.providerCalls) ?? {};
   const gate = asRecord(cycle.baselinePromotionGate);
   const casePortPlans = asArray(cycle.benchmarkCasePortPlans);
+  const persistentMemoryGapReport = asRecord(cycle.persistentMemoryGaps);
+  const persistentGapRows = asArray(
+    persistentMemoryGapReport?.persistentGaps
+  );
+  const insights = projectMemoryResearchInsights(cycle);
   const decisions = asArray(cycle.decisions)
     .map(asRecord)
     .filter((row): row is Record<string, unknown> => row !== null)
@@ -334,8 +469,12 @@ export function projectMemoryResearchAdminRun(
       cycle.benchmarkHarnessFeasibility
     ).length,
     localGoldAuthoringPackets: asArray(cycle.localGoldAuthoringPackets).length,
-    persistentMemoryGaps: asArray(cycle.persistentMemoryGaps).length,
+    persistentMemoryGaps: persistentGapRows.length,
+    persistentMemoryGapStatus: persistentMemoryGapReport
+      ? asString(persistentMemoryGapReport.status) || null
+      : null,
     readiness: countReadiness(casePortPlans),
+    insights,
     decisions: (priorityDecisions.length > 0 ? priorityDecisions : decisions).slice(
       0,
       8
