@@ -3,6 +3,7 @@
  * Persisted as JSON on the `memory-research-ledger` data branch (never merged
  * into main, never read by production).
  */
+import type { BaselineSnapshot } from "@/lib/memoryResearch/baselineTrend";
 import type { ResearchCandidate } from "@/lib/memoryResearch/types";
 
 export const LEDGER_SCHEMA_VERSION = 1;
@@ -14,6 +15,8 @@ export type LedgerCycleEntry = {
   finishedAt: string;
   mainSha: string;
   counts: Record<string, number>;
+  /** Optional for backward compatibility with existing schemaVersion=1 ledgers. */
+  baseline?: BaselineSnapshot | null;
 };
 
 export type ResearchLedger = {

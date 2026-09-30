@@ -6,6 +6,17 @@
  */
 import { runLabArm, type LabArmResult } from "@/lib/memoryResearch/benchmarkLab";
 import {
+  buildBaselineSnapshot,
+  compareBaselineSnapshots,
+  unavailableBaselineTrend,
+  type BaselineSnapshot,
+  type BaselineTrendReport,
+} from "@/lib/memoryResearch/baselineTrend";
+import {
+  assessBenchmarkHarnessFeasibilityBatch,
+  type HarnessFeasibilityEvidence,
+} from "@/lib/memoryResearch/benchmarkHarnessFeasibility";
+import {
   buildBenchmarkCasePortPlans,
   type BenchmarkCasePortPlan,
 } from "@/lib/memoryResearch/benchmarkCasePortPlanner";
@@ -100,6 +111,7 @@ export type CycleReport = {
   skipped: Array<{ candidateKey: string; reason: SkipReason | "duplicate_in_cycle" }>;
   decisions: CycleDecisionRecord[];
   baseline: { status: LabArmResult["status"]; metricsLine: string | null; error: string | null };
+  baselineTrend: BaselineTrendReport;
   benchmarks: CycleBenchmarkRecord[];
   providerCalls: { paidProviderCalls: number; paidProviderCallBudget: number; httpCalls: number; httpBudget: number };
   estimatedCostUsd: number;
@@ -109,6 +121,7 @@ export type CycleReport = {
   companionExperimentProposals: CompanionExperimentProposal[];
   benchmarkAdoptionProposals: BenchmarkAdoptionProposal[];
   benchmarkCasePortPlans: BenchmarkCasePortPlan[];
+  benchmarkHarnessFeasibility: HarnessFeasibilityEvidence[];
   productionTouched: false;
 };
 
@@ -117,6 +130,7 @@ export type CycleDeps = {
   now: Date;
   mainSha: string;
   architectureFingerprint: string;
+  benchmarkFingerprint?: string;
   sources: readonly SourceAdapter[];
   sourceContext: SourceContext;
   adapters: readonly ExperimentAdapter[];
@@ -165,6 +179,7 @@ export async function runResearchCycle(
     skipped: [],
     decisions: [],
     baseline: { status: "FAILED", metricsLine: null, error: "not run" },
+    baselineTrend: unavailableBaselineTrend("Benchmark fingerprint not provided."),
     benchmarks: [],
     providerCalls: {
       paidProviderCalls: 0,
@@ -178,6 +193,7 @@ export async function runResearchCycle(
     companionExperimentProposals: [],
     benchmarkAdoptionProposals: [],
     benchmarkCasePortPlans: [],
+    benchmarkHarnessFeasibility: [],
     productionTouched: false,
   };
 
@@ -209,9 +225,10 @@ export async function runResearchCycle(
   report.providerCalls.httpCalls = deps.sourceContext.budget.used;
   report.counts.observations = observations.length;
 
-  // Baseline once per cycle: health snapshot + A/B reference.
+  // Baseline once per cycle: health snapshot + A/B reference + longitudinal drift evidence.
   const baselineArm = await runArm(BASELINE_MODE);
   let baseline: LabRunSummary | null = null;
+  let baselineSnapshot: BaselineSnapshot | null = null;
   if (baselineArm.status === "RAN") {
     baseline = baselineArm.summary;
     report.baseline = {
@@ -219,8 +236,19 @@ export async function runResearchCycle(
       metricsLine: deps.formatMetricsLine ? deps.formatMetricsLine(baseline) : null,
       error: null,
     };
+    if (deps.benchmarkFingerprint) {
+      baselineSnapshot = buildBaselineSnapshot(baseline, deps.benchmarkFingerprint);
+      report.baselineTrend = compareBaselineSnapshots(baselineSnapshot, ledger.cycles);
+    } else {
+      report.baselineTrend = unavailableBaselineTrend(
+        "Benchmark fingerprint not provided; current baseline is not persisted for cross-cycle comparison."
+      );
+    }
   } else {
     report.baseline = { status: "FAILED", metricsLine: null, error: baselineArm.error };
+    report.baselineTrend = deps.benchmarkFingerprint
+      ? compareBaselineSnapshots(null, ledger.cycles)
+      : unavailableBaselineTrend("Benchmark fingerprint not provided and baseline failed.");
   }
 
   const candidates = { ...ledger.candidates };
@@ -256,7 +284,11 @@ export async function runResearchCycle(
     report.companionExperimentProposals.push(...buildCompanionExperimentProposals(obs));
     const adoptionProposals = buildBenchmarkAdoptionProposals(obs);
     report.benchmarkAdoptionProposals.push(...adoptionProposals);
-    report.benchmarkCasePortPlans.push(...buildBenchmarkCasePortPlans(adoptionProposals));
+    const casePortPlans = buildBenchmarkCasePortPlans(adoptionProposals);
+    report.benchmarkCasePortPlans.push(...casePortPlans);
+    report.benchmarkHarnessFeasibility.push(
+      ...assessBenchmarkHarnessFeasibilityBatch(casePortPlans)
+    );
 
     const evaluated = await evaluateObservation(obs, adapter, liveRecipe, baseline, report, deps.now, runArm);
     assertValidTrail(evaluated.trail);
@@ -350,6 +382,7 @@ export async function runResearchCycle(
         finishedAt: report.finishedAt,
         mainSha: deps.mainSha,
         counts: { ...report.counts, paidProviderCalls: 0, httpCalls: report.providerCalls.httpCalls },
+        ...(baselineSnapshot ? { baseline: baselineSnapshot } : {}),
       },
     ],
   };

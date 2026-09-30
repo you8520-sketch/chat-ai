@@ -46,6 +46,7 @@ function deps(now: Date, overrides: Partial<CycleDeps> = {}): CycleDeps {
     now,
     mainSha: MAIN_SHA,
     architectureFingerprint: "arch-fixture",
+    benchmarkFingerprint: "benchmark-fixture",
     sources: [
       staticSource("fixture_primary", [OBS.wide, OBS.narrow, OBS.noAdapter, OBS.graphInfra]),
       staticSource("fixture_secondary", [OBS.wide]),
@@ -91,6 +92,8 @@ it("full cycle: isolation, dedupe, screening, real benchmark gates, ACCEPTED-onl
   assert.equal(report.counts.skippedDuplicates, 1);
   assert.deepEqual(report.skipped, [{ candidateKey: "github:fixture/wide", reason: "duplicate_in_cycle" }]);
   assert.equal(report.baseline.status, "RAN");
+  assert.equal(report.baselineTrend.status, "NO_HISTORY");
+  assert.equal(ledger.cycles[0]?.baseline?.benchmarkFingerprint, "benchmark-fixture");
 
   const byKey = Object.fromEntries(report.decisions.map((d) => [d.candidateKey, d]));
   assert.equal(byKey["github:fixture/wide"]!.decision, "ACCEPTED_QUALITY_GAIN");
@@ -129,6 +132,8 @@ it("next cycles: rejected same-version skipped, ACCEPTED re-emits until its Draf
   const first = await runResearchCycle(emptyLedger(), deps(WEEK1));
 
   const second = await runResearchCycle(roundTrip(first.ledger), deps(WEEK2));
+  assert.equal(second.report.baselineTrend.status, "STABLE");
+  assert.equal(second.report.baselineTrend.previousCycleKey, "weekly-2026-W40");
   const skipped2 = Object.fromEntries(second.report.skipped.map((s) => [s.candidateKey, s.reason]));
   assert.equal(skipped2["github:fixture/narrow"], "rejected_same_version");
   assert.equal(skipped2["github:fixture/graph"], "rejected_same_version");
@@ -251,9 +256,20 @@ it("benchmark adoption proposals emit only when a benchmark candidate is re-eval
       .sort(),
     [
       ["persona_continuity", "HARNESS_EXTENSION_REQUIRED"],
-      ["trajectory_recall:commitment_lifecycle", "READY_MUTATION_LIFECYCLE_FIXTURE"],
+      ["trajectory_recall:commitment_lifecycle", "NO_PORT_REQUIRED"],
       ["trajectory_recall:existing_temporal_user_state", "NO_PORT_REQUIRED"],
       ["trajectory_recall:persona_update", "HARNESS_EXTENSION_REQUIRED"],
+    ]
+  );
+  assert.deepEqual(
+    first.report.benchmarkHarnessFeasibility
+      .map((row) => [row.planKey, row.status])
+      .sort(),
+    [
+      ["persona_continuity", "LLM_JUDGE_REQUIRED"],
+      ["trajectory_recall:commitment_lifecycle", "NO_ACTION"],
+      ["trajectory_recall:existing_temporal_user_state", "NO_ACTION"],
+      ["trajectory_recall:persona_update", "OWNER_UNRESOLVED"],
     ]
   );
 
@@ -271,6 +287,11 @@ it("benchmark adoption proposals emit only when a benchmark candidate is re-eval
     second.report.benchmarkCasePortPlans.length,
     0,
     "unchanged benchmark capabilities must not repeat case-port plans every weekly cycle"
+  );
+  assert.equal(
+    second.report.benchmarkHarnessFeasibility.length,
+    0,
+    "unchanged benchmark capabilities must not repeat harness-feasibility evidence every weekly cycle"
   );
 });
 
@@ -309,6 +330,28 @@ it("benchmark failure isolation: unhealthy baseline or crashing arm → WATCH_BE
   assert.equal(crashed.report.decisions[0]!.decision, "WATCH_BENCHMARK_FAILED");
   assert.match(crashed.report.decisions[0]!.reason, /adapter bug/);
   assert.equal(crashed.report.draftPrPackets.length, 0);
+});
+
+
+it("schemaVersion=1 research ledger remains backward-compatible without baseline snapshots", () => {
+  const legacy = JSON.stringify({
+    schemaVersion: 1,
+    candidates: {},
+    cycles: [
+      {
+        cycleKey: "weekly-2026-W39",
+        mode: "weekly",
+        finishedAt: "2026-09-21T01:17:00.000Z",
+        mainSha: MAIN_SHA,
+        counts: { evaluated: 0 },
+      },
+    ],
+  });
+  const parsed = parseLedger(legacy);
+  assert.equal(parsed.cycles.length, 1);
+  assert.equal(parsed.cycles[0]?.baseline, undefined);
+  const reparsed = parseLedger(serializeLedger(parsed));
+  assert.equal(reparsed.cycles[0]?.baseline, undefined);
 });
 
 it("ledger rejects unknown schema and round-trips deterministically", async () => {

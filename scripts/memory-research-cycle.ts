@@ -26,7 +26,10 @@ import {
   type DraftPrResult,
   type ImplementationPrResultRecord,
 } from "@/lib/memoryResearch/ledger";
-import { computeArchitectureFingerprint } from "@/lib/memoryResearch/ownerMap";
+import {
+  computeArchitectureFingerprint,
+  computeBenchmarkDefinitionFingerprint,
+} from "@/lib/memoryResearch/ownerMap";
 import type { DraftPrPacket } from "@/lib/memoryResearch/prPacket";
 import { renderCycleReportMarkdown } from "@/lib/memoryResearch/report";
 import { defaultSources, type SourceFetch } from "@/lib/memoryResearch/sources";
@@ -89,6 +92,7 @@ async function run(): Promise<void> {
     now: new Date(),
     mainSha,
     architectureFingerprint: computeArchitectureFingerprint((p) => readFileSync(p, "utf8")),
+    benchmarkFingerprint: computeBenchmarkDefinitionFingerprint((p) => readFileSync(p, "utf8")),
     sources: defaultSources(),
     sourceContext: {
       fetch: sourceFetch,
