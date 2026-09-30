@@ -335,11 +335,11 @@ function MemoryResearchCard({
               <p className="mt-1 font-bold">{pipeline.pendingImplementationPrs}</p>
             </div>
             <div className="rounded-lg bg-black/20 p-2">
-              <p className="text-[10px] text-zinc-500">implementation PR</p>
+              <p className="text-[10px] text-zinc-500">implementation PR 기록</p>
               <p className="mt-1 font-bold">{pipeline.implementationPrs}</p>
             </div>
             <div className="rounded-lg bg-black/20 p-2">
-              <p className="text-[10px] text-zinc-500">ACCEPTED Draft</p>
+              <p className="text-[10px] text-zinc-500">ACCEPTED Draft 기록</p>
               <p className="mt-1 font-bold">{pipeline.acceptedDraftPrs}</p>
             </div>
           </div>
