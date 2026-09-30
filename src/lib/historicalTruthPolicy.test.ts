@@ -132,7 +132,7 @@ describe("historical truth — production miss-path owner matrix", () => {
   it("detects recall/presupposition shapes without treating concrete scene setup as one", () => {
     assert.equal(
       currentUserNeedsHistoricalTruthRecencyRef(
-        \'렌은 냉장고를 본다. "내가 평소에 뭐 좋아하는지 기억하지? 아무거나 골라봐."\'
+        '렌은 냉장고를 본다. "내가 평소에 뭐 좋아하는지 기억하지? 아무거나 골라봐."'
       ),
       true
     );
@@ -157,19 +157,19 @@ describe("historical truth — production miss-path owner matrix", () => {
       const built = buildBase({
         modelId,
         currentUserMessage:
-          \'렌은 냉장고를 연다. "내가 평소에 뭐 좋아하는지 기억하지? 아무거나 골라봐."\',
+          '렌은 냉장고를 연다. "내가 평소에 뭐 좋아하는지 기억하지? 아무거나 골라봐."',
         targetResponseChars: 2200,
       });
       assert.equal(countHistoricalTruthFullOwner(built.systemPrompt), 1);
       const lastUser = built.history[built.history.length - 1];
       assert.equal(lastUser?.role, "user");
       assert.equal(
-        (lastUser!.content.match(/\\[HISTORICAL TRUTH CHECK\\]/g) ?? []).length,
+        (lastUser!.content.match(/\[HISTORICAL TRUTH CHECK\]/g) ?? []).length,
         1
       );
       assert.match(
         lastUser!.content,
-        /과거 공유 기억·첫 경험·과거 부재 단정은 \\[HISTORICAL TRUTH — CANONICAL MEMORY\\]를 따른다/
+        /과거 공유 기억·첫 경험·과거 부재 단정은 \[HISTORICAL TRUTH — CANONICAL MEMORY\]를 따른다/
       );
     }
   });
