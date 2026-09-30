@@ -826,7 +826,8 @@ function turnComplete(turn: SupplyLiveTurnResult): boolean {
     !turn.error &&
     turn.text.trim().length > 0 &&
     turn.finishReason != null &&
-    turn.sawDone
+    turn.sawDone &&
+    turn.servedProviderMatch !== false
   );
 }
 
