@@ -102,18 +102,31 @@ function consecutiveFailures(group: GithubScheduledAutomationGroup): number {
   return count;
 }
 
-function observedMaxGapHours(group: GithubScheduledAutomationGroup): number | null {
+function observedGapStats(
+  group: GithubScheduledAutomationGroup
+): { maxGapHours: number | null; medianGapHours: number | null } {
   const times = group.history
     .map((run) => Date.parse(run.createdAt))
     .filter((value) => Number.isFinite(value))
     .sort((a, b) => b - a);
-  if (times.length < 2) return null;
+  if (times.length < 2) return { maxGapHours: null, medianGapHours: null };
 
-  let max = 0;
+  const gaps: number[] = [];
   for (let i = 0; i < times.length - 1; i += 1) {
-    max = Math.max(max, (times[i]! - times[i + 1]!) / 3_600_000);
+    const gap = (times[i]! - times[i + 1]!) / 3_600_000;
+    if (gap > 0) gaps.push(gap);
   }
-  return max > 0 ? max : null;
+  if (gaps.length === 0) return { maxGapHours: null, medianGapHours: null };
+  const sorted = [...gaps].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  const median =
+    sorted.length % 2 === 0
+      ? (sorted[middle - 1]! + sorted[middle]!) / 2
+      : sorted[middle]!;
+  return {
+    maxGapHours: Math.max(...gaps),
+    medianGapHours: median,
+  };
 }
 
 function cronFallbackHours(crons: readonly string[]): number {
@@ -142,16 +155,22 @@ function staleThresholdHours(
   definition: ScheduledWorkflowDefinition,
   group: GithubScheduledAutomationGroup | null
 ): { observedGapHours: number | null; staleAfterHours: number } {
-  const observedGapHours = group ? observedMaxGapHours(group) : null;
-  if (observedGapHours != null) {
+  const fallback = cronFallbackHours(definition.crons);
+  const stats = group
+    ? observedGapStats(group)
+    : { maxGapHours: null, medianGapHours: null };
+  if (stats.medianGapHours != null) {
     return {
-      observedGapHours,
-      staleAfterHours: Math.max(48, Math.ceil(observedGapHours * 1.5)),
+      observedGapHours: stats.maxGapHours,
+      staleAfterHours: Math.min(
+        fallback,
+        Math.max(48, Math.ceil(stats.medianGapHours * 1.5))
+      ),
     };
   }
   return {
-    observedGapHours: null,
-    staleAfterHours: cronFallbackHours(definition.crons),
+    observedGapHours: stats.maxGapHours,
+    staleAfterHours: fallback,
   };
 }
 
@@ -217,15 +236,23 @@ export function buildScheduledAutomationHealthReport(params: {
     } else if (failures === 1) {
       reasons.push("Latest completed scheduled run is non-success.");
     }
+    const gapMissed =
+      threshold.observedGapHours != null &&
+      threshold.observedGapHours > threshold.staleAfterHours;
     if (ageHours > threshold.staleAfterHours) {
       reasons.push(
         `No scheduled trigger for ${Math.floor(ageHours)}h; stale threshold is ${threshold.staleAfterHours}h.`
       );
     }
+    if (gapMissed) {
+      reasons.push(
+        `Observed scheduled-run gap ${Math.floor(threshold.observedGapHours!)}h exceeded the ${threshold.staleAfterHours}h cadence threshold.`
+      );
+    }
 
     let state: ScheduledAutomationHealthState = "HEALTHY";
     if (failures >= 2) state = "FAILING";
-    else if (ageHours > threshold.staleAfterHours) state = "STALE";
+    else if (ageHours > threshold.staleAfterHours || gapMissed) state = "STALE";
     else if (failures === 1) state = "WARNING";
 
     return {
