@@ -27,6 +27,10 @@ on:
       - "src/app/api/payments/portone/**"
       - "src/lib/portoneConfig.ts"
       - "src/lib/portoneCheckout.ts"
+      - "src/lib/portonePaidFinalizer.ts"
+      - "src/lib/portoneServer.ts"
+      - "src/lib/portoneWebhook.ts"
+      - "src/lib/portoneWebhookRecovery.test.ts"
       - "src/lib/pointCharge.ts"
       - "src/lib/pointChargePaymentBoundary.test.ts"
       - "src/lib/chargeCancellation.ts"
@@ -75,6 +79,9 @@ jobs:
 
       - name: Verified point-charge payment boundary
         run: node --conditions=react-server --import tsx --test src/lib/pointChargePaymentBoundary.test.ts
+
+      - name: PortOne webhook recovery
+        run: node --conditions=react-server --import tsx --test src/lib/portoneWebhookRecovery.test.ts
 
       - name: Point-charge refund exactly-once
         run: node --conditions=react-server --import tsx --test src/lib/pointChargeRefundExactlyOnce.test.ts
