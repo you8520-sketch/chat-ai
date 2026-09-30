@@ -133,7 +133,7 @@ describe("rpActiveModelQualityLive", () => {
 
   it("parses one bounded fake SSE generation without retry/fallback", async () => {
     const caseData = buildCanonicalRpQualificationCases()[1]!;
-    const probe = buildRpActiveModelQualityPlan().find(
+    const probe = buildRpActiveModelQualityPlan([caseData.id]).find(
       (row) =>
         row.modelId === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL &&
         row.caseId === caseData.id
