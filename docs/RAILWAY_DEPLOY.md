@@ -51,7 +51,7 @@ Set these before going live (values you provide separately):
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 | `PORTONE_CHARGE_ENABLED` | `0` — hides shop / blocks charge APIs during closed beta |
 | `NEXT_PUBLIC_PAYMENTS_ENABLED` | `0` — client UI (header shop icon, charge buttons) |
-| `DISABLE_PAYOUT_SCHEDULER` | 비워 두세요. `1`이면 매월 15일 자동 지급이 멈춥니다. |
+| `DISABLE_PAYOUT_SCHEDULER` | `1` 유지. 현재 지급 provider는 simulation뿐이므로 real payout provider 연동 전에는 production 자동 지급을 켜지 않습니다. |
 | `HOSTNAME` | `0.0.0.0` (optional; server defaults to this in production) |
 | `EPISODIC_MEMORY_RECALL_DISABLED` | Optional emergency kill switch. Unset = recall ON whenever `MEMORY_FEATURE_ENABLED` is on. Legacy `EPISODIC_MEMORY_RECALL_ENABLED=0` still disables recall. |
 | `WEB_PUSH_VAPID_*` / `WEB_PUSH_SUBJECT` | Optional. Empty values auto-provision a stable VAPID pair into `app_meta` on first boot (uses `OPENROUTER_HTTP_REFERER` / `NEXTAUTH_URL` / `ADMIN_EMAILS` for the subject). Set `DISABLE_WEB_PUSH=1` only if you want the settings toggle to stay off. |
@@ -116,7 +116,7 @@ Only if using a **custom domain** — point CNAME to Railway. Default `*.up.rail
 | Start | `npm run start` → `tsx server.js` (custom Next server + exchange-rate warm-up) |
 | Health | `GET /api/health` |
 
-Creator payouts are **automatic** on the 15th at 03:00 Asia/Seoul. Do **not** set `DISABLE_PAYOUT_SCHEDULER=1` in production if you want that batch to run. The admin page `/admin/payout` is view + tax CSV only (no approve/reject).
+Creator payout scheduling code runs on the 15th at 03:00 Asia/Seoul, but the current payout provider is simulation-only. Keep `DISABLE_PAYOUT_SCHEDULER=1` in production until a real provider is implemented and requalified. The admin page `/admin/payout` is view + tax CSV only (no approve/reject).
 
 ---
 

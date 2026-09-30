@@ -175,6 +175,39 @@ describe("payout exactly-once — BEFORE reproduction", () => {
 });
 
 describe("payout exactly-once — regression fixtures", () => {
+  it("0. production blocks the simulation provider before claim or approval", async () => {
+    const db = new Database(":memory:");
+    createPayoutTestSchema(db);
+    db.prepare("INSERT INTO users (id, creator_points) VALUES (1, 0)").run();
+    const id = insertPendingWithdrawal(db, {
+      userId: 1,
+      requestedCp: 10000,
+      payoutAmount: 8000,
+    });
+    const row = readExecutionRow(db, id);
+
+    const previousNodeEnv = process.env.NODE_ENV;
+    setPayoutProviderForTests(null);
+    process.env.NODE_ENV = "production";
+    try {
+      await assert.rejects(
+        () => executeWithdrawalPayout(row, db),
+        /PAYOUT_REAL_PROVIDER_NOT_CONFIGURED/
+      );
+    } finally {
+      if (previousNodeEnv == null) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnv;
+    }
+
+    assert.equal(getTransferAttemptByWithdrawalId(db, id), null);
+    const withdrawal = db
+      .prepare("SELECT status, provider_ref FROM withdrawal_requests WHERE id=?")
+      .get(id) as { status: string; provider_ref: string };
+    assert.equal(withdrawal.status, "PENDING");
+    assert.equal(withdrawal.provider_ref, "");
+    db.close();
+  });
+
   before(() => {
     resetPayoutGatewaySimulationForTests();
     setPayoutProviderForTests(null);
