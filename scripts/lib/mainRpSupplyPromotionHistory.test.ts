@@ -309,6 +309,22 @@ describe("Main RP supplier promotion history gate", () => {
     assert.ok((row.worstCandidateTotalVsBaselineRatio ?? 0) > 1);
   });
 
+  it("does not count legacy CI-only comparison artifacts as current-baseline live history", () => {
+    const old = snapshot({ day: 0, live: "complete" });
+    if (old.comparison) old.comparison.version = 1;
+    const report = evaluateMainRpSupplyPromotionHistory({
+      snapshots: [
+        old,
+        snapshot({ day: 7 }),
+        snapshot({ day: 14 }),
+        snapshot({ day: 21, live: "complete" }),
+      ],
+    });
+    const row = report.candidates[0]!;
+    assert.equal(row.status, "INSUFFICIENT_LIVE_HISTORY");
+    assert.equal(row.completeLivePairs, 1);
+  });
+
   it("requires same-OpenRouter observed cost evidence on every successful live proof", () => {
     const snapshots = durableSnapshots({
       modelId: GEMINI,
