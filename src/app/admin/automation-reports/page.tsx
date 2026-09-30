@@ -264,6 +264,9 @@ function MemoryResearchCard({
               <p className="mt-1 text-[11px] text-zinc-600">
                 productionTouched {String(run.productionTouched)}
               </p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                persistent gap {run.persistentMemoryGapStatus ?? "기록 없음"}
+              </p>
             </div>
           </div>
 
@@ -287,6 +290,40 @@ function MemoryResearchCard({
               </p>
             ) : null}
           </div>
+
+          {run.insights.length ? (
+            <details className="mt-3 rounded-xl border border-fuchsia-500/10 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-fuchsia-200">
+                최신 자동 분석 상세 {run.insights.length}건
+              </summary>
+              <div className="mt-2 space-y-2">
+                {run.insights.map((insight, index) => (
+                  <div
+                    key={insight.kind + insight.key + index}
+                    className="rounded-lg bg-black/15 p-2 text-xs"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded bg-fuchsia-950/60 px-1.5 py-0.5 text-[10px] font-bold text-fuchsia-300">
+                        {insight.kind}
+                      </span>
+                      <p className="font-mono text-fuchsia-100">{insight.key}</p>
+                    </div>
+                    <p className="mt-1 font-semibold text-zinc-300">{insight.status}</p>
+                    {insight.summary ? (
+                      <p className="mt-1 whitespace-pre-wrap text-zinc-500">
+                        {insight.summary}
+                      </p>
+                    ) : null}
+                    {insight.nextAction ? (
+                      <p className="mt-1 whitespace-pre-wrap text-zinc-400">
+                        다음: {insight.nextAction}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
 
           {run.decisions.length ? (
             <details className="mt-3 rounded-xl border border-white/5 p-3">
