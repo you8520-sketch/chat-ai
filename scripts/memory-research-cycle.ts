@@ -64,7 +64,12 @@ function writeFileEnsuringDir(path: string, contents: string): void {
 function promptPackingSentinel(): void {
   const outDir = required("out");
   mkdirSync(outDir, { recursive: true });
-  const audit = buildMemoryPromptPackingAudit();
+  const audit = buildMemoryPromptPackingAudit(300, new Date(), {
+    rollingSummarySource: readFileSync(
+      "src/lib/memory/memory-rolling-summary.ts",
+      "utf8"
+    ),
+  });
   const markdown = renderMemoryPromptPackingAuditMarkdown(audit);
   writeFileSync(join(outDir, "report.json"), `${JSON.stringify(audit, null, 2)}\n`);
   writeFileSync(join(outDir, "REPORT.md"), markdown);

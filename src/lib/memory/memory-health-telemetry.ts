@@ -1,4 +1,6 @@
 import { MEMORY_POLICY_ID, newAutomaticBatchEnd } from "./memory-constants";
+import type { EpisodicSemanticRuntime } from "./memory-episodic-semantic-config";
+import type { EpisodicSemanticQueryResolution } from "./memory-episodic-semantic-jobs";
 
 export type MemoryHealthTelemetry = {
   memory_policy: typeof MEMORY_POLICY_ID;
@@ -12,6 +14,10 @@ export type MemoryHealthTelemetry = {
   episodic_injected_count: number;
   episodic_duplicate_blocked_count: number;
   episodic_budget_blocked_count: number;
+  episodic_semantic_runtime_enabled: boolean;
+  episodic_semantic_runtime_model: string | null;
+  episodic_semantic_runtime_reason: "flag_off" | "unknown_model" | "config_provisional_live_benchmark_pending" | null;
+  episodic_semantic_query_reason: EpisodicSemanticQueryResolution["reason"];
   status_extract_call_count: number;
 };
 
@@ -25,6 +31,8 @@ export function buildMemoryHealthTelemetry(input: {
   episodicInjectedCount: number;
   episodicDuplicateBlockedCount: number;
   episodicBudgetBlockedCount: number;
+  episodicSemanticRuntime: EpisodicSemanticRuntime;
+  episodicSemanticQueryReason: EpisodicSemanticQueryResolution["reason"];
   statusExtractCallCount: number;
 }): MemoryHealthTelemetry {
   const nextStart = Math.max(0, input.summarizedThrough) + 1;
@@ -41,6 +49,14 @@ export function buildMemoryHealthTelemetry(input: {
     episodic_injected_count: input.episodicInjectedCount,
     episodic_duplicate_blocked_count: input.episodicDuplicateBlockedCount,
     episodic_budget_blocked_count: input.episodicBudgetBlockedCount,
+    episodic_semantic_runtime_enabled: input.episodicSemanticRuntime.enabled,
+    episodic_semantic_runtime_model: input.episodicSemanticRuntime.enabled
+      ? input.episodicSemanticRuntime.model.modelId
+      : null,
+    episodic_semantic_runtime_reason: input.episodicSemanticRuntime.enabled
+      ? null
+      : input.episodicSemanticRuntime.reason,
+    episodic_semantic_query_reason: input.episodicSemanticQueryReason,
     status_extract_call_count: input.statusExtractCallCount,
   };
 }

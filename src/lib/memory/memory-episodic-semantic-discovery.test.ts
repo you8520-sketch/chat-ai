@@ -733,8 +733,17 @@ describe("cleanup owners and production wiring", () => {
   it("route, post-turn owner, and cleanup owners call the canonical semantic owners", () => {
     const read = (p: string) => readFileSync(path.join(process.cwd(), p), "utf8");
     const route = read("src/app/api/chat/route.ts");
-    assert.match(route, /const episodicSemantic = await resolveEpisodicSemanticQuery\(\{\s*query: policyUserMessage,\s*contentRoute: effectiveAdultRp \? "nsfw" : "safe",\s*usableIndex: \(model\) => hasEpisodicSemanticIndexInScope\(db, episodicRetrievalScope, model\),\s*\}\);/);
+    assert.match(
+      route,
+      /const episodicSemanticRuntime = resolveEpisodicSemanticRuntime\(\);/
+    );
+    assert.match(
+      route,
+      /const episodicSemantic = await resolveEpisodicSemanticQuery\(\{\s*query: policyUserMessage,\s*contentRoute: effectiveAdultRp \? "nsfw" : "safe",\s*usableIndex: \(model\) => hasEpisodicSemanticIndexInScope\(db, episodicRetrievalScope, model\),\s*runtime: episodicSemanticRuntime,\s*\}\);/
+    );
     assert.match(route, /semanticQuery: episodicSemantic\.query,/);
+    assert.match(route, /episodicSemanticRuntime,/);
+    assert.match(route, /episodicSemanticQueryReason: episodicSemantic\.reason,/);
     assert.match(read("src/lib/memory/memory-manager.ts"), /contentRoute: opts\.route,/);
     const manager = read("src/lib/memory/memory-manager.ts");
     const reconcileAt = manager.indexOf("reconcileSharedEpisodicFactsForTurn(getDb()");

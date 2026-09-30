@@ -7,6 +7,7 @@
  * changes without inventing a parallel memory model.
  */
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { RELATIONSHIP_MEMORY_AUTO_EXTRACT_ALLOWED_FIELDS } from "@/lib/chatMemory";
 import {
   MEMORY_POLICY_ID,
   RAW_HISTORY_COMPLETE_EXCHANGES,
@@ -16,6 +17,7 @@ import {
   MEDIUM_TERM_BLOCK_COUNT,
   shouldInjectMediumTermMemory,
 } from "@/lib/memory/memory-medium-term";
+import { simulateMovingHorizonCoverage } from "@/lib/memory/memory-medium-term-audit";
 import {
   auditActualSafetyGates,
   buildFullPromptBudgetMatrix,
@@ -34,6 +36,18 @@ export type MemoryPromptPackingModelSnapshot = {
   n15SafeForPolicyConsideration: boolean;
 };
 
+export type MemoryPromptPolicySourceSnapshot = {
+  rollingSummarySource: string;
+};
+
+export type MemoryLayerShadowDomain = {
+  domain: "promises" | "items";
+  narrativeLayers: readonly string[];
+  canonicalCurrentStateOwner: "relationship_durable";
+  policyEvidence: readonly string[];
+  interpretation: string;
+};
+
 export type MemoryPromptPackingAudit = {
   generatedAt: string;
   currentTurnFixture: number;
@@ -50,15 +64,29 @@ export type MemoryPromptPackingAudit = {
   };
   invariants: Array<{ id: string; ok: boolean; detail: string }>;
   models: MemoryPromptPackingModelSnapshot[];
+  layerOverlap: {
+    sourcePolicyScan: "PROVIDED" | "NOT_PROVIDED";
+    durableAutoFields: readonly string[];
+    shadowDomains: MemoryLayerShadowDomain[];
+    literalFixture: Array<{
+      currentTurn: number;
+      mediumGlobalLiteralDuplicateChars: number;
+      mediumChars: number;
+      globalChars: number;
+    }>;
+  };
   interpretation: {
-    literalDuplicateClaim: "NOT_MEASURED";
+    literalDuplicateClaim: "FIXTURE_LITERAL_ONLY";
+    semanticDuplicateClaim: "NOT_MEASURED";
+    stateShadowClaim: "INTENTIONAL_TRAJECTORY_SHADOW";
     note: string;
   };
 };
 
 export function buildMemoryPromptPackingAudit(
   currentTurnFixture = 300,
-  now = new Date()
+  now = new Date(),
+  policySource?: MemoryPromptPolicySourceSnapshot
 ): MemoryPromptPackingAudit {
   const architecture = {
     policyId: MEMORY_POLICY_ID,
@@ -87,6 +115,59 @@ export function buildMemoryPromptPackingAudit(
       n15CriticalSectionOmitted: matrix.n15.criticalSectionOmitted,
       n15CriticalSectionTrimmed: matrix.n15.criticalSectionTrimmed,
       n15SafeForPolicyConsideration: safety.n15.safeForPolicyConsideration,
+    };
+  });
+
+  const rollingSource = policySource?.rollingSummarySource ?? "";
+  const policyScanProvided = rollingSource.trim().length > 0;
+  const durableFields = [...RELATIONSHIP_MEMORY_AUTO_EXTRACT_ALLOWED_FIELDS];
+  const durablePromiseOwner =
+    durableFields.includes("promisesAdd") && durableFields.includes("promisesRemove");
+  const durableItemOwner =
+    durableFields.includes("items") && durableFields.includes("itemsRemove");
+  const rollingPreservesPromises =
+    /약속·계약·임무·미해결 목표/.test(rollingSource) &&
+    /약속·임무·소유물·현재 상태가 달라지는가/.test(rollingSource);
+  const rollingPreservesItems =
+    /중요한 물건의 획득·전달·분실과 현재 소유자/.test(rollingSource);
+  const globalCompactPreservesPromises =
+    /\[보존\]: 관계·호칭·약속/.test(rollingSource);
+
+  const shadowDomains: MemoryLayerShadowDomain[] = [
+    {
+      domain: "promises",
+      narrativeLayers: ["rolling_summary", "medium_term", "global_current_memory"],
+      canonicalCurrentStateOwner: "relationship_durable",
+      policyEvidence: [
+        `rolling-preserves-promises=${rollingPreservesPromises}`,
+        `global-compact-preserves-promises=${globalCompactPreservesPromises}`,
+        `durable-add-remove-owner=${durablePromiseOwner}`,
+      ],
+      interpretation:
+        "Narrative memory keeps promise history/trajectory, while Relationship Durable owns the current active-promise projection through promisesAdd/promisesRemove.",
+    },
+    {
+      domain: "items",
+      narrativeLayers: ["rolling_summary", "medium_term"],
+      canonicalCurrentStateOwner: "relationship_durable",
+      policyEvidence: [
+        `rolling-preserves-current-owner=${rollingPreservesItems}`,
+        `durable-add-remove-owner=${durableItemOwner}`,
+      ],
+      interpretation:
+        "Narrative memory keeps acquisition/transfer/loss history, while Relationship Durable owns the current possession projection.",
+    },
+  ];
+
+  const literalFixture = [300, 1000].map((currentTurn) => {
+    const overlap = simulateMovingHorizonCoverage(currentTurn, MEDIUM_TERM_BLOCK_COUNT, {
+      mediumActive: true,
+    });
+    return {
+      currentTurn,
+      mediumGlobalLiteralDuplicateChars: overlap.mediumGlobalLiteralDuplicateChars,
+      mediumChars: overlap.mediumChars,
+      globalChars: overlap.globalChars,
     };
   });
 
@@ -136,6 +217,30 @@ export function buildMemoryPromptPackingAudit(
         .map((m) => m.modelId)
         .join(", ") || "all active Main RP models clean",
     },
+    {
+      id: "durable-shadow-owner-contract",
+      ok:
+        !policyScanProvided ||
+        (rollingPreservesPromises &&
+          rollingPreservesItems &&
+          globalCompactPreservesPromises &&
+          durablePromiseOwner &&
+          durableItemOwner),
+      detail: policyScanProvided
+        ? `rollingPromises=${rollingPreservesPromises} rollingItems=${rollingPreservesItems} globalPromises=${globalCompactPreservesPromises} durablePromises=${durablePromiseOwner} durableItems=${durableItemOwner}`
+        : "policy source not provided; scheduled CLI supplies it",
+    },
+    {
+      id: "medium-global-fixture-does-not-literal-copy-whole-blocks",
+      ok: literalFixture.every((row) => row.mediumGlobalLiteralDuplicateChars === 0),
+      detail:
+        literalFixture
+          .map(
+            (row) =>
+              `T${row.currentTurn}:${row.mediumGlobalLiteralDuplicateChars} duplicate chars`
+          )
+          .join(", "),
+    },
   ];
 
   return {
@@ -144,12 +249,20 @@ export function buildMemoryPromptPackingAudit(
     architecture,
     invariants,
     models,
+    layerOverlap: {
+      sourcePolicyScan: policyScanProvided ? "PROVIDED" : "NOT_PROVIDED",
+      durableAutoFields: durableFields,
+      shadowDomains,
+      literalFixture,
+    },
     interpretation: {
-      literalDuplicateClaim: "NOT_MEASURED",
+      literalDuplicateClaim: "FIXTURE_LITERAL_ONLY",
+      semanticDuplicateClaim: "NOT_MEASURED",
+      stateShadowClaim: "INTENTIONAL_TRAJECTORY_SHADOW",
       note:
-        "This sentinel proves owner activation and prompt-token deltas, not semantic equivalence. " +
-        "A compact Global Current Memory and Medium-Term ring can overlap semantically by design; " +
-        "do not classify that overlap as waste without a retrieval/quality A/B.",
+        "Rolling/Medium/Global narrative memory and Relationship Durable intentionally overlap on some concepts with different responsibilities: trajectory/history vs current structured state. " +
+        "The fixture proves only that whole Medium block bodies are not copied verbatim into the deterministic Global compact stub. " +
+        "Semantic redundancy and stale-state harm still require retrieval/quality evidence; absence from the durable ledger is not itself an explicit negation of old narrative history.",
     },
   };
 }
@@ -192,9 +305,32 @@ export function renderMemoryPromptPackingAuditMarkdown(
         `| ${m.modelId} | ${m.baselineInputTokens} | ${m.n15InputTokens} | +${m.n15DeltaInputTokens} | ${m.n15MediumTokens} | +${m.n15MinusN10InputTokens} | ${m.n15SafeForPolicyConsideration ? "YES" : "NO"} |`
     ),
     "",
+    "## Cross-layer state shadow audit",
+    "",
+    `- policy source scan: **${audit.layerOverlap.sourcePolicyScan}**`,
+    `- durable auto fields: ${audit.layerOverlap.durableAutoFields.join(", ")}`,
+    "",
+    "| domain | narrative layer(s) | current-state owner | interpretation |",
+    "|---|---|---|---|",
+    ...audit.layerOverlap.shadowDomains.map(
+      (row) =>
+        `| ${row.domain} | ${row.narrativeLayers.join(", ")} | ${row.canonicalCurrentStateOwner} | ${row.interpretation.replace(/\|/g, "/")} |`
+    ),
+    "",
+    "### Medium ↔ Global literal fixture",
+    "",
+    "| turn | Medium chars | Global chars | verbatim duplicate chars |",
+    "|---:|---:|---:|---:|",
+    ...audit.layerOverlap.literalFixture.map(
+      (row) =>
+        `| ${row.currentTurn} | ${row.mediumChars} | ${row.globalChars} | ${row.mediumGlobalLiteralDuplicateChars} |`
+    ),
+    "",
     "## Interpretation boundary",
     "",
-    `- literal/semantic duplication verdict: **${audit.interpretation.literalDuplicateClaim}**`,
+    `- literal duplication evidence: **${audit.interpretation.literalDuplicateClaim}**`,
+    `- semantic duplication verdict: **${audit.interpretation.semanticDuplicateClaim}**`,
+    `- cross-layer state-shadow classification: **${audit.interpretation.stateShadowClaim}**`,
     `- ${audit.interpretation.note}`,
     "",
     "providerGenerationCalls: 0",
