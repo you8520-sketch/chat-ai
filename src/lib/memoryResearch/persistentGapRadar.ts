@@ -59,10 +59,7 @@ function documentedKnownGap(caseId: string): boolean {
 }
 
 function ownerHintsFor(caseId: string): string[] {
-  if (
-    caseId === SEMANTIC_KNOWN_GAP_CASE_ID ||
-    caseId === "distinctive-utterance-01"
-  ) {
+  if (caseId === SEMANTIC_KNOWN_GAP_CASE_ID) {
     return ["semantic_retrieval", "embedding_index"];
   }
   if (caseId === "item-ownership-01") {
