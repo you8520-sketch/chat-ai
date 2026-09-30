@@ -24,7 +24,7 @@ export function parseJsxComponentCatalog(raw: string | null | undefined): JsxCom
       let chatSend = Boolean(row.chatSend) || capabilities.includes("chat_send");
 
       if (!compiled) {
-        const fresh = compileJsxComponentSource(source);
+        const fresh = compileJsxComponentSource(source, name);
         if (!fresh.ok) continue;
         compiled = fresh.compiled;
         capabilities = fresh.capabilities;
@@ -75,7 +75,7 @@ export function compileJsxComponentDraft(input: {
   if (!JSX_COMPONENT_NAME_RE.test(name)) {
     return { ok: false, error: "컴포넌트 이름은 PascalCase여야 합니다." };
   }
-  const compiled = compileJsxComponentSource(input.source);
+  const compiled = compileJsxComponentSource(input.source, name);
   if (!compiled.ok) return compiled;
   const props = input.props
     .map(normalizeJsxPropDefinition)
