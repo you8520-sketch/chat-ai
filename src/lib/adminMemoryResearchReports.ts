@@ -189,16 +189,26 @@ function projectPromptPackingAudit(
     }))
     .filter((row) => row.modelId);
 
+  const generatedAt = asString(audit.generatedAt);
+  const policyId = architecture ? asString(architecture.policyId) : "";
   const failedInvariants = invariants
     .filter((row) => row.ok !== true)
     .map((row) => asString(row.id))
     .filter(Boolean);
+  const structurallyValid =
+    Boolean(generatedAt) &&
+    Boolean(policyId) &&
+    invariants.length > 0 &&
+    models.length > 0;
+  if (!structurallyValid) {
+    failedInvariants.unshift("MALFORMED_PROMPT_PACKING_AUDIT");
+  }
 
   return {
     status: failedInvariants.length === 0 ? "PASS" : "FAIL",
-    generatedAt: asString(audit.generatedAt),
+    generatedAt,
     currentTurnFixture: asNumber(audit.currentTurnFixture),
-    policyId: architecture ? asString(architecture.policyId) : "",
+    policyId,
     rawRecentExchanges: architecture
       ? asNumber(architecture.rawRecentExchanges)
       : 0,
