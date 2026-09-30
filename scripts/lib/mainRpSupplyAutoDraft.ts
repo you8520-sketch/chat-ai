@@ -321,6 +321,7 @@ export type GitHubDraftExecutionResult = {
     | "CREATED"
     | "DRY_RUN"
     | "EXISTING_OPEN_PR"
+    | "CONFLICTING_OPEN_PR_STOP"
     | "STALE_MAIN_STOP"
     | "PREFLIGHT_FAILED"
     | "FAILED";
@@ -380,6 +381,42 @@ export async function executeGitHubDraftRoutePr(input: {
             ? String((duplicate.head as Record<string, unknown>).ref)
             : null,
         error: null,
+      };
+    }
+
+    const modelTitlePrefix =
+      `[auto] Main RP supply route: ${input.mutation.modelId} → `;
+    const modelBranchPrefix =
+      `automation/supply-route/${safeBranchPart(input.mutation.modelId)}/`;
+    const conflicting = openPulls.find((pull) => {
+      const title = String(pull.title ?? "");
+      const headRef =
+        typeof (pull.head as Record<string, unknown> | undefined)?.ref ===
+        "string"
+          ? String((pull.head as Record<string, unknown>).ref)
+          : "";
+      return (
+        title.startsWith(modelTitlePrefix) ||
+        headRef.startsWith(modelBranchPrefix)
+      );
+    });
+    if (conflicting) {
+      return {
+        modelId: input.mutation.modelId,
+        candidateProviderSlug: input.mutation.candidateProviderSlug,
+        status: "CONFLICTING_OPEN_PR_STOP",
+        pullRequestUrl:
+          typeof conflicting.html_url === "string"
+            ? conflicting.html_url
+            : null,
+        branchName:
+          typeof (conflicting.head as Record<string, unknown> | undefined)
+            ?.ref === "string"
+            ? String(
+                (conflicting.head as Record<string, unknown>).ref
+              )
+            : null,
+        error: "another_auto_route_pr_for_same_model_is_open",
       };
     }
 
