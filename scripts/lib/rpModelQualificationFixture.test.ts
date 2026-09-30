@@ -46,9 +46,15 @@ function main() {
       "persona_grounded_reaction",
       "agency_boundary",
       "false_canon_trap",
+      "memory_current_state_priority",
+      "memory_false_shared_event",
     ]
   );
   assert.equal(cases[0]!.currentUserMessage, fixture.productionTurn1User);
+  assert.match(cases[4]!.memory?.longTermMemory ?? "", /이행되어 종료/);
+  assert.match(cases[4]!.memory?.memoryMeta ?? "", /다음 정기 검진 날 넥서스 로비/);
+  assert.match(cases[5]!.memory?.episodicMemoryBlock ?? "", /복잡한 단말기를 잘못 조작/);
+  assert.doesNotMatch(cases[5]!.memory?.episodicMemoryBlock ?? "", /반지/);
 
   // Current-main runtime policy, not the reviewer's personal standard, owns the
   // user-character boundary used to grade candidate outputs.
