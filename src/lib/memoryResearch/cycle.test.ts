@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { it } from "node:test";
+import { BASELINE_MODE } from "@/lib/memory/memory-rp-benchmark-suite";
 import { runLabArm } from "@/lib/memoryResearch/benchmarkLab";
-import { cycleKeyFor, runResearchCycle, type CycleDeps } from "@/lib/memoryResearch/cycle";
+import { baselinePromotionGateFor, cycleKeyFor, runResearchCycle, type CycleDeps } from "@/lib/memoryResearch/cycle";
 import type { ExperimentAdapter } from "@/lib/memoryResearch/experiments";
 import { applyDraftPrResults, emptyLedger, parseLedger, serializeLedger, type ResearchLedger } from "@/lib/memoryResearch/ledger";
 import { narrowSyntheticAdapter, observation, wideSyntheticAdapter } from "@/lib/memoryResearch/labFixtures.test";
@@ -126,6 +127,84 @@ it("full cycle: isolation, dedupe, screening, real benchmark gates, ACCEPTED-onl
     archBefore,
     "a research cycle alone never changes production memory owners"
   );
+});
+
+it("baseline regression fail-closes candidate promotion while discovery/evidence continues", async () => {
+  const first = await runResearchCycle(emptyLedger(), deps(WEEK1));
+  const beforeWide = first.ledger.candidates["github:fixture/wide"]!;
+  const beforeNarrow = first.ledger.candidates["github:fixture/narrow"]!;
+
+  let nonBaselineArmCalls = 0;
+  const regressedRunArm: NonNullable<CycleDeps["runArm"]> = async (mode) => {
+    const result = await runLabArm(mode);
+    if (mode.label !== BASELINE_MODE.label) {
+      nonBaselineArmCalls += 1;
+      return result;
+    }
+    assert.equal(result.status, "RAN");
+    const positive = Object.entries(result.summary.finalHitByCase).find(([, hit]) => hit);
+    assert.ok(positive, "fixture baseline must contain at least one positive final-hit case");
+    const finalHitByCase = {
+      ...result.summary.finalHitByCase,
+      [positive[0]]: false,
+    };
+    return {
+      status: "RAN",
+      summary: {
+        ...result.summary,
+        finalHitByCase,
+      },
+    };
+  };
+
+  const second = await runResearchCycle(
+    roundTrip(first.ledger),
+    deps(WEEK2, { runArm: regressedRunArm })
+  );
+
+  assert.equal(second.report.baseline.status, "RAN");
+  assert.equal(second.report.baselineTrend.status, "REGRESSION");
+  assert.equal(second.report.baselinePromotionGate.status, "BLOCKED_REGRESSION");
+  assert.equal(second.report.baselinePromotionGate.blocked, true);
+  assert.ok(second.report.baselineTrend.lostPositiveCases.length > 0);
+  assert.equal(nonBaselineArmCalls, 0, "candidate A/B arms must not run while baseline promotion is blocked");
+  assert.equal(second.report.counts.benchmarked, 0);
+  assert.equal(second.report.counts.accept, 0);
+  assert.equal(second.report.draftPrPackets.length, 0);
+  assert.ok(
+    second.report.skipped.some(
+      (row) =>
+        row.candidateKey === "github:fixture/wide" &&
+        row.reason === "baseline_promotion_gate"
+    )
+  );
+  assert.equal(
+    second.ledger.candidates["github:fixture/wide"]!.lastDecision,
+    beforeWide.lastDecision,
+    "blocked cycle must not rewrite an existing candidate decision"
+  );
+  assert.equal(
+    second.ledger.candidates["github:fixture/narrow"]!.lastDecision,
+    beforeNarrow.lastDecision,
+    "blocked cycle must not rewrite rejected evidence"
+  );
+  assert.equal(
+    second.ledger.cycles.at(-1)?.baseline?.benchmarkFingerprint,
+    "benchmark-fixture",
+    "regressed baseline snapshot must still persist for incident evidence"
+  );
+});
+
+it("mixed baseline trend also blocks promotion", async () => {
+  const gate = baselinePromotionGateFor("RAN", "MIXED");
+  assert.equal(gate.status, "BLOCKED_MIXED");
+  assert.equal(gate.blocked, true);
+});
+
+it("failed baseline blocks downstream promotion", () => {
+  const gate = baselinePromotionGateFor("FAILED", "BASELINE_FAILED");
+  assert.equal(gate.status, "BLOCKED_BASELINE_FAILED");
+  assert.equal(gate.blocked, true);
 });
 
 it("next cycles: rejected same-version skipped, ACCEPTED re-emits until its Draft PR exists, new release re-evaluates", async () => {
