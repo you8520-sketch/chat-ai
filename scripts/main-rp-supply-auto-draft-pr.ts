@@ -165,7 +165,7 @@ function runValidation(plan: SupplyAutoDraftPlan): void {
         "tsx",
         "--test",
         "--test-concurrency=1",
-        "src/lib/openRouterConfig.test.ts",
+        "src/lib/mainRpOpenRouterRouteConfig.test.ts",
         "src/lib/openRouterClient.test.ts",
         "src/lib/chatModels.gemini.test.ts",
         "src/lib/mainRpModelRegistry.test.ts",
