@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 
 import {
   fetchGithubScheduledAutomationProjection,
+  fetchGithubSupplyAutoDraftProjection,
   groupGithubScheduledAutomationRuns,
+  projectGithubSupplyAutoDrafts,
 } from "@/lib/adminAutomationReports";
 
 describe("admin automation reports projection", () => {
@@ -43,5 +45,47 @@ describe("admin automation reports projection", () => {
     );
     assert.equal(projection.status, "UNAVAILABLE");
     assert.equal(projection.groups.length, 0);
+  });
+});
+
+
+describe("admin automation supply Draft projection", () => {
+  it("projects only open PRs carrying the canonical supply auto-Draft marker", () => {
+    const drafts = projectGithubSupplyAutoDrafts([
+      {
+        number: 1401,
+        title: "draft: promote gemini-3.7-flash",
+        html_url: "https://github.com/example/repo/pull/1401",
+        state: "open",
+        draft: true,
+        created_at: "2026-09-30T10:00:00Z",
+        updated_at: "2026-09-30T10:01:00Z",
+        body: "<!-- main-rp-supply-auto:gemini-3.7-flash:google-vertex -->\nbody",
+      },
+      {
+        number: 1400,
+        title: "unrelated PR",
+        html_url: "https://github.com/example/repo/pull/1400",
+        state: "open",
+        draft: true,
+        created_at: "2026-09-30T09:00:00Z",
+        updated_at: "2026-09-30T09:01:00Z",
+        body: "no marker",
+      },
+    ]);
+
+    assert.equal(drafts.length, 1);
+    assert.equal(drafts[0]?.number, 1401);
+    assert.equal(drafts[0]?.modelId, "gemini-3.7-flash");
+    assert.equal(drafts[0]?.candidateProviderSlug, "google-vertex");
+    assert.equal(drafts[0]?.draft, true);
+  });
+
+  it("fails closed without breaking the admin page when pull requests cannot be read", async () => {
+    const projection = await fetchGithubSupplyAutoDraftProjection(
+      async () => new Response("nope", { status: 503 })
+    );
+    assert.equal(projection.status, "UNAVAILABLE");
+    assert.equal(projection.drafts.length, 0);
   });
 });
