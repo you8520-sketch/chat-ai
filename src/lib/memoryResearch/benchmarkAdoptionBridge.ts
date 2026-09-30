@@ -94,11 +94,11 @@ const RULES: readonly Rule[] = [
     status: "PARTIAL_COVERAGE",
     localGroups: ["DYNAMIC_STATE_TRACKING", "PREMISE_AWARENESS"],
     coverage:
-      "Current cases cover correction/supersession, stale state, delete/regen/fork/reset invalidation, and false premises.",
+      "Current cases cover correction/supersession, stale state, edit/regen/fork/reset invalidation, canonical last-turn deletion including summary-seal episodic provenance rollback, and derived-memory-deletion-residue-01 proving pruned summary text is absent from active summaries, stored recent_summary, and prompt-facing Global Current Memory.",
     gap:
-      "No dedicated derived-tier forgetting-residue fixture proves that deleted information is absent from summaries/derived memory as well as the raw source.",
+      "The external forgetting benchmark is broader than the site's currently supported destructive/update surface; no additional concrete local mutation path is presently proven to lack derived-tier invalidation coverage.",
     nextAction:
-      "Add a local full-pipeline deletion-residue fixture before considering any new forgetting metric. Reuse stale-state/false-memory raw metrics where possible.",
+      "Keep the benchmark on watch. Re-open local case planning only when a real supported delete/update/rewind path is found without deterministic derived-tier invalidation proof; reuse existing stale-state/false-memory metrics.",
   },
   {
     ability: "dynamic_state_tracking",
