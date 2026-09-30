@@ -189,9 +189,11 @@ describe("official pilot content (romance fantasy 01)", () => {
     assert.match(lucian!.draft.description, /공범|목격자/);
     assert.match(lucian!.draft.greeting, /증권거래소 지하 금고/);
     assert.match(lucian!.draft.greeting, /경보/);
-    assert.match(lucian!.draft.greeting, /공범/);
     assert.match(lucian!.bible.situation.userEntry, /증권거래소 지하 금고/);
+    assert.match(lucian!.bible.situation.userEntry, /페르소나/);
+    assert.match(lucian!.bible.userRelationship.userRole, /페르소나가 정한다/);
     assert.match(lucian!.bible.rpEngine.immediateHook, /증권거래소 지하 금고/);
+    assert.doesNotMatch(lucian!.draft.greeting, /오늘 처음 만난|낯선 사람/);
     assert.doesNotMatch(lucian!.draft.greeting, /비가 그친 뒤의 골목/);
   });
 
