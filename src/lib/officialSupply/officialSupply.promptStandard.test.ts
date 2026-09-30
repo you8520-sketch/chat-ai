@@ -70,6 +70,10 @@ describe("official character prompt standard v1", () => {
     assert.match(draft.sections.characterCore, /취미:/);
 
     assert.doesNotMatch(draft.sections.characterCore, /광대|턱선|헤어스타일|머리색:|기본 복장:|액세서리:/);
+
+    const systemPrompt = composeOfficialSystemPrompt(draft, renderRuntimeAppearanceBlock(file.appearance));
+    assert.equal((systemPrompt.match(/\[외형\]/g) ?? []).length, 1);
+    assert.doesNotMatch(systemPrompt, /광대가 도드라지지 않는|매끈한 턱선/);
   });
 
   it("does not inject sibling playable-character relationship maps into the character prompt", () => {
