@@ -33,6 +33,7 @@ export function buildGenerationContextJson(input: GenerationContextInput): strin
   if (input.regenerate) ctx.regenerate = true;
   if (input.variantIndex != null) ctx.variantIndex = input.variantIndex;
   if (input.personaId != null) ctx.personaId = input.personaId;
+  if (input.memoryHealth) ctx.memoryHealth = input.memoryHealth;
   if (input.museAcceptance) ctx.museAcceptance = input.museAcceptance;
   if (input.adultRouting) ctx.adultRouting = input.adultRouting;
   if (input.personaKnowledgePrompt) {
