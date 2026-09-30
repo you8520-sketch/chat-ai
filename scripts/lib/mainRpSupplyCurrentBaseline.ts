@@ -26,7 +26,7 @@ import {
   type SupplyLiveTurnResult,
 } from "./mainRpSupplyLiveQualification";
 
-export const MAIN_RP_SUPPLY_CURRENT_BASELINE_VERSION = 1;
+export const MAIN_RP_SUPPLY_CURRENT_BASELINE_VERSION = 2;
 export const MAIN_RP_SUPPLY_CURRENT_BASELINE_MAX_PROVIDER_CALLS = 10;
 export const MAIN_RP_SUPPLY_CURRENT_BASELINE_MAX_ESTIMATED_USD = 10;
 export const MAIN_RP_SUPPLY_COMBINED_MAX_PROVIDER_CALLS = 20;
