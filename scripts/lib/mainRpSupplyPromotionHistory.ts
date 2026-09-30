@@ -6,7 +6,7 @@ import {
   MAIN_RP_SUPPLY_LIVE_MIN_UPTIME_PERCENT,
   type MainRpSupplyLiveQualificationReport,
 } from "./mainRpSupplyLiveQualification";
-import type { SupplyTransportComparisonReport } from "./mainRpSupplyCiBaseline";
+import type { SupplyTransportComparisonReport } from "./mainRpSupplyCurrentBaseline";
 import type { MainRpSupplyRadarReport, SupplyComparison } from "./mainRpSupplyRadar";
 
 export const MAIN_RP_SUPPLY_PROMOTION_HISTORY_VERSION = 1;
@@ -34,6 +34,9 @@ export type SupplyPromotionStatus =
   | "INSUFFICIENT_LIVE_HISTORY"
   | "LIVE_HISTORY_SPAN_TOO_SHORT"
   | "BASELINE_COMPARISON_MISSING"
+  | "CACHE_REGRESSION"
+  | "OBSERVED_COST_EVIDENCE_MISSING"
+  | "OBSERVED_COST_REGRESSION"
   | "PERFORMANCE_REGRESSION";
 
 export type SupplyPromotionEvidence = {
@@ -53,6 +56,8 @@ export type SupplyPromotionEvidence = {
   latestMarketUptime30mPercent: number | null;
   worstCandidateTotalVsBaselineRatio: number | null;
   worstCandidateTtftVsBaselineRatio: number | null;
+  worstObservedCostVsBaselineRatio: number | null;
+  cacheRegressionObservations: number;
   reasons: string[];
 };
 
@@ -128,14 +133,24 @@ function latestSnapshot(
   );
 }
 
-function comparisonRatios(input: {
+function comparisonEvidence(input: {
   snapshots: SupplyHistorySnapshot[];
   modelId: SelectedAI;
   providerSlug: string;
-}): { total: number[]; ttft: number[]; missing: number } {
+}): {
+  total: number[];
+  ttft: number[];
+  sameOpenRouterObservedCost: number[];
+  missing: number;
+  sameOpenRouterCostMissing: number;
+  cacheRegressions: number;
+} {
   const total: number[] = [];
   const ttft: number[] = [];
+  const sameOpenRouterObservedCost: number[] = [];
   let missing = 0;
+  let sameOpenRouterCostMissing = 0;
+  let cacheRegressions = 0;
 
   for (const snapshot of input.snapshots) {
     const liveResult = snapshot.live?.results.find(
@@ -154,24 +169,56 @@ function comparisonRatios(input: {
     if (
       !row ||
       !row.candidatePairComplete ||
-      !row.currentCiPairComplete ||
+      !row.currentBaselinePairComplete ||
       row.candidateAverageTotalSeconds == null ||
-      row.currentCiAverageTotalSeconds == null ||
+      row.currentBaselineAverageTotalSeconds == null ||
       row.candidateAverageTtftSeconds == null ||
-      row.currentCiAverageTtftSeconds == null ||
-      row.currentCiAverageTotalSeconds <= 0 ||
-      row.currentCiAverageTtftSeconds <= 0
+      row.currentBaselineAverageTtftSeconds == null ||
+      row.currentBaselineAverageTotalSeconds <= 0 ||
+      row.currentBaselineAverageTtftSeconds <= 0
     ) {
       missing += 1;
       continue;
     }
+
     total.push(
-      row.candidateAverageTotalSeconds / row.currentCiAverageTotalSeconds
+      row.candidateAverageTotalSeconds / row.currentBaselineAverageTotalSeconds
     );
-    ttft.push(row.candidateAverageTtftSeconds / row.currentCiAverageTtftSeconds);
+    ttft.push(
+      row.candidateAverageTtftSeconds / row.currentBaselineAverageTtftSeconds
+    );
+
+    if (row.currentBaselineProvider === "openrouter") {
+      if (
+        row.currentBaselineSecondTurnCacheReadObserved &&
+        !row.candidateSecondTurnCacheReadObserved
+      ) {
+        cacheRegressions += 1;
+      }
+
+      if (
+        row.candidateObservedProviderCostUsd == null ||
+        row.currentBaselineObservedProviderCostUsd == null ||
+        row.currentBaselineObservedProviderCostUsd <= 0
+      ) {
+        sameOpenRouterCostMissing += 1;
+      } else {
+        sameOpenRouterObservedCost.push(
+          row.candidateObservedProviderCostUsd /
+            row.currentBaselineObservedProviderCostUsd
+        );
+      }
+    }
   }
 
-  return { total, ttft, missing };
+  return {
+    total,
+    ttft,
+    sameOpenRouterObservedCost,
+    missing,
+    sameOpenRouterCostMissing,
+    cacheRegressions,
+  };
 }
 
 export function evaluateMainRpSupplyPromotionHistory(input: {
@@ -242,13 +289,20 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
         (row) => row.snapshot.live?.generatedAt ?? row.snapshot.report.generatedAt
       )
     );
-    const ratios = comparisonRatios({
+    const comparison = comparisonEvidence({
       snapshots,
       modelId: candidate.modelId,
       providerSlug: candidate.providerSlug,
     });
-    const worstTotalRatio = ratios.total.length ? Math.max(...ratios.total) : null;
-    const worstTtftRatio = ratios.ttft.length ? Math.max(...ratios.ttft) : null;
+    const worstTotalRatio = comparison.total.length
+      ? Math.max(...comparison.total)
+      : null;
+    const worstTtftRatio = comparison.ttft.length
+      ? Math.max(...comparison.ttft)
+      : null;
+    const worstObservedCostRatio = comparison.sameOpenRouterObservedCost.length
+      ? Math.max(...comparison.sameOpenRouterObservedCost)
+      : null;
 
     let status: SupplyPromotionStatus = "PROMOTION_READY";
     const reasons: string[] = [];
@@ -288,12 +342,30 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
         `live_span_days=${liveSpan.toFixed(1)}/${MAIN_RP_SUPPLY_PROMOTION_REQUIRED_LIVE_SPAN_DAYS}`
       );
     } else if (
-      ratios.missing > 0 ||
+      comparison.missing > 0 ||
       worstTotalRatio == null ||
       worstTtftRatio == null
     ) {
       status = "BASELINE_COMPARISON_MISSING";
       reasons.push("successful_live_pair_missing_current_baseline_comparison");
+    } else if (comparison.cacheRegressions > 0) {
+      status = "CACHE_REGRESSION";
+      reasons.push(
+        `current_route_cache_hit_but_candidate_missed=${comparison.cacheRegressions}`
+      );
+    } else if (comparison.sameOpenRouterCostMissing > 0) {
+      status = "OBSERVED_COST_EVIDENCE_MISSING";
+      reasons.push(
+        `same_openrouter_cost_comparisons_missing=${comparison.sameOpenRouterCostMissing}`
+      );
+    } else if (
+      worstObservedCostRatio != null &&
+      worstObservedCostRatio > 1
+    ) {
+      status = "OBSERVED_COST_REGRESSION";
+      reasons.push(
+        `worst_observed_cost_ratio=${worstObservedCostRatio.toFixed(3)} max=1`
+      );
     } else if (
       worstTotalRatio > MAIN_RP_SUPPLY_PROMOTION_MAX_TOTAL_TIME_RATIO ||
       worstTtftRatio > MAIN_RP_SUPPLY_PROMOTION_MAX_TTFT_RATIO
@@ -331,6 +403,8 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
       latestMarketUptime30mPercent: latestEndpoint?.uptimeLast30mPercent ?? null,
       worstCandidateTotalVsBaselineRatio: worstTotalRatio,
       worstCandidateTtftVsBaselineRatio: worstTtftRatio,
+      worstObservedCostVsBaselineRatio: worstObservedCostRatio,
+      cacheRegressionObservations: comparison.cacheRegressions,
       reasons,
     });
   }
@@ -354,7 +428,10 @@ export function evaluateMainRpSupplyPromotionHistory(input: {
       "Two complete canonical two-turn live pairs spanning >=14 days are required.",
       "Any recorded incomplete live pair for the same candidate blocks promotion until the history window moves past it.",
       "Candidate total response time must not exceed the current baseline and TTFT may be at most 1.25x the current baseline.",
-      "Direct suppliers without dedicated benchmark credentials are not eligible for this OpenRouter live-history gate.",
+      "For same-OpenRouter transitions, observed provider cost must be present and no higher than the actual current OpenRouter baseline in every successful comparison.",
+      "If the current OpenRouter baseline observes second-turn prompt-cache read, the candidate must preserve it.",
+      "Cross-provider observed cost values are not directly compared because provider billing semantics can differ.",
+      "Direct suppliers without dedicated benchmark credentials are not eligible for this OpenRouter live-history gate."
       "Production cutover remains a separate canary/rollback change.",
     ],
   };
