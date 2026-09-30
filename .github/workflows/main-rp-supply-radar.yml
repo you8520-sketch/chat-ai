@@ -43,6 +43,7 @@ jobs:
           scripts/lib/mainRpDirectSupplierRadar.test.ts
           scripts/lib/mainRpSupplyPromotionHistory.test.ts
           scripts/lib/mainRpSupplyPromotionProposal.test.ts
+          scripts/lib/mainRpSupplyAutoDraftPr.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
           scripts/lib/mainRpSupplyCurrentBaseline.test.ts
       - name: Read-only external supply scan
@@ -106,3 +107,54 @@ jobs:
           path: artifacts/main-rp-supply-radar
           if-no-files-found: error
           retention-days: 365
+
+  auto-draft-provider-pr:
+    name: Auto-create validated supplier Draft PR
+    needs: radar
+    if: github.event_name == 'schedule' && github.event.schedule == '47 3 1 * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    env:
+      REGULAR_TEST_REAL_PROVIDER_CALLS: "0"
+      MAIN_RP_SUPPLY_LIVE_QUALIFICATION: "0"
+      MAIN_RP_SUPPLY_RADAR_OUTPUT_DIR: artifacts/main-rp-supply-radar
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Download current supply evidence
+        uses: actions/download-artifact@v5
+        with:
+          name: main-rp-supply-radar-${{ github.run_id }}
+          path: artifacts/main-rp-supply-radar
+      - name: Create prevalidated Draft PR when promotion is ready
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --conditions=react-server --import tsx scripts/main-rp-supply-auto-draft-pr.ts
+      - name: Draft automation summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f artifacts/main-rp-supply-radar/AUTO-DRAFT-RESULTS.md ]; then
+            cat artifacts/main-rp-supply-radar/AUTO-DRAFT-RESULTS.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload Draft automation evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: main-rp-supply-auto-draft-${{ github.run_id }}
+          path: |
+            artifacts/main-rp-supply-radar/auto-draft-results.json
+            artifacts/main-rp-supply-radar/AUTO-DRAFT-RESULTS.md
+          if-no-files-found: error
+          retention-days: 365
+
