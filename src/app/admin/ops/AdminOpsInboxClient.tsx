@@ -15,6 +15,7 @@ const SOURCE_LABEL: Record<AdminOpsIncidentSource, string> = {
   payout: "크리에이터 출금",
   point_refund: "포인트 환불",
   procurement: "조달/계약",
+  web_push: "웹푸시",
 };
 
 function ageLabel(ageMinutes: number | null): string {
@@ -86,8 +87,8 @@ export default function AdminOpsInboxClient({
         <p>
           진행 상태인 CLAIMED / DISPATCHED / REQUESTED는 즉시 사고로 분류하지 않고{" "}
           <strong className="text-zinc-200">{stuckExecutionMinutes}분</strong> 이상 지속될 때만
-          예외함에 표시합니다. RECONCILIATION_REQUIRED와 scheduler의 실패·stale·누락은
-          canonical 상태를 그대로 반영합니다.
+          예외함에 표시합니다. RECONCILIATION_REQUIRED와 scheduler의 실패·stale·누락,
+          웹푸시의 반복 실패·소진·장기 stale claim은 canonical 상태를 그대로 반영합니다.
         </p>
       </section>
 
@@ -98,6 +99,7 @@ export default function AdminOpsInboxClient({
           ["payout", SOURCE_LABEL.payout],
           ["point_refund", SOURCE_LABEL.point_refund],
           ["procurement", SOURCE_LABEL.procurement],
+          ["web_push", SOURCE_LABEL.web_push],
         ] as const).map(([id, label]) => (
           <button
             key={id}
