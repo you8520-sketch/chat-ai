@@ -167,8 +167,10 @@ describe("verified point charge payment boundary", () => {
 
   it("server completion requires a concrete verified amount match", () => {
     const complete = source("src/app/api/payments/portone/complete/route.ts");
-    assert.match(complete, /remote\.totalAmount == null/);
-    assert.match(complete, /remote\.totalAmount !== checkout\.amount/);
+    const finalizer = source("src/lib/portonePaidFinalizer.ts");
+    assert.match(complete, /finalizePortoneCheckoutFromProvider/);
+    assert.match(finalizer, /remote\.totalAmount == null/);
+    assert.match(finalizer, /remote\.totalAmount !== checkout\.amount/);
   });
 
   it("point credit writer has one production caller", () => {
@@ -186,6 +188,16 @@ describe("verified point charge payment boundary", () => {
       "src/lib/pointCharge.ts",
       "src/lib/portoneCheckout.ts",
     ]);
+  });
+
+  it("webhook wake reuses the same paid finalizer and does not credit directly", () => {
+    const webhook = source("src/lib/portoneWebhook.ts");
+    const route = source("src/app/api/payments/portone/webhook/route.ts");
+    assert.match(webhook, /finalizePortoneCheckoutFromProvider/);
+    assert.match(webhook, /wakePointChargeRefundLookupByPaymentId/);
+    assert.match(route, /handlePortoneWebhookEvent/);
+    assert.doesNotMatch(webhook, /creditPointChargePackage/);
+    assert.doesNotMatch(webhook, /cancelPortOnePayment/);
   });
 
   it("verified checkout claims paid status before crediting points", () => {

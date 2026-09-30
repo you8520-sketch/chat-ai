@@ -244,6 +244,23 @@ function txUnused(
   return Math.abs(row.remaining_amount - expectedAmount) < 0.05;
 }
 
+export function getChargeBatchById(
+  batchId: number,
+  db: Database.Database = getDb()
+): PointChargeBatchRow | null {
+  ensurePointChargeBatchTable(db);
+  return (
+    (db
+      .prepare(
+        `SELECT id, user_id, portone_checkout_id, main_point_log_id, paid_amount, free_amount,
+                paid_transaction_id, free_transaction_id, price_krw, created_at, cancelled_at
+         FROM point_charge_batches
+         WHERE id = ?`
+      )
+      .get(batchId) as PointChargeBatchRow | undefined) ?? null
+  );
+}
+
 export function getChargeBatchByLogId(
   userId: number,
   pointLogId: number,
