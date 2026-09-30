@@ -86,6 +86,54 @@ export type CycleBenchmarkRecord = {
   error: string | null;
 };
 
+export type BaselinePromotionGateStatus =
+  | "OPEN"
+  | "BLOCKED_BASELINE_FAILED"
+  | "BLOCKED_REGRESSION"
+  | "BLOCKED_MIXED";
+
+export type BaselinePromotionGate = {
+  status: BaselinePromotionGateStatus;
+  blocked: boolean;
+  reason: string;
+};
+
+export function baselinePromotionGateFor(
+  baselineStatus: "RAN" | "FAILED",
+  trendStatus: BaselineTrendReport["status"]
+): BaselinePromotionGate {
+  if (baselineStatus === "FAILED" || trendStatus === "BASELINE_FAILED") {
+    return {
+      status: "BLOCKED_BASELINE_FAILED",
+      blocked: true,
+      reason:
+        "Current deterministic memory baseline failed; automatic candidate promotion, live experiments, and implementation PRs are suspended.",
+    };
+  }
+  if (trendStatus === "REGRESSION") {
+    return {
+      status: "BLOCKED_REGRESSION",
+      blocked: true,
+      reason:
+        "Current deterministic memory baseline regressed against the latest comparable cycle; automatic promotion is suspended until the regression is resolved or the benchmark definition changes.",
+    };
+  }
+  if (trendStatus === "MIXED") {
+    return {
+      status: "BLOCKED_MIXED",
+      blocked: true,
+      reason:
+        "Current deterministic memory baseline contains both gains and regressions; automatic promotion is suspended because a regression is present.",
+    };
+  }
+  return {
+    status: "OPEN",
+    blocked: false,
+    reason:
+      "No comparable deterministic baseline regression is blocking automatic research promotion.",
+  };
+}
+
 export type CycleReport = {
   cycleKey: string;
   mode: CycleMode;
@@ -108,10 +156,14 @@ export type CycleReport = {
     accept: number;
     draftPrPackets: number;
   };
-  skipped: Array<{ candidateKey: string; reason: SkipReason | "duplicate_in_cycle" }>;
+  skipped: Array<{
+    candidateKey: string;
+    reason: SkipReason | "duplicate_in_cycle" | "baseline_promotion_gate";
+  }>;
   decisions: CycleDecisionRecord[];
   baseline: { status: LabArmResult["status"]; metricsLine: string | null; error: string | null };
   baselineTrend: BaselineTrendReport;
+  baselinePromotionGate: BaselinePromotionGate;
   benchmarks: CycleBenchmarkRecord[];
   providerCalls: { paidProviderCalls: number; paidProviderCallBudget: number; httpCalls: number; httpBudget: number };
   estimatedCostUsd: number;
@@ -180,6 +232,11 @@ export async function runResearchCycle(
     decisions: [],
     baseline: { status: "FAILED", metricsLine: null, error: "not run" },
     baselineTrend: unavailableBaselineTrend("Benchmark fingerprint not provided."),
+    baselinePromotionGate: {
+      status: "OPEN",
+      blocked: false,
+      reason: "Baseline promotion gate has not been evaluated yet.",
+    },
     benchmarks: [],
     providerCalls: {
       paidProviderCalls: 0,
@@ -251,6 +308,11 @@ export async function runResearchCycle(
       : unavailableBaselineTrend("Benchmark fingerprint not provided and baseline failed.");
   }
 
+  report.baselinePromotionGate = baselinePromotionGateFor(
+    report.baseline.status,
+    report.baselineTrend.status
+  );
+
   const candidates = { ...ledger.candidates };
   const seenThisCycle = new Set<string>();
   const nowIso = deps.now.toISOString();
@@ -280,7 +342,6 @@ export async function runResearchCycle(
       continue;
     }
     if (!existing) report.counts.newCandidates += 1;
-    report.counts.evaluated += 1;
     report.companionExperimentProposals.push(...buildCompanionExperimentProposals(obs));
     const adoptionProposals = buildBenchmarkAdoptionProposals(obs);
     report.benchmarkAdoptionProposals.push(...adoptionProposals);
@@ -290,6 +351,18 @@ export async function runResearchCycle(
       ...assessBenchmarkHarnessFeasibilityBatch(casePortPlans)
     );
 
+    if (report.baselinePromotionGate.blocked) {
+      report.skipped.push({
+        candidateKey: obs.candidateKey,
+        reason: "baseline_promotion_gate",
+      });
+      if (existing) {
+        candidates[obs.candidateKey] = { ...existing, lastSeenAt: nowIso };
+      }
+      continue;
+    }
+
+    report.counts.evaluated += 1;
     const evaluated = await evaluateObservation(obs, adapter, liveRecipe, baseline, report, deps.now, runArm);
     assertValidTrail(evaluated.trail);
     const state = decisionState(evaluated.decision);
