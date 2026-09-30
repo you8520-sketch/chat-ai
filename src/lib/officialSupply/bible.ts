@@ -614,8 +614,8 @@ export function validateWorldBible(
   if (!Array.isArray(bible.userEntry?.allowedRoles) || bible.userEntry.allowedRoles.length < 2) {
     errors.push(err("world_user_entry_narrow", "userEntry needs at least 2 allowed roles"));
   }
-  if (!Array.isArray(bible.lorebook) || bible.lorebook.length < 8 || bible.lorebook.length > 12) {
-    errors.push(err("world_lorebook_count", `lorebook 8-12 required, got ${bible.lorebook?.length ?? 0}`));
+  if (!Array.isArray(bible.lorebook) || bible.lorebook.length < 3 || bible.lorebook.length > 8) {
+    errors.push(err("world_lorebook_count", `lorebook 3-8 useful entries required, got ${bible.lorebook?.length ?? 0}`));
   } else {
     bible.lorebook.forEach((entry, i) => {
       if (!nonEmpty(entry.name) || !nonEmpty(entry.content)) {
