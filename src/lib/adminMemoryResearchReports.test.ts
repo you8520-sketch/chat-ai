@@ -185,7 +185,7 @@ describe("admin Memory Research reports", () => {
 
     assert.equal(pipeline.pendingLiveExperiments, 1);
     assert.equal(pipeline.recordedLiveExperiments, 2);
-    assert.equal(pipeline.pendingImplementationPrs, 2);
+    assert.equal(pipeline.pendingImplementationPrs, 1);
     assert.equal(pipeline.implementationPrs, 1);
     assert.equal(pipeline.acceptedDraftPrs, 1);
     assert.equal(pipeline.items.length, 4);
