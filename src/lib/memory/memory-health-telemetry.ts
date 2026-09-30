@@ -3,12 +3,14 @@ import type { SummaryHealthState } from "@/lib/hybridMemory";
 import type { EpisodicSemanticRuntime } from "./memory-episodic-semantic-config";
 import type { EpisodicSemanticQueryResolution } from "./memory-episodic-semantic-jobs";
 
+export type MemorySummaryRuntimeState = SummaryHealthState | "MEMORY_DISABLED";
+
 export type MemoryHealthTelemetry = {
   memory_policy: typeof MEMORY_POLICY_ID;
   completed_playable_turns: number;
   summarized_through: number;
   next_pending_summary_range: string | null;
-  summary_health_state: SummaryHealthState;
+  summary_health_state: MemorySummaryRuntimeState;
   real_raw_complete_exchanges: number;
   opening_in_raw: boolean;
   bridge_in_raw: boolean;
@@ -26,7 +28,7 @@ export type MemoryHealthTelemetry = {
 export function buildMemoryHealthTelemetry(input: {
   completedPlayableTurns: number;
   summarizedThrough: number;
-  summaryHealthState: SummaryHealthState;
+  summaryHealthState: MemorySummaryRuntimeState;
   realRawCompleteExchanges: number;
   openingInRaw: boolean;
   bridgeInRaw: boolean;
