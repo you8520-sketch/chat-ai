@@ -33,6 +33,29 @@ export type MemoryResearchAdminReadinessCounts = {
   noPortRequired: number;
 };
 
+export type MemoryResearchAdminPromptPackingModel = {
+  modelId: string;
+  baselineInputTokens: number;
+  n15InputTokens: number;
+  n15DeltaInputTokens: number;
+  n15MediumTokens: number;
+  safeForPolicyConsideration: boolean;
+};
+
+export type MemoryResearchAdminPromptPacking = {
+  status: "PASS" | "FAIL";
+  generatedAt: string;
+  currentTurnFixture: number;
+  policyId: string;
+  rawRecentExchanges: number;
+  rollingSummaryInterval: number;
+  mediumTermBlockCount: number;
+  invariantPasses: number;
+  invariantTotal: number;
+  failedInvariants: string[];
+  models: MemoryResearchAdminPromptPackingModel[];
+};
+
 export type MemoryResearchAdminDecision = {
   candidateKey: string;
   decision: string;
@@ -95,6 +118,7 @@ export type MemoryResearchAdminRun = {
   localGoldAuthoringPackets: number;
   persistentMemoryGaps: number;
   persistentMemoryGapStatus: string | null;
+  promptPackingAudit: MemoryResearchAdminPromptPacking | null;
   readiness: MemoryResearchAdminReadinessCounts;
   insights: MemoryResearchAdminInsight[];
   decisions: MemoryResearchAdminDecision[];
@@ -141,6 +165,54 @@ function asArray(value: unknown): unknown[] {
 
 function stringList(value: unknown): string[] {
   return asArray(value).map(asString).filter(Boolean);
+}
+
+function projectPromptPackingAudit(
+  value: unknown
+): MemoryResearchAdminPromptPacking | null {
+  const audit = asRecord(value);
+  if (!audit) return null;
+  const architecture = asRecord(audit.architecture);
+  const invariants = asArray(audit.invariants)
+    .map(asRecord)
+    .filter((row): row is Record<string, unknown> => row !== null);
+  const models = asArray(audit.models)
+    .map(asRecord)
+    .filter((row): row is Record<string, unknown> => row !== null)
+    .map((row) => ({
+      modelId: asString(row.modelId),
+      baselineInputTokens: asNumber(row.baselineInputTokens),
+      n15InputTokens: asNumber(row.n15InputTokens),
+      n15DeltaInputTokens: asNumber(row.n15DeltaInputTokens),
+      n15MediumTokens: asNumber(row.n15MediumTokens),
+      safeForPolicyConsideration: row.n15SafeForPolicyConsideration === true,
+    }))
+    .filter((row) => row.modelId);
+
+  const failedInvariants = invariants
+    .filter((row) => row.ok !== true)
+    .map((row) => asString(row.id))
+    .filter(Boolean);
+
+  return {
+    status: failedInvariants.length === 0 ? "PASS" : "FAIL",
+    generatedAt: asString(audit.generatedAt),
+    currentTurnFixture: asNumber(audit.currentTurnFixture),
+    policyId: architecture ? asString(architecture.policyId) : "",
+    rawRecentExchanges: architecture
+      ? asNumber(architecture.rawRecentExchanges)
+      : 0,
+    rollingSummaryInterval: architecture
+      ? asNumber(architecture.rollingSummaryInterval)
+      : 0,
+    mediumTermBlockCount: architecture
+      ? asNumber(architecture.mediumTermBlockCount)
+      : 0,
+    invariantPasses: invariants.filter((row) => row.ok === true).length,
+    invariantTotal: invariants.length,
+    failedInvariants,
+    models,
+  };
 }
 
 function projectMemoryResearchInsights(
@@ -485,6 +557,7 @@ export function projectMemoryResearchAdminRun(
     persistentMemoryGapStatus: persistentMemoryGapReport
       ? asString(persistentMemoryGapReport.status) || null
       : null,
+    promptPackingAudit: projectPromptPackingAudit(cycle.promptPackingAudit),
     readiness: countReadiness(casePortPlans),
     insights,
     decisions: (priorityDecisions.length > 0 ? priorityDecisions : decisions).slice(
