@@ -180,7 +180,11 @@ export function computeArchitectureFingerprint(readFile: (path: string) => strin
 
 /** Every file whose content defines the architecture a benchmark decision was made against. */
 export function architectureFingerprintPaths(): string[] {
-  const all = new Set<string>();
+  const all = new Set<string>([
+    // Research capability routing (CATEGORY_OWNERS / BENCHMARK_HOOKED_OWNERS)
+    // changes whether a previously blocked candidate can enter the benchmark.
+    "src/lib/memoryResearch/ownerMap.ts",
+  ]);
   for (const entry of Object.values(MEMORY_OWNER_MAP)) {
     for (const path of entry.paths) {
       if (!path.startsWith(".github/")) all.add(path);
