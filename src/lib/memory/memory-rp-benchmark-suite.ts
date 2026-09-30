@@ -23,6 +23,7 @@ import {
   reconcileEpisodicMemoryFactsForGeneration,
   replaceEpisodicMemoryFactsForCanonicalMutation,
   type EpisodicDynamicBudgetPolicy,
+  type EpisodicRerankingPolicy,
   type GetEpisodicMemoryForPromptInput,
 } from "@/lib/episodicMemoryFacts";
 import {
@@ -81,6 +82,12 @@ export type BenchmarkSelectionArm = {
   candidateLimit?: number;
 };
 
+/**
+ * Research-only final-reranking weights. This does not alter candidate lanes,
+ * relevance admission, dedupe, state reconciliation, or semantic thresholds.
+ */
+export type BenchmarkScoringArm = EpisodicRerankingPolicy;
+
 export type BenchmarkMode = {
   label: string;
   /** null = exact lexical Retrieval V2 (the #1072 baseline). */
@@ -91,6 +98,7 @@ export type BenchmarkMode = {
   expectKnownGapHit?: boolean;
   packing?: BenchmarkPackingArm;
   selection?: BenchmarkSelectionArm;
+  scoring?: BenchmarkScoringArm;
 };
 
 export type BenchmarkTransportProbe = {
@@ -192,6 +200,7 @@ function retrievalInput(
     maxFacts: activeMode.selection?.maxFacts,
     maxChars: activeMode.selection?.maxChars,
     candidateLimit: activeMode.selection?.candidateLimit,
+    rerankingPolicy: activeMode.scoring,
   };
 }
 
