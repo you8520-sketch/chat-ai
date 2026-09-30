@@ -169,26 +169,22 @@ function validateModifiedRoute(input: {
   modelId: string;
   candidateProviderSlug: string;
 }): void {
-  const code = [
-    'import assert from "node:assert/strict";',
-    'import { resolveMainRpOpenRouterRoutePolicy } from "./src/lib/openRouterConfig.ts";',
-    "const policy = resolveMainRpOpenRouterRoutePolicy(" +
-      JSON.stringify(input.modelId) + ");",
-    "assert.ok(policy);",
-    "assert.equal(policy.provider.only[0], " +
-      JSON.stringify(input.candidateProviderSlug) + ");",
-    'assert.equal(policy.serviceTier, "flex");',
-    "assert.equal(policy.provider.allow_fallbacks, false);",
-    "assert.equal(policy.provider.require_parameters, true);",
-  ].join("\n");
-  run("node", [
-    "--conditions=react-server",
-    "--import",
-    "tsx",
-    "--input-type=module",
-    "-e",
-    code,
-  ]);
+  run(
+    "node",
+    [
+      "--conditions=react-server",
+      "--import",
+      "tsx",
+      "scripts/main-rp-supply-route-assert.ts",
+    ],
+    {
+      env: {
+        ...process.env,
+        MAIN_RP_SUPPLY_ASSERT_MODEL_ID: input.modelId,
+        MAIN_RP_SUPPLY_ASSERT_PROVIDER_SLUG: input.candidateProviderSlug,
+      },
+    }
+  );
 }
 
 function validateModifiedBranch(input: {
