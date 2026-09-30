@@ -57,3 +57,6 @@ Single Next.js 15 (App Router) app — an AI character chat platform (Korean UI,
   webServer boundary). The suite is not fully green on `main`: 6 files import
   `vitest` (not a dependency) and a handful of billing/length tests have pre-existing
   assertion mismatches. The large majority pass.
+
+### Engineering process
+Canonical overlay: `.cursor/rules/engineering-workflow.mdc`. This file stays Cloud environment/gotchas only.
