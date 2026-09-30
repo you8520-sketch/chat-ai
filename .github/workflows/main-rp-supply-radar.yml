@@ -11,7 +11,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
   actions: read
 
 concurrency:
@@ -43,6 +44,7 @@ jobs:
           scripts/lib/mainRpDirectSupplierRadar.test.ts
           scripts/lib/mainRpSupplyPromotionHistory.test.ts
           scripts/lib/mainRpSupplyPromotionProposal.test.ts
+          scripts/lib/mainRpSupplyAutoDraft.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
           scripts/lib/mainRpSupplyCurrentBaseline.test.ts
       - name: Read-only external supply scan
@@ -71,6 +73,11 @@ jobs:
       - name: Supply promotion proposal packet
         if: always()
         run: node --conditions=react-server --import tsx scripts/main-rp-supply-promotion-proposal.ts
+      - name: Create validated provider-switch Draft PR
+        if: success() && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --conditions=react-server --import tsx scripts/main-rp-supply-auto-draft.ts
       - name: Job summary
         if: always()
         shell: bash
@@ -97,6 +104,10 @@ jobs:
           if [ -f artifacts/main-rp-supply-radar/PROMOTION-PROPOSALS.md ]; then
             printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
             cat artifacts/main-rp-supply-radar/PROMOTION-PROPOSALS.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f artifacts/main-rp-supply-radar/AUTO-DRAFT.md ]; then
+            printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
+            cat artifacts/main-rp-supply-radar/AUTO-DRAFT.md >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload supply evidence
         if: always()

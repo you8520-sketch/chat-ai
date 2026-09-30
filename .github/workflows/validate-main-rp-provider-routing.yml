@@ -15,6 +15,9 @@ on:
       - "scripts/lib/mainRpMonthlyCacheAudit.ts"
       - "scripts/lib/mainRpSupplyRadar.ts"
       - "scripts/lib/mainRpSupplyLiveQualification.ts"
+      - "scripts/lib/mainRpSupplyAutoDraft.ts"
+      - "scripts/main-rp-supply-auto-draft.ts"
+      - "scripts/main-rp-supply-route-assert.ts"
       - "scripts/lib/mainRpSupplyCurrentBaseline.ts"
       - "scripts/lib/rpModelQualificationPacket.ts"
       - "**/*mainRp*test.ts"
@@ -64,5 +67,6 @@ jobs:
           scripts/lib/mainRpDirectSupplierRadar.test.ts
           scripts/lib/mainRpSupplyPromotionHistory.test.ts
           scripts/lib/mainRpSupplyPromotionProposal.test.ts
+          scripts/lib/mainRpSupplyAutoDraft.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
           scripts/lib/mainRpSupplyCurrentBaseline.test.ts
