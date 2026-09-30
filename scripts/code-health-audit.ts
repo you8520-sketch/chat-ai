@@ -36,7 +36,10 @@ async function main(): Promise<void> {
   mkdirSync(outDir, { recursive: true });
   const previousLedger = parseCodeHealthLedger(existsSync(ledgerPath) ? readFileSync(ledgerPath, "utf8") : null);
   const ciRuns = await fetchRecentFailedGithubRuns(fetch, AUTOMATION_REPORTS_GITHUB_REPO);
-  const scheduledProjection = await fetchGithubScheduledAutomationProjection(fetch);
+  const scheduledProjection = await fetchGithubScheduledAutomationProjection(fetch, {
+    token: process.env.GITHUB_TOKEN,
+    maxPages: 5,
+  });
   const report = runWeeklyCodeHealthAudit({
     repoRoot,
     mainSha,
