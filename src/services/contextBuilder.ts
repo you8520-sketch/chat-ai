@@ -14,6 +14,7 @@ import {
 import {
   HISTORICAL_TRUTH_POLICY_BLOCK,
   HISTORICAL_TRUTH_POLICY_SECTION_ID,
+  buildHistoricalTruthCurrentUserRecencyRef,
 } from "@/lib/historicalTruthPolicy";
 import {
   UNKNOWN_INFORMATION_TRUTH_GUARD_BLOCK,
@@ -1439,6 +1440,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     input.rpDiagnosticCanary.sceneDirectiveUserTail?.trim()
   ) {
     userTurnContent = `${userTurnContent.trimEnd()}\n\n${input.rpDiagnosticCanary.sceneDirectiveUserTail.trim()}`;
+  }
+  const historicalTruthRecencyRef =
+    buildHistoricalTruthCurrentUserRecencyRef(input.currentUserMessage);
+  if (historicalTruthRecencyRef) {
+    userTurnContent = `${userTurnContent.trimEnd()}\n\n${historicalTruthRecencyRef}`;
   }
   {
     // Layout first, then the generic terminal length owner as last instruction.
