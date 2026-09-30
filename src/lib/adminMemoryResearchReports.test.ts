@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   fetchMemoryResearchAdminProjection,
   MEMORY_RESEARCH_WORKFLOW_PATH,
+  projectMemoryResearchAdminPipeline,
   projectMemoryResearchAdminRun,
 } from "@/lib/adminMemoryResearchReports";
 import type { GithubScheduledAutomationGroup } from "@/lib/adminAutomationReports";
@@ -125,6 +126,81 @@ describe("admin Memory Research reports", () => {
     );
   });
 
+  it("projects pending live experiments, recorded live evidence, and implementation Draft state from the durable ledger", () => {
+    const pipeline = projectMemoryResearchAdminPipeline(
+      JSON.stringify({
+        schemaVersion: 1,
+        cycles: [],
+        candidates: {
+          "github:qwenlm/qwen3-embedding": {
+            candidateKey: "github:qwenlm/qwen3-embedding",
+            state: "WATCH",
+            lastDecision: "WATCH_LIVE_EXPERIMENT_PENDING",
+            draftPrUrl: null,
+            implementationPrUrl: null,
+          },
+          "github:fixture/live": {
+            candidateKey: "github:fixture/live",
+            state: "WATCH",
+            lastDecision: "WATCH_IMPLEMENTATION_PR_PENDING",
+            draftPrUrl: null,
+            implementationPrUrl: null,
+            liveExperiment: {
+              evaluatedAt: "2026-09-30T02:00:00Z",
+              candidateModel: "fixture/model",
+              gateDecision: "WATCH_IMPLEMENTATION_PR_PENDING",
+              candidateCostUsdPer1kTurns: 0.123,
+            },
+          },
+          "github:fixture/implemented": {
+            candidateKey: "github:fixture/implemented",
+            state: "WATCH",
+            lastDecision: "WATCH_IMPLEMENTATION_PR_PENDING",
+            draftPrUrl: null,
+            implementationPrUrl: "https://github.com/example/repo/pull/88",
+            liveExperiment: {
+              evaluatedAt: "2026-09-29T02:00:00Z",
+              candidateModel: "fixture/implemented-model",
+              gateDecision: "WATCH_IMPLEMENTATION_PR_PENDING",
+              candidateCostUsdPer1kTurns: 0.456,
+            },
+          },
+          "github:fixture/accepted": {
+            candidateKey: "github:fixture/accepted",
+            state: "ACCEPTED",
+            lastDecision: "ACCEPTED_QUALITY_GAIN",
+            draftPrUrl: "https://github.com/example/repo/pull/77",
+            implementationPrUrl: null,
+          },
+          "github:fixture/boring": {
+            candidateKey: "github:fixture/boring",
+            state: "WATCH",
+            lastDecision: "WATCH_NO_BENCHMARK_HOOK",
+            draftPrUrl: null,
+            implementationPrUrl: null,
+          },
+        },
+      })
+    );
+
+    assert.equal(pipeline.pendingLiveExperiments, 1);
+    assert.equal(pipeline.recordedLiveExperiments, 2);
+    assert.equal(pipeline.pendingImplementationPrs, 2);
+    assert.equal(pipeline.implementationPrs, 1);
+    assert.equal(pipeline.acceptedDraftPrs, 1);
+    assert.equal(pipeline.items.length, 4);
+    assert.equal(pipeline.items[0]?.candidateKey, "github:fixture/live");
+    assert.equal(pipeline.items[0]?.liveCandidateModel, "fixture/model");
+    assert.equal(pipeline.items[0]?.liveCostUsdPer1kTurns, 0.123);
+    assert.ok(
+      pipeline.items.some(
+        (row) =>
+          row.candidateKey === "github:fixture/implemented" &&
+          row.implementationPrUrl === "https://github.com/example/repo/pull/88"
+      )
+    );
+  });
+
   it("stays backward compatible with older cycle JSON that lacks newer research fields", () => {
     const run = projectMemoryResearchAdminRun(
       JSON.stringify({
@@ -160,7 +236,15 @@ describe("admin Memory Research reports", () => {
   it("reads the newest persisted cycle and attaches the scheduled workflow run", async () => {
     const ledger = JSON.stringify({
       schemaVersion: 1,
-      candidates: {},
+      candidates: {
+        "github:qwenlm/qwen3-embedding": {
+          candidateKey: "github:qwenlm/qwen3-embedding",
+          state: "WATCH",
+          lastDecision: "WATCH_LIVE_EXPERIMENT_PENDING",
+          draftPrUrl: null,
+          implementationPrUrl: null,
+        },
+      },
       cycles: [
         {
           cycleKey: "weekly-2026-W39",
@@ -210,6 +294,11 @@ describe("admin Memory Research reports", () => {
       /memory-research-ledger\/cycles\/weekly-2026-W40\.json/
     );
     assert.equal(seen.length, 2);
+    assert.equal(projection.pipeline.pendingLiveExperiments, 1);
+    assert.equal(
+      projection.pipeline.items[0]?.candidateKey,
+      "github:qwenlm/qwen3-embedding"
+    );
   });
 
   it("fails closed when the durable research ledger cannot be read", async () => {
@@ -220,6 +309,8 @@ describe("admin Memory Research reports", () => {
     );
     assert.equal(projection.status, "UNAVAILABLE");
     assert.equal(projection.run, null);
+    assert.equal(projection.pipeline.pendingLiveExperiments, 0);
+    assert.equal(projection.pipeline.items.length, 0);
     assert.match(projection.error ?? "", /503/);
   });
 });
