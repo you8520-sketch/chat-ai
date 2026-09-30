@@ -286,7 +286,7 @@ async function main(): Promise<void> {
         candidate_provider_generation_calls:
           report.providerGenerationCalls,
         current_baseline_provider_generation_calls:
-          comparison.currentCiGenerationCalls,
+          comparison.currentBaselineGenerationCalls,
         total_provider_generation_calls:
           comparison.providerGenerationCalls,
         max_total_provider_generation_calls:
