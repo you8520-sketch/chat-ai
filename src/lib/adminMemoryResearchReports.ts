@@ -35,6 +35,27 @@ export type MemoryResearchAdminDecision = {
   reason: string;
 };
 
+export type MemoryResearchAdminPipelineItem = {
+  candidateKey: string;
+  state: string;
+  lastDecision: string;
+  draftPrUrl: string | null;
+  implementationPrUrl: string | null;
+  liveEvaluatedAt: string | null;
+  liveCandidateModel: string | null;
+  liveGateDecision: string | null;
+  liveCostUsdPer1kTurns: number | null;
+};
+
+export type MemoryResearchAdminPipeline = {
+  pendingLiveExperiments: number;
+  recordedLiveExperiments: number;
+  pendingImplementationPrs: number;
+  implementationPrs: number;
+  acceptedDraftPrs: number;
+  items: MemoryResearchAdminPipelineItem[];
+};
+
 export type MemoryResearchAdminRun = {
   cycleKey: string;
   mode: string;
@@ -65,6 +86,7 @@ export type MemoryResearchAdminProjection = {
   run: MemoryResearchAdminRun | null;
   githubRunUrl: string | null;
   persistedReportUrl: string | null;
+  pipeline: MemoryResearchAdminPipeline;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -107,6 +129,88 @@ function parseJsonRecord(raw: string | null): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+const EMPTY_PIPELINE: MemoryResearchAdminPipeline = {
+  pendingLiveExperiments: 0,
+  recordedLiveExperiments: 0,
+  pendingImplementationPrs: 0,
+  implementationPrs: 0,
+  acceptedDraftPrs: 0,
+  items: [],
+};
+
+export function projectMemoryResearchAdminPipeline(
+  rawLedger: string | null
+): MemoryResearchAdminPipeline {
+  const ledger = parseJsonRecord(rawLedger);
+  const candidates = ledger ? asRecord(ledger.candidates) : null;
+  if (!candidates) return EMPTY_PIPELINE;
+
+  const items: MemoryResearchAdminPipelineItem[] = [];
+  let pendingLiveExperiments = 0;
+  let recordedLiveExperiments = 0;
+  let pendingImplementationPrs = 0;
+  let implementationPrs = 0;
+  let acceptedDraftPrs = 0;
+
+  for (const [candidateKey, rawCandidate] of Object.entries(candidates)) {
+    const candidate = asRecord(rawCandidate);
+    if (!candidate) continue;
+    const lastDecision = asString(candidate.lastDecision);
+    const draftPrUrl = asString(candidate.draftPrUrl) || null;
+    const implementationPrUrl = asString(candidate.implementationPrUrl) || null;
+    const live = asRecord(candidate.liveExperiment);
+
+    if (lastDecision === "WATCH_LIVE_EXPERIMENT_PENDING" && !live) {
+      pendingLiveExperiments += 1;
+    }
+    if (
+      lastDecision === "WATCH_IMPLEMENTATION_PR_PENDING" &&
+      !implementationPrUrl
+    ) {
+      pendingImplementationPrs += 1;
+    }
+    if (live) recordedLiveExperiments += 1;
+    if (implementationPrUrl) implementationPrs += 1;
+    if (draftPrUrl) acceptedDraftPrs += 1;
+
+    if (
+      lastDecision === "WATCH_LIVE_EXPERIMENT_PENDING" ||
+      lastDecision === "WATCH_IMPLEMENTATION_PR_PENDING" ||
+      live ||
+      implementationPrUrl ||
+      draftPrUrl
+    ) {
+      const cost = live ? live.candidateCostUsdPer1kTurns : null;
+      items.push({
+        candidateKey: asString(candidate.candidateKey) || candidateKey,
+        state: asString(candidate.state),
+        lastDecision,
+        draftPrUrl,
+        implementationPrUrl,
+        liveEvaluatedAt: live ? asString(live.evaluatedAt) || null : null,
+        liveCandidateModel: live ? asString(live.candidateModel) || null : null,
+        liveGateDecision: live ? asString(live.gateDecision) || null : null,
+        liveCostUsdPer1kTurns:
+          typeof cost === "number" && Number.isFinite(cost) ? cost : null,
+      });
+    }
+  }
+
+  items.sort((a, b) =>
+    (b.liveEvaluatedAt ?? "").localeCompare(a.liveEvaluatedAt ?? "") ||
+    a.candidateKey.localeCompare(b.candidateKey)
+  );
+
+  return {
+    pendingLiveExperiments,
+    recordedLiveExperiments,
+    pendingImplementationPrs,
+    implementationPrs,
+    acceptedDraftPrs,
+    items: items.slice(0, 10),
+  };
 }
 
 function latestCycleKeyFromLedger(raw: string | null): string | null {
@@ -302,9 +406,11 @@ export async function fetchMemoryResearchAdminProjection(
       run: null,
       githubRunUrl,
       persistedReportUrl: null,
+      pipeline: EMPTY_PIPELINE,
     };
   }
 
+  const pipeline = projectMemoryResearchAdminPipeline(ledger.raw);
   const cycleKey = latestCycleKeyFromLedger(ledger.raw);
   if (!cycleKey) {
     return {
@@ -313,6 +419,7 @@ export async function fetchMemoryResearchAdminProjection(
       run: null,
       githubRunUrl,
       persistedReportUrl: null,
+      pipeline,
     };
   }
 
@@ -329,6 +436,7 @@ export async function fetchMemoryResearchAdminProjection(
       run: null,
       githubRunUrl,
       persistedReportUrl: null,
+      pipeline,
     };
   }
 
@@ -340,6 +448,7 @@ export async function fetchMemoryResearchAdminProjection(
       run: null,
       githubRunUrl,
       persistedReportUrl: null,
+      pipeline,
     };
   }
 
@@ -352,5 +461,6 @@ export async function fetchMemoryResearchAdminProjection(
       `https://github.com/${repo}/blob/${MEMORY_RESEARCH_LEDGER_BRANCH}/cycles/${encodeURIComponent(
         cycleKey
       )}.json`,
+    pipeline,
   };
 }
