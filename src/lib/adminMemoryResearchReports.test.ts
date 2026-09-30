@@ -378,6 +378,29 @@ describe("admin Memory Research reports", () => {
     );
   });
 
+  it("fails closed when a persisted prompt-packing snapshot is malformed", () => {
+    const run = projectMemoryResearchAdminRun(
+      JSON.stringify({
+        cycleKey: "weekly-2026-W40",
+        mode: "weekly",
+        status: "COMPLETED",
+        finishedAt: "2026-09-30T01:18:00Z",
+        mainSha: "abc",
+        counts: {},
+        providerCalls: {},
+        estimatedCostUsd: 0,
+        productionTouched: false,
+        promptPackingAudit: {},
+        decisions: [],
+      })
+    );
+    assert.ok(run);
+    assert.equal(run.promptPackingAudit?.status, "FAIL");
+    assert.deepEqual(run.promptPackingAudit?.failedInvariants, [
+      "MALFORMED_PROMPT_PACKING_AUDIT",
+    ]);
+  });
+
   it("stays backward compatible with older cycle JSON that lacks newer research fields", () => {
     const run = projectMemoryResearchAdminRun(
       JSON.stringify({
