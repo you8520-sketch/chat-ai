@@ -172,6 +172,13 @@ function MemoryResearchCard({
   const run = projection.run;
   const state = run?.status ?? projection.status;
   const readiness = run?.readiness;
+  const pipeline = projection.pipeline;
+  const hasPipeline =
+    pipeline.pendingLiveExperiments > 0 ||
+    pipeline.recordedLiveExperiments > 0 ||
+    pipeline.pendingImplementationPrs > 0 ||
+    pipeline.implementationPrs > 0 ||
+    pipeline.acceptedDraftPrs > 0;
 
   return (
     <section className="mt-6 rounded-2xl border border-fuchsia-500/20 bg-fuchsia-950/10 p-5">
@@ -306,6 +313,103 @@ function MemoryResearchCard({
           {projection.status === "UNAVAILABLE"
             ? "Memory Research durable report를 읽지 못했습니다."
             : "아직 persisted Memory Research cycle이 없습니다."}
+        </p>
+      )}
+
+      {hasPipeline ? (
+        <div className="mt-4 rounded-xl border border-fuchsia-500/10 bg-black/10 p-3">
+          <p className="text-xs font-bold text-fuchsia-200">
+            연구 → live 검증 → Draft PR 파이프라인
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-5">
+            <div className="rounded-lg bg-black/20 p-2">
+              <p className="text-[10px] text-zinc-500">live 대기</p>
+              <p className="mt-1 font-bold">{pipeline.pendingLiveExperiments}</p>
+            </div>
+            <div className="rounded-lg bg-black/20 p-2">
+              <p className="text-[10px] text-zinc-500">live 기록</p>
+              <p className="mt-1 font-bold">{pipeline.recordedLiveExperiments}</p>
+            </div>
+            <div className="rounded-lg bg-black/20 p-2">
+              <p className="text-[10px] text-zinc-500">implementation PR 대기</p>
+              <p className="mt-1 font-bold">{pipeline.pendingImplementationPrs}</p>
+            </div>
+            <div className="rounded-lg bg-black/20 p-2">
+              <p className="text-[10px] text-zinc-500">implementation PR</p>
+              <p className="mt-1 font-bold">{pipeline.implementationPrs}</p>
+            </div>
+            <div className="rounded-lg bg-black/20 p-2">
+              <p className="text-[10px] text-zinc-500">ACCEPTED Draft</p>
+              <p className="mt-1 font-bold">{pipeline.acceptedDraftPrs}</p>
+            </div>
+          </div>
+
+          {pipeline.items.length ? (
+            <details className="mt-3 border-t border-white/5 pt-3">
+              <summary className="cursor-pointer text-xs font-semibold text-zinc-300">
+                pipeline 후보 {pipeline.items.length}건
+              </summary>
+              <div className="mt-2 space-y-2">
+                {pipeline.items.map((item) => (
+                  <div
+                    key={item.candidateKey}
+                    className="rounded-lg border border-white/5 bg-black/15 p-2 text-xs"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="break-all font-mono text-fuchsia-200">
+                          {item.candidateKey}
+                        </p>
+                        <p className="mt-1 text-zinc-400">
+                          {item.lastDecision || item.state || "상태 기록 없음"}
+                        </p>
+                        {item.liveCandidateModel ? (
+                          <p className="mt-1 text-zinc-500">
+                            live · {item.liveCandidateModel}
+                            {item.liveGateDecision ? ` · ${item.liveGateDecision}` : ""}
+                            {item.liveCostUsdPer1kTurns == null
+                              ? ""
+                              : ` · $ ${item.liveCostUsdPer1kTurns.toFixed(4)}/1k turns`}
+                          </p>
+                        ) : null}
+                        {item.liveEvaluatedAt ? (
+                          <p className="mt-1 text-zinc-600">
+                            live 평가 {fmtDate(item.liveEvaluatedAt)}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 flex-wrap gap-1.5">
+                        {item.draftPrUrl ? (
+                          <a
+                            href={item.draftPrUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded border border-white/10 px-2 py-1 text-[11px] font-semibold text-fuchsia-300 hover:bg-white/5"
+                          >
+                            ACCEPTED Draft ↗
+                          </a>
+                        ) : null}
+                        {item.implementationPrUrl ? (
+                          <a
+                            href={item.implementationPrUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded border border-white/10 px-2 py-1 text-[11px] font-semibold text-fuchsia-300 hover:bg-white/5"
+                          >
+                            Implementation PR ↗
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-4 text-xs text-zinc-600">
+          live experiment / implementation Draft 파이프라인 대기 항목이 없습니다.
         </p>
       )}
 
