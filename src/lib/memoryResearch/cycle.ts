@@ -6,6 +6,10 @@
  */
 import { runLabArm, type LabArmResult } from "@/lib/memoryResearch/benchmarkLab";
 import {
+  buildPersistentMemoryGapReport,
+  type PersistentMemoryGapReport,
+} from "@/lib/memoryResearch/persistentGapRadar";
+import {
   buildBaselineSnapshot,
   compareBaselineSnapshots,
   unavailableBaselineTrend,
@@ -174,6 +178,7 @@ export type CycleReport = {
   benchmarkAdoptionProposals: BenchmarkAdoptionProposal[];
   benchmarkCasePortPlans: BenchmarkCasePortPlan[];
   benchmarkHarnessFeasibility: HarnessFeasibilityEvidence[];
+  persistentMemoryGaps: PersistentMemoryGapReport;
   productionTouched: false;
 };
 
@@ -251,6 +256,7 @@ export async function runResearchCycle(
     benchmarkAdoptionProposals: [],
     benchmarkCasePortPlans: [],
     benchmarkHarnessFeasibility: [],
+    persistentMemoryGaps: buildPersistentMemoryGapReport(null, ledger.cycles),
     productionTouched: false,
   };
 
@@ -311,6 +317,10 @@ export async function runResearchCycle(
   report.baselinePromotionGate = baselinePromotionGateFor(
     report.baseline.status,
     report.baselineTrend.status
+  );
+  report.persistentMemoryGaps = buildPersistentMemoryGapReport(
+    baselineSnapshot,
+    ledger.cycles
   );
 
   const candidates = { ...ledger.candidates };
