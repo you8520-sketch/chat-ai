@@ -18,41 +18,32 @@ test("opaque JSX sandbox runs Teapot-style named component with direct hooks", a
   if (!compiled.ok) return;
 
   await page.goto("/");
-  await page.evaluate(() => {
-    const frame = document.createElement("iframe");
-    frame.id = "jsx-runtime-e2e";
-    frame.setAttribute("sandbox", "allow-scripts");
-    frame.src = "/jsx-sandbox/frame.html";
-    document.body.appendChild(frame);
-  });
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        const frame = document.createElement("iframe");
+        frame.id = "jsx-runtime-e2e";
+        frame.setAttribute("sandbox", "allow-scripts");
+        frame.addEventListener("load", () => resolve(), { once: true });
+        frame.src = "/jsx-sandbox/frame.html";
+        document.body.appendChild(frame);
+      })
+  );
 
   const iframe = page.locator("#jsx-runtime-e2e");
   await expect(iframe).toBeAttached();
-  await iframe.evaluate(
-    (el, payload) =>
-      new Promise<void>((resolve, reject) => {
-        const frame = el as HTMLIFrameElement;
-        const onLoad = () => {
-          try {
-            frame.contentWindow?.postMessage(
-              {
-                type: "hav-jsx-mount",
-                compiled: payload,
-                props: { hp: 45 },
-                parentOrigin: window.location.origin,
-              },
-              "*"
-            );
-            resolve();
-          } catch (error) {
-            reject(error);
-          }
-        };
-        if (frame.contentWindow && frame.contentDocument?.readyState === "complete") onLoad();
-        else frame.addEventListener("load", onLoad, { once: true });
-      }),
-    compiled.compiled
-  );
+  await page.evaluate((payload) => {
+    const frame = document.querySelector("#jsx-runtime-e2e") as HTMLIFrameElement | null;
+    frame?.contentWindow?.postMessage(
+      {
+        type: "hav-jsx-mount",
+        compiled: payload,
+        props: { hp: 45 },
+        parentOrigin: window.location.origin,
+      },
+      "*"
+    );
+  }, compiled.compiled);
 
   const frame = page.frameLocator("#jsx-runtime-e2e");
   const button = frame.getByRole("button");
