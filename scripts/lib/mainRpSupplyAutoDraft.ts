@@ -490,6 +490,41 @@ export async function executeGitHubDraftRoutePr(input: {
         throw new Error(`update_route_registry_http_${updateResponse.status}`);
       }
 
+      const latestBaseRefResponse = await githubRequest({
+        fetchImpl,
+        token: input.token,
+        url: `${api}/git/ref/heads/${encodeURIComponent(input.baseBranch)}`,
+      });
+      if (!latestBaseRefResponse.ok) {
+        throw new Error(
+          `final_base_ref_http_${latestBaseRefResponse.status}`
+        );
+      }
+      const latestBaseRef = await responseJson(latestBaseRefResponse);
+      const latestMainSha = String(
+        (latestBaseRef.object as Record<string, unknown> | undefined)?.sha ?? ""
+      );
+      if (latestMainSha !== input.baseSha) {
+        await githubRequest({
+          fetchImpl,
+          token: input.token,
+          url: `${api}/git/refs/heads/${input.mutation.branchName
+            .split("/")
+            .map(encodeURIComponent)
+            .join("/")}`,
+          method: "DELETE",
+        });
+        branchCreated = false;
+        return {
+          modelId: input.mutation.modelId,
+          candidateProviderSlug: input.mutation.candidateProviderSlug,
+          status: "STALE_MAIN_STOP",
+          pullRequestUrl: null,
+          branchName: null,
+          error: `expected_main=${input.baseSha} actual_main=${latestMainSha}`,
+        };
+      }
+
       const pullResponse = await githubRequest({
         fetchImpl,
         token: input.token,
