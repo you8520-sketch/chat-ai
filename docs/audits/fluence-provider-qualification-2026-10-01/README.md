@@ -141,4 +141,4 @@ Session-sticky procurement, real-time lowest-price switching, production multi-p
 
 ## FINAL STATUS
 
-**BLOCKED_WAITLIST_CREDENTIAL**. No production activation, promotion, merge, Railway change or live vendor call. Stop after the reviewable feature change and PR preparation; resume only the specifically blocked access/qualification work when its prerequisites are supplied.
+**BLOCKED_WAITLIST_CREDENTIAL**. Feature branch was pushed successfully. Draft PR creation was attempted and blocked by GitHub API `Forbidden`; no PR was created. Exact body and a manual Draft creation link are recorded in `VALIDATION.md`. No production activation, promotion, merge, Railway change or live vendor call. Stop after the reviewable feature change and PR preparation; resume only the specifically blocked access/qualification work when its prerequisites are supplied.

@@ -70,4 +70,12 @@ Local logs (not committed; no credentials intentionally logged):
 - `/tmp/fluence-production-build.log`
 - `/tmp/fluence-script-typecheck.log`
 
-Draft PR title/body are prepared in this audit directory. Publication/access outcomes are added after the Git/PR operations; no merge or production activation is authorized by this change.
+## Publication/access outcome
+
+- Feature commit: `4988fc0c` (`feat: prepare isolated Fluence supplier qualification`).
+- Native Git push succeeded: `origin/feat/fluence-provider-qualification` exists.
+- `gh pr create --draft --base main --head feat/fluence-provider-qualification --body-file .../PR-BODY.md` failed with `Post https://api.github.com/graphql: Forbidden`.
+- **No Draft PR was created**, so no PR URL/ID or attachment is claimed. Reviewable branch and exact draft body are saved; merge/activation did not occur.
+- GitHub's branch-push response supplied this manual creation page: <https://github.com/you8520-sketch/chat-ai/pull/new/feat/fluence-provider-qualification>. Use Draft mode if creating it manually.
+- To resume automated Draft PR creation, the managed environment needs allowed/authorized GitHub API access (`api.github.com`). Existing Git authentication already worked; no PAT is requested and secrets must not be pasted in chat.
+- The preparation snapshot records the audited HEAD and `sourceTreeDirty:true`, because it was captured before the feature commit. This is not a clean-source/live-provider observation.
