@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
@@ -115,6 +116,19 @@ describe("rpActiveModelQualityLive", () => {
         assert.match(request.url, /^https:\/\/api\.cheaperinference\.com\/v1\/chat\/completions\?/);
       }
     }
+  });
+
+  it("schedules only the bounded memory evidence while PR live calls remain opt-in", () => {
+    const yml = readFileSync(".github/workflows/validate-rp-active-model-quality.yml", "utf8");
+    assert.match(yml, /cron: "17 4 4 \* \*"/);
+    assert.match(
+      yml,
+      /RP_ACTIVE_MODEL_QUALITY_CASE_IDS=memory_current_state_priority,memory_false_shared_event/
+    );
+    assert.match(yml, /github\.event_name == 'schedule'/);
+    assert.match(yml, /\.github\/rp-active-model-quality-live\.trigger/);
+    assert.match(yml, /PR trigger absent; provider calls=0/);
+    assert.doesNotMatch(yml, /gh pr merge|--auto\b|ready-for-review/);
   });
 
   it("parses one bounded fake SSE generation without retry/fallback", async () => {
