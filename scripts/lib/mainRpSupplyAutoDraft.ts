@@ -18,13 +18,13 @@ export type AutoDraftPatchResult = {
 const PROVIDER_SLUG_RE = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 
 function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^$()|[\]{}\\]/g, "\\$&");
+  return value.replace(/[.*+?^$(){}|[\]\\]/g, "\\$&");
 }
 
 export function validateProviderSlug(value: string): string {
   const slug = value.trim();
   if (!PROVIDER_SLUG_RE.test(slug)) {
-    throw new Error(\`Unsafe OpenRouter provider slug: \${JSON.stringify(value)}\`);
+    throw new Error("Unsafe OpenRouter provider slug: " + JSON.stringify(value));
   }
   return slug;
 }
@@ -40,12 +40,6 @@ export function safeBranchComponent(value: string): string {
   return normalized;
 }
 
-/**
- * Patches exactly one canonical Main-RP OpenRouter route-policy row.
- *
- * Promotion automation may replace providerSlug only; serviceTier remains the
- * canonical row owner and must stay byte-for-byte compatible with Flex.
- */
 export function patchMainRpOpenRouterProvider(
   input: AutoDraftPatchInput
 ): AutoDraftPatchResult {
@@ -56,20 +50,23 @@ export function patchMainRpOpenRouterProvider(
 
   const model = escapeRegExp(modelId);
   const pattern = new RegExp(
-    \`("\${model}"\\\\s*:\\\\s*\\\\{[\\\\s\\\\S]{0,240}?providerSlug:\\\\s*")([^"]+)(")\`,
+    "(\\\"" + model +
+      "\\\"\\\\s*:\\\\s*\\\\{[\\\\s\\\\S]{0,240}?providerSlug:\\\\s*\\\")([^\\\"]+)(\\\")",
     "g"
   );
   const matches = [...input.source.matchAll(pattern)];
   if (matches.length !== 1) {
     throw new Error(
-      \`Expected exactly one route-policy row for \${modelId}, found \${matches.length}\`
+      "Expected exactly one route-policy row for " + modelId +
+        ", found " + matches.length
     );
   }
 
   const actual = matches[0]?.[2]?.trim() ?? "";
   if (actual !== expected) {
     throw new Error(
-      \`Route provider drift for \${modelId}: expected \${expected}, found \${actual}\`
+      "Route provider drift for " + modelId +
+        ": expected " + expected + ", found " + actual
     );
   }
   if (actual === candidate) {
@@ -81,22 +78,23 @@ export function patchMainRpOpenRouterProvider(
     };
   }
 
-  const source = input.source.replace(pattern, (_match, before, _old, after) => {
-    return \`\${before}\${candidate}\${after}\`;
-  });
-
+  const source = input.source.replace(
+    pattern,
+    (_match, before, _old, after) => before + candidate + after
+  );
   if (source === input.source) {
-    throw new Error(\`Route provider patch produced no change for \${modelId}\`);
+    throw new Error("Route provider patch produced no change for " + modelId);
   }
 
   const rowPattern = new RegExp(
-    \`"\${model}"\\\\s*:\\\\s*\\\\{[\\\\s\\\\S]{0,300}?providerSlug:\\\\s*"\${escapeRegExp(
-      candidate
-    )}"[\\\\s\\\\S]{0,180}?serviceTier:\\\\s*"flex"[\\\\s\\\\S]{0,80}?\\\\}\`
+    "\\\"" + model +
+      "\\\"\\\\s*:\\\\s*\\\\{[\\\\s\\\\S]{0,300}?providerSlug:\\\\s*\\\"" +
+      escapeRegExp(candidate) +
+      "\\\"[\\\\s\\\\S]{0,180}?serviceTier:\\\\s*\\\"flex\\\"[\\\\s\\\\S]{0,80}?\\\\}"
   );
   if (!rowPattern.test(source)) {
     throw new Error(
-      \`Patched route lost canonical Flex service tier for \${modelId}\`
+      "Patched route lost canonical Flex service tier for " + modelId
     );
   }
 
@@ -109,5 +107,5 @@ export function patchMainRpOpenRouterProvider(
 }
 
 export function autoDraftMarker(modelId: string, providerSlug: string): string {
-  return \`<!-- main-rp-supply-auto:\${modelId}:\${providerSlug} -->\`;
+  return "<!-- main-rp-supply-auto:" + modelId + ":" + providerSlug + " -->";
 }
