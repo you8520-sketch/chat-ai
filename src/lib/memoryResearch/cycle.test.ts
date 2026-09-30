@@ -439,3 +439,38 @@ it("ledger rejects unknown schema and round-trips deterministically", async () =
   const { ledger } = await runResearchCycle(emptyLedger(), deps(WEEK1, { sources: [staticSource("s", [OBS.graphInfra, OBS.noAdapter])] }));
   assert.equal(serializeLedger(parseLedger(serializeLedger(ledger))), serializeLedger(ledger));
 });
+
+
+it("workflow fail-closes Draft/live/implementation promotion while persist still records regression evidence", () => {
+  const workflow = readFileSync(".github/workflows/memory-research-cycle.yml", "utf8");
+  const script = readFileSync("scripts/memory-research-cycle.ts", "utf8");
+  const guard = "needs.research.outputs.baseline_promotion_blocked != 'true'";
+
+  assert.match(workflow, /baseline_promotion_blocked/);
+  assert.match(workflow, /baseline_promotion_gate_status/);
+  assert.match(script, /writeOutput\("baseline_promotion_blocked"/);
+  assert.match(script, /writeOutput\("baseline_promotion_gate_status"/);
+  assert.equal(
+    workflow.split(guard).length - 1,
+    3,
+    "draft_prs, live_experiments, and implementation_prs must all require the gate"
+  );
+
+  const draftStart = workflow.indexOf("\n  draft_prs:");
+  const liveStart = workflow.indexOf("\n  live_experiments:");
+  const implementationStart = workflow.indexOf("\n  implementation_prs:");
+  const persistStart = workflow.indexOf("\n  persist:");
+  assert.ok(
+    draftStart > 0 &&
+      liveStart > draftStart &&
+      implementationStart > liveStart &&
+      persistStart > implementationStart
+  );
+  assert.ok(workflow.slice(draftStart, liveStart).includes(guard));
+  assert.ok(workflow.slice(liveStart, implementationStart).includes(guard));
+  assert.ok(workflow.slice(implementationStart, persistStart).includes(guard));
+  assert.ok(
+    !workflow.slice(persistStart).includes(guard),
+    "persist must remain open so the regressed baseline snapshot is retained"
+  );
+});
