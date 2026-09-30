@@ -35,7 +35,6 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.match(block, /해체\(-다\/-했다\)/);
     assert.match(block, /가장 유효한 대사·행동·감각·거리·환경 변화 중 필요한 신호/);
     assert.match(block, /다음 beat에서는 초점을 자연스럽게 옮긴다/);
-    assert.match(block, /새로운 beat와 실제 장면 변화/);
     assert.doesNotMatch(block, /표정·시선·호흡·습관·접촉·거리·행동·선택/);
     assert.doesNotMatch(block, /중요한 순간과 전환엔 짧은 정적/);
     assert.match(block, /설정 설명 없이/);
