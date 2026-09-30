@@ -10,7 +10,7 @@ import {
 
 function history(): MainRpSupplyPromotionHistoryReport {
   return {
-    version: 1,
+    version: 2,
     generatedAt: "2026-10-22T00:00:00.000Z",
     snapshotsExamined: 4,
     promotionReadyCount: 2,
