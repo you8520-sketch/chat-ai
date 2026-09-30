@@ -1,4 +1,5 @@
 import { MEMORY_POLICY_ID, newAutomaticBatchEnd } from "./memory-constants";
+import type { SummaryHealthState } from "@/lib/hybridMemory";
 import type { EpisodicSemanticRuntime } from "./memory-episodic-semantic-config";
 import type { EpisodicSemanticQueryResolution } from "./memory-episodic-semantic-jobs";
 
@@ -7,6 +8,7 @@ export type MemoryHealthTelemetry = {
   completed_playable_turns: number;
   summarized_through: number;
   next_pending_summary_range: string | null;
+  summary_health_state: SummaryHealthState;
   real_raw_complete_exchanges: number;
   opening_in_raw: boolean;
   bridge_in_raw: boolean;
@@ -24,6 +26,7 @@ export type MemoryHealthTelemetry = {
 export function buildMemoryHealthTelemetry(input: {
   completedPlayableTurns: number;
   summarizedThrough: number;
+  summaryHealthState: SummaryHealthState;
   realRawCompleteExchanges: number;
   openingInRaw: boolean;
   bridgeInRaw: boolean;
@@ -42,6 +45,7 @@ export function buildMemoryHealthTelemetry(input: {
     completed_playable_turns: input.completedPlayableTurns,
     summarized_through: input.summarizedThrough,
     next_pending_summary_range: nextStart >= 1 ? `${nextStart}~${nextEnd}` : null,
+    summary_health_state: input.summaryHealthState,
     real_raw_complete_exchanges: input.realRawCompleteExchanges,
     opening_in_raw: input.openingInRaw,
     bridge_in_raw: input.bridgeInRaw,
