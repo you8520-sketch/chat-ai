@@ -164,10 +164,16 @@ async function liveExperiments(): Promise<void> {
       `rejected: ${report.rejected}`,
       `watch: ${report.watch}`,
       `actualCostUsd: ${report.actualCostUsd.toFixed(6)}`,
+      `persistent-gap priority: ${report.priorityCandidateKeys.join(", ") || "-"}`,
+      "",
+      ...report.gapRoutes.map(
+        (route) =>
+          `- gap ${route.caseId}: ${route.status} / owners=${route.ownerHints.join(", ") || "UNRESOLVED"} / candidates=${route.candidateKeys.join(", ") || "-"}`
+      ),
       "",
       ...report.records.map(
         (r) =>
-          `- ${r.candidateKey}: ${r.status} / ${r.decision ?? "NO_DECISION"} / cost=${r.actualCostUsd.toFixed(6)} / ${r.reason}`
+          `- ${r.candidateKey}: ${r.status} / ${r.decision ?? "NO_DECISION"} / cost=${r.actualCostUsd.toFixed(6)} / priorityGaps=${r.priorityGapCaseIds.join(", ") || "-"} / ${r.reason}`
       ),
       "",
     ].join("\n")

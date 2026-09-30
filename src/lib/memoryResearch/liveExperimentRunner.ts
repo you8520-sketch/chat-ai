@@ -6,6 +6,10 @@
 import { formatBenchmarkMetricsLine } from "@/lib/memory/memory-rp-benchmark";
 import type { LiveArmResult, LiveBenchmarkResult } from "../../../scripts/lib/episodicEmbeddingLiveBenchmark";
 import { evaluateGates, type LabRunSummary } from "@/lib/memoryResearch/gates";
+import {
+  buildPersistentGapLivePriority,
+  type PersistentGapExperimentRoute,
+} from "@/lib/memoryResearch/persistentGapExperimentRouter";
 import type { ResearchLedger } from "@/lib/memoryResearch/ledger";
 import {
   assertValidTrail,
@@ -28,6 +32,7 @@ export type LiveExperimentRecord = {
   referenceModel: string;
   candidateModel: string;
   actualCostUsd: number;
+  priorityGapCaseIds: string[];
 };
 
 export type LiveExperimentReport = {
@@ -39,6 +44,8 @@ export type LiveExperimentReport = {
   rejected: number;
   watch: number;
   actualCostUsd: number;
+  priorityCandidateKeys: string[];
+  gapRoutes: PersistentGapExperimentRoute[];
   records: LiveExperimentRecord[];
 };
 
@@ -145,6 +152,7 @@ export async function runPendingLiveExperiments(
 ): Promise<{ ledger: ResearchLedger; report: LiveExperimentReport }> {
   const startedAt = deps.now.toISOString();
   const candidates = { ...ledger.candidates };
+  const gapPriority = buildPersistentGapLivePriority(ledger);
   const report: LiveExperimentReport = {
     status: "COMPLETED",
     startedAt,
@@ -154,18 +162,38 @@ export async function runPendingLiveExperiments(
     rejected: 0,
     watch: 0,
     actualCostUsd: 0,
+    priorityCandidateKeys: [...gapPriority.priorityCandidateKeys],
+    gapRoutes: [...gapPriority.routes],
     records: [],
   };
 
   const allPending = Object.values(candidates).filter(
     (candidate) => candidate.state === "WATCH" && candidate.lastDecision === "WATCH_LIVE_EXPERIMENT_PENDING"
   );
-  const pending = allPending.slice(0, LIVE_EXPERIMENT_MAX_CANDIDATES);
+  const priorityRank = new Map(
+    gapPriority.priorityCandidateKeys.map((candidateKey, index) => [candidateKey, index])
+  );
+  const pending = allPending
+    .map((candidate, originalIndex) => ({ candidate, originalIndex }))
+    .sort((a, b) => {
+      const aPriority = priorityRank.get(a.candidate.candidateKey);
+      const bPriority = priorityRank.get(b.candidate.candidateKey);
+      if (aPriority != null && bPriority != null) return aPriority - bPriority;
+      if (aPriority != null) return -1;
+      if (bPriority != null) return 1;
+      return a.originalIndex - b.originalIndex;
+    })
+    .slice(0, LIVE_EXPERIMENT_MAX_CANDIDATES)
+    .map(({ candidate }) => candidate);
   if (pending.length === 0) {
     report.status = "NOT_RUN";
     report.finishedAt = new Date().toISOString();
     return { ledger, report };
   }
+
+  const priorityCasesFor = (candidateKey: string): string[] => [
+    ...(gapPriority.gapCaseIdsByCandidateKey[candidateKey] ?? []),
+  ];
 
   for (const candidate of pending) {
     const recipe = findLiveExperimentRecipe(candidate.candidateKey);
@@ -180,6 +208,7 @@ export async function runPendingLiveExperiments(
         referenceModel: "",
         candidateModel: "",
         actualCostUsd: 0,
+        priorityGapCaseIds: priorityCasesFor(candidate.candidateKey),
       });
       continue;
     }
@@ -199,6 +228,7 @@ export async function runPendingLiveExperiments(
         referenceModel: recipe.referenceModel.modelId,
         candidateModel: recipe.candidateModel.modelId,
         actualCostUsd: 0,
+        priorityGapCaseIds: priorityCasesFor(candidate.candidateKey),
       });
       continue;
     }
@@ -215,6 +245,7 @@ export async function runPendingLiveExperiments(
         referenceModel: recipe.referenceModel.modelId,
         candidateModel: recipe.candidateModel.modelId,
         actualCostUsd: 0,
+        priorityGapCaseIds: priorityCasesFor(candidate.candidateKey),
       });
       continue;
     }
@@ -232,6 +263,7 @@ export async function runPendingLiveExperiments(
         referenceModel: recipe.referenceModel.modelId,
         candidateModel: recipe.candidateModel.modelId,
         actualCostUsd: 0,
+        priorityGapCaseIds: priorityCasesFor(candidate.candidateKey),
       });
       continue;
     }
@@ -325,6 +357,7 @@ export async function runPendingLiveExperiments(
       referenceModel: reference.model,
       candidateModel: arm.model,
       actualCostUsd: (reference.actualProviderCostUsd ?? 0) + (arm.actualProviderCostUsd ?? 0),
+      priorityGapCaseIds: priorityCasesFor(candidate.candidateKey),
     });
 
     if (report.actualCostUsd >= LIVE_EXPERIMENT_MAX_REPORTED_COST_USD) {
