@@ -5,6 +5,11 @@ on:
     paths:
       - "src/lib/adminOpsInbox.ts"
       - "src/lib/adminAutomationReports.ts"
+      - "src/lib/userNotifications.ts"
+      - "src/lib/userNotificationPresentation.ts"
+      - "src/cron/adminSupplyDraftNotificationScheduler.ts"
+      - "src/cron/adminSupplyDraftNotificationScheduler.test.ts"
+      - "server.js"
       - "src/lib/openRouterContractWatch.ts"
       - "src/lib/openRouterContractWatch.test.ts"
       - "src/lib/adminOpsInboxShared.ts"
@@ -42,8 +47,11 @@ jobs:
         run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
       - name: App typecheck
         run: npm run typecheck:app
-      - name: Ops inbox regression
-        run: node --conditions=react-server --import tsx --test src/lib/adminOpsInbox.test.ts
+      - name: Ops inbox + admin supply Draft notification regressions
+        run: >-
+          node --conditions=react-server --import tsx --test --test-concurrency=1
+          src/lib/adminOpsInbox.test.ts
+          src/cron/adminSupplyDraftNotificationScheduler.test.ts
       - name: OpenRouter contract watch regression
         run: node --conditions=react-server --import tsx --test src/lib/openRouterContractWatch.test.ts
       - name: Production build
