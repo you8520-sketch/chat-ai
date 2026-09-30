@@ -44,7 +44,7 @@ jobs:
           scripts/lib/mainRpSupplyPromotionHistory.test.ts
           scripts/lib/mainRpSupplyPromotionProposal.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
-          scripts/lib/mainRpSupplyCiBaseline.test.ts
+          scripts/lib/mainRpSupplyCurrentBaseline.test.ts
       - name: Read-only external supply scan
         run: node --conditions=react-server --import tsx scripts/main-rp-supply-radar.ts
       - name: Assert zero generation calls
