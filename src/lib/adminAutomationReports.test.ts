@@ -39,6 +39,38 @@ describe("admin automation reports projection", () => {
     assert.deepEqual(groups[0]?.history.map((run) => run.id), [2, 1]);
   });
 
+  it("can authenticate scheduled-run reads without changing projection semantics", async () => {
+    let authorization = "";
+    const projection = await fetchGithubScheduledAutomationProjection(
+      async (_input, init) => {
+        const headers = new Headers(init?.headers);
+        authorization = headers.get("authorization") ?? "";
+        return new Response(
+          JSON.stringify({
+            workflow_runs: [
+              {
+                id: 7,
+                name: "Weekly cache",
+                path: ".github/workflows/cache.yml",
+                status: "completed",
+                conclusion: "success",
+                run_number: 7,
+                created_at: "2026-09-30T00:00:00Z",
+                updated_at: "2026-09-30T00:01:00Z",
+                html_url: "https://github.test/runs/7",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      },
+      { token: "test-token", maxPages: 1 }
+    );
+    assert.equal(authorization, "Bearer test-token");
+    assert.equal(projection.status, "OK");
+    assert.equal(projection.groups[0]?.latest.id, 7);
+  });
+
   it("fails closed as UNAVAILABLE without breaking the admin page", async () => {
     const projection = await fetchGithubScheduledAutomationProjection(
       async () => new Response("nope", { status: 503 })
