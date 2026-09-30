@@ -96,7 +96,7 @@ export function renderRuntimeAppearanceBlock(lock: OfficialAppearanceLock): stri
     `키/체형: ${id.heightCm}cm, ${id.build}`,
     hair ? `머리: ${hair}` : "",
     `눈: ${id.eyeColor}`,
-    id.identifyingFeatures.length ? `식별 특징: ${id.identifyingFeatures.slice(0, 2).join(", ")}` : "",
+    id.identifyingFeatures.length ? `식별 특징: ${id.identifyingFeatures.slice(0, 1).join(", ")}` : "",
   ]
     .filter(Boolean)
     .join("\n");
