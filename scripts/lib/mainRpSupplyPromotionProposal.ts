@@ -29,6 +29,8 @@ export type SupplyPromotionProposal = {
     latestSavingsPercent: number | null;
     worstCandidateTotalVsBaselineRatio: number | null;
     worstCandidateTtftVsBaselineRatio: number | null;
+    worstObservedCostVsBaselineRatio: number | null;
+    cacheRegressionObservations: number;
   };
   requiredReviewOwners: string[];
 };
@@ -129,6 +131,10 @@ function proposalFromEvidence(input: {
         input.evidence.worstCandidateTotalVsBaselineRatio,
       worstCandidateTtftVsBaselineRatio:
         input.evidence.worstCandidateTtftVsBaselineRatio,
+      worstObservedCostVsBaselineRatio:
+        input.evidence.worstObservedCostVsBaselineRatio,
+      cacheRegressionObservations:
+        input.evidence.cacheRegressionObservations,
     },
     requiredReviewOwners: transition.requiredReviewOwners,
   };
@@ -183,18 +189,18 @@ export function renderMainRpSupplyPromotionProposalMarkdown(
     `- cross-provider review required: **${packet.crossProviderReviewRequiredCount}**`,
     `- automatic merge eligible: **0**`,
     "",
-    "| Model | Candidate | Current procurement | Transition | Draft route PR | Savings | Market span | Live pairs/span | Worst total | Worst TTFT | STOP |",
-    "|---|---|---|---|---|---:|---:|---|---:|---:|---|",
+    "| Model | Candidate | Current procurement | Transition | Draft route PR | Savings | Market span | Live pairs/span | Worst total | Worst TTFT | Worst observed cost | Cache regressions | STOP |",
+    "|---|---|---|---|---|---:|---:|---|---:|---:|---:|---:|---|",
   ];
 
   for (const row of packet.proposals) {
     lines.push(
-      `| ${row.modelId} | ${row.candidateProviderName} (${row.candidateProviderSlug}) | ${row.currentProcurementProvider ?? "unknown"} | ${row.transitionKind} | ${row.draftRoutePrEligible ? "YES" : "NO"} | ${n(row.evidence.latestSavingsPercent, 1)}% | ${n(row.evidence.marketObservationSpanDays, 1)}d | ${row.evidence.completeLivePairs} / ${n(row.evidence.liveObservationSpanDays, 1)}d | ${n(row.evidence.worstCandidateTotalVsBaselineRatio, 3)} | ${n(row.evidence.worstCandidateTtftVsBaselineRatio, 3)} | ${row.stopReason ?? "none"} |`
+      `| ${row.modelId} | ${row.candidateProviderName} (${row.candidateProviderSlug}) | ${row.currentProcurementProvider ?? "unknown"} | ${row.transitionKind} | ${row.draftRoutePrEligible ? "YES" : "NO"} | ${n(row.evidence.latestSavingsPercent, 1)}% | ${n(row.evidence.marketObservationSpanDays, 1)}d | ${row.evidence.completeLivePairs} / ${n(row.evidence.liveObservationSpanDays, 1)}d | ${n(row.evidence.worstCandidateTotalVsBaselineRatio, 3)} | ${n(row.evidence.worstCandidateTtftVsBaselineRatio, 3)} | ${n(row.evidence.worstObservedCostVsBaselineRatio, 3)} | ${row.evidence.cacheRegressionObservations} | ${row.stopReason ?? "none"} |`
     );
   }
 
   if (!packet.proposals.length) {
-    lines.push("| — | — | — | — | — | — | — | — | — | — | no PROMOTION_READY evidence yet |");
+    lines.push("| — | — | — | — | — | — | — | — | — | — | — | — | no PROMOTION_READY evidence yet |");
   }
 
   lines.push("", "## Interpretation boundary", "");
