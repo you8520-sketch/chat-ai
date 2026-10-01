@@ -39,30 +39,32 @@ describe("buildLengthInstruction", () => {
     const block = buildLengthInstruction();
     assert.equal(block, "");
     assert.equal(BOUNDED_LENGTH_OWNER_SENTENCE, "");
-    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다/);
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /별도 분량 지시가 없으면 한국어 약 3,000자를 중심으로/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /최초로 확인 가능한 결과/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /TARGET_LENGTH/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /MINIMUM_FLOOR/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /Never stop at the first satisfying ending/);
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /사용자가 더 긴 분량을 요청하면|사용자가 더 긴 분량을 요청하거나/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /최대|상한|이내/);
   });
 
   it("null targetInput still keeps empty system length (tier normalize unchanged)", () => {
     assert.equal(buildLengthInstruction(null), "");
-    assert.equal(normalizeTargetResponseChars(2400), 3200);
+    assert.equal(normalizeTargetResponseChars(2400), 3000);
   });
 
   it("legacy per-user aim still normalizes; system length stays empty", () => {
     for (const legacy of [2000, 2400, 2700, 2800, 3000]) {
-      assert.equal(normalizeTargetResponseChars(legacy), 3200);
+      assert.equal(normalizeTargetResponseChars(legacy), 3000);
       assert.equal(buildLengthInstruction(legacy), "");
     }
   });
 
   it("appendCompactTerminalLengthToUserTurn: layout then length owner last", () => {
-    const out = appendCompactTerminalLengthToUserTurn("밤이 깊었어.", 3200);
+    const out = appendCompactTerminalLengthToUserTurn("밤이 깊었어.", 3000);
     assert.match(out, /^밤이 깊었어\./);
     assert.match(out, /지문과 "…" 대사 사이 빈 줄/);
-    assert.match(out, /3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다/);
+    assert.match(out, /별도 분량 지시가 없으면 한국어 약 3,000자를 중심으로/);
     assert.ok(out.endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
     const layoutIdx = out.indexOf("지문과");
     const lengthIdx = out.indexOf(USER_TAIL_LENGTH_OWNER_SENTENCE);
@@ -76,7 +78,7 @@ describe("buildLengthInstruction", () => {
 
   it("terminal length override is empty after consolidation", () => {
     assert.equal(buildCompactTerminalLengthAbsoluteTail(undefined), "");
-    assert.equal(buildTerminalLengthOverrideBlock(3200), "");
+    assert.equal(buildTerminalLengthOverrideBlock(3000), "");
     assert.equal(buildTerminalLengthOverrideRecencyBlock(undefined), "");
   });
 
@@ -88,7 +90,7 @@ describe("buildLengthInstruction", () => {
   it("OpenRouter canonical model: system owners=0; generic terminal length last on user turn", async () => {
     await withServerOnlyMock(async () => {
       const { buildContext } = await import("@/services/contextBuilder");
-      const { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } = await import("@/lib/chatModels");
+      const { CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL } = await import("@/lib/chatModels");
 
       const built = buildContext({
         charName: "태형",
@@ -110,9 +112,9 @@ describe("buildLengthInstruction", () => {
         gender: "male",
         userId: 1,
         chatId: 1,
-        targetResponseChars: 3200,
+        targetResponseChars: 3000,
         completedTurns: 2,
-        modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+        modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
         provider: "openrouter",
         personaDisplayName: "렌",
         contentKind: "character",
