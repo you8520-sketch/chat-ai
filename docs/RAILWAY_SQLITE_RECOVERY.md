@@ -2,7 +2,7 @@
 
 This is an operator procedure for the `chat-ai` production volume. It does not restore anything by itself.
 
-Status of the live backup schedule is `BACKUP_STATUS_UNVERIFIED` until an authorized Railway read shows the Backups tab. A passing synthetic SQLite test is `SYNTHETIC_RESTORE_VALIDATED` only. It is not a production restore.
+An operator screenshot of the production Backups tab on 2026-10-01 showed one listed backup (displayed as 2026-10-01 21:58 local time, 1.62 GB) and "Next backup in 18 hours". This is `BACKUP_UI_ITEM_CONFIRMED`, not proof of snapshot integrity or a successful restore. The individual Daily/Weekly/Monthly switch states are still UNVERIFIED because API reads were unauthorized and no screenshot of those switches was supplied. A passing synthetic SQLite test is `SYNTHETIC_RESTORE_VALIDATED` only, not a production restore.
 
 ## What is durable
 
@@ -11,13 +11,13 @@ Status of the live backup schedule is `BACKUP_STATUS_UNVERIFIED` until an author
 | SQLite database | `DATA_DIR/app.db` (`/data/app.db` in production) | Yes, together with its `-wal` and `-shm` files |
 | Local uploads | `DATA_DIR/uploads` | Yes, when `BLOB_READ_WRITE_TOKEN` is unset |
 | Blob uploads | Vercel Blob, URL stored in the database | No |
-| Withdrawal images | `process.cwd()/data/secure-uploads/withdrawals` | No. This path is not `getDataDir()` |
+| Withdrawal document files | No active upload. New requests store empty path columns; historical non-empty rows or legacy files are UNKNOWN | No active file writer. Any old files under `cwd/data/secure-uploads/withdrawals` would be outside `/data` and NOT covered |
 | Session signing and withdrawal decryption | `SESSION_SECRET`, or `WITHDRAWAL_ENCRYPTION_KEY` when set | No. These are Railway variables, not volume files |
 | Web push private key | `WEB_PUSH_VAPID_*` env, or `app_meta.web_push_vapid_json` inside the database | Only the database copy |
 
 Do not print or copy those variable values into tickets, logs, or GitHub artifacts.
 
-Restoring only `app.db` drops local images whose database rows point at `/uploads/...`. Restoring the volume without the same encryption variables leaves encrypted withdrawal fields unreadable. Withdrawal images are outside the volume even when the database rows still point at them.
+Restoring only `app.db` drops local images whose database rows point at `/uploads/...`. Restoring the volume without the same encryption variables leaves encrypted resident-number fields unreadable. Identity-document upload is not an active path. If historical documents still exist outside `/data`, restoring the volume cannot recreate them; their existence has not been verified.
 
 ## Backup owner
 
@@ -31,7 +31,7 @@ Public Railway retention, from the volume backup documentation as of this audit:
 
 Billing is incremental and copy-on-write, at the same per-GB per-minute volume rate, invoiced monthly. A manual backup is limited to 50% of the volume size. Wiping a volume deletes its backups. A backup can be restored only into the same Railway project and environment.
 
-Confirm the live schedule before relying on it: Railway → project → production → service `chat-ai` → volume mounted at `/data` → **Backups**. Record whether Daily, Weekly, and Monthly are on, the newest successful backup time, and that the mount is `/data`. If the API token cannot read `volumeInstanceBackupScheduleList` and `volumeInstanceBackupList`, leave the status `BACKUP_STATUS_UNVERIFIED`.
+Confirm the live schedule before relying on it: Railway → project → production → service `chat-ai` → volume mounted at `/data` → **Backups**. Record whether Daily, Weekly, and Monthly are on, the newest successful backup time, and that the mount is `/data`. If the API token cannot read `volumeInstanceBackupScheduleList` and `volumeInstanceBackupList`, leave the individual schedule toggles UNVERIFIED; retain separately the dated screenshot evidence of the one listed backup.
 
 Enabling a schedule is a service change and can add backup storage cost. Do not enable it from a script. An operator turns it on in that Backups tab after accepting the cost.
 
@@ -65,7 +65,7 @@ Do this only for the production project and its production environment. Railway 
 3. On a one-off Railway shell, open `/data/app.db` read-only and run `PRAGMA integrity_check` and `PRAGMA foreign_key_check`. Do not print user rows.
 4. Confirm `/data/app.db-wal` is present or that SQLite has checkpointed it. Do not copy `app.db` by itself while WAL mode is on.
 5. Open one public character image. If the URL is `/uploads/...`, the file must exist under `/data/uploads`. If the URL is a Blob host, the volume restore did not move those bytes.
-6. Do not open withdrawal documents in the ticket. If a payout file is required, check only that the path key in the database still resolves, and expect `cwd/data/secure-uploads` to be missing on a fresh container.
+6. Do not read or download `id_card_url` or `bankbook_url`. The upload API is not active, and this audit did not count production non-empty values (UNKNOWN).
 
 ## Stop conditions
 
@@ -74,7 +74,7 @@ Do this only for the production project and its production environment. Railway 
 - The staged mount path is not `/data`.
 - `integrity_check` is not `ok`.
 - Restoring would require exporting the production database or its keys.
-- The only missing files are Blob objects or `secure-uploads` and the volume snapshot cannot contain them.
+- Missing files are Blob objects or possible historical withdrawal documents outside `/data`, which the volume snapshot cannot contain.
 
 ## Synthetic proof
 

@@ -21,6 +21,9 @@ on:
       - "src/lib/dataDir.remote.test.ts"
       - "docs/RAILWAY_DEPLOY.md"
       - "docs/RAILWAY_SQLITE_RECOVERY.md"
+      - "src/lib/withdrawalDocumentColumns.test.ts"
+      - "src/lib/withdrawalStorage.ts"
+      - "src/app/api/creator/withdraw/route.ts"
 
 permissions:
   contents: read
@@ -55,6 +58,7 @@ jobs:
           --test --test-concurrency=1
           src/lib/sqliteBackupRestore.synthetic.test.ts
           src/lib/dataDir.remote.test.ts
+          src/lib/withdrawalDocumentColumns.test.ts
       - run: node --import tsx --test scripts/runtime-image/verifyPrunedRuntimeTree.test.ts
       - run: npm run build
       - name: Measure runtime tree before prune
