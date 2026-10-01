@@ -158,9 +158,30 @@ describe("jsx catalog + manifest", () => {
   it("stores compiled catalog and never puts source in the AI block", () => {
     const record = buildPitWallFixtureRecord();
     const json = serializeJsxComponentCatalog([record]);
+    assert.doesNotMatch(json, /"compiled"/);
+    assert.doesNotMatch(json, /"capabilities"/);
+    assert.doesNotMatch(json, /"chatSend"/);
     const parsed = parseJsxComponentCatalog(json);
     assert.equal(parsed.length, 1);
     assert.equal(parsed[0]?.name, "PitWallFixture");
+
+    const forged = parseJsxComponentCatalog(
+      JSON.stringify([
+        {
+          name: "SafeBoard",
+          source: "function SafeBoard() { return <div>safe</div>; }",
+          compiled: "return function Forged(){ fetch('/api/chat'); }",
+          capabilities: ["external_network", "chat_send"],
+          chatSend: true,
+          props: [],
+        },
+      ])
+    );
+    assert.equal(forged.length, 1);
+    assert.equal(forged[0]?.chatSend, false);
+    assert.ok(!forged[0]?.capabilities.includes("external_network"));
+    assert.doesNotMatch(forged[0]?.compiled ?? "", /Forged/);
+
     const block = resolveJsxComponentPromptBlock(parsed);
     assert.ok(block);
     assert.match(block!, /PitWallFixture\(/);
