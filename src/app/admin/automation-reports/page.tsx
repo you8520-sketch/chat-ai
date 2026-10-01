@@ -571,13 +571,15 @@ function SupplierDiscoverySection({
   candidate: SupplierCandidateRecord;
 }) {
   const rows: Array<[string, string]> = [
+    ["product", `${candidate.productKind} · ${candidate.productId}`],
+    ["canonical origin", candidate.canonicalOrigin],
     ["discovery source", candidate.discoverySource],
     ["public screening", `${candidate.publicScreenStatus} · ${candidate.publicScreenReasons.join(", ")}`],
     ["지원 active RP 모델", candidate.supportedActiveModelIds.join(", ") || "공개 정보 없음"],
     ["price advantage", `${candidate.priceAdvantage} · ${candidate.priceUnit}`],
     ["stability", candidate.publicStabilityEvidence ?? "unverified"],
     ["privacy / ZDR", candidate.privacyZdrStatus],
-    ["credential", candidate.credentialRequirement],
+    ["credential", `${candidate.credentialRequirement} · ${candidate.credentialState}`],
     ["live qualification", `${candidate.liveQualification.status} · ${candidate.liveQualification.reason}`],
     ["promotion readiness", candidate.promotion.readiness],
     ["STOP reason", candidate.promotion.stopReason],
@@ -591,8 +593,8 @@ function SupplierDiscoverySection({
             <span className="font-mono text-sm text-zinc-400">{candidate.supplierId}</span>
           </h3>
           <p className="mt-1 text-xs text-zinc-500">
-            {candidate.website}
-            {candidate.apiDocsUrl ? ` · docs ${candidate.apiDocsUrl}` : ""}
+            {candidate.canonicalOrigin}
+            {candidate.advertisedApiBaseUrl ? ` · advertised API ${candidate.advertisedApiBaseUrl}` : ""}
           </p>
         </div>
         <span className={"rounded px-2 py-1 text-xs font-bold " + badgeClass(candidate.status)}>

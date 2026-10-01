@@ -186,7 +186,7 @@ describe("admin supply Draft notification watcher", () => {
     db.close();
   });
 
-  it("does not notify for the current Fluence hold, and dedupes a credential-required candidate", () => {
+  it("does not notify for the current Fluence waitlist, and dedupes a credential-required candidate", () => {
     const db = makeDb();
     db.prepare("INSERT INTO users (id,email,is_admin) VALUES (1,'admin1@example.com',1)").run();
     db.prepare("INSERT INTO users (id,email,is_admin) VALUES (2,'admin2@example.com',0)").run();

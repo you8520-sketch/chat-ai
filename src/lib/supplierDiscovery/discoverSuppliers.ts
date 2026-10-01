@@ -9,12 +9,13 @@ import {
   pipelineStatusAfterPublicScreen,
   screenSupplierPublicProfile,
 } from "./publicScreen";
-import type {
-  SupplierCandidateRecord,
-  SupplierCandidateStatus,
-  SupplierDiscoveryReport,
-  SupplierDiscoverySourceInventoryEntry,
-  SupplierPublicProfile,
+import {
+  SUPPLIER_DISCOVERY_VERSION,
+  type SupplierCandidateRecord,
+  type SupplierCandidateStatus,
+  type SupplierDiscoveryReport,
+  type SupplierDiscoverySourceInventoryEntry,
+  type SupplierPublicProfile,
 } from "./types";
 
 export type { SupplierCandidateRecord } from "./types";
@@ -120,6 +121,12 @@ export function buildIndependentSupplierCandidate(input: {
   return {
     supplierId: input.profile.supplierId,
     companyName: input.profile.companyName,
+    productId: input.profile.productId,
+    productKind: input.profile.productKind,
+    canonicalOrigin: input.profile.canonicalOrigin,
+    advertisedApiBaseUrl: input.profile.advertisedApiBaseUrl,
+    observedOfferFacts: input.profile.observedOfferFacts,
+    credentialState: input.profile.credentialState,
     website: input.profile.website,
     apiDocsUrl: input.profile.apiDocsUrl,
     pricingUrl: input.profile.pricingUrl,
@@ -232,7 +239,7 @@ export function buildSupplierDiscoveryReport(input?: {
       ? null
       : uniqueNames(input.openRouterProviderNames);
   return {
-    version: 1,
+    version: SUPPLIER_DISCOVERY_VERSION,
     generatedAt,
     providerGenerationCalls: 0,
     activeModelIdsConsidered: MAIN_RP_MODEL_IDS,
@@ -252,7 +259,8 @@ export function buildSupplierDiscoveryReport(input?: {
     sources: SUPPLIER_DISCOVERY_SOURCES,
     notes: [
       "READ_ONLY_DISCOVERY: provider generation calls are 0.",
-      "A candidate record is not membership in the production provider registry.",
+      "A candidate record is one product surface, not the whole company, and not production routing.",
+      "Sibling products stay out of the candidate even when they share a company name.",
       "Direct supplier ids stay on the existing public-page radar.",
       "Cross-provider procurement does not create a route Draft PR from this report.",
       "Automatic merge is 0.",
@@ -275,7 +283,7 @@ export function renderSupplierDiscoveryMarkdown(report: SupplierDiscoveryReport)
   ];
   for (const row of report.candidates) {
     lines.push(
-      `| ${row.companyName} (${row.supplierId}) | ${row.discoverySource} | ${row.publicScreenStatus} | ${row.status} | ${row.supportedActiveModelIds.join(", ") || "none public"} | ${row.priceAdvantage} | ${row.publicStabilityEvidence ?? "unverified"} | ${row.privacyZdrStatus} | ${row.credentialRequirement} | ${row.liveQualification.status}:${row.liveQualification.reason} | ${row.promotion.readiness} | ${row.promotion.stopReason} |`
+      `| ${row.companyName} (${row.productId}) | ${row.discoverySource} | ${row.publicScreenStatus} | ${row.status} | ${row.supportedActiveModelIds.join(", ") || "none public"} | ${row.priceAdvantage} | ${row.publicStabilityEvidence ?? "unverified"} | ${row.privacyZdrStatus} | ${row.credentialState} | ${row.liveQualification.status}:${row.liveQualification.reason} | ${row.promotion.readiness} | ${row.promotion.stopReason} |`
     );
   }
   lines.push("", "## Sources", "");

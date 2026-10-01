@@ -1,125 +1,122 @@
+import {
+  parseGpuComputeMarketplaceOffer,
+  parseHostedTokenInferenceOffer,
+  selectProductProfile,
+} from "./productIdentity";
 import type { SupplierPublicProfile } from "./types";
 
 /**
- * Fluence public URLs confirmed by direct fetch on 2026-09-30.
- * Common /privacy, /terms, and /pricing paths returned 404. Those URLs are
- * left null instead of being guessed. Status host was not confirmed.
+ * Public Fluence pages re-read on 2026-10-01.
+ * Company Fluence has two product surfaces. The Main RP candidate is only the
+ * hosted inference marketplace. GPU compute pages stay a separate product.
+ * Advertised API copy is not a credentialled qualification.
  */
-export const FLUENCE_PUBLIC_EVIDENCE_OBSERVED_AT = "2026-09-30T23:41:00.000Z";
+export const FLUENCE_PUBLIC_EVIDENCE_OBSERVED_AT = "2026-10-01T00:05:00.000Z";
 
-export const FLUENCE_PUBLIC_URLS = Object.freeze({
+export const FLUENCE_HOSTED_INFERENCE_PRODUCT_ID = "fluence-hosted-inference";
+export const FLUENCE_GPU_COMPUTE_PRODUCT_ID = "fluence-gpu-compute";
+
+export const FLUENCE_HOSTED_INFERENCE_ORIGIN = "https://inference.fluence.cloud";
+export const FLUENCE_HOSTED_INFERENCE_ADVERTISED_API_BASE = "https://api.fluence.cloud/v1";
+
+export const FLUENCE_GPU_COMPUTE_URLS = Object.freeze({
   website: "https://fluence.ai",
   apiDocs: "https://fluence.dev/docs/build/api/overview",
   pricing: "https://fluence.ai/solutions/ai-inference",
-  status: null,
-  privacyPolicy: null,
-  terms: null,
 });
 
-export const FLUENCE_API_OVERVIEW_FIXTURE = `
+export const FLUENCE_GPU_API_OVERVIEW_FIXTURE = `
 The Fluence API provides programmatic access to the decentralized Fluence compute marketplace.
 Fluence API endpoints require credentials: an API key in the X-API-KEY header.
 GPU Cloud — browse available GPU plans, deploy and manage containers, VMs, and bare metal instances.
 `;
 
-export const FLUENCE_INFERENCE_PAGE_FIXTURE = `
+export const FLUENCE_GPU_INFERENCE_PAGE_FIXTURE = `
 Run your own model-serving stack on GPU containers, VMs, or bare metal.
 H100 80 GB Price $1.24 /per hr
 See GPU pricing before launch and avoid surprise egress charges.
 `;
 
-export const FLUENCE_CONSOLE_ACCESS_FIXTURE = `
+export const FLUENCE_GPU_CONSOLE_ACCESS_FIXTURE = `
 Fluence Console is now open for instant access. Just sign up with GitHub, Google, or email, fund your balance, and deploy GPU compute directly from the Console.
 `;
 
-export const FLUENCE_CUSTOMER_RUNTIME_FIXTURE = `
+export const FLUENCE_GPU_CUSTOMER_RUNTIME_FIXTURE = `
 vLLM serves the model through an OpenAI-compatible API at http://127.0.0.1:8000/v1.
 vLLM officially supports the /v1/chat/completions endpoint.
 `;
 
-export type FluencePublicPageTexts = {
-  apiOverviewText: string;
-  inferencePageText: string;
-  accessAnnouncementText: string;
-  customerRuntimeText: string;
-};
+export const FLUENCE_HOSTED_INFERENCE_FIXTURE = `
+Fluence Inference. AI inference. Up to 89% below OpenRouter.
+Each price is a provider's posted offer for the same model, checked against OpenRouter's public rate.
+in$0.363 out$1.81
+ZDR. Zero data retention. Send zdr: true on a request to require it.
+Some models charge a long-context rate.
+Pay per token. Each request shows what it cost.
+Set the base URL to https://api.fluence.cloud/v1 in any OpenAI-compatible SDK.
+curl https://api.fluence.cloud/v1/chat/completions
+Requests and responses follow the OpenAI format.
+When do I get access? We send invites in waves, in signup order, and you get one email when yours is ready.
+`;
 
-function hasTokenRate(text: string): boolean {
-  return /per\s*1m\s*tokens|\$\s*[0-9.]+\s*\/\s*1m/i.test(text);
-}
+const HOSTED_OFFER_FACTS = [
+  "hosted_model_offer_ui",
+  "token_input_output_price_display",
+  "openrouter_public_rate_comparison",
+  "zdr_toggle_and_zdr_true_advertised_on_public_page",
+  "invite_waitlist_signup_order",
+  "founding_seat_reservation_is_not_api_credential",
+  "advertised_api_base_not_qualified",
+  "chat_completions_path_advertised_not_qualified",
+  "exact_active_hav_model_wire_ids_not_recorded",
+  "exact_usage_schema_unknown",
+  "exact_billed_cost_schema_unknown",
+  "exact_provider_pin_syntax_unknown",
+  "exact_streaming_wire_unknown",
+  "retention_implementation_not_qualified",
+] as const;
 
-function hasGpuHourlyPrice(text: string): boolean {
-  return /\$\s*[0-9.]+\s*\/?\s*per\s*hr|\/per\s*hr/i.test(text);
-}
-
-function hostedText(pages: FluencePublicPageTexts): string {
-  return `${pages.apiOverviewText}\n${pages.inferencePageText}\n${pages.accessAnnouncementText}`;
-}
-
-/**
- * Fluence-specific public-page adapter. It does not parse other suppliers.
- * Customer-deployed vLLM copy is not treated as a Fluence-hosted chat API.
- */
-export function parseFluencePublicPages(
-  pages: FluencePublicPageTexts
-): SupplierPublicProfile {
-  const hosted = hostedText(pages);
-  const marketplace = /compute marketplace/i.test(pages.apiOverviewText);
-  const customerRuntimeOnly =
-    /vllm/i.test(pages.customerRuntimeText) &&
-    /openai-compatible/i.test(pages.customerRuntimeText) &&
-    !/openai-compatible/i.test(hosted);
-  const waitlist = /waitlist/i.test(hosted)
-    ? true
-    : /instant access/i.test(hosted)
-      ? false
-      : null;
-  const gpuHourly = hasGpuHourlyPrice(pages.inferencePageText);
-  const tokenRates = hasTokenRate(hosted);
-
-  return {
+export function fluenceGpuComputeProfile(): SupplierPublicProfile {
+  return parseGpuComputeMarketplaceOffer({
     supplierId: "fluence",
     companyName: "Fluence",
-    website: FLUENCE_PUBLIC_URLS.website,
-    apiDocsUrl: FLUENCE_PUBLIC_URLS.apiDocs,
-    pricingUrl: FLUENCE_PUBLIC_URLS.pricing,
-    statusUrl: FLUENCE_PUBLIC_URLS.status,
-    privacyPolicyUrl: FLUENCE_PUBLIC_URLS.privacyPolicy,
-    termsUrl: FLUENCE_PUBLIC_URLS.terms,
-    retentionZdr: /zero[- ]data[- ]retention|\bZDR\b/i.test(hosted) ? "advertised" : "unknown",
-    openaiCompatible: customerRuntimeOnly
-      ? "customer_runtime_only"
-      : /openai-compatible/i.test(hosted)
-        ? "yes"
-        : "unknown",
-    chatCompletionsAdvertised: /chat\/completions/i.test(hosted) ? true : false,
-    streamingAdvertised: /streaming/i.test(hosted) ? true : false,
-    usageReportingAdvertised: /usage\.prompt_tokens|token usage/i.test(hosted)
-      ? "token_usage"
-      : gpuHourly
-        ? "other"
-        : "unknown",
-    waitlist,
-    supportedActiveModelIds: [],
-    modelProvenanceEvidence: null,
-    companyIdentityEvidence: marketplace ? "fluence_api_docs_compute_marketplace" : null,
-    inputUsdPerMillion: null,
-    outputUsdPerMillion: null,
-    cacheReadUsdPerMillion: null,
-    cachePricing: "unknown",
-    contextLimitTokens: null,
-    longContextTierPricing: "unknown",
-    publicStabilityEvidence: null,
-    priceUnit: tokenRates ? "usd_per_million_tokens" : gpuHourly ? "gpu_hourly" : "unknown",
-    betaLimitation: null,
-  };
+    productId: FLUENCE_GPU_COMPUTE_PRODUCT_ID,
+    canonicalOrigin: FLUENCE_GPU_COMPUTE_URLS.website,
+    website: FLUENCE_GPU_COMPUTE_URLS.website,
+    apiDocsUrl: FLUENCE_GPU_COMPUTE_URLS.apiDocs,
+    pricingUrl: FLUENCE_GPU_COMPUTE_URLS.pricing,
+    pageText: [
+      FLUENCE_GPU_API_OVERVIEW_FIXTURE,
+      FLUENCE_GPU_INFERENCE_PAGE_FIXTURE,
+      FLUENCE_GPU_CONSOLE_ACCESS_FIXTURE,
+    ].join("\n"),
+    customerRuntimeText: FLUENCE_GPU_CUSTOMER_RUNTIME_FIXTURE,
+    companyIdentityEvidence: "fluence_gpu_compute_marketplace",
+  });
 }
 
-export function fluenceObservedPublicProfile(): SupplierPublicProfile {
-  return parseFluencePublicPages({
-    apiOverviewText: FLUENCE_API_OVERVIEW_FIXTURE,
-    inferencePageText: FLUENCE_INFERENCE_PAGE_FIXTURE,
-    accessAnnouncementText: FLUENCE_CONSOLE_ACCESS_FIXTURE,
-    customerRuntimeText: FLUENCE_CUSTOMER_RUNTIME_FIXTURE,
+export function fluenceHostedInferenceProfile(
+  pageText: string = FLUENCE_HOSTED_INFERENCE_FIXTURE
+): SupplierPublicProfile {
+  const advertisesApiBase = pageText.includes(FLUENCE_HOSTED_INFERENCE_ADVERTISED_API_BASE);
+  return parseHostedTokenInferenceOffer({
+    supplierId: "fluence",
+    companyName: "Fluence",
+    productId: FLUENCE_HOSTED_INFERENCE_PRODUCT_ID,
+    canonicalOrigin: FLUENCE_HOSTED_INFERENCE_ORIGIN,
+    pageText,
+    companyIdentityEvidence: "fluence_hosted_inference_marketplace",
+    advertisedApiBaseUrl: advertisesApiBase ? FLUENCE_HOSTED_INFERENCE_ADVERTISED_API_BASE : null,
+    observedOfferFacts: HOSTED_OFFER_FACTS,
+    credentialState: "founding_seat_reserved_without_api_credential",
   });
+}
+
+export function fluenceCompanyProducts(): readonly SupplierPublicProfile[] {
+  return [fluenceGpuComputeProfile(), fluenceHostedInferenceProfile()];
+}
+
+/** Main RP discovery candidate: hosted inference only. */
+export function fluenceObservedPublicProfile(): SupplierPublicProfile {
+  return selectProductProfile(fluenceCompanyProducts(), FLUENCE_HOSTED_INFERENCE_PRODUCT_ID);
 }

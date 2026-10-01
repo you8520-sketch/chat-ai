@@ -1,6 +1,11 @@
 import type { SelectedAI } from "@/lib/chatModels";
 
-export const SUPPLIER_DISCOVERY_VERSION = 1;
+export const SUPPLIER_DISCOVERY_VERSION = 2;
+
+export type SupplierProductKind =
+  | "hosted_token_inference"
+  | "gpu_compute_marketplace"
+  | "unspecified";
 
 export type SupplierCandidateStatus =
   | "DISCOVERED"
@@ -32,6 +37,12 @@ export type EvidencePresence = "published" | "not_offered" | "unknown";
 export type SupplierPublicProfile = {
   supplierId: string;
   companyName: string;
+  productId: string;
+  productKind: SupplierProductKind;
+  canonicalOrigin: string;
+  advertisedApiBaseUrl: string | null;
+  observedOfferFacts: readonly string[];
+  credentialState: string;
   website: string;
   apiDocsUrl: string | null;
   pricingUrl: string | null;
@@ -99,6 +110,12 @@ export type IndependentSupplierPromotionBoundary = {
 export type SupplierCandidateRecord = {
   supplierId: string;
   companyName: string;
+  productId: string;
+  productKind: SupplierProductKind;
+  canonicalOrigin: string;
+  advertisedApiBaseUrl: string | null;
+  observedOfferFacts: readonly string[];
+  credentialState: string;
   website: string;
   apiDocsUrl: string | null;
   pricingUrl: string | null;
