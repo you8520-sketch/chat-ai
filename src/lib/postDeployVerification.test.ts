@@ -7,10 +7,15 @@ import { scanScheduledWorkflowDefinitions } from "@/lib/codeHealth/automationHea
 import {
   gitCommitMatchesDeployment,
   isRailwayProductionSuccessEvent,
+  maybeVerifyPublicPages,
+  POST_DEPLOY_EVIDENCE_PREFIX,
   POST_DEPLOY_ORIGIN,
   projectPostDeployVerification,
+  verifyPublicPages,
   verifyOfficialDeployment,
   type PostDeployEvidence,
+  type PublicPagePath,
+  type PublicSmokeEvidence,
 } from "@/lib/postDeployVerification";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
@@ -252,5 +257,245 @@ describe("post-deploy verification", () => {
     assert.match(ops, /"\.github\/workflows\/\*\*"/);
     assert.match(ops, /src\/lib\/postDeployVerification\.ts/);
     assert.match(ops, /src\/lib\/postDeployVerification\.test\.ts/);
+    assert.match(text, /--public-smoke/);
+    assert.match(text, /if: success\(\)/);
+    assert.equal(text.includes("schedule:"), false);
+  });
+});
+
+const PAGE_COPY: Record<PublicPagePath, string> = {
+  "/": "콘텐츠 탐색 취향 설정",
+  "/search": "장르 카테고리 캐릭터명 · 제작자명 · 태그",
+  "/tab/new": "실시간 신작",
+  "/tab/ranking": "최근 6시간 대화 시작 수",
+};
+
+function htmlResponse(path: PublicPagePath, body = PAGE_COPY[path]): Response {
+  return new Response(`<!doctype html><html><body><main>${body}</main></body></html>`, {
+    status: 200,
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+}
+
+function smokeFetch(
+  mutate: (url: URL, visit: number) => Response | null,
+  gitCommits: string[] = ["4707776"]
+): { fetchImpl: typeof fetch; urls: string[] } {
+  const urls: string[] = [];
+  const visits = new Map<string, number>();
+  let healthCalls = 0;
+  const fetchImpl = (async (input: RequestInfo | URL) => {
+    const url = new URL(String(input));
+    urls.push(url.toString());
+    if (url.origin !== POST_DEPLOY_ORIGIN) throw new Error(`left official origin ${url}`);
+    if (url.pathname === "/api/health") {
+      const commit = gitCommits[Math.min(healthCalls, gitCommits.length - 1)] ?? "4707776";
+      healthCalls += 1;
+      return jsonResponse({ ok: true, service: "playai", gitCommit: commit });
+    }
+    const visit = (visits.get(url.pathname) ?? 0) + 1;
+    visits.set(url.pathname, visit);
+    const replaced = mutate(url, visit);
+    if (replaced) return replaced;
+    return htmlResponse(url.pathname as PublicPagePath);
+  }) as typeof fetch;
+  return { fetchImpl, urls };
+}
+
+describe("public page smoke", () => {
+  const verified = evidence({ state: "VERIFIED", targetSha: TARGET });
+
+  it("passes the four public pages and keeps a health failure from starting smoke", async () => {
+    const ok = smokeFetch(() => null);
+    const passed = await verifyPublicPages({
+      targetSha: TARGET,
+      fetchImpl: ok.fetchImpl,
+      sleep: async () => {},
+    });
+    assert.equal(passed.state, "PASS");
+    assert.equal(passed.pages.length, 4);
+    assert.deepEqual(passed.pages.map((page) => page.path), ["/", "/search", "/tab/new", "/tab/ranking"]);
+    assert.equal(passed.pages.every((page) => page.state === "PASS"), true);
+
+    let calls = 0;
+    const skipped = await maybeVerifyPublicPages(
+      evidence({ state: "FAILED", targetSha: TARGET, reason: "sha_mismatch" }),
+      {
+        targetSha: TARGET,
+        fetchImpl: (() => {
+          calls += 1;
+          return htmlResponse("/");
+        }) as typeof fetch,
+      }
+    );
+    assert.equal(skipped, null);
+    assert.equal(calls, 0);
+  });
+
+  it("fails a 404, a server error page, a missing contract, and an external redirect", async () => {
+    const missing = smokeFetch((url) =>
+      url.pathname === "/tab/new" ? new Response("nope", { status: 404, headers: { "content-type": "text/html" } }) : null
+    );
+    const notFound = await verifyPublicPages({ targetSha: TARGET, fetchImpl: missing.fetchImpl, sleep: async () => {} });
+    assert.equal(notFound.state, "FAIL");
+    assert.equal(notFound.pages.find((page) => page.path === "/tab/new")?.reason, "http_404");
+
+    const crashed = smokeFetch((url) =>
+      url.pathname === "/"
+        ? htmlResponse("/", "Application error: a server-side exception has occurred")
+        : null
+    );
+    const serverError = await verifyPublicPages({ targetSha: TARGET, fetchImpl: crashed.fetchImpl, sleep: async () => {} });
+    assert.equal(serverError.state, "FAIL");
+    assert.equal(serverError.pages.find((page) => page.path === "/")?.reason, "server_error_page");
+
+    const bare = smokeFetch((url) =>
+      url.pathname === "/search"
+        ? new Response("<html><main>empty</main></html>", { status: 200, headers: { "content-type": "text/html" } })
+        : null
+    );
+    const contract = await verifyPublicPages({ targetSha: TARGET, fetchImpl: bare.fetchImpl, sleep: async () => {} });
+    assert.equal(contract.state, "FAIL");
+    assert.equal(contract.pages.find((page) => page.path === "/search")?.reason, "page_contract");
+
+    const redirected = smokeFetch((url) =>
+      url.pathname === "/tab/ranking"
+        ? new Response(null, { status: 302, headers: { location: "https://example.com/away" } })
+        : null
+    );
+    const external = await verifyPublicPages({
+      targetSha: TARGET,
+      fetchImpl: redirected.fetchImpl,
+      sleep: async () => {},
+    });
+    assert.equal(external.state, "FAIL");
+    assert.equal(external.pages.find((page) => page.path === "/tab/ranking")?.reason, "external_redirect");
+    assert.equal(redirected.urls.some((url) => url.includes("example.com")), false);
+  });
+
+  it("retries a transient 503 and fails a persistent 503", async () => {
+    const transient = smokeFetch((url, visit) =>
+      url.pathname === "/search" && visit === 1 ? new Response("busy", { status: 503 }) : null
+    );
+    const recovered = await verifyPublicPages({
+      targetSha: TARGET,
+      fetchImpl: transient.fetchImpl,
+      sleep: async () => {},
+    });
+    assert.equal(recovered.state, "PASS");
+    assert.equal(recovered.pages.find((page) => page.path === "/search")?.attempts, 2);
+
+    const persistent = smokeFetch(() => new Response("busy", { status: 503 }));
+    const down = await verifyPublicPages({
+      targetSha: TARGET,
+      maxAttempts: 3,
+      fetchImpl: persistent.fetchImpl,
+      sleep: async () => {},
+    });
+    assert.equal(down.state, "FAIL");
+    assert.equal(down.reason, "page_unavailable");
+    assert.equal(down.pages[0]?.attempts, 3);
+  });
+
+  it("does not keep a public-page pass when the deployment SHA changes", async () => {
+    const moved = smokeFetch(() => null, ["4707776", "c3e0ea7"]);
+    const changed = await verifyPublicPages({
+      targetSha: TARGET,
+      fetchImpl: moved.fetchImpl,
+      sleep: async () => {},
+    });
+    assert.equal(changed.state, "UNVERIFIED");
+    assert.equal(changed.reason, "deployment_sha_changed");
+    assert.equal(changed.pages.some((page) => page.state === "PASS"), false);
+
+    let pageReads = 0;
+    const early = await verifyPublicPages({
+      targetSha: TARGET,
+      sleep: async () => {},
+      fetchImpl: (async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/api/health")) {
+          return jsonResponse({ ok: true, service: "playai", gitCommit: "c3e0ea7" });
+        }
+        pageReads += 1;
+        return htmlResponse("/");
+      }) as typeof fetch,
+    });
+    assert.equal(early.state, "UNVERIFIED");
+    assert.equal(early.reason, "deployment_sha_changed");
+    assert.equal(pageReads, 0);
+  });
+
+  it("keeps SHA verification when smoke evidence is missing or the GitHub read fails", async () => {
+    const smoke: PublicSmokeEvidence = {
+      state: "FAIL",
+      targetSha: TARGET,
+      checkedAt: "2026-10-01T10:41:00.000Z",
+      reason: "http_404",
+      attempts: 2,
+      pages: [{ path: "/search", state: "FAIL", reason: "http_404", attempts: 1 }],
+    };
+    const shown = projectPostDeployVerification({
+      runs: [
+        {
+          runId: 3,
+          htmlUrl: "https://github.test/runs/3",
+          createdAt: "2026-10-01T10:41:00.000Z",
+          evidence: verified,
+          publicSmoke: smoke,
+        },
+      ],
+      latestSuccess: { sha: TARGET, createdAt: "2026-10-01T10:32:44Z" },
+    });
+    assert.equal(shown.latest?.state, "VERIFIED");
+    assert.equal(shown.latest?.targetSha, TARGET);
+    assert.equal(shown.latest?.publicSmoke.state, "FAIL");
+    assert.equal(shown.latest?.publicSmoke.reason, "http_404");
+
+    const healthOnly = `${POST_DEPLOY_EVIDENCE_PREFIX}${JSON.stringify(verified)}`;
+    const absent = await fetchPostDeployVerificationProjection(async (input) => {
+      const url = String(input);
+      if (url.includes("/actions/runs?")) {
+        return jsonResponse({
+          workflow_runs: [
+            {
+              id: 11,
+              path: ".github/workflows/post-deploy-verification.yml",
+              status: "completed",
+              conclusion: "success",
+              html_url: "https://github.test/runs/11",
+              created_at: "2026-10-01T10:41:00.000Z",
+              jobs_url: "https://github.test/jobs/11",
+            },
+          ],
+        });
+      }
+      if (url.endsWith("/jobs/11")) {
+        return jsonResponse({ jobs: [{ check_run_url: "https://github.test/check/11" }] });
+      }
+      if (url.endsWith("/check/11/annotations")) return jsonResponse([{ message: healthOnly }]);
+      if (url.endsWith("/deployments?per_page=5")) {
+        return jsonResponse([
+          {
+            sha: TARGET,
+            created_at: "2026-10-01T10:32:44Z",
+            statuses_url: "https://github.test/statuses/11",
+            environment: "enchanting-ambition / production",
+            task: "deploy",
+          },
+        ]);
+      }
+      if (url.endsWith("/statuses/11")) return jsonResponse([{ state: "success" }]);
+      throw new Error(url);
+    });
+    assert.equal(absent.status, "OK");
+    assert.equal(absent.latest?.state, "VERIFIED");
+    assert.equal(absent.latest?.publicSmoke.state, "UNVERIFIED");
+    assert.equal(absent.latest?.publicSmoke.reason, "no_smoke_evidence");
+
+    const unavailable = await fetchPostDeployVerificationProjection(async () => new Response("nope", { status: 503 }));
+    assert.equal(unavailable.status, "UNAVAILABLE");
+    assert.equal(unavailable.latest, null);
+    assert.notEqual(unavailable.latest?.publicSmoke?.state, "PASS");
   });
 });

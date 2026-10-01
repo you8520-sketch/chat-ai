@@ -8,6 +8,9 @@ export const POST_DEPLOY_REQUEST_TIMEOUT_MS = 5_000;
 export const POST_DEPLOY_MAX_ATTEMPTS = 4;
 export const POST_DEPLOY_RETRY_DELAY_MS = 2_000;
 export const POST_DEPLOY_TOTAL_BUDGET_MS = 45_000;
+export const PUBLIC_SMOKE_MAX_ATTEMPTS = 3;
+export const PUBLIC_SMOKE_TOTAL_BUDGET_MS = 40_000;
+export const PUBLIC_SMOKE_MAX_BYTES = 262_144;
 export const POST_DEPLOY_WORKFLOW_PATH = ".github/workflows/post-deploy-verification.yml";
 
 export type PostDeployVerificationState = "VERIFIED" | "FAILED" | "UNVERIFIED" | "SUPERSEDED";
@@ -19,6 +22,26 @@ export type PostDeployEvidence = {
   reason: string | null;
   checkedAt: string;
   attempts: number;
+};
+
+export type PublicSmokeState = "PASS" | "FAIL" | "UNVERIFIED";
+
+export type PublicPagePath = "/" | "/search" | "/tab/new" | "/tab/ranking";
+
+export type PublicSmokePageResult = {
+  path: PublicPagePath;
+  state: PublicSmokeState;
+  reason: string | null;
+  attempts: number;
+};
+
+export type PublicSmokeEvidence = {
+  state: PublicSmokeState;
+  targetSha: string;
+  checkedAt: string;
+  reason: string | null;
+  attempts: number;
+  pages: PublicSmokePageResult[];
 };
 
 export type RailwayDeploymentEvent = {
@@ -279,11 +302,360 @@ export async function verifyOfficialDeployment(input: {
   };
 }
 
+const PUBLIC_PAGE_SPECS: readonly { path: PublicPagePath; markers: readonly string[] }[] = [
+  { path: "/", markers: ["콘텐츠 탐색", "취향 설정"] },
+  { path: "/search", markers: ["장르 카테고리", "캐릭터명 · 제작자명 · 태그"] },
+  { path: "/tab/new", markers: ["실시간 신작"] },
+  { path: "/tab/ranking", markers: ["최근 6시간 대화 시작 수"] },
+];
+
+const SERVER_ERROR_MARKERS = [
+  "application error",
+  "internal server error",
+  "server-side exception",
+  "서버 오류",
+];
+
+export function missingPublicSmoke(targetSha: string, checkedAt: string, reason = "no_smoke_evidence"): PublicSmokeEvidence {
+  return {
+    state: "UNVERIFIED",
+    targetSha,
+    checkedAt,
+    reason,
+    attempts: 0,
+    pages: [],
+  };
+}
+
+export function publicSmokeForHealth(
+  evidence: PostDeployEvidence,
+  smoke: PublicSmokeEvidence | null
+): PublicSmokeEvidence {
+  if (evidence.state !== "VERIFIED") {
+    return missingPublicSmoke(evidence.targetSha, evidence.checkedAt, "not_run");
+  }
+  if (!smoke) return missingPublicSmoke(evidence.targetSha, evidence.checkedAt);
+  if (smoke.targetSha !== evidence.targetSha || smoke.state === "PASS" && !smoke.targetSha) {
+    return {
+      ...smoke,
+      state: "UNVERIFIED",
+      targetSha: evidence.targetSha,
+      reason: "deployment_sha_changed",
+    };
+  }
+  return smoke;
+}
+
+function shortReason(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 80) : null;
+}
+
+function normalizePublicPage(value: unknown): PublicSmokePageResult | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  const path = PUBLIC_PAGE_SPECS.find((spec) => spec.path === record.path)?.path;
+  const state = record.state;
+  if (!path || (state !== "PASS" && state !== "FAIL" && state !== "UNVERIFIED")) return null;
+  const attempts = typeof record.attempts === "number" && record.attempts >= 0 ? record.attempts : 0;
+  return { path, state, reason: shortReason(record.reason), attempts };
+}
+
+export function parsePublicSmokeEvidence(message: string): PublicSmokeEvidence | null {
+  const trimmed = message.trim();
+  if (!trimmed.startsWith(POST_DEPLOY_EVIDENCE_PREFIX)) return null;
+  try {
+    const parsed = JSON.parse(trimmed.slice(POST_DEPLOY_EVIDENCE_PREFIX.length)) as {
+      publicSmoke?: unknown;
+    };
+    const record = asRecord(parsed.publicSmoke);
+    if (!record) return null;
+    const state = record.state;
+    if (state !== "PASS" && state !== "FAIL" && state !== "UNVERIFIED") return null;
+    const pages = Array.isArray(record.pages)
+      ? record.pages.map(normalizePublicPage).filter((page): page is PublicSmokePageResult => page != null).slice(0, 4)
+      : [];
+    const targetSha = normalizeDeploymentSha(record.targetSha) ?? "";
+    let next: PublicSmokeState = state;
+    let reason = shortReason(record.reason);
+    if (next === "PASS") {
+      const complete = PUBLIC_PAGE_SPECS.every((spec) =>
+        pages.some((page) => page.path === spec.path && page.state === "PASS")
+      );
+      if (!complete || !targetSha) {
+        next = "UNVERIFIED";
+        reason = "incomplete_smoke";
+      }
+    }
+    return {
+      state: next,
+      targetSha,
+      checkedAt: typeof record.checkedAt === "string" ? record.checkedAt : "",
+      reason,
+      attempts: typeof record.attempts === "number" && record.attempts >= 0 ? record.attempts : 0,
+      pages,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function pageUrl(path: PublicPagePath): string {
+  return `${POST_DEPLOY_ORIGIN}${path}`;
+}
+
+async function readLimitedText(
+  response: Response,
+  maxBytes: number
+): Promise<{ text: string; truncated: boolean }> {
+  if (!response.body) {
+    const text = await response.text();
+    return { text: text.slice(0, maxBytes), truncated: text.length > maxBytes };
+  }
+  const reader = response.body.getReader();
+  const parts: Uint8Array[] = [];
+  let total = 0;
+  let truncated = false;
+  try {
+    while (total < maxBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      const room = maxBytes - total;
+      if (value.byteLength > room) {
+        parts.push(value.subarray(0, room));
+        total += room;
+        truncated = true;
+        break;
+      }
+      parts.push(value);
+      total += value.byteLength;
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    merged.set(part, offset);
+    offset += part.byteLength;
+  }
+  return { text: new TextDecoder("utf-8", { fatal: false }).decode(merged), truncated };
+}
+
+type PageProbe =
+  | { kind: "pass" }
+  | { kind: "fail"; reason: string }
+  | { kind: "retry"; reason: string }
+  | { kind: "unverified"; reason: string };
+
+async function probePublicPage(
+  fetchImpl: typeof fetch,
+  path: PublicPagePath,
+  timeoutMs: number
+): Promise<PageProbe> {
+  const url = pageUrl(path);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetchImpl(url, {
+      method: "GET",
+      redirect: "manual",
+      signal: controller.signal,
+      headers: { Accept: "text/html" },
+    });
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      let official = false;
+      if (location) {
+        try {
+          official = new URL(location, POST_DEPLOY_ORIGIN).origin === POST_DEPLOY_ORIGIN;
+        } catch {
+          official = false;
+        }
+      }
+      await response.body?.cancel().catch(() => undefined);
+      return { kind: "fail", reason: official ? "redirect_not_followed" : "external_redirect" };
+    }
+    if (RETRYABLE_HTTP.has(response.status)) {
+      await response.body?.cancel().catch(() => undefined);
+      return { kind: "retry", reason: "page_unavailable" };
+    }
+    if (response.status !== 200) {
+      await response.body?.cancel().catch(() => undefined);
+      return { kind: "fail", reason: `http_${response.status}` };
+    }
+    const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+    if (!contentType.includes("text/html")) {
+      await response.body?.cancel().catch(() => undefined);
+      return { kind: "fail", reason: "content_type" };
+    }
+    const { text, truncated } = await readLimitedText(response, PUBLIC_SMOKE_MAX_BYTES);
+    const sample = text.slice(0, 8_000).toLowerCase();
+    if (SERVER_ERROR_MARKERS.some((marker) => sample.includes(marker))) {
+      return { kind: "fail", reason: "server_error_page" };
+    }
+    const markers = PUBLIC_PAGE_SPECS.find((spec) => spec.path === path)?.markers ?? [];
+    const structured = text.includes("<html") && text.includes("<main");
+    const contracted = markers.every((marker) => text.includes(marker));
+    if (truncated && (!structured || !contracted)) {
+      return { kind: "unverified", reason: "response_truncated" };
+    }
+    if (!structured || !contracted) return { kind: "fail", reason: "page_contract" };
+    return { kind: "pass" };
+  } catch (error) {
+    const aborted = error instanceof Error && error.name === "AbortError";
+    return { kind: "unverified", reason: aborted ? "request_timeout" : "request_failed" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function deploymentShaStatus(
+  fetchImpl: typeof fetch,
+  targetSha: string,
+  timeoutMs: number
+): Promise<"match" | "mismatch" | "unreadable"> {
+  const read = await readResponse(fetchImpl, `${POST_DEPLOY_ORIGIN}/api/health`, timeoutMs);
+  if (read.problem || read.status !== 200) return "unreadable";
+  const body = asRecord(read.body);
+  const gitCommit = typeof body?.gitCommit === "string" ? body.gitCommit : null;
+  if (!normalizeDeploymentSha(gitCommit)) return "unreadable";
+  return gitCommitMatchesDeployment(gitCommit, targetSha) ? "match" : "mismatch";
+}
+
+export async function verifyPublicPages(input: {
+  targetSha: string;
+  fetchImpl?: typeof fetch;
+  now?: () => Date;
+  sleep?: (ms: number) => Promise<void>;
+  budgetMs?: number;
+  maxAttempts?: number;
+  timeoutMs?: number;
+  retryDelayMs?: number;
+}): Promise<PublicSmokeEvidence> {
+  const now = input.now ?? (() => new Date());
+  const started = now().getTime();
+  const budgetMs = input.budgetMs ?? PUBLIC_SMOKE_TOTAL_BUDGET_MS;
+  const maxAttempts = input.maxAttempts ?? PUBLIC_SMOKE_MAX_ATTEMPTS;
+  const timeoutMs = input.timeoutMs ?? POST_DEPLOY_REQUEST_TIMEOUT_MS;
+  const retryDelayMs = input.retryDelayMs ?? POST_DEPLOY_RETRY_DELAY_MS;
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const sleep = input.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const targetSha = normalizeDeploymentSha(input.targetSha) ?? "";
+  const checkedAt = () => now().toISOString();
+  const withinBudget = () => now().getTime() - started < budgetMs;
+  if (!targetSha) {
+    return missingPublicSmoke("", checkedAt(), "target_sha_missing");
+  }
+
+  const before = await deploymentShaStatus(fetchImpl, targetSha, timeoutMs);
+  if (before !== "match") {
+    return {
+      state: "UNVERIFIED",
+      targetSha,
+      checkedAt: checkedAt(),
+      reason: before === "mismatch" ? "deployment_sha_changed" : "deployment_sha_unreadable",
+      attempts: 1,
+      pages: [],
+    };
+  }
+
+  const pages: PublicSmokePageResult[] = [];
+  let attempts = 1;
+  for (const spec of PUBLIC_PAGE_SPECS) {
+    if (!withinBudget()) {
+      pages.push({ path: spec.path, state: "UNVERIFIED", reason: "budget_exhausted", attempts: 0 });
+      continue;
+    }
+    let pageAttempts = 0;
+    let settled: PublicSmokePageResult | null = null;
+    while (pageAttempts < maxAttempts && withinBudget()) {
+      pageAttempts += 1;
+      attempts += 1;
+      const outcome = await probePublicPage(fetchImpl, spec.path, timeoutMs);
+      if (outcome.kind === "pass") {
+        settled = { path: spec.path, state: "PASS", reason: null, attempts: pageAttempts };
+        break;
+      }
+      if (outcome.kind === "fail") {
+        settled = { path: spec.path, state: "FAIL", reason: outcome.reason, attempts: pageAttempts };
+        break;
+      }
+      if (outcome.kind === "unverified") {
+        settled = { path: spec.path, state: "UNVERIFIED", reason: outcome.reason, attempts: pageAttempts };
+        break;
+      }
+      if (pageAttempts >= maxAttempts || !withinBudget()) {
+        settled = { path: spec.path, state: "FAIL", reason: outcome.reason, attempts: pageAttempts };
+        break;
+      }
+      await sleep(retryDelayMs);
+    }
+    pages.push(settled ?? { path: spec.path, state: "UNVERIFIED", reason: "budget_exhausted", attempts: pageAttempts });
+  }
+
+  const after = await deploymentShaStatus(fetchImpl, targetSha, timeoutMs);
+  attempts += 1;
+  if (after !== "match") {
+    return {
+      state: "UNVERIFIED",
+      targetSha,
+      checkedAt: checkedAt(),
+      reason: after === "mismatch" ? "deployment_sha_changed" : "deployment_sha_unreadable",
+      attempts,
+      pages: pages.map((page) =>
+        page.state === "PASS"
+          ? { ...page, state: "UNVERIFIED", reason: "deployment_sha_changed" }
+          : page
+      ),
+    };
+  }
+  const failed = pages.find((page) => page.state === "FAIL");
+  if (failed) {
+    return {
+      state: "FAIL",
+      targetSha,
+      checkedAt: checkedAt(),
+      reason: failed.reason,
+      attempts,
+      pages,
+    };
+  }
+  const unverified = pages.find((page) => page.state !== "PASS");
+  if (unverified) {
+    return {
+      state: "UNVERIFIED",
+      targetSha,
+      checkedAt: checkedAt(),
+      reason: unverified.reason,
+      attempts,
+      pages,
+    };
+  }
+  return {
+    state: "PASS",
+    targetSha,
+    checkedAt: checkedAt(),
+    reason: null,
+    attempts,
+    pages,
+  };
+}
+
+export async function maybeVerifyPublicPages(
+  evidence: PostDeployEvidence,
+  input: Parameters<typeof verifyPublicPages>[0] = { targetSha: evidence.targetSha }
+): Promise<PublicSmokeEvidence | null> {
+  if (evidence.state !== "VERIFIED") return null;
+  return verifyPublicPages({ ...input, targetSha: evidence.targetSha });
+}
+
 export type ParsedPostDeployRun = {
   runId: number;
   htmlUrl: string;
   createdAt: string;
   evidence: PostDeployEvidence | null;
+  publicSmoke?: PublicSmokeEvidence | null;
 };
 
 export type DeploymentSuccessRef = {
@@ -299,6 +671,7 @@ export type PostDeployVerificationHeadline = {
   reason: string | null;
   htmlUrl: string;
   currentDeployment: boolean;
+  publicSmoke: PublicSmokeEvidence;
 };
 
 export type PostDeployVerificationView = {
@@ -336,6 +709,7 @@ export function projectPostDeployVerification(input: {
       reason: "later_deployment_succeeded",
       htmlUrl: previous.htmlUrl,
       currentDeployment: false,
+      publicSmoke: publicSmokeForHealth(previous.evidence, previous.publicSmoke ?? null),
     };
   };
   if (latestSuccess?.sha) {
@@ -352,6 +726,7 @@ export function projectPostDeployVerification(input: {
           reason: match.evidence.reason,
           htmlUrl: match.htmlUrl,
           currentDeployment: true,
+          publicSmoke: publicSmokeForHealth(match.evidence, match.publicSmoke ?? null),
         },
         superseded: supersededOf(latestSuccess.sha),
       };
@@ -367,6 +742,7 @@ export function projectPostDeployVerification(input: {
         reason: "awaiting_verification",
         htmlUrl: "",
         currentDeployment: true,
+        publicSmoke: missingPublicSmoke(latestSuccess.sha, latestSuccess.createdAt),
       },
       superseded: supersededOf(latestSuccess.sha),
     };
@@ -384,6 +760,7 @@ export function projectPostDeployVerification(input: {
         reason: "no_verification_evidence",
         htmlUrl: newest?.htmlUrl ?? "",
         currentDeployment: false,
+        publicSmoke: missingPublicSmoke("", ""),
       },
       superseded: null,
     };
@@ -399,6 +776,7 @@ export function projectPostDeployVerification(input: {
       reason: newest.evidence.reason,
       htmlUrl: newest.htmlUrl,
       currentDeployment: false,
+      publicSmoke: publicSmokeForHealth(newest.evidence, newest.publicSmoke ?? null),
     },
     superseded: null,
   };
@@ -416,7 +794,7 @@ function shaAncestry(sha: string): "on_main" | "not_on_main" | "unproven" {
   }
 }
 
-function emitEvidence(evidence: PostDeployEvidence): void {
+function emitEvidence(evidence: PostDeployEvidence & { publicSmoke?: PublicSmokeEvidence }): void {
   const json = JSON.stringify(evidence);
   writeFileSync("post-deploy-verification.json", `${json}\n`, "utf8");
   const summary = process.env.GITHUB_STEP_SUMMARY;
@@ -473,12 +851,27 @@ async function runCli(): Promise<number> {
   return evidence.state === "VERIFIED" ? 0 : 1;
 }
 
+async function runPublicSmokeCli(): Promise<number> {
+  let raw = "";
+  try {
+    raw = readFileSync("post-deploy-verification.json", "utf8");
+  } catch {
+    return 1;
+  }
+  const evidence = parsePostDeployEvidence(`${POST_DEPLOY_EVIDENCE_PREFIX}${raw.trim()}`);
+  if (!evidence || evidence.state !== "VERIFIED") return evidence ? 0 : 1;
+  const publicSmoke = await verifyPublicPages({ targetSha: evidence.targetSha });
+  emitEvidence({ ...evidence, publicSmoke });
+  return publicSmoke.state === "PASS" ? 0 : 1;
+}
+
 const invokedDirectly = process.argv[1]
   ? import.meta.url === pathToFileURL(process.argv[1]).href
   : false;
 
 if (invokedDirectly) {
-  void runCli().then((code) => {
+  const cli = process.argv.includes("--public-smoke") ? runPublicSmokeCli : runCli;
+  void cli().then((code) => {
     process.exitCode = code;
   });
 }
