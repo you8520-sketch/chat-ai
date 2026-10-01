@@ -16,6 +16,7 @@ Scheduled workflows are whatever `scanScheduledWorkflowDefinitions` reads from `
 .github/workflows/code-health-monthly-cleanup.yml
 .github/workflows/code-health-weekly-audit.yml
 .github/workflows/decision-model-radar-weekly.yml
+.github/workflows/domain-ssl-monitor.yml
 .github/workflows/main-rp-monthly-cache-audit.yml
 .github/workflows/main-rp-supply-radar.yml
 .github/workflows/memory-research-cycle.yml
@@ -108,6 +109,7 @@ One responsibility, one canonical owner. Manual scripts that call the same funct
 | Code health ledger / cleanup Draft PR | weekly and monthly workflows | Not a Railway scheduler |
 | DB schema | `initializeDatabase` in `src/lib/db.ts` | — |
 | Deploy liveness | Railway `/health` | App does not restart itself |
+| hav.chat DNS/TLS observation | `src/lib/domainSslMonitor.ts` | Post-deploy SHA verification; Railway certificate issuance |
 
 Duplicate-owner notes, not refactors:
 
@@ -148,7 +150,8 @@ Authority is the furthest action the current owner actually takes. Retry safety 
 | Railway restart | ACTUATE by the platform | DEPLOYMENT | platform `on_failure` only | Railway | none | no | railway.toml | `/health` body is only `ok` |
 | Dependency npm audit | DETECT | NONE | REVIEW_REQUIRED | contents read on PR | none | YES | path filter on package files | GitHub check |
 | Backup / restore | — | — | UNKNOWN | — | — | YES | no owner | no admin surface |
-| Domain / certificate | — | — | UNKNOWN | — | — | YES | no owner | no admin surface |
+| Domain / certificate issuance | — | — | UNKNOWN | Railway | — | YES | Railway renews the custom-domain cert | no mutation owner |
+| hav.chat DNS/TLS observation | OBSERVE | NONE | REVIEW_REQUIRED | `contents: read` | none | YES | schedule + dry_run dispatch | `/admin/automation-reports` + Ops Inbox on failed schedule |
 
 `SAFE_EXISTING_OWNER` means the current claim/reclaim code is the retry owner and this audit did not add another. It does not mean a blind external rerun is safe. Payout and refund keep `RECONCILIATION_REQUIRED` instead of a second transfer when the provider outcome is unknown.
 
@@ -157,7 +160,7 @@ Authority is the furthest action the current owner actually takes. Retry safety 
 | Domain | Operation | Class | Why |
 | --- | --- | --- | --- |
 | GitHub CI | path-filtered validate | AUTOMATED | Runs on matching PRs. Merge stays human. |
-| GitHub schedule | seven workflows above | PARTIAL | They run themselves. Failed-job rerun is manual. Draft PRs are not merged. |
+| GitHub schedule | eight workflows above | PARTIAL | They run themselves. Failed-job rerun is manual. Draft PRs are not merged. |
 | In-process schedulers | five `SCHEDULER_DEFINITIONS` jobs | AUTOMATED | Cron plus slot claim. Training does not auto-retry failure. |
 | Railway | restart on failed health | PARTIAL | Platform restarts the process. The probe does not see chat failures. |
 | Provider supply | radar + draft | PARTIAL | Draft PR only. Switch is a merge. |
@@ -183,7 +186,7 @@ Authority is the furthest action the current owner actually takes. Retry safety 
 | Character supply | moderation and create-migration pages | MANUAL | Admin actions. |
 | Moderation | banned words automatic; reports reviewed | PARTIAL | AI comment check can block. Listing decisions are human. |
 | Backup / recovery | none in repo | MANUAL | Gap. |
-| Domain / certificate | none in repo | MANUAL | Gap. |
+| Domain / certificate issuance | Railway | MANUAL | Mutation gap. Observation is `domainSslMonitor`. |
 | Dependency update | npm audit on package PRs | PARTIAL | No scheduled bump or auto-merge. |
 
 ## COVERAGE GAPS
@@ -195,7 +198,7 @@ Not implemented in this PR.
 | GitHub failed-job automatic rerun | PERMISSION_BLOCKED, SAFE_ACTUATION_GAP | Actions write is absent. No workflow was proven side-effect free. Human gate stays. |
 | `/health` does not detect chat, billing, or scheduler failure | OBSERVABILITY_GAP | Railway only sees `{ status: "ok" }`. |
 | Backup and restore | OWNER_GAP | No canonical owner. |
-| Domain and certificate | OWNER_GAP | No canonical owner. |
+| Domain and certificate issuance | OWNER_GAP | Railway issues and renews the custom-domain cert. Repo observation is `domainSslMonitor`. |
 | Prompt quality drift | OWNER_GAP | No scheduled production owner. |
 | Production request server failures | ALREADY_COVERED | `ops_request_incidents` aggregates stable signatures. `listAdminOpsIncidents` projects them as source `request`. 4xx and expected auth or validation failures stay out. |
 | Autonomy map on an admin page | ADMIN_VISIBILITY_GAP | Would be a second projection of this audit. Left as FOLLOW-UP so the report does not become a configuration owner. |
@@ -206,7 +209,7 @@ Not implemented in this PR.
 
 ## Admin surface
 
-`/admin/automation-reports` is the read-only hub for GitHub schedule groups, code health cards, scheduler overview, finance anomalies, memory research, and supply drafts. `/admin/ops` is the incident list. Both already have owners. This audit does not add a table, a queue, or a second classifier.
+`/admin/automation-reports` is the read-only hub for GitHub schedule groups, code health cards, scheduler overview, finance anomalies, memory research, supply drafts, post-deploy verification, and the hav.chat DNS/TLS observer. `/admin/ops` is the incident list. Both already have owners. This audit does not add a table, a queue, or a second classifier.
 
 A later read-only rendering of this map could import the same facts the lock test checks. It is FOLLOW-UP because it is not required to prove the map, and a stored copy would be a second state owner.
 

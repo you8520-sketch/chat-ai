@@ -95,7 +95,7 @@ Optional for admin:
 
 ### 5. Custom domain (optional)
 
-Railway → Service → **Settings** → **Networking** → **Generate Domain** (free `*.up.railway.app`) or add custom domain + DNS CNAME as Railway instructs.
+Railway → Service → **Settings** → **Networking** → **Generate Domain** (free `*.up.railway.app`) or add custom domain + DNS CNAME as Railway instructs. Railway issues and renews the custom-domain certificate. `.github/workflows/domain-ssl-monitor.yml` only observes `hav.chat`; it does not change DNS or certificates.
 
 After domain is final, update:
 
