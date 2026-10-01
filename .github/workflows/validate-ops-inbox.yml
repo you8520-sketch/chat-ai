@@ -26,7 +26,12 @@ on:
       - "src/lib/pointChargeRefundShared.ts"
       - "src/app/admin/ops/**"
       - "src/app/settings/SettingsClient.tsx"
-      - ".github/workflows/validate-ops-inbox.yml"
+      - "src/lib/ops/autonomyCoverageAudit.test.ts"
+      - "docs/audit/current-main-autonomy-map.md"
+      - "src/lib/codeHealth/automationHealth.ts"
+      - "src/lib/payoutExecution.ts"
+      - "src/app/api/cron/subscription-renew/route.ts"
+      - ".github/workflows/**"
 
 permissions:
   contents: read
@@ -59,5 +64,9 @@ jobs:
           src/cron/adminSupplyDraftNotificationScheduler.test.ts
       - name: OpenRouter contract watch regression
         run: node --conditions=react-server --import tsx --test src/lib/openRouterContractWatch.test.ts
+      - name: Current-main autonomy coverage lock
+        run: >-
+          node --conditions=react-server --import tsx --test --test-concurrency=1
+          src/lib/ops/autonomyCoverageAudit.test.ts
       - name: Production build
         run: npm run build
