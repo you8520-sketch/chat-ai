@@ -177,6 +177,7 @@ function MemoryResearchCard({
   const state = run?.status ?? projection.status;
   const readiness = run?.readiness;
   const promptPacking = run?.promptPackingAudit ?? null;
+  const promptPackingTrend = run?.promptPackingTrend ?? null;
   const pipeline = projection.pipeline;
   const hasPipeline =
     pipeline.pendingLiveExperiments > 0 ||
@@ -340,6 +341,40 @@ function MemoryResearchCard({
                     prompt-packing invariant 전체 통과
                   </p>
                 )}
+                {promptPackingTrend ? (
+                  <div className="mt-3 rounded-lg border border-white/5 bg-black/15 p-2">
+                    <p className="font-semibold text-zinc-300">
+                      이전 cycle 대비 · {promptPackingTrend.status}
+                      {promptPackingTrend.previousCycleKey
+                        ? ` · ${promptPackingTrend.previousCycleKey}`
+                        : ""}
+                    </p>
+                    {promptPackingTrend.modelSetChanged ? (
+                      <p className="mt-1 text-amber-300">
+                        model set 변경 · 추가{" "}
+                        {promptPackingTrend.addedModels.join(", ") || "-"} · 제거{" "}
+                        {promptPackingTrend.removedModels.join(", ") || "-"}
+                      </p>
+                    ) : null}
+                    {promptPackingTrend.modelDeltas.length ? (
+                      <div className="mt-2 space-y-1">
+                        {promptPackingTrend.modelDeltas.map((model) => (
+                          <p key={model.modelId} className="font-mono text-[11px] text-zinc-500">
+                            {model.modelId} · N15 Δ{" "}
+                            {model.n15DeltaInputTokensDelta >= 0 ? "+" : ""}
+                            {model.n15DeltaInputTokensDelta} · Medium{" "}
+                            {model.mediumTokensDelta >= 0 ? "+" : ""}
+                            {model.mediumTokensDelta} · {model.verdict}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
+                    {promptPackingTrend.note ? (
+                      <p className="mt-2 text-zinc-600">{promptPackingTrend.note}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 {promptPacking.models.length ? (
                   <div className="mt-3 overflow-x-auto">
                     <table className="w-full min-w-[620px] text-left text-[11px]">
