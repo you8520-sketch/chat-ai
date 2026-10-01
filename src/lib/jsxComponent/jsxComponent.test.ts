@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { analyzeJsxCapabilities } from "./capabilities.ts";
-import { parseJsxComponentCatalog, serializeJsxComponentCatalog } from "./catalog.ts";
+import { parseJsxComponentCatalog, parseJsxRuntimeComponentCatalog, serializeJsxComponentCatalog } from "./catalog.ts";
 import { compileJsxComponentSource } from "./compile.ts";
 import { decideJsxHostBridgeAction } from "./hostBridge.ts";
 import { extractJsxInvocations, isIncompleteJsxInvocation, resolveJsxInvocationProps } from "./invocation.ts";
@@ -172,6 +172,10 @@ describe("jsx catalog + manifest", () => {
     const parsed = parseJsxComponentCatalog(json);
     assert.equal(parsed.length, 1);
     assert.equal(parsed[0]?.name, "PitWallFixture");
+    const runtimeCatalog = parseJsxRuntimeComponentCatalog(json);
+    assert.equal(runtimeCatalog.length, 1);
+    assert.equal("source" in (runtimeCatalog[0] ?? {}), false);
+    assert.ok(runtimeCatalog[0]?.compiled);
 
     const forged = parseJsxComponentCatalog(
       JSON.stringify([
