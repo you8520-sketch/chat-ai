@@ -104,6 +104,13 @@ describe("genre-neutral built-in status widgets", () => {
     for (const id of IDS) {
       const widget = buildBuiltinStatusWidgetTemplate(id, fields);
       assert.doesNotMatch(widget.htmlTemplate, /현재목표/);
+      if (id === "clean") {
+        assert.doesNotMatch(
+          widget.htmlTemplate,
+          /height:6px;width:100%/,
+          "numeric state must not render a fake full progress meter without a computed ratio"
+        );
+      }
       assert.match(widget.htmlTemplate, /\{\{소지품\}\}/);
       assert.match(widget.htmlTemplate, /font-variant-numeric:tabular-nums/);
       assert.match(widget.htmlTemplate, /0–100/);
