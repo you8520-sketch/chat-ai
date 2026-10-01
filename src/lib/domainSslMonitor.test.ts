@@ -242,12 +242,14 @@ describe("domain ssl monitor fixtures", () => {
     assert.equal(evidence.health.state, "OK");
   });
 
-  it("fails a persistent 503", async () => {
-    const evidence = await run({
-      fetchHealth: async () => ({ kind: "http", status: 503, retryable: true }),
-    });
-    assert.equal(evidence.state, "FAIL");
-    assert.equal(evidence.health.reason, "health_http_503");
+  it("fails a persistent 502/503/504 after bounded retries", async () => {
+    for (const status of [502, 503, 504]) {
+      const evidence = await run({
+        fetchHealth: async () => ({ kind: "http", status, retryable: true }),
+      });
+      assert.equal(evidence.state, "FAIL");
+      assert.equal(evidence.health.reason, `health_http_${status}`);
+    }
   });
 
   it("fails an external redirect and a 200 error body", async () => {
