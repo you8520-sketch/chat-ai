@@ -239,8 +239,8 @@ describe("Shared Initial prompt regression P1–P8", () => {
 });
 
 describe("700 creator instruction runtime transport", () => {
-  it("reloaded 650-char instruction reaches standalone, dual shared Luna and renderer-neutral prompts intact", () => {
-    const instruction = "장면".repeat(325);
+  it("reloaded 740-raw-char instruction within 700 equivalent budget reaches standalone and dual shared Luna intact", () => {
+    const instruction = "장면".repeat(370);
     for (const renderer of ["html", "jsx"] as const) {
       const raw = serializeStatusWidget({
         ...DEFAULT_STATUS_WIDGET,

@@ -10,6 +10,12 @@ import type {
   StatusWidgetStackOrder,
 } from "./types";
 
+// Defense-in-depth raw parser ceiling; the authoritative field-spec budget is
+// token-equivalent (estimateTokens uses 0.9 × raw chars), so a valid 700-unit
+// creator instruction can exceed 700 raw characters. Keep this raw ceiling
+// above the full valid range; creator/preset write budgets are enforced separately.
+const STATUS_WIDGET_FIELD_RAW_INSTRUCTION_SAFETY_MAX = 800;
+
 export function parseStatusWidgetJson(raw: string | null | undefined): StatusWidget | null {
   if (!raw?.trim()) return null;
   try {
@@ -37,7 +43,7 @@ export function parseStatusWidgetJson(raw: string | null | undefined): StatusWid
       fields: parsed.fields
         .map((f) => {
           const label = String(f.label || "").trim().slice(0, 40);
-          const instruction = String(f.instruction || "").trim().slice(0, 700);
+          const instruction = String(f.instruction || "").trim().slice(0, STATUS_WIDGET_FIELD_RAW_INSTRUCTION_SAFETY_MAX);
           const storedId = String(f.id || "").trim().slice(0, 64);
           const id = storedId || statusValueKeyFromLabel(label);
           const initialValue = String(

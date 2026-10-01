@@ -62,9 +62,9 @@ describe("status widget optional jsxSource", () => {
     assert.equal(parseStatusWidgetJson(invalidOnly), null);
   });
 
-  it("preserves 501–700 character field instructions across HTML/JSX save and reload", () => {
+  it("preserves 501–740 raw chars inside 700 equivalent budget across HTML/JSX save and reload", () => {
     for (const presentation of ["html", "jsx"] as const) {
-      const instruction = "장면".repeat(325);
+      const instruction = "장면".repeat(370);
       const widget: StatusWidget = {
         version: 1,
         name: "확장 지시",
@@ -75,7 +75,7 @@ describe("status widget optional jsxSource", () => {
       };
       const parsed = parseStatusWidgetJson(serializeStatusWidget(widget));
       assert.equal(parsed?.fields[0]?.instruction, instruction);
-      assert.equal(parsed?.fields[0]?.instruction.length, 650);
+      assert.equal(parsed?.fields[0]?.instruction.length, 740);
     }
   });
 

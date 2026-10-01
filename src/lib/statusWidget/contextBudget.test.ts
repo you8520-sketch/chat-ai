@@ -146,6 +146,11 @@ describe("statusWidget contextBudget", () => {
     const expanded = { ...DEFAULT_STATUS_WIDGET, fields: [{ id: "time", label: "시간", instruction: "장면".repeat(325) }] };
     const loaded = serializeStatusWidget(expanded);
     assert.equal(JSON.parse(loaded).fields[0].instruction.length, 650);
+    const nearBudget = { ...expanded, fields: [{ id: "time", label: "시간", instruction: "장면".repeat(370) }] };
+    const nearBudgetSaved = serializeStatusWidget(nearBudget);
+    assert.equal(estimateStatusWidgetContextChars(nearBudget) <= STATUS_WIDGET_CONTEXT_MAX, true);
+    assert.equal(estimateStatusWidgetContextCharsFromJson(nearBudgetSaved), estimateStatusWidgetContextChars(nearBudget));
+    assert.equal(validateCharacterStatusWidgetContextBudget(nearBudget).ok, true);
     assert.equal(estimateStatusWidgetContextCharsFromJson(loaded), estimateStatusWidgetContextChars(expanded));
     assert.equal(validateCharacterStatusWidgetContextBudget(expanded).ok, true);
     const overBudget = { ...expanded, fields: [
