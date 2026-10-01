@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import Database from "better-sqlite3";
 
 import {
+  runAdminSupplyCandidateNotificationScan,
   runAdminSupplyDraftNotificationScan,
 } from "@/cron/adminSupplyDraftNotificationScheduler";
+import { notifyAdminsSupplyCandidateAttention } from "@/lib/userNotifications";
 import { notificationHref } from "@/lib/userNotificationPresentation";
 import { resetWebPushVapidCache } from "@/lib/webPushVapid";
 
@@ -181,6 +183,57 @@ describe("admin supply Draft notification watcher", () => {
       "/admin/automation-reports"
     );
 
+    db.close();
+  });
+
+  it("does not notify for the current Fluence waitlist, and dedupes a credential-required candidate", () => {
+    const db = makeDb();
+    db.prepare("INSERT INTO users (id,email,is_admin) VALUES (1,'admin1@example.com',1)").run();
+    db.prepare("INSERT INTO users (id,email,is_admin) VALUES (2,'admin2@example.com',0)").run();
+    db.prepare(
+      "INSERT INTO web_push_subscriptions (user_id,endpoint,p256dh,auth) VALUES (1,'https://push.example/candidate','p256dh','auth')"
+    ).run();
+
+    const held = runAdminSupplyCandidateNotificationScan(db);
+    assert.equal(held.candidatesSeen, 0);
+    assert.equal(held.adminNotificationsCreated, 0);
+
+    const first = notifyAdminsSupplyCandidateAttention(db, {
+      refId: 77,
+      supplierId: "example-supplier",
+      companyName: "Example Supplier",
+      status: "CREDENTIAL_REQUIRED",
+    });
+    assert.deepEqual(first, [1]);
+    const second = notifyAdminsSupplyCandidateAttention(db, {
+      refId: 77,
+      supplierId: "example-supplier",
+      companyName: "Example Supplier",
+      status: "CREDENTIAL_REQUIRED",
+    });
+    assert.deepEqual(second, []);
+    const rows = db
+      .prepare("SELECT user_id,type,ref_id FROM user_notifications")
+      .all() as Array<{ user_id: number; type: string; ref_id: number }>;
+    assert.deepEqual(rows, [{ user_id: 1, type: "admin_supply_candidate", ref_id: 77 }]);
+    const outbox = db.prepare("SELECT user_id,payload_json FROM web_push_outbox").all() as Array<{
+      user_id: number;
+      payload_json: string;
+    }>;
+    assert.equal(outbox.length, 1);
+    const payload = JSON.parse(outbox[0]!.payload_json) as { url: string; tag: string };
+    assert.equal(payload.url, "/admin/automation-reports");
+    assert.equal(payload.tag, "admin-supply-candidate:77");
+    assert.equal(
+      notificationHref({
+        type: "admin_supply_candidate",
+        ref_id: 77,
+        actor_id: null,
+        comment_target_type: null,
+        comment_target_id: null,
+      }),
+      "/admin/automation-reports"
+    );
     db.close();
   });
 

@@ -42,6 +42,7 @@ jobs:
           node --conditions=react-server --import tsx --test --test-concurrency=1
           scripts/lib/mainRpSupplyRadar.test.ts
           scripts/lib/mainRpDirectSupplierRadar.test.ts
+          src/lib/supplierDiscovery/supplierDiscovery.test.ts
           scripts/lib/mainRpSupplyPromotionHistory.test.ts
           scripts/lib/mainRpSupplyPromotionProposal.test.ts
           scripts/lib/mainRpSupplyAutoDraft.test.ts
@@ -57,6 +58,8 @@ jobs:
           const fs = require("fs");
           const r = JSON.parse(fs.readFileSync("artifacts/main-rp-supply-radar/report.json","utf8"));
           if (r.providerGenerationCalls !== 0) throw new Error("provider generation call invariant violated");
+          const d = JSON.parse(fs.readFileSync("artifacts/main-rp-supply-radar/supplier-discovery.json","utf8"));
+          if (d.providerGenerationCalls !== 0) throw new Error("supplier discovery generation call invariant violated");
           NODE
       - name: Bounded live candidate qualification
         if: github.event_name == 'workflow_dispatch' || github.event.schedule == '47 3 1 * *'
@@ -88,6 +91,10 @@ jobs:
           if [ -f artifacts/main-rp-supply-radar/DIRECT-SUPPLIERS.md ]; then
             printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
             cat artifacts/main-rp-supply-radar/DIRECT-SUPPLIERS.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f artifacts/main-rp-supply-radar/SUPPLIER-DISCOVERY.md ]; then
+            printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
+            cat artifacts/main-rp-supply-radar/SUPPLIER-DISCOVERY.md >> "$GITHUB_STEP_SUMMARY"
           fi
           if [ -f artifacts/main-rp-supply-radar/live/LIVE-QUALIFICATION.md ]; then
             printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"

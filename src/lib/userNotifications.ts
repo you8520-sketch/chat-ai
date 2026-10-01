@@ -416,6 +416,29 @@ type AdminNotificationRecipient = {
   is_admin: number;
 };
 
+function supplyCandidateAttentionCopy(opts: {
+  supplierId: string;
+  companyName: string;
+  status: "CREDENTIAL_REQUIRED" | "READY_FOR_LIVE_QUALIFICATION";
+}): { title: string; body: string } {
+  switch (opts.status) {
+    case "CREDENTIAL_REQUIRED":
+      return {
+        title: "공급처 credential 필요",
+        body: `${opts.companyName} (${opts.supplierId}) 공개 심사를 통과했습니다. live qualification 전에 전용 credential이 필요합니다. production route는 바꾸지 않습니다.`,
+      };
+    case "READY_FOR_LIVE_QUALIFICATION":
+      return {
+        title: "공급처 live qualification 준비",
+        body: `${opts.companyName} (${opts.supplierId}) 가 live qualification 대상입니다. discovery owner는 generation을 호출하지 않으며 route Draft PR을 만들지 않습니다.`,
+      };
+    default: {
+      const _exhaustive: never = opts.status;
+      return _exhaustive;
+    }
+  }
+}
+
 function listAdminNotificationRecipients(db: Database.Database): AdminNotificationRecipient[] {
   return (db.prepare("SELECT id, email, is_admin FROM users").all() as AdminNotificationRecipient[])
     .filter((user) => isAdminUser(user));
@@ -481,6 +504,57 @@ export function notifyAdminsSupplyDraftReady(
         push: {
           url: "/admin/automation-reports",
           tag: `admin-supply-draft:${opts.prNumber}`,
+          kind: "notice",
+        },
+      });
+      return true;
+    }).immediate();
+
+    if (inserted) notified.push(admin.id);
+  }
+
+  return notified;
+}
+
+/**
+ * 공개 심사를 통과한 독립 공급처 후보를 관리자에게 한 번 알립니다.
+ * 공급처 id의 안정적인 ref id가 dedupe key입니다. Draft PR 알림 owner와 같은
+ * in-app + web push 경로를 쓰고, 별도 push 시스템을 만들지 않습니다.
+ */
+export function notifyAdminsSupplyCandidateAttention(
+  db: Database.Database,
+  opts: {
+    refId: number;
+    supplierId: string;
+    companyName: string;
+    status: "CREDENTIAL_REQUIRED" | "READY_FOR_LIVE_QUALIFICATION";
+  }
+): number[] {
+  const admins = listAdminNotificationRecipients(db);
+  const notified: number[] = [];
+  const copy = supplyCandidateAttentionCopy(opts);
+  const title = copy.title;
+  const body = copy.body;
+
+  for (const admin of admins) {
+    const inserted = db.transaction(() => {
+      const exists = db
+        .prepare(
+          "SELECT 1 AS ok FROM user_notifications WHERE user_id=? AND type='admin_supply_candidate' AND ref_id=? LIMIT 1"
+        )
+        .get(admin.id, opts.refId) as { ok: number } | undefined;
+      if (exists) return false;
+
+      insertNotification(db, {
+        userId: admin.id,
+        type: "admin_supply_candidate",
+        refId: opts.refId,
+        actorId: null,
+        title,
+        body,
+        push: {
+          url: "/admin/automation-reports",
+          tag: `admin-supply-candidate:${opts.refId}`,
           kind: "notice",
         },
       });
