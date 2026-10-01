@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildContext } from "@/services/contextBuilder";
 import {
+  HISTORICAL_TRUTH_CURRENT_USER_EVIDENCE_MARKER,
   HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER,
   HISTORICAL_TRUTH_POLICY_BLOCK,
   HISTORICAL_TRUTH_POLICY_SECTION_ID,
@@ -14,6 +15,7 @@ import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
 } from "@/lib/chatModels";
 
 function countHistoricalTruthFullOwner(text: string): number {
@@ -152,6 +154,7 @@ describe("historical truth — production miss-path owner matrix", () => {
     for (const modelId of [
       CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
       CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      GEMINI_38_FLASH_MODEL,
       CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
     ]) {
       const built = buildBase({
@@ -169,12 +172,29 @@ describe("historical truth — production miss-path owner matrix", () => {
       );
       assert.match(
         lastUser!.content,
-        /과거 공유 기억·첫 경험·과거 부재 단정은 \[HISTORICAL TRUTH — CANONICAL MEMORY\]를 따른다/
+        /이번 턴의 공유 과거는 \[HISTORICAL TRUTH — CANONICAL MEMORY\]에서 확인된 사실만 이어 쓰고/
       );
+      assert.match(lastUser!.content, /비어 있는 이전 세부는 열린 상태/);
     }
   });
 
-  it("does not add the recency pointer to a concrete user-authored past setup", () => {
+  it("does not anchor independent user backstory without a shared-history premise", () => {
+    const built = buildBase({
+      currentUserMessage: "어제 혼자 시장에 갔다가 사과를 먹고 돌아왔어.",
+    });
+    const lastUser = built.history[built.history.length - 1];
+    assert.equal(lastUser?.role, "user");
+    assert.equal(
+      lastUser!.content.includes(HISTORICAL_TRUTH_CURRENT_USER_EVIDENCE_MARKER),
+      false
+    );
+    assert.equal(
+      lastUser!.content.includes(HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER),
+      false
+    );
+  });
+
+  it("anchors broad user-authored shared history at the same abstraction level", () => {
     const built = buildBase({
       currentUserMessage:
         "OOC: 첫 만남 이후 몇 차례 임무를 함께한 시점. 오늘 임무가 끝난 뒤 둘은 숙소에 들어와 있다.",
@@ -182,9 +202,20 @@ describe("historical truth — production miss-path owner matrix", () => {
     const lastUser = built.history[built.history.length - 1];
     assert.equal(lastUser?.role, "user");
     assert.equal(
+      lastUser!.content.includes(HISTORICAL_TRUTH_CURRENT_USER_EVIDENCE_MARKER),
+      true
+    );
+    assert.equal(
       lastUser!.content.includes(HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER),
       false
     );
+    assert.match(
+      lastUser!.content,
+      /- 첫 만남 이후 몇 차례 임무를 함께한 시점\./
+    );
+    assert.doesNotMatch(lastUser!.content, /브레이크|게이트|보급 식량|시장 방문/);
+    assert.match(lastUser!.content, /비어 있는 이전 세부는 열린 상태/);
+    assert.match(lastUser!.content, /새 구체성은 현재 장면에서 만든다/);
   });
   it("co-narration mode owner does not duplicate full historical truth body", () => {
     const block = buildNoGodmoddingBlock("A", "B", "coNarration");
