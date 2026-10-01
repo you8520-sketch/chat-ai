@@ -36,3 +36,6 @@ handoff-benchmark-capsule.json
 handoff-benchmark-capsule*.json
 data/handoff-benchmark-import/
 data/handoff-benchmark-capsule*.json
+
+# Generated from src/lib/jsxComponent/sandboxRuntime.ts before dev/build
+public/jsx-sandbox/runtime.js
