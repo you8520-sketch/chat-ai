@@ -27,8 +27,6 @@ import {
   PROSE_STYLE_SECTION_V2,
   PROSE_VNEXT_STYLE_SECTION_V2,
 } from "@/lib/sharedNovelProseV2Styles";
-import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "@/lib/turnHandoffAndPacing";
-
 const KEYS = [
   SHARED_NOVEL_PROSE_V2_ENV.ENABLED,
   SHARED_NOVEL_PROSE_V2_ENV.USER_IDS,
@@ -157,28 +155,11 @@ describe("sharedNovelProseV2 styles + resolver", () => {
     assert.ok(PROSE_STYLE_SECTION.includes(IMMERSIVE_PROSE_BLOCK));
   });
 
-  it("V2 length/terminal use floor 2500 and new continuation", () => {
-    const length = buildLengthInstruction(3200, { sharedNovelProseV2: true });
-    assert.match(length, /MINIMUM_FLOOR: 2,?500\+/);
-    assert.match(length, /\[SCENE CONTINUATION PRIORITY\]/);
-    assert.ok(length.includes("MINIMUM_FLOOR 전 조기 종료를 피한다"));
-    assert.ok(!length.includes("Never stop at the first satisfying ending"));
-    assert.ok(
-      !length.includes("분위기·세계 움직임으로 이어가되"),
-      "legacy continuation body must not appear in V2 length"
-    );
-
-    const terminal = buildCompactTerminalLengthAbsoluteTail(3200, {
-      sharedNovelProseV2: true,
-    });
-    assert.match(terminal, /MINIMUM_FLOOR 2,?500\+/);
-    assert.ok(terminal.includes("현재 장면 안에서 충분히 전개하고 미달 조기 종료를 피한다."));
-    assert.ok(!terminal.includes("단일 응답 최대 전개"));
-
-    const prodLength = buildLengthInstruction(3200);
-    assert.match(prodLength, /MINIMUM_FLOOR: 2,?700\+/);
-    assert.ok(prodLength.includes("Never stop at the first satisfying ending"));
-    assert.ok(prodLength.includes(SCENE_CONTINUATION_PRIORITY_BLOCK));
+  it("V2 and production system length stay empty — numeric length is not a second owner", () => {
+    assert.equal(buildLengthInstruction(3200, { sharedNovelProseV2: true }), "");
+    assert.equal(buildLengthInstruction(3200), "");
+    assert.equal(buildCompactTerminalLengthAbsoluteTail(3200, { sharedNovelProseV2: true }), "");
+    assert.equal(buildCompactTerminalLengthAbsoluteTail(3200), "");
   });
 
   it("no hardcoded character/persona names in V2 prose files", () => {
