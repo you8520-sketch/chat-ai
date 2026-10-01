@@ -521,6 +521,68 @@ export function notifyAdminsSupplyDraftReady(
  * 공급처 id의 안정적인 ref id가 dedupe key입니다. Draft PR 알림 owner와 같은
  * in-app + web push 경로를 쓰고, 별도 push 시스템을 만들지 않습니다.
  */
+/**
+ * Notify administrators once per canonical finance_daily slot when deterministic
+ * billing/cost anomalies are present. The daily slot key is the dedupe owner;
+ * repeated boot/runtime/manual recovery for the same slot cannot fan out pushes.
+ */
+export function notifyAdminsFinanceAnomaly(
+  db: Database.Database,
+  opts: {
+    slotKey: string;
+    criticalCount: number;
+    warningCount: number;
+    anomalyTitles: readonly string[];
+  }
+): number[] {
+  if (opts.criticalCount <= 0 && opts.warningCount <= 0) return [];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(opts.slotKey)) return [];
+
+  const refId = Number(opts.slotKey.replace(/-/g, ""));
+  if (!Number.isSafeInteger(refId) || refId <= 0) return [];
+
+  const admins = listAdminNotificationRecipients(db);
+  const notified: number[] = [];
+  const title =
+    opts.criticalCount > 0
+      ? "재무/과금 Critical anomaly"
+      : "재무/과금 anomaly 검토";
+  const top = opts.anomalyTitles.slice(0, 3).join(" · ");
+  const body =
+    `${opts.slotKey} finance_daily · critical ${opts.criticalCount} · warning ${opts.warningCount}` +
+    (top ? ` · ${top}` : "");
+
+  for (const admin of admins) {
+    const inserted = db.transaction(() => {
+      const exists = db
+        .prepare(
+          "SELECT 1 AS ok FROM user_notifications WHERE user_id=? AND type='admin_finance_anomaly' AND ref_id=? LIMIT 1"
+        )
+        .get(admin.id, refId) as { ok: number } | undefined;
+      if (exists) return false;
+
+      insertNotification(db, {
+        userId: admin.id,
+        type: "admin_finance_anomaly",
+        refId,
+        actorId: null,
+        title,
+        body,
+        push: {
+          url: "/admin/ops",
+          tag: `admin-finance-anomaly:${opts.slotKey}`,
+          kind: "notice",
+        },
+      });
+      return true;
+    }).immediate();
+
+    if (inserted) notified.push(admin.id);
+  }
+
+  return notified;
+}
+
 export function notifyAdminsSupplyCandidateAttention(
   db: Database.Database,
   opts: {

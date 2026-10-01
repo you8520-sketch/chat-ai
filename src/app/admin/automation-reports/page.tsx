@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { requireAdminUser } from "@/lib/adminAuth";
+import { buildAdminFinanceSummary, currentKstMonthKey } from "@/lib/adminFinance";
 import {
   fetchMemoryResearchAdminProjection,
   type MemoryResearchAdminProjection,
@@ -21,7 +22,12 @@ import {
 } from "@/lib/codeHealth/reports";
 import { getDb } from "@/lib/db";
 import { fetchDecisionRadarAdminProjection } from "@/lib/decisionModelRadarReports";
+import {
+  buildFinanceAnomalyReport,
+  type FinanceAnomalyReport,
+} from "@/lib/financeAnomalyRadar";
 import { listMainRpCacheTtlReports } from "@/lib/mainRpCacheTtlEconomics";
+import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
 import { listSchedulerRunOverview } from "@/lib/schedulerRunRegistry";
 import {
   buildSupplierDiscoveryReport,
@@ -168,6 +174,79 @@ function CodeHealthCard({ card }: { card: CodeHealthAdminCard }) {
           </a>
         </div>
       ) : null}
+    </section>
+  );
+}
+
+function FinanceAnomalyCard({ report }: { report: FinanceAnomalyReport }) {
+  return (
+    <section className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-950/10 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-black text-amber-200">Finance / Billing Anomaly Radar</h2>
+          <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+            canonical finance ledger, provider reconciliation, 실제 Main RP economics와 최소 margin
+            floor를 read-only로 비교합니다. 이 radar는 가격·route·billing을 자동 변경하지
+            않습니다.
+          </p>
+        </div>
+        <span
+          className={
+            "rounded px-2 py-1 text-xs font-bold " +
+            (report.status === "HEALTHY"
+              ? "bg-emerald-500/15 text-emerald-300"
+              : report.status === "CRITICAL"
+                ? "bg-rose-500/15 text-rose-300"
+                : "bg-amber-500/15 text-amber-300")
+          }
+        >
+          {report.status}
+        </span>
+      </div>
+      <p className="mt-3 text-xs text-zinc-500">
+        {report.monthKey} · 계산 {fmtDate(report.generatedAt)} · critical {report.criticalCount} ·
+        warning {report.warningCount}
+      </p>
+      {report.anomalies.length === 0 ? (
+        <div className="mt-4 rounded-xl border border-emerald-500/10 bg-emerald-950/10 p-3 text-sm text-emerald-300">
+          deterministic finance/billing anomaly가 없습니다.
+        </div>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {report.anomalies.slice(0, 12).map((anomaly) => (
+            <article key={anomaly.id} className="rounded-xl border border-white/5 bg-black/15 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-bold text-zinc-200">{anomaly.title}</p>
+                <span
+                  className={
+                    "rounded px-2 py-0.5 text-[11px] font-bold " +
+                    (anomaly.severity === "critical"
+                      ? "bg-rose-500/15 text-rose-300"
+                      : "bg-amber-500/15 text-amber-300")
+                  }
+                >
+                  {anomaly.severity.toUpperCase()}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">{anomaly.summary}</p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                <span className="font-mono text-zinc-600">{anomaly.sourceRef}</span>
+                <Link href={anomaly.href} className="font-semibold text-amber-300 hover:text-amber-200">
+                  canonical owner 확인 →
+                </Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+      <div className="mt-4">
+        <Link
+          href="/admin/ops"
+          className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-white/5"
+        >
+          운영 예외함에서 보기 →
+        </Link>
+      </div>
     </section>
   );
 }
@@ -821,6 +900,20 @@ export default async function AdminAutomationReportsPage() {
     fetchDecisionRadarAdminProjection(github.groups),
     fetchMemoryResearchAdminProjection(github.groups),
   ]);
+  const financeNow = new Date();
+  const financeSummary = buildAdminFinanceSummary(
+    db,
+    currentKstMonthKey(financeNow.getTime())
+  );
+  const financePricing = buildMainRpPricingObservabilityProjection({
+    db,
+    now: financeNow,
+  });
+  const financeAnomalies = buildFinanceAnomalyReport({
+    summary: financeSummary,
+    pricing: financePricing,
+    now: financeNow,
+  });
   const supplierDiscovery = buildSupplierDiscoveryReport();
   const ttlReports = listMainRpCacheTtlReports(db, 12);
   const schedulers = listSchedulerRunOverview(db);
@@ -891,6 +984,7 @@ export default async function AdminAutomationReportsPage() {
               codeHealthProblems +
               decisionRadarProblems +
               memoryResearchProblems +
+              financeAnomalies.anomalies.length +
               supplyDrafts.drafts.length}건
           </p>
           <p className="mt-1 text-xs text-zinc-600">실패·누락·stale 최신 상태</p>
@@ -901,6 +995,8 @@ export default async function AdminAutomationReportsPage() {
         <CodeHealthCard card={codeHealth.weekly} />
         <CodeHealthCard card={codeHealth.monthly} />
       </div>
+
+      <FinanceAnomalyCard report={financeAnomalies} />
 
       <section className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
