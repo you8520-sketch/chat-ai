@@ -28,7 +28,10 @@ on:
       - "src/app/settings/SettingsClient.tsx"
       - "src/lib/ops/autonomyCoverageAudit.test.ts"
       - "docs/audit/current-main-autonomy-map.md"
-      - ".github/workflows/validate-ops-inbox.yml"
+      - "src/lib/codeHealth/automationHealth.ts"
+      - "src/lib/payoutExecution.ts"
+      - "src/app/api/cron/subscription-renew/route.ts"
+      - ".github/workflows/**"
 
 permissions:
   contents: read

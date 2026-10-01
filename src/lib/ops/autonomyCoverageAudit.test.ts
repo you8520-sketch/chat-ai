@@ -26,6 +26,13 @@ function read(rel: string): string {
   return fs.readFileSync(path.join(ROOT, rel), "utf8");
 }
 
+/** Permission assignment only. Comments and prose that mention the words do not match. */
+const ACTIONS_WRITE_ASSIGNMENT = /^[ \t]*actions:[ \t]*["']?write["']?[ \t]*(?:#.*)?$/m;
+
+function workflowAssignsActionsWrite(text: string): boolean {
+  return ACTIONS_WRITE_ASSIGNMENT.test(text);
+}
+
 function inventoryBlock(markdown: string, name: string): string[] {
   const pattern = new RegExp(
     `<!-- autonomy-inventory:${name} -->\\r?\\n([\\s\\S]*?)\\r?\\n<!-- /autonomy-inventory:${name} -->`
@@ -48,9 +55,38 @@ test("scheduled workflow inventory matches current main and has no actions:write
 
   for (const rel of scanned) {
     const text = read(rel);
-    assert.equal(/^\s*actions:\s*write\s*$/m.test(text), false, rel);
+    assert.equal(workflowAssignsActionsWrite(text), false, rel);
     assert.match(text, /schedule:/);
   }
+});
+
+test("actions:write detection accepts quoted permission assignments and ignores comments", () => {
+  assert.equal(workflowAssignsActionsWrite("actions: write"), true);
+  assert.equal(workflowAssignsActionsWrite('  actions: "write"'), true);
+  assert.equal(workflowAssignsActionsWrite("actions: 'write'"), true);
+  assert.equal(workflowAssignsActionsWrite("actions: write # required for rerun"), true);
+  assert.equal(workflowAssignsActionsWrite('actions: "write" # quoted'), true);
+  assert.equal(workflowAssignsActionsWrite("actions: read"), false);
+  assert.equal(workflowAssignsActionsWrite("actions: write-all"), false);
+  assert.equal(workflowAssignsActionsWrite("# actions: write"), false);
+  assert.equal(workflowAssignsActionsWrite("# never grant actions: write"), false);
+  assert.equal(
+    workflowAssignsActionsWrite("The permission actions: write is absent."),
+    false
+  );
+});
+
+test("ops inbox workflow path filter covers the lock inputs", () => {
+  const text = read(".github/workflows/validate-ops-inbox.yml");
+  for (const required of [
+    '".github/workflows/**"',
+    '"src/lib/codeHealth/automationHealth.ts"',
+    '"src/lib/payoutExecution.ts"',
+    '"src/app/api/cron/subscription-renew/route.ts"',
+  ]) {
+    assert.ok(text.includes(required), required);
+  }
+  assert.equal(text.includes('".github/workflows/validate-ops-inbox.yml"'), false);
 });
 
 test("in-process scheduler retry flags match the audit inventory", () => {
