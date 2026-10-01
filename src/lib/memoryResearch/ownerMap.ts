@@ -124,6 +124,7 @@ export const AUTOMATION_OWNER_MAP: Readonly<Record<string, string>> = {
   memory_research_local_gold_authoring: "src/lib/memoryResearch/localGoldAuthoringPlanner.ts (LOCAL_GOLD_AUTHORING_REQUIRED → human-reviewed synthetic gold packet only)",
   memory_research_baseline_trend: "src/lib/memoryResearch/baselineTrend.ts (same-benchmark deterministic baseline drift evidence across research cycles)",
   memory_research_effectiveness_audit: "src/lib/memoryResearch/effectivenessAudit.ts (read-only candidate funnel / repeated-WATCH / cooldown bottleneck evidence; no policy mutation)",
+  memory_research_prompt_packing_trend: "src/lib/memoryResearch/promptPackingTrend.ts (same-policy memory-specific N15/Medium token drift across durable cycles)",
   memory_research_ledger: "orphan branch `memory-research-ledger` (ledger.json + cycles/*.json)",
   memory_research_draft_pr: "src/lib/memoryResearch/draftPr.ts (ACCEPTED-only, `gh pr create --draft`)",
   provider_cost_accounting: "src/lib/providerCostLedger.ts (production spend; research cycle makes 0 paid calls)",

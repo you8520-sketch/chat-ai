@@ -56,6 +56,24 @@ export type MemoryResearchAdminPromptPacking = {
   models: MemoryResearchAdminPromptPackingModel[];
 };
 
+export type MemoryResearchAdminPromptPackingTrendModel = {
+  modelId: string;
+  n15DeltaInputTokensDelta: number;
+  mediumTokensDelta: number;
+  verdict: string;
+};
+
+export type MemoryResearchAdminPromptPackingTrend = {
+  status: string;
+  previousCycleKey: string | null;
+  comparable: boolean;
+  modelSetChanged: boolean;
+  addedModels: string[];
+  removedModels: string[];
+  modelDeltas: MemoryResearchAdminPromptPackingTrendModel[];
+  note: string;
+};
+
 export type MemoryResearchAdminDecision = {
   candidateKey: string;
   decision: string;
@@ -146,6 +164,7 @@ export type MemoryResearchAdminRun = {
   persistentMemoryGaps: number;
   persistentMemoryGapStatus: string | null;
   promptPackingAudit: MemoryResearchAdminPromptPacking | null;
+  promptPackingTrend: MemoryResearchAdminPromptPackingTrend | null;
   readiness: MemoryResearchAdminReadinessCounts;
   insights: MemoryResearchAdminInsight[];
   effectiveness: MemoryResearchAdminEffectiveness | null;
@@ -250,6 +269,34 @@ function projectPromptPackingAudit(
     invariantTotal: invariants.length,
     failedInvariants,
     models,
+  };
+}
+
+function projectPromptPackingTrend(
+  value: unknown
+): MemoryResearchAdminPromptPackingTrend | null {
+  const trend = asRecord(value);
+  if (!trend) return null;
+  const status = asString(trend.status);
+  if (!status) return null;
+  return {
+    status,
+    previousCycleKey: asString(trend.previousCycleKey) || null,
+    comparable: trend.comparable === true,
+    modelSetChanged: trend.modelSetChanged === true,
+    addedModels: stringList(trend.addedModels),
+    removedModels: stringList(trend.removedModels),
+    modelDeltas: asArray(trend.modelDeltas)
+      .map(asRecord)
+      .filter((row): row is Record<string, unknown> => row !== null)
+      .map((row) => ({
+        modelId: asString(row.modelId),
+        n15DeltaInputTokensDelta: asNumber(row.n15DeltaInputTokensDelta),
+        mediumTokensDelta: asNumber(row.mediumTokensDelta),
+        verdict: asString(row.verdict),
+      }))
+      .filter((row) => row.modelId),
+    note: asString(trend.note),
   };
 }
 
@@ -642,6 +689,7 @@ export function projectMemoryResearchAdminRun(
       ? asString(persistentMemoryGapReport.status) || null
       : null,
     promptPackingAudit: projectPromptPackingAudit(cycle.promptPackingAudit),
+    promptPackingTrend: projectPromptPackingTrend(cycle.promptPackingTrend),
     readiness: countReadiness(casePortPlans),
     insights,
     effectiveness: projectMemoryResearchEffectiveness(cycle.effectivenessAudit),
