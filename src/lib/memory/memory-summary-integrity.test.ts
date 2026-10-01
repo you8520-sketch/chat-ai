@@ -241,6 +241,40 @@ describe("rolling summary source grounding", () => {
     );
   });
 
+  it("rejects assistant-specific mission history when user only established broad shared missions", () => {
+    const dialogue =
+      "[1턴]\n유저: 첫 만남 이후 몇 차례 임무를 함께했어.\n태형: 너 그 브레이크 진입 때 내가 뒤에서 소리 냈는데 그냥 들어갔잖아.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "렌과 태형은 아까 브레이크 진입 임무를 함께했고, 태형이 뒤에서 소리를 냈다.",
+        dialogue,
+        "이름/호칭: 렌"
+      ),
+      false
+    );
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "렌과 태형은 첫 만남 이후 몇 차례 임무를 함께했다.",
+        dialogue,
+        "이름/호칭: 렌"
+      ),
+      true
+    );
+  });
+
+  it("rejects assistant-specific market history when user only presupposed a known preference", () => {
+    const dialogue =
+      "[1턴]\n유저: 내가 평소에 뭐 좋아하는지 기억하지? 아무거나 골라봐.\n태형: 너 저번에 시장통에서 포도 세 송이나 사게 만들었잖아.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "렌과 태형은 저번에 시장에 함께 가서 포도를 샀다.",
+        dialogue,
+        "이름/호칭: 렌"
+      ),
+      false
+    );
+  });
+
   it("does not block unrelated character backstory", () => {
     const dialogue =
       "[1턴]\n유저: 가족 이야기도 해줘.\n태형: 태형은 누나와 예전에 한동안 함께 살았다고 말했다.";

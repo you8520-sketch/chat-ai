@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
+  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   MAIN_RP_MODEL_IDS,
   selectedAIProvider,
 } from "@/lib/chatModels";
@@ -27,9 +30,22 @@ describe("rpActiveModelQualityLive", () => {
     assert.deepEqual(RP_ACTIVE_MODEL_QUALITY_EXCLUDED, []);
   });
 
-  it("can bound a focused false-canon resmoke to one call per active model", () => {
-    const plan = buildRpActiveModelQualityPlan(["false_canon_trap"]);
-    assert.equal(plan.length, MAIN_RP_MODEL_IDS.length);
+  it("can bound a focused false-canon resmoke to the requested active subset", () => {
+    const focusedModels = [
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      GEMINI_38_FLASH_MODEL,
+      CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+    ] as const;
+    const plan = buildRpActiveModelQualityPlan(
+      ["false_canon_trap"],
+      focusedModels
+    );
+    assert.equal(plan.length, 4);
+    assert.deepEqual(
+      plan.map((row) => row.modelId),
+      [...focusedModels]
+    );
     assert.ok(plan.every((row) => row.caseId === "false_canon_trap"));
   });
 
@@ -127,6 +143,7 @@ describe("rpActiveModelQualityLive", () => {
     );
     assert.match(yml, /github\.event_name == 'schedule'/);
     assert.match(yml, /\.github\/rp-active-model-quality-live\.trigger/);
+    assert.match(yml, /RP_ACTIVE_MODEL_QUALITY_MODEL_IDS_OVERRIDE/);
     assert.match(yml, /PR trigger absent; provider calls=0/);
     assert.doesNotMatch(yml, /gh pr merge|--auto\b|ready-for-review/);
   });
