@@ -11,6 +11,14 @@ import {
   type PostDeployVerificationView,
   type PublicSmokeEvidence,
 } from "@/lib/postDeployVerification";
+import {
+  DOMAIN_SSL_WORKFLOW_PATH,
+  parseDomainSslEvidence,
+  projectDomainSslMonitor,
+  type DomainSslEvidence,
+  type DomainSslMonitorView,
+  type ParsedDomainSslRun,
+} from "@/lib/domainSslMonitor";
 
 export const AUTOMATION_REPORTS_GITHUB_REPO = "you8520-sketch/chat-ai";
 
@@ -348,6 +356,80 @@ export async function fetchPostDeployVerificationProjection(
       latestSuccess: null,
       readError:
         error instanceof Error ? error.message : "GitHub deployment verification API unavailable",
+    });
+  }
+}
+
+export async function fetchDomainSslMonitorProjection(
+  fetchImpl: typeof fetch = fetch
+): Promise<DomainSslMonitorView> {
+  const headers = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "chat-ai-admin-automation-reports",
+  };
+  try {
+    const runsResponse = await fetchImpl(
+      `https://api.github.com/repos/${AUTOMATION_REPORTS_GITHUB_REPO}/actions/workflows/domain-ssl-monitor.yml/runs?per_page=10`,
+      { headers, cache: "no-store" }
+    );
+    if (!runsResponse.ok) {
+      if (runsResponse.status === 404) {
+        return projectDomainSslMonitor({ runs: [] });
+      }
+      return projectDomainSslMonitor({
+        runs: [],
+        readError: `GitHub Actions API ${runsResponse.status}`,
+      });
+    }
+    const runsBody = (await runsResponse.json()) as {
+      workflow_runs?: Array<Record<string, unknown>>;
+    };
+    const runs = (runsBody.workflow_runs ?? [])
+      .filter((run) => asString(run.path).endsWith(DOMAIN_SSL_WORKFLOW_PATH) || !asString(run.path))
+      .filter((run) => asString(run.status) === "completed")
+      .slice(0, 5);
+    const parsed: ParsedDomainSslRun[] = [];
+    for (const run of runs) {
+      const jobsResponse = await fetchImpl(asString(run.jobs_url), { headers, cache: "no-store" });
+      if (!jobsResponse.ok) {
+        return projectDomainSslMonitor({
+          runs: [],
+          readError: `GitHub Actions jobs API ${jobsResponse.status}`,
+        });
+      }
+      const jobsBody = (await jobsResponse.json()) as { jobs?: Array<Record<string, unknown>> };
+      const checkUrl = asString(jobsBody.jobs?.[0]?.check_run_url);
+      let evidence: DomainSslEvidence | null = null;
+      if (checkUrl) {
+        const notesResponse = await fetchImpl(`${checkUrl}/annotations`, {
+          headers,
+          cache: "no-store",
+        });
+        if (!notesResponse.ok) {
+          return projectDomainSslMonitor({
+            runs: [],
+            readError: `GitHub check annotations API ${notesResponse.status}`,
+          });
+        }
+        for (const message of annotationMessages(await notesResponse.json())) {
+          const parsedEvidence = parseDomainSslEvidence(message);
+          if (parsedEvidence) evidence = parsedEvidence;
+        }
+      }
+      parsed.push({
+        runId: asNumber(run.id),
+        htmlUrl: asString(run.html_url),
+        createdAt: asString(run.created_at),
+        conclusion: asNullableString(run.conclusion),
+        evidence,
+      });
+    }
+    return projectDomainSslMonitor({ runs: parsed });
+  } catch (error) {
+    return projectDomainSslMonitor({
+      runs: [],
+      readError:
+        error instanceof Error ? error.message : "GitHub domain monitor API unavailable",
     });
   }
 }

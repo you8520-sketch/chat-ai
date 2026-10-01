@@ -12,6 +12,7 @@ import {
   type AdminMemoryRuntimeStatus,
 } from "@/lib/adminMemoryRuntimeStatus";
 import {
+  fetchDomainSslMonitorProjection,
   fetchGithubScheduledAutomationProjection,
   fetchGithubSupplyAutoDraftProjection,
   fetchPostDeployVerificationProjection,
@@ -29,6 +30,10 @@ import {
 } from "@/lib/financeAnomalyRadar";
 import { listMainRpCacheTtlReports } from "@/lib/mainRpCacheTtlEconomics";
 import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
+import {
+  type DomainSslCheckState,
+  type DomainSslMonitorView,
+} from "@/lib/domainSslMonitor";
 import {
   type PostDeployVerificationState,
   type PostDeployVerificationView,
@@ -105,6 +110,95 @@ function publicSmokeBadgeClass(state: PublicSmokeState): string {
       return _exhaustive;
     }
   }
+}
+
+function domainSslBadgeClass(state: DomainSslCheckState): string {
+  switch (state) {
+    case "OK":
+      return "bg-emerald-500/15 text-emerald-300";
+    case "WARNING":
+      return "bg-amber-500/15 text-amber-300";
+    case "FAIL":
+      return "bg-rose-500/15 text-rose-300";
+    case "UNVERIFIED":
+      return "bg-zinc-500/15 text-zinc-300";
+    default: {
+      const _exhaustive: never = state;
+      return _exhaustive;
+    }
+  }
+}
+
+function DomainSslMonitorCard({ view }: { view: DomainSslMonitorView }) {
+  const latest = view.latest;
+  const badgeState = view.status === "UNAVAILABLE" ? "UNVERIFIED" : (latest?.state ?? "UNVERIFIED");
+  return (
+    <section className="mt-6 rounded-2xl border border-white/10 bg-[#11131a] p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-black">도메인 / SSL 감시</h2>
+          <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+            배포와 배포 사이에 hav.chat 의 DNS, TLS, /health 를 읽기 전용으로 확인합니다.
+            Railway가 인증서를 발급·갱신합니다. 이 카드는 만료 임박 경고를 GitHub job 성공과
+            따로 표시합니다. 배포 SHA 검증은 배포 검증 카드입니다.
+          </p>
+        </div>
+        <span className={"rounded px-2 py-1 text-xs font-bold " + domainSslBadgeClass(badgeState)}>
+          {view.status === "UNAVAILABLE" ? "UNAVAILABLE" : badgeState}
+        </span>
+      </div>
+      {view.status === "UNAVAILABLE" ? (
+        <p className="mt-3 text-sm text-amber-200">GitHub 조회 실패 · {view.error}</p>
+      ) : latest ? (
+        <dl className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">확인 시각</dt>
+            <dd className="mt-1 text-xs text-zinc-100">{fmtDate(latest.checkedAt)}</dd>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">사유</dt>
+            <dd className="mt-1 text-xs text-zinc-100">{latest.reason ?? "없음"}</dd>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">DNS</dt>
+            <dd className="mt-1 text-xs text-zinc-100">
+              {latest.dns.state}
+              {latest.dns.reason ? ` · ${latest.dns.reason}` : ""}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">TLS</dt>
+            <dd className="mt-1 text-xs text-zinc-100">
+              {latest.tls.state}
+              {latest.tls.daysLeft != null ? ` · ${latest.tls.daysLeft}일` : ""}
+              {latest.tls.reason ? ` · ${latest.tls.reason}` : ""}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">/health</dt>
+            <dd className="mt-1 text-xs text-zinc-100">
+              {latest.health.state}
+              {latest.health.reason ? ` · ${latest.health.reason}` : ""}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">GitHub 결론</dt>
+            <dd className="mt-1 text-xs text-zinc-100">{latest.runConclusion ?? "없음"}</dd>
+          </div>
+        </dl>
+      ) : null}
+      {latest?.htmlUrl ? (
+        <a
+          href={latest.htmlUrl}
+          className="mt-3 inline-block text-xs text-sky-300 hover:text-sky-200"
+          target="_blank"
+          rel="noreferrer"
+        >
+          GitHub 실행
+        </a>
+      ) : null}
+    </section>
+  );
 }
 
 function PostDeployVerificationCard({ view }: { view: PostDeployVerificationView }) {
@@ -1031,10 +1125,11 @@ export default async function AdminAutomationReportsPage() {
   if (!admin) redirect("/login?next=/admin/automation-reports");
 
   const db = getDb();
-  const [github, supplyDrafts, postDeploy] = await Promise.all([
+  const [github, supplyDrafts, postDeploy, domainSsl] = await Promise.all([
     fetchGithubScheduledAutomationProjection(),
     fetchGithubSupplyAutoDraftProjection(),
     fetchPostDeployVerificationProjection(),
+    fetchDomainSslMonitorProjection(),
   ]);
   const memoryRuntime = buildAdminMemoryRuntimeStatus(process.env);
   const [codeHealth, decisionRadar, memoryResearch] = await Promise.all([
@@ -1085,6 +1180,12 @@ export default async function AdminAutomationReportsPage() {
     memoryResearch.freshnessStatus === "PERSISTENCE_LAG"
       ? 1
       : 0;
+  const domainSslProblems =
+    domainSsl.status === "UNAVAILABLE" ||
+    domainSsl.latest?.state === "FAIL" ||
+    domainSsl.latest?.state === "WARNING"
+      ? 1
+      : 0;
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 text-zinc-100">
@@ -1126,6 +1227,7 @@ export default async function AdminAutomationReportsPage() {
               codeHealthProblems +
               decisionRadarProblems +
               memoryResearchProblems +
+              domainSslProblems +
               financeAnomalies.anomalies.length +
               supplyDrafts.drafts.length}건
           </p>
@@ -1134,6 +1236,7 @@ export default async function AdminAutomationReportsPage() {
       </section>
 
       <PostDeployVerificationCard view={postDeploy} />
+      <DomainSslMonitorCard view={domainSsl} />
 
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
         <CodeHealthCard card={codeHealth.weekly} />

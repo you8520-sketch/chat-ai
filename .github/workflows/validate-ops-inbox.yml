@@ -12,6 +12,8 @@ on:
       - "src/lib/adminAutomationReports.test.ts"
       - "src/lib/postDeployVerification.ts"
       - "src/lib/postDeployVerification.test.ts"
+      - "src/lib/domainSslMonitor.ts"
+      - "src/lib/domainSslMonitor.test.ts"
       - "src/lib/userNotifications.ts"
       - "src/lib/userNotificationPresentation.ts"
       - "src/cron/adminSupplyDraftNotificationScheduler.ts"
@@ -73,6 +75,7 @@ jobs:
           src/lib/financeAnomalyRadar.test.ts
           src/lib/adminAutomationReports.test.ts
           src/lib/postDeployVerification.test.ts
+          src/lib/domainSslMonitor.test.ts
           src/cron/adminSupplyDraftNotificationScheduler.test.ts
       - name: OpenRouter contract watch regression
         run: node --conditions=react-server --import tsx --test src/lib/openRouterContractWatch.test.ts
