@@ -29,6 +29,7 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
+      actions: read
     outputs:
       run_status: ${{ steps.audit.outputs.run_status }}
       production_mutated: ${{ steps.audit.outputs.production_mutated }}
@@ -39,6 +40,7 @@ jobs:
       OPENAI_API_KEY: ""
       CHEAPER_INFERENCE_API_KEY: ""
       CODE_HEALTH_AUDIT_OUT_DIR: artifacts/code-health-weekly
+      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v5
         with:

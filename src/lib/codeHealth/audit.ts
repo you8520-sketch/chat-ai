@@ -1,4 +1,11 @@
 import { classifyAll, computeDelta, countCandidates, decideRunStatus } from "@/lib/codeHealth/classify";
+import {
+  automationHealthHasProblem,
+  buildScheduledAutomationHealthReport,
+  renderScheduledAutomationHealthMarkdown,
+  scanScheduledWorkflowDefinitions,
+} from "@/lib/codeHealth/automationHealth";
+import type { GithubScheduledAutomationGroup } from "@/lib/adminAutomationReports";
 import { KNIP_REVIEW_REASON } from "@/lib/codeHealth/ownerMap";
 import {
   allScanCandidates,
@@ -68,6 +75,8 @@ export function runWeeklyCodeHealthAudit(params: {
   githubRunUrl?: string | null;
   allowSafeDelete?: boolean;
   notes?: string[];
+  scheduledAutomationGroups?: readonly GithubScheduledAutomationGroup[];
+  scheduledProjectionAvailable?: boolean;
 }): WeeklyCodeHealthReport {
   if (CODE_HEALTH_AUDIT_MUTATES_PRODUCTION) {
     throw new Error("weekly audit must never mutate production");
@@ -85,6 +94,19 @@ export function runWeeklyCodeHealthAudit(params: {
   const counts = countCandidates(candidates, params.previous?.candidates ?? null);
   const previousCounts = params.previous?.counts ?? null;
   const criticalBugfixCandidates = candidates.filter((c) => c.bugfix);
+  const automationHealth = buildScheduledAutomationHealthReport({
+    definitions: scanScheduledWorkflowDefinitions(params.repoRoot),
+    groups: params.scheduledAutomationGroups ?? [],
+    now: params.now,
+    projectionAvailable: params.scheduledProjectionAvailable,
+  });
+  const baseStatus = decideRunStatus(candidates);
+  const status =
+    baseStatus === "FAILED"
+      ? "FAILED"
+      : automationHealthHasProblem(automationHealth)
+        ? "WARNING"
+        : baseStatus;
   const notes = [
     ...(params.notes ?? []),
     "Weekly audit is read-only. It does not patch source, schema, flags, or routing.",
@@ -96,12 +118,13 @@ export function runWeeklyCodeHealthAudit(params: {
     version: CODE_HEALTH_AUDIT_VERSION,
     ranAt: (params.now ?? new Date()).toISOString(),
     mainSha: params.mainSha,
-    status: decideRunStatus(candidates),
+    status,
     counts,
     previousCounts,
     delta: computeDelta(counts, previousCounts),
     candidates,
     criticalBugfixCandidates,
+    automationHealth,
     knipReview: KNIP_REVIEW,
     productionMutated: false,
     githubRunUrl: params.githubRunUrl ?? null,
@@ -136,6 +159,14 @@ export function renderWeeklyMarkdown(report: WeeklyCodeHealthReport): string {
         ].join("\n")
       : "- no previous run",
     "",
+    renderScheduledAutomationHealthMarkdown(
+      report.automationHealth ??
+        buildScheduledAutomationHealthReport({
+          definitions: [],
+          groups: [],
+          now: new Date(report.ranAt),
+        })
+    ),
     "## Critical / security BUGFIX candidates (not patched by this job)",
     "",
     ...(report.criticalBugfixCandidates.length > 0
