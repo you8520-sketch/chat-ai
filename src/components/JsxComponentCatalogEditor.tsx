@@ -9,7 +9,7 @@ import {
   type JsxPropType,
 } from "@/lib/jsxComponent";
 import { buildJsxComponentManifestBlock } from "@/lib/jsxComponent/manifest";
-import { PIT_WALL_FIXTURE_NAME, PIT_WALL_FIXTURE_PROPS, PIT_WALL_FIXTURE_SOURCE } from "@/lib/jsxComponent/pitWallFixture";
+import { CREATOR_JSX_EXAMPLE_NAME, CREATOR_JSX_EXAMPLE_PROPS, CREATOR_JSX_EXAMPLE_SOURCE } from "@/lib/jsxComponent/creatorExample";
 
 const PROP_TYPES: JsxPropType[] = ["string", "number", "boolean"];
 
@@ -68,13 +68,13 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
           disabled={disabled}
           className="rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200"
           onClick={() => {
-            setName(PIT_WALL_FIXTURE_NAME);
-            setSource(PIT_WALL_FIXTURE_SOURCE.trim());
-            setProps(PIT_WALL_FIXTURE_PROPS);
-            applyDraft(PIT_WALL_FIXTURE_NAME, PIT_WALL_FIXTURE_SOURCE, PIT_WALL_FIXTURE_PROPS);
+            setName(CREATOR_JSX_EXAMPLE_NAME);
+            setSource(CREATOR_JSX_EXAMPLE_SOURCE);
+            setProps(CREATOR_JSX_EXAMPLE_PROPS);
+            applyDraft(CREATOR_JSX_EXAMPLE_NAME, CREATOR_JSX_EXAMPLE_SOURCE, CREATOR_JSX_EXAMPLE_PROPS);
           }}
         >
-          PitWall fixture 불러오기
+          기본 예제 불러오기
         </button>
       </div>
       <label className="mb-2 block text-xs text-zinc-400">

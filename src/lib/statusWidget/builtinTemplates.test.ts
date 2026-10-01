@@ -58,7 +58,12 @@ describe("genre-neutral built-in status widgets", () => {
       DEFAULT_STATUS_WIDGET.fields.some((field) => field.label === "의식의흐름"),
       false
     );
-    const starter = compileJsxComponentSource(defaultStatusWidgetJsxSource(DEFAULT_STATUS_WIDGET.fields));
+    const starterSource = defaultStatusWidgetJsxSource(DEFAULT_STATUS_WIDGET.fields);
+    assert.match(starterSource, /background: "#101218"/);
+    assert.match(starterSource, /gridTemplateColumns: "repeat\(auto-fit,minmax\(9rem,1fr\)\)"/);
+    assert.match(starterSource, />\{"시간"\}<\/div>/);
+    assert.match(starterSource, /props\["시간"\]/);
+    const starter = compileJsxComponentSource(starterSource);
     assert.equal(starter.ok, true);
     if (starter.ok) assert.equal(starter.chatSend, false);
   });

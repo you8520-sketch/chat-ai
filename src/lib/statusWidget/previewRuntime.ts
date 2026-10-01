@@ -1,5 +1,6 @@
 /** Gallery, apply, and editor previews never auto-send chat. */
 export const STATUS_WIDGET_PREVIEW_CHAT_SEND_ENABLED = false as const;
+export const STATUS_WIDGET_PREVIEW_HEIGHT_PX = 260;
 
 export function statusWidgetPreviewSandboxProps(
   compiled: string,
