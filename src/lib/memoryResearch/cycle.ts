@@ -6,6 +6,10 @@
  */
 import { runLabArm, type LabArmResult } from "@/lib/memoryResearch/benchmarkLab";
 import {
+  buildPersistentGapInvestigationPackets,
+  type PersistentGapInvestigationPacket,
+} from "@/lib/memoryResearch/persistentGapInvestigation";
+import {
   buildMemoryResearchEffectivenessAudit,
   type MemoryResearchEffectivenessAudit,
 } from "@/lib/memoryResearch/effectivenessAudit";
@@ -188,6 +192,7 @@ export type CycleReport = {
   benchmarkHarnessFeasibility: HarnessFeasibilityEvidence[];
   localGoldAuthoringPackets: GoldAuthoringPacket[];
   persistentMemoryGaps: PersistentMemoryGapReport;
+  persistentGapInvestigationPackets: PersistentGapInvestigationPacket[];
   effectivenessAudit: MemoryResearchEffectivenessAudit;
   productionTouched: false;
 };
@@ -268,6 +273,7 @@ export async function runResearchCycle(
     benchmarkHarnessFeasibility: [],
     localGoldAuthoringPackets: [],
     persistentMemoryGaps: buildPersistentMemoryGapReport(null, ledger.cycles),
+    persistentGapInvestigationPackets: [],
     effectivenessAudit: buildMemoryResearchEffectivenessAudit(ledger.candidates, deps.now),
     productionTouched: false,
   };
@@ -334,6 +340,8 @@ export async function runResearchCycle(
     baselineSnapshot,
     ledger.cycles
   );
+  report.persistentGapInvestigationPackets =
+    buildPersistentGapInvestigationPackets(report.persistentMemoryGaps);
 
   const candidates = { ...ledger.candidates };
   const seenThisCycle = new Set<string>();
