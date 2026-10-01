@@ -165,7 +165,7 @@ export type LengthInstructionOpts = {
  * No TARGET_LENGTH / MINIMUM_FLOOR / anti-early-stop / early-completion cue.
  */
 export const USER_TAIL_LENGTH_OWNER_SENTENCE =
-  "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, [AI_CAST]/NPC/환경의 관찰·심리·판단·행동·대화·감각 변화를 먼저 깊게 전개한다. [B]의 새 직접 대사·중요 선택·중대 행동을 분량 채우기용으로 만들지 않는다.";
+  "별도 분량 지시가 없으면 한국어 약 3,000자를 중심으로 하나의 충분히 전개된 장면을 작성한다. 사용자가 더 긴 분량을 요청하거나 장면에 더 많은 전개가 필요하면 필요한 만큼 충분히 확장한다. 분량은 [AI_CAST]/NPC/환경의 관찰·심리·판단·행동·대화·감각 변화와 현재 상호작용의 자연스러운 진전으로 채운다.";
 
 /** @deprecated System length owner removed — Luna uses terminal contract; others use user-tail length. */
 export const BOUNDED_LENGTH_OWNER_SENTENCE = "";
@@ -229,7 +229,7 @@ export function buildLengthInstruction(
   return assembleLengthInstructionBlock(targetInput, opts);
 }
 
-/** 프롬프트 주입용 tier target (통합 2,400 soft aim) */
+/** 프롬프트 주입용 tier target (통합 약 3,000 soft aim) */
 export function resolveTargetLengthForPrompt(targetInput?: number | null): number {
   return resolveResponseLengthTarget(targetInput).aimChars;
 }
