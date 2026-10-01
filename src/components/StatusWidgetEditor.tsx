@@ -118,6 +118,7 @@ export default function StatusWidgetEditor({
   const [templateChoice, setTemplateChoice] = useState<TemplateChoice>(() =>
     detectTemplateChoice(value)
   );
+  const [copiedJsxProp, setCopiedJsxProp] = useState<string | null>(null);
 
   const widgetReservedChars = useMemo(
     () => estimateStatusWidgetContextChars(value),
@@ -188,9 +189,17 @@ export default function StatusWidgetEditor({
     onChange({ ...value, htmlTemplate: value.htmlTemplate + `{{${key}}}` });
   }
 
-  function insertJsxProp(key: string) {
+  async function copyJsxProp(key: string) {
     const snippet = `{props[${JSON.stringify(key)}]}`;
-    onChange({ ...value, jsxSource: `${value.jsxSource ?? ""}${snippet}` });
+    try {
+      await navigator.clipboard.writeText(snippet);
+      setCopiedJsxProp(key);
+      window.setTimeout(() => {
+        setCopiedJsxProp((current) => (current === key ? null : current));
+      }, 1_500);
+    } catch {
+      setCopiedJsxProp(null);
+    }
   }
 
   function applyTemplate(choice: TemplateChoice) {
@@ -379,8 +388,8 @@ export default function StatusWidgetEditor({
           <div>
             <p className="text-xs font-semibold text-zinc-200">JSX props</p>
             <p className="mt-0.5 text-xs text-zinc-400">
-              상태값 키가 props로 전달됩니다. 클릭하면 소스 끝에 삽입됩니다. JSX 소스는
-              RP 프롬프트에 넣지 않습니다.
+              상태값 키가 props로 전달됩니다. 클릭하면 표현식을 복사합니다. 원하는 JSX 위치에
+              붙여넣으세요. JSX 소스는 RP 프롬프트에 넣지 않습니다.
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -389,10 +398,10 @@ export default function StatusWidgetEditor({
                 key={key}
                 type="button"
                 disabled={disabled}
-                onClick={() => insertJsxProp(key)}
+                onClick={() => void copyJsxProp(key)}
                 className="min-h-11 rounded-lg border border-white/10 bg-[#0b0d14] px-2.5 font-mono text-xs text-zinc-200 hover:bg-white/5 disabled:opacity-40"
               >
-                {`props[${JSON.stringify(key)}]`}
+                {copiedJsxProp === key ? "복사됨 ✓" : `props[${JSON.stringify(key)}]`}
               </button>
             ))}
           </div>
