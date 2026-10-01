@@ -1,8 +1,7 @@
-import { analyzeJsxCapabilities } from "./capabilities";
 import { compileJsxComponentSource } from "./compile";
 import { JSX_PROP_MAX } from "./limits";
 import { normalizeJsxPropDefinition } from "./manifest";
-import { JSX_COMPONENT_NAME_RE, type JsxCapability, type JsxComponentRecord } from "./types";
+import { JSX_COMPONENT_NAME_RE, type JsxComponentRecord } from "./types";
 
 export function parseJsxComponentCatalog(raw: string | null | undefined): JsxComponentRecord[] {
   if (!raw?.trim()) return [];
@@ -17,19 +16,15 @@ export function parseJsxComponentCatalog(raw: string | null | undefined): JsxCom
       const source = String(row.source ?? "").trim();
       if (!JSX_COMPONENT_NAME_RE.test(name) || !source) continue;
 
-      let compiled = String(row.compiled ?? "").trim();
-      let capabilities = Array.isArray(row.capabilities)
-        ? (row.capabilities.filter((c): c is JsxCapability => typeof c === "string") as JsxCapability[])
-        : analyzeJsxCapabilities(source);
-      let chatSend = Boolean(row.chatSend) || capabilities.includes("chat_send");
-
-      if (!compiled) {
-        const fresh = compileJsxComponentSource(source, name);
-        if (!fresh.ok) continue;
-        compiled = fresh.compiled;
-        capabilities = fresh.capabilities;
-        chatSend = fresh.chatSend;
-      }
+      // Source + prop schema are canonical persisted data. Never trust a client-
+      // supplied compiled blob/capability list: the server save path accepts raw
+      // JSON, and stale or forged derived fields must not bypass the current
+      // compiler/security policy.
+      const fresh = compileJsxComponentSource(source, name);
+      if (!fresh.ok) continue;
+      const compiled = fresh.compiled;
+      const capabilities = fresh.capabilities;
+      const chatSend = fresh.chatSend;
 
       const props = Array.isArray(row.props)
         ? row.props
@@ -51,10 +46,7 @@ export function serializeJsxComponentCatalog(components: JsxComponentRecord[]): 
     components.slice(0, 12).map((component) => ({
       name: component.name,
       source: component.source,
-      compiled: component.compiled,
       props: component.props.slice(0, JSX_PROP_MAX),
-      capabilities: component.capabilities,
-      chatSend: component.chatSend,
     }))
   );
 }
