@@ -1,4 +1,4 @@
-import { JSX_COMPONENT_NAME_RE, type JsxInvocation } from "./types";
+import { JSX_COMPONENT_NAME_RE, type JsxInvocation, type JsxPropDefinition } from "./types";
 
 const SELF_CLOSING_RE =
   /<([A-Z][A-Za-z0-9]*)\b([^>]*?)\/>/g;
@@ -57,4 +57,53 @@ export function isIncompleteJsxInvocation(text: string): boolean {
   const tail = text.slice(open);
   if (!/^<[A-Z]/.test(tail)) return false;
   return !/\/>/.test(tail) && !/>/.test(tail.slice(1));
+}
+
+
+export type JsxInvocationPropsResult =
+  | { ok: true; props: Record<string, string | number | boolean> }
+  | { ok: false; error: string };
+
+/**
+ * Canonical runtime prop boundary. AI syntax is permissive, but a registered
+ * component receives only declared props, normalized to the creator schema.
+ */
+export function resolveJsxInvocationProps(
+  definitions: JsxPropDefinition[],
+  input: Record<string, string | number | boolean>
+): JsxInvocationPropsResult {
+  const out: Record<string, string | number | boolean> = {};
+  for (const def of definitions) {
+    const has = Object.prototype.hasOwnProperty.call(input, def.name);
+    if (!has) {
+      if (def.required) {
+        return { ok: false, error: `필수 prop이 없습니다: ${def.name}` };
+      }
+      continue;
+    }
+    const raw = input[def.name]!;
+    if (def.type === "string") {
+      out[def.name] = String(raw);
+      continue;
+    }
+    if (def.type === "number") {
+      const n = typeof raw === "number" ? raw : Number(String(raw).trim());
+      if (!Number.isFinite(n)) {
+        return { ok: false, error: `number prop 형식이 잘못되었습니다: ${def.name}` };
+      }
+      out[def.name] = n;
+      continue;
+    }
+    if (typeof raw === "boolean") {
+      out[def.name] = raw;
+      continue;
+    }
+    const bool = String(raw).trim().toLowerCase();
+    if (bool === "true" || bool === "false") {
+      out[def.name] = bool === "true";
+      continue;
+    }
+    return { ok: false, error: `boolean prop 형식이 잘못되었습니다: ${def.name}` };
+  }
+  return { ok: true, props: out };
 }
