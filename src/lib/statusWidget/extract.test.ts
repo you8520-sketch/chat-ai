@@ -17,7 +17,10 @@ describe("statusWidget extract", () => {
     assert.ok(keys.includes("장소"));
     assert.ok(keys.includes("속마음"));
     assert.ok(keys.includes("현재상황"));
-    assert.ok(keys.includes("의식의흐름"));
+    assert.ok(keys.includes("현재목표"));
+    assert.equal(keys.includes("의식의흐름"), false);
+    assert.equal(keys.includes("char"), false);
+    assert.equal(keys.includes("user"), false);
   });
 
   it("normalizeWidgetExtraction maps id/label keys and rejects placeholders", () => {

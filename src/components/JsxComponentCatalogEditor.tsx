@@ -56,8 +56,9 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
   return (
     <section className="mt-8 rounded-2xl border border-white/10 bg-[#0c0c10] p-4">
       <div className="mb-3">
-        <h2 className="text-sm font-semibold text-zinc-100">JSX 컴포넌트</h2>
+        <h2 className="text-sm font-semibold text-zinc-100">채팅 중 호출 컴포넌트 · 고급</h2>
         <p className="mt-0.5 text-xs text-zinc-400">
+          상태창과 별개로 AI가 대화 중 필요할 때 &lt;Component /&gt; 형태로 호출하는 인터랙티브 UI입니다.
           AI에는 아래 Manifest만 전달됩니다. 소스·스타일은 프롬프트에 넣지 않습니다.
         </p>
       </div>

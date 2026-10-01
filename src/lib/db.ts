@@ -1313,6 +1313,15 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_status_widget_shares_slug
       ON status_widget_shares(share_slug);
   `);
+  addColumn("status_widget_shares", "visibility", "TEXT NOT NULL DEFAULT 'unlisted'");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS status_widget_share_imports (
+      share_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (share_id, user_id)
+    );
+  `);
   db.exec(`
     CREATE TABLE IF NOT EXISTS point_transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

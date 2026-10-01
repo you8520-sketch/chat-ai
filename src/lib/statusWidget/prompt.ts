@@ -23,7 +23,9 @@ export function collectWidgetJsonKeys(widget: StatusWidget): string[] {
   }
   for (const m of widget.htmlTemplate.matchAll(/\{\{([^}]+)\}\}/g)) {
     const k = m[1]?.trim();
-    if (k) keys.add(k);
+    // {{char}} / {{user}} are profile presentation tokens, not extraction fields.
+    if (!k || k.toLowerCase() === "char" || k.toLowerCase() === "user") continue;
+    keys.add(k);
   }
   return [...keys];
 }
