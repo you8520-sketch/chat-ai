@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { compileJsxComponentDraft } from "./compileDraft";
+import { compileJsxComponentDraft } from "./catalog";
 import {
   CREATOR_JSX_EXAMPLE_NAME,
   CREATOR_JSX_EXAMPLE_PROPS,
