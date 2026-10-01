@@ -41,6 +41,7 @@ import {
 } from "@/lib/rpDerivedStateLifecycle";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import {
+  reconcileDerivedMemoryAfterUserMessageEditCore,
   reconcileMemoryAfterSourceMessageEditSyncCore,
   scheduleMemoryResealAfterSourceMessageEdit,
 } from "@/lib/memory/memory-reconcile";
@@ -435,7 +436,7 @@ export async function PATCH(req: Request) {
           throw new MemoryCanonicalityEditNotSupportedError();
         }
         if (preIdentity != null) {
-          userMemorySyncOutcome.result = reconcileMemoryAfterSourceMessageEditSyncCore(db, {
+          userMemorySyncOutcome.result = reconcileDerivedMemoryAfterUserMessageEditCore(db, {
             chatId: msg.chat_id,
             userId: user.id,
             characterId: msg.character_id,
@@ -444,6 +445,7 @@ export async function PATCH(req: Request) {
             memoryTurnNumber: preIdentity.memoryTurnNumber,
             sourceUserMessageId: preIdentity.sourceUserMessageId,
             sourceAssistantMessageId: preIdentity.sourceAssistantMessageId,
+            previousUserText: oldUserContent,
           });
         }
         invalidatedSuggestedReplyAssistantMessageIds =

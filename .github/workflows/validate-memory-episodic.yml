@@ -71,6 +71,9 @@ on:
       - "src/app/api/chat/route.ts"
       - "src/lib/memory/memory-premerge-blockers.test.ts"
       - "src/lib/memory/memory-regen-scope.test.ts"
+      - "src/lib/memory/memory-reconcile.ts"
+      - "src/lib/memory/memory-source-edit-residue.test.ts"
+      - "src/app/api/chat/message/route.ts"
       - "src/lib/memory/memory-rolling-summary.ts"
       - "src/lib/memory/memory-source-boundary.test.ts"
       - "src/lib/memory/memory-source-boundary.ts"
@@ -151,6 +154,9 @@ jobs:
 
       - name: Memory source boundary stale guard
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-source-boundary.test.ts
+
+      - name: User material edit derived-memory residue
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory-source-edit-residue.test.ts
 
       - name: Last-turn relationship + numeric delete atomicity
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/rpNumericStateTurnDelete.test.ts

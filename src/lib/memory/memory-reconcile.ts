@@ -1,5 +1,7 @@
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
+import { deleteSharedEpisodicFactsForEditedUserSource } from "@/lib/episodicMemoryFacts";
+import { reconcileRelationshipMetaAfterUserSourceEditCore } from "./memory-relationship-meta";
 import { rollbackBranchControlMutationsForDeletedUserMessage } from "./memory-branch-control";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
@@ -238,6 +240,32 @@ export function reconcileMemoryAfterSourceMessageEditSyncCore(
     __testThrowAfterInvalidate: opts.__testThrowAfterMemoryInvalidate,
     __testThrowAfterRebuild: opts.__testThrowAfterMemoryRebuild,
   });
+}
+
+/**
+ * Synchronous derived-memory owner for a material user-message edit.
+ * Rolling-summary invalidation stays in the shared edit core. Per-turn
+ * episodic rows and durable promises that existed only in the replaced
+ * user prose are cleared here — the same tiers regen and last-turn delete
+ * already own, which the summary-seal invalidator does not cover.
+ */
+export function reconcileDerivedMemoryAfterUserMessageEditCore(
+  db: Database.Database,
+  opts: SourceMessageEditMemoryInput & {
+    previousUserText: string;
+  }
+): VariantSwitchMemoryReconcileResult {
+  const result = reconcileMemoryAfterSourceMessageEditSyncCore(db, opts);
+  deleteSharedEpisodicFactsForEditedUserSource(db, {
+    chatId: opts.chatId,
+    sourceUserMessageId: opts.sourceUserMessageId,
+    sourceTurn: opts.memoryTurnNumber,
+  });
+  reconcileRelationshipMetaAfterUserSourceEditCore(db, {
+    chatId: opts.chatId,
+    previousUserText: opts.previousUserText,
+  });
+  return result;
 }
 
 export function scheduleMemoryResealAfterSourceMessageEdit(opts: {

@@ -1252,6 +1252,46 @@ export function deleteEpisodicMemoryFactsByAssistantMessageIds(
   return Number(result.changes) || 0;
 }
 
+/**
+ * User material edit does not replace the turn's Shared Initial extraction.
+ * Delete only that per-turn tier. Summary-seal rows stay with
+ * invalidateSummarySealBatchEpisodicFactsForSourceMutation.
+ */
+export function deleteSharedEpisodicFactsForEditedUserSource(
+  db: Database.Database,
+  opts: {
+    chatId: number;
+    sourceUserMessageId?: number | null;
+    sourceTurn?: number | null;
+  }
+): number {
+  const scopedChatId = finitePositiveInt(opts.chatId);
+  if (!scopedChatId) return 0;
+  const sourceUserMessageId = finitePositiveInt(opts.sourceUserMessageId);
+  const sourceTurn = finitePositiveInt(opts.sourceTurn);
+  if (sourceUserMessageId == null && sourceTurn == null) return 0;
+
+  const result = db
+    .prepare(
+      `DELETE FROM episodic_memory_facts
+       WHERE chat_id = ?
+         AND json_valid(metadata) = 1
+         AND json_extract(metadata, '$.extraction') = 'shared_initial_per_turn'
+         AND (
+           (? IS NOT NULL AND source_user_message_id = ?)
+           OR (? IS NOT NULL AND source_turn = ?)
+         )`
+    )
+    .run(
+      scopedChatId,
+      sourceUserMessageId,
+      sourceUserMessageId,
+      sourceTurn,
+      sourceTurn
+    );
+  return Number(result.changes) || 0;
+}
+
 function parseMetadataIdArray(raw: unknown): number[] {
   if (!Array.isArray(raw)) return [];
   return raw
