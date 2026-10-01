@@ -50,6 +50,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
   const c = db
     .prepare(
       `SELECT id, name, tagline, description, greeting, system_prompt, world, world_id, source_world_share_id, example_dialog, status_window_prompt, status_widget_json,
+              COALESCE(jsx_components_json, '') AS jsx_components_json,
               genres, tags, nsfw, emoji, hue, audience, gender, visibility, assets, recommended_writing_style, narration_style_instructions, comments_enabled, creator_comment, appearance_raw, appearance_compiled,
               content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed, participant_min_age,
               COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json, creator_id
@@ -68,6 +69,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     example_dialog: string;
     status_window_prompt: string;
     status_widget_json: string;
+    jsx_components_json: string;
     genres: string;
     tags: string;
     nsfw: number;
@@ -168,6 +170,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     lorebook_ids: listCharacterCreatorLorebookAttachmentIds(db, c.id),
     status_window_prompt: c.status_window_prompt ?? "",
     status_widget_json: c.status_widget_json ?? "",
+    jsx_components_json: c.jsx_components_json ?? "",
     status_widget_triggers: statusWidgetTriggers,
     speech_personality: speech.speech_personality,
     speech_traits: speech.speech_traits,

@@ -1,3 +1,4 @@
+import { compileJsxComponentSource } from "@/lib/jsxComponent/compile";
 import { statusValueKeyFromLabel } from "./fieldKeys";
 import { DEFAULT_STATUS_WIDGET } from "./defaultTemplate";
 import { normalizeNumericStateDefinition } from "./numericStateDefinition";
@@ -13,14 +14,26 @@ export function parseStatusWidgetJson(raw: string | null | undefined): StatusWid
   if (!raw?.trim()) return null;
   try {
     const parsed = JSON.parse(raw) as StatusWidget;
-    if (parsed?.version !== 1 || !parsed.htmlTemplate?.trim() || !Array.isArray(parsed.fields)) {
+    const htmlTemplate = String(parsed.htmlTemplate ?? "");
+    const jsxSource = String(parsed.jsxSource ?? "").trim();
+    if (parsed?.version !== 1 || !Array.isArray(parsed.fields)) {
       return null;
     }
+    if (!htmlTemplate.trim() && !jsxSource) return null;
     if (parsed.fields.length === 0) return null;
+    let jsxCompiled = "";
+    if (jsxSource) {
+      // jsxSource is canonical. Never trust a persisted/client-supplied compiled
+      // blob because it can bypass the current compiler/security policy.
+      const compiled = compileJsxComponentSource(jsxSource);
+      if (compiled.ok) jsxCompiled = compiled.compiled;
+    }
+    if (!htmlTemplate.trim() && !jsxCompiled) return null;
     return {
       version: 1,
       name: String(parsed.name || "상태창").slice(0, 80),
-      htmlTemplate: parsed.htmlTemplate,
+      htmlTemplate,
+      ...(jsxSource && jsxCompiled ? { jsxSource, jsxCompiled } : {}),
       fields: parsed.fields
         .map((f) => {
           const label = String(f.label || "").trim().slice(0, 40);
@@ -55,8 +68,15 @@ export function parseStatusWidgetJson(raw: string | null | undefined): StatusWid
 }
 
 export function serializeStatusWidget(widget: StatusWidget): string {
+  const jsxSource = widget.jsxSource?.trim() ?? "";
+  const compiled = jsxSource ? compileJsxComponentSource(jsxSource) : null;
+  const safeJsxSource = compiled?.ok ? jsxSource : "";
   return JSON.stringify({
-    ...widget,
+    version: widget.version,
+    name: widget.name,
+    htmlTemplate: widget.htmlTemplate,
+    ...(safeJsxSource ? { jsxSource: safeJsxSource } : {}),
+    placement: widget.placement,
     fields: widget.fields.map(({ id, label, instruction, initialValue, numericState }) => {
       const normalized = numericState
         ? normalizeNumericStateDefinition(numericState)
