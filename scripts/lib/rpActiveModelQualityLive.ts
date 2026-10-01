@@ -6,6 +6,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  GEMINI_38_FLASH_MODEL,
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   selectedAIProvider,
@@ -38,16 +39,17 @@ type FetchLike = typeof fetch;
 export const RP_ACTIVE_MODEL_QUALITY_LIVE_VERSION = 1;
 export const RP_ACTIVE_MODEL_QUALITY_LIVE_FLAG = "RP_ACTIVE_MODEL_QUALITY_LIVE";
 export const RP_ACTIVE_MODEL_QUALITY_LIVE_TIMEOUT_MS = 120_000;
-export const RP_ACTIVE_MODEL_QUALITY_MAX_CALLS = 12;
+export const RP_ACTIVE_MODEL_QUALITY_MAX_CALLS = 16;
 
 /**
- * Deliberately bounded to the models the user wants reviewed in this round.
- * Terra and Gemini 3.1 remain valid Main RP registry entries, but are excluded
- * from this quality run because the user plans to replace them with newer models.
+ * Current Main RP quality set after the user's explicit exclusions.
+ * Terra and Gemini 3.1 stay excluded because the user plans to replace them.
+ * Newly active Gemini 3.8 joins the quality set.
  */
 export const RP_ACTIVE_MODEL_QUALITY_MODEL_IDS = [
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
 ] as const satisfies readonly SelectedAI[];
 
