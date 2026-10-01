@@ -2,10 +2,10 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { JsxHostBridge } from "@/components/JsxComponentSandbox";
-import type { JsxComponentRecord } from "@/lib/jsxComponent/types";
+import type { JsxRuntimeComponentRecord } from "@/lib/jsxComponent/types";
 
 const BridgeCtx = createContext<JsxHostBridge | null>(null);
-const CatalogCtx = createContext<JsxComponentRecord[]>([]);
+const CatalogCtx = createContext<JsxRuntimeComponentRecord[]>([]);
 
 export function JsxHostBridgeProvider({
   value,
@@ -13,7 +13,7 @@ export function JsxHostBridgeProvider({
   children,
 }: {
   value: JsxHostBridge | null;
-  catalog?: JsxComponentRecord[];
+  catalog?: JsxRuntimeComponentRecord[];
   children: ReactNode;
 }) {
   const records = useMemo(() => catalog ?? [], [catalog]);
@@ -28,6 +28,6 @@ export function useJsxHostBridge(): JsxHostBridge | null {
   return useContext(BridgeCtx);
 }
 
-export function useJsxComponentCatalog(): JsxComponentRecord[] {
+export function useJsxComponentCatalog(): JsxRuntimeComponentRecord[] {
   return useContext(CatalogCtx);
 }
