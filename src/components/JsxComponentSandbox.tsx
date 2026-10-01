@@ -34,6 +34,7 @@ export default function JsxComponentSandbox({
   bridge,
 }: Props) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
+  const loadedRef = useRef(false);
   const rateRef = useRef<JsxHostBridgeRateState>({ lastAcceptedAt: 0, burst: 0 });
   const instanceId = useId();
 
@@ -65,6 +66,15 @@ export default function JsxComponentSandbox({
     };
 
     window.addEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("message", onMessage);
+    };
+  }, [bridge, chatSendEnabled]);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
     const sendMount = () => {
       frame.contentWindow?.postMessage(
         {
@@ -76,15 +86,26 @@ export default function JsxComponentSandbox({
         "*"
       );
     };
-    frame.addEventListener("load", sendMount);
-    if (frame.contentDocument?.readyState === "complete") sendMount();
+    const onLoad = () => {
+      loadedRef.current = true;
+      sendMount();
+    };
+
+    frame.addEventListener("load", onLoad);
+    if (loadedRef.current) sendMount();
 
     return () => {
-      window.removeEventListener("message", onMessage);
-      frame.removeEventListener("load", sendMount);
-      frame.contentWindow?.postMessage({ type: "hav-jsx-unmount" }, "*");
+      frame.removeEventListener("load", onLoad);
     };
-  }, [bridge, chatSendEnabled, compiled, props]);
+  }, [compiled, props]);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    return () => {
+      loadedRef.current = false;
+      frame?.contentWindow?.postMessage({ type: "hav-jsx-unmount" }, "*");
+    };
+  }, []);
 
   return (
     <iframe
