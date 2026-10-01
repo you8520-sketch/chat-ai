@@ -6,7 +6,10 @@ import JsxComponentSandbox from "@/components/JsxComponentSandbox";
 import { compileJsxComponentSource } from "@/lib/jsxComponent/compile";
 import { JSX_SANDBOX_HEIGHT_PX } from "@/lib/jsxComponent/limits";
 import { buildStatusWidgetEditorPreviewValues } from "@/lib/statusWidget/editorPreview";
-import { statusWidgetPreviewSandboxProps } from "@/lib/statusWidget/previewRuntime";
+import {
+  STATUS_WIDGET_PREVIEW_HEIGHT_PX,
+  statusWidgetPreviewSandboxProps,
+} from "@/lib/statusWidget/previewRuntime";
 import {
   renderStatusWidgetHtml,
   type StatusWidgetProfileNames,
@@ -76,7 +79,7 @@ export default function StatusWidgetPreview({
     return (
       <div ref={rootRef} className={className ?? "min-w-0 max-w-full overflow-hidden"}>
         {visible ? (
-          <JsxComponentSandbox {...sandbox} />
+          <JsxComponentSandbox {...sandbox} heightPx={STATUS_WIDGET_PREVIEW_HEIGHT_PX} />
         ) : requireInteraction ? (
           <button
             type="button"
