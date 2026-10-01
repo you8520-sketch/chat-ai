@@ -28,6 +28,7 @@ export function parseStatusWidgetJson(raw: string | null | undefined): StatusWid
       const compiled = compileJsxComponentSource(jsxSource);
       if (compiled.ok) jsxCompiled = compiled.compiled;
     }
+    if (!htmlTemplate.trim() && !jsxCompiled) return null;
     return {
       version: 1,
       name: String(parsed.name || "상태창").slice(0, 80),
