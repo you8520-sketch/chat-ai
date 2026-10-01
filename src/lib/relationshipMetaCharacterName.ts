@@ -4,12 +4,36 @@ import { loadCharacterChunks, type CharacterSettingRow } from "@/lib/characterCh
 import type { CharacterChunk } from "@/types";
 import type { HonorificNames } from "@/lib/chatMemory";
 
+const ROLEPLAY_NAME_LABEL = "이름|성명|본명|캐릭터\\s*명|Name";
+
 const SETTING_NAME_PATTERNS: RegExp[] = [
   /\[Name\]\s*([^\n(\[/]+)/i,
   /\[이름\]\s*([^\n(\[/]+)/,
-  /(?:^|\n)(?:이름|성명|본명|캐릭터\s*명|Name)\s*[:：]\s*([^\n(\[/]+)/im,
+  new RegExp(
+    `(?:^|\\n)(?:${ROLEPLAY_NAME_LABEL})\\s*[:：]\\s*([^\\n(\\[/]+)`,
+    "i"
+  ),
+  new RegExp(
+    `(?:^|\\n)[ \\t]*(?:#{1,3}[ \\t]*)?(?:${ROLEPLAY_NAME_LABEL})[ \\t]*\\n+[ \\t]*([^\\n]+)`,
+    "i"
+  ),
   /(?:유저→캐릭터|→캐릭터)\s*[:：]\s*([^\n·]+)/,
 ];
+
+/** A name label already has its own value line, so callers must not invent a second name. */
+export function settingTextCarriesExplicitNameBody(text: string): boolean {
+  const source = text.trim();
+  if (!source) return false;
+  const bracketValue = new RegExp(
+    `(?:^|\\n)[ \\t]*\\[(?:${ROLEPLAY_NAME_LABEL})\\][ \\t]+\\S`,
+    "i"
+  );
+  const followingLine = new RegExp(
+    `(?:^|\\n)[ \\t]*(?:#{1,3}[ \\t]*)?\\[?(?:${ROLEPLAY_NAME_LABEL})\\]?[ \\t]*\\n[ \\t]*\\S`,
+    "i"
+  );
+  return bracketValue.test(source) || followingLine.test(source);
+}
 
 const SIMULATION_TITLE_LABEL_RE =
   /^(?:최애|남주|여주|주인공|히로인|남자주인공|여자주인공|섭남|앨런|남캐|여캐)$/i;
