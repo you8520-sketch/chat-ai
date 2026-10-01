@@ -90,7 +90,7 @@ import {
   resolveHtmlVisualCardPolicyFromSources,
   stripRedundantHtmlVisualCardFromSource,
 } from "@/lib/htmlVisualCardPolicy";
-import { parseJsxComponentCatalog } from "@/lib/jsxComponent/catalog";
+import { parseJsxComponentManifestCatalog } from "@/lib/jsxComponent/catalog";
 import { resolveJsxComponentPromptBlock } from "@/lib/jsxComponent/prompt";
 import {
   sanitizePrimaryModelContextSource,
@@ -1112,7 +1112,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   const jsxManifest = resolveJsxComponentPromptBlock(
-    parseJsxComponentCatalog(input.jsxComponentCatalogJson)
+    parseJsxComponentManifestCatalog(input.jsxComponentCatalogJson)
   );
   if (jsxManifest) {
     pushSection(
