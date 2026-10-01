@@ -39,7 +39,9 @@ describe("buildLengthInstruction", () => {
     const block = buildLengthInstruction();
     assert.equal(block, "");
     assert.equal(BOUNDED_LENGTH_OWNER_SENTENCE, "");
-    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다/);
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /약 3,000자 부근을 목표로 하나의 충분히 전개된 장면으로 작성한다/);
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /장면에 필요한 내용은 자연스럽게 더 이어간다/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /최대|상한|3,000자 이상|3,200/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /최초로 확인 가능한 결과/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /TARGET_LENGTH/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /MINIMUM_FLOOR/);
@@ -48,12 +50,12 @@ describe("buildLengthInstruction", () => {
 
   it("null targetInput still keeps empty system length (tier normalize unchanged)", () => {
     assert.equal(buildLengthInstruction(null), "");
-    assert.equal(normalizeTargetResponseChars(2400), 3200);
+    assert.equal(normalizeTargetResponseChars(2400), 3000);
   });
 
   it("legacy per-user aim still normalizes; system length stays empty", () => {
     for (const legacy of [2000, 2400, 2700, 2800, 3000]) {
-      assert.equal(normalizeTargetResponseChars(legacy), 3200);
+      assert.equal(normalizeTargetResponseChars(legacy), 3000);
       assert.equal(buildLengthInstruction(legacy), "");
     }
   });
@@ -62,7 +64,7 @@ describe("buildLengthInstruction", () => {
     const out = appendCompactTerminalLengthToUserTurn("밤이 깊었어.", 3200);
     assert.match(out, /^밤이 깊었어\./);
     assert.match(out, /지문과 "…" 대사 사이 빈 줄/);
-    assert.match(out, /3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다/);
+    assert.match(out, /약 3,000자 부근을 목표로 하나의 충분히 전개된 장면으로 작성한다/);
     assert.ok(out.endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
     const layoutIdx = out.indexOf("지문과");
     const lengthIdx = out.indexOf(USER_TAIL_LENGTH_OWNER_SENTENCE);
