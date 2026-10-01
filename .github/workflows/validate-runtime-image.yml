@@ -16,6 +16,11 @@ on:
       - "src/lib/serverGracefulDrain.test.ts"
       - "scripts/runtime-image/**"
       - ".github/workflows/validate-runtime-image.yml"
+      - "src/lib/sqliteBackupRestore.synthetic.test.ts"
+      - "src/lib/dataDir.ts"
+      - "src/lib/dataDir.remote.test.ts"
+      - "docs/RAILWAY_DEPLOY.md"
+      - "docs/RAILWAY_SQLITE_RECOVERY.md"
 
 permissions:
   contents: read
@@ -44,6 +49,12 @@ jobs:
       - run: npm ci
       - run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
       - run: npm run lint
+      - name: Synthetic SQLite backup restore
+        run: >-
+          node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
+          src/lib/sqliteBackupRestore.synthetic.test.ts
+          src/lib/dataDir.remote.test.ts
       - run: node --import tsx --test scripts/runtime-image/verifyPrunedRuntimeTree.test.ts
       - run: npm run build
       - name: Measure runtime tree before prune
