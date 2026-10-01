@@ -4,10 +4,10 @@ import { JSX_COMPILED_MAX_CHARS, JSX_SOURCE_MAX_CHARS } from "./limits";
 import type { JsxCompileResult } from "./types";
 
 const FORBIDDEN = [
-  /\bimport\s+/,
+  /\bimport(?:\s|\()/,
   /\brequire\s*\(/,
   /\beval\s*\(/,
-  /\bnew\s+Function\b/,
+  /\bFunction\s*\(/,
   /\bimportScripts\s*\(/,
 ];
 
