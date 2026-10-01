@@ -1,22 +1,15 @@
 import { fieldPlaceholderKey } from "./fieldKeys";
 import type { StatusWidgetField } from "./types";
 
-function escapeSourceText(value: string): string {
-  return value
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\"')
-    .replace(/\r?\n/g, " ");
-}
-
 /** Starter for StatusWidget JSX mode. Field keys are props; extraction stays on fields. */
 export function defaultStatusWidgetJsxSource(fields: StatusWidgetField[]): string {
   const rows = fields
     .map((field) => {
       const key = fieldPlaceholderKey(field);
       if (!key) return "";
-      const label = escapeSourceText(field.label.trim() || field.id || key);
+      const label = field.label.trim() || field.id || key;
       return `        <div style={{ minWidth: 0, padding: 10, borderRadius: 10, background: "rgba(255,255,255,0.035)" }}>
-          <div style={{ fontSize: 11, color: "#a1a1aa", marginBottom: 5, overflowWrap: "anywhere" }}>${JSON.stringify(label)}</div>
+          <div style={{ fontSize: 11, color: "#a1a1aa", marginBottom: 5, overflowWrap: "anywhere" }}>{${JSON.stringify(label)}}</div>
           <div style={{ color: "#f4f4f5", lineHeight: 1.45, overflowWrap: "anywhere", wordBreak: "break-word" }}>{props[${JSON.stringify(key)}]}</div>
         </div>`;
     })
