@@ -120,9 +120,12 @@ export const AUTOMATION_OWNER_MAP: Readonly<Record<string, string>> = {
   memory_research_case_port_planner: "src/lib/memoryResearch/benchmarkCasePortPlanner.ts (benchmark gap → correct local harness/fixture plan; no auto-edit)",
   memory_research_persistent_gap_radar: "src/lib/memoryResearch/persistentGapRadar.ts (same-fingerprint repeated positive-case misses → persistent-gap evidence only)",
   memory_research_persistent_gap_experiment_router: "src/lib/memoryResearch/persistentGapExperimentRouter.ts (persistent gap → existing reviewed live-recipe priority only; no candidate/recipe creation)",
+  memory_research_persistent_gap_investigation: "src/lib/memoryResearch/persistentGapInvestigation.ts (persistent gap with no reviewed recipe → owner-aware BUGFIX investigation evidence only; no patch/recipe creation)",
   memory_research_harness_feasibility: "src/lib/memoryResearch/benchmarkHarnessFeasibility.ts (case-port plan → measurement feasibility / provider-judge boundary evidence only)",
   memory_research_local_gold_authoring: "src/lib/memoryResearch/localGoldAuthoringPlanner.ts (LOCAL_GOLD_AUTHORING_REQUIRED → human-reviewed synthetic gold packet only)",
   memory_research_baseline_trend: "src/lib/memoryResearch/baselineTrend.ts (same-benchmark deterministic baseline drift evidence across research cycles)",
+  memory_research_effectiveness_audit: "src/lib/memoryResearch/effectivenessAudit.ts (read-only candidate funnel / repeated-WATCH / cooldown bottleneck evidence; no policy mutation)",
+  memory_research_prompt_packing_trend: "src/lib/memoryResearch/promptPackingTrend.ts (same-policy memory-specific N15/Medium token drift across durable cycles)",
   memory_research_ledger: "orphan branch `memory-research-ledger` (ledger.json + cycles/*.json)",
   memory_research_draft_pr: "src/lib/memoryResearch/draftPr.ts (ACCEPTED-only, `gh pr create --draft`)",
   provider_cost_accounting: "src/lib/providerCostLedger.ts (production spend; research cycle makes 0 paid calls)",
@@ -137,9 +140,9 @@ export const AUTOMATION_OWNER_MAP: Readonly<Record<string, string>> = {
  * - semantic_retrieval / embedding_index → `mode.semantic`
  * - prompt_packing → `mode.packing` leftover policy + supplied higher-priority texts
  * - episodic_selection → `mode.selection` fact/char/candidate bounds
+ * - reranking_scoring → `mode.scoring` final composite rank weights only
  *
  * Deliberately NOT marked as hooked:
- * - reranking_scoring: score weights/order are not parameterized by BenchmarkMode
  * - global_current_memory: the harness can supply emitted Global text as packing
  *   input, but does not A/B Global compaction/checkpoint generation itself
  */
@@ -148,6 +151,7 @@ export const BENCHMARK_HOOKED_OWNERS: readonly MemoryOwnerId[] = [
   "embedding_index",
   "prompt_packing",
   "episodic_selection",
+  "reranking_scoring",
 ];
 
 export function isBenchmarkOwnerHooked(owner: MemoryOwnerId): boolean {

@@ -51,16 +51,17 @@ function byTechnique(
 }
 
 describe("Companion Memory Experiment Bridge", () => {
-  it("registers packing/selection/Global hooks without treating unhooked owners as ready", () => {
+  it("registers actual packing/selection/reranking hooks without overclaiming Global or durable owners", () => {
     assert.deepEqual(BENCHMARK_HOOKED_OWNERS, [
       "semantic_retrieval",
       "embedding_index",
       "prompt_packing",
       "episodic_selection",
+      "reranking_scoring",
     ]);
     assert.equal(isBenchmarkOwnerHooked("prompt_packing"), true);
     assert.equal(isBenchmarkOwnerHooked("episodic_selection"), true);
-    assert.equal(isBenchmarkOwnerHooked("reranking_scoring"), false);
+    assert.equal(isBenchmarkOwnerHooked("reranking_scoring"), true);
     assert.equal(isBenchmarkOwnerHooked("global_current_memory"), false);
     assert.equal(isBenchmarkOwnerHooked("relationship_durable"), false);
     assert.equal(isBenchmarkOwnerHooked("episodic_facts"), false);

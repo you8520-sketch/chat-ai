@@ -56,10 +56,55 @@ export type MemoryResearchAdminPromptPacking = {
   models: MemoryResearchAdminPromptPackingModel[];
 };
 
+export type MemoryResearchAdminPromptPackingTrendModel = {
+  modelId: string;
+  n15DeltaInputTokensDelta: number;
+  mediumTokensDelta: number;
+  verdict: string;
+};
+
+export type MemoryResearchAdminPromptPackingTrend = {
+  status: string;
+  previousCycleKey: string | null;
+  comparable: boolean;
+  modelSetChanged: boolean;
+  addedModels: string[];
+  removedModels: string[];
+  modelDeltas: MemoryResearchAdminPromptPackingTrendModel[];
+  note: string;
+};
+
 export type MemoryResearchAdminDecision = {
   candidateKey: string;
   decision: string;
   reason: string;
+};
+
+export type MemoryResearchAdminEffectiveness = {
+  totalCandidates: number;
+  watch: number;
+  rejected: number;
+  accepted: number;
+  acceptedDraftPrs: number;
+  implementationPrs: number;
+  liveEvaluated: number;
+  dueForReevaluation: number;
+  repeatedWatch: number;
+  watchBottlenecks: Array<{
+    decision: string;
+    candidates: number;
+    examples: string[];
+  }>;
+  bySourceKind: Array<{
+    sourceKind: string;
+    candidates: number;
+    watch: number;
+    rejected: number;
+    accepted: number;
+    acceptedDraftPrs: number;
+    implementationPrs: number;
+    liveEvaluated: number;
+  }>;
 };
 
 export type MemoryResearchAdminInsight = {
@@ -119,8 +164,10 @@ export type MemoryResearchAdminRun = {
   persistentMemoryGaps: number;
   persistentMemoryGapStatus: string | null;
   promptPackingAudit: MemoryResearchAdminPromptPacking | null;
+  promptPackingTrend: MemoryResearchAdminPromptPackingTrend | null;
   readiness: MemoryResearchAdminReadinessCounts;
   insights: MemoryResearchAdminInsight[];
+  effectiveness: MemoryResearchAdminEffectiveness | null;
   decisions: MemoryResearchAdminDecision[];
 };
 
@@ -222,6 +269,34 @@ function projectPromptPackingAudit(
     invariantTotal: invariants.length,
     failedInvariants,
     models,
+  };
+}
+
+function projectPromptPackingTrend(
+  value: unknown
+): MemoryResearchAdminPromptPackingTrend | null {
+  const trend = asRecord(value);
+  if (!trend) return null;
+  const status = asString(trend.status);
+  if (!status) return null;
+  return {
+    status,
+    previousCycleKey: asString(trend.previousCycleKey) || null,
+    comparable: trend.comparable === true,
+    modelSetChanged: trend.modelSetChanged === true,
+    addedModels: stringList(trend.addedModels),
+    removedModels: stringList(trend.removedModels),
+    modelDeltas: asArray(trend.modelDeltas)
+      .map(asRecord)
+      .filter((row): row is Record<string, unknown> => row !== null)
+      .map((row) => ({
+        modelId: asString(row.modelId),
+        n15DeltaInputTokensDelta: asNumber(row.n15DeltaInputTokensDelta),
+        mediumTokensDelta: asNumber(row.mediumTokensDelta),
+        verdict: asString(row.verdict),
+      }))
+      .filter((row) => row.modelId),
+    note: asString(trend.note),
   };
 }
 
@@ -451,6 +526,52 @@ function latestCycleKeyFromLedger(raw: string | null): string | null {
   return asString(cycles[0]?.cycleKey) || null;
 }
 
+function projectMemoryResearchEffectiveness(
+  raw: unknown
+): MemoryResearchAdminEffectiveness | null {
+  const audit = asRecord(raw);
+  if (!audit) return null;
+
+  const watchBottlenecks = asArray(audit.watchBottlenecks)
+    .map(asRecord)
+    .filter((row): row is Record<string, unknown> => row !== null)
+    .map((row) => ({
+      decision: asString(row.decision),
+      candidates: asNumber(row.candidates),
+      examples: stringList(row.exampleCandidateKeys),
+    }))
+    .filter((row) => row.decision);
+
+  const bySourceKind = asArray(audit.bySourceKind)
+    .map(asRecord)
+    .filter((row): row is Record<string, unknown> => row !== null)
+    .map((row) => ({
+      sourceKind: asString(row.sourceKind),
+      candidates: asNumber(row.candidates),
+      watch: asNumber(row.watch),
+      rejected: asNumber(row.rejected),
+      accepted: asNumber(row.accepted),
+      acceptedDraftPrs: asNumber(row.acceptedDraftPrs),
+      implementationPrs: asNumber(row.implementationPrs),
+      liveEvaluated: asNumber(row.liveEvaluated),
+    }))
+    .filter((row) => row.sourceKind);
+
+  return {
+    totalCandidates: asNumber(audit.totalCandidates),
+    watch: asNumber(audit.watch),
+    rejected: asNumber(audit.rejected),
+    accepted: asNumber(audit.accepted),
+    acceptedDraftPrs: asNumber(audit.acceptedDraftPrs),
+    implementationPrs: asNumber(audit.implementationPrs),
+    liveEvaluated: asNumber(audit.liveEvaluated),
+    dueForReevaluation: asArray(audit.dueForReevaluation).length,
+    repeatedWatch: asArray(audit.repeatedWatch).length,
+    watchBottlenecks,
+    bySourceKind,
+  };
+}
+
 function countReadiness(plans: unknown): MemoryResearchAdminReadinessCounts {
   const result: MemoryResearchAdminReadinessCounts = {
     readyDeterministic: 0,
@@ -568,8 +689,10 @@ export function projectMemoryResearchAdminRun(
       ? asString(persistentMemoryGapReport.status) || null
       : null,
     promptPackingAudit: projectPromptPackingAudit(cycle.promptPackingAudit),
+    promptPackingTrend: projectPromptPackingTrend(cycle.promptPackingTrend),
     readiness: countReadiness(casePortPlans),
     insights,
+    effectiveness: projectMemoryResearchEffectiveness(cycle.effectivenessAudit),
     decisions: (priorityDecisions.length > 0 ? priorityDecisions : decisions).slice(
       0,
       8

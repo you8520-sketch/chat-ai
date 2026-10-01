@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { GithubAutomationProjection } from "@/lib/adminAutomationReports";
+import type { FinanceAnomalyReport } from "@/lib/financeAnomalyRadar";
 import { buildOpenRouterContractWatchProjection } from "@/lib/openRouterContractWatch";
 import {
   ensurePayoutTransferAttemptsSchema,
@@ -17,6 +18,10 @@ import {
   type AdminOpsIncident,
   type AdminOpsIncidentSeverity,
 } from "@/lib/adminOpsInboxShared";
+import {
+  displayDeploymentSha,
+  listActiveOpsRequestIncidentRows,
+} from "@/lib/opsRequestIncidents";
 
 type PayoutOpsRow = {
   withdrawal_id: number;
@@ -108,6 +113,25 @@ const GITHUB_AUTOMATION_CRITICAL_CONCLUSIONS = new Set([
   "startup_failure",
   "action_required",
 ]);
+
+export function projectFinanceAnomalyIncidents(
+  report: FinanceAnomalyReport,
+  now: Date = new Date()
+): AdminOpsIncident[] {
+  const nowMs = now.getTime();
+  return report.anomalies.map((anomaly) => ({
+    id: `finance:${anomaly.id}`,
+    source: "finance" as const,
+    severity: anomaly.severity,
+    state: anomaly.code,
+    title: anomaly.title,
+    summary: anomaly.summary,
+    sourceRef: anomaly.sourceRef,
+    occurredAt: report.generatedAt,
+    ageMinutes: ageMinutes(nowMs, report.generatedAt),
+    href: anomaly.href,
+  }));
+}
 
 export function projectGithubAutomationIncidents(
   projection: GithubAutomationProjection,
@@ -373,6 +397,26 @@ export function listAdminOpsIncidents(
       occurredAt: contractWatch.windowEnd,
       ageMinutes: ageMinutes(nowMs, contractWatch.windowEnd),
       href: "/admin/pricing",
+    });
+  }
+
+  for (const row of listActiveOpsRequestIncidentRows(db, now)) {
+    const firstSha = displayDeploymentSha(row.first_deployment_sha);
+    const latestSha = displayDeploymentSha(row.latest_deployment_sha);
+    incidents.push({
+      id: `request:${row.signature}`,
+      source: "request",
+      severity: "critical",
+      state: "OBSERVED",
+      title: `${row.route_template} · ${row.error_class}`,
+      summary:
+        `${row.subsystem} 서버 실패가 ${row.occurrence_count}회 관측되었습니다. ` +
+        `첫 배포 ${firstSha}, 최근 배포 ${latestSha}. ` +
+        "자동 재시도·복구는 하지 않습니다.",
+      sourceRef: row.signature,
+      occurredAt: row.last_seen_at,
+      ageMinutes: ageMinutes(nowMs, row.last_seen_at),
+      href: null,
     });
   }
 

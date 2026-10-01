@@ -23,6 +23,7 @@ import {
   buildSceneMomentumInputFromRoute,
   toSceneMomentumTurns,
 } from "@/lib/sceneMomentum/routeInput";
+import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
 import type { buildContext as BuildContextFn } from "@/services/contextBuilder";
 import type { CharacterChunk } from "@/types";
 
@@ -386,18 +387,21 @@ describe("Scene Momentum route wiring — buildContext gating (B–F, I)", () =>
     assert.equal(without.systemPrompt, withInput.systemPrompt);
     const withoutUser = lastUserPayload(without);
     const withUser = lastUserPayload(withInput);
-    const frozenSnippets = [
+    const retiredLengthOwners = [
       "[DEEPSEEK LENGTH — SINGLE CALL]",
-      "Complete the requested narrative depth in this single response.",
       "[SHORT HISTORY]",
-      "Recent assistant length is context, not a response-length example.",
       "[SHORT USER TURN]",
-      "A brief user message is an interaction cue, not a request for a brief reply.",
-      "TARGET_LENGTH 3,200+ · MINIMUM_FLOOR 2,700+",
+      "TARGET_LENGTH",
+      "MINIMUM_FLOOR",
+      "3,200~4,200",
+      "[분량 — 이번 턴 1회 출력]",
     ];
-    for (const snip of frozenSnippets) {
-      assert.ok(withoutUser.includes(snip), "baseline missing: " + snip);
-      assert.ok(withUser.includes(snip), "wired missing: " + snip);
+    for (const user of [withoutUser, withUser]) {
+      assert.equal(user.split(USER_TAIL_LENGTH_OWNER_SENTENCE).length - 1, 1);
+      assert.ok(user.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
+      for (const retired of retiredLengthOwners) {
+        assert.equal(user.includes(retired), false, retired);
+      }
     }
     assert.doesNotMatch(withoutUser, /\[CURRENT SCENE CONTINUITY\]/);
     assert.match(withUser, /\[CURRENT SCENE CONTINUITY\]/);

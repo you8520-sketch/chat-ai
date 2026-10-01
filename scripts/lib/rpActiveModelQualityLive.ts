@@ -1,11 +1,6 @@
 import crypto from "node:crypto";
 
 import {
-  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   selectedAIProvider,
@@ -35,32 +30,24 @@ import { processOpenRouterSupplySseLine } from "./mainRpSupplyLiveQualification"
 type JsonObject = Record<string, unknown>;
 type FetchLike = typeof fetch;
 
-export const RP_ACTIVE_MODEL_QUALITY_LIVE_VERSION = 1;
+export const RP_ACTIVE_MODEL_QUALITY_LIVE_VERSION = 2;
 export const RP_ACTIVE_MODEL_QUALITY_LIVE_FLAG = "RP_ACTIVE_MODEL_QUALITY_LIVE";
 export const RP_ACTIVE_MODEL_QUALITY_LIVE_TIMEOUT_MS = 120_000;
-export const RP_ACTIVE_MODEL_QUALITY_MAX_CALLS = 12;
 
 /**
- * Deliberately bounded to the models the user wants reviewed in this round.
- * Terra and Gemini 3.1 remain valid Main RP registry entries, but are excluded
- * from this quality run because the user plans to replace them with newer models.
+ * Current active Main-RP picker is the only model owner.
+ * Monthly memory-quality evidence uses two bounded cases across every active
+ * user-selectable model. A future picker expansion beyond this hard call cap
+ * fails before any provider request rather than silently skipping models.
  */
-export const RP_ACTIVE_MODEL_QUALITY_MODEL_IDS = [
-  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-] as const satisfies readonly SelectedAI[];
-
-export const RP_ACTIVE_MODEL_QUALITY_EXCLUDED = Object.freeze([
-  {
-    modelId: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
-    reason: "user_requested_skip_pending_replacement",
-  },
-  {
-    modelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-    reason: "user_requested_skip_pending_new_model",
-  },
-]);
+export const RP_ACTIVE_MODEL_QUALITY_MODEL_IDS: readonly SelectedAI[] =
+  MAIN_RP_MODEL_IDS;
+export const RP_ACTIVE_MODEL_QUALITY_EXCLUDED = Object.freeze([] as const);
+export const RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS = [
+  "memory_current_state_priority",
+  "memory_false_shared_event",
+] as const satisfies readonly CanonicalQualificationCaseId[];
+export const RP_ACTIVE_MODEL_QUALITY_MAX_CALLS = 16;
 
 export type RpActiveModelQualityProbe = {
   modelId: (typeof RP_ACTIVE_MODEL_QUALITY_MODEL_IDS)[number];
@@ -150,24 +137,26 @@ function modelLabel(modelId: SelectedAI): string {
 }
 
 export function buildRpActiveModelQualityPlan(
-  caseIds?: readonly CanonicalQualificationCaseId[]
+  caseIds: readonly CanonicalQualificationCaseId[] = RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS,
+  modelIds: readonly SelectedAI[] = RP_ACTIVE_MODEL_QUALITY_MODEL_IDS
 ): RpActiveModelQualityProbe[] {
-  for (const modelId of RP_ACTIVE_MODEL_QUALITY_MODEL_IDS) {
+  const uniqueModelIds = [...new Set(modelIds)];
+  for (const modelId of uniqueModelIds) {
     if (!MAIN_RP_MODEL_IDS.includes(modelId)) {
       throw new Error(`Quality model is no longer active Main RP: ${modelId}`);
     }
   }
 
-  const selectedCaseIds = caseIds ? new Set(caseIds) : null;
+  const selectedCaseIds = new Set(caseIds);
   const cases = buildCanonicalRpQualificationCases().filter(
-    (entry) => !selectedCaseIds || selectedCaseIds.has(entry.id)
+    (entry) => selectedCaseIds.has(entry.id)
   );
-  if (caseIds && cases.length !== selectedCaseIds!.size) {
+  if (cases.length !== selectedCaseIds.size) {
     const known = new Set(buildCanonicalRpQualificationCases().map((entry) => entry.id));
-    const unknown = [...selectedCaseIds!].filter((id) => !known.has(id));
+    const unknown = [...selectedCaseIds].filter((id) => !known.has(id));
     throw new Error(`Unknown RP quality case id(s): ${unknown.join(", ")}`);
   }
-  const plan = RP_ACTIVE_MODEL_QUALITY_MODEL_IDS.flatMap((modelId) =>
+  const plan = uniqueModelIds.flatMap((modelId) =>
     cases.map((caseData) => ({
       modelId,
       caseId: caseData.id,
@@ -408,12 +397,14 @@ export async function runRpActiveModelQualityLive(input: {
   credentials: Record<RpActiveModelQualityProvider, string>;
   runId: string;
   caseIds?: readonly CanonicalQualificationCaseId[];
+  modelIds?: readonly SelectedAI[];
   fetchImpl?: FetchLike;
 }): Promise<RpActiveModelQualityLiveReport> {
   const cases = new Map(
     buildCanonicalRpQualificationCases().map((entry) => [entry.id, entry])
   );
-  const plan = buildRpActiveModelQualityPlan(input.caseIds);
+  const selectedModelIds = input.modelIds ?? RP_ACTIVE_MODEL_QUALITY_MODEL_IDS;
+  const plan = buildRpActiveModelQualityPlan(input.caseIds, selectedModelIds);
   const results: RpActiveModelQualityTurnResult[] = [];
 
   for (const probe of plan) {
@@ -447,7 +438,7 @@ export async function runRpActiveModelQualityLive(input: {
     version: RP_ACTIVE_MODEL_QUALITY_LIVE_VERSION,
     generatedAt: new Date().toISOString(),
     source: CANONICAL_RP_QUALIFICATION_SOURCE,
-    modelIds: RP_ACTIVE_MODEL_QUALITY_MODEL_IDS,
+    modelIds: selectedModelIds,
     excludedModels: RP_ACTIVE_MODEL_QUALITY_EXCLUDED,
     ordinaryInputAuthoringLevel: "NORMAL",
     providerCalls: results.length,
@@ -456,7 +447,10 @@ export async function runRpActiveModelQualityLive(input: {
     results,
     notes: [
       "Raw outputs are evidence for GPT/user review; the runner does not score or rank models.",
-      "Terra 5.6 and Gemini 3.1 Pro Preview are intentionally excluded from this round at user request.",
+      input.modelIds
+        ? "This one-shot PR evidence run uses an explicit subset of current Main-RP models; monthly/default runs still derive from the full active registry."
+        : "The model set is derived directly from the current Main-RP user-selectable registry; retired/non-chat models are not probed.",
+      "The default monthly evidence is bounded to two memory-continuity cases across all active models.",
       "All cases use the frozen deployed 조태형(라이크)+관리자 페르소나 렌 fixture with current-main prompt/wire assembly.",
       "Ordinary interactive user-authoring is current product default NORMAL: dialogue/actions allowed, private inner POV and irreversible user fate not allowed.",
       "Each probe follows the canonical Main-RP registry provider. One provider attempt per model/case; no retry/fallback generation.",

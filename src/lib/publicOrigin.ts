@@ -1,4 +1,4 @@
-/** Configured public origin owner shared by metadata and request-time URLs. */
+/** Configured public origin owner shared by metadata, request-time URLs, and canonical-host ingress. */
 export function getConfiguredPublicOrigin(): string | null {
   const configured =
     process.env.GOOGLE_OAUTH_ORIGIN?.trim() ||

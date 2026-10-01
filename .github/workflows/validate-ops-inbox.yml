@@ -4,7 +4,14 @@ on:
   pull_request:
     paths:
       - "src/lib/adminOpsInbox.ts"
+      - "src/lib/financeAnomalyRadar.ts"
+      - "src/lib/financeAnomalyRadar.test.ts"
+      - "src/cron/financeScheduler.ts"
+      - "src/app/admin/automation-reports/page.tsx"
       - "src/lib/adminAutomationReports.ts"
+      - "src/lib/adminAutomationReports.test.ts"
+      - "src/lib/postDeployVerification.ts"
+      - "src/lib/postDeployVerification.test.ts"
       - "src/lib/userNotifications.ts"
       - "src/lib/userNotificationPresentation.ts"
       - "src/cron/adminSupplyDraftNotificationScheduler.ts"
@@ -14,6 +21,12 @@ on:
       - "src/lib/openRouterContractWatch.test.ts"
       - "src/lib/adminOpsInboxShared.ts"
       - "src/lib/adminOpsInbox.test.ts"
+      - "src/lib/opsRequestIncidents.ts"
+      - "src/lib/opsRequestIncidents.test.ts"
+      - "src/lib/db.ts"
+      - "src/app/api/chat/route.ts"
+      - "src/app/api/chat/message/route.ts"
+      - "src/app/api/auth/google/callback/route.ts"
       - "src/lib/schedulerDefinitions.ts"
       - "src/lib/schedulerRunRegistry.ts"
       - "src/lib/schedulerRunShared.ts"
@@ -22,7 +35,12 @@ on:
       - "src/lib/pointChargeRefundShared.ts"
       - "src/app/admin/ops/**"
       - "src/app/settings/SettingsClient.tsx"
-      - ".github/workflows/validate-ops-inbox.yml"
+      - "src/lib/ops/autonomyCoverageAudit.test.ts"
+      - "docs/audit/current-main-autonomy-map.md"
+      - "src/lib/codeHealth/automationHealth.ts"
+      - "src/lib/payoutExecution.ts"
+      - "src/app/api/cron/subscription-renew/route.ts"
+      - ".github/workflows/**"
 
 permissions:
   contents: read
@@ -51,8 +69,16 @@ jobs:
         run: >-
           node --conditions=react-server --import tsx --test --test-concurrency=1
           src/lib/adminOpsInbox.test.ts
+          src/lib/opsRequestIncidents.test.ts
+          src/lib/financeAnomalyRadar.test.ts
+          src/lib/adminAutomationReports.test.ts
+          src/lib/postDeployVerification.test.ts
           src/cron/adminSupplyDraftNotificationScheduler.test.ts
       - name: OpenRouter contract watch regression
         run: node --conditions=react-server --import tsx --test src/lib/openRouterContractWatch.test.ts
+      - name: Current-main autonomy coverage lock
+        run: >-
+          node --conditions=react-server --import tsx --test --test-concurrency=1
+          src/lib/ops/autonomyCoverageAudit.test.ts
       - name: Production build
         run: npm run build

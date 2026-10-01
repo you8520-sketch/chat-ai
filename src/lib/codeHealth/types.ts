@@ -1,3 +1,5 @@
+import type { ScheduledAutomationHealthReport } from "@/lib/codeHealth/automationHealth";
+
 export const CODE_HEALTH_AUDIT_VERSION = 1 as const;
 export const CODE_HEALTH_LEDGER_BRANCH = "code-health-ledger";
 export const CODE_HEALTH_WEEKLY_WORKFLOW_PATH =
@@ -131,6 +133,7 @@ export type WeeklyCodeHealthReport = {
   delta: CodeHealthDelta | null;
   candidates: CodeHealthCandidate[];
   criticalBugfixCandidates: CodeHealthCandidate[];
+  automationHealth?: ScheduledAutomationHealthReport;
   knipReview: KnipReview;
   productionMutated: false;
   githubRunUrl: string | null;

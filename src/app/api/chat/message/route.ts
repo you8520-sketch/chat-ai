@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { observeProductionRequestIncident } from "@/lib/opsRequestIncidents";
 import { assertMessageAccess } from "@/lib/chatAccess";
 import {
   editedMessageVariant,
@@ -41,6 +42,8 @@ import {
 } from "@/lib/rpDerivedStateLifecycle";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import {
+  clearUserMessageEditDerivedResidueCore,
+  reconcileDerivedMemoryAfterUserMessageEditCore,
   reconcileMemoryAfterSourceMessageEditSyncCore,
   scheduleMemoryResealAfterSourceMessageEdit,
 } from "@/lib/memory/memory-reconcile";
@@ -356,6 +359,12 @@ export async function PATCH(req: Request) {
         "[DerivedState] atomic manual edit core failed:",
         (e as Error).message
       );
+      observeProductionRequestIncident(db, {
+        routeTemplate: "/api/chat/message",
+        subsystem: "db",
+        httpStatus: 500,
+        error: e,
+      });
       return NextResponse.json(
         { error: "메시지 수정 중 오류가 발생했습니다." },
         { status: 500 }
@@ -425,27 +434,49 @@ export async function PATCH(req: Request) {
   let invalidatedSuggestedReplyAssistantMessageIds: number[] = [];
   try {
     db.transaction(() => {
-      if (materialUserProseChange && isMemoryFeatureEnabled()) {
-        const preIdentity = resolveMemorySourceTurnIdentityCore(db, msg.chat_id, id);
+      if (materialUserProseChange) {
+        const memoryFeatureOn = isMemoryFeatureEnabled();
+        const preIdentity = memoryFeatureOn
+          ? resolveMemorySourceTurnIdentityCore(db, msg.chat_id, id)
+          : null;
         db.prepare("UPDATE messages SET content=? WHERE id=?").run(text, id);
         markUserMessageCoauthorSemanticsVersion(db, id);
         recomputeAndPersistUserCoauthorMode(db, msg.chat_id);
-        const postIdentity = resolveMemorySourceTurnIdentityCore(db, msg.chat_id, id);
-        if (memorySourceEligibilityChanged(preIdentity, postIdentity)) {
-          throw new MemoryCanonicalityEditNotSupportedError();
-        }
-        if (preIdentity != null) {
-          userMemorySyncOutcome.result = reconcileMemoryAfterSourceMessageEditSyncCore(db, {
+
+        if (memoryFeatureOn) {
+          const postIdentity = resolveMemorySourceTurnIdentityCore(db, msg.chat_id, id);
+          if (memorySourceEligibilityChanged(preIdentity, postIdentity)) {
+            throw new MemoryCanonicalityEditNotSupportedError();
+          }
+          if (preIdentity != null) {
+            userMemorySyncOutcome.result = reconcileDerivedMemoryAfterUserMessageEditCore(db, {
+              chatId: msg.chat_id,
+              userId: user.id,
+              characterId: msg.character_id,
+              tier: getSubscriptionTier(user),
+              memoryCapacity: getChatMemoryCapacity(msg.chat_id),
+              memoryTurnNumber: preIdentity.memoryTurnNumber,
+              sourceUserMessageId: preIdentity.sourceUserMessageId,
+              sourceAssistantMessageId: preIdentity.sourceAssistantMessageId,
+              previousUserText: oldUserContent,
+            });
+          } else {
+            clearUserMessageEditDerivedResidueCore(db, {
+              chatId: msg.chat_id,
+              sourceUserMessageId: id,
+              previousUserText: oldUserContent,
+            });
+          }
+        } else {
+          // Integrity cleanup is independent of prompt-memory activation.
+          // Otherwise stale rows edited during a kill-switch window can revive later.
+          clearUserMessageEditDerivedResidueCore(db, {
             chatId: msg.chat_id,
-            userId: user.id,
-            characterId: msg.character_id,
-            tier: getSubscriptionTier(user),
-            memoryCapacity: getChatMemoryCapacity(msg.chat_id),
-            memoryTurnNumber: preIdentity.memoryTurnNumber,
-            sourceUserMessageId: preIdentity.sourceUserMessageId,
-            sourceAssistantMessageId: preIdentity.sourceAssistantMessageId,
+            sourceUserMessageId: id,
+            previousUserText: oldUserContent,
           });
         }
+
         invalidatedSuggestedReplyAssistantMessageIds =
           invalidateSuggestedRepliesForSourceEditCore(db, {
             chatId: msg.chat_id,
@@ -478,6 +509,12 @@ export async function PATCH(req: Request) {
       );
     }
     console.error("[memory] atomic user message edit failed:", (e as Error).message);
+    observeProductionRequestIncident(db, {
+      routeTemplate: "/api/chat/message",
+      subsystem: "db",
+      httpStatus: 500,
+      error: e,
+    });
     return NextResponse.json(
       { error: "메시지 수정 중 오류가 발생했습니다." },
       { status: 500 }

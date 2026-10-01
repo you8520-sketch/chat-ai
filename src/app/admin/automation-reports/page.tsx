@@ -2,13 +2,19 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { requireAdminUser } from "@/lib/adminAuth";
+import { buildAdminFinanceSummary, currentKstMonthKey } from "@/lib/adminFinance";
 import {
   fetchMemoryResearchAdminProjection,
   type MemoryResearchAdminProjection,
 } from "@/lib/adminMemoryResearchReports";
 import {
+  buildAdminMemoryRuntimeStatus,
+  type AdminMemoryRuntimeStatus,
+} from "@/lib/adminMemoryRuntimeStatus";
+import {
   fetchGithubScheduledAutomationProjection,
   fetchGithubSupplyAutoDraftProjection,
+  fetchPostDeployVerificationProjection,
 } from "@/lib/adminAutomationReports";
 import {
   fetchCodeHealthAdminProjection,
@@ -17,8 +23,22 @@ import {
 } from "@/lib/codeHealth/reports";
 import { getDb } from "@/lib/db";
 import { fetchDecisionRadarAdminProjection } from "@/lib/decisionModelRadarReports";
+import {
+  buildFinanceAnomalyReport,
+  type FinanceAnomalyReport,
+} from "@/lib/financeAnomalyRadar";
 import { listMainRpCacheTtlReports } from "@/lib/mainRpCacheTtlEconomics";
+import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
+import {
+  type PostDeployVerificationState,
+  type PostDeployVerificationView,
+  type PublicSmokeState,
+} from "@/lib/postDeployVerification";
 import { listSchedulerRunOverview } from "@/lib/schedulerRunRegistry";
+import {
+  buildSupplierDiscoveryReport,
+  type SupplierCandidateRecord,
+} from "@/lib/supplierDiscovery/discoverSuppliers";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +73,141 @@ function badgeClass(state: string): string {
     return "bg-sky-500/15 text-sky-300";
   }
   return "bg-amber-500/15 text-amber-300";
+}
+
+function postDeployBadgeClass(state: PostDeployVerificationState): string {
+  switch (state) {
+    case "VERIFIED":
+      return "bg-emerald-500/15 text-emerald-300";
+    case "FAILED":
+      return "bg-rose-500/15 text-rose-300";
+    case "UNVERIFIED":
+      return "bg-amber-500/15 text-amber-300";
+    case "SUPERSEDED":
+      return "bg-zinc-500/15 text-zinc-300";
+    default: {
+      const _exhaustive: never = state;
+      return _exhaustive;
+    }
+  }
+}
+
+function publicSmokeBadgeClass(state: PublicSmokeState): string {
+  switch (state) {
+    case "PASS":
+      return "bg-emerald-500/15 text-emerald-300";
+    case "FAIL":
+      return "bg-rose-500/15 text-rose-300";
+    case "UNVERIFIED":
+      return "bg-amber-500/15 text-amber-300";
+    default: {
+      const _exhaustive: never = state;
+      return _exhaustive;
+    }
+  }
+}
+
+function PostDeployVerificationCard({ view }: { view: PostDeployVerificationView }) {
+  const latest = view.latest;
+  return (
+    <section className="mt-6 rounded-2xl border border-white/10 bg-[#11131a] p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-black">배포 검증</h2>
+          <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+            Railway production 배포가 성공한 뒤 https://hav.chat 의 /health 와 /api/health 를
+            읽어서 대상 커밋과 맞는지 확인한 결과입니다. SHA 검증이 VERIFIED이면 같은 실행이
+            공개 홈, 검색, 신작, 랭킹을 따로 읽습니다. GitHub workflow 성공만으로 VERIFIED나
+            PASS가 되지 않습니다.
+          </p>
+        </div>
+        <span
+          className={
+            "rounded px-2 py-1 text-xs font-bold " +
+            postDeployBadgeClass(view.status === "UNAVAILABLE" ? "UNVERIFIED" : (latest?.state ?? "UNVERIFIED"))
+          }
+        >
+          {view.status === "UNAVAILABLE" ? "UNVERIFIED" : (latest?.state ?? "UNVERIFIED")}
+        </span>
+      </div>
+      {view.status === "UNAVAILABLE" ? (
+        <p className="mt-3 text-sm text-amber-200">GitHub 조회 실패 · {view.error}</p>
+      ) : latest ? (
+        <dl className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">검증 대상 SHA</dt>
+            <dd className="mt-1 break-all font-mono text-xs text-zinc-100">
+              {latest.targetSha || "없음"}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">검증 시각</dt>
+            <dd className="mt-1 text-xs text-zinc-100">{fmtDate(latest.checkedAt)}</dd>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">응답 gitCommit</dt>
+            <dd className="mt-1 font-mono text-xs text-zinc-100">
+              {latest.observedGitCommit ?? "없음"}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">사유</dt>
+            <dd className="mt-1 text-xs text-zinc-100">{latest.reason ?? "없음"}</dd>
+          </div>
+        </dl>
+      ) : null}
+      {latest?.publicSmoke ? (
+        <div className="mt-4 rounded-xl border border-white/10 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-bold text-zinc-200">공개 페이지</p>
+            <span className={"rounded px-2 py-1 text-xs font-bold " + publicSmokeBadgeClass(latest.publicSmoke.state)}>
+              {latest.publicSmoke.state}
+            </span>
+          </div>
+          <p className="mt-2 text-xs text-zinc-400">
+            {fmtDate(latest.publicSmoke.checkedAt)} · {latest.publicSmoke.attempts}회
+            {latest.publicSmoke.reason ? ` · ${latest.publicSmoke.reason}` : ""}
+          </p>
+          {latest.publicSmoke.pages.length > 0 ? (
+            <ul className="mt-2 space-y-1 text-xs text-zinc-300">
+              {latest.publicSmoke.pages.map((page) => (
+                <li key={page.path}>
+                  {page.path} · {page.state}
+                  {page.reason ? ` · ${page.reason}` : ""} · {page.attempts}회
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+      {latest && !latest.currentDeployment ? (
+        <p className="mt-3 text-xs text-zinc-400">현재 배포 SHA와 다른 이전 검증 결과입니다.</p>
+      ) : null}
+      {latest?.htmlUrl ? (
+        <a
+          href={latest.htmlUrl}
+          className="mt-3 inline-block text-xs text-sky-300 hover:text-sky-200"
+          target="_blank"
+          rel="noreferrer"
+        >
+          GitHub 실행
+        </a>
+      ) : null}
+      {view.superseded ? (
+        <p className="mt-3 break-all text-xs text-zinc-500">
+          이전 검증 {view.superseded.targetSha} · SUPERSEDED · {view.superseded.reason}
+          {view.superseded.htmlUrl ? (
+            <>
+              {" · "}
+              <a href={view.superseded.htmlUrl} className="text-sky-400 hover:text-sky-200" target="_blank" rel="noreferrer">
+                실행
+              </a>
+            </>
+          ) : null}
+        </p>
+      ) : null}
+    </section>
+  );
 }
 
 function codeHealthStatusLabel(status: CodeHealthAdminCard["status"]): string {
@@ -164,15 +319,91 @@ function CodeHealthCard({ card }: { card: CodeHealthAdminCard }) {
   );
 }
 
+function FinanceAnomalyCard({ report }: { report: FinanceAnomalyReport }) {
+  return (
+    <section className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-950/10 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-black text-amber-200">Finance / Billing Anomaly Radar</h2>
+          <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+            canonical finance ledger, provider reconciliation, 실제 Main RP economics와 최소 margin
+            floor를 read-only로 비교합니다. 이 radar는 가격·route·billing을 자동 변경하지
+            않습니다.
+          </p>
+        </div>
+        <span
+          className={
+            "rounded px-2 py-1 text-xs font-bold " +
+            (report.status === "HEALTHY"
+              ? "bg-emerald-500/15 text-emerald-300"
+              : report.status === "CRITICAL"
+                ? "bg-rose-500/15 text-rose-300"
+                : "bg-amber-500/15 text-amber-300")
+          }
+        >
+          {report.status}
+        </span>
+      </div>
+      <p className="mt-3 text-xs text-zinc-500">
+        {report.monthKey} · 계산 {fmtDate(report.generatedAt)} · critical {report.criticalCount} ·
+        warning {report.warningCount}
+      </p>
+      {report.anomalies.length === 0 ? (
+        <div className="mt-4 rounded-xl border border-emerald-500/10 bg-emerald-950/10 p-3 text-sm text-emerald-300">
+          deterministic finance/billing anomaly가 없습니다.
+        </div>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {report.anomalies.slice(0, 12).map((anomaly) => (
+            <article key={anomaly.id} className="rounded-xl border border-white/5 bg-black/15 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-bold text-zinc-200">{anomaly.title}</p>
+                <span
+                  className={
+                    "rounded px-2 py-0.5 text-[11px] font-bold " +
+                    (anomaly.severity === "critical"
+                      ? "bg-rose-500/15 text-rose-300"
+                      : "bg-amber-500/15 text-amber-300")
+                  }
+                >
+                  {anomaly.severity.toUpperCase()}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">{anomaly.summary}</p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                <span className="font-mono text-zinc-600">{anomaly.sourceRef}</span>
+                <Link href={anomaly.href} className="font-semibold text-amber-300 hover:text-amber-200">
+                  canonical owner 확인 →
+                </Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+      <div className="mt-4">
+        <Link
+          href="/admin/ops"
+          className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-amber-300 hover:bg-white/5"
+        >
+          운영 예외함에서 보기 →
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 function MemoryResearchCard({
   projection,
+  runtime,
 }: {
   projection: MemoryResearchAdminProjection;
+  runtime: AdminMemoryRuntimeStatus;
 }) {
   const run = projection.run;
   const state = run?.status ?? projection.status;
   const readiness = run?.readiness;
   const promptPacking = run?.promptPackingAudit ?? null;
+  const promptPackingTrend = run?.promptPackingTrend ?? null;
   const pipeline = projection.pipeline;
   const hasPipeline =
     pipeline.pendingLiveExperiments > 0 ||
@@ -220,6 +451,57 @@ function MemoryResearchCard({
             </span>
             {projection.freshnessReason ? (
               <span className="text-zinc-500">{projection.freshnessReason}</span>
+            ) : null}
+          </div>
+
+          <div className="mt-3 rounded-xl border border-emerald-500/10 bg-emerald-950/5 p-3 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-bold text-emerald-200">Production memory runtime</span>
+              <span
+                className={
+                  "rounded px-2 py-0.5 font-bold " +
+                  (runtime.memoryFeatureEnabled
+                    ? "bg-emerald-500/15 text-emerald-300"
+                    : "bg-rose-500/15 text-rose-300")
+                }
+              >
+                memory {runtime.memoryFeatureEnabled ? "ON" : "OFF"}
+              </span>
+              <span
+                className={
+                  "rounded px-2 py-0.5 font-bold " +
+                  (runtime.episodicRecallEnabled
+                    ? "bg-emerald-500/15 text-emerald-300"
+                    : "bg-rose-500/15 text-rose-300")
+                }
+              >
+                episodic recall {runtime.episodicRecallEnabled ? "ON" : "OFF"}
+              </span>
+              <span
+                className={
+                  "rounded px-2 py-0.5 font-bold " +
+                  (runtime.semantic.enabled
+                    ? "bg-emerald-500/15 text-emerald-300"
+                    : "bg-amber-500/15 text-amber-300")
+                }
+              >
+                semantic {runtime.semantic.enabled ? "ON" : "OFF"}
+              </span>
+            </div>
+            <p className="mt-2 text-zinc-500">
+              policy {runtime.policy.id} · {runtime.policy.rollingSummaryInterval}턴 요약 · RAW
+              {runtime.policy.rawRecentExchanges}
+            </p>
+            <p className="mt-1 text-zinc-500">
+              semantic model key {runtime.semantic.configuredModelKey ?? "미설정"}
+              {runtime.semantic.activeModelId
+                ? ` · active ${runtime.semantic.activeModelId}`
+                : ` · reason ${runtime.semantic.reason}`}
+            </p>
+            {runtime.semantic.configVersion ? (
+              <p className="mt-1 font-mono text-[11px] text-zinc-600">
+                {runtime.semantic.configVersion}
+              </p>
             ) : null}
           </div>
 
@@ -336,6 +618,40 @@ function MemoryResearchCard({
                     prompt-packing invariant 전체 통과
                   </p>
                 )}
+                {promptPackingTrend ? (
+                  <div className="mt-3 rounded-lg border border-white/5 bg-black/15 p-2">
+                    <p className="font-semibold text-zinc-300">
+                      이전 cycle 대비 · {promptPackingTrend.status}
+                      {promptPackingTrend.previousCycleKey
+                        ? ` · ${promptPackingTrend.previousCycleKey}`
+                        : ""}
+                    </p>
+                    {promptPackingTrend.modelSetChanged ? (
+                      <p className="mt-1 text-amber-300">
+                        model set 변경 · 추가{" "}
+                        {promptPackingTrend.addedModels.join(", ") || "-"} · 제거{" "}
+                        {promptPackingTrend.removedModels.join(", ") || "-"}
+                      </p>
+                    ) : null}
+                    {promptPackingTrend.modelDeltas.length ? (
+                      <div className="mt-2 space-y-1">
+                        {promptPackingTrend.modelDeltas.map((model) => (
+                          <p key={model.modelId} className="font-mono text-[11px] text-zinc-500">
+                            {model.modelId} · N15 Δ{" "}
+                            {model.n15DeltaInputTokensDelta >= 0 ? "+" : ""}
+                            {model.n15DeltaInputTokensDelta} · Medium{" "}
+                            {model.mediumTokensDelta >= 0 ? "+" : ""}
+                            {model.mediumTokensDelta} · {model.verdict}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
+                    {promptPackingTrend.note ? (
+                      <p className="mt-2 text-zinc-600">{promptPackingTrend.note}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 {promptPacking.models.length ? (
                   <div className="mt-3 overflow-x-auto">
                     <table className="w-full min-w-[620px] text-left text-[11px]">
@@ -369,6 +685,94 @@ function MemoryResearchCard({
                   </div>
                 ) : null}
               </div>
+            </details>
+          ) : null}
+
+          {run.effectiveness ? (
+            <details className="mt-3 rounded-xl border border-cyan-500/10 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-cyan-200">
+                연구 자동화 효과 / 병목
+              </summary>
+              <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                <div className="rounded-lg bg-black/15 p-2 text-xs">
+                  <p className="text-[10px] text-zinc-500">후보 funnel</p>
+                  <p className="mt-1 font-semibold text-zinc-300">
+                    전체 {run.effectiveness.totalCandidates} · WATCH {run.effectiveness.watch} · REJECT{" "}
+                    {run.effectiveness.rejected} · ACCEPT {run.effectiveness.accepted}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-black/15 p-2 text-xs">
+                  <p className="text-[10px] text-zinc-500">검증 / PR</p>
+                  <p className="mt-1 font-semibold text-zinc-300">
+                    live {run.effectiveness.liveEvaluated} · accepted Draft{" "}
+                    {run.effectiveness.acceptedDraftPrs} · implementation PR{" "}
+                    {run.effectiveness.implementationPrs}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-black/15 p-2 text-xs">
+                  <p className="text-[10px] text-zinc-500">재평가 대기</p>
+                  <p className="mt-1 font-semibold text-zinc-300">
+                    cooldown 만료 {run.effectiveness.dueForReevaluation}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-black/15 p-2 text-xs">
+                  <p className="text-[10px] text-zinc-500">반복 WATCH</p>
+                  <p className="mt-1 font-semibold text-zinc-300">
+                    {run.effectiveness.repeatedWatch}
+                  </p>
+                </div>
+              </div>
+
+              {run.effectiveness.watchBottlenecks.length ? (
+                <div className="mt-3 space-y-2">
+                  <p className="text-[11px] font-bold text-zinc-400">WATCH 병목</p>
+                  {run.effectiveness.watchBottlenecks.map((row) => (
+                    <div key={row.decision} className="rounded-lg bg-black/15 p-2 text-xs">
+                      <p className="font-semibold text-zinc-300">
+                        {row.decision} · {row.candidates}건
+                      </p>
+                      {row.examples.length ? (
+                        <p className="mt-1 font-mono text-[10px] text-zinc-600">
+                          {row.examples.join(", ")}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {run.effectiveness.bySourceKind.length ? (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[680px] text-left text-[11px] text-zinc-400">
+                    <thead className="text-zinc-600">
+                      <tr>
+                        <th className="py-1 pr-3">source</th>
+                        <th className="py-1 pr-3">후보</th>
+                        <th className="py-1 pr-3">WATCH</th>
+                        <th className="py-1 pr-3">REJECT</th>
+                        <th className="py-1 pr-3">ACCEPT</th>
+                        <th className="py-1 pr-3">Draft</th>
+                        <th className="py-1 pr-3">impl PR</th>
+                        <th className="py-1">live</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {run.effectiveness.bySourceKind.map((row) => (
+                        <tr key={row.sourceKind} className="border-t border-white/5">
+                          <td className="py-1.5 pr-3 font-mono text-zinc-300">{row.sourceKind}</td>
+                          <td className="py-1.5 pr-3">{row.candidates}</td>
+                          <td className="py-1.5 pr-3">{row.watch}</td>
+                          <td className="py-1.5 pr-3">{row.rejected}</td>
+                          <td className="py-1.5 pr-3">{row.accepted}</td>
+                          <td className="py-1.5 pr-3">{row.acceptedDraftPrs}</td>
+                          <td className="py-1.5 pr-3">{row.implementationPrs}</td>
+                          <td className="py-1.5">{row.liveEvaluated}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
             </details>
           ) : null}
 
@@ -561,6 +965,59 @@ function MemoryResearchCard({
   );
 }
 
+function SupplierDiscoverySection({
+  candidate,
+}: {
+  candidate: SupplierCandidateRecord;
+}) {
+  const rows: Array<[string, string]> = [
+    ["product", `${candidate.productKind} · ${candidate.productId}`],
+    ["canonical origin", candidate.canonicalOrigin],
+    ["discovery source", candidate.discoverySource],
+    ["public screening", `${candidate.publicScreenStatus} · ${candidate.publicScreenReasons.join(", ")}`],
+    ["지원 active RP 모델", candidate.supportedActiveModelIds.join(", ") || "공개 정보 없음"],
+    ["price advantage", `${candidate.priceAdvantage} · ${candidate.priceUnit}`],
+    ["stability", candidate.publicStabilityEvidence ?? "unverified"],
+    ["privacy / ZDR", candidate.privacyZdrStatus],
+    ["credential", `${candidate.credentialRequirement} · ${candidate.credentialState}`],
+    ["live qualification", `${candidate.liveQualification.status} · ${candidate.liveQualification.reason}`],
+    ["promotion readiness", candidate.promotion.readiness],
+    ["STOP reason", candidate.promotion.stopReason],
+  ];
+  return (
+    <article className="rounded-xl border border-white/10 bg-black/15 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="font-bold text-zinc-100">
+            {candidate.companyName}{" "}
+            <span className="font-mono text-sm text-zinc-400">{candidate.supplierId}</span>
+          </h3>
+          <p className="mt-1 text-xs text-zinc-500">
+            {candidate.canonicalOrigin}
+            {candidate.advertisedApiBaseUrl ? ` · advertised API ${candidate.advertisedApiBaseUrl}` : ""}
+          </p>
+        </div>
+        <span className={"rounded px-2 py-1 text-xs font-bold " + badgeClass(candidate.status)}>
+          {candidate.status}
+        </span>
+      </div>
+      <dl className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+        {rows.map(([label, value]) => (
+          <div key={label} className="rounded-lg border border-white/5 px-3 py-2">
+            <dt className="text-[11px] text-zinc-500">{label}</dt>
+            <dd className="mt-1 break-words text-xs text-zinc-200">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-2 text-[11px] text-zinc-600">
+        evidence {candidate.evidenceFreshness} · route Draft PR{" "}
+        {candidate.promotion.draftRoutePrEligible ? "eligible" : "not eligible"} · automatic merge{" "}
+        {candidate.promotion.automaticMergeEligible ? "eligible" : "0"}
+      </p>
+    </article>
+  );
+}
+
 function ttlRecommendationLabel(value: string): string {
   if (value === "KEEP_5M") return "5분 TTL 유지가 유리";
   if (value === "ONE_HOUR_WOULD_BE_CHEAPER_IF_SUPPORTED") {
@@ -574,15 +1031,32 @@ export default async function AdminAutomationReportsPage() {
   if (!admin) redirect("/login?next=/admin/automation-reports");
 
   const db = getDb();
-  const [github, supplyDrafts] = await Promise.all([
+  const [github, supplyDrafts, postDeploy] = await Promise.all([
     fetchGithubScheduledAutomationProjection(),
     fetchGithubSupplyAutoDraftProjection(),
+    fetchPostDeployVerificationProjection(),
   ]);
+  const memoryRuntime = buildAdminMemoryRuntimeStatus(process.env);
   const [codeHealth, decisionRadar, memoryResearch] = await Promise.all([
     fetchCodeHealthAdminProjection(github.groups),
     fetchDecisionRadarAdminProjection(github.groups),
     fetchMemoryResearchAdminProjection(github.groups),
   ]);
+  const financeNow = new Date();
+  const financeSummary = buildAdminFinanceSummary(
+    db,
+    currentKstMonthKey(financeNow.getTime())
+  );
+  const financePricing = buildMainRpPricingObservabilityProjection({
+    db,
+    now: financeNow,
+  });
+  const financeAnomalies = buildFinanceAnomalyReport({
+    summary: financeSummary,
+    pricing: financePricing,
+    now: financeNow,
+  });
+  const supplierDiscovery = buildSupplierDiscoveryReport();
   const ttlReports = listMainRpCacheTtlReports(db, 12);
   const schedulers = listSchedulerRunOverview(db);
   const latestTtl = ttlReports[0] ?? null;
@@ -652,16 +1126,21 @@ export default async function AdminAutomationReportsPage() {
               codeHealthProblems +
               decisionRadarProblems +
               memoryResearchProblems +
+              financeAnomalies.anomalies.length +
               supplyDrafts.drafts.length}건
           </p>
           <p className="mt-1 text-xs text-zinc-600">실패·누락·stale 최신 상태</p>
         </div>
       </section>
 
+      <PostDeployVerificationCard view={postDeploy} />
+
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
         <CodeHealthCard card={codeHealth.weekly} />
         <CodeHealthCard card={codeHealth.monthly} />
       </div>
+
+      <FinanceAnomalyCard report={financeAnomalies} />
 
       <section className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-950/10 p-5">
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -805,7 +1284,7 @@ export default async function AdminAutomationReportsPage() {
         ) : null}
       </section>
 
-      <MemoryResearchCard projection={memoryResearch} />
+      <MemoryResearchCard projection={memoryResearch} runtime={memoryRuntime} />
 
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -900,6 +1379,33 @@ export default async function AdminAutomationReportsPage() {
             </div>
           </details>
         ) : null}
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-teal-500/20 bg-teal-950/10 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-black text-teal-200">독립 공급처 discovery</h2>
+            <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+              신규 독립 inference supplier 후보의 공개 심사 결과입니다. 후보 기록은 production
+              provider registry가 아니며, cross-provider route Draft PR을 만들지 않습니다.
+              provider generation calls {supplierDiscovery.providerGenerationCalls}.
+            </p>
+          </div>
+          <span className="rounded bg-amber-500/15 px-2 py-1 text-xs font-bold text-amber-300">
+            후보 {supplierDiscovery.candidates.length}건
+          </span>
+        </div>
+        <div className="mt-4 space-y-3">
+          {supplierDiscovery.candidates.map((candidate) => (
+            <SupplierDiscoverySection key={candidate.supplierId} candidate={candidate} />
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-zinc-500">
+          알려진 direct supplier: {supplierDiscovery.knownDirectSupplierIds.join(", ")}. 이 화면은
+          OpenRouter를 다시 호출하지 않습니다. 월간 supply radar artifact가 기존 endpoint owner의
+          provider 이름을 붙입니다. 유료 search API와 Artificial Analysis commercial API는
+          호출하지 않습니다.
+        </p>
       </section>
 
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">

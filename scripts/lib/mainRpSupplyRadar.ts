@@ -15,12 +15,19 @@ import {
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   type SelectedAI,
 } from "@/lib/chatModels";
+import {
+  GOOGLE_FLASH_STANDARD_INTRO_RATES,
+  GOOGLE_FLASH_STANDARD_POST_INTRO_EFFECTIVE_AT,
+  GOOGLE_FLASH_STANDARD_POST_INTRO_RATES,
+  GOOGLE_FLASH_STANDARD_SCHEDULE_MODEL_IDS,
+  GOOGLE_STANDARD_INTRO_VALID_THROUGH,
+} from "@/lib/gemini37PricingPolicy.constants";
 import { REPRESENTATIVE_TRACKER_WORKLOAD } from "@/lib/modelPricingTracker";
 import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
 import { resolveMainRpOpenRouterRoutePolicy } from "@/lib/openRouterConfig";
 import type { CatalogPricingEvidence } from "./mainRpMonthlyCacheAudit";
 
-export const MAIN_RP_SUPPLY_RADAR_VERSION = 1;
+export const MAIN_RP_SUPPLY_RADAR_VERSION = 2;
 export const OPENROUTER_SUPPLY_RADAR_ENV = "OPENROUTER_SUPPLY_RADAR_API_KEY";
 export const OPENROUTER_COMPAT_ENV = "OPENROUTER_API_KEY";
 export const OPENROUTER_API_BASE = "https://openrouter.ai/api/v1";
@@ -29,6 +36,8 @@ export const MAIN_RP_SUPPLY_RADAR_OWNERS = Object.freeze({
   activeModelRegistry: "src/lib/chatModels.ts#MAIN_RP_USER_SELECTABLE_OPTIONS",
   currentProcurementCatalog:
     "scripts/lib/mainRpMonthlyCacheAudit.ts#fetchCatalogPricingForModels",
+  upstreamPriceSchedule:
+    "src/lib/gemini37PricingPolicy.constants.ts#GOOGLE_FLASH_STANDARD_POST_INTRO_EFFECTIVE_AT",
   representativeWorkload:
     "src/lib/modelPricingTracker.ts#REPRESENTATIVE_TRACKER_WORKLOAD",
   qualificationPacket: "scripts/lib/rpModelQualificationPacket.ts",
@@ -189,6 +198,41 @@ export type PublishedMarginRiskEvidence = {
   belowMinimumMarginFloor: boolean;
 };
 
+export type SupplyUpstreamPriceRiskAlertWindow =
+  | "D60"
+  | "D30"
+  | "D7"
+  | "EFFECTIVE_OR_PAST"
+  | null;
+
+export type SupplyUpstreamPriceRiskEvidence = {
+  modelId: SelectedAI;
+  source: "google_official_standard_schedule";
+  referenceTier: "google_standard";
+  introValidThrough: string;
+  effectiveAt: string;
+  introPrice: {
+    inputUsdPerMillion: number;
+    outputUsdPerMillion: number;
+    cacheReadUsdPerMillion: number;
+  };
+  postIntroStandardPrice: {
+    inputUsdPerMillion: number;
+    outputUsdPerMillion: number;
+    cacheReadUsdPerMillion: number;
+  };
+  currentProcurementRoute: string;
+  currentProcurementPrice: {
+    inputUsdPerMillion: number | null;
+    outputUsdPerMillion: number | null;
+  };
+  currentRouteImpact: "UNCONFIRMED";
+  projectedCurrentRouteCostUsd: null;
+  projectedCurrentRouteMargin: null;
+  action: "REVIEW_CURRENT_ROUTE_PRICING";
+  alertWindow: SupplyUpstreamPriceRiskAlertWindow;
+};
+
 export type SupplyModelReport = {
   modelId: SelectedAI;
   label: string;
@@ -199,6 +243,7 @@ export type SupplyModelReport = {
   comparisons: SupplyComparison[];
   lowerRawEndpointRateCount: number;
   publishedMarginRisk: PublishedMarginRiskEvidence | null;
+  upstreamPriceRisk: SupplyUpstreamPriceRiskEvidence | null;
   evidenceFingerprint: string;
 };
 
@@ -213,6 +258,7 @@ export type MainRpSupplyRadarReport = {
   marketEvidence: "openrouter_endpoint_metrics" | "unavailable";
   notes: string[];
   models: SupplyModelReport[];
+  upstreamPriceRisks: SupplyUpstreamPriceRiskEvidence[];
 };
 
 export function parseProviderMetadata(payload: unknown): Map<string, ProviderMetadata> {
@@ -421,6 +467,72 @@ function buildPublishedMarginRiskEvidence(
   };
 }
 
+export function resolveSupplyUpstreamRiskAlertWindow(
+  effectiveAt: string,
+  generatedAt: string
+): SupplyUpstreamPriceRiskAlertWindow {
+  const effectiveMs = Date.parse(effectiveAt);
+  const generatedMs = Date.parse(generatedAt);
+  if (!Number.isFinite(effectiveMs) || !Number.isFinite(generatedMs)) return null;
+  if (generatedMs >= effectiveMs) return "EFFECTIVE_OR_PAST";
+  const daysUntil = (effectiveMs - generatedMs) / 86_400_000;
+  if (daysUntil <= 7) return "D7";
+  if (daysUntil <= 30) return "D30";
+  if (daysUntil <= 60) return "D60";
+  return null;
+}
+
+function describeCurrentProcurementRoute(
+  modelId: SelectedAI,
+  baseline: ProcurementBaseline | null
+): string {
+  const policy = resolveMainRpOpenRouterRoutePolicy(modelId);
+  if (policy) {
+    return `openrouter:${policy.provider.only.join("+")}:${policy.serviceTier}`;
+  }
+  if (baseline?.provider === "cheaperinference") return "cheaperinference:catalog";
+  return baseline?.provider ?? "unavailable";
+}
+
+function buildUpstreamPriceRiskEvidence(params: {
+  modelId: SelectedAI;
+  baseline: ProcurementBaseline | null;
+  generatedAt: string;
+}): SupplyUpstreamPriceRiskEvidence | null {
+  if (
+    !GOOGLE_FLASH_STANDARD_SCHEDULE_MODEL_IDS.includes(
+      params.modelId as (typeof GOOGLE_FLASH_STANDARD_SCHEDULE_MODEL_IDS)[number]
+    )
+  ) {
+    return null;
+  }
+  return {
+    modelId: params.modelId,
+    source: "google_official_standard_schedule",
+    referenceTier: "google_standard",
+    introValidThrough: GOOGLE_STANDARD_INTRO_VALID_THROUGH,
+    effectiveAt: GOOGLE_FLASH_STANDARD_POST_INTRO_EFFECTIVE_AT,
+    introPrice: { ...GOOGLE_FLASH_STANDARD_INTRO_RATES },
+    postIntroStandardPrice: { ...GOOGLE_FLASH_STANDARD_POST_INTRO_RATES },
+    currentProcurementRoute: describeCurrentProcurementRoute(
+      params.modelId,
+      params.baseline
+    ),
+    currentProcurementPrice: {
+      inputUsdPerMillion: params.baseline?.inputUsdPerMillion ?? null,
+      outputUsdPerMillion: params.baseline?.outputUsdPerMillion ?? null,
+    },
+    currentRouteImpact: "UNCONFIRMED",
+    projectedCurrentRouteCostUsd: null,
+    projectedCurrentRouteMargin: null,
+    action: "REVIEW_CURRENT_ROUTE_PRICING",
+    alertWindow: resolveSupplyUpstreamRiskAlertWindow(
+      GOOGLE_FLASH_STANDARD_POST_INTRO_EFFECTIVE_AT,
+      params.generatedAt
+    ),
+  };
+}
+
 export function compareSupplyEndpoint(
   endpoint: SupplyEndpointEvidence,
   baseline: ProcurementBaseline | null
@@ -476,6 +588,7 @@ export function buildMainRpSupplyRadarReport(input: {
   credentialSource?: string | null;
   generatedAt?: string;
 }): MainRpSupplyRadarReport {
+  const generatedAt = input.generatedAt ?? new Date().toISOString();
   const models: SupplyModelReport[] = MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => {
     const identity = resolveOpenRouterSupplyIdentity(option.id);
     const endpoints = input.endpointsByModel[option.id] ?? [];
@@ -505,6 +618,11 @@ export function buildMainRpSupplyRadarReport(input: {
         (x) => x.lowerRawEndpointRateThanCurrentProcurement === true
       ).length,
       publishedMarginRisk: buildPublishedMarginRiskEvidence(option.id, baseline),
+      upstreamPriceRisk: buildUpstreamPriceRiskEvidence({
+        modelId: option.id,
+        baseline,
+        generatedAt,
+      }),
       evidenceFingerprint: sha(
         comparisons.map((x) => ({
           providerName: x.providerName,
@@ -532,10 +650,13 @@ export function buildMainRpSupplyRadarReport(input: {
       : hasAnyMarket || hasAnyProcurement
         ? "PARTIAL"
         : "NOT_RUN";
+  const upstreamPriceRisks = models
+    .map((model) => model.upstreamPriceRisk)
+    .filter((risk): risk is SupplyUpstreamPriceRiskEvidence => risk != null);
 
   return {
     version: MAIN_RP_SUPPLY_RADAR_VERSION,
-    generatedAt: input.generatedAt ?? new Date().toISOString(),
+    generatedAt,
     status,
     providerGenerationCalls: 0,
     activeModelIds: MAIN_RP_MODEL_IDS,
@@ -552,10 +673,13 @@ export function buildMainRpSupplyRadarReport(input: {
       "Current procurement follows the canonical Main-RP registry. OpenRouter Flex routes are treated as current procurement only when endpoint metadata explicitly identifies Flex; otherwise the report stays partial instead of guessing.",
       "OpenRouter endpoint rates are screening evidence only: they exclude account/platform fees and are not assumed to equal a provider's direct-contract price or final cash procurement cost.",
       "Published user pricing is never mutated by this radar. Current procurement is compared against the published pricing owner only to flag margin-floor risk.",
+      "Official upstream Standard price schedules are risk evidence only. They are never projected onto the current OpenRouter Flex route unless route-specific procurement evidence later confirms that price.",
+      "No future current-route cost or margin is fabricated from an upstream Standard schedule.",
       "No composite quality score or automatic provider winner is produced.",
       "Paid live qualification is a separate follow-up using the canonical RP qualification fixture.",
     ],
     models,
+    upstreamPriceRisks,
   };
 }
 
@@ -623,6 +747,23 @@ export function renderMainRpSupplyRadarMarkdown(report: MainRpSupplyRadarReport)
       );
     }
     lines.push("");
+  }
+  if (report.upstreamPriceRisks.length > 0) {
+    lines.push("## Official upstream price schedule risk", "");
+    lines.push(
+      "| Model | Reference tier | Effective | Intro in/out | Post-intro Standard in/out | Current route | Current route in/out | Route impact | Action | Window |"
+    );
+    lines.push("|---|---|---|---|---|---|---|---|---|---|");
+    for (const risk of report.upstreamPriceRisks) {
+      lines.push(
+        `| ${risk.modelId} | ${risk.referenceTier} | ${risk.effectiveAt} | ${risk.introPrice.inputUsdPerMillion}/${risk.introPrice.outputUsdPerMillion} | ${risk.postIntroStandardPrice.inputUsdPerMillion}/${risk.postIntroStandardPrice.outputUsdPerMillion} | ${risk.currentProcurementRoute} | ${risk.currentProcurementPrice.inputUsdPerMillion ?? "n/a"}/${risk.currentProcurementPrice.outputUsdPerMillion ?? "n/a"} | ${risk.currentRouteImpact} | ${risk.action} | ${risk.alertWindow ?? "none"} |`
+      );
+    }
+    lines.push(
+      "",
+      "The official Standard schedule does not prove the future price of the site's current Flex route. Current-route procurement telemetry remains authoritative.",
+      ""
+    );
   }
   lines.push("## Interpretation boundary", "");
   for (const note of report.notes) lines.push(`- ${note}`);

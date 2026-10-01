@@ -8,6 +8,8 @@ on:
       - "railway.toml"
       - "nixpacks.toml"
       - "server.js"
+      - "src/lib/canonicalHostIngress.js"
+      - "src/lib/canonicalHostIngress.test.ts"
       - "src/lib/customServerBootImportBoundary.js"
       - "src/lib/customServerBootImportBoundary.test.ts"
       - "src/lib/serverGracefulDrain.js"
@@ -55,6 +57,9 @@ jobs:
         run: node --import tsx scripts/runtime-image/productionBootSmoke.ts
       - name: Custom-server boot import boundary
         run: node --import tsx --test --test-concurrency=1 src/lib/customServerBootImportBoundary.test.ts
+
+      - name: Canonical-host ingress regression
+        run: node --import tsx --test --test-concurrency=1 src/lib/canonicalHostIngress.test.ts
 
       - name: Railway graceful HTTP drain
         run: node --import tsx --test --test-concurrency=1 src/lib/serverGracefulDrain.test.ts

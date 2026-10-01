@@ -17,6 +17,8 @@ export type UserNotificationType =
   | "event"
   | "admin_comment_review"
   | "admin_supply_draft"
+  | "admin_supply_candidate"
+  | "admin_finance_anomaly"
   | "comment_moderation";
 
 export type UserNotificationRow = {
@@ -65,7 +67,10 @@ export function notificationHref(n: Pick<UserNotificationRow, "type" | "ref_id" 
     case "admin_comment_review":
       return "/admin/comment-reports";
     case "admin_supply_draft":
+    case "admin_supply_candidate":
       return "/admin/automation-reports";
+    case "admin_finance_anomaly":
+      return "/admin/ops";
     case "comment_moderation":
       return "/notifications";
     case "follow_received":
@@ -126,7 +131,10 @@ export function notificationIcon(type: UserNotificationType): string {
     case "admin_comment_review":
       return "🚨";
     case "admin_supply_draft":
+    case "admin_supply_candidate":
       return "🤖";
+    case "admin_finance_anomaly":
+      return "🚨";
     case "comment_moderation":
       return "🛡️";
     case "notice":
