@@ -2,23 +2,25 @@
  * Canonical-host ingress owner.
  *
  * Redirect target comes from getConfiguredPublicOrigin() in publicOrigin.ts,
- * the same owner used for OAuth callback and metadata URLs. Production start
- * is `tsx server.js`, which can require that module directly.
+ * the same owner used for OAuth callback and metadata URLs.
  *
- * The alternate hostname comes from Railway's RAILWAY_PUBLIC_DOMAIN. When that
- * variable is empty, this process does not redirect.
+ * Railway-provided RAILWAY_PUBLIC_DOMAIN may resolve to a customer domain when
+ * a custom domain is attached, so it is not a reliable identifier for the
+ * generated *.up.railway.app entrypoint. The ingress therefore classifies
+ * Railway-generated hostnames by Railway's public-domain namespace instead of
+ * duplicating a concrete generated hostname.
  *
  * OAuth state cookies stay host-only. This redirect does not share them
  * across hosts and does not relax callback state checks.
  *
- * Railway deploy healthchecks request Host healthcheck.railway.app and path
- * /health (railway.toml). /health is answered by this process unchanged so a
- * healthcheck is never turned into a redirect.
+ * Railway deploy healthchecks request path /health. /health is answered by
+ * this process unchanged so a healthcheck is never turned into a redirect.
  */
 
 const { getConfiguredPublicOrigin } = require("./publicOrigin.ts");
 
 const HEALTHCHECK_PATH = "/health";
+const RAILWAY_GENERATED_HOST_SUFFIX = ".up.railway.app";
 
 function headerValue(headers, name) {
   if (!headers) return undefined;
@@ -51,18 +53,12 @@ function observedPublicHost(headers) {
   return hostnameFromHeader(headerValue(headers, "host"));
 }
 
-function railwayPublicHost() {
-  const raw = process.env.RAILWAY_PUBLIC_DOMAIN;
-  if (typeof raw !== "string" || !raw.trim()) return "";
-  const trimmed = raw.trim();
-  if (/^https?:\/\//i.test(trimmed)) {
-    try {
-      return new URL(trimmed).hostname.toLowerCase();
-    } catch {
-      return "";
-    }
-  }
-  return hostnameFromHeader(trimmed);
+function isRailwayGeneratedPublicHost(hostname) {
+  return (
+    typeof hostname === "string" &&
+    hostname.length > RAILWAY_GENERATED_HOST_SUFFIX.length &&
+    hostname.endsWith(RAILWAY_GENERATED_HOST_SUFFIX)
+  );
 }
 
 function requestTarget(rawUrl) {
@@ -80,18 +76,19 @@ function canonicalHostDecision(req) {
   const target = requestTarget(req && req.url);
   if (pathnameOf(target) === HEALTHCHECK_PATH) return { action: "pass" };
 
-  const alternate = railwayPublicHost();
-  if (!alternate || observedPublicHost(req && req.headers) !== alternate) return { action: "pass" };
-
   const canonical = getConfiguredPublicOrigin();
   if (!canonical) return { action: "pass" };
+
   let canonicalHost = "";
   try {
     canonicalHost = new URL(canonical).hostname.toLowerCase();
   } catch {
     return { action: "pass" };
   }
-  if (!canonicalHost || canonicalHost === alternate) return { action: "pass" };
+
+  const observed = observedPublicHost(req && req.headers);
+  if (!observed || !canonicalHost || observed === canonicalHost) return { action: "pass" };
+  if (!isRailwayGeneratedPublicHost(observed)) return { action: "pass" };
 
   return {
     action: "redirect",
@@ -110,6 +107,8 @@ function canonicalHostRedirect(req, res) {
 
 module.exports = {
   HEALTHCHECK_PATH,
+  RAILWAY_GENERATED_HOST_SUFFIX,
   canonicalHostDecision,
   canonicalHostRedirect,
+  isRailwayGeneratedPublicHost,
 };
