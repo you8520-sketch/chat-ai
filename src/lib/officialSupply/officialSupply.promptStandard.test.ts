@@ -4,13 +4,23 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import { compileCanonPlanV1 } from "@/lib/canonPlan/compiler";
+import { isPublicVisibleChunk } from "@/lib/canonPlan/canonVisibility";
 import { compileOfficialDraftFromBible, type OfficialCharacterBible } from "@/lib/officialSupply/bible";
 import { composeOfficialSystemPrompt } from "@/lib/officialSupply/characterText";
 import {
   renderAppearanceBlock,
   renderRuntimeAppearanceBlock,
 } from "@/lib/officialSupply/appearance";
-import type { OfficialAppearanceLock, OfficialCharacterDraft } from "@/lib/officialSupply/types";
+import {
+  LUCIAN_APPROVED_LOREBOOK_KEYS,
+  resolveOfficialCharacterLorebooks,
+} from "@/lib/officialSupply/lorebookAttach";
+import { composeOfficialCreatorComment } from "@/lib/officialSupply/publicProfileText";
+import type {
+  OfficialAppearanceLock,
+  OfficialCharacterDraft,
+  OfficialWorldLorebookEntry,
+} from "@/lib/officialSupply/types";
 
 const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
 
@@ -24,7 +34,9 @@ type PilotChar = {
     audience: OfficialCharacterDraft["audience"];
   };
   bible: OfficialCharacterBible;
+  characterLorebook?: OfficialWorldLorebookEntry[];
   appearance: OfficialAppearanceLock;
+  draft: OfficialCharacterDraft;
 };
 
 function readJson<T>(file: string): T {
@@ -84,6 +96,11 @@ describe("official character prompt standard v1", () => {
     }
     assert.deepEqual(file.bible.otherRelationships.map((rel) => rel.target), ["에드릭", "테오", "노엘 벨로체"]);
     assert.ok(file.bible.otherRelationships.length <= 3);
+    for (const rel of file.bible.otherRelationships) {
+      assert.match(rel.public, /공개된 접점/);
+      assert.equal(rel.privateOpinion, "");
+      assert.equal(rel.hidden, "");
+    }
   });
 
   it("keeps user identity and prior relationship persona-flexible", () => {
@@ -121,24 +138,87 @@ describe("official character prompt standard v1", () => {
 
   it("keeps Lucian free of speculative sibling-character relationships", () => {
     const { file, draft } = compileLucian();
-    assert.deepEqual(file.bible.otherRelationships, []);
+    const systemPrompt = composeOfficialSystemPrompt(draft, renderRuntimeAppearanceBlock(file.appearance));
     assert.doesNotMatch(draft.sections.relationshipsAndDrives, /카엘룸|볼프강|율리우스|바스티안|세라피나|이노센트|에드릭|테오|노엘/);
+    assert.doesNotMatch(systemPrompt, /카엘룸|볼프강|율리우스|바스티안|세라피나|이노센트|에드릭|테오|노엘/);
+    assert.equal(file.bible.otherRelationships.some((rel) => /카엘룸|볼프강|율리우스|바스티안|세라피나|이노센트/.test(rel.target)), false);
   });
 
-  it("uses only the approved first-character shared lorebook set", () => {
-    const world = readJson<{ bible: { lorebook: Array<{ entryKey: string }> } }>(path.join(PILOT_DIR, "world-bible.json"));
+  it("keeps the shared world lorebook and attaches Lucian-only extras without duplicating mercator_guild", () => {
+    const world = readJson<{ bible: { lorebook: OfficialWorldLorebookEntry[] } }>(path.join(PILOT_DIR, "world-bible.json"));
+    const { file } = compileLucian();
     assert.deepEqual(
       world.bible.lorebook.map((entry) => entry.entryKey),
-      ["mercator_guild", "aether_bonds", "mercator_exchange_underworld", "bio_aether_taboos"]
+      [
+        "aether_energy",
+        "solar_throne",
+        "valkenheim_coalition",
+        "mercator_guild",
+        "pandora_academy",
+        "black_wall",
+        "ether_sickness",
+        "sun_eye_core",
+      ]
     );
+    assert.deepEqual(
+      (file.characterLorebook ?? []).map((entry) => entry.entryKey),
+      [...LUCIAN_APPROVED_LOREBOOK_KEYS]
+    );
+    const resolved = resolveOfficialCharacterLorebooks(world.bible.lorebook, file.characterLorebook);
+    assert.deepEqual(
+      resolved.map((entry) => entry.entryKey),
+      [
+        "aether_energy",
+        "solar_throne",
+        "valkenheim_coalition",
+        "mercator_guild",
+        "pandora_academy",
+        "black_wall",
+        "ether_sickness",
+        "sun_eye_core",
+        "aether_bonds",
+        "mercator_exchange_underworld",
+        "bio_aether_taboos",
+      ]
+    );
+    assert.equal(resolved.filter((entry) => entry.entryKey === "mercator_guild").length, 1);
+    assert.equal(
+      resolved.find((entry) => entry.entryKey === "mercator_guild")?.content,
+      world.bible.lorebook.find((entry) => entry.entryKey === "mercator_guild")?.content
+    );
+    const sibling = readJson<PilotChar>(path.join(PILOT_DIR, "characters", "pilot-rf-01.json"));
+    const siblingResolved = resolveOfficialCharacterLorebooks(world.bible.lorebook, sibling.characterLorebook);
+    assert.deepEqual(
+      siblingResolved.map((entry) => entry.entryKey),
+      world.bible.lorebook.map((entry) => entry.entryKey)
+    );
+    assert.equal(siblingResolved.some((entry) => entry.entryKey === "aether_bonds"), false);
+    const extra = resolved.find((entry) => entry.entryKey === "mercator_exchange_underworld");
+    assert.ok(extra?.keywords.includes("증권거래소"));
+    assert.ok(extra?.keywords.includes("지하 금고"));
+    assert.ok(resolved.find((entry) => entry.entryKey === "bio_aether_taboos")?.keywords.includes("생체 에테르"));
+    assert.ok(resolved.find((entry) => entry.entryKey === "aether_bonds")?.keywords.includes("에테르 채권"));
   });
 
   it("routes character-known secrets through the canonical LOCKED_SECRET owner", () => {
     const { file, draft } = compileLucian();
     const runtimeAppearance = renderRuntimeAppearanceBlock(file.appearance);
     const systemPrompt = composeOfficialSystemPrompt(draft, runtimeAppearance);
+    const creatorComment = composeOfficialCreatorComment(draft);
     assert.match(systemPrompt, /\[비밀 — 캐릭터는 앎\]/);
     for (const secret of draft.secrets) assert.match(systemPrompt, new RegExp(secret.slice(0, 12)));
+
+    const publicSurfaces = [
+      draft.description,
+      draft.tagline,
+      draft.greeting,
+      creatorComment,
+      file.bible.publicProfile.description,
+      file.bible.publicProfile.tagline,
+    ].join("\n");
+    for (const secret of draft.secrets) {
+      assert.equal(publicSurfaces.includes(secret), false, secret.slice(0, 24));
+    }
 
     const compilerDescription = [draft.sections.worldAndSituation, systemPrompt].join("\n\n");
     const compiled = compileCanonPlanV1({
@@ -149,6 +229,9 @@ describe("official character prompt standard v1", () => {
     if (!compiled.ok) return;
     const locked = compiled.plan.chunks.filter((chunk) => chunk.visibility === "LOCKED_SECRET");
     assert.ok(locked.length >= draft.secrets.length);
+    for (const chunk of locked) {
+      assert.equal(isPublicVisibleChunk(chunk.visibility), false);
+    }
   });
 
   it("keeps the full appearance lock for visuals but stages only compact RP anchors", () => {
@@ -175,7 +258,33 @@ describe("official character prompt standard v1", () => {
     const source = fs.readFileSync(path.join(process.cwd(), "scripts/official-supply-character-review.ts"), "utf8");
     assert.match(source, /SYSTEM PROMPT — ACTUAL STAGED FORM/);
     assert.match(source, /RUNTIME APPEARANCE — COMPACT/);
+    assert.match(source, /RESOLVED LOREBOOK — ACTUAL ATTACH SET/);
     assert.doesNotMatch(source, /getDb|better-sqlite3|createCharacterFromForm|storeUpload|callOpenAi|fetch\(/);
+  });
+
+  it("keeps one persona-flexible opening and does not force romance or a first meeting", () => {
+    const { file, draft } = compileLucian();
+    const creatorComment = composeOfficialCreatorComment(draft);
+    assert.match(file.bible.greeting, /증권거래소 지하 금고/);
+    assert.equal(file.bible.greeting, draft.greeting);
+    assert.match(creatorComment, /추천 플레이 방향/);
+    assert.match(creatorComment, /하나의 도입 상황/);
+    assert.doesNotMatch(file.bible.situation.userEntry, /오늘 처음 만난|낯선 사람|처음 보는 당신|연인으로 시작한다|이미 연인/);
+    assert.doesNotMatch(file.bible.greeting, /오늘 처음 만난|낯선 사람|처음 보는 당신|연인으로|약혼자/);
+    assert.match(draft.sections.relationshipsAndDrives, /정해진 호감 수치처럼 관계를 자동 진행하지 않는다/);
+    assert.match(draft.sections.relationshipsAndDrives, /어떤 관계도 자동으로 확정되지 않는다/);
+    assert.match(draft.sections.relationshipsAndDrives, /가족·동료·연인·상관 등 기존 관계가 있다면 그 관계의 신뢰와 갈등을 유지/);
+    assert.match(draft.description, /기존 관계는 페르소나 설정을 따르며/);
+  });
+
+  it("keeps the stored compact draft identical to the live compiler output", () => {
+    const { file, draft } = compileLucian();
+    assert.equal(file.draft.sections.characterCore, draft.sections.characterCore);
+    assert.equal(file.draft.sections.relationshipsAndDrives, draft.sections.relationshipsAndDrives);
+    assert.equal(file.draft.sections.worldAndSituation, draft.sections.worldAndSituation);
+    assert.deepEqual(file.draft.secrets, draft.secrets);
+    assert.equal(file.draft.description, draft.description);
+    assert.equal(file.draft.greeting, draft.greeting);
   });
 
 });

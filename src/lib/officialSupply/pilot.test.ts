@@ -28,7 +28,12 @@ import {
   officialSubstantiveCharCount,
 } from "@/lib/officialSupply/characterText";
 import { validateStyleProposal } from "@/lib/officialSupply/style";
-import type { OfficialAppearanceLock, OfficialAssetPlan, OfficialCharacterDraft } from "@/lib/officialSupply/types";
+import type {
+  OfficialAppearanceLock,
+  OfficialAssetPlan,
+  OfficialCharacterDraft,
+  OfficialWorldLorebookEntry,
+} from "@/lib/officialSupply/types";
 import {
   evaluateInternalRegionConsistency,
   evaluateOriginality,
@@ -82,6 +87,7 @@ type CharFile = {
     rpHook: string;
   };
   bible: OfficialCharacterBible;
+  characterLorebook?: OfficialWorldLorebookEntry[];
   draft: OfficialCharacterDraft;
   appearance?: OfficialAppearanceLock;
   assetPlan?: OfficialAssetPlan;

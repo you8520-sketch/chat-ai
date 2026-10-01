@@ -9,10 +9,12 @@ import {
   renderAppearanceBlock,
   renderRuntimeAppearanceBlock,
 } from "@/lib/officialSupply/appearance";
+import { resolveOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
 import { composeOfficialCreatorComment } from "@/lib/officialSupply/publicProfileText";
 import type {
   OfficialAppearanceLock,
   OfficialCharacterDraft,
+  OfficialWorldLorebookEntry,
 } from "@/lib/officialSupply/types";
 
 type PilotCharFile = {
@@ -25,6 +27,7 @@ type PilotCharFile = {
     audience: OfficialCharacterDraft["audience"];
   };
   bible: OfficialCharacterBible;
+  characterLorebook?: OfficialWorldLorebookEntry[];
   appearance: OfficialAppearanceLock;
 };
 
@@ -94,9 +97,27 @@ const report = [
   "## SYSTEM PROMPT — ACTUAL STAGED FORM",
   systemPrompt,
   "",
-  "## SHARED WORLD LOREBOOK — APPROVED OWNER, NOT DUPLICATED INTO COMPACT SYSTEM PROMPT",
-  ...world.bible.lorebook.map((entry) => `- ${entry.name} [${entry.entryKey}] — ${entry.keywords.join(" / ")}`),
-  "",
+  "## SHARED WORLD LOREBOOK — COMMON OWNER, NOT DUPLICATED INTO COMPACT SYSTEM PROMPT",
+  ...world.bible.lorebook.flatMap((entry) => [
+    `### ${entry.name} [${entry.entryKey}]`,
+    `keywords: ${entry.keywords.join(" / ")}`,
+    entry.content,
+    "",
+  ]),
+  "## CHARACTER-LOCAL LOREBOOK CANDIDATES — APPROVED TEXT, SHARED KEY REUSES WORLD OWNER",
+  ...(file.characterLorebook ?? []).flatMap((entry) => [
+    `### ${entry.name} [${entry.entryKey}]`,
+    `keywords: ${entry.keywords.join(" / ")}`,
+    entry.content,
+    "",
+  ]),
+  "## RESOLVED LOREBOOK — ACTUAL ATTACH SET",
+  ...resolveOfficialCharacterLorebooks(world.bible.lorebook, file.characterLorebook).flatMap((entry) => [
+    `### ${entry.name} [${entry.entryKey}]`,
+    `keywords: ${entry.keywords.join(" / ")}`,
+    entry.content,
+    "",
+  ]),
   "## SPEECH PERSONALITY",
   draft.speech.personality,
   "",
