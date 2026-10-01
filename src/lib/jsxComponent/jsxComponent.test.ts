@@ -5,7 +5,7 @@ import { analyzeJsxCapabilities } from "./capabilities.ts";
 import { parseJsxComponentCatalog, serializeJsxComponentCatalog } from "./catalog.ts";
 import { compileJsxComponentSource } from "./compile.ts";
 import { decideJsxHostBridgeAction } from "./hostBridge.ts";
-import { extractJsxInvocations, isIncompleteJsxInvocation } from "./invocation.ts";
+import { extractJsxInvocations, isIncompleteJsxInvocation, resolveJsxInvocationProps } from "./invocation.ts";
 import { JSX_BRIDGE_MAX_TEXT, JSX_PROP_MAX } from "./limits.ts";
 import { buildJsxComponentManifestBlock } from "./manifest.ts";
 import {
@@ -190,6 +190,36 @@ describe("jsx catalog + manifest", () => {
     assert.doesNotMatch(block!, /sendToChat/);
     assert.doesNotMatch(block!, /export default function/);
     assert.ok(PIT_WALL_FIXTURE_PROPS.length <= JSX_PROP_MAX);
+  });
+});
+
+describe("jsx invocation props", () => {
+  const defs = [
+    { name: "hp", type: "number" as const, required: true },
+    { name: "active", type: "boolean" as const, required: false },
+    { name: "label", type: "string" as const, required: false },
+  ];
+
+  it("normalizes declared props, drops unknown props, and rejects missing/wrong values", () => {
+    const ok = resolveJsxInvocationProps(defs, {
+      hp: "45",
+      active: "true",
+      label: 7,
+      invented: "ignored",
+    });
+    assert.equal(ok.ok, true);
+    if (ok.ok) {
+      assert.deepEqual(ok.props, { hp: 45, active: true, label: "7" });
+      assert.equal("invented" in ok.props, false);
+    }
+
+    const missing = resolveJsxInvocationProps(defs, { active: true });
+    assert.equal(missing.ok, false);
+    if (!missing.ok) assert.match(missing.error, /hp/);
+
+    const wrong = resolveJsxInvocationProps(defs, { hp: "not-a-number" });
+    assert.equal(wrong.ok, false);
+    if (!wrong.ok) assert.match(wrong.error, /number prop/);
   });
 });
 
