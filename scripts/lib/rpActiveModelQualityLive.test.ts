@@ -7,6 +7,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  GEMINI_38_FLASH_MODEL,
   selectedAIProvider,
 } from "@/lib/chatModels";
 import {
@@ -23,10 +24,11 @@ import {
 } from "./rpActiveModelQualityLive";
 
 describe("rpActiveModelQualityLive", () => {
-  it("qualifies only the three requested models this round", () => {
+  it("qualifies the current active review set after explicit exclusions", () => {
     assert.deepEqual(RP_ACTIVE_MODEL_QUALITY_MODEL_IDS, [
       CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
       CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      GEMINI_38_FLASH_MODEL,
       CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
     ]);
     assert.equal(
@@ -50,18 +52,23 @@ describe("rpActiveModelQualityLive", () => {
     );
   });
 
-  it("can bound a focused false-canon resmoke to exactly three calls", () => {
+  it("can bound a focused false-canon resmoke to one call per active review model", () => {
     const plan = buildRpActiveModelQualityPlan(["false_canon_trap"]);
-    assert.equal(plan.length, 3);
+    assert.equal(plan.length, 4);
     assert.deepEqual(
       plan.map((row) => row.caseId),
-      ["false_canon_trap", "false_canon_trap", "false_canon_trap"]
+      [
+        "false_canon_trap",
+        "false_canon_trap",
+        "false_canon_trap",
+        "false_canon_trap",
+      ]
     );
   });
 
   it("bounds the initial run to one call per model/case", () => {
     const plan = buildRpActiveModelQualityPlan();
-    assert.equal(plan.length, 12);
+    assert.equal(plan.length, 16);
     assert.equal(plan.length, RP_ACTIVE_MODEL_QUALITY_MAX_CALLS);
     for (const modelId of RP_ACTIVE_MODEL_QUALITY_MODEL_IDS) {
       assert.equal(plan.filter((row) => row.modelId === modelId).length, 4);
