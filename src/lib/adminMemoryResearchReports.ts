@@ -62,6 +62,33 @@ export type MemoryResearchAdminDecision = {
   reason: string;
 };
 
+export type MemoryResearchAdminEffectiveness = {
+  totalCandidates: number;
+  watch: number;
+  rejected: number;
+  accepted: number;
+  acceptedDraftPrs: number;
+  implementationPrs: number;
+  liveEvaluated: number;
+  dueForReevaluation: number;
+  repeatedWatch: number;
+  watchBottlenecks: Array<{
+    decision: string;
+    candidates: number;
+    examples: string[];
+  }>;
+  bySourceKind: Array<{
+    sourceKind: string;
+    candidates: number;
+    watch: number;
+    rejected: number;
+    accepted: number;
+    acceptedDraftPrs: number;
+    implementationPrs: number;
+    liveEvaluated: number;
+  }>;
+};
+
 export type MemoryResearchAdminInsight = {
   kind:
     | "COMPANION"
@@ -121,6 +148,7 @@ export type MemoryResearchAdminRun = {
   promptPackingAudit: MemoryResearchAdminPromptPacking | null;
   readiness: MemoryResearchAdminReadinessCounts;
   insights: MemoryResearchAdminInsight[];
+  effectiveness: MemoryResearchAdminEffectiveness | null;
   decisions: MemoryResearchAdminDecision[];
 };
 
@@ -451,6 +479,52 @@ function latestCycleKeyFromLedger(raw: string | null): string | null {
   return asString(cycles[0]?.cycleKey) || null;
 }
 
+function projectMemoryResearchEffectiveness(
+  raw: unknown
+): MemoryResearchAdminEffectiveness | null {
+  const audit = asRecord(raw);
+  if (!audit) return null;
+
+  const watchBottlenecks = asArray(audit.watchBottlenecks)
+    .map(asRecord)
+    .filter((row): row is Record<string, unknown> => row !== null)
+    .map((row) => ({
+      decision: asString(row.decision),
+      candidates: asNumber(row.candidates),
+      examples: stringList(row.exampleCandidateKeys),
+    }))
+    .filter((row) => row.decision);
+
+  const bySourceKind = asArray(audit.bySourceKind)
+    .map(asRecord)
+    .filter((row): row is Record<string, unknown> => row !== null)
+    .map((row) => ({
+      sourceKind: asString(row.sourceKind),
+      candidates: asNumber(row.candidates),
+      watch: asNumber(row.watch),
+      rejected: asNumber(row.rejected),
+      accepted: asNumber(row.accepted),
+      acceptedDraftPrs: asNumber(row.acceptedDraftPrs),
+      implementationPrs: asNumber(row.implementationPrs),
+      liveEvaluated: asNumber(row.liveEvaluated),
+    }))
+    .filter((row) => row.sourceKind);
+
+  return {
+    totalCandidates: asNumber(audit.totalCandidates),
+    watch: asNumber(audit.watch),
+    rejected: asNumber(audit.rejected),
+    accepted: asNumber(audit.accepted),
+    acceptedDraftPrs: asNumber(audit.acceptedDraftPrs),
+    implementationPrs: asNumber(audit.implementationPrs),
+    liveEvaluated: asNumber(audit.liveEvaluated),
+    dueForReevaluation: asArray(audit.dueForReevaluation).length,
+    repeatedWatch: asArray(audit.repeatedWatch).length,
+    watchBottlenecks,
+    bySourceKind,
+  };
+}
+
 function countReadiness(plans: unknown): MemoryResearchAdminReadinessCounts {
   const result: MemoryResearchAdminReadinessCounts = {
     readyDeterministic: 0,
@@ -570,6 +644,7 @@ export function projectMemoryResearchAdminRun(
     promptPackingAudit: projectPromptPackingAudit(cycle.promptPackingAudit),
     readiness: countReadiness(casePortPlans),
     insights,
+    effectiveness: projectMemoryResearchEffectiveness(cycle.effectivenessAudit),
     decisions: (priorityDecisions.length > 0 ? priorityDecisions : decisions).slice(
       0,
       8
