@@ -1,0 +1,43 @@
+name: Post-deploy verification
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.task == 'deploy' &&
+      (endsWith(github.event.deployment.environment, '/ production') ||
+       github.event.deployment.environment == 'production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Verify https://hav.chat health contract
+        run: node --experimental-strip-types src/lib/postDeployVerification.ts
+      - name: Record verification summary
+        if: always()
+        run: |
+          if [ -f post-deploy-verification.json ]; then
+            echo '## Post-deploy verification' >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+            cat post-deploy-verification.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: post-deploy-verification
+          path: post-deploy-verification.json
+          if-no-files-found: warn
+          retention-days: 14
