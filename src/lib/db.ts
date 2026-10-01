@@ -1725,6 +1725,7 @@ function migrate(db: Database.Database) {
   addColumn("worlds", "content_translation_fingerprint", "TEXT NOT NULL DEFAULT ''");
   addColumn("world_shares", "content_en", "TEXT NOT NULL DEFAULT ''");
   addColumn("world_shares", "content_translation_fingerprint", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "jsx_components_json", "TEXT NOT NULL DEFAULT ''");
 }
 
 /** One-time retirement of the legacy 20-message compressor buffer table. */

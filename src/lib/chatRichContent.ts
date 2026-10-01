@@ -1,7 +1,15 @@
+import { findJsxInvocation } from "@/lib/jsxComponent/invocation";
+
 export type ChatRichBlock =
   | { kind: "novel"; text: string }
   | { kind: "markdown-table"; text: string }
-  | { kind: "html"; text: string };
+  | { kind: "html"; text: string }
+  | {
+      kind: "jsx-call";
+      text: string;
+      name: string;
+      props: Record<string, string | number | boolean>;
+    };
 
 /** 줄바꿈 없이 ` ```html <div` 로 이어지는 모델 출력도 허용 */
 const FENCED_HTML_CLOSED_RE = /```html\s*([\s\S]*?)```/gi;
@@ -180,6 +188,7 @@ export function splitChatRichBlockSpans(text: string): ChatRichBlockSpan[] {
     const bareHtmlMatch = extractBareHtmlTable(rest);
     const bareCardMatch = extractBareVisualCardDiv(rest);
     const tableMatch = extractMarkdownTables(rest);
+    const jsxMatch = findJsxInvocation(rest);
 
     const htmlIdx = closedFence?.index ?? -1;
     const bareHtmlIdx = bareHtmlMatch ? rest.indexOf(bareHtmlMatch.html) : -1;
@@ -190,8 +199,9 @@ export function splitChatRichBlockSpans(text: string): ChatRichBlockSpan[] {
         : tableMatch
           ? 0
           : -1;
+    const jsxIdx = jsxMatch?.index ?? -1;
 
-    type NextKind = "fenced-html" | "bare-html" | "bare-card" | "table" | "none";
+    type NextKind = "fenced-html" | "bare-html" | "bare-card" | "table" | "jsx-call" | "none";
     let nextKind: NextKind = "none";
     let nextIdx = rest.length;
 
@@ -200,6 +210,7 @@ export function splitChatRichBlockSpans(text: string): ChatRichBlockSpan[] {
     if (bareHtmlIdx >= 0) candidates.push({ kind: "bare-html", idx: bareHtmlIdx });
     if (bareCardIdx >= 0) candidates.push({ kind: "bare-card", idx: bareCardIdx });
     if (tableIdx >= 0) candidates.push({ kind: "table", idx: tableIdx });
+    if (jsxIdx >= 0) candidates.push({ kind: "jsx-call", idx: jsxIdx });
 
     if (candidates.length > 0) {
       const earliest = candidates.reduce((a, b) => (a.idx <= b.idx ? a : b));
@@ -293,6 +304,22 @@ export function splitChatRichBlockSpans(text: string): ChatRichBlockSpan[] {
       continue;
     }
 
+    if (nextKind === "jsx-call" && jsxMatch) {
+      spans.push({
+        kind: "jsx-call",
+        text: jsxMatch.invocation.raw,
+        name: jsxMatch.invocation.name,
+        props: jsxMatch.invocation.props,
+        start: pos + nextIdx,
+        end: pos + nextIdx + jsxMatch.invocation.raw.length,
+      });
+      const rawAfter = rest.slice(nextIdx + jsxMatch.invocation.raw.length);
+      const lead = rawAfter.length - rawAfter.trimStart().length;
+      pos += nextIdx + jsxMatch.invocation.raw.length + lead;
+      rest = rawAfter.trimStart();
+      continue;
+    }
+
     spans.push({ kind: "novel", text: rest, start: pos, end: pos + rest.length });
     break;
   }
@@ -304,10 +331,17 @@ export function splitChatRichBlockSpans(text: string): ChatRichBlockSpan[] {
 export function splitChatRichBlocks(text: string): ChatRichBlock[] {
   const input = text.trim();
   if (!input) return [];
-  const blocks = splitChatRichBlockSpans(input).map(({ kind, text: blockText }) => ({
-    kind,
-    text: blockText,
-  })) as ChatRichBlock[];
+  const blocks = splitChatRichBlockSpans(input).map((span) => {
+    if (span.kind === "jsx-call") {
+      return {
+        kind: "jsx-call" as const,
+        text: span.text,
+        name: span.name,
+        props: span.props,
+      };
+    }
+    return { kind: span.kind, text: span.text } as ChatRichBlock;
+  });
   return blocks.length > 0 ? blocks : [{ kind: "novel", text: input }];
 }
 
@@ -422,15 +456,31 @@ export function visibleTextFromHtmlBlock(html: string): string {
     .trim();
 }
 
+export function visibleTextFromJsxCall(name: string): string {
+  return `[${name}]`;
+}
+
+function visibleTextFromRichBlock(block: ChatRichBlock): string {
+  switch (block.kind) {
+    case "novel":
+      return block.text;
+    case "markdown-table":
+      return visibleTextFromMarkdownTable(block.text);
+    case "html":
+      return visibleTextFromHtmlBlock(block.text);
+    case "jsx-call":
+      return visibleTextFromJsxCall(block.name);
+    default: {
+      const _never: never = block;
+      return _never;
+    }
+  }
+}
+
 /** 저장 본문 — RP + 상태창 표시 텍스트 (마크업·파이프·HTML 태그 제외) */
 export function savedVisibleTextForReceipt(text: string): string {
   return splitChatRichBlocks(text)
-    .map((block) => {
-      if (block.kind === "novel") return block.text;
-      if (block.kind === "markdown-table") return visibleTextFromMarkdownTable(block.text);
-      if (block.kind === "html") return visibleTextFromHtmlBlock(block.text);
-      return "";
-    })
+    .map(visibleTextFromRichBlock)
     .filter(Boolean)
     .join("\n\n")
     .trim();
