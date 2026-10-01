@@ -249,6 +249,33 @@ export function reconcileMemoryAfterSourceMessageEditSyncCore(
  * user prose are cleared here — the same tiers regen and last-turn delete
  * already own, which the summary-seal invalidator does not cover.
  */
+export type UserMessageEditDerivedResidueInput = {
+  chatId: number;
+  previousUserText: string;
+  sourceUserMessageId?: number | null;
+  sourceTurn?: number | null;
+};
+
+/**
+ * Data-integrity cleanup for a material user-message edit.
+ * This owner intentionally runs even when MEMORY_FEATURE_ENABLED is off so
+ * stale persisted projections cannot revive if memory is enabled again later.
+ */
+export function clearUserMessageEditDerivedResidueCore(
+  db: Database.Database,
+  opts: UserMessageEditDerivedResidueInput
+): void {
+  deleteSharedEpisodicFactsForEditedUserSource(db, {
+    chatId: opts.chatId,
+    sourceUserMessageId: opts.sourceUserMessageId,
+    sourceTurn: opts.sourceTurn,
+  });
+  reconcileRelationshipMetaAfterUserSourceEditCore(db, {
+    chatId: opts.chatId,
+    previousUserText: opts.previousUserText,
+  });
+}
+
 export function reconcileDerivedMemoryAfterUserMessageEditCore(
   db: Database.Database,
   opts: SourceMessageEditMemoryInput & {
@@ -256,13 +283,10 @@ export function reconcileDerivedMemoryAfterUserMessageEditCore(
   }
 ): VariantSwitchMemoryReconcileResult {
   const result = reconcileMemoryAfterSourceMessageEditSyncCore(db, opts);
-  deleteSharedEpisodicFactsForEditedUserSource(db, {
+  clearUserMessageEditDerivedResidueCore(db, {
     chatId: opts.chatId,
     sourceUserMessageId: opts.sourceUserMessageId,
     sourceTurn: opts.memoryTurnNumber,
-  });
-  reconcileRelationshipMetaAfterUserSourceEditCore(db, {
-    chatId: opts.chatId,
     previousUserText: opts.previousUserText,
   });
   return result;
