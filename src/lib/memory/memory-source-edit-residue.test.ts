@@ -47,6 +47,7 @@ import { persistValidatedSummaryBatch } from "./memory-summary-persist";
 import { listMemoryRecordsForChat, rebuildLorebookFromRecords } from "./memory-turn-summary";
 import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import {
+  clearUserMessageEditDerivedResidueCore,
   reconcileDerivedMemoryAfterUserMessageEditCore,
   scheduleMemoryResealAfterSourceMessageEdit,
 } from "./memory-reconcile";
@@ -389,5 +390,71 @@ describe("user material edit derived-memory residue", () => {
     assert.match(after.systemPrompt, new RegExp(CONTROL_MARKER));
     assert.match(after.systemPrompt, new RegExp(CONTROL_PROMISE));
     assert.match(after.systemPrompt, new RegExp(UNRELATED_PROMISE));
+  });
+
+  it("cleans persisted user-edit residue even while the memory kill switch is off", () => {
+    const seeded = seedTranscript();
+    const oldText = `${OLD_MARKER} ${OLD_PROMISE}`;
+    persistTurnFact(
+      seeded.turn1AssistantId,
+      oldText,
+      userFact(OLD_MARKER, "kill_switch_marker")
+    );
+    persistTurnFact(
+      seeded.turn2AssistantId,
+      `${CONTROL_MARKER} 다른 사실은 유지된다`,
+      userFact(CONTROL_MARKER, "kill_switch_control")
+    );
+    const relationship = applyRelationshipDeltaToChat({
+      chatId: CHAT,
+      names: NAMES,
+      delta: {
+        promisesAdd: [
+          { text: OLD_PROMISE },
+          { text: CONTROL_PROMISE },
+          { text: UNRELATED_PROMISE },
+        ],
+      },
+      sourceUserMessageId: seeded.turn1UserId,
+    });
+    assert.equal(relationship.accepted, true);
+
+    const previousFlag = process.env.MEMORY_FEATURE_ENABLED;
+    process.env.MEMORY_FEATURE_ENABLED = "0";
+    try {
+      const db = getDb();
+      db.prepare("UPDATE messages SET content=? WHERE id=?").run(
+        `${NEW_MARKER} 메모리 kill switch 중 원문을 수정했다`,
+        seeded.turn1UserId
+      );
+      clearUserMessageEditDerivedResidueCore(db, {
+        chatId: CHAT,
+        sourceUserMessageId: seeded.turn1UserId,
+        sourceTurn: 1,
+        previousUserText: oldText,
+      });
+    } finally {
+      if (previousFlag == null) delete process.env.MEMORY_FEATURE_ENABLED;
+      else process.env.MEMORY_FEATURE_ENABLED = previousFlag;
+    }
+
+    const rows = getDb()
+      .prepare(
+        "SELECT fact_text FROM episodic_memory_facts WHERE chat_id=? ORDER BY source_turn"
+      )
+      .all(CHAT) as { fact_text: string }[];
+    assert.equal(rows.some((row) => row.fact_text.includes(OLD_MARKER)), false);
+    assert.equal(rows.some((row) => row.fact_text.includes(CONTROL_MARKER)), true);
+
+    const meta = loadChatRelationshipMeta(CHAT, NAMES);
+    assert.equal(meta.promises.some((promise) => promise.text === OLD_PROMISE), false);
+    assert.equal(
+      meta.promises.some((promise) => promise.text === CONTROL_PROMISE),
+      true
+    );
+    assert.equal(
+      meta.promises.some((promise) => promise.text === UNRELATED_PROMISE),
+      true
+    );
   });
 });
