@@ -167,6 +167,19 @@ async function runBackgroundInitialization() {
   }
 
   try {
+    const supplyDraftNotifyMod = await importBackgroundModule(
+      "./src/cron/adminSupplyDraftNotificationScheduler.ts"
+    );
+    requireCustomServerBootFunction(
+      supplyDraftNotifyMod,
+      "startAdminSupplyDraftNotificationScheduler",
+      "./src/cron/adminSupplyDraftNotificationScheduler.ts"
+    )();
+  } catch (err) {
+    console.error("[server] admin supply Draft notification scheduler 시작 실패:", err);
+  }
+
+  try {
     const exchangeRateMod = await import("./src/lib/exchangeRate.ts");
     const warm = resolveCustomServerImportedExport(exchangeRateMod, "warmExchangeRateCache");
     if (typeof warm === "function") {

@@ -1,7 +1,11 @@
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
 import { parseAccountInfo, roundCreatorAmount } from "@/lib/creatorShared";
-import { getPayoutProviderPort, resolveBankCode } from "@/lib/payoutGateway";
+import {
+  assertPayoutProviderMutationReady,
+  getPayoutProviderPort,
+  resolveBankCode,
+} from "@/lib/payoutGateway";
 import type { PayoutProviderLookupResult } from "@/lib/payoutProviderTypes";
 import {
   claimTransferAttempt,
@@ -365,6 +369,7 @@ export async function executeWithdrawalPayout(
   row: WithdrawalExecutionRow,
   db: Database.Database = getDb()
 ): Promise<SingleWithdrawalOutcome> {
+  assertPayoutProviderMutationReady();
   ensurePayoutTransferAttemptsSchema(db);
 
   if (row.status !== "PENDING") {

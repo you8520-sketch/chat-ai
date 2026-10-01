@@ -121,6 +121,7 @@ export const AUTOMATION_OWNER_MAP: Readonly<Record<string, string>> = {
   memory_research_persistent_gap_radar: "src/lib/memoryResearch/persistentGapRadar.ts (same-fingerprint repeated positive-case misses → persistent-gap evidence only)",
   memory_research_persistent_gap_experiment_router: "src/lib/memoryResearch/persistentGapExperimentRouter.ts (persistent gap → existing reviewed live-recipe priority only; no candidate/recipe creation)",
   memory_research_harness_feasibility: "src/lib/memoryResearch/benchmarkHarnessFeasibility.ts (case-port plan → measurement feasibility / provider-judge boundary evidence only)",
+  memory_research_local_gold_authoring: "src/lib/memoryResearch/localGoldAuthoringPlanner.ts (LOCAL_GOLD_AUTHORING_REQUIRED → human-reviewed synthetic gold packet only)",
   memory_research_baseline_trend: "src/lib/memoryResearch/baselineTrend.ts (same-benchmark deterministic baseline drift evidence across research cycles)",
   memory_research_ledger: "orphan branch `memory-research-ledger` (ledger.json + cycles/*.json)",
   memory_research_draft_pr: "src/lib/memoryResearch/draftPr.ts (ACCEPTED-only, `gh pr create --draft`)",
@@ -136,9 +137,9 @@ export const AUTOMATION_OWNER_MAP: Readonly<Record<string, string>> = {
  * - semantic_retrieval / embedding_index → `mode.semantic`
  * - prompt_packing → `mode.packing` leftover policy + supplied higher-priority texts
  * - episodic_selection → `mode.selection` fact/char/candidate bounds
+ * - reranking_scoring → `mode.scoring` final composite rank weights only
  *
  * Deliberately NOT marked as hooked:
- * - reranking_scoring: score weights/order are not parameterized by BenchmarkMode
  * - global_current_memory: the harness can supply emitted Global text as packing
  *   input, but does not A/B Global compaction/checkpoint generation itself
  */
@@ -147,6 +148,7 @@ export const BENCHMARK_HOOKED_OWNERS: readonly MemoryOwnerId[] = [
   "embedding_index",
   "prompt_packing",
   "episodic_selection",
+  "reranking_scoring",
 ];
 
 export function isBenchmarkOwnerHooked(owner: MemoryOwnerId): boolean {
@@ -179,7 +181,11 @@ export function computeArchitectureFingerprint(readFile: (path: string) => strin
 
 /** Every file whose content defines the architecture a benchmark decision was made against. */
 export function architectureFingerprintPaths(): string[] {
-  const all = new Set<string>();
+  const all = new Set<string>([
+    // Research capability routing (CATEGORY_OWNERS / BENCHMARK_HOOKED_OWNERS)
+    // changes whether a previously blocked candidate can enter the benchmark.
+    "src/lib/memoryResearch/ownerMap.ts",
+  ]);
   for (const entry of Object.values(MEMORY_OWNER_MAP)) {
     for (const path of entry.paths) {
       if (!path.startsWith(".github/")) all.add(path);

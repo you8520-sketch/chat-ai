@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getPointBalance } from "@/lib/points";
 import { isPaymentsEnabled, PAYMENTS_DISABLED_MESSAGE, isPortOneServerVerifyConfigured } from "@/lib/portoneConfig";
-import { getPortoneCheckoutByPaymentId, markPortoneCheckoutPaid } from "@/lib/portoneCheckout";
-import { fetchPortOnePayment, isPortOnePaidStatus } from "@/lib/portoneServer";
+import { getPortoneCheckoutByPaymentId } from "@/lib/portoneCheckout";
+import { finalizePortoneCheckoutFromProvider } from "@/lib/portonePaidFinalizer";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -50,42 +50,44 @@ export async function POST(req: Request) {
     );
   }
 
-  let portoneTxId = clientTxId;
-  try {
-    const remote = await fetchPortOnePayment(paymentId);
-    if (!remote) {
-      return NextResponse.json({ error: "PortOne에서 결제 정보를 찾을 수 없습니다." }, { status: 404 });
-    }
-    if (!isPortOnePaidStatus(remote.status)) {
-      return NextResponse.json(
-        { error: `결제가 완료되지 않았습니다. (상태: ${remote.status})` },
-        { status: 402 }
-      );
-    }
-    if (remote.totalAmount == null) {
-      return NextResponse.json(
-        { error: "PortOne 결제 금액을 확인할 수 없습니다." },
-        { status: 502 }
-      );
-    }
-    if (remote.totalAmount !== checkout.amount) {
-      return NextResponse.json({ error: "결제 금액이 일치하지 않습니다." }, { status: 400 });
-    }
-    if (remote.txId) portoneTxId = remote.txId;
-  } catch (e) {
-    console.error("[portone/complete] verify failed", e);
-    return NextResponse.json({ error: "결제 검증에 실패했습니다." }, { status: 502 });
-  }
+  const finalized = await finalizePortoneCheckoutFromProvider(paymentId, {
+    fallbackTxId: clientTxId,
+  });
 
-  const marked = markPortoneCheckoutPaid(paymentId, portoneTxId);
-  if (!marked.ok) {
-    return NextResponse.json({ error: marked.error }, { status: 400 });
+  if (!finalized.ok) {
+    switch (finalized.status) {
+      case "not_found_local":
+        return NextResponse.json({ error: "결제 요청을 찾을 수 없습니다." }, { status: 404 });
+      case "not_pending":
+        return NextResponse.json({ error: finalized.error }, { status: 400 });
+      case "provider_missing":
+        return NextResponse.json({ error: "PortOne에서 결제 정보를 찾을 수 없습니다." }, { status: 404 });
+      case "not_paid":
+        return NextResponse.json(
+          { error: `결제가 완료되지 않았습니다. (상태: ${finalized.providerStatus})` },
+          { status: 402 }
+        );
+      case "amount_missing":
+        return NextResponse.json({ error: "PortOne 결제 금액을 확인할 수 없습니다." }, { status: 502 });
+      case "amount_mismatch":
+        return NextResponse.json({ error: "결제 금액이 일치하지 않습니다." }, { status: 400 });
+      case "provider_error":
+        return NextResponse.json({ error: "결제 검증에 실패했습니다." }, { status: 502 });
+      case "finalize_failed":
+        return NextResponse.json({ error: finalized.error }, { status: 400 });
+      default: {
+        const _exhaustive: never = finalized;
+        return _exhaustive;
+      }
+    }
   }
 
   const balance = getPointBalance(user.id);
   return NextResponse.json({
     ok: true,
-    alreadyPaid: marked.alreadyPaid,
+    alreadyPaid:
+      finalized.status === "already_paid" ||
+      (finalized.status === "paid" && finalized.alreadyPaid),
     points: balance.total,
     paidPoints: balance.paid,
     freePoints: balance.free,

@@ -100,24 +100,44 @@ export function resolveRpOpenRouterModelId(modelId: string): string {
 
 export type MainRpOpenRouterRoutePolicy = {
   provider: {
-    only: ["google-ai-studio"];
+    only: [string];
     allow_fallbacks: false;
     require_parameters: true;
   };
   serviceTier: "flex";
 };
 
-const GOOGLE_AI_STUDIO_MAIN_RP_MODELS = new Set([
-  OPENROUTER_GEMINI_31_PRO_MODEL,
-  OPENROUTER_GEMINI_37_FLASH_MODEL,
-  OPENROUTER_GEMINI_38_FLASH_MODEL,
-]);
+type MainRpOpenRouterRoutePolicySource = {
+  providerSlug: string;
+  serviceTier: "flex";
+};
 
 /**
  * Canonical Main-RP OpenRouter route policy owner.
- * Gemini 3.1/3.7/3.8 are pinned to Google AI Studio and explicitly request
- * OpenRouter's flex service tier. Flex is the cost/latency owner; do not add a
- * second price-sort heuristic here.
+ *
+ * Keep one explicit row per active OpenRouter Main-RP model. Supplier
+ * promotion automation may change only providerSlug for one existing row;
+ * serviceTier and fallback/parameter invariants remain owned here.
+ */
+export const MAIN_RP_OPENROUTER_ROUTE_POLICY_SOURCE: Readonly<
+  Record<string, MainRpOpenRouterRoutePolicySource>
+> = {
+  "google/gemini-3.1-pro-preview": {
+    providerSlug: "google-ai-studio",
+    serviceTier: "flex",
+  },
+  "google/gemini-3.7-flash": {
+    providerSlug: "google-ai-studio",
+    serviceTier: "flex",
+  },
+  "google/gemini-3.8-flash": {
+    providerSlug: "google-ai-studio",
+    serviceTier: "flex",
+  },
+};
+
+/**
+ * Canonical Main-RP OpenRouter route policy resolver.
  * Privacy/data-retention policy is intentionally not duplicated here; account
  * privacy settings remain the canonical owner for those constraints.
  */
@@ -125,14 +145,15 @@ export function resolveMainRpOpenRouterRoutePolicy(
   modelId: string
 ): MainRpOpenRouterRoutePolicy | null {
   const resolved = resolveRpOpenRouterModelId(modelId);
-  if (!GOOGLE_AI_STUDIO_MAIN_RP_MODELS.has(resolved)) return null;
+  const source = MAIN_RP_OPENROUTER_ROUTE_POLICY_SOURCE[resolved];
+  if (!source) return null;
   return {
     provider: {
-      only: ["google-ai-studio"],
+      only: [source.providerSlug],
       allow_fallbacks: false,
       require_parameters: true,
     },
-    serviceTier: "flex",
+    serviceTier: source.serviceTier,
   };
 }
 

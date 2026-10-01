@@ -83,6 +83,21 @@ export function setPayoutProviderForTests(provider: PayoutProviderPort | null): 
   payoutProviderOverride = provider;
 }
 
+export const PAYOUT_REAL_PROVIDER_NOT_CONFIGURED = "PAYOUT_REAL_PROVIDER_NOT_CONFIGURED";
+
+/**
+ * Financial safety boundary: the repository currently has no real payout provider.
+ * Production must never cross the transfer boundary with the simulation provider.
+ * Test-only provider overrides are allowed so deterministic payout regressions can exercise the owner.
+ */
+export function assertPayoutProviderMutationReady(
+  env: NodeJS.ProcessEnv = process.env
+): void {
+  if (env.NODE_ENV === "production" && payoutProviderOverride == null) {
+    throw new Error(PAYOUT_REAL_PROVIDER_NOT_CONFIGURED);
+  }
+}
+
 export function getPayoutProviderPort(): PayoutProviderPort {
   if (payoutProviderOverride) return payoutProviderOverride;
   return simulationPayoutProvider;

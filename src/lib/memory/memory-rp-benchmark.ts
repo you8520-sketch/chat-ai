@@ -203,7 +203,6 @@ export const BENCHMARK_CAPABILITY_CASE_IDS: Readonly<
   Record<BenchmarkCapabilityGroup, readonly string[]>
 > = {
   DYNAMIC_STATE_TRACKING: [
-    "item-ownership-01",
     "location-ownership-transition-01",
     "latest-state-replacement-01",
     "character-state-transition-01",

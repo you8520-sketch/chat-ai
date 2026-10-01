@@ -137,7 +137,7 @@ describe("Persistent Memory Gap Radar", () => {
   });
 
   it("renders evidence without claiming automatic implementation", () => {
-    const caseId = "distinctive-utterance-01";
+    const caseId = "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01";
     const report = buildPersistentMemoryGapReport(
       snapshot("fp-a", { [caseId]: false }),
       [

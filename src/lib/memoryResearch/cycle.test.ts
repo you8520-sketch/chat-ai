@@ -374,6 +374,135 @@ it("benchmark adoption proposals emit only when a benchmark candidate is re-eval
   );
 });
 
+it("persona-conditioned insight emits one human-review local-gold packet only on reevaluation", async () => {
+  const roleMemo: ResearchObservation = {
+    candidateKey: "github:collab-gen/rolememo",
+    sourceKind: "github_repository",
+    sourceUrl: "https://github.com/Collab-Gen/RoleMemo",
+    title: "Collab-Gen/RoleMemo",
+    version: "fixture-v1",
+    publishedAt: null,
+    summary: "factual cognition and persona-conditioned insight cognition benchmark",
+    claimedAdvantage:
+      "factual cognition and persona-conditioned insight cognition expose a facts-to-insights bottleneck",
+    category: "memory_benchmark",
+    evidence: {
+      hasReproducibleCode: true,
+      hasPublishedBenchmark: true,
+      archived: false,
+      lastActivityAt: "2026-09-01T00:00:00Z",
+    },
+    infraRequirements: ["none"],
+    privacyImplications: ["none"],
+    migrationRequirement: "none",
+    riskFlags: [],
+  };
+  const source = staticSource("rolememo_fixture", [roleMemo]);
+
+  const first = await runResearchCycle(
+    emptyLedger(),
+    deps(WEEK1, { sources: [source], adapters: [] })
+  );
+
+  const feasibility = first.report.benchmarkHarnessFeasibility.find(
+    (row) => row.ability === "persona_conditioned_insight"
+  );
+  assert.equal(feasibility?.status, "LOCAL_GOLD_AUTHORING_REQUIRED");
+  assert.equal(first.report.localGoldAuthoringPackets.length, 1);
+  const packet = first.report.localGoldAuthoringPackets[0]!;
+  assert.equal(packet.status, "HUMAN_REVIEW_REQUIRED");
+  assert.equal(packet.ability, "persona_conditioned_insight");
+  assert.deepEqual(packet.proposedCaseIds, [
+    "persona-grounded-insight-01",
+    "unsupported-persona-inference-negative-01",
+  ]);
+  assert.equal(first.report.providerCalls.paidProviderCalls, 0);
+  assert.equal(first.report.productionTouched, false);
+
+  const second = await runResearchCycle(
+    roundTrip(first.ledger),
+    deps(WEEK2, { sources: [source], adapters: [] })
+  );
+  assert.equal(second.report.skipped[0]?.reason, "watch_cooldown");
+  assert.equal(
+    second.report.localGoldAuthoringPackets.length,
+    0,
+    "unchanged RoleMemo evidence must not repeat human-review gold packets every weekly cycle"
+  );
+});
+
+it("same-version WATCH_NO_BENCHMARK_HOOK re-evaluates immediately after hook-capability architecture change", async () => {
+  const benchmark: ResearchObservation = {
+    candidateKey: "github:fixture/hook-blocked-benchmark",
+    sourceKind: "github_repository",
+    sourceUrl: "https://github.com/fixture/hook-blocked-benchmark",
+    title: "fixture hook-blocked benchmark",
+    version: "v1",
+    publishedAt: null,
+    summary: "memory benchmark",
+    claimedAdvantage: "memory benchmark",
+    category: "memory_benchmark",
+    evidence: {
+      hasReproducibleCode: true,
+      hasPublishedBenchmark: true,
+      archived: false,
+      lastActivityAt: "2026-09-01T00:00:00Z",
+    },
+    infraRequirements: ["none"],
+    privacyImplications: ["none"],
+    migrationRequirement: "none",
+    riskFlags: [],
+  };
+  const source = staticSource("hook_blocked_fixture", [benchmark]);
+
+  const first = await runResearchCycle(
+    emptyLedger(),
+    deps(WEEK1, {
+      sources: [source],
+      adapters: [],
+      architectureFingerprint: "arch-before-hook",
+    })
+  );
+  assert.equal(first.report.decisions[0]?.decision, "WATCH_NO_BENCHMARK_HOOK");
+  assert.ok(
+    Date.parse(first.ledger.candidates[benchmark.candidateKey]!.cooldownUntil!) >
+      WEEK2.getTime()
+  );
+
+  const unchangedArchitecture = await runResearchCycle(
+    roundTrip(first.ledger),
+    deps(WEEK2, {
+      sources: [source],
+      adapters: [],
+      architectureFingerprint: "arch-before-hook",
+    })
+  );
+  assert.equal(unchangedArchitecture.report.decisions.length, 0);
+  assert.equal(
+    unchangedArchitecture.report.skipped[0]?.reason,
+    "watch_cooldown"
+  );
+
+  const changedArchitecture = await runResearchCycle(
+    roundTrip(first.ledger),
+    deps(WEEK2, {
+      sources: [source],
+      adapters: [],
+      architectureFingerprint: "arch-after-hook-registry-change",
+    })
+  );
+  assert.equal(changedArchitecture.report.decisions.length, 1);
+  assert.equal(
+    changedArchitecture.report.decisions[0]?.trigger,
+    "architecture_changed"
+  );
+  assert.equal(
+    changedArchitecture.report.decisions[0]?.decision,
+    "WATCH_NO_BENCHMARK_HOOK",
+    "fixture category is intentionally still unhooked; this assertion proves reevaluation, not a fabricated hook"
+  );
+});
+
 it("same cycle key is idempotent unless forced", async () => {
   const first = await runResearchCycle(emptyLedger(), deps(WEEK1, { sources: [staticSource("s", [OBS.noAdapter])] }));
   const again = await runResearchCycle(first.ledger, deps(WEEK1, { sources: [staticSource("s", [OBS.noAdapter])] }));

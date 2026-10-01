@@ -1,0 +1,1337 @@
+{
+  "version": 1,
+  "status": "BLOCKED_WAITLIST_CREDENTIAL",
+  "productionRouteChanges": 0,
+  "providerCalls": 0,
+  "runtimeObservations": "NOT_RUN",
+  "endpointClaim": {
+    "url": "https://api.fluence.cloud/v1/chat/completions",
+    "source": "user_supplied_documentation",
+    "independentlyVerified": false
+  },
+  "packet": {
+    "packetVersion": 2,
+    "fixtureVersion": 1,
+    "source": {
+      "capturedAt": "2026-08-25",
+      "sourceChatId": 4,
+      "sourceUserId": 1,
+      "sourceCharacterId": 10,
+      "characterName": "라이크",
+      "characterRealName": "조태형",
+      "personaName": "렌",
+      "personaGender": "male"
+    },
+    "owners": {
+      "activeModelRegistry": "src/lib/chatModels.ts#MAIN_RP_USER_SELECTABLE_OPTIONS",
+      "frozenFixture": "scripts/lib/rpModelQualificationFixture.ts",
+      "promptAssembly": "src/services/contextBuilder.ts#buildContext",
+      "wireAssembly": "src/lib/openRouterAdult.ts#assemblePrimaryRpRequest",
+      "pricing": "src/lib/publishedModelPricing.ts",
+      "providerCost": "src/lib/providerCostLedger.ts",
+      "userAuthoring": "src/lib/noGodmodding.ts#COLLABORATIVE_INTERACTIVE_OWNER_BLOCK"
+    },
+    "activeModelIds": [
+      "deepseek-v4.1-flash",
+      "gemini-3.1-pro-preview",
+      "gemini-3.7-flash",
+      "gemini-3.8-flash",
+      "gpt-5.6-terra",
+      "claude-opus-5.5"
+    ],
+    "providerCalls": 0,
+    "runtimeObservations": "NOT_RUN",
+    "models": [
+      {
+        "modelId": "deepseek-v4.1-flash",
+        "label": "DeepSeek V4.1 Flash",
+        "provider": "cheaperinference",
+        "pricing": {
+          "canonicalModelId": "deepseek-v4.1-flash",
+          "pricingVersion": 1,
+          "publishedAt": "2026-09-21T00:00:00.000Z",
+          "billingReferenceInputUsdPerMillion": 0.3,
+          "billingReferenceOutputUsdPerMillion": 1.2,
+          "billingReferenceCacheReadUsdPerMillion": 0.006,
+          "billingReferenceCacheWriteUsdPerMillion": null,
+          "targetMargin": 0.6,
+          "minimumMarginFloor": 0.5
+        },
+        "cases": [
+          {
+            "caseId": "production_midchat_t1",
+            "targetResponseChars": 3200,
+            "reviewFocus": [
+              "character voice and Korean webnovel prose",
+              "actual persona/canon grounding",
+              "standard interactive user-authoring boundary",
+              "latency/output-control/transport hygiene"
+            ],
+            "systemPromptSha256": "ce053fd02934ff5372f0a5109c56cea64d651c3328ef34baed8bcc6aac38047e",
+            "systemPromptChars": 17825,
+            "wireMessagesSha256": "23fce7299fd7c287bba22f2dd738197533d8de5dfac5968b3e9fdbc0798ebbfe",
+            "wireMessageCount": 2,
+            "requestBodySha256": "417e68f3431b0172faea9f277818bd7227165c418f7eefe611eab82724d6a562",
+            "requestBodyKeys": [
+              "messages",
+              "model",
+              "reasoning_effort",
+              "stream",
+              "stream_options",
+              "temperature",
+              "thinking",
+              "top_p"
+            ],
+            "wireControls": {
+              "model": "deepseek-v4.1-flash",
+              "temperature": 0.92,
+              "top_p": 0.92,
+              "thinking": {
+                "type": "disabled"
+              },
+              "reasoning_effort": "none",
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [
+                "frequency_penalty",
+                "include_reasoning",
+                "presence_penalty",
+                "reasoning"
+              ],
+              "added": [
+                "reasoning_effort",
+                "thinking"
+              ],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "persona_grounded_reaction",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "do not penalize persona-grounded visible behavior merely because the model narrates the user persona",
+              "the persona canon says 렌 is poor with machines and tilts his head when he does not understand",
+              "private inner emotion or new important decision still requires the runtime owner to allow it"
+            ],
+            "systemPromptSha256": "ce053fd02934ff5372f0a5109c56cea64d651c3328ef34baed8bcc6aac38047e",
+            "systemPromptChars": 17825,
+            "wireMessagesSha256": "2d5e4cd379cf654f24de8711b845cdea30dd3bc2ab8bde178ab410b243c25d3f",
+            "wireMessageCount": 2,
+            "requestBodySha256": "29efa4e9f2d962fbb5795d8529682a7807f0d1ddde81f36a79b3b963cc8c0c05",
+            "requestBodyKeys": [
+              "messages",
+              "model",
+              "reasoning_effort",
+              "stream",
+              "stream_options",
+              "temperature",
+              "thinking",
+              "top_p"
+            ],
+            "wireControls": {
+              "model": "deepseek-v4.1-flash",
+              "temperature": 0.92,
+              "top_p": 0.92,
+              "thinking": {
+                "type": "disabled"
+              },
+              "reasoning_effort": "none",
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [
+                "frequency_penalty",
+                "include_reasoning",
+                "presence_penalty",
+                "reasoning"
+              ],
+              "added": [
+                "reasoning_effort",
+                "thinking"
+              ],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "agency_boundary",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "NORMAL may co-author user-persona dialogue, observable important actions, and local acceptance/refusal when grounded in persona/current scene",
+              "private inner POV and irreversible user fate remain outside NORMAL",
+              "AI character may act proactively without inventing unsupported long-term canon or shared history"
+            ],
+            "systemPromptSha256": "ce053fd02934ff5372f0a5109c56cea64d651c3328ef34baed8bcc6aac38047e",
+            "systemPromptChars": 17825,
+            "wireMessagesSha256": "44f4176ca85e5916b20a9f086eaec8e2fe0e73d261b6cdd48725ed061ea19569",
+            "wireMessageCount": 2,
+            "requestBodySha256": "5a4f4ca89cd8bc999259c47fa22a5b25128337ca65d1b96d878f5d807d090207",
+            "requestBodyKeys": [
+              "messages",
+              "model",
+              "reasoning_effort",
+              "stream",
+              "stream_options",
+              "temperature",
+              "thinking",
+              "top_p"
+            ],
+            "wireControls": {
+              "model": "deepseek-v4.1-flash",
+              "temperature": 0.92,
+              "top_p": 0.92,
+              "thinking": {
+                "type": "disabled"
+              },
+              "reasoning_effort": "none",
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [
+                "frequency_penalty",
+                "include_reasoning",
+                "presence_penalty",
+                "reasoning"
+              ],
+              "added": [
+                "reasoning_effort",
+                "thinking"
+              ],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "false_canon_trap",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "persona-known preferences such as fruit, street food, and good food are grounded and may be used",
+              "do not fabricate unsupported preferences, prior meals, medical/body history, work history, promises, or shared events",
+              "distinguish canon fact from character inference or playful guess"
+            ],
+            "systemPromptSha256": "ce053fd02934ff5372f0a5109c56cea64d651c3328ef34baed8bcc6aac38047e",
+            "systemPromptChars": 17825,
+            "wireMessagesSha256": "1abd4307a5b99083a8210de2a5f4a87dd2e072697f4adfc8cd405cf7e8b0ad7c",
+            "wireMessageCount": 2,
+            "requestBodySha256": "7eac2c63e0bdd397b24a46e035e44c2361f34355156fe4a2832486c0da4237b5",
+            "requestBodyKeys": [
+              "messages",
+              "model",
+              "reasoning_effort",
+              "stream",
+              "stream_options",
+              "temperature",
+              "thinking",
+              "top_p"
+            ],
+            "wireControls": {
+              "model": "deepseek-v4.1-flash",
+              "temperature": 0.92,
+              "top_p": 0.92,
+              "thinking": {
+                "type": "disabled"
+              },
+              "reasoning_effort": "none",
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [
+                "frequency_penalty",
+                "include_reasoning",
+                "presence_penalty",
+                "reasoning"
+              ],
+              "added": [
+                "reasoning_effort",
+                "thinking"
+              ],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          }
+        ]
+      },
+      {
+        "modelId": "gemini-3.1-pro-preview",
+        "label": "Gemini 3.1 Pro Preview",
+        "provider": "openrouter",
+        "pricing": {
+          "canonicalModelId": "gemini-3.1-pro-preview",
+          "pricingVersion": 2,
+          "publishedAt": "2026-08-28T15:00:00.000Z",
+          "billingReferenceInputUsdPerMillion": 2,
+          "billingReferenceOutputUsdPerMillion": 12,
+          "billingReferenceCacheReadUsdPerMillion": null,
+          "billingReferenceCacheWriteUsdPerMillion": null,
+          "targetMargin": 0.09,
+          "minimumMarginFloor": 0.05
+        },
+        "cases": [
+          {
+            "caseId": "production_midchat_t1",
+            "targetResponseChars": 3200,
+            "reviewFocus": [
+              "character voice and Korean webnovel prose",
+              "actual persona/canon grounding",
+              "standard interactive user-authoring boundary",
+              "latency/output-control/transport hygiene"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "1314dd77e9d7ad360242f2e008cd2baf9df78e383a134c01d826fdc6f92c7398",
+            "wireMessageCount": 4,
+            "requestBodySha256": "d7210fb41982146cfa1e4300ee96f5b6ff101a6c72c7b6cc5dde96c9d7eb6485",
+            "requestBodyKeys": [
+              "include_reasoning",
+              "messages",
+              "model",
+              "provider",
+              "reasoning",
+              "service_tier",
+              "stream",
+              "stream_options",
+              "temperature"
+            ],
+            "wireControls": {
+              "model": "google/gemini-3.1-pro-preview",
+              "temperature": 0.95,
+              "reasoning": {
+                "effort": "low"
+              },
+              "service_tier": "flex",
+              "provider": {
+                "only": [
+                  "google-ai-studio"
+                ],
+                "allow_fallbacks": false,
+                "require_parameters": true
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "persona_grounded_reaction",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "do not penalize persona-grounded visible behavior merely because the model narrates the user persona",
+              "the persona canon says 렌 is poor with machines and tilts his head when he does not understand",
+              "private inner emotion or new important decision still requires the runtime owner to allow it"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "c7065c96bfdcc45d83ef3a66d0a435f8eb0a369b5fc9202979c475eb6486ff15",
+            "wireMessageCount": 4,
+            "requestBodySha256": "1c95bed60a498a2802eb3d55306351d167fcccbd8f80d19766c4c6816b813d3b",
+            "requestBodyKeys": [
+              "include_reasoning",
+              "messages",
+              "model",
+              "provider",
+              "reasoning",
+              "service_tier",
+              "stream",
+              "stream_options",
+              "temperature"
+            ],
+            "wireControls": {
+              "model": "google/gemini-3.1-pro-preview",
+              "temperature": 0.95,
+              "reasoning": {
+                "effort": "low"
+              },
+              "service_tier": "flex",
+              "provider": {
+                "only": [
+                  "google-ai-studio"
+                ],
+                "allow_fallbacks": false,
+                "require_parameters": true
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "agency_boundary",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "NORMAL may co-author user-persona dialogue, observable important actions, and local acceptance/refusal when grounded in persona/current scene",
+              "private inner POV and irreversible user fate remain outside NORMAL",
+              "AI character may act proactively without inventing unsupported long-term canon or shared history"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "4c8d5f9431ea35a76e29c6f6c8ed0807774851bf0955fa8c20297d9e523f69fc",
+            "wireMessageCount": 4,
+            "requestBodySha256": "6552eddec604e132a1516a1b9c96f9fbde5e2a0c1a709e45014bb1bba6816566",
+            "requestBodyKeys": [
+              "include_reasoning",
+              "messages",
+              "model",
+              "provider",
+              "reasoning",
+              "service_tier",
+              "stream",
+              "stream_options",
+              "temperature"
+            ],
+            "wireControls": {
+              "model": "google/gemini-3.1-pro-preview",
+              "temperature": 0.95,
+              "reasoning": {
+                "effort": "low"
+              },
+              "service_tier": "flex",
+              "provider": {
+                "only": [
+                  "google-ai-studio"
+                ],
+                "allow_fallbacks": false,
+                "require_parameters": true
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "false_canon_trap",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "persona-known preferences such as fruit, street food, and good food are grounded and may be used",
+              "do not fabricate unsupported preferences, prior meals, medical/body history, work history, promises, or shared events",
+              "distinguish canon fact from character inference or playful guess"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "8884a301909eac3c6c6153d947c64bba2e65db53ef0032586d846e489fa3086b",
+            "wireMessageCount": 4,
+            "requestBodySha256": "bf692fc8e708fec714c966ac13e68837e465bdee10f9f5803421efd5f8cff03e",
+            "requestBodyKeys": [
+              "include_reasoning",
+              "messages",
+              "model",
+              "provider",
+              "reasoning",
+              "service_tier",
+              "stream",
+              "stream_options",
+              "temperature"
+            ],
+            "wireControls": {
+              "model": "google/gemini-3.1-pro-preview",
+              "temperature": 0.95,
+              "reasoning": {
+                "effort": "low"
+              },
+              "service_tier": "flex",
+              "provider": {
+                "only": [
+                  "google-ai-studio"
+                ],
+                "allow_fallbacks": false,
+                "require_parameters": true
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          }
+        ]
+      },
+      {
+        "modelId": "gemini-3.7-flash",
+        "label": "Gemini 3.7 Flash",
+        "provider": "openrouter",
+        "pricing": {
+          "canonicalModelId": "gemini-3.7-flash",
+          "pricingVersion": 2,
+          "publishedAt": "2026-08-28T14:00:00.000Z",
+          "billingReferenceInputUsdPerMillion": 0.375,
+          "billingReferenceOutputUsdPerMillion": 1.875,
+          "billingReferenceCacheReadUsdPerMillion": null,
+          "billingReferenceCacheWriteUsdPerMillion": null,
+          "targetMargin": 0.55,
+          "minimumMarginFloor": 0.5
+        },
+        "cases": [
+          {
+            "caseId": "production_midchat_t1",
+            "targetResponseChars": 3200,
+            "reviewFocus": [
+              "character voice and Korean webnovel prose",
+              "actual persona/canon grounding",
+              "standard interactive user-authoring boundary",
+              "latency/output-control/transport hygiene"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "1314dd77e9d7ad360242f2e008cd2baf9df78e383a134c01d826fdc6f92c7398",
+            "wireMessageCount": 4,
+            "requestBodySha256": "c83770b707f4901e07ccd131ae294f3d7d277c708af8a48a7988bb89fe985528",
+            "requestBodyKeys": [
+              "include_reasoning",
+              "messages",
+              "model",
+              "provider",
+              "reasoning",
+              "service_tier",
+              "stream",
+              "stream_options",
+              "temperature"
+            ],
+            "wireControls": {
+              "model": "google/gemini-3.7-flash",
+              "temperature": 0.7,
+              "reasoning": {
+                "effort": "low",
+                "exclude": true
+              },
+              "service_tier": "flex",
+              "provider": {
+                "only": [
+                  "google-ai-studio"
+                ],
+                "allow_fallbacks": false,
+                "require_parameters": true
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "persona_grounded_reaction",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "do not penalize persona-grounded visible behavior merely because the model narrates the user persona",
+              "the persona canon says 렌 is poor with machines and tilts his head when he does not understand",
+              "private inner emotion or new important decision still requires the runtime owner to allow it"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "c7065c96bfdcc45d83ef3a66d0a435f8eb0a369b5fc9202979c475eb6486ff15",
+            "wireMessageCount": 4,
+            "requestBodySha256": "60711daf3d52895da0fee3c4f35ba33f4dc8d13ff53812982499c04338cfc89c",
+            "requestBodyKeys": [
+              "include_reasoning",
+              "messages",
+              "model",
+              "provider",
+              "reasoning",
+              "service_tier",
+              "stream",
+              "stream_options",
+              "temperature"
+            ],
+            "wireControls": {
+              "model": "google/gemini-3.7-flash",
+              "temperature": 0.7,
+              "reasoning": {
+                "effort": "low",
+                "exclude": true
+              },
+              "service_tier": "flex",
+              "provider": {
+                "only": [
+                  "google-ai-studio"
+                ],
+                "allow_fallbacks": false,
+                "require_parameters": true
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "agency_boundary",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "NORMAL may co-author user-persona dialogue, observable important actions, and local acceptance/refusal when grounded in persona/current scene",
+              "private inner POV and irreversible user fate remain outside NORMAL",
+              "AI character may act proactively without inventing unsupported long-term canon or shared history"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "4c8d5f9431ea35a76e29c6f6c8ed0807774851bf0955fa8c20297d9e523f69fc",
+            "wireMessageCount": 4,
+            "requestBodySha256": "6a31ef0486eda073f0b63ddd772a361d5babae0932c8e5526cafbf240cc3567d",
+            "requestBodyKeys": [
+              "include_reasoning",
+              "messages",
+              "model",
+              "provider",
+              "reasoning",
+              "service_tier",
+              "stream",
+              "stream_options",
+              "temperature"
+            ],
+            "wireControls": {
+              "model": "google/gemini-3.7-flash",
+              "temperature": 0.7,
+              "reasoning": {
+                "effort": "low",
+                "exclude": true
+              },
+              "service_tier": "flex",
+              "provider": {
+                "only": [
+                  "google-ai-studio"
+                ],
+                "allow_fallbacks": false,
+                "require_parameters": true
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "false_canon_trap",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "persona-known preferences such as fruit, street food, and good food are grounded and may be used",
+              "do not fabricate unsupported preferences, prior meals, medical/body history, work history, promises, or shared events",
+              "distinguish canon fact from character inference or playful guess"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "8884a301909eac3c6c6153d947c64bba2e65db53ef0032586d846e489fa3086b",
+            "wireMessageCount": 4,
+            "requestBodySha256": "909bb62ff3043309149dd5064afd69456b0c0b4152017b8a161c5ab989f5be38",
+            "requestBodyKeys": [
+              "include_reasoning",
+              "messages",
+              "model",
+              "provider",
+              "reasoning",
+              "service_tier",
+              "stream",
+              "stream_options",
+              "temperature"
+            ],
+            "wireControls": {
+              "model": "google/gemini-3.7-flash",
+              "temperature": 0.7,
+              "reasoning": {
+                "effort": "low",
+                "exclude": true
+              },
+              "service_tier": "flex",
+              "provider": {
+                "only": [
+                  "google-ai-studio"
+                ],
+                "allow_fallbacks": false,
+                "require_parameters": true
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          }
+        ]
+      },
+      {
+        "modelId": "gemini-3.8-flash",
+        "label": "Gemini 3.8 Flash",
+        "provider": "openrouter",
+        "pricing": {
+          "canonicalModelId": "gemini-3.8-flash",
+          "pricingVersion": 1,
+          "publishedAt": "2026-09-28T00:00:00.000Z",
+          "billingReferenceInputUsdPerMillion": 0.375,
+          "billingReferenceOutputUsdPerMillion": 1.875,
+          "billingReferenceCacheReadUsdPerMillion": null,
+          "billingReferenceCacheWriteUsdPerMillion": null,
+          "targetMargin": 0.55,
+          "minimumMarginFloor": 0.5
+        },
+        "cases": [
+          {
+            "caseId": "production_midchat_t1",
+            "targetResponseChars": 3200,
+            "reviewFocus": [
+              "character voice and Korean webnovel prose",
+              "actual persona/canon grounding",
+              "standard interactive user-authoring boundary",
+              "latency/output-control/transport hygiene"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "1314dd77e9d7ad360242f2e008cd2baf9df78e383a134c01d826fdc6f92c7398",
+            "wireMessageCount": 4,
+            "requestBodySha256": "dbe2755ddb9e2b5b970a28119caf861855f6ad967f0295f8c8d81fd13933c4d3",
+            "requestBodyKeys": [
+              "include_reasoning",
+              "messages",
+              "model",
+              "provider",
+              "reasoning",
+              "service_tier",
+              "stream",
+              "stream_options"
+            ],
+            "wireControls": {
+              "model": "google/gemini-3.8-flash",
+              "reasoning": {
+                "effort": "low",
+                "exclude": true
+              },
+              "service_tier": "flex",
+              "provider": {
+                "only": [
+                  "google-ai-studio"
+                ],
+                "allow_fallbacks": false,
+                "require_parameters": true
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "persona_grounded_reaction",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "do not penalize persona-grounded visible behavior merely because the model narrates the user persona",
+              "the persona canon says 렌 is poor with machines and tilts his head when he does not understand",
+              "private inner emotion or new important decision still requires the runtime owner to allow it"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "c7065c96bfdcc45d83ef3a66d0a435f8eb0a369b5fc9202979c475eb6486ff15",
+            "wireMessageCount": 4,
+            "requestBodySha256": "7073a2cc2883de61990e0fff4e3b3f9d56d6bc48206b64d6ddd147b40af4e748",
+            "requestBodyKeys": [
+              "include_reasoning",
+              "messages",
+              "model",
+              "provider",
+              "reasoning",
+              "service_tier",
+              "stream",
+              "stream_options"
+            ],
+            "wireControls": {
+              "model": "google/gemini-3.8-flash",
+              "reasoning": {
+                "effort": "low",
+                "exclude": true
+              },
+              "service_tier": "flex",
+              "provider": {
+                "only": [
+                  "google-ai-studio"
+                ],
+                "allow_fallbacks": false,
+                "require_parameters": true
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "agency_boundary",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "NORMAL may co-author user-persona dialogue, observable important actions, and local acceptance/refusal when grounded in persona/current scene",
+              "private inner POV and irreversible user fate remain outside NORMAL",
+              "AI character may act proactively without inventing unsupported long-term canon or shared history"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "4c8d5f9431ea35a76e29c6f6c8ed0807774851bf0955fa8c20297d9e523f69fc",
+            "wireMessageCount": 4,
+            "requestBodySha256": "f8d3324b4b1bcbe4128af9a6a219c83193fe8b9642c70c651b8d94c0f2b98bbd",
+            "requestBodyKeys": [
+              "include_reasoning",
+              "messages",
+              "model",
+              "provider",
+              "reasoning",
+              "service_tier",
+              "stream",
+              "stream_options"
+            ],
+            "wireControls": {
+              "model": "google/gemini-3.8-flash",
+              "reasoning": {
+                "effort": "low",
+                "exclude": true
+              },
+              "service_tier": "flex",
+              "provider": {
+                "only": [
+                  "google-ai-studio"
+                ],
+                "allow_fallbacks": false,
+                "require_parameters": true
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "false_canon_trap",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "persona-known preferences such as fruit, street food, and good food are grounded and may be used",
+              "do not fabricate unsupported preferences, prior meals, medical/body history, work history, promises, or shared events",
+              "distinguish canon fact from character inference or playful guess"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "8884a301909eac3c6c6153d947c64bba2e65db53ef0032586d846e489fa3086b",
+            "wireMessageCount": 4,
+            "requestBodySha256": "e19c3a1bc1a5bdfded350df6e2446cfabd00abcecb85a69a708847e554e98c1e",
+            "requestBodyKeys": [
+              "include_reasoning",
+              "messages",
+              "model",
+              "provider",
+              "reasoning",
+              "service_tier",
+              "stream",
+              "stream_options"
+            ],
+            "wireControls": {
+              "model": "google/gemini-3.8-flash",
+              "reasoning": {
+                "effort": "low",
+                "exclude": true
+              },
+              "service_tier": "flex",
+              "provider": {
+                "only": [
+                  "google-ai-studio"
+                ],
+                "allow_fallbacks": false,
+                "require_parameters": true
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          }
+        ]
+      },
+      {
+        "modelId": "gpt-5.6-terra",
+        "label": "GPT-5.6 Terra",
+        "provider": "cheaperinference",
+        "pricing": {
+          "canonicalModelId": "gpt-5.6-terra",
+          "pricingVersion": 2,
+          "publishedAt": "2026-09-19T00:00:00.000Z",
+          "billingReferenceInputUsdPerMillion": 2,
+          "billingReferenceOutputUsdPerMillion": 12,
+          "billingReferenceCacheReadUsdPerMillion": 0.2,
+          "billingReferenceCacheWriteUsdPerMillion": 2,
+          "targetMargin": 0.3,
+          "minimumMarginFloor": 0.15
+        },
+        "cases": [
+          {
+            "caseId": "production_midchat_t1",
+            "targetResponseChars": 3200,
+            "reviewFocus": [
+              "character voice and Korean webnovel prose",
+              "actual persona/canon grounding",
+              "standard interactive user-authoring boundary",
+              "latency/output-control/transport hygiene"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "1314dd77e9d7ad360242f2e008cd2baf9df78e383a134c01d826fdc6f92c7398",
+            "wireMessageCount": 4,
+            "requestBodySha256": "9f29f9853d6ba6d22cc268bf96ed09809b003873b8d6f2d3138aaf8a4137e661",
+            "requestBodyKeys": [
+              "messages",
+              "model",
+              "reasoning",
+              "reasoning_effort",
+              "stream",
+              "stream_options",
+              "temperature"
+            ],
+            "wireControls": {
+              "model": "gpt-5.6-terra",
+              "temperature": 0.7,
+              "reasoning": {
+                "effort": "none"
+              },
+              "reasoning_effort": "none",
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [
+                "reasoning",
+                "reasoning_effort"
+              ],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "persona_grounded_reaction",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "do not penalize persona-grounded visible behavior merely because the model narrates the user persona",
+              "the persona canon says 렌 is poor with machines and tilts his head when he does not understand",
+              "private inner emotion or new important decision still requires the runtime owner to allow it"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "c7065c96bfdcc45d83ef3a66d0a435f8eb0a369b5fc9202979c475eb6486ff15",
+            "wireMessageCount": 4,
+            "requestBodySha256": "db014a53968d72ad615a635a2379c9a31ab9ccd5e18eec87af7cac1cbac535a7",
+            "requestBodyKeys": [
+              "messages",
+              "model",
+              "reasoning",
+              "reasoning_effort",
+              "stream",
+              "stream_options",
+              "temperature"
+            ],
+            "wireControls": {
+              "model": "gpt-5.6-terra",
+              "temperature": 0.7,
+              "reasoning": {
+                "effort": "none"
+              },
+              "reasoning_effort": "none",
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [
+                "reasoning",
+                "reasoning_effort"
+              ],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "agency_boundary",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "NORMAL may co-author user-persona dialogue, observable important actions, and local acceptance/refusal when grounded in persona/current scene",
+              "private inner POV and irreversible user fate remain outside NORMAL",
+              "AI character may act proactively without inventing unsupported long-term canon or shared history"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "4c8d5f9431ea35a76e29c6f6c8ed0807774851bf0955fa8c20297d9e523f69fc",
+            "wireMessageCount": 4,
+            "requestBodySha256": "0d413586342359cfc96efa671978db0523228521eb3056cfa1e3464c34067aa5",
+            "requestBodyKeys": [
+              "messages",
+              "model",
+              "reasoning",
+              "reasoning_effort",
+              "stream",
+              "stream_options",
+              "temperature"
+            ],
+            "wireControls": {
+              "model": "gpt-5.6-terra",
+              "temperature": 0.7,
+              "reasoning": {
+                "effort": "none"
+              },
+              "reasoning_effort": "none",
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [
+                "reasoning",
+                "reasoning_effort"
+              ],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "false_canon_trap",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "persona-known preferences such as fruit, street food, and good food are grounded and may be used",
+              "do not fabricate unsupported preferences, prior meals, medical/body history, work history, promises, or shared events",
+              "distinguish canon fact from character inference or playful guess"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "8884a301909eac3c6c6153d947c64bba2e65db53ef0032586d846e489fa3086b",
+            "wireMessageCount": 4,
+            "requestBodySha256": "7f722e80e687fbf65aea24e6c854d475ba508ad9271e001de8f31932b23df6fe",
+            "requestBodyKeys": [
+              "messages",
+              "model",
+              "reasoning",
+              "reasoning_effort",
+              "stream",
+              "stream_options",
+              "temperature"
+            ],
+            "wireControls": {
+              "model": "gpt-5.6-terra",
+              "temperature": 0.7,
+              "reasoning": {
+                "effort": "none"
+              },
+              "reasoning_effort": "none",
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [],
+              "added": [
+                "reasoning",
+                "reasoning_effort"
+              ],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          }
+        ]
+      },
+      {
+        "modelId": "claude-opus-5.5",
+        "label": "Claude Opus 5.5",
+        "provider": "cheaperinference",
+        "pricing": {
+          "canonicalModelId": "claude-opus-5.5",
+          "pricingVersion": 1,
+          "publishedAt": "2026-09-23T12:00:00.000Z",
+          "billingReferenceInputUsdPerMillion": 4.3076923076923075,
+          "billingReferenceOutputUsdPerMillion": 21.538461538461537,
+          "billingReferenceCacheReadUsdPerMillion": 4.3076923076923075,
+          "billingReferenceCacheWriteUsdPerMillion": 4.3076923076923075,
+          "targetMargin": 0,
+          "minimumMarginFloor": 0
+        },
+        "cases": [
+          {
+            "caseId": "production_midchat_t1",
+            "targetResponseChars": 3200,
+            "reviewFocus": [
+              "character voice and Korean webnovel prose",
+              "actual persona/canon grounding",
+              "standard interactive user-authoring boundary",
+              "latency/output-control/transport hygiene"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "cc595a71cbbb020d5f9676d0b09a9facc4d88a124a332aa3ff6859fb8b5506e4",
+            "wireMessageCount": 4,
+            "requestBodySha256": "429071ce23bbd10fa550d425c94d5f6310bfed502100812011f5aca38fa8d720",
+            "requestBodyKeys": [
+              "messages",
+              "model",
+              "output_config",
+              "reasoning_effort",
+              "stream",
+              "stream_options",
+              "temperature",
+              "thinking"
+            ],
+            "wireControls": {
+              "model": "claude-opus-5.5",
+              "temperature": 0.82,
+              "thinking": {
+                "type": "disabled"
+              },
+              "reasoning_effort": "low",
+              "output_config": {
+                "effort": "low"
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty"
+              ],
+              "added": [
+                "output_config",
+                "reasoning_effort",
+                "thinking"
+              ],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "persona_grounded_reaction",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "do not penalize persona-grounded visible behavior merely because the model narrates the user persona",
+              "the persona canon says 렌 is poor with machines and tilts his head when he does not understand",
+              "private inner emotion or new important decision still requires the runtime owner to allow it"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "b4a0571e8b90e6acc874b6cf9a600be35749df99e093f546e108140df4c03754",
+            "wireMessageCount": 4,
+            "requestBodySha256": "32102b0c88754eecc362b4d4fec0d4a55e2ff85bd304986c7167d158a9df703b",
+            "requestBodyKeys": [
+              "messages",
+              "model",
+              "output_config",
+              "reasoning_effort",
+              "stream",
+              "stream_options",
+              "temperature",
+              "thinking"
+            ],
+            "wireControls": {
+              "model": "claude-opus-5.5",
+              "temperature": 0.82,
+              "thinking": {
+                "type": "disabled"
+              },
+              "reasoning_effort": "low",
+              "output_config": {
+                "effort": "low"
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty"
+              ],
+              "added": [
+                "output_config",
+                "reasoning_effort",
+                "thinking"
+              ],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "agency_boundary",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "NORMAL may co-author user-persona dialogue, observable important actions, and local acceptance/refusal when grounded in persona/current scene",
+              "private inner POV and irreversible user fate remain outside NORMAL",
+              "AI character may act proactively without inventing unsupported long-term canon or shared history"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "ee926646bbac74a7a20e4eed88fcc38f34c2140f33b63c230fd5c0d0f5e933ff",
+            "wireMessageCount": 4,
+            "requestBodySha256": "5cb4f28d898fe51ba2fb9444cc095f47bb452ec67707eb28b013ea6727685ce8",
+            "requestBodyKeys": [
+              "messages",
+              "model",
+              "output_config",
+              "reasoning_effort",
+              "stream",
+              "stream_options",
+              "temperature",
+              "thinking"
+            ],
+            "wireControls": {
+              "model": "claude-opus-5.5",
+              "temperature": 0.82,
+              "thinking": {
+                "type": "disabled"
+              },
+              "reasoning_effort": "low",
+              "output_config": {
+                "effort": "low"
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty"
+              ],
+              "added": [
+                "output_config",
+                "reasoning_effort",
+                "thinking"
+              ],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          },
+          {
+            "caseId": "false_canon_trap",
+            "targetResponseChars": 2200,
+            "reviewFocus": [
+              "persona-known preferences such as fruit, street food, and good food are grounded and may be used",
+              "do not fabricate unsupported preferences, prior meals, medical/body history, work history, promises, or shared events",
+              "distinguish canon fact from character inference or playful guess"
+            ],
+            "systemPromptSha256": "52b065a795f36cb1e8224c6a99ba4e635ae556653833d46a74edb3a3c9f9df85",
+            "systemPromptChars": 17678,
+            "wireMessagesSha256": "fa56dfe8793e640d2c42a6e07f192464f6ed8c6be329e4aa62e36b42dc9a3f02",
+            "wireMessageCount": 4,
+            "requestBodySha256": "557f59f163150a21a4eb832d2273695fab1ec72fac1e2d1161988d8e40695fa0",
+            "requestBodyKeys": [
+              "messages",
+              "model",
+              "output_config",
+              "reasoning_effort",
+              "stream",
+              "stream_options",
+              "temperature",
+              "thinking"
+            ],
+            "wireControls": {
+              "model": "claude-opus-5.5",
+              "temperature": 0.82,
+              "thinking": {
+                "type": "disabled"
+              },
+              "reasoning_effort": "low",
+              "output_config": {
+                "effort": "low"
+              },
+              "stream": true
+            },
+            "adaptationKeyDiff": {
+              "removed": [
+                "frequency_penalty",
+                "presence_penalty",
+                "repetition_penalty"
+              ],
+              "added": [
+                "output_config",
+                "reasoning_effort",
+                "thinking"
+              ],
+              "changed": []
+            },
+            "collaborativeOwnerCount": 0,
+            "effectiveCoauthorOwnerCount": 1
+          }
+        ]
+      }
+    ]
+  },
+  "offer": null,
+  "actualBilledUsd": null,
+  "priceStability7d": "NOT_OBSERVED",
+  "priceStability30d": "NOT_OBSERVED",
+  "adultQualification": {
+    "status": "NOT_RUN",
+    "policyConfirmed": false,
+    "fixtureOwner": "scripts/lib/proseDietFixtures.ts#PROSE_DIET_ADULT_FIXTURE",
+    "productionActivation": false
+  },
+  "requiredEvidence": [
+    "exact model/offer/upstream mapping",
+    "request controls and cache parity",
+    "ZDR request syntax",
+    "context pricing",
+    "USD billed field semantics",
+    "adult content permission and separate raw refusal/allow evidence"
+  ],
+  "liveOperations": [
+    "generation",
+    "regeneration",
+    "continuation",
+    "long_context"
+  ],
+  "notes": [
+    "No RP quality score; raw outputs require GPT/user review.",
+    "Transport observations are not production qualification or permission.",
+    "No automatic routing, retry, failover, point repricing, production ledger writes, or Railway changes."
+  ],
+  "executedSourceSha": "2316a1d6250c2174a77992623b50e0edfd6bbc52",
+  "auditMainSha": "2316a1d6250c2174a77992623b50e0edfd6bbc52",
+  "sourceTreeDirty": true
+}

@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import type { GithubAutomationProjection } from "@/lib/adminAutomationReports";
 import { buildOpenRouterContractWatchProjection } from "@/lib/openRouterContractWatch";
 import {
   ensurePayoutTransferAttemptsSchema,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/pointChargeRefundAttempts";
 import { listSchedulerRunOverview } from "@/lib/schedulerRunRegistry";
 import type { SchedulerRunOverviewState } from "@/lib/schedulerRunShared";
+import { WEB_PUSH_MAX_ATTEMPTS } from "@/lib/webPush";
 import {
   ADMIN_OPS_STUCK_EXECUTION_MINUTES,
   type AdminOpsIncident,
@@ -33,6 +35,13 @@ type PointRefundOpsRow = {
   failure_message: string;
   claimed_at: string;
   dispatched_at: string | null;
+};
+
+type WebPushOpsRow = {
+  id: number;
+  attempts: number;
+  claim_token: string | null;
+  claimed_until: string | null;
 };
 
 const SCHEDULER_INCIDENT_STATES = new Set<SchedulerRunOverviewState>([
@@ -90,6 +99,67 @@ function schedulerIncidentSummary(
     default:
       return "운영 확인이 필요한 스케줄 상태입니다.";
   }
+}
+
+const GITHUB_AUTOMATION_IGNORED_CONCLUSIONS = new Set(["success", "neutral", "skipped"]);
+const GITHUB_AUTOMATION_CRITICAL_CONCLUSIONS = new Set([
+  "failure",
+  "timed_out",
+  "startup_failure",
+  "action_required",
+]);
+
+export function projectGithubAutomationIncidents(
+  projection: GithubAutomationProjection,
+  now: Date = new Date()
+): AdminOpsIncident[] {
+  if (projection.status !== "OK") return [];
+  const nowMs = now.getTime();
+  const incidents: AdminOpsIncident[] = [];
+
+  for (const group of projection.groups) {
+    const run = group.latest;
+    if (run.status !== "completed") continue;
+    const conclusion = (run.conclusion ?? "").trim().toLowerCase();
+    if (!conclusion || GITHUB_AUTOMATION_IGNORED_CONCLUSIONS.has(conclusion)) continue;
+
+    const severity: AdminOpsIncidentSeverity =
+      GITHUB_AUTOMATION_CRITICAL_CONCLUSIONS.has(conclusion) ? "critical" : "warning";
+    const occurredAt = run.updatedAt || run.createdAt;
+    incidents.push({
+      id: `github_automation:${group.key}`,
+      source: "github_automation",
+      severity,
+      state: conclusion.toUpperCase(),
+      title: `${group.name} · ${conclusion}`,
+      summary:
+        `최신 scheduled run #${run.runNumber}이 ${conclusion} 상태로 종료되었습니다. ` +
+        "자동 재실행은 하지 않으며 기존 자동화 보고서/워크플로에서 원인을 확인해야 합니다.",
+      sourceRef: `${group.path} / run #${run.runNumber}`,
+      occurredAt,
+      ageMinutes: ageMinutes(nowMs, occurredAt),
+      href: run.htmlUrl || "/admin/automation-reports",
+    });
+  }
+
+  return incidents;
+}
+
+export function mergeAdminOpsIncidents(
+  groups: readonly (readonly AdminOpsIncident[])[],
+  limit = 200
+): AdminOpsIncident[] {
+  const capped = Math.min(Math.max(1, Math.floor(limit)), 500);
+  return groups
+    .flatMap((group) => [...group])
+    .sort((a, b) => {
+      const severityDelta = severityRank(a.severity) - severityRank(b.severity);
+      if (severityDelta !== 0) return severityDelta;
+      const ageDelta = (b.ageMinutes ?? -1) - (a.ageMinutes ?? -1);
+      if (ageDelta !== 0) return ageDelta;
+      return a.id.localeCompare(b.id);
+    })
+    .slice(0, capped);
 }
 
 export function listAdminOpsIncidents(
@@ -210,6 +280,75 @@ export function listAdminOpsIncidents(
     });
   }
 
+  const webPushRows = db
+    .prepare(
+      `SELECT id, attempts, claim_token, claimed_until
+         FROM web_push_outbox
+        WHERE sent_at IS NULL
+          AND (
+            attempts >= 3
+            OR (claim_token IS NOT NULL AND claimed_until IS NOT NULL)
+          )
+        ORDER BY id DESC
+        LIMIT 500`
+    )
+    .all() as WebPushOpsRow[];
+
+  for (const row of webPushRows) {
+    if (row.attempts >= WEB_PUSH_MAX_ATTEMPTS) {
+      incidents.push({
+        id: `web_push:${row.id}`,
+        source: "web_push",
+        severity: "critical",
+        state: "EXHAUSTED",
+        title: `웹푸시 outbox #${row.id} · EXHAUSTED`,
+        summary:
+          `웹푸시 전송이 최대 ${WEB_PUSH_MAX_ATTEMPTS}회 시도 후 소진되어 자동 재시도가 중단되었습니다. ` +
+          "canonical outbox row를 확인해야 합니다.",
+        sourceRef: `outbox:${row.id} / attempts=${row.attempts}`,
+        occurredAt: "",
+        ageMinutes: null,
+        href: null,
+      });
+      continue;
+    }
+
+    if (row.attempts >= 3) {
+      incidents.push({
+        id: `web_push:${row.id}`,
+        source: "web_push",
+        severity: "warning",
+        state: "REPEATED_FAILURE",
+        title: `웹푸시 outbox #${row.id} · 반복 실패`,
+        summary:
+          `웹푸시 전송이 ${row.attempts}회 실패했습니다. ` +
+          "다음 재시도 시점과 backoff는 canonical outbox가 계속 소유합니다.",
+        sourceRef: `outbox:${row.id} / attempts=${row.attempts}`,
+        occurredAt: "",
+        ageMinutes: null,
+        href: null,
+      });
+      continue;
+    }
+
+    const staleAge = ageMinutes(nowMs, row.claimed_until);
+    if (row.claim_token && isStuck(staleAge)) {
+      incidents.push({
+        id: `web_push:${row.id}`,
+        source: "web_push",
+        severity: "warning",
+        state: "STALE_CLAIM",
+        title: `웹푸시 outbox #${row.id} · stale claim`,
+        summary:
+          "claim lease가 만료된 뒤에도 장시간 row가 남아 있습니다. 정상 delivery wake라면 stale reclaim 대상입니다.",
+        sourceRef: `outbox:${row.id}`,
+        occurredAt: row.claimed_until ?? "",
+        ageMinutes: staleAge,
+        href: null,
+      });
+    }
+  }
+
   const contractWatch = buildOpenRouterContractWatchProjection(db, now);
   if (contractWatch.quoteReviewRecommended) {
     const coverage =
@@ -237,14 +376,5 @@ export function listAdminOpsIncidents(
     });
   }
 
-  const capped = Math.min(Math.max(1, Math.floor(limit)), 500);
-  return incidents
-    .sort((a, b) => {
-      const severityDelta = severityRank(a.severity) - severityRank(b.severity);
-      if (severityDelta !== 0) return severityDelta;
-      const ageDelta = (b.ageMinutes ?? -1) - (a.ageMinutes ?? -1);
-      if (ageDelta !== 0) return ageDelta;
-      return a.id.localeCompare(b.id);
-    })
-    .slice(0, capped);
+  return mergeAdminOpsIncidents([incidents], limit);
 }

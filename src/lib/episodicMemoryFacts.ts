@@ -93,6 +93,13 @@ export type EpisodicMemoryFactRecord = EpisodicExtractedFact & {
 
 export type EpisodicDynamicBudgetPolicy = "baseline" | "reserved_floor" | "shared_allocator";
 
+export type EpisodicRerankingPolicy = {
+  lexicalWeight?: number;
+  importanceWeight?: number;
+  recencyWeight?: number;
+  milestoneBonus?: number;
+};
+
 export type GetEpisodicMemoryForPromptInput = {
   chatId: number;
   characterId?: number | null;
@@ -114,6 +121,11 @@ export type GetEpisodicMemoryForPromptInput = {
    * Production omits this and uses reserved_floor.
    */
   dynamicBudgetPolicy?: EpisodicDynamicBudgetPolicy;
+  /**
+   * Research-only reranking override. Production omits this and uses the
+   * canonical 4/1/1/+2 weights. Relevance admission is intentionally fixed.
+   */
+  rerankingPolicy?: EpisodicRerankingPolicy;
   /**
    * Optional semantic query from the canonical semantic runtime. Absent/null
    * keeps exact lexical Retrieval V2 (no semantic lane, no semantic evidence).
@@ -1240,6 +1252,46 @@ export function deleteEpisodicMemoryFactsByAssistantMessageIds(
   return Number(result.changes) || 0;
 }
 
+/**
+ * User material edit does not replace the turn's Shared Initial extraction.
+ * Delete only that per-turn tier. Summary-seal rows stay with
+ * invalidateSummarySealBatchEpisodicFactsForSourceMutation.
+ */
+export function deleteSharedEpisodicFactsForEditedUserSource(
+  db: Database.Database,
+  opts: {
+    chatId: number;
+    sourceUserMessageId?: number | null;
+    sourceTurn?: number | null;
+  }
+): number {
+  const scopedChatId = finitePositiveInt(opts.chatId);
+  if (!scopedChatId) return 0;
+  const sourceUserMessageId = finitePositiveInt(opts.sourceUserMessageId);
+  const sourceTurn = finitePositiveInt(opts.sourceTurn);
+  if (sourceUserMessageId == null && sourceTurn == null) return 0;
+
+  const result = db
+    .prepare(
+      `DELETE FROM episodic_memory_facts
+       WHERE chat_id = ?
+         AND json_valid(metadata) = 1
+         AND json_extract(metadata, '$.extraction') = 'shared_initial_per_turn'
+         AND (
+           (? IS NOT NULL AND source_user_message_id = ?)
+           OR (? IS NOT NULL AND source_turn = ?)
+         )`
+    )
+    .run(
+      scopedChatId,
+      sourceUserMessageId,
+      sourceUserMessageId,
+      sourceTurn,
+      sourceTurn
+    );
+  return Number(result.changes) || 0;
+}
+
 function parseMetadataIdArray(raw: unknown): number[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -1313,27 +1365,94 @@ function normalizeRetrievalToken(token: string): string {
 }
 
 function tokenizeForSimpleBoost(text: string): string[] {
-  return [
-    ...new Set(
-      text
-        .split(/[^a-z0-9가-힣_]+/i)
-        .map(normalizeRetrievalToken)
-        .filter((x) => x.length >= 2)
-        .slice(0, 32)
-    ),
-  ];
+  const seen = new Set<string>();
+  const tokens: string[] = [];
+  const push = (token: string) => {
+    if (token.length < 2 || seen.has(token) || tokens.length >= 32) return;
+    seen.add(token);
+    tokens.push(token);
+  };
+  for (const raw of text.split(/[^a-z0-9가-힣_]+/i)) {
+    if (!raw) continue;
+    // Keep the surface form before particle strip. Stripping 이/는/에 first
+    // then applying length>=2 drops the only tokens that still match stored
+    // Korean fact_text (달이→달, 뜨는→뜨, 밤에→밤).
+    push(raw.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ""));
+    push(normalizeRetrievalToken(raw));
+  }
+  return tokens;
 }
 
-function factSearchText(fact: EpisodicExtractedFact): string {
+function factSearchText(
+  fact: Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text">
+): string {
   const safeFactText = sanitizeRecalledMemoryFactText(fact.fact_text);
   return `${fact.subject} ${fact.attribute} ${fact.value} ${safeFactText}`.toLowerCase();
 }
 
-function lexicalRelevance(fact: EpisodicExtractedFact, currentUserMessage: string): number {
+function lexicalRelevance(
+  fact: Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text">,
+  currentUserMessage: string
+): number {
   const tokens = tokenizeForSimpleBoost(currentUserMessage);
   if (tokens.length === 0) return 0;
   const haystack = factSearchText(fact);
   return Math.min(2, tokens.filter((token) => haystack.includes(token)).length);
+}
+
+/** Existing-owner diagnostic — same tokenizer/scorer as production ranking. */
+export function inspectLexicalRelevanceForDebug(
+  fact: Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text">,
+  query: string
+): {
+  rawTokens: string[];
+  tokensBeforeSlice: string[];
+  tokensAfterFirst5: string[];
+  tokens: Array<{
+    raw: string;
+    normalized: string;
+    lengthFilterPass: boolean;
+    relevanceLaneSelected: boolean;
+    sqlLike: string | null;
+    targetSubjectMatch: boolean;
+    targetAttributeMatch: boolean;
+    targetValueMatch: boolean;
+    targetFactTextMatch: boolean;
+  }>;
+  relevanceScore: number;
+  factSearchText: string;
+} {
+  const haystack = factSearchText(fact);
+  const rawTokens = query.split(/[^a-z0-9가-힣_]+/i).filter(Boolean);
+  const tokensBeforeSlice = tokenizeForSimpleBoost(query);
+  const tokensAfterFirst5 = tokensBeforeSlice.slice(0, 5);
+  const subject = String(fact.subject ?? "").toLowerCase();
+  const attribute = String(fact.attribute ?? "").toLowerCase();
+  const value = String(fact.value ?? "").toLowerCase();
+  const factText = String(sanitizeRecalledMemoryFactText(fact.fact_text) ?? "").toLowerCase();
+  return {
+    rawTokens,
+    tokensBeforeSlice,
+    tokensAfterFirst5,
+    tokens: rawTokens.map((raw) => {
+      const normalized = normalizeRetrievalToken(raw);
+      const lengthFilterPass = normalized.length >= 2;
+      const selected = lengthFilterPass && tokensAfterFirst5.includes(normalized);
+      return {
+        raw,
+        normalized,
+        lengthFilterPass,
+        relevanceLaneSelected: selected,
+        sqlLike: lengthFilterPass ? `%${normalized}%` : null,
+        targetSubjectMatch: lengthFilterPass && subject.includes(normalized),
+        targetAttributeMatch: lengthFilterPass && attribute.includes(normalized),
+        targetValueMatch: lengthFilterPass && value.includes(normalized),
+        targetFactTextMatch: lengthFilterPass && factText.includes(normalized),
+      };
+    }),
+    relevanceScore: lexicalRelevance(fact, query),
+    factSearchText: haystack,
+  };
 }
 
 function normalizeForMemoryDedupe(text: string): string {
@@ -1544,6 +1663,15 @@ export type EpisodicStateReconcileStats = {
   keysDroppedDueToCap: number;
   keysOmittedBlockedLatest: number;
   keysOmittedRawWindow: number;
+};
+
+export type ReconcileGlobalStateLikeFactsOptions = {
+  /**
+   * Spend the key-cap lookup budget on these rows first.
+   * Overflow keys are still dropped — this only changes which 25 keys are reconciled.
+   * Callers must not prefer semantic-only rows; that resurrects stale/false state.
+   */
+  preferRowIds?: ReadonlySet<number>;
 };
 
 export type EpisodicLaneBudgets = {
@@ -1773,6 +1901,22 @@ function isStateLikeForGlobalReconciliation(row: EpisodicMemoryFactRecord): bool
   return nature !== "historical_event" && nature !== "clearly_temporary";
 }
 
+function lanePrefersStateReconcileBudget(lane: EpisodicCandidateLane): boolean {
+  switch (lane) {
+    case "relevance":
+    case "milestone_critical":
+    case "milestone_important":
+      return true;
+    case "semantic":
+    case "recent":
+      return false;
+    default: {
+      const _exhaustive: never = lane;
+      return _exhaustive;
+    }
+  }
+}
+
 function filterHistoricalMilestoneRows(
   rows: EpisodicMemoryFactRecord[],
   keepLimit: number
@@ -1816,11 +1960,25 @@ function fetchLatestBoundedStateRowForKey(
 export function reconcileGlobalStateLikeFacts(
   db: Database.Database,
   scope: EpisodicCandidateScope,
-  rows: EpisodicMemoryFactRecord[]
+  rows: EpisodicMemoryFactRecord[],
+  options?: ReconcileGlobalStateLikeFactsOptions
 ): { rows: EpisodicMemoryFactRecord[]; stats: EpisodicStateReconcileStats } {
-  const stateKeys = [
-    ...new Set(rows.filter(isStateLikeForGlobalReconciliation).map(episodicLogicalKey)),
-  ];
+  const stateRows = rows.filter(isStateLikeForGlobalReconciliation);
+  const seenKeys = new Set<string>();
+  const stateKeys: string[] = [];
+  const pushStateKey = (row: EpisodicMemoryFactRecord) => {
+    const key = episodicLogicalKey(row);
+    if (seenKeys.has(key)) return;
+    seenKeys.add(key);
+    stateKeys.push(key);
+  };
+  const preferRowIds = options?.preferRowIds;
+  if (preferRowIds && preferRowIds.size > 0) {
+    for (const row of stateRows) {
+      if (preferRowIds.has(row.id)) pushStateKey(row);
+    }
+  }
+  for (const row of stateRows) pushStateKey(row);
   const keysDiscovered = stateKeys.length;
   if (keysDiscovered === 0) {
     return {
@@ -2337,12 +2495,55 @@ type EpisodicSemanticEvidence = {
   weight: number;
 };
 
+const DEFAULT_EPISODIC_RERANKING_POLICY = {
+  lexicalWeight: 4,
+  importanceWeight: 1,
+  recencyWeight: 1,
+  milestoneBonus: 2,
+} as const;
+
+type ResolvedEpisodicRerankingPolicy = {
+  lexicalWeight: number;
+  importanceWeight: number;
+  recencyWeight: number;
+  milestoneBonus: number;
+};
+
+function boundedRerankingWeight(value: number | undefined, fallback: number): number {
+  if (value == null || !Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.min(20, value));
+}
+
+export function resolveEpisodicRerankingPolicy(
+  policy?: EpisodicRerankingPolicy
+): ResolvedEpisodicRerankingPolicy {
+  return {
+    lexicalWeight: boundedRerankingWeight(
+      policy?.lexicalWeight,
+      DEFAULT_EPISODIC_RERANKING_POLICY.lexicalWeight
+    ),
+    importanceWeight: boundedRerankingWeight(
+      policy?.importanceWeight,
+      DEFAULT_EPISODIC_RERANKING_POLICY.importanceWeight
+    ),
+    recencyWeight: boundedRerankingWeight(
+      policy?.recencyWeight,
+      DEFAULT_EPISODIC_RERANKING_POLICY.recencyWeight
+    ),
+    milestoneBonus: boundedRerankingWeight(
+      policy?.milestoneBonus,
+      DEFAULT_EPISODIC_RERANKING_POLICY.milestoneBonus
+    ),
+  };
+}
+
 /** The only final ranking and relevance policy for episodic recall. */
 function scoreFactForPrompt(
   fact: EpisodicMemoryFactRecord,
   currentMessage: string,
   currentTurn: number | null,
-  semantic?: EpisodicSemanticEvidence
+  semantic: EpisodicSemanticEvidence | undefined,
+  reranking: ResolvedEpisodicRerankingPolicy
 ) {
   const relevance = lexicalRelevance(fact, currentMessage);
   const importance = IMPORTANCE_RANK[fact.importance] - 1;
@@ -2368,10 +2569,10 @@ function scoreFactForPrompt(
     recency,
     semanticSimilarity,
     composite:
-      relevance * 4 +
-      importance +
-      recency +
-      (milestone ? 2 : 0) +
+      relevance * reranking.lexicalWeight +
+      importance * reranking.importanceWeight +
+      recency * reranking.recencyWeight +
+      (milestone ? reranking.milestoneBonus : 0) +
       (semanticPass ? semantic.weight * semanticSimilarity : 0),
     passes,
   };
@@ -2610,14 +2811,21 @@ export function getEpisodicMemoryForPrompt(
         });
       }
     }
+    const currentMessage = input.currentUserMessage ?? "";
+    const preferRowIds = new Set<number>();
+    for (const row of uncontaminatedRows) {
+      const lanes = laneById.get(row.id);
+      if (lanes?.some(lanePrefersStateReconcileBudget)) preferRowIds.add(row.id);
+      if (lexicalRelevance(row, currentMessage) > 0) preferRowIds.add(row.id);
+    }
     const { rows: stateReconciledRows, stats: stateReconcileStats } = reconcileGlobalStateLikeFacts(
       db,
       scope,
-      uncontaminatedRows
+      uncontaminatedRows,
+      { preferRowIds }
     );
     const resolved = resolveLatestFactsByLogicalKey(stateReconciledRows);
     const skippedConflictFactsCount = Math.max(0, stateReconciledRows.length - resolved.length);
-    const currentMessage = input.currentUserMessage ?? "";
     const debugById = new Map<number, EpisodicMemorySelectionDebug>();
     for (const fact of resolved) {
       debugById.set(fact.id, {
@@ -2663,10 +2871,17 @@ export function getEpisodicMemoryForPrompt(
       deduped.push(fact);
     }
 
+    const rerankingPolicy = resolveEpisodicRerankingPolicy(input.rerankingPolicy);
     const scores = new Map(
       deduped.map((fact) => [
         fact.id,
-        scoreFactForPrompt(fact, currentMessage, currentTurn, semanticEvidenceFor(fact)),
+        scoreFactForPrompt(
+          fact,
+          currentMessage,
+          currentTurn,
+          semanticEvidenceFor(fact),
+          rerankingPolicy
+        ),
       ])
     );
     for (const fact of deduped) {
@@ -2871,7 +3086,13 @@ export function inspectEpisodicMemoryFactsForDebug(
   const eligible = inspected
     .filter((fact) => !fact.blocked_reason && !fact.duplicate_reason)
     .filter((fact) => {
-      const score = scoreFactForPrompt(fact, opts.currentUserMessage ?? "", currentTurn);
+      const score = scoreFactForPrompt(
+        fact,
+        opts.currentUserMessage ?? "",
+        currentTurn,
+        undefined,
+        resolveEpisodicRerankingPolicy()
+      );
       scoreById.set(fact.id, score);
       fact.relevance_score = score.relevance;
       fact.importance_score = score.importance;

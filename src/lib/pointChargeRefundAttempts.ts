@@ -48,6 +48,24 @@ export function stableRefundRequestId(chargeBatchId: number): string {
   return `refund-${chargeBatchId}`;
 }
 
+export function getPointChargeRefundAttemptByPaymentId(
+  db: Database.Database,
+  paymentId: string
+): PointChargeRefundAttemptRow | null {
+  const row = db
+    .prepare(
+      `SELECT id, charge_batch_id, portone_checkout_id, payment_id, refund_request_id,
+              state, provider_cancellation_id, provider_status, failure_code,
+              failure_message, claimed_at, dispatched_at, resolved_at
+       FROM point_charge_refund_attempts
+       WHERE payment_id = ?
+       ORDER BY id DESC
+       LIMIT 1`
+    )
+    .get(paymentId) as PointChargeRefundAttemptRow | undefined;
+  return row ?? null;
+}
+
 export function getPointChargeRefundAttempt(
   db: Database.Database,
   chargeBatchId: number

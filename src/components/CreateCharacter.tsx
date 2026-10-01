@@ -32,12 +32,18 @@ import StatusWidgetEditor from "@/components/StatusWidgetEditor";
 import StatusWidgetTriggerEditor, {
   type StatusWidgetTriggerDraft,
 } from "@/components/StatusWidgetTriggerEditor";
+import JsxComponentCatalogEditor from "@/components/JsxComponentCatalogEditor";
 import {
   characterStatusWidgetOrDefault,
   parseStatusWidgetJson,
   serializeStatusWidget,
   type StatusWidget,
 } from "@/lib/statusWidget";
+import {
+  parseJsxComponentCatalog,
+  serializeJsxComponentCatalog,
+  type JsxComponentRecord,
+} from "@/lib/jsxComponent";
 
 import type { CharacterWorldSourceKind } from "@/lib/worldPermissions";
 import { isBorrowAvailableForNewUse, worldPrivatePromptContent } from "@/lib/worlds";
@@ -225,6 +231,7 @@ export default function CreateCharacter({
     characterStatusWidgetOrDefault(null),
   );
   const [statusWidgetTriggers, setStatusWidgetTriggers] = useState<StatusWidgetTriggerDraft[]>([]);
+  const [jsxCatalog, setJsxCatalog] = useState<JsxComponentRecord[]>([]);
   const [pageTab, setPageTab] = useState<PageTab>("create");
   const draftRestoredRef = useRef(false);
 
@@ -747,6 +754,7 @@ export default function CreateCharacter({
         setStatusWidgetTriggers(
           Array.isArray(data.status_widget_triggers) ? data.status_widget_triggers : [],
         );
+        setJsxCatalog(parseJsxComponentCatalog(data.jsx_components_json));
       } catch {
         if (!cancelled)
           setEditLoadError("네트워크 오류로 캐릭터를 불러오지 못했습니다.");
@@ -1069,6 +1077,7 @@ export default function CreateCharacter({
       description,
       status_window_prompt: "",
       status_widget_json: serializeStatusWidget(statusWidget),
+      jsx_components_json: serializeJsxComponentCatalog(jsxCatalog),
       status_widget_triggers: statusWidgetTriggers,
       assets: finalAssets,
       visual_subjects: visualSubjects,
@@ -2260,6 +2269,11 @@ export default function CreateCharacter({
                 value={statusWidgetTriggers}
                 onChange={setStatusWidgetTriggers}
                 statusWidget={statusWidget}
+                disabled={loading}
+              />
+              <JsxComponentCatalogEditor
+                value={jsxCatalog}
+                onChange={setJsxCatalog}
                 disabled={loading}
               />
             </section>

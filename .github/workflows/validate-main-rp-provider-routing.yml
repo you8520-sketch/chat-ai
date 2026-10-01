@@ -15,7 +15,15 @@ on:
       - "scripts/lib/mainRpMonthlyCacheAudit.ts"
       - "scripts/lib/mainRpSupplyRadar.ts"
       - "scripts/lib/mainRpSupplyLiveQualification.ts"
+      - "scripts/lib/mainRpSupplyAutoDraft.ts"
+      - "scripts/main-rp-supply-auto-draft.ts"
+      - "scripts/main-rp-supply-route-assert.ts"
       - "scripts/lib/mainRpSupplyCurrentBaseline.ts"
+      - "scripts/lib/compatibleSupplyProbe.ts"
+      - "scripts/lib/fluenceProviderQualification.ts"
+      - "scripts/fluence-provider-qualification.ts"
+      - "scripts/lib/fluenceProviderQualification.test.ts"
+      - "src/lib/test/regularTestEgressPolicy.ts"
       - "scripts/lib/rpModelQualificationPacket.ts"
       - "**/*mainRp*test.ts"
       - "src/lib/chatModels.gemini.test.ts"
@@ -56,6 +64,11 @@ jobs:
           src/lib/chatBillingContractDispatch.test.ts
       - name: Main RP qualification packet
         run: node --conditions=react-server --import tsx scripts/lib/rpModelQualificationPacket.test.ts
+      - name: Fluence qualification contract (offline only)
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1 scripts/lib/fluenceProviderQualification.test.ts
       - name: Main RP cache and supply deterministic regressions
         run: >-
           node --conditions=react-server --import tsx --test --test-concurrency=1
@@ -64,5 +77,6 @@ jobs:
           scripts/lib/mainRpDirectSupplierRadar.test.ts
           scripts/lib/mainRpSupplyPromotionHistory.test.ts
           scripts/lib/mainRpSupplyPromotionProposal.test.ts
+          scripts/lib/mainRpSupplyAutoDraft.test.ts
           scripts/lib/mainRpSupplyLiveQualification.test.ts
           scripts/lib/mainRpSupplyCurrentBaseline.test.ts

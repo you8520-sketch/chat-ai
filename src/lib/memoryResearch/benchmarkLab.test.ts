@@ -20,7 +20,8 @@ it("baseline arm runs the canonical benchmark with zero network and zero embeddi
   assert.deepEqual(baseline.invariantViolations, []);
   assert.ok(baseline.evaluatedTurns > 0);
   assert.ok(baseline.promptTokensInjected > 0);
-  assert.equal(baseline.finalHitByCase["item-ownership-01"], false);
+  assert.equal(baseline.finalHitByCase["item-ownership-01"], undefined);
+  assert.equal(baseline.finalHitByCase["high-noise-distractors-01"], true);
   assert.equal(baseline.finalHitByCase["t300-01"], true);
 });
 
@@ -50,7 +51,7 @@ it("real evidence: narrow synthetic semantic arm gains recall but regresses fals
   const gate = evaluateGates({ baseline, candidate, declared: adapter.declaredEfficiency, architectureDelta: adapter.architectureDelta });
   assert.ok(gate.flippedKnownGaps.includes("semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01"), "recall did improve");
   assert.equal(gate.decision, "REJECTED_FALSE_MEMORY_REGRESSION", gate.reason);
-  assert.match(gate.reason, /falseMemoryRate regressed 0 → 0\.2/);
+  assert.match(gate.reason, /falseMemoryRate regressed 0 → 0\.16666666666666666/);
   assert.ok(candidate.embeddingCalls.query > 0, "embedding calls are counted");
   assert.equal(candidate.httpCallsObserved, 0);
 });

@@ -2,7 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { requireAdminUser } from "@/lib/adminAuth";
-import { fetchGithubScheduledAutomationProjection } from "@/lib/adminAutomationReports";
+import {
+  fetchMemoryResearchAdminProjection,
+  type MemoryResearchAdminProjection,
+} from "@/lib/adminMemoryResearchReports";
+import {
+  fetchGithubScheduledAutomationProjection,
+  fetchGithubSupplyAutoDraftProjection,
+} from "@/lib/adminAutomationReports";
 import {
   fetchCodeHealthAdminProjection,
   formatCodeHealthDeltaLines,
@@ -12,6 +19,10 @@ import { getDb } from "@/lib/db";
 import { fetchDecisionRadarAdminProjection } from "@/lib/decisionModelRadarReports";
 import { listMainRpCacheTtlReports } from "@/lib/mainRpCacheTtlEconomics";
 import { listSchedulerRunOverview } from "@/lib/schedulerRunRegistry";
+import {
+  buildSupplierDiscoveryReport,
+  type SupplierCandidateRecord,
+} from "@/lib/supplierDiscovery/discoverSuppliers";
 
 export const dynamic = "force-dynamic";
 
@@ -157,6 +168,456 @@ function CodeHealthCard({ card }: { card: CodeHealthAdminCard }) {
   );
 }
 
+function MemoryResearchCard({
+  projection,
+}: {
+  projection: MemoryResearchAdminProjection;
+}) {
+  const run = projection.run;
+  const state = run?.status ?? projection.status;
+  const readiness = run?.readiness;
+  const promptPacking = run?.promptPackingAudit ?? null;
+  const pipeline = projection.pipeline;
+  const hasPipeline =
+    pipeline.pendingLiveExperiments > 0 ||
+    pipeline.recordedLiveExperiments > 0 ||
+    pipeline.pendingImplementationPrs > 0 ||
+    pipeline.implementationPrs > 0 ||
+    pipeline.acceptedDraftPrs > 0;
+
+  return (
+    <section className="mt-6 rounded-2xl border border-fuchsia-500/20 bg-fuchsia-950/10 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-black text-fuchsia-200">
+            Memory Research Cycle
+          </h2>
+          <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+            메모리 기술 탐색 → owner 충돌 검사 → deterministic benchmark → case-port 계획을
+            수행하는 정기 연구 자동화입니다. 이 화면은 durable research ledger를 read-only로
+            표시하며 production memory를 수정하지 않습니다.
+          </p>
+        </div>
+        <span className={"rounded px-2 py-1 text-xs font-bold " + badgeClass(state)}>
+          {state}
+        </span>
+      </div>
+
+      {run ? (
+        <>
+          <p className="mt-3 text-xs text-zinc-500">
+            {run.cycleKey} · {run.mode} · 완료 {fmtDate(run.finishedAt)}
+            {run.mainSha ? ` · main ${run.mainSha.slice(0, 8)}` : ""}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <span
+              className={
+                "rounded px-2 py-1 font-bold " +
+                (projection.freshnessStatus === "FRESH"
+                  ? "bg-emerald-500/15 text-emerald-300"
+                  : projection.freshnessStatus === "UNKNOWN"
+                    ? "bg-amber-500/15 text-amber-300"
+                    : "bg-rose-500/15 text-rose-300")
+              }
+            >
+              durable freshness · {projection.freshnessStatus}
+            </span>
+            {projection.freshnessReason ? (
+              <span className="text-zinc-500">{projection.freshnessReason}</span>
+            ) : null}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">sources / observations</p>
+              <p className="mt-1 font-bold">
+                {run.counts.sourcesChecked} / {run.counts.observations}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                source 실패 {run.counts.sourcesFailed}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">evaluated</p>
+              <p className="mt-1 font-bold">{run.counts.evaluated}</p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                신규 {run.counts.newCandidates}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">WATCH / REJECT / ACCEPT</p>
+              <p className="mt-1 font-bold">
+                {run.counts.watch} / {run.counts.reject} / {run.counts.accept}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                benchmark {run.counts.benchmarked}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">provider calls / cost</p>
+              <p className="mt-1 font-bold">
+                {run.paidProviderCalls} / {"$"}{run.estimatedCostUsd.toFixed(4)}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                source HTTP {run.httpCalls}/{run.httpBudget || "-"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">companion / benchmark proposals</p>
+              <p className="mt-1 font-bold">
+                {run.companionExperimentProposals} / {run.benchmarkAdoptionProposals}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">case-port / harness 분석</p>
+              <p className="mt-1 font-bold">
+                {run.benchmarkCasePortPlans} / {run.benchmarkHarnessFeasibility}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">persistent gaps / local gold</p>
+              <p className="mt-1 font-bold">
+                {run.persistentMemoryGaps} / {run.localGoldAuthoringPackets}
+              </p>
+            </div>
+            <div className="rounded-xl bg-black/20 p-3">
+              <p className="text-[11px] text-zinc-500">Draft PR packets</p>
+              <p className="mt-1 font-bold">{run.counts.draftPrPackets}</p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                productionTouched {String(run.productionTouched)}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-600">
+                persistent gap {run.persistentMemoryGapStatus ?? "기록 없음"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-white/5 p-3 text-xs text-zinc-400">
+            <p>
+              baseline promotion gate ·{" "}
+              <span className={run.baselinePromotionBlocked ? "text-amber-300" : "text-emerald-300"}>
+                {run.baselinePromotionGateStatus ?? "기록 없음"}
+                {run.baselinePromotionBlocked == null
+                  ? ""
+                  : run.baselinePromotionBlocked
+                    ? " · BLOCKED"
+                    : " · OPEN"}
+              </span>
+            </p>
+            {readiness ? (
+              <p className="mt-1 text-zinc-500">
+                case readiness · deterministic {readiness.readyDeterministic} · durable ledger{" "}
+                {readiness.readyDurableLedger} · mutation {readiness.readyMutationLifecycle} · mixed{" "}
+                {readiness.mixedOwner} · harness 필요 {readiness.harnessExtensionRequired}
+              </p>
+            ) : null}
+          </div>
+
+          {promptPacking ? (
+            <details className="mt-3 rounded-xl border border-cyan-500/10 bg-cyan-950/5 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-cyan-200">
+                Prompt packing sentinel · {promptPacking.status} · invariant{" "}
+                {promptPacking.invariantPasses}/{promptPacking.invariantTotal}
+              </summary>
+              <div className="mt-3 text-xs text-zinc-400">
+                <p>
+                  policy {promptPacking.policyId || "unknown"} · RAW{" "}
+                  {promptPacking.rawRecentExchanges} · {promptPacking.rollingSummaryInterval}턴 요약 ·
+                  Medium N{promptPacking.mediumTermBlockCount} · fixture T
+                  {promptPacking.currentTurnFixture}
+                </p>
+                {promptPacking.generatedAt ? (
+                  <p className="mt-1 text-zinc-600">
+                    sentinel 생성 {fmtDate(promptPacking.generatedAt)}
+                  </p>
+                ) : null}
+                {promptPacking.failedInvariants.length ? (
+                  <p className="mt-2 text-rose-300">
+                    실패 invariant: {promptPacking.failedInvariants.join(", ")}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-emerald-300">
+                    prompt-packing invariant 전체 통과
+                  </p>
+                )}
+                {promptPacking.models.length ? (
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full min-w-[620px] text-left text-[11px]">
+                      <thead className="text-zinc-600">
+                        <tr>
+                          <th className="pb-1 pr-3">model</th>
+                          <th className="pb-1 pr-3">baseline</th>
+                          <th className="pb-1 pr-3">N15 input</th>
+                          <th className="pb-1 pr-3">N15 Δ</th>
+                          <th className="pb-1 pr-3">Medium</th>
+                          <th className="pb-1">safe</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {promptPacking.models.map((model) => (
+                          <tr key={model.modelId} className="border-t border-white/5">
+                            <td className="py-1 pr-3 font-mono text-cyan-100">
+                              {model.modelId}
+                            </td>
+                            <td className="py-1 pr-3">{model.baselineInputTokens}</td>
+                            <td className="py-1 pr-3">{model.n15InputTokens}</td>
+                            <td className="py-1 pr-3">+{model.n15DeltaInputTokens}</td>
+                            <td className="py-1 pr-3">{model.n15MediumTokens}</td>
+                            <td className="py-1">
+                              {model.safeForPolicyConsideration ? "YES" : "NO"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+              </div>
+            </details>
+          ) : null}
+
+          {run.insights.length ? (
+            <details className="mt-3 rounded-xl border border-fuchsia-500/10 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-fuchsia-200">
+                최신 자동 분석 상세 {run.insights.length}건
+              </summary>
+              <div className="mt-2 space-y-2">
+                {run.insights.map((insight, index) => (
+                  <div
+                    key={insight.kind + insight.key + index}
+                    className="rounded-lg bg-black/15 p-2 text-xs"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded bg-fuchsia-950/60 px-1.5 py-0.5 text-[10px] font-bold text-fuchsia-300">
+                        {insight.kind}
+                      </span>
+                      <p className="font-mono text-fuchsia-100">{insight.key}</p>
+                    </div>
+                    <p className="mt-1 font-semibold text-zinc-300">{insight.status}</p>
+                    {insight.summary ? (
+                      <p className="mt-1 whitespace-pre-wrap text-zinc-500">
+                        {insight.summary}
+                      </p>
+                    ) : null}
+                    {insight.nextAction ? (
+                      <p className="mt-1 whitespace-pre-wrap text-zinc-400">
+                        다음: {insight.nextAction}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
+
+          {run.decisions.length ? (
+            <details className="mt-3 rounded-xl border border-white/5 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-zinc-300">
+                최신 주요 decision {run.decisions.length}건
+              </summary>
+              <div className="mt-2 space-y-2">
+                {run.decisions.map((decision) => (
+                  <div
+                    key={decision.candidateKey + decision.decision}
+                    className="rounded-lg bg-black/15 p-2 text-xs"
+                  >
+                    <p className="font-mono text-fuchsia-200">{decision.candidateKey}</p>
+                    <p className="mt-1 font-semibold text-zinc-300">{decision.decision}</p>
+                    <p className="mt-1 text-zinc-500">{decision.reason}</p>
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
+        </>
+      ) : (
+        <p className="mt-4 text-sm text-zinc-500">
+          {projection.status === "UNAVAILABLE"
+            ? "Memory Research durable report를 읽지 못했습니다."
+            : "아직 persisted Memory Research cycle이 없습니다."}
+        </p>
+      )}
+
+      {hasPipeline ? (
+        <div className="mt-4 rounded-xl border border-fuchsia-500/10 bg-black/10 p-3">
+          <p className="text-xs font-bold text-fuchsia-200">
+            연구 → live 검증 → Draft PR 파이프라인
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-5">
+            <div className="rounded-lg bg-black/20 p-2">
+              <p className="text-[10px] text-zinc-500">live 대기</p>
+              <p className="mt-1 font-bold">{pipeline.pendingLiveExperiments}</p>
+            </div>
+            <div className="rounded-lg bg-black/20 p-2">
+              <p className="text-[10px] text-zinc-500">live 기록</p>
+              <p className="mt-1 font-bold">{pipeline.recordedLiveExperiments}</p>
+            </div>
+            <div className="rounded-lg bg-black/20 p-2">
+              <p className="text-[10px] text-zinc-500">implementation PR 대기</p>
+              <p className="mt-1 font-bold">{pipeline.pendingImplementationPrs}</p>
+            </div>
+            <div className="rounded-lg bg-black/20 p-2">
+              <p className="text-[10px] text-zinc-500">implementation PR 기록</p>
+              <p className="mt-1 font-bold">{pipeline.implementationPrs}</p>
+            </div>
+            <div className="rounded-lg bg-black/20 p-2">
+              <p className="text-[10px] text-zinc-500">ACCEPTED Draft 기록</p>
+              <p className="mt-1 font-bold">{pipeline.acceptedDraftPrs}</p>
+            </div>
+          </div>
+
+          {pipeline.items.length ? (
+            <details className="mt-3 border-t border-white/5 pt-3">
+              <summary className="cursor-pointer text-xs font-semibold text-zinc-300">
+                pipeline 후보 {pipeline.items.length}건
+              </summary>
+              <div className="mt-2 space-y-2">
+                {pipeline.items.map((item) => (
+                  <div
+                    key={item.candidateKey}
+                    className="rounded-lg border border-white/5 bg-black/15 p-2 text-xs"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="break-all font-mono text-fuchsia-200">
+                          {item.candidateKey}
+                        </p>
+                        <p className="mt-1 text-zinc-400">
+                          {item.lastDecision || item.state || "상태 기록 없음"}
+                        </p>
+                        {item.liveCandidateModel ? (
+                          <p className="mt-1 text-zinc-500">
+                            live · {item.liveCandidateModel}
+                            {item.liveGateDecision ? ` · ${item.liveGateDecision}` : ""}
+                            {item.liveCostUsdPer1kTurns == null
+                              ? ""
+                              : ` · $ ${item.liveCostUsdPer1kTurns.toFixed(4)}/1k turns`}
+                          </p>
+                        ) : null}
+                        {item.liveEvaluatedAt ? (
+                          <p className="mt-1 text-zinc-600">
+                            live 평가 {fmtDate(item.liveEvaluatedAt)}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 flex-wrap gap-1.5">
+                        {item.draftPrUrl ? (
+                          <a
+                            href={item.draftPrUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded border border-white/10 px-2 py-1 text-[11px] font-semibold text-fuchsia-300 hover:bg-white/5"
+                          >
+                            ACCEPTED Draft ↗
+                          </a>
+                        ) : null}
+                        {item.implementationPrUrl ? (
+                          <a
+                            href={item.implementationPrUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded border border-white/10 px-2 py-1 text-[11px] font-semibold text-fuchsia-300 hover:bg-white/5"
+                          >
+                            Implementation PR ↗
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-4 text-xs text-zinc-600">
+          live experiment / implementation Draft 파이프라인 대기 항목이 없습니다.
+        </p>
+      )}
+
+      {projection.error ? (
+        <p className="mt-3 text-xs text-rose-300">{projection.error}</p>
+      ) : null}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {projection.githubRunUrl ? (
+          <a
+            href={projection.githubRunUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-fuchsia-300 hover:bg-white/5"
+          >
+            최신 GitHub run / artifact ↗
+          </a>
+        ) : null}
+        {projection.persistedReportUrl ? (
+          <a
+            href={projection.persistedReportUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-fuchsia-300 hover:bg-white/5"
+          >
+            persisted cycle JSON ↗
+          </a>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function SupplierDiscoverySection({
+  candidate,
+}: {
+  candidate: SupplierCandidateRecord;
+}) {
+  const rows: Array<[string, string]> = [
+    ["product", `${candidate.productKind} · ${candidate.productId}`],
+    ["canonical origin", candidate.canonicalOrigin],
+    ["discovery source", candidate.discoverySource],
+    ["public screening", `${candidate.publicScreenStatus} · ${candidate.publicScreenReasons.join(", ")}`],
+    ["지원 active RP 모델", candidate.supportedActiveModelIds.join(", ") || "공개 정보 없음"],
+    ["price advantage", `${candidate.priceAdvantage} · ${candidate.priceUnit}`],
+    ["stability", candidate.publicStabilityEvidence ?? "unverified"],
+    ["privacy / ZDR", candidate.privacyZdrStatus],
+    ["credential", `${candidate.credentialRequirement} · ${candidate.credentialState}`],
+    ["live qualification", `${candidate.liveQualification.status} · ${candidate.liveQualification.reason}`],
+    ["promotion readiness", candidate.promotion.readiness],
+    ["STOP reason", candidate.promotion.stopReason],
+  ];
+  return (
+    <article className="rounded-xl border border-white/10 bg-black/15 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="font-bold text-zinc-100">
+            {candidate.companyName}{" "}
+            <span className="font-mono text-sm text-zinc-400">{candidate.supplierId}</span>
+          </h3>
+          <p className="mt-1 text-xs text-zinc-500">
+            {candidate.canonicalOrigin}
+            {candidate.advertisedApiBaseUrl ? ` · advertised API ${candidate.advertisedApiBaseUrl}` : ""}
+          </p>
+        </div>
+        <span className={"rounded px-2 py-1 text-xs font-bold " + badgeClass(candidate.status)}>
+          {candidate.status}
+        </span>
+      </div>
+      <dl className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+        {rows.map(([label, value]) => (
+          <div key={label} className="rounded-lg border border-white/5 px-3 py-2">
+            <dt className="text-[11px] text-zinc-500">{label}</dt>
+            <dd className="mt-1 break-words text-xs text-zinc-200">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-2 text-[11px] text-zinc-600">
+        evidence {candidate.evidenceFreshness} · route Draft PR{" "}
+        {candidate.promotion.draftRoutePrEligible ? "eligible" : "not eligible"} · automatic merge{" "}
+        {candidate.promotion.automaticMergeEligible ? "eligible" : "0"}
+      </p>
+    </article>
+  );
+}
+
 function ttlRecommendationLabel(value: string): string {
   if (value === "KEEP_5M") return "5분 TTL 유지가 유리";
   if (value === "ONE_HOUR_WOULD_BE_CHEAPER_IF_SUPPORTED") {
@@ -170,9 +631,16 @@ export default async function AdminAutomationReportsPage() {
   if (!admin) redirect("/login?next=/admin/automation-reports");
 
   const db = getDb();
-  const github = await fetchGithubScheduledAutomationProjection();
-  const codeHealth = await fetchCodeHealthAdminProjection(github.groups);
-  const decisionRadar = await fetchDecisionRadarAdminProjection(github.groups);
+  const [github, supplyDrafts] = await Promise.all([
+    fetchGithubScheduledAutomationProjection(),
+    fetchGithubSupplyAutoDraftProjection(),
+  ]);
+  const [codeHealth, decisionRadar, memoryResearch] = await Promise.all([
+    fetchCodeHealthAdminProjection(github.groups),
+    fetchDecisionRadarAdminProjection(github.groups),
+    fetchMemoryResearchAdminProjection(github.groups),
+  ]);
+  const supplierDiscovery = buildSupplierDiscoveryReport();
   const ttlReports = listMainRpCacheTtlReports(db, 12);
   const schedulers = listSchedulerRunOverview(db);
   const latestTtl = ttlReports[0] ?? null;
@@ -190,6 +658,15 @@ export default async function AdminAutomationReportsPage() {
     ["FAILED", "PARTIAL", "REVIEW_CANDIDATE"].includes(
       decisionRadar.run?.status ?? ""
     )
+      ? 1
+      : 0;
+  const memoryResearchProblems =
+    memoryResearch.status === "UNAVAILABLE" ||
+    memoryResearch.run?.baselinePromotionBlocked === true ||
+    memoryResearch.run?.productionTouched === true ||
+    memoryResearch.run?.promptPackingAudit?.status === "FAIL" ||
+    memoryResearch.freshnessStatus === "STALE_CYCLE" ||
+    memoryResearch.freshnessStatus === "PERSISTENCE_LAG"
       ? 1
       : 0;
 
@@ -228,7 +705,12 @@ export default async function AdminAutomationReportsPage() {
         <div className="rounded-2xl border border-white/10 bg-[#11131a] p-4">
           <p className="text-xs text-zinc-500">확인 필요</p>
           <p className="mt-2 text-2xl font-black text-amber-300">
-            {githubFailures + schedulerProblems + codeHealthProblems + decisionRadarProblems}건
+            {githubFailures +
+              schedulerProblems +
+              codeHealthProblems +
+              decisionRadarProblems +
+              memoryResearchProblems +
+              supplyDrafts.drafts.length}건
           </p>
           <p className="mt-1 text-xs text-zinc-600">실패·누락·stale 최신 상태</p>
         </div>
@@ -381,6 +863,8 @@ export default async function AdminAutomationReportsPage() {
         ) : null}
       </section>
 
+      <MemoryResearchCard projection={memoryResearch} />
+
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -474,6 +958,98 @@ export default async function AdminAutomationReportsPage() {
             </div>
           </details>
         ) : null}
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-teal-500/20 bg-teal-950/10 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-black text-teal-200">독립 공급처 discovery</h2>
+            <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+              신규 독립 inference supplier 후보의 공개 심사 결과입니다. 후보 기록은 production
+              provider registry가 아니며, cross-provider route Draft PR을 만들지 않습니다.
+              provider generation calls {supplierDiscovery.providerGenerationCalls}.
+            </p>
+          </div>
+          <span className="rounded bg-amber-500/15 px-2 py-1 text-xs font-bold text-amber-300">
+            후보 {supplierDiscovery.candidates.length}건
+          </span>
+        </div>
+        <div className="mt-4 space-y-3">
+          {supplierDiscovery.candidates.map((candidate) => (
+            <SupplierDiscoverySection key={candidate.supplierId} candidate={candidate} />
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-zinc-500">
+          알려진 direct supplier: {supplierDiscovery.knownDirectSupplierIds.join(", ")}. 이 화면은
+          OpenRouter를 다시 호출하지 않습니다. 월간 supply radar artifact가 기존 endpoint owner의
+          provider 이름을 붙입니다. 유료 search API와 Artificial Analysis commercial API는
+          호출하지 않습니다.
+        </p>
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-black text-violet-200">Main RP 공급망 Draft 검토 대기</h2>
+            <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+              공급망 promotion gate를 통과해 자동 생성된 열린 PR을 GitHub 자체 상태에서
+              직접 읽습니다. 별도 DB 상태를 만들지 않으며 PR이 닫히거나 머지되면 이 목록에서도
+              자동으로 사라집니다.
+            </p>
+          </div>
+          <span className={"rounded px-2 py-1 text-xs font-bold " + badgeClass(
+            supplyDrafts.status === "OK" && supplyDrafts.drafts.length === 0 ? "success" : "warning"
+          )}>
+            {supplyDrafts.status === "OK"
+              ? `검토 대기 ${supplyDrafts.drafts.length}건`
+              : "UNAVAILABLE"}
+          </span>
+        </div>
+
+        {supplyDrafts.status !== "OK" ? (
+          <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-950/10 p-4 text-sm text-amber-200">
+            자동 생성 공급망 Draft 목록을 읽지 못했습니다: {supplyDrafts.error ?? "unknown"}
+          </div>
+        ) : supplyDrafts.drafts.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-4 text-sm text-emerald-200">
+            현재 검토 대기 중인 자동 공급망 Draft PR이 없습니다.
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {supplyDrafts.drafts.map((draft) => (
+              <article
+                key={draft.number}
+                className="rounded-xl border border-white/10 bg-black/15 p-4"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-violet-300">PR #{draft.number}</p>
+                    <h3 className="mt-1 font-bold text-zinc-100">{draft.title}</h3>
+                    <p className="mt-2 text-xs text-zinc-400">
+                      모델 <span className="font-mono text-zinc-200">{draft.modelId}</span>
+                      {" · "}후보 provider{" "}
+                      <span className="font-mono text-zinc-200">
+                        {draft.candidateProviderSlug}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-600">
+                      생성 {fmtDate(draft.createdAt)} · {draft.draft ? "Draft" : "Ready"} ·{" "}
+                      {draft.state}
+                    </p>
+                  </div>
+                  <a
+                    href={draft.htmlUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-white/5"
+                  >
+                    PR 검토하기 ↗
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="mt-6">

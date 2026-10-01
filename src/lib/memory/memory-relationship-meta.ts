@@ -287,6 +287,43 @@ export function rollbackRelationshipMetaForDeletedTurnCore(
   return next;
 }
 
+/**
+ * Material user-message edit. Reuses the delete-turn substring rule for
+ * promises, items, and honorifics only. Does not re-normalize the projection:
+ * that path clears thoughts, and a user edit must not drop unrelated durable state.
+ */
+export function reconcileRelationshipMetaAfterUserSourceEditCore(
+  db: Database.Database,
+  opts: {
+    chatId: number;
+    previousUserText: string;
+  }
+): MemoryMeta {
+  const rows = db
+    .prepare("SELECT content FROM messages WHERE chat_id=? ORDER BY id ASC")
+    .all(opts.chatId) as { content: string }[];
+  const survivingText = rows.map((row) => row.content).join("\n");
+  const replacedText = opts.previousUserText;
+  const keep = (text: string): boolean => {
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+    if (survivingText.includes(trimmed)) return true;
+    return !replacedText.includes(trimmed);
+  };
+
+  const meta = loadChatRelationshipMetaCore(db, opts.chatId);
+  const next: MemoryMeta = {
+    ...meta,
+    honorifics: meta.honorifics.filter(keep),
+    items: meta.items.filter(keep),
+    promises: meta.promises.filter((promise) => keep(promise.text)),
+  };
+  if (JSON.stringify(next) !== JSON.stringify(meta)) {
+    saveChatRelationshipMetaCore(db, opts.chatId, next);
+  }
+  return next;
+}
+
 export function rollbackRelationshipMetaForDeletedTurn(opts: {
   chatId: number;
   names: HonorificNames;

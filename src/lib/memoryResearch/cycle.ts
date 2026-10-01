@@ -6,6 +6,10 @@
  */
 import { runLabArm, type LabArmResult } from "@/lib/memoryResearch/benchmarkLab";
 import {
+  buildLocalGoldAuthoringPackets,
+  type GoldAuthoringPacket,
+} from "@/lib/memoryResearch/localGoldAuthoringPlanner";
+import {
   buildPersistentMemoryGapReport,
   type PersistentMemoryGapReport,
 } from "@/lib/memoryResearch/persistentGapRadar";
@@ -178,6 +182,7 @@ export type CycleReport = {
   benchmarkAdoptionProposals: BenchmarkAdoptionProposal[];
   benchmarkCasePortPlans: BenchmarkCasePortPlan[];
   benchmarkHarnessFeasibility: HarnessFeasibilityEvidence[];
+  localGoldAuthoringPackets: GoldAuthoringPacket[];
   persistentMemoryGaps: PersistentMemoryGapReport;
   productionTouched: false;
 };
@@ -256,6 +261,7 @@ export async function runResearchCycle(
     benchmarkAdoptionProposals: [],
     benchmarkCasePortPlans: [],
     benchmarkHarnessFeasibility: [],
+    localGoldAuthoringPackets: [],
     persistentMemoryGaps: buildPersistentMemoryGapReport(null, ledger.cycles),
     productionTouched: false,
   };
@@ -357,8 +363,10 @@ export async function runResearchCycle(
     report.benchmarkAdoptionProposals.push(...adoptionProposals);
     const casePortPlans = buildBenchmarkCasePortPlans(adoptionProposals);
     report.benchmarkCasePortPlans.push(...casePortPlans);
-    report.benchmarkHarnessFeasibility.push(
-      ...assessBenchmarkHarnessFeasibilityBatch(casePortPlans)
+    const harnessFeasibility = assessBenchmarkHarnessFeasibilityBatch(casePortPlans);
+    report.benchmarkHarnessFeasibility.push(...harnessFeasibility);
+    report.localGoldAuthoringPackets.push(
+      ...buildLocalGoldAuthoringPackets(harnessFeasibility)
     );
 
     if (report.baselinePromotionGate.blocked) {

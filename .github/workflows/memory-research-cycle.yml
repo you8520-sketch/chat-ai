@@ -120,6 +120,7 @@ jobs:
           node --conditions=react-server --import tsx
           scripts/memory-research-cycle.ts prompt-packing-sentinel
           --out memory-research-out/prompt-packing
+          --cycle-report memory-research-out/cycles/${{ steps.cycle.outputs.cycle_key }}.json
 
       - name: Cycle summary
         if: always()

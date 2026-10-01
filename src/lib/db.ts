@@ -1597,11 +1597,14 @@ function migrate(db: Database.Database) {
       sent_at TEXT,
       last_error TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      claim_token TEXT,
+      claimed_until TEXT,
       UNIQUE(subscription_id, event_key)
     );
     CREATE INDEX IF NOT EXISTS idx_web_push_outbox_pending
       ON web_push_outbox(sent_at, available_at, id);
   `);
+  ensureWebPushOutboxClaimColumns(db);
   migrateUserNotificationsExpand(db);
   migrateCharacterAudienceSeed(db);
   migrateLegacyMemoryCapacityDefault(db);
@@ -1722,6 +1725,7 @@ function migrate(db: Database.Database) {
   addColumn("worlds", "content_translation_fingerprint", "TEXT NOT NULL DEFAULT ''");
   addColumn("world_shares", "content_en", "TEXT NOT NULL DEFAULT ''");
   addColumn("world_shares", "content_translation_fingerprint", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "jsx_components_json", "TEXT NOT NULL DEFAULT ''");
 }
 
 /** One-time retirement of the legacy 20-message compressor buffer table. */
@@ -2071,6 +2075,24 @@ function migrateCharacterAudienceSeed(db: Database.Database) {
   );
   for (const [name, audience] of Object.entries(seedAudiences)) {
     update.run(audience, name);
+  }
+}
+
+/**
+ * Additive claim/lease columns on `web_push_outbox`.
+ * Existing pending/sent/retry rows stay meaningful: NULL token/lease = unclaimed.
+ */
+export function ensureWebPushOutboxClaimColumns(
+  db: Pick<Database.Database, "prepare" | "exec">
+): void {
+  const cols = db.prepare(`PRAGMA table_info(web_push_outbox)`).all() as { name: string }[];
+  if (cols.length === 0) return;
+  const names = new Set(cols.map((c) => c.name));
+  if (!names.has("claim_token")) {
+    db.exec("ALTER TABLE web_push_outbox ADD COLUMN claim_token TEXT");
+  }
+  if (!names.has("claimed_until")) {
+    db.exec("ALTER TABLE web_push_outbox ADD COLUMN claimed_until TEXT");
   }
 }
 

@@ -31,3 +31,45 @@ export const EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES = [
   "Distinct completed events at different turns are all valid history; do not rewrite or erase an earlier event because a later event exists.",
   "For current durable state or preference facts only, the higher turn number is more recent and must be preferred.",
 ] as const;
+
+
+export const HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER =
+  "[HISTORICAL TRUTH CHECK]";
+
+const CURRENT_USER_HISTORICAL_PREMISE_PATTERNS: readonly RegExp[] = [
+  /기억(?:하지|나|나지|해|하니|하냐)/u,
+  /알(?:지|잖아)(?:[?!….,\s]|$)/u,
+  /(?:뭐|무엇|어떤).{0,16}(?:였더라|했더라|먹었더라|갔더라|봤더라)/u,
+  /(?:평소|원래).{0,24}(?:뭐|무엇|어떤).{0,24}(?:좋아|싫어|먹|마시|취향)/u,
+  /(?:전에|예전에|지난번|그때).{0,28}(?:뭐|무엇|어디|언제|누구|어떻게).{0,20}(?:했|였|갔|먹|봤|만났|기억)/u,
+];
+
+/**
+ * Detects a current-user recall/presupposition shape that is especially prone
+ * to recency overriding the canonical historical-truth owner.
+ *
+ * This does NOT decide whether the user's concrete statement is true. The full
+ * owner above remains authoritative and explicitly allows concrete user-stated
+ * past facts while rejecting missing-detail completion.
+ */
+export function currentUserNeedsHistoricalTruthRecencyRef(
+  text: string | null | undefined
+): boolean {
+  const value = text?.trim() ?? "";
+  if (!value) return false;
+  return CURRENT_USER_HISTORICAL_PREMISE_PATTERNS.some((pattern) =>
+    pattern.test(value)
+  );
+}
+
+/**
+ * Compact recency pointer only. It intentionally does not restate historical
+ * truth semantics; there must remain exactly one full canonical owner.
+ */
+export function buildHistoricalTruthCurrentUserRecencyRef(
+  text: string | null | undefined
+): string {
+  if (!currentUserNeedsHistoricalTruthRecencyRef(text)) return "";
+  return `${HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER}
+현재 USER 입력에 과거·기억 전제가 포함되어 있다. ${HISTORICAL_TRUTH_POLICY_SHORT_REF}`;
+}
