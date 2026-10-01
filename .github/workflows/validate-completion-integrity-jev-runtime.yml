@@ -15,6 +15,9 @@ on:
       - "src/lib/sceneBoundaryJevQa.ts"
       - "src/lib/sceneBoundaryJevQa.test.ts"
       - "src/lib/responseLength.ts"
+      - "src/lib/responseLengthConstants.ts"
+      - "src/lib/responseLength.instruction.test.ts"
+      - "src/lib/responseLengthConstants.uiLabel.test.ts"
       - "src/lib/responseLength.recovery.test.ts"
       - "src/lib/sentenceCompletionRecovery.ts"
       - "src/lib/sentenceCompletionRecovery.test.ts"
@@ -53,6 +56,8 @@ jobs:
           --test --test-concurrency=1
           src/lib/completionIntegrityJevQa.test.ts
           src/lib/sceneBoundaryJevQa.test.ts
+          src/lib/responseLength.instruction.test.ts
+          src/lib/responseLengthConstants.uiLabel.test.ts
           src/lib/responseLength.recovery.test.ts
           src/lib/sentenceCompletionRecovery.test.ts
           src/lib/jevDecisions.test.ts
