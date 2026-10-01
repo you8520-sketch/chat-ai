@@ -16,19 +16,19 @@ export const UNIFIED_TIER_MIN_CHARS_V2 = 2500;
 /** 프롬프트 aim band 하한 (= 통과 최소) */
 export const UNIFIED_TIER_TARGET_RANGE_MIN_CHARS = UNIFIED_TIER_MIN_CHARS;
 /** 프롬프트 soft aim target · DB normalize 기본값 (MINIMUM_FLOOR와 분리) */
-export const UNIFIED_TIER_AIM_CHARS = 3200;
+export const UNIFIED_TIER_AIM_CHARS = 3000;
 export const UNIFIED_RESPONSE_LENGTH_TARGET = UNIFIED_TIER_AIM_CHARS;
 export type ResponseLengthTierTarget = typeof UNIFIED_RESPONSE_LENGTH_TARGET;
 
 /** Production UI label (gate OFF / non-canary). */
 export const RESPONSE_LENGTH_UI_LABEL =
-  "목표 약 3,200자 · 장면과 대화 맥락에 따라 자연스럽게 조절";
+  "평균 약 3,000자 · 장면과 대화 맥락에 따라 자연스럽게 조절";
 
 /** Shared Novel Prose V2 canary UI label — no hard min guarantee copy. */
 export const RESPONSE_LENGTH_UI_LABEL_V2 =
   "평균 약 3,000자 · 장면과 대화 맥락에 따라 자연스럽게 조절";
 
-/** AI 출력 목표 분량 — 단일 tier (프롬프트 aim 3,200 · 과금은 실제 출력). UI는 최소 보장 문구 없음. */
+/** AI 출력 목표 분량 — 단일 tier (프롬프트 soft aim 3,000 · 과금은 실제 출력). UI는 최소 보장 문구 없음. */
 export const TARGET_RESPONSE_TIERS = [
   {
     id: "unified",
@@ -40,14 +40,14 @@ export const TARGET_RESPONSE_TIERS = [
 
 export type ResponseLengthTierId = (typeof TARGET_RESPONSE_TIERS)[number]["id"];
 
-/** 유저 AI 출력 목표 — 통합 tier (레거시 DB·prefs 값은 normalize 시 3,200으로 통일) */
+/** 유저 AI 출력 목표 — 통합 tier (레거시 DB·prefs 값은 normalize 시 3,000 soft aim으로 통일) */
 export const DEFAULT_TARGET_RESPONSE_CHARS = UNIFIED_RESPONSE_LENGTH_TARGET;
 export const MIN_TARGET_RESPONSE_CHARS = UNIFIED_TIER_MIN_CHARS;
 
 export type ResponseLengthTarget = {
   /** Tier key for minimum tables */
   target: ResponseLengthTierTarget;
-  /** Prompt TARGET line — always UNIFIED_TIER_AIM_CHARS (3,200) */
+  /** Prompt soft aim — always UNIFIED_TIER_AIM_CHARS (3,000) */
   aimChars: number;
   /** 통과 최소 (MINIMUM_FLOOR) */
   min: number;
@@ -59,7 +59,7 @@ const TIER_BOUNDS: Record<ResponseLengthTierTarget, Pick<ResponseLengthTarget, "
   },
 };
 
-/** 레거시 2000/2400/2700/2800/3000 등 — 프롬프트·과금 분량 목표는 항상 3,200으로 통일 */
+/** 레거시 분량 prefs — runtime soft aim은 항상 약 3,000자로 통일 */
 export function normalizeTargetResponseChars(_value: unknown): number {
   return UNIFIED_TIER_AIM_CHARS;
 }
