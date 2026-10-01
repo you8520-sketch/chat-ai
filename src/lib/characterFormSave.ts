@@ -48,6 +48,7 @@ import {
   parseStatusWidgetJson,
   serializeStatusWidget,
 } from "@/lib/statusWidget/serialize";
+import { validateCharacterStatusWidgetContextBudget } from "@/lib/statusWidget/contextBudget";
 import {
   parseJsxComponentCatalog,
   serializeJsxComponentCatalog,
@@ -402,6 +403,10 @@ export function parseCharacterFormBody(
       : rawWidget && typeof rawWidget === "object"
         ? parseStatusWidgetJson(JSON.stringify(rawWidget))
         : null;
+  if (parsedWidget) {
+    const budgetCheck = validateCharacterStatusWidgetContextBudget(parsedWidget);
+    if (!budgetCheck.ok) return { ok: false as const, error: budgetCheck.error, status: 400 };
+  }
   const statusWidgetJson = parsedWidget ? serializeStatusWidget(parsedWidget) : "";
   const rawJsxCatalog = b.jsx_components_json ?? b.jsxComponentsJson;
   const jsxComponentsJson =
@@ -1473,6 +1478,10 @@ export async function updateCharacterPublicProfileFromForm(
       : rawWidget && typeof rawWidget === "object"
         ? parseStatusWidgetJson(JSON.stringify(rawWidget))
         : null;
+  if (parsedWidget) {
+    const budgetCheck = validateCharacterStatusWidgetContextBudget(parsedWidget);
+    if (!budgetCheck.ok) return { ok: false as const, error: budgetCheck.error, status: 400 };
+  }
   const statusWidgetJson = parsedWidget ? serializeStatusWidget(parsedWidget) : "";
   const parsedTriggers = validateStatusWidgetTriggerInputs(b.status_widget_triggers);
   if (!parsedTriggers.ok) {

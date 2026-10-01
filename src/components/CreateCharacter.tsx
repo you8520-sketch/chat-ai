@@ -37,6 +37,7 @@ import {
   characterStatusWidgetOrDefault,
   parseStatusWidgetJson,
   serializeStatusWidget,
+  STATUS_WIDGET_CONTEXT_MAX,
   type StatusWidget,
 } from "@/lib/statusWidget";
 import {
@@ -2249,7 +2250,7 @@ export default function CreateCharacter({
                     상태창 위젯
                   </h2>
                   <p className="mt-0.5 text-xs text-zinc-400">
-                    클린 카드·컴팩트 패널, HTML·JSX 직접제작 · 상태값·지시 토큰 환산 500자
+                    클린 카드·컴팩트 패널, HTML·JSX 직접제작 · 상태값·지시 토큰 환산 {STATUS_WIDGET_CONTEXT_MAX}자
                   </p>
                   <Link href="/widgets" className="mt-1 inline-flex text-xs text-violet-300 hover:underline">
                     공유 상태창 둘러보기

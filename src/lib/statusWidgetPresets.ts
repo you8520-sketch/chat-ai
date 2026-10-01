@@ -54,7 +54,11 @@ export function validateStatusWidgetPresetInput(
     return { ok: false, error: "상태창 필드와 HTML 또는 JSX가 필요합니다." };
   }
   const reserved = estimateStatusWidgetContextCharsFromJson(widgetJson);
-  return validateStatusWidgetContextBudget(reserved);
+  return validateStatusWidgetContextBudget({
+    characterReservedChars: 0,
+    userReservedChars: reserved,
+    totalReservedChars: reserved,
+  });
 }
 
 function normalizeWidgetJson(widgetJson: string): string {

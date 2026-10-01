@@ -62,6 +62,23 @@ describe("status widget optional jsxSource", () => {
     assert.equal(parseStatusWidgetJson(invalidOnly), null);
   });
 
+  it("preserves 501–740 raw chars inside 700 equivalent budget across HTML/JSX save and reload", () => {
+    for (const presentation of ["html", "jsx"] as const) {
+      const instruction = "장면".repeat(370);
+      const widget: StatusWidget = {
+        version: 1,
+        name: "확장 지시",
+        htmlTemplate: presentation === "html" ? "<span>{{시간}}</span>" : "",
+        ...(presentation === "jsx" ? { jsxSource } : {}),
+        fields: [{ id: "time", label: "시간", instruction }],
+        placement: "bottom",
+      };
+      const parsed = parseStatusWidgetJson(serializeStatusWidget(widget));
+      assert.equal(parsed?.fields[0]?.instruction, instruction);
+      assert.equal(parsed?.fields[0]?.instruction.length, 740);
+    }
+  });
+
   it("still rejects empty widgets", () => {
     assert.equal(
       parseStatusWidgetJson(JSON.stringify({ version: 1, name: "x", htmlTemplate: "", fields: [] })),
