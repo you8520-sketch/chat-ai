@@ -33,6 +33,14 @@ describe("compileJsxComponentSource", () => {
       `export default function Board() { eval("1"); return <div />; }`
     );
     assert.equal(evaled.ok, false);
+    const dynamicImport = compileJsxComponentSource(
+      `export default function Board() { import("/client.js"); return <div />; }`
+    );
+    assert.equal(dynamicImport.ok, false);
+    const functionCtor = compileJsxComponentSource(
+      `export default function Board() { Function("return 1")(); return <div />; }`
+    );
+    assert.equal(functionCtor.ok, false);
     const storage = compileJsxComponentSource(
       `export default function Board() { localStorage.setItem("x", "1"); return <div />; }`
     );
