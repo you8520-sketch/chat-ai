@@ -8,7 +8,7 @@ import StatusMetaCard from "@/components/StatusMetaCard";
 import StatusWidgetCard from "@/components/StatusWidgetCard";
 import { JsxHostBridgeProvider } from "@/components/JsxHostBridge";
 import type { JsxHostBridge } from "@/components/JsxComponentSandbox";
-import { parseJsxComponentCatalog } from "@/lib/jsxComponent/catalog";
+import type { JsxRuntimeComponentRecord } from "@/lib/jsxComponent/types";
 import StatusWidgetValuesEditor from "@/components/StatusWidgetValuesEditor";
 import NovelText from "@/components/NovelText";
 import {
@@ -940,7 +940,7 @@ export default function ChatClient({
   isCharacterCreator = false,
   initialStatusWidgetDisplayMode = null,
   initialCharacterWidgetJson = "",
-  initialJsxComponentsJson = "",
+  initialJsxComponents = [],
   initialStatusWidgetStackOrder = "character_first",
   characterWidgetAllowUserOverride = true,
   showFullBillingReceipt = false,
@@ -983,7 +983,7 @@ export default function ChatClient({
   isCharacterCreator?: boolean;
   initialStatusWidgetDisplayMode?: StatusWidgetDisplayMode | null;
   initialCharacterWidgetJson?: string;
-  initialJsxComponentsJson?: string;
+  initialJsxComponents?: JsxRuntimeComponentRecord[];
   initialStatusWidgetStackOrder?: StatusWidgetStackOrder;
   characterWidgetAllowUserOverride?: boolean;
   showFullBillingReceipt?: boolean;
@@ -1043,10 +1043,7 @@ export default function ChatClient({
   const [mode, setMode] = useState(initialMode);
   const [input, setInput] = useState(() => loadChatMessageDraft(character.id, initialChatId));
   const [jsxSendRequest, setJsxSendRequest] = useState<string | null>(null);
-  const jsxCatalog = useMemo(
-    () => parseJsxComponentCatalog(initialJsxComponentsJson),
-    [initialJsxComponentsJson]
-  );
+  const jsxCatalog = initialJsxComponents;
   const jsxBridge = useMemo<JsxHostBridge>(
     () => ({
       setChatDraft: (text) => {
