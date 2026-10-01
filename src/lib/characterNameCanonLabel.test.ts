@@ -10,7 +10,12 @@ import {
 } from "@/lib/characterChunks";
 import type { CharacterSettingRow } from "@/lib/characterChunks";
 import { hashKoreanChunks } from "@/lib/promptTranslation";
-import { extractRoleplayNameFromSettingText } from "@/lib/relationshipMetaCharacterName";
+import {
+  extractRoleplayNameFromSettingText,
+  resolveRelationshipMetaNames,
+  resolveRoleplayCharacterName,
+  settingTextCarriesExplicitNameBody,
+} from "@/lib/relationshipMetaCharacterName";
 import { buildContext } from "@/services/contextBuilder";
 import { parseCharacterSetting } from "@/utils/characterParser";
 import type { CharacterChunk } from "@/types";
@@ -84,6 +89,71 @@ describe("roleplay name extractor — newline canon label", () => {
     assert.equal(extractRoleplayNameFromSettingText("이름은 중요하지 않다.\n그는 웃었다."), null);
     assert.equal(extractRoleplayNameFromSettingText("그의 이름\n조태형"), null);
     assert.equal(extractRoleplayNameFromSettingText("코드네임\n라이크\n\n별명\n태형"), null);
+  });
+});
+
+describe("incomplete name fields keep the display-name fallback", () => {
+  const incompleteCards = [
+    "이름\n직업\n고위 센티넬",
+    "이름\n[성격]\n긍정적",
+    "Name\nAge\n25",
+    "이름",
+    "이름\n",
+    "이름\n\n직업\n고위 센티넬",
+    "이름:\n직업\n고위 센티넬",
+  ];
+
+  for (const card of incompleteCards) {
+    it(`does not promote the next heading for ${JSON.stringify(card)}`, () => {
+      const chunks = parseNamed(card, "라이크", "male");
+      assert.equal(extractRoleplayNameFromSettingText(card), null);
+      assert.equal(settingTextCarriesExplicitNameBody(card), false);
+      assert.equal(
+        resolveRoleplayCharacterName({ displayName: "라이크", systemPrompt: card, chunks }).roleplayName,
+        "라이크"
+      );
+      assert.equal(
+        resolveRelationshipMetaNames({
+          displayName: "라이크",
+          systemPrompt: card,
+          chunks,
+          userName: "렌",
+        }).charName,
+        "라이크"
+      );
+      assert.deepEqual(nameSections(chunks), ["[이름]\n라이크"]);
+    });
+  }
+
+  it("keeps a real newline name when an earlier name label has no value", () => {
+    const card = "이름\n직업\n\n본명\n조태형 (코드네임: 라이크)";
+    assert.equal(extractRoleplayNameFromSettingText(card), "조태형");
+    assert.equal(settingTextCarriesExplicitNameBody(card), true);
+    assert.equal(nameSections(parseNamed(card, "라이크")).some((section) => section === "[이름]\n라이크"), false);
+  });
+
+  it("keeps a Latin newline name and a same-line bracket name", () => {
+    assert.equal(extractRoleplayNameFromSettingText("Name\nLeon"), "Leon");
+    assert.equal(extractRoleplayNameFromSettingText("Name\nLeon\nPersonality\ncalm"), "Leon");
+    assert.equal(extractRoleplayNameFromSettingText("Name\nLeon (codename: Raven)"), "Leon");
+    assert.equal(extractRoleplayNameFromSettingText("[Name] Leon\nAge\n25"), "Leon");
+  });
+
+  it("still reads the Like card as one explicit canon name", () => {
+    assert.equal(extractRoleplayNameFromSettingText(LIKE_CARD), "조태형");
+    assert.equal(settingTextCarriesExplicitNameBody(LIKE_CARD), true);
+    assert.equal(
+      resolveRoleplayCharacterName({ displayName: "라이크", systemPrompt: LIKE_CARD }).roleplayName,
+      "조태형"
+    );
+    assert.equal(
+      resolveRelationshipMetaNames({
+        displayName: "라이크",
+        systemPrompt: LIKE_CARD,
+        userName: "렌",
+      }).charName,
+      "조태형"
+    );
   });
 });
 
