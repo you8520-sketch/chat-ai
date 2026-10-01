@@ -438,7 +438,8 @@ function retryableHealth(probe: HealthProbe): boolean {
   );
 }
 
-async function withTimeout<T>(
+/** Convert thrown timeout sentinels into promise rejection, never an uncaught timer error. */
+export async function withTimeout<T>(
   work: Promise<T>,
   timeoutMs: number,
   onTimeout: () => T
@@ -447,8 +448,14 @@ async function withTimeout<T>(
   try {
     return await Promise.race([
       work,
-      new Promise<T>((resolve) => {
-        timer = setTimeout(() => resolve(onTimeout()), timeoutMs);
+      new Promise<T>((resolve, reject) => {
+        timer = setTimeout(() => {
+          try {
+            resolve(onTimeout());
+          } catch (error) {
+            reject(error);
+          }
+        }, timeoutMs);
       }),
     ]);
   } finally {
