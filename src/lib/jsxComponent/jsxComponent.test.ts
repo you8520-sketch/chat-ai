@@ -201,6 +201,8 @@ describe("jsx catalog + manifest", () => {
     assert.doesNotMatch(block!, /requestAnimationFrame/);
     assert.doesNotMatch(block!, /sendToChat/);
     assert.doesNotMatch(block!, /export default function/);
+    assert.doesNotMatch(block!, /Do not emit JSX source, HTML, or style/);
+    assert.match(block!, /HTML visual-card output remains governed by its separate HTML policy/);
     assert.ok(PIT_WALL_FIXTURE_PROPS.length <= JSX_PROP_MAX);
   });
 });
