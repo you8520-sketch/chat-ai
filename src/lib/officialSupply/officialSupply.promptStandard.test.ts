@@ -15,6 +15,11 @@ import {
   LUCIAN_APPROVED_LOREBOOK_KEYS,
   resolveOfficialCharacterLorebooks,
 } from "@/lib/officialSupply/lorebookAttach";
+import {
+  LUCIAN_REVIEW_RELATIVE_PATH,
+  LUCIAN_REVIEW_REPRODUCE,
+  buildOfficialCharacterReviewReport,
+} from "@/lib/officialSupply/characterReview";
 import { composeOfficialCreatorComment } from "@/lib/officialSupply/publicProfileText";
 import type {
   OfficialAppearanceLock,
@@ -255,11 +260,25 @@ describe("official character prompt standard v1", () => {
     assert.match(source, /lorebook 후보 메모/);
   });
   it("keeps the reusable review dump read-only and provider-free", () => {
-    const source = fs.readFileSync(path.join(process.cwd(), "scripts/official-supply-character-review.ts"), "utf8");
+    const source = [
+      fs.readFileSync(path.join(process.cwd(), "scripts/official-supply-character-review.ts"), "utf8"),
+      fs.readFileSync(path.join(process.cwd(), "src/lib/officialSupply/characterReview.ts"), "utf8"),
+    ].join("\n");
     assert.match(source, /SYSTEM PROMPT — ACTUAL STAGED FORM/);
     assert.match(source, /RUNTIME APPEARANCE — COMPACT/);
     assert.match(source, /RESOLVED LOREBOOK — ACTUAL ATTACH SET/);
+    assert.match(source, /AUTHORING SOURCE/);
+    assert.match(source, /STORED SNAPSHOT vs LIVE COMPILE/);
+    assert.match(source, /NOT IN THIS DUMP/);
     assert.doesNotMatch(source, /getDb|better-sqlite3|createCharacterFromForm|storeUpload|callOpenAi|fetch\(/);
+  });
+
+  it("keeps the committed Lucian review identical to the live compiler dump", () => {
+    const generated = buildOfficialCharacterReviewReport("pilot-rf-03");
+    const committed = fs.readFileSync(path.join(process.cwd(), LUCIAN_REVIEW_RELATIVE_PATH), "utf8");
+    assert.equal(committed, generated);
+    assert.doesNotMatch(generated, /OPENROUTER_API_KEY|sk-[A-Za-z0-9]{20,}|BEGIN PRIVATE KEY/);
+    assert.match(LUCIAN_REVIEW_REPRODUCE, /official-supply:review-character/);
   });
 
   it("keeps one persona-flexible opening and does not force romance or a first meeting", () => {
