@@ -13,20 +13,19 @@ export const UNIFIED_TIER_MIN_CHARS = 2700;
  * Not a user-facing hard guarantee; one-pass soft floor for LENGTH/terminal.
  */
 export const UNIFIED_TIER_MIN_CHARS_V2 = 2500;
-/** 프롬프트 aim band 하한 (= 통과 최소) */
+/** Disabled-recovery internal floor. Not a prompt band and not an output ceiling. */
 export const UNIFIED_TIER_TARGET_RANGE_MIN_CHARS = UNIFIED_TIER_MIN_CHARS;
-/** 프롬프트 soft aim target · DB normalize 기본값 (MINIMUM_FLOOR와 분리) */
+/** Soft aim. Production prompt target is this value or longer — never a max. */
 export const UNIFIED_TIER_AIM_CHARS = 3200;
 export const UNIFIED_RESPONSE_LENGTH_TARGET = UNIFIED_TIER_AIM_CHARS;
 export type ResponseLengthTierTarget = typeof UNIFIED_RESPONSE_LENGTH_TARGET;
 
-/** Production UI label (gate OFF / non-canary). */
+/** Production UI label. Soft floor, no upper cap, no exact-length target. */
 export const RESPONSE_LENGTH_UI_LABEL =
-  "목표 약 3,200자 · 장면과 대화 맥락에 따라 자연스럽게 조절";
+  "목표 3,200자 이상 · 장면과 요청에 따라 더 길어질 수 있음";
 
-/** Shared Novel Prose V2 canary UI label — no hard min guarantee copy. */
-export const RESPONSE_LENGTH_UI_LABEL_V2 =
-  "평균 약 3,000자 · 장면과 대화 맥락에 따라 자연스럽게 조절";
+/** Canary uses the same length copy. Prose V2 must not advertise a shorter target. */
+export const RESPONSE_LENGTH_UI_LABEL_V2 = RESPONSE_LENGTH_UI_LABEL;
 
 /** AI 출력 목표 분량 — 단일 tier (프롬프트 aim 3,200 · 과금은 실제 출력). UI는 최소 보장 문구 없음. */
 export const TARGET_RESPONSE_TIERS = [

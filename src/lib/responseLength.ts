@@ -13,19 +13,6 @@ import { visibleAssistantDisplayKoreanWordCount } from "./koreanWordCount";
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import { buildLangCriticalRule } from "@/lib/bilingualDialoguePolicy";
 import { isProviderNativeRefusalSignal } from "./providerTermination";
-import {
-  NARRATIVE_DENSITY_BLOCK,
-  NO_GENERIC_REACTIONS_BLOCK,
-  NO_INPUT_ECHO_RULE,
-} from "@/lib/sceneExpansionPolicy";
-import {
-  SCENE_CONTINUATION_PRIORITY_BLOCK,
-  SCENE_CONTINUATION_PRIORITY_BLOCK_CORE,
-} from "./turnHandoffAndPacing";
-import {
-  NARRATIVE_DENSITY_BLOCK_V2,
-  SCENE_CONTINUATION_PRIORITY_BLOCK_V2,
-} from "@/lib/sharedNovelProseV2Styles";
 import { buildCompactTerminalLayoutRecencyLine } from "@/lib/webnovelOutputFormat";
 import {
   OPUS_ARM_E_TERMINAL,
@@ -134,7 +121,7 @@ export function resolveTierAimTarget(_target: ResponseLengthTierTarget): number 
   return UNIFIED_TIER_AIM_CHARS;
 }
 
-/** tier별 프롬프트 aim band 하한 (상한 = resolveTierAimTarget) */
+/** Internal minimum used by disabled recovery gates. Not a prompt ceiling. */
 export function resolveTierTargetRangeMin(_target: ResponseLengthTierTarget): number {
   return UNIFIED_TIER_TARGET_RANGE_MIN_CHARS;
 }
@@ -160,12 +147,13 @@ export type LengthInstructionOpts = {
 };
 
 /**
- * User-tail length owner for all Main RP models (DeepSeek / Opus 5 /
- * Gemini 3.1 / Gemini 3.7). Luna/Terra/Flash terminal adapters are retired.
- * No TARGET_LENGTH / MINIMUM_FLOOR / anti-early-stop / early-completion cue.
+ * Sole numeric length owner for every Main RP model.
+ * Soft target is Korean visible text >= 3,200. There is no upper cap:
+ * scene need and an explicit user request (including OOC) may run longer.
+ * Not an exact-3200 target, not a 3200–3500 band, and not a production hard-fail.
  */
 export const USER_TAIL_LENGTH_OWNER_SENTENCE =
-  "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, [AI_CAST]/NPC/환경의 관찰·심리·판단·행동·대화·감각 변화를 먼저 깊게 전개한다. [B]의 새 직접 대사·중요 선택·중대 행동을 분량 채우기용으로 만들지 않는다.";
+  "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면과 사용자 요청에 필요한 만큼 자연스럽게 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, [AI_CAST]/NPC/환경의 관찰·심리·판단·행동·대화·감각 변화를 먼저 깊게 전개한다. [B]의 새 직접 대사·중요 선택·중대 행동을 분량 채우기용으로 만들지 않는다.";
 
 /** @deprecated System length owner removed — Luna uses terminal contract; others use user-tail length. */
 export const BOUNDED_LENGTH_OWNER_SENTENCE = "";
@@ -221,7 +209,7 @@ export function buildTerminalLengthOverrideBlock(
   return buildCompactTerminalLengthAbsoluteTail(targetInput, opts);
 }
 
-/** 모든 모델 공통 — LENGTH CONTROL + TARGET/FLOOR (자동진행·재생성 포함 단일 출처) */
+/** System length block is empty. Numeric length lives only on the user-turn tail. */
 export function buildLengthInstruction(
   targetInput?: number | null,
   opts?: LengthInstructionOpts
