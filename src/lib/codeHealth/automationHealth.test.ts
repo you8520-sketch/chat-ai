@@ -185,6 +185,26 @@ describe("scheduled automation health", () => {
     assert.match(row.reasons.join(" "), /Observed scheduled-run gap/);
   });
 
+  it("does not keep a recovered workflow stale because of an older historical gap", () => {
+    const report = buildScheduledAutomationHealthReport({
+      definitions: [definitions[0]!],
+      now: new Date("2026-09-30T12:00:00.000Z"),
+      groups: [
+        group(".github/workflows/weekly.yml", [
+          run(5, ".github/workflows/weekly.yml", "2026-09-30T04:17:00.000Z", "success"),
+          run(4, ".github/workflows/weekly.yml", "2026-09-23T04:17:00.000Z", "success"),
+          run(3, ".github/workflows/weekly.yml", "2026-09-09T04:17:00.000Z", "success"),
+          run(2, ".github/workflows/weekly.yml", "2026-09-02T04:17:00.000Z", "success"),
+          run(1, ".github/workflows/weekly.yml", "2026-08-26T04:17:00.000Z", "success"),
+        ]),
+      ],
+    });
+    const row = report.rows[0]!;
+    assert.equal(row.observedGapHours, 168);
+    assert.equal(row.staleAfterHours, 240);
+    assert.equal(row.state, "HEALTHY");
+  });
+
   it("fails closed as warning when GitHub scheduled-run projection is unavailable", () => {
     const report = buildScheduledAutomationHealthReport({
       definitions: [definitions[0]!],
