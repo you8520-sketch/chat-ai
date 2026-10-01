@@ -283,14 +283,15 @@ export function importStatusWidgetShareToUserPresets(
     .get(share.shareSlug) as { id: number } | undefined;
   if (!shareRow) return { ok: false, error: "공유 링크를 찾을 수 없습니다.", status: 404 };
   const title = sanitizeStatusWidgetPresetTitle(titleOverride?.trim() || share.title);
-  const preset = createStatusWidgetPreset(userId, title, share.widgetJson);
-  if (!preset) {
-    return { ok: false, error: "내 위젯 보관함에 저장하지 못했습니다.", status: 400 };
-  }
-  getDb()
-    .prepare(
+  const db = getDb();
+  return db.transaction(() => {
+    const preset = createStatusWidgetPreset(userId, title, share.widgetJson);
+    if (!preset) {
+      return { ok: false as const, error: "내 위젯 보관함에 저장하지 못했습니다.", status: 400 };
+    }
+    db.prepare(
       "INSERT OR IGNORE INTO status_widget_share_imports (share_id, user_id) VALUES (?, ?)"
-    )
-    .run(shareRow.id, userId);
-  return { ok: true, presetId: preset.id };
+    ).run(shareRow.id, userId);
+    return { ok: true as const, presetId: preset.id };
+  })();
 }
