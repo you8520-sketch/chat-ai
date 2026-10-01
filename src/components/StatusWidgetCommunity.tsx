@@ -86,7 +86,11 @@ export default function StatusWidgetCommunity({ items, sort, viewerUserId }: Pro
               className="flex min-w-0 flex-col rounded-2xl border border-white/10 bg-[#131626] p-4"
             >
               <div className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#0a0a0c] p-2">
-                <StatusWidgetPreview widget={item.widget} lazy={item.renderer === "jsx"} />
+                <StatusWidgetPreview
+                  widget={item.widget}
+                  lazy={item.renderer === "jsx"}
+                  requireInteraction={item.renderer === "jsx"}
+                />
               </div>
               <div className="mt-3 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
