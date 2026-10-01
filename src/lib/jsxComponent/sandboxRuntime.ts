@@ -7,6 +7,8 @@ type HostMessage =
   | { type: "hav-jsx-unmount" };
 
 let root: Root | null = null;
+let currentCompiled = "";
+let currentComponent: React.ComponentType<Record<string, unknown>> | null = null;
 let parentOrigin = "";
 let timerCount = 0;
 let rafCount = 0;
@@ -68,40 +70,43 @@ function mount(compiled: string, props: Record<string, unknown>): void {
   if (!mountEl) return;
   if (!root) root = createRoot(mountEl);
   try {
-    const factory = new Function(
-      "React",
-      "sendToChat",
-      "setChatDraft",
-      "useState",
-      "useEffect",
-      "useMemo",
-      "useCallback",
-      "useRef",
-      "useReducer",
-      compiled
-    ) as (
-      react: typeof React,
-      send: typeof sendToChat,
-      draft: typeof setChatDraft,
-      useState: typeof React.useState,
-      useEffect: typeof React.useEffect,
-      useMemo: typeof React.useMemo,
-      useCallback: typeof React.useCallback,
-      useRef: typeof React.useRef,
-      useReducer: typeof React.useReducer
-    ) => React.ComponentType<Record<string, unknown>>;
-    const Comp = factory(
-      React,
-      sendToChat,
-      setChatDraft,
-      React.useState,
-      React.useEffect,
-      React.useMemo,
-      React.useCallback,
-      React.useRef,
-      React.useReducer
-    );
-    root.render(React.createElement(Comp, props));
+    if (!currentComponent || currentCompiled !== compiled) {
+      const factory = new Function(
+        "React",
+        "sendToChat",
+        "setChatDraft",
+        "useState",
+        "useEffect",
+        "useMemo",
+        "useCallback",
+        "useRef",
+        "useReducer",
+        compiled
+      ) as (
+        react: typeof React,
+        send: typeof sendToChat,
+        draft: typeof setChatDraft,
+        useState: typeof React.useState,
+        useEffect: typeof React.useEffect,
+        useMemo: typeof React.useMemo,
+        useCallback: typeof React.useCallback,
+        useRef: typeof React.useRef,
+        useReducer: typeof React.useReducer
+      ) => React.ComponentType<Record<string, unknown>>;
+      currentComponent = factory(
+        React,
+        sendToChat,
+        setChatDraft,
+        React.useState,
+        React.useEffect,
+        React.useMemo,
+        React.useCallback,
+        React.useRef,
+        React.useReducer
+      );
+      currentCompiled = compiled;
+    }
+    root.render(React.createElement(currentComponent, props));
     post("ready", {});
   } catch (error) {
     const message = error instanceof Error ? error.message : "runtime throw";
@@ -132,6 +137,8 @@ window.addEventListener("message", (event) => {
   if (data.type === "hav-jsx-unmount") {
     root?.unmount();
     root = null;
+    currentCompiled = "";
+    currentComponent = null;
     return;
   }
   if (data.type !== "hav-jsx-mount") return;
