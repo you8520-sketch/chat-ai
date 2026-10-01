@@ -28,6 +28,12 @@ export type JsxComponentRecord = {
   chatSend: boolean;
 };
 
+export type JsxComponentManifestRecord = {
+  name: string;
+  props: JsxPropDefinition[];
+  chatSend: boolean;
+};
+
 export type JsxInvocation = {
   name: string;
   props: Record<string, string | number | boolean>;
