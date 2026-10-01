@@ -62,6 +62,7 @@ import { takeRecentTurns, takeRecentTurnsIncludingMessage } from "@/lib/chatMess
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { resolveNarrativePov } from "@/lib/narrativePov";
 import { parseUserAuthoringLevel } from "@/lib/userAuthoringPolicy";
+import { parseJsxRuntimeComponentCatalog } from "@/lib/jsxComponent/catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -576,7 +577,9 @@ export default async function ChatPage({
         displayModeFromEngineMode(statusWidgetEngineMode)
       }
       initialCharacterWidgetJson={(c as { status_widget_json?: string }).status_widget_json ?? ""}
-      initialJsxComponentsJson={(c as { jsx_components_json?: string }).jsx_components_json ?? ""}
+      initialJsxComponents={parseJsxRuntimeComponentCatalog(
+        (c as { jsx_components_json?: string }).jsx_components_json ?? ""
+      )}
       initialStatusWidgetStackOrder={parseStatusWidgetStackOrder(chat.status_widget_stack_order)}
       characterWidgetAllowUserOverride={
         (c as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0
