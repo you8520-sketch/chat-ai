@@ -223,7 +223,7 @@ const prepareStart = Date.now();
 app.prepare().then(() => {
   console.log(`[boot-timing] app.prepare() took ${Date.now() - prepareStart}ms`);
   httpServer = createServer((req, res) => {
-    // Alternate public hostname → hav.chat before Next, auth, or session cookies.
+    // Railway public hostname → configured public origin before Next, auth, or session cookies.
     if (canonicalHostRedirect(req, res)) return;
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);

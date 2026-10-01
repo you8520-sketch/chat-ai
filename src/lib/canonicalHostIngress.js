@@ -1,10 +1,12 @@
 /**
  * Canonical-host ingress owner.
  *
- * src/lib/publicOrigin.ts owns the configured public origin used to build
- * URLs, including the Google OAuth callback. This module owns the HTTP door
- * in server.js: a browser that enters on the Railway public hostname is sent
- * to https://hav.chat before Next.js, auth, or session code runs.
+ * Redirect target comes from getConfiguredPublicOrigin() in publicOrigin.ts,
+ * the same owner used for OAuth callback and metadata URLs. Production start
+ * is `tsx server.js`, which can require that module directly.
+ *
+ * The alternate hostname comes from Railway's RAILWAY_PUBLIC_DOMAIN. When that
+ * variable is empty, this process does not redirect.
  *
  * OAuth state cookies stay host-only. This redirect does not share them
  * across hosts and does not relax callback state checks.
@@ -14,8 +16,8 @@
  * healthcheck is never turned into a redirect.
  */
 
-const CANONICAL_PUBLIC_ORIGIN = "https://hav.chat";
-const ALTERNATE_PUBLIC_HOST = "chat-ai-production-4275.up.railway.app";
+const { getConfiguredPublicOrigin } = require("./publicOrigin.ts");
+
 const HEALTHCHECK_PATH = "/health";
 
 function headerValue(headers, name) {
@@ -49,6 +51,20 @@ function observedPublicHost(headers) {
   return hostnameFromHeader(headerValue(headers, "host"));
 }
 
+function railwayPublicHost() {
+  const raw = process.env.RAILWAY_PUBLIC_DOMAIN;
+  if (typeof raw !== "string" || !raw.trim()) return "";
+  const trimmed = raw.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      return new URL(trimmed).hostname.toLowerCase();
+    } catch {
+      return "";
+    }
+  }
+  return hostnameFromHeader(trimmed);
+}
+
 function requestTarget(rawUrl) {
   if (typeof rawUrl !== "string" || rawUrl.length === 0) return "/";
   if (!rawUrl.startsWith("/") || rawUrl.startsWith("//") || /[\r\n\0\\]/.test(rawUrl)) return "/";
@@ -63,11 +79,24 @@ function pathnameOf(target) {
 function canonicalHostDecision(req) {
   const target = requestTarget(req && req.url);
   if (pathnameOf(target) === HEALTHCHECK_PATH) return { action: "pass" };
-  if (observedPublicHost(req && req.headers) !== ALTERNATE_PUBLIC_HOST) return { action: "pass" };
+
+  const alternate = railwayPublicHost();
+  if (!alternate || observedPublicHost(req && req.headers) !== alternate) return { action: "pass" };
+
+  const canonical = getConfiguredPublicOrigin();
+  if (!canonical) return { action: "pass" };
+  let canonicalHost = "";
+  try {
+    canonicalHost = new URL(canonical).hostname.toLowerCase();
+  } catch {
+    return { action: "pass" };
+  }
+  if (!canonicalHost || canonicalHost === alternate) return { action: "pass" };
+
   return {
     action: "redirect",
     status: 308,
-    location: `${CANONICAL_PUBLIC_ORIGIN}${target}`,
+    location: `${canonical}${target}`,
   };
 }
 
@@ -80,8 +109,6 @@ function canonicalHostRedirect(req, res) {
 }
 
 module.exports = {
-  ALTERNATE_PUBLIC_HOST,
-  CANONICAL_PUBLIC_ORIGIN,
   HEALTHCHECK_PATH,
   canonicalHostDecision,
   canonicalHostRedirect,
