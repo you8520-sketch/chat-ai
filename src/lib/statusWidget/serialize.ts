@@ -21,8 +21,10 @@ export function parseStatusWidgetJson(raw: string | null | undefined): StatusWid
     }
     if (!htmlTemplate.trim() && !jsxSource) return null;
     if (parsed.fields.length === 0) return null;
-    let jsxCompiled = String(parsed.jsxCompiled ?? "").trim();
-    if (jsxSource && !jsxCompiled) {
+    let jsxCompiled = "";
+    if (jsxSource) {
+      // jsxSource is canonical. Never trust a persisted/client-supplied compiled
+      // blob because it can bypass the current compiler/security policy.
       const compiled = compileJsxComponentSource(jsxSource);
       if (compiled.ok) jsxCompiled = compiled.compiled;
     }
@@ -30,7 +32,7 @@ export function parseStatusWidgetJson(raw: string | null | undefined): StatusWid
       version: 1,
       name: String(parsed.name || "상태창").slice(0, 80),
       htmlTemplate,
-      ...(jsxSource ? { jsxSource, ...(jsxCompiled ? { jsxCompiled } : {}) } : {}),
+      ...(jsxSource && jsxCompiled ? { jsxSource, jsxCompiled } : {}),
       fields: parsed.fields
         .map((f) => {
           const label = String(f.label || "").trim().slice(0, 40);
@@ -66,16 +68,13 @@ export function parseStatusWidgetJson(raw: string | null | undefined): StatusWid
 
 export function serializeStatusWidget(widget: StatusWidget): string {
   const jsxSource = widget.jsxSource?.trim() ?? "";
-  let jsxCompiled = widget.jsxCompiled?.trim() ?? "";
-  if (jsxSource && !jsxCompiled) {
-    const compiled = compileJsxComponentSource(jsxSource);
-    if (compiled.ok) jsxCompiled = compiled.compiled;
-  }
+  const compiled = jsxSource ? compileJsxComponentSource(jsxSource) : null;
+  const safeJsxSource = compiled?.ok ? jsxSource : "";
   return JSON.stringify({
     version: widget.version,
     name: widget.name,
     htmlTemplate: widget.htmlTemplate,
-    ...(jsxSource ? { jsxSource, ...(jsxCompiled ? { jsxCompiled } : {}) } : {}),
+    ...(safeJsxSource ? { jsxSource: safeJsxSource } : {}),
     placement: widget.placement,
     fields: widget.fields.map(({ id, label, instruction, initialValue, numericState }) => {
       const normalized = numericState
