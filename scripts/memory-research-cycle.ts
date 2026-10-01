@@ -36,6 +36,7 @@ import { defaultSources, type SourceFetch } from "@/lib/memoryResearch/sources";
 import { runPendingLiveExperiments } from "@/lib/memoryResearch/liveExperimentRunner";
 import { openImplementationDraftPrs } from "@/lib/memoryResearch/implementationPr";
 import {
+  attachMemoryPromptPackingAuditToCycleJson,
   buildMemoryPromptPackingAudit,
   renderMemoryPromptPackingAuditMarkdown,
 } from "@/lib/memoryResearch/promptPackingAudit";
@@ -73,6 +74,21 @@ function promptPackingSentinel(): void {
   const markdown = renderMemoryPromptPackingAuditMarkdown(audit);
   writeFileSync(join(outDir, "report.json"), `${JSON.stringify(audit, null, 2)}\n`);
   writeFileSync(join(outDir, "REPORT.md"), markdown);
+
+  const cycleReportPath = arg("cycle-report");
+  if (cycleReportPath) {
+    if (!existsSync(cycleReportPath)) {
+      throw new Error(`memory research cycle report not found: ${cycleReportPath}`);
+    }
+    writeFileSync(
+      cycleReportPath,
+      attachMemoryPromptPackingAuditToCycleJson(
+        readFileSync(cycleReportPath, "utf8"),
+        audit
+      )
+    );
+  }
+
   console.log(markdown);
   const failed = audit.invariants.filter((invariant) => !invariant.ok);
   if (failed.length > 0) {

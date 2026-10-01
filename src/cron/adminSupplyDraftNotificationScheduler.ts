@@ -5,7 +5,14 @@ import {
   type GithubSupplyAutoDraftProjection,
 } from "@/lib/adminAutomationReports";
 import { getDb } from "@/lib/db";
-import { notifyAdminsSupplyDraftReady } from "@/lib/userNotifications";
+import {
+  buildSupplierDiscoveryReport,
+  supplierDiscoveryNotificationTargets,
+} from "@/lib/supplierDiscovery/discoverSuppliers";
+import {
+  notifyAdminsSupplyCandidateAttention,
+  notifyAdminsSupplyDraftReady,
+} from "@/lib/userNotifications";
 
 export const ADMIN_SUPPLY_DRAFT_NOTIFICATION_POLL_MS = 5 * 60 * 1000;
 
@@ -50,17 +57,34 @@ export async function runAdminSupplyDraftNotificationScan(
   };
 }
 
+export function runAdminSupplyCandidateNotificationScan(
+  db: Database.Database
+): { candidatesSeen: number; adminNotificationsCreated: number } {
+  const targets = supplierDiscoveryNotificationTargets(buildSupplierDiscoveryReport());
+  let created = 0;
+  for (const target of targets) {
+    created += notifyAdminsSupplyCandidateAttention(db, target).length;
+  }
+  return {
+    candidatesSeen: targets.length,
+    adminNotificationsCreated: created,
+  };
+}
+
 async function pollOnce(): Promise<void> {
   if (scanRunning) return;
   scanRunning = true;
   try {
-    const result = await runAdminSupplyDraftNotificationScan(getDb());
+    const db = getDb();
+    const result = await runAdminSupplyDraftNotificationScan(db);
     if (result.status !== "OK") {
       console.warn("[admin-supply-draft-notify] GitHub projection unavailable", result.error);
-      return;
-    }
-    if (result.adminNotificationsCreated > 0) {
+    } else if (result.adminNotificationsCreated > 0) {
       console.info("[admin-supply-draft-notify] queued admin notifications", result);
+    }
+    const candidates = runAdminSupplyCandidateNotificationScan(db);
+    if (candidates.adminNotificationsCreated > 0) {
+      console.info("[admin-supply-candidate-notify] queued admin notifications", candidates);
     }
   } catch (error) {
     console.warn(
