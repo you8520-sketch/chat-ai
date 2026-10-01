@@ -33,6 +33,7 @@ import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-
 import { ensurePayoutTransferAttemptsSchema } from "@/lib/payoutTransferAttempts";
 import { ensurePointChargeRefundAttemptsSchema } from "@/lib/pointChargeRefundAttempts";
 import { ensureSchedulerRunRegistrySchema } from "@/lib/schedulerRunRegistry";
+import { ensureOpsRequestIncidentsSchema } from "@/lib/opsRequestIncidents";
 import { dropLastCompressedAtColumnOnce } from "@/lib/memory/last-compressed-at-column-retirement";
 import { dropChatsCurrentSummaryColumnOnce } from "@/lib/memory/chats-current-summary-column-retirement";
 import { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
@@ -825,6 +826,7 @@ function migrate(db: Database.Database) {
   ensurePayoutTransferAttemptsSchema(db);
   ensurePointChargeRefundAttemptsSchema(db);
   ensureSchedulerRunRegistrySchema(db);
+  ensureOpsRequestIncidentsSchema(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS report_refunds (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
