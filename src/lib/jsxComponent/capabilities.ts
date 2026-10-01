@@ -20,7 +20,13 @@ export function analyzeJsxCapabilities(source: string): JsxCapability[] {
   if (/\b(localStorage|sessionStorage|document\.cookie)\b/.test(source)) {
     found.add("storage");
   }
-  if (/\b(window\.open|top\.location|location\s*=|href\s*=\s*['"]https?:)\b/.test(source)) {
+  if (
+    /\b(?:window\.open|top\.location|parent\.location|location\.(?:assign|replace)|(?:window\.|document\.)?location(?:\.href)?\s*=)/.test(
+      source
+    ) ||
+    /<a\b[^>]*\bhref\s*=/.test(source) ||
+    /\bhref\s*=\s*['"](?:https?:|\/\/)/.test(source)
+  ) {
     found.add("navigation");
   }
   return [...found];
