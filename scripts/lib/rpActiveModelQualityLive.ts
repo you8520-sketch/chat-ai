@@ -137,9 +137,11 @@ function modelLabel(modelId: SelectedAI): string {
 }
 
 export function buildRpActiveModelQualityPlan(
-  caseIds: readonly CanonicalQualificationCaseId[] = RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS
+  caseIds: readonly CanonicalQualificationCaseId[] = RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS,
+  modelIds: readonly SelectedAI[] = RP_ACTIVE_MODEL_QUALITY_MODEL_IDS
 ): RpActiveModelQualityProbe[] {
-  for (const modelId of RP_ACTIVE_MODEL_QUALITY_MODEL_IDS) {
+  const uniqueModelIds = [...new Set(modelIds)];
+  for (const modelId of uniqueModelIds) {
     if (!MAIN_RP_MODEL_IDS.includes(modelId)) {
       throw new Error(`Quality model is no longer active Main RP: ${modelId}`);
     }
@@ -154,7 +156,7 @@ export function buildRpActiveModelQualityPlan(
     const unknown = [...selectedCaseIds].filter((id) => !known.has(id));
     throw new Error(`Unknown RP quality case id(s): ${unknown.join(", ")}`);
   }
-  const plan = RP_ACTIVE_MODEL_QUALITY_MODEL_IDS.flatMap((modelId) =>
+  const plan = uniqueModelIds.flatMap((modelId) =>
     cases.map((caseData) => ({
       modelId,
       caseId: caseData.id,
@@ -395,12 +397,14 @@ export async function runRpActiveModelQualityLive(input: {
   credentials: Record<RpActiveModelQualityProvider, string>;
   runId: string;
   caseIds?: readonly CanonicalQualificationCaseId[];
+  modelIds?: readonly SelectedAI[];
   fetchImpl?: FetchLike;
 }): Promise<RpActiveModelQualityLiveReport> {
   const cases = new Map(
     buildCanonicalRpQualificationCases().map((entry) => [entry.id, entry])
   );
-  const plan = buildRpActiveModelQualityPlan(input.caseIds);
+  const selectedModelIds = input.modelIds ?? RP_ACTIVE_MODEL_QUALITY_MODEL_IDS;
+  const plan = buildRpActiveModelQualityPlan(input.caseIds, selectedModelIds);
   const results: RpActiveModelQualityTurnResult[] = [];
 
   for (const probe of plan) {
@@ -434,7 +438,7 @@ export async function runRpActiveModelQualityLive(input: {
     version: RP_ACTIVE_MODEL_QUALITY_LIVE_VERSION,
     generatedAt: new Date().toISOString(),
     source: CANONICAL_RP_QUALIFICATION_SOURCE,
-    modelIds: RP_ACTIVE_MODEL_QUALITY_MODEL_IDS,
+    modelIds: selectedModelIds,
     excludedModels: RP_ACTIVE_MODEL_QUALITY_EXCLUDED,
     ordinaryInputAuthoringLevel: "NORMAL",
     providerCalls: results.length,
@@ -443,7 +447,9 @@ export async function runRpActiveModelQualityLive(input: {
     results,
     notes: [
       "Raw outputs are evidence for GPT/user review; the runner does not score or rank models.",
-      "The model set is derived directly from the current Main-RP user-selectable registry; retired/non-chat models are not probed.",
+      input.modelIds
+        ? "This one-shot PR evidence run uses an explicit subset of current Main-RP models; monthly/default runs still derive from the full active registry."
+        : "The model set is derived directly from the current Main-RP user-selectable registry; retired/non-chat models are not probed.",
       "The default monthly evidence is bounded to two memory-continuity cases across all active models.",
       "All cases use the frozen deployed 조태형(라이크)+관리자 페르소나 렌 fixture with current-main prompt/wire assembly.",
       "Ordinary interactive user-authoring is current product default NORMAL: dialogue/actions allowed, private inner POV and irreversible user fate not allowed.",
