@@ -676,6 +676,7 @@ export async function monitorOfficialDomain(input: {
   }
 
   let healthEvidence = emptyHealth();
+  let finalHealthProbe: HealthProbe | null = null;
   if (dnsEvidence.state !== "FAIL" && tlsEvidence.state !== "FAIL" && withinBudget()) {
     let healthAttempts = 0;
     while (healthAttempts < maxAttempts && withinBudget()) {
@@ -685,6 +686,7 @@ export async function monitorOfficialDomain(input: {
         `${DOMAIN_SSL_ORIGIN}${DOMAIN_SSL_HEALTH_PATH}`,
         timeoutMs
       );
+      finalHealthProbe = probe;
       healthEvidence = classifyHealth(probe);
       if (healthEvidence.state === "OK" || healthEvidence.state === "FAIL") break;
       if (!retryableHealth(probe) || healthAttempts >= maxAttempts || !withinBudget()) break;
@@ -692,8 +694,9 @@ export async function monitorOfficialDomain(input: {
     }
   }
 
-  if (healthEvidence.state === "UNVERIFIED" && healthEvidence.reason === "health_http_503") {
-    healthEvidence = { state: "FAIL", reason: "health_http_503" };
+  // Exhausted repeated gateway errors mean /health failed; timeouts stay UNVERIFIED.
+  if (healthEvidence.state === "UNVERIFIED" && finalHealthProbe?.kind === "http" && finalHealthProbe.retryable) {
+    healthEvidence = { ...healthEvidence, state: "FAIL" };
   }
 
   const state = rollupDomainSslState([dnsEvidence.state, tlsEvidence.state, healthEvidence.state]);
