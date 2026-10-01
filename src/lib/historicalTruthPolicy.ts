@@ -1,3 +1,5 @@
+import { extractExplicitSharedHistoryScope } from "@/lib/sharedHistoryEvidence";
+
 /**
  * Canonical historical / shared-memory truth policy — single full semantic owner.
  * Injected once on every Main RP production path via contextBuilder.
@@ -36,12 +38,17 @@ export const EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES = [
 export const HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER =
   "[HISTORICAL TRUTH CHECK]";
 
+export const HISTORICAL_TRUTH_CURRENT_USER_EVIDENCE_MARKER =
+  "[HISTORICAL EVIDENCE — CURRENT USER]";
+
 const CURRENT_USER_HISTORICAL_PREMISE_PATTERNS: readonly RegExp[] = [
   /기억(?:하지|나|나지|해|하니|하냐)/u,
   /알(?:지|잖아)(?:[?!….,\s]|$)/u,
   /(?:뭐|무엇|어떤).{0,16}(?:였더라|했더라|먹었더라|갔더라|봤더라)/u,
   /(?:평소|원래).{0,24}(?:뭐|무엇|어떤).{0,24}(?:좋아|싫어|먹|마시|취향)/u,
   /(?:전에|예전에|지난번|그때).{0,28}(?:뭐|무엇|어디|언제|누구|어떻게).{0,20}(?:했|였|갔|먹|봤|만났|기억)/u,
+  /(?:첫\s*만남|만난\s*(?:뒤|후)|이후).{0,48}(?:함께|임무|만났|지냈|갔|먹|약속|연락)/u,
+  /(?:몇\s*(?:번|차례)|여러\s*번).{0,48}(?:함께|임무|만났|지냈|약속|연락)/u,
 ];
 
 /**
@@ -69,7 +76,14 @@ export function currentUserNeedsHistoricalTruthRecencyRef(
 export function buildHistoricalTruthCurrentUserRecencyRef(
   text: string | null | undefined
 ): string {
+  const explicitScope = extractExplicitSharedHistoryScope(text);
+  if (explicitScope.length > 0) {
+    return `${HISTORICAL_TRUTH_CURRENT_USER_EVIDENCE_MARKER}
+USER가 이번 턴에 직접 확정한 공유 과거:
+${explicitScope.map((line) => `- ${line}`).join("\n")}
+이 범위는 그대로 이어 쓰고, 비어 있는 이전 세부는 열린 상태로 둔다. 새 구체성은 현재 장면에서 만든다.`;
+  }
   if (!currentUserNeedsHistoricalTruthRecencyRef(text)) return "";
   return `${HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER}
-현재 USER 입력에 과거·기억 전제가 포함되어 있다. ${HISTORICAL_TRUTH_POLICY_SHORT_REF}`;
+이번 턴의 공유 과거는 ${HISTORICAL_TRUTH_POLICY_TITLE}에서 확인된 사실만 이어 쓰고, 비어 있는 이전 세부는 열린 상태로 둔다.`;
 }
