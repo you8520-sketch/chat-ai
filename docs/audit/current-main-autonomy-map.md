@@ -1,7 +1,7 @@
 # Current-main Autonomy Map
 
 **Classification:** `AUTONOMY_COVERAGE_AUDIT_COMPLETE`  
-**EXACT MAIN:** `c5b9e12b72f153d7373202c2c8990a8e159d7e96`  
+**EXACT MAIN:** `e0880d43e47e412f1de77c86cc04d4ec864e2785`  
 **Production behavior change:** none. This document and its lock test do not rerun workflows, grant permissions, or add a scheduler.
 
 Historical baseline under audit: Draft PR #1002 (`cursor/architecture-ops-investigation-4604`, investigated main `f13ea612fc942418a0271f05db209b76ecc077c2`, 2026-09-22). That PR is not closed or merged here.
@@ -129,6 +129,7 @@ Authority is the furthest action the current owner actually takes. Retry safety 
 | Memory research cycle | PROPOSE | LEDGER_WRITE + DRAFT_PR; monthly live job is opt-in PROVIDER_CALL | REVIEW_REQUIRED | contents/pull-requests write on PR jobs | research job 0; live job uses a benchmark secret | YES | dry_run, run_live_experiments | automation reports |
 | Decision model radar | INVESTIGATE | PROVIDER_CALL + LEDGER_WRITE | REVIEW_REQUIRED | contents read; persist contents write | benchmark key | YES | dry_run | automation reports |
 | Active Main RP quality schedule | INVESTIGATE | PROVIDER_CALL on the live job | NEVER_AUTO_RETRY | contents read | benchmark keys, two cases | YES | schedule vs PR | GitHub artifacts |
+| Admin RP qualification fixture | OBSERVE | NONE (read-only JSON) | REVIEW_REQUIRED | admin session | none | YES | admin auth | `GET /api/admin/rp-qualification-fixture` |
 | Supply radar | PROPOSE | PROVIDER_CALL on day-1 qualification; DRAFT_PR for a provider switch | NEVER_AUTO_RETRY | contents write, pull-requests write, actions read | radar/benchmark keys; day-1 also `OPENROUTER_API_KEY` | YES to merge | schedule split | automation reports + supply draft notification |
 | Monthly cache audit (GitHub) | OBSERVE | ARTIFACT_ONLY + usage API read | REVIEW_REQUIRED | contents read | usage/reporting key, generation calls asserted 0 | YES | dry_run | artifact / summary |
 | finance_daily | ACTUATE | PRODUCTION_DB_WRITE, PROVIDER_CALL for usage reconcile, USER_NOTIFICATION on anomaly | SAFE_EXISTING_OWNER | in-process | usage reconcile | YES for margin/price edits | `DISABLE_FINANCE_SCHEDULER`, `DISABLE_MODEL_PRICING_TRACKER` | finance page, Ops Inbox, automation reports |
@@ -170,6 +171,7 @@ Authority is the furthest action the current owner actually takes. Retry safety 
 | Memory runtime | per turn | AUTOMATED | Inside the chat request. |
 | Memory research | weekly/monthly cycle | PARTIAL | Draft PR, no merge. |
 | RP / model quality | monthly live evidence | PARTIAL | Evidence only. |
+| RP / model quality | admin qualification fixture export | MANUAL | `GET /api/admin/rp-qualification-fixture` reads a sanitized fixture. No scheduler, no provider call, no route change. |
 | Prompt quality | no scheduled owner | MANUAL | Tests exist; no production auditor owns prompt edits. |
 | Code health | weekly + monthly | PARTIAL | Ledger and optional cleanup draft. |
 | DB / schema | boot migration | AUTOMATED | `initializeDatabase`. No separate migration cron. |
