@@ -25,6 +25,9 @@ jobs:
           node-version: "22"
       - name: Verify https://hav.chat health contract
         run: node --experimental-strip-types src/lib/postDeployVerification.ts
+      - name: Verify public pages on https://hav.chat
+        if: success()
+        run: node --experimental-strip-types src/lib/postDeployVerification.ts --public-smoke
       - name: Record verification summary
         if: always()
         run: |

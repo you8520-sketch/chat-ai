@@ -32,6 +32,7 @@ import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingOb
 import {
   type PostDeployVerificationState,
   type PostDeployVerificationView,
+  type PublicSmokeState,
 } from "@/lib/postDeployVerification";
 import { listSchedulerRunOverview } from "@/lib/schedulerRunRegistry";
 import {
@@ -91,6 +92,21 @@ function postDeployBadgeClass(state: PostDeployVerificationState): string {
   }
 }
 
+function publicSmokeBadgeClass(state: PublicSmokeState): string {
+  switch (state) {
+    case "PASS":
+      return "bg-emerald-500/15 text-emerald-300";
+    case "FAIL":
+      return "bg-rose-500/15 text-rose-300";
+    case "UNVERIFIED":
+      return "bg-amber-500/15 text-amber-300";
+    default: {
+      const _exhaustive: never = state;
+      return _exhaustive;
+    }
+  }
+}
+
 function PostDeployVerificationCard({ view }: { view: PostDeployVerificationView }) {
   const latest = view.latest;
   return (
@@ -100,8 +116,9 @@ function PostDeployVerificationCard({ view }: { view: PostDeployVerificationView
           <h2 className="text-lg font-black">배포 검증</h2>
           <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
             Railway production 배포가 성공한 뒤 https://hav.chat 의 /health 와 /api/health 를
-            읽어서 대상 커밋과 맞는지 확인한 결과입니다. GitHub workflow 성공만으로 VERIFIED가
-            되지 않습니다.
+            읽어서 대상 커밋과 맞는지 확인한 결과입니다. SHA 검증이 VERIFIED이면 같은 실행이
+            공개 홈, 검색, 신작, 랭킹을 따로 읽습니다. GitHub workflow 성공만으로 VERIFIED나
+            PASS가 되지 않습니다.
           </p>
         </div>
         <span
@@ -138,6 +155,30 @@ function PostDeployVerificationCard({ view }: { view: PostDeployVerificationView
             <dd className="mt-1 text-xs text-zinc-100">{latest.reason ?? "없음"}</dd>
           </div>
         </dl>
+      ) : null}
+      {latest?.publicSmoke ? (
+        <div className="mt-4 rounded-xl border border-white/10 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-bold text-zinc-200">공개 페이지</p>
+            <span className={"rounded px-2 py-1 text-xs font-bold " + publicSmokeBadgeClass(latest.publicSmoke.state)}>
+              {latest.publicSmoke.state}
+            </span>
+          </div>
+          <p className="mt-2 text-xs text-zinc-400">
+            {fmtDate(latest.publicSmoke.checkedAt)} · {latest.publicSmoke.attempts}회
+            {latest.publicSmoke.reason ? ` · ${latest.publicSmoke.reason}` : ""}
+          </p>
+          {latest.publicSmoke.pages.length > 0 ? (
+            <ul className="mt-2 space-y-1 text-xs text-zinc-300">
+              {latest.publicSmoke.pages.map((page) => (
+                <li key={page.path}>
+                  {page.path} · {page.state}
+                  {page.reason ? ` · ${page.reason}` : ""} · {page.attempts}회
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       ) : null}
       {latest && !latest.currentDeployment ? (
         <p className="mt-3 text-xs text-zinc-400">현재 배포 SHA와 다른 이전 검증 결과입니다.</p>

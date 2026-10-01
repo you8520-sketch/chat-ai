@@ -219,9 +219,8 @@ KEEP: `schedulerRunRegistry` retry flags, payout and refund attempt rows, Automa
 FOLLOW-UP, not started:
 
 - GitHub automatic rerun
-- First live `deployment_status` run of `.github/workflows/post-deploy-verification.yml` after that file is on `main`. The verifier is an event workflow, not a scheduled workflow, and it is not part of the scheduled inventory above.
+- First live `deployment_status` run of `.github/workflows/post-deploy-verification.yml` after the public-page step is on `main`. That step runs only after SHA/health VERIFIED, inside the same event workflow. It is not a scheduled workflow and it is not part of the scheduled inventory above.
 - stale Draft PR janitor
-- synthetic production smoke
 - deployment recovery, auto rollback, AI repair
 - new auto-actions
 - admin rendering of this map

@@ -2,12 +2,14 @@ import {
   isProductionEnvironmentName,
   normalizeDeploymentSha,
   parsePostDeployEvidence,
+  parsePublicSmokeEvidence,
   POST_DEPLOY_WORKFLOW_PATH,
   projectPostDeployVerification,
   type DeploymentSuccessRef,
   type ParsedPostDeployRun,
   type PostDeployEvidence,
   type PostDeployVerificationView,
+  type PublicSmokeEvidence,
 } from "@/lib/postDeployVerification";
 
 export const AUTOMATION_REPORTS_GITHUB_REPO = "you8520-sketch/chat-ai";
@@ -268,6 +270,7 @@ export async function fetchPostDeployVerificationProjection(
       const jobsBody = (await jobsResponse.json()) as { jobs?: Array<Record<string, unknown>> };
       const checkUrl = asString(jobsBody.jobs?.[0]?.check_run_url);
       let evidence: PostDeployEvidence | null = null;
+      let publicSmoke: PublicSmokeEvidence | null = null;
       if (checkUrl) {
         const notesResponse = await fetchImpl(`${checkUrl}/annotations`, {
           headers,
@@ -281,8 +284,12 @@ export async function fetchPostDeployVerificationProjection(
           });
         }
         for (const message of annotationMessages(await notesResponse.json())) {
-          evidence = parsePostDeployEvidence(message);
-          if (evidence) break;
+          const parsedEvidence = parsePostDeployEvidence(message);
+          const parsedSmoke = parsePublicSmokeEvidence(message);
+          if (parsedEvidence && (!evidence || (parsedSmoke && !publicSmoke))) {
+            evidence = parsedEvidence;
+            publicSmoke = parsedSmoke;
+          }
         }
       }
       parsed.push({
@@ -290,6 +297,7 @@ export async function fetchPostDeployVerificationProjection(
         htmlUrl: asString(run.html_url),
         createdAt: asString(run.created_at),
         evidence,
+        publicSmoke,
       });
     }
 
