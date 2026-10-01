@@ -19,6 +19,8 @@ type Props = {
   values?: StatusWidgetValues;
   /** Mount the JSX sandbox only once the preview is near the viewport. */
   lazy?: boolean;
+  /** Public community surfaces must not execute creator JSX until the viewer opts in. */
+  requireInteraction?: boolean;
   className?: string;
 };
 
@@ -27,10 +29,11 @@ export default function StatusWidgetPreview({
   profileNames,
   values,
   lazy = false,
+  requireInteraction = false,
   className,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(!lazy);
+  const [visible, setVisible] = useState(!lazy && !requireInteraction);
   const previewValues = useMemo(
     () => values ?? buildStatusWidgetEditorPreviewValues(widget, profileNames),
     [values, widget, profileNames]
@@ -42,7 +45,7 @@ export default function StatusWidgetPreview({
   );
 
   useEffect(() => {
-    if (!lazy || !source) return;
+    if (requireInteraction || !lazy || !source) return;
     const node = rootRef.current;
     if (!node || typeof IntersectionObserver === "undefined") {
       setVisible(true);
@@ -59,7 +62,7 @@ export default function StatusWidgetPreview({
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [lazy, source]);
+  }, [lazy, requireInteraction, source]);
 
   if (source) {
     if (!compiled?.ok) {
@@ -74,6 +77,15 @@ export default function StatusWidgetPreview({
       <div ref={rootRef} className={className ?? "min-w-0 max-w-full overflow-hidden"}>
         {visible ? (
           <JsxComponentSandbox {...sandbox} />
+        ) : requireInteraction ? (
+          <button
+            type="button"
+            onClick={() => setVisible(true)}
+            className="flex w-full items-center justify-center rounded-xl border border-white/10 bg-[#0a0a0c] px-3 text-xs font-semibold text-zinc-300 transition hover:bg-white/5"
+            style={{ height: Math.min(160, JSX_SANDBOX_HEIGHT_PX) }}
+          >
+            JSX 미리보기 열기
+          </button>
         ) : (
           <div
             className="flex items-center justify-center rounded-xl border border-white/10 bg-[#0a0a0c] text-xs text-zinc-500"
