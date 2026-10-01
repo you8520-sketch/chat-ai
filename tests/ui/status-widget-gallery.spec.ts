@@ -98,7 +98,9 @@ test("built-in status widgets fit a 320px column and the gallery does not call c
   await expect(page.getByRole("tab", { name: "인기순" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "최신순" })).toBeVisible();
 
-  const card = page.getByRole("heading", { name: "공개 JSX 안전 미리보기" }).locator("..").locator("..");
+  const card = page
+    .getByRole("heading", { name: "공개 JSX 안전 미리보기" })
+    .locator("xpath=ancestor::li");
   await expect(card.getByRole("button", { name: "JSX 미리보기 열기" })).toBeVisible();
   await expect(card.locator('iframe[title="status-widget-preview"]')).toHaveCount(0);
   expect(providerCalls).toEqual([]);
