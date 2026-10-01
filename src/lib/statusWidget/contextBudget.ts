@@ -9,9 +9,12 @@ import { resolveStatusWidgetTurn } from "./resolve";
 import type { StatusWidget } from "./types";
 
 /** 위젯 1개당 상태값·지시 토큰 환산 상한 (HTML 제외) */
-export const STATUS_WIDGET_CONTEXT_MAX = 500;
-/** 제작자 위젯 + 유저 위젯을 함께 쓸 때의 합산 상한 */
-export const STATUS_WIDGET_CONTEXT_COMBINED_MAX = STATUS_WIDGET_CONTEXT_MAX * 2;
+export const STATUS_WIDGET_CONTEXT_MAX = 700;
+/** 사용자 페르소나 위젯의 기존 독립 상한은 유지. */
+export const STATUS_WIDGET_USER_CONTEXT_MAX = 500;
+/** 제작자 + 사용자 위젯이 모두 활성일 때만 각 상한을 더한다. */
+export const STATUS_WIDGET_CONTEXT_COMBINED_MAX =
+  STATUS_WIDGET_CONTEXT_MAX + STATUS_WIDGET_USER_CONTEXT_MAX;
 
 export type StatusWidgetContextBudgetBreakdown = {
   characterReservedChars: number;
@@ -99,7 +102,7 @@ export function validateStatusWidgetContextBudget(
   const breakdown =
     typeof reserved === "number"
       ? {
-          // Legacy callers only know the combined total, so validate the combined 1,000자 cap.
+          // Legacy callers only know the combined total; validate the summed cap.
           characterReservedChars: 0,
           userReservedChars: 0,
           totalReservedChars: Math.max(0, reserved),
@@ -111,15 +114,15 @@ export function validateStatusWidgetContextBudget(
         };
 
   const overLimit = [
-    ["제작자 위젯", breakdown.characterReservedChars] as const,
-    ["유저 위젯", breakdown.userReservedChars] as const,
-  ].find(([, chars]) => chars > STATUS_WIDGET_CONTEXT_MAX);
+    ["제작자 위젯", breakdown.characterReservedChars, STATUS_WIDGET_CONTEXT_MAX] as const,
+    ["유저 위젯", breakdown.userReservedChars, STATUS_WIDGET_USER_CONTEXT_MAX] as const,
+  ].find(([, chars, limit]) => chars > limit);
 
   if (overLimit) {
-    const [label, chars] = overLimit;
+    const [label, chars, limit] = overLimit;
     return {
       ok: false,
-      error: `${label} 상태값·지시(${chars.toLocaleString()}자, 토큰 환산)가 개별 한도 ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자를 초과합니다. HTML은 제외됩니다.`,
+      error: `${label} 상태값·지시(${chars.toLocaleString()}자, 토큰 환산)가 개별 한도 ${limit.toLocaleString()}자를 초과합니다. HTML은 제외됩니다.`,
     };
   }
 
@@ -141,12 +144,15 @@ export function effectiveUserNoteBodyMax(_widgetReservedChars = 0): number {
   return USER_NOTE_MAX;
 }
 
-export function formatWidgetBudgetHint(widgetReservedChars: number): string {
+export function formatWidgetBudgetHint(
+  widgetReservedChars: number,
+  limit: number = STATUS_WIDGET_CONTEXT_MAX
+): string {
   const reserved = Math.max(0, widgetReservedChars);
   if (reserved <= 0) {
-    return `위젯 상태값·지시 한도 ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자`;
+    return `위젯 상태값·지시 한도 ${limit.toLocaleString()}자`;
   }
-  return `위젯 상태값·지시 ${reserved.toLocaleString()} / ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자`;
+  return `위젯 상태값·지시 ${reserved.toLocaleString()} / ${limit.toLocaleString()}자`;
 }
 
 export function formatCombinedWidgetBudgetHint(
@@ -156,10 +162,11 @@ export function formatCombinedWidgetBudgetHint(
   const user = Math.max(0, breakdown.userReservedChars);
   const total = Math.max(0, breakdown.totalReservedChars);
   if (total <= 0) {
-    return `위젯 상태값·지시 한도: 제작자 ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자 + 유저 ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자`;
+    return `위젯 상태값·지시 한도: 제작자 ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자 + 유저 ${STATUS_WIDGET_USER_CONTEXT_MAX.toLocaleString()}자`;
   }
   if (character > 0 && user > 0) {
-    return `위젯 상태값·지시 제작자 ${character.toLocaleString()} / ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자 · 유저 ${user.toLocaleString()} / ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자`;
+    return `위젯 상태값·지시 제작자 ${character.toLocaleString()} / ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자 · 유저 ${user.toLocaleString()} / ${STATUS_WIDGET_USER_CONTEXT_MAX.toLocaleString()}자`;
   }
-  return `위젯 상태값·지시 ${total.toLocaleString()} / ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자`;
+  const singleLimit = character > 0 ? STATUS_WIDGET_CONTEXT_MAX : STATUS_WIDGET_USER_CONTEXT_MAX;
+  return `위젯 상태값·지시 ${total.toLocaleString()} / ${singleLimit.toLocaleString()}자`;
 }

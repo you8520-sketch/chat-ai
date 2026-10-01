@@ -37,7 +37,7 @@ export function parseStatusWidgetJson(raw: string | null | undefined): StatusWid
       fields: parsed.fields
         .map((f) => {
           const label = String(f.label || "").trim().slice(0, 40);
-          const instruction = String(f.instruction || "").trim().slice(0, 500);
+          const instruction = String(f.instruction || "").trim().slice(0, 700);
           const storedId = String(f.id || "").trim().slice(0, 64);
           const id = storedId || statusValueKeyFromLabel(label);
           const initialValue = String(

@@ -47,7 +47,7 @@ import {
   serializeStatusWidget,
   type StatusWidget,
 } from "@/lib/statusWidget";
-import { estimateStatusWidgetContextChars, formatWidgetBudgetHint } from "@/lib/statusWidget/contextBudget";
+import { estimateStatusWidgetContextChars, formatWidgetBudgetHint, STATUS_WIDGET_USER_CONTEXT_MAX } from "@/lib/statusWidget/contextBudget";
 import type { StatusWidgetShareVisibility } from "@/lib/statusWidgetShareTypes";
 import {
   cn,
@@ -1135,7 +1135,7 @@ export default function PersonaClient({
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-white">{preset.title}</p>
                     <p className={`mt-0.5 ${studioType.caption}`}>
-                      {formatWidgetBudgetHint(reserved)}
+                      {formatWidgetBudgetHint(reserved, STATUS_WIDGET_USER_CONTEXT_MAX)}
                     </p>
                   </div>
                   <div className="flex max-w-full shrink-0 flex-wrap justify-end gap-1.5">
