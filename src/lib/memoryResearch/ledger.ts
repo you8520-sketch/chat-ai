@@ -4,6 +4,7 @@
  * into main, never read by production).
  */
 import type { BaselineSnapshot } from "@/lib/memoryResearch/baselineTrend";
+import type { PromptPackingTrendSnapshot } from "@/lib/memoryResearch/promptPackingTrend";
 import type { ResearchCandidate } from "@/lib/memoryResearch/types";
 
 export const LEDGER_SCHEMA_VERSION = 1;
@@ -17,6 +18,8 @@ export type LedgerCycleEntry = {
   counts: Record<string, number>;
   /** Optional for backward compatibility with existing schemaVersion=1 ledgers. */
   baseline?: BaselineSnapshot | null;
+  /** Compact deterministic sentinel snapshot for cross-cycle memory-overhead trend comparison. */
+  promptPackingSnapshot?: PromptPackingTrendSnapshot | null;
 };
 
 export type ResearchLedger = {

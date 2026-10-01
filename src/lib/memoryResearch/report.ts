@@ -1,4 +1,5 @@
 import type { CycleReport } from "@/lib/memoryResearch/cycle";
+import { renderMemoryResearchEffectivenessMarkdown } from "@/lib/memoryResearch/effectivenessAudit";
 import { renderLocalGoldAuthoringPacketsMarkdown } from "@/lib/memoryResearch/localGoldAuthoringPlanner";
 import { renderPersistentMemoryGapMarkdown } from "@/lib/memoryResearch/persistentGapRadar";
 import { renderBaselineTrendMarkdown } from "@/lib/memoryResearch/baselineTrend";
@@ -43,6 +44,7 @@ export function renderCycleReportMarkdown(report: CycleReport): string {
     renderBenchmarkHarnessFeasibilityMarkdown(report.benchmarkHarnessFeasibility),
     renderLocalGoldAuthoringPacketsMarkdown(report.localGoldAuthoringPackets),
     renderPersistentMemoryGapMarkdown(report.persistentMemoryGaps),
+    renderMemoryResearchEffectivenessMarkdown(report.effectivenessAudit),
     renderBaselineTrendMarkdown(report.baselineTrend),
     "## Baseline Promotion Gate",
     "",
