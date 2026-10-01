@@ -104,19 +104,19 @@ function consecutiveFailures(group: GithubScheduledAutomationGroup): number {
 
 function observedGapStats(
   group: GithubScheduledAutomationGroup
-): { maxGapHours: number | null; medianGapHours: number | null } {
+): { latestGapHours: number | null; medianGapHours: number | null } {
   const times = group.history
     .map((run) => Date.parse(run.createdAt))
     .filter((value) => Number.isFinite(value))
     .sort((a, b) => b - a);
-  if (times.length < 2) return { maxGapHours: null, medianGapHours: null };
+  if (times.length < 2) return { latestGapHours: null, medianGapHours: null };
 
   const gaps: number[] = [];
   for (let i = 0; i < times.length - 1; i += 1) {
     const gap = (times[i]! - times[i + 1]!) / 3_600_000;
     if (gap > 0) gaps.push(gap);
   }
-  if (gaps.length === 0) return { maxGapHours: null, medianGapHours: null };
+  if (gaps.length === 0) return { latestGapHours: null, medianGapHours: null };
   const sorted = [...gaps].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
   const median =
@@ -124,7 +124,7 @@ function observedGapStats(
       ? (sorted[middle - 1]! + sorted[middle]!) / 2
       : sorted[middle]!;
   return {
-    maxGapHours: Math.max(...gaps),
+    latestGapHours: gaps[0] ?? null,
     medianGapHours: median,
   };
 }
@@ -158,10 +158,10 @@ function staleThresholdHours(
   const fallback = cronFallbackHours(definition.crons);
   const stats = group
     ? observedGapStats(group)
-    : { maxGapHours: null, medianGapHours: null };
+    : { latestGapHours: null, medianGapHours: null };
   if (stats.medianGapHours != null) {
     return {
-      observedGapHours: stats.maxGapHours,
+      observedGapHours: stats.latestGapHours,
       staleAfterHours: Math.min(
         fallback,
         Math.max(48, Math.ceil(stats.medianGapHours * 1.5))
@@ -169,7 +169,7 @@ function staleThresholdHours(
     };
   }
   return {
-    observedGapHours: stats.maxGapHours,
+    observedGapHours: stats.latestGapHours,
     staleAfterHours: fallback,
   };
 }
@@ -283,7 +283,7 @@ export function buildScheduledAutomationHealthReport(params: {
     rows,
     notes: [
       "Automation Health is read-only evidence inside Weekly Code Health; it does not rerun, patch, disable, or merge workflows.",
-      "Staleness uses observed scheduled-run gaps when available and a conservative cron-shape fallback otherwise.",
+      "Staleness checks the latest scheduled-run gap against an observed-median/conservative cadence threshold, so an old recovered miss does not create a permanent alert.",
     ],
   };
 }
