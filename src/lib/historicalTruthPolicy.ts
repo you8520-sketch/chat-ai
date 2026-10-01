@@ -1,3 +1,5 @@
+import { extractExplicitSharedHistoryScope } from "@/lib/sharedHistoryEvidence";
+
 /**
  * Canonical historical / shared-memory truth policy — single full semantic owner.
  * Injected once on every Main RP production path via contextBuilder.
@@ -36,6 +38,9 @@ export const EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES = [
 export const HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER =
   "[HISTORICAL TRUTH CHECK]";
 
+export const HISTORICAL_TRUTH_CURRENT_USER_EVIDENCE_MARKER =
+  "[HISTORICAL EVIDENCE — CURRENT USER]";
+
 const CURRENT_USER_HISTORICAL_PREMISE_PATTERNS: readonly RegExp[] = [
   /기억(?:하지|나|나지|해|하니|하냐)/u,
   /알(?:지|잖아)(?:[?!….,\s]|$)/u,
@@ -69,7 +74,14 @@ export function currentUserNeedsHistoricalTruthRecencyRef(
 export function buildHistoricalTruthCurrentUserRecencyRef(
   text: string | null | undefined
 ): string {
+  const explicitScope = extractExplicitSharedHistoryScope(text);
+  if (explicitScope.length > 0) {
+    return `${HISTORICAL_TRUTH_CURRENT_USER_EVIDENCE_MARKER}
+USER가 이번 턴에 직접 확정한 공유 과거:
+${explicitScope.map((line) => `- ${line}`).join("\n")}
+이 범위는 그대로 이어 쓰고, 비어 있는 이전 세부는 열린 상태로 둔다. 새 구체성은 현재 장면에서 만든다.`;
+  }
   if (!currentUserNeedsHistoricalTruthRecencyRef(text)) return "";
   return `${HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER}
-현재 USER 입력에 과거·기억 전제가 포함되어 있다. ${HISTORICAL_TRUTH_POLICY_SHORT_REF}`;
+이번 턴의 공유 과거는 ${HISTORICAL_TRUTH_POLICY_TITLE}에서 확인된 사실만 이어 쓰고, 비어 있는 이전 세부는 열린 상태로 둔다.`;
 }
