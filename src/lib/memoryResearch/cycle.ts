@@ -6,6 +6,10 @@
  */
 import { runLabArm, type LabArmResult } from "@/lib/memoryResearch/benchmarkLab";
 import {
+  buildMemoryResearchEffectivenessAudit,
+  type MemoryResearchEffectivenessAudit,
+} from "@/lib/memoryResearch/effectivenessAudit";
+import {
   buildLocalGoldAuthoringPackets,
   type GoldAuthoringPacket,
 } from "@/lib/memoryResearch/localGoldAuthoringPlanner";
@@ -184,6 +188,7 @@ export type CycleReport = {
   benchmarkHarnessFeasibility: HarnessFeasibilityEvidence[];
   localGoldAuthoringPackets: GoldAuthoringPacket[];
   persistentMemoryGaps: PersistentMemoryGapReport;
+  effectivenessAudit: MemoryResearchEffectivenessAudit;
   productionTouched: false;
 };
 
@@ -263,6 +268,7 @@ export async function runResearchCycle(
     benchmarkHarnessFeasibility: [],
     localGoldAuthoringPackets: [],
     persistentMemoryGaps: buildPersistentMemoryGapReport(null, ledger.cycles),
+    effectivenessAudit: buildMemoryResearchEffectivenessAudit(ledger.candidates, deps.now),
     productionTouched: false,
   };
 
@@ -460,6 +466,7 @@ export async function runResearchCycle(
     .filter((a) => candidates[a.candidateKey]?.state === "REJECTED")
     .map((a) => `${a.candidateKey}@${a.adapterVersion}`)
     .sort();
+  report.effectivenessAudit = buildMemoryResearchEffectivenessAudit(candidates, deps.now);
   report.finishedAt = new Date().toISOString();
 
   const nextLedger: ResearchLedger = {
