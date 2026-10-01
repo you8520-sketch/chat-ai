@@ -27,7 +27,8 @@ export function buildJsxComponentManifestBlock(components: JsxComponentManifestR
   const lines = [
     "[HAV JSX COMPONENTS]",
     "When the scene needs a registered interactive board, emit exactly one self-closing PascalCase invocation.",
-    "Do not invent components. Do not emit JSX source, HTML, or style.",
+    "Use only registered component names and declared props; keep component source and styles out of the response.",
+    "Existing HTML visual-card output remains governed by its separate HTML policy.",
     "Example: <StatusBoard hp={45} maxHp={100} />",
     "",
   ];
