@@ -35,6 +35,9 @@ describe("status widget preview runtime", () => {
       "utf8"
     );
     assert.match(frame, /connect-src 'none'/);
+    assert.match(frame, /background:\s*#0a0a0c/);
+    assert.match(frame, /color-scheme:\s*dark/);
+    assert.doesNotMatch(frame, /background:\s*transparent/);
     assert.match(sandbox, /sandbox="allow-scripts"/);
     assert.doesNotMatch(sandbox, /allow-same-origin/);
   });
