@@ -376,6 +376,94 @@ function MemoryResearchCard({
             </details>
           ) : null}
 
+          {run.effectiveness ? (
+            <details className="mt-3 rounded-xl border border-cyan-500/10 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-cyan-200">
+                연구 자동화 효과 / 병목
+              </summary>
+              <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                <div className="rounded-lg bg-black/15 p-2 text-xs">
+                  <p className="text-[10px] text-zinc-500">후보 funnel</p>
+                  <p className="mt-1 font-semibold text-zinc-300">
+                    전체 {run.effectiveness.totalCandidates} · WATCH {run.effectiveness.watch} · REJECT{" "}
+                    {run.effectiveness.rejected} · ACCEPT {run.effectiveness.accepted}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-black/15 p-2 text-xs">
+                  <p className="text-[10px] text-zinc-500">검증 / PR</p>
+                  <p className="mt-1 font-semibold text-zinc-300">
+                    live {run.effectiveness.liveEvaluated} · accepted Draft{" "}
+                    {run.effectiveness.acceptedDraftPrs} · implementation PR{" "}
+                    {run.effectiveness.implementationPrs}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-black/15 p-2 text-xs">
+                  <p className="text-[10px] text-zinc-500">재평가 대기</p>
+                  <p className="mt-1 font-semibold text-zinc-300">
+                    cooldown 만료 {run.effectiveness.dueForReevaluation}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-black/15 p-2 text-xs">
+                  <p className="text-[10px] text-zinc-500">반복 WATCH</p>
+                  <p className="mt-1 font-semibold text-zinc-300">
+                    {run.effectiveness.repeatedWatch}
+                  </p>
+                </div>
+              </div>
+
+              {run.effectiveness.watchBottlenecks.length ? (
+                <div className="mt-3 space-y-2">
+                  <p className="text-[11px] font-bold text-zinc-400">WATCH 병목</p>
+                  {run.effectiveness.watchBottlenecks.map((row) => (
+                    <div key={row.decision} className="rounded-lg bg-black/15 p-2 text-xs">
+                      <p className="font-semibold text-zinc-300">
+                        {row.decision} · {row.candidates}건
+                      </p>
+                      {row.examples.length ? (
+                        <p className="mt-1 font-mono text-[10px] text-zinc-600">
+                          {row.examples.join(", ")}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {run.effectiveness.bySourceKind.length ? (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[680px] text-left text-[11px] text-zinc-400">
+                    <thead className="text-zinc-600">
+                      <tr>
+                        <th className="py-1 pr-3">source</th>
+                        <th className="py-1 pr-3">후보</th>
+                        <th className="py-1 pr-3">WATCH</th>
+                        <th className="py-1 pr-3">REJECT</th>
+                        <th className="py-1 pr-3">ACCEPT</th>
+                        <th className="py-1 pr-3">Draft</th>
+                        <th className="py-1 pr-3">impl PR</th>
+                        <th className="py-1">live</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {run.effectiveness.bySourceKind.map((row) => (
+                        <tr key={row.sourceKind} className="border-t border-white/5">
+                          <td className="py-1.5 pr-3 font-mono text-zinc-300">{row.sourceKind}</td>
+                          <td className="py-1.5 pr-3">{row.candidates}</td>
+                          <td className="py-1.5 pr-3">{row.watch}</td>
+                          <td className="py-1.5 pr-3">{row.rejected}</td>
+                          <td className="py-1.5 pr-3">{row.accepted}</td>
+                          <td className="py-1.5 pr-3">{row.acceptedDraftPrs}</td>
+                          <td className="py-1.5 pr-3">{row.implementationPrs}</td>
+                          <td className="py-1.5">{row.liveEvaluated}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </details>
+          ) : null}
+
           {run.insights.length ? (
             <details className="mt-3 rounded-xl border border-fuchsia-500/10 p-3">
               <summary className="cursor-pointer text-xs font-semibold text-fuchsia-200">
