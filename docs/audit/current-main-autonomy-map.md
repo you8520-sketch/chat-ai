@@ -219,7 +219,7 @@ KEEP: `schedulerRunRegistry` retry flags, payout and refund attempt rows, Automa
 FOLLOW-UP, not started:
 
 - GitHub automatic rerun
-- Railway post-deploy verifier
+- First live `deployment_status` run of `.github/workflows/post-deploy-verification.yml` after that file is on `main`. The verifier is an event workflow, not a scheduled workflow, and it is not part of the scheduled inventory above.
 - stale Draft PR janitor
 - synthetic production smoke
 - deployment recovery, auto rollback, AI repair
