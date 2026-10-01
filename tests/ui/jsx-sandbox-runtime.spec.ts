@@ -50,4 +50,21 @@ test("opaque JSX sandbox runs Teapot-style named component with direct hooks", a
   await expect(button).toHaveText("45:closed");
   await button.click();
   await expect(button).toHaveText("45:open");
+
+  // StatusWidget values update in-place across turns. The opaque iframe is
+  // already loaded here, so a second mount message must update props without
+  // depending on contentDocument access and without resetting local hook state.
+  await page.evaluate((payload) => {
+    const frame = document.querySelector("#jsx-runtime-e2e") as HTMLIFrameElement | null;
+    frame?.contentWindow?.postMessage(
+      {
+        type: "hav-jsx-mount",
+        compiled: payload,
+        props: { hp: 46 },
+        parentOrigin: window.location.origin,
+      },
+      "*"
+    );
+  }, compiled.compiled);
+  await expect(button).toHaveText("46:open");
 });
