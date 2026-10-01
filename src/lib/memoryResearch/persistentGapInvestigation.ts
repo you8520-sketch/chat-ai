@@ -87,7 +87,7 @@ function ownedGapPacket(
     deterministicReproduction:
       `Run the canonical deterministic RP-memory benchmark on current main and reproduce exact case '${gap.caseId}' with the same benchmark fingerprint. Persistence evidence: ${gap.consecutiveComparableFailures} consecutive comparable failures.`,
     investigationSteps: [
-      `Audit only the hinted canonical owner(s): ${gap.ownerHints.join(", ")}. Confirm the current-main live execution path before changing code.`,
+      `Audit only the hinted canonical owner(s): ${gap.ownerHints.join(", ")}. Confirm the current-main execution path before changing code.`,
       "Separate candidate discovery success from final injection/consumption failure.",
       "Audit existing defenses/workarounds on normal, regen/delete/fork/reset, fallback, and long-horizon paths before proposing a patch.",
       "Prefer fixing the failing owner or consolidating an obsolete workaround over adding another prompt/exception/fallback.",
