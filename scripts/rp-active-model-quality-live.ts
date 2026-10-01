@@ -69,12 +69,31 @@ async function main(): Promise<void> {
     process.env.GITHUB_RUN_ID?.trim() ||
     `manual-${new Date().toISOString().slice(0, 16)}`;
   const caseIdsRaw = process.env.RP_ACTIVE_MODEL_QUALITY_CASE_IDS?.trim() ?? "";
+  const modelIdsRaw =
+    process.env.RP_ACTIVE_MODEL_QUALITY_MODEL_IDS_OVERRIDE?.trim() ?? "";
   const caseIds = caseIdsRaw
     ? (caseIdsRaw
         .split(",")
         .map((value) => value.trim())
         .filter(Boolean) as Parameters<typeof runRpActiveModelQualityLive>[0]["caseIds"])
     : undefined;
+  const modelIds = modelIdsRaw
+    ? modelIdsRaw
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+    : undefined;
+  if (
+    modelIds &&
+    modelIds.some(
+      (modelId) =>
+        !RP_ACTIVE_MODEL_QUALITY_MODEL_IDS.includes(
+          modelId as (typeof RP_ACTIVE_MODEL_QUALITY_MODEL_IDS)[number]
+        )
+    )
+  ) {
+    throw new Error("RP quality model override contains a non-active Main RP model");
+  }
   const report = await runRpActiveModelQualityLive({
     credentials: {
       cheaperinference: ciApiKey,
@@ -82,6 +101,7 @@ async function main(): Promise<void> {
     },
     runId,
     caseIds,
+    modelIds: modelIds as Parameters<typeof runRpActiveModelQualityLive>[0]["modelIds"],
   });
 
   mkdirSync(OUTPUT_DIR, { recursive: true });

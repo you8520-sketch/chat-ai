@@ -71,8 +71,12 @@ jobs:
           elif [[ -f .github/rp-active-model-quality-live.trigger ]]; then
             echo "run_live=1" >> "$GITHUB_OUTPUT"
             case_ids="$(sed -n 's/^case_ids=//p' .github/rp-active-model-quality-live.trigger | tail -n 1)"
+            model_ids="$(sed -n 's/^model_ids=//p' .github/rp-active-model-quality-live.trigger | tail -n 1)"
             if [[ -n "$case_ids" ]]; then
               echo "RP_ACTIVE_MODEL_QUALITY_CASE_IDS=$case_ids" >> "$GITHUB_ENV"
+            fi
+            if [[ -n "$model_ids" ]]; then
+              echo "RP_ACTIVE_MODEL_QUALITY_MODEL_IDS_OVERRIDE=$model_ids" >> "$GITHUB_ENV"
             fi
           else
             echo "run_live=0" >> "$GITHUB_OUTPUT"
