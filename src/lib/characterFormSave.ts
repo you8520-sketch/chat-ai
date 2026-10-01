@@ -48,10 +48,7 @@ import {
   parseStatusWidgetJson,
   serializeStatusWidget,
 } from "@/lib/statusWidget/serialize";
-import {
-  estimateStatusWidgetContextChars,
-  validateStatusWidgetContextBudget,
-} from "@/lib/statusWidget/contextBudget";
+import { validateCharacterStatusWidgetContextBudget } from "@/lib/statusWidget/contextBudget";
 import {
   parseJsxComponentCatalog,
   serializeJsxComponentCatalog,
@@ -407,12 +404,7 @@ export function parseCharacterFormBody(
         ? parseStatusWidgetJson(JSON.stringify(rawWidget))
         : null;
   if (parsedWidget) {
-    const reserved = estimateStatusWidgetContextChars(parsedWidget);
-    const budgetCheck = validateStatusWidgetContextBudget({
-      characterReservedChars: reserved,
-      userReservedChars: 0,
-      totalReservedChars: reserved,
-    });
+    const budgetCheck = validateCharacterStatusWidgetContextBudget(parsedWidget);
     if (!budgetCheck.ok) return { ok: false as const, error: budgetCheck.error, status: 400 };
   }
   const statusWidgetJson = parsedWidget ? serializeStatusWidget(parsedWidget) : "";
@@ -1487,12 +1479,7 @@ export async function updateCharacterPublicProfileFromForm(
         ? parseStatusWidgetJson(JSON.stringify(rawWidget))
         : null;
   if (parsedWidget) {
-    const reserved = estimateStatusWidgetContextChars(parsedWidget);
-    const budgetCheck = validateStatusWidgetContextBudget({
-      characterReservedChars: reserved,
-      userReservedChars: 0,
-      totalReservedChars: reserved,
-    });
+    const budgetCheck = validateCharacterStatusWidgetContextBudget(parsedWidget);
     if (!budgetCheck.ok) return { ok: false as const, error: budgetCheck.error, status: 400 };
   }
   const statusWidgetJson = parsedWidget ? serializeStatusWidget(parsedWidget) : "";

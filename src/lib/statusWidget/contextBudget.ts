@@ -50,6 +50,16 @@ export function estimateStatusWidgetContextChars(widget: StatusWidget | null): n
   return estimateTokens(text);
 }
 
+/** Creator writes use the same field-spec budget as the creator meter. */
+export function validateCharacterStatusWidgetContextBudget(widget: StatusWidget | null) {
+  const reserved = estimateStatusWidgetContextChars(widget);
+  return validateStatusWidgetContextBudget({
+    characterReservedChars: reserved,
+    userReservedChars: 0,
+    totalReservedChars: reserved,
+  });
+}
+
 export function estimateStatusWidgetContextCharsFromJson(
   widgetJson: string | null | undefined
 ): number {
