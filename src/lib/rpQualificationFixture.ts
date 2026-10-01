@@ -15,8 +15,6 @@ type QualificationCharacterRow = {
   setting_chunks_en: string | null;
   prompt_translation_hash: string | null;
   speech_profile: string | null;
-  speech_personality: string | null;
-  speech_traits: string | null;
   creator_compiled_description_json: string | null;
   appearance_raw: string | null;
   appearance_compiled: string | null;
@@ -100,8 +98,8 @@ export function readRpQualificationFixture(
     .prepare(
       `SELECT id, name, gender, description, system_prompt, world, example_dialog,
               setting_chunks, setting_chunks_en, prompt_translation_hash,
-              speech_profile, speech_personality, speech_traits,
-              creator_compiled_description_json, appearance_raw, appearance_compiled,
+              speech_profile, creator_compiled_description_json,
+              appearance_raw, appearance_compiled,
               narration_style_instructions, content_kind
        FROM characters
        WHERE id=?`
