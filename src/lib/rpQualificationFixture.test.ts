@@ -18,8 +18,6 @@ function makeDb() {
       setting_chunks_en TEXT NOT NULL DEFAULT '[]',
       prompt_translation_hash TEXT,
       speech_profile TEXT,
-      speech_personality TEXT,
-      speech_traits TEXT,
       creator_compiled_description_json TEXT,
       appearance_raw TEXT,
       appearance_compiled TEXT,
@@ -46,10 +44,10 @@ describe("RP qualification fixture exporter", () => {
       `INSERT INTO characters (
         id, name, gender, description, system_prompt, world, example_dialog,
         setting_chunks, setting_chunks_en, prompt_translation_hash,
-        speech_profile, speech_personality, speech_traits,
-        creator_compiled_description_json, appearance_raw, appearance_compiled,
+        speech_profile, creator_compiled_description_json,
+        appearance_raw, appearance_compiled,
         narration_style_instructions, content_kind
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
       18,
       "라이크",
@@ -68,8 +66,6 @@ describe("RP qualification fixture exporter", () => {
       ]),
       "[]",
       null,
-      "",
-      "",
       "",
       "",
       "",
