@@ -164,17 +164,20 @@ export function groupGithubScheduledAutomationRuns(
 }
 
 export async function fetchGithubScheduledAutomationProjection(
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  opts?: { token?: string; maxPages?: number }
 ): Promise<GithubAutomationProjection> {
   try {
     const rawRuns: Array<Record<string, unknown>> = [];
-    for (let page = 1; page <= 5; page += 1) {
+    const maxPages = Math.max(1, Math.min(10, opts?.maxPages ?? 5));
+    for (let page = 1; page <= maxPages; page += 1) {
       const response = await fetchImpl(
         `https://api.github.com/repos/${AUTOMATION_REPORTS_GITHUB_REPO}/actions/runs?event=schedule&per_page=100&page=${page}`,
         {
           headers: {
             Accept: "application/vnd.github+json",
             "User-Agent": "chat-ai-admin-automation-reports",
+            ...(opts?.token ? { Authorization: `Bearer ${opts.token}` } : {}),
           },
           cache: "no-store",
         }
