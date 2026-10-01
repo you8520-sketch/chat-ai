@@ -152,6 +152,27 @@ describe("admin Memory Research reports", () => {
             },
           ],
         },
+        promptPackingTrend: {
+          status: "MEMORY_OVERHEAD_INCREASE",
+          previousCycleKey: "weekly-2026-W39",
+          comparable: true,
+          modelSetChanged: false,
+          addedModels: [],
+          removedModels: [],
+          modelDeltas: [
+            {
+              modelId: "deepseek-v4.1-flash",
+              previousN15DeltaInputTokens: 2800,
+              currentN15DeltaInputTokens: 3000,
+              n15DeltaInputTokensDelta: 200,
+              previousMediumTokens: 2300,
+              currentMediumTokens: 2400,
+              mediumTokensDelta: 100,
+              verdict: "INCREASED",
+            },
+          ],
+          note: "memory overhead increased",
+        },
         companionExperimentProposals: [
           {
             candidateKey: "official:kindroid:memory-docs",
@@ -311,6 +332,13 @@ describe("admin Memory Research reports", () => {
     assert.deepEqual(run.promptPackingAudit?.failedInvariants, []);
     assert.equal(run.promptPackingAudit?.models[0]?.modelId, "deepseek-v4.1-flash");
     assert.equal(run.promptPackingAudit?.models[0]?.n15InputTokens, 15000);
+    assert.equal(run.promptPackingTrend?.status, "MEMORY_OVERHEAD_INCREASE");
+    assert.equal(run.promptPackingTrend?.previousCycleKey, "weekly-2026-W39");
+    assert.equal(
+      run.promptPackingTrend?.modelDeltas[0]?.n15DeltaInputTokensDelta,
+      200
+    );
+    assert.equal(run.promptPackingTrend?.modelDeltas[0]?.mediumTokensDelta, 100);
     assert.ok(run.effectiveness);
     assert.equal(run.effectiveness.totalCandidates, 12);
     assert.equal(run.effectiveness.dueForReevaluation, 1);
@@ -480,6 +508,7 @@ describe("admin Memory Research reports", () => {
     assert.equal(run.persistentMemoryGaps, 0);
     assert.equal(run.persistentMemoryGapStatus, null);
     assert.equal(run.promptPackingAudit, null);
+    assert.equal(run.promptPackingTrend, null);
     assert.deepEqual(run.insights, []);
     assert.equal(run.effectiveness, null);
   });

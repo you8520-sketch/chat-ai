@@ -121,6 +121,7 @@ jobs:
           scripts/memory-research-cycle.ts prompt-packing-sentinel
           --out memory-research-out/prompt-packing
           --cycle-report memory-research-out/cycles/${{ steps.cycle.outputs.cycle_key }}.json
+          --ledger memory-research-out/ledger.json
 
       - name: Cycle summary
         if: always()
@@ -130,6 +131,10 @@ jobs:
           if [[ -f memory-research-out/prompt-packing/REPORT.md ]]; then
             printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
             cat memory-research-out/prompt-packing/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [[ -f memory-research-out/prompt-packing/TREND.md ]]; then
+            printf '\n---\n' >> "$GITHUB_STEP_SUMMARY"
+            cat memory-research-out/prompt-packing/TREND.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - uses: actions/upload-artifact@v4
