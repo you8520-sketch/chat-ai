@@ -65,7 +65,10 @@ export default function WidgetApplyClient({
 
       <div className="mt-6 rounded-2xl border border-white/10 bg-[#131626] p-4">
         <p className="mb-3 text-xs font-bold text-zinc-400">미리보기</p>
-        <StatusWidgetPreview widget={widget} />
+        <StatusWidgetPreview
+          widget={widget}
+          requireInteraction={Boolean(widget.jsxSource?.trim())}
+        />
       </div>
 
       {!done ? (
