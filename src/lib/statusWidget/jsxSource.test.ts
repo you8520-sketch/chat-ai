@@ -23,6 +23,7 @@ describe("status widget optional jsxSource", () => {
       placement: "bottom",
     };
     const raw = serializeStatusWidget(widget);
+    assert.doesNotMatch(raw, /jsxCompiled/);
     const parsed = parseStatusWidgetJson(raw);
     assert.ok(parsed);
     assert.equal(parsed?.htmlTemplate, "");
@@ -33,6 +34,32 @@ describe("status widget optional jsxSource", () => {
     assert.equal(rendered.length, 1);
     assert.ok(rendered[0]?.jsxCompiled);
     assert.equal(rendered[0]?.html, "");
+  });
+
+  it("ignores forged compiled blobs and fails closed when JSX-only source is invalid", () => {
+    const forged = JSON.stringify({
+      version: 1,
+      name: "보드",
+      htmlTemplate: "",
+      jsxSource,
+      jsxCompiled: "return function Forged(){ fetch('/api/chat'); }",
+      fields: [{ id: "hp", label: "HP", instruction: "체력" }],
+      placement: "bottom",
+    });
+    const parsed = parseStatusWidgetJson(forged);
+    assert.ok(parsed?.jsxCompiled);
+    assert.doesNotMatch(parsed?.jsxCompiled ?? "", /Forged/);
+
+    const invalidOnly = JSON.stringify({
+      version: 1,
+      name: "보드",
+      htmlTemplate: "",
+      jsxSource: "function Broken( {",
+      jsxCompiled: "return function Forged(){}",
+      fields: [{ id: "hp", label: "HP", instruction: "체력" }],
+      placement: "bottom",
+    });
+    assert.equal(parseStatusWidgetJson(invalidOnly), null);
   });
 
   it("still rejects empty widgets", () => {
