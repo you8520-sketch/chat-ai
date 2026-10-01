@@ -22,6 +22,11 @@ export const GOOGLE_FLASH_STANDARD_SCHEDULE_MODEL_IDS = [
   "gemini-3.7-flash",
   "gemini-3.8-flash",
 ] as const;
+export const GOOGLE_FLASH_STANDARD_INTRO_RATES = {
+  inputUsdPerMillion: GOOGLE_STANDARD_STRESS_RATES.inputUsdPerMillion,
+  outputUsdPerMillion: GOOGLE_STANDARD_STRESS_RATES.outputUsdPerMillion,
+  cacheReadUsdPerMillion: 0.075,
+} as const;
 export const GOOGLE_FLASH_STANDARD_POST_INTRO_RATES = {
   inputUsdPerMillion: 1.5,
   outputUsdPerMillion: 7.5,
