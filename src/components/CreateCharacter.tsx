@@ -2280,9 +2280,14 @@ export default function CreateCharacter({
                 disabled={loading}
               />
               <JsxComponentCatalogEditor
+                key={
+                  editLoading
+                    ? "jsx-catalog-loading"
+                    : `jsx-catalog-${editCharacterId ?? "new"}`
+                }
                 value={jsxCatalog}
                 onChange={setJsxCatalog}
-                disabled={loading}
+                disabled={loading || editLoading}
               />
             </section>
           </div>
