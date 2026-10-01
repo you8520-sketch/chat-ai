@@ -1,5 +1,5 @@
 import { transform } from "sucrase";
-import { analyzeJsxCapabilities, sourceLooksNetworked } from "./capabilities";
+import { analyzeJsxCapabilities } from "./capabilities";
 import { JSX_COMPILED_MAX_CHARS, JSX_SOURCE_MAX_CHARS } from "./limits";
 import type { JsxCompileResult } from "./types";
 
@@ -17,8 +17,15 @@ export function compileJsxComponentSource(source: string, componentName?: string
   if (trimmed.length > JSX_SOURCE_MAX_CHARS) {
     return { ok: false, error: "컴포넌트 소스가 너무 큽니다." };
   }
-  if (sourceLooksNetworked(trimmed)) {
+  const capabilities = analyzeJsxCapabilities(trimmed);
+  if (capabilities.includes("external_network")) {
     return { ok: false, error: "external network API는 v1에서 허용되지 않습니다." };
+  }
+  if (capabilities.includes("storage")) {
+    return { ok: false, error: "browser storage/cookie API는 v1에서 허용되지 않습니다." };
+  }
+  if (capabilities.includes("navigation")) {
+    return { ok: false, error: "navigation API는 v1에서 허용되지 않습니다." };
   }
   for (const rule of FORBIDDEN) {
     if (rule.test(trimmed)) {
@@ -62,7 +69,6 @@ return __comp;`;
     return { ok: false, error: "compiled component가 너무 큽니다." };
   }
 
-  const capabilities = analyzeJsxCapabilities(trimmed);
   return {
     ok: true,
     compiled: wrapped,
