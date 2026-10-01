@@ -20,7 +20,7 @@ import {
 } from "@/lib/adminOpsInboxShared";
 import {
   displayDeploymentSha,
-  listOpsRequestIncidentRows,
+  listActiveOpsRequestIncidentRows,
 } from "@/lib/opsRequestIncidents";
 
 type PayoutOpsRow = {
@@ -400,7 +400,7 @@ export function listAdminOpsIncidents(
     });
   }
 
-  for (const row of listOpsRequestIncidentRows(db)) {
+  for (const row of listActiveOpsRequestIncidentRows(db, now)) {
     const firstSha = displayDeploymentSha(row.first_deployment_sha);
     const latestSha = displayDeploymentSha(row.latest_deployment_sha);
     incidents.push({

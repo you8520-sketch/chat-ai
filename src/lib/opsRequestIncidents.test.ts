@@ -8,6 +8,7 @@ import { ensureSchedulerRunRegistrySchema } from "@/lib/schedulerRunRegistry";
 import {
   classifyProductionRequestIncident,
   listOpsRequestIncidentRows,
+  OPS_REQUEST_INCIDENT_ACTIVE_WINDOW_MS,
   observeProductionRequestIncident,
 } from "@/lib/opsRequestIncidents";
 
@@ -45,20 +46,20 @@ function db(): Database.Database {
   return value;
 }
 
-function withSha(sha: string | undefined, run: () => void): void {
+function withSha<T>(sha: string | undefined, run: () => T): T {
   const previous = process.env.RAILWAY_GIT_COMMIT_SHA;
   if (sha == null) delete process.env.RAILWAY_GIT_COMMIT_SHA;
   else process.env.RAILWAY_GIT_COMMIT_SHA = sha;
   try {
-    run();
+    return run();
   } finally {
     if (previous == null) delete process.env.RAILWAY_GIT_COMMIT_SHA;
     else process.env.RAILWAY_GIT_COMMIT_SHA = previous;
   }
 }
 
-function requestIncidents(database: Database.Database) {
-  return listAdminOpsIncidents(database, NOW).filter((row) => row.source === "request");
+function requestIncidents(database: Database.Database, now: Date = NOW) {
+  return listAdminOpsIncidents(database, now).filter((row) => row.source === "request");
 }
 
 describe("production request incidents", () => {
@@ -91,7 +92,9 @@ describe("production request incidents", () => {
       );
     });
 
-    const incidents = requestIncidents(database);
+    const incidents = withSha(SHA_A, () =>
+      requestIncidents(database, new Date("2026-09-23T09:05:00.000Z"))
+    );
     assert.equal(incidents.length, 1);
     assert.equal(incidents[0]?.id, "request:/api/chat|provider|http_502");
     assert.equal(incidents[0]?.source, "request");
@@ -355,10 +358,83 @@ describe("production request incidents", () => {
     assert.equal(rows[0]?.occurrence_count, 3);
     assert.equal(rows[0]?.first_deployment_sha, SHA_A);
     assert.equal(rows[0]?.latest_deployment_sha, SHA_B);
-    const incident = requestIncidents(database)[0];
+    const incident = withSha(SHA_B, () =>
+      requestIncidents(database, new Date("2026-09-23T09:20:00.000Z"))
+    )[0];
     assert.match(incident?.summary ?? "", /aaaaaaa/);
     assert.match(incident?.summary ?? "", /bbbbbbb/);
     assert.equal(incident?.summary.includes(SHA_A), false);
+    database.close();
+  });
+
+  it("drops stale and previous-deployment failures from the active inbox without deleting evidence", () => {
+    const database = db();
+    const freshAt = NOW;
+    const edgeAt = new Date(NOW.getTime() - OPS_REQUEST_INCIDENT_ACTIVE_WINDOW_MS);
+    const staleAt = new Date(edgeAt.getTime() - 1);
+    const secret = "prompt=private-rp-line user@example.com";
+
+    withSha(SHA_A, () => {
+      observeProductionRequestIncident(
+        database,
+        {
+          routeTemplate: "/api/chat",
+          subsystem: "http",
+          httpStatus: 500,
+          error: new Error(secret),
+        },
+        staleAt
+      );
+      observeProductionRequestIncident(
+        database,
+        {
+          routeTemplate: "/api/chat",
+          subsystem: "http",
+          httpStatus: 500,
+          error: new Error("same signature still historical"),
+        },
+        staleAt
+      );
+      observeProductionRequestIncident(
+        database,
+        { routeTemplate: "/api/chat/message", subsystem: "http", httpStatus: 500 },
+        edgeAt
+      );
+      observeProductionRequestIncident(
+        database,
+        { routeTemplate: "/api/chat", subsystem: "stream", error: new Error("fresh pipeline") },
+        freshAt
+      );
+      observeProductionRequestIncident(
+        database,
+        { routeTemplate: "/api/chat", subsystem: "stream", error: new Error("fresh pipeline again") },
+        freshAt
+      );
+    });
+
+    const activeOnSameDeploy = withSha(SHA_A, () => requestIncidents(database, freshAt));
+    const activeIds = activeOnSameDeploy.map((row) => row.id).sort();
+    assert.deepEqual(activeIds, [
+      "request:/api/chat/message|http|http_500",
+      "request:/api/chat|stream|sse_pipeline",
+    ]);
+    assert.equal(
+      activeOnSameDeploy.find((row) => row.id === "request:/api/chat|stream|sse_pipeline")?.summary.includes("2회"),
+      true
+    );
+    assert.equal(JSON.stringify(activeOnSameDeploy).includes(secret), false);
+
+    const activeOnNextDeploy = withSha(SHA_B, () => requestIncidents(database, freshAt));
+    assert.deepEqual(activeOnNextDeploy, []);
+
+    const retained = listOpsRequestIncidentRows(database);
+    const historical = retained.find((row) => row.signature === "/api/chat|http|http_500");
+    assert.equal(retained.length, 3);
+    assert.equal(historical?.occurrence_count, 2);
+    assert.equal(historical?.first_seen_at, staleAt.toISOString());
+    assert.equal(historical?.last_seen_at, staleAt.toISOString());
+    assert.equal(historical?.latest_deployment_sha, SHA_A);
+    assert.equal(JSON.stringify(retained).includes(secret), false);
     database.close();
   });
 

@@ -61,6 +61,9 @@ const OPERATIONAL_PROVIDER_CLASSES = new Set([
 const DB_FAILURE_RE =
   /SQLITE_|unable to open database file|database disk image is malformed|disk I\/O error|no such table|database is locked/i;
 
+/** Active Ops Inbox window for request signatures. Historical rows stay in the table. */
+export const OPS_REQUEST_INCIDENT_ACTIVE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 const UPSERT_SQL = `
   INSERT INTO ops_request_incidents (
     signature, route_template, subsystem, http_status, error_class,
@@ -308,18 +311,46 @@ export function ensureOpsRequestIncidentsSchema(db: Database.Database): void {
   `);
 }
 
+const INCIDENT_ROW_SQL = `SELECT signature, route_template, subsystem, http_status, error_class,
+              first_seen_at, last_seen_at, occurrence_count,
+              first_deployment_sha, latest_deployment_sha
+         FROM ops_request_incidents`;
+
 export function listOpsRequestIncidentRows(db: Database.Database): OpsRequestIncidentRow[] {
   ensureOpsRequestIncidentsSchema(db);
   return db
     .prepare(
-      `SELECT signature, route_template, subsystem, http_status, error_class,
-              first_seen_at, last_seen_at, occurrence_count,
-              first_deployment_sha, latest_deployment_sha
-         FROM ops_request_incidents
+      `${INCIDENT_ROW_SQL}
         ORDER BY last_seen_at DESC, signature ASC
         LIMIT 100`
     )
     .all() as OpsRequestIncidentRow[];
+}
+
+export function listActiveOpsRequestIncidentRows(
+  db: Database.Database,
+  now: Date = new Date()
+): OpsRequestIncidentRow[] {
+  ensureOpsRequestIncidentsSchema(db);
+  const nowMs = Number.isFinite(now.getTime()) ? now.getTime() : Date.now();
+  return db
+    .prepare(
+      `${INCIDENT_ROW_SQL}
+        WHERE last_seen_at >= @active_since
+          AND last_seen_at <= @now_iso
+          AND (
+            @current_sha = ''
+            OR latest_deployment_sha = ''
+            OR latest_deployment_sha = @current_sha
+          )
+        ORDER BY last_seen_at DESC, signature ASC
+        LIMIT 100`
+    )
+    .all({
+      active_since: new Date(nowMs - OPS_REQUEST_INCIDENT_ACTIVE_WINDOW_MS).toISOString(),
+      now_iso: new Date(nowMs).toISOString(),
+      current_sha: readRailwayDeploymentSha(),
+    }) as OpsRequestIncidentRow[];
 }
 
 export function observeProductionRequestIncident(

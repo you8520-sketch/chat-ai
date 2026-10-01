@@ -94,7 +94,9 @@ export default function AdminOpsInboxClient({
           재무/과금의 deterministic anomaly, 웹푸시의 반복 실패·소진·장기 stale claim과
           GitHub scheduled 자동화의 최신 실패도 canonical 상태를 그대로 반영합니다.
           요청 실패는 HTTP 5xx와 provider·DB·stream 서버 실패 signature만 집계합니다.
-          4xx와 예상된 인증·검증 실패는 올리지 않으며, 이 화면도 재시도하지 않습니다.
+          최근 관측이 활성 구간 안에 있고, 배포 SHA가 있으면 현재 배포의 관측일 때만
+          예외함에 표시합니다. 지난 집계 row는 남고, 4xx와 예상된 인증·검증 실패는
+          올리지 않으며, 이 화면도 재시도하지 않습니다.
         </p>
       </section>
 
