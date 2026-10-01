@@ -10,8 +10,16 @@ let root: Root | null = null;
 let currentCompiled = "";
 let currentComponent: React.ComponentType<Record<string, unknown>> | null = null;
 let parentOrigin = "";
-let timerCount = 0;
-let rafCount = 0;
+
+const nativeSetTimeout = window.setTimeout.bind(window);
+const nativeClearTimeout = window.clearTimeout.bind(window);
+const nativeSetInterval = window.setInterval.bind(window);
+const nativeClearInterval = window.clearInterval.bind(window);
+const nativeRaf = window.requestAnimationFrame.bind(window);
+const nativeCancelRaf = window.cancelAnimationFrame.bind(window);
+const timeoutIds = new Set<number>();
+const intervalIds = new Set<number>();
+const rafIds = new Set<number>();
 
 function post(kind: string, payload: unknown): void {
   parent.postMessage({ source: "hav-jsx-sandbox", kind, payload }, parentOrigin || "*");
@@ -21,31 +29,57 @@ function blockedNetwork(): Promise<never> {
   return Promise.reject(new Error("jsx sandbox: network blocked"));
 }
 
+function clearRuntimeWork(): void {
+  for (const id of timeoutIds) nativeClearTimeout(id);
+  for (const id of intervalIds) nativeClearInterval(id);
+  for (const id of rafIds) nativeCancelRaf(id);
+  timeoutIds.clear();
+  intervalIds.clear();
+  rafIds.clear();
+}
+
 function installLimits(): void {
-  const nativeSetTimeout = window.setTimeout.bind(window);
-  const nativeSetInterval = window.setInterval.bind(window);
-  const nativeRaf = window.requestAnimationFrame.bind(window);
+  const timerSlots = () => timeoutIds.size + intervalIds.size;
   window.setTimeout = ((fn: TimerHandler, ms?: number, ...args: unknown[]) => {
-    if (timerCount >= JSX_SANDBOX_MAX_TIMERS) return 0 as unknown as number;
-    timerCount += 1;
-    return nativeSetTimeout(() => {
-      timerCount = Math.max(0, timerCount - 1);
+    if (timerSlots() >= JSX_SANDBOX_MAX_TIMERS) return 0 as unknown as number;
+    let id = 0;
+    id = nativeSetTimeout(() => {
+      timeoutIds.delete(id);
       if (typeof fn === "function") fn(...args);
     }, ms);
+    timeoutIds.add(id);
+    return id;
   }) as typeof window.setTimeout;
+  window.clearTimeout = ((id?: number) => {
+    const value = Number(id ?? 0);
+    timeoutIds.delete(value);
+    nativeClearTimeout(value);
+  }) as typeof window.clearTimeout;
   window.setInterval = ((fn: TimerHandler, ms?: number, ...args: unknown[]) => {
-    if (timerCount >= JSX_SANDBOX_MAX_TIMERS) return 0 as unknown as number;
-    timerCount += 1;
-    return nativeSetInterval(fn, ms, ...args);
+    if (timerSlots() >= JSX_SANDBOX_MAX_TIMERS) return 0 as unknown as number;
+    const id = nativeSetInterval(fn, ms, ...args);
+    intervalIds.add(id);
+    return id;
   }) as typeof window.setInterval;
+  window.clearInterval = ((id?: number) => {
+    const value = Number(id ?? 0);
+    intervalIds.delete(value);
+    nativeClearInterval(value);
+  }) as typeof window.clearInterval;
   window.requestAnimationFrame = ((fn: FrameRequestCallback) => {
-    if (rafCount >= JSX_SANDBOX_MAX_RAF) return 0;
-    rafCount += 1;
-    return nativeRaf((t) => {
-      rafCount = Math.max(0, rafCount - 1);
+    if (rafIds.size >= JSX_SANDBOX_MAX_RAF) return 0;
+    let id = 0;
+    id = nativeRaf((t) => {
+      rafIds.delete(id);
       fn(t);
     });
+    rafIds.add(id);
+    return id;
   }) as typeof window.requestAnimationFrame;
+  window.cancelAnimationFrame = ((id: number) => {
+    rafIds.delete(id);
+    nativeCancelRaf(id);
+  }) as typeof window.cancelAnimationFrame;
 
   window.fetch = blockedNetwork as typeof window.fetch;
   window.XMLHttpRequest = function BlockedXhr() {
@@ -71,6 +105,7 @@ function mount(compiled: string, props: Record<string, unknown>): void {
   if (!root) root = createRoot(mountEl);
   try {
     if (!currentComponent || currentCompiled !== compiled) {
+      if (currentComponent && currentCompiled !== compiled) clearRuntimeWork();
       const factory = new Function(
         "React",
         "sendToChat",
@@ -136,6 +171,7 @@ window.addEventListener("message", (event) => {
   if (!data || typeof data !== "object") return;
   if (data.type === "hav-jsx-unmount") {
     root?.unmount();
+    clearRuntimeWork();
     root = null;
     currentCompiled = "";
     currentComponent = null;
