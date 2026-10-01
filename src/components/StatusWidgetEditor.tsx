@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import StatusWidgetPreview from "@/components/StatusWidgetPreview";
 import { compileJsxComponentSource } from "@/lib/jsxComponent/compile";
@@ -118,14 +118,6 @@ export default function StatusWidgetEditor({
   const [templateChoice, setTemplateChoice] = useState<TemplateChoice>(() =>
     detectTemplateChoice(value)
   );
-
-  // Edit pages hydrate the stored widget asynchronously after this editor mounts.
-  // Keep the mode aligned with an externally loaded HTML/JSX widget without
-  // fighting the user's local mode switch (a switch with unchanged content does
-  // not retrigger these dependencies).
-  useEffect(() => {
-    setTemplateChoice(detectTemplateChoice(value));
-  }, [value.htmlTemplate, value.jsxSource]);
 
   const widgetReservedChars = useMemo(
     () => estimateStatusWidgetContextChars(value),
