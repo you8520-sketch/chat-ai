@@ -1204,7 +1204,12 @@ export default function PersonaClient({
                 }
               />
             </div>
-            <StatusWidgetEditor value={widgetDraft} onChange={setWidgetDraft} disabled={busy} />
+            <StatusWidgetEditor
+              key={widgetEditingId != null ? `status-widget-preset-${widgetEditingId}` : "status-widget-preset-new"}
+              value={widgetDraft}
+              onChange={setWidgetDraft}
+              disabled={busy}
+            />
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
