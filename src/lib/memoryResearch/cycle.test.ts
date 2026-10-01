@@ -117,6 +117,24 @@ it("full cycle: isolation, dedupe, screening, real benchmark gates, ACCEPTED-onl
   assert.doesNotMatch(packet.body, /\/100|total score/i, "raw metrics only, no composite score");
   assert.deepEqual(report.cleanupCandidates, ["github:fixture/narrow@1"]);
 
+  assert.equal(report.effectivenessAudit.totalCandidates, 4);
+  assert.equal(report.effectivenessAudit.watch, 1);
+  assert.equal(report.effectivenessAudit.rejected, 2);
+  assert.equal(report.effectivenessAudit.accepted, 1);
+  assert.deepEqual(
+    report.effectivenessAudit.watchBottlenecks.map((row) => [
+      row.decision,
+      row.candidates,
+    ]),
+    [["WATCH_NO_EXPERIMENT_ADAPTER", 1]]
+  );
+  assert.equal(
+    report.effectivenessAudit.bySourceKind.find(
+      (row) => row.sourceKind === "github_repository"
+    )?.candidates,
+    4
+  );
+
   assert.equal(report.providerCalls.paidProviderCalls, 0);
   assert.equal(report.estimatedCostUsd, 0);
   assert.equal(report.productionTouched, false);
