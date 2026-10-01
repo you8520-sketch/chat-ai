@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import {
   createStatusWidgetShareFromJson,
   createStatusWidgetShareFromPreset,
+  type StatusWidgetShareRow,
 } from "@/lib/statusWidgetShares";
 
 export async function POST(req: Request) {
@@ -12,18 +13,20 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const presetId = Number(body.presetId ?? body.preset_id);
 
-  let result: { share: { share_slug: string }; applyPath: string };
+  let result: { share: StatusWidgetShareRow; applyPath: string };
+
+  const visibility = body.visibility;
 
   if (Number.isFinite(presetId) && presetId > 0) {
-    const created = createStatusWidgetShareFromPreset(user.id, presetId);
+    const created = createStatusWidgetShareFromPreset(user.id, presetId, visibility);
     if ("error" in created) {
-      return NextResponse.json({ error: created.error }, { status: 404 });
+      return NextResponse.json({ error: created.error }, { status: created.status });
     }
     result = created;
   } else {
     const title = String(body.title ?? "");
     const widgetJson = String(body.widget_json ?? body.widgetJson ?? "").trim();
-    const created = createStatusWidgetShareFromJson(user.id, title, widgetJson);
+    const created = createStatusWidgetShareFromJson(user.id, title, widgetJson, visibility);
     if ("error" in created) {
       return NextResponse.json({ error: created.error }, { status: 400 });
     }
@@ -34,5 +37,6 @@ export async function POST(req: Request) {
     ok: true,
     shareSlug: result.share.share_slug,
     applyPath: result.applyPath,
+    visibility: result.share.visibility,
   });
 }

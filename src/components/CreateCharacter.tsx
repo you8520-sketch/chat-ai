@@ -2249,17 +2249,25 @@ export default function CreateCharacter({
                     상태창 위젯
                   </h2>
                   <p className="mt-0.5 text-xs text-zinc-400">
-                    HTML 레이아웃 제작 · 상태값·지시 토큰 환산 500자
+                    클린 카드·컴팩트 패널, HTML·JSX 직접제작 · 상태값·지시 토큰 환산 500자
                   </p>
+                  <Link href="/widgets" className="mt-1 inline-flex text-xs text-violet-300 hover:underline">
+                    공유 상태창 둘러보기
+                  </Link>
                 </div>
                 <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[11px] font-bold text-zinc-200">
                   기본 적용
                 </span>
               </div>
               <StatusWidgetEditor
+                key={
+                  editLoading
+                    ? "status-widget-loading"
+                    : `status-widget-${editCharacterId ?? "new"}`
+                }
                 value={statusWidget}
                 onChange={setStatusWidget}
-                disabled={loading}
+                disabled={loading || editLoading}
                 profileNames={{
                   characterName: form.name.trim() || "캐릭터",
                   personaName: "유저",
@@ -2272,9 +2280,14 @@ export default function CreateCharacter({
                 disabled={loading}
               />
               <JsxComponentCatalogEditor
+                key={
+                  editLoading
+                    ? "jsx-catalog-loading"
+                    : `jsx-catalog-${editCharacterId ?? "new"}`
+                }
                 value={jsxCatalog}
                 onChange={setJsxCatalog}
-                disabled={loading}
+                disabled={loading || editLoading}
               />
             </section>
           </div>

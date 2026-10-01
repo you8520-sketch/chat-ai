@@ -1,36 +1,38 @@
 import { fieldPlaceholderKey } from "./fieldKeys";
 import type { StatusWidget, StatusWidgetField } from "./types";
 
-export type BuiltinStatusWidgetTemplateId = "modern" | "sf";
+export type BuiltinStatusWidgetTemplateId = "clean" | "compact";
 
 const DEFAULT_FIELDS: StatusWidget["fields"] = [
   {
     id: "시간",
     label: "시간",
-    instruction: "장면의 현재 시각. 짧게 작성한다. 예: 14:30, 오후 2시 30분. 이전 턴의 시간에서 장면 경과를 반영한다.",
+    instruction: "현재 장면의 시각을 짧게 작성한다.",
   },
   {
     id: "장소",
     label: "장소",
-    instruction: "현재 장면이 일어나는 장소 이름. 짧게 작성한다.",
-  },
-  {
-    id: "속마음",
-    label: "속마음",
-    instruction: "NPC의 속마음·의식의 흐름을 한 줄로. 1인칭 내면.",
+    instruction: "현재 장면의 장소를 짧게 작성한다.",
   },
   {
     id: "현재상황",
     label: "현재상황",
-    instruction: "지금 벌어지는 상황을 한 줄로 요약한다.",
+    instruction: "지금 벌어지는 핵심 상황을 한 줄로 작성한다.",
   },
   {
-    id: "의식의흐름",
-    label: "의식의흐름",
-    instruction:
-      "NPC의 의식의 흐름을 간단히 작성한다. 출력 예시 : 너무졸려서 바닥에 눕고싶다 → 귀여운걸 보니 정신이 번쩍든다 → 데이트하자고 꼬셔야겠다",
+    id: "현재목표",
+    label: "현재목표",
+    instruction: "NPC가 지금 이루려는 단기 목표를 짧게 작성한다.",
+  },
+  {
+    id: "속마음",
+    label: "속마음",
+    instruction: "NPC의 현재 내면을 자연스러운 1인칭 한 줄로 작성한다.",
   },
 ];
+
+const SHELL =
+  "width:100%;min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;word-break:break-word;";
 
 function templateValue(field: StatusWidgetField): string {
   const key = fieldPlaceholderKey(field);
@@ -45,61 +47,126 @@ function escapeLabel(label: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function contentFields(fields: StatusWidget["fields"]): StatusWidget["fields"] {
-  return fields.filter((field) => {
-    const key = fieldPlaceholderKey(field);
-    return key !== "시간" && key !== "장소";
-  });
+function keyedFields(fields: StatusWidget["fields"]): StatusWidgetField[] {
+  return fields.filter((field) => fieldPlaceholderKey(field).length > 0);
 }
 
-function modernHtml(fields: StatusWidget["fields"]): string {
-  const rows = contentFields(fields)
-    .map((field) => {
-      const label = escapeLabel(field.label.trim() || field.id || "상태값");
-      return `<div style="display:flex;gap:12px;align-items:flex-start;min-width:max-content;"><span style="flex:0 0 auto;min-width:max-content;color:#58a6ff;font-weight:600;white-space:nowrap;">• ${label}</span><span style="flex:1 1 auto;min-width:260px;color:#f0f6fc;overflow-wrap:anywhere;">${templateValue(field)}</span></div>`;
-    })
-    .join("");
-
-  return `<div style="width:max-content;min-width:550px;max-width:none;margin:12px auto;padding:18px 20px;border-radius:14px;background:#0d1117;border:1px solid #21262d;box-shadow:0 12px 24px rgba(0,0,0,0.5);font-family:'Pretendard',sans-serif;color:#c9d1d9;line-height:1.6;word-break:keep-all;"><div style="display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #21262d;white-space:nowrap;"><div style="display:flex;align-items:center;gap:6px;white-space:nowrap;"><span style="display:inline-block;width:6px;height:6px;background:#58a6ff;border-radius:50%;"></span><span style="font-size:13px;font-weight:700;color:#f0f6fc;letter-spacing:0.02em;white-space:nowrap;">STATUS REPORT</span></div><span style="font-size:11px;color:#8b949e;background:#161b22;padding:2px 8px;border-radius:20px;white-space:nowrap;">{{시간}} · {{장소}}</span></div><div style="display:flex;flex-direction:column;gap:14px;font-size:14px;">${rows}</div></div>`;
+function findField(
+  fields: StatusWidgetField[],
+  key: string
+): StatusWidgetField | undefined {
+  return fields.find((field) => fieldPlaceholderKey(field) === key);
 }
 
-function neonHtml(fields: StatusWidget["fields"]): string {
-  const rows = contentFields(fields)
-    .map((field) => {
-      const label = escapeLabel(
-        field.label.trim() || field.id || "STATUS",
-      ).toUpperCase();
-      return `<div style="display:flex;gap:12px;align-items:flex-start;min-width:max-content;"><span style="flex:0 0 auto;min-width:max-content;color:#00f0ff;font-weight:600;letter-spacing:0.02em;white-space:nowrap;">[${label.replaceAll("_", " ")}]</span><span style="flex:1 1 auto;min-width:260px;color:#d0f0ff;overflow-wrap:anywhere;">${templateValue(field)}</span></div>`;
-    })
-    .join("");
-
-  return `<div style="width:max-content;min-width:550px;max-width:none;margin:12px auto;padding:18px 20px;border-radius:6px;background:#030508;border:1px solid #00f0ff;box-shadow:0 0 15px rgba(0,240,255,0.15), inset 0 0 10px rgba(0,240,255,0.05);font-family:'Orbitron',sans-serif;color:#c0e0ff;line-height:1.6;word-break:keep-all;"><div style="display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px dashed rgba(0,240,255,0.3);white-space:nowrap;"><span style="font-size:13px;font-weight:700;color:#00f0ff;letter-spacing:0.1em;text-shadow:0 0 8px rgba(0,240,255,0.6);white-space:nowrap;">[ SYSTEM OVERVIEW ]</span><span style="font-size:11px;color:#6bbcff;letter-spacing:0.05em;white-space:nowrap;">{{시간}} // {{장소}}</span></div><div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">${rows}</div></div>`;
+function metadataHtml(time?: StatusWidgetField, place?: StatusWidgetField): string {
+  const parts = [time, place]
+    .filter((field): field is StatusWidgetField => Boolean(field))
+    .map((field) => templateValue(field));
+  if (parts.length === 0) return "";
+  return `<span style="min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word;">${parts.join(" · ")}</span>`;
 }
+
+function numericRangeLabel(field: StatusWidgetField): string {
+  const numeric = field.numericState;
+  if (!numeric) return "";
+  const min = numeric.integer ? String(Math.trunc(numeric.min)) : String(numeric.min);
+  const max = numeric.integer ? String(Math.trunc(numeric.max)) : String(numeric.max);
+  return `${min}–${max}`;
+}
+
+function cleanFieldHtml(field: StatusWidgetField): string {
+  const label = escapeLabel(field.label.trim() || field.id || "상태값");
+  const value = templateValue(field);
+  if (field.numericState) {
+    const range = escapeLabel(numericRangeLabel(field));
+    return `<div style="min-width:0;max-width:100%;padding:12px;border-radius:12px;background:#1a1d27;border:1px solid rgba(196,181,253,0.45);box-sizing:border-box;"><div style="font-size:11px;color:#c4b5fd;overflow-wrap:anywhere;">${label}</div><div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;min-width:0;"><span style="min-width:0;color:#fafafa;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;word-break:break-word;">${value}</span>${range ? `<span style="border:1px solid rgba(196,181,253,0.28);border-radius:999px;padding:1px 6px;color:#a1a1aa;font-size:10px;">${range}</span>` : ""}</div></div>`;
+  }
+  return `<div style="min-width:0;max-width:100%;padding:12px;border-radius:12px;background:rgba(255,255,255,0.03);box-sizing:border-box;"><div style="font-size:11px;color:#a1a1aa;overflow-wrap:anywhere;">${label}</div><div style="margin-top:6px;min-width:0;color:#f4f4f5;overflow-wrap:anywhere;word-break:break-word;">${value}</div></div>`;
+}
+
+function compactFieldHtml(field: StatusWidgetField): string {
+  const label = escapeLabel(field.label.trim() || field.id || "상태값");
+  const value = templateValue(field);
+  if (field.numericState) {
+    const range = escapeLabel(numericRangeLabel(field));
+    return `<div style="display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;min-width:0;max-width:100%;padding-top:6px;border-top:1px solid rgba(196,181,253,0.35);"><span style="flex:0 1 auto;max-width:100%;min-width:0;color:#c4b5fd;overflow-wrap:anywhere;">${label}</span><span style="flex:1 1 8rem;min-width:0;max-width:100%;color:#fafafa;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;word-break:break-word;">${value}${range ? ` <span style="color:#a1a1aa;">${range}</span>` : ""}</span></div>`;
+  }
+  return `<div style="display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;min-width:0;max-width:100%;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);"><span style="flex:0 1 auto;max-width:100%;min-width:0;color:#a1a1aa;overflow-wrap:anywhere;">${label}</span><span style="flex:1 1 8rem;min-width:0;max-width:100%;color:#f4f4f5;overflow-wrap:anywhere;word-break:break-word;">${value}</span></div>`;
+}
+
+function situationHtml(field: StatusWidgetField, compact: boolean): string {
+  const label = escapeLabel(field.label.trim() || "현재상황");
+  const value = templateValue(field);
+  if (compact) {
+    return `<div style="margin-top:8px;min-width:0;max-width:100%;"><div style="font-size:11px;color:#a1a1aa;overflow-wrap:anywhere;">${label}</div><div style="margin-top:2px;min-width:0;font-size:15px;font-weight:600;line-height:1.45;color:#fafafa;overflow-wrap:anywhere;word-break:break-word;">${value}</div></div>`;
+  }
+  return `<div style="margin-top:14px;min-width:0;max-width:100%;"><div style="font-size:11px;color:#a1a1aa;overflow-wrap:anywhere;">${label}</div><div style="margin-top:4px;min-width:0;font-size:18px;font-weight:600;line-height:1.45;color:#fafafa;overflow-wrap:anywhere;word-break:break-word;">${value}</div></div>`;
+}
+
+function cleanHtml(fields: StatusWidget["fields"]): string {
+  const keyed = keyedFields(fields);
+  const time = findField(keyed, "시간");
+  const place = findField(keyed, "장소");
+  const situation = findField(keyed, "현재상황");
+  const rest = keyed.filter((field) => field !== time && field !== place && field !== situation);
+  const meta = metadataHtml(time, place);
+  const grid = rest.map((field) => cleanFieldHtml(field)).join("");
+  return `<div style="${SHELL}margin:0;padding:16px;border-radius:16px;background:#12141a;border:1px solid rgba(255,255,255,0.12);color:#ececf1;font-family:inherit;line-height:1.55;"><div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px;min-width:0;max-width:100%;"><div style="min-width:0;max-width:100%;font-size:15px;font-weight:700;overflow-wrap:anywhere;word-break:break-word;">{{char}}</div>${meta ? `<div style="display:flex;flex-wrap:wrap;gap:6px;min-width:0;max-width:100%;font-size:12px;color:#a1a1aa;">${meta}</div>` : ""}</div>${situation ? situationHtml(situation, false) : ""}${grid ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:10px;margin-top:14px;min-width:0;max-width:100%;">${grid}</div>` : ""}</div>`;
+}
+
+function compactHtml(fields: StatusWidget["fields"]): string {
+  const keyed = keyedFields(fields);
+  const time = findField(keyed, "시간");
+  const place = findField(keyed, "장소");
+  const situation = findField(keyed, "현재상황");
+  const rest = keyed.filter((field) => field !== time && field !== place && field !== situation);
+  const meta = metadataHtml(time, place);
+  const rows = rest.map((field) => compactFieldHtml(field)).join("");
+  return `<div style="${SHELL}margin:0;padding:10px 12px;border-radius:12px;background:#101218;border:1px solid rgba(255,255,255,0.1);color:#e4e4e7;font-family:inherit;font-size:13px;line-height:1.45;"><div style="display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;min-width:0;max-width:100%;font-size:12px;color:#a1a1aa;"><span style="min-width:0;max-width:100%;font-weight:700;color:#ececf1;overflow-wrap:anywhere;word-break:break-word;">{{char}}</span>${meta}</div>${situation ? situationHtml(situation, true) : ""}${rows ? `<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;min-width:0;max-width:100%;">${rows}</div>` : ""}</div>`;
+}
+
+const TEMPLATE_NAMES: Record<BuiltinStatusWidgetTemplateId, string> = {
+  clean: "클린 카드",
+  compact: "컴팩트 패널",
+};
 
 export function buildBuiltinStatusWidgetTemplate(
   id: BuiltinStatusWidgetTemplateId,
-  fields: StatusWidget["fields"] = DEFAULT_FIELDS,
+  fields: StatusWidget["fields"] = DEFAULT_FIELDS
 ): StatusWidget {
-  return {
-    version: 1,
-    name: id === "modern" ? "모던 상태창" : "네온 상태창",
-    placement: "bottom",
-    fields: fields.map((field) => ({ ...field })),
-    htmlTemplate: id === "modern" ? modernHtml(fields) : neonHtml(fields),
-  };
+  switch (id) {
+    case "clean":
+      return {
+        version: 1,
+        name: TEMPLATE_NAMES.clean,
+        placement: "bottom",
+        fields: fields.map((field) => ({ ...field })),
+        htmlTemplate: cleanHtml(fields),
+      };
+    case "compact":
+      return {
+        version: 1,
+        name: TEMPLATE_NAMES.compact,
+        placement: "bottom",
+        fields: fields.map((field) => ({ ...field })),
+        htmlTemplate: compactHtml(fields),
+      };
+    default: {
+      const _never: never = id;
+      return _never;
+    }
+  }
 }
 
 export const BUILTIN_STATUS_WIDGET_TEMPLATES: Record<
   BuiltinStatusWidgetTemplateId,
   StatusWidget
 > = {
-  modern: buildBuiltinStatusWidgetTemplate("modern"),
-  sf: buildBuiltinStatusWidgetTemplate("sf"),
+  clean: buildBuiltinStatusWidgetTemplate("clean"),
+  compact: buildBuiltinStatusWidgetTemplate("compact"),
 };
 
-export function cloneStatusWidgetTemplate(
-  template: StatusWidget,
-): StatusWidget {
+export function cloneStatusWidgetTemplate(template: StatusWidget): StatusWidget {
   return {
     ...template,
     fields: template.fields.map((field) => ({ ...field })),
