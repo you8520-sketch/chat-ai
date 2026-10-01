@@ -47,7 +47,7 @@ describe("RP qualification fixture exporter", () => {
         speech_profile, creator_compiled_description_json,
         appearance_raw, appearance_compiled,
         narration_style_instructions, content_kind
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
       18,
       "라이크",
