@@ -1,5 +1,5 @@
 import { JSX_PROP_MAX } from "./limits";
-import { JSX_COMPONENT_NAME_RE, type JsxComponentRecord, type JsxPropDefinition } from "./types";
+import { JSX_COMPONENT_NAME_RE, type JsxComponentManifestRecord, type JsxPropDefinition } from "./types";
 
 const PROP_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]{0,47}$/;
 
@@ -20,7 +20,7 @@ export function normalizeJsxPropDefinition(raw: unknown): JsxPropDefinition | nu
   };
 }
 
-export function buildJsxComponentManifestBlock(components: JsxComponentRecord[]): string {
+export function buildJsxComponentManifestBlock(components: JsxComponentManifestRecord[]): string {
   const usable = components.filter((c) => JSX_COMPONENT_NAME_RE.test(c.name)).slice(0, 12);
   if (usable.length === 0) return "";
 
