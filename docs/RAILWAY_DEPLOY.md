@@ -144,9 +144,12 @@ This app uses a **long-running Node `server.js`**, not Vercel serverless functio
 
 | Item | Notes |
 |------|--------|
-| `data/app.db` on volume | Persists across restarts/redeploys |
-| `public/uploads` | **Not** on volume — character image uploads may not survive redeploys |
-| `data/secure-uploads` | Under `DATA_DIR` if you use withdrawal docs later |
+| `DATA_DIR/app.db` | Persistent SQLite file. With `DATA_DIR=/data` this is `/data/app.db`. Local SQLite uses WAL, so `-wal` and `-shm` sit beside the db. |
+| `DATA_DIR/uploads` | New local uploads when `BLOB_READ_WRITE_TOKEN` is unset. Same volume as the db. |
+| `public/uploads` | Read fallback for older files only. New local writes do not go here. |
+| Vercel Blob | When `BLOB_READ_WRITE_TOKEN` is set, bytes live outside the volume and the db stores that URL. |
+| `process.cwd()/data/secure-uploads/withdrawals` | Withdrawal images. This path is not `getDataDir()`, so `DATA_DIR=/data` does not put them on the Railway volume. |
+| Volume backup | No backup workflow in this repo. Schedule and last success are checked in Railway. See `docs/RAILWAY_SQLITE_RECOVERY.md`. |
 
 ---
 
