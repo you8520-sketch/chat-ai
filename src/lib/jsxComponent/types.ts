@@ -34,6 +34,8 @@ export type JsxComponentManifestRecord = {
   chatSend: boolean;
 };
 
+export type JsxRuntimeComponentRecord = Omit<JsxComponentRecord, "source">;
+
 export type JsxInvocation = {
   name: string;
   props: Record<string, string | number | boolean>;
