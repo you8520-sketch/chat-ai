@@ -15,7 +15,6 @@ import {
   type ChatRichBlock,
 } from "@/lib/chatRichContent";
 import { sanitizeChatStatusHtml, sanitizeChatVisualCardHtml } from "@/lib/chatHtmlSanitize";
-import { findJsxComponent } from "@/lib/jsxComponent/catalog";
 import { isIncompleteJsxInvocation, resolveJsxInvocationProps } from "@/lib/jsxComponent/invocation";
 
 function ChatMarkdownTable({ markdown }: { markdown: string }) {
@@ -72,7 +71,7 @@ function ChatMarkdownTable({ markdown }: { markdown: string }) {
 function ChatJsxCall({ block }: { block: Extract<ChatRichBlock, { kind: "jsx-call" }> }) {
   const catalog = useJsxComponentCatalog();
   const bridge = useJsxHostBridge();
-  const record = findJsxComponent(catalog, block.name);
+  const record = catalog.find((component) => component.name === block.name) ?? null;
   if (!record) {
     return (
       <div className="mt-3 rounded-lg border border-white/10 bg-[#0a0a0e] px-3 py-2 text-xs text-zinc-400">
