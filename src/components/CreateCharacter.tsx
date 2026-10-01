@@ -2260,9 +2260,14 @@ export default function CreateCharacter({
                 </span>
               </div>
               <StatusWidgetEditor
+                key={
+                  editLoading
+                    ? "status-widget-loading"
+                    : `status-widget-${editCharacterId ?? "new"}`
+                }
                 value={statusWidget}
                 onChange={setStatusWidget}
-                disabled={loading}
+                disabled={loading || editLoading}
                 profileNames={{
                   characterName: form.name.trim() || "캐릭터",
                   personaName: "유저",
