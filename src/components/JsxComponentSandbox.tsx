@@ -18,6 +18,7 @@ type Props = {
   title?: string;
   chatSendEnabled?: boolean;
   bridge?: JsxHostBridge | null;
+  heightPx?: number;
 };
 
 type SandboxMessage = {
@@ -32,6 +33,7 @@ export default function JsxComponentSandbox({
   title,
   chatSendEnabled = false,
   bridge,
+  heightPx = JSX_SANDBOX_HEIGHT_PX,
 }: Props) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const loadedRef = useRef(false);
@@ -115,7 +117,7 @@ export default function JsxComponentSandbox({
       sandbox="allow-scripts"
       referrerPolicy="no-referrer"
       className="w-full rounded-xl border border-white/10 bg-transparent"
-      style={{ height: JSX_SANDBOX_HEIGHT_PX, border: "0" }}
+      style={{ height: heightPx, border: "0" }}
     />
   );
 }
