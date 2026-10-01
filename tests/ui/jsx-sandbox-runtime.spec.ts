@@ -24,6 +24,14 @@ test("opaque JSX sandbox runs Teapot-style named component with direct hooks", a
         const frame = document.createElement("iframe");
         frame.id = "jsx-runtime-e2e";
         frame.setAttribute("sandbox", "allow-scripts");
+        Object.assign(frame.style, {
+          position: "fixed",
+          top: "0",
+          left: "0",
+          width: "320px",
+          height: "180px",
+          zIndex: "2147483647",
+        });
         frame.addEventListener("load", () => resolve(), { once: true });
         frame.src = "/jsx-sandbox/frame.html";
         document.body.appendChild(frame);
