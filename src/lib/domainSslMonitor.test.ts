@@ -16,6 +16,7 @@ import {
   parseDomainSslEvidence,
   projectDomainSslMonitor,
   rollupDomainSslState,
+  withTimeout,
   type DomainSslPorts,
   type DnsProbe,
   type HealthProbe,
@@ -58,6 +59,25 @@ async function run(overrides: Partial<DomainSslPorts>, extra?: { sleepCalls?: nu
     maxAttempts: 3,
   });
 }
+
+describe("domain ssl timeout regression", () => {
+  it("rejects a thrown DNS timeout sentinel without crashing the Node timer callback", async () => {
+    const pending = new Promise<never>(() => {});
+    await assert.rejects(
+      withTimeout(pending, 1, () => {
+        throw Object.assign(new Error("dns_timeout"), { code: "ETIMEOUT" });
+      }),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message === "dns_timeout" &&
+        (error as Error & { code?: string }).code === "ETIMEOUT"
+    );
+  });
+
+  it("preserves a successfully completed probe result", async () => {
+    assert.equal(await withTimeout(Promise.resolve("resolved"), 100, () => "timeout"), "resolved");
+  });
+});
 
 describe("domain ssl policy", () => {
   it("classifies expiry at the canonical 21-day warning and 7-day critical thresholds", () => {
