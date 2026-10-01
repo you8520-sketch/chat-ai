@@ -33,6 +33,18 @@ describe("compileJsxComponentSource", () => {
       `export default function Board() { eval("1"); return <div />; }`
     );
     assert.equal(evaled.ok, false);
+    const storage = compileJsxComponentSource(
+      `export default function Board() { localStorage.setItem("x", "1"); return <div />; }`
+    );
+    assert.equal(storage.ok, false);
+    const navigation = compileJsxComponentSource(
+      `export default function Board() { window.location.href = "https://example.com"; return <div />; }`
+    );
+    assert.equal(navigation.ok, false);
+    const anchorNavigation = compileJsxComponentSource(
+      `export default function Board() { return <a href="https://example.com">go</a>; }`
+    );
+    assert.equal(anchorNavigation.ok, false);
 
     const guideStyle = compileJsxComponentSource(
       `function StatusBoard({ hp = 0 }) {
