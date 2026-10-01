@@ -122,8 +122,8 @@ function fakeHalf1(opts: { age?: number; name?: string } = {}): Record<string, u
       { name: "전술 지휘", scope: "소규모 호위 작전", level: "중급", limit: "대규모 전쟁 불가", cost: "", usage: "경호 배치" },
     ],
     habits: {
-      hobbies: ["새벽 연무", "검 손질"],
-      habits: ["순찰 전 문장 확인", "야간 경계"],
+      hobbies: ["새벽 연무", "검 손질", "전술 지도 읽기"],
+      habits: ["순찰 전 문장 확인", "야간 경계", "대화 전 출입구 확인"],
       likes: ["맑은 새벽", "정돈된 무기", "충직한 부하"],
       dislikes: ["궁정 음모", "지각", "무례"],
     },
@@ -459,7 +459,46 @@ describe("official author adapter", () => {
       voice: { name: "카엘", age: 27, adultCandidate: false, speechDirection: "단호", npcDemand: "없음" },
       bonds: { name: "카엘", age: 27, rpHook: "순찰", adultCandidate: false, castList: [] },
     });
+    assert.equal(bible.promptStandard, "compact_rp_v1");
     assert.equal(validatePilotBible(bible, { adultExpected: false }).ok, true);
+  });
+
+  it("prompt standard is stamped by canonical code even when provider Part1 omits it", async () => {
+    const half1 = fakeHalf1();
+    assert.equal("promptStandard" in half1, false);
+    const [voice, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+    const { bible } = await generateOfficialCharacterBible({
+      transport: fakeTransport({
+        character_bible_1: half1,
+        character_bible_voice: voice,
+        character_bible_bonds: bonds,
+      }),
+      part1: {
+        brief: {
+          slot: 1,
+          name: "카엘",
+          gender: "male",
+          age: 27,
+          archetype: "기사",
+          relationshipTrope: "경계",
+          occupation: "기사단장",
+          faction: "기사단",
+          socialPosition: "고위",
+          personalityCore: "냉정",
+          visualSilhouette: "장신",
+          rpHook: "순찰",
+          adultCandidate: false,
+          speechDirection: "단호",
+          audience: "female",
+        },
+        worldName: "테스트",
+        worldContext: "맥락",
+        siblingSketches: [],
+      },
+      voice: { name: "카엘", age: 27, adultCandidate: false, speechDirection: "단호", npcDemand: "없음" },
+      bonds: { name: "카엘", age: 27, rpHook: "순찰", adultCandidate: false, castList: [] },
+    });
+    assert.equal(bible.promptStandard, "compact_rp_v1");
   });
 
   it("duplicate greetings and hooks are detected across siblings", () => {

@@ -7,6 +7,7 @@ import {
 } from "@/lib/officialSupply/characterText";
 import { OfficialSupplyGateError, type OfficialSupplyStore } from "@/lib/officialSupply/store";
 import { canonicalAssetModerationFields } from "@/lib/officialSupply/moderation";
+import { resolveOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
 import type { OfficialWorldLorebookEntry } from "@/lib/officialSupply/types";
 import { evaluateSharedLorebook } from "@/lib/officialSupply/worldQa";
 
@@ -83,6 +84,7 @@ export async function stageOfficialCharacterPrivately(input: {
   draftKey: string;
   stagingUser: SessionUser;
   sharedLorebook?: OfficialWorldLorebookEntry[];
+  characterLorebook?: OfficialWorldLorebookEntry[];
   save?: CanonicalSave;
 }): Promise<OfficialStagingResult> {
   const { store, draftKey, stagingUser } = input;
@@ -93,7 +95,7 @@ export async function stageOfficialCharacterPrivately(input: {
   if (record.stage !== "qa_passed") {
     throw new OfficialSupplyGateError("character_stage", `draft ${draftKey} is ${record.stage}; QA_PASSED required`);
   }
-  const entries = input.sharedLorebook ?? [];
+  const entries = resolveOfficialCharacterLorebooks(input.sharedLorebook ?? [], input.characterLorebook ?? []);
   const siblings = store.listWorldCharacters(record.batchKey, record.worldKey).map((c) => c.draft);
   const lorebookQa = evaluateSharedLorebook(entries, siblings);
   if (!lorebookQa.ok) {

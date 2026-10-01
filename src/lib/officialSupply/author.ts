@@ -846,7 +846,11 @@ export async function generateOfficialCharacterBible(input: {
     throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_bonds: object required");
   }
 
-  return { bible: assembleOfficialCharacterBible(half1, voiceHalf, bondsHalf), completions: [first, second, third] };
+  const bible = assembleOfficialCharacterBible(half1, voiceHalf, bondsHalf);
+  return {
+    bible: { ...bible, promptStandard: "compact_rp_v1" },
+    completions: [first, second, third],
+  };
 }
 
 function buildPart1Recap(half1: Record<string, unknown>): string {

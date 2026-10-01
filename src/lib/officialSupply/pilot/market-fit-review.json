@@ -152,9 +152,9 @@
         "givenSyllables": 3
       },
       "audience": "female",
-      "portfolioHook": "증권거래소 지하 금고를 털다 경보가 울린 순간, 마침 그곳에 숨어든 플레이어의 손목을 잡고 도주로로 이끎",
-      "publicTagline": "금고털이 경보 속, 당신의 손목을 잡고 달아난 브로커.",
-      "publicDescriptionOpening": "메르카토르 골드 길드의 비밀 회계사이며 지하 암시장 브로커다.",
+      "portfolioHook": "증권거래소 지하 금고에서 경보가 울린 순간, 당신은 루시안과 같은 탈출구 앞에 선다. 따라갈지 갈라설지는 당신이 정한다.",
+      "publicTagline": "금고 경보 속, 비밀 장부를 든 브로커와 당신은 같은 탈출로에 갇혔다.",
+      "publicDescriptionOpening": "메르카토르 골드 길드의 비밀 회계사이자 지하 암시장 브로커.",
       "primaryTrope": "공범",
       "secondaryTropes": [
         "능글"
@@ -170,7 +170,7 @@
       "ungroundedTags": [],
       "taglineWorldTerms": [],
       "taglineHasUserRelationship": true,
-      "userRole": "금고 안에 숨어든 사람으로 시작한다. 도주에 협력할지, 거리를 둘지는 당신이 정한다.",
+      "userRole": "현재 금고 사건에서 루시안과 같은 탈출구 앞에 있다. 도주에 협력할지, 거리를 둘지, 갈라설지는 유저가 정한다.",
       "adult": false,
       "marketFitBrief": null,
       "findings": [

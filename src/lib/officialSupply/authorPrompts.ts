@@ -164,7 +164,7 @@ export function buildWorldAtlasUser(input: WorldAtlasInput): string {
     "- history 3~6개: 현재에 영향을 주는 사건만(event·impact). 연대표 나열 금지",
     "- knowledge: common(대중 상식만, 비밀·정체·흑막·미래 표현 금지) / faction / characterLocal / authorOnly",
     "- userEntry: allowedRoles 2개 이상(귀족·고용인·방문자·계약 상대·신입 등, 단일 강제 금지) + note",
-    "- lorebook: COMMON 기반 8~12개. entryKey·name(40자 이내)·keywords(2~10개)·content(800자 이내)",
+    "- lorebook: 실제 RP에서 반복적으로 필요한 세계 정보만 3~8개. 개수 채우기 금지. entryKey·name(40자 이내)·keywords(2~10개)·content(800자 이내)",
     "최상위 키는 정확히 locations·history·knowledge·userEntry·lorebook이며 하나도 빠뜨리지 않는다.",
     "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
     WORLD_ATLAS_SKELETON,
@@ -204,7 +204,8 @@ function marketFitRuleLines(m: WorldMarketInput): string[] {
     `- 같은 primary 트로프는 최대 ${m.maxPrimaryTropeRepeat}명. 비슷한 트로프를 공유해도 유저와의 실제 역학은 달라야 한다.`,
     "- differentiationTwist: 인기 트로프 + 고유 차별점(역할 역전·직업 충돌·과거 사건·정치적 이해관계·특이 능력·유저와의 비대칭 정보 중 1개 이상).",
     `- marketRole은 proven·proven_twist·experimental 중 하나. 이번 배치 구성: ${mix}.`,
-    "- userRelationship: 유저의 역할/관계. oneLineConflict: '유저와의 관계 + 지금의 갈등 + 대화할 이유'를 한 문장으로,",
+    "- userRelationship: 상품 기획용 관계 역학이다. 사전 관계를 반드시 고정하는 필드가 아니다. 오프닝이 특정 관계를 핵심 전제로 삼을 때만 고정하고, 그 외에는 현재 장면의 이해관계·긴장·거리로 쓴다.",
+    "- oneLineConflict: '현재 유저-캐릭터 역학 + 지금의 갈등 + 대화할 이유'를 한 문장으로. persona-flexible 카드에서는 가족/연인/상관/초면 같은 사전 관계를 단정하지 않는다.",
     "  세계관 고유명사 없이 대상 시장 독자가 바로 아는 역할 어휘로 쓴다.",
     `- namingProfile은 "${m.namingProfile}" (${NAMING_PROFILES[m.namingProfile].guidance})`,
     `- discoveryTags ${m.coreTags.min}~${m.coreTags.max}개: 장르·관계·성격·소재·방향성을 섞되 캐릭터 핵심 경험만. 인기 키워드 억지 삽입 금지.`,
@@ -330,17 +331,18 @@ export function buildCharacterBible1System(): string {
     "분량(한국어 글자 수, filler 금지·밀도 우선):",
     "- part1 전체 분량은 반드시 5000자 이내로 쓴다(초과하면 반려되므로 각 필드를 간결하게).",
     "- identity: gender는 male·female·other 중 브리프 지정값 그대로, age는 브리프 나이 정수 그대로, heightCm은 140~220 정수.",
-    "- appearance: 얼굴형·눈매·눈동자·머리색·헤어·길이·피부·키·체형·근육량·특징·평소 표정·기본 복장·액세서리·인상. 250~500자.",
-    "- personality.keywords: 5~8개. personality.behavioral 600~900자:",
-    "  평상시·낯선 사람·가까운 사람·화났을 때·불안할 때·당황할 때·애정 느낄 때·갈등 속 선택을 모두 다룬다.",
+    "- appearance: 이미지/Appearance owner용 원본이다. 얼굴형·눈매·눈동자·머리색·헤어·길이·피부·키·체형·특징·표정·복장·소품을 250~500자로 기록하되, 이 장문을 RP 캐릭터 본문에 복제하지 않는다.",
+    "- personality.keywords: 5~8개. personality.behavioral 450~700자:",
+    "  키워드 나열로 끝내지 말고 평상시·낯선 사람·가까운 사람·분노·불안·당황·애정·갈등에서 실제로 무엇을 하는지 행동으로 쓴다.",
     "- contradiction: 내적 모순 1개 이상. 장점+단점 나열이 아니라 RP 갈등·변화의 원인이 되는 모순.",
-    "- values: desires 1~3·fears 1~3·coreValues 2~4·nonNegotiable 1~2. 행동을 예측할 수 있을 만큼 구체적으로.",
-    "- backstory: 현재에 영향을 주는 formative event 2~4개, 총 700~1100자.",
-    "  각 사건에 무엇이 일어났는지·당시 선택·현재에 남은 것을 드러낸다. PAST EVENT → PRESENT BEHAVIOR 연결 없는 padding 삭제.",
-    "- abilities 2~6개: 범위·수준·한계·대가·사용 시점. 강한 능력에는 조건/비용/약점 중 최소 하나. 세계관 파워 시스템과 충돌 금지.",
-    "- habits: hobbies 2~4·habits 2~5·likes 3~6·dislikes 3~6. 행동과 연결된 서술.",
-    "- dailyLife 250~450자: 사건 없을 때의 하루·휴식·소비·식사/수면.",
-    "- situation: 세계 관련 맥락 600~900자 + 개인 현재 상황 500~800자 + 유저 진입 단서 200~300자.",
+    "- values: desires 1~2·fears 1~2·coreValues 2~3·nonNegotiable 1~2. 행동을 예측할 수 있을 만큼 구체적으로.",
+    "- backstory: 현재 성격/행동을 만든 formative event 1~2개, 총 350~700자. 연대기 금지.",
+    "  각 사건은 사건 → 당시 선택 → 현재 행동에 남은 흔적만 남긴다. 현재에 영향 없는 사건은 삭제.",
+    "- abilities 2~4개: 캐릭터의 매력·권력·문제 해결 방식을 보여주는 능력만. 범위·한계/대가·대표 사용을 짧게 쓴다. 업무 매뉴얼처럼 장황하게 설명하지 않는다.",
+    "- habits: hobbies는 짧은 명사/구 3~5개, habits는 반복 장면에 바로 쓸 행동 3~5개. likes/dislikes는 각 2~4개로 간결하게.",
+    "- dailyLife 120~250자: 사건이 없을 때 무엇을 하며 시간을 보내는지 생활감만 남긴다.",
+    "- situation: 세계 관련 맥락 350~650자 + 개인 현재 상황 300~600자 + 유저 진입 단서 120~250자. 세계 설정집을 캐릭터 본문으로 복사하지 않는다.",
+    "- 캐릭터 runtime 핵심은 정체/성격/유저 인식/말투/관계 변화/과거 원인/습관·취미/가치관·금기/능력이다. 장문 외모·타 캐릭터 관계망·세계 설명은 각각 Appearance/Lorebook owner가 맡는다.",
     "- characterCore에 그대로 들어갈 문장으로 \"27세\"처럼 구조화된 나이와 같은 숫자를 반드시 명시한다(실제 나이로).",
     "",
     "품질 규칙:",
@@ -400,7 +402,7 @@ export function buildCharacterVoiceSystem(): string {
     "- examples는 서로 다른 상황의 대사 4~6개를 각각 별도 줄로(줄바꿈 구분), 전체 합 500자 이내.",
     "  이름을 가려도 구별되는 목소리. 클론 말투 금지.",
     "- forbidden 500자 이내: 절대 하지 않을 말투.",
-    "- behaviorRules 3~7개. 부정문 나열보다 행동 논리.",
+    "- behaviorRules 3~7개. 부정문 나열보다 캐릭터 고유 행동 논리. 유저 관계 메타규칙은 bonds의 userRelationship owner가 담당하므로 여기서 반복하지 않는다.",
     "",
     `greeting 규칙(실제 RP 첫 장면, 반드시 ${Q.greeting.min}자 이상 ${Q.greeting.max}자 이하):`,
     "- 장소·상황·분위기·캐릭터 행동·목소리·유저가 그 자리에 있는 최소 단서·반응 여지.",
@@ -423,7 +425,7 @@ export function buildCharacterVoiceSystem(): string {
     "섹스, 성교, 성행위, 자위, 사정, 삽입, 오르가즘, 포르노, 야설, 야동.",
     "'사정' 대신 사연/형편/경위를 쓴다.",
     "",
-    "NPC: 필요한 경우 1~2명, 0명은 관계망이 충분할 때만. NPC를 만들 때는 스켈레톤의 예시값을 실제 내용으로",
+    "NPC: 실제 RP에서 반복 역할이 필요한 경우에만 1~2명. 필요하지 않으면 0명([])을 유지한다. NPC를 만들 때는 모든 필드를 실제 내용으로",
     "모두 교체하고 모든 키를 빈 문자열 없이 채운다(예시값 그대로 두기 금지). 한 줄 200자 이내.",
     "성인 시트의 NPC는 전원 나이 명시 + 19세 이상.",
   ].join("\n");
@@ -440,7 +442,7 @@ export function buildCharacterVoiceUser(input: CharacterVoiceInput): string {
     "전반부 요약:",
     input.part1Recap,
     "",
-    "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다.",
+    "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. npcs는 실제 반복 역할이 필요할 때만 1~2명 추가하고, 필요 없으면 []를 유지한다.",
     VOICE_SKELETON,
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
@@ -466,11 +468,13 @@ export function buildCharacterBondsSystem(): string {
     "전체 분량은 반드시 2200자 이내로 쓴다(초과하면 반려되므로 각 필드를 간결하게).",
     "",
     "관계·비밀·엔진 규칙:",
-    "- userRelationship: 첫인식·유저 역할(최소 관계만, 강제 금지)·초기 신뢰/호감/경계/이해관계·반드시 3단계 이상 progression.",
-    "  유저 역할·첫인식은 성별 중립적으로 작성하고, 플레이어의 성별이나 성별 고정 호칭 대신 상황상 역할과 관계를 사용한다.",
-    "  자동 사랑 빠짐 금지. 유저 행동에 따라 변해야 한다.",
-    "- otherRelationships: 대상별 public(공유 가능) / privateOpinion / hidden(숨김).",
-    "- secrets 1~4개. RP progression·갈등·관계 변화에 영향을 주는 것만. 억지 반전·trivial 금지.",
+    "- userRelationship: 기본은 persona-flexible이다. 도입부가 관계를 명시적으로 고정하지 않으면 유저의 이름·신분·성별·기존 관계를 임의로 확정하지 않는다.",
+    "  유저 페르소나가 가족/동료/연인/상관/초면 등 기존 관계를 제시하면 그 설정을 우선한다. opening 자체가 특정 관계를 핵심 전제로 삼을 때만 최소 관계를 고정한다.",
+    "  initialView/userRole/startingPoint는 현재 장면에서의 태도와 이해관계 중심으로 쓰고, 성별 고정 호칭을 쓰지 않는다.",
+    "  progression은 최소 3단계지만 자동 사랑 빠짐 금지. 기존 관계가 있으면 그 관계에서 변화하고, 관계가 없으면 행동에 따라 신뢰/친밀/적대가 생기게 한다.",
+    "- otherRelationships: 0~3명. 실제 RP에 반복 등장하거나 이 캐릭터의 행동을 바꾸는 인물만 기록한다. 출연진 전체를 채우지 않는다.",
+    "  otherRelationships는 캐릭터 runtime 본문에 상시 주입하지 않는 lorebook 후보 메모다.",
+    "- secrets 1~3개. 캐릭터 자신이 알고 있으나 공개하지 않는 핵심 사실만. RP progression·갈등·관계 변화에 실제 영향을 주는 것만 남기고 trivial 반전은 금지.",
     "- rpEngine: immediateHook + repeatable 반드시 3개 이상(비사건성 일상 포함) + mediumConflict + longTermChange.",
     "  엔딩 고정 금지.",
     "",
@@ -489,22 +493,22 @@ export function buildCharacterBondsUser(input: CharacterBondsInput): string {
     `캐릭터: ${input.name} (${input.age}세)`,
     `RP 훅: ${input.rpHook}`,
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
-    `출연진(관계 설계 대상): ${input.castList.join(" / ")}`,
+    `출연진 참고 목록(관계 생성 의무 없음; 실제 직접 관련 0~3명만 otherRelationships 후보): ${input.castList.join(" / ")}`,
     "",
     "전반부 요약:",
     input.part1Recap,
     "",
-    "아래 빈 틀의 모든 값을 채워 JSON 한 개만 출력한다(성인 후보가 아니면 adultSection은 null).",
+    "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 실제 반복 등장·행동 변화가 필요한 인물만 넣고 없으면 []; 성인 후보가 아니면 adultSection은 null.",
     BONDS_SKELETON,
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
 }
 
-const BIBLE_1_SKELETON = `{"identity": {"name": "", "gender": "male", "age": 27, "apparentAge": "", "heightCm": 184, "species": "인간", "occupation": "", "socialPosition": "", "affiliation": "", "worldRole": ""}, "appearance": {"faceShape": "", "eyes": "", "eyeColor": "", "hairColor": "", "hairstyle": "", "hairLength": "", "skin": "", "build": "", "musculature": "", "distinguishingFeatures": "", "usualExpression": "", "defaultOutfit": "", "accessories": "", "impression": ""}, "personality": {"keywords": ["", "", "", "", ""], "behavioral": ""}, "contradiction": "", "values": {"desires": ["", ""], "fears": ["", ""], "coreValues": ["", ""], "nonNegotiable": [""]}, "backstory": {"events": [{"event": "", "choice": "", "residue": ""}, {"event": "", "choice": "", "residue": ""}]}, "abilities": [{"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}, {"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}], "habits": {"hobbies": ["", ""], "habits": ["", ""], "likes": ["", "", ""], "dislikes": ["", "", ""]}, "dailyLife": "", "situation": {"worldContext": "", "personalSituation": "", "userEntry": ""}}`;
+const BIBLE_1_SKELETON = `{"identity": {"name": "", "gender": "male", "age": 27, "apparentAge": "", "heightCm": 184, "species": "인간", "occupation": "", "socialPosition": "", "affiliation": "", "worldRole": ""}, "appearance": {"faceShape": "", "eyes": "", "eyeColor": "", "hairColor": "", "hairstyle": "", "hairLength": "", "skin": "", "build": "", "musculature": "", "distinguishingFeatures": "", "usualExpression": "", "defaultOutfit": "", "accessories": "", "impression": ""}, "personality": {"keywords": ["", "", "", "", ""], "behavioral": ""}, "contradiction": "", "values": {"desires": ["", ""], "fears": ["", ""], "coreValues": ["", ""], "nonNegotiable": [""]}, "backstory": {"events": [{"event": "", "choice": "", "residue": ""}, {"event": "", "choice": "", "residue": ""}]}, "abilities": [{"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}, {"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}], "habits": {"hobbies": ["", "", ""], "habits": ["", "", ""], "likes": ["", ""], "dislikes": ["", ""]}, "dailyLife": "", "situation": {"worldContext": "", "personalSituation": "", "userEntry": ""}}`;
 
-const VOICE_SKELETON = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": ["", ""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": ["", "", "", ""], "description": "", "examples": "대사1\\n대사2\\n대사3\\n대사4", "forbidden": ""}, "behaviorRules": ["", "", ""], "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": ["", "", ""]}, "npcs": [{"name": "이름", "age": 30, "heightCm": 175, "appearance": "외모", "personalityKeywords": ["성격"], "role": "역할", "relationToChar": "주인공과의 관계", "speech": "말투", "adultEligible": false}], "nsfw": false}`;
+const VOICE_SKELETON = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": ["", ""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": ["", "", "", ""], "description": "", "examples": "대사1\\n대사2\\n대사3\\n대사4", "forbidden": ""}, "behaviorRules": ["", "", ""], "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": ["", "", "", ""]}, "npcs": [], "nsfw": false}`;
 
-const BONDS_SKELETON = `{"userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [{"target": "", "public": "", "privateOpinion": "", "hidden": ""}], "secrets": ["", ""], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "nsfw": false, "adultSection": null}`;
+const BONDS_SKELETON = `{"userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [], "secrets": ["", ""], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "nsfw": false, "adultSection": null}`;
 
 export type AppearanceInput = {
   name: string;

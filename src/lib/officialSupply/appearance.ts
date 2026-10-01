@@ -83,6 +83,25 @@ export function renderAppearanceBlock(lock: OfficialAppearanceLock): string {
     .join("\n");
 }
 
+/**
+ * Compact RP-facing appearance projection.
+ * Full face geometry / hair-length / outfit-lock detail stays owned by the
+ * visual Appearance Lock and image pipeline; runtime only needs stable identity anchors.
+ */
+export function renderRuntimeAppearanceBlock(lock: OfficialAppearanceLock): string {
+  const id = lock.identity;
+  const hairShape = id.hair.split(/[.!?。！？]/u)[0]?.trim() ?? id.hair.trim();
+  const hair = [id.hairColor, hairShape].filter(Boolean).join(", ");
+  return [
+    `키/체형: ${id.heightCm}cm, ${id.build}`,
+    hair ? `머리: ${hair}` : "",
+    `눈: ${id.eyeColor}`,
+    id.identifyingFeatures.length ? `식별 특징: ${id.identifyingFeatures.slice(0, 1).join(", ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 /** Appearance Lock hash — the canonical appearance hash of the rendered block. */
 export function computeAppearanceLockHash(lock: OfficialAppearanceLock): string {
   return hashAppearanceRaw(renderAppearanceBlock(lock));
