@@ -1,3 +1,5 @@
+import { executeCompatibleSupplyProbe } from "./compatibleSupplyProbe";
+export { processCompatibleSupplySseLine as processOpenRouterSupplySseLine } from "./compatibleSupplyProbe";
 import {
   MAIN_RP_MODEL_IDS,
   type SelectedAI,
@@ -592,85 +594,6 @@ export function buildSupplyLiveRequestHeaders(apiKey: string): Record<string, st
   };
 }
 
-type StreamState = {
-  text: string;
-  finishReason: string | null;
-  usage: JsonObject | null;
-  resolvedModel: string | null;
-  generationId: string | null;
-  firstDeltaAtMs: number | null;
-  sawDone: boolean;
-};
-
-export function processOpenRouterSupplySseLine(
-  line: string,
-  state: StreamState,
-  nowMs: number = Date.now()
-): void {
-  const trimmed = line.trim();
-  if (!trimmed.startsWith("data:")) return;
-  const data = trimmed.slice(5).trim();
-  if (!data) return;
-  if (data === "[DONE]") {
-    state.sawDone = true;
-    return;
-  }
-
-  let event: JsonObject;
-  try {
-    event = JSON.parse(data) as JsonObject;
-  } catch {
-    return;
-  }
-  if (typeof event.id === "string") state.generationId = event.id;
-  if (typeof event.model === "string") state.resolvedModel = event.model;
-  if (event.usage && typeof event.usage === "object") {
-    state.usage = event.usage as JsonObject;
-  }
-
-  const choices = Array.isArray(event.choices)
-    ? (event.choices as JsonObject[])
-    : [];
-  const choice = choices[0];
-  const delta = asObj(choice?.delta);
-  const message = asObj(choice?.message);
-  const content =
-    typeof delta?.content === "string"
-      ? delta.content
-      : typeof message?.content === "string"
-        ? message.content
-        : "";
-  if (content) {
-    if (state.firstDeltaAtMs == null) state.firstDeltaAtMs = nowMs;
-    state.text += content;
-  }
-  if (typeof choice?.finish_reason === "string" && choice.finish_reason) {
-    state.finishReason = choice.finish_reason;
-  }
-}
-
-function processSseChunk(
-  chunk: string,
-  state: StreamState,
-  buffer: { value: string }
-): void {
-  buffer.value += chunk;
-  const parts = buffer.value.split("\n");
-  buffer.value = parts.pop() ?? "";
-  for (const line of parts) processOpenRouterSupplySseLine(line, state);
-}
-
-function flushSseBuffer(
-  decoder: TextDecoder,
-  state: StreamState,
-  buffer: { value: string }
-): void {
-  const tail = decoder.decode();
-  if (tail) buffer.value += tail;
-  if (buffer.value.trim()) processOpenRouterSupplySseLine(buffer.value, state);
-  buffer.value = "";
-}
-
 async function fetchGenerationMetadata(input: {
   generationId: string;
   apiKey: string;
@@ -739,55 +662,15 @@ export async function executeOpenRouterSupplyProbe(input: {
   now?: () => number;
 }): Promise<SupplyLiveTurnResult> {
   const fetchImpl = input.fetchImpl ?? fetch;
-  const now = input.now ?? Date.now;
-  const startedAtMs = now();
-  const state: StreamState = {
-    text: "",
-    finishReason: null,
-    usage: null,
-    resolvedModel: null,
-    generationId: null,
-    firstDeltaAtMs: null,
-    sawDone: false,
-  };
-
-  let httpStatus = 0;
-  let error: string | null = null;
-  try {
-    const response = await fetchImpl(OPENROUTER_CHAT_COMPLETIONS_URL, {
-      method: "POST",
-      headers: buildSupplyLiveRequestHeaders(input.apiKey),
-      body: JSON.stringify(input.body),
-      signal: AbortSignal.timeout(MAIN_RP_SUPPLY_LIVE_TIMEOUT_MS),
-    });
-    httpStatus = response.status;
-    if (!response.ok) {
-      error = (await response.text()).slice(0, 2_000);
-    } else {
-      const reader = response.body?.getReader();
-      if (!reader) {
-        error = "missing_stream_body";
-      } else {
-        const decoder = new TextDecoder();
-        const buffer = { value: "" };
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          processSseChunk(decoder.decode(value, { stream: true }), state, buffer);
-        }
-        flushSseBuffer(decoder, state, buffer);
-      }
-    }
-  } catch (caught) {
-    error = caught instanceof Error ? caught.message : String(caught);
-  }
-
-  const endedAtMs = now();
-  const totalSeconds = Math.max(0, (endedAtMs - startedAtMs) / 1000);
-  const ttftSeconds =
-    state.firstDeltaAtMs == null
-      ? null
-      : Math.max(0, (state.firstDeltaAtMs - startedAtMs) / 1000);
+  const state = await executeCompatibleSupplyProbe({
+    endpoint: OPENROUTER_CHAT_COMPLETIONS_URL,
+    headers: buildSupplyLiveRequestHeaders(input.apiKey),
+    body: input.body,
+    timeoutMs: MAIN_RP_SUPPLY_LIVE_TIMEOUT_MS,
+    fetchImpl,
+    now: input.now,
+  });
+  const { httpStatus, error, totalSeconds, ttftSeconds } = state;
   const breakdown = parseOpenRouterUsage(state.usage);
   const metadata =
     state.generationId && httpStatus === 200

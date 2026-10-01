@@ -20,6 +20,10 @@ on:
       - "src/app/admin/automation-reports/page.tsx"
       - "src/app/settings/SettingsClient.tsx"
       - "src/lib/payoutSchedule.ts"
+      - "src/lib/payoutGateway.ts"
+      - "src/lib/payoutExecution.ts"
+      - "src/lib/payoutQueue.ts"
+      - "src/lib/payoutExactlyOnce.test.ts"
       - "src/lib/adminFinance.ts"
       - "src/lib/db.ts"
       - "src/app/admin/finance/page.tsx"
@@ -53,6 +57,7 @@ jobs:
         run: >-
           node --conditions=react-server --import tsx --test --test-concurrency=1
           src/lib/schedulerRunRegistry.test.ts
+          src/lib/payoutExactlyOnce.test.ts
           src/lib/mainRpCacheTtlEconomics.test.ts
           src/lib/adminAutomationReports.test.ts
           src/lib/codeHealth/isolation.test.ts

@@ -11,6 +11,10 @@ import {
   renderDirectSupplierRadarMarkdown,
 } from "./lib/mainRpDirectSupplierRadar";
 import {
+  buildSupplierDiscoveryReport,
+  renderSupplierDiscoveryMarkdown,
+} from "@/lib/supplierDiscovery/discoverSuppliers";
+import {
   buildMainRpSupplyRadarReport,
   fetchOpenRouterEndpointsForModel,
   fetchOpenRouterProviderMetadata,
@@ -91,6 +95,21 @@ async function main(){
     `${OUT_DIR}/DIRECT-SUPPLIERS.md`,
     renderDirectSupplierRadarMarkdown(directSupplierReport)
   );
+  const supplierDiscoveryReport = buildSupplierDiscoveryReport({
+    generatedAt: new Date().toISOString(),
+    openRouterProviderNames:
+      report.marketEvidence === "openrouter_endpoint_metrics"
+        ? report.models.flatMap((model) => model.providersDiscovered)
+        : undefined,
+  });
+  writeFileSync(
+    `${OUT_DIR}/supplier-discovery.json`,
+    JSON.stringify(supplierDiscoveryReport, null, 2)
+  );
+  writeFileSync(
+    `${OUT_DIR}/SUPPLIER-DISCOVERY.md`,
+    renderSupplierDiscoveryMarkdown(supplierDiscoveryReport)
+  );
 
   const summary={
     status:report.status,
@@ -105,6 +124,8 @@ async function main(){
       row=>row.screeningStatus==="READY_FOR_CREDENTIALLED_LIVE_QUALIFICATION"
     ).length,
     direct_supplier_generation_calls:directSupplierReport.providerGenerationCalls,
+    supplier_discovery_candidates:supplierDiscoveryReport.candidates.length,
+    supplier_discovery_generation_calls:supplierDiscoveryReport.providerGenerationCalls,
     errors,
     jsonPath,
     mdPath,

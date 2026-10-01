@@ -2,11 +2,19 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildContext } from "@/services/contextBuilder";
 import {
+  HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER,
   HISTORICAL_TRUTH_POLICY_BLOCK,
   HISTORICAL_TRUTH_POLICY_SECTION_ID,
   HISTORICAL_TRUTH_POLICY_TITLE,
+  buildHistoricalTruthCurrentUserRecencyRef,
+  currentUserNeedsHistoricalTruthRecencyRef,
 } from "@/lib/historicalTruthPolicy";
 import { buildNoGodmoddingBlock } from "@/lib/noGodmodding";
+import {
+  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+} from "@/lib/chatModels";
 
 function countHistoricalTruthFullOwner(text: string): number {
   const escaped = HISTORICAL_TRUTH_POLICY_TITLE.replace(/[[\]]/g, "\\$&");
@@ -121,6 +129,63 @@ describe("historical truth — production miss-path owner matrix", () => {
     );
   });
 
+  it("detects recall/presupposition shapes without treating concrete scene setup as one", () => {
+    assert.equal(
+      currentUserNeedsHistoricalTruthRecencyRef(
+        '렌은 냉장고를 본다. "내가 평소에 뭐 좋아하는지 기억하지? 아무거나 골라봐."'
+      ),
+      true
+    );
+    assert.equal(
+      currentUserNeedsHistoricalTruthRecencyRef(
+        "OOC: 첫 만남 이후 몇 차례 임무를 함께한 시점. 오늘 임무가 끝난 뒤 숙소에 들어왔다."
+      ),
+      false
+    );
+    assert.match(
+      buildHistoricalTruthCurrentUserRecencyRef("우리 전에 뭐 먹었더라?"),
+      /HISTORICAL TRUTH CHECK/
+    );
+  });
+
+  it("places one compact historical-truth pointer on risky current USER input for all active quality models", () => {
+    for (const modelId of [
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+    ]) {
+      const built = buildBase({
+        modelId,
+        currentUserMessage:
+          '렌은 냉장고를 연다. "내가 평소에 뭐 좋아하는지 기억하지? 아무거나 골라봐."',
+        targetResponseChars: 2200,
+      });
+      assert.equal(countHistoricalTruthFullOwner(built.systemPrompt), 1);
+      const lastUser = built.history[built.history.length - 1];
+      assert.equal(lastUser?.role, "user");
+      assert.equal(
+        (lastUser!.content.match(/\[HISTORICAL TRUTH CHECK\]/g) ?? []).length,
+        1
+      );
+      assert.match(
+        lastUser!.content,
+        /과거 공유 기억·첫 경험·과거 부재 단정은 \[HISTORICAL TRUTH — CANONICAL MEMORY\]를 따른다/
+      );
+    }
+  });
+
+  it("does not add the recency pointer to a concrete user-authored past setup", () => {
+    const built = buildBase({
+      currentUserMessage:
+        "OOC: 첫 만남 이후 몇 차례 임무를 함께한 시점. 오늘 임무가 끝난 뒤 둘은 숙소에 들어와 있다.",
+    });
+    const lastUser = built.history[built.history.length - 1];
+    assert.equal(lastUser?.role, "user");
+    assert.equal(
+      lastUser!.content.includes(HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER),
+      false
+    );
+  });
   it("co-narration mode owner does not duplicate full historical truth body", () => {
     const block = buildNoGodmoddingBlock("A", "B", "coNarration");
     assert.doesNotMatch(block, /\[HISTORICAL TRUTH — CANONICAL MEMORY\]/);

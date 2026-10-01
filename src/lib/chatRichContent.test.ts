@@ -138,6 +138,27 @@ describe("sanitizeChatStatusHtml", () => {
   });
 });
 
+describe("jsx-call rich blocks", () => {
+  it("extracts a PascalCase invocation and compact receipt text", () => {
+    const text = `*RP 본문*\n<PitWallFixture tyreWearPct={38} driver="Dante" />`;
+    const blocks = splitChatRichBlocks(text);
+    assert.deepEqual(
+      blocks.map((b) => b.kind),
+      ["novel", "jsx-call"],
+    );
+    const call = blocks[1];
+    assert.equal(call?.kind, "jsx-call");
+    if (call?.kind === "jsx-call") {
+      assert.equal(call.name, "PitWallFixture");
+      assert.equal(call.props.tyreWearPct, 38);
+    }
+    const visible = savedVisibleTextForReceipt(text);
+    assert.match(visible, /RP 본문/);
+    assert.match(visible, /\[PitWallFixture\]/);
+    assert.doesNotMatch(visible, /tyreWearPct/);
+  });
+});
+
 describe("partitionRichBlocksForDisplay", () => {
   it("places trailing html at bottom (status window)", () => {
     const blocks = splitChatRichBlocks("RP 본문\n\n```html\n<div>status</div>\n```");

@@ -5,6 +5,7 @@ import {
   processSingleWithdrawal,
   type WithdrawalExecutionRow,
 } from "@/lib/payoutExecution";
+import { assertPayoutProviderMutationReady } from "@/lib/payoutGateway";
 
 export type PendingWithdrawalRow = WithdrawalExecutionRow;
 
@@ -21,6 +22,7 @@ export { listPendingWithdrawals, processSingleWithdrawal };
 
 /** PENDING 출금의 durable attempt state를 처리하는 공용 batch owner (스케줄러·수동 실행 공용) */
 export async function processPayoutQueue(): Promise<PayoutBatchResult> {
+  assertPayoutProviderMutationReady();
   const queue = listWithdrawalsForExecution();
   const summary: PayoutBatchResult = {
     processed: 0,

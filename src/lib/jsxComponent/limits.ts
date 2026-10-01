@@ -1,0 +1,9 @@
+export const JSX_SOURCE_MAX_CHARS = 80_000;
+export const JSX_COMPILED_MAX_CHARS = 160_000;
+export const JSX_PROP_MAX = 50;
+export const JSX_BRIDGE_MAX_TEXT = 1500;
+export const JSX_BRIDGE_MIN_INTERVAL_MS = 800;
+export const JSX_SANDBOX_MAX_TIMERS = 32;
+export const JSX_SANDBOX_MAX_RAF = 8;
+export const JSX_SANDBOX_MESSAGE_BURST = 20;
+export const JSX_SANDBOX_HEIGHT_PX = 520;

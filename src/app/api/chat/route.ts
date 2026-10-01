@@ -2319,6 +2319,8 @@ export async function POST(req: Request) {
         }
       : null,
     preserveAdultHandoffRawHistory: false,
+    jsxComponentCatalogJson:
+      (ch as { jsx_components_json?: string }).jsx_components_json ?? "",
   };
 
   const assembleContext = <T,>(fn: () => T): T =>

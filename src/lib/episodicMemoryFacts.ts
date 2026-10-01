@@ -93,6 +93,13 @@ export type EpisodicMemoryFactRecord = EpisodicExtractedFact & {
 
 export type EpisodicDynamicBudgetPolicy = "baseline" | "reserved_floor" | "shared_allocator";
 
+export type EpisodicRerankingPolicy = {
+  lexicalWeight?: number;
+  importanceWeight?: number;
+  recencyWeight?: number;
+  milestoneBonus?: number;
+};
+
 export type GetEpisodicMemoryForPromptInput = {
   chatId: number;
   characterId?: number | null;
@@ -114,6 +121,11 @@ export type GetEpisodicMemoryForPromptInput = {
    * Production omits this and uses reserved_floor.
    */
   dynamicBudgetPolicy?: EpisodicDynamicBudgetPolicy;
+  /**
+   * Research-only reranking override. Production omits this and uses the
+   * canonical 4/1/1/+2 weights. Relevance admission is intentionally fixed.
+   */
+  rerankingPolicy?: EpisodicRerankingPolicy;
   /**
    * Optional semantic query from the canonical semantic runtime. Absent/null
    * keeps exact lexical Retrieval V2 (no semantic lane, no semantic evidence).
@@ -1237,6 +1249,46 @@ export function deleteEpisodicMemoryFactsByAssistantMessageIds(
     )
     .run(scopedChatId, ...ids);
 
+  return Number(result.changes) || 0;
+}
+
+/**
+ * User material edit does not replace the turn's Shared Initial extraction.
+ * Delete only that per-turn tier. Summary-seal rows stay with
+ * invalidateSummarySealBatchEpisodicFactsForSourceMutation.
+ */
+export function deleteSharedEpisodicFactsForEditedUserSource(
+  db: Database.Database,
+  opts: {
+    chatId: number;
+    sourceUserMessageId?: number | null;
+    sourceTurn?: number | null;
+  }
+): number {
+  const scopedChatId = finitePositiveInt(opts.chatId);
+  if (!scopedChatId) return 0;
+  const sourceUserMessageId = finitePositiveInt(opts.sourceUserMessageId);
+  const sourceTurn = finitePositiveInt(opts.sourceTurn);
+  if (sourceUserMessageId == null && sourceTurn == null) return 0;
+
+  const result = db
+    .prepare(
+      `DELETE FROM episodic_memory_facts
+       WHERE chat_id = ?
+         AND json_valid(metadata) = 1
+         AND json_extract(metadata, '$.extraction') = 'shared_initial_per_turn'
+         AND (
+           (? IS NOT NULL AND source_user_message_id = ?)
+           OR (? IS NOT NULL AND source_turn = ?)
+         )`
+    )
+    .run(
+      scopedChatId,
+      sourceUserMessageId,
+      sourceUserMessageId,
+      sourceTurn,
+      sourceTurn
+    );
   return Number(result.changes) || 0;
 }
 
@@ -2443,12 +2495,55 @@ type EpisodicSemanticEvidence = {
   weight: number;
 };
 
+const DEFAULT_EPISODIC_RERANKING_POLICY = {
+  lexicalWeight: 4,
+  importanceWeight: 1,
+  recencyWeight: 1,
+  milestoneBonus: 2,
+} as const;
+
+type ResolvedEpisodicRerankingPolicy = {
+  lexicalWeight: number;
+  importanceWeight: number;
+  recencyWeight: number;
+  milestoneBonus: number;
+};
+
+function boundedRerankingWeight(value: number | undefined, fallback: number): number {
+  if (value == null || !Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.min(20, value));
+}
+
+export function resolveEpisodicRerankingPolicy(
+  policy?: EpisodicRerankingPolicy
+): ResolvedEpisodicRerankingPolicy {
+  return {
+    lexicalWeight: boundedRerankingWeight(
+      policy?.lexicalWeight,
+      DEFAULT_EPISODIC_RERANKING_POLICY.lexicalWeight
+    ),
+    importanceWeight: boundedRerankingWeight(
+      policy?.importanceWeight,
+      DEFAULT_EPISODIC_RERANKING_POLICY.importanceWeight
+    ),
+    recencyWeight: boundedRerankingWeight(
+      policy?.recencyWeight,
+      DEFAULT_EPISODIC_RERANKING_POLICY.recencyWeight
+    ),
+    milestoneBonus: boundedRerankingWeight(
+      policy?.milestoneBonus,
+      DEFAULT_EPISODIC_RERANKING_POLICY.milestoneBonus
+    ),
+  };
+}
+
 /** The only final ranking and relevance policy for episodic recall. */
 function scoreFactForPrompt(
   fact: EpisodicMemoryFactRecord,
   currentMessage: string,
   currentTurn: number | null,
-  semantic?: EpisodicSemanticEvidence
+  semantic: EpisodicSemanticEvidence | undefined,
+  reranking: ResolvedEpisodicRerankingPolicy
 ) {
   const relevance = lexicalRelevance(fact, currentMessage);
   const importance = IMPORTANCE_RANK[fact.importance] - 1;
@@ -2474,10 +2569,10 @@ function scoreFactForPrompt(
     recency,
     semanticSimilarity,
     composite:
-      relevance * 4 +
-      importance +
-      recency +
-      (milestone ? 2 : 0) +
+      relevance * reranking.lexicalWeight +
+      importance * reranking.importanceWeight +
+      recency * reranking.recencyWeight +
+      (milestone ? reranking.milestoneBonus : 0) +
       (semanticPass ? semantic.weight * semanticSimilarity : 0),
     passes,
   };
@@ -2776,10 +2871,17 @@ export function getEpisodicMemoryForPrompt(
       deduped.push(fact);
     }
 
+    const rerankingPolicy = resolveEpisodicRerankingPolicy(input.rerankingPolicy);
     const scores = new Map(
       deduped.map((fact) => [
         fact.id,
-        scoreFactForPrompt(fact, currentMessage, currentTurn, semanticEvidenceFor(fact)),
+        scoreFactForPrompt(
+          fact,
+          currentMessage,
+          currentTurn,
+          semanticEvidenceFor(fact),
+          rerankingPolicy
+        ),
       ])
     );
     for (const fact of deduped) {
@@ -2984,7 +3086,13 @@ export function inspectEpisodicMemoryFactsForDebug(
   const eligible = inspected
     .filter((fact) => !fact.blocked_reason && !fact.duplicate_reason)
     .filter((fact) => {
-      const score = scoreFactForPrompt(fact, opts.currentUserMessage ?? "", currentTurn);
+      const score = scoreFactForPrompt(
+        fact,
+        opts.currentUserMessage ?? "",
+        currentTurn,
+        undefined,
+        resolveEpisodicRerankingPolicy()
+      );
       scoreById.set(fact.id, score);
       fact.relevance_score = score.relevance;
       fact.importance_score = score.importance;

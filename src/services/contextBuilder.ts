@@ -14,6 +14,7 @@ import {
 import {
   HISTORICAL_TRUTH_POLICY_BLOCK,
   HISTORICAL_TRUTH_POLICY_SECTION_ID,
+  buildHistoricalTruthCurrentUserRecencyRef,
 } from "@/lib/historicalTruthPolicy";
 import {
   UNKNOWN_INFORMATION_TRUTH_GUARD_BLOCK,
@@ -89,6 +90,8 @@ import {
   resolveHtmlVisualCardPolicyFromSources,
   stripRedundantHtmlVisualCardFromSource,
 } from "@/lib/htmlVisualCardPolicy";
+import { parseJsxComponentManifestCatalog } from "@/lib/jsxComponent/catalog";
+import { resolveJsxComponentPromptBlock } from "@/lib/jsxComponent/prompt";
 import {
   sanitizePrimaryModelContextSource,
   sanitizePrimaryModelHistoryMessages,
@@ -1108,6 +1111,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
+  const jsxManifest = resolveJsxComponentPromptBlock(
+    parseJsxComponentManifestCatalog(input.jsxComponentCatalogJson)
+  );
+  if (jsxManifest) {
+    pushSection(
+      "jsx-component-manifest",
+      "JSX component manifest (compact, no source)",
+      "systemRules",
+      jsxManifest,
+      "dynamic"
+    );
+  }
+
   // Legacy novel persona rules removed from production — never inject NOVEL / EXPLICIT FULL.
 
   if (isRegisterPatch("D")) {
@@ -1439,6 +1455,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     input.rpDiagnosticCanary.sceneDirectiveUserTail?.trim()
   ) {
     userTurnContent = `${userTurnContent.trimEnd()}\n\n${input.rpDiagnosticCanary.sceneDirectiveUserTail.trim()}`;
+  }
+  const historicalTruthRecencyRef =
+    buildHistoricalTruthCurrentUserRecencyRef(input.currentUserMessage);
+  if (historicalTruthRecencyRef) {
+    userTurnContent = `${userTurnContent.trimEnd()}\n\n${historicalTruthRecencyRef}`;
   }
   {
     // Layout first, then the generic terminal length owner as last instruction.
