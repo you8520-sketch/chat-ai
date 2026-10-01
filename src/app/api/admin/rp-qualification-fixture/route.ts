@@ -33,16 +33,16 @@ export async function GET(req: Request) {
   });
 
   if (!result.ok) {
-    if (result.code === "character_not_found") {
-      return NextResponse.json({ error: result.code }, { status: 404 });
+    switch (result.code) {
+      case "character_not_found":
+      case "persona_not_found":
+        return NextResponse.json({ error: result.code }, { status: 404 });
+      case "persona_ambiguous":
+        return NextResponse.json(
+          { error: result.code, candidates: result.candidates },
+          { status: 409 }
+        );
     }
-    if (result.code === "persona_not_found") {
-      return NextResponse.json({ error: result.code }, { status: 404 });
-    }
-    return NextResponse.json(
-      { error: result.code, candidates: result.candidates },
-      { status: 409 }
-    );
   }
 
   return NextResponse.json(result.fixture, {
