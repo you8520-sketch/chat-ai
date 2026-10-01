@@ -1,10 +1,12 @@
 import cron, { type ScheduledTask } from "node-cron";
 import { saveDailyFinanceSnapshot, currentKstMonthKey, monthRangeSql } from "@/lib/adminFinance";
 import { getDb } from "@/lib/db";
+import { buildFinanceAnomalyReport } from "@/lib/financeAnomalyRadar";
 import { runModelPricingTracker } from "@/lib/modelPricingTracker";
 import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
 import { syncMainRpPricingCandidateRecords } from "@/lib/mainRpPricingProposal";
 import { reconcileCheaperInferenceUsage } from "@/lib/providerCostReconciliation";
+import { notifyAdminsFinanceAnomaly } from "@/lib/userNotifications";
 import {
   SCHEDULER_RECOVERY_POLL_MS,
   SCHEDULER_TIMEZONE,
@@ -50,6 +52,8 @@ async function executeFinanceSnapshot(slotKey: string) {
     aiActualKrw: summary.aiCost.totalActualKrw,
   });
 
+  let pricingProjection: ReturnType<typeof buildMainRpPricingObservabilityProjection> | null =
+    null;
   if (process.env.DISABLE_MODEL_PRICING_TRACKER !== "1") {
     let pricingResult: Awaited<ReturnType<typeof runModelPricingTracker>> | null = null;
     try {
@@ -69,10 +73,12 @@ async function executeFinanceSnapshot(slotKey: string) {
     if (pricingResult && pricingResult.status !== "failed") {
       try {
         const proposalDb = getDb();
-        const projection = buildMainRpPricingObservabilityProjection({ db: proposalDb });
+        pricingProjection = buildMainRpPricingObservabilityProjection({
+          db: proposalDb,
+        });
         const proposalSync = syncMainRpPricingCandidateRecords(
           proposalDb,
-          projection,
+          pricingProjection,
           pricingResult.runDateKey
         );
         console.log("[finance-scheduler] pricing candidate history", proposalSync);
@@ -80,6 +86,37 @@ async function executeFinanceSnapshot(slotKey: string) {
         console.error("[finance-scheduler] pricing candidate history failed:", proposalError);
       }
     }
+  }
+
+  try {
+    const anomalyDb = getDb();
+    const projection =
+      pricingProjection ??
+      buildMainRpPricingObservabilityProjection({ db: anomalyDb });
+    const anomalyReport = buildFinanceAnomalyReport({
+      summary,
+      pricing: projection,
+    });
+    const notified =
+      anomalyReport.anomalies.length > 0
+        ? notifyAdminsFinanceAnomaly(anomalyDb, {
+            slotKey,
+            criticalCount: anomalyReport.criticalCount,
+            warningCount: anomalyReport.warningCount,
+            anomalyTitles: anomalyReport.anomalies.map((row) => row.title),
+          })
+        : [];
+    console.log("[finance-scheduler] anomaly radar", {
+      status: anomalyReport.status,
+      critical: anomalyReport.criticalCount,
+      warning: anomalyReport.warningCount,
+      adminNotificationsCreated: notified.length,
+    });
+  } catch (anomalyError) {
+    console.error(
+      "[finance-scheduler] anomaly radar failed:",
+      anomalyError instanceof Error ? anomalyError.message : String(anomalyError)
+    );
   }
 
   return summary;

@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import type { GithubAutomationProjection } from "@/lib/adminAutomationReports";
+import type { FinanceAnomalyReport } from "@/lib/financeAnomalyRadar";
 import { buildOpenRouterContractWatchProjection } from "@/lib/openRouterContractWatch";
 import {
   ensurePayoutTransferAttemptsSchema,
@@ -108,6 +109,25 @@ const GITHUB_AUTOMATION_CRITICAL_CONCLUSIONS = new Set([
   "startup_failure",
   "action_required",
 ]);
+
+export function projectFinanceAnomalyIncidents(
+  report: FinanceAnomalyReport,
+  now: Date = new Date()
+): AdminOpsIncident[] {
+  const nowMs = now.getTime();
+  return report.anomalies.map((anomaly) => ({
+    id: `finance:${anomaly.id}`,
+    source: "finance" as const,
+    severity: anomaly.severity,
+    state: anomaly.code,
+    title: anomaly.title,
+    summary: anomaly.summary,
+    sourceRef: anomaly.sourceRef,
+    occurredAt: report.generatedAt,
+    ageMinutes: ageMinutes(nowMs, report.generatedAt),
+    href: anomaly.href,
+  }));
+}
 
 export function projectGithubAutomationIncidents(
   projection: GithubAutomationProjection,

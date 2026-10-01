@@ -5,6 +5,10 @@ on:
     paths:
       - "server.js"
       - "src/cron/financeScheduler.ts"
+      - "src/lib/financeAnomalyRadar.ts"
+      - "src/lib/financeAnomalyRadar.test.ts"
+      - "src/lib/userNotifications.ts"
+      - "src/lib/userNotificationPresentation.ts"
       - "src/cron/payoutScheduler.ts"
       - "src/cron/trainingScheduler.ts"
       - "src/cron/mainRpCacheTtlAuditScheduler.ts"
@@ -59,6 +63,7 @@ jobs:
           src/lib/schedulerRunRegistry.test.ts
           src/lib/payoutExactlyOnce.test.ts
           src/lib/mainRpCacheTtlEconomics.test.ts
+          src/lib/financeAnomalyRadar.test.ts
           src/lib/adminAutomationReports.test.ts
           src/lib/codeHealth/isolation.test.ts
           src/lib/codeHealth/reports.test.ts
