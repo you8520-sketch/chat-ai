@@ -11,13 +11,13 @@ Status of the live backup schedule is `BACKUP_STATUS_UNVERIFIED` until an author
 | SQLite database | `DATA_DIR/app.db` (`/data/app.db` in production) | Yes, together with its `-wal` and `-shm` files |
 | Local uploads | `DATA_DIR/uploads` | Yes, when `BLOB_READ_WRITE_TOKEN` is unset |
 | Blob uploads | Vercel Blob, URL stored in the database | No |
-| Withdrawal images | `process.cwd()/data/secure-uploads/withdrawals` | No. This path is not `getDataDir()` |
+| Withdrawal document files | No active upload. Columns `id_card_url` and `bankbook_url` remain; new requests store empty strings. Production non-empty counts are UNKNOWN | No current files to include |
 | Session signing and withdrawal decryption | `SESSION_SECRET`, or `WITHDRAWAL_ENCRYPTION_KEY` when set | No. These are Railway variables, not volume files |
 | Web push private key | `WEB_PUSH_VAPID_*` env, or `app_meta.web_push_vapid_json` inside the database | Only the database copy |
 
 Do not print or copy those variable values into tickets, logs, or GitHub artifacts.
 
-Restoring only `app.db` drops local images whose database rows point at `/uploads/...`. Restoring the volume without the same encryption variables leaves encrypted withdrawal fields unreadable. Withdrawal images are outside the volume even when the database rows still point at them.
+Restoring only `app.db` drops local images whose database rows point at `/uploads/...`. Restoring the volume without the same encryption variables leaves encrypted resident-number fields unreadable. Identity-document upload is not an active path, so a restore does not recreate `secure-uploads/withdrawals`.
 
 ## Backup owner
 
@@ -65,7 +65,7 @@ Do this only for the production project and its production environment. Railway 
 3. On a one-off Railway shell, open `/data/app.db` read-only and run `PRAGMA integrity_check` and `PRAGMA foreign_key_check`. Do not print user rows.
 4. Confirm `/data/app.db-wal` is present or that SQLite has checkpointed it. Do not copy `app.db` by itself while WAL mode is on.
 5. Open one public character image. If the URL is `/uploads/...`, the file must exist under `/data/uploads`. If the URL is a Blob host, the volume restore did not move those bytes.
-6. Do not open withdrawal documents in the ticket. If a payout file is required, check only that the path key in the database still resolves, and expect `cwd/data/secure-uploads` to be missing on a fresh container.
+6. Do not read or download `id_card_url` or `bankbook_url`. The upload API is not active, and this audit did not count production non-empty values (UNKNOWN).
 
 ## Stop conditions
 
@@ -74,7 +74,7 @@ Do this only for the production project and its production environment. Railway 
 - The staged mount path is not `/data`.
 - `integrity_check` is not `ok`.
 - Restoring would require exporting the production database or its keys.
-- The only missing files are Blob objects or `secure-uploads` and the volume snapshot cannot contain them.
+- The only missing files are Blob objects, and the volume snapshot cannot contain them.
 
 ## Synthetic proof
 

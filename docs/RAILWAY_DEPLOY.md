@@ -148,7 +148,7 @@ This app uses a **long-running Node `server.js`**, not Vercel serverless functio
 | `DATA_DIR/uploads` | New local uploads when `BLOB_READ_WRITE_TOKEN` is unset. Same volume as the db. |
 | `public/uploads` | Read fallback for older files only. New local writes do not go here. |
 | Vercel Blob | When `BLOB_READ_WRITE_TOKEN` is set, bytes live outside the volume and the db stores that URL. |
-| `process.cwd()/data/secure-uploads/withdrawals` | Withdrawal images. This path is not `getDataDir()`, so `DATA_DIR=/data` does not put them on the Railway volume. |
+| Withdrawal document files | No active upload. New requests store empty `id_card_url` and `bankbook_url`. Those columns stay. Whether any production row has a non-empty path is UNKNOWN. |
 | Volume backup | No backup workflow in this repo. Schedule and last success are checked in Railway. See `docs/RAILWAY_SQLITE_RECOVERY.md`. |
 
 ---
