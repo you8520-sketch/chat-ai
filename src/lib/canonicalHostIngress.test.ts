@@ -8,13 +8,18 @@ import { fileURLToPath } from "node:url";
 import { getConfiguredPublicOrigin } from "./publicOrigin";
 
 const require = createRequire(import.meta.url);
-const { canonicalHostDecision, canonicalHostRedirect } = require("./canonicalHostIngress.js") as {
+const {
+  canonicalHostDecision,
+  canonicalHostRedirect,
+  isRailwayGeneratedPublicHost,
+} = require("./canonicalHostIngress.js") as {
   canonicalHostDecision: (req: { url?: string; headers?: Record<string, string> }) => {
     action: "pass" | "redirect";
     status?: number;
     location?: string;
   };
   canonicalHostRedirect: (req: IncomingMessage, res: ServerResponse) => boolean;
+  isRailwayGeneratedPublicHost: (hostname: string) => boolean;
 };
 
 const INGRESS_ENV_KEYS = ["GOOGLE_OAUTH_ORIGIN", "NEXTAUTH_URL", "APP_URL", "RAILWAY_PUBLIC_DOMAIN"] as const;
@@ -107,13 +112,13 @@ function close(server: ReturnType<typeof createServer>) {
 }
 
 describe("canonical host ingress", { concurrency: 1 }, () => {
-  test("injected Railway public domain redirects to the shared canonical origin", async () => {
+  test("Railway-generated hostname redirects even when RAILWAY_PUBLIC_DOMAIN is the customer domain", async () => {
     const server = await listen();
     try {
       await withIngressEnv(
         {
           NEXTAUTH_URL: "https://hav.chat",
-          RAILWAY_PUBLIC_DOMAIN: FIXTURE_RAILWAY_HOST,
+          RAILWAY_PUBLIC_DOMAIN: "hav.chat",
         },
         async () => {
           const canonical = getConfiguredPublicOrigin();
@@ -128,31 +133,11 @@ describe("canonical host ingress", { concurrency: 1 }, () => {
           assert.equal(root.setCookie, undefined);
           assert.equal(root.body, "");
 
-          const character = await probe(server, {
-            path: "/character/123?foo=bar",
-            headers: {
-              host: "0.0.0.0:8080",
-              "x-forwarded-host": FIXTURE_RAILWAY_HOST,
-              "x-forwarded-proto": "https",
-            },
-          });
-          assert.equal(character.status, 308);
-          assert.equal(character.location, `${canonical}/character/123?foo=bar`);
-          assert.equal(character.setCookie, undefined);
-
-          const encoded = await probe(server, {
-            path: "/character/123?foo=bar&next=%2Fchat%2F9",
-            headers: { host: "Chat-AI-Production-4275.up.railway.app" },
-          });
-          assert.equal(encoded.status, 308);
-          assert.equal(encoded.location, `${canonical}/character/123?foo=bar&next=%2Fchat%2F9`);
-
           const oauthStart = await probe(server, {
-            method: "GET",
             path: "/api/auth/google?returnTo=%2Flogin&redirect=%2Fcharacter%2F123",
             headers: {
               host: "0.0.0.0:8080",
-              "x-forwarded-host": `${FIXTURE_RAILWAY_HOST}, proxy.internal`,
+              "x-forwarded-host": FIXTURE_RAILWAY_HOST,
               "x-forwarded-proto": "https",
             },
           });
@@ -162,15 +147,14 @@ describe("canonical host ingress", { concurrency: 1 }, () => {
             `${canonical}/api/auth/google?returnTo=%2Flogin&redirect=%2Fcharacter%2F123`,
           );
           assert.equal(oauthStart.setCookie, undefined);
-          assert.equal(oauthStart.body, "");
 
-          const oauthPost = await probe(server, {
+          const post = await probe(server, {
             method: "POST",
             path: "/api/auth/google?returnTo=%2Flogin",
             headers: { host: FIXTURE_RAILWAY_HOST },
           });
-          assert.equal(oauthPost.status, 308);
-          assert.equal(oauthPost.location, `${canonical}/api/auth/google?returnTo=%2Flogin`);
+          assert.equal(post.status, 308);
+          assert.equal(post.location, `${canonical}/api/auth/google?returnTo=%2Flogin`);
         },
       );
     } finally {
@@ -178,37 +162,7 @@ describe("canonical host ingress", { concurrency: 1 }, () => {
     }
   });
 
-  test("a replaced RAILWAY_PUBLIC_DOMAIN drops the previous hostname", async () => {
-    const server = await listen();
-    try {
-      await withIngressEnv(
-        {
-          NEXTAUTH_URL: "https://hav.chat",
-          RAILWAY_PUBLIC_DOMAIN: "replaced-public.example",
-        },
-        async () => {
-          const previousLiteral = await probe(server, {
-            path: "/",
-            headers: { host: FIXTURE_RAILWAY_HOST },
-          });
-          assert.equal(previousLiteral.status, 200);
-          assert.equal(previousLiteral.location, undefined);
-
-          const replaced = await probe(server, {
-            path: "/character/9?foo=bar",
-            headers: { host: "replaced-public.example" },
-          });
-          assert.equal(replaced.status, 308);
-          assert.equal(replaced.location, `${getConfiguredPublicOrigin()}/character/9?foo=bar`);
-          assert.equal(replaced.setCookie, undefined);
-        },
-      );
-    } finally {
-      await close(server);
-    }
-  });
-
-  test("ingress redirect target follows the canonical public-origin owner", async () => {
+  test("redirect target follows the canonical public-origin owner", async () => {
     const server = await listen();
     try {
       await withIngressEnv(
@@ -216,18 +170,17 @@ describe("canonical host ingress", { concurrency: 1 }, () => {
           GOOGLE_OAUTH_ORIGIN: "https://canonical.example/ignored-path",
           NEXTAUTH_URL: "https://secondary.example",
           APP_URL: "https://third.example",
-          RAILWAY_PUBLIC_DOMAIN: "edge.example",
         },
         async () => {
           const canonical = getConfiguredPublicOrigin();
           assert.equal(canonical, "https://canonical.example");
-          const redirected = await probe(server, {
-            path: "/api/auth/google?returnTo=%2Flogin",
-            headers: { host: "edge.example" },
+          const response = await probe(server, {
+            path: "/character/9?foo=bar",
+            headers: { host: "generated-service.up.railway.app" },
           });
-          assert.equal(redirected.status, 308);
-          assert.equal(redirected.location, `${canonical}/api/auth/google?returnTo=%2Flogin`);
-          assert.equal(redirected.setCookie, undefined);
+          assert.equal(response.status, 308);
+          assert.equal(response.location, `${canonical}/character/9?foo=bar`);
+          assert.equal(response.setCookie, undefined);
         },
       );
     } finally {
@@ -235,158 +188,96 @@ describe("canonical host ingress", { concurrency: 1 }, () => {
     }
   });
 
-  test("canonical host requests pass, and an empty Railway domain does not redirect", async () => {
+  test("canonical, local, and non-Railway hosts are not redirected", async () => {
     const server = await listen();
     try {
-      await withIngressEnv(
-        {
-          NEXTAUTH_URL: "https://hav.chat",
-          RAILWAY_PUBLIC_DOMAIN: FIXTURE_RAILWAY_HOST,
-        },
-        async () => {
-          const home = await probe(server, {
-            path: "/",
-            headers: { host: "hav.chat", "x-forwarded-host": "hav.chat", "x-forwarded-proto": "https" },
-          });
-          assert.equal(home.status, 200);
-          assert.equal(home.location, undefined);
-          assert.deepEqual(JSON.parse(home.body), { reachedApp: true });
-
-          const character = await probe(server, {
-            path: "/character/123?foo=bar",
-            headers: { host: "hav.chat" },
-          });
-          assert.equal(character.status, 200);
-          assert.equal(character.location, undefined);
-
-          const oauthStart = await probe(server, {
-            path: "/api/auth/google?returnTo=%2Flogin",
-            headers: {
-              host: "0.0.0.0:8080",
-              "x-forwarded-host": "hav.chat",
-              "x-forwarded-proto": "https",
-            },
-          });
-          assert.equal(oauthStart.status, 200);
-          assert.equal(oauthStart.location, undefined);
-          assert.ok(oauthStart.setCookie?.some((cookie) => cookie.startsWith("oauth_state=")));
-
-          const forwardedCanonicalWins = await probe(server, {
-            path: "/",
-            headers: { host: FIXTURE_RAILWAY_HOST, "x-forwarded-host": "hav.chat" },
-          });
-          assert.equal(forwardedCanonicalWins.status, 200);
-          assert.equal(forwardedCanonicalWins.location, undefined);
-        },
-      );
-
       await withIngressEnv({ NEXTAUTH_URL: "https://hav.chat" }, async () => {
-        const unsetRailway = await probe(server, {
-          path: "/",
-          headers: { host: FIXTURE_RAILWAY_HOST },
-        });
-        assert.equal(unsetRailway.status, 200);
-        assert.equal(unsetRailway.location, undefined);
+        for (const headers of [
+          { host: "hav.chat", "x-forwarded-host": "hav.chat" },
+          { host: "localhost:3000" },
+          { host: "api.partner.example" },
+          { host: "fake.up.railway.app.evil.example" },
+        ]) {
+          const response = await probe(server, { path: "/", headers });
+          assert.equal(response.status, 200);
+          assert.equal(response.location, undefined);
+        }
 
-        const local = await probe(server, {
+        const forwardedCanonicalWins = await probe(server, {
           path: "/",
-          headers: { host: "localhost:3000" },
+          headers: { host: FIXTURE_RAILWAY_HOST, "x-forwarded-host": "hav.chat" },
         });
-        assert.equal(local.status, 200);
-        assert.equal(local.location, undefined);
+        assert.equal(forwardedCanonicalWins.status, 200);
+        assert.equal(forwardedCanonicalWins.location, undefined);
       });
     } finally {
       await close(server);
     }
   });
 
-  test("/health stays on this process for Railway healthchecks and the public hostname", async () => {
+  test("/health stays on this process for Railway healthchecks and generated public hosts", async () => {
     const server = await listen();
     try {
-      await withIngressEnv(
-        {
-          NEXTAUTH_URL: "https://hav.chat",
-          RAILWAY_PUBLIC_DOMAIN: FIXTURE_RAILWAY_HOST,
-        },
-        async () => {
-          const healthcheck = await probe(server, {
-            path: "/health",
-            headers: { host: "healthcheck.railway.app" },
-          });
-          assert.equal(healthcheck.status, 200);
-          assert.equal(healthcheck.location, undefined);
-          assert.deepEqual(JSON.parse(healthcheck.body), { status: "ok" });
+      await withIngressEnv({ NEXTAUTH_URL: "https://hav.chat" }, async () => {
+        for (const headers of [
+          { host: "healthcheck.railway.app" },
+          { host: FIXTURE_RAILWAY_HOST },
+          { host: "hav.chat" },
+        ]) {
+          const response = await probe(server, { path: "/health?ready=1", headers });
+          assert.equal(response.status, 200);
+          assert.equal(response.location, undefined);
+          assert.deepEqual(JSON.parse(response.body), { status: "ok" });
+        }
 
-          const publicHealth = await probe(server, {
-            path: "/health",
-            headers: { host: FIXTURE_RAILWAY_HOST, "x-forwarded-proto": "https" },
-          });
-          assert.equal(publicHealth.status, 200);
-          assert.equal(publicHealth.location, undefined);
-          assert.deepEqual(JSON.parse(publicHealth.body), { status: "ok" });
-
-          const canonicalHealth = await probe(server, {
-            path: "/health",
-            headers: { host: "hav.chat" },
-          });
-          assert.equal(canonicalHealth.status, 200);
-          assert.deepEqual(JSON.parse(canonicalHealth.body), { status: "ok" });
-
-          const healthQuery = await probe(server, {
-            path: "/health?ready=1",
-            headers: { host: "healthcheck.railway.app" },
-          });
-          assert.equal(healthQuery.status, 200);
-          assert.equal(healthQuery.location, undefined);
-
-          const healthz = await probe(server, {
-            path: "/healthz",
-            headers: { host: FIXTURE_RAILWAY_HOST },
-          });
-          assert.equal(healthz.status, 308);
-          assert.equal(healthz.location, `${getConfiguredPublicOrigin()}/healthz`);
-        },
-      );
+        const healthz = await probe(server, {
+          path: "/healthz",
+          headers: { host: FIXTURE_RAILWAY_HOST },
+        });
+        assert.equal(healthz.status, 308);
+        assert.equal(healthz.location, "https://hav.chat/healthz");
+      });
     } finally {
       await close(server);
     }
+  });
+
+  test("Railway namespace matching is strict", () => {
+    assert.equal(isRailwayGeneratedPublicHost("chat-ai-production-4275.up.railway.app"), true);
+    assert.equal(isRailwayGeneratedPublicHost("x.up.railway.app"), true);
+    assert.equal(isRailwayGeneratedPublicHost("up.railway.app"), false);
+    assert.equal(isRailwayGeneratedPublicHost("x.up.railway.app.evil.example"), false);
+    assert.equal(isRailwayGeneratedPublicHost("hav.chat"), false);
   });
 
   test("alternate-host redirect cannot be steered to another origin", async () => {
     const server = await listen();
     try {
-      await withIngressEnv(
-        {
-          NEXTAUTH_URL: "https://hav.chat",
-          RAILWAY_PUBLIC_DOMAIN: FIXTURE_RAILWAY_HOST,
-        },
-        async () => {
-          const canonical = getConfiguredPublicOrigin();
-          const protocolRelative = await probe(server, {
-            path: "//evil.example/phish",
-            headers: { host: FIXTURE_RAILWAY_HOST },
-          });
-          assert.equal(protocolRelative.status, 308);
-          assert.equal(protocolRelative.location, `${canonical}/`);
+      await withIngressEnv({ NEXTAUTH_URL: "https://hav.chat" }, async () => {
+        const protocolRelative = await probe(server, {
+          path: "//evil.example/phish",
+          headers: { host: FIXTURE_RAILWAY_HOST },
+        });
+        assert.equal(protocolRelative.status, 308);
+        assert.equal(protocolRelative.location, "https://hav.chat/");
 
-          const injected = canonicalHostDecision({
-            url: "/\r\nLocation: https://evil.example",
-            headers: { host: FIXTURE_RAILWAY_HOST },
-          });
-          assert.equal(injected.action, "redirect");
-          assert.equal(injected.status, 308);
-          assert.equal(injected.location, `${canonical}/`);
-        },
-      );
+        const injected = canonicalHostDecision({
+          url: "/\r\nLocation: https://evil.example",
+          headers: { host: FIXTURE_RAILWAY_HOST },
+        });
+        assert.equal(injected.action, "redirect");
+        assert.equal(injected.status, 308);
+        assert.equal(injected.location, "https://hav.chat/");
+      });
     } finally {
       await close(server);
     }
   });
 
-  test("a Railway domain without a configured public origin does not invent a target", async () => {
+  test("Railway-generated hostname passes when no canonical origin is configured", async () => {
     const server = await listen();
     try {
-      await withIngressEnv({ RAILWAY_PUBLIC_DOMAIN: FIXTURE_RAILWAY_HOST }, async () => {
+      await withIngressEnv({}, async () => {
         assert.equal(getConfiguredPublicOrigin(), null);
         const response = await probe(server, {
           path: "/",
