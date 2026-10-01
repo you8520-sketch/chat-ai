@@ -1,7 +1,7 @@
 # Current-main Autonomy Map
 
-**Classification:** `AUTONOMY_COVERAGE_AUDIT_COMPLETE`  
-**EXACT MAIN:** `e0880d43e47e412f1de77c86cc04d4ec864e2785`  
+**Classification:** `AUTONOMY_COVERAGE_AUDIT_COMPLETE`
+**EXACT MAIN:** `e0880d43e47e412f1de77c86cc04d4ec864e2785`
 **Production behavior change:** none. This document and its lock test do not rerun workflows, grant permissions, or add a scheduler.
 
 Historical baseline under audit: Draft PR #1002 (`cursor/architecture-ops-investigation-4604`, investigated main `f13ea612fc942418a0271f05db209b76ecc077c2`, 2026-09-22). That PR is not closed or merged here.
