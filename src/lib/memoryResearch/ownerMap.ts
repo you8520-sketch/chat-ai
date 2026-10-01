@@ -137,9 +137,9 @@ export const AUTOMATION_OWNER_MAP: Readonly<Record<string, string>> = {
  * - semantic_retrieval / embedding_index → `mode.semantic`
  * - prompt_packing → `mode.packing` leftover policy + supplied higher-priority texts
  * - episodic_selection → `mode.selection` fact/char/candidate bounds
+ * - reranking_scoring → `mode.scoring` final composite rank weights only
  *
  * Deliberately NOT marked as hooked:
- * - reranking_scoring: score weights/order are not parameterized by BenchmarkMode
  * - global_current_memory: the harness can supply emitted Global text as packing
  *   input, but does not A/B Global compaction/checkpoint generation itself
  */
@@ -148,6 +148,7 @@ export const BENCHMARK_HOOKED_OWNERS: readonly MemoryOwnerId[] = [
   "embedding_index",
   "prompt_packing",
   "episodic_selection",
+  "reranking_scoring",
 ];
 
 export function isBenchmarkOwnerHooked(owner: MemoryOwnerId): boolean {
