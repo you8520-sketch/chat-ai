@@ -14,6 +14,7 @@ import {
 import {
   fetchGithubScheduledAutomationProjection,
   fetchGithubSupplyAutoDraftProjection,
+  fetchPostDeployVerificationProjection,
 } from "@/lib/adminAutomationReports";
 import {
   fetchCodeHealthAdminProjection,
@@ -28,6 +29,10 @@ import {
 } from "@/lib/financeAnomalyRadar";
 import { listMainRpCacheTtlReports } from "@/lib/mainRpCacheTtlEconomics";
 import { buildMainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
+import {
+  type PostDeployVerificationState,
+  type PostDeployVerificationView,
+} from "@/lib/postDeployVerification";
 import { listSchedulerRunOverview } from "@/lib/schedulerRunRegistry";
 import {
   buildSupplierDiscoveryReport,
@@ -67,6 +72,101 @@ function badgeClass(state: string): string {
     return "bg-sky-500/15 text-sky-300";
   }
   return "bg-amber-500/15 text-amber-300";
+}
+
+function postDeployBadgeClass(state: PostDeployVerificationState): string {
+  switch (state) {
+    case "VERIFIED":
+      return "bg-emerald-500/15 text-emerald-300";
+    case "FAILED":
+      return "bg-rose-500/15 text-rose-300";
+    case "UNVERIFIED":
+      return "bg-amber-500/15 text-amber-300";
+    case "SUPERSEDED":
+      return "bg-zinc-500/15 text-zinc-300";
+    default: {
+      const _exhaustive: never = state;
+      return _exhaustive;
+    }
+  }
+}
+
+function PostDeployVerificationCard({ view }: { view: PostDeployVerificationView }) {
+  const latest = view.latest;
+  return (
+    <section className="mt-6 rounded-2xl border border-white/10 bg-[#11131a] p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-black">배포 검증</h2>
+          <p className="mt-1 max-w-4xl text-xs leading-relaxed text-zinc-500">
+            Railway production 배포가 성공한 뒤 https://hav.chat 의 /health 와 /api/health 를
+            읽어서 대상 커밋과 맞는지 확인한 결과입니다. GitHub workflow 성공만으로 VERIFIED가
+            되지 않습니다.
+          </p>
+        </div>
+        <span
+          className={
+            "rounded px-2 py-1 text-xs font-bold " +
+            postDeployBadgeClass(view.status === "UNAVAILABLE" ? "UNVERIFIED" : (latest?.state ?? "UNVERIFIED"))
+          }
+        >
+          {view.status === "UNAVAILABLE" ? "UNVERIFIED" : (latest?.state ?? "UNVERIFIED")}
+        </span>
+      </div>
+      {view.status === "UNAVAILABLE" ? (
+        <p className="mt-3 text-sm text-amber-200">GitHub 조회 실패 · {view.error}</p>
+      ) : latest ? (
+        <dl className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">검증 대상 SHA</dt>
+            <dd className="mt-1 break-all font-mono text-xs text-zinc-100">
+              {latest.targetSha || "없음"}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">검증 시각</dt>
+            <dd className="mt-1 text-xs text-zinc-100">{fmtDate(latest.checkedAt)}</dd>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">응답 gitCommit</dt>
+            <dd className="mt-1 font-mono text-xs text-zinc-100">
+              {latest.observedGitCommit ?? "없음"}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-black/20 p-3">
+            <dt className="text-[11px] text-zinc-500">사유</dt>
+            <dd className="mt-1 text-xs text-zinc-100">{latest.reason ?? "없음"}</dd>
+          </div>
+        </dl>
+      ) : null}
+      {latest && !latest.currentDeployment ? (
+        <p className="mt-3 text-xs text-zinc-400">현재 배포 SHA와 다른 이전 검증 결과입니다.</p>
+      ) : null}
+      {latest?.htmlUrl ? (
+        <a
+          href={latest.htmlUrl}
+          className="mt-3 inline-block text-xs text-sky-300 hover:text-sky-200"
+          target="_blank"
+          rel="noreferrer"
+        >
+          GitHub 실행
+        </a>
+      ) : null}
+      {view.superseded ? (
+        <p className="mt-3 break-all text-xs text-zinc-500">
+          이전 검증 {view.superseded.targetSha} · SUPERSEDED · {view.superseded.reason}
+          {view.superseded.htmlUrl ? (
+            <>
+              {" · "}
+              <a href={view.superseded.htmlUrl} className="text-sky-400 hover:text-sky-200" target="_blank" rel="noreferrer">
+                실행
+              </a>
+            </>
+          ) : null}
+        </p>
+      ) : null}
+    </section>
+  );
 }
 
 function codeHealthStatusLabel(status: CodeHealthAdminCard["status"]): string {
@@ -890,9 +990,10 @@ export default async function AdminAutomationReportsPage() {
   if (!admin) redirect("/login?next=/admin/automation-reports");
 
   const db = getDb();
-  const [github, supplyDrafts] = await Promise.all([
+  const [github, supplyDrafts, postDeploy] = await Promise.all([
     fetchGithubScheduledAutomationProjection(),
     fetchGithubSupplyAutoDraftProjection(),
+    fetchPostDeployVerificationProjection(),
   ]);
   const memoryRuntime = buildAdminMemoryRuntimeStatus(process.env);
   const [codeHealth, decisionRadar, memoryResearch] = await Promise.all([
@@ -990,6 +1091,8 @@ export default async function AdminAutomationReportsPage() {
           <p className="mt-1 text-xs text-zinc-600">실패·누락·stale 최신 상태</p>
         </div>
       </section>
+
+      <PostDeployVerificationCard view={postDeploy} />
 
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
         <CodeHealthCard card={codeHealth.weekly} />

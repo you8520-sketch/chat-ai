@@ -9,6 +9,9 @@ on:
       - "src/cron/financeScheduler.ts"
       - "src/app/admin/automation-reports/page.tsx"
       - "src/lib/adminAutomationReports.ts"
+      - "src/lib/adminAutomationReports.test.ts"
+      - "src/lib/postDeployVerification.ts"
+      - "src/lib/postDeployVerification.test.ts"
       - "src/lib/userNotifications.ts"
       - "src/lib/userNotificationPresentation.ts"
       - "src/cron/adminSupplyDraftNotificationScheduler.ts"
@@ -68,6 +71,8 @@ jobs:
           src/lib/adminOpsInbox.test.ts
           src/lib/opsRequestIncidents.test.ts
           src/lib/financeAnomalyRadar.test.ts
+          src/lib/adminAutomationReports.test.ts
+          src/lib/postDeployVerification.test.ts
           src/cron/adminSupplyDraftNotificationScheduler.test.ts
       - name: OpenRouter contract watch regression
         run: node --conditions=react-server --import tsx --test src/lib/openRouterContractWatch.test.ts
