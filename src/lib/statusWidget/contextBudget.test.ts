@@ -18,6 +18,7 @@ import {
   formatCombinedWidgetBudgetHint,
 } from "./contextBudget";
 import { serializeStatusWidget } from "./serialize";
+import { validateStatusWidgetPresetInput } from "../statusWidgetPresets";
 
 describe("statusWidget contextBudget", () => {
   it("estimates field label+instruction only (not HTML)", () => {
@@ -152,6 +153,17 @@ describe("statusWidget contextBudget", () => {
       { id: "extra", label: "추가", instruction: "사건".repeat(150) },
     ] };
     assert.equal(validateCharacterStatusWidgetContextBudget(overBudget).ok, false);
+  });
+
+  it("persona presets still reject specs exceeding 500 after creator budget rises", () => {
+    const makeUserPreset = (instruction: string) => serializeStatusWidget({
+      ...DEFAULT_STATUS_WIDGET,
+      fields: [{ id: "time", label: "시간", instruction }],
+    });
+    const allowed = makeUserPreset("상태".repeat(240));
+    const rejected = makeUserPreset("상태".repeat(300));
+    assert.equal(validateStatusWidgetPresetInput("예시", allowed).ok, true);
+    assert.equal(validateStatusWidgetPresetInput("예시", rejected).ok, false);
   });
 
   it("reports separate creator and user widget budget in both mode", () => {
