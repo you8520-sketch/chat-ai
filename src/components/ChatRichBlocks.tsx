@@ -16,7 +16,7 @@ import {
 } from "@/lib/chatRichContent";
 import { sanitizeChatStatusHtml, sanitizeChatVisualCardHtml } from "@/lib/chatHtmlSanitize";
 import { findJsxComponent } from "@/lib/jsxComponent/catalog";
-import { isIncompleteJsxInvocation } from "@/lib/jsxComponent/invocation";
+import { isIncompleteJsxInvocation, resolveJsxInvocationProps } from "@/lib/jsxComponent/invocation";
 
 function ChatMarkdownTable({ markdown }: { markdown: string }) {
   const parsed = useMemo(() => parseMarkdownPipeTable(markdown), [markdown]);
@@ -80,11 +80,19 @@ function ChatJsxCall({ block }: { block: Extract<ChatRichBlock, { kind: "jsx-cal
       </div>
     );
   }
+  const resolved = resolveJsxInvocationProps(record.props, block.props);
+  if (!resolved.ok) {
+    return (
+      <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-100/90">
+        컴포넌트 호출 오류: {resolved.error}
+      </div>
+    );
+  }
   return (
     <div className="mt-3">
       <JsxComponentSandbox
         compiled={record.compiled}
-        props={block.props}
+        props={resolved.props}
         title={record.name}
         chatSendEnabled={record.chatSend}
         bridge={bridge}
