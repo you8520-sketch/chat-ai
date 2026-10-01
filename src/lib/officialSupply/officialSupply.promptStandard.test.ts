@@ -58,7 +58,7 @@ function compileLucian() {
 
 describe("official character prompt standard v1", () => {
   it("keeps full visual geometry out of the always-on character core", () => {
-    const { draft } = compileLucian();
+    const { file, draft } = compileLucian();
     assert.match(draft.sections.characterCore, /기본 스펙:\n이름: 루시안 바스케스/);
     assert.match(draft.sections.characterCore, /성별: 남성/);
     assert.match(draft.sections.characterCore, /직업\/역할: 비밀 회계사·지하 암시장 브로커/);
@@ -77,7 +77,7 @@ describe("official character prompt standard v1", () => {
   });
 
   it("does not inject sibling playable-character relationship maps into the character prompt", () => {
-    const { draft } = compileLucian();
+    const { file, draft } = compileLucian();
     for (const name of ["카엘룸", "볼프강", "율리우스", "바스티안", "세라피나", "이노센트", "에드릭", "테오", "노엘"]) {
       assert.doesNotMatch(draft.sections.relationshipsAndDrives, new RegExp(name));
       assert.ok(!draft.secrets.some((secret) => secret.includes(name)));
