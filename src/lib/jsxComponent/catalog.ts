@@ -6,6 +6,7 @@ import {
   JSX_COMPONENT_NAME_RE,
   type JsxComponentManifestRecord,
   type JsxComponentRecord,
+  type JsxRuntimeComponentRecord,
   type JsxPropDefinition,
 } from "./types";
 
@@ -82,6 +83,12 @@ export function parseJsxComponentManifestCatalog(
     props: item.props,
     chatSend: analyzeJsxCapabilities(item.source).includes("chat_send"),
   }));
+}
+
+export function parseJsxRuntimeComponentCatalog(
+  raw: string | null | undefined
+): JsxRuntimeComponentRecord[] {
+  return parseJsxComponentCatalog(raw).map(({ source: _source, ...runtime }) => runtime);
 }
 
 export function serializeJsxComponentCatalog(components: JsxComponentRecord[]): string {
