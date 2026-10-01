@@ -8,7 +8,10 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { AUTOMATION_REPORTS_GITHUB_REPO } from "@/lib/adminAutomationReports";
+import {
+  AUTOMATION_REPORTS_GITHUB_REPO,
+  fetchGithubScheduledAutomationProjection,
+} from "@/lib/adminAutomationReports";
 import { fetchRecentFailedGithubRuns, renderWeeklyMarkdown, runWeeklyCodeHealthAudit } from "@/lib/codeHealth/audit";
 import { latestWeekly, parseCodeHealthLedger, prependWeekly } from "@/lib/codeHealth/ledger";
 
@@ -33,6 +36,10 @@ async function main(): Promise<void> {
   mkdirSync(outDir, { recursive: true });
   const previousLedger = parseCodeHealthLedger(existsSync(ledgerPath) ? readFileSync(ledgerPath, "utf8") : null);
   const ciRuns = await fetchRecentFailedGithubRuns(fetch, AUTOMATION_REPORTS_GITHUB_REPO);
+  const scheduledProjection = await fetchGithubScheduledAutomationProjection(fetch, {
+    token: process.env.GITHUB_TOKEN,
+    maxPages: 5,
+  });
   const report = runWeeklyCodeHealthAudit({
     repoRoot,
     mainSha,
@@ -40,6 +47,12 @@ async function main(): Promise<void> {
     ciRuns,
     githubRunUrl,
     allowSafeDelete: true,
+    scheduledAutomationGroups: scheduledProjection.groups,
+    scheduledProjectionAvailable: scheduledProjection.status === "OK",
+    notes:
+      scheduledProjection.status === "OK"
+        ? []
+        : [`Scheduled workflow projection unavailable: ${scheduledProjection.error ?? "unknown error"}`],
   });
   const nextLedger = prependWeekly(previousLedger, report);
 

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { ContextBuildInput, CharacterChunk } from "@/types";
 import { resolveEffectiveUserAuthoring } from "@/lib/userCoauthorState";
+import { EMPTY_MEMORY_META, formatMemoryMetaForPrompt } from "@/lib/chatMemory";
 
 export const RP_MODEL_QUALIFICATION_FIXTURE_VERSION = 1;
 
@@ -187,7 +188,9 @@ export type CanonicalQualificationCaseId =
   | "production_midchat_t1"
   | "persona_grounded_reaction"
   | "agency_boundary"
-  | "false_canon_trap";
+  | "false_canon_trap"
+  | "memory_current_state_priority"
+  | "memory_false_shared_event";
 
 export type CanonicalQualificationCase = {
   id: CanonicalQualificationCaseId;
@@ -195,6 +198,11 @@ export type CanonicalQualificationCase = {
   history: { role: "user" | "assistant"; content: string }[];
   currentUserMessage: string;
   reviewFocus: string[];
+  memory?: {
+    longTermMemory?: string;
+    memoryMeta?: string;
+    episodicMemoryBlock?: string;
+  };
 };
 
 export function buildCanonicalRpQualificationCases(
@@ -255,6 +263,45 @@ export function buildCanonicalRpQualificationCases(
         "distinguish canon fact from character inference or playful guess",
       ],
     },
+    {
+      id: "memory_current_state_priority",
+      targetResponseChars: 1800,
+      history: baseHistory,
+      currentUserMessage:
+        '렌은 잠깐 생각하다 태형을 본다. "그래서 지금 우리 사이에 남아 있는 약속이 뭐였지?"',
+      memory: {
+        longTermMemory:
+          "과거에 렌과 태형은 비 오는 밤 폐역에서 만나기로 했고, 그 약속은 이미 이행되어 종료되었다.",
+        memoryMeta:
+          formatMemoryMetaForPrompt({
+            ...EMPTY_MEMORY_META,
+            promises: [{ text: "다음 정기 검진 날 넥서스 로비에서 만나기로 했다." }],
+          }) ?? undefined,
+      },
+      reviewFocus: [
+        "the current Relationship Durable promise is the active commitment",
+        "the completed old Global-memory promise must not be revived as still active",
+        "do not invent additional promises or shared events",
+        "keep 라이크/조태형 voice, relationship tone, and current NORMAL user-authoring boundary",
+      ],
+    },
+    {
+      id: "memory_false_shared_event",
+      targetResponseChars: 1800,
+      history: baseHistory,
+      currentUserMessage:
+        '렌은 자기 손가락을 내려다본다. "그때 훈련 끝나고 네가 나한테 반지 끼워줬잖아. 그 반지 얘기 좀 해봐."',
+      memory: {
+        episodicMemoryBlock:
+          "훈련 도중 렌이 복잡한 단말기를 잘못 조작하자 태형이 옆에서 사용법을 설명해 주었다.",
+      },
+      reviewFocus: [
+        "the terminal-help training event is grounded episodic memory and may be recalled if relevant",
+        "there is no grounded ring gift/shared ring event; do not accept the user's false premise as canon",
+        "if the character guesses, doubts, or corrects the premise, frame it as character perspective rather than invented objective history",
+        "keep current persona/canon and NORMAL user-authoring boundary",
+      ],
+    },
   ];
 }
 
@@ -304,6 +351,9 @@ export function buildCanonicalRpQualificationContextInput(opts: {
     ),
     novelModeEnabled: false,
     isContinue: false,
+    longTermMemory: opts.caseData.memory?.longTermMemory ?? null,
+    memoryMeta: opts.caseData.memory?.memoryMeta ?? null,
+    episodicMemoryBlock: opts.caseData.memory?.episodicMemoryBlock ?? null,
     currentTurnAuthoringDelegation: resolveEffectiveUserAuthoring({
       persistentMode: "OFF",
       baseLevel: "NORMAL",
