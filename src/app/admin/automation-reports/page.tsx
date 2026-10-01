@@ -7,6 +7,10 @@ import {
   type MemoryResearchAdminProjection,
 } from "@/lib/adminMemoryResearchReports";
 import {
+  buildAdminMemoryRuntimeStatus,
+  type AdminMemoryRuntimeStatus,
+} from "@/lib/adminMemoryRuntimeStatus";
+import {
   fetchGithubScheduledAutomationProjection,
   fetchGithubSupplyAutoDraftProjection,
 } from "@/lib/adminAutomationReports";
@@ -170,8 +174,10 @@ function CodeHealthCard({ card }: { card: CodeHealthAdminCard }) {
 
 function MemoryResearchCard({
   projection,
+  runtime,
 }: {
   projection: MemoryResearchAdminProjection;
+  runtime: AdminMemoryRuntimeStatus;
 }) {
   const run = projection.run;
   const state = run?.status ?? projection.status;
@@ -225,6 +231,57 @@ function MemoryResearchCard({
             </span>
             {projection.freshnessReason ? (
               <span className="text-zinc-500">{projection.freshnessReason}</span>
+            ) : null}
+          </div>
+
+          <div className="mt-3 rounded-xl border border-emerald-500/10 bg-emerald-950/5 p-3 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-bold text-emerald-200">Production memory runtime</span>
+              <span
+                className={
+                  "rounded px-2 py-0.5 font-bold " +
+                  (runtime.memoryFeatureEnabled
+                    ? "bg-emerald-500/15 text-emerald-300"
+                    : "bg-rose-500/15 text-rose-300")
+                }
+              >
+                memory {runtime.memoryFeatureEnabled ? "ON" : "OFF"}
+              </span>
+              <span
+                className={
+                  "rounded px-2 py-0.5 font-bold " +
+                  (runtime.episodicRecallEnabled
+                    ? "bg-emerald-500/15 text-emerald-300"
+                    : "bg-rose-500/15 text-rose-300")
+                }
+              >
+                episodic recall {runtime.episodicRecallEnabled ? "ON" : "OFF"}
+              </span>
+              <span
+                className={
+                  "rounded px-2 py-0.5 font-bold " +
+                  (runtime.semantic.enabled
+                    ? "bg-emerald-500/15 text-emerald-300"
+                    : "bg-amber-500/15 text-amber-300")
+                }
+              >
+                semantic {runtime.semantic.enabled ? "ON" : "OFF"}
+              </span>
+            </div>
+            <p className="mt-2 text-zinc-500">
+              policy {runtime.policy.id} · {runtime.policy.rollingSummaryInterval}턴 요약 · RAW
+              {runtime.policy.rawRecentExchanges}
+            </p>
+            <p className="mt-1 text-zinc-500">
+              semantic model key {runtime.semantic.configuredModelKey ?? "미설정"}
+              {runtime.semantic.activeModelId
+                ? ` · active ${runtime.semantic.activeModelId}`
+                : ` · reason ${runtime.semantic.reason}`}
+            </p>
+            {runtime.semantic.configVersion ? (
+              <p className="mt-1 font-mono text-[11px] text-zinc-600">
+                {runtime.semantic.configVersion}
+              </p>
             ) : null}
           </div>
 
@@ -758,6 +815,7 @@ export default async function AdminAutomationReportsPage() {
     fetchGithubScheduledAutomationProjection(),
     fetchGithubSupplyAutoDraftProjection(),
   ]);
+  const memoryRuntime = buildAdminMemoryRuntimeStatus(process.env);
   const [codeHealth, decisionRadar, memoryResearch] = await Promise.all([
     fetchCodeHealthAdminProjection(github.groups),
     fetchDecisionRadarAdminProjection(github.groups),
@@ -986,7 +1044,7 @@ export default async function AdminAutomationReportsPage() {
         ) : null}
       </section>
 
-      <MemoryResearchCard projection={memoryResearch} />
+      <MemoryResearchCard projection={memoryResearch} runtime={memoryRuntime} />
 
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
