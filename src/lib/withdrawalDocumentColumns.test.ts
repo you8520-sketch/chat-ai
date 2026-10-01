@@ -12,30 +12,29 @@ import { encryptSensitive } from "./fieldEncryption";
 
 const TAG = `wdoc_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
 const SYNTHETIC_RESIDENT = "0000000000000";
+let createdTestUserId: number | null = null;
 
 function createUser(): { id: number; email: string } {
   const db = getDb();
   const email = `${TAG}@wdoc.local`;
   const nickname = TAG;
-  db.prepare("DELETE FROM users WHERE email=?").run(email);
   const row = db
     .prepare(
       "INSERT INTO users (email, nickname, pw_hash, points, is_adult, real_name, creator_points) VALUES (?,?,?,0,1,?,0)"
     )
     .run(email, nickname, "x", "홍길동");
-  return { id: Number(row.lastInsertRowid), email };
+  createdTestUserId = Number(row.lastInsertRowid);
+  return { id: createdTestUserId, email };
 }
 
 function cleanup(): void {
+  if (createdTestUserId == null) return;
   const db = getDb();
-  const ids = (
-    db.prepare("SELECT id FROM users WHERE email LIKE '%@wdoc.local'").all() as { id: number }[]
-  ).map((row) => row.id);
-  if (ids.length === 0) return;
-  const placeholders = ids.map(() => "?").join(",");
-  db.prepare(`DELETE FROM withdrawal_requests WHERE user_id IN (${placeholders})`).run(...ids);
-  db.prepare(`DELETE FROM creator_point_logs WHERE user_id IN (${placeholders})`).run(...ids);
-  db.prepare(`DELETE FROM users WHERE id IN (${placeholders})`).run(...ids);
+  const id = createdTestUserId;
+  db.prepare("DELETE FROM withdrawal_requests WHERE user_id=?").run(id);
+  db.prepare("DELETE FROM creator_point_logs WHERE user_id=?").run(id);
+  db.prepare("DELETE FROM users WHERE id=?").run(id);
+  createdTestUserId = null;
 }
 
 after(cleanup);
