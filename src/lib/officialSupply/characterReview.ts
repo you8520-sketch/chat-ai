@@ -179,14 +179,14 @@ export function buildOfficialCharacterReviewReport(draftKey = "pilot-rf-03"): st
       world.bible.lorebook
     ),
     ...lorebookBlock(
-      "## CHARACTER-LOCAL LOREBOOK CANDIDATES — APPROVED TEXT, SHARED KEY REUSES WORLD OWNER",
+      "## CHARACTER-LOCAL LOREBOOK — DISTINCT KEYS, SHARED WORLD OWNER PRESERVED",
       approvedLocal
     ),
     ...lorebookBlock("## RESOLVED LOREBOOK — ACTUAL ATTACH SET", resolvedLorebook),
     "## LOREBOOK DIFF — APPROVED LOCAL vs RESOLVED ATTACH",
     `- approved local keys: ${approvedLocal.map((entry) => entry.entryKey).join(", ") || "(none)"}`,
     `- attached as authored local bodies: ${extraKeys.join(", ") || "(none)"} (${extraKeys.length} of ${approvedLocal.length})`,
-    `- OWNER APPROVAL CHOICE unresolved: ${reusedKeys.join(", ") || "(none)"} approved local body is superseded by the shared world owner. Do not label reused keys as active as approved.`,
+    reusedKeys.length ? `- SHARED-KEY COLLISION requires review: ${reusedKeys.join(", ")} — shared owner supersedes local candidate.` : "- SHARED-KEY COLLISION: none; all approved character-local bodies are attached under distinct entryKeys.",
     `- resolved entryKeys: ${resolvedLorebook.map((entry) => entry.entryKey).join(", ")}`,
     ...reusedKeys.flatMap((key) => {
       const approved = approvedLocal.find((entry) => entry.entryKey === key);

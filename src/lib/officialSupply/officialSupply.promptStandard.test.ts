@@ -149,21 +149,12 @@ describe("official character prompt standard v1", () => {
     assert.equal(file.bible.otherRelationships.some((rel) => /카엘룸|볼프강|율리우스|바스티안|세라피나|이노센트/.test(rel.target)), false);
   });
 
-  it("keeps the shared world lorebook and attaches Lucian-only extras without duplicating mercator_guild", () => {
+  it("attaches all four Lucian-specific lorebooks while preserving the common guild canon", () => {
     const world = readJson<{ bible: { lorebook: OfficialWorldLorebookEntry[] } }>(path.join(PILOT_DIR, "world-bible.json"));
     const { file } = compileLucian();
     assert.deepEqual(
       world.bible.lorebook.map((entry) => entry.entryKey),
-      [
-        "aether_energy",
-        "solar_throne",
-        "valkenheim_coalition",
-        "mercator_guild",
-        "pandora_academy",
-        "black_wall",
-        "ether_sickness",
-        "sun_eye_core",
-      ]
+      ["aether_energy", "solar_throne", "valkenheim_coalition", "mercator_guild", "pandora_academy", "black_wall", "ether_sickness", "sun_eye_core"]
     );
     assert.deepEqual(
       (file.characterLorebook ?? []).map((entry) => entry.entryKey),
@@ -172,35 +163,26 @@ describe("official character prompt standard v1", () => {
     const resolved = resolveOfficialCharacterLorebooks(world.bible.lorebook, file.characterLorebook);
     assert.deepEqual(
       resolved.map((entry) => entry.entryKey),
-      [
-        "aether_energy",
-        "solar_throne",
-        "valkenheim_coalition",
-        "mercator_guild",
-        "pandora_academy",
-        "black_wall",
-        "ether_sickness",
-        "sun_eye_core",
-        "aether_bonds",
-        "mercator_exchange_underworld",
-        "bio_aether_taboos",
-      ]
+      [...world.bible.lorebook.map((entry) => entry.entryKey), ...LUCIAN_APPROVED_LOREBOOK_KEYS]
     );
+    assert.equal(resolved.length, 12);
     assert.equal(resolved.filter((entry) => entry.entryKey === "mercator_guild").length, 1);
     assert.equal(
       resolved.find((entry) => entry.entryKey === "mercator_guild")?.content,
       world.bible.lorebook.find((entry) => entry.entryKey === "mercator_guild")?.content
     );
+    const internal = resolved.find((entry) => entry.entryKey === "mercator_internal_dealings");
+    assert.ok(internal);
+    assert.equal(internal.content, file.characterLorebook?.find((entry) => entry.entryKey === "mercator_internal_dealings")?.content);
+    assert.deepEqual(internal.keywords, ["메르카토르 길드", "길드 장부", "길드 간부", "밀수 장부"]);
+    assert.match(internal.content, /암시장·밀수망/);
+    assert.match(internal.content, /장부와 채권 기록/);
+    assert.doesNotMatch(internal.content, /금지 거래와 고위 간부의 자금 흐름을 기록한 개인 장부/);
     const sibling = readJson<PilotChar>(path.join(PILOT_DIR, "characters", "pilot-rf-01.json"));
     const siblingResolved = resolveOfficialCharacterLorebooks(world.bible.lorebook, sibling.characterLorebook);
-    assert.deepEqual(
-      siblingResolved.map((entry) => entry.entryKey),
-      world.bible.lorebook.map((entry) => entry.entryKey)
-    );
-    assert.equal(siblingResolved.some((entry) => entry.entryKey === "aether_bonds"), false);
-    const extra = resolved.find((entry) => entry.entryKey === "mercator_exchange_underworld");
-    assert.ok(extra?.keywords.includes("증권거래소"));
-    assert.ok(extra?.keywords.includes("지하 금고"));
+    assert.deepEqual(siblingResolved.map((entry) => entry.entryKey), world.bible.lorebook.map((entry) => entry.entryKey));
+    assert.ok(!siblingResolved.some((entry) => entry.entryKey === "mercator_internal_dealings"));
+    assert.ok(resolved.find((entry) => entry.entryKey === "mercator_exchange_underworld")?.keywords.includes("지하 금고"));
     assert.ok(resolved.find((entry) => entry.entryKey === "bio_aether_taboos")?.keywords.includes("생체 에테르"));
     assert.ok(resolved.find((entry) => entry.entryKey === "aether_bonds")?.keywords.includes("에테르 채권"));
   });
@@ -328,6 +310,8 @@ describe("official character prompt standard v1", () => {
     assert.doesNotMatch(publicAndStaged, /손목을 잡고/);
     assert.doesNotMatch(draft.greeting, /손목을 잡고/);
     assert.match(draft.greeting, /따라오셔도 되고, 여기서 갈라서도 됩니다/);
+    assert.doesNotMatch(draft.greeting, /당신을 믿어서가 아니라/);
+    assert.match(draft.greeting, /다른 손은 코트 안쪽 장부 근처에 머물러 있었다/);
     assert.match(draft.description, /같은 탈출구 앞에 있다/);
     assert.match(systemPrompt, /도주에 협력할지, 거리를 둘지, 갈라설지는 유저가 정한다/);
   });
@@ -369,22 +353,21 @@ describe("official character prompt standard v1", () => {
     assert.match(situationSurfaces, /숨긴 기록/);
   });
 
-  it("records the mercator_guild owner-approval choice instead of attaching the longer local body", () => {
+  it("attaches all four approved local bodies and reports no shared-key collision", () => {
     const world = readJson<{ bible: { lorebook: OfficialWorldLorebookEntry[] } }>(path.join(PILOT_DIR, "world-bible.json"));
     const { file } = compileLucian();
-    const approved = (file.characterLorebook ?? []).find((entry) => entry.entryKey === "mercator_guild");
+    const approved = (file.characterLorebook ?? []).find((entry) => entry.entryKey === "mercator_internal_dealings");
     const shared = world.bible.lorebook.find((entry) => entry.entryKey === "mercator_guild");
     const resolved = resolveOfficialCharacterLorebooks(world.bible.lorebook, file.characterLorebook);
-    const attached = resolved.find((entry) => entry.entryKey === "mercator_guild");
     assert.ok(approved?.keywords.includes("길드 장부"));
     assert.equal(shared?.keywords.includes("길드 장부"), false);
-    assert.equal(attached?.keywords.includes("길드 장부"), false);
-    assert.equal(attached?.content, shared?.content);
-    assert.notEqual(approved?.content, shared?.content);
+    assert.equal(resolved.find((entry) => entry.entryKey === "mercator_guild")?.content, shared?.content);
+    assert.equal(resolved.find((entry) => entry.entryKey === "mercator_internal_dealings")?.content, approved?.content);
     const report = buildOfficialCharacterReviewReport("pilot-rf-03");
-    assert.match(report, /OWNER APPROVAL CHOICE unresolved: mercator_guild/);
-    assert.match(report, /creator-approved keywords absent from shared owner: .*길드 장부/);
-    assert.match(report, /attached as authored local bodies: aether_bonds, mercator_exchange_underworld, bio_aether_taboos \(3 of 4\)/);
+    assert.match(report, /SHARED-KEY COLLISION: none/);
+    assert.match(report, /attached as authored local bodies: mercator_internal_dealings, aether_bonds, mercator_exchange_underworld, bio_aether_taboos \(4 of 4\)/);
+    assert.doesNotMatch(report, /OWNER APPROVAL CHOICE unresolved/);
+    assert.match(report, /keywords: 메르카토르 길드 \/ 길드 장부 \/ 길드 간부 \/ 밀수 장부/);
   });
 
 });

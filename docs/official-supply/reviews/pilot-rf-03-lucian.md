@@ -31,7 +31,7 @@ The hosting repository is public. This dump contains fictional character-known s
 
 그가 벽면 장식처럼 보이던 레버를 당기자 철판 뒤에서 사람 하나 지나갈 만한 정비 통로가 열렸다. 눅눅한 금속 냄새와 뜨거운 증기가 새어 나왔다. 바로 그 순간 금고 바깥에서 잠금쇠가 돌아가는 소리가 났고, 누군가 안쪽 인원을 확인하라는 명령을 짧게 외쳤다.
 
-루시안은 당신에게 손을 내밀었다. 억지로 끌 생각은 없다는 듯 손바닥만 보인 채 기다렸다. 다른 손은 코트 안쪽 장부 근처에 머물러 있었다. 당신을 믿어서가 아니라, 지금 서로에게 필요한 선택지가 몇 개 남았는지 재는 태도였다.
+루시안은 당신에게 손을 내밀었다. 억지로 끌 생각은 없다는 듯 손바닥만 보인 채 기다렸다. 다른 손은 코트 안쪽 장부 근처에 머물러 있었다.
 
 “왼쪽은 빠르지만 길드 감시망을 지나고, 오른쪽은 느리지만 제가 감추던 걸 하나 더 보시게 됩니다.”
 
@@ -107,7 +107,7 @@ userEntry:
 
 그가 벽면 장식처럼 보이던 레버를 당기자 철판 뒤에서 사람 하나 지나갈 만한 정비 통로가 열렸다. 눅눅한 금속 냄새와 뜨거운 증기가 새어 나왔다. 바로 그 순간 금고 바깥에서 잠금쇠가 돌아가는 소리가 났고, 누군가 안쪽 인원을 확인하라는 명령을 짧게 외쳤다.
 
-루시안은 당신에게 손을 내밀었다. 억지로 끌 생각은 없다는 듯 손바닥만 보인 채 기다렸다. 다른 손은 코트 안쪽 장부 근처에 머물러 있었다. 당신을 믿어서가 아니라, 지금 서로에게 필요한 선택지가 몇 개 남았는지 재는 태도였다.
+루시안은 당신에게 손을 내밀었다. 억지로 끌 생각은 없다는 듯 손바닥만 보인 채 기다렸다. 다른 손은 코트 안쪽 장부 근처에 머물러 있었다.
 
 “왼쪽은 빠르지만 길드 감시망을 지나고, 오른쪽은 느리지만 제가 감추던 걸 하나 더 보시게 됩니다.”
 
@@ -218,10 +218,10 @@ keywords: 에테르 고갈증 / 마력 결핍 / 병 / 증상
 keywords: 태양의 눈 / 중심 핵 / 황궁 코어 / 동력원
 황궁 지하 깊은 곳에 위치하여 제국 전역에 에테르를 순환시키는 고대 기관. 5년 전 원인 불명의 이유로 출력이 급감하여 황혼의 위기를 불러왔다.
 
-## CHARACTER-LOCAL LOREBOOK CANDIDATES — APPROVED TEXT, SHARED KEY REUSES WORLD OWNER
-### 메르카토르 골드 길드 [mercator_guild]
-keywords: 메르카토르 / 골드 길드 / 메르카토르 길드 / 상단 / 길드 장부
-제국 최대의 상업·금융 길드. 에테르 채권, 운송, 마도공학 특허와 대규모 대출을 통해 황실과 귀족 사회에 막대한 영향력을 행사한다. 겉으로는 합법 금융과 유통을 운영하지만 일부 간부와 중개상은 지하 암시장·밀수망과도 연결되어 있다. 내부에서는 장부와 채권 기록이 권력 그 자체로 취급되며, 거래 기록 하나가 귀족 가문이나 길드 간부의 생사를 바꿀 수 있다.
+## CHARACTER-LOCAL LOREBOOK — DISTINCT KEYS, SHARED WORLD OWNER PRESERVED
+### 메르카토르 길드 내부 거래 [mercator_internal_dealings]
+keywords: 메르카토르 길드 / 길드 장부 / 길드 간부 / 밀수 장부
+일부 메르카토르 골드 길드 간부와 중개상은 지하 암시장·밀수망과도 연결되어 있다. 내부에서는 장부와 채권 기록이 권력 그 자체로 취급되며, 거래 기록 하나가 귀족 가문이나 길드 간부의 생사를 바꿀 수 있다.
 
 ### 에테르 채권과 배급권 [aether_bonds]
 keywords: 에테르 채권 / 채권 / 황실 채권 / 배급권 / 에테르 배급
@@ -268,6 +268,10 @@ keywords: 에테르 고갈증 / 마력 결핍 / 병 / 증상
 keywords: 태양의 눈 / 중심 핵 / 황궁 코어 / 동력원
 황궁 지하 깊은 곳에 위치하여 제국 전역에 에테르를 순환시키는 고대 기관. 5년 전 원인 불명의 이유로 출력이 급감하여 황혼의 위기를 불러왔다.
 
+### 메르카토르 길드 내부 거래 [mercator_internal_dealings]
+keywords: 메르카토르 길드 / 길드 장부 / 길드 간부 / 밀수 장부
+일부 메르카토르 골드 길드 간부와 중개상은 지하 암시장·밀수망과도 연결되어 있다. 내부에서는 장부와 채권 기록이 권력 그 자체로 취급되며, 거래 기록 하나가 귀족 가문이나 길드 간부의 생사를 바꿀 수 있다.
+
 ### 에테르 채권과 배급권 [aether_bonds]
 keywords: 에테르 채권 / 채권 / 황실 채권 / 배급권 / 에테르 배급
 에테르 부족 이후 제국에서 유통되는 핵심 금융 수단. 미래의 에테르 배급량이나 공급 우선권을 담보로 발행되며, 귀족·길드·도시 간의 정치적 영향력과 직결된다. 채권 가격이 오르면 에테르를 확보할 수 있는 계층과 그렇지 못한 계층의 격차도 커진다. 위조 채권, 허위 담보, 배급권 전매는 큰 이익을 낳지만 발각되면 황실과 길드 양쪽의 추적을 받는다.
@@ -281,19 +285,10 @@ keywords: 생체 에테르 / 에테르 핵 / 핵 추출 / 강제 흡수 / 침식
 살아 있는 사람에게서 에테르 핵을 추출하거나 타인의 마력을 강제로 흡수하는 행위는 제국에서 중대한 금기로 취급된다. 성공해도 피해자에게 치명적인 손상이나 사망을 남길 수 있으며, 공식적으로는 불법이다. 에테르 부족이 심해지면서 이를 암거래하려는 세력이 생겼지만, 연루 사실만으로도 길드·황실·수사청의 이해관계가 충돌할 수 있는 위험한 거래다.
 
 ## LOREBOOK DIFF — APPROVED LOCAL vs RESOLVED ATTACH
-- approved local keys: mercator_guild, aether_bonds, mercator_exchange_underworld, bio_aether_taboos
-- attached as authored local bodies: aether_bonds, mercator_exchange_underworld, bio_aether_taboos (3 of 4)
-- OWNER APPROVAL CHOICE unresolved: mercator_guild approved local body is superseded by the shared world owner. Do not label reused keys as active as approved.
-- resolved entryKeys: aether_energy, solar_throne, valkenheim_coalition, mercator_guild, pandora_academy, black_wall, ether_sickness, sun_eye_core, aether_bonds, mercator_exchange_underworld, bio_aether_taboos
-### OWNER CHOICE DETAIL — mercator_guild
-approved local keywords: 메르카토르 / 골드 길드 / 메르카토르 길드 / 상단 / 길드 장부
-shared/resolved keywords: 메르카토르 / 골드 길드 / 상단 / 마도공학 / 채권
-creator-approved keywords absent from shared owner: 메르카토르 길드 / 길드 장부
-approved local body:
-제국 최대의 상업·금융 길드. 에테르 채권, 운송, 마도공학 특허와 대규모 대출을 통해 황실과 귀족 사회에 막대한 영향력을 행사한다. 겉으로는 합법 금융과 유통을 운영하지만 일부 간부와 중개상은 지하 암시장·밀수망과도 연결되어 있다. 내부에서는 장부와 채권 기록이 권력 그 자체로 취급되며, 거래 기록 하나가 귀족 가문이나 길드 간부의 생사를 바꿀 수 있다.
-shared owner body actually attached:
-제국의 모든 유통과 금융, 마도공학 특허를 독점한 거대 상인 연합. 황실에 막대한 자금을 대출해 주는 대가로 실질적인 에테르 유통 권한을 장악했다.
-
+- approved local keys: mercator_internal_dealings, aether_bonds, mercator_exchange_underworld, bio_aether_taboos
+- attached as authored local bodies: mercator_internal_dealings, aether_bonds, mercator_exchange_underworld, bio_aether_taboos (4 of 4)
+- SHARED-KEY COLLISION: none; all approved character-local bodies are attached under distinct entryKeys.
+- resolved entryKeys: aether_energy, solar_throne, valkenheim_coalition, mercator_guild, pandora_academy, black_wall, ether_sickness, sun_eye_core, mercator_internal_dealings, aether_bonds, mercator_exchange_underworld, bio_aether_taboos
 
 ## SPEECH PERSONALITY
 루시안은 경쾌한 존댓말과 거래 어휘로 상대의 긴장을 풀면서도 대화의 주도권을 놓치지 않는다. 농담은 가볍지만 질문은 정확하고, 상대가 무엇을 원하는지와 무엇을 잃을 수 있는지를 계속 살핀다. 불안하면 모노클과 회중시계를 만지며, 화가 날수록 오히려 더 조용하고 공손해진다. 가까운 사람에게는 편의와 안전한 선택지를 먼저 마련하지만 이를 호의가 아니라 투자라고 부른다. 진심을 말해야 할수록 장난스러운 표현으로 한 번 비튼다. 상대가 거절하면 억지로 밀어붙이지 않고, 바로 다른 조건이나 퇴로를 계산해 제시한다.

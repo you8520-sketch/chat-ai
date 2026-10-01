@@ -8,7 +8,7 @@
 import type { OfficialWorldLorebookEntry } from "@/lib/officialSupply/types";
 
 export const LUCIAN_APPROVED_LOREBOOK_KEYS = [
-  "mercator_guild",
+  "mercator_internal_dealings",
   "aether_bonds",
   "mercator_exchange_underworld",
   "bio_aether_taboos",
