@@ -18,6 +18,7 @@ const SOURCE_LABEL: Record<AdminOpsIncidentSource, string> = {
   finance: "재무/과금",
   web_push: "웹푸시",
   github_automation: "GitHub 자동화",
+  request: "요청 실패",
 };
 
 function ageLabel(ageMinutes: number | null): string {
@@ -92,6 +93,8 @@ export default function AdminOpsInboxClient({
           예외함에 표시합니다. RECONCILIATION_REQUIRED와 scheduler의 실패·stale·누락,
           재무/과금의 deterministic anomaly, 웹푸시의 반복 실패·소진·장기 stale claim과
           GitHub scheduled 자동화의 최신 실패도 canonical 상태를 그대로 반영합니다.
+          요청 실패는 HTTP 5xx와 provider·DB·stream 서버 실패 signature만 집계합니다.
+          4xx와 예상된 인증·검증 실패는 올리지 않으며, 이 화면도 재시도하지 않습니다.
         </p>
       </section>
 
@@ -105,6 +108,7 @@ export default function AdminOpsInboxClient({
           ["finance", SOURCE_LABEL.finance],
           ["web_push", SOURCE_LABEL.web_push],
           ["github_automation", SOURCE_LABEL.github_automation],
+          ["request", SOURCE_LABEL.request],
         ] as const).map(([id, label]) => (
           <button
             key={id}

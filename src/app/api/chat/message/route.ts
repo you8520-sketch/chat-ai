@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { observeProductionRequestIncident } from "@/lib/opsRequestIncidents";
 import { assertMessageAccess } from "@/lib/chatAccess";
 import {
   editedMessageVariant,
@@ -358,6 +359,12 @@ export async function PATCH(req: Request) {
         "[DerivedState] atomic manual edit core failed:",
         (e as Error).message
       );
+      observeProductionRequestIncident(db, {
+        routeTemplate: "/api/chat/message",
+        subsystem: "db",
+        httpStatus: 500,
+        error: e,
+      });
       return NextResponse.json(
         { error: "메시지 수정 중 오류가 발생했습니다." },
         { status: 500 }
@@ -502,6 +509,12 @@ export async function PATCH(req: Request) {
       );
     }
     console.error("[memory] atomic user message edit failed:", (e as Error).message);
+    observeProductionRequestIncident(db, {
+      routeTemplate: "/api/chat/message",
+      subsystem: "db",
+      httpStatus: 500,
+      error: e,
+    });
     return NextResponse.json(
       { error: "메시지 수정 중 오류가 발생했습니다." },
       { status: 500 }

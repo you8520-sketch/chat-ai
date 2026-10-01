@@ -502,6 +502,7 @@ import {
   convertToOpenRouterFormat,
 } from "@/lib/openRouterAdult";
 import { formatClientApiError } from "@/lib/apiErrors";
+import { observeProductionRequestIncident } from "@/lib/opsRequestIncidents";
 import { refreshCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing.server";
 import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
 import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
@@ -1394,6 +1395,11 @@ export async function POST(req: Request) {
     adultRoutingConfig.enabled &&
     !isAllowedAdultHandoffTargetModel(activeAdultModelId)
   ) {
+    observeProductionRequestIncident(db, {
+      routeTemplate: "/api/chat",
+      subsystem: "http",
+      httpStatus: 500,
+    });
     return Response.json(
       { error: "성인 장면 라우팅 모델 설정을 확인해 주세요." },
       { status: 500 }
@@ -3493,6 +3499,11 @@ export async function POST(req: Request) {
             return;
           }
           console.error("[/api/chat] Main RP provider generation failed:", (e as Error).message);
+          observeProductionRequestIncident(db, {
+            routeTemplate: "/api/chat",
+            subsystem: "provider",
+            error: e,
+          });
           try {
             markAssistantFailed(db, persistedAssistantId, streamVisibleTextRef || fullText);
             if (regenerateMessageId) {
@@ -6395,6 +6406,11 @@ export async function POST(req: Request) {
           send({ type: "reset" });
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });
         } else {
+          observeProductionRequestIncident(db, {
+            routeTemplate: "/api/chat",
+            subsystem: "stream",
+            error: e,
+          });
           send({ type: "error", error: formatClientApiError(e, "Chat pipeline failed") });
         }
         emitStreamTurnForensics(resolveSsePipelineCatchForensics(partialOnError));

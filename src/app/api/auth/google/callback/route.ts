@@ -2,8 +2,23 @@ import { NextResponse } from "next/server";
 import { SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/sessionCookie";
 import { cookies } from "next/headers";
 import { createSession } from "@/lib/auth";
+import { getDb } from "@/lib/db";
 import { resolvePostGoogleDest, sanitizeOAuthReturnTo, upsertGoogleUser } from "@/lib/googleAuth";
+import { observeProductionRequestIncident } from "@/lib/opsRequestIncidents";
 import { googleOAuthCallbackUrl, resolvePublicOrigin } from "@/lib/publicOrigin";
+
+function observeGoogleAuthServerFailure(status: number): void {
+  if (status < 500) return;
+  try {
+    observeProductionRequestIncident(getDb(), {
+      routeTemplate: "/api/auth/google/callback",
+      subsystem: "auth",
+      httpStatus: status,
+    });
+  } catch {
+    // The google_failed redirect remains the response.
+  }
+}
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -30,14 +45,20 @@ export async function GET(req: Request) {
       grant_type: "authorization_code",
     }),
   });
-  if (!tokenRes.ok) return NextResponse.redirect(`${origin}${returnTo}?error=google_failed`);
+  if (!tokenRes.ok) {
+    observeGoogleAuthServerFailure(tokenRes.status);
+    return NextResponse.redirect(`${origin}${returnTo}?error=google_failed`);
+  }
   const { access_token } = (await tokenRes.json()) as { access_token?: string };
   if (!access_token) return NextResponse.redirect(`${origin}${returnTo}?error=google_failed`);
 
   const infoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
     headers: { Authorization: `Bearer ${access_token}` },
   });
-  if (!infoRes.ok) return NextResponse.redirect(`${origin}${returnTo}?error=google_failed`);
+  if (!infoRes.ok) {
+    observeGoogleAuthServerFailure(infoRes.status);
+    return NextResponse.redirect(`${origin}${returnTo}?error=google_failed`);
+  }
   const info = (await infoRes.json()) as { sub: string; email: string; name?: string };
   if (!info.sub || !info.email) {
     return NextResponse.redirect(`${origin}${returnTo}?error=google_failed`);

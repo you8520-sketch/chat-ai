@@ -18,6 +18,12 @@ on:
       - "src/lib/openRouterContractWatch.test.ts"
       - "src/lib/adminOpsInboxShared.ts"
       - "src/lib/adminOpsInbox.test.ts"
+      - "src/lib/opsRequestIncidents.ts"
+      - "src/lib/opsRequestIncidents.test.ts"
+      - "src/lib/db.ts"
+      - "src/app/api/chat/route.ts"
+      - "src/app/api/chat/message/route.ts"
+      - "src/app/api/auth/google/callback/route.ts"
       - "src/lib/schedulerDefinitions.ts"
       - "src/lib/schedulerRunRegistry.ts"
       - "src/lib/schedulerRunShared.ts"
@@ -60,6 +66,7 @@ jobs:
         run: >-
           node --conditions=react-server --import tsx --test --test-concurrency=1
           src/lib/adminOpsInbox.test.ts
+          src/lib/opsRequestIncidents.test.ts
           src/lib/financeAnomalyRadar.test.ts
           src/cron/adminSupplyDraftNotificationScheduler.test.ts
       - name: OpenRouter contract watch regression

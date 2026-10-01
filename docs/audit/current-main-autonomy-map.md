@@ -197,7 +197,7 @@ Not implemented in this PR.
 | Backup and restore | OWNER_GAP | No canonical owner. |
 | Domain and certificate | OWNER_GAP | No canonical owner. |
 | Prompt quality drift | OWNER_GAP | No scheduled production owner. |
-| Production user-error inbox | ADMIN_VISIBILITY_GAP | Ops Inbox does not ingest request 5xx. |
+| Production request server failures | ALREADY_COVERED | `ops_request_incidents` aggregates stable signatures. `listAdminOpsIncidents` projects them as source `request`. 4xx and expected auth or validation failures stay out. |
 | Autonomy map on an admin page | ADMIN_VISIBILITY_GAP | Would be a second projection of this audit. Left as FOLLOW-UP so the report does not become a configuration owner. |
 | Automation Health vs Ops Inbox severity | INVESTIGATION_GAP | Both observe. They do not actuate, so they are not merged here. |
 | Live quality, decision radar, supply day-1 | COST_BLOCKED | A rerun spends provider calls. |
