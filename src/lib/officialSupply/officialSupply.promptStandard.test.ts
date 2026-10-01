@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import { compileCanonPlanV1 } from "@/lib/canonPlan/compiler";
 import { isPublicVisibleChunk } from "@/lib/canonPlan/canonVisibility";
 import { compileOfficialDraftFromBible, type OfficialCharacterBible } from "@/lib/officialSupply/bible";
-import { composeOfficialSystemPrompt } from "@/lib/officialSupply/characterText";
+import { buildOfficialCharacterFormBody, composeOfficialSystemPrompt } from "@/lib/officialSupply/characterText";
 import {
   renderAppearanceBlock,
   renderRuntimeAppearanceBlock,
@@ -304,6 +304,87 @@ describe("official character prompt standard v1", () => {
     assert.deepEqual(file.draft.secrets, draft.secrets);
     assert.equal(file.draft.description, draft.description);
     assert.equal(file.draft.greeting, draft.greeting);
+  });
+
+  it("keeps Lucian public copy, staged prompt, and greeting from forcing the user's first move", () => {
+    const { file, draft } = compileLucian();
+    const runtimeAppearance = renderRuntimeAppearanceBlock(file.appearance);
+    const systemPrompt = composeOfficialSystemPrompt(draft, runtimeAppearance);
+    const formBody = buildOfficialCharacterFormBody({
+      draft,
+      appearanceBlock: runtimeAppearance,
+      assets: [],
+    });
+    const publicAndStaged = [
+      draft.description,
+      String(formBody.description),
+      draft.sections.relationshipsAndDrives,
+      String(formBody.system_prompt),
+      systemPrompt,
+      file.brief.rpHook,
+      draft.hook.rpHook,
+    ].join("\n");
+    assert.doesNotMatch(publicAndStaged, /함께 움직여야/);
+    assert.doesNotMatch(publicAndStaged, /손목을 잡고/);
+    assert.doesNotMatch(draft.greeting, /손목을 잡고/);
+    assert.match(draft.greeting, /따라오셔도 되고, 여기서 갈라서도 됩니다/);
+    assert.match(draft.description, /같은 탈출구 앞에 있다/);
+    assert.match(systemPrompt, /도주에 협력할지, 거리를 둘지, 갈라설지는 유저가 정한다/);
+  });
+
+  it("keeps ledger-evidence facts in secrets only, not in public or situation teasers", () => {
+    const { file, draft } = compileLucian();
+    const runtimeAppearance = renderRuntimeAppearanceBlock(file.appearance);
+    const systemPrompt = composeOfficialSystemPrompt(draft, runtimeAppearance);
+    const formBody = buildOfficialCharacterFormBody({
+      draft,
+      appearanceBlock: runtimeAppearance,
+      assets: [],
+    });
+    const creatorComment = composeOfficialCreatorComment(draft);
+    const evidence = /고위 간부의 자금 흐름|간부와 금지 거래|금지 거래와 고위 간부/;
+    const publicSurfaces = [
+      draft.description,
+      draft.tagline,
+      draft.greeting,
+      creatorComment,
+      file.bible.publicProfile.description,
+      file.bible.publicProfile.tagline,
+      String(formBody.description),
+      String(formBody.creator_comment),
+      String(formBody.greeting),
+    ].join("\n");
+    const situationSurfaces = [
+      file.bible.situation.personalSituation,
+      file.bible.situation.userEntry,
+      draft.sections.worldAndSituation,
+      String(formBody.world),
+    ].join("\n");
+    assert.match(file.bible.secrets.join("\n"), evidence);
+    assert.match(draft.secrets.join("\n"), evidence);
+    assert.match(systemPrompt, evidence);
+    assert.match(String(formBody.system_prompt), /\[비밀 — 캐릭터는 앎\]/);
+    assert.doesNotMatch(publicSurfaces, evidence);
+    assert.doesNotMatch(situationSurfaces, evidence);
+    assert.match(situationSurfaces, /숨긴 기록/);
+  });
+
+  it("records the mercator_guild owner-approval choice instead of attaching the longer local body", () => {
+    const world = readJson<{ bible: { lorebook: OfficialWorldLorebookEntry[] } }>(path.join(PILOT_DIR, "world-bible.json"));
+    const { file } = compileLucian();
+    const approved = (file.characterLorebook ?? []).find((entry) => entry.entryKey === "mercator_guild");
+    const shared = world.bible.lorebook.find((entry) => entry.entryKey === "mercator_guild");
+    const resolved = resolveOfficialCharacterLorebooks(world.bible.lorebook, file.characterLorebook);
+    const attached = resolved.find((entry) => entry.entryKey === "mercator_guild");
+    assert.ok(approved?.keywords.includes("길드 장부"));
+    assert.equal(shared?.keywords.includes("길드 장부"), false);
+    assert.equal(attached?.keywords.includes("길드 장부"), false);
+    assert.equal(attached?.content, shared?.content);
+    assert.notEqual(approved?.content, shared?.content);
+    const report = buildOfficialCharacterReviewReport("pilot-rf-03");
+    assert.match(report, /OWNER APPROVAL CHOICE unresolved: mercator_guild/);
+    assert.match(report, /creator-approved keywords absent from shared owner: .*길드 장부/);
+    assert.match(report, /attached as authored local bodies: aether_bonds, mercator_exchange_underworld, bio_aether_taboos \(3 of 4\)/);
   });
 
 });

@@ -184,9 +184,27 @@ export function buildOfficialCharacterReviewReport(draftKey = "pilot-rf-03"): st
     ),
     ...lorebookBlock("## RESOLVED LOREBOOK — ACTUAL ATTACH SET", resolvedLorebook),
     "## LOREBOOK DIFF — APPROVED LOCAL vs RESOLVED ATTACH",
-    `- shared owner reused, approved local not attached: ${reusedKeys.join(", ") || "(none)"}`,
-    `- character-local extras attached: ${extraKeys.join(", ") || "(none)"}`,
+    `- approved local keys: ${approvedLocal.map((entry) => entry.entryKey).join(", ") || "(none)"}`,
+    `- attached as authored local bodies: ${extraKeys.join(", ") || "(none)"} (${extraKeys.length} of ${approvedLocal.length})`,
+    `- OWNER APPROVAL CHOICE unresolved: ${reusedKeys.join(", ") || "(none)"} approved local body is superseded by the shared world owner. Do not label reused keys as active as approved.`,
     `- resolved entryKeys: ${resolvedLorebook.map((entry) => entry.entryKey).join(", ")}`,
+    ...reusedKeys.flatMap((key) => {
+      const approved = approvedLocal.find((entry) => entry.entryKey === key);
+      const shared = world.bible.lorebook.find((entry) => entry.entryKey === key);
+      const resolved = resolvedLorebook.find((entry) => entry.entryKey === key);
+      const missingKeywords = (approved?.keywords ?? []).filter((word) => !(shared?.keywords ?? []).includes(word));
+      return [
+        `### OWNER CHOICE DETAIL — ${key}`,
+        `approved local keywords: ${(approved?.keywords ?? []).join(" / ")}`,
+        `shared/resolved keywords: ${(resolved?.keywords ?? shared?.keywords ?? []).join(" / ")}`,
+        `creator-approved keywords absent from shared owner: ${missingKeywords.join(" / ") || "(none)"}`,
+        "approved local body:",
+        approved?.content ?? "(missing)",
+        "shared owner body actually attached:",
+        resolved?.content ?? shared?.content ?? "(missing)",
+        "",
+      ];
+    }),
     "",
     "## SPEECH PERSONALITY",
     draft.speech.personality,
