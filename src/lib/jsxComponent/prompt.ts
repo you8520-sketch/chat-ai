@@ -1,5 +1,5 @@
 import { buildJsxComponentManifestBlock } from "./manifest";
-import type { JsxComponentRecord } from "./types";
+import type { JsxComponentManifestRecord } from "./types";
 
 /**
  * Canonical AI-callable component instruction owner.
@@ -7,7 +7,7 @@ import type { JsxComponentRecord } from "./types";
  * Does not carry JSX source. Complements HTML_OUTPUT_OWNERSHIP_BLOCK
  * instead of adding a second general UI-instruction owner.
  */
-export function resolveJsxComponentPromptBlock(catalog: JsxComponentRecord[]): string | null {
+export function resolveJsxComponentPromptBlock(catalog: JsxComponentManifestRecord[]): string | null {
   const block = buildJsxComponentManifestBlock(catalog);
   return block.trim() ? block : null;
 }
