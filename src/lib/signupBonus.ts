@@ -13,10 +13,7 @@ export function hasSignupBonus(userId: number): boolean {
 
 /** Single writer for the new-user bonus. Returns false when already granted. */
 export function grantSignupBonusOnce(userId: number): boolean {
-  const db = getDb();
-  return db.transaction(() => {
-    if (hasSignupBonus(userId)) return false;
-    creditPointsWithIds(db, userId, SIGNUP_BONUS_POINTS, "FREE", SIGNUP_BONUS_REASON);
-    return true;
-  })();
+  if (hasSignupBonus(userId)) return false;
+  creditPointsWithIds(getDb(), userId, SIGNUP_BONUS_POINTS, "FREE", SIGNUP_BONUS_REASON);
+  return true;
 }
