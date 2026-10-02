@@ -14,6 +14,7 @@ import {
   deriveFinalAssetTag,
   validateStructuredAssetVisionResult,
   type AssetVisionStructuredResult,
+  type NippleExposure,
 } from "@/lib/assetPersonTags";
 import { normalizeVisionModerationFlags } from "@/lib/visionModerationNormalize";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
@@ -31,6 +32,7 @@ export type ParsedVisionTag = {
   adultFlagged: boolean;
   moderationReject: boolean;
   moderationReason: string;
+  nippleExposure?: NippleExposure;
 };
 
 function extractJsonCandidate(raw: string): string {
@@ -59,6 +61,7 @@ export function finalizeStructuredVisionResult(
     adultFlagged,
     moderationReject,
     moderationReason: structured.reason.slice(0, 160),
+    ...(structured.nippleExposure ? { nippleExposure: structured.nippleExposure } : {}),
   });
 }
 
@@ -235,6 +238,7 @@ export async function analyzeAssetImage(
   adultFlagged: boolean;
   moderationReject: boolean;
   moderationReason: string;
+  nippleExposure?: NippleExposure;
   /** Per-attempt usage witnesses for server-side persistence (visionCost). */
   costAttempts: VisionCostEvidence[];
 }> {

@@ -8,7 +8,7 @@ import {
   normalizeCharacterAssets,
   representativeSelectionError,
 } from "@/lib/characterAssets";
-import { isAssetHardRejected } from "@/lib/assetVisionPolicy";
+import { canPublishAsRepresentative } from "@/lib/assetVisionPolicy";
 import { bindTrustedCharacterMedia } from "@/lib/mediaAccess";
 import { parseCharacterGender } from "@/lib/characterGender";
 import { buildSaveCharacterChunksAndEnqueueDerivedRefresh } from "@/lib/characterChunks";
@@ -253,13 +253,14 @@ function prepareVisualSubjectsForSave(opts: {
   }
 }
 
-/** Hard reject only. adultFlagged representatives stay hold/pending via listing + public ACL. */
-function representativePublishError(assets: CharacterAsset[]): string | null {
+function representativePublishError(
+  assets: CharacterAsset[],
+  visibility: CharacterVisibility
+): string | null {
   for (const asset of assets.filter((row) => row.representativeRank != null)) {
-    const reason = String(asset.moderationReason ?? "");
-    if (isAssetHardRejected(asset) || /유두/.test(reason)) {
-      return "유두·성기·항문이 노출된 이미지는 대표로 지정할 수 없습니다.";
-    }
+    const decision = canPublishAsRepresentative(asset);
+    if (decision.ok) continue;
+    if (!decision.hold || visibility !== "private") return decision.reason;
   }
   return null;
 }
@@ -267,14 +268,18 @@ function representativePublishError(assets: CharacterAsset[]): string | null {
 function finalizeAssetsForSave(
   assets: CharacterAsset[],
   rawAssets: unknown,
-  userId: number
+  userId: number,
+  context: { nsfw: boolean; visibility: CharacterVisibility; characterId?: number | null }
 ): { ok: true; assets: CharacterAsset[] } | { ok: false; error: string; status: 400 } {
   const rawList = Array.isArray(rawAssets) ? rawAssets : [];
   const selectionError = representativeSelectionError(rawList);
   if (selectionError) return { ok: false, error: selectionError, status: 400 };
-  const bound = bindTrustedCharacterMedia(assets, userId);
+  const bound = bindTrustedCharacterMedia(assets, userId, {
+    nsfw: context.nsfw,
+    characterId: context.characterId ?? null,
+  });
   if (!bound.ok) return { ok: false, error: bound.error, status: 400 };
-  const publishError = representativePublishError(bound.assets);
+  const publishError = representativePublishError(bound.assets, context.visibility);
   if (publishError) return { ok: false, error: publishError, status: 400 };
   return { ok: true, assets: bound.assets };
 }
@@ -395,6 +400,7 @@ export function parseCharacterFormBody(
     requireStructuredAge?: boolean;
     trustedStoredSimulationVisualSubjectsJson?: string;
     trustedStoredVisualSubjectsJson?: string;
+    characterId?: number;
     existingCharacter?: {
       world: string | null;
       worldId: number | null;
@@ -674,7 +680,12 @@ export function parseCharacterFormBody(
     return { ok: false, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
   }
 
-  const finalized = finalizeAssetsForSave(assets, b.assets, user.id);
+  const requestedVisibility = parseVisibility(b.visibility);
+  const finalized = finalizeAssetsForSave(assets, b.assets, user.id, {
+    nsfw,
+    visibility: requestedVisibility,
+    characterId: options?.characterId ?? null,
+  });
   if (!finalized.ok) return finalized;
   assets = finalized.assets;
 
@@ -707,7 +718,7 @@ export function parseCharacterFormBody(
       assets,
       images: listingImageUrls(assets),
       audience: ["all", "female", "male"].includes(String(b.audience)) ? String(b.audience) : "all",
-      requestedVisibility: parseVisibility(b.visibility),
+      requestedVisibility,
       nsfw,
       participantMinAge,
       adultDialogueProfile,
@@ -1175,6 +1186,7 @@ export async function updateCharacterFromForm(
     requireStructuredAge: false,
     trustedStoredSimulationVisualSubjectsJson: row.simulation_visual_subjects_json,
     trustedStoredVisualSubjectsJson: row.simulation_visual_subjects_json,
+    characterId,
     existingCharacter: {
       world: row.world,
       worldId: row.world_id,
@@ -1493,11 +1505,15 @@ export async function updateCharacterPublicProfileFromForm(
     participantMinAge,
     legacyExplicitStatus: parseExplicitAdultStatus(row.adult_status),
   });
-  const finalized = finalizeAssetsForSave(assets, b.assets, user.id);
+  const requestedVisibility = parseVisibility(b.visibility);
+  const finalized = finalizeAssetsForSave(assets, b.assets, user.id, {
+    nsfw,
+    visibility: requestedVisibility,
+    characterId,
+  });
   if (!finalized.ok) return finalized;
   assets = finalized.assets;
   const images = listingImageUrls(assets);
-  const requestedVisibility = parseVisibility(b.visibility);
   const creatorComment = String(b.creator_comment ?? b.creatorComment ?? "").trim().slice(0, CREATOR_COMMENT_LIMIT);
   const listingBlock = listingBlockForForm({
     nsfw,

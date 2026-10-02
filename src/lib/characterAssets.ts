@@ -18,6 +18,10 @@ export type CharacterAsset = {
   /** 하드 반려: 여성 유두·남녀 성기·항문 노출 등 */
   moderationReject?: boolean;
   moderationReason?: string;
+  /** Server ledger: pending until vision check completes. */
+  moderationStatus?: "pending" | "checked";
+  /** Representative-only nipple evidence. Not an all-asset hard reject. */
+  nippleExposure?: "none" | "visible" | "uncertain";
   width?: number;
   height?: number;
   orientation?: AssetOrientation;
@@ -219,6 +223,14 @@ function normalizeAsset(
     ...(typeof raw.moderationReject === "boolean" ? { moderationReject: raw.moderationReject } : {}),
     ...(typeof raw.moderationReason === "string" && raw.moderationReason.trim()
       ? { moderationReason: raw.moderationReason.trim().slice(0, 200) }
+      : {}),
+    ...(raw.moderationStatus === "pending" || raw.moderationStatus === "checked"
+      ? { moderationStatus: raw.moderationStatus }
+      : {}),
+    ...(raw.nippleExposure === "none" ||
+    raw.nippleExposure === "visible" ||
+    raw.nippleExposure === "uncertain"
+      ? { nippleExposure: raw.nippleExposure }
       : {}),
     ...optionalSizeFields(raw),
     ...optionalMediaFields(raw),

@@ -25,13 +25,18 @@ export type StoredPrivateMedia = {
   localPath: string;
 };
 
+export type MediaModerationStatus = "pending" | "checked";
+export type MediaNippleExposure = "none" | "visible" | "uncertain";
+
 export type MediaManifest = {
   uploadedBy: number;
   createdAt: string;
   contentType: string;
+  moderationStatus?: MediaModerationStatus;
   adultFlagged?: boolean;
   moderationReject?: boolean;
   moderationReason?: string;
+  nippleExposure?: MediaNippleExposure;
 };
 
 export function mediaPrivateDir(): string {
@@ -123,10 +128,17 @@ export function readMediaManifest(filename: string): MediaManifest | null {
     const parsed = JSON.parse(raw) as Partial<MediaManifest>;
     const uploadedBy = Number(parsed.uploadedBy);
     if (!Number.isInteger(uploadedBy) || uploadedBy <= 0) return null;
+    const nippleExposure =
+      parsed.nippleExposure === "none" ||
+      parsed.nippleExposure === "visible" ||
+      parsed.nippleExposure === "uncertain"
+        ? parsed.nippleExposure
+        : undefined;
     return {
       uploadedBy,
       createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : "",
       contentType: typeof parsed.contentType === "string" ? parsed.contentType : "image/webp",
+      moderationStatus: parsed.moderationStatus === "checked" ? "checked" : "pending",
       ...(typeof parsed.adultFlagged === "boolean" ? { adultFlagged: parsed.adultFlagged } : {}),
       ...(typeof parsed.moderationReject === "boolean"
         ? { moderationReject: parsed.moderationReject }
@@ -134,6 +146,7 @@ export function readMediaManifest(filename: string): MediaManifest | null {
       ...(typeof parsed.moderationReason === "string" && parsed.moderationReason.trim()
         ? { moderationReason: parsed.moderationReason.trim().slice(0, 200) }
         : {}),
+      ...(nippleExposure ? { nippleExposure } : {}),
     };
   } catch {
     return null;
@@ -205,6 +218,7 @@ export async function storePrivateMedia(
     uploadedBy,
     createdAt: new Date().toISOString(),
     contentType,
+    moderationStatus: "pending",
   });
 
   return {

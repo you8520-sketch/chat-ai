@@ -39,11 +39,18 @@ export async function POST(req: Request) {
     if (!filename) continue;
     const current = readMediaManifest(filename);
     if (!current) continue;
+    if (asset.estimated) continue;
     await writeMediaManifest(filename, {
       ...current,
+      moderationStatus: "checked",
       adultFlagged: asset.adultFlagged === true,
       moderationReject: asset.moderationReject === true,
       ...(asset.moderationReason ? { moderationReason: String(asset.moderationReason).slice(0, 200) } : {}),
+      ...(asset.nippleExposure === "none" ||
+      asset.nippleExposure === "visible" ||
+      asset.nippleExposure === "uncertain"
+        ? { nippleExposure: asset.nippleExposure }
+        : {}),
     });
   }
   return NextResponse.json({ ok: true, assets });

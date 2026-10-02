@@ -109,9 +109,23 @@ export function decidePrivateMediaAccess(input: {
   return { ok: false, reason: "denied" };
 }
 
+function ledgerModerationFields(manifest: ReturnType<typeof readMediaManifest>): Partial<CharacterAsset> {
+  if (!manifest) return { moderationStatus: "pending" };
+  return {
+    moderationStatus: manifest.moderationStatus === "checked" ? "checked" : "pending",
+    ...(typeof manifest.adultFlagged === "boolean" ? { adultFlagged: manifest.adultFlagged } : {}),
+    ...(typeof manifest.moderationReject === "boolean"
+      ? { moderationReject: manifest.moderationReject }
+      : {}),
+    ...(manifest.moderationReason ? { moderationReason: manifest.moderationReason } : {}),
+    ...(manifest.nippleExposure ? { nippleExposure: manifest.nippleExposure } : {}),
+  };
+}
+
 export function bindTrustedCharacterMedia(
   assets: CharacterAsset[],
-  userId: number
+  userId: number,
+  context?: { nsfw: boolean; characterId?: number | null }
 ): { ok: true; assets: CharacterAsset[] } | { ok: false; error: string } {
   const next: CharacterAsset[] = [];
   for (const asset of assets) {
@@ -128,9 +142,27 @@ export function bindTrustedCharacterMedia(
     if (!manifest || manifest.uploadedBy !== userId) {
       return { ok: false, error: "다른 사용자의 이미지는 첨부할 수 없습니다." };
     }
+    if (context) {
+      const owners = loadOwningCharacters(filename);
+      const conflict = owners.some(
+        (character) =>
+          character.id !== context.characterId && Boolean(character.nsfw) !== context.nsfw
+      );
+      if (conflict) {
+        return { ok: false, error: "일반용과 성인용 캐릭터에 같은 이미지를 쓸 수 없습니다." };
+      }
+    }
     const mediaId = mediaIdFromPrivateFilename(filename) ?? asset.mediaId;
     const representative = isRepresentativeAsset(asset);
-    const { publicRenditionUrl: _clientPublic, ...trusted } = asset;
+    const {
+      publicRenditionUrl: _clientPublic,
+      adultFlagged: _clientAdult,
+      moderationReject: _clientReject,
+      moderationReason: _clientReason,
+      moderationStatus: _clientStatus,
+      nippleExposure: _clientNipple,
+      ...trusted
+    } = asset;
     next.push({
       ...trusted,
       url: privateMediaUrl(filename),
@@ -139,11 +171,7 @@ export function bindTrustedCharacterMedia(
       ...(representative && mediaId
         ? { publicRenditionUrl: publicMediaUrl(`${mediaId}-public.webp`) }
         : {}),
-      ...(typeof manifest.adultFlagged === "boolean" ? { adultFlagged: manifest.adultFlagged } : {}),
-      ...(typeof manifest.moderationReject === "boolean"
-        ? { moderationReject: manifest.moderationReject }
-        : {}),
-      ...(manifest.moderationReason ? { moderationReason: manifest.moderationReason } : {}),
+      ...ledgerModerationFields(manifest),
     });
   }
   return { ok: true, assets: next };
@@ -258,13 +286,15 @@ function loadCompletedAssistantMessages(chatId: number): UnlockSourceMessage[] {
 
 function isApprovedRepresentativeMedia(filename: string, owningCharacters: readonly OwningCharacter[]): boolean {
   const mediaId = mediaIdFromPrivateFilename(filename) ?? mediaIdFromPublicRenditionFilename(filename);
+  const manifest = mediaId ? readMediaManifest(`${mediaId}.webp`) : null;
+  const ledger = ledgerModerationFields(manifest);
   return owningCharacters.some((character) =>
     character.assets.some((asset) => {
       const matches = mediaId
         ? asset.mediaId === mediaId || filenameFromPrivateMediaUrl(asset.url) === `${mediaId}.webp`
         : assetMatchesPrivateFilename(asset, filename);
       if (!matches || !isRepresentativeAsset(asset)) return false;
-      return canPublishAsRepresentative(asset).ok;
+      return canPublishAsRepresentative({ ...asset, ...ledger, ...(mediaId ? { mediaId } : {}) }).ok;
     })
   );
 }
