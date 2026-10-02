@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { analyzeAssetBatch } from "@/lib/vision";
 import { isStoredAssetUrl } from "@/lib/characterAssets";
@@ -9,7 +10,7 @@ import { isAdminUser } from "@/lib/isAdminUser";
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
-  if (!user.is_adult) return NextResponse.json({ error: "성인인증 후 이용할 수 있습니다." }, { status: 403 });
+  if (!canUseCreatorTools(user)) return NextResponse.json({ error: "성인인증 후 이용할 수 있습니다." }, { status: 403 });
 
   const { urls } = await req.json();
   if (!Array.isArray(urls) || urls.length === 0) {

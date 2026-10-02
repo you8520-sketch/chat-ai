@@ -24,6 +24,7 @@ describe("prose style anti-pattern fixtures (static)", () => {
     assert.match(COMMON_PROSE_BLOCK, /\[COMMON PROSE\]/);
     assert.match(COMMON_PROSE_BLOCK, /작은 행동·미세한 반응은/);
     assert.match(COMMON_PROSE_BLOCK, /평범한 동작은 줄인다/);
+    assert.doesNotMatch(COMMON_PROSE_BLOCK, /손·손가락·시선 같은 신체 앵커/);
     assert.match(PROSE_STYLE_SECTION, /\[COMMON PROSE\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[MOVEMENT & DETAIL\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[BODY AND PROP INVENTORY\]/);
@@ -31,8 +32,11 @@ describe("prose style anti-pattern fixtures (static)", () => {
   });
 
   it("B: rejects post-hoc narrator gloss via COMMON PROSE", () => {
-    assert.match(COMMON_PROSE_BLOCK, /드러난 의미를 "~라는 뜻이었다"식으로 재해설하지 않는다/);
-    assert.match(COMMON_PROSE_BLOCK, /의미가 전달되면 다음 반응·행동·환경·관계 변화로 나아가고/);
+    assert.match(
+      COMMON_PROSE_BLOCK,
+      /이미 드러난 의미는 해설·결론으로 되짚기보다 다음 반응·행동·환경·관계 변화로 이어간다/
+    );
+    assert.doesNotMatch(COMMON_PROSE_BLOCK, /"~라는 뜻이었다"식으로 재해설하지 않는다/);
     assert.doesNotMatch(COMMON_PROSE_BLOCK, /\[CANON RECITAL/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[NO POST-HOC VERDICT\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /감정 이름·해석·결론 없이/);

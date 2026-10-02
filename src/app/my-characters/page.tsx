@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { shouldHideAdultListings } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import MyCharacterCard, { type MyCharacterRow } from "@/components/MyCharacterCard";
@@ -13,7 +14,7 @@ export default async function MyCharactersPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?redirect=/my-characters");
 
-  const blurNsfw = !user.is_adult || !user.nsfw_on;
+  const blurNsfw = shouldHideAdultListings(user);
   const db = getDb();
   const chars = db
     .prepare(`SELECT * FROM characters WHERE creator_id = ? ORDER BY created_at DESC, id DESC`)

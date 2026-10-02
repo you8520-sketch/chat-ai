@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import {
@@ -50,7 +51,7 @@ export async function GET(_req: Request, { params }: Params) {
 export async function PUT(req: Request, { params }: Params) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
-  if (!user.is_adult) {
+  if (!canUseCreatorTools(user)) {
     return NextResponse.json({ error: "로어북 수정은 성인인증 완료 후 가능합니다." }, { status: 403 });
   }
 

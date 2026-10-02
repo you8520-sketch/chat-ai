@@ -48,6 +48,8 @@ test("privacy copy states proven Google login fields and purpose", () => {
   assert.match(text, /OpenRouter/);
   assert.match(text, /Cheaper Inference/);
   assert.match(text, /계정 전체를 삭제하는 기능은 없습니다/);
+  assert.match(text, /저장된 성인 표시는 성인 콘텐츠 열람을 열지 않습니다/);
+  assert.match(text, /기존 관리자 권한의 베타 테스트 접근만/);
   assert.doesNotMatch(text, /사업자등록|주식회사|자동으로 완전히|제3자에게 제공하지 않/);
 });
 
@@ -66,6 +68,8 @@ test("terms publish confirmed business fields and the five point products", () =
   for (const line of BUSINESS_PUBLIC_LINES) {
     assert.match(text, new RegExp(line.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
+  assert.match(text, /저장된 성인 표시는 성인 콘텐츠 열람을 열지 않습니다/);
+  assert.doesNotMatch(text, /설정에 따라 이 확인은 생략될 수 있습니다/);
   assert.match(text, /상품 공개와 실제 결제 활성화는 별개/);
   assert.match(text, new RegExp(`현재 사업자 상태가 ${BUSINESS_OPERATING_STATUS}이므로 결제를 활성화하지 않습니다`));
   assert.match(text, new RegExp(`지급일로부터 ${PAID_POINTS_VALID_YEARS}년`));
@@ -93,7 +97,11 @@ test("legal footer is the only renderer of the shared link set", () => {
   assert.match(footer, /SITE_DISPLAY_NAME/);
   assert.match(footer, /SITE_DESCRIPTION/);
   assert.match(footer, /BUSINESS_PUBLIC_LINES/);
-  assert.match(footer, /BUSINESS_TRADE_NAME/);
+  assert.match(footer, /aria-label="사업자 정보"/);
+  assert.match(footer, /border-t border-white/);
+  assert.match(footer, /flex flex-wrap gap-x-3/);
+  assert.match(footer, /min-\[576px\]:pl-\[200px\]/);
+  assert.doesNotMatch(footer, /space-y-0\.5/);
   assert.doesNotMatch(footer, /통신판매업|고객센터 전화/);
   assert.equal(layout.match(/<SiteLegalFooter \/>/g)?.length, 1);
   assert.doesNotMatch(privacy, /PUBLIC_LEGAL_LINKS|href=\"\/privacy\"|href=\"\/terms\"/);

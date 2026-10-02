@@ -513,8 +513,8 @@ describe("official pilot content (romance fantasy 01)", () => {
   it("19+ viewer gate still ignores official/site-managed state", () => {
     const page = fs.readFileSync(path.join(process.cwd(), "src/app/character/[id]/page.tsx"), "utf8");
     const route = fs.readFileSync(path.join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
-    assert.match(page, /if \(c\.nsfw === 1 && !user\.is_adult\) \{/);
-    assert.match(route, /if \(ch\.nsfw && !user\.is_adult\) \{/);
+    assert.match(page, /if \(c\.nsfw === 1 && !canAccessAdultContent\(user\)\) \{/);
+    assert.match(route, /if \(ch\.nsfw && !canAccessAdultContent\(user\)\) \{/);
   });
 });
 
