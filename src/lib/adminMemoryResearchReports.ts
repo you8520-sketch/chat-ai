@@ -2,6 +2,7 @@ import {
   AUTOMATION_REPORTS_GITHUB_REPO,
   type GithubScheduledAutomationGroup,
 } from "@/lib/adminAutomationReports";
+import { githubReportGetContent } from "@/lib/githubReportClient";
 
 export const MEMORY_RESEARCH_LEDGER_BRANCH = "memory-research-ledger";
 export const MEMORY_RESEARCH_WORKFLOW_PATH =
@@ -410,17 +411,6 @@ function projectMemoryResearchInsights(
   return insights;
 }
 
-function decodeGithubContent(body: unknown): string | null {
-  const record = asRecord(body);
-  const content = record ? asString(record.content) : "";
-  if (!content) return null;
-  try {
-    return Buffer.from(content.replace(/\n/g, ""), "base64").toString("utf8");
-  } catch {
-    return null;
-  }
-}
-
 function parseJsonRecord(raw: string | null): Record<string, unknown> | null {
   if (!raw) return null;
   try {
@@ -756,48 +746,6 @@ export function assessMemoryResearchFreshness(
   };
 }
 
-async function fetchGithubContentRaw(
-  url: string,
-  fetchImpl: typeof fetch
-): Promise<{
-  status: "OK" | "EMPTY" | "UNAVAILABLE";
-  error: string | null;
-  raw: string | null;
-}> {
-  try {
-    const response = await fetchImpl(url, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "chat-ai-admin-automation-reports",
-      },
-      cache: "no-store",
-    });
-    if (response.status === 404) {
-      return { status: "EMPTY", error: null, raw: null };
-    }
-    if (!response.ok) {
-      return {
-        status: "UNAVAILABLE",
-        error: `GitHub Contents API ${response.status}`,
-        raw: null,
-      };
-    }
-    const raw = decodeGithubContent(await response.json());
-    return raw
-      ? { status: "OK", error: null, raw }
-      : { status: "EMPTY", error: null, raw: null };
-  } catch (error) {
-    return {
-      status: "UNAVAILABLE",
-      error:
-        error instanceof Error
-          ? error.message
-          : "Memory research ledger unavailable",
-      raw: null,
-    };
-  }
-}
-
 export async function fetchMemoryResearchAdminProjection(
   githubGroups: readonly GithubScheduledAutomationGroup[],
   fetchImpl: typeof fetch = fetch,
@@ -809,7 +757,7 @@ export async function fetchMemoryResearchAdminProjection(
     null;
   const githubRunUrl = workflowGroup?.latest.htmlUrl ?? null;
 
-  const ledger = await fetchGithubContentRaw(
+  const ledger = await githubReportGetContent(
     `https://api.github.com/repos/${repo}/contents/ledger.json?ref=${MEMORY_RESEARCH_LEDGER_BRANCH}`,
     fetchImpl
   );
@@ -841,7 +789,7 @@ export async function fetchMemoryResearchAdminProjection(
     };
   }
 
-  const cycle = await fetchGithubContentRaw(
+  const cycle = await githubReportGetContent(
     `https://api.github.com/repos/${repo}/contents/cycles/${encodeURIComponent(
       cycleKey
     )}.json?ref=${MEMORY_RESEARCH_LEDGER_BRANCH}`,
