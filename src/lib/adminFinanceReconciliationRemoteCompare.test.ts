@@ -419,6 +419,30 @@ describe("admin finance reconciliation remote compare", () => {
     }
   });
 
+  it("omits key groups rather than presenting 0=0 when the upstream read fails", async () => {
+    const d = db();
+    try {
+      const unavailable = await compare(d, {
+        includeKeyGroups: true,
+        fetchOk: false,
+        status: 403,
+      });
+      assert.equal(unavailable.remote.fetchStatus, "http");
+      assert.equal(unavailable.evidence.classification, RECONCILIATION_REMOTE_UNVERIFIED);
+      assert.equal("apiKeyGroups" in unavailable, false);
+
+      const incomplete = await compare(d, {
+        includeKeyGroups: true,
+        incomplete: true,
+      });
+      assert.equal(incomplete.remote.fetchStatus, "incomplete");
+      assert.equal(incomplete.evidence.classification, RECONCILIATION_REMOTE_UNVERIFIED);
+      assert.equal("apiKeyGroups" in incomplete, false);
+    } finally {
+      d.close();
+    }
+  });
+
   it("returns anonymous per-key aggregates that sum to remote settled totals", async () => {
     const d = db();
     try {
