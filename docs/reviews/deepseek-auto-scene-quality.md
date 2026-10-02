@@ -1,5 +1,7 @@
 # DeepSeek 자동진행 장면 품질
 
+후속 배포 검증은 [post-merge-verification.md](deepseek-auto-scene-quality/post-merge-verification.md)다. 이 문서의 분류와 #1329 원문 링크는 그대로다.
+
 조사 기록이다. Production prompt, routing, billing, runtime code는 그대로다. 문체 점수는 매기지 않는다. PR #1329와 #1335는 수정하지 않았다. 유료 모델 호출은 이번 조사에서 하지 않았다.
 
 기준 커밋은 `origin/main` `1b7813c7690028d9dabd25ec09d955a01d3250bf`이다. 토큰은 `auditAssembledPrompt`와 `estimateTokens` (`src/lib/tokenEstimate.ts`, 글자 수 × 0.9)다. 공급업체 usage가 아니다.
