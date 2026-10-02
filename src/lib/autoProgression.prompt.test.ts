@@ -221,15 +221,17 @@ describe("auto progression prompt content", () => {
     assert.doesNotMatch(block, /기본 서술 시점은 \[A\]/);
   });
 
-  it("continue command short-refs AI_CAST without novel rules", () => {
+  it("continue command short-refs [B] scope and does not order NPC advance", () => {
     const cmd = buildContinueNarrativeCommand({
       personaName: userCharacterName,
       charName: aiCharacterName,
       novelModeEnabled: true, // ignored / normalized elsewhere
     });
     assertNoNovelModeLeak(cmd);
-    assert.match(cmd, /\[AI_CAST\]/);
     assert.match(cmd, /EFFECTIVE USER AUTHORING policy/);
+    assert.match(cmd, /do not widen it here/);
+    assert.doesNotMatch(cmd, /Advance through \[AI_CAST\], NPCs/);
+    assert.doesNotMatch(cmd, /Multiple AI-controlled characters may speak/);
     assert.doesNotMatch(cmd, /\[AUTO PROGRESSION — AI-FOCAL CO-NARRATION\]/);
   });
 
@@ -266,7 +268,7 @@ describe("auto progression prompt content", () => {
     assert.match(canon, /\[AI_CAST\]/);
   });
 
-  it("scene directive uses external ensemble wording", () => {
+  it("scene directive user-control line keeps [B] scope", () => {
     const block = buildSceneDirectivePromptBlock({
       mode: "auto_progression",
       recentMessages: [],
@@ -355,11 +357,8 @@ describe("auto progression prompt content", () => {
       1
     );
     assert.match(built.systemPrompt, /속마음·내면 독백/);
-    assert.match(
-      built.systemPrompt,
-      /가장 유효한 대사·행동·감각·거리·환경 변화 중 필요한 신호/
-    );
-    assert.match(built.systemPrompt, /다음 beat에서는 초점을 자연스럽게 옮긴다/);
+    assert.match(built.systemPrompt, /해설·결론으로 되짚기보다 다음 반응·행동·환경·관계 변화로 이어간다/);
+    assert.match(built.systemPrompt, /표정·시선·호흡·습관·접촉·거리·행동·선택으로 드러내고/);
     assert.doesNotMatch(built.systemPrompt, /never to \[B\] inner POV/i);
     assert.doesNotMatch(built.systemPrompt, /Do not narrate \[B\]'s inner thoughts/i);
     assert.doesNotMatch(built.systemPrompt, /\[B\]의 머릿속으로 들어가 서술하지 않는다/);

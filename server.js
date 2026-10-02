@@ -19,6 +19,8 @@ const bootStart = Date.now();
 const { assertRailwayProductionNodeEnv } = require("./src/lib/railwayProductionBootGuard.js");
 assertRailwayProductionNodeEnv();
 
+const { canonicalHostRedirect } = require("./src/lib/canonicalHostIngress.js");
+
 const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
@@ -221,6 +223,8 @@ const prepareStart = Date.now();
 app.prepare().then(() => {
   console.log(`[boot-timing] app.prepare() took ${Date.now() - prepareStart}ms`);
   httpServer = createServer((req, res) => {
+    // Railway public hostname → configured public origin before Next, auth, or session cookies.
+    if (canonicalHostRedirect(req, res)) return;
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
   });

@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { DEFAULT_STATUS_WIDGET } from "@/lib/statusWidget/defaultTemplate";
+import { parseStatusWidgetJson, serializeStatusWidget } from "@/lib/statusWidget/serialize";
 import {
   buildCombinedDualWidgetExtractSystem,
   buildWidgetExtractSystem,
+  buildWidgetExtractUserBlock,
 } from "@/lib/statusWidget/extractNormalize";
 import { collectWidgetJsonKeys } from "@/lib/statusWidget/prompt";
 import type { StatusWidget } from "@/lib/statusWidget/types";
@@ -233,6 +235,29 @@ describe("Shared Initial prompt regression P1–P8", () => {
       canonicalAssistant: input.assistantProse,
       rejectedDraft: "rejected user draft",
     });
+  });
+});
+
+describe("700 creator instruction runtime transport", () => {
+  it("reloaded 740-raw-char instruction within 700 equivalent budget reaches standalone and dual shared Luna intact", () => {
+    const instruction = "장면".repeat(370);
+    for (const renderer of ["html", "jsx"] as const) {
+      const raw = serializeStatusWidget({
+        ...DEFAULT_STATUS_WIDGET,
+        htmlTemplate: renderer === "html" ? "<div>{{시간}}</div>" : "",
+        ...(renderer === "jsx" ? { jsxSource: 'export default function StatusWidgetView(props) { return <div>{props["시간"]}</div>; }' } : {}),
+        fields: [{ id: "time", label: "시간", instruction }],
+      });
+      const characterWidget = parseStatusWidgetJson(raw);
+      assert.ok(characterWidget);
+      const standalone = buildWidgetExtractUserBlock({
+        charName: "레온", personaName: "렌", userMessage: "대화", assistantProse: "현재 장면",
+        widget: characterWidget!, source: "character",
+      });
+      const shared = buildPostTurnSharedInitialUserBlock(dualInput({ characterWidget }));
+      assert.ok(standalone.includes(instruction), "standalone extract instruction must survive");
+      assert.ok(shared.includes(instruction), "shared dual Luna instruction must survive");
+    }
   });
 });
 

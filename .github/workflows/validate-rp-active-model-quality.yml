@@ -1,6 +1,9 @@
 name: Validate active Main RP quality qualification
 
 on:
+  schedule:
+    # Monthly bounded memory-continuity evidence: 4th day 04:17 UTC (13:17 KST).
+    - cron: "17 4 4 * *"
   pull_request:
     paths:
       - "scripts/lib/rpModelQualificationFixture.ts"
@@ -14,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: rp-active-model-quality-${{ github.event.pull_request.number }}
+  group: rp-active-model-quality-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -42,7 +45,9 @@ jobs:
 
   live_evidence:
     needs: deterministic
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -55,19 +60,27 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Check explicit one-shot trigger
+      - name: Resolve bounded live-evidence trigger
         id: trigger
         shell: bash
         run: |
-          if [[ -f .github/rp-active-model-quality-live.trigger ]]; then
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "run_live=1" >> "$GITHUB_OUTPUT"
+            echo "RP_ACTIVE_MODEL_QUALITY_CASE_IDS=memory_current_state_priority,memory_false_shared_event" >> "$GITHUB_ENV"
+            echo "Monthly schedule: two memory-continuity cases across the current active Main-RP registry."
+          elif [[ -f .github/rp-active-model-quality-live.trigger ]]; then
             echo "run_live=1" >> "$GITHUB_OUTPUT"
             case_ids="$(sed -n 's/^case_ids=//p' .github/rp-active-model-quality-live.trigger | tail -n 1)"
+            model_ids="$(sed -n 's/^model_ids=//p' .github/rp-active-model-quality-live.trigger | tail -n 1)"
             if [[ -n "$case_ids" ]]; then
               echo "RP_ACTIVE_MODEL_QUALITY_CASE_IDS=$case_ids" >> "$GITHUB_ENV"
             fi
+            if [[ -n "$model_ids" ]]; then
+              echo "RP_ACTIVE_MODEL_QUALITY_MODEL_IDS_OVERRIDE=$model_ids" >> "$GITHUB_ENV"
+            fi
           else
             echo "run_live=0" >> "$GITHUB_OUTPUT"
-            echo "Trigger absent; provider calls=0."
+            echo "PR trigger absent; provider calls=0."
           fi
 
       - name: Require dedicated benchmark credential

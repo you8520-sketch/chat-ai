@@ -14,6 +14,11 @@ on:
       - "src/lib/emotionTag.ts"
       - "src/lib/inlineTaggedAssets.ts"
       - "src/lib/chatRichContent.ts"
+      - "src/lib/jsxComponent/**"
+      - "src/components/JsxComponentSandbox.tsx"
+      - "src/components/JsxHostBridge.tsx"
+      - "public/jsx-sandbox/**"
+      - "scripts/build-jsx-sandbox.ts"
       - "src/lib/userInputDraft*.ts"
       - "src/lib/chatStreamDraftRecovery*.ts"
       - "src/app/trpg/**"
@@ -45,6 +50,14 @@ jobs:
           src/lib/userInputDraftCustody.test.ts
           src/lib/chatStreamDraftRecovery.test.ts
 
+      - name: JSX authoring draft and status widget mode regressions
+        run: >-
+          node --conditions=react-server --import tsx --test
+          src/lib/jsxComponent/catalogDraft.test.ts
+          src/lib/jsxComponent/jsxComponent.test.ts
+          src/lib/statusWidget/authoringChoice.test.ts
+          src/lib/statusWidget/jsxSource.test.ts
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
@@ -61,6 +74,13 @@ jobs:
           tests/ui/chat-live-follow.spec.ts
           tests/ui/trpg-scroll-follow.spec.ts
           tests/ui/chat-asset-display.spec.ts
+          --workers=1
+          --retries=0
+
+      - name: JSX sandbox browser regression
+        run: >
+          npx playwright test
+          tests/ui/jsx-sandbox-runtime.spec.ts
           --workers=1
           --retries=0
 

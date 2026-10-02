@@ -36,9 +36,17 @@ import { defaultSources, type SourceFetch } from "@/lib/memoryResearch/sources";
 import { runPendingLiveExperiments } from "@/lib/memoryResearch/liveExperimentRunner";
 import { openImplementationDraftPrs } from "@/lib/memoryResearch/implementationPr";
 import {
+  attachMemoryPromptPackingAuditToCycleJson,
   buildMemoryPromptPackingAudit,
   renderMemoryPromptPackingAuditMarkdown,
 } from "@/lib/memoryResearch/promptPackingAudit";
+import {
+  attachPromptPackingSnapshotToLedger,
+  attachPromptPackingTrendToCycleJson,
+  buildPromptPackingTrendSnapshot,
+  comparePromptPackingTrend,
+  renderPromptPackingTrendMarkdown,
+} from "@/lib/memoryResearch/promptPackingTrend";
 import { runEpisodicEmbeddingLiveBenchmark } from "./lib/episodicEmbeddingLiveBenchmark";
 
 function arg(name: string): string | null {
@@ -73,7 +81,57 @@ function promptPackingSentinel(): void {
   const markdown = renderMemoryPromptPackingAuditMarkdown(audit);
   writeFileSync(join(outDir, "report.json"), `${JSON.stringify(audit, null, 2)}\n`);
   writeFileSync(join(outDir, "REPORT.md"), markdown);
+
+  const cycleReportPath = arg("cycle-report");
+  const ledgerPath = arg("ledger");
+  let trendMarkdown = "";
+  if (cycleReportPath) {
+    if (!existsSync(cycleReportPath)) {
+      throw new Error(`memory research cycle report not found: ${cycleReportPath}`);
+    }
+
+    let cycleJson = attachMemoryPromptPackingAuditToCycleJson(
+      readFileSync(cycleReportPath, "utf8"),
+      audit
+    );
+
+    if (ledgerPath) {
+      if (!existsSync(ledgerPath)) {
+        throw new Error(`memory research ledger not found: ${ledgerPath}`);
+      }
+      const cycleRecord = JSON.parse(cycleJson) as Record<string, unknown>;
+      const cycleKey =
+        typeof cycleRecord.cycleKey === "string" ? cycleRecord.cycleKey : "";
+      if (!cycleKey) {
+        throw new Error("memory research cycle report is missing cycleKey");
+      }
+
+      const ledger = parseLedger(readFileSync(ledgerPath, "utf8"));
+      const snapshot = buildPromptPackingTrendSnapshot(audit);
+      const history = ledger.cycles.filter(
+        (entry) => entry.cycleKey !== cycleKey
+      );
+      const trend = comparePromptPackingTrend(snapshot, history);
+      cycleJson = attachPromptPackingTrendToCycleJson(cycleJson, trend);
+      writeFileSync(
+        ledgerPath,
+        serializeLedger(
+          attachPromptPackingSnapshotToLedger(ledger, cycleKey, snapshot)
+        )
+      );
+      trendMarkdown = renderPromptPackingTrendMarkdown(trend);
+      writeFileSync(
+        join(outDir, "trend.json"),
+        `${JSON.stringify(trend, null, 2)}\n`
+      );
+      writeFileSync(join(outDir, "TREND.md"), trendMarkdown);
+    }
+
+    writeFileSync(cycleReportPath, cycleJson);
+  }
+
   console.log(markdown);
+  if (trendMarkdown) console.log(trendMarkdown);
   const failed = audit.invariants.filter((invariant) => !invariant.ok);
   if (failed.length > 0) {
     throw new Error(

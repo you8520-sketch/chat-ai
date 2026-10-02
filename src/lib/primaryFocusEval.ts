@@ -278,12 +278,9 @@ export function evaluatePrimaryFocus(input: PrimaryFocusEvalInput): PrimaryFocus
     if (supportingSpeakingNpcCount > 1) reasonCodes.push("SUPPORTING_CAST_BUDGET_EXCEEDED");
   }
   const visibleChars = prose.replace(/\s+/g, "").length;
-  const targetLengthRange = "3200..4200";
-  const lengthDeviation = visibleChars > 4200
-    ? visibleChars - 4200
-    : visibleChars < 3200
-      ? 3200 - visibleChars
-      : 0;
+  // Soft floor only. Length above 3,200 is not a deviation and not a failure.
+  const targetLengthRange = "3200+";
+  const lengthDeviation = visibleChars < 3200 ? 3200 - visibleChars : 0;
   // Speaker attribution reliability: distinct speakers found but none matched
   // known supporting names → attribution is unreliable, human review required.
   const speakerAttributionReliable = !(

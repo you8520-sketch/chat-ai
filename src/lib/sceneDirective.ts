@@ -216,7 +216,7 @@ export function renderSceneEngineRule(motionDecision: SceneMotionDecision): stri
 }
 
 const AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE =
-  "다인물: 전개는 현재 중심 인물 하나에 고정되지 않는다. 여러 AI 캐릭터·NPC의 대화·판단·갈등·협력·적대·세계 사건을 함께 진행할 수 있다. [B]의 대사·행동·내면·불가역 운명 범위는 USER AUTHORING owner를 그대로 따른다.";
+  "다인물: 전개는 현재 중심 인물 하나에 고정되지 않는다. 여러 AI 캐릭터·NPC의 대화·판단·갈등·협력·적대·세계 사건을 함께 진행할 수 있다.";
 
 const OPERATION_TERMS = ["작전", "임무", "침투", "추적", "협상", "함정", "구출", "제한시간", "전투"];
 const INVESTIGATION_TERMS = ["조사", "단서", "기록", "소문", "흔적", "보고서", "메시지"];
@@ -1265,6 +1265,26 @@ function renderIntensity(value: SceneDirective["recommendedIntensity"], stagnant
   return String(value);
 }
 
+/**
+ * Multi-cast auto turns keep the existing ensemble line.
+ * single_primary turns use the execution contract for NPC action and new arrivals.
+ */
+function autoTurnKeepsEnsembleSceneRule(directive: SceneDirective): boolean {
+  if (directive.mode !== "auto_progression") return false;
+  const castMode = directive.castFocus.sceneCastMode;
+  switch (castMode) {
+    case "ensemble":
+    case "simulation":
+      return true;
+    case "single_primary":
+      return false;
+    default: {
+      const _exhaustive: never = castMode;
+      return _exhaustive;
+    }
+  }
+}
+
 export function renderSceneDirectiveForPrompt(directive: SceneDirective): string {
   const modeLabel = directive.mode === "auto_progression" ? "자동진행" : "일반 RP";
   const progression =
@@ -1292,7 +1312,7 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
       : "",
     primaryFocusLine ?? "",
     `유저 조종: ${USER_CONTROL_LABELS[directive.userControl]}`,
-    directive.mode === "auto_progression" ? AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE : "",
+    autoTurnKeepsEnsembleSceneRule(directive) ? AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE : "",
     "트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다.",
   ]
     .filter(Boolean)

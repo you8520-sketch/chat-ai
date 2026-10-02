@@ -249,6 +249,7 @@ export function estimateApiCostUsd(input: {
   );
 }
 
+/** Naive calendar month as SQL datetimes. The reconciler treats these as UTC. */
 export function monthRangeSql(monthKey: string): { start: string; end: string } {
   if (!/^\d{4}-\d{2}$/.test(monthKey)) throw new Error("잘못된 월 형식입니다.");
   const [year, month] = monthKey.split("-").map(Number);

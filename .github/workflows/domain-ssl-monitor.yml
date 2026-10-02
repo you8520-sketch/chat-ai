@@ -1,0 +1,56 @@
+name: Domain SSL monitor
+
+# Read-only observer for hav.chat DNS, TLS, and /health between deploys.
+# Railway remains the certificate issuance owner.
+# Post-deploy verification remains the deploy-SHA owner.
+# Failures exit non-zero so existing Ops Inbox scheduled-run projection can see them.
+
+on:
+  schedule:
+    # 05:47 and 17:47 UTC, away from Monday 01:17 / 04:17 jobs.
+    - cron: "47 5,17 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Write evidence but do not fail the job"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DOMAIN_SSL_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Observe https://hav.chat DNS, TLS, and /health
+        run: node --experimental-strip-types src/lib/domainSslMonitor.ts
+
+      - name: Record monitor summary
+        if: always()
+        run: |
+          if [ -f domain-ssl-monitor.json ]; then
+            echo '## Domain SSL monitor' >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+            cat domain-ssl-monitor.json >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: domain-ssl-monitor
+          path: domain-ssl-monitor.json
+          if-no-files-found: warn
+          retention-days: 14

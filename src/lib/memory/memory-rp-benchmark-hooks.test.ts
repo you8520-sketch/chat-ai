@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, it } from "node:test";
+import Database from "better-sqlite3";
 
-import { allocateEpisodicDynamicCharBudget } from "@/lib/episodicMemoryFacts";
+import {
+  allocateEpisodicDynamicCharBudget,
+  ensureEpisodicMemoryFactsTable,
+  getEpisodicMemoryForPrompt,
+  resolveEpisodicRerankingPolicy,
+} from "@/lib/episodicMemoryFacts";
 import { BENCHMARK_CAPABILITY_CASE_IDS } from "@/lib/memory/memory-rp-benchmark";
 import {
   BASELINE_MODE,
@@ -40,10 +46,51 @@ function selectionMode(label: string, selection: NonNullable<BenchmarkMode["sele
   return { ...BASELINE_MODE, label, selection, strict: false };
 }
 
-it("omitted packing/selection arms match the lexical baseline", async () => {
+function scoringMode(label: string, scoring: NonNullable<BenchmarkMode["scoring"]>): BenchmarkMode {
+  return { ...BASELINE_MODE, label, scoring, strict: false };
+}
+
+const recallEnv = {
+  MEMORY_FEATURE_ENABLED: "1",
+  EPISODIC_MEMORY_RECALL_ENABLED: "1",
+} as unknown as NodeJS.ProcessEnv;
+
+function createScoringDb(): Database.Database {
+  const db = new Database(":memory:");
+  ensureEpisodicMemoryFactsTable(db);
+  db.exec(
+    "CREATE TABLE chat_memories (chat_id INTEGER PRIMARY KEY, memory_reset_after_message_id INTEGER, memory_epoch INTEGER NOT NULL DEFAULT 0)"
+  );
+  db.prepare("INSERT INTO chat_memories (chat_id) VALUES (1)").run();
+  const insert = db.prepare(
+    `INSERT INTO episodic_memory_facts
+      (chat_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+     VALUES
+      (1, ?, 'setting', ?, ?, ?, ?, ?, '{"memory_evidence_type":"explicit_scene_event"}')`
+  );
+  insert.run(
+    5,
+    "lighthouse_festival",
+    "flag",
+    "red",
+    "critical",
+    "등대 축제에서 붉은 깃발을 걸었다."
+  );
+  insert.run(
+    50,
+    "lighthouse_storage",
+    "box",
+    "blue",
+    "normal",
+    "등대 창고에서 푸른 상자를 발견했다."
+  );
+  return db;
+}
+
+it("omitted packing/selection/scoring arms match the lexical baseline", async () => {
   const baseline = await runBenchmarkCases(BASELINE_MODE, transportProbe);
   const explicitEmpty = await runBenchmarkCases(
-    { ...BASELINE_MODE, label: "explicit-empty-hooks", packing: {}, selection: {} },
+    { ...BASELINE_MODE, label: "explicit-empty-hooks", packing: {}, selection: {}, scoring: {} },
     transportProbe
   );
   assert.equal(baseline.metrics.falseInjectionRate.value, explicitEmpty.metrics.falseInjectionRate.value);
@@ -93,6 +140,98 @@ it("episodic_selection bounds change injected count without a parallel scorer", 
   assert.equal(capped.metrics.falseMemoryRate.value, 0);
   assert.equal(capped.metrics.staleStateRecallRate.value, 0);
   assert.equal(httpCallsObserved, 0);
+});
+
+it("reranking_scoring changes only final rank weights after the same relevance gate", () => {
+  const db = createScoringDb();
+  try {
+    const baseline = getEpisodicMemoryForPrompt(
+      db,
+      {
+        chatId: 1,
+        currentTurn: 60,
+        currentUserMessage: "등대에서 있었던 일을 기억해?",
+        maxFacts: 1,
+      },
+      recallEnv
+    );
+    const recencyHeavy = getEpisodicMemoryForPrompt(
+      db,
+      {
+        chatId: 1,
+        currentTurn: 60,
+        currentUserMessage: "등대에서 있었던 일을 기억해?",
+        maxFacts: 1,
+        rerankingPolicy: {
+          importanceWeight: 0,
+          milestoneBonus: 0,
+          recencyWeight: 20,
+        },
+      },
+      recallEnv
+    );
+
+    const baselinePassIds = baseline.debug
+      .filter((row) => row.relevance_pass)
+      .map((row) => row.id)
+      .sort((a, b) => a - b);
+    const recencyPassIds = recencyHeavy.debug
+      .filter((row) => row.relevance_pass)
+      .map((row) => row.id)
+      .sort((a, b) => a - b);
+
+    assert.deepEqual(
+      recencyPassIds,
+      baselinePassIds,
+      "scoring weights must not alter candidate admission / relevance-pass membership"
+    );
+    assert.equal(baseline.facts.length, 1);
+    assert.equal(recencyHeavy.facts.length, 1);
+    assert.match(baseline.facts[0]!.fact_text, /붉은 깃발/);
+    assert.match(recencyHeavy.facts[0]!.fact_text, /푸른 상자/);
+    assert.notEqual(
+      baseline.debug.find((row) => row.final_rank === 1)?.id,
+      recencyHeavy.debug.find((row) => row.final_rank === 1)?.id,
+      "the A/B arm must exercise the actual final scorer rather than selection bounds"
+    );
+    assert.equal(httpCallsObserved, 0);
+  } finally {
+    db.close();
+  }
+});
+
+it("empty reranking policy resolves exactly to the production scoring weights", () => {
+  assert.deepEqual(resolveEpisodicRerankingPolicy(), {
+    lexicalWeight: 4,
+    importanceWeight: 1,
+    recencyWeight: 1,
+    milestoneBonus: 2,
+  });
+  assert.deepEqual(resolveEpisodicRerankingPolicy({}), {
+    lexicalWeight: 4,
+    importanceWeight: 1,
+    recencyWeight: 1,
+    milestoneBonus: 2,
+  });
+});
+
+it("BenchmarkMode.scoring is a bounded research-only reranking arm", () => {
+  const mode = scoringMode("recency-heavy-reranking", {
+    importanceWeight: 0,
+    milestoneBonus: 0,
+    recencyWeight: 20,
+  });
+  assert.deepEqual(mode.scoring, {
+    importanceWeight: 0,
+    milestoneBonus: 0,
+    recencyWeight: 20,
+  });
+  assert.deepEqual(resolveEpisodicRerankingPolicy({ recencyWeight: 999 }), {
+    lexicalWeight: 4,
+    importanceWeight: 1,
+    recencyWeight: 20,
+    milestoneBonus: 2,
+  });
 });
 
 it("packing arm can model supplied Global-text pressure without claiming a Global compaction hook", async () => {

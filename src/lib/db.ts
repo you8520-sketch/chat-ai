@@ -33,6 +33,7 @@ import { ensureMemorySummaryMigrationsTable } from "@/lib/memory/memory-summary-
 import { ensurePayoutTransferAttemptsSchema } from "@/lib/payoutTransferAttempts";
 import { ensurePointChargeRefundAttemptsSchema } from "@/lib/pointChargeRefundAttempts";
 import { ensureSchedulerRunRegistrySchema } from "@/lib/schedulerRunRegistry";
+import { ensureOpsRequestIncidentsSchema } from "@/lib/opsRequestIncidents";
 import { dropLastCompressedAtColumnOnce } from "@/lib/memory/last-compressed-at-column-retirement";
 import { dropChatsCurrentSummaryColumnOnce } from "@/lib/memory/chats-current-summary-column-retirement";
 import { dropChatsMemoryColumnOnce } from "@/lib/memory/chats-memory-column-retirement";
@@ -825,6 +826,7 @@ function migrate(db: Database.Database) {
   ensurePayoutTransferAttemptsSchema(db);
   ensurePointChargeRefundAttemptsSchema(db);
   ensureSchedulerRunRegistrySchema(db);
+  ensureOpsRequestIncidentsSchema(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS report_refunds (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1313,6 +1315,15 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_status_widget_shares_slug
       ON status_widget_shares(share_slug);
   `);
+  addColumn("status_widget_shares", "visibility", "TEXT NOT NULL DEFAULT 'unlisted'");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS status_widget_share_imports (
+      share_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (share_id, user_id)
+    );
+  `);
   db.exec(`
     CREATE TABLE IF NOT EXISTS point_transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1725,6 +1736,7 @@ function migrate(db: Database.Database) {
   addColumn("worlds", "content_translation_fingerprint", "TEXT NOT NULL DEFAULT ''");
   addColumn("world_shares", "content_en", "TEXT NOT NULL DEFAULT ''");
   addColumn("world_shares", "content_translation_fingerprint", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "jsx_components_json", "TEXT NOT NULL DEFAULT ''");
 }
 
 /** One-time retirement of the legacy 20-message compressor buffer table. */

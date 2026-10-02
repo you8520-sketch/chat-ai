@@ -259,6 +259,8 @@ export type BibleAdultSection = {
 };
 
 export type OfficialCharacterBible = {
+  /** New official characters use the compact RP prompt standard; absent = legacy pilot source. */
+  promptStandard?: "compact_rp_v1";
   identity: {
     name: string;
     gender: string;
@@ -612,8 +614,8 @@ export function validateWorldBible(
   if (!Array.isArray(bible.userEntry?.allowedRoles) || bible.userEntry.allowedRoles.length < 2) {
     errors.push(err("world_user_entry_narrow", "userEntry needs at least 2 allowed roles"));
   }
-  if (!Array.isArray(bible.lorebook) || bible.lorebook.length < 8 || bible.lorebook.length > 12) {
-    errors.push(err("world_lorebook_count", `lorebook 8-12 required, got ${bible.lorebook?.length ?? 0}`));
+  if (!Array.isArray(bible.lorebook) || bible.lorebook.length < 3 || bible.lorebook.length > 8) {
+    errors.push(err("world_lorebook_count", `lorebook 3-8 useful entries required, got ${bible.lorebook?.length ?? 0}`));
   } else {
     bible.lorebook.forEach((entry, i) => {
       if (!nonEmpty(entry.name) || !nonEmpty(entry.content)) {
@@ -795,6 +797,10 @@ export function validateCharacterBible(
 ): QaResult {
   const errors: QaIssue[] = [];
   const warnings: QaIssue[] = [];
+  const compactRpV1 = bible.promptStandard === "compact_rp_v1";
+  if (bible.promptStandard != null && !compactRpV1) {
+    errors.push(err("bible_prompt_standard", `unsupported promptStandard: ${String(bible.promptStandard)}`));
+  }
 
   const id = bible.identity ?? ({} as OfficialCharacterBible["identity"]);
   if (!nonEmpty(id.name)) errors.push(err("bible_identity_name", "identity.name is required"));
@@ -865,8 +871,10 @@ export function validateCharacterBible(
   checkCount(values.nonNegotiable, 1, 2, "bible_non_negotiable");
 
   const events = bible.backstory?.events ?? [];
-  if (events.length < 2 || events.length > 4) {
-    errors.push(err("bible_backstory_events", `formative events 2-4 required, got ${events.length}`));
+  const minBackstoryEvents = compactRpV1 ? 1 : 2;
+  const maxBackstoryEvents = compactRpV1 ? 2 : 4;
+  if (events.length < minBackstoryEvents || events.length > maxBackstoryEvents) {
+    errors.push(err("bible_backstory_events", `formative events ${minBackstoryEvents}-${maxBackstoryEvents} required, got ${events.length}`));
   } else {
     let backstoryChars = 0;
     events.forEach((event, i) => {
@@ -881,8 +889,9 @@ export function validateCharacterBible(
   }
 
   const abilities = bible.abilities ?? [];
-  if (abilities.length < 2 || abilities.length > 6) {
-    errors.push(err("bible_ability_count", `abilities 2-6 required, got ${abilities.length}`));
+  const maxAbilities = compactRpV1 ? 4 : 6;
+  if (abilities.length < 2 || abilities.length > maxAbilities) {
+    errors.push(err("bible_ability_count", `abilities 2-${maxAbilities} required, got ${abilities.length}`));
   } else {
     abilities.forEach((ability, i) => {
       if (!nonEmpty(ability.name) || !nonEmpty(ability.scope)) {
@@ -897,14 +906,21 @@ export function validateCharacterBible(
   }
 
   const habits = bible.habits ?? { hobbies: [], habits: [], likes: [], dislikes: [] };
-  checkCount(habits.hobbies, 2, 4, "bible_hobbies");
-  checkCount(habits.habits, 2, 5, "bible_habit_list");
-  checkCount(habits.likes, 3, 6, "bible_likes");
-  checkCount(habits.dislikes, 3, 6, "bible_dislikes");
+  checkCount(habits.hobbies, compactRpV1 ? 3 : 2, compactRpV1 ? 5 : 4, "bible_hobbies");
+  checkCount(habits.habits, compactRpV1 ? 3 : 2, 5, "bible_habit_list");
+  checkCount(habits.likes, compactRpV1 ? 2 : 3, compactRpV1 ? 4 : 6, "bible_likes");
+  checkCount(habits.dislikes, compactRpV1 ? 2 : 3, compactRpV1 ? 4 : 6, "bible_dislikes");
+  if (compactRpV1) {
+    for (const hobby of habits.hobbies) {
+      if (hobby.length > 24) errors.push(err("bible_hobby_too_long", `compact hobby anchor too long: ${hobby}`));
+    }
+  }
 
   const daily = bible.dailyLife ?? "";
-  if (daily.length < 200) errors.push(err("bible_daily_thin", `dailyLife ${daily.length} chars (< 200)`));
-  else if (daily.length > 400) warnings.push(warn("bible_daily_band", `dailyLife ${daily.length} chars (> 400)`));
+  const dailyMin = compactRpV1 ? 120 : 200;
+  const dailyMax = compactRpV1 ? 250 : 400;
+  if (daily.length < dailyMin) errors.push(err("bible_daily_thin", `dailyLife ${daily.length} chars (< ${dailyMin})`));
+  else if (daily.length > dailyMax) warnings.push(warn("bible_daily_band", `dailyLife ${daily.length} chars (> ${dailyMax})`));
 
   const speech = bible.speech ?? ({} as OfficialCharacterBible["speech"]);
   const speechKeywords = speech.keywords ?? [];
@@ -959,6 +975,16 @@ export function validateCharacterBible(
   } else if (tags.length < tagBand.min) {
     // Sheets authored under the earlier 3-tag floor stay valid; the review surfaces them.
     warnings.push(err("bible_tags_few", `publicProfile.tags ${tags.length} < ${tagBand.min} core tags`));
+  }
+
+  const otherRelationships = bible.otherRelationships ?? [];
+  if (compactRpV1 && otherRelationships.length > 3) {
+    errors.push(
+      err(
+        "bible_other_relationships_dense",
+        `compact_rp_v1 keeps only 0-3 action-relevant lorebook candidates, got ${otherRelationships.length}`
+      )
+    );
   }
 
   const secrets = bible.secrets ?? [];
@@ -1049,6 +1075,7 @@ export function compileOfficialDraftFromBible(
 ): OfficialCharacterDraft {
   const id = bible.identity;
   const task = "bible_compile";
+  const compactRpV1 = bible.promptStandard === "compact_rp_v1";
 
   const tagline = bible.publicProfile.tagline.trim();
   if (!tagline || tagline.length > 50) {
@@ -1076,6 +1103,18 @@ export function compileOfficialDraftFromBible(
     `${id.name}(${id.age}세, ${id.occupation} · ${id.socialPosition} · ${id.affiliation}).`,
     `${cleanSentence(id.worldRole)}.`,
   ].join(" ");
+  const compactGender = id.gender === "male" ? "남성" : id.gender === "female" ? "여성" : "기타";
+  const compactIdentityText = [
+    `이름: ${id.name}`,
+    `나이: ${id.age}세`,
+    `성별: ${compactGender}`,
+    `직업/역할: ${id.occupation}`,
+    id.affiliation ? `소속: ${id.affiliation}` : "",
+    id.socialPosition ? `사회적 위치: ${id.socialPosition}` : "",
+    `세계관 위치: ${cleanSentence(id.worldRole)}`,
+  ]
+    .filter(nonEmpty)
+    .join("\n");
   const appearanceSummary = [
     `얼굴: ${cleanSentence(bible.appearance.faceShape)}.`,
     `눈: ${cleanSentence(bible.appearance.eyes)}. 눈동자: ${cleanSentence(bible.appearance.eyeColor)}.`,
@@ -1092,56 +1131,94 @@ export function compileOfficialDraftFromBible(
     `인상: ${cleanSentence(bible.appearance.impression)}.`,
   ].join(" ");
   const valuesText = [
-    `원하는 것: ${bible.values.desires.join(" / ")}`,
-    `두려운 것: ${bible.values.fears.join(" / ")}`,
+    `${compactRpV1 ? "목표/욕망" : "원하는 것"}: ${bible.values.desires.join(" / ")}`,
+    `${compactRpV1 ? "두려움" : "두려운 것"}: ${bible.values.fears.join(" / ")}`,
     `가치관: ${bible.values.coreValues.join(" / ")}`,
-    `포기 못 하는 것: ${bible.values.nonNegotiable.join(" / ")}`,
+    `${compactRpV1 ? "금기/넘지 않는 선" : "포기 못 하는 것"}: ${bible.values.nonNegotiable.join(" / ")}`,
   ].join("\n");
   const backstoryText = bible.backstory.events
-    .map((event) => `· ${event.event} 당시 선택: ${event.choice} 남은 것: ${event.residue}`)
+    .map((event) =>
+      compactRpV1
+        ? `· ${event.event} → 당시 선택: ${event.choice} → 현재 흔적: ${event.residue}`
+        : `· ${event.event} 당시 선택: ${event.choice} 남은 것: ${event.residue}`
+    )
     .join("\n");
   const abilityText = bible.abilities
     .map((ability) => {
       const limit = [ability.limit, ability.cost].filter(nonEmpty).join(" / ");
-      return `· ${ability.name}(${ability.level}): ${ability.scope}${limit ? ` [한계·대가: ${limit}]` : ""} ${ability.usage}`;
+      if (!compactRpV1) {
+        return `· ${ability.name}(${ability.level}): ${ability.scope}${limit ? ` [한계·대가: ${limit}]` : ""} ${ability.usage}`;
+      }
+      const usage = cleanSentence(ability.usage);
+      return `· ${ability.name}: ${cleanSentence(ability.scope)}${limit ? ` [한계·대가: ${limit}]` : ""}${usage ? ` — ${usage}` : ""}`;
     })
     .join("\n");
-  const habitsText = [
-    `취미: ${bible.habits.hobbies.join(" / ")}`,
-    `습관: ${bible.habits.habits.join(" / ")}`,
-    `일상: ${bible.dailyLife}`,
-  ].join("\n");
+  const habitsText = compactRpV1
+    ? [
+        `취미: ${bible.habits.hobbies.join(" / ")}`,
+        `습관: ${bible.habits.habits.join(" / ")}`,
+        `호불호: 좋아함 ${bible.habits.likes.join(" / ")} · 싫어함 ${bible.habits.dislikes.join(" / ")}`,
+        `일상: ${bible.dailyLife}`,
+      ].join("\n")
+    : [
+        `취미: ${bible.habits.hobbies.join(" / ")}`,
+        `습관: ${bible.habits.habits.join(" / ")}`,
+        `일상: ${bible.dailyLife}`,
+      ].join("\n");
 
-  const characterCore = joinParagraphs([
-    identityLine,
-    appearanceSummary,
-    bible.personality.behavioral,
-    `내적 모순: ${bible.contradiction}`,
-    valuesText,
-    backstoryText,
-    abilityText,
-    habitsText,
-  ]);
+  const characterCore = compactRpV1
+    ? joinParagraphs([
+        `기본 스펙:\n${compactIdentityText}`,
+        `성격 키워드: ${bible.personality.keywords.join(" / ")}`,
+        `성격·행동: ${bible.personality.behavioral}`,
+        `내적 모순: ${bible.contradiction}`,
+        valuesText,
+        `과거 서사:\n${backstoryText}`,
+        `능력·권력:\n${abilityText}`,
+        habitsText,
+      ])
+    : joinParagraphs([
+        identityLine,
+        appearanceSummary,
+        bible.personality.behavioral,
+        `내적 모순: ${bible.contradiction}`,
+        valuesText,
+        backstoryText,
+        abilityText,
+        habitsText,
+      ]);
 
   const otherPublic = bible.otherRelationships.map((rel) =>
     [`· ${rel.target}(공개): ${rel.public}`, rel.privateOpinion ? `속내: ${rel.privateOpinion}` : ""]
       .filter(Boolean)
       .join(" ")
   );
-  const relationshipsAndDrives = joinParagraphs([
-    `첫인식: ${bible.userRelationship.initialView}`,
-    `유저 역할: ${bible.userRelationship.userRole}`,
-    `시작점: ${bible.userRelationship.startingPoint}`,
-    `관계 진행: ${bible.userRelationship.progression.join(" → ")}`,
-    otherPublic.length ? otherPublic.join("\n") : "",
-    `욕망과 두려움: ${bible.values.desires.join(" / ")} vs ${bible.values.fears.join(" / ")}`,
-    `중기 갈등: ${bible.rpEngine.mediumConflict}`,
-    `장기 변화: ${bible.rpEngine.longTermChange}`,
-  ]);
+  const relationshipsAndDrives = compactRpV1
+    ? joinParagraphs([
+        `유저 관계 원칙: 유저의 이름·신분·성별과 유저-캐릭터 간 기존 관계는 유저 페르소나와 대화에서 명시된 설정을 우선한다. 도입부가 관계를 명시적으로 고정하지 않는 한 현재 장면만 고정한다.`,
+        `첫인식: ${bible.userRelationship.initialView}`,
+        `유저 역할: ${bible.userRelationship.userRole}`,
+        `시작점: ${bible.userRelationship.startingPoint}`,
+        `관계 진행: ${bible.userRelationship.progression.join(" → ")}`,
+        `중기 갈등: ${bible.rpEngine.mediumConflict}`,
+        `장기 변화: ${bible.rpEngine.longTermChange}`,
+      ])
+    : joinParagraphs([
+        `첫인식: ${bible.userRelationship.initialView}`,
+        `유저 역할: ${bible.userRelationship.userRole}`,
+        `시작점: ${bible.userRelationship.startingPoint}`,
+        `관계 진행: ${bible.userRelationship.progression.join(" → ")}`,
+        otherPublic.length ? otherPublic.join("\n") : "",
+        `욕망과 두려움: ${bible.values.desires.join(" / ")} vs ${bible.values.fears.join(" / ")}`,
+        `중기 갈등: ${bible.rpEngine.mediumConflict}`,
+        `장기 변화: ${bible.rpEngine.longTermChange}`,
+      ]);
 
-  const extraCanon = joinParagraphs([
-    `호불호: 좋아하는 것 ${bible.habits.likes.join(" / ")} / 싫어하는 것 ${bible.habits.dislikes.join(" / ")}`,
-  ]);
+  const extraCanon = compactRpV1
+    ? ""
+    : joinParagraphs([
+        `호불호: 좋아하는 것 ${bible.habits.likes.join(" / ")} / 싫어하는 것 ${bible.habits.dislikes.join(" / ")}`,
+      ]);
 
   const speechTraits = [
     `구어체: ${bible.speech.register} · 문장 ${bible.speech.sentenceLength} · 속도 ${bible.speech.tempo}`,
@@ -1180,15 +1257,18 @@ export function compileOfficialDraftFromBible(
           .join("\n"),
       };
 
+  const effectiveRpHook = compactRpV1 ? bible.rpEngine.immediateHook : keys.hook.rpHook;
+
   return {
     draftKey: keys.draftKey,
+    ...(compactRpV1 ? { promptStandard: "compact_rp_v1" as const } : {}),
     worldKey: keys.worldKey,
     styleKey: keys.styleKey,
     name: id.name,
     tagline,
     description: composeOfficialPublicDescription({
       worldName: keys.worldName,
-      rpHook: keys.hook.rpHook,
+      rpHook: effectiveRpHook,
       relationshipTrope: keys.hook.relationshipTrope,
       identity: id,
       appearance: bible.appearance,
@@ -1196,6 +1276,7 @@ export function compileOfficialDraftFromBible(
       abilities: bible.abilities,
       situation: bible.situation,
       userRole: bible.userRelationship.userRole,
+      personaFlexible: compactRpV1,
     }),
     greeting: bible.greeting,
     gender: id.gender as OfficialCharacterDraft["gender"],
@@ -1204,11 +1285,13 @@ export function compileOfficialDraftFromBible(
     tags: bible.publicProfile.tags,
     audience: keys.audience,
     sections: {
-      worldAndSituation: joinParagraphs([
-        bible.situation.worldContext,
-        bible.situation.personalSituation,
-        bible.situation.userEntry,
-      ]),
+      worldAndSituation: compactRpV1
+        ? joinParagraphs([bible.situation.personalSituation, bible.situation.userEntry])
+        : joinParagraphs([
+            bible.situation.worldContext,
+            bible.situation.personalSituation,
+            bible.situation.userEntry,
+          ]),
       characterCore,
       relationshipsAndDrives,
       extraCanon,
@@ -1220,8 +1303,8 @@ export function compileOfficialDraftFromBible(
       forbidden: bible.speech.forbidden,
     },
     supportingNpcs: bible.npcs,
-    hook: keys.hook,
-    secrets: [...bible.secrets, ...hiddenRels],
+    hook: compactRpV1 ? { ...keys.hook, rpHook: effectiveRpHook } : keys.hook,
+    secrets: compactRpV1 ? [...bible.secrets] : [...bible.secrets, ...hiddenRels],
     adult: adult as OfficialCharacterDraft["adult"],
   };
 }

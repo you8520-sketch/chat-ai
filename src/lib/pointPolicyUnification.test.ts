@@ -9,6 +9,7 @@ import {
   PAID_POINTS_VALID_YEARS,
 } from "./points";
 import { FREE_POINTS_VALID_YEARS } from "./plans";
+import { ATTENDANCE_POINTS_VALID_DAYS } from "./attendanceConstants";
 import { claimDailyAttendance } from "./attendance";
 import { giftPoints, PointGiftError } from "./pointGifts";
 import {
@@ -96,13 +97,14 @@ describe("point policy unification — canonical durations", () => {
   it("POLICY-1 canonical duration and fee constants match the confirmed product policy", () => {
     assert.equal(FREE_POINTS_VALID_YEARS, 1);
     assert.equal(PAID_POINTS_VALID_YEARS, 1);
+    assert.equal(ATTENDANCE_POINTS_VALID_DAYS, 21);
     assert.equal(POINT_GIFT_FEE_RATE_FREE, 0.2);
     assert.equal(POINT_GIFT_FEE_RATE_PAID, 0.1);
     assert.equal(MIN_POINT_GIFT_AMOUNT, 10);
   });
 
-  it("POLICY-2 attendance grant expires 30 days from accrual", () => {
-    const user = createTestUser("att30");
+  it("POLICY-2 attendance grant expires 21 days from accrual", () => {
+    const user = createTestUser("att21");
     const claimed = claimDailyAttendance(user.id);
     assert.equal(claimed.ok, true);
     assert.equal(claimed.alreadyClaimed, false);
@@ -110,8 +112,35 @@ describe("point policy unification — canonical durations", () => {
     assert.equal(lots.length, 1);
     const validityDays = daysBetween(lots[0]!.created_at, lots[0]!.expires_at);
     assert.ok(
-      Math.abs(validityDays - 30) < 1,
-      `attendance validity=${validityDays.toFixed(2)}d, expected 30d`
+      Math.abs(validityDays - ATTENDANCE_POINTS_VALID_DAYS) < 1,
+      `attendance validity=${validityDays.toFixed(2)}d, expected ${ATTENDANCE_POINTS_VALID_DAYS}d`
+    );
+  });
+
+  it("POLICY-2b existing attendance lot expiry is left unchanged", () => {
+    const user = createTestUser("attkeep");
+    const db = getDb();
+    db.prepare(
+      `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at, source)
+       VALUES (?, 'FREE', 100, datetime('now','+30 days'), 'attendance')`
+    ).run(user.id);
+    const before = userLots(user.id);
+    assert.equal(before.length, 1);
+
+    const claimed = claimDailyAttendance(user.id);
+    assert.equal(claimed.ok, true);
+    assert.equal(claimed.alreadyClaimed, false);
+
+    const after = userLots(user.id);
+    const oldLot = after.find((lot) => lot.id === before[0]!.id);
+    const newLot = after.find((lot) => lot.id !== before[0]!.id);
+    assert.ok(oldLot);
+    assert.ok(newLot);
+    assert.equal(oldLot.expires_at, before[0]!.expires_at);
+    const newValidity = daysBetween(newLot.created_at, newLot.expires_at);
+    assert.ok(
+      Math.abs(newValidity - ATTENDANCE_POINTS_VALID_DAYS) < 1,
+      `new attendance validity=${newValidity.toFixed(2)}d`
     );
   });
 
@@ -423,7 +452,7 @@ describe("point policy unification — refund provenance", () => {
 
   it("REFUND-2 refund of an expired attendance spend restores the same expired row (EXACT REVERSAL)", () => {
     // PRODUCT DECISION B: 환불은 compensation이 아니라 counterfactual
-    // 복원이다. 만료된 원본 row에 remaining만 복원하고, 새 30d lot을
+    // 복원이다. 만료된 원본 row에 remaining만 복원하고, 새 출석 lot을
     // 만들지 않으며, 만료 상태이므로 spendable/giftable 잔액은 늘지 않는다.
     const user = createTestUser("refund_att");
     const claimed = claimDailyAttendance(user.id);

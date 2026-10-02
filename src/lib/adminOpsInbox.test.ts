@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import {
   listAdminOpsIncidents,
   mergeAdminOpsIncidents,
+  projectFinanceAnomalyIncidents,
   projectGithubAutomationIncidents,
 } from "@/lib/adminOpsInbox";
 import { ADMIN_OPS_STUCK_EXECUTION_MINUTES } from "@/lib/adminOpsInboxShared";
@@ -265,6 +266,50 @@ describe("admin ops web push projection", () => {
   });
 });
 
+
+describe("admin ops finance anomaly projection", () => {
+  it("maps deterministic finance anomalies into the canonical inbox without a new incident store", () => {
+    const incidents = projectFinanceAnomalyIncidents(
+      {
+        generatedAt: "2026-09-23T08:55:00.000Z",
+        monthKey: "2026-09",
+        status: "CRITICAL",
+        criticalCount: 1,
+        warningCount: 1,
+        anomalies: [
+          {
+            id: "model:fixture:cost-without-billing",
+            code: "DIRECT_COST_WITHOUT_USER_BILLING",
+            severity: "critical",
+            title: "fixture provider cost without user billing",
+            summary: "0P-style invariant breach",
+            sourceRef: "actual_production:fixture:2026-09",
+            href: "/admin/finance",
+            modelId: "fixture",
+          },
+          {
+            id: "model:fixture:representative-margin-floor",
+            code: "REPRESENTATIVE_MARGIN_BELOW_FLOOR",
+            severity: "warning",
+            title: "fixture representative margin below floor",
+            summary: "review only",
+            sourceRef: "representative_margin:fixture",
+            href: "/admin/pricing",
+            modelId: "fixture",
+          },
+        ],
+      },
+      NOW
+    );
+
+    assert.equal(incidents.length, 2);
+    assert.equal(incidents[0]?.source, "finance");
+    assert.equal(incidents[0]?.severity, "critical");
+    assert.equal(incidents[0]?.href, "/admin/finance");
+    assert.equal(incidents[1]?.href, "/admin/pricing");
+    assert.match(incidents[0]?.id ?? "", /^finance:/);
+  });
+});
 
 describe("admin ops GitHub scheduled automation projection", () => {
   it("surfaces only the latest failed/cancelled scheduled runs", () => {

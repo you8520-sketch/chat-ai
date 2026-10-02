@@ -39,6 +39,9 @@ export type StatusWidget = {
   version: 1;
   name: string;
   htmlTemplate: string;
+  /** Optional JSX renderer. Extraction still uses fields + StatusWidgetValues. */
+  jsxSource?: string;
+  jsxCompiled?: string;
   fields: StatusWidgetField[];
   placement: StatusWidgetPlacement;
 };
@@ -106,6 +109,7 @@ export type ResolvedStatusWidgetTurn = {
 export type RenderedStatusWidget = {
   source: "character" | "user";
   html: string;
+  jsxCompiled?: string;
   widget: StatusWidget;
   values: StatusWidgetValues;
 };

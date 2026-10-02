@@ -13,7 +13,11 @@ import {
   CHARGE_PAGE_SIZE,
 } from "@/lib/pointUsageLog";
 import { POINT_USAGE_HASH } from "@/lib/pointUi";
-import { FREE_POINTS_VALID_YEARS, POINT_CHARGE_PACKAGES } from "@/lib/plans";
+import {
+  FREE_POINTS_VALID_YEARS,
+  POINT_CHARGE_PACKAGES,
+  pointChargePackageTotalPoints,
+} from "@/lib/plans";
 import { ATTENDANCE_POINTS_VALID_DAYS } from "@/lib/attendanceConstants";
 import { runPortOnePointCharge } from "@/lib/portoneBrowser";
 import {
@@ -442,23 +446,18 @@ export default function PointsClient({
         </div>
       )}
 
-      {paymentsEnabled && portoneEnabled && (
-        <>
-      <h2 className={`mt-8 ${studioType.sectionTitle}`}>포인트 충전</h2>
+      <h2 className={`mt-8 ${studioType.sectionTitle}`}>포인트 상품</h2>
       <p className={`mt-1 ${studioType.caption}`}>
         결제 금액과 동일한 <b className="text-zinc-300">유료 포인트</b>가 지급됩니다 (₩10,000 = 10,000P). 보너스는{" "}
-        <b className="text-violet-300">무료 포인트</b>로 별도 적립됩니다.
+        <b className="text-violet-300">무료 포인트</b>로 별도 적립됩니다. 유료·충전 보너스 무료 포인트는 지급일로부터{" "}
+        {FREE_POINTS_VALID_YEARS}년, 출석 포인트는 {ATTENDANCE_POINTS_VALID_DAYS}일 유효합니다.
       </p>
-      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
         {POINT_CHARGE_PACKAGES.map((p) => {
-          const totalPoints = p.paidPoints + p.bonusPoints;
-          return (
-            <button
-              key={p.id}
-              onClick={() => charge(p.id)}
-              disabled={loading === p.id}
-              className={`p-4 text-left transition hover:border-violet-500/40 disabled:opacity-50 ${studioSurface.card}`}
-            >
+          const totalPoints = pointChargePackageTotalPoints(p);
+          const cardClass = `p-4 text-left ${studioSurface.card}`;
+          const body = (
+            <>
               <p className="text-lg font-semibold tabular-nums text-zinc-50">{totalPoints.toLocaleString()}P</p>
               <p className={`mt-0.5 ${studioType.caption}`}>
                 유료 {p.paidPoints.toLocaleString()}P
@@ -471,18 +470,34 @@ export default function PointsClient({
               </p>
               {p.bonusTag && <p className={`${studioType.caption} font-semibold text-violet-300`}>{p.bonusTag}</p>}
               <p className={`mt-2 ${studioType.body} text-zinc-400`}>₩{p.price.toLocaleString()}</p>
-            </button>
+            </>
+          );
+          if (paymentsEnabled && portoneEnabled) {
+            return (
+              <button
+                key={p.id}
+                onClick={() => charge(p.id)}
+                disabled={loading === p.id}
+                className={`${cardClass} transition hover:border-violet-500/40 disabled:opacity-50`}
+              >
+                {body}
+              </button>
+            );
+          }
+          return (
+            <article key={p.id} className={cardClass}>
+              {body}
+            </article>
           );
         })}
       </div>
-      <p className={`mt-2 ${studioType.caption} text-zinc-600`}>
-        ※ PortOne V2 결제창으로 충전하며, 서버 결제 검증 완료 후 포인트가 지급됩니다.
-      </p>
-        </>
+      {paymentsEnabled && portoneEnabled && (
+        <p className={`mt-2 ${studioType.caption} text-zinc-600`}>
+          ※ PortOne V2 결제창으로 충전하며, 서버 결제 검증 완료 후 포인트가 지급됩니다.
+        </p>
       )}
-
       {paymentsEnabled && !portoneEnabled && (
-        <div className={`mt-8 p-5 ${studioSurface.card}`}>
+        <div className={`mt-4 p-5 ${studioSurface.card}`}>
           <p className={studioType.sectionTitle}>포인트 충전 준비 중</p>
           <p className={`mt-2 ${studioType.body}`}>
             결제 설정이 완료되지 않아 현재 포인트 충전을 사용할 수 없습니다.
@@ -592,7 +607,7 @@ export default function PointsClient({
         )}
         {historyTab === "free" && free.total > 0 && (
           <p className={`mt-2 ${studioType.caption}`}>
-            최근 {Math.min(free.total, 100).toLocaleString()}건 · {CHARGE_PAGE_SIZE}건씩 · 출석(30일)·이벤트/충전 보너스(1년)
+            최근 {Math.min(free.total, 100).toLocaleString()}건 · {CHARGE_PAGE_SIZE}건씩 · 출석({ATTENDANCE_POINTS_VALID_DAYS}일)·이벤트/충전 보너스({FREE_POINTS_VALID_YEARS}년)
           </p>
         )}
 

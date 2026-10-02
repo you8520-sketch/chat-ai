@@ -5,6 +5,12 @@ import {
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
 } from "@/lib/chatModels";
+import {
+  GOOGLE_FLASH_STANDARD_INTRO_RATES,
+  GOOGLE_FLASH_STANDARD_POST_INTRO_EFFECTIVE_AT,
+  GOOGLE_FLASH_STANDARD_POST_INTRO_RATES,
+  GOOGLE_FLASH_STANDARD_SCHEDULE_MODEL_IDS,
+} from "@/lib/gemini37PricingPolicy.constants";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import type { CatalogPricingEvidence } from "./mainRpMonthlyCacheAudit";
 import {
@@ -13,7 +19,9 @@ import {
   listMainRpSupplyIdentities,
   parseOpenRouterEndpoints,
   parseProviderMetadata,
+  renderMainRpSupplyRadarMarkdown,
   resolveOpenRouterSupplyRadarCredential,
+  resolveSupplyUpstreamRiskAlertWindow,
   sanitizeOpenRouterSupplyRadarCredentialText,
   type SupplyEndpointEvidence,
 } from "./mainRpSupplyRadar";
@@ -272,3 +280,87 @@ test("network helpers are GET-only and source contains no generation endpoint",a
   assert.match(calls[0]!.url,/\/endpoints$/);
   assert.doesNotMatch(calls[0]!.url,/chat\/completions|responses$/);
 });
+
+test("official Gemini Standard schedule is risk evidence without inventing future Flex procurement",()=> {
+  assert.deepEqual(
+    [...GOOGLE_FLASH_STANDARD_SCHEDULE_MODEL_IDS],
+    ["gemini-3.7-flash","gemini-3.8-flash"]
+  );
+  assert.equal(GOOGLE_FLASH_STANDARD_POST_INTRO_EFFECTIVE_AT,"2027-01-01T00:00:00.000Z");
+  assert.deepEqual(GOOGLE_FLASH_STANDARD_INTRO_RATES,{
+    inputUsdPerMillion:0.75,
+    outputUsdPerMillion:3.75,
+    cacheReadUsdPerMillion:0.075,
+  });
+  assert.deepEqual(GOOGLE_FLASH_STANDARD_POST_INTRO_RATES,{
+    inputUsdPerMillion:1.5,
+    outputUsdPerMillion:7.5,
+    cacheReadUsdPerMillion:0.15,
+  });
+
+  const report=buildMainRpSupplyRadarReport({
+    endpointsByModel:{
+      "gemini-3.7-flash":[routedEndpoint("gemini-3.7-flash")],
+      "gemini-3.8-flash":[routedEndpoint("gemini-3.8-flash")],
+    },
+    ciCatalogByModel:null,
+    generatedAt:"2026-11-02T00:00:00.000Z",
+  });
+  assert.equal(report.version,2);
+  assert.deepEqual(report.upstreamPriceRisks.map(row=>row.modelId),[
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
+  ]);
+  for(const risk of report.upstreamPriceRisks){
+    assert.equal(risk.referenceTier,"google_standard");
+    assert.equal(risk.currentProcurementRoute,"openrouter:google-ai-studio:flex");
+    assert.equal(risk.currentRouteImpact,"UNCONFIRMED");
+    assert.equal(risk.projectedCurrentRouteCostUsd,null);
+    assert.equal(risk.projectedCurrentRouteMargin,null);
+    assert.equal(risk.action,"REVIEW_CURRENT_ROUTE_PRICING");
+    assert.equal(risk.alertWindow,"D60");
+    assert.equal(risk.currentProcurementPrice.inputUsdPerMillion,0.375);
+    assert.equal(risk.currentProcurementPrice.outputUsdPerMillion,1.875);
+    assert.equal(risk.postIntroStandardPrice.inputUsdPerMillion,1.5);
+    assert.equal(risk.postIntroStandardPrice.outputUsdPerMillion,7.5);
+  }
+  assert.equal(
+    report.models.find(row=>row.modelId==="gemini-3.1-pro-preview")?.upstreamPriceRisk,
+    null
+  );
+});
+
+test("upstream schedule alert windows do not claim a current-route price transition",()=> {
+  const effective=GOOGLE_FLASH_STANDARD_POST_INTRO_EFFECTIVE_AT;
+  assert.equal(resolveSupplyUpstreamRiskAlertWindow(effective,"2026-11-02T00:00:00.000Z"),"D60");
+  assert.equal(resolveSupplyUpstreamRiskAlertWindow(effective,"2026-12-02T00:00:00.000Z"),"D30");
+  assert.equal(resolveSupplyUpstreamRiskAlertWindow(effective,"2026-12-25T00:00:00.000Z"),"D7");
+  assert.equal(resolveSupplyUpstreamRiskAlertWindow(effective,"2027-01-01T00:00:00.000Z"),"EFFECTIVE_OR_PAST");
+  assert.equal(resolveSupplyUpstreamRiskAlertWindow(effective,"2026-10-01T00:00:00.000Z"),null);
+
+  const report=buildMainRpSupplyRadarReport({
+    endpointsByModel:{"gemini-3.8-flash":[routedEndpoint("gemini-3.8-flash")]},
+    ciCatalogByModel:null,
+    generatedAt:"2027-01-08T03:47:00.000Z",
+  });
+  const risk=report.models.find(row=>row.modelId==="gemini-3.8-flash")!.upstreamPriceRisk!;
+  assert.equal(risk.alertWindow,"EFFECTIVE_OR_PAST");
+  assert.equal(risk.currentProcurementPrice.inputUsdPerMillion,0.375);
+  assert.equal(risk.projectedCurrentRouteCostUsd,null);
+  assert.equal(risk.projectedCurrentRouteMargin,null);
+});
+
+test("forecast markdown explicitly separates upstream schedule from current Flex procurement",()=> {
+  const report=buildMainRpSupplyRadarReport({
+    endpointsByModel:{"gemini-3.7-flash":[routedEndpoint("gemini-3.7-flash")]},
+    ciCatalogByModel:null,
+    generatedAt:"2026-12-02T00:00:00.000Z",
+  });
+  const markdown=renderMainRpSupplyRadarMarkdown(report);
+  assert.match(markdown,/Official upstream price schedule risk/);
+  assert.match(markdown,/UNCONFIRMED/);
+  assert.match(markdown,/REVIEW_CURRENT_ROUTE_PRICING/);
+  assert.match(markdown,/does not prove the future price/);
+  assert.doesNotMatch(markdown,/projected current-route margin/i);
+});
+

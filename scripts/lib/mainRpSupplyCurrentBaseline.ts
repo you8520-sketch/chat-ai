@@ -1,3 +1,4 @@
+import { executeCompatibleSupplyProbe } from "./compatibleSupplyProbe";
 import {
   buildCheaperInferenceChatCompletionsUrl,
   buildCheaperInferenceHeaders,
@@ -19,7 +20,6 @@ import {
   MAIN_RP_SUPPLY_LIVE_TARGET_CHARS,
   buildDeterministicSupplyProbeTurns,
   executeOpenRouterSupplyProbe,
-  processOpenRouterSupplySseLine,
   type SupplyLiveCandidate,
   type SupplyLiveCandidateResult,
   type SupplyLiveSelection,
@@ -334,38 +334,6 @@ export function buildCurrentBaselineProbeRequest(input: {
   };
 }
 
-type StreamState = {
-  text: string;
-  finishReason: string | null;
-  usage: JsonObject | null;
-  resolvedModel: string | null;
-  generationId: string | null;
-  firstDeltaAtMs: number | null;
-  sawDone: boolean;
-};
-
-function processChunk(
-  chunk: string,
-  state: StreamState,
-  buffer: { value: string }
-): void {
-  buffer.value += chunk;
-  const parts = buffer.value.split("\n");
-  buffer.value = parts.pop() ?? "";
-  for (const line of parts) processOpenRouterSupplySseLine(line, state);
-}
-
-function flush(
-  decoder: TextDecoder,
-  state: StreamState,
-  buffer: { value: string }
-): void {
-  const tail = decoder.decode();
-  if (tail) buffer.value += tail;
-  if (buffer.value.trim()) processOpenRouterSupplySseLine(buffer.value, state);
-  buffer.value = "";
-}
-
 async function executeCurrentCheaperInferenceBaselineProbe(input: {
   apiKey: string;
   body: JsonObject;
@@ -374,62 +342,15 @@ async function executeCurrentCheaperInferenceBaselineProbe(input: {
   fetchImpl?: FetchLike;
   now?: () => number;
 }): Promise<SupplyLiveTurnResult> {
-  const fetchImpl = input.fetchImpl ?? fetch;
-  const now = input.now ?? Date.now;
-  const startedAtMs = now();
-  const state: StreamState = {
-    text: "",
-    finishReason: null,
-    usage: null,
-    resolvedModel: null,
-    generationId: null,
-    firstDeltaAtMs: null,
-    sawDone: false,
-  };
-
-  let httpStatus = 0;
-  let error: string | null = null;
-  let responseHeaders: Headers | null = null;
-
-  try {
-    const response = await fetchImpl(input.url, {
-      method: "POST",
-      headers: {
-        ...buildCheaperInferenceHeaders(input.apiKey),
-        Accept: "text/event-stream",
-      },
-      body: JSON.stringify(input.body),
-      signal: AbortSignal.timeout(MAIN_RP_SUPPLY_CURRENT_BASELINE_TIMEOUT_MS),
-    });
-    httpStatus = response.status;
-    responseHeaders = response.headers;
-    if (!response.ok) {
-      error = (await response.text()).slice(0, 2_000);
-    } else {
-      const reader = response.body?.getReader();
-      if (!reader) {
-        error = "missing_stream_body";
-      } else {
-        const decoder = new TextDecoder();
-        const buffer = { value: "" };
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          processChunk(decoder.decode(value, { stream: true }), state, buffer);
-        }
-        flush(decoder, state, buffer);
-      }
-    }
-  } catch (caught) {
-    error = caught instanceof Error ? caught.message : String(caught);
-  }
-
-  const endedAtMs = now();
-  const totalSeconds = Math.max(0, (endedAtMs - startedAtMs) / 1000);
-  const ttftSeconds =
-    state.firstDeltaAtMs == null
-      ? null
-      : Math.max(0, (state.firstDeltaAtMs - startedAtMs) / 1000);
+  const state = await executeCompatibleSupplyProbe({
+    endpoint: input.url,
+    headers: { ...buildCheaperInferenceHeaders(input.apiKey), Accept: "text/event-stream" },
+    body: input.body,
+    timeoutMs: MAIN_RP_SUPPLY_CURRENT_BASELINE_TIMEOUT_MS,
+    fetchImpl: input.fetchImpl,
+    now: input.now,
+  });
+  const { httpStatus, error, responseHeaders, totalSeconds, ttftSeconds } = state;
   const breakdown = parseCompatibleUsage({
     usage: state.usage,
     headers: responseHeaders,

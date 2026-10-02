@@ -7,7 +7,7 @@ import {
   PAYMENTS_DISABLED_MESSAGE,
 } from "@/lib/portoneConfig";
 import { createPortoneCheckout } from "@/lib/portoneCheckout";
-import type { PointChargePackageId } from "@/lib/plans";
+import { isPointChargePackageId } from "@/lib/plans";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -29,7 +29,10 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const packageId = body.packageId as PointChargePackageId;
+  const packageId = typeof body.packageId === "string" ? body.packageId : "";
+  if (!isPointChargePackageId(packageId)) {
+    return NextResponse.json({ error: "잘못된 상품입니다." }, { status: 400 });
+  }
   const result = createPortoneCheckout(user.id, packageId);
 
   if (!result.ok) {

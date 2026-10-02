@@ -64,4 +64,31 @@ describe("decision model radar admin projection", () => {
     assert.equal(projected.run?.status, "REVIEW_CANDIDATE");
     assert.equal(projected.githubRunUrl, "https://github.com/example/run/1");
   });
+
+  it("keeps a failed radar run failed and does not treat missing history as a run failure", async () => {
+    const failed = {
+      ranAt: "2026-09-29T04:00:00Z",
+      mainSha: "def",
+      status: "FAILED",
+      discoveredModels: 0,
+      changedCandidates: [],
+      benchmarkedCandidates: [],
+      deferredCandidates: [],
+      providerCalls: 0,
+      baseline: null,
+      evaluations: [],
+      notes: ["provider unavailable"],
+      githubRunUrl: null,
+    };
+    const encoded = Buffer.from(JSON.stringify(failed), "utf8").toString("base64");
+    const projected = await fetchDecisionRadarAdminProjection([], async () =>
+      response(200, { content: encoded })
+    );
+    assert.equal(projected.status, "OK");
+    assert.equal(projected.run?.status, "FAILED");
+
+    const empty = await fetchDecisionRadarLatestRaw(async () => response(404, {}));
+    assert.equal(empty.status, "EMPTY");
+    assert.equal(empty.error, null);
+  });
 });

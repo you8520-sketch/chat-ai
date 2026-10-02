@@ -2,6 +2,7 @@ import {
   AUTOMATION_REPORTS_GITHUB_REPO,
   type GithubScheduledAutomationGroup,
 } from "@/lib/adminAutomationReports";
+import { githubReportGetContent } from "@/lib/githubReportClient";
 import { latestMonthly, latestWeekly, parseCodeHealthLedger } from "@/lib/codeHealth/ledger";
 import type {
   CodeHealthCounts,
@@ -82,48 +83,14 @@ function monthlyCard(report: MonthlyCleanupReport, runUrl: string | null): CodeH
   };
 }
 
-function decodeGithubContent(body: unknown): string | null {
-  if (!body || typeof body !== "object") return null;
-  const content = "content" in body && typeof body.content === "string" ? body.content : "";
-  if (!content) return null;
-  try {
-    return Buffer.from(content.replace(/\n/g, ""), "base64").toString("utf8");
-  } catch {
-    return null;
-  }
-}
-
 export async function fetchCodeHealthLedgerRaw(
   fetchImpl: typeof fetch = fetch,
   repo = AUTOMATION_REPORTS_GITHUB_REPO
 ): Promise<{ status: "OK" | "EMPTY" | "UNAVAILABLE"; error: string | null; raw: string | null }> {
-  try {
-    const response = await fetchImpl(
-      `https://api.github.com/repos/${repo}/contents/ledger.json?ref=${CODE_HEALTH_LEDGER_BRANCH}`,
-      {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "User-Agent": "chat-ai-admin-automation-reports",
-        },
-        cache: "no-store",
-      }
-    );
-    if (response.status === 404) {
-      return { status: "EMPTY", error: null, raw: null };
-    }
-    if (!response.ok) {
-      return { status: "UNAVAILABLE", error: `GitHub Contents API ${response.status}`, raw: null };
-    }
-    const raw = decodeGithubContent(await response.json());
-    if (!raw) return { status: "EMPTY", error: null, raw: null };
-    return { status: "OK", error: null, raw };
-  } catch (error) {
-    return {
-      status: "UNAVAILABLE",
-      error: error instanceof Error ? error.message : "GitHub Contents API unavailable",
-      raw: null,
-    };
-  }
+  return githubReportGetContent(
+    `https://api.github.com/repos/${repo}/contents/ledger.json?ref=${CODE_HEALTH_LEDGER_BRANCH}`,
+    fetchImpl
+  );
 }
 
 export function projectCodeHealthAdmin(

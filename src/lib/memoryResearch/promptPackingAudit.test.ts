@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
+  attachMemoryPromptPackingAuditToCycleJson,
   buildMemoryPromptPackingAudit,
   renderMemoryPromptPackingAuditMarkdown,
 } from "@/lib/memoryResearch/promptPackingAudit";
@@ -92,6 +93,23 @@ describe("memory prompt-packing sentinel", () => {
     assert.match(md, /semantic duplication verdict: \*\*NOT_MEASURED\*\*/);
     assert.match(md, /providerGenerationCalls: 0/);
     assert.match(md, /productionTouched: false/);
+  });
+
+  it("embeds the exact sentinel snapshot into the durable cycle JSON without rewriting other cycle fields", () => {
+    const embedded = JSON.parse(
+      attachMemoryPromptPackingAuditToCycleJson(
+        JSON.stringify({
+          cycleKey: "weekly-2026-W40",
+          status: "COMPLETED",
+          counts: { evaluated: 3 },
+        }),
+        audit
+      )
+    ) as Record<string, unknown>;
+    assert.equal(embedded.cycleKey, "weekly-2026-W40");
+    assert.equal(embedded.status, "COMPLETED");
+    assert.deepEqual(embedded.counts, { evaluated: 3 });
+    assert.deepEqual(embedded.promptPackingAudit, audit);
   });
 
   it("fails the durable-shadow contract if the canonical summary policy stops preserving current-state transitions", () => {

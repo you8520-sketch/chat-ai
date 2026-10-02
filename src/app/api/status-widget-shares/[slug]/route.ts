@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getStatusWidgetShareBySlug } from "@/lib/statusWidgetShares";
+import { getSessionUser } from "@/lib/auth";
+import { getStatusWidgetShareBySlug, setStatusWidgetShareVisibility } from "@/lib/statusWidgetShares";
 import { parseStatusWidgetJson } from "@/lib/statusWidget";
 
 export async function GET(
@@ -21,6 +22,23 @@ export async function GET(
     widgetJson: share.widgetJson,
     authorNickname: share.authorNickname,
     createdAt: share.createdAt,
+    visibility: share.visibility,
     widget,
   });
+}
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
+  const { slug } = await params;
+  const body = await req.json().catch(() => ({}));
+  const result = setStatusWidgetShareVisibility(user.id, slug, body.visibility);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+  return NextResponse.json({ ok: true, visibility: result.visibility });
 }

@@ -28,7 +28,12 @@ import {
   officialSubstantiveCharCount,
 } from "@/lib/officialSupply/characterText";
 import { validateStyleProposal } from "@/lib/officialSupply/style";
-import type { OfficialAppearanceLock, OfficialAssetPlan, OfficialCharacterDraft } from "@/lib/officialSupply/types";
+import type {
+  OfficialAppearanceLock,
+  OfficialAssetPlan,
+  OfficialCharacterDraft,
+  OfficialWorldLorebookEntry,
+} from "@/lib/officialSupply/types";
 import {
   evaluateInternalRegionConsistency,
   evaluateOriginality,
@@ -82,6 +87,7 @@ type CharFile = {
     rpHook: string;
   };
   bible: OfficialCharacterBible;
+  characterLorebook?: OfficialWorldLorebookEntry[];
   draft: OfficialCharacterDraft;
   appearance?: OfficialAppearanceLock;
   assetPlan?: OfficialAssetPlan;
@@ -144,7 +150,7 @@ describe("official pilot content (romance fantasy 01)", () => {
     const { bible } = worldBible();
     assert.equal(bible.portfolio.length, m.slots);
     assert.equal(bible.portfolio.filter((b) => b.adultCandidate).length, m.adultCandidates);
-    assert.ok(bible.lorebook.length >= 8 && bible.lorebook.length <= 12);
+    assert.ok(bible.lorebook.length >= 3 && bible.lorebook.length <= 8);
   });
 
   it("all 10 character files exist, complete, and match their briefs", () => {
@@ -186,12 +192,14 @@ describe("official pilot content (romance fantasy 01)", () => {
     assert.ok(lucian);
 
     assert.match(lucian!.draft.description, /증권거래소 지하 금고/);
-    assert.match(lucian!.draft.description, /공범|목격자/);
+    assert.match(lucian!.draft.description, /기존 관계는 페르소나 설정을 따르며/);
     assert.match(lucian!.draft.greeting, /증권거래소 지하 금고/);
     assert.match(lucian!.draft.greeting, /경보/);
-    assert.match(lucian!.draft.greeting, /공범/);
     assert.match(lucian!.bible.situation.userEntry, /증권거래소 지하 금고/);
+    assert.doesNotMatch(lucian!.bible.situation.userEntry, /페르소나|가족·동료·연인/);
+    assert.match(lucian!.draft.sections.relationshipsAndDrives, /유저 페르소나와 대화에서 명시된 설정을 우선/);
     assert.match(lucian!.bible.rpEngine.immediateHook, /증권거래소 지하 금고/);
+    assert.doesNotMatch(lucian!.draft.greeting, /오늘 처음 만난|낯선 사람/);
     assert.doesNotMatch(lucian!.draft.greeting, /비가 그친 뒤의 골목/);
   });
 

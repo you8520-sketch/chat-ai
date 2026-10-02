@@ -1,3 +1,5 @@
+import { extractExplicitSharedHistoryScope } from "@/lib/sharedHistoryEvidence";
+
 /**
  * Canonical historical / shared-memory truth policy — single full semantic owner.
  * Injected once on every Main RP production path via contextBuilder.
@@ -31,3 +33,55 @@ export const EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES = [
   "Distinct completed events at different turns are all valid history; do not rewrite or erase an earlier event because a later event exists.",
   "For current durable state or preference facts only, the higher turn number is more recent and must be preferred.",
 ] as const;
+
+
+export const HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER =
+  "[HISTORICAL TRUTH CHECK]";
+
+export const HISTORICAL_TRUTH_CURRENT_USER_EVIDENCE_MARKER =
+  "[HISTORICAL EVIDENCE — CURRENT USER]";
+
+const CURRENT_USER_HISTORICAL_PREMISE_PATTERNS: readonly RegExp[] = [
+  /기억(?:하지|나|나지|해|하니|하냐)/u,
+  /알(?:지|잖아)(?:[?!….,\s]|$)/u,
+  /(?:뭐|무엇|어떤).{0,16}(?:였더라|했더라|먹었더라|갔더라|봤더라)/u,
+  /(?:평소|원래).{0,24}(?:뭐|무엇|어떤).{0,24}(?:좋아|싫어|먹|마시|취향)/u,
+  /(?:전에|예전에|지난번|그때).{0,28}(?:뭐|무엇|어디|언제|누구|어떻게).{0,20}(?:했|였|갔|먹|봤|만났|기억)/u,
+];
+
+/**
+ * Detects a current-user recall/presupposition shape that is especially prone
+ * to recency overriding the canonical historical-truth owner.
+ *
+ * This does NOT decide whether the user's concrete statement is true. The full
+ * owner above remains authoritative and explicitly allows concrete user-stated
+ * past facts while rejecting missing-detail completion.
+ */
+export function currentUserNeedsHistoricalTruthRecencyRef(
+  text: string | null | undefined
+): boolean {
+  const value = text?.trim() ?? "";
+  if (!value) return false;
+  return CURRENT_USER_HISTORICAL_PREMISE_PATTERNS.some((pattern) =>
+    pattern.test(value)
+  );
+}
+
+/**
+ * Compact recency pointer only. It intentionally does not restate historical
+ * truth semantics; there must remain exactly one full canonical owner.
+ */
+export function buildHistoricalTruthCurrentUserRecencyRef(
+  text: string | null | undefined
+): string {
+  const explicitScope = extractExplicitSharedHistoryScope(text);
+  if (explicitScope.length > 0) {
+    return `${HISTORICAL_TRUTH_CURRENT_USER_EVIDENCE_MARKER}
+USER가 이번 턴에 직접 확정한 공유 과거:
+${explicitScope.map((line) => `- ${line}`).join("\n")}
+이 범위는 그대로 이어 쓰고, 비어 있는 이전 세부는 열린 상태로 둔다. 새 구체성은 현재 장면에서 만든다.`;
+  }
+  if (!currentUserNeedsHistoricalTruthRecencyRef(text)) return "";
+  return `${HISTORICAL_TRUTH_CURRENT_USER_RECENCY_MARKER}
+이번 턴의 공유 과거는 ${HISTORICAL_TRUTH_POLICY_TITLE}에서 확인된 사실만 이어 쓰고, 비어 있는 이전 세부는 열린 상태로 둔다.`;
+}

@@ -69,9 +69,12 @@ export function renderStatusWidgetsForTurn(
 ): RenderedStatusWidget[] {
   return items
     .map(({ source, widget, values }) => {
-      const html = renderStatusWidgetHtml(widget, values, names);
-      if (!html.trim()) return null;
-      return { source, html, widget, values };
+      const html = widget.htmlTemplate.trim()
+        ? renderStatusWidgetHtml(widget, values, names)
+        : "";
+      const jsxCompiled = widget.jsxCompiled?.trim() || undefined;
+      if (!html.trim() && !jsxCompiled) return null;
+      return { source, html, widget, values, ...(jsxCompiled ? { jsxCompiled } : {}) };
     })
     .filter((x): x is RenderedStatusWidget => x != null);
 }

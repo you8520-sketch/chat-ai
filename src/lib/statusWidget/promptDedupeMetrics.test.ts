@@ -34,16 +34,17 @@ describe("promptDedupeMetrics", () => {
     assert.doesNotMatch(widget, /<<<STATUS_VALUES>>>[\s\S]*<<<STATUS_VALUES>>>/);
   });
 
-  it("default template widget block includes 의식의흐름 field and instruction", () => {
+  it("default template widget block includes 현재목표 and 속마음 instructions", () => {
     const resolved = resolveStatusWidgetTurn({
       characterWidgetJson: JSON.stringify(DEFAULT_STATUS_WIDGET),
       chatMode: "character_only",
     });
     const widget = buildStatusWidgetPromptBlock(resolved);
 
-    assert.match(widget, /의식의흐름/);
-    assert.match(widget, /너무졸려서 바닥에 눕고싶다/);
-    assert.match(widget, /데이트하자고 꼬셔야겠다/);
+    assert.match(widget, /현재목표/);
+    assert.match(widget, /NPC가 지금 이루려는 단기 목표를 짧게 작성한다/);
+    assert.match(widget, /NPC의 현재 내면을 자연스러운 1인칭 한 줄로 작성한다/);
+    assert.doesNotMatch(widget, /의식의흐름/);
     assert.ok(widget.length >= 700);
   });
 });
