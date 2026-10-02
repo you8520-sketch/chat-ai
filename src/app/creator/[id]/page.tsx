@@ -6,6 +6,7 @@ import CreatorGiftPanel from "@/components/CreatorGiftPanel";
 import OfficialCreatorBadge from "@/components/OfficialCreatorBadge";
 import OfficialStudioBadge from "@/components/OfficialStudioBadge";
 import ProfileCommentSection from "@/components/ProfileCommentSection";
+import { shouldHideAdultListings } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { listableWhere } from "@/lib/characterVisibility";
 import { getDb } from "@/lib/db";
@@ -59,7 +60,7 @@ export default async function CreatorProfilePage({
   const giftable = user ? getGiftableBalance(user.id) : null;
   const paidPoints = balance?.paid ?? 0;
   const freePoints = balance?.free ?? 0;
-  const blurNsfw = !user?.is_adult || !user?.nsfw_on;
+  const blurNsfw = shouldHideAdultListings(user);
   const loggedIn = !!user;
   const commentsEnabled = getCreatorCommentsEnabled(db, creatorId);
   const showComments = commentsEnabled || isOwner;

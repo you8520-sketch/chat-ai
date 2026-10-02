@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { resolveViewerDisplayNameForUser } from "@/lib/viewerDisplayName";
@@ -24,7 +25,7 @@ export default async function CreatePage({
   const initialWorldId = worldIdParam ? Number(worldIdParam) : null;
   const initialWorldBorrowId = worldBorrowIdParam ? Number(worldBorrowIdParam) : null;
 
-  if (!user.is_adult) {
+  if (!canUseCreatorTools(user)) {
     return (
       <AdultVerifyGate
         message="캐릭터 제작은 성인인증을 완료한 회원만 가능합니다."

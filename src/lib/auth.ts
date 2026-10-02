@@ -3,8 +3,6 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 import { SESSION_COOKIE_NAME } from "./sessionCookie";
 import { getDb } from "./db";
-import { effectiveIsAdult } from "./adultVerification";
-import { isAdminUser } from "./isAdminUser";
 import { type User, isSubscribed } from "./auth-types";
 
 export type { User } from "./auth-types";
@@ -42,9 +40,7 @@ export async function getSessionUser(): Promise<User | null> {
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token = ? AND s.expires_at > datetime('now')`
     )
-    .get(token) as (User & { is_admin: number }) | undefined;
+    .get(token) as User | undefined;
   if (!row) return null;
-  const isAdmin = isAdminUser({ email: row.email, is_admin: row.is_admin });
-  if (!effectiveIsAdult(row.is_adult) && !isAdmin) return row;
-  return { ...row, is_adult: 1 };
+  return row;
 }

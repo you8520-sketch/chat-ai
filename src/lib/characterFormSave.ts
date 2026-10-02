@@ -1,3 +1,4 @@
+import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getDb } from "@/lib/db";
 import { resolveWorldSelectionForUser } from "@/lib/worldLibrary";
 import { parseWorldLibraryRef } from "@/lib/worlds";
@@ -129,7 +130,13 @@ export {
 } from "./characterFormLimits";
 
 
-export type SessionUser = { id: number; nickname: string; is_adult: number };
+export type SessionUser = {
+  id: number;
+  nickname: string;
+  is_adult: number;
+  email?: string;
+  is_admin?: number;
+};
 
 export type ParsedCharacterForm = {
   contentKind: ContentKind;
@@ -369,7 +376,7 @@ export function parseCharacterFormBody(
     };
   }
 ): { ok: true; data: ParsedCharacterForm } | { ok: false; error: string; status: number } {
-  if (!user.is_adult) {
+  if (!canUseCreatorTools(user)) {
     return { ok: false, error: "캐릭터 제작·수정은 성인인증 완료 후 가능합니다.", status: 403 };
   }
   const contentKind = parseContentKind(b.content_kind ?? b.contentKind);
@@ -1343,7 +1350,7 @@ export async function updateCharacterPublicProfileFromForm(
   characterId: number,
   b: Record<string, unknown>
 ) {
-  if (!user.is_adult) {
+  if (!canUseCreatorTools(user)) {
     return { ok: false as const, error: "캐릭터 수정은 성인인증 완료 후 가능합니다.", status: 403 };
   }
 

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getPointBalance } from "@/lib/points";
 import { isAdminUser } from "@/lib/adminAuth";
@@ -28,6 +29,10 @@ export default async function SettingsPage() {
         email: user.email,
         nickname: user.nickname,
         isAdult: !!user.is_adult,
+        canDisableSafetyFilter: canAccessAdultContent({
+          ...user,
+          is_admin: adminRow?.is_admin ?? 0,
+        }),
         nsfwOn: !!user.nsfw_on,
         pref: (user.pref as "female" | "male" | null) ?? null,
         google: !!user.google_id,

@@ -1,3 +1,4 @@
+import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { fetchRecentActivity } from "@/lib/recentActivity";
@@ -10,7 +11,7 @@ const SIDEBAR_CHARACTER_LIMIT = RECENT_CHARACTER_LIST_LIMIT;
 
 export default async function Sidebar() {
   const user = await getSessionUser();
-  const blurNsfw = !user?.is_adult || !user?.nsfw_on;
+  const blurNsfw = shouldHideAdultListings(user);
   const recentActivity = user
     ? fetchRecentActivity(getDb(), user.id, SIDEBAR_CHARACTER_LIMIT, {
         includeTrpg: canAccessTrpg(user),
@@ -28,7 +29,7 @@ export default async function Sidebar() {
     { href: "/studio", icon: "studio", label: "제작" },
     { href: "/creator", icon: "creator", label: "크리에이터" }
   );
-  if (!user?.is_adult) {
+  if (!canAccessAdultContent(user)) {
     navItems.push({ href: "/verify", icon: "verify", label: "성인인증" });
   }
 
