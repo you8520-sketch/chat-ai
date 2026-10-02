@@ -18,7 +18,7 @@ export function LegalDocument({
   return (
     <AppPageShell title={title} description={`시행일 ${LEGAL_DOCUMENT_AS_OF}`} narrow>
       <article className="space-y-6 text-sm leading-6 text-zinc-300">
-        <p className="text-xs font-medium tabular-nums text-zinc-500">시행일 {LEGAL_DOCUMENT_AS_OF}</p>
+        <p className="text-xs font-medium tabular-nums text-zinc-500">{`시행일 ${LEGAL_DOCUMENT_AS_OF}`}</p>
         <nav
           aria-label="목차"
           className="rounded-xl border border-white/10 bg-[#131626] p-4"
@@ -31,7 +31,7 @@ export function LegalDocument({
                   href={`#${section.id}`}
                   className="block min-h-11 rounded-lg px-2 py-2 text-sm text-zinc-300 hover:bg-white/[0.04] hover:text-zinc-50"
                 >
-                  <span className="tabular-nums text-zinc-500">제{section.article}조 </span>
+                  <span className="tabular-nums text-zinc-500">{`제${section.article}조 `}</span>
                   {section.heading}
                 </a>
               </li>
@@ -44,7 +44,7 @@ export function LegalDocument({
         {sections.map((section) => (
           <section id={section.id} key={section.id} className="scroll-mt-24 space-y-2">
             <h2 className="text-base font-semibold text-zinc-50">
-              <span className="tabular-nums text-zinc-500">제{section.article}조 </span>
+              <span className="tabular-nums text-zinc-500">{`제${section.article}조 `}</span>
               {section.heading}
             </h2>
             {section.paragraphs.map((paragraph) => (

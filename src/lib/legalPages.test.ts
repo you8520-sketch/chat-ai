@@ -152,7 +152,7 @@ test("legal footer remains the site-wide renderer and public pages stay server-r
   assert.equal(layout.match(/<SiteLegalFooter \/>/g)?.length, 1);
   assert.match(document, /시행일/);
   assert.match(document, /목차/);
-  assert.match(document, /제\{section\.article\}조/);
+  assert.match(document, /제\$\{section\.article\}조/);
   assert.doesNotMatch(privacy, /getSessionUser|redirect\(/);
   assert.doesNotMatch(terms, /getSessionUser|redirect\(/);
   assert.doesNotMatch(refund, /getSessionUser|redirect\(/);
