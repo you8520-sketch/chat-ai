@@ -8,6 +8,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   GEMINI_38_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
 } from "@/lib/chatModels";
@@ -81,7 +82,7 @@ describe("modelPickerPreview V2", () => {
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL)
     );
     assert.ok(
-      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_61_SOL_MODEL)
     );
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)
@@ -373,17 +374,25 @@ describe("modelPickerPreview V2", () => {
     assert.equal(preview.models[0]?.estimatedPoints ?? null, null);
   });
 
-  it("uses Terra receipts only for Terra estimates and keeps DeepSeek separate", () => {
+  it("uses Sol receipts only for Sol estimates and ignores historical Terra samples", () => {
     const preview = buildModelPickerPreview({
-      messages: [assistantUsage(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, 1800)],
-      modelIds: [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL],
+      messages: [
+        assistantUsage(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, 1800),
+        assistantUsage(CHEAPER_INFERENCE_GPT_61_SOL_MODEL, 1500),
+      ],
+      modelIds: [CHEAPER_INFERENCE_GPT_61_SOL_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL],
     });
-    const terra = preview.models.find((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL);
+    const sol = preview.models.find((m) => m.modelId === CHEAPER_INFERENCE_GPT_61_SOL_MODEL);
     const deepSeek = preview.models.find((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL);
-    assert.equal(terra?.supported, true);
-    assert.ok((terra?.estimatedPoints ?? 0) > 0);
+    assert.equal(sol?.supported, true);
+    assert.ok((sol?.estimatedPoints ?? 0) > 0);
     assert.equal(deepSeek?.supported, true);
-    assert.notEqual(terra?.outputBasis, "unsupported");
+    assert.notEqual(sol?.outputBasis, "unsupported");
+    const terraOnly = buildModelPickerPreview({
+      messages: [assistantUsage(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, 1800)],
+      modelIds: [CHEAPER_INFERENCE_GPT_61_SOL_MODEL],
+    });
+    assert.equal(terraOnly.models[0]?.outputBasis, "cold_baseline");
   });
 
   it("retires Muse from active picker estimates while keeping historical parsing", () => {

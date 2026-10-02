@@ -13,6 +13,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   MAIN_RP_MODEL_IDS,
 } from "@/lib/chatModels";
 import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
@@ -509,12 +510,12 @@ describe("mainRpPricingObservability B2B actual production economics", () => {
     });
     const projection = buildMainRpPricingObservabilityProjection({ db, now: NOW });
     assert.equal(projection.models.length, listMainRpObservabilityModelIds().length);
-    const terra = projection.models.find(
-      (row) => row.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL
+    const sol = projection.models.find(
+      (row) => row.modelId === CHEAPER_INFERENCE_GPT_61_SOL_MODEL
     )!;
-    assert.equal(terra.actual.usageState, "NO_USAGE");
-    assert.equal(terra.actual.marginDisplay, "NO_USAGE");
-    assert.equal(terra.actual.marginRate, null);
+    assert.equal(sol.actual.usageState, "NO_USAGE");
+    assert.equal(sol.actual.marginDisplay, "NO_USAGE");
+    assert.equal(sol.actual.marginRate, null);
   });
 
   it("J — representative estimate and actual monthly margin stay separate", () => {

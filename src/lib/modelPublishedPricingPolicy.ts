@@ -11,6 +11,7 @@ import {
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "@/lib/chatModels";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 
@@ -94,6 +95,16 @@ const MODEL_PUBLISHED_PRICING_POLICIES: Record<string, ModelPublishedPricingPoli
      */
     cacheSemanticStatus: "verified",
     cacheWriteAbsentSemantics: "proven_zero",
+  },
+  [CHEAPER_INFERENCE_GPT_61_SOL_MODEL]: {
+    modelId: CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+    pricingApplicability: "tier_aware",
+    publishedBaseTierMaxPromptTokens: 272_000,
+    /**
+     * Official OpenAI + live CheaperInference catalog both publish distinct
+     * cache-read / cache-write list rates. User charge uses official Standard.
+     */
+    cacheSemanticStatus: "verified",
   },
   [CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL]: {
     modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,

@@ -66,6 +66,28 @@ test("GPT-5.6 Terra uses the Cheaper Inference catalog rates", () => {
   assert.equal(rates.outputUsdPerM, 12);
 });
 
+test("GPT-6.1 Sol receipt rates stay on official Standard and ignore live CI discount", () => {
+  clearCheaperInferenceCatalogPricingForTest();
+  const rates = resolveOpenRouterModelRates("gpt-6.1-sol");
+  assert.equal(rates.inputUsdPerM, 2);
+  assert.equal(rates.cacheReadUsdPerM, 0.1);
+  assert.equal(rates.cacheWriteUsdPerM, 2.5);
+  assert.equal(rates.outputUsdPerM, 10);
+  updateCheaperInferenceCatalogPricing({
+    modelId: "gpt-6.1-sol",
+    inputUsdPerMillion: 1.486373,
+    cacheReadUsdPerMillion: 0.074319,
+    cacheWriteUsdPerMillion: 1.857967,
+    outputUsdPerMillion: 7.431866,
+    discountPercent: 25.68,
+    fetchedAt: Date.now(),
+  });
+  const after = resolveOpenRouterModelRates("gpt-6.1-sol");
+  assert.equal(after.inputUsdPerM, 2);
+  assert.equal(after.outputUsdPerM, 10);
+  clearCheaperInferenceCatalogPricingForTest();
+});
+
 test("DeepSeek V4 Pro uses the Cheaper Inference catalog rates", () => {
   const rates = resolveOpenRouterModelRates("deepseek-v4-pro");
   assert.equal(rates.inputUsdPerM, 0.3045);

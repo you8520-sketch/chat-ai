@@ -8,6 +8,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   isCheaperInferenceModel,
   isCheaperInferenceClaudeOpus5Model,
   isCheaperInferenceDeepSeekV4FlashModel,
@@ -18,6 +19,7 @@ import {
   isGemini36FlashModel,
   isGpt56LunaModel,
   isGpt56TerraModel,
+  isGpt61SolModel,
   isMuseModel,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -88,6 +90,17 @@ export const OPENROUTER_GEMINI_36_GROSS_MARGIN = 0.5;
 export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN = 0.65;
 export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_GROSS_MARGIN = 0.68;
 export const CHEAPER_INFERENCE_GPT_56_TERRA_GROSS_MARGIN = 0.5;
+/** Official OpenAI Standard list for GPT-6.1 Sol — user charge ignores CI procurement discount. */
+export const CHEAPER_INFERENCE_GPT_61_SOL_INPUT_USD_PER_MILLION = 2;
+export const CHEAPER_INFERENCE_GPT_61_SOL_CACHED_INPUT_USD_PER_MILLION = 0.1;
+export const CHEAPER_INFERENCE_GPT_61_SOL_CACHE_WRITE_USD_PER_MILLION = 2.5;
+export const CHEAPER_INFERENCE_GPT_61_SOL_OUTPUT_USD_PER_MILLION = 10;
+export const CHEAPER_INFERENCE_GPT_61_SOL_LONG_CONTEXT_INPUT_USD_PER_MILLION = 4;
+export const CHEAPER_INFERENCE_GPT_61_SOL_LONG_CONTEXT_CACHED_INPUT_USD_PER_MILLION = 0.2;
+export const CHEAPER_INFERENCE_GPT_61_SOL_LONG_CONTEXT_CACHE_WRITE_USD_PER_MILLION = 5;
+export const CHEAPER_INFERENCE_GPT_61_SOL_LONG_CONTEXT_OUTPUT_USD_PER_MILLION = 15;
+export const CHEAPER_INFERENCE_GPT_61_SOL_LONG_CONTEXT_THRESHOLD_TOKENS = 272_000;
+export const CHEAPER_INFERENCE_GPT_61_SOL_GROSS_MARGIN = 0.45;
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_GROSS_MARGIN = 0.45;
 export const CHEAPER_INFERENCE_GPT_56_LUNA_GROSS_MARGIN = 0.55;
 export const CHEAPER_INFERENCE_GEMINI_31_PRO_GROSS_MARGIN = 0.5;
@@ -174,6 +187,22 @@ const CHEAPER_INFERENCE_TERRA_PRICING: ReasoningTokenPricing = {
     CHEAPER_INFERENCE_GPT_56_TERRA_CACHE_WRITE_USD_PER_MILLION,
   outputUsdPerMillion: CHEAPER_INFERENCE_GPT_56_TERRA_OUTPUT_USD_PER_MILLION,
   grossMargin: CHEAPER_INFERENCE_GPT_56_TERRA_GROSS_MARGIN,
+};
+
+const CHEAPER_INFERENCE_SOL_PRICING: ReasoningTokenPricing = {
+  modelId: CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+  inputUsdPerMillion: CHEAPER_INFERENCE_GPT_61_SOL_INPUT_USD_PER_MILLION,
+  cacheReadUsdPerMillion: CHEAPER_INFERENCE_GPT_61_SOL_CACHED_INPUT_USD_PER_MILLION,
+  cacheWriteUsdPerMillion: CHEAPER_INFERENCE_GPT_61_SOL_CACHE_WRITE_USD_PER_MILLION,
+  outputUsdPerMillion: CHEAPER_INFERENCE_GPT_61_SOL_OUTPUT_USD_PER_MILLION,
+  grossMargin: CHEAPER_INFERENCE_GPT_61_SOL_GROSS_MARGIN,
+  longContextInputUsdPerMillion: CHEAPER_INFERENCE_GPT_61_SOL_LONG_CONTEXT_INPUT_USD_PER_MILLION,
+  longContextCacheReadUsdPerMillion:
+    CHEAPER_INFERENCE_GPT_61_SOL_LONG_CONTEXT_CACHED_INPUT_USD_PER_MILLION,
+  longContextCacheWriteUsdPerMillion:
+    CHEAPER_INFERENCE_GPT_61_SOL_LONG_CONTEXT_CACHE_WRITE_USD_PER_MILLION,
+  longContextOutputUsdPerMillion: CHEAPER_INFERENCE_GPT_61_SOL_LONG_CONTEXT_OUTPUT_USD_PER_MILLION,
+  longContextThresholdTokens: CHEAPER_INFERENCE_GPT_61_SOL_LONG_CONTEXT_THRESHOLD_TOKENS,
 };
 
 const CHEAPER_INFERENCE_CLAUDE_OPUS_5_PRICING: ReasoningTokenPricing = {
@@ -266,6 +295,9 @@ function resolveReasoningTokenPricing(modelId: string): ReasoningTokenPricing | 
   }
   if (isDeepSeekV4ProModel(modelId)) return DEEPSEEK_PRICING;
   if (isGemini36FlashModel(modelId)) return GEMINI_36_PRICING;
+  if (isGpt61SolModel(modelId)) {
+    return CHEAPER_INFERENCE_SOL_PRICING;
+  }
   if (isGpt56TerraModel(modelId)) {
     return withLiveCheaperInferenceCatalogPricing(CHEAPER_INFERENCE_TERRA_PRICING);
   }
@@ -599,6 +631,7 @@ export function computeOpenRouterTurnBilling(
   const rates = resolveOpenRouterReasoningPointRates(opts.modelId);
   const upstreamCostUsd =
     isCheaperInferenceModel(opts.modelId) &&
+    !isGpt61SolModel(opts.modelId) &&
     typeof opts.upstreamCostUsd === "number" &&
     Number.isFinite(opts.upstreamCostUsd) &&
     opts.upstreamCostUsd > 0
