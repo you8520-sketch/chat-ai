@@ -21,6 +21,7 @@ import {
  */
 
 export const RECONCILIATION_REMOTE_COMPARE_VALUE = "reconciliation-remote";
+export const RECONCILIATION_REMOTE_KEY_GROUPS_PARAM = "keyGroups";
 export const RECONCILIATION_REMOTE_UNVERIFIED = "UNVERIFIED" as const;
 export const REMOTE_COMPARE_MAX_PAGES = 8;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -62,6 +63,11 @@ export type ProviderReconciliationRemoteCompare = {
     remoteSettledUnmatchedMessages: number;
   };
   localLedgerInWindow: LocalReconciliationCompareSnapshot["ledgerInWindow"];
+  /**
+   * Present only when keyGroups=1 is explicitly requested.
+   * Groups are anonymous ordinals. No API key id or name.
+   */
+  apiKeyGroups?: AnonymousApiKeyGroups;
   evidence: {
     ledgerIdsAbsentInWindow: boolean;
     backgroundRowsExplainNoIdLedger: boolean;
@@ -86,9 +92,33 @@ const REQUIRED_TO_PROVE_CAUSATION = [
   "Keep incomplete/external-only usage separate from local costs; do not insert additional ledger rows or POST reconciliation.",
 ] as const;
 
+export type AnonymousApiKeyGroup = {
+  ordinal: number;
+  settledCount: number;
+  settledMicroUsd: number;
+  byModel: Record<string, number>;
+  byEndpoint: Record<string, number>;
+};
+
+export type AnonymousApiKeyGroups = {
+  groups: AnonymousApiKeyGroup[];
+  ungroupedSettledCount: number;
+  ungroupedSettledMicroUsd: number;
+  groupsSettledCount: number;
+  groupsSettledMicroUsd: number;
+  totalsMatchRemoteSettled: boolean;
+  keyIdValueKinds: {
+    string: number;
+    number: number;
+    missing: number;
+  };
+  productionKeyMapping: "unavailable";
+};
+
 type RemoteCompareDeps = {
   fetchRequests?: typeof fetchAllUsageRequests;
   fetchImpl?: UsageFetcher;
+  includeKeyGroups?: boolean;
 };
 
 function sqlDateTimeToIso(value: string): string {
@@ -112,6 +142,81 @@ function isNearBoundary(createdAt: string, start: string, end: string): boolean 
     (createdMs >= startMs - KST_OFFSET_MS && createdMs < startMs) ||
     (createdMs >= endMs && createdMs < endMs + KST_OFFSET_MS)
   );
+}
+
+function increment(bucket: Record<string, number>, raw: string | null): void {
+  const trimmed = (raw ?? "").trim();
+  const key =
+    !trimmed
+      ? "(null)"
+      : trimmed.length > 64 ||
+          /[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i.test(
+            trimmed
+          )
+        ? "(other)"
+        : trimmed;
+  bucket[key] = (bucket[key] ?? 0) + 1;
+}
+
+function buildAnonymousApiKeyGroups(
+  requests: CheaperInferenceUsageRequest[],
+  settledMicroUsd: number,
+  settledCount: number
+): AnonymousApiKeyGroups {
+  const byKey = new Map<
+    string,
+    { settledCount: number; settledMicroUsd: number; byModel: Record<string, number>; byEndpoint: Record<string, number> }
+  >();
+  let ungroupedSettledCount = 0;
+  let ungroupedSettledMicroUsd = 0;
+  const keyIdValueKinds = { string: 0, number: 0, missing: 0 };
+  for (const request of requests) {
+    const rawId = request.apiKeyId;
+    if (rawId == null || String(rawId).trim() === "") keyIdValueKinds.missing += 1;
+    else if (/^\d+$/.test(String(rawId).trim())) keyIdValueKinds.number += 1;
+    else keyIdValueKinds.string += 1;
+    if (!request.settled || request.billedMicroUsd <= 0) continue;
+    const keyId = request.apiKeyId?.trim() || "";
+    if (!keyId) {
+      ungroupedSettledCount += 1;
+      ungroupedSettledMicroUsd += request.billedMicroUsd;
+      continue;
+    }
+    const entry = byKey.get(keyId) ?? {
+      settledCount: 0,
+      settledMicroUsd: 0,
+      byModel: {},
+      byEndpoint: {},
+    };
+    entry.settledCount += 1;
+    entry.settledMicroUsd += request.billedMicroUsd;
+    increment(entry.byModel, request.model);
+    increment(entry.byEndpoint, request.endpoint);
+    byKey.set(keyId, entry);
+  }
+  const groups = [...byKey.values()]
+    .sort((a, b) => b.settledMicroUsd - a.settledMicroUsd || b.settledCount - a.settledCount)
+    .map((entry, index) => ({
+      ordinal: index + 1,
+      settledCount: entry.settledCount,
+      settledMicroUsd: entry.settledMicroUsd,
+      byModel: entry.byModel,
+      byEndpoint: entry.byEndpoint,
+    }));
+  const groupsSettledCount = groups.reduce((sum, row) => sum + row.settledCount, 0);
+  const groupsSettledMicroUsd = groups.reduce((sum, row) => sum + row.settledMicroUsd, 0);
+  return {
+    groups,
+    ungroupedSettledCount,
+    ungroupedSettledMicroUsd,
+    groupsSettledCount,
+    groupsSettledMicroUsd,
+    totalsMatchRemoteSettled:
+      groupsSettledCount + ungroupedSettledCount === settledCount &&
+      groupsSettledMicroUsd + ungroupedSettledMicroUsd === settledMicroUsd,
+    keyIdValueKinds,
+    productionKeyMapping: "unavailable",
+  };
 }
 
 function emptyRemote(status: ProviderReconciliationRemoteCompare["remote"]["fetchStatus"]): ProviderReconciliationRemoteCompare["remote"] {
@@ -349,6 +454,17 @@ export async function compareProviderReconciliationRemote(
     remote,
     match,
     localLedgerInWindow: local.ledgerInWindow,
+    // A failed/incomplete remote read has no verifiable group totals.
+    // Never display a misleading 0=0 reconciliation success on error.
+    ...(deps.includeKeyGroups && fetched.ok
+      ? {
+          apiKeyGroups: buildAnonymousApiKeyGroups(
+            fetched.value.requests,
+            remote.settledMicroUsd,
+            remote.settledCount
+          ),
+        }
+      : {}),
     evidence: classify(remote, match, local),
   };
   assertReconciliationDiagnosisSafePayload(result);

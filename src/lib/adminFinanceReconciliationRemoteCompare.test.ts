@@ -61,7 +61,7 @@ function settled(
     model: "deepseek-v4-pro-0813",
     endpoint: "/chat/completions",
     createdAt,
-    apiKeyId: extra?.apiKeyId ?? "key-a",
+    apiKeyId: extra && "apiKeyId" in extra ? extra.apiKeyId : "key-a",
   };
 }
 
@@ -89,9 +89,11 @@ async function compare(
     incomplete?: boolean;
     reason?: "no_key" | "http" | "network";
     status?: number;
+    includeKeyGroups?: boolean;
   }
 ) {
   return compareProviderReconciliationRemote(d, "2026-10", {
+    includeKeyGroups: input.includeKeyGroups,
     fetchRequests: async () => {
       if (input.incomplete) {
         return {
@@ -395,6 +397,102 @@ describe("admin finance reconciliation remote compare", () => {
       assert.equal(local.evidence.classification, RECONCILIATION_ROOT_CAUSE_UNCONFIRMED);
       assert.equal(typeof remote.remote.fetchStatus, "string");
       assert.equal("reconciliationDiagnosis" in remote, false);
+      assert.equal("apiKeyGroups" in remote, false);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("omits API-key groups unless they are explicitly requested", async () => {
+    const d = db();
+    try {
+      const result = await compare(d, {
+        requests: [
+          settled("a-1", 10_000, "2026-10-02 01:00:00", { apiKeyId: "key-hav" }),
+          settled("b-1", 20_000, "2026-10-02 02:00:00", { apiKeyId: "key-other" }),
+        ],
+      });
+      assert.equal("apiKeyGroups" in result, false);
+      assertNoSecrets(result, ["key-hav", "key-other", "a-1", "b-1"]);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("omits key groups rather than presenting 0=0 when the upstream read fails", async () => {
+    const d = db();
+    try {
+      const unavailable = await compare(d, {
+        includeKeyGroups: true,
+        fetchOk: false,
+        status: 403,
+      });
+      assert.equal(unavailable.remote.fetchStatus, "http");
+      assert.equal(unavailable.evidence.classification, RECONCILIATION_REMOTE_UNVERIFIED);
+      assert.equal("apiKeyGroups" in unavailable, false);
+
+      const incomplete = await compare(d, {
+        includeKeyGroups: true,
+        incomplete: true,
+      });
+      assert.equal(incomplete.remote.fetchStatus, "incomplete");
+      assert.equal(incomplete.evidence.classification, RECONCILIATION_REMOTE_UNVERIFIED);
+      assert.equal("apiKeyGroups" in incomplete, false);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("returns anonymous per-key aggregates that sum to remote settled totals", async () => {
+    const d = db();
+    try {
+      const result = await compare(d, {
+        includeKeyGroups: true,
+        requests: [
+          settled("a-1", 10_000, "2026-10-02 01:00:00", { apiKeyId: "key-hav" }),
+          settled("a-2", 5_000, "2026-10-02 01:10:00", { apiKeyId: "key-hav" }),
+          settled("b-1", 30_000, "2026-10-02 02:00:00", { apiKeyId: "key-other" }),
+          settled("c-1", 4_000, "2026-10-02 03:00:00", { apiKeyId: null }),
+        ],
+      });
+      assert.ok(result.apiKeyGroups);
+      assert.equal(result.apiKeyGroups.groups.length, 2);
+      assert.equal(result.apiKeyGroups.groups[0]!.ordinal, 1);
+      assert.equal(result.apiKeyGroups.groups[0]!.settledCount, 1);
+      assert.equal(result.apiKeyGroups.groups[0]!.settledMicroUsd, 30_000);
+      assert.equal(result.apiKeyGroups.groups[1]!.settledCount, 2);
+      assert.equal(result.apiKeyGroups.groups[1]!.settledMicroUsd, 15_000);
+      assert.equal(result.apiKeyGroups.ungroupedSettledCount, 1);
+      assert.equal(result.apiKeyGroups.ungroupedSettledMicroUsd, 4_000);
+      assert.equal(result.apiKeyGroups.groupsSettledCount, 3);
+      assert.equal(result.apiKeyGroups.groupsSettledMicroUsd, 45_000);
+      assert.equal(result.remote.settledCount, 4);
+      assert.equal(result.remote.settledMicroUsd, 49_000);
+      assert.equal(result.apiKeyGroups.totalsMatchRemoteSettled, true);
+      assert.equal(result.apiKeyGroups.productionKeyMapping, "unavailable");
+      assert.equal(result.apiKeyGroups.groups[0]!.byModel["deepseek-v4-pro-0813"], 1);
+      assert.equal(result.apiKeyGroups.groups[0]!.byEndpoint["/chat/completions"], 1);
+      assertNoSecrets(result, ["key-hav", "key-other", "a-1", "a-2", "b-1", "c-1"]);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("accepts numeric provider api_key_id values without leaking them", async () => {
+    const d = db();
+    try {
+      const result = await compare(d, {
+        includeKeyGroups: true,
+        requests: [
+          settled("n-1", 8_000, "2026-10-02 01:00:00", { apiKeyId: "42" }),
+          settled("n-2", 2_000, "2026-10-02 01:01:00", { apiKeyId: "42" }),
+        ],
+      });
+      assert.equal(result.apiKeyGroups?.groups.length, 1);
+      assert.equal(result.apiKeyGroups?.groups[0]!.settledCount, 2);
+      assert.equal(result.apiKeyGroups?.keyIdValueKinds.number, 2);
+      assert.equal(result.apiKeyGroups?.totalsMatchRemoteSettled, true);
+      assertNoSecrets(result, ["n-1", "n-2", "42"]);
     } finally {
       d.close();
     }
