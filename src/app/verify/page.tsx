@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
-import { isAdultVerificationSkipped } from "@/lib/adultVerification";
+import { effectiveIsAdult } from "@/lib/adultVerification";
 import { isDemoEnv } from "@/lib/demo";
 import VerifyClient from "./VerifyClient";
 
@@ -21,9 +21,9 @@ export default async function VerifyPage({
     );
   }
 
-  if (user.is_adult || isAdultVerificationSkipped()) {
+  if (effectiveIsAdult(user.is_adult)) {
     redirect(redirectTo);
   }
 
-  return <VerifyClient redirectTo={redirectTo} showDemo={isDemoEnv()} />;
+  return <VerifyClient redirectTo={redirectTo} showDemo={isDemoEnv()} providerPending={!isDemoEnv()} />;
 }

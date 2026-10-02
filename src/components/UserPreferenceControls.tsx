@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 type Props = {
   isAdult: boolean;
+  canDisableSafetyFilter?: boolean;
   nsfwOn: boolean;
   pref: "female" | "male" | null;
   loggedIn?: boolean;
@@ -185,6 +186,7 @@ export function TasteFilterDropdown({
 
 export default function UserPreferenceControls({
   isAdult,
+  canDisableSafetyFilter = false,
   nsfwOn: initialNsfw,
   pref: initialPref,
   loggedIn = true,
@@ -215,11 +217,14 @@ export default function UserPreferenceControls({
     return res.ok;
   }
 
-  async function toggleNsfw() {
-    if (!isAdult) return router.push("/verify");
-    const next = !nsfwOn;
-    setNsfwOn(next);
-    if (!(await patch({ nsfw_on: next }))) setNsfwOn(!next);
+  const safetyFilterOn = !nsfwOn;
+
+  async function toggleSafetyFilter() {
+    if (!canDisableSafetyFilter) return;
+    const nextSafetyOn = !safetyFilterOn;
+    const previousNsfwOn = nsfwOn;
+    setNsfwOn(!nextSafetyOn);
+    if (!(await patch({ nsfw_on: nextSafetyOn ? 0 : 1 }))) setNsfwOn(previousNsfwOn);
   }
 
   async function setPreference(p: TastePref) {
@@ -235,10 +240,10 @@ export default function UserPreferenceControls({
   if (variant === "header") {
     return (
       <HeaderNsfwToggle
-        isAdult={isAdult}
-        nsfwOn={nsfwOn}
+        canDisable={canDisableSafetyFilter}
+        safetyFilterOn={safetyFilterOn}
         busy={busy}
-        onToggleNsfw={toggleNsfw}
+        onToggle={toggleSafetyFilter}
       />
     );
   }
@@ -269,24 +274,30 @@ export default function UserPreferenceControls({
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-[#131626] p-4">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-zinc-300">성인 캐릭터 표시</span>
+        <span className="text-sm font-medium text-zinc-300">세이프티 필터</span>
         <button
           type="button"
-          onClick={toggleNsfw}
-          disabled={busy}
-          aria-pressed={nsfwOn}
-          className={`relative h-6 w-11 rounded-full transition-colors ${
-            nsfwOn ? "bg-violet-500" : "bg-zinc-700"
+          onClick={toggleSafetyFilter}
+          disabled={busy || !canDisableSafetyFilter}
+          aria-pressed={safetyFilterOn}
+          className={`relative h-6 w-11 rounded-full transition-colors disabled:opacity-40 ${
+            safetyFilterOn ? "bg-violet-500" : "bg-zinc-700"
           }`}
         >
           <span
             className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
-              nsfwOn ? "left-[22px]" : "left-0.5"
+              safetyFilterOn ? "left-[22px]" : "left-0.5"
             }`}
           />
         </button>
       </div>
-      {!isAdult && <p className="text-xs text-zinc-400">성인인증 후 표시 여부를 선택할 수 있어요.</p>}
+      <p className="text-xs text-zinc-400">
+        {canDisableSafetyFilter
+          ? isAdult
+            ? "켜면 성인 캐릭터를 숨기고, 끄면 표시합니다."
+            : "관리자 베타 테스트 접근입니다. 성인인증 완료로 기록되지 않습니다."
+          : "기본으로 켜져 있으며, 일반 회원은 끌 수 없습니다."}
+      </p>
 
       <div>
         <p className="mb-2 text-sm font-medium text-zinc-300">취향 필터</p>
@@ -297,38 +308,38 @@ export default function UserPreferenceControls({
 }
 
 function HeaderNsfwToggle({
-  isAdult,
-  nsfwOn,
+  canDisable,
+  safetyFilterOn,
   busy,
-  onToggleNsfw,
+  onToggle,
 }: {
-  isAdult: boolean;
-  nsfwOn: boolean;
+  canDisable: boolean;
+  safetyFilterOn: boolean;
   busy: boolean;
-  onToggleNsfw: () => void;
+  onToggle: () => void;
 }) {
   return (
     <div
       className="flex min-h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-[#161922] px-2 py-1"
-      title={isAdult ? "성인 캐릭터 표시" : "성인인증 후 표시 여부를 선택할 수 있습니다"}
+      title={canDisable ? "세이프티 필터" : "일반 회원은 세이프티 필터를 끌 수 없습니다"}
     >
       <span className="text-[10px] font-medium text-zinc-300">
-        <span className="sm:hidden">성인</span>
-        <span className="hidden sm:inline">성인 캐릭터</span>
+        <span className="sm:hidden">세이프티</span>
+        <span className="hidden sm:inline">세이프티 필터</span>
       </span>
       <button
         type="button"
-        onClick={onToggleNsfw}
-        disabled={busy}
-        aria-pressed={nsfwOn}
-        aria-label={isAdult ? "성인 캐릭터 표시" : "성인인증으로 이동"}
+        onClick={onToggle}
+        disabled={busy || !canDisable}
+        aria-pressed={safetyFilterOn}
+        aria-label="세이프티 필터"
         className={`relative h-5 w-8 shrink-0 rounded-full transition-colors disabled:opacity-40 sm:w-9 ${
-          nsfwOn ? "bg-violet-500" : "bg-zinc-700"
+          safetyFilterOn ? "bg-violet-500" : "bg-zinc-700"
         }`}
       >
         <span
           className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
-            nsfwOn ? "left-[14px] sm:left-[18px]" : "left-0.5"
+            safetyFilterOn ? "left-[14px] sm:left-[18px]" : "left-0.5"
           }`}
         />
       </button>

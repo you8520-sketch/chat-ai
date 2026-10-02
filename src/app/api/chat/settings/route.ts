@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { parseAdultHandoffEnabled } from "@/lib/chatAdultHandoff";
-import { effectiveIsAdult } from "@/lib/adultVerification";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { resolveSubscriptionMemoryCapability } from "@/lib/subscriptionMemoryCapability";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
@@ -98,7 +98,7 @@ export async function PATCH(req: Request) {
     );
   }
 
-  const userAdultVerified = effectiveIsAdult(user.is_adult);
+  const userAdultVerified = canAccessAdultContent(user);
   const adultHandoffEnabled = parseAdultHandoffEnabled(
     adultHandoffEnabledInput ?? body.adult_handoff_enabled
   );

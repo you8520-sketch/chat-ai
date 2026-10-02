@@ -6,6 +6,7 @@ import HomePopupNotice from "@/components/HomePopupNotice";
 import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import HorizontalScrollRow from "@/components/HorizontalScrollRow";
 import UserPreferenceControls from "@/components/UserPreferenceControls";
+import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerification";
 import { fetchHomeSections } from "@/lib/homeSections";
 import { getActiveHomePopupNotice } from "@/lib/homePopupNotice";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
@@ -160,7 +161,8 @@ function GridSection({
 export default async function Home() {
   const db = getDb();
   const user = await getSessionUser();
-  const blurNsfw = !user?.is_adult || !user?.nsfw_on;
+  const blurNsfw = shouldHideAdultListings(user);
+  const canDisableSafetyFilter = canAccessAdultContent(user);
   const loggedIn = !!user;
 
   const { recommended, contest, newest } = fetchHomeSections(db, user, blurNsfw);
@@ -175,6 +177,7 @@ export default async function Home() {
         <div className="mt-3 flex min-h-9 items-center justify-between gap-3 px-1">
           <UserPreferenceControls
             isAdult={!!user?.is_adult}
+            canDisableSafetyFilter={canDisableSafetyFilter}
             nsfwOn={!!user?.nsfw_on}
             pref={(user?.pref as "female" | "male" | null) ?? null}
             loggedIn={loggedIn}
@@ -191,6 +194,7 @@ export default async function Home() {
       <div className="mt-6 hidden border-b border-white/[0.07] pb-6 md:block">
         <UserPreferenceControls
           isAdult={!!user?.is_adult}
+          canDisableSafetyFilter={canDisableSafetyFilter}
           nsfwOn={!!user?.nsfw_on}
           pref={(user?.pref as "female" | "male" | null) ?? null}
           loggedIn={!!user}

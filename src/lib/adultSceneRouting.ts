@@ -622,8 +622,9 @@ export function assessParticipantAdultStatus(
  * A general (`nsfw=0`) confirmed-adult character may enter adult RP when
  * the user is adult-verified and chat-room adult mode is ON.
  *
- * `SKIP_ADULT_VERIFICATION` may make `userAdultVerified` effective-true;
- * chat-room adult mode OFF must still disable adult model handoff.
+ * Callers pass stored verification or admin beta access as
+ * `userAdultVerified`. Skip env flags must not be treated as verification.
+ * Chat-room adult mode OFF must still disable adult model handoff.
  *
  * Coercion / non-consent is not an eligibility block. Minors and real
  * people remain blocked.

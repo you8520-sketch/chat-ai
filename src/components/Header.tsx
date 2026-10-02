@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { cookies } from "next/headers";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { readGuestNoticeReadState } from "@/lib/noticeGuestReadCookies";
@@ -62,6 +63,7 @@ export default async function Header() {
                 <NotificationBell count={unreadCount} />
                 <UserPreferenceControls
                   isAdult={!!user.is_adult}
+                  canDisableSafetyFilter={canAccessAdultContent(user)}
                   nsfwOn={!!user.nsfw_on}
                   pref={(user.pref as "female" | "male" | null) ?? null}
                   variant="header"
@@ -74,7 +76,7 @@ export default async function Header() {
                   />
                   {paymentsEnabled && <PointsShopLink />}
                 </div>
-                {!user.is_adult && (
+                {!canAccessAdultContent(user) && (
                   <Link
                     href="/verify"
                     className="hidden text-xs font-medium text-zinc-400 transition hover:text-violet-300 sm:inline"

@@ -15,6 +15,7 @@ type Props = {
     email: string;
     nickname: string;
     isAdult: boolean;
+    canDisableSafetyFilter?: boolean;
     nsfwOn: boolean;
     pref: "female" | "male" | null;
     google: boolean;
@@ -271,32 +272,35 @@ export default function SettingsClient({ user, pendingCommentReviews = 0 }: Prop
       <section className={cn(studioSurface.card, "mt-4 p-5")}>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className={studioType.sectionTitle}>성인 캐릭터 표시</h2>
+            <h2 className={studioType.sectionTitle}>세이프티 필터</h2>
             <p className={cn(studioType.helper, "mt-1")}>
-              {user.isAdult
-                ? "켜면 추천·검색·신규 목록에 성인용 캐릭터가 함께 표시됩니다."
-                : "성인인증 후 표시 여부를 선택할 수 있습니다."}
+              {user.canDisableSafetyFilter
+                ? user.isAdult
+                  ? "켜면 성인 캐릭터를 숨기고, 끄면 목록에 표시합니다."
+                  : "관리자 베타 테스트 접근입니다. 성인인증 완료로 기록되지 않습니다."
+                : "기본으로 켜져 있으며, 일반 회원은 끌 수 없습니다."}
             </p>
           </div>
           <button
             onClick={async () => {
-              if (!user.isAdult) return router.push("/verify");
-              const next = !nsfwOn;
-              setNsfwOn(next);
+              if (!user.canDisableSafetyFilter) return;
+              const nextSafetyOn = nsfwOn;
+              setNsfwOn(!nextSafetyOn);
               if (!(await patch(
-                { nsfw_on: next },
-                next ? "성인 캐릭터 표시가 켜졌습니다." : "성인 캐릭터 표시가 꺼졌습니다."
+                { nsfw_on: nextSafetyOn ? 0 : 1 },
+                nextSafetyOn ? "세이프티 필터가 켜졌습니다." : "세이프티 필터가 꺼졌습니다."
               ))) {
-                setNsfwOn(!next);
+                setNsfwOn(nextSafetyOn);
               }
             }}
-            aria-pressed={nsfwOn}
-            aria-label={user.isAdult ? "성인 캐릭터 표시" : "성인인증으로 이동"}
-            className={`relative h-7 w-[52px] rounded-full transition-colors ${nsfwOn ? "bg-violet-500" : "bg-zinc-700"}`}
+            disabled={!user.canDisableSafetyFilter}
+            aria-pressed={!nsfwOn}
+            aria-label="세이프티 필터"
+            className={`relative h-7 w-[52px] rounded-full transition-colors disabled:opacity-40 ${!nsfwOn ? "bg-violet-500" : "bg-zinc-700"}`}
           >
             <span
               className={`absolute top-0.5 h-6 w-6 rounded-full bg-white transition-all ${
-                nsfwOn ? "left-[26px]" : "left-0.5"
+                !nsfwOn ? "left-[26px]" : "left-0.5"
               }`}
             />
           </button>
