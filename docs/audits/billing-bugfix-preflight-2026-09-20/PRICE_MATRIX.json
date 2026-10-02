@@ -1,0 +1,367 @@
+{
+  "head": "3c5555a2fe97f9097cf7b65aff5912574d72b805",
+  "correction": "PR #991 exact-head — model-specific evidence (no shared G31 CI_FIXTURE)",
+  "fx": {
+    "mode": "daily_kst",
+    "dateKey": "2026-09-20",
+    "usdToKrw": 1530,
+    "effectiveKrwPerUsd": 1560.6,
+    "source": "api_daily",
+    "overseasFeeRate": 0.02,
+    "locked": true
+  },
+  "modelPricingEvidence": {
+    "deepseek-v4-pro-0813": {
+      "modelId": "deepseek-v4-pro-0813",
+      "reference": {
+        "inputUsdPerMillion": 0.66,
+        "outputUsdPerMillion": 1.98,
+        "cacheReadUsdPerMillion": 0.022,
+        "sourceOwner": "publishedModelPricing.ts",
+        "evidenceSource": "Published v2 Phase-2 row (2026-09-02)",
+        "observedAt": "2026-09-02T09:00:00.000Z"
+      },
+      "currentProcurement": {
+        "status": "known",
+        "inputUsdPerMillion": 0.3045,
+        "outputUsdPerMillion": 0.609,
+        "cacheReadUsdPerMillion": 0.231,
+        "source": "pointsReasoningMargins.ts CI account catalog fallback (2026-07-29)",
+        "observedAt": "2026-07-29T00:00:00.000Z"
+      }
+    },
+    "gemini-3.1-pro-preview": {
+      "modelId": "gemini-3.1-pro-preview",
+      "reference": {
+        "inputUsdPerMillion": 2,
+        "outputUsdPerMillion": 12,
+        "sourceOwner": "premiumPricingCalibrationEvidence.ts",
+        "evidenceSource": "Google Gemini 3.1 Pro Preview official list (base tier <=200k)",
+        "observedAt": "2026-08-28T00:00:00.000Z"
+      },
+      "currentProcurement": {
+        "status": "known",
+        "inputUsdPerMillion": 1.4,
+        "outputUsdPerMillion": 8.4,
+        "cacheReadUsdPerMillion": 0.4375,
+        "cacheWriteUsdPerMillion": 1.4,
+        "discountPercent": 30,
+        "source": "CheaperInference catalog snapshot (historical observed discount)",
+        "observedAt": "2026-08-28T00:00:00.000Z"
+      }
+    },
+    "gemini-3.7-flash": {
+      "modelId": "gemini-3.7-flash",
+      "reference": {
+        "inputUsdPerMillion": 0.375,
+        "outputUsdPerMillion": 1.875,
+        "sourceOwner": "publishedModelPricing.ts + gemini37CalibrationEvidence.ts",
+        "evidenceSource": "provider_public_model_page",
+        "observedAt": "2026-08-28T00:00:00.000Z"
+      },
+      "currentProcurement": {
+        "status": "known",
+        "inputUsdPerMillion": 0.2625,
+        "outputUsdPerMillion": 1.3125,
+        "cacheReadUsdPerMillion": 0.0525,
+        "cacheWriteUsdPerMillion": 0.525,
+        "discountPercent": 30,
+        "source": "gemini37CalibrationEvidence.ts observed CI snapshot",
+        "observedAt": "2026-08-28T00:00:00.000Z"
+      }
+    },
+    "gpt-5.6-terra": {
+      "modelId": "gpt-5.6-terra",
+      "reference": {
+        "inputUsdPerMillion": 2,
+        "outputUsdPerMillion": 12,
+        "cacheReadUsdPerMillion": 0.2,
+        "cacheWriteUsdPerMillion": 2,
+        "sourceOwner": "publishedModelPricing.ts v2 (2026-09-19)",
+        "evidenceSource": "Published Terra v2 row + OpenAI list basis",
+        "observedAt": "2026-09-19T00:00:00.000Z"
+      },
+      "currentProcurement": {
+        "status": "CURRENT_PROCUREMENT_UNKNOWN",
+        "source": "pointsReasoningMargins.ts direct-list fallback only",
+        "reason": "No separate reproducible CI discounted procurement snapshot; fallback constants equal published reference (2/12) — cannot distinguish list from current discount without live /v1/models fetch (PROVIDER_GENERATION_CALLS=0)"
+      }
+    }
+  },
+  "operationalMatrix": [
+    {
+      "model": "deepseek-v4-pro-0813",
+      "shape": "NORMAL",
+      "referencePricingSource": "Published v2 Phase-2 row (2026-09-02)",
+      "currentProcurementSource": "pointsReasoningMargins.ts CI account catalog fallback (2026-07-29)",
+      "currentEvidenceTimestamp": "2026-07-29T00:00:00.000Z",
+      "currentLiveBaseP": 54,
+      "candidateStableBaseP": 90,
+      "deltaP": 36,
+      "referenceRawKrw": 44.9,
+      "currentProcurementKrw": 18.7,
+      "currentLiveRealizedMargin": 0.654,
+      "candidatePostCutoverRealizedMargin": 0.792,
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "deepseek-v4-pro-0813",
+      "shape": "MEMORY_HEAVY",
+      "referencePricingSource": "Published v2 Phase-2 row (2026-09-02)",
+      "currentProcurementSource": "pointsReasoningMargins.ts CI account catalog fallback (2026-07-29)",
+      "currentEvidenceTimestamp": "2026-07-29T00:00:00.000Z",
+      "currentLiveBaseP": 17,
+      "candidateStableBaseP": 9,
+      "deltaP": -8,
+      "referenceRawKrw": 4.4,
+      "currentProcurementKrw": 5.7,
+      "currentLiveRealizedMargin": 0.665,
+      "candidatePostCutoverRealizedMargin": 0.367,
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "deepseek-v4-pro-0813",
+      "shape": "BOUNDED_VALID_STRESS",
+      "referencePricingSource": "Published v2 Phase-2 row (2026-09-02)",
+      "currentProcurementSource": "pointsReasoningMargins.ts CI account catalog fallback (2026-07-29)",
+      "currentEvidenceTimestamp": "2026-07-29T00:00:00.000Z",
+      "currentLiveBaseP": 120,
+      "candidateStableBaseP": 196,
+      "deltaP": 76,
+      "referenceRawKrw": 97.8,
+      "currentProcurementKrw": 41.9,
+      "currentLiveRealizedMargin": 0.651,
+      "candidatePostCutoverRealizedMargin": 0.786,
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "gemini-3.1-pro-preview",
+      "shape": "NORMAL",
+      "referencePricingSource": "Google Gemini 3.1 Pro Preview official list (base tier <=200k)",
+      "currentProcurementSource": "CheaperInference catalog snapshot (historical observed discount)",
+      "currentEvidenceTimestamp": "2026-08-28T00:00:00.000Z",
+      "currentLiveBaseP": 119,
+      "candidateStableBaseP": 95,
+      "deltaP": -24,
+      "referenceRawKrw": 86.3,
+      "currentProcurementKrw": 59.2,
+      "currentLiveRealizedMargin": 0.503,
+      "candidatePostCutoverRealizedMargin": 0.377,
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "gemini-3.1-pro-preview",
+      "shape": "MEMORY_HEAVY",
+      "referencePricingSource": "Google Gemini 3.1 Pro Preview official list (base tier <=200k)",
+      "currentProcurementSource": "CheaperInference catalog snapshot (historical observed discount)",
+      "currentEvidenceTimestamp": "2026-08-28T00:00:00.000Z",
+      "currentLiveBaseP": 286,
+      "candidateStableBaseP": 229,
+      "deltaP": -57,
+      "referenceRawKrw": 207.7,
+      "currentProcurementKrw": 142.5,
+      "currentLiveRealizedMargin": 0.502,
+      "candidatePostCutoverRealizedMargin": 0.378,
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "gemini-3.1-pro-preview",
+      "shape": "BOUNDED_VALID_STRESS",
+      "referencePricingSource": "Google Gemini 3.1 Pro Preview official list (base tier <=200k)",
+      "currentProcurementSource": "CheaperInference catalog snapshot (historical observed discount)",
+      "currentEvidenceTimestamp": "2026-08-28T00:00:00.000Z",
+      "currentLiveBaseP": 930,
+      "candidateStableBaseP": 745,
+      "deltaP": -185,
+      "referenceRawKrw": 677.3,
+      "currentProcurementKrw": 464.8,
+      "currentLiveRealizedMargin": 0.5,
+      "candidatePostCutoverRealizedMargin": 0.376,
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "shape": "NORMAL",
+      "referencePricingSource": "provider_public_model_page",
+      "currentProcurementSource": "gemini37CalibrationEvidence.ts observed CI snapshot",
+      "currentEvidenceTimestamp": "2026-08-28T00:00:00.000Z",
+      "currentLiveBaseP": 33,
+      "candidateStableBaseP": 48,
+      "deltaP": 15,
+      "referenceRawKrw": 21.5,
+      "currentProcurementKrw": 14.8,
+      "currentLiveRealizedMargin": 0.552,
+      "candidatePostCutoverRealizedMargin": 0.692,
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "shape": "MEMORY_HEAVY",
+      "referencePricingSource": "provider_public_model_page",
+      "currentProcurementSource": "gemini37CalibrationEvidence.ts observed CI snapshot",
+      "currentEvidenceTimestamp": "2026-08-28T00:00:00.000Z",
+      "currentLiveBaseP": 21,
+      "candidateStableBaseP": null,
+      "deltaP": null,
+      "referenceRawKrw": 11.1,
+      "currentProcurementKrw": 9.2,
+      "currentLiveRealizedMargin": 0.562,
+      "candidatePostCutoverRealizedMargin": null,
+      "candidateStatus": "blocked",
+      "blockedReason": "unsupported_cache_semantics"
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "shape": "BOUNDED_VALID_STRESS",
+      "referencePricingSource": "provider_public_model_page",
+      "currentProcurementSource": "gemini37CalibrationEvidence.ts observed CI snapshot",
+      "currentEvidenceTimestamp": "2026-08-28T00:00:00.000Z",
+      "currentLiveBaseP": 55,
+      "candidateStableBaseP": 80,
+      "deltaP": 25,
+      "referenceRawKrw": 36,
+      "currentProcurementKrw": 24.7,
+      "currentLiveRealizedMargin": 0.551,
+      "candidatePostCutoverRealizedMargin": 0.691,
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "gpt-5.6-terra",
+      "shape": "NORMAL",
+      "referencePricingSource": "Published Terra v2 row + OpenAI list basis",
+      "currentProcurementSource": "CURRENT_PROCUREMENT_UNKNOWN",
+      "currentEvidenceTimestamp": null,
+      "currentLiveBaseP": 107,
+      "candidateStableBaseP": 78,
+      "deltaP": -29,
+      "referenceRawKrw": 54.3,
+      "currentProcurementKrw": null,
+      "currentLiveRealizedMargin": null,
+      "candidatePostCutoverRealizedMargin": null,
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "gpt-5.6-terra",
+      "shape": "MEMORY_HEAVY",
+      "referencePricingSource": "Published Terra v2 row + OpenAI list basis",
+      "currentProcurementSource": "CURRENT_PROCUREMENT_UNKNOWN",
+      "currentEvidenceTimestamp": null,
+      "currentLiveBaseP": 306,
+      "candidateStableBaseP": 223,
+      "deltaP": -83,
+      "referenceRawKrw": 156.1,
+      "currentProcurementKrw": null,
+      "currentLiveRealizedMargin": null,
+      "candidatePostCutoverRealizedMargin": null,
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "gpt-5.6-terra",
+      "shape": "BOUNDED_VALID_STRESS",
+      "referencePricingSource": "Published Terra v2 row + OpenAI list basis",
+      "currentProcurementSource": "CURRENT_PROCUREMENT_UNKNOWN",
+      "currentEvidenceTimestamp": null,
+      "currentLiveBaseP": 484,
+      "candidateStableBaseP": 353,
+      "deltaP": -131,
+      "referenceRawKrw": 246.6,
+      "currentProcurementKrw": null,
+      "currentLiveRealizedMargin": null,
+      "candidatePostCutoverRealizedMargin": null,
+      "candidateStatus": "complete",
+      "blockedReason": null
+    }
+  ],
+  "competitorAlignedMatrix": [
+    {
+      "model": "gemini-3.1-pro-preview",
+      "benchmarkId": "gemini31_competitor_a",
+      "benchmarkSource": "competitor observed Gemini31",
+      "benchmarkExactUsage": {
+        "promptTokens": 40689,
+        "outputTokens": 4307
+      },
+      "comparability": "EXACT_WORKLOAD",
+      "ourCandidateP": 229,
+      "competitorP": 244.2,
+      "deltaP": -15.199999999999989,
+      "deltaPercent": -6.2,
+      "pricingVersion": 2,
+      "referenceEvidenceSource": "Google Gemini 3.1 Pro Preview official list (base tier <=200k)",
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "benchmarkId": "gemini37_competitor_a",
+      "benchmarkSource": "competitor observed Gemini 3.7 Flash A",
+      "benchmarkExactUsage": {
+        "promptTokens": 24952,
+        "outputTokens": 2367
+      },
+      "comparability": "EXACT_WORKLOAD",
+      "ourCandidateP": 48,
+      "competitorP": 55,
+      "deltaP": -7,
+      "deltaPercent": -12.7,
+      "pricingVersion": 2,
+      "referenceEvidenceSource": "provider_public_model_page",
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "benchmarkId": "gemini37_competitor_b",
+      "benchmarkSource": "competitor observed Gemini 3.7 Flash B",
+      "benchmarkExactUsage": {
+        "promptTokens": 42195,
+        "outputTokens": 3862
+      },
+      "comparability": "EXACT_WORKLOAD",
+      "ourCandidateP": 80,
+      "competitorP": 84.4,
+      "deltaP": -4.400000000000006,
+      "deltaPercent": -5.2,
+      "pricingVersion": 2,
+      "referenceEvidenceSource": "provider_public_model_page",
+      "candidateStatus": "complete",
+      "blockedReason": null
+    },
+    {
+      "model": "gpt-5.6-terra",
+      "benchmarkId": "published_marketBenchmark_chars",
+      "benchmarkSource": "publishedModelPricing.marketBenchmark",
+      "benchmarkExactUsage": {
+        "outputChars": 6025,
+        "promptTokens": null,
+        "outputTokens": null
+      },
+      "comparability": "NOT_DIRECTLY_COMPARABLE",
+      "ourCandidateP": null,
+      "competitorP": 253,
+      "deltaP": null,
+      "deltaPercent": null,
+      "pricingVersion": 2,
+      "referenceEvidenceSource": "Published Terra v2 row + OpenAI list basis",
+      "reason": "Benchmark is char-based only; no exact token workload to reproduce candidate charge"
+    },
+    {
+      "model": "deepseek-v4-pro-0813",
+      "benchmarkId": null,
+      "comparability": "COMPETITOR_BENCHMARK_MISSING",
+      "competitorP": null,
+      "ourCandidateP": null,
+      "reason": "No competitor benchmark registered in marketUsageBenchmarks.ts"
+    }
+  ]
+}
