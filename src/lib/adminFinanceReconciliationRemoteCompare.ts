@@ -22,16 +22,14 @@ import {
 
 export const RECONCILIATION_REMOTE_COMPARE_VALUE = "reconciliation-remote";
 export const RECONCILIATION_REMOTE_UNVERIFIED = "UNVERIFIED" as const;
-export const RECONCILIATION_ROOT_CAUSE_CONFIRMED = "ROOT_CAUSE_CONFIRMED" as const;
-
 export const REMOTE_COMPARE_MAX_PAGES = 8;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 export type RemoteCompareClassification =
-  | typeof RECONCILIATION_ROOT_CAUSE_CONFIRMED
   | typeof RECONCILIATION_ROOT_CAUSE_UNCONFIRMED
   | typeof RECONCILIATION_REMOTE_UNVERIFIED;
 
+/** Observed diagnostic fact, never proof of the full provider-spend mismatch. */
 export type RemoteCompareConfirmedMechanism = "LEDGER_REQUEST_IDS_ABSENT" | null;
 
 export type ProviderReconciliationRemoteCompare = {
@@ -256,11 +254,12 @@ function classify(
     timezoneBoundaryCandidate,
     otherApiKeyCandidate,
     remoteOnlyCandidate,
-    classification: confirmedLedgerIdsAbsent
-      ? RECONCILIATION_ROOT_CAUSE_CONFIRMED
-      : RECONCILIATION_ROOT_CAUSE_UNCONFIRMED,
+    // Missing local ledger IDs is a proven linkage gap, NOT proof that the
+    // remote spend originated from those local calls: external/workspace-only
+    // requests can coexist. A root-cause verdict requires per-request provenance.
+    classification: RECONCILIATION_ROOT_CAUSE_UNCONFIRMED,
     confirmedMechanism: confirmedLedgerIdsAbsent ? "LEDGER_REQUEST_IDS_ABSENT" : null,
-    requiredToConfirm: confirmedLedgerIdsAbsent ? [] : REQUIRED_WHEN_UNVERIFIED,
+    requiredToConfirm: REQUIRED_WHEN_UNVERIFIED,
   };
 }
 
