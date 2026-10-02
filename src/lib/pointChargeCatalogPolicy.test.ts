@@ -4,11 +4,12 @@ import { afterEach, describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { ATTENDANCE_POINTS_VALID_DAYS } from "@/lib/attendanceConstants";
 import {
-  BUSINESS_INDUSTRY,
-  BUSINESS_REGISTRATION_NUMBER,
   BUSINESS_IDENTITY_VERIFICATION,
-  SERVICE_PUBLIC_DOMAIN,
+  BUSINESS_PUBLIC_LINES,
+  BUSINESS_REGISTRATION_NUMBER,
+  BUSINESS_TRADE_NAME,
   SERVICE_PUBLIC_NAME,
+  SERVICE_PUBLIC_ORIGIN,
 } from "@/lib/businessIdentity";
 import { TERMS_PAGE } from "@/lib/legalPages";
 import { creditPointChargePackage } from "@/lib/pointCharge";
@@ -290,9 +291,12 @@ describe("point charge catalog — public disclosure", () => {
   it("publishes confirmed business fields and all five products without login", () => {
     const text = pageText(TERMS_PAGE);
     assert.match(text, new RegExp(SERVICE_PUBLIC_NAME));
-    assert.match(text, new RegExp(SERVICE_PUBLIC_DOMAIN));
+    assert.match(text, new RegExp(SERVICE_PUBLIC_ORIGIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(text, new RegExp(BUSINESS_TRADE_NAME));
     assert.match(text, new RegExp(BUSINESS_REGISTRATION_NUMBER));
-    assert.match(text, new RegExp(BUSINESS_INDUSTRY));
+    for (const line of BUSINESS_PUBLIC_LINES) {
+      assert.match(text, new RegExp(line.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    }
     for (const pkg of POINT_CHARGE_PACKAGES) {
       assert.match(text, new RegExp(formatPointChargePackagePublicLine(pkg).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     }
@@ -307,11 +311,13 @@ describe("point charge catalog — public disclosure", () => {
     assert.match(pointsClient, /포인트 상품/);
     assert.match(pointsClient, /POINT_CHARGE_PACKAGES\.map/);
     assert.match(pointsClient, /paymentsEnabled && portoneEnabled/);
+    assert.doesNotMatch(pointsClient, /SiteLegalFooter|BUSINESS_PUBLIC_LINES/);
 
-    assert.equal(BUSINESS_IDENTITY_VERIFICATION.tradeName, "unverified");
-    assert.equal(BUSINESS_IDENTITY_VERIFICATION.representativeName, "unverified");
-    assert.equal(BUSINESS_IDENTITY_VERIFICATION.businessAddress, "unverified");
+    assert.equal(BUSINESS_IDENTITY_VERIFICATION.tradeName, "confirmed");
+    assert.equal(BUSINESS_IDENTITY_VERIFICATION.representativeName, "confirmed");
+    assert.equal(BUSINESS_IDENTITY_VERIFICATION.businessAddress, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.phoneNumber, "unverified");
+    assert.equal(BUSINESS_IDENTITY_VERIFICATION.customerServiceEmail, "unverified");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.mailOrderReportNumber, "unverified");
   });
 });

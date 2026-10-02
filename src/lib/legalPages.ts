@@ -1,8 +1,8 @@
 import { ATTENDANCE_POINTS_VALID_DAYS } from "@/lib/attendanceConstants";
 import {
-  BUSINESS_INDUSTRY,
-  BUSINESS_REGISTRATION_NUMBER,
-  SERVICE_PUBLIC_DOMAIN,
+  BUSINESS_OPERATING_STATUS,
+  BUSINESS_PUBLIC_LINES,
+  BUSINESS_TRADE_NAME,
   SERVICE_PUBLIC_NAME,
 } from "@/lib/businessIdentity";
 import {
@@ -136,9 +136,8 @@ export const TERMS_PAGE = {
     {
       heading: "사업자 정보",
       paragraphs: [
-        `서비스명: ${SERVICE_PUBLIC_NAME} (${SERVICE_PUBLIC_DOMAIN})`,
-        `사업자등록번호: ${BUSINESS_REGISTRATION_NUMBER}`,
-        `업종: ${BUSINESS_INDUSTRY}`,
+        `${SERVICE_PUBLIC_NAME}는 서비스 브랜드명이고, 법적 상호는 ${BUSINESS_TRADE_NAME}입니다.`,
+        ...BUSINESS_PUBLIC_LINES,
       ],
     },
     {
@@ -148,7 +147,7 @@ export const TERMS_PAGE = {
     {
       heading: "포인트와 성인 콘텐츠",
       paragraphs: [
-        "포인트 충전은 서버의 결제 설정이 켜져 있고 PortOne 설정이 있을 때만 진행됩니다. 설정이 꺼져 있으면 충전 요청은 거절됩니다. 상품 공개와 실제 결제 활성화는 별개입니다.",
+        `포인트 충전은 서버의 결제 설정이 켜져 있고 PortOne 설정이 있을 때만 진행됩니다. 설정이 꺼져 있으면 충전 요청은 거절됩니다. 상품 공개와 실제 결제 활성화는 별개입니다. 현재 사업자 상태가 ${BUSINESS_OPERATING_STATUS}이므로 결제를 활성화하지 않습니다.`,
         "성인 확인이 필요한 환경에서는 앱 안의 입력 화면으로 나이를 확인합니다. 설정에 따라 이 확인은 생략될 수 있습니다.",
       ],
     },
