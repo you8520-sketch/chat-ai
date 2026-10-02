@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { getDb } from "./db";
+import { POINT_CHARGE_CANCEL_DAYS } from "@/lib/plans";
 import {
   getPointChargeRefundAttempt,
   type PointChargeRefundAttemptState,
@@ -19,7 +20,8 @@ export type PointChargeBatchRow = {
   cancelled_at: string | null;
 };
 
-const CHARGE_CANCEL_DAYS = 7;
+/** PortOne 결제 취소 지원기간 — 포인트 사용기간과 별개. canonical 값은 plans.ts */
+export const CHARGE_CANCEL_DAYS = POINT_CHARGE_CANCEL_DAYS;
 
 export function ensurePointChargeBatchTable(db: Database.Database = getDb()) {
   db.exec(`
