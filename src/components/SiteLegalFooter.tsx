@@ -3,7 +3,7 @@ import { BUSINESS_PUBLIC_LINES, BUSINESS_TRADE_NAME, SERVICE_PUBLIC_ORIGIN } fro
 import { PUBLIC_LEGAL_LINKS } from "@/lib/legalPages";
 import { SITE_DESCRIPTION, SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
-/** Canonical public legal links and business identity. Render this once from the root layout. */
+/** Site-wide public legal links and business identity. Render this once from the root layout. */
 export function SiteLegalFooter() {
   return (
     <footer className="site-legal-footer mx-auto w-full max-w-7xl px-4 pb-28 pt-8 text-xs text-zinc-500 md:pb-8">

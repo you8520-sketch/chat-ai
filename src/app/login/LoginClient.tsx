@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import GoogleButton from "@/components/GoogleButton";
 import GoogleAuthError from "@/components/GoogleAuthError";
 import DemoLoginButton from "@/components/DemoLoginButton";
+import { LegalConsentLinks } from "@/components/LegalConsentLinks";
 import StudioButton from "@/components/studio/StudioButton";
 import { studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
 
@@ -86,6 +87,7 @@ function LoginForm({ showDemo }: { showDemo: boolean }) {
           회원가입
         </Link>
       </p>
+      <LegalConsentLinks className="mt-4" />
     </div>
   );
 }

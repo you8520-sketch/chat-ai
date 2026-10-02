@@ -10,6 +10,11 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalDocument title={PRIVACY_PAGE.title} intro={PRIVACY_PAGE.intro} sections={PRIVACY_PAGE.sections} />
+    <LegalDocument
+      title={PRIVACY_PAGE.title}
+      intro={PRIVACY_PAGE.intro}
+      sections={PRIVACY_PAGE.sections}
+      currentHref={PRIVACY_PAGE.href}
+    />
   );
 }
