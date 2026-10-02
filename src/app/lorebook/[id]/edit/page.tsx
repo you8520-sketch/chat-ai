@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { canAccessAdultContent } from "@/lib/adultVerification";
+import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import AdultVerifyGate from "@/components/AdultVerifyGate";
 import CreateKeywordLorebook from "@/components/CreateKeywordLorebook";
@@ -13,7 +13,7 @@ export default async function LorebookEditPage({ params }: { params: Promise<{ i
   if (!user) redirect(`/login?redirect=/lorebook/${id}/edit`);
   if (!Number.isFinite(lorebookId)) redirect("/studio");
 
-  if (!canAccessAdultContent(user)) {
+  if (!canUseCreatorTools(user)) {
     return (
       <AdultVerifyGate
         message="로어북 수정은 성인인증을 완료한 회원만 이용할 수 있습니다."

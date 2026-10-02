@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { canAccessAdultContent } from "@/lib/adultVerification";
+import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import AdultVerifyGate from "@/components/AdultVerifyGate";
@@ -19,7 +19,7 @@ export default async function WorldCreatePage({
   const user = await getSessionUser();
   if (!user) redirect("/login?redirect=/world/create");
 
-  if (!canAccessAdultContent(user)) {
+  if (!canUseCreatorTools(user)) {
     return (
       <AdultVerifyGate
         message="세계관 제작은 성인인증을 완료한 회원만 가능합니다."

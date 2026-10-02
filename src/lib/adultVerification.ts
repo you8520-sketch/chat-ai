@@ -39,19 +39,32 @@ export type AdultAccessUser = {
   is_admin?: number | null;
 };
 
-/**
- * Adult content / safety-filter-off capability.
- * Real stored verification OR existing admin beta-test access.
- * Does not write or promote `users.is_adult`.
- */
-export function canAccessAdultContent(user: AdultAccessUser | null | undefined): boolean {
-  if (!user) return false;
-  if (effectiveIsAdult(user.is_adult)) return true;
+function isExistingAdminUser(user: AdultAccessUser): boolean {
   if (!user.email) return false;
   return isAdminUser({
     email: user.email,
     is_admin: user.is_admin ?? 0,
   });
+}
+
+/**
+ * Interim adult listing / detail / chat / safety-filter-off access.
+ * Stored `users.is_adult` is untrusted until a real identity provider exists
+ * (legacy mock `/api/verify` rows). Existing admin privilege only.
+ * Does not read `nsfw_on` and does not write `is_adult`.
+ */
+export function canAccessAdultContent(user: AdultAccessUser | null | undefined): boolean {
+  if (!user) return false;
+  return isExistingAdminUser(user);
+}
+
+/**
+ * Creator-tool gates (studio / form save / upload).
+ * Stored `is_adult` still opens authoring; it does not open adult listings or chat.
+ */
+export function canUseCreatorTools(user: AdultAccessUser | null | undefined): boolean {
+  if (!user) return false;
+  return canAccessAdultContent(user) || effectiveIsAdult(user.is_adult);
 }
 
 /**

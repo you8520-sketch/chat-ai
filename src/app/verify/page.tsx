@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
-import { effectiveIsAdult } from "@/lib/adultVerification";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import { isDemoEnv } from "@/lib/demo";
 import VerifyClient from "./VerifyClient";
 
@@ -21,7 +21,9 @@ export default async function VerifyPage({
     );
   }
 
-  if (effectiveIsAdult(user.is_adult)) {
+  // Stored is_adult is untrusted until a real provider exists. Auto-leave only
+  // when the same owner already grants adult VIEW (existing admin).
+  if (canAccessAdultContent(user)) {
     redirect(redirectTo);
   }
 

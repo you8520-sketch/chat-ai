@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { canAccessAdultContent } from "@/lib/adultVerification";
+import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import AdultVerifyGate from "@/components/AdultVerifyGate";
 import CreateWorld from "@/components/CreateWorld";
@@ -14,7 +14,7 @@ export default async function WorldEditPage({ params }: { params: Promise<{ id: 
   if (!user) redirect(`/login?redirect=/world/${id}/edit`);
   if (!Number.isFinite(worldId) || worldId <= 0) redirect("/studio?tab=worlds");
 
-  if (!canAccessAdultContent(user)) {
+  if (!canUseCreatorTools(user)) {
     return (
       <AdultVerifyGate
         message="세계관 수정은 성인인증을 완료한 회원만 가능합니다."

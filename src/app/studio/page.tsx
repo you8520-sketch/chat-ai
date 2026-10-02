@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerification";
+import { canUseCreatorTools, shouldHideAdultListings } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import AdultVerifyGate from "@/components/AdultVerifyGate";
@@ -18,7 +18,7 @@ export default async function StudioPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?redirect=/studio");
 
-  if (!canAccessAdultContent(user)) {
+  if (!canUseCreatorTools(user)) {
     return (
       <AdultVerifyGate
         message="제작 메뉴는 성인인증을 완료한 회원만 이용할 수 있습니다."
