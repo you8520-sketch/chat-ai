@@ -205,11 +205,18 @@ export function resolveJsxCatalogDraft(
     return { catalog: saved, error: result.error, preview: null, unsaved };
   }
   return {
-    catalog: [result.record],
+    // Editing the visible first slot must not erase the rest of a saved
+    // multi-component catalog. The UI only edits one slot for now.
+    catalog: [result.record, ...saved.slice(1)],
     error: "",
     preview: result.record,
     unsaved: false,
   };
+}
+
+/** Explicitly remove the visible first saved component, preserving other slots. */
+export function removeJsxCatalogHead(saved: JsxComponentRecord[]): JsxComponentRecord[] {
+  return saved.slice(1);
 }
 
 export function compileJsxComponentDraft(input: {

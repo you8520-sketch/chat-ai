@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 
 import {
   hydrateJsxCatalogEditorState,
+  removeJsxCatalogHead,
   resolveJsxCatalogDraft,
   serializeJsxComponentCatalog,
 } from "./catalog.ts";
@@ -69,6 +70,45 @@ describe("jsx catalog draft", () => {
     assert.equal(resolved.catalog.length, 1);
     assert.equal(resolved.catalog[0]?.source, nextSource.trim());
     assert.notEqual(resolved.catalog, saved);
+  });
+
+  it("preserves later saved components on failed and successful edits to the first", () => {
+    const tailSource = 'export default function Extra(props) { return <div>{props.title}</div>; }';
+    const tailCompiled = compileJsxComponentSource(tailSource, "Extra");
+    assert.equal(tailCompiled.ok, true);
+    if (!tailCompiled.ok) throw new Error("fixture");
+    const extra = {
+      name: "Extra",
+      source: tailSource,
+      compiled: tailCompiled.compiled,
+      props: [{ name: "title", type: "string" as const, required: true }],
+      capabilities: tailCompiled.capabilities,
+      chatSend: tailCompiled.chatSend,
+    };
+    const saved = [savedBoard(), extra];
+    const failed = resolveJsxCatalogDraft(saved, {
+      name: "Board",
+      source: "function Board(",
+      props: saved[0]!.props,
+    });
+    assert.equal(failed.catalog, saved);
+    assert.equal(failed.catalog[1], extra);
+
+    const validSource = 'export default function Board(props) { return <strong>{props.hp}</strong>; }';
+    const succeeded = resolveJsxCatalogDraft(saved, {
+      name: "Board",
+      source: validSource,
+      props: saved[0]!.props,
+    });
+    assert.equal(succeeded.error, "");
+    assert.equal(succeeded.catalog.length, 2);
+    assert.equal(succeeded.catalog[0]?.source, validSource);
+    assert.equal(succeeded.catalog[1], extra);
+    assert.equal(JSON.parse(serializeJsxComponentCatalog(succeeded.catalog)).length, 2);
+
+    const afterRemoval = removeJsxCatalogHead(succeeded.catalog);
+    assert.deepEqual(afterRemoval.map((item) => item.name), ["Extra"]);
+    assert.equal(serializeJsxComponentCatalog(afterRemoval).includes('"name":"Extra"'), true);
   });
 
   it("still resolves chat invocation props from the catalog a failed draft did not clear", () => {

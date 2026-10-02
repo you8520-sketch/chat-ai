@@ -5,6 +5,7 @@ import JsxComponentSandbox from "@/components/JsxComponentSandbox";
 import {
   hydrateJsxCatalogEditorState,
   jsxCatalogEditableFingerprint,
+  removeJsxCatalogHead,
   resolveJsxCatalogDraft,
   type JsxComponentRecord,
   type JsxPropDefinition,
@@ -92,13 +93,20 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
   }
 
   function removeSaved() {
-    setName("");
-    setSource("");
-    setProps([]);
+    const nextCatalog = removeJsxCatalogHead(value);
+    const next = nextCatalog[0] ?? null;
+    setName(next?.name ?? "");
+    setSource(next?.source ?? "");
+    setProps(next?.props.map((prop) => ({ ...prop })) ?? []);
+    setAppliedSavedFingerprint(
+      jsxCatalogEditableFingerprint(
+        next ? { name: next.name, source: next.source, props: next.props } : null
+      )
+    );
     setError("");
-    setPreview(null);
-    setSuggested([]);
-    onChange([]);
+    setPreview(next);
+    setSuggested(next ? suggestJsxPropNamesFromCompiled(next.compiled) : []);
+    onChange(nextCatalog);
   }
 
   return (
