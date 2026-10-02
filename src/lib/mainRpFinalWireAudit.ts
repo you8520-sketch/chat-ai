@@ -93,6 +93,7 @@ export type WireCaseResult = {
     roles: string[];
     assistantPrefill: boolean;
     systemBlocks: Array<{ chars: number; cached: boolean; sha256: string }>;
+    systemFlatSha256: string;
     historyCacheBreakpoint: boolean;
     scenePacingInsideCachedCharacterBlock: boolean;
     sceneFlowInsideCachedCharacterBlock: boolean;
@@ -543,6 +544,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
         return index === finalMessages.length - 1 && message.role === "assistant";
       }),
       systemBlocks,
+      systemFlatSha256: sha256(flattenSystem(systemMessage)),
       historyCacheBreakpoint: finalMessages.slice(1).some((message) => {
         return Array.isArray(message.content) && message.content.some((block) => block.cache_control);
       }),
