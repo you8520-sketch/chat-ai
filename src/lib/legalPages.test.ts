@@ -4,6 +4,7 @@ import test from "node:test";
 import { ATTENDANCE_POINTS_VALID_DAYS } from "./attendanceConstants";
 import {
   BUSINESS_ADDRESS,
+  BUSINESS_CUSTOMER_SERVICE_EMAIL,
   BUSINESS_IDENTITY_SOURCE,
   BUSINESS_IDENTITY_VERIFICATION,
   BUSINESS_ITEM,
@@ -73,7 +74,8 @@ test("terms publish confirmed business fields and the five point products", () =
   for (const pkg of POINT_CHARGE_PACKAGES) {
     assert.match(text, new RegExp(formatPointChargePackagePublicLine(pkg).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
-  assert.doesNotMatch(text, /통신판매업 신고번호|고객센터/);
+  assert.match(text, /고객센터 이메일 admin@hav\.chat/);
+  assert.doesNotMatch(text, /통신판매업 신고번호|고객센터 전화/);
   assert.doesNotMatch(text, /159-31-01749/);
 });
 
@@ -92,7 +94,7 @@ test("legal footer is the only renderer of the shared link set", () => {
   assert.match(footer, /SITE_DESCRIPTION/);
   assert.match(footer, /BUSINESS_PUBLIC_LINES/);
   assert.match(footer, /BUSINESS_TRADE_NAME/);
-  assert.doesNotMatch(footer, /통신판매업|고객센터/);
+  assert.doesNotMatch(footer, /통신판매업|고객센터 전화/);
   assert.equal(layout.match(/<SiteLegalFooter \/>/g)?.length, 1);
   assert.doesNotMatch(privacy, /PUBLIC_LEGAL_LINKS|href=\"\/privacy\"|href=\"\/terms\"/);
   assert.doesNotMatch(terms, /PUBLIC_LEGAL_LINKS|href=\"\/privacy\"|href=\"\/terms\"/);
@@ -116,6 +118,7 @@ test("business identity keeps brand and legal name distinct and omits unverified
   assert.equal(BUSINESS_OPERATING_STATUS, "휴업");
   assert.equal(BUSINESS_IDENTITY_SOURCE, "submitted_nts_certificate");
   assert.equal(BUSINESS_IDENTITY_VERIFICATION.phoneNumber, "unverified");
-  assert.equal(BUSINESS_IDENTITY_VERIFICATION.customerServiceEmail, "unverified");
+  assert.equal(BUSINESS_CUSTOMER_SERVICE_EMAIL, "admin@hav.chat");
+  assert.equal(BUSINESS_IDENTITY_VERIFICATION.customerServiceEmail, "confirmed");
   assert.equal(BUSINESS_IDENTITY_VERIFICATION.mailOrderReportNumber, "unverified");
 });
