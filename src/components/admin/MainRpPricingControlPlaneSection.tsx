@@ -358,6 +358,14 @@ function ApplicationPlanCell(props: { plan: MainRpPricingApplicationPlan }) {
             version v{plan.currentPricingVersion} → v{plan.nextPricingVersion} · {plan.liveScope}
           </div>
           <div>owner {plan.ownerModule}</div>
+          {plan.manifest ? (
+            <>
+              <div>catalog key {plan.manifest.catalogKey}</div>
+              <div>
+                allowed source edit: targetMargin / pricingVersion / publishedAt only
+              </div>
+            </>
+          ) : null}
           <div>publishedAt: set at application commit</div>
           <div>
             representative {plan.preview.representativeCurrentPoints ?? "?"}P → {plan.preview.representativeCandidatePoints ?? "?"}P
