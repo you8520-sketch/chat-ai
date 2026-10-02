@@ -6,6 +6,7 @@ import sharp from "sharp";
 
 import { getSessionUser } from "@/lib/auth";
 import { isAdminUser } from "@/lib/isAdminUser";
+import { getPaidProviderCallBlockReason } from "@/lib/portoneReviewerAccount";
 import { parseAssets, type CharacterAsset } from "@/lib/characterAssets";
 import {
   resolveImageGenerationRequiredPoints,
@@ -802,6 +803,10 @@ function providerAttemptsJsonFromGenerated(
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  const paidApiBlock = getPaidProviderCallBlockReason(user);
+  if (paidApiBlock) {
+    return NextResponse.json({ error: paidApiBlock }, { status: 403 });
+  }
 
   let savedPath: string | null = null;
   let jobId: number | null = null;

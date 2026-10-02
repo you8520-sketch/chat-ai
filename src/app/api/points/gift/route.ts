@@ -9,11 +9,16 @@ import {
   POINT_GIFT_FEE_RATE_PAID,
   MIN_POINT_GIFT_AMOUNT,
 } from "@/lib/pointGifts";
+import { getPointGiftBlockReason } from "@/lib/portoneReviewerAccount";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+  const giftBlock = getPointGiftBlockReason(user);
+  if (giftBlock) {
+    return NextResponse.json({ error: giftBlock, code: "REVIEWER_FORBIDDEN" }, { status: 403 });
   }
 
   let body: { recipientId?: number; recipientNickname?: string; amount?: number; clientMutationId?: string };
