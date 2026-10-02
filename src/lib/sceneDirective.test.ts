@@ -31,7 +31,7 @@ describe("sceneDirective", () => {
     assert.doesNotMatch(block, /persona_based_dialogue_allowed/);
   });
 
-  it("auto progression allows short external [B] assist with ensemble AI_CAST focus", () => {
+  it("quiet auto progression keeps [B] authority inside user control", () => {
     const block = buildSceneDirectivePromptBlock({
       mode: "auto_progression",
       recentMessages: reassuranceLoop,
@@ -39,10 +39,10 @@ describe("sceneDirective", () => {
     });
 
     assert.match(block, /모드: 자동진행/);
-    assert.match(block, /외부 행동·대사/);
-    assert.match(block, /중대 결정/);
-    assert.match(block, /다인물|여러 AI/);
-    assert.match(block, /\[B\] 내면/);
+    assert.match(block, /유저 조종: .*USER AUTHORING owner/);
+    assert.match(block, /이 scene directive가 권한을 추가하거나 축소하지 않는다/);
+    assert.doesNotMatch(block, /적극적으로 진행한다/);
+    assert.doesNotMatch(block, /중심 인물 하나에 고정되지 않는다/);
   });
 
   it("auto progression prompt contains No False Shared Memory rule", () => {
