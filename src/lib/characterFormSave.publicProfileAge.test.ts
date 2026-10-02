@@ -49,7 +49,10 @@ function setupTestDb(): Database.Database {
       status_widget_json TEXT NOT NULL DEFAULT '',
       simulation_reuse_allowed INTEGER NOT NULL DEFAULT 0,
       simulation_nsfw_allowed INTEGER NOT NULL DEFAULT 0,
-      trpg_reuse_allowed INTEGER NOT NULL DEFAULT 0
+      trpg_reuse_allowed INTEGER NOT NULL DEFAULT 0,
+      content_kind TEXT NOT NULL DEFAULT 'character',
+      simulation_cast TEXT NOT NULL DEFAULT '',
+      simulation_visual_subjects_json TEXT NOT NULL DEFAULT ''
     );
   `);
   ensureStatusWidgetTriggerTables(db);
