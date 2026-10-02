@@ -22,6 +22,7 @@ import {
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
 import { RECONCILIATION_ROOT_CAUSE_UNCONFIRMED } from "@/lib/adminFinanceReconciliationDiagnose";
+import { RECONCILIATION_REMOTE_UNVERIFIED } from "@/lib/adminFinanceReconciliationRemoteCompare";
 
 const NORMAL_USER_ID = 94001;
 const ADMIN_USER_ID = 94002;
@@ -129,5 +130,52 @@ describe("admin finance GET reconciliation diagnose", () => {
     assert.equal(typeof body.reconciliationDiagnosis.ledgerInWindow.rows, "number");
     assert.equal("providerRequestId" in body.reconciliationDiagnosis, false);
     assert.equal("user_id" in body.reconciliationDiagnosis, false);
+  });
+
+  it("keeps the local diagnosis path unchanged when remote compare is not requested", async () => {
+    sessionToken = createSession(ADMIN_USER_ID);
+    const response = await GET(
+      new Request(
+        "http://localhost/api/admin/finance?month=2026-10&diagnose=reconciliation"
+      )
+    );
+    const body = (await response.json()) as {
+      reconciliationDiagnosis?: unknown;
+      reconciliationRemoteCompare?: unknown;
+    };
+    assert.equal("reconciliationDiagnosis" in body, true);
+    assert.equal("reconciliationRemoteCompare" in body, false);
+  });
+
+  it("returns remote-compare aggregates only when explicitly requested", async () => {
+    sessionToken = createSession(ADMIN_USER_ID);
+    const before = (
+      getDb().prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+    ).c;
+    const response = await GET(
+      new Request(
+        "http://localhost/api/admin/finance?month=2026-10&diagnose=reconciliation-remote"
+      )
+    );
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as {
+      summary: { monthKey: string };
+      reconciliationDiagnosis?: unknown;
+      reconciliationRemoteCompare: {
+        evidence: { classification: string };
+        remote: { fetchStatus: string };
+      };
+    };
+    assert.equal(body.summary.monthKey, "2026-10");
+    assert.equal("reconciliationDiagnosis" in body, false);
+    assert.equal(
+      body.reconciliationRemoteCompare.evidence.classification,
+      RECONCILIATION_REMOTE_UNVERIFIED
+    );
+    assert.equal(body.reconciliationRemoteCompare.remote.fetchStatus, "no_key");
+    const after = (
+      getDb().prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+    ).c;
+    assert.equal(after, before);
   });
 });

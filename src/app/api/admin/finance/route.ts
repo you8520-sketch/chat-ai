@@ -11,6 +11,10 @@ import {
   assertReconciliationDiagnosisSafePayload,
   diagnoseProviderReconciliationLinkage,
 } from "@/lib/adminFinanceReconciliationDiagnose";
+import {
+  RECONCILIATION_REMOTE_COMPARE_VALUE,
+  compareProviderReconciliationRemote,
+} from "@/lib/adminFinanceReconciliationRemoteCompare";
 import { getDb } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -27,6 +31,14 @@ export async function GET(req: Request) {
     const summary = buildAdminFinanceSummary(getDb(), month);
     if (!diagnose) {
       return NextResponse.json({ summary });
+    }
+    if (diagnose === RECONCILIATION_REMOTE_COMPARE_VALUE) {
+      const reconciliationRemoteCompare = await compareProviderReconciliationRemote(
+        getDb(),
+        month
+      );
+      assertReconciliationDiagnosisSafePayload(reconciliationRemoteCompare);
+      return NextResponse.json({ summary, reconciliationRemoteCompare });
     }
     if (diagnose !== RECONCILIATION_DIAGNOSE_VALUE) {
       return NextResponse.json({ error: "지원하지 않는 진단입니다." }, { status: 400 });
