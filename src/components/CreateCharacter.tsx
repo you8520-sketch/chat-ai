@@ -2289,11 +2289,11 @@ export default function CreateCharacter({
                 >
                   <span>
                     <span className="block text-sm font-semibold text-zinc-100">
-                      채팅 중 호출 컴포넌트 · 고급
+                      대화용 인터랙티브 화면 만들기
                     </span>
                     <span className="mt-0.5 block text-xs text-zinc-400">
-                      상태창과 별개로 AI가 대화 중 필요할 때 &lt;Component /&gt; 형태로 호출하는
-                      인터랙티브 UI입니다.
+                      예제를 눌러 본 뒤 적용합니다. 저장하면 AI가 대화 상황에 맞춰 호출할 수
+                      있습니다.
                       {jsxCatalog[0] ? ` 저장됨: ${jsxCatalog[0].name}` : ""}
                     </span>
                   </span>
