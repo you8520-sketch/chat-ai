@@ -20,7 +20,7 @@ const INSTRUCTIONS = {
   장소: "현재 장면의 장소를 짧게 작성한다.",
   현재상황: "지금 벌어지는 핵심 상황을 한 줄로 작성한다.",
   현재목표: "NPC가 지금 이루려는 단기 목표를 짧게 작성한다.",
-  속마음: "NPC의 현재 내면을 자연스러운 1인칭 한 줄로 작성한다.",
+  속마음: "NPC의 의식의 흐름을 간단히 작성한다.(행동이아닌 생각을 작성) NPC의 의식의 흐름을 간단히 작성한다.  '→' 를 이용하여 순서대로 100자 정도 출력한다.",
 } as const;
 
 function assertResponsiveShell(html: string) {
@@ -53,6 +53,12 @@ describe("genre-neutral built-in status widgets", () => {
     );
     for (const field of DEFAULT_STATUS_WIDGET.fields) {
       assert.equal(field.instruction, INSTRUCTIONS[field.label as keyof typeof INSTRUCTIONS]);
+    }
+    for (const id of IDS) {
+      const template = BUILTIN_STATUS_WIDGET_TEMPLATES[id];
+      const inner = template.fields.find((field) => field.label === "속마음");
+      assert.equal(inner?.instruction, INSTRUCTIONS.속마음);
+      assert.equal(inner?.id, "속마음");
     }
     assert.equal(
       DEFAULT_STATUS_WIDGET.fields.some((field) => field.label === "의식의흐름"),
