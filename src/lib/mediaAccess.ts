@@ -1,13 +1,16 @@
 /**
  * Canonical public/private media ACL owner.
- * Public sharp renditions are served only for approved representatives.
+ * Public sharp renditions are served only for approved representatives on
+ * guest-accessible characters (official / public+approved / link+approved).
  * Private originals: trusted owner (creator AND manifest uploader), admin,
  * unlinked uploader, or chat-scoped completed assistant unlock.
- * Does not copy #1333 canAccessAdultContent.
+ * NSFW chat_unlock reuses canAccessAdultContent; it does not use canUseCreatorTools.
  */
 import { getDb } from "@/lib/db";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import { isAdminUser } from "@/lib/isAdminUser";
 import { canPublishAsRepresentative } from "@/lib/assetVisionPolicy";
+import { canAccessCharacter, type CharacterVisibility, type ModerationStatus } from "@/lib/characterVisibility";
 import {
   filenameFromPrivateMediaUrl,
   isPublicBlurFilename,
@@ -35,6 +38,7 @@ export type PrivateMediaViewer = {
   id: number;
   email: string;
   is_admin?: number;
+  is_adult?: number;
 };
 
 export type PrivateMediaAccessReason = "creator" | "admin" | "uploader" | "chat_unlock";
@@ -55,8 +59,26 @@ type OwningCharacter = {
   id: number;
   creator_id: number | null;
   nsfw?: number | null;
+  visibility?: CharacterVisibility;
+  moderation_status?: ModerationStatus;
+  official?: number;
+  share_slug?: string | null;
   assets: CharacterAsset[];
 };
+
+function isGuestPublishedOwner(character: OwningCharacter): boolean {
+  return canAccessCharacter(
+    {
+      id: character.id,
+      creator_id: character.creator_id,
+      visibility: character.visibility ?? "private",
+      moderation_status: character.moderation_status ?? "pending",
+      share_slug: character.share_slug ?? null,
+      official: character.official ?? 0,
+    },
+    null
+  ).ok;
+}
 
 export function assetMatchesPrivateFilename(asset: CharacterAsset, filename: string): boolean {
   const mediaId = mediaIdFromPrivateFilename(filename);
@@ -102,7 +124,15 @@ export function decidePrivateMediaAccess(input: {
     chat.chatBelongsToUser &&
     chat.chatCharacterId != null &&
     input.owningCharacters.some((character) => character.id === chat.chatCharacterId);
-  if (chatUnlockAllowed) return { ok: true, reason: "chat_unlock" };
+  if (chatUnlockAllowed && chat) {
+    const nsfwChat = input.owningCharacters.some(
+      (character) => character.id === chat.chatCharacterId && Boolean(character.nsfw)
+    );
+    if (nsfwChat && !canAccessAdultContent(input.user)) {
+      return { ok: false, reason: "denied" };
+    }
+    return { ok: true, reason: "chat_unlock" };
+  }
   if (input.uploadedByUser && input.owningCharacters.length === 0) {
     return { ok: true, reason: "uploader" };
   }
@@ -202,10 +232,16 @@ export function projectAssetsForViewer(
     canSeeOriginals: boolean;
     unlockedUrls?: ReadonlySet<string>;
     chatId?: number | null;
+    nsfw?: boolean;
+    viewer?: { email?: string | null; is_adult?: number | boolean | null; is_admin?: number | null } | null;
   }
 ): CharacterAsset[] {
+  const unlockUrls =
+    input.canSeeOriginals || !input.nsfw || canAccessAdultContent(input.viewer)
+      ? input.unlockedUrls
+      : undefined;
   return assets.map((asset) => {
-    const unlocked = input.canSeeOriginals || Boolean(input.unlockedUrls?.has(asset.url));
+    const unlocked = input.canSeeOriginals || Boolean(unlockUrls?.has(asset.url));
     if (unlocked) {
       return viewerAllowlist(asset, {
         url: asset.url,
@@ -238,11 +274,18 @@ function loadOwningCharacters(filename: string): OwningCharacter[] {
   const mediaId = mediaIdFromPrivateFilename(filename);
   const needle = mediaId ?? filename;
   const rows = db
-    .prepare(`SELECT id, creator_id, nsfw, assets FROM characters WHERE assets LIKE ?`)
+    .prepare(
+      `SELECT id, creator_id, nsfw, visibility, moderation_status, official, share_slug, assets
+       FROM characters WHERE assets LIKE ?`
+    )
     .all(`%${needle}%`) as Array<{
     id: number;
     creator_id: number | null;
     nsfw: number | null;
+    visibility: CharacterVisibility | null;
+    moderation_status: ModerationStatus | null;
+    official: number | null;
+    share_slug: string | null;
     assets: string | null;
   }>;
   return rows
@@ -250,6 +293,10 @@ function loadOwningCharacters(filename: string): OwningCharacter[] {
       id: row.id,
       creator_id: row.creator_id,
       nsfw: row.nsfw,
+      visibility: row.visibility ?? "private",
+      moderation_status: row.moderation_status ?? "pending",
+      official: row.official ?? 0,
+      share_slug: row.share_slug,
       assets: parseAssets(row.assets),
     }))
     .filter((row) => row.assets.some((asset) => assetMatchesPrivateFilename(asset, filename)));
@@ -291,15 +338,16 @@ function isApprovedRepresentativeMedia(filename: string, owningCharacters: reado
   const mediaId = mediaIdFromPrivateFilename(filename) ?? mediaIdFromPublicRenditionFilename(filename);
   const manifest = mediaId ? readMediaManifest(`${mediaId}.webp`) : null;
   const ledger = ledgerModerationFields(manifest);
-  return owningCharacters.some((character) =>
-    character.assets.some((asset) => {
+  return owningCharacters.some((character) => {
+    if (!isGuestPublishedOwner(character)) return false;
+    return character.assets.some((asset) => {
       const matches = mediaId
         ? asset.mediaId === mediaId || filenameFromPrivateMediaUrl(asset.url) === `${mediaId}.webp`
         : assetMatchesPrivateFilename(asset, filename);
       if (!matches || !isRepresentativeAsset(asset)) return false;
       return canPublishAsRepresentative({ ...asset, ...ledger, ...(mediaId ? { mediaId } : {}) }).ok;
-    })
-  );
+    });
+  });
 }
 
 export function evaluatePublicMediaAccess(filename: string): PublicMediaAccessDecision {

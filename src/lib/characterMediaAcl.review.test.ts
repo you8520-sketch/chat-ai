@@ -228,15 +228,17 @@ describe("review #1345 MUST FIX fixtures", () => {
     if (sameRoom.ok) assert.equal(sameRoom.reason, "chat_unlock");
   });
 
-  it("5. does not copy #1333 canAccessAdultContent into the image ACL owner", () => {
+  it("5. NSFW chat_unlock reuses canAccessAdultContent and denies non-admin viewers", () => {
     const mediaAccess = fs.readFileSync(path.join(process.cwd(), "src/lib/mediaAccess.ts"), "utf8");
     const adultOnThisBranch = fs.readFileSync(
       path.join(process.cwd(), "src/lib/adultVerification.ts"),
       "utf8"
     );
-    assert.doesNotMatch(mediaAccess, /from ["']@\/lib\/adultVerification["']/);
-    assert.doesNotMatch(mediaAccess, /canAccessAdultContent\s*\(/);
-    assert.doesNotMatch(adultOnThisBranch, /export function canAccessAdultContent/);
+    assert.match(mediaAccess, /from ["']@\/lib\/adultVerification["']/);
+    assert.match(mediaAccess, /canAccessAdultContent\s*\(/);
+    assert.doesNotMatch(mediaAccess, /canUseCreatorTools\s*\(/);
+    assert.match(adultOnThisBranch, /export function canAccessAdultContent/);
+    const nsfwAssets = [{ url: "/media/private/x.webp", tag: "분노", viewerBlur: true }];
     const unlockWithoutAdultGate = decidePrivateMediaAccess({
       user: viewer,
       isAdmin: false,
@@ -248,12 +250,30 @@ describe("review #1345 MUST FIX fixtures", () => {
           id: 2,
           creator_id: 3,
           nsfw: 1,
-          assets: [{ url: "/media/private/x.webp", tag: "분노", viewerBlur: true }],
+          assets: nsfwAssets,
         },
       ],
       chatContext: { requestedChatId: 8, chatBelongsToUser: true, chatCharacterId: 2 },
     });
-    assert.equal(unlockWithoutAdultGate.ok, true);
+    assert.equal(unlockWithoutAdultGate.ok, false);
+    const adminUnlock = decidePrivateMediaAccess({
+      user: { id: 1, email: "admin@example.com", is_admin: 1 },
+      isAdmin: true,
+      trustedOwner: false,
+      unlockedByChat: true,
+      uploadedByUser: false,
+      owningCharacters: [
+        {
+          id: 2,
+          creator_id: 3,
+          nsfw: 1,
+          assets: nsfwAssets,
+        },
+      ],
+      chatContext: { requestedChatId: 8, chatBelongsToUser: true, chatCharacterId: 2 },
+    });
+    assert.equal(adminUnlock.ok, true);
+    if (adminUnlock.ok) assert.equal(adminUnlock.reason, "admin");
   });
 
   it("6. API 0 and 6 representative selections error; 1-5 persist in order", () => {

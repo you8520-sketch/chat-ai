@@ -461,6 +461,8 @@ export default async function ChatPage({
     canSeeOriginals: isCharacterCreator || isAdmin,
     unlockedUrls: new Set(initialUnlockedAssetUrls),
     chatId: chat.id,
+    nsfw: c.nsfw === 1,
+    viewer: user,
   });
 
   const {

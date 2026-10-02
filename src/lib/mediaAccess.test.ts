@@ -56,12 +56,23 @@ describe("mediaAccess", () => {
       decidePrivateMediaAccess({
         user,
         isAdmin: false,
-        owningCharacters: [{ id: 1, creator_id: 3, assets: [] }],
+        owningCharacters: [{ id: 1, creator_id: 3, nsfw: 0, assets: [] }],
         unlockedByChat: true,
         uploadedByUser: false,
         chatContext: { requestedChatId: 4, chatBelongsToUser: true, chatCharacterId: 1 },
       }).reason,
       "chat_unlock"
+    );
+    assert.equal(
+      decidePrivateMediaAccess({
+        user: { ...user, is_adult: 1 },
+        isAdmin: false,
+        owningCharacters: [{ id: 1, creator_id: 3, nsfw: 1, assets: [] }],
+        unlockedByChat: true,
+        uploadedByUser: false,
+        chatContext: { requestedChatId: 4, chatBelongsToUser: true, chatCharacterId: 1 },
+      }).ok,
+      false
     );
     assert.equal(
       decidePrivateMediaAccess({

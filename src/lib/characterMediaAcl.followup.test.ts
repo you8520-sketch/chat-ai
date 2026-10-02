@@ -298,14 +298,15 @@ describe("review #1345 follow-up MUST FIX", () => {
     assert.equal(stolenFlags.ok, false);
   });
 
-  it("does not copy #1333 canAccessAdultContent (BLOCKED_BY_1333)", () => {
+  it("reuses canAccessAdultContent for NSFW chat unlock instead of a second owner", () => {
     const mediaAccess = fs.readFileSync(path.join(process.cwd(), "src/lib/mediaAccess.ts"), "utf8");
     const adultOnThisBranch = fs.readFileSync(
       path.join(process.cwd(), "src/lib/adultVerification.ts"),
       "utf8"
     );
-    assert.doesNotMatch(mediaAccess, /from ["']@\/lib\/adultVerification["']/);
-    assert.doesNotMatch(mediaAccess, /canAccessAdultContent\s*\(/);
-    assert.doesNotMatch(adultOnThisBranch, /export function canAccessAdultContent/);
+    assert.match(mediaAccess, /from ["']@\/lib\/adultVerification["']/);
+    assert.match(mediaAccess, /canAccessAdultContent\s*\(/);
+    assert.doesNotMatch(mediaAccess, /canUseCreatorTools\s*\(/);
+    assert.match(adultOnThisBranch, /export function canAccessAdultContent/);
   });
 });
