@@ -24,6 +24,8 @@ export type CheaperInferenceUsageRequest = {
   endpoint: string | null;
   /** Provider event time in 'YYYY-MM-DD HH:MM:SS' (UTC) when parseable. */
   createdAt: string | null;
+  /** Provider API-key id when the usage payload includes one. Never return or log this. */
+  apiKeyId?: string | null;
 };
 
 export type UsageClientResult<T> =
@@ -87,6 +89,11 @@ function readEndpoint(item: Record<string, unknown>): string | null {
   return typeof e === "string" && e.trim() ? e.trim() : null;
 }
 
+function readApiKeyId(item: Record<string, unknown>): string | null {
+  const id = item.api_key_id ?? item.apiKeyId ?? item.key_id;
+  return typeof id === "string" && id.trim() ? id.trim() : null;
+}
+
 function extractItems(payload: unknown): unknown[] | null {
   if (Array.isArray(payload)) return payload;
   if (payload && typeof payload === "object") {
@@ -128,6 +135,7 @@ function parseRequestsPage(
       createdAt: normalizeProviderTimestamp(
         item.created_at ?? item.createdAt ?? item.timestamp ?? item.created
       ),
+      apiKeyId: readApiKeyId(item),
     });
   }
   return { requests, nextCursor: extractNextCursor(payload) };

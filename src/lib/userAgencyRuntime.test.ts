@@ -174,7 +174,7 @@ describe("LEN — length vs user agency gates", () => {
   it("LEN3 common prose keeps micro-action meaningful and forbids emotion re-explanation", () => {
     assert.match(COMMON_PROSE_BLOCK, /미세한 반응은 관계·긴장·안전감·의도가 드러나거나 바뀔 때 살리고/);
     assert.match(COMMON_PROSE_BLOCK, /평범한 동작은 줄인다/);
-    assert.match(COMMON_PROSE_BLOCK, /재해설하지 않는다/);
+    assert.match(COMMON_PROSE_BLOCK, /해설·결론으로 되짚기보다 다음 반응·행동·환경·관계 변화로 이어간다/);
   });
 
   it("LEN4 common prose forbids fabricated canon echo obligation", () => {

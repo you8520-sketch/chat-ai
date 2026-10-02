@@ -11,6 +11,8 @@ on:
       - "src/lib/decisionModelRadar.test.ts"
       - "src/lib/decisionModelRadarReports.ts"
       - "src/lib/decisionModelRadarReports.test.ts"
+      - "src/lib/githubReportClient.ts"
+      - "src/lib/githubReportClient.test.ts"
       - "src/lib/decisionModelRadarIsolation.test.ts"
       - "src/app/admin/automation-reports/page.tsx"
 
@@ -42,6 +44,7 @@ jobs:
           node --conditions=react-server --import tsx --test --test-concurrency=1
           src/lib/decisionModelRadar.test.ts
           src/lib/decisionModelRadarReports.test.ts
+          src/lib/githubReportClient.test.ts
           src/lib/decisionModelRadarIsolation.test.ts
       - name: Production build
         env:

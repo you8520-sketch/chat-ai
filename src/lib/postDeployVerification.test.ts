@@ -245,6 +245,39 @@ describe("post-deploy verification", () => {
     assert.notEqual(successWithoutEvidence.latest?.state, "VERIFIED");
   });
 
+  it("reads annotations for at most two completed post-deploy runs", async () => {
+    const seen: string[] = [];
+    await fetchPostDeployVerificationProjection(async (input) => {
+      const url = String(input);
+      seen.push(url);
+      if (url.includes("/actions/runs?")) {
+        return jsonResponse({
+          workflow_runs: [21, 22, 23].map((id) => ({
+            id,
+            path: ".github/workflows/post-deploy-verification.yml",
+            status: "completed",
+            conclusion: "success",
+            html_url: `https://github.test/runs/${id}`,
+            created_at: `2026-10-01T10:${id}:00.000Z`,
+            jobs_url: `https://github.test/jobs/${id}`,
+          })),
+        });
+      }
+      if (url.includes("/jobs/")) {
+        const id = url.split("/").pop();
+        return jsonResponse({ jobs: [{ check_run_url: `https://github.test/check/${id}` }] });
+      }
+      if (url.includes("/annotations")) return jsonResponse([]);
+      if (url.includes("/deployments?")) return jsonResponse([]);
+      throw new Error(url);
+    });
+    assert.deepEqual(
+      seen.filter((url) => url.includes("/jobs/")).sort(),
+      ["https://github.test/jobs/21", "https://github.test/jobs/22"]
+    );
+    assert.equal(seen.some((url) => url.includes("/jobs/23")), false);
+  });
+
   it("keeps the event workflow out of the scheduled inventory", () => {
     const text = fs.readFileSync(path.join(ROOT, ".github/workflows/post-deploy-verification.yml"), "utf8");
     assert.match(text, /deployment_status:/);
