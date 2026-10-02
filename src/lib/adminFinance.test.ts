@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   currentKstMonthKey,
   estimateApiCostUsd,
+  monthRangeSql,
 } from "./adminFinance";
 
 test("DeepSeek V4 Flash uses the configured input/output/cache rates", () => {
@@ -23,4 +24,16 @@ test("KST month key crosses UTC month boundaries correctly", () => {
     currentKstMonthKey(Date.parse("2026-07-31T16:00:00.000Z")),
     "2026-08"
   );
+});
+
+test("monthRangeSql is a naive calendar month, not a KST instant range", () => {
+  assert.deepEqual(monthRangeSql("2026-10"), {
+    start: "2026-10-01 00:00:00",
+    end: "2026-11-01 00:00:00",
+  });
+  assert.equal(
+    currentKstMonthKey(Date.parse("2026-09-30T15:00:00.000Z")),
+    "2026-10"
+  );
+  assert.ok(monthRangeSql("2026-10").start > "2026-09-30 15:00:00");
 });

@@ -62,6 +62,8 @@ export function buildFinanceAnomalyReport(params: {
   const anomalies: FinanceAnomaly[] = [];
   const reconciliation = params.summary.providerReconciliation;
 
+  // MISMATCH and UNRECONCILED_SPEND are two projections of one stored
+  // providerReconciliation row. They are not two independent missing-cost events.
   if (reconciliation?.status === "mismatch") {
     anomalies.push({
       id: "provider-reconciliation:mismatch",
