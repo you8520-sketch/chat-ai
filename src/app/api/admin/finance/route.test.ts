@@ -199,14 +199,8 @@ describe("admin finance GET reconciliation diagnose", () => {
         };
       };
     };
-    assert.equal(
-      body.reconciliationRemoteCompare.apiKeyGroups?.productionKeyMapping,
-      "unavailable"
-    );
-    assert.equal(
-      body.reconciliationRemoteCompare.apiKeyGroups?.totalsMatchRemoteSettled,
-      true
-    );
+    // A no-key remote read is unverified, not a successful empty grouping.
+    assert.equal(body.reconciliationRemoteCompare.apiKeyGroups, undefined);
     const raw = JSON.stringify(body.reconciliationRemoteCompare);
     assert.equal(raw.includes("api_key_name"), false);
     assert.equal(raw.includes("api_key_id"), false);
