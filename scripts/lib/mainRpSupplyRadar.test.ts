@@ -127,6 +127,7 @@ test("active Main RP supply identities are derived exhaustively from canonical r
   assert.equal(ids.length,6);
   assert.equal(ids.find(x=>x.internalModelId==="deepseek-v4.1-flash")?.openRouterSlug,"deepseek/deepseek-v4.1-flash");
   assert.equal(ids.find(x=>x.internalModelId==="gemini-3.8-flash")?.openRouterSlug,"google/gemini-3.8-flash");
+  assert.equal(ids.find(x=>x.internalModelId==="gpt-6.1-sol")?.openRouterSlug,"openai/gpt-6.1-sol");
 });
 
 test("credential resolver prefers dedicated radar key and never fabricates a key",()=>{
