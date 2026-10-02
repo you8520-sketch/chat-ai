@@ -235,7 +235,8 @@ function ledgerIdSets(
     .prepare(
       `SELECT provider_request_id, created_at
          FROM api_cost_ledger
-        WHERE provider_request_id IS NOT NULL AND TRIM(provider_request_id) != ''`
+        WHERE provider = 'cheaperinference'
+          AND provider_request_id IS NOT NULL AND TRIM(provider_request_id) != ''`
     )
     .all() as Array<{ provider_request_id: string; created_at: string }>;
   for (const row of rows) {
@@ -272,7 +273,8 @@ function countLedgerInWindow(db: Database.Database, start: string, end: string):
     .prepare(
       `SELECT ${sourceExpr}, ${statusExpr}, ${usdExpr}, ${requestIdExpr}
          FROM api_cost_ledger
-        WHERE created_at >= ? AND created_at < ?`
+        WHERE provider = 'cheaperinference'
+          AND created_at >= ? AND created_at < ?`
     )
     .all(start, end) as Array<{
     actual_cost_source: string | null;
