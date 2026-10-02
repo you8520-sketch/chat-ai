@@ -369,6 +369,8 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
         </summary>
         <div className="mt-3 space-y-3">
           <p className="text-zinc-400">
+            코드를 수정한 뒤 '컴파일 / 미리보기'를 눌러 반영합니다. 예제를 둘러보거나
+            입력칸을 벗어날 때는 저장된 컴포넌트를 바꾸지 않습니다.
             AI에는 Manifest만 전달되고, 소스는 프롬프트에 넣지 않습니다.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -389,7 +391,6 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
               value={draft.name}
               disabled={disabled}
               onChange={(e) => setName(e.target.value)}
-              onBlur={() => applyDraft()}
               className="mt-1 w-full rounded-md border border-white/10 bg-[#0c0c12] px-2 py-1.5 text-sm text-zinc-100"
             />
           </label>
@@ -400,7 +401,6 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
               disabled={disabled}
               rows={12}
               onChange={(e) => setSource(e.target.value)}
-              onBlur={() => applyDraft()}
               className="mt-1 w-full rounded-md border border-white/10 bg-[#0c0c12] px-2 py-1.5 font-mono text-[11px] text-zinc-100"
             />
           </label>

@@ -126,6 +126,7 @@ describe("creator JSX example", () => {
     assert.match(editor, /chatSendEnabled=\{false\}/);
     assert.doesNotMatch(editor, /bridge=/);
     assert.match(editor, /교체 대상/);
+    assert.doesNotMatch(editor, /onBlur=\{\(\) => applyDraft\(\)\}/);
     assert.match(editor, /구조분해와 계산된 키는 직접 입력합니다/);
     assert.match(create, /대화용 인터랙티브 화면 만들기/);
     assert.doesNotMatch(create, /채팅 중 호출 컴포넌트 · 고급/);

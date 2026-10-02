@@ -58,6 +58,12 @@ test("interactive component examples preview at 390px without chat calls", async
   // Browsing a different example must not strand the user's own preview
   // after they explicitly compile their existing component again.
   await page.getByText("고급 JSX 코드 및 Props").click();
+  const sourceInput = page.getByLabel("JSX source");
+  const draftSource = await sourceInput.inputValue();
+  await sourceInput.fill(draftSource + "\n// explicit-compile-only");
+  await page.getByRole("button", { name: /인물 정보 패널/ }).click();
+  await expect(page.getByText("미저장 초안입니다.")).toBeVisible();
+  await expect(nameInput).toHaveValue("QuestCardExample");
   await page.getByRole("button", { name: "컴파일 / 미리보기" }).click();
   await expect(page.getByText("내 컴포넌트 미리보기")).toBeVisible();
   await expect(page.frameLocator('iframe[title="QuestCardExample"]').getByText("사라진 지도")).toBeVisible();
