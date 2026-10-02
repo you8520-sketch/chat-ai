@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
   const url = new URL(req.url);
-  const nsfw = url.searchParams.get("nsfw") === "1";
+  const nsfw = url.searchParams.get("nsfw") === "1" && canAccessAdultContent(user);
   const query = (url.searchParams.get("q") ?? "").trim().slice(0, 50);
   const like = `%${query.replace(/[%_]/g, "")}%`;
   const rows = getDb()

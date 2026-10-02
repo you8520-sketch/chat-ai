@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AppPageShell } from "@/components/AppPageShell";
 import ChatsPageGrid from "@/components/ChatsPageGrid";
+import { shouldHideAdultListings } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { fetchRecentTrpgCampaigns } from "@/lib/recentActivity";
@@ -15,7 +16,7 @@ export default async function ChatsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?redirect=/chats");
 
-  const blurNsfw = !user.is_adult || !user.nsfw_on;
+  const blurNsfw = shouldHideAdultListings(user);
   const db = getDb();
   const sessions = fetchUserChatSessionsForRecentCharacters(
     db,

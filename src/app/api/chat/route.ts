@@ -584,7 +584,7 @@ import {
   resolveAdultSceneRoutingEnabledForRequest,
 } from "@/lib/adultSceneHandoffCanary";
 import { isAdminUser } from "@/lib/isAdminUser";
-import { effectiveIsAdult } from "@/lib/adultVerification";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import {
   parseAdultHandoffEnabled,
   resolveEffectiveAdultRp,
@@ -704,7 +704,7 @@ export async function POST(req: Request) {
   } | undefined;
   if (!ch) return Response.json({ error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
 
-  if (ch.nsfw && !user.is_adult) {
+  if (ch.nsfw && !canAccessAdultContent(user)) {
     return Response.json({ error: "성인용 캐릭터는 성인인증 후 이용할 수 있습니다.", needVerify: true }, { status: 403 });
   }
 
@@ -746,7 +746,7 @@ export async function POST(req: Request) {
     initialPersonaId = personas[0]?.id ?? null;
   }
 
-  const userAdultVerified = effectiveIsAdult(user.is_adult);
+  const userAdultVerified = canAccessAdultContent(user);
   const requestedRoomAdultMode = parseAdultHandoffEnabled(
     body.adultHandoffEnabled ?? body.adult_handoff_enabled
   );

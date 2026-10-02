@@ -54,12 +54,27 @@ jobs:
         run: >-
           node --conditions=react-server --import tsx --test
           src/lib/jsxComponent/catalogDraft.test.ts
+          src/lib/jsxComponent/creatorExample.test.ts
           src/lib/jsxComponent/jsxComponent.test.ts
           src/lib/statusWidget/authoringChoice.test.ts
           src/lib/statusWidget/jsxSource.test.ts
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+
+      - name: Status widget authoring browser regression
+        run: >-
+          npx playwright test
+          tests/ui/status-widget-gallery.spec.ts
+          --workers=1
+          --retries=0
+
+      - name: JSX creator gallery browser regression
+        run: >-
+          npx playwright test
+          tests/ui/jsx-catalog-editor.spec.ts
+          --workers=1
+          --retries=0
 
       - name: Suggested Replies browser lifecycle
         run: >

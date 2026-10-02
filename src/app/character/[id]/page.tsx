@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { getDb } from "@/lib/db";
 
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getPointBalance } from "@/lib/points";
 import { getGiftableBalance } from "@/lib/pointGifts";
@@ -128,7 +129,7 @@ export default async function CharacterPage({
     images[0] ??
     "";
 
-  if (c.nsfw === 1 && !user.is_adult) {
+  if (c.nsfw === 1 && !canAccessAdultContent(user)) {
     redirect(`/verify?redirect=${encodeURIComponent(`/character/${id}`)}`);
   }
 
