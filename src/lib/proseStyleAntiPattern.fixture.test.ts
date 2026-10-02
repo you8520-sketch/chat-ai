@@ -23,8 +23,8 @@ describe("prose style anti-pattern fixtures (static)", () => {
   it("A: COMMON PROSE owns micro-action / selective detail", () => {
     assert.match(COMMON_PROSE_BLOCK, /\[COMMON PROSE\]/);
     assert.match(COMMON_PROSE_BLOCK, /작은 행동·미세한 반응은/);
-    assert.match(COMMON_PROSE_BLOCK, /손·손가락·시선 같은 신체 앵커와 비유/);
-    assert.match(COMMON_PROSE_BLOCK, /새로운 감각·관계 정보를 줄 때만 골라 쓰고/);
+    assert.match(COMMON_PROSE_BLOCK, /평범한 동작은 줄인다/);
+    assert.doesNotMatch(COMMON_PROSE_BLOCK, /손·손가락·시선 같은 신체 앵커/);
     assert.match(PROSE_STYLE_SECTION, /\[COMMON PROSE\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[MOVEMENT & DETAIL\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[BODY AND PROP INVENTORY\]/);

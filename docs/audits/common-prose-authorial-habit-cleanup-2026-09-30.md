@@ -1,95 +1,134 @@
-# Common prose authorial-habit cleanup — 2026-09-30
+# 공용 문체 반복 정리 — #1294 통합
 
-Status: **PATCH READY — LIVE A/B PENDING**
+Production 프롬프트 시스템이나 새 owner를 만들지 않았다. 기존 `[COMMON PROSE]` 안에서 확인된 중복 문장만 합쳤다. 유료 호출은 없다. 문체 점수는 매기지 않는다. 품질이 좋아졌다고 주장하지 않는다.
 
-## Evidence source
+기준 main은 `a6a519d6f33f9f2872cf66a53e77cdd9cfe318c3`이다. `COMMON_PROSE_BLOCK`은 이 커밋과 네 Draft의 merge-base 사이에서 바뀌지 않았다.
 
-Baseline raw outputs:
-- GitHub Actions run `36422533674`
-- 3 models: DeepSeek V4.1 Flash / Gemini 3.7 Flash / Claude Opus 5.5
-- 4 canonical RP cases each
-- actual deployed 조태형 + admin persona 렌
-- ordinary input authoring: NORMAL
-
-The existing canonical detector `src/lib/authorialHabitAudit.ts` was used as the
-metric vocabulary. Human review was used to reject detector-only conclusions.
-
-## Baseline — all four cases
-
-Every model showed all three of these habits in **4/4 samples**:
-
-| Model | hand anchor total | hand density /1k | generic simile total | simile density /1k | explain→conclude total | explain density /1k |
-|---|---:|---:|---:|---:|---:|---:|
-| DeepSeek V4.1 Flash | 46 | 4.47 | 26 | 2.28 | 31 | 2.55 |
-| Gemini 3.7 Flash | 32 | 2.47 | 23 | 1.78 | 22 | 1.72 |
-| Claude Opus 5.5 | 55 | 4.03 | 24 | 1.59 | 41 | 2.68 |
-
-`turn_end_wait / silence / gaze` did not show the same cross-model prevalence,
-so they are not used as justification for a shared prose-owner change in this PR.
-
-## Bounded A/B cases
-
-The live A/B is limited to:
-- `agency_boundary`
-- `persona_grounded_reaction`
-
-Baseline for those two cases:
-
-| Model | hand /1k | simile /1k | explain→conclude /1k |
-|---|---:|---:|---:|
-| DeepSeek V4.1 Flash | 5.79 | 1.72 | 2.14 |
-| Gemini 3.7 Flash | 3.05 | 1.83 | 1.37 |
-| Claude Opus 5.5 | 5.15 | 2.09 | 2.92 |
+#1288, #1296, #1299는 수정하지 않았고 닫지 않았다. #1288의 길이 owner 변경, #1296의 모델 검증 범위 확대, #1299의 유료 트리거는 넣지 않았다.
 
 ## BEFORE
 
-`[COMMON PROSE]` already owned:
-- show emotion/relationship through action and scene evidence;
-- avoid post-hoc meaning re-explanation;
-- use micro-actions selectively;
-- move forward once meaning is delivered.
+라이브 `COMMON_PROSE_BLOCK` (`src/lib/advancedProseNsfwGuidelines.ts`):
 
-However, two lines partly duplicated each other and the live corpus still showed
-a cross-model tendency to:
-- use hands/fingers/gaze as default rhythm anchors;
-- stack same-function similes;
-- explain an already visible implication after the action.
+```
+[COMMON PROSE]
+지문은 현재 장면과 인물 체험에 밀착한 해체(-다/-했다)의 자연스러운 한국어 완결문으로 쓰고, 문장 길이는 호흡에 맞춘다. 파편문·말줄임은 강조나 망설임이 있을 때만 쓴다.
+감정과 관계는 표정·시선·호흡·습관·접촉·거리·행동·선택으로 드러내고, 드러난 의미를 "~라는 뜻이었다"식으로 재해설하지 않는다.
+내면은 현재 판단·행동·선택을 바꾸는 만큼 쓴다.
+장면에 작용하는 공간·빛·소리·온도·질감·외관을 구체적으로 고르고 장면이 바뀌면 초점을 옮기며, 중요한 순간과 전환엔 짧은 정적을 둔다.
+작은 행동·미세한 반응은 관계·긴장·안전감·의도가 드러나거나 바뀔 때 살리고 평범한 동작은 줄인다.
+의미가 전달되면 다음 반응·행동·환경·관계 변화로 나아가고, 조용한 장면도 요약 없이 대화·내면·분위기로 전개한다.
+대사는 설정 설명 없이 이 캐릭터가 지금 이 상대에게 할 법한, 관계·판단·행동을 바꾸는 말에 집중한다. 같은 화자의 연속된 말은 하나의 충분한 발화로 묶는다. 조용한 1:1·조사·전투는 관찰과 행동이, 다인 대화·논쟁은 대사가 중심이며 침묵·퇴장도 자연스럽다.
+정본·기억·페르소나는 현재 장면에 relevant할 때만 반영하고 복사·의무적 회상은 하지 않는다. 같은 기억·상징은 새 의미가 있을 때만 다시 쓴다. 호감은 정본과 누적 상호작용을 따른다.
+```
 
-## CHANGE
+2번 줄은 이미 드러난 의미를 재해설하지 말라고 한다. 6번 줄 앞절은 의미가 전달되면 다음 변화로 나아가라고 한다. 같은 전환 지시가 한 owner 안에 두 번 있다.
 
-No new prose section or model-specific adapter is added.
+공식 품질 코퍼스(Actions `36422533674`, 조태형+렌, DeepSeek V4.1 Flash / Gemini 3.7 Flash / Opus 5.5, 각 4편)는 손 앵커·같은 기능 비유·설명 후 결론을 세 모델 4/4에서 잡았다. 라이크+렌 창가 원문(PR #1329, #1339)은 유리·이마·손끝 반복과 장면 이동이 갈라진다. 정규식 빈도만으로 품질을 단정하지 않는다.
 
-The existing canonical owner is consolidated in place:
+## PROBLEM
 
-1. “show, then do not re-explain” + “move to next change” are merged into one
-   positive transition rule.
-2. the existing micro-action line is replaced with a selective-detail rule:
-   body anchors and similes should be chosen when they add new sensory /
-   relational information, rather than reused for the same function.
-3. the duplicated generic “meaning delivered → move forward” line is removed;
-   its quiet-scene clause remains as a compact standalone sentence.
+네 Draft가 서로 다른 문장으로 같은 owner를 고친다. 독립 병합하면 `[COMMON PROSE]`가 네 벌이 된다.
 
-## INVARIANTS
+| PR | 공용 문체 제안 | 이번 패치 |
+|---|---|---|
+| #1294 | 재해설+전진 문장 통합. 손·손가락·시선 선택 규칙으로 미세 행동 줄을 교체 | 전진 통합만 채택. 이름 붙인 신체 목록은 새 금지라 제외 |
+| #1288 | 신체 체크리스트 삭제, 짧은 정적 삭제, **길이 owner 문장 변경** | 길이 owner는 적용하지 않음. 체크리스트·정적 삭제는 후보다 |
+| #1296 | 환경/신체 반복 줄을 더 길게 재작성. Gemini 3.8 검증 범위 확대 | 검증 범위 확대는 제외. 재작성은 후보다 |
+| #1299 | 구체 단서 목록 삭제. 유료 A/B 트리거 | 트리거와 목록 삭제는 제외 |
 
-Preserved:
-- one `[COMMON PROSE]` owner;
-- common-prose token cap;
-- layout owner;
-- length owner;
-- speech owner;
-- user-authoring owner;
-- historical-truth owner;
-- memory and provider routing;
-- NSFW style contract.
+#1294, #1299는 최근 커밋이 2026-09-30이고 리뷰 댓글이 없다. #1288, #1296은 현재 main과 CONFLICTING이다. 진행 중 편집은 보이지 않았다.
 
-## LIVE GATE
+## OWNER MAP
 
-Run the same 3 active quality models on the two bounded cases above:
-- 6 provider calls total;
-- one attempt per model/case;
-- no retry/fallback;
-- Terra and Gemini 3.1 excluded.
+| 책임 | 라이브 owner | 이번 변경 |
+|---|---|---|
+| 공용 문체 | `COMMON_PROSE_BLOCK` | 한 블록. 2번+6번 앞절만 합침 |
+| 길이 | `USER_TAIL_LENGTH_OWNER_SENTENCE` | 그대로 |
+| 장면 계약 | `sceneDirective.ts` | 그대로. #1342 머지 유지 |
+| 레이아웃 | `webnovelOutputFormat` | 그대로 |
+| 제작자 문체 | 캐릭터 필드 | 그대로 |
+| 단일 호출 | `TURN_LENGTH_SUPPLEMENT_API_ENABLED=false` | 그대로 |
+| DeepSeek 길이 adapter | `resolveDeepSeekLengthAdapterSection` | Flash에서 여전히 null |
 
-Completion is not based on “all numbers must decrease”. Human review must confirm
-that any reduction did not flatten prose, remove useful gestures, or make quiet
-scenes sterile.
+## AFTER
+
+```
+[COMMON PROSE]
+지문은 현재 장면과 인물 체험에 밀착한 해체(-다/-했다)의 자연스러운 한국어 완결문으로 쓰고, 문장 길이는 호흡에 맞춘다. 파편문·말줄임은 강조나 망설임이 있을 때만 쓴다.
+감정과 관계는 표정·시선·호흡·습관·접촉·거리·행동·선택으로 드러내고, 이미 드러난 의미는 해설·결론으로 되짚기보다 다음 반응·행동·환경·관계 변화로 이어간다.
+내면은 현재 판단·행동·선택을 바꾸는 만큼 쓴다.
+장면에 작용하는 공간·빛·소리·온도·질감·외관을 구체적으로 고르고 장면이 바뀌면 초점을 옮기며, 중요한 순간과 전환엔 짧은 정적을 둔다.
+작은 행동·미세한 반응은 관계·긴장·안전감·의도가 드러나거나 바뀔 때 살리고 평범한 동작은 줄인다.
+조용한 장면도 요약 없이 대화·내면·분위기로 전개한다.
+대사는 설정 설명 없이 이 캐릭터가 지금 이 상대에게 할 법한, 관계·판단·행동을 바꾸는 말에 집중한다. 같은 화자의 연속된 말은 하나의 충분한 발화로 묶는다. 조용한 1:1·조사·전투는 관찰과 행동이, 다인 대화·논쟁은 대사가 중심이며 침묵·퇴장도 자연스럽다.
+정본·기억·페르소나는 현재 장면에 relevant할 때만 반영하고 복사·의무적 회상은 하지 않는다. 같은 기억·상징은 새 의미가 있을 때만 다시 쓴다. 호감은 정본과 누적 상호작용을 따른다.
+```
+
+## REMOVED
+
+삭제:
+
+- `드러난 의미를 "~라는 뜻이었다"식으로 재해설하지 않는다.`
+- `의미가 전달되면 다음 반응·행동·환경·관계 변화로 나아가고,`
+
+통합 문장:
+
+- `이미 드러난 의미는 해설·결론으로 되짚기보다 다음 반응·행동·환경·관계 변화로 이어간다.`
+
+유지:
+
+- 표정·시선·호흡 체크리스트
+- `평범한 동작은 줄인다`
+- `짧은 정적`
+- 조용한 장면 전개
+- 3,200자 길이 문장
+
+넣지 않음:
+
+- `손·손가락·시선 같은 신체 앵커와 비유는 … 같은 기능으로 반복하지 않는다` (#1294 원안). 새 금지이고 그 단어를 유도할 수 있다.
+
+## TOKEN DELTA
+
+`estimateTokens` = 글자 수 × 0.9. 공급업체 토큰이 아니다.
+
+| 항목 | 수정 전 | 수정 후 | 차이 |
+|---|---:|---:|---:|
+| `COMMON_PROSE_BLOCK` 글자 | 665 | 648 | −17 |
+| `COMMON_PROSE_BLOCK` `estimateTokens` | 599 | 584 | −15 |
+| 시스템 (6모델 공통, 빈 정본 fixture) | DeepSeek 6,404 / 그 외 6,346 | 6,389 / 6,331 | −15 |
+
+선택 가능한 6모델 모두에서 공용 문체 블록을 빼면 나머지 시스템 문자열이 같다. 길이 문장은 유저 턴에 1회다. `prose-style-xml-bundle`은 1,170이다. 이전 같은 fixture의 1,185에서 블록 −15와 맞다.
+
+DeepSeek 실제 라이크 정본 경로에서는 이 블록이 캐시 character 구간에 들어간다. 이번 문장 변경은 그 prefix를 무효화한다. 캐시 경계 구조는 바꾸지 않았다.
+
+## REGRESSION RISKS
+
+- 지문이 더 짧아지거나 감정이 빠질 수 있다. 재해설 금지를 전진 지시로 합쳤기 때문이다.
+- 조용한 장면이 이르게 닫힐 수 있다. 6번 줄에서 전진 절을 빼되 조용한 장면 문장은 남겼다.
+- 신체 체크리스트는 그대로라 손·시선 반복이 남을 수 있다.
+- DeepSeek character 캐시가 한 번 무효화된다.
+- 사용자 권한, 장면 계약, 길이, 레이아웃은 이 파일 밖에 있다.
+
+## PROOF
+
+결정적 조립은 선택 가능한 Main RP 6모델 × 자동진행 창가 fixture다. 공용 문체 블록을 바꾸면 그 블록 밖 문자열은 같아야 한다. 길이 문장은 유저 턴에 1회다.
+
+관련 테스트: `advancedProseNsfwGuidelines.test.ts`, `proseStyleAntiPattern.fixture.test.ts`, `commonProseBudget.test.ts`, `userAgencyRuntime.test.ts`, `autoProgression.prompt.test.ts`.
+
+## CLASSIFICATION
+
+`DUPLICATE_FORWARD_MOTION_MERGED`
+
+확인된 것은 owner 안 중복 문장이다. 출력 품질 개선은 유료 호출 없이 주장하지 않는다.
+
+## FOLLOW-UP
+
+GPT 검토 후:
+
+- #1288의 체크리스트 삭제·짧은 정적 삭제
+- #1296의 환경/신체 재작성
+- #1299의 단서 목록 삭제
+- #1294 원안의 손·손가락·시선 문장
+
+이 네 가지는 이번에 넣지 않았다. 해당 PR은 열어 둔다.
