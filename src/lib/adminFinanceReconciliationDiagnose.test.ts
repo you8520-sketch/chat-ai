@@ -76,6 +76,7 @@ function insertLedgerRow(
     status: string | null;
     actualUsd: number | null;
     providerRequestId: string | null;
+    provider?: string;
   }
 ): void {
   d.prepare(
@@ -83,9 +84,10 @@ function insertLedgerRow(
        provider, model, request_kind, input_tokens, output_tokens,
        exchange_rate_krw_per_usd, cost_krw, estimated, created_at,
        actual_cost_usd, actual_cost_source, event_status, provider_request_id
-     ) VALUES ('cheaperinference', 'deepseek-v4-pro-0813', 'test', 1, 1,
+     ) VALUES (?, 'deepseek-v4-pro-0813', 'test', 1, 1,
                1500, 0, 0, ?, ?, ?, ?, ?)`
   ).run(
+    opts.provider ?? "cheaperinference",
     opts.createdAt,
     opts.actualUsd,
     opts.source,
@@ -185,6 +187,42 @@ describe("admin finance reconciliation diagnose #1337 follow-up", () => {
       assert.equal(diagnosis.ledgerInWindow.byStatus.settled, 2);
       assert.equal(diagnosis.ledgerInWindow.byStatus.started, 1);
       assertNoFixtureIds(diagnosis, ["ledger-exact-1", "outside-month"]);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("excludes other provider rows from CheaperInference counts and request linkage", () => {
+    const d = db();
+    try {
+      const createdAt = "2026-10-02 01:00:00";
+      insertIdentity(d, { id: 36, requestId: "cross-provider-id", createdAt });
+      insertLedgerRow(d, {
+        provider: "openrouter",
+        createdAt,
+        source: "provider_reported",
+        status: "settled",
+        actualUsd: 0.25,
+        providerRequestId: "cross-provider-id",
+      });
+      insertLedgerRow(d, {
+        provider: "cheaperinference",
+        createdAt,
+        source: "cheaper_inference_billed",
+        status: "settled",
+        actualUsd: 0.05,
+        providerRequestId: "ci-only-id",
+      });
+      const diagnosis = diagnoseProviderReconciliationLinkage(d, "2026-10");
+      assert.equal(diagnosis.ledgerInWindow.rows, 1);
+      assert.equal(diagnosis.ledgerInWindow.exactRows, 1);
+      assert.equal(diagnosis.ledgerInWindow.withProviderRequestId, 1);
+      assert.equal(diagnosis.ledgerInWindow.bySource.cheaper_inference_billed, 1);
+      assert.equal(diagnosis.ledgerInWindow.bySource.provider_reported, undefined);
+      assert.equal(diagnosis.messagesInWindow.linkedToLedgerAny, 0);
+      assert.equal(diagnosis.messagesInWindow.linkedToLedgerInWindow, 0);
+      assert.equal(diagnosis.messagesInWindow.unlinkedToLedger, 1);
+      assertNoFixtureIds(diagnosis, ["cross-provider-id", "ci-only-id"]);
     } finally {
       d.close();
     }
