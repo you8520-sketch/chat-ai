@@ -93,7 +93,11 @@ test("legal footer is the only renderer of the shared link set", () => {
   assert.match(footer, /SITE_DISPLAY_NAME/);
   assert.match(footer, /SITE_DESCRIPTION/);
   assert.match(footer, /BUSINESS_PUBLIC_LINES/);
-  assert.match(footer, /BUSINESS_TRADE_NAME/);
+  assert.match(footer, /aria-label="사업자 정보"/);
+  assert.match(footer, /border-t border-white/);
+  assert.match(footer, /flex flex-wrap gap-x-3/);
+  assert.match(footer, /min-\[576px\]:pl-\[200px\]/);
+  assert.doesNotMatch(footer, /space-y-0\.5/);
   assert.doesNotMatch(footer, /통신판매업|고객센터 전화/);
   assert.equal(layout.match(/<SiteLegalFooter \/>/g)?.length, 1);
   assert.doesNotMatch(privacy, /PUBLIC_LEGAL_LINKS|href=\"\/privacy\"|href=\"\/terms\"/);
