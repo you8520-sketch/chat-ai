@@ -6,6 +6,7 @@ import {
   isPointChargeRefundPendingState,
   type PointChargeRefundState,
 } from "@/lib/pointChargeRefundShared";
+import { POINT_CHARGE_CANCEL_DAYS } from "@/lib/plans";
 
 export default function ChargeCancelButton({
   pointLogId,
@@ -91,7 +92,7 @@ export default function ChargeCancelButton({
         ? "PortOne 환불 상태를 다시 확인합니다. 취소 요청을 재전송하지 않습니다."
         : state === "SUCCEEDED"
           ? "확인된 환불 성공을 로컬 포인트 내역에 반영합니다."
-          : "결제 후 7일 이내·미사용 포인트만 취소 가능";
+          : `결제 후 ${POINT_CHARGE_CANCEL_DAYS}일 이내·미사용 포인트만 취소 가능`;
 
   return (
     <>
@@ -114,7 +115,7 @@ export default function ChargeCancelButton({
         <ConfirmDialog
           open
           title="결제 취소"
-          message="환불 요청을 시작하면 충전한 유료·무료 포인트는 PortOne 환불 결과가 확정될 때까지 사용이 보류됩니다. 환불 성공 확인 후 취소가 최종 확정됩니다. (결제 후 7일 이내)"
+          message={`환불 요청을 시작하면 충전한 유료·무료 포인트는 PortOne 환불 결과가 확정될 때까지 사용이 보류됩니다. 환불 성공 확인 후 취소가 최종 확정됩니다. (결제 후 ${POINT_CHARGE_CANCEL_DAYS}일 이내)`}
           confirmLabel="결제 취소"
           danger
           onCancel={() => setConfirmOpen(false)}

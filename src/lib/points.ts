@@ -27,7 +27,7 @@ import {
 import { savedVisibleTextForReceipt } from "./chatRichContent";
 import { resolveResponseLengthTarget, isCatastrophicallyShortResponse, type GenerationFailureReason } from "./responseLength";
 import { isDegenerateOutput } from "./gibberishGuard";
-import { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_YEARS } from "./plans";
+import { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_YEARS, PAID_POINTS_VALID_YEARS } from "./plans";
 import { ATTENDANCE_POINTS_VALID_DAYS } from "./attendanceConstants";
 import type { StageUsage } from "./ai";
 import { BACKGROUND_CREATIVE_HTML_MODEL } from "./ai";
@@ -50,6 +50,7 @@ export {
   type PlanId,
   FREE_MEMORY_LIMIT,
   FREE_POINTS_VALID_YEARS,
+  PAID_POINTS_VALID_YEARS,
   ATTENDANCE_POINTS_VALID_DAYS,
 };
 
@@ -474,9 +475,7 @@ function roundAmount(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-export const PAID_POINTS_VALID_YEARS = 1;
-
-/** Ledger provenance for attendance-derived lots (non-giftable, 30-day validity). */
+/** Ledger provenance for attendance-derived lots (non-giftable, ATTENDANCE_POINTS_VALID_DAYS). */
 export const POINT_SOURCE_ATTENDANCE = "attendance";
 
 /** Canonical expires_at modifier owner — SQLite-relative durations (calendar anniversary for years). */
@@ -487,7 +486,7 @@ export function expiresModifier(
   if (validity?.days) return `+${validity.days} days`;
   if (validity?.years) return `+${validity.years} years`;
   if (validity?.months) return `+${validity.months} months`;
-  // PAID·일반 FREE 모두 1년. 출석 FREE만 validity.days로 30일 지정.
+  // PAID·일반 FREE 모두 1년. 출석 FREE만 validity.days로 ATTENDANCE_POINTS_VALID_DAYS 지정.
   return `+${pointType === "PAID" ? PAID_POINTS_VALID_YEARS : FREE_POINTS_VALID_YEARS} years`;
 }
 
@@ -521,7 +520,7 @@ export type CreditPointsResult = {
   logId: number;
 };
 
-/** 원장 적립 — PAID·FREE 기본 1년 만료 (출석 FREE는 validity로 30일) */
+/** 원장 적립 — PAID·FREE 기본 1년 만료 (출석 FREE는 validity로 ATTENDANCE_POINTS_VALID_DAYS) */
 export function creditPointsWithIds(
   db: ReturnType<typeof getDb>,
   userId: number,
