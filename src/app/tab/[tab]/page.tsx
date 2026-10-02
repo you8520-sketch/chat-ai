@@ -18,6 +18,7 @@ import {
   type RankedCharacter,
 } from "@/lib/characterRanking";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
+import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerification";
 import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +60,7 @@ export default async function TabPage({
   const { g, p } = await searchParams;
   const db = getDb();
   const user = await getSessionUser();
-  const blurNsfw = !user?.is_adult || !user?.nsfw_on;
+  const blurNsfw = shouldHideAdultListings(user);
   const loggedIn = !!user;
 
   const buildFilter = (colPrefix = "") => {
@@ -190,6 +191,7 @@ export default async function TabPage({
           <div className="mt-5">
             <UserPreferenceControls
               isAdult={!!user?.is_adult}
+              canDisableSafetyFilter={canAccessAdultContent(user)}
               nsfwOn={!!user?.nsfw_on}
               pref={(user?.pref as "female" | "male" | null) ?? null}
               loggedIn={loggedIn}

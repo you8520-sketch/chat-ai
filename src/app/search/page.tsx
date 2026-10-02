@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppPageShell } from "@/components/AppPageShell";
 import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import TagSearchBar from "@/components/TagSearchBar";
+import { shouldHideAdultListings } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { cn, studioType } from "@/lib/studioDesign";
@@ -80,7 +81,7 @@ export default async function SearchPage({
     rawG && isCharacterGenre(rawG.trim()) ? (rawG.trim() as CharacterGenre) : null;
   const db = getDb();
   const user = await getSessionUser();
-  const blurNsfw = !user?.is_adult || !user?.nsfw_on;
+  const blurNsfw = shouldHideAdultListings(user);
   const loggedIn = !!user;
 
   const audiencePref =

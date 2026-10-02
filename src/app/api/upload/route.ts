@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
+import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { storeUpload } from "@/lib/uploadStorage";
 import { optimizeUploadImage, UploadImageError } from "@/lib/uploadImageOptimize";
@@ -12,7 +13,7 @@ const ALLOWED = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
-  if (!user.is_adult) return NextResponse.json({ error: "성인인증 후 업로드할 수 있습니다." }, { status: 403 });
+  if (!canUseCreatorTools(user)) return NextResponse.json({ error: "성인인증 후 업로드할 수 있습니다." }, { status: 403 });
 
   const form = await req.formData();
   const files = form.getAll("files").filter((f): f is File => f instanceof File);
