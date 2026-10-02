@@ -379,6 +379,120 @@ export function assertReconciliationDiagnosisSafePayload(payload: unknown): void
   walk(payload, "reconciliationDiagnosis");
 }
 
+export type LocalReconciliationCompareSnapshot = {
+  windowStart: string;
+  windowEnd: string;
+  ledgerIdsAny: Set<string>;
+  ledgerIdsInWindow: Set<string>;
+  messageIdsInWindow: Set<string>;
+  messageIdsOutOfWindow: Set<string>;
+  messageNearBoundary9h: number;
+  ledgerInWindow: LedgerPeriodCounts & {
+    backgroundRows: number;
+    backgroundWithoutProviderRequestId: number;
+    mainGenerationRows: number;
+    byRequestKind: Record<string, number>;
+    byCostCenter: Record<string, number>;
+    byModel: Record<string, number>;
+  };
+};
+
+function countDetailedLedgerInWindow(
+  db: Database.Database,
+  start: string,
+  end: string
+): LocalReconciliationCompareSnapshot["ledgerInWindow"] {
+  const counts: LocalReconciliationCompareSnapshot["ledgerInWindow"] = {
+    ...countLedgerInWindow(db, start, end),
+    backgroundRows: 0,
+    backgroundWithoutProviderRequestId: 0,
+    mainGenerationRows: 0,
+    byRequestKind: {},
+    byCostCenter: {},
+    byModel: {},
+  };
+  if (!tableExists(db, "api_cost_ledger")) return counts;
+  const columns = tableColumnSet(db, "api_cost_ledger");
+  if (!columns.has("created_at")) return counts;
+  const familyExpr = columns.has("family") ? "family" : "NULL AS family";
+  const kindExpr = columns.has("request_kind") ? "request_kind" : "NULL AS request_kind";
+  const centerExpr = columns.has("cost_center") ? "cost_center" : "NULL AS cost_center";
+  const modelExpr = columns.has("model") ? "model" : "NULL AS model";
+  const actualModelExpr = columns.has("actual_model") ? "actual_model" : "NULL AS actual_model";
+  const messageExpr = columns.has("assistant_message_id")
+    ? "assistant_message_id"
+    : "NULL AS assistant_message_id";
+  const requestIdExpr = columns.has("provider_request_id")
+    ? "provider_request_id"
+    : "NULL AS provider_request_id";
+  const rows = db
+    .prepare(
+      `SELECT ${familyExpr}, ${kindExpr}, ${centerExpr}, ${modelExpr}, ${actualModelExpr},
+              ${messageExpr}, ${requestIdExpr}
+         FROM api_cost_ledger
+        WHERE provider = 'cheaperinference'
+          AND created_at >= ? AND created_at < ?`
+    )
+    .all(start, end) as Array<{
+    family: string | null;
+    request_kind: string | null;
+    cost_center: string | null;
+    model: string | null;
+    actual_model: string | null;
+    assistant_message_id: number | null;
+    provider_request_id: string | null;
+  }>;
+  for (const row of rows) {
+    const family = (row.family ?? "").trim();
+    const isMain = family === "main_generation" || row.assistant_message_id != null;
+    const isBackground = family === "background" || (!isMain && row.assistant_message_id == null);
+    if (isBackground) {
+      counts.backgroundRows += 1;
+      if (!row.provider_request_id?.trim()) counts.backgroundWithoutProviderRequestId += 1;
+    }
+    if (isMain) counts.mainGenerationRows += 1;
+    increment(counts.byRequestKind, row.request_kind);
+    increment(counts.byCostCenter, row.cost_center);
+    increment(counts.byModel, row.actual_model?.trim() || row.model);
+  }
+  return counts;
+}
+
+/** In-memory local identity sets for remote compare. Never serialize the Sets. */
+export function loadLocalReconciliationCompareSnapshot(
+  db: Database.Database,
+  monthKey: string
+): LocalReconciliationCompareSnapshot {
+  ensureProviderCostLedgerSchema(db);
+  const { start, end } = monthRangeSql(monthKey);
+  const { anyIds, inWindowIds } = ledgerIdSets(db, start, end);
+  const presence = collectMessageRequestPresence(db);
+  const messagesOutOfWindow = countMessageLinkage(
+    presence,
+    start,
+    end,
+    anyIds,
+    inWindowIds,
+    false
+  );
+  const messageIdsInWindow = new Set<string>();
+  const messageIdsOutOfWindow = new Set<string>();
+  for (const row of presence) {
+    if (inRange(row.createdAt, start, end)) messageIdsInWindow.add(row.requestId);
+    else messageIdsOutOfWindow.add(row.requestId);
+  }
+  return {
+    windowStart: start,
+    windowEnd: end,
+    ledgerIdsAny: anyIds,
+    ledgerIdsInWindow: inWindowIds,
+    messageIdsInWindow,
+    messageIdsOutOfWindow,
+    messageNearBoundary9h: messagesOutOfWindow.nearBoundary9h,
+    ledgerInWindow: countDetailedLedgerInWindow(db, start, end),
+  };
+}
+
 export function diagnoseProviderReconciliationLinkage(
   db: Database.Database,
   monthKey: string
