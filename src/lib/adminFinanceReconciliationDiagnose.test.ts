@@ -322,26 +322,21 @@ describe("admin finance reconciliation diagnose #1337 follow-up", () => {
         providerRequestId: "readonly-check",
       });
       seedStoredUnreconciled(d, 30_000);
-      const beforeLedger = (
-        d.prepare("SELECT COUNT(*) AS c, SUM(actual_cost_usd) AS s FROM api_cost_ledger").get() as {
-          c: number;
-          s: number;
-        }
-      );
+      const beforeLedger = d
+        .prepare("SELECT COUNT(*) AS c, SUM(actual_cost_usd) AS s FROM api_cost_ledger")
+        .get() as { c: number; s: number };
       const beforeState = readProviderReconciliationState(d);
       const beforeFinance = buildAdminFinanceSummary(d, "2026-10");
 
       diagnoseProviderReconciliationLinkage(d, "2026-10");
 
-      const afterLedger = (
-        d.prepare("SELECT COUNT(*) AS c, SUM(actual_cost_usd) AS s FROM api_cost_ledger").get() as {
-          c: number;
-          s: number;
-        }
-      );
+      const afterLedger = d
+        .prepare("SELECT COUNT(*) AS c, SUM(actual_cost_usd) AS s FROM api_cost_ledger")
+        .get() as { c: number; s: number };
       const afterState = readProviderReconciliationState(d);
       const afterFinance = buildAdminFinanceSummary(d, "2026-10");
-      assert.deepEqual(afterLedger, beforeLedger);
+      assert.equal(afterLedger.c, beforeLedger.c);
+      assert.equal(afterLedger.s, beforeLedger.s);
       assert.equal(afterState?.unreconciledProviderMicroUsd, beforeState?.unreconciledProviderMicroUsd);
       assert.equal(afterState?.status, beforeState?.status);
       assert.equal(afterFinance.totalApiCostKrw, beforeFinance.totalApiCostKrw);
