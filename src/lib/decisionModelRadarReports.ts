@@ -7,6 +7,7 @@ import {
   DECISION_RADAR_WORKFLOW_PATH,
   type DecisionRadarRun,
 } from "@/lib/decisionModelRadar";
+import { githubReportGetContent } from "@/lib/githubReportClient";
 
 export type DecisionRadarAdminProjection = {
   status: "OK" | "EMPTY" | "UNAVAILABLE";
@@ -14,18 +15,6 @@ export type DecisionRadarAdminProjection = {
   run: DecisionRadarRun | null;
   githubRunUrl: string | null;
 };
-
-function decodeGithubContent(body: unknown): string | null {
-  if (!body || typeof body !== "object") return null;
-  const content =
-    "content" in body && typeof body.content === "string" ? body.content : "";
-  if (!content) return null;
-  try {
-    return Buffer.from(content.replace(/\n/g, ""), "base64").toString("utf8");
-  } catch {
-    return null;
-  }
-}
 
 export async function fetchDecisionRadarLatestRaw(
   fetchImpl: typeof fetch = fetch,
@@ -35,41 +24,10 @@ export async function fetchDecisionRadarLatestRaw(
   error: string | null;
   raw: string | null;
 }> {
-  try {
-    const response = await fetchImpl(
-      `https://api.github.com/repos/${repo}/contents/latest.json?ref=${DECISION_RADAR_LEDGER_BRANCH}`,
-      {
-        headers: {
-          Accept: "application/vnd.github+json",
-          "User-Agent": "chat-ai-admin-automation-reports",
-        },
-        cache: "no-store",
-      }
-    );
-    if (response.status === 404) {
-      return { status: "EMPTY", error: null, raw: null };
-    }
-    if (!response.ok) {
-      return {
-        status: "UNAVAILABLE",
-        error: `GitHub Contents API ${response.status}`,
-        raw: null,
-      };
-    }
-    const raw = decodeGithubContent(await response.json());
-    return raw
-      ? { status: "OK", error: null, raw }
-      : { status: "EMPTY", error: null, raw: null };
-  } catch (error) {
-    return {
-      status: "UNAVAILABLE",
-      error:
-        error instanceof Error
-          ? error.message
-          : "Decision radar ledger unavailable",
-      raw: null,
-    };
-  }
+  return githubReportGetContent(
+    `https://api.github.com/repos/${repo}/contents/latest.json?ref=${DECISION_RADAR_LEDGER_BRANCH}`,
+    fetchImpl
+  );
 }
 
 function parseRun(raw: string | null): DecisionRadarRun | null {

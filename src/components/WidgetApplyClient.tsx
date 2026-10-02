@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-import StatusWidgetCard from "@/components/StatusWidgetCard";
-import { buildStatusWidgetEditorPreviewValues } from "@/lib/statusWidget/editorPreview";
-import { renderStatusWidgetHtml } from "@/lib/statusWidget/render";
+import StatusWidgetPreview from "@/components/StatusWidgetPreview";
 import { STATUS_WIDGET_PRESET_TITLE_MAX } from "@/lib/statusWidgetPresetTypes";
 import type { StatusWidget } from "@/lib/statusWidget/types";
 
@@ -30,11 +28,6 @@ export default function WidgetApplyClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
-
-  const previewHtml = useMemo(
-    () => renderStatusWidgetHtml(widget, buildStatusWidgetEditorPreviewValues(widget)),
-    [widget]
-  );
 
   async function addToMyWidgets() {
     if (!loggedIn) {
@@ -72,7 +65,10 @@ export default function WidgetApplyClient({
 
       <div className="mt-6 rounded-2xl border border-white/10 bg-[#131626] p-4">
         <p className="mb-3 text-xs font-bold text-zinc-400">미리보기</p>
-        <StatusWidgetCard html={previewHtml} />
+        <StatusWidgetPreview
+          widget={widget}
+          requireInteraction={Boolean(widget.jsxSource?.trim())}
+        />
       </div>
 
       {!done ? (

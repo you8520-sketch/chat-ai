@@ -15,8 +15,10 @@ const SOURCE_LABEL: Record<AdminOpsIncidentSource, string> = {
   payout: "크리에이터 출금",
   point_refund: "포인트 환불",
   procurement: "조달/계약",
+  finance: "재무/과금",
   web_push: "웹푸시",
   github_automation: "GitHub 자동화",
+  request: "요청 실패",
 };
 
 function ageLabel(ageMinutes: number | null): string {
@@ -89,8 +91,12 @@ export default function AdminOpsInboxClient({
           진행 상태인 CLAIMED / DISPATCHED / REQUESTED는 즉시 사고로 분류하지 않고{" "}
           <strong className="text-zinc-200">{stuckExecutionMinutes}분</strong> 이상 지속될 때만
           예외함에 표시합니다. RECONCILIATION_REQUIRED와 scheduler의 실패·stale·누락,
-          웹푸시의 반복 실패·소진·장기 stale claim과 GitHub scheduled 자동화의 최신 실패도
-          canonical 상태를 그대로 반영합니다.
+          재무/과금의 deterministic anomaly, 웹푸시의 반복 실패·소진·장기 stale claim과
+          GitHub scheduled 자동화의 최신 실패도 canonical 상태를 그대로 반영합니다.
+          요청 실패는 HTTP 5xx와 provider·DB·stream 서버 실패 signature만 집계합니다.
+          최근 관측이 활성 구간 안에 있고, 배포 SHA가 있으면 현재 배포의 관측일 때만
+          예외함에 표시합니다. 지난 집계 row는 남고, 4xx와 예상된 인증·검증 실패는
+          올리지 않으며, 이 화면도 재시도하지 않습니다.
         </p>
       </section>
 
@@ -101,8 +107,10 @@ export default function AdminOpsInboxClient({
           ["payout", SOURCE_LABEL.payout],
           ["point_refund", SOURCE_LABEL.point_refund],
           ["procurement", SOURCE_LABEL.procurement],
+          ["finance", SOURCE_LABEL.finance],
           ["web_push", SOURCE_LABEL.web_push],
           ["github_automation", SOURCE_LABEL.github_automation],
+          ["request", SOURCE_LABEL.request],
         ] as const).map(([id, label]) => (
           <button
             key={id}

@@ -93,6 +93,9 @@ jobs:
       - name: Shared initial strict schema owner
         run: node --conditions=react-server --import tsx --test src/lib/postTurnSharedInitial.schema.test.ts
 
+      - name: Status widget 700/500 creator-persona budget and HTML/JSX reload
+        run: node --conditions=react-server --import tsx --test src/lib/statusWidget/contextBudget.test.ts src/lib/statusWidget/jsxSource.test.ts
+
       - name: Shared initial prompt regression (P1–P11)
         run: node --conditions=react-server --import tsx --test src/lib/postTurnSharedInitial/promptRegression.test.ts
 

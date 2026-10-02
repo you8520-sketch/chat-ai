@@ -158,6 +158,7 @@ describe("official detailed intro + creator comment", () => {
     assert.match(lucianDraft.description, /피부:.*구리빛/);
     assert.match(lucianDraft.description, /특징:.*모노클/);
     assert.doesNotMatch(lucianDraft.description, /표정보다\s*\//);
+    assert.match(lucianDraft.description, /에테르 잔향 감응 — [^\n]*읽는다/);
   });
 
   it("creator comment is a play guide and not a copy of the detailed intro", () => {
@@ -171,7 +172,7 @@ describe("official detailed intro + creator comment", () => {
       assert.match(comment, /추천 플레이 방향/);
       assert.match(comment, /이런 식으로 시작해 보세요/);
       assert.match(comment, /가능한 관계/);
-      assert.match(comment, /저장된 첫 인사 한 줄로 시작/);
+      assert.match(comment, /하나의 도입 상황에서 시작/);
       assert.doesNotMatch(comment, /\[캐릭터 설정\]/);
       assert.doesNotMatch(comment, /(신뢰|호감|경계).{0,8}(낮음|높음|미정)/);
       assert.doesNotMatch(comment, /첫 장면에서는 목적 한 가지만|반응을 보세요|따라 누구와/);

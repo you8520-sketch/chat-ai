@@ -32,12 +32,23 @@ import StatusWidgetEditor from "@/components/StatusWidgetEditor";
 import StatusWidgetTriggerEditor, {
   type StatusWidgetTriggerDraft,
 } from "@/components/StatusWidgetTriggerEditor";
+import JsxComponentCatalogEditor from "@/components/JsxComponentCatalogEditor";
 import {
   characterStatusWidgetOrDefault,
   parseStatusWidgetJson,
   serializeStatusWidget,
+  STATUS_WIDGET_CONTEXT_MAX,
   type StatusWidget,
 } from "@/lib/statusWidget";
+import {
+  STATUS_WIDGET_SHARED_DESIGN_HREF,
+  STATUS_WIDGET_SHARED_DESIGN_LABEL,
+} from "@/lib/statusWidget/authoringChoice";
+import {
+  parseJsxComponentCatalog,
+  serializeJsxComponentCatalog,
+  type JsxComponentRecord,
+} from "@/lib/jsxComponent";
 
 import type { CharacterWorldSourceKind } from "@/lib/worldPermissions";
 import { isBorrowAvailableForNewUse, worldPrivatePromptContent } from "@/lib/worlds";
@@ -225,6 +236,8 @@ export default function CreateCharacter({
     characterStatusWidgetOrDefault(null),
   );
   const [statusWidgetTriggers, setStatusWidgetTriggers] = useState<StatusWidgetTriggerDraft[]>([]);
+  const [jsxCatalog, setJsxCatalog] = useState<JsxComponentRecord[]>([]);
+  const [chatJsxEditorOpen, setChatJsxEditorOpen] = useState(false);
   const [pageTab, setPageTab] = useState<PageTab>("create");
   const draftRestoredRef = useRef(false);
 
@@ -747,6 +760,7 @@ export default function CreateCharacter({
         setStatusWidgetTriggers(
           Array.isArray(data.status_widget_triggers) ? data.status_widget_triggers : [],
         );
+        setJsxCatalog(parseJsxComponentCatalog(data.jsx_components_json));
       } catch {
         if (!cancelled)
           setEditLoadError("네트워크 오류로 캐릭터를 불러오지 못했습니다.");
@@ -1069,6 +1083,7 @@ export default function CreateCharacter({
       description,
       status_window_prompt: "",
       status_widget_json: serializeStatusWidget(statusWidget),
+      jsx_components_json: serializeJsxComponentCatalog(jsxCatalog),
       status_widget_triggers: statusWidgetTriggers,
       assets: finalAssets,
       visual_subjects: visualSubjects,
@@ -2240,17 +2255,26 @@ export default function CreateCharacter({
                     상태창 위젯
                   </h2>
                   <p className="mt-0.5 text-xs text-zinc-400">
-                    HTML 레이아웃 제작 · 상태값·지시 토큰 환산 500자
+                    디자인과 상태값을 입력하면 미리보기에 반영됩니다. HTML·JSX와 채팅 호출
+                    컴포넌트는 고급에서 엽니다. 상태값·지시 토큰 환산 {STATUS_WIDGET_CONTEXT_MAX}자
                   </p>
+                  <Link href={STATUS_WIDGET_SHARED_DESIGN_HREF} className="mt-1 inline-flex text-xs text-violet-300 hover:underline">
+                    {STATUS_WIDGET_SHARED_DESIGN_LABEL}
+                  </Link>
                 </div>
                 <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[11px] font-bold text-zinc-200">
                   기본 적용
                 </span>
               </div>
               <StatusWidgetEditor
+                key={
+                  editLoading
+                    ? "status-widget-loading"
+                    : `status-widget-${editCharacterId ?? "new"}`
+                }
                 value={statusWidget}
                 onChange={setStatusWidget}
-                disabled={loading}
+                disabled={loading || editLoading}
                 profileNames={{
                   characterName: form.name.trim() || "캐릭터",
                   personaName: "유저",
@@ -2262,6 +2286,40 @@ export default function CreateCharacter({
                 statusWidget={statusWidget}
                 disabled={loading}
               />
+              <div className="mt-6 rounded-2xl border border-amber-500/20 bg-[#0c0c10] p-4">
+                <button
+                  type="button"
+                  aria-expanded={chatJsxEditorOpen}
+                  onClick={() => setChatJsxEditorOpen((open) => !open)}
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                >
+                  <span>
+                    <span className="block text-sm font-semibold text-zinc-100">
+                      채팅 중 호출 컴포넌트 · 고급
+                    </span>
+                    <span className="mt-0.5 block text-xs text-zinc-400">
+                      상태창과 별개로 AI가 대화 중 필요할 때 &lt;Component /&gt; 형태로 호출하는
+                      인터랙티브 UI입니다.
+                      {jsxCatalog[0] ? ` 저장됨: ${jsxCatalog[0].name}` : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs text-zinc-500">
+                    {chatJsxEditorOpen ? "닫기" : "편집"}
+                  </span>
+                </button>
+                <div hidden={!chatJsxEditorOpen}>
+                  <JsxComponentCatalogEditor
+                    key={
+                      editLoading
+                        ? "jsx-catalog-loading"
+                        : `jsx-catalog-${editCharacterId ?? "new"}`
+                    }
+                    value={jsxCatalog}
+                    onChange={setJsxCatalog}
+                    disabled={loading || editLoading}
+                  />
+                </div>
+              </div>
             </section>
           </div>
 

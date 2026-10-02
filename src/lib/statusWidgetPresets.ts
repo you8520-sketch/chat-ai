@@ -45,11 +45,20 @@ export function validateStatusWidgetPresetInput(
     return { ok: false, error: "상태창 제목을 입력하세요." };
   }
   const parsed = parseStatusWidgetJson(widgetJson);
-  if (!parsed?.htmlTemplate?.trim() || parsed.fields.length === 0) {
-    return { ok: false, error: "상태창 HTML과 필드가 필요합니다." };
+  const hasPresentation = Boolean(
+    parsed &&
+      parsed.fields.length > 0 &&
+      (parsed.htmlTemplate.trim() || (parsed.jsxSource?.trim() && parsed.jsxCompiled?.trim()))
+  );
+  if (!hasPresentation) {
+    return { ok: false, error: "상태창 필드와 HTML 또는 JSX가 필요합니다." };
   }
   const reserved = estimateStatusWidgetContextCharsFromJson(widgetJson);
-  return validateStatusWidgetContextBudget(reserved);
+  return validateStatusWidgetContextBudget({
+    characterReservedChars: 0,
+    userReservedChars: reserved,
+    totalReservedChars: reserved,
+  });
 }
 
 function normalizeWidgetJson(widgetJson: string): string {

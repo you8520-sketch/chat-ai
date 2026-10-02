@@ -7,6 +7,7 @@ import {
   computeAppearanceLockHash,
   evaluateAppearanceLock,
   renderAppearanceBlock,
+  renderRuntimeAppearanceBlock,
 } from "@/lib/officialSupply/appearance";
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
 import { officialModerationVerdict } from "@/lib/officialSupply/moderation";
@@ -1070,6 +1071,8 @@ export class OfficialSupplyStore {
 
   appearanceBlockFor(record: OfficialCharacterRecord): string {
     if (!record.appearance) throw new OfficialSupplyGateError("appearance_missing", `${record.draftKey} has no appearance lock`);
-    return renderAppearanceBlock(record.appearance);
+    return record.draft.promptStandard === "compact_rp_v1"
+      ? renderRuntimeAppearanceBlock(record.appearance)
+      : renderAppearanceBlock(record.appearance);
   }
 }

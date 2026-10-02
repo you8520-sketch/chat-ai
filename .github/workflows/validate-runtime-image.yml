@@ -8,12 +8,22 @@ on:
       - "railway.toml"
       - "nixpacks.toml"
       - "server.js"
+      - "src/lib/canonicalHostIngress.js"
+      - "src/lib/canonicalHostIngress.test.ts"
       - "src/lib/customServerBootImportBoundary.js"
       - "src/lib/customServerBootImportBoundary.test.ts"
       - "src/lib/serverGracefulDrain.js"
       - "src/lib/serverGracefulDrain.test.ts"
       - "scripts/runtime-image/**"
       - ".github/workflows/validate-runtime-image.yml"
+      - "src/lib/sqliteBackupRestore.synthetic.test.ts"
+      - "src/lib/dataDir.ts"
+      - "src/lib/dataDir.remote.test.ts"
+      - "docs/RAILWAY_DEPLOY.md"
+      - "docs/RAILWAY_SQLITE_RECOVERY.md"
+      - "src/lib/withdrawalDocumentColumns.test.ts"
+      - "src/lib/withdrawalStorage.ts"
+      - "src/app/api/creator/withdraw/route.ts"
 
 permissions:
   contents: read
@@ -42,6 +52,13 @@ jobs:
       - run: npm ci
       - run: git diff --check "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
       - run: npm run lint
+      - name: Synthetic SQLite backup restore
+        run: >-
+          node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
+          src/lib/sqliteBackupRestore.synthetic.test.ts
+          src/lib/dataDir.remote.test.ts
+          src/lib/withdrawalDocumentColumns.test.ts
       - run: node --import tsx --test scripts/runtime-image/verifyPrunedRuntimeTree.test.ts
       - run: npm run build
       - name: Measure runtime tree before prune
@@ -55,6 +72,9 @@ jobs:
         run: node --import tsx scripts/runtime-image/productionBootSmoke.ts
       - name: Custom-server boot import boundary
         run: node --import tsx --test --test-concurrency=1 src/lib/customServerBootImportBoundary.test.ts
+
+      - name: Canonical-host ingress regression
+        run: node --import tsx --test --test-concurrency=1 src/lib/canonicalHostIngress.test.ts
 
       - name: Railway graceful HTTP drain
         run: node --import tsx --test --test-concurrency=1 src/lib/serverGracefulDrain.test.ts

@@ -212,6 +212,8 @@ export type ContextBuildInput = {
   geminiStaticDynamicMode?: boolean;
   /** 제작자 상태창 위젯 ON — Flash 방화벽·상태 정책 분기 */
   statusWidgetActive?: boolean;
+  /** Compact JSX component manifest only — never source. */
+  jsxComponentCatalogJson?: string | null;
   /** @deprecated HTML은 background model 전담 — 메인 모델에 PART I 주입하지 않음 */
   mainModelOwnsHtmlVisualCard?: boolean;
   /** DeepSeek/Qwen — 메인 모델이 관계메모 JSON tail 출력 */

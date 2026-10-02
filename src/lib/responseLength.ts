@@ -13,19 +13,6 @@ import { visibleAssistantDisplayKoreanWordCount } from "./koreanWordCount";
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import { buildLangCriticalRule } from "@/lib/bilingualDialoguePolicy";
 import { isProviderNativeRefusalSignal } from "./providerTermination";
-import {
-  NARRATIVE_DENSITY_BLOCK,
-  NO_GENERIC_REACTIONS_BLOCK,
-  NO_INPUT_ECHO_RULE,
-} from "@/lib/sceneExpansionPolicy";
-import {
-  SCENE_CONTINUATION_PRIORITY_BLOCK,
-  SCENE_CONTINUATION_PRIORITY_BLOCK_CORE,
-} from "./turnHandoffAndPacing";
-import {
-  NARRATIVE_DENSITY_BLOCK_V2,
-  SCENE_CONTINUATION_PRIORITY_BLOCK_V2,
-} from "@/lib/sharedNovelProseV2Styles";
 import { buildCompactTerminalLayoutRecencyLine } from "@/lib/webnovelOutputFormat";
 import {
   OPUS_ARM_E_TERMINAL,
@@ -77,7 +64,7 @@ export function resolveStreamCharCap(_targetInput?: number | null): number {
 /** 이보다 짧으면 MAX_TOKENS 등 비정상 종료로 보고 폴백 */
 export const MIN_COMPLETE_RESPONSE_CHARS = 900;
 
-/** tier meaningful RP prose floor — 조기 STOP 방지 (프롬프트·내부 검증) */
+/** Internal legacy/quality threshold. Not injected into the prompt and not an output cap. */
 export const TIER_CONTENT_FLOOR: Record<ResponseLengthTierTarget, number> = {
   [UNIFIED_RESPONSE_LENGTH_TARGET]: UNIFIED_TIER_MIN_CHARS,
 };
@@ -86,12 +73,12 @@ export function resolveTierContentFloor(_target: ResponseLengthTierTarget): numb
   return TIER_CONTENT_FLOOR[UNIFIED_RESPONSE_LENGTH_TARGET];
 }
 
-/** tier target → 통과 최소 글자 수 */
+/** Internal diagnostic threshold by tier; recovery is disabled in Main RP. */
 export const TIER_MINIMUM_REQUIRED: Record<ResponseLengthTierTarget, number> = {
   [UNIFIED_RESPONSE_LENGTH_TARGET]: UNIFIED_TIER_MIN_CHARS,
 };
 
-/** tier target → 통과 최소 한글 단어 수 (미사용 — 글자 minimum만) */
+/** Internal Korean-word threshold by tier (currently disabled with 0). */
 export const TIER_MINIMUM_KOREAN_WORDS: Record<ResponseLengthTierTarget, number> = {
   [UNIFIED_RESPONSE_LENGTH_TARGET]: 0,
 };
@@ -104,7 +91,7 @@ export function resolveTierMinimumKoreanWords(target: ResponseLengthTierTarget):
   return TIER_MINIMUM_KOREAN_WORDS[target];
 }
 
-/** tier 통과 — 글자 minimum */
+/** Evaluate internal length diagnostics only; this does not trigger a second Main RP call. */
 export function meetsTierLengthRequirements(
   text: string,
   targetInput?: number | null
@@ -124,7 +111,7 @@ export function meetsTierLengthRequirements(
   };
 }
 
-/** tier 통과 최소 미달 — 글자 또는 한글 단어 (1-pass: 서버 recovery 없음) */
+/** Internal shortfall predicate; Main RP remains one-pass with server recovery disabled. */
 export function isBelowTierLengthRequirements(text: string, targetInput?: number | null): boolean {
   return !meetsTierLengthRequirements(text, targetInput).ok;
 }
@@ -134,12 +121,12 @@ export function resolveTierAimTarget(_target: ResponseLengthTierTarget): number 
   return UNIFIED_TIER_AIM_CHARS;
 }
 
-/** tier별 프롬프트 aim band 하한 (상한 = resolveTierAimTarget) */
+/** Internal minimum used by disabled recovery gates. Not a prompt ceiling. */
 export function resolveTierTargetRangeMin(_target: ResponseLengthTierTarget): number {
   return UNIFIED_TIER_TARGET_RANGE_MIN_CHARS;
 }
 
-/** tier 통과 최소 output tokens (내부 — UI는 글자수 유지) */
+/** Internal diagnostic token estimate only; not an RP request max_tokens owner. */
 export function resolveTierMinimumOutputTokens(_target: ResponseLengthTierTarget): number {
   return Math.ceil(UNIFIED_TIER_MIN_CHARS / KOREAN_CHARS_PER_OUTPUT_TOKEN);
 }
@@ -155,19 +142,20 @@ export type LengthInstructionOpts = {
   htmlFlashOwned?: boolean;
   /** true — 제작자 상태창 위젯; prose 분량과 <<<STATUS_VALUES>>> tail 분리 */
   statusWidgetActive?: boolean;
-  /** Shared Novel Prose V2 canary — floor 2500 + V2 continuation/density/terminal */
+  /** Shared Novel Prose V2 canary selector; numeric prompt length still uses the same user-tail owner. */
   sharedNovelProseV2?: boolean;
 };
 
 /**
- * User-tail length owner for all Main RP models (DeepSeek / Opus 5 /
- * Gemini 3.1 / Gemini 3.7). Luna/Terra/Flash terminal adapters are retired.
- * No TARGET_LENGTH / MINIMUM_FLOOR / anti-early-stop / early-completion cue.
+ * Sole numeric length owner for every Main RP model.
+ * Soft target is Korean visible text >= 3,200. There is no upper cap:
+ * scene need and an explicit user request (including OOC) may run longer.
+ * Not an exact-3200 target, not a 3200–3500 band, and not a production hard-fail.
  */
 export const USER_TAIL_LENGTH_OWNER_SENTENCE =
-  "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, [AI_CAST]/NPC/환경의 관찰·심리·판단·행동·대화·감각 변화를 먼저 깊게 전개한다. [B]의 새 직접 대사·중요 선택·중대 행동을 분량 채우기용으로 만들지 않는다.";
+  "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면과 사용자 요청에 필요한 만큼 자연스럽게 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, [AI_CAST]/NPC/환경의 관찰·심리·판단·행동·대화·감각 변화를 먼저 깊게 전개한다. [B]의 새 직접 대사·중요 선택·중대 행동을 분량 채우기용으로 만들지 않는다.";
 
-/** @deprecated System length owner removed — Luna uses terminal contract; others use user-tail length. */
+/** @deprecated System length owner removed; all Main RP numeric length is owned by the user-tail sentence. */
 export const BOUNDED_LENGTH_OWNER_SENTENCE = "";
 
 export type UserTailTerminalOpts = {
@@ -221,7 +209,7 @@ export function buildTerminalLengthOverrideBlock(
   return buildCompactTerminalLengthAbsoluteTail(targetInput, opts);
 }
 
-/** 모든 모델 공통 — LENGTH CONTROL + TARGET/FLOOR (자동진행·재생성 포함 단일 출처) */
+/** System length block is empty. Numeric length lives only on the user-turn tail. */
 export function buildLengthInstruction(
   targetInput?: number | null,
   opts?: LengthInstructionOpts
@@ -229,7 +217,7 @@ export function buildLengthInstruction(
   return assembleLengthInstructionBlock(targetInput, opts);
 }
 
-/** 프롬프트 주입용 tier target (통합 2,400 soft aim) */
+/** Canonical soft aim value used by prompt assembly (3,200+ policy). */
 export function resolveTargetLengthForPrompt(targetInput?: number | null): number {
   return resolveResponseLengthTarget(targetInput).aimChars;
 }

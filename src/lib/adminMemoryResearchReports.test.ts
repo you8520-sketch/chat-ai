@@ -128,6 +128,51 @@ describe("admin Memory Research reports", () => {
           status: "PASS",
           blocked: false,
         },
+        promptPackingAudit: {
+          generatedAt: "2026-09-30T01:18:01Z",
+          currentTurnFixture: 300,
+          architecture: {
+            policyId: "summary5_raw4",
+            rawRecentExchanges: 4,
+            rollingSummaryInterval: 5,
+            mediumTermBlockCount: 15,
+          },
+          invariants: [
+            { id: "canonical-policy-summary5-raw4", ok: true, detail: "ok" },
+            { id: "n15-does-not-drop-critical-prompt-sections", ok: true, detail: "ok" },
+          ],
+          models: [
+            {
+              modelId: "deepseek-v4.1-flash",
+              baselineInputTokens: 12000,
+              n15InputTokens: 15000,
+              n15DeltaInputTokens: 3000,
+              n15MediumTokens: 2400,
+              n15SafeForPolicyConsideration: true,
+            },
+          ],
+        },
+        promptPackingTrend: {
+          status: "MEMORY_OVERHEAD_INCREASE",
+          previousCycleKey: "weekly-2026-W39",
+          comparable: true,
+          modelSetChanged: false,
+          addedModels: [],
+          removedModels: [],
+          modelDeltas: [
+            {
+              modelId: "deepseek-v4.1-flash",
+              previousN15DeltaInputTokens: 2800,
+              currentN15DeltaInputTokens: 3000,
+              n15DeltaInputTokensDelta: 200,
+              previousMediumTokens: 2300,
+              currentMediumTokens: 2400,
+              mediumTokensDelta: 100,
+              verdict: "INCREASED",
+            },
+          ],
+          note: "memory overhead increased",
+        },
         companionExperimentProposals: [
           {
             candidateKey: "official:kindroid:memory-docs",
@@ -185,6 +230,42 @@ describe("admin Memory Research reports", () => {
             nextAction: "human author synthetic gold",
           },
         ],
+        effectivenessAudit: {
+          totalCandidates: 12,
+          watch: 8,
+          rejected: 3,
+          accepted: 1,
+          acceptedDraftPrs: 1,
+          implementationPrs: 1,
+          liveEvaluated: 2,
+          dueForReevaluation: ["github:due"],
+          repeatedWatch: [
+            {
+              candidateKey: "github:repeat",
+              decision: "WATCH_NO_BENCHMARK_HOOK",
+              consecutiveSameDecision: 2,
+            },
+          ],
+          watchBottlenecks: [
+            {
+              decision: "WATCH_NO_BENCHMARK_HOOK",
+              candidates: 5,
+              exampleCandidateKeys: ["github:a", "github:b"],
+            },
+          ],
+          bySourceKind: [
+            {
+              sourceKind: "github_repository",
+              candidates: 7,
+              watch: 4,
+              rejected: 2,
+              accepted: 1,
+              acceptedDraftPrs: 1,
+              implementationPrs: 1,
+              liveEvaluated: 2,
+            },
+          ],
+        },
         persistentMemoryGaps: {
           status: "PERSISTENT_GAPS",
           persistentGaps: [
@@ -241,6 +322,34 @@ describe("admin Memory Research reports", () => {
     assert.equal(run.readiness.harnessExtensionRequired, 1);
     assert.equal(run.persistentMemoryGaps, 3);
     assert.equal(run.persistentMemoryGapStatus, "PERSISTENT_GAPS");
+    assert.equal(run.promptPackingAudit?.status, "PASS");
+    assert.equal(run.promptPackingAudit?.policyId, "summary5_raw4");
+    assert.equal(run.promptPackingAudit?.rawRecentExchanges, 4);
+    assert.equal(run.promptPackingAudit?.rollingSummaryInterval, 5);
+    assert.equal(run.promptPackingAudit?.mediumTermBlockCount, 15);
+    assert.equal(run.promptPackingAudit?.invariantPasses, 2);
+    assert.equal(run.promptPackingAudit?.invariantTotal, 2);
+    assert.deepEqual(run.promptPackingAudit?.failedInvariants, []);
+    assert.equal(run.promptPackingAudit?.models[0]?.modelId, "deepseek-v4.1-flash");
+    assert.equal(run.promptPackingAudit?.models[0]?.n15InputTokens, 15000);
+    assert.equal(run.promptPackingTrend?.status, "MEMORY_OVERHEAD_INCREASE");
+    assert.equal(run.promptPackingTrend?.previousCycleKey, "weekly-2026-W39");
+    assert.equal(
+      run.promptPackingTrend?.modelDeltas[0]?.n15DeltaInputTokensDelta,
+      200
+    );
+    assert.equal(run.promptPackingTrend?.modelDeltas[0]?.mediumTokensDelta, 100);
+    assert.ok(run.effectiveness);
+    assert.equal(run.effectiveness.totalCandidates, 12);
+    assert.equal(run.effectiveness.dueForReevaluation, 1);
+    assert.equal(run.effectiveness.repeatedWatch, 1);
+    assert.deepEqual(run.effectiveness.watchBottlenecks[0], {
+      decision: "WATCH_NO_BENCHMARK_HOOK",
+      candidates: 5,
+      examples: ["github:a", "github:b"],
+    });
+    assert.equal(run.effectiveness.bySourceKind[0]?.acceptedDraftPrs, 1);
+
     assert.ok(
       run.insights.some(
         (row) =>
@@ -343,6 +452,29 @@ describe("admin Memory Research reports", () => {
     );
   });
 
+  it("fails closed when a persisted prompt-packing snapshot is malformed", () => {
+    const run = projectMemoryResearchAdminRun(
+      JSON.stringify({
+        cycleKey: "weekly-2026-W40",
+        mode: "weekly",
+        status: "COMPLETED",
+        finishedAt: "2026-09-30T01:18:00Z",
+        mainSha: "abc",
+        counts: {},
+        providerCalls: {},
+        estimatedCostUsd: 0,
+        productionTouched: false,
+        promptPackingAudit: {},
+        decisions: [],
+      })
+    );
+    assert.ok(run);
+    assert.equal(run.promptPackingAudit?.status, "FAIL");
+    assert.deepEqual(run.promptPackingAudit?.failedInvariants, [
+      "MALFORMED_PROMPT_PACKING_AUDIT",
+    ]);
+  });
+
   it("stays backward compatible with older cycle JSON that lacks newer research fields", () => {
     const run = projectMemoryResearchAdminRun(
       JSON.stringify({
@@ -375,7 +507,10 @@ describe("admin Memory Research reports", () => {
     assert.equal(run.baselinePromotionGateStatus, null);
     assert.equal(run.persistentMemoryGaps, 0);
     assert.equal(run.persistentMemoryGapStatus, null);
+    assert.equal(run.promptPackingAudit, null);
+    assert.equal(run.promptPackingTrend, null);
     assert.deepEqual(run.insights, []);
+    assert.equal(run.effectiveness, null);
   });
 
   it("reads the newest persisted cycle and attaches the scheduled workflow run", async () => {

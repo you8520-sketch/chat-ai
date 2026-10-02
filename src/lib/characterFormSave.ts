@@ -48,6 +48,11 @@ import {
   parseStatusWidgetJson,
   serializeStatusWidget,
 } from "@/lib/statusWidget/serialize";
+import { validateCharacterStatusWidgetContextBudget } from "@/lib/statusWidget/contextBudget";
+import {
+  parseJsxComponentCatalog,
+  serializeJsxComponentCatalog,
+} from "@/lib/jsxComponent/catalog";
 import {
   compiledPublicCanonText,
   compileCreatorDescriptionTriggers,
@@ -142,6 +147,7 @@ export type ParsedCharacterForm = {
   lorebookIds: number[];
   statusWindowPrompt: string;
   statusWidgetJson: string;
+  jsxComponentsJson: string;
   statusWidgetTriggers: StatusWidgetTriggerInput[];
   exampleDialog: string;
   speechInput: ReturnType<typeof parseSpeechCreatorFromBody>;
@@ -397,7 +403,18 @@ export function parseCharacterFormBody(
       : rawWidget && typeof rawWidget === "object"
         ? parseStatusWidgetJson(JSON.stringify(rawWidget))
         : null;
+  if (parsedWidget) {
+    const budgetCheck = validateCharacterStatusWidgetContextBudget(parsedWidget);
+    if (!budgetCheck.ok) return { ok: false as const, error: budgetCheck.error, status: 400 };
+  }
   const statusWidgetJson = parsedWidget ? serializeStatusWidget(parsedWidget) : "";
+  const rawJsxCatalog = b.jsx_components_json ?? b.jsxComponentsJson;
+  const jsxComponentsJson =
+    typeof rawJsxCatalog === "string"
+      ? serializeJsxComponentCatalog(parseJsxComponentCatalog(rawJsxCatalog))
+      : rawJsxCatalog && typeof rawJsxCatalog === "object"
+        ? serializeJsxComponentCatalog(parseJsxComponentCatalog(JSON.stringify(rawJsxCatalog)))
+        : "";
   const parsedTriggers = validateStatusWidgetTriggerInputs(b.status_widget_triggers);
   if (!parsedTriggers.ok) {
     return { ok: false, error: parsedTriggers.error, status: 400 };
@@ -642,6 +659,7 @@ export function parseCharacterFormBody(
       lorebookIds,
       statusWindowPrompt,
       statusWidgetJson,
+      jsxComponentsJson,
       statusWidgetTriggers: parsedTriggers.triggers,
       exampleDialog,
       speechInput,
@@ -1005,13 +1023,15 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
   replaceCharacterCreatorLorebookAttachments(db, characterId, data.lorebookIds);
   db.prepare(
     `UPDATE characters
-     SET adult_dialogue_profile=?, adult_status=?, adult_consent_modes_json=?, participant_min_age=?
+     SET adult_dialogue_profile=?, adult_status=?, adult_consent_modes_json=?, participant_min_age=?,
+         jsx_components_json=?
      WHERE id=?`
   ).run(
     data.adultDialogueProfile,
     data.adultStatus,
     JSON.stringify(data.adultConsentModesAllowed),
     data.participantMinAge,
+    data.jsxComponentsJson,
     characterId
   );
   saveCharacterStatusWidgetTriggers(
@@ -1191,7 +1211,8 @@ export async function updateCharacterFromForm(
       audience=?, gender=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
       share_slug=?, recommended_writing_style=?, narration_style_instructions=?, comments_enabled=?, creator_comment=?, creator_name=?,
       creator_raw_description=?, creator_compiled_description_json=?, creator_canon_plan_json=?, appearance_raw=?, appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?,
-      content_kind=?, simulation_cast=?, simulation_rules=?, simulation_imports_json=?, simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?, simulation_visual_subjects_json=?
+      content_kind=?, simulation_cast=?, simulation_rules=?, simulation_imports_json=?, simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?, simulation_visual_subjects_json=?,
+      jsx_components_json=?
      WHERE id=?`
   ).run(
     data.name,
@@ -1240,6 +1261,7 @@ export async function updateCharacterFromForm(
     data.simulationNsfwAllowed,
     data.trpgReuseAllowed,
     data.simulationVisualSubjectsJson,
+    data.jsxComponentsJson,
     characterId
   );
   const adultProfileWasProvided =
@@ -1456,6 +1478,10 @@ export async function updateCharacterPublicProfileFromForm(
       : rawWidget && typeof rawWidget === "object"
         ? parseStatusWidgetJson(JSON.stringify(rawWidget))
         : null;
+  if (parsedWidget) {
+    const budgetCheck = validateCharacterStatusWidgetContextBudget(parsedWidget);
+    if (!budgetCheck.ok) return { ok: false as const, error: budgetCheck.error, status: 400 };
+  }
   const statusWidgetJson = parsedWidget ? serializeStatusWidget(parsedWidget) : "";
   const parsedTriggers = validateStatusWidgetTriggerInputs(b.status_widget_triggers);
   if (!parsedTriggers.ok) {

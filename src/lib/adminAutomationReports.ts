@@ -1,4 +1,34 @@
+import {
+  githubReportGetJson,
+  type GithubReportGetOpts,
+} from "@/lib/githubReportClient";
+import {
+  isProductionEnvironmentName,
+  normalizeDeploymentSha,
+  parsePostDeployEvidence,
+  parsePublicSmokeEvidence,
+  POST_DEPLOY_WORKFLOW_PATH,
+  projectPostDeployVerification,
+  type DeploymentSuccessRef,
+  type ParsedPostDeployRun,
+  type PostDeployEvidence,
+  type PostDeployVerificationView,
+  type PublicSmokeEvidence,
+} from "@/lib/postDeployVerification";
+import {
+  DOMAIN_SSL_WORKFLOW_PATH,
+  parseDomainSslEvidence,
+  projectDomainSslMonitor,
+  type DomainSslEvidence,
+  type DomainSslMonitorView,
+  type ParsedDomainSslRun,
+} from "@/lib/domainSslMonitor";
+
 export const AUTOMATION_REPORTS_GITHUB_REPO = "you8520-sketch/chat-ai";
+export const GITHUB_SCHEDULED_RUNS_DEFAULT_MAX_PAGES = 1;
+export const GITHUB_SUPPLY_DRAFT_DEFAULT_MAX_PAGES = 1;
+export const POST_DEPLOY_ANNOTATION_RUN_LIMIT = 2;
+export const DOMAIN_SSL_ANNOTATION_RUN_LIMIT = 1;
 
 export type GithubScheduledAutomationRun = {
   id: number;
@@ -73,42 +103,29 @@ export function projectGithubSupplyAutoDrafts(
 export async function fetchGithubSupplyAutoDraftProjection(
   fetchImpl: typeof fetch = fetch
 ): Promise<GithubSupplyAutoDraftProjection> {
-  try {
-    const rawPulls: Array<Record<string, unknown>> = [];
-    for (let page = 1; page <= 3; page += 1) {
-      const response = await fetchImpl(
-        `https://api.github.com/repos/${AUTOMATION_REPORTS_GITHUB_REPO}/pulls?state=open&per_page=100&page=${page}`,
-        {
-          headers: {
-            Accept: "application/vnd.github+json",
-            "User-Agent": "chat-ai-admin-automation-reports",
-          },
-          cache: "no-store",
-        }
-      );
-      if (!response.ok) {
-        return {
-          status: "UNAVAILABLE",
-          error: `GitHub Pull Requests API ${response.status}`,
-          drafts: [],
-        };
-      }
-      const pagePulls = (await response.json()) as Array<Record<string, unknown>>;
-      rawPulls.push(...pagePulls);
-      if (pagePulls.length < 100) break;
+  const rawPulls: Array<Record<string, unknown>> = [];
+  for (let page = 1; page <= GITHUB_SUPPLY_DRAFT_DEFAULT_MAX_PAGES; page += 1) {
+    const result = await githubReportGetJson<Array<Record<string, unknown>>>(
+      `https://api.github.com/repos/${AUTOMATION_REPORTS_GITHUB_REPO}/pulls?state=open&per_page=100&page=${page}`,
+      fetchImpl,
+      { label: "GitHub Pull Requests API" }
+    );
+    if (!result.ok) {
+      return {
+        status: "UNAVAILABLE",
+        error: result.error,
+        drafts: [],
+      };
     }
-    return {
-      status: "OK",
-      error: null,
-      drafts: projectGithubSupplyAutoDrafts(rawPulls),
-    };
-  } catch (error) {
-    return {
-      status: "UNAVAILABLE",
-      error: error instanceof Error ? error.message : "GitHub Pull Requests API unavailable",
-      drafts: [],
-    };
+    const pagePulls = Array.isArray(result.json) ? result.json : [];
+    rawPulls.push(...pagePulls);
+    if (pagePulls.length < 100) break;
   }
+  return {
+    status: "OK",
+    error: null,
+    drafts: projectGithubSupplyAutoDrafts(rawPulls),
+  };
 }
 
 function asString(value: unknown): string {
@@ -164,45 +181,230 @@ export function groupGithubScheduledAutomationRuns(
 }
 
 export async function fetchGithubScheduledAutomationProjection(
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  opts?: { token?: string; maxPages?: number }
 ): Promise<GithubAutomationProjection> {
-  try {
-    const rawRuns: Array<Record<string, unknown>> = [];
-    for (let page = 1; page <= 5; page += 1) {
-      const response = await fetchImpl(
-        `https://api.github.com/repos/${AUTOMATION_REPORTS_GITHUB_REPO}/actions/runs?event=schedule&per_page=100&page=${page}`,
-        {
-          headers: {
-            Accept: "application/vnd.github+json",
-            "User-Agent": "chat-ai-admin-automation-reports",
-          },
-          cache: "no-store",
-        }
-      );
-      if (!response.ok) {
-        return {
-          status: "UNAVAILABLE",
-          error: `GitHub Actions API ${response.status}`,
-          groups: [],
-        };
-      }
-      const body = (await response.json()) as {
-        workflow_runs?: Array<Record<string, unknown>>;
+  const rawRuns: Array<Record<string, unknown>> = [];
+  const maxPages = Math.max(
+    1,
+    Math.min(10, opts?.maxPages ?? GITHUB_SCHEDULED_RUNS_DEFAULT_MAX_PAGES)
+  );
+  const requestOpts: GithubReportGetOpts = {
+    label: "GitHub Actions API",
+    token: opts?.token,
+  };
+  for (let page = 1; page <= maxPages; page += 1) {
+    const result = await githubReportGetJson<{
+      workflow_runs?: Array<Record<string, unknown>>;
+    }>(
+      `https://api.github.com/repos/${AUTOMATION_REPORTS_GITHUB_REPO}/actions/runs?event=schedule&per_page=100&page=${page}`,
+      fetchImpl,
+      requestOpts
+    );
+    if (!result.ok) {
+      return {
+        status: "UNAVAILABLE",
+        error: result.error,
+        groups: [],
       };
-      const pageRuns = body.workflow_runs ?? [];
-      rawRuns.push(...pageRuns);
-      if (pageRuns.length < 100) break;
     }
-    return {
-      status: "OK",
-      error: null,
-      groups: groupGithubScheduledAutomationRuns(rawRuns),
-    };
-  } catch (error) {
-    return {
-      status: "UNAVAILABLE",
-      error: error instanceof Error ? error.message : "GitHub Actions API unavailable",
-      groups: [],
-    };
+    const pageRuns = result.json?.workflow_runs ?? [];
+    rawRuns.push(...pageRuns);
+    if (pageRuns.length < 100) break;
   }
+  return {
+    status: "OK",
+    error: null,
+    groups: groupGithubScheduledAutomationRuns(rawRuns),
+  };
+}
+
+function annotationMessages(body: unknown): string[] {
+  if (!Array.isArray(body)) return [];
+  return body
+    .map((row) => (row && typeof row === "object" ? (row as { message?: unknown }).message : null))
+    .filter((message): message is string => typeof message === "string");
+}
+
+export async function fetchPostDeployVerificationProjection(
+  fetchImpl: typeof fetch = fetch
+): Promise<PostDeployVerificationView> {
+  const runsResult = await githubReportGetJson<{
+    workflow_runs?: Array<Record<string, unknown>>;
+  }>(
+    `https://api.github.com/repos/${AUTOMATION_REPORTS_GITHUB_REPO}/actions/runs?event=deployment_status&per_page=20`,
+    fetchImpl,
+    { label: "GitHub Actions API" }
+  );
+  if (!runsResult.ok) {
+    return projectPostDeployVerification({
+      runs: [],
+      latestSuccess: null,
+      readError: runsResult.error,
+    });
+  }
+  const runs = (runsResult.json?.workflow_runs ?? [])
+    .filter((run) => asString(run.path).endsWith(POST_DEPLOY_WORKFLOW_PATH))
+    .filter((run) => asString(run.status) === "completed")
+    .slice(0, POST_DEPLOY_ANNOTATION_RUN_LIMIT);
+  const parsed: ParsedPostDeployRun[] = [];
+  for (const run of runs) {
+    const jobsResult = await githubReportGetJson<{ jobs?: Array<Record<string, unknown>> }>(
+      asString(run.jobs_url),
+      fetchImpl,
+      { label: "GitHub Actions jobs API" }
+    );
+    if (!jobsResult.ok) {
+      return projectPostDeployVerification({
+        runs: [],
+        latestSuccess: null,
+        readError: jobsResult.error,
+      });
+    }
+    const checkUrl = asString(jobsResult.json?.jobs?.[0]?.check_run_url);
+    let evidence: PostDeployEvidence | null = null;
+    let publicSmoke: PublicSmokeEvidence | null = null;
+    if (checkUrl) {
+      const notesResult = await githubReportGetJson<unknown>(
+        `${checkUrl}/annotations`,
+        fetchImpl,
+        { label: "GitHub check annotations API" }
+      );
+      if (!notesResult.ok) {
+        return projectPostDeployVerification({
+          runs: [],
+          latestSuccess: null,
+          readError: notesResult.error,
+        });
+      }
+      for (const message of annotationMessages(notesResult.json)) {
+        const parsedEvidence = parsePostDeployEvidence(message);
+        const parsedSmoke = parsePublicSmokeEvidence(message);
+        if (parsedEvidence && (!evidence || (parsedSmoke && !publicSmoke))) {
+          evidence = parsedEvidence;
+          publicSmoke = parsedSmoke;
+        }
+      }
+    }
+    parsed.push({
+      runId: asNumber(run.id),
+      htmlUrl: asString(run.html_url),
+      createdAt: asString(run.created_at),
+      evidence,
+      publicSmoke,
+    });
+  }
+
+  const deploymentsResult = await githubReportGetJson<Array<Record<string, unknown>>>(
+    `https://api.github.com/repos/${AUTOMATION_REPORTS_GITHUB_REPO}/deployments?per_page=5`,
+    fetchImpl,
+    { label: "GitHub Deployments API" }
+  );
+  if (!deploymentsResult.ok) {
+    return projectPostDeployVerification({
+      runs: parsed,
+      latestSuccess: null,
+      readError: deploymentsResult.error,
+    });
+  }
+  const deployments = Array.isArray(deploymentsResult.json) ? deploymentsResult.json : [];
+  const productionDeploys = deployments
+    .filter(
+      (deployment) =>
+        isProductionEnvironmentName(asString(deployment.environment)) &&
+        asString(deployment.task).toLowerCase() === "deploy"
+    )
+    .slice(0, 3);
+  let latestSuccess: DeploymentSuccessRef | null = null;
+  for (const deployment of productionDeploys) {
+    const statusesUrl = asString(deployment.statuses_url);
+    if (!statusesUrl) continue;
+    const statusesResult = await githubReportGetJson<Array<Record<string, unknown>>>(
+      statusesUrl,
+      fetchImpl,
+      { label: "GitHub deployment statuses API" }
+    );
+    if (!statusesResult.ok) {
+      return projectPostDeployVerification({
+        runs: parsed,
+        latestSuccess: null,
+        readError: statusesResult.error,
+      });
+    }
+    const statuses = Array.isArray(statusesResult.json) ? statusesResult.json : [];
+    if (statuses.some((status) => asString(status.state) === "success")) {
+      const sha = normalizeDeploymentSha(deployment.sha);
+      if (sha) {
+        latestSuccess = { sha, createdAt: asString(deployment.created_at) };
+        break;
+      }
+    }
+  }
+  return projectPostDeployVerification({ runs: parsed, latestSuccess });
+}
+
+export async function fetchDomainSslMonitorProjection(
+  fetchImpl: typeof fetch = fetch
+): Promise<DomainSslMonitorView> {
+  const runsResult = await githubReportGetJson<{
+    workflow_runs?: Array<Record<string, unknown>>;
+  }>(
+    `https://api.github.com/repos/${AUTOMATION_REPORTS_GITHUB_REPO}/actions/workflows/domain-ssl-monitor.yml/runs?per_page=10`,
+    fetchImpl,
+    { label: "GitHub Actions API" }
+  );
+  if (!runsResult.ok) {
+    if (runsResult.kind === "NOT_FOUND") {
+      return projectDomainSslMonitor({ runs: [] });
+    }
+    return projectDomainSslMonitor({
+      runs: [],
+      readError: runsResult.error,
+    });
+  }
+  const runs = (runsResult.json?.workflow_runs ?? [])
+    .filter((run) => asString(run.path).endsWith(DOMAIN_SSL_WORKFLOW_PATH) || !asString(run.path))
+    .filter((run) => asString(run.status) === "completed")
+    .slice(0, DOMAIN_SSL_ANNOTATION_RUN_LIMIT);
+  const parsed: ParsedDomainSslRun[] = [];
+  for (const run of runs) {
+    const jobsResult = await githubReportGetJson<{ jobs?: Array<Record<string, unknown>> }>(
+      asString(run.jobs_url),
+      fetchImpl,
+      { label: "GitHub Actions jobs API" }
+    );
+    if (!jobsResult.ok) {
+      return projectDomainSslMonitor({
+        runs: [],
+        readError: jobsResult.error,
+      });
+    }
+    const checkUrl = asString(jobsResult.json?.jobs?.[0]?.check_run_url);
+    let evidence: DomainSslEvidence | null = null;
+    if (checkUrl) {
+      const notesResult = await githubReportGetJson<unknown>(
+        `${checkUrl}/annotations`,
+        fetchImpl,
+        { label: "GitHub check annotations API" }
+      );
+      if (!notesResult.ok) {
+        return projectDomainSslMonitor({
+          runs: [],
+          readError: notesResult.error,
+        });
+      }
+      for (const message of annotationMessages(notesResult.json)) {
+        const parsedEvidence = parseDomainSslEvidence(message);
+        if (parsedEvidence) evidence = parsedEvidence;
+      }
+    }
+    parsed.push({
+      runId: asNumber(run.id),
+      htmlUrl: asString(run.html_url),
+      createdAt: asString(run.created_at),
+      conclusion: asNullableString(run.conclusion),
+      evidence,
+    });
+  }
+  return projectDomainSslMonitor({ runs: parsed });
 }

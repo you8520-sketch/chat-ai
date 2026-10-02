@@ -30,6 +30,10 @@ import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import { USER_NOTE_PRESET_TITLE_MAX } from "@/lib/userNotePresetTypes";
 import UserNoteSplitEditor from "@/components/UserNoteSplitEditor";
 import StatusWidgetEditor from "@/components/StatusWidgetEditor";
+import {
+  STATUS_WIDGET_SHARED_DESIGN_HREF,
+  STATUS_WIDGET_SHARED_DESIGN_LABEL,
+} from "@/lib/statusWidget/authoringChoice";
 import ShareLinkBox from "@/components/ShareLinkBox";
 import PersonaAvatar from "@/components/PersonaAvatar";
 import PersonaImageEditor from "@/components/PersonaImageEditor";
@@ -47,7 +51,8 @@ import {
   serializeStatusWidget,
   type StatusWidget,
 } from "@/lib/statusWidget";
-import { estimateStatusWidgetContextChars, formatWidgetBudgetHint } from "@/lib/statusWidget/contextBudget";
+import { estimateStatusWidgetContextChars, formatWidgetBudgetHint, STATUS_WIDGET_USER_CONTEXT_MAX } from "@/lib/statusWidget/contextBudget";
+import type { StatusWidgetShareVisibility } from "@/lib/statusWidgetShareTypes";
 import {
   cn,
   studioInputClass,
@@ -109,7 +114,11 @@ export default function PersonaClient({
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [widgetSharePath, setWidgetSharePath] = useState<string | null>(null);
+  const [widgetShare, setWidgetShare] = useState<{
+    slug: string;
+    path: string;
+    visibility: StatusWidgetShareVisibility;
+  } | null>(null);
   const [focusMaxChars, setFocusMaxChars] = useState(USER_NOTE_FOCUS_MAX);
 
   useEffect(() => {
@@ -472,7 +481,7 @@ export default function PersonaClient({
     setWidgetEditingId(null);
     setWidgetDraftTitle("");
     setWidgetDraft(characterStatusWidgetOrDefault(null));
-    setWidgetSharePath(null);
+    setWidgetShare(null);
     setError("");
     setMsg("");
   }
@@ -484,7 +493,7 @@ export default function PersonaClient({
     setWidgetDraft(
       parseStatusWidgetJson(preset.widget_json) ?? characterStatusWidgetOrDefault(null)
     );
-    setWidgetSharePath(null);
+    setWidgetShare(null);
     setError("");
     setMsg("");
   }
@@ -494,10 +503,15 @@ export default function PersonaClient({
     setWidgetEditingId(null);
     setWidgetDraftTitle("");
     setWidgetDraft(characterStatusWidgetOrDefault(null));
-    setWidgetSharePath(null);
+    setWidgetShare(null);
   }
 
-  async function createWidgetShareLink(body: { presetId?: number; title?: string; widget_json?: string }) {
+  async function createWidgetShareLink(body: {
+    presetId?: number;
+    title?: string;
+    widget_json?: string;
+    visibility?: StatusWidgetShareVisibility;
+  }) {
     setBusy(true);
     setError("");
     setMsg("");
@@ -512,8 +526,33 @@ export default function PersonaClient({
       setError(data.error || "공유 링크 생성에 실패했습니다.");
       return;
     }
-    setWidgetSharePath(data.applyPath);
-    setMsg("공유 링크가 생성되었습니다. 링크를 복사해 공유하세요.");
+    const visibility: StatusWidgetShareVisibility =
+      data.visibility === "public" ? "public" : "unlisted";
+    setWidgetShare({ slug: data.shareSlug, path: data.applyPath, visibility });
+    setMsg(
+      visibility === "public"
+        ? "커뮤니티에 공개했습니다. 링크도 함께 사용할 수 있습니다."
+        : "공유 링크가 생성되었습니다. 커뮤니티 목록에는 올라가지 않습니다."
+    );
+  }
+
+  async function unpublishWidgetShare() {
+    if (!widgetShare) return;
+    setBusy(true);
+    setError("");
+    const res = await fetch(`/api/status-widget-shares/${encodeURIComponent(widgetShare.slug)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: "unlisted" }),
+    });
+    setBusy(false);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.error || "공개 해제에 실패했습니다.");
+      return;
+    }
+    setWidgetShare({ ...widgetShare, visibility: "unlisted" });
+    setMsg("커뮤니티 공개를 해제했습니다. 링크는 그대로 열립니다.");
   }
 
   async function saveWidgetPreset() {
@@ -1062,23 +1101,31 @@ export default function PersonaClient({
         id="status-widget-presets"
         className={cn(studioSurface.sectionAccent, "scroll-mt-4")}
       >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className={studioType.sectionTitle}>
               상태창 보관함 ({statusWidgetPresets.length})
             </h2>
             <p className="mt-0.5 text-[11px] text-zinc-500">
-              HTML·필드 제작 · 페르소나별로 하나를 선택해 사용
+              디자인과 상태값으로 만들고, 필요하면 HTML·JSX를 엽니다
             </p>
           </div>
-          <button
-            type="button"
-            onClick={startWidgetCreate}
-            disabled={busy || widgetCreating}
-            className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
-          >
-            + 새 상태창
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={STATUS_WIDGET_SHARED_DESIGN_HREF}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-white/5"
+            >
+              {STATUS_WIDGET_SHARED_DESIGN_LABEL}
+            </Link>
+            <button
+              type="button"
+              onClick={startWidgetCreate}
+              disabled={busy || widgetCreating}
+              className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+            >
+              + 새 상태창
+            </button>
+          </div>
         </div>
 
         <ul className="space-y-2">
@@ -1092,19 +1139,29 @@ export default function PersonaClient({
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-white">{preset.title}</p>
                     <p className={`mt-0.5 ${studioType.caption}`}>
-                      {formatWidgetBudgetHint(reserved)}
+                      {formatWidgetBudgetHint(reserved, STATUS_WIDGET_USER_CONTEXT_MAX)}
                     </p>
                   </div>
-                  <div className="flex shrink-0 gap-1.5">
+                  <div className="flex max-w-full shrink-0 flex-wrap justify-end gap-1.5">
                     <button
                       type="button"
                       disabled={busy}
                       onClick={() =>
-                        void createWidgetShareLink({ presetId: preset.id })
+                        void createWidgetShareLink({ presetId: preset.id, visibility: "unlisted" })
                       }
                       className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-white/5"
                     >
-                      공유
+                      링크 공유
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void createWidgetShareLink({ presetId: preset.id, visibility: "public" })
+                      }
+                      className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-white/5"
+                    >
+                      커뮤니티 공개
                     </button>
                     <button
                       type="button"
@@ -1151,7 +1208,12 @@ export default function PersonaClient({
                 }
               />
             </div>
-            <StatusWidgetEditor value={widgetDraft} onChange={setWidgetDraft} disabled={busy} />
+            <StatusWidgetEditor
+              key={widgetEditingId != null ? `status-widget-preset-${widgetEditingId}` : "status-widget-preset-new"}
+              value={widgetDraft}
+              onChange={setWidgetDraft}
+              disabled={busy}
+            />
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -1168,11 +1230,26 @@ export default function PersonaClient({
                   void createWidgetShareLink({
                     title: widgetDraftTitle,
                     widget_json: serializeStatusWidget(widgetDraft),
+                    visibility: "unlisted",
                   })
                 }
                 className="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-white/5 disabled:opacity-40"
               >
-                공유 링크
+                링크 공유
+              </button>
+              <button
+                type="button"
+                disabled={busy || !widgetDraftTitle.trim()}
+                onClick={() =>
+                  void createWidgetShareLink({
+                    title: widgetDraftTitle,
+                    widget_json: serializeStatusWidget(widgetDraft),
+                    visibility: "public",
+                  })
+                }
+                className="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+              >
+                커뮤니티 공개
               </button>
               <button
                 type="button"
@@ -1185,8 +1262,22 @@ export default function PersonaClient({
           </div>
         )}
 
-        {widgetSharePath && (
-          <ShareLinkBox path={widgetSharePath} label="위젯 적용 링크 (열어서 내 위젯에 추가)" />
+        {widgetShare && (
+          <div className="space-y-2">
+            <ShareLinkBox path={widgetShare.path} label="위젯 적용 링크 (열어서 내 위젯에 추가)" />
+            {widgetShare.visibility === "public" ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void unpublishWidgetShare()}
+                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+              >
+                커뮤니티에서 내리기
+              </button>
+            ) : (
+              <p className="text-[11px] text-zinc-500">이 링크는 커뮤니티 목록에 보이지 않습니다.</p>
+            )}
+          </div>
         )}
       </section>
 

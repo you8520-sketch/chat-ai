@@ -2,6 +2,7 @@ import {
   AUTOMATION_REPORTS_GITHUB_REPO,
   type GithubScheduledAutomationGroup,
 } from "@/lib/adminAutomationReports";
+import { githubReportGetContent } from "@/lib/githubReportClient";
 
 export const MEMORY_RESEARCH_LEDGER_BRANCH = "memory-research-ledger";
 export const MEMORY_RESEARCH_WORKFLOW_PATH =
@@ -33,10 +34,78 @@ export type MemoryResearchAdminReadinessCounts = {
   noPortRequired: number;
 };
 
+export type MemoryResearchAdminPromptPackingModel = {
+  modelId: string;
+  baselineInputTokens: number;
+  n15InputTokens: number;
+  n15DeltaInputTokens: number;
+  n15MediumTokens: number;
+  safeForPolicyConsideration: boolean;
+};
+
+export type MemoryResearchAdminPromptPacking = {
+  status: "PASS" | "FAIL";
+  generatedAt: string;
+  currentTurnFixture: number;
+  policyId: string;
+  rawRecentExchanges: number;
+  rollingSummaryInterval: number;
+  mediumTermBlockCount: number;
+  invariantPasses: number;
+  invariantTotal: number;
+  failedInvariants: string[];
+  models: MemoryResearchAdminPromptPackingModel[];
+};
+
+export type MemoryResearchAdminPromptPackingTrendModel = {
+  modelId: string;
+  n15DeltaInputTokensDelta: number;
+  mediumTokensDelta: number;
+  verdict: string;
+};
+
+export type MemoryResearchAdminPromptPackingTrend = {
+  status: string;
+  previousCycleKey: string | null;
+  comparable: boolean;
+  modelSetChanged: boolean;
+  addedModels: string[];
+  removedModels: string[];
+  modelDeltas: MemoryResearchAdminPromptPackingTrendModel[];
+  note: string;
+};
+
 export type MemoryResearchAdminDecision = {
   candidateKey: string;
   decision: string;
   reason: string;
+};
+
+export type MemoryResearchAdminEffectiveness = {
+  totalCandidates: number;
+  watch: number;
+  rejected: number;
+  accepted: number;
+  acceptedDraftPrs: number;
+  implementationPrs: number;
+  liveEvaluated: number;
+  dueForReevaluation: number;
+  repeatedWatch: number;
+  watchBottlenecks: Array<{
+    decision: string;
+    candidates: number;
+    examples: string[];
+  }>;
+  bySourceKind: Array<{
+    sourceKind: string;
+    candidates: number;
+    watch: number;
+    rejected: number;
+    accepted: number;
+    acceptedDraftPrs: number;
+    implementationPrs: number;
+    liveEvaluated: number;
+  }>;
 };
 
 export type MemoryResearchAdminInsight = {
@@ -95,8 +164,11 @@ export type MemoryResearchAdminRun = {
   localGoldAuthoringPackets: number;
   persistentMemoryGaps: number;
   persistentMemoryGapStatus: string | null;
+  promptPackingAudit: MemoryResearchAdminPromptPacking | null;
+  promptPackingTrend: MemoryResearchAdminPromptPackingTrend | null;
   readiness: MemoryResearchAdminReadinessCounts;
   insights: MemoryResearchAdminInsight[];
+  effectiveness: MemoryResearchAdminEffectiveness | null;
   decisions: MemoryResearchAdminDecision[];
 };
 
@@ -141,6 +213,92 @@ function asArray(value: unknown): unknown[] {
 
 function stringList(value: unknown): string[] {
   return asArray(value).map(asString).filter(Boolean);
+}
+
+function projectPromptPackingAudit(
+  value: unknown
+): MemoryResearchAdminPromptPacking | null {
+  const audit = asRecord(value);
+  if (!audit) return null;
+  const architecture = asRecord(audit.architecture);
+  const invariants = asArray(audit.invariants)
+    .map(asRecord)
+    .filter((row): row is Record<string, unknown> => row !== null);
+  const models = asArray(audit.models)
+    .map(asRecord)
+    .filter((row): row is Record<string, unknown> => row !== null)
+    .map((row) => ({
+      modelId: asString(row.modelId),
+      baselineInputTokens: asNumber(row.baselineInputTokens),
+      n15InputTokens: asNumber(row.n15InputTokens),
+      n15DeltaInputTokens: asNumber(row.n15DeltaInputTokens),
+      n15MediumTokens: asNumber(row.n15MediumTokens),
+      safeForPolicyConsideration: row.n15SafeForPolicyConsideration === true,
+    }))
+    .filter((row) => row.modelId);
+
+  const generatedAt = asString(audit.generatedAt);
+  const policyId = architecture ? asString(architecture.policyId) : "";
+  const failedInvariants = invariants
+    .filter((row) => row.ok !== true)
+    .map((row) => asString(row.id))
+    .filter(Boolean);
+  const structurallyValid =
+    Boolean(generatedAt) &&
+    Boolean(policyId) &&
+    invariants.length > 0 &&
+    models.length > 0;
+  if (!structurallyValid) {
+    failedInvariants.unshift("MALFORMED_PROMPT_PACKING_AUDIT");
+  }
+
+  return {
+    status: failedInvariants.length === 0 ? "PASS" : "FAIL",
+    generatedAt,
+    currentTurnFixture: asNumber(audit.currentTurnFixture),
+    policyId,
+    rawRecentExchanges: architecture
+      ? asNumber(architecture.rawRecentExchanges)
+      : 0,
+    rollingSummaryInterval: architecture
+      ? asNumber(architecture.rollingSummaryInterval)
+      : 0,
+    mediumTermBlockCount: architecture
+      ? asNumber(architecture.mediumTermBlockCount)
+      : 0,
+    invariantPasses: invariants.filter((row) => row.ok === true).length,
+    invariantTotal: invariants.length,
+    failedInvariants,
+    models,
+  };
+}
+
+function projectPromptPackingTrend(
+  value: unknown
+): MemoryResearchAdminPromptPackingTrend | null {
+  const trend = asRecord(value);
+  if (!trend) return null;
+  const status = asString(trend.status);
+  if (!status) return null;
+  return {
+    status,
+    previousCycleKey: asString(trend.previousCycleKey) || null,
+    comparable: trend.comparable === true,
+    modelSetChanged: trend.modelSetChanged === true,
+    addedModels: stringList(trend.addedModels),
+    removedModels: stringList(trend.removedModels),
+    modelDeltas: asArray(trend.modelDeltas)
+      .map(asRecord)
+      .filter((row): row is Record<string, unknown> => row !== null)
+      .map((row) => ({
+        modelId: asString(row.modelId),
+        n15DeltaInputTokensDelta: asNumber(row.n15DeltaInputTokensDelta),
+        mediumTokensDelta: asNumber(row.mediumTokensDelta),
+        verdict: asString(row.verdict),
+      }))
+      .filter((row) => row.modelId),
+    note: asString(trend.note),
+  };
 }
 
 function projectMemoryResearchInsights(
@@ -253,17 +411,6 @@ function projectMemoryResearchInsights(
   return insights;
 }
 
-function decodeGithubContent(body: unknown): string | null {
-  const record = asRecord(body);
-  const content = record ? asString(record.content) : "";
-  if (!content) return null;
-  try {
-    return Buffer.from(content.replace(/\n/g, ""), "base64").toString("utf8");
-  } catch {
-    return null;
-  }
-}
-
 function parseJsonRecord(raw: string | null): Record<string, unknown> | null {
   if (!raw) return null;
   try {
@@ -367,6 +514,52 @@ function latestCycleKeyFromLedger(raw: string | null): string | null {
     asString(b.finishedAt).localeCompare(asString(a.finishedAt))
   );
   return asString(cycles[0]?.cycleKey) || null;
+}
+
+function projectMemoryResearchEffectiveness(
+  raw: unknown
+): MemoryResearchAdminEffectiveness | null {
+  const audit = asRecord(raw);
+  if (!audit) return null;
+
+  const watchBottlenecks = asArray(audit.watchBottlenecks)
+    .map(asRecord)
+    .filter((row): row is Record<string, unknown> => row !== null)
+    .map((row) => ({
+      decision: asString(row.decision),
+      candidates: asNumber(row.candidates),
+      examples: stringList(row.exampleCandidateKeys),
+    }))
+    .filter((row) => row.decision);
+
+  const bySourceKind = asArray(audit.bySourceKind)
+    .map(asRecord)
+    .filter((row): row is Record<string, unknown> => row !== null)
+    .map((row) => ({
+      sourceKind: asString(row.sourceKind),
+      candidates: asNumber(row.candidates),
+      watch: asNumber(row.watch),
+      rejected: asNumber(row.rejected),
+      accepted: asNumber(row.accepted),
+      acceptedDraftPrs: asNumber(row.acceptedDraftPrs),
+      implementationPrs: asNumber(row.implementationPrs),
+      liveEvaluated: asNumber(row.liveEvaluated),
+    }))
+    .filter((row) => row.sourceKind);
+
+  return {
+    totalCandidates: asNumber(audit.totalCandidates),
+    watch: asNumber(audit.watch),
+    rejected: asNumber(audit.rejected),
+    accepted: asNumber(audit.accepted),
+    acceptedDraftPrs: asNumber(audit.acceptedDraftPrs),
+    implementationPrs: asNumber(audit.implementationPrs),
+    liveEvaluated: asNumber(audit.liveEvaluated),
+    dueForReevaluation: asArray(audit.dueForReevaluation).length,
+    repeatedWatch: asArray(audit.repeatedWatch).length,
+    watchBottlenecks,
+    bySourceKind,
+  };
 }
 
 function countReadiness(plans: unknown): MemoryResearchAdminReadinessCounts {
@@ -485,8 +678,11 @@ export function projectMemoryResearchAdminRun(
     persistentMemoryGapStatus: persistentMemoryGapReport
       ? asString(persistentMemoryGapReport.status) || null
       : null,
+    promptPackingAudit: projectPromptPackingAudit(cycle.promptPackingAudit),
+    promptPackingTrend: projectPromptPackingTrend(cycle.promptPackingTrend),
     readiness: countReadiness(casePortPlans),
     insights,
+    effectiveness: projectMemoryResearchEffectiveness(cycle.effectivenessAudit),
     decisions: (priorityDecisions.length > 0 ? priorityDecisions : decisions).slice(
       0,
       8
@@ -550,48 +746,6 @@ export function assessMemoryResearchFreshness(
   };
 }
 
-async function fetchGithubContentRaw(
-  url: string,
-  fetchImpl: typeof fetch
-): Promise<{
-  status: "OK" | "EMPTY" | "UNAVAILABLE";
-  error: string | null;
-  raw: string | null;
-}> {
-  try {
-    const response = await fetchImpl(url, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "chat-ai-admin-automation-reports",
-      },
-      cache: "no-store",
-    });
-    if (response.status === 404) {
-      return { status: "EMPTY", error: null, raw: null };
-    }
-    if (!response.ok) {
-      return {
-        status: "UNAVAILABLE",
-        error: `GitHub Contents API ${response.status}`,
-        raw: null,
-      };
-    }
-    const raw = decodeGithubContent(await response.json());
-    return raw
-      ? { status: "OK", error: null, raw }
-      : { status: "EMPTY", error: null, raw: null };
-  } catch (error) {
-    return {
-      status: "UNAVAILABLE",
-      error:
-        error instanceof Error
-          ? error.message
-          : "Memory research ledger unavailable",
-      raw: null,
-    };
-  }
-}
-
 export async function fetchMemoryResearchAdminProjection(
   githubGroups: readonly GithubScheduledAutomationGroup[],
   fetchImpl: typeof fetch = fetch,
@@ -603,7 +757,7 @@ export async function fetchMemoryResearchAdminProjection(
     null;
   const githubRunUrl = workflowGroup?.latest.htmlUrl ?? null;
 
-  const ledger = await fetchGithubContentRaw(
+  const ledger = await githubReportGetContent(
     `https://api.github.com/repos/${repo}/contents/ledger.json?ref=${MEMORY_RESEARCH_LEDGER_BRANCH}`,
     fetchImpl
   );
@@ -635,7 +789,7 @@ export async function fetchMemoryResearchAdminProjection(
     };
   }
 
-  const cycle = await fetchGithubContentRaw(
+  const cycle = await githubReportGetContent(
     `https://api.github.com/repos/${repo}/contents/cycles/${encodeURIComponent(
       cycleKey
     )}.json?ref=${MEMORY_RESEARCH_LEDGER_BRANCH}`,

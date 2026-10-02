@@ -3,6 +3,7 @@ import { hasAppearanceTraits } from "@/lib/visualAnchor";
 import {
   extractRoleplayNameFromSettingText,
   looksLikeDisplayTitle,
+  settingTextCarriesExplicitNameBody,
 } from "@/lib/relationshipMetaCharacterName";
 import type {
   CharacterChunk,
@@ -238,10 +239,13 @@ export function buildCombinedCharacterSettingSource(input: CharacterSettingInput
 
   const parts: string[] = [];
   const rpName = extractRoleplayNameFromSettingText(systemPrompt);
-  if (rpName) {
-    parts.push(`[이름]\n${rpName}`);
-  } else if (characterName?.trim() && !looksLikeDisplayTitle(characterName.trim())) {
-    parts.push(`[이름]\n${characterName.trim()}`);
+  // 정본 이름 줄이 이미 있으면 표시명을 두 번째 [이름]으로 넣지 않는다.
+  if (!settingTextCarriesExplicitNameBody(systemPrompt)) {
+    if (rpName) {
+      parts.push(`[이름]\n${rpName}`);
+    } else if (characterName?.trim() && !looksLikeDisplayTitle(characterName.trim())) {
+      parts.push(`[이름]\n${characterName.trim()}`);
+    }
   }
   if (gender && gender !== "other") {
     const genderLabel = gender === "male" ? "남성" : gender === "female" ? "여성" : String(gender);

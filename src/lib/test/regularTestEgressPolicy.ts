@@ -22,3 +22,4 @@
 delete process.env.CHEAPER_INFERENCE_API_KEY;
 delete process.env.OPENROUTER_API_KEY;
 delete process.env.OPENAI_API_KEY;
+delete process.env.FLUENCE_API_KEY;

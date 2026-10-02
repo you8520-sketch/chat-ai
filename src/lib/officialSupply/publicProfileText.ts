@@ -129,6 +129,8 @@ export type OfficialPublicIntroInput = {
   abilities: Array<{ name: string; scope: string }>;
   situation: { worldContext: string; personalSituation: string; userEntry: string };
   userRole: string;
+  /** compact_rp_v1: prior user-character relationship comes from the user persona/dialogue, not the card. */
+  personaFlexible?: boolean;
 };
 
 function clipPhrase(text: string, maxChars: number): string {
@@ -178,16 +180,23 @@ export function composeOfficialPublicDescription(input: OfficialPublicIntroInput
     .join(". ");
   const ability = input.abilities
     .slice(0, 2)
-    .map((item) => `${item.name}${item.scope ? ` — ${firstSentence(item.scope, 70)}` : ""}`)
+    .map((item) =>
+      `${item.name}${item.scope ? ` — ${input.personaFlexible ? completePhrase(item.scope) : firstSentence(item.scope, 70)}` : ""}`
+    )
     .filter(nonEmpty)
     .join(" / ");
   const publicBackground =
     firstSentence(input.situation.personalSituation, 140) || firstSentence(id.worldRole, 90);
   const userRole = firstSentence(input.userRole, 80);
+  const relationLine = input.personaFlexible
+    ? "기존 관계는 페르소나 설정을 따르며, 현재 사건에서의 신뢰·협력·갈등은 실제 선택에 따라 달라진다."
+    : input.relationshipTrope
+      ? `가능한 관계: ${input.relationshipTrope}.`
+      : "";
   const playBody = [
     withPeriod(firstSentence(input.rpHook, 140)),
     userRole ? `당신은 ${userRole.replace(/^당신은\s*/, "").replace(/[.!?。！？]+$/u, "")}.` : "",
-    input.relationshipTrope ? `가능한 관계: ${input.relationshipTrope}.` : "",
+    relationLine,
   ]
     .filter(nonEmpty)
     .join(" ");
@@ -328,7 +337,10 @@ function uniquePhrases(values: string[]): string[] {
 function extractPlayChoices(text: string): string[] {
   if (!text || isMeterOrSecret(text)) return [];
   const choices: string[] = [];
-  const midDot = text.match(/([가-힣]{2,8})·([가-힣]{2,8})·([가-힣]{2,8})/);
+  // Do not turn arbitrary metadata lists (e.g. 이름·신분·성별) into fake actions.
+  const midDot = text.match(
+    /((?:협력|거절|이탈|거리두기|거래|공개|봉인|계약|진실추적|도주|조사))·((?:협력|거절|이탈|거리두기|거래|공개|봉인|계약|진실추적|도주|조사))·((?:협력|거절|이탈|거리두기|거래|공개|봉인|계약|진실추적|도주|조사))/
+  );
   if (midDot) {
     choices.push(`${midDot[1]}하기`, `${midDot[2]}하기`, `${midDot[3]}하기`);
   }
@@ -367,12 +379,15 @@ function draftPlayGuideParts(draft: OfficialCharacterDraft): {
   const rel = draft.sections.relationshipsAndDrives;
   const userRole = pickPrefixed(rel, "유저 역할");
   const choices = officialPlayStartChoices(draft);
-  const greetingLock = "채팅은 저장된 첫 인사 한 줄로 시작합니다.";
+  const singleOpening = "이 캐릭터는 하나의 도입 상황에서 시작합니다.";
   const startLine =
     choices.length > 0
-      ? `이런 식으로 시작해 보세요: ${choices.join(" · ")}. ${greetingLock}`
-      : `이런 식으로 시작해 보세요. ${greetingLock}`;
-  const relation = [draft.hook.relationshipTrope, clipPhrase(userRole, 36)].filter(nonEmpty).join(" · ");
+      ? `이런 식으로 시작해 보세요: ${choices.join(" · ")}. ${singleOpening}`
+      : `이런 식으로 시작해 보세요. ${singleOpening}`;
+  const relation =
+    draft.promptStandard === "compact_rp_v1"
+      ? "페르소나에 설정한 기존 관계를 우선합니다. 현재 사건에서의 협력·신뢰·갈등은 실제 대화와 선택에 따라 달라집니다."
+      : [draft.hook.relationshipTrope, clipPhrase(userRole, 36)].filter(nonEmpty).join(" · ");
   return {
     situation: firstSentence(draft.hook.rpHook, 140) || firstSentence(draft.tagline, 80),
     start: startLine,
@@ -487,10 +502,10 @@ export function evaluateOfficialCreatorComment(comment: string, description: str
     });
   }
   const startLine = trimmed.match(/추천 플레이 방향<\/b><br>([^<]+)/)?.[1] ?? "";
-  if (!/이런 식으로 시작해 보세요/.test(startLine) || !/저장된 첫 인사 한 줄로 시작/.test(startLine)) {
+  if (!/이런 식으로 시작해 보세요/.test(startLine) || !/하나의 도입 상황에서 시작/.test(startLine)) {
     errors.push({
       code: "creator_comment_single_greeting",
-      message: "creator comment must advise a play direction and state that chat starts from the stored greeting",
+      message: "creator comment must advise a play direction and make the single-opening runtime clear",
     });
   }
   errors.push(...evaluateOfficialPlayerGenderNeutral({ comment: trimmed }).errors);

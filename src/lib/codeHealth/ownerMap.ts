@@ -30,6 +30,7 @@ export const CODE_HEALTH_OWNER_MAP = Object.freeze({
     paths: [
       "src/app/admin/automation-reports/page.tsx",
       "src/lib/adminAutomationReports.ts",
+      "src/lib/githubReportClient.ts",
       "src/lib/codeHealth/reports.ts",
     ],
   },

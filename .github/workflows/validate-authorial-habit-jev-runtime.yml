@@ -12,6 +12,9 @@ on:
       - "src/lib/auxProviderProvenance.test.ts"
       - "src/app/api/chat/route.ts"
       - "scripts/lib/authorialHabitJevBenchmark.test.ts"
+      - "src/lib/rpQualificationFixture.ts"
+      - "src/lib/rpQualificationFixture.test.ts"
+      - "src/app/api/admin/rp-qualification-fixture/route.ts"
       - ".github/workflows/validate-authorial-habit-jev-runtime.yml"
 
 permissions:
@@ -52,6 +55,11 @@ jobs:
         run: >-
           node --conditions=react-server --import tsx --test
           scripts/lib/authorialHabitJevBenchmark.test.ts
+
+      - name: RP qualification fixture export regression
+        run: >-
+          node --conditions=react-server --import tsx --test
+          src/lib/rpQualificationFixture.test.ts
 
       - name: Aux provenance regression
         run: >-

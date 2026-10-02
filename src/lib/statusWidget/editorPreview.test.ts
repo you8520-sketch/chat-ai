@@ -31,10 +31,10 @@ describe("formatStatusWidgetEditorPreviewValue", () => {
 describe("buildStatusWidgetEditorPreviewValues", () => {
   it("uses instruction text in layout preview", () => {
     const values = buildStatusWidgetEditorPreviewValues(DEFAULT_STATUS_WIDGET);
-    assert.match(values["현재상황"] ?? "", /지금 벌어지는 상황을 한 줄로 요약/);
+    assert.match(values["현재상황"] ?? "", /지금 벌어지는 핵심 상황을 한 줄로 작성한다/);
     const html = renderStatusWidgetHtml(DEFAULT_STATUS_WIDGET, values);
-    assert.match(html, /지금 벌어지는 상황을 한 줄로 요약/);
-    assert.match(html, /\(NPC의 속마음/);
+    assert.match(html, /지금 벌어지는 핵심 상황을 한 줄로 작성한다/);
+    assert.match(html, /\(NPC의 현재 내면/);
     assert.doesNotMatch(html, /\{\{/);
   });
 });

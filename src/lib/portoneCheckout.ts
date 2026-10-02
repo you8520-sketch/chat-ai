@@ -1,7 +1,11 @@
 import crypto from "crypto";
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
-import { POINT_CHARGE_PACKAGES_BY_ID, type PointChargePackageId } from "@/lib/plans";
+import {
+  isPointChargePackageId,
+  POINT_CHARGE_PACKAGES_BY_ID,
+  type PointChargePackageId,
+} from "@/lib/plans";
 import { creditPointChargePackage } from "@/lib/pointCharge";
 
 export type PortoneCheckoutStatus = "pending" | "paid" | "failed";
@@ -101,8 +105,8 @@ export function markPortoneCheckoutPaid(
         return { ok: false as const, error: "처리할 수 없는 결제 상태입니다." };
       }
 
-      const packageId = row.package_id as PointChargePackageId;
-      if (!POINT_CHARGE_PACKAGES_BY_ID[packageId]) {
+      const packageId = row.package_id;
+      if (!isPointChargePackageId(packageId)) {
         return { ok: false as const, error: "상품 정보가 유효하지 않습니다." };
       }
 
