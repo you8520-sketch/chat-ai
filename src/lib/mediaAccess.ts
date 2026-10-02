@@ -213,6 +213,9 @@ export function projectAssetsForViewer(
         chatId: input.chatId,
       });
     }
+    if (!isPrivateMediaUrl(asset.url) && asset.viewerBlur !== true) {
+      return viewerAllowlist(asset, { url: asset.url, includeOriginalFields: false });
+    }
     const preview =
       asset.blurPreviewUrl && !isPrivateMediaUrl(asset.blurPreviewUrl)
         ? asset.blurPreviewUrl

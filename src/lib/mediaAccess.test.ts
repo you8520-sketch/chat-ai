@@ -93,6 +93,27 @@ describe("mediaAccess", () => {
     assert.equal(JSON.stringify(projected).includes("-public.webp"), false);
   });
 
+  it("keeps unblurred public/legacy URLs so chat fixtures still render", () => {
+    const assets: CharacterAsset[] = [
+      {
+        url: "data:image/svg+xml;charset=utf-8,tall",
+        tag: "guardrail-tall",
+        width: 300,
+        height: 400,
+        viewerBlur: false,
+      },
+      {
+        url: "/uploads/open.webp",
+        tag: "미소",
+        viewerBlur: false,
+      },
+    ];
+    const projected = projectAssetsForViewer(assets, { canSeeOriginals: false });
+    assert.equal(projected[0]?.url, assets[0]?.url);
+    assert.equal(projected[1]?.url, "/uploads/open.webp");
+    assert.equal(JSON.stringify(projected).includes("mediaId"), false);
+  });
+
   it("serves blur for anyone and sharp public renditions only when approved", () => {
     assert.equal(
       decidePublicMediaAccess({ filename: "abc-blur.webp", approvedRepresentative: false }).ok,
