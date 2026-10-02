@@ -221,15 +221,17 @@ describe("auto progression prompt content", () => {
     assert.doesNotMatch(block, /기본 서술 시점은 \[A\]/);
   });
 
-  it("continue command short-refs AI_CAST without novel rules", () => {
+  it("continue command short-refs [B] scope and does not order NPC advance", () => {
     const cmd = buildContinueNarrativeCommand({
       personaName: userCharacterName,
       charName: aiCharacterName,
       novelModeEnabled: true, // ignored / normalized elsewhere
     });
     assertNoNovelModeLeak(cmd);
-    assert.match(cmd, /\[AI_CAST\]/);
     assert.match(cmd, /EFFECTIVE USER AUTHORING policy/);
+    assert.match(cmd, /do not widen it here/);
+    assert.doesNotMatch(cmd, /Advance through \[AI_CAST\], NPCs/);
+    assert.doesNotMatch(cmd, /Multiple AI-controlled characters may speak/);
     assert.doesNotMatch(cmd, /\[AUTO PROGRESSION — AI-FOCAL CO-NARRATION\]/);
   });
 
@@ -266,7 +268,7 @@ describe("auto progression prompt content", () => {
     assert.match(canon, /\[AI_CAST\]/);
   });
 
-  it("scene directive uses external ensemble wording", () => {
+  it("scene directive user-control line keeps [B] scope", () => {
     const block = buildSceneDirectivePromptBlock({
       mode: "auto_progression",
       recentMessages: [],

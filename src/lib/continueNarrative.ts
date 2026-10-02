@@ -378,7 +378,6 @@ export function buildContinueNarrativeCommand(input: ContinueNarrativeCommandInp
 - The user clicked Continue / auto-advance.
 - There is no new explicit user dialogue or action.
 ${sceneAnchor}
-- Advance through [AI_CAST], NPCs, environment, consequences, clues, schedules, or world events. Multiple AI-controlled characters may speak and act; focalization may shift between them at clear boundaries.
 - ${AUTO_PROGRESSION_SHORT_REF}
 ${resumeAfterOoc ? `\n${resumeAfterOoc}\n` : ""}
 [STRICT ANTI-REPETITION RULE]
