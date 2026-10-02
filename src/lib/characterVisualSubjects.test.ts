@@ -85,7 +85,7 @@ describe("characterVisualSubjects", () => {
       ],
     };
     const assets = [
-      asset("/uploads/main.webp", "기본"),
+      { ...asset("/uploads/main.webp", "기본"), representativeRank: 1 },
       asset("/uploads/support.webp", "민준", key),
     ];
     const parsed = parseCharacterFormBody(

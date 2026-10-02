@@ -261,6 +261,7 @@ describe("official pilot content (romance fantasy 01)", () => {
       width: 1024,
       height: 1536,
       viewerBlur: false,
+      representativeRank: 1,
     };
     for (const file of chars()) {
       const body = buildOfficialCharacterFormBody({

@@ -2,8 +2,14 @@ import { getDb } from "@/lib/db";
 import { resolveWorldSelectionForUser } from "@/lib/worldLibrary";
 import { parseWorldLibraryRef } from "@/lib/worlds";
 import type { CharacterAsset } from "@/lib/characterAssets";
-import { isStoredAssetUrl, listingImageUrls, normalizeCharacterAssets } from "@/lib/characterAssets";
-import { canPublishAsRepresentative } from "@/lib/assetVisionPolicy";
+import {
+  isStoredAssetUrl,
+  listingImageUrls,
+  normalizeCharacterAssets,
+  representativeSelectionError,
+} from "@/lib/characterAssets";
+import { isAssetHardRejected } from "@/lib/assetVisionPolicy";
+import { bindTrustedCharacterMedia } from "@/lib/mediaAccess";
 import { parseCharacterGender } from "@/lib/characterGender";
 import { buildSaveCharacterChunksAndEnqueueDerivedRefresh } from "@/lib/characterChunks";
 import {
@@ -247,16 +253,30 @@ function prepareVisualSubjectsForSave(opts: {
   }
 }
 
+/** Hard reject only. adultFlagged representatives stay hold/pending via listing + public ACL. */
 function representativePublishError(assets: CharacterAsset[]): string | null {
-  const ranked = assets.filter((asset) => asset.representativeRank != null);
-  if (ranked.length > 5) {
-    return "대표 이미지는 최대 5장까지 지정할 수 있습니다.";
-  }
-  for (const asset of ranked) {
-    const decision = canPublishAsRepresentative(asset);
-    if (!decision.ok) return decision.reason;
+  for (const asset of assets.filter((row) => row.representativeRank != null)) {
+    const reason = String(asset.moderationReason ?? "");
+    if (isAssetHardRejected(asset) || /유두/.test(reason)) {
+      return "유두·성기·항문이 노출된 이미지는 대표로 지정할 수 없습니다.";
+    }
   }
   return null;
+}
+
+function finalizeAssetsForSave(
+  assets: CharacterAsset[],
+  rawAssets: unknown,
+  userId: number
+): { ok: true; assets: CharacterAsset[] } | { ok: false; error: string; status: 400 } {
+  const rawList = Array.isArray(rawAssets) ? rawAssets : [];
+  const selectionError = representativeSelectionError(rawList);
+  if (selectionError) return { ok: false, error: selectionError, status: 400 };
+  const bound = bindTrustedCharacterMedia(assets, userId);
+  if (!bound.ok) return { ok: false, error: bound.error, status: 400 };
+  const publishError = representativePublishError(bound.assets);
+  if (publishError) return { ok: false, error: publishError, status: 400 };
+  return { ok: true, assets: bound.assets };
 }
 
 function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
@@ -654,10 +674,9 @@ export function parseCharacterFormBody(
     return { ok: false, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
   }
 
-  const representativeError = representativePublishError(assets);
-  if (representativeError) {
-    return { ok: false, error: representativeError, status: 400 };
-  }
+  const finalized = finalizeAssetsForSave(assets, b.assets, user.id);
+  if (!finalized.ok) return finalized;
+  assets = finalized.assets;
 
   return {
     ok: true,
@@ -1474,10 +1493,9 @@ export async function updateCharacterPublicProfileFromForm(
     participantMinAge,
     legacyExplicitStatus: parseExplicitAdultStatus(row.adult_status),
   });
-  const representativeError = representativePublishError(assets);
-  if (representativeError) {
-    return { ok: false as const, error: representativeError, status: 400 };
-  }
+  const finalized = finalizeAssetsForSave(assets, b.assets, user.id);
+  if (!finalized.ok) return finalized;
+  assets = finalized.assets;
   const images = listingImageUrls(assets);
   const requestedVisibility = parseVisibility(b.visibility);
   const creatorComment = String(b.creator_comment ?? b.creatorComment ?? "").trim().slice(0, CREATOR_COMMENT_LIMIT);

@@ -90,8 +90,10 @@ export type RepresentativePublishDecision = { ok: true } | { ok: false; reason: 
 export function canPublishAsRepresentative(asset: {
   moderationReject?: boolean;
   adultFlagged?: boolean;
+  moderationReason?: string;
 }): RepresentativePublishDecision {
-  if (isAssetHardRejected(asset)) {
+  const reason = String(asset.moderationReason ?? "");
+  if (isAssetHardRejected(asset) || /유두/.test(reason)) {
     return { ok: false, reason: "유두·성기·항문이 노출된 이미지는 대표로 지정할 수 없습니다." };
   }
   if (isAssetNeedsAdminReview(asset)) {

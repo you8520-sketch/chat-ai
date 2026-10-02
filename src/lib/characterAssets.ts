@@ -126,7 +126,15 @@ export function isStoredAssetUrl(url: string): boolean {
 }
 
 export function isPrivateMediaUrl(url: string): boolean {
-  return url.startsWith("/media/private/");
+  return url.split("?")[0]?.startsWith("/media/private/") ?? false;
+}
+
+export function privateMediaRequestUrl(url: string, chatId: number | null | undefined): string {
+  if (!isPrivateMediaUrl(url) || chatId == null || !Number.isInteger(chatId) || chatId <= 0) {
+    return url;
+  }
+  const [base] = url.split("?");
+  return `${base}?chat=${chatId}`;
 }
 
 function optionalMediaFields(
@@ -149,6 +157,22 @@ function parseRepresentativeRank(raw: unknown): number | undefined {
   const rank = Number(raw);
   if (!Number.isInteger(rank) || rank < 1 || rank > MAX_REPRESENTATIVE_ASSETS) return undefined;
   return rank;
+}
+
+export function countRepresentativeSelections(list: readonly Partial<CharacterAsset>[]): number {
+  return list.filter((asset) => {
+    const rank = Number((asset as { representativeRank?: unknown }).representativeRank);
+    return Number.isFinite(rank) && rank !== 0;
+  }).length;
+}
+
+export function representativeSelectionError(
+  list: readonly Partial<CharacterAsset>[]
+): string | null {
+  const count = countRepresentativeSelections(list);
+  if (count === 0) return "대표 이미지를 1장 이상 지정해 주세요.";
+  if (count > MAX_REPRESENTATIVE_ASSETS) return "대표 이미지는 최대 5장까지 지정할 수 있습니다.";
+  return null;
 }
 
 function hasExplicitRepresentativeRanks(list: readonly Partial<CharacterAsset>[]): boolean {
@@ -288,6 +312,7 @@ export function isRepresentativeAsset(asset: Pick<CharacterAsset, "representativ
 
 /** Public card/list URL — never a private original. */
 export function publicRepresentativeUrl(asset: CharacterAsset): string | null {
+  if (asset.mediaId) return `/media/public/${asset.mediaId}-public.webp`;
   if (asset.publicRenditionUrl && !isPrivateMediaUrl(asset.publicRenditionUrl)) {
     return asset.publicRenditionUrl;
   }

@@ -14,6 +14,7 @@ import { buildUserMessageBillingSummary } from "@/lib/messageBillingSummaryServe
 
 import { parseAssets, chatAssets } from "@/lib/characterAssets";
 import { collectUnlockedAssetUrlsFromMessages } from "@/lib/characterAssetUnlock";
+import { projectAssetsForViewer } from "@/lib/mediaAccess";
 
 import { resolveClientAsyncRecordsFromMessageRow } from "@/lib/clientAsyncRecordRead";
 import { normalizeMessageVariants, serializeVariantsForClient, resolveActiveVariantContent } from "@/lib/messageAlternates";
@@ -168,7 +169,7 @@ export default async function ChatPage({
     is_admin: adminRow?.is_admin ?? 0,
   });
 
-  const assets = chatAssets(parseAssets(c.assets));
+  const storedAssets = chatAssets(parseAssets(c.assets));
   const isCharacterCreator = c.creator_id === user.id;
 
   const userProfileRow = db
@@ -452,9 +453,14 @@ export default async function ChatPage({
       content: message.content,
       generationStatus: message.generationStatus,
     })),
-    assets,
+    storedAssets,
     isCharacterCreator
   );
+  const assets = projectAssetsForViewer(storedAssets, {
+    canSeeOriginals: isCharacterCreator || isAdmin,
+    unlockedUrls: new Set(initialUnlockedAssetUrls),
+    chatId: chat.id,
+  });
 
   const {
     messages,

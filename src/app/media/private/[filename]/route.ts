@@ -15,13 +15,15 @@ const MIME_BY_EXT: Record<string, string> = {
   ".gif": "image/gif",
 };
 
-export async function GET(_req: Request, ctx: RouteCtx) {
+export async function GET(req: Request, ctx: RouteCtx) {
   const { filename } = await ctx.params;
   const safe = sanitizeMediaFilename(filename);
   if (!safe) return NextResponse.json({ error: "잘못된 파일명입니다." }, { status: 400 });
 
   const user = await getSessionUser();
-  const access = evaluatePrivateMediaAccess(user, safe);
+  const chatRaw = Number(new URL(req.url).searchParams.get("chat"));
+  const chatId = Number.isInteger(chatRaw) && chatRaw > 0 ? chatRaw : null;
+  const access = evaluatePrivateMediaAccess(user, safe, chatId);
   if (!access.ok) {
     return NextResponse.json({ error: "접근할 수 없습니다." }, { status: 403 });
   }

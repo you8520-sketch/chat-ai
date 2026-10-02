@@ -107,7 +107,7 @@ function publicProfileBody(overrides: Record<string, unknown> = {}) {
     tagline: "한 줄 소개",
     description: "공개 소개",
     genres: ["로맨스"],
-    assets: [{ url: "/uploads/test.png", tag: "neutral" }],
+    assets: [{ url: "/uploads/test.png", tag: "neutral", representativeRank: 1 }],
     visibility: "private",
     ...overrides,
   };

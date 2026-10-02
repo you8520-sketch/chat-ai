@@ -1,18 +1,31 @@
 /**
- * Canonical private-media ACL owner.
- * Grants: character creator, site admin, uploader of an unlinked file,
- * or server-verified chat-tag unlock for this user+character.
- * Does not read is_adult, nsfw_on, or listing skip flags.
+ * Canonical public/private media ACL owner.
+ * Public sharp renditions are served only for approved representatives.
+ * Private originals: trusted owner (creator AND manifest uploader), admin,
+ * unlinked uploader, or chat-scoped completed assistant unlock.
+ * Does not copy #1333 canAccessAdultContent.
  */
 import { getDb } from "@/lib/db";
 import { isAdminUser } from "@/lib/isAdminUser";
+import { canPublishAsRepresentative } from "@/lib/assetVisionPolicy";
 import {
   filenameFromPrivateMediaUrl,
+  isPublicBlurFilename,
+  isPublicRenditionFilename,
   mediaIdFromPrivateFilename,
+  mediaIdFromPublicRenditionFilename,
+  privateMediaUrl,
+  publicMediaUrl,
   readMediaManifest,
   sanitizeMediaFilename,
 } from "@/lib/mediaStorage";
-import { parseAssets, type CharacterAsset } from "@/lib/characterAssets";
+import {
+  isPrivateMediaUrl,
+  isRepresentativeAsset,
+  parseAssets,
+  privateMediaRequestUrl,
+  type CharacterAsset,
+} from "@/lib/characterAssets";
 import {
   collectUnlockedAssetUrlsFromMessages,
   type UnlockSourceMessage,
@@ -30,9 +43,18 @@ export type PrivateMediaAccessDecision =
   | { ok: true; reason: PrivateMediaAccessReason }
   | { ok: false; reason: "denied" };
 
+export type PublicMediaAccessDecision = { ok: true } | { ok: false; reason: "denied" };
+
+export type ChatAccessContext = {
+  requestedChatId: number | null;
+  chatBelongsToUser: boolean;
+  chatCharacterId: number | null;
+};
+
 type OwningCharacter = {
   id: number;
   creator_id: number | null;
+  nsfw?: number | null;
   assets: CharacterAsset[];
 };
 
@@ -43,23 +65,141 @@ export function assetMatchesPrivateFilename(asset: CharacterAsset, filename: str
   return fromUrl === filename;
 }
 
+export function decidePublicMediaAccess(input: {
+  filename: string;
+  approvedRepresentative: boolean;
+}): PublicMediaAccessDecision {
+  const filename = sanitizeMediaFilename(input.filename);
+  if (!filename) return { ok: false, reason: "denied" };
+  if (isPublicBlurFilename(filename)) return { ok: true };
+  if (isPublicRenditionFilename(filename)) {
+    return input.approvedRepresentative ? { ok: true } : { ok: false, reason: "denied" };
+  }
+  return { ok: false, reason: "denied" };
+}
+
 export function decidePrivateMediaAccess(input: {
   user: PrivateMediaViewer | null;
   isAdmin: boolean;
   owningCharacters: readonly OwningCharacter[];
   unlockedByChat: boolean;
   uploadedByUser: boolean;
+  trustedOwner?: boolean;
+  chatContext?: ChatAccessContext;
 }): PrivateMediaAccessDecision {
   if (!input.user) return { ok: false, reason: "denied" };
   if (input.isAdmin) return { ok: true, reason: "admin" };
-  if (input.owningCharacters.some((character) => character.creator_id === input.user?.id)) {
-    return { ok: true, reason: "creator" };
-  }
-  if (input.unlockedByChat) return { ok: true, reason: "chat_unlock" };
+  const trustedOwner =
+    input.trustedOwner === true ||
+    (input.uploadedByUser &&
+      input.owningCharacters.some((character) => character.creator_id === input.user?.id));
+  if (trustedOwner) return { ok: true, reason: "creator" };
+  const chat = input.chatContext;
+  const chatUnlockAllowed =
+    input.unlockedByChat &&
+    chat != null &&
+    chat.requestedChatId != null &&
+    chat.chatBelongsToUser &&
+    chat.chatCharacterId != null &&
+    input.owningCharacters.some((character) => character.id === chat.chatCharacterId);
+  if (chatUnlockAllowed) return { ok: true, reason: "chat_unlock" };
   if (input.uploadedByUser && input.owningCharacters.length === 0) {
     return { ok: true, reason: "uploader" };
   }
   return { ok: false, reason: "denied" };
+}
+
+export function bindTrustedCharacterMedia(
+  assets: CharacterAsset[],
+  userId: number
+): { ok: true; assets: CharacterAsset[] } | { ok: false; error: string } {
+  const next: CharacterAsset[] = [];
+  for (const asset of assets) {
+    if (!isPrivateMediaUrl(asset.url) && !asset.mediaId) {
+      const { publicRenditionUrl: _ignored, ...legacy } = asset;
+      next.push(isRepresentativeAsset(asset) ? asset : legacy);
+      continue;
+    }
+    const filename =
+      filenameFromPrivateMediaUrl(asset.url) ??
+      (asset.mediaId ? `${asset.mediaId}.webp` : null);
+    if (!filename) return { ok: false, error: "이미지 참조가 올바르지 않습니다." };
+    const manifest = readMediaManifest(filename);
+    if (!manifest || manifest.uploadedBy !== userId) {
+      return { ok: false, error: "다른 사용자의 이미지는 첨부할 수 없습니다." };
+    }
+    const mediaId = mediaIdFromPrivateFilename(filename) ?? asset.mediaId;
+    const representative = isRepresentativeAsset(asset);
+    const { publicRenditionUrl: _clientPublic, ...trusted } = asset;
+    next.push({
+      ...trusted,
+      url: privateMediaUrl(filename),
+      ...(mediaId ? { mediaId } : {}),
+      blurPreviewUrl: mediaId ? publicMediaUrl(`${mediaId}-blur.webp`) : asset.blurPreviewUrl,
+      ...(representative && mediaId
+        ? { publicRenditionUrl: publicMediaUrl(`${mediaId}-public.webp`) }
+        : {}),
+      ...(typeof manifest.adultFlagged === "boolean" ? { adultFlagged: manifest.adultFlagged } : {}),
+      ...(typeof manifest.moderationReject === "boolean"
+        ? { moderationReject: manifest.moderationReject }
+        : {}),
+      ...(manifest.moderationReason ? { moderationReason: manifest.moderationReason } : {}),
+    });
+  }
+  return { ok: true, assets: next };
+}
+
+function viewerAllowlist(
+  asset: CharacterAsset,
+  input: { url: string; includeOriginalFields: boolean; chatId?: number | null }
+): CharacterAsset {
+  const url = input.includeOriginalFields ? privateMediaRequestUrl(input.url, input.chatId) : input.url;
+  const projected: CharacterAsset = {
+    url,
+    tag: asset.tag,
+    ...(asset.width ? { width: asset.width } : {}),
+    ...(asset.height ? { height: asset.height } : {}),
+    ...(asset.orientation ? { orientation: asset.orientation } : {}),
+    ...(asset.viewerBlur === true ? { viewerBlur: true } : {}),
+    ...(asset.representativeRank != null ? { representativeRank: asset.representativeRank } : {}),
+    ...(asset.visualSubjectKey ? { visualSubjectKey: asset.visualSubjectKey } : {}),
+    ...(asset.chat === false ? { chat: false } : {}),
+  };
+  return projected;
+}
+
+export function projectAssetsForViewer(
+  assets: CharacterAsset[],
+  input: {
+    canSeeOriginals: boolean;
+    unlockedUrls?: ReadonlySet<string>;
+    chatId?: number | null;
+  }
+): CharacterAsset[] {
+  return assets.map((asset) => {
+    const unlocked = input.canSeeOriginals || Boolean(input.unlockedUrls?.has(asset.url));
+    if (unlocked) {
+      return viewerAllowlist(asset, {
+        url: asset.url,
+        includeOriginalFields: isPrivateMediaUrl(asset.url),
+        chatId: input.chatId,
+      });
+    }
+    const preview =
+      asset.blurPreviewUrl && !isPrivateMediaUrl(asset.blurPreviewUrl)
+        ? asset.blurPreviewUrl
+        : asset.url.startsWith("/uploads/")
+          ? `/media/public/legacy-blur-${asset.url.slice("/uploads/".length).replace(/\.[a-zA-Z0-9]+$/, "")}.webp`
+          : isRepresentativeAsset(asset) &&
+              asset.publicRenditionUrl &&
+              !isPrivateMediaUrl(asset.publicRenditionUrl)
+            ? asset.publicRenditionUrl
+            : "";
+    return viewerAllowlist(
+      { ...asset, viewerBlur: true },
+      { url: preview || "", includeOriginalFields: false }
+    );
+  });
 }
 
 function loadOwningCharacters(filename: string): OwningCharacter[] {
@@ -67,27 +207,48 @@ function loadOwningCharacters(filename: string): OwningCharacter[] {
   const mediaId = mediaIdFromPrivateFilename(filename);
   const needle = mediaId ?? filename;
   const rows = db
-    .prepare(`SELECT id, creator_id, assets FROM characters WHERE assets LIKE ?`)
-    .all(`%${needle}%`) as Array<{ id: number; creator_id: number | null; assets: string | null }>;
+    .prepare(`SELECT id, creator_id, nsfw, assets FROM characters WHERE assets LIKE ?`)
+    .all(`%${needle}%`) as Array<{
+    id: number;
+    creator_id: number | null;
+    nsfw: number | null;
+    assets: string | null;
+  }>;
   return rows
     .map((row) => ({
       id: row.id,
       creator_id: row.creator_id,
+      nsfw: row.nsfw,
       assets: parseAssets(row.assets),
     }))
     .filter((row) => row.assets.some((asset) => assetMatchesPrivateFilename(asset, filename)));
 }
 
-function loadCompletedAssistantMessages(userId: number, characterId: number): UnlockSourceMessage[] {
-  const db = getDb();
-  const rows = db
+function loadChatContext(userId: number, chatId: number | null): ChatAccessContext {
+  if (chatId == null || !Number.isInteger(chatId) || chatId <= 0) {
+    return { requestedChatId: null, chatBelongsToUser: false, chatCharacterId: null };
+  }
+  const row = getDb()
+    .prepare(`SELECT id, user_id, character_id FROM chats WHERE id=?`)
+    .get(chatId) as { id: number; user_id: number; character_id: number } | undefined;
+  if (!row) {
+    return { requestedChatId: chatId, chatBelongsToUser: false, chatCharacterId: null };
+  }
+  return {
+    requestedChatId: chatId,
+    chatBelongsToUser: row.user_id === userId,
+    chatCharacterId: row.character_id,
+  };
+}
+
+function loadCompletedAssistantMessages(chatId: number): UnlockSourceMessage[] {
+  const rows = getDb()
     .prepare(
-      `SELECT m.role, m.content, m.generation_status AS generationStatus
-       FROM messages m
-       INNER JOIN chats c ON c.id = m.chat_id
-       WHERE c.user_id = ? AND c.character_id = ? AND m.role = 'assistant'`
+      `SELECT role, content, generation_status AS generationStatus
+       FROM messages
+       WHERE chat_id = ? AND role = 'assistant'`
     )
-    .all(userId, characterId) as Array<{ role: string; content: string; generationStatus: string | null }>;
+    .all(chatId) as Array<{ role: string; content: string; generationStatus: string | null }>;
   return rows.map((row) => ({
     role: row.role,
     content: row.content,
@@ -95,9 +256,37 @@ function loadCompletedAssistantMessages(userId: number, characterId: number): Un
   }));
 }
 
+function isApprovedRepresentativeMedia(filename: string, owningCharacters: readonly OwningCharacter[]): boolean {
+  const mediaId = mediaIdFromPrivateFilename(filename) ?? mediaIdFromPublicRenditionFilename(filename);
+  return owningCharacters.some((character) =>
+    character.assets.some((asset) => {
+      const matches = mediaId
+        ? asset.mediaId === mediaId || filenameFromPrivateMediaUrl(asset.url) === `${mediaId}.webp`
+        : assetMatchesPrivateFilename(asset, filename);
+      if (!matches || !isRepresentativeAsset(asset)) return false;
+      return canPublishAsRepresentative(asset).ok;
+    })
+  );
+}
+
+export function evaluatePublicMediaAccess(filename: string): PublicMediaAccessDecision {
+  const safe = sanitizeMediaFilename(filename);
+  if (!safe) return { ok: false, reason: "denied" };
+  if (isPublicBlurFilename(safe)) return { ok: true };
+  if (!isPublicRenditionFilename(safe)) return { ok: false, reason: "denied" };
+  const mediaId = mediaIdFromPublicRenditionFilename(safe);
+  if (!mediaId) return { ok: false, reason: "denied" };
+  const owning = loadOwningCharacters(`${mediaId}.webp`);
+  return decidePublicMediaAccess({
+    filename: safe,
+    approvedRepresentative: isApprovedRepresentativeMedia(`${mediaId}.webp`, owning),
+  });
+}
+
 export function evaluatePrivateMediaAccess(
   user: PrivateMediaViewer | null,
-  filename: string
+  filename: string,
+  chatId?: number | null
 ): PrivateMediaAccessDecision {
   const safe = sanitizeMediaFilename(filename);
   if (!safe || !user) return { ok: false, reason: "denied" };
@@ -106,19 +295,29 @@ export function evaluatePrivateMediaAccess(
   const isAdmin = isAdminUser(user);
   const manifest = readMediaManifest(safe);
   const uploadedByUser = manifest?.uploadedBy === user.id;
+  const trustedOwner =
+    uploadedByUser && owningCharacters.some((character) => character.creator_id === user.id);
+  const chatContext = loadChatContext(user.id, chatId ?? null);
 
   let unlockedByChat = false;
-  if (!isAdmin) {
-    for (const character of owningCharacters) {
-      if (character.creator_id === user.id) break;
-      const messages = loadCompletedAssistantMessages(user.id, character.id);
+  if (
+    !isAdmin &&
+    chatContext.requestedChatId != null &&
+    chatContext.chatBelongsToUser &&
+    chatContext.chatCharacterId != null
+  ) {
+    const character = owningCharacters.find((row) => row.id === chatContext.chatCharacterId);
+    if (character) {
       const unlocked = new Set(
-        collectUnlockedAssetUrlsFromMessages(messages, character.assets, false)
+        collectUnlockedAssetUrlsFromMessages(
+          loadCompletedAssistantMessages(chatContext.requestedChatId),
+          character.assets,
+          false
+        )
       );
-      if (character.assets.some((asset) => assetMatchesPrivateFilename(asset, safe) && unlocked.has(asset.url))) {
-        unlockedByChat = true;
-        break;
-      }
+      unlockedByChat = character.assets.some(
+        (asset) => assetMatchesPrivateFilename(asset, safe) && unlocked.has(asset.url)
+      );
     }
   }
 
@@ -128,32 +327,7 @@ export function evaluatePrivateMediaAccess(
     owningCharacters,
     unlockedByChat,
     uploadedByUser,
-  });
-}
-
-export function projectAssetsForViewer(
-  assets: CharacterAsset[],
-  input: {
-    canSeeOriginals: boolean;
-    unlockedUrls?: ReadonlySet<string>;
-  }
-): CharacterAsset[] {
-  return assets.map((asset) => {
-    if (input.canSeeOriginals || input.unlockedUrls?.has(asset.url)) {
-      return asset;
-    }
-    const preview =
-      asset.blurPreviewUrl && !asset.blurPreviewUrl.startsWith("/media/private/")
-        ? asset.blurPreviewUrl
-        : asset.url.startsWith("/uploads/")
-          ? `/media/public/legacy-blur-${asset.url.slice("/uploads/".length).replace(/\.[a-zA-Z0-9]+$/, "")}.webp`
-          : asset.publicRenditionUrl && asset.representativeRank != null
-            ? asset.publicRenditionUrl
-            : "";
-    return {
-      ...asset,
-      url: preview || asset.blurPreviewUrl || "",
-      viewerBlur: true,
-    };
+    trustedOwner,
+    chatContext,
   });
 }

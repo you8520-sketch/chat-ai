@@ -31,6 +31,7 @@ describe("mediaStorage", () => {
     assert.equal(stored.url.startsWith("/media/private/"), true);
     assert.equal(stored.publicRenditionUrl.startsWith("/media/public/"), true);
     assert.equal(stored.blurPreviewUrl.startsWith("/media/public/"), true);
+    assert.equal(fs.existsSync(path.join(dataDir, "media/public", `${stored.mediaId}-public.webp`)), false);
     assert.equal(filenameFromPrivateMediaUrl(stored.url) != null, true);
     assert.equal(fs.existsSync(stored.localPath), true);
     assert.equal(stored.publicRenditionUrl.includes("/media/private/"), false);

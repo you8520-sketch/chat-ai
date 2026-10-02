@@ -6,9 +6,12 @@ import { useRouter } from "next/navigation";
 import type { CharacterGender } from "@/lib/characterGender";
 import { GENDER_LABELS } from "@/lib/characterGender";
 import {
+  assignRepresentativeRanks,
+  countRepresentativeSelections,
   defaultAssetFlags,
   normalizeCharacterAssets,
   withAssetSize,
+  type CharacterAsset,
 } from "@/lib/characterAssets";
 import { measureImageUrl } from "@/lib/measureImageSize";
 import { isAssetHardRejected } from "@/lib/assetVisionPolicy";
@@ -202,6 +205,14 @@ export default function CreateCharacter({
     simulation_cast: "",
     simulation_rules: "",
   });
+  function persistLoadedAssets(list: CharacterAsset[]): CharacterAsset[] {
+    const normalized = normalizeCharacterAssets(list);
+    if (countRepresentativeSelections(normalized) > 0 || normalized.length === 0) {
+      return normalized;
+    }
+    return assignRepresentativeRanks(normalized, [0]);
+  }
+
   const [assets, setAssets] = useState<TaggedAsset[]>([]);
   const [visualSubjects, setVisualSubjects] = useState<VisualSubjectsDocument>(
     emptyVisualSubjectsDocument()
@@ -324,7 +335,7 @@ export default function CreateCharacter({
       narration_style_instructions: draft.form.narration_style_instructions ?? "",
     });
     setSimulationImports(Array.isArray(draft.simulationImports) ? draft.simulationImports : []);
-    setAssets(normalizeCharacterAssets(draft.assets));
+    setAssets(persistLoadedAssets(draft.assets));
     if (draft.visualSubjects) {
       setVisualSubjects({
         version: 1,
@@ -722,9 +733,7 @@ export default function CreateCharacter({
           simulation_rules: data.simulation_rules ?? "",
         });
         setSimulationImports(Array.isArray(data.simulation_imports) ? data.simulation_imports : []);
-        setAssets(
-          normalizeCharacterAssets(Array.isArray(data.assets) ? data.assets : []),
-        );
+        setAssets(persistLoadedAssets(Array.isArray(data.assets) ? data.assets : []));
         setVisualSubjects(
           data.visual_subjects
             ? {

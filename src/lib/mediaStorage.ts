@@ -29,6 +29,9 @@ export type MediaManifest = {
   uploadedBy: number;
   createdAt: string;
   contentType: string;
+  adultFlagged?: boolean;
+  moderationReject?: boolean;
+  moderationReason?: string;
 };
 
 export function mediaPrivateDir(): string {
@@ -55,13 +58,45 @@ export function publicMediaUrl(filename: string): string {
 }
 
 export function filenameFromPrivateMediaUrl(url: string): string | null {
-  if (!url.startsWith("/media/private/")) return null;
-  return sanitizeMediaFilename(url.slice("/media/private/".length));
+  const base = url.split("?")[0] ?? "";
+  if (!base.startsWith("/media/private/")) return null;
+  return sanitizeMediaFilename(base.slice("/media/private/".length));
 }
 
 export function filenameFromPublicMediaUrl(url: string): string | null {
   if (!url.startsWith("/media/public/")) return null;
   return sanitizeMediaFilename(url.slice("/media/public/".length));
+}
+
+export function isPublicBlurFilename(filename: string): boolean {
+  return filename.startsWith("legacy-blur-") || filename.endsWith("-blur.webp");
+}
+
+export function isPublicRenditionFilename(filename: string): boolean {
+  return filename.endsWith("-public.webp");
+}
+
+export function mediaIdFromPublicRenditionFilename(filename: string): string | null {
+  const safe = sanitizeMediaFilename(filename);
+  if (!safe || !isPublicRenditionFilename(safe)) return null;
+  const stem = safe.slice(0, -"-public.webp".length);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(stem)
+    ? stem
+    : null;
+}
+
+export async function ensureApprovedPublicRendition(mediaId: string): Promise<string | null> {
+  const publicName = `${mediaId}-public.webp`;
+  const existing = resolveExistingPublicMediaPath(publicName);
+  if (existing) return publicMediaUrl(publicName);
+  const privatePath = resolveExistingPrivateMediaPath(`${mediaId}.webp`);
+  if (!privatePath) return null;
+  const input = await fs.promises.readFile(privatePath);
+  await writeWebpRendition(input, path.join(mediaPublicDir(), publicName), {
+    maxEdge: PUBLIC_MAX_EDGE,
+    quality: 70,
+  });
+  return publicMediaUrl(publicName);
 }
 
 export function mediaIdFromPrivateFilename(filename: string): string | null {
@@ -92,6 +127,13 @@ export function readMediaManifest(filename: string): MediaManifest | null {
       uploadedBy,
       createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : "",
       contentType: typeof parsed.contentType === "string" ? parsed.contentType : "image/webp",
+      ...(typeof parsed.adultFlagged === "boolean" ? { adultFlagged: parsed.adultFlagged } : {}),
+      ...(typeof parsed.moderationReject === "boolean"
+        ? { moderationReject: parsed.moderationReject }
+        : {}),
+      ...(typeof parsed.moderationReason === "string" && parsed.moderationReason.trim()
+        ? { moderationReason: parsed.moderationReason.trim().slice(0, 200) }
+        : {}),
     };
   } catch {
     return null;
@@ -148,16 +190,13 @@ export async function storePrivateMedia(
   const localPath = path.join(privateDir, filename);
   const publicName = `${mediaId}-public.webp`;
   const blurName = `${mediaId}-blur.webp`;
-  const publicPath = path.join(publicDir, publicName);
   const blurPath = path.join(publicDir, blurName);
 
   await fs.promises.writeFile(localPath, body);
   try {
-    await writeWebpRendition(body, publicPath, { maxEdge: PUBLIC_MAX_EDGE, quality: 70 });
     await writeWebpRendition(body, blurPath, { maxEdge: BLUR_EDGE, quality: 36, blur: 16 });
   } catch (error) {
     await fs.promises.unlink(localPath).catch(() => undefined);
-    await fs.promises.unlink(publicPath).catch(() => undefined);
     await fs.promises.unlink(blurPath).catch(() => undefined);
     throw error;
   }
