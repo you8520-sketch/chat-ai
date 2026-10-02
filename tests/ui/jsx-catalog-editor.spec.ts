@@ -66,6 +66,8 @@ test("interactive component examples preview at 390px without chat calls", async
   await expect(nameInput).toHaveValue("QuestCardExample");
   await page.getByRole("button", { name: "컴파일 / 미리보기" }).click();
   await expect(page.getByText("내 컴포넌트 미리보기")).toBeVisible();
-  await expect(page.frameLocator('iframe[title="QuestCardExample"]').getByText("사라진 지도")).toBeVisible();
+  // The user changed the title before applying the example. The editor must
+  // preserve that override through save, later gallery browsing and recompilation.
+  await expect(page.frameLocator('iframe[title="QuestCardExample"]').getByText("새 의뢰")).toBeVisible();
   expect(providerCalls).toEqual([]);
 });

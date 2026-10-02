@@ -173,6 +173,37 @@ describe("admin finance GET reconciliation diagnose", () => {
       RECONCILIATION_REMOTE_UNVERIFIED
     );
     assert.equal(body.reconciliationRemoteCompare.remote.fetchStatus, "no_key");
+    assert.equal("apiKeyGroups" in body.reconciliationRemoteCompare, false);
+    const after = (
+      getDb().prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+    ).c;
+    assert.equal(after, before);
+  });
+
+  it("adds anonymous API-key groups only when keyGroups=1 is requested", async () => {
+    sessionToken = createSession(ADMIN_USER_ID);
+    const before = (
+      getDb().prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
+    ).c;
+    const response = await GET(
+      new Request(
+        "http://localhost/api/admin/finance?month=2026-10&diagnose=reconciliation-remote&keyGroups=1"
+      )
+    );
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as {
+      reconciliationRemoteCompare: {
+        apiKeyGroups?: {
+          productionKeyMapping: string;
+          totalsMatchRemoteSettled: boolean;
+        };
+      };
+    };
+    // A no-key remote read is unverified, not a successful empty grouping.
+    assert.equal(body.reconciliationRemoteCompare.apiKeyGroups, undefined);
+    const raw = JSON.stringify(body.reconciliationRemoteCompare);
+    assert.equal(raw.includes("api_key_name"), false);
+    assert.equal(raw.includes("api_key_id"), false);
     const after = (
       getDb().prepare("SELECT COUNT(*) AS c FROM api_cost_ledger").get() as { c: number }
     ).c;

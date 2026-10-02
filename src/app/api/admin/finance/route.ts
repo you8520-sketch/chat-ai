@@ -13,6 +13,7 @@ import {
 } from "@/lib/adminFinanceReconciliationDiagnose";
 import {
   RECONCILIATION_REMOTE_COMPARE_VALUE,
+  RECONCILIATION_REMOTE_KEY_GROUPS_PARAM,
   compareProviderReconciliationRemote,
 } from "@/lib/adminFinanceReconciliationRemoteCompare";
 import { getDb } from "@/lib/db";
@@ -35,7 +36,10 @@ export async function GET(req: Request) {
     if (diagnose === RECONCILIATION_REMOTE_COMPARE_VALUE) {
       const reconciliationRemoteCompare = await compareProviderReconciliationRemote(
         getDb(),
-        month
+        month,
+        {
+          includeKeyGroups: url.searchParams.get(RECONCILIATION_REMOTE_KEY_GROUPS_PARAM)?.trim() === "1",
+        }
       );
       assertReconciliationDiagnosisSafePayload(reconciliationRemoteCompare);
       return NextResponse.json({ summary, reconciliationRemoteCompare });
