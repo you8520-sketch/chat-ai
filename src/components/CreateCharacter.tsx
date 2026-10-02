@@ -497,7 +497,7 @@ export default function CreateCharacter({
     try {
       const fd = new FormData();
       batchFiles.forEach((file) => fd.append("files", file));
-      const up = await fetch("/api/upload", { method: "POST", body: fd });
+      const up = await fetch("/api/upload?purpose=character-asset", { method: "POST", body: fd });
       const upData = await up.json();
       if (!up.ok) {
         setError(upData.error || "에셋 업로드에 실패했습니다.");
@@ -507,6 +507,33 @@ export default function CreateCharacter({
       const uploadedUrls: string[] = Array.isArray(upData.urls)
         ? upData.urls.filter((url: unknown): url is string => typeof url === "string" && url.trim().length > 0)
         : [];
+      const uploadedMedia = new Map<
+        string,
+        { url: string; mediaId: string; publicRenditionUrl: string; blurPreviewUrl: string }
+      >(
+        (Array.isArray(upData.media) ? upData.media : [])
+          .filter((item: unknown): item is {
+            url: string;
+            mediaId: string;
+            publicRenditionUrl: string;
+            blurPreviewUrl: string;
+          } => {
+            if (!item || typeof item !== "object") return false;
+            const row = item as Record<string, unknown>;
+            return (
+              typeof row.url === "string" &&
+              typeof row.mediaId === "string" &&
+              typeof row.publicRenditionUrl === "string" &&
+              typeof row.blurPreviewUrl === "string"
+            );
+          })
+          .map((item: {
+            url: string;
+            mediaId: string;
+            publicRenditionUrl: string;
+            blurPreviewUrl: string;
+          }) => [item.url, item] as const)
+      );
       if (uploadedUrls.length === 0) {
         setError("업로드된 이미지 URL을 확인하지 못했습니다.");
         return;
@@ -566,6 +593,7 @@ export default function CreateCharacter({
       const measured = await Promise.all(uploadedUrls.map((url) => measureImageUrl(url)));
       const batch = uploadedUrls.map((url: string, i: number) => {
         const tagged = byUrl.get(url);
+        const stored = uploadedMedia.get(url);
         const size = measured[i];
         return withAssetSize(
           {
@@ -575,6 +603,13 @@ export default function CreateCharacter({
               ? { visualSubjectKey: options.visualSubjectKey }
               : {}),
             ...defaultAssetFlags(assets, i),
+            ...(stored
+              ? {
+                  mediaId: stored.mediaId,
+                  publicRenditionUrl: stored.publicRenditionUrl,
+                  blurPreviewUrl: stored.blurPreviewUrl,
+                }
+              : {}),
             ...(typeof tagged?.adultFlagged === "boolean" ? { adultFlagged: tagged.adultFlagged } : {}),
             ...(typeof tagged?.moderationReject === "boolean"
               ? { moderationReject: tagged.moderationReject }

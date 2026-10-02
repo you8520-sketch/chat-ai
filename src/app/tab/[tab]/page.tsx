@@ -19,6 +19,7 @@ import {
 } from "@/lib/characterRanking";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
+import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
 
 export const dynamic = "force-dynamic";
 
@@ -226,7 +227,7 @@ export default async function TabPage({
         rankedChars.length > 0 ? (
           <ol className="mt-6 space-y-2">
             {rankedChars.map((c, i) => {
-              const thumb = (JSON.parse(c.images || "[]") as string[])[0];
+              const thumb = getCharacterRepresentativeImageUrl(c.assets, c.images);
               const hidden = c.nsfw === 1 && blurNsfw;
               const href = characterCardHref({
                 characterId: c.id,

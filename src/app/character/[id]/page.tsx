@@ -17,7 +17,9 @@ import CharacterBookmarkBadge from "@/components/CharacterBookmarkBadge";
 import CreatorGiftPanel, { ACTION_ROW_BUTTON_CLASS } from "@/components/CreatorGiftPanel";
 
 import CharacterPublicPagePreview from "@/components/CharacterPublicPagePreview";
-import { getCharacterRepresentativeImageUrl, parseAssets } from "@/lib/characterAssets";
+import { getCharacterRepresentativeImageUrl, getCharacterRepresentativePublicUrls, parseAssets } from "@/lib/characterAssets";
+import { isAdminUser } from "@/lib/isAdminUser";
+import { projectAssetsForViewer } from "@/lib/mediaAccess";
 import ShareLinkBox from "@/components/ShareLinkBox";
 import CharacterStartRow from "@/components/CharacterStartRow";
 import ProfileCommentSection from "@/components/ProfileCommentSection";
@@ -118,11 +120,7 @@ export default async function CharacterPage({
   recordCharacterClick(db, user.id, c.id);
 
   const images: string[] = JSON.parse(c.images || "[]");
-  const galleryAssets = parseAssets((c as { assets?: string }).assets);
-  const assetImageUrls =
-    galleryAssets.length > 0
-      ? galleryAssets.map((a) => a.url)
-      : images;
+  const storedGalleryAssets = parseAssets((c as { assets?: string }).assets);
   const representativeImageUrl =
     getCharacterRepresentativeImageUrl((c as { assets?: string }).assets, c.images) ??
     images[0] ??
@@ -169,6 +167,13 @@ export default async function CharacterPage({
   });
 
   const isOwner = c.creator_id === user?.id;
+  const canSeeOriginals = isOwner || isAdminUser(user);
+  const galleryAssets = projectAssetsForViewer(storedGalleryAssets, { canSeeOriginals });
+  const assetImageUrls = canSeeOriginals
+    ? storedGalleryAssets.length > 0
+      ? storedGalleryAssets.map((asset) => asset.url)
+      : images
+    : getCharacterRepresentativePublicUrls((c as { assets?: string }).assets, c.images);
 
   const characterBranches =
     user != null ? fetchCharacterChatSessions(getDb(), user.id, c.id) : [];

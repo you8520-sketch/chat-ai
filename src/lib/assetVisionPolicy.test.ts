@@ -4,6 +4,7 @@ import {
   ASSET_VISION_REJECT_RULES,
   ASSET_VISION_REVIEW_RULES,
   buildAssetVisionPrompt,
+  canPublishAsRepresentative,
   isAssetHardRejected,
   isAssetNeedsAdminReview,
 } from "@/lib/assetVisionPolicy";
@@ -50,6 +51,12 @@ describe("assetVisionPolicy", () => {
       isAssetNeedsAdminReview({ adultFlagged: true, moderationReject: true }),
       false
     );
+  });
+
+  it("blocks nipple/genital rejects and uncertain review from representative publish", () => {
+    assert.equal(canPublishAsRepresentative({ moderationReject: true }).ok, false);
+    assert.equal(canPublishAsRepresentative({ adultFlagged: true }).ok, false);
+    assert.equal(canPublishAsRepresentative({}).ok, true);
   });
 });
 

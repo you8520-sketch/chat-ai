@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { getSessionUser } from "@/lib/auth";
 import { storeUpload } from "@/lib/uploadStorage";
+import { storePrivateMedia } from "@/lib/mediaStorage";
 import { optimizeUploadImage, UploadImageError } from "@/lib/uploadImageOptimize";
 
 const MAX_FILES = 100;
@@ -14,6 +15,9 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   if (!user.is_adult) return NextResponse.json({ error: "성인인증 후 업로드할 수 있습니다." }, { status: 403 });
 
+  const purpose = new URL(req.url).searchParams.get("purpose");
+  const storeAsPrivateCharacterAsset = purpose === "character-asset";
+
   const form = await req.formData();
   const files = form.getAll("files").filter((f): f is File => f instanceof File);
   if (files.length === 0) return NextResponse.json({ error: "파일이 없습니다." }, { status: 400 });
@@ -22,6 +26,12 @@ export async function POST(req: Request) {
   }
 
   const urls: string[] = [];
+  const media: Array<{
+    url: string;
+    mediaId: string;
+    publicRenditionUrl: string;
+    blurPreviewUrl: string;
+  }> = [];
   for (const file of files) {
     if (!ALLOWED.has(file.type)) {
       return NextResponse.json({ error: `지원하지 않는 형식입니다: ${file.name}` }, { status: 400 });
@@ -39,9 +49,20 @@ export async function POST(req: Request) {
       }
       return NextResponse.json({ error: `이미지를 처리할 수 없습니다: ${file.name}` }, { status: 400 });
     }
+    if (storeAsPrivateCharacterAsset) {
+      const stored = await storePrivateMedia(optimized.buffer, optimized.mime, user.id);
+      urls.push(stored.url);
+      media.push({
+        url: stored.url,
+        mediaId: stored.mediaId,
+        publicRenditionUrl: stored.publicRenditionUrl,
+        blurPreviewUrl: stored.blurPreviewUrl,
+      });
+      continue;
+    }
     const name = `${crypto.randomUUID()}.${optimized.ext}`;
     const stored = await storeUpload(name, optimized.buffer, optimized.mime);
     urls.push(stored.url);
   }
-  return NextResponse.json({ ok: true, urls });
+  return NextResponse.json({ ok: true, urls, ...(media.length > 0 ? { media } : {}) });
 }

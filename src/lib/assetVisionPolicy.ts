@@ -78,3 +78,24 @@ export function isAssetNeedsAdminReview(asset: {
 }): boolean {
   return asset.adultFlagged === true && asset.moderationReject !== true;
 }
+
+export type RepresentativePublishDecision = { ok: true } | { ok: false; reason: string };
+
+/**
+ * Public representative owner — distinct from all-ages upload reject.
+ * Hard-reject (nipples/genitals) and uncertain adultFlagged images cannot be
+ * issued as card representatives. Torso-only adult depictions that were not
+ * flagged may be selected; the vision reject rule already owns nipple exposure.
+ */
+export function canPublishAsRepresentative(asset: {
+  moderationReject?: boolean;
+  adultFlagged?: boolean;
+}): RepresentativePublishDecision {
+  if (isAssetHardRejected(asset)) {
+    return { ok: false, reason: "유두·성기·항문이 노출된 이미지는 대표로 지정할 수 없습니다." };
+  }
+  if (isAssetNeedsAdminReview(asset)) {
+    return { ok: false, reason: "검수 대기 이미지는 대표로 지정할 수 없습니다." };
+  }
+  return { ok: true };
+}

@@ -2,7 +2,8 @@ import { getDb } from "@/lib/db";
 import { resolveWorldSelectionForUser } from "@/lib/worldLibrary";
 import { parseWorldLibraryRef } from "@/lib/worlds";
 import type { CharacterAsset } from "@/lib/characterAssets";
-import { assetUrls, normalizeCharacterAssets } from "@/lib/characterAssets";
+import { isStoredAssetUrl, listingImageUrls, normalizeCharacterAssets } from "@/lib/characterAssets";
+import { canPublishAsRepresentative } from "@/lib/assetVisionPolicy";
 import { parseCharacterGender } from "@/lib/characterGender";
 import { buildSaveCharacterChunksAndEnqueueDerivedRefresh } from "@/lib/characterChunks";
 import {
@@ -246,6 +247,18 @@ function prepareVisualSubjectsForSave(opts: {
   }
 }
 
+function representativePublishError(assets: CharacterAsset[]): string | null {
+  const ranked = assets.filter((asset) => asset.representativeRank != null);
+  if (ranked.length > 5) {
+    return "대표 이미지는 최대 5장까지 지정할 수 있습니다.";
+  }
+  for (const asset of ranked) {
+    const decision = canPublishAsRepresentative(asset);
+    if (!decision.ok) return decision.reason;
+  }
+  return null;
+}
+
 function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
   if (!Array.isArray(rawAssets)) return [];
   const candidates = rawAssets
@@ -258,7 +271,7 @@ function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
       url: String(asset.url),
       tag: String(asset.tag).slice(0, 32),
     }))
-    .filter((asset) => asset.url.startsWith("/uploads/") || asset.url.startsWith("http"))
+    .filter((asset) => isStoredAssetUrl(asset.url))
     .slice(0, 100);
   return normalizeCharacterAssets(candidates);
 }
@@ -641,6 +654,11 @@ export function parseCharacterFormBody(
     return { ok: false, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
   }
 
+  const representativeError = representativePublishError(assets);
+  if (representativeError) {
+    return { ok: false, error: representativeError, status: 400 };
+  }
+
   return {
     ok: true,
     data: {
@@ -668,7 +686,7 @@ export function parseCharacterFormBody(
       primaryGenre: primaryCharacterGenre(genres),
       narrationStyleInstructions,
       assets,
-      images: assetUrls(assets),
+      images: listingImageUrls(assets),
       audience: ["all", "female", "male"].includes(String(b.audience)) ? String(b.audience) : "all",
       requestedVisibility: parseVisibility(b.visibility),
       nsfw,
@@ -1456,7 +1474,11 @@ export async function updateCharacterPublicProfileFromForm(
     participantMinAge,
     legacyExplicitStatus: parseExplicitAdultStatus(row.adult_status),
   });
-  const images = assetUrls(assets);
+  const representativeError = representativePublishError(assets);
+  if (representativeError) {
+    return { ok: false as const, error: representativeError, status: 400 };
+  }
+  const images = listingImageUrls(assets);
   const requestedVisibility = parseVisibility(b.visibility);
   const creatorComment = String(b.creator_comment ?? b.creatorComment ?? "").trim().slice(0, CREATOR_COMMENT_LIMIT);
   const listingBlock = listingBlockForForm({
