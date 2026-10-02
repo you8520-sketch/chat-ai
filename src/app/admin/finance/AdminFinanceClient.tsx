@@ -8,8 +8,13 @@ import type {
 } from "@/lib/adminFinance";
 import type { SchedulerRunOverview } from "@/lib/schedulerRunShared";
 import {
+  canClaimRecordedCostLossFloor,
   formatFinanceMarginRate,
   formatFinanceNetProfit,
+  formatLedgerRecordedCoverageCaption,
+  formatProviderReconciliationState,
+  formatRecordedActualAiCostKrw,
+  formatRecordedAiCostMetricLabel,
 } from "@/lib/adminFinanceMarginDisplay";
 import type {
   AdminHistoricalCorrelationCandidate,
@@ -299,6 +304,15 @@ export default function AdminFinanceClient({
     setMessage("저장했습니다.");
   }
 
+  const recognizedRevenueKrw =
+    summary.chat.paidRevenueKrw + summary.image.paidRevenueKrw + summary.giftFeeRevenueKrw;
+  const claimLossFloor = canClaimRecordedCostLossFloor({
+    recognizedRevenueKrw,
+    paymentsCollectedKrw: summary.paymentsCollectedKrw,
+    creatorPlatformRetainedKrw: summary.creatorPlatformRetainedKrw,
+    recordedActualAiCostKrw: summary.aiCost.totalActualKrw,
+  });
+  const ledgerCoverageCaption = formatLedgerRecordedCoverageCaption(summary.aiCost.coveragePct);
   const positive = summary.netProfitKrw != null && summary.netProfitKrw >= 0;
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 text-zinc-100">
@@ -310,7 +324,8 @@ export default function AdminFinanceClient({
           <h1 className="mt-2 text-2xl font-black">사이트 유지비 · 실제 수익률</h1>
           <p className="mt-1 text-sm text-zinc-500">
             유료 포인트만 매출로 계산하고 무료 포인트는 원가만 반영합니다.
-            순이익·수익률은 확정 원가 기준이며, AI 원가 커버리지를 함께 확인하세요.
+            최종 순이익은 원가가 모두 확정될 때만 표시합니다. 원장에 기록된 실제 AI 비용과
+            공급자 청구 대조는 별개입니다.
           </p>
         </div>
         <input
@@ -327,7 +342,7 @@ export default function AdminFinanceClient({
           value={profit(
             summary.netProfitKrw,
             summary.marginCoverage,
-            summary.chat.paidRevenueKrw + summary.image.paidRevenueKrw + summary.giftFeeRevenueKrw
+            recognizedRevenueKrw
           )}
           tone={summary.netProfitKrw == null ? "normal" : positive ? "good" : "bad"}
         />
@@ -336,14 +351,19 @@ export default function AdminFinanceClient({
           value={rate(
             summary.marginRate,
             summary.marginCoverage,
-            summary.chat.paidRevenueKrw + summary.image.paidRevenueKrw + summary.giftFeeRevenueKrw
+            recognizedRevenueKrw
           )}
           tone={summary.marginRate == null ? "normal" : positive ? "good" : "bad"}
         />
         <Metric label="실제 결제 유입" value={won(summary.paymentsCollectedKrw)} />
         <Metric label="유료 포인트 사용 매출" value={won(summary.paidPointsConsumed)} />
         <Metric
-          label={`전체 AI 원가${summary.aiCost.coveragePct == null ? "" : ` · 실제확정 ${summary.aiCost.coveragePct}%`}`}
+          label={formatRecordedAiCostMetricLabel(claimLossFloor)}
+          value={formatRecordedActualAiCostKrw(summary.aiCost.totalActualKrw)}
+          tone={summary.aiCost.totalActualKrw > 0 ? "bad" : "normal"}
+        />
+        <Metric
+          label={`전체 AI 원가${ledgerCoverageCaption ? ` · ${ledgerCoverageCaption}` : ""}`}
           value={won(summary.aiCost.totalKrw)}
         />
         <Metric label="무료 포인트 사용" value={`${summary.freePointsConsumed.toLocaleString()}P`} />
@@ -351,6 +371,12 @@ export default function AdminFinanceClient({
         <Metric label="Railway 총비용" value={won(summary.railwayCostKrw)} />
         <Metric label="선물 수수료 수익" value={won(summary.giftFeeRevenueKrw)} />
       </section>
+      {claimLossFloor ? (
+        <p className="mt-3 text-xs text-zinc-500">
+          현재 기록 기준 최소 손실은 내부 원장에 기록된 실제 AI 비용입니다. 추정 원가와
+          아직 연결되지 않은 공급자 지출은 포함하지 않으며, 실제 지출이 더 클 수 있습니다.
+        </p>
+      ) : null}
 
       <section className="mt-6 rounded-2xl border border-sky-500/20 bg-sky-950/10 p-5">
         <div className="flex flex-wrap items-end justify-between gap-2">
@@ -691,19 +717,22 @@ export default function AdminFinanceClient({
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
         <h2 className="font-bold">AI 실제 원가</h2>
         <p className="mt-1 text-xs text-zinc-500">
-          provider 확정 원가 우선 · 추정 fallback 분리 · 미분류 포함 ·{" "}
+          내부 원장에 기록된 실제 비용과 공급자 청구 대조는 별개입니다. 원장 기록 확정
+          비율은 로컬 원장 행의 정확성이며, 공급자 청구 완전성이 아닙니다.{" "}
+          {formatProviderReconciliationState(summary.providerReconciliation)}
+          {" · "}
           {summary.aiCost.lastRecordedAt
             ? `최근 기록 ${summary.aiCost.lastRecordedAt}`
             : "기록 없음"}
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
           <div><p className="text-zinc-500">전체 실제 원가</p><p className="mt-1 font-bold">{won(summary.aiCost.totalKrw)}</p></div>
-          <div><p className="text-zinc-500">실제 확정</p><p className="mt-1 font-bold">{won(summary.aiCost.totalActualKrw)}</p></div>
+          <div><p className="text-zinc-500">내부 원장에 기록된 실제 AI 비용</p><p className="mt-1 font-bold">{won(summary.aiCost.totalActualKrw)}</p></div>
           <div><p className="text-zinc-500">추정 fallback</p><p className="mt-1 font-bold">{won(summary.aiCost.estimatedFallbackKrw)}</p></div>
           <div><p className="text-zinc-500">미분류</p><p className="mt-1 font-bold">{won(summary.aiCost.unattributedKrw)} ({summary.aiCost.unattributedCalls.toLocaleString()}회)</p></div>
           <div><p className="text-zinc-500">총 호출</p><p className="mt-1 font-bold">{summary.aiCost.calls.toLocaleString()}회</p></div>
           <div><p className="text-zinc-500">입력 / 출력 토큰</p><p className="mt-1 font-bold">{summary.aiCost.inputTokens.toLocaleString()} / {summary.aiCost.outputTokens.toLocaleString()}</p></div>
-          <div><p className="text-zinc-500">실제 원가 커버리지</p><p className="mt-1 font-bold">{summary.aiCost.coveragePct == null ? "기록 없음" : `${summary.aiCost.coveragePct}%`}</p></div>
+          <div><p className="text-zinc-500">원장 기록 확정 비율</p><p className="mt-1 font-bold">{summary.aiCost.coveragePct == null ? "기록 없음" : `${summary.aiCost.coveragePct}%`}</p></div>
           <div><p className="text-zinc-500">환율</p><p className="mt-1 font-bold">₩{Math.round(summary.exchangeRateKrwPerUsd).toLocaleString()}/USD</p></div>
         </div>
         <h3 className="mt-5 text-sm font-bold text-zinc-300">기능별 AI 원가</h3>
