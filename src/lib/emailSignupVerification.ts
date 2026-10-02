@@ -121,6 +121,19 @@ export function isPendingEmailSignupExpired(pending: Pick<PendingRow, "expires_a
   return !Number.isFinite(expiresAt) || expiresAt <= now;
 }
 
+const emailSignupRequestTails = new Map<string, Promise<void>>();
+
+function withEmailSignupRequestLock<T>(email: string, work: () => Promise<T>): Promise<T> {
+  const previous = emailSignupRequestTails.get(email) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(work);
+  const released = next.then(
+    () => undefined,
+    () => undefined
+  );
+  emailSignupRequestTails.set(email, released);
+  return next;
+}
+
 export function inspectEmailSignupToken(
   rawToken: string,
   deps?: { now?: number }
@@ -178,58 +191,122 @@ export async function requestEmailSignup(
     return { ok: false, status: 503, error: TRANSACTIONAL_EMAIL_ORIGIN_UNVERIFIED_MESSAGE };
   }
 
-  const db = getDb();
-  ensureEmailSignupSchema(db);
-  const existingUser = db.prepare("SELECT id FROM users WHERE lower(email) = ?").get(email);
-  if (existingUser) {
-    return { ok: false, status: 409, error: EMAIL_SIGNUP_EXISTS_MESSAGE };
-  }
-
-  const now = deps?.now ?? Date.now();
-  const pending = findPendingEmailSignup(email);
-  const expired = pending ? isPendingEmailSignupExpired(pending, now) : false;
-
-  if (pending && !expired) {
-    if (pending.send_count >= EMAIL_SIGNUP_MAX_SENDS) {
-      return { ok: false, status: 429, error: EMAIL_SIGNUP_RESEND_LIMIT_MESSAGE };
+  return withEmailSignupRequestLock(email, async () => {
+    const db = getDb();
+    ensureEmailSignupSchema(db);
+    const existingUser = db.prepare("SELECT id FROM users WHERE lower(email) = ?").get(email);
+    if (existingUser) {
+      return { ok: false, status: 409, error: EMAIL_SIGNUP_EXISTS_MESSAGE };
     }
-    const lastSent = Date.parse(pending.last_sent_at);
-    if (Number.isFinite(lastSent) && now - lastSent < EMAIL_SIGNUP_RESEND_COOLDOWN_MS) {
+
+    const now = deps?.now ?? Date.now();
+    const pending = findPendingEmailSignup(email);
+    const expired = pending ? isPendingEmailSignupExpired(pending, now) : false;
+
+    if (pending && !expired) {
+      if (pending.send_count >= EMAIL_SIGNUP_MAX_SENDS) {
+        return { ok: false, status: 429, error: EMAIL_SIGNUP_RESEND_LIMIT_MESSAGE };
+      }
+      const lastSent = Date.parse(pending.last_sent_at);
+      if (Number.isFinite(lastSent) && now - lastSent < EMAIL_SIGNUP_RESEND_COOLDOWN_MS) {
+        return { ok: false, status: 429, error: EMAIL_SIGNUP_RESEND_COOLDOWN_MESSAGE };
+      }
+    }
+
+    const token = createEmailSignupToken();
+    const mail = buildSignupVerificationEmail({
+      nickname,
+      verifyUrl: buildEmailVerificationUrl(origin, token.raw),
+    });
+    const sendMail = deps?.sendMail ?? sendTransactionalEmail;
+    const sent = await sendMail({ to: email, ...mail });
+    if (!sent.ok) {
+      return { ok: false, status: 503, error: sent.error || TRANSACTIONAL_EMAIL_SEND_FAILED_MESSAGE };
+    }
+
+    const expiresAt = new Date(now + EMAIL_SIGNUP_TOKEN_TTL_MS).toISOString();
+    const lastSentAt = new Date(now).toISOString();
+    const sendCount = pending && !expired ? pending.send_count + 1 : 1;
+    const pwHash = hashPassword(password);
+    const expectedHash = pending && !expired ? pending.token_hash : null;
+    const written = commitPendingEmailSignup({
+      email,
+      nickname,
+      pwHash,
+      pref: storedPref,
+      tokenHash: token.hash,
+      expiresAt,
+      sendCount,
+      lastSentAt,
+      expectedHash,
+    });
+    if (!written) {
       return { ok: false, status: 429, error: EMAIL_SIGNUP_RESEND_COOLDOWN_MESSAGE };
     }
-  }
 
-  const token = createEmailSignupToken();
-  const mail = buildSignupVerificationEmail({
-    nickname,
-    verifyUrl: buildEmailVerificationUrl(origin, token.raw),
+    return { ok: true, pending: true, email };
   });
-  const sendMail = deps?.sendMail ?? sendTransactionalEmail;
-  const sent = await sendMail({ to: email, ...mail });
-  if (!sent.ok) {
-    return { ok: false, status: 503, error: sent.error || TRANSACTIONAL_EMAIL_SEND_FAILED_MESSAGE };
+}
+
+function commitPendingEmailSignup(input: {
+  email: string;
+  nickname: string;
+  pwHash: string;
+  pref: EmailSignupPref;
+  tokenHash: string;
+  expiresAt: string;
+  sendCount: number;
+  lastSentAt: string;
+  expectedHash: string | null;
+}): boolean {
+  const db = getDb();
+  if (input.expectedHash) {
+    const updated = db
+      .prepare(
+        `UPDATE pending_email_signups
+         SET nickname = ?, pw_hash = ?, pref = ?, token_hash = ?, expires_at = ?, send_count = ?, last_sent_at = ?
+         WHERE email = ? AND token_hash = ?`
+      )
+      .run(
+        input.nickname,
+        input.pwHash,
+        input.pref,
+        input.tokenHash,
+        input.expiresAt,
+        input.sendCount,
+        input.lastSentAt,
+        input.email,
+        input.expectedHash
+      );
+    return Number(updated.changes ?? 0) === 1;
   }
 
-  const expiresAt = new Date(now + EMAIL_SIGNUP_TOKEN_TTL_MS).toISOString();
-  const lastSentAt = new Date(now).toISOString();
-  const sendCount = pending && !expired ? pending.send_count + 1 : 1;
-  const pwHash = hashPassword(password);
-
-  db.prepare(
-    `INSERT INTO pending_email_signups
-       (email, nickname, pw_hash, pref, token_hash, expires_at, send_count, last_sent_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(email) DO UPDATE SET
-       nickname = excluded.nickname,
-       pw_hash = excluded.pw_hash,
-       pref = excluded.pref,
-       token_hash = excluded.token_hash,
-       expires_at = excluded.expires_at,
-       send_count = excluded.send_count,
-       last_sent_at = excluded.last_sent_at`
-  ).run(email, nickname, pwHash, storedPref, token.hash, expiresAt, sendCount, lastSentAt);
-
-  return { ok: true, pending: true, email };
+  const inserted = db
+    .prepare(
+      `INSERT INTO pending_email_signups
+         (email, nickname, pw_hash, pref, token_hash, expires_at, send_count, last_sent_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(email) DO UPDATE SET
+         nickname = excluded.nickname,
+         pw_hash = excluded.pw_hash,
+         pref = excluded.pref,
+         token_hash = excluded.token_hash,
+         expires_at = excluded.expires_at,
+         send_count = excluded.send_count,
+         last_sent_at = excluded.last_sent_at
+       WHERE pending_email_signups.expires_at <= excluded.last_sent_at`
+    )
+    .run(
+      input.email,
+      input.nickname,
+      input.pwHash,
+      input.pref,
+      input.tokenHash,
+      input.expiresAt,
+      input.sendCount,
+      input.lastSentAt
+    );
+  return Number(inserted.changes ?? 0) === 1;
 }
 
 export function confirmEmailSignup(

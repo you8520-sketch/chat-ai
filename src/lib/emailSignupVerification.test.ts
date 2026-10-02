@@ -315,6 +315,78 @@ describe("email signup verification", () => {
     assert.equal(confirmEmailSignup(raw).ok, false);
   });
 
+  it("does not keep two live mailed tokens when two resends race", async () => {
+    const now = 80_000;
+    let initialToken = "";
+    const first = await requestEmailSignup(
+      { email: "race@example.com", nickname: "경합", password: "secret1", pref: "all" },
+      signupRequest(),
+      {
+        now,
+        sendMail: async (payload) => {
+          initialToken = tokenFromMail(payload);
+          return { ok: true };
+        },
+      }
+    );
+    assert.equal(first.ok, true);
+
+    const mailed: string[] = [];
+    const sendMail = async (payload: { text: string }) => {
+      mailed.push(tokenFromMail(payload));
+      await Promise.resolve();
+      return { ok: true };
+    };
+    const resendNow = now + EMAIL_SIGNUP_RESEND_COOLDOWN_MS + 1;
+    const input = { email: "race@example.com", nickname: "경합", password: "secret1", pref: "all" };
+    const [left, right] = await Promise.all([
+      requestEmailSignup(input, signupRequest(), { now: resendNow, sendMail }),
+      requestEmailSignup(input, signupRequest(), { now: resendNow, sendMail }),
+    ]);
+
+    const oks = [left, right].filter((result) => result.ok);
+    const fails = [left, right].filter((result) => !result.ok);
+    assert.equal(oks.length, 1);
+    assert.equal(fails.length, 1);
+    if (!fails[0].ok) {
+      assert.equal(fails[0].status, 429);
+    }
+    assert.equal(mailed.length, 1);
+    const pending = findPendingEmailSignup("race@example.com")!;
+    assert.equal(pending.send_count, 2);
+    assert.equal(inspectEmailSignupToken(mailed[0], { now: resendNow }).ok, true);
+    assert.equal(inspectEmailSignupToken(initialToken, { now: resendNow }).ok, false);
+    assert.equal(
+      mailed.filter((token) => inspectEmailSignupToken(token, { now: resendNow }).ok).length,
+      1
+    );
+  });
+
+  it("does not keep two live mailed tokens when two first signups race", async () => {
+    const mailed: string[] = [];
+    const sendMail = async (payload: { text: string }) => {
+      mailed.push(tokenFromMail(payload));
+      await Promise.resolve();
+      return { ok: true };
+    };
+    const now = 12_000;
+    const input = { email: "first-race@example.com", nickname: "최초", password: "secret1", pref: "all" };
+    const [left, right] = await Promise.all([
+      requestEmailSignup(input, signupRequest(), { now, sendMail }),
+      requestEmailSignup(input, signupRequest(), { now, sendMail }),
+    ]);
+    const oks = [left, right].filter((result) => result.ok);
+    const fails = [left, right].filter((result) => !result.ok);
+    assert.equal(oks.length, 1);
+    assert.equal(fails.length, 1);
+    if (!fails[0].ok) {
+      assert.equal(fails[0].status, 429);
+    }
+    assert.equal(mailed.length, 1);
+    assert.equal(findPendingEmailSignup("first-race@example.com")!.send_count, 1);
+    assert.equal(inspectEmailSignupToken(mailed[0], { now }).ok, true);
+  });
+
   it("rejects signup for an existing member email", async () => {
     getDb()
       .prepare("INSERT INTO users (email, nickname, pw_hash, points) VALUES (?, ?, 'x', 0)")
