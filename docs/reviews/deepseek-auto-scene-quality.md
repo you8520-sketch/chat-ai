@@ -6,10 +6,10 @@
 
 ## BEFORE
 
-대표 실패 후보는 PR #1329에 이미 있는 두 원문이다. 둘 다 같은 production 조립의 DeepSeek V4.1 Flash 자동진행 1회다. 배포 라이크 (`id=18`), 관리자 페르소나 렌, NORMAL, 빈 장기 기억, 직전 비트 `창문 쪽에 같이 서 있자.` / `라이크는 유리에 이마를 기대며 하품했다.` · `졸려. 너는 그대로 있어.` 이 조사는 그 원문을 다시 생성하지 않았다. 같은 sha256을 이 브랜치에 복사해 둔다.
+대표 실패 후보는 PR #1329에 이미 있는 두 원문이다. 둘 다 같은 production 조립의 DeepSeek V4.1 Flash 자동진행 1회다. 배포 라이크 (`id=18`), 관리자 페르소나 렌, NORMAL, 빈 장기 기억, 직전 비트 `창문 쪽에 같이 서 있자.` / `라이크는 유리에 이마를 기대며 하품했다.` · `졸려. 너는 그대로 있어.` 이 조사는 그 원문을 다시 생성하지 않았다. 동일 원문은 Draft PR #1329의 정확한 커밋에 한 벌만 보존하고, 본 문서는 그 커밋 고정 원문을 참조한다. 이번 감사에서는 해당 파일의 내용과 sha256을 바꾸지 않았다.
 
-- [SCENE-DIRECTIVE-1.txt](deepseek-auto-scene-quality/raw/SCENE-DIRECTIVE-1.txt) `1be0cc0500b1a7771480ea93ef9f8e690faabb8d397660abc9e9ac04c82c4f75`, 3,202자
-- [SCENE-DIRECTIVE-2.txt](deepseek-auto-scene-quality/raw/SCENE-DIRECTIVE-2.txt) `395304f23e7940ac3e9537fc0caaafca8769ad7ac9ea286cf28cfd10b4ac1140`, 4,186자
+- [SCENE-DIRECTIVE-1.txt](https://github.com/you8520-sketch/chat-ai/blob/b22cb67714b8b3e1ff52be33d84d5b44e74d4d09/docs/reviews/phase3d/raw/SCENE-DIRECTIVE-1.txt) `1be0cc0500b1a7771480ea93ef9f8e690faabb8d397660abc9e9ac04c82c4f75`, 3,202자
+- [SCENE-DIRECTIVE-2.txt](https://github.com/you8520-sketch/chat-ai/blob/b22cb67714b8b3e1ff52be33d84d5b44e74d4d09/docs/reviews/phase3d/raw/SCENE-DIRECTIVE-2.txt) `395304f23e7940ac3e9537fc0caaafca8769ad7ac9ea286cf28cfd10b4ac1140`, 4,186자
 
 같은 커밋에서 그 요청을 다시 조립했다. 모션은 `MICRO_MOTION`, reason은 비어 있고, 전개 축은 `environment`다. NPC grounding은 `existingNpcEligible: false`, `newNpcAllowed: false`, `eligibleActorNames: []`, `sources: ["none"]`이다. cast는 `single_primary`, 발화 중심은 라이크다.
 
@@ -132,7 +132,7 @@ Production 변경이 없다.
 ## PROOF
 
 - `origin/main` `1b7813c7690028d9dabd25ec09d955a01d3250bf`에서 `npx tsx --conditions=react-server /tmp/auto-scene-quality-audit.ts`를 다시 실행했다. 모션 `MICRO_MOTION`, 전개 `environment`, NPC grounding 전부 불허, 시스템 16,192, 캐시 4,034 / 9,738 / 2,418, 정본 이름 횟수는 위와 같다.
-- 원문 sha256은 PR #1329의 SCENE-DIRECTIVE-1, SCENE-DIRECTIVE-2와 같다.
+- 원문은 위 PR #1329 exact-commit 링크를 원본으로 사용하며, 각 sha256은 위에 기록된 값과 같다.
 - `git diff`에 `src/` 변경은 없다.
 
 ## FOLLOW-UP
