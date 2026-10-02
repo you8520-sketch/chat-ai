@@ -358,7 +358,8 @@ describe("auto progression prompt content", () => {
     );
     assert.match(built.systemPrompt, /속마음·내면 독백/);
     assert.match(built.systemPrompt, /해설·결론으로 되짚기보다 다음 반응·행동·환경·관계 변화로 이어간다/);
-    assert.match(built.systemPrompt, /표정·시선·호흡·습관·접촉·거리·행동·선택으로 드러내고/);
+    assert.match(built.systemPrompt, /현재 장면에 필요한 단서를 골라 드러내고/);
+    assert.doesNotMatch(built.systemPrompt, /표정·시선·호흡·습관·접촉·거리·행동·선택으로 드러내고/);
     assert.doesNotMatch(built.systemPrompt, /never to \[B\] inner POV/i);
     assert.doesNotMatch(built.systemPrompt, /Do not narrate \[B\]'s inner thoughts/i);
     assert.doesNotMatch(built.systemPrompt, /\[B\]의 머릿속으로 들어가 서술하지 않는다/);
