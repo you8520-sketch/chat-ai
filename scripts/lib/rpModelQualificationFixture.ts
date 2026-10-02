@@ -134,6 +134,30 @@ function unwrapPersona(identitySection: string): string {
   return identitySection.slice(idx + marker.length).trim();
 }
 
+export type RpQualificationExampleLiteralMode = "raw" | "strip_literals";
+
+/**
+ * Research-only provenance arm.
+ * Removes literal example utterances while preserving all surrounding canon,
+ * personality, register descriptions, and preferences. Production default is raw.
+ */
+export function stripCharacterExampleDialogueLiterals(text: string): string {
+  return text
+    .replace(
+      /\n?\[예시\s*(?:대사|대화)\]\s*\n[\s\S]*?(?=\n\[[^\]\n]+\]|$)/giu,
+      "\n"
+    )
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export function stripPersonaInlineExampleDialogueLiterals(text: string): string {
+  return text
+    .replace(/\(\s*예시\s*대사\s*:[^)]*\)/giu, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
 export type CanonicalRpQualificationFixture = {
   characterSetting: string;
   persona: string;
@@ -318,15 +342,25 @@ export function buildCanonicalRpQualificationContextInput(opts: {
   caseData: CanonicalQualificationCase;
   provider?: "cheaperinference" | "openrouter";
   rootDir?: string;
+  exampleLiteralMode?: RpQualificationExampleLiteralMode;
 }): ContextBuildInput {
   const f = loadCanonicalRpQualificationFixture(opts.rootDir ?? process.cwd());
+  const exampleLiteralMode = opts.exampleLiteralMode ?? "raw";
+  const characterSetting =
+    exampleLiteralMode === "strip_literals"
+      ? stripCharacterExampleDialogueLiterals(f.characterSetting)
+      : f.characterSetting;
+  const persona =
+    exampleLiteralMode === "strip_literals"
+      ? stripPersonaInlineExampleDialogueLiterals(f.persona)
+      : f.persona;
   const chunk: CharacterChunk = {
     id: "canonical-rp-qualification-character-10",
     characterId: String(CANONICAL_RP_QUALIFICATION_SOURCE.sourceCharacterId),
-    content: f.characterSetting,
+    content: characterSetting,
     category: "identity",
     importance: "CRITICAL",
-    tokenCount: Math.ceil(f.characterSetting.length / 4),
+    tokenCount: Math.ceil(characterSetting.length / 4),
     keywords: ["라이크", "조태형", "렌"],
   };
 
@@ -336,7 +370,7 @@ export function buildCanonicalRpQualificationContextInput(opts: {
     chunks: [chunk],
     personaDisplayName: CANONICAL_RP_QUALIFICATION_SOURCE.personaName,
     userNickname: CANONICAL_RP_QUALIFICATION_SOURCE.personaName,
-    userPersona: f.persona,
+    userPersona: persona,
     userPersonaGender: CANONICAL_RP_QUALIFICATION_SOURCE.personaGender,
     gender: "male",
     shortTermHistory: opts.caseData.history,

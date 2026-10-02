@@ -12,6 +12,8 @@ import {
   STANDARD_INTERACTIVE_REVIEW_EXAMPLES,
   buildCanonicalRpQualificationCases,
   buildCanonicalRpQualificationContextInput,
+  stripCharacterExampleDialogueLiterals,
+  stripPersonaInlineExampleDialogueLiterals,
   loadCanonicalRpQualificationFixture,
 } from "./rpModelQualificationFixture";
 
