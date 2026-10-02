@@ -26,8 +26,18 @@ export const ADVANCED_STATUS_WIDGET_CHOICES: Array<{
   label: string;
   desc: string;
 }> = [
-  { id: "html", label: "HTML 직접제작", desc: "HTML로 표현만 바꿉니다" },
-  { id: "jsx", label: "JSX 직접제작", desc: "상태값이 props로 전달됩니다" },
+  { id: "html", label: "HTML 직접 제작", desc: "HTML로 표현만 바꿉니다" },
+  { id: "jsx", label: "JSX 직접 제작", desc: "상태값이 props로 전달됩니다" },
+];
+
+export type StatusWidgetAuthoringSurface = "basic" | "direct";
+
+export const STATUS_WIDGET_AUTHORING_SURFACES: Array<{
+  id: StatusWidgetAuthoringSurface;
+  label: string;
+}> = [
+  { id: "basic", label: "기본 제작" },
+  { id: "direct", label: "직접 제작" },
 ];
 
 function stripFieldInitialValues(widget: StatusWidget): StatusWidget {
@@ -122,6 +132,46 @@ export function applyStatusWidgetAuthoringChoice(
       return _never;
     }
   }
+}
+
+export function statusWidgetAuthoringSurface(
+  choice: StatusWidgetAuthoringChoice
+): StatusWidgetAuthoringSurface {
+  switch (choice) {
+    case "html":
+    case "jsx":
+      return "direct";
+    case "clean":
+    case "compact":
+      return "basic";
+    default: {
+      const _never: never = choice;
+      return _never;
+    }
+  }
+}
+
+/** Tab to open for a stored widget. Looking at the other tab does not call this again. */
+export function initialStatusWidgetAuthoringSurface(
+  widget: StatusWidget
+): StatusWidgetAuthoringSurface {
+  return statusWidgetAuthoringSurface(detectStatusWidgetAuthoringChoice(widget));
+}
+
+/**
+ * True only when an explicit design/mode choice would drop custom JSX or custom HTML.
+ * Switching the basic/direct tab is not a choice and must not call this.
+ */
+export function authoringChoiceDiscardsPresentation(
+  widget: StatusWidget,
+  choice: StatusWidgetAuthoringChoice
+): boolean {
+  const next = applyStatusWidgetAuthoringChoice(widget, choice);
+  const jsxLost = Boolean(widget.jsxSource?.trim()) && !next.jsxSource?.trim();
+  const htmlLost =
+    detectStatusWidgetAuthoringChoice(widget) === "html" &&
+    next.htmlTemplate !== widget.htmlTemplate;
+  return jsxLost || htmlLost;
 }
 
 export function resetStatusWidgetAuthoring(): StatusWidget {
