@@ -28,16 +28,61 @@ describe("safety filter boundary owners", () => {
     assert.doesNotMatch(verify, /UPDATE users SET is_adult = 1, real_name/);
   });
 
-  it("listings and chat reuse the same access owner", () => {
+  it("listings, detail, and chat reuse the admin-only access owner", () => {
+    const owner = read("./adultVerification.ts");
     const home = read("../app/page.tsx");
     const search = read("../app/search/page.tsx");
     const ranking = read("../app/tab/[tab]/page.tsx");
+    const character = read("../app/character/[id]/page.tsx");
+    const chatPage = read("../app/chat/[id]/page.tsx");
     const chat = read("../app/api/chat/route.ts");
     const settings = read("../app/api/settings/route.ts");
+    const verifyPage = read("../app/verify/page.tsx");
+    const homeSections = read("./homeSections.ts");
+    assert.match(owner, /Existing admin privilege only/);
+    assert.doesNotMatch(owner, /if \(effectiveIsAdult\(user\.is_adult\)\) return true;/);
     assert.match(home, /shouldHideAdultListings\(user\)/);
     assert.match(search, /shouldHideAdultListings\(user\)/);
     assert.match(ranking, /shouldHideAdultListings\(user\)/);
+    assert.match(homeSections, /if \(blurNsfw\) conds.push\(`\$\{colPrefix\}nsfw=0`\)/);
+    assert.match(search, /if \(blurNsfw\) conds.push\("nsfw=0"\)/);
+    assert.match(character, /canAccessAdultContent\(user\)/);
+    assert.match(chatPage, /canAccessAdultContent\(user\)/);
     assert.match(chat, /canAccessAdultContent\(user\)/);
     assert.match(settings, /canAccessAdultContent\(user\)/);
+    assert.match(verifyPage, /canAccessAdultContent\(user\)/);
+    assert.doesNotMatch(verifyPage, /effectiveIsAdult/);
+    assert.doesNotMatch(character, /effectiveIsAdult|user\.is_adult/);
+    assert.doesNotMatch(chatPage, /effectiveIsAdult|user\.is_adult/);
+    assert.doesNotMatch(chat, /effectiveIsAdult|user\.is_adult/);
+    assert.doesNotMatch(settings, /effectiveIsAdult|user\.is_adult/);
+  });
+
+  it("authoring keeps canUseCreatorTools so stored is_adult still opens studio, not listings", () => {
+    const owner = read("./adultVerification.ts");
+    const studio = read("../app/studio/page.tsx");
+    const create = read("../app/create/page.tsx");
+    const formSave = read("./characterFormSave.ts");
+    const upload = read("../app/api/upload/route.ts");
+    assert.match(owner, /export function canUseCreatorTools/);
+    assert.match(studio, /canUseCreatorTools\(user\)/);
+    assert.match(create, /canUseCreatorTools\(user\)/);
+    assert.match(formSave, /canUseCreatorTools\(user\)/);
+    assert.match(upload, /canUseCreatorTools\(user\)/);
+    assert.doesNotMatch(studio, /if \(!canAccessAdultContent\(user\)\)/);
+    assert.doesNotMatch(formSave, /if \(!canAccessAdultContent\(user\)\)/);
+  });
+
+  it("public /uploads GET is unauthenticated and must not be described as secret", () => {
+    const serve = read("../app/uploads/[filename]/route.ts");
+    const store = read("./uploadStorage.ts");
+    const upload = read("../app/api/upload/route.ts");
+    const card = read("../components/CharacterCard.tsx");
+    assert.doesNotMatch(serve, /getSessionUser|canAccessAdultContent|isAdminUser/);
+    assert.match(serve, /Cache-Control": "public/);
+    assert.match(store, /access: "public"/);
+    assert.match(upload, /canUseCreatorTools\(user\)/);
+    assert.match(card, /hidden \? "blur-md"/);
+    assert.match(card, /src=\{thumb\}/);
   });
 });

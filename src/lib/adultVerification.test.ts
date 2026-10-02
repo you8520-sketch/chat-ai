@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
+import { characterCardHref } from "./chatLinks";
 import {
   canAccessAdultContent,
+  canUseCreatorTools,
   effectiveIsAdult,
   isAdultVerificationSkipped,
   shouldHideAdultListings,
@@ -38,7 +40,7 @@ afterEach(() => {
 });
 
 describe("adult verification owners", () => {
-  it("skip remains observable but does not grant stored verification", () => {
+  it("skip remains observable but does not grant stored verification or adult access", () => {
     clearAccessEnv();
     process.env.SKIP_ADULT_VERIFICATION = "1";
     process.env.NEXT_PUBLIC_PAYMENTS_ENABLED = "0";
@@ -48,6 +50,46 @@ describe("adult verification owners", () => {
     assert.equal(
       canAccessAdultContent({ email: "member@example.com", is_adult: 0, is_admin: 0 }),
       false
+    );
+  });
+
+  it("legacy mock-verified non-admin row cannot open adult listings or routes", () => {
+    clearAccessEnv();
+    const legacyMock = {
+      email: "legacy-mock@example.com",
+      is_adult: 1 as const,
+      is_admin: 0 as const,
+      nsfw_on: 1 as const,
+    };
+    assert.equal(effectiveIsAdult(legacyMock.is_adult), true);
+    assert.equal(canAccessAdultContent(legacyMock), false);
+    assert.equal(shouldHideAdultListings(legacyMock), true);
+    assert.equal(canUseCreatorTools(legacyMock), true);
+    assert.equal(legacyMock.is_adult === 1 && !canAccessAdultContent(legacyMock), true);
+    assert.equal(
+      characterCardHref({
+        characterId: 99,
+        nsfw: true,
+        blurNsfw: shouldHideAdultListings(legacyMock),
+        loggedIn: true,
+      }),
+      "/verify?redirect=%2Fcharacter%2F99"
+    );
+  });
+
+  it("creator tools stay open for stored adult and existing admin, not for regular members", () => {
+    clearAccessEnv();
+    assert.equal(
+      canUseCreatorTools({ email: "member@example.com", is_adult: 0, is_admin: 0 }),
+      false
+    );
+    assert.equal(
+      canUseCreatorTools({ email: "admin@example.com", is_adult: 0, is_admin: 1 }),
+      true
+    );
+    assert.equal(
+      canUseCreatorTools({ email: "legacy-mock@example.com", is_adult: 1, is_admin: 0 }),
+      true
     );
   });
 
@@ -78,6 +120,6 @@ describe("adult verification owners", () => {
     assert.equal(shouldHideAdultListings(null), true);
     assert.equal(shouldHideAdultListings({ email: "a@b.c", is_adult: 0, is_admin: 0, nsfw_on: 1 }), true);
     assert.equal(shouldHideAdultListings({ email: "a@b.c", is_adult: 1, is_admin: 0, nsfw_on: 0 }), true);
-    assert.equal(shouldHideAdultListings({ email: "a@b.c", is_adult: 1, is_admin: 0, nsfw_on: 1 }), false);
+    assert.equal(shouldHideAdultListings({ email: "a@b.c", is_adult: 1, is_admin: 0, nsfw_on: 1 }), true);
   });
 });
