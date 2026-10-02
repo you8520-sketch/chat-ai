@@ -4,8 +4,8 @@ export const ATTENDANCE_DAY_REWARDS = [250, 250, 300, 300, 350, 350, 400] as con
 export const ATTENDANCE_DAY7_BONUS = 400;
 export const ATTENDANCE_CYCLE_DAYS = 7;
 export const ATTENDANCE_TIMEZONE = "Asia/Seoul";
-/** 출석 포인트 유효기간 — 적립 기준 30일 */
-export const ATTENDANCE_POINTS_VALID_DAYS = 30;
+/** 출석 포인트 유효기간 — 신규 적립 기준 21일. 기존 원장 만료일은 바꾸지 않는다. */
+export const ATTENDANCE_POINTS_VALID_DAYS = 21;
 
 /** @deprecated 일차별 보상 사용 — 하위 호환용 1일차 금액 */
 export const DAILY_ATTENDANCE_REWARD = ATTENDANCE_DAY_REWARDS[0];

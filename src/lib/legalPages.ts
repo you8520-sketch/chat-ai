@@ -1,3 +1,17 @@
+import { ATTENDANCE_POINTS_VALID_DAYS } from "@/lib/attendanceConstants";
+import {
+  BUSINESS_INDUSTRY,
+  BUSINESS_REGISTRATION_NUMBER,
+  SERVICE_PUBLIC_DOMAIN,
+  SERVICE_PUBLIC_NAME,
+} from "@/lib/businessIdentity";
+import {
+  formatPointChargePackagePublicLine,
+  FREE_POINTS_VALID_YEARS,
+  PAID_POINTS_VALID_YEARS,
+  POINT_CHARGE_CANCEL_DAYS,
+  POINT_CHARGE_PACKAGES,
+} from "@/lib/plans";
 import { SITE_DESCRIPTION, SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
 /** Single public set of legal links. Footer is the only renderer. */
@@ -6,7 +20,15 @@ export const PUBLIC_LEGAL_LINKS = [
   { href: "/terms", label: "이용약관" },
 ] as const;
 
-export const LEGAL_DOCUMENT_AS_OF = "2026-09-29";
+export const LEGAL_DOCUMENT_AS_OF = "2026-10-02";
+
+const POINT_CHARGE_PRODUCT_PARAGRAPHS = [
+  "포인트 상품은 아래 5종입니다. 결제 기능이 꺼져 있어도 상품 정보는 공개합니다.",
+  ...POINT_CHARGE_PACKAGES.map(formatPointChargePackagePublicLine),
+  "서비스 제공 방식: 결제가 완료되면 해당 계정에 유료 포인트와 충전 보너스 무료 포인트를 즉시 적립하고, 대화 등 서비스 이용 시 포인트를 차감합니다.",
+  `유료 포인트와 충전 보너스 무료 포인트의 유효기간은 지급일로부터 ${PAID_POINTS_VALID_YEARS}년입니다. 일반 무료 포인트의 유효기간도 ${FREE_POINTS_VALID_YEARS}년입니다.`,
+  `출석 포인트의 유효기간은 지급일로부터 ${ATTENDANCE_POINTS_VALID_DAYS}일입니다. 그 밖의 출석 보상 금액은 현재 정책을 유지합니다.`,
+] as const;
 
 export type LegalSection = {
   heading: string;
@@ -112,10 +134,29 @@ export const TERMS_PAGE = {
       ],
     },
     {
+      heading: "사업자 정보",
+      paragraphs: [
+        `서비스명: ${SERVICE_PUBLIC_NAME} (${SERVICE_PUBLIC_DOMAIN})`,
+        `사업자등록번호: ${BUSINESS_REGISTRATION_NUMBER}`,
+        `업종: ${BUSINESS_INDUSTRY}`,
+      ],
+    },
+    {
+      heading: "포인트 상품",
+      paragraphs: POINT_CHARGE_PRODUCT_PARAGRAPHS,
+    },
+    {
       heading: "포인트와 성인 콘텐츠",
       paragraphs: [
-        "포인트 충전은 서버의 결제 설정이 켜져 있고 PortOne 설정이 있을 때만 진행됩니다. 설정이 꺼져 있으면 충전 요청은 거절됩니다.",
+        "포인트 충전은 서버의 결제 설정이 켜져 있고 PortOne 설정이 있을 때만 진행됩니다. 설정이 꺼져 있으면 충전 요청은 거절됩니다. 상품 공개와 실제 결제 활성화는 별개입니다.",
         "성인 확인이 필요한 환경에서는 앱 안의 입력 화면으로 나이를 확인합니다. 설정에 따라 이 확인은 생략될 수 있습니다.",
+      ],
+    },
+    {
+      heading: "결제 취소",
+      paragraphs: [
+        `결제 취소는 충전 후 ${POINT_CHARGE_CANCEL_DAYS}일 이내이고, 해당 충전으로 지급된 유료 포인트와 충전 보너스 무료 포인트를 사용하지 않은 경우에만 PortOne 결제 취소로 처리합니다.`,
+        `포인트 사용기간(${PAID_POINTS_VALID_YEARS}년)과 결제 취소 지원기간(${POINT_CHARGE_CANCEL_DAYS}일)은 다릅니다.`,
       ],
     },
     {
