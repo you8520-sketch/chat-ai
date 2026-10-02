@@ -127,8 +127,11 @@ export default function QuestCardExample(props) {
   const [open, setOpen] = useState(false);
   const title = String(props.title || "의뢰");
   const objective = String(props.objective || "단서를 확인한다");
-  const step = Math.max(1, Number(props.step) || 1);
-  const total = Math.max(step, Number(props.totalSteps) || 1);
+  // AI-provided numeric props must never produce unbounded rendered arrays.
+  const requestedStep = Number(props.step);
+  const requestedTotal = Number(props.totalSteps);
+  const step = Math.max(1, Math.min(20, Number.isFinite(requestedStep) ? Math.floor(requestedStep) : 1));
+  const total = Math.max(step, Math.min(20, Number.isFinite(requestedTotal) ? Math.floor(requestedTotal) : 1));
   const detail = String(props.detail || "");
   const marks = [];
   for (let index = 0; index < total; index += 1) {

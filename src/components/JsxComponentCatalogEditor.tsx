@@ -120,6 +120,10 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
     setError("");
     setPreview(result.preview);
     setSuggested(result.preview ? suggestJsxPropNamesFromCompiled(result.preview.compiled) : []);
+    // An explicit successful editor compile returns the preview to the user's
+    // component, even when an unrelated gallery example was being browsed.
+    setPreviewOwner("saved");
+    setBrowsingId(null);
     onChange(result.catalog);
     return true;
   }
@@ -159,10 +163,7 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
     setSource(example.source);
     setProps(nextProps);
     setPendingApply(false);
-    const applied = applyDraft(example.name, example.source, nextProps);
-    if (!applied) return;
-    setPreviewOwner("saved");
-    setBrowsingId(null);
+    applyDraft(example.name, example.source, nextProps);
   }
 
   function requestApplyExample(example: CreatorJsxExample) {

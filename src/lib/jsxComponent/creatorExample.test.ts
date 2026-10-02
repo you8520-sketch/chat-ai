@@ -63,6 +63,11 @@ describe("creator JSX example", () => {
       assert.notEqual(example.props[0]!.example, "바꾼값");
     }
     assert.equal(names.size, 4);
+    const quest = CREATOR_JSX_EXAMPLES.find((example) => example.id === "quest");
+    assert.ok(quest);
+    assert.match(quest!.source, /Number\.isFinite\(requestedTotal\)/);
+    assert.match(quest!.source, /Math\.min\(20,.*requestedTotal/);
+    assert.match(quest!.source, /Math\.min\(20,.*requestedStep/);
     assert.doesNotMatch(readFileSync("src/lib/jsxComponent/prompt.ts", "utf8"), /creatorExample|CREATOR_JSX_EXAMPLES/);
   });
 
