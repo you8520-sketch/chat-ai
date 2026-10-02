@@ -18,6 +18,7 @@ import {
   findPendingEmailSignup,
   hashEmailSignupToken,
   inspectEmailSignupToken,
+  getEmailSignupRequestLockCount,
   requestEmailSignup,
 } from "@/lib/emailSignupVerification";
 import { authenticatePasswordLogin } from "@/lib/passwordLogin";
@@ -44,6 +45,11 @@ function tokenFromMail(payload: { text: string }): string {
   const match = payload.text.match(/token=([a-f0-9]+)/i);
   assert.ok(match?.[1]);
   return match[1];
+}
+
+async function flushEmailSignupLocks(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 describe("email signup verification", () => {
@@ -385,6 +391,57 @@ describe("email signup verification", () => {
     assert.equal(mailed.length, 1);
     assert.equal(findPendingEmailSignup("first-race@example.com")!.send_count, 1);
     assert.equal(inspectEmailSignupToken(mailed[0], { now }).ok, true);
+  });
+
+  it("forgets finished email locks and keeps a waiting successor lock", async () => {
+    const now = 90_000;
+    const input = { email: "lock@example.com", nickname: "잠금", password: "secret1", pref: "all" };
+    await requestEmailSignup(input, signupRequest(), { now, sendMail: async () => ({ ok: true }) });
+    await flushEmailSignupLocks();
+    assert.equal(getEmailSignupRequestLockCount(), 0);
+
+    let releaseCurrent: (() => void) | undefined;
+    let currentEntered = 0;
+    let successorEntered = 0;
+    const holdCurrent = new Promise<void>((resolve) => {
+      releaseCurrent = resolve;
+    });
+    const resendNow = now + EMAIL_SIGNUP_RESEND_COOLDOWN_MS + 1;
+    const current = requestEmailSignup(input, signupRequest(), {
+      now: resendNow,
+      sendMail: async () => {
+        currentEntered += 1;
+        await holdCurrent;
+        return { ok: true };
+      },
+    });
+    while (currentEntered === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    assert.equal(getEmailSignupRequestLockCount(), 1);
+
+    const successor = requestEmailSignup(input, signupRequest(), {
+      now: resendNow,
+      sendMail: async () => {
+        successorEntered += 1;
+        return { ok: true };
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(currentEntered, 1);
+    assert.equal(successorEntered, 0);
+    assert.equal(getEmailSignupRequestLockCount(), 1);
+
+    releaseCurrent!();
+    const [currentResult, successorResult] = await Promise.all([current, successor]);
+    await flushEmailSignupLocks();
+    assert.equal(currentResult.ok, true);
+    assert.equal(successorResult.ok, false);
+    if (!successorResult.ok) {
+      assert.equal(successorResult.status, 429);
+    }
+    assert.equal(successorEntered, 0);
+    assert.equal(getEmailSignupRequestLockCount(), 0);
   });
 
   it("rejects signup for an existing member email", async () => {

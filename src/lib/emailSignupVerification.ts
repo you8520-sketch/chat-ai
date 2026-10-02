@@ -121,7 +121,12 @@ export function isPendingEmailSignupExpired(pending: Pick<PendingRow, "expires_a
   return !Number.isFinite(expiresAt) || expiresAt <= now;
 }
 
+/** In-process only: same-email signup requests on one Node process. */
 const emailSignupRequestTails = new Map<string, Promise<void>>();
+
+export function getEmailSignupRequestLockCount(): number {
+  return emailSignupRequestTails.size;
+}
 
 function withEmailSignupRequestLock<T>(email: string, work: () => Promise<T>): Promise<T> {
   const previous = emailSignupRequestTails.get(email) ?? Promise.resolve();
@@ -131,6 +136,11 @@ function withEmailSignupRequestLock<T>(email: string, work: () => Promise<T>): P
     () => undefined
   );
   emailSignupRequestTails.set(email, released);
+  void released.then(() => {
+    if (emailSignupRequestTails.get(email) === released) {
+      emailSignupRequestTails.delete(email);
+    }
+  });
   return next;
 }
 
