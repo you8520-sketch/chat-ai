@@ -244,6 +244,7 @@ function classify(
 
   const confirmedLedgerIdsAbsent =
     remote.settledCount > 0 &&
+    local.ledgerInWindow.rows > 0 &&
     ledgerIdsAbsentInWindow &&
     match.remoteSettledMatchedLedgerAny === 0 &&
     !timezoneBoundaryCandidate;
@@ -270,11 +271,25 @@ export async function compareProviderReconciliationRemote(
 ): Promise<ProviderReconciliationRemoteCompare> {
   const local = loadLocalReconciliationCompareSnapshot(db, monthKey);
   const fetchRequests = deps.fetchRequests ?? fetchAllUsageRequests;
+  // The shared usage client caps each request at 15s; add a single 30s
+  // deadline across ALL pages so an admin diagnostic cannot occupy a server
+  // worker for 8 x 15s while the upstream is slow.
+  const deadlineMs = Date.now() + 30_000;
+  const baseFetch = deps.fetchImpl ?? fetch;
+  const boundedFetch: UsageFetcher = (input, init) => {
+    const remainingMs = deadlineMs - Date.now();
+    if (remainingMs <= 0) return Promise.reject(new Error("remote_compare_deadline_exceeded"));
+    const budgetSignal = AbortSignal.timeout(remainingMs);
+    const signal = init?.signal
+      ? AbortSignal.any([init.signal, budgetSignal])
+      : budgetSignal;
+    return baseFetch(input, { ...init, signal });
+  };
   const fetched = await fetchRequests({
     startAt: sqlDateTimeToIso(local.windowStart),
     endAt: sqlDateTimeToIso(local.windowEnd),
     maxPages: REMOTE_COMPARE_MAX_PAGES,
-    fetchImpl: deps.fetchImpl,
+    fetchImpl: boundedFetch,
   });
 
   let remote = emptyRemote("ok");
