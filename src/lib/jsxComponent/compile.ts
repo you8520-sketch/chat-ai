@@ -1,6 +1,7 @@
 import { transform } from "sucrase";
 import { analyzeJsxCapabilities } from "./capabilities";
-import { JSX_COMPILED_MAX_CHARS, JSX_SOURCE_MAX_CHARS } from "./limits";
+import { JSX_COMPILED_MAX_CHARS, JSX_PROP_MAX, JSX_SOURCE_MAX_CHARS } from "./limits";
+import { normalizeJsxPropDefinition } from "./manifest";
 import type { JsxCompileResult } from "./types";
 
 const FORBIDDEN = [
@@ -75,4 +76,30 @@ return __comp;`;
     capabilities,
     chatSend: capabilities.includes("chat_send"),
   };
+}
+
+const COMPILED_PROP_DOT = /\bprops\.([A-Za-z_][A-Za-z0-9_]*)/g;
+const COMPILED_PROP_BRACKET = /\bprops\[\s*(['"])([A-Za-z_][A-Za-z0-9_]*)\1\s*\]/g;
+
+/**
+ * Names the existing compiler left as static `props.name` / `props["name"]` reads.
+ * Destructuring, computed keys, and types are not inferred.
+ */
+export function suggestJsxPropNamesFromCompiled(compiled: string): string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  function add(raw: string) {
+    if (names.length >= JSX_PROP_MAX || seen.has(raw)) return;
+    const prop = normalizeJsxPropDefinition({ name: raw, type: "string", required: false });
+    if (!prop || seen.has(prop.name)) return;
+    seen.add(prop.name);
+    names.push(prop.name);
+  }
+  for (const match of compiled.matchAll(COMPILED_PROP_DOT)) {
+    if (match[1]) add(match[1]);
+  }
+  for (const match of compiled.matchAll(COMPILED_PROP_BRACKET)) {
+    if (match[2]) add(match[2]);
+  }
+  return names;
 }

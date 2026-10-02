@@ -108,6 +108,110 @@ export function findJsxComponent(
   return catalog.find((component) => component.name === name) ?? null;
 }
 
+export type JsxCatalogDraftInput = {
+  name: string;
+  source: string;
+  props: JsxPropDefinition[];
+};
+
+export function jsxCatalogEditableFingerprint(
+  input: { name: string; source: string; props: JsxPropDefinition[] } | null
+): string {
+  if (!input) return "";
+  const props = input.props
+    .filter((prop) => prop.name.trim() || prop.example?.trim() || prop.description?.trim())
+    .map((prop) => ({
+      name: prop.name,
+      type: prop.type,
+      required: prop.required === true,
+      example: prop.example ?? "",
+      description: prop.description ?? "",
+    }));
+  if (!input.name.trim() && !input.source.trim() && props.length === 0) return "";
+  return JSON.stringify({
+    name: input.name.trim(),
+    source: input.source.trim(),
+    props,
+  });
+}
+
+const EMPTY_JSX_CATALOG_DRAFT: JsxCatalogDraftInput = { name: "", source: "", props: [] };
+
+export function hydrateJsxCatalogEditorState(input: {
+  appliedSavedFingerprint: string;
+  draft: JsxCatalogDraftInput;
+  saved: JsxComponentRecord | null;
+}): { appliedSavedFingerprint: string; draft: JsxCatalogDraftInput; hydrated: boolean } {
+  const nextFingerprint = jsxCatalogEditableFingerprint(
+    input.saved
+      ? { name: input.saved.name, source: input.saved.source, props: input.saved.props }
+      : null
+  );
+  if (nextFingerprint === input.appliedSavedFingerprint) {
+    return {
+      appliedSavedFingerprint: input.appliedSavedFingerprint,
+      draft: input.draft,
+      hydrated: false,
+    };
+  }
+  const draftFingerprint = jsxCatalogEditableFingerprint(input.draft);
+  const emptyFingerprint = jsxCatalogEditableFingerprint(EMPTY_JSX_CATALOG_DRAFT);
+  const draftMatchesPrevious =
+    draftFingerprint === input.appliedSavedFingerprint ||
+    (input.appliedSavedFingerprint === "" && draftFingerprint === emptyFingerprint);
+  if (!draftMatchesPrevious) {
+    return {
+      appliedSavedFingerprint: nextFingerprint,
+      draft: input.draft,
+      hydrated: false,
+    };
+  }
+  return {
+    appliedSavedFingerprint: nextFingerprint,
+    draft: input.saved
+      ? {
+          name: input.saved.name,
+          source: input.saved.source,
+          props: input.saved.props.map((prop) => ({ ...prop })),
+        }
+      : { ...EMPTY_JSX_CATALOG_DRAFT },
+    hydrated: true,
+  };
+}
+
+/**
+ * Compile a catalog draft without discarding the last saved catalog.
+ * A failed compile leaves `catalog` untouched. Success replaces the editor's
+ * single saved slot with the new record.
+ */
+export function resolveJsxCatalogDraft(
+  saved: JsxComponentRecord[],
+  draft: JsxCatalogDraftInput
+): {
+  catalog: JsxComponentRecord[];
+  error: string;
+  preview: JsxComponentRecord | null;
+  unsaved: boolean;
+} {
+  const savedHead = saved[0] ?? null;
+  const unsaved =
+    jsxCatalogEditableFingerprint(
+      savedHead
+        ? { name: savedHead.name, source: savedHead.source, props: savedHead.props }
+        : null
+    ) !== jsxCatalogEditableFingerprint(draft);
+  const result = compileJsxComponentDraft(draft);
+  if (!result.ok) {
+    return { catalog: saved, error: result.error, preview: null, unsaved };
+  }
+  return {
+    catalog: [result.record],
+    error: "",
+    preview: result.record,
+    unsaved: false,
+  };
+}
+
 export function compileJsxComponentDraft(input: {
   name: string;
   source: string;
