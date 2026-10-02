@@ -9,7 +9,6 @@ import {
 } from "@/lib/adminFinanceReconciliationDiagnose";
 import {
   RECONCILIATION_REMOTE_UNVERIFIED,
-  RECONCILIATION_ROOT_CAUSE_CONFIRMED,
   compareProviderReconciliationRemote,
 } from "@/lib/adminFinanceReconciliationRemoteCompare";
 import {
@@ -179,9 +178,29 @@ describe("admin finance reconciliation remote compare", () => {
       assert.equal(result.match.remoteSettledMatchedLedgerAny, 0);
       assert.equal(result.evidence.ledgerIdsAbsentInWindow, true);
       assert.equal(result.evidence.backgroundRowsExplainNoIdLedger, true);
-      assert.equal(result.evidence.classification, RECONCILIATION_ROOT_CAUSE_CONFIRMED);
+      // Local absence of IDs is proven; remote-only usage may coexist, so the
+      // underlying provider-spend discrepancy is NOT causally resolved.
+      assert.equal(result.evidence.classification, RECONCILIATION_ROOT_CAUSE_UNCONFIRMED);
       assert.equal(result.evidence.confirmedMechanism, "LEDGER_REQUEST_IDS_ABSENT");
+      assert.ok(result.evidence.requiredToConfirm.length > 0);
       assertNoSecrets(result, ["remote-only-bg"]);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("does not mistake external-only settled spend for a confirmed local ledger root cause", async () => {
+    const d = db();
+    try {
+      const result = await compare(d, {
+        requests: [settled("external-workspace-call", 100_000, "2026-10-02 01:00:00")],
+      });
+      assert.equal(result.localLedgerInWindow.rows, 0);
+      assert.equal(result.evidence.ledgerIdsAbsentInWindow, true);
+      assert.equal(result.match.remoteSettledMatchedLedgerAny, 0);
+      assert.equal(result.evidence.remoteOnlyCandidate, true);
+      assert.equal(result.evidence.classification, RECONCILIATION_ROOT_CAUSE_UNCONFIRMED);
+      assertNoSecrets(result, ["external-workspace-call"]);
     } finally {
       d.close();
     }
