@@ -34,7 +34,9 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     }
     assert.match(block, /해체\(-다\/-했다\)/);
     assert.match(block, /표정·시선·호흡·습관·접촉·거리·행동·선택/);
-    assert.match(block, /뜻이었다/);
+    assert.match(block, /해설·결론으로 되짚기보다 다음 반응·행동·환경·관계 변화로 이어간다/);
+    assert.match(block, /평범한 동작은 줄인다/);
+    assert.doesNotMatch(block, /손·손가락·시선 같은 신체 앵커/);
     assert.match(block, /설정 설명 없이/);
     assert.doesNotMatch(block, /\[EMOTION & INNER EXPERIENCE\]/);
     assert.doesNotMatch(block, /\[NO POST-HOC VERDICT\]/);
