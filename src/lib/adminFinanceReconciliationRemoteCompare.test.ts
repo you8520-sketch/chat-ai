@@ -200,6 +200,8 @@ describe("admin finance reconciliation remote compare", () => {
       assert.equal(result.match.remoteSettledMatchedLedgerAny, 0);
       assert.equal(result.evidence.remoteOnlyCandidate, true);
       assert.equal(result.evidence.classification, RECONCILIATION_ROOT_CAUSE_UNCONFIRMED);
+      assert.equal(result.evidence.confirmedMechanism, null);
+      assert.ok(result.evidence.requiredToConfirm.length > 0);
       assertNoSecrets(result, ["external-workspace-call"]);
     } finally {
       d.close();
@@ -351,6 +353,34 @@ describe("admin finance reconciliation remote compare", () => {
       assert.equal(after.c, before.c);
       assert.equal(after.s, before.s);
       assert.equal(afterFinance.totalApiCostKrw, beforeFinance.totalApiCostKrw);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("adds an overall abort budget to the existing per-page usage client signal", async () => {
+    const d = db();
+    const source = new AbortController();
+    let sawBudget = false;
+    try {
+      const result = await compareProviderReconciliationRemote(d, "2026-10", {
+        fetchImpl: async (_input, init) => {
+          assert.ok(init?.signal);
+          assert.notEqual(init.signal, source.signal);
+          assert.equal(init.signal.aborted, false);
+          source.abort();
+          assert.equal(init.signal.aborted, true);
+          sawBudget = true;
+          return new Response("{}", { status: 200 });
+        },
+        fetchRequests: async (opts) => {
+          assert.ok(opts.fetchImpl);
+          await opts.fetchImpl!("https://example.invalid/fixture", { signal: source.signal });
+          return { ok: true, value: { pages: 1, requests: [] } };
+        },
+      });
+      assert.equal(sawBudget, true);
+      assert.equal(result.remote.fetchStatus, "ok");
     } finally {
       d.close();
     }
