@@ -96,9 +96,14 @@ Production 프롬프트 시스템이나 새 owner를 만들지 않았다. 기존
 |---|---:|---:|---:|
 | `COMMON_PROSE_BLOCK` 글자 | 665 | 648 | −17 |
 | `COMMON_PROSE_BLOCK` `estimateTokens` | 599 | 584 | −15 |
-| 시스템 (6모델 공통, 빈 정본 fixture) | DeepSeek 6,404 / 그 외 6,346 | 6,389 / 6,331 | −15 |
+| `prose-style-xml-bundle` | 1,185 | 1,170 | −15 |
+| `deepseek-v4.1-flash` 시스템 | 6,398 | 6,382 | −16 |
+| `gemini-3.1-pro-preview` 시스템 | 6,492 | 6,477 | −15 |
+| `gemini-3.7-flash` / `gemini-3.8-flash` / `gpt-5.6-terra` / `claude-opus-5.5` 시스템 | 6,216 | 6,201 | −15 |
 
-선택 가능한 6모델 모두에서 공용 문체 블록을 빼면 나머지 시스템 문자열이 같다. 길이 문장은 유저 턴에 1회다. `prose-style-xml-bundle`은 1,170이다. 이전 같은 fixture의 1,185에서 블록 −15와 맞다.
+DeepSeek 시스템만 −16인 이유는 `estimateTokens`가 `ceil(chars × 0.9)`라서 큰 문자열에서 올림이 한 칸 밀리기 때문이다. 블록 자체는 −15다.
+
+선택 가능한 6모델 모두에서 공용 문체 블록을 빼면 나머지 시스템 문자열이 같다. 길이 문장은 유저 턴에 1회다. `prose-style-xml-bundle`은 1,170이다. 같은 빈 정본 fixture에서 블록 −15와 맞다.
 
 DeepSeek 실제 라이크 정본 경로에서는 이 블록이 캐시 character 구간에 들어간다. 이번 문장 변경은 그 prefix를 무효화한다. 캐시 경계 구조는 바꾸지 않았다.
 
