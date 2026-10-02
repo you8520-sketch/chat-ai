@@ -19,7 +19,8 @@ export const BUSINESS_ITEM = "응용 소프트웨어 개발 및 공급업";
 export const BUSINESS_TAX_TYPE = "일반과세자";
 export const BUSINESS_OPERATING_STATUS = "휴업";
 
-export const BUSINESS_CUSTOMER_SERVICE_EMAIL = null;
+/** Official business/contact email supplied by the operator; inbound delivery to verify separately. */
+export const BUSINESS_CUSTOMER_SERVICE_EMAIL = "admin@hav.chat";
 export const BUSINESS_CUSTOMER_SERVICE_PHONE = null;
 export const BUSINESS_MAIL_ORDER_REPORT_NUMBER = null;
 
@@ -41,7 +42,7 @@ export const BUSINESS_IDENTITY_VERIFICATION = {
   taxType: "confirmed",
   operatingStatus: "confirmed",
   phoneNumber: "unverified",
-  customerServiceEmail: "unverified",
+  customerServiceEmail: "confirmed",
   mailOrderReportNumber: "unverified",
 } as const satisfies Record<string, BusinessFieldVerification>;
 
@@ -57,4 +58,5 @@ export const BUSINESS_PUBLIC_LINES = [
   `과세유형 ${BUSINESS_TAX_TYPE}`,
   `사업장 ${BUSINESS_ADDRESS}`,
   `사업자 상태 ${BUSINESS_OPERATING_STATUS}`,
+  `고객센터 이메일 ${BUSINESS_CUSTOMER_SERVICE_EMAIL}`,
 ] as const;
