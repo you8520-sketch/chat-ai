@@ -91,7 +91,9 @@ function readEndpoint(item: Record<string, unknown>): string | null {
 
 function readApiKeyId(item: Record<string, unknown>): string | null {
   const id = item.api_key_id ?? item.apiKeyId ?? item.key_id;
-  return typeof id === "string" && id.trim() ? id.trim() : null;
+  if (typeof id === "string" && id.trim()) return id.trim();
+  if (typeof id === "number" && Number.isFinite(id)) return String(id);
+  return null;
 }
 
 function extractItems(payload: unknown): unknown[] | null {

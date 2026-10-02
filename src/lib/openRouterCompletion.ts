@@ -121,6 +121,19 @@ export function resolveOpenRouterCompletionTimeoutMs(requestKind?: string): numb
   return 120_000;
 }
 
+/**
+ * Current non-streaming header owner. Reads the generic request-id headers
+ * only. Do not treat this as the desired contract; a separate writer-alignment
+ * patch owns CI-specific header alignment.
+ */
+export function readCompatibleCompletionProviderRequestId(
+  headers: Headers
+): string | null {
+  const requestId =
+    headers.get("x-request-id") ?? headers.get("x-openrouter-request-id");
+  return requestId?.trim() || null;
+}
+
 function ledgerContextForPhysicalAttempt(
   base: ProviderCostLedgerContext,
   physicalAttemptOrdinal: number,
@@ -440,7 +453,7 @@ export async function callOpenRouterCompletion(opts: {
     debugRawUsage: data.usage,
     usageReportingEvidence: parsedUsage.reportingEvidence,
   };
-  const providerRequestId = res.headers.get("x-request-id") ?? res.headers.get("x-openrouter-request-id");
+  const providerRequestId = readCompatibleCompletionProviderRequestId(res.headers);
   const physicalOrdinal =
     usedProvider === "openrouter" && useCheaperInference && isDeepSeekPrimaryCheaperInferenceModel(model)
       ? 2
