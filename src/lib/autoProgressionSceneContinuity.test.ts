@@ -32,6 +32,7 @@ const NORMAL: CurrentTurnAuthoringDelegation = {
   duration: "persistent",
 };
 
+/** Reduced delivery card. Not the deployed 라이크 canon. */
 const canonChunk: CharacterChunk = {
   id: "canon",
   characterId: "18",
@@ -42,29 +43,42 @@ const canonChunk: CharacterChunk = {
   keywords: ["숙소"],
 };
 
-type ContinuityFlags = {
-  locationResetToIsolation: boolean;
-  personaReintroduced: boolean;
-  personaDropped: boolean;
+type ContinuityAssessment = {
+  /** Prior beat names no room. A later place name is an observation, not an error. */
+  openingNamesAPlace: boolean;
+  /** The name 렌 is absent. Distinct from the persona leaving the scene. */
+  personaNameAbsent: boolean;
+  /** The text says the already-present persona vanished. */
+  personaPhysicallyRemoved: boolean;
+  /** Already-present 렌 is written as a new arrival, with no move in between. */
+  reintroducedAsNewArrival: boolean;
 };
 
+function isDefinitiveContinuityError(assessment: ContinuityAssessment): boolean {
+  return assessment.personaPhysicallyRemoved || assessment.reintroducedAsNewArrival;
+}
+
 /**
- * Test oracle for recorded auto-continue outputs. Not a runtime rewriter.
- * A new NPC arrival is not a flag. Isolation counts only when the opening
- * already places the scene there. 오렌지 does not count as the persona 렌.
+ * Classifies recorded auto-continue samples. Not a production rewriter.
+ * The prior beat names no room, so isolation, a dorm, or a corridor is not
+ * an error by itself. A missing name is not physical disappearance.
+ * 오렌지 does not count as the persona 렌. An explicit move and a new NPC
+ * stay outside the two error flags.
  */
-function assessAutoSceneContinuation(prior: string, output: string): ContinuityFlags {
+function assessAutoSceneContinuation(prior: string, output: string): ContinuityAssessment {
   const opening = output.slice(0, OPENING_CHARS);
-  const personaInOutput = PERSONA.test(output);
-  const personaInOpening = PERSONA.test(opening);
+  const place = /격리실|코드 블랙|숙소|복도|챔버/;
+  const arrivalAt = output.search(/오늘이 배치 첫날|배치 첫날입니다|처음 들어왔|막 도착했/);
+  const beforeArrival = arrivalAt >= 0 ? output.slice(0, arrivalAt) : output;
   return {
-    locationResetToIsolation:
-      !/격리실|코드 블랙/.test(prior) && /격리실|코드 블랙/.test(opening),
-    personaReintroduced:
-      personaInOutput &&
-      !personaInOpening &&
-      /오늘이 배치 첫날|배치 첫날입니다/.test(output),
-    personaDropped: !personaInOutput,
+    openingNamesAPlace: !place.test(prior) && place.test(opening),
+    personaNameAbsent: !PERSONA.test(output),
+    personaPhysicallyRemoved:
+      /(?<!오)렌(?:이|은|를)?[^\n]{0,24}(?:사라졌|없었다|보이지 않|자취가 없)/.test(output),
+    reintroducedAsNewArrival:
+      PERSONA.test(output) &&
+      arrivalAt >= 0 &&
+      !/이동했|걸어 나|다른 방|다음 장소/.test(beforeArrival),
   };
 }
 
@@ -173,8 +187,9 @@ describe("auto scene continuation delivery", () => {
     assert.equal(auditA.breakdown.memory, auditOmitted.breakdown.memory);
     assert.equal(auditA.breakdown.recentConversation, auditOmitted.breakdown.recentConversation);
     assert.ok(auditA.breakdown.systemRules > auditOmitted.breakdown.systemRules);
-    const directiveSection = auditA.sections.find((section) => section.id === "scene-directive");
-    assert.ok(directiveSection);
+    const directiveSections = auditA.sections.filter((section) => section.id === "scene-directive");
+    assert.equal(directiveSections.length, 1);
+    const directiveSection = directiveSections[0];
     assert.equal(
       auditA.breakdown.systemRules - auditOmitted.breakdown.systemRules,
       directiveSection.tokens
@@ -258,50 +273,48 @@ describe("continuation scope owners stay distinct", () => {
 describe("recorded Q7 outputs", () => {
   const prior = PRIOR;
 
-  it("treats the original dorm scene with 렌 already present and later NPCs as connected", () => {
-    const flags = assessAutoSceneContinuation(prior, raw("Q7-auto"));
-    assert.deepEqual(flags, {
-      locationResetToIsolation: false,
-      personaReintroduced: false,
-      personaDropped: false,
-    });
+  it("does not treat a named dorm, with 렌 already present and later NPCs, as an error", () => {
+    const assessment = assessAutoSceneContinuation(prior, raw("Q7-auto"));
+    assert.equal(assessment.openingNamesAPlace, true);
+    assert.equal(assessment.personaNameAbsent, false);
+    assert.equal(isDefinitiveContinuityError(assessment), false);
   });
 
-  it("flags isolation openings, a later 렌 arrival, and a missing 렌 without flagging a connected window", () => {
-    assert.deepEqual(assessAutoSceneContinuation(prior, raw("CONTROL-1")), {
-      locationResetToIsolation: true,
-      personaReintroduced: false,
-      personaDropped: false,
-    });
-    assert.deepEqual(assessAutoSceneContinuation(prior, raw("CONTROL-2")), {
-      locationResetToIsolation: true,
-      personaReintroduced: true,
-      personaDropped: false,
-    });
-    assert.deepEqual(assessAutoSceneContinuation(prior, raw("CANDIDATE-1")), {
-      locationResetToIsolation: false,
-      personaReintroduced: false,
-      personaDropped: true,
-    });
-    assert.deepEqual(assessAutoSceneContinuation(prior, raw("CANDIDATE-2")), {
-      locationResetToIsolation: false,
-      personaReintroduced: false,
-      personaDropped: false,
-    });
+  it("records isolation and a missing name without calling either a continuity error", () => {
+    const isolation = assessAutoSceneContinuation(prior, raw("CONTROL-1"));
+    assert.equal(isolation.openingNamesAPlace, true);
+    assert.equal(isolation.personaNameAbsent, false);
+    assert.equal(isolation.reintroducedAsNewArrival, false);
+    assert.equal(isDefinitiveContinuityError(isolation), false);
+
+    const unnamed = assessAutoSceneContinuation(prior, raw("CANDIDATE-1"));
+    assert.equal(unnamed.personaNameAbsent, true);
+    assert.equal(unnamed.personaPhysicallyRemoved, false);
+    assert.equal(isDefinitiveContinuityError(unnamed), false);
+
+    const window = assessAutoSceneContinuation(prior, raw("CANDIDATE-2"));
+    assert.equal(window.personaNameAbsent, false);
+    assert.equal(window.reintroducedAsNewArrival, false);
+    assert.equal(isDefinitiveContinuityError(window), false);
   });
 
-  it("does not fail an explicit move or a new NPC while 렌 stays at the window", () => {
+  it("flags 렌 being brought in as a new arrival when the prior beat already had them there", () => {
+    const arrival = assessAutoSceneContinuation(prior, raw("CONTROL-2"));
+    assert.equal(arrival.openingNamesAPlace, true);
+    assert.equal(arrival.reintroducedAsNewArrival, true);
+    assert.equal(isDefinitiveContinuityError(arrival), true);
+  });
+
+  it("allows an explicit move and a new NPC, and separates a missing name from vanishing", () => {
     const moved = "숙소 창가에 있던 렌과 라이크는 복도를 걸어 다른 방 문으로 이동했다. 조아인이 노크했다.";
     const stayed = "렌이 창가에 서 있는 동안 윤태건이 문을 열고 들어왔다. 라이크는 유리에서 고개만 돌렸다.";
-    assert.deepEqual(assessAutoSceneContinuation(prior, moved), {
-      locationResetToIsolation: false,
-      personaReintroduced: false,
-      personaDropped: false,
-    });
-    assert.deepEqual(assessAutoSceneContinuation(prior, stayed), {
-      locationResetToIsolation: false,
-      personaReintroduced: false,
-      personaDropped: false,
-    });
+    const unnamed = "라이크는 유리에 이마를 기댄 채 하품했다. 복도는 조용했다.";
+    const vanished = "렌이 흔적도 없이 사라졌다. 라이크만 창가에 남았다.";
+    assert.equal(isDefinitiveContinuityError(assessAutoSceneContinuation(prior, moved)), false);
+    assert.equal(isDefinitiveContinuityError(assessAutoSceneContinuation(prior, stayed)), false);
+    const missingName = assessAutoSceneContinuation(prior, unnamed);
+    assert.equal(missingName.personaNameAbsent, true);
+    assert.equal(missingName.personaPhysicallyRemoved, false);
+    assert.equal(assessAutoSceneContinuation(prior, vanished).personaPhysicallyRemoved, true);
   });
 });
