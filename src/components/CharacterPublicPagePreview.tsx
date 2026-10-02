@@ -12,7 +12,12 @@ import OfficialStudioBadge from "@/components/OfficialStudioBadge";
 import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { applyProfilePlaceholders } from "@/lib/userPlaceholder";
-import { shouldBlurAssetForViewer, type CharacterAsset } from "@/lib/characterAssets";
+import {
+  isRepresentativeAsset,
+  safeLockedPreviewUrl,
+  shouldBlurAssetForViewer,
+  type CharacterAsset,
+} from "@/lib/characterAssets";
 import { loadUnlockedCharacterAssetUrls } from "@/lib/characterAssetUnlocks";
 import { studioSurface } from "@/lib/studioDesign";
 
@@ -54,16 +59,27 @@ function AssetGalleryStrip({
       {/* 가로 스크롤 · 2행 그리드 (열 우선 채움) */}
       <div className="grid w-max auto-cols-[4.75rem] grid-flow-col grid-rows-2 gap-2 sm:auto-cols-[5.25rem]">
         {assets.map((asset, i) => {
-          // 1번 대표 이미지는 항상 공개
           const blurred =
-            i !== 0 && shouldBlurAssetForViewer(asset, viewerIsCreator, unlockedUrls);
+            !isRepresentativeAsset(asset) &&
+            i !== 0 &&
+            shouldBlurAssetForViewer(asset, viewerIsCreator, unlockedUrls);
+          const previewSrc =
+            blurred && !viewerIsCreator
+              ? safeLockedPreviewUrl(asset) ?? ""
+              : asset.url;
           return (
             <div
               key={`${asset.url}-${i}`}
               className={`${CHARACTER_THUMB_ASPECT} w-[4.75rem] overflow-hidden rounded-lg border border-white/10 bg-[#0a0d14] sm:w-[5.25rem]`}
             >
               {blurred ? (
-                <CharacterAssetImage src={asset.url} alt={alt} blurForViewer />
+                previewSrc ? (
+                  <CharacterAssetImage src={previewSrc} alt={alt} />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-zinc-900 text-[10px] text-zinc-500">
+                    숨김
+                  </div>
+                )
               ) : (
                 <button
                   type="button"
@@ -159,11 +175,14 @@ export default function CharacterPublicPagePreview({
   const tagList = tags.map((t) => t.trim()).filter(Boolean);
   const resolvedGallery: CharacterAsset[] =
     galleryAssets.length > 0
-      ? galleryAssets.map((a, i) => (i === 0 ? { ...a, viewerBlur: false } : a))
+      ? galleryAssets.map((a) =>
+          isRepresentativeAsset(a) ? { ...a, viewerBlur: false } : a
+        )
       : assetImageUrls.filter(Boolean).map((url, i) => ({
           url,
           tag: String(i + 1),
           viewerBlur: false,
+          ...(i === 0 ? { representativeRank: 1 } : {}),
         }));
   const imageCount = resolvedGallery.length;
   // 대표(갤러리 1번) 우선 — 카드 URL이 없거나 어긋나도 메인 이미지는 항상 공개

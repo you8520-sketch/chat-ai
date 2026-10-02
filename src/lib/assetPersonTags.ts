@@ -52,6 +52,8 @@ export type AssetPersonTag = (typeof ASSET_PERSON_TAGS)[number];
 
 export type AssetVisionImageType = "person" | "background";
 
+export type NippleExposure = "none" | "visible" | "uncertain";
+
 export type AssetVisionStructuredResult = {
   imageType: AssetVisionImageType;
   personTag: AssetPersonTag | null;
@@ -59,6 +61,7 @@ export type AssetVisionStructuredResult = {
   adult: boolean;
   reject: boolean;
   reason: string;
+  nippleExposure?: NippleExposure;
 };
 
 const PERSON_TAG_SET = new Set<string>(ASSET_PERSON_TAGS);
@@ -122,6 +125,12 @@ export function validateStructuredAssetVisionResult(
   if (typeof row.adult !== "boolean" || typeof row.reject !== "boolean") return null;
   const reason =
     typeof row.reason === "string" ? row.reason.trim().slice(0, 160) : "";
+  const nippleExposure =
+    row.nippleExposure === "none" ||
+    row.nippleExposure === "visible" ||
+    row.nippleExposure === "uncertain"
+      ? row.nippleExposure
+      : undefined;
 
   if (imageType === "person") {
     if (typeof row.personTag !== "string" || !isAssetPersonTag(row.personTag.trim())) {
@@ -134,6 +143,7 @@ export function validateStructuredAssetVisionResult(
       adult: row.adult,
       reject: row.reject,
       reason,
+      ...(nippleExposure ? { nippleExposure } : {}),
     };
   }
 
@@ -146,6 +156,7 @@ export function validateStructuredAssetVisionResult(
     adult: row.adult,
     reject: row.reject,
     reason,
+    ...(nippleExposure ? { nippleExposure } : {}),
   };
 }
 
@@ -169,6 +180,7 @@ export function buildAssetVisionJsonSchema(): Record<string, unknown> {
       adult: { type: "boolean" },
       reject: { type: "boolean" },
       reason: { type: "string" },
+      nippleExposure: { type: "string", enum: ["none", "visible", "uncertain"] },
     },
     required: [
       "imageType",

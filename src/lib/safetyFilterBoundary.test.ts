@@ -78,11 +78,13 @@ describe("safety filter boundary owners", () => {
     const store = read("./uploadStorage.ts");
     const upload = read("../app/api/upload/route.ts");
     const card = read("../components/CharacterCard.tsx");
+    const carousel = read("../components/CharacterCardCarousel.tsx");
     assert.doesNotMatch(serve, /getSessionUser|canAccessAdultContent|isAdminUser/);
     assert.match(serve, /Cache-Control": "public/);
     assert.match(store, /access: "public"/);
     assert.match(upload, /canUseCreatorTools\(user\)/);
-    assert.match(card, /hidden \? "blur-md"/);
-    assert.match(card, /src=\{thumb\}/);
+    assert.match(card, /CharacterCardCarousel/);
+    assert.match(carousel, /hidden \? "blur-md"/);
+    assert.match(carousel, /src=\{current\}/);
   });
 });

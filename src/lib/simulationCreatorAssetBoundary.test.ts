@@ -117,6 +117,7 @@ describe("simulation creator asset normalization boundary", () => {
         url,
         tag: `김태환 ${index + 1}`,
         visualSubjectKey: keyA,
+        ...(index === 0 ? { representativeRank: 1 as const } : {}),
       })),
       ...["/uploads/e.webp", "/uploads/f.webp", "/uploads/g.webp", "/uploads/h.webp"].map((url, index) => ({
         url,

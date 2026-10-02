@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { analyzeAssetBatch } from "@/lib/vision";
+import { isStoredAssetUrl } from "@/lib/characterAssets";
+import { filenameFromPrivateMediaUrl, readMediaManifest, writeMediaManifest } from "@/lib/mediaStorage";
+import { isAdminUser } from "@/lib/isAdminUser";
 
 /** 업로드된 에셋 이미지에 Gemini Vision 감정 태그 부여 */
 export async function POST(req: Request) {
@@ -16,7 +19,15 @@ export async function POST(req: Request) {
 
   const safe = urls
     .filter((u: unknown) => typeof u === "string")
-    .filter((u: string) => u.startsWith("/uploads/") || u.startsWith("http://") || u.startsWith("https://"))
+    .filter((u: string) => isStoredAssetUrl(u))
+    .filter((u: string) => {
+      if (!u.startsWith("/media/private/")) return true;
+      const filename = filenameFromPrivateMediaUrl(u);
+      if (!filename) return false;
+      const manifest = readMediaManifest(filename);
+      if (manifest?.uploadedBy === user.id) return true;
+      return isAdminUser(user);
+    })
     .slice(0, 100) as string[];
 
   if (safe.length === 0) {
@@ -24,5 +35,24 @@ export async function POST(req: Request) {
   }
 
   const assets = await analyzeAssetBatch(safe);
+  for (const asset of assets) {
+    const filename = filenameFromPrivateMediaUrl(asset.url);
+    if (!filename) continue;
+    const current = readMediaManifest(filename);
+    if (!current) continue;
+    if (asset.estimated) continue;
+    await writeMediaManifest(filename, {
+      ...current,
+      moderationStatus: "checked",
+      adultFlagged: asset.adultFlagged === true,
+      moderationReject: asset.moderationReject === true,
+      ...(asset.moderationReason ? { moderationReason: String(asset.moderationReason).slice(0, 200) } : {}),
+      ...(asset.nippleExposure === "none" ||
+      asset.nippleExposure === "visible" ||
+      asset.nippleExposure === "uncertain"
+        ? { nippleExposure: asset.nippleExposure }
+        : {}),
+    });
+  }
   return NextResponse.json({ ok: true, assets });
 }

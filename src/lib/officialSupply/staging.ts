@@ -18,9 +18,9 @@ export type OfficialStagingResult =
   | { status: "already_staged"; characterId: number };
 
 /**
- * Canonical asset order: the 2:3 representative is index 0 (card/profile owner
- * `getCharacterRepresentativeImageUrl` reads assets[0]); 3:2 RP assets follow
- * in plan order and are inline-eligible by orientation.
+ * Canonical asset order: the 2:3 representative is index 0 and rank 1
+ * (card/profile owner `getCharacterRepresentativePublicUrls`); 3:2 RP assets
+ * follow in plan order and are inline-eligible by orientation.
  */
 export function buildStagingAssets(store: OfficialSupplyStore, draftKey: string): OfficialCanonicalFormAsset[] {
   const record = store.getCharacter(draftKey);
@@ -41,6 +41,7 @@ export function buildStagingAssets(store: OfficialSupplyStore, draftKey: string)
       width: asset.width,
       height: asset.height,
       viewerBlur: slot.kind !== "representative" && slot.depiction === "adult_grounded_non_explicit",
+      ...(slot.kind === "representative" ? { representativeRank: 1 as const } : {}),
       ...canonicalAssetModerationFields(asset.moderation),
     };
   });

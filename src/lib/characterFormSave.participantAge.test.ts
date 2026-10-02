@@ -34,7 +34,7 @@ function minimalCharacterBody(overrides: Record<string, unknown> = {}) {
     gender: "male",
     nsfw: false,
     participant_min_age: 28,
-    assets: [{ url: "/uploads/test.png", tag: "neutral" }],
+    assets: [{ url: "/uploads/test.png", tag: "neutral", representativeRank: 1 }],
     ...overrides,
   };
 }
@@ -173,7 +173,7 @@ describe("parseCharacterFormBody structured participant age", () => {
         genres: ["로맨스"],
         nsfw: true,
         participant_min_age: 24,
-        assets: [{ url: "/uploads/test.png", tag: "neutral" }],
+        assets: [{ url: "/uploads/test.png", tag: "neutral", representativeRank: 1 }],
       },
       adultUser
     );

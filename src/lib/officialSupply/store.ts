@@ -290,7 +290,14 @@ function variationQaPasses(qa: OfficialVariationQaReport): boolean {
 }
 
 /** Placeholder asset used only for the canonical dry-run parse at TEXT_LOCK — never persisted. */
-const TEXT_LOCK_DRY_RUN_ASSET = { url: "/uploads/official-supply-dry-run.webp", tag: "dry-run", width: 1024, height: 1536, viewerBlur: false };
+const TEXT_LOCK_DRY_RUN_ASSET = {
+  url: "/uploads/official-supply-dry-run.webp",
+  tag: "dry-run",
+  width: 1024,
+  height: 1536,
+  viewerBlur: false,
+  representativeRank: 1,
+};
 
 export class OfficialSupplyStore {
   constructor(private readonly db: Database.Database = getDb()) {

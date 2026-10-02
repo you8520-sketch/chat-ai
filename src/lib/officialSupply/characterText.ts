@@ -84,10 +84,18 @@ export type OfficialCanonicalFormAsset = {
   width: number;
   height: number;
   viewerBlur: boolean;
+  representativeRank?: number;
   adultFlagged?: boolean;
   moderationReject?: boolean;
   moderationReason?: string;
 };
+
+function withOfficialRepresentativeRanks(
+  assets: OfficialCanonicalFormAsset[]
+): OfficialCanonicalFormAsset[] {
+  if (assets.some((asset) => Number(asset.representativeRank) > 0)) return assets;
+  return assets.map((asset, index) => (index === 0 ? { ...asset, representativeRank: 1 } : asset));
+}
 
 /**
  * Maps a draft onto the exact request body the canonical character save owner
@@ -129,7 +137,7 @@ export function buildOfficialCharacterFormBody(input: {
         }
       : {}),
     lorebook_ids: input.lorebookIds ?? [],
-    assets: input.assets,
+    assets: withOfficialRepresentativeRanks(input.assets),
   };
 }
 

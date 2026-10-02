@@ -63,7 +63,14 @@ ${ASSET_VISION_REJECT_RULES}
 ${ASSET_VISION_REVIEW_RULES}
 
 성인용·일반용 공통: reject=하드 반려, adult=애매한 선정성, 나머지는 adult=false·reject=false.
-reason은 moderation 검토용 한국어 한 줄(160자 이내).`;
+reason은 moderation 검토용 한국어 한 줄(160자 이내).
+
+TASK 4 — REPRESENTATIVE NIPPLE (대표 카드 전용, 업로드 reject 규칙을 바꾸지 말 것)
+- nippleExposure="visible": 남성·여성 모두에서 유두(젖꼭지)가 명확히 보임.
+- nippleExposure="uncertain": 유두가 보이는지 불명확.
+- nippleExposure="none": 유두가 보이지 않음.
+- 남성 상반신·가슴만으로는 visible로 쓰지 말 것. 유두가 보여야 visible이다.
+- 이 필드는 대표 공개 판정에만 쓴다.`;
 }
 
 /** Hard reject — female nipples or genitals (blocks upload for all-ages). */
@@ -77,4 +84,42 @@ export function isAssetNeedsAdminReview(asset: {
   moderationReject?: boolean;
 }): boolean {
   return asset.adultFlagged === true && asset.moderationReject !== true;
+}
+
+export type RepresentativePublishDecision =
+  | { ok: true }
+  | { ok: false; reason: string; hold: boolean };
+
+const REPRESENTATIVE_NIPPLE_RE = /유두|젖꼭지|nipples?/i;
+
+/**
+ * Public representative owner — distinct from all-ages upload reject.
+ * New private media is fail-closed until the server ledger is checked-safe.
+ * Representative nipple ban is gender-neutral; male torso without a nipple
+ * finding is not an all-asset hard reject.
+ */
+export function canPublishAsRepresentative(asset: {
+  mediaId?: string;
+  moderationStatus?: "pending" | "checked";
+  moderationReject?: boolean;
+  adultFlagged?: boolean;
+  moderationReason?: string;
+  nippleExposure?: "none" | "visible" | "uncertain";
+}): RepresentativePublishDecision {
+  const reason = String(asset.moderationReason ?? "");
+  const privateMedia = Boolean(asset.mediaId);
+  const checked = asset.moderationStatus === "checked";
+  if (privateMedia && !checked) {
+    return { ok: false, reason: "검수가 끝나지 않은 이미지는 대표로 공개할 수 없습니다.", hold: true };
+  }
+  if (isAssetHardRejected(asset) || asset.nippleExposure === "visible" || REPRESENTATIVE_NIPPLE_RE.test(reason)) {
+    return { ok: false, reason: "유두·성기·항문이 노출된 이미지는 대표로 지정할 수 없습니다.", hold: false };
+  }
+  if (privateMedia && asset.nippleExposure !== "none") {
+    return { ok: false, reason: "유두 노출 여부가 확인되지 않은 이미지는 대표로 공개할 수 없습니다.", hold: true };
+  }
+  if (isAssetNeedsAdminReview(asset) || asset.nippleExposure === "uncertain") {
+    return { ok: false, reason: "검수 대기 이미지는 대표로 지정할 수 없습니다.", hold: true };
+  }
+  return { ok: true };
 }

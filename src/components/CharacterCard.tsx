@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import AdultContentBadge from "@/components/AdultContentBadge";
+import CharacterCardCarousel from "@/components/CharacterCardCarousel";
 import { characterCardHref } from "@/lib/chatLinks";
+import { getCharacterRepresentativePublicUrls } from "@/lib/characterAssets";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import type { CreatorTierLevel } from "@/lib/creatorShared";
 
@@ -28,6 +30,7 @@ export type CharacterRow = {
   created_at: string;
   audience?: string;
   images?: string;
+  assets?: string;
   content_kind?: "character" | "simulation" | string;
 };
 
@@ -92,13 +95,8 @@ type Props = {
 export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) {
   const tags = parseCardTags(c.tags);
   const hidden = c.nsfw === 1 && blurNsfw;
-  let thumb: string | undefined;
-  try {
-    const parsed = JSON.parse(c.images || "[]") as unknown;
-    thumb = Array.isArray(parsed) && typeof parsed[0] === "string" ? parsed[0] : undefined;
-  } catch {
-    thumb = undefined;
-  }
+  const representativeUrls = getCharacterRepresentativePublicUrls(c.assets, c.images);
+  const thumb = representativeUrls[0];
   const href = characterCardHref({
     characterId: c.id,
     nsfw: c.nsfw === 1,
@@ -140,12 +138,9 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
           }}
         >
           {thumb ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={thumb}
-              alt={c.name}
-              className={`h-full w-full object-cover object-top transition duration-500 group-hover/card:scale-[1.045] ${hidden ? "blur-md" : ""}`}
-            />
+            <div className="h-full w-full transition duration-500 group-hover/card:scale-[1.045]">
+              <CharacterCardCarousel urls={representativeUrls} alt={c.name} hidden={hidden} />
+            </div>
           ) : (
             <span
               className={`flex h-full w-full items-center justify-center text-5xl sm:text-6xl ${hidden ? "blur-md" : ""}`}

@@ -13,8 +13,9 @@ import { getReportStatusesForMessages } from "@/lib/refund";
 import { shouldAttachClientBillingChargeSummary } from "@/lib/clientBillingChargeSummary";
 import { buildUserMessageBillingSummary } from "@/lib/messageBillingSummaryServer";
 
-import { findAssetsByTag, parseAssets, chatAssets, type CharacterAsset } from "@/lib/characterAssets";
-import { resolveEmotionTag, stripEmotionTag } from "@/lib/emotionTag";
+import { parseAssets, chatAssets } from "@/lib/characterAssets";
+import { collectUnlockedAssetUrlsFromMessages } from "@/lib/characterAssetUnlock";
+import { projectAssetsForViewer } from "@/lib/mediaAccess";
 
 import { resolveClientAsyncRecordsFromMessageRow } from "@/lib/clientAsyncRecordRead";
 import { normalizeMessageVariants, serializeVariantsForClient, resolveActiveVariantContent } from "@/lib/messageAlternates";
@@ -88,29 +89,6 @@ type ChatRow = {
   pov_character_name?: string;
   adult_handoff_enabled?: number;
 };
-
-function collectUnlockedAssetUrlsFromMessages(
-  messages: { role: string; content: string }[],
-  assets: CharacterAsset[],
-  isCharacterCreator: boolean
-): string[] {
-  if (isCharacterCreator || assets.length === 0) return [];
-  const allowed = assets.filter((asset) => asset.chat !== false).map((asset) => asset.tag);
-  const unlocked = new Set<string>();
-
-  for (const message of messages) {
-    if (message.role !== "assistant" || !message.content.trim()) continue;
-    const { tag } = stripEmotionTag(message.content);
-    if (!tag) continue;
-    const resolved = resolveEmotionTag(tag, allowed);
-    if (!resolved) continue;
-    for (const asset of findAssetsByTag(assets, resolved)) {
-      if (asset.viewerBlur === true) unlocked.add(asset.url);
-    }
-  }
-
-  return Array.from(unlocked);
-}
 
 export default async function ChatPage({
   params,
@@ -192,7 +170,7 @@ export default async function ChatPage({
     is_admin: adminRow?.is_admin ?? 0,
   });
 
-  const assets = chatAssets(parseAssets(c.assets));
+  const storedAssets = chatAssets(parseAssets(c.assets));
   const isCharacterCreator = c.creator_id === user.id;
 
   const userProfileRow = db
@@ -471,10 +449,21 @@ export default async function ChatPage({
   });
 
   const initialUnlockedAssetUrls = collectUnlockedAssetUrlsFromMessages(
-    allMessages,
-    assets,
+    allMessages.map((message) => ({
+      role: message.role,
+      content: message.content,
+      generationStatus: message.generationStatus,
+    })),
+    storedAssets,
     isCharacterCreator
   );
+  const assets = projectAssetsForViewer(storedAssets, {
+    canSeeOriginals: isCharacterCreator || isAdmin,
+    unlockedUrls: new Set(initialUnlockedAssetUrls),
+    chatId: chat.id,
+    nsfw: c.nsfw === 1,
+    viewer: user,
+  });
 
   const {
     messages,
