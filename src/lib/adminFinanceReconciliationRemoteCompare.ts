@@ -80,6 +80,12 @@ const REQUIRED_WHEN_UNVERIFIED = [
   "Do not POST /api/admin/finance/reconcile and do not issue paid generations.",
 ] as const;
 
+const REQUIRED_TO_PROVE_CAUSATION = [
+  "Correlate unmatched settled request identities with their authorized workspace origin and exact local producer path without exporting raw IDs.",
+  "Confirm on an affected call whether the provider supplied a request ID and whether its canonical ledger writer persisted it.",
+  "Keep incomplete/external-only usage separate from local costs; do not insert additional ledger rows or POST reconciliation.",
+] as const;
+
 type RemoteCompareDeps = {
   fetchRequests?: typeof fetchAllUsageRequests;
   fetchImpl?: UsageFetcher;
@@ -260,7 +266,7 @@ function classify(
     // requests can coexist. A root-cause verdict requires per-request provenance.
     classification: RECONCILIATION_ROOT_CAUSE_UNCONFIRMED,
     confirmedMechanism: confirmedLedgerIdsAbsent ? "LEDGER_REQUEST_IDS_ABSENT" : null,
-    requiredToConfirm: REQUIRED_WHEN_UNVERIFIED,
+    requiredToConfirm: REQUIRED_TO_PROVE_CAUSATION,
   };
 }
 
