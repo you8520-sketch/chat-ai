@@ -126,8 +126,10 @@ SAFE 경로에서 `표정·시선·호흡` 부분 문자열은 공용 문체 한
 |---|---:|---:|---:|
 | `COMMON_PROSE_BLOCK` 글자 | 648 | 640 | −8 |
 | `COMMON_PROSE_BLOCK` tokens | 584 | 576 | −8 |
+| `deepseek-v4.1-flash` / `gemini-3.1-pro-preview` 시스템 | 6,382 / 6,477 | 6,375 / 6,470 | −7 |
+| 나머지 4모델 시스템 | 6,201 | 6,193 | −8 |
 
-6모델 조립에서 공용 문체 블록을 빼면 나머지 시스템 문자열은 같아야 한다. DeepSeek character 캐시(`prose-style-xml-bundle`) prefix는 한 번 무효화된다.
+DeepSeek·Gemini 3.1의 −7은 `ceil(chars × 0.9)` 올림이다. 블록 자체는 −8이다. 6모델 모두 공용 문체 밖 시스템 문자열은 같다. 길이 문장은 유저 턴 1회다. DeepSeek character 캐시 prefix는 한 번 무효화된다.
 
 ## CLASSIFICATION
 
