@@ -80,6 +80,7 @@ describe("admin automation reports projection", () => {
     assert.equal(projection.status, "UNAVAILABLE");
     assert.equal(projection.groups.length, 0);
     assert.equal(projection.error, "GitHub Actions API 503");
+    assert.equal((projection.error ?? "").includes("RATE_LIMITED"), false);
   });
 
   it("classifies exhausted anonymous quota separately from missing permission", async () => {

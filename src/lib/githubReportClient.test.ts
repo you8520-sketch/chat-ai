@@ -165,6 +165,7 @@ describe("githubReportGetJson", () => {
     );
     assert.equal(result.kind, "UNAVAILABLE");
     assert.equal(result.error, "GitHub Actions API 503");
+    assert.equal(result.retryAt, null);
   });
 
   it("coalesces in-flight identical GETs and caches the success briefly", async () => {

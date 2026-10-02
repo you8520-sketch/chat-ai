@@ -72,7 +72,9 @@ function parseRetryAfterMs(
   headers: Record<string, string>,
   nowMs: number
 ): number | null {
-  const retryAfter = Number(headers["retry-after"] ?? "");
+  const raw = headers["retry-after"];
+  if (raw == null || raw === "") return null;
+  const retryAfter = Number(raw);
   if (Number.isFinite(retryAfter) && retryAfter >= 0) {
     return nowMs + retryAfter * 1000;
   }
