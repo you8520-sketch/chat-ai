@@ -41,10 +41,6 @@ import {
   type StatusWidget,
 } from "@/lib/statusWidget";
 import {
-  STATUS_WIDGET_SHARED_DESIGN_HREF,
-  STATUS_WIDGET_SHARED_DESIGN_LABEL,
-} from "@/lib/statusWidget/authoringChoice";
-import {
   parseJsxComponentCatalog,
   serializeJsxComponentCatalog,
   type JsxComponentRecord,
@@ -2255,12 +2251,10 @@ export default function CreateCharacter({
                     상태창 위젯
                   </h2>
                   <p className="mt-0.5 text-xs text-zinc-400">
-                    디자인과 상태값을 입력하면 미리보기에 반영됩니다. HTML·JSX와 채팅 호출
-                    컴포넌트는 고급에서 엽니다. 상태값·지시 토큰 환산 {STATUS_WIDGET_CONTEXT_MAX}자
+                    디자인과 상태값을 입력하면 미리보기에 반영됩니다. HTML·JSX는 직접 제작에서
+                    작성합니다. 채팅 호출 컴포넌트는 아래에서 따로 엽니다. 상태값·지시 토큰 환산{" "}
+                    {STATUS_WIDGET_CONTEXT_MAX}자
                   </p>
-                  <Link href={STATUS_WIDGET_SHARED_DESIGN_HREF} className="mt-1 inline-flex text-xs text-violet-300 hover:underline">
-                    {STATUS_WIDGET_SHARED_DESIGN_LABEL}
-                  </Link>
                 </div>
                 <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[11px] font-bold text-zinc-200">
                   기본 적용

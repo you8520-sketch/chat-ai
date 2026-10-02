@@ -1107,7 +1107,7 @@ export default function PersonaClient({
               상태창 보관함 ({statusWidgetPresets.length})
             </h2>
             <p className="mt-0.5 text-[11px] text-zinc-500">
-              디자인과 상태값으로 만들고, 필요하면 HTML·JSX를 엽니다
+              디자인과 상태값으로 만들거나, 직접 제작에서 HTML·JSX를 작성합니다
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1213,6 +1213,8 @@ export default function PersonaClient({
               value={widgetDraft}
               onChange={setWidgetDraft}
               disabled={busy}
+              contextLimit={STATUS_WIDGET_USER_CONTEXT_MAX}
+              showSharedDesignEntry={false}
             />
             <div className="flex flex-wrap gap-2">
               <button
