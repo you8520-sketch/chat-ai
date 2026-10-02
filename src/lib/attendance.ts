@@ -225,7 +225,7 @@ export function claimDailyAttendance(userId: number): ClaimAttendanceResult {
       userId
     );
 
-    const reason = cycleCompleted
+    const reason = cycleCompleted && bonus > 0
       ? `주간 출석 7일차 보상 (+${base}P + 보너스 ${bonus}P)`
       : `주간 출석 ${claimDay}일차 보상 (+${base}P)`;
 
