@@ -10,6 +10,8 @@ on:
       - "src/app/admin/automation-reports/page.tsx"
       - "src/lib/adminAutomationReports.ts"
       - "src/lib/adminAutomationReports.test.ts"
+      - "src/lib/githubReportClient.ts"
+      - "src/lib/githubReportClient.test.ts"
       - "src/lib/postDeployVerification.ts"
       - "src/lib/postDeployVerification.test.ts"
       - "src/lib/domainSslMonitor.ts"
@@ -74,6 +76,7 @@ jobs:
           src/lib/opsRequestIncidents.test.ts
           src/lib/financeAnomalyRadar.test.ts
           src/lib/adminAutomationReports.test.ts
+          src/lib/githubReportClient.test.ts
           src/lib/postDeployVerification.test.ts
           src/lib/domainSslMonitor.test.ts
           src/cron/adminSupplyDraftNotificationScheduler.test.ts

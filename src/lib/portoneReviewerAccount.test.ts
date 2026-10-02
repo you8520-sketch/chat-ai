@@ -4,6 +4,7 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import { getDb } from "@/lib/db";
 import { createSession, verifyPassword } from "@/lib/auth";
+import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerification";
 import { isAdminUser } from "@/lib/isAdminUser";
 import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
 import { authenticatePasswordLogin } from "@/lib/passwordLogin";
@@ -104,6 +105,25 @@ describe("portone reviewer account", () => {
     assert.equal(
       isAdminUser({ email: row.email, is_admin: 1, account_kind: row.account_kind }),
       false
+    );
+    assert.equal(
+      canAccessAdultContent({
+        email: row.email,
+        is_adult: 1,
+        is_admin: 1,
+        account_kind: row.account_kind,
+      }),
+      false
+    );
+    assert.equal(
+      shouldHideAdultListings({
+        email: row.email,
+        is_adult: 1,
+        is_admin: 1,
+        nsfw_on: 1,
+        account_kind: row.account_kind,
+      }),
+      true
     );
     assert.equal(getPaidProviderCallBlockReason({ account_kind: row.account_kind }), PORTONE_REVIEWER_PAID_API_MESSAGE);
     assert.equal(getPointGiftBlockReason({ account_kind: row.account_kind }), PORTONE_REVIEWER_GIFT_MESSAGE);

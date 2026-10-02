@@ -22,6 +22,14 @@ function playwrightDbPath(): string {
   return dbPath;
 }
 
+function openPlaywrightFixtureDb() {
+  const db = new Database(playwrightDbPath());
+  // Fresh-chat creation schedules a background greeting writer. Direct fixture
+  // access waits for that canonical writer instead of racing it.
+  db.pragma("busy_timeout = 5000");
+  return db;
+}
+
 async function demoLogin(page: Page) {
   const response = await page.request.post("/api/auth/demo-login");
   expect(response.ok()).toBeTruthy();
@@ -30,7 +38,7 @@ async function demoLogin(page: Page) {
 /** Give character 2 a single deterministic portrait asset (300x400 data URL). */
 function seedPortraitAsset(characterId: number) {
   snapshotCharacterAssets(characterId);
-  const db = new Database(playwrightDbPath());
+  const db = openPlaywrightFixtureDb();
   try {
     const assets = JSON.stringify([
       {
@@ -54,7 +62,7 @@ function seedPortraitAsset(characterId: number) {
 }
 
 function seedAssistantMessage(chatId: number, content: string) {
-  const db = new Database(playwrightDbPath());
+  const db = openPlaywrightFixtureDb();
   try {
     db.prepare(
       "INSERT INTO messages (chat_id, role, content, model, generation_status) VALUES (?, 'assistant', ?, 'playwright-fixture', 'completed')"
@@ -80,7 +88,7 @@ function orientationFor(width: number, height: number): string {
 /** Replace character assets with a deterministic all-orientation fixture set. */
 function seedMixedAssets(characterId: number) {
   snapshotCharacterAssets(characterId);
-  const db = new Database(playwrightDbPath());
+  const db = openPlaywrightFixtureDb();
   try {
     const assets = JSON.stringify(
       [ASSET_TALL, ASSET_SQUARE, ASSET_WIDE].map((a) => ({
@@ -181,7 +189,7 @@ let assetsSnapshotTaken = false;
 
 function snapshotCharacterAssets(characterId: number) {
   if (assetsSnapshotTaken) return;
-  const db = new Database(playwrightDbPath());
+  const db = openPlaywrightFixtureDb();
   try {
     const row = db
       .prepare("SELECT assets FROM characters WHERE id = ?")
@@ -204,7 +212,7 @@ async function openFreshChat(page: Page, characterId = 2) {
 
 test.describe("general chat asset display guardrails (B0)", () => {
   test.afterAll(async () => {
-    const db = new Database(playwrightDbPath());
+    const db = openPlaywrightFixtureDb();
     try {
       // Guard on snapshot success, not on the value's nullability: a captured
       // SQL NULL must still be restored as SQL NULL.

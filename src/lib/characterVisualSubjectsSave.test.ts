@@ -35,7 +35,7 @@ function characterBody(overrides: Record<string, unknown> = {}) {
     genres: ["로맨스"],
     gender: "female",
     participant_min_age: 20,
-    assets: [{ url: "/uploads/main.webp", tag: "기본" }],
+    assets: [{ url: "/uploads/main.webp", tag: "기본", representativeRank: 1 }],
     ...overrides,
   };
 }
@@ -118,7 +118,7 @@ describe("characterVisualSubjects save integration", () => {
       .run(
         1,
         JSON.stringify([
-          { url: "/uploads/main.webp", tag: "main" },
+          { url: "/uploads/main.webp", tag: "main", representativeRank: 1 },
           { url: "/uploads/support.webp", tag: "민준", visualSubjectKey: key },
         ]),
         JSON.stringify(["/uploads/main.webp", "/uploads/support.webp"]),
@@ -130,7 +130,7 @@ describe("characterVisualSubjects save integration", () => {
       description: "설명",
       genres: ["로맨스"],
       assets: [
-        { url: "/uploads/main.webp", tag: "main" },
+        { url: "/uploads/main.webp", tag: "main", representativeRank: 1 },
         { url: "/uploads/support.webp", tag: "민준", visualSubjectKey: key },
       ],
     });
@@ -149,7 +149,7 @@ describe("characterVisualSubjects save integration", () => {
       characterBody({
         visual_subjects: { version: 1, subjects: [] },
         assets: [
-          { url: "/uploads/main.webp", tag: "main" },
+          { url: "/uploads/main.webp", tag: "main", representativeRank: 1 },
           { url: "/uploads/support.webp", tag: "민준", visualSubjectKey: key },
         ],
       }),
@@ -178,7 +178,7 @@ describe("characterVisualSubjects save integration", () => {
       characterBody({
         visual_subjects: { version: 1, subjects: [] },
         assets: [
-          { url: "/uploads/main.webp", tag: "main" },
+          { url: "/uploads/main.webp", tag: "main", representativeRank: 1 },
           { url: "/uploads/support.webp", tag: "민준" },
         ],
       }),
@@ -208,7 +208,7 @@ describe("characterVisualSubjects save integration", () => {
     const forgedKey = createCharacterVisualSubjectKey();
     const parsed0 = parseCharacterFormBody(
       characterBody({
-        assets: [{ url: "/uploads/main.webp", tag: "main", visualSubjectKey: forgedKey }],
+        assets: [{ url: "/uploads/main.webp", tag: "main", representativeRank: 1, visualSubjectKey: forgedKey }],
       }),
       adultCreator
     );
@@ -217,7 +217,7 @@ describe("characterVisualSubjects save integration", () => {
     const parsed1 = parseCharacterFormBody(
       characterBody({
         assets: [
-          { url: "/uploads/main.webp", tag: "main" },
+          { url: "/uploads/main.webp", tag: "main", representativeRank: 1 },
           { url: "/uploads/support.webp", tag: "support", visualSubjectKey: forgedKey },
         ],
       }),
@@ -237,7 +237,7 @@ describe("characterVisualSubjects save integration", () => {
       .run(
         1,
         JSON.stringify([
-          { url: "/uploads/main.webp", tag: "main" },
+          { url: "/uploads/main.webp", tag: "main", representativeRank: 1 },
           { url: "/uploads/support.webp", tag: "support", visualSubjectKey: forgedKey },
         ]),
         JSON.stringify(["/uploads/main.webp", "/uploads/support.webp"])
@@ -248,7 +248,7 @@ describe("characterVisualSubjects save integration", () => {
       description: "설명",
       genres: ["로맨스"],
       assets: [
-        { url: "/uploads/main.webp", tag: "main" },
+        { url: "/uploads/main.webp", tag: "main", representativeRank: 1 },
         { url: "/uploads/support.webp", tag: "support", visualSubjectKey: forgedKey },
       ],
     });
@@ -278,7 +278,7 @@ describe("characterVisualSubjects save integration", () => {
       .run(
         1,
         JSON.stringify([
-          { url: "/uploads/main.webp", tag: "main" },
+          { url: "/uploads/main.webp", tag: "main", representativeRank: 1 },
           { url: "/uploads/support.webp", tag: "민준", visualSubjectKey: key },
         ]),
         JSON.stringify(["/uploads/main.webp", "/uploads/support.webp"]),
@@ -302,7 +302,7 @@ describe("characterVisualSubjects save integration", () => {
         ],
       },
       assets: [
-        { url: "/uploads/main.webp", tag: "main" },
+        { url: "/uploads/main.webp", tag: "main", representativeRank: 1 },
         { url: "/uploads/support.webp", tag: "민준(개명)" },
       ],
     });
@@ -333,7 +333,7 @@ describe("characterVisualSubjects save integration", () => {
           ],
         },
         assets: [
-          { url: "/uploads/main.webp", tag: "main" },
+          { url: "/uploads/main.webp", tag: "main", representativeRank: 1 },
           { url: "/uploads/support.webp", tag: "민준", visualSubjectKey: key },
         ],
       }),
@@ -384,7 +384,7 @@ describe("characterVisualSubjects save integration", () => {
             },
           ],
         },
-        assets: [{ url: "/uploads/main.webp", tag: "main", visualSubjectKey: key }],
+        assets: [{ url: "/uploads/main.webp", tag: "main", representativeRank: 1, visualSubjectKey: key }],
       }),
       adultCreator
     );

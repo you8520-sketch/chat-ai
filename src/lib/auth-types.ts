@@ -11,6 +11,7 @@ export type User = {
   sub_plan: string | null; // 'basic' | 'pro' | null
   sub_auto_renew: number;
   notice_last_read_id: number;
+  is_admin?: number;
   account_kind?: string | null;
 };
 

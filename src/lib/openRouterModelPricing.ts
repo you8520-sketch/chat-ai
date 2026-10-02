@@ -318,6 +318,18 @@ const CHEAPER_INFERENCE_GPT_56_TERRA_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
+/** GPT-6.1 Sol official Standard list — user-facing receipt rates ignore CI discount. */
+const CHEAPER_INFERENCE_GPT_61_SOL_RATES: OpenRouterModelRates = {
+  family: "openai",
+  label: "Cheaper Inference · OpenAI automatic cache",
+  inputUsdPerM: 2,
+  outputUsdPerM: 10,
+  cacheReadUsdPerM: 0.1,
+  cacheWriteUsdPerM: 2.5,
+  cacheWriteMultiplier: 1.25,
+  explicitCacheInjection: false,
+};
+
 const GENERIC_OPENROUTER_RATES: OpenRouterModelRates = {
   family: "unknown",
   label: "제공자 자동 캐시",
@@ -365,6 +377,9 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
       id,
       CHEAPER_INFERENCE_GPT_56_TERRA_RATES
     );
+  }
+  if (id === "gpt-6.1-sol" || id === "openai/gpt-6.1-sol") {
+    return CHEAPER_INFERENCE_GPT_61_SOL_RATES;
   }
   if (id === "gpt-5.6-luna") {
     return withLiveCheaperInferenceRates(id, CHEAPER_INFERENCE_GPT_56_LUNA_RATES);

@@ -564,6 +564,7 @@ describe("adminFinance aggregate semantics (F12–F14)", () => {
       summary.chat.paidRevenueKrw
     );
     assert.notEqual(marginLabel, "매출 없음");
+    assert.notEqual(marginLabel, "매출 없음 · 수익률 해당 없음");
     assert.match(marginLabel, /미확정/);
   });
 

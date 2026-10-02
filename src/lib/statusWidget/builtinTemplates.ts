@@ -27,7 +27,7 @@ const DEFAULT_FIELDS: StatusWidget["fields"] = [
   {
     id: "속마음",
     label: "속마음",
-    instruction: "NPC의 현재 내면을 자연스러운 1인칭 한 줄로 작성한다.",
+    instruction: "NPC의 의식의 흐름을 간단히 작성한다.(행동이아닌 생각을 작성) NPC의 의식의 흐름을 간단히 작성한다.  '→' 를 이용하여 순서대로 100자 정도 출력한다.",
   },
 ];
 

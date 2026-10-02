@@ -86,11 +86,17 @@ export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
 /** OpenRouter — Google Gemini 3.6 Flash */
 export const OPENROUTER_GEMINI_36_FLASH_MODEL = "google/gemini-3.6-flash";
 
-/** Cheaper Inference OpenAI-compatible API — GPT-5.6 Terra */
+/** Cheaper Inference OpenAI-compatible API — GPT-5.6 Terra (historical receipts only). */
 export const CHEAPER_INFERENCE_GPT_56_TERRA_MODEL = "gpt-5.6-terra";
 
 /** @deprecated CheaperInference Terra 상수 사용 — 기존 import 호환용 */
 export const OPENAI_GPT_56_TERRA_MODEL = CHEAPER_INFERENCE_GPT_56_TERRA_MODEL;
+
+/** Cheaper Inference OpenAI-compatible API — GPT-6.1 Sol (current OpenAI Main RP slot). */
+export const CHEAPER_INFERENCE_GPT_61_SOL_MODEL = "gpt-6.1-sol";
+
+/** Official OpenAI API id — same public string as the CI outbound id. */
+export const OPENAI_GPT_61_SOL_MODEL = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
 
 /** Cheaper Inference OpenAI-compatible API — Claude Opus 5 */
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL = "claude-opus-5";
@@ -208,6 +214,8 @@ export const GEMINI_36_FLASH_DISPLAY_NAME = "Gemini 3.6 Flash";
 
 export const GPT_56_TERRA_DISPLAY_NAME = "GPT-5.6 Terra";
 
+export const GPT_61_SOL_DISPLAY_NAME = "GPT-6.1 Sol";
+
 export const CLAUDE_OPUS_5_DISPLAY_NAME = "Claude Opus 5";
 
 export const CLAUDE_OPUS_55_DISPLAY_NAME = "Claude Opus 5.5";
@@ -240,7 +248,7 @@ export type SelectedAIOptionMeta = {
  * CANONICAL Main RP picker — ONE source of truth.
  *
  * DeepSeek V4.1 Flash / Gemini 3.1 Pro Preview / Gemini 3.7 Flash /
- * Gemini 3.8 Flash / GPT-5.6 Terra / Claude Opus 5.5.
+ * Gemini 3.8 Flash / GPT-6.1 Sol / Claude Opus 5.5.
  * DeepSeek V4 Pro is retired from user Main RP but remains for historical
  * receipt/billing/provider compatibility.
  * Claude Opus 5 remains retired from user Main RP. Luna, DeepSeek V4 Flash 0731,
@@ -278,11 +286,11 @@ export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
     hint: "Google AI Studio",
   },
   {
-    id: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
-    label: GPT_56_TERRA_DISPLAY_NAME,
+    id: CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+    label: GPT_61_SOL_DISPLAY_NAME,
     provider: "cheaperinference",
     tier: "pro",
-    hint: "OpenAI · Thinking OFF",
+    hint: "OpenAI · Reasoning low",
   },
   {
     id: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
@@ -365,6 +373,11 @@ export function isGpt56TerraModel(modelId: string): boolean {
   );
 }
 
+export function isGpt61SolModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return id === CHEAPER_INFERENCE_GPT_61_SOL_MODEL || id === "openai/gpt-6.1-sol";
+}
+
 export function isGpt56LunaModel(modelId: string): boolean {
   return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
 }
@@ -434,6 +447,7 @@ export function isCheaperInferenceModel(modelId: string): boolean {
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_LEGACY_MODEL ||
     id === CHEAPER_INFERENCE_GLM_52_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL ||
+    id === CHEAPER_INFERENCE_GPT_61_SOL_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL ||
     id === CHEAPER_INFERENCE_GPT_6_LUNA_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
@@ -632,6 +646,10 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "deepseek-v4-flash-0731": DEFAULT_SELECTED_AI,
   "gpt-5.6-luna": DEFAULT_SELECTED_AI,
   "gpt-6-luna": DEFAULT_SELECTED_AI,
+  /** GPT-5.6 Terra retired from Main RP — stored picker values resolve to GPT-6.1 Sol. */
+  "gpt-5.6-terra": CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+  "openai/gpt-5.6-terra": CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+  "openai/gpt-6.1-sol": CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   /** Qwen 3.7 Max 제거 — 현재 기본 모델로 이전 */
   qwen: DEFAULT_SELECTED_AI,
   "qwen3.7-max": DEFAULT_SELECTED_AI,
@@ -703,6 +721,9 @@ export function selectedAILabel(id: string): string {
   }
   if (isGpt6LunaModel(id)) {
     return GPT_6_LUNA_DISPLAY_NAME;
+  }
+  if (isGpt61SolModel(id)) {
+    return GPT_61_SOL_DISPLAY_NAME;
   }
   if (isGpt56TerraModel(id)) {
     return GPT_56_TERRA_DISPLAY_NAME;

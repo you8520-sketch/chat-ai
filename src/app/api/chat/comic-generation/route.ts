@@ -144,7 +144,7 @@ import {
   type ComicNormalizedProviderReference,
   type ComicProviderReference,
 } from "@/lib/chatComicReferenceIsolation";
-import { effectiveIsAdult } from "@/lib/adultVerification";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import {
   resolveEffectiveAdultRp,
   resolveRoomAdultModeEnabled,
@@ -203,7 +203,7 @@ type GenerationContext = {
   roomAdultModeEnabled: boolean;
 };
 
-type SessionUserLike = { is_adult?: number };
+type SessionUserLike = { email?: string; is_adult?: number; is_admin?: number };
 
 class RequestError extends Error {
   constructor(
@@ -818,7 +818,7 @@ export async function POST(req: Request) {
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
     const context = resolveGenerationContext({
       userId: user.id,
-      userAdultVerified: effectiveIsAdult((user as SessionUserLike).is_adult ?? 0),
+      userAdultVerified: canAccessAdultContent(user as SessionUserLike),
       characterId: positiveInt(body.characterId),
       chatId: positiveInt(body.chatId),
       personaId: positiveInt(body.personaId),
@@ -828,7 +828,7 @@ export async function POST(req: Request) {
     // adult-grounded approved dialogue may be forwarded as provider-readable
     // INPUT text. This is not server image postprocessing.
     const roomAdultGrounded = resolveEffectiveAdultRp({
-      userAdultVerified: effectiveIsAdult((user as SessionUserLike).is_adult ?? 0),
+      userAdultVerified: canAccessAdultContent(user as SessionUserLike),
       roomAdultModeEnabled: context.roomAdultModeEnabled,
     });
 

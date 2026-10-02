@@ -2,6 +2,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   isCheaperInferenceClaudeOpus5Model,
   isCheaperInferenceClaudeOpus55Model,
   isCheaperInferenceDeepSeekV41FlashModel,
@@ -13,6 +14,7 @@ import {
   isDeepSeekV4ProModel,
   isGptLunaFamilyModel,
   isGpt56TerraModel,
+  isGpt61SolModel,
   normalizeDeepSeekV4FlashModelId,
   normalizeDeepSeekV4ProModelId,
 } from "@/lib/chatModels";
@@ -143,6 +145,13 @@ export function applyCheaperInferenceModelReasoningPolicy(
     adapted.thinking = { type: "disabled" };
     adapted.output_config = { effort: "low" };
     adapted.reasoning_effort = "low";
+    return adapted;
+  }
+  if (isGpt61SolModel(model)) {
+    adapted.model = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
+    adapted.reasoning = { effort: "low" };
+    adapted.reasoning_effort = "low";
+    delete adapted.thinking;
     return adapted;
   }
   if (isGptLunaFamilyModel(model) || isGpt56TerraModel(model)) {

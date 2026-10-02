@@ -10,7 +10,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   MAIN_RP_MODEL_IDS,
 } from "@/lib/chatModels";
@@ -715,20 +715,20 @@ describe("mainRpPricingCandidateBand — integration", () => {
     assert.ok(row.candidate.minimumSafeTargetMargin != null);
   });
 
-  it("Terra published anchor does not become hard comparable ceiling", () => {
+  it("Sol published official rates do not become hard comparable ceiling", () => {
     clearCheaperInferenceCatalogPricingForTest();
     const db = makeDb();
-    insertCompletedCiSnapshot(db, CHEAPER_INFERENCE_GPT_56_TERRA_MODEL, "2026-09-22T03:00:00.000Z", {
-      input: 1.4,
-      output: 8.4,
-      discount: 30,
+    insertCompletedCiSnapshot(db, CHEAPER_INFERENCE_GPT_61_SOL_MODEL, "2026-09-22T03:00:00.000Z", {
+      input: 1.486373,
+      output: 7.431866,
+      discount: 25.68,
     });
     const row = buildMainRpPricingObservabilityProjection({
       fxSnapshot: FX_FIXTURE,
       now: NOW,
       db,
-    }).models.find((candidate) => candidate.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)!;
-    assert.equal(row.market.comparabilityStatus, "published_anchor");
+    }).models.find((candidate) => candidate.modelId === CHEAPER_INFERENCE_GPT_61_SOL_MODEL)!;
+    assert.equal(row.market.comparabilityStatus, "absent");
     assert.equal(row.candidate.market.hardBenchmarkCount, 0);
     assert.equal(row.candidate.maximumCompetitiveTargetMargin, null);
     assert.equal(row.candidate.status, "HOLD_NO_HARD_MARKET_EVIDENCE");

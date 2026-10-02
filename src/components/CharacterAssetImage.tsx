@@ -1,3 +1,5 @@
+import { privateMediaRequestUrl } from "@/lib/characterAssets";
+
 type Props = {
   src: string;
   alt?: string;
@@ -7,7 +9,14 @@ type Props = {
   imgTestId?: string;
   /** 제작자 미리보기 — 가려짐 설정 표시만 */
   showHiddenBadge?: boolean;
+  accessChatId?: number | null;
 };
+
+function chatIdFromBrowser(): number | null {
+  if (typeof window === "undefined") return null;
+  const raw = Number(new URL(window.location.href).searchParams.get("chat"));
+  return Number.isInteger(raw) && raw > 0 ? raw : null;
+}
 
 export default function CharacterAssetImage({
   src,
@@ -17,12 +26,14 @@ export default function CharacterAssetImage({
   imgClassName = "block aspect-[3/4] w-full object-cover object-top",
   imgTestId,
   showHiddenBadge = false,
+  accessChatId = null,
 }: Props) {
+  const resolvedSrc = privateMediaRequestUrl(src, accessChatId ?? chatIdFromBrowser());
   return (
     <div className={`relative overflow-hidden ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={src}
+        src={resolvedSrc}
         alt={alt}
         data-testid={imgTestId}
         className={`${imgClassName} ${blurForViewer ? "scale-105 blur-xl" : ""}`}

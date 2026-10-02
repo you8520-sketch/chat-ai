@@ -231,7 +231,7 @@ describe("chat room adult RP canonical owners", () => {
     assert.equal(plan.fallbackPrepared, false);
   });
 
-  it("A6: settings PATCH and chat POST share effectiveIsAdult verification owner", () => {
+  it("A6: settings PATCH and chat POST share canAccessAdultContent owner", () => {
     const routeSrc = readFileSync(
       new URL("../app/api/chat/route.ts", import.meta.url),
       "utf8"
@@ -240,8 +240,8 @@ describe("chat room adult RP canonical owners", () => {
       new URL("../app/api/chat/settings/route.ts", import.meta.url),
       "utf8"
     );
-    assert.match(routeSrc, /effectiveIsAdult\(user\.is_adult\)/);
-    assert.match(settingsSrc, /effectiveIsAdult\(user\.is_adult\)/);
+    assert.match(routeSrc, /canAccessAdultContent\(user\)/);
+    assert.match(settingsSrc, /canAccessAdultContent\(user\)/);
     assert.doesNotMatch(settingsSrc, /adultHandoffEnabled === true && !user\.is_adult/);
   });
 

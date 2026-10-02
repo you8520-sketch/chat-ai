@@ -6,9 +6,12 @@ import { useRouter } from "next/navigation";
 import type { CharacterGender } from "@/lib/characterGender";
 import { GENDER_LABELS } from "@/lib/characterGender";
 import {
+  assignRepresentativeRanks,
+  countRepresentativeSelections,
   defaultAssetFlags,
   normalizeCharacterAssets,
   withAssetSize,
+  type CharacterAsset,
 } from "@/lib/characterAssets";
 import { measureImageUrl } from "@/lib/measureImageSize";
 import { isAssetHardRejected } from "@/lib/assetVisionPolicy";
@@ -202,6 +205,14 @@ export default function CreateCharacter({
     simulation_cast: "",
     simulation_rules: "",
   });
+  function persistLoadedAssets(list: CharacterAsset[]): CharacterAsset[] {
+    const normalized = normalizeCharacterAssets(list);
+    if (countRepresentativeSelections(normalized) > 0 || normalized.length === 0) {
+      return normalized;
+    }
+    return assignRepresentativeRanks(normalized, [0]);
+  }
+
   const [assets, setAssets] = useState<TaggedAsset[]>([]);
   const [visualSubjects, setVisualSubjects] = useState<VisualSubjectsDocument>(
     emptyVisualSubjectsDocument()
@@ -233,6 +244,7 @@ export default function CreateCharacter({
   );
   const [statusWidgetTriggers, setStatusWidgetTriggers] = useState<StatusWidgetTriggerDraft[]>([]);
   const [jsxCatalog, setJsxCatalog] = useState<JsxComponentRecord[]>([]);
+  const [chatJsxEditorOpen, setChatJsxEditorOpen] = useState(false);
   const [pageTab, setPageTab] = useState<PageTab>("create");
   const draftRestoredRef = useRef(false);
 
@@ -324,7 +336,7 @@ export default function CreateCharacter({
       narration_style_instructions: draft.form.narration_style_instructions ?? "",
     });
     setSimulationImports(Array.isArray(draft.simulationImports) ? draft.simulationImports : []);
-    setAssets(normalizeCharacterAssets(draft.assets));
+    setAssets(persistLoadedAssets(draft.assets));
     if (draft.visualSubjects) {
       setVisualSubjects({
         version: 1,
@@ -497,7 +509,7 @@ export default function CreateCharacter({
     try {
       const fd = new FormData();
       batchFiles.forEach((file) => fd.append("files", file));
-      const up = await fetch("/api/upload", { method: "POST", body: fd });
+      const up = await fetch("/api/upload?purpose=character-asset", { method: "POST", body: fd });
       const upData = await up.json();
       if (!up.ok) {
         setError(upData.error || "에셋 업로드에 실패했습니다.");
@@ -507,6 +519,33 @@ export default function CreateCharacter({
       const uploadedUrls: string[] = Array.isArray(upData.urls)
         ? upData.urls.filter((url: unknown): url is string => typeof url === "string" && url.trim().length > 0)
         : [];
+      const uploadedMedia = new Map<
+        string,
+        { url: string; mediaId: string; publicRenditionUrl: string; blurPreviewUrl: string }
+      >(
+        (Array.isArray(upData.media) ? upData.media : [])
+          .filter((item: unknown): item is {
+            url: string;
+            mediaId: string;
+            publicRenditionUrl: string;
+            blurPreviewUrl: string;
+          } => {
+            if (!item || typeof item !== "object") return false;
+            const row = item as Record<string, unknown>;
+            return (
+              typeof row.url === "string" &&
+              typeof row.mediaId === "string" &&
+              typeof row.publicRenditionUrl === "string" &&
+              typeof row.blurPreviewUrl === "string"
+            );
+          })
+          .map((item: {
+            url: string;
+            mediaId: string;
+            publicRenditionUrl: string;
+            blurPreviewUrl: string;
+          }) => [item.url, item] as const)
+      );
       if (uploadedUrls.length === 0) {
         setError("업로드된 이미지 URL을 확인하지 못했습니다.");
         return;
@@ -566,6 +605,7 @@ export default function CreateCharacter({
       const measured = await Promise.all(uploadedUrls.map((url) => measureImageUrl(url)));
       const batch = uploadedUrls.map((url: string, i: number) => {
         const tagged = byUrl.get(url);
+        const stored = uploadedMedia.get(url);
         const size = measured[i];
         return withAssetSize(
           {
@@ -575,6 +615,13 @@ export default function CreateCharacter({
               ? { visualSubjectKey: options.visualSubjectKey }
               : {}),
             ...defaultAssetFlags(assets, i),
+            ...(stored
+              ? {
+                  mediaId: stored.mediaId,
+                  publicRenditionUrl: stored.publicRenditionUrl,
+                  blurPreviewUrl: stored.blurPreviewUrl,
+                }
+              : {}),
             ...(typeof tagged?.adultFlagged === "boolean" ? { adultFlagged: tagged.adultFlagged } : {}),
             ...(typeof tagged?.moderationReject === "boolean"
               ? { moderationReject: tagged.moderationReject }
@@ -687,9 +734,7 @@ export default function CreateCharacter({
           simulation_rules: data.simulation_rules ?? "",
         });
         setSimulationImports(Array.isArray(data.simulation_imports) ? data.simulation_imports : []);
-        setAssets(
-          normalizeCharacterAssets(Array.isArray(data.assets) ? data.assets : []),
-        );
+        setAssets(persistLoadedAssets(Array.isArray(data.assets) ? data.assets : []));
         setVisualSubjects(
           data.visual_subjects
             ? {
@@ -2250,11 +2295,10 @@ export default function CreateCharacter({
                     상태창 위젯
                   </h2>
                   <p className="mt-0.5 text-xs text-zinc-400">
-                    클린 카드·컴팩트 패널, HTML·JSX 직접제작 · 상태값·지시 토큰 환산 {STATUS_WIDGET_CONTEXT_MAX}자
+                    디자인과 상태값을 입력하면 미리보기에 반영됩니다. HTML·JSX는 직접 제작에서
+                    작성합니다. 채팅 호출 컴포넌트는 아래에서 따로 엽니다. 상태값·지시 토큰 환산{" "}
+                    {STATUS_WIDGET_CONTEXT_MAX}자
                   </p>
-                  <Link href="/widgets" className="mt-1 inline-flex text-xs text-violet-300 hover:underline">
-                    공유 상태창 둘러보기
-                  </Link>
                 </div>
                 <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[11px] font-bold text-zinc-200">
                   기본 적용
@@ -2280,16 +2324,40 @@ export default function CreateCharacter({
                 statusWidget={statusWidget}
                 disabled={loading}
               />
-              <JsxComponentCatalogEditor
-                key={
-                  editLoading
-                    ? "jsx-catalog-loading"
-                    : `jsx-catalog-${editCharacterId ?? "new"}`
-                }
-                value={jsxCatalog}
-                onChange={setJsxCatalog}
-                disabled={loading || editLoading}
-              />
+              <div className="mt-6 rounded-2xl border border-amber-500/20 bg-[#0c0c10] p-4">
+                <button
+                  type="button"
+                  aria-expanded={chatJsxEditorOpen}
+                  onClick={() => setChatJsxEditorOpen((open) => !open)}
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                >
+                  <span>
+                    <span className="block text-sm font-semibold text-zinc-100">
+                      대화용 인터랙티브 화면 만들기
+                    </span>
+                    <span className="mt-0.5 block text-xs text-zinc-400">
+                      예제를 눌러 본 뒤 적용합니다. 저장하면 AI가 대화 상황에 맞춰 호출할 수
+                      있습니다.
+                      {jsxCatalog[0] ? ` 저장됨: ${jsxCatalog[0].name}` : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs text-zinc-500">
+                    {chatJsxEditorOpen ? "닫기" : "편집"}
+                  </span>
+                </button>
+                <div hidden={!chatJsxEditorOpen}>
+                  <JsxComponentCatalogEditor
+                    key={
+                      editLoading
+                        ? "jsx-catalog-loading"
+                        : `jsx-catalog-${editCharacterId ?? "new"}`
+                    }
+                    value={jsxCatalog}
+                    onChange={setJsxCatalog}
+                    disabled={loading || editLoading}
+                  />
+                </div>
+              </div>
             </section>
           </div>
 

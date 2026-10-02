@@ -1,43 +1,140 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { isAdultVerificationSkipped } from "./adultVerification";
+import assert from "node:assert/strict";
+import { afterEach, describe, it } from "node:test";
+import { characterCardHref } from "./chatLinks";
+import {
+  canAccessAdultContent,
+  canUseCreatorTools,
+  effectiveIsAdult,
+  isAdultVerificationSkipped,
+  shouldHideAdultListings,
+} from "./adultVerification";
 
-describe("isAdultVerificationSkipped", () => {
-  const env = process.env;
+const ENV_KEYS = [
+  "SKIP_ADULT_VERIFICATION",
+  "PORTONE_CHARGE_ENABLED",
+  "NEXT_PUBLIC_PAYMENTS_ENABLED",
+  "NEXT_PUBLIC_PORTONE_CHARGE_ENABLED",
+  "ADMIN_EMAILS",
+] as const;
 
-  beforeEach(() => {
-    process.env = { ...env };
-    delete process.env.SKIP_ADULT_VERIFICATION;
-    delete process.env.PORTONE_CHARGE_ENABLED;
-    delete process.env.NEXT_PUBLIC_PAYMENTS_ENABLED;
-    delete process.env.NEXT_PUBLIC_PORTONE_CHARGE_ENABLED;
-  });
+const previous: Partial<Record<(typeof ENV_KEYS)[number], string | undefined>> = {};
 
-  afterEach(() => {
-    process.env = env;
-  });
+function snapshotEnv() {
+  for (const key of ENV_KEYS) previous[key] = process.env[key];
+}
 
-  it("returns true when SKIP_ADULT_VERIFICATION=1", () => {
+function restoreEnv() {
+  for (const key of ENV_KEYS) {
+    if (previous[key] === undefined) delete process.env[key];
+    else process.env[key] = previous[key];
+  }
+}
+
+function clearAccessEnv() {
+  snapshotEnv();
+  for (const key of ENV_KEYS) delete process.env[key];
+}
+
+afterEach(() => {
+  restoreEnv();
+});
+
+describe("adult verification owners", () => {
+  it("skip remains observable but does not grant stored verification or adult access", () => {
+    clearAccessEnv();
     process.env.SKIP_ADULT_VERIFICATION = "1";
-    expect(isAdultVerificationSkipped()).toBe(true);
-  });
-
-  it("returns false when SKIP_ADULT_VERIFICATION=0 even if payments disabled", () => {
-    process.env.SKIP_ADULT_VERIFICATION = "0";
-    process.env.PORTONE_CHARGE_ENABLED = "0";
-    expect(isAdultVerificationSkipped()).toBe(false);
-  });
-
-  it("returns true when NEXT_PUBLIC_PAYMENTS_ENABLED=0", () => {
     process.env.NEXT_PUBLIC_PAYMENTS_ENABLED = "0";
-    expect(isAdultVerificationSkipped()).toBe(true);
+    assert.equal(isAdultVerificationSkipped(), true);
+    assert.equal(effectiveIsAdult(0), false);
+    assert.equal(effectiveIsAdult(1), true);
+    assert.equal(
+      canAccessAdultContent({ email: "member@example.com", is_adult: 0, is_admin: 0 }),
+      false
+    );
   });
 
-  it("returns true when PORTONE_CHARGE_ENABLED=0", () => {
-    process.env.PORTONE_CHARGE_ENABLED = "0";
-    expect(isAdultVerificationSkipped()).toBe(true);
+  it("legacy mock-verified non-admin row cannot open adult listings or routes", () => {
+    clearAccessEnv();
+    const legacyMock = {
+      email: "legacy-mock@example.com",
+      is_adult: 1 as const,
+      is_admin: 0 as const,
+      nsfw_on: 1 as const,
+    };
+    assert.equal(effectiveIsAdult(legacyMock.is_adult), true);
+    assert.equal(canAccessAdultContent(legacyMock), false);
+    assert.equal(shouldHideAdultListings(legacyMock), true);
+    assert.equal(canUseCreatorTools(legacyMock), true);
+    assert.equal(legacyMock.is_adult === 1 && !canAccessAdultContent(legacyMock), true);
+    assert.equal(
+      characterCardHref({
+        characterId: 99,
+        nsfw: true,
+        blurNsfw: shouldHideAdultListings(legacyMock),
+        loggedIn: true,
+      }),
+      "/verify?redirect=%2Fcharacter%2F99"
+    );
   });
 
-  it("returns false when payment env unset", () => {
-    expect(isAdultVerificationSkipped()).toBe(false);
+  it("creator tools stay open for stored adult and existing admin, not for regular members", () => {
+    clearAccessEnv();
+    assert.equal(
+      canUseCreatorTools({ email: "member@example.com", is_adult: 0, is_admin: 0 }),
+      false
+    );
+    assert.equal(
+      canUseCreatorTools({ email: "admin@example.com", is_adult: 0, is_admin: 1 }),
+      true
+    );
+    assert.equal(
+      canUseCreatorTools({ email: "legacy-mock@example.com", is_adult: 1, is_admin: 0 }),
+      true
+    );
+  });
+
+  it("admin beta access does not require or write is_adult", () => {
+    clearAccessEnv();
+    const admin = { email: "admin@example.com", is_adult: 0, is_admin: 1 as const };
+    assert.equal(effectiveIsAdult(admin.is_adult), false);
+    assert.equal(canAccessAdultContent(admin), true);
+    assert.equal(shouldHideAdultListings({ ...admin, nsfw_on: 0 }), true);
+    assert.equal(shouldHideAdultListings({ ...admin, nsfw_on: 1 }), false);
+  });
+
+  it("portone reviewer never gets adult VIEW even with ADMIN_EMAILS or is_admin", () => {
+    clearAccessEnv();
+    process.env.ADMIN_EMAILS = "portone-reviewer@hav.internal";
+    const reviewer = {
+      email: "portone-reviewer@hav.internal",
+      is_adult: 1 as const,
+      is_admin: 1 as const,
+      nsfw_on: 1 as const,
+      account_kind: "portone_reviewer",
+    };
+    assert.equal(canAccessAdultContent(reviewer), false);
+    assert.equal(shouldHideAdultListings(reviewer), true);
+    assert.equal(canUseCreatorTools(reviewer), true);
+  });
+
+  it("ADMIN_EMAILS grants the same beta access without is_admin column", () => {
+    clearAccessEnv();
+    process.env.ADMIN_EMAILS = "ops@hav.chat";
+    assert.equal(
+      canAccessAdultContent({ email: "ops@hav.chat", is_adult: 0, is_admin: 0 }),
+      true
+    );
+    assert.equal(
+      canAccessAdultContent({ email: "member@hav.chat", is_adult: 0, is_admin: 0 }),
+      false
+    );
+  });
+
+  it("guests and regular members cannot hide-disable the safety filter", () => {
+    clearAccessEnv();
+    assert.equal(shouldHideAdultListings(null), true);
+    assert.equal(shouldHideAdultListings({ email: "a@b.c", is_adult: 0, is_admin: 0, nsfw_on: 1 }), true);
+    assert.equal(shouldHideAdultListings({ email: "a@b.c", is_adult: 1, is_admin: 0, nsfw_on: 0 }), true);
+    assert.equal(shouldHideAdultListings({ email: "a@b.c", is_adult: 1, is_admin: 0, nsfw_on: 1 }), true);
   });
 });

@@ -1,8 +1,16 @@
+import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getDb } from "@/lib/db";
 import { resolveWorldSelectionForUser } from "@/lib/worldLibrary";
 import { parseWorldLibraryRef } from "@/lib/worlds";
 import type { CharacterAsset } from "@/lib/characterAssets";
-import { assetUrls, normalizeCharacterAssets } from "@/lib/characterAssets";
+import {
+  isStoredAssetUrl,
+  listingImageUrls,
+  normalizeCharacterAssets,
+  representativeSelectionError,
+} from "@/lib/characterAssets";
+import { canPublishAsRepresentative } from "@/lib/assetVisionPolicy";
+import { bindTrustedCharacterMedia } from "@/lib/mediaAccess";
 import { parseCharacterGender } from "@/lib/characterGender";
 import { buildSaveCharacterChunksAndEnqueueDerivedRefresh } from "@/lib/characterChunks";
 import {
@@ -129,7 +137,13 @@ export {
 } from "./characterFormLimits";
 
 
-export type SessionUser = { id: number; nickname: string; is_adult: number };
+export type SessionUser = {
+  id: number;
+  nickname: string;
+  is_adult: number;
+  email?: string;
+  is_admin?: number;
+};
 
 export type ParsedCharacterForm = {
   contentKind: ContentKind;
@@ -246,6 +260,37 @@ function prepareVisualSubjectsForSave(opts: {
   }
 }
 
+function representativePublishError(
+  assets: CharacterAsset[],
+  visibility: CharacterVisibility
+): string | null {
+  for (const asset of assets.filter((row) => row.representativeRank != null)) {
+    const decision = canPublishAsRepresentative(asset);
+    if (decision.ok) continue;
+    if (!decision.hold || visibility !== "private") return decision.reason;
+  }
+  return null;
+}
+
+function finalizeAssetsForSave(
+  assets: CharacterAsset[],
+  rawAssets: unknown,
+  userId: number,
+  context: { nsfw: boolean; visibility: CharacterVisibility; characterId?: number | null }
+): { ok: true; assets: CharacterAsset[] } | { ok: false; error: string; status: 400 } {
+  const rawList = Array.isArray(rawAssets) ? rawAssets : [];
+  const selectionError = representativeSelectionError(rawList);
+  if (selectionError) return { ok: false, error: selectionError, status: 400 };
+  const bound = bindTrustedCharacterMedia(assets, userId, {
+    nsfw: context.nsfw,
+    characterId: context.characterId ?? null,
+  });
+  if (!bound.ok) return { ok: false, error: bound.error, status: 400 };
+  const publishError = representativePublishError(bound.assets, context.visibility);
+  if (publishError) return { ok: false, error: publishError, status: 400 };
+  return { ok: true, assets: bound.assets };
+}
+
 function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
   if (!Array.isArray(rawAssets)) return [];
   const candidates = rawAssets
@@ -258,7 +303,7 @@ function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
       url: String(asset.url),
       tag: String(asset.tag).slice(0, 32),
     }))
-    .filter((asset) => asset.url.startsWith("/uploads/") || asset.url.startsWith("http"))
+    .filter((asset) => isStoredAssetUrl(asset.url))
     .slice(0, 100);
   return normalizeCharacterAssets(candidates);
 }
@@ -362,6 +407,7 @@ export function parseCharacterFormBody(
     requireStructuredAge?: boolean;
     trustedStoredSimulationVisualSubjectsJson?: string;
     trustedStoredVisualSubjectsJson?: string;
+    characterId?: number;
     existingCharacter?: {
       world: string | null;
       worldId: number | null;
@@ -369,7 +415,7 @@ export function parseCharacterFormBody(
     };
   }
 ): { ok: true; data: ParsedCharacterForm } | { ok: false; error: string; status: number } {
-  if (!user.is_adult) {
+  if (!canUseCreatorTools(user)) {
     return { ok: false, error: "캐릭터 제작·수정은 성인인증 완료 후 가능합니다.", status: 403 };
   }
   const contentKind = parseContentKind(b.content_kind ?? b.contentKind);
@@ -641,6 +687,15 @@ export function parseCharacterFormBody(
     return { ok: false, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
   }
 
+  const requestedVisibility = parseVisibility(b.visibility);
+  const finalized = finalizeAssetsForSave(assets, b.assets, user.id, {
+    nsfw,
+    visibility: requestedVisibility,
+    characterId: options?.characterId ?? null,
+  });
+  if (!finalized.ok) return finalized;
+  assets = finalized.assets;
+
   return {
     ok: true,
     data: {
@@ -668,9 +723,9 @@ export function parseCharacterFormBody(
       primaryGenre: primaryCharacterGenre(genres),
       narrationStyleInstructions,
       assets,
-      images: assetUrls(assets),
+      images: listingImageUrls(assets),
       audience: ["all", "female", "male"].includes(String(b.audience)) ? String(b.audience) : "all",
-      requestedVisibility: parseVisibility(b.visibility),
+      requestedVisibility,
       nsfw,
       participantMinAge,
       adultDialogueProfile,
@@ -1138,6 +1193,7 @@ export async function updateCharacterFromForm(
     requireStructuredAge: false,
     trustedStoredSimulationVisualSubjectsJson: row.simulation_visual_subjects_json,
     trustedStoredVisualSubjectsJson: row.simulation_visual_subjects_json,
+    characterId,
     existingCharacter: {
       world: row.world,
       worldId: row.world_id,
@@ -1343,7 +1399,7 @@ export async function updateCharacterPublicProfileFromForm(
   characterId: number,
   b: Record<string, unknown>
 ) {
-  if (!user.is_adult) {
+  if (!canUseCreatorTools(user)) {
     return { ok: false as const, error: "캐릭터 수정은 성인인증 완료 후 가능합니다.", status: 403 };
   }
 
@@ -1456,8 +1512,15 @@ export async function updateCharacterPublicProfileFromForm(
     participantMinAge,
     legacyExplicitStatus: parseExplicitAdultStatus(row.adult_status),
   });
-  const images = assetUrls(assets);
   const requestedVisibility = parseVisibility(b.visibility);
+  const finalized = finalizeAssetsForSave(assets, b.assets, user.id, {
+    nsfw,
+    visibility: requestedVisibility,
+    characterId,
+  });
+  if (!finalized.ok) return finalized;
+  assets = finalized.assets;
+  const images = listingImageUrls(assets);
   const creatorComment = String(b.creator_comment ?? b.creatorComment ?? "").trim().slice(0, CREATOR_COMMENT_LIMIT);
   const listingBlock = listingBlockForForm({
     nsfw,

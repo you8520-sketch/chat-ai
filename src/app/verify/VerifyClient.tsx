@@ -11,9 +11,10 @@ const CARRIERS = ["SKT", "KT", "LG U+", "알뜰폰"];
 type Props = {
   redirectTo: string;
   showDemo?: boolean;
+  providerPending?: boolean;
 };
 
-export default function VerifyClient({ redirectTo, showDemo = false }: Props) {
+export default function VerifyClient({ redirectTo, showDemo = false, providerPending = false }: Props) {
   const router = useRouter();
   const fromCharacter = redirectTo.startsWith("/character/");
   const [form, setForm] = useState({ name: "", birth: "", carrier: "SKT" });
@@ -67,11 +68,18 @@ export default function VerifyClient({ redirectTo, showDemo = false }: Props) {
     <div className={`mx-auto mt-20 max-w-sm p-8 ${studioSurface.card}`}>
       <h1 className={studioType.heading}>성인인증</h1>
       <p className={`mt-2 ${studioType.body}`}>
-        {fromCharacter
-          ? "성인용 캐릭터를 이용하려면 본인인증이 필요합니다. (만 19세 이상)"
-          : "성인용 콘텐츠 이용 및 캐릭터 제작을 위해 본인인증이 필요합니다. (만 19세 이상)"}
+        {providerPending
+          ? "본인확인 제공업체가 아직 연동되지 않았습니다. 모의 인증은 실제 성인인증으로 기록되지 않습니다."
+          : fromCharacter
+            ? "성인용 캐릭터를 이용하려면 본인인증이 필요합니다. (만 19세 이상)"
+            : "성인용 콘텐츠 이용 및 캐릭터 제작을 위해 본인인증이 필요합니다. (만 19세 이상)"}
       </p>
-      <form onSubmit={submit} className="mt-6 space-y-3">
+      {providerPending && !showDemo ? (
+        <p className={`mt-6 ${studioType.caption}`}>
+          세이프티 필터는 기본으로 켜져 있으며, 일반 회원은 끌 수 없습니다.
+        </p>
+      ) : null}
+      <form onSubmit={submit} className={`mt-6 space-y-3 ${providerPending && !showDemo ? "hidden" : ""}`}>
         <input
           required
           placeholder="이름"

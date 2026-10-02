@@ -249,6 +249,7 @@ export function estimateApiCostUsd(input: {
   );
 }
 
+/** Naive calendar month as SQL datetimes. The reconciler treats these as UTC. */
 export function monthRangeSql(monthKey: string): { start: string; end: string } {
   if (!/^\d{4}-\d{2}$/.test(monthKey)) throw new Error("잘못된 월 형식입니다.");
   const [year, month] = monthKey.split("-").map(Number);
@@ -599,6 +600,21 @@ function readMainGenerationModelByRequest(db: Database.Database): Map<string, st
   return map;
 }
 
+function realizedProfitAndMargin(
+  paidRevenueKrw: number,
+  costKrw: number,
+  realizedMarginExact: boolean
+): { netProfitKrw: number | null; marginRate: number | null } {
+  if (!realizedMarginExact) {
+    return { netProfitKrw: null, marginRate: null };
+  }
+  const netProfitKrw = paidRevenueKrw - costKrw;
+  return {
+    netProfitKrw: round1(netProfitKrw),
+    marginRate: paidRevenueKrw > 0 ? netProfitKrw / paidRevenueKrw : null,
+  };
+}
+
 function category(
   paidRevenueKrw: number,
   freePointSpend: number,
@@ -607,15 +623,18 @@ function category(
   marginCoverage: FinanceMarginCoverage = "complete",
   realizedMarginExact = true
 ): FinanceCategory {
-  const netProfitKrw = paidRevenueKrw - apiCostKrw - creatorCostKrw;
-  const marginEligible = realizedMarginExact && paidRevenueKrw > 0;
+  const { netProfitKrw, marginRate } = realizedProfitAndMargin(
+    paidRevenueKrw,
+    apiCostKrw + creatorCostKrw,
+    realizedMarginExact
+  );
   return {
     paidRevenueKrw: round1(paidRevenueKrw),
     freePointSpend: round1(freePointSpend),
     apiCostKrw: round1(apiCostKrw),
     creatorCostKrw: round1(creatorCostKrw),
-    netProfitKrw: marginEligible ? round1(netProfitKrw) : null,
-    marginRate: marginEligible ? netProfitKrw / paidRevenueKrw : null,
+    netProfitKrw,
+    marginRate,
     marginCoverage,
     realizedMarginExact,
   };
@@ -1146,8 +1165,11 @@ export function buildAdminFinanceSummary(
       seenLedgerModels.add(ledger.model.toLowerCase());
       seenLedgerModels.add(ledgerModelLabel(ledger.model).toLowerCase());
     }
-    const contribution = values.paidRevenueKrw - values.apiCostKrw;
-    const eligible = values.realizedMarginExact && values.paidRevenueKrw > 0;
+    const { netProfitKrw: contributionKrw, marginRate } = realizedProfitAndMargin(
+      values.paidRevenueKrw,
+      values.apiCostKrw,
+      values.realizedMarginExact
+    );
     return {
       model,
       kind: "direct" as const,
@@ -1156,8 +1178,8 @@ export function buildAdminFinanceSummary(
       paidRevenueKrw: round1(values.paidRevenueKrw),
       actualKrw: round1(ledger?.actualKrw ?? 0),
       estimatedKrw: round1(ledger?.estimatedKrw ?? 0),
-      contributionKrw: eligible ? round1(contribution) : null,
-      marginRate: eligible && values.paidRevenueKrw > 0 ? contribution / values.paidRevenueKrw : null,
+      contributionKrw,
+      marginRate,
       sourceState: ledger
         ? ledger.sourceState
         : values.realizedMarginExact
@@ -1219,16 +1241,18 @@ export function buildAdminFinanceSummary(
     image,
     modelBreakdown: [...modelMap.entries()]
       .map(([model, values]) => {
-        const modelNetProfitKrw = values.paidRevenueKrw - values.apiCostKrw;
-        const marginEligible =
-          values.realizedMarginExact && values.paidRevenueKrw > 0;
+        const { netProfitKrw, marginRate } = realizedProfitAndMargin(
+          values.paidRevenueKrw,
+          values.apiCostKrw,
+          values.realizedMarginExact
+        );
         return {
           model,
           paidRevenueKrw: round1(values.paidRevenueKrw),
           freePointSpend: round1(values.freePointSpend),
           apiCostKrw: round1(values.apiCostKrw),
-          netProfitKrw: marginEligible ? round1(modelNetProfitKrw) : null,
-          marginRate: marginEligible ? modelNetProfitKrw / values.paidRevenueKrw : null,
+          netProfitKrw,
+          marginRate,
           marginCoverage: values.marginCoverage,
           realizedMarginExact: values.realizedMarginExact,
         };

@@ -155,6 +155,22 @@ describe("publishedModelPricing", () => {
     );
   });
 
+  it("GPT-6.1 Sol published official Standard at 45% target margin", () => {
+    const p = getPublishedPricing("gpt-6.1-sol");
+    assert.equal(p.modelId, "gpt-6.1-sol");
+    assert.equal(p.billingReferenceInputUsdPerMillion, 2);
+    assert.equal(p.billingReferenceCacheReadUsdPerMillion, 0.1);
+    assert.equal(p.billingReferenceCacheWriteUsdPerMillion, 2.5);
+    assert.equal(p.billingReferenceOutputUsdPerMillion, 10);
+    assert.equal(p.billingReferenceLongContextInputUsdPerMillion, 4);
+    assert.equal(p.billingReferenceLongContextOutputUsdPerMillion, 15);
+    assert.equal(p.targetMargin, 0.45);
+    assert.equal(p.publishedLongContextMinPromptTokens, 272_000);
+    const alias = getPublishedPricing("openai/gpt-6.1-sol");
+    assert.equal(alias.modelId, "gpt-6.1-sol");
+    assert.equal(alias.targetMargin, 0.45);
+  });
+
   it("PUBLISHED_CATALOG_IDENTITY_INVARIANT — catalog key equals pricing.modelId", () => {
     for (const entry of listExactPublishedCatalogEntries()) {
       assert.equal(

@@ -870,7 +870,7 @@ function findLastTurnIndices(msgs: Msg[]) {
 }
 
 function scanMessagesForPortrait(
-  msgs: { role: string; content: string; requestId?: string; id?: number | null }[],
+  msgs: { role: string; content: string; requestId?: string; id?: number | null; generationStatus?: string }[],
   assets: CharacterAsset[],
   isCharacterCreator: boolean
 ): { activeUrl: string | null; activeTag: string | null; unlocked: Set<string> } {
@@ -886,6 +886,8 @@ function scanMessagesForPortrait(
   for (let i = 0; i < msgs.length; i++) {
     const m = msgs[i];
     if (m.role !== "assistant" || !m.content.trim()) continue;
+    const generationStatus = (m.generationStatus ?? "completed").trim().toLowerCase();
+    if (generationStatus !== "completed") continue;
     const selectionKey = assetSelectionKeyForMessage(m, i);
     const portrait = lastPortraitEmotionAsset(m.content, assets, selectionKey);
     const { tag } = stripEmotionTag(m.content);

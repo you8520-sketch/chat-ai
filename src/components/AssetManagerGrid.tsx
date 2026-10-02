@@ -4,12 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import {
+  MAX_REPRESENTATIVE_ASSETS,
+  getRepresentativeAssets,
+  isRepresentativeAsset,
   reorderCharacterAssets,
+  reorderRepresentativeAssets,
   toggleCharacterAssetViewerBlur,
+  toggleRepresentativeAsset,
   updateCharacterAssetTag,
 } from "@/lib/characterAssets";
 import { cn, studioType } from "@/lib/studioDesign";
-import { isAssetHardRejected, isAssetNeedsAdminReview } from "@/lib/assetVisionPolicy";
+import { canPublishAsRepresentative, isAssetHardRejected, isAssetNeedsAdminReview } from "@/lib/assetVisionPolicy";
 import { pruneSelectedUrls } from "@/lib/assetManagerGridSelection";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
@@ -97,6 +102,26 @@ export default function AssetManagerGrid({
     onChange(toggleCharacterAssetViewerBlur(assets, index));
   }
 
+  function toggleRepresentative(index: number) {
+    const asset = assets[index];
+    if (!asset) return;
+    if (!isRepresentativeAsset(asset)) {
+      const decision = canPublishAsRepresentative(asset);
+      if (!decision.ok) {
+        window.alert(decision.reason);
+        return;
+      }
+      const currentCount = getRepresentativeAssets(
+        assets.some((row) => row.representativeRank != null) ? assets : []
+      ).length;
+      if (currentCount >= MAX_REPRESENTATIVE_ASSETS) {
+        window.alert("대표 이미지는 최대 5장까지 지정할 수 있습니다.");
+        return;
+      }
+    }
+    onChange(toggleRepresentativeAsset(assets, index));
+  }
+
   function startTagEdit(index: number) {
     setEditingIndex(index);
     setDraftTag(assets[index]?.tag ?? "");
@@ -159,9 +184,9 @@ export default function AssetManagerGrid({
   return (
     <div className="space-y-3">
       <p className={studioType.helper}>
-        <span className="text-zinc-200">태그 클릭</span>하여 수정 · 드래그로 순서 변경 ·{" "}
-        <span className="text-zinc-200">1번</span>이 카드 대표 이미지 ·{" "}
-        <span className="text-zinc-200">가리기</span>는 타 유저 블러(소개·갤러리)
+        <span className="text-zinc-200">태그 클릭</span>하여 수정 · 드래그로 목록 순서 변경 ·{" "}
+        <span className="text-zinc-200">대표 1~5</span>만 카드에 1초 순환 ·{" "}
+        <span className="text-zinc-200">가리기</span>는 타 유저 블러 미리보기(원본 비공개)
         {selectionEnabled ? (
           <>
             {" "}
@@ -243,7 +268,28 @@ export default function AssetManagerGrid({
             }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={() => {
-              if (dragIndex !== null) reorder(dragIndex, i);
+              if (dragIndex !== null) {
+                const fromAsset = assets[dragIndex];
+                const toAsset = assets[i];
+                if (
+                  fromAsset &&
+                  toAsset &&
+                  isRepresentativeAsset(fromAsset) &&
+                  isRepresentativeAsset(toAsset) &&
+                  fromAsset.representativeRank != null &&
+                  toAsset.representativeRank != null
+                ) {
+                  onChange(
+                    reorderRepresentativeAssets(
+                      assets,
+                      fromAsset.representativeRank,
+                      toAsset.representativeRank
+                    )
+                  );
+                } else {
+                  reorder(dragIndex, i);
+                }
+              }
               setDragIndex(null);
               suppressSelectionClickRef.current = true;
               window.setTimeout(() => {
@@ -324,6 +370,11 @@ export default function AssetManagerGrid({
                   메인
                 </span>
               )}
+              {isRepresentativeAsset(a) && (
+                <span className="rounded bg-violet-600/90 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  대표 {a.representativeRank}
+                </span>
+              )}
             </div>
             <div
               className="border-t border-white/10 bg-black/35 px-2 py-2"
@@ -388,25 +439,42 @@ export default function AssetManagerGrid({
             )}
             <button
               type="button"
-              onClick={() => toggleViewerBlur(i)}
-              disabled={i === 0}
+              onClick={() => toggleRepresentative(i)}
               title={
-                i === 0
-                  ? "대표(1번) 이미지는 항상 공개입니다"
-                  : a.viewerBlur
-                    ? "타 유저 가림 해제 (누구나 선명하게)"
-                    : "타 유저에게 블러 가림 (제작자는 선명)"
+                isRepresentativeAsset(a)
+                  ? "카드 대표에서 해제"
+                  : "카드 대표 1~5에 추가"
               }
               className={cn(
                 "min-h-11 w-full border-t border-white/10 text-xs font-semibold transition",
-                i === 0
+                isRepresentativeAsset(a)
+                  ? "bg-violet-600/35 text-violet-50"
+                  : "bg-black/40 text-zinc-400 hover:text-zinc-200",
+              )}
+            >
+              {isRepresentativeAsset(a) ? `대표 ${a.representativeRank} · 해제` : "대표로 지정"}
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleViewerBlur(i)}
+              disabled={isRepresentativeAsset(a) || (!assets.some((row) => row.representativeRank != null) && i === 0)}
+              title={
+                isRepresentativeAsset(a)
+                  ? "대표 이미지는 항상 공개 렌디션으로 나갑니다"
+                  : a.viewerBlur
+                    ? "타 유저 가림 해제 (누구나 선명하게)"
+                    : "타 유저에게 블러 미리보기 (원본 비공개)"
+              }
+              className={cn(
+                "min-h-11 w-full border-t border-white/10 text-xs font-semibold transition",
+                isRepresentativeAsset(a) || (!assets.some((row) => row.representativeRank != null) && i === 0)
                   ? "cursor-not-allowed bg-black/25 text-zinc-600"
                   : a.viewerBlur
                     ? "bg-amber-600/30 text-amber-100"
                     : "bg-black/40 text-zinc-500 hover:text-zinc-300",
               )}
             >
-              {i === 0 ? "대표 · 공개" : `가리기${a.viewerBlur ? " ON" : ""}`}
+              {isRepresentativeAsset(a) ? "대표 · 공개" : `가리기${a.viewerBlur ? " ON" : ""}`}
             </button>
             <button
               type="button"

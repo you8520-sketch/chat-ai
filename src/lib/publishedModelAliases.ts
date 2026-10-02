@@ -10,6 +10,7 @@ const PUBLISHED_MODEL_ALIASES: Record<string, string> = {
   "deepseek/deepseek-v4-pro": "deepseek-v4-pro-0813",
   "deepseek/deepseek-v4-pro-0813": "deepseek-v4-pro-0813",
   "deepseek/deepseek-v4.1-flash": "deepseek-v4.1-flash",
+  "openai/gpt-6.1-sol": "gpt-6.1-sol",
 };
 
 export function normalizePublishedModelId(modelId: string): string {

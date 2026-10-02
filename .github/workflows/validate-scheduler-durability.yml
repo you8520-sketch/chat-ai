@@ -20,6 +20,8 @@ on:
       - "src/lib/mainRpCacheTtlEconomics.test.ts"
       - "src/lib/adminAutomationReports.ts"
       - "src/lib/adminAutomationReports.test.ts"
+      - "src/lib/githubReportClient.ts"
+      - "src/lib/githubReportClient.test.ts"
       - "src/lib/codeHealth/**"
       - "src/app/admin/automation-reports/page.tsx"
       - "src/app/settings/SettingsClient.tsx"
@@ -65,6 +67,7 @@ jobs:
           src/lib/mainRpCacheTtlEconomics.test.ts
           src/lib/financeAnomalyRadar.test.ts
           src/lib/adminAutomationReports.test.ts
+          src/lib/githubReportClient.test.ts
           src/lib/codeHealth/isolation.test.ts
           src/lib/codeHealth/reports.test.ts
       - name: Production build

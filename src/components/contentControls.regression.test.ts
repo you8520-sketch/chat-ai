@@ -10,7 +10,7 @@ describe("content controls and navigation regression", () => {
     assert.doesNotMatch(verifyRoute, /SET is_adult\s*=\s*1,\s*nsfw_on\s*=\s*1/);
 
     const controls = read("src/components/UserPreferenceControls.tsx");
-    assert.match(controls, /성인 캐릭터 표시/);
+    assert.match(controls, /세이프티 필터/);
     assert.doesNotMatch(controls, />19\+</);
   });
 

@@ -63,13 +63,13 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "@/lib/chatModels";
 import { listProviderModelDiscoveries } from "@/lib/providerModelDiscovery";
 
 const GEMINI = CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL;
 const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
-const TERRA = CHEAPER_INFERENCE_GPT_56_TERRA_MODEL;
+const SOL = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
 const FIXED_NOW = new Date("2026-09-20T03:00:00.000Z");
 
 function makeDb(): Database.Database {
@@ -117,7 +117,7 @@ describe("current procurement provider ownership", () => {
     assert.equal(getModelPricingPolicy("gemini-3.7-flash")?.provider, "openrouter");
     assert.equal(getModelPricingPolicy("gemini-3.8-flash")?.provider, "openrouter");
     assert.equal(getModelPricingPolicy("deepseek-v4.1-flash")?.provider, "cheaperinference");
-    assert.equal(getModelPricingPolicy(TERRA)?.provider, "cheaperinference");
+    assert.equal(getModelPricingPolicy(SOL)?.provider, "cheaperinference");
   });
 
   it("keeps CI snapshot provenance on CheaperInference even when examining CI evidence for an OpenRouter-routed model", () => {
@@ -153,7 +153,7 @@ describe("current procurement provider ownership", () => {
       referenceOutputUsdPerMillion: 12,
       discountPercent: 99,
     });
-    seedCatalog(TERRA, {
+    seedCatalog(SOL, {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -185,7 +185,7 @@ describe("current procurement provider ownership", () => {
       null
     );
     assert.ok(readLatestSnapshot(db, GEMINI, "published_billing_baseline"));
-    assert.ok(readLatestSnapshot(db, TERRA, "cheaper_inference_models_current"));
+    assert.ok(readLatestSnapshot(db, SOL, "cheaper_inference_models_current"));
     assert.equal(result.marginFloorBreaches.includes(GEMINI), false);
   });
 });
@@ -407,7 +407,7 @@ describe("model pricing tracker regression fixtures", () => {
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6.1-sol", {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -450,7 +450,7 @@ describe("model pricing tracker regression fixtures", () => {
   it("snapshots are append-only across runs", async () => {
     const db = makeDb();
     const observedAt = FIXED_NOW.toISOString();
-    seedCatalog(TERRA, {
+    seedCatalog(SOL, {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -477,7 +477,7 @@ describe("model pricing tracker regression fixtures", () => {
       skipOfficialProviderRefresh: true,
     });
 
-    seedCatalog(TERRA, {
+    seedCatalog(SOL, {
       inputUsdPerMillion: 0.8,
       outputUsdPerMillion: 4.8,
       referenceInputUsdPerMillion: 2,
@@ -495,7 +495,7 @@ describe("model pricing tracker regression fixtures", () => {
 
     const count = db.prepare(`SELECT COUNT(*) AS c FROM model_price_snapshots`).get() as { c: number };
     assert.ok(count.c > 0);
-    const latest = readLatestSnapshot(db, TERRA, "cheaper_inference_models_current");
+    const latest = readLatestSnapshot(db, SOL, "cheaper_inference_models_current");
     assert.ok(latest);
     assert.equal(latest?.rates.discountPercent, 60);
     assert.notEqual(latest?.observedAt, observedAt);
@@ -700,7 +700,7 @@ describe("PR #992 correction fixtures (provenance + run-claim atomicity)", () =>
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6.1-sol", {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -747,7 +747,7 @@ describe("PR #992 correction fixtures (provenance + run-claim atomicity)", () =>
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6.1-sol", {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -889,7 +889,7 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6.1-sol", {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -943,7 +943,7 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6.1-sol", {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -1062,7 +1062,7 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6.1-sol", {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -1362,7 +1362,7 @@ describe("PR #992 final correction fixtures (attempt identity + forensic freshne
       discountPercent: 40,
       fetchedAt: sourceMs,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6.1-sol", {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -1419,7 +1419,7 @@ describe("PR #992 event-history integrity fixtures (Q1–Q8)", () => {
       discountPercent: 40,
       fetchedAt,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6.1-sol", {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -1923,7 +1923,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       discountPercent: 40,
       fetchedAt,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6.1-sol", {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -2160,7 +2160,7 @@ describe("PR #992 transition-identity fixtures (R1–R5)", () => {
       referenceOutputUsdPerMillion: 1.875,
       discountPercent: 40,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6.1-sol", {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,
@@ -2574,7 +2574,7 @@ describe("provider model discovery production-path integration", () => {
       discountPercent: 40,
       fetchedAt,
     });
-    seedCatalog("gpt-5.6-terra", {
+    seedCatalog("gpt-6.1-sol", {
       inputUsdPerMillion: 1.4,
       outputUsdPerMillion: 8.4,
       referenceInputUsdPerMillion: 2,

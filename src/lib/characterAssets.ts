@@ -1,5 +1,7 @@
 export type AssetOrientation = "landscape" | "portrait" | "square";
 
+export const MAX_REPRESENTATIVE_ASSETS = 5;
+
 export type CharacterAsset = {
   url: string;
   tag: string;
@@ -16,9 +18,21 @@ export type CharacterAsset = {
   /** 하드 반려: 여성 유두·남녀 성기·항문 노출 등 */
   moderationReject?: boolean;
   moderationReason?: string;
+  /** Server ledger: pending until vision check completes. */
+  moderationStatus?: "pending" | "checked";
+  /** Representative-only nipple evidence. Not an all-asset hard reject. */
+  nippleExposure?: "none" | "visible" | "uncertain";
   width?: number;
   height?: number;
   orientation?: AssetOrientation;
+  /** Private-media id when the original lives under getDataDir()/media. */
+  mediaId?: string;
+  /** Card order 1–5. Absent means not a public representative. */
+  representativeRank?: number;
+  /** Safe public card rendition. Never a private original path. */
+  publicRenditionUrl?: string;
+  /** Independent blur thumbnail. Never the original bytes. */
+  blurPreviewUrl?: string;
 };
 
 export function orientationFromSize(
@@ -105,9 +119,96 @@ function optionalSizeFields(raw: Partial<CharacterAsset>): Pick<CharacterAsset, 
 export { ASSET_PERSON_TAGS as EMOTION_TAGS } from "@/lib/assetPersonTags";
 export type { AssetPersonTag } from "@/lib/assetPersonTags";
 
-function normalizeAsset(raw: Partial<CharacterAsset>, index: number): CharacterAsset {
+export function isStoredAssetUrl(url: string): boolean {
+  return (
+    url.startsWith("/uploads/") ||
+    url.startsWith("/media/private/") ||
+    url.startsWith("/media/public/") ||
+    url.startsWith("http://") ||
+    url.startsWith("https://")
+  );
+}
+
+export function isPrivateMediaUrl(url: string): boolean {
+  return url.split("?")[0]?.startsWith("/media/private/") ?? false;
+}
+
+export function privateMediaRequestUrl(url: string, chatId: number | null | undefined): string {
+  if (!isPrivateMediaUrl(url) || chatId == null || !Number.isInteger(chatId) || chatId <= 0) {
+    return url;
+  }
+  const [base] = url.split("?");
+  return `${base}?chat=${chatId}`;
+}
+
+function optionalMediaFields(
+  raw: Partial<CharacterAsset>
+): Pick<CharacterAsset, "mediaId" | "publicRenditionUrl" | "blurPreviewUrl"> {
+  const mediaId = typeof raw.mediaId === "string" ? raw.mediaId.trim() : "";
+  const publicRenditionUrl =
+    typeof raw.publicRenditionUrl === "string" ? raw.publicRenditionUrl.trim() : "";
+  const blurPreviewUrl = typeof raw.blurPreviewUrl === "string" ? raw.blurPreviewUrl.trim() : "";
+  return {
+    ...(mediaId ? { mediaId } : {}),
+    ...(publicRenditionUrl && !isPrivateMediaUrl(publicRenditionUrl)
+      ? { publicRenditionUrl }
+      : {}),
+    ...(blurPreviewUrl && !isPrivateMediaUrl(blurPreviewUrl) ? { blurPreviewUrl } : {}),
+  };
+}
+
+function parseRepresentativeRank(raw: unknown): number | undefined {
+  const rank = Number(raw);
+  if (!Number.isInteger(rank) || rank < 1 || rank > MAX_REPRESENTATIVE_ASSETS) return undefined;
+  return rank;
+}
+
+export function countRepresentativeSelections(list: readonly Partial<CharacterAsset>[]): number {
+  return list.filter((asset) => {
+    const rank = Number((asset as { representativeRank?: unknown }).representativeRank);
+    return Number.isFinite(rank) && rank !== 0;
+  }).length;
+}
+
+export function representativeSelectionError(
+  list: readonly Partial<CharacterAsset>[]
+): string | null {
+  const count = countRepresentativeSelections(list);
+  if (count === 0) return "대표 이미지를 1장 이상 지정해 주세요.";
+  if (count > MAX_REPRESENTATIVE_ASSETS) return "대표 이미지는 최대 5장까지 지정할 수 있습니다.";
+  return null;
+}
+
+function hasExplicitRepresentativeRanks(list: readonly Partial<CharacterAsset>[]): boolean {
+  return list.some((asset) => parseRepresentativeRank(asset.representativeRank) != null);
+}
+
+function compactRepresentativeRanks(assets: CharacterAsset[]): CharacterAsset[] {
+  const ranked = assets
+    .map((asset, index) => ({ asset, index, rank: parseRepresentativeRank(asset.representativeRank) }))
+    .filter((row): row is { asset: CharacterAsset; index: number; rank: number } => row.rank != null)
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .slice(0, MAX_REPRESENTATIVE_ASSETS);
+  const rankByIndex = new Map(ranked.map((row, order) => [row.index, order + 1]));
+  return assets.map((asset, index) => {
+    const rank = rankByIndex.get(index);
+    if (rank != null) {
+      return { ...asset, representativeRank: rank, viewerBlur: false };
+    }
+    if (asset.representativeRank == null) return asset;
+    const { representativeRank: _dropped, ...rest } = asset;
+    return rest;
+  });
+}
+
+function normalizeAsset(
+  raw: Partial<CharacterAsset>,
+  index: number,
+  legacyForceFirstPublic: boolean
+): CharacterAsset {
   const storedBlur =
-    typeof raw.viewerBlur === "boolean" ? raw.viewerBlur : index === 0 ? false : true;
+    typeof raw.viewerBlur === "boolean" ? raw.viewerBlur : index === 0 && legacyForceFirstPublic ? false : true;
+  const representativeRank = parseRepresentativeRank(raw.representativeRank);
   return {
     url: String(raw.url),
     tag: normalizeCreatorAssetTag(raw.tag),
@@ -117,14 +218,23 @@ function normalizeAsset(raw: Partial<CharacterAsset>, index: number): CharacterA
     // 업로드한 에셋은 모두 소개·대화 풀에 포함. UI에서 고르는 것은 가림(viewerBlur)뿐.
     public: true,
     chat: true,
-    // 1번(대표) 에셋은 항상 공개 — 저장값이 true여도 강제 해제
-    viewerBlur: index === 0 ? false : storedBlur,
+    viewerBlur: representativeRank != null ? false : legacyForceFirstPublic && index === 0 ? false : storedBlur,
     ...(typeof raw.adultFlagged === "boolean" ? { adultFlagged: raw.adultFlagged } : {}),
     ...(typeof raw.moderationReject === "boolean" ? { moderationReject: raw.moderationReject } : {}),
     ...(typeof raw.moderationReason === "string" && raw.moderationReason.trim()
       ? { moderationReason: raw.moderationReason.trim().slice(0, 200) }
       : {}),
+    ...(raw.moderationStatus === "pending" || raw.moderationStatus === "checked"
+      ? { moderationStatus: raw.moderationStatus }
+      : {}),
+    ...(raw.nippleExposure === "none" ||
+    raw.nippleExposure === "visible" ||
+    raw.nippleExposure === "uncertain"
+      ? { nippleExposure: raw.nippleExposure }
+      : {}),
     ...optionalSizeFields(raw),
+    ...optionalMediaFields(raw),
+    ...(representativeRank != null ? { representativeRank } : {}),
   };
 }
 
@@ -132,14 +242,25 @@ function normalizeAsset(raw: Partial<CharacterAsset>, index: number): CharacterA
 export function normalizeCharacterAssets(
   list: readonly Partial<CharacterAsset>[]
 ): CharacterAsset[] {
-  return list
-    .filter((asset) => asset && typeof asset.url === "string" && typeof asset.tag === "string")
-    .map((asset, index) => normalizeAsset(asset, index));
+  const filtered = list.filter(
+    (asset) => asset && typeof asset.url === "string" && typeof asset.tag === "string"
+  );
+  const legacyForceFirstPublic = !hasExplicitRepresentativeRanks(filtered);
+  return compactRepresentativeRanks(
+    filtered.map((asset, index) => normalizeAsset(asset, index, legacyForceFirstPublic))
+  );
 }
 
-/** 대표(인덱스 0)는 항상 비가림. 순서 변경·저장 직후 호출 */
+/** Representatives are always unblurred. Legacy lists still force index 0 public. */
 export function withRepresentativeAssetPublic(assets: CharacterAsset[]): CharacterAsset[] {
   if (assets.length === 0) return assets;
+  if (hasExplicitRepresentativeRanks(assets)) {
+    return assets.map((asset) =>
+      asset.representativeRank != null && asset.viewerBlur === true
+        ? { ...asset, viewerBlur: false }
+        : asset
+    );
+  }
   if (assets[0].viewerBlur !== true) return assets;
   return assets.map((a, i) => (i === 0 ? { ...a, viewerBlur: false } : a));
 }
@@ -173,12 +294,123 @@ export function toggleCharacterAssetViewerBlur(
   assets: CharacterAsset[],
   index: number
 ): CharacterAsset[] {
-  if (index === 0 || index < 0 || index >= assets.length) return assets;
+  if (index < 0 || index >= assets.length) return assets;
+  const target = assets[index];
+  if (!target) return assets;
+  if (target.representativeRank != null) return assets;
+  if (!hasExplicitRepresentativeRanks(assets) && index === 0) return assets;
   return withRepresentativeAssetPublic(
     assets.map((asset, assetIndex) =>
       assetIndex === index ? { ...asset, viewerBlur: !asset.viewerBlur } : asset
     )
   );
+}
+
+export function getRepresentativeAssets(assets: readonly CharacterAsset[]): CharacterAsset[] {
+  const ranked = assets
+    .filter((asset) => parseRepresentativeRank(asset.representativeRank) != null)
+    .sort(
+      (a, b) =>
+        (a.representativeRank ?? 0) - (b.representativeRank ?? 0) ||
+        assets.indexOf(a) - assets.indexOf(b)
+    );
+  if (ranked.length > 0) return ranked.slice(0, MAX_REPRESENTATIVE_ASSETS);
+  return assets[0] ? [assets[0]] : [];
+}
+
+export function isRepresentativeAsset(asset: Pick<CharacterAsset, "representativeRank">): boolean {
+  return parseRepresentativeRank(asset.representativeRank) != null;
+}
+
+/** Public card/list URL — never a private original. */
+export function publicRepresentativeUrl(asset: CharacterAsset): string | null {
+  if (asset.mediaId) return `/media/public/${asset.mediaId}-public.webp`;
+  if (asset.publicRenditionUrl && !isPrivateMediaUrl(asset.publicRenditionUrl)) {
+    return asset.publicRenditionUrl;
+  }
+  if (isPrivateMediaUrl(asset.url)) return null;
+  if (isStoredAssetUrl(asset.url)) return asset.url;
+  return null;
+}
+
+export function safeLockedPreviewUrl(asset: CharacterAsset): string | null {
+  if (asset.blurPreviewUrl && !isPrivateMediaUrl(asset.blurPreviewUrl)) {
+    return asset.blurPreviewUrl;
+  }
+  if (asset.url.startsWith("/uploads/")) {
+    const name = asset.url.slice("/uploads/".length);
+    const stem = name.replace(/\.[a-zA-Z0-9]+$/, "");
+    if (stem && !stem.includes("/") && !stem.includes("..")) {
+      return `/media/public/legacy-blur-${stem}.webp`;
+    }
+  }
+  return null;
+}
+
+export function listingImageUrls(assets: readonly CharacterAsset[]): string[] {
+  return getRepresentativeAssets(assets)
+    .map((asset) => publicRepresentativeUrl(asset))
+    .filter((url): url is string => Boolean(url));
+}
+
+export function assignRepresentativeRanks(
+  assets: CharacterAsset[],
+  orderedIndexes: readonly number[]
+): CharacterAsset[] {
+  const unique = [...new Set(orderedIndexes)].filter(
+    (index) => Number.isInteger(index) && index >= 0 && index < assets.length
+  );
+  const next = assets.map((asset, index) => {
+    const rank = unique.indexOf(index);
+    if (rank === -1) {
+      if (asset.representativeRank == null) return asset;
+      const { representativeRank: _dropped, ...rest } = asset;
+      return rest;
+    }
+    return { ...asset, representativeRank: rank + 1, viewerBlur: false };
+  });
+  return normalizeCharacterAssets(next);
+}
+
+export function toggleRepresentativeAsset(
+  assets: CharacterAsset[],
+  index: number
+): CharacterAsset[] {
+  if (index < 0 || index >= assets.length) return assets;
+  const current = getRepresentativeAssets(
+    hasExplicitRepresentativeRanks(assets) ? assets : []
+  );
+  const currentIndexes = current
+    .map((asset) => assets.findIndex((row) => row.url === asset.url && row.tag === asset.tag))
+    .filter((rowIndex) => rowIndex >= 0);
+  const existing = currentIndexes.indexOf(index);
+  if (existing >= 0) {
+    currentIndexes.splice(existing, 1);
+    return assignRepresentativeRanks(assets, currentIndexes);
+  }
+  if (currentIndexes.length >= MAX_REPRESENTATIVE_ASSETS) return assets;
+  return assignRepresentativeRanks(assets, [...currentIndexes, index]);
+}
+
+export function reorderRepresentativeAssets(
+  assets: CharacterAsset[],
+  fromRank: number,
+  toRank: number
+): CharacterAsset[] {
+  const current = getRepresentativeAssets(
+    hasExplicitRepresentativeRanks(assets) ? assets : assets[0] ? [{ ...assets[0], representativeRank: 1 }] : []
+  );
+  const indexes = current
+    .map((asset) => assets.findIndex((row) => row === asset || (row.url === asset.url && row.tag === asset.tag)))
+    .filter((index) => index >= 0);
+  const from = fromRank - 1;
+  const to = toRank - 1;
+  if (from < 0 || to < 0 || from >= indexes.length || to >= indexes.length) return assets;
+  const next = [...indexes];
+  const [moved] = next.splice(from, 1);
+  if (moved == null) return assets;
+  next.splice(to, 0, moved);
+  return assignRepresentativeRanks(assets, next);
 }
 
 export function parseAssets(raw: string | null | undefined): CharacterAsset[] {
@@ -208,22 +440,40 @@ export function publicAssetUrls(assets: CharacterAsset[]): string[] {
   return publicAssets(assets).map((a) => a.url);
 }
 
-/** 카드·목록용 대표 이미지 — 에셋 순서 1번(인덱스 0) 고정, 없으면 legacy images[0] */
+function parseLegacyImageUrls(imagesRaw?: string | null | undefined): string[] {
+  if (!imagesRaw) return [];
+  try {
+    const parsed = JSON.parse(imagesRaw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Card/list representative URLs — ranked 1–5 public renditions.
+ * Legacy rows without ranks expose only images[0]/assets[0] so hidden
+ * gallery files are not cycled on public cards.
+ */
+export function getCharacterRepresentativePublicUrls(
+  assetsRaw: string | null | undefined,
+  imagesRaw?: string | null | undefined
+): string[] {
+  const assets = parseAssets(assetsRaw);
+  const fromAssets = listingImageUrls(assets);
+  if (fromAssets.length > 0) return fromAssets;
+  const legacy = parseLegacyImageUrls(imagesRaw);
+  const first = legacy.find((url) => !isPrivateMediaUrl(url));
+  return first ? [first] : [];
+}
+
+/** 카드·목록용 대표 이미지 — 1순위 공개 rendition, 없으면 legacy images[0] */
 export function getCharacterRepresentativeImageUrl(
   assetsRaw: string | null | undefined,
   imagesRaw?: string | null | undefined
 ): string | null {
-  const assets = parseAssets(assetsRaw);
-  if (assets[0]?.url) return assets[0].url;
-  if (!imagesRaw) return null;
-  try {
-    const parsed = JSON.parse(imagesRaw) as unknown;
-    if (!Array.isArray(parsed)) return null;
-    const first = parsed.find((v) => typeof v === "string" && v.trim());
-    return typeof first === "string" ? first : null;
-  } catch {
-    return null;
-  }
+  return getCharacterRepresentativePublicUrls(assetsRaw, imagesRaw)[0] ?? null;
 }
 
 function pickRandomAsset<T>(items: T[]): T | null {
@@ -306,13 +556,14 @@ export function portraitChatAssets(assets: CharacterAsset[]): CharacterAsset[] {
   return chatAssets(assets).filter((a) => isPortraitDisplayAsset(a));
 }
 
-/** 새 에셋 추가 시 기본 플래그 — 전부 소개·대화 포함, 첫 장만 비가림 */
+/** 새 에셋 추가 시 기본 플래그 — 전부 소개·대화 포함, 첫 장만 대표 1 */
 export function defaultAssetFlags(existing: CharacterAsset[], batchIndex: number) {
   const isVeryFirstAsset = existing.length === 0 && batchIndex === 0;
   return {
     public: true,
     chat: true,
     viewerBlur: !isVeryFirstAsset,
+    ...(isVeryFirstAsset ? { representativeRank: 1 as const } : {}),
   };
 }
 

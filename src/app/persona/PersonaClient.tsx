@@ -30,6 +30,10 @@ import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import { USER_NOTE_PRESET_TITLE_MAX } from "@/lib/userNotePresetTypes";
 import UserNoteSplitEditor from "@/components/UserNoteSplitEditor";
 import StatusWidgetEditor from "@/components/StatusWidgetEditor";
+import {
+  STATUS_WIDGET_SHARED_DESIGN_HREF,
+  STATUS_WIDGET_SHARED_DESIGN_LABEL,
+} from "@/lib/statusWidget/authoringChoice";
 import ShareLinkBox from "@/components/ShareLinkBox";
 import PersonaAvatar from "@/components/PersonaAvatar";
 import PersonaImageEditor from "@/components/PersonaImageEditor";
@@ -1103,15 +1107,15 @@ export default function PersonaClient({
               상태창 보관함 ({statusWidgetPresets.length})
             </h2>
             <p className="mt-0.5 text-[11px] text-zinc-500">
-              HTML·JSX 제작 · 페르소나별로 하나를 선택해 사용
+              디자인과 상태값으로 만들거나, 직접 제작에서 HTML·JSX를 작성합니다
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
-              href="/widgets"
+              href={STATUS_WIDGET_SHARED_DESIGN_HREF}
               className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-white/5"
             >
-              공유 상태창 둘러보기
+              {STATUS_WIDGET_SHARED_DESIGN_LABEL}
             </Link>
             <button
               type="button"
@@ -1209,6 +1213,8 @@ export default function PersonaClient({
               value={widgetDraft}
               onChange={setWidgetDraft}
               disabled={busy}
+              contextLimit={STATUS_WIDGET_USER_CONTEXT_MAX}
+              showSharedDesignEntry={false}
             />
             <div className="flex flex-wrap gap-2">
               <button

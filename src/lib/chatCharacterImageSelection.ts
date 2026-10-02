@@ -1,9 +1,8 @@
 import {
   chatAssets,
-  findAssetsByTag,
   type CharacterAsset,
 } from "@/lib/characterAssets";
-import { resolveEmotionTag, stripEmotionTag } from "@/lib/emotionTag";
+import { collectUnlockedAssetUrlsFromMessages } from "@/lib/characterAssetUnlock";
 import type { ContentKind } from "@/lib/simulationMode";
 import { assetsForMainCharacterPool } from "@/lib/visualSubjects";
 
@@ -26,20 +25,17 @@ export function resolveSelectableCharacterImages(input: {
   if (contentKind === "character" && poolMode === "main_character") {
     pool = assetsForMainCharacterPool(pool, contentKind);
   }
-  const unlockedUrls = new Set<string>();
-
-  if (!input.isCharacterCreator) {
-    const allowedTags = pool.map((asset) => asset.tag);
-    for (const content of input.assistantMessages) {
-      const { tag } = stripEmotionTag(content);
-      if (!tag) continue;
-      const resolved = resolveEmotionTag(tag, allowedTags);
-      if (!resolved) continue;
-      for (const asset of findAssetsByTag(pool, resolved)) {
-        if (asset.viewerBlur === true) unlockedUrls.add(asset.url);
-      }
-    }
-  }
+  const unlockedUrls = new Set(
+    collectUnlockedAssetUrlsFromMessages(
+      input.assistantMessages.map((content) => ({
+        role: "assistant",
+        content,
+        generationStatus: "completed",
+      })),
+      pool,
+      input.isCharacterCreator
+    )
+  );
 
   const selectable = pool.filter(
     (asset) =>

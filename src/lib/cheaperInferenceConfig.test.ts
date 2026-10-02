@@ -179,7 +179,7 @@ test("GPT-6 Luna disables reasoning with official effort none", () => {
   });
 });
 
-test("GPT-5.6 Terra disables reasoning with official effort none", () => {
+test("GPT-5.6 Terra historical path still disables reasoning with official effort none", () => {
   const body = {
     model: "gpt-5.6-terra",
     messages: [{ role: "user", content: "hello" }],
@@ -191,6 +191,23 @@ test("GPT-5.6 Terra disables reasoning with official effort none", () => {
     reasoning: { effort: "none" },
     reasoning_effort: "none",
   });
+});
+
+test("GPT-6.1 Sol sends reasoning low and never copies Thinking OFF / none", () => {
+  const body = {
+    model: "gpt-6.1-sol",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "none" },
+    reasoning_effort: "none",
+  };
+
+  assert.deepEqual(adaptCheaperInferenceChatBody(body), {
+    model: "gpt-6.1-sol",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "low" },
+    reasoning_effort: "low",
+  });
+  assert.equal(body.reasoning_effort, "none", "input must not be mutated");
 });
 
 test("DeepSeek V4 Flash disables hidden reasoning on CheaperInference", () => {
