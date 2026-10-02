@@ -57,7 +57,7 @@ export function pointChargePackageTotalPoints(pkg: PointChargePackage): number {
 
 export function pointChargePackageBonusPercent(pkg: PointChargePackage): number {
   if (pkg.paidPoints <= 0) return 0;
-  return (pkg.bonusPoints / pkg.paidPoints) * 100;
+  return Math.round((pkg.bonusPoints * 10000) / pkg.paidPoints) / 100;
 }
 
 export function formatPointChargePackagePublicLine(pkg: PointChargePackage): string {
