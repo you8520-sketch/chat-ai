@@ -11,6 +11,7 @@ on:
       - "src/lib/cheaperInferenceUsage.ts"
       - "src/lib/providerCostReconciliation.ts"
       - "src/lib/providerCostReconciliation.targeted.test.ts"
+      - "src/lib/providerCostReconciliation.audit.test.ts"
       - "src/lib/providerCostLedger.ts"
       - "src/lib/openRouterContractWatch.ts"
       - "src/lib/openRouterContractWatch.test.ts"
@@ -216,6 +217,9 @@ jobs:
 
       - name: Targeted Usage API reconciliation (T1-T11)
         run: node --conditions=react-server --import tsx --test src/lib/providerCostReconciliation.targeted.test.ts
+
+      - name: Provider reconciliation CRITICAL audit (#1337)
+        run: node --conditions=react-server --import tsx --test src/lib/providerCostReconciliation.audit.test.ts src/lib/financeAnomalyRadar.test.ts src/lib/adminFinance.test.ts
 
       - name: Admin Receipt compact view model provenance (P1-P5)
         run: node --conditions=react-server --import tsx --test src/lib/adminBillingReceiptV3.compactViewModel.test.ts
