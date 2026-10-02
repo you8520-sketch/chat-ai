@@ -49,6 +49,10 @@ export type EmailSignupConfirmResult =
   | { ok: true; userId: number }
   | { ok: false; status: number; error: string };
 
+export type EmailSignupInspectResult =
+  | { ok: true; remainingSeconds: number }
+  | { ok: false; status: number; error: string };
+
 type PendingRow = {
   email: string;
   nickname: string;
@@ -112,6 +116,41 @@ export function consumePendingEmailSignup(email: string): void {
   db.prepare("DELETE FROM pending_email_signups WHERE email = ?").run(email.trim().toLowerCase());
 }
 
+export function isPendingEmailSignupExpired(pending: Pick<PendingRow, "expires_at">, now: number): boolean {
+  const expiresAt = Date.parse(pending.expires_at);
+  return !Number.isFinite(expiresAt) || expiresAt <= now;
+}
+
+export function inspectEmailSignupToken(
+  rawToken: string,
+  deps?: { now?: number }
+): EmailSignupInspectResult {
+  const token = typeof rawToken === "string" ? rawToken.trim() : "";
+  if (!token) {
+    return { ok: false, status: 400, error: EMAIL_SIGNUP_TOKEN_INVALID_MESSAGE };
+  }
+
+  const db = getDb();
+  ensureEmailSignupSchema(db);
+  const pending = db
+    .prepare(
+      `SELECT email, nickname, pw_hash, pref, token_hash, expires_at, send_count, last_sent_at
+       FROM pending_email_signups WHERE token_hash = ?`
+    )
+    .get(hashEmailSignupToken(token)) as PendingRow | undefined;
+  if (!pending) {
+    return { ok: false, status: 400, error: EMAIL_SIGNUP_TOKEN_INVALID_MESSAGE };
+  }
+
+  const now = deps?.now ?? Date.now();
+  if (isPendingEmailSignupExpired(pending, now)) {
+    return { ok: false, status: 410, error: EMAIL_SIGNUP_TOKEN_EXPIRED_MESSAGE };
+  }
+
+  const remainingMs = Date.parse(pending.expires_at) - now;
+  return { ok: true, remainingSeconds: Math.max(1, Math.ceil(remainingMs / 1000)) };
+}
+
 export async function requestEmailSignup(
   input: EmailSignupRequestInput,
   req: Request,
@@ -148,7 +187,9 @@ export async function requestEmailSignup(
 
   const now = deps?.now ?? Date.now();
   const pending = findPendingEmailSignup(email);
-  if (pending) {
+  const expired = pending ? isPendingEmailSignupExpired(pending, now) : false;
+
+  if (pending && !expired) {
     if (pending.send_count >= EMAIL_SIGNUP_MAX_SENDS) {
       return { ok: false, status: 429, error: EMAIL_SIGNUP_RESEND_LIMIT_MESSAGE };
     }
@@ -159,9 +200,19 @@ export async function requestEmailSignup(
   }
 
   const token = createEmailSignupToken();
+  const mail = buildSignupVerificationEmail({
+    nickname,
+    verifyUrl: buildEmailVerificationUrl(origin, token.raw),
+  });
+  const sendMail = deps?.sendMail ?? sendTransactionalEmail;
+  const sent = await sendMail({ to: email, ...mail });
+  if (!sent.ok) {
+    return { ok: false, status: 503, error: sent.error || TRANSACTIONAL_EMAIL_SEND_FAILED_MESSAGE };
+  }
+
   const expiresAt = new Date(now + EMAIL_SIGNUP_TOKEN_TTL_MS).toISOString();
   const lastSentAt = new Date(now).toISOString();
-  const sendCount = (pending?.send_count ?? 0) + 1;
+  const sendCount = pending && !expired ? pending.send_count + 1 : 1;
   const pwHash = hashPassword(password);
 
   db.prepare(
@@ -177,16 +228,6 @@ export async function requestEmailSignup(
        send_count = excluded.send_count,
        last_sent_at = excluded.last_sent_at`
   ).run(email, nickname, pwHash, storedPref, token.hash, expiresAt, sendCount, lastSentAt);
-
-  const mail = buildSignupVerificationEmail({
-    nickname,
-    verifyUrl: buildEmailVerificationUrl(origin, token.raw),
-  });
-  const sendMail = deps?.sendMail ?? sendTransactionalEmail;
-  const sent = await sendMail({ to: email, ...mail });
-  if (!sent.ok) {
-    return { ok: false, status: 503, error: sent.error || TRANSACTIONAL_EMAIL_SEND_FAILED_MESSAGE };
-  }
 
   return { ok: true, pending: true, email };
 }
@@ -217,9 +258,7 @@ export function confirmEmailSignup(
         return { ok: false, status: 400, error: EMAIL_SIGNUP_TOKEN_INVALID_MESSAGE };
       }
 
-      const expiresAt = Date.parse(pending.expires_at);
-      if (!Number.isFinite(expiresAt) || expiresAt <= now) {
-        db.prepare("DELETE FROM pending_email_signups WHERE email = ?").run(pending.email);
+      if (isPendingEmailSignupExpired(pending, now)) {
         return { ok: false, status: 410, error: EMAIL_SIGNUP_TOKEN_EXPIRED_MESSAGE };
       }
 

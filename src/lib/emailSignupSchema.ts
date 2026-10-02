@@ -29,18 +29,26 @@ export const LOGIN_ALIASES_DDL = `
   );
 `;
 
+function ensureColumn(
+  db: Pick<Database.Database, "exec" | "prepare">,
+  table: string,
+  column: string,
+  def: string
+): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((col) => col.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`);
+  }
+}
+
 export function ensureEmailSignupSchema(
   db: Pick<Database.Database, "exec" | "prepare">
 ): void {
   db.exec(PENDING_EMAIL_SIGNUPS_DDL);
   db.exec(LOGIN_ALIASES_DDL);
 
-  const cols = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
-  const names = new Set(cols.map((col) => col.name));
-  if (!names.has("account_kind")) {
-    db.exec("ALTER TABLE users ADD COLUMN account_kind TEXT NOT NULL DEFAULT 'standard'");
-  }
-  if (!names.has("login_disabled")) {
-    db.exec("ALTER TABLE users ADD COLUMN login_disabled INTEGER NOT NULL DEFAULT 0");
-  }
+  ensureColumn(db, "users", "account_kind", "TEXT NOT NULL DEFAULT 'standard'");
+  ensureColumn(db, "users", "login_disabled", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(db, "login_aliases", "failed_attempts", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(db, "login_aliases", "locked_until", "TEXT");
 }

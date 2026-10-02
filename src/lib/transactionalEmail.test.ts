@@ -5,6 +5,7 @@ import {
   TRANSACTIONAL_EMAIL_UNCONFIGURED_MESSAGE,
   buildEmailVerificationUrl,
   isTransactionalEmailConfigured,
+  resolveSafeAppRedirect,
   resolveVerifiedMailOrigin,
   sendTransactionalEmail,
 } from "@/lib/transactionalEmail";
@@ -49,6 +50,19 @@ describe("transactional email", () => {
       buildEmailVerificationUrl("https://hav.chat", "abc"),
       "https://hav.chat/api/auth/verify-email?token=abc"
     );
+  });
+
+  it("keeps post-verify redirects on the configured origin and never falls back to Host", () => {
+    process.env.APP_URL = "https://hav.chat";
+    delete process.env.NEXTAUTH_URL;
+    delete process.env.GOOGLE_OAUTH_ORIGIN;
+    const req = new Request("http://evil.example/api/auth/verify-email?token=abc", {
+      headers: { host: "evil.example", "x-forwarded-host": "evil.example" },
+    });
+    assert.equal(resolveSafeAppRedirect(req, "/signup/verify"), "https://hav.chat/signup/verify");
+    assert.equal(resolveSafeAppRedirect(req, "/login?verify=failed"), "https://hav.chat/login?verify=failed");
+    assert.equal(resolveSafeAppRedirect(req, "/?verified=1"), "https://hav.chat/?verified=1");
+    assert.equal(resolveSafeAppRedirect(req, "https://evil.example/phish"), "https://hav.chat/");
   });
 
   it("refuses unverified production origins", () => {

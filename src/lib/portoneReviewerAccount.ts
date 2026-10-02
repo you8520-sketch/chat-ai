@@ -1,11 +1,7 @@
 import { getDb } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { ensureEmailSignupSchema } from "@/lib/emailSignupSchema";
-import {
-  isPortOneBrowserConfigured,
-  isPortOneServerVerifyConfigured,
-  isPortOneChargeEnabled,
-} from "@/lib/portoneConfig";
+import { isPortOneChargeEnabled } from "@/lib/portoneConfig";
 
 export const PORTONE_REVIEWER_ACCOUNT_KIND = "portone_reviewer";
 export const PORTONE_REVIEWER_LOGIN_ALIAS = "tester";
@@ -18,6 +14,11 @@ export const PORTONE_REVIEWER_PAID_API_MESSAGE =
 export const PORTONE_REVIEWER_GIFT_MESSAGE = "심사용 계정에서는 포인트를 선물할 수 없습니다.";
 export const PORTONE_REVIEWER_PAYMENTS_NOT_READY_MESSAGE =
   "심사용 결제 테스트 채널이 준비되지 않았습니다.";
+export const PORTONE_REVIEWER_LOGIN_MAX_FAILURES = 5;
+export const PORTONE_REVIEWER_LOGIN_LOCK_MS = 15 * 60 * 1000;
+export const PORTONE_REVIEWER_LOGIN_LOCKED_MESSAGE =
+  "심사용 계정 로그인 시도가 제한되었습니다. 잠시 후 다시 시도해 주세요.";
+export const PORTONE_REVIEWER_PAYMENTS_UNVERIFIED_REASON = "test_channel_unverified" as const;
 
 export type ReviewerAccountFields = {
   account_kind?: string | null;
@@ -32,12 +33,27 @@ export function isPortoneReviewerAccount(user: ReviewerAccountFields | null | un
   return isPortoneReviewerAccountKind(user?.account_kind);
 }
 
+export type PortoneReviewerPaymentsReadiness = {
+  ready: false;
+  reason: typeof PORTONE_REVIEWER_PAYMENTS_UNVERIFIED_REASON;
+  detail: string;
+};
+
+/**
+ * Current env only proves that some store/channel/secret exists.
+ * It cannot prove those values are the approved PG test channel, so checkout stays closed.
+ */
+export function inspectPortoneReviewerPaymentsReadiness(): PortoneReviewerPaymentsReadiness {
+  return {
+    ready: false,
+    reason: PORTONE_REVIEWER_PAYMENTS_UNVERIFIED_REASON,
+    detail:
+      "PORTONE_REVIEWER_PAYMENTS_ENABLED and shared PortOne keys do not identify a PG test channel. Dedicated reviewer store/channel/secret plus live console confirmation are required before checkout can open.",
+  };
+}
+
 export function isPortoneReviewerPaymentsReady(): boolean {
-  return (
-    process.env.PORTONE_REVIEWER_PAYMENTS_ENABLED === "1" &&
-    isPortOneBrowserConfigured() &&
-    isPortOneServerVerifyConfigured()
-  );
+  return inspectPortoneReviewerPaymentsReadiness().ready;
 }
 
 /** Reviewer uses the dedicated test-channel flag only. Everyone else keeps the global gate. */
@@ -59,6 +75,53 @@ export function getPointGiftBlockReason(
   user: ReviewerAccountFields | null | undefined
 ): string | null {
   return isPortoneReviewerAccount(user) ? PORTONE_REVIEWER_GIFT_MESSAGE : null;
+}
+
+export function getPortoneReviewerLoginLock(now = Date.now()): { locked: boolean; lockedUntil: string | null } {
+  const db = getDb();
+  ensureEmailSignupSchema(db);
+  const row = db
+    .prepare("SELECT locked_until FROM login_aliases WHERE alias = ?")
+    .get(PORTONE_REVIEWER_LOGIN_ALIAS) as { locked_until: string | null } | undefined;
+  const lockedUntil = row?.locked_until ?? null;
+  const lockedAt = lockedUntil ? Date.parse(lockedUntil) : NaN;
+  return { locked: Number.isFinite(lockedAt) && lockedAt > now, lockedUntil };
+}
+
+export function notePortoneReviewerLoginFailure(now = Date.now()): { locked: boolean } {
+  const db = getDb();
+  ensureEmailSignupSchema(db);
+  const row = db
+    .prepare("SELECT failed_attempts, locked_until FROM login_aliases WHERE alias = ?")
+    .get(PORTONE_REVIEWER_LOGIN_ALIAS) as
+    | { failed_attempts: number; locked_until: string | null }
+    | undefined;
+  if (!row) return { locked: false };
+
+  const currentLock = Date.parse(row.locked_until ?? "");
+  if (Number.isFinite(currentLock) && currentLock > now) {
+    return { locked: true };
+  }
+
+  const nextAttempts = Number(row.failed_attempts ?? 0) + 1;
+  const lockedUntil =
+    nextAttempts >= PORTONE_REVIEWER_LOGIN_MAX_FAILURES
+      ? new Date(now + PORTONE_REVIEWER_LOGIN_LOCK_MS).toISOString()
+      : null;
+  db.prepare("UPDATE login_aliases SET failed_attempts = ?, locked_until = ? WHERE alias = ?").run(
+    nextAttempts,
+    lockedUntil,
+    PORTONE_REVIEWER_LOGIN_ALIAS
+  );
+  return { locked: Boolean(lockedUntil) };
+}
+
+export function clearPortoneReviewerLoginFailures(): void {
+  const db = getDb();
+  ensureEmailSignupSchema(db);
+  db.prepare("UPDATE login_aliases SET failed_attempts = 0, locked_until = NULL WHERE alias = ?").run(
+    PORTONE_REVIEWER_LOGIN_ALIAS
+  );
 }
 
 export function revokeUserSessions(userId: number): number {

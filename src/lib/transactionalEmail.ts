@@ -53,6 +53,13 @@ export function buildEmailVerificationUrl(origin: string, rawToken: string): str
   return `${base}/api/auth/verify-email?token=${encodeURIComponent(rawToken)}`;
 }
 
+/** Confirm-page and post-verify redirects never use raw Host / request origin. */
+export function resolveSafeAppRedirect(req: Request, path: string): string {
+  const safePath = /^\/(?!\/)[^?#\s]*(?:\?[^#\s]*)?$/.test(path) ? path : "/";
+  const origin = resolveVerifiedMailOrigin(req);
+  return origin ? `${origin.replace(/\/$/, "")}${safePath}` : safePath;
+}
+
 export async function sendTransactionalEmail(
   payload: TransactionalEmailPayload
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -87,16 +94,18 @@ export function buildSignupVerificationEmail(opts: {
 }): { subject: string; text: string; html: string } {
   const subject = "하브 회원가입 이메일 인증";
   const text = [
-    `${opts.nickname}님, 하브 가입을 완료하려면 아래 링크를 열어 주세요.`,
+    `${opts.nickname}님, 하브 가입을 완료하려면 아래 링크를 연 뒤 인증 완료를 눌러 주세요.`,
     "",
     opts.verifyUrl,
     "",
+    "링크를 열면 확인 화면이 나옵니다. 인증 완료를 누르기 전에는 계정이 만들어지지 않습니다.",
     "이 링크는 일정 시간 후 만료되며 한 번만 사용할 수 있습니다.",
     "요청하지 않으셨다면 이 메일을 무시해 주세요.",
   ].join("\n");
   const html = `
-    <p>${escapeHtml(opts.nickname)}님, 하브 가입을 완료하려면 아래 버튼을 눌러 주세요.</p>
-    <p><a href="${escapeHtml(opts.verifyUrl)}">이메일 인증하고 가입 완료</a></p>
+    <p>${escapeHtml(opts.nickname)}님, 하브 가입을 완료하려면 아래 링크를 연 뒤 인증 완료를 눌러 주세요.</p>
+    <p><a href="${escapeHtml(opts.verifyUrl)}">이메일 인증 화면 열기</a></p>
+    <p>링크를 열면 확인 화면이 나옵니다. 인증 완료를 누르기 전에는 계정이 만들어지지 않습니다.</p>
     <p>이 링크는 일정 시간 후 만료되며 한 번만 사용할 수 있습니다.</p>
     <p>요청하지 않으셨다면 이 메일을 무시해 주세요.</p>
   `.trim();

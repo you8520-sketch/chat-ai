@@ -17,6 +17,7 @@ import {
   createEmailSignupToken,
   findPendingEmailSignup,
   hashEmailSignupToken,
+  inspectEmailSignupToken,
   requestEmailSignup,
 } from "@/lib/emailSignupVerification";
 import { authenticatePasswordLogin } from "@/lib/passwordLogin";
@@ -37,6 +38,12 @@ function signupRequest(): Request {
   return new Request("http://localhost:3000/api/auth/signup", {
     headers: { host: "localhost:3000" },
   });
+}
+
+function tokenFromMail(payload: { text: string }): string {
+  const match = payload.text.match(/token=([a-f0-9]+)/i);
+  assert.ok(match?.[1]);
+  return match[1];
 }
 
 describe("email signup verification", () => {
@@ -169,14 +176,22 @@ describe("email signup verification", () => {
     assert.equal(getDb().prepare("SELECT id FROM users WHERE email = 'late@example.com'").get(), undefined);
   });
 
-  it("rate limits resend and keeps pending when mail send fails", async () => {
+  it("rate limits resend and keeps the previous token when mail send fails", async () => {
     const now = 50_000;
+    let firstToken = "";
     const first = await requestEmailSignup(
       { email: "retry@example.com", nickname: "재시도", password: "secret1", pref: "all" },
       signupRequest(),
-      { now, sendMail: async () => ({ ok: true }) }
+      {
+        now,
+        sendMail: async (payload) => {
+          firstToken = tokenFromMail(payload);
+          return { ok: true };
+        },
+      }
     );
     assert.equal(first.ok, true);
+    const firstHash = findPendingEmailSignup("retry@example.com")!.token_hash;
 
     const cooldown = await requestEmailSignup(
       { email: "retry@example.com", nickname: "재시도", password: "secret1", pref: "all" },
@@ -198,7 +213,10 @@ describe("email signup verification", () => {
     assert.equal(failed.ok, false);
     if (failed.ok) return;
     assert.equal(failed.status, 503);
-    assert.ok(findPendingEmailSignup("retry@example.com"));
+    const afterFail = findPendingEmailSignup("retry@example.com")!;
+    assert.equal(afterFail.token_hash, firstHash);
+    assert.equal(afterFail.send_count, 1);
+    assert.equal(inspectEmailSignupToken(firstToken, { now: now + EMAIL_SIGNUP_RESEND_COOLDOWN_MS + 1 }).ok, true);
     assert.equal((getDb().prepare("SELECT COUNT(*) AS c FROM users").get() as { c: number }).c, 0);
 
     getDb()
@@ -215,6 +233,86 @@ describe("email signup verification", () => {
     assert.equal(limited.ok, false);
     if (limited.ok) return;
     assert.equal(limited.status, 429);
+  });
+
+  it("resets send count after expiry so signup is not permanently blocked", async () => {
+    const now = 10_000;
+    await requestEmailSignup(
+      { email: "lock@example.com", nickname: "잠금", password: "secret1", pref: "all" },
+      signupRequest(),
+      { now, sendMail: async () => ({ ok: true }) }
+    );
+    getDb()
+      .prepare("UPDATE pending_email_signups SET send_count = ?, expires_at = ? WHERE email = ?")
+      .run(
+        EMAIL_SIGNUP_MAX_SENDS,
+        new Date(now + EMAIL_SIGNUP_TOKEN_TTL_MS).toISOString(),
+        "lock@example.com"
+      );
+
+    const stillLimited = await requestEmailSignup(
+      { email: "lock@example.com", nickname: "잠금", password: "secret1", pref: "all" },
+      signupRequest(),
+      { now: now + 70_000, sendMail: async () => ({ ok: true }) }
+    );
+    assert.equal(stillLimited.ok, false);
+    if (stillLimited.ok) return;
+    assert.equal(stillLimited.status, 429);
+
+    let restartedToken = "";
+    const afterExpiry = await requestEmailSignup(
+      { email: "lock@example.com", nickname: "잠금", password: "secret1", pref: "all" },
+      signupRequest(),
+      {
+        now: now + EMAIL_SIGNUP_TOKEN_TTL_MS + 1,
+        sendMail: async (payload) => {
+          restartedToken = tokenFromMail(payload);
+          return { ok: true };
+        },
+      }
+    );
+    assert.equal(afterExpiry.ok, true);
+    const restarted = findPendingEmailSignup("lock@example.com")!;
+    assert.equal(restarted.send_count, 1);
+    assert.equal(
+      inspectEmailSignupToken(restartedToken, { now: now + EMAIL_SIGNUP_TOKEN_TTL_MS + 2 }).ok,
+      true
+    );
+    const confirmed = confirmEmailSignup(restartedToken, { now: now + EMAIL_SIGNUP_TOKEN_TTL_MS + 2 });
+    assert.equal(confirmed.ok, true);
+  });
+
+  it("lets inspect peek a token without creating a user, and only one concurrent confirm wins", async () => {
+    let raw = "";
+    await requestEmailSignup(
+      { email: "peek@example.com", nickname: "조회", password: "secret1", pref: "all" },
+      signupRequest(),
+      {
+        sendMail: async (payload) => {
+          raw = tokenFromMail(payload);
+          return { ok: true };
+        },
+      }
+    );
+
+    assert.equal(inspectEmailSignupToken(raw).ok, true);
+    assert.equal(inspectEmailSignupToken(raw).ok, true);
+    assert.equal((getDb().prepare("SELECT COUNT(*) AS c FROM users").get() as { c: number }).c, 0);
+    assert.ok(findPendingEmailSignup("peek@example.com"));
+
+    const [first, second] = await Promise.all([
+      Promise.resolve(confirmEmailSignup(raw)),
+      Promise.resolve(confirmEmailSignup(raw)),
+    ]);
+    const oks = [first, second].filter((result) => result.ok);
+    const fails = [first, second].filter((result) => !result.ok);
+    assert.equal(oks.length, 1);
+    assert.equal(fails.length, 1);
+    if (!fails[0].ok) {
+      assert.equal(fails[0].status === 400 || fails[0].status === 409, true);
+    }
+    assert.equal((getDb().prepare("SELECT COUNT(*) AS c FROM users").get() as { c: number }).c, 1);
+    assert.equal(confirmEmailSignup(raw).ok, false);
   });
 
   it("rejects signup for an existing member email", async () => {

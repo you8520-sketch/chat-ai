@@ -13,11 +13,14 @@ import {
   PORTONE_REVIEWER_GIFT_MESSAGE,
   PORTONE_REVIEWER_LOGIN_ALIAS,
   PORTONE_REVIEWER_PAID_API_MESSAGE,
+  PORTONE_REVIEWER_LOGIN_MAX_FAILURES,
   PORTONE_REVIEWER_PAYMENTS_NOT_READY_MESSAGE,
+  PORTONE_REVIEWER_PAYMENTS_UNVERIFIED_REASON,
   canAccessPortoneCheckout,
   findPortoneReviewerAccount,
   getPaidProviderCallBlockReason,
   getPointGiftBlockReason,
+  inspectPortoneReviewerPaymentsReadiness,
   isPortoneReviewerPaymentsReady,
   provisionPortoneReviewerAccount,
   revokeUserSessions,
@@ -118,8 +121,11 @@ describe("portone reviewer account", () => {
     process.env.NEXT_PUBLIC_PORTONE_STORE_ID = "iamporttest_3";
     process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY = "channel-key-test";
     process.env.PORTONE_API_SECRET = "secret_test";
-    assert.equal(isPortoneReviewerPaymentsReady(), true);
-    assert.equal(canAccessPortoneCheckout(reviewer), true);
+    const readiness = inspectPortoneReviewerPaymentsReadiness();
+    assert.equal(readiness.ready, false);
+    assert.equal(readiness.reason, PORTONE_REVIEWER_PAYMENTS_UNVERIFIED_REASON);
+    assert.equal(isPortoneReviewerPaymentsReady(), false);
+    assert.equal(canAccessPortoneCheckout(reviewer), false);
     assert.equal(canAccessPortoneCheckout({ account_kind: "standard" }), false);
     assert.equal(PORTONE_REVIEWER_PAYMENTS_NOT_READY_MESSAGE.length > 0, true);
     assert.ok(findPortoneReviewerAccount()?.id === provisioned.userId);
@@ -132,7 +138,26 @@ describe("portone reviewer account", () => {
     process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY = "channel-key-test";
     process.env.PORTONE_API_SECRET = "secret_test";
     assert.equal(canAccessPortoneCheckout({ account_kind: "standard" }), false);
-    assert.equal(canAccessPortoneCheckout({ account_kind: PORTONE_REVIEWER_ACCOUNT_KIND }), true);
+    assert.equal(canAccessPortoneCheckout({ account_kind: PORTONE_REVIEWER_ACCOUNT_KIND }), false);
+  });
+
+  it("locks the reviewer alias after repeated failed logins", () => {
+    const password = reviewerPassword();
+    provisionPortoneReviewerAccount({ password });
+    for (let i = 0; i < PORTONE_REVIEWER_LOGIN_MAX_FAILURES - 1; i++) {
+      const failed = authenticatePasswordLogin(PORTONE_REVIEWER_LOGIN_ALIAS, "wrong-password");
+      assert.equal(failed.ok, false);
+      if (failed.ok) return;
+      assert.equal(failed.status, 401);
+    }
+    const locked = authenticatePasswordLogin(PORTONE_REVIEWER_LOGIN_ALIAS, "wrong-password");
+    assert.equal(locked.ok, false);
+    if (locked.ok) return;
+    assert.equal(locked.status, 429);
+    const stillLocked = authenticatePasswordLogin(PORTONE_REVIEWER_LOGIN_ALIAS, password);
+    assert.equal(stillLocked.ok, false);
+    if (stillLocked.ok) return;
+    assert.equal(stillLocked.status, 429);
   });
 
   it("revokes sessions when the reviewer is disabled", () => {

@@ -5,6 +5,10 @@ import { EMAIL_SIGNUP_UNVERIFIED_LOGIN_MESSAGE, findPendingEmailSignup } from "@
 import {
   PORTONE_REVIEWER_DISABLED_MESSAGE,
   PORTONE_REVIEWER_LOGIN_ALIAS,
+  PORTONE_REVIEWER_LOGIN_LOCKED_MESSAGE,
+  clearPortoneReviewerLoginFailures,
+  getPortoneReviewerLoginLock,
+  notePortoneReviewerLoginFailure,
 } from "@/lib/portoneReviewerAccount";
 
 export const PASSWORD_LOGIN_INVALID_MESSAGE = "이메일 또는 비밀번호가 올바르지 않습니다.";
@@ -96,12 +100,20 @@ export function authenticatePasswordLogin(
 
   const alias = rawId.toLowerCase();
   const isReviewerAlias = alias === PORTONE_REVIEWER_LOGIN_ALIAS && !rawId.includes("@");
+  if (isReviewerAlias && getPortoneReviewerLoginLock().locked) {
+    return { ok: false, status: 429, error: PORTONE_REVIEWER_LOGIN_LOCKED_MESSAGE };
+  }
+
   const user = isReviewerAlias
     ? lookupUserByAlias(PORTONE_REVIEWER_LOGIN_ALIAS)
     : lookupUserByEmail(rawId.toLowerCase());
 
   if (!user) {
-    if (!isReviewerAlias && findPendingEmailSignup(rawId.toLowerCase())) {
+    if (isReviewerAlias) {
+      notePortoneReviewerLoginFailure();
+      return { ok: false, status: 401, error: PASSWORD_LOGIN_INVALID_MESSAGE };
+    }
+    if (findPendingEmailSignup(rawId.toLowerCase())) {
       return { ok: false, status: 403, error: EMAIL_SIGNUP_UNVERIFIED_LOGIN_MESSAGE };
     }
     return { ok: false, status: 401, error: PASSWORD_LOGIN_INVALID_MESSAGE };
@@ -116,7 +128,17 @@ export function authenticatePasswordLogin(
   }
 
   if (!verifyPassword(pw, user.pw_hash)) {
+    if (isReviewerAlias) {
+      const { locked } = notePortoneReviewerLoginFailure();
+      if (locked) {
+        return { ok: false, status: 429, error: PORTONE_REVIEWER_LOGIN_LOCKED_MESSAGE };
+      }
+    }
     return { ok: false, status: 401, error: PASSWORD_LOGIN_INVALID_MESSAGE };
+  }
+
+  if (isReviewerAlias) {
+    clearPortoneReviewerLoginFailures();
   }
 
   return { ok: true, userId: user.id };
