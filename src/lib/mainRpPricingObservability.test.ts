@@ -485,16 +485,16 @@ describe("mainRpPricingObservability", () => {
     });
   });
 
-  it("published anchor (Terra) has no arbitrary token delta", () => {
+  it("Sol has no invented hard market benchmark and no arbitrary token delta", () => {
     seedMainRpCatalogs(Date.parse("2026-09-22T03:00:00.000Z"));
     const projection = buildMainRpPricingObservabilityProjection({
       fxSnapshot: FX_FIXTURE,
       now: NOW,
     });
-    const terra = projection.models.find((r) => r.modelId === CHEAPER_INFERENCE_GPT_61_SOL_MODEL)!;
-    assert.equal(terra.market.comparabilityStatus, "published_anchor");
-    assert.equal(terra.market.differenceVsBenchmarkPoints, null);
-    assert.equal(terra.market.ourChargeAtBenchmarkPoints, null);
+    const sol = projection.models.find((r) => r.modelId === CHEAPER_INFERENCE_GPT_61_SOL_MODEL)!;
+    assert.equal(sol.market.comparabilityStatus, "absent");
+    assert.equal(sol.market.differenceVsBenchmarkPoints, null);
+    assert.equal(sol.market.ourChargeAtBenchmarkPoints, null);
   });
 
   it("DeepSeek without token benchmark is absent — not hard_comparable", () => {

@@ -728,7 +728,7 @@ describe("mainRpPricingCandidateBand — integration", () => {
       now: NOW,
       db,
     }).models.find((candidate) => candidate.modelId === CHEAPER_INFERENCE_GPT_61_SOL_MODEL)!;
-    assert.equal(row.market.comparabilityStatus, "published_anchor");
+    assert.equal(row.market.comparabilityStatus, "absent");
     assert.equal(row.candidate.market.hardBenchmarkCount, 0);
     assert.equal(row.candidate.maximumCompetitiveTargetMargin, null);
     assert.equal(row.candidate.status, "HOLD_NO_HARD_MARKET_EVIDENCE");
