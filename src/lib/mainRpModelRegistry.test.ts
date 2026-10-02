@@ -19,6 +19,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   GEMINI_38_FLASH_MODEL,
   CLAUDE_OPUS_MODEL,
   MAIN_RP_MODEL_IDS,
@@ -53,7 +54,7 @@ describe("Main RP canonical 6-model registry", () => {
         CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
         CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
         GEMINI_38_FLASH_MODEL,
-        CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+        CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
       ].sort()
     );
     for (const modelId of MAIN_RP_MODEL_IDS) {
@@ -65,6 +66,7 @@ describe("Main RP canonical 6-model registry", () => {
 
   it("retired models are MainRP=false and never selectable (even for admins)", () => {
     const retired = [
+      CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
       CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
@@ -122,6 +124,9 @@ describe("Main RP canonical 6-model registry", () => {
     // @ts-expect-error — retired DeepSeek V4 Pro must NOT be assignable to SelectedAI.
     const _v4ProRejected: SelectedAI = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
     void _v4ProRejected;
+    // @ts-expect-error — Terra is remapped, not a SelectedAI picker id.
+    const _terraRejected: SelectedAI = CHEAPER_INFERENCE_GPT_56_TERRA_MODEL;
+    void _terraRejected;
     // @ts-expect-error — a retired model id must NOT be assignable to SelectedAI.
     const _retiredRejected: SelectedAI = CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
     void _retiredRejected;
@@ -154,6 +159,7 @@ describe("Main RP canonical 6-model registry", () => {
 
   it("RETIRED_MODEL_IN_MAIN_RP_MATRIX=0 — main Rp registry never lists retired ids", () => {
     const retiredIds = [
+      CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
       CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,

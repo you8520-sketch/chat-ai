@@ -6,11 +6,12 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   isCheaperInferenceGemini31ProModel,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
   isGpt56TerraModel,
+  isGpt61SolModel,
   isMuseModel,
   MAIN_RP_MODEL_IDS,
   resolveSelectedAI,
@@ -70,7 +71,7 @@ export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerAct
     [CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL]: 1500,
     [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: 1400,
     [CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL]: 1400,
-    [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL]: 1400,
+    [CHEAPER_INFERENCE_GPT_61_SOL_MODEL]: 1400,
   };
 
 /** Output-token band used when deriving low/high point labels. */
@@ -94,8 +95,8 @@ export function canonicalizePreviewModelId(
 ): SelectedAI | null {
   const raw = usage?.selectedAI || usage?.model || messageModel || "";
   if (!raw.trim()) return null;
-  // Retired Muse samples must not skew active-model picker estimates.
-  if (isMuseModel(raw)) return null;
+  // Retired Muse / Terra samples must not skew active-model picker estimates.
+  if (isMuseModel(raw) || isGpt56TerraModel(raw)) return null;
   const resolved = resolveSelectedAI(raw, raw);
   return isActivePickerModel(resolved) ? resolved : null;
 }
@@ -193,7 +194,7 @@ export function resolveColdOutputBaseline(modelId: string): number {
   }
   if (isDeepSeekV4ProModel(modelId)) return Math.round(aim * 0.5);
   if (isMuseModel(modelId)) return Math.round(aim * 0.48);
-  if (isGpt56TerraModel(modelId)) return Math.round(aim * 0.5);
+  if (isGpt61SolModel(modelId)) return Math.round(aim * 0.5);
   return Math.round(aim * 0.4);
 }
 
@@ -374,7 +375,10 @@ export function computeStablePublishedPreviewPoints(opts: {
   inputTokens: number;
   outputTokens: number;
 }): number | null {
-  if (opts.modelId !== CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL) {
+  if (
+    opts.modelId !== CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL &&
+    opts.modelId !== CHEAPER_INFERENCE_GPT_61_SOL_MODEL
+  ) {
     return null;
   }
   return computePublishedStandardPreviewPoints({

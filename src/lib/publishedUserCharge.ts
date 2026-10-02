@@ -32,6 +32,7 @@ import {
 } from "@/lib/publishedChargeRounding";
 import {
   resolvePublishedPricingExact,
+  resolvePublishedReferenceRatesForPrompt,
   type PublishedModelPricing,
   type ResolvedPublishedPricing,
 } from "@/lib/publishedModelPricing";
@@ -180,6 +181,28 @@ export function validatePublishedModelPricingForLiveGrade(pricing: PublishedMode
   }
   if (!isValidOptionalCacheRate(pricing.billingReferenceCacheReadUsdPerMillion)) return false;
   if (!isValidOptionalCacheRate(pricing.billingReferenceCacheWriteUsdPerMillion)) return false;
+  if (pricing.publishedLongContextMinPromptTokens != null) {
+    if (
+      !Number.isSafeInteger(pricing.publishedLongContextMinPromptTokens) ||
+      pricing.publishedLongContextMinPromptTokens <= 0
+    ) {
+      return false;
+    }
+    if (
+      pricing.billingReferenceLongContextInputUsdPerMillion == null ||
+      pricing.billingReferenceLongContextOutputUsdPerMillion == null
+    ) {
+      return false;
+    }
+    if (!isValidUsdRate(pricing.billingReferenceLongContextInputUsdPerMillion)) return false;
+    if (!isValidUsdRate(pricing.billingReferenceLongContextOutputUsdPerMillion)) return false;
+    if (!isValidOptionalCacheRate(pricing.billingReferenceLongContextCacheReadUsdPerMillion)) {
+      return false;
+    }
+    if (!isValidOptionalCacheRate(pricing.billingReferenceLongContextCacheWriteUsdPerMillion)) {
+      return false;
+    }
+  }
   if (pricing.modelId !== pricing.modelId.trim()) return false;
   return true;
 }
@@ -337,13 +360,14 @@ function computeBillingReferenceCostUsd(
   usage: NormalizedBillableUsage,
   pricing: PublishedModelPricing
 ): number {
-  const cacheReadRate = pricing.billingReferenceCacheReadUsdPerMillion ?? 0;
-  const cacheWriteRate = pricing.billingReferenceCacheWriteUsdPerMillion ?? 0;
+  const rates = resolvePublishedReferenceRatesForPrompt(pricing, usage.promptTokens);
+  const cacheReadRate = rates.cacheReadUsdPerMillion ?? 0;
+  const cacheWriteRate = rates.cacheWriteUsdPerMillion ?? 0;
   return (
-    (usage.standardInputTokens / 1_000_000) * pricing.billingReferenceInputUsdPerMillion +
+    (usage.standardInputTokens / 1_000_000) * rates.inputUsdPerMillion +
     (usage.cacheReadTokens / 1_000_000) * cacheReadRate +
     (usage.cacheWriteTokens / 1_000_000) * cacheWriteRate +
-    (usage.billableOutputTokens / 1_000_000) * pricing.billingReferenceOutputUsdPerMillion
+    (usage.billableOutputTokens / 1_000_000) * rates.outputUsdPerMillion
   );
 }
 
