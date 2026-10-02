@@ -11,6 +11,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   CLAUDE_OPUS_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   USER_SELECTABLE_AI_OPTIONS,
@@ -56,6 +57,7 @@ describe("/api/user/selected-ai Gemini 3.7 Flash allow-list", () => {
   it("allows Gemini 3.7 Flash select/save and keeps sibling picker models", () => {
     assert.equal(isPatchAllowed(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL), true);
     assert.equal(isPatchAllowed(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL), true);
+    assert.equal(isPatchAllowed(CHEAPER_INFERENCE_GPT_61_SOL_MODEL), true);
     assert.equal(isPatchAllowed(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL), true);
     assert.equal(isPatchAllowed(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), false);
 

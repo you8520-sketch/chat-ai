@@ -11,6 +11,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "./chatModels";
 import { buildContext } from "@/services/contextBuilder";
 
@@ -150,6 +151,7 @@ describe("userMessageParse cross-model outbound (no API)", () => {
     ["Gemini 3.1 Pro", CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL],
     ["DeepSeek V4 Pro", CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL],
     ["Terra", CHEAPER_INFERENCE_GPT_56_TERRA_MODEL],
+    ["Sol", CHEAPER_INFERENCE_GPT_61_SOL_MODEL],
   ] as const;
 
   for (const [label, modelId] of models) {

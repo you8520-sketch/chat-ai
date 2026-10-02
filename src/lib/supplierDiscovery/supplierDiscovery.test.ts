@@ -48,7 +48,7 @@ function completeTokenProfile(overrides: Partial<SupplierPublicProfile> = {}): S
     streamingAdvertised: true,
     usageReportingAdvertised: "token_usage",
     waitlist: false,
-    supportedActiveModelIds: ["gpt-5.6-terra"] as readonly SelectedAI[],
+    supportedActiveModelIds: ["gpt-6.1-sol"] as readonly SelectedAI[],
     modelProvenanceEvidence: "vendor_model_id_published",
     companyIdentityEvidence: "legal_name_published",
     inputUsdPerMillion: 0.1,
