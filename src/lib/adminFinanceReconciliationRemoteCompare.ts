@@ -454,15 +454,15 @@ export async function compareProviderReconciliationRemote(
     remote,
     match,
     localLedgerInWindow: local.ledgerInWindow,
-    ...(deps.includeKeyGroups
+    // A failed/incomplete remote read has no verifiable group totals.
+    // Never display a misleading 0=0 reconciliation success on error.
+    ...(deps.includeKeyGroups && fetched.ok
       ? {
-          apiKeyGroups: fetched.ok
-            ? buildAnonymousApiKeyGroups(
-                fetched.value.requests,
-                remote.settledMicroUsd,
-                remote.settledCount
-              )
-            : buildAnonymousApiKeyGroups([], 0, 0),
+          apiKeyGroups: buildAnonymousApiKeyGroups(
+            fetched.value.requests,
+            remote.settledMicroUsd,
+            remote.settledCount
+          ),
         }
       : {}),
     evidence: classify(remote, match, local),
