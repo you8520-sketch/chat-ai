@@ -50,6 +50,14 @@ jobs:
           src/lib/userInputDraftCustody.test.ts
           src/lib/chatStreamDraftRecovery.test.ts
 
+      - name: JSX authoring draft and status widget mode regressions
+        run: >-
+          node --conditions=react-server --import tsx --test
+          src/lib/jsxComponent/catalogDraft.test.ts
+          src/lib/jsxComponent/jsxComponent.test.ts
+          src/lib/statusWidget/authoringChoice.test.ts
+          src/lib/statusWidget/jsxSource.test.ts
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
