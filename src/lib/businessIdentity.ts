@@ -46,7 +46,7 @@ export const BUSINESS_IDENTITY_VERIFICATION = {
   mailOrderReportNumber: "unverified",
 } as const satisfies Record<string, BusinessFieldVerification>;
 
-/** Canonical public lines. Footer is the only UI renderer. */
+/** Canonical public lines. Footer renders these in site chrome; legal pages quote the same lines. */
 export const BUSINESS_PUBLIC_LINES = [
   `사이트명 ${SERVICE_PUBLIC_NAME}`,
   `도메인 ${SERVICE_PUBLIC_ORIGIN}`,

@@ -9,5 +9,12 @@ export const metadata: Metadata = {
 };
 
 export default function TermsPage() {
-  return <LegalDocument title={TERMS_PAGE.title} intro={TERMS_PAGE.intro} sections={TERMS_PAGE.sections} />;
+  return (
+    <LegalDocument
+      title={TERMS_PAGE.title}
+      intro={TERMS_PAGE.intro}
+      sections={TERMS_PAGE.sections}
+      currentHref={TERMS_PAGE.href}
+    />
+  );
 }

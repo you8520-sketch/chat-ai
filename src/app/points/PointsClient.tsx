@@ -461,7 +461,11 @@ export default function PointsClient({
       <p className={`mt-1 ${studioType.caption}`}>
         결제 금액과 동일한 <b className="text-zinc-300">유료 포인트</b>가 지급됩니다 (₩10,000 = 10,000P). 보너스는{" "}
         <b className="text-violet-300">무료 포인트</b>로 별도 적립됩니다. 유료·충전 보너스 무료 포인트는 지급일로부터{" "}
-        {FREE_POINTS_VALID_YEARS}년, 출석 포인트는 {ATTENDANCE_POINTS_VALID_DAYS}일 유효합니다.
+        {FREE_POINTS_VALID_YEARS}년, 출석 포인트는 {ATTENDANCE_POINTS_VALID_DAYS}일 유효합니다.{" "}
+        <Link href="/refund" className="text-violet-400 underline-offset-2 hover:underline">
+          결제 및 환불 정책
+        </Link>
+        에서 상품·유효기간·결제 취소 조건을 확인할 수 있습니다.
       </p>
       <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
         {POINT_CHARGE_PACKAGES.map((p) => {

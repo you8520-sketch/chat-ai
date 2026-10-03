@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import GoogleButton from "@/components/GoogleButton";
 import GoogleAuthError from "@/components/GoogleAuthError";
+import { LegalConsentLinks } from "@/components/LegalConsentLinks";
 import StudioButton from "@/components/studio/StudioButton";
 import { SIGNUP_BONUS_POINTS } from "@/lib/plans";
 import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
@@ -123,6 +124,10 @@ function SignupForm() {
         이미 계정이 있나요?{" "}
         <Link href="/login" className="text-violet-400 hover:underline">로그인</Link>
       </p>
+      <p className={`mt-4 text-center ${studioType.caption}`}>
+        가입 전에 이용약관, 개인정보처리방침, 결제 및 환불 정책을 확인할 수 있습니다.
+      </p>
+      <LegalConsentLinks className="mt-2" />
     </div>
   );
 }
