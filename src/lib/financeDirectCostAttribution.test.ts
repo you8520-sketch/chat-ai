@@ -230,6 +230,7 @@ function insertSettlement(
     free?: number;
     outcome?: string;
     refundedAt?: string | null;
+    source?: string;
   }
 ): void {
   const settled = (opts.paid ?? 0) + (opts.free ?? 0);
@@ -237,7 +238,7 @@ function insertSettlement(
     `INSERT INTO chat_billing_settlements
        (user_id, chat_id, request_id, charge_kind, assistant_message_id, requested_points,
         settled_points, outcome, deduction_slices_json, reason, source, created_at, refunded_at)
-     VALUES (1, 1, ?, 'chat_turn', ?, ?, ?, ?, ?, '', 'native', ?, ?)`
+     VALUES (1, 1, ?, 'chat_turn', ?, ?, ?, ?, ?, '', ?, ?, ?)`
   ).run(
     opts.requestId,
     opts.assistantMessageId,
@@ -245,6 +246,7 @@ function insertSettlement(
     settled,
     opts.outcome ?? (settled > 0 ? "charged" : "waived"),
     slices(opts.paid ?? 0, opts.free ?? 0),
+    opts.source ?? "native",
     opts.createdAt,
     opts.refundedAt ?? null
   );
@@ -348,7 +350,8 @@ function observe(db: Database.Database, modelId: string, month = MONTH) {
   } as unknown as MainRpPricingObservabilityProjection;
   const report = buildFinanceAnomalyReport({ summary, pricing });
   const miss = report.anomalies.find((row) => row.code === "DIRECT_COST_WITHOUT_USER_BILLING");
-  return { summary, actual, report, miss };
+  const unattributed = report.anomalies.find((row) => row.code === "UNATTRIBUTED_DIRECT_COST");
+  return { summary, actual, report, miss, unattributed };
 }
 
 function near(actual: number, expected: number): void {
@@ -785,5 +788,133 @@ describe("gemini direct-cost attribution", () => {
     near(actual.paidRevenueKrw, 55);
     near(actual.apiCostKrw, 9);
     db.close();
+  });
+
+  it("does not treat an untrustworthy zero settlement as a normal waiver", () => {
+    const malformed = financeDb();
+    insertMessage(malformed, 1, {
+      createdAt: "2026-10-03 17:00:00",
+      requestId: "req-malformed",
+      model: GEMINI38,
+      modelLabel: GEMINI38_LABEL,
+    });
+    insertSettlement(malformed, {
+      requestId: "req-malformed",
+      assistantMessageId: 1,
+      createdAt: "2026-10-03 17:00:00",
+      outcome: "legacy_malformed",
+      source: "legacy_message_deduction_slices",
+    });
+    mainLedger(malformed, {
+      messageId: 1,
+      requestId: "req-malformed",
+      eventTime: "2026-10-03 17:00:00",
+      krw: 6,
+      model: GEMINI38,
+    });
+    const bad = observe(malformed, GEMINI38);
+    assert.equal(bad.miss, undefined);
+    assert.equal(bad.unattributed?.severity, "warning");
+    near(bad.actual.apiCostKrw, 6);
+    near(bad.actual.directCostAttribution?.unknownKrw ?? 0, 6);
+    near(bad.actual.directCostAttribution?.userFundedWaivedKrw ?? 0, 0);
+    near(bad.actual.paidRevenueKrw, 0);
+    near(bad.summary.chat.apiCostKrw, 6);
+    assert.equal(bad.actual.netProfitKrw, -6);
+    malformed.close();
+
+    const inconsistent = financeDb();
+    insertMessage(inconsistent, 1, {
+      createdAt: "2026-10-03 17:30:00",
+      requestId: "req-zero-charged",
+      model: GEMINI38,
+      modelLabel: GEMINI38_LABEL,
+    });
+    insertSettlement(inconsistent, {
+      requestId: "req-zero-charged",
+      assistantMessageId: 1,
+      createdAt: "2026-10-03 17:30:00",
+      outcome: "charged",
+    });
+    mainLedger(inconsistent, {
+      messageId: 1,
+      requestId: "req-zero-charged",
+      eventTime: "2026-10-03 17:30:00",
+      krw: 4,
+      model: GEMINI38,
+    });
+    const zeroCharged = observe(inconsistent, GEMINI38);
+    assert.equal(zeroCharged.miss, undefined);
+    assert.equal(zeroCharged.unattributed?.severity, "warning");
+    near(zeroCharged.actual.apiCostKrw, 4);
+    near(zeroCharged.actual.directCostAttribution?.unknownKrw ?? 0, 4);
+    near(zeroCharged.actual.directCostAttribution?.userFundedWaivedKrw ?? 0, 0);
+    inconsistent.close();
+  });
+
+  it("recognizes a prior-month deduction_slices charge without reusing a regenerated snapshot", () => {
+    const linked = financeDb();
+    insertMessage(linked, 1, {
+      createdAt: "2026-09-20 10:00:00",
+      requestId: "req-legacy-slices",
+      model: GEMINI38,
+      modelLabel: GEMINI38_LABEL,
+      paid: 80,
+    });
+    mainLedger(linked, {
+      messageId: 1,
+      requestId: "req-legacy-slices",
+      eventTime: "2026-10-03 18:00:00",
+      krw: 11,
+      model: GEMINI38_SLUG,
+    });
+    const october = observe(linked, GEMINI38, "2026-10");
+    const september = observe(linked, GEMINI38, "2026-09");
+    assert.equal(october.miss, undefined);
+    assert.equal(october.unattributed, undefined);
+    near(october.actual.paidRevenueKrw, 0);
+    near(october.actual.freePointSpend, 0);
+    near(october.actual.apiCostKrw, 11);
+    near(october.actual.directCostAttribution?.userFundedChargedKrw ?? 0, 11);
+    near(october.actual.directCostAttribution?.userFundedUnlinkedKrw ?? 0, 0);
+    near(october.summary.chat.paidRevenueKrw, 0);
+    near(october.summary.chat.apiCostKrw, 11);
+    assert.equal(september.miss, undefined);
+    near(september.actual.paidRevenueKrw, 80);
+    near(september.actual.apiCostKrw, 0);
+    near(september.summary.chat.paidRevenueKrw, 80);
+    linked.close();
+
+    const regenerated = financeDb();
+    insertMessage(regenerated, 1, {
+      createdAt: "2026-09-21 10:00:00",
+      requestId: "req-old-gen",
+      model: GEMINI38,
+      modelLabel: GEMINI38_LABEL,
+      paid: 100,
+    });
+    regenerated
+      .prepare(`UPDATE messages SET request_id = ?, deduction_slices = ? WHERE id = 1`)
+      .run("req-new-gen", slices(40));
+    mainLedger(regenerated, {
+      messageId: 1,
+      requestId: "req-old-gen",
+      eventTime: "2026-10-04 18:00:00",
+      krw: 7,
+      model: GEMINI38,
+    });
+    const regenOctober = observe(regenerated, GEMINI38, "2026-10");
+    const regenSeptember = observe(regenerated, GEMINI38, "2026-09");
+    assert.equal(regenOctober.miss, undefined);
+    assert.equal(regenOctober.unattributed?.severity, "warning");
+    near(regenOctober.actual.paidRevenueKrw, 0);
+    near(regenOctober.actual.apiCostKrw, 7);
+    near(regenOctober.actual.directCostAttribution?.unknownKrw ?? 0, 7);
+    near(regenOctober.actual.directCostAttribution?.userFundedChargedKrw ?? 0, 0);
+    near(regenOctober.summary.chat.paidRevenueKrw, 0);
+    near(regenSeptember.actual.paidRevenueKrw, 40);
+    near(regenSeptember.summary.chat.paidRevenueKrw, 40);
+    near(regenOctober.summary.chat.paidRevenueKrw + regenSeptember.summary.chat.paidRevenueKrw, 40);
+    regenerated.close();
   });
 });

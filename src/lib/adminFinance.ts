@@ -32,6 +32,7 @@ import {
 } from "@/lib/providerCostLedger";
 import { readProviderReconciliationState } from "@/lib/providerCostReconciliation";
 import { imageHasAccountingActivity } from "@/lib/adminFinanceMarginDisplay";
+import { parseDeductionSlicesJson } from "@/lib/chatBillingSettlement";
 import { CHAT_TURN_CHARGE_KIND } from "@/lib/chatBillingSettlementSchema";
 import { parseMessageVariants } from "@/lib/messageAlternates";
 
@@ -639,70 +640,178 @@ function readMainGenerationModelByRequest(db: Database.Database): Map<string, st
   return map;
 }
 
-type GenerationChargeExplanation = "charged" | "waived" | "refunded";
+type GenerationChargeExplanation = "charged" | "waived" | "refunded" | "unknown";
 
-type UserFundedCostLink = GenerationChargeExplanation | "unlinked" | "unknown";
+type UserFundedCostLink = GenerationChargeExplanation | "unlinked";
+
+type GenerationChargeIndex = {
+  explanations: Map<string, GenerationChargeExplanation>;
+  /** Current assistant request id. Regeneration overwrites this with the slices. */
+  messageRequestIds: Map<number, string>;
+};
+
+const GENERATION_CHARGE_RANK: Record<GenerationChargeExplanation, number> = {
+  unknown: 0,
+  refunded: 1,
+  waived: 2,
+  charged: 3,
+};
+
+function rememberGenerationCharge(
+  map: Map<string, GenerationChargeExplanation>,
+  key: string,
+  explanation: GenerationChargeExplanation
+): void {
+  const current = map.get(key);
+  if (current == null || GENERATION_CHARGE_RANK[explanation] > GENERATION_CHARGE_RANK[current]) {
+    map.set(key, explanation);
+  }
+}
+
+/** Canonical slice parser. Malformed JSON is not a zero charge. */
+function canonicalSliceTotal(
+  raw: string | null
+): { ok: true; total: number } | { ok: false } {
+  if (typeof raw !== "string") return { ok: false };
+  const slices = parseDeductionSlicesJson(raw);
+  if (!slices) return { ok: false };
+  let total = 0;
+  for (const slice of slices) {
+    if (!Number.isFinite(slice.amount) || slice.amount < 0) return { ok: false };
+    total += slice.amount;
+  }
+  return { ok: true, total };
+}
+
+/**
+ * A zero slice total is a waiver only when the billing owner stored outcome
+ * `waived` with settled_points 0 and a valid empty snapshot. `legacy_malformed`,
+ * `claiming`, and inconsistent rows stay unknown.
+ */
+function classifySettlementExplanation(row: {
+  request_id: string;
+  refunded_at: string | null;
+  message_is_refunded: number | null;
+  message_request_id: string | null;
+  settled_points: number | null;
+  outcome: string | null;
+  deduction_slices_json: string | null;
+}): GenerationChargeExplanation {
+  if (isChargeEventRefunded(row)) return "refunded";
+  const outcome = typeof row.outcome === "string" ? row.outcome.trim() : "";
+  const settled = Number(row.settled_points);
+  const parsed = canonicalSliceTotal(
+    typeof row.deduction_slices_json === "string" ? row.deduction_slices_json : null
+  );
+  if (outcome === "waived" && settled === 0 && parsed.ok && parsed.total === 0) {
+    return "waived";
+  }
+  if (
+    (outcome === "charged" || outcome === "legacy_already_billed") &&
+    Number.isFinite(settled) &&
+    parsed.ok &&
+    parsed.total > 0 &&
+    Math.abs(settled - parsed.total) < 1e-6
+  ) {
+    return "charged";
+  }
+  return "unknown";
+}
+
+/**
+ * Raw messages.deduction_slices are the same fallback the revenue owner uses:
+ * valid only while this assistant row has no native or bridge settlement.
+ * A positive total on the current request_id is a charge. A present but
+ * unreadable snapshot is unknown. Empty snapshots are not a waiver.
+ */
+function classifyRawDeductionSlices(
+  raw: string | null
+): "charged" | "unknown" | null {
+  if (raw == null) return null;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0 || trimmed === "[]" || trimmed === "null") return null;
+  const parsed = canonicalSliceTotal(trimmed);
+  if (parsed.ok && parsed.total > 0) return "charged";
+  return "unknown";
+}
 
 /**
  * Generation → charge explanation across every period. A settlement in another
- * month still explains a late provider-cost row; this map never adds revenue.
+ * month, or a still-unbridged deduction_slices snapshot, explains a late
+ * provider-cost row. This index never adds revenue.
  */
-function readGenerationChargeExplanations(
-  db: Database.Database
-): Map<string, GenerationChargeExplanation> {
-  const map = new Map<string, GenerationChargeExplanation>();
-  if (!chatBillingSettlementTableExists(db)) return map;
-  const rows = db
-    .prepare(
-      `SELECT s.request_id, s.assistant_message_id, s.deduction_slices_json,
-              s.refunded_at,
-              m.is_refunded AS message_is_refunded,
-              m.request_id AS message_request_id
-       FROM chat_billing_settlements s
-       LEFT JOIN messages m ON m.id = s.assistant_message_id
-       WHERE s.charge_kind = ?
-         AND s.source IN ('native', 'legacy_message_deduction_slices')`
-    )
-    .all(CHAT_TURN_CHARGE_KIND) as Array<{
-    request_id: string;
-    assistant_message_id: number | null;
-    deduction_slices_json: string | null;
-    refunded_at: string | null;
-    message_is_refunded: number | null;
-    message_request_id: string | null;
-  }>;
-  const rank: Record<GenerationChargeExplanation, number> = {
-    refunded: 1,
-    waived: 2,
-    charged: 3,
-  };
-  for (const row of rows) {
-    if (row.assistant_message_id == null || !Number.isFinite(row.assistant_message_id)) continue;
-    const requestId = typeof row.request_id === "string" ? row.request_id : "";
-    if (!requestId) continue;
-    const totals = sliceTotals(row.deduction_slices_json);
-    const explanation: GenerationChargeExplanation = isChargeEventRefunded(row)
-      ? "refunded"
-      : totals.paid + totals.free > 0
-        ? "charged"
-        : "waived";
-    const key = generationModelKey(Number(row.assistant_message_id), requestId);
-    const current = map.get(key);
-    if (current == null || rank[explanation] > rank[current]) {
-      map.set(key, explanation);
+function readGenerationChargeExplanations(db: Database.Database): GenerationChargeIndex {
+  const explanations = new Map<string, GenerationChargeExplanation>();
+  const messageRequestIds = new Map<number, string>();
+  const index = { explanations, messageRequestIds };
+  if (chatBillingSettlementTableExists(db)) {
+    const rows = db
+      .prepare(
+        `SELECT s.request_id, s.assistant_message_id, s.deduction_slices_json,
+                s.settled_points, s.outcome, s.refunded_at,
+                m.is_refunded AS message_is_refunded,
+                m.request_id AS message_request_id
+         FROM chat_billing_settlements s
+         LEFT JOIN messages m ON m.id = s.assistant_message_id
+         WHERE s.charge_kind = ?
+           AND s.source IN ('native', 'legacy_message_deduction_slices')`
+      )
+      .all(CHAT_TURN_CHARGE_KIND) as Array<{
+      request_id: string;
+      assistant_message_id: number | null;
+      deduction_slices_json: string | null;
+      settled_points: number | null;
+      outcome: string | null;
+      refunded_at: string | null;
+      message_is_refunded: number | null;
+      message_request_id: string | null;
+    }>;
+    for (const row of rows) {
+      if (row.assistant_message_id == null || !Number.isFinite(row.assistant_message_id)) continue;
+      const requestId = typeof row.request_id === "string" ? row.request_id.trim() : "";
+      if (!requestId) continue;
+      rememberGenerationCharge(
+        explanations,
+        generationModelKey(Number(row.assistant_message_id), requestId),
+        classifySettlementExplanation(row)
+      );
     }
   }
-  return map;
+
+  const ownedMessageIds = readOwnedMessageIds(db);
+  const messageRows = db
+    .prepare(
+      `SELECT id, request_id, deduction_slices FROM messages WHERE role = 'assistant'`
+    )
+    .all() as Array<{
+    id: number;
+    request_id: string | null;
+    deduction_slices: string | null;
+  }>;
+  for (const row of messageRows) {
+    if (!Number.isFinite(row.id)) continue;
+    const requestId = typeof row.request_id === "string" ? row.request_id.trim() : "";
+    messageRequestIds.set(Number(row.id), requestId);
+    if (!requestId || ownedMessageIds.has(Number(row.id))) continue;
+    const raw = classifyRawDeductionSlices(row.deduction_slices);
+    if (!raw) continue;
+    rememberGenerationCharge(explanations, generationModelKey(Number(row.id), requestId), raw);
+  }
+  return index;
 }
 
 function explainUserFundedCost(
-  explanations: ReadonlyMap<string, GenerationChargeExplanation>,
+  index: GenerationChargeIndex,
   messageId: number | null,
   requestId: string | null
 ): UserFundedCostLink {
   const id = requestId?.trim() ?? "";
   if (messageId == null || !Number.isFinite(messageId) || !id) return "unknown";
-  return explanations.get(generationModelKey(messageId, id)) ?? "unlinked";
+  const explained = index.explanations.get(generationModelKey(messageId, id));
+  if (explained) return explained;
+  const currentRequest = index.messageRequestIds.get(messageId);
+  if (currentRequest == null || currentRequest !== id) return "unknown";
+  return "unlinked";
 }
 
 function userFundedAttributionBucket(
@@ -728,12 +837,12 @@ function userFundedAttributionBucket(
 
 function directCostBucket(
   fundingClass: LedgerCostFundingClass,
-  explanations: ReadonlyMap<string, GenerationChargeExplanation>,
+  index: GenerationChargeIndex,
   messageId: number | null,
   requestId: string | null
 ): keyof ModelDirectCostAttribution {
   if (fundingClass === "platform_funded") return "platformFundedKrw";
-  const link = explainUserFundedCost(explanations, messageId, requestId);
+  const link = explainUserFundedCost(index, messageId, requestId);
   if (fundingClass === "unknown" && link === "unlinked") return "unknownKrw";
   return userFundedAttributionBucket(link);
 }
