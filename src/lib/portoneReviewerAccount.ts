@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { ensureEmailSignupSchema } from "@/lib/emailSignupSchema";
-import { isPortOneChargeEnabled } from "@/lib/portoneConfig";
+import { isPortOneChargeEnabled, isPortOneServerVerifyConfigured } from "@/lib/portoneConfig";
 
 export const PORTONE_REVIEWER_ACCOUNT_KIND = "portone_reviewer";
 export const PORTONE_REVIEWER_LOGIN_ALIAS = "tester";
@@ -19,6 +19,13 @@ export const PORTONE_REVIEWER_LOGIN_LOCK_MS = 15 * 60 * 1000;
 export const PORTONE_REVIEWER_LOGIN_LOCKED_MESSAGE =
   "심사용 계정 로그인 시도가 제한되었습니다. 잠시 후 다시 시도해 주세요.";
 export const PORTONE_REVIEWER_PAYMENTS_UNVERIFIED_REASON = "test_channel_unverified" as const;
+export const PORTONE_REVIEWER_KG_TEST_CHECKOUT_KIND = "reviewer_kg_test";
+export const PORTONE_REVIEWER_KG_TEST_ENABLE_FLAG = "PORTONE_REVIEWER_KG_TEST_CHECKOUT_ENABLED";
+/** Confirmed public KG Inicis test identifiers. Not secrets. */
+export const PORTONE_REVIEWER_KG_TEST_STORE_ID = "store-a8f42240-555d-4df7-a6e2-3eb1407257a9";
+export const PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY = "channel-key-587c7ec0-0845-42cd-95d9-245d85ea83ea";
+export const PORTONE_REVIEWER_KG_TEST_CHANNEL_NAME = "hav_KG_INICIS_TEST";
+export const PORTONE_REVIEWER_KG_TEST_MID = "INIpayTest";
 
 export type ReviewerAccountFields = {
   account_kind?: string | null;
@@ -33,27 +40,113 @@ export function isPortoneReviewerAccount(user: ReviewerAccountFields | null | un
   return isPortoneReviewerAccountKind(user?.account_kind);
 }
 
-export type PortoneReviewerPaymentsReadiness = {
-  ready: false;
-  reason: typeof PORTONE_REVIEWER_PAYMENTS_UNVERIFIED_REASON;
-  detail: string;
-};
+function envFlagOn(name: string): boolean {
+  const raw = process.env[name]?.trim().toLowerCase();
+  return raw === "1" || raw === "true";
+}
+
+function resolvedReviewerKgTestIdentifiers():
+  | { ok: true; storeId: string; channelKey: string }
+  | { ok: false; reason: "channel_mismatch" } {
+  const envStore = process.env.PORTONE_REVIEWER_STORE_ID?.trim() || "";
+  const envChannel = process.env.PORTONE_REVIEWER_CHANNEL_KEY?.trim() || "";
+  const storeId = envStore || PORTONE_REVIEWER_KG_TEST_STORE_ID;
+  const channelKey = envChannel || PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY;
+  if (
+    storeId !== PORTONE_REVIEWER_KG_TEST_STORE_ID ||
+    channelKey !== PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY
+  ) {
+    return { ok: false, reason: "channel_mismatch" };
+  }
+  return { ok: true, storeId, channelKey };
+}
+
+export type PortoneReviewerPaymentsReadiness =
+  | {
+      ready: true;
+      storeId: string;
+      channelKey: string;
+      channelName: typeof PORTONE_REVIEWER_KG_TEST_CHANNEL_NAME;
+      payMethod: "CARD";
+    }
+  | {
+      ready: false;
+      reason:
+        | "flag_off"
+        | "secret_missing"
+        | "channel_mismatch"
+        | typeof PORTONE_REVIEWER_PAYMENTS_UNVERIFIED_REASON;
+      detail: string;
+    };
 
 /**
- * Current env only proves that some store/channel/secret exists.
- * It cannot prove those values are the approved PG test channel, so checkout stays closed.
+ * Fail-closed. An env name or shared live/public key is not enough.
+ * Store/channel values must match the confirmed KG Inicis test identifiers.
  */
 export function inspectPortoneReviewerPaymentsReadiness(): PortoneReviewerPaymentsReadiness {
+  if (!envFlagOn(PORTONE_REVIEWER_KG_TEST_ENABLE_FLAG)) {
+    return {
+      ready: false,
+      reason: envFlagOn("PORTONE_REVIEWER_PAYMENTS_ENABLED")
+        ? PORTONE_REVIEWER_PAYMENTS_UNVERIFIED_REASON
+        : "flag_off",
+      detail:
+        "Reviewer KG test checkout stays closed until PORTONE_REVIEWER_KG_TEST_CHECKOUT_ENABLED is explicitly on and the confirmed test store/channel match.",
+    };
+  }
+
+  if (!isPortOneServerVerifyConfigured()) {
+    return {
+      ready: false,
+      reason: "secret_missing",
+      detail: "Reviewer KG test checkout needs a server-only PortOne API secret.",
+    };
+  }
+
+  const identifiers = resolvedReviewerKgTestIdentifiers();
+  if (!identifiers.ok) {
+    return {
+      ready: false,
+      reason: "channel_mismatch",
+      detail: "Reviewer checkout only accepts the confirmed KG Inicis test store and channel.",
+    };
+  }
+
   return {
-    ready: false,
-    reason: PORTONE_REVIEWER_PAYMENTS_UNVERIFIED_REASON,
-    detail:
-      "PORTONE_REVIEWER_PAYMENTS_ENABLED and shared PortOne keys do not identify a PG test channel. Dedicated reviewer store/channel/secret plus live console confirmation are required before checkout can open.",
+    ready: true,
+    storeId: identifiers.storeId,
+    channelKey: identifiers.channelKey,
+    channelName: PORTONE_REVIEWER_KG_TEST_CHANNEL_NAME,
+    payMethod: "CARD",
   };
 }
 
 export function isPortoneReviewerPaymentsReady(): boolean {
   return inspectPortoneReviewerPaymentsReadiness().ready;
+}
+
+export function getPortoneReviewerKgTestCheckoutContext():
+  | { ok: true; storeId: string; channelKey: string; channelName: string; payMethod: "CARD" }
+  | { ok: false; reason: PortoneReviewerPaymentsReadiness & { ready: false } } {
+  const readiness = inspectPortoneReviewerPaymentsReadiness();
+  if (!readiness.ready) return { ok: false, reason: readiness };
+  return {
+    ok: true,
+    storeId: readiness.storeId,
+    channelKey: readiness.channelKey,
+    channelName: readiness.channelName,
+    payMethod: readiness.payMethod,
+  };
+}
+
+export function isConfirmedReviewerKgTestChannel(input: {
+  storeId?: string | null;
+  channelKey?: string | null;
+}): boolean {
+  return (
+    input.storeId === PORTONE_REVIEWER_KG_TEST_STORE_ID &&
+    input.channelKey === PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY
+  );
 }
 
 /** Reviewer uses the dedicated test-channel flag only. Everyone else keeps the global gate. */

@@ -12,6 +12,9 @@ import { hasSignupBonus } from "@/lib/signupBonus";
 import {
   PORTONE_REVIEWER_ACCOUNT_KIND,
   PORTONE_REVIEWER_GIFT_MESSAGE,
+  PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY,
+  PORTONE_REVIEWER_KG_TEST_ENABLE_FLAG,
+  PORTONE_REVIEWER_KG_TEST_STORE_ID,
   PORTONE_REVIEWER_LOGIN_ALIAS,
   PORTONE_REVIEWER_PAID_API_MESSAGE,
   PORTONE_REVIEWER_LOGIN_MAX_FAILURES,
@@ -30,6 +33,9 @@ import {
 
 const ENV_KEYS = [
   "PORTONE_REVIEWER_PAYMENTS_ENABLED",
+  PORTONE_REVIEWER_KG_TEST_ENABLE_FLAG,
+  "PORTONE_REVIEWER_STORE_ID",
+  "PORTONE_REVIEWER_CHANNEL_KEY",
   "PORTONE_CHARGE_ENABLED",
   "NEXT_PUBLIC_PORTONE_STORE_ID",
   "NEXT_PUBLIC_PORTONE_CHANNEL_KEY",
@@ -60,6 +66,9 @@ describe("portone reviewer account", () => {
   beforeEach(() => {
     process.env.PORTONE_CHARGE_ENABLED = "0";
     delete process.env.PORTONE_REVIEWER_PAYMENTS_ENABLED;
+    delete process.env[PORTONE_REVIEWER_KG_TEST_ENABLE_FLAG];
+    delete process.env.PORTONE_REVIEWER_STORE_ID;
+    delete process.env.PORTONE_REVIEWER_CHANNEL_KEY;
     delete process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
     delete process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY;
     delete process.env.PORTONE_API_SECRET;
@@ -159,6 +168,47 @@ describe("portone reviewer account", () => {
     process.env.PORTONE_API_SECRET = "secret_test";
     assert.equal(canAccessPortoneCheckout({ account_kind: "standard" }), false);
     assert.equal(canAccessPortoneCheckout({ account_kind: PORTONE_REVIEWER_ACCOUNT_KIND }), false);
+  });
+
+  it("opens reviewer KG test checkout only with the explicit flag, secret, and confirmed identifiers", () => {
+    const reviewer = { account_kind: PORTONE_REVIEWER_ACCOUNT_KIND };
+    process.env[PORTONE_REVIEWER_KG_TEST_ENABLE_FLAG] = "1";
+    process.env.PORTONE_API_SECRET = "secret_test";
+    const ready = inspectPortoneReviewerPaymentsReadiness();
+    assert.equal(ready.ready, true);
+    if (!ready.ready) return;
+    assert.equal(ready.storeId, PORTONE_REVIEWER_KG_TEST_STORE_ID);
+    assert.equal(ready.channelKey, PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY);
+    assert.equal(canAccessPortoneCheckout(reviewer), true);
+    assert.equal(canAccessPortoneCheckout({ account_kind: "standard" }), false);
+  });
+
+  it("rejects a reviewer flag that points at a different store or channel", () => {
+    process.env[PORTONE_REVIEWER_KG_TEST_ENABLE_FLAG] = "1";
+    process.env.PORTONE_API_SECRET = "secret_test";
+    process.env.PORTONE_REVIEWER_STORE_ID = "store-not-the-confirmed-kg-test";
+    process.env.PORTONE_REVIEWER_CHANNEL_KEY = PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY;
+    const readiness = inspectPortoneReviewerPaymentsReadiness();
+    assert.equal(readiness.ready, false);
+    if (readiness.ready) return;
+    assert.equal(readiness.reason, "channel_mismatch");
+    assert.equal(canAccessPortoneCheckout({ account_kind: PORTONE_REVIEWER_ACCOUNT_KIND }), false);
+  });
+
+  it("does not treat an env name or missing secret as a verified test channel", () => {
+    process.env[PORTONE_REVIEWER_KG_TEST_ENABLE_FLAG] = "1";
+    const missingSecret = inspectPortoneReviewerPaymentsReadiness();
+    assert.equal(missingSecret.ready, false);
+    if (missingSecret.ready) return;
+    assert.equal(missingSecret.reason, "secret_missing");
+
+    process.env.PORTONE_API_SECRET = "secret_test";
+    process.env.PORTONE_REVIEWER_STORE_ID = PORTONE_REVIEWER_KG_TEST_STORE_ID;
+    process.env.PORTONE_REVIEWER_CHANNEL_KEY = "channel-key-live-or-other";
+    const mismatch = inspectPortoneReviewerPaymentsReadiness();
+    assert.equal(mismatch.ready, false);
+    if (mismatch.ready) return;
+    assert.equal(mismatch.reason, "channel_mismatch");
   });
 
   it("locks the reviewer alias after repeated failed logins", () => {

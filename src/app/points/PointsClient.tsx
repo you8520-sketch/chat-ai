@@ -19,7 +19,10 @@ import {
   pointChargePackageTotalPoints,
 } from "@/lib/plans";
 import { ATTENDANCE_POINTS_VALID_DAYS } from "@/lib/attendanceConstants";
-import { runPortOnePointCharge } from "@/lib/portoneBrowser";
+import {
+  PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE,
+  runPortOnePointCharge,
+} from "@/lib/portoneBrowser";
 import {
   estimateGiftBreakdown,
   MIN_POINT_GIFT_AMOUNT,
@@ -308,7 +311,9 @@ export default function PointsClient({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.location.search.includes("charged=1")) {
+    if (window.location.search.includes("reviewerTest=1")) {
+      setMsg(PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE);
+    } else if (window.location.search.includes("charged=1")) {
       setMsg("포인트 충전이 완료되었습니다.");
     }
     if (window.location.hash !== `#${POINT_USAGE_HASH}`) return;
@@ -326,11 +331,17 @@ export default function PointsClient({
     setError("");
     setMsg("");
     try {
-      await runPortOnePointCharge(packageId, {
+      const charged = await runPortOnePointCharge(packageId, {
         customerEmail: userEmail || undefined,
         customerName: userNickname || undefined,
       });
-      setMsg(`포인트 ${totalPoints.toLocaleString()}P 충전이 완료되었습니다.`);
+      const testConfirmed =
+        charged.completed.checkoutKind === "reviewer_kg_test" || charged.completed.credited === false;
+      setMsg(
+        testConfirmed
+          ? PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE
+          : `포인트 ${totalPoints.toLocaleString()}P 충전이 완료되었습니다.`
+      );
       router.refresh();
     } catch (e) {
       setError((e as Error).message || "결제에 실패했습니다.");

@@ -3,13 +3,17 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { completePortOneCheckout } from "@/lib/portoneBrowser";
+import {
+  completePortOneCheckout,
+  PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE,
+} from "@/lib/portoneBrowser";
 
 function PortOneCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [testConfirmed, setTestConfirmed] = useState(false);
 
   useEffect(() => {
     const paymentId = searchParams.get("paymentId")?.trim() ?? "";
@@ -29,10 +33,13 @@ function PortOneCallbackInner() {
     let cancelled = false;
     (async () => {
       try {
-        await completePortOneCheckout(paymentId, txId || undefined);
+        const completed = await completePortOneCheckout(paymentId, txId || undefined);
         if (cancelled) return;
+        const reviewerTest =
+          completed.checkoutKind === "reviewer_kg_test" || completed.credited === false;
+        setTestConfirmed(reviewerTest);
         setDone(true);
-        router.replace("/points?charged=1");
+        router.replace(reviewerTest ? "/points?reviewerTest=1" : "/points?charged=1");
         router.refresh();
       } catch (e) {
         if (cancelled) return;
@@ -58,7 +65,13 @@ function PortOneCallbackInner() {
 
   return (
     <div className="mx-auto mt-16 max-w-md rounded-2xl border border-white/10 bg-[#131626] p-8 text-center">
-      <p className="text-sm text-gray-300">{done ? "충전 완료!" : "결제 확인 중…"}</p>
+      <p className="text-sm text-gray-300">
+        {done
+          ? testConfirmed
+            ? PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE
+            : "충전 완료!"
+          : "결제 확인 중…"}
+      </p>
     </div>
   );
 }

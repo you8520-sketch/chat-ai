@@ -640,6 +640,32 @@ function category(
   };
 }
 
+function sumMemberPortonePaymentsCollected(
+  db: Database.Database,
+  start: string,
+  end: string
+): number {
+  const cols = db.prepare("PRAGMA table_info(portone_checkouts)").all() as { name: string }[];
+  const hasKind = cols.some((col) => col.name === "checkout_kind");
+  const row = hasKind
+    ? (db
+        .prepare(
+          `SELECT COALESCE(SUM(amount),0) AS amount
+           FROM portone_checkouts
+           WHERE status='paid' AND paid_at>=? AND paid_at<?
+             AND COALESCE(checkout_kind, 'standard') != 'reviewer_kg_test'`
+        )
+        .get(start, end) as { amount: number })
+    : (db
+        .prepare(
+          `SELECT COALESCE(SUM(amount),0) AS amount
+           FROM portone_checkouts
+           WHERE status='paid' AND paid_at>=? AND paid_at<?`
+        )
+        .get(start, end) as { amount: number });
+  return Number(row.amount) || 0;
+}
+
 export function buildAdminFinanceSummary(
   db: Database.Database = getDb(),
   monthKey = currentKstMonthKey()
@@ -1013,17 +1039,7 @@ export function buildAdminFinanceSummary(
     .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='portone_checkouts'")
     .get();
   const paymentsCollected = portoneTable
-    ? finiteNonNegative(
-        (
-          db
-            .prepare(
-              `SELECT COALESCE(SUM(amount),0) AS amount
-               FROM portone_checkouts
-               WHERE status='paid' AND paid_at>=? AND paid_at<?`
-            )
-            .get(start, end) as { amount: number }
-        ).amount
-      )
+    ? finiteNonNegative(sumMemberPortonePaymentsCollected(db, start, end))
     : 0;
   const giftFees = db
     .prepare(

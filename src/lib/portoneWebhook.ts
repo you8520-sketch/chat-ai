@@ -113,6 +113,7 @@ async function handlePaidWake(
     case "not_paid":
     case "amount_missing":
     case "amount_mismatch":
+    case "channel_mismatch":
     case "provider_missing":
       return { httpStatus: 200, body: { ok: true, ignored: true, status: result.status } };
     case "provider_error":
