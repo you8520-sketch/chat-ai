@@ -165,6 +165,8 @@ describe("verified point charge payment boundary", () => {
     assert.match(prepare, /status:\s*503/);
     assert.match(prepare, /isPointChargePackageId\(packageId\)/);
     assert.match(prepare, /canAccessPortoneCheckout\(user\)/);
+    assert.match(prepare, /hasClientPortoneCheckoutOverride/);
+    assert.match(prepare, /getPortoneReviewerKgTestCheckoutContext/);
   });
 
   it("prepare and complete keep reviewer and payment-off gates together", () => {
@@ -187,6 +189,7 @@ describe("verified point charge payment boundary", () => {
     assert.match(complete, /finalizePortoneCheckoutFromProvider/);
     assert.match(finalizer, /remote\.totalAmount == null/);
     assert.match(finalizer, /remote\.totalAmount !== checkout\.amount/);
+    assert.match(finalizer, /channel_mismatch/);
   });
 
   it("point credit writer has one production caller", () => {

@@ -4,10 +4,15 @@ import { getPointBalance } from "@/lib/points";
 import { isPaymentsEnabled, PAYMENTS_DISABLED_MESSAGE, isPortOneServerVerifyConfigured } from "@/lib/portoneConfig";
 import {
   canAccessPortoneCheckout,
+  isConfirmedReviewerKgTestChannel,
   isPortoneReviewerAccount,
   PORTONE_REVIEWER_PAYMENTS_NOT_READY_MESSAGE,
 } from "@/lib/portoneReviewerAccount";
-import { getPortoneCheckoutByPaymentId } from "@/lib/portoneCheckout";
+import {
+  getPortoneCheckoutByPaymentId,
+  hasClientPortoneCheckoutOverride,
+  isReviewerKgTestCheckout,
+} from "@/lib/portoneCheckout";
 import { finalizePortoneCheckoutFromProvider } from "@/lib/portonePaidFinalizer";
 
 export async function POST(req: Request) {
@@ -30,6 +35,9 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
+  if (hasClientPortoneCheckoutOverride(body)) {
+    return NextResponse.json({ error: "상점·채널은 서버에서만 지정합니다." }, { status: 400 });
+  }
   const paymentId = typeof body.paymentId === "string" ? body.paymentId.trim() : "";
   const clientTxId = typeof body.txId === "string" ? body.txId.trim() : "";
 
@@ -43,6 +51,21 @@ export async function POST(req: Request) {
   }
   if (checkout.user_id !== user.id) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
+  }
+  if (isReviewerKgTestCheckout(checkout)) {
+    if (!isPortoneReviewerAccount(user)) {
+      return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
+    }
+    if (
+      !isConfirmedReviewerKgTestChannel({
+        storeId: checkout.store_id,
+        channelKey: checkout.channel_key,
+      })
+    ) {
+      return NextResponse.json({ error: "결제 채널이 일치하지 않습니다." }, { status: 400 });
+    }
+  } else if (isPortoneReviewerAccount(user)) {
+    return NextResponse.json({ error: "심사용 결제만 처리할 수 있습니다." }, { status: 400 });
   }
 
   if (checkout.status === "paid") {
@@ -87,6 +110,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "PortOne 결제 금액을 확인할 수 없습니다." }, { status: 502 });
       case "amount_mismatch":
         return NextResponse.json({ error: "결제 금액이 일치하지 않습니다." }, { status: 400 });
+      case "channel_mismatch":
+        return NextResponse.json({ error: "결제 채널이 일치하지 않습니다." }, { status: 400 });
       case "provider_error":
         return NextResponse.json({ error: "결제 검증에 실패했습니다." }, { status: 502 });
       case "finalize_failed":

@@ -1,18 +1,16 @@
 "use client";
 
 import type { PaymentRequest } from "@portone/browser-sdk/v2";
-import {
-  PORTONE_CHANNEL_KEY,
-  PORTONE_STORE_ID,
-  isPortOneBrowserConfigured,
-  resolvePortOneRedirectUrl,
-} from "@/lib/portoneConfig";
+import { resolvePortOneRedirectUrl } from "@/lib/portoneConfig";
 
 export type PortOneChargePrepareResponse = {
   paymentId: string;
   orderName: string;
   totalAmount: number;
   packageId: string;
+  storeId: string;
+  channelKey: string;
+  payMethod?: "CARD";
 };
 
 export async function preparePortOneCheckout(packageId: string): Promise<PortOneChargePrepareResponse> {
@@ -41,7 +39,9 @@ export async function requestPortOneCardPayment(
   prepared: PortOneChargePrepareResponse,
   opts?: { customerEmail?: string; customerName?: string }
 ): Promise<{ paymentId: string; txId?: string }> {
-  if (!isPortOneBrowserConfigured()) {
+  const storeId = prepared.storeId?.trim() ?? "";
+  const channelKey = prepared.channelKey?.trim() ?? "";
+  if (!storeId || !channelKey) {
     throw new Error("PortOne 설정(storeId·channelKey)이 없습니다.");
   }
 
@@ -50,8 +50,8 @@ export async function requestPortOneCardPayment(
     typeof window !== "undefined" ? resolvePortOneRedirectUrl(window.location.origin) : undefined;
 
   const request: PaymentRequest = {
-    storeId: PORTONE_STORE_ID,
-    channelKey: PORTONE_CHANNEL_KEY,
+    storeId,
+    channelKey,
     paymentId: prepared.paymentId,
     orderName: prepared.orderName,
     totalAmount: prepared.totalAmount,

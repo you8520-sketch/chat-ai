@@ -17,8 +17,7 @@ export const PORTONE_API_BASE = (
   process.env.PORTONE_API_BASE?.trim() || "https://api.portone.io"
 ).replace(/\/$/, "");
 
-/** true when store + channel are set — 결제창 호출 가능 */
-export function isPortOneBrowserConfigured(): boolean {
+export function getPortOneBrowserIdentifiers(): { storeId: string; channelKey: string } {
   const storeId =
     process.env.NEXT_PUBLIC_PORTONE_STORE_ID?.trim() ||
     process.env.PORTONE_STORE_ID?.trim() ||
@@ -27,6 +26,12 @@ export function isPortOneBrowserConfigured(): boolean {
     process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY?.trim() ||
     process.env.PORTONE_CHANNEL_KEY?.trim() ||
     PORTONE_CHANNEL_KEY;
+  return { storeId, channelKey };
+}
+
+/** true when store + channel are set — 결제창 호출 가능 */
+export function isPortOneBrowserConfigured(): boolean {
+  const { storeId, channelKey } = getPortOneBrowserIdentifiers();
   return storeId.length > 0 && channelKey.length > 0;
 }
 

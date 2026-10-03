@@ -1,7 +1,15 @@
 import type Database from "better-sqlite3";
 import { getDb } from "@/lib/db";
-import { getPortoneCheckoutByPaymentId, markPortoneCheckoutPaid } from "@/lib/portoneCheckout";
+import {
+  getPortoneCheckoutByPaymentId,
+  isReviewerKgTestCheckout,
+  markPortoneCheckoutPaid,
+} from "@/lib/portoneCheckout";
 import { fetchPortOnePayment, isPortOnePaidStatus } from "@/lib/portoneServer";
+import {
+  isConfirmedReviewerKgTestChannel,
+  PORTONE_REVIEWER_KG_TEST_MID,
+} from "@/lib/portoneReviewerAccount";
 
 export type PortonePaidFinalizeResult =
   | { ok: true; status: "already_paid" }
@@ -12,8 +20,44 @@ export type PortonePaidFinalizeResult =
   | { ok: false; status: "not_paid"; providerStatus: string }
   | { ok: false; status: "amount_missing" }
   | { ok: false; status: "amount_mismatch" }
+  | { ok: false; status: "channel_mismatch" }
   | { ok: false; status: "provider_error"; error: string }
   | { ok: false; status: "finalize_failed"; error: string };
+
+function reviewerKgRemoteMatches(remote: {
+  storeId?: string;
+  channelKey?: string;
+  pgMerchantId?: string;
+  channelType?: string;
+}): boolean {
+  if (!isConfirmedReviewerKgTestChannel(remote)) return false;
+  if (remote.pgMerchantId && remote.pgMerchantId !== PORTONE_REVIEWER_KG_TEST_MID) return false;
+  if (remote.channelType && remote.channelType.toUpperCase() !== "TEST") return false;
+  return true;
+}
+
+function checkoutChannelIsTrusted(checkout: {
+  checkout_kind: string;
+  store_id: string;
+  channel_key: string;
+}, remote: {
+  storeId?: string;
+  channelKey?: string;
+  pgMerchantId?: string;
+}): boolean {
+  if (isReviewerKgTestCheckout(checkout)) {
+    return (
+      isConfirmedReviewerKgTestChannel({
+        storeId: checkout.store_id,
+        channelKey: checkout.channel_key,
+      }) && reviewerKgRemoteMatches(remote)
+    );
+  }
+  return !isConfirmedReviewerKgTestChannel({
+    storeId: remote.storeId ?? checkout.store_id,
+    channelKey: remote.channelKey ?? checkout.channel_key,
+  });
+}
 
 /**
  * Canonical paid recovery after a local checkout exists.
@@ -48,6 +92,9 @@ export async function finalizePortoneCheckoutFromProvider(
   }
   if (remote.totalAmount == null) return { ok: false, status: "amount_missing" };
   if (remote.totalAmount !== checkout.amount) return { ok: false, status: "amount_mismatch" };
+  if (!checkoutChannelIsTrusted(checkout, remote)) {
+    return { ok: false, status: "channel_mismatch" };
+  }
 
   const marked = markPortoneCheckoutPaid(paymentId, remote.txId || options.fallbackTxId || "", db);
   if (!marked.ok) {
