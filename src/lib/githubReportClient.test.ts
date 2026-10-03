@@ -409,4 +409,79 @@ describe("githubReportGetContent", () => {
     assert.match(result.error ?? "", /PERMISSION_DENIED/);
     assert.equal(result.raw, null);
   });
+
+  it("does not treat a trusted large Contents SHA plus a 200 blob with empty content as EMPTY", async () => {
+    const result = await githubReportGetContent(
+      "https://api.github.test/repos/you8520-sketch/chat-ai/contents/ledger.json?ref=code-health-ledger",
+      async (input) => {
+        if (String(input).includes("/contents/")) {
+          return jsonResponse(200, {
+            sha: "fb347f3251a692bb148024dba79e112316878211",
+            size: 11_483_787,
+            encoding: "none",
+            content: "",
+          });
+        }
+        return jsonResponse(200, {
+          sha: "fb347f3251a692bb148024dba79e112316878211",
+          encoding: "base64",
+          content: "",
+        });
+      }
+    );
+    assert.equal(result.status, "UNAVAILABLE");
+    assert.equal(result.error, "GitHub Blobs API 200");
+    assert.equal(result.raw, null);
+  });
+
+  it("does not treat a trusted large Contents SHA plus a 200 blob with unsupported encoding as EMPTY", async () => {
+    const result = await githubReportGetContent(
+      "https://api.github.test/repos/you8520-sketch/chat-ai/contents/ledger.json?ref=code-health-ledger",
+      async (input) => {
+        if (String(input).includes("/contents/")) {
+          return jsonResponse(200, {
+            sha: "fb347f3251a692bb148024dba79e112316878211",
+            size: 11_483_787,
+            encoding: "none",
+            content: "",
+          });
+        }
+        return jsonResponse(200, {
+          sha: "fb347f3251a692bb148024dba79e112316878211",
+          encoding: "utf-8",
+          content: Buffer.from('{"version":1}', "utf8").toString("base64"),
+        });
+      }
+    );
+    assert.equal(result.status, "UNAVAILABLE");
+    assert.equal(result.error, "GitHub Blobs API 200");
+    assert.equal(result.raw, null);
+  });
+
+  it("does not treat a trusted large Contents SHA plus a 200 blob with a different sha as EMPTY", async () => {
+    const result = await githubReportGetContent(
+      "https://api.github.test/repos/you8520-sketch/chat-ai/contents/ledger.json?ref=code-health-ledger",
+      async (input) => {
+        if (String(input).includes("/contents/")) {
+          return jsonResponse(200, {
+            sha: "fb347f3251a692bb148024dba79e112316878211",
+            size: 11_483_787,
+            encoding: "none",
+            content: "",
+          });
+        }
+        return jsonResponse(200, {
+          sha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          encoding: "base64",
+          content: Buffer.from(
+            JSON.stringify({ version: 1, weekly: [{ kind: "weekly", status: "WARNING" }], monthly: [] }),
+            "utf8"
+          ).toString("base64"),
+        });
+      }
+    );
+    assert.equal(result.status, "UNAVAILABLE");
+    assert.equal(result.error, "GitHub Blobs API 200");
+    assert.equal(result.raw, null);
+  });
 });
