@@ -8,7 +8,7 @@ import {
   fetchPaidCreditLogsPage,
   fetchUsageLogsPage,
 } from "@/lib/pointLogsQuery";
-import { isPortOneChargeEnabled, isPaymentsEnabled } from "@/lib/portoneConfig";
+import { canAccessPortoneCheckout } from "@/lib/portoneReviewerAccount";
 import PointsClient from "./PointsClient";
 
 export const dynamic = "force-dynamic";
@@ -45,8 +45,8 @@ export default async function PointsPage() {
       freeTotalPages={freePage.totalPages}
       initialCheckedIn={attendance.checkedInToday}
       initialAttendanceStreak={attendance.currentStreak}
-      portoneEnabled={isPortOneChargeEnabled()}
-      paymentsEnabled={isPaymentsEnabled()}
+      portoneEnabled={canAccessPortoneCheckout(user)}
+      paymentsEnabled={canAccessPortoneCheckout(user)}
       userEmail={user.email}
       userNickname={user.nickname}
     />

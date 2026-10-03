@@ -1,18 +1,19 @@
 "use client";
 
 import type { PaymentRequest } from "@portone/browser-sdk/v2";
-import {
-  PORTONE_CHANNEL_KEY,
-  PORTONE_STORE_ID,
-  isPortOneBrowserConfigured,
-  resolvePortOneRedirectUrl,
-} from "@/lib/portoneConfig";
+import { resolvePortOneRedirectUrl } from "@/lib/portoneConfig";
+
+export const PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE =
+  "테스트 결제가 확인되었습니다. 실제 포인트는 지급되지 않습니다.";
 
 export type PortOneChargePrepareResponse = {
   paymentId: string;
   orderName: string;
   totalAmount: number;
   packageId: string;
+  storeId: string;
+  channelKey: string;
+  payMethod?: "CARD";
 };
 
 export async function preparePortOneCheckout(packageId: string): Promise<PortOneChargePrepareResponse> {
@@ -26,7 +27,20 @@ export async function preparePortOneCheckout(packageId: string): Promise<PortOne
   return data as PortOneChargePrepareResponse;
 }
 
-export async function completePortOneCheckout(paymentId: string, txId?: string) {
+export type PortOneChargeCompleteResponse = {
+  ok: true;
+  alreadyPaid?: boolean;
+  checkoutKind?: string;
+  credited?: boolean;
+  points?: number;
+  paidPoints?: number;
+  freePoints?: number;
+};
+
+export async function completePortOneCheckout(
+  paymentId: string,
+  txId?: string
+): Promise<PortOneChargeCompleteResponse> {
   const res = await fetch("/api/payments/portone/complete", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -34,14 +48,16 @@ export async function completePortOneCheckout(paymentId: string, txId?: string) 
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "결제 확인에 실패했습니다.");
-  return data;
+  return data as PortOneChargeCompleteResponse;
 }
 
 export async function requestPortOneCardPayment(
   prepared: PortOneChargePrepareResponse,
   opts?: { customerEmail?: string; customerName?: string }
 ): Promise<{ paymentId: string; txId?: string }> {
-  if (!isPortOneBrowserConfigured()) {
+  const storeId = prepared.storeId?.trim() ?? "";
+  const channelKey = prepared.channelKey?.trim() ?? "";
+  if (!storeId || !channelKey) {
     throw new Error("PortOne 설정(storeId·channelKey)이 없습니다.");
   }
 
@@ -50,8 +66,8 @@ export async function requestPortOneCardPayment(
     typeof window !== "undefined" ? resolvePortOneRedirectUrl(window.location.origin) : undefined;
 
   const request: PaymentRequest = {
-    storeId: PORTONE_STORE_ID,
-    channelKey: PORTONE_CHANNEL_KEY,
+    storeId,
+    channelKey,
     paymentId: prepared.paymentId,
     orderName: prepared.orderName,
     totalAmount: prepared.totalAmount,
@@ -90,6 +106,6 @@ export async function runPortOnePointCharge(
 ) {
   const prepared = await preparePortOneCheckout(packageId);
   const result = await requestPortOneCardPayment(prepared, opts);
-  await completePortOneCheckout(result.paymentId, result.txId);
-  return prepared;
+  const completed = await completePortOneCheckout(result.paymentId, result.txId);
+  return { prepared, completed };
 }

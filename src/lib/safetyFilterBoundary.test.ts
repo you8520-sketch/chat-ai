@@ -9,7 +9,7 @@ describe("safety filter boundary owners", () => {
     const auth = read("./auth.ts");
     assert.doesNotMatch(auth, /effectiveIsAdult/);
     assert.doesNotMatch(auth, /is_adult: 1/);
-    assert.match(auth, /return row;/);
+    assert.match(auth, /return (row|publicRow);/);
   });
 
   it("beta skip no longer grants effective verification", () => {

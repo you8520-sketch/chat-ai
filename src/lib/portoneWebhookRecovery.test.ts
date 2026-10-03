@@ -107,6 +107,10 @@ function snapshot(status: string, totalAmount: number | undefined, paymentId: st
     paymentId,
     txId: "tx-provider",
     totalAmount,
+    storeId: "store-standard-live",
+    channelKey: "channel-key-standard-live",
+    channelType: "LIVE",
+    pgMerchantId: "INIStandard",
     cancellations: [] as Array<{ status: string; id: string }>,
   };
 }

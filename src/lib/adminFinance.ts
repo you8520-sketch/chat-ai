@@ -12,13 +12,16 @@ import {
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   selectedAILabel,
 } from "@/lib/chatModels";
+import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 import type { Usage } from "@/lib/chatUsage";
 import {
   groupLedgerRowsByAssistantMessageId,
+  ledgerCostFundingClass,
   mergeFinanceTurnCostCoverage,
   resolveMessageTurnProviderCostKrw,
   type FinanceTurnCostCoverage,
   type LedgerCostContribution,
+  type LedgerCostFundingClass,
 } from "@/lib/adminFinanceTurnCost";
 import {
   ensureProviderCostLedgerSchema,
@@ -29,6 +32,7 @@ import {
 } from "@/lib/providerCostLedger";
 import { readProviderReconciliationState } from "@/lib/providerCostReconciliation";
 import { imageHasAccountingActivity } from "@/lib/adminFinanceMarginDisplay";
+import { parseDeductionSlicesJson } from "@/lib/chatBillingSettlement";
 import { CHAT_TURN_CHARGE_KIND } from "@/lib/chatBillingSettlementSchema";
 import { parseMessageVariants } from "@/lib/messageAlternates";
 
@@ -47,6 +51,32 @@ export type FinanceMonthlyAdjustments = {
 type DeductionSlice = { pointType?: string; amount?: number };
 
 export type FinanceMarginCoverage = FinanceTurnCostCoverage;
+
+/**
+ * How model-level provider cost relates to an existing user-charge event.
+ * This is provenance on the canonical model cost, not a second cost total.
+ */
+export type ModelDirectCostAttribution = {
+  platformFundedKrw: number;
+  userFundedChargedKrw: number;
+  userFundedWaivedKrw: number;
+  userFundedRefundedKrw: number;
+  /** User-funded generation cost with no chat_turn settlement for that generation. */
+  userFundedUnlinkedKrw: number;
+  /** Cost whose billing owner cannot be proven from the ledger linkage. */
+  unknownKrw: number;
+};
+
+export function emptyModelDirectCostAttribution(): ModelDirectCostAttribution {
+  return {
+    platformFundedKrw: 0,
+    userFundedChargedKrw: 0,
+    userFundedWaivedKrw: 0,
+    userFundedRefundedKrw: 0,
+    userFundedUnlinkedKrw: 0,
+    unknownKrw: 0,
+  };
+}
 
 export type FinanceCategory = {
   paidRevenueKrw: number;
@@ -78,6 +108,7 @@ export type AdminFinanceSummary = {
     marginRate: number | null;
     marginCoverage: FinanceMarginCoverage;
     realizedMarginExact: boolean;
+    directCostAttribution: ModelDirectCostAttribution;
   }>;
   /** Generic AI actual-cost attribution (dynamic union over the canonical ledger). */
   aiCost: {
@@ -554,10 +585,19 @@ function readOwnedMessageIds(db: Database.Database): Set<number> {
   return ids;
 }
 
-/** Display label for a ledger model id, aligned with message modelLabel values. */
+/**
+ * Display label for a ledger model id, aligned with message modelLabel values.
+ * Provider slugs canonicalize through the published alias owner first so
+ * `google/gemini-3.8-flash` and `gemini-3.8-flash` share one finance row.
+ */
 function ledgerModelLabel(model: string): string {
   const trimmed = model.trim();
   if (!trimmed) return "알 수 없음";
+  const canonical = canonicalizePublishedModelId(trimmed);
+  const canonicalLabel = selectedAILabel(canonical);
+  if (canonicalLabel.trim().toLowerCase() !== canonical.toLowerCase()) {
+    return canonicalLabel;
+  }
   return selectedAILabel(trimmed);
 }
 
@@ -600,6 +640,213 @@ function readMainGenerationModelByRequest(db: Database.Database): Map<string, st
   return map;
 }
 
+type GenerationChargeExplanation = "charged" | "waived" | "refunded" | "unknown";
+
+type UserFundedCostLink = GenerationChargeExplanation | "unlinked";
+
+type GenerationChargeIndex = {
+  explanations: Map<string, GenerationChargeExplanation>;
+  /** Current assistant request id. Regeneration overwrites this with the slices. */
+  messageRequestIds: Map<number, string>;
+};
+
+const GENERATION_CHARGE_RANK: Record<GenerationChargeExplanation, number> = {
+  unknown: 0,
+  refunded: 1,
+  waived: 2,
+  charged: 3,
+};
+
+function rememberGenerationCharge(
+  map: Map<string, GenerationChargeExplanation>,
+  key: string,
+  explanation: GenerationChargeExplanation
+): void {
+  const current = map.get(key);
+  if (current == null || GENERATION_CHARGE_RANK[explanation] > GENERATION_CHARGE_RANK[current]) {
+    map.set(key, explanation);
+  }
+}
+
+/** Canonical slice parser. Malformed JSON is not a zero charge. */
+function canonicalSliceTotal(
+  raw: string | null
+): { ok: true; total: number } | { ok: false } {
+  if (typeof raw !== "string") return { ok: false };
+  const slices = parseDeductionSlicesJson(raw);
+  if (!slices) return { ok: false };
+  let total = 0;
+  for (const slice of slices) {
+    if (!Number.isFinite(slice.amount) || slice.amount < 0) return { ok: false };
+    total += slice.amount;
+  }
+  return { ok: true, total };
+}
+
+/**
+ * A zero slice total is a waiver only when the billing owner stored outcome
+ * `waived` with settled_points 0 and a valid empty snapshot. `legacy_malformed`,
+ * `claiming`, and inconsistent rows stay unknown.
+ */
+function classifySettlementExplanation(row: {
+  request_id: string;
+  refunded_at: string | null;
+  message_is_refunded: number | null;
+  message_request_id: string | null;
+  settled_points: number | null;
+  outcome: string | null;
+  deduction_slices_json: string | null;
+}): GenerationChargeExplanation {
+  if (isChargeEventRefunded(row)) return "refunded";
+  const outcome = typeof row.outcome === "string" ? row.outcome.trim() : "";
+  const settled = Number(row.settled_points);
+  const parsed = canonicalSliceTotal(
+    typeof row.deduction_slices_json === "string" ? row.deduction_slices_json : null
+  );
+  if (outcome === "waived" && settled === 0 && parsed.ok && parsed.total === 0) {
+    return "waived";
+  }
+  if (
+    (outcome === "charged" || outcome === "legacy_already_billed") &&
+    Number.isFinite(settled) &&
+    parsed.ok &&
+    parsed.total > 0 &&
+    Math.abs(settled - parsed.total) < 1e-6
+  ) {
+    return "charged";
+  }
+  return "unknown";
+}
+
+/**
+ * Raw messages.deduction_slices are the same fallback the revenue owner uses:
+ * valid only while this assistant row has no native or bridge settlement.
+ * A positive total on the current request_id is a charge. A present but
+ * unreadable snapshot is unknown. Empty snapshots are not a waiver.
+ */
+function classifyRawDeductionSlices(
+  raw: string | null
+): "charged" | "unknown" | null {
+  if (raw == null) return null;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0 || trimmed === "[]" || trimmed === "null") return null;
+  const parsed = canonicalSliceTotal(trimmed);
+  if (parsed.ok && parsed.total > 0) return "charged";
+  return "unknown";
+}
+
+/**
+ * Generation → charge explanation across every period. A settlement in another
+ * month, or a still-unbridged deduction_slices snapshot, explains a late
+ * provider-cost row. This index never adds revenue.
+ */
+function readGenerationChargeExplanations(db: Database.Database): GenerationChargeIndex {
+  const explanations = new Map<string, GenerationChargeExplanation>();
+  const messageRequestIds = new Map<number, string>();
+  const index = { explanations, messageRequestIds };
+  if (chatBillingSettlementTableExists(db)) {
+    const rows = db
+      .prepare(
+        `SELECT s.request_id, s.assistant_message_id, s.deduction_slices_json,
+                s.settled_points, s.outcome, s.refunded_at,
+                m.is_refunded AS message_is_refunded,
+                m.request_id AS message_request_id
+         FROM chat_billing_settlements s
+         LEFT JOIN messages m ON m.id = s.assistant_message_id
+         WHERE s.charge_kind = ?
+           AND s.source IN ('native', 'legacy_message_deduction_slices')`
+      )
+      .all(CHAT_TURN_CHARGE_KIND) as Array<{
+      request_id: string;
+      assistant_message_id: number | null;
+      deduction_slices_json: string | null;
+      settled_points: number | null;
+      outcome: string | null;
+      refunded_at: string | null;
+      message_is_refunded: number | null;
+      message_request_id: string | null;
+    }>;
+    for (const row of rows) {
+      if (row.assistant_message_id == null || !Number.isFinite(row.assistant_message_id)) continue;
+      const requestId = typeof row.request_id === "string" ? row.request_id.trim() : "";
+      if (!requestId) continue;
+      rememberGenerationCharge(
+        explanations,
+        generationModelKey(Number(row.assistant_message_id), requestId),
+        classifySettlementExplanation(row)
+      );
+    }
+  }
+
+  const ownedMessageIds = readOwnedMessageIds(db);
+  const messageRows = db
+    .prepare(
+      `SELECT id, request_id, deduction_slices FROM messages WHERE role = 'assistant'`
+    )
+    .all() as Array<{
+    id: number;
+    request_id: string | null;
+    deduction_slices: string | null;
+  }>;
+  for (const row of messageRows) {
+    if (!Number.isFinite(row.id)) continue;
+    const requestId = typeof row.request_id === "string" ? row.request_id.trim() : "";
+    messageRequestIds.set(Number(row.id), requestId);
+    if (!requestId || ownedMessageIds.has(Number(row.id))) continue;
+    const raw = classifyRawDeductionSlices(row.deduction_slices);
+    if (!raw) continue;
+    rememberGenerationCharge(explanations, generationModelKey(Number(row.id), requestId), raw);
+  }
+  return index;
+}
+
+function explainUserFundedCost(
+  index: GenerationChargeIndex,
+  messageId: number | null,
+  requestId: string | null
+): UserFundedCostLink {
+  const id = requestId?.trim() ?? "";
+  if (messageId == null || !Number.isFinite(messageId) || !id) return "unknown";
+  const explained = index.explanations.get(generationModelKey(messageId, id));
+  if (explained) return explained;
+  const currentRequest = index.messageRequestIds.get(messageId);
+  if (currentRequest == null || currentRequest !== id) return "unknown";
+  return "unlinked";
+}
+
+function userFundedAttributionBucket(
+  link: UserFundedCostLink
+): keyof ModelDirectCostAttribution {
+  switch (link) {
+    case "charged":
+      return "userFundedChargedKrw";
+    case "waived":
+      return "userFundedWaivedKrw";
+    case "refunded":
+      return "userFundedRefundedKrw";
+    case "unlinked":
+      return "userFundedUnlinkedKrw";
+    case "unknown":
+      return "unknownKrw";
+    default: {
+      const _exhaustive: never = link;
+      return _exhaustive;
+    }
+  }
+}
+
+function directCostBucket(
+  fundingClass: LedgerCostFundingClass,
+  index: GenerationChargeIndex,
+  messageId: number | null,
+  requestId: string | null
+): keyof ModelDirectCostAttribution {
+  if (fundingClass === "platform_funded") return "platformFundedKrw";
+  const link = explainUserFundedCost(index, messageId, requestId);
+  if (fundingClass === "unknown" && link === "unlinked") return "unknownKrw";
+  return userFundedAttributionBucket(link);
+}
+
 function realizedProfitAndMargin(
   paidRevenueKrw: number,
   costKrw: number,
@@ -638,6 +885,32 @@ function category(
     marginCoverage,
     realizedMarginExact,
   };
+}
+
+function sumMemberPortonePaymentsCollected(
+  db: Database.Database,
+  start: string,
+  end: string
+): number {
+  const cols = db.prepare("PRAGMA table_info(portone_checkouts)").all() as { name: string }[];
+  const hasKind = cols.some((col) => col.name === "checkout_kind");
+  const row = hasKind
+    ? (db
+        .prepare(
+          `SELECT COALESCE(SUM(amount),0) AS amount
+           FROM portone_checkouts
+           WHERE status='paid' AND paid_at>=? AND paid_at<?
+             AND COALESCE(checkout_kind, 'standard') != 'reviewer_kg_test'`
+        )
+        .get(start, end) as { amount: number })
+    : (db
+        .prepare(
+          `SELECT COALESCE(SUM(amount),0) AS amount
+           FROM portone_checkouts
+           WHERE status='paid' AND paid_at>=? AND paid_at<?`
+        )
+        .get(start, end) as { amount: number });
+  return Number(row.amount) || 0;
 }
 
 export function buildAdminFinanceSummary(
@@ -783,6 +1056,7 @@ export function buildAdminFinanceSummary(
       apiCostKrw: number;
       marginCoverage: FinanceMarginCoverage;
       realizedMarginExact: boolean;
+      directCostAttribution: ModelDirectCostAttribution;
     }
   >();
   // Canonical charge-event revenue (period owner).
@@ -790,6 +1064,7 @@ export function buildAdminFinanceSummary(
     chatPaid += event.paid;
     chatFree += event.free;
   }
+  const chargeExplanations = readGenerationChargeExplanations(db);
 
   const modelEntry = (model: string) =>
     modelMap.get(model) ?? {
@@ -798,6 +1073,7 @@ export function buildAdminFinanceSummary(
       apiCostKrw: 0,
       marginCoverage: "complete" as FinanceMarginCoverage,
       realizedMarginExact: true,
+      directCostAttribution: emptyModelDirectCostAttribution(),
     };
 
   for (const row of messageRows) {
@@ -814,7 +1090,8 @@ export function buildAdminFinanceSummary(
     let rowMarginCoverage: FinanceMarginCoverage = "unavailable";
     let rowRealizedMarginExact = false;
     let ledgerContributions: LedgerCostContribution[] = [];
-    let usageCostKrw = 0;
+    let mainUsageFallbackKrw = 0;
+    let syncUsageFallbackKrw = 0;
     try {
       const usage = JSON.parse(row.usage ?? "{}") as Usage & {
         modelLabel?: string;
@@ -829,7 +1106,8 @@ export function buildAdminFinanceSummary(
       rowMarginCoverage = turnCost.coverage;
       rowRealizedMarginExact = turnCost.realizedMarginExact;
       ledgerContributions = turnCost.ledgerCostContributions;
-      usageCostKrw = turnCost.usageFallbackKrw;
+      mainUsageFallbackKrw = turnCost.mainUsageFallbackKrw;
+      syncUsageFallbackKrw = turnCost.syncUsageFallbackKrw;
       chatApiCost += rowApiCost;
       chatMarginCoverage = mergeFinanceTurnCostCoverage(
         chatMarginCoverage,
@@ -844,10 +1122,16 @@ export function buildAdminFinanceSummary(
       chatRealizedMarginExact = false;
     }
     const taxFactor = 1 + adjustments.providerTaxRate;
-    const applyModelCost = (modelName: string, preTaxKrw: number) => {
+    const applyModelCost = (
+      modelName: string,
+      preTaxKrw: number,
+      bucket: keyof ModelDirectCostAttribution
+    ) => {
       if (preTaxKrw <= 0) return;
+      const taxed = preTaxKrw * taxFactor;
       const entry = modelEntry(modelName);
-      entry.apiCostKrw += preTaxKrw * taxFactor;
+      entry.apiCostKrw += taxed;
+      entry.directCostAttribution[bucket] += taxed;
       entry.marginCoverage = mergeFinanceTurnCostCoverage(
         entry.marginCoverage,
         rowMarginCoverage
@@ -865,10 +1149,26 @@ export function buildAdminFinanceSummary(
     // Provider cost is attributed by GENERATION provenance, not the latest
     // message model: each ledger physical event carries its own delivered model.
     for (const contribution of ledgerContributions) {
-      applyModelCost(ledgerModelLabel(contribution.model), contribution.krw);
+      applyModelCost(
+        ledgerModelLabel(contribution.model),
+        contribution.krw,
+        directCostBucket(
+          contribution.fundingClass,
+          chargeExplanations,
+          contribution.assistantMessageId,
+          contribution.generationRequestId
+        )
+      );
     }
-    // Usage-snapshot cost (no canonical ledger owner) stays on the message model.
-    applyModelCost(model, usageCostKrw);
+    // Usage-snapshot main cost (no canonical ledger owner) stays on the message model.
+    applyModelCost(
+      model,
+      mainUsageFallbackKrw,
+      directCostBucket("user_funded", chargeExplanations, row.id, row.request_id)
+    );
+    // Sync extract persisted on the usage snapshot is platform spend. Its KRW
+    // stays on the message model, but it is not a user-charge miss.
+    applyModelCost(model, syncUsageFallbackKrw, "platformFundedKrw");
   }
 
   // Attribute canonical charge-event revenue to the generation's model.
@@ -921,8 +1221,18 @@ export function buildAdminFinanceSummary(
       const ledgerModelRaw =
         (row.actual_model ?? "").trim() || (row.model ?? "").trim() || "";
       const model = ledgerModelLabel(ledgerModelRaw);
+      const taxed = rowKrw * (1 + adjustments.providerTaxRate);
       const current = modelEntry(model);
-      current.apiCostKrw += rowKrw * (1 + adjustments.providerTaxRate);
+      current.apiCostKrw += taxed;
+      const bucket = directCostBucket(
+        ledgerCostFundingClass(row),
+        chargeExplanations,
+        row.assistant_message_id != null && Number.isFinite(Number(row.assistant_message_id))
+          ? Number(row.assistant_message_id)
+          : null,
+        row.generation_request_id
+      );
+      current.directCostAttribution[bucket] += taxed;
       modelMap.set(model, current);
     } else {
       orphanApiKrw = round1(orphanApiKrw + rowKrw);
@@ -1013,17 +1323,7 @@ export function buildAdminFinanceSummary(
     .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='portone_checkouts'")
     .get();
   const paymentsCollected = portoneTable
-    ? finiteNonNegative(
-        (
-          db
-            .prepare(
-              `SELECT COALESCE(SUM(amount),0) AS amount
-               FROM portone_checkouts
-               WHERE status='paid' AND paid_at>=? AND paid_at<?`
-            )
-            .get(start, end) as { amount: number }
-        ).amount
-      )
+    ? finiteNonNegative(sumMemberPortonePaymentsCollected(db, start, end))
     : 0;
   const giftFees = db
     .prepare(
@@ -1246,6 +1546,7 @@ export function buildAdminFinanceSummary(
           values.apiCostKrw,
           values.realizedMarginExact
         );
+        const attribution = values.directCostAttribution;
         return {
           model,
           paidRevenueKrw: round1(values.paidRevenueKrw),
@@ -1255,6 +1556,14 @@ export function buildAdminFinanceSummary(
           marginRate,
           marginCoverage: values.marginCoverage,
           realizedMarginExact: values.realizedMarginExact,
+          directCostAttribution: {
+            platformFundedKrw: round1(attribution.platformFundedKrw),
+            userFundedChargedKrw: round1(attribution.userFundedChargedKrw),
+            userFundedWaivedKrw: round1(attribution.userFundedWaivedKrw),
+            userFundedRefundedKrw: round1(attribution.userFundedRefundedKrw),
+            userFundedUnlinkedKrw: round1(attribution.userFundedUnlinkedKrw),
+            unknownKrw: round1(attribution.unknownKrw),
+          },
         };
       })
       .sort((a, b) => b.paidRevenueKrw - a.paidRevenueKrw),

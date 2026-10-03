@@ -299,6 +299,13 @@ describe("Main RP final-wire audit", () => {
     assert.equal(jsx.anchors.jsxManifest, 1);
     assert.equal(jsx.sectionIds.includes("jsx-component-manifest"), true);
     assert.equal(rich.anchors.jsxManifest, 0);
+    assert.doesNotMatch(jsx.jsxManifestText, /\/\/ when:/);
+    const guided = caseById("ds-jsx-call-guide");
+    const guide = "새 퀘스트가 등장하거나 주요 진행 상황이 변경되면 사용합니다.";
+    assert.equal(guided.anchors.jsxManifest, 1);
+    assert.equal(guided.jsxManifestText.split(guide).length - 1, 1);
+    assert.equal(guided.jsxManifestText.split("[HAV JSX COMPONENTS]").length - 1, 1);
+    assert.doesNotMatch(guided.jsxManifestText, /requestAnimationFrame|sendToChat|export default function/);
   });
 
   it("keeps the live cue hashes and isolates the #1288 candidate to one character-block clause", () => {

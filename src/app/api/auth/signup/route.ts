@@ -1,31 +1,16 @@
 import { NextResponse } from "next/server";
-import { SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/sessionCookie";
-import { getDb } from "@/lib/db";
-import { hashPassword, createSession } from "@/lib/auth";
-import { creditPoints } from "@/lib/points";
-import { SIGNUP_BONUS_POINTS } from "@/lib/plans";
+import { requestEmailSignup } from "@/lib/emailSignupVerification";
 
 export async function POST(req: Request) {
-  const { email, nickname, password, pref } = await req.json();
-  if (!email || !nickname || !password || password.length < 6) {
-    return NextResponse.json({ error: "이메일, 닉네임, 비밀번호(6자 이상)를 입력하세요." }, { status: 400 });
+  const body = await req.json().catch(() => ({}));
+  const result = await requestEmailSignup(body, req);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
-  const storedPref = pref === "all" || pref === null ? null : pref;
-  if (!["female", "male", null].includes(storedPref)) {
-    return NextResponse.json({ error: "취향(전체/여성향/남성향)을 선택하세요." }, { status: 400 });
-  }
-  const db = getDb();
-  const exists = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
-  if (exists) return NextResponse.json({ error: "이미 가입된 이메일입니다." }, { status: 409 });
-
-  const info = db
-    .prepare("INSERT INTO users (email, nickname, pw_hash, pref, points, onboarding_completed_at) VALUES (?,?,?,?,0,datetime('now'))")
-    .run(email, nickname, hashPassword(password), storedPref);
-  const userId = Number(info.lastInsertRowid);
-  creditPoints(userId, SIGNUP_BONUS_POINTS, "FREE", "신규 가입 보너스");
-
-  const token = createSession(userId);
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
-  return res;
+  return NextResponse.json({
+    ok: true,
+    pending: true,
+    email: result.email,
+    message: "인증 메일을 보냈습니다. 메일함의 링크를 눌러 가입을 완료해 주세요.",
+  });
 }

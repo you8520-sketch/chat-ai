@@ -8,10 +8,10 @@ import { resolveStatusWidgetTurn } from "./resolve";
 
 import type { StatusWidget } from "./types";
 
-/** 위젯 1개당 상태값·지시 토큰 환산 상한 (HTML 제외) */
-export const STATUS_WIDGET_CONTEXT_MAX = 700;
-/** 사용자 페르소나 위젯의 기존 독립 상한은 유지. */
-export const STATUS_WIDGET_USER_CONTEXT_MAX = 500;
+/** Creator field/instruction budget in estimateTokens units. HTML and JSX source are excluded. */
+export const STATUS_WIDGET_CONTEXT_MAX = 600;
+/** User persona widget uses the same estimateTokens cap as the creator widget. */
+export const STATUS_WIDGET_USER_CONTEXT_MAX = 600;
 /** 제작자 + 사용자 위젯이 모두 활성일 때만 각 상한을 더한다. */
 export const STATUS_WIDGET_CONTEXT_COMBINED_MAX =
   STATUS_WIDGET_CONTEXT_MAX + STATUS_WIDGET_USER_CONTEXT_MAX;
@@ -132,14 +132,14 @@ export function validateStatusWidgetContextBudget(
     const [label, chars, limit] = overLimit;
     return {
       ok: false,
-      error: `${label} 상태값·지시(${chars.toLocaleString()}자, 토큰 환산)가 개별 한도 ${limit.toLocaleString()}자를 초과합니다. HTML은 제외됩니다.`,
+      error: `${label} 상태값·지시 추정 토큰 ${chars.toLocaleString()}이 개별 한도 ${limit.toLocaleString()}을 초과합니다. HTML과 JSX 소스는 제외됩니다.`,
     };
   }
 
   if (breakdown.totalReservedChars > STATUS_WIDGET_CONTEXT_COMBINED_MAX) {
     return {
       ok: false,
-      error: `위젯 상태값·지시 합계(${breakdown.totalReservedChars.toLocaleString()}자, 토큰 환산)가 한도 ${STATUS_WIDGET_CONTEXT_COMBINED_MAX.toLocaleString()}자를 초과합니다. HTML은 제외됩니다.`,
+      error: `위젯 상태값·지시 합계 추정 토큰 ${breakdown.totalReservedChars.toLocaleString()}이 한도 ${STATUS_WIDGET_CONTEXT_COMBINED_MAX.toLocaleString()}을 초과합니다. HTML과 JSX 소스는 제외됩니다.`,
     };
   }
   return { ok: true };
@@ -159,10 +159,12 @@ export function formatWidgetBudgetHint(
   limit: number = STATUS_WIDGET_CONTEXT_MAX
 ): string {
   const reserved = Math.max(0, widgetReservedChars);
+  const over =
+    reserved > limit ? " 한도를 초과했습니다. 상태값·지시를 줄인 뒤 다시 저장하세요." : "";
   if (reserved <= 0) {
-    return `위젯 상태값·지시 한도 ${limit.toLocaleString()}자`;
+    return `위젯 상태값·지시 추정 토큰 한도 ${limit.toLocaleString()}${over}`;
   }
-  return `위젯 상태값·지시 ${reserved.toLocaleString()} / ${limit.toLocaleString()}자`;
+  return `위젯 상태값·지시 추정 토큰 ${reserved.toLocaleString()} / ${limit.toLocaleString()}${over}`;
 }
 
 export function formatCombinedWidgetBudgetHint(
@@ -172,11 +174,11 @@ export function formatCombinedWidgetBudgetHint(
   const user = Math.max(0, breakdown.userReservedChars);
   const total = Math.max(0, breakdown.totalReservedChars);
   if (total <= 0) {
-    return `위젯 상태값·지시 한도: 제작자 ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자 + 유저 ${STATUS_WIDGET_USER_CONTEXT_MAX.toLocaleString()}자`;
+    return `위젯 상태값·지시 추정 토큰 한도: 제작자 ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()} + 유저 ${STATUS_WIDGET_USER_CONTEXT_MAX.toLocaleString()}`;
   }
   if (character > 0 && user > 0) {
-    return `위젯 상태값·지시 제작자 ${character.toLocaleString()} / ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자 · 유저 ${user.toLocaleString()} / ${STATUS_WIDGET_USER_CONTEXT_MAX.toLocaleString()}자`;
+    return `위젯 상태값·지시 추정 토큰 제작자 ${character.toLocaleString()} / ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()} · 유저 ${user.toLocaleString()} / ${STATUS_WIDGET_USER_CONTEXT_MAX.toLocaleString()}`;
   }
   const singleLimit = character > 0 ? STATUS_WIDGET_CONTEXT_MAX : STATUS_WIDGET_USER_CONTEXT_MAX;
-  return `위젯 상태값·지시 ${total.toLocaleString()} / ${singleLimit.toLocaleString()}자`;
+  return `위젯 상태값·지시 추정 토큰 ${total.toLocaleString()} / ${singleLimit.toLocaleString()}`;
 }

@@ -163,6 +163,25 @@ describe("verified point charge payment boundary", () => {
     assert.match(config, /isPortOneServerVerifyConfigured\(\)/);
     assert.match(prepare, /isPortOneServerVerifyConfigured\(\)/);
     assert.match(prepare, /status:\s*503/);
+    assert.match(prepare, /isPointChargePackageId\(packageId\)/);
+    assert.match(prepare, /canAccessPortoneCheckout\(user\)/);
+    assert.match(prepare, /hasClientPortoneCheckoutOverride/);
+    assert.match(prepare, /getPortoneReviewerKgTestCheckoutContext/);
+    assert.match(config, /value === "1" \|\| value === "true"/);
+  });
+
+  it("prepare and complete keep reviewer and payment-off gates together", () => {
+    const prepare = source("src/app/api/payments/portone/prepare/route.ts");
+    const complete = source("src/app/api/payments/portone/complete/route.ts");
+    const pointsPage = source("src/app/points/page.tsx");
+    const pointsClient = source("src/app/points/PointsClient.tsx");
+
+    assert.match(prepare, /canAccessPortoneCheckout\(user\)/);
+    assert.match(prepare, /isPointChargePackageId\(packageId\)/);
+    assert.match(complete, /canAccessPortoneCheckout\(user\)/);
+    assert.match(pointsPage, /canAccessPortoneCheckout\(user\)/);
+    assert.match(pointsClient, /<article key=\{p\.id\}/);
+    assert.match(pointsClient, /if \(paymentsEnabled && portoneEnabled\)/);
   });
 
   it("server completion requires a concrete verified amount match", () => {
@@ -171,6 +190,7 @@ describe("verified point charge payment boundary", () => {
     assert.match(complete, /finalizePortoneCheckoutFromProvider/);
     assert.match(finalizer, /remote\.totalAmount == null/);
     assert.match(finalizer, /remote\.totalAmount !== checkout\.amount/);
+    assert.match(finalizer, /channel_mismatch/);
   });
 
   it("point credit writer has one production caller", () => {

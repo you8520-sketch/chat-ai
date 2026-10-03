@@ -335,6 +335,25 @@ describe("admin finance free-point recorded-cost display (#1351)", () => {
     }
   });
 
+  it("reviewer KG test paid checkouts are not cash inflow or revenue", () => {
+    const db = financeDb();
+    try {
+      insertAssistant(db, 8, mainUsage(), [{ pointType: "FREE", amount: 50 }]);
+      db.exec(`ALTER TABLE portone_checkouts ADD COLUMN checkout_kind TEXT NOT NULL DEFAULT 'standard'`);
+      db.prepare(
+        "INSERT INTO portone_checkouts (amount, status, paid_at, checkout_kind) VALUES (10000, 'paid', datetime('now'), 'reviewer_kg_test')"
+      ).run();
+      db.prepare(
+        "INSERT INTO portone_checkouts (amount, status, paid_at, checkout_kind) VALUES (7000, 'paid', datetime('now'), 'standard')"
+      ).run();
+      const summary = buildAdminFinanceSummary(db);
+      assert.equal(summary.paymentsCollectedKrw, 7000);
+      assert.equal(summary.chat.paidRevenueKrw, 0);
+    } finally {
+      db.close();
+    }
+  });
+
   it("same-month PortOne cash inflow blocks the loss-floor label without becoming revenue", () => {
     const db = financeDb();
     try {
