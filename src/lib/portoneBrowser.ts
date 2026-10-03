@@ -2,6 +2,11 @@
 
 import type { PaymentRequest } from "@portone/browser-sdk/v2";
 import { resolvePortOneRedirectUrl } from "@/lib/portoneConfig";
+import {
+  PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY,
+  PORTONE_REVIEWER_KG_TEST_CHECKOUT_KIND,
+  PORTONE_REVIEWER_KG_TEST_STORE_ID,
+} from "@/lib/portoneReviewerKgTestIds";
 
 export const PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE =
   "테스트 결제가 확인되었습니다. 실제 포인트는 지급되지 않습니다.";
@@ -64,17 +69,13 @@ export function isPortOneCheckoutSafeEmail(email: string | undefined): boolean {
   return !/\.(internal|invalid|local|test)$/i.test(value);
 }
 
-/** Public confirmed KG test IDs. Must stay equal to portoneReviewerAccount. */
-const CONFIRMED_REVIEWER_KG_TEST_STORE_ID = "store-a8f42240-555d-4df7-a6e2-3eb1407257a9";
-const CONFIRMED_REVIEWER_KG_TEST_CHANNEL_KEY = "channel-key-587c7ec0-0845-42cd-95d9-245d85ea83ea";
-
 export function isServerPreparedReviewerKgTestCheckout(
   prepared: Pick<PortOneChargePrepareResponse, "checkoutKind" | "storeId" | "channelKey">
 ): boolean {
   return (
-    prepared.checkoutKind === "reviewer_kg_test" &&
-    prepared.storeId.trim() === CONFIRMED_REVIEWER_KG_TEST_STORE_ID &&
-    prepared.channelKey.trim() === CONFIRMED_REVIEWER_KG_TEST_CHANNEL_KEY
+    prepared.checkoutKind === PORTONE_REVIEWER_KG_TEST_CHECKOUT_KIND &&
+    prepared.storeId.trim() === PORTONE_REVIEWER_KG_TEST_STORE_ID &&
+    prepared.channelKey.trim() === PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY
   );
 }
 

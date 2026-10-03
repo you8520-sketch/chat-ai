@@ -21,6 +21,11 @@ import {
   PORTONE_REVIEWER_KG_TEST_STORE_ID,
   PORTONE_REVIEWER_NICKNAME,
 } from "@/lib/portoneReviewerAccount";
+import {
+  PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY as SHARED_REVIEWER_KG_TEST_CHANNEL_KEY,
+  PORTONE_REVIEWER_KG_TEST_CHECKOUT_KIND as SHARED_REVIEWER_KG_TEST_CHECKOUT_KIND,
+  PORTONE_REVIEWER_KG_TEST_STORE_ID as SHARED_REVIEWER_KG_TEST_STORE_ID,
+} from "@/lib/portoneReviewerKgTestIds";
 
 const reviewerPrepared: PortOneChargePrepareResponse = {
   paymentId: "pt-110-1791035041829-01fb47fa",
@@ -56,6 +61,12 @@ describe("portone browser SDK request contract", () => {
     assert.equal(isPortOneCheckoutSafeEmail("test@portone.io"), true);
   });
 
+  it("re-exports the same confirmed KG test IDs from the shared module", () => {
+    assert.equal(PORTONE_REVIEWER_KG_TEST_STORE_ID, SHARED_REVIEWER_KG_TEST_STORE_ID);
+    assert.equal(PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY, SHARED_REVIEWER_KG_TEST_CHANNEL_KEY);
+    assert.equal(PORTONE_REVIEWER_KG_TEST_CHECKOUT_KIND, SHARED_REVIEWER_KG_TEST_CHECKOUT_KIND);
+  });
+
   it("uses official test customer only when prepare returns reviewer kind and confirmed channel", () => {
     assert.equal(isServerPreparedReviewerKgTestCheckout(reviewerPrepared), true);
     assert.equal(isServerPreparedReviewerKgTestCheckout(memberPrepared), false);
@@ -77,6 +88,13 @@ describe("portone browser SDK request contract", () => {
       isServerPreparedReviewerKgTestCheckout({
         ...reviewerPrepared,
         storeId: "store-standard-live",
+      }),
+      false
+    );
+    assert.equal(
+      isServerPreparedReviewerKgTestCheckout({
+        ...reviewerPrepared,
+        channelKey: "channel-key-standard-live",
       }),
       false
     );
@@ -127,6 +145,39 @@ describe("portone browser SDK request contract", () => {
     assert.equal(request.customer?.fullName, "일반회원");
     assert.notEqual(request.customer?.email, PORTONE_KG_INICIS_OFFICIAL_TEST_CUSTOMER.email);
     assert.notEqual(request.storeId, PORTONE_REVIEWER_KG_TEST_STORE_ID);
+  });
+
+  it("does not apply official test customer when store or channel mismatches", () => {
+    const mismatchedStore = buildPortOneCardPaymentRequest(
+      {
+        ...reviewerPrepared,
+        storeId: "store-standard-live",
+      },
+      {
+        customerEmail: "member@example.com",
+        customerName: "일반회원",
+      }
+    );
+    assert.equal(mismatchedStore.customer?.phoneNumber, undefined);
+    assert.equal(mismatchedStore.customer?.email, "member@example.com");
+    assert.notEqual(mismatchedStore.customer?.email, PORTONE_KG_INICIS_OFFICIAL_TEST_CUSTOMER.email);
+
+    const mismatchedChannel = buildPortOneCardPaymentRequest(
+      {
+        ...reviewerPrepared,
+        channelKey: "channel-key-standard-live",
+      },
+      {
+        customerEmail: "member@example.com",
+        customerName: "일반회원",
+      }
+    );
+    assert.equal(mismatchedChannel.customer?.phoneNumber, undefined);
+    assert.equal(mismatchedChannel.customer?.email, "member@example.com");
+    assert.notEqual(
+      mismatchedChannel.customer?.email,
+      PORTONE_KG_INICIS_OFFICIAL_TEST_CUSTOMER.email
+    );
   });
 
   it("maps a server prepare response to the SDK request without a browser reviewer flag", async () => {
