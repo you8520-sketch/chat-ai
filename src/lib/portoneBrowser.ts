@@ -26,13 +26,13 @@ export type PortOneChargePrepareResponse = {
   packageId: string;
   storeId: string;
   channelKey: string;
+  checkoutKind?: string;
   payMethod?: "CARD";
 };
 
 export type PortOneCheckoutCustomerInput = {
   customerEmail?: string;
   customerName?: string;
-  reviewerKgTest?: boolean;
 };
 
 export type PortOneSdkPaymentResponse = {
@@ -64,6 +64,20 @@ export function isPortOneCheckoutSafeEmail(email: string | undefined): boolean {
   return !/\.(internal|invalid|local|test)$/i.test(value);
 }
 
+/** Public confirmed KG test IDs. Must stay equal to portoneReviewerAccount. */
+const CONFIRMED_REVIEWER_KG_TEST_STORE_ID = "store-a8f42240-555d-4df7-a6e2-3eb1407257a9";
+const CONFIRMED_REVIEWER_KG_TEST_CHANNEL_KEY = "channel-key-587c7ec0-0845-42cd-95d9-245d85ea83ea";
+
+export function isServerPreparedReviewerKgTestCheckout(
+  prepared: Pick<PortOneChargePrepareResponse, "checkoutKind" | "storeId" | "channelKey">
+): boolean {
+  return (
+    prepared.checkoutKind === "reviewer_kg_test" &&
+    prepared.storeId.trim() === CONFIRMED_REVIEWER_KG_TEST_STORE_ID &&
+    prepared.channelKey.trim() === CONFIRMED_REVIEWER_KG_TEST_CHANNEL_KEY
+  );
+}
+
 export function buildPortOneCardPaymentRequest(
   prepared: PortOneChargePrepareResponse,
   opts?: PortOneCheckoutCustomerInput & { redirectUrl?: string }
@@ -83,14 +97,15 @@ export function buildPortOneCardPaymentRequest(
     currency: "KRW",
     payMethod: prepared.payMethod ?? "CARD",
     redirectUrl: opts?.redirectUrl,
-    customer: resolvePortOneCheckoutCustomer(opts),
+    customer: resolvePortOneCheckoutCustomer(prepared, opts),
   };
 }
 
 export function resolvePortOneCheckoutCustomer(
+  prepared: Pick<PortOneChargePrepareResponse, "checkoutKind" | "storeId" | "channelKey">,
   opts?: PortOneCheckoutCustomerInput
 ): PaymentRequest["customer"] {
-  if (opts?.reviewerKgTest) {
+  if (isServerPreparedReviewerKgTestCheckout(prepared)) {
     return {
       fullName: PORTONE_KG_INICIS_OFFICIAL_TEST_CUSTOMER.fullName,
       phoneNumber: PORTONE_KG_INICIS_OFFICIAL_TEST_CUSTOMER.phoneNumber,

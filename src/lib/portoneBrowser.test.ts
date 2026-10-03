@@ -7,14 +7,17 @@ import {
   buildPortOneCardPaymentRequest,
   describePortOneCheckoutFailure,
   isPortOneCheckoutSafeEmail,
+  isServerPreparedReviewerKgTestCheckout,
   resetPortOneChargeInFlightForTests,
   resolvePortOneCheckoutCustomer,
   runPortOnePointCharge,
   type PortOneChargePrepareResponse,
 } from "@/lib/portoneBrowser";
+import { hasClientPortoneCheckoutOverride } from "@/lib/portoneCheckout";
 import {
   PORTONE_REVIEWER_DEFAULT_EMAIL,
   PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY,
+  PORTONE_REVIEWER_KG_TEST_CHECKOUT_KIND,
   PORTONE_REVIEWER_KG_TEST_STORE_ID,
   PORTONE_REVIEWER_NICKNAME,
 } from "@/lib/portoneReviewerAccount";
@@ -26,6 +29,7 @@ const reviewerPrepared: PortOneChargePrepareResponse = {
   packageId: "p5000",
   storeId: PORTONE_REVIEWER_KG_TEST_STORE_ID,
   channelKey: PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY,
+  checkoutKind: PORTONE_REVIEWER_KG_TEST_CHECKOUT_KIND,
   payMethod: "CARD",
 };
 
@@ -36,6 +40,7 @@ const memberPrepared: PortOneChargePrepareResponse = {
   packageId: "p5000",
   storeId: "store-standard-live",
   channelKey: "channel-key-standard-live",
+  checkoutKind: "standard",
   payMethod: "CARD",
 };
 
@@ -51,8 +56,34 @@ describe("portone browser SDK request contract", () => {
     assert.equal(isPortOneCheckoutSafeEmail("test@portone.io"), true);
   });
 
+  it("uses official test customer only when prepare returns reviewer kind and confirmed channel", () => {
+    assert.equal(isServerPreparedReviewerKgTestCheckout(reviewerPrepared), true);
+    assert.equal(isServerPreparedReviewerKgTestCheckout(memberPrepared), false);
+    assert.equal(
+      isServerPreparedReviewerKgTestCheckout({
+        ...reviewerPrepared,
+        checkoutKind: "standard",
+      }),
+      false
+    );
+    assert.equal(
+      isServerPreparedReviewerKgTestCheckout({
+        ...memberPrepared,
+        checkoutKind: PORTONE_REVIEWER_KG_TEST_CHECKOUT_KIND,
+      }),
+      false
+    );
+    assert.equal(
+      isServerPreparedReviewerKgTestCheckout({
+        ...reviewerPrepared,
+        storeId: "store-standard-live",
+      }),
+      false
+    );
+  });
+
   it("before-fix reviewer payload omitted the official KG PC phone and used an unsafe email", () => {
-    const broken = resolvePortOneCheckoutCustomer({
+    const broken = resolvePortOneCheckoutCustomer(memberPrepared, {
       customerEmail: PORTONE_REVIEWER_DEFAULT_EMAIL,
       customerName: PORTONE_REVIEWER_NICKNAME,
     });
@@ -61,11 +92,10 @@ describe("portone browser SDK request contract", () => {
     assert.equal(broken?.fullName, PORTONE_REVIEWER_NICKNAME);
   });
 
-  it("reviewer KG request uses official test customer, KRW, CARD, and server store/channel", () => {
+  it("reviewer KG request uses official test customer from the prepare response, not a client flag", () => {
     const request = buildPortOneCardPaymentRequest(reviewerPrepared, {
       customerEmail: PORTONE_REVIEWER_DEFAULT_EMAIL,
       customerName: PORTONE_REVIEWER_NICKNAME,
-      reviewerKgTest: true,
       redirectUrl: "https://hav.chat/payments/portone/callback",
     });
 
@@ -84,11 +114,11 @@ describe("portone browser SDK request contract", () => {
     assert.equal(request.redirectUrl, "https://hav.chat/payments/portone/callback");
   });
 
-  it("member request never invents a phone or official test email", () => {
+  it("member prepare never uses official test customer even if a client tries to forge reviewer intent", () => {
     const request = buildPortOneCardPaymentRequest(memberPrepared, {
       customerEmail: "member@example.com",
       customerName: "일반회원",
-      reviewerKgTest: false,
+      ...({ reviewerKgTest: true, checkoutKind: PORTONE_REVIEWER_KG_TEST_CHECKOUT_KIND } as object),
     });
     assert.equal(request.storeId, "store-standard-live");
     assert.equal(request.channelKey, "channel-key-standard-live");
@@ -97,6 +127,69 @@ describe("portone browser SDK request contract", () => {
     assert.equal(request.customer?.fullName, "일반회원");
     assert.notEqual(request.customer?.email, PORTONE_KG_INICIS_OFFICIAL_TEST_CUSTOMER.email);
     assert.notEqual(request.storeId, PORTONE_REVIEWER_KG_TEST_STORE_ID);
+  });
+
+  it("maps a server prepare response to the SDK request without a browser reviewer flag", async () => {
+    const seen: PaymentRequest[] = [];
+    await assert.rejects(
+      () =>
+        runPortOnePointCharge(
+          "p5000",
+          {
+            customerEmail: PORTONE_REVIEWER_DEFAULT_EMAIL,
+            customerName: PORTONE_REVIEWER_NICKNAME,
+          },
+          {
+            prepare: async () => reviewerPrepared,
+            requestPayment: async (request) => {
+              seen.push(request);
+              return { code: "FAILURE_AND_CLOSE", message: "결제가 취소되었습니다." };
+            },
+            complete: async () => {
+              throw new Error("complete must not run");
+            },
+          }
+        ),
+      /결제가 취소되었습니다/
+    );
+    assert.equal(seen.length, 1);
+    assert.deepEqual(seen[0]?.customer, PORTONE_KG_INICIS_OFFICIAL_TEST_CUSTOMER);
+  });
+
+  it("keeps official test customer off a standard prepare in the prepare-to-SDK path", async () => {
+    const seen: PaymentRequest[] = [];
+    await assert.rejects(
+      () =>
+        runPortOnePointCharge(
+          "p5000",
+          {
+            customerEmail: "member@example.com",
+            customerName: "일반회원",
+            ...({ reviewerKgTest: true } as object),
+          },
+          {
+            prepare: async () => memberPrepared,
+            requestPayment: async (request) => {
+              seen.push(request);
+              return { code: "FAILURE_AND_CLOSE", message: "결제가 취소되었습니다." };
+            },
+            complete: async () => {
+              throw new Error("complete must not run");
+            },
+          }
+        ),
+      /결제가 취소되었습니다/
+    );
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0]?.customer?.phoneNumber, undefined);
+    assert.equal(seen[0]?.customer?.email, "member@example.com");
+    assert.notEqual(seen[0]?.customer?.email, PORTONE_KG_INICIS_OFFICIAL_TEST_CUSTOMER.email);
+  });
+
+  it("still rejects client checkoutKind overrides on prepare input", () => {
+    assert.equal(hasClientPortoneCheckoutOverride({ packageId: "p5000" }), false);
+    assert.equal(hasClientPortoneCheckoutOverride({ checkoutKind: "reviewer_kg_test" }), true);
+    assert.equal(hasClientPortoneCheckoutOverride({ checkout_kind: "reviewer_kg_test" }), true);
   });
 
   it("surfaces checkout-service failure code without customer fields", () => {
@@ -117,7 +210,7 @@ describe("portone browser SDK request contract", () => {
       () =>
         runPortOnePointCharge(
           "p5000",
-          { reviewerKgTest: true },
+          {},
           {
             prepare: async () => {
               calls.push("prepare");
@@ -143,7 +236,7 @@ describe("portone browser SDK request contract", () => {
     const calls: string[] = [];
     const result = await runPortOnePointCharge(
       "p5000",
-      { reviewerKgTest: true },
+      {},
       {
         prepare: async () => {
           calls.push("prepare");
@@ -174,7 +267,7 @@ describe("portone browser SDK request contract", () => {
     });
     const first = runPortOnePointCharge(
       "p5000",
-      { reviewerKgTest: true },
+      {},
       {
         prepare: async () => {
           enteredPrepare();
@@ -190,7 +283,7 @@ describe("portone browser SDK request contract", () => {
       () =>
         runPortOnePointCharge(
           "p5000",
-          { reviewerKgTest: true },
+          {},
           {
             prepare: async () => {
               throw new Error("second prepare must not run");

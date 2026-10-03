@@ -172,7 +172,6 @@ export default function PointsClient({
   initialAttendanceStreak,
   portoneEnabled = false,
   paymentsEnabled = true,
-  reviewerKgTest = false,
   userEmail = "",
   userNickname = "",
 }: {
@@ -197,7 +196,6 @@ export default function PointsClient({
   initialAttendanceStreak: number;
   portoneEnabled?: boolean;
   paymentsEnabled?: boolean;
-  reviewerKgTest?: boolean;
   userEmail?: string;
   userNickname?: string;
 }) {
@@ -335,7 +333,6 @@ export default function PointsClient({
       const charged = await runPortOnePointCharge(packageId, {
         customerEmail: userEmail || undefined,
         customerName: userNickname || undefined,
-        reviewerKgTest,
       });
       if (!charged.completed) {
         return;
