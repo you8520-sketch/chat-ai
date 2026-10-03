@@ -53,14 +53,50 @@ import {
 import { serializeJsxComponentCatalog } from "@/lib/jsxComponent/catalog";
 import { buildPitWallFixtureRecord } from "@/lib/jsxComponent/pitWallFixture";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
-import {
-  COMMON_PROSE_EMOTION_CUE_BASELINE,
-  COMMON_PROSE_EMOTION_CUE_CANDIDATE,
-  COMMON_PROSE_FORWARD_MOTION,
-  replaceCommonProseEmotionCue,
-} from "@/lib/advancedProseNsfwGuidelines";
-import { GEMINI31_USER_AGENCY_SUPPLEMENT_TITLE } from "@/lib/gemini31UserAgencyAdapter";
+import { COMMON_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
 import type { ContextBuildInput } from "@/types";
+import { GEMINI31_USER_AGENCY_SUPPLEMENT_TITLE } from "@/lib/gemini31UserAgencyAdapter";
+
+/**
+ * #1288 comparison only. The live sentence stays inside COMMON_PROSE_BLOCK.
+ * This module is not imported by the chat route.
+ */
+export const COMMON_PROSE_EMOTION_CUE_CANDIDATE =
+  "감정과 관계는 현재 장면에 필요한 단서를 골라 드러내고";
+
+const EMOTION_CUE_LINE_PREFIX = "감정과 관계는 ";
+
+export function liveCommonProseEmotionCueLine(block = COMMON_PROSE_BLOCK): string {
+  const line = block.split("\n").find((row) => row.startsWith(EMOTION_CUE_LINE_PREFIX));
+  if (!line) throw new Error("live COMMON_PROSE emotion line missing");
+  return line;
+}
+
+export function liveCommonProseEmotionCueBaseline(block = COMMON_PROSE_BLOCK): string {
+  const line = liveCommonProseEmotionCueLine(block);
+  const splitAt = line.indexOf(", ");
+  if (splitAt < 0) throw new Error("live COMMON_PROSE emotion clause separator missing");
+  return line.slice(0, splitAt);
+}
+
+export function liveCommonProseForwardMotion(block = COMMON_PROSE_BLOCK): string {
+  const line = liveCommonProseEmotionCueLine(block);
+  const splitAt = line.indexOf(", ");
+  return line.slice(splitAt + 2);
+}
+
+/** Swap the live cue clause for the #1288 candidate. Other text is unchanged. */
+export function replaceCommonProseEmotionCue(text: string): {
+  text: string;
+  replacements: number;
+} {
+  const baseline = liveCommonProseEmotionCueBaseline();
+  const parts = text.split(baseline);
+  return {
+    replacements: parts.length - 1,
+    text: parts.join(COMMON_PROSE_EMOTION_CUE_CANDIDATE),
+  };
+}
 
 export const MAIN_RP_FINAL_WIRE_AUDIT_BASELINE = "386b23dc6d5a4b4aba28e06a9e57ba2ea882b0fa";
 
@@ -703,8 +739,10 @@ function compareBodyCueCandidate(args: {
   const candidateBlocks = describeSystemBlocks(candidateSystemMessage);
   const baselineCharacter = baselineBlocks[1];
   const candidateCharacter = candidateBlocks[1];
+  const baselineCue = liveCommonProseEmotionCueBaseline();
+  const forwardMotion = liveCommonProseForwardMotion();
   const expectedDelta =
-    COMMON_PROSE_EMOTION_CUE_CANDIDATE.length - COMMON_PROSE_EMOTION_CUE_BASELINE.length;
+    COMMON_PROSE_EMOTION_CUE_CANDIDATE.length - baselineCue.length;
   const historyCache = (messages: OpenRouterChatMessage[]) =>
     messages.slice(1).some((message) => {
       return Array.isArray(message.content) && message.content.some((block) => block.cache_control);
@@ -716,11 +754,11 @@ function compareBodyCueCandidate(args: {
   const soleAllowedDiff =
     cueOnlyInCharacter &&
     flatSwap &&
-    baselineFlat.split(COMMON_PROSE_EMOTION_CUE_BASELINE).length - 1 === 1 &&
+    baselineFlat.split(baselineCue).length - 1 === 1 &&
     candidateFlat.split(COMMON_PROSE_EMOTION_CUE_CANDIDATE).length - 1 === 1 &&
-    !candidateFlat.includes(COMMON_PROSE_EMOTION_CUE_BASELINE) &&
-    candidateFlat.includes(COMMON_PROSE_FORWARD_MOTION) &&
-    baselineFlat.includes(COMMON_PROSE_FORWARD_MOTION) &&
+    !candidateFlat.includes(baselineCue) &&
+    candidateFlat.includes(forwardMotion) &&
+    baselineFlat.includes(forwardMotion) &&
     baselineBlocks[0]?.sha256 === candidateBlocks[0]?.sha256 &&
     baselineBlocks[2]?.sha256 === candidateBlocks[2]?.sha256 &&
     baselineCharacter?.sha256 !== candidateCharacter?.sha256 &&
@@ -733,9 +771,9 @@ function compareBodyCueCandidate(args: {
     oocCount(baselineFlat) === oocCount(candidateFlat);
 
   return {
-    baselineCueCount: baselineFlat.split(COMMON_PROSE_EMOTION_CUE_BASELINE).length - 1,
+    baselineCueCount: baselineFlat.split(baselineCue).length - 1,
     candidateCueCount: candidateFlat.split(COMMON_PROSE_EMOTION_CUE_CANDIDATE).length - 1,
-    forwardMotionCount: candidateFlat.split(COMMON_PROSE_FORWARD_MOTION).length - 1,
+    forwardMotionCount: candidateFlat.split(forwardMotion).length - 1,
     rulesShaEqual: baselineBlocks[0]?.sha256 === candidateBlocks[0]?.sha256,
     dynamicShaEqual: baselineBlocks[2]?.sha256 === candidateBlocks[2]?.sha256,
     characterShaChanged: baselineCharacter?.sha256 !== candidateCharacter?.sha256,

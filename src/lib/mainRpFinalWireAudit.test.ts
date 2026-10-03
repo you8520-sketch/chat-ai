@@ -18,12 +18,14 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 
 import { auditAssembledPrompt, PROMPT_DUPLICATE_SAVINGS_CLAIM } from "@/services/promptAudit";
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
-import {
-  COMMON_PROSE_EMOTION_CUE_BASELINE,
-  COMMON_PROSE_EMOTION_CUE_CANDIDATE,
-} from "@/lib/advancedProseNsfwGuidelines";
+import { COMMON_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
 import { OOC_HTML_MODE_SYSTEM_DIRECTIVE } from "@/lib/oocHtmlRequest";
-import { runMainRpFinalWireAudit, type WireCaseResult } from "@/lib/mainRpFinalWireAudit";
+import {
+  COMMON_PROSE_EMOTION_CUE_CANDIDATE,
+  liveCommonProseEmotionCueBaseline,
+  runMainRpFinalWireAudit,
+  type WireCaseResult,
+} from "@/lib/mainRpFinalWireAudit";
 import { buildOpenRouterMessages } from "@/lib/openRouterAdult";
 
 const report = runMainRpFinalWireAudit();
@@ -300,8 +302,10 @@ describe("Main RP final-wire audit", () => {
   });
 
   it("keeps the live cue hashes and isolates the #1288 candidate to one character-block clause", () => {
-    const expectedDelta =
-      COMMON_PROSE_EMOTION_CUE_CANDIDATE.length - COMMON_PROSE_EMOTION_CUE_BASELINE.length;
+    const baselineCue = liveCommonProseEmotionCueBaseline();
+    assert.equal(COMMON_PROSE_BLOCK.includes(baselineCue), true);
+    assert.equal(COMMON_PROSE_BLOCK.includes(COMMON_PROSE_EMOTION_CUE_CANDIDATE), false);
+    const expectedDelta = COMMON_PROSE_EMOTION_CUE_CANDIDATE.length - baselineCue.length;
     for (const entry of report.cases) {
       assert.equal(entry.bodyCueCandidate.soleAllowedDiff, true, entry.id);
       assert.equal(entry.bodyCueCandidate.baselineCueCount, 1, entry.id);
