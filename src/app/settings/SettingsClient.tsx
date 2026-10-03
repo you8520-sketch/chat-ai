@@ -135,12 +135,6 @@ export default function SettingsClient({ user, pendingCommentReviews = 0 }: Prop
               무료 포인트 지급
             </Link>
             <Link
-              href="/admin/beta-free-points"
-              className={SETTINGS_ACTION_LINK_CLASS}
-            >
-              클로즈베타 포인트 신청 관리
-            </Link>
-            <Link
               href="/admin/create-migration"
               className={SETTINGS_ACTION_LINK_CLASS}
             >
