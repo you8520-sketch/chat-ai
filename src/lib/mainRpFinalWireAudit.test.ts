@@ -18,6 +18,10 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 
 import { auditAssembledPrompt, PROMPT_DUPLICATE_SAVINGS_CLAIM } from "@/services/promptAudit";
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import {
+  COMMON_PROSE_EMOTION_CUE_BASELINE,
+  COMMON_PROSE_EMOTION_CUE_CANDIDATE,
+} from "@/lib/advancedProseNsfwGuidelines";
 import { OOC_HTML_MODE_SYSTEM_DIRECTIVE } from "@/lib/oocHtmlRequest";
 import { runMainRpFinalWireAudit, type WireCaseResult } from "@/lib/mainRpFinalWireAudit";
 import { buildOpenRouterMessages } from "@/lib/openRouterAdult";
@@ -293,6 +297,42 @@ describe("Main RP final-wire audit", () => {
     assert.equal(jsx.anchors.jsxManifest, 1);
     assert.equal(jsx.sectionIds.includes("jsx-component-manifest"), true);
     assert.equal(rich.anchors.jsxManifest, 0);
+  });
+
+  it("keeps the live cue hashes and isolates the #1288 candidate to one character-block clause", () => {
+    const expectedDelta =
+      COMMON_PROSE_EMOTION_CUE_CANDIDATE.length - COMMON_PROSE_EMOTION_CUE_BASELINE.length;
+    for (const entry of report.cases) {
+      assert.equal(entry.bodyCueCandidate.soleAllowedDiff, true, entry.id);
+      assert.equal(entry.bodyCueCandidate.baselineCueCount, 1, entry.id);
+      assert.equal(entry.bodyCueCandidate.candidateCueCount, 1, entry.id);
+      assert.equal(entry.bodyCueCandidate.forwardMotionCount, 1, entry.id);
+      assert.equal(entry.bodyCueCandidate.rulesShaEqual, true, entry.id);
+      assert.equal(entry.bodyCueCandidate.dynamicShaEqual, true, entry.id);
+      assert.equal(entry.bodyCueCandidate.characterShaChanged, true, entry.id);
+      assert.equal(entry.bodyCueCandidate.characterCharDelta, expectedDelta, entry.id);
+      assert.equal(entry.bodyCueCandidate.flatCharDelta, expectedDelta, entry.id);
+      assert.equal(entry.bodyCueCandidate.cacheShapeEqual, true, entry.id);
+      assert.equal(entry.bodyCueCandidate.requestKeysEqual, true, entry.id);
+      assert.equal(entry.bodyCueCandidate.oocDirectiveEqual, true, entry.id);
+      assert.notEqual(
+        entry.wire.systemFlatSha256,
+        entry.bodyCueCandidate.candidateFlatSha256,
+        entry.id
+      );
+    }
+    assert.equal(
+      caseById("ds-interactive-normal-rich").wire.systemFlatSha256,
+      "ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a"
+    );
+    assert.equal(
+      caseById("ds-interactive-normal-rich").bodyCueCandidate.candidateFlatSha256,
+      "86dab270ffda8bc080df26b6f6c24f0fdb6678c500a49c18b4fae76e261e464a"
+    );
+    assert.equal(
+      caseById("ds-interactive-normal-rich").bodyCueCandidate.candidateCharacterSha256,
+      "a289c043507d1b63a0a3870d997e6dbb27267325a2668e2f400897d115415a17"
+    );
   });
 
   it("appends the OOC HTML directive once when the request has no system split", () => {

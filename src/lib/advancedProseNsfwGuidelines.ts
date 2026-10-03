@@ -20,12 +20,35 @@ export type AdvancedProseNsfwOpts = {
 };
 
 /**
+ * Live emotion-cue clause. #1288 proposes replacing only this clause.
+ * The #1294 forward-motion sentence stays on the same line.
+ */
+export const COMMON_PROSE_EMOTION_CUE_BASELINE =
+  "감정과 관계는 표정·시선·호흡·습관·접촉·거리·행동·선택으로 드러내고";
+export const COMMON_PROSE_EMOTION_CUE_CANDIDATE =
+  "감정과 관계는 현재 장면에 필요한 단서를 골라 드러내고";
+export const COMMON_PROSE_FORWARD_MOTION =
+  "이미 드러난 의미는 해설·결론으로 되짚기보다 다음 반응·행동·환경·관계 변화로 이어간다.";
+
+/** Swap the live cue clause for the #1288 candidate. Other text is unchanged. */
+export function replaceCommonProseEmotionCue(text: string): {
+  text: string;
+  replacements: number;
+} {
+  const parts = text.split(COMMON_PROSE_EMOTION_CUE_BASELINE);
+  return {
+    replacements: parts.length - 1,
+    text: parts.join(COMMON_PROSE_EMOTION_CUE_CANDIDATE),
+  };
+}
+
+/**
  * Legacy Main RP common prose — single canonical style owner for all models.
  * Layout, length, speech register, agency and content policy have their own owners.
  */
 export const COMMON_PROSE_BLOCK = `[COMMON PROSE]
 지문은 현재 장면과 인물 체험에 밀착한 해체(-다/-했다)의 자연스러운 한국어 완결문으로 쓰고, 문장 길이는 호흡에 맞춘다. 파편문·말줄임은 강조나 망설임이 있을 때만 쓴다.
-감정과 관계는 표정·시선·호흡·습관·접촉·거리·행동·선택으로 드러내고, 이미 드러난 의미는 해설·결론으로 되짚기보다 다음 반응·행동·환경·관계 변화로 이어간다.
+${COMMON_PROSE_EMOTION_CUE_BASELINE}, ${COMMON_PROSE_FORWARD_MOTION}
 내면은 현재 판단·행동·선택을 바꾸는 만큼 쓴다.
 장면에 작용하는 공간·빛·소리·온도·질감·외관을 구체적으로 고르고 장면이 바뀌면 초점을 옮기며, 중요한 순간과 전환엔 짧은 정적을 둔다.
 작은 행동·미세한 반응은 관계·긴장·안전감·의도가 드러나거나 바뀔 때 살리고 평범한 동작은 줄인다.

@@ -39,6 +39,7 @@ import {
   assemblePrimaryRpRequest,
   buildOpenRouterMessages,
   convertToOpenRouterFormat,
+  type OpenRouterMessageOpts,
 } from "@/lib/openRouterAdult";
 import {
   type OpenRouterChatMessage,
@@ -52,6 +53,12 @@ import {
 import { serializeJsxComponentCatalog } from "@/lib/jsxComponent/catalog";
 import { buildPitWallFixtureRecord } from "@/lib/jsxComponent/pitWallFixture";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
+import {
+  COMMON_PROSE_EMOTION_CUE_BASELINE,
+  COMMON_PROSE_EMOTION_CUE_CANDIDATE,
+  COMMON_PROSE_FORWARD_MOTION,
+  replaceCommonProseEmotionCue,
+} from "@/lib/advancedProseNsfwGuidelines";
 import { GEMINI31_USER_AGENCY_SUPPLEMENT_TITLE } from "@/lib/gemini31UserAgencyAdapter";
 import type { ContextBuildInput } from "@/types";
 
@@ -129,6 +136,23 @@ export type WireCaseResult = {
     sceneFlow: number;
     keywordLoreOnUserTurn: number;
     globalLoreOnUserTurn: number;
+  };
+  bodyCueCandidate: {
+    baselineCueCount: number;
+    candidateCueCount: number;
+    forwardMotionCount: number;
+    rulesShaEqual: boolean;
+    dynamicShaEqual: boolean;
+    characterShaChanged: boolean;
+    characterCharDelta: number;
+    flatCharDelta: number;
+    candidateFlatSha256: string;
+    candidateCharacterSha256: string;
+    cacheShapeEqual: boolean;
+    historyCacheBreakpointEqual: boolean;
+    requestKeysEqual: boolean;
+    oocDirectiveEqual: boolean;
+    soleAllowedDiff: boolean;
   };
 };
 
@@ -528,6 +552,16 @@ function buildCase(spec: CaseSpec): WireCaseResult {
   const systemBlocks = describeSystemBlocks(systemMessage);
   const cachedCharacterText = cachedCharacterBlockText(systemMessage);
   const body = assembled.requestBody;
+  const bodyCueCandidate = compareBodyCueCandidate({
+    system,
+    split,
+    requestHistory,
+    messageOpts,
+    transport,
+    wireModelId,
+    baselineMessages: finalMessages,
+    baselineRequestKeys: Object.keys(body).sort(),
+  });
   const provider = body.provider as { only?: string[] } | undefined;
   const promptAudit = auditAssembledPrompt({
     systemSections: built.meta.trackedSections ?? [],
@@ -596,6 +630,128 @@ function buildCase(spec: CaseSpec): WireCaseResult {
     ),
     statusWidgetPatchChangedSplit,
     anchors: buildAnchors(flattenSystem(systemMessage), finalUserText(finalMessages)),
+    bodyCueCandidate,
+  };
+}
+
+function compareBodyCueCandidate(args: {
+  system: string;
+  split: OpenRouterSystemSplit | undefined;
+  requestHistory: ChatMsg[];
+  messageOpts: OpenRouterMessageOpts;
+  transport: "openrouter" | "cheaperinference";
+  wireModelId: string;
+  baselineMessages: OpenRouterChatMessage[];
+  baselineRequestKeys: string[];
+}): WireCaseResult["bodyCueCandidate"] {
+  const empty = {
+    baselineCueCount: 0,
+    candidateCueCount: 0,
+    forwardMotionCount: 0,
+    rulesShaEqual: false,
+    dynamicShaEqual: false,
+    characterShaChanged: false,
+    characterCharDelta: 0,
+    flatCharDelta: 0,
+    candidateFlatSha256: "",
+    candidateCharacterSha256: "",
+    cacheShapeEqual: false,
+    historyCacheBreakpointEqual: false,
+    requestKeysEqual: false,
+    oocDirectiveEqual: false,
+    soleAllowedDiff: false,
+  };
+  const split = args.split;
+  if (!split) return empty;
+
+  const rules = replaceCommonProseEmotionCue(split.systemRulesBlock);
+  const character = replaceCommonProseEmotionCue(split.characterSettingsBlock);
+  const dynamic = replaceCommonProseEmotionCue(split.dynamicBlock);
+  const candidateSplit: OpenRouterSystemSplit = {
+    systemRulesBlock: rules.text,
+    characterSettingsBlock: character.text,
+    dynamicBlock: dynamic.text,
+  };
+  const messageOpts = { ...args.messageOpts, systemSplit: candidateSplit };
+  const candidateSystem = replaceCommonProseEmotionCue(args.system).text;
+  const baseMessages = buildOpenRouterMessages(
+    candidateSystem,
+    args.requestHistory,
+    messageOpts
+  );
+  const cached = applyCacheAndPrefillForTransport(
+    { provider: args.transport },
+    baseMessages,
+    args.wireModelId,
+    messageOpts.charName,
+    { skipAssistantPrefill: false }
+  );
+  const assembled = assemblePrimaryRpRequest({
+    system: candidateSystem,
+    history: args.requestHistory,
+    modelId: args.wireModelId,
+    targetResponseChars: 3200,
+    messageOpts,
+    stream: true,
+    messagesOverride: cached.messages,
+  });
+  const baselineSystem = args.baselineMessages.find((message) => message.role === "system");
+  const candidateSystemMessage = assembled.messages.find((message) => message.role === "system");
+  const baselineFlat = flattenSystem(baselineSystem);
+  const candidateFlat = flattenSystem(candidateSystemMessage);
+  const baselineBlocks = describeSystemBlocks(baselineSystem);
+  const candidateBlocks = describeSystemBlocks(candidateSystemMessage);
+  const baselineCharacter = baselineBlocks[1];
+  const candidateCharacter = candidateBlocks[1];
+  const expectedDelta =
+    COMMON_PROSE_EMOTION_CUE_CANDIDATE.length - COMMON_PROSE_EMOTION_CUE_BASELINE.length;
+  const historyCache = (messages: OpenRouterChatMessage[]) =>
+    messages.slice(1).some((message) => {
+      return Array.isArray(message.content) && message.content.some((block) => block.cache_control);
+    });
+  const oocCount = (text: string) => text.split("[OOC HTML MODE — THIS TURN]").length - 1;
+  const cueOnlyInCharacter = rules.replacements === 0 && character.replacements === 1 && dynamic.replacements === 0;
+  const flatSwap = replaceCommonProseEmotionCue(baselineFlat).text === candidateFlat;
+  const characterCharDelta = (candidateCharacter?.chars ?? 0) - (baselineCharacter?.chars ?? 0);
+  const soleAllowedDiff =
+    cueOnlyInCharacter &&
+    flatSwap &&
+    baselineFlat.split(COMMON_PROSE_EMOTION_CUE_BASELINE).length - 1 === 1 &&
+    candidateFlat.split(COMMON_PROSE_EMOTION_CUE_CANDIDATE).length - 1 === 1 &&
+    !candidateFlat.includes(COMMON_PROSE_EMOTION_CUE_BASELINE) &&
+    candidateFlat.includes(COMMON_PROSE_FORWARD_MOTION) &&
+    baselineFlat.includes(COMMON_PROSE_FORWARD_MOTION) &&
+    baselineBlocks[0]?.sha256 === candidateBlocks[0]?.sha256 &&
+    baselineBlocks[2]?.sha256 === candidateBlocks[2]?.sha256 &&
+    baselineCharacter?.sha256 !== candidateCharacter?.sha256 &&
+    characterCharDelta === expectedDelta &&
+    candidateFlat.length - baselineFlat.length === expectedDelta &&
+    baselineBlocks.map((block) => block.cached).join() ===
+      candidateBlocks.map((block) => block.cached).join() &&
+    historyCache(args.baselineMessages) === historyCache(assembled.messages) &&
+    args.baselineRequestKeys.join() === Object.keys(assembled.requestBody).sort().join() &&
+    oocCount(baselineFlat) === oocCount(candidateFlat);
+
+  return {
+    baselineCueCount: baselineFlat.split(COMMON_PROSE_EMOTION_CUE_BASELINE).length - 1,
+    candidateCueCount: candidateFlat.split(COMMON_PROSE_EMOTION_CUE_CANDIDATE).length - 1,
+    forwardMotionCount: candidateFlat.split(COMMON_PROSE_FORWARD_MOTION).length - 1,
+    rulesShaEqual: baselineBlocks[0]?.sha256 === candidateBlocks[0]?.sha256,
+    dynamicShaEqual: baselineBlocks[2]?.sha256 === candidateBlocks[2]?.sha256,
+    characterShaChanged: baselineCharacter?.sha256 !== candidateCharacter?.sha256,
+    characterCharDelta,
+    flatCharDelta: candidateFlat.length - baselineFlat.length,
+    candidateFlatSha256: sha256(candidateFlat),
+    candidateCharacterSha256: candidateCharacter?.sha256 ?? "",
+    cacheShapeEqual:
+      baselineBlocks.map((block) => block.cached).join() ===
+      candidateBlocks.map((block) => block.cached).join(),
+    historyCacheBreakpointEqual:
+      historyCache(args.baselineMessages) === historyCache(assembled.messages),
+    requestKeysEqual:
+      args.baselineRequestKeys.join() === Object.keys(assembled.requestBody).sort().join(),
+    oocDirectiveEqual: oocCount(baselineFlat) === oocCount(candidateFlat),
+    soleAllowedDiff,
   };
 }
 
