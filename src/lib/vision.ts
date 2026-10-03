@@ -18,7 +18,6 @@ import {
 } from "@/lib/assetPersonTags";
 import { normalizeVisionModerationFlags } from "@/lib/visionModerationNormalize";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
-import { readCompatibleCompletionProviderRequestId } from "@/lib/openRouterCompletion";
 
 const VISION_BATCH_CONCURRENCY = 4;
 
@@ -208,10 +207,8 @@ async function analyzeWithModel(
       cheaperInferenceBilledCostUsd: parsedUsage.cheaperInferenceBilledCostUsd,
       upstreamCostUsd: parsedUsage.upstreamCostUsd,
       usageEstimated: !parsedUsage.promptTokens || !parsedUsage.completionTokens,
-      providerRequestId: readCompatibleCompletionProviderRequestId({
-        provider: "openrouter",
-        headers: res.headers,
-      }),
+      providerRequestId:
+        res.headers.get("x-request-id") ?? res.headers.get("x-openrouter-request-id"),
       outcome: text ? "success" : "failed_with_usage",
     };
   } catch (error) {
