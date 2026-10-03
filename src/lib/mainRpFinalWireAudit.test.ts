@@ -1,0 +1,225 @@
+/**
+ * Locks the production Main RP final-wire shape.
+ * No provider calls. Local token estimates are not provider usage.
+ */
+import Module from "module";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (
+  request: string,
+  parent: NodeModule,
+  isMain: boolean
+) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+
+import { auditAssembledPrompt, PROMPT_DUPLICATE_SAVINGS_CLAIM } from "@/services/promptAudit";
+import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { runMainRpFinalWireAudit, type WireCaseResult } from "@/lib/mainRpFinalWireAudit";
+
+const report = runMainRpFinalWireAudit();
+
+function caseById(id: string): WireCaseResult {
+  const found = report.cases.find((entry) => entry.id === id);
+  assert.ok(found, id);
+  return found;
+}
+
+describe("Main RP final-wire audit", () => {
+  it("covers every selectable Main RP model", () => {
+    assert.deepEqual(
+      report.selectableModels.map((model) => model.id),
+      [...MAIN_RP_MODEL_IDS]
+    );
+    assert.equal(report.providerCountedTokens, null);
+    for (const modelId of MAIN_RP_MODEL_IDS) {
+      assert.ok(report.cases.some((entry) => entry.selectedModelId === modelId));
+    }
+  });
+
+  it("keeps one length owner on the user turn and one common prose owner", () => {
+    for (const entry of report.cases) {
+      assert.equal(entry.anchors.lengthOwnerOnUserTurn, 1, entry.id);
+      assert.equal(entry.anchors.lengthOwnerOnSystem, 0, entry.id);
+      assert.equal(entry.anchors.commonProseInSystem, 1, entry.id);
+      assert.equal(new Set(entry.sectionIds).size, entry.sectionIds.length, entry.id);
+    }
+  });
+
+  it("switches the user-authoring owner with level and auto progression", () => {
+    const limited = caseById("ds-interactive-limited-rich");
+    const normal = caseById("ds-interactive-normal-rich");
+    const allow = caseById("ds-interactive-allow-rich");
+    const auto = caseById("ds-auto-normal");
+    assert.equal(limited.anchors.collaborativeInteractiveTitle, 1);
+    assert.equal(limited.anchors.userAuthoringTitle, 0);
+    assert.equal(limited.anchors.coauthorPersistentLine, 0);
+    assert.equal(limited.anchors.autoProgressionTitle, 0);
+    assert.equal(normal.anchors.collaborativeInteractiveTitle, 0);
+    assert.equal(normal.anchors.userAuthoringTitle, 3);
+    assert.equal(normal.anchors.coauthorPersistentLine, 1);
+    assert.equal(allow.anchors.userAuthoringTitle, 3);
+    assert.equal(allow.anchors.coauthorPersistentLine, 1);
+    assert.notEqual(
+      allow.sections.find((section) => section.id === "no-godmodding")?.sha256,
+      normal.sections.find((section) => section.id === "no-godmodding")?.sha256
+    );
+    assert.equal(auto.anchors.autoProgressionTitle, 1);
+    assert.equal(auto.anchors.coauthorPersistentLine, 0);
+    assert.equal(auto.anchors.collaborativeInteractiveTitle, 0);
+    assert.equal(auto.wire.sceneDirectiveSection, true);
+    assert.equal(normal.wire.sceneDirectiveSection, false);
+  });
+
+  it("collapses NORMAL interactive cache split and keeps LIMITED pacing inside the character cache block", () => {
+    const normal = caseById("ds-interactive-normal-rich");
+    const limited = caseById("ds-interactive-limited-rich");
+    const allow = caseById("ds-interactive-allow-rich");
+    const auto = caseById("ds-auto-normal");
+    assert.equal(normal.wire.systemBlocks.length, 1);
+    assert.equal(normal.wire.systemBlocks[0]?.cached, false);
+    assert.equal(normal.anchors.scenePacing, 1);
+    assert.equal(normal.anchors.sceneFlow, 0);
+    assert.equal(normal.wire.scenePacingInsideCachedCharacterBlock, false);
+    assert.deepEqual(
+      limited.wire.systemBlocks.map((block) => block.cached),
+      [true, true, false]
+    );
+    assert.equal(limited.wire.scenePacingInsideCachedCharacterBlock, true);
+    assert.equal(limited.wire.sceneFlowInsideCachedCharacterBlock, false);
+    assert.deepEqual(
+      allow.wire.systemBlocks.map((block) => block.cached),
+      [true, true, false]
+    );
+    assert.equal(allow.wire.scenePacingInsideCachedCharacterBlock, true);
+    assert.deepEqual(
+      auto.wire.systemBlocks.map((block) => block.cached),
+      [true, true, false]
+    );
+    assert.equal(auto.wire.sceneFlowInsideCachedCharacterBlock, true);
+    assert.equal(auto.anchors.scenePacing, 0);
+    assert.equal(auto.wire.historyCacheBreakpoint, false);
+  });
+
+  it("keeps model adapters on their own wire shapes", () => {
+    const gemini31Limited = caseById("g31-interactive-limited-rich");
+    assert.equal(gemini31Limited.anchors.gemini31Agency, 1);
+    assert.equal(gemini31Limited.anchors.collaborativeInteractiveTitle, 1);
+    for (const entry of report.cases) {
+      const deepseek = entry.selectedModelId === "deepseek-v4.1-flash";
+      const expectsAgency = entry.id === "g31-interactive-limited-rich";
+      assert.equal(entry.anchors.gemini31Agency, expectsAgency ? 1 : 0, entry.id);
+      assert.equal(entry.anchors.deepseekWorldLoreXml >= 1, deepseek, entry.id);
+      assert.equal(entry.wire.assistantPrefill, false, entry.id);
+      assert.equal(entry.wire.productionOrderMatchesAssembleOnly, true, entry.id);
+      assert.equal(entry.wire.roles[0], "system", entry.id);
+      assert.equal(entry.wire.roles.at(-1), "user", entry.id);
+      if (entry.transport === "openrouter") {
+        assert.equal(entry.wire.providerOnly, "google-ai-studio", entry.id);
+        assert.equal(entry.wire.serviceTier, "flex", entry.id);
+        assert.equal(entry.wire.sessionIdPresent, true, entry.id);
+        assert.ok(entry.wire.model.startsWith("google/"), entry.id);
+        assert.equal(entry.wire.reasoningEffort, null, entry.id);
+      } else {
+        assert.equal(entry.wire.providerOnly, null, entry.id);
+        assert.equal(entry.wire.sessionIdPresent, false, entry.id);
+      }
+    }
+    assert.equal(caseById("ds-interactive-normal-rich").wire.reasoningEffort, "none");
+    assert.equal(caseById("terra-interactive-normal-rich").wire.reasoningEffort, "none");
+    const opus = caseById("opus-interactive-long-history");
+    const opusAuto = caseById("opus-auto-normal");
+    assert.equal(opus.wire.reasoningEffort, "low");
+    assert.equal(opus.wire.systemBlocks.length, 1);
+    assert.equal(opus.wire.systemBlocks[0]?.cached, true);
+    assert.equal(opus.wire.historyCacheBreakpoint, true);
+    assert.deepEqual(
+      opusAuto.wire.systemBlocks.map((block) => block.cached),
+      [true, true, false]
+    );
+    assert.equal(opusAuto.wire.historyCacheBreakpoint, false);
+    assert.equal(caseById("g37-interactive-normal-rich").wire.temperaturePresent, true);
+    assert.equal(caseById("g38-interactive-normal-rich").wire.temperaturePresent, false);
+    const deepseekCanon = caseById("ds-interactive-limited-rich");
+    const geminiCanon = caseById("g31-interactive-limited-rich");
+    assert.equal(
+      deepseekCanon.sections.find((section) => section.id === "character-core-identity")?.cacheBucket,
+      "cacheCharacter"
+    );
+    assert.equal(
+      geminiCanon.sections.find((section) => section.id === "character-core-identity")?.cacheBucket,
+      "cacheRules"
+    );
+  });
+
+  it("treats Gemini 3.7 and 3.8 as the same prompt shape with different wire model ids", () => {
+    const flash37 = caseById("g37-interactive-normal-rich");
+    const flash38 = caseById("g38-interactive-normal-rich");
+    assert.deepEqual(flash37.sectionIds, flash38.sectionIds);
+    assert.notEqual(flash37.wire.model, flash38.wire.model);
+    assert.deepEqual(
+      flash37.sections.map((section) => section.sha256),
+      flash38.sections.map((section) => section.sha256)
+    );
+  });
+
+  it("does not deliver the OOC HTML suffix or a status-widget text patch on the current split wire", () => {
+    const ooc = caseById("g31-ooc-html");
+    const widget = caseById("g31-status-widget");
+    const plain = caseById("g31-interactive-normal-rich");
+    assert.equal(ooc.oocHtml, true);
+    assert.equal(ooc.wire.oocHtmlReachedProviderSystem, false);
+    assert.equal(widget.statusWidgetPatchChangedSplit, false);
+    assert.equal(
+      widget.sections.find((section) => section.id === "state-window-policy"),
+      undefined
+    );
+    assert.deepEqual(
+      widget.sections.map((section) => section.sha256),
+      plain.sections.map((section) => section.sha256)
+    );
+  });
+
+  it("places keyword and global lore on the user turn and JSX only when a catalog exists", () => {
+    const rich = caseById("ds-interactive-normal-rich");
+    const empty = caseById("ds-empty-memory");
+    const jsx = caseById("ds-jsx");
+    assert.equal(rich.anchors.keywordLoreOnUserTurn, 1);
+    assert.equal(rich.anchors.globalLoreOnUserTurn, 1);
+    assert.equal(rich.sectionIds.includes("keyword-lorebook"), false);
+    assert.equal(empty.anchors.keywordLoreOnUserTurn, 0);
+    assert.equal(empty.sectionIds.includes("current-memory"), false);
+    assert.equal(jsx.anchors.jsxManifest, 1);
+    assert.equal(jsx.sectionIds.includes("jsx-component-manifest"), true);
+    assert.equal(rich.anchors.jsxManifest, 0);
+  });
+
+  it("labels promptAudit duplicate waste as a heuristic upper bound", () => {
+    const audit = auditAssembledPrompt({
+      systemSections: [
+        {
+          id: "a",
+          label: "A",
+          category: "systemRules",
+          text: "조용한 장면도 요약 없이 대화와 내면과 분위기로 충분히 전개한다. ".repeat(4),
+        },
+        {
+          id: "b",
+          label: "B",
+          category: "systemRules",
+          text: "조용한 장면도 요약 없이 대화와 내면과 분위기로 충분히 전개한다. ".repeat(4),
+        },
+      ],
+      systemPrompt: "x",
+      history: [{ role: "user", content: "안녕" }],
+    });
+    assert.ok(audit.duplicates.length > 0);
+    for (const hit of audit.duplicates) {
+      assert.equal(hit.savingsClaim, PROMPT_DUPLICATE_SAVINGS_CLAIM);
+      assert.ok(hit.estimatedWastedTokens > 0);
+    }
+  });
+});
