@@ -57,7 +57,8 @@ const DISTANCE_PROMPT: Record<OfficialShotDistance, string> = {
   knee_or_full: "knee-up or full-body shot with space around the figure",
 };
 
-const POSE_PROMPT: Record<OfficialPoseFamily, string> = {
+/** QA lexicon only — paid prompts use slot.pose, not this map. */
+export const OFFICIAL_POSE_FAMILY_PROMPT: Record<OfficialPoseFamily, string> = {
   static: "a still, grounded stance",
   twist: "a torso or shoulder twist — not a straight-on mannequin pose",
   move: "a mid-motion or walking beat",
@@ -65,7 +66,8 @@ const POSE_PROMPT: Record<OfficialPoseFamily, string> = {
   prop: "hands interacting with a character-owned prop or surface",
 };
 
-const EXPRESSION_PROMPT: Record<OfficialExpressionFamily, string> = {
+/** QA lexicon only — paid prompts use slot.expression, not this map. */
+export const OFFICIAL_EXPRESSION_FAMILY_PROMPT: Record<OfficialExpressionFamily, string> = {
   smile: "a readable smile or warmth",
   alert: "alert / guarded watchfulness",
   tease: "a teasing or provocative glint",
@@ -300,21 +302,20 @@ export function renderOfficialShotResponsibility(shot: OfficialSlotShotResponsib
   return [
     `SHOT RESPONSIBILITY (${shot.slotKey}/${shot.kind}):`,
     `${FACE_PROMPT[shot.faceDirection]}; ${CAMERA_PROMPT[shot.cameraAngle]}; ${DISTANCE_PROMPT[shot.distance]}.`,
-    `Pose family: ${POSE_PROMPT[shot.poseFamily]}.`,
-    `Expression register: prefer ${EXPRESSION_PROMPT[shot.expressionFamily]} when it does not contradict the Expression line.`,
     `Background: ${BACKGROUND_PROMPT[shot.background]}.`,
     "This cut must look different from the other slots in face direction, camera, and framing.",
+    "Do not inherit the representative card's camera, head angle, crop, or hand position.",
     "SHOT CHANGE MUST NOT CHANGE IDENTITY: same face structure, hair, eyes, marks, age, and body type as the IDENTITY LOCK.",
   ].join(" ");
 }
 
 export function renderOfficialStyleFramingOverride(kind: OfficialAssetSlotKind): string {
   if (kind === "representative") {
-    return "ART STYLE framing applies to this representative card only.";
+    return "ART STYLE describes rendering language, color, and illustration grammar only. Card crop stays with the representative framing lines.";
   }
   return [
-    "ART STYLE framing and backgroundDensity above describe the representative card language only.",
-    "This slot MUST follow the SHOT RESPONSIBILITY, not card bust framing or a face-first 2:3 crop.",
+    "ART STYLE describes rendering language, color, and illustration grammar only.",
+    "Camera, face direction, and crop follow SHOT RESPONSIBILITY — not card bust framing or a face-first 2:3 crop.",
   ].join(" ");
 }
 

@@ -393,6 +393,9 @@ describe("anchor-first generation, retries and idempotency", () => {
     const last = world.calls.at(-1)!;
     assert.equal(last.size, "1536x1024");
     assert.equal(last.references[0], store.representativeAsset("anchor-1").resultUrl);
+    assert.match(last.primaryPrompt, /IDENTITY ANCHOR ONLY/);
+    assert.doesNotMatch(last.primaryPrompt, /only expression, pose, outfit variant and setting change/);
+    assert.doesNotMatch(last.primaryPrompt, /framing:/);
   });
 
   it("representative retry/regen keeps all approved style-only companions on every provider attempt", async () => {
