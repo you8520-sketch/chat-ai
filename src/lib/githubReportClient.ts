@@ -182,6 +182,57 @@ export function decodeGithubReportContent(body: unknown): string | null {
   }
 }
 
+const GITHUB_BLOB_SHA_RE = /^[0-9a-f]{40}$/i;
+
+export function githubReportContentsSha(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const sha = "sha" in body && typeof body.sha === "string" ? body.sha.trim() : "";
+  return GITHUB_BLOB_SHA_RE.test(sha) ? sha.toLowerCase() : null;
+}
+
+/**
+ * GitHub Contents omits inline `content` for files larger than 1 MB.
+ * Build the documented Blobs URL from the Contents request origin + repo + sha.
+ * Do not follow `download_url` or an unvalidated `git_url`.
+ */
+export function githubReportBlobUrlFromContents(
+  contentsUrl: string,
+  body: unknown
+): string | null {
+  const sha = githubReportContentsSha(body);
+  if (!sha) return null;
+  if (!body || typeof body !== "object") return null;
+  const size = "size" in body && typeof body.size === "number" ? body.size : 0;
+  if (!(size > 0)) return null;
+  const content =
+    "content" in body && typeof body.content === "string" ? body.content : "";
+  if (content.trim()) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(contentsUrl);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "https:") return null;
+  const match = parsed.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/contents(?:\/|$)/);
+  if (!match) return null;
+  return `${parsed.origin}/repos/${match[1]}/${match[2]}/git/blobs/${sha}`;
+}
+
+function decodeGithubReportTrustedBlob(body: unknown, expectedSha: string): string | null {
+  const expected = expectedSha.trim().toLowerCase();
+  if (!GITHUB_BLOB_SHA_RE.test(expected)) return null;
+  if (githubReportContentsSha(body) !== expected) return null;
+  if (!body || typeof body !== "object") return null;
+  const encoding =
+    "encoding" in body && typeof body.encoding === "string"
+      ? body.encoding.trim().toLowerCase()
+      : "";
+  if (encoding !== "base64") return null;
+  return decodeGithubReportContent(body);
+}
+
 export type GithubReportGetOpts = {
   token?: string;
   label?: string;
@@ -308,7 +359,33 @@ export async function githubReportGetContent(
     return { status: "UNAVAILABLE", error: result.error, raw: null };
   }
   const raw = decodeGithubReportContent(result.json);
-  return raw
-    ? { status: "OK", error: null, raw }
-    : { status: "EMPTY", error: null, raw: null };
+  if (raw) return { status: "OK", error: null, raw };
+
+  const expectedSha = githubReportContentsSha(result.json);
+  const blobUrl = githubReportBlobUrlFromContents(url, result.json);
+  if (!blobUrl || !expectedSha) {
+    return { status: "EMPTY", error: null, raw: null };
+  }
+
+  const blob = await githubReportGetJson<unknown>(blobUrl, fetchImpl, {
+    ...opts,
+    label: opts?.label ?? "GitHub Blobs API",
+  });
+  if (!blob.ok) {
+    return { status: "UNAVAILABLE", error: blob.error, raw: null };
+  }
+  const blobRaw = decodeGithubReportTrustedBlob(blob.json, expectedSha);
+  if (!blobRaw) {
+    return {
+      status: "UNAVAILABLE",
+      error: formatGithubReportError(opts?.label ?? "GitHub Blobs API", {
+        status: blob.status,
+        kind: "UNAVAILABLE",
+        retryAt: blob.retryAt,
+        requestId: blob.requestId,
+      }),
+      raw: null,
+    };
+  }
+  return { status: "OK", error: null, raw: blobRaw };
 }
