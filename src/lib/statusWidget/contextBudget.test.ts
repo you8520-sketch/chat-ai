@@ -118,35 +118,36 @@ describe("statusWidget contextBudget", () => {
     assert.equal(validateStatusWidgetContextBudget(STATUS_WIDGET_CONTEXT_COMBINED_MAX + 1).ok, false);
   });
 
-  it("enforces 700 for creators, unchanged 500 for persona and 1,200 combined", () => {
-    assert.equal(STATUS_WIDGET_CONTEXT_MAX, 700);
-    assert.equal(STATUS_WIDGET_USER_CONTEXT_MAX, 500);
+  it("enforces 600 for creators, 600 for persona and 1,200 combined", () => {
+    assert.equal(STATUS_WIDGET_CONTEXT_MAX, 600);
+    assert.equal(STATUS_WIDGET_USER_CONTEXT_MAX, 600);
     assert.equal(STATUS_WIDGET_CONTEXT_COMBINED_MAX, 1200);
     assert.equal(validateStatusWidgetContextBudget({
-      characterReservedChars: 700,
-      userReservedChars: 500,
+      characterReservedChars: 600,
+      userReservedChars: 600,
       totalReservedChars: 1200,
     }).ok, true);
     assert.equal(validateStatusWidgetContextBudget({
-      characterReservedChars: 701,
+      characterReservedChars: 601,
       userReservedChars: 0,
-      totalReservedChars: 701,
+      totalReservedChars: 601,
     }).ok, false);
     assert.equal(validateStatusWidgetContextBudget({
       characterReservedChars: 0,
-      userReservedChars: 501,
-      totalReservedChars: 501,
+      userReservedChars: 601,
+      totalReservedChars: 601,
     }).ok, false);
-    assert.equal(formatWidgetBudgetHint(136), "위젯 상태값·지시 136 / 700자");
-    assert.equal(formatWidgetBudgetHint(136, STATUS_WIDGET_USER_CONTEXT_MAX), "위젯 상태값·지시 136 / 500자");
-    assert.match(formatCombinedWidgetBudgetHint({ characterReservedChars: 700, userReservedChars: 500, totalReservedChars: 1200 }), /700 \/ 700자 · 유저 500 \/ 500자/);
+    assert.equal(formatWidgetBudgetHint(136), "위젯 상태값·지시 추정 토큰 136 / 600");
+    assert.equal(formatWidgetBudgetHint(136, STATUS_WIDGET_USER_CONTEXT_MAX), "위젯 상태값·지시 추정 토큰 136 / 600");
+    assert.match(formatWidgetBudgetHint(601), /한도를 초과했습니다/);
+    assert.match(formatCombinedWidgetBudgetHint({ characterReservedChars: 600, userReservedChars: 600, totalReservedChars: 1200 }), /600 \/ 600 · 유저 600 \/ 600/);
   });
 
   it("creator save budget is calculated from the same parsed widget used in chat", () => {
     const expanded = { ...DEFAULT_STATUS_WIDGET, fields: [{ id: "time", label: "시간", instruction: "장면".repeat(325) }] };
     const loaded = serializeStatusWidget(expanded);
     assert.equal(JSON.parse(loaded).fields[0].instruction.length, 650);
-    const nearBudget = { ...expanded, fields: [{ id: "time", label: "시간", instruction: "장면".repeat(370) }] };
+    const nearBudget = { ...expanded, fields: [{ id: "time", label: "시간", instruction: "장면".repeat(331) }] };
     const nearBudgetSaved = serializeStatusWidget(nearBudget);
     assert.equal(estimateStatusWidgetContextChars(nearBudget) <= STATUS_WIDGET_CONTEXT_MAX, true);
     assert.equal(estimateStatusWidgetContextCharsFromJson(nearBudgetSaved), estimateStatusWidgetContextChars(nearBudget));
@@ -160,13 +161,13 @@ describe("statusWidget contextBudget", () => {
     assert.equal(validateCharacterStatusWidgetContextBudget(overBudget).ok, false);
   });
 
-  it("persona presets still reject specs exceeding 500 after creator budget rises", () => {
+  it("persona presets reject specs exceeding 600 estimated tokens", () => {
     const makeUserPreset = (instruction: string) => serializeStatusWidget({
       ...DEFAULT_STATUS_WIDGET,
       fields: [{ id: "time", label: "시간", instruction }],
     });
     const allowed = makeUserPreset("상태".repeat(240));
-    const rejected = makeUserPreset("상태".repeat(300));
+    const rejected = makeUserPreset("상태".repeat(340));
     assert.equal(validateStatusWidgetPresetInput("예시", allowed).ok, true);
     assert.equal(validateStatusWidgetPresetInput("예시", rejected).ok, false);
   });

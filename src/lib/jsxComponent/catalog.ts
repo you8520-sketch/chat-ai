@@ -1,6 +1,12 @@
+import { estimateTokens } from "@/lib/tokenEstimate";
 import { analyzeJsxCapabilities } from "./capabilities";
 import { compileJsxComponentSource } from "./compile";
-import { JSX_PROP_MAX, JSX_SOURCE_MAX_CHARS } from "./limits";
+import {
+  JSX_CALL_GUIDE_CATALOG_TOKEN_MAX,
+  JSX_CALL_GUIDE_MAX_CHARS,
+  JSX_PROP_MAX,
+  JSX_SOURCE_MAX_CHARS,
+} from "./limits";
 import { normalizeJsxPropDefinition } from "./manifest";
 import {
   JSX_COMPONENT_NAME_RE,
@@ -14,7 +20,43 @@ type StoredJsxComponent = {
   name: string;
   source: string;
   props: JsxPropDefinition[];
+  callGuide?: string;
 };
+
+/** Stored call guide. Missing or non-string values are empty. Never sliced. */
+export function readJsxCallGuide(raw: unknown): string {
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+/** Blank guides cost nothing. estimateTokens("") is 1, so empty must stay 0. */
+export function jsxCallGuideTokenCount(text: string | undefined): number {
+  const trimmed = readJsxCallGuide(text);
+  if (!trimmed) return 0;
+  return estimateTokens(trimmed);
+}
+
+export function validateJsxCallGuideCatalog(
+  components: Array<{ callGuide?: string }>
+): { ok: true } | { ok: false; error: string } {
+  let total = 0;
+  for (const component of components) {
+    const guide = readJsxCallGuide(component.callGuide);
+    if (guide.length > JSX_CALL_GUIDE_MAX_CHARS) {
+      return {
+        ok: false,
+        error: `AI 호출 설명은 ${JSX_CALL_GUIDE_MAX_CHARS}자 이하여야 합니다.`,
+      };
+    }
+    total += jsxCallGuideTokenCount(guide);
+  }
+  if (total > JSX_CALL_GUIDE_CATALOG_TOKEN_MAX) {
+    return {
+      ok: false,
+      error: `AI 호출 설명 추정 토큰 합계 ${total.toLocaleString()}이 한도 ${JSX_CALL_GUIDE_CATALOG_TOKEN_MAX.toLocaleString()}을 초과합니다. 설명을 줄인 뒤 다시 저장하세요.`,
+    };
+  }
+  return { ok: true };
+}
 
 function parseStoredJsxComponents(raw: string | null | undefined): StoredJsxComponent[] {
   if (!raw?.trim()) return [];
@@ -40,7 +82,8 @@ function parseStoredJsxComponents(raw: string | null | undefined): StoredJsxComp
             .filter((prop): prop is NonNullable<typeof prop> => !!prop)
             .slice(0, JSX_PROP_MAX)
         : [];
-      out.push({ name, source, props });
+      const callGuide = readJsxCallGuide(row.callGuide);
+      out.push({ name, source, props, ...(callGuide ? { callGuide } : {}) });
     }
     return out;
   } catch {
@@ -65,6 +108,7 @@ export function parseJsxComponentCatalog(raw: string | null | undefined): JsxCom
       props: item.props,
       capabilities: fresh.capabilities,
       chatSend: fresh.chatSend,
+      ...(item.callGuide ? { callGuide: item.callGuide } : {}),
     });
   }
   return out;
@@ -82,6 +126,7 @@ export function parseJsxComponentManifestCatalog(
     name: item.name,
     props: item.props,
     chatSend: analyzeJsxCapabilities(item.source).includes("chat_send"),
+    ...(item.callGuide ? { callGuide: item.callGuide } : {}),
   }));
 }
 
@@ -93,11 +138,15 @@ export function parseJsxRuntimeComponentCatalog(
 
 export function serializeJsxComponentCatalog(components: JsxComponentRecord[]): string {
   return JSON.stringify(
-    components.slice(0, 12).map((component) => ({
-      name: component.name,
-      source: component.source,
-      props: component.props.slice(0, JSX_PROP_MAX),
-    }))
+    components.slice(0, 12).map((component) => {
+      const callGuide = readJsxCallGuide(component.callGuide);
+      return {
+        name: component.name,
+        source: component.source,
+        props: component.props.slice(0, JSX_PROP_MAX),
+        ...(callGuide ? { callGuide } : {}),
+      };
+    })
   );
 }
 
@@ -112,10 +161,11 @@ export type JsxCatalogDraftInput = {
   name: string;
   source: string;
   props: JsxPropDefinition[];
+  callGuide?: string;
 };
 
 export function jsxCatalogEditableFingerprint(
-  input: { name: string; source: string; props: JsxPropDefinition[] } | null
+  input: { name: string; source: string; props: JsxPropDefinition[]; callGuide?: string } | null
 ): string {
   if (!input) return "";
   const props = input.props
@@ -127,15 +177,22 @@ export function jsxCatalogEditableFingerprint(
       example: prop.example ?? "",
       description: prop.description ?? "",
     }));
-  if (!input.name.trim() && !input.source.trim() && props.length === 0) return "";
+  const callGuide = readJsxCallGuide(input.callGuide);
+  if (!input.name.trim() && !input.source.trim() && props.length === 0 && !callGuide) return "";
   return JSON.stringify({
     name: input.name.trim(),
     source: input.source.trim(),
     props,
+    callGuide,
   });
 }
 
-const EMPTY_JSX_CATALOG_DRAFT: JsxCatalogDraftInput = { name: "", source: "", props: [] };
+const EMPTY_JSX_CATALOG_DRAFT: JsxCatalogDraftInput = {
+  name: "",
+  source: "",
+  props: [],
+  callGuide: "",
+};
 
 export function hydrateJsxCatalogEditorState(input: {
   appliedSavedFingerprint: string;
@@ -144,7 +201,12 @@ export function hydrateJsxCatalogEditorState(input: {
 }): { appliedSavedFingerprint: string; draft: JsxCatalogDraftInput; hydrated: boolean } {
   const nextFingerprint = jsxCatalogEditableFingerprint(
     input.saved
-      ? { name: input.saved.name, source: input.saved.source, props: input.saved.props }
+      ? {
+          name: input.saved.name,
+          source: input.saved.source,
+          props: input.saved.props,
+          callGuide: input.saved.callGuide,
+        }
       : null
   );
   if (nextFingerprint === input.appliedSavedFingerprint) {
@@ -173,6 +235,7 @@ export function hydrateJsxCatalogEditorState(input: {
           name: input.saved.name,
           source: input.saved.source,
           props: input.saved.props.map((prop) => ({ ...prop })),
+          callGuide: input.saved.callGuide ?? "",
         }
       : { ...EMPTY_JSX_CATALOG_DRAFT },
     hydrated: true,
@@ -197,17 +260,27 @@ export function resolveJsxCatalogDraft(
   const unsaved =
     jsxCatalogEditableFingerprint(
       savedHead
-        ? { name: savedHead.name, source: savedHead.source, props: savedHead.props }
+        ? {
+            name: savedHead.name,
+            source: savedHead.source,
+            props: savedHead.props,
+            callGuide: savedHead.callGuide,
+          }
         : null
     ) !== jsxCatalogEditableFingerprint(draft);
   const result = compileJsxComponentDraft(draft);
   if (!result.ok) {
     return { catalog: saved, error: result.error, preview: null, unsaved };
   }
+  const nextCatalog = [result.record, ...saved.slice(1)];
+  const guideBudget = validateJsxCallGuideCatalog(nextCatalog);
+  if (!guideBudget.ok) {
+    return { catalog: saved, error: guideBudget.error, preview: null, unsaved };
+  }
   return {
     // Editing the visible first slot must not erase the rest of a saved
     // multi-component catalog. The UI only edits one slot for now.
-    catalog: [result.record, ...saved.slice(1)],
+    catalog: nextCatalog,
     error: "",
     preview: result.record,
     unsaved: false,
@@ -223,10 +296,18 @@ export function compileJsxComponentDraft(input: {
   name: string;
   source: string;
   props: unknown[];
+  callGuide?: string;
 }): { ok: true; record: JsxComponentRecord } | { ok: false; error: string } {
   const name = input.name.trim();
   if (!JSX_COMPONENT_NAME_RE.test(name)) {
     return { ok: false, error: "컴포넌트 이름은 PascalCase여야 합니다." };
+  }
+  const callGuide = readJsxCallGuide(input.callGuide);
+  if (callGuide.length > JSX_CALL_GUIDE_MAX_CHARS) {
+    return {
+      ok: false,
+      error: `AI 호출 설명은 ${JSX_CALL_GUIDE_MAX_CHARS}자 이하여야 합니다.`,
+    };
   }
   const compiled = compileJsxComponentSource(input.source, name);
   if (!compiled.ok) return compiled;
@@ -243,6 +324,7 @@ export function compileJsxComponentDraft(input: {
       props,
       capabilities: compiled.capabilities,
       chatSend: compiled.chatSend,
+      ...(callGuide ? { callGuide } : {}),
     },
   };
 }

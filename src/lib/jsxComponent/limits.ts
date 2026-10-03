@@ -1,3 +1,7 @@
+/** Raw input characters for one component's AI call guide. */
+export const JSX_CALL_GUIDE_MAX_CHARS = 200;
+/** estimateTokens sum of every stored call guide in one catalog. */
+export const JSX_CALL_GUIDE_CATALOG_TOKEN_MAX = 600;
 export const JSX_SOURCE_MAX_CHARS = 80_000;
 export const JSX_COMPILED_MAX_CHARS = 160_000;
 export const JSX_PROP_MAX = 50;
