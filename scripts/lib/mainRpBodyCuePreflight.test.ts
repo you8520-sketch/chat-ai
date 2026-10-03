@@ -22,6 +22,7 @@ import {
   LIVE_ASSEMBLED_REQUEST_UNVERIFIED_GAPS,
   LIVE_DEPLOYED_ROW_PROOF,
   LIVE_ROW_IDENTITY_STATUS,
+  bodyCueInputCharacterId,
   bodyCueNextCallAllowed,
   buildBodyCueReviewPacket,
   buildLiveDeployedBodyCueContextInput,
@@ -111,10 +112,9 @@ describe("Main RP body-cue preflight", () => {
     assert.equal(packet.nsfw, false);
     assert.notEqual(packet.scenes[0]?.userTurnSha256, packet.scenes[1]?.userTurnSha256);
     assert.notEqual(packet.scenes[0]?.promptUserSha256, packet.scenes[1]?.promptUserSha256);
-    assert.equal(packet.source.characterName, "라이크");
-    assert.equal(packet.source.sourceCharacterId, 10);
-    assert.equal(packet.source.personaName, "렌");
     assert.equal(packet.evidence.source, "HISTORICAL_PINNED");
+    assert.equal(bodyCueInputCharacterId(packet), 10);
+    assert.equal("source" in packet, false);
     assert.equal(packet.evidence.liveRowIdentity, LIVE_ROW_IDENTITY_STATUS);
     assert.equal(packet.evidence.liveAssembledRequest, LIVE_ASSEMBLED_REQUEST_STATUS);
     assert.equal(packet.proseOwnerUnchanged, true);
@@ -153,7 +153,7 @@ describe("Main RP body-cue preflight", () => {
     assert.equal(packet.evidence.historicalHashes.openingSha256, sha(fixture.openingAssistant));
     assert.equal(packet.evidence.historicalHashes.characterCoreSha256, sha(fixture.characterSetting));
     assert.equal(packet.evidence.historicalHashes.personaSha256, sha(fixture.persona));
-    assert.equal(packet.source.sourceCharacterId, 10);
+    assert.equal(bodyCueInputCharacterId(packet), 10);
     assert.equal(CANONICAL_RP_QUALIFICATION_FILES.openingAssistant.gitBlobSha, "ed5d0c15f04d955c2489ba3b4603c947cad6bff1");
     assert.equal(CANONICAL_RP_QUALIFICATION_FILES.promptDump.gitBlobSha, "1a4a42d1485ff7a59318404f68373887b2406924");
   });
@@ -263,6 +263,10 @@ describe("Main RP body-cue preflight", () => {
       throw new Error("expected synthetic evidence");
     }
     assert.equal(synthetic.evidence.inputCharacterId, 9001);
+    assert.equal(bodyCueInputCharacterId(synthetic), 9001);
+    assert.equal("source" in synthetic, false);
+    assert.equal("historicalSourceCharacterId" in synthetic.evidence, false);
+    assert.notEqual(bodyCueInputCharacterId(synthetic), 10);
     assert.equal(synthetic.evidence.syntheticUsedEnglish, false);
     assert.equal(payloadMatchesLiveDeployedRowProof(publicSyntheticRows()), false);
   });
@@ -278,6 +282,8 @@ describe("Main RP body-cue preflight", () => {
     assert.equal(claimed.evidence.source, "SYNTHETIC");
     assert.equal(claimed.evidence.liveRowIdentity, "NOT_CLAIMED");
     assert.equal(claimed.evidence.liveAssembledRequest, "NOT_CLAIMED");
+    assert.equal(bodyCueInputCharacterId(claimed), 18);
+    assert.notEqual(bodyCueInputCharacterId(claimed), 10);
     assert.equal("deployedCommit" in claimed.evidence, false);
     assert.notEqual(claimed.evidence.source, "LIVE_VERIFIED");
   });
@@ -378,7 +384,8 @@ describe("Main RP body-cue preflight", () => {
       live.scenes.map((scene) => scene.id),
       ["quiet_window_safe", "relationship_turn_safe"]
     );
-    assert.equal(live.source.sourceCharacterId, 10);
+    assert.equal(bodyCueInputCharacterId(live), 9001);
+    assert.equal("source" in live, false);
     assert.equal(live.nsfw, false);
     assert.equal(live.authoringLevel, "NORMAL");
     assert.equal(live.usedEnglish, false);
@@ -410,5 +417,6 @@ describe("Main RP body-cue preflight", () => {
     assert.match(source, /personaDisplayName/);
     assert.match(source, /userNickname/);
     assert.equal(source.includes("LIVE_IDENTITY_UNVERIFIED"), false);
+    assert.equal(source.includes("source: CANONICAL_RP_QUALIFICATION_SOURCE"), false);
   });
 });

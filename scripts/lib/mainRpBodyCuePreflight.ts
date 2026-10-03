@@ -282,51 +282,87 @@ export type BodyCueReviewScene = {
   flatCharDelta: number;
 };
 
-export type BodyCueReviewPacket = {
+type BodyCueReviewPacketCost = {
+  budgetEstimate: {
+    kind: "budget_estimate";
+    enforceable: false;
+    calls: number;
+    largerPromptChars: number;
+    promptTokenCeiling: number;
+    outputTokenCeiling: number;
+    cacheReadTokens: 0;
+    inputUsdPerMillion: number;
+    outputUsdPerMillion: number;
+    cacheReadUsdPerMillion: number;
+    targetMargin: number;
+    publishedAt: string;
+    providerUsd: number;
+    userChargeKrw: number;
+    fx: typeof BODY_CUE_PLANNING_FX;
+    maxTokensSent: false;
+  };
+  supplierRoute: {
+    provider: "cheaperinference";
+    modelId: typeof BODY_CUE_REVIEW_MODEL;
+    expectedProviderModelId: string;
+    baselineMode: string;
+    liveCatalogFetched: false;
+  };
+  approvalBound: typeof BODY_CUE_PROPOSED_APPROVAL;
+  stop: {
+    kind: "operator_pre_call_check";
+    productionMaxTokensOmitted: true;
+    singleCallCanExceedBound: true;
+  };
+};
+
+type BodyCueReviewPacketShared = {
   providerCalls: 0;
-  mainCommit: "11e9e96aa729922d05249695f36a1e3c699aaba0";
-  candidateHead: "73908e134ef28e47be8a50e6c8ebad3bcb4c6c60";
-  source: typeof CANONICAL_RP_QUALIFICATION_SOURCE;
+  /** #1288 comparison / prose-owner SHA. Not the live deploy SHA. */
+  mainCommit: typeof BODY_CUE_COMPARISON_REFS.historicalProseOwnerCommit;
+  candidateHead: typeof BODY_CUE_COMPARISON_REFS.candidateHead;
   modelId: typeof BODY_CUE_REVIEW_MODEL;
   authoringLevel: "NORMAL";
   nsfw: false;
   scenes: BodyCueReviewScene[];
-  evidence: BodyCueEvidence;
   proseOwnerUnchanged: true;
-  cost: {
-    budgetEstimate: {
-      kind: "budget_estimate";
-      enforceable: false;
-      calls: number;
-      largerPromptChars: number;
-      promptTokenCeiling: number;
-      outputTokenCeiling: number;
-      cacheReadTokens: 0;
-      inputUsdPerMillion: number;
-      outputUsdPerMillion: number;
-      cacheReadUsdPerMillion: number;
-      targetMargin: number;
-      publishedAt: string;
-      providerUsd: number;
-      userChargeKrw: number;
-      fx: typeof BODY_CUE_PLANNING_FX;
-      maxTokensSent: false;
-    };
-    supplierRoute: {
-      provider: "cheaperinference";
-      modelId: typeof BODY_CUE_REVIEW_MODEL;
-      expectedProviderModelId: string;
-      baselineMode: string;
-      liveCatalogFetched: false;
-    };
-    approvalBound: typeof BODY_CUE_PROPOSED_APPROVAL;
-    stop: {
-      kind: "operator_pre_call_check";
-      productionMaxTokensOmitted: true;
-      singleCallCanExceedBound: true;
-    };
-  };
+  cost: BodyCueReviewPacketCost;
 };
+
+export type HistoricalBodyCueReviewPacket = BodyCueReviewPacketShared & {
+  evidence: HistoricalPinnedEvidence;
+};
+
+export type SyntheticBodyCueReviewPacket = BodyCueReviewPacketShared & {
+  evidence: SyntheticEvidence;
+  usedEnglish: boolean;
+};
+
+export type LiveVerifiedBodyCueReviewPacket = BodyCueReviewPacketShared & {
+  evidence: LiveVerifiedEvidence;
+  usedEnglish: boolean;
+};
+
+export type BodyCueReviewPacket =
+  | HistoricalBodyCueReviewPacket
+  | SyntheticBodyCueReviewPacket
+  | LiveVerifiedBodyCueReviewPacket;
+
+/** Input character id from evidence only. No packet.source fallback. */
+export function bodyCueInputCharacterId(packet: BodyCueReviewPacket): number {
+  switch (packet.evidence.source) {
+    case BODY_CUE_EVIDENCE_SOURCE.HISTORICAL_PINNED:
+      return packet.evidence.historicalSourceCharacterId;
+    case BODY_CUE_EVIDENCE_SOURCE.SYNTHETIC:
+      return packet.evidence.inputCharacterId;
+    case BODY_CUE_EVIDENCE_SOURCE.LIVE_VERIFIED:
+      return packet.evidence.characterId;
+    default: {
+      const unreachable: never = packet.evidence;
+      return unreachable;
+    }
+  }
+}
 
 function sha256(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
@@ -597,7 +633,7 @@ function reviewSceneFromRuns(
   };
 }
 
-function costFromScenes(scenes: BodyCueReviewScene[]): BodyCueReviewPacket["cost"] {
+function costFromScenes(scenes: BodyCueReviewScene[]): BodyCueReviewPacketCost {
   const pricing = getPublishedPricing(BODY_CUE_REVIEW_MODEL);
   const largerPromptChars = Math.max(...scenes.map((scene) => scene.promptChars));
   const rates = resolvePublishedReferenceRatesForPrompt(pricing, largerPromptChars);
@@ -731,7 +767,7 @@ function evidenceForLiveDeployedRows(
   rows: LiveDeployedBodyCueRows,
   usedEnglish: boolean,
   claim: BodyCueRowEvidenceClaim = { source: "SYNTHETIC" }
-): BodyCueEvidence {
+): SyntheticEvidence | LiveVerifiedEvidence {
   if (claim.source === "LIVE_VERIFIED" && payloadMatchesLiveDeployedRowProof(rows)) {
     return liveVerifiedEvidence();
   }
@@ -807,7 +843,7 @@ export function buildLiveDeployedBodyCueContextInput(opts: {
 export function buildLiveDeployedBodyCueReviewPacket(
   rows: LiveDeployedBodyCueRows,
   claim: BodyCueRowEvidenceClaim = { source: "SYNTHETIC" }
-): BodyCueReviewPacket & { usedEnglish: boolean } {
+): SyntheticBodyCueReviewPacket | LiveVerifiedBodyCueReviewPacket {
   const greeting = rows.character.greeting?.trim() ?? "";
   const names = resolveLiveRowNames(rows);
   let usedEnglish = false;
@@ -820,23 +856,23 @@ export function buildLiveDeployedBodyCueReviewPacket(
       assembleScene(caseData, true, input, names)
     );
   });
+  const evidence = evidenceForLiveDeployedRows(rows, usedEnglish, claim);
   return {
     providerCalls: 0,
     mainCommit: BODY_CUE_COMPARISON_REFS.historicalProseOwnerCommit,
     candidateHead: BODY_CUE_COMPARISON_REFS.candidateHead,
-    source: CANONICAL_RP_QUALIFICATION_SOURCE,
     modelId: BODY_CUE_REVIEW_MODEL,
     authoringLevel: "NORMAL",
     nsfw: false,
     scenes,
     usedEnglish,
-    evidence: evidenceForLiveDeployedRows(rows, usedEnglish, claim),
+    evidence,
     proseOwnerUnchanged: true,
     cost: costFromScenes(scenes),
   };
 }
 
-export function buildBodyCueReviewPacket(): BodyCueReviewPacket {
+export function buildBodyCueReviewPacket(): HistoricalBodyCueReviewPacket {
   const names = historicalNames();
   const scenes = buildCommonProseBodyCueReviewCases().map((caseData) => {
     const input = buildCanonicalRpQualificationContextInput({
@@ -855,7 +891,6 @@ export function buildBodyCueReviewPacket(): BodyCueReviewPacket {
     providerCalls: 0,
     mainCommit: BODY_CUE_COMPARISON_REFS.historicalProseOwnerCommit,
     candidateHead: BODY_CUE_COMPARISON_REFS.candidateHead,
-    source: CANONICAL_RP_QUALIFICATION_SOURCE,
     modelId: BODY_CUE_REVIEW_MODEL,
     authoringLevel: "NORMAL",
     nsfw: false,
