@@ -5,25 +5,76 @@ import { describe, it } from "node:test";
 
 import { COMMON_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
 import { buildChatOocRpContinuingUserPrompt } from "@/lib/chatOocPriority";
+import { loadCharacterChunksForPromptReadOnly } from "@/lib/characterChunks";
+import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { resolveOpenRouterMaxTokens } from "@/lib/openRouterClient";
 import { resolveEffectiveUserAuthoring } from "@/lib/userCoauthorState";
 import {
   COMMON_PROSE_EMOTION_CUE_CANDIDATE,
   liveCommonProseEmotionCueBaseline,
 } from "@/lib/mainRpFinalWireAudit";
+import { buildContext } from "@/services/contextBuilder";
 import {
+  BODY_CUE_COMPARISON_REFS,
   BODY_CUE_PROPOSED_APPROVAL,
   HISTORICAL_RP_IDENTITY_HASHES,
+  LIVE_ASSEMBLED_REQUEST_STATUS,
+  LIVE_ASSEMBLED_REQUEST_UNVERIFIED_GAPS,
   LIVE_DEPLOYED_ROW_PROOF,
+  LIVE_ROW_IDENTITY_STATUS,
   bodyCueNextCallAllowed,
   buildBodyCueReviewPacket,
+  buildLiveDeployedBodyCueContextInput,
   buildLiveDeployedBodyCueReviewPacket,
+  payloadMatchesLiveDeployedRowProof,
+  type LiveDeployedBodyCueRows,
 } from "./mainRpBodyCuePreflight";
 import {
+  CANONICAL_RP_QUALIFICATION_FILES,
   CANONICAL_RP_QUALIFICATION_SOURCE,
   buildCanonicalRpQualificationCases,
+  buildGreetingBodyCueReviewCases,
   loadCanonicalRpQualificationFixture,
 } from "./rpModelQualificationFixture";
+
+function publicSyntheticRows(overrides: {
+  id?: number;
+  name?: string;
+  systemPrompt?: string;
+  settingChunks?: string;
+  settingChunksEn?: string;
+  promptTranslationHash?: string;
+  personaName?: string;
+  userNickname?: string;
+} = {}): LiveDeployedBodyCueRows {
+  return {
+    character: {
+      id: overrides.id ?? 9001,
+      name: overrides.name ?? "감사픽스처",
+      gender: "male",
+      system_prompt: overrides.systemPrompt ?? "공개 테스트 캐릭터. 본부 숙소에서 대기한다.",
+      world: "테스트 세계. 본부 숙소가 있다.",
+      example_dialog: "감사픽스처: 앉아.",
+      description: "짧게 말한다.",
+      greeting: "감사픽스처는 숙소 안을 한 번 둘러보고 고개를 끄덕였다.",
+      setting_chunks: overrides.settingChunks ?? "[]",
+      setting_chunks_en: overrides.settingChunksEn ?? "[]",
+      prompt_translation_hash: overrides.promptTranslationHash,
+      speech_profile: "",
+      creator_compiled_description_json: "",
+      appearance_raw: "",
+      appearance_compiled: "",
+      narration_style_instructions: "",
+      content_kind: "character",
+    },
+    persona: {
+      name: overrides.personaName ?? "렌",
+      gender: "male",
+      description: "공개 테스트 페르소나. 신입 가이드.",
+    },
+    userNickname: overrides.userNickname,
+  };
+}
 
 describe("Main RP body-cue preflight", () => {
   const packet = buildBodyCueReviewPacket();
@@ -63,19 +114,28 @@ describe("Main RP body-cue preflight", () => {
     assert.equal(packet.source.characterName, "라이크");
     assert.equal(packet.source.sourceCharacterId, 10);
     assert.equal(packet.source.personaName, "렌");
-    assert.equal(packet.liveIdentity.status, "LIVE_IDENTITY_UNVERIFIED");
-    assert.equal(packet.liveIdentity.rowRead, true);
-    assert.equal(packet.liveIdentity.proseOwnerUnchanged, true);
-    assert.equal(packet.liveIdentity.historicalSourceCharacterId, 10);
-    assert.equal(packet.liveIdentity.deployedCharacterId, 18);
-    assert.equal(packet.liveIdentity.deployedCommit, LIVE_DEPLOYED_ROW_PROOF.deployedCommit);
-    assert.equal(packet.liveIdentity.greetingMatchesHistoricalOpening, true);
-    assert.equal(packet.liveIdentity.personaMatchesHistoricalDump, false);
-    assert.equal(packet.liveIdentity.characterCoreDumpMatchesLiveRow, false);
-    assert.equal(packet.liveIdentity.uniqueAdminRen, true);
-    assert.equal(packet.liveIdentity.listingNsfwDoesNotForceAdultRp, true);
+    assert.equal(packet.evidence.source, "HISTORICAL_PINNED");
+    assert.equal(packet.evidence.liveRowIdentity, LIVE_ROW_IDENTITY_STATUS);
+    assert.equal(packet.evidence.liveAssembledRequest, LIVE_ASSEMBLED_REQUEST_STATUS);
+    assert.equal(packet.proseOwnerUnchanged, true);
+    if (packet.evidence.source !== "HISTORICAL_PINNED") {
+      throw new Error("expected historical evidence");
+    }
+    assert.equal(packet.evidence.historicalSourceCharacterId, 10);
+    assert.equal(packet.evidence.recordedLiveRow.characterId, 18);
+    assert.equal(packet.evidence.recordedLiveRow.deployedCommit, LIVE_DEPLOYED_ROW_PROOF.deployedCommit);
+    assert.notEqual(
+      packet.mainCommit,
+      packet.evidence.recordedLiveRow.deployedCommit
+    );
+    assert.equal(packet.mainCommit, BODY_CUE_COMPARISON_REFS.historicalProseOwnerCommit);
+    assert.equal(BODY_CUE_COMPARISON_REFS.liveDeployedCommit, LIVE_DEPLOYED_ROW_PROOF.deployedCommit);
+    assert.equal(packet.evidence.recordedLiveRow.englishLayerPresent, true);
+    assert.equal(packet.evidence.recordedLiveRow.englishLayerApplied, "UNVERIFIED");
+    assert.equal(packet.evidence.assemblyGaps.liveSourceTextAssembled, false);
     assert.equal(CANONICAL_RP_QUALIFICATION_SOURCE.sourceCharacterId, 10);
     assert.notEqual(LIVE_DEPLOYED_ROW_PROOF.characterId, 10);
+    assert.equal(LIVE_ASSEMBLED_REQUEST_UNVERIFIED_GAPS.englishLayerApplied, "UNVERIFIED");
   });
 
   it("keeps the 2026-08-25 dump hashes and only records live row hashes beside them", () => {
@@ -87,8 +147,15 @@ describe("Main RP body-cue preflight", () => {
     assert.equal(sha(fixture.openingAssistant), LIVE_DEPLOYED_ROW_PROOF.greetingSha256);
     assert.notEqual(sha(fixture.persona), LIVE_DEPLOYED_ROW_PROOF.personaPublicSha256);
     assert.notEqual(sha(fixture.characterSetting), LIVE_DEPLOYED_ROW_PROOF.systemPromptSha256);
-    assert.equal(packet.liveIdentity.hashes.historical.openingSha256, sha(fixture.openingAssistant));
+    if (packet.evidence.source !== "HISTORICAL_PINNED") {
+      throw new Error("expected historical evidence");
+    }
+    assert.equal(packet.evidence.historicalHashes.openingSha256, sha(fixture.openingAssistant));
+    assert.equal(packet.evidence.historicalHashes.characterCoreSha256, sha(fixture.characterSetting));
+    assert.equal(packet.evidence.historicalHashes.personaSha256, sha(fixture.persona));
     assert.equal(packet.source.sourceCharacterId, 10);
+    assert.equal(CANONICAL_RP_QUALIFICATION_FILES.openingAssistant.gitBlobSha, "ed5d0c15f04d955c2489ba3b4603c947cad6bff1");
+    assert.equal(CANONICAL_RP_QUALIFICATION_FILES.promptDump.gitBlobSha, "1a4a42d1485ff7a59318404f68373887b2406924");
   });
 
   it("sends the two OOC scenes through the live continuing-prompt owner", () => {
@@ -182,34 +249,131 @@ describe("Main RP body-cue preflight", () => {
     );
   });
 
+  it("does not stamp deploy-18 verification onto a synthetic id 9001 packet", () => {
+    const synthetic = buildLiveDeployedBodyCueReviewPacket(publicSyntheticRows());
+    assert.equal(synthetic.evidence.source, "SYNTHETIC");
+    assert.equal(synthetic.evidence.liveRowIdentity, "NOT_CLAIMED");
+    assert.equal(synthetic.evidence.liveAssembledRequest, "NOT_CLAIMED");
+    assert.equal("deployedCharacterId" in synthetic.evidence, false);
+    assert.equal("deployedCommit" in synthetic.evidence, false);
+    assert.equal("uniqueAdminRen" in synthetic.evidence, false);
+    assert.equal("hashes" in synthetic.evidence, false);
+    assert.notEqual(synthetic.evidence.source, "LIVE_VERIFIED");
+    if (synthetic.evidence.source !== "SYNTHETIC") {
+      throw new Error("expected synthetic evidence");
+    }
+    assert.equal(synthetic.evidence.inputCharacterId, 9001);
+    assert.equal(synthetic.evidence.syntheticUsedEnglish, false);
+    assert.equal(payloadMatchesLiveDeployedRowProof(publicSyntheticRows()), false);
+  });
+
+  it("does not mark id-18 name-matched rows LIVE_VERIFIED without payload hashes", () => {
+    const idOnly = publicSyntheticRows({
+      id: 18,
+      name: "라이크",
+      personaName: "렌",
+    });
+    assert.equal(payloadMatchesLiveDeployedRowProof(idOnly), false);
+    const claimed = buildLiveDeployedBodyCueReviewPacket(idOnly, { source: "LIVE_VERIFIED" });
+    assert.equal(claimed.evidence.source, "SYNTHETIC");
+    assert.equal(claimed.evidence.liveRowIdentity, "NOT_CLAIMED");
+    assert.equal(claimed.evidence.liveAssembledRequest, "NOT_CLAIMED");
+    assert.equal("deployedCommit" in claimed.evidence, false);
+    assert.notEqual(claimed.evidence.source, "LIVE_VERIFIED");
+  });
+
+  it("substitutes {{user}} with the production persona-then-nickname split", () => {
+    const rows = publicSyntheticRows({
+      systemPrompt: "공개 테스트 캐릭터. {{user}}은 본부 숙소에서 대기한다.",
+      personaName: "렌",
+      userNickname: "공개닉네임",
+    });
+    const splitNames = replaceUserPlaceholder(
+      "{{user}}은 본부 숙소에서 대기한다.",
+      rows.persona.name,
+      rows.userNickname ?? ""
+    );
+    const bothPersonaNames = replaceUserPlaceholder(
+      "{{user}}은 본부 숙소에서 대기한다.",
+      rows.persona.name,
+      rows.persona.name
+    );
+    assert.equal(splitNames, "렌은 본부 숙소에서 대기한다.");
+    assert.equal(splitNames, bothPersonaNames);
+    const auditReadOnly = loadCharacterChunksForPromptReadOnly(
+      rows.character,
+      rows.persona.name,
+      rows.userNickname ?? ""
+    );
+    assert.equal(
+      auditReadOnly.chunks.some((chunk) => chunk.content.includes("렌은 본부 숙소에서 대기한다.")),
+      true
+    );
+    assert.equal(
+      auditReadOnly.chunks.some((chunk) => chunk.content.includes("공개닉네임")),
+      false
+    );
+    const caseData = buildGreetingBodyCueReviewCases(rows.character.greeting ?? "")[0];
+    if (!caseData) throw new Error("expected greeting case");
+    const input = buildLiveDeployedBodyCueContextInput({ rows, caseData });
+    assert.equal(input.personaDisplayName, "렌");
+    assert.equal(input.userNickname, "공개닉네임");
+    assert.equal(
+      input.chunks.some((chunk) => chunk.content.includes("렌은 본부 숙소에서 대기한다.")),
+      true
+    );
+    assert.equal(
+      input.chunks.some((chunk) => chunk.content.includes("{{user}}")),
+      false
+    );
+  });
+
+  it("remaps cheaperinference context to the same openrouter split for this model", () => {
+    const rows = publicSyntheticRows();
+    const caseData = buildGreetingBodyCueReviewCases(rows.character.greeting ?? "")[0];
+    if (!caseData) throw new Error("expected greeting case");
+    const cheaperInput = buildLiveDeployedBodyCueContextInput({ rows, caseData });
+    assert.equal(cheaperInput.provider, "cheaperinference");
+    const cheaper = buildContext(cheaperInput);
+    const openrouter = buildContext({ ...cheaperInput, provider: "openrouter" });
+    assert.equal(cheaper.systemPrompt, openrouter.systemPrompt);
+    assert.deepEqual(cheaper.openRouterSystemSplit, openrouter.openRouterSystemSplit);
+    assert.equal(cheaper.meta.runtimeMode, openrouter.meta.runtimeMode);
+  });
+
+  it("does not treat synthetic usedEnglish=false as production English evidence", () => {
+    const withEnglishBytes = publicSyntheticRows({
+      settingChunksEn: JSON.stringify([
+        {
+          id: "synthetic-en",
+          characterId: "9001",
+          content: "Public English fixture. Not a live row.",
+          category: "identity",
+          importance: "CRITICAL",
+          tokenCount: 8,
+          keywords: [],
+        },
+      ]),
+    });
+    const live = buildLiveDeployedBodyCueReviewPacket(withEnglishBytes);
+    assert.equal(live.usedEnglish, false);
+    if (live.evidence.source !== "SYNTHETIC") {
+      throw new Error("expected synthetic evidence");
+    }
+    assert.equal(live.evidence.syntheticUsedEnglish, false);
+    assert.equal(LIVE_DEPLOYED_ROW_PROOF.englishLayerPresent, true);
+    assert.equal(LIVE_DEPLOYED_ROW_PROOF.englishLayerApplied, "UNVERIFIED");
+    assert.equal(LIVE_ASSEMBLED_REQUEST_UNVERIFIED_GAPS.fieldsNotFilled.includes("prompt_translation_hash"), true);
+    assert.equal(
+      LIVE_ASSEMBLED_REQUEST_UNVERIFIED_GAPS.fieldsNotFilled.includes("setting_chunks_en application"),
+      true
+    );
+  });
+
   it("assembles the live-row path through the same owners and changes only the cue", () => {
     const expectedDelta =
       COMMON_PROSE_EMOTION_CUE_CANDIDATE.length - liveCommonProseEmotionCueBaseline().length;
-    const live = buildLiveDeployedBodyCueReviewPacket({
-      character: {
-        id: 9001,
-        name: "감사픽스처",
-        gender: "male",
-        system_prompt: "공개 테스트 캐릭터. 본부 숙소에서 대기한다.",
-        world: "테스트 세계. 본부 숙소가 있다.",
-        example_dialog: "감사픽스처: 앉아.",
-        description: "짧게 말한다.",
-        greeting: "감사픽스처는 숙소 안을 한 번 둘러보고 고개를 끄덕였다.",
-        setting_chunks: "[]",
-        setting_chunks_en: "[]",
-        speech_profile: "",
-        creator_compiled_description_json: "",
-        appearance_raw: "",
-        appearance_compiled: "",
-        narration_style_instructions: "",
-        content_kind: "character",
-      },
-      persona: {
-        name: "렌",
-        gender: "male",
-        description: "공개 테스트 페르소나. 신입 가이드.",
-      },
-    });
+    const live = buildLiveDeployedBodyCueReviewPacket(publicSyntheticRows());
     assert.deepEqual(
       live.scenes.map((scene) => scene.id),
       ["quiet_window_safe", "relationship_turn_safe"]
@@ -218,6 +382,7 @@ describe("Main RP body-cue preflight", () => {
     assert.equal(live.nsfw, false);
     assert.equal(live.authoringLevel, "NORMAL");
     assert.equal(live.usedEnglish, false);
+    assert.equal(live.evidence.source, "SYNTHETIC");
     assert.notEqual(live.cost.budgetEstimate.largerPromptChars, packet.cost.budgetEstimate.largerPromptChars);
     for (const scene of live.scenes) {
       assert.equal(scene.soleAllowedDiff, true, scene.id);
@@ -242,5 +407,8 @@ describe("Main RP body-cue preflight", () => {
     assert.equal(source.includes("loadCharacterChunksForPrompt("), false);
     assert.match(source, /loadCharacterChunksForPromptReadOnly/);
     assert.match(source, /formatPublicPersonaForPrompt/);
+    assert.match(source, /personaDisplayName/);
+    assert.match(source, /userNickname/);
+    assert.equal(source.includes("LIVE_IDENTITY_UNVERIFIED"), false);
   });
 });

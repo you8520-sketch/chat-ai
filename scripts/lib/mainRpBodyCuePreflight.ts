@@ -12,6 +12,7 @@ import {
 import { resolveCharacterGender } from "@/lib/characterGender";
 import { CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL } from "@/lib/chatModels";
 import { resolveExampleDialogForPrompt } from "@/lib/narrationFewShotTemplates";
+import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
 import { formatPublicPersonaForPrompt } from "@/lib/personaSecretPrompt";
 import {
   COMMON_PROSE_EMOTION_CUE_CANDIDATE,
@@ -74,7 +75,20 @@ export const BODY_CUE_PROPOSED_APPROVAL = Object.freeze({
   providerUsd: 1,
   userChargeKrw: 1000,
 });
-export const BODY_CUE_LIVE_IDENTITY_STATUS = "LIVE_IDENTITY_UNVERIFIED" as const;
+export const BODY_CUE_EVIDENCE_SOURCE = {
+  HISTORICAL_PINNED: "HISTORICAL_PINNED",
+  SYNTHETIC: "SYNTHETIC",
+  LIVE_VERIFIED: "LIVE_VERIFIED",
+} as const;
+
+export type BodyCueEvidenceSource =
+  (typeof BODY_CUE_EVIDENCE_SOURCE)[keyof typeof BODY_CUE_EVIDENCE_SOURCE];
+
+export type BodyCueVerificationStatus = "VERIFIED" | "UNVERIFIED" | "NOT_CLAIMED";
+
+/** Catalog only. Identity of the live row is separate from assembled-request proof. */
+export const LIVE_ROW_IDENTITY_STATUS = "VERIFIED" as const;
+export const LIVE_ASSEMBLED_REQUEST_STATUS = "UNVERIFIED" as const;
 
 /** 2026-08-25 dump sections. Not rewritten when the live row is read. */
 export const HISTORICAL_RP_IDENTITY_HASHES = Object.freeze({
@@ -122,7 +136,17 @@ export const LIVE_DEPLOYED_ROW_PROOF = Object.freeze({
   histGuidePhrase: true,
   histMachinePhrase: true,
   listingNsfwDoesNotForceAdultRp: true,
+  englishLayerPresent: true,
+  englishLayerApplied: "UNVERIFIED" as const,
 });
+
+export type LiveDeployedFieldHashes = {
+  greetingSha256: string;
+  systemPromptSha256: string;
+  worldSha256: string;
+  settingChunksSha256: string;
+  personaPublicSha256: string;
+};
 
 export type LiveDeployedCharacterRow = CharacterSettingRow & {
   description?: string | null;
@@ -140,7 +164,77 @@ export type LiveDeployedPersonaRow = {
 export type LiveDeployedBodyCueRows = {
   character: LiveDeployedCharacterRow;
   persona: LiveDeployedPersonaRow;
+  /** Login nickname. Production passes this separately from persona display name. */
+  userNickname?: string;
 };
+
+/** Live deploy SHA is not the #1288 comparison / prose-owner SHA. */
+export const BODY_CUE_COMPARISON_REFS = Object.freeze({
+  historicalProseOwnerCommit: "11e9e96aa729922d05249695f36a1e3c699aaba0",
+  candidateHead: "73908e134ef28e47be8a50e6c8ebad3bcb4c6c60",
+  liveDeployedCommit: LIVE_DEPLOYED_ROW_PROOF.deployedCommit,
+});
+
+/**
+ * Production fields the live-row path can carry, but this change does not
+ * fill or treat as applied. Do not invent values.
+ */
+export const LIVE_ASSEMBLED_REQUEST_UNVERIFIED_GAPS = Object.freeze({
+  liveSourceTextAssembled: false,
+  englishLayerApplied: "UNVERIFIED" as const,
+  fieldsNotFilled: [
+    "prompt_translation_hash",
+    "setting_chunks_en application",
+    "appearance_compiled_source_hash",
+    "appearance_compiled_version",
+  ],
+});
+
+export type HistoricalPinnedEvidence = {
+  source: "HISTORICAL_PINNED";
+  historicalSourceCharacterId: typeof CANONICAL_RP_QUALIFICATION_SOURCE.sourceCharacterId;
+  historicalHashes: typeof HISTORICAL_RP_IDENTITY_HASHES;
+  liveRowIdentity: typeof LIVE_ROW_IDENTITY_STATUS;
+  liveAssembledRequest: typeof LIVE_ASSEMBLED_REQUEST_STATUS;
+  recordedLiveRow: {
+    deployedCommit: typeof LIVE_DEPLOYED_ROW_PROOF.deployedCommit;
+    characterId: typeof LIVE_DEPLOYED_ROW_PROOF.characterId;
+    hashes: LiveDeployedFieldHashes;
+    englishLayerPresent: true;
+    englishLayerApplied: "UNVERIFIED";
+  };
+  assemblyGaps: typeof LIVE_ASSEMBLED_REQUEST_UNVERIFIED_GAPS;
+};
+
+export type SyntheticEvidence = {
+  source: "SYNTHETIC";
+  inputCharacterId: number;
+  liveRowIdentity: "NOT_CLAIMED";
+  liveAssembledRequest: "NOT_CLAIMED";
+  /** Local synthetic run only. Not production English-layer evidence. */
+  syntheticUsedEnglish: boolean;
+};
+
+export type LiveVerifiedEvidence = {
+  source: "LIVE_VERIFIED";
+  liveRowIdentity: typeof LIVE_ROW_IDENTITY_STATUS;
+  liveAssembledRequest: typeof LIVE_ASSEMBLED_REQUEST_STATUS;
+  deployedCommit: typeof LIVE_DEPLOYED_ROW_PROOF.deployedCommit;
+  characterId: typeof LIVE_DEPLOYED_ROW_PROOF.characterId;
+  hashes: LiveDeployedFieldHashes;
+  englishLayerPresent: true;
+  englishLayerApplied: "UNVERIFIED";
+  assemblyGaps: typeof LIVE_ASSEMBLED_REQUEST_UNVERIFIED_GAPS;
+};
+
+export type BodyCueEvidence =
+  | HistoricalPinnedEvidence
+  | SyntheticEvidence
+  | LiveVerifiedEvidence;
+
+export type BodyCueRowEvidenceClaim =
+  | { source: "SYNTHETIC" }
+  | { source: "LIVE_VERIFIED" };
 
 export type BodyCueProductionTurn = {
   intent: ChatOocIntent;
@@ -197,29 +291,8 @@ export type BodyCueReviewPacket = {
   authoringLevel: "NORMAL";
   nsfw: false;
   scenes: BodyCueReviewScene[];
-  liveIdentity: {
-    status: typeof BODY_CUE_LIVE_IDENTITY_STATUS;
-    deployedCommit: typeof LIVE_DEPLOYED_ROW_PROOF.deployedCommit;
-    proseOwnerUnchanged: true;
-    rowRead: true;
-    historicalSourceCharacterId: typeof CANONICAL_RP_QUALIFICATION_SOURCE.sourceCharacterId;
-    deployedCharacterId: typeof LIVE_DEPLOYED_ROW_PROOF.characterId;
-    greetingMatchesHistoricalOpening: typeof LIVE_DEPLOYED_ROW_PROOF.greetingMatchesHistoricalOpening;
-    personaMatchesHistoricalDump: typeof LIVE_DEPLOYED_ROW_PROOF.personaMatchesHistoricalDump;
-    characterCoreDumpMatchesLiveRow: typeof LIVE_DEPLOYED_ROW_PROOF.characterCoreDumpMatchesLiveRow;
-    uniqueAdminRen: true;
-    listingNsfwDoesNotForceAdultRp: true;
-    hashes: {
-      historical: typeof HISTORICAL_RP_IDENTITY_HASHES;
-      deployed: {
-        greetingSha256: typeof LIVE_DEPLOYED_ROW_PROOF.greetingSha256;
-        systemPromptSha256: typeof LIVE_DEPLOYED_ROW_PROOF.systemPromptSha256;
-        worldSha256: typeof LIVE_DEPLOYED_ROW_PROOF.worldSha256;
-        settingChunksSha256: typeof LIVE_DEPLOYED_ROW_PROOF.settingChunksSha256;
-        personaPublicSha256: typeof LIVE_DEPLOYED_ROW_PROOF.personaPublicSha256;
-      };
-    };
-  };
+  evidence: BodyCueEvidence;
+  proseOwnerUnchanged: true;
   cost: {
     budgetEstimate: {
       kind: "budget_estimate";
@@ -267,9 +340,10 @@ function sha256(text: string): string {
  */
 export function resolveBodyCueProductionTurn(
   storedUserMessage: string,
-  personaName = CANONICAL_RP_QUALIFICATION_SOURCE.personaName
+  personaName = CANONICAL_RP_QUALIFICATION_SOURCE.personaName,
+  userNickname = personaName
 ): BodyCueProductionTurn {
-  const policyUserMessage = replaceUserPlaceholder(storedUserMessage, personaName, personaName);
+  const policyUserMessage = replaceUserPlaceholder(storedUserMessage, personaName, userNickname);
   const intent = classifyChatOocIntent(storedUserMessage);
   const promptUserMessage = productionPromptUserMessage(intent, policyUserMessage);
   const authoring = resolveEffectiveUserAuthoring({
@@ -362,9 +436,13 @@ function assembleScene(
   caseData: CanonicalQualificationCase,
   candidate: boolean,
   input: ContextBuildInput,
-  names: { charName: string; personaName: string }
+  names: { charName: string; personaName: string; userNickname?: string }
 ) {
-  const turn = resolveBodyCueProductionTurn(caseData.currentUserMessage, names.personaName);
+  const turn = resolveBodyCueProductionTurn(
+    caseData.currentUserMessage,
+    names.personaName,
+    names.userNickname ?? names.personaName
+  );
   const built = buildContext({
     ...input,
     currentUserMessage: turn.promptUserMessage,
@@ -566,47 +644,130 @@ function costFromScenes(scenes: BodyCueReviewScene[]): BodyCueReviewPacket["cost
   };
 }
 
-function liveIdentityRecord(): BodyCueReviewPacket["liveIdentity"] {
+function deployedFieldHashesFromProof(): LiveDeployedFieldHashes {
   return {
-    status: BODY_CUE_LIVE_IDENTITY_STATUS,
-    deployedCommit: LIVE_DEPLOYED_ROW_PROOF.deployedCommit,
-    proseOwnerUnchanged: true,
-    rowRead: true,
-    historicalSourceCharacterId: CANONICAL_RP_QUALIFICATION_SOURCE.sourceCharacterId,
-    deployedCharacterId: LIVE_DEPLOYED_ROW_PROOF.characterId,
-    greetingMatchesHistoricalOpening: LIVE_DEPLOYED_ROW_PROOF.greetingMatchesHistoricalOpening,
-    personaMatchesHistoricalDump: LIVE_DEPLOYED_ROW_PROOF.personaMatchesHistoricalDump,
-    characterCoreDumpMatchesLiveRow: LIVE_DEPLOYED_ROW_PROOF.characterCoreDumpMatchesLiveRow,
-    uniqueAdminRen: true,
-    listingNsfwDoesNotForceAdultRp: true,
-    hashes: {
-      historical: HISTORICAL_RP_IDENTITY_HASHES,
-      deployed: {
-        greetingSha256: LIVE_DEPLOYED_ROW_PROOF.greetingSha256,
-        systemPromptSha256: LIVE_DEPLOYED_ROW_PROOF.systemPromptSha256,
-        worldSha256: LIVE_DEPLOYED_ROW_PROOF.worldSha256,
-        settingChunksSha256: LIVE_DEPLOYED_ROW_PROOF.settingChunksSha256,
-        personaPublicSha256: LIVE_DEPLOYED_ROW_PROOF.personaPublicSha256,
-      },
-    },
+    greetingSha256: LIVE_DEPLOYED_ROW_PROOF.greetingSha256,
+    systemPromptSha256: LIVE_DEPLOYED_ROW_PROOF.systemPromptSha256,
+    worldSha256: LIVE_DEPLOYED_ROW_PROOF.worldSha256,
+    settingChunksSha256: LIVE_DEPLOYED_ROW_PROOF.settingChunksSha256,
+    personaPublicSha256: LIVE_DEPLOYED_ROW_PROOF.personaPublicSha256,
   };
+}
+
+export function fieldHashesFromLiveDeployedRows(rows: LiveDeployedBodyCueRows): LiveDeployedFieldHashes {
+  return {
+    greetingSha256: sha256(rows.character.greeting ?? ""),
+    systemPromptSha256: sha256(rows.character.system_prompt ?? ""),
+    worldSha256: sha256(rows.character.world ?? ""),
+    settingChunksSha256: sha256(rows.character.setting_chunks ?? ""),
+    personaPublicSha256: sha256(String(toPublicPersonaDescription(rows.persona.description ?? ""))),
+  };
+}
+
+function hashesEqualProof(hashes: LiveDeployedFieldHashes): boolean {
+  const proof = deployedFieldHashesFromProof();
+  return (
+    hashes.greetingSha256 === proof.greetingSha256 &&
+    hashes.systemPromptSha256 === proof.systemPromptSha256 &&
+    hashes.worldSha256 === proof.worldSha256 &&
+    hashes.settingChunksSha256 === proof.settingChunksSha256 &&
+    hashes.personaPublicSha256 === proof.personaPublicSha256
+  );
+}
+
+/** Name and id are not enough. Payload field hashes must match the recorded proof. */
+export function payloadMatchesLiveDeployedRowProof(rows: LiveDeployedBodyCueRows): boolean {
+  return (
+    rows.character.id === LIVE_DEPLOYED_ROW_PROOF.characterId &&
+    rows.character.name.trim() === LIVE_DEPLOYED_ROW_PROOF.characterName &&
+    rows.persona.name.trim() === CANONICAL_RP_QUALIFICATION_SOURCE.personaName &&
+    hashesEqualProof(fieldHashesFromLiveDeployedRows(rows))
+  );
+}
+
+function historicalPinnedEvidence(): HistoricalPinnedEvidence {
+  return {
+    source: BODY_CUE_EVIDENCE_SOURCE.HISTORICAL_PINNED,
+    historicalSourceCharacterId: CANONICAL_RP_QUALIFICATION_SOURCE.sourceCharacterId,
+    historicalHashes: HISTORICAL_RP_IDENTITY_HASHES,
+    liveRowIdentity: LIVE_ROW_IDENTITY_STATUS,
+    liveAssembledRequest: LIVE_ASSEMBLED_REQUEST_STATUS,
+    recordedLiveRow: {
+      deployedCommit: LIVE_DEPLOYED_ROW_PROOF.deployedCommit,
+      characterId: LIVE_DEPLOYED_ROW_PROOF.characterId,
+      hashes: deployedFieldHashesFromProof(),
+      englishLayerPresent: true,
+      englishLayerApplied: "UNVERIFIED",
+    },
+    assemblyGaps: LIVE_ASSEMBLED_REQUEST_UNVERIFIED_GAPS,
+  };
+}
+
+function syntheticEvidence(characterId: number, syntheticUsedEnglish: boolean): SyntheticEvidence {
+  return {
+    source: BODY_CUE_EVIDENCE_SOURCE.SYNTHETIC,
+    inputCharacterId: characterId,
+    liveRowIdentity: "NOT_CLAIMED",
+    liveAssembledRequest: "NOT_CLAIMED",
+    syntheticUsedEnglish,
+  };
+}
+
+function liveVerifiedEvidence(): LiveVerifiedEvidence {
+  return {
+    source: BODY_CUE_EVIDENCE_SOURCE.LIVE_VERIFIED,
+    liveRowIdentity: LIVE_ROW_IDENTITY_STATUS,
+    liveAssembledRequest: LIVE_ASSEMBLED_REQUEST_STATUS,
+    deployedCommit: LIVE_DEPLOYED_ROW_PROOF.deployedCommit,
+    characterId: LIVE_DEPLOYED_ROW_PROOF.characterId,
+    hashes: deployedFieldHashesFromProof(),
+    englishLayerPresent: true,
+    englishLayerApplied: "UNVERIFIED",
+    assemblyGaps: LIVE_ASSEMBLED_REQUEST_UNVERIFIED_GAPS,
+  };
+}
+
+function evidenceForLiveDeployedRows(
+  rows: LiveDeployedBodyCueRows,
+  usedEnglish: boolean,
+  claim: BodyCueRowEvidenceClaim = { source: "SYNTHETIC" }
+): BodyCueEvidence {
+  if (claim.source === "LIVE_VERIFIED" && payloadMatchesLiveDeployedRowProof(rows)) {
+    return liveVerifiedEvidence();
+  }
+  return syntheticEvidence(rows.character.id, usedEnglish);
+}
+
+function resolveLiveRowNames(rows: LiveDeployedBodyCueRows): {
+  charName: string;
+  personaName: string;
+  userNickname: string;
+} {
+  const personaName = rows.persona.name.trim();
+  const charName = rows.character.name.trim();
+  if (!personaName) throw new Error("live persona name missing");
+  if (!charName) throw new Error("live character name missing");
+  const userNickname = rows.userNickname?.trim() || personaName;
+  return { charName, personaName, userNickname };
 }
 
 export function buildLiveDeployedBodyCueContextInput(opts: {
   rows: LiveDeployedBodyCueRows;
   caseData: CanonicalQualificationCase;
 }): ContextBuildInput {
-  const personaName = opts.rows.persona.name.trim();
-  const charName = opts.rows.character.name.trim();
-  if (!personaName) throw new Error("live persona name missing");
-  if (!charName) throw new Error("live character name missing");
-  const turn = resolveBodyCueProductionTurn(opts.caseData.currentUserMessage, personaName);
+  const { charName, personaName, userNickname } = resolveLiveRowNames(opts.rows);
+  const turn = resolveBodyCueProductionTurn(
+    opts.caseData.currentUserMessage,
+    personaName,
+    userNickname
+  );
   const { chunks, usedEnglish } = loadCharacterChunksForPromptReadOnly(
     opts.rows.character,
     personaName,
-    personaName
+    userNickname
   );
   const personaGender = resolveCharacterGender(opts.rows.persona.gender);
+  const personaPublic = toPublicPersonaDescription(opts.rows.persona.description ?? "");
   return {
     charName,
     contentKind: opts.rows.character.content_kind === "simulation" ? "simulation" : "character",
@@ -617,10 +778,10 @@ export function buildLiveDeployedBodyCueContextInput(opts: {
     speechProfileJson: opts.rows.character.speech_profile,
     characterPersonality: opts.rows.character.description ?? "",
     creatorNarrationStyle: opts.rows.character.narration_style_instructions ?? "",
-    userNickname: personaName,
+    userNickname,
     personaDisplayName: personaName,
     userPersona:
-      formatPublicPersonaForPrompt(personaName, personaGender, opts.rows.persona.description, {
+      formatPublicPersonaForPrompt(personaName, personaGender, personaPublic, {
         coNarrationEnabled: turn.delegation.allowDialogue === true,
       }) ?? undefined,
     userPersonaGender: personaGender,
@@ -644,10 +805,11 @@ export function buildLiveDeployedBodyCueContextInput(opts: {
 }
 
 export function buildLiveDeployedBodyCueReviewPacket(
-  rows: LiveDeployedBodyCueRows
+  rows: LiveDeployedBodyCueRows,
+  claim: BodyCueRowEvidenceClaim = { source: "SYNTHETIC" }
 ): BodyCueReviewPacket & { usedEnglish: boolean } {
   const greeting = rows.character.greeting?.trim() ?? "";
-  const names = { charName: rows.character.name.trim(), personaName: rows.persona.name.trim() };
+  const names = resolveLiveRowNames(rows);
   let usedEnglish = false;
   const scenes = buildGreetingBodyCueReviewCases(greeting).map((caseData) => {
     const input = buildLiveDeployedBodyCueContextInput({ rows, caseData });
@@ -660,15 +822,16 @@ export function buildLiveDeployedBodyCueReviewPacket(
   });
   return {
     providerCalls: 0,
-    mainCommit: "11e9e96aa729922d05249695f36a1e3c699aaba0",
-    candidateHead: "73908e134ef28e47be8a50e6c8ebad3bcb4c6c60",
+    mainCommit: BODY_CUE_COMPARISON_REFS.historicalProseOwnerCommit,
+    candidateHead: BODY_CUE_COMPARISON_REFS.candidateHead,
     source: CANONICAL_RP_QUALIFICATION_SOURCE,
     modelId: BODY_CUE_REVIEW_MODEL,
     authoringLevel: "NORMAL",
     nsfw: false,
     scenes,
     usedEnglish,
-    liveIdentity: liveIdentityRecord(),
+    evidence: evidenceForLiveDeployedRows(rows, usedEnglish, claim),
+    proseOwnerUnchanged: true,
     cost: costFromScenes(scenes),
   };
 }
@@ -690,14 +853,15 @@ export function buildBodyCueReviewPacket(): BodyCueReviewPacket {
   });
   return {
     providerCalls: 0,
-    mainCommit: "11e9e96aa729922d05249695f36a1e3c699aaba0",
-    candidateHead: "73908e134ef28e47be8a50e6c8ebad3bcb4c6c60",
+    mainCommit: BODY_CUE_COMPARISON_REFS.historicalProseOwnerCommit,
+    candidateHead: BODY_CUE_COMPARISON_REFS.candidateHead,
     source: CANONICAL_RP_QUALIFICATION_SOURCE,
     modelId: BODY_CUE_REVIEW_MODEL,
     authoringLevel: "NORMAL",
     nsfw: false,
     scenes,
-    liveIdentity: liveIdentityRecord(),
+    evidence: historicalPinnedEvidence(),
+    proseOwnerUnchanged: true,
     cost: costFromScenes(scenes),
   };
 }
