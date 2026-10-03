@@ -9,7 +9,7 @@ import {
 } from "@/lib/characterFormSave";
 import { parseAssets } from "@/lib/characterAssets";
 import { buildAndSaveCharacterChunks } from "@/lib/characterChunks";
-import { replaceAppearanceInSetting } from "@/lib/appearanceCompiler";
+import { normalizeAppearanceRaw, replaceAppearanceInSetting } from "@/lib/appearanceCompiler";
 import { resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
 import { listCharacterStatusWidgetTriggers } from "@/lib/statusWidgetTriggers";
 import { primaryCharacterGenre, sanitizeCharacterGenres } from "@/lib/characterGenres";
@@ -65,6 +65,12 @@ export type OfficialInPlacePreflightSnapshot = {
   creatorName: string;
   assetsHash: string;
   lorebookIds: number[];
+  targetSystemPromptHash: string;
+  targetDescriptionHash: string;
+  targetGreetingHash: string;
+  targetWorldHash: string;
+  targetDisplayCreatorName: string;
+  lorebookPlanHash: string;
   token: string;
 };
 
@@ -365,6 +371,60 @@ function applyWorldLorebooks(input: {
   });
 }
 
+function lorebookTargetFingerprint(
+  plan: readonly OfficialInPlaceLorebookPlan[],
+  entries: readonly OfficialWorldLorebookEntry[]
+): string {
+  return sha256(
+    JSON.stringify(
+      plan.map((item) => {
+        const entry = entries.find((candidate) => candidate.entryKey === item.entryKey);
+        return {
+          entryKey: item.entryKey,
+          action: item.action,
+          shared: item.shared,
+          contentHash: sha256(entry?.content ?? ""),
+          keywordsHash: sha256(JSON.stringify(entry?.keywords ?? [])),
+        };
+      })
+    )
+  );
+}
+
+function storedAppearancePrompt(row: Pick<
+  OfficialCharacterRow,
+  | "appearance_raw"
+  | "appearance_compiled"
+  | "appearance_compiled_source_hash"
+  | "appearance_compiled_version"
+>): string {
+  return resolveAppearancePromptText({
+    raw: row.appearance_raw,
+    compiledJson: row.appearance_compiled,
+    compiledSourceHash: row.appearance_compiled_source_hash,
+    compiledVersion: row.appearance_compiled_version,
+  });
+}
+
+function assertStoredAppearanceCompatible(
+  row: Pick<
+    OfficialCharacterRow,
+    | "appearance_raw"
+    | "appearance_compiled"
+    | "appearance_compiled_source_hash"
+    | "appearance_compiled_version"
+  >,
+  approvedAppearanceBlock: string
+): void {
+  const stored = storedAppearancePrompt(row);
+  if (!stored) return;
+  if (normalizeAppearanceRaw(stored) === normalizeAppearanceRaw(approvedAppearanceBlock)) return;
+  throw new OfficialSupplyGateError(
+    "appearance_conflict",
+    "stored appearance_raw/compiled would replace the approved compact [외형]; refusing sync until live appearance is reviewed"
+  );
+}
+
 function snapshotToken(parts: Omit<OfficialInPlacePreflightSnapshot, "token">): string {
   return sha256(
     JSON.stringify({
@@ -383,6 +443,12 @@ function snapshotToken(parts: Omit<OfficialInPlacePreflightSnapshot, "token">): 
       creatorName: parts.creatorName,
       assetsHash: parts.assetsHash,
       lorebookIds: parts.lorebookIds,
+      targetSystemPromptHash: parts.targetSystemPromptHash,
+      targetDescriptionHash: parts.targetDescriptionHash,
+      targetGreetingHash: parts.targetGreetingHash,
+      targetWorldHash: parts.targetWorldHash,
+      targetDisplayCreatorName: parts.targetDisplayCreatorName,
+      lorebookPlanHash: parts.lorebookPlanHash,
     })
   );
 }
@@ -393,6 +459,15 @@ function buildPreflightSnapshot(input: {
   row: OfficialCharacterRow;
   assetsJson: string;
   lorebookIds: readonly number[];
+  alias: string;
+  compiled: {
+    description: string;
+    greeting: string;
+    systemPrompt: string;
+    world: string;
+  };
+  lorebookPlan: readonly OfficialInPlaceLorebookPlan[];
+  lorebookEntries: readonly OfficialWorldLorebookEntry[];
 }): OfficialInPlacePreflightSnapshot {
   const parts = {
     characterId: input.characterId,
@@ -410,6 +485,12 @@ function buildPreflightSnapshot(input: {
     creatorName: input.row.creator_name,
     assetsHash: sha256(input.assetsJson),
     lorebookIds: [...input.lorebookIds],
+    targetSystemPromptHash: sha256(input.compiled.systemPrompt),
+    targetDescriptionHash: sha256(input.compiled.description),
+    targetGreetingHash: sha256(input.compiled.greeting),
+    targetWorldHash: sha256(input.compiled.world),
+    targetDisplayCreatorName: input.alias,
+    lorebookPlanHash: lorebookTargetFingerprint(input.lorebookPlan, input.lorebookEntries),
   };
   return { ...parts, token: snapshotToken(parts) };
 }
@@ -573,6 +654,7 @@ function inspectTarget(input: {
     entries: source.resolvedLorebook,
   });
   assertNoSharedLorebookConflict(lorebookPlan);
+  assertStoredAppearanceCompatible(row, source.appearanceBlock);
 
   const genres = sanitizeCharacterGenres(source.draft.genres);
   const compiled = {
@@ -620,6 +702,10 @@ function toResult(input: {
     row,
     assetsJson,
     lorebookIds: attachedIds,
+    alias,
+    compiled,
+    lorebookPlan,
+    lorebookEntries: source.resolvedLorebook,
   });
   const after = {
     tagline: compiled.tagline,
@@ -708,12 +794,7 @@ function applyGuardedCanonicalFields(input: {
   );
   const safeRuntimeCanon = replaceAppearanceInSetting(
     compiledDescription.safeRuntimeCanon,
-    resolveAppearancePromptText({
-      raw: row.appearance_raw,
-      compiledJson: row.appearance_compiled,
-      compiledSourceHash: row.appearance_compiled_source_hash,
-      compiledVersion: row.appearance_compiled_version,
-    })
+    storedAppearancePrompt(row)
   );
   const applyTx = input.db.transaction(() => {
     const synced = applyWorldLorebooks({

@@ -12,7 +12,7 @@ Live production SQL was **not executed**. Use the approved read-only query below
 ## Investigation
 
 Earlier PR base / prior live deploy SHA: `11e9e96aa729922d05249695f36a1e3c699aaba0`.
-Main at this work: `9e0c65576cf1de4f7190c71196670028386c60ce` (same SHA GPT recorded). After the runtime-canon fix, this branch merged that `origin/main`. The only overlapping file was `src/lib/characterFormSave.ts` (official-admin options vs JSX call-guide budget). Auto-merge kept both; no conflict.
+Main at the previous runtime-canon patch: `9e0c65576cf1de4f7190c71196670028386c60ce`. This appearance/preflight patch syncs the then-current `origin/main` after the fix. GPT appearance review HEAD: `557b86433d48aed83529283a5707933d7ce45574`.
 Earlier inspected Draft HEAD: `6f937a946485473221e1c132e5d677b6d6e686d3`.
 GPT MUST FIX 1–5 HEAD: `31b0d7978056c3f328a406228d3695327a1590e9`.
 GPT runtime-canon review HEAD: `ef6b285ea4e9895e0e684c14aa76ea8a25de9cfd`.
@@ -155,7 +155,7 @@ GROUP BY official, visibility;
 | Official compile | `compileOfficialDraftFromBible` + `composeOfficialSystemPrompt` + `renderRuntimeAppearanceBlock` |
 | Creator compiled description | `buildCompiledCreatorDescriptionForSave` |
 | Canon plan / LOCKED_SECRET | `buildCanonPlanJsonForSave` |
-| Appearance overlay | `replaceAppearanceInSetting` + `resolveAppearancePromptText` (same as `loadCharacterChunks`) |
+| Appearance overlay | `resolveAppearancePromptText` + `normalizeAppearanceRaw` + `replaceAppearanceInSetting` (same as `loadCharacterChunks`). Empty or exact compact match is compatible; any other stored appearance STOP (`appearance_conflict`). Live appearance columns are not rewritten. |
 | Chunk persist | `buildAndSaveCharacterChunks(..., { safeRuntimeCanon })` |
 | Chunk reload | `loadCharacterChunks` / `loadCharacterChunksReadOnly` → `resolveSafeRuntimeCanon` |
 | Shared lorebook | existing `keyword_lorebooks` + `official_supply_world_lorebooks`; identical skip; content-changing sibling links STOP |
@@ -163,11 +163,11 @@ GROUP BY official, visibility;
 
 ## BEFORE / AFTER / REMOVED / PRESERVED / RISKS / PROOF
 
-- BEFORE (`ef6b285e`): dedicated UPDATE wrote `system_prompt`/`setting_chunks` but left old `creator_compiled_description_json`. `loadCharacterChunks` preferred that stale compiled public canon and overwrote new chunks. Shared lorebook `action=update` still mutated sibling-linked bodies.
-- AFTER: same transaction also writes `creator_raw_description` / compiled JSON / canon plan via the existing form compilers, rebuilds chunks from the appearance-aware safe-runtime-canon, and enqueues derived refresh. Shared lorebook content changes with live siblings fail closed.
-- REMOVED: chunk rebuild from raw `system_prompt`/`world` that `loadCharacterChunks` can ignore; implicit shared-lorebook rewrite of sibling-linked entries.
-- PRESERVED: Lucian id, 14 assets, likes/chats, widget/JSX/style/comments/appearance, compact #1196 prompt, LOCKED_SECRET owner, apply default-off, #1322, admin CP accounting.
-- RISKS: live Lucian compiled-JSON / 12 lorebook bodies / sibling links are still unread. If production shared lorebooks differ and are attached to other characters, apply must STOP until those siblings are reviewed.
+- BEFORE (`557b8643`): compiled JSON/canon plan refresh worked, but `replaceAppearanceInSetting` still overlaid leftover `appearance_raw`/`appearance_compiled` onto the new compact `[외형]`. Preflight hashed the old row and attached IDs, not the approved compile/alias/lorebook plan.
+- AFTER: stored appearance must be empty or normalize-equal to `renderRuntimeAppearanceBlock`. Conflicts fail closed without writing. Preflight token also binds target system/description/greeting/world hashes, desired alias, and planned lorebook content/action.
+- REMOVED: silent success when stale appearance would replace approved compact identity; apply from a preview after the target source/alias/plan changed.
+- PRESERVED: Lucian id, 14 assets and moderation order, likes/chats, widget/JSX/style/comments, compact #1196 prompt, LOCKED_SECRET owner, shared-lorebook STOP, apply default-off, #1322, admin CP accounting. No second appearance compiler.
+- RISKS: unread live `appearance_raw`/`appearance_compiled` may be the full visual lock or another non-compact text. Apply must STOP until that live row is reviewed. Do not guess-overwrite production appearance.
 - PROOF: isolated before/after fixtures in `officialCharacterAdmin.1367.test.ts`. No Railway SQL. No apply.
 
 ## Fixture vs live SQL
@@ -176,7 +176,8 @@ GROUP BY official, visibility;
 | --- | --- | --- |
 | 1. Before: stale compiled JSON wins on `loadCharacterChunks` | Covered (`MUST FIX A before`) | Confirm live `creator_compiled_description_json` is old wrist-grab canon |
 | 2. After: RP loader uses #1196 Lucian | Covered (`MUST FIX A after`) | After apply only |
-| 3. Secrets / compact appearance match approved compile | Covered (LOCKED_SECRET + `키/체형`) | Confirm live secrets/appearance columns |
+| 3. Secrets / compact appearance match approved compile | Covered (LOCKED_SECRET + runtime `[외형]` extract) | Confirm live `appearance_raw`/`compiled` vs compact lock |
+| 3b. Stale appearance does not silently succeed | Covered (`appearance_conflict`) | If live appearance is nonempty and not compact-equal, apply must STOP |
 | 4. Shared lorebooks used by siblings stay unchanged | Covered (`MUST FIX B`) | Confirm the 8 shared IDs and sibling attachments |
 | 5. Error leaves no partial write | Covered (inject + conflict) | Apply remains default-off |
 | 6. Same id / 14 assets / chats / likes / widget / JSX / style / comments | Covered (rich preserve + CAS) | Confirm live asset count and nondefault settings |
@@ -185,15 +186,15 @@ GROUP BY official, visibility;
 
 ## Classification
 
-`ROOT_CAUSE_FIXED` for the missing in-place owner, duplicate card suffix, and the `ef6b285e` stale compiled-runtime regression — in isolated tests only.
+`ROOT_CAUSE_FIXED` for the missing in-place owner, duplicate card suffix, stale compiled-runtime canon, sibling shared-lorebook mutation, and the `557b8643` stale-appearance overlay — in isolated tests only.
 
-Live SQL prompt/lorebook/supply/compiled-JSON rows: `ROOT_CAUSE_CONFIRMED` from code + public card, **not applied** to production.
+Live SQL prompt/lorebook/supply/compiled-JSON/appearance rows: `ROOT_CAUSE_CONFIRMED` from code + public card, **not applied** to production.
 
-GPT MUST FIX 1–5 plus runtime-canon / shared-lorebook gates: `ROOT_CAUSE_FIXED` in isolated tests only.
+GPT MUST FIX 1–5 plus runtime-canon / shared-lorebook / appearance / target-preflight gates: `ROOT_CAUSE_FIXED` in isolated tests only.
 
 ## Follow-up / remaining live checks
 
 - Human Railway SSH / workspace token so the approved SQL can be executed without downloading the DB.
-- Before any apply: confirm live `creator_compiled_description_json`, `creator_canon_plan_json`, `official_supply_characters` mapping, 8 shared + 4 local lorebook bodies, and whether those shared IDs attach to other characters.
+- Before any apply: confirm live `appearance_raw` / `appearance_compiled` / `creator_compiled_description_json` / `creator_canon_plan_json`, `official_supply_characters` mapping, 8 shared + 4 local lorebook bodies, and whether those shared IDs attach to other characters. If live appearance is nonempty and not compact-equal, do not apply.
 - Operator CP accrual vs finance margin (issue #1367 comment) — do not fold into this PR.
 - Draft PR #1322 character-secret delivery remains separate.

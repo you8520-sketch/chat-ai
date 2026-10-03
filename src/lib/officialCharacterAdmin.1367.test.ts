@@ -44,6 +44,8 @@ import {
   renderAppearanceBlock,
   renderRuntimeAppearanceBlock,
 } from "@/lib/officialSupply/appearance";
+import { extractAppearanceRawFromSetting, replaceAppearanceInSetting } from "@/lib/appearanceCompiler";
+import { resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
 import { buildOfficialCharacterReviewReport } from "@/lib/officialSupply/characterReview";
 import { buildOfficialCharacterFormBody, composeOfficialSystemPrompt } from "@/lib/officialSupply/characterText";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
@@ -116,9 +118,16 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
   function insertOfficialLucian(
     creatorId: number,
     creatorName: string,
-    opts?: { rich?: boolean }
+    opts?: { rich?: boolean; appearance?: "stale" | "empty" | "approved" }
   ): number {
     const db = getDb();
+    const appearanceMode = opts?.appearance ?? (opts?.rich ? "stale" : "empty");
+    const appearance =
+      appearanceMode === "approved"
+        ? { raw: loadCompiledOfficialCharacterSource("pilot-rf-03").appearanceBlock, compiled: "" }
+        : appearanceMode === "stale"
+          ? { raw: "기존외형raw", compiled: "기존외형compiled" }
+          : { raw: "", compiled: "" };
     const assets = opts?.rich
       ? richOfficialAssets()
       : [
@@ -165,8 +174,8 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
         opts?.rich ? "literary-keep" : "",
         opts?.rich ? "기존 나레이션을 유지" : "",
         opts?.rich ? 0 : 1,
-        opts?.rich ? "기존외형raw" : "",
-        opts?.rich ? "기존외형compiled" : "",
+        appearance.raw,
+        appearance.compiled,
         opts?.rich ? 42 : 0,
         opts?.rich ? 17 : 0,
         "구버전 예시대사",
@@ -637,7 +646,10 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
       nickname: "로맨스 공식 스튜디오",
       email: "romance-preserve@site-managed.invalid",
     });
-    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", { rich: true });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", {
+      rich: true,
+      appearance: "empty",
+    });
     linkLucianSupply(characterId);
     const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
     const before = snapshotPreserved(characterId);
@@ -668,8 +680,8 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
     assert.equal(after.recommendedWritingStyle, "literary-keep");
     assert.equal(after.narrationStyle, "기존 나레이션을 유지");
     assert.equal(after.commentsEnabled, 0);
-    assert.equal(after.appearanceRaw, "기존외형raw");
-    assert.equal(after.appearanceCompiled, "기존외형compiled");
+    assert.equal(after.appearanceRaw, "");
+    assert.equal(after.appearanceCompiled, "");
     assert.equal(after.likes, 42);
     assert.equal(after.chatsCount, 17);
     assert.equal(after.likeRows, 1);
@@ -740,12 +752,257 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
     assert.equal(sha256(row.system_prompt), preview.systemPromptHash);
   });
 
+  it("MUST FIX appearance before: stale appearance_raw replaces approved compact [외형] on the RP loader", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-stale-appearance@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", { rich: true, appearance: "stale" });
+    const source = loadCompiledOfficialCharacterSource("pilot-rf-03");
+    const compiled = buildCompiledCreatorDescriptionForSave({
+      description: source.draft.description,
+      world: source.draft.sections.worldAndSituation,
+      systemPrompt: source.systemPrompt,
+      statusWidgetJson: '{"kind":"custom","label":"keep-status-widget"}',
+      statusWidgetTriggers: [],
+    });
+    getDb()
+      .prepare(
+        `UPDATE characters SET system_prompt=?, world=?, creator_compiled_description_json=?, creator_raw_description=? WHERE id=?`
+      )
+      .run(
+        source.systemPrompt,
+        source.draft.sections.worldAndSituation,
+        compiled.compiledDescriptionJson,
+        compiled.creatorRawDescription,
+        characterId
+      );
+    const staleRow = loadRuntimeRow(characterId);
+    assert.equal(staleRow.system_prompt, source.systemPrompt);
+    assert.equal(staleRow.appearance_raw, "기존외형raw");
+    const overlaid = replaceAppearanceInSetting(
+      compiled.safeRuntimeCanon,
+      resolveAppearancePromptText({
+        raw: staleRow.appearance_raw,
+        compiledJson: staleRow.appearance_compiled,
+        compiledSourceHash: staleRow.appearance_compiled_source_hash,
+        compiledVersion: staleRow.appearance_compiled_version,
+      })
+    );
+    buildAndSaveCharacterChunks(characterId, {
+      name: LUCIAN_CANONICAL_NAME,
+      gender: "male",
+      systemPrompt: source.systemPrompt,
+      world: source.draft.sections.worldAndSituation,
+      exampleDialog: "구버전 예시대사",
+      safeRuntimeCanon: overlaid,
+    });
+    const loaded = chunkText(characterId, false);
+    const persisted = chunkText(characterId, true);
+    assert.match(loaded, /기존외형raw/);
+    assert.match(persisted, /기존외형raw/);
+    assert.notEqual(extractAppearanceRawFromSetting(loaded), source.appearanceBlock);
+    assert.notEqual(extractAppearanceRawFromSetting(persisted), source.appearanceBlock);
+    assert.equal(extractAppearanceRawFromSetting(source.systemPrompt), source.appearanceBlock);
+  });
+
+  it("MUST FIX appearance: stale stored appearance fails closed without mutating the row", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-appearance-conflict@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", { rich: true, appearance: "stale" });
+    linkLucianSupply(characterId);
+    const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
+    const before = snapshotPreserved(characterId);
+    await assert.rejects(
+      () =>
+        syncOfficialCharacterInPlace({
+          admin: { ...ADMIN, id: adminId },
+          characterId,
+          draftKey: "pilot-rf-03",
+          mode: "dry_run",
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "appearance_conflict"
+    );
+    await assert.rejects(
+      () =>
+        withApplyEnabled(() =>
+          syncOfficialCharacterInPlace({
+            admin: { ...ADMIN, id: adminId },
+            characterId,
+            draftKey: "pilot-rf-03",
+            mode: "apply",
+            preflightSnapshot: {
+              characterId,
+              draftKey: "pilot-rf-03",
+              name: LUCIAN_CANONICAL_NAME,
+              creatorId: studio.id,
+              official: 1,
+              visibility: "public",
+              moderationStatus: "approved",
+              tagline: before.tagline,
+              descriptionHash: "x",
+              greetingHash: "x",
+              systemPromptHash: "x",
+              worldHash: "x",
+              creatorName: "로맨스 공식 스튜디오",
+              assetsHash: "x",
+              lorebookIds: [],
+              targetSystemPromptHash: "x",
+              targetDescriptionHash: "x",
+              targetGreetingHash: "x",
+              targetWorldHash: "x",
+              targetDisplayCreatorName: LUCIAN_DEFAULT_DISPLAY_CREATOR_NAME,
+              lorebookPlanHash: "x",
+              token: "invalid",
+            },
+          })
+        ),
+      (error: unknown) =>
+        error instanceof OfficialSupplyGateError &&
+        (error.code === "appearance_conflict" || error.code === "preflight_mismatch")
+    );
+    const after = snapshotPreserved(characterId);
+    assert.equal(after.tagline, before.tagline);
+    assert.equal(after.appearanceRaw, "기존외형raw");
+    assert.equal(after.appearanceCompiled, "기존외형compiled");
+    assert.equal(after.assetsJson, before.assetsJson);
+    assert.equal(after.likes, 42);
+    assert.equal(after.chatsCount, 17);
+    assert.equal(after.assetCount, 14);
+  });
+
+  it("MUST FIX appearance after: compatible stored appearance keeps approved compact [외형] on the RP loader", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-appearance-ok@site-managed.invalid",
+    });
+    const source = loadCompiledOfficialCharacterSource("pilot-rf-03");
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", {
+      rich: true,
+      appearance: "approved",
+    });
+    linkLucianSupply(characterId);
+    const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
+    const before = snapshotPreserved(characterId);
+    const preview = await syncOfficialCharacterInPlace({
+      admin: { ...ADMIN, id: adminId },
+      characterId,
+      draftKey: "pilot-rf-03",
+      mode: "dry_run",
+    });
+    await withApplyEnabled(() =>
+      syncOfficialCharacterInPlace({
+        admin: { ...ADMIN, id: adminId },
+        characterId,
+        draftKey: "pilot-rf-03",
+        mode: "apply",
+        preflightSnapshot: preview.preflightSnapshot,
+      })
+    );
+    const after = snapshotPreserved(characterId);
+    assert.equal(after.appearanceRaw, source.appearanceBlock);
+    assert.equal(after.appearanceCompiled, "");
+    assert.equal(after.assetsJson, before.assetsJson);
+    assert.equal(after.statusWidgetJson, before.statusWidgetJson);
+    assert.equal(after.jsxComponentsJson, before.jsxComponentsJson);
+    assert.equal(after.recommendedWritingStyle, before.recommendedWritingStyle);
+    assert.equal(after.commentsEnabled, before.commentsEnabled);
+    assert.equal(after.assetCount, 14);
+    const loaded = chunkText(characterId, false);
+    const persisted = chunkText(characterId, true);
+    assert.equal(extractAppearanceRawFromSetting(loaded), source.appearanceBlock);
+    assert.equal(extractAppearanceRawFromSetting(persisted), source.appearanceBlock);
+    assert.doesNotMatch(loaded, /기존외형raw/);
+    assert.match(loaded, /184cm/);
+  });
+
+  it("MUST FIX preflight: target alias or lorebook plan changes reject the old snapshot", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-preflight-target@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오");
+    linkLucianSupply(characterId);
+    const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
+    const admin = { ...ADMIN, id: adminId };
+    const preview = await syncOfficialCharacterInPlace({
+      admin,
+      characterId,
+      draftKey: "pilot-rf-03",
+      mode: "dry_run",
+    });
+    assert.equal(preview.preflightSnapshot.targetDisplayCreatorName, LUCIAN_DEFAULT_DISPLAY_CREATOR_NAME);
+    assert.ok(preview.preflightSnapshot.targetSystemPromptHash);
+    assert.ok(preview.preflightSnapshot.lorebookPlanHash);
+
+    await assert.rejects(
+      () =>
+        withApplyEnabled(() =>
+          syncOfficialCharacterInPlace({
+            admin,
+            characterId,
+            draftKey: "pilot-rf-03",
+            mode: "apply",
+            displayCreatorName: "다른 공식계정",
+            preflightSnapshot: preview.preflightSnapshot,
+          })
+        ),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "preflight_mismatch"
+    );
+    assert.match(
+      (getDb().prepare("SELECT tagline FROM characters WHERE id=?").get(characterId) as { tagline: string }).tagline,
+      /손목을 잡고/
+    );
+
+    const source = loadCompiledOfficialCharacterSource("pilot-rf-03");
+    const local = source.characterLorebook[0];
+    assert.ok(local);
+    const created = insertCreatorLorebookForOwner(getDb(), {
+      creatorId: studio.id,
+      name: local.name,
+      summary: "",
+      keywords: local.keywords,
+      content: "미리보기 이후 바뀐 전용 로어북",
+    });
+    assert.equal(created.ok, true);
+    if (!created.ok) return;
+    getDb()
+      .prepare(
+        `INSERT INTO official_supply_world_lorebooks (world_key, entry_key, creator_id, lorebook_id)
+         VALUES (?, ?, ?, ?)`
+      )
+      .run(source.worldKey, local.entryKey, studio.id, created.id);
+    await assert.rejects(
+      () =>
+        withApplyEnabled(() =>
+          syncOfficialCharacterInPlace({
+            admin,
+            characterId,
+            draftKey: "pilot-rf-03",
+            mode: "apply",
+            preflightSnapshot: preview.preflightSnapshot,
+          })
+        ),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "preflight_mismatch"
+    );
+    assert.deepEqual(listCharacterCreatorLorebookAttachmentIds(getDb(), characterId), []);
+    assert.match(
+      (getDb().prepare("SELECT tagline FROM characters WHERE id=?").get(characterId) as { tagline: string }).tagline,
+      /손목을 잡고/
+    );
+  });
+
   it("MUST FIX A before: stale compiled description wins over a new system_prompt on the RP loader", async () => {
     const studio = createSiteManagedStudioAccount({
       nickname: "로맨스 공식 스튜디오",
       email: "romance-stale-runtime@site-managed.invalid",
     });
-    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", { rich: true });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", {
+      rich: true,
+      appearance: "empty",
+    });
     seedStaleCompiledRuntime(characterId, '{"kind":"custom","label":"keep-status-widget"}');
     const source = loadCompiledOfficialCharacterSource("pilot-rf-03");
     getDb()
@@ -774,7 +1031,10 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
       nickname: "로맨스 공식 스튜디오",
       email: "romance-runtime@site-managed.invalid",
     });
-    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", { rich: true });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", {
+      rich: true,
+      appearance: "empty",
+    });
     linkLucianSupply(characterId);
     const stale = seedStaleCompiledRuntime(characterId, '{"kind":"custom","label":"keep-status-widget"}');
     const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
@@ -932,6 +1192,12 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
               creatorName: "로맨스 공식 스튜디오",
               assetsHash: "x",
               lorebookIds: [stale.id],
+              targetSystemPromptHash: "x",
+              targetDescriptionHash: "x",
+              targetGreetingHash: "x",
+              targetWorldHash: "x",
+              targetDisplayCreatorName: "x",
+              lorebookPlanHash: "x",
               token: "invalid",
             },
           })
