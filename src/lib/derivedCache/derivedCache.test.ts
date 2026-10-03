@@ -121,7 +121,7 @@ function characterBody(overrides: Record<string, unknown> = {}) {
     gender: "male",
     nsfw: false,
     participant_min_age: 28,
-    assets: [{ url: "/uploads/test.png", tag: "neutral" }],
+    assets: [{ url: "/uploads/test.png", tag: "neutral", representativeRank: 1 }],
     ...overrides,
   };
 }
@@ -139,7 +139,7 @@ function simulationBody(overrides: Record<string, unknown> = {}) {
     gender: "other",
     nsfw: false,
     participant_min_age: 28,
-    assets: [{ url: "/uploads/test.png", tag: "neutral" }],
+    assets: [{ url: "/uploads/test.png", tag: "neutral", representativeRank: 1 }],
     ...overrides,
   };
 }

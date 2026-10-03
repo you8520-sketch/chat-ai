@@ -20,6 +20,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "@/lib/chatModels";
 import {
   CHAT_BILLING_CONTRACT_DISPATCH_OWNER,
@@ -333,6 +334,25 @@ describe("chatBillingContractDispatch — contract selection", () => {
     assert.equal(decision.reason, "non_published_model");
   });
 
+  it("GPT-6.1 Sol is mandatory published even when Phase 1 is off", () => {
+    const off = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+      stages: [completePrimaryStage(CHEAPER_INFERENCE_GPT_61_SOL_MODEL, 1000)],
+      legacyFinalPoints: 999,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: AUDIT_FX_SNAPSHOT,
+      phase1PublishedBillingEnabled: false,
+    });
+    assert.equal(off.contract, "published_phase1");
+    assert.ok(off.points > 0);
+    assert.notEqual(off.points, 999);
+    const on = dispatchCompleteModel(CHEAPER_INFERENCE_GPT_61_SOL_MODEL, 1000);
+    assert.equal(on.contract, "published_phase1");
+    assert.equal(on.points, off.points);
+  });
+
   it("deferred models → legacy", () => {
     const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "A1-g36-normal")!;
     const decision = dispatchFromFixture(fixture);
@@ -452,6 +472,7 @@ describe("chatBillingContractDispatch — Phase 1 closure matrix", () => {
         GEMINI_38_FLASH_MODEL,
         CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
         CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+        CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
       ]);
     } finally {
       clearAuditLegacyFxForTest();

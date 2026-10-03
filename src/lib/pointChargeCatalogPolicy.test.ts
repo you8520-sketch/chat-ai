@@ -235,6 +235,10 @@ describe("point charge catalog — payment guards", () => {
       paymentId: "pay-once",
       txId: "tx-once",
       totalAmount: 50000,
+      storeId: "store-standard-live",
+      channelKey: "channel-key-standard-live",
+      channelType: "LIVE",
+      pgMerchantId: "INIStandard",
       cancellations: [],
     }));
 
@@ -317,6 +321,7 @@ describe("point charge catalog — public disclosure", () => {
     assert.match(pointsClient, /포인트 상품/);
     assert.match(pointsClient, /POINT_CHARGE_PACKAGES\.map/);
     assert.match(pointsClient, /paymentsEnabled && portoneEnabled/);
+    assert.match(pointsClient, /<article key=\{p\.id\}/);
     assert.doesNotMatch(pointsClient, /SiteLegalFooter|BUSINESS_PUBLIC_LINES/);
 
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.tradeName, "confirmed");

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import { setPushSocialPrefs } from "@/lib/userNotifications";
 
-// 내 설정 변경: 닉네임 / 취향(pref) / 성인 캐릭터 표시(nsfw_on)
+// 내 설정 변경: 닉네임 / 취향(pref) / 세이프티 필터(nsfw_on=0 숨김, 1 표시)
 export async function PATCH(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
@@ -27,8 +28,11 @@ export async function PATCH(req: Request) {
   }
 
   if (body.nsfw_on !== undefined) {
-    if (!user.is_adult) {
-      return NextResponse.json({ error: "성인인증 후 사용할 수 있습니다.", needVerify: true }, { status: 403 });
+    if (!canAccessAdultContent(user)) {
+      return NextResponse.json(
+        { error: "세이프티 필터는 성인인증 또는 관리자 베타 테스트 접근이 있어야 끌 수 있습니다.", needVerify: true },
+        { status: 403 }
+      );
     }
     db.prepare("UPDATE users SET nsfw_on=? WHERE id=?").run(body.nsfw_on ? 1 : 0, user.id);
   }

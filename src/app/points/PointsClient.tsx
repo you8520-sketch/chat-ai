@@ -19,7 +19,10 @@ import {
   pointChargePackageTotalPoints,
 } from "@/lib/plans";
 import { ATTENDANCE_POINTS_VALID_DAYS } from "@/lib/attendanceConstants";
-import { runPortOnePointCharge } from "@/lib/portoneBrowser";
+import {
+  PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE,
+  runPortOnePointCharge,
+} from "@/lib/portoneBrowser";
 import {
   estimateGiftBreakdown,
   MIN_POINT_GIFT_AMOUNT,
@@ -308,7 +311,9 @@ export default function PointsClient({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.location.search.includes("charged=1")) {
+    if (window.location.search.includes("reviewerTest=1")) {
+      setMsg(PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE);
+    } else if (window.location.search.includes("charged=1")) {
       setMsg("포인트 충전이 완료되었습니다.");
     }
     if (window.location.hash !== `#${POINT_USAGE_HASH}`) return;
@@ -326,11 +331,17 @@ export default function PointsClient({
     setError("");
     setMsg("");
     try {
-      await runPortOnePointCharge(packageId, {
+      const charged = await runPortOnePointCharge(packageId, {
         customerEmail: userEmail || undefined,
         customerName: userNickname || undefined,
       });
-      setMsg(`포인트 ${totalPoints.toLocaleString()}P 충전이 완료되었습니다.`);
+      const testConfirmed =
+        charged.completed.checkoutKind === "reviewer_kg_test" || charged.completed.credited === false;
+      setMsg(
+        testConfirmed
+          ? PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE
+          : `포인트 ${totalPoints.toLocaleString()}P 충전이 완료되었습니다.`
+      );
       router.refresh();
     } catch (e) {
       setError((e as Error).message || "결제에 실패했습니다.");
@@ -449,7 +460,7 @@ export default function PointsClient({
       <h2 className={`mt-8 ${studioType.sectionTitle}`}>포인트 상품</h2>
       <p className={`mt-1 ${studioType.caption}`}>
         결제 금액과 동일한 <b className="text-zinc-300">유료 포인트</b>가 지급됩니다 (₩10,000 = 10,000P). 보너스는{" "}
-        <b className="text-violet-300">무료 포인트</b>로 별도 적립됩니다.         유료·충전 보너스 무료 포인트는 지급일로부터{" "}
+        <b className="text-violet-300">무료 포인트</b>로 별도 적립됩니다. 유료·충전 보너스 무료 포인트는 지급일로부터{" "}
         {FREE_POINTS_VALID_YEARS}년, 출석 포인트는 {ATTENDANCE_POINTS_VALID_DAYS}일 유효합니다.{" "}
         <Link href="/refund" className="text-violet-400 underline-offset-2 hover:underline">
           결제 및 환불 정책

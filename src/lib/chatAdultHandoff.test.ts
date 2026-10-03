@@ -85,7 +85,7 @@ describe("chat-room adult mode (handoff) preference", () => {
       new URL("../app/api/chat/settings/route.ts", import.meta.url),
       "utf8"
     );
-    assert.match(settings, /effectiveIsAdult/);
+    assert.match(settings, /canAccessAdultContent/);
     assert.match(settings, /adult_handoff_enabled/);
 
     const chatClient = readFileSync(
@@ -107,7 +107,7 @@ describe("chat-room adult mode (handoff) preference", () => {
       new URL("../components/UserPreferenceControls.tsx", import.meta.url),
       "utf8"
     );
-    assert.match(headerControls, /성인 캐릭터 표시/);
+    assert.match(headerControls, /세이프티 필터/);
     assert.doesNotMatch(headerControls, /성인모드/);
   });
 });

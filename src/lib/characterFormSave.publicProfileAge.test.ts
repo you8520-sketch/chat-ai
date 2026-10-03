@@ -49,7 +49,10 @@ function setupTestDb(): Database.Database {
       status_widget_json TEXT NOT NULL DEFAULT '',
       simulation_reuse_allowed INTEGER NOT NULL DEFAULT 0,
       simulation_nsfw_allowed INTEGER NOT NULL DEFAULT 0,
-      trpg_reuse_allowed INTEGER NOT NULL DEFAULT 0
+      trpg_reuse_allowed INTEGER NOT NULL DEFAULT 0,
+      content_kind TEXT NOT NULL DEFAULT 'character',
+      simulation_cast TEXT NOT NULL DEFAULT '',
+      simulation_visual_subjects_json TEXT NOT NULL DEFAULT ''
     );
   `);
   ensureStatusWidgetTriggerTables(db);
@@ -107,7 +110,7 @@ function publicProfileBody(overrides: Record<string, unknown> = {}) {
     tagline: "한 줄 소개",
     description: "공개 소개",
     genres: ["로맨스"],
-    assets: [{ url: "/uploads/test.png", tag: "neutral" }],
+    assets: [{ url: "/uploads/test.png", tag: "neutral", representativeRank: 1 }],
     visibility: "private",
     ...overrides,
   };

@@ -3,8 +3,7 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 import { SESSION_COOKIE_NAME } from "./sessionCookie";
 import { getDb } from "./db";
-import { effectiveIsAdult } from "./adultVerification";
-import { isAdminUser } from "./isAdminUser";
+import { ensureEmailSignupSchema } from "./emailSignupSchema";
 import { type User, isSubscribed } from "./auth-types";
 
 export type { User } from "./auth-types";
@@ -36,15 +35,15 @@ export async function getSessionUser(): Promise<User | null> {
   const token = store.get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
   const db = getDb();
+  ensureEmailSignupSchema(db);
   const row = db
     .prepare(
-      `SELECT u.id, u.email, u.nickname, u.is_adult, u.nsfw_on, u.points, u.sub_until, u.google_id, u.pref, u.sub_plan, u.sub_auto_renew, u.notice_last_read_id, u.is_admin
+      `SELECT u.id, u.email, u.nickname, u.is_adult, u.nsfw_on, u.points, u.sub_until, u.google_id, u.pref, u.sub_plan, u.sub_auto_renew, u.notice_last_read_id, u.is_admin, u.account_kind, u.login_disabled
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token = ? AND s.expires_at > datetime('now')`
     )
-    .get(token) as (User & { is_admin: number }) | undefined;
-  if (!row) return null;
-  const isAdmin = isAdminUser({ email: row.email, is_admin: row.is_admin });
-  if (!effectiveIsAdult(row.is_adult) && !isAdmin) return row;
-  return { ...row, is_adult: 1 };
+    .get(token) as (User & { login_disabled?: number }) | undefined;
+  if (!row || row.login_disabled === 1) return null;
+  const { login_disabled: _loginDisabled, ...publicRow } = row;
+  return publicRow;
 }

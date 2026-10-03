@@ -9,6 +9,7 @@ import {
   applyCacheAndPrefillForTransport,
   assemblePrimaryRpRequest,
   buildOpenRouterMessages,
+  reprojectControlledTextOntoStructuredContent,
   streamOpenRouterAdult,
   callOpenRouterAdult,
 } from "./openRouterAdult";
@@ -300,4 +301,121 @@ test("[SYNTHETIC] CI Main RP sends stable prompt-cache session affinity as query
     if (previousKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
     else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
   }
+});
+
+function assembleSyntheticCacheSplit(input: {
+  rules: string;
+  character: string;
+  dynamic: string;
+  user: string;
+  triggeredEventText?: string;
+}) {
+  const systemSplit = {
+    systemRulesBlock: input.rules,
+    characterSettingsBlock: input.character,
+    dynamicBlock: input.dynamic,
+  };
+  const history = [{ role: "user" as const, content: input.user }];
+  const sceneServerControls = {
+    mode: "interactive" as const,
+    contentKind: "character" as const,
+    primaryCharacterName: "Hero",
+    currentUserMessage: input.user,
+    currentTurn: 4,
+    triggeredEventText: input.triggeredEventText,
+  };
+  const assembled = assemblePrimaryRpRequest({
+    system: [input.rules, input.character, input.dynamic].join("\n\n"),
+    history,
+    modelId: "deepseek-v4.1-flash",
+    messageOpts: {
+      transportProvider: "cheaperinference",
+      systemSplit,
+      sceneServerControls,
+    },
+  });
+  const semantic = applyProductionServerControlsToMessages({
+    messages: [
+      {
+        role: "system",
+        content: [input.rules, input.character, input.dynamic].join("\n\n"),
+      },
+      { role: "user", content: input.user },
+    ],
+    ...sceneServerControls,
+  });
+  return { assembled, semantic };
+}
+
+test("[SYNTHETIC] newline collapse and scene replace stay inside their own cache blocks", () => {
+  const rules = `[RULES]\n\n\n${"안정 규칙".repeat(20)}`;
+  const character = `[CHARACTER]\n${SCENE_FLOW_BLOCK}\n[CHARACTER END]`;
+  const dynamic = `[DYNAMIC]\n${"메모리".repeat(20)}`;
+  const { assembled, semantic } = assembleSyntheticCacheSplit({
+    rules,
+    character,
+    dynamic,
+    user: "잠깐 여기 있자",
+  });
+  const system = assembled.messages[0]?.content;
+  assert.ok(Array.isArray(system));
+  assert.equal(system.length, 3);
+  assert.equal(system[0]?.cache_control?.type, "ephemeral");
+  assert.equal(system[1]?.cache_control?.type, "ephemeral");
+  assert.equal(system[2]?.cache_control, undefined);
+  assert.match(system[0]!.text, /안정 규칙/);
+  assert.doesNotMatch(system[0]!.text, /\n{3,}/);
+  assert.match(system[1]!.text, /\[SCENE PACING\]/);
+  assert.doesNotMatch(system[1]!.text, /\[SCENE FLOW\]/);
+  assert.equal(system[2]!.text, dynamic);
+  assert.equal(system.map((block) => block.text).join("\n\n"), semantic.messages[0]?.content);
+  assert.equal(assembled.messages.at(-1)?.content, semantic.messages.at(-1)?.content);
+  assert.equal(assembled.requestBody.model, "deepseek-v4.1-flash");
+});
+
+test("[SYNTHETIC] a separator-crossing edit still flattens", () => {
+  const original = [
+    { type: "text" as const, text: "RULES\n", cache_control: { type: "ephemeral" as const } },
+    { type: "text" as const, text: "\nCHARACTER", cache_control: { type: "ephemeral" as const } },
+    { type: "text" as const, text: "DYNAMIC memory" },
+  ];
+  const before = original.map((block) => block.text).join("\n\n");
+  const after = before.replace(/\n{3,}/g, "\n\n");
+  assert.notEqual(before, after);
+  const projected = reprojectControlledTextOntoStructuredContent(original, before, after);
+  assert.equal(projected, after);
+});
+
+test("[SYNTHETIC] rules prefix stays put while memory and pacing move", () => {
+  const rules = `[RULES]\n\n\n${"안정 규칙".repeat(20)}`;
+  const character = `[CHARACTER]\n${SCENE_FLOW_BLOCK}\n[CHARACTER END]`;
+  const quiet = assembleSyntheticCacheSplit({
+    rules,
+    character,
+    dynamic: "[DYNAMIC]\nmemory-quiet",
+    user: "잠깐 여기 있자",
+  });
+  const advanced = assembleSyntheticCacheSplit({
+    rules,
+    character,
+    dynamic: "[DYNAMIC]\nmemory-advanced",
+    user: "다음 장소로 이동하자",
+    triggeredEventText: "문이 열리고 알려진 인물이 들어온다",
+  });
+  const quietSystem = quiet.assembled.messages[0]?.content;
+  const advancedSystem = advanced.assembled.messages[0]?.content;
+  assert.ok(Array.isArray(quietSystem));
+  assert.ok(Array.isArray(advancedSystem));
+  assert.equal(quietSystem[0]!.text, advancedSystem[0]!.text);
+  assert.notEqual(quietSystem[1]!.text, advancedSystem[1]!.text);
+  assert.notEqual(quietSystem[2]!.text, advancedSystem[2]!.text);
+  assert.equal(quietSystem[2]?.cache_control, undefined);
+  assert.equal(advancedSystem[2]?.cache_control, undefined);
+  assert.match(quietSystem[1]!.text, /\[SCENE PACING\]/);
+  assert.match(advancedSystem[1]!.text, /\[SCENE PACING\]/);
+  assert.equal(quiet.assembled.requestBody.model, advanced.assembled.requestBody.model);
+  assert.equal(
+    quiet.assembled.requestBody.reasoning_effort,
+    advanced.assembled.requestBody.reasoning_effort
+  );
 });

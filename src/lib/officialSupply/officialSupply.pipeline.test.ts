@@ -824,8 +824,8 @@ describe("adult validation stays canonical (no official bypass)", () => {
   it("viewer adult verification gates do not consult official/site-managed state", () => {
     const page = fs.readFileSync(path.join(process.cwd(), "src/app/character/[id]/page.tsx"), "utf8");
     const route = fs.readFileSync(path.join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
-    assert.match(page, /if \(c\.nsfw === 1 && !user\.is_adult\) \{/);
-    assert.match(route, /if \(ch\.nsfw && !user\.is_adult\) \{/);
+    assert.match(page, /if \(c\.nsfw === 1 && !canAccessAdultContent\(user\)\) \{/);
+    assert.match(route, /if \(ch\.nsfw && !canAccessAdultContent\(user\)\) \{/);
   });
 
   it("tests never load the network-capable production adapters (OpenAI transport, reference fetch, vision)", () => {

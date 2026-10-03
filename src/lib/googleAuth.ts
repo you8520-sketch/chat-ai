@@ -1,7 +1,7 @@
 import "server-only";
 import { getDb } from "@/lib/db";
-import { creditPoints } from "@/lib/points";
-import { SIGNUP_BONUS_POINTS } from "@/lib/plans";
+import { consumePendingEmailSignup } from "@/lib/emailSignupVerification";
+import { grantSignupBonusOnce } from "@/lib/signupBonus";
 
 const SAFE_RETURN_PATH = /^\/(?!\/)[^?#]*$/;
 
@@ -28,7 +28,7 @@ function findExistingGoogleUser(info: GoogleUserInfo): { id: number; pref: strin
     | undefined;
   if (byGoogle) return byGoogle;
 
-  const byEmail = db.prepare("SELECT id, pref, onboarding_completed_at FROM users WHERE email = ?").get(info.email) as
+  const byEmail = db.prepare("SELECT id, pref, onboarding_completed_at FROM users WHERE lower(email) = lower(?)").get(info.email) as
     | { id: number; pref: string | null; onboarding_completed_at: string | null }
     | undefined;
   return byEmail ?? null;
@@ -47,13 +47,14 @@ export function upsertGoogleUser(info: GoogleUserInfo): { userId: number; isNew:
       .prepare("INSERT INTO users (email, nickname, pw_hash, google_id, points) VALUES (?,?,?,?,0)")
       .run(info.email, nickname, "", info.sub);
     const userId = Number(r.lastInsertRowid);
-    creditPoints(userId, SIGNUP_BONUS_POINTS, "FREE", "신규 가입 보너스");
+    grantSignupBonusOnce(userId);
     user = { id: userId, pref: null, onboarding_completed_at: null };
     isNew = true;
   } else if (existing) {
     db.prepare("UPDATE users SET google_id = ? WHERE id = ?").run(info.sub, user.id);
   }
 
+  consumePendingEmailSignup(info.email);
   return { userId: user.id, isNew, pref: user.pref, onboardingCompletedAt: user.onboarding_completed_at };
 }
 

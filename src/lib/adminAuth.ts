@@ -10,10 +10,14 @@ export async function requireAdminUser(): Promise<(User & { is_admin: number }) 
   if (!session) return null;
 
   const row = getDb()
-    .prepare("SELECT is_admin FROM users WHERE id = ?")
-    .get(session.id) as { is_admin: number } | undefined;
+    .prepare("SELECT is_admin, account_kind FROM users WHERE id = ?")
+    .get(session.id) as { is_admin: number; account_kind?: string | null } | undefined;
 
-  const user = { ...session, is_admin: row?.is_admin ?? 0 };
+  const user = {
+    ...session,
+    is_admin: row?.is_admin ?? 0,
+    account_kind: row?.account_kind ?? session.account_kind ?? null,
+  };
   return isAdminUser(user) ? user : null;
 }
 

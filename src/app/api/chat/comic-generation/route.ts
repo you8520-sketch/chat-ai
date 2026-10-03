@@ -6,6 +6,7 @@ import sharp from "sharp";
 
 import { getSessionUser } from "@/lib/auth";
 import { isAdminUser } from "@/lib/isAdminUser";
+import { getPaidProviderCallBlockReason } from "@/lib/portoneReviewerAccount";
 import { parseAssets, type CharacterAsset } from "@/lib/characterAssets";
 import {
   resolveImageGenerationRequiredPoints,
@@ -143,7 +144,7 @@ import {
   type ComicNormalizedProviderReference,
   type ComicProviderReference,
 } from "@/lib/chatComicReferenceIsolation";
-import { effectiveIsAdult } from "@/lib/adultVerification";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import {
   resolveEffectiveAdultRp,
   resolveRoomAdultModeEnabled,
@@ -202,7 +203,7 @@ type GenerationContext = {
   roomAdultModeEnabled: boolean;
 };
 
-type SessionUserLike = { is_adult?: number };
+type SessionUserLike = { email?: string; is_adult?: number; is_admin?: number };
 
 class RequestError extends Error {
   constructor(
@@ -802,6 +803,10 @@ function providerAttemptsJsonFromGenerated(
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  const paidApiBlock = getPaidProviderCallBlockReason(user);
+  if (paidApiBlock) {
+    return NextResponse.json({ error: paidApiBlock }, { status: 403 });
+  }
 
   let savedPath: string | null = null;
   let jobId: number | null = null;
@@ -813,7 +818,7 @@ export async function POST(req: Request) {
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
     const context = resolveGenerationContext({
       userId: user.id,
-      userAdultVerified: effectiveIsAdult((user as SessionUserLike).is_adult ?? 0),
+      userAdultVerified: canAccessAdultContent(user as SessionUserLike),
       characterId: positiveInt(body.characterId),
       chatId: positiveInt(body.chatId),
       personaId: positiveInt(body.personaId),
@@ -823,7 +828,7 @@ export async function POST(req: Request) {
     // adult-grounded approved dialogue may be forwarded as provider-readable
     // INPUT text. This is not server image postprocessing.
     const roomAdultGrounded = resolveEffectiveAdultRp({
-      userAdultVerified: effectiveIsAdult((user as SessionUserLike).is_adult ?? 0),
+      userAdultVerified: canAccessAdultContent(user as SessionUserLike),
       roomAdultModeEnabled: context.roomAdultModeEnabled,
     });
 

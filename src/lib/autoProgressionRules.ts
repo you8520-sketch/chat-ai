@@ -86,9 +86,9 @@ ${allowAiCastIrreversibleExpansion
 ${MANDATORY_RULES_BOUNDED_AUTHORITY_SHORT_REF}`;
 }
 
-/** Short reference for continue hidden command — never restate the detailed scope. */
+/** Continue hidden command — [B] scope only. This-turn cast/NPC/world scope stays in the scene contract. */
 export const AUTO_PROGRESSION_SHORT_REF =
-  "Advance [AI_CAST]/NPC/environment/world proactively. [B] authorship scope is owned only by the system EFFECTIVE USER AUTHORING policy; do not widen it here.";
+  "[B] authorship scope is owned only by the system EFFECTIVE USER AUTHORING policy; do not widen it here.";
 
 /** CORE ROLE block for auto progression (ensemble cast). */
 export const AUTO_PROGRESSION_CORE_ROLE = [
@@ -102,9 +102,9 @@ export const AUTO_PROGRESSION_CORE_ROLE = [
 export const AUTO_PROGRESSION_IDENTITY_PREAMBLE =
   "USER_PERSONA는 [B] 집필의 정본이다. [B]의 실제 허용 범위는 EFFECTIVE USER AUTHORING owner만 결정한다.";
 
-/** Scene-directive user-control line (auto_progression) — short ref only. */
+/** Scene-directive user-control line — [B] scope only. This-turn NPC/world scope stays in the scene contract. */
 export const AUTO_PROGRESSION_SCENE_USER_CONTROL =
-  "유저 캐릭터 [B]의 대사·행동·내면·불가역 운명 범위는 USER AUTHORING owner를 그대로 따른다. 이 scene directive가 권한을 추가하거나 축소하지 않는다. 여러 AI 캐릭터와 NPC의 대화·판단·갈등·협력·적대 세력의 움직임과 세계 사건은 적극적으로 진행한다.";
+  "유저 캐릭터 [B]의 대사·행동·내면·불가역 운명 범위는 USER AUTHORING owner를 그대로 따른다. 이 scene directive가 권한을 추가하거나 축소하지 않는다.";
 
 /** Default LIMITED baseline assertions for offline tests. */
 export const AUTO_PROGRESSION_POV_ASSERTIONS = {

@@ -3,15 +3,34 @@
 import { useMemo, useState } from "react";
 import JsxComponentSandbox from "@/components/JsxComponentSandbox";
 import {
-  compileJsxComponentDraft,
+  hydrateJsxCatalogEditorState,
+  jsxCallGuideTokenCount,
+  jsxCatalogEditableFingerprint,
+  JSX_CALL_GUIDE_CATALOG_TOKEN_MAX,
+  JSX_CALL_GUIDE_MAX_CHARS,
+  removeJsxCatalogHead,
+  resolveJsxCatalogDraft,
+  validateJsxCallGuideCatalog,
+  type JsxComponentManifestRecord,
   type JsxComponentRecord,
   type JsxPropDefinition,
   type JsxPropType,
 } from "@/lib/jsxComponent";
+import { compileJsxComponentSource, suggestJsxPropNamesFromCompiled } from "@/lib/jsxComponent/compile";
+import {
+  CREATOR_JSX_EXAMPLES,
+  creatorJsxExampleById,
+  jsxPropPreviewValues,
+  primaryJsxPropNames,
+  type CreatorJsxExample,
+  type CreatorJsxExampleId,
+} from "@/lib/jsxComponent/creatorExample";
 import { buildJsxComponentManifestBlock } from "@/lib/jsxComponent/manifest";
-import { CREATOR_JSX_EXAMPLE_NAME, CREATOR_JSX_EXAMPLE_PROPS, CREATOR_JSX_EXAMPLE_SOURCE } from "@/lib/jsxComponent/creatorExample";
 
 const PROP_TYPES: JsxPropType[] = ["string", "number", "boolean"];
+const PREVIEW_HEIGHT_PX = 260;
+const CALL_GUIDE_EXAMPLE =
+  "새 퀘스트가 등장하거나 주요 진행 상황이 변경되면 사용합니다. 일반 대화에서는 사용하지 않습니다.";
 
 type Props = {
   value: JsxComponentRecord[];
@@ -24,195 +43,611 @@ function emptyProp(): JsxPropDefinition {
 }
 
 export default function JsxComponentCatalogEditor({ value, onChange, disabled }: Props) {
-  const selected = value[0] ?? null;
-  const [name, setName] = useState(selected?.name ?? "");
-  const [source, setSource] = useState(selected?.source ?? "");
-  const [props, setProps] = useState<JsxPropDefinition[]>(selected?.props ?? []);
+  const saved = value[0] ?? null;
+  const [name, setName] = useState(saved?.name ?? "");
+  const [source, setSource] = useState(saved?.source ?? "");
+  const [props, setProps] = useState<JsxPropDefinition[]>(saved?.props ?? []);
+  const [callGuide, setCallGuide] = useState(saved?.callGuide ?? "");
   const [error, setError] = useState("");
-  const [preview, setPreview] = useState<JsxComponentRecord | null>(selected);
-
-  const manifest = useMemo(
-    () => (preview ? buildJsxComponentManifestBlock([preview]) : ""),
-    [preview]
+  const [preview, setPreview] = useState<JsxComponentRecord | null>(saved);
+  const [suggested, setSuggested] = useState<string[]>(() =>
+    saved ? suggestJsxPropNamesFromCompiled(saved.compiled) : []
   );
+  const [appliedSavedFingerprint, setAppliedSavedFingerprint] = useState(() =>
+    jsxCatalogEditableFingerprint(
+      saved
+        ? { name: saved.name, source: saved.source, props: saved.props, callGuide: saved.callGuide }
+        : null
+    )
+  );
+  const [browsingId, setBrowsingId] = useState<CreatorJsxExampleId | null>(null);
+  const [browseOverrides, setBrowseOverrides] = useState<Record<string, string>>({});
+  const [previewOwner, setPreviewOwner] = useState<"example" | "saved">(saved ? "saved" : "example");
+  const [pendingApply, setPendingApply] = useState(false);
+  const [extraValuesOpen, setExtraValuesOpen] = useState(false);
 
-  function applyDraft(nextName = name, nextSource = source, nextProps = props) {
-    const result = compileJsxComponentDraft({
+  const hydration = hydrateJsxCatalogEditorState({
+    appliedSavedFingerprint,
+    draft: { name, source, props, callGuide },
+    saved,
+  });
+  if (hydration.hydrated || hydration.appliedSavedFingerprint !== appliedSavedFingerprint) {
+    setAppliedSavedFingerprint(hydration.appliedSavedFingerprint);
+    if (hydration.hydrated) {
+      setName(hydration.draft.name);
+      setSource(hydration.draft.source);
+      setProps(hydration.draft.props);
+      setCallGuide(hydration.draft.callGuide ?? "");
+      setPreview(saved);
+      setError("");
+      setSuggested(saved ? suggestJsxPropNamesFromCompiled(saved.compiled) : []);
+      setPreviewOwner(saved ? "saved" : "example");
+    }
+  }
+
+  const draft = hydration.hydrated
+    ? hydration.draft
+    : { name, source, props, callGuide };
+  const unsaved = useMemo(() => {
+    const savedFingerprint = jsxCatalogEditableFingerprint(
+      saved
+        ? { name: saved.name, source: saved.source, props: saved.props, callGuide: saved.callGuide }
+        : null
+    );
+    return savedFingerprint !== jsxCatalogEditableFingerprint(draft);
+  }, [draft, saved]);
+
+  const browsed = browsingId ? creatorJsxExampleById(browsingId) : null;
+  const browsedCompile = useMemo(() => {
+    if (!browsingId) return null;
+    const example = creatorJsxExampleById(browsingId);
+    return compileJsxComponentSource(example.source, example.name);
+  }, [browsingId]);
+
+  const manifestRecords = useMemo(() => {
+    const head = preview ?? saved;
+    const records: JsxComponentManifestRecord[] = [];
+    if (head) {
+      records.push({
+        name: head.name,
+        props: head.props,
+        chatSend: head.chatSend,
+        callGuide: draft.callGuide,
+      });
+    }
+    for (const rest of value.slice(1)) {
+      records.push({
+        name: rest.name,
+        props: rest.props,
+        chatSend: rest.chatSend,
+        callGuide: rest.callGuide,
+      });
+    }
+    return records;
+  }, [draft.callGuide, preview, saved, value]);
+  const manifest = useMemo(
+    () => buildJsxComponentManifestBlock(value),
+    [value]
+  );
+  const callGuideTokens = jsxCallGuideTokenCount(draft.callGuide);
+  const callGuideBudget = validateJsxCallGuideCatalog(manifestRecords);
+  const pendingSuggestions = suggested.filter(
+    (propName) => !draft.props.some((prop) => prop.name === propName)
+  );
+  const showingExample = previewOwner === "example" && browsed != null;
+  const replacementLabel = saved
+    ? unsaved
+      ? `저장된 컴포넌트 ${saved.name}와 작성 중인 초안`
+      : `저장된 컴포넌트 ${saved.name}`
+    : unsaved
+      ? "작성 중인 초안"
+      : null;
+
+  function applyDraft(
+    nextName = draft.name,
+    nextSource = draft.source,
+    nextProps = draft.props,
+    nextCallGuide = draft.callGuide
+  ) {
+    const result = resolveJsxCatalogDraft(value, {
       name: nextName,
       source: nextSource,
       props: nextProps,
+      callGuide: nextCallGuide,
     });
-    if (!result.ok) {
+    if (result.error) {
       setError(result.error);
       setPreview(null);
-      onChange([]);
+      setSuggested([]);
+      return false;
+    }
+    setError("");
+    setPreview(result.preview);
+    setSuggested(result.preview ? suggestJsxPropNamesFromCompiled(result.preview.compiled) : []);
+    // An explicit successful editor compile returns the preview to the user's
+    // component, even when an unrelated gallery example was being browsed.
+    setPreviewOwner("saved");
+    setBrowsingId(null);
+    onChange(result.catalog);
+    return true;
+  }
+
+  function removeSaved() {
+    const nextCatalog = removeJsxCatalogHead(value);
+    const next = nextCatalog[0] ?? null;
+    setName(next?.name ?? "");
+    setSource(next?.source ?? "");
+    setProps(next?.props.map((prop) => ({ ...prop })) ?? []);
+    setCallGuide(next?.callGuide ?? "");
+    setAppliedSavedFingerprint(
+      jsxCatalogEditableFingerprint(
+        next
+          ? { name: next.name, source: next.source, props: next.props, callGuide: next.callGuide }
+          : null
+      )
+    );
+    setError("");
+    setPreview(next);
+    setSuggested(next ? suggestJsxPropNamesFromCompiled(next.compiled) : []);
+    setPreviewOwner(next ? "saved" : "example");
+    onChange(nextCatalog);
+  }
+
+  function selectExample(id: CreatorJsxExampleId) {
+    setBrowsingId(id);
+    setBrowseOverrides({});
+    setPreviewOwner("example");
+    setPendingApply(false);
+    setExtraValuesOpen(false);
+  }
+
+  function commitApplyExample(example: CreatorJsxExample) {
+    const nextProps = example.props.map((prop) => ({
+      ...prop,
+      example: browseOverrides[prop.name] ?? prop.example,
+    }));
+    setName(example.name);
+    setSource(example.source);
+    setProps(nextProps);
+    setPendingApply(false);
+    applyDraft(example.name, example.source, nextProps, callGuide);
+  }
+
+  function updateCallGuide(next: string) {
+    setCallGuide(next);
+    if (!saved) return;
+    const savedBody = jsxCatalogEditableFingerprint({
+      name: saved.name,
+      source: saved.source,
+      props: saved.props,
+      callGuide: "",
+    });
+    const draftBody = jsxCatalogEditableFingerprint({
+      name: draft.name,
+      source: draft.source,
+      props: draft.props,
+      callGuide: "",
+    });
+    if (savedBody !== draftBody) return;
+    // Metadata-only edits reuse the already-compiled saved component. Recompile
+    // only through applyDraft when the creator changes the source or props.
+    const nextCatalog = [{ ...saved, callGuide: next.trim() }, ...value.slice(1)];
+    const budget = validateJsxCallGuideCatalog(nextCatalog);
+    if (!budget.ok) {
+      setError(budget.error);
       return;
     }
     setError("");
-    setPreview(result.record);
-    onChange([result.record]);
+    onChange(nextCatalog);
   }
 
+  function requestApplyExample(example: CreatorJsxExample) {
+    if (replacementLabel) {
+      setPendingApply(true);
+      return;
+    }
+    commitApplyExample(example);
+  }
+
+  const valueProps = showingExample && browsed ? browsed.props : draft.props;
+  const primaryNames =
+    showingExample && browsed
+      ? browsed.primaryPropNames
+      : primaryJsxPropNames(valueProps);
+  const primaryProps = valueProps.filter((prop) => primaryNames.includes(prop.name));
+  const extraProps = valueProps.filter((prop) => prop.name && !primaryNames.includes(prop.name));
+
+  function exampleValue(prop: JsxPropDefinition): string {
+    if (showingExample) return browseOverrides[prop.name] ?? prop.example ?? "";
+    return prop.example ?? "";
+  }
+
+  function setExampleValue(prop: JsxPropDefinition, nextValue: string) {
+    if (showingExample) {
+      setBrowseOverrides((current) => ({ ...current, [prop.name]: nextValue }));
+      return;
+    }
+    setProps(draft.props.map((item) => (item.name === prop.name ? { ...item, example: nextValue } : item)));
+  }
+
+  const sandboxCompiled =
+    showingExample && browsedCompile?.ok
+      ? browsedCompile.compiled
+      : preview?.compiled ?? "";
+  const sandboxProps =
+    showingExample && browsed
+      ? jsxPropPreviewValues(browsed.props, browseOverrides)
+      : preview
+        ? jsxPropPreviewValues(draft.props)
+        : null;
+  const sandboxTitle = showingExample && browsed ? browsed.name : preview?.name;
+
   return (
-    <section className="mt-8 rounded-2xl border border-white/10 bg-[#0c0c10] p-4">
-      <div className="mb-3">
-        <h2 className="text-sm font-semibold text-zinc-100">채팅 중 호출 컴포넌트 · 고급</h2>
-        <p className="mt-0.5 text-xs text-zinc-400">
-          상태창과 별개로 AI가 대화 중 필요할 때 &lt;Component /&gt; 형태로 호출하는 인터랙티브 UI입니다.
-          AI에는 아래 Manifest만 전달됩니다. 소스·스타일은 프롬프트에 넣지 않습니다.
-        </p>
+    <section className="mt-4 space-y-4">
+      <div className="space-y-2 text-xs leading-relaxed text-zinc-400">
+        <p className="text-sm font-semibold text-zinc-100">대화 중 눌러 보는 화면</p>
+        <ol className="list-decimal space-y-1 pl-4">
+          <li>만들고 싶은 화면을 선택합니다.</li>
+          <li>미리보기에서 버튼을 누르거나 값을 바꿔 봅니다.</li>
+          <li>예제를 적용한 뒤 원하는 디자인과 기능으로 수정합니다.</li>
+          <li>저장하면 AI가 대화 상황에 맞춰 등록된 컴포넌트를 호출할 수 있습니다.</li>
+        </ol>
+        <p>실제 호출은 모델 출력에 따라 달라지며, 매 답변마다 열리지는 않습니다.</p>
+        <p>이 영역은 대화 중에 AI가 호출하는 화면입니다. 위의 상태창 위젯과는 따로 저장됩니다.</p>
       </div>
-      <div className="mb-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          disabled={disabled}
-          className="rounded-md border border-white/15 px-2 py-1 text-[11px] text-zinc-200"
-          onClick={() => {
-            setName(CREATOR_JSX_EXAMPLE_NAME);
-            setSource(CREATOR_JSX_EXAMPLE_SOURCE);
-            setProps(CREATOR_JSX_EXAMPLE_PROPS);
-            applyDraft(CREATOR_JSX_EXAMPLE_NAME, CREATOR_JSX_EXAMPLE_SOURCE, CREATOR_JSX_EXAMPLE_PROPS);
-          }}
-        >
-          기본 예제 불러오기
-        </button>
-      </div>
-      <label className="mb-2 block text-xs text-zinc-400">
+
+      <label className="block text-xs text-zinc-400">
         이름 (PascalCase)
         <input
-          value={name}
+          value={draft.name}
           disabled={disabled}
           onChange={(e) => setName(e.target.value)}
-          onBlur={() => applyDraft()}
-          className="mt-1 w-full rounded-md border border-white/10 bg-[#14141a] px-2 py-1.5 text-sm text-zinc-100"
+          className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#14141a] px-3 text-sm text-zinc-100"
         />
       </label>
-      <div className="mb-3">
-        <p className="mb-1 text-xs text-zinc-400">Props (최대 50 · camelCase)</p>
-        {props.map((prop, index) => (
-          <div key={index} className="mb-1 grid grid-cols-6 gap-1">
-            <input
-              value={prop.name}
-              placeholder="name"
+      <label className="block text-xs text-zinc-400">
+        AI 호출 설명
+        <textarea
+          value={draft.callGuide ?? ""}
+          disabled={disabled}
+          maxLength={JSX_CALL_GUIDE_MAX_CHARS}
+          rows={3}
+          placeholder={CALL_GUIDE_EXAMPLE}
+          onChange={(e) => updateCallGuide(e.target.value)}
+          className="mt-1 w-full rounded-xl border border-white/10 bg-[#14141a] px-3 py-2 text-sm text-zinc-100"
+        />
+        <span className="mt-1 block text-[11px] text-zinc-500">
+          입력 {(draft.callGuide ?? "").length}/{JSX_CALL_GUIDE_MAX_CHARS}자 · 이 설명 추정 토큰{" "}
+          {callGuideTokens} · 등록 설명 합계 한도 {JSX_CALL_GUIDE_CATALOG_TOKEN_MAX}
+        </span>
+      </label>
+      {!callGuideBudget.ok ? (
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+          {callGuideBudget.error}
+        </p>
+      ) : null}
+
+      {unsaved ? (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+          미저장 초안입니다. 컴파일에 성공하기 전에는 저장된 컴포넌트가 바뀌지 않습니다.
+        </p>
+      ) : null}
+      {error ? (
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+          {error}
+          {saved ? ` 저장된 컴포넌트는 유지됩니다: ${saved.name}.` : ""}
+        </p>
+      ) : null}
+
+      <div role="list" aria-label="예제 갤러리" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {CREATOR_JSX_EXAMPLES.map((example) => {
+          const selected = browsingId === example.id && showingExample;
+          return (
+            <button
+              key={example.id}
+              type="button"
+              aria-pressed={selected}
               disabled={disabled}
-              onChange={(e) => {
-                const next = props.slice();
-                next[index] = { ...prop, name: e.target.value };
-                setProps(next);
-              }}
-              className="col-span-2 rounded border border-white/10 bg-[#14141a] px-1 py-1 text-[11px] text-zinc-100"
-            />
-            <select
-              value={prop.type}
-              disabled={disabled}
-              onChange={(e) => {
-                const next = props.slice();
-                next[index] = { ...prop, type: e.target.value as JsxPropType };
-                setProps(next);
-              }}
-              className="rounded border border-white/10 bg-[#14141a] px-1 py-1 text-[11px] text-zinc-100"
+              onClick={() => selectExample(example.id)}
+              className={`min-h-11 rounded-xl border px-3 py-2 text-left ${
+                selected
+                  ? "border-violet-400 bg-violet-600/20 text-violet-50"
+                  : "border-white/10 bg-[#14141a] text-zinc-200 hover:border-white/20"
+              }`}
             >
-              {PROP_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-            <label className="flex items-center gap-1 text-[11px] text-zinc-400">
-              <input
-                type="checkbox"
-                checked={prop.required}
-                disabled={disabled}
-                onChange={(e) => {
-                  const next = props.slice();
-                  next[index] = { ...prop, required: e.target.checked };
-                  setProps(next);
-                }}
-              />
-              required
-            </label>
-            <input
-              value={prop.example ?? ""}
-              placeholder="example"
-              disabled={disabled}
-              onChange={(e) => {
-                const next = props.slice();
-                next[index] = { ...prop, example: e.target.value };
-                setProps(next);
-              }}
-              className="rounded border border-white/10 bg-[#14141a] px-1 py-1 text-[11px] text-zinc-100"
-            />
-            <input
-              value={prop.description ?? ""}
-              placeholder="description → AI"
-              disabled={disabled}
-              onChange={(e) => {
-                const next = props.slice();
-                next[index] = { ...prop, description: e.target.value };
-                setProps(next);
-              }}
-              className="rounded border border-white/10 bg-[#14141a] px-1 py-1 text-[11px] text-zinc-100"
+              <span className="block text-sm font-semibold">{example.label}</span>
+              <span className="mt-0.5 block text-[11px] text-zinc-400">{example.summary}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {sandboxProps && sandboxCompiled && sandboxTitle ? (
+        <div className="space-y-2">
+          <p className="text-xs text-zinc-400">
+            {showingExample ? "예제 미리보기" : "내 컴포넌트 미리보기"} · 채팅 전송은 꺼져 있습니다.
+            값을 바꾸면 이 미리보기에 바로 반영됩니다.
+          </p>
+          <div className="max-h-72 min-w-0 overflow-auto rounded-xl border border-white/10 bg-[#0a0a0c] p-2">
+            <JsxComponentSandbox
+              compiled={sandboxCompiled}
+              props={sandboxProps}
+              title={sandboxTitle}
+              chatSendEnabled={false}
+              heightPx={PREVIEW_HEIGHT_PX}
             />
           </div>
-        ))}
-        <button
-          type="button"
-          disabled={disabled || props.length >= 50}
-          className="mt-1 text-[11px] text-violet-200"
-          onClick={() => setProps([...props, emptyProp()])}
-        >
-          Prop 추가
-        </button>
-      </div>
-      <label className="mb-2 block text-xs text-zinc-400">
-        JSX source
-        <textarea
-          value={source}
-          disabled={disabled}
-          rows={12}
-          onChange={(e) => setSource(e.target.value)}
-          onBlur={() => applyDraft()}
-          className="mt-1 w-full rounded-md border border-white/10 bg-[#14141a] px-2 py-1.5 font-mono text-[11px] text-zinc-100"
-        />
-      </label>
-      <button
-        type="button"
-        disabled={disabled}
-        className="mb-3 rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs text-violet-100"
-        onClick={() => applyDraft()}
-      >
-        컴파일 / 미리보기
-      </button>
-      {error ? <p className="mb-2 text-xs text-rose-300">{error}</p> : null}
-      {preview?.chatSend ? (
-        <p className="mb-2 text-xs text-amber-200">이 컴포넌트는 채팅 전송 기능을 사용합니다.</p>
-      ) : null}
-      {preview ? (
-        <div className="mb-3">
-          <p className="mb-1 text-xs text-zinc-400">Preview · 채팅과 동일 sandbox owner</p>
-          <JsxComponentSandbox
-            compiled={preview.compiled}
-            props={Object.fromEntries(
-              preview.props.map((prop) => [
-                prop.name,
-                prop.type === "number"
-                  ? Number(prop.example ?? 0)
-                  : prop.type === "boolean"
-                    ? prop.example === "true"
-                    : prop.example ?? "",
-              ])
-            )}
-            title={preview.name}
-            chatSendEnabled={false}
-          />
+        </div>
+      ) : (
+        <p className="text-xs text-zinc-500">예제를 고르면 미리보기가 열립니다. 채팅 전송은 꺼져 있습니다.</p>
+      )}
+
+      {valueProps.length > 0 && (showingExample || preview) ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-zinc-200">예시 값</p>
+          {primaryProps.map((prop) => (
+            <ExampleValueField
+              key={prop.name}
+              prop={prop}
+              value={exampleValue(prop)}
+              disabled={disabled}
+              onChange={(nextValue) => setExampleValue(prop, nextValue)}
+            />
+          ))}
+          {extraProps.length > 0 ? (
+            <div>
+              <button
+                type="button"
+                aria-expanded={extraValuesOpen}
+                onClick={() => setExtraValuesOpen((open) => !open)}
+                className="min-h-11 text-xs text-violet-200"
+              >
+                {extraValuesOpen ? "나머지 값 접기" : "나머지 값 보기"}
+              </button>
+              {extraValuesOpen
+                ? extraProps.map((prop) => (
+                    <ExampleValueField
+                      key={prop.name}
+                      prop={prop}
+                      value={exampleValue(prop)}
+                      disabled={disabled}
+                      onChange={(nextValue) => setExampleValue(prop, nextValue)}
+                    />
+                  ))
+                : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
-      <label className="block text-xs text-zinc-400">
-        AI에게 실제 전달되는 Component Manifest
-        <pre className="mt-1 max-h-56 overflow-auto rounded-md border border-white/10 bg-[#08080c] p-2 text-[11px] text-zinc-300 whitespace-pre-wrap">
+
+      {browsed && showingExample ? (
+        <div className="space-y-2">
+          {replacementLabel ? (
+            <p className="text-xs text-amber-100">
+              적용 시 교체 대상: {replacementLabel}. 예제를 둘러보는 동안에는 저장 내용이 바뀌지
+              않습니다.
+            </p>
+          ) : (
+            <p className="text-xs text-zinc-500">적용하기 전에는 저장 내용이 바뀌지 않습니다.</p>
+          )}
+          {pendingApply && replacementLabel ? (
+            <div
+              role="alertdialog"
+              aria-label="예제 적용 확인"
+              className="space-y-2 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3"
+            >
+              <p className="text-xs text-amber-50">
+                교체 대상: {replacementLabel}. 예제: {browsed.label}.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => commitApplyExample(browsed)}
+                  className="min-h-11 rounded-xl bg-amber-500 px-3 text-xs font-semibold text-black"
+                >
+                  바꾸기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingApply(false)}
+                  className="min-h-11 rounded-xl border border-white/15 px-3 text-xs text-zinc-200"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => requestApplyExample(browsed)}
+              className="min-h-11 rounded-xl bg-violet-600 px-3 text-xs font-semibold text-white"
+            >
+              이 예제 적용
+            </button>
+          )}
+        </div>
+      ) : null}
+
+      <details className="rounded-xl border border-white/10 bg-[#14141a] p-3 text-xs text-zinc-300">
+        <summary className="cursor-pointer text-sm font-semibold text-zinc-100">
+          고급 JSX 코드 및 Props
+        </summary>
+        <div className="mt-3 space-y-3">
+          <p className="text-zinc-400">
+            코드를 수정한 뒤 '컴파일 / 미리보기'를 눌러 반영합니다. 예제를 둘러보거나
+            입력칸을 벗어날 때는 저장된 컴포넌트를 바꾸지 않습니다.
+            AI에는 Manifest만 전달되고, 소스는 프롬프트에 넣지 않습니다.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {saved ? (
+              <button
+                type="button"
+                disabled={disabled}
+                className="rounded-md border border-rose-500/30 px-2 py-1 text-[11px] text-rose-200"
+                onClick={removeSaved}
+              >
+                저장된 컴포넌트 제거
+              </button>
+            ) : null}
+          </div>
+          <label className="block text-zinc-400">
+            JSX source
+            <textarea
+              value={draft.source}
+              disabled={disabled}
+              rows={12}
+              onChange={(e) => setSource(e.target.value)}
+              className="mt-1 w-full rounded-md border border-white/10 bg-[#0c0c12] px-2 py-1.5 font-mono text-[11px] text-zinc-100"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={disabled}
+            className="rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs text-violet-100"
+            onClick={() => applyDraft()}
+          >
+            컴파일 / 미리보기
+          </button>
+          <div>
+            <p className="mb-1 text-zinc-400">Props</p>
+            <p className="mb-2 text-[11px] leading-relaxed text-zinc-500">
+              컴파일된 코드에서 <span className="font-mono">props.name</span> 또는{" "}
+              <span className="font-mono">props[&quot;name&quot;]</span>으로 읽은 값만 제안합니다.
+              구조분해와 계산된 키는 직접 입력합니다.
+            </p>
+            {pendingSuggestions.length > 0 ? (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {pendingSuggestions.map((propName) => (
+                  <button
+                    key={propName}
+                    type="button"
+                    disabled={disabled || draft.props.length >= 50}
+                    className="rounded-md border border-violet-500/30 px-2 py-1 font-mono text-[11px] text-violet-100"
+                    onClick={() =>
+                      setProps([...draft.props, { name: propName, type: "string", required: false }])
+                    }
+                  >
+                    + {propName}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {draft.props.map((prop, index) => (
+              <div key={`${prop.name}-${index}`} className="mb-1 grid grid-cols-6 gap-1">
+                <input
+                  value={prop.name}
+                  placeholder="name"
+                  disabled={disabled}
+                  onChange={(e) => {
+                    const next = draft.props.slice();
+                    next[index] = { ...prop, name: e.target.value };
+                    setProps(next);
+                  }}
+                  className="col-span-2 rounded border border-white/10 bg-[#0c0c12] px-1 py-1 text-[11px] text-zinc-100"
+                />
+                <select
+                  value={prop.type}
+                  disabled={disabled}
+                  onChange={(e) => {
+                    const next = draft.props.slice();
+                    next[index] = { ...prop, type: e.target.value as JsxPropType };
+                    setProps(next);
+                  }}
+                  className="rounded border border-white/10 bg-[#0c0c12] px-1 py-1 text-[11px] text-zinc-100"
+                >
+                  {PROP_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+                <label className="flex items-center gap-1 text-[11px] text-zinc-400">
+                  <input
+                    type="checkbox"
+                    checked={prop.required}
+                    disabled={disabled}
+                    onChange={(e) => {
+                      const next = draft.props.slice();
+                      next[index] = { ...prop, required: e.target.checked };
+                      setProps(next);
+                    }}
+                  />
+                  required
+                </label>
+                <input
+                  value={prop.example ?? ""}
+                  placeholder="example"
+                  disabled={disabled}
+                  onChange={(e) => {
+                    const next = draft.props.slice();
+                    next[index] = { ...prop, example: e.target.value };
+                    setProps(next);
+                  }}
+                  className="rounded border border-white/10 bg-[#0c0c12] px-1 py-1 text-[11px] text-zinc-100"
+                />
+                <input
+                  value={prop.description ?? ""}
+                  placeholder="description → AI"
+                  disabled={disabled}
+                  onChange={(e) => {
+                    const next = draft.props.slice();
+                    next[index] = { ...prop, description: e.target.value };
+                    setProps(next);
+                  }}
+                  className="rounded border border-white/10 bg-[#0c0c12] px-1 py-1 text-[11px] text-zinc-100"
+                />
+              </div>
+            ))}
+            <button
+              type="button"
+              disabled={disabled || draft.props.length >= 50}
+              className="mt-1 text-[11px] text-violet-200"
+              onClick={() => setProps([...draft.props, emptyProp()])}
+            >
+              Prop 직접 추가
+            </button>
+          </div>
+          {preview?.chatSend ? (
+            <p className="text-xs text-amber-200">이 컴포넌트는 채팅 전송 기능을 사용합니다.</p>
+          ) : null}
+        </div>
+      </details>
+      <section aria-label="AI에게 실제로 전달되는 정보" className="space-y-2">
+        <h3 className="text-sm font-semibold text-zinc-100">AI에게 실제로 전달되는 정보</h3>
+        <p className="text-[11px] leading-relaxed text-zinc-500">
+          아래에는 저장된 컴포넌트 기준 Manifest를 표시합니다. JSX 소스와 스타일은 포함되지 않습니다.
+          {unsaved ? " 작성 중인 초안은 적용하기 전까지 모델에 전달되지 않습니다." : ""}
+        </p>
+        <pre className="max-h-56 overflow-auto rounded-xl border border-white/10 bg-[#08080c] p-2 text-[11px] text-zinc-300 whitespace-pre-wrap">
           {manifest || "(저장 후 카탈로그가 있을 때만 주입)"}
         </pre>
-      </label>
+      </section>
     </section>
+  );
+}
+
+function ExampleValueField({
+  prop,
+  value,
+  disabled,
+  onChange,
+}: {
+  prop: JsxPropDefinition;
+  value: string;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="block text-xs text-zinc-400">
+      {prop.description || prop.name}
+      <input
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#14141a] px-3 text-sm text-zinc-100"
+      />
+    </label>
   );
 }

@@ -13,6 +13,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   GEMINI_38_FLASH_MODEL,
 } from "@/lib/chatModels";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
@@ -35,6 +36,7 @@ export const PHASE1_PUBLISHED_MODELS = [
   GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 ] as const;
 
 /** Phase 2 Published DeepSeek models — V4 Pro + V4.1 Flash (not Phase 1). */
@@ -52,6 +54,17 @@ const PHASE2_DEEPSEEK_PUBLISHED_MODEL_SET = new Set<string>(PHASE2_DEEPSEEK_PUBL
 /** User-selectable stable-published models that must never fall through to procurement-coupled legacy billing. */
 export function isOpus55MandatoryPublishedBillingModel(modelId: string): boolean {
   return modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL;
+}
+
+export function isGpt61SolMandatoryPublishedBillingModel(modelId: string): boolean {
+  return canonicalizePublishedModelId(modelId) === CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
+}
+
+export function isMandatoryPhase1PublishedBillingModel(modelId: string): boolean {
+  return (
+    isOpus55MandatoryPublishedBillingModel(modelId) ||
+    isGpt61SolMandatoryPublishedBillingModel(modelId)
+  );
 }
 
 export function isV41MandatoryPublishedDirectSelection(input: {
@@ -106,7 +119,8 @@ export function shouldPreparePublishedBillingFxSnapshot(): boolean {
   return (
     isPhase1PublishedBillingEnabled() ||
     isPhase2DeepSeekPublishedBillingEnabled() ||
-    isOpus55MandatoryPublishedBillingModel(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL)
+    isMandatoryPhase1PublishedBillingModel(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL) ||
+    isMandatoryPhase1PublishedBillingModel(CHEAPER_INFERENCE_GPT_61_SOL_MODEL)
   );
 }
 
@@ -128,7 +142,7 @@ export function resolvePublishedBillingPhase(
 ): PublishedBillingPhase | null {
   const phase1Enabled = opts?.phase1Enabled ?? isPhase1PublishedBillingEnabled();
   const phase2Enabled = opts?.phase2Enabled ?? isPhase2DeepSeekPublishedBillingEnabled();
-  if (isOpus55MandatoryPublishedBillingModel(input.deliveredModelId)) {
+  if (isMandatoryPhase1PublishedBillingModel(input.deliveredModelId)) {
     return "phase1";
   }
   if (isV41MandatoryPublishedDirectSelection(input)) {
@@ -278,7 +292,7 @@ function resolvePublishedPathFailure(
 ): ChatBillingContractDecision {
   if (
     publishedPhase === "phase2" ||
-    isOpus55MandatoryPublishedBillingModel(input.deliveredModelId)
+    isMandatoryPhase1PublishedBillingModel(input.deliveredModelId)
   ) {
     return phase2PublishedFailClosedDecision(input, reason, telemetryPartial);
   }
@@ -319,7 +333,7 @@ function resolveLegacyEligibilityReason(
   if (
     isPhase1PublishedBillingModel(input.deliveredModelId) &&
     !phase1Enabled &&
-    !isOpus55MandatoryPublishedBillingModel(input.deliveredModelId)
+    !isMandatoryPhase1PublishedBillingModel(input.deliveredModelId)
   ) {
     return "phase1_billing_disabled";
   }
@@ -406,11 +420,11 @@ export function resolveChatBillingContract(
 
   if (input.legacyWaiverMinimum > 0) {
     if (
-      isOpus55MandatoryPublishedBillingModel(input.deliveredModelId) ||
+      isMandatoryPhase1PublishedBillingModel(input.deliveredModelId) ||
       isV41MandatoryPublishedDirectSelection(input)
     ) {
       return phase2PublishedFailClosedDecision(input, "usage_unresolved", {
-        publishedBillingPhaseAttempted: isOpus55MandatoryPublishedBillingModel(
+        publishedBillingPhaseAttempted: isMandatoryPhase1PublishedBillingModel(
           input.deliveredModelId
         )
           ? "phase1"

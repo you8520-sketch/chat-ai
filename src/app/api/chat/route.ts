@@ -471,7 +471,7 @@ import {
 } from "@/lib/statusWidget/receiptUsage";
 import type { Usage } from "@/lib/chatUsage";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
-import { isOocHtmlRequest } from "@/lib/oocHtmlRequest";
+import { resolveMainModelOocHtmlMode } from "@/lib/oocHtmlRequest";
 import { isHtmlDisplayOnlyTurn, isHtmlFlashOnlyTurn, isOocCreativeHtmlTurn, chatInputSuppressesStatusWidget } from "@/lib/htmlDisplayOnlyTurn";
 import {
   buildChatOocRpContinuingUserPrompt,
@@ -584,7 +584,8 @@ import {
   resolveAdultSceneRoutingEnabledForRequest,
 } from "@/lib/adultSceneHandoffCanary";
 import { isAdminUser } from "@/lib/isAdminUser";
-import { effectiveIsAdult } from "@/lib/adultVerification";
+import { getPaidProviderCallBlockReason } from "@/lib/portoneReviewerAccount";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import {
   parseAdultHandoffEnabled,
   resolveEffectiveAdultRp,
@@ -615,6 +616,10 @@ export async function POST(req: Request) {
   const requestStartedAt = Date.now();
   const user = await getSessionUser();
   if (!user) return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  const paidApiBlock = getPaidProviderCallBlockReason(user);
+  if (paidApiBlock) {
+    return Response.json({ error: paidApiBlock }, { status: 403 });
+  }
   const authDoneMs = Date.now();
 
   const body = await req.json();
@@ -704,7 +709,7 @@ export async function POST(req: Request) {
   } | undefined;
   if (!ch) return Response.json({ error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
 
-  if (ch.nsfw && !user.is_adult) {
+  if (ch.nsfw && !canAccessAdultContent(user)) {
     return Response.json({ error: "성인용 캐릭터는 성인인증 후 이용할 수 있습니다.", needVerify: true }, { status: 403 });
   }
 
@@ -746,7 +751,7 @@ export async function POST(req: Request) {
     initialPersonaId = personas[0]?.id ?? null;
   }
 
-  const userAdultVerified = effectiveIsAdult(user.is_adult);
+  const userAdultVerified = canAccessAdultContent(user);
   const requestedRoomAdultMode = parseAdultHandoffEnabled(
     body.adultHandoffEnabled ?? body.adult_handoff_enabled
   );
@@ -1855,10 +1860,11 @@ export async function POST(req: Request) {
   /** Relationship meta — post-process Flash extract (not main-model JSON tail) */
   const mainModelOwnsRelationshipExtract = false;
   /** Flash HTML ON이면 메인 모델 inline HTML(oocHtmlMode) 금지 — Flash가 ```html``` 소유 */
-  const oocHtmlMode =
-    !autoContinueContext &&
-    isOocHtmlRequest(storedUserMessage) &&
-    !htmlVisualCardPolicy.enabled;
+  const oocHtmlMode = resolveMainModelOocHtmlMode({
+    autoContinue: Boolean(autoContinueContext),
+    userMessage: storedUserMessage,
+    htmlVisualCardEnabled: htmlVisualCardPolicy.enabled,
+  });
   const s4LiveProducerAllowed =
     personaSecretDiscoveryOn &&
     isPersonaSecretS4LiveProducerEnabled() &&

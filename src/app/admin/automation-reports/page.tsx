@@ -1158,6 +1158,10 @@ export default async function AdminAutomationReportsPage() {
   const githubFailures = github.groups.filter(
     (group) => group.latest.conclusion && group.latest.conclusion !== "success"
   ).length;
+  const githubLookupProblems =
+    (github.status === "UNAVAILABLE" ? 1 : 0) +
+    (supplyDrafts.status === "UNAVAILABLE" ? 1 : 0) +
+    (postDeploy.status === "UNAVAILABLE" ? 1 : 0);
   const schedulerProblems = schedulers.filter((row) =>
     ["FAILED", "STALE", "STALE_BLOCKED", "MISSING"].includes(row.state)
   ).length;
@@ -1223,6 +1227,7 @@ export default async function AdminAutomationReportsPage() {
           <p className="text-xs text-zinc-500">확인 필요</p>
           <p className="mt-2 text-2xl font-black text-amber-300">
             {githubFailures +
+              githubLookupProblems +
               schedulerProblems +
               codeHealthProblems +
               decisionRadarProblems +
@@ -1231,7 +1236,7 @@ export default async function AdminAutomationReportsPage() {
               financeAnomalies.anomalies.length +
               supplyDrafts.drafts.length}건
           </p>
-          <p className="mt-1 text-xs text-zinc-600">실패·누락·stale 최신 상태</p>
+          <p className="mt-1 text-xs text-zinc-600">조회 장애·실패·기록 없음·stale 최신 상태</p>
         </div>
       </section>
 
@@ -1366,7 +1371,9 @@ export default async function AdminAutomationReportsPage() {
           </>
         ) : (
           <p className="mt-4 text-sm text-zinc-500">
-            아직 정기 실행 결과가 없습니다. 첫 scheduled run 이후 여기에 표시됩니다.
+            {decisionRadar.status === "UNAVAILABLE"
+              ? "Decision Radar 결과를 읽지 못했습니다. 자동화 실패가 아니라 GitHub 조회 장애입니다."
+              : "아직 정기 실행 결과가 없습니다. 첫 scheduled run 이후 여기에 표시됩니다."}
           </p>
         )}
 

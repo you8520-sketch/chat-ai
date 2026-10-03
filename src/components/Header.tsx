@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { cookies } from "next/headers";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { readGuestNoticeReadState } from "@/lib/noticeGuestReadCookies";
@@ -14,7 +15,7 @@ import HeaderProfileMenu from "./HeaderProfileMenu";
 import UserPreferenceControls from "./UserPreferenceControls";
 import ExpiringPointsPopup from "./ExpiringPointsPopup";
 import { getPointBalance } from "@/lib/points";
-import { isPaymentsEnabled } from "@/lib/portoneConfig";
+import { canAccessPortoneCheckout } from "@/lib/portoneReviewerAccount";
 import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
 export default async function Header() {
@@ -27,7 +28,7 @@ export default async function Header() {
   });
   const unreadCount = getTotalUnreadCount(db, user?.id ?? null, guestState);
   const pointBalance = user ? getPointBalance(user.id) : null;
-  const paymentsEnabled = isPaymentsEnabled();
+  const paymentsEnabled = canAccessPortoneCheckout(user);
 
   return (
     <>
@@ -62,6 +63,7 @@ export default async function Header() {
                 <NotificationBell count={unreadCount} />
                 <UserPreferenceControls
                   isAdult={!!user.is_adult}
+                  canDisableSafetyFilter={canAccessAdultContent(user)}
                   nsfwOn={!!user.nsfw_on}
                   pref={(user.pref as "female" | "male" | null) ?? null}
                   variant="header"
@@ -74,7 +76,7 @@ export default async function Header() {
                   />
                   {paymentsEnabled && <PointsShopLink />}
                 </div>
-                {!user.is_adult && (
+                {!canAccessAdultContent(user) && (
                   <Link
                     href="/verify"
                     className="hidden text-xs font-medium text-zinc-400 transition hover:text-violet-300 sm:inline"

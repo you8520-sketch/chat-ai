@@ -23,6 +23,13 @@ export type PublishedModelPricing = {
   billingReferenceOutputUsdPerMillion: number;
   billingReferenceCacheReadUsdPerMillion?: number;
   billingReferenceCacheWriteUsdPerMillion?: number;
+  /** Official long-context rates. Applied to the whole request when promptTokens > threshold. */
+  billingReferenceLongContextInputUsdPerMillion?: number;
+  billingReferenceLongContextOutputUsdPerMillion?: number;
+  billingReferenceLongContextCacheReadUsdPerMillion?: number;
+  billingReferenceLongContextCacheWriteUsdPerMillion?: number;
+  /** Exclusive lower bound: promptTokens > this value uses long-context rates. */
+  publishedLongContextMinPromptTokens?: number;
   targetMargin: number;
   minimumMarginFloor: number;
   pricingVersion: number;
@@ -187,18 +194,22 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     pricingVersion: 1,
     publishedAt: "2026-08-28T00:00:00.000Z",
   },
-  "gpt-5.6-terra": {
-    modelId: "gpt-5.6-terra",
+  "gpt-6.1-sol": {
+    modelId: "gpt-6.1-sol",
     commercialPricingOwner: "target_margin",
     billingReferenceInputUsdPerMillion: 2,
-    billingReferenceOutputUsdPerMillion: 12,
-    billingReferenceCacheReadUsdPerMillion: 0.2,
-    billingReferenceCacheWriteUsdPerMillion: 2,
-    targetMargin: 0.3,
-    minimumMarginFloor: 0.15,
-    pricingVersion: 2,
-    publishedAt: "2026-09-19T00:00:00.000Z",
-    marketBenchmark: { outputChars: 6025, points: 253 },
+    billingReferenceOutputUsdPerMillion: 10,
+    billingReferenceCacheReadUsdPerMillion: 0.1,
+    billingReferenceCacheWriteUsdPerMillion: 2.5,
+    billingReferenceLongContextInputUsdPerMillion: 4,
+    billingReferenceLongContextOutputUsdPerMillion: 15,
+    billingReferenceLongContextCacheReadUsdPerMillion: 0.2,
+    billingReferenceLongContextCacheWriteUsdPerMillion: 5,
+    publishedLongContextMinPromptTokens: 272_000,
+    targetMargin: 0.45,
+    minimumMarginFloor: 0.3,
+    pricingVersion: 1,
+    publishedAt: "2026-10-02T00:00:00.000Z",
   },
   "claude-opus-5.5": {
     modelId: "claude-opus-5.5",
@@ -284,6 +295,48 @@ export function listPublishedModelIds(): string[] {
 }
 
 /** Exact catalog entries for integrity regression tests. */
+export type ResolvedPublishedReferenceRates = {
+  longContextApplied: boolean;
+  inputUsdPerMillion: number;
+  outputUsdPerMillion: number;
+  cacheReadUsdPerMillion: number | null;
+  cacheWriteUsdPerMillion: number | null;
+};
+
+/** Official "more than 272K" contract: exclusive threshold, whole-request rates. */
+export function resolvePublishedReferenceRatesForPrompt(
+  pricing: PublishedModelPricing,
+  promptTokens: number
+): ResolvedPublishedReferenceRates {
+  const longContextApplied =
+    pricing.publishedLongContextMinPromptTokens != null &&
+    pricing.billingReferenceLongContextInputUsdPerMillion != null &&
+    pricing.billingReferenceLongContextOutputUsdPerMillion != null &&
+    promptTokens > pricing.publishedLongContextMinPromptTokens;
+  if (longContextApplied) {
+    return {
+      longContextApplied: true,
+      inputUsdPerMillion: pricing.billingReferenceLongContextInputUsdPerMillion!,
+      outputUsdPerMillion: pricing.billingReferenceLongContextOutputUsdPerMillion!,
+      cacheReadUsdPerMillion:
+        pricing.billingReferenceLongContextCacheReadUsdPerMillion ??
+        pricing.billingReferenceCacheReadUsdPerMillion ??
+        null,
+      cacheWriteUsdPerMillion:
+        pricing.billingReferenceLongContextCacheWriteUsdPerMillion ??
+        pricing.billingReferenceCacheWriteUsdPerMillion ??
+        null,
+    };
+  }
+  return {
+    longContextApplied: false,
+    inputUsdPerMillion: pricing.billingReferenceInputUsdPerMillion,
+    outputUsdPerMillion: pricing.billingReferenceOutputUsdPerMillion,
+    cacheReadUsdPerMillion: pricing.billingReferenceCacheReadUsdPerMillion ?? null,
+    cacheWriteUsdPerMillion: pricing.billingReferenceCacheWriteUsdPerMillion ?? null,
+  };
+}
+
 export function listExactPublishedCatalogEntries(): ResolvedPublishedPricing[] {
   return listPublishedModelIds().map((canonicalModelId) => ({
     requestedModelId: canonicalModelId,

@@ -68,8 +68,15 @@ export function assetModerationSummary(assets: CharacterAsset[]): {
       rejected = asset;
       break;
     }
-    if (asset.adultFlagged === true) adultFlagged = true;
-    else if (asset.adultFlagged !== false) unknown = true;
+    if (
+      asset.moderationStatus === "pending" ||
+      asset.nippleExposure === "uncertain" ||
+      asset.adultFlagged === true
+    ) {
+      adultFlagged = true;
+    } else if (asset.adultFlagged !== false) {
+      unknown = true;
+    }
   }
   return { rejected, adultFlagged, unknown };
 }

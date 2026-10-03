@@ -2,12 +2,18 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  assignRepresentativeRanks,
+  getCharacterRepresentativeImageUrl,
+  getCharacterRepresentativePublicUrls,
   getDefaultChatAsset,
   isPortraitDisplayAsset,
+  isPrivateMediaUrl,
   isWideInlineAsset,
+  listingImageUrls,
   parseAssets,
   reorderCharacterAssets,
   toggleCharacterAssetViewerBlur,
+  toggleRepresentativeAsset,
   updateCharacterAssetTag,
   withAssetSize,
 } from "@/lib/characterAssets";
@@ -63,5 +69,79 @@ describe("asset management metadata preservation", () => {
 
     const reloaded = parseAssets(JSON.stringify(assets));
     assert.equal(reloaded.every((asset) => asset.visualSubjectKey === subjectKey), true);
+  });
+});
+
+describe("representative ranks", () => {
+  it("legacy lists without ranks expose only the first image", () => {
+    const assets = parseAssets(
+      JSON.stringify([
+        { url: "/uploads/a.webp", tag: "기본" },
+        { url: "/uploads/b.webp", tag: "숨김", viewerBlur: true },
+      ])
+    );
+    assert.deepEqual(listingImageUrls(assets), ["/uploads/a.webp"]);
+    assert.equal(getCharacterRepresentativeImageUrl(JSON.stringify(assets)), "/uploads/a.webp");
+  });
+
+  it("keeps 1 and 5 ranked public renditions and drops a 6th", () => {
+    const ranked = assignRepresentativeRanks(
+      [
+        { url: "/uploads/1.webp", tag: "a", publicRenditionUrl: "/media/public/1-public.webp" },
+        { url: "/uploads/2.webp", tag: "b", publicRenditionUrl: "/media/public/2-public.webp" },
+        { url: "/uploads/3.webp", tag: "c", publicRenditionUrl: "/media/public/3-public.webp" },
+        { url: "/uploads/4.webp", tag: "d", publicRenditionUrl: "/media/public/4-public.webp" },
+        { url: "/uploads/5.webp", tag: "e", publicRenditionUrl: "/media/public/5-public.webp" },
+        { url: "/uploads/6.webp", tag: "f", publicRenditionUrl: "/media/public/6-public.webp" },
+      ],
+      [0, 1, 2, 3, 4, 5]
+    );
+    assert.deepEqual(listingImageUrls(ranked), [
+      "/media/public/1-public.webp",
+      "/media/public/2-public.webp",
+      "/media/public/3-public.webp",
+      "/media/public/4-public.webp",
+      "/media/public/5-public.webp",
+    ]);
+    assert.equal(ranked[5]?.representativeRank, undefined);
+  });
+
+  it("never returns private originals as card URLs", () => {
+    const assets = parseAssets(
+      JSON.stringify([
+        {
+          url: "/media/private/aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa.webp",
+          tag: "기본",
+          representativeRank: 1,
+          publicRenditionUrl: "/media/public/aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa-public.webp",
+        },
+        {
+          url: "/media/private/bbbbbbbb-1111-4111-8111-bbbbbbbbbbbb.webp",
+          tag: "숨김",
+          viewerBlur: true,
+        },
+      ])
+    );
+    const urls = getCharacterRepresentativePublicUrls(JSON.stringify(assets), "[]");
+    assert.deepEqual(urls, ["/media/public/aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa-public.webp"]);
+    assert.equal(urls.some(isPrivateMediaUrl), false);
+  });
+
+  it("toggle representative adds then removes ranks", () => {
+    let assets = [
+      { url: "/uploads/a.webp", tag: "기본", viewerBlur: false },
+      { url: "/uploads/b.webp", tag: "미소", viewerBlur: true },
+    ];
+    assets = toggleRepresentativeAsset(assets, 1);
+    assert.equal(assets[1]?.representativeRank, 1);
+    assets = toggleRepresentativeAsset(assets, 1);
+    assert.equal(assets[1]?.representativeRank, undefined);
+  });
+
+  it("zero representatives fall back to legacy images[0] only", () => {
+    assert.deepEqual(
+      getCharacterRepresentativePublicUrls("[]", JSON.stringify(["/uploads/only.webp", "/uploads/hidden.webp"])),
+      ["/uploads/only.webp"]
+    );
   });
 });

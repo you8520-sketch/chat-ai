@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { filenameFromUploadUrl, resolveExistingUploadPath } from "@/lib/uploadStorage";
+import { filenameFromPrivateMediaUrl, resolveExistingPrivateMediaPath } from "@/lib/mediaStorage";
 import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   buildOpenRouterHeaders,
@@ -13,6 +14,7 @@ import {
   deriveFinalAssetTag,
   validateStructuredAssetVisionResult,
   type AssetVisionStructuredResult,
+  type NippleExposure,
 } from "@/lib/assetPersonTags";
 import { normalizeVisionModerationFlags } from "@/lib/visionModerationNormalize";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
@@ -30,6 +32,7 @@ export type ParsedVisionTag = {
   adultFlagged: boolean;
   moderationReject: boolean;
   moderationReason: string;
+  nippleExposure?: NippleExposure;
 };
 
 function extractJsonCandidate(raw: string): string {
@@ -58,6 +61,7 @@ export function finalizeStructuredVisionResult(
     adultFlagged,
     moderationReject,
     moderationReason: structured.reason.slice(0, 160),
+    ...(structured.nippleExposure ? { nippleExposure: structured.nippleExposure } : {}),
   });
 }
 
@@ -65,9 +69,15 @@ async function loadImageBase64(url: string): Promise<{ mime: string; data: strin
   let buf: Buffer;
   let mime = "image/jpeg";
 
-  if (url.startsWith("/uploads/")) {
-    const filename = filenameFromUploadUrl(url);
-    const filePath = filename ? resolveExistingUploadPath(filename) : null;
+  if (url.startsWith("/uploads/") || url.startsWith("/media/private/")) {
+    const filename = url.startsWith("/media/private/")
+      ? filenameFromPrivateMediaUrl(url)
+      : filenameFromUploadUrl(url);
+    const filePath = filename
+      ? url.startsWith("/media/private/")
+        ? resolveExistingPrivateMediaPath(filename)
+        : resolveExistingUploadPath(filename)
+      : null;
     if (!filePath) throw new Error("업로드 이미지를 찾을 수 없습니다.");
     const ext = path.extname(url).slice(1).toLowerCase();
     const mimeMap: Record<string, string> = {
@@ -228,6 +238,7 @@ export async function analyzeAssetImage(
   adultFlagged: boolean;
   moderationReject: boolean;
   moderationReason: string;
+  nippleExposure?: NippleExposure;
   /** Per-attempt usage witnesses for server-side persistence (visionCost). */
   costAttempts: VisionCostEvidence[];
 }> {

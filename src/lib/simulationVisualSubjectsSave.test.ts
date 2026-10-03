@@ -37,7 +37,7 @@ describe("simulation visual subjects save boundary", () => {
     });
     const key = materialized.subjects[0]!.subjectKey;
     const assets = [
-      { url: "/uploads/a.webp", tag: "표정 A", visualSubjectKey: key },
+      { url: "/uploads/a.webp", tag: "표정 A", visualSubjectKey: key, representativeRank: 1 },
       { url: "/uploads/b.webp", tag: "표정 B", visualSubjectKey: key },
     ];
 
@@ -96,7 +96,7 @@ describe("simulation visual subjects save boundary", () => {
     };
     const parsed = parseCharacterFormBody(
       simulationBody({
-        assets: [{ url: "/uploads/a.webp", tag: "표정" }],
+        assets: [{ url: "/uploads/a.webp", tag: "표정", representativeRank: 1 }],
         simulation_visual_subjects: forged,
         _stored_simulation_visual_subjects_json:
           serializeSimulationVisualSubjectsJson(forged),
@@ -158,6 +158,7 @@ describe("simulation visual subjects save boundary", () => {
             url: "/uploads/a.webp",
             tag: "표정",
             visualSubjectKey: activeKey,
+            representativeRank: 1,
           },
         ],
         simulation_visual_subjects: submitted,
@@ -181,7 +182,7 @@ describe("simulation visual subjects save boundary", () => {
     const parsed = parseCharacterFormBody(
       simulationBody({
         simulation_rules: rules,
-        assets: [{ url: "/uploads/a.webp", tag: "표정" }],
+        assets: [{ url: "/uploads/a.webp", tag: "표정", representativeRank: 1 }],
         simulation_visual_subjects: {
           version: 1,
           subjects: [

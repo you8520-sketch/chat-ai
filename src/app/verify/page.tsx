@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
-import { isAdultVerificationSkipped } from "@/lib/adultVerification";
+import { canAccessAdultContent } from "@/lib/adultVerification";
 import { isDemoEnv } from "@/lib/demo";
 import VerifyClient from "./VerifyClient";
 
@@ -21,9 +21,11 @@ export default async function VerifyPage({
     );
   }
 
-  if (user.is_adult || isAdultVerificationSkipped()) {
+  // Stored is_adult is untrusted until a real provider exists. Auto-leave only
+  // when the same owner already grants adult VIEW (existing admin).
+  if (canAccessAdultContent(user)) {
     redirect(redirectTo);
   }
 
-  return <VerifyClient redirectTo={redirectTo} showDemo={isDemoEnv()} />;
+  return <VerifyClient redirectTo={redirectTo} showDemo={isDemoEnv()} providerPending={!isDemoEnv()} />;
 }

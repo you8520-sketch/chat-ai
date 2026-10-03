@@ -53,7 +53,7 @@ function characterBody(overrides: Record<string, unknown> = {}) {
     visibility: "private",
     nsfw: false,
     participant_min_age: 20,
-    assets: [{ url: "/uploads/test.webp", tag: "neutral" }],
+    assets: [{ url: "/uploads/test.webp", tag: "neutral", representativeRank: 1 }],
     ...overrides,
   };
 }
@@ -72,7 +72,7 @@ function simulationBody(overrides: Record<string, unknown> = {}) {
     visibility: "private",
     nsfw: false,
     participant_min_age: 20,
-    assets: [{ url: "/uploads/sim.webp", tag: "neutral" }],
+    assets: [{ url: "/uploads/sim.webp", tag: "neutral", representativeRank: 1 }],
     simulation_visual_subjects: { version: 1, subjects: [] },
     ...overrides,
   };
