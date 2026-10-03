@@ -27,7 +27,7 @@ import type { BoundaryExecutionContract } from "@/lib/sceneDirectiveV2";
 import {
   sanitizeAuthorialHabitBenchmarkCredentialText,
   withIsolatedAuthorialHabitBenchmarkOpenRouterKey,
-} from "./lib/authorialHabitJevBenchmarkCredential";
+} from "./authorialHabitJevBenchmarkCredential";
 
 export const DECISION_BASELINE_MODEL = "typesafe/jev-1.13";
 export type ModelId = string;
