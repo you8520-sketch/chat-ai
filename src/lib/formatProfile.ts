@@ -7,6 +7,7 @@ import {
   resolveOpenRouterApiKey,
 } from "@/lib/openRouterConfig";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
+import { readCompatibleCompletionProviderRequestId } from "@/lib/openRouterCompletion";
 import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
 import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
@@ -134,8 +135,10 @@ async function callDeepSeekFormatProfile(text: string): Promise<string> {
       cheaperInferenceBilledCostUsd: parsedUsage.cheaperInferenceBilledCostUsd,
       upstreamCostUsd: parsedUsage.upstreamCostUsd,
       usageEstimated: !parsedUsage.promptTokens || !parsedUsage.completionTokens,
-      providerRequestId:
-        res.headers.get("x-request-id") ?? res.headers.get("x-openrouter-request-id"),
+      providerRequestId: readCompatibleCompletionProviderRequestId({
+        provider: "openrouter",
+        headers: res.headers,
+      }),
       outcome: out ? "success" : "failed_with_usage",
     });
   } catch (error) {

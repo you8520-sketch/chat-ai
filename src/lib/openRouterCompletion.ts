@@ -83,6 +83,8 @@ export type OpenRouterCompletionUsage = {
   upstreamCostUsd?: number;
   debugRawUsage?: unknown;
   usageReportingEvidence?: UsageReportingEvidence;
+  /** Billing request id of the delivered physical attempt. */
+  providerRequestId?: string;
 };
 
 export class CompatibleCompletionError extends Error {
@@ -121,17 +123,75 @@ export function resolveOpenRouterCompletionTimeoutMs(requestKind?: string): numb
   return 120_000;
 }
 
+export type DeliveredCompletionProvider = "cheaperinference" | "openrouter";
+
+const CDN_RAY_REQUEST_ID = /^[0-9a-z]{8,}-[A-Za-z]{3}$/i;
+
 /**
- * Current non-streaming header owner. Reads the generic request-id headers
- * only. Do not treat this as the desired contract; a separate writer-alignment
- * patch owns CI-specific header alignment.
+ * Canonical billing request id for one delivered completion attempt.
+ * CheaperInference: `x-ci-request-id`, then `X-Cheaper-Inference-Request-Id`,
+ * then `cheaper_inference.request_id`. OpenRouter: `x-request-id`, then
+ * `x-openrouter-request-id`. A CDN ray and a chat-completion `id` are not
+ * billing identities.
  */
-export function readCompatibleCompletionProviderRequestId(
-  headers: Headers
-): string | null {
-  const requestId =
-    headers.get("x-request-id") ?? headers.get("x-openrouter-request-id");
-  return requestId?.trim() || null;
+export function readCompatibleCompletionProviderRequestId(input: {
+  provider: DeliveredCompletionProvider;
+  headers?: Headers | null;
+  body?: unknown;
+}): string | null {
+  switch (input.provider) {
+    case "cheaperinference": {
+      const fromHeader =
+        normalizeRequestIdToken(readRawHeader(input.headers, "x-ci-request-id")) ??
+        normalizeRequestIdToken(
+          readRawHeader(input.headers, "x-cheaper-inference-request-id")
+        );
+      if (fromHeader) return fromHeader;
+      return readStructuredCheaperInferenceRequestId(input.body);
+    }
+    case "openrouter":
+      return (
+        normalizeRequestIdToken(readRawHeader(input.headers, "x-request-id")) ??
+        normalizeRequestIdToken(readRawHeader(input.headers, "x-openrouter-request-id"))
+      );
+    default: {
+      const _exhaustive: never = input.provider;
+      return _exhaustive;
+    }
+  }
+}
+
+function readRawHeader(headers: Headers | null | undefined, name: string): string | null {
+  if (!headers) return null;
+  return headers.get(name);
+}
+
+function normalizeRequestIdToken(raw: unknown): string | null {
+  if (typeof raw === "number") {
+    if (!Number.isFinite(raw) || !Number.isSafeInteger(raw) || raw <= 0) return null;
+    return String(raw);
+  }
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (CDN_RAY_REQUEST_ID.test(trimmed)) return null;
+  if (/^\d+$/.test(trimmed)) {
+    if (!/^[1-9]\d*$/.test(trimmed)) return null;
+    if (!Number.isSafeInteger(Number(trimmed))) return null;
+    return trimmed;
+  }
+  if (/^[+-]?\d+\.\d+$/.test(trimmed) || /^[+-]?\d+(?:\.\d+)?e[+-]?\d+$/i.test(trimmed)) {
+    return null;
+  }
+  if (/^[+-]\d+$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+function readStructuredCheaperInferenceRequestId(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const envelope = (body as { cheaper_inference?: unknown }).cheaper_inference;
+  if (!envelope || typeof envelope !== "object") return null;
+  return normalizeRequestIdToken((envelope as { request_id?: unknown }).request_id);
 }
 
 function ledgerContextForPhysicalAttempt(
@@ -439,6 +499,11 @@ export async function callOpenRouterCompletion(opts: {
     promptTokens ??
     estimateTokens(opts.system + opts.history.map((m) => m.content).join("\n"));
   const resolvedOutputTokens = completionTokens ?? estimateTokens(text);
+  const providerRequestId = readCompatibleCompletionProviderRequestId({
+    provider: usedProvider,
+    headers: res.headers,
+    body: data,
+  });
   const usage: OpenRouterCompletionUsage = {
     inputTokens: resolvedInputTokens,
     outputTokens: resolvedOutputTokens,
@@ -452,8 +517,8 @@ export async function callOpenRouterCompletion(opts: {
     upstreamCostUsd: parsedUsage.upstreamCostUsd,
     debugRawUsage: data.usage,
     usageReportingEvidence: parsedUsage.reportingEvidence,
+    ...(providerRequestId ? { providerRequestId } : {}),
   };
-  const providerRequestId = readCompatibleCompletionProviderRequestId(res.headers);
   const physicalOrdinal =
     usedProvider === "openrouter" && useCheaperInference && isDeepSeekPrimaryCheaperInferenceModel(model)
       ? 2

@@ -27,6 +27,7 @@ import {
   logAuxProviderCall,
 } from "@/lib/auxProviderProvenance";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
+import { readCompatibleCompletionProviderRequestId } from "@/lib/openRouterCompletion";
 import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
 import {
   actionTypeLabelKo,
@@ -84,14 +85,6 @@ type TrpgReplySuggestionPhysicalCostOutcome =
   | "success"
   | "failed_without_usage"
   | "failed_with_usage";
-
-function resolveTrpgReplySuggestionProviderRequestId(res: Response): string | null {
-  return (
-    res.headers.get("x-request-id")?.trim() ||
-    res.headers.get("x-openrouter-request-id")?.trim() ||
-    null
-  );
-}
 
 function recordTrpgReplySuggestionPhysicalCost(opts: {
   provider: TrpgReplySuggestionTransportProvider;
@@ -1103,7 +1096,11 @@ async function readProviderCompletionResponse(
     outputTokens: parsedUsage.completionTokens || undefined,
     cheaperInferenceBilledCostUsd: parsedUsage.cheaperInferenceBilledCostUsd,
     upstreamCostUsd: parsedUsage.upstreamCostUsd,
-    providerRequestId: resolveTrpgReplySuggestionProviderRequestId(res),
+    providerRequestId: readCompatibleCompletionProviderRequestId({
+      provider: transportProvider,
+      headers: res.headers,
+      body: data,
+    }),
     shape,
   };
 }

@@ -5,6 +5,7 @@ import {
   resolveOpenRouterApiKey,
 } from "@/lib/openRouterConfig";
 import { parseOpenRouterUsage } from "@/lib/openRouterUsage";
+import { readCompatibleCompletionProviderRequestId } from "@/lib/openRouterCompletion";
 import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
 import { buildAuxProviderCallLogInput, logAuxProviderCall } from "@/lib/auxProviderProvenance";
 
@@ -218,8 +219,10 @@ export async function callOpenRouterEmbeddings(opts: {
     return fail(`[openrouter-embeddings] transport error: ${(error as Error).message}`, "transport_error", null, null);
   }
 
-  const providerRequestId =
-    res.headers.get("x-request-id") ?? res.headers.get("x-openrouter-request-id");
+  const providerRequestId = readCompatibleCompletionProviderRequestId({
+    provider: "openrouter",
+    headers: res.headers,
+  });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     return fail(`[openrouter-embeddings] HTTP ${res.status}: ${text.slice(0, 240)}`, "http_error", res.status, providerRequestId);
