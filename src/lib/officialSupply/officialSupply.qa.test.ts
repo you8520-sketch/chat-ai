@@ -149,7 +149,7 @@ describe("official asset prompts", () => {
     assert.match(primaryPrompt, /SCENE illustration/);
     assert.match(primaryPrompt, /not a portrait substitute/);
     assert.match(primaryPrompt, /3:2/);
-    assert.match(strictFallbackPrompt, /Scene, not portrait/);
+    assert.match(strictFallbackPrompt, /not a portrait substitute/);
   });
 
   it("representative prompt is 2:3 card framing with a style-only reference", () => {

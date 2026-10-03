@@ -121,7 +121,7 @@ describe("official slot shot responsibilities", () => {
         continue;
       }
       assert.match(row.text, /SHOT RESPONSIBILITY/);
-      assert.match(row.text, /ART STYLE framing and backgroundDensity above describe the representative card language only/);
+      assert.match(row.text, /ART STYLE describes rendering language, color, and illustration grammar only/);
       assert.doesNotMatch(row.text, /face and upper body readable/);
       if (row.kind === "scene") {
         assert.match(row.text, /SCENE illustration/);
