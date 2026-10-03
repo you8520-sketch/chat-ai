@@ -126,8 +126,8 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
     return records;
   }, [draft.callGuide, preview, saved, value]);
   const manifest = useMemo(
-    () => buildJsxComponentManifestBlock(manifestRecords),
-    [manifestRecords]
+    () => buildJsxComponentManifestBlock(value),
+    [value]
   );
   const callGuideTokens = jsxCallGuideTokenCount(draft.callGuide);
   const callGuideBudget = validateJsxCallGuideCatalog(manifestRecords);
@@ -619,8 +619,8 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
       <section aria-label="AI에게 실제로 전달되는 정보" className="space-y-2">
         <h3 className="text-sm font-semibold text-zinc-100">AI에게 실제로 전달되는 정보</h3>
         <p className="text-[11px] leading-relaxed text-zinc-500">
-          아래 Manifest가 모델 요청에 들어갑니다. JSX 소스와 스타일은 포함되지 않습니다. 호출 설명
-          추정 토큰 {callGuideTokens}.
+          아래에는 저장된 컴포넌트 기준 Manifest를 표시합니다. JSX 소스와 스타일은 포함되지 않습니다.
+          {unsaved ? " 작성 중인 초안은 적용하기 전까지 모델에 전달되지 않습니다." : ""}
         </p>
         <pre className="max-h-56 overflow-auto rounded-xl border border-white/10 bg-[#08080c] p-2 text-[11px] text-zinc-300 whitespace-pre-wrap">
           {manifest || "(저장 후 카탈로그가 있을 때만 주입)"}
