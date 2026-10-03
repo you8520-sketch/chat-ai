@@ -65,6 +65,7 @@ export async function POST(req: Request) {
       packageId: result.packageId,
       storeId: result.storeId,
       channelKey: result.channelKey,
+      checkoutKind: result.checkoutKind,
       payMethod: context.payMethod,
     });
   }
@@ -106,6 +107,7 @@ export async function POST(req: Request) {
     packageId: result.packageId,
     storeId: result.storeId,
     channelKey: result.channelKey,
+    checkoutKind: result.checkoutKind,
     payMethod: "CARD" as const,
   });
 }
