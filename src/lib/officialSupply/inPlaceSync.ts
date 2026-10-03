@@ -2,15 +2,22 @@ import crypto from "node:crypto";
 
 import type Database from "better-sqlite3";
 
-import type { SessionUser } from "@/lib/characterFormSave";
+import {
+  buildCanonPlanJsonForSave,
+  buildCompiledCreatorDescriptionForSave,
+  type SessionUser,
+} from "@/lib/characterFormSave";
 import { parseAssets } from "@/lib/characterAssets";
 import { buildAndSaveCharacterChunks } from "@/lib/characterChunks";
+import { replaceAppearanceInSetting } from "@/lib/appearanceCompiler";
+import { resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
+import { listCharacterStatusWidgetTriggers } from "@/lib/statusWidgetTriggers";
 import { primaryCharacterGenre, sanitizeCharacterGenres } from "@/lib/characterGenres";
 import { resolveCharacterGender } from "@/lib/characterGender";
 import { parseCharacterTagsInput } from "@/lib/characterTags";
 import { getDb } from "@/lib/db";
 import { enqueueCharacterDerivedRefreshJob } from "@/lib/derivedCache/characterEnqueue";
-import { kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
+import { ensureDerivedCacheJobsTable, kickDerivedCacheWorker } from "@/lib/derivedCache/jobs";
 import {
   ensureCreatorLorebookSchema,
   insertCreatorLorebookForOwner,
@@ -139,6 +146,11 @@ type OfficialCharacterRow = {
   narration_style_instructions: string;
   appearance_raw: string;
   appearance_compiled: string;
+  appearance_compiled_source_hash: string;
+  appearance_compiled_version: number;
+  creator_raw_description: string;
+  creator_compiled_description_json: string;
+  creator_canon_plan_json: string;
   likes: number;
   chats_count: number;
 };
@@ -295,6 +307,19 @@ function planWorldLorebooks(input: {
   });
 }
 
+function assertNoSharedLorebookConflict(plan: readonly OfficialInPlaceLorebookPlan[]): void {
+  const conflicts = plan.filter(
+    (item) => item.action === "update" && item.shared && item.linkedCharacterIds.length > 0
+  );
+  if (conflicts.length === 0) return;
+  throw new OfficialSupplyGateError(
+    "shared_lorebook_conflict",
+    `shared lorebook(s) would change other live characters: ${conflicts
+      .map((item) => `${item.entryKey}→[${item.linkedCharacterIds.join(",")}]`)
+      .join("; ")}`
+  );
+}
+
 function applyWorldLorebooks(input: {
   db: Database.Database;
   worldKey: string;
@@ -302,6 +327,7 @@ function applyWorldLorebooks(input: {
   plan: readonly OfficialInPlaceLorebookPlan[];
   entries: readonly OfficialWorldLorebookEntry[];
 }): { id: number; entryKey: string }[] {
+  assertNoSharedLorebookConflict(input.plan);
   return input.plan.map((item) => {
     const entry = input.entries.find((candidate) => candidate.entryKey === item.entryKey);
     if (!entry) {
@@ -472,6 +498,11 @@ function inspectTarget(input: {
               COALESCE(narration_style_instructions, '') AS narration_style_instructions,
               COALESCE(appearance_raw, '') AS appearance_raw,
               COALESCE(appearance_compiled, '') AS appearance_compiled,
+              COALESCE(appearance_compiled_source_hash, '') AS appearance_compiled_source_hash,
+              COALESCE(appearance_compiled_version, 0) AS appearance_compiled_version,
+              COALESCE(creator_raw_description, '') AS creator_raw_description,
+              COALESCE(creator_compiled_description_json, '') AS creator_compiled_description_json,
+              COALESCE(creator_canon_plan_json, '') AS creator_canon_plan_json,
               COALESCE(likes, 0) AS likes,
               COALESCE(chats_count, 0) AS chats_count
        FROM characters WHERE id=?`
@@ -541,6 +572,7 @@ function inspectTarget(input: {
     sharedKeys,
     entries: source.resolvedLorebook,
   });
+  assertNoSharedLorebookConflict(lorebookPlan);
 
   const genres = sanitizeCharacterGenres(source.draft.genres);
   const compiled = {
@@ -653,6 +685,36 @@ function applyGuardedCanonicalFields(input: {
   testInjectFailure?: OfficialInPlaceTestInjectFailure;
 }): { id: number; entryKey: string }[] {
   const { row, owner, source, compiled, alias, lorebookPlan, supply } = input.inspected;
+  const existingTriggers = sqliteTableExists(input.db, "status_widget_triggers")
+    ? listCharacterStatusWidgetTriggers(input.db, row.id)
+    : [];
+  const compiledDescription = buildCompiledCreatorDescriptionForSave(
+    {
+      description: compiled.description,
+      world: compiled.world,
+      systemPrompt: compiled.systemPrompt,
+      statusWidgetJson: row.status_widget_json,
+      statusWidgetTriggers: existingTriggers,
+    },
+    existingTriggers
+  );
+  const canonPlan = buildCanonPlanJsonForSave(
+    {
+      description: compiled.description,
+      world: compiled.world,
+      systemPrompt: compiled.systemPrompt,
+    },
+    row.creator_canon_plan_json
+  );
+  const safeRuntimeCanon = replaceAppearanceInSetting(
+    compiledDescription.safeRuntimeCanon,
+    resolveAppearancePromptText({
+      raw: row.appearance_raw,
+      compiledJson: row.appearance_compiled,
+      compiledSourceHash: row.appearance_compiled_source_hash,
+      compiledVersion: row.appearance_compiled_version,
+    })
+  );
   const applyTx = input.db.transaction(() => {
     const synced = applyWorldLorebooks({
       db: input.db,
@@ -673,6 +735,7 @@ function applyGuardedCanonicalFields(input: {
         `UPDATE characters SET
            tagline=?, description=?, greeting=?, system_prompt=?, world=?,
            creator_comment=?, example_dialog=?, tags=?, genre=?, genres=?, creator_name=?,
+           creator_raw_description=?, creator_compiled_description_json=?, creator_canon_plan_json=?,
            updated_at=datetime('now')
          WHERE id=?
            AND creator_id=?
@@ -703,6 +766,9 @@ function applyGuardedCanonicalFields(input: {
         compiled.primaryGenre,
         compiled.genresJson,
         alias,
+        compiledDescription.creatorRawDescription,
+        compiledDescription.compiledDescriptionJson,
+        canonPlan.planJson,
         row.id,
         row.creator_id,
         row.official,
@@ -747,7 +813,9 @@ function applyGuardedCanonicalFields(input: {
         speech_examples: source.draft.speech.examples,
         speech_forbidden: source.draft.speech.forbidden,
       },
+      safeRuntimeCanon,
     });
+    enqueueCharacterDerivedRefreshJob(input.db, row.id);
 
     if (sqliteTableExists(input.db, "official_supply_characters")) {
       input.db
@@ -819,12 +887,12 @@ export async function syncOfficialCharacterInPlace(input: {
   }
 
   ensureCreatorLorebookSchema(db);
+  ensureDerivedCacheJobsTable(db);
   const synced = applyGuardedCanonicalFields({
     db,
     inspected,
     testInjectFailure: input.testInjectFailure,
   });
-  enqueueCharacterDerivedRefreshJob(db, inspected.row.id);
   kickDerivedCacheWorker();
 
   const afterRow = db

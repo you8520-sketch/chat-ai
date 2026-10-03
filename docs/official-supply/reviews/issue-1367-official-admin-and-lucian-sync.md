@@ -11,10 +11,12 @@ Live production SQL was **not executed**. Use the approved read-only query below
 
 ## Investigation
 
-Pinned main / live deploy SHA: `11e9e96aa729922d05249695f36a1e3c699aaba0`.
-Earlier inspected Draft HEAD (implementation commit, not this packet): `6f937a946485473221e1c132e5d677b6d6e686d3`.
-GPT review HEAD that requested MUST FIX 1–5: `31b0d7978056c3f328a406228d3695327a1590e9`.
-Final exact HEAD after this MUST FIX patch is reported in the PR body after push. This file does not embed its own commit SHA.
+Earlier PR base / prior live deploy SHA: `11e9e96aa729922d05249695f36a1e3c699aaba0`.
+Main at GPT re-review: `9e0c65576cf1de4f7190c71196670028386c60ce`. This patch syncs to the then-current `origin/main` after the runtime-canon fix.
+Earlier inspected Draft HEAD: `6f937a946485473221e1c132e5d677b6d6e686d3`.
+GPT MUST FIX 1–5 HEAD: `31b0d7978056c3f328a406228d3695327a1590e9`.
+GPT runtime-canon review HEAD: `ef6b285ea4e9895e0e684c14aa76ea8a25de9cfd`.
+Final exact HEAD after this patch is reported in the PR body after push. This file does not embed its own commit SHA.
 Railway project `enchanting-ambition`, service `chat-ai`, volume `chat-ai-volume` mounted at `/data`.
 This environment has a project `RAILWAY_TOKEN` that can list services and deployments. It cannot register SSH keys or run `file:/data/app.db?mode=ro`. Injected `RAILWAY_SSH_*` values are placeholders (11 bytes). No production DB mutation was attempted.
 
@@ -146,25 +148,39 @@ FROM characters
 GROUP BY official, visibility;
 ```
 
+## Canonical OWNER MAP (runtime)
+
+| Responsibility | Owner reused |
+| --- | --- |
+| Official compile | `compileOfficialDraftFromBible` + `composeOfficialSystemPrompt` + `renderRuntimeAppearanceBlock` |
+| Creator compiled description | `buildCompiledCreatorDescriptionForSave` |
+| Canon plan / LOCKED_SECRET | `buildCanonPlanJsonForSave` |
+| Appearance overlay | `replaceAppearanceInSetting` + `resolveAppearancePromptText` (same as `loadCharacterChunks`) |
+| Chunk persist | `buildAndSaveCharacterChunks(..., { safeRuntimeCanon })` |
+| Chunk reload | `loadCharacterChunks` / `loadCharacterChunksReadOnly` → `resolveSafeRuntimeCanon` |
+| Shared lorebook | existing `keyword_lorebooks` + `official_supply_world_lorebooks`; identical skip; content-changing sibling links STOP |
+| Derived cache | `enqueueCharacterDerivedRefreshJob` inside the write transaction; `kickDerivedCacheWorker` after commit |
+
 ## BEFORE / AFTER / REMOVED / PRESERVED / RISKS / PROOF
 
-- BEFORE: live public Lucian #50 still shows the wrist-grab tagline; in-place owner at `31b0d797` used sparse form save, full appearance block, non-atomic lorebook writes, mapping-optional apply, and alias-only admin edit.
-- AFTER: same Draft keeps one site-managed owner and admin-only alias. Sync writes only compiled canonical text + lorebook attachments/chunks. Compact `system_prompt` matches the #1196 review compiler. Apply is fail-closed. Admin opens the existing creator editor.
-- REMOVED: sparse `updateCharacterFromForm` sync path; dry-run/list `OfficialSupplyStore` DDL constructors.
-- PRESERVED: Lucian settings/assets/likes/chats/listing/nsfw/owner; ordinary official deny; site-managed payout exclusion; #1322; admin CP accounting.
-- RISKS: live mapping/stage/shared lorebook bodies are still unread. Apply stays off until an independently approved Railway receipt exists. Editor PUT still goes through the hydrated canonical form, not the dedicated sync writer.
-- PROOF: compiled fixtures in `officialCharacterAdmin.1367.test.ts`; public RSC for Lucian #50; no live SQL; no apply.
+- BEFORE (`ef6b285e`): dedicated UPDATE wrote `system_prompt`/`setting_chunks` but left old `creator_compiled_description_json`. `loadCharacterChunks` preferred that stale compiled public canon and overwrote new chunks. Shared lorebook `action=update` still mutated sibling-linked bodies.
+- AFTER: same transaction also writes `creator_raw_description` / compiled JSON / canon plan via the existing form compilers, rebuilds chunks from the appearance-aware safe-runtime-canon, and enqueues derived refresh. Shared lorebook content changes with live siblings fail closed.
+- REMOVED: chunk rebuild from raw `system_prompt`/`world` that `loadCharacterChunks` can ignore; implicit shared-lorebook rewrite of sibling-linked entries.
+- PRESERVED: Lucian id, 14 assets, likes/chats, widget/JSX/style/comments/appearance, compact #1196 prompt, LOCKED_SECRET owner, apply default-off, #1322, admin CP accounting.
+- RISKS: live Lucian compiled-JSON / 12 lorebook bodies / sibling links are still unread. If production shared lorebooks differ and are attached to other characters, apply must STOP until those siblings are reviewed.
+- PROOF: isolated before/after fixtures in `officialCharacterAdmin.1367.test.ts`. No Railway SQL. No apply.
 
 ## Classification
 
-`ROOT_CAUSE_FIXED` for the missing in-place owner and duplicate card suffix, with live public proof that Lucian id 50 is still the old tagline.
+`ROOT_CAUSE_FIXED` for the missing in-place owner, duplicate card suffix, and the `ef6b285e` stale compiled-runtime regression — in isolated tests only.
 
-Live SQL prompt/lorebook/supply rows: `ROOT_CAUSE_CONFIRMED` from code + public card, **not applied** to production.
+Live SQL prompt/lorebook/supply/compiled-JSON rows: `ROOT_CAUSE_CONFIRMED` from code + public card, **not applied** to production.
 
-GPT MUST FIX 1–5: `ROOT_CAUSE_FIXED` in isolated tests only.
+GPT MUST FIX 1–5 plus runtime-canon / shared-lorebook gates: `ROOT_CAUSE_FIXED` in isolated tests only.
 
-## Follow-up
+## Follow-up / remaining live checks
 
 - Human Railway SSH / workspace token so the approved SQL can be executed without downloading the DB.
+- Before any apply: confirm live `creator_compiled_description_json`, `creator_canon_plan_json`, `official_supply_characters` mapping, 8 shared + 4 local lorebook bodies, and whether those shared IDs attach to other characters.
 - Operator CP accrual vs finance margin (issue #1367 comment) — do not fold into this PR.
 - Draft PR #1322 character-secret delivery remains separate.

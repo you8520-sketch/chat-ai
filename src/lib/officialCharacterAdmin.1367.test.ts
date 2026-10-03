@@ -6,7 +6,21 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import { getDb } from "@/lib/db";
 import { installIsolatedTestDatabase, uninstallIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
-import { parseCharacterFormBody, updateCharacterFromForm, type SessionUser } from "@/lib/characterFormSave";
+import {
+  buildCanonPlanJsonForSave,
+  buildCompiledCreatorDescriptionForSave,
+  parseCharacterFormBody,
+  updateCharacterFromForm,
+  type SessionUser,
+} from "@/lib/characterFormSave";
+import {
+  buildAndSaveCharacterChunks,
+  loadCharacterChunks,
+  loadCharacterChunksReadOnly,
+} from "@/lib/characterChunks";
+import { characterCanonicalSourceFingerprintFromRow } from "@/lib/derivedCache/characterSourceFingerprint";
+import { parseCanonPlanV1 } from "@/lib/canonPlan/serialize";
+import { compiledPublicCanonText, parseCreatorDescriptionCompiled } from "@/lib/creatorDescriptionTriggerCompiler";
 import { isCreatorMonetizationEligible } from "@/lib/creatorMonetization";
 import {
   insertCreatorLorebookForOwner,
@@ -185,6 +199,93 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
       .run(source.worldKey, stage, characterId);
   }
 
+  const OLD_RUNTIME_SYSTEM =
+    "구버전 시스템 — 금고털이 경보 속, 당신의 손목을 잡고 달아난 브로커.\n\n[비밀 — 캐릭터는 앎]\n오래된손목비밀";
+  const OLD_RUNTIME_WORLD = "구버전 세계 — 손목잡기 설정";
+  const OLD_RUNTIME_DESCRIPTION = "구버전 공개 설명 손목잡기";
+
+  function seedStaleCompiledRuntime(
+    characterId: number,
+    statusWidgetJson = ""
+  ): { compiledJson: string; planJson: string | null; fingerprint: string } {
+    const compiled = buildCompiledCreatorDescriptionForSave({
+      description: OLD_RUNTIME_DESCRIPTION,
+      world: OLD_RUNTIME_WORLD,
+      systemPrompt: OLD_RUNTIME_SYSTEM,
+      statusWidgetJson,
+      statusWidgetTriggers: [],
+    });
+    const plan = buildCanonPlanJsonForSave({
+      description: OLD_RUNTIME_DESCRIPTION,
+      world: OLD_RUNTIME_WORLD,
+      systemPrompt: OLD_RUNTIME_SYSTEM,
+    });
+    getDb()
+      .prepare(
+        `UPDATE characters SET
+           description=?, system_prompt=?, world=?,
+           creator_raw_description=?, creator_compiled_description_json=?, creator_canon_plan_json=?
+         WHERE id=?`
+      )
+      .run(
+        OLD_RUNTIME_DESCRIPTION,
+        OLD_RUNTIME_SYSTEM,
+        OLD_RUNTIME_WORLD,
+        compiled.creatorRawDescription,
+        compiled.compiledDescriptionJson,
+        plan.planJson,
+        characterId
+      );
+    buildAndSaveCharacterChunks(characterId, {
+      name: LUCIAN_CANONICAL_NAME,
+      gender: "male",
+      systemPrompt: OLD_RUNTIME_SYSTEM,
+      world: OLD_RUNTIME_WORLD,
+      exampleDialog: "구버전 예시대사",
+      safeRuntimeCanon: compiled.safeRuntimeCanon,
+    });
+    const row = loadRuntimeRow(characterId);
+    return {
+      compiledJson: compiled.compiledDescriptionJson,
+      planJson: plan.planJson,
+      fingerprint: characterCanonicalSourceFingerprintFromRow(row),
+    };
+  }
+
+  function loadRuntimeRow(characterId: number) {
+    return getDb()
+      .prepare(
+        `SELECT id, name, gender, system_prompt, world, example_dialog, setting_chunks,
+                creator_compiled_description_json, creator_canon_plan_json, creator_raw_description,
+                appearance_raw, appearance_compiled, appearance_compiled_source_hash,
+                appearance_compiled_version, content_kind
+         FROM characters WHERE id=?`
+      )
+      .get(characterId) as {
+      id: number;
+      name: string;
+      gender: string | null;
+      system_prompt: string;
+      world: string;
+      example_dialog: string;
+      setting_chunks: string;
+      creator_compiled_description_json: string;
+      creator_canon_plan_json: string;
+      creator_raw_description: string;
+      appearance_raw: string;
+      appearance_compiled: string;
+      appearance_compiled_source_hash: string | null;
+      appearance_compiled_version: number | null;
+      content_kind: string | null;
+    };
+  }
+
+  function chunkText(characterId: number, persist = false): string {
+    const row = loadRuntimeRow(characterId);
+    const chunks = persist ? loadCharacterChunks(row) : loadCharacterChunksReadOnly(row);
+    return chunks.map((chunk) => chunk.content).join("\n");
+  }
+
   async function withApplyEnabled<T>(fn: () => Promise<T>): Promise<T> {
     const previous = process.env[OFFICIAL_IN_PLACE_APPLY_ENV];
     process.env[OFFICIAL_IN_PLACE_APPLY_ENV] = "1";
@@ -361,6 +462,19 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
     assert.equal(after.visibility, "public");
     assert.match(after.assets, /official-pilot-rf-v4-03__rep-a1/);
     assert.deepEqual(listCharacterCreatorLorebookAttachmentIds(getDb(), characterId).length, 12);
+    const attachedKeys = getDb()
+      .prepare(
+        `SELECT w.entry_key AS entry_key
+         FROM character_lorebook_attachments a
+         JOIN official_supply_world_lorebooks w ON w.lorebook_id=a.lorebook_id
+         WHERE a.character_id=?
+         ORDER BY a.position ASC`
+      )
+      .all(characterId) as Array<{ entry_key: string }>;
+    const sharedKeys = new Set(source.sharedLorebook.map((entry) => entry.entryKey));
+    const localKeys = new Set(source.characterLorebook.map((entry) => entry.entryKey));
+    assert.equal(attachedKeys.filter((row) => sharedKeys.has(row.entry_key)).length, 8);
+    assert.equal(attachedKeys.filter((row) => localKeys.has(row.entry_key)).length, 4);
     const lorebookOwners = getDb()
       .prepare(
         `SELECT DISTINCT k.creator_id AS creator_id
@@ -626,10 +740,123 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
     assert.equal(sha256(row.system_prompt), preview.systemPromptHash);
   });
 
-  it("MUST FIX 3 before/after: lorebook failure rolls back and identical shared siblings stay put", async () => {
+  it("MUST FIX A before: stale compiled description wins over a new system_prompt on the RP loader", async () => {
     const studio = createSiteManagedStudioAccount({
       nickname: "로맨스 공식 스튜디오",
-      email: "romance-lore@site-managed.invalid",
+      email: "romance-stale-runtime@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", { rich: true });
+    seedStaleCompiledRuntime(characterId, '{"kind":"custom","label":"keep-status-widget"}');
+    const source = loadCompiledOfficialCharacterSource("pilot-rf-03");
+    getDb()
+      .prepare("UPDATE characters SET system_prompt=?, world=? WHERE id=?")
+      .run(source.systemPrompt, source.draft.sections.worldAndSituation, characterId);
+    const staleRow = loadRuntimeRow(characterId);
+    assert.equal(staleRow.system_prompt, source.systemPrompt);
+    assert.match(staleRow.creator_compiled_description_json, /손목을 잡고/);
+    const loaded = chunkText(characterId, false);
+    assert.match(loaded, /손목을 잡고/);
+    assert.doesNotMatch(loaded, /비밀 장부를 든 브로커/);
+    const persisted = chunkText(characterId, true);
+    assert.match(persisted, /손목을 잡고/);
+    assert.match(
+      (
+        getDb().prepare("SELECT setting_chunks FROM characters WHERE id=?").get(characterId) as {
+          setting_chunks: string;
+        }
+      ).setting_chunks,
+      /손목을 잡고/
+    );
+  });
+
+  it("MUST FIX A after: sync refreshes compiled runtime canon, secrets, chunks, and derived fingerprint", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-runtime@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", { rich: true });
+    linkLucianSupply(characterId);
+    const stale = seedStaleCompiledRuntime(characterId, '{"kind":"custom","label":"keep-status-widget"}');
+    const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
+    const source = loadCompiledOfficialCharacterSource("pilot-rf-03");
+    const before = snapshotPreserved(characterId);
+    const preview = await syncOfficialCharacterInPlace({
+      admin: { ...ADMIN, id: adminId },
+      characterId,
+      draftKey: "pilot-rf-03",
+      mode: "dry_run",
+    });
+    await withApplyEnabled(() =>
+      syncOfficialCharacterInPlace({
+        admin: { ...ADMIN, id: adminId },
+        characterId,
+        draftKey: "pilot-rf-03",
+        mode: "apply",
+        preflightSnapshot: preview.preflightSnapshot,
+      })
+    );
+    const afterRow = loadRuntimeRow(characterId);
+    assert.equal(afterRow.system_prompt, source.systemPrompt);
+    assert.notEqual(afterRow.creator_compiled_description_json, stale.compiledJson);
+    const compiled = parseCreatorDescriptionCompiled(afterRow.creator_compiled_description_json);
+    const publicCanon = compiledPublicCanonText(compiled);
+    assert.ok(publicCanon.includes(source.draft.sections.worldAndSituation.slice(0, 40)));
+    assert.doesNotMatch(publicCanon, /손목을 잡고/);
+    const loaded = chunkText(characterId, false);
+    assert.ok(loaded.includes(source.draft.sections.worldAndSituation.slice(0, 40)));
+    assert.doesNotMatch(loaded, /손목을 잡고/);
+    assert.doesNotMatch(loaded, /오래된손목비밀/);
+    const persisted = chunkText(characterId, true);
+    assert.ok(persisted.includes(source.draft.sections.worldAndSituation.slice(0, 40)));
+    const plan = parseCanonPlanV1(afterRow.creator_canon_plan_json);
+    assert.ok(plan);
+    const locked = plan.chunks.filter((chunk) => chunk.visibility === "LOCKED_SECRET");
+    assert.ok(locked.length > 0);
+    assert.ok(source.draft.secrets.every((secret) => afterRow.system_prompt.includes(secret)));
+    assert.match(afterRow.system_prompt, /키\/체형:/);
+    const after = snapshotPreserved(characterId);
+    assert.equal(after.assetsJson, before.assetsJson);
+    assert.equal(after.statusWidgetJson, before.statusWidgetJson);
+    assert.equal(after.jsxComponentsJson, before.jsxComponentsJson);
+    assert.equal(after.recommendedWritingStyle, before.recommendedWritingStyle);
+    assert.equal(after.narrationStyle, before.narrationStyle);
+    assert.equal(after.commentsEnabled, before.commentsEnabled);
+    assert.equal(after.appearanceRaw, before.appearanceRaw);
+    assert.equal(after.likes, 42);
+    assert.equal(after.chatsCount, 17);
+    assert.equal(after.id, characterId);
+    assert.notEqual(characterCanonicalSourceFingerprintFromRow(afterRow), stale.fingerprint);
+    const jobs = getDb()
+      .prepare("SELECT COUNT(*) AS n FROM derived_cache_jobs WHERE entity_type='character' AND entity_id=?")
+      .get(characterId) as { n: number };
+    assert.ok(jobs.n >= 1);
+
+    const againPreview = await syncOfficialCharacterInPlace({
+      admin: { ...ADMIN, id: adminId },
+      characterId,
+      draftKey: "pilot-rf-03",
+      mode: "dry_run",
+    });
+    await withApplyEnabled(() =>
+      syncOfficialCharacterInPlace({
+        admin: { ...ADMIN, id: adminId },
+        characterId,
+        draftKey: "pilot-rf-03",
+        mode: "apply",
+        preflightSnapshot: againPreview.preflightSnapshot,
+      })
+    );
+    assert.equal(
+      (getDb().prepare("SELECT COUNT(*) AS n FROM characters WHERE name=?").get(LUCIAN_CANONICAL_NAME) as { n: number }).n,
+      1
+    );
+    assert.equal(listCharacterCreatorLorebookAttachmentIds(getDb(), characterId).length, 12);
+  });
+
+  it("MUST FIX B: shared lorebook content conflict fails closed without mutating siblings", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-lore-conflict@site-managed.invalid",
     });
     const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오");
     linkLucianSupply(characterId);
@@ -664,6 +891,109 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
     );
     replaceCharacterCreatorLorebookAttachments(getDb(), characterId, [stale.id]);
     replaceCharacterCreatorLorebookAttachments(getDb(), siblingId, [stale.id]);
+    const beforeLore = getDb()
+      .prepare("SELECT entries_json, updated_at FROM keyword_lorebooks WHERE id=?")
+      .get(stale.id) as { entries_json: string; updated_at: string };
+    const beforeTagline = (
+      getDb().prepare("SELECT tagline FROM characters WHERE id=?").get(characterId) as { tagline: string }
+    ).tagline;
+
+    await assert.rejects(
+      () =>
+        syncOfficialCharacterInPlace({
+          admin: { ...ADMIN, id: adminId },
+          characterId,
+          draftKey: "pilot-rf-03",
+          mode: "dry_run",
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "shared_lorebook_conflict"
+    );
+    await assert.rejects(
+      () =>
+        withApplyEnabled(() =>
+          syncOfficialCharacterInPlace({
+            admin: { ...ADMIN, id: adminId },
+            characterId,
+            draftKey: "pilot-rf-03",
+            mode: "apply",
+            preflightSnapshot: {
+              characterId,
+              draftKey: "pilot-rf-03",
+              name: LUCIAN_CANONICAL_NAME,
+              creatorId: studio.id,
+              official: 1,
+              visibility: "public",
+              moderationStatus: "approved",
+              tagline: beforeTagline,
+              descriptionHash: "x",
+              greetingHash: "x",
+              systemPromptHash: "x",
+              worldHash: "x",
+              creatorName: "로맨스 공식 스튜디오",
+              assetsHash: "x",
+              lorebookIds: [stale.id],
+              token: "invalid",
+            },
+          })
+        ),
+      (error: unknown) =>
+        error instanceof OfficialSupplyGateError &&
+        (error.code === "shared_lorebook_conflict" || error.code === "preflight_mismatch")
+    );
+    const afterLore = getDb()
+      .prepare("SELECT entries_json, updated_at FROM keyword_lorebooks WHERE id=?")
+      .get(stale.id) as { entries_json: string; updated_at: string };
+    assert.equal(afterLore.entries_json, beforeLore.entries_json);
+    assert.equal(afterLore.updated_at, beforeLore.updated_at);
+    assert.deepEqual(listCharacterCreatorLorebookAttachmentIds(getDb(), siblingId), [stale.id]);
+    assert.match(
+      (getDb().prepare("SELECT tagline FROM characters WHERE id=?").get(characterId) as { tagline: string }).tagline,
+      /손목을 잡고/
+    );
+  });
+
+  it("MUST FIX B after: identical shared lorebooks are reused; inject rolls back compiler fields", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-lore-skip@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오");
+    linkLucianSupply(characterId);
+    const stale = seedStaleCompiledRuntime(characterId);
+    const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
+    const source = loadCompiledOfficialCharacterSource("pilot-rf-03");
+    const shared = source.sharedLorebook[0];
+    assert.ok(shared);
+    const identical = insertCreatorLorebookForOwner(getDb(), {
+      creatorId: studio.id,
+      name: shared.name,
+      summary: "",
+      keywords: shared.keywords,
+      content: shared.content,
+    });
+    assert.equal(identical.ok, true);
+    if (!identical.ok) return;
+    getDb()
+      .prepare(
+        `INSERT INTO official_supply_world_lorebooks (world_key, entry_key, creator_id, lorebook_id)
+         VALUES (?, ?, ?, ?)`
+      )
+      .run(source.worldKey, shared.entryKey, studio.id, identical.id);
+    const siblingId = Number(
+      getDb()
+        .prepare(
+          `INSERT INTO characters
+            (name, tagline, description, greeting, system_prompt, world, genre, tags, nsfw, official,
+             creator_id, creator_name, visibility, moderation_status, assets)
+           VALUES ('형제캐2','한줄','설명','인사','설정','세계','로맨스 판타지','[]',0,1,?,?, 'public','approved','[]')`
+        )
+        .run(studio.id, "로맨스 공식 스튜디오").lastInsertRowid
+    );
+    replaceCharacterCreatorLorebookAttachments(getDb(), characterId, [identical.id]);
+    replaceCharacterCreatorLorebookAttachments(getDb(), siblingId, [identical.id]);
+    const beforeStamp = getDb()
+      .prepare("SELECT updated_at, entries_json FROM keyword_lorebooks WHERE id=?")
+      .get(identical.id) as { updated_at: string; entries_json: string };
 
     const preview = await syncOfficialCharacterInPlace({
       admin: { ...ADMIN, id: adminId },
@@ -671,9 +1001,7 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
       draftKey: "pilot-rf-03",
       mode: "dry_run",
     });
-    const updatePlan = preview.lorebookPlan.find((item) => item.entryKey === shared.entryKey);
-    assert.equal(updatePlan?.action, "update");
-    assert.deepEqual(updatePlan?.linkedCharacterIds, [siblingId]);
+    assert.equal(preview.lorebookPlan.find((item) => item.entryKey === shared.entryKey)?.action, "skip_identical");
 
     await assert.rejects(
       () =>
@@ -689,53 +1017,28 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
         ),
       (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "test_injected_failure"
     );
-    const rolled = getDb()
-      .prepare("SELECT tagline, system_prompt FROM characters WHERE id=?")
-      .get(characterId) as { tagline: string; system_prompt: string };
-    assert.match(rolled.tagline, /손목을 잡고/);
-    assert.equal(rolled.system_prompt, "구버전 시스템");
-    const lore = getDb()
-      .prepare("SELECT entries_json FROM keyword_lorebooks WHERE id=?")
-      .get(stale.id) as { entries_json: string };
-    assert.match(lore.entries_json, /구버전 공유 로어북 본문/);
-    assert.deepEqual(listCharacterCreatorLorebookAttachmentIds(getDb(), siblingId), [stale.id]);
+    const rolled = loadRuntimeRow(characterId);
+    assert.equal(rolled.creator_compiled_description_json, stale.compiledJson);
+    assert.match(rolled.system_prompt, /손목을 잡고/);
     assert.equal(
-      (getDb().prepare("SELECT COUNT(*) AS n FROM official_supply_world_lorebooks").get() as { n: number }).n,
-      1
+      (getDb().prepare("SELECT entries_json FROM keyword_lorebooks WHERE id=?").get(identical.id) as { entries_json: string })
+        .entries_json,
+      beforeStamp.entries_json
     );
 
-    const identical = insertCreatorLorebookForOwner(getDb(), {
-      creatorId: studio.id,
-      name: shared.name,
-      summary: "",
-      keywords: shared.keywords,
-      content: shared.content,
-    });
-    assert.equal(identical.ok, true);
-    if (!identical.ok) return;
-    getDb().prepare("UPDATE official_supply_world_lorebooks SET lorebook_id=? WHERE lorebook_id=?").run(identical.id, stale.id);
-    replaceCharacterCreatorLorebookAttachments(getDb(), characterId, [identical.id]);
-    replaceCharacterCreatorLorebookAttachments(getDb(), siblingId, [identical.id]);
-    const beforeStamp = getDb()
-      .prepare("SELECT updated_at, entries_json FROM keyword_lorebooks WHERE id=?")
-      .get(identical.id) as { updated_at: string; entries_json: string };
-    const skipPreview = await syncOfficialCharacterInPlace({
+    const applyPreview = await syncOfficialCharacterInPlace({
       admin: { ...ADMIN, id: adminId },
       characterId,
       draftKey: "pilot-rf-03",
       mode: "dry_run",
     });
-    assert.equal(
-      skipPreview.lorebookPlan.find((item) => item.entryKey === shared.entryKey)?.action,
-      "skip_identical"
-    );
     await withApplyEnabled(() =>
       syncOfficialCharacterInPlace({
         admin: { ...ADMIN, id: adminId },
         characterId,
         draftKey: "pilot-rf-03",
         mode: "apply",
-        preflightSnapshot: skipPreview.preflightSnapshot,
+        preflightSnapshot: applyPreview.preflightSnapshot,
       })
     );
     const afterStamp = getDb()
