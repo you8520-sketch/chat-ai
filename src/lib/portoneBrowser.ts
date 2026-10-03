@@ -3,6 +3,9 @@
 import type { PaymentRequest } from "@portone/browser-sdk/v2";
 import { resolvePortOneRedirectUrl } from "@/lib/portoneConfig";
 
+export const PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE =
+  "테스트 결제가 확인되었습니다. 실제 포인트는 지급되지 않습니다.";
+
 export type PortOneChargePrepareResponse = {
   paymentId: string;
   orderName: string;
@@ -24,7 +27,20 @@ export async function preparePortOneCheckout(packageId: string): Promise<PortOne
   return data as PortOneChargePrepareResponse;
 }
 
-export async function completePortOneCheckout(paymentId: string, txId?: string) {
+export type PortOneChargeCompleteResponse = {
+  ok: true;
+  alreadyPaid?: boolean;
+  checkoutKind?: string;
+  credited?: boolean;
+  points?: number;
+  paidPoints?: number;
+  freePoints?: number;
+};
+
+export async function completePortOneCheckout(
+  paymentId: string,
+  txId?: string
+): Promise<PortOneChargeCompleteResponse> {
   const res = await fetch("/api/payments/portone/complete", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -32,7 +48,7 @@ export async function completePortOneCheckout(paymentId: string, txId?: string) 
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "결제 확인에 실패했습니다.");
-  return data;
+  return data as PortOneChargeCompleteResponse;
 }
 
 export async function requestPortOneCardPayment(
@@ -90,6 +106,6 @@ export async function runPortOnePointCharge(
 ) {
   const prepared = await preparePortOneCheckout(packageId);
   const result = await requestPortOneCardPayment(prepared, opts);
-  await completePortOneCheckout(result.paymentId, result.txId);
-  return prepared;
+  const completed = await completePortOneCheckout(result.paymentId, result.txId);
+  return { prepared, completed };
 }

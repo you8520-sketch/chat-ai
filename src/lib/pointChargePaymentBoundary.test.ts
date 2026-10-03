@@ -167,6 +167,7 @@ describe("verified point charge payment boundary", () => {
     assert.match(prepare, /canAccessPortoneCheckout\(user\)/);
     assert.match(prepare, /hasClientPortoneCheckoutOverride/);
     assert.match(prepare, /getPortoneReviewerKgTestCheckoutContext/);
+    assert.match(config, /value === "1" \|\| value === "true"/);
   });
 
   it("prepare and complete keep reviewer and payment-off gates together", () => {

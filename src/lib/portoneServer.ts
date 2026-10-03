@@ -14,6 +14,7 @@ export type PortonePaymentSnapshot = {
   totalAmount?: number;
   storeId?: string;
   channelKey?: string;
+  channelName?: string;
   pgMerchantId?: string;
   channelType?: string;
   cancellations: PortoneCancellationSnapshot[];
@@ -77,7 +78,7 @@ export async function fetchPortOnePayment(paymentId: string): Promise<PortonePay
     storeId?: string;
     channelKey?: string;
     pgMerchantId?: string;
-    channel?: { type?: string; key?: string; pgMerchantId?: string };
+    channel?: { type?: string; key?: string; name?: string; pgMerchantId?: string };
     amount?: { total?: number };
     totalAmount?: number;
     cancellations?: unknown[];
@@ -98,6 +99,7 @@ export async function fetchPortOnePayment(paymentId: string): Promise<PortonePay
     (typeof data.channel?.pgMerchantId === "string" && data.channel.pgMerchantId) ||
     "";
   const channelTypeRaw = typeof data.channel?.type === "string" ? data.channel.type : "";
+  const channelNameRaw = typeof data.channel?.name === "string" ? data.channel.name : "";
 
   return {
     status,
@@ -106,6 +108,7 @@ export async function fetchPortOnePayment(paymentId: string): Promise<PortonePay
     totalAmount: data.amount?.total ?? data.totalAmount,
     storeId,
     channelKey: channelKeyRaw.trim() || undefined,
+    channelName: channelNameRaw.trim() || undefined,
     pgMerchantId: pgMerchantIdRaw.trim() || undefined,
     channelType: channelTypeRaw.trim() || undefined,
     cancellations,

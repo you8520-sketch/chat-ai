@@ -9,7 +9,10 @@ import {
 import { fetchPortOnePayment, isPortOnePaidStatus } from "@/lib/portoneServer";
 import {
   isConfirmedReviewerKgTestChannel,
+  PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY,
+  PORTONE_REVIEWER_KG_TEST_CHANNEL_NAME,
   PORTONE_REVIEWER_KG_TEST_MID,
+  PORTONE_REVIEWER_KG_TEST_STORE_ID,
 } from "@/lib/portoneReviewerAccount";
 
 export type PortonePaidFinalizeResult =
@@ -25,27 +28,62 @@ export type PortonePaidFinalizeResult =
   | { ok: false; status: "provider_error"; error: string }
   | { ok: false; status: "finalize_failed"; error: string };
 
-function reviewerKgRemoteMatches(remote: {
+type RemoteChannelSnapshot = {
   storeId?: string;
   channelKey?: string;
+  channelName?: string;
   pgMerchantId?: string;
   channelType?: string;
-}): boolean {
-  if (!isConfirmedReviewerKgTestChannel(remote)) return false;
-  if (remote.pgMerchantId && remote.pgMerchantId !== PORTONE_REVIEWER_KG_TEST_MID) return false;
-  if (remote.channelType && remote.channelType.toUpperCase() !== "TEST") return false;
+};
+
+/** Official PaidPayment always has storeId + channel.type + channel.pgMerchantId. channel.key is optional. */
+function officialPaidChannelPresent(remote: RemoteChannelSnapshot): boolean {
+  return Boolean(remote.storeId && remote.channelType && remote.pgMerchantId);
+}
+
+function remoteLooksLikeReviewerKgTest(remote: RemoteChannelSnapshot): boolean {
+  if (remote.storeId !== PORTONE_REVIEWER_KG_TEST_STORE_ID) return false;
+  if ((remote.channelType ?? "").toUpperCase() !== "TEST") return false;
+  if (remote.pgMerchantId !== PORTONE_REVIEWER_KG_TEST_MID) return false;
+  if (remote.channelKey && remote.channelKey !== PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY) return false;
+  if (remote.channelName && remote.channelName !== PORTONE_REVIEWER_KG_TEST_CHANNEL_NAME) {
+    return false;
+  }
   return true;
 }
 
-function checkoutChannelIsTrusted(checkout: {
-  checkout_kind: PortoneCheckoutKind;
-  store_id: string;
-  channel_key: string;
-}, remote: {
-  storeId?: string;
-  channelKey?: string;
-  pgMerchantId?: string;
-}): boolean {
+function reviewerKgRemoteMatches(remote: RemoteChannelSnapshot): boolean {
+  if (!officialPaidChannelPresent(remote)) return false;
+  return remoteLooksLikeReviewerKgTest(remote);
+}
+
+function standardChannelIsTrusted(
+  checkout: { store_id: string; channel_key: string },
+  remote: RemoteChannelSnapshot
+): boolean {
+  if (!officialPaidChannelPresent(remote)) return false;
+  if (remoteLooksLikeReviewerKgTest(remote)) return false;
+  if (
+    remote.storeId === PORTONE_REVIEWER_KG_TEST_STORE_ID ||
+    remote.channelKey === PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY
+  ) {
+    return false;
+  }
+  if (checkout.store_id && checkout.store_id !== remote.storeId) return false;
+  if (checkout.channel_key && remote.channelKey && checkout.channel_key !== remote.channelKey) {
+    return false;
+  }
+  return true;
+}
+
+function checkoutChannelIsTrusted(
+  checkout: {
+    checkout_kind: PortoneCheckoutKind;
+    store_id: string;
+    channel_key: string;
+  },
+  remote: RemoteChannelSnapshot
+): boolean {
   if (isReviewerKgTestCheckout(checkout)) {
     return (
       isConfirmedReviewerKgTestChannel({
@@ -54,10 +92,7 @@ function checkoutChannelIsTrusted(checkout: {
       }) && reviewerKgRemoteMatches(remote)
     );
   }
-  return !isConfirmedReviewerKgTestChannel({
-    storeId: remote.storeId ?? checkout.store_id,
-    channelKey: remote.channelKey ?? checkout.channel_key,
-  });
+  return standardChannelIsTrusted(checkout, remote);
 }
 
 /**

@@ -73,6 +73,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       alreadyPaid: true,
+      checkoutKind: checkout.checkout_kind,
+      credited: !isReviewerKgTestCheckout(checkout),
       points: balance.total,
       paidPoints: balance.paid,
       freePoints: balance.free,
@@ -129,6 +131,8 @@ export async function POST(req: Request) {
     alreadyPaid:
       finalized.status === "already_paid" ||
       (finalized.status === "paid" && finalized.alreadyPaid),
+    checkoutKind: checkout.checkout_kind,
+    credited: !isReviewerKgTestCheckout(checkout),
     points: balance.total,
     paidPoints: balance.paid,
     freePoints: balance.free,

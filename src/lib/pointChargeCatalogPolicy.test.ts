@@ -235,6 +235,10 @@ describe("point charge catalog — payment guards", () => {
       paymentId: "pay-once",
       txId: "tx-once",
       totalAmount: 50000,
+      storeId: "store-standard-live",
+      channelKey: "channel-key-standard-live",
+      channelType: "LIVE",
+      pgMerchantId: "INIStandard",
       cancellations: [],
     }));
 

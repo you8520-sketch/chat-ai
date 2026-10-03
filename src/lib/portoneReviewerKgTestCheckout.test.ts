@@ -18,6 +18,7 @@ import {
 } from "@/lib/portoneWebhook";
 import {
   PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY,
+  PORTONE_REVIEWER_KG_TEST_CHANNEL_NAME,
   PORTONE_REVIEWER_KG_TEST_CHECKOUT_KIND,
   PORTONE_REVIEWER_KG_TEST_MID,
   PORTONE_REVIEWER_KG_TEST_STORE_ID,
@@ -98,7 +99,24 @@ function paidRemote(paymentId: string, extra: Record<string, unknown> = {}) {
     totalAmount: 5000,
     storeId: PORTONE_REVIEWER_KG_TEST_STORE_ID,
     channelKey: PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY,
+    channelName: PORTONE_REVIEWER_KG_TEST_CHANNEL_NAME,
+    channelType: "TEST",
     pgMerchantId: PORTONE_REVIEWER_KG_TEST_MID,
+    cancellations: [] as Array<{ status: string; id: string }>,
+    ...extra,
+  };
+}
+
+function standardRemote(paymentId: string, extra: Record<string, unknown> = {}) {
+  return {
+    status: "PAID",
+    paymentId,
+    txId: "tx-standard",
+    totalAmount: 5000,
+    storeId: "store-standard-live",
+    channelKey: "channel-key-standard-live",
+    channelType: "LIVE",
+    pgMerchantId: "INIStandard",
     cancellations: [] as Array<{ status: string; id: string }>,
     ...extra,
   };
@@ -208,6 +226,111 @@ describe("portone reviewer KG Inicis test checkout", () => {
     db.close();
   });
 
+  it("rejects a reviewer PAID snapshot that omits official channel fields", async () => {
+    const db = setupDb();
+    insertCheckout(db, { paymentId: "pt-reviewer-omit" });
+    for (const extra of [
+      { storeId: undefined },
+      { channelType: undefined },
+      { pgMerchantId: undefined },
+    ]) {
+      setPortOnePaymentLookupForTests(async () => paidRemote("pt-reviewer-omit", extra));
+      const result = await finalizePortoneCheckoutFromProvider("pt-reviewer-omit", { db });
+      assert.deepEqual(result, { ok: false, status: "channel_mismatch" });
+    }
+    assert.equal(getPointBalanceOnDb(db, 1).total, 0);
+    db.close();
+  });
+
+  it("accepts an official reviewer snapshot when optional channel.key is omitted", async () => {
+    const db = setupDb();
+    insertCheckout(db, { paymentId: "pt-reviewer-no-key" });
+    setPortOnePaymentLookupForTests(async () =>
+      paidRemote("pt-reviewer-no-key", { channelKey: undefined })
+    );
+    const result = await finalizePortoneCheckoutFromProvider("pt-reviewer-no-key", { db });
+    assert.deepEqual(result, { ok: true, status: "paid", alreadyPaid: false });
+    assert.equal(getPointBalanceOnDb(db, 1).total, 0);
+    db.close();
+  });
+
+  it("rejects standard provider vs local store or channel mismatch and missing official fields", async () => {
+    const db = setupDb();
+    insertCheckout(db, {
+      paymentId: "pt-standard-mismatch",
+      kind: "standard",
+      storeId: "store-standard-live",
+      channelKey: "channel-key-standard-live",
+    });
+    setPortOnePaymentLookupForTests(async () =>
+      standardRemote("pt-standard-mismatch", { storeId: "store-other-live" })
+    );
+    assert.deepEqual(await finalizePortoneCheckoutFromProvider("pt-standard-mismatch", { db }), {
+      ok: false,
+      status: "channel_mismatch",
+    });
+
+    setPortOnePaymentLookupForTests(async () =>
+      standardRemote("pt-standard-mismatch", { channelKey: "channel-key-other-live" })
+    );
+    assert.deepEqual(await finalizePortoneCheckoutFromProvider("pt-standard-mismatch", { db }), {
+      ok: false,
+      status: "channel_mismatch",
+    });
+
+    setPortOnePaymentLookupForTests(async () =>
+      standardRemote("pt-standard-mismatch", { storeId: undefined, channelType: undefined, pgMerchantId: undefined })
+    );
+    assert.deepEqual(await finalizePortoneCheckoutFromProvider("pt-standard-mismatch", { db }), {
+      ok: false,
+      status: "channel_mismatch",
+    });
+    assert.equal(getPointBalanceOnDb(db, 1).total, 0);
+    db.close();
+  });
+
+  it("rejects a standard checkout that only swaps part of the KG test identity", async () => {
+    const db = setupDb();
+    insertCheckout(db, {
+      paymentId: "pt-standard-partial-kg",
+      kind: "standard",
+      storeId: "store-standard-live",
+      channelKey: "channel-key-standard-live",
+    });
+    setPortOnePaymentLookupForTests(async () =>
+      standardRemote("pt-standard-partial-kg", {
+        storeId: PORTONE_REVIEWER_KG_TEST_STORE_ID,
+        channelType: "TEST",
+        pgMerchantId: PORTONE_REVIEWER_KG_TEST_MID,
+      })
+    );
+    assert.deepEqual(await finalizePortoneCheckoutFromProvider("pt-standard-partial-kg", { db }), {
+      ok: false,
+      status: "channel_mismatch",
+    });
+    assert.equal(getPointBalanceOnDb(db, 1).total, 0);
+    db.close();
+  });
+
+  it("credits a matching standard live-channel checkout once", async () => {
+    const db = setupDb();
+    insertCheckout(db, {
+      paymentId: "pt-standard-ok",
+      kind: "standard",
+      storeId: "store-standard-live",
+      channelKey: "channel-key-standard-live",
+    });
+    setPortOnePaymentLookupForTests(async () => standardRemote("pt-standard-ok"));
+    const first = await finalizePortoneCheckoutFromProvider("pt-standard-ok", { db });
+    const second = await finalizePortoneCheckoutFromProvider("pt-standard-ok", { db });
+    assert.deepEqual(first, { ok: true, status: "paid", alreadyPaid: false });
+    assert.deepEqual(second, { ok: true, status: "already_paid" });
+    const balance = getPointBalanceOnDb(db, 1);
+    assert.equal(balance.paid, 5000);
+    assert.equal(balance.total, 5000);
+    db.close();
+  });
+
   it("does not let a standard checkout settle on the reviewer KG test channel", async () => {
     const db = setupDb();
     insertCheckout(db, {
@@ -270,7 +393,17 @@ describe("portone reviewer KG Inicis test checkout", () => {
     assert.match(complete, /isReviewerKgTestCheckout/);
     assert.match(complete, /checkout\.user_id !== user\.id/);
     assert.match(complete, /channel_mismatch/);
+    assert.match(complete, /checkoutKind: checkout\.checkout_kind/);
+    assert.match(complete, /credited: !isReviewerKgTestCheckout\(checkout\)/);
     assert.match(browser, /prepared\.storeId/);
+    assert.match(browser, /PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE/);
+    const callback = source("src/app/payments/portone/callback/page.tsx");
+    const pointsClient = source("src/app/points/PointsClient.tsx");
+    assert.match(callback, /reviewerTest=1/);
+    assert.match(pointsClient, /reviewerTest=1/);
+    assert.match(pointsClient, /PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE/);
+    const config = source("src/lib/portoneConfig.ts");
+    assert.match(config, /value === "1" \|\| value === "true"/);
     assert.match(browser, /prepared\.channelKey/);
     assert.doesNotMatch(browser, /PORTONE_STORE_ID/);
     assert.doesNotMatch(browser, /isTest/);
