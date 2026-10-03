@@ -13,10 +13,12 @@ import { createHash } from "node:crypto";
 import { buildContext } from "@/services/contextBuilder";
 import { auditAssembledPrompt } from "@/services/promptAudit";
 import {
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   selectedAIProvider,
   type SelectedAI,
 } from "@/lib/chatModels";
+import { OOC_HTML_MODE_SYSTEM_DIRECTIVE } from "@/lib/oocHtmlRequest";
 import { resolveEffectiveUserAuthoring } from "@/lib/userCoauthorState";
 import type { UserAuthoringLevel } from "@/lib/userAuthoringPolicy";
 import {
@@ -79,6 +81,7 @@ export type WireCaseResult = {
   statusWidget: boolean;
   oocHtml: boolean;
   jsx: boolean;
+  jsxManifestText: string;
   sectionIds: string[];
   sections: WireSectionRow[];
   localEstimateTokens: {
@@ -106,6 +109,7 @@ export type WireCaseResult = {
     sessionIdPresent: boolean;
     productionOrderMatchesAssembleOnly: boolean;
     oocHtmlReachedProviderSystem: boolean;
+    oocHtmlDirectiveInCachedBlocks: boolean;
     temperaturePresent: boolean;
   };
   heuristicDuplicateUpperBound: number;
@@ -121,6 +125,7 @@ export type WireCaseResult = {
     deepseekWorldLoreXml: number;
     coauthorPersistentLine: number;
     jsxManifest: number;
+    oocHtmlDirective: number;
     scenePacing: number;
     sceneFlow: number;
     keywordLoreOnUserTurn: number;
@@ -190,6 +195,7 @@ type CaseSpec = {
   statusWidget: boolean;
   oocHtml: boolean;
   jsx: boolean;
+  jsxCallGuide?: string;
   longHistory: boolean;
   withMemory: boolean;
   withLore: boolean;
@@ -200,7 +206,7 @@ function caseSpecs(): CaseSpec[] {
   const gemini31 = "gemini-3.1-pro-preview" as SelectedAI;
   const gemini37 = "gemini-3.7-flash" as SelectedAI;
   const gemini38 = "gemini-3.8-flash" as SelectedAI;
-  const terra = "gpt-5.6-terra" as SelectedAI;
+  const sol = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
   const opus = "claude-opus-5.5" as SelectedAI;
   const rich = {
     turnKind: "interactive" as const,
@@ -268,9 +274,30 @@ function caseSpecs(): CaseSpec[] {
       statusWidget: true,
     },
     { id: "g31-ooc-html", model: gemini31, ...rich, oocHtml: true },
+    {
+      id: "ds-ooc-limited",
+      model: deepseek,
+      ...rich,
+      authoringLevel: "LIMITED",
+      oocHtml: true,
+    },
+    {
+      id: "ds-ooc-allow",
+      model: deepseek,
+      ...rich,
+      authoringLevel: "ALLOW",
+      oocHtml: true,
+    },
+    {
+      id: "ds-ooc-regen",
+      model: deepseek,
+      ...rich,
+      turnKind: "regen",
+      oocHtml: true,
+    },
     { id: "g37-interactive-normal-rich", model: gemini37, ...rich },
     { id: "g38-interactive-normal-rich", model: gemini38, ...rich },
-    { id: "terra-interactive-normal-rich", model: terra, ...rich },
+    { id: "sol-interactive-normal-rich", model: sol, ...rich },
     {
       id: "opus-interactive-long-history",
       model: opus,
@@ -285,6 +312,13 @@ function caseSpecs(): CaseSpec[] {
       longHistory: true,
     },
     { id: "ds-jsx", model: deepseek, ...rich, jsx: true },
+    {
+      id: "ds-jsx-call-guide",
+      model: deepseek,
+      ...rich,
+      jsx: true,
+      jsxCallGuide: "새 퀘스트가 등장하거나 주요 진행 상황이 변경되면 사용합니다.",
+    },
   ];
 }
 
@@ -403,7 +437,11 @@ function buildCase(spec: CaseSpec): WireCaseResult {
     sceneDirectiveBlock,
     statusWidgetActive: spec.statusWidget,
     jsxComponentCatalogJson: spec.jsx
-      ? serializeJsxComponentCatalog([buildPitWallFixtureRecord()])
+      ? serializeJsxComponentCatalog([
+          spec.jsxCallGuide
+            ? { ...buildPitWallFixtureRecord(), callGuide: spec.jsxCallGuide }
+            : buildPitWallFixtureRecord(),
+        ])
       : "",
     systemPrompt: "백하율은 낮고 짧은 말로 대답한다.",
     world: "비 오는 도시. 창가.",
@@ -427,6 +465,9 @@ function buildCase(spec: CaseSpec): WireCaseResult {
         split.dynamicBlock !== splitBeforeWidget.dynamicBlock)
   );
 
+  const jsxManifestText =
+    (built.meta.trackedSections ?? []).find((section) => section.id === "jsx-component-manifest")
+      ?.text ?? "";
   const sections: WireSectionRow[] = (built.meta.trackedSections ?? []).map((section) => ({
     id: section.id,
     label: section.label,
@@ -471,11 +512,8 @@ function buildCase(spec: CaseSpec): WireCaseResult {
       skipMotionCue,
     },
   };
-  const oocHtmlSuffix = `[OOC HTML MODE — THIS TURN]
-User explicitly requested inline HTML via OOC. Output allowed: inline HTML with <div> and <span> only. FORBIDDEN: <!DOCTYPE>, <html>, <head>, <body>, <script>. You may mix Korean prose with HTML. Server Flash status window is DISABLED this turn.`;
-  const effectiveSystem = spec.oocHtml ? `${system.trim()}\n\n${oocHtmlSuffix}` : system;
   const requestHistory = convertToOpenRouterFormat(built.history);
-  const baseMessages = buildOpenRouterMessages(effectiveSystem, requestHistory, messageOpts);
+  const baseMessages = buildOpenRouterMessages(system, requestHistory, messageOpts);
   const cached = applyCacheAndPrefillForTransport(
     { provider: transport },
     baseMessages,
@@ -484,7 +522,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     { skipAssistantPrefill: false }
   );
   const assembled = assemblePrimaryRpRequest({
-    system: effectiveSystem,
+    system,
     history: requestHistory,
     modelId: wireModelId,
     targetResponseChars: 3200,
@@ -493,7 +531,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     messagesOverride: cached.messages,
   });
   const assembleOnly = assemblePrimaryRpRequest({
-    system: effectiveSystem,
+    system,
     history: requestHistory,
     modelId: wireModelId,
     targetResponseChars: 3200,
@@ -526,6 +564,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     statusWidget: spec.statusWidget,
     oocHtml: spec.oocHtml,
     jsx: spec.jsx,
+    jsxManifestText,
     sectionIds: sections.map((section) => section.id),
     sections,
     localEstimateTokens: {
@@ -560,7 +599,11 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       productionOrderMatchesAssembleOnly:
         sha256(JSON.stringify(finalMessages)) === sha256(JSON.stringify(assembleOnly.messages)),
       oocHtmlReachedProviderSystem: flattenSystem(systemMessage).includes(
-        "[OOC HTML MODE — THIS TURN]"
+        OOC_HTML_MODE_SYSTEM_DIRECTIVE
+      ),
+      oocHtmlDirectiveInCachedBlocks: cachedBlocksContain(
+        systemMessage,
+        OOC_HTML_MODE_SYSTEM_DIRECTIVE
       ),
       temperaturePresent: Object.prototype.hasOwnProperty.call(body, "temperature"),
     },
@@ -597,11 +640,22 @@ function buildAnchors(systemText: string, userText: string) {
       "사용자가 유저 페르소나 공동 서술을 켜 두었다."
     ),
     jsxManifest: count(systemText, "[HAV JSX COMPONENTS]"),
+    oocHtmlDirective: count(systemText, OOC_HTML_MODE_SYSTEM_DIRECTIVE),
     scenePacing: count(systemText, "[SCENE PACING]"),
     sceneFlow: count(systemText, "[SCENE FLOW]"),
     keywordLoreOnUserTurn: count(userText, "[KEYWORD LORE]"),
     globalLoreOnUserTurn: count(userText, "[GLOBAL LORE]"),
   };
+}
+
+function cachedBlocksContain(
+  message: OpenRouterChatMessage | undefined,
+  needle: string
+): boolean {
+  if (!message || !Array.isArray(message.content) || !needle) return false;
+  return message.content.some(
+    (block) => block.cache_control?.type === "ephemeral" && block.text.includes(needle)
+  );
 }
 
 function flattenSystem(message: OpenRouterChatMessage | undefined): string {

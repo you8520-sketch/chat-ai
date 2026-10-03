@@ -443,12 +443,13 @@ DeepSeek: user 턴 직전 bottom reminder
     )
   );
 
+  const { OOC_HTML_MODE_SYSTEM_DIRECTIVE } = await import("@/lib/oocHtmlRequest");
+
   parts.push(
     section(
-      "26. [OOC HTML MODE] OpenRouter stream overlay (해당 턴만)",
-      `[OOC HTML MODE — THIS TURN]
-User explicitly requested inline HTML via OOC. Output allowed: inline HTML with <div> and <span> only. FORBIDDEN: <!DOCTYPE>, <html>, <head>, <body>, <script>. You may mix Korean prose with HTML. Server Flash status window is DISABLED this turn.`,
-      "openRouterAdult.ts · oocHtmlMode"
+      "26. [OOC HTML MODE] dynamic uncached system block (해당 턴만)",
+      OOC_HTML_MODE_SYSTEM_DIRECTIVE,
+      "oocHtmlRequest.ts · buildOpenRouterMessages when oocHtmlMode"
     )
   );
 

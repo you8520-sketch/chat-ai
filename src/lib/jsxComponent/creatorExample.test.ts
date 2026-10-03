@@ -133,6 +133,10 @@ describe("creator JSX example", () => {
     const previewAt = editor.indexOf("예제 미리보기");
     const applyAt = editor.indexOf("이 예제 적용");
     const advancedAt = editor.indexOf("고급 JSX 코드 및 Props");
-    assert.ok(previewAt > 0 && previewAt < applyAt && applyAt < advancedAt);
+    const guideAt = editor.indexOf("AI 호출 설명");
+    const manifestAt = editor.indexOf("AI에게 실제로 전달되는 정보");
+    assert.ok(guideAt > 0 && guideAt < galleryStart);
+    assert.ok(previewAt > 0 && previewAt < applyAt && applyAt < advancedAt && advancedAt < manifestAt);
+    assert.equal(editor.indexOf("이름 (PascalCase)"), editor.lastIndexOf("이름 (PascalCase)"));
   });
 });
