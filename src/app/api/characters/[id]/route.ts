@@ -17,6 +17,10 @@ import { parseSimulationVisualSubjectsJson } from "@/lib/simulationVisualSubject
 import { parseVisualSubjectsJson } from "@/lib/visualSubjects";
 import { listCharacterCreatorLorebookAttachmentIds } from "@/lib/creatorLorebook";
 import { deriveCharacterWorldSourceKind } from "@/lib/worldPermissions";
+import {
+  loadOfficialOwnerSession,
+  resolveOfficialCharacterEditorAccess,
+} from "@/lib/officialAdminAccess";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -39,11 +43,12 @@ export async function GET(_req: Request, ctx: RouteCtx) {
 
   const row = assertOwnerCharacter(characterId, user.id);
   if (!row) return NextResponse.json({ error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
-  if (row.creator_id !== user.id) {
+  const editorAccess = resolveOfficialCharacterEditorAccess(user, row);
+  if (editorAccess === "forbidden") {
+    if (row.official === 1) {
+      return NextResponse.json({ error: "공식 캐릭터는 수정할 수 없습니다." }, { status: 403 });
+    }
     return NextResponse.json({ error: "본인 캐릭터만 수정할 수 있습니다." }, { status: 403 });
-  }
-  if (row.official === 1) {
-    return NextResponse.json({ error: "공식 캐릭터는 수정할 수 없습니다." }, { status: 403 });
   }
 
   const db = getDb();
@@ -149,7 +154,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
               .prepare(
                 `SELECT COALESCE(shared_from_nickname, '') AS shared_from_nickname FROM worlds WHERE id = ? AND creator_id = ?`
               )
-              .get(c.world_id, user.id) as { shared_from_nickname?: string } | undefined
+              .get(c.world_id, editorAccess === "official_admin" ? c.creator_id : user.id) as { shared_from_nickname?: string } | undefined
           )?.shared_from_nickname ?? ""
         : "",
   });
@@ -200,7 +205,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     simulation_nsfw_allowed: false,
     trpg_reuse_allowed: c.trpg_reuse_allowed === 1,
     assets,
-    ...(c.creator_id === user.id
+    ...(c.creator_id === user.id || editorAccess === "official_admin"
       ? {
           visual_subjects: parseVisualSubjectsJson(c.simulation_visual_subjects_json),
           ...(c.content_kind === "simulation"
@@ -226,7 +231,28 @@ export async function PUT(req: Request, ctx: RouteCtx) {
   }
 
   const b = await req.json();
-  const result = await updateCharacterFromForm(user, characterId, b);
+  const row = assertOwnerCharacter(characterId, user.id);
+  if (!row) return NextResponse.json({ error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
+  const editorAccess = resolveOfficialCharacterEditorAccess(user, row);
+  let result;
+  if (editorAccess === "official_admin") {
+    if (!row.creator_id) {
+      return NextResponse.json({ error: "공식 소유 계정을 찾을 수 없습니다." }, { status: 400 });
+    }
+    const owner = loadOfficialOwnerSession(row.creator_id);
+    if (!owner) {
+      return NextResponse.json({ error: "사이트 관리 공식 계정을 찾을 수 없습니다." }, { status: 400 });
+    }
+    result = await updateCharacterFromForm(owner, characterId, b, {
+      actor: "official_admin",
+      adminUser: user,
+      preserveListingState: true,
+      preserveAdultFlags: true,
+      skipFollowerNotify: true,
+    });
+  } else {
+    result = await updateCharacterFromForm(user, characterId, b);
+  }
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }

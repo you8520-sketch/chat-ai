@@ -118,10 +118,9 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
     ? {
         byClassName: "text-violet-500/80",
         nameClassName: "font-semibold text-violet-200",
-        label: "공식 스튜디오",
+        label: "공식",
       }
     : creatorNameBadgeStyle(c.creator_tier_level);
-  const studioSuffix = c.creator_site_managed ? " · 공식 스튜디오" : "";
 
   return (
     <article
@@ -195,7 +194,6 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
                 </span>
               )}
               <span className={creatorStyle.byClassName}>by</span> {creatorName}
-              {studioSuffix}
             </Link>
           ) : (
             <p className={cn("line-clamp-1 text-[10px]", creatorStyle.nameClassName)}>
@@ -205,7 +203,6 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
                 </span>
               )}
               <span className={creatorStyle.byClassName}>by</span> {creatorName}
-              {studioSuffix}
             </p>
           )
         ) : null}

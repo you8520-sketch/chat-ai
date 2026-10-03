@@ -465,6 +465,13 @@ describe("site-managed official studio foundation", () => {
     assert.doesNotMatch(page, /site_managed.*is_adult|is_adult.*site_managed/);
   });
 
+  it("character cards keep one 공식 badge and no · 공식 스튜디오 suffix", () => {
+    const card = fs.readFileSync(path.join(process.cwd(), "src/components/CharacterCard.tsx"), "utf8");
+    assert.match(card, /공식/);
+    assert.doesNotMatch(card, /studioSuffix/);
+    assert.doesNotMatch(card, / · 공식 스튜디오/);
+  });
+
   it("OfficialStudioBadge is distinct from partner OfficialCreatorBadge", () => {
     const studioBadge = fs.readFileSync(
       path.join(process.cwd(), "src/components/OfficialStudioBadge.tsx"),
