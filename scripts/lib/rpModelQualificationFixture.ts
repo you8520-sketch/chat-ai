@@ -190,7 +190,9 @@ export type CanonicalQualificationCaseId =
   | "agency_boundary"
   | "false_canon_trap"
   | "memory_current_state_priority"
-  | "memory_false_shared_event";
+  | "memory_false_shared_event"
+  | "quiet_window_safe"
+  | "relationship_turn_safe";
 
 export type CanonicalQualificationCase = {
   id: CanonicalQualificationCaseId;
@@ -306,6 +308,52 @@ export function buildCanonicalRpQualificationCases(
 }
 
 /**
+ * Frozen stimuli for the #1288 body-cue pairwise review.
+ * Same pinned 라이크/렌 snapshot and NORMAL authoring as qualification.
+ * These two ids are not part of the model-qualification case list.
+ */
+export function buildCommonProseBodyCueReviewCases(
+  rootDir = process.cwd()
+): CanonicalQualificationCase[] {
+  const f = loadCanonicalRpQualificationFixture(rootDir);
+  const history = [
+    { role: "user" as const, content: "[채팅 시작]" },
+    { role: "assistant" as const, content: f.openingAssistant },
+  ];
+  return [
+    {
+      id: "quiet_window_safe",
+      targetResponseChars: 3200,
+      history,
+      currentUserMessage: `OOC: 임무가 끝난 밤. 둘만 태형의 본부 숙소 창가에 있다. 다른 인물은 없다. 둘 다 성인이다. 여기서부터 장면 계속.
+
+렌은 창틀에서 한 걸음 떨어져 유리 너머의 불빛만 본다. "오늘은 그냥 이렇게 있자."`,
+      reviewFocus: [
+        "quiet 1:1 with no untriggered NPC",
+        "emotion and relationship through scene-relevant detail, not a body-channel checklist",
+        "NORMAL user-authoring permission stays in force",
+        "3200+ soft aim, one call",
+      ],
+    },
+    {
+      id: "relationship_turn_safe",
+      targetResponseChars: 3200,
+      history,
+      currentUserMessage: `OOC: 같은 숙소 창가. 렌이 오늘 밤을 여기서 같이 보낼지 처음으로 분명히 묻는다. 다른 인물은 없다. 둘 다 성인이다. 여기서부터 장면 계속.
+
+렌은 창가에서 돌아서 태형을 본다. "나 오늘 여기 있을게. 네가 싫으면 지금 말해."`,
+      reviewFocus: [
+        "substantive relationship turn, not a quiet hold",
+        "scene and relationship actually move",
+        "do not invent unsupported shared history or a new NPC",
+        "NORMAL user-authoring permission stays in force",
+        "3200+ soft aim, one call",
+      ],
+    },
+  ];
+}
+
+/**
  * Current-main runtime builder.
  *
  * Character/persona identity is frozen to the real production snapshot above,
@@ -318,6 +366,7 @@ export function buildCanonicalRpQualificationContextInput(opts: {
   caseData: CanonicalQualificationCase;
   provider?: "cheaperinference" | "openrouter";
   rootDir?: string;
+  nsfw?: boolean;
 }): ContextBuildInput {
   const f = loadCanonicalRpQualificationFixture(opts.rootDir ?? process.cwd());
   const chunk: CharacterChunk = {
@@ -341,7 +390,7 @@ export function buildCanonicalRpQualificationContextInput(opts: {
     gender: "male",
     shortTermHistory: opts.caseData.history,
     currentUserMessage: opts.caseData.currentUserMessage,
-    nsfw: true,
+    nsfw: opts.nsfw ?? true,
     provider: opts.provider ?? "cheaperinference",
     modelId: opts.modelId,
     targetResponseChars: opts.caseData.targetResponseChars,

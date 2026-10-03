@@ -27,6 +27,9 @@ on:
       - "scripts/lib/rpModelQualificationPacket.ts"
       - "**/*mainRp*test.ts"
       - "src/lib/mainRpFinalWireAudit.ts"
+      - "src/lib/mainRpFinalWireAudit.test.ts"
+      - "scripts/lib/mainRpBodyCuePreflight.ts"
+      - "scripts/lib/mainRpBodyCuePreflight.test.ts"
       - "src/services/promptAudit.ts"
       - "src/lib/chatModels.gemini.test.ts"
       - "src/lib/openRouterClient.test.ts"
@@ -70,7 +73,7 @@ jobs:
         run: >-
           node --conditions=react-server --import tsx
           --import ./src/lib/test/regularTestEgressPolicy.ts
-          --test --test-concurrency=1 src/lib/mainRpFinalWireAudit.test.ts
+          --test --test-concurrency=1 src/lib/mainRpFinalWireAudit.test.ts scripts/lib/mainRpBodyCuePreflight.test.ts
       - name: Fluence qualification contract (offline only)
         run: >-
           node --conditions=react-server --import tsx
