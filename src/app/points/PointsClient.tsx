@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AttendanceBanner from "@/components/AttendanceBanner";
 import ChargeCancelButton from "@/components/ChargeCancelButton";
-import PointsBalanceTooltip from "@/components/PointsBalanceTooltip";
 import {
   canShowChargeCancelButton,
   type PointUsageLog,
@@ -422,40 +421,10 @@ export default function PointsClient({
 
   return (
     <div className="mx-auto mt-4 max-w-3xl">
-      <div className={`p-6 ${studioSurface.card}`}>
-        <p className={studioType.label}>보유 포인트</p>
-        <PointsBalanceTooltip total={points} paid={paidPoints} free={freePoints}>
-          <p className="text-3xl font-semibold tabular-nums text-zinc-50">{points.toLocaleString()}P</p>
-        </PointsBalanceTooltip>
-        <p className={`mt-2 ${studioType.caption}`}>
-          유료 포인트와 무료(충전 보너스·이벤트) 포인트는{" "}
-          <b className="text-zinc-300">{FREE_POINTS_VALID_YEARS}년</b>, 출석 포인트는 적립일로부터{" "}
-          <b className="text-zinc-300">{ATTENDANCE_POINTS_VALID_DAYS}일</b>간 유효합니다. 출석 포인트는 선물할 수
-          없으며, 사용 시 만료 임박·무료 순으로 차감됩니다.
-        </p>
-      </div>
+      <AttendanceBanner loggedIn initialCheckedIn={initialCheckedIn} initialStreak={initialAttendanceStreak} />
 
       {msg && <p className={`mt-4 ${studioSurface.banner} text-sm text-violet-300`}>{msg}</p>}
       {error && <p className="mt-4 rounded-xl border border-rose-500/20 bg-rose-600/10 p-3 text-sm text-rose-300">{error}</p>}
-
-      <div className="mt-6">
-        <AttendanceBanner loggedIn initialCheckedIn={initialCheckedIn} initialStreak={initialAttendanceStreak} />
-      </div>
-
-      {!paymentsEnabled && (
-        <div className={`mt-8 p-5 ${studioSurface.card}`}>
-          <p className={studioType.sectionTitle}>클로즈베타 기간</p>
-          <p className={`mt-2 ${studioType.body}`}>
-            포인트 구매·결제는 오픈 전까지 제공되지 않습니다. 무료 포인트가 필요하면 신청해 주세요.
-          </p>
-          <Link
-            href="/events/beta-free-points"
-            className="mt-4 inline-block rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-500"
-          >
-            무료 포인트 신청하기
-          </Link>
-        </div>
-      )}
 
       <h2 className={`mt-8 ${studioType.sectionTitle}`}>포인트 상품</h2>
       <p className={`mt-1 ${studioType.caption}`}>
