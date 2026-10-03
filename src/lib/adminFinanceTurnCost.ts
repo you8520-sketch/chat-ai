@@ -29,13 +29,35 @@ const SYNC_LEDGER_FAMILIES = new Set([
 
 export type StatusWidgetExtractFinanceSource = "usage" | "ledger" | "none";
 
+export type LedgerCostFundingClass = "platform_funded" | "user_funded" | "unknown";
+
 /** Per-generation KRW counted from one ledger physical event (pre-tax). */
 export type LedgerCostContribution = {
   /** Delivered model id of the physical event (registry label mapping is caller-owned). */
   model: string;
   krw: number;
   exact: boolean;
+  /** Ledger funding_class, with execution_phase as the legacy fallback. */
+  fundingClass: LedgerCostFundingClass;
+  assistantMessageId: number | null;
+  generationRequestId: string | null;
 };
+
+export function ledgerCostFundingClass(
+  row: Pick<ProviderCostLedgerRow, "funding_class" | "execution_phase">
+): LedgerCostFundingClass {
+  if (row.funding_class === "platform_funded" || row.funding_class === "user_funded") {
+    return row.funding_class;
+  }
+  if (row.execution_phase === "main_generation") return "user_funded";
+  if (
+    row.execution_phase === "sync_post_turn" ||
+    row.execution_phase === "async_post_turn"
+  ) {
+    return "platform_funded";
+  }
+  return "unknown";
+}
 
 /** Whole-turn finance cost coverage — aligned with AdminReceiptExactness aggregation. */
 export type FinanceTurnCostCoverage = "complete" | "partial" | "estimated" | "unavailable";
@@ -67,6 +89,10 @@ export type MessageTurnProviderCost = {
    * canonical ledger owner). Attributed to the current message model.
    */
   usageFallbackKrw: number;
+  /** Usage-snapshot main generation KRW (no ledger owner). Message-model attribution. */
+  mainUsageFallbackKrw: number;
+  /** Usage-snapshot sync platform spend. Message-model attribution, platform-funded. */
+  syncUsageFallbackKrw: number;
   familyKrw: {
     main_generation: number;
     post_turn_shared_initial: number;
@@ -88,6 +114,25 @@ type CostComponent = {
 
 function ledgerRowModel(row: ProviderCostLedgerRow): string {
   return (row.actual_model ?? "").trim() || (row.model ?? "").trim() || "";
+}
+
+function pushLedgerContribution(
+  contributions: LedgerCostContribution[],
+  row: ProviderCostLedgerRow,
+  krw: number,
+  exact: boolean
+): void {
+  if (krw <= 0) return;
+  const messageId = row.assistant_message_id;
+  contributions.push({
+    model: ledgerRowModel(row),
+    krw,
+    exact,
+    fundingClass: ledgerCostFundingClass(row),
+    assistantMessageId:
+      messageId != null && Number.isFinite(Number(messageId)) ? Number(messageId) : null,
+    generationRequestId: row.generation_request_id?.trim() || null,
+  });
 }
 
 function finiteNonNegative(value: unknown): number {
@@ -197,7 +242,7 @@ function resolveMainGenerationComponent(
       if (usd > 0 && fx > 0) {
         const krw = round1(usd * fx);
         ledgerExactKrw += krw;
-        contributions.push({ model: ledgerRowModel(row), krw, exact: true });
+        pushLedgerContribution(contributions, row, krw, true);
       }
     } else {
       // Not-yet-settled main request: keep the ledger-owned estimate/reference
@@ -206,7 +251,7 @@ function resolveMainGenerationComponent(
       const reference = round1(finiteNonNegative(row.cost_krw));
       if (reference > 0) {
         ledgerEstimateKrw += reference;
-        contributions.push({ model: ledgerRowModel(row), krw: reference, exact: false });
+        pushLedgerContribution(contributions, row, reference, false);
       }
     }
   }
@@ -357,7 +402,7 @@ function resolveSyncPostTurnComponent(
     if (isLedgerEventCostExact(row)) {
       const krw = ledgerExactCostKrw(row);
       syncLedgerExactKrw += krw;
-      contributions.push({ model: ledgerRowModel(row), krw, exact: true });
+      pushLedgerContribution(contributions, row, krw, true);
     } else if (isLedgerEventCostCoverageIncomplete(row)) {
       syncLedgerHasIncomplete = true;
     }
@@ -410,7 +455,7 @@ function resolveAsyncPostTurnComponent(
       const krw = ledgerExactCostKrw(row);
       exactKrw += krw;
       byFamily[family as keyof typeof byFamily] += krw;
-      contributions.push({ model: ledgerRowModel(row), krw, exact: true });
+      pushLedgerContribution(contributions, row, krw, true);
     } else if (isLedgerEventCostCoverageIncomplete(row)) {
       hasIncomplete = true;
     }
@@ -494,6 +539,8 @@ export function resolveMessageTurnProviderCostKrw(
     statusWidgetExtractFinanceSource: sync.source,
     ledgerCostContributions,
     usageFallbackKrw,
+    mainUsageFallbackKrw: main.usageFallbackKrw,
+    syncUsageFallbackKrw: sync.usageFallbackKrw,
     familyKrw,
   };
 }
