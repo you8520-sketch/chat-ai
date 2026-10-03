@@ -97,6 +97,7 @@ import {
   pushLiveStreamDelta,
 } from "@/lib/statusWindow";
 import { stripLeakedDocumentMarkup } from "@/lib/chatHtmlSanitize";
+import { appendOocHtmlModeDirective } from "@/lib/oocHtmlRequest";
 import { stripTrailingEmotionTagStreamCandidate } from "@/lib/emotionTag";
 import { stripAllStatusWindowOutputArtifacts, type StripStatusArtifactsOptions } from "@/lib/statusMeta/stripArtifacts";
 import { stripS4ServerControlFromText } from "@/lib/controlChannel/serverControlStrip";
@@ -818,15 +819,21 @@ export function buildOpenRouterMessages(
   opts?: OpenRouterMessageOpts
 ): OpenRouterChatMessage[] {
   const split = opts?.systemSplit;
+  const oocHtmlMode = opts?.oocHtmlMode === true;
   let systemContent: string | OpenRouterContentBlock[];
 
   if (split) {
-    systemContent = buildOpenRouterCachedSystemContent(split);
+    const deliveredSplit = oocHtmlMode
+      ? { ...split, dynamicBlock: appendOocHtmlModeDirective(split.dynamicBlock) }
+      : split;
+    systemContent = buildOpenRouterCachedSystemContent(deliveredSplit);
     if (systemContent.length === 0) {
       throw new Error("[OpenRouter] systemSplit produced empty system content");
     }
   } else {
-    const unifiedSystem = system.trim();
+    const unifiedSystem = (
+      oocHtmlMode ? appendOocHtmlModeDirective(system) : system
+    ).trim();
     if (!unifiedSystem) {
       throw new Error("[OpenRouter] system content is empty");
     }
@@ -1180,98 +1187,209 @@ function requestBodyKeyDiff(
 }
 
 
-function commonPrefixLength(a: string, b: string): number {
-  const limit = Math.min(a.length, b.length);
-  let i = 0;
-  while (i < limit && a.charCodeAt(i) === b.charCodeAt(i)) i += 1;
-  return i;
+/** flattenOpenRouterMessageContent joins blocks with this separator. */
+const STRUCTURED_BLOCK_SEPARATOR = "\n\n";
+/**
+ * Unchanged stretch required before two edits are treated as separate hunks.
+ * Shorter gaps stay one hunk. A hunk that is not inside a single block falls back.
+ */
+const STRUCTURED_RESYNC_ANCHOR_CHARS = 64;
+
+type StructuredReplacementHunk = {
+  beforeStart: number;
+  beforeEnd: number;
+  replacement: string;
+};
+
+function commonTailLength(
+  before: string,
+  after: string,
+  beforeFrom: number,
+  afterFrom: number
+): number {
+  const limit = Math.min(before.length - beforeFrom, after.length - afterFrom);
+  let length = 0;
+  while (
+    length < limit &&
+    before.charCodeAt(before.length - 1 - length) === after.charCodeAt(after.length - 1 - length)
+  ) {
+    length += 1;
+  }
+  return length;
 }
 
-function commonSuffixLength(a: string, b: string, prefixLength: number): number {
-  const limit = Math.min(a.length, b.length) - prefixLength;
-  let i = 0;
-  while (
-    i < limit &&
-    a.charCodeAt(a.length - 1 - i) === b.charCodeAt(b.length - 1 - i)
-  ) {
-    i += 1;
+function applyReplacementHunks(before: string, hunks: readonly StructuredReplacementHunk[]): string {
+  let out = "";
+  let cursor = 0;
+  for (const hunk of hunks) {
+    out += before.slice(cursor, hunk.beforeStart);
+    out += hunk.replacement;
+    cursor = hunk.beforeEnd;
   }
-  return i;
+  return out + before.slice(cursor);
+}
+
+function findEarliestAnchorSync(
+  before: string,
+  after: string,
+  beforeFrom: number,
+  afterFrom: number
+): { beforeIndex: number; afterIndex: number } | null {
+  const anchor = STRUCTURED_RESYNC_ANCHOR_CHARS;
+  if (after.length - afterFrom < anchor || before.length - beforeFrom < anchor) return null;
+
+  const afterIndex = new Map<string, number[]>();
+  const afterLimit = after.length - anchor;
+  for (let pos = afterFrom; pos <= afterLimit; pos += 1) {
+    const key = after.slice(pos, pos + anchor);
+    const list = afterIndex.get(key);
+    if (list) list.push(pos);
+    else afterIndex.set(key, [pos]);
+  }
+
+  let best: { beforeIndex: number; afterIndex: number; score: number } | null = null;
+  const beforeLimit = before.length - anchor;
+  for (let pos = beforeFrom; pos <= beforeLimit; pos += 1) {
+    if (best && best.score <= pos - beforeFrom) break;
+    const hits = afterIndex.get(before.slice(pos, pos + anchor));
+    if (!hits) continue;
+    for (const afterPos of hits) {
+      const score = pos - beforeFrom + (afterPos - afterFrom);
+      if (
+        !best ||
+        score < best.score ||
+        (score === best.score && (pos < best.beforeIndex || afterPos < best.afterIndex))
+      ) {
+        best = { beforeIndex: pos, afterIndex: afterPos, score };
+      }
+    }
+  }
+  return best ? { beforeIndex: best.beforeIndex, afterIndex: best.afterIndex } : null;
 }
 
 /**
- * Re-project a string-only server-control transform back onto the original
- * structured content blocks when the mutation is contained in one block.
- *
- * This preserves cache_control ownership for unaffected blocks. If a future
- * transform crosses a block boundary, fall back to the old flattened content
- * rather than risk changing prompt semantics.
+ * Edits between the pre-control flat system and the post-control flat system.
+ * Several intra-block edits (newline collapse in rules, scene replace in character)
+ * stay separate. A single prefix/suffix span would cover all of them and look
+ * like one cross-block rewrite.
  */
-function reprojectControlledTextOntoStructuredContent(
+function structuredReplacementHunks(before: string, after: string): StructuredReplacementHunk[] {
+  const hunks: StructuredReplacementHunk[] = [];
+  let beforeIndex = 0;
+  let afterIndex = 0;
+  while (beforeIndex < before.length || afterIndex < after.length) {
+    if (
+      beforeIndex < before.length &&
+      afterIndex < after.length &&
+      before.charCodeAt(beforeIndex) === after.charCodeAt(afterIndex)
+    ) {
+      beforeIndex += 1;
+      afterIndex += 1;
+      continue;
+    }
+    const synced = findEarliestAnchorSync(before, after, beforeIndex, afterIndex);
+    if (!synced) {
+      const tail = commonTailLength(before, after, beforeIndex, afterIndex);
+      const beforeEnd = before.length - tail;
+      const afterEnd = after.length - tail;
+      hunks.push({
+        beforeStart: beforeIndex,
+        beforeEnd,
+        replacement: after.slice(afterIndex, afterEnd),
+      });
+      break;
+    }
+    hunks.push({
+      beforeStart: beforeIndex,
+      beforeEnd: synced.beforeIndex,
+      replacement: after.slice(afterIndex, synced.afterIndex),
+    });
+    beforeIndex = synced.beforeIndex;
+    afterIndex = synced.afterIndex;
+  }
+  return hunks.filter((hunk) => hunk.beforeEnd > hunk.beforeStart || hunk.replacement.length > 0);
+}
+
+/**
+ * Re-project a string-only server-control transform onto the original structured
+ * blocks when every edit sits inside one block.
+ *
+ * cache_control stays on the block that already owned it. Joining the result
+ * with flattenOpenRouterMessageContent must equal afterFlat. If any edit touches
+ * a block separator, fall back to the flat string instead of inventing a split.
+ */
+export function reprojectControlledTextOntoStructuredContent(
   original: OpenRouterContentBlock[],
   beforeFlat: string,
   afterFlat: string
 ): string | OpenRouterContentBlock[] {
   if (beforeFlat === afterFlat) return original;
 
-  const prefixLength = commonPrefixLength(beforeFlat, afterFlat);
-  const suffixLength = commonSuffixLength(beforeFlat, afterFlat, prefixLength);
-  const beforeChangeEnd = beforeFlat.length - suffixLength;
-  const afterChangeEnd = afterFlat.length - suffixLength;
-  const replacement = afterFlat.slice(prefixLength, afterChangeEnd);
+  const hunks = structuredReplacementHunks(beforeFlat, afterFlat);
+  if (applyReplacementHunks(beforeFlat, hunks) !== afterFlat) {
+    console.warn(
+      "[OPENROUTER CACHE] server-control diff did not round-trip; using semantic-safe flattened fallback"
+    );
+    return afterFlat;
+  }
 
-  const separatorLength = 2; // flattenOpenRouterMessageContent joins blocks with "\n\n".
+  const ranges: Array<{ index: number; start: number; end: number }> = [];
   let cursor = 0;
-  let targetIndex = -1;
-  let targetStart = 0;
-  let targetEnd = 0;
-
-  for (let i = 0; i < original.length; i += 1) {
-    const block = original[i]!;
+  for (let index = 0; index < original.length; index += 1) {
+    const block = original[index]!;
     const start = cursor;
     const end = start + block.text.length;
-    if (prefixLength >= start && beforeChangeEnd <= end) {
-      targetIndex = i;
-      targetStart = start;
-      targetEnd = end;
-      break;
+    ranges.push({ index, start, end });
+    cursor = end + (index < original.length - 1 ? STRUCTURED_BLOCK_SEPARATOR.length : 0);
+  }
+  if (
+    cursor !== beforeFlat.length ||
+    ranges.map((range) => original[range.index]!.text).join(STRUCTURED_BLOCK_SEPARATOR) !== beforeFlat
+  ) {
+    console.warn(
+      "[OPENROUTER CACHE] structured blocks do not match the pre-control flat text; using semantic-safe flattened fallback"
+    );
+    return afterFlat;
+  }
+
+  const editsByBlock = new Map<number, Array<{ localStart: number; localEnd: number; replacement: string }>>();
+  for (const hunk of hunks) {
+    const range = ranges.find(
+      (candidate) => hunk.beforeStart >= candidate.start && hunk.beforeEnd <= candidate.end
+    );
+    if (!range) {
+      console.warn(
+        "[OPENROUTER CACHE] server-control transform crossed structured cache boundary; using semantic-safe flattened fallback"
+      );
+      return afterFlat;
     }
-    cursor = end + (i < original.length - 1 ? separatorLength : 0);
+    const edits = editsByBlock.get(range.index) ?? [];
+    edits.push({
+      localStart: hunk.beforeStart - range.start,
+      localEnd: hunk.beforeEnd - range.start,
+      replacement: hunk.replacement,
+    });
+    editsByBlock.set(range.index, edits);
   }
 
-  if (targetIndex < 0) {
+  const next = original.map((block, index) => {
+    const edits = editsByBlock.get(index);
+    if (!edits || edits.length === 0) return block;
+    const ordered = [...edits].sort((left, right) => right.localStart - left.localStart);
+    let text = block.text;
+    for (const edit of ordered) {
+      text = text.slice(0, edit.localStart) + edit.replacement + text.slice(edit.localEnd);
+    }
+    return { ...block, text };
+  });
+
+  if (flattenOpenRouterMessageContent(next) !== afterFlat) {
     console.warn(
-      "[OPENROUTER CACHE] server-control transform crossed structured cache boundary; using semantic-safe flattened fallback"
+      "[OPENROUTER CACHE] reprojected blocks changed provider-visible text; using semantic-safe flattened fallback"
     );
     return afterFlat;
   }
-
-  const target = original[targetIndex]!;
-  const localStart = Math.max(0, Math.min(target.text.length, prefixLength - targetStart));
-  const localEnd = Math.max(
-    localStart,
-    Math.min(target.text.length, beforeChangeEnd - targetStart)
-  );
-
-  // Defensive span assertion: a mapped mutation must never consume a separator.
-  if (beforeChangeEnd > targetEnd) {
-    console.warn(
-      "[OPENROUTER CACHE] invalid structured transform span; using semantic-safe flattened fallback"
-    );
-    return afterFlat;
-  }
-
-  return original.map((block, i) =>
-    i === targetIndex
-      ? {
-          ...block,
-          text:
-            block.text.slice(0, localStart) +
-            replacement +
-            block.text.slice(localEnd),
-        }
-      : block
-  );
+  return next;
 }
 
 function applyProductionServerControlsPreservingCacheBoundaries(
@@ -1420,13 +1538,7 @@ export async function* streamOpenRouterAdult(
   });
 
   const oocHtmlMode = messageOpts?.oocHtmlMode === true;
-  const effectiveSystem = oocHtmlMode
-    ? `${system.trim()}
-
-[OOC HTML MODE — THIS TURN]
-User explicitly requested inline HTML via OOC. Output allowed: inline HTML with <div> and <span> only. FORBIDDEN: <!DOCTYPE>, <html>, <head>, <body>, <script>. You may mix Korean prose with HTML. Server Flash status window is DISABLED this turn.`
-    : system;
-  const baseMessages = buildOpenRouterMessages(effectiveSystem, history, messageOpts);
+  const baseMessages = buildOpenRouterMessages(system, history, messageOpts);
   const skipStreamGuards = false;
   const degenerationCtx = { oocHtmlMode };
 
@@ -1460,7 +1572,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       }
     );
   const { requestBody, requestBodyBeforeAdapt } = assemblePrimaryRpRequest({
-    system: effectiveSystem,
+    system,
     history,
     modelId: apiModelId,
     targetResponseChars,

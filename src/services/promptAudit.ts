@@ -23,10 +23,25 @@ export type TrackedPromptSection = {
   text: string;
 };
 
+/**
+ * Signature and shared-substring hits are an upper bound on overlapping
+ * text. They are not a measured count of tokens that can be deleted.
+ */
+export const PROMPT_DUPLICATE_SAVINGS_CLAIM =
+  "heuristic_upper_bound_not_removable_tokens" as const;
+
+export type PromptDuplicateSavingsClaim = typeof PROMPT_DUPLICATE_SAVINGS_CLAIM;
+
 export type PromptDuplicateHit = {
   label: string;
   sectionIds: string[];
+  /**
+   * Heuristic upper bound only. Signature hits subtract one matched section
+   * from the sum; content hits charge the smaller whole section. Neither
+   * number is proven removable savings.
+   */
   estimatedWastedTokens: number;
+  savingsClaim: PromptDuplicateSavingsClaim;
   snippet: string;
 };
 
@@ -144,6 +159,7 @@ function detectSignatureDuplicates(sections: TrackedPromptSection[]): PromptDupl
       label: sig.label,
       sectionIds: matched.map((m) => m.id),
       estimatedWastedTokens: wasted,
+      savingsClaim: PROMPT_DUPLICATE_SAVINGS_CLAIM,
       snippet: matched[0]?.text.slice(0, 100).replace(/\s+/g, " ") + "…",
     });
   }
@@ -162,6 +178,7 @@ function detectContentDuplicates(sections: TrackedPromptSection[]): PromptDuplic
         label: `Shared content: ${sections[i].label} ↔ ${sections[j].label}`,
         sectionIds: [sections[i].id, sections[j].id],
         estimatedWastedTokens: wasted,
+        savingsClaim: PROMPT_DUPLICATE_SAVINGS_CLAIM,
         snippet: shared[0] + "…",
       });
     }
@@ -177,7 +194,9 @@ function buildInefficiencies(
   const tips: string[] = [];
   const dupWaste = duplicates.reduce((n, d) => n + d.estimatedWastedTokens, 0);
   if (dupWaste > 200) {
-    tips.push(`중복 주입으로 추정 ~${dupWaste.toLocaleString()} 토큰 낭비 — tail reminder·base rule 통합 검토`);
+    tips.push(
+      `중복 휴리스틱 상한 ~${dupWaste.toLocaleString()} 토큰 — 삭제 가능 절감이 아님. tail reminder·base rule은 별도 근거로 검토`
+    );
   }
   if (breakdown.systemRules > breakdown.characterSetting + breakdown.worldLore) {
     tips.push(
@@ -324,7 +343,7 @@ export function formatPromptAuditLog(audit: PromptAuditResult, opts?: { route?: 
     for (const d of audit.duplicates.slice(0, 12)) {
       lines.push(
         `  • ${d.label}`,
-        `    sections: [${d.sectionIds.join(", ")}] · ~${d.estimatedWastedTokens} wasted tokens`
+        `    sections: [${d.sectionIds.join(", ")}] · heuristic upper bound ~${d.estimatedWastedTokens} tokens (not proven removable)`
       );
     }
   }
