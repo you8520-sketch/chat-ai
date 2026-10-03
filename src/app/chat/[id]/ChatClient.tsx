@@ -130,11 +130,14 @@ import {
   ASSISTANT_MESSAGE_MAX,
   DEFAULT_TARGET_RESPONSE_CHARS,
   isClaudeSelectedAI,
-  selectedAILabel,
-  selectedAIOptionMeta,
   userSelectableAIOptionsForUser,
   type SelectedAI,
 } from "@/lib/chatModels";
+import {
+  parseModelPickerBaselineEstimates,
+  selectedAIOptionLabel,
+  type ModelPickerBaselineEstimateMap,
+} from "@/lib/modelPickerBaselineEstimate";
 import { formatAssistantLengthLabel } from "@/lib/responseLengthConstants";
 import {
   collapseStreamCompareText,
@@ -335,22 +338,6 @@ function isBenignChatStreamAbort(e: unknown): boolean {
 
 function isChatFetchTimeout(e: unknown): boolean {
   return e instanceof DOMException && e.name === "TimeoutError";
-}
-
-/** Model option label — site promo badge from canonical active promotion only. */
-function selectedAIOptionLabel(
-  id: SelectedAI,
-  activeSitePromotionsByModelId: Record<string, SitePromotionClientView>
-): string {
-  const promoBadge = activeSitePromotionsByModelId[id]?.badge;
-  const meta = selectedAIOptionMeta(id);
-  const staticBadge =
-    meta && "badge" in meta && typeof meta.badge === "string" && meta.badge
-      ? meta.badge
-      : "";
-  const badgeText = promoBadge || staticBadge;
-  const badge = badgeText ? ` [${badgeText}]` : "";
-  return `${selectedAILabel(id)}${badge}`;
 }
 
 export type { Usage };
@@ -934,6 +921,7 @@ export default function ChatClient({
   initialSelectedAI,
   initialGlobalModelNotice = null,
   initialActiveSitePromotions = [],
+  initialModelPickerBaselineEstimates = {},
   initialTargetResponseChars,
   initialChatTitle = "",
   initialDisplayPrefs,
@@ -979,6 +967,8 @@ export default function ChatClient({
   initialGlobalModelNotice?: string | null;
   /** Active verified site promotions for model picker badge + inline notice. */
   initialActiveSitePromotions?: SitePromotionClientView[];
+  /** Read-only published baseline estimates for the native picker label. */
+  initialModelPickerBaselineEstimates?: ModelPickerBaselineEstimateMap;
   initialTargetResponseChars: number;
   initialChatTitle?: string;
   initialDisplayPrefs?: ChatDisplayPrefs;
@@ -1266,6 +1256,8 @@ export default function ChatClient({
   const adultHandoffOnRef = useRef(!!initialAdultHandoffEnabled);
   const [adultHandoffBusy, setAdultHandoffBusy] = useState(false);
   const [selectedAI, setSelectedAI] = useState<SelectedAI>(initialSelectedAI);
+  const [modelPickerBaselineEstimates, setModelPickerBaselineEstimates] =
+    useState<ModelPickerBaselineEstimateMap>(initialModelPickerBaselineEstimates);
   const selectableAIOptions = useMemo(
     () => userSelectableAIOptionsForUser(isAdmin),
     [isAdmin]
@@ -1810,6 +1802,7 @@ export default function ChatClient({
     setUserNote(initialUserNote);
     setNotePresets(initialNotePresets);
     setSelectedAI(initialSelectedAI);
+    setModelPickerBaselineEstimates(initialModelPickerBaselineEstimates);
     setMode(initialMode);
     setAdultHandoffOn(!!initialAdultHandoffEnabled);
     adultHandoffOnRef.current = !!initialAdultHandoffEnabled;
@@ -1825,6 +1818,7 @@ export default function ChatClient({
     initialUserNote,
     initialNotePresets,
     initialSelectedAI,
+    initialModelPickerBaselineEstimates,
     initialMode,
     initialAdultHandoffEnabled,
     initialTargetResponseChars,
@@ -2087,6 +2081,7 @@ export default function ChatClient({
             data: {
               selectedAI?: SelectedAI;
               activeSitePromotions?: SitePromotionClientView[];
+              modelPickerBaselineEstimates?: unknown;
             } | null
           ) => {
             if (data?.selectedAI && data.selectedAI !== selectedAIRef.current) {
@@ -2095,6 +2090,10 @@ export default function ChatClient({
             if (Array.isArray(data?.activeSitePromotions)) {
               replacePromotions(data.activeSitePromotions);
             }
+            const estimates = parseModelPickerBaselineEstimates(
+              data?.modelPickerBaselineEstimates
+            );
+            if (estimates) setModelPickerBaselineEstimates(estimates);
           }
         )
         .catch(() => {});
@@ -6049,7 +6048,11 @@ export default function ChatClient({
             >
               {selectableAIOptions.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {selectedAIOptionLabel(o.id as SelectedAI, activeSitePromotionsByModelId)}
+                  {selectedAIOptionLabel(
+                    o.id as SelectedAI,
+                    activeSitePromotionsByModelId,
+                    modelPickerBaselineEstimates
+                  )}
                 </option>
               ))}
             </select>

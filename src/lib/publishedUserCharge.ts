@@ -601,14 +601,14 @@ export function computePublishedUserChargeWithSnapshot(
   );
 }
 
-export function computePublishedStandardPreviewPoints(input: {
+function resolvePublishedStandardPreviewCharge(input: {
   modelId: string;
   promptTokens: number;
   outputTokens: number;
   effectiveKrwPerUsd: number;
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
-}): number | null {
+}): ReturnType<typeof computePublishedStandardCharge> | null {
   if (!Number.isFinite(input.effectiveKrwPerUsd) || input.effectiveKrwPerUsd <= 0) {
     return null;
   }
@@ -633,7 +633,34 @@ export function computePublishedStandardPreviewPoints(input: {
     usage,
     resolved.pricing,
     input.effectiveKrwPerUsd
-  ).standardPoints;
+  );
+}
+
+export function computePublishedStandardPreviewPoints(input: {
+  modelId: string;
+  promptTokens: number;
+  outputTokens: number;
+  effectiveKrwPerUsd: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+}): number | null {
+  return resolvePublishedStandardPreviewCharge(input)?.standardPoints ?? null;
+}
+
+/** Display-only integer P. Same KRW as the Published preview owner; does not change charge ceil. */
+export function computePublishedStandardPreviewDisplayPoints(input: {
+  modelId: string;
+  promptTokens: number;
+  outputTokens: number;
+  effectiveKrwPerUsd: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+}): number | null {
+  const charge = resolvePublishedStandardPreviewCharge(input);
+  if (!charge) return null;
+  const rounded = Math.round(charge.standardUserChargeKrw);
+  if (!Number.isSafeInteger(rounded) || rounded <= 0) return null;
+  return rounded;
 }
 
 /**
