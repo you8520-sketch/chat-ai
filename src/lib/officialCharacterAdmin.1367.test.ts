@@ -298,6 +298,18 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
     return ids;
   }
 
+  function joinSupplyByCharacterId(characterId: number) {
+    return getDb()
+      .prepare(
+        `SELECT c.id, s.draft_key, s.stage
+         FROM characters c
+         LEFT JOIN official_supply_characters s ON s.staged_character_id = c.id
+         WHERE c.id=?
+         ORDER BY s.draft_key ASC`
+      )
+      .all(characterId) as Array<{ id: number; draft_key: string | null; stage: string | null }>;
+  }
+
   function supplyRows(characterId: number) {
     return getDb()
       .prepare(
@@ -2014,6 +2026,176 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
       ).staged_character_id,
       null
     );
+  });
+
+  it("MUST FIX admin list before: JOIN by staged id exposes the v4 key and duplicates Lucian after both map", () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-admin-list-before@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", {
+      rich: true,
+      appearance: "full_lock",
+    });
+    linkLiveShapedLucianSupply(characterId);
+    const beforeJoin = joinSupplyByCharacterId(characterId);
+    assert.deepEqual(
+      beforeJoin.map((row) => row.draft_key),
+      [LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY]
+    );
+    assert.throws(
+      () => loadCompiledOfficialCharacterSource(LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY),
+      /ENOENT|official source/
+    );
+    getDb()
+      .prepare("UPDATE official_supply_characters SET staged_character_id=? WHERE draft_key=?")
+      .run(characterId, LUCIAN_DRAFT_KEY);
+    const afterJoin = joinSupplyByCharacterId(characterId);
+    assert.equal(afterJoin.length, 2);
+    assert.deepEqual(
+      afterJoin.map((row) => row.draft_key),
+      [LUCIAN_DRAFT_KEY, LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY]
+    );
+  });
+
+  it("MUST FIX admin list after: live-shaped Lucian is one row with the approved key before and after sync", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-admin-list-after@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", {
+      rich: true,
+      appearance: "full_lock",
+    });
+    const { predecessorDraftJson } = linkLiveShapedLucianSupply(characterId);
+    seedStaleSharedLorebooks(characterId, studio.id);
+    const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
+    const admin = { ...ADMIN, id: adminId };
+    const before = snapshotPreserved(characterId);
+
+    const listedBefore = listOfficialCharactersForAdmin().filter((row) => row.id === characterId);
+    assert.equal(listedBefore.length, 1);
+    assert.equal(listedBefore[0]?.draft_key, LUCIAN_DRAFT_KEY);
+    assert.equal(listedBefore[0]?.supply_stage, "asset_plan_locked");
+    assert.notEqual(listedBefore[0]?.supply_stage, "published");
+
+    const preview = await syncOfficialCharacterInPlace({
+      admin,
+      characterId,
+      draftKey: listedBefore[0]?.draft_key ?? undefined,
+      mode: "dry_run",
+    });
+    assert.equal(preview.applied, false);
+    assert.equal(preview.characterId, characterId);
+    assert.equal(preview.draftKey, LUCIAN_DRAFT_KEY);
+
+    await withApplyEnabled(() =>
+      syncOfficialCharacterInPlace({
+        admin,
+        characterId,
+        draftKey: listedBefore[0]?.draft_key ?? undefined,
+        mode: "apply",
+        preflightSnapshot: preview.preflightSnapshot,
+      })
+    );
+
+    const listedAfter = listOfficialCharactersForAdmin().filter((row) => row.id === characterId);
+    assert.equal(listedAfter.length, 1);
+    assert.equal(listedAfter[0]?.draft_key, LUCIAN_DRAFT_KEY);
+    assert.equal(listedAfter[0]?.supply_stage, "asset_plan_locked");
+    const source = loadCompiledOfficialCharacterSource(LUCIAN_DRAFT_KEY);
+    const after = snapshotPreserved(characterId);
+    assert.equal(after.id, characterId);
+    assert.equal(after.creatorId, studio.id);
+    assert.equal(after.assetsJson, before.assetsJson);
+    assert.equal(after.assetCount, 14);
+    assert.equal(after.appearanceRaw, source.appearanceBlock);
+    const predecessor = getDb()
+      .prepare("SELECT draft_json, stage, staged_character_id FROM official_supply_characters WHERE draft_key=?")
+      .get(LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY) as {
+      draft_json: string;
+      stage: string;
+      staged_character_id: number;
+    };
+    assert.equal(predecessor.draft_json, predecessorDraftJson);
+    assert.equal(predecessor.stage, "published");
+    assert.equal(predecessor.staged_character_id, characterId);
+    const loaded = chunkText(characterId, false);
+    assert.equal(extractAppearanceRawFromSetting(loaded), source.appearanceBlock);
+
+    const againPreview = await syncOfficialCharacterInPlace({
+      admin,
+      characterId,
+      draftKey: listedAfter[0]?.draft_key ?? undefined,
+      mode: "dry_run",
+    });
+    await withApplyEnabled(() =>
+      syncOfficialCharacterInPlace({
+        admin,
+        characterId,
+        draftKey: listedAfter[0]?.draft_key ?? undefined,
+        mode: "apply",
+        preflightSnapshot: againPreview.preflightSnapshot,
+      })
+    );
+    assert.equal(listOfficialCharactersForAdmin().filter((row) => row.id === characterId).length, 1);
+    assert.equal(listOfficialCharactersForAdmin().filter((row) => row.name === LUCIAN_CANONICAL_NAME).length, 1);
+  });
+
+  it("MUST FIX admin list: foreign or elsewhere-linked supply is not silently actionable", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-admin-list-foreign@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", { appearance: "empty" });
+    const otherId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", { appearance: "empty" });
+    getDb().prepare("UPDATE characters SET name=? WHERE id=?").run("다른 공식캐", otherId);
+    const source = loadCompiledOfficialCharacterSource(LUCIAN_DRAFT_KEY);
+    getDb()
+      .prepare(
+        `INSERT INTO official_supply_characters
+          (draft_key, batch_key, world_key, style_key, stage, draft_json, staged_character_id)
+         VALUES ('pilot-rf-01', 'foreign-batch', ?, 'test-style', 'published', '{}', ?)`
+      )
+      .run(source.worldKey, characterId);
+    getDb()
+      .prepare(
+        `INSERT INTO official_supply_characters
+          (draft_key, batch_key, world_key, style_key, stage, draft_json, staged_character_id)
+         VALUES (?, 'approved-batch', ?, 'approved-style', 'asset_plan_locked', '{}', NULL)`
+      )
+      .run(LUCIAN_DRAFT_KEY, source.worldKey);
+    const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
+    const lucian = listOfficialCharactersForAdmin().filter((row) => row.id === characterId);
+    assert.equal(lucian.length, 1);
+    assert.equal(lucian[0]?.draft_key, null);
+    await assert.rejects(
+      () =>
+        syncOfficialCharacterInPlace({
+          admin: { ...ADMIN, id: adminId },
+          characterId,
+          draftKey: lucian[0]?.draft_key ?? LUCIAN_DRAFT_KEY,
+          mode: "dry_run",
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "supply_draft_mismatch"
+    );
+
+    getDb().prepare("DELETE FROM official_supply_characters WHERE draft_key='pilot-rf-01'").run();
+    getDb()
+      .prepare("UPDATE official_supply_characters SET staged_character_id=? WHERE draft_key=?")
+      .run(otherId, LUCIAN_DRAFT_KEY);
+    getDb()
+      .prepare(
+        `INSERT INTO official_supply_characters
+          (draft_key, batch_key, world_key, style_key, stage, draft_json, staged_character_id)
+         VALUES (?, 'legacy-v4-batch', ?, 'legacy-style', 'published', '{}', ?)`
+      )
+      .run(LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY, source.worldKey, characterId);
+    const elsewhere = listOfficialCharactersForAdmin().filter((row) => row.id === characterId);
+    assert.equal(elsewhere.length, 1);
+    assert.equal(elsewhere[0]?.draft_key, null);
+    const otherRow = listOfficialCharactersForAdmin().find((row) => row.id === otherId);
+    assert.equal(otherRow?.draft_key, null);
   });
 });
 
