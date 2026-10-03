@@ -70,6 +70,234 @@ describe("finance anomaly radar", () => {
     assert.deepEqual(report.anomalies, []);
   });
 
+  it("does not re-raise historical month mismatch after a forward observation baseline", () => {
+    const report = buildFinanceAnomalyReport({
+      summary: summary({
+        providerReconciliation: {
+          status: "mismatch",
+          windowStart: "2026-10-01 00:00:00",
+          windowEnd: "2026-11-01 00:00:00",
+          dailyDeltaMicroUsd: 3_071_719,
+          unreconciledProviderMicroUsd: 3_071_719,
+          forwardAudit: {
+            observedSince: "2026-10-03T12:00:00.000Z",
+            observationSource: "first_successful_query",
+            observationNote: "Key-rotation UTC is unproven.",
+            fetchStatus: "ok",
+            verificationStatus: "verified",
+            requestCount: 0,
+            settledCount: 0,
+            pendingCount: 0,
+            matchedLedgerCount: 0,
+            unmatchedLedgerCount: 0,
+            settledMicroUsd: 0,
+            matchedSettledMicroUsd: 0,
+            unmatchedSettledMicroUsd: 0,
+            unverifiableTimestampCount: 0,
+            unverifiableSettledCount: 0,
+            byModel: {},
+            distinctApiKeyIds: 0,
+            otherApiKeyCandidate: false,
+            havExclusiveCostConfirmed: false,
+            productionKeyMapping: "unavailable",
+            cases: ["zero_new_calls"],
+          },
+        },
+      }),
+      pricing: pricing(),
+    });
+    assert.equal(report.status, "HEALTHY");
+    assert.equal(
+      report.anomalies.some((row) => row.code === "PROVIDER_RECONCILIATION_MISMATCH"),
+      false
+    );
+    assert.equal(
+      report.anomalies.some((row) => row.code === "UNRECONCILED_PROVIDER_SPEND"),
+      false
+    );
+  });
+
+  it("warns only on new unmatched spend in the forward window", () => {
+    const report = buildFinanceAnomalyReport({
+      summary: summary({
+        providerReconciliation: {
+          status: "mismatch",
+          windowStart: "2026-10-01 00:00:00",
+          windowEnd: "2026-11-01 00:00:00",
+          dailyDeltaMicroUsd: 3_079_719,
+          unreconciledProviderMicroUsd: 3_079_719,
+          forwardAudit: {
+            observedSince: "2026-10-03T12:00:00.000Z",
+            observationSource: "first_successful_query",
+            observationNote: "Key-rotation UTC is unproven.",
+            fetchStatus: "ok",
+            verificationStatus: "verified",
+            requestCount: 1,
+            settledCount: 1,
+            pendingCount: 0,
+            matchedLedgerCount: 0,
+            unmatchedLedgerCount: 1,
+            settledMicroUsd: 8_000,
+            matchedSettledMicroUsd: 0,
+            unmatchedSettledMicroUsd: 8_000,
+            unverifiableTimestampCount: 0,
+            unverifiableSettledCount: 0,
+            byModel: {
+              "gpt-6-luna": {
+                settledCount: 1,
+                unmatchedCount: 1,
+                settledMicroUsd: 8_000,
+                unmatchedMicroUsd: 8_000,
+              },
+            },
+            distinctApiKeyIds: 1,
+            otherApiKeyCandidate: false,
+            havExclusiveCostConfirmed: false,
+            productionKeyMapping: "unavailable",
+            cases: ["unmatched_luna"],
+          },
+        },
+      }),
+      pricing: pricing(),
+    });
+    assert.equal(report.status, "WARNING");
+    assert.equal(report.criticalCount, 0);
+    assert.equal(report.anomalies.length, 1);
+    assert.equal(report.anomalies[0]?.code, "FORWARD_UNMATCHED_REMOTE_SPEND");
+    assert.match(report.anomalies[0]?.summary ?? "", /gpt-6-luna/);
+    assert.match(report.anomalies[0]?.summary ?? "", /0\.008000 USD/);
+    assert.match(report.anomalies[0]?.summary ?? "", /havExclusiveCostConfirmed=false/);
+    assert.doesNotMatch(report.anomalies[0]?.summary ?? "", /3\.071719/);
+  });
+
+  it("does not report HEALTHY when forward timestamps are unverifiable", () => {
+    const report = buildFinanceAnomalyReport({
+      summary: summary({
+        providerReconciliation: {
+          status: "mismatch",
+          windowStart: "2026-10-01 00:00:00",
+          windowEnd: "2026-11-01 00:00:00",
+          dailyDeltaMicroUsd: 3_071_719,
+          unreconciledProviderMicroUsd: 3_071_719,
+          forwardAudit: {
+            observedSince: "2026-10-03T12:00:00.000Z",
+            observationSource: "first_successful_query",
+            observationNote: "Key-rotation UTC is unproven.",
+            fetchStatus: "ok",
+            verificationStatus: "unverified",
+            requestCount: 0,
+            settledCount: 0,
+            pendingCount: 0,
+            matchedLedgerCount: 0,
+            unmatchedLedgerCount: 0,
+            settledMicroUsd: 0,
+            matchedSettledMicroUsd: 0,
+            unmatchedSettledMicroUsd: 0,
+            unverifiableTimestampCount: 1,
+            unverifiableSettledCount: 1,
+            byModel: {},
+            distinctApiKeyIds: 0,
+            otherApiKeyCandidate: false,
+            havExclusiveCostConfirmed: false,
+            productionKeyMapping: "unavailable",
+            cases: ["unverifiable_timestamp"],
+          },
+        },
+      }),
+      pricing: null,
+    });
+    assert.notEqual(report.status, "HEALTHY");
+    assert.equal(report.criticalCount, 0);
+    assert.ok(report.anomalies.some((row) => row.code === "FORWARD_RECON_UNVERIFIED"));
+    assert.equal(
+      report.anomalies.some((row) => row.code === "UNRECONCILED_PROVIDER_SPEND"),
+      false
+    );
+    assert.equal(
+      report.anomalies.some((row) => row.code === "FORWARD_UNMATCHED_REMOTE_SPEND"),
+      false
+    );
+  });
+
+  it("does not substitute a window or clear month residue when the cutoff env is invalid", () => {
+    const report = buildFinanceAnomalyReport({
+      summary: summary({
+        providerReconciliation: {
+          status: "mismatch",
+          windowStart: "2026-10-01 00:00:00",
+          windowEnd: "2026-11-01 00:00:00",
+          dailyDeltaMicroUsd: 3_071_719,
+          unreconciledProviderMicroUsd: 3_071_719,
+          forwardAudit: {
+            observedSince: null,
+            observationSource: null,
+            observationNote: "Forward window is unverified; no substitute baseline was chosen.",
+            fetchStatus: "ok",
+            verificationStatus: "config_invalid",
+            requestCount: 0,
+            settledCount: 0,
+            pendingCount: 0,
+            matchedLedgerCount: 0,
+            unmatchedLedgerCount: 0,
+            settledMicroUsd: 0,
+            matchedSettledMicroUsd: 0,
+            unmatchedSettledMicroUsd: 0,
+            unverifiableTimestampCount: 0,
+            unverifiableSettledCount: 0,
+            byModel: {},
+            distinctApiKeyIds: 0,
+            otherApiKeyCandidate: false,
+            havExclusiveCostConfirmed: false,
+            productionKeyMapping: "unavailable",
+            cases: ["invalid_observed_since_env"],
+          },
+        },
+      }),
+      pricing: null,
+    });
+    assert.notEqual(report.status, "HEALTHY");
+    assert.ok(report.anomalies.some((row) => row.code === "FORWARD_RECON_CONFIG_INVALID"));
+    const raw = JSON.stringify(report);
+    assert.equal(raw.includes("2026-10-03 08:15:00"), false);
+  });
+
+  it("flags a forward fetch failure without treating stale unmatched as new", () => {
+    const report = buildFinanceAnomalyReport({
+      summary: summary({
+        providerReconciliation: {
+          status: "provider_unavailable",
+          unreconciledProviderMicroUsd: 3_071_719,
+          forwardAudit: {
+            observedSince: "2026-10-03T12:00:00.000Z",
+            observationSource: "stored_watermark",
+            observationNote: "stored",
+            fetchStatus: "http",
+            verificationStatus: "fetch_failed",
+            requestCount: 1,
+            settledCount: 1,
+            pendingCount: 0,
+            matchedLedgerCount: 0,
+            unmatchedLedgerCount: 1,
+            settledMicroUsd: 8_000,
+            matchedSettledMicroUsd: 0,
+            unmatchedSettledMicroUsd: 8_000,
+            byModel: {},
+            distinctApiKeyIds: 0,
+            otherApiKeyCandidate: false,
+            havExclusiveCostConfirmed: false,
+            productionKeyMapping: "unavailable",
+            cases: ["fetch_failure"],
+          },
+        },
+      }),
+      pricing: null,
+    });
+    assert.deepEqual(
+      report.anomalies.map((row) => row.code),
+      ["FORWARD_RECON_FETCH_FAILURE"]
+    );
+  });
+
   it("flags provider checksum mismatch and unreconciled settled spend as critical", () => {
     const report = buildFinanceAnomalyReport({
       summary: summary({

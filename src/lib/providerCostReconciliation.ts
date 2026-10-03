@@ -8,6 +8,14 @@ import {
   type CheaperInferenceUsageRequest,
 } from "@/lib/cheaperInferenceUsage";
 import {
+  buildForwardReconAudit,
+  inspectObservedSinceEnv,
+  markForwardReconFetchFailure,
+  parseStoredForwardReconAudit,
+  resolveForwardObservationBaseline,
+  type ForwardReconAudit,
+} from "@/lib/forwardReconAudit";
+import {
   ensureProviderCostLedgerSchema,
   recordMainGenerationProviderCost,
   toMicroUsd,
@@ -50,6 +58,8 @@ export type ProviderReconciliationResult = {
   superseded: number;
   skipped: number;
   message: string;
+  /** Forward-only usage audit since the observation baseline. Month totals stay authoritative. */
+  forwardAudit?: ForwardReconAudit | null;
 };
 
 type ReconciliationDeps = {
@@ -57,6 +67,7 @@ type ReconciliationDeps = {
   fetchDaily?: typeof fetchUsageDaily;
   now?: () => number;
   persistInTests?: boolean;
+  observedSinceEnv?: string | null;
 };
 
 function identityExists(db: Database.Database, requestId: string): boolean {
@@ -196,9 +207,18 @@ export function ensureProviderReconciliationStateTable(db: Database.Database): v
       daily_micro_usd INTEGER,
       daily_delta_micro_usd INTEGER,
       unreconciled_micro_usd INTEGER NOT NULL DEFAULT 0,
-      message TEXT NOT NULL DEFAULT ''
+      message TEXT NOT NULL DEFAULT '',
+      forward_audit_json TEXT
     );
   `);
+  const columns = new Set(
+    (db.prepare("PRAGMA table_info(provider_cost_reconciliation_state)").all() as { name: string }[]).map(
+      (column) => column.name
+    )
+  );
+  if (!columns.has("forward_audit_json")) {
+    db.exec("ALTER TABLE provider_cost_reconciliation_state ADD COLUMN forward_audit_json TEXT");
+  }
 }
 
 export function readProviderReconciliationState(
@@ -229,7 +249,32 @@ export function readProviderReconciliationState(
     superseded: 0,
     skipped: 0,
     message: String(row.message ?? ""),
+    forwardAudit: parseStoredForwardReconAudit(row.forward_audit_json),
   };
+}
+
+function persistForwardReconAudit(db: Database.Database, audit: ForwardReconAudit): void {
+  ensureProviderReconciliationStateTable(db);
+  db.prepare(
+    "UPDATE provider_cost_reconciliation_state SET forward_audit_json = ? WHERE id = 1"
+  ).run(JSON.stringify(audit));
+}
+
+function loadCheaperInferenceLedgerRequestIds(db: Database.Database): Set<string> {
+  const ids = new Set<string>();
+  const rows = db
+    .prepare(
+      `SELECT provider_request_id
+         FROM api_cost_ledger
+        WHERE provider = 'cheaperinference'
+          AND provider_request_id IS NOT NULL AND TRIM(provider_request_id) != ''`
+    )
+    .all() as Array<{ provider_request_id: string }>;
+  for (const row of rows) {
+    const id = row.provider_request_id.trim();
+    if (id) ids.add(id);
+  }
+  return ids;
 }
 
 function writeProviderReconciliationState(
@@ -578,6 +623,8 @@ export async function reconcileCheaperInferenceUsage(
   const fetchDaily = deps.fetchDaily ?? fetchUsageDaily;
 
   const result = baseResult(opts.windowStart, opts.windowEnd, ranAt);
+  const previous = readProviderReconciliationState(db);
+  const nowIso = new Date((deps.now ?? Date.now)()).toISOString();
 
   const requestsResult = await fetchRequests({
     startAt: sqlDateTimeToIso(opts.windowStart),
@@ -592,7 +639,6 @@ export async function reconcileCheaperInferenceUsage(
           : "provider_unavailable";
     result.message = requestsResult.message;
     // Preserve last known good numbers; only restamp status/message.
-    const previous = readProviderReconciliationState(db);
     if (previous) {
       result.localReconciledMicroUsd = previous.localReconciledMicroUsd;
       result.settledMicroUsd = previous.settledMicroUsd;
@@ -601,6 +647,37 @@ export async function reconcileCheaperInferenceUsage(
       result.unreconciledProviderMicroUsd = previous.unreconciledProviderMicroUsd;
     }
     writeProviderReconciliationState(db, result);
+    const envValue =
+      deps.observedSinceEnv !== undefined
+        ? deps.observedSinceEnv
+        : process.env.HAV_FORWARD_RECON_OBSERVED_SINCE;
+    const env = inspectObservedSinceEnv(envValue);
+    if (env.kind === "invalid") {
+      result.forwardAudit = buildForwardReconAudit({
+        requests: [],
+        ledgerIds: new Set(),
+        observedSince: previous?.forwardAudit?.observedSince ?? null,
+        observationSource: previous?.forwardAudit?.observationSource ?? null,
+        fetchStatus: requestsResult.reason,
+        configInvalid: true,
+      });
+    } else {
+      const seed =
+        previous?.forwardAudit ??
+        (env.kind === "valid"
+          ? buildForwardReconAudit({
+              requests: [],
+              ledgerIds: new Set(),
+              observedSince: env.iso,
+              observationSource: "proven_rotation_env",
+              fetchStatus: "ok",
+            })
+          : null);
+      result.forwardAudit = markForwardReconFetchFailure(seed, requestsResult.reason);
+    }
+    if (result.forwardAudit.observedSince) {
+      persistForwardReconAudit(db, result.forwardAudit);
+    }
     return result;
   }
 
@@ -672,5 +749,27 @@ export async function reconcileCheaperInferenceUsage(
   }
 
   writeProviderReconciliationState(db, result);
+
+  const baseline = resolveForwardObservationBaseline({
+    envValue:
+      deps.observedSinceEnv !== undefined
+        ? deps.observedSinceEnv
+        : process.env.HAV_FORWARD_RECON_OBSERVED_SINCE,
+    storedObservedSince: previous?.forwardAudit?.observedSince ?? null,
+    nowIso,
+  });
+  result.forwardAudit = buildForwardReconAudit({
+    requests: baseline.configInvalid ? [] : requests,
+    ledgerIds: loadCheaperInferenceLedgerRequestIds(db),
+    observedSince: baseline.configInvalid
+      ? previous?.forwardAudit?.observedSince ?? null
+      : baseline.observedSince,
+    observationSource: baseline.configInvalid
+      ? previous?.forwardAudit?.observationSource ?? null
+      : baseline.source,
+    fetchStatus: "ok",
+    configInvalid: baseline.configInvalid,
+  });
+  persistForwardReconAudit(db, result.forwardAudit);
   return result;
 }
