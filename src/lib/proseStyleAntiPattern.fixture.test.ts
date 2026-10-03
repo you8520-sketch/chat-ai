@@ -24,6 +24,8 @@ describe("prose style anti-pattern fixtures (static)", () => {
     assert.match(COMMON_PROSE_BLOCK, /\[COMMON PROSE\]/);
     assert.match(COMMON_PROSE_BLOCK, /작은 행동·미세한 반응은/);
     assert.match(COMMON_PROSE_BLOCK, /평범한 동작은 줄인다/);
+    assert.match(COMMON_PROSE_BLOCK, /현재 장면에 필요한 단서를 골라 드러내고/);
+    assert.doesNotMatch(COMMON_PROSE_BLOCK, /표정·시선·호흡·습관·접촉·거리·행동·선택/);
     assert.doesNotMatch(COMMON_PROSE_BLOCK, /손·손가락·시선 같은 신체 앵커/);
     assert.match(PROSE_STYLE_SECTION, /\[COMMON PROSE\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[MOVEMENT & DETAIL\]/);
