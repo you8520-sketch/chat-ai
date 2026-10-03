@@ -3,6 +3,9 @@ import { describe, it } from "node:test";
 
 import {
   assignRepresentativeRanks,
+  GALLERY_STRIP_LANDSCAPE_IMG_CLASS,
+  GALLERY_STRIP_PORTRAIT_IMG_CLASS,
+  galleryStripImgClassName,
   getCharacterRepresentativeImageUrl,
   getCharacterRepresentativePublicUrls,
   getDefaultChatAsset,
@@ -41,6 +44,34 @@ describe("asset orientation", () => {
     );
     assert.equal(assets[0]?.orientation, "landscape");
     assert.equal(isWideInlineAsset(assets[0]!), true);
+  });
+
+  it("gallery strip contains 3:2 RP and keeps 2:3 representative/portrait cover", () => {
+    const lucianRep = { url: "/uploads/official-rep.webp", tag: "녹금빛 거상", width: 1024, height: 1536, orientation: "portrait" as const };
+    const lucianRp = { url: "/uploads/official-sig1.webp", tag: "계산하는 시선", width: 1536, height: 1024, orientation: "landscape" as const };
+    const rankedLandscapeRep = {
+      url: "/uploads/wide-card.webp",
+      tag: "대표",
+      width: 1536,
+      height: 1024,
+      orientation: "landscape" as const,
+      representativeRank: 1,
+    };
+    const lockedLandscape = {
+      url: "/uploads/hidden-rp.webp",
+      tag: "잠금",
+      width: 1536,
+      height: 1024,
+      orientation: "landscape" as const,
+      viewerBlur: true,
+    };
+    assert.equal(galleryStripImgClassName(lucianRep), GALLERY_STRIP_PORTRAIT_IMG_CLASS);
+    assert.equal(galleryStripImgClassName(lucianRp), GALLERY_STRIP_LANDSCAPE_IMG_CLASS);
+    assert.match(galleryStripImgClassName(lucianRp), /object-contain/);
+    assert.doesNotMatch(galleryStripImgClassName(lucianRp), /object-cover/);
+    assert.equal(galleryStripImgClassName({ url: "/uploads/unknown.webp", tag: "없음" }), GALLERY_STRIP_PORTRAIT_IMG_CLASS);
+    assert.equal(galleryStripImgClassName(rankedLandscapeRep), GALLERY_STRIP_PORTRAIT_IMG_CLASS);
+    assert.equal(galleryStripImgClassName(lockedLandscape), GALLERY_STRIP_LANDSCAPE_IMG_CLASS);
   });
 
   it("picks a portrait default and skips landscape covers", () => {

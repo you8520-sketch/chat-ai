@@ -13,6 +13,7 @@ import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { applyProfilePlaceholders } from "@/lib/userPlaceholder";
 import {
+  galleryStripImgClassName,
   isRepresentativeAsset,
   safeLockedPreviewUrl,
   shouldBlurAssetForViewer,
@@ -67,14 +68,20 @@ function AssetGalleryStrip({
             blurred && !viewerIsCreator
               ? safeLockedPreviewUrl(asset) ?? ""
               : asset.url;
+          const imgClassName = galleryStripImgClassName(asset);
           return (
             <div
               key={`${asset.url}-${i}`}
-              className={`${CHARACTER_THUMB_ASPECT} w-[4.75rem] overflow-hidden rounded-lg border border-white/10 bg-[#0a0d14] sm:w-[5.25rem]`}
+              className={`${CHARACTER_THUMB_ASPECT} flex w-[4.75rem] items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-[#0a0d14] sm:w-[5.25rem]`}
             >
               {blurred ? (
                 previewSrc ? (
-                  <CharacterAssetImage src={previewSrc} alt={alt} />
+                  <CharacterAssetImage
+                    src={previewSrc}
+                    alt={alt}
+                    className="h-full w-full"
+                    imgClassName={imgClassName}
+                  />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-zinc-900 text-[10px] text-zinc-500">
                     숨김
@@ -87,7 +94,12 @@ function AssetGalleryStrip({
                   className="block h-full w-full cursor-zoom-in text-left"
                   aria-label={`${alt} 이미지 크게 보기`}
                 >
-                  <CharacterAssetImage src={asset.url} alt={alt} />
+                  <CharacterAssetImage
+                    src={asset.url}
+                    alt={alt}
+                    className="h-full w-full"
+                    imgClassName={imgClassName}
+                  />
                 </button>
               )}
             </div>
