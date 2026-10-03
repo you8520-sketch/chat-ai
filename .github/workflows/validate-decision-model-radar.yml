@@ -41,7 +41,9 @@ jobs:
       - run: npm run typecheck:app
       - name: Decision radar deterministic regressions
         run: >-
-          node --conditions=react-server --import tsx --test --test-concurrency=1
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
           src/lib/decisionModelRadar.test.ts
           src/lib/decisionModelRadarReports.test.ts
           src/lib/githubReportClient.test.ts
