@@ -205,6 +205,38 @@ export function insertCreatorLorebookForOwner(
   return { ok: true, id: Number(info.lastInsertRowid), entry: normalized.entry };
 }
 
+/** Update an existing creator-scope lorebook owned by the same creator. */
+export function updateCreatorLorebookForOwner(
+  db: Database.Database,
+  input: {
+    lorebookId: number;
+    creatorId: number;
+    name: unknown;
+    summary: unknown;
+    keywords: unknown;
+    content: unknown;
+  }
+): { ok: true; id: number; entry: KeywordLorebookEntry } | { ok: false; error: string } {
+  const name = String(input.name ?? "").trim().slice(0, LOREBOOK_NAME_LIMIT);
+  const summary = String(input.summary ?? "").trim().slice(0, LOREBOOK_SUMMARY_LIMIT);
+  const normalized = normalizeCreatorLorebookUnit({
+    keywords: input.keywords,
+    content: input.content,
+  });
+  if (!name) return { ok: false, error: "로어북 이름을 입력해 주세요." };
+  if (!normalized.ok) return { ok: false, error: normalized.error };
+
+  const updated = db
+    .prepare(
+      `UPDATE keyword_lorebooks
+       SET name=?, summary=?, entries_json=?, updated_at=datetime('now')
+       WHERE id=? AND creator_id=? AND COALESCE(scope, 'creator')='creator'`
+    )
+    .run(name, summary, serializeCreatorLorebookUnit(normalized.entry), input.lorebookId, input.creatorId);
+  if (updated.changes !== 1) return { ok: false, error: "로어북을 갱신할 수 없습니다." };
+  return { ok: true, id: input.lorebookId, entry: normalized.entry };
+}
+
 export function normalizeCreatorLorebookIds(raw: unknown): number[] {
   const source = Array.isArray(raw) ? raw : raw != null && raw !== "" ? [raw] : [];
   const ids: number[] = [];

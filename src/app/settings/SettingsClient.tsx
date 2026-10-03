@@ -159,6 +159,12 @@ export default function SettingsClient({ user, pendingCommentReviews = 0 }: Prop
               성인 캐릭터 홈 노출 검수
             </Link>
             <Link
+              href="/admin/official-characters"
+              className={SETTINGS_ACTION_LINK_CLASS}
+            >
+              공식 캐릭터 관리
+            </Link>
+            <Link
               href="/admin/comment-banned-words"
               className={SETTINGS_ACTION_LINK_CLASS}
             >

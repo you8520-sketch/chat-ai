@@ -1,5 +1,10 @@
 import { canUseCreatorTools } from "@/lib/adultVerification";
 import { getDb } from "@/lib/db";
+import { canAdminManageOfficialCharacter, isOfficialAdminActor } from "@/lib/officialAdminAccess";
+import {
+  normalizeOfficialDisplayCreatorName,
+  rejectClientOfficialDisplayCreatorAssignment,
+} from "@/lib/officialDisplayCreatorName";
 import { resolveWorldSelectionForUser } from "@/lib/worldLibrary";
 import { parseWorldLibraryRef } from "@/lib/worlds";
 import type { CharacterAsset } from "@/lib/characterAssets";
@@ -143,6 +148,15 @@ export type SessionUser = {
   is_adult: number;
   email?: string;
   is_admin?: number;
+};
+
+export type CharacterFormSaveOptions = {
+  actor?: "owner" | "official_admin";
+  adminUser?: SessionUser;
+  displayCreatorName?: string;
+  preserveListingState?: boolean;
+  preserveAdultFlags?: boolean;
+  skipFollowerNotify?: boolean;
 };
 
 export type ParsedCharacterForm = {
@@ -415,6 +429,15 @@ export function parseCharacterFormBody(
     };
   }
 ): { ok: true; data: ParsedCharacterForm } | { ok: false; error: string; status: number } {
+  try {
+    rejectClientOfficialDisplayCreatorAssignment(b);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "공개 제작자명은 관리자만 설정할 수 있습니다.",
+      status: 403,
+    };
+  }
   if (!canUseCreatorTools(user)) {
     return { ok: false, error: "캐릭터 제작·수정은 성인인증 완료 후 가능합니다.", status: 403 };
   }
@@ -1134,12 +1157,14 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
 export async function updateCharacterFromForm(
   user: SessionUser,
   characterId: number,
-  b: Record<string, unknown>
+  b: Record<string, unknown>,
+  options?: CharacterFormSaveOptions
 ) {
   const db = getDb();
   const row = db
     .prepare(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
+              creator_name,
               name, gender, system_prompt, world, world_id, source_world_share_id, example_dialog, status_widget_json,
               creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version, images, nsfw,
               content_kind, adult_dialogue_profile, adult_status, adult_consent_modes_json, participant_min_age,
@@ -1155,6 +1180,7 @@ export async function updateCharacterFromForm(
         visibility: CharacterVisibility;
         moderation_status: ModerationStatus;
         moderation_note: string | null;
+        creator_name: string;
         name: string;
         gender: string | null;
         system_prompt: string | null;
@@ -1184,8 +1210,16 @@ export async function updateCharacterFromForm(
   if (row.creator_id !== user.id) {
     return { ok: false as const, error: "본인 캐릭터만 수정할 수 있습니다.", status: 403 };
   }
+  const officialAdmin =
+    options?.actor === "official_admin" && isOfficialAdminActor(options.adminUser);
   if (row.official === 1) {
-    return { ok: false as const, error: "공식 캐릭터는 수정할 수 없습니다.", status: 403 };
+    if (!officialAdmin || !canAdminManageOfficialCharacter(options?.adminUser, row)) {
+      return { ok: false as const, error: "공식 캐릭터는 수정할 수 없습니다.", status: 403 };
+    }
+  } else if (options?.actor === "official_admin") {
+    if (!officialAdmin || !canAdminManageOfficialCharacter(options.adminUser, row)) {
+      return { ok: false as const, error: "공식 캐릭터만 관리자 공식 모드로 수정할 수 있습니다.", status: 403 };
+    }
   }
 
   const parsed = parseCharacterFormBody(b, user, {
@@ -1202,7 +1236,15 @@ export async function updateCharacterFromForm(
   });
   if (!parsed.ok) return parsed;
 
-  const data = parsed.data;
+  const data = {
+    ...parsed.data,
+    ...(officialAdmin && options?.preserveAdultFlags
+      ? {
+          nsfw: row.nsfw === 1,
+          participantMinAge: row.participant_min_age,
+        }
+      : {}),
+  };
   if ((row.content_kind ?? "character") !== data.contentKind) {
     return {
       ok: false as const,
@@ -1222,7 +1264,7 @@ export async function updateCharacterFromForm(
     tags: data.tagsJson,
   });
   if (!listingBlock.ok) return listingBlock;
-  const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
+  let { finalVisibility, moderationStatus, moderationNote, shareSlug } =
     resolveVisibilityModeration(data, {
       share_slug: row.share_slug,
       visibility: row.visibility,
@@ -1231,6 +1273,22 @@ export async function updateCharacterFromForm(
       images: row.images,
       nsfw: row.nsfw,
     });
+  if (officialAdmin && options?.preserveListingState) {
+    finalVisibility = row.visibility;
+    moderationStatus = row.moderation_status;
+    moderationNote = row.moderation_note ?? "";
+    shareSlug = row.share_slug;
+  }
+  let creatorNameWrite = user.nickname;
+  if (officialAdmin) {
+    if (options?.displayCreatorName != null) {
+      const normalized = normalizeOfficialDisplayCreatorName(options.displayCreatorName);
+      if (!normalized.ok) return { ok: false as const, error: normalized.error, status: 400 };
+      creatorNameWrite = normalized.value;
+    } else {
+      creatorNameWrite = row.creator_name;
+    }
+  }
   const {
     creatorRawDescription,
     compiledDescription,
@@ -1301,7 +1359,7 @@ export async function updateCharacterFromForm(
     data.narrationStyleInstructions,
     data.commentsEnabled,
     data.creatorComment,
-    user.nickname,
+    creatorNameWrite,
     creatorRawDescription,
     compiledDescriptionJson,
     canonPlanSave.planJson,
@@ -1369,7 +1427,7 @@ export async function updateCharacterFromForm(
 
   const wasListed = row.visibility === "public" && row.moderation_status === "approved";
   const listed = finalVisibility === "public" && moderationStatus === "approved";
-  if (listed && !wasListed) {
+  if (listed && !wasListed && !options?.skipFollowerNotify && !officialAdmin) {
     notifyFollowersOfNewCharacter(db, user.id, user.nickname, characterId, data.name);
   }
   if (moderationStatus === "rejected") {
