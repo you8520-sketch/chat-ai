@@ -396,12 +396,18 @@ describe("portone reviewer KG Inicis test checkout", () => {
     assert.match(complete, /checkoutKind: checkout\.checkout_kind/);
     assert.match(complete, /credited: !isReviewerKgTestCheckout\(checkout\)/);
     assert.match(browser, /prepared\.storeId/);
+    assert.match(browser, /buildPortOneCardPaymentRequest/);
+    assert.match(browser, /PORTONE_KG_INICIS_OFFICIAL_TEST_CUSTOMER/);
     assert.match(browser, /PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE/);
     const callback = source("src/app/payments/portone/callback/page.tsx");
     const pointsClient = source("src/app/points/PointsClient.tsx");
     assert.match(callback, /reviewerTest=1/);
     assert.match(pointsClient, /reviewerTest=1/);
+    assert.match(pointsClient, /reviewerKgTest/);
+    assert.match(pointsClient, /disabled=\{Boolean\(loading\)\}/);
     assert.match(pointsClient, /PORTONE_REVIEWER_TEST_CONFIRMED_MESSAGE/);
+    const pointsPage = source("src/app/points/page.tsx");
+    assert.match(pointsPage, /reviewerKgTest=\{isPortoneReviewerAccount\(user\)\}/);
     const config = source("src/lib/portoneConfig.ts");
     assert.match(config, /value === "1" \|\| value === "true"/);
     assert.match(browser, /prepared\.channelKey/);
