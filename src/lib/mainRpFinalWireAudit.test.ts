@@ -18,7 +18,9 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 
 import { auditAssembledPrompt, PROMPT_DUPLICATE_SAVINGS_CLAIM } from "@/services/promptAudit";
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { OOC_HTML_MODE_SYSTEM_DIRECTIVE } from "@/lib/oocHtmlRequest";
 import { runMainRpFinalWireAudit, type WireCaseResult } from "@/lib/mainRpFinalWireAudit";
+import { buildOpenRouterMessages } from "@/lib/openRouterAdult";
 
 const report = runMainRpFinalWireAudit();
 
@@ -174,7 +176,8 @@ describe("Main RP final-wire audit", () => {
       }
     }
     assert.equal(caseById("ds-interactive-normal-rich").wire.reasoningEffort, "none");
-    assert.equal(caseById("terra-interactive-normal-rich").wire.reasoningEffort, "none");
+    assert.equal(caseById("sol-interactive-normal-rich").wire.model, "gpt-6.1-sol");
+    assert.equal(caseById("sol-interactive-normal-rich").wire.reasoningEffort, "low");
     const opus = caseById("opus-interactive-long-history");
     const opusAuto = caseById("opus-auto-normal");
     assert.equal(opus.wire.reasoningEffort, "low");
@@ -233,12 +236,40 @@ describe("Main RP final-wire audit", () => {
     );
   });
 
-  it("does not deliver the OOC HTML suffix or a status-widget text patch on the current split wire", () => {
-    const ooc = caseById("g31-ooc-html");
+  it("delivers the OOC HTML directive once on the uncached dynamic block", () => {
+    const pairs = [
+      ["g31-ooc-html", "g31-interactive-normal-rich"],
+      ["ds-ooc-limited", "ds-interactive-limited-rich"],
+      ["ds-ooc-allow", "ds-interactive-allow-rich"],
+      ["ds-ooc-regen", "ds-regen-normal"],
+    ] as const;
+    for (const entry of report.cases) {
+      if (entry.oocHtml) {
+        assert.equal(entry.wire.oocHtmlReachedProviderSystem, true, entry.id);
+        assert.equal(entry.anchors.oocHtmlDirective, 1, entry.id);
+        assert.equal(entry.wire.oocHtmlDirectiveInCachedBlocks, false, entry.id);
+        assert.equal(entry.wire.historyCacheBreakpoint, false, entry.id);
+      } else {
+        assert.equal(entry.wire.oocHtmlReachedProviderSystem, false, entry.id);
+        assert.equal(entry.anchors.oocHtmlDirective, 0, entry.id);
+      }
+    }
+    for (const [oocId, twinId] of pairs) {
+      const ooc = caseById(oocId);
+      const twin = caseById(twinId);
+      assert.equal(ooc.wire.systemBlocks[0]?.sha256, twin.wire.systemBlocks[0]?.sha256, oocId);
+      assert.equal(ooc.wire.systemBlocks[1]?.sha256, twin.wire.systemBlocks[1]?.sha256, oocId);
+      assert.notEqual(ooc.wire.systemBlocks[2]?.sha256, twin.wire.systemBlocks[2]?.sha256, oocId);
+      assert.equal(ooc.wire.systemBlocks[2]?.cached, false, oocId);
+      assert.equal(
+        ooc.wire.systemBlocks[2]?.chars,
+        (twin.wire.systemBlocks[2]?.chars ?? 0) + 2 + OOC_HTML_MODE_SYSTEM_DIRECTIVE.length,
+        oocId
+      );
+      assert.equal(ooc.wire.systemFlatSha256 === twin.wire.systemFlatSha256, false, oocId);
+    }
     const widget = caseById("g31-status-widget");
     const plain = caseById("g31-interactive-normal-rich");
-    assert.equal(ooc.oocHtml, true);
-    assert.equal(ooc.wire.oocHtmlReachedProviderSystem, false);
     assert.equal(widget.statusWidgetPatchChangedSplit, false);
     assert.equal(
       widget.sections.find((section) => section.id === "state-window-policy"),
@@ -262,6 +293,25 @@ describe("Main RP final-wire audit", () => {
     assert.equal(jsx.anchors.jsxManifest, 1);
     assert.equal(jsx.sectionIds.includes("jsx-component-manifest"), true);
     assert.equal(rich.anchors.jsxManifest, 0);
+  });
+
+  it("appends the OOC HTML directive once when the request has no system split", () => {
+    const history = [{ role: "user" as const, content: "앉아 있어." }];
+    const plain = buildOpenRouterMessages("규칙", history);
+    const once = buildOpenRouterMessages("규칙", history, { oocHtmlMode: true });
+    const twice = buildOpenRouterMessages(
+      `${"규칙".trim()}\n\n${OOC_HTML_MODE_SYSTEM_DIRECTIVE}`,
+      history,
+      { oocHtmlMode: true }
+    );
+    assert.equal(typeof plain[0]?.content, "string");
+    assert.equal(String(plain[0]?.content).includes(OOC_HTML_MODE_SYSTEM_DIRECTIVE), false);
+    assert.equal(once[0]?.content, `규칙\n\n${OOC_HTML_MODE_SYSTEM_DIRECTIVE}`);
+    assert.equal(twice[0]?.content, once[0]?.content);
+    assert.equal(
+      String(once[0]?.content).split(OOC_HTML_MODE_SYSTEM_DIRECTIVE).length - 1,
+      1
+    );
   });
 
   it("labels promptAudit duplicate waste as a heuristic upper bound", () => {

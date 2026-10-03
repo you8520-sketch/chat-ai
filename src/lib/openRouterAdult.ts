@@ -97,6 +97,7 @@ import {
   pushLiveStreamDelta,
 } from "@/lib/statusWindow";
 import { stripLeakedDocumentMarkup } from "@/lib/chatHtmlSanitize";
+import { appendOocHtmlModeDirective } from "@/lib/oocHtmlRequest";
 import { stripTrailingEmotionTagStreamCandidate } from "@/lib/emotionTag";
 import { stripAllStatusWindowOutputArtifacts, type StripStatusArtifactsOptions } from "@/lib/statusMeta/stripArtifacts";
 import { stripS4ServerControlFromText } from "@/lib/controlChannel/serverControlStrip";
@@ -818,15 +819,21 @@ export function buildOpenRouterMessages(
   opts?: OpenRouterMessageOpts
 ): OpenRouterChatMessage[] {
   const split = opts?.systemSplit;
+  const oocHtmlMode = opts?.oocHtmlMode === true;
   let systemContent: string | OpenRouterContentBlock[];
 
   if (split) {
-    systemContent = buildOpenRouterCachedSystemContent(split);
+    const deliveredSplit = oocHtmlMode
+      ? { ...split, dynamicBlock: appendOocHtmlModeDirective(split.dynamicBlock) }
+      : split;
+    systemContent = buildOpenRouterCachedSystemContent(deliveredSplit);
     if (systemContent.length === 0) {
       throw new Error("[OpenRouter] systemSplit produced empty system content");
     }
   } else {
-    const unifiedSystem = system.trim();
+    const unifiedSystem = (
+      oocHtmlMode ? appendOocHtmlModeDirective(system) : system
+    ).trim();
     if (!unifiedSystem) {
       throw new Error("[OpenRouter] system content is empty");
     }
@@ -1531,13 +1538,7 @@ export async function* streamOpenRouterAdult(
   });
 
   const oocHtmlMode = messageOpts?.oocHtmlMode === true;
-  const effectiveSystem = oocHtmlMode
-    ? `${system.trim()}
-
-[OOC HTML MODE — THIS TURN]
-User explicitly requested inline HTML via OOC. Output allowed: inline HTML with <div> and <span> only. FORBIDDEN: <!DOCTYPE>, <html>, <head>, <body>, <script>. You may mix Korean prose with HTML. Server Flash status window is DISABLED this turn.`
-    : system;
-  const baseMessages = buildOpenRouterMessages(effectiveSystem, history, messageOpts);
+  const baseMessages = buildOpenRouterMessages(system, history, messageOpts);
   const skipStreamGuards = false;
   const degenerationCtx = { oocHtmlMode };
 
@@ -1571,7 +1572,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       }
     );
   const { requestBody, requestBodyBeforeAdapt } = assemblePrimaryRpRequest({
-    system: effectiveSystem,
+    system,
     history,
     modelId: apiModelId,
     targetResponseChars,
