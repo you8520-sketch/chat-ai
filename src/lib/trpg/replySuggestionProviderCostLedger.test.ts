@@ -64,7 +64,7 @@ function ciSuccess(
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        ...(opts?.requestId ? { "x-request-id": opts.requestId } : {}),
+        ...(opts?.requestId ? { "x-ci-request-id": opts.requestId } : {}),
       },
     }
   );

@@ -70,6 +70,10 @@ import {
   trimTrailingVisibleSelfCritique,
 } from "@/lib/narrativeRules";
 import { parseCompatibleUsage, parseOpenRouterUsage, logOpenRouterUsageCacheDiagnostics, tokenUsageFromOpenRouterBreakdown } from "@/lib/openRouterUsage";
+import {
+  readCompatibleCompletionProviderRequestId,
+  type DeliveredCompletionProvider,
+} from "@/lib/openRouterCompletion";
 import { stageUsageReportingEvidenceFromTokenUsage, unreportedUsageReportingEvidence } from "@/lib/usageReportingEvidence";
 import { logOpenRouterCacheStabilityCheck } from "@/lib/openRouterCacheStability";
 import { logCharsPerTokenDiagnostic, logBannedVerbCheck, logHanjaLeakCheck, logLengthDiagnosticV2 } from "@/lib/lengthDiagnosticV2";
@@ -1609,6 +1613,7 @@ export async function* streamOpenRouterAdult(
   assertLengthSupplementApiAllowed(requestKind);
   debugMeta?.turnApiBudget?.beforeFetch(requestKind);
   let res: Response;
+  let deliveredProvider: DeliveredCompletionProvider = transport.provider;
   if (isMockApiMode()) {
     const { chars, tokens } = estimatePayloadFromBody(requestBody);
     recordMockApiPayload({
@@ -1647,6 +1652,7 @@ export async function* streamOpenRouterAdult(
           ourRequestId: messageOpts?.requestId,
         });
         res = failover.response;
+        deliveredProvider = failover.usedProvider;
       } catch (error) {
         if (error instanceof DeepSeekDeterministicProviderError) {
           throw new OpenRouterApiError({
@@ -1698,15 +1704,13 @@ export async function* streamOpenRouterAdult(
   let providerRequestId: string | undefined;
   if (!isMockApiMode() && res) {
     providerRequestId =
-      res.headers.get("x-ci-request-id") ||
-      res.headers.get("x-cheaper-inference-request-id") ||
-      res.headers.get("x-request-id") ||
-      res.headers.get("x-openrouter-request-id") ||
-      res.headers.get("cf-ray") ||
-      undefined;
+      readCompatibleCompletionProviderRequestId({
+        provider: deliveredProvider,
+        headers: res.headers,
+      }) ?? undefined;
   }
 
-  if (!isMockApiMode() && res && transport.provider === "cheaperinference") {
+  if (!isMockApiMode() && res && deliveredProvider === "cheaperinference") {
     console.log("[CheaperInference] prompt cache affinity", {
       providerRequestId: providerRequestId ?? null,
       promptCacheSession: messageOpts?.sessionId ?? null,
@@ -1772,8 +1776,12 @@ export async function* streamOpenRouterAdult(
           if (typeof json.model === "string" && json.model.trim()) {
             responseModelId = json.model.trim();
           }
-          if (!providerRequestId && typeof json.id === "string" && json.id.trim()) {
-            providerRequestId = json.id.trim();
+          if (!providerRequestId) {
+            const fromEvent = readCompatibleCompletionProviderRequestId({
+              provider: deliveredProvider,
+              body: json,
+            });
+            if (fromEvent) providerRequestId = fromEvent;
           }
           if (json.usage != null) {
             lastStreamUsage = json.usage;
@@ -1923,9 +1931,7 @@ export async function* streamOpenRouterAdult(
       prefillLen: prefill.length,
       outputTokens,
       providerRequestId:
-        transport.provider === "cheaperinference"
-          ? res.headers.get("x-ci-request-id")
-          : null,
+        deliveredProvider === "cheaperinference" ? providerRequestId ?? null : null,
       promptCacheSession:
         transport.provider === "cheaperinference"
           ? messageOpts?.sessionId ?? null
@@ -2572,6 +2578,7 @@ export async function callOpenRouterAdult(
     logOpenRouterSystemPromptBeforeFetch(requestBody as Record<string, unknown>);
 
     let res: Response;
+    let deliveredProvider: DeliveredCompletionProvider = transport.provider;
     if (isMockApiMode()) {
     const { chars, tokens } = estimatePayloadFromBody(requestBody);
     recordMockApiPayload({
@@ -2623,6 +2630,7 @@ export async function callOpenRouterAdult(
             deadlines: { completionMs: 120_000, headersMs: 120_000 },
           });
           res = failover.response;
+          deliveredProvider = failover.usedProvider;
         } catch (error) {
           if (error instanceof DeepSeekDeterministicProviderError) {
             throw new OpenRouterApiError({
@@ -2672,6 +2680,11 @@ export async function callOpenRouterAdult(
     headers: res.headers,
     transportProvider: transport.provider,
   });
+  const providerRequestId = readCompatibleCompletionProviderRequestId({
+    provider: deliveredProvider,
+    headers: res.headers,
+    body: data,
+  });
   const usage: TokenUsage = data.usage
     ? {
         ...tokenUsageFromOpenRouterBreakdown({
@@ -2684,12 +2697,14 @@ export async function callOpenRouterAdult(
         }),
         finishReason,
         debugRawUsage: data.usage,
+        ...(providerRequestId ? { providerRequestId } : {}),
       }
     : {
         inputTokens: estimateTokens(system + history.map((m) => m.content).join("")),
         outputTokens: estimateTokens(text),
         estimated: true,
         finishReason,
+        ...(providerRequestId ? { providerRequestId } : {}),
       };
 
   if (messageOpts?.systemSplit) {
