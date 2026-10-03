@@ -4,9 +4,14 @@ import { useMemo, useState } from "react";
 import JsxComponentSandbox from "@/components/JsxComponentSandbox";
 import {
   hydrateJsxCatalogEditorState,
+  jsxCallGuideTokenCount,
   jsxCatalogEditableFingerprint,
+  JSX_CALL_GUIDE_CATALOG_TOKEN_MAX,
+  JSX_CALL_GUIDE_MAX_CHARS,
   removeJsxCatalogHead,
   resolveJsxCatalogDraft,
+  validateJsxCallGuideCatalog,
+  type JsxComponentManifestRecord,
   type JsxComponentRecord,
   type JsxPropDefinition,
   type JsxPropType,
@@ -24,6 +29,8 @@ import { buildJsxComponentManifestBlock } from "@/lib/jsxComponent/manifest";
 
 const PROP_TYPES: JsxPropType[] = ["string", "number", "boolean"];
 const PREVIEW_HEIGHT_PX = 260;
+const CALL_GUIDE_EXAMPLE =
+  "새 퀘스트가 등장하거나 주요 진행 상황이 변경되면 사용합니다. 일반 대화에서는 사용하지 않습니다.";
 
 type Props = {
   value: JsxComponentRecord[];
@@ -40,6 +47,7 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
   const [name, setName] = useState(saved?.name ?? "");
   const [source, setSource] = useState(saved?.source ?? "");
   const [props, setProps] = useState<JsxPropDefinition[]>(saved?.props ?? []);
+  const [callGuide, setCallGuide] = useState(saved?.callGuide ?? "");
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<JsxComponentRecord | null>(saved);
   const [suggested, setSuggested] = useState<string[]>(() =>
@@ -47,7 +55,9 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
   );
   const [appliedSavedFingerprint, setAppliedSavedFingerprint] = useState(() =>
     jsxCatalogEditableFingerprint(
-      saved ? { name: saved.name, source: saved.source, props: saved.props } : null
+      saved
+        ? { name: saved.name, source: saved.source, props: saved.props, callGuide: saved.callGuide }
+        : null
     )
   );
   const [browsingId, setBrowsingId] = useState<CreatorJsxExampleId | null>(null);
@@ -58,7 +68,7 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
 
   const hydration = hydrateJsxCatalogEditorState({
     appliedSavedFingerprint,
-    draft: { name, source, props },
+    draft: { name, source, props, callGuide },
     saved,
   });
   if (hydration.hydrated || hydration.appliedSavedFingerprint !== appliedSavedFingerprint) {
@@ -67,6 +77,7 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
       setName(hydration.draft.name);
       setSource(hydration.draft.source);
       setProps(hydration.draft.props);
+      setCallGuide(hydration.draft.callGuide ?? "");
       setPreview(saved);
       setError("");
       setSuggested(saved ? suggestJsxPropNamesFromCompiled(saved.compiled) : []);
@@ -74,10 +85,14 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
     }
   }
 
-  const draft = hydration.hydrated ? hydration.draft : { name, source, props };
+  const draft = hydration.hydrated
+    ? hydration.draft
+    : { name, source, props, callGuide };
   const unsaved = useMemo(() => {
     const savedFingerprint = jsxCatalogEditableFingerprint(
-      saved ? { name: saved.name, source: saved.source, props: saved.props } : null
+      saved
+        ? { name: saved.name, source: saved.source, props: saved.props, callGuide: saved.callGuide }
+        : null
     );
     return savedFingerprint !== jsxCatalogEditableFingerprint(draft);
   }, [draft, saved]);
@@ -89,10 +104,33 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
     return compileJsxComponentSource(example.source, example.name);
   }, [browsingId]);
 
+  const manifestRecords = useMemo(() => {
+    const head = preview ?? saved;
+    const records: JsxComponentManifestRecord[] = [];
+    if (head) {
+      records.push({
+        name: head.name,
+        props: head.props,
+        chatSend: head.chatSend,
+        callGuide: draft.callGuide,
+      });
+    }
+    for (const rest of value.slice(1)) {
+      records.push({
+        name: rest.name,
+        props: rest.props,
+        chatSend: rest.chatSend,
+        callGuide: rest.callGuide,
+      });
+    }
+    return records;
+  }, [draft.callGuide, preview, saved, value]);
   const manifest = useMemo(
-    () => (preview ? buildJsxComponentManifestBlock([preview]) : ""),
-    [preview]
+    () => buildJsxComponentManifestBlock(manifestRecords),
+    [manifestRecords]
   );
+  const callGuideTokens = jsxCallGuideTokenCount(draft.callGuide);
+  const callGuideBudget = validateJsxCallGuideCatalog(manifestRecords);
   const pendingSuggestions = suggested.filter(
     (propName) => !draft.props.some((prop) => prop.name === propName)
   );
@@ -105,11 +143,17 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
       ? "작성 중인 초안"
       : null;
 
-  function applyDraft(nextName = draft.name, nextSource = draft.source, nextProps = draft.props) {
+  function applyDraft(
+    nextName = draft.name,
+    nextSource = draft.source,
+    nextProps = draft.props,
+    nextCallGuide = draft.callGuide
+  ) {
     const result = resolveJsxCatalogDraft(value, {
       name: nextName,
       source: nextSource,
       props: nextProps,
+      callGuide: nextCallGuide,
     });
     if (result.error) {
       setError(result.error);
@@ -134,9 +178,12 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
     setName(next?.name ?? "");
     setSource(next?.source ?? "");
     setProps(next?.props.map((prop) => ({ ...prop })) ?? []);
+    setCallGuide(next?.callGuide ?? "");
     setAppliedSavedFingerprint(
       jsxCatalogEditableFingerprint(
-        next ? { name: next.name, source: next.source, props: next.props } : null
+        next
+          ? { name: next.name, source: next.source, props: next.props, callGuide: next.callGuide }
+          : null
       )
     );
     setError("");
@@ -163,7 +210,37 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
     setSource(example.source);
     setProps(nextProps);
     setPendingApply(false);
-    applyDraft(example.name, example.source, nextProps);
+    applyDraft(example.name, example.source, nextProps, callGuide);
+  }
+
+  function updateCallGuide(next: string) {
+    setCallGuide(next);
+    if (!saved) return;
+    const savedBody = jsxCatalogEditableFingerprint({
+      name: saved.name,
+      source: saved.source,
+      props: saved.props,
+      callGuide: "",
+    });
+    const draftBody = jsxCatalogEditableFingerprint({
+      name: draft.name,
+      source: draft.source,
+      props: draft.props,
+      callGuide: "",
+    });
+    if (savedBody !== draftBody) return;
+    const result = resolveJsxCatalogDraft(value, {
+      name: saved.name,
+      source: saved.source,
+      props: saved.props,
+      callGuide: next,
+    });
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    setError("");
+    onChange(result.catalog);
   }
 
   function requestApplyExample(example: CreatorJsxExample) {
@@ -218,7 +295,39 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
           <li>저장하면 AI가 대화 상황에 맞춰 등록된 컴포넌트를 호출할 수 있습니다.</li>
         </ol>
         <p>실제 호출은 모델 출력에 따라 달라지며, 매 답변마다 열리지는 않습니다.</p>
+        <p>이 영역은 대화 중에 AI가 호출하는 화면입니다. 위의 상태창 위젯과는 따로 저장됩니다.</p>
       </div>
+
+      <label className="block text-xs text-zinc-400">
+        이름 (PascalCase)
+        <input
+          value={draft.name}
+          disabled={disabled}
+          onChange={(e) => setName(e.target.value)}
+          className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#14141a] px-3 text-sm text-zinc-100"
+        />
+      </label>
+      <label className="block text-xs text-zinc-400">
+        AI 호출 설명
+        <textarea
+          value={draft.callGuide ?? ""}
+          disabled={disabled}
+          maxLength={JSX_CALL_GUIDE_MAX_CHARS}
+          rows={3}
+          placeholder={CALL_GUIDE_EXAMPLE}
+          onChange={(e) => updateCallGuide(e.target.value)}
+          className="mt-1 w-full rounded-xl border border-white/10 bg-[#14141a] px-3 py-2 text-sm text-zinc-100"
+        />
+        <span className="mt-1 block text-[11px] text-zinc-500">
+          입력 {(draft.callGuide ?? "").length}/{JSX_CALL_GUIDE_MAX_CHARS}자 · 이 설명 추정 토큰{" "}
+          {callGuideTokens} · 등록 설명 합계 한도 {JSX_CALL_GUIDE_CATALOG_TOKEN_MAX}
+        </span>
+      </label>
+      {!callGuideBudget.ok ? (
+        <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+          {callGuideBudget.error}
+        </p>
+      ) : null}
 
       {unsaved ? (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
@@ -386,15 +495,6 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
             ) : null}
           </div>
           <label className="block text-zinc-400">
-            이름 (PascalCase)
-            <input
-              value={draft.name}
-              disabled={disabled}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-md border border-white/10 bg-[#0c0c12] px-2 py-1.5 text-sm text-zinc-100"
-            />
-          </label>
-          <label className="block text-zinc-400">
             JSX source
             <textarea
               value={draft.source}
@@ -514,14 +614,18 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
           {preview?.chatSend ? (
             <p className="text-xs text-amber-200">이 컴포넌트는 채팅 전송 기능을 사용합니다.</p>
           ) : null}
-          <details className="text-zinc-400">
-            <summary className="cursor-pointer">AI에게 전달되는 Component Manifest</summary>
-            <pre className="mt-1 max-h-56 overflow-auto rounded-md border border-white/10 bg-[#08080c] p-2 text-[11px] text-zinc-300 whitespace-pre-wrap">
-              {manifest || "(저장 후 카탈로그가 있을 때만 주입)"}
-            </pre>
-          </details>
         </div>
       </details>
+      <section aria-label="AI에게 실제로 전달되는 정보" className="space-y-2">
+        <h3 className="text-sm font-semibold text-zinc-100">AI에게 실제로 전달되는 정보</h3>
+        <p className="text-[11px] leading-relaxed text-zinc-500">
+          아래 Manifest가 모델 요청에 들어갑니다. JSX 소스와 스타일은 포함되지 않습니다. 호출 설명
+          추정 토큰 {callGuideTokens}.
+        </p>
+        <pre className="max-h-56 overflow-auto rounded-xl border border-white/10 bg-[#08080c] p-2 text-[11px] text-zinc-300 whitespace-pre-wrap">
+          {manifest || "(저장 후 카탈로그가 있을 때만 주입)"}
+        </pre>
+      </section>
     </section>
   );
 }

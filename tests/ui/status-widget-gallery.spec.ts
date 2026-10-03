@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { expect, test } from "@playwright/test";
 
 import { buildBuiltinStatusWidgetTemplate } from "../../src/lib/statusWidget/builtinTemplates";
@@ -146,7 +147,10 @@ test("new character authoring tabs keep code across tab moves at 390px", async (
   const direct = page.getByRole("tab", { name: "직접 제작" });
   await expect(basic).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("button", { name: /클린 카드/ })).toBeVisible();
-  await expect(page.getByText(/\/ 700자/)).toBeVisible();
+  await expect(page.getByText(/추정 토큰 \d[\d,]* \/ 600/)).toBeVisible();
+  if (fs.existsSync("/opt/cursor/artifacts")) {
+    await page.screenshot({ path: "/opt/cursor/artifacts/status-budget-600-mobile.png" });
+  }
 
   const previewCopy = page.getByText("미리보기 · 채팅 전송은 꺼져 있습니다.");
   await expect(previewCopy).toBeVisible();

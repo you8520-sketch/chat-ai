@@ -81,6 +81,7 @@ export type WireCaseResult = {
   statusWidget: boolean;
   oocHtml: boolean;
   jsx: boolean;
+  jsxManifestText: string;
   sectionIds: string[];
   sections: WireSectionRow[];
   localEstimateTokens: {
@@ -194,6 +195,7 @@ type CaseSpec = {
   statusWidget: boolean;
   oocHtml: boolean;
   jsx: boolean;
+  jsxCallGuide?: string;
   longHistory: boolean;
   withMemory: boolean;
   withLore: boolean;
@@ -310,6 +312,13 @@ function caseSpecs(): CaseSpec[] {
       longHistory: true,
     },
     { id: "ds-jsx", model: deepseek, ...rich, jsx: true },
+    {
+      id: "ds-jsx-call-guide",
+      model: deepseek,
+      ...rich,
+      jsx: true,
+      jsxCallGuide: "새 퀘스트가 등장하거나 주요 진행 상황이 변경되면 사용합니다.",
+    },
   ];
 }
 
@@ -428,7 +437,11 @@ function buildCase(spec: CaseSpec): WireCaseResult {
     sceneDirectiveBlock,
     statusWidgetActive: spec.statusWidget,
     jsxComponentCatalogJson: spec.jsx
-      ? serializeJsxComponentCatalog([buildPitWallFixtureRecord()])
+      ? serializeJsxComponentCatalog([
+          spec.jsxCallGuide
+            ? { ...buildPitWallFixtureRecord(), callGuide: spec.jsxCallGuide }
+            : buildPitWallFixtureRecord(),
+        ])
       : "",
     systemPrompt: "백하율은 낮고 짧은 말로 대답한다.",
     world: "비 오는 도시. 창가.",
@@ -452,6 +465,9 @@ function buildCase(spec: CaseSpec): WireCaseResult {
         split.dynamicBlock !== splitBeforeWidget.dynamicBlock)
   );
 
+  const jsxManifestText =
+    (built.meta.trackedSections ?? []).find((section) => section.id === "jsx-component-manifest")
+      ?.text ?? "";
   const sections: WireSectionRow[] = (built.meta.trackedSections ?? []).map((section) => ({
     id: section.id,
     label: section.label,
@@ -548,6 +564,7 @@ function buildCase(spec: CaseSpec): WireCaseResult {
     statusWidget: spec.statusWidget,
     oocHtml: spec.oocHtml,
     jsx: spec.jsx,
+    jsxManifestText,
     sectionIds: sections.map((section) => section.id),
     sections,
     localEstimateTokens: {

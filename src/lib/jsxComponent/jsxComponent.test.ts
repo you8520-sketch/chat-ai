@@ -2,11 +2,24 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { analyzeJsxCapabilities } from "./capabilities.ts";
-import { parseJsxComponentCatalog, parseJsxRuntimeComponentCatalog, serializeJsxComponentCatalog } from "./catalog.ts";
+import {
+  compileJsxComponentDraft,
+  parseJsxComponentCatalog,
+  parseJsxComponentManifestCatalog,
+  parseJsxRuntimeComponentCatalog,
+  resolveJsxCatalogDraft,
+  serializeJsxComponentCatalog,
+  validateJsxCallGuideCatalog,
+} from "./catalog.ts";
 import { compileJsxComponentSource } from "./compile.ts";
 import { decideJsxHostBridgeAction } from "./hostBridge.ts";
 import { extractJsxInvocations, isIncompleteJsxInvocation, resolveJsxInvocationProps } from "./invocation.ts";
-import { JSX_BRIDGE_MAX_TEXT, JSX_PROP_MAX } from "./limits.ts";
+import {
+  JSX_BRIDGE_MAX_TEXT,
+  JSX_CALL_GUIDE_CATALOG_TOKEN_MAX,
+  JSX_CALL_GUIDE_MAX_CHARS,
+  JSX_PROP_MAX,
+} from "./limits.ts";
 import { buildJsxComponentManifestBlock } from "./manifest.ts";
 import {
   buildPitWallFixtureRecord,
@@ -249,6 +262,162 @@ describe("jsx invocation", () => {
     assert.equal(found[0]?.props.pitWindowOpen, true);
     assert.equal(isIncompleteJsxInvocation("<PitWallFixture tyreWearPct={38}"), true);
     assert.equal(isIncompleteJsxInvocation("<PitWallFixture tyreWearPct={38} />"), false);
+  });
+});
+
+describe("jsx call guide", () => {
+  const source = `export default function QuestCard(props) { return <div>{props.title}</div>; }`;
+  const guide = "새 퀘스트가 등장하거나 주요 진행 상황이 변경되면 사용합니다. 일반 대화에서는 사용하지 않습니다.";
+
+  it("saves and reloads the call guide without putting it in the source", () => {
+    const compiled = compileJsxComponentDraft({
+      name: "QuestCard",
+      source,
+      props: [{ name: "title", type: "string", required: true, description: "카드 제목" }],
+      callGuide: guide,
+    });
+    assert.equal(compiled.ok, true);
+    if (!compiled.ok) return;
+    assert.equal(compiled.record.callGuide, guide);
+    assert.equal(compiled.record.source.includes(guide), false);
+    const json = serializeJsxComponentCatalog([compiled.record]);
+    const reloaded = parseJsxComponentCatalog(json);
+    assert.equal(reloaded[0]?.callGuide, guide);
+    assert.equal(reloaded[0]?.source, source.trim());
+    const missing = parseJsxComponentCatalog(json.replace(/,"callGuide":"[^"]*"/, ""));
+    assert.equal(missing[0]?.callGuide ?? "", "");
+  });
+
+  it("includes the call guide once in the manifest and omits it when empty", () => {
+    const compiled = compileJsxComponentDraft({
+      name: "QuestCard",
+      source,
+      props: [{ name: "title", type: "string", required: true, description: "카드 제목" }],
+      callGuide: guide,
+    });
+    assert.equal(compiled.ok, true);
+    if (!compiled.ok) return;
+    const block = resolveJsxComponentPromptBlock(
+      parseJsxComponentManifestCatalog(serializeJsxComponentCatalog([compiled.record]))
+    );
+    assert.ok(block);
+    assert.equal(block!.split(guide).length - 1, 1);
+    assert.equal(block!.split("[HAV JSX COMPONENTS]").length - 1, 1);
+    assert.match(block!, /title: string {2}\/\/ 카드 제목/);
+    assert.match(block!, /\/\/ when: /);
+    assert.ok(block!.indexOf(`// when: ${guide}`) < block!.indexOf("QuestCard("));
+    assert.doesNotMatch(block!, /export default function|props\.title/);
+
+    const empty = compileJsxComponentDraft({
+      name: "QuestCard",
+      source,
+      props: [{ name: "title", type: "string", required: true, description: "카드 제목" }],
+      callGuide: "   ",
+    });
+    assert.equal(empty.ok, true);
+    if (!empty.ok) return;
+    const emptyBlock = resolveJsxComponentPromptBlock(
+      parseJsxComponentManifestCatalog(serializeJsxComponentCatalog([empty.record]))
+    );
+    assert.ok(emptyBlock);
+    assert.doesNotMatch(emptyBlock!, /\/\/ when:/);
+    assert.match(emptyBlock!, /\[HAV JSX COMPONENTS\]/);
+    assert.match(emptyBlock!, /카드 제목/);
+  });
+
+  it("rejects an over-long guide without slicing the stored text or the saved catalog", () => {
+    const long = "가".repeat(JSX_CALL_GUIDE_MAX_CHARS + 1);
+    const savedCompile = compileJsxComponentDraft({
+      name: "QuestCard",
+      source,
+      props: [],
+      callGuide: guide,
+    });
+    assert.equal(savedCompile.ok, true);
+    if (!savedCompile.ok) return;
+    const rejected = resolveJsxCatalogDraft([savedCompile.record], {
+      name: "QuestCard",
+      source,
+      props: [],
+      callGuide: long,
+    });
+    assert.equal(rejected.catalog.length, 1);
+    assert.equal(rejected.catalog[0], savedCompile.record);
+    assert.match(rejected.error, /200자/);
+    const stored = JSON.stringify([
+      { name: "QuestCard", source, props: [], callGuide: long },
+    ]);
+    const parsed = parseJsxComponentCatalog(stored);
+    assert.equal(parsed[0]?.callGuide, long);
+    const block = buildJsxComponentManifestBlock(
+      parseJsxComponentManifestCatalog(stored)
+    );
+    assert.equal(block.split(long).length - 1, 1);
+    assert.equal(validateJsxCallGuideCatalog(parsed).ok, false);
+  });
+
+  it("keeps a written guide across example apply and preserves other slots", () => {
+    const tail = compileJsxComponentDraft({
+      name: "Extra",
+      source: `export default function Extra(props) { return <i>{props.title}</i>; }`,
+      props: [{ name: "title", type: "string", required: true }],
+      callGuide: "다른 슬롯 설명",
+    });
+    const head = compileJsxComponentDraft({ name: "QuestCard", source, props: [] });
+    assert.equal(tail.ok && head.ok, true);
+    if (!tail.ok || !head.ok) return;
+    const applied = resolveJsxCatalogDraft([head.record, tail.record], {
+      name: "QuestCard",
+      source,
+      props: [{ name: "title", type: "string", required: false }],
+      callGuide: guide,
+    });
+    assert.equal(applied.error, "");
+    assert.equal(applied.catalog[0]?.callGuide, guide);
+    assert.equal(applied.catalog[1]?.name, "Extra");
+    assert.equal(applied.catalog[1]?.callGuide, "다른 슬롯 설명");
+    assert.equal(head.record.callGuide ?? "", "");
+
+    const broken = resolveJsxCatalogDraft(applied.catalog, {
+      name: "QuestCard",
+      source: "function QuestCard(",
+      props: [],
+      callGuide: "컴파일 실패 중 설명",
+    });
+    assert.equal(broken.catalog, applied.catalog);
+    assert.equal(broken.catalog[0]?.callGuide, guide);
+    assert.equal(broken.catalog[1]?.callGuide, "다른 슬롯 설명");
+  });
+
+  it("caps the catalog call-guide token sum at 600 without a second prompt header", () => {
+    assert.equal(JSX_CALL_GUIDE_CATALOG_TOKEN_MAX, 600);
+    const full = "가".repeat(JSX_CALL_GUIDE_MAX_CHARS);
+    const records = ["QuestCard", "ChoiceCard", "ProfileCard", "StatusCard"].map((name) => {
+      const compiled = compileJsxComponentDraft({
+        name,
+        source: `export default function ${name}(props) { return <div>{props.title}</div>; }`,
+        props: [],
+        callGuide: full,
+      });
+      assert.equal(compiled.ok, true, name);
+      if (!compiled.ok) throw new Error(name);
+      return compiled.record;
+    });
+    assert.equal(validateJsxCallGuideCatalog(records.slice(0, 3)).ok, true);
+    assert.equal(validateJsxCallGuideCatalog(records).ok, false);
+    const blocked = resolveJsxCatalogDraft(records, {
+      name: "QuestCard",
+      source: records[0]!.source,
+      props: [],
+      callGuide: full,
+    });
+    assert.equal(blocked.catalog, records);
+    assert.equal(blocked.catalog[1]?.name, "ChoiceCard");
+    assert.match(blocked.error, /600/);
+    const prompt = readFileSync("src/lib/jsxComponent/prompt.ts", "utf8");
+    assert.doesNotMatch(prompt, /callGuide|호출 설명/);
+    assert.match(readFileSync("src/lib/characterFormSave.ts", "utf8"), /validateJsxCallGuideCatalog/);
+    assert.match(readFileSync("src/services/contextBuilder.ts", "utf8"), /resolveJsxComponentPromptBlock/);
   });
 });
 
