@@ -229,18 +229,16 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
       callGuide: "",
     });
     if (savedBody !== draftBody) return;
-    const result = resolveJsxCatalogDraft(value, {
-      name: saved.name,
-      source: saved.source,
-      props: saved.props,
-      callGuide: next,
-    });
-    if (result.error) {
-      setError(result.error);
+    // Metadata-only edits reuse the already-compiled saved component. Recompile
+    // only through applyDraft when the creator changes the source or props.
+    const nextCatalog = [{ ...saved, callGuide: next.trim() }, ...value.slice(1)];
+    const budget = validateJsxCallGuideCatalog(nextCatalog);
+    if (!budget.ok) {
+      setError(budget.error);
       return;
     }
     setError("");
-    onChange(result.catalog);
+    onChange(nextCatalog);
   }
 
   function requestApplyExample(example: CreatorJsxExample) {
