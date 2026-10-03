@@ -74,34 +74,79 @@ describe("Main RP final-wire audit", () => {
     assert.equal(normal.wire.sceneDirectiveSection, false);
   });
 
-  it("collapses NORMAL interactive cache split and keeps LIMITED pacing inside the character cache block", () => {
+  it("keeps three cache blocks and the pre-fix flat system bytes", () => {
     const normal = caseById("ds-interactive-normal-rich");
     const limited = caseById("ds-interactive-limited-rich");
     const allow = caseById("ds-interactive-allow-rich");
     const auto = caseById("ds-auto-normal");
-    assert.equal(normal.wire.systemBlocks.length, 1);
-    assert.equal(normal.wire.systemBlocks[0]?.cached, false);
+    const adult = caseById("ds-adult-normal");
+    const regen = caseById("ds-regen-normal");
+    const preFixFlatSha256 = {
+      "ds-interactive-normal-rich":
+        "ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a",
+      "ds-regen-normal":
+        "311b58849a342accf443706b63b046b46cc1d78b83f90959370dddefdc99322b",
+      "ds-adult-normal":
+        "2c3cd7334845ae60211b442e621c69b23fd024623f8a5930ffb55dfc22f01f86",
+      "g31-interactive-normal-rich":
+        "6b5495a133574c36b6bce7ae02e0901584660ab95343ec632fafac9e2678dbf6",
+      "opus-interactive-long-history":
+        "6b5495a133574c36b6bce7ae02e0901584660ab95343ec632fafac9e2678dbf6",
+    } as const;
+
+    for (const entry of report.cases) {
+      assert.deepEqual(
+        entry.wire.systemBlocks.map((block) => block.cached),
+        [true, true, false],
+        entry.id
+      );
+      assert.equal(entry.wire.historyCacheBreakpoint, false, entry.id);
+      assert.equal(entry.wire.systemBlocks[2]?.cached, false, entry.id);
+    }
+
+    for (const [id, flatSha] of Object.entries(preFixFlatSha256)) {
+      assert.equal(caseById(id).wire.systemFlatSha256, flatSha, id);
+    }
+
     assert.equal(normal.anchors.scenePacing, 1);
     assert.equal(normal.anchors.sceneFlow, 0);
-    assert.equal(normal.wire.scenePacingInsideCachedCharacterBlock, false);
-    assert.deepEqual(
-      limited.wire.systemBlocks.map((block) => block.cached),
-      [true, true, false]
+    assert.equal(normal.wire.scenePacingInsideCachedCharacterBlock, true);
+    assert.equal(
+      normal.wire.systemBlocks.reduce((sum, block) => sum + block.chars, 0) + 4,
+      7761
+    );
+    assert.equal(normal.localEstimateTokens.cacheRules, 3535);
+    assert.equal(normal.localEstimateTokens.cacheCharacter, 1702);
+    assert.equal(normal.localEstimateTokens.dynamic, 1746);
+    assert.equal(normal.localEstimateTokens.userTurn, 617);
+    assert.equal(normal.localEstimateTokens.promptAuditTotal, 7697);
+
+    assert.equal(
+      limited.wire.systemBlocks[0]?.sha256,
+      "628e4ed8f6a0a004b1d713a456c26841a65620fceb915ab1bc6166d2ce842b52"
+    );
+    assert.equal(
+      limited.wire.systemBlocks[1]?.sha256,
+      "828b7691a83279d6a9496edabd6e5e543b1477e3a4314c3143c1234aabfe500d"
+    );
+    assert.equal(
+      limited.wire.systemBlocks[2]?.sha256,
+      "75956784b3a4c5195fa5ffcb36780def0905d70b34667ce8667995c3373d505a"
     );
     assert.equal(limited.wire.scenePacingInsideCachedCharacterBlock, true);
     assert.equal(limited.wire.sceneFlowInsideCachedCharacterBlock, false);
-    assert.deepEqual(
-      allow.wire.systemBlocks.map((block) => block.cached),
-      [true, true, false]
-    );
     assert.equal(allow.wire.scenePacingInsideCachedCharacterBlock, true);
-    assert.deepEqual(
-      auto.wire.systemBlocks.map((block) => block.cached),
-      [true, true, false]
-    );
     assert.equal(auto.wire.sceneFlowInsideCachedCharacterBlock, true);
     assert.equal(auto.anchors.scenePacing, 0);
-    assert.equal(auto.wire.historyCacheBreakpoint, false);
+
+    assert.equal(normal.wire.systemBlocks[0]?.sha256, adult.wire.systemBlocks[0]?.sha256);
+    assert.equal(normal.wire.systemBlocks[0]?.sha256, regen.wire.systemBlocks[0]?.sha256);
+    assert.equal(normal.wire.systemBlocks[2]?.sha256, adult.wire.systemBlocks[2]?.sha256);
+    assert.notEqual(normal.wire.systemBlocks[1]?.sha256, adult.wire.systemBlocks[1]?.sha256);
+    assert.notEqual(normal.wire.systemBlocks[2]?.sha256, regen.wire.systemBlocks[2]?.sha256);
+    assert.equal(adult.localEstimateTokens.cacheRules, normal.localEstimateTokens.cacheRules);
+    assert.equal(adult.localEstimateTokens.dynamic, normal.localEstimateTokens.dynamic);
+    assert.notEqual(adult.localEstimateTokens.cacheCharacter, normal.localEstimateTokens.cacheCharacter);
   });
 
   it("keeps model adapters on their own wire shapes", () => {
@@ -133,14 +178,36 @@ describe("Main RP final-wire audit", () => {
     const opus = caseById("opus-interactive-long-history");
     const opusAuto = caseById("opus-auto-normal");
     assert.equal(opus.wire.reasoningEffort, "low");
-    assert.equal(opus.wire.systemBlocks.length, 1);
-    assert.equal(opus.wire.systemBlocks[0]?.cached, true);
-    assert.equal(opus.wire.historyCacheBreakpoint, true);
+    assert.deepEqual(
+      opus.wire.systemBlocks.map((block) => block.cached),
+      [true, true, false]
+    );
+    assert.equal(opus.wire.historyCacheBreakpoint, false);
     assert.deepEqual(
       opusAuto.wire.systemBlocks.map((block) => block.cached),
       [true, true, false]
     );
     assert.equal(opusAuto.wire.historyCacheBreakpoint, false);
+    assert.deepEqual(caseById("ds-interactive-normal-rich").wire.requestBodyKeys, [
+      "messages",
+      "model",
+      "reasoning_effort",
+      "stream",
+      "stream_options",
+      "temperature",
+      "thinking",
+      "top_p",
+    ]);
+    assert.deepEqual(opus.wire.requestBodyKeys, [
+      "messages",
+      "model",
+      "output_config",
+      "reasoning_effort",
+      "stream",
+      "stream_options",
+      "temperature",
+      "thinking",
+    ]);
     assert.equal(caseById("g37-interactive-normal-rich").wire.temperaturePresent, true);
     assert.equal(caseById("g38-interactive-normal-rich").wire.temperaturePresent, false);
     const deepseekCanon = caseById("ds-interactive-limited-rich");
