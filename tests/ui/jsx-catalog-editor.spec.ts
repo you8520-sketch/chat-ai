@@ -97,5 +97,15 @@ test("interactive component examples preview at 390px without chat calls", async
     await manifest.screenshot({ path: "/opt/cursor/artifacts/jsx-call-guide-manifest.png" });
   }
   await saveShot(page, "jsx-call-guide-desktop");
+
+  // A changed name makes this a draft. A subsequent guide edit must not appear
+  // in the saved manifest until the creator explicitly applies the draft.
+  await page.getByLabel("이름 (PascalCase)").fill("UnappliedBoard");
+  await guideInput.fill("아직 저장하지 않은 호출 지시입니다.");
+  await expect(manifest).toContainText("QuestCardExample");
+  await expect(manifest).toContainText("데스크톱");
+  await expect(manifest).not.toContainText("UnappliedBoard");
+  await expect(manifest).not.toContainText("아직 저장하지 않은 호출 지시입니다.");
+  await expect(page.getByText("작성 중인 초안은 적용하기 전까지 모델에 전달되지 않습니다.")).toBeVisible();
   expect(providerCalls).toEqual([]);
 });
