@@ -2,8 +2,14 @@ import type Database from "better-sqlite3";
 
 import { getDb } from "@/lib/db";
 import { isAdminUser } from "@/lib/isAdminUser";
-import { normalizeOfficialDisplayCreatorName } from "@/lib/officialDisplayCreatorName";
+import {
+  LUCIAN_CANONICAL_NAME,
+  LUCIAN_DRAFT_KEY,
+  LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY,
+  normalizeOfficialDisplayCreatorName,
+} from "@/lib/officialDisplayCreatorName";
 import { isSiteManagedUser } from "@/lib/siteManagedAccounts";
+import { isStageAtLeast, type OfficialCharacterStage } from "@/lib/officialSupply/types";
 
 export type OfficialAdminActor = {
   id?: number;
@@ -117,6 +123,51 @@ export function loadOfficialOwnerSession(ownerId: number): OfficialOwnerSession 
   };
 }
 
+type AdminListSupplyRow = {
+  draft_key: string;
+  staged_character_id: number | null;
+  stage: string;
+};
+
+function resolveAdminListSupply(input: {
+  characterId: number;
+  characterName: string;
+  supplies: readonly AdminListSupplyRow[];
+}): { draft_key: string | null; supply_stage: string | null } {
+  const staged = input.supplies.filter((row) => row.staged_character_id === input.characterId);
+  if (input.characterName.trim() === LUCIAN_CANONICAL_NAME) {
+    const approved = input.supplies.find((row) => row.draft_key === LUCIAN_DRAFT_KEY) ?? null;
+    const predecessor = staged.find((row) => row.draft_key === LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY) ?? null;
+    const foreign = staged.filter(
+      (row) =>
+        row.draft_key !== LUCIAN_DRAFT_KEY && row.draft_key !== LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY
+    );
+    const approvedLinkedHere = approved?.staged_character_id === input.characterId;
+    const approvedUnlinked = approved != null && approved.staged_character_id == null;
+    const approvedLinkedElsewhere =
+      approved != null &&
+      approved.staged_character_id != null &&
+      approved.staged_character_id !== input.characterId;
+    const predecessorPublishedHere =
+      predecessor != null &&
+      predecessor.staged_character_id === input.characterId &&
+      isStageAtLeast(predecessor.stage as OfficialCharacterStage, "staged_private");
+    const verifiedLucianPair =
+      approved != null &&
+      !approvedLinkedElsewhere &&
+      foreign.length === 0 &&
+      (approvedLinkedHere || (approvedUnlinked && predecessorPublishedHere));
+    if (verifiedLucianPair) {
+      return { draft_key: LUCIAN_DRAFT_KEY, supply_stage: approved.stage };
+    }
+    return { draft_key: null, supply_stage: null };
+  }
+  if (staged.length === 1 && staged[0]!.draft_key !== LUCIAN_DRAFT_KEY) {
+    return { draft_key: staged[0]!.draft_key, supply_stage: staged[0]!.stage };
+  }
+  return { draft_key: null, supply_stage: null };
+}
+
 export function listOfficialCharactersForAdmin(): Array<{
   id: number;
   name: string;
@@ -132,16 +183,11 @@ export function listOfficialCharactersForAdmin(): Array<{
   supply_stage: string | null;
 }> {
   const db = getDb();
-  const hasSupply = sqliteTableExists(db, "official_supply_characters");
-  const supplyJoin = hasSupply ? `LEFT JOIN official_supply_characters s ON s.staged_character_id = c.id` : "";
-  const supplySelect = hasSupply ? "s.draft_key, s.stage AS supply_stage" : "NULL AS draft_key, NULL AS supply_stage";
-  return db
+  const characters = db
     .prepare(
       `SELECT c.id, c.name, c.tagline, c.creator_id, c.creator_name, c.official,
-              c.visibility, c.moderation_status, c.nsfw, c.updated_at,
-              ${supplySelect}
+              c.visibility, c.moderation_status, c.nsfw, c.updated_at
        FROM characters c
-       ${supplyJoin}
        WHERE c.official=1
           OR c.creator_id IN (SELECT id FROM users WHERE site_managed=1)
        ORDER BY c.official DESC, c.id ASC`
@@ -157,9 +203,23 @@ export function listOfficialCharactersForAdmin(): Array<{
     moderation_status: string;
     nsfw: number;
     updated_at: string | null;
-    draft_key: string | null;
-    supply_stage: string | null;
   }>;
+  const supplies = sqliteTableExists(db, "official_supply_characters")
+    ? (db
+        .prepare(
+          `SELECT draft_key, staged_character_id, stage
+           FROM official_supply_characters`
+        )
+        .all() as AdminListSupplyRow[])
+    : [];
+  return characters.map((row) => ({
+    ...row,
+    ...resolveAdminListSupply({
+      characterId: row.id,
+      characterName: row.name,
+      supplies,
+    }),
+  }));
 }
 
 export function updateOfficialDisplayCreatorNameAsAdmin(input: {
