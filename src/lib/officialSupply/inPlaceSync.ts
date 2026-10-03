@@ -455,7 +455,7 @@ function planLucianAppearanceWrite(
   row: OfficialCharacterRow,
   source: ReturnType<typeof loadCompiledOfficialCharacterSource>
 ): AppearanceWritePlan {
-  const stored = storedAppearancePrompt(row);
+  const stored = row.appearance_raw;
   const appearanceClass = classifyStoredAppearanceAgainstApprovedLock(
     stored,
     source.appearanceLock,

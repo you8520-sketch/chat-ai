@@ -1666,20 +1666,21 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
       appearance: "full_lock",
     });
     const row = loadRuntimeRow(characterId);
-    const stored = resolveAppearancePromptText({
+    const resolved = resolveAppearancePromptText({
       raw: row.appearance_raw,
       compiledJson: row.appearance_compiled,
       compiledSourceHash: row.appearance_compiled_source_hash,
       compiledVersion: row.appearance_compiled_version,
     });
     assert.equal(
-      classifyStoredAppearanceAgainstApprovedLock(stored, source.appearanceLock, source.appearanceBlock),
+      classifyStoredAppearanceAgainstApprovedLock(row.appearance_raw, source.appearanceLock, source.appearanceBlock),
       "identity_same_full_lock"
     );
-    assert.notEqual(normalizeAppearanceRaw(stored), normalizeAppearanceRaw(source.appearanceBlock));
-    assert.match(stored, /184cm/);
-    assert.match(stored, /모노클/);
-    assert.doesNotMatch(stored, /178cm|흑발|푸른 눈/);
+    assert.notEqual(normalizeAppearanceRaw(row.appearance_raw), normalizeAppearanceRaw(source.appearanceBlock));
+    assert.notEqual(normalizeAppearanceRaw(resolved), normalizeAppearanceRaw(source.appearanceBlock));
+    assert.match(row.appearance_raw, /184cm/);
+    assert.match(row.appearance_raw, /모노클/);
+    assert.doesNotMatch(row.appearance_raw, /178cm|흑발|푸른 눈/);
     assert.equal(row.appearance_compiled_source_hash, hashAppearanceRaw(row.appearance_raw));
   });
 
