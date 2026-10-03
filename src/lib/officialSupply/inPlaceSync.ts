@@ -35,8 +35,13 @@ import {
   LUCIAN_CANONICAL_NAME,
   LUCIAN_DEFAULT_DISPLAY_CREATOR_NAME,
   LUCIAN_DRAFT_KEY,
+  LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY,
   normalizeOfficialDisplayCreatorName,
 } from "@/lib/officialDisplayCreatorName";
+import {
+  classifyStoredAppearanceAgainstApprovedLock,
+  type StoredAppearanceIdentityClass,
+} from "@/lib/officialSupply/appearance";
 import { composeOfficialCreatorComment } from "@/lib/officialSupply/publicProfileText";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
@@ -163,8 +168,17 @@ type OfficialCharacterRow = {
 
 type SupplyLink = {
   draft_key: string;
-  staged_character_id: number;
+  staged_character_id: number | null;
   stage: string;
+};
+
+type AppearanceWritePlan = {
+  class: StoredAppearanceIdentityClass;
+  replaceWithCompact: boolean;
+  nextRaw: string;
+  nextCompiled: string;
+  nextHash: string;
+  nextVersion: number;
 };
 
 function sha256(text: string): string {
@@ -186,16 +200,28 @@ export function withSqliteQueryOnly<T>(db: Database.Database, fn: () => T): T {
   }
 }
 
-function loadSupplyLink(db: Database.Database, characterId: number): SupplyLink | null {
+function loadSupplyByDraftKey(db: Database.Database, draftKey: string): SupplyLink | null {
   if (!sqliteTableExists(db, "official_supply_characters")) return null;
   const row = db
     .prepare(
       `SELECT draft_key, staged_character_id, stage
        FROM official_supply_characters
-       WHERE staged_character_id=?`
+       WHERE draft_key=?`
     )
-    .get(characterId) as SupplyLink | undefined;
+    .get(draftKey) as SupplyLink | undefined;
   return row ?? null;
+}
+
+function loadSuppliesForCharacter(db: Database.Database, characterId: number): SupplyLink[] {
+  if (!sqliteTableExists(db, "official_supply_characters")) return [];
+  return db
+    .prepare(
+      `SELECT draft_key, staged_character_id, stage
+       FROM official_supply_characters
+       WHERE staged_character_id=?
+       ORDER BY draft_key ASC`
+    )
+    .all(characterId) as SupplyLink[];
 }
 
 function findWorldLorebookId(
@@ -425,6 +451,42 @@ function assertStoredAppearanceCompatible(
   );
 }
 
+function planLucianAppearanceWrite(
+  row: OfficialCharacterRow,
+  source: ReturnType<typeof loadCompiledOfficialCharacterSource>
+): AppearanceWritePlan {
+  const stored = storedAppearancePrompt(row);
+  const appearanceClass = classifyStoredAppearanceAgainstApprovedLock(
+    stored,
+    source.appearanceLock,
+    source.appearanceBlock
+  );
+  if (appearanceClass === "identity_conflict") {
+    throw new OfficialSupplyGateError(
+      "appearance_conflict",
+      "stored appearance_raw/compiled contradicts the approved Lucian identity lock; refusing sync"
+    );
+  }
+  if (appearanceClass === "identity_same_full_lock") {
+    return {
+      class: appearanceClass,
+      replaceWithCompact: true,
+      nextRaw: source.appearanceBlock,
+      nextCompiled: "",
+      nextHash: "",
+      nextVersion: 0,
+    };
+  }
+  return {
+    class: appearanceClass,
+    replaceWithCompact: false,
+    nextRaw: row.appearance_raw,
+    nextCompiled: row.appearance_compiled,
+    nextHash: row.appearance_compiled_source_hash,
+    nextVersion: row.appearance_compiled_version,
+  };
+}
+
 function snapshotToken(parts: Omit<OfficialInPlacePreflightSnapshot, "token">): string {
   return sha256(
     JSON.stringify({
@@ -496,42 +558,85 @@ function buildPreflightSnapshot(input: {
 }
 
 function requireLucianSupplyLink(input: {
+  db: Database.Database;
   draftKey: string;
   row: OfficialCharacterRow;
-  supply: SupplyLink | null;
 }): SupplyLink {
+  const staged = loadSuppliesForCharacter(input.db, input.row.id);
   if (input.draftKey !== LUCIAN_DRAFT_KEY) {
-    if (input.supply && input.supply.draft_key !== input.draftKey) {
+    const foreign = staged.find((item) => item.draft_key !== input.draftKey);
+    if (foreign) {
       throw new OfficialSupplyGateError(
         "supply_draft_mismatch",
-        `character ${input.row.id} is linked to ${input.supply.draft_key}, not ${input.draftKey}`
+        `character ${input.row.id} is linked to ${foreign.draft_key}, not ${input.draftKey}`
       );
     }
-    return input.supply ?? {
+    return staged[0] ?? {
       draft_key: input.draftKey,
       staged_character_id: input.row.id,
       stage: "published",
     };
   }
-  if (!input.supply) {
+
+  const current = loadSupplyByDraftKey(input.db, LUCIAN_DRAFT_KEY);
+  if (!current) {
     throw new OfficialSupplyGateError(
       "supply_mapping_required",
-      `Lucian in-place requires official_supply_characters draft_key=${LUCIAN_DRAFT_KEY} ↔ staged_character_id=${input.row.id}`
+      `Lucian in-place requires official_supply_characters draft_key=${LUCIAN_DRAFT_KEY}`
     );
   }
-  if (input.supply.draft_key !== LUCIAN_DRAFT_KEY || input.supply.staged_character_id !== input.row.id) {
+  if (current.staged_character_id != null && current.staged_character_id !== input.row.id) {
     throw new OfficialSupplyGateError(
       "supply_draft_mismatch",
-      `character ${input.row.id} is linked to ${input.supply.draft_key}, not ${LUCIAN_DRAFT_KEY}`
+      `character ${input.row.id} cannot use ${LUCIAN_DRAFT_KEY} because it is linked to ${current.staged_character_id}`
     );
   }
-  if (!isStageAtLeast(input.supply.stage as OfficialCharacterStage, "staged_private")) {
+
+  const foreign = staged.filter(
+    (item) =>
+      item.draft_key !== LUCIAN_DRAFT_KEY && item.draft_key !== LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY
+  );
+  if (foreign.length > 0) {
     throw new OfficialSupplyGateError(
-      "supply_stage_required",
-      `Lucian mapping stage ${input.supply.stage} is below staged_private`
+      "supply_draft_mismatch",
+      `character ${input.row.id} is linked to ${foreign.map((item) => item.draft_key).join(",")}, not ${LUCIAN_DRAFT_KEY}`
     );
   }
-  return input.supply;
+
+  const predecessor =
+    staged.find((item) => item.draft_key === LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY) ?? null;
+  const currentLinkedHere = current.staged_character_id === input.row.id;
+  const predecessorPublishedHere =
+    predecessor != null &&
+    predecessor.staged_character_id === input.row.id &&
+    isStageAtLeast(predecessor.stage as OfficialCharacterStage, "staged_private");
+
+  if (currentLinkedHere) {
+    if (!isStageAtLeast(current.stage as OfficialCharacterStage, "staged_private") && !predecessorPublishedHere) {
+      throw new OfficialSupplyGateError(
+        "supply_stage_required",
+        `Lucian mapping stage ${current.stage} is below staged_private`
+      );
+    }
+    return {
+      draft_key: LUCIAN_DRAFT_KEY,
+      staged_character_id: input.row.id,
+      stage: current.stage,
+    };
+  }
+
+  if (predecessorPublishedHere) {
+    return {
+      draft_key: LUCIAN_DRAFT_KEY,
+      staged_character_id: input.row.id,
+      stage: current.stage,
+    };
+  }
+
+  throw new OfficialSupplyGateError(
+    "supply_mapping_required",
+    `Lucian in-place requires ${LUCIAN_DRAFT_KEY} or published predecessor ${LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY} ↔ staged_character_id=${input.row.id}`
+  );
 }
 
 function inspectTarget(input: {
@@ -561,6 +666,7 @@ function inspectTarget(input: {
   };
   lorebookPlan: OfficialInPlaceLorebookPlan[];
   supply: SupplyLink;
+  appearanceWrite: AppearanceWritePlan;
 } {
   const db = getDb();
   const source = loadCompiledOfficialCharacterSource(input.draftKey);
@@ -609,9 +715,9 @@ function inspectTarget(input: {
   }
 
   const supply = requireLucianSupplyLink({
+    db,
     draftKey: input.draftKey,
     row,
-    supply: loadSupplyLink(db, row.id),
   });
 
   const officialDuplicate = db
@@ -654,7 +760,22 @@ function inspectTarget(input: {
     entries: source.resolvedLorebook,
   });
   assertNoSharedLorebookConflict(lorebookPlan);
-  assertStoredAppearanceCompatible(row, source.appearanceBlock);
+  const appearanceWrite =
+    input.draftKey === LUCIAN_DRAFT_KEY
+      ? planLucianAppearanceWrite(row, source)
+      : (() => {
+          assertStoredAppearanceCompatible(row, source.appearanceBlock);
+          return {
+            class: storedAppearancePrompt(row)
+              ? ("approved_compact" as const)
+              : ("empty" as const),
+            replaceWithCompact: false,
+            nextRaw: row.appearance_raw,
+            nextCompiled: row.appearance_compiled,
+            nextHash: row.appearance_compiled_source_hash,
+            nextVersion: row.appearance_compiled_version,
+          };
+        })();
 
   const genres = sanitizeCharacterGenres(source.draft.genres);
   const compiled = {
@@ -686,6 +807,7 @@ function inspectTarget(input: {
     compiled,
     lorebookPlan,
     supply,
+    appearanceWrite,
   };
 }
 
@@ -695,7 +817,8 @@ function toResult(input: {
   applied: boolean;
   lorebookKeys?: string[];
 }): OfficialInPlaceSyncResult {
-  const { row, source, compiled, alias, attachedIds, beforeKeys, assetsJson, lorebookPlan } = input.inspected;
+  const { row, source, compiled, alias, attachedIds, beforeKeys, assetsJson, lorebookPlan, appearanceWrite } =
+    input.inspected;
   const preflightSnapshot = buildPreflightSnapshot({
     characterId: row.id,
     draftKey: source.draftKey,
@@ -741,6 +864,7 @@ function toResult(input: {
       ["world", before.worldHash !== after.worldHash],
       ["creator_name", before.creatorName !== after.creatorName],
       ["lorebook", JSON.stringify(before.lorebookKeys) !== JSON.stringify(after.lorebookKeys)],
+      ["appearance", appearanceWrite.replaceWithCompact],
     ] as const
   )
     .filter(([, changed]) => changed)
@@ -770,7 +894,7 @@ function applyGuardedCanonicalFields(input: {
   inspected: ReturnType<typeof inspectTarget>;
   testInjectFailure?: OfficialInPlaceTestInjectFailure;
 }): { id: number; entryKey: string }[] {
-  const { row, owner, source, compiled, alias, lorebookPlan, supply } = input.inspected;
+  const { row, owner, source, compiled, alias, lorebookPlan, supply, appearanceWrite } = input.inspected;
   const existingTriggers = sqliteTableExists(input.db, "status_widget_triggers")
     ? listCharacterStatusWidgetTriggers(input.db, row.id)
     : [];
@@ -794,7 +918,7 @@ function applyGuardedCanonicalFields(input: {
   );
   const safeRuntimeCanon = replaceAppearanceInSetting(
     compiledDescription.safeRuntimeCanon,
-    storedAppearancePrompt(row)
+    appearanceWrite.replaceWithCompact ? appearanceWrite.nextRaw : storedAppearancePrompt(row)
   );
   const applyTx = input.db.transaction(() => {
     const synced = applyWorldLorebooks({
@@ -817,6 +941,7 @@ function applyGuardedCanonicalFields(input: {
            tagline=?, description=?, greeting=?, system_prompt=?, world=?,
            creator_comment=?, example_dialog=?, tags=?, genre=?, genres=?, creator_name=?,
            creator_raw_description=?, creator_compiled_description_json=?, creator_canon_plan_json=?,
+           appearance_raw=?, appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?,
            updated_at=datetime('now')
          WHERE id=?
            AND creator_id=?
@@ -832,6 +957,8 @@ function applyGuardedCanonicalFields(input: {
            AND COALESCE(narration_style_instructions,'')=?
            AND COALESCE(appearance_raw,'')=?
            AND COALESCE(appearance_compiled,'')=?
+           AND COALESCE(appearance_compiled_source_hash,'')=?
+           AND COALESCE(appearance_compiled_version,0)=?
            AND COALESCE(likes,0)=?
            AND COALESCE(chats_count,0)=?`
       )
@@ -850,6 +977,10 @@ function applyGuardedCanonicalFields(input: {
         compiledDescription.creatorRawDescription,
         compiledDescription.compiledDescriptionJson,
         canonPlan.planJson,
+        appearanceWrite.nextRaw,
+        appearanceWrite.nextCompiled,
+        appearanceWrite.nextHash,
+        appearanceWrite.nextVersion,
         row.id,
         row.creator_id,
         row.official,
@@ -864,6 +995,8 @@ function applyGuardedCanonicalFields(input: {
         row.narration_style_instructions,
         row.appearance_raw,
         row.appearance_compiled,
+        row.appearance_compiled_source_hash,
+        row.appearance_compiled_version,
         row.likes,
         row.chats_count
       );
@@ -899,13 +1032,20 @@ function applyGuardedCanonicalFields(input: {
     enqueueCharacterDerivedRefreshJob(input.db, row.id);
 
     if (sqliteTableExists(input.db, "official_supply_characters")) {
-      input.db
+      const supplyWrite = input.db
         .prepare(
           `UPDATE official_supply_characters
-           SET draft_json=?, updated_at=datetime('now')
-           WHERE staged_character_id=? AND draft_key=?`
+           SET draft_json=?, staged_character_id=?, updated_at=datetime('now')
+           WHERE draft_key=?
+             AND (staged_character_id IS NULL OR staged_character_id=?)`
         )
-        .run(JSON.stringify(source.draft), row.id, supply.draft_key);
+        .run(JSON.stringify(source.draft), row.id, supply.draft_key, row.id);
+      if (supplyWrite.changes !== 1) {
+        throw new OfficialSupplyGateError(
+          "supply_write_mismatch",
+          `refusing to write draft_json onto ${supply.draft_key}; predecessor history must stay untouched`
+        );
+      }
     }
     return synced;
   });

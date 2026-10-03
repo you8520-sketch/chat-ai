@@ -1,4 +1,4 @@
-import { hashAppearanceRaw } from "@/lib/appearanceCompiler";
+import { hashAppearanceRaw, normalizeAppearanceRaw } from "@/lib/appearanceCompiler";
 import {
   qaResult,
   type AgeBand,
@@ -105,6 +105,70 @@ export function renderRuntimeAppearanceBlock(lock: OfficialAppearanceLock): stri
 /** Appearance Lock hash — the canonical appearance hash of the rendered block. */
 export function computeAppearanceLockHash(lock: OfficialAppearanceLock): string {
   return hashAppearanceRaw(renderAppearanceBlock(lock));
+}
+
+export type StoredAppearanceIdentityClass =
+  | "empty"
+  | "approved_compact"
+  | "identity_same_full_lock"
+  | "identity_conflict";
+
+function appearanceHaystack(text: string): string {
+  return normalizeAppearanceRaw(text).toLowerCase();
+}
+
+function lockIdentityAnchors(lock: OfficialAppearanceLock): string[] {
+  return [
+    `${lock.identity.heightCm}cm`,
+    lock.identity.hairColor,
+    lock.identity.eyeColor,
+    lock.identity.identifyingFeatures[0] ?? "",
+  ]
+    .map((value) => normalizeAppearanceRaw(value))
+    .filter(Boolean);
+}
+
+function storedHeightTokens(stored: string): number[] {
+  return [...stored.matchAll(/(?<!\d)(\d{2,3})\s*cm/gi)].map((match) => Number(match[1]));
+}
+
+function hasContradictoryIdentityTokens(stored: string, lock: OfficialAppearanceLock): boolean {
+  const hay = appearanceHaystack(stored);
+  const hair = appearanceHaystack(lock.identity.hairColor);
+  const eyes = appearanceHaystack(lock.identity.eyeColor);
+  const skin = appearanceHaystack(lock.identity.skinTone);
+  const foreignHair = ["흑발", "백발", "은발", "금발", "푸른 머리", "파란 머리"].filter(
+    (token) => !hair.includes(token)
+  );
+  const foreignEyes = ["파란 눈", "푸른 눈", "녹색 눈", "회색 눈", "붉은 눈"].filter(
+    (token) => !eyes.includes(token)
+  );
+  const foreignSkin = ["창백", "백옥", "하얀 피부"].filter((token) => !skin.includes(token));
+  if (foreignHair.some((token) => hay.includes(token))) return true;
+  if (foreignEyes.some((token) => hay.includes(token))) return true;
+  if (hay.includes("피부") && foreignSkin.some((token) => hay.includes(token))) return true;
+  return storedHeightTokens(stored).some((height) => height !== lock.identity.heightCm);
+}
+
+/**
+ * Compare stored RP appearance against the approved lock without printing prompt text.
+ * Full-lock wording may differ; only identity anchors and contradictions decide the class.
+ */
+export function classifyStoredAppearanceAgainstApprovedLock(
+  stored: string,
+  lock: OfficialAppearanceLock,
+  approvedCompact: string
+): StoredAppearanceIdentityClass {
+  const normalizedStored = normalizeAppearanceRaw(stored);
+  if (!normalizedStored) return "empty";
+  if (normalizedStored === normalizeAppearanceRaw(approvedCompact)) return "approved_compact";
+  const hay = appearanceHaystack(stored);
+  const anchors = lockIdentityAnchors(lock);
+  const hasAnchors = anchors.every((anchor) => hay.includes(appearanceHaystack(anchor)));
+  if (hasAnchors && !hasContradictoryIdentityTokens(stored, lock)) {
+    return "identity_same_full_lock";
+  }
+  return "identity_conflict";
 }
 
 export function evaluateAppearanceLock(

@@ -38,13 +38,21 @@ import {
 import {
   LUCIAN_CANONICAL_NAME,
   LUCIAN_DEFAULT_DISPLAY_CREATOR_NAME,
+  LUCIAN_DRAFT_KEY,
+  LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY,
   rejectClientOfficialDisplayCreatorAssignment,
 } from "@/lib/officialDisplayCreatorName";
 import {
+  classifyStoredAppearanceAgainstApprovedLock,
   renderAppearanceBlock,
   renderRuntimeAppearanceBlock,
 } from "@/lib/officialSupply/appearance";
-import { extractAppearanceRawFromSetting, replaceAppearanceInSetting } from "@/lib/appearanceCompiler";
+import {
+  extractAppearanceRawFromSetting,
+  hashAppearanceRaw,
+  normalizeAppearanceRaw,
+  replaceAppearanceInSetting,
+} from "@/lib/appearanceCompiler";
 import { resolveAppearancePromptText } from "@/lib/derivedCache/appearanceCurrentness";
 import { buildOfficialCharacterReviewReport } from "@/lib/officialSupply/characterReview";
 import { buildOfficialCharacterFormBody, composeOfficialSystemPrompt } from "@/lib/officialSupply/characterText";
@@ -101,6 +109,14 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
     return Number(info.lastInsertRowid);
   }
 
+  function liveShapedFullAppearance(
+    source: ReturnType<typeof loadCompiledOfficialCharacterSource>
+  ): string {
+    return renderAppearanceBlock(source.appearanceLock)
+      .replace("가늘고 길게 올라간 눈꼬리", "가늘고 길게 올라간 눈매")
+      .replace("유연하고 길쭉한 체격", "유연하고 길쭉한 몸");
+  }
+
   function richOfficialAssets() {
     return Array.from({ length: 14 }, (_, index) => ({
       url: `/uploads/official-pilot-rf-v4-03__${index === 0 ? "rep-a1" : `scene-${String(index).padStart(2, "0")}`}.webp`,
@@ -118,16 +134,24 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
   function insertOfficialLucian(
     creatorId: number,
     creatorName: string,
-    opts?: { rich?: boolean; appearance?: "stale" | "empty" | "approved" }
+    opts?: { rich?: boolean; appearance?: "stale" | "empty" | "approved" | "full_lock" | "identity_conflict" }
   ): number {
     const db = getDb();
     const appearanceMode = opts?.appearance ?? (opts?.rich ? "stale" : "empty");
+    const source = loadCompiledOfficialCharacterSource(LUCIAN_DRAFT_KEY);
     const appearance =
       appearanceMode === "approved"
-        ? { raw: loadCompiledOfficialCharacterSource("pilot-rf-03").appearanceBlock, compiled: "" }
-        : appearanceMode === "stale"
-          ? { raw: "기존외형raw", compiled: "기존외형compiled" }
-          : { raw: "", compiled: "" };
+        ? { raw: source.appearanceBlock, compiled: "" }
+        : appearanceMode === "full_lock"
+          ? { raw: liveShapedFullAppearance(source), compiled: "" }
+          : appearanceMode === "identity_conflict"
+            ? {
+                raw: "키/체형: 178cm, 건장한 체격\n머리: 흑발\n눈: 푸른 눈\n식별 특징: 얼굴 흉터",
+                compiled: "",
+              }
+            : appearanceMode === "stale"
+              ? { raw: "기존외형raw", compiled: "기존외형compiled" }
+              : { raw: "", compiled: "" };
     const assets = opts?.rich
       ? richOfficialAssets()
       : [
@@ -182,6 +206,27 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
         "구버전 제작자 코멘트"
       );
     const characterId = Number(info.lastInsertRowid);
+    if (appearanceMode === "full_lock") {
+      db.prepare(
+        `UPDATE characters
+         SET appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?
+         WHERE id=?`
+      ).run(
+        JSON.stringify({
+          body: "184cm",
+          hair: "붉은 갈색",
+          eyes: "호박색",
+          face: "타원",
+          lips_makeup: "",
+          clothing: "녹색 베스트",
+          impression: "거상",
+          compiled_text: appearance.raw,
+        }),
+        hashAppearanceRaw(appearance.raw),
+        1,
+        characterId
+      );
+    }
     if (opts?.rich) {
       db.prepare(
         `INSERT INTO status_widget_triggers
@@ -198,14 +243,75 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
   }
 
   function linkLucianSupply(characterId: number, stage = "published"): void {
-    const source = loadCompiledOfficialCharacterSource("pilot-rf-03");
+    const source = loadCompiledOfficialCharacterSource(LUCIAN_DRAFT_KEY);
     getDb()
       .prepare(
         `INSERT INTO official_supply_characters
           (draft_key, batch_key, world_key, style_key, stage, draft_json, staged_character_id)
-         VALUES ('pilot-rf-03', 'test-batch', ?, 'test-style', ?, '{}', ?)`
+         VALUES (?, 'test-batch', ?, 'test-style', ?, '{}', ?)`
       )
-      .run(source.worldKey, stage, characterId);
+      .run(LUCIAN_DRAFT_KEY, source.worldKey, stage, characterId);
+  }
+
+  function linkLiveShapedLucianSupply(characterId: number): { predecessorDraftJson: string } {
+    const source = loadCompiledOfficialCharacterSource(LUCIAN_DRAFT_KEY);
+    const predecessorDraftJson = JSON.stringify({
+      draftKey: LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY,
+      tagline: "금고털이 경보 속, 당신의 손목을 잡고 달아난 브로커.",
+      history: "published-predecessor",
+    });
+    const db = getDb();
+    db.prepare(
+      `INSERT INTO official_supply_characters
+        (draft_key, batch_key, world_key, style_key, stage, draft_json, staged_character_id)
+       VALUES (?, 'legacy-v4-batch', ?, 'legacy-style', 'published', ?, ?)`
+    ).run(LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY, source.worldKey, predecessorDraftJson, characterId);
+    db.prepare(
+      `INSERT INTO official_supply_characters
+        (draft_key, batch_key, world_key, style_key, stage, draft_json, staged_character_id)
+       VALUES (?, 'approved-batch', ?, 'approved-style', 'asset_plan_locked', '{}', NULL)`
+    ).run(LUCIAN_DRAFT_KEY, source.worldKey);
+    return { predecessorDraftJson };
+  }
+
+  function seedStaleSharedLorebooks(characterId: number, ownerId: number): number[] {
+    const source = loadCompiledOfficialCharacterSource(LUCIAN_DRAFT_KEY);
+    const db = getDb();
+    const ids: number[] = [];
+    for (const entry of source.sharedLorebook) {
+      const created = insertCreatorLorebookForOwner(db, {
+        creatorId: ownerId,
+        name: entry.name,
+        summary: "",
+        keywords: entry.keywords,
+        content: `구버전-${entry.entryKey}-본문`,
+      });
+      assert.equal(created.ok, true);
+      if (!created.ok) continue;
+      db.prepare(
+        `INSERT INTO official_supply_world_lorebooks (world_key, entry_key, creator_id, lorebook_id)
+         VALUES (?, ?, ?, ?)`
+      ).run(source.worldKey, entry.entryKey, ownerId, created.id);
+      ids.push(created.id);
+    }
+    replaceCharacterCreatorLorebookAttachments(db, characterId, ids);
+    return ids;
+  }
+
+  function supplyRows(characterId: number) {
+    return getDb()
+      .prepare(
+        `SELECT draft_key, stage, staged_character_id, draft_json
+         FROM official_supply_characters
+         WHERE staged_character_id=? OR draft_key=?
+         ORDER BY draft_key ASC`
+      )
+      .all(characterId, LUCIAN_DRAFT_KEY) as Array<{
+      draft_key: string;
+      stage: string;
+      staged_character_id: number | null;
+      draft_json: string;
+    }>;
   }
 
   const OLD_RUNTIME_SYSTEM =
@@ -1488,6 +1594,425 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
     assert.match(adminUi, /\/create\?edit=\$\{row\.id\}/);
     assert.match(page, /전체 설정 수정/);
     assert.match(create, /\/api\/characters\/\$\{editCharacterId\}/);
+  });
+
+  it("classifies stored appearance as empty, compact, identity-same full lock, or conflict", () => {
+    const source = loadCompiledOfficialCharacterSource(LUCIAN_DRAFT_KEY);
+    const full = liveShapedFullAppearance(source);
+    assert.equal(classifyStoredAppearanceAgainstApprovedLock("", source.appearanceLock, source.appearanceBlock), "empty");
+    assert.equal(
+      classifyStoredAppearanceAgainstApprovedLock(source.appearanceBlock, source.appearanceLock, source.appearanceBlock),
+      "approved_compact"
+    );
+    assert.equal(
+      classifyStoredAppearanceAgainstApprovedLock(full, source.appearanceLock, source.appearanceBlock),
+      "identity_same_full_lock"
+    );
+    assert.notEqual(normalizeAppearanceRaw(full), normalizeAppearanceRaw(source.appearanceBlock));
+    assert.ok(full.length > source.appearanceBlock.length);
+    assert.equal(
+      classifyStoredAppearanceAgainstApprovedLock(
+        "키/체형: 178cm, 건장한 체격\n머리: 흑발\n눈: 푸른 눈\n식별 특징: 얼굴 흉터",
+        source.appearanceLock,
+        source.appearanceBlock
+      ),
+      "identity_conflict"
+    );
+    assert.equal(
+      classifyStoredAppearanceAgainstApprovedLock("기존외형raw", source.appearanceLock, source.appearanceBlock),
+      "identity_conflict"
+    );
+    assert.doesNotMatch(full, /\[비밀|system prompt|세계관 원문/i);
+  });
+
+  it("MUST FIX live mapping before: published predecessor is the only staged Lucian link", () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-live-map-before@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", {
+      rich: true,
+      appearance: "full_lock",
+    });
+    const { predecessorDraftJson } = linkLiveShapedLucianSupply(characterId);
+    const staged = getDb()
+      .prepare(
+        `SELECT draft_key, stage, staged_character_id FROM official_supply_characters WHERE staged_character_id=?`
+      )
+      .all(characterId) as Array<{ draft_key: string; stage: string; staged_character_id: number }>;
+    const approved = getDb()
+      .prepare(`SELECT draft_key, stage, staged_character_id FROM official_supply_characters WHERE draft_key=?`)
+      .get(LUCIAN_DRAFT_KEY) as { draft_key: string; stage: string; staged_character_id: number | null };
+    assert.deepEqual(
+      staged.map((row) => row.draft_key),
+      [LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY]
+    );
+    assert.equal(staged[0]?.stage, "published");
+    assert.equal(approved.staged_character_id, null);
+    assert.equal(approved.stage, "asset_plan_locked");
+    assert.notEqual(staged[0]?.draft_key, LUCIAN_DRAFT_KEY);
+    assert.match(predecessorDraftJson, /published-predecessor/);
+    assert.match(predecessorDraftJson, /손목을 잡고/);
+  });
+
+  it("MUST FIX live appearance before: stored full lock is identity-same but would fail exact compact match", () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-live-app-before@site-managed.invalid",
+    });
+    const source = loadCompiledOfficialCharacterSource(LUCIAN_DRAFT_KEY);
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", {
+      rich: true,
+      appearance: "full_lock",
+    });
+    const row = loadRuntimeRow(characterId);
+    const stored = resolveAppearancePromptText({
+      raw: row.appearance_raw,
+      compiledJson: row.appearance_compiled,
+      compiledSourceHash: row.appearance_compiled_source_hash,
+      compiledVersion: row.appearance_compiled_version,
+    });
+    assert.equal(
+      classifyStoredAppearanceAgainstApprovedLock(stored, source.appearanceLock, source.appearanceBlock),
+      "identity_same_full_lock"
+    );
+    assert.notEqual(normalizeAppearanceRaw(stored), normalizeAppearanceRaw(source.appearanceBlock));
+    assert.match(stored, /184cm/);
+    assert.match(stored, /모노클/);
+    assert.doesNotMatch(stored, /178cm|흑발|푸른 눈/);
+    assert.equal(row.appearance_compiled_source_hash, hashAppearanceRaw(row.appearance_raw));
+  });
+
+  it("MUST FIX live after: predecessor mapping + compact appearance sync in place without rewriting v4", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-live-after@site-managed.invalid",
+    });
+    const source = loadCompiledOfficialCharacterSource(LUCIAN_DRAFT_KEY);
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", {
+      rich: true,
+      appearance: "full_lock",
+    });
+    const { predecessorDraftJson } = linkLiveShapedLucianSupply(characterId);
+    const sharedIds = seedStaleSharedLorebooks(characterId, studio.id);
+    seedStaleCompiledRuntime(characterId, '{"kind":"custom","label":"keep-status-widget"}');
+    assert.equal(sharedIds.length, 8);
+    assert.equal(source.sharedLorebook.length, 8);
+    assert.equal(source.characterLorebook.length, 4);
+    const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
+    const admin = { ...ADMIN, id: adminId };
+    const before = snapshotPreserved(characterId);
+    const characterCountBefore = (getDb().prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n;
+    const lorebookCountBefore = (getDb().prepare("SELECT COUNT(*) AS n FROM keyword_lorebooks").get() as { n: number }).n;
+
+    const preview = await syncOfficialCharacterInPlace({
+      admin,
+      characterId,
+      draftKey: LUCIAN_DRAFT_KEY,
+      mode: "dry_run",
+    });
+    assert.equal(preview.applied, false);
+    assert.equal(preview.characterId, characterId);
+    assert.ok(preview.changedFields.includes("appearance"));
+    assert.equal(snapshotPreserved(characterId).appearanceRaw, before.appearanceRaw);
+    assert.equal(
+      (
+        getDb()
+          .prepare("SELECT draft_json FROM official_supply_characters WHERE draft_key=?")
+          .get(LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY) as { draft_json: string }
+      ).draft_json,
+      predecessorDraftJson
+    );
+
+    await assert.rejects(
+      () =>
+        syncOfficialCharacterInPlace({
+          admin,
+          characterId,
+          draftKey: LUCIAN_DRAFT_KEY,
+          mode: "apply",
+          preflightSnapshot: preview.preflightSnapshot,
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "apply_disabled"
+    );
+
+    const applied = await withApplyEnabled(() =>
+      syncOfficialCharacterInPlace({
+        admin,
+        characterId,
+        draftKey: LUCIAN_DRAFT_KEY,
+        mode: "apply",
+        preflightSnapshot: preview.preflightSnapshot,
+      })
+    );
+    assert.equal(applied.applied, true);
+    assert.equal(applied.characterId, characterId);
+    assert.equal(applied.createdNewCharacter, false);
+    assert.equal(applied.after.lorebookCount, 12);
+
+    const after = snapshotPreserved(characterId);
+    assert.equal(after.id, characterId);
+    assert.equal(after.creatorId, studio.id);
+    assert.equal(after.official, 1);
+    assert.equal(after.visibility, "public");
+    assert.equal(after.assetsJson, before.assetsJson);
+    assert.equal(after.assetCount, 14);
+    assert.equal(after.likes, 42);
+    assert.equal(after.chatsCount, 17);
+    assert.equal(after.statusWidgetJson, before.statusWidgetJson);
+    assert.equal(after.appearanceRaw, source.appearanceBlock);
+    assert.equal(after.appearanceCompiled, "");
+    const runtime = loadRuntimeRow(characterId);
+    assert.equal(runtime.appearance_compiled_source_hash, "");
+    assert.equal(runtime.appearance_compiled_version, 0);
+    const loaded = chunkText(characterId, false);
+    const persisted = chunkText(characterId, true);
+    assert.equal(extractAppearanceRawFromSetting(loaded), source.appearanceBlock);
+    assert.equal(extractAppearanceRawFromSetting(persisted), source.appearanceBlock);
+    assert.match(loaded, /키\/체형:/);
+    assert.match(loaded, /184cm/);
+    assert.doesNotMatch(loaded, /손목을 잡고/);
+    assert.doesNotMatch(loaded, /얼굴:|연령대 인상:|기본 의상:/);
+
+    const supplies = supplyRows(characterId);
+    const predecessor = supplies.find((row) => row.draft_key === LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY);
+    const approved = supplies.find((row) => row.draft_key === LUCIAN_DRAFT_KEY);
+    assert.equal(predecessor?.draft_json, predecessorDraftJson);
+    assert.equal(predecessor?.stage, "published");
+    assert.equal(predecessor?.staged_character_id, characterId);
+    assert.equal(approved?.staged_character_id, characterId);
+    assert.equal(approved?.stage, "asset_plan_locked");
+    assert.match(approved?.draft_json ?? "", /비밀 장부를 든 브로커/);
+    assert.doesNotMatch(approved?.draft_json ?? "", /published-predecessor/);
+
+    const attachedKeys = getDb()
+      .prepare(
+        `SELECT w.entry_key AS entry_key
+         FROM character_lorebook_attachments a
+         JOIN official_supply_world_lorebooks w ON w.lorebook_id=a.lorebook_id
+         WHERE a.character_id=?
+         ORDER BY a.position ASC`
+      )
+      .all(characterId) as Array<{ entry_key: string }>;
+    const sharedKeys = new Set(source.sharedLorebook.map((entry) => entry.entryKey));
+    const localKeys = new Set(source.characterLorebook.map((entry) => entry.entryKey));
+    assert.equal(attachedKeys.filter((row) => sharedKeys.has(row.entry_key)).length, 8);
+    assert.equal(attachedKeys.filter((row) => localKeys.has(row.entry_key)).length, 4);
+    assert.equal(
+      (getDb().prepare("SELECT COUNT(*) AS n FROM keyword_lorebooks").get() as { n: number }).n,
+      lorebookCountBefore + 4
+    );
+
+    const againPreview = await syncOfficialCharacterInPlace({
+      admin,
+      characterId,
+      draftKey: LUCIAN_DRAFT_KEY,
+      mode: "dry_run",
+    });
+    await withApplyEnabled(() =>
+      syncOfficialCharacterInPlace({
+        admin,
+        characterId,
+        draftKey: LUCIAN_DRAFT_KEY,
+        mode: "apply",
+        preflightSnapshot: againPreview.preflightSnapshot,
+      })
+    );
+    assert.equal(
+      (getDb().prepare("SELECT COUNT(*) AS n FROM characters").get() as { n: number }).n,
+      characterCountBefore
+    );
+    assert.equal(listCharacterCreatorLorebookAttachmentIds(getDb(), characterId).length, 12);
+    assert.equal(
+      (getDb().prepare("SELECT COUNT(*) AS n FROM keyword_lorebooks").get() as { n: number }).n,
+      lorebookCountBefore + 4
+    );
+    assert.equal(
+      (
+        getDb()
+          .prepare("SELECT draft_json FROM official_supply_characters WHERE draft_key=?")
+          .get(LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY) as { draft_json: string }
+      ).draft_json,
+      predecessorDraftJson
+    );
+  });
+
+  it("MUST FIX live identity mismatch: contradictory appearance changes nothing", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-live-conflict@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", {
+      rich: true,
+      appearance: "identity_conflict",
+    });
+    const { predecessorDraftJson } = linkLiveShapedLucianSupply(characterId);
+    seedStaleSharedLorebooks(characterId, studio.id);
+    const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
+    const before = snapshotPreserved(characterId);
+    await assert.rejects(
+      () =>
+        syncOfficialCharacterInPlace({
+          admin: { ...ADMIN, id: adminId },
+          characterId,
+          draftKey: LUCIAN_DRAFT_KEY,
+          mode: "dry_run",
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "appearance_conflict"
+    );
+    const after = snapshotPreserved(characterId);
+    assert.equal(after.tagline, before.tagline);
+    assert.equal(after.appearanceRaw, before.appearanceRaw);
+    assert.equal(after.assetsJson, before.assetsJson);
+    assert.equal(after.likes, 42);
+    assert.equal(
+      (
+        getDb()
+          .prepare("SELECT draft_json, staged_character_id FROM official_supply_characters WHERE draft_key=?")
+          .get(LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY) as { draft_json: string; staged_character_id: number }
+      ).draft_json,
+      predecessorDraftJson
+    );
+    assert.equal(
+      (
+        getDb()
+          .prepare("SELECT staged_character_id FROM official_supply_characters WHERE draft_key=?")
+          .get(LUCIAN_DRAFT_KEY) as { staged_character_id: number | null }
+      ).staged_character_id,
+      null
+    );
+    assert.equal(listCharacterCreatorLorebookAttachmentIds(getDb(), characterId).length, 8);
+  });
+
+  it("MUST FIX live mapping: predecessor alone without approved source cannot sync", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-live-v4-only@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", { appearance: "empty" });
+    const source = loadCompiledOfficialCharacterSource(LUCIAN_DRAFT_KEY);
+    getDb()
+      .prepare(
+        `INSERT INTO official_supply_characters
+          (draft_key, batch_key, world_key, style_key, stage, draft_json, staged_character_id)
+         VALUES (?, 'legacy-v4-batch', ?, 'legacy-style', 'published', '{}', ?)`
+      )
+      .run(LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY, source.worldKey, characterId);
+    const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
+    await assert.rejects(
+      () =>
+        syncOfficialCharacterInPlace({
+          admin: { ...ADMIN, id: adminId },
+          characterId,
+          draftKey: LUCIAN_DRAFT_KEY,
+          mode: "dry_run",
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "supply_mapping_required"
+    );
+  });
+
+  it("MUST FIX live mapping: name-only or foreign draft links stay rejected", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-live-name@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", { appearance: "empty" });
+    const otherId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", { appearance: "empty" });
+    getDb().prepare("UPDATE characters SET name=? WHERE id=?").run("다른 공식캐", otherId);
+    const source = loadCompiledOfficialCharacterSource(LUCIAN_DRAFT_KEY);
+    getDb()
+      .prepare(
+        `INSERT INTO official_supply_characters
+          (draft_key, batch_key, world_key, style_key, stage, draft_json, staged_character_id)
+         VALUES ('pilot-rf-01', 'foreign-batch', ?, 'test-style', 'published', '{}', ?)`
+      )
+      .run(source.worldKey, characterId);
+    getDb()
+      .prepare(
+        `INSERT INTO official_supply_characters
+          (draft_key, batch_key, world_key, style_key, stage, draft_json, staged_character_id)
+         VALUES (?, 'approved-batch', ?, 'approved-style', 'asset_plan_locked', '{}', NULL)`
+      )
+      .run(LUCIAN_DRAFT_KEY, source.worldKey);
+    const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
+    await assert.rejects(
+      () =>
+        syncOfficialCharacterInPlace({
+          admin: { ...ADMIN, id: adminId },
+          characterId,
+          draftKey: LUCIAN_DRAFT_KEY,
+          mode: "dry_run",
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "supply_draft_mismatch"
+    );
+    await assert.rejects(
+      () =>
+        syncOfficialCharacterInPlace({
+          admin: { ...ADMIN, id: adminId },
+          characterId: otherId,
+          draftKey: LUCIAN_DRAFT_KEY,
+          mode: "dry_run",
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "character_identity_mismatch"
+    );
+  });
+
+  it("MUST FIX live tx: injected failure after lorebook write rolls back mapping and appearance", async () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "로맨스 공식 스튜디오",
+      email: "romance-live-tx@site-managed.invalid",
+    });
+    const characterId = insertOfficialLucian(studio.id, "로맨스 공식 스튜디오", {
+      rich: true,
+      appearance: "full_lock",
+    });
+    const { predecessorDraftJson } = linkLiveShapedLucianSupply(characterId);
+    seedStaleSharedLorebooks(characterId, studio.id);
+    const adminId = insertUser({ email: ADMIN.email!, nickname: ADMIN.nickname, isAdmin: 1 });
+    const admin = { ...ADMIN, id: adminId };
+    const before = snapshotPreserved(characterId);
+    const preview = await syncOfficialCharacterInPlace({
+      admin,
+      characterId,
+      draftKey: LUCIAN_DRAFT_KEY,
+      mode: "dry_run",
+    });
+    await assert.rejects(
+      () =>
+        withApplyEnabled(() =>
+          syncOfficialCharacterInPlace({
+            admin,
+            characterId,
+            draftKey: LUCIAN_DRAFT_KEY,
+            mode: "apply",
+            preflightSnapshot: preview.preflightSnapshot,
+            testInjectFailure: "after_lorebook_write",
+          })
+        ),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "test_injected_failure"
+    );
+    const after = snapshotPreserved(characterId);
+    assert.equal(after.tagline, before.tagline);
+    assert.equal(after.appearanceRaw, before.appearanceRaw);
+    assert.equal(after.appearanceCompiled, before.appearanceCompiled);
+    assert.equal(after.assetsJson, before.assetsJson);
+    assert.equal(listCharacterCreatorLorebookAttachmentIds(getDb(), characterId).length, 8);
+    assert.equal(
+      (
+        getDb()
+          .prepare("SELECT draft_json, staged_character_id FROM official_supply_characters WHERE draft_key=?")
+          .get(LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY) as { draft_json: string; staged_character_id: number }
+      ).draft_json,
+      predecessorDraftJson
+    );
+    assert.equal(
+      (
+        getDb()
+          .prepare("SELECT staged_character_id, draft_json FROM official_supply_characters WHERE draft_key=?")
+          .get(LUCIAN_DRAFT_KEY) as { staged_character_id: number | null; draft_json: string }
+      ).staged_character_id,
+      null
+    );
   });
 });
 
