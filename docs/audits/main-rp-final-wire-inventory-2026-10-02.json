@@ -1,0 +1,4994 @@
+{
+  "baselineCommit": "386b23dc6d5a4b4aba28e06a9e57ba2ea882b0fa",
+  "localEstimate": "ceil(chars * 0.9)",
+  "providerCountedTokens": null,
+  "selectableModels": [
+    {
+      "id": "deepseek-v4.1-flash",
+      "label": "DeepSeek V4.1 Flash",
+      "provider": "cheaperinference"
+    },
+    {
+      "id": "gemini-3.1-pro-preview",
+      "label": "Gemini 3.1 Pro Preview",
+      "provider": "openrouter"
+    },
+    {
+      "id": "gemini-3.7-flash",
+      "label": "Gemini 3.7 Flash",
+      "provider": "openrouter"
+    },
+    {
+      "id": "gemini-3.8-flash",
+      "label": "Gemini 3.8 Flash",
+      "provider": "openrouter"
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "label": "GPT-5.6 Terra",
+      "provider": "cheaperinference"
+    },
+    {
+      "id": "claude-opus-5.5",
+      "label": "Claude Opus 5.5",
+      "provider": "cheaperinference"
+    }
+  ],
+  "cases": [
+    {
+      "id": "ds-interactive-normal-rich",
+      "selectedModelId": "deepseek-v4.1-flash",
+      "wireModelId": "deepseek-v4.1-flash",
+      "transport": "cheaperinference",
+      "turnKind": "interactive",
+      "authoringLevel": "NORMAL",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 951,
+          "localEstimateTokens": 856,
+          "sha256": "386ee5ac06fee97e61578d29febae34f9e011c753cf9b6946ce3e24b6cdda670"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 611,
+          "localEstimateTokens": 550,
+          "sha256": "d9f7bb424439583291b29aa7a499f05328a8403ae85c8ccaf5d4d0e9ad9c83f2"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 176,
+          "localEstimateTokens": 159,
+          "sha256": "73a2041203dba28519059e1061b7eaaff373a0fde85464ba4eb9f1e82d640cde"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 685,
+          "localEstimateTokens": 617,
+          "sha256": "7e3aeaa880a34ca45cf671b7dd59a93e923772b4d5912ecc12659b2a6ee9e230"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 3535,
+        "cacheCharacter": 1702,
+        "dynamic": 1746,
+        "userTurn": 617,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 7697
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 7761,
+            "cached": false,
+            "sha256": "ca412fccdcc8a7115021b6e7c46e983ccad2d1c374b28c0bbe26050ea1c98f4a"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "messages",
+          "model",
+          "reasoning_effort",
+          "stream",
+          "stream_options",
+          "temperature",
+          "thinking",
+          "top_p"
+        ],
+        "model": "deepseek-v4.1-flash",
+        "reasoningEffort": "none",
+        "providerOnly": null,
+        "serviceTier": null,
+        "sessionIdPresent": false,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 1,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "ds-interactive-limited-rich",
+      "selectedModelId": "deepseek-v4.1-flash",
+      "wireModelId": "deepseek-v4.1-flash",
+      "transport": "cheaperinference",
+      "turnKind": "interactive",
+      "authoringLevel": "LIMITED",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 819,
+          "localEstimateTokens": 738,
+          "sha256": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 951,
+          "localEstimateTokens": 856,
+          "sha256": "386ee5ac06fee97e61578d29febae34f9e011c753cf9b6946ce3e24b6cdda670"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 1096,
+          "localEstimateTokens": 987,
+          "sha256": "c5c7b9974f8a9e0731a02477eab05be24e8328650f46718418aa3e52378bf336"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 176,
+          "localEstimateTokens": 159,
+          "sha256": "73a2041203dba28519059e1061b7eaaff373a0fde85464ba4eb9f1e82d640cde"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 458,
+          "localEstimateTokens": 413,
+          "sha256": "d82781ceb1e0b5b2a20c95b7974ab36bc74bd78de1a7e6cb1305291e961e8409"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 1337,
+          "localEstimateTokens": 1204,
+          "sha256": "6ae3f100fbedfd81d9f56b793b51b41ca6cde6d7adddf0b116d30017911a3b88"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 3857,
+        "cacheCharacter": 1702,
+        "dynamic": 1746,
+        "userTurn": 1204,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 8607
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 4285,
+            "cached": true,
+            "sha256": "628e4ed8f6a0a004b1d713a456c26841a65620fceb915ab1bc6166d2ce842b52"
+          },
+          {
+            "chars": 1893,
+            "cached": true,
+            "sha256": "828b7691a83279d6a9496edabd6e5e543b1477e3a4314c3143c1234aabfe500d"
+          },
+          {
+            "chars": 1939,
+            "cached": false,
+            "sha256": "75956784b3a4c5195fa5ffcb36780def0905d70b34667ce8667995c3373d505a"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": true,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "messages",
+          "model",
+          "reasoning_effort",
+          "stream",
+          "stream_options",
+          "temperature",
+          "thinking",
+          "top_p"
+        ],
+        "model": "deepseek-v4.1-flash",
+        "reasoningEffort": "none",
+        "providerOnly": null,
+        "serviceTier": null,
+        "sessionIdPresent": false,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 1,
+        "userAuthoringTitle": 0,
+        "deepseekWorldLoreXml": 1,
+        "coauthorPersistentLine": 0,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "ds-interactive-allow-rich",
+      "selectedModelId": "deepseek-v4.1-flash",
+      "wireModelId": "deepseek-v4.1-flash",
+      "transport": "cheaperinference",
+      "turnKind": "interactive",
+      "authoringLevel": "ALLOW",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 951,
+          "localEstimateTokens": 856,
+          "sha256": "386ee5ac06fee97e61578d29febae34f9e011c753cf9b6946ce3e24b6cdda670"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 829,
+          "localEstimateTokens": 747,
+          "sha256": "74e2f69a44914267581dc6c2424f803aa3f408fa9a75060596e6234ad756e56c"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 176,
+          "localEstimateTokens": 159,
+          "sha256": "73a2041203dba28519059e1061b7eaaff373a0fde85464ba4eb9f1e82d640cde"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 685,
+          "localEstimateTokens": 617,
+          "sha256": "7e3aeaa880a34ca45cf671b7dd59a93e923772b4d5912ecc12659b2a6ee9e230"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 3731,
+        "cacheCharacter": 1702,
+        "dynamic": 1746,
+        "userTurn": 617,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 7894
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 4145,
+            "cached": true,
+            "sha256": "158d81d5a043a318f8d72596ec5859b2cd31ebac2ae1b273442e4c562d6540da"
+          },
+          {
+            "chars": 1893,
+            "cached": true,
+            "sha256": "828b7691a83279d6a9496edabd6e5e543b1477e3a4314c3143c1234aabfe500d"
+          },
+          {
+            "chars": 1939,
+            "cached": false,
+            "sha256": "75956784b3a4c5195fa5ffcb36780def0905d70b34667ce8667995c3373d505a"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": true,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "messages",
+          "model",
+          "reasoning_effort",
+          "stream",
+          "stream_options",
+          "temperature",
+          "thinking",
+          "top_p"
+        ],
+        "model": "deepseek-v4.1-flash",
+        "reasoningEffort": "none",
+        "providerOnly": null,
+        "serviceTier": null,
+        "sessionIdPresent": false,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 1,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "ds-auto-normal",
+      "selectedModelId": "deepseek-v4.1-flash",
+      "wireModelId": "deepseek-v4.1-flash",
+      "transport": "cheaperinference",
+      "turnKind": "auto",
+      "authoringLevel": "NORMAL",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "openrouter-co-narration-rule",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "rule-user-input-parsing",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "scene-directive",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 972,
+          "localEstimateTokens": 875,
+          "sha256": "09b4fb50bd47bc9c61a4179f1a402dd513786f481cd7839c555c18fc51aaad67"
+        },
+        {
+          "id": "openrouter-co-narration-rule",
+          "label": "[TOP] Co-narration rule",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 117,
+          "localEstimateTokens": 106,
+          "sha256": "3ec325d9ee5440f29de5e9366f8f8805420eeb654dde8ad9d90d08c87baf9cf9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 951,
+          "localEstimateTokens": 856,
+          "sha256": "386ee5ac06fee97e61578d29febae34f9e011c753cf9b6946ce3e24b6cdda670"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 886,
+          "localEstimateTokens": 798,
+          "sha256": "9c8e8e521e131f730aa33b6f55e46e9167ef26ed8be3b3088502647aac985464"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 176,
+          "localEstimateTokens": 159,
+          "sha256": "73a2041203dba28519059e1061b7eaaff373a0fde85464ba4eb9f1e82d640cde"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 334,
+          "localEstimateTokens": 301,
+          "sha256": "fa766ba14eda4e41f16af38ab358f3e81b74ca7c7de744224f81bc03889afb9b"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "rule-user-input-parsing",
+          "label": "User input parsing (interpret [B] only — not output format)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 209,
+          "localEstimateTokens": 189,
+          "sha256": "e77c85373ec079935bfdbc071f2357df2da7b6c219fdfc2dae0c5649eaa8f0f1"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "scene-directive",
+          "label": "[3d] Private scene directive",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 591,
+          "localEstimateTokens": 532,
+          "sha256": "c08f74d38659bfe4a92e9910235d5bf591024a0d0c40b224c3807eb723f4bc45"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 911,
+          "localEstimateTokens": 820,
+          "sha256": "52903259b8aa5d72dd3c542514f950e5c39c93db958ea2ec97672fd38e7649a4"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 3694,
+        "cacheCharacter": 1702,
+        "dynamic": 2576,
+        "userTurn": 820,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 8890
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 4104,
+            "cached": true,
+            "sha256": "d26a8934e89d001b7971bade422335c9be34bd0275dfeb731bec761720dc0a2c"
+          },
+          {
+            "chars": 1891,
+            "cached": true,
+            "sha256": "9d928ffafa79f6ad474d13db10c4e0288462ea273552358abbc959ea9a86f4c5"
+          },
+          {
+            "chars": 2862,
+            "cached": false,
+            "sha256": "bf2b5b337b89412c652eb428764d4bc30f2b10d34b4c9e4c73872c1d252b4e06"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": true,
+        "sceneDirectiveSection": true,
+        "requestBodyKeys": [
+          "messages",
+          "model",
+          "reasoning_effort",
+          "stream",
+          "stream_options",
+          "temperature",
+          "thinking",
+          "top_p"
+        ],
+        "model": "deepseek-v4.1-flash",
+        "reasoningEffort": "none",
+        "providerOnly": null,
+        "serviceTier": null,
+        "sessionIdPresent": false,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 717,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 1,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 1,
+        "deepseekWorldLoreXml": 1,
+        "coauthorPersistentLine": 0,
+        "jsxManifest": 0,
+        "scenePacing": 0,
+        "sceneFlow": 1,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "ds-regen-normal",
+      "selectedModelId": "deepseek-v4.1-flash",
+      "wireModelId": "deepseek-v4.1-flash",
+      "transport": "cheaperinference",
+      "turnKind": "regen",
+      "authoringLevel": "NORMAL",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "rule-user-input-parsing",
+        "regenerate-divergence",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 951,
+          "localEstimateTokens": 856,
+          "sha256": "386ee5ac06fee97e61578d29febae34f9e011c753cf9b6946ce3e24b6cdda670"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 611,
+          "localEstimateTokens": 550,
+          "sha256": "d9f7bb424439583291b29aa7a499f05328a8403ae85c8ccaf5d4d0e9ad9c83f2"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 176,
+          "localEstimateTokens": 159,
+          "sha256": "73a2041203dba28519059e1061b7eaaff373a0fde85464ba4eb9f1e82d640cde"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "rule-user-input-parsing",
+          "label": "User input parsing (interpret [B] only — not output format)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 209,
+          "localEstimateTokens": 189,
+          "sha256": "e77c85373ec079935bfdbc071f2357df2da7b6c219fdfc2dae0c5649eaa8f0f1"
+        },
+        {
+          "id": "regenerate-divergence",
+          "label": "[1.46] Regenerate divergence (mandatory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 707,
+          "localEstimateTokens": 637,
+          "sha256": "b95d12c7ea6dc75e2cb15c2e8fbdc666f2a710b66b1189c0a713d866a56d4c83"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 1566,
+          "localEstimateTokens": 1410,
+          "sha256": "daf728e7c3989f335cbfe41aae66e8f87fefbd4ebbc145772c895bb9b9368be7"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 3535,
+        "cacheCharacter": 1702,
+        "dynamic": 2574,
+        "userTurn": 1410,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 9318
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 8681,
+            "cached": false,
+            "sha256": "311b58849a342accf443706b63b046b46cc1d78b83f90959370dddefdc99322b"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "messages",
+          "model",
+          "reasoning_effort",
+          "stream",
+          "stream_options",
+          "temperature",
+          "thinking",
+          "top_p"
+        ],
+        "model": "deepseek-v4.1-flash",
+        "reasoningEffort": "none",
+        "providerOnly": null,
+        "serviceTier": null,
+        "sessionIdPresent": false,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 1,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "ds-adult-normal",
+      "selectedModelId": "deepseek-v4.1-flash",
+      "wireModelId": "deepseek-v4.1-flash",
+      "transport": "cheaperinference",
+      "turnKind": "interactive",
+      "authoringLevel": "NORMAL",
+      "adult": true,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 951,
+          "localEstimateTokens": 856,
+          "sha256": "386ee5ac06fee97e61578d29febae34f9e011c753cf9b6946ce3e24b6cdda670"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 611,
+          "localEstimateTokens": 550,
+          "sha256": "d9f7bb424439583291b29aa7a499f05328a8403ae85c8ccaf5d4d0e9ad9c83f2"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 176,
+          "localEstimateTokens": 159,
+          "sha256": "73a2041203dba28519059e1061b7eaaff373a0fde85464ba4eb9f1e82d640cde"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1294,
+          "localEstimateTokens": 1165,
+          "sha256": "ce01e06bb5440dc35b6a963df86ebd28b13918def7202b3aae444fcbe68dc4a5"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 685,
+          "localEstimateTokens": 617,
+          "sha256": "7e3aeaa880a34ca45cf671b7dd59a93e923772b4d5912ecc12659b2a6ee9e230"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 3535,
+        "cacheCharacter": 1698,
+        "dynamic": 1746,
+        "userTurn": 617,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 7693
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 7756,
+            "cached": false,
+            "sha256": "2c3cd7334845ae60211b442e621c69b23fd024623f8a5930ffb55dfc22f01f86"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "messages",
+          "model",
+          "reasoning_effort",
+          "stream",
+          "stream_options",
+          "temperature",
+          "thinking",
+          "top_p"
+        ],
+        "model": "deepseek-v4.1-flash",
+        "reasoningEffort": "none",
+        "providerOnly": null,
+        "serviceTier": null,
+        "sessionIdPresent": false,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 1,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "ds-empty-memory",
+      "selectedModelId": "deepseek-v4.1-flash",
+      "wireModelId": "deepseek-v4.1-flash",
+      "transport": "cheaperinference",
+      "turnKind": "interactive",
+      "authoringLevel": "LIMITED",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 819,
+          "localEstimateTokens": 738,
+          "sha256": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 951,
+          "localEstimateTokens": 856,
+          "sha256": "386ee5ac06fee97e61578d29febae34f9e011c753cf9b6946ce3e24b6cdda670"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 1096,
+          "localEstimateTokens": 987,
+          "sha256": "c5c7b9974f8a9e0731a02477eab05be24e8328650f46718418aa3e52378bf336"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 176,
+          "localEstimateTokens": 159,
+          "sha256": "73a2041203dba28519059e1061b7eaaff373a0fde85464ba4eb9f1e82d640cde"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 458,
+          "localEstimateTokens": 413,
+          "sha256": "d82781ceb1e0b5b2a20c95b7974ab36bc74bd78de1a7e6cb1305291e961e8409"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 1234,
+          "localEstimateTokens": 1111,
+          "sha256": "a18f728092ed6714a2eab1ced078d39d07faceb9e1ed4c8a37fc4c50a5b4afbf"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 3857,
+        "cacheCharacter": 1702,
+        "dynamic": 1388,
+        "userTurn": 1111,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 8156
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 4285,
+            "cached": true,
+            "sha256": "628e4ed8f6a0a004b1d713a456c26841a65620fceb915ab1bc6166d2ce842b52"
+          },
+          {
+            "chars": 1893,
+            "cached": true,
+            "sha256": "828b7691a83279d6a9496edabd6e5e543b1477e3a4314c3143c1234aabfe500d"
+          },
+          {
+            "chars": 1542,
+            "cached": false,
+            "sha256": "6d6ade69d90e0b04717e5f64730f5b37979887c0b2e1393c88a394fb6a6d097e"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": true,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "messages",
+          "model",
+          "reasoning_effort",
+          "stream",
+          "stream_options",
+          "temperature",
+          "thinking",
+          "top_p"
+        ],
+        "model": "deepseek-v4.1-flash",
+        "reasoningEffort": "none",
+        "providerOnly": null,
+        "serviceTier": null,
+        "sessionIdPresent": false,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 1,
+        "userAuthoringTitle": 0,
+        "deepseekWorldLoreXml": 1,
+        "coauthorPersistentLine": 0,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 0,
+        "globalLoreOnUserTurn": 0
+      }
+    },
+    {
+      "id": "g31-interactive-normal-rich",
+      "selectedModelId": "gemini-3.1-pro-preview",
+      "wireModelId": "google/gemini-3.1-pro-preview",
+      "transport": "openrouter",
+      "turnKind": "interactive",
+      "authoringLevel": "NORMAL",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 887,
+          "localEstimateTokens": 799,
+          "sha256": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 611,
+          "localEstimateTokens": 550,
+          "sha256": "d9f7bb424439583291b29aa7a499f05328a8403ae85c8ccaf5d4d0e9ad9c83f2"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 120,
+          "localEstimateTokens": 108,
+          "sha256": "e9880a6de8ea428e67bed673d64144f4ab78e4661bda40c36fc84dec976eacb9"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 685,
+          "localEstimateTokens": 617,
+          "sha256": "7e3aeaa880a34ca45cf671b7dd59a93e923772b4d5912ecc12659b2a6ee9e230"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 2787,
+        "cacheCharacter": 1518,
+        "dynamic": 2421,
+        "userTurn": 617,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 7441
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 7476,
+            "cached": false,
+            "sha256": "6b5495a133574c36b6bce7ae02e0901584660ab95343ec632fafac9e2678dbf6"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "include_reasoning",
+          "messages",
+          "model",
+          "provider",
+          "reasoning",
+          "service_tier",
+          "session_id",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "model": "google/gemini-3.1-pro-preview",
+        "reasoningEffort": null,
+        "providerOnly": "google-ai-studio",
+        "serviceTier": "flex",
+        "sessionIdPresent": true,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 0,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "g31-interactive-limited-rich",
+      "selectedModelId": "gemini-3.1-pro-preview",
+      "wireModelId": "google/gemini-3.1-pro-preview",
+      "transport": "openrouter",
+      "turnKind": "interactive",
+      "authoringLevel": "LIMITED",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 819,
+          "localEstimateTokens": 738,
+          "sha256": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 887,
+          "localEstimateTokens": 799,
+          "sha256": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 1403,
+          "localEstimateTokens": 1263,
+          "sha256": "b79b4fd1b3a455592d8bbf66ba35aebc518ccede74688ad020aefaa0096895be"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 120,
+          "localEstimateTokens": 108,
+          "sha256": "e9880a6de8ea428e67bed673d64144f4ab78e4661bda40c36fc84dec976eacb9"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 458,
+          "localEstimateTokens": 413,
+          "sha256": "d82781ceb1e0b5b2a20c95b7974ab36bc74bd78de1a7e6cb1305291e961e8409"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 1337,
+          "localEstimateTokens": 1204,
+          "sha256": "6ae3f100fbedfd81d9f56b793b51b41ca6cde6d7adddf0b116d30017911a3b88"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 3385,
+        "cacheCharacter": 1518,
+        "dynamic": 2421,
+        "userTurn": 1204,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 8626
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 3761,
+            "cached": true,
+            "sha256": "09436fb8740f212585dd266dac9ca35602367c8e246c98cddec6113d8fce0ba0"
+          },
+          {
+            "chars": 1688,
+            "cached": true,
+            "sha256": "98c348b563243d94bb194677e1781402473fcab208aa1cfa8116503ccbe86b44"
+          },
+          {
+            "chars": 2690,
+            "cached": false,
+            "sha256": "138d76115f2a90e510d9fcde85ff8fe99b2caf1b7b30a71bc47ebd7ea00c8ca3"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": true,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "include_reasoning",
+          "messages",
+          "model",
+          "provider",
+          "reasoning",
+          "service_tier",
+          "session_id",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "model": "google/gemini-3.1-pro-preview",
+        "reasoningEffort": null,
+        "providerOnly": "google-ai-studio",
+        "serviceTier": "flex",
+        "sessionIdPresent": true,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 1,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 1,
+        "userAuthoringTitle": 0,
+        "deepseekWorldLoreXml": 0,
+        "coauthorPersistentLine": 0,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "g31-adult-normal",
+      "selectedModelId": "gemini-3.1-pro-preview",
+      "wireModelId": "google/gemini-3.1-pro-preview",
+      "transport": "openrouter",
+      "turnKind": "interactive",
+      "authoringLevel": "NORMAL",
+      "adult": true,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 887,
+          "localEstimateTokens": 799,
+          "sha256": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 611,
+          "localEstimateTokens": 550,
+          "sha256": "d9f7bb424439583291b29aa7a499f05328a8403ae85c8ccaf5d4d0e9ad9c83f2"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 120,
+          "localEstimateTokens": 108,
+          "sha256": "e9880a6de8ea428e67bed673d64144f4ab78e4661bda40c36fc84dec976eacb9"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1294,
+          "localEstimateTokens": 1165,
+          "sha256": "ce01e06bb5440dc35b6a963df86ebd28b13918def7202b3aae444fcbe68dc4a5"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 685,
+          "localEstimateTokens": 617,
+          "sha256": "7e3aeaa880a34ca45cf671b7dd59a93e923772b4d5912ecc12659b2a6ee9e230"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 2787,
+        "cacheCharacter": 1513,
+        "dynamic": 2421,
+        "userTurn": 617,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 7436
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 7471,
+            "cached": false,
+            "sha256": "88258a12871e8123553b29c99d7ff9f86aad97bd01e64aaf8fc5a8c192eb43a5"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "include_reasoning",
+          "messages",
+          "model",
+          "provider",
+          "reasoning",
+          "service_tier",
+          "session_id",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "model": "google/gemini-3.1-pro-preview",
+        "reasoningEffort": null,
+        "providerOnly": "google-ai-studio",
+        "serviceTier": "flex",
+        "sessionIdPresent": true,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 0,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "g31-status-widget",
+      "selectedModelId": "gemini-3.1-pro-preview",
+      "wireModelId": "google/gemini-3.1-pro-preview",
+      "transport": "openrouter",
+      "turnKind": "interactive",
+      "authoringLevel": "NORMAL",
+      "adult": false,
+      "statusWidget": true,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 887,
+          "localEstimateTokens": 799,
+          "sha256": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 611,
+          "localEstimateTokens": 550,
+          "sha256": "d9f7bb424439583291b29aa7a499f05328a8403ae85c8ccaf5d4d0e9ad9c83f2"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 120,
+          "localEstimateTokens": 108,
+          "sha256": "e9880a6de8ea428e67bed673d64144f4ab78e4661bda40c36fc84dec976eacb9"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 685,
+          "localEstimateTokens": 617,
+          "sha256": "7e3aeaa880a34ca45cf671b7dd59a93e923772b4d5912ecc12659b2a6ee9e230"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 2787,
+        "cacheCharacter": 1518,
+        "dynamic": 2421,
+        "userTurn": 617,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 7441
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 7476,
+            "cached": false,
+            "sha256": "6b5495a133574c36b6bce7ae02e0901584660ab95343ec632fafac9e2678dbf6"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "include_reasoning",
+          "messages",
+          "model",
+          "provider",
+          "reasoning",
+          "service_tier",
+          "session_id",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "model": "google/gemini-3.1-pro-preview",
+        "reasoningEffort": null,
+        "providerOnly": "google-ai-studio",
+        "serviceTier": "flex",
+        "sessionIdPresent": true,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 0,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "g31-ooc-html",
+      "selectedModelId": "gemini-3.1-pro-preview",
+      "wireModelId": "google/gemini-3.1-pro-preview",
+      "transport": "openrouter",
+      "turnKind": "interactive",
+      "authoringLevel": "NORMAL",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": true,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 887,
+          "localEstimateTokens": 799,
+          "sha256": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 611,
+          "localEstimateTokens": 550,
+          "sha256": "d9f7bb424439583291b29aa7a499f05328a8403ae85c8ccaf5d4d0e9ad9c83f2"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 120,
+          "localEstimateTokens": 108,
+          "sha256": "e9880a6de8ea428e67bed673d64144f4ab78e4661bda40c36fc84dec976eacb9"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 685,
+          "localEstimateTokens": 617,
+          "sha256": "7e3aeaa880a34ca45cf671b7dd59a93e923772b4d5912ecc12659b2a6ee9e230"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 2787,
+        "cacheCharacter": 1518,
+        "dynamic": 2421,
+        "userTurn": 617,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 7441
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 7476,
+            "cached": false,
+            "sha256": "6b5495a133574c36b6bce7ae02e0901584660ab95343ec632fafac9e2678dbf6"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "include_reasoning",
+          "messages",
+          "model",
+          "provider",
+          "reasoning",
+          "service_tier",
+          "session_id",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "model": "google/gemini-3.1-pro-preview",
+        "reasoningEffort": null,
+        "providerOnly": "google-ai-studio",
+        "serviceTier": "flex",
+        "sessionIdPresent": true,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 0,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "g37-interactive-normal-rich",
+      "selectedModelId": "gemini-3.7-flash",
+      "wireModelId": "google/gemini-3.7-flash",
+      "transport": "openrouter",
+      "turnKind": "interactive",
+      "authoringLevel": "NORMAL",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 887,
+          "localEstimateTokens": 799,
+          "sha256": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 611,
+          "localEstimateTokens": 550,
+          "sha256": "d9f7bb424439583291b29aa7a499f05328a8403ae85c8ccaf5d4d0e9ad9c83f2"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 120,
+          "localEstimateTokens": 108,
+          "sha256": "e9880a6de8ea428e67bed673d64144f4ab78e4661bda40c36fc84dec976eacb9"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 685,
+          "localEstimateTokens": 617,
+          "sha256": "7e3aeaa880a34ca45cf671b7dd59a93e923772b4d5912ecc12659b2a6ee9e230"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 2787,
+        "cacheCharacter": 1518,
+        "dynamic": 2421,
+        "userTurn": 617,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 7441
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 7476,
+            "cached": false,
+            "sha256": "6b5495a133574c36b6bce7ae02e0901584660ab95343ec632fafac9e2678dbf6"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "include_reasoning",
+          "messages",
+          "model",
+          "provider",
+          "reasoning",
+          "service_tier",
+          "session_id",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "model": "google/gemini-3.7-flash",
+        "reasoningEffort": null,
+        "providerOnly": "google-ai-studio",
+        "serviceTier": "flex",
+        "sessionIdPresent": true,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 0,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "g38-interactive-normal-rich",
+      "selectedModelId": "gemini-3.8-flash",
+      "wireModelId": "google/gemini-3.8-flash",
+      "transport": "openrouter",
+      "turnKind": "interactive",
+      "authoringLevel": "NORMAL",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 887,
+          "localEstimateTokens": 799,
+          "sha256": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 611,
+          "localEstimateTokens": 550,
+          "sha256": "d9f7bb424439583291b29aa7a499f05328a8403ae85c8ccaf5d4d0e9ad9c83f2"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 120,
+          "localEstimateTokens": 108,
+          "sha256": "e9880a6de8ea428e67bed673d64144f4ab78e4661bda40c36fc84dec976eacb9"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 685,
+          "localEstimateTokens": 617,
+          "sha256": "7e3aeaa880a34ca45cf671b7dd59a93e923772b4d5912ecc12659b2a6ee9e230"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 2787,
+        "cacheCharacter": 1518,
+        "dynamic": 2421,
+        "userTurn": 617,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 7441
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 7476,
+            "cached": false,
+            "sha256": "6b5495a133574c36b6bce7ae02e0901584660ab95343ec632fafac9e2678dbf6"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "include_reasoning",
+          "messages",
+          "model",
+          "provider",
+          "reasoning",
+          "service_tier",
+          "session_id",
+          "stream",
+          "stream_options"
+        ],
+        "model": "google/gemini-3.8-flash",
+        "reasoningEffort": null,
+        "providerOnly": "google-ai-studio",
+        "serviceTier": "flex",
+        "sessionIdPresent": true,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": false
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 0,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "terra-interactive-normal-rich",
+      "selectedModelId": "gpt-5.6-terra",
+      "wireModelId": "gpt-5.6-terra",
+      "transport": "cheaperinference",
+      "turnKind": "interactive",
+      "authoringLevel": "NORMAL",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 887,
+          "localEstimateTokens": 799,
+          "sha256": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 611,
+          "localEstimateTokens": 550,
+          "sha256": "d9f7bb424439583291b29aa7a499f05328a8403ae85c8ccaf5d4d0e9ad9c83f2"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 120,
+          "localEstimateTokens": 108,
+          "sha256": "e9880a6de8ea428e67bed673d64144f4ab78e4661bda40c36fc84dec976eacb9"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 685,
+          "localEstimateTokens": 617,
+          "sha256": "7e3aeaa880a34ca45cf671b7dd59a93e923772b4d5912ecc12659b2a6ee9e230"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 2787,
+        "cacheCharacter": 1518,
+        "dynamic": 2421,
+        "userTurn": 617,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 7441
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 7476,
+            "cached": false,
+            "sha256": "6b5495a133574c36b6bce7ae02e0901584660ab95343ec632fafac9e2678dbf6"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "messages",
+          "model",
+          "reasoning",
+          "reasoning_effort",
+          "stream",
+          "stream_options",
+          "temperature"
+        ],
+        "model": "gpt-5.6-terra",
+        "reasoningEffort": "none",
+        "providerOnly": null,
+        "serviceTier": null,
+        "sessionIdPresent": false,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 0,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "opus-interactive-long-history",
+      "selectedModelId": "claude-opus-5.5",
+      "wireModelId": "claude-opus-5.5",
+      "transport": "cheaperinference",
+      "turnKind": "interactive",
+      "authoringLevel": "NORMAL",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 887,
+          "localEstimateTokens": 799,
+          "sha256": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 611,
+          "localEstimateTokens": 550,
+          "sha256": "d9f7bb424439583291b29aa7a499f05328a8403ae85c8ccaf5d4d0e9ad9c83f2"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 120,
+          "localEstimateTokens": 108,
+          "sha256": "e9880a6de8ea428e67bed673d64144f4ab78e4661bda40c36fc84dec976eacb9"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 685,
+          "localEstimateTokens": 617,
+          "sha256": "7e3aeaa880a34ca45cf671b7dd59a93e923772b4d5912ecc12659b2a6ee9e230"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 2787,
+        "cacheCharacter": 1518,
+        "dynamic": 2421,
+        "userTurn": 617,
+        "historyExcludingCurrent": 174,
+        "promptAuditTotal": 7518
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 7476,
+            "cached": true,
+            "sha256": "6b5495a133574c36b6bce7ae02e0901584660ab95343ec632fafac9e2678dbf6"
+          }
+        ],
+        "historyCacheBreakpoint": true,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "messages",
+          "model",
+          "output_config",
+          "reasoning_effort",
+          "stream",
+          "stream_options",
+          "temperature",
+          "thinking"
+        ],
+        "model": "claude-opus-5.5",
+        "reasoningEffort": "low",
+        "providerOnly": null,
+        "serviceTier": null,
+        "sessionIdPresent": false,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 0,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 0,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "opus-auto-normal",
+      "selectedModelId": "claude-opus-5.5",
+      "wireModelId": "claude-opus-5.5",
+      "transport": "cheaperinference",
+      "turnKind": "auto",
+      "authoringLevel": "NORMAL",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": false,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "openrouter-co-narration-rule",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "rule-user-input-parsing",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "scene-directive",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 972,
+          "localEstimateTokens": 875,
+          "sha256": "09b4fb50bd47bc9c61a4179f1a402dd513786f481cd7839c555c18fc51aaad67"
+        },
+        {
+          "id": "openrouter-co-narration-rule",
+          "label": "[TOP] Co-narration rule",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 117,
+          "localEstimateTokens": 106,
+          "sha256": "3ec325d9ee5440f29de5e9366f8f8805420eeb654dde8ad9d90d08c87baf9cf9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 887,
+          "localEstimateTokens": 799,
+          "sha256": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 886,
+          "localEstimateTokens": 798,
+          "sha256": "9c8e8e521e131f730aa33b6f55e46e9167ef26ed8be3b3088502647aac985464"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 120,
+          "localEstimateTokens": 108,
+          "sha256": "e9880a6de8ea428e67bed673d64144f4ab78e4661bda40c36fc84dec976eacb9"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 334,
+          "localEstimateTokens": 301,
+          "sha256": "fa766ba14eda4e41f16af38ab358f3e81b74ca7c7de744224f81bc03889afb9b"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "rule-user-input-parsing",
+          "label": "User input parsing (interpret [B] only — not output format)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 209,
+          "localEstimateTokens": 189,
+          "sha256": "e77c85373ec079935bfdbc071f2357df2da7b6c219fdfc2dae0c5649eaa8f0f1"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "scene-directive",
+          "label": "[3d] Private scene directive",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 591,
+          "localEstimateTokens": 532,
+          "sha256": "c08f74d38659bfe4a92e9910235d5bf591024a0d0c40b224c3807eb723f4bc45"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 911,
+          "localEstimateTokens": 820,
+          "sha256": "52903259b8aa5d72dd3c542514f950e5c39c93db958ea2ec97672fd38e7649a4"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 2946,
+        "cacheCharacter": 1518,
+        "dynamic": 3252,
+        "userTurn": 820,
+        "historyExcludingCurrent": 174,
+        "promptAuditTotal": 8711
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 3273,
+            "cached": true,
+            "sha256": "52b168cb5a02503ed5dd5a1bd568ff574c1bd9d0239515c841500d9268f9912c"
+          },
+          {
+            "chars": 1686,
+            "cached": true,
+            "sha256": "9c5d2487504a2240a5c5535a4943cffac5fbb0e0f7b2b5a5eb5f4e664cabd692"
+          },
+          {
+            "chars": 3613,
+            "cached": false,
+            "sha256": "b0d8712f2c8e5597f13c980ef91568bb8b14e5b4e7729a2c810a9541caf8eff3"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": true,
+        "sceneDirectiveSection": true,
+        "requestBodyKeys": [
+          "messages",
+          "model",
+          "output_config",
+          "reasoning_effort",
+          "stream",
+          "stream_options",
+          "temperature",
+          "thinking"
+        ],
+        "model": "claude-opus-5.5",
+        "reasoningEffort": "low",
+        "providerOnly": null,
+        "serviceTier": null,
+        "sessionIdPresent": false,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 717,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 1,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 1,
+        "deepseekWorldLoreXml": 0,
+        "coauthorPersistentLine": 0,
+        "jsxManifest": 0,
+        "scenePacing": 0,
+        "sceneFlow": 1,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    },
+    {
+      "id": "ds-jsx",
+      "selectedModelId": "deepseek-v4.1-flash",
+      "wireModelId": "deepseek-v4.1-flash",
+      "transport": "cheaperinference",
+      "turnKind": "interactive",
+      "authoringLevel": "NORMAL",
+      "adult": false,
+      "statusWidget": false,
+      "oocHtml": false,
+      "jsx": true,
+      "sectionIds": [
+        "openrouter-korean-prose-top",
+        "runtime-prompt-contamination-guard",
+        "no-godmodding",
+        "rule-historical-truth-canonical-memory",
+        "character-core-identity",
+        "identity-and-rules",
+        "prose-style-xml-bundle",
+        "creator-narration-style",
+        "archive-memory",
+        "medium-term-memory",
+        "current-memory",
+        "episodic-memory-retrieved-facts",
+        "relationship-meta",
+        "user-lorebook",
+        "jsx-component-manifest",
+        "rule-output-layout-recency",
+        "user-persona-reference-owner",
+        "current-user-turn"
+      ],
+      "sections": [
+        {
+          "id": "openrouter-korean-prose-top",
+          "label": "[TOP] OpenRouter Korean prose",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 848,
+          "localEstimateTokens": 764,
+          "sha256": "1e2b7422b59c328cd24134934d0ff6a671b9bc7a5ca7f3124f665517614f4fb9"
+        },
+        {
+          "id": "runtime-prompt-contamination-guard",
+          "label": "[TOP] Runtime prompt contamination guard",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 951,
+          "localEstimateTokens": 856,
+          "sha256": "386ee5ac06fee97e61578d29febae34f9e011c753cf9b6946ce3e24b6cdda670"
+        },
+        {
+          "id": "no-godmodding",
+          "label": "[0a] No godmodding (user agency)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 611,
+          "localEstimateTokens": 550,
+          "sha256": "d9f7bb424439583291b29aa7a499f05328a8403ae85c8ccaf5d4d0e9ad9c83f2"
+        },
+        {
+          "id": "rule-historical-truth-canonical-memory",
+          "label": "[0a1] Historical truth (canonical memory)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 953,
+          "localEstimateTokens": 858,
+          "sha256": "2747cc6b15ec407ba200754d2638817d40455a5508dcb58dac5014a2fc3c81f0"
+        },
+        {
+          "id": "character-core-identity",
+          "label": "[2] Structured character canon (every turn)",
+          "category": "characterSetting",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 176,
+          "localEstimateTokens": 159,
+          "sha256": "73a2041203dba28519059e1061b7eaaff373a0fde85464ba4eb9f1e82d640cde"
+        },
+        {
+          "id": "identity-and-rules",
+          "label": "[0] Identity & Rules (absolute)",
+          "category": "persona",
+          "role": "system",
+          "cacheBucket": "cacheRules",
+          "chars": 556,
+          "localEstimateTokens": 501,
+          "sha256": "a35237a59c412c3183cf964711fb03cc0d968ccd8705e0dae89dfce8fa587784"
+        },
+        {
+          "id": "prose-style-xml-bundle",
+          "label": "[1.4] Prose style policy (XML)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 1299,
+          "localEstimateTokens": 1170,
+          "sha256": "67991933fb5a2906d34e9e2e2fc400714a0d3fd657e38d8b69b5a2f6f354e12c"
+        },
+        {
+          "id": "creator-narration-style",
+          "label": "[1.45] Creator narration & style refinement",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "cacheCharacter",
+          "chars": 385,
+          "localEstimateTokens": 347,
+          "sha256": "b7853d6e33a6b00c28becc00bcebb43f198aeaf7ed9a9c19ea27a2b2dce42625"
+        },
+        {
+          "id": "archive-memory",
+          "label": "[0c] Archive memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 41,
+          "localEstimateTokens": 37,
+          "sha256": "56d7a00ee75204e1be5006a736bd119f38abd11ca6e2b1f61fd5cd0b57d4ac9a"
+        },
+        {
+          "id": "medium-term-memory",
+          "label": "[2z] Medium-term memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 29,
+          "localEstimateTokens": 27,
+          "sha256": "531b0e48c2ccad816680c45875421e3e7f3a3e35935600a4e567c0e0de5f1f0d"
+        },
+        {
+          "id": "current-memory",
+          "label": "[3] Current Memory",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 43,
+          "localEstimateTokens": 39,
+          "sha256": "68dd3debea5246aebb5f677d6a83f3682795191fde831536cc9c219349809d71"
+        },
+        {
+          "id": "episodic-memory-retrieved-facts",
+          "label": "[3a] Episodic memory retrieved facts",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 60,
+          "localEstimateTokens": 54,
+          "sha256": "db56f06a1cb1b58bd2027aee9adc652d531c05c8cf525a66c09fd8f703bca56a"
+        },
+        {
+          "id": "relationship-meta",
+          "label": "[3b] Relationship memo",
+          "category": "memory",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 28,
+          "localEstimateTokens": 26,
+          "sha256": "b5e312ff88770716fe3368814620e03837ad29a7f4319ad26984b68fee09648d"
+        },
+        {
+          "id": "user-lorebook",
+          "label": "[5] User Lorebook",
+          "category": "userNote",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 46,
+          "localEstimateTokens": 42,
+          "sha256": "eed5e0e1cba0cf559e5c09a9ae3e1c4a8f5c71986ab333383f8f96ec58a44b44"
+        },
+        {
+          "id": "jsx-component-manifest",
+          "label": "JSX component manifest (compact, no source)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 1325,
+          "localEstimateTokens": 1193,
+          "sha256": "bce64a0e07a6c1d2a93206bfe37d168287923260026f85436d16919d470d4950"
+        },
+        {
+          "id": "rule-output-layout-recency",
+          "label": "Output layout recency (Korean webnovel paragraph breaks)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 744,
+          "localEstimateTokens": 670,
+          "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621"
+        },
+        {
+          "id": "user-persona-reference-owner",
+          "label": "User persona reference owner (current-turn gender and naming)",
+          "category": "systemRules",
+          "role": "system",
+          "cacheBucket": "dynamic",
+          "chars": 796,
+          "localEstimateTokens": 717,
+          "sha256": "f69c1f6e7e27a5124af59bb421239e884612fd3a39d29519f12227a9180c0a6c"
+        },
+        {
+          "id": "current-user-turn",
+          "label": "Current user turn after builder tails",
+          "category": "recentConversation",
+          "role": "user",
+          "cacheBucket": "userTurn",
+          "chars": 685,
+          "localEstimateTokens": 617,
+          "sha256": "7e3aeaa880a34ca45cf671b7dd59a93e923772b4d5912ecc12659b2a6ee9e230"
+        }
+      ],
+      "localEstimateTokens": {
+        "cacheRules": 3535,
+        "cacheCharacter": 1702,
+        "dynamic": 2940,
+        "userTurn": 617,
+        "historyExcludingCurrent": 96,
+        "promptAuditTotal": 8892
+      },
+      "wire": {
+        "roles": [
+          "system",
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+          "user"
+        ],
+        "assistantPrefill": false,
+        "systemBlocks": [
+          {
+            "chars": 9088,
+            "cached": false,
+            "sha256": "a83763061d4b973cc04380e63f9124cf776b64cc35996f8dc0a9703ad2e8782a"
+          }
+        ],
+        "historyCacheBreakpoint": false,
+        "scenePacingInsideCachedCharacterBlock": false,
+        "sceneFlowInsideCachedCharacterBlock": false,
+        "sceneDirectiveSection": false,
+        "requestBodyKeys": [
+          "messages",
+          "model",
+          "reasoning_effort",
+          "stream",
+          "stream_options",
+          "temperature",
+          "thinking",
+          "top_p"
+        ],
+        "model": "deepseek-v4.1-flash",
+        "reasoningEffort": "none",
+        "providerOnly": null,
+        "serviceTier": null,
+        "sessionIdPresent": false,
+        "productionOrderMatchesAssembleOnly": true,
+        "oocHtmlReachedProviderSystem": false,
+        "temperaturePresent": true
+      },
+      "heuristicDuplicateUpperBound": 0,
+      "statusWidgetPatchChangedSplit": false,
+      "anchors": {
+        "lengthOwnerOnUserTurn": 1,
+        "lengthOwnerOnSystem": 0,
+        "commonProseInSystem": 1,
+        "gemini31Agency": 0,
+        "autoProgressionTitle": 0,
+        "collaborativeInteractiveTitle": 0,
+        "userAuthoringTitle": 3,
+        "deepseekWorldLoreXml": 1,
+        "coauthorPersistentLine": 1,
+        "jsxManifest": 1,
+        "scenePacing": 1,
+        "sceneFlow": 0,
+        "keywordLoreOnUserTurn": 1,
+        "globalLoreOnUserTurn": 1
+      }
+    }
+  ]
+}

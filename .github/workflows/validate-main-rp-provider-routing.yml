@@ -26,6 +26,8 @@ on:
       - "src/lib/test/regularTestEgressPolicy.ts"
       - "scripts/lib/rpModelQualificationPacket.ts"
       - "**/*mainRp*test.ts"
+      - "src/lib/mainRpFinalWireAudit.ts"
+      - "src/services/promptAudit.ts"
       - "src/lib/chatModels.gemini.test.ts"
       - "src/lib/openRouterClient.test.ts"
   workflow_dispatch:
@@ -64,6 +66,11 @@ jobs:
           src/lib/chatBillingContractDispatch.test.ts
       - name: Main RP qualification packet
         run: node --conditions=react-server --import tsx scripts/lib/rpModelQualificationPacket.test.ts
+      - name: Main RP final-wire audit regression (provider-free)
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1 src/lib/mainRpFinalWireAudit.test.ts
       - name: Fluence qualification contract (offline only)
         run: >-
           node --conditions=react-server --import tsx

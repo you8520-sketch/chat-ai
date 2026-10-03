@@ -471,7 +471,7 @@ import {
 } from "@/lib/statusWidget/receiptUsage";
 import type { Usage } from "@/lib/chatUsage";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
-import { isOocHtmlRequest } from "@/lib/oocHtmlRequest";
+import { resolveMainModelOocHtmlMode } from "@/lib/oocHtmlRequest";
 import { isHtmlDisplayOnlyTurn, isHtmlFlashOnlyTurn, isOocCreativeHtmlTurn, chatInputSuppressesStatusWidget } from "@/lib/htmlDisplayOnlyTurn";
 import {
   buildChatOocRpContinuingUserPrompt,
@@ -1860,10 +1860,11 @@ export async function POST(req: Request) {
   /** Relationship meta — post-process Flash extract (not main-model JSON tail) */
   const mainModelOwnsRelationshipExtract = false;
   /** Flash HTML ON이면 메인 모델 inline HTML(oocHtmlMode) 금지 — Flash가 ```html``` 소유 */
-  const oocHtmlMode =
-    !autoContinueContext &&
-    isOocHtmlRequest(storedUserMessage) &&
-    !htmlVisualCardPolicy.enabled;
+  const oocHtmlMode = resolveMainModelOocHtmlMode({
+    autoContinue: Boolean(autoContinueContext),
+    userMessage: storedUserMessage,
+    htmlVisualCardEnabled: htmlVisualCardPolicy.enabled,
+  });
   const s4LiveProducerAllowed =
     personaSecretDiscoveryOn &&
     isPersonaSecretS4LiveProducerEnabled() &&
