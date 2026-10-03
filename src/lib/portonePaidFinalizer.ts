@@ -4,6 +4,7 @@ import {
   getPortoneCheckoutByPaymentId,
   isReviewerKgTestCheckout,
   markPortoneCheckoutPaid,
+  type PortoneCheckoutKind,
 } from "@/lib/portoneCheckout";
 import { fetchPortOnePayment, isPortOnePaidStatus } from "@/lib/portoneServer";
 import {
@@ -37,7 +38,7 @@ function reviewerKgRemoteMatches(remote: {
 }
 
 function checkoutChannelIsTrusted(checkout: {
-  checkout_kind: string;
+  checkout_kind: PortoneCheckoutKind;
   store_id: string;
   channel_key: string;
 }, remote: {

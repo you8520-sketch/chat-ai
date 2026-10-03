@@ -108,9 +108,13 @@ function source(relativePath: string): string {
   return fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 }
 
+const previousSecret = process.env.PORTONE_API_SECRET;
+
 describe("portone reviewer KG Inicis test checkout", () => {
   afterEach(() => {
     setPortOnePaymentLookupForTests(null);
+    if (previousSecret === undefined) delete process.env.PORTONE_API_SECRET;
+    else process.env.PORTONE_API_SECRET = previousSecret;
   });
 
   it("rejects client store, channel, and isTest overrides", () => {
@@ -222,6 +226,7 @@ describe("portone reviewer KG Inicis test checkout", () => {
   it("ignores webhook and complete retries so reviewer test paid never mints a lot", async () => {
     const db = setupDb();
     insertCheckout(db, { paymentId: "pt-reviewer-wh" });
+    process.env.PORTONE_API_SECRET = "test-secret";
     setPortOnePaymentLookupForTests(async () => paidRemote("pt-reviewer-wh"));
 
     const wake = await handlePortoneWebhookEvent(
