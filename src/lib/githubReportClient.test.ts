@@ -5,6 +5,8 @@ import {
   GITHUB_REPORT_CACHE_TTL_MS,
   GITHUB_REPORT_MAX_WAIT_MS,
   classifyGithubReportResponse,
+  decodeGithubReportContent,
+  githubReportBlobUrlFromContents,
   githubReportGetContent,
   githubReportGetJson,
   resetGithubReportClientForTests,
@@ -321,5 +323,90 @@ describe("githubReportGetContent", () => {
     );
     assert.equal(result.status, "OK");
     assert.equal(result.raw, '{"ranAt":"2026-10-01T00:00:00Z"}');
+  });
+
+  it("treats a large Contents response with empty inline content as EMPTY before blob fallback", () => {
+    const largeContents = {
+      sha: "fb347f3251a692bb148024dba79e112316878211",
+      size: 11_483_787,
+      encoding: "none",
+      content: "",
+      git_url:
+        "https://evil.example/repos/you8520-sketch/chat-ai/git/blobs/fb347f3251a692bb148024dba79e112316878211",
+      download_url: "https://evil.example/ledger.json",
+    };
+    assert.equal(decodeGithubReportContent(largeContents), null);
+    assert.equal(
+      githubReportBlobUrlFromContents(
+        "https://api.github.test/repos/you8520-sketch/chat-ai/contents/ledger.json?ref=code-health-ledger",
+        largeContents
+      ),
+      "https://api.github.test/repos/you8520-sketch/chat-ai/git/blobs/fb347f3251a692bb148024dba79e112316878211"
+    );
+    assert.equal(
+      githubReportBlobUrlFromContents("https://api.github.test/contents/ledger.json", largeContents),
+      null
+    );
+    assert.equal(
+      githubReportBlobUrlFromContents(
+        "https://api.github.test/repos/you8520-sketch/chat-ai/contents/ledger.json",
+        { ...largeContents, size: 0 }
+      ),
+      null
+    );
+  });
+
+  it("loads large Contents via the same-origin Git blob instead of EMPTY", async () => {
+    const urls: string[] = [];
+    const result = await githubReportGetContent(
+      "https://api.github.test/repos/you8520-sketch/chat-ai/contents/ledger.json?ref=code-health-ledger",
+      async (input) => {
+        urls.push(String(input));
+        if (String(input).includes("/contents/")) {
+          return jsonResponse(200, {
+            sha: "fb347f3251a692bb148024dba79e112316878211",
+            size: 11_483_787,
+            encoding: "none",
+            content: "",
+            git_url: "https://evil.example/steal",
+            download_url: "https://evil.example/ledger.json",
+          });
+        }
+        return jsonResponse(200, {
+          sha: "fb347f3251a692bb148024dba79e112316878211",
+          encoding: "base64",
+          content: Buffer.from(
+            JSON.stringify({ version: 1, weekly: [{ kind: "weekly", status: "WARNING" }], monthly: [] }),
+            "utf8"
+          ).toString("base64"),
+        });
+      }
+    );
+    assert.deepEqual(urls, [
+      "https://api.github.test/repos/you8520-sketch/chat-ai/contents/ledger.json?ref=code-health-ledger",
+      "https://api.github.test/repos/you8520-sketch/chat-ai/git/blobs/fb347f3251a692bb148024dba79e112316878211",
+    ]);
+    assert.equal(result.status, "OK");
+    assert.match(result.raw ?? "", /"status":"WARNING"/);
+  });
+
+  it("marks a failed large-file blob follow-up as UNAVAILABLE rather than EMPTY", async () => {
+    const result = await githubReportGetContent(
+      "https://api.github.test/repos/you8520-sketch/chat-ai/contents/ledger.json?ref=code-health-ledger",
+      async (input) => {
+        if (String(input).includes("/contents/")) {
+          return jsonResponse(200, {
+            sha: "fb347f3251a692bb148024dba79e112316878211",
+            size: 11_483_787,
+            encoding: "none",
+            content: "",
+          });
+        }
+        return jsonResponse(403, { message: "Resource not accessible by integration" });
+      }
+    );
+    assert.equal(result.status, "UNAVAILABLE");
+    assert.match(result.error ?? "", /PERMISSION_DENIED/);
+    assert.equal(result.raw, null);
   });
 });
