@@ -32,6 +32,7 @@ type SyncResult = {
   notifiedFollowers: boolean;
   displayCreatorName: string;
   changedFields: string[];
+  preflightSnapshot?: { token: string };
   before: { tagline: string; creatorName: string; lorebookKeys: string[] };
   after: { tagline: string; creatorName: string; lorebookKeys: string[]; lorebookCount: number };
 };
@@ -44,6 +45,7 @@ export default function AdminOfficialCharactersClient() {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [syncPreview, setSyncPreview] = useState<SyncResult | null>(null);
+  const [preflightById, setPreflightById] = useState<Record<number, SyncResult["preflightSnapshot"]>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,6 +102,7 @@ export default function AdminOfficialCharactersClient() {
         displayCreatorName:
           aliases[row.id] ||
           (row.name === LUCIAN_CANONICAL_NAME ? LUCIAN_DEFAULT_DISPLAY_CREATOR_NAME : row.creator_name),
+        preflightSnapshot: mode === "apply" ? preflightById[row.id] : undefined,
       }),
     });
     const data = (await res.json()) as SyncResult & { error?: string };
@@ -109,6 +112,9 @@ export default function AdminOfficialCharactersClient() {
       return;
     }
     setSyncPreview(data);
+    if (data.preflightSnapshot) {
+      setPreflightById((current) => ({ ...current, [row.id]: data.preflightSnapshot }));
+    }
     if (mode === "apply") await load();
   }
 
@@ -117,7 +123,8 @@ export default function AdminOfficialCharactersClient() {
       <h1 className="text-2xl font-semibold text-zinc-50">공식 캐릭터 관리</h1>
       <p className="mt-2 text-sm text-zinc-400">
         관리자 로그인으로 모든 공식 캐릭터를 보고 공개 제작자명을 바꾸거나, 승인된 원본으로 같은 ID를 갱신합니다.
-        장르별 로그인 계정은 만들지 않습니다.
+        장르별 로그인 계정은 만들지 않습니다. 전체 설정 수정은 기존 제작 편집기를 재사용합니다.
+        같은 ID 적용은 서버의 기본 차단 게이트와 미리보기 스냅샷이 있어야 합니다.
       </p>
       {owner?.status === "ok" ? (
         <p className="mt-3 text-xs text-zinc-500">내부 소유 계정: 사이트 관리 공식 계정 1개 (표시명과 분리)</p>
@@ -182,8 +189,12 @@ export default function AdminOfficialCharactersClient() {
                   <button
                     type="button"
                     className="rounded-lg border border-amber-400/40 px-3 py-1 text-xs text-amber-200 disabled:opacity-50"
-                    disabled={busyId === row.id}
+                    disabled={busyId === row.id || !preflightById[row.id]}
                     onClick={() => {
+                      if (!preflightById[row.id]) {
+                        setError("적용 전에 같은 행의 미리보기를 먼저 실행하세요.");
+                        return;
+                      }
                       if (confirm(`캐릭터 #${row.id}를 같은 ID로 갱신할까요? 새 캐릭터는 만들지 않습니다.`)) {
                         void syncRow(row, "apply");
                       }
@@ -191,6 +202,12 @@ export default function AdminOfficialCharactersClient() {
                   >
                     같은 ID로 적용
                   </button>
+                  <a
+                    href={`/create?edit=${row.id}`}
+                    className="rounded-lg border border-white/15 px-3 py-1 text-xs text-zinc-200"
+                  >
+                    전체 설정 수정
+                  </a>
                 </div>
               </div>
             </div>

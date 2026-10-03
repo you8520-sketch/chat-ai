@@ -1,7 +1,8 @@
+import type Database from "better-sqlite3";
+
 import { getDb } from "@/lib/db";
 import { isAdminUser } from "@/lib/isAdminUser";
 import { normalizeOfficialDisplayCreatorName } from "@/lib/officialDisplayCreatorName";
-import { OfficialSupplyStore } from "@/lib/officialSupply/store";
 import { isSiteManagedUser } from "@/lib/siteManagedAccounts";
 
 export type OfficialAdminActor = {
@@ -48,6 +49,25 @@ export function canAdminManageOfficialCharacter(
   if (!isOfficialAdminActor(admin) || !row) return false;
   if (row.official === 1) return true;
   return row.creator_id != null && isSiteManagedUser(row.creator_id);
+}
+
+export type OfficialCharacterEditorAccess = "owner" | "official_admin" | "forbidden";
+
+export function resolveOfficialCharacterEditorAccess(
+  user: OfficialAdminActor | null | undefined,
+  row: Pick<OfficialManageableCharacter, "official" | "creator_id"> | null | undefined
+): OfficialCharacterEditorAccess {
+  if (!user || !row) return "forbidden";
+  if (canAdminManageOfficialCharacter(user, row)) return "official_admin";
+  if (row.creator_id != null && row.creator_id === user.id && row.official !== 1) return "owner";
+  return "forbidden";
+}
+
+export function sqliteTableExists(db: Database.Database, table: string): boolean {
+  const row = db
+    .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?")
+    .get(table) as { ok: number } | undefined;
+  return row != null;
 }
 
 export function resolveCanonicalOfficialOwner(): OfficialOwnerResolution {
@@ -112,14 +132,16 @@ export function listOfficialCharactersForAdmin(): Array<{
   supply_stage: string | null;
 }> {
   const db = getDb();
-  new OfficialSupplyStore(db);
+  const hasSupply = sqliteTableExists(db, "official_supply_characters");
+  const supplyJoin = hasSupply ? `LEFT JOIN official_supply_characters s ON s.staged_character_id = c.id` : "";
+  const supplySelect = hasSupply ? "s.draft_key, s.stage AS supply_stage" : "NULL AS draft_key, NULL AS supply_stage";
   return db
     .prepare(
       `SELECT c.id, c.name, c.tagline, c.creator_id, c.creator_name, c.official,
               c.visibility, c.moderation_status, c.nsfw, c.updated_at,
-              s.draft_key, s.stage AS supply_stage
+              ${supplySelect}
        FROM characters c
-       LEFT JOIN official_supply_characters s ON s.staged_character_id = c.id
+       ${supplyJoin}
        WHERE c.official=1
           OR c.creator_id IN (SELECT id FROM users WHERE site_managed=1)
        ORDER BY c.official DESC, c.id ASC`

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/adminAuth";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
-import { syncOfficialCharacterInPlace } from "@/lib/officialSupply/inPlaceSync";
+import {
+  syncOfficialCharacterInPlace,
+  type OfficialInPlacePreflightSnapshot,
+} from "@/lib/officialSupply/inPlaceSync";
 
 export async function POST(req: Request) {
   const admin = await requireAdminUser();
@@ -15,6 +18,7 @@ export async function POST(req: Request) {
     mode?: string;
     displayCreatorName?: string;
     apply?: boolean;
+    preflightSnapshot?: OfficialInPlacePreflightSnapshot;
   };
   const characterId = Number(body.characterId);
   if (!Number.isInteger(characterId) || characterId <= 0) {
@@ -29,6 +33,7 @@ export async function POST(req: Request) {
       draftKey: body.draftKey,
       mode,
       displayCreatorName: body.displayCreatorName,
+      preflightSnapshot: body.preflightSnapshot,
     });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

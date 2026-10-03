@@ -1,12 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { renderAppearanceBlock } from "@/lib/officialSupply/appearance";
+import {
+  renderAppearanceBlock,
+  renderRuntimeAppearanceBlock,
+} from "@/lib/officialSupply/appearance";
 import {
   compileOfficialDraftFromBible,
   type OfficialCharacterBible,
   type OfficialWorldBible,
 } from "@/lib/officialSupply/bible";
+import { composeOfficialSystemPrompt } from "@/lib/officialSupply/characterText";
 import { resolveOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
 import type {
   OfficialAppearanceLock,
@@ -35,11 +39,22 @@ function readJson<T>(file: string): T {
   return JSON.parse(fs.readFileSync(file, "utf8")) as T;
 }
 
+export function officialAppearanceBlockForDraft(
+  draft: Pick<OfficialCharacterDraft, "promptStandard">,
+  appearance: OfficialAppearanceLock
+): string {
+  return draft.promptStandard === "compact_rp_v1"
+    ? renderRuntimeAppearanceBlock(appearance)
+    : renderAppearanceBlock(appearance);
+}
+
 export function loadCompiledOfficialCharacterSource(draftKey: string): {
   draftKey: string;
   worldKey: string;
   draft: OfficialCharacterDraft;
+  appearanceLock: OfficialAppearanceLock;
   appearanceBlock: string;
+  systemPrompt: string;
   sharedLorebook: OfficialWorldLorebookEntry[];
   characterLorebook: OfficialWorldLorebookEntry[];
   resolvedLorebook: OfficialWorldLorebookEntry[];
@@ -69,11 +84,14 @@ export function loadCompiledOfficialCharacterSource(draftKey: string): {
   if (!file.appearance) throw new Error(`official source ${draftKey} is missing appearance lock`);
   const sharedLorebook = world.bible.lorebook;
   const characterLorebook = file.characterLorebook ?? [];
+  const appearanceBlock = officialAppearanceBlockForDraft(draft, file.appearance);
   return {
     draftKey,
     worldKey: manifest.worldKey,
     draft,
-    appearanceBlock: renderAppearanceBlock(file.appearance),
+    appearanceLock: file.appearance,
+    appearanceBlock,
+    systemPrompt: composeOfficialSystemPrompt(draft, appearanceBlock),
     sharedLorebook,
     characterLorebook,
     resolvedLorebook: resolveOfficialCharacterLorebooks(sharedLorebook, characterLorebook),

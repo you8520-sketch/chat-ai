@@ -373,12 +373,20 @@ export default async function CharacterPage({
           </Link>
         )}
         {isAdminUser(user) && (c.official === 1 || creatorIsOfficialStudio) && (
-          <Link
-            href="/admin/official-characters"
-            className="inline-flex items-center rounded-xl border border-violet-500/40 bg-violet-500/10 px-5 py-2.5 text-sm font-bold text-violet-200 transition hover:bg-violet-500/20"
-          >
-            공식 관리
-          </Link>
+          <>
+            <Link
+              href={`/create?edit=${c.id}`}
+              className="inline-flex items-center rounded-xl border border-violet-500/40 bg-violet-500/10 px-5 py-2.5 text-sm font-bold text-violet-200 transition hover:bg-violet-500/20"
+            >
+              전체 설정 수정
+            </Link>
+            <Link
+              href="/admin/official-characters"
+              className="inline-flex items-center rounded-xl border border-violet-500/40 bg-violet-500/10 px-5 py-2.5 text-sm font-bold text-violet-200 transition hover:bg-violet-500/20"
+            >
+              공식 관리
+            </Link>
+          </>
         )}
       </div>
 
