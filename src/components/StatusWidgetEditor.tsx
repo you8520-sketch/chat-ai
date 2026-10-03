@@ -46,7 +46,7 @@ type Props = {
   disabled?: boolean;
   /** 미리보기용 {{char}}/{{user}} 치환 (없으면 캐릭터/유저) */
   profileNames?: StatusWidgetProfileNames | null;
-  /** 이 편집기가 저장되는 경로의 상태값·지시 한도. 제작자 700, 페르소나 500. */
+  /** 이 편집기가 저장되는 경로의 상태값·지시 추정 토큰 한도. 제작자와 사용자 모두 600. */
   contextLimit?: number;
   /** 같은 화면에 공유 디자인 진입점이 있으면 false. */
   showSharedDesignEntry?: boolean;

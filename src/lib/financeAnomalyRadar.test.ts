@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { AdminFinanceSummary } from "@/lib/adminFinance";
+import type { AdminFinanceSummary, ModelDirectCostAttribution } from "@/lib/adminFinance";
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import { buildFinanceAnomalyReport } from "@/lib/financeAnomalyRadar";
 import type { MainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
@@ -26,6 +26,7 @@ function pricing(input?: {
   representativeStatus?: "healthy" | "below_floor" | "blocked" | "unavailable";
   freshness?: "FRESH" | "STALE" | "ABSENT";
   floor?: number;
+  attribution?: ModelDirectCostAttribution;
 }): MainRpPricingObservabilityProjection {
   return {
     generatedAt: "2026-10-01T00:00:00.000Z",
@@ -40,6 +41,7 @@ function pricing(input?: {
           marginRate: input?.actualMargin ?? 0.7,
           realizedMarginExact: input?.actualExact ?? true,
           monthKey: "2026-10",
+          ...(input?.attribution ? { directCostAttribution: input.attribution } : {}),
         },
         representative: {
           minimumMarginFloor: input?.floor ?? 0.5,
@@ -98,6 +100,111 @@ describe("finance anomaly radar", () => {
     assert.ok(anomaly);
     assert.equal(anomaly?.severity, "critical");
     assert.match(anomaly?.summary ?? "", /0P-style invariant breach/);
+  });
+
+  it("keeps a sub-1 KRW unlinked user cost visible as a billing miss", () => {
+    const report = buildFinanceAnomalyReport({
+      summary: summary(),
+      pricing: pricing({
+        paidRevenueKrw: 0,
+        freePointSpend: 0,
+        apiCostKrw: 0.4,
+        attribution: {
+          platformFundedKrw: 0,
+          userFundedChargedKrw: 0,
+          userFundedWaivedKrw: 0,
+          userFundedRefundedKrw: 0,
+          userFundedUnlinkedKrw: 0.4,
+          unknownKrw: 0,
+        },
+      }),
+    });
+    const anomaly = report.anomalies.find(
+      (row) => row.code === "DIRECT_COST_WITHOUT_USER_BILLING"
+    );
+    assert.equal(anomaly?.severity, "critical");
+    assert.match(anomaly?.summary ?? "", /0\.4 KRW/);
+    assert.doesNotMatch(anomaly?.summary ?? "", / 0 KRW/);
+  });
+
+  it("does not call platform, waived, or refunded cost a billing miss", () => {
+    const base = {
+      platformFundedKrw: 1,
+      userFundedChargedKrw: 0,
+      userFundedWaivedKrw: 0,
+      userFundedRefundedKrw: 0,
+      userFundedUnlinkedKrw: 0,
+      unknownKrw: 0,
+    };
+    for (const attribution of [
+      base,
+      { ...base, platformFundedKrw: 0, userFundedWaivedKrw: 12 },
+      { ...base, platformFundedKrw: 0, userFundedRefundedKrw: 12 },
+    ]) {
+      const report = buildFinanceAnomalyReport({
+        summary: summary(),
+        pricing: pricing({
+          paidRevenueKrw: 0,
+          freePointSpend: 0,
+          apiCostKrw: 12,
+          attribution,
+        }),
+      });
+      assert.equal(
+        report.anomalies.some((row) => row.code === "DIRECT_COST_WITHOUT_USER_BILLING"),
+        false
+      );
+    }
+  });
+
+  it("warns when cost linkage is unknown and does not hide an unlinked miss behind it", () => {
+    const unknown = buildFinanceAnomalyReport({
+      summary: summary(),
+      pricing: pricing({
+        paidRevenueKrw: 0,
+        freePointSpend: 0,
+        apiCostKrw: 3,
+        attribution: {
+          platformFundedKrw: 1,
+          userFundedChargedKrw: 0,
+          userFundedWaivedKrw: 0,
+          userFundedRefundedKrw: 0,
+          userFundedUnlinkedKrw: 0,
+          unknownKrw: 2,
+        },
+      }),
+    });
+    assert.equal(unknown.status, "WARNING");
+    assert.equal(
+      unknown.anomalies.some((row) => row.code === "UNATTRIBUTED_DIRECT_COST"),
+      true
+    );
+    assert.equal(
+      unknown.anomalies.some((row) => row.code === "DIRECT_COST_WITHOUT_USER_BILLING"),
+      false
+    );
+
+    const mixed = buildFinanceAnomalyReport({
+      summary: summary(),
+      pricing: pricing({
+        paidRevenueKrw: 0,
+        freePointSpend: 0,
+        apiCostKrw: 11,
+        attribution: {
+          platformFundedKrw: 1,
+          userFundedChargedKrw: 0,
+          userFundedWaivedKrw: 0,
+          userFundedRefundedKrw: 0,
+          userFundedUnlinkedKrw: 10,
+          unknownKrw: 0,
+        },
+      }),
+    });
+    assert.equal(mixed.status, "CRITICAL");
+    assert.equal(
+      mixed.anomalies.some((row) => row.code === "DIRECT_COST_WITHOUT_USER_BILLING"),
+      true
+    );
   });
 
   it("treats exact actual margin-floor breach as critical and suppresses the weaker representative warning", () => {

@@ -15,7 +15,7 @@ import HeaderProfileMenu from "./HeaderProfileMenu";
 import UserPreferenceControls from "./UserPreferenceControls";
 import ExpiringPointsPopup from "./ExpiringPointsPopup";
 import { getPointBalance } from "@/lib/points";
-import { isPaymentsEnabled } from "@/lib/portoneConfig";
+import { canAccessPortoneCheckout } from "@/lib/portoneReviewerAccount";
 import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
 export default async function Header() {
@@ -28,7 +28,7 @@ export default async function Header() {
   });
   const unreadCount = getTotalUnreadCount(db, user?.id ?? null, guestState);
   const pointBalance = user ? getPointBalance(user.id) : null;
-  const paymentsEnabled = isPaymentsEnabled();
+  const paymentsEnabled = canAccessPortoneCheckout(user);
 
   return (
     <>

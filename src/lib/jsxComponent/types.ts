@@ -26,12 +26,16 @@ export type JsxComponentRecord = {
   props: JsxPropDefinition[];
   capabilities: JsxCapability[];
   chatSend: boolean;
+  /** Optional creator note for when the model should call this component. */
+  callGuide?: string;
 };
 
 export type JsxComponentManifestRecord = {
   name: string;
   props: JsxPropDefinition[];
   chatSend: boolean;
+  /** Component-level call guide. Distinct from each prop's description. */
+  callGuide?: string;
 };
 
 export type JsxRuntimeComponentRecord = Omit<JsxComponentRecord, "source">;

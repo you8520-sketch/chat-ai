@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import GoogleButton from "@/components/GoogleButton";
 import GoogleAuthError from "@/components/GoogleAuthError";
+import { LegalConsentLinks } from "@/components/LegalConsentLinks";
 import StudioButton from "@/components/studio/StudioButton";
 import { SIGNUP_BONUS_POINTS } from "@/lib/plans";
 import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
@@ -24,6 +25,7 @@ function SignupForm() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,8 +45,13 @@ function SignupForm() {
       }),
     });
     setLoading(false);
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setError((await res.json()).error);
+      setError(typeof data.error === "string" ? data.error : "가입에 실패했습니다.");
+      return;
+    }
+    if (data.pending) {
+      setPendingEmail(typeof data.email === "string" ? data.email : form.email);
       return;
     }
     router.push("/");
@@ -55,7 +62,7 @@ function SignupForm() {
     <div className={`mx-auto mt-20 max-w-sm p-8 ${studioSurface.card}`}>
       <h1 className={studioType.heading}>회원가입</h1>
       <p className="mt-1 text-sm text-violet-300">
-        가입 즉시 {SIGNUP_BONUS_POINTS.toLocaleString("ko-KR")}P 지급!
+        이메일 인증 후 {SIGNUP_BONUS_POINTS.toLocaleString("ko-KR")}P 지급!
       </p>
       <div className="mt-6">
         <GoogleButton label="Google 계정으로 가입" returnTo="/signup" />
@@ -66,7 +73,18 @@ function SignupForm() {
           <span className="h-px flex-1 bg-white/10" />또는 이메일로 가입<span className="h-px flex-1 bg-white/10" />
         </div>
       </div>
-      <form onSubmit={submit} className="space-y-3">
+      {pendingEmail ? (
+        <div className="mt-6 space-y-3 text-sm text-zinc-300">
+          <p>
+            <span className="font-semibold text-white">{pendingEmail}</span>으로 인증 메일을
+            보냈습니다.
+          </p>
+          <p className="text-zinc-400">
+            메일함의 링크를 누르면 가입이 완료됩니다. 메일이 없다면 스팸함을 확인해 주세요.
+          </p>
+        </div>
+      ) : null}
+      <form onSubmit={submit} className={`space-y-3${pendingEmail ? " mt-6" : ""}`}>
         <input type="email" required placeholder="이메일" className={studioInputClass}
           value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <input required placeholder="닉네임" className={studioInputClass}
@@ -99,13 +117,17 @@ function SignupForm() {
         </div>
         {error && <p className="text-sm text-rose-400">{error}</p>}
         <StudioButton type="submit" disabled={loading} className="w-full">
-          가입하기
+          {pendingEmail ? "인증 메일 다시 보내기" : "가입하기"}
         </StudioButton>
       </form>
       <p className={`mt-4 text-center ${studioType.body} text-zinc-500`}>
         이미 계정이 있나요?{" "}
         <Link href="/login" className="text-violet-400 hover:underline">로그인</Link>
       </p>
+      <p className={`mt-4 text-center ${studioType.caption}`}>
+        가입 전에 이용약관, 개인정보처리방침, 결제 및 환불 정책을 확인할 수 있습니다.
+      </p>
+      <LegalConsentLinks className="mt-2" />
     </div>
   );
 }

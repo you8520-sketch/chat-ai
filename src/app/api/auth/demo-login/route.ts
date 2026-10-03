@@ -3,8 +3,7 @@ import { SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/sessionCookie";
 import { getDb } from "@/lib/db";
 import { hashPassword, createSession } from "@/lib/auth";
 import { DEMO_USER_EMAIL, isDemoEnv } from "@/lib/demo";
-import { creditPoints } from "@/lib/points";
-import { SIGNUP_BONUS_POINTS } from "@/lib/plans";
+import { grantSignupBonusOnce } from "@/lib/signupBonus";
 
 const DEMO_PASSWORD = "demo1234";
 const DEMO_NICK = "데모유저";
@@ -25,7 +24,7 @@ export async function POST() {
       )
       .run(DEMO_USER_EMAIL, DEMO_NICK, hashPassword(DEMO_PASSWORD), "male", DEMO_NICK);
     const userId = Number(info.lastInsertRowid);
-    creditPoints(userId, SIGNUP_BONUS_POINTS, "FREE", "신규 가입 보너스");
+    grantSignupBonusOnce(userId);
     user = { id: userId };
   } else {
     db.prepare(

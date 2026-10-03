@@ -3,7 +3,11 @@
  * Never duplicates margin formulas or aggregates ledger cost twice.
  */
 
-import type { AdminFinanceSummary, FinanceMarginCoverage } from "@/lib/adminFinance";
+import type {
+  AdminFinanceSummary,
+  FinanceMarginCoverage,
+  ModelDirectCostAttribution,
+} from "@/lib/adminFinance";
 import { selectedAILabel } from "@/lib/chatModels";
 
 export type ActualProductionUsageState = "NO_USAGE" | "HAS_ACTIVITY" | "FINANCE_UNAVAILABLE";
@@ -23,6 +27,11 @@ export type ActualProductionEconomicsObservation = {
   marginDisplay: string;
   financeModelKey: string | null;
   costEvidence: ActualProductionCostEvidence;
+  /**
+   * Present when Admin Finance attached ledger charge linkage.
+   * Absent or null keeps the historical aggregate cost-without-billing reading.
+   */
+  directCostAttribution?: ModelDirectCostAttribution | null;
 };
 
 /** Supplemental ledger provenance — never a second cost owner. */
@@ -178,6 +187,7 @@ export function composeActualProductionEconomics(
       marginDisplay: "Finance unavailable",
       financeModelKey: null,
       costEvidence: EMPTY_COST_EVIDENCE,
+      directCostAttribution: null,
     };
   }
 
@@ -200,6 +210,7 @@ export function composeActualProductionEconomics(
       marginDisplay: "NO_USAGE",
       financeModelKey: null,
       costEvidence: EMPTY_COST_EVIDENCE,
+      directCostAttribution: null,
     };
   }
 
@@ -236,5 +247,6 @@ export function composeActualProductionEconomics(
     marginDisplay,
     financeModelKey: breakdown?.model ?? aiCost?.model ?? null,
     costEvidence: resolveSupplementalCostEvidence(aiCost, apiCostKrw),
+    directCostAttribution: breakdown?.directCostAttribution ?? null,
   };
 }

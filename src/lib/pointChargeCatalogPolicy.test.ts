@@ -11,7 +11,7 @@ import {
   SERVICE_PUBLIC_NAME,
   SERVICE_PUBLIC_ORIGIN,
 } from "@/lib/businessIdentity";
-import { TERMS_PAGE } from "@/lib/legalPages";
+import { PAYMENT_REFUND_PAGE, TERMS_PAGE } from "@/lib/legalPages";
 import { creditPointChargePackage } from "@/lib/pointCharge";
 import { executePointChargeRefund } from "@/lib/pointChargeRefundExecution";
 import { setPointChargeRefundProviderForTests } from "@/lib/pointChargeRefundGateway";
@@ -235,6 +235,10 @@ describe("point charge catalog — payment guards", () => {
       paymentId: "pay-once",
       txId: "tx-once",
       totalAmount: 50000,
+      storeId: "store-standard-live",
+      channelKey: "channel-key-standard-live",
+      channelType: "LIVE",
+      pgMerchantId: "INIStandard",
       cancellations: [],
     }));
 
@@ -290,6 +294,7 @@ describe("point charge catalog — payment guards", () => {
 describe("point charge catalog — public disclosure", () => {
   it("publishes confirmed business fields and all five products without login", () => {
     const text = pageText(TERMS_PAGE);
+    const refundText = pageText(PAYMENT_REFUND_PAGE);
     assert.match(text, new RegExp(SERVICE_PUBLIC_NAME));
     assert.match(text, new RegExp(SERVICE_PUBLIC_ORIGIN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     assert.match(text, new RegExp(BUSINESS_TRADE_NAME));
@@ -298,12 +303,17 @@ describe("point charge catalog — public disclosure", () => {
       assert.match(text, new RegExp(line.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     }
     for (const pkg of POINT_CHARGE_PACKAGES) {
-      assert.match(text, new RegExp(formatPointChargePackagePublicLine(pkg).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+      const packageLine = formatPointChargePackagePublicLine(pkg).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      assert.match(text, new RegExp(packageLine));
+      assert.match(refundText, new RegExp(packageLine));
     }
     assert.match(text, new RegExp(`${ATTENDANCE_POINTS_VALID_DAYS}일`));
+    assert.match(refundText, new RegExp(`${ATTENDANCE_POINTS_VALID_DAYS}일`));
 
     const termsPage = readFileSync(new URL("../app/terms/page.tsx", import.meta.url), "utf8");
+    const refundPage = readFileSync(new URL("../app/refund/page.tsx", import.meta.url), "utf8");
     assert.doesNotMatch(termsPage, /getSessionUser|redirect\(/);
+    assert.doesNotMatch(refundPage, /getSessionUser|redirect\(/);
 
     const pointsPage = readFileSync(new URL("../app/points/page.tsx", import.meta.url), "utf8");
     const pointsClient = readFileSync(new URL("../app/points/PointsClient.tsx", import.meta.url), "utf8");
@@ -311,13 +321,14 @@ describe("point charge catalog — public disclosure", () => {
     assert.match(pointsClient, /포인트 상품/);
     assert.match(pointsClient, /POINT_CHARGE_PACKAGES\.map/);
     assert.match(pointsClient, /paymentsEnabled && portoneEnabled/);
+    assert.match(pointsClient, /<article key=\{p\.id\}/);
     assert.doesNotMatch(pointsClient, /SiteLegalFooter|BUSINESS_PUBLIC_LINES/);
 
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.tradeName, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.representativeName, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.businessAddress, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.phoneNumber, "unverified");
-    assert.equal(BUSINESS_IDENTITY_VERIFICATION.customerServiceEmail, "unverified");
+    assert.equal(BUSINESS_IDENTITY_VERIFICATION.customerServiceEmail, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.mailOrderReportNumber, "unverified");
   });
 });

@@ -43,6 +43,10 @@ export function buildJsxComponentManifestBlock(components: JsxComponentManifestR
         return `  ${prop.name}${req}: ${prop.type}${hint ? `  // ${hint}` : ""}`;
       })
       .join("\n");
+    const callGuide = component.callGuide?.trim().replace(/[\r\n]+/g, " ") ?? "";
+    if (callGuide) {
+      lines.push(`// when: ${callGuide}`);
+    }
     lines.push(`${component.name}(\n${inner || "  // no props"}\n)`);
     if (component.chatSend) {
       lines.push(`  // uses chat send request; user must confirm in host`);

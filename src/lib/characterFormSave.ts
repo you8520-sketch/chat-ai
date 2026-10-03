@@ -65,6 +65,7 @@ import { validateCharacterStatusWidgetContextBudget } from "@/lib/statusWidget/c
 import {
   parseJsxComponentCatalog,
   serializeJsxComponentCatalog,
+  validateJsxCallGuideCatalog,
 } from "@/lib/jsxComponent/catalog";
 import {
   compiledPublicCanonText,
@@ -478,12 +479,22 @@ export function parseCharacterFormBody(
   }
   const statusWidgetJson = parsedWidget ? serializeStatusWidget(parsedWidget) : "";
   const rawJsxCatalog = b.jsx_components_json ?? b.jsxComponentsJson;
-  const jsxComponentsJson =
+  const parsedJsxCatalog =
     typeof rawJsxCatalog === "string"
-      ? serializeJsxComponentCatalog(parseJsxComponentCatalog(rawJsxCatalog))
+      ? parseJsxComponentCatalog(rawJsxCatalog)
       : rawJsxCatalog && typeof rawJsxCatalog === "object"
-        ? serializeJsxComponentCatalog(parseJsxComponentCatalog(JSON.stringify(rawJsxCatalog)))
-        : "";
+        ? parseJsxComponentCatalog(JSON.stringify(rawJsxCatalog))
+        : [];
+  if (parsedJsxCatalog.length > 0) {
+    const callGuideBudget = validateJsxCallGuideCatalog(parsedJsxCatalog);
+    if (!callGuideBudget.ok) {
+      return { ok: false as const, error: callGuideBudget.error, status: 400 };
+    }
+  }
+  const jsxComponentsJson =
+    rawJsxCatalog == null || rawJsxCatalog === ""
+      ? ""
+      : serializeJsxComponentCatalog(parsedJsxCatalog);
   const parsedTriggers = validateStatusWidgetTriggerInputs(b.status_widget_triggers);
   if (!parsedTriggers.ok) {
     return { ok: false, error: parsedTriggers.error, status: 400 };

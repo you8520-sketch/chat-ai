@@ -9,6 +9,7 @@ export type FinanceAnomalyCode =
   | "UNRECONCILED_PROVIDER_SPEND"
   | "PROVIDER_RECONCILIATION_UNAVAILABLE"
   | "DIRECT_COST_WITHOUT_USER_BILLING"
+  | "UNATTRIBUTED_DIRECT_COST"
   | "ACTUAL_MARGIN_BELOW_FLOOR"
   | "REPRESENTATIVE_MARGIN_BELOW_FLOOR";
 
@@ -34,6 +35,13 @@ export type FinanceAnomalyReport = {
 
 function usdFromMicro(value: number): string {
   return (Math.max(0, value) / 1_000_000).toFixed(6);
+}
+
+/** Keep a positive sub-1 KRW cost visible. Rounding it to 0 is a false clear. */
+function formatAnomalyKrw(value: number): string {
+  const tenths = Math.round(value * 10) / 10;
+  if (value > 0 && tenths <= 0) return "<0.1";
+  return tenths.toLocaleString("en-US", { maximumFractionDigits: 1 });
 }
 
 function percent(value: number): string {
@@ -123,18 +131,40 @@ export function buildFinanceAnomalyReport(params: {
         actual.paidRevenueKrw <= 0 &&
         actual.freePointSpend <= 0
       ) {
-        anomalies.push({
-          id: `model:${row.modelId}:cost-without-billing`,
-          code: "DIRECT_COST_WITHOUT_USER_BILLING",
-          severity: "critical",
-          title: `${row.modelId} provider cost without user billing`,
-          summary:
-            `Actual production recorded ${Math.round(actual.apiCostKrw).toLocaleString()} KRW provider cost ` +
-            "while both paid and free user billing are zero. This is the direct 0P-style invariant breach.",
-          sourceRef: `actual_production:${row.modelId}:${actual.monthKey ?? params.summary.monthKey}`,
-          href: "/admin/finance",
-          modelId: row.modelId,
-        });
+        const attribution = actual.directCostAttribution;
+        const sourceRef = `actual_production:${row.modelId}:${actual.monthKey ?? params.summary.monthKey}`;
+        // Missing provenance keeps the historical aggregate reading so older
+        // snapshots still surface cost with zero billing. Linked platform,
+        // waived, and refunded cost is real spend and is not a charge miss.
+        if (attribution == null || attribution.userFundedUnlinkedKrw > 0) {
+          const unbilledKrw =
+            attribution == null ? actual.apiCostKrw : attribution.userFundedUnlinkedKrw;
+          anomalies.push({
+            id: `model:${row.modelId}:cost-without-billing`,
+            code: "DIRECT_COST_WITHOUT_USER_BILLING",
+            severity: "critical",
+            title: `${row.modelId} provider cost without user billing`,
+            summary:
+              `Actual production recorded ${formatAnomalyKrw(unbilledKrw)} KRW user-funded provider cost ` +
+              "with no linked paid or free charge. This is the direct 0P-style invariant breach.",
+            sourceRef,
+            href: "/admin/finance",
+            modelId: row.modelId,
+          });
+        } else if (attribution.unknownKrw > 0) {
+          anomalies.push({
+            id: `model:${row.modelId}:unattributed-direct-cost`,
+            code: "UNATTRIBUTED_DIRECT_COST",
+            severity: "warning",
+            title: `${row.modelId} provider cost with unresolved billing linkage`,
+            summary:
+              `Actual production recorded ${formatAnomalyKrw(attribution.unknownKrw)} KRW provider cost ` +
+              "whose charge owner is not proven. This is not a confirmed billing miss.",
+            sourceRef,
+            href: "/admin/finance",
+            modelId: row.modelId,
+          });
+        }
       }
 
       const actualBelowFloor =

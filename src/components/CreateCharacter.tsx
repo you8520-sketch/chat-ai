@@ -2296,8 +2296,8 @@ export default function CreateCharacter({
                   </h2>
                   <p className="mt-0.5 text-xs text-zinc-400">
                     디자인과 상태값을 입력하면 미리보기에 반영됩니다. HTML·JSX는 직접 제작에서
-                    작성합니다. 채팅 호출 컴포넌트는 아래에서 따로 엽니다. 상태값·지시 토큰 환산{" "}
-                    {STATUS_WIDGET_CONTEXT_MAX}자
+                    작성합니다. 채팅 호출 컴포넌트는 아래에서 따로 엽니다. 상태값·지시 추정 토큰{" "}
+                    {STATUS_WIDGET_CONTEXT_MAX}
                   </p>
                 </div>
                 <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[11px] font-bold text-zinc-200">

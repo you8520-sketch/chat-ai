@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
+import { getPaidProviderCallBlockReason } from "@/lib/portoneReviewerAccount";
 import { generateProfileFromText, PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { parseImageUrls } from "@/lib/imageUrls";
 
@@ -8,6 +9,10 @@ export const maxDuration = 15;
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  const paidApiBlock = getPaidProviderCallBlockReason(user);
+  if (paidApiBlock) {
+    return NextResponse.json({ error: paidApiBlock }, { status: 403 });
+  }
 
   const { rawText, imageUrl, imageUrls } = await req.json();
   if (!rawText?.trim()) {
