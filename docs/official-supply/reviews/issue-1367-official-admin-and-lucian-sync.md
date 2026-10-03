@@ -12,7 +12,7 @@ Live production SQL was **not executed**. Use the approved read-only query below
 ## Investigation
 
 Earlier PR base / prior live deploy SHA: `11e9e96aa729922d05249695f36a1e3c699aaba0`.
-Main at the previous runtime-canon patch: `9e0c65576cf1de4f7190c71196670028386c60ce`. This appearance/preflight patch syncs the then-current `origin/main` after the fix. GPT appearance review HEAD: `557b86433d48aed83529283a5707933d7ce45574`.
+Main at the previous runtime-canon patch: `9e0c65576cf1de4f7190c71196670028386c60ce`. This appearance/preflight patch then merged `origin/main` `0be8994ccf4874eeb579bcf348cd0fd4c4d7b763` with no overlapping files. GPT appearance review HEAD: `557b86433d48aed83529283a5707933d7ce45574`.
 Earlier inspected Draft HEAD: `6f937a946485473221e1c132e5d677b6d6e686d3`.
 GPT MUST FIX 1–5 HEAD: `31b0d7978056c3f328a406228d3695327a1590e9`.
 GPT runtime-canon review HEAD: `ef6b285ea4e9895e0e684c14aa76ea8a25de9cfd`.
@@ -183,6 +183,7 @@ GROUP BY official, visibility;
 | 6. Same id / 14 assets / chats / likes / widget / JSX / style / comments | Covered (rich preserve + CAS) | Confirm live asset count and nondefault settings |
 | 7. Repeat sync creates no duplicate character/lorebook | Covered (second apply, count=1, 12 attachments) | Confirm no extra `keyword_lorebooks` / `characters` |
 | 8. Ordinary users cannot edit official; admin + apply gate stay | Covered (MUST FIX 4/5 + ordinary deny) | Confirm `OFFICIAL_IN_PLACE_APPLY_ENABLED` is unset |
+| 9. Preview after target source/alias/lorebook plan change is rejected | Covered (alias + local lorebook plan hash) | Re-dry-run if compile source or planned bodies change |
 
 ## Classification
 
