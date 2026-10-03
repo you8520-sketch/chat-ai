@@ -19,7 +19,15 @@ export const PORTONE_API_BASE = (
 
 /** true when store + channel are set — 결제창 호출 가능 */
 export function isPortOneBrowserConfigured(): boolean {
-  return PORTONE_STORE_ID.length > 0 && PORTONE_CHANNEL_KEY.length > 0;
+  const storeId =
+    process.env.NEXT_PUBLIC_PORTONE_STORE_ID?.trim() ||
+    process.env.PORTONE_STORE_ID?.trim() ||
+    PORTONE_STORE_ID;
+  const channelKey =
+    process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY?.trim() ||
+    process.env.PORTONE_CHANNEL_KEY?.trim() ||
+    PORTONE_CHANNEL_KEY;
+  return storeId.length > 0 && channelKey.length > 0;
 }
 
 export function isPortOneServerVerifyConfigured(): boolean {

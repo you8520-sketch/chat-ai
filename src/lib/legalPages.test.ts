@@ -128,5 +128,7 @@ test("business identity keeps brand and legal name distinct and omits unverified
   assert.equal(BUSINESS_IDENTITY_VERIFICATION.phoneNumber, "unverified");
   assert.equal(BUSINESS_CUSTOMER_SERVICE_EMAIL, "admin@hav.chat");
   assert.equal(BUSINESS_IDENTITY_VERIFICATION.customerServiceEmail, "confirmed");
+  assert.equal(new Set(BUSINESS_PUBLIC_LINES).size, BUSINESS_PUBLIC_LINES.length);
+  assert.equal(BUSINESS_PUBLIC_LINES.filter((line) => line.includes("고객센터 이메일")).length, 1);
   assert.equal(BUSINESS_IDENTITY_VERIFICATION.mailOrderReportNumber, "unverified");
 });

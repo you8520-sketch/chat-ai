@@ -37,6 +37,7 @@ export type AdultAccessUser = {
   email?: string | null;
   is_adult?: number | boolean | null;
   is_admin?: number | null;
+  account_kind?: string | null;
 };
 
 function isExistingAdminUser(user: AdultAccessUser): boolean {
@@ -44,6 +45,7 @@ function isExistingAdminUser(user: AdultAccessUser): boolean {
   return isAdminUser({
     email: user.email,
     is_admin: user.is_admin ?? 0,
+    account_kind: user.account_kind,
   });
 }
 

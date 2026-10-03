@@ -13,9 +13,12 @@ function LoginForm({ showDemo }: { showDemo: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
   const redirectTo = params.get("redirect") || "/";
+  const verifyState = params.get("verify");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    verifyState === "failed" ? "이메일 인증에 실패했습니다. 링크가 만료되었거나 이미 사용되었습니다." : ""
+  );
   const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -57,7 +60,10 @@ function LoginForm({ showDemo }: { showDemo: boolean }) {
       </div>
       <form onSubmit={submit} className="space-y-3">
         <input
-          type="email"
+          type="text"
+          inputMode="email"
+          autoComplete="username"
+          spellCheck={false}
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}

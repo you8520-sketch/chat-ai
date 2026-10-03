@@ -102,6 +102,21 @@ describe("adult verification owners", () => {
     assert.equal(shouldHideAdultListings({ ...admin, nsfw_on: 1 }), false);
   });
 
+  it("portone reviewer never gets adult VIEW even with ADMIN_EMAILS or is_admin", () => {
+    clearAccessEnv();
+    process.env.ADMIN_EMAILS = "portone-reviewer@hav.internal";
+    const reviewer = {
+      email: "portone-reviewer@hav.internal",
+      is_adult: 1 as const,
+      is_admin: 1 as const,
+      nsfw_on: 1 as const,
+      account_kind: "portone_reviewer",
+    };
+    assert.equal(canAccessAdultContent(reviewer), false);
+    assert.equal(shouldHideAdultListings(reviewer), true);
+    assert.equal(canUseCreatorTools(reviewer), true);
+  });
+
   it("ADMIN_EMAILS grants the same beta access without is_admin column", () => {
     clearAccessEnv();
     process.env.ADMIN_EMAILS = "ops@hav.chat";

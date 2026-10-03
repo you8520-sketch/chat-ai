@@ -311,13 +311,14 @@ describe("point charge catalog — public disclosure", () => {
     assert.match(pointsClient, /포인트 상품/);
     assert.match(pointsClient, /POINT_CHARGE_PACKAGES\.map/);
     assert.match(pointsClient, /paymentsEnabled && portoneEnabled/);
+    assert.match(pointsClient, /<article key=\{p\.id\}/);
     assert.doesNotMatch(pointsClient, /SiteLegalFooter|BUSINESS_PUBLIC_LINES/);
 
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.tradeName, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.representativeName, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.businessAddress, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.phoneNumber, "unverified");
-    assert.equal(BUSINESS_IDENTITY_VERIFICATION.customerServiceEmail, "unverified");
+    assert.equal(BUSINESS_IDENTITY_VERIFICATION.customerServiceEmail, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.mailOrderReportNumber, "unverified");
   });
 });

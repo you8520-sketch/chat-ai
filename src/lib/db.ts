@@ -48,6 +48,7 @@ import { ensureDerivedCacheJobsTable } from "@/lib/derivedCache/jobs";
 import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
 import { isRetryableRemoteSchemaError } from "@/lib/libsqlErrors";
 import { initializeRemoteSchema } from "@/lib/remoteSchemaBootstrap";
+import { ensureEmailSignupSchema } from "@/lib/emailSignupSchema";
 
 validateAuthEnvironment();
 
@@ -1913,6 +1914,7 @@ function migrateCommentModeration(db: Database.Database) {
   addColumn("profile_comment_reports", "resolved_at", "TEXT");
   addColumn("users", "comment_report_trust", "INTEGER NOT NULL DEFAULT 100");
   addColumn("users", "comment_report_restricted_until", "TEXT");
+  ensureEmailSignupSchema(db);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS app_meta (

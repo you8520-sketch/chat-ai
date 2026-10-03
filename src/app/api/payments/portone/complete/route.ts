@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getPointBalance } from "@/lib/points";
 import { isPaymentsEnabled, PAYMENTS_DISABLED_MESSAGE, isPortOneServerVerifyConfigured } from "@/lib/portoneConfig";
+import {
+  canAccessPortoneCheckout,
+  isPortoneReviewerAccount,
+  PORTONE_REVIEWER_PAYMENTS_NOT_READY_MESSAGE,
+} from "@/lib/portoneReviewerAccount";
 import { getPortoneCheckoutByPaymentId } from "@/lib/portoneCheckout";
 import { finalizePortoneCheckoutFromProvider } from "@/lib/portonePaidFinalizer";
 
@@ -9,7 +14,18 @@ export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
-  if (!isPaymentsEnabled()) {
+  if (!canAccessPortoneCheckout(user)) {
+    return NextResponse.json(
+      {
+        error: isPortoneReviewerAccount(user)
+          ? PORTONE_REVIEWER_PAYMENTS_NOT_READY_MESSAGE
+          : PAYMENTS_DISABLED_MESSAGE,
+      },
+      { status: 403 }
+    );
+  }
+
+  if (!isPaymentsEnabled() && !isPortoneReviewerAccount(user)) {
     return NextResponse.json({ error: PAYMENTS_DISABLED_MESSAGE }, { status: 403 });
   }
 
