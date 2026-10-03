@@ -260,12 +260,16 @@ describe("official detailed intro + creator comment", () => {
 describe("official shot QA path stays non-persistent", () => {
   it("QA script uses prompt/image owners and never writes production rows", () => {
     const source = fs.readFileSync(path.join(process.cwd(), "scripts/official-supply-quality-shot-qa.ts"), "utf8");
+    const lib = fs.readFileSync(path.join(process.cwd(), "src/lib/officialSupply/qualityShotQa.ts"), "utf8");
     assert.match(source, /buildOfficialAssetPrompts/);
     assert.match(source, /callOpenAiImageEditWithSafetyFallback/);
-    assert.match(source, /OFFICIAL_QUALITY_SHOT_QA_ARTIFACT_DIR/);
-    assert.match(source, /OFFICIAL_QUALITY_SHOT_QA_REFERENCE_PATH/);
+    assert.match(source, /prepareLucianSig4Trial/);
+    assert.match(lib, /OFFICIAL_QUALITY_SHOT_QA_ARTIFACT_DIR/);
+    assert.match(lib, /OFFICIAL_QUALITY_SHOT_QA_REFERENCE_PATH/);
     assert.match(source, /OFFICIAL_QUALITY_SHOT_QA_CONTACT_SHEET_PATH/);
-    assert.match(source, /\/opt\/cursor\/artifacts\/official-shot-qa/);
+    assert.match(lib, /\/opt\/cursor\/artifacts\/official-shot-qa/);
+    assert.match(lib, /lucian-sig4/);
     assert.doesNotMatch(source, /runOfficialAssetSlot|OfficialSupplyStore|publishOfficialSupplyCharacter|stageOfficialCharacterPrivately|storeUpload/);
+    assert.doesNotMatch(lib, /runOfficialAssetSlot|OfficialSupplyStore|publishOfficialSupplyCharacter|stageOfficialCharacterPrivately|storeUpload/);
   });
 });

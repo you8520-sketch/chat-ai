@@ -36,7 +36,8 @@
     "audit:code-health": "node --conditions=react-server --import tsx scripts/code-health-audit.ts",
     "audit:code-health-cleanup": "node --conditions=react-server --import tsx scripts/code-health-monthly-cleanup.ts",
     "test:code-health-audit": "node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 \"src/lib/codeHealth/*.test.ts\"",
-    "official-supply:review-character": "node --conditions=react-server --import tsx scripts/official-supply-character-review.ts"
+    "official-supply:review-character": "node --conditions=react-server --import tsx scripts/official-supply-character-review.ts",
+    "official-supply:quality-shot-qa": "node --conditions=react-server --import tsx scripts/official-supply-quality-shot-qa.ts"
   },
   "dependencies": {
     "@3d-dice/dice-box-threejs": "^0.0.12",
