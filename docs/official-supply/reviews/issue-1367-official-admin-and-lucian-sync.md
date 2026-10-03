@@ -12,6 +12,7 @@ Live production SQL was **not executed**. Use the approved read-only query below
 ## Investigation
 
 Pinned main / live deploy SHA: `11e9e96aa729922d05249695f36a1e3c699aaba0`.
+This Draft PR HEAD: `6f937a946485473221e1c132e5d677b6d6e686d3`.
 Railway project `enchanting-ambition`, service `chat-ai`, volume `chat-ai-volume` mounted at `/data`.
 This environment has a project `RAILWAY_TOKEN` that can list services and deployments. It cannot register SSH keys or run `file:/data/app.db?mode=ro`. Injected `RAILWAY_SSH_*` values are placeholders (11 bytes). No production DB mutation was attempted.
 
