@@ -36,6 +36,8 @@ import {
   MAIN_RP_MODEL_IDS,
   selectedAILabel,
 } from "@/lib/chatModels";
+import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
+import { computeMainRpPickerBaselineEstimates } from "@/lib/modelPickerBaselineEstimate";
 import { resolveActiveSitePromotionsForModels } from "@/lib/sitePromotion";
 
 import { ensureDefaultPublicPersona, validatePersonaSelection } from "@/lib/userPersonas";
@@ -509,6 +511,9 @@ export default async function ChatPage({
     new Date().toISOString(),
     selectedAILabel
   );
+  const initialModelPickerBaselineEstimates = computeMainRpPickerBaselineEstimates(
+    getEffectiveKrwPerUsd()
+  );
 
   const isSimulation = c.content_kind === "simulation";
   const initialNarrativePov = resolveNarrativePov({
@@ -558,6 +563,7 @@ export default async function ChatPage({
       initialSelectedAI={globalModelEntry.selectedAI}
       initialGlobalModelNotice={globalModelEntry.notice}
       initialActiveSitePromotions={initialActiveSitePromotions}
+      initialModelPickerBaselineEstimates={initialModelPickerBaselineEstimates}
       initialTargetResponseChars={userChatPrefs.targetResponseChars}
       initialChatTitle={chat?.title ?? ""}
       initialDisplayPrefs={userChatPrefs.displayPrefs}
