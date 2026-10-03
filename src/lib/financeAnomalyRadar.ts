@@ -11,6 +11,8 @@ export type FinanceAnomalyCode =
   | "PROVIDER_RECONCILIATION_UNAVAILABLE"
   | "FORWARD_UNMATCHED_REMOTE_SPEND"
   | "FORWARD_RECON_FETCH_FAILURE"
+  | "FORWARD_RECON_UNVERIFIED"
+  | "FORWARD_RECON_CONFIG_INVALID"
   | "DIRECT_COST_WITHOUT_USER_BILLING"
   | "UNATTRIBUTED_DIRECT_COST"
   | "ACTUAL_MARGIN_BELOW_FLOOR"
@@ -69,6 +71,39 @@ function formatForwardModelBreakdown(audit: ForwardReconAudit): string {
 }
 
 function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardReconAudit): void {
+  if (audit.verificationStatus === "config_invalid") {
+    anomalies.push({
+      id: "provider-reconciliation:forward-config-invalid",
+      code: "FORWARD_RECON_CONFIG_INVALID",
+      severity: "warning",
+      title: "Forward observation cutoff is invalid",
+      summary:
+        `${audit.observationNote} Historical month reconciliation is not a new finding. ` +
+        "No substitute forward window was chosen.",
+      sourceRef: "forward_audit:config_invalid",
+      href: "/admin/finance",
+      modelId: null,
+    });
+    return;
+  }
+
+  if (audit.verificationStatus === "unverified" || audit.cases.includes("unverifiable_timestamp")) {
+    anomalies.push({
+      id: "provider-reconciliation:forward-unverified",
+      code: "FORWARD_RECON_UNVERIFIED",
+      severity: "warning",
+      title: "Forward usage timestamps are unverifiable",
+      summary:
+        `${audit.observationNote} ${audit.unverifiableTimestampCount} remote request(s) ` +
+        `(${audit.unverifiableSettledCount} settled) lack a parseable createdAt, so whether they ` +
+        "are new calls is UNKNOWN/UNVERIFIED. They are not counted as zero new calls and are " +
+        "not invented as new unmatched spend.",
+      sourceRef: `forward_audit:unverified:${audit.unverifiableTimestampCount}`,
+      href: "/admin/finance",
+      modelId: null,
+    });
+  }
+
   if (audit.fetchStatus !== "ok") {
     anomalies.push({
       id: "provider-reconciliation:forward-fetch-failure",
@@ -124,11 +159,31 @@ export function buildFinanceAnomalyReport(params: {
   const anomalies: FinanceAnomaly[] = [];
   const reconciliation = params.summary.providerReconciliation;
   const forward = reconciliation?.forwardAudit ?? null;
-  const hasForwardBaseline = Boolean(forward?.observedSince);
+  const configInvalid = forward?.verificationStatus === "config_invalid";
+  const hasForwardBaseline =
+    Boolean(forward?.observedSince) && !configInvalid;
 
   // After a forward observation baseline exists, month-wide mismatch/unreconciled
   // is historical residue. Only the new window can raise a current recon warning.
-  if (hasForwardBaseline) {
+  // An invalid cutoff is fail-closed: do not invent a substitute window.
+  if (configInvalid) {
+    pushForwardReconAnomalies(anomalies, forward!);
+    if (!forward?.observedSince && reconciliation?.status === "mismatch") {
+      anomalies.push({
+        id: "provider-reconciliation:mismatch",
+        code: "PROVIDER_RECONCILIATION_MISMATCH",
+        severity: "critical",
+        title: "Provider cost reconciliation mismatch",
+        summary:
+          `CheaperInference daily checksum and canonical local ledger differ by ` +
+          `${reconciliation.dailyDeltaMicroUsd ?? "unknown"} micro-USD. ` +
+          "Do not change billing from this projection; reconcile the existing provider-cost owner.",
+        sourceRef: `provider_reconciliation:${reconciliation.windowStart}..${reconciliation.windowEnd}`,
+        href: "/admin/finance",
+        modelId: null,
+      });
+    }
+  } else if (hasForwardBaseline) {
     pushForwardReconAnomalies(anomalies, forward!);
     if (
       forward?.fetchStatus === "ok" &&
@@ -180,7 +235,9 @@ export function buildFinanceAnomalyReport(params: {
     });
   }
 
-  if (!hasForwardBaseline && (reconciliation?.unreconciledProviderMicroUsd ?? 0) > 0) {
+  const suppressHistoricalSpend =
+    hasForwardBaseline || (configInvalid && Boolean(forward?.observedSince));
+  if (!suppressHistoricalSpend && (reconciliation?.unreconciledProviderMicroUsd ?? 0) > 0) {
     anomalies.push({
       id: "provider-reconciliation:unreconciled-spend",
       code: "UNRECONCILED_PROVIDER_SPEND",

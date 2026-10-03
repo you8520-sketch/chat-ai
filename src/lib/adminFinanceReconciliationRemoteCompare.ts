@@ -14,8 +14,8 @@ import {
 } from "@/lib/cheaperInferenceUsage";
 import {
   buildForwardReconAudit,
+  inspectObservedSinceEnv,
   markForwardReconFetchFailure,
-  parseProvenObservedSince,
   resolveForwardObservationBaseline,
   type ForwardReconAudit,
 } from "@/lib/forwardReconAudit";
@@ -502,15 +502,25 @@ function buildRemoteForwardAudit(
     deps.observedSinceEnv !== undefined
       ? deps.observedSinceEnv
       : process.env.HAV_FORWARD_RECON_OBSERVED_SINCE;
+  const env = inspectObservedSinceEnv(envValue);
+  if (env.kind === "invalid") {
+    return buildForwardReconAudit({
+      requests: [],
+      ledgerIds: new Set(),
+      observedSince: stored?.observedSince ?? null,
+      observationSource: stored?.observationSource ?? null,
+      fetchStatus,
+      configInvalid: true,
+    });
+  }
   if (fetchStatus !== "ok") {
-    const proven = parseProvenObservedSince(envValue);
     const seed =
       stored ??
-      (proven
+      (env.kind === "valid"
         ? buildForwardReconAudit({
             requests: [],
             ledgerIds: new Set(),
-            observedSince: proven,
+            observedSince: env.iso,
             observationSource: "proven_rotation_env",
             fetchStatus: "ok",
           })
@@ -527,10 +537,15 @@ function buildRemoteForwardAudit(
     allowUnpersisted: stored?.observedSince == null,
   });
   return buildForwardReconAudit({
-    requests,
+    requests: baseline.configInvalid ? [] : requests,
     ledgerIds,
-    observedSince: baseline.observedSince,
-    observationSource: baseline.source,
+    observedSince: baseline.configInvalid
+      ? stored?.observedSince ?? null
+      : baseline.observedSince,
+    observationSource: baseline.configInvalid
+      ? stored?.observationSource ?? null
+      : baseline.source,
     fetchStatus: "ok",
+    configInvalid: baseline.configInvalid,
   });
 }

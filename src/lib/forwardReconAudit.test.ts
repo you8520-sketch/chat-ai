@@ -49,7 +49,7 @@ describe("forward recon observation baseline", () => {
       parseProvenObservedSince("2026-10-03T08:15:00.000Z"),
       "2026-10-03T08:15:00.000Z"
     );
-    assert.equal(parseProvenObservedSince("2026-10-03 08:15:00"), "2026-10-03T08:15:00.000Z");
+    assert.equal(parseProvenObservedSince("2026-10-03 08:15:00"), null);
     assert.equal(parseProvenObservedSince("yesterday"), null);
     assert.equal(parseProvenObservedSince("10/03/2026"), null);
     assert.equal(parseProvenObservedSince(""), null);
@@ -75,6 +75,31 @@ describe("forward recon observation baseline", () => {
     assert.equal(resolved.source, "first_successful_query");
     assert.equal(resolved.observedSince, T0);
     assert.equal(resolved.persist, true);
+    assert.equal(resolved.configInvalid, false);
+  });
+
+  it("accepts explicit UTC Z or offset and rejects timezone-less cutoffs", () => {
+    assert.equal(parseProvenObservedSince("2026-10-03T08:15:00Z"), "2026-10-03T08:15:00.000Z");
+    assert.equal(
+      parseProvenObservedSince("2026-10-03T17:15:00+09:00"),
+      "2026-10-03T08:15:00.000Z"
+    );
+    assert.equal(parseProvenObservedSince("2026-10-03 08:15:00"), null);
+    assert.equal(parseProvenObservedSince("2026-10-03T08:15:00"), null);
+  });
+
+  it("does not substitute another window when the env cutoff is nonempty and invalid", () => {
+    const resolved = resolveForwardObservationBaseline({
+      envValue: "2026-10-03 08:15:00",
+      storedObservedSince: "2026-10-03T12:00:00.000Z",
+      nowIso: "2026-10-03T18:00:00.000Z",
+    });
+    assert.equal(resolved.configInvalid, true);
+    assert.equal(resolved.observedSince, null);
+    assert.equal(resolved.source, null);
+    assert.equal(resolved.persist, false);
+    const raw = JSON.stringify(resolved);
+    assert.equal(raw.includes("2026-10-03 08:15:00"), false);
   });
 });
 
@@ -208,5 +233,50 @@ describe("forward recon audit fixtures", () => {
     assert.equal(stored.havExclusiveCostConfirmed, false);
     assert.equal(stored.productionKeyMapping, "unavailable");
     assert.equal(parseStoredForwardReconAudit("{not-json"), null);
+  });
+
+  it("marks a missing or malformed provider timestamp unverifiable instead of zero new calls", () => {
+    const result = audit([
+      req("old-well-formed", "2026-10-02 01:00:00", { billedMicroUsd: 3_000_000 }),
+      {
+        requestId: "settled-luna-no-time",
+        status: "settled",
+        billedMicroUsd: 9_000,
+        settled: true,
+        model: "gpt-6-luna",
+        endpoint: "/chat/completions",
+        createdAt: null,
+        apiKeyId: "key-a",
+      },
+      {
+        requestId: "settled-luna-bad-time",
+        status: "settled",
+        billedMicroUsd: 7_000,
+        settled: true,
+        model: "gpt-6-luna",
+        endpoint: "/chat/completions",
+        createdAt: "not-a-timestamp",
+        apiKeyId: "key-a",
+      },
+    ]);
+    assert.equal(result.fetchStatus, "ok");
+    assert.equal(result.verificationStatus, "unverified");
+    assert.ok(result.cases.includes("unverifiable_timestamp"));
+    assert.equal(result.cases.includes("zero_new_calls"), false);
+    assert.equal(result.unverifiableTimestampCount, 2);
+    assert.equal(result.unverifiableSettledCount, 2);
+    assert.equal(result.requestCount, 0);
+    assert.equal(result.unmatchedSettledMicroUsd, 0);
+    assert.equal(result.unmatchedLedgerCount, 0);
+    const raw = JSON.stringify(result);
+    assert.equal(raw.includes("settled-luna-no-time"), false);
+    assert.equal(raw.includes("settled-luna-bad-time"), false);
+  });
+
+  it("keeps well-formed zero new calls verified when timestamps are present", () => {
+    const result = audit([req("old-only", "2026-10-02 01:00:00")]);
+    assert.deepEqual(result.cases, ["zero_new_calls"]);
+    assert.equal(result.verificationStatus, "verified");
+    assert.equal(result.unverifiableTimestampCount, 0);
   });
 });

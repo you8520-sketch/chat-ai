@@ -21,7 +21,15 @@ export type ForwardReconCase =
   | "unmatched_luna"
   | "other_key"
   | "pending_settlement"
-  | "fetch_failure";
+  | "fetch_failure"
+  | "unverifiable_timestamp"
+  | "invalid_observed_since_env";
+
+export type ForwardVerificationStatus =
+  | "verified"
+  | "unverified"
+  | "config_invalid"
+  | "fetch_failed";
 
 export type ForwardReconFetchStatus =
   | "ok"
@@ -44,6 +52,12 @@ export type ForwardReconAudit = {
   observationSource: ForwardObservationSource | null;
   observationNote: string;
   fetchStatus: ForwardReconFetchStatus;
+  /**
+   * Transport success is `fetchStatus`. This is whether the forward window
+   * itself can be classified. Missing timestamps or an invalid cutoff are
+   * unverified, not a fictitious zero-new-calls success.
+   */
+  verificationStatus: ForwardVerificationStatus;
   requestCount: number;
   settledCount: number;
   pendingCount: number;
@@ -52,6 +66,8 @@ export type ForwardReconAudit = {
   settledMicroUsd: number;
   matchedSettledMicroUsd: number;
   unmatchedSettledMicroUsd: number;
+  unverifiableTimestampCount: number;
+  unverifiableSettledCount: number;
   byModel: Record<string, ForwardModelAudit>;
   distinctApiKeyIds: number;
   otherApiKeyCandidate: boolean;
@@ -68,10 +84,22 @@ export function isLunaUsageModel(model: string | null | undefined): boolean {
   return (LUNA_USAGE_MODEL_IDS as readonly string[]).includes(id);
 }
 
+const EXPLICIT_ZONE_ISO_RE =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})$/;
+const USAGE_CLIENT_UTC_SQL_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+
+export function inspectObservedSinceEnv(
+  raw: string | null | undefined
+): { kind: "unset" } | { kind: "valid"; iso: string } | { kind: "invalid" } {
+  if (raw == null || raw.trim() === "") return { kind: "unset" };
+  const iso = parseProvenObservedSince(raw);
+  return iso ? { kind: "valid", iso } : { kind: "invalid" };
+}
+
 export function parseProvenObservedSince(raw: string | null | undefined): string | null {
   const trimmed = raw?.trim() ?? "";
   if (!trimmed) return null;
-  if (!/^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(trimmed)) return null;
+  if (!EXPLICIT_ZONE_ISO_RE.test(trimmed)) return null;
   const ms = Date.parse(trimmed);
   if (!Number.isFinite(ms)) return null;
   return new Date(ms).toISOString();
@@ -80,9 +108,15 @@ export function parseProvenObservedSince(raw: string | null | undefined): string
 export function sqlOrIsoToUtcMs(value: string | null | undefined): number | null {
   const trimmed = value?.trim() ?? "";
   if (!trimmed) return null;
-  const iso = trimmed.includes("T") ? trimmed : `${trimmed.replace(" ", "T")}Z`;
-  const ms = Date.parse(iso);
-  return Number.isFinite(ms) ? ms : null;
+  if (USAGE_CLIENT_UTC_SQL_RE.test(trimmed)) {
+    const ms = Date.parse(`${trimmed.replace(" ", "T")}Z`);
+    return Number.isFinite(ms) ? ms : null;
+  }
+  if (EXPLICIT_ZONE_ISO_RE.test(trimmed)) {
+    const ms = Date.parse(trimmed);
+    return Number.isFinite(ms) ? ms : null;
+  }
+  return null;
 }
 
 export function resolveForwardObservationBaseline(input: {
@@ -91,29 +125,45 @@ export function resolveForwardObservationBaseline(input: {
   nowIso: string;
   allowUnpersisted?: boolean;
 }): {
-  observedSince: string;
-  source: ForwardObservationSource;
+  observedSince: string | null;
+  source: ForwardObservationSource | null;
   persist: boolean;
+  configInvalid: boolean;
 } {
-  const proven = parseProvenObservedSince(input.envValue);
-  if (proven) {
-    return { observedSince: proven, source: "proven_rotation_env", persist: true };
+  const env = inspectObservedSinceEnv(input.envValue);
+  if (env.kind === "invalid") {
+    return { observedSince: null, source: null, persist: false, configInvalid: true };
+  }
+  if (env.kind === "valid") {
+    return {
+      observedSince: env.iso,
+      source: "proven_rotation_env",
+      persist: true,
+      configInvalid: false,
+    };
   }
   const stored = parseProvenObservedSince(input.storedObservedSince);
   if (stored) {
-    return { observedSince: stored, source: "stored_watermark", persist: false };
+    return {
+      observedSince: stored,
+      source: "stored_watermark",
+      persist: false,
+      configInvalid: false,
+    };
   }
   if (input.allowUnpersisted) {
     return {
       observedSince: input.nowIso,
       source: "this_query_unpersisted",
       persist: false,
+      configInvalid: false,
     };
   }
   return {
     observedSince: input.nowIso,
     source: "first_successful_query",
     persist: true,
+    configInvalid: false,
   };
 }
 
@@ -136,6 +186,10 @@ export function observationNoteFor(source: ForwardObservationSource | null): str
   }
 }
 
+export function configInvalidObservationNote(): string {
+  return "HAV_FORWARD_RECON_OBSERVED_SINCE is set but is not an explicit UTC or offset ISO-8601 instant. The forward window is unverified; no substitute baseline was chosen.";
+}
+
 function sanitizeModelKey(raw: string | null): string {
   const trimmed = (raw ?? "").trim();
   if (!trimmed) return "(null)";
@@ -146,15 +200,42 @@ function sanitizeModelKey(raw: string | null): string {
 function emptyAudit(
   fetchStatus: ForwardReconFetchStatus,
   observedSince: string | null,
-  observationSource: ForwardObservationSource | null
+  observationSource: ForwardObservationSource | null,
+  opts?: { configInvalid?: boolean }
 ): ForwardReconAudit {
-  const cases: ForwardReconCase[] =
-    fetchStatus === "ok" ? ["zero_new_calls"] : ["fetch_failure"];
+  if (opts?.configInvalid) {
+    return {
+      observedSince,
+      observationSource,
+      observationNote: configInvalidObservationNote(),
+      fetchStatus,
+      verificationStatus: "config_invalid",
+      requestCount: 0,
+      settledCount: 0,
+      pendingCount: 0,
+      matchedLedgerCount: 0,
+      unmatchedLedgerCount: 0,
+      settledMicroUsd: 0,
+      matchedSettledMicroUsd: 0,
+      unmatchedSettledMicroUsd: 0,
+      unverifiableTimestampCount: 0,
+      unverifiableSettledCount: 0,
+      byModel: {},
+      distinctApiKeyIds: 0,
+      otherApiKeyCandidate: false,
+      havExclusiveCostConfirmed: false,
+      productionKeyMapping: "unavailable",
+      cases: ["invalid_observed_since_env"],
+    };
+  }
+  const fetchFailed = fetchStatus !== "ok";
+  const cases: ForwardReconCase[] = fetchFailed ? ["fetch_failure"] : ["zero_new_calls"];
   return {
     observedSince,
     observationSource,
     observationNote: observationNoteFor(observationSource),
     fetchStatus,
+    verificationStatus: fetchFailed ? "fetch_failed" : "verified",
     requestCount: 0,
     settledCount: 0,
     pendingCount: 0,
@@ -163,6 +244,8 @@ function emptyAudit(
     settledMicroUsd: 0,
     matchedSettledMicroUsd: 0,
     unmatchedSettledMicroUsd: 0,
+    unverifiableTimestampCount: 0,
+    unverifiableSettledCount: 0,
     byModel: {},
     distinctApiKeyIds: 0,
     otherApiKeyCandidate: false,
@@ -178,14 +261,22 @@ export function buildForwardReconAudit(input: {
   observedSince: string | null;
   observationSource: ForwardObservationSource | null;
   fetchStatus: ForwardReconFetchStatus;
+  configInvalid?: boolean;
 }): ForwardReconAudit {
+  if (input.configInvalid) {
+    return emptyAudit(input.fetchStatus, input.observedSince, input.observationSource, {
+      configInvalid: true,
+    });
+  }
   if (input.fetchStatus !== "ok" || !input.observedSince) {
     return emptyAudit(input.fetchStatus, input.observedSince, input.observationSource);
   }
 
   const sinceMs = sqlOrIsoToUtcMs(input.observedSince);
   if (sinceMs == null) {
-    return emptyAudit(input.fetchStatus, input.observedSince, input.observationSource);
+    return emptyAudit(input.fetchStatus, input.observedSince, input.observationSource, {
+      configInvalid: true,
+    });
   }
 
   const apiKeys = new Set<string>();
@@ -201,10 +292,17 @@ export function buildForwardReconAudit(input: {
   let unmatchedSettledMicroUsd = 0;
   let matchedLuna = 0;
   let unmatchedLuna = 0;
+  let unverifiableTimestampCount = 0;
+  let unverifiableSettledCount = 0;
 
   for (const request of input.requests) {
     const createdMs = sqlOrIsoToUtcMs(request.createdAt);
-    if (createdMs == null || createdMs < sinceMs) continue;
+    if (createdMs == null) {
+      unverifiableTimestampCount += 1;
+      if (request.settled && request.billedMicroUsd > 0) unverifiableSettledCount += 1;
+      continue;
+    }
+    if (createdMs < sinceMs) continue;
     requestCount += 1;
     const keyId = request.apiKeyId?.trim();
     if (keyId) apiKeys.add(keyId);
@@ -244,7 +342,8 @@ export function buildForwardReconAudit(input: {
   }
 
   const cases: ForwardReconCase[] = [];
-  if (requestCount === 0) cases.push("zero_new_calls");
+  if (unverifiableTimestampCount > 0) cases.push("unverifiable_timestamp");
+  if (requestCount === 0 && unverifiableTimestampCount === 0) cases.push("zero_new_calls");
   if (matchedLuna > 0) cases.push("matched_luna");
   if (unmatchedLuna > 0) cases.push("unmatched_luna");
   if (apiKeys.size > 1) cases.push("other_key");
@@ -255,6 +354,7 @@ export function buildForwardReconAudit(input: {
     observationSource: input.observationSource,
     observationNote: observationNoteFor(input.observationSource),
     fetchStatus: "ok",
+    verificationStatus: unverifiableTimestampCount > 0 ? "unverified" : "verified",
     requestCount,
     settledCount,
     pendingCount,
@@ -263,6 +363,8 @@ export function buildForwardReconAudit(input: {
     settledMicroUsd,
     matchedSettledMicroUsd,
     unmatchedSettledMicroUsd,
+    unverifiableTimestampCount,
+    unverifiableSettledCount,
     byModel,
     distinctApiKeyIds: apiKeys.size,
     otherApiKeyCandidate: apiKeys.size > 1,
@@ -283,6 +385,7 @@ export function markForwardReconFetchFailure(
   return {
     ...previous,
     fetchStatus,
+    verificationStatus: "fetch_failed",
     observationNote: previous.observationNote,
     havExclusiveCostConfirmed: false,
     productionKeyMapping: "unavailable",
@@ -305,6 +408,24 @@ const OBSERVATION_SOURCES = new Set<ForwardObservationSource>([
   "first_successful_query",
   "stored_watermark",
   "this_query_unpersisted",
+]);
+
+const VERIFICATION_STATUSES = new Set<ForwardVerificationStatus>([
+  "verified",
+  "unverified",
+  "config_invalid",
+  "fetch_failed",
+]);
+
+const FORWARD_CASES = new Set<ForwardReconCase>([
+  "zero_new_calls",
+  "matched_luna",
+  "unmatched_luna",
+  "other_key",
+  "pending_settlement",
+  "fetch_failure",
+  "unverifiable_timestamp",
+  "invalid_observed_since_env",
 ]);
 
 function finiteInt(value: unknown): number {
@@ -353,25 +474,28 @@ export function parseStoredForwardReconAudit(raw: unknown): ForwardReconAudit | 
     }
   }
   const cases = Array.isArray(row.cases)
-    ? row.cases.filter((item): item is ForwardReconCase =>
-        [
-          "zero_new_calls",
-          "matched_luna",
-          "unmatched_luna",
-          "other_key",
-          "pending_settlement",
-          "fetch_failure",
-        ].includes(String(item))
-      )
+    ? row.cases.filter((item): item is ForwardReconCase => FORWARD_CASES.has(item as ForwardReconCase))
     : [];
+  const verificationStatus = VERIFICATION_STATUSES.has(row.verificationStatus as ForwardVerificationStatus)
+    ? (row.verificationStatus as ForwardVerificationStatus)
+    : fetchStatus !== "ok"
+      ? "fetch_failed"
+      : cases.includes("invalid_observed_since_env")
+        ? "config_invalid"
+        : cases.includes("unverifiable_timestamp")
+          ? "unverified"
+          : "verified";
   return {
     observedSince,
     observationSource: source,
     observationNote:
       typeof row.observationNote === "string" && row.observationNote.trim()
         ? row.observationNote
-        : observationNoteFor(source),
+        : verificationStatus === "config_invalid"
+          ? configInvalidObservationNote()
+          : observationNoteFor(source),
     fetchStatus,
+    verificationStatus,
     requestCount: finiteInt(row.requestCount),
     settledCount: finiteInt(row.settledCount),
     pendingCount: finiteInt(row.pendingCount),
@@ -380,6 +504,8 @@ export function parseStoredForwardReconAudit(raw: unknown): ForwardReconAudit | 
     settledMicroUsd: finiteInt(row.settledMicroUsd),
     matchedSettledMicroUsd: finiteInt(row.matchedSettledMicroUsd),
     unmatchedSettledMicroUsd: finiteInt(row.unmatchedSettledMicroUsd),
+    unverifiableTimestampCount: finiteInt(row.unverifiableTimestampCount),
+    unverifiableSettledCount: finiteInt(row.unverifiableSettledCount),
     byModel,
     distinctApiKeyIds: finiteInt(row.distinctApiKeyIds),
     otherApiKeyCandidate: row.otherApiKeyCandidate === true,

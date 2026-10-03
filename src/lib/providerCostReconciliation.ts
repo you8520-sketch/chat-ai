@@ -9,8 +9,8 @@ import {
 } from "@/lib/cheaperInferenceUsage";
 import {
   buildForwardReconAudit,
+  inspectObservedSinceEnv,
   markForwardReconFetchFailure,
-  parseProvenObservedSince,
   parseStoredForwardReconAudit,
   resolveForwardObservationBaseline,
   type ForwardReconAudit,
@@ -651,19 +651,30 @@ export async function reconcileCheaperInferenceUsage(
       deps.observedSinceEnv !== undefined
         ? deps.observedSinceEnv
         : process.env.HAV_FORWARD_RECON_OBSERVED_SINCE;
-    const proven = parseProvenObservedSince(envValue);
-    const seed =
-      previous?.forwardAudit ??
-      (proven
-        ? buildForwardReconAudit({
-            requests: [],
-            ledgerIds: new Set(),
-            observedSince: proven,
-            observationSource: "proven_rotation_env",
-            fetchStatus: "ok",
-          })
-        : null);
-    result.forwardAudit = markForwardReconFetchFailure(seed, requestsResult.reason);
+    const env = inspectObservedSinceEnv(envValue);
+    if (env.kind === "invalid") {
+      result.forwardAudit = buildForwardReconAudit({
+        requests: [],
+        ledgerIds: new Set(),
+        observedSince: previous?.forwardAudit?.observedSince ?? null,
+        observationSource: previous?.forwardAudit?.observationSource ?? null,
+        fetchStatus: requestsResult.reason,
+        configInvalid: true,
+      });
+    } else {
+      const seed =
+        previous?.forwardAudit ??
+        (env.kind === "valid"
+          ? buildForwardReconAudit({
+              requests: [],
+              ledgerIds: new Set(),
+              observedSince: env.iso,
+              observationSource: "proven_rotation_env",
+              fetchStatus: "ok",
+            })
+          : null);
+      result.forwardAudit = markForwardReconFetchFailure(seed, requestsResult.reason);
+    }
     if (result.forwardAudit.observedSince) {
       persistForwardReconAudit(db, result.forwardAudit);
     }
@@ -748,11 +759,16 @@ export async function reconcileCheaperInferenceUsage(
     nowIso,
   });
   result.forwardAudit = buildForwardReconAudit({
-    requests,
+    requests: baseline.configInvalid ? [] : requests,
     ledgerIds: loadCheaperInferenceLedgerRequestIds(db),
-    observedSince: baseline.observedSince,
-    observationSource: baseline.source,
+    observedSince: baseline.configInvalid
+      ? previous?.forwardAudit?.observedSince ?? null
+      : baseline.observedSince,
+    observationSource: baseline.configInvalid
+      ? previous?.forwardAudit?.observationSource ?? null
+      : baseline.source,
     fetchStatus: "ok",
+    configInvalid: baseline.configInvalid,
   });
   persistForwardReconAudit(db, result.forwardAudit);
   return result;
