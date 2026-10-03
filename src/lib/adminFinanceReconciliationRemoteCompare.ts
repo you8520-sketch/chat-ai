@@ -12,6 +12,14 @@ import {
   type CheaperInferenceUsageRequest,
   type UsageFetcher,
 } from "@/lib/cheaperInferenceUsage";
+import {
+  buildForwardReconAudit,
+  markForwardReconFetchFailure,
+  parseProvenObservedSince,
+  resolveForwardObservationBaseline,
+  type ForwardReconAudit,
+} from "@/lib/forwardReconAudit";
+import { readProviderReconciliationState } from "@/lib/providerCostReconciliation";
 
 /**
  * Opt-in read-only remote compare for
@@ -78,6 +86,8 @@ export type ProviderReconciliationRemoteCompare = {
     confirmedMechanism: RemoteCompareConfirmedMechanism;
     requiredToConfirm: readonly string[];
   };
+  /** New observation window only. Month-wide remote/match totals stay historical. */
+  forwardAudit: ForwardReconAudit;
 };
 
 const REQUIRED_WHEN_UNVERIFIED = [
@@ -119,6 +129,8 @@ type RemoteCompareDeps = {
   fetchRequests?: typeof fetchAllUsageRequests;
   fetchImpl?: UsageFetcher;
   includeKeyGroups?: boolean;
+  observedSinceEnv?: string | null;
+  now?: () => number;
 };
 
 function sqlDateTimeToIso(value: string): string {
@@ -466,7 +478,59 @@ export async function compareProviderReconciliationRemote(
         }
       : {}),
     evidence: classify(remote, match, local),
+    forwardAudit: buildRemoteForwardAudit(
+      db,
+      fetched.ok ? fetched.value.requests : [],
+      local.ledgerIdsAny,
+      fetched.ok ? "ok" : fetched.reason,
+      deps
+    ),
   };
   assertReconciliationDiagnosisSafePayload(result);
   return result;
+}
+
+function buildRemoteForwardAudit(
+  db: Database.Database,
+  requests: CheaperInferenceUsageRequest[],
+  ledgerIds: ReadonlySet<string>,
+  fetchStatus: ForwardReconAudit["fetchStatus"],
+  deps: RemoteCompareDeps
+): ForwardReconAudit {
+  const stored = readProviderReconciliationState(db)?.forwardAudit ?? null;
+  const envValue =
+    deps.observedSinceEnv !== undefined
+      ? deps.observedSinceEnv
+      : process.env.HAV_FORWARD_RECON_OBSERVED_SINCE;
+  if (fetchStatus !== "ok") {
+    const proven = parseProvenObservedSince(envValue);
+    const seed =
+      stored ??
+      (proven
+        ? buildForwardReconAudit({
+            requests: [],
+            ledgerIds: new Set(),
+            observedSince: proven,
+            observationSource: "proven_rotation_env",
+            fetchStatus: "ok",
+          })
+        : null);
+    return markForwardReconFetchFailure(
+      seed,
+      fetchStatus === "not_run" ? "network" : fetchStatus
+    );
+  }
+  const baseline = resolveForwardObservationBaseline({
+    envValue,
+    storedObservedSince: stored?.observedSince ?? null,
+    nowIso: new Date((deps.now ?? Date.now)()).toISOString(),
+    allowUnpersisted: stored?.observedSince == null,
+  });
+  return buildForwardReconAudit({
+    requests,
+    ledgerIds,
+    observedSince: baseline.observedSince,
+    observationSource: baseline.source,
+    fetchStatus: "ok",
+  });
 }
