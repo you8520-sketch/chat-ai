@@ -76,6 +76,22 @@ export function isPortraitDisplayAsset(
   return !isWideInlineAsset(asset);
 }
 
+/** Public gallery strip only — do not reuse as the CharacterAssetImage default. */
+export const GALLERY_STRIP_PORTRAIT_IMG_CLASS = "block h-full w-full object-cover object-top";
+export const GALLERY_STRIP_LANDSCAPE_IMG_CLASS = "block h-full w-full object-contain object-center";
+
+/**
+ * Character-page gallery thumbs stay a 2:3 cell. Landscape RP assets letterbox
+ * with contain so the full cut is visible; representative/portrait assets keep
+ * the face-first cover crop.
+ */
+export function galleryStripImgClassName(
+  asset: Pick<CharacterAsset, "width" | "height" | "orientation" | "representativeRank">
+): string {
+  if (isRepresentativeAsset(asset)) return GALLERY_STRIP_PORTRAIT_IMG_CLASS;
+  return isWideInlineAsset(asset) ? GALLERY_STRIP_LANDSCAPE_IMG_CLASS : GALLERY_STRIP_PORTRAIT_IMG_CLASS;
+}
+
 export const CREATOR_ASSET_TAG_MAX = 32;
 
 /**

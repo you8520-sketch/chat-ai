@@ -31,7 +31,7 @@ function renderStyleDna(dna: VisualStyleDna): string {
     `line density: ${dna.lineDensity}; rendering: ${dna.rendering}; skin: ${dna.skinRendering}; hair: ${dna.hairRendering}`,
     `body proportion: ${dna.bodyProportion}; costume complexity: ${dna.costumeComplexity}`,
     `palette: ${dna.palette}; light: ${dna.lightSoftness}; contrast: ${dna.contrast}; background density: ${dna.backgroundDensity}`,
-    `framing: ${dna.framing}; atmosphere: ${dna.atmosphere}`,
+    `atmosphere: ${dna.atmosphere}`,
   ].join("\n");
 }
 
@@ -114,6 +114,24 @@ function representativeStyleReferenceRule(styleSeed: StyleReference | null | und
   return lines.join(" ");
 }
 
+/** Non-representative slots: the supplied image is the same person, not a composition to edit. */
+export const OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE = [
+  "REFERENCE IMAGE: IDENTITY ANCHOR ONLY.",
+  "Use the supplied image solely to keep the same face structure, hair, eyes, marks, age, and body type.",
+  "Do not copy the reference camera, head angle, face direction, crop, hand position, pose, expression, or background.",
+  "SHOT RESPONSIBILITY owns camera, face direction, and shot distance.",
+  "The Pose line owns action and props. The Expression line owns emotion.",
+].join(" ");
+
+function officialSlotReferenceRule(
+  slot: OfficialAssetSlotPlan,
+  styleSeed: StyleReference | null | undefined
+): string {
+  return slot.kind === "representative"
+    ? representativeStyleReferenceRule(styleSeed)
+    : OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE;
+}
+
 /**
  * Official asset prompt. Gender lock and safety come from the canonical image
  * owners; `adultGrounded` is decided per slot (depiction) and only honoured for
@@ -130,10 +148,7 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     { label: "Character", name: draft.name, gender: draft.gender },
   ]);
   const effectiveStyle = resolveOfficialAssetStyleDna(style, styleSeed);
-  const referenceRule =
-    slot.kind === "representative"
-      ? representativeStyleReferenceRule(styleSeed)
-      : "REFERENCE IMAGE: the approved identity anchor of this same character. Keep the exact same person; only expression, pose, outfit variant and setting change.";
+  const referenceRule = officialSlotReferenceRule(slot, styleSeed);
   const moment = [
     `Expression: ${slot.expression}.`,
     slot.pose.trim() ? `Pose: ${slot.pose}.` : "",
@@ -166,11 +181,8 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     renderIdentityLock(appearance),
     buildMatureMaleVisualAgePrompt(draft) ?? "",
     genderLock,
-    renderOfficialShotResponsibility(resolveOfficialSlotShot(slot, draft.draftKey)),
-    `Expression: ${slot.expression}.`,
-    slot.kind === "scene"
-      ? `Setting: ${slot.location}. Scene, not portrait — the character must be visible inside the place and incident.`
-      : "",
+    renderOfficialStyleFramingOverride(slot.kind),
+    moment,
     "No text, logos or watermarks.",
   ]
     .filter(Boolean)

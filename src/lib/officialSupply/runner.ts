@@ -8,7 +8,28 @@ import {
 import { buildOfficialAssetPrompts, OFFICIAL_ASSET_TEMPLATE_ID } from "@/lib/officialSupply/imagePrompt";
 import { resolveOfficialStyleGenerationReferences } from "@/lib/officialSupply/style";
 import { OfficialSupplyGateError, type OfficialSupplyStore } from "@/lib/officialSupply/store";
-import type { OfficialAssetModeration } from "@/lib/officialSupply/types";
+import type {
+  OfficialAssetModeration,
+  OfficialAssetSlotKind,
+  StyleReference,
+} from "@/lib/officialSupply/types";
+
+/**
+ * What the edit request sends as `image[]`.
+ * Representative: approved style-only seeds. Other slots: the approved
+ * representative URL as an identity anchor — prompt text owns composition.
+ */
+export function officialSlotGenerationReferences(input: {
+  kind: OfficialAssetSlotKind;
+  styleSeed: StyleReference;
+  representativeUrl: string | null | undefined;
+}): string[] {
+  if (input.kind === "representative") {
+    return resolveOfficialStyleGenerationReferences(input.styleSeed);
+  }
+  const url = input.representativeUrl?.trim() ?? "";
+  return url ? [url] : [];
+}
 
 /** Platform-funded provider port. Production wraps the canonical OpenAI edit + safety fallback owner. */
 export type OfficialImageTransport = {
@@ -199,10 +220,11 @@ export async function runOfficialAssetSlot(
     deps.store.failSlot(draftKey, slotKey, deps.workerId, "pipeline record incomplete");
     return { status: "failed", error: "pipeline record incomplete" };
   }
-  const references =
-    plan.kind === "representative"
-      ? resolveOfficialStyleGenerationReferences(style.styleSeed)
-      : [deps.store.representativeAsset(draftKey).resultUrl ?? ""];
+  const references = officialSlotGenerationReferences({
+    kind: plan.kind,
+    styleSeed: style.styleSeed,
+    representativeUrl: deps.store.representativeAsset(draftKey).resultUrl,
+  });
   if (references.length === 0 || references.some((ref) => !ref)) {
     deps.store.failSlot(draftKey, slotKey, deps.workerId, "missing reference");
     return { status: "failed", error: "missing reference" };
