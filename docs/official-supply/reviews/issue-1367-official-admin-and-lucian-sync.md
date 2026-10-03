@@ -12,7 +12,7 @@ Live production SQL was **not executed**. Use the approved read-only query below
 ## Investigation
 
 Earlier PR base / prior live deploy SHA: `11e9e96aa729922d05249695f36a1e3c699aaba0`.
-Main at GPT re-review: `9e0c65576cf1de4f7190c71196670028386c60ce`. This patch syncs to the then-current `origin/main` after the runtime-canon fix.
+Main at this work: `9e0c65576cf1de4f7190c71196670028386c60ce` (same SHA GPT recorded). After the runtime-canon fix, this branch merged that `origin/main`. The only overlapping file was `src/lib/characterFormSave.ts` (official-admin options vs JSX call-guide budget). Auto-merge kept both; no conflict.
 Earlier inspected Draft HEAD: `6f937a946485473221e1c132e5d677b6d6e686d3`.
 GPT MUST FIX 1–5 HEAD: `31b0d7978056c3f328a406228d3695327a1590e9`.
 GPT runtime-canon review HEAD: `ef6b285ea4e9895e0e684c14aa76ea8a25de9cfd`.
@@ -169,6 +169,19 @@ GROUP BY official, visibility;
 - PRESERVED: Lucian id, 14 assets, likes/chats, widget/JSX/style/comments/appearance, compact #1196 prompt, LOCKED_SECRET owner, apply default-off, #1322, admin CP accounting.
 - RISKS: live Lucian compiled-JSON / 12 lorebook bodies / sibling links are still unread. If production shared lorebooks differ and are attached to other characters, apply must STOP until those siblings are reviewed.
 - PROOF: isolated before/after fixtures in `officialCharacterAdmin.1367.test.ts`. No Railway SQL. No apply.
+
+## Fixture vs live SQL
+
+| Required condition | Isolated fixture | Live Railway `/data/app.db` |
+| --- | --- | --- |
+| 1. Before: stale compiled JSON wins on `loadCharacterChunks` | Covered (`MUST FIX A before`) | Confirm live `creator_compiled_description_json` is old wrist-grab canon |
+| 2. After: RP loader uses #1196 Lucian | Covered (`MUST FIX A after`) | After apply only |
+| 3. Secrets / compact appearance match approved compile | Covered (LOCKED_SECRET + `키/체형`) | Confirm live secrets/appearance columns |
+| 4. Shared lorebooks used by siblings stay unchanged | Covered (`MUST FIX B`) | Confirm the 8 shared IDs and sibling attachments |
+| 5. Error leaves no partial write | Covered (inject + conflict) | Apply remains default-off |
+| 6. Same id / 14 assets / chats / likes / widget / JSX / style / comments | Covered (rich preserve + CAS) | Confirm live asset count and nondefault settings |
+| 7. Repeat sync creates no duplicate character/lorebook | Covered (second apply, count=1, 12 attachments) | Confirm no extra `keyword_lorebooks` / `characters` |
+| 8. Ordinary users cannot edit official; admin + apply gate stay | Covered (MUST FIX 4/5 + ordinary deny) | Confirm `OFFICIAL_IN_PLACE_APPLY_ENABLED` is unset |
 
 ## Classification
 
