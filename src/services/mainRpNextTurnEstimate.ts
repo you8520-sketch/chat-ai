@@ -9,6 +9,7 @@ import type { SelectedAI } from "@/lib/chatModels";
 import type { Usage } from "@/lib/chatUsage";
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
+import { billableOpenRouterOutputTokens } from "@/lib/points";
 import {
   computeMainRpNextTurnEstimates,
   isUsableOutputCalibrationSource,
@@ -36,13 +37,19 @@ function parseUsage(raw: string | null): Usage | null {
   }
 }
 
-function usageOutputTokens(usage: Usage | null): number | null {
+function usageOutputTokens(usage: Usage | null, modelId: string): number | null {
   if (!usage) return null;
   const total = usage.apiOutputTokens ?? usage.output ?? 0;
-  if (total > 0) return total;
-  const content = usage.apiContentOutputTokens ?? 0;
   const reasoning = usage.apiReasoningOutputTokens ?? 0;
-  if (content + reasoning > 0) return content + reasoning;
+  if (total > 0) {
+    const billable = billableOpenRouterOutputTokens(modelId, total, reasoning);
+    return billable > 0 ? billable : null;
+  }
+  const content = usage.apiContentOutputTokens ?? 0;
+  if (content + reasoning > 0) {
+    const billable = billableOpenRouterOutputTokens(modelId, content + reasoning, reasoning);
+    return billable > 0 ? billable : null;
+  }
   return null;
 }
 
@@ -72,7 +79,7 @@ function readObservedCharsPerTokenByModel(
     const modelId = (usage?.selectedAI || usage?.model || row.model || "").trim() as SelectedAI;
     if (!modelId || out[modelId] != null) continue;
     const visibleChars = visibleAssistantDisplayCharCount(row.content);
-    const outputTokens = usageOutputTokens(usage);
+    const outputTokens = usageOutputTokens(usage, modelId);
     if (
       !isUsableOutputCalibrationSource({
         generationStatus: row.generation_status,

@@ -303,6 +303,7 @@ describe("main RP next-turn estimate", () => {
     }
     assert.match(SERVICE_SOURCE, /resolveModelPickerAssembledInputSnapshots/);
     assert.match(SERVICE_SOURCE, /visibleAssistantDisplayCharCount/);
+    assert.match(SERVICE_SOURCE, /billableOpenRouterOutputTokens/);
   });
 
   it("J room isolation: selected-ai is not the room estimate owner", () => {

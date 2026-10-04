@@ -9,6 +9,10 @@ import { buildContext } from "@/services/contextBuilder";
 import { matchesModelPickerSnapshotCache } from "@/services/modelPickerInputSnapshot";
 
 const source = fs.readFileSync(
+  path.join(process.cwd(), "src/services/nextTurnAssemblyPreparation.ts"),
+  "utf8"
+);
+const snapshotSource = fs.readFileSync(
   path.join(process.cwd(), "src/services/modelPickerInputSnapshot.ts"),
   "utf8"
 );
@@ -83,15 +87,16 @@ describe("model picker authoring owner parity", () => {
 
   it("routes picker assembly through the same canonical delegation as Main RP", () => {
     assert.match(source, /resolveEffectiveUserAuthoringFromChatColumn\(/);
-    assert.match(source, /currentTurnAuthoringDelegation:\s*effectiveUserAuthoring\.delegation/);
+    assert.match(source, /currentTurnAuthoringDelegation: opts\.source\.effectiveUserAuthoring\.delegation/);
     assert.match(source, /coNarrationEnabled: effectiveUserAuthoring\.delegation\.allowDialogue === true/);
     assert.doesNotMatch(source, /resolveUserImpersonationAllowance/);
+    assert.match(snapshotSource, /assemblePersistedNextTurnInputs/);
   });
 
-  it("includes effective authoring state in the snapshot cache dependency", () => {
-    assert.match(source, /cached\.authoringFingerprint === current\.authoringFingerprint/);
-    assert.match(source, /matchesModelPickerSnapshotCache\(cached,/);
-    assert.match(source, /if \(!opts\.refresh && cacheMatches\)/);
+  it("includes effective authoring state in the shared source fingerprint", () => {
+    assert.match(source, /authoring: source\.effectiveUserAuthoring\.delegation/);
+    assert.match(snapshotSource, /sourceFingerprint/);
+    assert.match(snapshotSource, /matchesModelPickerSnapshotCache\(cached, \{ sourceFingerprint \}\)/);
   });
 
   it("LIMITED/NORMAL/ALLOW, persistent OOC and legacy text use canonical prompt authority", () => {
@@ -119,30 +124,43 @@ describe("model picker authoring owner parity", () => {
   });
 
   it("slider and epoch reset miss cache even when message count does not change", () => {
-    const key = (db: Database.Database) => ({
-      messageCount: 1,
-      chatMode: "safe",
-      personaId: null,
-      userNote: "",
-      targetResponseChars: 2500,
-      authoringFingerprint: JSON.stringify(
-        resolveEffectiveUserAuthoringFromChatColumn(db, 1, "").delegation
-      ),
-    });
+    const fingerprint = (db: Database.Database) =>
+      JSON.stringify(resolveEffectiveUserAuthoringFromChatColumn(db, 1, "").delegation);
     const slider = fixture("NORMAL");
-    const beforeSlider = { ...key(slider.db), tokensByModel: {} };
-    assert.equal(matchesModelPickerSnapshotCache(beforeSlider, key(slider.db)), true);
+    const beforeSlider = {
+      tokensByModel: {},
+      sourceFingerprint: fingerprint(slider.db),
+    };
+    assert.equal(
+      matchesModelPickerSnapshotCache(beforeSlider, { sourceFingerprint: fingerprint(slider.db) }),
+      true
+    );
     slider.db.prepare("UPDATE chats SET user_authoring_level='ALLOW' WHERE id=1").run();
-    assert.equal(matchesModelPickerSnapshotCache(beforeSlider, key(slider.db)), false);
+    assert.equal(
+      matchesModelPickerSnapshotCache(beforeSlider, { sourceFingerprint: fingerprint(slider.db) }),
+      false
+    );
     slider.db.close();
 
     const epoch = fixture("NORMAL", "", "ABSOLUTE");
-    const beforeReset = { ...key(epoch.db), tokensByModel: {} };
+    const beforeReset = {
+      tokensByModel: {},
+      sourceFingerprint: fingerprint(epoch.db),
+    };
     epoch.db.prepare("UPDATE chats SET user_authoring_level='ALLOW', user_coauthor_mode='OFF' WHERE id=1").run();
     epoch.db.prepare("UPDATE messages SET user_coauthor_semantics_version=0 WHERE chat_id=1").run();
-    assert.equal(matchesModelPickerSnapshotCache(beforeReset, key(epoch.db)), false);
-    const afterReset = { ...key(epoch.db), tokensByModel: {} };
-    assert.equal(matchesModelPickerSnapshotCache(afterReset, key(epoch.db)), true);
+    assert.equal(
+      matchesModelPickerSnapshotCache(beforeReset, { sourceFingerprint: fingerprint(epoch.db) }),
+      false
+    );
+    const afterReset = {
+      tokensByModel: {},
+      sourceFingerprint: fingerprint(epoch.db),
+    };
+    assert.equal(
+      matchesModelPickerSnapshotCache(afterReset, { sourceFingerprint: fingerprint(epoch.db) }),
+      true
+    );
     epoch.db.close();
   });
 

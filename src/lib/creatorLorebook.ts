@@ -589,6 +589,7 @@ export function loadAttachedCreatorLorebooksPromptBlockFromActivation(
     currentTurn?: number;
     ttlTurns?: number;
     onMatch?: (match: CreatorLorebookMatch) => void;
+    persistActiveMatches?: boolean;
   }
 ): string {
   const attached = loadAttachedCreatorLorebooks(db, characterId);
@@ -624,7 +625,11 @@ export function loadAttachedCreatorLorebooksPromptBlockFromActivation(
     }
   }
 
-  if (opts?.chatId != null && opts.currentTurn != null) {
+  if (
+    opts?.persistActiveMatches !== false &&
+    opts?.chatId != null &&
+    opts.currentTurn != null
+  ) {
     for (const item of attached) {
       const itemDirect = directMatches.filter((match) => match.lorebookId === item.lorebookId);
       saveActiveLorebookMatches(db, {

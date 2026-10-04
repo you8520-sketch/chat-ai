@@ -422,6 +422,7 @@ export function loadKeywordLorebookPromptBlockFromActivation(
     currentTurn?: number;
     ttlTurns?: number;
     onMatch?: (match: KeywordLorebookMatch) => void;
+    persistActiveMatches?: boolean;
   }
 ): string {
   if (lorebookId == null || !Number.isFinite(lorebookId) || lorebookId <= 0) return "";
@@ -440,7 +441,7 @@ export function loadKeywordLorebookPromptBlockFromActivation(
         })
       : [];
   const matches = mergeMatches(direct, carryover);
-  if (opts?.chatId && opts.currentTurn != null) {
+  if (opts?.persistActiveMatches !== false && opts?.chatId && opts.currentTurn != null) {
     saveActiveLorebookMatches(db, {
       chatId: opts.chatId,
       lorebookId,
