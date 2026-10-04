@@ -257,7 +257,18 @@ export function startMainRpGenerationLeaseHeartbeat(
 ): () => void {
   const intervalMs = opts?.intervalMs ?? MAIN_RP_GENERATION_LEASE_HEARTBEAT_MS;
   const tick = () => {
-    heartbeatMainRpGenerationLease(db, lease, { staleMs: opts?.staleMs });
+    try {
+      heartbeatMainRpGenerationLease(db, lease, { staleMs: opts?.staleMs });
+    } catch (err) {
+      // A transient SQLite writer lock must not escape a timer callback and
+      // destabilize the process. The existing lease remains valid until its
+      // expiry and the next heartbeat retries.
+      console.warn("[main-rp-admission] lease heartbeat failed", {
+        userId: lease.userId,
+        requestId: lease.requestId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   };
   tick();
   const timer = setInterval(tick, intervalMs);
