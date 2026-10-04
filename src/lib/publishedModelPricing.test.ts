@@ -10,6 +10,7 @@ import {
 } from "./chatModels";
 import { normalizeBillableUsage } from "./billingUsage";
 import {
+  computePublishedStandardPreviewDisplayPoints,
   computePublishedStandardPreviewPoints,
   computePublishedUserChargeWithSnapshot,
 } from "./publishedUserCharge";
@@ -142,8 +143,13 @@ describe("publishedModelPricing", () => {
     }
   });
 
-  it("Opus 5.5 published user charge is cache-partition price-neutral", () => {
+  it("Opus 5.5 uses the shared 45% target-margin owner and stays cache-partition price-neutral", () => {
     const p = getPublishedPricing("claude-opus-5.5");
+    assert.equal(p.commercialPricingOwner, "target_margin");
+    assert.equal(p.billingReferenceInputUsdPerMillion, 2.8);
+    assert.equal(p.billingReferenceOutputUsdPerMillion, 14);
+    assert.equal(p.targetMargin, 0.45);
+    assert.equal(p.pricingVersion, 2);
     assert.equal(isPublishedCacheBreakdownPriceNeutral("claude-opus-5.5"), true);
     assert.equal(
       p.billingReferenceCacheReadUsdPerMillion,
@@ -152,6 +158,56 @@ describe("publishedModelPricing", () => {
     assert.equal(
       p.billingReferenceCacheWriteUsdPerMillion,
       p.billingReferenceInputUsdPerMillion
+    );
+  });
+
+  it("Opus 5.5 competitor receipt workload prices to 1,262P at 45% margin", () => {
+    const fx: BillingFxSnapshot = {
+      mode: "daily_kst",
+      dateKey: "2026-10-04",
+      usdToKrw: 1530,
+      effectiveKrwPerUsd: 1560.6,
+      source: "api_daily",
+      overseasFeeRate: 0.02,
+      locked: true,
+    };
+    const result = computePublishedUserChargeWithSnapshot({
+      modelId: "claude-opus-5.5",
+      usage: normalizeBillableUsage({
+        modelId: "claude-opus-5.5",
+        promptTokens: 71_257,
+        outputTokens: 17_508,
+        reasoningTokens: 0,
+      }),
+      usageCoverage: "complete",
+      fxSnapshot: fx,
+      adjustment: { kind: "none" },
+    });
+    assert.equal(result.status, "complete");
+    if (result.status === "complete") {
+      assert.equal(result.snapshot.billingReferenceCostUsd, 0.4446316);
+      assert.equal(result.snapshot.billingReferenceCostKrw, 693.9);
+      assert.equal(result.snapshot.standardUserChargeKrw, 1261.6);
+      assert.equal(result.snapshot.finalPoints, 1262);
+    }
+
+    assert.equal(
+      computePublishedStandardPreviewDisplayPoints({
+        modelId: "claude-opus-5.5",
+        promptTokens: 20_000,
+        outputTokens: 1_500,
+        effectiveKrwPerUsd: 1560.6,
+      }),
+      219
+    );
+    assert.equal(
+      computePublishedStandardPreviewPoints({
+        modelId: "claude-opus-5.5",
+        promptTokens: 20_000,
+        outputTokens: 1_500,
+        effectiveKrwPerUsd: 1560.6,
+      }),
+      219
     );
   });
 
