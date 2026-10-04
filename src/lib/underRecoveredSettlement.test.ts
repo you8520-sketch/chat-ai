@@ -10,8 +10,8 @@ import {
   UNDER_RECOVERED_OUTCOME,
   hasUnresolvedUnderRecoveredSettlement,
   settleChatTurnBillingExactlyOnce,
-  shouldBlockNewPaidGenerationForUnderRecovered,
 } from "./chatBillingSettlement";
+import { shouldRejectMainRpGenerationReadOnly } from "./mainRpGenerationAdmission";
 import { ensureChatBillingSettlementSchema } from "./chatBillingSettlementSchema";
 import { creditPointsWithIds } from "./points";
 import {
@@ -271,28 +271,28 @@ describe("under-recovered settlement fixtures", () => {
 
       assert.equal(hasUnresolvedUnderRecoveredSettlement(db, 1), true);
       assert.equal(
-        shouldBlockNewPaidGenerationForUnderRecovered(db, {
+        shouldRejectMainRpGenerationReadOnly(db, {
           userId: 1,
           chatId: 1,
           requestId,
         }),
-        false
+        null
       );
       assert.equal(
-        shouldBlockNewPaidGenerationForUnderRecovered(db, {
+        shouldRejectMainRpGenerationReadOnly(db, {
           userId: 1,
           chatId: 1,
           requestId: "req_new_turn",
         }),
-        true
+        "under_recovered"
       );
       assert.equal(
-        shouldBlockNewPaidGenerationForUnderRecovered(db, {
+        shouldRejectMainRpGenerationReadOnly(db, {
           userId: 1,
           chatId: null,
           requestId: "req_new_chat",
         }),
-        true
+        "under_recovered"
       );
     });
   });
@@ -333,12 +333,12 @@ describe("under-recovered settlement fixtures", () => {
       assertLotsNonNegative(db);
       assert.equal(hasUnresolvedUnderRecoveredSettlement(db, 1), false);
       assert.equal(
-        shouldBlockNewPaidGenerationForUnderRecovered(db, {
+        shouldRejectMainRpGenerationReadOnly(db, {
           userId: 1,
           chatId: 1,
           requestId: "req_next",
         }),
-        false
+        null
       );
     });
   });
@@ -408,20 +408,20 @@ describe("under-recovered settlement fixtures", () => {
       const secondId = insertAssistant(db, "req_d_second");
 
       assert.equal(
-        shouldBlockNewPaidGenerationForUnderRecovered(db, {
+        shouldRejectMainRpGenerationReadOnly(db, {
           userId: 1,
           chatId: 1,
           requestId: "req_d_first",
         }),
-        false
+        null
       );
       assert.equal(
-        shouldBlockNewPaidGenerationForUnderRecovered(db, {
+        shouldRejectMainRpGenerationReadOnly(db, {
           userId: 1,
           chatId: 1,
           requestId: "req_d_second",
         }),
-        false
+        null
       );
 
       const first = settleChatTurnBillingExactlyOnce(db, {
@@ -448,28 +448,28 @@ describe("under-recovered settlement fixtures", () => {
       assert.equal(countNegativeLogs(db), 0);
 
       assert.equal(
-        shouldBlockNewPaidGenerationForUnderRecovered(db, {
+        shouldRejectMainRpGenerationReadOnly(db, {
           userId: 1,
           chatId: 1,
           requestId: "req_d_third",
         }),
-        true
+        "under_recovered"
       );
       assert.equal(
-        shouldBlockNewPaidGenerationForUnderRecovered(db, {
+        shouldRejectMainRpGenerationReadOnly(db, {
           userId: 1,
           chatId: null,
           requestId: "req_d_new_chat",
         }),
-        true
+        "under_recovered"
       );
       assert.equal(
-        shouldBlockNewPaidGenerationForUnderRecovered(db, {
+        shouldRejectMainRpGenerationReadOnly(db, {
           userId: 1,
           chatId: 1,
           requestId: "req_d_first",
         }),
-        false
+        null
       );
 
       db.prepare(
@@ -477,12 +477,12 @@ describe("under-recovered settlement fixtures", () => {
       ).run(UNDER_RECOVERED_OUTCOME);
       assert.equal(hasUnresolvedUnderRecoveredSettlement(db, 1), true);
       assert.equal(
-        shouldBlockNewPaidGenerationForUnderRecovered(db, {
+        shouldRejectMainRpGenerationReadOnly(db, {
           userId: 1,
           chatId: 1,
           requestId: "req_d_after_refunded_at",
         }),
-        true
+        "under_recovered"
       );
     });
   });
