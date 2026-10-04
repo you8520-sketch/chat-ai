@@ -334,6 +334,9 @@ export default function PointsClient({
         customerEmail: userEmail || undefined,
         customerName: userNickname || undefined,
       });
+      if (!charged.completed) {
+        return;
+      }
       const testConfirmed =
         charged.completed.checkoutKind === "reviewer_kg_test" || charged.completed.credited === false;
       setMsg(
@@ -461,7 +464,7 @@ export default function PointsClient({
               <button
                 key={p.id}
                 onClick={() => charge(p.id)}
-                disabled={loading === p.id}
+                disabled={Boolean(loading)}
                 className={`${cardClass} transition hover:border-violet-500/40 disabled:opacity-50`}
               >
                 {body}

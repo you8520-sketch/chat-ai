@@ -2,6 +2,16 @@ import { getDb } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { ensureEmailSignupSchema } from "@/lib/emailSignupSchema";
 import { isPortOneChargeEnabled, isPortOneServerVerifyConfigured } from "@/lib/portoneConfig";
+import {
+  PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY,
+  PORTONE_REVIEWER_KG_TEST_STORE_ID,
+} from "@/lib/portoneReviewerKgTestIds";
+
+export {
+  PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY,
+  PORTONE_REVIEWER_KG_TEST_CHECKOUT_KIND,
+  PORTONE_REVIEWER_KG_TEST_STORE_ID,
+} from "@/lib/portoneReviewerKgTestIds";
 
 export const PORTONE_REVIEWER_ACCOUNT_KIND = "portone_reviewer";
 export const PORTONE_REVIEWER_LOGIN_ALIAS = "tester";
@@ -19,11 +29,7 @@ export const PORTONE_REVIEWER_LOGIN_LOCK_MS = 15 * 60 * 1000;
 export const PORTONE_REVIEWER_LOGIN_LOCKED_MESSAGE =
   "심사용 계정 로그인 시도가 제한되었습니다. 잠시 후 다시 시도해 주세요.";
 export const PORTONE_REVIEWER_PAYMENTS_UNVERIFIED_REASON = "test_channel_unverified" as const;
-export const PORTONE_REVIEWER_KG_TEST_CHECKOUT_KIND = "reviewer_kg_test";
 export const PORTONE_REVIEWER_KG_TEST_ENABLE_FLAG = "PORTONE_REVIEWER_KG_TEST_CHECKOUT_ENABLED";
-/** Confirmed public KG Inicis test identifiers. Not secrets. */
-export const PORTONE_REVIEWER_KG_TEST_STORE_ID = "store-a8f42240-555d-4df7-a6e2-3eb1407257a9";
-export const PORTONE_REVIEWER_KG_TEST_CHANNEL_KEY = "channel-key-587c7ec0-0845-42cd-95d9-245d85ea83ea";
 export const PORTONE_REVIEWER_KG_TEST_CHANNEL_NAME = "hav_KG_INICIS_TEST";
 export const PORTONE_REVIEWER_KG_TEST_MID = "INIpayTest";
 

@@ -79,14 +79,26 @@ export function formatLedgerRecordedCoverageCaption(
 }
 
 export function formatProviderReconciliationState(
-  recon: Pick<ProviderReconciliationResult, "status"> | null
+  recon:
+    | (Pick<ProviderReconciliationResult, "status"> & {
+        forwardAudit?: {
+          observedSince?: string | null;
+          verificationStatus?: string | null;
+        } | null;
+      })
+    | null
 ): string {
   if (!recon) return "공급자 청구 대조 기록 없음";
+  const forward = recon.forwardAudit;
+  const historicalUnresolved =
+    Boolean(forward?.observedSince) && forward?.verificationStatus !== "config_invalid";
   switch (recon.status) {
     case "matched":
       return "공급자 청구 대조 일치";
     case "mismatch":
-      return "공급자 청구 대조 불일치 · 미완료";
+      return historicalUnresolved
+        ? "공급자 청구 대조 월간 불일치 · 과거 미해소 · 신규 여부는 전방 감사"
+        : "공급자 청구 대조 불일치 · 미완료";
     case "pending":
       return "공급자 청구 대조 대기 · 미완료";
     case "provider_unavailable":

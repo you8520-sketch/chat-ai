@@ -91,6 +91,8 @@ async function reconcile(
     fetchOk?: boolean;
     incomplete?: boolean;
     captureWindow?: { startAt: string; endAt: string };
+    nowMs?: number;
+    observedSinceEnv?: string | null;
   }
 ): Promise<ProviderReconciliationResult> {
   return reconcileCheaperInferenceUsage({
@@ -99,6 +101,8 @@ async function reconcile(
     db: d,
     deps: {
       persistInTests: true,
+      now: input.nowMs != null ? () => input.nowMs! : undefined,
+      observedSinceEnv: input.observedSinceEnv,
       fetchRequests: async (opts) => {
         if (input.incomplete) {
           return {
@@ -141,14 +145,15 @@ describe("provider cost reconciliation audit #1337", () => {
         windowEnd: "2026-11-01 00:00:00",
         requests: [settled("orphan-settled", 125_000, "2026-10-02 01:00:00")],
         dailyMicroUsd: 125_000,
+        nowMs: Date.parse("2026-10-03T14:00:00.000Z"),
       });
       assert.equal(result.status, "mismatch");
       assert.equal(result.unreconciledProviderMicroUsd, 125_000);
       assert.equal(result.localReconciledMicroUsd, 0);
-      assert.deepEqual(anomalyCodes(result).sort(), [
-        "PROVIDER_RECONCILIATION_MISMATCH",
-        "UNRECONCILED_PROVIDER_SPEND",
-      ]);
+      assert.equal(result.forwardAudit?.cases.includes("zero_new_calls"), true);
+      assert.equal(result.forwardAudit?.unmatchedSettledMicroUsd, 0);
+      // Month residue stays on the stored row but is not a new current warning.
+      assert.deepEqual(anomalyCodes(result), []);
     } finally {
       d.close();
     }
@@ -327,6 +332,7 @@ describe("provider cost reconciliation audit #1337", () => {
         windowEnd: "2026-11-01 00:00:00",
         requests: [settled("recover-1", 40_000, "2026-10-02 01:00:00")],
         dailyMicroUsd: 40_000,
+        nowMs: Date.parse("2026-10-03T14:00:00.000Z"),
       });
       assert.equal(ok.status, "matched");
 
@@ -339,6 +345,10 @@ describe("provider cost reconciliation audit #1337", () => {
       });
       assert.equal(failed.status, "provider_unavailable");
       assert.equal(failed.localReconciledMicroUsd, ok.localReconciledMicroUsd);
+      assert.equal(failed.settledMicroUsd, ok.settledMicroUsd);
+      assert.equal(failed.forwardAudit?.observedSince, ok.forwardAudit?.observedSince);
+      assert.equal(failed.forwardAudit?.fetchStatus, "http");
+      assert.deepEqual(failed.forwardAudit?.cases, ["fetch_failure"]);
 
       const rerun = await reconcile(d, {
         windowStart: "2026-10-01 00:00:00",
@@ -348,6 +358,49 @@ describe("provider cost reconciliation audit #1337", () => {
       });
       assert.equal(rerun.status, "matched");
       assert.equal(rerun.localReconciledMicroUsd, ok.localReconciledMicroUsd);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("audits only the forward window and does not mix month residue into new unmatched cost", async () => {
+    const d = db();
+    try {
+      const historical = await reconcile(d, {
+        windowStart: "2026-10-01 00:00:00",
+        windowEnd: "2026-11-01 00:00:00",
+        requests: [settled("hist-orphan", 125_000, "2026-10-02 01:00:00")],
+        dailyMicroUsd: 125_000,
+        nowMs: Date.parse("2026-10-03T12:00:00.000Z"),
+      });
+      assert.equal(historical.status, "mismatch");
+      assert.equal(historical.unreconciledProviderMicroUsd, 125_000);
+      assert.equal(historical.forwardAudit?.unmatchedSettledMicroUsd, 0);
+
+      const withNew = await reconcile(d, {
+        windowStart: "2026-10-01 00:00:00",
+        windowEnd: "2026-11-01 00:00:00",
+        requests: [
+          settled("hist-orphan", 125_000, "2026-10-02 01:00:00"),
+          {
+            requestId: "new-luna",
+            status: "settled",
+            billedMicroUsd: 8_000,
+            settled: true,
+            model: "gpt-6-luna",
+            endpoint: "/chat/completions",
+            createdAt: "2026-10-03 13:00:00",
+          },
+        ],
+        dailyMicroUsd: 133_000,
+        nowMs: Date.parse("2026-10-03T14:00:00.000Z"),
+      });
+      assert.equal(withNew.status, "mismatch");
+      assert.equal(withNew.unreconciledProviderMicroUsd, 133_000);
+      assert.equal(withNew.forwardAudit?.unmatchedLedgerCount, 1);
+      assert.equal(withNew.forwardAudit?.unmatchedSettledMicroUsd, 8_000);
+      assert.equal(withNew.forwardAudit?.cases.includes("unmatched_luna"), true);
+      assert.deepEqual(anomalyCodes(withNew), ["FORWARD_UNMATCHED_REMOTE_SPEND"]);
     } finally {
       d.close();
     }
