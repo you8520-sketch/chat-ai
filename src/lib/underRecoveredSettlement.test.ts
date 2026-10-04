@@ -240,6 +240,7 @@ describe("under-recovered settlement fixtures", () => {
       assert.deepEqual(settlement.slices, []);
       assert.equal(replay.duplicate, true);
       assert.equal(replay.outcome, UNDER_RECOVERED_OUTCOME);
+      assert.equal(replay.amountMismatch, undefined);
       assert.equal(countSettlements(db), 1);
       assert.equal(countNegativeLogs(db), 0);
       assert.equal(userBalance(db), 100);

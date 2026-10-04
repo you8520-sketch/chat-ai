@@ -525,8 +525,10 @@ function buildResultFromRow(
   source: ChatBillingSettlementSource
 ): ChatBillingSettlementResult {
   const slices = parseDeductionSlicesJson(row.deduction_slices_json) ?? [];
+  const replayBaselinePoints =
+    row.outcome === UNDER_RECOVERED_OUTCOME ? row.requested_points : row.settled_points;
   const amountMismatch =
-    duplicate && normalizeRequestedPoints(input.requestedPoints) !== row.settled_points;
+    duplicate && normalizeRequestedPoints(input.requestedPoints) !== replayBaselinePoints;
   const assistantMessageMismatch =
     duplicate &&
     row.assistant_message_id != null &&
