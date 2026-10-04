@@ -809,8 +809,24 @@ export type RunnerArtifact = {
   attemptCount: number;
   retries: 0;
   fallback: 0;
-  catalog: { url: typeof CHEAPER_INFERENCE_MODELS_SOURCE_URL };
-  supply: { url: typeof BODY_CUE_1354_SUPPLY_URL; min_discount_percent: number };
+  catalog: {
+    url: typeof CHEAPER_INFERENCE_MODELS_SOURCE_URL;
+    available: true | null;
+    inputUsdPerMillion: number | null;
+    outputUsdPerMillion: number | null;
+    cacheReadUsdPerMillion: number | null;
+    cacheWriteUsdPerMillion: number | null;
+    pricingVersion: string | null;
+    pricingCheckedAt: string | null;
+    pricingUpdatedAt: string | null;
+  };
+  supply: {
+    url: typeof BODY_CUE_1354_SUPPLY_URL;
+    min_discount_percent: number;
+    candidateCount: number | null;
+    maxInputPerMillion: number | null;
+    maxOutputPerMillion: number | null;
+  };
 };
 
 function sceneSummaries(packet: LiveVerifiedBodyCueReviewPacket) {
@@ -911,10 +927,23 @@ function emptyArtifact(input: {
     attemptCount: 0,
     retries: 0,
     fallback: 0,
-    catalog: { url: CHEAPER_INFERENCE_MODELS_SOURCE_URL },
+    catalog: {
+      url: CHEAPER_INFERENCE_MODELS_SOURCE_URL,
+      available: null,
+      inputUsdPerMillion: null,
+      outputUsdPerMillion: null,
+      cacheReadUsdPerMillion: null,
+      cacheWriteUsdPerMillion: null,
+      pricingVersion: null,
+      pricingCheckedAt: null,
+      pricingUpdatedAt: null,
+    },
     supply: {
       url: BODY_CUE_1354_SUPPLY_URL,
       min_discount_percent: BODY_CUE_1354_MIN_DISCOUNT_PERCENT,
+      candidateCount: null,
+      maxInputPerMillion: null,
+      maxOutputPerMillion: null,
     },
   };
 }
@@ -1039,7 +1068,11 @@ export async function runBodyCueFlashAb1354(opts: {
     if (!models.ok) {
       throw new CatalogGateError("catalog GET non-ok", "non_ok");
     }
-    parseFlashCatalogGate(models.payload);
+    const catalogEvidence = parseFlashCatalogGate(models.payload);
+    artifact.catalog = {
+      url: artifact.catalog.url,
+      ...catalogEvidence,
+    };
     const supply = await transport.catalogGet({
       url: `${BODY_CUE_1354_SUPPLY_URL}?model=${encodeURIComponent(BODY_CUE_1354_MODEL)}&min_discount_percent=${BODY_CUE_1354_MIN_DISCOUNT_PERCENT}`,
       headers,
@@ -1047,7 +1080,12 @@ export async function runBodyCueFlashAb1354(opts: {
     if (!supply.ok) {
       throw new CatalogGateError("supply GET non-ok", "non_ok");
     }
-    parseFlashSupplyGate(supply.payload);
+    const supplyEvidence = parseFlashSupplyGate(supply.payload);
+    artifact.supply = {
+      url: artifact.supply.url,
+      min_discount_percent: artifact.supply.min_discount_percent,
+      ...supplyEvidence,
+    };
   } catch (error) {
     artifact.status = "PREFLIGHT_BLOCKED";
     if (error instanceof CatalogGateError) throw error;

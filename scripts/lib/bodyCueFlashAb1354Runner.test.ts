@@ -29,6 +29,7 @@ import {
   PaidAttemptBudget,
   PaidAttemptBudgetError,
   parseFlashCatalogGate,
+  parseFlashSupplyGate,
   readExperimentSecretOnce,
   runBodyCueFlashAb1354,
   RunnerStopError,
@@ -524,7 +525,11 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.equal(artifact.retries, 0);
     assert.equal(artifact.fallback, 0);
     assert.equal(artifact.catalog.url, CHEAPER_INFERENCE_MODELS_SOURCE_URL);
+    assert.equal(artifact.catalog.available, null);
+    assert.equal(artifact.catalog.inputUsdPerMillion, null);
     assert.equal(artifact.supply.url, BODY_CUE_1354_SUPPLY_URL);
+    assert.equal(artifact.supply.min_discount_percent, BODY_CUE_1354_MIN_DISCOUNT_PERCENT);
+    assert.equal(artifact.supply.candidateCount, null);
     assert.equal(artifact.labelCommitmentSha256, reveal.commitmentSha256);
     assert.equal(JSON.stringify(artifact).includes('"variant":"baseline"'), false);
     assert.equal(JSON.stringify(artifact).includes('"variant":"candidate"'), false);
@@ -532,7 +537,12 @@ describe("#1354 Flash A/B operator runner", () => {
   });
 
   it("execute control flow is GET models, GET supply, CALL 1, then 2-4", async () => {
-    const catalog = passingCatalogGet();
+    const catalogPayload = passingCatalogPayload();
+    const supplyPayload = passingSupplyPayload();
+    const catalog = passingCatalogGet({
+      modelsPayload: catalogPayload,
+      supplyPayload,
+    });
     const post = trackingPost();
     const { artifact } = await runBodyCueFlashAb1354({
       mode: "execute",
@@ -545,12 +555,38 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.equal(catalog.urls[0], CHEAPER_INFERENCE_MODELS_SOURCE_URL);
     assert.match(catalog.urls[1] ?? "", /models\/supply/);
     assert.match(catalog.urls[1] ?? "", /min_discount_percent=50/);
+    const expectedCatalog = parseFlashCatalogGate(catalogPayload);
+    const expectedSupply = parseFlashSupplyGate(supplyPayload);
+    assert.deepEqual(
+      {
+        available: artifact.catalog.available,
+        inputUsdPerMillion: artifact.catalog.inputUsdPerMillion,
+        outputUsdPerMillion: artifact.catalog.outputUsdPerMillion,
+        cacheReadUsdPerMillion: artifact.catalog.cacheReadUsdPerMillion,
+        cacheWriteUsdPerMillion: artifact.catalog.cacheWriteUsdPerMillion,
+        pricingVersion: artifact.catalog.pricingVersion,
+        pricingCheckedAt: artifact.catalog.pricingCheckedAt,
+        pricingUpdatedAt: artifact.catalog.pricingUpdatedAt,
+      },
+      expectedCatalog
+    );
+    assert.deepEqual(
+      {
+        candidateCount: artifact.supply.candidateCount,
+        maxInputPerMillion: artifact.supply.maxInputPerMillion,
+        maxOutputPerMillion: artifact.supply.maxOutputPerMillion,
+      },
+      expectedSupply
+    );
+    assert.equal(artifact.supply.min_discount_percent, BODY_CUE_1354_MIN_DISCOUNT_PERCENT);
     assert.equal(post.box.calls, 4);
     assert.equal(artifact.paidPostCount, 4);
     assert.equal(artifact.attemptedPostCount, 4);
     assert.equal(artifact.status, "EXECUTE_COMPLETE");
     assert.equal(artifact.results.length, 4);
     assert.equal(artifact.totalSettledBilledUsd, 0.01);
+    assert.equal(JSON.stringify(artifact).includes('"variant":"baseline"'), false);
+    assert.equal(JSON.stringify(artifact).includes('"variant":"candidate"'), false);
     assertArtifactHasNoSecrets(artifact, FORBIDDEN);
   });
 
@@ -687,6 +723,38 @@ describe("#1354 Flash A/B operator runner", () => {
           catalogGet: passingCatalogGet({ modelsOk: false }).fn,
         }),
       (error: unknown) => error instanceof CatalogGateError && error.reason === "non_ok"
+    );
+    assert.equal(post.box.calls, 0);
+  });
+
+  it("catalog malformed yields 0 POST", async () => {
+    const post = trackingPost();
+    await assert.rejects(
+      () =>
+        runBodyCueFlashAb1354({
+          mode: "execute",
+          secretSource: { kind: "stdin", read: () => SECRET },
+          seal: passingSeal,
+          post: post.fn,
+          catalogGet: passingCatalogGet({ modelsPayload: { data: "not-an-array" } }).fn,
+        }),
+      (error: unknown) => error instanceof CatalogGateError && error.reason === "malformed"
+    );
+    assert.equal(post.box.calls, 0);
+  });
+
+  it("model unavailable yields 0 POST", async () => {
+    const post = trackingPost();
+    await assert.rejects(
+      () =>
+        runBodyCueFlashAb1354({
+          mode: "execute",
+          secretSource: { kind: "stdin", read: () => SECRET },
+          seal: passingSeal,
+          post: post.fn,
+          catalogGet: passingCatalogGet({ modelsPayload: passingCatalogPayload({ available: false }) }).fn,
+        }),
+      (error: unknown) => error instanceof CatalogGateError && error.reason === "model_missing"
     );
     assert.equal(post.box.calls, 0);
   });
@@ -909,8 +977,8 @@ describe("#1354 Flash A/B operator runner", () => {
       assert.equal(result.model, BODY_CUE_1354_MODEL);
       assert.equal(result.attemptNumber, index + 1);
     }
-    assert.equal(JSON.stringify(artifact).includes("baseline"), false);
-    assert.equal(JSON.stringify(artifact).includes("candidate"), false);
+    assert.equal(JSON.stringify(artifact).includes('"variant":"baseline"'), false);
+    assert.equal(JSON.stringify(artifact).includes('"variant":"candidate"'), false);
     assert.equal(reveal.mapping[0]?.variant, "baseline");
     assertArtifactHasNoSecrets(artifact, FORBIDDEN);
   });
