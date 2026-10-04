@@ -544,14 +544,24 @@ describe("#1354 Flash A/B operator runner", () => {
       supplyPayload,
     });
     const post = trackingPost();
+    const sequence: string[] = [];
+    const catalogGet: CatalogGetFn = async (input) => {
+      sequence.push(input.url.includes("/models/supply") ? "GET /models/supply" : "GET /models");
+      return catalog.fn(input);
+    };
+    const providerPost: ProviderPostFn = async (input) => {
+      sequence.push("POST");
+      return post.fn(input);
+    };
     const { artifact } = await runBodyCueFlashAb1354({
       mode: "execute",
       secretSource: { kind: "stdin", read: () => SECRET },
       seal: passingSeal,
-      post: post.fn,
-      catalogGet: catalog.fn,
+      post: providerPost,
+      catalogGet,
       assignLabels: sequentialLabels,
     });
+    assert.deepEqual(sequence.slice(0, 3), ["GET /models", "GET /models/supply", "POST"]);
     assert.equal(catalog.urls[0], CHEAPER_INFERENCE_MODELS_SOURCE_URL);
     assert.match(catalog.urls[1] ?? "", /models\/supply/);
     assert.match(catalog.urls[1] ?? "", /min_discount_percent=50/);
@@ -721,6 +731,22 @@ describe("#1354 Flash A/B operator runner", () => {
           seal: passingSeal,
           post: post.fn,
           catalogGet: passingCatalogGet({ modelsOk: false }).fn,
+        }),
+      (error: unknown) => error instanceof CatalogGateError && error.reason === "non_ok"
+    );
+    assert.equal(post.box.calls, 0);
+  });
+
+  it("supply GET non-ok yields 0 POST", async () => {
+    const post = trackingPost();
+    await assert.rejects(
+      () =>
+        runBodyCueFlashAb1354({
+          mode: "execute",
+          secretSource: { kind: "stdin", read: () => SECRET },
+          seal: passingSeal,
+          post: post.fn,
+          catalogGet: passingCatalogGet({ supplyOk: false }).fn,
         }),
       (error: unknown) => error instanceof CatalogGateError && error.reason === "non_ok"
     );
