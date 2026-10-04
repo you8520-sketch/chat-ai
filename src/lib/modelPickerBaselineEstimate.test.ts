@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   MAIN_RP_MODEL_IDS,
@@ -79,6 +80,7 @@ describe("modelPickerBaselineEstimate", () => {
         );
       }
     }
+    assert.equal(estimates[CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL], 219);
   });
 
   it("rounds 10.2 KRW down for display without changing charge ceil", () => {

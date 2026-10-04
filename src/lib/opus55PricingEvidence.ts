@@ -22,7 +22,7 @@ export const OPUS55_CI_CATALOG_EVIDENCE = {
     "Catalog lists cache read/write USD/M equal to effective input — not Anthropic list cache read $0.20/M. Runtime cache hit/miss not verified for Opus 5.5.",
 } as const;
 
-/** Anthropic official list reference (PRODUCT billing reference semantic). */
+/** Historical Anthropic official list observation. Not the current published user-pricing owner. */
 export const OPUS55_ANTHROPIC_OFFICIAL_REFERENCE = {
   inputUsdPerMillion: 4,
   outputUsdPerMillion: 20,
@@ -136,7 +136,7 @@ export const OPUS55_MARKET_BENCHMARKS: readonly Opus55MarketBenchmark[] = [
   },
 ];
 
-/** Published PRODUCT engine: margin on Anthropic list billing reference (not CI procurement). */
+/** Historical/prep PRODUCT matrices on Anthropic list $4/$20. Not live published user pricing. */
 export const OPUS55_REFERENCE_PRODUCT_MARGIN_CANDIDATES = [0.35, 0.4, 0.45] as const;
 
 /** @deprecated renamed — use OPUS55_REFERENCE_PRODUCT_MARGIN_CANDIDATES */
@@ -152,8 +152,10 @@ export const OPUS55_REALIZED_PROCUREMENT_MARGIN_CANDIDATES = [
 export const OPUS55_PRODUCT_TARGET_MARGIN_SEMANTICS = {
   formula:
     "standardUserChargeKrw = roundKrwTenths(roundKrwTenths(billingReferenceCostUsd × fx) / (1 - targetMargin))",
-  billingReference:
-    "Anthropic list input/output on standardInputTokens + billableOutputTokens (publishedUserCharge.ts)",
+  currentBillingReference:
+    "Live published owner is publishedModelPricing target_margin on CI procurement $2.8/$14 (cache-partition-neutral). Not Anthropic list $4/$20.",
+  historicalBillingReference:
+    "Pre-live prep/reference matrices used Anthropic list $4/$20 (OPUS55_ANTHROPIC_OFFICIAL_REFERENCE / CI catalog list_* fields).",
   notEqualTo:
     "CI no-cache procurement gross margin — use REALIZED_PROCUREMENT_MARGIN_CANDIDATES for that meaning.",
 } as const;

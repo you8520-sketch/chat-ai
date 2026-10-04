@@ -1,8 +1,8 @@
 /**
  * Claude Opus 5.5 — pre-live diagnostic matrices (live catalog: publishedModelPricing.ts).
- * PRODUCT: Anthropic list reference + explicit targetMargin parameter.
+ * Historical/prep PRODUCT matrices: Anthropic list $4/$20 + explicit targetMargin parameter.
+ * Live user pricing: publishedModelPricing CI $2.8/$14 + shared target_margin.
  * PROCUREMENT: CI /v1/models effective rates (discount metadata only).
- * Live rollout must converge on publishedModelPricing + publishedUserCharge — see module footer.
  */
 
 import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
@@ -252,7 +252,7 @@ export function buildOpus55PriceMatrix(params: {
   return cells;
 }
 
-/** REFERENCE_PRODUCT_MARGIN_MATRIX — Anthropic list PRODUCT targetMargin (not CI procurement margin). */
+/** Historical REFERENCE_PRODUCT_MARGIN_MATRIX — Anthropic list prep rates, not live published user pricing. */
 export type Opus55ReferenceProductMarginRow = {
   matrixKind: "REFERENCE_PRODUCT_MARGIN_MATRIX";
   workloadKey: "elin" | "tpot";
