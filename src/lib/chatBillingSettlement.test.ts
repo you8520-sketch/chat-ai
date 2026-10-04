@@ -7,13 +7,14 @@ import { describe, it } from "node:test";
 import {
   BillingProductNotDeliveredError,
   CHAT_TURN_CHARGE_KIND,
+  UNDER_RECOVERED_OUTCOME,
   isChatBillingSettlementUniqueConflict,
   isRetryableSettlementContention,
   readChatBillingSettlement,
   settleChatTurnBillingExactlyOnce,
 } from "./chatBillingSettlement";
 import { ensureChatBillingSettlementSchema, hasChatBillingSettlementSchema } from "./chatBillingSettlementSchema";
-import { deductPointsOnDb, creditPointsWithIds, InsufficientPointsError } from "./points";
+import { deductPointsOnDb, creditPointsWithIds } from "./points";
 import { paidCreatorRewardSpend } from "./creatorPoints";
 import { findTurnByRequestId } from "./streamingPersistence";
 import { fork, type ChildProcess } from "node:child_process";
@@ -455,7 +456,7 @@ describe("chatBillingSettlement — zero-cost replay", () => {
 });
 
 describe("chatBillingSettlement — insufficient points", () => {
-  it("failed charge leaves no settlement, logs, or balance mutation", () => {
+  it("durable product with insufficient spendable persists under_recovered exactly once", () => {
     const dir = mkdtempSync(join(tmpdir(), "billing-settle-"));
     const dbPath = join(dir, "test.db");
     try {
@@ -464,27 +465,53 @@ describe("chatBillingSettlement — insufficient points", () => {
       creditPointsWithIds(db, 1, 10, "FREE", "tiny balance");
       const beforeBalance = userBalance(db);
       const msgId = insertAssistant(db, 1, "req_insufficient_1");
-      assert.throws(
-        () =>
-          settleChatTurnBillingExactlyOnce(db, {
-            userId: 1,
-            chatId: 1,
-            requestId: "req_insufficient_1",
-            assistantMessageId: msgId,
-            requestedPoints: 100,
-            reason: "too much",
-          }),
-        InsufficientPointsError
-      );
-      assert.equal(countSettlements(db), 0);
+      const first = settleChatTurnBillingExactlyOnce(db, {
+        userId: 1,
+        chatId: 1,
+        requestId: "req_insufficient_1",
+        assistantMessageId: msgId,
+        requestedPoints: 100,
+        reason: "too much",
+      });
+      const replay = settleChatTurnBillingExactlyOnce(db, {
+        userId: 1,
+        chatId: 1,
+        requestId: "req_insufficient_1",
+        assistantMessageId: msgId,
+        requestedPoints: 100,
+        reason: "too much replay",
+      });
+      assert.equal(first.outcome, UNDER_RECOVERED_OUTCOME);
+      assert.equal(first.appliedNewCharge, false);
+      assert.equal(first.settledPoints, 0);
+      assert.equal(first.requestedPoints, 100);
+      assert.deepEqual(first.slices, []);
+      assert.equal(replay.duplicate, true);
+      assert.equal(replay.outcome, UNDER_RECOVERED_OUTCOME);
+      assert.equal(countSettlements(db), 1);
       assert.equal(countNegativeLogs(db), 0);
       assert.equal(userBalance(db), beforeBalance);
+      const row = db
+        .prepare(
+          `SELECT requested_points, settled_points, outcome, deduction_slices_json
+           FROM chat_billing_settlements WHERE request_id=?`
+        )
+        .get("req_insufficient_1") as {
+        requested_points: number;
+        settled_points: number;
+        outcome: string;
+        deduction_slices_json: string;
+      };
+      assert.equal(row.requested_points, 100);
+      assert.equal(row.settled_points, 0);
+      assert.equal(row.outcome, UNDER_RECOVERED_OUTCOME);
+      assert.equal(row.deduction_slices_json, "[]");
       const slices = (
         db.prepare(`SELECT deduction_slices FROM messages WHERE id=?`).get(msgId) as {
           deduction_slices: string | null;
         }
       ).deduction_slices;
-      assert.equal(slices, null);
+      assert.equal(slices, "[]");
       db.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });

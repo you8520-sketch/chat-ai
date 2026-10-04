@@ -41,8 +41,14 @@ import { resolveNarrativePov } from "@/lib/narrativePov";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
-import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
-import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
+import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, InsufficientPointsError, type DeductionSlice } from "@/lib/points";
+import {
+  settleChatTurnBillingExactlyOnce,
+  shouldBlockNewPaidGenerationForUnderRecovered,
+  UNDER_RECOVERED_BILLING_MESSAGE,
+  UNDER_RECOVERED_GENERATION_BLOCKED_MESSAGE,
+  UNDER_RECOVERED_OUTCOME,
+} from "@/lib/chatBillingSettlement";
 import { recordMainGenerationProviderCost } from "@/lib/providerCostLedger";
 import { scheduleTargetedCheaperInferenceRequestReconciliation } from "@/lib/providerCostReconciliation";
 import {
@@ -791,6 +797,22 @@ export async function POST(req: Request) {
     if (!noteCheck.ok) {
       return Response.json({ error: noteCheck.error }, { status: 400 });
     }
+  }
+
+  if (
+    shouldBlockNewPaidGenerationForUnderRecovered(db, {
+      userId: user.id,
+      chatId: chat?.id ?? null,
+      requestId: clientRequestId,
+    })
+  ) {
+    return Response.json(
+      {
+        error: UNDER_RECOVERED_GENERATION_BLOCKED_MESSAGE,
+        billingOutcome: UNDER_RECOVERED_OUTCOME,
+      },
+      { status: 409 }
+    );
   }
 
   if (!chat) {
@@ -5881,6 +5903,57 @@ export async function POST(req: Request) {
           cost > 0
             ? `대화 · ${modelName} (입력토큰 ${totalInput.toLocaleString()} / 출력토큰 ${totalOutput.toLocaleString()})`
             : `대화 · ${modelName} (0P)`;
+        const postTurnGenerationScope: AssistantGenerationScope = {
+          assistantMessageId: aiMessageId,
+          generationSequence: newVariant.generationSequence ?? snapshotVariantIndex ?? 0,
+          generationRequestId: clientRequestId ?? null,
+        };
+
+        // Physical provider cost is independent of user-point settlement.
+        if (primaryStage != null) {
+          try {
+            recordMainGenerationProviderCost({
+              chatId: chatRef.id,
+              assistantMessageId: aiMessageId,
+              generationSequence: postTurnGenerationScope.generationSequence,
+              generationRequestId: postTurnGenerationScope.generationRequestId,
+              provider: usageRecord.provider ?? billingProvider,
+              model: primaryStage.responseModelId ?? primaryStage.model,
+              requestKind: "main-rp",
+              inputTokens: primaryStage.input,
+              outputTokens: primaryStage.output,
+              reasoningTokens: primaryStage.apiReasoningOutputTokens,
+              cacheReadTokens: primaryStage.cacheReadTokens,
+              cacheWriteTokens: primaryStage.cacheWriteTokens,
+              cheaperInferenceBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
+              upstreamCostUsd: primaryStage.upstreamCostUsd,
+              usageEstimated: primaryStage.estimated,
+              providerRequestId: primaryStage.providerRequestId,
+              outcome:
+                primaryStage.loopAborted || primaryStage.degenerationAborted
+                  ? "failed_with_usage"
+                  : "success",
+            });
+          } catch (mainCostErr) {
+            console.warn(
+              "[/api/chat] main provider cost record skipped:",
+              (mainCostErr as Error).message
+            );
+          }
+
+          scheduleTargetedCheaperInferenceRequestReconciliation({
+            provider: usageRecord.provider ?? billingProvider,
+            providerRequestId: primaryStage.providerRequestId,
+            streamBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
+            outcome:
+              primaryStage.loopAborted || primaryStage.degenerationAborted
+                ? "failed_with_usage"
+                : "success",
+            requestStartedAtMs: requestStartedAt,
+            requestKind: "main-rp",
+          });
+        }
+
         const settlement = settleChatTurnBillingExactlyOnce(db, {
           userId: user.id,
           chatId: chatRef.id,
@@ -5989,62 +6062,6 @@ export async function POST(req: Request) {
               error: (canaryLogError as Error).message,
             });
           }
-        }
-
-        const postTurnGenerationScope: AssistantGenerationScope = {
-          assistantMessageId: aiMessageId,
-          generationSequence: newVariant.generationSequence ?? snapshotVariantIndex ?? 0,
-          generationRequestId: clientRequestId ?? null,
-        };
-
-        // Canonical main-RP physical provider cost -> api_cost_ledger.
-        // ONE PHYSICAL PROVIDER REQUEST = ONE LEDGER ROW, linked by the
-        // canonical (assistantMessageId, generationSequence) triple. This is
-        // the accounting owner; messages.usage.shadowPricing stays a
-        // diagnostics/historical-fallback snapshot. Best-effort: never fail
-        // the turn over cost bookkeeping.
-        if (primaryStage != null) {
-          try {
-            recordMainGenerationProviderCost({
-              chatId: chatRef.id,
-              assistantMessageId: aiMessageId,
-              generationSequence: postTurnGenerationScope.generationSequence,
-              generationRequestId: postTurnGenerationScope.generationRequestId,
-              provider: usageRecord.provider ?? billingProvider,
-              model: primaryStage.responseModelId ?? primaryStage.model,
-              requestKind: "main-rp",
-              inputTokens: primaryStage.input,
-              outputTokens: primaryStage.output,
-              reasoningTokens: primaryStage.apiReasoningOutputTokens,
-              cacheReadTokens: primaryStage.cacheReadTokens,
-              cacheWriteTokens: primaryStage.cacheWriteTokens,
-              cheaperInferenceBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
-              upstreamCostUsd: primaryStage.upstreamCostUsd,
-              usageEstimated: primaryStage.estimated,
-              providerRequestId: primaryStage.providerRequestId,
-              outcome:
-                primaryStage.loopAborted || primaryStage.degenerationAborted
-                  ? "failed_with_usage"
-                  : "success",
-            });
-          } catch (mainCostErr) {
-            console.warn(
-              "[/api/chat] main provider cost record skipped:",
-              (mainCostErr as Error).message
-            );
-          }
-
-          scheduleTargetedCheaperInferenceRequestReconciliation({
-            provider: usageRecord.provider ?? billingProvider,
-            providerRequestId: primaryStage.providerRequestId,
-            streamBilledCostUsd: primaryStage.cheaperInferenceBilledCostUsd,
-            outcome:
-              primaryStage.loopAborted || primaryStage.degenerationAborted
-                ? "failed_with_usage"
-                : "success",
-            requestStartedAtMs: requestStartedAt,
-            requestKind: "main-rp",
-          });
         }
 
         if (shouldCommitCanonicalTurnState(generationSemantics)) {
@@ -6211,6 +6228,10 @@ export async function POST(req: Request) {
           remainingPoints: balanceAfter.total,
           paidPoints: balanceAfter.paid,
           freePoints: balanceAfter.free,
+          billingOutcome: settlement.outcome,
+          ...(settlement.outcome === UNDER_RECOVERED_OUTCOME
+            ? { billingError: UNDER_RECOVERED_BILLING_MESSAGE }
+            : {}),
           usage: clientUsageRecord,
           ...(clientUsageRecord.finishReason
             ? { finishReason: clientUsageRecord.finishReason }
@@ -6384,6 +6405,21 @@ export async function POST(req: Request) {
       } catch (e) {
         clearPartialTimer();
         stopPostprocessHeartbeat();
+        if (e instanceof InsufficientPointsError) {
+          console.warn("[/api/chat] named settlement failure after durable product", {
+            requestId: clientRequestId,
+            messageId: persistedAssistantId,
+          });
+          send({
+            type: "error",
+            error: UNDER_RECOVERED_BILLING_MESSAGE,
+            billingOutcome: UNDER_RECOVERED_OUTCOME,
+          });
+          emitStreamTurnForensics("completed");
+          emitPhaseLatencyAudit();
+          safe.close(controller);
+          return;
+        }
         console.error("[/api/chat] SSE 파이프라인 오류:", (e as Error).message);
         const partialOnError = streamVisibleTextRef || fullText;
         try {

@@ -49,7 +49,21 @@ export type ChatBillingSettlementOutcome =
   | "waived"
   | "legacy_already_billed"
   | "duplicate_replay"
-  | "legacy_malformed";
+  | "legacy_malformed"
+  | "under_recovered";
+
+export const UNDER_RECOVERED_OUTCOME = "under_recovered" as const;
+
+/** Product delivered; user lots were not charged. Not a cash debt. */
+export const UNDER_RECOVERED_BILLING_MESSAGE =
+  "응답은 저장되었지만 포인트 정산에 실패했습니다. 추가 생성은 제한됩니다.";
+
+export const UNDER_RECOVERED_GENERATION_BLOCKED_MESSAGE =
+  "이전 응답의 포인트 정산이 끝나지 않아 새 생성을 시작할 수 없습니다.";
+
+export function isUnderRecoveredOutcome(outcome: string | null | undefined): boolean {
+  return outcome === UNDER_RECOVERED_OUTCOME;
+}
 
 export type AssistantChargeEligibilityReason =
   | "missing_row"
@@ -264,6 +278,42 @@ function readSettlementRowSafe(
     }
   }
   return null;
+}
+
+export function hasUnresolvedUnderRecoveredSettlement(
+  db: Database.Database,
+  userId: number
+): boolean {
+  const row = db
+    .prepare(
+      `SELECT 1 AS ok FROM chat_billing_settlements
+       WHERE user_id = ? AND charge_kind = ? AND outcome = ? AND refunded_at IS NULL
+       LIMIT 1`
+    )
+    .get(userId, CHAT_TURN_CHARGE_KIND, UNDER_RECOVERED_OUTCOME) as { ok: number } | undefined;
+  return row != null;
+}
+
+/**
+ * Block new provider calls. Same request_id replay of a durable product is allowed.
+ * This is a committed-row gate, not a lease: two in-flight requests that both
+ * passed before either wrote under_recovered can still both reach the provider.
+ */
+export function shouldBlockNewPaidGenerationForUnderRecovered(
+  db: Database.Database,
+  input: { userId: number; chatId: number | null; requestId: string }
+): boolean {
+  if (!hasUnresolvedUnderRecoveredSettlement(db, input.userId)) return false;
+  const requestId = input.requestId.trim();
+  if (!requestId || input.chatId == null) return true;
+  const row = db
+    .prepare(
+      `SELECT generation_status FROM messages
+       WHERE chat_id = ? AND request_id = ? AND role = 'assistant'
+       ORDER BY id DESC LIMIT 1`
+    )
+    .get(input.chatId, requestId) as { generation_status: string | null } | undefined;
+  return !isSuccessfulDurableGenerationStatus(row?.generation_status);
 }
 
 export function readChatBillingSettlement(
@@ -635,6 +685,7 @@ function settleWithinTransaction(
   let slices: DeductionSlice[] = [];
   let settledPoints = 0;
   let outcome: ChatBillingSettlementOutcome = requestedPoints > 0 ? "charged" : "waived";
+  let appliedNewCharge = requestedPoints > 0;
 
   if (requestedPoints > 0) {
     assertDurableProductForCharge(
@@ -643,13 +694,22 @@ function settleWithinTransaction(
       input.chatId,
       input.requestId
     );
-    const deducted = deductPointsOnDb(db, input.userId, requestedPoints, input.reason, {
-      messageId: input.assistantMessageId,
-      chatId: input.chatId,
-    });
-    slices = deducted.slices;
-    settledPoints = deducted.total;
-    outcome = "charged";
+    const spendable = getPointBalanceOnDb(db, input.userId);
+    if (spendable.total + 0.001 < requestedPoints) {
+      outcome = UNDER_RECOVERED_OUTCOME;
+      settledPoints = 0;
+      slices = [];
+      appliedNewCharge = false;
+    } else {
+      const deducted = deductPointsOnDb(db, input.userId, requestedPoints, input.reason, {
+        messageId: input.assistantMessageId,
+        chatId: input.chatId,
+      });
+      slices = deducted.slices;
+      settledPoints = deducted.total;
+      outcome = "charged";
+      appliedNewCharge = true;
+    }
   }
 
   persistMessageDeductionSlices(
@@ -678,16 +738,53 @@ function settleWithinTransaction(
   });
 
   const row = readSettlementRow(db, input.userId, input.chatId, input.requestId, chargeKind)!;
-  return buildResultFromRow(db, row, input, requestedPoints > 0, false, "native");
+  return buildResultFromRow(db, row, input, appliedNewCharge, false, "native");
 }
 
-function runSettlementTransaction(
+function persistUnderRecoveredWithinTransaction(
   db: Database.Database,
   input: SettleChatTurnBillingInput
 ): ChatBillingSettlementResult {
+  const chargeKind = input.chargeKind ?? CHAT_TURN_CHARGE_KIND;
+  const requestedPoints = normalizeRequestedPoints(input.requestedPoints);
+  const existing = readSettlementRowSafe(db, input.userId, input.chatId, input.requestId, chargeKind);
+  if (existing && existing.outcome !== CLAIM_OUTCOME) {
+    return duplicateResultFromExistingRow(db, input, existing);
+  }
+  assertDurableProductForCharge(
+    db,
+    input.assistantMessageId,
+    input.chatId,
+    input.requestId
+  );
+  const claim = tryAcquireSettlementClaim(db, input, chargeKind, requestedPoints);
+  if (!claim.acquired || claim.claimId == null) {
+    const winner = readSettlementRowSafe(db, input.userId, input.chatId, input.requestId, chargeKind);
+    if (!winner) {
+      throw new Error("Settlement claim lost but no canonical row found");
+    }
+    return duplicateResultFromExistingRow(db, input, winner);
+  }
+  persistMessageDeductionSlices(db, input.assistantMessageId, input.chatId, input.requestId, []);
+  finalizeSettlementClaim(db, claim.claimId, {
+    settledPoints: 0,
+    outcome: UNDER_RECOVERED_OUTCOME,
+    slices: [],
+    reason: input.reason,
+    source: "native",
+    assistantMessageId: input.assistantMessageId,
+  });
+  const row = readSettlementRow(db, input.userId, input.chatId, input.requestId, chargeKind)!;
+  return buildResultFromRow(db, row, input, false, false, "native");
+}
+
+function runNamedSettlementTransaction(
+  db: Database.Database,
+  run: () => ChatBillingSettlementResult
+): ChatBillingSettlementResult {
   db.exec("BEGIN IMMEDIATE");
   try {
-    const result = settleWithinTransaction(db, input);
+    const result = run();
     db.exec("COMMIT");
     return result;
   } catch (err) {
@@ -698,6 +795,13 @@ function runSettlementTransaction(
     }
     throw err;
   }
+}
+
+function runSettlementTransaction(
+  db: Database.Database,
+  input: SettleChatTurnBillingInput
+): ChatBillingSettlementResult {
+  return runNamedSettlementTransaction(db, () => settleWithinTransaction(db, input));
 }
 
 /**
@@ -722,7 +826,9 @@ export function settleChatTurnBillingExactlyOnce(
       return runSettlementTransaction(db, input);
     } catch (err) {
       lastError = err;
-      if (err instanceof InsufficientPointsError) throw err;
+      if (err instanceof InsufficientPointsError) {
+        return runNamedSettlementTransaction(db, () => persistUnderRecoveredWithinTransaction(db, input));
+      }
       if (isChatBillingSettlementUniqueConflict(err)) {
         const row = readSettlementRowSafe(db, input.userId, input.chatId, input.requestId, chargeKind);
         if (!row) throw err;
