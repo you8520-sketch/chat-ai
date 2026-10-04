@@ -17,7 +17,7 @@ export const CHAT_IMAGE_GENERATION_KNOWN_MODEL_IDS = [
  * resolveChatImageGenerationModelLabel) so an OPENAI_IMAGE_MODEL override can
  * never be shown under the wrong label.
  */
-const CHAT_IMAGE_GENERATION_MODEL_LABELS: Readonly<Record<(typeof CHAT_IMAGE_GENERATION_KNOWN_MODEL_IDS)[number], string>> = {
+const CHAT_IMAGE_GENERATION_MODEL_LABELS: Readonly<Record<string, string>> = {
   "gpt-image-2.5-sunburst": "GPT Image 2.5 Sunburst",
   "gpt-image-2.5-flare": "GPT Image 2.5 Flare",
   "gpt-image-2": "GPT Image 2",
