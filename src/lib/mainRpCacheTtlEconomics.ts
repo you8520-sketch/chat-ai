@@ -5,7 +5,7 @@ import {
   resolveCheaperInferenceCatalogPricing,
 } from "@/lib/cheaperInferenceCatalogPricing";
 import { refreshCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing.server";
-import { OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION } from "@/lib/opus55PublishedPricingDerivation";
+import { OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION } from "@/lib/opus55ProcurementPricing";
 
 export const MAIN_RP_CACHE_TTL_AUDIT_VERSION = 1;
 export const MAIN_RP_CACHE_TTL_MIN_TRANSITIONS = 20;
