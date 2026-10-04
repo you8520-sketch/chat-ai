@@ -30,13 +30,11 @@ function completePrimaryStage(modelId: string, input: number, output: number): S
     },
   };
 }
-import {
-  deriveAnthropicListProductTargetMarginForRealizedProcurementMargin,
-  OPUS55_LIVE_REALIZED_NO_CACHE_PROCUREMENT_GROSS_MARGIN,
-  opus55ProcurementToListRatio,
-} from "@/lib/opus55PublishedPricingDerivation";
 import { resolveOpus55CiNoCacheProcurementKrw } from "@/lib/opus55RealizedProcurementMargin";
-import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
+import {
+  resolvePublishedCommercialPricingOwner,
+  resolvePublishedPricingExact,
+} from "@/lib/publishedModelPricing";
 import { computePublishedUserChargeFromResolvedPolicy } from "@/lib/publishedUserCharge";
 import { KOREAN_CHARS_PER_OUTPUT_TOKEN } from "@/lib/responseLengthConstants";
 
@@ -79,25 +77,23 @@ function realizedMarginPercent(chargeKrw: number, procKrw: number): number {
   return ((chargeKrw - procKrw) / chargeKrw) * 100;
 }
 
-describe("Opus 5.5 published pricing derivation", () => {
-  it("procurement/list ratio is exactly 0.70", () => {
-    assert.equal(opus55ProcurementToListRatio(), 0.7);
-  });
-
-  it("Anthropic-list equivalent PRODUCT targetMargin is 1/14 (~7.14%) for 35% realized procurement", () => {
-    const m = deriveAnthropicListProductTargetMarginForRealizedProcurementMargin(
-      OPUS55_LIVE_REALIZED_NO_CACHE_PROCUREMENT_GROSS_MARGIN
-    );
-    assert.ok(m > 0);
-    assert.ok(Math.abs(m - 1 / 14) < 1e-12);
+describe("Opus 5.5 published pricing owner", () => {
+  it("uses the shared target-margin owner at 45% on CI procurement reference rates", () => {
+    const resolved = resolvePublishedPricingExact(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL);
+    assert.ok(resolved);
+    assert.equal(resolvePublishedCommercialPricingOwner(resolved.pricing), "target_margin");
+    assert.equal(resolved.pricing.billingReferenceInputUsdPerMillion, 2.8);
+    assert.equal(resolved.pricing.billingReferenceOutputUsdPerMillion, 14);
+    assert.equal(resolved.pricing.targetMargin, 0.45);
+    assert.equal(resolved.pricing.pricingVersion, 2);
   });
 });
 
 describe("Opus 5.5 live golden fixtures (canonical published path)", () => {
-  it("Golden A: 73,763 / 5,334 → 676P @ ~35% realized procurement margin", () => {
+  it("Golden A: 73,763 / 5,334 → 798P @ ~45% realized procurement margin", () => {
     const charge = livePublishedCharge(73_763, 5_334);
     assert.equal(charge.status, "complete");
-    assert.equal(charge.snapshot.finalPoints, 676);
+    assert.equal(charge.snapshot.finalPoints, 798);
     const proc = resolveOpus55CiNoCacheProcurementKrw({
       promptTokens: 73_763,
       outputTokens: 5_334,
@@ -105,13 +101,13 @@ describe("Opus 5.5 live golden fixtures (canonical published path)", () => {
     });
     assert.ok(proc != null);
     const margin = realizedMarginPercent(charge.snapshot.finalUserChargeKrw, proc);
-    assert.ok(Math.abs(margin - 35) < 0.5);
+    assert.ok(Math.abs(margin - 45) < 0.5);
   });
 
-  it("Golden B: 58,654 / 4,644 → 551P @ ~35% realized procurement margin", () => {
+  it("Golden B: 58,654 / 4,644 → 651P @ ~45% realized procurement margin", () => {
     const charge = livePublishedCharge(58_654, 4_644);
     assert.equal(charge.status, "complete");
-    assert.equal(charge.snapshot.finalPoints, 551);
+    assert.equal(charge.snapshot.finalPoints, 651);
     const proc = resolveOpus55CiNoCacheProcurementKrw({
       promptTokens: 58_654,
       outputTokens: 4_644,
@@ -119,7 +115,7 @@ describe("Opus 5.5 live golden fixtures (canonical published path)", () => {
     });
     assert.ok(proc != null);
     const margin = realizedMarginPercent(charge.snapshot.finalUserChargeKrw, proc);
-    assert.ok(Math.abs(margin - 35) < 0.5);
+    assert.ok(Math.abs(margin - 45) < 0.5);
   });
 });
 
@@ -138,7 +134,7 @@ describe("Opus 5.5 billing dispatch + picker", () => {
     assert.equal(isPhase1PublishedBillingModel(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL), true);
   });
 
-  it("resolves published_phase1 when phase1 gate ON (676P, not legacy)", () => {
+  it("resolves published_phase1 when phase1 gate ON (798P, not legacy)", () => {
     const stages = [completePrimaryStage(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL, 73_763, 5_334)];
     const decision = resolveChatBillingContract({
       deliveredModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
@@ -152,7 +148,7 @@ describe("Opus 5.5 billing dispatch + picker", () => {
       phase2DeepSeekPublishedBillingEnabled: false,
     });
     assert.equal(decision.contract, "published_phase1");
-    assert.equal(decision.points, 676);
+    assert.equal(decision.points, 798);
     assert.notEqual(decision.points, 9999);
   });
 
@@ -171,7 +167,7 @@ describe("Opus 5.5 billing dispatch + picker", () => {
     });
     assert.notEqual(decision.contract, "legacy");
     assert.equal(decision.contract, "published_phase1");
-    assert.equal(decision.points, 676);
+    assert.equal(decision.points, 798);
   });
 
   it("is on Main RP picker after rollout wiring", () => {
@@ -202,7 +198,7 @@ describe("Opus 5.5 representative char presets", () => {
       });
       assert.ok(proc != null);
       const margin = realizedMarginPercent(charge.snapshot.finalUserChargeKrw, proc);
-      assert.ok(margin >= 34);
+      assert.ok(margin >= 44);
     });
   }
 });
