@@ -1,6 +1,17 @@
 export const CHAT_IMAGE_GENERATION_DEFAULT_MODEL = "gpt-image-2";
 
 /**
+ * Known GPT Image family ids. Dated snapshots inherit the parent id
+ * (`<id>-YYYYMMDD`). Display labels and proof allowlists must reuse this
+ * owner instead of restating model strings.
+ */
+export const CHAT_IMAGE_GENERATION_KNOWN_MODEL_IDS = [
+  "gpt-image-2.5-sunburst",
+  "gpt-image-2.5-flare",
+  "gpt-image-2",
+] as const;
+
+/**
  * Friendly display labels for known provider image models. Display labels
  * must always derive from the actual resolved model id (see
  * resolveChatImageGenerationModelLabel) so an OPENAI_IMAGE_MODEL override can
@@ -24,9 +35,9 @@ export function resolveChatImageGenerationModelLabel(modelId: string): string {
   if (!trimmed) return trimmed;
   const known = CHAT_IMAGE_GENERATION_MODEL_LABELS[trimmed];
   if (known) return known;
-  const snapshotBase = (
-    ["gpt-image-2.5-sunburst", "gpt-image-2.5-flare", "gpt-image-2"] as const
-  ).find((base) => trimmed.startsWith(`${base}-`));
+  const snapshotBase = CHAT_IMAGE_GENERATION_KNOWN_MODEL_IDS.find((base) =>
+    trimmed.startsWith(`${base}-`)
+  );
   return snapshotBase ? CHAT_IMAGE_GENERATION_MODEL_LABELS[snapshotBase] : trimmed;
 }
 
