@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   CONFIRMED_CROSS_BORDER_TRANSFERS,
   CROSS_BORDER_ARTICLE_28_8_DISCLOSURE_COMPLETE,
+  CROSS_BORDER_PUBLIC_TABLE,
   CROSS_BORDER_FINAL_COUNTRY_UNRESOLVABLE_PROVIDER_IDS,
   CROSS_BORDER_TRANSFERS,
   EXCLUDED_FROM_CROSS_BORDER_TABLE,
@@ -42,6 +43,8 @@ test("public privacy table lists every live row and does not guess unknown cells
   assert.match(publicText, /OpenRouter, Inc\./);
   assert.match(publicText, /Keak AI, Inc\./);
   assert.match(publicText, /확인되지 않음/);
+  assert.doesNotMatch(publicText, /법적 근거/);
+  assert.equal(CROSS_BORDER_PUBLIC_TABLE.columns.includes("법적 근거"), false);
   assert.doesNotMatch(publicText, /미확정/);
   assert.doesNotMatch(publicText, /코리아포트원/);
   assert.doesNotMatch(publicText, /Vercel Inc\./);
