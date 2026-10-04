@@ -357,6 +357,75 @@ describe("finance anomaly radar", () => {
     assert.doesNotMatch(anomaly?.summary ?? "", / 0 KRW/);
   });
 
+  it("raises a dedicated critical under-recovered charge without double-counting a billing miss", () => {
+    const report = buildFinanceAnomalyReport({
+      summary: summary(),
+      pricing: pricing({
+        paidRevenueKrw: 0,
+        freePointSpend: 0,
+        apiCostKrw: 12,
+        attribution: {
+          platformFundedKrw: 0,
+          userFundedChargedKrw: 0,
+          userFundedWaivedKrw: 0,
+          userFundedRefundedKrw: 0,
+          userFundedUnderRecoveredKrw: 12,
+          userFundedUnlinkedKrw: 0,
+          unknownKrw: 0,
+        },
+      }),
+    });
+    const under = report.anomalies.filter((row) => row.code === "UNDER_RECOVERED_USER_CHARGE");
+    assert.equal(under.length, 1);
+    assert.equal(under[0]?.severity, "critical");
+    assert.equal(report.status, "CRITICAL");
+    assert.equal(
+      report.anomalies.some((row) => row.code === "DIRECT_COST_WITHOUT_USER_BILLING"),
+      false
+    );
+    assert.equal(
+      report.anomalies.some((row) => row.code === "UNATTRIBUTED_DIRECT_COST"),
+      false
+    );
+    assert.match(under[0]?.summary ?? "", /12 KRW/);
+    assert.match(under[0]?.summary ?? "", /under-recovered/);
+  });
+
+  it("keeps unlinked and under-recovered as distinct signals without summing the same KRW twice", () => {
+    const report = buildFinanceAnomalyReport({
+      summary: summary(),
+      pricing: pricing({
+        paidRevenueKrw: 0,
+        freePointSpend: 0,
+        apiCostKrw: 30,
+        attribution: {
+          platformFundedKrw: 0,
+          userFundedChargedKrw: 0,
+          userFundedWaivedKrw: 0,
+          userFundedRefundedKrw: 0,
+          userFundedUnderRecoveredKrw: 10,
+          userFundedUnlinkedKrw: 20,
+          unknownKrw: 0,
+        },
+      }),
+    });
+    const under = report.anomalies.find((row) => row.code === "UNDER_RECOVERED_USER_CHARGE");
+    const miss = report.anomalies.find((row) => row.code === "DIRECT_COST_WITHOUT_USER_BILLING");
+    assert.equal(under?.severity, "critical");
+    assert.equal(miss?.severity, "critical");
+    assert.match(under?.summary ?? "", /10 KRW/);
+    assert.match(miss?.summary ?? "", /20 KRW/);
+    assert.doesNotMatch(under?.summary ?? "", /30 KRW/);
+    assert.doesNotMatch(miss?.summary ?? "", /30 KRW/);
+    assert.equal(
+      report.anomalies.filter((row) =>
+        row.code === "UNDER_RECOVERED_USER_CHARGE" ||
+        row.code === "DIRECT_COST_WITHOUT_USER_BILLING"
+      ).length,
+      2
+    );
+  });
+
   it("does not call platform, waived, refunded, or under-recovered cost a billing miss", () => {
     const base = {
       platformFundedKrw: 1,
@@ -385,6 +454,10 @@ describe("finance anomaly radar", () => {
       assert.equal(
         report.anomalies.some((row) => row.code === "DIRECT_COST_WITHOUT_USER_BILLING"),
         false
+      );
+      assert.equal(
+        report.anomalies.some((row) => row.code === "UNDER_RECOVERED_USER_CHARGE"),
+        attribution.userFundedUnderRecoveredKrw > 0
       );
     }
   });

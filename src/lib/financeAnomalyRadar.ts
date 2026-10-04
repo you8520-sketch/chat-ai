@@ -14,6 +14,7 @@ export type FinanceAnomalyCode =
   | "FORWARD_RECON_UNVERIFIED"
   | "FORWARD_RECON_CONFIG_INVALID"
   | "DIRECT_COST_WITHOUT_USER_BILLING"
+  | "UNDER_RECOVERED_USER_CHARGE"
   | "UNATTRIBUTED_DIRECT_COST"
   | "ACTUAL_MARGIN_BELOW_FLOOR"
   | "REPRESENTATIVE_MARGIN_BELOW_FLOOR";
@@ -258,18 +259,45 @@ export function buildFinanceAnomalyReport(params: {
       if (!active.has(row.modelId)) continue;
       const actual = row.actual;
 
+      const attribution = actual.directCostAttribution;
+      const sourceRef = `actual_production:${row.modelId}:${actual.monthKey ?? params.summary.monthKey}`;
+
+      // Known durable settlement failure: provider cost happened, user charge
+      // settled 0P, and future generation is blocked. This is not waived,
+      // refunded, unlinked, or unknown. CRITICAL matches DIRECT_COST_WITHOUT_
+      // USER_BILLING — both are live billing incidents; this one also locks
+      // the user until a later resolve owner exists.
+      if (
+        actual.usageState === "HAS_ACTIVITY" &&
+        attribution != null &&
+        attribution.userFundedUnderRecoveredKrw > 0
+      ) {
+        anomalies.push({
+          id: `model:${row.modelId}:under-recovered-user-charge`,
+          code: "UNDER_RECOVERED_USER_CHARGE",
+          severity: "critical",
+          title: `${row.modelId} durable under-recovered user charge`,
+          summary:
+            `Actual production recorded ${formatAnomalyKrw(attribution.userFundedUnderRecoveredKrw)} KRW ` +
+            "user-funded provider cost whose chat settlement is durable under-recovered. " +
+            "User charge is 0P, the assistant product was kept, and new generation is blocked. " +
+            "This is not waived, refunded, unlinked, or unknown.",
+          sourceRef,
+          href: "/admin/finance",
+          modelId: row.modelId,
+        });
+      }
+
       if (
         actual.usageState === "HAS_ACTIVITY" &&
         actual.apiCostKrw > 0 &&
         actual.paidRevenueKrw <= 0 &&
         actual.freePointSpend <= 0
       ) {
-        const attribution = actual.directCostAttribution;
-        const sourceRef = `actual_production:${row.modelId}:${actual.monthKey ?? params.summary.monthKey}`;
         // Missing provenance keeps the historical aggregate reading so older
         // snapshots still surface cost with zero billing. Linked platform,
         // waived, refunded, and under-recovered cost is real spend and is not
-        // a charge miss.
+        // a charge miss. Under-recovered has its own anomaly above.
         if (attribution == null || attribution.userFundedUnlinkedKrw > 0) {
           const unbilledKrw =
             attribution == null ? actual.apiCostKrw : attribution.userFundedUnlinkedKrw;

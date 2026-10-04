@@ -20,11 +20,22 @@ import {
   isSuccessfulDurableGenerationStatus,
   SUCCESSFUL_DURABLE_GENERATION_STATUSES,
 } from "./streamingPersistenceShared";
+import {
+  UNDER_RECOVERED_OUTCOME,
+  type ChatBillingSettlementOutcome,
+} from "./chatBillingSettlementOutcome";
 
 export { SUCCESSFUL_DURABLE_GENERATION_STATUSES };
 
 export { ensureChatBillingSettlementSchema, hasChatBillingSettlementSchema } from "./chatBillingSettlementSchema";
 export { CHAT_TURN_CHARGE_KIND } from "./chatBillingSettlementSchema";
+export {
+  UNDER_RECOVERED_BILLING_MESSAGE,
+  UNDER_RECOVERED_GENERATION_BLOCKED_MESSAGE,
+  UNDER_RECOVERED_OUTCOME,
+  isUnderRecoveredOutcome,
+} from "./chatBillingSettlementOutcome";
+export type { ChatBillingSettlementOutcome } from "./chatBillingSettlementOutcome";
 
 /** Settlement uses BEGIN IMMEDIATE to serialize concurrent writers before claim insert. */
 export const SETTLEMENT_TRANSACTION_MODE = "IMMEDIATE" as const;
@@ -43,27 +54,6 @@ export type ChatBillingSettlementSource =
   | "native"
   | "existing_settlement"
   | "legacy_message_deduction_slices";
-
-export type ChatBillingSettlementOutcome =
-  | "charged"
-  | "waived"
-  | "legacy_already_billed"
-  | "duplicate_replay"
-  | "legacy_malformed"
-  | "under_recovered";
-
-export const UNDER_RECOVERED_OUTCOME = "under_recovered" as const;
-
-/** Product delivered; user lots were not charged. Not a cash debt. */
-export const UNDER_RECOVERED_BILLING_MESSAGE =
-  "응답은 저장되었지만 포인트 정산에 실패했습니다. 추가 생성은 제한됩니다.";
-
-export const UNDER_RECOVERED_GENERATION_BLOCKED_MESSAGE =
-  "이전 응답의 포인트 정산이 끝나지 않아 새 생성을 시작할 수 없습니다.";
-
-export function isUnderRecoveredOutcome(outcome: string | null | undefined): boolean {
-  return outcome === UNDER_RECOVERED_OUTCOME;
-}
 
 export type AssistantChargeEligibilityReason =
   | "missing_row"
