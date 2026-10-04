@@ -42,10 +42,10 @@ import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAud
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
+import { chatSseUserChargeFromSettlement } from "@/lib/chatBillingPresentation";
 import {
   settleChatTurnBillingExactlyOnce,
   shouldBlockNewPaidGenerationForUnderRecovered,
-  UNDER_RECOVERED_BILLING_MESSAGE,
   UNDER_RECOVERED_GENERATION_BLOCKED_MESSAGE,
   UNDER_RECOVERED_OUTCOME,
 } from "@/lib/chatBillingSettlement";
@@ -6223,15 +6223,10 @@ export async function POST(req: Request) {
           userMessageId,
           requestId: clientRequestId,
           mode: nextMode,
-          cost: canonicalBillingCost,
-          totalPointsCost: canonicalBillingCost,
+          ...chatSseUserChargeFromSettlement(settlement),
           remainingPoints: balanceAfter.total,
           paidPoints: balanceAfter.paid,
           freePoints: balanceAfter.free,
-          billingOutcome: settlement.outcome,
-          ...(settlement.outcome === UNDER_RECOVERED_OUTCOME
-            ? { billingError: UNDER_RECOVERED_BILLING_MESSAGE }
-            : {}),
           usage: clientUsageRecord,
           ...(clientUsageRecord.finishReason
             ? { finishReason: clientUsageRecord.finishReason }

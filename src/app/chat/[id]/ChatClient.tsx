@@ -215,7 +215,9 @@ import {
   clearChatBillingPresentations,
   completeChatBillingPresentation,
   createChatBillingPresentationOwner,
+  extractChatStreamSettlement,
   stageChatBillingPresentation,
+  type ChatStreamDeduction,
 } from "@/lib/chatBillingPresentation";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
@@ -3027,9 +3029,13 @@ export default function ChatClient({
       mode?: "safe" | "nsfw";
       cost?: number;
       totalPointsCost?: number;
+      settledPoints?: number;
+      requestedPoints?: number;
       remainingPoints?: number;
       paidPoints?: number;
       freePoints?: number;
+      billingOutcome?: string;
+      billingError?: string;
       usage?: Usage;
       memoryUpdated?: boolean;
       variants?: MessageVariant[];
@@ -3575,15 +3581,8 @@ export default function ChatClient({
 
     function extractBillingInfo(
       data: NonNullable<typeof pendingDone>
-    ): { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number } | undefined {
-      const turnCost = data.totalPointsCost ?? data.cost ?? 0;
-      if (turnCost <= 0 || data.remainingPoints == null) return undefined;
-      return {
-        turnCost,
-        remainingPoints: data.remainingPoints,
-        paidPoints: data.paidPoints ?? 0,
-        freePoints: data.freePoints ?? 0,
-      };
+    ): ReturnType<typeof extractChatStreamSettlement> {
+      return extractChatStreamSettlement(data);
     }
 
     let streamDoneApplied = false;
@@ -3995,18 +3994,19 @@ export default function ChatClient({
       closeSessionRecoveryDraft();
     }
 
-    const billing =
+    const settlementView =
       pendingDone && !trafficOverload ? extractBillingInfo(pendingDone) : undefined;
     return {
       streamError,
       trafficOverload: trafficOverload || undefined,
-      billing,
+      billing: settlementView?.deduction,
+      billingWarning: settlementView?.billingWarning ?? null,
       eofUnresolved,
     };
   }
 
   function applyStreamBilling(
-    billing: { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number }
+    billing: ChatStreamDeduction
   ) {
     setFloatDeductionAmount(billing.turnCost);
     setFloatDeductionTrigger((t) => t + 1);
@@ -4020,7 +4020,7 @@ export default function ChatClient({
 
   function stageStreamBillingPresentation(
     requestId: string,
-    billing: { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number }
+    billing: ChatStreamDeduction
   ) {
     const presentation = stageChatBillingPresentation(
       billingPresentationOwnerRef.current,
@@ -4050,7 +4050,8 @@ export default function ChatClient({
     streamResult: {
       streamError?: string;
       trafficOverload?: string;
-      billing?: { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number };
+      billing?: ChatStreamDeduction;
+      billingWarning?: string | null;
       eofUnresolved?: boolean;
     },
     aiIndex: number,
@@ -4075,6 +4076,10 @@ export default function ChatClient({
     // No further action for send/continue — avoid leaving generationStatus stuck.
     if (streamResult.eofUnresolved) {
       setToastMsg("생성이 완료되지 않았습니다. 다시 시도해 주세요.");
+      return;
+    }
+    if (streamResult.billingWarning) {
+      setToastMsg(streamResult.billingWarning);
     }
   }
 
@@ -4160,7 +4165,8 @@ export default function ChatClient({
       | {
           streamError?: string;
           trafficOverload?: string;
-          billing?: { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number };
+          billing?: ChatStreamDeduction;
+          billingWarning?: string | null;
           eofUnresolved?: boolean;
         }
       | undefined;
@@ -4309,7 +4315,8 @@ export default function ChatClient({
       | {
           streamError?: string;
           trafficOverload?: string;
-          billing?: { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number };
+          billing?: ChatStreamDeduction;
+          billingWarning?: string | null;
           eofUnresolved?: boolean;
         }
       | undefined;
@@ -4580,7 +4587,8 @@ export default function ChatClient({
       | {
           streamError?: string;
           trafficOverload?: string;
-          billing?: { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number };
+          billing?: ChatStreamDeduction;
+          billingWarning?: string | null;
           eofUnresolved?: boolean;
         }
       | undefined;
@@ -4622,6 +4630,8 @@ export default function ChatClient({
         // variant when regenerate could not reach a completed server row.
         restoreAssistant();
         setToastMsg("생성이 완료되지 않았습니다. 다시 시도해 주세요.");
+      } else if (streamResult.billingWarning) {
+        setToastMsg(streamResult.billingWarning);
       }
     } catch (e) {
       activeStreamRevealRef.current?.reset();
