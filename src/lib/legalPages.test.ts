@@ -121,16 +121,35 @@ test("one public commerce notice owner is reused and member charge stays unavail
   assert.match(notice, /일반 회원의 유료 포인트 결제는 제공하지 않습니다/);
   assert.match(notice, /지정 심사 계정에서만 테스트 결제가 제공/);
   assert.doesNotMatch(notice, /매출로 처리/);
-  for (const page of [TERMS_PAGE, PRIVACY_PAGE, PAYMENT_REFUND_PAGE]) {
-    const text = flattenLegalPageText(page);
-    for (const paragraph of SERVICE_PUBLIC_COMMERCE_NOTICE_PARAGRAPHS) {
-      const matches = text.split(paragraph).length - 1;
-      assert.equal(matches, 1);
-    }
+  const termsText = flattenLegalPageText(TERMS_PAGE);
+  const privacyText = flattenLegalPageText(PRIVACY_PAGE);
+  const refundText = flattenLegalPageText(PAYMENT_REFUND_PAGE);
+  for (const paragraph of SERVICE_PUBLIC_COMMERCE_NOTICE_PARAGRAPHS) {
+    assert.equal(termsText.split(paragraph).length - 1, 1);
+    assert.equal(privacyText.split(paragraph).length - 1, 0);
+    assert.equal(refundText.split(paragraph).length - 1, 0);
   }
 });
 
 test("privacy copy states proven processing facts and does not invent compliance", () => {
+  assert.deepEqual(
+    PRIVACY_PAGE.sections.map((section) => section.heading),
+    [
+      "개인정보 처리자",
+      "처리 목적",
+      "처리 항목",
+      "보유 및 이용 기간",
+      "제3자 제공",
+      "처리위탁",
+      "국외 이전",
+      "파기",
+      "정보주체의 권리",
+      "쿠키",
+      "안전성 확보조치",
+      "개인정보 보호책임자",
+      "변경",
+    ],
+  );
   const text = flattenLegalPageText(PRIVACY_PAGE);
   assert.match(text, /하브/);
   assert.match(text, /계정 식별자/);
@@ -141,7 +160,7 @@ test("privacy copy states proven processing facts and does not invent compliance
   assert.match(text, /OpenRouter/);
   assert.match(text, /Cheaper Inference/);
   assert.match(text, /Resend/);
-  assert.match(text, new RegExp(`인증 링크 유효기간 ${EMAIL_TOKEN_MINUTES}분`));
+  assert.match(text, new RegExp(`인증 링크의 유효기간은 ${EMAIL_TOKEN_MINUTES}분`));
   assert.match(text, /계정 전체를 삭제하는 기능은 없습니다/);
   assert.match(text, new RegExp(`개인정보 보호책임자는 대표자 ${PERSONAL_INFORMATION_PROTECTION_OFFICER_NAME}`));
   assert.match(text, new RegExp(`전화 ${PERSONAL_INFORMATION_PROTECTION_OFFICER_PHONE}`));
@@ -159,10 +178,12 @@ test("privacy copy states proven processing facts and does not invent compliance
   assert.doesNotMatch(text, /그 고지가 완료되었다고 쓰지 않습니다/);
   assert.doesNotMatch(text, /미확정/);
   assert.doesNotMatch(text, /국외에 서버를 둘 수 있는 외부 제공업체/);
-  assert.match(text, /광고성 이메일·문자 발송 기능은 현재 없습니다/);
-  assert.match(text, /저장된 성인 표시와 모의 인증은 성인 콘텐츠 열람을 열지 않습니다/);
-  assert.match(text, /기존 관리자 권한의 베타 테스트 접근만/);
+  assert.doesNotMatch(text, /광고성 이메일·문자 발송 기능은 현재 없습니다/);
+  assert.doesNotMatch(text, /모의 인증/);
+  assert.doesNotMatch(text, /베타 테스트/);
   assert.doesNotMatch(text, /매출로 집계하지 않습니다/);
+  assert.doesNotMatch(text, /OPEN_READY|CROSS_BORDER_BLOCKED|ZDR|google-ai-studio/);
+  assert.doesNotMatch(text, /law\.go\.kr|openrouter\.ai\/privacy|cheaperinference\.com\/legal/);
   assert.match(text, new RegExp(escapeRegExp(BUSINESS_CUSTOMER_SERVICE_PHONE)));
   for (const line of BUSINESS_PUBLIC_LINES) {
     assert.match(text, new RegExp(escapeRegExp(line)));
@@ -197,8 +218,9 @@ test("terms are production user terms without developer wording", () => {
   assert.doesNotMatch(text, /확인한 뒤 회원가입을 완료/);
   assert.match(text, /성인 이용자에게만 제공되는 기능/);
   assert.doesNotMatch(text, /성인만 이용해서는 안 됩니다/);
-  assert.match(text, /저장된 성인 표시만으로는 성인 콘텐츠 열람이 열리지 않습니다/);
-  assert.match(text, /기존 관리자 권한의 베타 테스트 접근만/);
+  assert.doesNotMatch(text, /모의 인증/);
+  assert.doesNotMatch(text, /베타 테스트/);
+  assert.doesNotMatch(text, /법령이 허용하지 않는 책임 제한/);
   assert.match(text, new RegExp(escapeRegExp(BUSINESS_CUSTOMER_SERVICE_PHONE)));
   for (const term of INTERNAL_PUBLIC_TERMS) {
     assert.doesNotMatch(text, new RegExp(escapeRegExp(term)));
@@ -246,7 +268,8 @@ test("terms and refund publish confirmed products and refund support without inv
   assert.match(refund, /인증 확인이 완료된 뒤에 한 번만 지급됩니다/);
   assert.match(refund, /하브가 제공하는 지원 경로/);
   assert.match(refund, /전자상거래법상 청약철회·계약해제와 같은 권리가 아닙니다/);
-  assert.match(refund, /법정 권리가 제한된다고 쓰지 않습니다/);
+  assert.doesNotMatch(refund, /법정 권리가 제한된다고 쓰지 않습니다/);
+  assert.doesNotMatch(refund, /이 문서는/);
   assert.doesNotMatch(refund, /이메일 가입 시 무료 포인트/);
 });
 

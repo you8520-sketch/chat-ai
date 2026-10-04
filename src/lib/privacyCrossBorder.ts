@@ -88,7 +88,7 @@ const REFUSAL_METHOD: CrossBorderField = {
 function refusalEffect(feature: string): CrossBorderField {
   return {
     status: "confirmed",
-    publicValue: `${feature}를 이용할 수 없습니다.`,
+    publicValue: `${feature} 이용할 수 없습니다.`,
     source: null,
   };
 }
@@ -141,7 +141,7 @@ export const CROSS_BORDER_TRANSFERS = [
     },
     legalBasis: UNCONFIRMED_LEGAL_BASIS,
     refusalMethod: REFUSAL_METHOD,
-    refusalEffect: refusalEffect("대화 응답과 기억 검색"),
+    refusalEffect: refusalEffect("대화 응답과 기억 검색을"),
   },
   {
     id: "cheaper-inference",
@@ -180,7 +180,7 @@ export const CROSS_BORDER_TRANSFERS = [
     },
     legalBasis: UNCONFIRMED_LEGAL_BASIS,
     refusalMethod: REFUSAL_METHOD,
-    refusalEffect: refusalEffect("해당 모델의 대화 응답"),
+    refusalEffect: refusalEffect("해당 모델의 대화 응답을"),
   },
   {
     id: "openai",
@@ -218,7 +218,7 @@ export const CROSS_BORDER_TRANSFERS = [
     },
     legalBasis: UNCONFIRMED_LEGAL_BASIS,
     refusalMethod: REFUSAL_METHOD,
-    refusalEffect: refusalEffect("이미지 생성·편집"),
+    refusalEffect: refusalEffect("이미지 생성·편집을"),
   },
   {
     id: "google",
@@ -255,7 +255,7 @@ export const CROSS_BORDER_TRANSFERS = [
     },
     legalBasis: UNCONFIRMED_LEGAL_BASIS,
     refusalMethod: REFUSAL_METHOD,
-    refusalEffect: refusalEffect("Google 로그인, 해당 글꼴, 피드백"),
+    refusalEffect: refusalEffect("Google 로그인, 해당 글꼴, 피드백을"),
   },
   {
     id: "resend",
@@ -296,7 +296,7 @@ export const CROSS_BORDER_TRANSFERS = [
       source: "https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1029334957",
     },
     refusalMethod: REFUSAL_METHOD,
-    refusalEffect: refusalEffect("이메일 가입"),
+    refusalEffect: refusalEffect("이메일 가입을"),
   },
 ] as const satisfies readonly CrossBorderTransferRow[];
 
