@@ -21,7 +21,6 @@ import {
 import { getDb } from "@/lib/db";
 import { messagesToTurns } from "@/lib/hybridMemory";
 import { billableOpenRouterOutputTokens } from "@/lib/points";
-import { serializeStatusWidget, DEFAULT_STATUS_WIDGET } from "@/lib/statusWidget";
 import {
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
@@ -74,36 +73,35 @@ function assembledTokens(input: Parameters<typeof buildContext>[0]): number {
   return tokens!;
 }
 
-function seedRoom(opts?: { description?: string; speech?: string; widget?: boolean }) {
+function seedRoom(opts?: { description?: string; speech?: string }) {
   const db = getDb();
-  db.prepare("DELETE FROM lorebook_active_entries").run();
-  db.prepare("DELETE FROM keyword_lorebooks").run();
-  db.prepare("DELETE FROM messages").run();
-  db.prepare("DELETE FROM chats").run();
-  db.prepare("DELETE FROM characters").run();
-  db.prepare("DELETE FROM users").run();
-  db.prepare("DELETE FROM user_personas").run();
-  db.prepare("DELETE FROM chat_memories").run();
+  db.prepare("DELETE FROM lorebook_active_entries WHERE chat_id=?").run(CHAT_ID);
+  db.prepare("DELETE FROM keyword_lorebooks WHERE chat_id=?").run(CHAT_ID);
+  db.prepare("DELETE FROM messages WHERE chat_id=?").run(CHAT_ID);
+  db.prepare("DELETE FROM chat_memories WHERE chat_id=?").run(CHAT_ID);
+  db.prepare("DELETE FROM chats WHERE id=?").run(CHAT_ID);
+  db.prepare("DELETE FROM characters WHERE id=?").run(CHAR_ID);
+  db.prepare("DELETE FROM user_personas WHERE user_id=?").run(USER_ID);
+  db.prepare("DELETE FROM users WHERE id=?").run(USER_ID);
 
   db.prepare(
     `INSERT INTO users (id, email, nickname, pw_hash, is_adult, points) VALUES (?,?,?,?,?,?)`
   ).run(USER_ID, USER.email, USER.nickname, "x", 1, 5000);
   db.prepare(
     `INSERT INTO characters (
-      id, name, description, speech_personality, speech_traits, system_prompt, world,
+      id, name, description, speech_profile, system_prompt, world,
       example_dialog, greeting, status_widget_json
-    ) VALUES (?,?,?,?,?,?,?,?,?,?)`
+    ) VALUES (?,?,?,?,?,?,?,?,?)`
   ).run(
     CHAR_ID,
     "솔",
     opts?.description ?? "등대지기. CHARACTER_DESC_BASE",
-    opts?.speech ?? "낮고 짧은 말.",
-    "과묵",
+    JSON.stringify({ personality: opts?.speech ?? "낮고 짧은 말." }),
     "너는 솔이다. FIRST_TURN_SYSTEM_PROMPT",
     "등대 아래 항구. FIRST_TURN_WORLD",
     "안녕, 여행자.",
     "FIRST_TURN_GREETING 등대가 깜빡인다.",
-    opts?.widget ? serializeStatusWidget(DEFAULT_STATUS_WIDGET) : ""
+    ""
   );
   db.prepare(
     `INSERT INTO chats (id, user_id, character_id, mode, user_note, adult_handoff_enabled)
@@ -218,19 +216,29 @@ describe("canonical next-turn assembly preparation", () => {
       })
     );
     getDb()
-      .prepare(
-        `UPDATE characters SET description=?, speech_personality=? WHERE id=?`
-      )
-      .run("CHANGED_DESC 성격이 바뀌었다.", "CHANGED_SPEECH 말이 거칠다.", CHAR_ID);
+      .prepare(`UPDATE characters SET description=?, world=?, system_prompt=? WHERE id=?`)
+      .run(
+        "CHANGED_DESC 성격이 바뀌었다.",
+        "CHANGED_WORLD 안개가 항구를 삼켰다.",
+        "CHANGED_SYSTEM 너는 안개 속의 솔이다.",
+        CHAR_ID
+      );
     const afterSource = loadPersistedNextTurnSource({ chatId: CHAT_ID, user: USER });
     const afterSections = await resolvePersistedNextTurnPromptSections(afterSource!);
-    const after = assembledTokens(
-      await assemblePersistedNextTurnInputs({
-        source: afterSource!,
-        sections: afterSections,
-        modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-      })
-    );
+    const afterInput = await assemblePersistedNextTurnInputs({
+      source: afterSource!,
+      sections: afterSections,
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+    });
+    assert.equal(afterInput.characterPersonality, "CHANGED_DESC 성격이 바뀌었다.");
+    assert.match(String(afterInput.world ?? ""), /CHANGED_WORLD/);
+    assert.match(String(afterInput.systemPrompt ?? ""), /CHANGED_SYSTEM/);
+    const afterBuilt = buildContext(afterInput);
+    const after =
+      afterBuilt.meta.promptAudit?.totalAssembledTokens ?? afterBuilt.meta.estimatedInputTokens;
+    assert.ok(typeof after === "number" && after > 0);
+    const afterBlob = `${afterBuilt.systemPrompt}\n${afterBuilt.history.map((m) => m.content).join("\n")}`;
+    assert.match(afterBlob, /CHANGED_SYSTEM|CHANGED_WORLD|CHANGED_DESC/);
     assert.notEqual(before, after);
     assert.notEqual(
       fingerprintPersistedNextTurnSource(beforeSource!, beforeSections),
@@ -244,11 +252,11 @@ describe("canonical next-turn assembly preparation", () => {
     assert.equal(picker?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL], after);
   });
 
-  it("D status-widget ON/OFF delta is identical through the shared owner", async () => {
+  it("D persisted user-lorebook ON/OFF delta is identical through the shared owner", async () => {
     addPlayableTurns(2);
     const offSource = loadPersistedNextTurnSource({ chatId: CHAT_ID, user: USER });
     const offSections = await resolvePersistedNextTurnPromptSections(offSource!);
-    assert.equal(offSections.statusWidgetActive, false);
+    assert.equal((offSections.userLorebookBlock || "").includes("USER_LORE_등대"), false);
     const off = assembledTokens(
       await assemblePersistedNextTurnInputs({
         source: offSource!,
@@ -256,12 +264,13 @@ describe("canonical next-turn assembly preparation", () => {
         modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
       })
     );
-    getDb()
-      .prepare("UPDATE characters SET status_widget_json=? WHERE id=?")
-      .run(serializeStatusWidget(DEFAULT_STATUS_WIDGET), CHAR_ID);
+    getOrCreateUserLorebookForChat(getDb(), CHAT_ID, USER_ID);
+    saveUserLorebookEntries(getDb(), CHAT_ID, USER_ID, [
+      { keywords: "등대", content: "USER_LORE_등대는 항상 켜져 있다. ".repeat(20), enabled: true },
+    ]);
     const onSource = loadPersistedNextTurnSource({ chatId: CHAT_ID, user: USER });
     const onSections = await resolvePersistedNextTurnPromptSections(onSource!);
-    assert.equal(onSections.statusWidgetActive, true);
+    assert.match(onSections.userLorebookBlock, /USER_LORE_등대/);
     const on = assembledTokens(
       await assemblePersistedNextTurnInputs({
         source: onSource!,

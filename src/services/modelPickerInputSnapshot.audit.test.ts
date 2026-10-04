@@ -24,8 +24,8 @@ describe("modelPickerInputSnapshot read-only audit", () => {
     assert.match(SNAPSHOT_SOURCE, /loadPersistedNextTurnSource/);
     assert.match(SNAPSHOT_SOURCE, /assemblePersistedNextTurnInputs/);
     assert.match(SNAPSHOT_SOURCE, /fingerprintPersistedNextTurnSource/);
-    assert.doesNotMatch(SNAPSHOT_SOURCE, /DEFAULT_SELECTED_AI/);
     assert.doesNotMatch(SNAPSHOT_SOURCE, /shortTermHistory: recentHistoryFull/);
+    assert.doesNotMatch(SNAPSHOT_SOURCE, /sharedContextModelId/);
   });
 
   it("uses preview-only memory and chunk loaders (no chat mutation path)", () => {
