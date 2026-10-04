@@ -516,7 +516,6 @@ export default async function ChatPage({
     const nextTurn = await resolveMainRpNextTurnPickerEstimates({
       chatId: chat.id,
       user,
-      refresh: false,
     });
     if (nextTurn) initialModelPickerEstimates = nextTurn.displayPoints;
   } catch {

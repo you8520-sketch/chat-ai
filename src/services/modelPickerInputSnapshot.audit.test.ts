@@ -73,6 +73,11 @@ describe("modelPickerInputSnapshot read-only audit", () => {
     assert.match(SNAPSHOT_SOURCE, /tokensByModel\[modelId\]/);
     assert.match(PREP_SOURCE, /prepareNextTurnHistory/);
   });
+
+  it("does not expose a client-controlled refresh cache bypass", () => {
+    assert.doesNotMatch(SNAPSHOT_SOURCE, /refresh\?:/);
+    assert.doesNotMatch(SNAPSHOT_SOURCE, /opts\.refresh/);
+  });
 });
 
 describe("modelPickerInputSnapshot cache bound", () => {

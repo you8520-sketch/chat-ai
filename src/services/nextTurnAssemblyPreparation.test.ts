@@ -275,7 +275,6 @@ describe("canonical next-turn assembly preparation", () => {
     const picker = await resolveModelPickerAssembledInputSnapshots({
       chatId: CHAT_ID,
       user: USER,
-      refresh: true,
     });
     assert.equal(picker?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL], after);
   });
@@ -310,7 +309,6 @@ describe("canonical next-turn assembly preparation", () => {
     const picker = await resolveModelPickerAssembledInputSnapshots({
       chatId: CHAT_ID,
       user: USER,
-      refresh: true,
     });
     assert.equal(picker?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL], on);
   });
@@ -391,7 +389,6 @@ describe("canonical next-turn assembly preparation", () => {
       const snapshots = await resolveModelPickerAssembledInputSnapshots({
         chatId: CHAT_ID,
         user: USER,
-        refresh: true,
       });
       assert.ok((snapshots?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL] ?? 0) > 0);
     } finally {
@@ -484,7 +481,6 @@ describe("canonical next-turn assembly preparation", () => {
     const onPicker = await resolveModelPickerAssembledInputSnapshots({
       chatId: CHAT_ID,
       user: USER,
-      refresh: true,
     });
     assert.equal(onPicker?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL], onTokens);
 
@@ -503,7 +499,6 @@ describe("canonical next-turn assembly preparation", () => {
     const offPicker = await resolveModelPickerAssembledInputSnapshots({
       chatId: CHAT_ID,
       user: USER,
-      refresh: true,
     });
     assert.equal(offPicker?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL], offTokens);
     assert.notEqual(
@@ -576,7 +571,6 @@ describe("canonical next-turn assembly preparation", () => {
         const picker = await resolveModelPickerAssembledInputSnapshots({
           chatId: CHAT_ID,
           user: USER,
-          refresh: true,
         });
         assert.equal(picker?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL], tokens);
       } finally {
@@ -653,7 +647,6 @@ describe("canonical next-turn assembly preparation", () => {
       const picker = await resolveModelPickerAssembledInputSnapshots({
         chatId: CHAT_ID,
         user: USER,
-        refresh: true,
       });
       assert.equal(picker?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL], tokens);
       getDb().prepare("DELETE FROM chat_persona_secret_reveals WHERE chat_id=?").run(CHAT_ID);
@@ -693,7 +686,6 @@ describe("canonical next-turn assembly preparation", () => {
     const snapshots = await resolveModelPickerAssembledInputSnapshots({
       chatId: CHAT_ID,
       user: USER,
-      refresh: true,
     });
     assert.ok((snapshots?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL] ?? 0) > 200);
   });

@@ -18,7 +18,6 @@ export async function POST(req: Request) {
   const result = await resolveMainRpNextTurnPickerEstimates({
     chatId,
     user,
-    refresh: body.refresh === true,
   });
   if (!result) {
     return NextResponse.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });

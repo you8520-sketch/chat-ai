@@ -1439,12 +1439,12 @@ export default function ChatClient({
     [selectedAI]
   );
 
-  const refreshPickerEstimates = useCallback((roomId: number | null, refresh = true) => {
+  const refreshPickerEstimates = useCallback((roomId: number | null) => {
     if (roomId == null || roomId <= 0) return;
     void fetch("/api/chat/next-turn-estimates", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chatId: roomId, refresh }),
+      body: JSON.stringify({ chatId: roomId }),
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { estimates?: unknown } | null) => {
@@ -1453,10 +1453,6 @@ export default function ChatClient({
       })
       .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    refreshPickerEstimates(chatId ?? initialChatId, true);
-  }, [chatId, initialChatId, refreshPickerEstimates]);
 
   const persistChatSettings = useCallback(
     async (requested: { chatTitle: string; narrativePov: NarrativePov }): Promise<boolean> => {
@@ -2110,7 +2106,7 @@ export default function ChatClient({
             if (Array.isArray(data?.activeSitePromotions)) {
               replacePromotions(data.activeSitePromotions);
             }
-            refreshPickerEstimates(chatId ?? initialChatId, true);
+            refreshPickerEstimates(chatId ?? initialChatId);
           }
         )
         .catch(() => {});
@@ -3458,7 +3454,7 @@ export default function ChatClient({
         setMode(data.mode);
       }
       if (data.memoryUpdated) setMemoryRefreshKey((k) => k + 1);
-      refreshPickerEstimates(data.chatId ?? chatId, true);
+      refreshPickerEstimates(data.chatId ?? chatId);
       setMessages((m) => {
         const copy = [...m];
         if (data.userMessageId != null) {
@@ -6069,7 +6065,7 @@ export default function ChatClient({
             <select
               value={selectedAI}
               onChange={(e) => void handleSelectedAIChange(e.target.value as SelectedAI)}
-              onFocus={() => refreshPickerEstimates(chatId ?? initialChatId, false)}
+              onFocus={() => refreshPickerEstimates(chatId ?? initialChatId)}
               disabled={inputLocked}
               className="max-w-full rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
             >

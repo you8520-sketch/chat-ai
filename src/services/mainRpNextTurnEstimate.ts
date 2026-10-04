@@ -111,7 +111,6 @@ export type MainRpNextTurnEstimateResult = {
 export async function resolveMainRpNextTurnPickerEstimates(opts: {
   chatId: number;
   user: User;
-  refresh?: boolean;
 }): Promise<MainRpNextTurnEstimateResult | null> {
   const db = getDb();
   const owned = db
@@ -122,7 +121,6 @@ export async function resolveMainRpNextTurnPickerEstimates(opts: {
   const promptTokensByModel = await resolveModelPickerAssembledInputSnapshots({
     chatId: opts.chatId,
     user: opts.user,
-    refresh: opts.refresh,
   });
   if (!promptTokensByModel) {
     return {

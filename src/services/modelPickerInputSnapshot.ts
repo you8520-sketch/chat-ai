@@ -66,10 +66,19 @@ export function rememberModelPickerInputSnapshot(
   evictOldestSnapshotCacheEntries();
 }
 
+let assembledSnapshotRebuildCount = 0;
+
+export function modelPickerAssembledSnapshotRebuildCount(): number {
+  return assembledSnapshotRebuildCount;
+}
+
+export function resetModelPickerAssembledSnapshotRebuildCount(): void {
+  assembledSnapshotRebuildCount = 0;
+}
+
 export async function resolveModelPickerAssembledInputSnapshots(opts: {
   chatId: number;
   user: User;
-  refresh?: boolean;
 }): Promise<Partial<Record<ModelPickerActiveModelId, number>> | null> {
   const source = loadPersistedNextTurnSource({
     chatId: opts.chatId,
@@ -82,9 +91,10 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
   });
   const sourceFingerprint = fingerprintPersistedNextTurnSource(source, sections);
   const cached = touchSnapshotCache(opts.chatId);
-  if (!opts.refresh && matchesModelPickerSnapshotCache(cached, { sourceFingerprint })) {
+  if (matchesModelPickerSnapshotCache(cached, { sourceFingerprint })) {
     return cached!.tokensByModel;
   }
+  assembledSnapshotRebuildCount += 1;
 
   const assemblePickerContext = <T,>(fn: () => T): T =>
     source.personaKnowledgePromptDecision.mode === "ENSEMBLE_REDACTED"
@@ -124,7 +134,6 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
 export async function resolveModelPickerAssembledInputSnapshot(opts: {
   chatId: number;
   user: User;
-  refresh?: boolean;
 }): Promise<number | null> {
   const snapshots = await resolveModelPickerAssembledInputSnapshots(opts);
   if (!snapshots) return null;

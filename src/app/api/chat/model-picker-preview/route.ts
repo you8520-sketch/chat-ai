@@ -63,8 +63,6 @@ export async function POST(req: Request) {
     )
     .all(chatId) as DbMessageRow[];
 
-  const refreshContext = body.refreshContext === true;
-  const skipContextBuild = body.skipContextBuild === true;
   const draftInput = typeof body.draftInput === "string" ? body.draftInput : undefined;
   const inputTokensOverride =
     typeof body.inputTokensOverride === "number" && body.inputTokensOverride > 0
@@ -74,7 +72,6 @@ export async function POST(req: Request) {
   const assembledSnapshotTokensByModel = await resolveModelPickerAssembledInputSnapshots({
     chatId,
     user,
-    refresh: !skipContextBuild && refreshContext,
   });
 
   const targetResponseChars = normalizeTargetResponseChars(

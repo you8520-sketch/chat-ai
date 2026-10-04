@@ -21,4 +21,9 @@ describe("next-turn-estimates endpoint security", () => {
     assert.doesNotMatch(ROUTE_SOURCE, /body\.characterId/);
     assert.doesNotMatch(ROUTE_SOURCE, /draftInput/);
   });
+
+  it("does not accept a client-controlled refresh cache bypass", () => {
+    assert.doesNotMatch(ROUTE_SOURCE, /body\.refresh/);
+    assert.doesNotMatch(ROUTE_SOURCE, /refresh:/);
+  });
 });
