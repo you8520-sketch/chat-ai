@@ -22,6 +22,8 @@ import type { ActualProductionEconomicsObservation } from "@/lib/mainRpPricingAc
 import {
   composePricingCandidateObservation,
   decideSafeBand,
+  PRICING_CANDIDATE_STATUSES,
+  pricingCandidateStatusLabel,
   projectedRepresentativeMargin,
   resolveActualCandidateSignal,
   resolveCandidateLiveApplicability,
@@ -157,6 +159,42 @@ function assertCatalogUnchanged(before: Map<string, PublishedModelPricing>): voi
     assert.deepEqual(entry.pricing, prior);
   }
 }
+
+describe("mainRpPricingCandidateBand — candidate status labels", () => {
+  it("maps every current candidate status and does not revive the obsolete non-target-margin owner", () => {
+    assert.equal(
+      (PRICING_CANDIDATE_STATUSES as readonly string[]).includes(
+        "HOLD_NON_TARGET_MARGIN_PRICING_OWNER"
+      ),
+      false
+    );
+    assert.deepEqual([...PRICING_CANDIDATE_STATUSES], [
+      "READY",
+      "KEEP_CURRENT",
+      "HOLD_NO_HARD_MARKET_EVIDENCE",
+      "HOLD_PROCUREMENT_NOT_FRESH",
+      "HOLD_ACTUAL_REPRESENTATIVE_CONFLICT",
+      "NO_FEASIBLE_PRICE",
+      "UNAVAILABLE",
+    ]);
+    assert.equal(pricingCandidateStatusLabel("READY"), "READY");
+    assert.equal(pricingCandidateStatusLabel("KEEP_CURRENT"), "KEEP CURRENT");
+    assert.equal(
+      pricingCandidateStatusLabel("HOLD_NO_HARD_MARKET_EVIDENCE"),
+      "Hold — no hard-comparable market benchmark"
+    );
+    assert.equal(
+      pricingCandidateStatusLabel("HOLD_PROCUREMENT_NOT_FRESH"),
+      "Hold — procurement not fresh"
+    );
+    assert.equal(
+      pricingCandidateStatusLabel("HOLD_ACTUAL_REPRESENTATIVE_CONFLICT"),
+      "Hold — actual vs representative conflict"
+    );
+    assert.equal(pricingCandidateStatusLabel("NO_FEASIBLE_PRICE"), "No feasible price band");
+    assert.equal(pricingCandidateStatusLabel("UNAVAILABLE"), "Unavailable");
+  });
+});
 
 describe("mainRpPricingCandidateBand — safe band decision matrix", () => {
   it("A — inside band → KEEP_CURRENT / 30%", () => {
@@ -688,8 +726,38 @@ describe("mainRpPricingCandidateBand — integration", () => {
 
     assert.equal(row.candidate.commercialPricingOwner, "target_margin");
     assert.equal(row.candidate.currentTargetMargin, 0.45);
+    assert.equal(published.minimumMarginFloor, 0.3);
     assert.ok((row.candidate.representative.currentPoints ?? 0) > 0);
     assert.notEqual(row.candidate.status, "UNAVAILABLE");
+
+    const belowFloor: ActualProductionEconomicsObservation = {
+      domain: "ACTUAL_PRODUCTION",
+      monthKey: "2026-10",
+      usageState: "HAS_ACTIVITY",
+      paidRevenueKrw: 1000,
+      freePointSpend: 0,
+      apiCostKrw: 800,
+      netProfitKrw: 200,
+      marginRate: 0.25,
+      marginCoverage: "complete",
+      realizedMarginExact: true,
+      marginDisplay: "Realized margin 25.0%",
+      financeModelKey: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+      costEvidence: {
+        sourceState: null,
+        actualKrw: null,
+        estimatedKrw: null,
+        calls: null,
+      },
+    };
+    assert.equal(
+      resolveActualCandidateSignal(belowFloor, published.minimumMarginFloor),
+      "CONFLICTS"
+    );
+    assert.equal(
+      resolveActualCandidateSignal({ ...belowFloor, marginRate: 0.45 }, published.minimumMarginFloor),
+      "CONFIRMS"
+    );
   });
 
   it("DeepSeek without hard benchmark → HOLD_NO_HARD_MARKET_EVIDENCE with floor diagnostic optional", () => {

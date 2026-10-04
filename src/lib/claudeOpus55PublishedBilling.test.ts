@@ -85,6 +85,7 @@ describe("Opus 5.5 published pricing owner", () => {
     assert.equal(resolved.pricing.billingReferenceInputUsdPerMillion, 2.8);
     assert.equal(resolved.pricing.billingReferenceOutputUsdPerMillion, 14);
     assert.equal(resolved.pricing.targetMargin, 0.45);
+    assert.equal(resolved.pricing.minimumMarginFloor, 0.3);
     assert.equal(resolved.pricing.pricingVersion, 2);
   });
 });

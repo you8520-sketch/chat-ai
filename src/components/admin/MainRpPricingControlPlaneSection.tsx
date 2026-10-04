@@ -6,6 +6,7 @@ import type {
   ProviderEvidenceStatus,
   RealizedMarginDiagnosticStatus,
 } from "@/lib/mainRpPricingObservability";
+import { pricingCandidateStatusLabel } from "@/lib/mainRpPricingCandidateBand";
 import {
   formatActualFreePointSpend,
   type ActualProductionCostEvidence,
@@ -116,26 +117,7 @@ function coverageLabel(coverage: string | null, exact: boolean): string {
 }
 
 function candidateStatusLabel(status: PricingCandidateObservation["status"]): string {
-  switch (status) {
-    case "READY":
-      return "READY";
-    case "KEEP_CURRENT":
-      return "KEEP CURRENT";
-    case "HOLD_NO_HARD_MARKET_EVIDENCE":
-      return "Hold — no hard-comparable market benchmark";
-    case "HOLD_PROCUREMENT_NOT_FRESH":
-      return "Hold — procurement not fresh";
-    case "HOLD_ACTUAL_REPRESENTATIVE_CONFLICT":
-      return "Hold — actual vs representative conflict";
-    case "NO_FEASIBLE_PRICE":
-      return "No feasible price band";
-    case "UNAVAILABLE":
-      return "Unavailable";
-    default: {
-      const _exhaustive: never = status;
-      return _exhaustive;
-    }
-  }
+  return pricingCandidateStatusLabel(status);
 }
 
 function formatSafeBand(

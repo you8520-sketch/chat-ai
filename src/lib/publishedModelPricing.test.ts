@@ -149,6 +149,7 @@ describe("publishedModelPricing", () => {
     assert.equal(p.billingReferenceInputUsdPerMillion, 2.8);
     assert.equal(p.billingReferenceOutputUsdPerMillion, 14);
     assert.equal(p.targetMargin, 0.45);
+    assert.equal(p.minimumMarginFloor, 0.3);
     assert.equal(p.pricingVersion, 2);
     assert.equal(isPublishedCacheBreakdownPriceNeutral("claude-opus-5.5"), true);
     assert.equal(
@@ -225,6 +226,37 @@ describe("publishedModelPricing", () => {
     const alias = getPublishedPricing("openai/gpt-6.1-sol");
     assert.equal(alias.modelId, "gpt-6.1-sol");
     assert.equal(alias.targetMargin, 0.45);
+  });
+
+  it("non-Opus published catalog snapshots stay unchanged by the Opus 45% cleanup", () => {
+    const others = listExactPublishedCatalogEntries()
+      .filter((entry) => entry.canonicalModelId !== "claude-opus-5.5")
+      .map((entry) => ({
+        id: entry.canonicalModelId,
+        target: entry.pricing.targetMargin,
+        floor: entry.pricing.minimumMarginFloor,
+        in: entry.pricing.billingReferenceInputUsdPerMillion,
+        out: entry.pricing.billingReferenceOutputUsdPerMillion,
+        ver: entry.pricing.pricingVersion,
+      }));
+    assert.deepEqual(others, [
+      { id: "claude-opus-5", target: 0.08, floor: 0.05, in: 5, out: 25, ver: 2 },
+      { id: "anthropic/claude-opus-4.5", target: 0.25, floor: 0.15, in: 5, out: 25, ver: 1 },
+      { id: "deepseek-v4-pro-0813", target: 0.1, floor: 0, in: 1.32, out: 3.96, ver: 4 },
+      { id: "deepseek-v4.1-flash", target: 0.6, floor: 0.5, in: 0.3, out: 1.2, ver: 1 },
+      { id: "meta/muse-spark-1.1", target: 0.55, floor: 0.4, in: 0.435, out: 0.87, ver: 1 },
+      { id: "google/gemini-3.6-flash", target: 0.45, floor: 0.3, in: 0.5, out: 2.5, ver: 1 },
+      { id: "gemini-3.1-pro-preview", target: 0.09, floor: 0.05, in: 2, out: 12, ver: 2 },
+      { id: "gemini-3.7-flash", target: 0.55, floor: 0.5, in: 0.375, out: 1.875, ver: 2 },
+      { id: "gemini-3.8-flash", target: 0.55, floor: 0.5, in: 0.375, out: 1.875, ver: 1 },
+      { id: "qwen-3-8-max", target: 0.5, floor: 0.35, in: 1.4, out: 4.2, ver: 1 },
+      { id: "z-ai/glm-5.2", target: 0.5, floor: 0.35, in: 0.532, out: 1.672, ver: 1 },
+      { id: "glm-5.2", target: 0.5, floor: 0.35, in: 0.532, out: 1.672, ver: 1 },
+      { id: "moonshotai/kimi-k3", target: 0.4, floor: 0.25, in: 3, out: 15, ver: 1 },
+      { id: "deepseek-v4-flash-0731", target: 0.55, floor: 0.4, in: 0.098, out: 0.196, ver: 1 },
+      { id: "gpt-5.6-luna", target: 0.5, floor: 0.35, in: 0.08, out: 0.48, ver: 1 },
+      { id: "gpt-6.1-sol", target: 0.45, floor: 0.3, in: 2, out: 10, ver: 1 },
+    ]);
   });
 
   it("PUBLISHED_CATALOG_IDENTITY_INVARIANT — catalog key equals pricing.modelId", () => {

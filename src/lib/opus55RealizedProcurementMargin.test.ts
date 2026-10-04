@@ -27,6 +27,9 @@ const FX: BillingFxSnapshot = {
 describe("Opus 5.5 margin semantics separation", () => {
   it("documents PRODUCT targetMargin vs realized procurement margin meanings", () => {
     assert.match(OPUS55_PRODUCT_TARGET_MARGIN_SEMANTICS.formula, /billingReferenceCostUsd/);
+    assert.match(OPUS55_PRODUCT_TARGET_MARGIN_SEMANTICS.currentBillingReference, /CI procurement \$2\.8\/\$14/);
+    assert.match(OPUS55_PRODUCT_TARGET_MARGIN_SEMANTICS.currentBillingReference, /Not Anthropic list/);
+    assert.match(OPUS55_PRODUCT_TARGET_MARGIN_SEMANTICS.historicalBillingReference, /Anthropic list \$4\/\$20/);
     assert.match(OPUS55_REALIZED_PROCUREMENT_MARGIN_SEMANTICS.formula, /ciNoCacheProcurementKrw/);
   });
 

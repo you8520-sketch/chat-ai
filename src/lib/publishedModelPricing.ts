@@ -220,7 +220,7 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
     billingReferenceCacheReadUsdPerMillion: OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION,
     billingReferenceCacheWriteUsdPerMillion: OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION,
     targetMargin: 0.45,
-    minimumMarginFloor: 0,
+    minimumMarginFloor: 0.3,
     pricingVersion: 2,
     publishedAt: "2026-10-04T10:14:00.000Z",
   },

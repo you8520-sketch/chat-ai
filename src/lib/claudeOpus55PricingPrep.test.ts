@@ -25,6 +25,7 @@ import {
   OPUS55_MARKET_BENCHMARKS,
   OPUS55_PREP_INPUT_TOKEN_WORKLOADS,
 } from "@/lib/claudeOpus55PricingPrep";
+import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import {
   OPUS55_CACHE_PATH_AUDIT,
   OPUS55_REASONING_CONTRACT_AUDIT,
@@ -99,11 +100,21 @@ describe("Opus 5.5 cache and reasoning evidence", () => {
 });
 
 describe("Claude Opus 5.5 PRODUCT vs PROCUREMENT separation", () => {
-  it("PRODUCT billing reference matches Anthropic list from CI catalog evidence", () => {
+  it("historical prep PRODUCT billing reference matches Anthropic list from CI catalog evidence", () => {
     const prep = buildOpus55PrepPublishedPricing(0.1);
     assert.equal(prep.billingReferenceInputUsdPerMillion, 4);
     assert.equal(prep.billingReferenceOutputUsdPerMillion, 20);
     assert.equal(prep.billingReferenceCacheReadUsdPerMillion, undefined);
+  });
+
+  it("live published PRODUCT billing reference is CI procurement, not Anthropic list", () => {
+    const live = getPublishedPricing(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL);
+    assert.equal(live.billingReferenceInputUsdPerMillion, 2.8);
+    assert.equal(live.billingReferenceOutputUsdPerMillion, 14);
+    assert.equal(live.targetMargin, 0.45);
+    assert.equal(live.minimumMarginFloor, 0.3);
+    assert.notEqual(live.billingReferenceInputUsdPerMillion, 4);
+    assert.notEqual(live.billingReferenceOutputUsdPerMillion, 20);
   });
 
   it("PROCUREMENT catalog uses exact CI cache fields (not estimated ratios)", () => {
