@@ -4,34 +4,55 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import { MAX_PROVIDER_ATTEMPTS } from "@/lib/openAiImageSafetyFallback";
-import { buildOfficialAssetPrompts, OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE } from "@/lib/officialSupply/imagePrompt";
+import {
+  buildOfficialAssetPrompts,
+  OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE,
+  OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL,
+  OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL,
+  OFFICIAL_IMAGE2_STYLE_CARRYOVER_BAN,
+} from "@/lib/officialSupply/imagePrompt";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import { CHAT_IMAGE_GENERATION_DEFAULT_MODEL } from "@/lib/chatImageGeneration";
 import { resolveOfficialAssetImageModel } from "@/lib/officialSupply/imageProfile";
 import { ROFAN_V4_PRODUCTION_BATCH_CONFIG } from "@/lib/officialSupply/pilotProduction";
 import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
 import {
+  LUCIAN_SIG4_OBSERVED_ONE_REFERENCE_PAID_USD,
   LUCIAN_SIG4_REQUIRED_SHOT,
+  LUCIAN_SIG4_STYLE_ESTIMATED_TWO_REFERENCE_PRIMARY_USD,
+  LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER,
+  LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE,
+  LUCIAN_SIG4_STYLE_TRIAL_ARTIFACT_DIR,
   LUCIAN_SIG4_TRIAL_ARTIFACT_DIR,
   LUCIAN_SIG4_TRIAL_DRAFT_KEY,
   LUCIAN_SIG4_TRIAL_SLOT_KEY,
   LUCIAN_SIG4_TRIAL_STYLE_CANDIDATE_ID,
   LUCIAN_V4_REPRESENTATIVE_FILE_MARKER,
   appearanceLockMatchesLucian,
+  assembleLucianSig4StyleProviderReferences,
   isLucianSig4ProofSupportedImageModel,
+  lucianSig4StyleLiveCostApprovalError,
+  lucianSig4StyleProviderReferenceOrderError,
+  lucianSig4StyleTrialCostPlan,
   lucianSig4TrialCostPlan,
   pickDefaultOfficialShotQaSlots,
   pickLucianSig4TrialSlot,
   pickLucianSig4TrialStyleCandidate,
+  prepareLucianSig4StyleTrial,
   prepareLucianSig4Trial,
   resolveLucianSig4TrialStyle,
   resolveOfficialShotQaMode,
+  validateLucianSig4StyleReference,
   validateLucianV4IdentityReference,
 } from "@/lib/officialSupply/qualityShotQa";
+import { officialSlotGenerationReferences } from "@/lib/officialSupply/runner";
 import { testAppearance } from "@/lib/officialSupply/officialSupply.fixtures";
 
 import { ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
-import { buildClusterBRofanStyleSeed } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
+import {
+  buildClusterBRofanStyleSeed,
+  CLUSTER_B_PRIMARY_GENERATION_PATHS,
+} from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import type {
   OfficialAppearanceLock,
   OfficialAssetPlan,
@@ -338,9 +359,271 @@ describe("official shot QA lucian-sig4 trial mode", () => {
     assert.ok(defaults.some((slot) => slot.slotKey !== LUCIAN_SIG4_TRIAL_SLOT_KEY));
     assert.deepEqual(resolveOfficialShotQaMode(undefined), { ok: true, mode: "default" });
     assert.deepEqual(resolveOfficialShotQaMode("lucian-sig4"), { ok: true, mode: "lucian-sig4" });
+    assert.deepEqual(resolveOfficialShotQaMode("lucian-sig4-style"), { ok: true, mode: "lucian-sig4-style" });
     const unknown = resolveOfficialShotQaMode("regen-all");
     assert.equal(unknown.ok, false);
     if (unknown.ok) return;
     assert.match(unknown.reason, /unknown/);
+  });
+});
+
+const STYLE_PATH = `/tmp/${LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER}.webp`;
+const inspectAny = () => ({ width: 1024, height: 1536 });
+const STYLE_BYTES = Buffer.from("canonical-cluster-b-b7");
+
+function buildSig4StylePrompt(
+  style: VisualStyleDna = RF02.dna,
+  styleSeed: StyleReference | null = CLUSTER_B_SEED
+) {
+  const lucian = loadCompiledOfficialCharacterSource(LUCIAN_SIG4_TRIAL_DRAFT_KEY);
+  const slot = PILOT.assetPlan.slots.find((item) => item.slotKey === LUCIAN_SIG4_TRIAL_SLOT_KEY)!;
+  return {
+    lucian,
+    slot,
+    prompts: buildOfficialAssetPrompts({
+      draft: lucian.draft,
+      appearance: lucian.appearanceLock,
+      style,
+      slot,
+      styleSeed,
+      referenceRoleLayout: "identity_then_style",
+    }),
+  };
+}
+
+describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
+  it("selects the pixel-chosen Cluster B primary file as STYLE ONLY", () => {
+    assert.equal(
+      CLUSTER_B_PRIMARY_GENERATION_PATHS[0],
+      `/official-supply/style-seeds/${LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER}.webp`
+    );
+    assert.equal(
+      LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE,
+      `public${CLUSTER_B_PRIMARY_GENERATION_PATHS[0]}`
+    );
+    assert.ok(fs.existsSync(path.join(process.cwd(), LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE)));
+  });
+
+  it("assembles exactly two provider references in identity-then-style order", () => {
+    const assembled = assembleLucianSig4StyleProviderReferences({
+      identityPath: REP_PATH,
+      stylePath: STYLE_PATH,
+    });
+    assert.equal(assembled.ok, true);
+    if (!assembled.ok) return;
+    assert.equal(assembled.references.length, 2);
+    assert.deepEqual(assembled.references[0], {
+      index: 0,
+      role: "IDENTITY ONLY",
+      path: REP_PATH,
+    });
+    assert.deepEqual(assembled.references[1], {
+      index: 1,
+      role: "STYLE ONLY",
+      path: STYLE_PATH,
+    });
+    assert.equal(lucianSig4StyleProviderReferenceOrderError(assembled.references), null);
+    assert.match(
+      lucianSig4StyleProviderReferenceOrderError([assembled.references[1]!, assembled.references[0]!]) ?? "",
+      /reference\[0\] must be the Lucian identity/
+    );
+    assert.match(
+      lucianSig4StyleProviderReferenceOrderError([assembled.references[0]!]) ?? "",
+      /exactly 2/
+    );
+  });
+
+  it("fail-closes missing, non-canonical, or byte-mismatched style references at providerCalls 0", () => {
+    assert.match(
+      validateLucianSig4StyleReference({
+        styleReferencePath: "",
+        inspectImage: inspectAny,
+      }).reason ?? "",
+      /STYLE_REFERENCE_PATH is required/
+    );
+    assert.match(
+      validateLucianSig4StyleReference({
+        styleReferencePath: "/tmp/romance-fantasy-cluster-b-v1/primary/b13-black-red-fur.webp",
+        inspectImage: inspectAny,
+      }).reason ?? "",
+      /selected canonical Cluster B file/
+    );
+    assert.match(
+      validateLucianSig4StyleReference({
+        styleReferencePath: STYLE_PATH,
+        inspectImage: () => null,
+      }).reason ?? "",
+      /missing or unreadable/
+    );
+    assert.match(
+      validateLucianSig4StyleReference({
+        styleReferencePath: STYLE_PATH,
+        inspectImage: inspectAny,
+        canonicalBundleBytes: STYLE_BYTES,
+        candidateBytes: Buffer.from("different-bytes"),
+      }).reason ?? "",
+      /bytes do not match/
+    );
+    const ok = validateLucianSig4StyleReference({
+      styleReferencePath: STYLE_PATH,
+      inspectImage: inspectAny,
+      canonicalBundleBytes: STYLE_BYTES,
+      candidateBytes: Buffer.from("canonical-cluster-b-b7"),
+    });
+    assert.equal(ok.ok, true);
+  });
+
+  it("prepares the same sig4 shot with Image 1 IDENTITY ONLY and Image 2 STYLE ONLY", () => {
+    const { slot, prompts } = buildSig4StylePrompt();
+    const plan = prepareLucianSig4StyleTrial({
+      draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
+      slots: PILOT.assetPlan.slots,
+      appearance: PILOT.appearance,
+      identityReferencePath: REP_PATH,
+      styleReferencePath: STYLE_PATH,
+      inspectImage: inspectAny,
+      identityThenStylePrompt: prompts.primaryPrompt,
+      styleCandidateId: LUCIAN_SIG4_TRIAL_STYLE_CANDIDATE_ID,
+      style: RF02.dna,
+      styleSeed: CLUSTER_B_SEED,
+      canonicalStyleBytes: STYLE_BYTES,
+      candidateStyleBytes: STYLE_BYTES,
+      env: EMPTY_IMAGE_ENV,
+    });
+    assert.equal(plan.ok, true);
+    if (!plan.ok) return;
+    assert.equal(plan.mode, "lucian-sig4-style");
+    assert.equal(plan.slotKey, "sig4");
+    assert.deepEqual(plan.shot, LUCIAN_SIG4_REQUIRED_SHOT);
+    assert.equal(plan.referenceRoleLayout, "identity_then_style");
+    assert.equal(plan.references.length, 2);
+    assert.equal(plan.references[0]!.path, REP_PATH);
+    assert.equal(plan.references[1]!.path, STYLE_PATH);
+    assert.equal(plan.persistedToProduction, false);
+    assert.equal(plan.artifactDir, LUCIAN_SIG4_STYLE_TRIAL_ARTIFACT_DIR);
+    assert.equal(plan.identityThenStyleRulePresent, true);
+    assert.equal(plan.styleOwner.seedUrlsSentAsImage, true);
+    assert.equal(plan.styleOwner.selectedStyleReferenceMarker, LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER);
+    assert.equal(plan.styleOwner.candidateId, "rf-02");
+    assert.match(prompts.primaryPrompt, /clear profile \/ side-face view/);
+    assert.match(prompts.primaryPrompt, /high-angle camera looking slightly down/);
+    assert.match(prompts.primaryPrompt, /close-up \(face and shoulders\)/);
+    assert.equal(prompts.primaryPrompt.includes(OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL), true);
+    assert.equal(prompts.primaryPrompt.includes(OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL), true);
+    assert.equal(prompts.strictFallbackPrompt.includes(OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL), true);
+    assert.equal(prompts.strictFallbackPrompt.includes(OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL), true);
+    assert.equal(prompts.primaryPrompt.includes(OFFICIAL_IMAGE2_STYLE_CARRYOVER_BAN), true);
+    assert.equal(prompts.primaryPrompt.includes(OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE), false);
+    assert.match(prompts.primaryPrompt, /rendering: cel/);
+    assert.doesNotMatch(prompts.primaryPrompt, /(?:^|\n)framing:/);
+    assert.ok(prompts.primaryPrompt.includes(slot.expression));
+    assert.ok(prompts.primaryPrompt.includes(slot.pose));
+    assert.doesNotMatch(prompts.primaryPrompt, /Pose family:|Expression register:/);
+
+    const cost = lucianSig4StyleTrialCostPlan();
+    assert.equal(cost.referenceCount, 2);
+    assert.equal(cost.observedOneReferencePaidUsd, LUCIAN_SIG4_OBSERVED_ONE_REFERENCE_PAID_USD);
+    assert.equal(cost.estimatedTwoReferencePrimaryUsd, LUCIAN_SIG4_STYLE_ESTIMATED_TWO_REFERENCE_PRIMARY_USD);
+    assert.equal(cost.planningCeilingUsd, 0.24);
+    assert.equal(cost.planningCeilingKind, "internal_reserve");
+    assert.equal(cost.maxProviderCalls, MAX_PROVIDER_ATTEMPTS);
+    assert.equal(cost.fallbackOnlyOnRecognizedSafetyRejection, true);
+    assert.equal(cost.planningCeilingIsProviderHardCap, false);
+  });
+
+  it("keeps the default official generation path at one identity URL for signature slots", () => {
+    const { prompts } = buildSig4Prompt();
+    assert.equal(prompts.primaryPrompt.includes(OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE), true);
+    assert.doesNotMatch(prompts.primaryPrompt, /Image 1 IDENTITY ONLY/);
+    assert.deepEqual(
+      officialSlotGenerationReferences({
+        kind: "signature",
+        styleSeed: CLUSTER_B_SEED,
+        representativeUrl: "/uploads/official-pilot-rf-v4-03__rep-a1.webp",
+      }),
+      ["/uploads/official-pilot-rf-v4-03__rep-a1.webp"]
+    );
+  });
+
+  it("stops style prepare when identity, style, model, or prompt roles are wrong", () => {
+    const { prompts } = buildSig4StylePrompt();
+    const missingStyle = prepareLucianSig4StyleTrial({
+      draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
+      slots: PILOT.assetPlan.slots,
+      appearance: PILOT.appearance,
+      identityReferencePath: REP_PATH,
+      styleReferencePath: "",
+      inspectImage: inspectAny,
+      identityThenStylePrompt: prompts.primaryPrompt,
+      styleCandidateId: "rf-02",
+      style: RF02.dna,
+      styleSeed: CLUSTER_B_SEED,
+      env: EMPTY_IMAGE_ENV,
+    });
+    assert.equal(missingStyle.ok, false);
+    if (!missingStyle.ok) {
+      assert.equal(missingStyle.providerCalls, 0);
+      assert.equal(missingStyle.persistedToProduction, false);
+    }
+
+    const wrongIdentity = prepareLucianSig4StyleTrial({
+      draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
+      slots: PILOT.assetPlan.slots,
+      appearance: PILOT.appearance,
+      identityReferencePath: "/tmp/other-rep.webp",
+      styleReferencePath: STYLE_PATH,
+      inspectImage: inspectAny,
+      identityThenStylePrompt: prompts.primaryPrompt,
+      styleCandidateId: "rf-02",
+      style: RF02.dna,
+      styleSeed: CLUSTER_B_SEED,
+      env: EMPTY_IMAGE_ENV,
+    });
+    assert.equal(wrongIdentity.ok, false);
+
+    const identityOnlyPrompt = prepareLucianSig4StyleTrial({
+      draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
+      slots: PILOT.assetPlan.slots,
+      appearance: PILOT.appearance,
+      identityReferencePath: REP_PATH,
+      styleReferencePath: STYLE_PATH,
+      inspectImage: inspectAny,
+      identityThenStylePrompt: buildSig4Prompt().prompts.primaryPrompt,
+      styleCandidateId: "rf-02",
+      style: RF02.dna,
+      styleSeed: CLUSTER_B_SEED,
+      env: EMPTY_IMAGE_ENV,
+    });
+    assert.equal(identityOnlyPrompt.ok, false);
+    if (!identityOnlyPrompt.ok) {
+      assert.match(identityOnlyPrompt.reason, /Image 1 IDENTITY ONLY|identity_then_style/);
+      assert.equal(identityOnlyPrompt.providerCalls, 0);
+    }
+
+    assert.equal(lucianSig4StyleLiveCostApprovalError(false, undefined), null);
+    assert.equal(lucianSig4StyleLiveCostApprovalError(true, "1"), null);
+    assert.match(
+      lucianSig4StyleLiveCostApprovalError(true, undefined) ?? "",
+      /STYLE_COST_APPROVED=1 is required/
+    );
+
+    const unknownModel = prepareLucianSig4StyleTrial({
+      draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
+      slots: PILOT.assetPlan.slots,
+      appearance: PILOT.appearance,
+      identityReferencePath: REP_PATH,
+      styleReferencePath: STYLE_PATH,
+      inspectImage: inspectAny,
+      identityThenStylePrompt: prompts.primaryPrompt,
+      styleCandidateId: "rf-02",
+      style: RF02.dna,
+      styleSeed: CLUSTER_B_SEED,
+      env: { OPENAI_IMAGE_MODEL: "custom-image-x" } as NodeJS.ProcessEnv,
+    });
+    assert.equal(unknownModel.ok, false);
+    if (!unknownModel.ok) {
+      assert.equal(unknownModel.providerCalls, 0);
+      assert.equal(unknownModel.resolvedModel, "custom-image-x");
+    }
   });
 });
