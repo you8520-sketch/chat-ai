@@ -1,0 +1,172 @@
+{
+  "mainSha": "5cc5d101f74b044bd61de5c7e1355a3e67ec4906",
+  "candidateHead": "73908e134ef28e47be8a50e6c8ebad3bcb4c6c60",
+  "modelId": "deepseek-v4.1-flash",
+  "providerCalls": 0,
+  "evidence": {
+    "source": "HISTORICAL_PINNED",
+    "historicalSourceCharacterId": 10,
+    "historicalHashes": {
+      "characterCoreSha256": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+      "personaSha256": "bfab821f5c1629bccecc8fc20bdbfaa80dbbb0289404e065e8507d9a79873285",
+      "openingSha256": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58"
+    },
+    "liveRowIdentity": "VERIFIED",
+    "liveAssembledRequest": "UNVERIFIED",
+    "recordedLiveRow": {
+      "deployedCommit": "2f5cb0b416ce214dfeb109f50622c0a45d61f62a",
+      "characterId": 18,
+      "hashes": {
+        "greetingSha256": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+        "systemPromptSha256": "44c293ce3e6aaa7ab885ad93c93342a0e4d1ed803a2c7e22119f42991ee44d6b",
+        "worldSha256": "6e197c4e91f3f5dbe9a3b867232c564230272fe6a29e24f26d2f41964a500fa9",
+        "settingChunksSha256": "8eee31d5ce8cd6a736030613ac615a3755542a718d22f082a02c4d9ba0aa90cc",
+        "personaPublicSha256": "9ef42c7f92091ca158a53c4321b06dab4e687d3a882210c4a576e87029703a36"
+      },
+      "englishLayerPresent": true,
+      "englishLayerApplied": "UNVERIFIED"
+    },
+    "assemblyGaps": {
+      "liveSourceTextAssembled": false,
+      "englishLayerApplied": "UNVERIFIED",
+      "fieldsNotFilled": [
+        "prompt_translation_hash",
+        "setting_chunks_en application",
+        "appearance_compiled_source_hash",
+        "appearance_compiled_version"
+      ]
+    }
+  },
+  "inputCharacterId": 10,
+  "recordedLiveRowProof": {
+    "deployedCommit": "2f5cb0b416ce214dfeb109f50622c0a45d61f62a",
+    "characterId": 18,
+    "characterName": "라이크",
+    "personaPublicSha256": "9ef42c7f92091ca158a53c4321b06dab4e687d3a882210c4a576e87029703a36",
+    "greetingSha256": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+    "systemPromptSha256": "44c293ce3e6aaa7ab885ad93c93342a0e4d1ed803a2c7e22119f42991ee44d6b",
+    "worldSha256": "6e197c4e91f3f5dbe9a3b867232c564230272fe6a29e24f26d2f41964a500fa9",
+    "settingChunksSha256": "8eee31d5ce8cd6a736030613ac615a3755542a718d22f082a02c4d9ba0aa90cc",
+    "compiledCanonSha256": "e866a6da1d25bef7ab3cb90da74e224517ea07e9b558edff6e0a06f872f5a847",
+    "personaMatchesHistoricalDump": false,
+    "characterCoreDumpMatchesLiveRow": false
+  },
+  "cueBaseline": "감정과 관계는 표정·시선·호흡·습관·접촉·거리·행동·선택으로 드러내고",
+  "cueCandidate": "감정과 관계는 현재 장면에 필요한 단서를 골라 드러내고",
+  "forwardMotionPresent": true,
+  "expectedDelta": -8,
+  "scenes": [
+    {
+      "id": "quiet_window_safe",
+      "soleAllowedDiff": true,
+      "rulesShaEqual": true,
+      "dynamicShaEqual": true,
+      "characterShaChanged": true,
+      "flatCharDelta": -8,
+      "promptChars": 20502,
+      "userTurnSha256": "362a7bbb248477922c1f6fbf521edd41211fcee1d633158e25ade2bb27722768",
+      "promptUserSha256": "467d8714c2b46b3f743449091255587164ecd08df01d0fe6c6c14bafb4db51bb",
+      "assembledUserSha256": "9888ab970872a33aa5bd5097f6eed8d8deb0b70cb7f26e8d5954d6a2d08350cb",
+      "assembledUserCarriesScene": true,
+      "sceneControlMatchesPolicy": true,
+      "productionTurn": {
+        "intent": "rp_continuing",
+        "runtimeMode": "current_turn_ooc_delegated",
+        "delegationSource": "chat_setting",
+        "delegationActive": true
+      },
+      "baseline": {
+        "systemFlatSha256": "60f49a89e2aa1168bc4cce430a92db6acd97de5239795070773e032fe23d572a",
+        "rulesSha256": "c5a136410ad87c7f65215e80d92b2ce70bc6ca3f5d6a369fe4636b335c3a3bfc",
+        "characterSha256": "dd4c7fb92826452e52c6a8ab8aab2ea51b116607f74aeac8364b74e64fb9a68e",
+        "dynamicSha256": "87067de90334499093dafbec3fb42dccce922512e82cdfc318af1d118f9d1e16",
+        "flatChars": 17837,
+        "cached": [
+          true,
+          true,
+          false
+        ],
+        "cueBaselineCount": 1,
+        "cueCandidateCount": 0,
+        "forwardMotionCount": 1,
+        "commonProseCount": 1,
+        "safeContract": true,
+        "normalAuthoring": true
+      },
+      "candidate": {
+        "systemFlatSha256": "92f0a2dfed2fdf7ac1dfb042d124c091b398c5c326392b876f95253ffc4ba3ea",
+        "rulesSha256": "c5a136410ad87c7f65215e80d92b2ce70bc6ca3f5d6a369fe4636b335c3a3bfc",
+        "characterSha256": "770785ac699056c3b85cbc637f9aa7c8405156c01eccf3b172208c7014dcd75b",
+        "dynamicSha256": "87067de90334499093dafbec3fb42dccce922512e82cdfc318af1d118f9d1e16",
+        "flatChars": 17829,
+        "cached": [
+          true,
+          true,
+          false
+        ],
+        "cueBaselineCount": 0,
+        "cueCandidateCount": 1,
+        "forwardMotionCount": 1,
+        "commonProseCount": 1,
+        "safeContract": true,
+        "normalAuthoring": true
+      }
+    },
+    {
+      "id": "relationship_turn_safe",
+      "soleAllowedDiff": true,
+      "rulesShaEqual": true,
+      "dynamicShaEqual": true,
+      "characterShaChanged": true,
+      "flatCharDelta": -8,
+      "promptChars": 20515,
+      "userTurnSha256": "bfce5a0c7fb53e3d91d4b9cf2ad3154474d6f57f4d219e8eccbe3ac69f51a309",
+      "promptUserSha256": "b45ba4d78ddc7036e798119efad3171b9ff3a01e9782c7d847cbe2a4ee945a41",
+      "assembledUserSha256": "6d298e4299edb26c1b828acb3bf719a92dc5191fa82b59cb4b3664dcf5483f18",
+      "assembledUserCarriesScene": true,
+      "sceneControlMatchesPolicy": true,
+      "productionTurn": {
+        "intent": "rp_continuing",
+        "runtimeMode": "current_turn_ooc_delegated",
+        "delegationSource": "chat_setting",
+        "delegationActive": true
+      },
+      "baseline": {
+        "systemFlatSha256": "60f49a89e2aa1168bc4cce430a92db6acd97de5239795070773e032fe23d572a",
+        "rulesSha256": "c5a136410ad87c7f65215e80d92b2ce70bc6ca3f5d6a369fe4636b335c3a3bfc",
+        "characterSha256": "dd4c7fb92826452e52c6a8ab8aab2ea51b116607f74aeac8364b74e64fb9a68e",
+        "dynamicSha256": "87067de90334499093dafbec3fb42dccce922512e82cdfc318af1d118f9d1e16",
+        "flatChars": 17837,
+        "cached": [
+          true,
+          true,
+          false
+        ],
+        "cueBaselineCount": 1,
+        "cueCandidateCount": 0,
+        "forwardMotionCount": 1,
+        "commonProseCount": 1,
+        "safeContract": true,
+        "normalAuthoring": true
+      },
+      "candidate": {
+        "systemFlatSha256": "92f0a2dfed2fdf7ac1dfb042d124c091b398c5c326392b876f95253ffc4ba3ea",
+        "rulesSha256": "c5a136410ad87c7f65215e80d92b2ce70bc6ca3f5d6a369fe4636b335c3a3bfc",
+        "characterSha256": "770785ac699056c3b85cbc637f9aa7c8405156c01eccf3b172208c7014dcd75b",
+        "dynamicSha256": "87067de90334499093dafbec3fb42dccce922512e82cdfc318af1d118f9d1e16",
+        "flatChars": 17829,
+        "cached": [
+          true,
+          true,
+          false
+        ],
+        "cueBaselineCount": 0,
+        "cueCandidateCount": 1,
+        "forwardMotionCount": 1,
+        "commonProseCount": 1,
+        "safeContract": true,
+        "normalAuthoring": true
+      }
+    }
+  ]
+}
