@@ -44,11 +44,21 @@ import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import {
   settleChatTurnBillingExactlyOnce,
-  shouldBlockNewPaidGenerationForUnderRecovered,
   UNDER_RECOVERED_BILLING_MESSAGE,
   UNDER_RECOVERED_GENERATION_BLOCKED_MESSAGE,
   UNDER_RECOVERED_OUTCOME,
 } from "@/lib/chatBillingSettlement";
+import {
+  GENERATION_IN_PROGRESS_CODE,
+  GENERATION_IN_PROGRESS_MESSAGE,
+  acquireMainRpGenerationLease,
+  bindMainRpGenerationLeaseAssistant,
+  ownsMainRpGenerationLease,
+  releaseMainRpGenerationLease,
+  shouldRejectMainRpGenerationReadOnly,
+  startMainRpGenerationLeaseHeartbeat,
+  type MainRpGenerationLeaseHandle,
+} from "@/lib/mainRpGenerationAdmission";
 import { recordMainGenerationProviderCost } from "@/lib/providerCostLedger";
 import { scheduleTargetedCheaperInferenceRequestReconciliation } from "@/lib/providerCostReconciliation";
 import {
@@ -800,11 +810,11 @@ export async function POST(req: Request) {
   }
 
   if (
-    shouldBlockNewPaidGenerationForUnderRecovered(db, {
+    shouldRejectMainRpGenerationReadOnly(db, {
       userId: user.id,
       chatId: chat?.id ?? null,
       requestId: clientRequestId,
-    })
+    }) === "under_recovered"
   ) {
     return Response.json(
       {
@@ -2759,33 +2769,80 @@ export async function POST(req: Request) {
       existingByRequest.assistantStatus === "ok" ||
       existingByRequest.assistantStatus === "completed_with_postprocess_error");
 
-  const bootstrapped = alreadyCompletedTurn
-    ? {
-        requestId: clientRequestId,
-        userMessageId: existingByRequest.userMessageId,
-        assistantMessageId: existingByRequest.assistantMessageId!,
-        reusedExisting: true,
-        userMessageSaved: true,
-        assistantPlaceholderCreated: false,
+  let generationLease: MainRpGenerationLeaseHandle | null = null;
+  if (!alreadyCompletedTurn) {
+    const acquired = acquireMainRpGenerationLease(db, {
+      userId: user.id,
+      chatId: chatRef.id,
+      requestId: clientRequestId,
+    });
+    if (!acquired.ok) {
+      if (acquired.reason === "under_recovered") {
+        return Response.json(
+          {
+            error: UNDER_RECOVERED_GENERATION_BLOCKED_MESSAGE,
+            billingOutcome: UNDER_RECOVERED_OUTCOME,
+          },
+          { status: 409 }
+        );
       }
-    : bootstrapStreamingTurn(db, {
-        chatId: chatRef.id,
-        requestId: clientRequestId,
-        userContent: messageText,
-        skipUserInsert,
-        existingUserMessageId: userMessageId,
-        regenerateAssistantId: regenerateMessageId,
-        onUserInserted: (insertedUserMessageId) => {
-          if (!autoContinueContext) {
-            persistUserCoauthorAfterSuccessfulUserInsert(db, {
-              chatId: chat.id,
-              userMessageId: insertedUserMessageId,
-              persistentAfter: effectiveUserAuthoring.persistentAfter,
-            });
-          }
-          incrementCharacterTotalTurns(db, ch.id);
+      return Response.json(
+        {
+          error: GENERATION_IN_PROGRESS_MESSAGE,
+          code: GENERATION_IN_PROGRESS_CODE,
         },
-      });
+        { status: 409 }
+      );
+    }
+    generationLease = acquired.lease;
+  }
+
+  let bootstrapped;
+  try {
+    bootstrapped = alreadyCompletedTurn
+      ? {
+          requestId: clientRequestId,
+          userMessageId: existingByRequest.userMessageId,
+          assistantMessageId: existingByRequest.assistantMessageId!,
+          reusedExisting: true,
+          userMessageSaved: true,
+          assistantPlaceholderCreated: false,
+        }
+      : bootstrapStreamingTurn(db, {
+          chatId: chatRef.id,
+          requestId: clientRequestId,
+          userContent: messageText,
+          skipUserInsert,
+          existingUserMessageId: userMessageId,
+          regenerateAssistantId: regenerateMessageId,
+          onUserInserted: (insertedUserMessageId) => {
+            if (!autoContinueContext) {
+              persistUserCoauthorAfterSuccessfulUserInsert(db, {
+                chatId: chat.id,
+                userMessageId: insertedUserMessageId,
+                persistentAfter: effectiveUserAuthoring.persistentAfter,
+              });
+            }
+            incrementCharacterTotalTurns(db, ch.id);
+          },
+        });
+    if (generationLease) {
+      bindMainRpGenerationLeaseAssistant(
+        db,
+        generationLease,
+        bootstrapped.assistantMessageId
+      );
+    }
+  } catch (err) {
+    if (generationLease) {
+      try {
+        releaseMainRpGenerationLease(db, generationLease);
+      } catch {
+        // Token mismatch after a later takeover is expected.
+      }
+    }
+    throw err;
+  }
   userMessageId = bootstrapped.userMessageId;
   const persistedAssistantId = bootstrapped.assistantMessageId;
   const currentTurnGenerationScope: AssistantGenerationScope = {
@@ -3114,7 +3171,11 @@ export async function POST(req: Request) {
         if (streamVisibleTextRef.trim()) persistPartialBestEffort(streamVisibleTextRef);
       }, 800);
 
+      let stopLeaseHeartbeat: (() => void) | undefined;
       try {
+        if (generationLease) {
+          stopLeaseHeartbeat = startMainRpGenerationLeaseHeartbeat(db, generationLease);
+        }
         send({
           type: "turn_persisted",
           requestId: clientRequestId,
@@ -3374,6 +3435,13 @@ export async function POST(req: Request) {
               summaryActiveChatIds:
                 contention.summaryActiveCount > 0 ? contention.activeChatIds : undefined,
             });
+            if (generationLease && !ownsMainRpGenerationLease(db, generationLease)) {
+              send({ type: "error", error: GENERATION_IN_PROGRESS_MESSAGE });
+              emitStreamTurnForensics(null);
+              emitPhaseLatencyAudit();
+              safe.close(controller);
+              return;
+            }
             result = await runStream({
               send: streamGate.send,
               system: systemRef,
@@ -6443,6 +6511,15 @@ export async function POST(req: Request) {
         emitStreamTurnForensics(resolveSsePipelineCatchForensics(partialOnError));
         emitPhaseLatencyAudit();
         safe.close(controller);
+      } finally {
+        stopLeaseHeartbeat?.();
+        if (generationLease) {
+          try {
+            releaseMainRpGenerationLease(db, generationLease);
+          } catch {
+            // Stale takeover makes this a 0-row no-op.
+          }
+        }
       }
       };
 
