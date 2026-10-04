@@ -228,6 +228,7 @@ function insertSettlement(
     createdAt: string;
     paid?: number;
     free?: number;
+    requestedPoints?: number;
     outcome?: string;
     refundedAt?: string | null;
     source?: string;
@@ -242,7 +243,7 @@ function insertSettlement(
   ).run(
     opts.requestId,
     opts.assistantMessageId,
-    settled,
+    opts.requestedPoints ?? settled,
     settled,
     opts.outcome ?? (settled > 0 ? "charged" : "waived"),
     slices(opts.paid ?? 0, opts.free ?? 0),
@@ -578,6 +579,46 @@ describe("gemini direct-cost attribution", () => {
     assert.equal(miss, undefined);
     near(actual.apiCostKrw, 0);
     near(summary.chat.apiCostKrw, 0);
+    db.close();
+  });
+
+  it("attributes completed under_recovered cost without revenue or unknown/refunded buckets", () => {
+    const db = financeDb();
+    insertMessage(db, 1, {
+      createdAt: "2026-10-03 14:00:00",
+      requestId: "req-under-recovered",
+      model: GEMINI38,
+      modelLabel: GEMINI38_LABEL,
+    });
+    insertSettlement(db, {
+      requestId: "req-under-recovered",
+      assistantMessageId: 1,
+      createdAt: "2026-10-03 14:00:00",
+      requestedPoints: 800,
+      outcome: "under_recovered",
+      refundedAt: "2026-10-03 14:05:00",
+    });
+    mainLedger(db, {
+      messageId: 1,
+      requestId: "req-under-recovered",
+      eventTime: "2026-10-03 14:00:00",
+      krw: 22,
+      model: GEMINI38,
+    });
+    const { actual, miss, unattributed, summary } = observe(db, GEMINI38);
+    assert.equal(miss, undefined);
+    assert.equal(unattributed, undefined);
+    near(actual.paidRevenueKrw, 0);
+    near(actual.freePointSpend, 0);
+    near(actual.apiCostKrw, 22);
+    near(actual.directCostAttribution?.userFundedUnderRecoveredKrw ?? 0, 22);
+    near(actual.directCostAttribution?.userFundedChargedKrw ?? 0, 0);
+    near(actual.directCostAttribution?.userFundedWaivedKrw ?? 0, 0);
+    near(actual.directCostAttribution?.userFundedRefundedKrw ?? 0, 0);
+    near(actual.directCostAttribution?.userFundedUnlinkedKrw ?? 0, 0);
+    near(actual.directCostAttribution?.unknownKrw ?? 0, 0);
+    near(summary.chat.apiCostKrw, 22);
+    near(summary.chat.paidRevenueKrw, 0);
     db.close();
   });
 

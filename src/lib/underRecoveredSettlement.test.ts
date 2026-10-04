@@ -475,14 +475,14 @@ describe("under-recovered settlement fixtures", () => {
       db.prepare(
         `UPDATE chat_billing_settlements SET refunded_at = datetime('now') WHERE outcome = ?`
       ).run(UNDER_RECOVERED_OUTCOME);
-      assert.equal(hasUnresolvedUnderRecoveredSettlement(db, 1), false);
+      assert.equal(hasUnresolvedUnderRecoveredSettlement(db, 1), true);
       assert.equal(
         shouldBlockNewPaidGenerationForUnderRecovered(db, {
           userId: 1,
           chatId: 1,
-          requestId: "req_d_after_resolve",
+          requestId: "req_d_after_refunded_at",
         }),
-        false
+        true
       );
     });
   });

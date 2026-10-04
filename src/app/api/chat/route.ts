@@ -41,7 +41,7 @@ import { resolveNarrativePov } from "@/lib/narrativePov";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
-import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, InsufficientPointsError, type DeductionSlice } from "@/lib/points";
+import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import {
   settleChatTurnBillingExactlyOnce,
   shouldBlockNewPaidGenerationForUnderRecovered,
@@ -6405,21 +6405,6 @@ export async function POST(req: Request) {
       } catch (e) {
         clearPartialTimer();
         stopPostprocessHeartbeat();
-        if (e instanceof InsufficientPointsError) {
-          console.warn("[/api/chat] named settlement failure after durable product", {
-            requestId: clientRequestId,
-            messageId: persistedAssistantId,
-          });
-          send({
-            type: "error",
-            error: UNDER_RECOVERED_BILLING_MESSAGE,
-            billingOutcome: UNDER_RECOVERED_OUTCOME,
-          });
-          emitStreamTurnForensics("completed");
-          emitPhaseLatencyAudit();
-          safe.close(controller);
-          return;
-        }
         console.error("[/api/chat] SSE 파이프라인 오류:", (e as Error).message);
         const partialOnError = streamVisibleTextRef || fullText;
         try {

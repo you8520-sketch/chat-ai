@@ -268,7 +268,8 @@ export function buildFinanceAnomalyReport(params: {
         const sourceRef = `actual_production:${row.modelId}:${actual.monthKey ?? params.summary.monthKey}`;
         // Missing provenance keeps the historical aggregate reading so older
         // snapshots still surface cost with zero billing. Linked platform,
-        // waived, and refunded cost is real spend and is not a charge miss.
+        // waived, refunded, and under-recovered cost is real spend and is not
+        // a charge miss.
         if (attribution == null || attribution.userFundedUnlinkedKrw > 0) {
           const unbilledKrw =
             attribution == null ? actual.apiCostKrw : attribution.userFundedUnlinkedKrw;

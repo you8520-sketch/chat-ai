@@ -280,6 +280,7 @@ function readSettlementRowSafe(
   return null;
 }
 
+/** Any native under_recovered row is unresolved until a later resolve owner exists. */
 export function hasUnresolvedUnderRecoveredSettlement(
   db: Database.Database,
   userId: number
@@ -287,7 +288,7 @@ export function hasUnresolvedUnderRecoveredSettlement(
   const row = db
     .prepare(
       `SELECT 1 AS ok FROM chat_billing_settlements
-       WHERE user_id = ? AND charge_kind = ? AND outcome = ? AND refunded_at IS NULL
+       WHERE user_id = ? AND charge_kind = ? AND outcome = ?
        LIMIT 1`
     )
     .get(userId, CHAT_TURN_CHARGE_KIND, UNDER_RECOVERED_OUTCOME) as { ok: number } | undefined;
@@ -829,6 +830,7 @@ export function settleChatTurnBillingExactlyOnce(
     } catch (err) {
       lastError = err;
       if (err instanceof InsufficientPointsError) {
+        // Deduct-escape inside this owner only. Chat route never sees this error.
         return runNamedSettlementTransaction(db, () => persistUnderRecoveredWithinTransaction(db, input));
       }
       if (isChatBillingSettlementUniqueConflict(err)) {
