@@ -174,8 +174,8 @@ test("privacy copy states proven processing facts and does not invent compliance
   assert.match(text, /OpenRouter, Inc\./);
   assert.match(text, /Keak AI, Inc\./);
   assert.match(text, /최대 30일/);
-  assert.match(text, /제28조의8 제1항 제3호 가목/);
   assert.doesNotMatch(text, /그 고지가 완료되었다고 쓰지 않습니다/);
+  assert.doesNotMatch(text, /법적 근거/);
   assert.doesNotMatch(text, /미확정/);
   assert.doesNotMatch(text, /국외에 서버를 둘 수 있는 외부 제공업체/);
   assert.doesNotMatch(text, /광고성 이메일·문자 발송 기능은 현재 없습니다/);
@@ -184,6 +184,8 @@ test("privacy copy states proven processing facts and does not invent compliance
   assert.doesNotMatch(text, /매출로 집계하지 않습니다/);
   assert.doesNotMatch(text, /OPEN_READY|CROSS_BORDER_BLOCKED|ZDR|google-ai-studio/);
   assert.doesNotMatch(text, /law\.go\.kr|openrouter\.ai\/privacy|cheaperinference\.com\/legal/);
+  assert.match(text, /비밀번호와 이메일 인증 토큰은 해시로 저장합니다/);
+  assert.doesNotMatch(text, /비밀번호와 이메일 인증 정보는 암호화하여 저장합니다/);
   assert.match(text, new RegExp(escapeRegExp(BUSINESS_CUSTOMER_SERVICE_PHONE)));
   for (const line of BUSINESS_PUBLIC_LINES) {
     assert.match(text, new RegExp(escapeRegExp(line)));
