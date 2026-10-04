@@ -1,0 +1,23 @@
+{
+  "experiment_key_env_present": false,
+  "inference_named_key": {
+    "label": "production_cheaper_inference_api_key",
+    "env_name": "CHEAPER_INFERENCE_API_KEY",
+    "key_present": true,
+    "key_len": 51,
+    "fetched_at": "2026-10-04T09:29:42.336507+00:00",
+    "models": {
+      "http_status": 401,
+      "ok": false,
+      "error_body_redacted_len": 108,
+      "error_preview_no_key": "{\"error\":{\"message\":\"Invalid API key.\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"invalid_api_key\"}}"
+    },
+    "supply": {
+      "http_status": 401,
+      "ok": false,
+      "error_body_redacted_len": 108,
+      "error_preview_no_key": "{\"error\":{\"message\":\"Invalid API key.\",\"type\":\"authentication_error\",\"param\":null,\"code\":\"invalid_api_key\"}}"
+    }
+  },
+  "benchmark_key_used_as_inference_proof": false
+}
