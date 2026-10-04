@@ -11,8 +11,19 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
+import {
+  parseAllowedConsentModes,
+  parseModelRouteState,
+  resolveEffectiveConsentMode,
+} from "@/lib/adultSceneRouting";
+import { buildAdultContentPolicyBlock } from "@/lib/advancedProseNsfwGuidelines";
 import type { User } from "@/lib/auth";
+import { resolveCanonInjectionPolicy } from "@/lib/canonInjectionPolicy";
+import { compileCanonPlanV1 } from "@/lib/canonPlan/compiler";
+import { parseCanonPlanV1, serializeCanonPlanV1 } from "@/lib/canonPlan/serialize";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
@@ -20,6 +31,8 @@ import {
 } from "@/lib/chatModels";
 import { getDb } from "@/lib/db";
 import { messagesToTurns } from "@/lib/hybridMemory";
+import { hashPersonaSecretKey } from "@/lib/personaSecretItems";
+import { insertChatPersonaSecretReveal } from "@/lib/personaSecretReveal";
 import { billableOpenRouterOutputTokens } from "@/lib/points";
 import {
   installIsolatedTestDatabase,
@@ -38,6 +51,7 @@ import {
   legacyPickerUntrimmedHistory,
   loadPersistedNextTurnSource,
   prepareNextTurnHistory,
+  resolvePersistedActiveConsentMode,
   resolvePersistedNextTurnPromptSections,
 } from "@/services/nextTurnAssemblyPreparation";
 import {
@@ -50,6 +64,20 @@ import {
 const USER_ID = 771001;
 const CHAR_ID = 771002;
 const CHAT_ID = 771003;
+const PERSONA_ID = 771004;
+
+const CANON_ENV_KEYS = [
+  "CANON_INJECTION_ENABLED",
+  "CANON_INJECTION_FORCE_FULL_LEGACY",
+  "CANON_INJECTION_KILL_SWITCH",
+  "CANON_INJECTION_ROLLOUT_STAGE",
+  "CANON_INJECTION_DEEPSEEK_MODE",
+  "CANON_ARCHIVE_DEEPSEEK_SELECTIVE",
+  "CANON_INJECTION_DEEPSEEK_CANARY",
+  "CANON_INJECTION_DEEPSEEK_CANARY_PERCENT",
+  "PERSONA_SECRET_BOUNDARY_ENABLED",
+  "PERSONA_SECRET_DISCOVERY_ENABLED",
+] as const;
 
 const USER: User = {
   id: USER_ID,
@@ -411,6 +439,248 @@ describe("canonical next-turn assembly preparation", () => {
       billableOpenRouterOutputTokens(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 2500, 800),
       1700
     );
+  });
+
+  it("CONSENT_PARITY persisted previous consent matches shared production input and picker tokens", async () => {
+    addPlayableTurns(2);
+    getDb()
+      .prepare(
+        `UPDATE characters SET adult_consent_modes_json=? WHERE id=?`
+      )
+      .run(JSON.stringify(["standard", "power_play", "cnc_opt_in"]), CHAR_ID);
+    getDb()
+      .prepare(`UPDATE chats SET adult_handoff_enabled=1, model_route_state_json=? WHERE id=?`)
+      .run(JSON.stringify({ activeConsentMode: "cnc_opt_in" }), CHAT_ID);
+
+    const expected = resolveEffectiveConsentMode({
+      requested: undefined,
+      previous: parseModelRouteState(
+        JSON.stringify({ activeConsentMode: "cnc_opt_in" })
+      ).activeConsentMode,
+      currentInput: "",
+      allowedConsentModes: parseAllowedConsentModes(
+        JSON.stringify(["standard", "power_play", "cnc_opt_in"])
+      ),
+    });
+    assert.equal(expected, "cnc_opt_in");
+    assert.equal(
+      resolvePersistedActiveConsentMode({
+        modelRouteStateJson: JSON.stringify({ activeConsentMode: "cnc_opt_in" }),
+        adultConsentModesJson: JSON.stringify(["standard", "power_play", "cnc_opt_in"]),
+      }),
+      expected
+    );
+
+    const onSource = loadPersistedNextTurnSource({ chatId: CHAT_ID, user: USER });
+    const onSections = await resolvePersistedNextTurnPromptSections(onSource!);
+    const onInput = await assemblePersistedNextTurnInputs({
+      source: onSource!,
+      sections: onSections,
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+    });
+    assert.equal(onInput.activeConsentMode, expected);
+    assert.equal(onInput.currentUserMessage, "");
+    const onTokens = assembledTokens(onInput);
+    const onPicker = await resolveModelPickerAssembledInputSnapshots({
+      chatId: CHAT_ID,
+      user: USER,
+      refresh: true,
+    });
+    assert.equal(onPicker?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL], onTokens);
+
+    getDb()
+      .prepare(`UPDATE chats SET model_route_state_json=? WHERE id=?`)
+      .run(JSON.stringify({ activeConsentMode: "standard" }), CHAT_ID);
+    const offSource = loadPersistedNextTurnSource({ chatId: CHAT_ID, user: USER });
+    const offSections = await resolvePersistedNextTurnPromptSections(offSource!);
+    const offInput = await assemblePersistedNextTurnInputs({
+      source: offSource!,
+      sections: offSections,
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+    });
+    assert.equal(offInput.activeConsentMode, "standard");
+    const offTokens = assembledTokens(offInput);
+    const offPicker = await resolveModelPickerAssembledInputSnapshots({
+      chatId: CHAT_ID,
+      user: USER,
+      refresh: true,
+    });
+    assert.equal(offPicker?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL], offTokens);
+    assert.notEqual(
+      fingerprintPersistedNextTurnSource(onSource!, onSections),
+      fingerprintPersistedNextTurnSource(offSource!, offSections)
+    );
+    if (buildAdultContentPolicyBlock("cnc_opt_in") !== buildAdultContentPolicyBlock("standard")) {
+      assert.notEqual(onTokens, offTokens);
+    }
+  });
+
+  it("CANON_PARITY persisted valid plan/policy matches production resolver without lazy compile", async () => {
+    addPlayableTurns(2);
+    const compiled = compileCanonPlanV1({
+      creatorRawDescription: [
+        "[Identity]",
+        "CANON_SENTINEL_등대지기 솔은 항구의 유일한 파수꾼이다.",
+        "",
+        "[Secret]",
+        "CANON_SECRET_안개 속에서만 진짜 이름을 말한다.",
+      ].join("\n"),
+      now: "2026-01-01T00:00:00.000Z",
+    });
+    assert.equal(compiled.ok, true);
+    if (!compiled.ok) return;
+    const planJson = serializeCanonPlanV1(compiled.plan);
+    assert.ok(parseCanonPlanV1(planJson));
+    getDb()
+      .prepare(`UPDATE characters SET creator_canon_plan_json=? WHERE id=?`)
+      .run(planJson, CHAR_ID);
+
+    const envBefore = Object.fromEntries(CANON_ENV_KEYS.map((key) => [key, process.env[key]]));
+    process.env.CANON_INJECTION_ENABLED = "1";
+    process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
+    process.env.CANON_INJECTION_DEEPSEEK_MODE = "LAYERED";
+    process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
+    process.env.CANON_INJECTION_DEEPSEEK_CANARY_PERCENT = "100";
+    delete process.env.CANON_INJECTION_FORCE_FULL_LEGACY;
+    delete process.env.CANON_INJECTION_KILL_SWITCH;
+
+    try {
+      const expectedPolicy = resolveCanonInjectionPolicy(
+        CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+        { userId: USER_ID, chatId: CHAT_ID }
+      );
+      const source = loadPersistedNextTurnSource({ chatId: CHAT_ID, user: USER });
+      const sections = await resolvePersistedNextTurnPromptSections(source!);
+      assert.equal(source!.persistedCanonPlan?.sourceHash, compiled.plan.sourceHash);
+      const sharedInput = await assemblePersistedNextTurnInputs({
+        source: source!,
+        sections,
+        modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      });
+      assert.deepEqual(sharedInput.canonInjectionPolicy, expectedPolicy);
+      assert.equal(sharedInput.canonPlan?.sourceHash, compiled.plan.sourceHash);
+      const built = buildContext(sharedInput);
+      const blob = `${built.systemPrompt}\n${(built.meta.trackedSections ?? [])
+        .map((section) => section.text)
+        .join("\n")}`;
+      assert.match(blob, /CANON_SENTINEL_등대지기|CANON_SECRET_안개/);
+      const tokens = assembledTokens(sharedInput);
+
+      const beforeJson = (
+        getDb()
+          .prepare("SELECT creator_canon_plan_json AS json FROM characters WHERE id=?")
+          .get(CHAR_ID) as { json: string }
+      ).json;
+      getDb().pragma("query_only = ON");
+      try {
+        const picker = await resolveModelPickerAssembledInputSnapshots({
+          chatId: CHAT_ID,
+          user: USER,
+          refresh: true,
+        });
+        assert.equal(picker?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL], tokens);
+      } finally {
+        getDb().pragma("query_only = OFF");
+      }
+      const afterJson = (
+        getDb()
+          .prepare("SELECT creator_canon_plan_json AS json FROM characters WHERE id=?")
+          .get(CHAR_ID) as { json: string }
+      ).json;
+      assert.equal(afterJson, beforeJson);
+      assert.doesNotMatch(
+        fs.readFileSync(path.join(process.cwd(), "src/services/nextTurnAssemblyPreparation.ts"), "utf8"),
+        /ensureCanonPlanOnAccess/
+      );
+    } finally {
+      for (const key of CANON_ENV_KEYS) {
+        if (envBefore[key] === undefined) delete process.env[key];
+        else process.env[key] = envBefore[key];
+      }
+    }
+  });
+
+  it("PERSONA_KNOWN_FACT_PARITY persisted reveal block is shared by production input and picker", async () => {
+    addPlayableTurns(2);
+    const secretText = "렌은 등대 열쇠를 숨기고 있다.";
+    const revealed = "PERSONA_KNOWN_FACT 렌은 등대 열쇠를 숨기고 있다.";
+    getDb()
+      .prepare(
+        `INSERT INTO user_personas (id, user_id, name, gender, description, secret_description)
+         VALUES (?,?,?,?,?,?)`
+      )
+      .run(PERSONA_ID, USER_ID, "렌", "female", "항구의 여행자", secretText);
+    getDb().prepare("UPDATE chats SET selected_persona_id=? WHERE id=?").run(PERSONA_ID, CHAT_ID);
+    assert.equal(
+      insertChatPersonaSecretReveal({
+        chatId: CHAT_ID,
+        personaId: PERSONA_ID,
+        secretKey: hashPersonaSecretKey(secretText),
+        revealedFactText: revealed,
+        revealedAtTurn: 1,
+        source: "MANUAL_REVEAL",
+      }),
+      true
+    );
+
+    const envBefore = {
+      boundary: process.env.PERSONA_SECRET_BOUNDARY_ENABLED,
+      discovery: process.env.PERSONA_SECRET_DISCOVERY_ENABLED,
+    };
+    process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "0";
+    try {
+      const source = loadPersistedNextTurnSource({ chatId: CHAT_ID, user: USER });
+      const sections = await resolvePersistedNextTurnPromptSections(source!);
+      assert.match(String(source!.revealedPersonaFactsBlock ?? ""), /PERSONA_KNOWN_FACT/);
+      const sharedInput = await assemblePersistedNextTurnInputs({
+        source: source!,
+        sections,
+        modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      });
+      assert.equal(sharedInput.revealedPersonaFactsBlock, source!.revealedPersonaFactsBlock);
+      const built = buildContext(sharedInput);
+      const blob = `${built.systemPrompt}\n${(built.meta.trackedSections ?? [])
+        .map((section) => section.text)
+        .join("\n")}`;
+      assert.match(blob, /PERSONA_KNOWN_FACT/);
+      const tokens = assembledTokens(sharedInput);
+      const emptyFacts = assembledTokens({
+        ...sharedInput,
+        revealedPersonaFactsBlock: undefined,
+      });
+      assert.notEqual(tokens, emptyFacts);
+      const picker = await resolveModelPickerAssembledInputSnapshots({
+        chatId: CHAT_ID,
+        user: USER,
+        refresh: true,
+      });
+      assert.equal(picker?.[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL], tokens);
+      getDb().prepare("DELETE FROM chat_persona_secret_reveals WHERE chat_id=?").run(CHAT_ID);
+      const afterSource = loadPersistedNextTurnSource({ chatId: CHAT_ID, user: USER });
+      const afterSections = await resolvePersistedNextTurnPromptSections(afterSource!);
+      assert.notEqual(
+        fingerprintPersistedNextTurnSource(source!, sections),
+        fingerprintPersistedNextTurnSource(afterSource!, afterSections)
+      );
+    } finally {
+      if (envBefore.boundary === undefined) delete process.env.PERSONA_SECRET_BOUNDARY_ENABLED;
+      else process.env.PERSONA_SECRET_BOUNDARY_ENABLED = envBefore.boundary;
+      if (envBefore.discovery === undefined) delete process.env.PERSONA_SECRET_DISCOVERY_ENABLED;
+      else process.env.PERSONA_SECRET_DISCOVERY_ENABLED = envBefore.discovery;
+    }
+  });
+
+  it("REBASE REGRESSION keeps #1391 settlement and client presentation owners", () => {
+    const route = fs.readFileSync(path.join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
+    const client = fs.readFileSync(
+      path.join(process.cwd(), "src/app/chat/[id]/ChatClient.tsx"),
+      "utf8"
+    );
+    assert.match(route, /settledPoints: settlement\.settledPoints/);
+    assert.match(route, /under_recovered/);
+    assert.match(client, /settledPoints/);
+    assert.match(client, /settlementView\?\.deduction/);
   });
 
   it("opening-only rooms still produce a first-turn snapshot", async () => {

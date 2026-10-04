@@ -36,6 +36,18 @@ describe("modelPickerInputSnapshot read-only audit", () => {
     assert.match(PREP_SOURCE, /persistActiveMatches: false/);
   });
 
+  it("reuses persisted consent/canon/persona owners instead of a parallel snapshot copy", () => {
+    assert.match(PREP_SOURCE, /resolveEffectiveConsentMode/);
+    assert.match(PREP_SOURCE, /parseCanonPlanV1/);
+    assert.match(PREP_SOURCE, /resolveCanonInjectionPolicy/);
+    assert.match(PREP_SOURCE, /buildPersonaKnowledgePromptBlock/);
+    assert.match(PREP_SOURCE, /buildRevealedPersonaFactsBlockForPersona/);
+    assert.doesNotMatch(PREP_SOURCE, /ensureCanonPlanOnAccess/);
+    assert.doesNotMatch(SNAPSHOT_SOURCE, /buildPersonaKnowledgePromptBlock/);
+    assert.doesNotMatch(SNAPSHOT_SOURCE, /getPersonaSecretPayload/);
+    assert.doesNotMatch(SNAPSHOT_SOURCE, /resolveCanonInjectionPolicy/);
+  });
+
   it("does not pass chatId into resolveChatSelectedPersona (no persona fallback write)", () => {
     const personaCall = PREP_SOURCE.match(
       /resolveChatSelectedPersona\(([\s\S]*?)\);/

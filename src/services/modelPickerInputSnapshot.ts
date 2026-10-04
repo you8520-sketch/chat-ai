@@ -13,17 +13,7 @@ import {
   loadPersistedNextTurnSource,
   resolvePersistedNextTurnPromptSections,
 } from "@/services/nextTurnAssemblyPreparation";
-import {
-  isPersonaSecretBoundaryEnabled,
-  isPersonaSecretDiscoveryEnabled,
-} from "@/lib/personaSecretBoundaryPolicy";
-import { buildPersonaKnowledgePromptBlock } from "@/lib/personaSecretKnowledge";
-import {
-  buildGenerationKnowledgeContext,
-  resolvePersonaKnowledgePromptDecisionForChat,
-  withEnsembleRedactedPromptAssembly,
-} from "@/lib/personaKnowledgePromptPolicy";
-import { getPersonaSecretPayload } from "@/lib/userPersonas";
+import { withEnsembleRedactedPromptAssembly } from "@/lib/personaKnowledgePromptPolicy";
 
 export type SnapshotCacheEntry = {
   tokensByModel: Partial<Record<ModelPickerActiveModelId, number>>;
@@ -96,38 +86,10 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
     return cached!.tokensByModel;
   }
 
-  let revealedPersonaFactsBlock: string | null | undefined;
-  let assemblePickerContext = <T,>(fn: () => T): T => fn();
-  if (
-    isPersonaSecretBoundaryEnabled() &&
-    isPersonaSecretDiscoveryEnabled({ userId: opts.user.id })
-  ) {
-    const contentKind =
-      source.character.content_kind === "simulation" ? "simulation" : "character";
-    const decision = resolvePersonaKnowledgePromptDecisionForChat(
-      buildGenerationKnowledgeContext({
-        contentKind,
-        simulationCast: String(
-          source.character.simulation_cast ?? source.character.system_prompt ?? ""
-        ),
-        characterId: Number(source.character.id),
-      }),
-      { chatId: source.chat.id }
-    );
-    const personaId = source.selectedPersonaId;
-    if (personaId != null) {
-      getPersonaSecretPayload(opts.user.id, Number(personaId));
-      revealedPersonaFactsBlock = buildPersonaKnowledgePromptBlock({
-        decision,
-        chatId: source.chat.id,
-        personaId: Number(personaId),
-        authority: "discovery",
-      });
-    }
-    if (decision.mode === "ENSEMBLE_REDACTED") {
-      assemblePickerContext = (fn) => withEnsembleRedactedPromptAssembly(fn);
-    }
-  }
+  const assemblePickerContext = <T,>(fn: () => T): T =>
+    source.personaKnowledgePromptDecision.mode === "ENSEMBLE_REDACTED"
+      ? withEnsembleRedactedPromptAssembly(fn)
+      : fn();
 
   const tokensByModel: Partial<Record<ModelPickerActiveModelId, number>> = {};
   for (const modelId of MODEL_PICKER_ACTIVE_MODEL_IDS) {
@@ -137,12 +99,7 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
       modelId,
       currentUserMessage: "",
     });
-    const built = assemblePickerContext(() =>
-      buildContext({
-        ...contextBuildInput,
-        revealedPersonaFactsBlock: revealedPersonaFactsBlock ?? undefined,
-      })
-    );
+    const built = assemblePickerContext(() => buildContext(contextBuildInput));
     const tokens =
       built.meta.promptAudit?.totalAssembledTokens ?? built.meta.estimatedInputTokens;
     if (typeof tokens === "number" && tokens > 0) {

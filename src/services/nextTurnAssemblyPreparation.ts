@@ -8,7 +8,15 @@
 import { createHash } from "node:crypto";
 import type { ChatMsg } from "@/lib/ai";
 import type { User } from "@/lib/auth";
+import {
+  parseAllowedConsentModes,
+  parseModelRouteState,
+  resolveEffectiveConsentMode,
+} from "@/lib/adultSceneRouting";
 import { canAccessAdultContent } from "@/lib/adultVerification";
+import { resolveCanonInjectionPolicy } from "@/lib/canonInjectionPolicy";
+import { parseCanonPlanV1 } from "@/lib/canonPlan/serialize";
+import type { CanonPlanV1 } from "@/lib/canonPlan/types";
 import { parseAssets, chatAssets } from "@/lib/characterAssets";
 import { loadCharacterChunksForPromptReadOnly } from "@/lib/characterChunks";
 import { resolveCharacterGender } from "@/lib/characterGender";
@@ -51,7 +59,21 @@ import { countMemoryEligibleCompletedTurns } from "@/lib/memory/memory-turn-load
 import { resolveExampleDialogForPrompt } from "@/lib/narrationFewShotTemplates";
 import { resolveNarrativePov, type ResolvedNarrativePov } from "@/lib/narrativePov";
 import { formatUserNoteForPrompt } from "@/lib/persona";
+import {
+  buildGenerationKnowledgeContext,
+  resolvePersonaKnowledgePromptDecisionForChat,
+  type PersonaKnowledgePromptDecision,
+} from "@/lib/personaKnowledgePromptPolicy";
+import {
+  isPersonaSecretBoundaryEnabled,
+  isPersonaSecretDiscoveryEnabled,
+} from "@/lib/personaSecretBoundaryPolicy";
+import { buildPersonaKnowledgePromptBlock } from "@/lib/personaSecretKnowledge";
 import { formatPublicPersonaForPrompt } from "@/lib/personaSecretPrompt";
+import {
+  buildRevealedPersonaFactsBlockForPersona,
+  listChatPersonaSecretReveals,
+} from "@/lib/personaSecretReveal";
 import {
   resolveProviderHistoryTurnFloor,
   trimProviderHistoryToBudget,
@@ -68,6 +90,7 @@ import { resolveEffectiveUserAuthoringFromChatColumn } from "@/lib/userCoauthorS
 import { loadUserLorebookPromptBlockFromActivation } from "@/lib/userLorebook";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import {
+  getPersonaSecretPayload,
   listPublicUserPersonas,
   resolveChatSelectedPersona,
 } from "@/lib/userPersonas";
@@ -76,6 +99,9 @@ import type { ContextBuildInput } from "@/types";
 export const PERSISTED_NEXT_TURN_APPROXIMATION = {
   currentUserMessage: "",
   keywordLorebookFromUnsentDraft: "omitted",
+  consentFromUnsentDraft: "omitted",
+  canonLazyCompile: "omitted",
+  personaS4LiveProducer: "omitted",
 } as const;
 
 export type NextTurnHistoryPreparation = {
@@ -110,6 +136,7 @@ export type NextTurnCharacterRow = {
   jsx_components_json?: string | null;
   creator_compiled_description_json?: string | null;
   creator_canon_plan_json?: string | null;
+  adult_consent_modes_json?: string | null;
   status_widget_json?: string | null;
   status_widget_allow_user_override?: number | null;
   genres?: string | null;
@@ -151,6 +178,7 @@ export type PersistedNextTurnSource = {
     adult_handoff_enabled?: number | null;
     status_widget_stack_order?: string | null;
     status_widget_display_mode?: string | null;
+    model_route_state_json?: string | null;
   };
   user: User;
   turns: DialogueTurn[];
@@ -175,10 +203,89 @@ export type PersistedNextTurnSource = {
   memoryCapability: ReturnType<typeof resolveSubscriptionMemoryCapability>;
   memoryTier: ReturnType<typeof resolveMemoryTier>;
   memoryCapacity: number;
+  activeConsentMode: NonNullable<ContextBuildInput["activeConsentMode"]>;
+  persistedCanonPlan: CanonPlanV1 | null;
+  revealedPersonaFactsBlock: string | null;
+  personaKnowledgePromptDecision: PersonaKnowledgePromptDecision;
 };
 
 export function hashPersistedNextTurnFingerprint(parts: unknown): string {
   return createHash("sha256").update(JSON.stringify(parts)).digest("hex");
+}
+
+export function resolvePersistedActiveConsentMode(input: {
+  modelRouteStateJson?: string | null;
+  adultConsentModesJson?: string | null;
+}): NonNullable<ContextBuildInput["activeConsentMode"]> {
+  const previous = parseModelRouteState(input.modelRouteStateJson).activeConsentMode;
+  return resolveEffectiveConsentMode({
+    requested: undefined,
+    previous,
+    currentInput: "",
+    allowedConsentModes: parseAllowedConsentModes(input.adultConsentModesJson),
+  });
+}
+
+export function resolvePersistedCanonPlan(
+  raw: string | null | undefined
+): CanonPlanV1 | null {
+  return parseCanonPlanV1(raw);
+}
+
+export function resolvePersistedPersonaKnownFacts(input: {
+  user: User;
+  chatId: number;
+  character: NextTurnCharacterRow;
+  selectedPersonaId: number | null;
+}): {
+  revealedPersonaFactsBlock: string | null;
+  personaKnowledgePromptDecision: PersonaKnowledgePromptDecision;
+} {
+  const personaKnowledgePromptDecision: PersonaKnowledgePromptDecision = {
+    mode: "ENSEMBLE_REDACTED",
+    reasonCode: "MISSING_AUTHORITATIVE_SPEAKER",
+  };
+  if (
+    !isPersonaSecretBoundaryEnabled({ userId: input.user.id }) ||
+    input.selectedPersonaId == null
+  ) {
+    return { revealedPersonaFactsBlock: null, personaKnowledgePromptDecision };
+  }
+
+  if (isPersonaSecretDiscoveryEnabled({ userId: input.user.id })) {
+    const decision = resolvePersonaKnowledgePromptDecisionForChat(
+      buildGenerationKnowledgeContext({
+        contentKind:
+          input.character.content_kind === "simulation" ? "simulation" : "character",
+        simulationCast: String(
+          input.character.simulation_cast ?? input.character.system_prompt ?? ""
+        ),
+        characterId: Number(input.character.id),
+      }),
+      { chatId: input.chatId }
+    );
+    return {
+      revealedPersonaFactsBlock: buildPersonaKnowledgePromptBlock({
+        decision,
+        chatId: input.chatId,
+        personaId: Number(input.selectedPersonaId),
+        authority: "discovery",
+      }),
+      personaKnowledgePromptDecision: decision,
+    };
+  }
+
+  const secretPayload = getPersonaSecretPayload(
+    input.user.id,
+    Number(input.selectedPersonaId)
+  );
+  return {
+    revealedPersonaFactsBlock: buildRevealedPersonaFactsBlockForPersona(
+      listChatPersonaSecretReveals(input.chatId, Number(input.selectedPersonaId)),
+      secretPayload?.secretDescription ?? ""
+    ),
+    personaKnowledgePromptDecision,
+  };
 }
 
 export function prepareNextTurnHistory(input: {
@@ -374,6 +481,13 @@ export function loadPersistedNextTurnSource(opts: {
     userAdultVerified: canAccessAdultContent(opts.user),
     roomAdultModeEnabled,
   });
+  const selectedPersonaId = selectedPersona?.id ?? chat.selected_persona_id;
+  const personaKnownFacts = resolvePersistedPersonaKnownFacts({
+    user: opts.user,
+    chatId: chat.id,
+    character,
+    selectedPersonaId,
+  });
 
   return {
     chatId: chat.id,
@@ -386,7 +500,7 @@ export function loadPersistedNextTurnSource(opts: {
     userPersonaPrompt,
     userNotePrompt,
     selectedPersonaGender: resolveCharacterGender(selectedPersona?.gender ?? "other"),
-    selectedPersonaId: selectedPersona?.id ?? chat.selected_persona_id,
+    selectedPersonaId,
     effectiveUserAuthoring,
     characterChunks,
     usedEnglishCharacterPrompt,
@@ -402,6 +516,13 @@ export function loadPersistedNextTurnSource(opts: {
     memoryCapability,
     memoryTier: resolveMemoryTier(opts.user),
     memoryCapacity: getChatMemoryCapacity(chat.id),
+    activeConsentMode: resolvePersistedActiveConsentMode({
+      modelRouteStateJson: chat.model_route_state_json,
+      adultConsentModesJson: character.adult_consent_modes_json,
+    }),
+    persistedCanonPlan: resolvePersistedCanonPlan(character.creator_canon_plan_json),
+    revealedPersonaFactsBlock: personaKnownFacts.revealedPersonaFactsBlock,
+    personaKnowledgePromptDecision: personaKnownFacts.personaKnowledgePromptDecision,
   };
 }
 
@@ -557,6 +678,9 @@ export function fingerprintPersistedNextTurnSource(
     persona: source.userPersonaPrompt,
     userNotePrompt: source.userNotePrompt,
     memoryMeta: source.chat.memory_meta ?? "",
+    activeConsentMode: source.activeConsentMode,
+    creatorCanonPlanJson: source.character.creator_canon_plan_json ?? "",
+    revealedPersonaFactsBlock: source.revealedPersonaFactsBlock ?? "",
   });
 }
 
@@ -746,6 +870,8 @@ export async function assemblePersistedNextTurnInputs(opts: {
     currentUserMessage,
     currentTurnAuthoringDelegation: opts.source.effectiveUserAuthoring.delegation,
     nsfw: opts.source.nsfw,
+    activeConsentMode: opts.source.activeConsentMode,
+    revealedPersonaFactsBlock: opts.source.revealedPersonaFactsBlock,
     assetTags: opts.source.assetTags,
     modelId: opts.modelId,
     personaDisplayName: opts.source.personaDisplayName,
@@ -754,6 +880,11 @@ export async function assemblePersistedNextTurnInputs(opts: {
     genres: opts.source.characterGenres,
     useEnglishCharacterPrompt: opts.source.usedEnglishCharacterPrompt,
     sections: opts.sections,
+    canonInjectionPolicy: resolveCanonInjectionPolicy(opts.modelId, {
+      userId: opts.source.user.id,
+      chatId: opts.source.chat.id,
+    }),
+    canonPlan: opts.source.persistedCanonPlan,
     sceneMomentumInput,
   });
 }
