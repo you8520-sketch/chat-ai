@@ -36,6 +36,7 @@ import {
   applyCacheAndPrefillForTransport,
   assemblePrimaryRpRequest,
   buildOpenRouterMessages,
+  type AssembledPrimaryRpRequest,
   type OpenRouterMessageOpts,
 } from "@/lib/openRouterAdult";
 import {
@@ -561,6 +562,23 @@ function assembleScene(
     turn,
     assembledUserText,
     sceneControlUserMessage: turn.policyUserMessage,
+    assembledRequest: assembled,
+  };
+}
+
+/** Same-process #1377 scene assembly. Exposes the already-built request objects. */
+export function assembleLiveDeployedBodyCueSceneRequests(
+  rows: LiveDeployedBodyCueRows,
+  caseData: CanonicalQualificationCase
+): {
+  baseline: AssembledPrimaryRpRequest;
+  candidate: AssembledPrimaryRpRequest;
+} {
+  const names = resolveLiveRowNames(rows);
+  const input = buildLiveDeployedBodyCueContextInput({ rows, caseData });
+  return {
+    baseline: assembleScene(caseData, false, input, names).assembledRequest,
+    candidate: assembleScene(caseData, true, input, names).assembledRequest,
   };
 }
 
