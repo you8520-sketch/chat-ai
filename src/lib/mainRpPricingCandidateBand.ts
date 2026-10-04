@@ -34,15 +34,40 @@ import {
 export const TARGET_MARGIN_BP_SCALE = 10_000 as const;
 const MAX_TARGET_MARGIN_BP = TARGET_MARGIN_BP_SCALE - 1;
 
-export type PricingCandidateStatus =
-  | "READY"
-  | "KEEP_CURRENT"
-  | "HOLD_NON_TARGET_MARGIN_PRICING_OWNER"
-  | "HOLD_NO_HARD_MARKET_EVIDENCE"
-  | "HOLD_PROCUREMENT_NOT_FRESH"
-  | "HOLD_ACTUAL_REPRESENTATIVE_CONFLICT"
-  | "NO_FEASIBLE_PRICE"
-  | "UNAVAILABLE";
+export const PRICING_CANDIDATE_STATUSES = [
+  "READY",
+  "KEEP_CURRENT",
+  "HOLD_NO_HARD_MARKET_EVIDENCE",
+  "HOLD_PROCUREMENT_NOT_FRESH",
+  "HOLD_ACTUAL_REPRESENTATIVE_CONFLICT",
+  "NO_FEASIBLE_PRICE",
+  "UNAVAILABLE",
+] as const;
+
+export type PricingCandidateStatus = (typeof PRICING_CANDIDATE_STATUSES)[number];
+
+export function pricingCandidateStatusLabel(status: PricingCandidateStatus): string {
+  switch (status) {
+    case "READY":
+      return "READY";
+    case "KEEP_CURRENT":
+      return "KEEP CURRENT";
+    case "HOLD_NO_HARD_MARKET_EVIDENCE":
+      return "Hold — no hard-comparable market benchmark";
+    case "HOLD_PROCUREMENT_NOT_FRESH":
+      return "Hold — procurement not fresh";
+    case "HOLD_ACTUAL_REPRESENTATIVE_CONFLICT":
+      return "Hold — actual vs representative conflict";
+    case "NO_FEASIBLE_PRICE":
+      return "No feasible price band";
+    case "UNAVAILABLE":
+      return "Unavailable";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
 
 export type CandidateDirection =
   | "RAISE_TO_FLOOR"
@@ -545,39 +570,6 @@ export function composePricingCandidateObservation(params: {
     fxSnapshot: params.fxSnapshot,
   });
   const currentPoints = chargePointsFromResult(currentRepResult);
-
-  if (commercialPricingOwner !== "target_margin") {
-    return {
-      domain: "CANDIDATE",
-      status: "HOLD_NON_TARGET_MARGIN_PRICING_OWNER",
-      commercialPricingOwner,
-      currentTargetMargin,
-      minimumSafeTargetMargin: null,
-      maximumCompetitiveTargetMargin: null,
-      candidateTargetMargin: null,
-      candidateDirection: "HOLD",
-      representative: {
-        currentPoints,
-        candidatePoints: null,
-        candidateProjectedMargin: null,
-        floorPass: null,
-      },
-      market: {
-        hardBenchmarkCount: benchmarks.length,
-        allPass: null,
-        cases: [],
-      },
-      actual: {
-        monthKey: params.actual.monthKey,
-        marginRate: params.actual.marginRate,
-        exact: params.actual.realizedMarginExact,
-        signal: actualSignal,
-      },
-      procurementFreshness: params.procurement.ciFreshnessState,
-      liveApplicability,
-      productionBillingContract: params.productionBillingContract,
-    };
-  }
 
   let minimumSafeTargetMargin: number | null = null;
   let maximumCompetitiveTargetMargin: number | null = null;

@@ -21,7 +21,7 @@ export const BUSINESS_OPERATING_STATUS = "휴업";
 
 /** Official business/contact email supplied by the operator; inbound delivery to verify separately. */
 export const BUSINESS_CUSTOMER_SERVICE_EMAIL = "admin@hav.chat";
-export const BUSINESS_CUSTOMER_SERVICE_PHONE = null;
+export const BUSINESS_CUSTOMER_SERVICE_PHONE = "070-8080-5884";
 export const BUSINESS_MAIL_ORDER_REPORT_NUMBER = null;
 
 export type BusinessFieldVerification = "confirmed" | "unverified";
@@ -41,7 +41,7 @@ export const BUSINESS_IDENTITY_VERIFICATION = {
   businessItem: "confirmed",
   taxType: "confirmed",
   operatingStatus: "confirmed",
-  phoneNumber: "unverified",
+  phoneNumber: "confirmed",
   customerServiceEmail: "confirmed",
   mailOrderReportNumber: "unverified",
 } as const satisfies Record<string, BusinessFieldVerification>;
@@ -58,5 +58,6 @@ export const BUSINESS_PUBLIC_LINES = [
   `과세유형 ${BUSINESS_TAX_TYPE}`,
   `사업장 ${BUSINESS_ADDRESS}`,
   `사업자 상태 ${BUSINESS_OPERATING_STATUS}`,
+  `고객센터 전화 ${BUSINESS_CUSTOMER_SERVICE_PHONE}`,
   `고객센터 이메일 ${BUSINESS_CUSTOMER_SERVICE_EMAIL}`,
 ] as const;

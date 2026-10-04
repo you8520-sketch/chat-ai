@@ -1,6 +1,6 @@
 /**
  * Opus 5.5 pre-live commercial candidates — REALIZED NO-CACHE PROCUREMENT GROSS MARGIN.
- * Does not alter published PRODUCT targetMargin semantics (Anthropic list reference).
+ * Does not own live published user pricing (publishedModelPricing target_margin on CI $2.8/$14).
  */
 
 import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";

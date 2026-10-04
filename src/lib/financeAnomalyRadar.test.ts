@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { AdminFinanceSummary, ModelDirectCostAttribution } from "@/lib/adminFinance";
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL, MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import { buildFinanceAnomalyReport } from "@/lib/financeAnomalyRadar";
 import type { MainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
+import { getPublishedPricing } from "@/lib/publishedModelPricing";
 
 const ACTIVE = MAIN_RP_MODEL_IDS[0]!;
 
@@ -511,6 +512,26 @@ describe("finance anomaly radar", () => {
       mixed.anomalies.some((row) => row.code === "DIRECT_COST_WITHOUT_USER_BILLING"),
       true
     );
+  });
+
+  it("flags Opus actual margin below the published 30% floor on the canonical radar path", () => {
+    const floor = getPublishedPricing(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL).minimumMarginFloor;
+    assert.equal(floor, 0.3);
+    const report = buildFinanceAnomalyReport({
+      summary: summary(),
+      pricing: pricing({
+        modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+        actualMargin: 0.25,
+        actualExact: true,
+        floor,
+        paidRevenueKrw: 1000,
+        apiCostKrw: 750,
+      }),
+    });
+    const anomaly = report.anomalies.find((row) => row.code === "ACTUAL_MARGIN_BELOW_FLOOR");
+    assert.ok(anomaly);
+    assert.equal(anomaly?.modelId, CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL);
+    assert.match(anomaly?.summary ?? "", /30\.0%/);
   });
 
   it("treats exact actual margin-floor breach as critical and suppresses the weaker representative warning", () => {

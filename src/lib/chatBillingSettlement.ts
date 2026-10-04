@@ -270,7 +270,7 @@ function readSettlementRowSafe(
   return null;
 }
 
-/** Any native under_recovered row is unresolved until a later resolve owner exists. */
+/** Billing fact only. Main RP “may I call the provider?” is owned by admission. */
 export function hasUnresolvedUnderRecoveredSettlement(
   db: Database.Database,
   userId: number
@@ -283,28 +283,6 @@ export function hasUnresolvedUnderRecoveredSettlement(
     )
     .get(userId, CHAT_TURN_CHARGE_KIND, UNDER_RECOVERED_OUTCOME) as { ok: number } | undefined;
   return row != null;
-}
-
-/**
- * Block new provider calls. Same request_id replay of a durable product is allowed.
- * This is a committed-row gate, not a lease: two in-flight requests that both
- * passed before either wrote under_recovered can still both reach the provider.
- */
-export function shouldBlockNewPaidGenerationForUnderRecovered(
-  db: Database.Database,
-  input: { userId: number; chatId: number | null; requestId: string }
-): boolean {
-  if (!hasUnresolvedUnderRecoveredSettlement(db, input.userId)) return false;
-  const requestId = input.requestId.trim();
-  if (!requestId || input.chatId == null) return true;
-  const row = db
-    .prepare(
-      `SELECT generation_status FROM messages
-       WHERE chat_id = ? AND request_id = ? AND role = 'assistant'
-       ORDER BY id DESC LIMIT 1`
-    )
-    .get(input.chatId, requestId) as { generation_status: string | null } | undefined;
-  return !isSuccessfulDurableGenerationStatus(row?.generation_status);
 }
 
 export function readChatBillingSettlement(

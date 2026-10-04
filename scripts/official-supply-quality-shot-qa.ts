@@ -5,7 +5,7 @@ import path from "node:path";
 
 import sharp from "sharp";
 
-import { compileOfficialDraftFromBible } from "@/lib/officialSupply/bible";
+import { compileOfficialDraftFromBible, type OfficialCharacterBible } from "@/lib/officialSupply/bible";
 import { buildOfficialAssetPrompts } from "@/lib/officialSupply/imagePrompt";
 import {
   OFFICIAL_ASSET_OUTPUT_COMPRESSION,
@@ -13,26 +13,40 @@ import {
   resolveOfficialAssetImageModel,
 } from "@/lib/officialSupply/imageProfile";
 import { resolveOfficialSlotShot } from "@/lib/officialSupply/shotPlan";
-import type { OfficialCharacterBible } from "@/lib/officialSupply/bible";
 import type {
   OfficialAppearanceLock,
   OfficialAssetSlotPlan,
   OfficialCharacterDraft,
+  StyleReference,
   VisualStyleDna,
 } from "@/lib/officialSupply/types";
+import { buildClusterBRofanStyleSeed } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import {
   callOpenAiImageEditWithSafetyFallback,
   OpenAiImageGenerationError,
 } from "@/lib/openAiImageSafetyFallback";
 import { OpenAiImageError } from "@/lib/openAiImageEdit";
+import {
+  LUCIAN_SIG4_TRIAL_DRAFT_KEY,
+  OFFICIAL_SHOT_QA_ARTIFACT_ENV,
+  OFFICIAL_SHOT_QA_LIVE_ENV,
+  OFFICIAL_SHOT_QA_MODE_ENV,
+  OFFICIAL_SHOT_QA_REFERENCE_ENV,
+  officialShotQaArtifactDir,
+  pickDefaultOfficialShotQaSlots,
+  pickLucianSig4TrialSlot,
+  pickLucianSig4TrialStyleCandidate,
+  prepareLucianSig4Trial,
+  resolveLucianSig4ProofImageModel,
+  resolveLucianSig4TrialStyle,
+  resolveOfficialShotQaMode,
+  type OfficialShotQaMode,
+} from "@/lib/officialSupply/qualityShotQa";
 
-const LIVE_ENV = "OFFICIAL_QUALITY_SHOT_QA_LIVE";
-const DRAFT_KEY = "pilot-rf-03";
-const DEFAULT_ARTIFACT_DIR = "/opt/cursor/artifacts/official-shot-qa";
-const MAX_SLOTS = 6;
+const DEFAULT_MAX_SLOTS = 6;
 
-function qaArtifactDir(): string {
-  return process.env.OFFICIAL_QUALITY_SHOT_QA_ARTIFACT_DIR?.trim() || DEFAULT_ARTIFACT_DIR;
+function qaArtifactDir(mode: OfficialShotQaMode): string {
+  return officialShotQaArtifactDir(mode, process.env[OFFICIAL_SHOT_QA_ARTIFACT_ENV]);
 }
 
 type PilotFile = {
@@ -43,14 +57,32 @@ type PilotFile = {
   assetPlan: { slots: OfficialAssetSlotPlan[] };
 };
 
-type StyleFile = { candidates: Array<{ dna: VisualStyleDna }> };
+type StyleFile = { candidates: Array<{ candidateId: string; dna: VisualStyleDna }> };
 
-function stop(reason: string, extra: Record<string, unknown> = {}): never {
-  const artifactDir = qaArtifactDir();
+function tryBuildClusterBStyleSeed(env: NodeJS.ProcessEnv = process.env): StyleReference | null {
+  try {
+    return buildClusterBRofanStyleSeed(env);
+  } catch {
+    return null;
+  }
+}
+
+function stop(reason: string, extra: Record<string, unknown> = {}, mode: OfficialShotQaMode = "default"): never {
+  const artifactDir = qaArtifactDir(mode);
   fs.mkdirSync(artifactDir, { recursive: true });
-  const payload = { status: "STOP", reason, draftKey: DRAFT_KEY, providerCalls: extra.providerCalls ?? 0, ...extra };
+  const payload = {
+    status: "STOP",
+    reason,
+    draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
+    providerCalls: extra.providerCalls ?? 0,
+    persistedToProduction: false,
+    ...extra,
+  };
   fs.writeFileSync(path.join(artifactDir, "STOP.json"), JSON.stringify(payload, null, 2));
-  fs.writeFileSync(path.join(artifactDir, "STOP.md"), `# Official shot QA STOP\n\n${reason}\n\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\`\n`);
+  fs.writeFileSync(
+    path.join(artifactDir, "STOP.md"),
+    `# Official shot QA STOP\n\n${reason}\n\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\`\n`
+  );
   throw new Error(`OFFICIAL_QUALITY_SHOT_QA STOP: ${reason}`);
 }
 
@@ -58,22 +90,20 @@ function readJson<T>(file: string): T {
   return JSON.parse(fs.readFileSync(file, "utf8")) as T;
 }
 
+async function inspectReferenceAsync(filePath: string): Promise<{ width: number; height: number } | null> {
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return null;
+  try {
+    const meta = await sharp(filePath, { failOn: "none" }).metadata();
+    return meta.width && meta.height ? { width: meta.width, height: meta.height } : null;
+  } catch {
+    return null;
+  }
+}
+
 function pickQaSlots(slots: OfficialAssetSlotPlan[], draftKey: string): OfficialAssetSlotPlan[] {
-  const scored = slots
-    .filter((slot) => slot.kind !== "representative")
-    .map((slot) => ({ slot, shot: resolveOfficialSlotShot(slot, draftKey) }));
-  const pick = (pred: (row: (typeof scored)[number]) => boolean) => scored.find(pred)?.slot;
-  const chosen = [
-    pick((row) => row.shot.faceDirection.includes("three_quarter")),
-    pick((row) => row.shot.faceDirection === "profile"),
-    pick((row) => row.shot.cameraAngle === "high_angle"),
-    pick((row) => row.shot.cameraAngle === "low_angle"),
-    pick((row) => row.shot.distance === "medium" || row.shot.distance === "knee_or_full"),
-    pick((row) => row.slot.kind === "scene"),
-  ].filter((slot): slot is OfficialAssetSlotPlan => Boolean(slot));
-  const unique = [...new Map(chosen.map((slot) => [slot.slotKey, slot])).values()];
+  const unique = pickDefaultOfficialShotQaSlots(slots, draftKey);
   if (unique.length < 4) stop("could not cover required shot axes from the canonical plan");
-  return unique.slice(0, MAX_SLOTS);
+  return unique.slice(0, DEFAULT_MAX_SLOTS);
 }
 
 async function styleOnlyReference(): Promise<string> {
@@ -85,11 +115,11 @@ async function styleOnlyReference(): Promise<string> {
   return `data:image/webp;base64,${buffer.toString("base64")}`;
 }
 
-async function resolveReference(): Promise<string> {
-  const refPath = process.env.OFFICIAL_QUALITY_SHOT_QA_REFERENCE_PATH?.trim();
+async function resolveDefaultReference(): Promise<string> {
+  const refPath = process.env[OFFICIAL_SHOT_QA_REFERENCE_ENV]?.trim();
   if (!refPath) return styleOnlyReference();
   if (!fs.existsSync(refPath) || !fs.statSync(refPath).isFile()) {
-    stop(`OFFICIAL_QUALITY_SHOT_QA_REFERENCE_PATH is set but the file is missing: ${refPath}`);
+    stop(`${OFFICIAL_SHOT_QA_REFERENCE_ENV} is set but the file is missing: ${refPath}`);
   }
   const ext = path.extname(refPath).toLowerCase();
   const mime = ext === ".png" ? "image/png" : ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : "image/webp";
@@ -97,7 +127,8 @@ async function resolveReference(): Promise<string> {
 }
 
 async function writeContactSheet(
-  cells: Array<{ slotKey: string; shot: string; file: string }>
+  cells: Array<{ slotKey: string; shot: string; file: string }>,
+  mode: OfficialShotQaMode
 ): Promise<string> {
   const tiles = await Promise.all(
     cells.map(async (cell) => {
@@ -128,7 +159,7 @@ async function writeContactSheet(
       top: Math.floor(index / cols) * 390,
     }))
   );
-  const out = path.join(qaArtifactDir(), "contact-sheet.png");
+  const out = path.join(qaArtifactDir(mode), "contact-sheet.png");
   await sheet.png().toFile(out);
   const copyTo = process.env.OFFICIAL_QUALITY_SHOT_QA_CONTACT_SHEET_PATH?.trim();
   if (copyTo) {
@@ -138,15 +169,11 @@ async function writeContactSheet(
   return copyTo || out;
 }
 
-async function main(): Promise<void> {
-  if (process.env[LIVE_ENV] !== "1") {
-    console.log(`[official-shot-qa] NOT_RUN: set ${LIVE_ENV}=1 for the bounded QA-only live proof`);
-    return;
-  }
-  if (!process.env.OPENAI_API_KEY?.trim()) {
-    stop("OPENAI_API_KEY is not configured; cannot call the canonical official image provider");
-  }
-
+function loadPilot(): {
+  file: PilotFile;
+  draft: OfficialCharacterDraft;
+  styles: StyleFile;
+} {
   const root = process.cwd();
   const file = readJson<PilotFile>(path.join(root, "src/lib/officialSupply/pilot/characters/pilot-rf-03.json"));
   const world = readJson<{ bible: { name: string } }>(path.join(root, "src/lib/officialSupply/pilot/world-bible.json"));
@@ -168,30 +195,89 @@ async function main(): Promise<void> {
       rpHook: file.brief.rpHook,
     },
   });
-  const slots = pickQaSlots(file.assetPlan.slots, draft.draftKey);
-  const reference = await resolveReference();
-  const artifactDir = qaArtifactDir();
-  fs.mkdirSync(artifactDir, { recursive: true });
+  return { file, draft, styles };
+}
 
+async function prepareLucianSig4(file: PilotFile, draft: OfficialCharacterDraft, styles: StyleFile) {
+  const candidateResult = pickLucianSig4TrialStyleCandidate(styles.candidates);
+  if (!candidateResult.ok) stop(candidateResult.reason, { providerCalls: 0 }, "lucian-sig4");
+  const styleSeed = tryBuildClusterBStyleSeed();
+  const styleResult = resolveLucianSig4TrialStyle({
+    candidateId: candidateResult.candidate.candidateId,
+    candidateDna: candidateResult.candidate.dna,
+    styleSeed,
+  });
+  if (!styleResult.ok) stop(styleResult.reason, { providerCalls: 0 }, "lucian-sig4");
+  const slotResult = pickLucianSig4TrialSlot(file.assetPlan.slots, draft.draftKey);
+  if (!slotResult.ok) stop(slotResult.reason, { providerCalls: 0 }, "lucian-sig4");
+  const prompts = buildOfficialAssetPrompts({
+    draft,
+    appearance: file.appearance,
+    style: styleResult.style,
+    slot: slotResult.slot,
+    styleSeed: styleResult.styleSeed,
+  });
+  const refPath = process.env[OFFICIAL_SHOT_QA_REFERENCE_ENV]?.trim() ?? "";
+  const dims = refPath ? await inspectReferenceAsync(refPath) : null;
+  const plan = prepareLucianSig4Trial({
+    draftKey: draft.draftKey,
+    slots: file.assetPlan.slots,
+    appearance: file.appearance,
+    referencePath: refPath,
+    inspectImage: () => dims,
+    artifactDir: process.env[OFFICIAL_SHOT_QA_ARTIFACT_ENV],
+    identityAnchorPrompt: prompts.primaryPrompt,
+    styleCandidateId: candidateResult.candidate.candidateId,
+    style: candidateResult.candidate.dna,
+    styleSeed: styleResult.styleSeed,
+  });
+  const artifactDir = qaArtifactDir("lucian-sig4");
+  fs.mkdirSync(artifactDir, { recursive: true });
+  if (!plan.ok) {
+    stop(plan.reason, { resolvedModel: plan.resolvedModel, providerCalls: 0 }, "lucian-sig4");
+  }
+  fs.writeFileSync(path.join(artifactDir, "PREPARE.json"), JSON.stringify(plan, null, 2));
+  return {
+    plan,
+    prompts,
+    slot: slotResult.slot,
+    shot: slotResult.shot,
+    style: styleResult.style,
+    styleSeed: styleResult.styleSeed,
+  };
+}
+
+async function generateSlots(input: {
+  mode: OfficialShotQaMode;
+  draft: OfficialCharacterDraft;
+  appearance: OfficialAppearanceLock;
+  style: VisualStyleDna;
+  styleSeed?: StyleReference | null;
+  slots: OfficialAssetSlotPlan[];
+  reference: string;
+}): Promise<void> {
+  const artifactDir = qaArtifactDir(input.mode);
+  fs.mkdirSync(artifactDir, { recursive: true });
   const calls: Array<Record<string, unknown>> = [];
   const cells: Array<{ slotKey: string; shot: string; file: string }> = [];
   let knownCost = 0;
 
-  for (const slot of slots) {
-    const shot = resolveOfficialSlotShot(slot, draft.draftKey);
+  for (const slot of input.slots) {
+    const shot = resolveOfficialSlotShot(slot, input.draft.draftKey);
     const profile = officialImageProfileForSlot(slot.kind);
     const prompts = buildOfficialAssetPrompts({
-      draft,
-      appearance: file.appearance,
-      style: styles.candidates[0]!.dna,
+      draft: input.draft,
+      appearance: input.appearance,
+      style: input.style,
       slot,
+      styleSeed: input.styleSeed,
     });
     try {
       const result = await callOpenAiImageEditWithSafetyFallback({
         model: resolveOfficialAssetImageModel(),
         primaryPrompt: prompts.primaryPrompt,
         strictFallbackPrompt: prompts.strictFallbackPrompt,
-        references: [reference],
+        references: [input.reference],
         size: profile.size,
         quality: "medium",
         outputCompression: OFFICIAL_ASSET_OUTPUT_COMPRESSION,
@@ -202,7 +288,7 @@ async function main(): Promise<void> {
         stop("unknown provider cost on a live attempt", {
           slotKey: slot.slotKey,
           providerCalls: calls.length + 1,
-        });
+        }, input.mode);
       }
       knownCost += result.knownProviderCostUsd;
       const filePath = path.join(artifactDir, `${slot.slotKey}.webp`);
@@ -220,16 +306,16 @@ async function main(): Promise<void> {
         stop(`provider or moderation failure: ${error.message}`, {
           slotKey: slot.slotKey,
           providerCalls: calls.length + 1,
-        });
+        }, input.mode);
       }
       throw error;
     }
   }
 
-  const sheet = await writeContactSheet(cells);
+  const sheet = await writeContactSheet(cells, input.mode);
   const report = {
     status: "GENERATED",
-    draftKey: DRAFT_KEY,
+    draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
     persistedToProduction: false,
     providerCalls: calls.length,
     knownCostUsd: Number(knownCost.toFixed(6)),
@@ -238,6 +324,69 @@ async function main(): Promise<void> {
   };
   fs.writeFileSync(path.join(artifactDir, "report.json"), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
+}
+
+async function main(): Promise<void> {
+  const modeResult = resolveOfficialShotQaMode(process.env[OFFICIAL_SHOT_QA_MODE_ENV]);
+  if (!modeResult.ok) stop(modeResult.reason);
+  const mode = modeResult.mode;
+  const live = process.env[OFFICIAL_SHOT_QA_LIVE_ENV] === "1";
+
+  if (mode === "lucian-sig4") {
+    const { file, draft, styles } = loadPilot();
+    const prepared = await prepareLucianSig4(file, draft, styles);
+    if (!live) {
+      console.log(
+        `[official-shot-qa] PREPARE lucian-sig4: set ${OFFICIAL_SHOT_QA_LIVE_ENV}=1 after cost approval to generate one private review file`
+      );
+      console.log(JSON.stringify(prepared.plan, null, 2));
+      return;
+    }
+    const modelGate = resolveLucianSig4ProofImageModel();
+    if (!modelGate.ok) {
+      stop(modelGate.reason, { resolvedModel: modelGate.model, providerCalls: 0 }, mode);
+    }
+    if (!process.env.OPENAI_API_KEY?.trim()) {
+      stop("OPENAI_API_KEY is not configured; cannot call the canonical official image provider", {
+        resolvedModel: modelGate.model,
+        providerCalls: 0,
+      }, mode);
+    }
+    const refPath = prepared.plan.referencePath;
+    const ext = path.extname(refPath).toLowerCase();
+    const mime = ext === ".png" ? "image/png" : ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : "image/webp";
+    const reference = `data:${mime};base64,${fs.readFileSync(refPath).toString("base64")}`;
+    await generateSlots({
+      mode,
+      draft,
+      appearance: file.appearance,
+      style: prepared.style,
+      styleSeed: prepared.styleSeed,
+      slots: [prepared.slot],
+      reference,
+    });
+    return;
+  }
+
+  if (!live) {
+    console.log(`[official-shot-qa] NOT_RUN: set ${OFFICIAL_SHOT_QA_LIVE_ENV}=1 for the bounded QA-only live proof`);
+    return;
+  }
+  if (!process.env.OPENAI_API_KEY?.trim()) {
+    stop("OPENAI_API_KEY is not configured; cannot call the canonical official image provider");
+  }
+
+  const { file, draft, styles } = loadPilot();
+  const slots = pickQaSlots(file.assetPlan.slots, draft.draftKey);
+  const reference = await resolveDefaultReference();
+  await generateSlots({
+    mode,
+    draft,
+    appearance: file.appearance,
+    style: styles.candidates[0]!.dna,
+    slots,
+    reference,
+  });
 }
 
 main().catch((error) => {

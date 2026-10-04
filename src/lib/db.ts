@@ -46,6 +46,7 @@ import { migrateUserNoteReferenceZoneCleanup } from "@/lib/userNoteReferenceClea
 import { ensureShadowBillingFxTables } from "@/lib/shadowBillingFxPersistence";
 import { ensureDerivedCacheJobsTable } from "@/lib/derivedCache/jobs";
 import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
+import { ensureChatGenerationLeaseSchema } from "@/lib/chatGenerationLeaseSchema";
 import { isRetryableRemoteSchemaError } from "@/lib/libsqlErrors";
 import { initializeRemoteSchema } from "@/lib/remoteSchemaBootstrap";
 import { ensureEmailSignupSchema } from "@/lib/emailSignupSchema";
@@ -1341,6 +1342,7 @@ function migrate(db: Database.Database) {
   addColumn("point_transactions", "source", "TEXT");
   migratePointsLedger(db);
   ensureChatBillingSettlementSchema(db);
+  ensureChatGenerationLeaseSchema(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS comments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
