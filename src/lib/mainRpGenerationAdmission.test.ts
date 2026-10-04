@@ -58,12 +58,15 @@ function createAdmissionDb(dbPath: string): Database.Database {
       chat_id INTEGER NOT NULL,
       role TEXT NOT NULL,
       content TEXT NOT NULL DEFAULT '',
+      model TEXT NOT NULL DEFAULT '',
       request_id TEXT,
       deduction_slices TEXT,
       generation_status TEXT,
       user_message_id INTEGER,
       is_refunded INTEGER NOT NULL DEFAULT 0,
       usage TEXT,
+      alternates TEXT NOT NULL DEFAULT '[]',
+      active_variant INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT
     );

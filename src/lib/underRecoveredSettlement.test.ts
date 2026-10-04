@@ -401,7 +401,7 @@ describe("under-recovered settlement fixtures", () => {
     });
   });
 
-  it("D committed under-recovered gates new ids; in-flight check-then-act still races", () => {
+  it("D committed under-recovered gates new ids; refunded_at does not unlock", () => {
     withFixture((db) => {
       seedSpendable(db, 100, "PAID");
       const firstId = insertAssistant(db, "req_d_first");
