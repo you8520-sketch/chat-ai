@@ -47,6 +47,11 @@ import {
 } from "./plans";
 import { PAYMENTS_DISABLED_MESSAGE } from "./portoneConfig";
 import {
+  CROSS_BORDER_ARTICLE_28_8_DISCLOSURE_COMPLETE,
+  CROSS_BORDER_TRANSFERS,
+  formatCrossBorderPrivacyParagraphs,
+} from "./privacyCrossBorder";
+import {
   MEMBER_PAID_CHARGE_UNAVAILABLE_MESSAGE,
   MEMBER_PAID_POINT_CHARGE_PUBLICLY_AVAILABLE,
   SERVICE_PUBLIC_COMMERCE_NOTICE_PARAGRAPHS,
@@ -171,7 +176,7 @@ test("terms are production user terms without developer wording", () => {
   assert.match(text, new RegExp(`${SIGNUP_BONUS_POINTS.toLocaleString("ko-KR")}P`));
   assert.match(text, /한 번만 지급됩니다/);
   assert.match(text, /회원가입을 완료함으로써 성립합니다/);
-  assert.match(text, /체크박스나 별도 기록은 없습니다/);
+  assert.match(text, /가입 화면에서 이용약관, 개인정보처리방침, 결제 및 환불 정책을 확인할 수 있습니다/);
   assert.doesNotMatch(text, /확인한 뒤 회원가입을 완료/);
   assert.match(text, /성인 이용자에게만 제공되는 기능/);
   assert.doesNotMatch(text, /성인만 이용해서는 안 됩니다/);
@@ -296,6 +301,30 @@ test("business identity keeps brand and legal name distinct, publishes confirmed
   assert.equal(BUSINESS_PUBLIC_LINES.filter((line) => line.includes("고객센터 전화")).length, 1);
   assert.equal(BUSINESS_PUBLIC_LINES.filter((line) => line.includes("고객센터 이메일")).length, 1);
   assert.equal(BUSINESS_IDENTITY_VERIFICATION.mailOrderReportNumber, "unverified");
+});
+
+test("privacy cross-border copy is owned by one table and is not a complete 28-8 disclosure", () => {
+  assert.equal(CROSS_BORDER_ARTICLE_28_8_DISCLOSURE_COMPLETE, false);
+  assert.deepEqual(
+    CROSS_BORDER_TRANSFERS.map((row) => row.id),
+    ["openrouter", "cheaper-inference", "openai", "google", "resend", "portone", "vercel-blob"],
+  );
+  const privacy = flattenLegalPageText(PRIVACY_PAGE);
+  for (const paragraph of formatCrossBorderPrivacyParagraphs()) {
+    assert.match(privacy, new RegExp(escapeRegExp(paragraph)));
+  }
+  for (const row of CROSS_BORDER_TRANSFERS) {
+    assert.equal(row.legalBasis.status, "unconfirmed");
+    assert.match(row.legalBasis.publicValue, /충족되었다고 쓰지 않습니다/);
+  }
+  assert.equal(
+    CROSS_BORDER_TRANSFERS.some((row) => row.countries.status === "unconfirmed"),
+    true,
+  );
+  assert.equal(
+    CROSS_BORDER_TRANSFERS.some((row) => row.retention.status === "unconfirmed"),
+    true,
+  );
 });
 
 test("attendance expiry legal text follows the later-confirmed 21-day owner", () => {
