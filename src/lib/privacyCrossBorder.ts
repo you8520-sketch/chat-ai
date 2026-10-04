@@ -333,7 +333,6 @@ export const CROSS_BORDER_PUBLIC_TABLE_COLUMNS = [
   "보유·이용 기간",
   "거부 방법",
   "거부 효과",
-  "법적 근거",
 ] as const;
 
 export const CROSS_BORDER_PUBLIC_TABLE = {
@@ -348,7 +347,6 @@ export const CROSS_BORDER_PUBLIC_TABLE = {
     publicCell(row.retention),
     publicCell(row.refusalMethod),
     publicCell(row.refusalEffect),
-    row.legalBasis.status === "confirmed" ? row.legalBasis.publicValue : UNCONFIRMED_PUBLIC_CELL,
   ]),
 } as const;
 
