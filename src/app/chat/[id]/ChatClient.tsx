@@ -134,9 +134,9 @@ import {
   type SelectedAI,
 } from "@/lib/chatModels";
 import {
-  parseModelPickerBaselineEstimates,
+  parseModelPickerEstimates,
   selectedAIOptionLabel,
-  type ModelPickerBaselineEstimateMap,
+  type ModelPickerEstimateMap,
 } from "@/lib/modelPickerBaselineEstimate";
 import { formatAssistantLengthLabel } from "@/lib/responseLengthConstants";
 import {
@@ -923,7 +923,7 @@ export default function ChatClient({
   initialSelectedAI,
   initialGlobalModelNotice = null,
   initialActiveSitePromotions = [],
-  initialModelPickerBaselineEstimates = {},
+  initialModelPickerEstimates = {},
   initialTargetResponseChars,
   initialChatTitle = "",
   initialDisplayPrefs,
@@ -969,8 +969,8 @@ export default function ChatClient({
   initialGlobalModelNotice?: string | null;
   /** Active verified site promotions for model picker badge + inline notice. */
   initialActiveSitePromotions?: SitePromotionClientView[];
-  /** Read-only published baseline estimates for the native picker label. */
-  initialModelPickerBaselineEstimates?: ModelPickerBaselineEstimateMap;
+  /** Room-scoped next-turn Published display estimates for the native picker label. */
+  initialModelPickerEstimates?: ModelPickerEstimateMap;
   initialTargetResponseChars: number;
   initialChatTitle?: string;
   initialDisplayPrefs?: ChatDisplayPrefs;
@@ -1258,8 +1258,8 @@ export default function ChatClient({
   const adultHandoffOnRef = useRef(!!initialAdultHandoffEnabled);
   const [adultHandoffBusy, setAdultHandoffBusy] = useState(false);
   const [selectedAI, setSelectedAI] = useState<SelectedAI>(initialSelectedAI);
-  const [modelPickerBaselineEstimates, setModelPickerBaselineEstimates] =
-    useState<ModelPickerBaselineEstimateMap>(initialModelPickerBaselineEstimates);
+  const [modelPickerEstimates, setModelPickerEstimates] =
+    useState<ModelPickerEstimateMap>(initialModelPickerEstimates);
   const selectableAIOptions = useMemo(
     () => userSelectableAIOptionsForUser(isAdmin),
     [isAdmin]
@@ -1438,6 +1438,25 @@ export default function ChatClient({
     },
     [selectedAI]
   );
+
+  const refreshPickerEstimates = useCallback((roomId: number | null, refresh = true) => {
+    if (roomId == null || roomId <= 0) return;
+    void fetch("/api/chat/next-turn-estimates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId: roomId, refresh }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { estimates?: unknown } | null) => {
+        const parsed = parseModelPickerEstimates(data?.estimates);
+        if (parsed) setModelPickerEstimates(parsed);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    refreshPickerEstimates(chatId ?? initialChatId, true);
+  }, [chatId, initialChatId, refreshPickerEstimates]);
 
   const persistChatSettings = useCallback(
     async (requested: { chatTitle: string; narrativePov: NarrativePov }): Promise<boolean> => {
@@ -1804,7 +1823,7 @@ export default function ChatClient({
     setUserNote(initialUserNote);
     setNotePresets(initialNotePresets);
     setSelectedAI(initialSelectedAI);
-    setModelPickerBaselineEstimates(initialModelPickerBaselineEstimates);
+    setModelPickerEstimates(initialModelPickerEstimates);
     setMode(initialMode);
     setAdultHandoffOn(!!initialAdultHandoffEnabled);
     adultHandoffOnRef.current = !!initialAdultHandoffEnabled;
@@ -1820,7 +1839,7 @@ export default function ChatClient({
     initialUserNote,
     initialNotePresets,
     initialSelectedAI,
-    initialModelPickerBaselineEstimates,
+    initialModelPickerEstimates,
     initialMode,
     initialAdultHandoffEnabled,
     initialTargetResponseChars,
@@ -2083,7 +2102,6 @@ export default function ChatClient({
             data: {
               selectedAI?: SelectedAI;
               activeSitePromotions?: SitePromotionClientView[];
-              modelPickerBaselineEstimates?: unknown;
             } | null
           ) => {
             if (data?.selectedAI && data.selectedAI !== selectedAIRef.current) {
@@ -2092,10 +2110,7 @@ export default function ChatClient({
             if (Array.isArray(data?.activeSitePromotions)) {
               replacePromotions(data.activeSitePromotions);
             }
-            const estimates = parseModelPickerBaselineEstimates(
-              data?.modelPickerBaselineEstimates
-            );
-            if (estimates) setModelPickerBaselineEstimates(estimates);
+            refreshPickerEstimates(chatId ?? initialChatId, true);
           }
         )
         .catch(() => {});
@@ -2109,7 +2124,7 @@ export default function ChatClient({
       window.removeEventListener("focus", sync);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [replacePromotions]);
+  }, [replacePromotions, refreshPickerEstimates, chatId, initialChatId]);
 
   const clientMaxMessageId = useMemo(
     () => messages.reduce((max, m) => (m.id != null && m.id > max ? m.id : max), 0),
@@ -3443,6 +3458,7 @@ export default function ChatClient({
         setMode(data.mode);
       }
       if (data.memoryUpdated) setMemoryRefreshKey((k) => k + 1);
+      refreshPickerEstimates(data.chatId ?? chatId, true);
       setMessages((m) => {
         const copy = [...m];
         if (data.userMessageId != null) {
@@ -6053,6 +6069,7 @@ export default function ChatClient({
             <select
               value={selectedAI}
               onChange={(e) => void handleSelectedAIChange(e.target.value as SelectedAI)}
+              onFocus={() => refreshPickerEstimates(chatId ?? initialChatId, false)}
               disabled={inputLocked}
               className="max-w-full rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -6061,7 +6078,7 @@ export default function ChatClient({
                   {selectedAIOptionLabel(
                     o.id as SelectedAI,
                     activeSitePromotionsByModelId,
-                    modelPickerBaselineEstimates
+                    modelPickerEstimates
                   )}
                 </option>
               ))}

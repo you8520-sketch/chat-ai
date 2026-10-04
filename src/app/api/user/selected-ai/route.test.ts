@@ -52,9 +52,9 @@ describe("/api/user/selected-ai Gemini 3.7 Flash allow-list", () => {
   it("PATCH uses admin-aware user selectable allow-list", () => {
     assert.match(ROUTE_SOURCE, /isUserSelectableAI\(requested, isAdmin\)/);
     assert.match(CHAT_CLIENT_SOURCE, /userSelectableAIOptionsForUser\(isAdmin\)/);
-    assert.match(ROUTE_SOURCE, /modelPickerBaselineEstimates/);
-    assert.match(CHAT_CLIENT_SOURCE, /modelPickerBaselineEstimates/);
+    assert.doesNotMatch(ROUTE_SOURCE, /modelPickerBaselineEstimates/);
     assert.match(CHAT_CLIENT_SOURCE, /selectedAIOptionLabel\(/);
+    assert.match(CHAT_CLIENT_SOURCE, /\/api\/chat\/next-turn-estimates/);
   });
 
   it("allows Gemini 3.7 Flash select/save and keeps sibling picker models", () => {

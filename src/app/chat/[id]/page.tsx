@@ -36,9 +36,9 @@ import {
   MAIN_RP_MODEL_IDS,
   selectedAILabel,
 } from "@/lib/chatModels";
-import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
-import { computeMainRpPickerBaselineEstimates } from "@/lib/modelPickerBaselineEstimate";
+import type { ModelPickerEstimateMap } from "@/lib/modelPickerBaselineEstimate";
 import { resolveActiveSitePromotionsForModels } from "@/lib/sitePromotion";
+import { resolveMainRpNextTurnPickerEstimates } from "@/services/mainRpNextTurnEstimate";
 
 import { ensureDefaultPublicPersona, validatePersonaSelection } from "@/lib/userPersonas";
 import { listUserNotePresets } from "@/lib/userNotePresets";
@@ -511,9 +511,17 @@ export default async function ChatPage({
     new Date().toISOString(),
     selectedAILabel
   );
-  const initialModelPickerBaselineEstimates = computeMainRpPickerBaselineEstimates(
-    getEffectiveKrwPerUsd()
-  );
+  let initialModelPickerEstimates: ModelPickerEstimateMap = {};
+  try {
+    const nextTurn = await resolveMainRpNextTurnPickerEstimates({
+      chatId: chat.id,
+      user,
+      refresh: false,
+    });
+    if (nextTurn) initialModelPickerEstimates = nextTurn.displayPoints;
+  } catch {
+    initialModelPickerEstimates = {};
+  }
 
   const isSimulation = c.content_kind === "simulation";
   const initialNarrativePov = resolveNarrativePov({
@@ -563,7 +571,7 @@ export default async function ChatPage({
       initialSelectedAI={globalModelEntry.selectedAI}
       initialGlobalModelNotice={globalModelEntry.notice}
       initialActiveSitePromotions={initialActiveSitePromotions}
-      initialModelPickerBaselineEstimates={initialModelPickerBaselineEstimates}
+      initialModelPickerEstimates={initialModelPickerEstimates}
       initialTargetResponseChars={userChatPrefs.targetResponseChars}
       initialChatTitle={chat?.title ?? ""}
       initialDisplayPrefs={userChatPrefs.displayPrefs}

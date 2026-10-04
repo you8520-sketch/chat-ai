@@ -9,18 +9,12 @@ import {
   selectedAILabel,
   type SelectedAI,
 } from "@/lib/chatModels";
-import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
-import { computeMainRpPickerBaselineEstimates } from "@/lib/modelPickerBaselineEstimate";
 import { resolveActiveSitePromotionsForModels } from "@/lib/sitePromotion";
 import {
   consumeSelectedAiEntryNotice,
   getUserChatSelectedAI,
   setUserSelectedAI,
 } from "@/lib/userSelectedAI";
-
-function pickerBaselineEstimates() {
-  return computeMainRpPickerBaselineEstimates(getEffectiveKrwPerUsd());
-}
 
 function sessionIsAdmin(user: User): boolean {
   const db = getDb();
@@ -58,7 +52,6 @@ export async function GET(req: Request) {
       notice,
       noticeKind: kind,
       activeSitePromotions,
-      modelPickerBaselineEstimates: pickerBaselineEstimates(),
     });
   }
 
@@ -72,7 +65,6 @@ export async function GET(req: Request) {
     selectedAI,
     label: selectedAILabel(selectedAI),
     activeSitePromotions,
-    modelPickerBaselineEstimates: pickerBaselineEstimates(),
   });
 }
 
@@ -96,6 +88,5 @@ export async function PATCH(req: Request) {
     selectedAI,
     changed,
     label: selectedAILabel(selectedAI),
-    modelPickerBaselineEstimates: pickerBaselineEstimates(),
   });
 }
