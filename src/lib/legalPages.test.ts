@@ -23,7 +23,7 @@ import {
   EMAIL_SIGNUP_MAX_SENDS,
   EMAIL_SIGNUP_RESEND_COOLDOWN_MS,
   EMAIL_SIGNUP_TOKEN_TTL_MS,
-} from "./emailSignupVerification";
+} from "./emailSignupConstants";
 import {
   flattenLegalPageText,
   LEGAL_DOCUMENT_AS_OF,
@@ -43,12 +43,34 @@ import {
   POINT_CHARGE_CANCEL_DAYS,
   POINT_CHARGE_PACKAGES,
   SIGNUP_BONUS_POINTS,
+  pointChargePackageBonusPercent,
 } from "./plans";
+import { PAYMENTS_DISABLED_MESSAGE } from "./portoneConfig";
+import {
+  MEMBER_PAID_CHARGE_UNAVAILABLE_MESSAGE,
+  MEMBER_PAID_POINT_CHARGE_PUBLICLY_AVAILABLE,
+  SERVICE_PUBLIC_COMMERCE_NOTICE_PARAGRAPHS,
+} from "./servicePublicCommerce";
 
 const GIFT_FEE_PAID_PERCENT = Math.round(POINT_GIFT_FEE_RATE_PAID * 100);
 const GIFT_FEE_FREE_PERCENT = Math.round(POINT_GIFT_FEE_RATE_FREE * 100);
 const EMAIL_TOKEN_MINUTES = EMAIL_SIGNUP_TOKEN_TTL_MS / 60_000;
 const EMAIL_RESEND_MINUTES = EMAIL_SIGNUP_RESEND_COOLDOWN_MS / 60_000;
+const INTERNAL_PUBLIC_TERMS = [
+  "PORTONE_CHARGE_ENABLED",
+  "NEXT_PUBLIC_PAYMENTS_ENABLED",
+  "SKIP_ADULT_VERIFICATION",
+  "email_verify",
+  "training_consent",
+  "oauth_state",
+  "notice_read_id",
+  "현재 코드가",
+  "사업자 상태 휴업",
+];
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 test("public legal links are terms, privacy, and refund", () => {
   assert.deepEqual(PUBLIC_LEGAL_LINKS, [
@@ -74,47 +96,64 @@ test("legal pages expose article numbers, anchors, and the shared effective date
   }
 });
 
+test("one public commerce notice owner is reused and member charge stays unavailable", () => {
+  assert.equal(MEMBER_PAID_POINT_CHARGE_PUBLICLY_AVAILABLE, false);
+  assert.equal(PAYMENTS_DISABLED_MESSAGE, MEMBER_PAID_CHARGE_UNAVAILABLE_MESSAGE);
+  assert.equal(SERVICE_PUBLIC_COMMERCE_NOTICE_PARAGRAPHS.length, 1);
+  const notice = SERVICE_PUBLIC_COMMERCE_NOTICE_PARAGRAPHS[0] ?? "";
+  assert.match(notice, new RegExp(SERVICE_PUBLIC_STATUS));
+  assert.match(notice, /일반 회원의 유료 포인트 결제는 제공하지 않습니다/);
+  assert.match(notice, /지정 심사 계정에서만 테스트 결제가 제공/);
+  assert.match(notice, /포인트 지급 및 매출로 처리되지 않습니다/);
+  for (const page of [TERMS_PAGE, PRIVACY_PAGE, PAYMENT_REFUND_PAGE]) {
+    const text = flattenLegalPageText(page);
+    for (const paragraph of SERVICE_PUBLIC_COMMERCE_NOTICE_PARAGRAPHS) {
+      assert.match(text, new RegExp(escapeRegExp(paragraph)));
+    }
+  }
+});
+
 test("privacy copy states proven processing facts and does not invent compliance", () => {
   const text = flattenLegalPageText(PRIVACY_PAGE);
   assert.match(text, /하브/);
-  assert.match(text, /계정 식별자\(sub\)/);
+  assert.match(text, /계정 식별자/);
   assert.match(text, /이메일/);
-  assert.match(text, /표시 이름\(name\)/);
+  assert.match(text, /표시 이름/);
   assert.match(text, /회원 가입, 이메일 인증, 로그인, 기존 계정 연결/);
-  assert.match(text, /openid, email, profile/);
-  assert.match(text, /session 쿠키/);
-  assert.match(text, /email_verify/);
+  assert.match(text, /로그인 세션 쿠키/);
   assert.match(text, /OpenRouter/);
   assert.match(text, /Cheaper Inference/);
   assert.match(text, /Resend/);
-  assert.match(text, /대기 가입/);
   assert.match(text, new RegExp(`인증 링크 유효기간 ${EMAIL_TOKEN_MINUTES}분`));
   assert.match(text, /계정 전체를 삭제하는 기능은 없습니다/);
   assert.match(text, /별도로 지정·공개된 개인정보 보호책임자/);
   assert.match(text, /국외에 서버를 둘 수 있는 외부 제공업체/);
   assert.match(text, /이전 국가, 보유 기간, 법적 근거, 거부권 행사 방법/);
-  assert.match(text, /광고성 이메일·문자 발송 기능은 현재 서비스 코드에 없습니다/);
-  assert.match(text, /이용자가 동의하는 화면은 없고/);
+  assert.match(text, /광고성 이메일·문자 발송 기능은 현재 없습니다/);
   assert.match(text, /저장된 성인 표시와 모의 인증은 성인 콘텐츠 열람을 열지 않습니다/);
   assert.match(text, /기존 관리자 권한의 베타 테스트 접근만/);
-  assert.match(text, /PORTONE_CHARGE_ENABLED가 명시적으로 1 또는 true/);
   assert.match(text, /포인트를 지급하지 않고 매출로 집계하지 않습니다/);
+  assert.match(text, new RegExp(escapeRegExp(BUSINESS_CUSTOMER_SERVICE_PHONE)));
   for (const line of BUSINESS_PUBLIC_LINES) {
-    assert.match(text, new RegExp(line.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(text, new RegExp(escapeRegExp(line)));
+  }
+  for (const term of INTERNAL_PUBLIC_TERMS) {
+    assert.doesNotMatch(text, new RegExp(escapeRegExp(term)));
   }
   assert.doesNotMatch(text, /주식회사|자동으로 완전히|제3자에게 제공하지 않/);
   assert.doesNotMatch(text, /통신판매업 신고번호 \d/);
-  assert.doesNotMatch(text, /사업자 상태 휴업/);
-  assert.doesNotMatch(text, /PORTONE_CHARGE_ENABLED가 0이 아니면/);
+  assert.doesNotMatch(text, /휴업/);
   assert.doesNotMatch(text, /가입하면 바로 저장|가입 즉시/);
   assert.doesNotMatch(text, /성인 확인을 생략합니다/);
 });
 
-test("terms stay within the current development and test service", () => {
+test("terms are production user terms without developer wording", () => {
   const text = flattenLegalPageText(TERMS_PAGE);
   assert.match(text, /하브/);
-  assert.match(text, /개발·시험 단계/);
-  assert.match(text, new RegExp(SERVICE_PUBLIC_STATUS));
+  assert.match(text, /목적/);
+  assert.match(text, /정의/);
+  assert.match(text, /이용계약/);
+  assert.match(text, /금지행위/);
   assert.match(text, /계정 전체를 삭제하는 기능은 현재 없습니다/);
   assert.match(text, /비밀번호 재설정/);
   assert.match(text, /계정이 바로 만들어지지 않습니다/);
@@ -123,45 +162,56 @@ test("terms stay within the current development and test service", () => {
   assert.match(text, new RegExp(`최대 ${EMAIL_SIGNUP_MAX_SENDS}회`));
   assert.match(text, new RegExp(`${SIGNUP_BONUS_POINTS.toLocaleString("ko-KR")}P`));
   assert.match(text, /한 번만 지급됩니다/);
-  assert.match(text, /저장된 성인 표시는 성인 콘텐츠 열람을 열지 않습니다/);
+  assert.match(text, /저장된 성인 표시만으로는 성인 콘텐츠 열람이 열리지 않습니다/);
   assert.match(text, /기존 관리자 권한의 베타 테스트 접근만/);
+  assert.match(text, new RegExp(escapeRegExp(BUSINESS_CUSTOMER_SERVICE_PHONE)));
+  for (const term of INTERNAL_PUBLIC_TERMS) {
+    assert.doesNotMatch(text, new RegExp(escapeRegExp(term)));
+  }
   assert.doesNotMatch(text, /준거법|중재|주식회사/);
-  assert.doesNotMatch(text, /이메일 인증, 비밀번호 재설정, 계정 전체를 삭제하는 기능은 현재 없습니다/);
+  assert.doesNotMatch(text, /개발·시험 단계/);
   assert.doesNotMatch(text, /가입 즉시/);
   assert.doesNotMatch(text, /성인 확인을 생략합니다/);
+  assert.doesNotMatch(text, /휴업/);
 });
 
-test("terms and refund publish confirmed business or product facts without invented contacts", () => {
+test("terms and refund publish confirmed products and refund support without invented contacts", () => {
   const terms = flattenLegalPageText(TERMS_PAGE);
   const refund = flattenLegalPageText(PAYMENT_REFUND_PAGE);
   assert.match(terms, new RegExp(SERVICE_PUBLIC_NAME));
   assert.match(terms, new RegExp(`법적 상호는 ${BUSINESS_TRADE_NAME}`));
   for (const line of BUSINESS_PUBLIC_LINES) {
-    assert.match(terms, new RegExp(line.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(terms, new RegExp(escapeRegExp(line)));
   }
   for (const text of [terms, refund]) {
-    assert.match(text, /상품 공개와 실제 결제 활성화는 별개/);
-    assert.match(text, new RegExp(`현재 서비스 상태는 ${SERVICE_PUBLIC_STATUS}이며 일반 회원 결제는 활성화하지 않습니다`));
-    assert.match(text, /PORTONE_CHARGE_ENABLED가 명시적으로 1 또는 true/);
-    assert.match(text, /포인트를 지급하지 않고 매출로 집계하지 않습니다/);
-    assert.match(text, /시험용 결제와 일반 회원의 유료 구매 가능 여부는 다릅니다/);
     assert.match(text, new RegExp(`지급일로부터 ${PAID_POINTS_VALID_YEARS}년`));
     assert.match(text, new RegExp(`지급일로부터 ${ATTENDANCE_POINTS_VALID_DAYS}일`));
     assert.match(text, new RegExp(`충전 후 ${POINT_CHARGE_CANCEL_DAYS}일 이내`));
     assert.match(text, new RegExp(ATTENDANCE_DAY_REWARDS.map((points) => `${points}P`).join("·")));
+    assert.match(text, /070-8080-5884/);
     for (const pkg of POINT_CHARGE_PACKAGES) {
-      assert.match(text, new RegExp(formatPointChargePackagePublicLine(pkg).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+      assert.match(text, new RegExp(escapeRegExp(formatPointChargePackagePublicLine(pkg))));
+      if (pkg.bonusPoints > 0) {
+        assert.match(text, new RegExp(`보너스 ${pkg.bonusPoints.toLocaleString("ko-KR")}P`));
+        assert.equal(pointChargePackageBonusPercent(pkg) > 0, true);
+      }
+    }
+    for (const term of INTERNAL_PUBLIC_TERMS) {
+      assert.doesNotMatch(text, new RegExp(escapeRegExp(term)));
     }
     assert.doesNotMatch(text, /통신판매업 신고번호 \d/);
     assert.doesNotMatch(text, /159-31-01749/);
-    assert.doesNotMatch(text, /PORTONE_CHARGE_ENABLED가 0이 아니면/);
+    assert.doesNotMatch(text, /휴업/);
   }
+  assert.match(terms, /519-31-01749/);
   assert.match(terms, /고객센터 이메일 admin@hav\.chat/);
   assert.match(refund, new RegExp(`유료 ${GIFT_FEE_PAID_PERCENT}%`));
   assert.match(refund, new RegExp(`무료 ${GIFT_FEE_FREE_PERCENT}%`));
   assert.match(refund, new RegExp(`${MIN_POINT_GIFT_AMOUNT.toLocaleString("ko-KR")}P`));
   assert.match(refund, /인증 확인이 완료된 뒤에 한 번만 지급됩니다/);
+  assert.match(refund, /하브가 제공하는 지원 경로/);
   assert.match(refund, /전자상거래법상 청약철회·계약해제와 같은 권리가 아닙니다/);
+  assert.match(refund, /법정 권리가 제한된다고 쓰지 않습니다/);
   assert.doesNotMatch(refund, /이메일 가입 시 무료 포인트/);
 });
 
@@ -189,6 +239,7 @@ test("legal footer remains the site-wide renderer and public pages stay server-r
   assert.match(footer, /min-\[576px\]:pl-\[200px\]/);
   assert.doesNotMatch(footer, /space-y-0\.5/);
   assert.doesNotMatch(footer, /통신판매업|고객센터 전화/);
+  assert.doesNotMatch(footer, /휴업/);
   assert.equal(layout.match(/<SiteLegalFooter \/>/g)?.length, 1);
   assert.match(document, /시행일/);
   assert.match(document, /목차/);

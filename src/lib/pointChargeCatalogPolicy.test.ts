@@ -327,7 +327,7 @@ describe("point charge catalog — public disclosure", () => {
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.tradeName, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.representativeName, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.businessAddress, "confirmed");
-    assert.equal(BUSINESS_IDENTITY_VERIFICATION.phoneNumber, "unverified");
+    assert.equal(BUSINESS_IDENTITY_VERIFICATION.phoneNumber, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.customerServiceEmail, "confirmed");
     assert.equal(BUSINESS_IDENTITY_VERIFICATION.mailOrderReportNumber, "unverified");
   });
