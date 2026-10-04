@@ -634,12 +634,7 @@ describe("mainRpPricingCandidateBand — integration", () => {
         published.commercialPricingOwner,
         `Main RP model ${row.modelId} must explicitly declare commercialPricingOwner`
       );
-      assert.equal(
-        row.candidate.commercialPricingOwner,
-        row.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL
-          ? "derived_reference_rates"
-          : "target_margin"
-      );
+      assert.equal(row.candidate.commercialPricingOwner, "target_margin");
     }
   });
 
@@ -678,10 +673,11 @@ describe("mainRpPricingCandidateBand — integration", () => {
     );
   });
 
-  it("Opus 5.5 derived-reference-rate owner cannot produce a targetMargin proposal", () => {
+  it("Opus 5.5 uses the same target-margin candidate path as the other active models", () => {
     clearCheaperInferenceCatalogPricingForTest();
     const published = getPublishedPricing(CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL);
-    assert.equal(resolvePublishedCommercialPricingOwner(published), "derived_reference_rates");
+    assert.equal(resolvePublishedCommercialPricingOwner(published), "target_margin");
+    assert.equal(published.targetMargin, 0.45);
 
     const row = buildMainRpPricingObservabilityProjection({
       fxSnapshot: FX_FIXTURE,
@@ -690,10 +686,10 @@ describe("mainRpPricingCandidateBand — integration", () => {
       (candidate) => candidate.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL
     )!;
 
-    assert.equal(row.candidate.commercialPricingOwner, "derived_reference_rates");
-    assert.equal(row.candidate.status, "HOLD_NON_TARGET_MARGIN_PRICING_OWNER");
-    assert.equal(row.candidate.candidateDirection, "HOLD");
-    assert.equal(row.candidate.candidateTargetMargin, null);
+    assert.equal(row.candidate.commercialPricingOwner, "target_margin");
+    assert.equal(row.candidate.currentTargetMargin, 0.45);
+    assert.ok((row.candidate.representative.currentPoints ?? 0) > 0);
+    assert.notEqual(row.candidate.status, "UNAVAILABLE");
   });
 
   it("DeepSeek without hard benchmark → HOLD_NO_HARD_MARKET_EVIDENCE with floor diagnostic optional", () => {
