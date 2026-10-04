@@ -127,8 +127,16 @@ test("privacy copy states proven processing facts and does not invent compliance
   assert.match(text, new RegExp(`인증 링크 유효기간 ${EMAIL_TOKEN_MINUTES}분`));
   assert.match(text, /계정 전체를 삭제하는 기능은 없습니다/);
   assert.match(text, /별도로 지정·공개된 개인정보 보호책임자/);
-  assert.match(text, /국외에 서버를 둘 수 있는 외부 제공업체/);
-  assert.match(text, /이전 국가, 보유 기간, 법적 근거, 거부권 행사 방법/);
+  assert.match(text, new RegExp(`문의 창구는 대표자 ${BUSINESS_REPRESENTATIVE_NAME}`));
+  assert.match(text, /소상공인 예외에 해당하는지는/);
+  assert.match(text, /대표자가 보호책임자가 된다고 쓰지 않습니다/);
+  assert.match(text, /OpenRouter, Inc\./);
+  assert.match(text, /Keak AI, Inc\./);
+  assert.match(text, /미국에 저장한다고 적습니다/);
+  assert.match(text, /최대 30일 둔다고 적습니다/);
+  assert.match(text, /제28조의8 제2항/);
+  assert.match(text, /그 고지가 완료되었다고 쓰지 않습니다/);
+  assert.doesNotMatch(text, /국외에 서버를 둘 수 있는 외부 제공업체/);
   assert.match(text, /광고성 이메일·문자 발송 기능은 현재 없습니다/);
   assert.match(text, /저장된 성인 표시와 모의 인증은 성인 콘텐츠 열람을 열지 않습니다/);
   assert.match(text, /기존 관리자 권한의 베타 테스트 접근만/);
@@ -162,6 +170,11 @@ test("terms are production user terms without developer wording", () => {
   assert.match(text, new RegExp(`최대 ${EMAIL_SIGNUP_MAX_SENDS}회`));
   assert.match(text, new RegExp(`${SIGNUP_BONUS_POINTS.toLocaleString("ko-KR")}P`));
   assert.match(text, /한 번만 지급됩니다/);
+  assert.match(text, /회원가입을 완료함으로써 성립합니다/);
+  assert.match(text, /체크박스나 별도 기록은 없습니다/);
+  assert.doesNotMatch(text, /확인한 뒤 회원가입을 완료/);
+  assert.match(text, /성인 이용자에게만 제공되는 기능/);
+  assert.doesNotMatch(text, /성인만 이용해서는 안 됩니다/);
   assert.match(text, /저장된 성인 표시만으로는 성인 콘텐츠 열람이 열리지 않습니다/);
   assert.match(text, /기존 관리자 권한의 베타 테스트 접근만/);
   assert.match(text, new RegExp(escapeRegExp(BUSINESS_CUSTOMER_SERVICE_PHONE)));
@@ -283,4 +296,13 @@ test("business identity keeps brand and legal name distinct, publishes confirmed
   assert.equal(BUSINESS_PUBLIC_LINES.filter((line) => line.includes("고객센터 전화")).length, 1);
   assert.equal(BUSINESS_PUBLIC_LINES.filter((line) => line.includes("고객센터 이메일")).length, 1);
   assert.equal(BUSINESS_IDENTITY_VERIFICATION.mailOrderReportNumber, "unverified");
+});
+
+test("attendance expiry legal text follows the later-confirmed 21-day owner", () => {
+  assert.equal(ATTENDANCE_POINTS_VALID_DAYS, 21);
+  for (const page of [TERMS_PAGE, PAYMENT_REFUND_PAGE]) {
+    const text = flattenLegalPageText(page);
+    assert.match(text, /지급일로부터 21일/);
+    assert.doesNotMatch(text, /출석 포인트의 유효기간은 지급일로부터 30일/);
+  }
 });
