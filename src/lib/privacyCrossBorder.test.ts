@@ -29,7 +29,7 @@ test("cross-border table lists only live production personal-data paths", () => 
   }
 });
 
-test("public privacy paragraphs publish confirmed rows only", () => {
+test("public privacy table lists every live row and does not guess unknown cells", () => {
   assert.equal(CROSS_BORDER_ARTICLE_28_8_DISCLOSURE_COMPLETE, false);
   assert.deepEqual(
     CONFIRMED_CROSS_BORDER_TRANSFERS.map((row) => row.id),
@@ -39,12 +39,16 @@ test("public privacy paragraphs publish confirmed rows only", () => {
   assert.match(publicText, /Plus Five Five, Inc\.\(Resend\)/);
   assert.match(publicText, /support@resend\.com/);
   assert.match(publicText, /미국/);
+  assert.match(publicText, /OpenRouter, Inc\./);
+  assert.match(publicText, /Keak AI, Inc\./);
+  assert.match(publicText, /확인되지 않음/);
   assert.doesNotMatch(publicText, /미확정/);
-  assert.doesNotMatch(publicText, /OpenRouter, Inc\./);
-  assert.doesNotMatch(publicText, /Keak AI, Inc\./);
   assert.doesNotMatch(publicText, /코리아포트원/);
   assert.doesNotMatch(publicText, /Vercel Inc\./);
-  assert.match(publicText, /그 고지가 완료되었다고 쓰지 않습니다/);
+  assert.doesNotMatch(publicText, /그 고지가 완료되었다고 쓰지 않습니다/);
+  for (const row of CROSS_BORDER_TRANSFERS) {
+    assert.match(publicText, new RegExp(row.recipient.publicValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
 });
 
 test("OpenRouter and Cheaper Inference countries stay unresolvable without architecture change", () => {

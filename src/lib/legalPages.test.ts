@@ -120,11 +120,12 @@ test("one public commerce notice owner is reused and member charge stays unavail
   assert.match(notice, new RegExp(SERVICE_PUBLIC_STATUS));
   assert.match(notice, /일반 회원의 유료 포인트 결제는 제공하지 않습니다/);
   assert.match(notice, /지정 심사 계정에서만 테스트 결제가 제공/);
-  assert.match(notice, /포인트 지급 및 매출로 처리되지 않습니다/);
+  assert.doesNotMatch(notice, /매출로 처리/);
   for (const page of [TERMS_PAGE, PRIVACY_PAGE, PAYMENT_REFUND_PAGE]) {
     const text = flattenLegalPageText(page);
     for (const paragraph of SERVICE_PUBLIC_COMMERCE_NOTICE_PARAGRAPHS) {
-      assert.match(text, new RegExp(escapeRegExp(paragraph)));
+      const matches = text.split(paragraph).length - 1;
+      assert.equal(matches, 1);
     }
   }
 });
@@ -145,23 +146,23 @@ test("privacy copy states proven processing facts and does not invent compliance
   assert.match(text, new RegExp(`개인정보 보호책임자는 대표자 ${PERSONAL_INFORMATION_PROTECTION_OFFICER_NAME}`));
   assert.match(text, new RegExp(`전화 ${PERSONAL_INFORMATION_PROTECTION_OFFICER_PHONE}`));
   assert.match(text, new RegExp(`이메일 ${PERSONAL_INFORMATION_PROTECTION_OFFICER_EMAIL}`));
-  assert.match(text, /시행령 제32조 제2항 제2호/);
+  assert.doesNotMatch(text, /시행령 제32조/);
   assert.doesNotMatch(text, /보호책임자는 현재 없습니다/);
   assert.doesNotMatch(text, /대표자가 보호책임자가 된다고 쓰지 않습니다/);
   assert.doesNotMatch(text, /소상공인 예외에 해당하는지는/);
   assert.match(text, /Plus Five Five, Inc\.\(Resend\)/);
-  assert.match(text, /미국에 저장한다고 적습니다/);
-  assert.doesNotMatch(text, /OpenRouter, Inc\./);
-  assert.doesNotMatch(text, /Keak AI, Inc\./);
-  assert.doesNotMatch(text, /최대 30일 둔다고 적습니다/);
-  assert.match(text, /제28조의8 제2항/);
-  assert.match(text, /그 고지가 완료되었다고 쓰지 않습니다/);
+  assert.match(text, /미국/);
+  assert.match(text, /OpenRouter, Inc\./);
+  assert.match(text, /Keak AI, Inc\./);
+  assert.match(text, /최대 30일/);
+  assert.match(text, /제28조의8 제1항 제3호 가목/);
+  assert.doesNotMatch(text, /그 고지가 완료되었다고 쓰지 않습니다/);
   assert.doesNotMatch(text, /미확정/);
   assert.doesNotMatch(text, /국외에 서버를 둘 수 있는 외부 제공업체/);
   assert.match(text, /광고성 이메일·문자 발송 기능은 현재 없습니다/);
   assert.match(text, /저장된 성인 표시와 모의 인증은 성인 콘텐츠 열람을 열지 않습니다/);
   assert.match(text, /기존 관리자 권한의 베타 테스트 접근만/);
-  assert.match(text, /포인트를 지급하지 않고 매출로 집계하지 않습니다/);
+  assert.doesNotMatch(text, /매출로 집계하지 않습니다/);
   assert.match(text, new RegExp(escapeRegExp(BUSINESS_CUSTOMER_SERVICE_PHONE)));
   for (const line of BUSINESS_PUBLIC_LINES) {
     assert.match(text, new RegExp(escapeRegExp(line)));
@@ -278,6 +279,7 @@ test("legal footer remains the site-wide renderer and public pages stay server-r
   assert.match(document, /시행일/);
   assert.match(document, /목차/);
   assert.match(document, /제\$\{section\.article\}조/);
+  assert.match(document, /section\.table/);
   assert.doesNotMatch(privacy, /getSessionUser|redirect\(/);
   assert.doesNotMatch(terms, /getSessionUser|redirect\(/);
   assert.doesNotMatch(refund, /getSessionUser|redirect\(/);
@@ -354,12 +356,16 @@ test("privacy cross-border copy is owned by one table and is not a complete 28-8
     assert.match(privacy, new RegExp(escapeRegExp(paragraph)));
     assert.doesNotMatch(paragraph, /미확정/);
   }
+  assert.match(privacy, /OpenRouter, Inc\./);
+  assert.match(privacy, /Keak AI, Inc\./);
+  assert.match(privacy, /확인되지 않음/);
   assert.doesNotMatch(privacy, /코리아포트원/);
   assert.doesNotMatch(privacy, /Vercel Inc\./);
   const incomplete = CROSS_BORDER_TRANSFERS.filter((row) => !isCrossBorderRowComplete(row));
   assert.equal(incomplete.length > 0, true);
   for (const row of incomplete) {
     assert.doesNotMatch(privacy, new RegExp(escapeRegExp(row.legalBasis.publicValue)));
+    assert.doesNotMatch(privacy, new RegExp(escapeRegExp(row.countries.publicValue)));
   }
 });
 

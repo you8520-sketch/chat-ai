@@ -50,6 +50,39 @@ export function LegalDocument({
             {section.paragraphs.map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}
+            {section.table ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-[56rem] border-collapse text-xs leading-5">
+                  <thead>
+                    <tr>
+                      {section.table.columns.map((column) => (
+                        <th
+                          key={column}
+                          scope="col"
+                          className="border border-white/10 bg-white/[0.03] px-2 py-2 text-left font-medium text-zinc-200"
+                        >
+                          {column}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {section.table.rows.map((row, rowIndex) => (
+                      <tr key={`${row[0] ?? "row"}-${rowIndex}`}>
+                        {row.map((cell, cellIndex) => (
+                          <td
+                            key={`${section.table?.columns[cellIndex] ?? cellIndex}-${cell}`}
+                            className="border border-white/10 px-2 py-2 align-top text-zinc-300"
+                          >
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
           </section>
         ))}
         {related.length > 0 ? (

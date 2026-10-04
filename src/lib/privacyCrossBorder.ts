@@ -75,14 +75,13 @@ const UNCONFIRMED_LEGAL_BASIS: CrossBorderField = {
 
 const REQUEST_TIME_NETWORK: CrossBorderField = {
   status: "confirmed",
-  publicValue: "해당 기능을 요청한 시점에 네트워크로 전송합니다.",
+  publicValue: "해당 기능 요청 시 네트워크로 전송",
   source: null,
 };
 
 const REFUSAL_METHOD: CrossBorderField = {
   status: "confirmed",
-  publicValue:
-    "해당 기능을 요청하지 않으면 그 경로로 전송되지 않습니다. 이미 전송된 내용의 국외 이전을 나중에 철회하는 별도 절차는 현재 없습니다.",
+  publicValue: "해당 기능을 이용하지 않으면 전송되지 않습니다. 이미 전송된 내용의 철회 절차는 없습니다.",
   source: null,
 };
 
@@ -119,8 +118,7 @@ export const CROSS_BORDER_TRANSFERS = [
     },
     items: {
       status: "confirmed",
-      publicValue:
-        "대화 응답: 이용자 메시지, 캐릭터 설정, 페르소나, 대화에 연결된 기억과 요약. 기억 검색용 임베딩: 추출한 기억 문장.",
+      publicValue: "대화 메시지, 캐릭터·페르소나, 기억·요약, 기억 검색 문장",
       source: null,
     },
     countries: {
@@ -154,12 +152,12 @@ export const CROSS_BORDER_TRANSFERS = [
     },
     recipientContact: {
       status: "confirmed",
-      publicValue: "공식 처리수탁 부속합의서의 개인정보 문의 양식",
+      publicValue: "cheaperinference.com 개인정보 문의",
       source: "https://cheaperinference.com/legal/dpa",
     },
     items: {
       status: "confirmed",
-      publicValue: "선택한 모델로 대화 응답을 만들 때 보내는 이용자 메시지, 캐릭터 설정, 페르소나, 기억과 요약",
+      publicValue: "대화 메시지, 캐릭터·페르소나, 기억·요약",
       source: null,
     },
     countries: {
@@ -171,7 +169,7 @@ export const CROSS_BORDER_TRANSFERS = [
     timingMethod: REQUEST_TIME_NETWORK,
     purpose: {
       status: "confirmed",
-      publicValue: "선택한 모델로 대화 응답을 생성",
+      publicValue: "대화 응답 생성",
       source: null,
     },
     retention: {
@@ -198,7 +196,7 @@ export const CROSS_BORDER_TRANSFERS = [
     },
     items: {
       status: "confirmed",
-      publicValue: "이미지 생성·편집 요청 시의 프롬프트와 참조 이미지",
+      publicValue: "이미지 생성·편집 프롬프트와 참조 이미지",
       source: null,
     },
     countries: {
@@ -215,8 +213,7 @@ export const CROSS_BORDER_TRANSFERS = [
     },
     retention: {
       status: "confirmed",
-      publicValue:
-        "공식 API 자료는 이미지 생성·편집 경로의 입력을 남용 모니터링을 위해 최대 30일 둔다고 적습니다.",
+      publicValue: "최대 30일",
       source: "https://developers.openai.com/api/docs/guides/your-data",
     },
     legalBasis: UNCONFIRMED_LEGAL_BASIS,
@@ -237,8 +234,7 @@ export const CROSS_BORDER_TRANSFERS = [
     },
     items: {
       status: "confirmed",
-      publicValue:
-        "Google 로그인: 계정 식별자, 이메일, 표시 이름. 글꼴 옵션: 브라우저의 글꼴 요청. 피드백: 이용자 식별 정보, 닉네임, 내용.",
+      publicValue: "Google 로그인 계정 식별자·이메일·표시 이름, 글꼴 요청, 피드백 내용",
       source: null,
     },
     countries: {
@@ -280,7 +276,7 @@ export const CROSS_BORDER_TRANSFERS = [
     },
     countries: {
       status: "confirmed",
-      publicValue: "미국. 공식 GDPR 안내는 메시지 내용, 발송 기록, 계정 기록을 미국에 저장한다고 적습니다.",
+      publicValue: "미국",
       source: "https://resend.com/security/gdpr",
     },
     timingMethod: REQUEST_TIME_NETWORK,
@@ -291,14 +287,12 @@ export const CROSS_BORDER_TRANSFERS = [
     },
     retention: {
       status: "confirmed",
-      publicValue:
-        "공식 방침은 서비스를 제공하고 법적 의무를 이행하는 데 필요한 기간 동안 둔다고 적습니다.",
+      publicValue: "서비스 제공 및 법적 의무 이행에 필요한 기간",
       source: "https://resend.com/legal/privacy-policy",
     },
     legalBasis: {
       status: "confirmed",
-      publicValue:
-        "개인정보 보호법 제28조의8 제1항 제3호 가목. 이메일 가입 계약을 마치기 위해 인증 메일 발송·보관이 필요하며, 같은 조 제2항 사항을 이 방침에 공개합니다.",
+      publicValue: "개인정보 보호법 제28조의8 제1항 제3호 가목",
       source: "https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1029334957",
     },
     refusalMethod: REFUSAL_METHOD,
@@ -323,34 +317,46 @@ export const CROSS_BORDER_FINAL_COUNTRY_UNRESOLVABLE_PROVIDER_IDS = [
   "cheaper-inference",
 ] as const;
 
-function formatConfirmedRow(row: CrossBorderTransferRow): string {
-  return [
-    `이전받는 자: ${row.recipient.publicValue}.`,
-    `연락처: ${row.recipientContact.publicValue}.`,
-    `이전 항목: ${row.items.publicValue}.`,
-    `이전 국가: ${row.countries.publicValue}.`,
-    `시기 및 방법: ${row.timingMethod.publicValue}`,
-    `이용 목적: ${row.purpose.publicValue}.`,
-    `보유·이용 기간: ${row.retention.publicValue}`,
-    `법적 근거: ${row.legalBasis.publicValue}`,
-    `거부 방법: ${row.refusalMethod.publicValue}`,
-    `거부 효과: ${row.refusalEffect.publicValue}`,
-  ].join(" ");
+const UNCONFIRMED_PUBLIC_CELL = "확인되지 않음";
+
+function publicCell(field: CrossBorderField): string {
+  return field.status === "confirmed" ? field.publicValue : UNCONFIRMED_PUBLIC_CELL;
 }
 
+export const CROSS_BORDER_PUBLIC_TABLE_COLUMNS = [
+  "이전받는 자",
+  "연락처",
+  "이전 국가",
+  "시기 및 방법",
+  "이전 항목",
+  "이용 목적",
+  "보유·이용 기간",
+  "거부 방법",
+  "거부 효과",
+  "법적 근거",
+] as const;
+
+export const CROSS_BORDER_PUBLIC_TABLE = {
+  columns: CROSS_BORDER_PUBLIC_TABLE_COLUMNS,
+  rows: CROSS_BORDER_TRANSFERS.map((row) => [
+    publicCell(row.recipient),
+    publicCell(row.recipientContact),
+    publicCell(row.countries),
+    publicCell(row.timingMethod),
+    publicCell(row.items),
+    publicCell(row.purpose),
+    publicCell(row.retention),
+    publicCell(row.refusalMethod),
+    publicCell(row.refusalEffect),
+    row.legalBasis.status === "confirmed" ? row.legalBasis.publicValue : UNCONFIRMED_PUBLIC_CELL,
+  ]),
+} as const;
+
+/** User-facing 28-8 table. Live paths stay visible; unknown cells are not guessed. */
 export function formatCrossBorderPrivacyParagraphs(): string[] {
-  const confirmedRows = CROSS_BORDER_TRANSFERS.filter((row) => isCrossBorderRowComplete(row));
-  const paragraphs: string[] = [];
-  if (confirmedRows.length > 0) {
-    paragraphs.push(
-      "아래는 현재 서비스에서 개인정보가 국외로 이전되는 경로 중, 개인정보 보호법 제28조의8 제2항 항목을 공식 자료로 모두 확인한 내용입니다.",
-      ...confirmedRows.map(formatConfirmedRow),
-    );
-  }
-  if (!CROSS_BORDER_ARTICLE_28_8_DISCLOSURE_COMPLETE) {
-    paragraphs.push(
-      "대화 응답, 기억 검색, 이미지 생성·편집, Google 로그인·글꼴·피드백은 국외에서 처리될 수 있습니다. 이전 국가와 보유기간 등 제28조의8 제2항 항목을 공식 자료만으로 모두 확정하지 못해, 그 이전 내역은 이 조에 적지 않습니다. 이 조항만으로 그 고지가 완료되었다고 쓰지 않습니다.",
-    );
-  }
-  return paragraphs;
+  return [
+    "서비스 이용을 위해 아래 업체에 개인정보를 국외로 이전합니다.",
+    CROSS_BORDER_PUBLIC_TABLE.columns.join(" | "),
+    ...CROSS_BORDER_PUBLIC_TABLE.rows.map((row) => row.join(" | ")),
+  ];
 }
