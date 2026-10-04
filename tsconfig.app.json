@@ -19,7 +19,6 @@
     "**/*.test.tsx",
     "**/*.spec.ts",
     "**/*.spec.tsx",
-    "**/*.fixture.ts",
     "**/__tests__/**"
   ]
 }

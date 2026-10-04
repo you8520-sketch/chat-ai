@@ -33,7 +33,7 @@ import {
   prepareLegacyProductionNextTurnHistory,
   sharedOwnerArgsFromLegacyFixture,
   type FrozenLegacyProductionMapperInput,
-} from "@/services/nextTurnAssemblyPreparation.legacyProductionMapper.fixture";
+} from "@/services/nextTurnAssemblyPreparation.legacyProductionMapper.fixture.test";
 import {
   assembleNextTurnContextBuildInput,
   prepareNextTurnHistory,

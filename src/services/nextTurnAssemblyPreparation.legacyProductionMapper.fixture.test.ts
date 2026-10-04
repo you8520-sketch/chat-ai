@@ -1,6 +1,7 @@
 /**
  * TEST-ONLY frozen production mapper from main `bd3db384`.
  * Regression oracle for /api/chat inline ContextBuildInput + history prep.
+ * Named *.test.ts so Next/app typecheck never compile it as production.
  * Do not import from production runtime paths.
  */
 import type { ChatMsg } from "@/lib/ai";
