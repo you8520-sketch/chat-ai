@@ -172,6 +172,14 @@ export function resolveStoredTurnChargeEvidence(
   }
 
   if (settlement) {
+    if (settlement.outcome === "under_recovered") {
+      return finalizeEvidence({
+        status: "not_charged",
+        settledPoints: 0,
+        evidenceStatus: "complete",
+        violations,
+      });
+    }
     if (settlement.outcome === "waived") {
       return finalizeEvidence({
         status: "not_charged",

@@ -61,6 +61,8 @@ export type ModelDirectCostAttribution = {
   userFundedChargedKrw: number;
   userFundedWaivedKrw: number;
   userFundedRefundedKrw: number;
+  /** User-funded generation with a durable under_recovered settlement (0P user charge). */
+  userFundedUnderRecoveredKrw: number;
   /** User-funded generation cost with no chat_turn settlement for that generation. */
   userFundedUnlinkedKrw: number;
   /** Cost whose billing owner cannot be proven from the ledger linkage. */
@@ -73,6 +75,7 @@ export function emptyModelDirectCostAttribution(): ModelDirectCostAttribution {
     userFundedChargedKrw: 0,
     userFundedWaivedKrw: 0,
     userFundedRefundedKrw: 0,
+    userFundedUnderRecoveredKrw: 0,
     userFundedUnlinkedKrw: 0,
     unknownKrw: 0,
   };
@@ -640,7 +643,12 @@ function readMainGenerationModelByRequest(db: Database.Database): Map<string, st
   return map;
 }
 
-type GenerationChargeExplanation = "charged" | "waived" | "refunded" | "unknown";
+type GenerationChargeExplanation =
+  | "charged"
+  | "waived"
+  | "refunded"
+  | "under_recovered"
+  | "unknown";
 
 type UserFundedCostLink = GenerationChargeExplanation | "unlinked";
 
@@ -654,6 +662,7 @@ const GENERATION_CHARGE_RANK: Record<GenerationChargeExplanation, number> = {
   unknown: 0,
   refunded: 1,
   waived: 2,
+  under_recovered: 2,
   charged: 3,
 };
 
@@ -685,8 +694,9 @@ function canonicalSliceTotal(
 
 /**
  * A zero slice total is a waiver only when the billing owner stored outcome
- * `waived` with settled_points 0 and a valid empty snapshot. `legacy_malformed`,
- * `claiming`, and inconsistent rows stay unknown.
+ * `waived` with settled_points 0 and a valid empty snapshot. Durable
+ * `under_recovered` is a separate known 0P outcome, not a waiver or refund.
+ * `legacy_malformed`, `claiming`, and inconsistent rows stay unknown.
  */
 function classifySettlementExplanation(row: {
   request_id: string;
@@ -697,12 +707,17 @@ function classifySettlementExplanation(row: {
   outcome: string | null;
   deduction_slices_json: string | null;
 }): GenerationChargeExplanation {
-  if (isChargeEventRefunded(row)) return "refunded";
   const outcome = typeof row.outcome === "string" ? row.outcome.trim() : "";
   const settled = Number(row.settled_points);
   const parsed = canonicalSliceTotal(
     typeof row.deduction_slices_json === "string" ? row.deduction_slices_json : null
   );
+  // 0P under_recovered is not a refunded charge event. refunded_at must not
+  // reclassify it; unlock/resolve is a later owner, not this column.
+  if (outcome === "under_recovered" && settled === 0 && parsed.ok && parsed.total === 0) {
+    return "under_recovered";
+  }
+  if (isChargeEventRefunded(row)) return "refunded";
   if (outcome === "waived" && settled === 0 && parsed.ok && parsed.total === 0) {
     return "waived";
   }
@@ -824,6 +839,8 @@ function userFundedAttributionBucket(
       return "userFundedWaivedKrw";
     case "refunded":
       return "userFundedRefundedKrw";
+    case "under_recovered":
+      return "userFundedUnderRecoveredKrw";
     case "unlinked":
       return "userFundedUnlinkedKrw";
     case "unknown":
@@ -1561,6 +1578,7 @@ export function buildAdminFinanceSummary(
             userFundedChargedKrw: round1(attribution.userFundedChargedKrw),
             userFundedWaivedKrw: round1(attribution.userFundedWaivedKrw),
             userFundedRefundedKrw: round1(attribution.userFundedRefundedKrw),
+            userFundedUnderRecoveredKrw: round1(attribution.userFundedUnderRecoveredKrw),
             userFundedUnlinkedKrw: round1(attribution.userFundedUnlinkedKrw),
             unknownKrw: round1(attribution.unknownKrw),
           },

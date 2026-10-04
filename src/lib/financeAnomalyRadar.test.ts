@@ -342,6 +342,7 @@ describe("finance anomaly radar", () => {
           userFundedChargedKrw: 0,
           userFundedWaivedKrw: 0,
           userFundedRefundedKrw: 0,
+          userFundedUnderRecoveredKrw: 0,
           userFundedUnlinkedKrw: 0.4,
           unknownKrw: 0,
         },
@@ -355,12 +356,13 @@ describe("finance anomaly radar", () => {
     assert.doesNotMatch(anomaly?.summary ?? "", / 0 KRW/);
   });
 
-  it("does not call platform, waived, or refunded cost a billing miss", () => {
+  it("does not call platform, waived, refunded, or under-recovered cost a billing miss", () => {
     const base = {
       platformFundedKrw: 1,
       userFundedChargedKrw: 0,
       userFundedWaivedKrw: 0,
       userFundedRefundedKrw: 0,
+      userFundedUnderRecoveredKrw: 0,
       userFundedUnlinkedKrw: 0,
       unknownKrw: 0,
     };
@@ -368,6 +370,7 @@ describe("finance anomaly radar", () => {
       base,
       { ...base, platformFundedKrw: 0, userFundedWaivedKrw: 12 },
       { ...base, platformFundedKrw: 0, userFundedRefundedKrw: 12 },
+      { ...base, platformFundedKrw: 0, userFundedUnderRecoveredKrw: 12 },
     ]) {
       const report = buildFinanceAnomalyReport({
         summary: summary(),
@@ -397,6 +400,7 @@ describe("finance anomaly radar", () => {
           userFundedChargedKrw: 0,
           userFundedWaivedKrw: 0,
           userFundedRefundedKrw: 0,
+          userFundedUnderRecoveredKrw: 0,
           userFundedUnlinkedKrw: 0,
           unknownKrw: 2,
         },
@@ -423,6 +427,7 @@ describe("finance anomaly radar", () => {
           userFundedChargedKrw: 0,
           userFundedWaivedKrw: 0,
           userFundedRefundedKrw: 0,
+          userFundedUnderRecoveredKrw: 0,
           userFundedUnlinkedKrw: 10,
           unknownKrw: 0,
         },

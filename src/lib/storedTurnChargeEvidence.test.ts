@@ -24,8 +24,10 @@ import {
 } from "@/lib/adminBillingReceiptV3Server";
 import {
   BillingProductNotDeliveredError,
+  UNDER_RECOVERED_OUTCOME,
   settleChatTurnBillingExactlyOnce,
 } from "@/lib/chatBillingSettlement";
+import { creditPointsWithIds } from "@/lib/points";
 import { loadUserMessageBillingSummaryForOwnedMessage } from "@/lib/messageBillingSummaryServer";
 import { resolveStoredTurnChargeEvidence } from "@/lib/storedTurnChargeEvidence";
 import { finalizeAssistantMessage } from "@/lib/streamingPersistence";
@@ -179,6 +181,31 @@ describe("storedTurnChargeEvidence regression matrix", () => {
   after(() => uninstallIsolatedTestDatabase());
 
   beforeEach(() => seedHarness());
+
+  it("A2 completed + under_recovered is not_charged complete evidence, not postprocess error", () => {
+    const db = getDb();
+    db.prepare(`UPDATE point_transactions SET remaining_amount=0 WHERE user_id=?`).run(USER_ID);
+    db.prepare(`UPDATE users SET points=0 WHERE id=?`).run(USER_ID);
+    creditPointsWithIds(db, USER_ID, 100, "PAID", "seed 100P");
+    insertAssistant({
+      id: ASSISTANT_ID,
+      requestId: "req_under_recovered",
+      generationStatus: "completed",
+      usage: null,
+    });
+    const settlement = settleAssistant({
+      assistantMessageId: ASSISTANT_ID,
+      requestId: "req_under_recovered",
+      points: 800,
+    });
+    assert.equal(settlement.outcome, UNDER_RECOVERED_OUTCOME);
+    assert.equal(settlement.settledPoints, 0);
+
+    const evidence = resolveEvidenceForAssistant(ASSISTANT_ID);
+    assert.equal(evidence.status, "not_charged");
+    assert.equal(evidence.settledPoints, 0);
+    assert.equal(evidence.evidenceStatus, "complete");
+  });
 
   it("A completed + charged keeps existing receipt behavior", () => {
     const cost = 37;
