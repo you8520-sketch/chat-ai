@@ -1,0 +1,3 @@
+export const EMAIL_SIGNUP_TOKEN_TTL_MS = 30 * 60 * 1000;
+export const EMAIL_SIGNUP_RESEND_COOLDOWN_MS = 60 * 1000;
+export const EMAIL_SIGNUP_MAX_SENDS = 5;

@@ -25,6 +25,26 @@ export const BUSINESS_CUSTOMER_SERVICE_EMAIL = "admin@hav.chat";
 export const BUSINESS_CUSTOMER_SERVICE_PHONE = "070-8080-5884";
 export const BUSINESS_MAIL_ORDER_REPORT_NUMBER = null;
 
+/**
+ * Personal-information protection officer (CPO).
+ *
+ * 개인정보 보호법 제31조 제1항은 보호책임자 지정을 요구한다. 같은 법 시행령
+ * 제32조 제2항 제2호는 공공기관 외 개인정보처리자가 사업주 또는 대표자를
+ * 지정할 수 있다고 정한다. 이 개인사업자는 별도 인물을 두지 않고 대표자를
+ * 지정한다.
+ *
+ * 최소 내부 designation evidence는 이 canonical owner 상수와 개인정보처리방침
+ * 공개다. 별도 DB·인사 시스템·이사회 의사록은 만들지 않는다. 법 제31조 제3항과
+ * 시행령 제32조 제3항·제4항의 이사회 의결·보호위원회 신고는 연 매출액등
+ * 1,800억원 초과 등 대규모 처리자 요건이므로 이 개인사업자에 적용하지 않는다.
+ */
+export const PERSONAL_INFORMATION_PROTECTION_OFFICER_NAME =
+  BUSINESS_REPRESENTATIVE_NAME;
+export const PERSONAL_INFORMATION_PROTECTION_OFFICER_PHONE =
+  BUSINESS_CUSTOMER_SERVICE_PHONE;
+export const PERSONAL_INFORMATION_PROTECTION_OFFICER_EMAIL =
+  BUSINESS_CUSTOMER_SERVICE_EMAIL;
+
 export type BusinessFieldVerification = "confirmed" | "unverified";
 
 /**

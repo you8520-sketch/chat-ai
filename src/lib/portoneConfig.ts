@@ -1,3 +1,5 @@
+import { MEMBER_PAID_CHARGE_UNAVAILABLE_MESSAGE } from "@/lib/servicePublicCommerce";
+
 /** PortOne V2 — browser SDK (public) + server verification */
 
 export const PORTONE_STORE_ID =
@@ -49,8 +51,7 @@ export function isPaymentsEnabled(): boolean {
   return envFlagOn(process.env.PORTONE_CHARGE_ENABLED);
 }
 
-export const PAYMENTS_DISABLED_MESSAGE =
-  "클로즈베타 기간에는 포인트 구매가 제공되지 않습니다. 메인 화면의 무료 포인트 신청을 이용해 주세요.";
+export const PAYMENTS_DISABLED_MESSAGE = MEMBER_PAID_CHARGE_UNAVAILABLE_MESSAGE;
 
 /** Points page — PortOne 결제창 (isPaymentsEnabled && 키 설정 시) */
 export function isPortOneChargeEnabled(): boolean {

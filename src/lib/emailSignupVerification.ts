@@ -2,6 +2,11 @@ import crypto from "crypto";
 import { getDb } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { ensureEmailSignupSchema } from "@/lib/emailSignupSchema";
+import {
+  EMAIL_SIGNUP_MAX_SENDS,
+  EMAIL_SIGNUP_RESEND_COOLDOWN_MS,
+  EMAIL_SIGNUP_TOKEN_TTL_MS,
+} from "@/lib/emailSignupConstants";
 import { grantSignupBonusOnce } from "@/lib/signupBonus";
 import {
   TRANSACTIONAL_EMAIL_ORIGIN_UNVERIFIED_MESSAGE,
@@ -14,9 +19,11 @@ import {
   sendTransactionalEmail,
 } from "@/lib/transactionalEmail";
 
-export const EMAIL_SIGNUP_TOKEN_TTL_MS = 30 * 60 * 1000;
-export const EMAIL_SIGNUP_RESEND_COOLDOWN_MS = 60 * 1000;
-export const EMAIL_SIGNUP_MAX_SENDS = 5;
+export {
+  EMAIL_SIGNUP_MAX_SENDS,
+  EMAIL_SIGNUP_RESEND_COOLDOWN_MS,
+  EMAIL_SIGNUP_TOKEN_TTL_MS,
+} from "@/lib/emailSignupConstants";
 
 export const EMAIL_SIGNUP_PENDING_MESSAGE =
   "인증 메일을 보냈습니다. 메일함의 링크를 눌러 가입을 완료해 주세요.";
