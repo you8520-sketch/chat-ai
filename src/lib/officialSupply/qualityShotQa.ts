@@ -1,3 +1,4 @@
+import { CHAT_IMAGE_GENERATION_KNOWN_MODEL_IDS } from "@/lib/chatImageGeneration";
 import { MAX_PROVIDER_ATTEMPTS } from "@/lib/openAiImageSafetyFallback";
 import { OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE } from "@/lib/officialSupply/imagePrompt";
 import {
@@ -45,12 +46,6 @@ export const LUCIAN_SIG4_REQUIRED_SHOT = {
 
 /** Existing v4 Cluster B candidate — not rf-01, and not a new style owner. */
 export const LUCIAN_SIG4_TRIAL_STYLE_CANDIDATE_ID = PILOT_STYLE_PROOF_CANDIDATE_ID;
-
-const LUCIAN_SIG4_PROOF_IMAGE_MODEL_BASES = [
-  "gpt-image-2.5-sunburst",
-  "gpt-image-2.5-flare",
-  "gpt-image-2",
-] as const;
 
 const RF01_STYLE_LEAKAGE_MARKERS = [
   "세미 리얼",
@@ -183,7 +178,7 @@ function prepareStop(reason: string, resolvedModel?: string): LucianSig4TrialPre
 export function isLucianSig4ProofSupportedImageModel(modelId: string): boolean {
   const trimmed = modelId.trim();
   if (!trimmed) return false;
-  return LUCIAN_SIG4_PROOF_IMAGE_MODEL_BASES.some(
+  return CHAT_IMAGE_GENERATION_KNOWN_MODEL_IDS.some(
     (base) => trimmed === base || trimmed.startsWith(`${base}-`)
   );
 }
