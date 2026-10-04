@@ -5,13 +5,25 @@ import {
   OFFICIAL_REPRESENTATIVE_IMAGE_PROFILE,
   OFFICIAL_RP_IMAGE_PROFILE,
   evaluateOfficialImageDimensions,
+  resolveOfficialAssetImageModel,
 } from "@/lib/officialSupply/imageProfile";
 import { ROFAN_V4_PRODUCTION_BATCH_CONFIG } from "@/lib/officialSupply/pilotProduction";
+import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
 import {
   resolveOfficialSlotShot,
   type OfficialSlotShotResponsibility,
 } from "@/lib/officialSupply/shotPlan";
-import type { OfficialAppearanceLock, OfficialAssetSlotPlan } from "@/lib/officialSupply/types";
+import {
+  isClusterBGraphicStyleSeed,
+  resolveOfficialAssetStyleDna,
+  ROFAN_CLUSTER_B_VISUAL_STYLE_DNA,
+} from "@/lib/officialSupply/style";
+import type {
+  OfficialAppearanceLock,
+  OfficialAssetSlotPlan,
+  StyleReference,
+  VisualStyleDna,
+} from "@/lib/officialSupply/types";
 
 export const OFFICIAL_SHOT_QA_LIVE_ENV = "OFFICIAL_QUALITY_SHOT_QA_LIVE";
 export const OFFICIAL_SHOT_QA_MODE_ENV = "OFFICIAL_QUALITY_SHOT_QA_MODE";
@@ -30,6 +42,25 @@ export const LUCIAN_SIG4_REQUIRED_SHOT = {
   cameraAngle: "high_angle",
   distance: "close_up",
 } as const;
+
+/** Existing v4 Cluster B candidate — not rf-01, and not a new style owner. */
+export const LUCIAN_SIG4_TRIAL_STYLE_CANDIDATE_ID = PILOT_STYLE_PROOF_CANDIDATE_ID;
+
+const LUCIAN_SIG4_PROOF_IMAGE_MODEL_BASES = [
+  "gpt-image-2.5-sunburst",
+  "gpt-image-2.5-flare",
+  "gpt-image-2",
+] as const;
+
+const RF01_STYLE_LEAKAGE_MARKERS = [
+  "세미 리얼",
+  "세미리얼",
+  "아이보리, 로즈",
+  "중저 대비",
+  "얇은 그라데이션",
+  "은은한 광택",
+  "유리궁전",
+] as const;
 
 export const LUCIAN_APPEARANCE_LOCK_MARKERS = [
   "붉은 기가 도는 짙은 갈색",
@@ -53,6 +84,17 @@ export type LucianSig4TrialCostPlan = {
   fallbackOnlyOnRecognizedSafetyRejection: true;
   reservePerAttemptUsd: number;
   planningCeilingUsd: number;
+  planningCeilingKind: "internal_reserve";
+  planningCeilingIsProviderHardCap: false;
+};
+
+export type LucianSig4TrialStyleOwner = {
+  candidateId: typeof LUCIAN_SIG4_TRIAL_STYLE_CANDIDATE_ID;
+  dnaOwner: "ROFAN_CLUSTER_B_VISUAL_STYLE_DNA";
+  resolverOwner: "resolveOfficialAssetStyleDna";
+  seedOwner: "buildClusterBRofanStyleSeed";
+  styleCluster: "cluster_b_graphic";
+  seedUrlsSentAsImage: false;
 };
 
 export type LucianSig4TrialPrepareOk = {
@@ -65,6 +107,8 @@ export type LucianSig4TrialPrepareOk = {
   artifactDir: string;
   persistedToProduction: false;
   identityAnchorRulePresent: boolean;
+  resolvedModel: string;
+  styleOwner: LucianSig4TrialStyleOwner;
   cost: LucianSig4TrialCostPlan;
 };
 
@@ -73,6 +117,8 @@ export type LucianSig4TrialPrepareStop = {
   status: "STOP";
   reason: string;
   persistedToProduction: false;
+  providerCalls: 0;
+  resolvedModel?: string;
 };
 
 export function resolveOfficialShotQaMode(
@@ -107,7 +153,116 @@ export function lucianSig4TrialCostPlan(): LucianSig4TrialCostPlan {
     fallbackOnlyOnRecognizedSafetyRejection: true,
     reservePerAttemptUsd,
     planningCeilingUsd: Number((reservePerAttemptUsd * MAX_PROVIDER_ATTEMPTS).toFixed(2)),
+    planningCeilingKind: "internal_reserve",
+    planningCeilingIsProviderHardCap: false,
   };
+}
+
+export function lucianSig4TrialStyleOwner(): LucianSig4TrialStyleOwner {
+  return {
+    candidateId: LUCIAN_SIG4_TRIAL_STYLE_CANDIDATE_ID,
+    dnaOwner: "ROFAN_CLUSTER_B_VISUAL_STYLE_DNA",
+    resolverOwner: "resolveOfficialAssetStyleDna",
+    seedOwner: "buildClusterBRofanStyleSeed",
+    styleCluster: "cluster_b_graphic",
+    seedUrlsSentAsImage: false,
+  };
+}
+
+function prepareStop(reason: string, resolvedModel?: string): LucianSig4TrialPrepareStop {
+  return {
+    ok: false,
+    status: "STOP",
+    reason,
+    persistedToProduction: false,
+    providerCalls: 0,
+    ...(resolvedModel ? { resolvedModel } : {}),
+  };
+}
+
+export function isLucianSig4ProofSupportedImageModel(modelId: string): boolean {
+  const trimmed = modelId.trim();
+  if (!trimmed) return false;
+  return LUCIAN_SIG4_PROOF_IMAGE_MODEL_BASES.some(
+    (base) => trimmed === base || trimmed.startsWith(`${base}-`)
+  );
+}
+
+export function resolveLucianSig4ProofImageModel(
+  env: NodeJS.ProcessEnv = process.env
+): { ok: true; model: string } | { ok: false; reason: string; model: string } {
+  const model = resolveOfficialAssetImageModel(env);
+  if (!isLucianSig4ProofSupportedImageModel(model)) {
+    return {
+      ok: false,
+      model,
+      reason: `lucian-sig4 proof refuses unsupported resolved image model "${model}"`,
+    };
+  }
+  return { ok: true, model };
+}
+
+export function pickLucianSig4TrialStyleCandidate<T extends { candidateId: string }>(
+  candidates: readonly T[]
+): { ok: true; candidate: T } | { ok: false; reason: string } {
+  const candidate = candidates.find((item) => item.candidateId === LUCIAN_SIG4_TRIAL_STYLE_CANDIDATE_ID);
+  if (!candidate) {
+    return {
+      ok: false,
+      reason: `lucian-sig4 reuses existing style candidate ${LUCIAN_SIG4_TRIAL_STYLE_CANDIDATE_ID}`,
+    };
+  }
+  return { ok: true, candidate };
+}
+
+export function resolveLucianSig4TrialStyle(input: {
+  candidateId: string;
+  candidateDna: VisualStyleDna;
+  styleSeed?: StyleReference | null;
+}): { ok: true; style: VisualStyleDna; styleSeed: StyleReference | null } | { ok: false; reason: string } {
+  if (input.candidateId !== LUCIAN_SIG4_TRIAL_STYLE_CANDIDATE_ID) {
+    return {
+      ok: false,
+      reason: `lucian-sig4 reuses existing style candidate ${LUCIAN_SIG4_TRIAL_STYLE_CANDIDATE_ID}, refusing ${input.candidateId}`,
+    };
+  }
+  if (input.styleSeed && !isClusterBGraphicStyleSeed(input.styleSeed)) {
+    return { ok: false, reason: "lucian-sig4 refuses a non-Cluster-B style seed" };
+  }
+  const style = input.styleSeed
+    ? resolveOfficialAssetStyleDna(input.candidateDna, input.styleSeed)
+    : ROFAN_CLUSTER_B_VISUAL_STYLE_DNA;
+  if (style.rendering !== "cel" || style.contrast !== "high" || style.lightSoftness !== "hard") {
+    return { ok: false, reason: "lucian-sig4 resolved style is not the existing Cluster B graphic DNA" };
+  }
+  return { ok: true, style, styleSeed: input.styleSeed ?? null };
+}
+
+export function lucianSig4TrialPromptIntegrityError(input: {
+  prompt: string;
+  expression: string;
+  pose: string;
+}): string | null {
+  if (!input.prompt.includes(OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE)) {
+    return "assembled prompt is missing IDENTITY ANCHOR ONLY";
+  }
+  if (!input.prompt.includes("rendering: cel") || !input.prompt.includes("contrast: high")) {
+    return "assembled prompt is missing Cluster B graphic/cel/high-contrast direction";
+  }
+  if (!/웹툰|그래픽/.test(input.prompt)) {
+    return "assembled prompt is missing Cluster B webtoon/graphic grammar";
+  }
+  if (/(?:^|\n)framing:/.test(input.prompt)) {
+    return "assembled prompt reintroduced DNA framing after #1382";
+  }
+  const leak = RF01_STYLE_LEAKAGE_MARKERS.find((marker) => input.prompt.includes(marker));
+  if (leak) {
+    return `assembled prompt leaks rf-01 style (${leak})`;
+  }
+  if (!input.prompt.includes(input.expression) || !input.prompt.includes(input.pose)) {
+    return "assembled prompt is missing sig4 slot.expression or slot.pose";
+  }
+  return null;
 }
 
 export function appearanceLockMatchesLucian(appearance: OfficialAppearanceLock): string | null {
@@ -197,10 +352,14 @@ export function prepareLucianSig4Trial(input: {
   inspectImage: OfficialShotQaImageInspect;
   artifactDir?: string | null;
   identityAnchorPrompt?: string;
+  styleCandidateId: string;
+  style: VisualStyleDna;
+  styleSeed?: StyleReference | null;
+  env?: NodeJS.ProcessEnv;
 }): LucianSig4TrialPrepareOk | LucianSig4TrialPrepareStop {
   const slotResult = pickLucianSig4TrialSlot(input.slots, input.draftKey);
   if (!slotResult.ok) {
-    return { ok: false, status: "STOP", reason: slotResult.reason, persistedToProduction: false };
+    return prepareStop(slotResult.reason);
   }
   const reference = validateLucianV4IdentityReference({
     referencePath: input.referencePath,
@@ -208,16 +367,30 @@ export function prepareLucianSig4Trial(input: {
     inspectImage: input.inspectImage,
   });
   if (!reference.ok) {
-    return { ok: false, status: "STOP", reason: reference.reason, persistedToProduction: false };
+    return prepareStop(reference.reason);
+  }
+  const styleResult = resolveLucianSig4TrialStyle({
+    candidateId: input.styleCandidateId,
+    candidateDna: input.style,
+    styleSeed: input.styleSeed,
+  });
+  if (!styleResult.ok) {
+    return prepareStop(styleResult.reason);
+  }
+  const modelResult = resolveLucianSig4ProofImageModel(input.env);
+  if (!modelResult.ok) {
+    return prepareStop(modelResult.reason, modelResult.model);
   }
   const prompt = input.identityAnchorPrompt ?? "";
-  if (prompt && !prompt.includes(OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE)) {
-    return {
-      ok: false,
-      status: "STOP",
-      reason: "assembled prompt is missing IDENTITY ANCHOR ONLY",
-      persistedToProduction: false,
-    };
+  if (prompt) {
+    const promptError = lucianSig4TrialPromptIntegrityError({
+      prompt,
+      expression: slotResult.slot.expression,
+      pose: slotResult.slot.pose,
+    });
+    if (promptError) {
+      return prepareStop(promptError, modelResult.model);
+    }
   }
   return {
     ok: true,
@@ -233,6 +406,8 @@ export function prepareLucianSig4Trial(input: {
     artifactDir: officialShotQaArtifactDir("lucian-sig4", input.artifactDir),
     persistedToProduction: false,
     identityAnchorRulePresent: !prompt || prompt.includes(OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE),
+    resolvedModel: modelResult.model,
+    styleOwner: lucianSig4TrialStyleOwner(),
     cost: lucianSig4TrialCostPlan(),
   };
 }
