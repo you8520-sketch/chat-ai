@@ -1,10 +1,10 @@
 import { ATTENDANCE_DAY_REWARDS, ATTENDANCE_POINTS_VALID_DAYS } from "@/lib/attendanceConstants";
 import {
   BUSINESS_CUSTOMER_SERVICE_EMAIL,
-  BUSINESS_OPERATING_STATUS,
   BUSINESS_PUBLIC_LINES,
   BUSINESS_TRADE_NAME,
   SERVICE_PUBLIC_NAME,
+  SERVICE_PUBLIC_STATUS,
 } from "@/lib/businessIdentity";
 import {
   MIN_POINT_GIFT_AMOUNT,
@@ -28,7 +28,7 @@ export const PUBLIC_LEGAL_LINKS = [
   { href: "/refund", label: "결제 및 환불 정책" },
 ] as const;
 
-export const LEGAL_DOCUMENT_AS_OF = "2026-10-03";
+export const LEGAL_DOCUMENT_AS_OF = "2026-10-04";
 
 const GIFT_FEE_PAID_PERCENT = Math.round(POINT_GIFT_FEE_RATE_PAID * 100);
 const GIFT_FEE_FREE_PERCENT = Math.round(POINT_GIFT_FEE_RATE_FREE * 100);
@@ -44,7 +44,7 @@ const POINT_CHARGE_PRODUCT_PARAGRAPHS = [
 ] as const;
 
 const MEMBER_CHARGE_STATUS_PARAGRAPHS = [
-  `일반 회원 포인트 충전은 PORTONE_CHARGE_ENABLED가 명시적으로 1 또는 true이고 PortOne 상점·채널·서버 검증 값이 있을 때만 진행됩니다. 값이 비어 있거나 다른 문자열이면 충전 요청은 거절됩니다. 상품 공개와 실제 결제 활성화는 별개입니다. 현재 사업자 상태가 ${BUSINESS_OPERATING_STATUS}이므로 결제를 활성화하지 않습니다.`,
+  `일반 회원 포인트 충전은 PORTONE_CHARGE_ENABLED가 명시적으로 1 또는 true이고 PortOne 상점·채널·서버 검증 값이 있을 때만 진행됩니다. 값이 비어 있거나 다른 문자열이면 충전 요청은 거절됩니다. 상품 공개와 실제 결제 활성화는 별개입니다. 현재 서비스 상태는 ${SERVICE_PUBLIC_STATUS}이며 일반 회원 결제는 활성화하지 않습니다.`,
   "포트원 심사 계정 전용 KG이니시스 테스트 결제창은 별도의 심사 전용 설정이 켜진 경우에만 열릴 수 있으며, 그 결제는 포인트를 지급하지 않고 매출로 집계하지 않습니다. 시험용 결제와 일반 회원의 유료 구매 가능 여부는 다릅니다.",
 ] as const;
 
@@ -93,7 +93,7 @@ export const TERMS_PAGE = {
   title: "이용약관",
   href: "/terms",
   intro: [
-    `${SITE_DISPLAY_NAME}는 ${SITE_DESCRIPTION}입니다. 현재 개발·시험 단계의 서비스입니다.`,
+    `${SITE_DISPLAY_NAME}는 ${SITE_DESCRIPTION}입니다. 현재 ${SERVICE_PUBLIC_STATUS}인 개발·시험 단계의 서비스입니다.`,
     `이 약관은 ${LEGAL_DOCUMENT_AS_OF}부터 시행하며, 같은 날 기준 서비스 코드가 실제로 제공하는 조건만 적습니다.`,
     "결제 금액, 포인트 지급, 유효기간, 결제 취소 조건의 상세는 결제 및 환불 정책을 따릅니다.",
   ],
@@ -160,7 +160,7 @@ export const PRIVACY_PAGE = {
   title: "개인정보처리방침",
   href: "/privacy",
   intro: [
-    `${SITE_DISPLAY_NAME}는 ${SITE_DESCRIPTION}입니다.`,
+    `${SITE_DISPLAY_NAME}는 ${SITE_DESCRIPTION}입니다. 현재 서비스 상태는 ${SERVICE_PUBLIC_STATUS}입니다.`,
     `이 방침은 ${LEGAL_DOCUMENT_AS_OF}부터 시행하며, 같은 날 기준 서비스 코드가 처리하는 내용만 설명합니다.`,
     "법률상 필수 고지와 실제 구현이 아직 맞지 않는 항목은 충족했다고 쓰지 않고, 현재 상태를 그대로 적습니다.",
   ],

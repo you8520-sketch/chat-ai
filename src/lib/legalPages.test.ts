@@ -17,6 +17,7 @@ import {
   BUSINESS_TRADE_NAME,
   SERVICE_PUBLIC_NAME,
   SERVICE_PUBLIC_ORIGIN,
+  SERVICE_PUBLIC_STATUS,
 } from "./businessIdentity";
 import {
   EMAIL_SIGNUP_MAX_SENDS,
@@ -103,6 +104,7 @@ test("privacy copy states proven processing facts and does not invent compliance
   }
   assert.doesNotMatch(text, /주식회사|자동으로 완전히|제3자에게 제공하지 않/);
   assert.doesNotMatch(text, /통신판매업 신고번호 \d/);
+  assert.doesNotMatch(text, /사업자 상태 휴업/);
   assert.doesNotMatch(text, /PORTONE_CHARGE_ENABLED가 0이 아니면/);
   assert.doesNotMatch(text, /가입하면 바로 저장|가입 즉시/);
   assert.doesNotMatch(text, /성인 확인을 생략합니다/);
@@ -112,6 +114,7 @@ test("terms stay within the current development and test service", () => {
   const text = flattenLegalPageText(TERMS_PAGE);
   assert.match(text, /하브/);
   assert.match(text, /개발·시험 단계/);
+  assert.match(text, new RegExp(SERVICE_PUBLIC_STATUS));
   assert.match(text, /계정 전체를 삭제하는 기능은 현재 없습니다/);
   assert.match(text, /비밀번호 재설정/);
   assert.match(text, /계정이 바로 만들어지지 않습니다/);
@@ -138,10 +141,7 @@ test("terms and refund publish confirmed business or product facts without inven
   }
   for (const text of [terms, refund]) {
     assert.match(text, /상품 공개와 실제 결제 활성화는 별개/);
-    assert.match(
-      text,
-      new RegExp(`현재 사업자 상태가 ${BUSINESS_OPERATING_STATUS}이므로 결제를 활성화하지 않습니다`),
-    );
+    assert.match(text, new RegExp(`현재 서비스 상태는 ${SERVICE_PUBLIC_STATUS}이며 일반 회원 결제는 활성화하지 않습니다`));
     assert.match(text, /PORTONE_CHARGE_ENABLED가 명시적으로 1 또는 true/);
     assert.match(text, /포인트를 지급하지 않고 매출로 집계하지 않습니다/);
     assert.match(text, /시험용 결제와 일반 회원의 유료 구매 가능 여부는 다릅니다/);
@@ -212,6 +212,7 @@ test("legal footer remains the site-wide renderer and public pages stay server-r
 test("business identity keeps brand and legal name distinct, publishes confirmed phone, and omits unverified mail-order number", () => {
   assert.equal(SERVICE_PUBLIC_NAME, "하브");
   assert.equal(SERVICE_PUBLIC_ORIGIN, "https://hav.chat");
+  assert.equal(SERVICE_PUBLIC_STATUS, "개업 준비중");
   assert.equal(BUSINESS_TRADE_NAME, "노벨 챗");
   assert.notEqual(SERVICE_PUBLIC_NAME, BUSINESS_TRADE_NAME);
   assert.equal(BUSINESS_REGISTRATION_NUMBER, "519-31-01749");
@@ -226,6 +227,8 @@ test("business identity keeps brand and legal name distinct, publishes confirmed
   assert.equal(BUSINESS_CUSTOMER_SERVICE_EMAIL, "admin@hav.chat");
   assert.equal(BUSINESS_IDENTITY_VERIFICATION.customerServiceEmail, "confirmed");
   assert.equal(new Set(BUSINESS_PUBLIC_LINES).size, BUSINESS_PUBLIC_LINES.length);
+  assert.equal(BUSINESS_PUBLIC_LINES.filter((line) => line.includes("서비스 상태")).length, 1);
+  assert.equal(BUSINESS_PUBLIC_LINES.some((line) => line.includes("사업자 상태")), false);
   assert.equal(BUSINESS_PUBLIC_LINES.filter((line) => line.includes("고객센터 전화")).length, 1);
   assert.equal(BUSINESS_PUBLIC_LINES.filter((line) => line.includes("고객센터 이메일")).length, 1);
   assert.equal(BUSINESS_IDENTITY_VERIFICATION.mailOrderReportNumber, "unverified");

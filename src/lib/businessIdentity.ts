@@ -4,6 +4,7 @@ import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 export const SERVICE_PUBLIC_NAME = SITE_DISPLAY_NAME;
 export const SERVICE_PUBLIC_DOMAIN = "hav.chat";
 export const SERVICE_PUBLIC_ORIGIN = "https://hav.chat";
+export const SERVICE_PUBLIC_STATUS = "개업 준비중";
 
 /** Source of the legal-entity fields below. */
 export const BUSINESS_IDENTITY_SOURCE = "submitted_nts_certificate" as const;
@@ -57,7 +58,7 @@ export const BUSINESS_PUBLIC_LINES = [
   `종목 ${BUSINESS_ITEM}`,
   `과세유형 ${BUSINESS_TAX_TYPE}`,
   `사업장 ${BUSINESS_ADDRESS}`,
-  `사업자 상태 ${BUSINESS_OPERATING_STATUS}`,
+  `서비스 상태 ${SERVICE_PUBLIC_STATUS}`,
   `고객센터 전화 ${BUSINESS_CUSTOMER_SERVICE_PHONE}`,
   `고객센터 이메일 ${BUSINESS_CUSTOMER_SERVICE_EMAIL}`,
 ] as const;
