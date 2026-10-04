@@ -24,7 +24,6 @@ import {
   pickLucianSig4TrialSlot,
   pickLucianSig4TrialStyleCandidate,
   prepareLucianSig4Trial,
-  resolveLucianSig4ProofImageModel,
   resolveLucianSig4TrialStyle,
   resolveOfficialShotQaMode,
   validateLucianV4IdentityReference,
@@ -245,46 +244,53 @@ describe("official shot QA lucian-sig4 trial mode", () => {
 
   it("fail-closes unknown OPENAI_IMAGE_MODEL and accepts supported GPT Image ids", () => {
     assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2"), true);
-    assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2-20260501"), true);
+    assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2-2026-04-21"), true);
     assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2.5-sunburst"), true);
-    assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2.5-sunburst-20260801"), true);
+    assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2.5-sunburst-2026-09-08"), true);
     assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2.5-flare"), true);
-    assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2.5-flare-20260601"), true);
+    assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2.5-flare-2026-06-01"), true);
+    assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2-custom"), false);
+    assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2.5-sunburst-experimental"), false);
+    assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2-20260501"), false);
+    assert.equal(isLucianSig4ProofSupportedImageModel("gpt-image-2.5-flare-latest"), false);
     assert.equal(isLucianSig4ProofSupportedImageModel("custom-image-x"), false);
     assert.equal(isLucianSig4ProofSupportedImageModel("dall-e-3"), false);
 
-    const unknown = resolveLucianSig4ProofImageModel({
-      OPENAI_IMAGE_MODEL: "custom-image-x",
-    } as NodeJS.ProcessEnv);
-    assert.equal(unknown.ok, false);
-    if (unknown.ok) return;
-    assert.equal(unknown.model, "custom-image-x");
-
     const { prompts } = buildSig4Prompt();
-    const stopped = prepareLucianSig4Trial({
-      draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
-      slots: PILOT.assetPlan.slots,
-      appearance: PILOT.appearance,
-      referencePath: REP_PATH,
-      inspectImage: inspectRep,
-      identityAnchorPrompt: prompts.primaryPrompt,
-      styleCandidateId: "rf-02",
-      style: RF02.dna,
-      styleSeed: CLUSTER_B_SEED,
-      env: { OPENAI_IMAGE_MODEL: "custom-image-x" } as NodeJS.ProcessEnv,
-    });
-    assert.equal(stopped.ok, false);
-    if (stopped.ok) return;
-    assert.equal(stopped.status, "STOP");
-    assert.equal(stopped.providerCalls, 0);
-    assert.equal(stopped.persistedToProduction, false);
-    assert.equal(stopped.resolvedModel, "custom-image-x");
+    for (const model of [
+      "gpt-image-2-custom",
+      "gpt-image-2.5-sunburst-experimental",
+      "gpt-image-2-20260501",
+      "gpt-image-2.5-flare-latest",
+      "custom-image-x",
+    ]) {
+      const stopped = prepareLucianSig4Trial({
+        draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
+        slots: PILOT.assetPlan.slots,
+        appearance: PILOT.appearance,
+        referencePath: REP_PATH,
+        inspectImage: inspectRep,
+        identityAnchorPrompt: prompts.primaryPrompt,
+        styleCandidateId: "rf-02",
+        style: RF02.dna,
+        styleSeed: CLUSTER_B_SEED,
+        env: { OPENAI_IMAGE_MODEL: model } as NodeJS.ProcessEnv,
+      });
+      assert.equal(stopped.ok, false, model);
+      if (stopped.ok) continue;
+      assert.equal(stopped.status, "STOP", model);
+      assert.equal(stopped.providerCalls, 0, model);
+      assert.equal(stopped.persistedToProduction, false, model);
+      assert.equal(stopped.resolvedModel, model, model);
+    }
 
     for (const model of [
       "gpt-image-2",
-      "gpt-image-2-20260501",
+      "gpt-image-2-2026-04-21",
       "gpt-image-2.5-sunburst",
-      "gpt-image-2.5-flare-20260601",
+      "gpt-image-2.5-sunburst-2026-09-08",
+      "gpt-image-2.5-flare",
+      "gpt-image-2.5-flare-2026-06-01",
     ]) {
       const prepared = prepareLucianSig4Trial({
         draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,

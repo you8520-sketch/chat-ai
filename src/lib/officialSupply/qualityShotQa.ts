@@ -175,12 +175,19 @@ function prepareStop(reason: string, resolvedModel?: string): LucianSig4TrialPre
   };
 }
 
+/** Official dated snapshot suffix only: `-YYYY-MM-DD`. Arbitrary prefixes/suffixes stay unknown. */
+const LUCIAN_SIG4_PROOF_DATED_SNAPSHOT_SUFFIX_RE = /^-\d{4}-\d{2}-\d{2}$/;
+
 export function isLucianSig4ProofSupportedImageModel(modelId: string): boolean {
   const trimmed = modelId.trim();
   if (!trimmed) return false;
-  return CHAT_IMAGE_GENERATION_KNOWN_MODEL_IDS.some(
-    (base) => trimmed === base || trimmed.startsWith(`${base}-`)
-  );
+  return CHAT_IMAGE_GENERATION_KNOWN_MODEL_IDS.some((base) => {
+    if (trimmed === base) return true;
+    return (
+      trimmed.startsWith(`${base}-`) &&
+      LUCIAN_SIG4_PROOF_DATED_SNAPSHOT_SUFFIX_RE.test(trimmed.slice(base.length))
+    );
+  });
 }
 
 export function resolveLucianSig4ProofImageModel(
