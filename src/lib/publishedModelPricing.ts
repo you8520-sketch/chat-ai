@@ -4,13 +4,8 @@
  */
 
 import { canonicalizePublishedModelId, normalizePublishedModelId } from "@/lib/publishedModelAliases";
-import { deriveOpus55EffectivePublishedReferenceRates } from "@/lib/opus55PublishedPricingDerivation";
-
-const OPUS55_LIVE_PUBLISHED_RATES = deriveOpus55EffectivePublishedReferenceRates();
-
 export type PublishedCommercialPricingOwner =
-  | "target_margin"
-  | "derived_reference_rates";
+  | "target_margin";
 
 export type PublishedModelPricing = {
   modelId: string;
@@ -213,15 +208,17 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   },
   "claude-opus-5.5": {
     modelId: "claude-opus-5.5",
-    commercialPricingOwner: "derived_reference_rates",
-    billingReferenceInputUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceInputUsdPerMillion,
-    billingReferenceOutputUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceOutputUsdPerMillion,
-    billingReferenceCacheReadUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceInputUsdPerMillion,
-    billingReferenceCacheWriteUsdPerMillion: OPUS55_LIVE_PUBLISHED_RATES.billingReferenceInputUsdPerMillion,
-    targetMargin: OPUS55_LIVE_PUBLISHED_RATES.targetMargin,
-    minimumMarginFloor: OPUS55_LIVE_PUBLISHED_RATES.minimumMarginFloor,
-    pricingVersion: 1,
-    publishedAt: "2026-09-23T12:00:00.000Z",
+    commercialPricingOwner: "target_margin",
+    billingReferenceInputUsdPerMillion: 2.8,
+    billingReferenceOutputUsdPerMillion: 14,
+    // User pricing remains cache-partition neutral: every prompt bucket uses
+    // the same procurement reference rate, then the shared target-margin owner.
+    billingReferenceCacheReadUsdPerMillion: 2.8,
+    billingReferenceCacheWriteUsdPerMillion: 2.8,
+    targetMargin: 0.45,
+    minimumMarginFloor: 0,
+    pricingVersion: 2,
+    publishedAt: "2026-10-04T10:14:00.000Z",
   },
 };
 
