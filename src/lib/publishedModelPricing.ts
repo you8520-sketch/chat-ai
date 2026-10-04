@@ -4,6 +4,10 @@
  */
 
 import { canonicalizePublishedModelId, normalizePublishedModelId } from "@/lib/publishedModelAliases";
+import {
+  OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION,
+  OPUS55_CI_PROCUREMENT_OUTPUT_USD_PER_MILLION,
+} from "@/lib/opus55ProcurementPricing";
 export type PublishedCommercialPricingOwner =
   | "target_margin";
 
@@ -209,12 +213,12 @@ const PUBLISHED_CATALOG: Record<string, PublishedModelPricing> = {
   "claude-opus-5.5": {
     modelId: "claude-opus-5.5",
     commercialPricingOwner: "target_margin",
-    billingReferenceInputUsdPerMillion: 2.8,
-    billingReferenceOutputUsdPerMillion: 14,
+    billingReferenceInputUsdPerMillion: OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION,
+    billingReferenceOutputUsdPerMillion: OPUS55_CI_PROCUREMENT_OUTPUT_USD_PER_MILLION,
     // User pricing remains cache-partition neutral: every prompt bucket uses
     // the same procurement reference rate, then the shared target-margin owner.
-    billingReferenceCacheReadUsdPerMillion: 2.8,
-    billingReferenceCacheWriteUsdPerMillion: 2.8,
+    billingReferenceCacheReadUsdPerMillion: OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION,
+    billingReferenceCacheWriteUsdPerMillion: OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION,
     targetMargin: 0.45,
     minimumMarginFloor: 0,
     pricingVersion: 2,
