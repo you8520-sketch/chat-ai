@@ -121,8 +121,6 @@ function candidateStatusLabel(status: PricingCandidateObservation["status"]): st
       return "READY";
     case "KEEP_CURRENT":
       return "KEEP CURRENT";
-    case "HOLD_NON_TARGET_MARGIN_PRICING_OWNER":
-      return "Hold — commercial pricing owner is not targetMargin";
     case "HOLD_NO_HARD_MARKET_EVIDENCE":
       return "Hold — no hard-comparable market benchmark";
     case "HOLD_PROCUREMENT_NOT_FRESH":
