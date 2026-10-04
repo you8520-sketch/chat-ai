@@ -1,5 +1,6 @@
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import type { AdminFinanceSummary } from "@/lib/adminFinance";
+import type { ForwardReconAudit } from "@/lib/forwardReconAudit";
 import type { MainRpPricingObservabilityProjection } from "@/lib/mainRpPricingObservability";
 
 export type FinanceAnomalySeverity = "critical" | "warning";
@@ -8,6 +9,10 @@ export type FinanceAnomalyCode =
   | "PROVIDER_RECONCILIATION_MISMATCH"
   | "UNRECONCILED_PROVIDER_SPEND"
   | "PROVIDER_RECONCILIATION_UNAVAILABLE"
+  | "FORWARD_UNMATCHED_REMOTE_SPEND"
+  | "FORWARD_RECON_FETCH_FAILURE"
+  | "FORWARD_RECON_UNVERIFIED"
+  | "FORWARD_RECON_CONFIG_INVALID"
   | "DIRECT_COST_WITHOUT_USER_BILLING"
   | "UNATTRIBUTED_DIRECT_COST"
   | "ACTUAL_MARGIN_BELOW_FLOOR"
@@ -54,6 +59,90 @@ function reportStatus(anomalies: readonly FinanceAnomaly[]): FinanceAnomalyRepor
   return "HEALTHY";
 }
 
+function formatForwardModelBreakdown(audit: ForwardReconAudit): string {
+  const parts = Object.entries(audit.byModel)
+    .filter(([, row]) => row.unmatchedCount > 0)
+    .sort((a, b) => b[1].unmatchedMicroUsd - a[1].unmatchedMicroUsd || b[1].unmatchedCount - a[1].unmatchedCount)
+    .map(
+      ([model, row]) =>
+        `${model} × ${row.unmatchedCount} unmatched (${usdFromMicro(row.unmatchedMicroUsd)} USD)`
+    );
+  return parts.length > 0 ? parts.join("; ") : "no unmatched model rows";
+}
+
+function pushForwardReconAnomalies(anomalies: FinanceAnomaly[], audit: ForwardReconAudit): void {
+  if (audit.verificationStatus === "config_invalid") {
+    anomalies.push({
+      id: "provider-reconciliation:forward-config-invalid",
+      code: "FORWARD_RECON_CONFIG_INVALID",
+      severity: "warning",
+      title: "Forward observation cutoff is invalid",
+      summary:
+        `${audit.observationNote} Historical month reconciliation is not a new finding. ` +
+        "No substitute forward window was chosen.",
+      sourceRef: "forward_audit:config_invalid",
+      href: "/admin/finance",
+      modelId: null,
+    });
+    return;
+  }
+
+  if (audit.verificationStatus === "unverified" || audit.cases.includes("unverifiable_timestamp")) {
+    anomalies.push({
+      id: "provider-reconciliation:forward-unverified",
+      code: "FORWARD_RECON_UNVERIFIED",
+      severity: "warning",
+      title: "Forward usage timestamps are unverifiable",
+      summary:
+        `${audit.observationNote} ${audit.unverifiableTimestampCount} remote request(s) ` +
+        `(${audit.unverifiableSettledCount} settled) lack a parseable createdAt, so whether they ` +
+        "are new calls is UNKNOWN/UNVERIFIED. They are not counted as zero new calls and are " +
+        "not invented as new unmatched spend.",
+      sourceRef: `forward_audit:unverified:${audit.unverifiableTimestampCount}`,
+      href: "/admin/finance",
+      modelId: null,
+    });
+  }
+
+  if (audit.fetchStatus !== "ok") {
+    anomalies.push({
+      id: "provider-reconciliation:forward-fetch-failure",
+      code: "FORWARD_RECON_FETCH_FAILURE",
+      severity: "warning",
+      title: "Forward usage audit fetch failed",
+      summary:
+        `Usage query after observation baseline ${audit.observedSince} failed (${audit.fetchStatus}). ` +
+        `${audit.observationNote} Last successful forward slice is not treated as new unmatched spend.`,
+      sourceRef: `forward_audit:${audit.observedSince}:${audit.fetchStatus}`,
+      href: "/admin/finance",
+      modelId: null,
+    });
+    return;
+  }
+
+  if (audit.unmatchedLedgerCount <= 0 || audit.unmatchedSettledMicroUsd <= 0) return;
+
+  const keyNote = audit.otherApiKeyCandidate
+    ? " Forward window saw more than one API-key id; key-level audit is not applied because production key mapping is unavailable."
+    : " Production key mapping is unavailable, so remote workspace usage is not confirmed as HAV-exclusive cost.";
+  anomalies.push({
+    id: "provider-reconciliation:forward-unmatched",
+    code: "FORWARD_UNMATCHED_REMOTE_SPEND",
+    severity: "warning",
+    title: "New unmatched provider spend after observation baseline",
+    summary:
+      `${audit.observationNote} Period since ${audit.observedSince}: ` +
+      `${audit.unmatchedLedgerCount} settled remote request(s) are not linked to the local ledger ` +
+      `(${usdFromMicro(audit.unmatchedSettledMicroUsd)} USD confirmed remote settled; ` +
+      `${audit.matchedLedgerCount} linked). Models: ${formatForwardModelBreakdown(audit)}.` +
+      keyNote +
+      " havExclusiveCostConfirmed=false.",
+    sourceRef: `forward_unmatched:${audit.observedSince}:${audit.unmatchedLedgerCount}`,
+    href: "/admin/finance",
+    modelId: audit.cases.includes("unmatched_luna") ? "gpt-6-luna" : null,
+  });
+}
+
 /**
  * Read-only deterministic anomaly projection over canonical finance/pricing owners.
  *
@@ -69,10 +158,52 @@ export function buildFinanceAnomalyReport(params: {
   const generatedAt = (params.now ?? new Date()).toISOString();
   const anomalies: FinanceAnomaly[] = [];
   const reconciliation = params.summary.providerReconciliation;
+  const forward = reconciliation?.forwardAudit ?? null;
+  const configInvalid = forward?.verificationStatus === "config_invalid";
+  const hasForwardBaseline =
+    Boolean(forward?.observedSince) && !configInvalid;
 
-  // MISMATCH and UNRECONCILED_SPEND are two projections of one stored
-  // providerReconciliation row. They are not two independent missing-cost events.
-  if (reconciliation?.status === "mismatch") {
+  // After a forward observation baseline exists, month-wide mismatch/unreconciled
+  // is historical residue. Only the new window can raise a current recon warning.
+  // An invalid cutoff is fail-closed: do not invent a substitute window.
+  if (configInvalid) {
+    pushForwardReconAnomalies(anomalies, forward!);
+    if (!forward?.observedSince && reconciliation?.status === "mismatch") {
+      anomalies.push({
+        id: "provider-reconciliation:mismatch",
+        code: "PROVIDER_RECONCILIATION_MISMATCH",
+        severity: "critical",
+        title: "Provider cost reconciliation mismatch",
+        summary:
+          `CheaperInference daily checksum and canonical local ledger differ by ` +
+          `${reconciliation.dailyDeltaMicroUsd ?? "unknown"} micro-USD. ` +
+          "Do not change billing from this projection; reconcile the existing provider-cost owner.",
+        sourceRef: `provider_reconciliation:${reconciliation.windowStart}..${reconciliation.windowEnd}`,
+        href: "/admin/finance",
+        modelId: null,
+      });
+    }
+  } else if (hasForwardBaseline) {
+    pushForwardReconAnomalies(anomalies, forward!);
+    if (
+      forward?.fetchStatus === "ok" &&
+      reconciliation &&
+      ["pending", "provider_unavailable", "not_configured"].includes(reconciliation.status)
+    ) {
+      anomalies.push({
+        id: `provider-reconciliation:${reconciliation.status}`,
+        code: "PROVIDER_RECONCILIATION_UNAVAILABLE",
+        severity: "warning",
+        title: `Provider reconciliation ${reconciliation.status}`,
+        summary:
+          "Latest provider reconciliation did not produce matched settled truth. " +
+          "The previous canonical ledger remains authoritative until reconciliation recovers.",
+        sourceRef: `provider_reconciliation:${reconciliation.status}`,
+        href: "/admin/finance",
+        modelId: null,
+      });
+    }
+  } else if (reconciliation?.status === "mismatch") {
     anomalies.push({
       id: "provider-reconciliation:mismatch",
       code: "PROVIDER_RECONCILIATION_MISMATCH",
@@ -104,7 +235,9 @@ export function buildFinanceAnomalyReport(params: {
     });
   }
 
-  if ((reconciliation?.unreconciledProviderMicroUsd ?? 0) > 0) {
+  const suppressHistoricalSpend =
+    hasForwardBaseline || (configInvalid && Boolean(forward?.observedSince));
+  if (!suppressHistoricalSpend && (reconciliation?.unreconciledProviderMicroUsd ?? 0) > 0) {
     anomalies.push({
       id: "provider-reconciliation:unreconciled-spend",
       code: "UNRECONCILED_PROVIDER_SPEND",

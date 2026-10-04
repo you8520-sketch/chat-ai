@@ -76,6 +76,16 @@ describe("admin finance free-point loss display helpers", () => {
       "공급자 청구 대조 대기 · 미완료"
     );
     assert.equal(
+      formatProviderReconciliationState({
+        status: "mismatch",
+        forwardAudit: {
+          observedSince: "2026-10-03T12:00:00.000Z",
+          verificationStatus: "verified",
+        },
+      }),
+      "공급자 청구 대조 월간 불일치 · 과거 미해소 · 신규 여부는 전방 감사"
+    );
+    assert.equal(
       formatProviderReconciliationState({ status: "matched" }),
       "공급자 청구 대조 일치"
     );

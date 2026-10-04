@@ -90,10 +90,14 @@ async function compare(
     reason?: "no_key" | "http" | "network";
     status?: number;
     includeKeyGroups?: boolean;
+    observedSinceEnv?: string | null;
+    nowMs?: number;
   }
 ) {
   return compareProviderReconciliationRemote(d, "2026-10", {
     includeKeyGroups: input.includeKeyGroups,
+    observedSinceEnv: input.observedSinceEnv,
+    now: input.nowMs != null ? () => input.nowMs! : undefined,
     fetchRequests: async () => {
       if (input.incomplete) {
         return {
@@ -478,11 +482,102 @@ describe("admin finance reconciliation remote compare", () => {
     }
   });
 
+  it("audits only requests at or after the observation baseline", async () => {
+    const d = db();
+    try {
+      insertIdentity(d, { id: 3, requestId: "new-linked", createdAt: "2026-10-03 13:00:00" });
+      recordMainGenerationProviderCost(
+        {
+          chatId: 1,
+          assistantMessageId: 3,
+          generationSequence: 0,
+          provider: "cheaperinference",
+          model: "gpt-6-luna",
+          providerRequestId: "new-linked",
+          cheaperInferenceBilledCostUsd: 0.012,
+          outcome: "success",
+          persistInTests: true,
+          eventTime: "2026-10-03 13:00:00",
+        },
+        d
+      );
+      const result = await compare(d, {
+        observedSinceEnv: "2026-10-03T12:00:00.000Z",
+        requests: [
+          settled("old-unmatched", 3_000_000, "2026-10-02 01:00:00"),
+          {
+            requestId: "new-linked",
+            status: "settled",
+            billedMicroUsd: 12_000,
+            settled: true,
+            model: "gpt-6-luna",
+            endpoint: "/chat/completions",
+            createdAt: "2026-10-03 13:00:00",
+            apiKeyId: "key-a",
+          },
+          {
+            requestId: "new-unmatched",
+            status: "settled",
+            billedMicroUsd: 8_000,
+            settled: true,
+            model: "gpt-6-luna",
+            endpoint: "/chat/completions",
+            createdAt: "2026-10-03 13:05:00",
+            apiKeyId: "key-a",
+          },
+          {
+            requestId: "new-pending",
+            status: "pending",
+            billedMicroUsd: 0,
+            settled: false,
+            model: "gpt-6-luna",
+            endpoint: "/chat/completions",
+            createdAt: "2026-10-03 13:06:00",
+            apiKeyId: "key-a",
+          },
+        ],
+      });
+      assert.equal(result.remote.settledCount, 3);
+      assert.equal(result.remote.settledMicroUsd, 3_020_000);
+      assert.equal(result.forwardAudit.observationSource, "proven_rotation_env");
+      assert.equal(result.forwardAudit.requestCount, 3);
+      assert.equal(result.forwardAudit.matchedLedgerCount, 1);
+      assert.equal(result.forwardAudit.unmatchedLedgerCount, 1);
+      assert.equal(result.forwardAudit.unmatchedSettledMicroUsd, 8_000);
+      assert.equal(result.forwardAudit.pendingCount, 1);
+      assert.ok(result.forwardAudit.cases.includes("matched_luna"));
+      assert.ok(result.forwardAudit.cases.includes("unmatched_luna"));
+      assert.ok(result.forwardAudit.cases.includes("pending_settlement"));
+      assert.equal(result.forwardAudit.havExclusiveCostConfirmed, false);
+      assertNoSecrets(result, ["old-unmatched", "new-linked", "new-unmatched", "new-pending", "key-a"]);
+    } finally {
+      d.close();
+    }
+  });
+
+  it("keeps a failed remote read from inventing forward unmatched cost", async () => {
+    const d = db();
+    try {
+      const result = await compare(d, {
+        observedSinceEnv: "2026-10-03T12:00:00.000Z",
+        fetchOk: false,
+        reason: "http",
+        status: 403,
+      });
+      assert.equal(result.forwardAudit.fetchStatus, "http");
+      assert.deepEqual(result.forwardAudit.cases, ["fetch_failure"]);
+      assert.equal(result.forwardAudit.unmatchedSettledMicroUsd, 0);
+    } finally {
+      d.close();
+    }
+  });
+
   it("accepts numeric provider api_key_id values without leaking them", async () => {
     const d = db();
     try {
       const result = await compare(d, {
         includeKeyGroups: true,
+        nowMs: Date.parse("2026-10-03T13:00:00.000Z"),
         requests: [
           settled("n-1", 8_000, "2026-10-02 01:00:00", { apiKeyId: "42" }),
           settled("n-2", 2_000, "2026-10-02 01:01:00", { apiKeyId: "42" }),
