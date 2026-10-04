@@ -37,7 +37,6 @@ const MAX_TARGET_MARGIN_BP = TARGET_MARGIN_BP_SCALE - 1;
 export type PricingCandidateStatus =
   | "READY"
   | "KEEP_CURRENT"
-  | "HOLD_NON_TARGET_MARGIN_PRICING_OWNER"
   | "HOLD_NO_HARD_MARKET_EVIDENCE"
   | "HOLD_PROCUREMENT_NOT_FRESH"
   | "HOLD_ACTUAL_REPRESENTATIVE_CONFLICT"
@@ -545,39 +544,6 @@ export function composePricingCandidateObservation(params: {
     fxSnapshot: params.fxSnapshot,
   });
   const currentPoints = chargePointsFromResult(currentRepResult);
-
-  if (commercialPricingOwner !== "target_margin") {
-    return {
-      domain: "CANDIDATE",
-      status: "HOLD_NON_TARGET_MARGIN_PRICING_OWNER",
-      commercialPricingOwner,
-      currentTargetMargin,
-      minimumSafeTargetMargin: null,
-      maximumCompetitiveTargetMargin: null,
-      candidateTargetMargin: null,
-      candidateDirection: "HOLD",
-      representative: {
-        currentPoints,
-        candidatePoints: null,
-        candidateProjectedMargin: null,
-        floorPass: null,
-      },
-      market: {
-        hardBenchmarkCount: benchmarks.length,
-        allPass: null,
-        cases: [],
-      },
-      actual: {
-        monthKey: params.actual.monthKey,
-        marginRate: params.actual.marginRate,
-        exact: params.actual.realizedMarginExact,
-        signal: actualSignal,
-      },
-      procurementFreshness: params.procurement.ciFreshnessState,
-      liveApplicability,
-      productionBillingContract: params.productionBillingContract,
-    };
-  }
 
   let minimumSafeTargetMargin: number | null = null;
   let maximumCompetitiveTargetMargin: number | null = null;
