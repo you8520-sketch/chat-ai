@@ -19,6 +19,7 @@ import {
   readActiveMainRpGenerationLease,
   releaseMainRpGenerationLease,
   shouldRejectMainRpGenerationReadOnly,
+  startMainRpGenerationLeaseHeartbeat,
 } from "./mainRpGenerationAdmission";
 import { creditPointsWithIds } from "./points";
 import {
@@ -421,6 +422,32 @@ describe("main RP generation admission", () => {
       assert.equal(replay, "replay");
       assert.equal(provider.calls, 0);
     });
+  });
+
+  it("heartbeat scheduler contains transient DB write failures", () => {
+    const db = new Database(":memory:");
+    db.close();
+    const originalWarn = console.warn;
+    let warned = false;
+    console.warn = () => {
+      warned = true;
+    };
+    try {
+      const stop = startMainRpGenerationLeaseHeartbeat(
+        db,
+        {
+          userId: 1,
+          chatId: 1,
+          requestId: "req_heartbeat_failure",
+          leaseToken: "test-token",
+        },
+        { intervalMs: 60_000 }
+      );
+      stop();
+      assert.equal(warned, true);
+    } finally {
+      console.warn = originalWarn;
+    }
   });
 
   it("I provider I/O is outside BEGIN IMMEDIATE so another writer can commit", async () => {
