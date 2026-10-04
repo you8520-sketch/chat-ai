@@ -5,6 +5,7 @@ import { ATTENDANCE_DAY_REWARDS, ATTENDANCE_POINTS_VALID_DAYS } from "./attendan
 import {
   BUSINESS_ADDRESS,
   BUSINESS_CUSTOMER_SERVICE_EMAIL,
+  BUSINESS_CUSTOMER_SERVICE_PHONE,
   BUSINESS_IDENTITY_SOURCE,
   BUSINESS_IDENTITY_VERIFICATION,
   BUSINESS_ITEM,
@@ -101,7 +102,7 @@ test("privacy copy states proven processing facts and does not invent compliance
     assert.match(text, new RegExp(line.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
   assert.doesNotMatch(text, /주식회사|자동으로 완전히|제3자에게 제공하지 않/);
-  assert.doesNotMatch(text, /통신판매업 신고번호 \d|고객센터 전화 \d/);
+  assert.doesNotMatch(text, /통신판매업 신고번호 \d/);
   assert.doesNotMatch(text, /PORTONE_CHARGE_ENABLED가 0이 아니면/);
   assert.doesNotMatch(text, /가입하면 바로 저장|가입 즉시/);
   assert.doesNotMatch(text, /성인 확인을 생략합니다/);
@@ -151,7 +152,7 @@ test("terms and refund publish confirmed business or product facts without inven
     for (const pkg of POINT_CHARGE_PACKAGES) {
       assert.match(text, new RegExp(formatPointChargePackagePublicLine(pkg).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     }
-    assert.doesNotMatch(text, /통신판매업 신고번호 \d|고객센터 전화 \d/);
+    assert.doesNotMatch(text, /통신판매업 신고번호 \d/);
     assert.doesNotMatch(text, /159-31-01749/);
     assert.doesNotMatch(text, /PORTONE_CHARGE_ENABLED가 0이 아니면/);
   }
@@ -208,7 +209,7 @@ test("legal footer remains the site-wide renderer and public pages stay server-r
   assert.doesNotMatch(consent, /type=\"checkbox\"|동의/);
 });
 
-test("business identity keeps brand and legal name distinct and omits unverified contacts", () => {
+test("business identity keeps brand and legal name distinct, publishes confirmed phone, and omits unverified mail-order number", () => {
   assert.equal(SERVICE_PUBLIC_NAME, "하브");
   assert.equal(SERVICE_PUBLIC_ORIGIN, "https://hav.chat");
   assert.equal(BUSINESS_TRADE_NAME, "노벨 챗");
@@ -220,10 +221,12 @@ test("business identity keeps brand and legal name distinct and omits unverified
   assert.equal(BUSINESS_TAX_TYPE, "일반과세자");
   assert.equal(BUSINESS_OPERATING_STATUS, "휴업");
   assert.equal(BUSINESS_IDENTITY_SOURCE, "submitted_nts_certificate");
-  assert.equal(BUSINESS_IDENTITY_VERIFICATION.phoneNumber, "unverified");
+  assert.equal(BUSINESS_CUSTOMER_SERVICE_PHONE, "070-8080-5884");
+  assert.equal(BUSINESS_IDENTITY_VERIFICATION.phoneNumber, "confirmed");
   assert.equal(BUSINESS_CUSTOMER_SERVICE_EMAIL, "admin@hav.chat");
   assert.equal(BUSINESS_IDENTITY_VERIFICATION.customerServiceEmail, "confirmed");
   assert.equal(new Set(BUSINESS_PUBLIC_LINES).size, BUSINESS_PUBLIC_LINES.length);
+  assert.equal(BUSINESS_PUBLIC_LINES.filter((line) => line.includes("고객센터 전화")).length, 1);
   assert.equal(BUSINESS_PUBLIC_LINES.filter((line) => line.includes("고객센터 이메일")).length, 1);
   assert.equal(BUSINESS_IDENTITY_VERIFICATION.mailOrderReportNumber, "unverified");
 });
