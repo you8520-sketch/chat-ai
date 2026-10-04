@@ -121,7 +121,7 @@ export const TERMS_PAGE = {
     article(5, "business", "사업자 정보", [
       `${SERVICE_PUBLIC_NAME}는 서비스 브랜드명이고, 법적 상호는 ${BUSINESS_TRADE_NAME}입니다.`,
       ...BUSINESS_PUBLIC_LINES,
-      "고객센터 전화번호와 통신판매업 신고번호는 확인되지 않아 기재하지 않습니다.",
+      "통신판매업 신고번호는 확인되지 않아 기재하지 않습니다.",
     ]),
     article(6, "points", "유료 서비스와 포인트", [
       ...POINT_CHARGE_PRODUCT_PARAGRAPHS,
@@ -168,7 +168,7 @@ export const PRIVACY_PAGE = {
     article(1, "controller", "개인정보 처리자", [
       `${SERVICE_PUBLIC_NAME} 서비스의 개인정보 처리자는 상호 ${BUSINESS_TRADE_NAME}입니다.`,
       ...BUSINESS_PUBLIC_LINES,
-      "고객센터 전화번호와 통신판매업 신고번호는 확인되지 않아 기재하지 않습니다.",
+      "통신판매업 신고번호는 확인되지 않아 기재하지 않습니다.",
     ]),
     article(2, "purpose", "처리 목적", [
       "회원 가입, 이메일 인증, 로그인, 기존 계정 연결에 사용합니다.",
