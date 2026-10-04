@@ -81,6 +81,8 @@ function framingForSlot(slot: OfficialAssetSlotPlan, draftKey: string): string {
   }
 }
 
+export type OfficialReferenceRoleLayout = "slot_default" | "identity_then_style";
+
 export type OfficialAssetPromptInput = {
   draft: OfficialCharacterDraft;
   appearance: OfficialAppearanceLock;
@@ -88,48 +90,110 @@ export type OfficialAssetPromptInput = {
   slot: OfficialAssetSlotPlan;
   /** Approved style seed — when Cluster B, calibrates DNA + reference semantics. */
   styleSeed?: StyleReference | null;
+  /**
+   * Default `slot_default` keeps the production official path:
+   * representative = STYLE ONLY, other slots = IDENTITY ANCHOR ONLY.
+   * `identity_then_style` is opt-in for the lucian-sig4 style proof only.
+   */
+  referenceRoleLayout?: OfficialReferenceRoleLayout;
 };
 
-function representativeStyleReferenceRule(styleSeed: StyleReference | null | undefined): string {
-  const clusterB = isClusterBGraphicStyleSeed(styleSeed);
-  const lines = [
-    "REFERENCE IMAGE(S): STYLE ONLY.",
-    "Use the supplied image(s) solely for drawing/rendering language, facial illustration treatment, coloring, lighting, hair rendering density, material detail, detail density, and overall polish.",
-    "Create a brand-new original person.",
-    "Do not copy any reference person's face identity, hairstyle, hair color, eye color, outfit design, jewelry, marks/tattoos/scars, pose, or background.",
-    "The IDENTITY LOCK / Appearance Lock below is the sole character-identity owner and overrides any resemblance to the style references.",
+/** Shared identity-keep clause — used by IDENTITY ANCHOR and Image 1 IDENTITY ONLY. */
+export const OFFICIAL_IDENTITY_KEEP_CLAUSE =
+  "Use the supplied image solely to keep the same face structure, hair, eyes, marks, age, and body type.";
+
+/** Shared identity copy-ban — camera/pose/expression stay with shotPlan + slot lines. */
+export const OFFICIAL_IDENTITY_COPY_FORBIDDEN_CLAUSE =
+  "Do not copy the reference camera, head angle, face direction, crop, hand position, pose, expression, or background.";
+
+export const OFFICIAL_SHOT_POSE_EXPRESSION_OWNER_CLAUSE = [
+  "SHOT RESPONSIBILITY owns camera, face direction, and shot distance.",
+  "The Pose line owns action and props. The Expression line owns emotion.",
+].join(" ");
+
+/** Shared style-use clause — used by representative STYLE ONLY and Image 2 STYLE ONLY. */
+export const OFFICIAL_STYLE_USE_CLAUSE =
+  "Use the supplied image(s) solely for drawing/rendering language, facial illustration treatment, coloring, lighting, hair rendering density, material detail, detail density, and overall polish.";
+
+/** Shared style copy-ban — style references never donate identity or costume. */
+export const OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE =
+  "Do not copy any reference person's face identity, hairstyle, hair color, eye color, outfit design, jewelry, marks/tattoos/scars, pose, or background.";
+
+export const OFFICIAL_IDENTITY_LOCK_OWNER_CLAUSE =
+  "The IDENTITY LOCK / Appearance Lock below is the sole character-identity owner and overrides any resemblance to the style references.";
+
+export const OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL = "Image 1 IDENTITY ONLY";
+export const OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL = "Image 2 STYLE ONLY";
+
+/** Dual-role only. Shared style copy-ban already owns face/hair/outfit/jewelry/pose/background. */
+export const OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN =
+  "Image 2 additionally must not contribute gender or body identity, camera, framing, scene, or a character-specific palette.";
+
+function clusterBStyleReferenceExtras(styleSeed: StyleReference | null | undefined): string[] {
+  if (!isClusterBGraphicStyleSeed(styleSeed)) return [];
+  return [
+    ROFAN_CLUSTER_B_GRAPHIC_STYLE_DIRECTION,
+    "Render with crisp graphic webtoon linework, decisive cel-style shading, clear hue separation, and vivid accent contrast consistent with the references.",
+    "Translate the target character's canonical Appearance Lock colors into that saturation/contrast/highlight treatment; reference colors are examples of color handling, not colors to copy.",
+    "Never merge reference characters into one face; never import reference costumes, insignia, props, or seasonal/event setups.",
   ];
-  if (clusterB) {
-    lines.push(ROFAN_CLUSTER_B_GRAPHIC_STYLE_DIRECTION);
-    lines.push(
-      "Render with crisp graphic webtoon linework, decisive cel-style shading, clear hue separation, and vivid accent contrast consistent with the references."
-    );
-    lines.push(
-      "Translate the target character's canonical Appearance Lock colors into that saturation/contrast/highlight treatment; reference colors are examples of color handling, not colors to copy."
-    );
-    lines.push(
-      "Never merge reference characters into one face; never import reference costumes, insignia, props, or seasonal/event setups."
-    );
-  }
-  return lines.join(" ");
+}
+
+function representativeStyleReferenceRule(styleSeed: StyleReference | null | undefined): string {
+  return [
+    "REFERENCE IMAGE(S): STYLE ONLY.",
+    OFFICIAL_STYLE_USE_CLAUSE,
+    "Create a brand-new original person.",
+    OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE,
+    OFFICIAL_IDENTITY_LOCK_OWNER_CLAUSE,
+    ...clusterBStyleReferenceExtras(styleSeed),
+  ].join(" ");
 }
 
 /** Non-representative slots: the supplied image is the same person, not a composition to edit. */
 export const OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE = [
   "REFERENCE IMAGE: IDENTITY ANCHOR ONLY.",
-  "Use the supplied image solely to keep the same face structure, hair, eyes, marks, age, and body type.",
-  "Do not copy the reference camera, head angle, face direction, crop, hand position, pose, expression, or background.",
-  "SHOT RESPONSIBILITY owns camera, face direction, and shot distance.",
-  "The Pose line owns action and props. The Expression line owns emotion.",
+  OFFICIAL_IDENTITY_KEEP_CLAUSE,
+  OFFICIAL_IDENTITY_COPY_FORBIDDEN_CLAUSE,
+  OFFICIAL_SHOT_POSE_EXPRESSION_OWNER_CLAUSE,
 ].join(" ");
+
+/** Dual-role proof: Image 1 = identity, Image 2 = style. Opt-in only — not the default official path. */
+export function officialIdentityThenStyleReferenceRule(
+  styleSeed: StyleReference | null | undefined
+): string {
+  return [
+    `REFERENCE IMAGES: Image 1 is IDENTITY ONLY. Image 2 is STYLE ONLY.`,
+    `${OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL} — keep face identity, canonical hair, eye identity, character-specific identity features named in the IDENTITY LOCK, and body proportions.`,
+    OFFICIAL_IDENTITY_KEEP_CLAUSE,
+    OFFICIAL_IDENTITY_COPY_FORBIDDEN_CLAUSE,
+    `${OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL} — drawing/rendering language, line treatment, cel shading, face rendering grammar, hair highlight treatment, material/detail rendering, hue separation, and finishing/polish.`,
+    OFFICIAL_STYLE_USE_CLAUSE,
+    OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE,
+    OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN,
+    OFFICIAL_SHOT_POSE_EXPRESSION_OWNER_CLAUSE,
+    OFFICIAL_IDENTITY_LOCK_OWNER_CLAUSE,
+    ...clusterBStyleReferenceExtras(styleSeed),
+  ].join(" ");
+}
 
 function officialSlotReferenceRule(
   slot: OfficialAssetSlotPlan,
-  styleSeed: StyleReference | null | undefined
+  styleSeed: StyleReference | null | undefined,
+  referenceRoleLayout: OfficialReferenceRoleLayout = "slot_default"
 ): string {
-  return slot.kind === "representative"
-    ? representativeStyleReferenceRule(styleSeed)
-    : OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE;
+  switch (referenceRoleLayout) {
+    case "identity_then_style":
+      return officialIdentityThenStyleReferenceRule(styleSeed);
+    case "slot_default":
+      return slot.kind === "representative"
+        ? representativeStyleReferenceRule(styleSeed)
+        : OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE;
+    default: {
+      const exhaustive: never = referenceRoleLayout;
+      throw new Error(`Unknown official reference role layout ${String(exhaustive)}`);
+    }
+  }
 }
 
 /**
@@ -148,7 +212,11 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     { label: "Character", name: draft.name, gender: draft.gender },
   ]);
   const effectiveStyle = resolveOfficialAssetStyleDna(style, styleSeed);
-  const referenceRule = officialSlotReferenceRule(slot, styleSeed);
+  const referenceRule = officialSlotReferenceRule(
+    slot,
+    styleSeed,
+    input.referenceRoleLayout ?? "slot_default"
+  );
   const moment = [
     `Expression: ${slot.expression}.`,
     slot.pose.trim() ? `Pose: ${slot.pose}.` : "",

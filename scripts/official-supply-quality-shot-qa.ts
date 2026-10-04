@@ -6,7 +6,10 @@ import path from "node:path";
 import sharp from "sharp";
 
 import { compileOfficialDraftFromBible, type OfficialCharacterBible } from "@/lib/officialSupply/bible";
-import { buildOfficialAssetPrompts } from "@/lib/officialSupply/imagePrompt";
+import {
+  buildOfficialAssetPrompts,
+  type OfficialReferenceRoleLayout,
+} from "@/lib/officialSupply/imagePrompt";
 import {
   OFFICIAL_ASSET_OUTPUT_COMPRESSION,
   officialImageProfileForSlot,
@@ -27,15 +30,21 @@ import {
 } from "@/lib/openAiImageSafetyFallback";
 import { OpenAiImageError } from "@/lib/openAiImageEdit";
 import {
+  LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE,
   LUCIAN_SIG4_TRIAL_DRAFT_KEY,
   OFFICIAL_SHOT_QA_ARTIFACT_ENV,
   OFFICIAL_SHOT_QA_LIVE_ENV,
   OFFICIAL_SHOT_QA_MODE_ENV,
   OFFICIAL_SHOT_QA_REFERENCE_ENV,
+  OFFICIAL_SHOT_QA_STYLE_COST_APPROVED_ENV,
+  OFFICIAL_SHOT_QA_STYLE_REFERENCE_ENV,
+  lucianSig4StyleProviderCallDecision,
+  lucianSig4StyleProviderReferenceOrderError,
   officialShotQaArtifactDir,
   pickDefaultOfficialShotQaSlots,
   pickLucianSig4TrialSlot,
   pickLucianSig4TrialStyleCandidate,
+  prepareLucianSig4StyleTrial,
   prepareLucianSig4Trial,
   resolveLucianSig4ProofImageModel,
   resolveLucianSig4TrialStyle,
@@ -247,6 +256,80 @@ async function prepareLucianSig4(file: PilotFile, draft: OfficialCharacterDraft,
   };
 }
 
+async function prepareLucianSig4Style(file: PilotFile, draft: OfficialCharacterDraft, styles: StyleFile) {
+  const candidateResult = pickLucianSig4TrialStyleCandidate(styles.candidates);
+  if (!candidateResult.ok) stop(candidateResult.reason, { providerCalls: 0 }, "lucian-sig4-style");
+  const styleSeed = tryBuildClusterBStyleSeed();
+  const styleResult = resolveLucianSig4TrialStyle({
+    candidateId: candidateResult.candidate.candidateId,
+    candidateDna: candidateResult.candidate.dna,
+    styleSeed,
+  });
+  if (!styleResult.ok) stop(styleResult.reason, { providerCalls: 0 }, "lucian-sig4-style");
+  const slotResult = pickLucianSig4TrialSlot(file.assetPlan.slots, draft.draftKey);
+  if (!slotResult.ok) stop(slotResult.reason, { providerCalls: 0 }, "lucian-sig4-style");
+  const prompts = buildOfficialAssetPrompts({
+    draft,
+    appearance: file.appearance,
+    style: styleResult.style,
+    slot: slotResult.slot,
+    styleSeed: styleResult.styleSeed,
+    referenceRoleLayout: "identity_then_style",
+  });
+  const identityPath = process.env[OFFICIAL_SHOT_QA_REFERENCE_ENV]?.trim() ?? "";
+  const stylePath =
+    process.env[OFFICIAL_SHOT_QA_STYLE_REFERENCE_ENV]?.trim() || canonicalClusterBStyleReferencePath();
+  const identityDims = identityPath ? await inspectReferenceAsync(identityPath) : null;
+  const styleDims = stylePath ? await inspectReferenceAsync(stylePath) : null;
+  const canonicalStyleBytes = fs.existsSync(canonicalClusterBStyleReferencePath())
+    ? fs.readFileSync(canonicalClusterBStyleReferencePath())
+    : null;
+  const candidateStyleBytes = fs.existsSync(stylePath) ? fs.readFileSync(stylePath) : null;
+  const plan = prepareLucianSig4StyleTrial({
+    draftKey: draft.draftKey,
+    slots: file.assetPlan.slots,
+    appearance: file.appearance,
+    identityReferencePath: identityPath,
+    styleReferencePath: stylePath,
+    inspectImage: (filePath) => {
+      if (filePath === identityPath) return identityDims;
+      if (filePath === stylePath) return styleDims;
+      return null;
+    },
+    artifactDir: process.env[OFFICIAL_SHOT_QA_ARTIFACT_ENV],
+    identityThenStylePrompt: prompts.primaryPrompt,
+    styleCandidateId: candidateResult.candidate.candidateId,
+    style: candidateResult.candidate.dna,
+    styleSeed: styleResult.styleSeed,
+    canonicalStyleBytes,
+    candidateStyleBytes,
+  });
+  const artifactDir = qaArtifactDir("lucian-sig4-style");
+  fs.mkdirSync(artifactDir, { recursive: true });
+  if (!plan.ok) {
+    stop(plan.reason, { resolvedModel: plan.resolvedModel, providerCalls: 0 }, "lucian-sig4-style");
+  }
+  fs.writeFileSync(path.join(artifactDir, "PREPARE.json"), JSON.stringify(plan, null, 2));
+  return {
+    plan,
+    prompts,
+    slot: slotResult.slot,
+    shot: slotResult.shot,
+    style: styleResult.style,
+    styleSeed: styleResult.styleSeed,
+  };
+}
+
+function fileToDataUrl(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  const mime = ext === ".png" ? "image/png" : ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : "image/webp";
+  return `data:${mime};base64,${fs.readFileSync(filePath).toString("base64")}`;
+}
+
+function canonicalClusterBStyleReferencePath(): string {
+  return path.join(process.cwd(), LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE);
+}
+
 async function generateSlots(input: {
   mode: OfficialShotQaMode;
   draft: OfficialCharacterDraft;
@@ -254,7 +337,8 @@ async function generateSlots(input: {
   style: VisualStyleDna;
   styleSeed?: StyleReference | null;
   slots: OfficialAssetSlotPlan[];
-  reference: string;
+  references: string[];
+  referenceRoleLayout?: OfficialReferenceRoleLayout;
 }): Promise<void> {
   const artifactDir = qaArtifactDir(input.mode);
   fs.mkdirSync(artifactDir, { recursive: true });
@@ -271,13 +355,14 @@ async function generateSlots(input: {
       style: input.style,
       slot,
       styleSeed: input.styleSeed,
+      referenceRoleLayout: input.referenceRoleLayout,
     });
     try {
       const result = await callOpenAiImageEditWithSafetyFallback({
         model: resolveOfficialAssetImageModel(),
         primaryPrompt: prompts.primaryPrompt,
         strictFallbackPrompt: prompts.strictFallbackPrompt,
-        references: [input.reference],
+        references: input.references,
         size: profile.size,
         quality: "medium",
         outputCompression: OFFICIAL_ASSET_OUTPUT_COMPRESSION,
@@ -332,12 +417,36 @@ async function main(): Promise<void> {
   const mode = modeResult.mode;
   const live = process.env[OFFICIAL_SHOT_QA_LIVE_ENV] === "1";
 
-  if (mode === "lucian-sig4") {
+  if (mode === "lucian-sig4" || mode === "lucian-sig4-style") {
     const { file, draft, styles } = loadPilot();
-    const prepared = await prepareLucianSig4(file, draft, styles);
-    if (!live) {
+    const prepared =
+      mode === "lucian-sig4-style"
+        ? await prepareLucianSig4Style(file, draft, styles)
+        : await prepareLucianSig4(file, draft, styles);
+    if (mode === "lucian-sig4-style") {
+      const liveDecision = lucianSig4StyleProviderCallDecision({
+        live,
+        costApprovedRaw: process.env[OFFICIAL_SHOT_QA_STYLE_COST_APPROVED_ENV],
+      });
+      switch (liveDecision.action) {
+        case "prepare":
+          console.log(
+            `[official-shot-qa] PREPARE ${mode}: set ${OFFICIAL_SHOT_QA_LIVE_ENV}=1 after cost approval to generate one private review file`
+          );
+          console.log(JSON.stringify(prepared.plan, null, 2));
+          return;
+        case "stop":
+          stop(liveDecision.reason, { providerCalls: liveDecision.providerCalls }, mode);
+        case "allow_provider":
+          break;
+        default: {
+          const exhaustive: never = liveDecision;
+          stop(`unknown lucian-sig4-style live decision ${String(exhaustive)}`, { providerCalls: 0 }, mode);
+        }
+      }
+    } else if (!live) {
       console.log(
-        `[official-shot-qa] PREPARE lucian-sig4: set ${OFFICIAL_SHOT_QA_LIVE_ENV}=1 after cost approval to generate one private review file`
+        `[official-shot-qa] PREPARE ${mode}: set ${OFFICIAL_SHOT_QA_LIVE_ENV}=1 after cost approval to generate one private review file`
       );
       console.log(JSON.stringify(prepared.plan, null, 2));
       return;
@@ -352,10 +461,21 @@ async function main(): Promise<void> {
         providerCalls: 0,
       }, mode);
     }
-    const refPath = prepared.plan.referencePath;
-    const ext = path.extname(refPath).toLowerCase();
-    const mime = ext === ".png" ? "image/png" : ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : "image/webp";
-    const reference = `data:${mime};base64,${fs.readFileSync(refPath).toString("base64")}`;
+    const references =
+      mode === "lucian-sig4-style" && "references" in prepared.plan
+        ? prepared.plan.references.map((item) => fileToDataUrl(item.path))
+        : "referencePath" in prepared.plan
+          ? [fileToDataUrl(prepared.plan.referencePath)]
+          : [];
+    if (mode === "lucian-sig4-style" && "references" in prepared.plan) {
+      const orderError = lucianSig4StyleProviderReferenceOrderError(prepared.plan.references);
+      if (orderError) {
+        stop(orderError, { providerCalls: 0 }, mode);
+      }
+      if (references.length !== 2) {
+        stop(`expected exactly 2 provider references, got ${references.length}`, { providerCalls: 0 }, mode);
+      }
+    }
     await generateSlots({
       mode,
       draft,
@@ -363,7 +483,8 @@ async function main(): Promise<void> {
       style: prepared.style,
       styleSeed: prepared.styleSeed,
       slots: [prepared.slot],
-      reference,
+      references,
+      referenceRoleLayout: mode === "lucian-sig4-style" ? "identity_then_style" : "slot_default",
     });
     return;
   }
@@ -385,7 +506,7 @@ async function main(): Promise<void> {
     appearance: file.appearance,
     style: styles.candidates[0]!.dna,
     slots,
-    reference,
+    references: [reference],
   });
 }
 

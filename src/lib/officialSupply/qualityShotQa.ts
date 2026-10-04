@@ -1,6 +1,16 @@
 import { CHAT_IMAGE_GENERATION_KNOWN_MODEL_IDS } from "@/lib/chatImageGeneration";
 import { MAX_PROVIDER_ATTEMPTS } from "@/lib/openAiImageSafetyFallback";
-import { OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE } from "@/lib/officialSupply/imagePrompt";
+import {
+  OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE,
+  OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL,
+  OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL,
+  OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN,
+  officialIdentityThenStyleReferenceRule,
+} from "@/lib/officialSupply/imagePrompt";
+import {
+  CLUSTER_B_PRIMARY_GENERATION_PATHS,
+  CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT,
+} from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import {
   OFFICIAL_ASSET_DEFAULT_QUALITY,
   OFFICIAL_REPRESENTATIVE_IMAGE_PROFILE,
@@ -29,14 +39,26 @@ import type {
 export const OFFICIAL_SHOT_QA_LIVE_ENV = "OFFICIAL_QUALITY_SHOT_QA_LIVE";
 export const OFFICIAL_SHOT_QA_MODE_ENV = "OFFICIAL_QUALITY_SHOT_QA_MODE";
 export const OFFICIAL_SHOT_QA_REFERENCE_ENV = "OFFICIAL_QUALITY_SHOT_QA_REFERENCE_PATH";
+export const OFFICIAL_SHOT_QA_STYLE_REFERENCE_ENV = "OFFICIAL_QUALITY_SHOT_QA_STYLE_REFERENCE_PATH";
+export const OFFICIAL_SHOT_QA_STYLE_COST_APPROVED_ENV = "OFFICIAL_QUALITY_SHOT_QA_STYLE_COST_APPROVED";
 export const OFFICIAL_SHOT_QA_ARTIFACT_ENV = "OFFICIAL_QUALITY_SHOT_QA_ARTIFACT_DIR";
 
 export const OFFICIAL_SHOT_QA_DEFAULT_ARTIFACT_DIR = "/opt/cursor/artifacts/official-shot-qa";
 export const LUCIAN_SIG4_TRIAL_ARTIFACT_DIR = `${OFFICIAL_SHOT_QA_DEFAULT_ARTIFACT_DIR}/lucian-sig4`;
+export const LUCIAN_SIG4_STYLE_TRIAL_ARTIFACT_DIR = `${OFFICIAL_SHOT_QA_DEFAULT_ARTIFACT_DIR}/lucian-sig4-style`;
 
 export const LUCIAN_SIG4_TRIAL_DRAFT_KEY = "pilot-rf-03";
 export const LUCIAN_SIG4_TRIAL_SLOT_KEY = "sig4";
 export const LUCIAN_V4_REPRESENTATIVE_FILE_MARKER = "official-pilot-rf-v4-03__rep";
+
+/** Pixel-selected STYLE ONLY file for this proof — explicit b7, not catalog index 0. */
+export const LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH =
+  `${CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT}/primary/b7-black-gold-uniform.webp`;
+export const LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER =
+  "romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform";
+export const LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE = `public${LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH}`;
+export const LUCIAN_SIG4_OBSERVED_ONE_REFERENCE_PAID_USD = 0.030653;
+export const LUCIAN_SIG4_STYLE_ESTIMATED_TWO_REFERENCE_PRIMARY_USD = 0.05;
 
 export const LUCIAN_SIG4_REQUIRED_SHOT = {
   faceDirection: "profile",
@@ -64,7 +86,14 @@ export const LUCIAN_APPEARANCE_LOCK_MARKERS = [
   "왼쪽 눈의 금장식 모노클",
 ] as const;
 
-export type OfficialShotQaMode = "default" | "lucian-sig4";
+export type OfficialShotQaMode = "default" | "lucian-sig4" | "lucian-sig4-style";
+export type LucianSig4StyleReferenceRole = "IDENTITY ONLY" | "STYLE ONLY";
+
+export type LucianSig4StyleProviderReference = {
+  index: 0 | 1;
+  role: LucianSig4StyleReferenceRole;
+  path: string;
+};
 
 export type OfficialShotQaImageInspect = (filePath: string) => {
   width: number;
@@ -90,6 +119,38 @@ export type LucianSig4TrialStyleOwner = {
   seedOwner: "buildClusterBRofanStyleSeed";
   styleCluster: "cluster_b_graphic";
   seedUrlsSentAsImage: false;
+};
+
+export type LucianSig4StyleTrialCostPlan = LucianSig4TrialCostPlan & {
+  referenceCount: 2;
+  observedOneReferencePaidUsd: typeof LUCIAN_SIG4_OBSERVED_ONE_REFERENCE_PAID_USD;
+  estimatedTwoReferencePrimaryUsd: typeof LUCIAN_SIG4_STYLE_ESTIMATED_TWO_REFERENCE_PRIMARY_USD;
+  planningCeilingUnchangedReason: string;
+};
+
+export type LucianSig4StyleTrialStyleOwner = Omit<LucianSig4TrialStyleOwner, "seedUrlsSentAsImage"> & {
+  seedUrlsSentAsImage: true;
+  selectedStyleReferenceMarker: typeof LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER;
+  selectedStyleReferenceRole: "STYLE ONLY";
+};
+
+export type LucianSig4StyleTrialPrepareOk = {
+  ok: true;
+  status: "PREPARE";
+  mode: "lucian-sig4-style";
+  draftKey: typeof LUCIAN_SIG4_TRIAL_DRAFT_KEY;
+  slotKey: typeof LUCIAN_SIG4_TRIAL_SLOT_KEY;
+  shot: Pick<OfficialSlotShotResponsibility, "faceDirection" | "cameraAngle" | "distance">;
+  referenceRoleLayout: "identity_then_style";
+  references: [LucianSig4StyleProviderReference, LucianSig4StyleProviderReference];
+  identityReferencePath: string;
+  styleReferencePath: string;
+  artifactDir: string;
+  persistedToProduction: false;
+  identityThenStyleRulePresent: boolean;
+  resolvedModel: string;
+  styleOwner: LucianSig4StyleTrialStyleOwner;
+  cost: LucianSig4StyleTrialCostPlan;
 };
 
 export type LucianSig4TrialPrepareOk = {
@@ -123,6 +184,7 @@ export function resolveOfficialShotQaMode(
   switch (mode) {
     case "default":
     case "lucian-sig4":
+    case "lucian-sig4-style":
       return { ok: true, mode };
     default:
       return { ok: false, reason: `unknown ${OFFICIAL_SHOT_QA_MODE_ENV} "${mode}"` };
@@ -135,7 +197,18 @@ export function officialShotQaArtifactDir(
 ): string {
   const explicit = override?.trim();
   if (explicit) return explicit;
-  return mode === "lucian-sig4" ? LUCIAN_SIG4_TRIAL_ARTIFACT_DIR : OFFICIAL_SHOT_QA_DEFAULT_ARTIFACT_DIR;
+  switch (mode) {
+    case "lucian-sig4-style":
+      return LUCIAN_SIG4_STYLE_TRIAL_ARTIFACT_DIR;
+    case "lucian-sig4":
+      return LUCIAN_SIG4_TRIAL_ARTIFACT_DIR;
+    case "default":
+      return OFFICIAL_SHOT_QA_DEFAULT_ARTIFACT_DIR;
+    default: {
+      const exhaustive: never = mode;
+      throw new Error(`Unknown official shot QA mode ${String(exhaustive)}`);
+    }
+  }
 }
 
 export function lucianSig4TrialCostPlan(): LucianSig4TrialCostPlan {
@@ -411,6 +484,306 @@ export function prepareLucianSig4Trial(input: {
     resolvedModel: modelResult.model,
     styleOwner: lucianSig4TrialStyleOwner(),
     cost: lucianSig4TrialCostPlan(),
+  };
+}
+
+export function lucianSig4StyleLiveCostApprovalError(
+  live: boolean,
+  costApprovedRaw: string | null | undefined
+): string | null {
+  if (!live) return null;
+  if (costApprovedRaw?.trim() === "1") return null;
+  return `${OFFICIAL_SHOT_QA_STYLE_COST_APPROVED_ENV}=1 is required before lucian-sig4-style LIVE; refusing inherited ${OFFICIAL_SHOT_QA_LIVE_ENV}`;
+}
+
+export type LucianSig4StyleProviderCallDecision =
+  | { action: "prepare"; providerCalls: 0 }
+  | { action: "stop"; providerCalls: 0; reason: string }
+  | { action: "allow_provider" };
+
+/** Executable LIVE gate for lucian-sig4-style — decide before any provider function. */
+export function lucianSig4StyleProviderCallDecision(input: {
+  live: boolean;
+  costApprovedRaw: string | null | undefined;
+}): LucianSig4StyleProviderCallDecision {
+  if (!input.live) {
+    return { action: "prepare", providerCalls: 0 };
+  }
+  const reason = lucianSig4StyleLiveCostApprovalError(true, input.costApprovedRaw);
+  if (reason) {
+    return { action: "stop", providerCalls: 0, reason };
+  }
+  return { action: "allow_provider" };
+}
+
+export function lucianSig4StyleTrialCostPlan(): LucianSig4StyleTrialCostPlan {
+  const base = lucianSig4TrialCostPlan();
+  return {
+    ...base,
+    referenceCount: 2,
+    observedOneReferencePaidUsd: LUCIAN_SIG4_OBSERVED_ONE_REFERENCE_PAID_USD,
+    estimatedTwoReferencePrimaryUsd: LUCIAN_SIG4_STYLE_ESTIMATED_TWO_REFERENCE_PRIMARY_USD,
+    planningCeilingUnchangedReason:
+      "second STYLE ONLY image adds image-input tokens only; 2-ref primary stays far under the existing 2 * reserve internal ceiling",
+  };
+}
+
+export function lucianSig4StyleTrialStyleOwner(): LucianSig4StyleTrialStyleOwner {
+  return {
+    candidateId: LUCIAN_SIG4_TRIAL_STYLE_CANDIDATE_ID,
+    dnaOwner: "ROFAN_CLUSTER_B_VISUAL_STYLE_DNA",
+    resolverOwner: "resolveOfficialAssetStyleDna",
+    seedOwner: "buildClusterBRofanStyleSeed",
+    styleCluster: "cluster_b_graphic",
+    seedUrlsSentAsImage: true,
+    selectedStyleReferenceMarker: LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER,
+    selectedStyleReferenceRole: "STYLE ONLY",
+  };
+}
+
+export function lucianSig4SelectedStyleReferenceIsInClusterBCatalog(): boolean {
+  return (CLUSTER_B_PRIMARY_GENERATION_PATHS as readonly string[]).includes(
+    LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH
+  );
+}
+
+export function selectedClusterBStyleReferenceMatchesCanonical(pathValue: string): boolean {
+  return (
+    pathValue.includes(LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER) &&
+    lucianSig4SelectedStyleReferenceIsInClusterBCatalog()
+  );
+}
+
+function requiredStyleBytes(
+  value: Buffer | null | undefined
+): value is Buffer {
+  return Buffer.isBuffer(value) && value.length > 0;
+}
+
+export function validateLucianSig4StyleReference(input: {
+  styleReferencePath: string | null | undefined;
+  inspectImage: OfficialShotQaImageInspect;
+  canonicalBundleBytes?: Buffer | null;
+  candidateBytes?: Buffer | null;
+}): { ok: true; path: string } | { ok: false; reason: string } {
+  const stylePath = input.styleReferencePath?.trim() ?? "";
+  if (!stylePath) {
+    return {
+      ok: false,
+      reason: `${OFFICIAL_SHOT_QA_STYLE_REFERENCE_ENV} is required for lucian-sig4-style`,
+    };
+  }
+  if (!selectedClusterBStyleReferenceMatchesCanonical(stylePath)) {
+    return {
+      ok: false,
+      reason: `style reference must be the selected canonical Cluster B file (${LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER})`,
+    };
+  }
+  const dims = input.inspectImage(stylePath);
+  if (!dims) {
+    return { ok: false, reason: `style reference is missing or unreadable: ${stylePath}` };
+  }
+  if (!requiredStyleBytes(input.canonicalBundleBytes)) {
+    return { ok: false, reason: "canonical Cluster B b7 bytes are required for lucian-sig4-style" };
+  }
+  if (!requiredStyleBytes(input.candidateBytes)) {
+    return { ok: false, reason: "candidate Cluster B style bytes are required for lucian-sig4-style" };
+  }
+  if (!input.canonicalBundleBytes.equals(input.candidateBytes)) {
+    return {
+      ok: false,
+      reason: "style reference bytes do not match the canonical Cluster B bundle file",
+    };
+  }
+  return { ok: true, path: stylePath };
+}
+
+export function assembleLucianSig4StyleProviderReferences(input: {
+  identityPath: string;
+  stylePath: string;
+}):
+  | { ok: true; references: [LucianSig4StyleProviderReference, LucianSig4StyleProviderReference] }
+  | { ok: false; reason: string } {
+  const identityPath = input.identityPath.trim();
+  const stylePath = input.stylePath.trim();
+  if (!identityPath.includes(LUCIAN_V4_REPRESENTATIVE_FILE_MARKER)) {
+    return { ok: false, reason: "identity representative is not the approved v4 Lucian representative" };
+  }
+  if (!selectedClusterBStyleReferenceMatchesCanonical(stylePath)) {
+    return { ok: false, reason: "style reference is not the selected canonical Cluster B image" };
+  }
+  if (identityPath === stylePath) {
+    return { ok: false, reason: "identity and style references must be two distinct files" };
+  }
+  return {
+    ok: true,
+    references: [
+      { index: 0, role: "IDENTITY ONLY", path: identityPath },
+      { index: 1, role: "STYLE ONLY", path: stylePath },
+    ],
+  };
+}
+
+export function lucianSig4StyleProviderReferenceOrderError(
+  references: ReadonlyArray<{ role?: string; path: string }>
+): string | null {
+  if (references.length !== 2) {
+    return `expected exactly 2 provider references, got ${references.length}`;
+  }
+  const first = references[0]!;
+  const second = references[1]!;
+  if (!first.path.includes(LUCIAN_V4_REPRESENTATIVE_FILE_MARKER)) {
+    return "provider reference[0] must be the Lucian identity representative";
+  }
+  if (!selectedClusterBStyleReferenceMatchesCanonical(second.path)) {
+    return "provider reference[1] must be the selected Cluster B STYLE ONLY image";
+  }
+  if (first.role && first.role !== "IDENTITY ONLY") {
+    return "provider reference[0] role must be IDENTITY ONLY";
+  }
+  if (second.role && second.role !== "STYLE ONLY") {
+    return "provider reference[1] role must be STYLE ONLY";
+  }
+  return null;
+}
+
+export function lucianSig4StyleTrialPromptIntegrityError(input: {
+  prompt: string;
+  expression: string;
+  pose: string;
+}): string | null {
+  if (!input.prompt.includes(OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL)) {
+    return "assembled prompt is missing Image 1 IDENTITY ONLY";
+  }
+  if (!input.prompt.includes(OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL)) {
+    return "assembled prompt is missing Image 2 STYLE ONLY";
+  }
+  if (input.prompt.includes(OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE)) {
+    return "assembled prompt must use identity_then_style roles, not IDENTITY ANCHOR ONLY alone";
+  }
+  if (!input.prompt.includes(OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN)) {
+    return "assembled prompt is missing Image 2 gender/camera/scene/palette extra ban";
+  }
+  if (!input.prompt.includes("rendering: cel") || !input.prompt.includes("contrast: high")) {
+    return "assembled prompt is missing Cluster B graphic/cel/high-contrast direction";
+  }
+  if (!/웹툰|그래픽/.test(input.prompt)) {
+    return "assembled prompt is missing Cluster B webtoon/graphic grammar";
+  }
+  if (/(?:^|\n)framing:/.test(input.prompt)) {
+    return "assembled prompt reintroduced DNA framing after #1382";
+  }
+  const leak = RF01_STYLE_LEAKAGE_MARKERS.find((marker) => input.prompt.includes(marker));
+  if (leak) {
+    return `assembled prompt leaks rf-01 style (${leak})`;
+  }
+  if (!input.prompt.includes(input.expression) || !input.prompt.includes(input.pose)) {
+    return "assembled prompt is missing sig4 slot.expression or slot.pose";
+  }
+  const expectedRule = officialIdentityThenStyleReferenceRule({
+    url: `https://example.test${LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH}`,
+    provenance: "platform_owned",
+    note: "STYLE ONLY integrity check — Cluster B graphic extras only",
+    styleCluster: "cluster_b_graphic",
+  });
+  if (!input.prompt.includes(expectedRule)) {
+    return "assembled prompt is missing the canonical identity_then_style reference rule";
+  }
+  return null;
+}
+
+export function prepareLucianSig4StyleTrial(input: {
+  draftKey: string;
+  slots: readonly OfficialAssetSlotPlan[];
+  appearance: OfficialAppearanceLock;
+  identityReferencePath: string | null | undefined;
+  styleReferencePath: string | null | undefined;
+  inspectImage: OfficialShotQaImageInspect;
+  artifactDir?: string | null;
+  identityThenStylePrompt?: string;
+  styleCandidateId: string;
+  style: VisualStyleDna;
+  styleSeed?: StyleReference | null;
+  canonicalStyleBytes?: Buffer | null;
+  candidateStyleBytes?: Buffer | null;
+  env?: NodeJS.ProcessEnv;
+}): LucianSig4StyleTrialPrepareOk | LucianSig4TrialPrepareStop {
+  const slotResult = pickLucianSig4TrialSlot(input.slots, input.draftKey);
+  if (!slotResult.ok) {
+    return prepareStop(slotResult.reason);
+  }
+  const identity = validateLucianV4IdentityReference({
+    referencePath: input.identityReferencePath,
+    appearance: input.appearance,
+    inspectImage: input.inspectImage,
+  });
+  if (!identity.ok) {
+    return prepareStop(identity.reason);
+  }
+  const styleRef = validateLucianSig4StyleReference({
+    styleReferencePath: input.styleReferencePath,
+    inspectImage: input.inspectImage,
+    canonicalBundleBytes: input.canonicalStyleBytes,
+    candidateBytes: input.candidateStyleBytes,
+  });
+  if (!styleRef.ok) {
+    return prepareStop(styleRef.reason);
+  }
+  const assembled = assembleLucianSig4StyleProviderReferences({
+    identityPath: identity.path,
+    stylePath: styleRef.path,
+  });
+  if (!assembled.ok) {
+    return prepareStop(assembled.reason);
+  }
+  const orderError = lucianSig4StyleProviderReferenceOrderError(assembled.references);
+  if (orderError) {
+    return prepareStop(orderError);
+  }
+  const styleResult = resolveLucianSig4TrialStyle({
+    candidateId: input.styleCandidateId,
+    candidateDna: input.style,
+    styleSeed: input.styleSeed,
+  });
+  if (!styleResult.ok) {
+    return prepareStop(styleResult.reason);
+  }
+  const modelResult = resolveLucianSig4ProofImageModel(input.env);
+  if (!modelResult.ok) {
+    return prepareStop(modelResult.reason, modelResult.model);
+  }
+  const prompt = input.identityThenStylePrompt ?? "";
+  if (prompt) {
+    const promptError = lucianSig4StyleTrialPromptIntegrityError({
+      prompt,
+      expression: slotResult.slot.expression,
+      pose: slotResult.slot.pose,
+    });
+    if (promptError) {
+      return prepareStop(promptError, modelResult.model);
+    }
+  }
+  return {
+    ok: true,
+    status: "PREPARE",
+    mode: "lucian-sig4-style",
+    draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
+    slotKey: LUCIAN_SIG4_TRIAL_SLOT_KEY,
+    shot: {
+      faceDirection: slotResult.shot.faceDirection,
+      cameraAngle: slotResult.shot.cameraAngle,
+      distance: slotResult.shot.distance,
+    },
+    referenceRoleLayout: "identity_then_style",
+    references: assembled.references,
+    identityReferencePath: identity.path,
+    styleReferencePath: styleRef.path,
+    artifactDir: officialShotQaArtifactDir("lucian-sig4-style", input.artifactDir),
+    persistedToProduction: false,
+    identityThenStyleRulePresent: !prompt || prompt.includes(OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL),
+    resolvedModel: modelResult.model,
+    styleOwner: lucianSig4StyleTrialStyleOwner(),
+    cost: lucianSig4StyleTrialCostPlan(),
   };
 }
 
