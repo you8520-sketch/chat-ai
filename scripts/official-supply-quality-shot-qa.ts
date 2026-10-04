@@ -38,7 +38,7 @@ import {
   OFFICIAL_SHOT_QA_REFERENCE_ENV,
   OFFICIAL_SHOT_QA_STYLE_COST_APPROVED_ENV,
   OFFICIAL_SHOT_QA_STYLE_REFERENCE_ENV,
-  lucianSig4StyleLiveCostApprovalError,
+  lucianSig4StyleProviderCallDecision,
   lucianSig4StyleProviderReferenceOrderError,
   officialShotQaArtifactDir,
   pickDefaultOfficialShotQaSlots,
@@ -423,21 +423,33 @@ async function main(): Promise<void> {
       mode === "lucian-sig4-style"
         ? await prepareLucianSig4Style(file, draft, styles)
         : await prepareLucianSig4(file, draft, styles);
-    if (!live) {
+    if (mode === "lucian-sig4-style") {
+      const liveDecision = lucianSig4StyleProviderCallDecision({
+        live,
+        costApprovedRaw: process.env[OFFICIAL_SHOT_QA_STYLE_COST_APPROVED_ENV],
+      });
+      switch (liveDecision.action) {
+        case "prepare":
+          console.log(
+            `[official-shot-qa] PREPARE ${mode}: set ${OFFICIAL_SHOT_QA_LIVE_ENV}=1 after cost approval to generate one private review file`
+          );
+          console.log(JSON.stringify(prepared.plan, null, 2));
+          return;
+        case "stop":
+          stop(liveDecision.reason, { providerCalls: liveDecision.providerCalls }, mode);
+        case "allow_provider":
+          break;
+        default: {
+          const exhaustive: never = liveDecision;
+          stop(`unknown lucian-sig4-style live decision ${String(exhaustive)}`, { providerCalls: 0 }, mode);
+        }
+      }
+    } else if (!live) {
       console.log(
         `[official-shot-qa] PREPARE ${mode}: set ${OFFICIAL_SHOT_QA_LIVE_ENV}=1 after cost approval to generate one private review file`
       );
       console.log(JSON.stringify(prepared.plan, null, 2));
       return;
-    }
-    if (mode === "lucian-sig4-style") {
-      const costGate = lucianSig4StyleLiveCostApprovalError(
-        live,
-        process.env[OFFICIAL_SHOT_QA_STYLE_COST_APPROVED_ENV]
-      );
-      if (costGate) {
-        stop(costGate, { providerCalls: 0 }, mode);
-      }
     }
     const modelGate = resolveLucianSig4ProofImageModel();
     if (!modelGate.ok) {

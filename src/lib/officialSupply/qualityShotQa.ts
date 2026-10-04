@@ -4,10 +4,13 @@ import {
   OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE,
   OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL,
   OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL,
-  OFFICIAL_IMAGE2_STYLE_CARRYOVER_BAN,
+  OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN,
   officialIdentityThenStyleReferenceRule,
 } from "@/lib/officialSupply/imagePrompt";
-import { CLUSTER_B_PRIMARY_GENERATION_PATHS } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
+import {
+  CLUSTER_B_PRIMARY_GENERATION_PATHS,
+  CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT,
+} from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import {
   OFFICIAL_ASSET_DEFAULT_QUALITY,
   OFFICIAL_REPRESENTATIVE_IMAGE_PROFILE,
@@ -48,10 +51,12 @@ export const LUCIAN_SIG4_TRIAL_DRAFT_KEY = "pilot-rf-03";
 export const LUCIAN_SIG4_TRIAL_SLOT_KEY = "sig4";
 export const LUCIAN_V4_REPRESENTATIVE_FILE_MARKER = "official-pilot-rf-v4-03__rep";
 
-/** Selected STYLE ONLY file — CLUSTER_B_PRIMARY_GENERATION_PATHS[0], chosen by pixels not filename order. */
+/** Pixel-selected STYLE ONLY file for this proof — explicit b7, not catalog index 0. */
+export const LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH =
+  `${CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT}/primary/b7-black-gold-uniform.webp`;
 export const LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER =
   "romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform";
-export const LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE = `public${CLUSTER_B_PRIMARY_GENERATION_PATHS[0]}`;
+export const LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE = `public${LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH}`;
 export const LUCIAN_SIG4_OBSERVED_ONE_REFERENCE_PAID_USD = 0.030653;
 export const LUCIAN_SIG4_STYLE_ESTIMATED_TWO_REFERENCE_PRIMARY_USD = 0.05;
 
@@ -491,6 +496,26 @@ export function lucianSig4StyleLiveCostApprovalError(
   return `${OFFICIAL_SHOT_QA_STYLE_COST_APPROVED_ENV}=1 is required before lucian-sig4-style LIVE; refusing inherited ${OFFICIAL_SHOT_QA_LIVE_ENV}`;
 }
 
+export type LucianSig4StyleProviderCallDecision =
+  | { action: "prepare"; providerCalls: 0 }
+  | { action: "stop"; providerCalls: 0; reason: string }
+  | { action: "allow_provider" };
+
+/** Executable LIVE gate for lucian-sig4-style — decide before any provider function. */
+export function lucianSig4StyleProviderCallDecision(input: {
+  live: boolean;
+  costApprovedRaw: string | null | undefined;
+}): LucianSig4StyleProviderCallDecision {
+  if (!input.live) {
+    return { action: "prepare", providerCalls: 0 };
+  }
+  const reason = lucianSig4StyleLiveCostApprovalError(true, input.costApprovedRaw);
+  if (reason) {
+    return { action: "stop", providerCalls: 0, reason };
+  }
+  return { action: "allow_provider" };
+}
+
 export function lucianSig4StyleTrialCostPlan(): LucianSig4StyleTrialCostPlan {
   const base = lucianSig4TrialCostPlan();
   return {
@@ -516,12 +541,23 @@ export function lucianSig4StyleTrialStyleOwner(): LucianSig4StyleTrialStyleOwner
   };
 }
 
+export function lucianSig4SelectedStyleReferenceIsInClusterBCatalog(): boolean {
+  return (CLUSTER_B_PRIMARY_GENERATION_PATHS as readonly string[]).includes(
+    LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH
+  );
+}
+
 export function selectedClusterBStyleReferenceMatchesCanonical(pathValue: string): boolean {
   return (
     pathValue.includes(LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER) &&
-    pathValue.includes("romance-fantasy-cluster-b-v1") &&
-    CLUSTER_B_PRIMARY_GENERATION_PATHS[0].includes(LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER)
+    lucianSig4SelectedStyleReferenceIsInClusterBCatalog()
   );
+}
+
+function requiredStyleBytes(
+  value: Buffer | null | undefined
+): value is Buffer {
+  return Buffer.isBuffer(value) && value.length > 0;
 }
 
 export function validateLucianSig4StyleReference(input: {
@@ -547,11 +583,13 @@ export function validateLucianSig4StyleReference(input: {
   if (!dims) {
     return { ok: false, reason: `style reference is missing or unreadable: ${stylePath}` };
   }
-  if (
-    input.canonicalBundleBytes &&
-    input.candidateBytes &&
-    !input.canonicalBundleBytes.equals(input.candidateBytes)
-  ) {
+  if (!requiredStyleBytes(input.canonicalBundleBytes)) {
+    return { ok: false, reason: "canonical Cluster B b7 bytes are required for lucian-sig4-style" };
+  }
+  if (!requiredStyleBytes(input.candidateBytes)) {
+    return { ok: false, reason: "candidate Cluster B style bytes are required for lucian-sig4-style" };
+  }
+  if (!input.canonicalBundleBytes.equals(input.candidateBytes)) {
     return {
       ok: false,
       reason: "style reference bytes do not match the canonical Cluster B bundle file",
@@ -623,8 +661,8 @@ export function lucianSig4StyleTrialPromptIntegrityError(input: {
   if (input.prompt.includes(OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE)) {
     return "assembled prompt must use identity_then_style roles, not IDENTITY ANCHOR ONLY alone";
   }
-  if (!input.prompt.includes(OFFICIAL_IMAGE2_STYLE_CARRYOVER_BAN)) {
-    return "assembled prompt is missing Image 2 identity/costume/pose/background carry-over ban";
+  if (!input.prompt.includes(OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN)) {
+    return "assembled prompt is missing Image 2 gender/camera/scene/palette extra ban";
   }
   if (!input.prompt.includes("rendering: cel") || !input.prompt.includes("contrast: high")) {
     return "assembled prompt is missing Cluster B graphic/cel/high-contrast direction";
@@ -643,7 +681,7 @@ export function lucianSig4StyleTrialPromptIntegrityError(input: {
     return "assembled prompt is missing sig4 slot.expression or slot.pose";
   }
   const expectedRule = officialIdentityThenStyleReferenceRule({
-    url: `https://example.test${CLUSTER_B_PRIMARY_GENERATION_PATHS[0]}`,
+    url: `https://example.test${LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH}`,
     provenance: "platform_owned",
     note: "STYLE ONLY integrity check — Cluster B graphic extras only",
     styleCluster: "cluster_b_graphic",

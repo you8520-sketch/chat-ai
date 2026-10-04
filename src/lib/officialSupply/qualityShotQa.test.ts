@@ -9,7 +9,8 @@ import {
   OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE,
   OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL,
   OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL,
-  OFFICIAL_IMAGE2_STYLE_CARRYOVER_BAN,
+  OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN,
+  OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE,
 } from "@/lib/officialSupply/imagePrompt";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import { CHAT_IMAGE_GENERATION_DEFAULT_MODEL } from "@/lib/chatImageGeneration";
@@ -20,6 +21,7 @@ import {
   LUCIAN_SIG4_OBSERVED_ONE_REFERENCE_PAID_USD,
   LUCIAN_SIG4_REQUIRED_SHOT,
   LUCIAN_SIG4_STYLE_ESTIMATED_TWO_REFERENCE_PRIMARY_USD,
+  LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH,
   LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER,
   LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE,
   LUCIAN_SIG4_STYLE_TRIAL_ARTIFACT_DIR,
@@ -31,7 +33,9 @@ import {
   appearanceLockMatchesLucian,
   assembleLucianSig4StyleProviderReferences,
   isLucianSig4ProofSupportedImageModel,
+  lucianSig4SelectedStyleReferenceIsInClusterBCatalog,
   lucianSig4StyleLiveCostApprovalError,
+  lucianSig4StyleProviderCallDecision,
   lucianSig4StyleProviderReferenceOrderError,
   lucianSig4StyleTrialCostPlan,
   lucianSig4TrialCostPlan,
@@ -392,16 +396,31 @@ function buildSig4StylePrompt(
 }
 
 describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
-  it("selects the pixel-chosen Cluster B primary file as STYLE ONLY", () => {
+  it("selects explicit b7 independently of Cluster B catalog order", () => {
     assert.equal(
-      CLUSTER_B_PRIMARY_GENERATION_PATHS[0],
-      `/official-supply/style-seeds/${LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER}.webp`
+      LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH,
+      "/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp"
     );
     assert.equal(
       LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE,
-      `public${CLUSTER_B_PRIMARY_GENERATION_PATHS[0]}`
+      `public${LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH}`
     );
+    assert.equal(lucianSig4SelectedStyleReferenceIsInClusterBCatalog(), true);
+    assert.ok(
+      (CLUSTER_B_PRIMARY_GENERATION_PATHS as readonly string[]).includes(
+        LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH
+      )
+    );
+    const reordered = [
+      CLUSTER_B_PRIMARY_GENERATION_PATHS[1],
+      CLUSTER_B_PRIMARY_GENERATION_PATHS[2],
+      CLUSTER_B_PRIMARY_GENERATION_PATHS[0],
+    ];
+    assert.equal(reordered[0]!.includes("b7-black-gold-uniform"), false);
+    assert.ok(reordered.includes(LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH));
     assert.ok(fs.existsSync(path.join(process.cwd(), LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE)));
+    const lib = fs.readFileSync(path.join(process.cwd(), "src/lib/officialSupply/qualityShotQa.ts"), "utf8");
+    assert.doesNotMatch(lib, /CLUSTER_B_PRIMARY_GENERATION_PATHS\[0\]/);
   });
 
   it("assembles exactly two provider references in identity-then-style order", () => {
@@ -459,6 +478,31 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
       validateLucianSig4StyleReference({
         styleReferencePath: STYLE_PATH,
         inspectImage: inspectAny,
+        candidateBytes: STYLE_BYTES,
+      }).reason ?? "",
+      /canonical Cluster B b7 bytes are required/
+    );
+    assert.match(
+      validateLucianSig4StyleReference({
+        styleReferencePath: STYLE_PATH,
+        inspectImage: inspectAny,
+        canonicalBundleBytes: STYLE_BYTES,
+      }).reason ?? "",
+      /candidate Cluster B style bytes are required/
+    );
+    assert.match(
+      validateLucianSig4StyleReference({
+        styleReferencePath: STYLE_PATH,
+        inspectImage: inspectAny,
+        canonicalBundleBytes: Buffer.alloc(0),
+        candidateBytes: STYLE_BYTES,
+      }).reason ?? "",
+      /canonical Cluster B b7 bytes are required/
+    );
+    assert.match(
+      validateLucianSig4StyleReference({
+        styleReferencePath: STYLE_PATH,
+        inspectImage: inspectAny,
         canonicalBundleBytes: STYLE_BYTES,
         candidateBytes: Buffer.from("different-bytes"),
       }).reason ?? "",
@@ -471,6 +515,43 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
       candidateBytes: Buffer.from("canonical-cluster-b-b7"),
     });
     assert.equal(ok.ok, true);
+
+    const missingCanonical = prepareLucianSig4StyleTrial({
+      draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
+      slots: PILOT.assetPlan.slots,
+      appearance: PILOT.appearance,
+      identityReferencePath: REP_PATH,
+      styleReferencePath: STYLE_PATH,
+      inspectImage: inspectAny,
+      styleCandidateId: "rf-02",
+      style: RF02.dna,
+      styleSeed: CLUSTER_B_SEED,
+      candidateStyleBytes: STYLE_BYTES,
+      env: EMPTY_IMAGE_ENV,
+    });
+    assert.equal(missingCanonical.ok, false);
+    if (!missingCanonical.ok) {
+      assert.equal(missingCanonical.providerCalls, 0);
+      assert.match(missingCanonical.reason, /canonical Cluster B b7 bytes are required/);
+    }
+    const missingCandidate = prepareLucianSig4StyleTrial({
+      draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
+      slots: PILOT.assetPlan.slots,
+      appearance: PILOT.appearance,
+      identityReferencePath: REP_PATH,
+      styleReferencePath: STYLE_PATH,
+      inspectImage: inspectAny,
+      styleCandidateId: "rf-02",
+      style: RF02.dna,
+      styleSeed: CLUSTER_B_SEED,
+      canonicalStyleBytes: STYLE_BYTES,
+      env: EMPTY_IMAGE_ENV,
+    });
+    assert.equal(missingCandidate.ok, false);
+    if (!missingCandidate.ok) {
+      assert.equal(missingCandidate.providerCalls, 0);
+      assert.match(missingCandidate.reason, /candidate Cluster B style bytes are required/);
+    }
   });
 
   it("prepares the same sig4 shot with Image 1 IDENTITY ONLY and Image 2 STYLE ONLY", () => {
@@ -512,7 +593,14 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
     assert.equal(prompts.primaryPrompt.includes(OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL), true);
     assert.equal(prompts.strictFallbackPrompt.includes(OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL), true);
     assert.equal(prompts.strictFallbackPrompt.includes(OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL), true);
-    assert.equal(prompts.primaryPrompt.includes(OFFICIAL_IMAGE2_STYLE_CARRYOVER_BAN), true);
+    assert.equal(prompts.primaryPrompt.includes(OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE), true);
+    assert.equal(prompts.primaryPrompt.includes(OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN), true);
+    assert.equal(prompts.strictFallbackPrompt.includes(OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE), true);
+    assert.equal(prompts.strictFallbackPrompt.includes(OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN), true);
+    assert.equal(prompts.primaryPrompt.split(OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE).length - 1, 1);
+    assert.doesNotMatch(OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN, /hairstyle|hair color|eye color|outfit|jewelry|pose|background/);
+    assert.match(OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN, /gender or body identity/);
+    assert.match(OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN, /camera, framing, scene/);
     assert.equal(prompts.primaryPrompt.includes(OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE), false);
     assert.match(prompts.primaryPrompt, /rendering: cel/);
     assert.doesNotMatch(prompts.primaryPrompt, /(?:^|\n)framing:/);
@@ -592,6 +680,8 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
       styleCandidateId: "rf-02",
       style: RF02.dna,
       styleSeed: CLUSTER_B_SEED,
+      canonicalStyleBytes: STYLE_BYTES,
+      candidateStyleBytes: STYLE_BYTES,
       env: EMPTY_IMAGE_ENV,
     });
     assert.equal(identityOnlyPrompt.ok, false);
@@ -599,13 +689,6 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
       assert.match(identityOnlyPrompt.reason, /Image 1 IDENTITY ONLY|identity_then_style/);
       assert.equal(identityOnlyPrompt.providerCalls, 0);
     }
-
-    assert.equal(lucianSig4StyleLiveCostApprovalError(false, undefined), null);
-    assert.equal(lucianSig4StyleLiveCostApprovalError(true, "1"), null);
-    assert.match(
-      lucianSig4StyleLiveCostApprovalError(true, undefined) ?? "",
-      /STYLE_COST_APPROVED=1 is required/
-    );
 
     const unknownModel = prepareLucianSig4StyleTrial({
       draftKey: LUCIAN_SIG4_TRIAL_DRAFT_KEY,
@@ -618,6 +701,8 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
       styleCandidateId: "rf-02",
       style: RF02.dna,
       styleSeed: CLUSTER_B_SEED,
+      canonicalStyleBytes: STYLE_BYTES,
+      candidateStyleBytes: STYLE_BYTES,
       env: { OPENAI_IMAGE_MODEL: "custom-image-x" } as NodeJS.ProcessEnv,
     });
     assert.equal(unknownModel.ok, false);
@@ -625,5 +710,33 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
       assert.equal(unknownModel.providerCalls, 0);
       assert.equal(unknownModel.resolvedModel, "custom-image-x");
     }
+  });
+
+  it("stops inherited LIVE before the provider function when style cost is not approved", () => {
+    assert.deepEqual(lucianSig4StyleProviderCallDecision({ live: false, costApprovedRaw: undefined }), {
+      action: "prepare",
+      providerCalls: 0,
+    });
+    const inheritedLive = lucianSig4StyleProviderCallDecision({ live: true, costApprovedRaw: undefined });
+    assert.equal(inheritedLive.action, "stop");
+    if (inheritedLive.action !== "stop") return;
+    assert.equal(inheritedLive.providerCalls, 0);
+    assert.match(inheritedLive.reason, /STYLE_COST_APPROVED=1 is required/);
+    const rejectedZero = lucianSig4StyleProviderCallDecision({ live: true, costApprovedRaw: "0" });
+    assert.equal(rejectedZero.action, "stop");
+    if (rejectedZero.action === "stop") {
+      assert.equal(rejectedZero.providerCalls, 0);
+    }
+    assert.deepEqual(lucianSig4StyleProviderCallDecision({ live: true, costApprovedRaw: "1" }), {
+      action: "allow_provider",
+    });
+    assert.equal(lucianSig4StyleLiveCostApprovalError(false, undefined), null);
+    assert.equal(lucianSig4StyleLiveCostApprovalError(true, "1"), null);
+
+    const script = fs.readFileSync(path.join(process.cwd(), "scripts/official-supply-quality-shot-qa.ts"), "utf8");
+    const mainAt = script.indexOf("async function main(");
+    const decisionCallAt = script.indexOf("lucianSig4StyleProviderCallDecision({");
+    const generateCallAt = script.indexOf("await generateSlots({");
+    assert.ok(mainAt >= 0 && decisionCallAt > mainAt && generateCallAt > decisionCallAt);
   });
 });

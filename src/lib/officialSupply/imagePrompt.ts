@@ -125,8 +125,9 @@ export const OFFICIAL_IDENTITY_LOCK_OWNER_CLAUSE =
 export const OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL = "Image 1 IDENTITY ONLY";
 export const OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL = "Image 2 STYLE ONLY";
 
-export const OFFICIAL_IMAGE2_STYLE_CARRYOVER_BAN =
-  "Image 2 must not contribute the reference person's face, identity, gender or body identity, hairstyle, hair color, eye color, outfit design, jewelry, pose, camera, framing, background, scene, or character-specific palette.";
+/** Dual-role only. Shared style copy-ban already owns face/hair/outfit/jewelry/pose/background. */
+export const OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN =
+  "Image 2 additionally must not contribute gender or body identity, camera, framing, scene, or a character-specific palette.";
 
 function clusterBStyleReferenceExtras(styleSeed: StyleReference | null | undefined): string[] {
   if (!isClusterBGraphicStyleSeed(styleSeed)) return [];
@@ -169,7 +170,7 @@ export function officialIdentityThenStyleReferenceRule(
     `${OFFICIAL_IDENTITY_THEN_STYLE_IMAGE2_LABEL} — drawing/rendering language, line treatment, cel shading, face rendering grammar, hair highlight treatment, material/detail rendering, hue separation, and finishing/polish.`,
     OFFICIAL_STYLE_USE_CLAUSE,
     OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE,
-    OFFICIAL_IMAGE2_STYLE_CARRYOVER_BAN,
+    OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN,
     OFFICIAL_SHOT_POSE_EXPRESSION_OWNER_CLAUSE,
     OFFICIAL_IDENTITY_LOCK_OWNER_CLAUSE,
     ...clusterBStyleReferenceExtras(styleSeed),

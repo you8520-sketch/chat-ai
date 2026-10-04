@@ -7,6 +7,8 @@ import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compil
 import {
   buildOfficialAssetPrompts,
   OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE,
+  OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN,
+  OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE,
 } from "@/lib/officialSupply/imagePrompt";
 import { officialSlotGenerationReferences } from "@/lib/officialSupply/runner";
 import { resolveOfficialSlotShot } from "@/lib/officialSupply/shotPlan";
@@ -229,6 +231,7 @@ describe("official image-generation owners (#1376)", () => {
       if (slot.kind === "representative") {
         assert.match(primaryPrompt, /STYLE ONLY/i);
         assert.match(primaryPrompt, /character card portrait/);
+        assert.doesNotMatch(primaryPrompt, /Image 2 STYLE ONLY/);
       } else {
         assert.match(primaryPrompt, /IDENTITY ANCHOR ONLY/);
         assert.match(strictFallbackPrompt, /IDENTITY ANCHOR ONLY/);
@@ -288,6 +291,14 @@ describe("official image-generation owners (#1376)", () => {
     assert.match(dual.strictFallbackPrompt, /Image 1 IDENTITY ONLY/);
     assert.match(dual.strictFallbackPrompt, /Image 2 STYLE ONLY/);
     assert.equal(dual.primaryPrompt.includes(OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE), false);
+    assert.equal(dual.primaryPrompt.includes(OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE), true);
+    assert.equal(dual.strictFallbackPrompt.includes(OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE), true);
+    assert.equal(dual.primaryPrompt.split(OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE).length - 1, 1);
+    assert.equal(dual.primaryPrompt.includes(OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN), true);
+    assert.doesNotMatch(
+      OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN,
+      /hairstyle|hair color|eye color|outfit design|jewelry|pose|background/
+    );
     assert.deepEqual(
       officialSlotGenerationReferences({
         kind: "signature",

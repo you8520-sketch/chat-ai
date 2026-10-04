@@ -274,10 +274,15 @@ describe("official shot QA path stays non-persistent", () => {
     assert.match(lib, /OFFICIAL_QUALITY_SHOT_QA_REFERENCE_PATH/);
     assert.match(lib, /OFFICIAL_QUALITY_SHOT_QA_STYLE_REFERENCE_PATH/);
     assert.match(lib, /OFFICIAL_QUALITY_SHOT_QA_STYLE_COST_APPROVED/);
-    assert.match(source, /lucianSig4StyleLiveCostApprovalError/);
+    assert.match(source, /lucianSig4StyleProviderCallDecision/);
+    const mainAt = source.indexOf("async function main(");
+    const decisionCallAt = source.indexOf("lucianSig4StyleProviderCallDecision({");
+    const generateCallAt = source.indexOf("await generateSlots({");
+    assert.ok(mainAt >= 0 && decisionCallAt > mainAt && generateCallAt > decisionCallAt);
     assert.match(lib, /lucian-sig4-style/);
     assert.match(lib, /OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL/);
-    assert.match(lib, /OFFICIAL_IMAGE2_STYLE_CARRYOVER_BAN/);
+    assert.match(lib, /OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN/);
+    assert.doesNotMatch(lib, /CLUSTER_B_PRIMARY_GENERATION_PATHS\[0\]/);
     assert.match(source, /OFFICIAL_QUALITY_SHOT_QA_CONTACT_SHEET_PATH/);
     assert.match(lib, /\/opt\/cursor\/artifacts\/official-shot-qa/);
     assert.match(lib, /lucian-sig4/);
