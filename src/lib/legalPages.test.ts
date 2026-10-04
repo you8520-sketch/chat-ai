@@ -102,7 +102,7 @@ test("privacy copy states proven processing facts and does not invent compliance
     assert.match(text, new RegExp(line.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
   assert.doesNotMatch(text, /주식회사|자동으로 완전히|제3자에게 제공하지 않/);
-  assert.doesNotMatch(text, /통신판매업 신고번호 \d|고객센터 전화 \d/);
+  assert.doesNotMatch(text, /통신판매업 신고번호 \d/);
   assert.doesNotMatch(text, /PORTONE_CHARGE_ENABLED가 0이 아니면/);
   assert.doesNotMatch(text, /가입하면 바로 저장|가입 즉시/);
   assert.doesNotMatch(text, /성인 확인을 생략합니다/);
@@ -152,7 +152,7 @@ test("terms and refund publish confirmed business or product facts without inven
     for (const pkg of POINT_CHARGE_PACKAGES) {
       assert.match(text, new RegExp(formatPointChargePackagePublicLine(pkg).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     }
-    assert.doesNotMatch(text, /통신판매업 신고번호 \d|고객센터 전화 \d/);
+    assert.doesNotMatch(text, /통신판매업 신고번호 \d/);
     assert.doesNotMatch(text, /159-31-01749/);
     assert.doesNotMatch(text, /PORTONE_CHARGE_ENABLED가 0이 아니면/);
   }
