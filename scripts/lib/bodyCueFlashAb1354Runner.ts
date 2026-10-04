@@ -3,7 +3,7 @@
  * Reuses #1377 assembly and CheaperInference header/URL/adapt owners.
  * Does not change production defaults. Does not fall back to CHEAPER_INFERENCE_API_KEY.
  */
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 
@@ -14,6 +14,7 @@ import {
   buildCheaperInferenceHeaders,
   CHEAPER_INFERENCE_BASE_URL,
 } from "@/lib/cheaperInferenceConfig";
+import { parseCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing.server";
 import { CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL } from "@/lib/chatModels";
 import {
   loadCharacterChunksForPromptReadOnly,
@@ -21,7 +22,7 @@ import {
 } from "@/lib/characterChunks";
 import { CHEAPER_INFERENCE_MODELS_SOURCE_URL } from "@/lib/modelPricingTrackingConfig";
 import { readCompatibleCompletionProviderRequestId } from "@/lib/openRouterCompletion";
-import { parseOpenRouterUsage } from "@/lib/openRouterUsage";
+import { parseCompatibleUsage } from "@/lib/openRouterUsage";
 import { classifyEnglishLayer } from "@/lib/promptTranslation";
 import {
   assembleLiveDeployedBodyCueSceneRequests,
@@ -43,6 +44,14 @@ export const BODY_CUE_1354_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
 export const BODY_CUE_1354_MAX_TOKENS = 8192;
 export const BODY_CUE_1354_MIN_DISCOUNT_PERCENT = 50;
 export const BODY_CUE_1354_SUPPLY_URL = `${CHEAPER_INFERENCE_BASE_URL}/models/supply`;
+export const FLASH_INPUT_CEILING = 0.075;
+export const FLASH_OUTPUT_CEILING = 0.3;
+export const APPROVED_EXECUTION_PLAN = [
+  { sceneId: "quiet_window_safe", variant: "baseline" },
+  { sceneId: "relationship_turn_safe", variant: "candidate" },
+  { sceneId: "quiet_window_safe", variant: "candidate" },
+  { sceneId: "relationship_turn_safe", variant: "baseline" },
+] as const;
 
 export const SECRET_PLACEHOLDER = "<EXPERIMENT_KEY>";
 
@@ -81,6 +90,34 @@ export class LiveSealError extends Error {
   ) {
     super(message);
     this.name = "LiveSealError";
+  }
+}
+
+export class CatalogGateError extends Error {
+  readonly paidPostCount = 0;
+  constructor(
+    message: string,
+    readonly reason:
+      | "non_ok"
+      | "model_missing"
+      | "malformed"
+      | "price_violation"
+      | "supply_empty"
+      | "supply_ceiling"
+  ) {
+    super(message);
+    this.name = "CatalogGateError";
+  }
+}
+
+export class RunnerStopError extends Error {
+  constructor(
+    message: string,
+    readonly artifact: RunnerArtifact,
+    readonly reveal: BlindReveal | null = null
+  ) {
+    super(message);
+    this.name = "RunnerStopError";
   }
 }
 
@@ -367,9 +404,11 @@ export function assertPacketReadyForPaid(
   }
 }
 
+export type ExperimentVariant = "baseline" | "candidate";
+
 export type ExperimentArmRequest = {
   sceneId: string;
-  arm: "A" | "B";
+  variant: ExperimentVariant;
   requestBody: Record<string, unknown>;
   promptSha256: string;
   finalWireSha256: string;
@@ -377,18 +416,18 @@ export type ExperimentArmRequest = {
 };
 
 export function deriveExperimentRequests(rows: LiveDeployedBodyCueRows): ExperimentArmRequest[] {
-  const out: ExperimentArmRequest[] = [];
+  const derived: ExperimentArmRequest[] = [];
   for (const caseData of buildGreetingBodyCueReviewCases(String(rows.character.greeting ?? ""))) {
     const assembled = assembleLiveDeployedBodyCueSceneRequests(rows, caseData);
-    const arms = [
-      { arm: "A" as const, request: assembled.baseline },
-      { arm: "B" as const, request: assembled.candidate },
+    const arms: Array<{ variant: ExperimentVariant; request: typeof assembled.baseline }> = [
+      { variant: "baseline", request: assembled.baseline },
+      { variant: "candidate", request: assembled.candidate },
     ];
-    for (const { arm, request } of arms) {
+    for (const { variant, request } of arms) {
       const requestBody = applyBodyCue1354ExperimentOverrides(request.requestBody);
-      out.push({
+      derived.push({
         sceneId: caseData.id,
-        arm,
+        variant,
         requestBody,
         promptSha256: sha256Hex(JSON.stringify(requestBody.messages ?? [])),
         finalWireSha256: sha256Hex(JSON.stringify(requestBody)),
@@ -396,54 +435,354 @@ export function deriveExperimentRequests(rows: LiveDeployedBodyCueRows): Experim
       });
     }
   }
-  return out;
+  return planApprovedExecution(derived);
 }
+
+export function planApprovedExecution(derived: ExperimentArmRequest[]): ExperimentArmRequest[] {
+  return APPROVED_EXECUTION_PLAN.map((step) => {
+    const found = derived.find(
+      (item) => item.sceneId === step.sceneId && item.variant === step.variant
+    );
+    if (!found) {
+      throw new LiveSealError(
+        `approved plan missing ${step.sceneId}/${step.variant}`,
+        "scene_gate_failed"
+      );
+    }
+    return found;
+  });
+}
+
+export type PaidCallResult = {
+  httpStatus: number;
+  model: string | null;
+  promptTokens: number;
+  completionTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  billedCostUsd: number | null;
+  settled: boolean;
+  requestId: string | null;
+  text: string;
+  retried: false;
+  fallback: false;
+  errorCategory?: string;
+};
 
 export type ProviderPostFn = (input: {
   endpoint: string;
   headers: Record<string, string>;
   body: Record<string, unknown>;
-}) => Promise<{
-  httpStatus: number;
-  model: string | null;
-  completionTokens: number;
-  requestId: string | null;
-  billedMicroUsd: number | null;
-  settled: boolean;
-  text: string;
-  retried: boolean;
-  fallback: boolean;
-}>;
+}) => Promise<PaidCallResult>;
 
 export type CatalogGetFn = (input: {
   url: string;
   headers: Record<string, string>;
-}) => Promise<{ ok: boolean; pricingVersion?: string | null; candidateCount?: number }>;
+}) => Promise<{ ok: boolean; httpStatus: number; payload: unknown }>;
 
-export function assertCall1Gate(result: Awaited<ReturnType<ProviderPostFn>>): void {
+export function readCheaperInferenceBillingStatus(cheaperInference: unknown): string | null {
+  if (!cheaperInference || typeof cheaperInference !== "object") return null;
+  const billing = (cheaperInference as { billing?: unknown }).billing;
+  if (!billing || typeof billing !== "object") return null;
+  const status = (billing as { status?: unknown }).status;
+  return typeof status === "string" && status.trim() ? status.trim().toLowerCase() : null;
+}
+
+export function interpretPaidCompletion(res: {
+  status: number;
+  headers: Headers;
+  body: unknown;
+}): PaidCallResult {
+  const cheaper =
+    res.body && typeof res.body === "object"
+      ? (res.body as { cheaper_inference?: unknown }).cheaper_inference
+      : undefined;
+  const usage = parseCompatibleUsage({
+    usage:
+      res.body && typeof res.body === "object"
+        ? (res.body as { usage?: unknown }).usage
+        : null,
+    cheaperInference: cheaper,
+    headers: res.headers,
+    transportProvider: "cheaperinference",
+  });
+  const requestId = readCompatibleCompletionProviderRequestId({
+    provider: "cheaperinference",
+    headers: res.headers,
+    body: res.body,
+  });
+  const model =
+    res.body && typeof res.body === "object" && typeof (res.body as { model?: unknown }).model === "string"
+      ? String((res.body as { model: string }).model)
+      : null;
+  const text =
+    res.body && typeof res.body === "object"
+      ? String(
+          (
+            (res.body as { choices?: Array<{ message?: { content?: string } }> }).choices?.[0]
+              ?.message?.content ?? ""
+          )
+        )
+      : "";
+  const billedCostUsd = usage.cheaperInferenceBilledCostUsd ?? null;
+  const settled = readCheaperInferenceBillingStatus(cheaper) === "settled" && billedCostUsd != null;
+  return {
+    httpStatus: res.status,
+    model,
+    promptTokens: usage.promptTokens,
+    completionTokens: usage.completionTokens,
+    cacheReadTokens: usage.cacheReadTokens,
+    cacheWriteTokens: usage.cacheWriteTokens,
+    billedCostUsd,
+    settled,
+    requestId,
+    text,
+    retried: false,
+    fallback: false,
+    errorCategory: res.status < 200 || res.status >= 300 ? "http" : undefined,
+  };
+}
+
+export function assertPaidCallGate(result: PaidCallResult, callIndex: number): void {
+  const label = `CALL ${callIndex}`;
+  if (result.httpStatus < 200 || result.httpStatus >= 300) {
+    throw new Error(`${label} HTTP ${result.httpStatus}`);
+  }
   if (result.model !== BODY_CUE_1354_MODEL) {
-    throw new Error("CALL 1 model mismatch");
+    throw new Error(`${label} model mismatch`);
   }
   if (result.completionTokens > BODY_CUE_1354_MAX_TOKENS) {
-    throw new Error("CALL 1 completion_tokens exceeded 8192");
+    throw new Error(`${label} completion_tokens exceeded 8192`);
   }
   if (!result.requestId) {
-    throw new Error("CALL 1 missing request id");
+    throw new Error(`${label} missing request id`);
   }
-  if (result.billedMicroUsd == null) {
-    throw new Error("CALL 1 missing billed/settled cost evidence");
+  if (!result.settled || result.billedCostUsd == null) {
+    throw new Error(`${label} unsettled billing evidence`);
   }
   if (result.retried || result.fallback) {
-    throw new Error("CALL 1 retry/fallback is forbidden");
+    throw new Error(`${label} retry/fallback is forbidden`);
   }
 }
 
+export function assertCall1Gate(result: PaidCallResult): void {
+  assertPaidCallGate(result, 1);
+}
+
+export function parseFlashCatalogGate(payload: unknown): {
+  available: true;
+  inputUsdPerMillion: number;
+  outputUsdPerMillion: number;
+  cacheReadUsdPerMillion: number;
+  cacheWriteUsdPerMillion: number;
+  pricingVersion: string | null;
+  pricingCheckedAt: string | null;
+  pricingUpdatedAt: string | null;
+} {
+  if (!payload || typeof payload !== "object") {
+    throw new CatalogGateError("catalog payload malformed", "malformed");
+  }
+  const obj = payload as Record<string, unknown>;
+  if (!Array.isArray(obj.data)) {
+    throw new CatalogGateError("catalog payload malformed", "malformed");
+  }
+  const flash = obj.data.find(
+    (item) =>
+      item &&
+      typeof item === "object" &&
+      typeof (item as { id?: unknown }).id === "string" &&
+      String((item as { id: string }).id).trim().toLowerCase() === BODY_CUE_1354_MODEL
+  ) as (Parameters<typeof parseCatalogPricing>[0] & { available?: unknown }) | undefined;
+  if (!flash) {
+    throw new CatalogGateError("flash catalog row missing", "model_missing");
+  }
+  if (flash.available !== true) {
+    throw new CatalogGateError(
+      flash.available === false ? "flash catalog row unavailable" : "flash catalog row malformed",
+      flash.available === false ? "model_missing" : "malformed"
+    );
+  }
+  const meta = {
+    ...(typeof obj.pricing_version === "string" ? { pricingVersion: obj.pricing_version } : {}),
+    ...(typeof obj.pricing_checked_at === "string" ? { pricingCheckedAt: obj.pricing_checked_at } : {}),
+    ...(typeof obj.pricing_updated_at === "string" ? { pricingUpdatedAt: obj.pricing_updated_at } : {}),
+  };
+  const parsed = parseCatalogPricing(flash, Date.now(), meta);
+  if (!parsed) {
+    throw new CatalogGateError("flash catalog row malformed", "malformed");
+  }
+  if (parsed.inputUsdPerMillion > FLASH_INPUT_CEILING || parsed.outputUsdPerMillion > FLASH_OUTPUT_CEILING) {
+    throw new CatalogGateError("flash catalog price exceeds ceiling", "price_violation");
+  }
+  return {
+    available: true,
+    inputUsdPerMillion: parsed.inputUsdPerMillion,
+    outputUsdPerMillion: parsed.outputUsdPerMillion,
+    cacheReadUsdPerMillion: parsed.cacheReadUsdPerMillion,
+    cacheWriteUsdPerMillion: parsed.cacheWriteUsdPerMillion,
+    pricingVersion: parsed.catalogPricingVersion ?? null,
+    pricingCheckedAt: parsed.catalogPricingCheckedAt ?? null,
+    pricingUpdatedAt: parsed.catalogPricingUpdatedAt ?? null,
+  };
+}
+
+function readFiniteNumber(value: unknown): number | null {
+  const n = typeof value === "string" || typeof value === "number" ? Number(value) : NaN;
+  return Number.isFinite(n) ? n : null;
+}
+
+export function parseFlashSupplyGate(payload: unknown): {
+  candidateCount: number;
+  maxInputPerMillion: number;
+  maxOutputPerMillion: number;
+} {
+  if (!payload || typeof payload !== "object") {
+    throw new CatalogGateError("supply payload malformed", "malformed");
+  }
+  const obj = payload as Record<string, unknown>;
+  const block =
+    obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)
+      ? (obj.data as Record<string, unknown>)
+      : obj;
+  const candidateCount = readFiniteNumber(block.candidate_count);
+  const maxInput = readFiniteNumber(block.max_input_per_million);
+  const maxOutput = readFiniteNumber(block.max_output_per_million);
+  if (candidateCount == null || maxInput == null || maxOutput == null) {
+    throw new CatalogGateError("supply payload malformed", "malformed");
+  }
+  if (candidateCount < 1) {
+    throw new CatalogGateError("supply candidate_count is 0", "supply_empty");
+  }
+  if (maxInput > FLASH_INPUT_CEILING || maxOutput > FLASH_OUTPUT_CEILING) {
+    throw new CatalogGateError("supply ceiling violation", "supply_ceiling");
+  }
+  return {
+    candidateCount,
+    maxInputPerMillion: maxInput,
+    maxOutputPerMillion: maxOutput,
+  };
+}
+
+export function createOperatorCheaperInferenceTransport(opts?: {
+  fetchImpl?: typeof fetch;
+}): { post: ProviderPostFn; catalogGet: CatalogGetFn } {
+  const fetchImpl = opts?.fetchImpl ?? fetch;
+  return {
+    catalogGet: async ({ url, headers }) => {
+      const res = await fetchImpl(url, {
+        method: "GET",
+        headers,
+        signal: AbortSignal.timeout(10_000),
+      });
+      let payload: unknown = null;
+      try {
+        payload = await res.json();
+      } catch {
+        payload = null;
+      }
+      return { ok: res.ok, httpStatus: res.status, payload };
+    },
+    post: async ({ endpoint, headers, body }) => {
+      let res: Response;
+      try {
+        res = await fetchImpl(endpoint, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(240_000),
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "network";
+        const timeout = /timeout|aborted/i.test(message);
+        return {
+          httpStatus: 0,
+          model: null,
+          promptTokens: 0,
+          completionTokens: 0,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+          billedCostUsd: null,
+          settled: false,
+          requestId: null,
+          text: "",
+          retried: false,
+          fallback: false,
+          errorCategory: timeout ? "timeout" : "network",
+        };
+      }
+      let parsed: unknown = null;
+      try {
+        parsed = await res.json();
+      } catch {
+        return {
+          httpStatus: res.status,
+          model: null,
+          promptTokens: 0,
+          completionTokens: 0,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+          billedCostUsd: null,
+          settled: false,
+          requestId: readCompatibleCompletionProviderRequestId({
+            provider: "cheaperinference",
+            headers: res.headers,
+          }),
+          text: "",
+          retried: false,
+          fallback: false,
+          errorCategory: "schema",
+        };
+      }
+      return interpretPaidCompletion({
+        status: res.status,
+        headers: res.headers,
+        body: parsed,
+      });
+    },
+  };
+}
+
+export type RunnerStatus =
+  | "PREPARE_READY"
+  | "PREFLIGHT_BLOCKED"
+  | "CALL1_BLOCKED"
+  | "EARLY_STOP"
+  | "EXECUTE_COMPLETE";
+
+export type PaidResultRecord = {
+  opaqueLabel: string;
+  sceneId: string;
+  generatedText: string;
+  outputChars: number;
+  promptTokens: number;
+  completionTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  billedCostUsd: number | null;
+  requestIdSha256: string | null;
+  httpStatus: number;
+  settled: boolean;
+  model: string | null;
+  attemptNumber: number;
+  errorCategory?: string;
+};
+
+export type BlindReveal = {
+  nonce: string;
+  commitmentSha256: string;
+  mapping: Array<{
+    opaqueLabel: string;
+    sceneId: string;
+    variant: ExperimentVariant;
+  }>;
+};
+
 export type RunnerArtifact = {
-  status: "PREPARE_READY" | "EXECUTE_BLOCKED" | "CALL1_BLOCKED" | "EXECUTE_COMPLETE";
+  status: RunnerStatus;
   mode: RunnerMode;
   productionDeploySha: string | null;
   modelId: typeof BODY_CUE_1354_MODEL;
-  liveInput: Omit<LiveSealReport, never>;
+  liveInput: LiveSealReport;
   scenes: Array<{
     id: string;
     soleAllowedDiff: boolean;
@@ -452,16 +791,21 @@ export type RunnerArtifact = {
     promptChars: number;
     flatCharDelta: number;
   }>;
+  executionOrder: string[];
   requests: Array<{
+    opaqueLabel: string;
     sceneId: string;
-    arm: "A" | "B";
     promptSha256: string;
     finalWireSha256: string;
     max_tokens: number;
     min_discount_percent: number;
     model: string;
   }>;
+  results: PaidResultRecord[];
+  totalSettledBilledUsd: number;
+  labelCommitmentSha256: string;
   paidPostCount: number;
+  attemptedPostCount: number;
   attemptCount: number;
   retries: 0;
   fallback: 0;
@@ -480,16 +824,42 @@ function sceneSummaries(packet: LiveVerifiedBodyCueReviewPacket) {
   }));
 }
 
-function requestSummaries(requests: ExperimentArmRequest[]) {
-  return requests.map((request) => ({
-    sceneId: request.sceneId,
-    arm: request.arm,
-    promptSha256: request.promptSha256,
-    finalWireSha256: request.finalWireSha256,
-    max_tokens: BODY_CUE_1354_MAX_TOKENS,
-    min_discount_percent: BODY_CUE_1354_MIN_DISCOUNT_PERCENT,
-    model: BODY_CUE_1354_MODEL,
+export function assignBlindLabels(requests: ExperimentArmRequest[]): {
+  labeled: Array<ExperimentArmRequest & { opaqueLabel: string }>;
+  reveal: BlindReveal;
+} {
+  const used = new Set<string>();
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const digits = "23456789";
+  const nextLabel = (prefix: "Q" | "R") => {
+    for (let i = 0; i < 32; i += 1) {
+      const bytes = randomBytes(2);
+      const label = `${prefix}-${alphabet[bytes[0]! % alphabet.length]}${digits[bytes[1]! % digits.length]}`;
+      if (!used.has(label)) {
+        used.add(label);
+        return label;
+      }
+    }
+    throw new Error("failed to allocate opaque label");
+  };
+  const labeled = requests.map((request) => ({
+    ...request,
+    opaqueLabel: nextLabel(request.sceneId.startsWith("quiet") ? "Q" : "R"),
   }));
+  const nonce = randomBytes(16).toString("hex");
+  const mapping = labeled.map((item) => ({
+    opaqueLabel: item.opaqueLabel,
+    sceneId: item.sceneId,
+    variant: item.variant,
+  }));
+  return {
+    labeled,
+    reveal: {
+      nonce,
+      commitmentSha256: sha256Hex(JSON.stringify({ nonce, mapping })),
+      mapping,
+    },
+  };
 }
 
 export function assertArtifactHasNoSecrets(
@@ -504,14 +874,126 @@ export function assertArtifactHasNoSecrets(
   }
 }
 
+export type RunnerOutput = {
+  artifact: RunnerArtifact;
+  reveal: BlindReveal;
+};
+
+function emptyArtifact(input: {
+  mode: RunnerMode;
+  seal: LiveSeal;
+  labeled: Array<ExperimentArmRequest & { opaqueLabel: string }>;
+  reveal: BlindReveal;
+  productionDeploySha?: string | null;
+}): RunnerArtifact {
+  return {
+    status: "PREPARE_READY",
+    mode: input.mode,
+    productionDeploySha: input.productionDeploySha ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
+    modelId: BODY_CUE_1354_MODEL,
+    liveInput: input.seal.report,
+    scenes: sceneSummaries(input.seal.packet),
+    executionOrder: input.labeled.map((item) => item.opaqueLabel),
+    requests: input.labeled.map((item) => ({
+      opaqueLabel: item.opaqueLabel,
+      sceneId: item.sceneId,
+      promptSha256: item.promptSha256,
+      finalWireSha256: item.finalWireSha256,
+      max_tokens: BODY_CUE_1354_MAX_TOKENS,
+      min_discount_percent: BODY_CUE_1354_MIN_DISCOUNT_PERCENT,
+      model: BODY_CUE_1354_MODEL,
+    })),
+    results: [],
+    totalSettledBilledUsd: 0,
+    labelCommitmentSha256: input.reveal.commitmentSha256,
+    paidPostCount: 0,
+    attemptedPostCount: 0,
+    attemptCount: 0,
+    retries: 0,
+    fallback: 0,
+    catalog: { url: CHEAPER_INFERENCE_MODELS_SOURCE_URL },
+    supply: {
+      url: BODY_CUE_1354_SUPPLY_URL,
+      min_discount_percent: BODY_CUE_1354_MIN_DISCOUNT_PERCENT,
+    },
+  };
+}
+
+function recordPaidResult(
+  artifact: RunnerArtifact,
+  request: ExperimentArmRequest & { opaqueLabel: string },
+  result: PaidCallResult,
+  attemptNumber: number
+): void {
+  const keepText = result.httpStatus >= 200 && result.httpStatus < 300 && !result.errorCategory;
+  artifact.results.push({
+    opaqueLabel: request.opaqueLabel,
+    sceneId: request.sceneId,
+    generatedText: keepText ? result.text : "",
+    outputChars: keepText ? result.text.length : 0,
+    promptTokens: result.promptTokens,
+    completionTokens: result.completionTokens,
+    cacheReadTokens: result.cacheReadTokens,
+    cacheWriteTokens: result.cacheWriteTokens,
+    billedCostUsd: result.billedCostUsd,
+    requestIdSha256: result.requestId ? sha256Hex(result.requestId) : null,
+    httpStatus: result.httpStatus,
+    settled: result.settled,
+    model: result.model,
+    attemptNumber,
+    ...(result.errorCategory ? { errorCategory: result.errorCategory } : {}),
+  });
+  artifact.paidPostCount = artifact.results.length;
+  artifact.attemptedPostCount = artifact.results.length;
+  artifact.attemptCount = attemptNumber;
+  artifact.totalSettledBilledUsd = artifact.results.reduce(
+    (sum, item) => sum + (item.settled && item.billedCostUsd != null ? item.billedCostUsd : 0),
+    0
+  );
+}
+
+function resolveExecuteTransport(opts: {
+  post?: ProviderPostFn;
+  catalogGet?: CatalogGetFn;
+  fetchImpl?: typeof fetch;
+}): { post: ProviderPostFn; catalogGet: CatalogGetFn } {
+  if (opts.post && opts.catalogGet) {
+    return { post: opts.post, catalogGet: opts.catalogGet };
+  }
+  if (opts.post || opts.catalogGet) {
+    throw new ExperimentSecretError("execute transport incomplete — fail closed before provider POST");
+  }
+  return createOperatorCheaperInferenceTransport({ fetchImpl: opts.fetchImpl });
+}
+
+function failedPaidCall(partial: Partial<PaidCallResult> & { errorCategory: string }): PaidCallResult {
+  return {
+    httpStatus: 0,
+    model: null,
+    promptTokens: 0,
+    completionTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    billedCostUsd: null,
+    settled: false,
+    requestId: null,
+    text: "",
+    retried: false,
+    fallback: false,
+    ...partial,
+  };
+}
+
 export async function runBodyCueFlashAb1354(opts: {
   mode: RunnerMode;
   secretSource: ExperimentSecretSource | null;
   seal: () => LiveSeal;
   post?: ProviderPostFn;
   catalogGet?: CatalogGetFn;
+  fetchImpl?: typeof fetch;
   productionDeploySha?: string | null;
-}): Promise<RunnerArtifact> {
+  assignLabels?: typeof assignBlindLabels;
+}): Promise<RunnerOutput> {
   let secret: string | null = null;
   if (opts.mode === "execute") {
     secret = readExperimentSecretOnce(opts.secretSource);
@@ -525,144 +1007,98 @@ export async function runBodyCueFlashAb1354(opts: {
     throw new LiveSealError("writable database owner was invoked", "getDb_called");
   }
   const requests = deriveExperimentRequests(seal.rows);
-  const artifact: RunnerArtifact = {
-    status: "PREPARE_READY",
+  const assignLabels = opts.assignLabels ?? assignBlindLabels;
+  const { labeled, reveal } = assignLabels(requests);
+  const artifact = emptyArtifact({
     mode: opts.mode,
-    productionDeploySha: opts.productionDeploySha ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
-    modelId: BODY_CUE_1354_MODEL,
-    liveInput: seal.report,
-    scenes: sceneSummaries(seal.packet),
-    requests: requestSummaries(requests),
-    paidPostCount: 0,
-    attemptCount: 0,
-    retries: 0,
-    fallback: 0,
-    catalog: { url: CHEAPER_INFERENCE_MODELS_SOURCE_URL },
-    supply: {
-      url: BODY_CUE_1354_SUPPLY_URL,
-      min_discount_percent: BODY_CUE_1354_MIN_DISCOUNT_PERCENT,
-    },
-  };
+    seal,
+    labeled,
+    reveal,
+    productionDeploySha: opts.productionDeploySha,
+  });
 
   if (opts.mode !== "execute") {
     secret = null;
-    return artifact;
+    return { artifact, reveal };
   }
 
   if (!secret) {
     throw new ExperimentSecretError("experiment secret missing — fail closed before provider POST");
   }
-  if (!opts.post || !opts.catalogGet) {
-    throw new ExperimentSecretError("execute transport not provided — fail closed before provider POST");
-  }
 
+  const transport = resolveExecuteTransport(opts);
   const headers = experimentHeaders(secret);
+  assertArtifactHasNoSecrets(artifact, [secret]);
   secret = null;
-  await opts.catalogGet({ url: CHEAPER_INFERENCE_MODELS_SOURCE_URL, headers });
-  await opts.catalogGet({
-    url: `${BODY_CUE_1354_SUPPLY_URL}?model=${encodeURIComponent(BODY_CUE_1354_MODEL)}&min_discount_percent=${BODY_CUE_1354_MIN_DISCOUNT_PERCENT}`,
-    headers,
-  });
+
+  try {
+    const models = await transport.catalogGet({
+      url: CHEAPER_INFERENCE_MODELS_SOURCE_URL,
+      headers,
+    });
+    if (!models.ok) {
+      throw new CatalogGateError("catalog GET non-ok", "non_ok");
+    }
+    parseFlashCatalogGate(models.payload);
+    const supply = await transport.catalogGet({
+      url: `${BODY_CUE_1354_SUPPLY_URL}?model=${encodeURIComponent(BODY_CUE_1354_MODEL)}&min_discount_percent=${BODY_CUE_1354_MIN_DISCOUNT_PERCENT}`,
+      headers,
+    });
+    if (!supply.ok) {
+      throw new CatalogGateError("supply GET non-ok", "non_ok");
+    }
+    parseFlashSupplyGate(supply.payload);
+  } catch (error) {
+    artifact.status = "PREFLIGHT_BLOCKED";
+    if (error instanceof CatalogGateError) throw error;
+    throw new CatalogGateError("catalog/supply gate failed", "malformed");
+  }
 
   const budget = new PaidAttemptBudget();
   const seenRequestIds = new Set<string>();
-  const first = requests[0];
-  if (!first) throw new LiveSealError("no assembled requests", "scene_gate_failed");
 
-  const attempt = budget.consumeBeforePost();
-  const call1 = await opts.post({
-    endpoint: first.endpoint,
-    headers,
-    body: first.requestBody,
-  });
-  artifact.paidPostCount = 1;
-  artifact.attemptCount = attempt;
-  if (call1.requestId) {
-    if (seenRequestIds.has(call1.requestId)) {
-      artifact.status = "CALL1_BLOCKED";
-      throw new Error("duplicate request id");
+  const halt = (status: Extract<RunnerStatus, "CALL1_BLOCKED" | "EARLY_STOP">, message: string): never => {
+    artifact.status = status;
+    throw new RunnerStopError(message, artifact, reveal);
+  };
+
+  for (let index = 0; index < labeled.length; index += 1) {
+    const request = labeled[index]!;
+    const callIndex = index + 1;
+    const haltStatus = callIndex === 1 ? "CALL1_BLOCKED" : "EARLY_STOP";
+    const attempt = budget.consumeBeforePost();
+    let result: PaidCallResult;
+    try {
+      result = await transport.post({
+        endpoint: request.endpoint,
+        headers,
+        body: request.requestBody,
+      });
+    } catch {
+      recordPaidResult(
+        artifact,
+        request,
+        failedPaidCall({ errorCategory: "network" }),
+        attempt
+      );
+      halt(haltStatus, `CALL ${callIndex} provider post failed`);
     }
-    seenRequestIds.add(call1.requestId);
-  }
-  try {
-    assertCall1Gate(call1);
-  } catch (error) {
-    artifact.status = "CALL1_BLOCKED";
-    throw error;
-  }
-
-  for (const request of requests.slice(1)) {
-    const nextAttempt = budget.consumeBeforePost();
-    const result = await opts.post({
-      endpoint: request.endpoint,
-      headers,
-      body: request.requestBody,
-    });
-    artifact.paidPostCount += 1;
-    artifact.attemptCount = nextAttempt;
+    recordPaidResult(artifact, request, result, attempt);
     if (result.requestId) {
       if (seenRequestIds.has(result.requestId)) {
-        throw new Error("duplicate request id");
+        halt(haltStatus, "duplicate request id");
       }
       seenRequestIds.add(result.requestId);
+    }
+    try {
+      assertPaidCallGate(result, callIndex);
+    } catch (error) {
+      halt(haltStatus, error instanceof Error ? error.message : `CALL ${callIndex} gate failed`);
     }
   }
 
   artifact.status = "EXECUTE_COMPLETE";
-  return artifact;
-}
-
-export function parseProviderPostResult(res: {
-  status: number;
-  headers: Headers;
-  body: unknown;
-}): Awaited<ReturnType<ProviderPostFn>> {
-  const usage = parseOpenRouterUsage(
-    res.body && typeof res.body === "object"
-      ? (res.body as { usage?: unknown }).usage
-      : null,
-    res.headers
-  );
-  const requestId = readCompatibleCompletionProviderRequestId({
-    provider: "cheaperinference",
-    headers: res.headers,
-    body: res.body,
-  });
-  const cheaper =
-    res.body && typeof res.body === "object"
-      ? (res.body as { cheaper_inference?: { billed_cost_usd?: unknown; settled?: unknown } }).cheaper_inference
-      : undefined;
-  const billedRaw = cheaper?.billed_cost_usd;
-  const billedMicroUsd =
-    typeof billedRaw === "number" && Number.isFinite(billedRaw)
-      ? Math.round(billedRaw * 1_000_000)
-      : typeof billedRaw === "string" && billedRaw.trim()
-        ? Math.round(Number(billedRaw) * 1_000_000)
-        : null;
-  const model =
-    res.body && typeof res.body === "object" && typeof (res.body as { model?: unknown }).model === "string"
-      ? String((res.body as { model: string }).model)
-      : null;
-  const text =
-    res.body && typeof res.body === "object"
-      ? String(
-          (
-            (res.body as { choices?: Array<{ message?: { content?: string } }> }).choices?.[0]
-              ?.message?.content ?? ""
-          )
-        )
-      : "";
-  return {
-    httpStatus: res.status,
-    model,
-    completionTokens: usage.completionTokens,
-    requestId,
-    billedMicroUsd,
-    settled: cheaper?.settled === true || (billedMicroUsd != null && billedMicroUsd > 0),
-    text,
-    retried: false,
-    fallback: false,
-  };
+  return { artifact, reveal };
 }
 
 export function defaultProductionDbPath(): string {
