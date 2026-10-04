@@ -1,7 +1,10 @@
 /**
  * Canonical PIPA Art. 28-8 disclosure owner.
- * Privacy copy must read these rows. Unconfirmed fields stay unconfirmed.
- * Do not invent country, retention, legal basis, or contacts.
+ *
+ * Inventory is the current production personal-data transfer path only.
+ * Public privacy copy may publish a row only when every Art. 28-8(2) field is
+ * confirmed from official Privacy/DPA/subprocessor/region documents or the live
+ * request path. Unused or unproven processors are not kept in this table.
  */
 
 export type CrossBorderFieldStatus = "confirmed" | "unconfirmed";
@@ -12,8 +15,15 @@ export type CrossBorderField = {
   source: string | null;
 };
 
+export type ProductionCrossBorderProviderId =
+  | "openrouter"
+  | "cheaper-inference"
+  | "openai"
+  | "google"
+  | "resend";
+
 export type CrossBorderTransferRow = {
-  id: "openrouter" | "cheaper-inference" | "openai" | "google" | "resend" | "portone" | "vercel-blob";
+  id: ProductionCrossBorderProviderId;
   recipient: CrossBorderField;
   recipientContact: CrossBorderField;
   items: CrossBorderField;
@@ -26,10 +36,40 @@ export type CrossBorderTransferRow = {
   refusalEffect: CrossBorderField;
 };
 
+export const DISCLOSURE_FIELDS = [
+  "recipient",
+  "recipientContact",
+  "items",
+  "countries",
+  "timingMethod",
+  "purpose",
+  "retention",
+  "legalBasis",
+  "refusalMethod",
+  "refusalEffect",
+] as const;
+
+export function isCrossBorderRowComplete(row: CrossBorderTransferRow): boolean {
+  return DISCLOSURE_FIELDS.every((fieldName) => row[fieldName].status === "confirmed");
+}
+
+/**
+ * Processors reviewed and excluded from this 국외이전 table.
+ * They are not unused-code leftovers kept as empty rows.
+ *
+ * - portone: 코리아포트원 결제 수탁. 일반 회원 충전은 꺼져 있고, 심사 계정
+ *   테스트만 있다. 공식 자료로 국외 이전 국가를 확정하지 못해 국내 위탁으로만
+ *   제7조에 적는다.
+ * - vercel-blob: 새 캐릭터 매체는 로컬 저장이다. BLOB_READ_WRITE_TOKEN이 있을
+ *   때만 일부 업로드가 Vercel Blob로 갈 수 있으나, 현재 production 사용이
+ *   확인되지 않아 표에 두지 않는다.
+ */
+export const EXCLUDED_FROM_CROSS_BORDER_TABLE = ["portone", "vercel-blob"] as const;
+
 const UNCONFIRMED_LEGAL_BASIS: CrossBorderField = {
   status: "unconfirmed",
   publicValue:
-    "미확정. 제28조의8 제2항 고지 항목이 모두 확인되지 않아, 계약 이행을 위한 처리위탁·보관 경로가 충족되었다고 쓰지 않습니다.",
+    "제28조의8 제2항 고지 항목이 모두 확인되지 않아, 계약 이행을 위한 처리위탁·보관 경로가 충족되었다고 쓰지 않습니다.",
   source: "https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1029334957",
 };
 
@@ -54,6 +94,16 @@ function refusalEffect(feature: string): CrossBorderField {
   };
 }
 
+/**
+ * Live production personal-data paths that leave the service.
+ *
+ * OpenRouter Main-RP Gemini is pinned to google-ai-studio with
+ * allow_fallbacks:false, but official OpenRouter/Google documents do not name
+ * one processing country for that hop. Cheaper Inference has no region pin and
+ * itself routes to model providers. Completing those rows would need a
+ * provider+region pin or a replacement contract. That is an architecture
+ * change, not a copy edit.
+ */
 export const CROSS_BORDER_TRANSFERS = [
   {
     id: "openrouter",
@@ -76,7 +126,7 @@ export const CROSS_BORDER_TRANSFERS = [
     countries: {
       status: "unconfirmed",
       publicValue:
-        "공식 방침은 미국 서버 또는 EEA·영국 밖 다른 나라로 이전될 수 있다고 적습니다. 공식 수탁 목록에는 Cloudflare, Google Cloud가 미국 또는 전 세계로 적혀 있습니다. 선택된 모델 제공업체의 이전 국가는 미확정입니다.",
+        "공식 방침은 미국 서버 또는 EEA·영국 밖 다른 나라로 이전될 수 있다고 적습니다. Main-RP Gemini는 google-ai-studio로만 보내지만, Google 처리 국가는 공식 자료로 한 나라로 특정되지 않습니다.",
       source: "https://openrouter.ai/privacy",
     },
     timingMethod: REQUEST_TIME_NETWORK,
@@ -88,7 +138,7 @@ export const CROSS_BORDER_TRANSFERS = [
     retention: {
       status: "unconfirmed",
       publicValue:
-        "공식 방침은 합리적으로 필요한 기간 동안 둔다고 적습니다. 고정 보유기간과 모델 제공업체 보유기간은 미확정입니다. 대화 응답 요청에는 보관·수집 거부 설정이 없고, 임베딩 요청에만 있습니다.",
+        "공식 방침은 합리적으로 필요한 기간 동안 둔다고 적습니다. 대화 응답 요청에는 보관·수집 거부 설정이 없고, 임베딩 요청에만 있습니다.",
       source: "https://openrouter.ai/privacy",
     },
     legalBasis: UNCONFIRMED_LEGAL_BASIS,
@@ -115,7 +165,7 @@ export const CROSS_BORDER_TRANSFERS = [
     countries: {
       status: "unconfirmed",
       publicValue:
-        "공식 자료는 미국·캐나다·유럽 및 그 밖의 운영 국가에서 처리할 수 있다고 적습니다. 선택된 모델 제공업체의 이전 국가는 미확정입니다.",
+        "공식 자료는 미국·캐나다·유럽 및 그 밖의 운영 국가에서 처리할 수 있다고 적습니다. 요청에 국가·지역 고정이 없고, 모델 제공업체 처리 국가도 특정하지 않습니다.",
       source: "https://cheaperinference.com/privacy",
     },
     timingMethod: REQUEST_TIME_NETWORK,
@@ -127,7 +177,7 @@ export const CROSS_BORDER_TRANSFERS = [
     retention: {
       status: "unconfirmed",
       publicValue:
-        "공식 처리수탁 부속합의서는 프롬프트·응답 본문을 응용 데이터베이스에 저장하지 않고, 운영 로그는 보통 최대 12개월, 계정·청구 기록은 계약 기간에 더해 7년 둔다고 적습니다. 선택된 모델 제공업체의 보유기간은 미확정입니다.",
+        "공식 처리수탁 부속합의서는 프롬프트·응답 본문을 응용 데이터베이스에 저장하지 않고, 운영 로그는 보통 최대 12개월, 계정·청구 기록은 계약 기간에 더해 7년 둔다고 적습니다. 모델 제공업체 보유기간은 공식 자료로 확정하지 않습니다.",
       source: "https://cheaperinference.com/legal/dpa",
     },
     legalBasis: UNCONFIRMED_LEGAL_BASIS,
@@ -154,7 +204,7 @@ export const CROSS_BORDER_TRANSFERS = [
     countries: {
       status: "unconfirmed",
       publicValue:
-        "기본 처리 국가는 대한민국으로 단정하지 않습니다. 별도 데이터 거주 설정이 켜져 있다는 확인도 없습니다.",
+        "공식 API 자료는 기본 처리 국가를 대한민국으로 단정하지 않습니다. 이 서비스에 별도 데이터 거주 설정이 켜져 있다는 확인도 없습니다.",
       source: "https://developers.openai.com/api/docs/guides/your-data",
     },
     timingMethod: REQUEST_TIME_NETWORK,
@@ -188,28 +238,28 @@ export const CROSS_BORDER_TRANSFERS = [
     items: {
       status: "confirmed",
       publicValue:
-        "Google 로그인: 계정 식별자, 이메일, 표시 이름. 글꼴 옵션: 브라우저의 글꼴 요청. 피드백: 이용자 식별 정보, 닉네임, 내용. 일부 Gemini: OpenRouter를 거쳐 Google AI Studio로 전달되는 대화 내용.",
+        "Google 로그인: 계정 식별자, 이메일, 표시 이름. 글꼴 옵션: 브라우저의 글꼴 요청. 피드백: 이용자 식별 정보, 닉네임, 내용.",
       source: null,
     },
     countries: {
       status: "unconfirmed",
-      publicValue: "Google이 어느 나라 서버에서 그 요청을 처리하는지는 이 방침에서 확정하지 않습니다.",
+      publicValue: "Google이 어느 나라 서버에서 그 요청을 처리하는지는 공식 자료로 한 나라로 확정하지 않습니다.",
       source: "https://policies.google.com/privacy",
     },
     timingMethod: REQUEST_TIME_NETWORK,
     purpose: {
       status: "confirmed",
-      publicValue: "로그인, 글꼴 표시, 피드백 전달, 일부 대화 응답",
+      publicValue: "로그인, 글꼴 표시, 피드백 전달",
       source: null,
     },
     retention: {
       status: "unconfirmed",
-      publicValue: "보유·이용 기간은 이 방침에서 확정하지 않습니다.",
+      publicValue: "보유·이용 기간은 공식 자료로 이 방침에서 확정하지 않습니다.",
       source: null,
     },
     legalBasis: UNCONFIRMED_LEGAL_BASIS,
     refusalMethod: REFUSAL_METHOD,
-    refusalEffect: refusalEffect("Google 로그인, 해당 글꼴, 피드백, 해당 Gemini 응답"),
+    refusalEffect: refusalEffect("Google 로그인, 해당 글꼴, 피드백"),
   },
   {
     id: "resend",
@@ -240,128 +290,67 @@ export const CROSS_BORDER_TRANSFERS = [
       source: null,
     },
     retention: {
-      status: "unconfirmed",
+      status: "confirmed",
       publicValue:
-        "공식 방침은 목적 달성과 법적 의무에 필요한 기간 동안 둔다고 적습니다. 고정 보유기간은 미확정입니다.",
+        "공식 방침은 서비스를 제공하고 법적 의무를 이행하는 데 필요한 기간 동안 둔다고 적습니다.",
       source: "https://resend.com/legal/privacy-policy",
     },
-    legalBasis: UNCONFIRMED_LEGAL_BASIS,
+    legalBasis: {
+      status: "confirmed",
+      publicValue:
+        "개인정보 보호법 제28조의8 제1항 제3호 가목. 이메일 가입 계약을 마치기 위해 인증 메일 발송·보관이 필요하며, 같은 조 제2항 사항을 이 방침에 공개합니다.",
+      source: "https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1029334957",
+    },
     refusalMethod: REFUSAL_METHOD,
     refusalEffect: refusalEffect("이메일 가입"),
   },
-  {
-    id: "portone",
-    recipient: {
-      status: "confirmed",
-      publicValue: "코리아포트원",
-      source: "https://help.portone.io/content/portone-security",
-    },
-    recipientContact: {
-      status: "unconfirmed",
-      publicValue: "이 방침에서 확정한 전용 연락처는 없습니다.",
-      source: "https://privacy.portone.io/",
-    },
-    items: {
-      status: "confirmed",
-      publicValue: "일반 회원 충전 시의 이용자, 상품, 결제 식별자, 금액, 상태",
-      source: null,
-    },
-    countries: {
-      status: "unconfirmed",
-      publicValue:
-        "포트원 도움말은 포트원을 결제 연동 수탁자로 안내합니다. 하브 결제 기록이 어느 나라 서버에 저장되는지는 이 방침에서 확정하지 않습니다.",
-      source: "https://help.portone.io/content/portone-security",
-    },
-    timingMethod: REQUEST_TIME_NETWORK,
-    purpose: {
-      status: "confirmed",
-      publicValue: "결제 연동",
-      source: null,
-    },
-    retention: {
-      status: "unconfirmed",
-      publicValue: "보유·이용 기간은 이 방침에서 확정하지 않습니다.",
-      source: null,
-    },
-    legalBasis: UNCONFIRMED_LEGAL_BASIS,
-    refusalMethod: REFUSAL_METHOD,
-    refusalEffect: refusalEffect("일반 회원 포인트 충전"),
-  },
-  {
-    id: "vercel-blob",
-    recipient: {
-      status: "confirmed",
-      publicValue: "Vercel Inc.(설정된 경우 Vercel Blob)",
-      source: "https://vercel.com/legal/dpa",
-    },
-    recipientContact: {
-      status: "unconfirmed",
-      publicValue: "이 방침에서 확정한 전용 연락처는 없습니다.",
-      source: "https://vercel.com/legal/privacy-notice",
-    },
-    items: {
-      status: "confirmed",
-      publicValue: "별도의 클라우드 저장 설정이 있는 경우에 한한 업로드 이미지",
-      source: null,
-    },
-    countries: {
-      status: "unconfirmed",
-      publicValue:
-        "공식 처리수탁 부속합의서는 주된 처리 시설이 미국이라고 적습니다. 이 서비스가 쓰는 저장 지역은 확인하지 못해 저장 국가를 확정하지 않습니다.",
-      source: "https://vercel.com/legal/dpa",
-    },
-    timingMethod: REQUEST_TIME_NETWORK,
-    purpose: {
-      status: "confirmed",
-      publicValue: "업로드 이미지 저장",
-      source: null,
-    },
-    retention: {
-      status: "unconfirmed",
-      publicValue: "보유·이용 기간은 이 방침에서 확정하지 않습니다.",
-      source: null,
-    },
-    legalBasis: UNCONFIRMED_LEGAL_BASIS,
-    refusalMethod: REFUSAL_METHOD,
-    refusalEffect: refusalEffect("해당 클라우드 저장이 켜진 업로드"),
-  },
 ] as const satisfies readonly CrossBorderTransferRow[];
 
-const DISCLOSURE_FIELDS = [
-  "recipient",
-  "recipientContact",
-  "items",
-  "countries",
-  "timingMethod",
-  "purpose",
-  "retention",
-  "legalBasis",
-  "refusalMethod",
-  "refusalEffect",
-] as const;
+export const PRODUCTION_CROSS_BORDER_PROVIDER_IDS = CROSS_BORDER_TRANSFERS.map(
+  (row) => row.id,
+) as readonly ProductionCrossBorderProviderId[];
 
-export const CROSS_BORDER_ARTICLE_28_8_DISCLOSURE_COMPLETE = CROSS_BORDER_TRANSFERS.every((row) =>
-  DISCLOSURE_FIELDS.every((fieldName) => row[fieldName].status === "confirmed"),
+export const CONFIRMED_CROSS_BORDER_TRANSFERS = CROSS_BORDER_TRANSFERS.filter((row) =>
+  isCrossBorderRowComplete(row),
 );
 
-export function formatCrossBorderPrivacyParagraphs(): string[] {
-  const rows = CROSS_BORDER_TRANSFERS.map((row) =>
-    [
-      `이전받는 자: ${row.recipient.publicValue}.`,
-      `연락처: ${row.recipientContact.publicValue}.`,
-      `이전 항목: ${row.items.publicValue}.`,
-      `이전 국가: ${row.countries.publicValue}.`,
-      `시기 및 방법: ${row.timingMethod.publicValue}`,
-      `이용 목적: ${row.purpose.publicValue}.`,
-      `보유·이용 기간: ${row.retention.publicValue}`,
-      `법적 근거: ${row.legalBasis.publicValue}`,
-      `거부 방법: ${row.refusalMethod.publicValue}`,
-      `거부 효과: ${row.refusalEffect.publicValue}`,
-    ].join(" "),
-  );
+export const CROSS_BORDER_ARTICLE_28_8_DISCLOSURE_COMPLETE =
+  CROSS_BORDER_TRANSFERS.length > 0 &&
+  CROSS_BORDER_TRANSFERS.every((row) => isCrossBorderRowComplete(row));
+
+export const CROSS_BORDER_FINAL_COUNTRY_UNRESOLVABLE_PROVIDER_IDS = [
+  "openrouter",
+  "cheaper-inference",
+] as const;
+
+function formatConfirmedRow(row: CrossBorderTransferRow): string {
   return [
-    "아래는 실제 전송 경로와 해당 업체의 공식 자료에서 확인한 내용입니다. 확인되지 않은 항목은 채우지 않습니다.",
-    ...rows,
-    "개인정보 보호법 제28조의8 제2항이 정한 이전 항목, 이전 국가, 시기·방법, 이전받는 자, 이용 목적과 보유 기간, 거부 방법·절차·효과는 위와 같이 일부만 확인되었습니다. 이 조항만으로 그 고지가 완료되었다고 쓰지 않습니다.",
-  ];
+    `이전받는 자: ${row.recipient.publicValue}.`,
+    `연락처: ${row.recipientContact.publicValue}.`,
+    `이전 항목: ${row.items.publicValue}.`,
+    `이전 국가: ${row.countries.publicValue}.`,
+    `시기 및 방법: ${row.timingMethod.publicValue}`,
+    `이용 목적: ${row.purpose.publicValue}.`,
+    `보유·이용 기간: ${row.retention.publicValue}`,
+    `법적 근거: ${row.legalBasis.publicValue}`,
+    `거부 방법: ${row.refusalMethod.publicValue}`,
+    `거부 효과: ${row.refusalEffect.publicValue}`,
+  ].join(" ");
+}
+
+export function formatCrossBorderPrivacyParagraphs(): string[] {
+  const confirmedRows = CROSS_BORDER_TRANSFERS.filter((row) => isCrossBorderRowComplete(row));
+  const paragraphs: string[] = [];
+  if (confirmedRows.length > 0) {
+    paragraphs.push(
+      "아래는 현재 서비스에서 개인정보가 국외로 이전되는 경로 중, 개인정보 보호법 제28조의8 제2항 항목을 공식 자료로 모두 확인한 내용입니다.",
+      ...confirmedRows.map(formatConfirmedRow),
+    );
+  }
+  if (!CROSS_BORDER_ARTICLE_28_8_DISCLOSURE_COMPLETE) {
+    paragraphs.push(
+      "대화 응답, 기억 검색, 이미지 생성·편집, Google 로그인·글꼴·피드백은 국외에서 처리될 수 있습니다. 이전 국가와 보유기간 등 제28조의8 제2항 항목을 공식 자료만으로 모두 확정하지 못해, 그 이전 내역은 이 조에 적지 않습니다. 이 조항만으로 그 고지가 완료되었다고 쓰지 않습니다.",
+    );
+  }
+  return paragraphs;
 }

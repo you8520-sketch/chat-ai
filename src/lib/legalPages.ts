@@ -3,8 +3,10 @@ import {
   BUSINESS_CUSTOMER_SERVICE_EMAIL,
   BUSINESS_CUSTOMER_SERVICE_PHONE,
   BUSINESS_PUBLIC_LINES,
-  BUSINESS_REPRESENTATIVE_NAME,
   BUSINESS_TRADE_NAME,
+  PERSONAL_INFORMATION_PROTECTION_OFFICER_EMAIL,
+  PERSONAL_INFORMATION_PROTECTION_OFFICER_NAME,
+  PERSONAL_INFORMATION_PROTECTION_OFFICER_PHONE,
   SERVICE_PUBLIC_NAME,
 } from "@/lib/businessIdentity";
 import {
@@ -275,11 +277,10 @@ export const PRIVACY_PAGE = {
       "주민등록번호는 암호화해 저장합니다. 현재 예금주 확인은 외부 은행 조회가 아니라 서버 안의 형식 검사입니다.",
       "고유식별정보 수집의 법적 근거와 대체 수단 여부는 이 방침에서 확정하지 않습니다.",
     ]),
-    article(15, "dpo", "개인정보 문의", [
-      "별도로 지정·공개된 개인정보 보호책임자는 현재 없습니다.",
-      `개인정보 관련 문의 창구는 대표자 ${BUSINESS_REPRESENTATIVE_NAME}, ${CUSTOMER_SERVICE_LINE}입니다.`,
-      "개인정보 보호법 제31조 제1항 단서의 소상공인 예외에 해당하는지는 상시 근로자 수와 매출 기준을 이 문서에서 확인하지 못해 확정하지 않습니다. 따라서 같은 조 제2항에 따라 대표자가 보호책임자가 된다고 쓰지 않습니다.",
-      "보호책임자 지정과 고지는 이 방침에서 충족했다고 쓰지 않습니다.",
+    article(15, "dpo", "개인정보 보호책임자", [
+      `개인정보 보호책임자는 대표자 ${PERSONAL_INFORMATION_PROTECTION_OFFICER_NAME}입니다.`,
+      `연락처는 전화 ${PERSONAL_INFORMATION_PROTECTION_OFFICER_PHONE}, 이메일 ${PERSONAL_INFORMATION_PROTECTION_OFFICER_EMAIL}입니다.`,
+      "개인정보 보호법 제31조 및 같은 법 시행령 제32조 제2항 제2호에 따라 대표자를 보호책임자로 지정합니다.",
     ]),
     article(16, "changes", "변경 고지", [
       `이 방침의 시행일은 ${LEGAL_DOCUMENT_AS_OF}입니다.`,

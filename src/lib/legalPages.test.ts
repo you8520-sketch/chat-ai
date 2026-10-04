@@ -15,6 +15,9 @@ import {
   BUSINESS_REPRESENTATIVE_NAME,
   BUSINESS_TAX_TYPE,
   BUSINESS_TRADE_NAME,
+  PERSONAL_INFORMATION_PROTECTION_OFFICER_EMAIL,
+  PERSONAL_INFORMATION_PROTECTION_OFFICER_NAME,
+  PERSONAL_INFORMATION_PROTECTION_OFFICER_PHONE,
   SERVICE_PUBLIC_NAME,
   SERVICE_PUBLIC_ORIGIN,
   SERVICE_PUBLIC_STATUS,
@@ -47,9 +50,14 @@ import {
 } from "./plans";
 import { PAYMENTS_DISABLED_MESSAGE } from "./portoneConfig";
 import {
+  CONFIRMED_CROSS_BORDER_TRANSFERS,
   CROSS_BORDER_ARTICLE_28_8_DISCLOSURE_COMPLETE,
+  CROSS_BORDER_FINAL_COUNTRY_UNRESOLVABLE_PROVIDER_IDS,
   CROSS_BORDER_TRANSFERS,
+  EXCLUDED_FROM_CROSS_BORDER_TABLE,
+  PRODUCTION_CROSS_BORDER_PROVIDER_IDS,
   formatCrossBorderPrivacyParagraphs,
+  isCrossBorderRowComplete,
 } from "./privacyCrossBorder";
 import {
   MEMBER_PAID_CHARGE_UNAVAILABLE_MESSAGE,
@@ -71,6 +79,9 @@ const INTERNAL_PUBLIC_TERMS = [
   "notice_read_id",
   "현재 코드가",
   "사업자 상태 휴업",
+  "function",
+  "debug",
+  "DB",
 ];
 
 function escapeRegExp(value: string): string {
@@ -131,16 +142,21 @@ test("privacy copy states proven processing facts and does not invent compliance
   assert.match(text, /Resend/);
   assert.match(text, new RegExp(`인증 링크 유효기간 ${EMAIL_TOKEN_MINUTES}분`));
   assert.match(text, /계정 전체를 삭제하는 기능은 없습니다/);
-  assert.match(text, /별도로 지정·공개된 개인정보 보호책임자/);
-  assert.match(text, new RegExp(`문의 창구는 대표자 ${BUSINESS_REPRESENTATIVE_NAME}`));
-  assert.match(text, /소상공인 예외에 해당하는지는/);
-  assert.match(text, /대표자가 보호책임자가 된다고 쓰지 않습니다/);
-  assert.match(text, /OpenRouter, Inc\./);
-  assert.match(text, /Keak AI, Inc\./);
+  assert.match(text, new RegExp(`개인정보 보호책임자는 대표자 ${PERSONAL_INFORMATION_PROTECTION_OFFICER_NAME}`));
+  assert.match(text, new RegExp(`전화 ${PERSONAL_INFORMATION_PROTECTION_OFFICER_PHONE}`));
+  assert.match(text, new RegExp(`이메일 ${PERSONAL_INFORMATION_PROTECTION_OFFICER_EMAIL}`));
+  assert.match(text, /시행령 제32조 제2항 제2호/);
+  assert.doesNotMatch(text, /보호책임자는 현재 없습니다/);
+  assert.doesNotMatch(text, /대표자가 보호책임자가 된다고 쓰지 않습니다/);
+  assert.doesNotMatch(text, /소상공인 예외에 해당하는지는/);
+  assert.match(text, /Plus Five Five, Inc\.\(Resend\)/);
   assert.match(text, /미국에 저장한다고 적습니다/);
-  assert.match(text, /최대 30일 둔다고 적습니다/);
+  assert.doesNotMatch(text, /OpenRouter, Inc\./);
+  assert.doesNotMatch(text, /Keak AI, Inc\./);
+  assert.doesNotMatch(text, /최대 30일 둔다고 적습니다/);
   assert.match(text, /제28조의8 제2항/);
   assert.match(text, /그 고지가 완료되었다고 쓰지 않습니다/);
+  assert.doesNotMatch(text, /미확정/);
   assert.doesNotMatch(text, /국외에 서버를 둘 수 있는 외부 제공업체/);
   assert.match(text, /광고성 이메일·문자 발송 기능은 현재 없습니다/);
   assert.match(text, /저장된 성인 표시와 모의 인증은 성인 콘텐츠 열람을 열지 않습니다/);
@@ -301,30 +317,50 @@ test("business identity keeps brand and legal name distinct, publishes confirmed
   assert.equal(BUSINESS_PUBLIC_LINES.filter((line) => line.includes("고객센터 전화")).length, 1);
   assert.equal(BUSINESS_PUBLIC_LINES.filter((line) => line.includes("고객센터 이메일")).length, 1);
   assert.equal(BUSINESS_IDENTITY_VERIFICATION.mailOrderReportNumber, "unverified");
+  assert.equal(PERSONAL_INFORMATION_PROTECTION_OFFICER_NAME, BUSINESS_REPRESENTATIVE_NAME);
+  assert.equal(PERSONAL_INFORMATION_PROTECTION_OFFICER_PHONE, BUSINESS_CUSTOMER_SERVICE_PHONE);
+  assert.equal(PERSONAL_INFORMATION_PROTECTION_OFFICER_EMAIL, BUSINESS_CUSTOMER_SERVICE_EMAIL);
+  assert.equal(PERSONAL_INFORMATION_PROTECTION_OFFICER_NAME, "조영지");
+  assert.equal(PERSONAL_INFORMATION_PROTECTION_OFFICER_PHONE, "070-8080-5884");
+  assert.equal(PERSONAL_INFORMATION_PROTECTION_OFFICER_EMAIL, "admin@hav.chat");
 });
 
 test("privacy cross-border copy is owned by one table and is not a complete 28-8 disclosure", () => {
   assert.equal(CROSS_BORDER_ARTICLE_28_8_DISCLOSURE_COMPLETE, false);
   assert.deepEqual(
-    CROSS_BORDER_TRANSFERS.map((row) => row.id),
-    ["openrouter", "cheaper-inference", "openai", "google", "resend", "portone", "vercel-blob"],
+    [...PRODUCTION_CROSS_BORDER_PROVIDER_IDS],
+    ["openrouter", "cheaper-inference", "openai", "google", "resend"],
   );
+  assert.deepEqual(
+    CROSS_BORDER_TRANSFERS.map((row) => row.id),
+    [...PRODUCTION_CROSS_BORDER_PROVIDER_IDS],
+  );
+  assert.deepEqual([...EXCLUDED_FROM_CROSS_BORDER_TABLE], ["portone", "vercel-blob"]);
+  assert.equal(
+    CROSS_BORDER_TRANSFERS.some((row) => EXCLUDED_FROM_CROSS_BORDER_TABLE.includes(row.id as never)),
+    false,
+  );
+  assert.deepEqual(
+    [...CROSS_BORDER_FINAL_COUNTRY_UNRESOLVABLE_PROVIDER_IDS],
+    ["openrouter", "cheaper-inference"],
+  );
+  const confirmedIds = CONFIRMED_CROSS_BORDER_TRANSFERS.map((row) => row.id);
+  assert.deepEqual(confirmedIds, ["resend"]);
+  for (const row of CONFIRMED_CROSS_BORDER_TRANSFERS) {
+    assert.equal(isCrossBorderRowComplete(row), true);
+  }
   const privacy = flattenLegalPageText(PRIVACY_PAGE);
   for (const paragraph of formatCrossBorderPrivacyParagraphs()) {
     assert.match(privacy, new RegExp(escapeRegExp(paragraph)));
+    assert.doesNotMatch(paragraph, /미확정/);
   }
-  for (const row of CROSS_BORDER_TRANSFERS) {
-    assert.equal(row.legalBasis.status, "unconfirmed");
-    assert.match(row.legalBasis.publicValue, /충족되었다고 쓰지 않습니다/);
+  assert.doesNotMatch(privacy, /코리아포트원/);
+  assert.doesNotMatch(privacy, /Vercel Inc\./);
+  const incomplete = CROSS_BORDER_TRANSFERS.filter((row) => !isCrossBorderRowComplete(row));
+  assert.equal(incomplete.length > 0, true);
+  for (const row of incomplete) {
+    assert.doesNotMatch(privacy, new RegExp(escapeRegExp(row.legalBasis.publicValue)));
   }
-  assert.equal(
-    CROSS_BORDER_TRANSFERS.some((row) => row.countries.status === "unconfirmed"),
-    true,
-  );
-  assert.equal(
-    CROSS_BORDER_TRANSFERS.some((row) => row.retention.status === "unconfirmed"),
-    true,
-  );
 });
 
 test("attendance expiry legal text follows the later-confirmed 21-day owner", () => {
@@ -334,4 +370,49 @@ test("attendance expiry legal text follows the later-confirmed 21-day owner", ()
     assert.match(text, /지급일로부터 21일/);
     assert.doesNotMatch(text, /출석 포인트의 유효기간은 지급일로부터 30일/);
   }
+});
+
+test("CPO designation has one owner and privacy only reads it", () => {
+  const identity = readFileSync(new URL("./businessIdentity.ts", import.meta.url), "utf8");
+  const privacyOwner = readFileSync(new URL("./privacyCrossBorder.ts", import.meta.url), "utf8");
+  const legal = readFileSync(new URL("./legalPages.ts", import.meta.url), "utf8");
+  assert.equal(
+    identity.match(/export const PERSONAL_INFORMATION_PROTECTION_OFFICER_NAME/g)?.length,
+    1,
+  );
+  assert.doesNotMatch(privacyOwner, /PERSONAL_INFORMATION_PROTECTION_OFFICER_/);
+  assert.match(legal, /PERSONAL_INFORMATION_PROTECTION_OFFICER_NAME/);
+  assert.match(legal, /PERSONAL_INFORMATION_PROTECTION_OFFICER_PHONE/);
+  assert.match(legal, /PERSONAL_INFORMATION_PROTECTION_OFFICER_EMAIL/);
+  assert.doesNotMatch(legal, /export const PERSONAL_INFORMATION_PROTECTION_OFFICER_/);
+});
+
+test("cross-border disclosure has one owner and matches the live production set", () => {
+  const identity = readFileSync(new URL("./businessIdentity.ts", import.meta.url), "utf8");
+  const privacyOwner = readFileSync(new URL("./privacyCrossBorder.ts", import.meta.url), "utf8");
+  const legal = readFileSync(new URL("./legalPages.ts", import.meta.url), "utf8");
+  const chatModels = readFileSync(new URL("./chatModels.ts", import.meta.url), "utf8");
+  const routePolicy = readFileSync(new URL("./openRouterConfig.ts", import.meta.url), "utf8");
+  const embeddings = readFileSync(new URL("./openRouterEmbeddings.ts", import.meta.url), "utf8");
+  const imageEdit = readFileSync(new URL("./openAiImageEdit.ts", import.meta.url), "utf8");
+  const email = readFileSync(new URL("./transactionalEmail.ts", import.meta.url), "utf8");
+  const media = readFileSync(new URL("./mediaStorage.ts", import.meta.url), "utf8");
+  const upload = readFileSync(new URL("./uploadStorage.ts", import.meta.url), "utf8");
+  const commerce = readFileSync(new URL("./servicePublicCommerce.ts", import.meta.url), "utf8");
+
+  assert.match(privacyOwner, /export const CROSS_BORDER_TRANSFERS/);
+  assert.doesNotMatch(identity, /CROSS_BORDER_TRANSFERS/);
+  assert.match(legal, /formatCrossBorderPrivacyParagraphs/);
+  assert.doesNotMatch(legal, /export const CROSS_BORDER_TRANSFERS/);
+
+  assert.match(chatModels, /provider: "cheaperinference"/);
+  assert.match(chatModels, /provider: "openrouter"/);
+  assert.match(routePolicy, /providerSlug: "google-ai-studio"/);
+  assert.match(routePolicy, /allow_fallbacks: false/);
+  assert.match(embeddings, /zdr: true/);
+  assert.match(imageEdit, /api\.openai\.com|openai/i);
+  assert.match(email, /api\.resend\.com/);
+  assert.match(media, /Does not use BLOB_READ_WRITE_TOKEN/);
+  assert.match(upload, /BLOB_READ_WRITE_TOKEN/);
+  assert.match(commerce, /MEMBER_PAID_POINT_CHARGE_PUBLICLY_AVAILABLE = false/);
 });
