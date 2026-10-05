@@ -100,6 +100,41 @@ function readObservedCharsPerTokenByModel(
   return out;
 }
 
+function estimatesFromRoomRows(
+  rows: EstimateMessageRow[],
+  promptTokensByModel: Partial<Record<SelectedAI, number>>
+): NextTurnEstimateMap {
+  return computeMainRpNextTurnEstimates({
+    promptTokensByModel,
+    lastVisibleAssistantChars: readLastVisibleAssistantChars(rows),
+    observedCharsPerTokenByModel: readObservedCharsPerTokenByModel(rows),
+    effectiveKrwPerUsd: getEffectiveKrwPerUsd(),
+  });
+}
+
+/** One-model Published next-turn estimate. No provider I/O. Not a charge owner. */
+export function resolveMainRpNextTurnPublishedEstimateForModel(opts: {
+  chatId: number;
+  modelId: SelectedAI;
+  promptTokens: number;
+}): number | null {
+  if (!Number.isFinite(opts.promptTokens) || opts.promptTokens <= 0) return null;
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT role, content, model, usage, generation_status
+       FROM messages WHERE chat_id=? ORDER BY id ASC`
+    )
+    .all(opts.chatId) as EstimateMessageRow[];
+  const estimates = estimatesFromRoomRows(rows, {
+    [opts.modelId]: opts.promptTokens,
+  });
+  const points = estimates[opts.modelId]?.displayPoints;
+  return typeof points === "number" && Number.isSafeInteger(points) && points > 0
+    ? points
+    : null;
+}
+
 export type MainRpNextTurnEstimateResult = {
   chatId: number;
   estimates: NextTurnEstimateMap;
@@ -140,12 +175,7 @@ export async function resolveMainRpNextTurnPickerEstimates(opts: {
     .all(opts.chatId) as EstimateMessageRow[];
 
   const lastVisibleAssistantChars = readLastVisibleAssistantChars(rows);
-  const estimates = computeMainRpNextTurnEstimates({
-    promptTokensByModel,
-    lastVisibleAssistantChars,
-    observedCharsPerTokenByModel: readObservedCharsPerTokenByModel(rows),
-    effectiveKrwPerUsd: getEffectiveKrwPerUsd(),
-  });
+  const estimates = estimatesFromRoomRows(rows, promptTokensByModel);
   return {
     chatId: opts.chatId,
     estimates,
