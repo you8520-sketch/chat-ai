@@ -569,6 +569,7 @@ export function assertCall1Gate(result: PaidCallResult): void {
   assertPaidCallGate(result, 1);
 }
 
+/** Catalog presence is the exact model row plus canonical parseCatalogPricing. */
 export function parseFlashCatalogGate(payload: unknown): {
   available: true;
   inputUsdPerMillion: number;
@@ -592,15 +593,9 @@ export function parseFlashCatalogGate(payload: unknown): {
       typeof item === "object" &&
       typeof (item as { id?: unknown }).id === "string" &&
       String((item as { id: string }).id).trim().toLowerCase() === BODY_CUE_1354_MODEL
-  ) as (Parameters<typeof parseCatalogPricing>[0] & { available?: unknown }) | undefined;
+  ) as Parameters<typeof parseCatalogPricing>[0] | undefined;
   if (!flash) {
     throw new CatalogGateError("flash catalog row missing", "model_missing");
-  }
-  if (flash.available !== true) {
-    throw new CatalogGateError(
-      flash.available === false ? "flash catalog row unavailable" : "flash catalog row malformed",
-      flash.available === false ? "model_missing" : "malformed"
-    );
   }
   const meta = {
     ...(typeof obj.pricing_version === "string" ? { pricingVersion: obj.pricing_version } : {}),

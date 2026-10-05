@@ -131,18 +131,31 @@ function passingSeal(): LiveSeal {
   };
 }
 
+function catalogPricing(overrides?: { input?: number; output?: number; omitRates?: boolean }) {
+  if (overrides?.omitRates) {
+    return { currency: "USD" };
+  }
+  return {
+    input_per_million: String(overrides?.input ?? 0.075),
+    output_per_million: String(overrides?.output ?? 0.3),
+    cache_read_input_per_million: "0.0015",
+    cache_write_input_per_million: "0.075",
+  };
+}
+
+/** Sanitized live /v1/models shape: no synthetic `available` boolean. */
 function passingCatalogPayload(overrides?: {
   missing?: boolean;
-  available?: boolean;
   input?: number;
   output?: number;
+  omitRates?: boolean;
 }) {
   if (overrides?.missing) {
     return {
       pricing_version: "pv-1",
       pricing_checked_at: "2026-10-04T00:00:00Z",
       pricing_updated_at: "2026-10-04T00:00:00Z",
-      data: [{ id: "other-model", available: true, pricing: { input_per_million: 0.01, output_per_million: 0.02 } }],
+      data: [{ id: "other-model", pricing: catalogPricing() }],
     };
   }
   return {
@@ -152,13 +165,18 @@ function passingCatalogPayload(overrides?: {
     data: [
       {
         id: BODY_CUE_1354_MODEL,
-        available: overrides?.available ?? true,
-        pricing: {
-          input_per_million: overrides?.input ?? 0.075,
-          output_per_million: overrides?.output ?? 0.3,
-          cache_read_input_per_million: 0.0075,
-          cache_write_input_per_million: 0.075,
-        },
+        object: "model",
+        owned_by: "deepseek",
+        type: "llm",
+        provider: "cheaperinference",
+        endpoint: "/v1/chat/completions",
+        supported_endpoints: ["/v1/chat/completions"],
+        context_length: 1,
+        max_output_tokens: 8192,
+        is_free: false,
+        available_until: null,
+        capabilities: {},
+        pricing: catalogPricing(overrides),
       },
     ],
   };
@@ -670,6 +688,8 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.match(cli, /catalogGet: transport\.catalogGet/);
     assert.equal(src.includes("parseProviderPostResult"), false);
     assert.equal(src.includes("resolveCheaperInferenceApiKey("), false);
+    assert.equal(src.includes("flash.available !== true"), false);
+    assert.equal(src.includes("flash catalog row unavailable"), false);
     assert.equal(src.includes("from \"@/lib/db\""), false);
     assert.equal(src.includes("getDb("), false);
     assert.equal(src.includes("streamOpenRouterAdult"), false);
@@ -769,7 +789,16 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.equal(post.box.calls, 0);
   });
 
-  it("model unavailable yields 0 POST", async () => {
+  it("real-shape catalog without available passes the canonical gate", () => {
+    const catalog = parseFlashCatalogGate(passingCatalogPayload());
+    assert.equal(catalog.available, true);
+    assert.equal(catalog.inputUsdPerMillion, 0.075);
+    assert.equal(catalog.outputUsdPerMillion, 0.3);
+    assert.equal(catalog.cacheReadUsdPerMillion, 0.0015);
+    assert.equal(catalog.cacheWriteUsdPerMillion, 0.075);
+  });
+
+  it("malformed pricing yields 0 POST", async () => {
     const post = trackingPost();
     await assert.rejects(
       () =>
@@ -778,9 +807,9 @@ describe("#1354 Flash A/B operator runner", () => {
           secretSource: { kind: "stdin", read: () => SECRET },
           seal: passingSeal,
           post: post.fn,
-          catalogGet: passingCatalogGet({ modelsPayload: passingCatalogPayload({ available: false }) }).fn,
+          catalogGet: passingCatalogGet({ modelsPayload: passingCatalogPayload({ omitRates: true }) }).fn,
         }),
-      (error: unknown) => error instanceof CatalogGateError && error.reason === "model_missing"
+      (error: unknown) => error instanceof CatalogGateError && error.reason === "malformed"
     );
     assert.equal(post.box.calls, 0);
   });
@@ -801,7 +830,7 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.equal(post.box.calls, 0);
   });
 
-  it("catalog price above ceiling yields 0 POST", async () => {
+  it("catalog input above ceiling yields 0 POST", async () => {
     const post = trackingPost();
     await assert.rejects(
       () =>
@@ -811,6 +840,22 @@ describe("#1354 Flash A/B operator runner", () => {
           seal: passingSeal,
           post: post.fn,
           catalogGet: passingCatalogGet({ modelsPayload: passingCatalogPayload({ input: 0.08 }) }).fn,
+        }),
+      (error: unknown) => error instanceof CatalogGateError && error.reason === "price_violation"
+    );
+    assert.equal(post.box.calls, 0);
+  });
+
+  it("catalog output above ceiling yields 0 POST", async () => {
+    const post = trackingPost();
+    await assert.rejects(
+      () =>
+        runBodyCueFlashAb1354({
+          mode: "execute",
+          secretSource: { kind: "stdin", read: () => SECRET },
+          seal: passingSeal,
+          post: post.fn,
+          catalogGet: passingCatalogGet({ modelsPayload: passingCatalogPayload({ output: 0.31 }) }).fn,
         }),
       (error: unknown) => error instanceof CatalogGateError && error.reason === "price_violation"
     );
@@ -843,6 +888,22 @@ describe("#1354 Flash A/B operator runner", () => {
           seal: passingSeal,
           post: post.fn,
           catalogGet: passingCatalogGet({ supplyPayload: passingSupplyPayload({ maxOutput: 0.31 }) }).fn,
+        }),
+      (error: unknown) => error instanceof CatalogGateError && error.reason === "supply_ceiling"
+    );
+    assert.equal(post.box.calls, 0);
+  });
+
+  it("supply maxInput ceiling violation yields 0 POST", async () => {
+    const post = trackingPost();
+    await assert.rejects(
+      () =>
+        runBodyCueFlashAb1354({
+          mode: "execute",
+          secretSource: { kind: "stdin", read: () => SECRET },
+          seal: passingSeal,
+          post: post.fn,
+          catalogGet: passingCatalogGet({ supplyPayload: passingSupplyPayload({ maxInput: 0.076 }) }).fn,
         }),
       (error: unknown) => error instanceof CatalogGateError && error.reason === "supply_ceiling"
     );
