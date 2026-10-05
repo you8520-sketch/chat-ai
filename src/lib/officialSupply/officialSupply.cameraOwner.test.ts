@@ -12,8 +12,14 @@ import {
   OFFICIAL_LEGACY_LOW_ANGLE_CAMERA_CLAUSE,
   resolveOfficialSlotShot,
 } from "@/lib/officialSupply/shotPlan";
-import { buildClusterBRofanStyleSeed } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
-import type { OfficialAssetPlan, OfficialAssetSlotPlan } from "@/lib/officialSupply/types";
+import type { OfficialAssetPlan, OfficialAssetSlotPlan, StyleReference } from "@/lib/officialSupply/types";
+
+const CLUSTER_B_SEED: StyleReference = {
+  url: "/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp",
+  provenance: "platform_owned",
+  note: "cluster-b fixture",
+  styleCluster: "cluster_b_graphic",
+};
 
 const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot/characters");
 const SHOT_PLAN_SOURCE = fs.readFileSync(path.join(process.cwd(), "src/lib/officialSupply/shotPlan.ts"), "utf8");
@@ -46,7 +52,7 @@ function promptsFor(
     appearance: lucian.appearanceLock,
     style: testStyleCandidate("c1").dna,
     slot,
-    styleSeed: buildClusterBRofanStyleSeed(),
+    styleSeed: CLUSTER_B_SEED,
     referenceRoleLayout,
   });
 }
