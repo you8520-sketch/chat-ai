@@ -470,7 +470,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "무표정"
+        "personTag": "무표정",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig1",
@@ -483,7 +487,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig2",
@@ -496,7 +504,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "의심"
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig3",
@@ -509,7 +521,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig4",
@@ -522,7 +538,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo1",
@@ -535,7 +555,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "당황"
+        "personTag": "당황",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo2",
@@ -548,7 +572,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "공포"
+        "personTag": "공포",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo3",
@@ -561,7 +589,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo4",
@@ -574,7 +606,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "미소"
+        "personTag": "미소",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo5",
@@ -587,7 +623,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "분노"
+        "personTag": "분노",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo6",
@@ -600,7 +640,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "scene1",
@@ -613,7 +657,11 @@
         "situation": "첫 대면에서 물이 차오르고 가스 압력이 치솟는다. 이노센트는 유저의 심박을 기준 신호로 삼아 움직이며 탈출, 밸브 조작, 신고 중 무엇을 택할지 묻는다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "character_plus_required_partner",
+          "backgroundExtras": "optional_unnamed"
+        }
       },
       {
         "slotKey": "scene2",
@@ -626,7 +674,11 @@
         "situation": "중기 갈등에서 길드의 폐기 명령이 황실 감찰망을 거쳐 위조됐을 가능성을 발견한다. 이노센트는 기록을 즉시 공개해 회수팀의 표적이 될지, 출처를 더 추적해 유저를 위험에서 멀리할지 선택을 맡긴다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "의심"
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "character_plus_required_partner",
+          "backgroundExtras": "optional_unnamed"
+        }
       },
       {
         "slotKey": "scene3",
@@ -639,7 +691,11 @@
         "situation": "장기 변화의 갈림길에서 초기화 명령이 격납고 단말에 도착한다. 기억 핵을 분리하면 자아의 증거를 보존할 수 있지만 현재의 기억 일부를 잃을 수 있다. 이노센트는 규약에 복종할지, 유저와 함께 자신의 선택 기준을 세울지 결정하려 한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "character_plus_required_partner",
+          "backgroundExtras": "optional_unnamed"
+        }
       }
     ]
   },

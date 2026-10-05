@@ -73,6 +73,7 @@ import {
   evaluateOfficialPlayerGenderNeutral,
   evaluateOfficialPublicDescription,
 } from "@/lib/officialSupply/publicProfileText";
+import { defaultOfficialImageSubjects, isOfficialImageSubjects } from "@/lib/officialSupply/imageSubjects";
 import { coerceMarketFitBrief } from "@/lib/officialSupply/marketFit";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import { validateStyleProposal } from "@/lib/officialSupply/style";
@@ -395,6 +396,13 @@ const ASSET_PLAN_SCHEMA: Record<string, unknown> = {
           location: { type: ["string", "null"] },
           situation: { type: ["string", "null"] },
           characterPresence: { type: "string" },
+          imageSubjects: {
+            type: "object",
+            properties: {
+              foreground: { type: "string" },
+              backgroundExtras: { type: "string" },
+            },
+          },
           depiction: { type: "string" },
           personTag: { type: ["string", "null"] },
         },
@@ -1285,6 +1293,9 @@ export async function generateOfficialAssetPlan(input: {
         location: typeof slot.location === "string" ? stripPromptTierLabel(slot.location) : null,
         situation: typeof slot.situation === "string" ? slot.situation : null,
         characterPresence: "required" as const,
+        imageSubjects: isOfficialImageSubjects(slot.imageSubjects)
+          ? slot.imageSubjects
+          : defaultOfficialImageSubjects(kind as OfficialAssetPlan["slots"][number]["kind"]),
         depiction: depiction as OfficialAssetPlan["slots"][number]["depiction"],
         personTag,
       };

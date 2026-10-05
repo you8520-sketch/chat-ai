@@ -95,6 +95,7 @@ function scene(slotKey: string, location: string, situation: string): OfficialAs
     location,
     situation,
     characterPresence: "required",
+    imageSubjects: { foreground: "solo_character", backgroundExtras: "optional_unnamed" },
     depiction: "standard",
     personTag: null,
   };

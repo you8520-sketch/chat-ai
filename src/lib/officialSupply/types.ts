@@ -242,6 +242,23 @@ export type OfficialAssetSlotKind = "representative" | "signature" | "emotion" |
 
 export type OfficialAssetDepiction = "standard" | "adult_grounded_non_explicit";
 
+/** Foreground people the image must show. Prompt assembly reads this field only. */
+export const OFFICIAL_FOREGROUND_CASTS = ["solo_character", "character_plus_required_partner"] as const;
+export type OfficialForegroundCast = (typeof OFFICIAL_FOREGROUND_CASTS)[number];
+
+/** Crowd extras are not foreground action partners. */
+export const OFFICIAL_BACKGROUND_EXTRAS = ["none", "optional_unnamed"] as const;
+export type OfficialBackgroundExtras = (typeof OFFICIAL_BACKGROUND_EXTRAS)[number];
+
+/**
+ * Canonical image-subject owner. Declared on the slot; never inferred from
+ * pose/situation prose or slotKey at prompt time.
+ */
+export type OfficialImageSubjects = {
+  foreground: OfficialForegroundCast;
+  backgroundExtras: OfficialBackgroundExtras;
+};
+
 export type OfficialAssetSlotPlan = {
   slotKey: string;
   kind: OfficialAssetSlotKind;
@@ -256,6 +273,11 @@ export type OfficialAssetSlotPlan = {
   situation: string | null;
   /** Every official asset depicts the character — background-only assets do not exist here. */
   characterPresence: "required";
+  /**
+   * Image-subject contract. Omitted rows resolve to solo (scenes may allow
+   * unnamed extras). Prompt assembly does not infer this from Korean prose.
+   */
+  imageSubjects?: OfficialImageSubjects;
   depiction: OfficialAssetDepiction;
   /** Optional canonical person-tag hint when a taxonomy tag fits. */
   personTag: AssetPersonTag | null;

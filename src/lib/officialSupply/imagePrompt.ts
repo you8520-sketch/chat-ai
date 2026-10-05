@@ -4,6 +4,7 @@ import { STRICT_SAFE_DEPICTION } from "@/lib/chatImageStrictSafetyFallbackPrompt
 import { buildMatureMaleVisualAgePrompt, renderAppearanceBlock } from "@/lib/officialSupply/appearance";
 import { adultDepictionAllowed } from "@/lib/officialSupply/assetPlan";
 import { officialImageProfileForSlot } from "@/lib/officialSupply/imageProfile";
+import { officialImageSubjectRuleForSlot } from "@/lib/officialSupply/imageSubjects";
 import {
   renderOfficialShotResponsibility,
   renderOfficialStyleFramingOverride,
@@ -238,7 +239,8 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     renderOfficialStyleFramingOverride(slot.kind),
     buildIllustrationSafeDepiction({ adultGrounded }),
     moment,
-    "Exactly one person unless the situation explicitly needs unnamed background extras. No text, speech bubbles, captions, logos, signatures or watermarks.",
+    officialImageSubjectRuleForSlot(slot),
+    "No text, speech bubbles, captions, logos, signatures or watermarks.",
   ].join("\n");
   const strictFallbackPrompt = [
     framingForSlot(slot, draft.draftKey),
@@ -251,6 +253,7 @@ export function buildOfficialAssetPrompts(input: OfficialAssetPromptInput): {
     genderLock,
     renderOfficialStyleFramingOverride(slot.kind),
     moment,
+    officialImageSubjectRuleForSlot(slot),
     "No text, logos or watermarks.",
   ]
     .filter(Boolean)
