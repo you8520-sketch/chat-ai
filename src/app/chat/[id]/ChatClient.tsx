@@ -137,7 +137,7 @@ import {
   parseModelPickerEstimates,
   selectedAIOptionLabel,
   type ModelPickerEstimateMap,
-} from "@/lib/modelPickerBaselineEstimate";
+} from "@/lib/modelPickerEstimate";
 import { formatAssistantLengthLabel } from "@/lib/responseLengthConstants";
 import {
   collapseStreamCompareText,

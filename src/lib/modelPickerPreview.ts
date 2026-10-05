@@ -1,6 +1,7 @@
 /**
- * Model picker cost preview — server-authoritative estimation.
- * Uses computeOpenRouterTurnCost from points.ts (env-aware rates).
+ * Server `/api/chat/model-picker-preview` estimator.
+ * Stable models use the Published preview owner; others keep market/OpenRouter fallbacks.
+ * Chat room picker labels use next-turn Published estimates, not this module.
  */
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,

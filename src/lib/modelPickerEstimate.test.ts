@@ -3,20 +3,14 @@ import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
-  MAIN_RP_MODEL_IDS,
   selectedAILabel,
 } from "@/lib/chatModels";
 import {
   formatPickerEstimateSuffix,
   parseModelPickerEstimates,
   selectedAIOptionLabel,
-} from "@/lib/modelPickerBaselineEstimate";
-import { computePublishedStandardPreviewDisplayPoints } from "@/lib/publishedUserCharge";
+} from "@/lib/modelPickerEstimate";
 import type { SitePromotionClientView } from "@/lib/sitePromotionClientView";
-
-const FIXED_INPUT = 20_000;
-const FIXED_OUTPUT = 1_500;
-const FX = 1560.6;
 
 function promo(modelId: string, badge: string): SitePromotionClientView {
   return {
@@ -29,33 +23,6 @@ function promo(modelId: string, badge: string): SitePromotionClientView {
     badge,
   };
 }
-
-function fixedBaseline(modelId: string): number | null {
-  return computePublishedStandardPreviewDisplayPoints({
-    modelId,
-    promptTokens: FIXED_INPUT,
-    outputTokens: FIXED_OUTPUT,
-    cacheReadTokens: 0,
-    cacheWriteTokens: 0,
-    effectiveKrwPerUsd: FX,
-  });
-}
-
-describe("PRE-FIX fixed 20k/1500 picker baseline", () => {
-  it("is identical across two different room snapshots", () => {
-    const roomA = Object.fromEntries(
-      MAIN_RP_MODEL_IDS.map((id) => [id, fixedBaseline(id)])
-    );
-    const roomB = Object.fromEntries(
-      MAIN_RP_MODEL_IDS.map((id) => [id, fixedBaseline(id)])
-    );
-    assert.deepEqual(roomA, roomB);
-    for (const modelId of MAIN_RP_MODEL_IDS) {
-      assert.equal(typeof roomA[modelId], "number", modelId);
-      assert.ok((roomA[modelId] ?? 0) > 0, modelId);
-    }
-  });
-});
 
 describe("modelPickerEstimate labels", () => {
   it("parses only positive integer estimates for active Main RP ids", () => {
