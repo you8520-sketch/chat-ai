@@ -6,9 +6,8 @@ import {
 } from "@/lib/chatModels";
 import type { SitePromotionClientView } from "@/lib/sitePromotionClientView";
 
+/** Room picker label map. Points come from next-turn Published estimates. */
 export type ModelPickerEstimateMap = Partial<Record<SelectedAI, number>>;
-/** @deprecated Use ModelPickerEstimateMap — same shape, dynamic next-turn owner. */
-export type ModelPickerBaselineEstimateMap = ModelPickerEstimateMap;
 
 export function parseModelPickerEstimates(
   value: unknown
@@ -25,18 +24,12 @@ export function parseModelPickerEstimates(
   return out;
 }
 
-/** @deprecated Use parseModelPickerEstimates */
-export const parseModelPickerBaselineEstimates = parseModelPickerEstimates;
-
 export function formatPickerEstimateSuffix(
   points: number | null | undefined
 ): string {
   if (points == null || !Number.isSafeInteger(points) || points <= 0) return "";
   return ` · 약 ${points}P`;
 }
-
-/** @deprecated Use formatPickerEstimateSuffix */
-export const formatPickerBaselineEstimateSuffix = formatPickerEstimateSuffix;
 
 /** Model option label — site promo badge from canonical active promotion only. */
 export function selectedAIOptionLabel(

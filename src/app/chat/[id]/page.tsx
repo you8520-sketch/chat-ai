@@ -36,7 +36,7 @@ import {
   MAIN_RP_MODEL_IDS,
   selectedAILabel,
 } from "@/lib/chatModels";
-import type { ModelPickerEstimateMap } from "@/lib/modelPickerBaselineEstimate";
+import type { ModelPickerEstimateMap } from "@/lib/modelPickerEstimate";
 import { resolveActiveSitePromotionsForModels } from "@/lib/sitePromotion";
 import { resolveMainRpNextTurnPickerEstimates } from "@/services/mainRpNextTurnEstimate";
 
