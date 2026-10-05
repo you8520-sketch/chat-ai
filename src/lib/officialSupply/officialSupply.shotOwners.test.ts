@@ -11,7 +11,7 @@ import {
   OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE,
 } from "@/lib/officialSupply/imagePrompt";
 import { officialSlotGenerationReferences } from "@/lib/officialSupply/runner";
-import { OFFICIAL_CAMERA_PROMPT, resolveOfficialSlotShot } from "@/lib/officialSupply/shotPlan";
+import { OFFICIAL_CAMERA_PROMPT, OFFICIAL_FACE_PROMPT, resolveOfficialSlotShot } from "@/lib/officialSupply/shotPlan";
 import { buildClusterBRofanStyleSeed } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import {
   HWANG_VOCAB,
@@ -23,12 +23,7 @@ import {
 import type { OfficialAssetPlan, OfficialAssetSlotPlan } from "@/lib/officialSupply/types";
 
 const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot/characters");
-const FACE = {
-  front: "face toward camera, near-frontal",
-  left_three_quarter: "head turned left three-quarter view",
-  right_three_quarter: "head turned right three-quarter view",
-  profile: "clear profile / side-face view",
-} as const;
+const FACE = OFFICIAL_FACE_PROMPT;
 
 function readPilot(draftKey: string): { assetPlan: OfficialAssetPlan } {
   return JSON.parse(fs.readFileSync(path.join(PILOT_DIR, `${draftKey}.json`), "utf8")) as {

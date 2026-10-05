@@ -9,6 +9,7 @@ import { officialImageSubjectRuleForSlot, resolveOfficialImageSubjects } from "@
 import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
 import {
   OFFICIAL_CAMERA_PROMPT,
+  OFFICIAL_FACE_PROMPT,
   OFFICIAL_LEGACY_LOW_ANGLE_CAMERA_CLAUSE,
   resolveOfficialSlotShot,
 } from "@/lib/officialSupply/shotPlan";
@@ -27,7 +28,7 @@ const IMAGE_PROMPT_SOURCE = fs.readFileSync(path.join(process.cwd(), "src/lib/of
 
 const HIGH_ANGLE_CLAUSE = "high-angle camera looking slightly down";
 const FACE_RIGHT = "head turned right three-quarter view";
-const FACE_PROFILE = "clear profile / side-face view";
+const FACE_PROFILE = OFFICIAL_FACE_PROMPT.profile;
 const DISTANCE_KNEE = "knee-up or full-body shot with space around the figure";
 
 function readPilot(draftKey: string): { assetPlan: OfficialAssetPlan } {
