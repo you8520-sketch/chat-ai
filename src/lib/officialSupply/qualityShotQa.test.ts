@@ -50,6 +50,7 @@ import {
   validateLucianV4IdentityReference,
 } from "@/lib/officialSupply/qualityShotQa";
 import { officialSlotGenerationReferences } from "@/lib/officialSupply/runner";
+import { OFFICIAL_FACE_PROMPT } from "@/lib/officialSupply/shotPlan";
 import { testAppearance } from "@/lib/officialSupply/officialSupply.fixtures";
 
 import { ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
@@ -190,7 +191,7 @@ describe("official shot QA lucian-sig4 trial mode", () => {
     assert.equal(plan.styleOwner.candidateId, "rf-02");
     assert.equal(plan.styleOwner.dnaOwner, "ROFAN_CLUSTER_B_VISUAL_STYLE_DNA");
     assert.equal(plan.styleOwner.seedUrlsSentAsImage, false);
-    assert.match(prompts.primaryPrompt, /clear profile \/ side-face view/);
+    assert.ok(prompts.primaryPrompt.includes(OFFICIAL_FACE_PROMPT.profile));
     assert.match(prompts.primaryPrompt, /high-angle camera looking slightly down/);
     assert.match(prompts.primaryPrompt, /close-up \(face and shoulders\)/);
     assert.equal(prompts.primaryPrompt.includes(OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE), true);
@@ -586,7 +587,7 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
     assert.equal(plan.styleOwner.seedUrlsSentAsImage, true);
     assert.equal(plan.styleOwner.selectedStyleReferenceMarker, LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER);
     assert.equal(plan.styleOwner.candidateId, "rf-02");
-    assert.match(prompts.primaryPrompt, /clear profile \/ side-face view/);
+    assert.ok(prompts.primaryPrompt.includes(OFFICIAL_FACE_PROMPT.profile));
     assert.match(prompts.primaryPrompt, /high-angle camera looking slightly down/);
     assert.match(prompts.primaryPrompt, /close-up \(face and shoulders\)/);
     assert.equal(prompts.primaryPrompt.includes(OFFICIAL_IDENTITY_THEN_STYLE_IMAGE1_LABEL), true);
