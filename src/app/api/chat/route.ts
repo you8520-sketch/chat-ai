@@ -38,6 +38,10 @@ import {
 } from "@/lib/canonPlan/shadowD0";
 import { buildContext } from "@/services/contextBuilder";
 import { resolveNarrativePov } from "@/lib/narrativePov";
+import {
+  assembleNextTurnContextBuildInput,
+  prepareNextTurnHistory,
+} from "@/services/nextTurnAssemblyPreparation";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
@@ -155,7 +159,6 @@ import { resolveRelationshipMetaNames } from "@/lib/relationshipMetaCharacterNam
 import {
   messagesToTurns,
   countPlayableTurns,
-  rawRecentTurnsToHistory,
   selectLongerHistorySuffix,
   ROLLING_SUMMARY_INTERVAL,
 } from "@/lib/hybridMemory";
@@ -191,7 +194,6 @@ import {
 import {
   analyzeProviderHistoryHealth,
   countRealPlayableHistoryTurns,
-  resolveProviderHistoryTurnFloor,
   trimProviderHistoryToBudget,
 } from "@/lib/providerHistoryPolicy";
 import {
@@ -1631,30 +1633,27 @@ export async function POST(req: Request) {
     summarizedTurnCount: effectiveSummarizedTurnCount,
     memoryFeatureEnabled: memoryFeatureOn,
   };
-  const canonicalRecentHistoryFull: ChatMsg[] = rawRecentTurnsToHistory(
-    turnsForRecentHistory,
+  const preparedHistory = prepareNextTurnHistory({
+    turns: turnsForRecentHistory,
+    modelId: contextModelId,
+    provider: contextProvider,
+    memoryFeatureOn,
+    completedTurnsForMemoryCoverage,
+    summarizedTurnCount: effectiveSummarizedTurnCount,
+    personaDisplayName,
+    userNickname: user.nickname,
     providerRawPoolExchangeCount,
-    providerRawOpts
-  ).map((m) => ({
-      ...m,
-      content: replaceUserPlaceholder(m.content, personaDisplayName, user.nickname),
-    })
-  );
+    providerRawTrimFloor,
+    protectOpening,
+  });
+  const canonicalRecentHistoryFull = preparedHistory.canonicalRecentHistoryFull;
   const providerTrimOpts = {
     minRealPlayableExchanges: providerRawTrimFloor,
     protectOpening,
   };
-  const providerHistoryAbsoluteTurnFloor = resolveProviderHistoryTurnFloor({
-    minRealPlayableExchanges: providerRawTrimFloor,
-    protectOpening,
-    history: canonicalRecentHistoryFull,
-  });
-  const historyMinTurnFloor = providerHistoryAbsoluteTurnFloor;
-  const coverageProtectedCanonicalHistory = trimProviderHistoryToBudget(
-    canonicalRecentHistoryFull,
-    historyTokenBudget,
-    providerTrimOpts
-  );
+  const providerHistoryAbsoluteTurnFloor = preparedHistory.providerHistoryAbsoluteTurnFloor;
+  const historyMinTurnFloor = preparedHistory.historyMinTurnFloor;
+  const coverageProtectedCanonicalHistory = preparedHistory.coverageProtectedHistory;
   const canonicalRouteHistory: CanonicalRouteHistoryMessage[] = msgRowsSource
     .filter((row) => row.role === "user" || row.role === "assistant")
     .map((row) => {
@@ -2280,78 +2279,74 @@ export async function POST(req: Request) {
     }
   }
 
-  const contextBuildInput = {
-    charName: ch.name,
-    contentKind: ch.content_kind === "simulation" ? "simulation" as const : "character" as const,
-    narrativePov: resolveNarrativePov({
-      mode: chat.narrative_pov,
-      contentKind: ch.content_kind === "simulation" ? "simulation" : "character",
-      mainCharacterName: ch.name,
-      povCharacterName: chat.pov_character_name,
-    }),
+  const contextBuildInput = assembleNextTurnContextBuildInput({
+    character: ch,
+    user,
+    chatId: chat.id,
     chunks: characterChunks,
-    systemPrompt: ch.system_prompt,
-    world: ch.world,
     exampleDialog: effectiveExampleDialog,
-    speechProfileJson: (ch as { speech_profile?: string }).speech_profile,
-    speechPersonality: (ch as { speech_personality?: string }).speech_personality,
-    speechTraits: (ch as { speech_traits?: string }).speech_traits,
-    characterPersonality: ch.description,
-    creatorNarrationStyle: (ch as { narration_style_instructions?: string | null })
-      .narration_style_instructions ?? "",
-    userNickname: user.nickname,
     userPersona: userPersonaPrompt,
     revealedPersonaFactsBlock: revealedPersonaFactsBlock ?? undefined,
     userNote: userNotePrompt,
     longTermMemory: memoryFeatureOn ? memoryInjection.text : "",
     mediumTermMemoryBlock: memoryFeatureOn ? memoryInjection.mediumTermText : "",
     archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",
+    history: {
+      ...preparedHistory,
+      promptHistory,
+      completedTurns: playableTurnCount,
+      completedTurnsForMemoryCoverage,
+      summarizedTurnCount: effectiveSummarizedTurnCount,
+      historyMinTurnFloor,
+      providerHistoryAbsoluteTurnFloor,
+      providerHistoryProtectOpening: protectOpening,
+      providerHistoryMinRealPlayableExchanges: providerRawTrimFloor,
+    },
     shortTermHistory: promptHistory,
     currentUserMessage: promptUserMessage,
     currentTurnAuthoringDelegation: currentTurnDelegationForTurn,
     nsfw: effectiveAdultRp,
     activeConsentMode: requestedConsentMode,
-    gender: resolveCharacterGender(ch.gender),
-    assetTags: assetTags.length > 0 ? assetTags : undefined,
-    memoryMeta: relationshipMemoryForPrompt,
+    assetTags,
     modelId: openRouterApiModelId,
     novelModeEnabled,
     runtimeMode,
     personaDisplayName,
-    userId: user.id,
-    chatId: chat.id,
     targetResponseChars,
-    completedTurns: playableTurnCount,
-    completedTurnsForMemoryCoverage,
-    summarizedTurnCount: effectiveSummarizedTurnCount,
-    historyMinTurnFloor,
-    providerHistoryAbsoluteTurnFloor,
-    providerHistoryProtectOpening: protectOpening,
-    providerHistoryMinRealPlayableExchanges: providerRawTrimFloor,
-    adultHandoffRequiredTurnFloor,
     userPersonaGender: selectedPersona?.gender ?? "other",
-    provider: "openrouter" as const,
     genres: characterGenres,
     useEnglishCharacterPrompt: usedEnglishCharacterPrompt,
     isContinue: autoContinueContext,
     regenerate: !!regenerateMessageId,
     rejectedAssistantDraft: regenerateMessageId ? rejectedAssistantDraft : undefined,
     regenAttemptId: regenerateMessageId ? regenAttemptId : undefined,
-    geminiStaticDynamicMode: false,
-    episodicMemoryBlock: episodicMemory.promptBlock || undefined,
-    triggeredScenarioEventsBlock: triggeredScenarioEventsBlock || undefined,
-    privateSpeechControlBlock: privateSpeechControlBlock || undefined,
-    sceneDirectiveBlock: relocateSceneDirectiveToUserTurn
-      ? null
-      : sceneDirectiveBlock,
-    scenePacingPromptOwner: scenePacingOwner,
-    keywordLorebookBlock: keywordLorebookBlock || undefined,
-    userLorebookBlock: userLorebookBlock || undefined,
-    focusMaxChars: memoryCapability.focusMaxChars,
-    globalLorebookBlock: globalLorebookBlock || undefined,
-    canonInjectionPolicy: canonInjectionPolicy,
+    sections: {
+      narrativePov: resolveNarrativePov({
+        mode: chat.narrative_pov,
+        contentKind: ch.content_kind === "simulation" ? "simulation" : "character",
+        mainCharacterName: ch.name,
+        povCharacterName: chat.pov_character_name,
+      }),
+      statusWidgetActive,
+      keywordLorebookBlock: keywordLorebookBlock || "",
+      userLorebookBlock: userLorebookBlock || "",
+      globalLorebookBlock: globalLorebookBlock || "",
+      relationshipMemory: relationshipMemoryForPrompt || "",
+      privateSpeechControlBlock: privateSpeechControlBlock || "",
+      jsxComponentCatalogJson:
+        (ch as { jsx_components_json?: string }).jsx_components_json ?? "",
+      creatorNarrationStyle:
+        (ch as { narration_style_instructions?: string | null })
+          .narration_style_instructions ?? "",
+      focusMaxChars: memoryCapability.focusMaxChars,
+    },
+    canonInjectionPolicy,
     canonPlan: canonLazyCompileResult?.plan ?? null,
     sceneMomentumInput,
+    sceneDirectiveBlock: relocateSceneDirectiveToUserTurn ? null : sceneDirectiveBlock,
+    scenePacingPromptOwner: scenePacingOwner,
+    episodicMemoryBlock: episodicMemory.promptBlock || undefined,
+    triggeredScenarioEventsBlock: triggeredScenarioEventsBlock || undefined,
     rpDiagnosticCanary: rpDiagnosticCanary
       ? {
           variant: rpDiagnosticCanary.variant,
@@ -2362,10 +2357,9 @@ export async function POST(req: Request) {
             : null,
         }
       : null,
-    preserveAdultHandoffRawHistory: false,
-    jsxComponentCatalogJson:
-      (ch as { jsx_components_json?: string }).jsx_components_json ?? "",
-  };
+    adultHandoffRequiredTurnFloor,
+    provider: "openrouter",
+  });
 
   const assembleContext = <T,>(fn: () => T): T =>
     personaKnowledgePromptDecision.mode === "ENSEMBLE_REDACTED"

@@ -384,6 +384,7 @@ export function loadUserLorebookPromptBlockFromActivation(
     currentTurn?: number;
     excludeContents?: ReadonlySet<string>;
     onMatch?: (match: KeywordLorebookMatch) => void;
+    persistActiveMatches?: boolean;
   }
 ): string {
   const row = getUserLorebookRowForChat(db, opts.chatId, opts.userId);
@@ -403,7 +404,7 @@ export function loadUserLorebookPromptBlockFromActivation(
       : [];
   const merged = mergeMatches(direct, carryover);
 
-  if (opts.currentTurn != null) {
+  if (opts.persistActiveMatches !== false && opts.currentTurn != null) {
     saveActiveLorebookMatches(db, {
       chatId: opts.chatId,
       lorebookId: row.id,
