@@ -44,8 +44,9 @@ import {
 } from "@/services/nextTurnAssemblyPreparation";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
+import { resolveMainRpNextTurnPublishedEstimateForModel } from "@/services/mainRpNextTurnEstimate";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
-import { getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
+import { getPointBalance, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { chatSseUserChargeFromSettlement } from "@/lib/chatBillingPresentation";
 import {
   settleChatTurnBillingExactlyOnce,
@@ -63,6 +64,7 @@ import {
   startMainRpGenerationLeaseHeartbeat,
   type MainRpGenerationLeaseHandle,
 } from "@/lib/mainRpGenerationAdmission";
+import { resolveMainRpProviderAdmissionRequiredPoints } from "@/lib/mainRpProviderAdmission";
 import { recordMainGenerationProviderCost } from "@/lib/providerCostLedger";
 import { scheduleTargetedCheaperInferenceRequestReconciliation } from "@/lib/providerCostReconciliation";
 import {
@@ -979,7 +981,8 @@ export async function POST(req: Request) {
   }
 
   const pointBalance = getPointBalance(user.id);
-  if (pointBalance.total < MIN_POINTS_TO_CHAT) {
+  const earlyRequiredPoints = resolveMainRpProviderAdmissionRequiredPoints(null);
+  if (pointBalance.total < earlyRequiredPoints) {
     return Response.json(
       { error: `포인트가 부족합니다. (보유: ${pointBalance.total.toLocaleString()}P)`, needCharge: true },
       { status: 402 }
@@ -2765,6 +2768,27 @@ export async function POST(req: Request) {
 
   let generationLease: MainRpGenerationLeaseHandle | null = null;
   if (!alreadyCompletedTurn) {
+    const assembledPromptTokens =
+      built.meta.promptAudit?.totalAssembledTokens ?? built.meta.estimatedInputTokens;
+    const publishedEstimate = resolveMainRpNextTurnPublishedEstimateForModel({
+      chatId: chatRef.id,
+      modelId: effectiveSelectedAI,
+      promptTokens:
+        typeof assembledPromptTokens === "number" && assembledPromptTokens > 0
+          ? assembledPromptTokens
+          : 0,
+    });
+    const requiredPoints = resolveMainRpProviderAdmissionRequiredPoints(publishedEstimate);
+    const liveBalance = getPointBalance(user.id);
+    if (liveBalance.total < requiredPoints) {
+      return Response.json(
+        {
+          error: `포인트가 부족합니다. (보유: ${liveBalance.total.toLocaleString()}P)`,
+          needCharge: true,
+        },
+        { status: 402 }
+      );
+    }
     const acquired = acquireMainRpGenerationLease(db, {
       userId: user.id,
       chatId: chatRef.id,
