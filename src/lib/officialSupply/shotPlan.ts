@@ -44,11 +44,13 @@ const FACE_PROMPT: Record<OfficialFaceDirection, string> = {
   profile: "clear profile / side-face view",
 };
 
-const CAMERA_PROMPT: Record<OfficialCameraAngle, string> = {
+export const OFFICIAL_CAMERA_PROMPT: Record<OfficialCameraAngle, string> = {
   eye_level: "eye-level camera",
   high_angle: "high-angle camera looking slightly down",
-  low_angle: "low-angle camera looking slightly up",
+  low_angle: "low-angle camera placed below the subject looking up, with visible upward perspective",
 };
+
+export const OFFICIAL_LEGACY_LOW_ANGLE_CAMERA_CLAUSE = "low-angle camera looking slightly up";
 
 const DISTANCE_PROMPT: Record<OfficialShotDistance, string> = {
   close_up: "close-up (face and shoulders)",
@@ -301,7 +303,7 @@ export function officialShotComboKey(shot: OfficialSlotShotResponsibility): stri
 export function renderOfficialShotResponsibility(shot: OfficialSlotShotResponsibility): string {
   return [
     `SHOT RESPONSIBILITY (${shot.slotKey}/${shot.kind}):`,
-    `${FACE_PROMPT[shot.faceDirection]}; ${CAMERA_PROMPT[shot.cameraAngle]}; ${DISTANCE_PROMPT[shot.distance]}.`,
+    `${FACE_PROMPT[shot.faceDirection]}; ${OFFICIAL_CAMERA_PROMPT[shot.cameraAngle]}; ${DISTANCE_PROMPT[shot.distance]}.`,
     `Background: ${BACKGROUND_PROMPT[shot.background]}.`,
     "This cut must look different from the other slots in face direction, camera, and framing.",
     "Do not inherit the representative card's camera, head angle, crop, or hand position.",

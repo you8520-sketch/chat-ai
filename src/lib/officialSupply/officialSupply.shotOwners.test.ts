@@ -11,7 +11,7 @@ import {
   OFFICIAL_STYLE_COPY_FORBIDDEN_CLAUSE,
 } from "@/lib/officialSupply/imagePrompt";
 import { officialSlotGenerationReferences } from "@/lib/officialSupply/runner";
-import { resolveOfficialSlotShot } from "@/lib/officialSupply/shotPlan";
+import { OFFICIAL_CAMERA_PROMPT, resolveOfficialSlotShot } from "@/lib/officialSupply/shotPlan";
 import { buildClusterBRofanStyleSeed } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import {
   HWANG_VOCAB,
@@ -59,13 +59,7 @@ function promptInventoryRow(
     slotPose: slot.pose,
     referenceRole: slot.kind === "representative" ? "style_only" : "identity_anchor",
     primaryHasShotDirection: primaryPrompt.includes(FACE[shot.faceDirection]),
-    primaryHasShotAngle: primaryPrompt.includes(
-      shot.cameraAngle === "eye_level"
-        ? "eye-level camera"
-        : shot.cameraAngle === "high_angle"
-          ? "high-angle camera looking slightly down"
-          : "low-angle camera looking slightly up"
-    ),
+    primaryHasShotAngle: primaryPrompt.includes(OFFICIAL_CAMERA_PROMPT[shot.cameraAngle]),
     primaryHasShotDistance: primaryPrompt.includes(
       shot.distance === "close_up"
         ? "close-up (face and shoulders)"

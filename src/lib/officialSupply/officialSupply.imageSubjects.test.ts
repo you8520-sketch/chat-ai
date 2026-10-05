@@ -137,7 +137,7 @@ describe("official image subject owner (#participant-count)", () => {
     const slot = lucianSlot("sig3");
     const { primaryPrompt, strictFallbackPrompt } = promptsFor(slot);
     assert.match(primaryPrompt, /head turned right three-quarter view/);
-    assert.match(primaryPrompt, /low-angle camera looking slightly up/);
+    assert.match(primaryPrompt, /low-angle camera placed below the subject looking up/);
     assert.match(primaryPrompt, /knee-up or full-body shot/);
     assert.match(primaryPrompt, new RegExp(`Expression: ${slot.expression}`));
     assert.match(primaryPrompt, new RegExp(`Pose: ${slot.pose}`));
