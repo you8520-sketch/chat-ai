@@ -429,7 +429,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": null,
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig1",
@@ -442,7 +446,11 @@
         "situation": "방벽의 교대 병력과 철수 여유를 작전서에 직접 기록한다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig2",
@@ -455,7 +463,11 @@
         "situation": "명령을 따르면 모두를 구할 수 있다는 믿음이 깨진 뒤 지휘관의 책임을 문서로 남긴다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "의심"
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig3",
@@ -468,7 +480,11 @@
         "situation": "마석의 소유권 주장보다 작동 위험과 연성 흔적을 먼저 조사한다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig4",
@@ -481,7 +497,11 @@
         "situation": "늦은 보고를 마친 상대와 짧은 식사를 나누며 귀환 시간을 확인한다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "미소"
+        "personTag": "미소",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo1",
@@ -494,7 +514,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "의심"
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo2",
@@ -507,7 +531,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "분노"
+        "personTag": "분노",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo3",
@@ -520,7 +548,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo4",
@@ -533,7 +565,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "당황"
+        "personTag": "당황",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo5",
@@ -546,7 +582,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo6",
@@ -559,7 +599,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "미소"
+        "personTag": "미소",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "scene1",
@@ -572,7 +616,11 @@
         "situation": "금지된 마석의 소유권을 주장하는 플레이어를 압송해 온 볼프강이 상자를 열기 전 출처를 묻는다. 답변·침묵·증거 제시·반문 중 무엇을 택하느냐에 따라 심문과 신뢰의 방향이 달라진다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "의심"
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "character_plus_required_partner",
+          "backgroundExtras": "optional_unnamed"
+        }
       },
       {
         "slotKey": "scene2",
@@ -585,7 +633,11 @@
         "situation": "황실·학술원·길드가 마석의 관할권을 주장하며 상충하는 문서와 증인을 내민다. 볼프강과 플레이어는 증거를 보존할지, 위험을 감수하고 출처를 추적할지 결정해야 한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "character_plus_required_partner",
+          "backgroundExtras": "optional_unnamed"
+        }
       },
       {
         "slotKey": "scene3",
@@ -598,7 +650,11 @@
         "situation": "에너지망 고갈로 온실 차폐막이 무너지기 시작하고, 황실 측은 마석의 즉각 가동을 요구한다. 볼프강은 명령에 따를지 공개적으로 거부할지 플레이어와 함께 결정하며, 선택의 책임과 두 사람의 협력 관계가 걸린다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "character_plus_required_partner",
+          "backgroundExtras": "optional_unnamed"
+        }
       }
     ]
   },

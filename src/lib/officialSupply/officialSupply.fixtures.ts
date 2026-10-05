@@ -200,6 +200,10 @@ function slot(partial: Partial<OfficialAssetSlotPlan> & Pick<OfficialAssetSlotPl
     location: null,
     situation: null,
     characterPresence: "required",
+    imageSubjects: {
+      foreground: "solo_character",
+      backgroundExtras: partial.kind === "scene" ? "optional_unnamed" : "none",
+    },
     depiction: "standard",
     personTag: null,
     ...partial,

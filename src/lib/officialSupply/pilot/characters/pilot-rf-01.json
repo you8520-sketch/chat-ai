@@ -468,7 +468,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "미소"
+        "personTag": "미소",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig1",
@@ -481,7 +485,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig2",
@@ -494,7 +502,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "의심"
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig3",
@@ -507,7 +519,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig4",
@@ -520,7 +536,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo1",
@@ -533,7 +553,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "미소"
+        "personTag": "미소",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo2",
@@ -546,7 +570,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo3",
@@ -559,7 +587,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "슬픔"
+        "personTag": "슬픔",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo4",
@@ -572,7 +604,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "분노"
+        "personTag": "분노",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo5",
@@ -585,7 +621,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "당황"
+        "personTag": "당황",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo6",
@@ -598,7 +638,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "scene1",
@@ -611,7 +655,11 @@
         "situation": "목격자에게 비밀 유지와 에테르 원인 규명을 부탁하며 황실 권한과 치료 자원을 대가로 건다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "character_plus_required_partner",
+          "backgroundExtras": "optional_unnamed"
+        }
       },
       {
         "slotKey": "scene2",
@@ -624,7 +672,11 @@
         "situation": "금서 해독 중 마력 역류가 발생하고 황실 감찰과 학술원 수사가 들이닥친다. 봉인을 유지해 치료 정보를 감출지, 풀어 원인을 드러낼지 함께 선택해야 한다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "optional_unnamed"
+        }
       },
       {
         "slotKey": "scene3",
@@ -637,7 +689,11 @@
         "situation": "보급 단절의 책임을 둘러싼 군사 반역 음모를 적발한다. 볼프강과의 동맹을 지킬지 공개적으로 증거를 내놓을지 카엘룸이 선택한다",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "의심"
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "optional_unnamed"
+        }
       }
     ]
   },

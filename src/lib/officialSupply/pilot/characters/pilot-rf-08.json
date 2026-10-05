@@ -572,7 +572,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": null,
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig1",
@@ -585,7 +589,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": null,
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig2",
@@ -598,7 +606,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "미소"
+        "personTag": "미소",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig3",
@@ -611,7 +623,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig4",
@@ -624,7 +640,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": null,
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo1",
@@ -637,7 +657,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "미소"
+        "personTag": "미소",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo2",
@@ -650,7 +674,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "의심"
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo3",
@@ -663,7 +691,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "슬픔"
+        "personTag": "슬픔",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo4",
@@ -676,7 +708,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo5",
@@ -689,7 +725,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo6",
@@ -702,7 +742,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": null,
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "scene1",
@@ -715,7 +759,11 @@
         "situation": "첫 대화에서 노엘은 항로 기록 전체를 넘기지 않고 검증 가능한 구간만 제시한다. 대신 유저가 자신의 귀환 조건을 직접 협상하라고 요구하며, 유저의 권한이 어디까지인지 답을 재촉한다. 접견 데크의 출입 기록에는 노엘의 퇴궁 시각이 조작된 흔적이 있어 둘 다 상대의 선택을 확인해야 한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "character_plus_required_partner",
+          "backgroundExtras": "optional_unnamed"
+        }
       },
       {
         "slotKey": "scene2",
@@ -728,7 +776,11 @@
         "situation": "중기 갈등에서 길드 사절이 노엘의 서명을 붙인 항로 사본을 공개하고, 황실과 방벽 측은 기록의 진위를 문제 삼는다. 위조를 입증하려면 숨겨 둔 좌표 일부를 공개해야 하는 상황에서 노엘은 민간 항로의 안전과 자신의 결백 중 무엇을 먼저 지킬지 선택해야 한다. 유저는 증거를 공동 보관할지 공개 검증에 넘길지 결정한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "optional_unnamed"
+        }
       },
       {
         "slotKey": "scene3",
@@ -741,7 +793,11 @@
         "situation": "장기 변화의 갈림길에서 노엘은 봉인된 항로 기록의 공개 범위를 정하기 위해 유저를 자신의 검증실로 부른다. 일부 항로를 공개하면 귀환 협상에 힘이 실릴 수 있지만 해안 공동체가 위험해질 수 있다. 그는 어느 쪽도 미리 정답으로 두지 않고, 유저와 함께 공개 범위와 책임을 기록할지 결정하려 한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "character_plus_required_partner",
+          "backgroundExtras": "optional_unnamed"
+        }
       }
     ]
   },

@@ -405,7 +405,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "무표정"
+        "personTag": "무표정",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig1",
@@ -418,7 +422,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig2",
@@ -431,7 +439,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "당황"
+        "personTag": "당황",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig3",
@@ -444,7 +456,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "의심"
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "sig4",
@@ -457,7 +473,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "피곤함"
+        "personTag": "피곤함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo1",
@@ -470,7 +490,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo2",
@@ -483,7 +507,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": null
+        "personTag": null,
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo3",
@@ -496,7 +524,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "분노"
+        "personTag": "분노",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo4",
@@ -509,7 +541,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "부끄러움"
+        "personTag": "부끄러움",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo5",
@@ -522,7 +558,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "진지함"
+        "personTag": "진지함",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "emo6",
@@ -535,7 +575,11 @@
         "situation": null,
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "의심"
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
+        }
       },
       {
         "slotKey": "scene1",
@@ -548,7 +592,11 @@
         "situation": "청부 현장을 목격한 플레이어와 맞닥뜨린 첫 대화. 플레이어는 답하거나 협상하거나 도망칠 수 있고, 바스티안은 칼을 거둘지 경보가 울리기 전에 함께 빠져나갈지 선택해야 한다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "character_plus_required_partner",
+          "backgroundExtras": "optional_unnamed"
+        }
       },
       {
         "slotKey": "scene2",
@@ -561,7 +609,11 @@
         "situation": "중기 갈등에서 바스티안은 길드의 입막음 지시를 따를지, 살아 있을지 모르는 표적을 추적할지 결정해야 한다. 루시안의 장부와 수사청의 추적이 얽힌 단서를 플레이어와 공유할지 숨길지도 관계의 걸림돌이 된다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "의심"
+        "personTag": "의심",
+        "imageSubjects": {
+          "foreground": "character_plus_required_partner",
+          "backgroundExtras": "optional_unnamed"
+        }
       },
       {
         "slotKey": "scene3",
@@ -574,7 +626,11 @@
         "situation": "장기 변화의 갈림길에서 길드가 새 계약 조건을 들이민다. 바스티안은 계약을 받아 생계를 지킬지, 조건을 바꾸거나 새로운 편을 택할지 플레이어와 함께 판단한다. 선택에 따라 두 사람은 길드의 추적을 감수하거나 각자의 길로 갈 수 있다.",
         "characterPresence": "required",
         "depiction": "standard",
-        "personTag": "긴장"
+        "personTag": "긴장",
+        "imageSubjects": {
+          "foreground": "character_plus_required_partner",
+          "backgroundExtras": "optional_unnamed"
+        }
       }
     ]
   },

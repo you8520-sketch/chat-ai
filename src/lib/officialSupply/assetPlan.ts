@@ -1,6 +1,7 @@
 import { CREATOR_ASSET_TAG_MAX, normalizeCreatorAssetTag } from "@/lib/characterAssets";
 import { isAssetPersonTag } from "@/lib/assetPersonTags";
 import { ADULT_SCENE_MIN_AGE } from "@/lib/participantMinAge";
+import { isOfficialImageSubjects } from "@/lib/officialSupply/imageSubjects";
 import { evaluateOfficialShotPlan } from "@/lib/officialSupply/shotPlan";
 import {
   qaResult,
@@ -52,6 +53,17 @@ export function evaluateAssetPlan(draft: OfficialCharacterDraft, plan: OfficialA
     if (!slot.expression.trim()) errors.push({ code: "slot_expression_missing", message: `${slot.slotKey}: expression` });
     if (slot.characterPresence !== "required") {
       errors.push({ code: "slot_character_absent", message: `${slot.slotKey}: character must appear` });
+    }
+    if (slot.imageSubjects == null) {
+      errors.push({
+        code: "slot_image_subjects_missing",
+        message: `${slot.slotKey}: imageSubjects is required`,
+      });
+    } else if (!isOfficialImageSubjects(slot.imageSubjects)) {
+      errors.push({
+        code: "slot_image_subjects_invalid",
+        message: `${slot.slotKey}: imageSubjects must be a declared foreground/backgroundExtras contract`,
+      });
     }
     if (slot.personTag != null && !isAssetPersonTag(slot.personTag)) {
       errors.push({ code: "slot_person_tag_unknown", message: `${slot.slotKey}: ${slot.personTag}` });

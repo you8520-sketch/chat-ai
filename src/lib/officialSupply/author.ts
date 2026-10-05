@@ -73,10 +73,13 @@ import {
   evaluateOfficialPlayerGenderNeutral,
   evaluateOfficialPublicDescription,
 } from "@/lib/officialSupply/publicProfileText";
+import { isOfficialImageSubjects } from "@/lib/officialSupply/imageSubjects";
 import { coerceMarketFitBrief } from "@/lib/officialSupply/marketFit";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import { validateStyleProposal } from "@/lib/officialSupply/style";
 import {
+  OFFICIAL_BACKGROUND_EXTRAS,
+  OFFICIAL_FOREGROUND_CASTS,
   qaResult,
   type OfficialAppearanceLock,
   type OfficialAssetPlan,
@@ -395,9 +398,18 @@ const ASSET_PLAN_SCHEMA: Record<string, unknown> = {
           location: { type: ["string", "null"] },
           situation: { type: ["string", "null"] },
           characterPresence: { type: "string" },
+          imageSubjects: {
+            type: "object",
+            properties: {
+              foreground: { type: "string", enum: [...OFFICIAL_FOREGROUND_CASTS] },
+              backgroundExtras: { type: "string", enum: [...OFFICIAL_BACKGROUND_EXTRAS] },
+            },
+            required: ["foreground", "backgroundExtras"],
+          },
           depiction: { type: "string" },
           personTag: { type: ["string", "null"] },
         },
+        required: ["imageSubjects"],
       },
     },
   },
@@ -1275,6 +1287,12 @@ export async function generateOfficialAssetPlan(input: {
       // never invented into the canonical person-tag list.
       const personTag: OfficialAssetPlan["slots"][number]["personTag"] =
         rawTag && isAssetPersonTag(rawTag) ? rawTag : null;
+      if (!isOfficialImageSubjects(slot.imageSubjects)) {
+        throw new OfficialSupplyGateError(
+          "author_shape_invalid",
+          `slot[${index}]: imageSubjects must be an explicit foreground/backgroundExtras contract`
+        );
+      }
       return {
         slotKey: typeof slot.slotKey === "string" ? slot.slotKey : `slot-${index}`,
         kind: kind as OfficialAssetPlan["slots"][number]["kind"],
@@ -1285,6 +1303,7 @@ export async function generateOfficialAssetPlan(input: {
         location: typeof slot.location === "string" ? stripPromptTierLabel(slot.location) : null,
         situation: typeof slot.situation === "string" ? slot.situation : null,
         characterPresence: "required" as const,
+        imageSubjects: slot.imageSubjects,
         depiction: depiction as OfficialAssetPlan["slots"][number]["depiction"],
         personTag,
       };
