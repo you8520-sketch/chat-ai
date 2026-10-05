@@ -1,0 +1,1250 @@
+{
+  "cycleKey": "weekly-2026-W41",
+  "mode": "weekly",
+  "status": "COMPLETED",
+  "startedAt": "2026-10-05T07:03:42.194Z",
+  "finishedAt": "2026-10-05T07:04:50.795Z",
+  "mainSha": "da480b4b464b266afcb9c9066552d4922588c952",
+  "architectureFingerprint": "6b8a7a44c1570d4c",
+  "sources": [
+    {
+      "sourceId": "github_watchlist",
+      "observations": 17,
+      "errors": [],
+      "failed": false
+    },
+    {
+      "sourceId": "github_discovery",
+      "observations": 5,
+      "errors": [],
+      "failed": false
+    },
+    {
+      "sourceId": "official_companion_memory_docs",
+      "observations": 1,
+      "errors": [
+        "kindroid: no memory evidence at https://kindroid.ai/docs/article/llm-guides/",
+        "kindroid: no memory evidence at https://kindroid.ai/v2/docs/api-documentation/",
+        "character_ai: https://support.character.ai/hc/en-us/articles/24327914463003-Pinned-Memories HTTP 403",
+        "character_ai: https://support.character.ai/hc/en-us/articles/50609303987099-6-Refining-and-Testing-your-Character HTTP 403"
+      ],
+      "failed": false
+    },
+    {
+      "sourceId": "arxiv_queries",
+      "observations": 0,
+      "errors": [
+        "arxiv query 0: HTTP 429",
+        "arxiv query 1: The operation was aborted due to timeout",
+        "arxiv query 2: The operation was aborted due to timeout"
+      ],
+      "failed": true
+    }
+  ],
+  "counts": {
+    "sourcesChecked": 4,
+    "sourcesFailed": 1,
+    "observations": 23,
+    "newCandidates": 5,
+    "skippedDuplicates": 12,
+    "evaluated": 11,
+    "watch": 10,
+    "reject": 1,
+    "benchmarked": 0,
+    "accept": 0,
+    "draftPrPackets": 0
+  },
+  "skipped": [
+    {
+      "candidateKey": "github:mem0ai/mem0",
+      "reason": "rejected_same_version"
+    },
+    {
+      "candidateKey": "github:getzep/graphiti",
+      "reason": "rejected_same_version"
+    },
+    {
+      "candidateKey": "github:letta-ai/letta",
+      "reason": "rejected_same_version"
+    },
+    {
+      "candidateKey": "github:microsoft/graphrag",
+      "reason": "rejected_same_version"
+    },
+    {
+      "candidateKey": "github:hkuds/lightrag",
+      "reason": "rejected_same_version"
+    },
+    {
+      "candidateKey": "github:topoteretes/cognee",
+      "reason": "rejected_same_version"
+    },
+    {
+      "candidateKey": "github:langchain-ai/langmem",
+      "reason": "rejected_same_version"
+    },
+    {
+      "candidateKey": "github:vectorize-io/hindsight",
+      "reason": "rejected_same_version"
+    },
+    {
+      "candidateKey": "github:snap-research/locomo",
+      "reason": "rejected_same_version"
+    },
+    {
+      "candidateKey": "github:flagopen/flagembedding",
+      "reason": "watch_cooldown"
+    },
+    {
+      "candidateKey": "github:qwenlm/qwen3-embedding",
+      "reason": "watch_cooldown"
+    },
+    {
+      "candidateKey": "official:nomi:memory-docs",
+      "reason": "watch_cooldown"
+    }
+  ],
+  "decisions": [
+    {
+      "candidateKey": "github:agentscope-ai/reme",
+      "version": "v0.4.1.13",
+      "trigger": "new_version",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "REJECTED"
+      ],
+      "decision": "REJECTED_INFRA_COMPLEXITY",
+      "reason": "wholesale adoption needs python_runtime; only a TypeScript-native port of the technique is evaluable"
+    },
+    {
+      "candidateKey": "github:xiaowu0162/longmemeval",
+      "version": null,
+      "trigger": "architecture_changed",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)"
+    },
+    {
+      "candidateKey": "github:xiaowu0162/longmemeval-v2",
+      "version": null,
+      "trigger": "architecture_changed",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)"
+    },
+    {
+      "candidateKey": "github:salesforceairesearch/anchorbench",
+      "version": null,
+      "trigger": "architecture_changed",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)"
+    },
+    {
+      "candidateKey": "github:collab-gen/rolememo",
+      "version": null,
+      "trigger": "architecture_changed",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)"
+    },
+    {
+      "candidateKey": "github:geniesinc/memora",
+      "version": null,
+      "trigger": "architecture_changed",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "benchmark release: evaluable only by porting its cases into memory-rp-benchmark-suite.ts (same-owner extension)"
+    },
+    {
+      "candidateKey": "github:l33tdawg/sage",
+      "version": "v11.23.14",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet"
+    },
+    {
+      "candidateKey": "github:aloth/awesome-ai-agents",
+      "version": null,
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet"
+    },
+    {
+      "candidateKey": "github:vxcontrol/pentagi",
+      "version": "v2.2.0",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet"
+    },
+    {
+      "candidateKey": "github:shangguanyunji663/aegis-agent",
+      "version": null,
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet"
+    },
+    {
+      "candidateKey": "github:oppaai/aiko-chan",
+      "version": "v0.2.0",
+      "trigger": "new_candidate",
+      "trail": [
+        "RESEARCHED",
+        "SCREENED",
+        "WATCH"
+      ],
+      "decision": "WATCH_NO_BENCHMARK_HOOK",
+      "reason": "the deterministic benchmark has no A/B hook for episodic_facts, rolling_summary, global_current_memory yet"
+    }
+  ],
+  "baseline": {
+    "status": "RAN",
+    "metricsLine": "cases=35 candidateRecall@K=0.964[MEASURED, eligibleCases=28/35] finalRecall@8=0.963[MEASURED, eligibleCases=27/35] falseInjectionRate=0[MEASURED, eligibleCases=33/35] staleStateRecallRate=0[MEASURED, eligibleCases=5/35] precision=1[MEASURED, eligibleCases=33/35] falseMemoryRate=0[MEASURED, eligibleCases=6/35] irrelevantInjectionRate=0[MEASURED, eligibleCases=1/35] relationshipRoleConsistency=1[MEASURED, eligibleCases=2/35] distinctiveUtteranceRecall=1[MEASURED, eligibleCases=1/35] correctionSupersessionAccuracy=1[MEASURED, eligibleCases=1/35] wrongObserverKnowledgeLeakCount=0[MEASURED, eligibleCases=1/35] secretLeakCount=null[NOT_MEASURED, eligibleCases=0/35] baselineVsShadowDelta=null[NOT_APPLICABLE] providerCallsPerTurn=0[MEASURED] jevInvocationRate=0[MEASURED] jevP50=null[NOT_APPLICABLE] jevP95=null[NOT_APPLICABLE] jevCostPer1k=null[NOT_APPLICABLE] promptTokenDelta=null[NOT_APPLICABLE] fallbackParity=null[NOT_APPLICABLE]",
+    "error": null
+  },
+  "baselineTrend": {
+    "status": "STABLE",
+    "previousCycleKey": "monthly-2026-10",
+    "benchmarkFingerprint": "dd363ec0987fa481",
+    "metricDeltas": [
+      {
+        "key": "falseInjectionRate",
+        "previous": 0,
+        "current": 0,
+        "delta": 0,
+        "verdict": "unchanged"
+      },
+      {
+        "key": "falseMemoryRate",
+        "previous": 0,
+        "current": 0,
+        "delta": 0,
+        "verdict": "unchanged"
+      },
+      {
+        "key": "irrelevantInjectionRate",
+        "previous": 0,
+        "current": 0,
+        "delta": 0,
+        "verdict": "unchanged"
+      },
+      {
+        "key": "precision",
+        "previous": 1,
+        "current": 1,
+        "delta": 0,
+        "verdict": "unchanged"
+      },
+      {
+        "key": "staleStateRecallRate",
+        "previous": 0,
+        "current": 0,
+        "delta": 0,
+        "verdict": "unchanged"
+      },
+      {
+        "key": "correctionSupersessionAccuracy",
+        "previous": 1,
+        "current": 1,
+        "delta": 0,
+        "verdict": "unchanged"
+      },
+      {
+        "key": "relationshipRoleConsistency",
+        "previous": 1,
+        "current": 1,
+        "delta": 0,
+        "verdict": "unchanged"
+      },
+      {
+        "key": "candidateRecallAtK",
+        "previous": 0.9642857142857143,
+        "current": 0.9642857142857143,
+        "delta": 0,
+        "verdict": "unchanged"
+      },
+      {
+        "key": "finalRecallAt8",
+        "previous": 0.9629629629629629,
+        "current": 0.9629629629629629,
+        "delta": 0,
+        "verdict": "unchanged"
+      },
+      {
+        "key": "distinctiveUtteranceRecall",
+        "previous": 1,
+        "current": 1,
+        "delta": 0,
+        "verdict": "unchanged"
+      }
+    ],
+    "lostPositiveCases": [],
+    "gainedPositiveCases": [],
+    "promptTokensPerTurnDelta": 0,
+    "promptTokenTrend": "UNCHANGED",
+    "invariantViolationDelta": 0,
+    "note": "Deterministic baseline comparison uses raw metric directions and per-case hit evidence only."
+  },
+  "baselinePromotionGate": {
+    "status": "OPEN",
+    "blocked": false,
+    "reason": "No comparable deterministic baseline regression is blocking automatic research promotion."
+  },
+  "benchmarks": [],
+  "providerCalls": {
+    "paidProviderCalls": 0,
+    "paidProviderCallBudget": 0,
+    "httpCalls": 50,
+    "httpBudget": 56
+  },
+  "estimatedCostUsd": 0,
+  "draftPrPackets": [],
+  "cleanupCandidates": [],
+  "companionExperimentProposals": [],
+  "benchmarkAdoptionProposals": [
+    {
+      "candidateKey": "github:xiaowu0162/longmemeval",
+      "sourceUrl": "https://github.com/xiaowu0162/LongMemEval",
+      "sourceVersion": null,
+      "evidenceLevel": "PUBLISHED_BENCHMARK_CAPABILITY_CLAIM",
+      "ability": "dynamic_state_tracking",
+      "status": "ALREADY_COVERED",
+      "localGroups": [
+        "DYNAMIC_STATE_TRACKING"
+      ],
+      "localCaseCount": 5,
+      "coverage": "DYNAMIC_STATE_TRACKING already covers latest-state replacement, item/location transitions, promises, and relationship role state.",
+      "gap": null,
+      "nextAction": "No parallel benchmark owner. Re-open only for a concrete case family not represented by current fixtures."
+    },
+    {
+      "candidateKey": "github:xiaowu0162/longmemeval",
+      "sourceUrl": "https://github.com/xiaowu0162/LongMemEval",
+      "sourceVersion": null,
+      "evidenceLevel": "PUBLISHED_BENCHMARK_CAPABILITY_CLAIM",
+      "ability": "temporal_reasoning",
+      "status": "ALREADY_COVERED",
+      "localGroups": [
+        "TEMPORAL_REASONING"
+      ],
+      "localCaseCount": 8,
+      "coverage": "TEMPORAL_REASONING already spans 20/75/300/1000/2000-turn horizons, correction, first/never, and implicit paraphrase.",
+      "gap": null,
+      "nextAction": "Keep current canonical group; only add a fixture for a new temporal failure mode."
+    },
+    {
+      "candidateKey": "github:xiaowu0162/longmemeval-v2",
+      "sourceUrl": "https://github.com/xiaowu0162/LongMemEval-V2",
+      "sourceVersion": null,
+      "evidenceLevel": "PUBLISHED_BENCHMARK_CAPABILITY_CLAIM",
+      "ability": "premise_awareness",
+      "status": "ALREADY_COVERED",
+      "localGroups": [
+        "PREMISE_AWARENESS"
+      ],
+      "localCaseCount": 7,
+      "coverage": "PREMISE_AWARENESS already covers false memory/premise, wrong-observer knowledge, and invalidated regen/delete/fork/reset histories.",
+      "gap": null,
+      "nextAction": "No new case family unless a benchmark exposes a materially different premise failure."
+    },
+    {
+      "candidateKey": "github:salesforceairesearch/anchorbench",
+      "sourceUrl": "https://github.com/SalesforceAIResearch/AnchorBench",
+      "sourceVersion": null,
+      "evidenceLevel": "PUBLISHED_BENCHMARK_CAPABILITY_CLAIM",
+      "ability": "persona_continuity",
+      "status": "CASE_PORT_WORTHY",
+      "localGroups": [
+        "IDENTITY_TRAJECTORY"
+      ],
+      "localCaseCount": 4,
+      "coverage": "IDENTITY_TRAJECTORY already checks durable role/state continuity and false-memory negatives.",
+      "gap": "Current deterministic cases do not separately stress long-horizon role, explicit boundaries, authored values, and communication style under relationship pressure.",
+      "nextAction": "Design local synthetic RP fixtures for boundary/value/style retention. Do not import external hidden/test conversations or their judge scores."
+    },
+    {
+      "candidateKey": "github:salesforceairesearch/anchorbench",
+      "sourceUrl": "https://github.com/SalesforceAIResearch/AnchorBench",
+      "sourceVersion": null,
+      "evidenceLevel": "PUBLISHED_BENCHMARK_CAPABILITY_CLAIM",
+      "ability": "trajectory_recall",
+      "status": "PARTIAL_COVERAGE",
+      "localGroups": [
+        "DYNAMIC_STATE_TRACKING",
+        "TEMPORAL_REASONING",
+        "PREMISE_AWARENESS"
+      ],
+      "localCaseCount": 20,
+      "coverage": "Existing groups cover state replacement, promise lifecycle, temporal horizons, corrections, invalidated branches, and false premises.",
+      "gap": "Counterfactual distinction between active vs expired commitments and legitimate persona updates is not yet a dedicated case family.",
+      "nextAction": "Add only missing counterfactual state/commitment fixtures to the canonical benchmark; preserve existing raw metrics."
+    },
+    {
+      "candidateKey": "github:collab-gen/rolememo",
+      "sourceUrl": "https://github.com/Collab-Gen/RoleMemo",
+      "sourceVersion": null,
+      "evidenceLevel": "PUBLISHED_BENCHMARK_CAPABILITY_CLAIM",
+      "ability": "persona_conditioned_insight",
+      "status": "CASE_PORT_WORTHY",
+      "localGroups": [
+        "IDENTITY_TRAJECTORY"
+      ],
+      "localCaseCount": 4,
+      "coverage": "Current benchmark can verify factual recall and role consistency but does not score whether the same fact is interpreted differently under a persona.",
+      "gap": "Missing deterministic fact→persona-grounded-insight cases with an objective grounding check that prevents free-form psychological invention.",
+      "nextAction": "Prototype synthetic fact/insight pairs with explicit persona premises and negative unsupported-inference cases. Keep factual memory as canonical evidence."
+    },
+    {
+      "candidateKey": "github:geniesinc/memora",
+      "sourceUrl": "https://github.com/geniesinc/Memora",
+      "sourceVersion": null,
+      "evidenceLevel": "PUBLISHED_BENCHMARK_CAPABILITY_CLAIM",
+      "ability": "forgetting_fidelity",
+      "status": "PARTIAL_COVERAGE",
+      "localGroups": [
+        "DYNAMIC_STATE_TRACKING",
+        "PREMISE_AWARENESS"
+      ],
+      "localCaseCount": 12,
+      "coverage": "Current cases cover correction/supersession, stale state, edit/regen/fork/reset invalidation, canonical last-turn deletion including summary-seal episodic provenance rollback, and derived-memory-deletion-residue-01 proving pruned summary text is absent from active summaries, stored recent_summary, and prompt-facing Global Current Memory.",
+      "gap": "The external forgetting benchmark is broader than the site's currently supported destructive/update surface; no additional concrete local mutation path is presently proven to lack derived-tier invalidation coverage.",
+      "nextAction": "Keep the benchmark on watch. Re-open local case planning only when a real supported delete/update/rewind path is found without deterministic derived-tier invalidation proof; reuse existing stale-state/false-memory metrics."
+    }
+  ],
+  "benchmarkCasePortPlans": [
+    {
+      "planKey": "dynamic_state_tracking:no-port",
+      "candidateKey": "github:xiaowu0162/longmemeval",
+      "sourceVersion": null,
+      "ability": "dynamic_state_tracking",
+      "readiness": "NO_PORT_REQUIRED",
+      "canonicalOwner": "existing capability group",
+      "targetPaths": [],
+      "proposedCaseIds": [],
+      "reuseMetrics": [],
+      "requirements": [],
+      "forbidden": [
+        "duplicate benchmark owner",
+        "external judge import",
+        "external leaderboard score"
+      ],
+      "rationale": "The canonical RP-memory benchmark already has deterministic cases for this capability."
+    },
+    {
+      "planKey": "temporal_reasoning:no-port",
+      "candidateKey": "github:xiaowu0162/longmemeval",
+      "sourceVersion": null,
+      "ability": "temporal_reasoning",
+      "readiness": "NO_PORT_REQUIRED",
+      "canonicalOwner": "existing capability group",
+      "targetPaths": [],
+      "proposedCaseIds": [],
+      "reuseMetrics": [],
+      "requirements": [],
+      "forbidden": [
+        "duplicate benchmark owner",
+        "external judge import",
+        "external leaderboard score"
+      ],
+      "rationale": "The canonical RP-memory benchmark already has deterministic cases for this capability."
+    },
+    {
+      "planKey": "premise_awareness:no-port",
+      "candidateKey": "github:xiaowu0162/longmemeval-v2",
+      "sourceVersion": null,
+      "ability": "premise_awareness",
+      "readiness": "NO_PORT_REQUIRED",
+      "canonicalOwner": "existing capability group",
+      "targetPaths": [],
+      "proposedCaseIds": [],
+      "reuseMetrics": [],
+      "requirements": [],
+      "forbidden": [
+        "duplicate benchmark owner",
+        "external judge import",
+        "external leaderboard score"
+      ],
+      "rationale": "The canonical RP-memory benchmark already has deterministic cases for this capability."
+    },
+    {
+      "planKey": "persona_continuity",
+      "candidateKey": "github:salesforceairesearch/anchorbench",
+      "sourceVersion": null,
+      "ability": "persona_continuity",
+      "readiness": "HARNESS_EXTENSION_REQUIRED",
+      "canonicalOwner": "no deterministic response-behavior owner yet",
+      "targetPaths": [
+        "src/lib/memory/memory-rp-benchmark.ts",
+        "src/lib/memory/memory-rp-benchmark-suite.ts"
+      ],
+      "proposedCaseIds": [
+        "persona-boundary-retention-01",
+        "persona-values-retention-01",
+        "persona-style-retention-01"
+      ],
+      "reuseMetrics": [
+        "relationshipRoleConsistency"
+      ],
+      "requirements": [
+        "First define a deterministic response-behavior assertion that does not require an LLM judge.",
+        "Separate immutable role/boundary/value/style from mutable relationship state.",
+        "Prove a local proxy actually measures behavior rather than merely whether a persona fact was retrieved."
+      ],
+      "forbidden": [
+        "claiming fact retrieval equals persona behavior",
+        "LLM-as-judge in weekly automation",
+        "questionnaire score import",
+        "production prompt changes"
+      ],
+      "rationale": "The current benchmark measures memory retrieval/state consistency, not generated RP behavior, so direct case porting would overclaim coverage."
+    },
+    {
+      "planKey": "trajectory_recall:commitment_lifecycle",
+      "candidateKey": "github:salesforceairesearch/anchorbench",
+      "sourceVersion": null,
+      "ability": "trajectory_recall",
+      "readiness": "NO_PORT_REQUIRED",
+      "canonicalOwner": "existing durable Relationship Memory commitment lifecycle regression",
+      "targetPaths": [],
+      "proposedCaseIds": [],
+      "reuseMetrics": [],
+      "requirements": [
+        "Keep the existing active-expired-commitment-lifecycle-01 regression as the canonical proof.",
+        "Relationship extraction supplies promisesAdd/promisesRemove; there is no separate wall-clock expiry owner in this path.",
+        "Re-open only if a concrete local commitment failure is not covered by the persisted ledger + prompt-projection regression."
+      ],
+      "forbidden": [
+        "duplicate active-expired commitment fixture",
+        "episodic duplicate of a formal promise",
+        "new promise status store",
+        "external benchmark conversations",
+        "LLM-as-judge",
+        "provider calls"
+      ],
+      "rationale": "The local commitment gap is already closed by the merged durable-ledger regression: an active promise is persisted/projected, and a later promisesRemove delta removes it from stored Relationship Memory and prompt output. Re-proposing the same case would duplicate an existing canonical proof."
+    },
+    {
+      "planKey": "trajectory_recall:persona_update",
+      "candidateKey": "github:salesforceairesearch/anchorbench",
+      "sourceVersion": null,
+      "ability": "trajectory_recall",
+      "readiness": "HARNESS_EXTENSION_REQUIRED",
+      "canonicalOwner": "canonical mutable character-persona owner not established",
+      "targetPaths": [],
+      "proposedCaseIds": [
+        "persona-update-current-01"
+      ],
+      "reuseMetrics": [],
+      "requirements": [
+        "First determine whether the product permits in-conversation updates to character persona, and which current owner stores such an update.",
+        "Separate mutable relationship/state evolution from immutable authored character persona.",
+        "Do not treat relationship-role change or ordinary episodic state replacement as proof of persona-update support."
+      ],
+      "forbidden": [
+        "inventing a mutable persona owner",
+        "mapping persona update to episodic facts by convenience",
+        "production prompt changes",
+        "LLM-as-judge"
+      ],
+      "rationale": "ANCHOR's persona-update question is broader than the site's existing role/state transition fixtures. Without a confirmed mutable persona owner, implementing a fixture would manufacture semantics the runtime may not support."
+    },
+    {
+      "planKey": "trajectory_recall:existing_temporal_user_state",
+      "candidateKey": "github:salesforceairesearch/anchorbench",
+      "sourceVersion": null,
+      "ability": "trajectory_recall",
+      "readiness": "NO_PORT_REQUIRED",
+      "canonicalOwner": "existing DYNAMIC_STATE_TRACKING + TEMPORAL_REASONING + PREMISE_AWARENESS groups",
+      "targetPaths": [],
+      "proposedCaseIds": [],
+      "reuseMetrics": [
+        "staleStateRecallRate",
+        "correctionSupersessionAccuracy",
+        "falseMemoryRate"
+      ],
+      "requirements": [],
+      "forbidden": [
+        "duplicate temporal-order fixture",
+        "duplicate user-state fixture"
+      ],
+      "rationale": "Temporal order and user-state changes are already represented by current state replacement, correction, horizon, and invalidated-history cases."
+    },
+    {
+      "planKey": "persona_conditioned_insight",
+      "candidateKey": "github:collab-gen/rolememo",
+      "sourceVersion": null,
+      "ability": "persona_conditioned_insight",
+      "readiness": "HARNESS_EXTENSION_REQUIRED",
+      "canonicalOwner": "no deterministic persona-conditioned interpretation scorer",
+      "targetPaths": [
+        "src/lib/memory/memory-rp-benchmark.ts",
+        "src/lib/memory/memory-rp-benchmark-suite.ts"
+      ],
+      "proposedCaseIds": [
+        "persona-grounded-insight-01",
+        "unsupported-persona-inference-negative-01"
+      ],
+      "reuseMetrics": [
+        "falseMemoryRate",
+        "relationshipRoleConsistency"
+      ],
+      "requirements": [
+        "Define objective persona premises and objective source facts.",
+        "A positive insight must be mechanically grounded by both inputs.",
+        "A negative case must reject an attractive but unsupported psychological interpretation.",
+        "Do not persist inferred insight as canonical fact until an explicit owner/data model is separately reviewed."
+      ],
+      "forbidden": [
+        "free-form psychological inference as ground truth",
+        "new insight memory store",
+        "LLM judge as canonical scorer",
+        "provider calls in scheduled research"
+      ],
+      "rationale": "RoleMemo-style insight quality is response reasoning, not simply retrieval; the current harness needs an objective deterministic scorer before a case can be trusted."
+    },
+    {
+      "planKey": "forgetting_fidelity:current_local_gap_closed",
+      "candidateKey": "github:geniesinc/memora",
+      "sourceVersion": null,
+      "ability": "forgetting_fidelity",
+      "readiness": "NO_PORT_REQUIRED",
+      "canonicalOwner": "existing source-mutation + last-turn delete derived-memory invalidation regressions",
+      "targetPaths": [],
+      "proposedCaseIds": [],
+      "reuseMetrics": [
+        "staleStateRecallRate",
+        "falseMemoryRate"
+      ],
+      "requirements": [
+        "Keep Memora-style forgetting on the research watchlist because its broader task semantics exceed the site's current delete/update product surface.",
+        "Re-open case planning only when a concrete local destructive path lacks deterministic derived-tier invalidation proof."
+      ],
+      "forbidden": [
+        "duplicate derived-memory-deletion-residue fixture",
+        "new forgetting score",
+        "copying Memora FAMA",
+        "external judge",
+        "production cleanup migration"
+      ],
+      "rationale": "The concrete local gap previously identified by the radar is now covered: source edits invalidate/reseal derived summaries, and canonical last-turn delete atomically removes both single-generation and summary-seal episodic provenance with rollback proof. The broader external forgetting benchmark remains PARTIAL_COVERAGE evidence, but there is no currently justified local case to port."
+    }
+  ],
+  "benchmarkHarnessFeasibility": [
+    {
+      "planKey": "dynamic_state_tracking:no-port",
+      "candidateKey": "github:xiaowu0162/longmemeval",
+      "ability": "dynamic_state_tracking",
+      "planReadiness": "NO_PORT_REQUIRED",
+      "status": "NO_ACTION",
+      "scheduledResearchEligible": false,
+      "providerCallsRequired": false,
+      "llmJudgeRequired": false,
+      "objectiveGroundTruthAvailable": false,
+      "blocker": null,
+      "safeNextAction": "Do not add a duplicate fixture or harness.",
+      "interpretationBoundary": "The planner found no justified local case to implement at this time."
+    },
+    {
+      "planKey": "temporal_reasoning:no-port",
+      "candidateKey": "github:xiaowu0162/longmemeval",
+      "ability": "temporal_reasoning",
+      "planReadiness": "NO_PORT_REQUIRED",
+      "status": "NO_ACTION",
+      "scheduledResearchEligible": false,
+      "providerCallsRequired": false,
+      "llmJudgeRequired": false,
+      "objectiveGroundTruthAvailable": false,
+      "blocker": null,
+      "safeNextAction": "Do not add a duplicate fixture or harness.",
+      "interpretationBoundary": "The planner found no justified local case to implement at this time."
+    },
+    {
+      "planKey": "premise_awareness:no-port",
+      "candidateKey": "github:xiaowu0162/longmemeval-v2",
+      "ability": "premise_awareness",
+      "planReadiness": "NO_PORT_REQUIRED",
+      "status": "NO_ACTION",
+      "scheduledResearchEligible": false,
+      "providerCallsRequired": false,
+      "llmJudgeRequired": false,
+      "objectiveGroundTruthAvailable": false,
+      "blocker": null,
+      "safeNextAction": "Do not add a duplicate fixture or harness.",
+      "interpretationBoundary": "The planner found no justified local case to implement at this time."
+    },
+    {
+      "planKey": "persona_continuity",
+      "candidateKey": "github:salesforceairesearch/anchorbench",
+      "ability": "persona_continuity",
+      "planReadiness": "HARNESS_EXTENSION_REQUIRED",
+      "status": "LLM_JUDGE_REQUIRED",
+      "scheduledResearchEligible": false,
+      "providerCallsRequired": true,
+      "llmJudgeRequired": true,
+      "objectiveGroundTruthAvailable": false,
+      "blocker": "Actual role/boundary/value/style behavior is a generated-response property; current deterministic retrieval metrics cannot score it faithfully.",
+      "safeNextAction": "Keep this out of the zero-call weekly research cycle. If later qualified, use a bounded manual/model-quality evaluation with explicit judge provenance and never treat a questionnaire/retrieval proxy as equivalent to turn-level behavior.",
+      "interpretationBoundary": "Structured persona retention or fact retrieval may be useful proxies, but they do not establish user-facing persona continuity."
+    },
+    {
+      "planKey": "trajectory_recall:commitment_lifecycle",
+      "candidateKey": "github:salesforceairesearch/anchorbench",
+      "ability": "trajectory_recall",
+      "planReadiness": "NO_PORT_REQUIRED",
+      "status": "NO_ACTION",
+      "scheduledResearchEligible": false,
+      "providerCallsRequired": false,
+      "llmJudgeRequired": false,
+      "objectiveGroundTruthAvailable": false,
+      "blocker": null,
+      "safeNextAction": "Do not add a duplicate fixture or harness.",
+      "interpretationBoundary": "The planner found no justified local case to implement at this time."
+    },
+    {
+      "planKey": "trajectory_recall:persona_update",
+      "candidateKey": "github:salesforceairesearch/anchorbench",
+      "ability": "trajectory_recall",
+      "planReadiness": "HARNESS_EXTENSION_REQUIRED",
+      "status": "OWNER_UNRESOLVED",
+      "scheduledResearchEligible": false,
+      "providerCallsRequired": false,
+      "llmJudgeRequired": false,
+      "objectiveGroundTruthAvailable": false,
+      "blocker": "No canonical mutable character-persona owner is established for in-conversation persona updates.",
+      "safeNextAction": "Audit product semantics and current persona/state owners first. Do not manufacture a persona-update store or map this to episodic facts by convenience.",
+      "interpretationBoundary": "Relationship-role/state changes are not proof that the authored character persona itself is mutable."
+    },
+    {
+      "planKey": "trajectory_recall:existing_temporal_user_state",
+      "candidateKey": "github:salesforceairesearch/anchorbench",
+      "ability": "trajectory_recall",
+      "planReadiness": "NO_PORT_REQUIRED",
+      "status": "NO_ACTION",
+      "scheduledResearchEligible": false,
+      "providerCallsRequired": false,
+      "llmJudgeRequired": false,
+      "objectiveGroundTruthAvailable": false,
+      "blocker": null,
+      "safeNextAction": "Do not add a duplicate fixture or harness.",
+      "interpretationBoundary": "The planner found no justified local case to implement at this time."
+    },
+    {
+      "planKey": "persona_conditioned_insight",
+      "candidateKey": "github:collab-gen/rolememo",
+      "ability": "persona_conditioned_insight",
+      "planReadiness": "HARNESS_EXTENSION_REQUIRED",
+      "status": "LOCAL_GOLD_AUTHORING_REQUIRED",
+      "scheduledResearchEligible": false,
+      "providerCallsRequired": false,
+      "llmJudgeRequired": false,
+      "objectiveGroundTruthAvailable": false,
+      "blocker": "No canonical deterministic gold set exists for fact→persona-grounded insight, and free-form psychological interpretations would be subjective.",
+      "safeNextAction": "Only proceed with manually authored synthetic persona premises + source facts + mechanically checkable insight/unsupported-inference pairs. Keep any such test research-only until its ground truth is reviewed.",
+      "interpretationBoundary": "A deterministic insight-retrieval proxy would not by itself prove generated roleplay quality and must not create a new insight memory owner."
+    },
+    {
+      "planKey": "forgetting_fidelity:current_local_gap_closed",
+      "candidateKey": "github:geniesinc/memora",
+      "ability": "forgetting_fidelity",
+      "planReadiness": "NO_PORT_REQUIRED",
+      "status": "NO_ACTION",
+      "scheduledResearchEligible": false,
+      "providerCallsRequired": false,
+      "llmJudgeRequired": false,
+      "objectiveGroundTruthAvailable": false,
+      "blocker": null,
+      "safeNextAction": "Do not add a duplicate fixture or harness.",
+      "interpretationBoundary": "The planner found no justified local case to implement at this time."
+    }
+  ],
+  "localGoldAuthoringPackets": [
+    {
+      "packetKey": "persona_conditioned_insight:local-gold-v1",
+      "candidateKey": "github:collab-gen/rolememo",
+      "planKey": "persona_conditioned_insight",
+      "ability": "persona_conditioned_insight",
+      "status": "HUMAN_REVIEW_REQUIRED",
+      "targetHarness": "research-only deterministic persona-conditioned insight fixture; canonical production memory owners unchanged",
+      "proposedCaseIds": [
+        "persona-grounded-insight-01",
+        "unsupported-persona-inference-negative-01"
+      ],
+      "authoringTemplate": {
+        "personaPremises": [
+          "2~4 explicit authored persona premises that are stable for this fixture",
+          "include at least one premise relevant to interpretation and one distractor premise"
+        ],
+        "sourceFacts": [
+          "1~3 explicit conversation facts with objective provenance",
+          "facts must not already contain the target insight wording"
+        ],
+        "expectedSupportedInference": "One short inference mechanically supported by BOTH the explicit persona premise(s) and source fact(s).",
+        "unsupportedInferenceNegative": "One plausible-sounding psychological/relationship inference that is NOT entailed by the provided premises + facts.",
+        "mechanicalChecks": [
+          "positive inference references only atoms present in the approved premise/fact vocabulary",
+          "negative inference requires at least one unsupported atom and must be rejected",
+          "removing the relevant persona premise makes the positive inference invalid",
+          "removing the source fact makes the positive inference invalid",
+          "no inferred insight is persisted into production memory"
+        ]
+      },
+      "reviewerChecklist": [
+        "Ground truth is locally authored; no RoleMemo or other external test item is copied.",
+        "Positive answer is objectively derivable from the written premises and facts.",
+        "Negative answer is attractive/plausible but contains a clearly unsupported inference.",
+        "No diagnosis, hidden motive, secret relationship, or personality trait is invented without explicit premise support.",
+        "Fixture evaluates interpretation only; it does not create a new canonical insight-memory owner.",
+        "Existing false-memory / role-consistency metrics remain unchanged unless a separate reviewed metric proposal proves necessity."
+      ],
+      "forbidden": [
+        "free-form psychological inference as gold truth",
+        "automatic acceptance of model-written gold",
+        "external benchmark conversation/test item copying",
+        "LLM-as-judge in scheduled research",
+        "provider calls",
+        "new insight memory store",
+        "production prompt change"
+      ],
+      "nextAction": "A human reviewer must author and approve the synthetic premise/fact/positive/negative pair before any benchmark fixture implementation PR can be proposed."
+    }
+  ],
+  "persistentMemoryGaps": {
+    "status": "INSUFFICIENT_HISTORY",
+    "benchmarkFingerprint": "dd363ec0987fa481",
+    "requiredConsecutiveFailures": 3,
+    "comparableCyclesAvailable": 2,
+    "currentFailedPositiveCases": [
+      "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01"
+    ],
+    "persistentGaps": [],
+    "transientOrUnconfirmedFailures": [
+      "semantic-paraphrase-KNOWN_GAP_BASELINE_REPRO-01"
+    ],
+    "note": "Not enough consecutive same-fingerprint baseline cycles exist to promote a current miss into a persistent gap."
+  },
+  "persistentGapInvestigationPackets": [],
+  "effectivenessAudit": {
+    "totalCandidates": 74,
+    "watch": 62,
+    "rejected": 12,
+    "accepted": 0,
+    "acceptedDraftPrs": 0,
+    "implementationPrs": 0,
+    "liveEvaluated": 0,
+    "dueForReevaluation": [],
+    "repeatedWatch": [
+      {
+        "candidateKey": "arxiv:2608.01708",
+        "decision": "WATCH_NO_BENCHMARK_HOOK",
+        "consecutiveSameDecision": 2
+      },
+      {
+        "candidateKey": "arxiv:2608.24189",
+        "decision": "WATCH_NO_BENCHMARK_HOOK",
+        "consecutiveSameDecision": 2
+      },
+      {
+        "candidateKey": "arxiv:2609.24971",
+        "decision": "WATCH_NO_BENCHMARK_HOOK",
+        "consecutiveSameDecision": 2
+      },
+      {
+        "candidateKey": "arxiv:2609.28575",
+        "decision": "WATCH_NO_BENCHMARK_HOOK",
+        "consecutiveSameDecision": 2
+      },
+      {
+        "candidateKey": "github:collab-gen/rolememo",
+        "decision": "WATCH_NO_BENCHMARK_HOOK",
+        "consecutiveSameDecision": 2
+      },
+      {
+        "candidateKey": "github:geniesinc/memora",
+        "decision": "WATCH_NO_BENCHMARK_HOOK",
+        "consecutiveSameDecision": 2
+      },
+      {
+        "candidateKey": "github:salesforceairesearch/anchorbench",
+        "decision": "WATCH_NO_BENCHMARK_HOOK",
+        "consecutiveSameDecision": 2
+      },
+      {
+        "candidateKey": "github:xiaowu0162/longmemeval",
+        "decision": "WATCH_NO_BENCHMARK_HOOK",
+        "consecutiveSameDecision": 3
+      },
+      {
+        "candidateKey": "github:xiaowu0162/longmemeval-v2",
+        "decision": "WATCH_NO_BENCHMARK_HOOK",
+        "consecutiveSameDecision": 3
+      }
+    ],
+    "watchBottlenecks": [
+      {
+        "decision": "WATCH_NO_BENCHMARK_HOOK",
+        "candidates": 35,
+        "exampleCandidateKeys": [
+          "arxiv:2608.01708",
+          "arxiv:2608.12990",
+          "arxiv:2608.16551",
+          "arxiv:2608.17534",
+          "arxiv:2608.24189"
+        ]
+      },
+      {
+        "decision": "WATCH_NO_EXPERIMENT_ADAPTER",
+        "candidates": 17,
+        "exampleCandidateKeys": [
+          "arxiv:2608.16303",
+          "arxiv:2608.22310",
+          "arxiv:2609.03915",
+          "arxiv:2609.08273",
+          "arxiv:2609.08566"
+        ]
+      },
+      {
+        "decision": "WATCH_INSUFFICIENT_EVIDENCE",
+        "candidates": 9,
+        "exampleCandidateKeys": [
+          "arxiv:2608.08300",
+          "arxiv:2609.05339",
+          "arxiv:2609.25563",
+          "arxiv:2609.25913",
+          "arxiv:2609.31255"
+        ]
+      },
+      {
+        "decision": "WATCH_LIVE_EXPERIMENT_PENDING",
+        "candidates": 1,
+        "exampleCandidateKeys": [
+          "github:qwenlm/qwen3-embedding"
+        ]
+      }
+    ],
+    "bySourceKind": [
+      {
+        "sourceKind": "arxiv",
+        "candidates": 41,
+        "watch": 39,
+        "rejected": 2,
+        "accepted": 0,
+        "acceptedDraftPrs": 0,
+        "implementationPrs": 0,
+        "liveEvaluated": 0
+      },
+      {
+        "sourceKind": "github_repository",
+        "candidates": 32,
+        "watch": 22,
+        "rejected": 10,
+        "accepted": 0,
+        "acceptedDraftPrs": 0,
+        "implementationPrs": 0,
+        "liveEvaluated": 0
+      },
+      {
+        "sourceKind": "official_companion_docs",
+        "candidates": 1,
+        "watch": 1,
+        "rejected": 0,
+        "accepted": 0,
+        "acceptedDraftPrs": 0,
+        "implementationPrs": 0,
+        "liveEvaluated": 0
+      }
+    ],
+    "note": "Descriptive research-automation evidence only. A low acceptance count does not prove a source is low quality; no source, candidate, or policy is changed automatically."
+  },
+  "productionTouched": false,
+  "promptPackingAudit": {
+    "generatedAt": "2026-10-05T07:04:52.171Z",
+    "currentTurnFixture": 300,
+    "architecture": {
+      "policyId": "summary5_raw4",
+      "rawRecentExchanges": 4,
+      "rollingSummaryInterval": 5,
+      "mediumTermBlockCount": 15,
+      "exactProjectionInjectsMedium": false,
+      "compactProjectionInjectsMedium": true,
+      "failureFallbackInjectsMedium": false,
+      "storedFallbackInjectsMedium": false,
+      "manualGlobalInjectsMedium": false
+    },
+    "invariants": [
+      {
+        "id": "canonical-policy-summary5-raw4",
+        "ok": true,
+        "detail": "policy=summary5_raw4 summary=5 raw=4"
+      },
+      {
+        "id": "exact-global-does-not-double-inject-medium",
+        "ok": true,
+        "detail": "exactProjectionInjectsMedium=false"
+      },
+      {
+        "id": "compact-global-recovers-medium-resolution",
+        "ok": true,
+        "detail": "compactProjectionInjectsMedium=true"
+      },
+      {
+        "id": "fallbacks-do-not-grow-medium-owner",
+        "ok": true,
+        "detail": "failure=false stored=false manual=false"
+      },
+      {
+        "id": "n15-does-not-drop-critical-prompt-sections",
+        "ok": true,
+        "detail": "all active Main RP models clean"
+      },
+      {
+        "id": "durable-shadow-owner-contract",
+        "ok": true,
+        "detail": "rollingPromises=true rollingItems=true globalPromises=true durablePromises=true durableItems=true"
+      },
+      {
+        "id": "medium-global-fixture-does-not-literal-copy-whole-blocks",
+        "ok": true,
+        "detail": "T300:0 duplicate chars, T1000:0 duplicate chars"
+      }
+    ],
+    "models": [
+      {
+        "modelId": "deepseek-v4.1-flash",
+        "baselineInputTokens": 29923,
+        "n15InputTokens": 35768,
+        "n15DeltaInputTokens": 5845,
+        "n15MediumTokens": 5844,
+        "n15MinusN10InputTokens": 1948,
+        "n15TruncatedMemory": false,
+        "n15CriticalSectionOmitted": false,
+        "n15CriticalSectionTrimmed": false,
+        "n15SafeForPolicyConsideration": true
+      },
+      {
+        "modelId": "gemini-3.1-pro-preview",
+        "baselineInputTokens": 29943,
+        "n15InputTokens": 35788,
+        "n15DeltaInputTokens": 5845,
+        "n15MediumTokens": 5844,
+        "n15MinusN10InputTokens": 1948,
+        "n15TruncatedMemory": false,
+        "n15CriticalSectionOmitted": false,
+        "n15CriticalSectionTrimmed": false,
+        "n15SafeForPolicyConsideration": true
+      },
+      {
+        "modelId": "gemini-3.7-flash",
+        "baselineInputTokens": 29666,
+        "n15InputTokens": 35512,
+        "n15DeltaInputTokens": 5846,
+        "n15MediumTokens": 5844,
+        "n15MinusN10InputTokens": 1949,
+        "n15TruncatedMemory": false,
+        "n15CriticalSectionOmitted": false,
+        "n15CriticalSectionTrimmed": false,
+        "n15SafeForPolicyConsideration": true
+      },
+      {
+        "modelId": "gemini-3.8-flash",
+        "baselineInputTokens": 29666,
+        "n15InputTokens": 35512,
+        "n15DeltaInputTokens": 5846,
+        "n15MediumTokens": 5844,
+        "n15MinusN10InputTokens": 1949,
+        "n15TruncatedMemory": false,
+        "n15CriticalSectionOmitted": false,
+        "n15CriticalSectionTrimmed": false,
+        "n15SafeForPolicyConsideration": true
+      },
+      {
+        "modelId": "gpt-6.1-sol",
+        "baselineInputTokens": 29666,
+        "n15InputTokens": 35512,
+        "n15DeltaInputTokens": 5846,
+        "n15MediumTokens": 5844,
+        "n15MinusN10InputTokens": 1949,
+        "n15TruncatedMemory": false,
+        "n15CriticalSectionOmitted": false,
+        "n15CriticalSectionTrimmed": false,
+        "n15SafeForPolicyConsideration": true
+      },
+      {
+        "modelId": "claude-opus-5.5",
+        "baselineInputTokens": 29666,
+        "n15InputTokens": 35512,
+        "n15DeltaInputTokens": 5846,
+        "n15MediumTokens": 5844,
+        "n15MinusN10InputTokens": 1949,
+        "n15TruncatedMemory": false,
+        "n15CriticalSectionOmitted": false,
+        "n15CriticalSectionTrimmed": false,
+        "n15SafeForPolicyConsideration": true
+      }
+    ],
+    "layerOverlap": {
+      "sourcePolicyScan": "PROVIDED",
+      "durableAutoFields": [
+        "items",
+        "itemsRemove",
+        "promisesAdd",
+        "promisesRemove"
+      ],
+      "shadowDomains": [
+        {
+          "domain": "promises",
+          "narrativeLayers": [
+            "rolling_summary",
+            "medium_term",
+            "global_current_memory"
+          ],
+          "canonicalCurrentStateOwner": "relationship_durable",
+          "policyEvidence": [
+            "rolling-preserves-promises=true",
+            "global-compact-preserves-promises=true",
+            "durable-add-remove-owner=true"
+          ],
+          "interpretation": "Narrative memory keeps promise history/trajectory, while Relationship Durable owns the current active-promise projection through promisesAdd/promisesRemove."
+        },
+        {
+          "domain": "items",
+          "narrativeLayers": [
+            "rolling_summary",
+            "medium_term"
+          ],
+          "canonicalCurrentStateOwner": "relationship_durable",
+          "policyEvidence": [
+            "rolling-preserves-current-owner=true",
+            "durable-add-remove-owner=true"
+          ],
+          "interpretation": "Narrative memory keeps acquisition/transfer/loss history, while Relationship Durable owns the current possession projection."
+        }
+      ],
+      "literalFixture": [
+        {
+          "currentTurn": 300,
+          "mediumGlobalLiteralDuplicateChars": 0,
+          "mediumChars": 6493,
+          "globalChars": 224
+        },
+        {
+          "currentTurn": 1000,
+          "mediumGlobalLiteralDuplicateChars": 0,
+          "mediumChars": 6493,
+          "globalChars": 224
+        }
+      ]
+    },
+    "interpretation": {
+      "literalDuplicateClaim": "FIXTURE_LITERAL_ONLY",
+      "semanticDuplicateClaim": "NOT_MEASURED",
+      "stateShadowClaim": "INTENTIONAL_TRAJECTORY_SHADOW",
+      "note": "Rolling/Medium/Global narrative memory and Relationship Durable intentionally overlap on some concepts with different responsibilities: trajectory/history vs current structured state. The fixture proves only that whole Medium block bodies are not copied verbatim into the deterministic Global compact stub. Semantic redundancy and stale-state harm still require retrieval/quality evidence; absence from the durable ledger is not itself an explicit negation of old narrative history."
+    }
+  },
+  "promptPackingTrend": {
+    "status": "MIXED",
+    "previousCycleKey": "monthly-2026-10",
+    "comparable": true,
+    "modelSetChanged": true,
+    "addedModels": [
+      "gpt-6.1-sol"
+    ],
+    "removedModels": [
+      "gpt-5.6-terra"
+    ],
+    "modelDeltas": [
+      {
+        "modelId": "claude-opus-5.5",
+        "previousN15DeltaInputTokens": 5845,
+        "currentN15DeltaInputTokens": 5846,
+        "n15DeltaInputTokensDelta": 1,
+        "previousMediumTokens": 5844,
+        "currentMediumTokens": 5844,
+        "mediumTokensDelta": 0,
+        "verdict": "INCREASED"
+      },
+      {
+        "modelId": "deepseek-v4.1-flash",
+        "previousN15DeltaInputTokens": 5846,
+        "currentN15DeltaInputTokens": 5845,
+        "n15DeltaInputTokensDelta": -1,
+        "previousMediumTokens": 5844,
+        "currentMediumTokens": 5844,
+        "mediumTokensDelta": 0,
+        "verdict": "DECREASED"
+      },
+      {
+        "modelId": "gemini-3.1-pro-preview",
+        "previousN15DeltaInputTokens": 5845,
+        "currentN15DeltaInputTokens": 5845,
+        "n15DeltaInputTokensDelta": 0,
+        "previousMediumTokens": 5844,
+        "currentMediumTokens": 5844,
+        "mediumTokensDelta": 0,
+        "verdict": "UNCHANGED"
+      },
+      {
+        "modelId": "gemini-3.7-flash",
+        "previousN15DeltaInputTokens": 5845,
+        "currentN15DeltaInputTokens": 5846,
+        "n15DeltaInputTokensDelta": 1,
+        "previousMediumTokens": 5844,
+        "currentMediumTokens": 5844,
+        "mediumTokensDelta": 0,
+        "verdict": "INCREASED"
+      },
+      {
+        "modelId": "gemini-3.8-flash",
+        "previousN15DeltaInputTokens": 5845,
+        "currentN15DeltaInputTokens": 5846,
+        "n15DeltaInputTokensDelta": 1,
+        "previousMediumTokens": 5844,
+        "currentMediumTokens": 5844,
+        "mediumTokensDelta": 0,
+        "verdict": "INCREASED"
+      }
+    ],
+    "note": "Memory-specific prompt overhead increased for at least one comparable active model. This is review evidence, not an automatic quality regression or policy change."
+  }
+}
