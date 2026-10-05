@@ -579,6 +579,7 @@ export function buildAssetPlanSystem(): string {
     "  세 장면이 모두 같은 종류의 사건(예: 셋 다 의식 중 발작)이 되어서는 안 된다.",
     "  '피해야 할 조합'에 있는 장소×사건 조합과 과다 사용 사건은 쓰지 않는다. 다른 캐릭터와 같은 장면을 만들지 않는다.",
     "- 모든 슬롯 characterPresence=required. 배경만(background-only) 금지.",
+    "- imageSubjects는 모든 슬롯 필수. 누락하거나 잘못된 값은 반려된다.",
     "- imageSubjects.foreground는 슬롯이 혼자인지(solo_character) 전경 상호작용 상대가 필요한지(character_plus_required_partner) 명시한다. pose 문장에서 추정하지 말고 필드로 선언한다.",
     "- imageSubjects.backgroundExtras는 none 또는 optional_unnamed. 전경 상대와 군중 엑스트라는 다르다.",
     "- representative는 depiction=standard 고정. 성인 시트가 아니면 전 슬롯 standard.",

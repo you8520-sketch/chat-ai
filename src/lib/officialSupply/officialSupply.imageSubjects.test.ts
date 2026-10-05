@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
+import { generateOfficialAssetPlan, type OfficialAuthorTransport } from "@/lib/officialSupply/author";
+import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import { buildOfficialAssetPrompts } from "@/lib/officialSupply/imagePrompt";
 import {
@@ -13,8 +15,9 @@ import {
   officialImageSubjectRuleForSlot,
   resolveOfficialImageSubjects,
 } from "@/lib/officialSupply/imageSubjects";
-import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
-import type { OfficialAssetPlan, OfficialAssetSlotPlan } from "@/lib/officialSupply/types";
+import { testAssetPlan, testDraft, testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
+import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
+import type { OfficialAssetPlan, OfficialAssetSlotPlan, OfficialImageSubjects } from "@/lib/officialSupply/types";
 
 const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot/characters");
 
@@ -47,9 +50,77 @@ function participantLine(prompt: string): string {
   return line;
 }
 
+function qaDraft() {
+  return testDraft({ draftKey: "subjects-qa", name: "레온", vocabulary: ["궁정", "기사", "맹세", "성벽"] });
+}
+
+function stripImageSubjects(slot: OfficialAssetSlotPlan): OfficialAssetSlotPlan {
+  const next = { ...slot };
+  delete (next as { imageSubjects?: OfficialImageSubjects }).imageSubjects;
+  return next;
+}
+
+function fakeAssetPlanTransport(slots: unknown[]): OfficialAuthorTransport {
+  return {
+    label: "fake-asset-plan",
+    async completeJson() {
+      return {
+        text: JSON.stringify({ slots }),
+        model: "fake-author-model",
+        inputTokens: 1,
+        outputTokens: 1,
+        costUsd: 0,
+        providerRequestId: null,
+      };
+    },
+  };
+}
+
+const AUTHOR_PLAN_INPUT = {
+  name: "레온",
+  adult: false,
+  defaultOutfit: "검은 예복",
+  scene: {
+    name: "레온",
+    occupation: "기사",
+    faction: "",
+    socialPosition: "",
+    ranked: [] as [],
+    hooks: {
+      immediateHook: "",
+      repeatable: [],
+      mediumConflict: "",
+      longTermChange: "",
+      personalSituation: "",
+      backstoryResidue: [],
+      userInitialView: "",
+      relationshipCues: [],
+    },
+    anchors: [],
+  },
+  avoid: { combos: [], overusedMotifs: [] },
+};
+
+function authorSlot(imageSubjects?: OfficialImageSubjects | Record<string, string>) {
+  return {
+    slotKey: "sig1",
+    kind: "signature",
+    tag: "무표정",
+    expression: "무표정",
+    pose: "서서 내려다본다",
+    outfit: "default",
+    location: null,
+    situation: null,
+    characterPresence: "required",
+    ...(imageSubjects ? { imageSubjects } : {}),
+    depiction: "standard",
+    personTag: null,
+  };
+}
+
 describe("official image subject owner (#participant-count)", () => {
-  it("representative / signature solo keep one foreground person", () => {
-    for (const slotKey of ["rep", "sig3"] as const) {
+  it("representative / signature / emotion solo keep one foreground person", () => {
+    for (const slotKey of ["rep", "sig3", "emo1"] as const) {
       const slot = lucianSlot(slotKey);
       const { primaryPrompt, strictFallbackPrompt } = promptsFor(slot);
       const subjects = resolveOfficialImageSubjects(slot);
@@ -85,6 +156,16 @@ describe("official image subject owner (#participant-count)", () => {
     assert.doesNotMatch(strictFallbackPrompt, new RegExp(OFFICIAL_LEGACY_ONE_PERSON_SENTENCE));
     assert.equal(participantLine(primaryPrompt), participantLine(strictFallbackPrompt));
     assert.match(primaryPrompt, new RegExp(`Pose: ${slot.pose}`));
+  });
+
+  it("scene2 stays solo and does not grant a partner", () => {
+    const slot = lucianSlot("scene2");
+    const { primaryPrompt, strictFallbackPrompt } = promptsFor(slot);
+    assert.equal(resolveOfficialImageSubjects(slot).foreground, "solo_character");
+    assert.match(primaryPrompt, new RegExp(OFFICIAL_SOLO_FOREGROUND_CLAUSE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.doesNotMatch(primaryPrompt, new RegExp(OFFICIAL_REQUIRED_PARTNER_FOREGROUND_CLAUSE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.equal(participantLine(primaryPrompt), participantLine(strictFallbackPrompt));
+    assert.doesNotMatch(primaryPrompt, new RegExp(OFFICIAL_LEGACY_ONE_PERSON_SENTENCE));
   });
 
   it("scene3 requires a foreground interaction partner with matching fallback semantics", () => {
@@ -141,6 +222,99 @@ describe("official image subject owner (#participant-count)", () => {
     assert.doesNotMatch(promptSource, /당신에게/);
     assert.doesNotMatch(ownerSource, /slotKey ===/);
     assert.doesNotMatch(ownerSource, /침입자/);
+    assert.doesNotMatch(ownerSource, /defaultOfficialImageSubjects/);
+    assert.doesNotMatch(ownerSource, /Pose line/);
     assert.doesNotMatch(promptSource, new RegExp(OFFICIAL_LEGACY_ONE_PERSON_SENTENCE));
+  });
+
+  it("plan QA fails closed on missing or malformed imageSubjects", () => {
+    const draft = qaDraft();
+    const missing = testAssetPlan();
+    missing.slots[0] = stripImageSubjects(missing.slots[0]!);
+    assert.ok(evaluateAssetPlan(draft, missing).errors.some((issue) => issue.code === "slot_image_subjects_missing"));
+
+    const badForeground = testAssetPlan();
+    badForeground.slots[0] = {
+      ...badForeground.slots[0]!,
+      imageSubjects: { foreground: "two_people", backgroundExtras: "none" } as unknown as OfficialImageSubjects,
+    };
+    assert.ok(
+      evaluateAssetPlan(draft, badForeground).errors.some((issue) => issue.code === "slot_image_subjects_invalid")
+    );
+
+    const badExtras = testAssetPlan();
+    badExtras.slots[0] = {
+      ...badExtras.slots[0]!,
+      imageSubjects: { foreground: "solo_character", backgroundExtras: "crowd" } as unknown as OfficialImageSubjects,
+    };
+    assert.ok(evaluateAssetPlan(draft, badExtras).errors.some((issue) => issue.code === "slot_image_subjects_invalid"));
+  });
+
+  it("plan QA accepts explicit solo and required-partner contracts", () => {
+    const draft = qaDraft();
+    const solo = testAssetPlan();
+    assert.deepEqual(evaluateAssetPlan(draft, solo).errors, []);
+    const partner = testAssetPlan();
+    partner.slots[11] = {
+      ...partner.slots[11]!,
+      imageSubjects: { foreground: "character_plus_required_partner", backgroundExtras: "optional_unnamed" },
+    };
+    assert.deepEqual(evaluateAssetPlan(draft, partner).errors, []);
+  });
+
+  it("author parse fails closed on missing or invalid imageSubjects", async () => {
+    await assert.rejects(
+      () =>
+        generateOfficialAssetPlan({
+          transport: fakeAssetPlanTransport([authorSlot()]),
+          plan: AUTHOR_PLAN_INPUT,
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_shape_invalid"
+    );
+    await assert.rejects(
+      () =>
+        generateOfficialAssetPlan({
+          transport: fakeAssetPlanTransport([authorSlot({ foreground: "two_people", backgroundExtras: "none" })]),
+          plan: AUTHOR_PLAN_INPUT,
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_shape_invalid"
+    );
+    await assert.rejects(
+      () =>
+        generateOfficialAssetPlan({
+          transport: fakeAssetPlanTransport([
+            authorSlot({ foreground: "solo_character", backgroundExtras: "crowd" }),
+          ]),
+          plan: AUTHOR_PLAN_INPUT,
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_shape_invalid"
+    );
+  });
+
+  it("author parse keeps explicit solo and required-partner contracts", async () => {
+    const solo = await generateOfficialAssetPlan({
+      transport: fakeAssetPlanTransport([
+        authorSlot({ foreground: "solo_character", backgroundExtras: "none" }),
+      ]),
+      plan: AUTHOR_PLAN_INPUT,
+    });
+    assert.deepEqual(solo.plan.slots[0]?.imageSubjects, { foreground: "solo_character", backgroundExtras: "none" });
+
+    const partner = await generateOfficialAssetPlan({
+      transport: fakeAssetPlanTransport([
+        authorSlot({ foreground: "character_plus_required_partner", backgroundExtras: "optional_unnamed" }),
+      ]),
+      plan: AUTHOR_PLAN_INPUT,
+    });
+    assert.deepEqual(partner.plan.slots[0]?.imageSubjects, {
+      foreground: "character_plus_required_partner",
+      backgroundExtras: "optional_unnamed",
+    });
+  });
+
+  it("prompt assembly refuses a missing participant contract instead of defaulting to solo", () => {
+    const slot = stripImageSubjects(lucianSlot("scene1"));
+    assert.throws(() => officialImageSubjectRuleForSlot(slot), /imageSubjects must be an explicit/);
+    assert.throws(() => promptsFor(slot), /imageSubjects must be an explicit/);
   });
 });

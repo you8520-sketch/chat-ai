@@ -113,6 +113,7 @@ describe("user-owned rofan STYLE-ONLY references", () => {
       location: null,
       situation: null,
       characterPresence: "required",
+      imageSubjects: { foreground: "solo_character", backgroundExtras: "none" },
       depiction: "standard",
       personTag: null,
     };
@@ -176,6 +177,7 @@ describe("Cluster B graphic rofan STYLE-ONLY references (v4)", () => {
     location: null,
     situation: null,
     characterPresence: "required",
+    imageSubjects: { foreground: "solo_character", backgroundExtras: "none" },
     depiction: "standard",
     personTag: null,
   };

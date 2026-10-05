@@ -1,7 +1,6 @@
 import {
   OFFICIAL_BACKGROUND_EXTRAS,
   OFFICIAL_FOREGROUND_CASTS,
-  type OfficialAssetSlotKind,
   type OfficialAssetSlotPlan,
   type OfficialBackgroundExtras,
   type OfficialForegroundCast,
@@ -17,7 +16,7 @@ export const OFFICIAL_SOLO_FOREGROUND_CLAUSE =
   "FOREGROUND CAST: exactly one foreground person — the named character only. Do not add a second foreground interaction partner.";
 
 export const OFFICIAL_REQUIRED_PARTNER_FOREGROUND_CLAUSE =
-  "FOREGROUND CAST: the named character plus one required foreground interaction partner. The partner is a scene participant required by the Pose line, not an unnamed background extra.";
+  "FOREGROUND CAST: the named character plus one required foreground interaction partner. The partner is a required foreground scene participant, not an unnamed background extra.";
 
 export const OFFICIAL_NO_BACKGROUND_EXTRAS_CLAUSE = "No background extras.";
 
@@ -38,22 +37,15 @@ export function isOfficialImageSubjects(value: unknown): value is OfficialImageS
   return isOfficialForegroundCast(row.foreground) && isOfficialBackgroundExtras(row.backgroundExtras);
 }
 
-/**
- * Compatibility default for rows that predate the explicit contract.
- * Kind-based extras only — never pose/situation keyword matching.
- */
-export function defaultOfficialImageSubjects(kind: OfficialAssetSlotKind): OfficialImageSubjects {
-  return {
-    foreground: "solo_character",
-    backgroundExtras: kind === "scene" ? "optional_unnamed" : "none",
-  };
-}
-
 export function resolveOfficialImageSubjects(
-  slot: Pick<OfficialAssetSlotPlan, "kind" | "imageSubjects">
+  slot: Pick<OfficialAssetSlotPlan, "slotKey" | "imageSubjects">
 ): OfficialImageSubjects {
-  if (isOfficialImageSubjects(slot.imageSubjects)) return slot.imageSubjects;
-  return defaultOfficialImageSubjects(slot.kind);
+  if (!isOfficialImageSubjects(slot.imageSubjects)) {
+    throw new Error(
+      `${slot.slotKey || "slot"}: imageSubjects must be an explicit foreground/backgroundExtras contract`
+    );
+  }
+  return slot.imageSubjects;
 }
 
 export function renderOfficialImageSubjectRule(subjects: OfficialImageSubjects): string {
@@ -87,7 +79,7 @@ export function renderOfficialImageSubjectRule(subjects: OfficialImageSubjects):
 }
 
 export function officialImageSubjectRuleForSlot(
-  slot: Pick<OfficialAssetSlotPlan, "kind" | "imageSubjects">
+  slot: Pick<OfficialAssetSlotPlan, "slotKey" | "imageSubjects">
 ): string {
   return renderOfficialImageSubjectRule(resolveOfficialImageSubjects(slot));
 }

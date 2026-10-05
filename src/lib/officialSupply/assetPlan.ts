@@ -54,7 +54,12 @@ export function evaluateAssetPlan(draft: OfficialCharacterDraft, plan: OfficialA
     if (slot.characterPresence !== "required") {
       errors.push({ code: "slot_character_absent", message: `${slot.slotKey}: character must appear` });
     }
-    if (slot.imageSubjects != null && !isOfficialImageSubjects(slot.imageSubjects)) {
+    if (slot.imageSubjects == null) {
+      errors.push({
+        code: "slot_image_subjects_missing",
+        message: `${slot.slotKey}: imageSubjects is required`,
+      });
+    } else if (!isOfficialImageSubjects(slot.imageSubjects)) {
       errors.push({
         code: "slot_image_subjects_invalid",
         message: `${slot.slotKey}: imageSubjects must be a declared foreground/backgroundExtras contract`,

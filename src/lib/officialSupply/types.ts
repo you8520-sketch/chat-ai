@@ -274,10 +274,10 @@ export type OfficialAssetSlotPlan = {
   /** Every official asset depicts the character — background-only assets do not exist here. */
   characterPresence: "required";
   /**
-   * Image-subject contract. Omitted rows resolve to solo (scenes may allow
-   * unnamed extras). Prompt assembly does not infer this from Korean prose.
+   * Required image-subject contract. Prompt assembly reads this field only
+   * and does not infer count from pose/situation prose or slotKey.
    */
-  imageSubjects?: OfficialImageSubjects;
+  imageSubjects: OfficialImageSubjects;
   depiction: OfficialAssetDepiction;
   /** Optional canonical person-tag hint when a taxonomy tag fits. */
   personTag: AssetPersonTag | null;
