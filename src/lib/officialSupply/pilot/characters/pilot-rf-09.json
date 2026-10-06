@@ -661,6 +661,7 @@
         "personTag": "당황",
         "imageSubjects": {
           "foreground": "character_plus_required_partner",
+          "partnerRole": "user",
           "backgroundExtras": "optional_unnamed"
         }
       },
@@ -678,6 +679,7 @@
         "personTag": "긴장",
         "imageSubjects": {
           "foreground": "character_plus_required_partner",
+          "partnerRole": "user",
           "backgroundExtras": "optional_unnamed"
         }
       },

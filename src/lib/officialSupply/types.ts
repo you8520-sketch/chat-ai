@@ -251,13 +251,28 @@ export const OFFICIAL_BACKGROUND_EXTRAS = ["none", "optional_unnamed"] as const;
 export type OfficialBackgroundExtras = (typeof OFFICIAL_BACKGROUND_EXTRAS)[number];
 
 /**
+ * Who the required foreground partner is. Declared on the slot; never inferred.
+ * `user` is the only supported role today and selects the identity-neutral
+ * partial depiction policy. Named-character partners are a later feature.
+ */
+export const OFFICIAL_PARTNER_ROLES = ["user"] as const;
+export type OfficialPartnerRole = (typeof OFFICIAL_PARTNER_ROLES)[number];
+
+/**
  * Canonical image-subject owner. Declared on the slot; never inferred from
  * pose/situation prose or slotKey at prompt time.
+ * Required-partner slots must declare partnerRole=user; solo slots must not.
  */
-export type OfficialImageSubjects = {
-  foreground: OfficialForegroundCast;
-  backgroundExtras: OfficialBackgroundExtras;
-};
+export type OfficialImageSubjects =
+  | {
+      foreground: "solo_character";
+      backgroundExtras: OfficialBackgroundExtras;
+    }
+  | {
+      foreground: "character_plus_required_partner";
+      partnerRole: "user";
+      backgroundExtras: OfficialBackgroundExtras;
+    };
 
 export type OfficialAssetSlotPlan = {
   slotKey: string;
