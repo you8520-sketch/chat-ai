@@ -6,6 +6,7 @@ import {
   decideJsxHostBridgeAction,
   type JsxHostBridgeRateState,
   type JsxTrpgActionDraftRequest,
+  type JsxTrpgSelectedStatRequest,
 } from "@/lib/jsxComponent/hostBridge";
 import { JSX_SANDBOX_BOOT_TIMEOUT_MS, JSX_SANDBOX_HEIGHT_PX } from "@/lib/jsxComponent/limits";
 
@@ -29,12 +30,14 @@ type Props = {
   onStatus?: (status: JsxSandboxStatus) => void;
   /** Draft-only TRPG action intent. Absent → setTrpgActionDraft is ignored. */
   onTrpgActionDraft?: ((request: JsxTrpgActionDraftRequest) => void) | null;
+  /** Viewer's own stat override. Absent → setTrpgSelectedStat is ignored. */
+  onTrpgSelectedStat?: ((request: JsxTrpgSelectedStatRequest) => void) | null;
 };
 
 type SandboxMessage = {
   source?: string;
   kind?: string;
-  payload?: { text?: string; message?: string; actionType?: string; px?: number };
+  payload?: { text?: string; message?: string; actionType?: string; statKey?: string; px?: number };
 };
 
 export default function JsxComponentSandbox({
@@ -47,12 +50,14 @@ export default function JsxComponentSandbox({
   autoHeight = false,
   onStatus,
   onTrpgActionDraft,
+  onTrpgSelectedStat,
 }: Props) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const loadedRef = useRef(false);
   const rateRef = useRef<JsxHostBridgeRateState>({ lastAcceptedAt: 0, burst: 0 });
   const statusRef = useRef(onStatus);
   const trpgDraftRef = useRef(onTrpgActionDraft);
+  const trpgStatRef = useRef(onTrpgSelectedStat);
   const readyRef = useRef(false);
   const [contentHeight, setContentHeight] = useState<number | null>(null);
   const instanceId = useId();
@@ -60,6 +65,7 @@ export default function JsxComponentSandbox({
   useEffect(() => {
     statusRef.current = onStatus;
     trpgDraftRef.current = onTrpgActionDraft;
+    trpgStatRef.current = onTrpgSelectedStat;
   });
 
   useEffect(() => {
@@ -99,6 +105,23 @@ export default function JsxComponentSandbox({
         rateRef.current = rate;
         if (decision.action === "setTrpgActionDraft") {
           handler({ actionType: decision.actionType, text: decision.text });
+        }
+        return;
+      }
+      if (data.kind === "setTrpgSelectedStat") {
+        const handler = trpgStatRef.current;
+        if (!handler) return;
+        const { decision, rate } = decideJsxHostBridgeAction({
+          kind: data.kind,
+          text: "",
+          statKey: data.payload?.statKey,
+          chatSendEnabled: false,
+          now: Date.now(),
+          rate: rateRef.current,
+        });
+        rateRef.current = rate;
+        if (decision.action === "setTrpgSelectedStat") {
+          handler({ statKey: decision.statKey });
         }
         return;
       }

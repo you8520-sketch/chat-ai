@@ -47,6 +47,7 @@ export default function TrpgScrollFollowLabClient({
 
   const [actionType, setActionType] = useState<TrpgActionType>("investigate");
   const [actionBody, setActionBody] = useState("");
+  const [selectedStat, setSelectedStat] = useState<string | null>(null);
   const [partyBody, setPartyBody] = useState("");
 
   return (
@@ -67,6 +68,8 @@ export default function TrpgScrollFollowLabClient({
         error=""
         actionType={actionType}
         actionBody={actionBody}
+        selectedStat={selectedStat}
+        onSelectedStatChange={setSelectedStat}
         partyBody={partyBody}
         suggestions={[]}
         suggestionsBusy={false}

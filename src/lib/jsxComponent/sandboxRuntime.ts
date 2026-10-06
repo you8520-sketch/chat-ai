@@ -104,6 +104,11 @@ function setTrpgActionDraft(actionType: unknown, text: unknown): void {
   post("setTrpgActionDraft", { actionType: String(actionType ?? ""), text: String(text ?? "") });
 }
 
+/** Viewer's own stat override. Ignored unless the host mounted a SELF handler. */
+function setTrpgSelectedStat(key: unknown): void {
+  post("setTrpgSelectedStat", { statKey: String(key ?? "") });
+}
+
 let heightTarget: Element | null = null;
 let lastReportedHeight = -1;
 const heightObserver =
@@ -196,11 +201,13 @@ const runtimeWindow = window as Window & {
   sendToChat?: typeof sendToChat;
   setChatDraft?: typeof setChatDraft;
   setTrpgActionDraft?: typeof setTrpgActionDraft;
+  setTrpgSelectedStat?: typeof setTrpgSelectedStat;
   React?: typeof React;
 };
 runtimeWindow.sendToChat = sendToChat;
 runtimeWindow.setChatDraft = setChatDraft;
 runtimeWindow.setTrpgActionDraft = setTrpgActionDraft;
+runtimeWindow.setTrpgSelectedStat = setTrpgSelectedStat;
 runtimeWindow.React = React;
 
 window.addEventListener("message", (event) => {

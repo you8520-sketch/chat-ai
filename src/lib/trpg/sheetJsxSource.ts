@@ -4,9 +4,9 @@ export const TRPG_SHEET_JSX_COMPONENT = "TrpgSheet";
 
 /**
  * Site-owned default TRPG sheet. Runs in the shared opaque JSX sandbox and
- * receives a TrpgSheetSurface copy as props. Its only host effect is the
- * draft-only setTrpgActionDraft global; drafts arrive precomputed on the
- * viewer's own sheet and are absent on party sheets.
+ * receives a TrpgSheetSurface copy as props. Host effects are the draft-only
+ * setTrpgActionDraft global and setTrpgSelectedStat. Both are no-ops unless
+ * the viewer's own sheet mounted a handler; party sheets mount neither.
  */
 export const TRPG_SHEET_JSX_SOURCE = String.raw`
 function TrpgSheet(props) {
@@ -28,6 +28,10 @@ function TrpgSheet(props) {
   const fill = (draft) => {
     if (!interactive || !draft) return;
     setTrpgActionDraft(draft.actionType, draft.body);
+  };
+  const selectStat = (key) => {
+    if (!interactive || typeof setTrpgSelectedStat !== "function") return;
+    setTrpgSelectedStat(key);
   };
   const signed = (n) => (n >= 0 ? "+" + n : String(n));
 
@@ -99,12 +103,35 @@ function TrpgSheet(props) {
       <div>
         <p style={label}>능력치</p>
         <ul style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(7.5rem, 1fr))", gap: "4px 12px", listStyle: "none", margin: 0, padding: 0 }}>
-          {stats.map((stat) => (
-            <li key={text(stat.key)} data-trpg-stat={text(stat.key)} style={{ color: "#d4d4d8", fontVariantNumeric: "tabular-nums" }}>
-              {text(stat.label)} {num(stat.value)}
-              <span style={{ color: "#71717a" }}> ({signed(num(stat.modifier))})</span>
-            </li>
-          ))}
+          {stats.map((stat) =>
+            interactive ? (
+              <li key={text(stat.key)}>
+                <button
+                  type="button"
+                  data-trpg-stat={text(stat.key)}
+                  onClick={() => selectStat(text(stat.key))}
+                  style={{
+                    ...action,
+                    width: "100%",
+                    justifyContent: "flex-start",
+                    padding: "0 4px",
+                    border: "none",
+                    background: "transparent",
+                    color: "#d4d4d8",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {text(stat.label)} {num(stat.value)}
+                  <span style={{ color: "#71717a" }}> ({signed(num(stat.modifier))})</span>
+                </button>
+              </li>
+            ) : (
+              <li key={text(stat.key)} data-trpg-stat={text(stat.key)} style={{ color: "#d4d4d8", fontVariantNumeric: "tabular-nums" }}>
+                {text(stat.label)} {num(stat.value)}
+                <span style={{ color: "#71717a" }}> ({signed(num(stat.modifier))})</span>
+              </li>
+            )
+          )}
         </ul>
       </div>
       {note ? (

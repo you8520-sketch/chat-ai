@@ -31,21 +31,24 @@ describe("TRPG next-round action composer", () => {
     assert.deepEqual(trpgActionComposerForRound(2, 3, { body: "" }), {
       body: "",
       actionType: "free",
+      selectedStat: null,
     });
     assert.deepEqual(trpgActionComposerForRound(2, 3, null), {
       body: "",
       actionType: "free",
+      selectedStat: null,
     });
     assert.deepEqual(trpgActionComposerForRound(2, 3, { body: "   " }), {
       body: "",
       actionType: "free",
+      selectedStat: null,
     });
   });
 
   it("keeps a draft that already belongs to the new round", () => {
     assert.deepEqual(
       trpgActionComposerForRound(2, 3, { body: "새 라운드 초안", actionType: "talk" }),
-      { body: "새 라운드 초안", actionType: "talk" }
+      { body: "새 라운드 초안", actionType: "talk", selectedStat: null }
     );
   });
 
@@ -78,10 +81,13 @@ describe("TRPG next-round action composer", () => {
 
     const serverBranch = apply.slice(
       apply.indexOf("if (reset.body.trim())"),
-      apply.indexOf("} else if (local?.body?.trim())")
+      apply.indexOf("} else if (local?.body?.trim() || local?.selectedStat)")
     );
+    assert.ok(serverBranch.length > 0, "server-locked branch stays ahead of the local draft");
     assert.match(serverBranch, /setInputOrigin\("manual"\)/);
+    assert.match(serverBranch, /serverSelectedStat: reset\.selectedStat/);
     assert.doesNotMatch(serverBranch, /local\.inputOrigin/);
+    assert.doesNotMatch(serverBranch, /local\.selectedStat/);
     assert.match(apply, /local\.inputOrigin === "reply_suggestion" \|\| local\.inputOrigin === "manual"/);
     assert.match(apply, /else if \(next\.myDraft\?\.body\)/);
     assert.match(source, /suggestionRound !== snap\.round\.number/);
@@ -93,5 +99,6 @@ describe("TRPG next-round action composer", () => {
     const suggestion = source.slice(suggestionStart, suggestionEnd);
     assert.doesNotMatch(suggestion, /setActionBody\(/);
     assert.doesNotMatch(suggestion, /setInputOrigin\(/);
+    assert.doesNotMatch(suggestion, /setSelectedStat\(/);
   });
 });

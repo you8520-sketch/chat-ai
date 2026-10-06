@@ -142,20 +142,21 @@ describe("TRPG action draft", () => {
     const key3 = trpgActionDraftKey(7, 3);
     saveTrpgActionDraft(
       key3,
-      { body: "문을 어깨로 밀어 본다.", actionType: "athletics", inputOrigin: "reply_suggestion" },
+      { body: "문을 어깨로 밀어 본다.", actionType: "athletics", inputOrigin: "reply_suggestion", selectedStat: "str" },
       1500
     );
     const restored = loadTrpgActionDraft(key3, 1500);
     assert.equal(restored?.body, "문을 어깨로 밀어 본다.");
     assert.equal(restored?.actionType, "athletics");
     assert.equal(restored?.inputOrigin, "reply_suggestion");
+    assert.equal(restored?.selectedStat, "str");
     // Previous-round draft must not appear in the new round.
     assert.equal(loadTrpgActionDraft(trpgActionDraftKey(7, 4), 1500), null);
     // Successful submit clears the local unsent draft.
     clearUserInputDraft(key3);
     assert.equal(loadTrpgActionDraft(key3, 1500), null);
     // Empty body never persists.
-    saveTrpgActionDraft(key3, { body: "   ", actionType: "free", inputOrigin: "manual" }, 1500);
+    saveTrpgActionDraft(key3, { body: "   ", actionType: "free", inputOrigin: "manual", selectedStat: null }, 1500);
     assert.equal(loadTrpgActionDraft(key3, 1500), null);
   });
 });

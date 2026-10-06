@@ -325,6 +325,7 @@ export default function TrpgCampaignRoom({
   error,
   actionType,
   actionBody,
+  selectedStat,
   partyBody,
   suggestions,
   suggestionsBusy,
@@ -332,6 +333,7 @@ export default function TrpgCampaignRoom({
   suggestionsEnabled,
   onActionTypeChange,
   onActionBodyChange,
+  onSelectedStatChange,
   onInputOriginChange,
   onPartyBodyChange,
   onToggleSuggestions,
@@ -358,9 +360,11 @@ export default function TrpgCampaignRoom({
   error: string;
   actionType: TrpgActionType;
   actionBody: string;
+  selectedStat: string | null;
   partyBody: string;
   onActionTypeChange: (value: TrpgActionType) => void;
   onActionBodyChange: (value: string) => void;
+  onSelectedStatChange: (value: string | null) => void;
   onInputOriginChange: (value: TrpgInputOrigin) => void;
   onPartyBodyChange: (value: string) => void;
   sheetJsxCompiled?: string | null;
@@ -2339,6 +2343,8 @@ export default function TrpgCampaignRoom({
           busy={busy}
           onActionTypeChange={onActionTypeChange}
           onActionBodyChange={onActionBodyChange}
+          selectedStat={selectedStat}
+          onSelectedStatChange={onSelectedStatChange}
           onInputOriginChange={onInputOriginChange}
           sheetJsxCompiled={sheetJsxCompiled}
           loadPartySheetComponent={loadPartySheetComponent}

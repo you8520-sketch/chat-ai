@@ -123,9 +123,11 @@ export type TrpgActionUnsentDraft = {
   body: string;
   actionType: string;
   inputOrigin: string;
+  /** Explicit stat override. Null/absent means the automatic resolver. */
+  selectedStat: string | null;
 };
 
-/** Structured TRPG action draft (body + type + origin) in one scoped key. */
+/** Structured TRPG action draft (body + type + origin + selected stat) in one scoped key. */
 export function saveTrpgActionDraft(
   key: string,
   draft: TrpgActionUnsentDraft,
@@ -134,13 +136,14 @@ export function saveTrpgActionDraft(
   if (!isBrowser()) return;
   try {
     const body = draft.body.slice(0, maxChars);
-    if (!body.trim()) {
+    const selectedStat = typeof draft.selectedStat === "string" && draft.selectedStat.trim() ? draft.selectedStat.trim() : null;
+    if (!body.trim() && !selectedStat) {
       sessionStorage.removeItem(key);
       return;
     }
     sessionStorage.setItem(
       key,
-      JSON.stringify({ body, actionType: draft.actionType, inputOrigin: draft.inputOrigin })
+      JSON.stringify({ body, actionType: draft.actionType, inputOrigin: draft.inputOrigin, selectedStat })
     );
   } catch {
     /* ignore quota / private mode */
@@ -154,11 +157,13 @@ export function loadTrpgActionDraft(key: string, maxChars: number): TrpgActionUn
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<TrpgActionUnsentDraft>;
     const body = typeof parsed.body === "string" ? parsed.body.slice(0, maxChars) : "";
-    if (!body.trim()) return null;
+    const selectedStat = typeof parsed.selectedStat === "string" && parsed.selectedStat.trim() ? parsed.selectedStat.trim() : null;
+    if (!body.trim() && !selectedStat) return null;
     return {
       body,
       actionType: typeof parsed.actionType === "string" ? parsed.actionType : "",
       inputOrigin: typeof parsed.inputOrigin === "string" ? parsed.inputOrigin : "",
+      selectedStat,
     };
   } catch {
     return null;
