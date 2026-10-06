@@ -8,7 +8,6 @@ import {
   isAutoRefundUnderLengthEvidence,
 } from "@/lib/reportRefundPolicy";
 
-export const RP_QUALITY_STEERING_SOFT_AIM_CHARS = 3200;
 export const RP_QUALITY_CENTER_BAND_MIN_CHARS = 2700;
 export const RP_QUALITY_CENTER_BAND_MAX_CHARS = 3500;
 export const RP_QUALITY_SHORT_ACCEPTABLE_MIN_CHARS = 1501;

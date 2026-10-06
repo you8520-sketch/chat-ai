@@ -5,6 +5,8 @@ Canonical owners live in code:
 - refund threshold: `src/lib/reportRefundPolicy.ts`
 - length classification: `src/lib/rpQualityBaseline.ts`
 - evaluation packet / rubric: `src/lib/rpQualityEvaluationPacket.ts`
+- visible length metadata: `visibleAssistantDisplayText()` / `visibleAssistantDisplayCharCount()`
+- generation steering aim: `UNIFIED_TIER_AIM_CHARS`
 - authoring capabilities: `src/lib/userAuthoringPolicy.ts`
 
 Cursor does not score prose. GPT/human fill the packet.

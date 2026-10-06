@@ -9,10 +9,14 @@ import {
   type UserAuthoringLevel,
 } from "@/lib/userAuthoringPolicy";
 import {
+  visibleAssistantDisplayCharCount,
+  visibleAssistantDisplayText,
+} from "@/lib/chatDisplayLength";
+import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
+import {
   classifyVisibleLength,
   countVisibleParagraphs,
   estimateDialogueShare,
-  RP_QUALITY_STEERING_SOFT_AIM_CHARS,
   type RpVisibleLengthClass,
 } from "@/lib/rpQualityBaseline";
 
@@ -172,7 +176,7 @@ export type RpQualityEvaluationContract = {
   cursorScores: false;
   lengthServesQuality: true;
   qualityDoesNotServeLength: true;
-  steeringSoftAimChars: typeof RP_QUALITY_STEERING_SOFT_AIM_CHARS;
+  steeringSoftAimChars: typeof UNIFIED_TIER_AIM_CHARS;
   exactLengthIsNotAcceptance: true;
   rubricTotal: typeof RP_QUALITY_RUBRIC_TOTAL;
   rubric: readonly RpQualityRubricDimension[];
@@ -211,12 +215,13 @@ export function buildQualityOutputMetadata(input: {
   finishReason?: string | null;
   finalWireFingerprint?: string | null;
 }): RpQualityOutputMetadata {
-  const visibleChars = input.generatedText.trim().length;
+  const visibleText = visibleAssistantDisplayText(input.generatedText);
+  const visibleChars = visibleAssistantDisplayCharCount(input.generatedText);
   return {
     visibleChars,
     lengthClass: classifyVisibleLength(visibleChars),
-    paragraphCount: countVisibleParagraphs(input.generatedText),
-    dialogueShareEstimate: estimateDialogueShare(input.generatedText),
+    paragraphCount: countVisibleParagraphs(visibleText),
+    dialogueShareEstimate: estimateDialogueShare(visibleText),
     model: input.model ?? null,
     sceneClass: input.sceneClass ?? null,
     authoringLevel: input.authoringLevel,
@@ -233,7 +238,7 @@ export function buildQualityEvaluationContract(): RpQualityEvaluationContract {
     cursorScores: false,
     lengthServesQuality: true,
     qualityDoesNotServeLength: true,
-    steeringSoftAimChars: RP_QUALITY_STEERING_SOFT_AIM_CHARS,
+    steeringSoftAimChars: UNIFIED_TIER_AIM_CHARS,
     exactLengthIsNotAcceptance: true,
     rubricTotal: RP_QUALITY_RUBRIC_TOTAL,
     rubric: RP_QUALITY_RUBRIC,

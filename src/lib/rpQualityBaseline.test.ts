@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { COMMON_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
+import {
+  visibleAssistantDisplayCharCount,
+  visibleAssistantDisplayText,
+} from "@/lib/chatDisplayLength";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
-import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
+import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import {
   AUTO_REFUND_DAILY_LIMIT,
   AUTO_REFUND_UNDER_LENGTH_MAX_VISIBLE_CHARS,
@@ -14,7 +18,6 @@ import {
   classifyVisibleLength,
   countVisibleParagraphs,
   estimateDialogueShare,
-  RP_QUALITY_STEERING_SOFT_AIM_CHARS,
 } from "@/lib/rpQualityBaseline";
 import {
   RP_QUALITY_RUBRIC,
@@ -33,12 +36,14 @@ import { TRPG_BOT_MODEL, TRPG_GM_MODEL } from "@/lib/trpg/types";
 
 describe("rp product quality baseline", () => {
   it("keeps generation steering at 3200+ without treating exact 3200 as acceptance", () => {
-    assert.equal(DEFAULT_TARGET_RESPONSE_CHARS, 3200);
-    assert.equal(RP_QUALITY_STEERING_SOFT_AIM_CHARS, 3200);
+    assert.equal(UNIFIED_TIER_AIM_CHARS, 3200);
     const contract = buildQualityEvaluationContract();
+    assert.equal(contract.steeringSoftAimChars, UNIFIED_TIER_AIM_CHARS);
     assert.equal(contract.exactLengthIsNotAcceptance, true);
     assert.equal(contract.cursorScores, false);
     assert.equal(contract.lengthServesQuality, true);
+    const baselineSrc = readFileSync("src/lib/rpQualityBaseline.ts", "utf8");
+    assert.doesNotMatch(baselineSrc, /RP_QUALITY_STEERING_SOFT_AIM_CHARS|=\s*3200/);
   });
 
   it("classifies visible length with inclusive <=1000 refund evidence", () => {
@@ -69,12 +74,51 @@ describe("rp product quality baseline", () => {
       model: "deepseek-v4.1-flash",
       sceneClass: "quiet_window_safe",
     });
-    assert.equal(packet.metadata.visibleChars, text.trim().length);
-    assert.equal(packet.metadata.paragraphCount, countVisibleParagraphs(text));
+    assert.equal(packet.metadata.visibleChars, visibleAssistantDisplayCharCount(text));
+    assert.equal(packet.generatedText, text);
+    assert.equal(
+      packet.metadata.paragraphCount,
+      countVisibleParagraphs(visibleAssistantDisplayText(text))
+    );
     assert.equal(packet.metadata.paragraphCount, 3);
-    assert.ok(estimateDialogueShare(text) != null);
+    assert.ok(estimateDialogueShare(visibleAssistantDisplayText(text)) != null);
     assert.equal(packet.scores.natural_korean, null);
     assert.equal(packet.adultOverlay, null);
+  });
+
+  it("reuses canonical visible projection when raw and visible length differ", () => {
+    const generatedText = [
+      "역할 몰입 중, 성인 콘텐츠 허용 확인됨",
+      "[SPEECH PROFILE test]",
+      "첫 문단.",
+      "",
+      "「안녕.」",
+      "",
+      "둘째 문단.",
+      "[태그: 진지함]",
+      "```html",
+      '<div style="x"><p>상태창 HP 80</p></div>',
+      "```",
+    ].join("\n");
+    assert.notEqual(generatedText.length, visibleAssistantDisplayCharCount(generatedText));
+    assert.notEqual(generatedText.trim().length, visibleAssistantDisplayCharCount(generatedText));
+    const packet = buildQualityOutputPacket({
+      opaqueLabel: "Q-VISIBLE",
+      generatedText,
+      authoringLevel: "NORMAL",
+      turnKind: "manual",
+      contentMode: "SAFE",
+    });
+    const visibleText = visibleAssistantDisplayText(generatedText);
+    assert.equal(packet.generatedText, generatedText);
+    assert.equal(packet.metadata.visibleChars, visibleAssistantDisplayCharCount(generatedText));
+    assert.equal(packet.metadata.lengthClass, classifyVisibleLength(packet.metadata.visibleChars));
+    assert.equal(packet.metadata.paragraphCount, countVisibleParagraphs(visibleText));
+    assert.equal(packet.metadata.dialogueShareEstimate, estimateDialogueShare(visibleText));
+    assert.ok(packet.metadata.visibleChars < generatedText.length);
+    assert.doesNotMatch(visibleText, /SPEECH PROFILE/);
+    assert.doesNotMatch(visibleText, /\[태그:/);
+    assert.doesNotMatch(visibleText, /<div/);
   });
 
   it("uses the live authoring capability matrix", () => {
