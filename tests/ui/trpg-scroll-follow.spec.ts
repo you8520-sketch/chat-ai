@@ -570,6 +570,43 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     expect(after).toBe("120");
   });
 
+  test("SELF/PARTY dock tabs mount the site JSX sheet and keep dock occlusion owned", async ({ page }) => {
+    const actionPosts: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST" && /\/action$/.test(new URL(request.url()).pathname)) {
+        actionPosts.push(request.url());
+      }
+    });
+    await page.goto("/trpg/scroll-follow-lab?scenario=bot1");
+    await waitForLabRoomReady(page);
+    await page.locator("[data-trpg-command-dock-tab='self']").click();
+    const sheet = page.locator("iframe[title='내 시트']");
+    await expect(sheet).toBeVisible();
+    const frame = page.frameLocator("iframe[title='내 시트']");
+    await expect(frame.getByText("HP 25/25")).toBeVisible();
+    await expect(frame.getByText("Lab")).toBeVisible();
+    await expect(page.locator("[data-trpg-sheet-native]")).toHaveCount(0);
+    await expect.poll(async () => (await sheet.boundingBox())?.height ?? 0).toBeGreaterThan(200);
+
+    const occlusion = await page.evaluate(() => {
+      const dock = document.querySelector("[data-trpg-command-dock]") as HTMLElement | null;
+      const tail = document.querySelector("[data-trpg-bottom-tail]") as HTMLElement | null;
+      return {
+        dockPx: dock?.offsetHeight ?? 0,
+        tailMargin: Number.parseFloat(tail ? getComputedStyle(tail).scrollMarginBottom : "0"),
+        dockBottom: dock?.getBoundingClientRect().bottom ?? 0,
+      };
+    });
+    expect(occlusion.dockPx).toBeGreaterThan(200);
+    expect(occlusion.tailMargin).toBeGreaterThanOrEqual(occlusion.dockPx);
+    expect(occlusion.dockBottom).toBeLessThanOrEqual(720 + 1);
+
+    await page.locator("[data-trpg-command-dock-tab='party']").click();
+    await expect(page.getByText("다른 파티원이 없습니다.")).toBeVisible();
+    await expect(page.locator("iframe[title='내 시트']")).toHaveCount(0);
+    expect(actionPosts).toEqual([]);
+  });
+
   test("F1: Bot1 growth advances canonical scroll container", async ({ page }) => {
     await page.goto("/trpg/scroll-follow-lab?scenario=bot1");
     await waitForBotReveal(page, SCROLL_FOLLOW_LAB_BOT1_ID);
