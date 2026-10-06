@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import JsxComponentSandbox, { type JsxSandboxStatus } from "@/components/JsxComponentSandbox";
+import type { JsxTrpgActionDraftRequest } from "@/lib/jsxComponent/hostBridge";
+import { JSX_SANDBOX_AUTO_HEIGHT_MIN_PX } from "@/lib/jsxComponent/limits";
 import {
   TRPG_VISIBLE_ACTION_TYPES,
   actionTypeLabelKo,
@@ -21,14 +24,12 @@ import {
   commandDockModeLabel,
   initialTrpgCommandDockView,
   isTreatableOngoingKind,
-  ongoingEffectActionDraft,
   openTrpgCommandDockMode,
   reconcileTrpgCommandDockLifecycle,
   selectPartySheetParticipantId,
   selectTrpgCommandDockMode,
   trpgCommandDockLifecycleKey,
   trpgCommandDockOcclusion,
-  useItemActionDraft,
   type TrpgActionDraftFill,
   type TrpgCommandDockMode,
   type TrpgCommandDockOcclusion,
@@ -37,125 +38,98 @@ import { partyDetailedSheetCards, viewerSelfSheetCard } from "@/lib/trpg/partySh
 import { replyStanceLabelKo, type TrpgInputOrigin, type TrpgReplySuggestion } from "@/lib/trpg/replySuggestionShared";
 import {
   compactConditions,
-  formatOngoingBadge,
   hpBarClass,
+  hpPercent,
   inventoryCount,
   mergeDisplayConditions,
   selfHudAriaLabel,
 } from "@/lib/trpg/sheetHud";
-import type { TrpgSheetHudCard } from "@/lib/trpg/sheetView";
-import { statModifier } from "@/lib/trpg/stats";
-import type { TrpgCampaignSnapshot, TrpgMechanicsHudLine, TrpgPublicOngoingEffect } from "@/lib/trpg/snapshot";
-import type { TrpgSheetSnapshot, TrpgStatDefinition } from "@/lib/trpg/types";
+import {
+  acceptTrpgSheetActionDraft,
+  buildTrpgSheetSurface,
+  trpgSheetRenderer,
+  type TrpgSheetRenderer,
+  type TrpgSheetSurface,
+} from "@/lib/trpg/sheetSurface";
+import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
+import type { TrpgSheetSnapshot } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
 import TrpgUserChatPanel from "./TrpgUserChatPanel";
 
 function HpBar({ hp, maxHp }: { hp: number; maxHp: number }) {
-  const safeMax = Math.max(maxHp, 1);
-  const hpPct = Math.max(0, Math.min(100, Math.round((hp / safeMax) * 100)));
   return (
     <div
       className="h-1.5 min-w-[4rem] flex-1 overflow-hidden rounded-full bg-white/10"
       role="progressbar"
       aria-valuemin={0}
-      aria-valuemax={safeMax}
+      aria-valuemax={Math.max(maxHp, 1)}
       aria-valuenow={hp}
       aria-label={`HP ${hp}/${maxHp}`}
     >
-      <div className={`h-full rounded-full ${hpBarClass(hp, maxHp)}`} style={{ width: `${hpPct}%` }} />
+      <div className={`h-full rounded-full ${hpBarClass(hp, maxHp)}`} style={{ width: `${hpPercent(hp, maxHp)}%` }} />
     </div>
   );
 }
 
-function sheetEffects(
-  effects: readonly TrpgPublicOngoingEffect[] | undefined,
-  participantId: number
-): TrpgPublicOngoingEffect[] {
-  return (effects ?? []).filter((effect) => effect.participantId === participantId);
-}
-
-function sheetMechanicsLines(
-  lines: readonly TrpgMechanicsHudLine[] | undefined,
-  participantId: number
-): string[] {
-  return (lines ?? []).filter((line) => line.participantId === participantId).map((line) => line.text);
-}
-
-function StructuredSheetBody({
-  card,
-  statDefs,
-  ongoingEffects,
-  mechanicsLines,
-  interactive,
+function NativeSheetBody({
+  surface,
   onFillAction,
 }: {
-  card: TrpgSheetHudCard;
-  statDefs: TrpgStatDefinition[];
-  ongoingEffects: TrpgPublicOngoingEffect[];
-  mechanicsLines: string[];
-  interactive: boolean;
+  surface: TrpgSheetSurface;
   onFillAction: (draft: TrpgActionDraftFill) => void;
 }) {
-  const sheet = card.sheet;
-  const inventory = sheet.inventory.filter((item) => item.trim());
-  const conditions = sheet.conditions.filter((item) => item.trim());
   return (
-    <div className="space-y-3 text-sm text-zinc-200">
+    <div className="space-y-3 text-sm text-zinc-200" data-trpg-sheet-native={surface.participantId}>
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-base font-semibold text-violet-100">{sheet.name}</p>
-          <p className="text-xs text-zinc-500">Lv {sheet.level}</p>
+          <p className="truncate text-base font-semibold text-violet-100">{surface.name}</p>
+          <p className="text-xs text-zinc-500">Lv {surface.level}</p>
         </div>
         <p className="text-xs tabular-nums text-zinc-300">
-          HP {sheet.hp}/{sheet.maxHp}
+          HP {surface.hp}/{surface.maxHp}
         </p>
       </div>
-      <HpBar hp={sheet.hp} maxHp={sheet.maxHp} />
-      {sheet.location.trim() ? (
+      <HpBar hp={surface.hp} maxHp={surface.maxHp} />
+      {surface.place ? (
         <p className="text-xs text-zinc-400">
           <span className="text-zinc-500">위치 </span>
-          {sheet.location.trim()}
+          {surface.place}
         </p>
       ) : null}
       <div>
         <p className="text-xs text-zinc-500">능력치</p>
         <ul className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-3">
-          {statDefs.map((def) => {
-            const value = sheet.stats[def.key];
-            const n = typeof value === "number" ? value : 5;
-            const mod = statModifier(n);
-            return (
-              <li key={def.key} className="tabular-nums text-zinc-300" data-trpg-stat={def.key}>
-                {def.label} {n}
-                <span className="text-zinc-500"> ({mod >= 0 ? `+${mod}` : String(mod)})</span>
-              </li>
-            );
-          })}
+          {surface.stats.map((stat) => (
+            <li key={stat.key} className="tabular-nums text-zinc-300" data-trpg-stat={stat.key}>
+              {stat.label} {stat.value}
+              <span className="text-zinc-500"> ({stat.modifier >= 0 ? `+${stat.modifier}` : String(stat.modifier)})</span>
+            </li>
+          ))}
         </ul>
       </div>
-      {sheet.modifiersNote.trim() ? (
+      {surface.modifiersNote ? (
         <p className="text-xs text-zinc-400">
           <span className="text-zinc-500">보정 </span>
-          {sheet.modifiersNote}
+          {surface.modifiersNote}
         </p>
       ) : null}
-      {mechanicsLines.length > 0 ? (
+      {surface.mechanics.length > 0 ? (
         <div data-trpg-mechanics-lines>
           <p className="text-xs text-zinc-500">판정 결과</p>
           <ul className="mt-1 space-y-0.5 text-xs tabular-nums text-zinc-300">
-            {mechanicsLines.map((line) => (
-              <li key={line}>{line}</li>
+            {surface.mechanics.map((line, index) => (
+              <li key={`${index}:${line}`}>{line}</li>
             ))}
           </ul>
         </div>
       ) : null}
       <div>
         <p className="text-xs text-zinc-500">상태</p>
-        {conditions.length === 0 && ongoingEffects.length === 0 ? (
+        {surface.conditions.length === 0 && surface.effects.length === 0 ? (
           <p className="mt-1 text-xs text-zinc-500">없음</p>
         ) : (
           <ul className="mt-1 flex flex-wrap gap-1.5">
-            {conditions.map((item) => (
+            {surface.conditions.map((item) => (
               <li
                 key={`n:${item}`}
                 className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-1 text-[11px] font-medium text-amber-100"
@@ -163,30 +137,29 @@ function StructuredSheetBody({
                 {item}
               </li>
             ))}
-            {ongoingEffects.map((effect) => {
-              const draft = interactive ? ongoingEffectActionDraft(effect) : null;
-              const label = formatOngoingBadge(effect);
+            {surface.effects.map((effect) => {
+              const draft = surface.interactive ? effect.draft : null;
               if (!draft) {
                 return (
                   <li
-                    key={`e:${effect.label}:${effect.severity}:${effect.kind}`}
-                    title={effect.recoveryHint}
+                    key={`e:${effect.key}`}
+                    title={effect.hint}
                     className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2 py-1 text-[11px] font-medium text-amber-100"
                   >
-                    {label}
+                    {effect.badge}
                   </li>
                 );
               }
               return (
-                <li key={`e:${effect.label}:${effect.severity}:${effect.kind}`}>
+                <li key={`e:${effect.key}`}>
                   <button
                     type="button"
-                    title={effect.recoveryHint}
+                    title={effect.hint}
                     data-trpg-condition-draft={effect.label}
                     onClick={() => onFillAction(draft)}
                     className="inline-flex min-h-11 items-center rounded-full border border-sky-400/30 bg-sky-500/10 px-3 text-xs font-semibold text-sky-100"
                   >
-                    {label}
+                    {effect.badge}
                   </button>
                 </li>
               );
@@ -196,39 +169,97 @@ function StructuredSheetBody({
       </div>
       <div>
         <p className="text-xs text-zinc-500">소지품</p>
-        {inventory.length === 0 ? (
+        {surface.inventory.length === 0 ? (
           <p className="mt-1 text-xs text-zinc-500">없음</p>
         ) : (
           <ul className="mt-1 flex flex-wrap gap-1.5">
-            {inventory.map((item, index) =>
-              interactive ? (
-                <li key={`${item}:${index}`}>
+            {surface.inventory.map((item) => {
+              const draft = surface.interactive ? item.draft : null;
+              return draft ? (
+                <li key={item.key}>
                   <button
                     type="button"
-                    data-trpg-inventory-item={item}
-                    onClick={() => {
-                      const draft = useItemActionDraft(item);
-                      if (draft) onFillAction(draft);
-                    }}
+                    data-trpg-inventory-item={item.name}
+                    onClick={() => onFillAction(draft)}
                     className="inline-flex min-h-11 max-w-full items-center rounded-full border border-white/10 bg-white/5 px-3 text-xs text-zinc-100"
                   >
-                    <span className="truncate">{item}</span>
+                    <span className="truncate">{item.name}</span>
                   </button>
                 </li>
               ) : (
                 <li
-                  key={`${item}:${index}`}
+                  key={item.key}
                   className="inline-flex min-h-11 max-w-full items-center rounded-full border border-white/10 bg-white/5 px-3 text-xs text-zinc-200"
                 >
-                  <span className="truncate">{item}</span>
+                  <span className="truncate">{item.name}</span>
                 </li>
-              )
-            )}
+              );
+            })}
           </ul>
         )}
       </div>
     </div>
   );
+}
+
+/**
+ * One visible renderer per sheet: the site-owned sandboxed JSX sheet, or the
+ * native body when JSX is unavailable or reported a failure.
+ */
+function ignorePartyDraft(): void {}
+
+function SheetSurfaceView({
+  surface,
+  compiled,
+  renderer,
+  onJsxFailed,
+  onFillAction,
+}: {
+  surface: TrpgSheetSurface;
+  compiled: string | null;
+  renderer: TrpgSheetRenderer;
+  onJsxFailed: () => void;
+  onFillAction: (draft: TrpgActionDraftFill) => void;
+}) {
+  const propsKey = JSON.stringify(surface);
+  const props = useMemo(() => JSON.parse(propsKey) as Record<string, unknown>, [propsKey]);
+  const interactive = surface.interactive;
+  const onTrpgActionDraft = useCallback(
+    (request: JsxTrpgActionDraftRequest) => {
+      if (!interactive) return;
+      const draft = acceptTrpgSheetActionDraft(request);
+      if (draft) onFillAction(draft);
+    },
+    [interactive, onFillAction]
+  );
+  const onStatus = useCallback(
+    (status: JsxSandboxStatus) => {
+      if (status === "error") onJsxFailed();
+    },
+    [onJsxFailed]
+  );
+  switch (renderer) {
+    case "jsx":
+      return compiled ? (
+        <JsxComponentSandbox
+          compiled={compiled}
+          props={props}
+          title={interactive ? "내 시트" : "파티원 시트"}
+          heightPx={JSX_SANDBOX_AUTO_HEIGHT_MIN_PX}
+          autoHeight
+          onStatus={onStatus}
+          onTrpgActionDraft={interactive ? onTrpgActionDraft : null}
+        />
+      ) : (
+        <NativeSheetBody surface={surface} onFillAction={onFillAction} />
+      );
+    case "native":
+      return <NativeSheetBody surface={surface} onFillAction={onFillAction} />;
+    default: {
+      const _exhaustive: never = renderer;
+      return _exhaustive;
+    }
+  }
 }
 
 function ActionMode({
@@ -468,6 +499,7 @@ export default function TrpgCommandDock({
   onSendAction,
   onSendParty,
   onOcclusionChange,
+  sheetJsxCompiled = null,
 }: {
   snap: TrpgCampaignSnapshot;
   actionType: TrpgActionType;
@@ -491,6 +523,8 @@ export default function TrpgCommandDock({
   onSendAction: () => void;
   onSendParty: () => void;
   onOcclusionChange: (occlusion: TrpgCommandDockOcclusion) => void;
+  /** Site-owned sheet compiled by the server through the shared JSX compiler; null → native. */
+  sheetJsxCompiled?: string | null;
 }) {
   const panelId = useId();
   const rootRef = useRef<HTMLElement>(null);
@@ -508,6 +542,9 @@ export default function TrpgCommandDock({
   const [partyParticipantId, setPartyParticipantId] = useState<number | null>(null);
   const selectedPartyId = selectPartySheetParticipantId(partyCards, partyParticipantId);
   const selectedParty = partyCards.find((card) => card.participantId === selectedPartyId) ?? null;
+  const [failedSheetJsx, setFailedSheetJsx] = useState<string | null>(null);
+  const sheetRenderer = trpgSheetRenderer({ compiled: sheetJsxCompiled, failedCompiled: failedSheetJsx });
+  const onSheetJsxFailed = useCallback(() => setFailedSheetJsx(sheetJsxCompiled), [sheetJsxCompiled]);
 
   useEffect(() => {
     const key = trpgCommandDockLifecycleKey({ presentationBusy, actionInput: actionInputVisible });
@@ -574,17 +611,31 @@ export default function TrpgCommandDock({
     setView((current) => openTrpgCommandDockMode(current, "action", presentationBusy));
   }
 
-  const narrativeConditions = selfSheet?.conditions.filter((item) => item.trim()) ?? [];
-  const selfEffects = selfSheet ? sheetEffects(snap.ongoingEffects, selfSheet.participantId) : [];
+  const selfSurface = selfCard
+    ? buildTrpgSheetSurface(selfCard, {
+        statDefs: snap.statDefs,
+        ongoingEffects: snap.ongoingEffects,
+        mechanicsLines: snap.mechanicsLines,
+        interactive: true,
+      })
+    : null;
+  const partySurface = selectedParty
+    ? buildTrpgSheetSurface(selectedParty, {
+        statDefs: snap.statDefs,
+        ongoingEffects: snap.ongoingEffects,
+        mechanicsLines: snap.mechanicsLines,
+        interactive: false,
+      })
+    : null;
   const compactCondition = compactConditions(
     mergeDisplayConditions(
-      narrativeConditions,
-      selfEffects.map((effect) => effect.label)
+      selfSurface?.conditions ?? [],
+      (selfSurface?.effects ?? []).map((effect) => effect.label)
     ),
     1
   )[0];
   const itemCount = selfSheet ? inventoryCount(selfSheet.inventory) : 0;
-  const selfLines = selfSheet ? sheetMechanicsLines(snap.mechanicsLines, selfSheet.participantId) : [];
+  const selfLines = selfSurface?.mechanics ?? [];
   const label = selfSheet ? selfHudAriaLabel(selfSheet) : "명령 독";
 
   return (
@@ -687,13 +738,12 @@ export default function TrpgCommandDock({
                   />
                 );
               case "self":
-                return selfCard ? (
-                  <StructuredSheetBody
-                    card={selfCard}
-                    statDefs={snap.statDefs}
-                    ongoingEffects={selfEffects}
-                    mechanicsLines={selfLines}
-                    interactive
+                return selfSurface ? (
+                  <SheetSurfaceView
+                    surface={selfSurface}
+                    compiled={sheetJsxCompiled}
+                    renderer={sheetRenderer}
+                    onJsxFailed={onSheetJsxFailed}
                     onFillAction={fillAction}
                   />
                 ) : (
@@ -730,15 +780,14 @@ export default function TrpgCommandDock({
                         );
                       })}
                     </div>
-                    {selectedParty ? (
-                      <div data-trpg-party-sheet={selectedParty.participantId}>
-                        <StructuredSheetBody
-                          card={selectedParty}
-                          statDefs={snap.statDefs}
-                          ongoingEffects={sheetEffects(snap.ongoingEffects, selectedParty.participantId)}
-                          mechanicsLines={sheetMechanicsLines(snap.mechanicsLines, selectedParty.participantId)}
-                          interactive={false}
-                          onFillAction={fillAction}
+                    {partySurface ? (
+                      <div data-trpg-party-sheet={partySurface.participantId}>
+                        <SheetSurfaceView
+                          surface={partySurface}
+                          compiled={sheetJsxCompiled}
+                          renderer={sheetRenderer}
+                          onJsxFailed={onSheetJsxFailed}
+                          onFillAction={ignorePartyDraft}
                         />
                       </div>
                     ) : null}

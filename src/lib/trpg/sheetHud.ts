@@ -10,6 +10,11 @@ export function hpRiskLevel(hp: number, maxHp: number): TrpgHpRisk {
   return "critical";
 }
 
+export function hpPercent(hp: number, maxHp: number): number {
+  const safeMax = Math.max(maxHp, 1);
+  return Math.max(0, Math.min(100, Math.round((hp / safeMax) * 100)));
+}
+
 export function hpBarClass(hp: number, maxHp: number): string {
   const risk = hpRiskLevel(hp, maxHp);
   if (risk === "safe") return "bg-emerald-400";
