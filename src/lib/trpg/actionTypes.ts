@@ -116,6 +116,15 @@ function pickMethodStat(opts: {
   return null;
 }
 
+/** A stored key is an override only when it is one of the scenario's current stat defs. */
+export function normalizeTrpgSelectedStat(
+  raw: string | null | undefined,
+  defs: readonly { key: string }[]
+): string | null {
+  if (!raw) return null;
+  return defs.some((def) => def.key === raw) ? raw : null;
+}
+
 /**
  * Pick which scenario-sheet stat this action uses.
  * Player override → action-compatible method semantics → action-type prefs → first sheet stat.
@@ -126,9 +135,8 @@ export function pickStatForActionDetailed(opts: {
   body?: string;
   defs: TrpgStatDefinition[];
 }): StatSelectionResult {
-  if (opts.selectedStat && opts.defs.some((d) => d.key === opts.selectedStat)) {
-    return { statKey: opts.selectedStat, reason: "selected" };
-  }
+  const selected = normalizeTrpgSelectedStat(opts.selectedStat, opts.defs);
+  if (selected) return { statKey: selected, reason: "selected" };
 
   const method = pickMethodStat({
     actionType: opts.actionType,

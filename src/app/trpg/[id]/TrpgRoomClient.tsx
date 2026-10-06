@@ -10,7 +10,7 @@ import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import { AppSectionCard } from "@/components/AppPageShell";
 import type { TrpgActionType } from "@/lib/trpg/actionTypes";
 import { isTrpgActionType } from "@/lib/trpg/actionTypes";
-import { trpgActionComposerForRound } from "@/lib/trpg/actionComposer";
+import { resolveTrpgSelectedStat, trpgActionComposerForRound } from "@/lib/trpg/actionComposer";
 import {
   applyReplySuggestionClick,
   TRPG_REPLY_SUGGESTION_USER_ERROR,
@@ -120,6 +120,17 @@ export default function TrpgRoomClient({
   const [suggestionsBusy, setSuggestionsBusy] = useState(false);
   const [suggestionsError, setSuggestionsError] = useState("");
   const [suggestionsEnabled, setSuggestionsEnabled] = useState(false);
+  const [selectedStat, setSelectedStat] = useState<string | null>(() =>
+    resolveTrpgSelectedStat({
+      locked: snap.myDraft?.locked === true,
+      serverSelectedStat: snap.myDraft?.selectedStat,
+      localSelectedStat: loadTrpgActionDraft(
+        trpgActionDraftKey(snap.id, snap.round.number),
+        TRPG_ACTION_MAX_CHARS
+      )?.selectedStat,
+      statDefs: snap.statDefs,
+    })
+  );
   const [inputOrigin, setInputOrigin] = useState<TrpgInputOrigin>(() => {
     const local = loadTrpgActionDraft(
       trpgActionDraftKey(snap.id, snap.round.number),
@@ -179,15 +190,42 @@ export default function TrpgRoomClient({
         // Server snapshot is authoritative. Snapshot does not currently expose
         // inputOrigin, so never carry a previous-round local origin forward.
         setInputOrigin("manual");
-      } else if (local?.body?.trim()) {
+        setSelectedStat(
+          resolveTrpgSelectedStat({
+            locked: true,
+            serverSelectedStat: reset.selectedStat,
+            localSelectedStat: null,
+            statDefs: next.statDefs,
+          })
+        );
+      } else if (local?.body?.trim() || local?.selectedStat) {
         if (isTrpgActionType(local.actionType)) setActionType(local.actionType);
         if (local.inputOrigin === "reply_suggestion" || local.inputOrigin === "manual") {
           setInputOrigin(local.inputOrigin);
         }
+        setSelectedStat(
+          resolveTrpgSelectedStat({
+            locked: false,
+            serverSelectedStat: null,
+            localSelectedStat: local.selectedStat,
+            statDefs: next.statDefs,
+          })
+        );
       } else {
         setActionType(reset.actionType);
         setInputOrigin("manual");
+        setSelectedStat(null);
       }
+    } else if (next.myDraft?.locked) {
+      if (next.myDraft.body) setActionBody(next.myDraft.body);
+      setSelectedStat(
+        resolveTrpgSelectedStat({
+          locked: true,
+          serverSelectedStat: next.myDraft.selectedStat,
+          localSelectedStat: null,
+          statDefs: next.statDefs,
+        })
+      );
     } else if (next.myDraft?.body) {
       setActionBody(next.myDraft.body);
     }
@@ -245,7 +283,11 @@ export default function TrpgRoomClient({
       clearUserInputDraft(key);
       return;
     }
-    saveTrpgActionDraft(key, { body: actionBody, actionType, inputOrigin }, TRPG_ACTION_MAX_CHARS);
+    saveTrpgActionDraft(
+      key,
+      { body: actionBody, actionType, inputOrigin, selectedStat },
+      TRPG_ACTION_MAX_CHARS
+    );
   }, [
     snap.id,
     snap.round.number,
@@ -253,6 +295,7 @@ export default function TrpgRoomClient({
     actionBody,
     actionType,
     inputOrigin,
+    selectedStat,
   ]);
 
   // TRPG PARTY draft persistence: campaign scope, cleared only on success.
@@ -370,6 +413,7 @@ export default function TrpgRoomClient({
       body: actionBody,
       actionType,
       inputOrigin,
+      selectedStat,
     });
     if (ok) clearUserInputDraft(trpgActionDraftKey(campaignId, roundNumber));
   }
@@ -671,6 +715,8 @@ export default function TrpgRoomClient({
           error={error}
           actionType={actionType}
           actionBody={actionBody}
+          selectedStat={selectedStat}
+          onSelectedStatChange={setSelectedStat}
           partyBody={partyBody}
           onActionTypeChange={setActionType}
           onActionBodyChange={setActionBody}

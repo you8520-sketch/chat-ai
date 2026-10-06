@@ -660,6 +660,39 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     expect(actionPosts).toEqual([]);
   });
 
+  test("SELF stat click opens ACTION with that stat and does not submit", async ({ page }) => {
+    const posts: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() !== "POST") return;
+      const path = new URL(request.url()).pathname;
+      if (/\/(action|party-chat)$|\/api\/chat/.test(path)) posts.push(path);
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/trpg/scroll-follow-lab?scenario=bot1");
+    await waitForLabRoomReady(page);
+    const dock = page.locator("[data-trpg-command-dock]");
+    await page.locator("[data-trpg-command-dock-tab='self']").click();
+    const frame = page.frameLocator("iframe[title='내 시트']");
+    await expect(frame.getByText("HP 25/25")).toBeVisible();
+    const before = await dock.locator("textarea").inputValue().catch(() => "");
+    await frame.locator("[data-trpg-stat='str']").click();
+    await expect(dock).toHaveAttribute("data-trpg-command-dock-mode", "action");
+    await expect(dock.locator("[data-trpg-stat-choice='str']")).toHaveAttribute("aria-pressed", "true");
+    await expect(dock.locator("[data-trpg-stat-choice='auto']")).toHaveAttribute("aria-pressed", "false");
+    await expect(dock.locator("textarea")).toHaveValue(before);
+    await expect(dock.locator("[data-trpg-action-chip='investigate']")).toHaveClass(/bg-violet-600/);
+    const overflow = await dock.locator("[data-trpg-stat-selector]").evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
+    expect(overflow).toBe(true);
+    await dock.locator("[data-trpg-stat-choice='auto']").click();
+    await expect(dock.locator("[data-trpg-stat-choice='auto']")).toHaveAttribute("aria-pressed", "true");
+    await expect(dock.locator("[data-trpg-stat-choice='str']")).toHaveAttribute("aria-pressed", "false");
+    await dock.locator("[data-trpg-stat-choice='str']").click();
+    await dock.locator("[data-trpg-action-chip='attack']").click();
+    await expect(dock.locator("[data-trpg-stat-choice='str']")).toHaveAttribute("aria-pressed", "true");
+    await expect(dock.locator("[data-trpg-action-chip='attack']")).toHaveClass(/bg-violet-600/);
+    expect(posts).toEqual([]);
+  });
+
   test("PARTY creator sheets render per participant, gain no host power, and fall back creator → site → native", async ({
     page,
   }) => {
@@ -692,9 +725,15 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     }
     await page.waitForTimeout(900);
     await frame!.getByRole("button", { name: "초안" }).click();
+    await page.waitForTimeout(900);
+    await frame!.evaluate(() => {
+      (window as Window & { setTrpgSelectedStat: (key: string) => void }).setTrpgSelectedStat("cha");
+    });
     await page.waitForTimeout(400);
     await expect(dock).toHaveAttribute("data-trpg-command-dock-mode", "party");
     await page.locator("[data-trpg-command-dock-tab='action']").click();
+    await expect(dock.locator("[data-trpg-stat-choice='auto']")).toHaveAttribute("aria-pressed", "true");
+    await expect(dock.locator("[data-trpg-stat-choice='cha']")).toHaveAttribute("aria-pressed", "false");
     await expect(dock.locator("textarea")).not.toHaveValue(/파티원 시트/);
     await page.locator("[data-trpg-command-dock-tab='ooc']").click();
     await expect(dock.getByPlaceholder("유저에게 메시지 보내기")).toHaveValue("");
