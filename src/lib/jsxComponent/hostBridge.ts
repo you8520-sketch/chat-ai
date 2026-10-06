@@ -11,7 +11,8 @@ export type JsxHostBridgeAction =
   | { action: "ignore"; reason: string }
   | { action: "setChatDraft"; text: string }
   | { action: "requestChatSend"; text: string }
-  | { action: "setTrpgActionDraft"; actionType: string; text: string };
+  | { action: "setTrpgActionDraft"; actionType: string; text: string }
+  | { action: "setTrpgSelectedStat"; statKey: string };
 
 export type JsxHostBridgeRateState = {
   lastAcceptedAt: number;
@@ -19,6 +20,9 @@ export type JsxHostBridgeRateState = {
 };
 
 export type JsxTrpgActionDraftRequest = { actionType: string; text: string };
+
+/** Explicit stat override for the viewer's own ACTION composer. Draft/config only. */
+export type JsxTrpgSelectedStatRequest = { statKey: string };
 
 /**
  * Canonical JSX → host bridge policy.
@@ -42,6 +46,7 @@ export function decideJsxHostBridgeAction(input: {
   kind: string;
   text: unknown;
   actionType?: unknown;
+  statKey?: unknown;
   chatSendEnabled: boolean;
   now: number;
   rate: JsxHostBridgeRateState;
@@ -65,6 +70,14 @@ export function decideJsxHostBridgeAction(input: {
     }
     const actionType = String(input.actionType ?? "").slice(0, JSX_BRIDGE_ACTION_TYPE_MAX);
     return { decision: { action: "setTrpgActionDraft", actionType, text }, rate };
+  }
+
+  if (input.kind === "setTrpgSelectedStat") {
+    const statKey = String(input.statKey ?? "").trim().slice(0, JSX_BRIDGE_ACTION_TYPE_MAX);
+    if (!statKey) {
+      return { decision: { action: "ignore", reason: "empty" }, rate };
+    }
+    return { decision: { action: "setTrpgSelectedStat", statKey }, rate };
   }
 
   const text = normalizeJsxBridgeText(input.text);

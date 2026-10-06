@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import JsxComponentSandbox, { type JsxSandboxStatus } from "@/components/JsxComponentSandbox";
-import type { JsxTrpgActionDraftRequest } from "@/lib/jsxComponent/hostBridge";
+import type { JsxTrpgActionDraftRequest, JsxTrpgSelectedStatRequest } from "@/lib/jsxComponent/hostBridge";
 import { JSX_SANDBOX_AUTO_HEIGHT_MIN_PX } from "@/lib/jsxComponent/limits";
 import {
   TRPG_VISIBLE_ACTION_TYPES,
@@ -35,6 +35,7 @@ import {
   type TrpgCommandDockOcclusion,
 } from "@/lib/trpg/commandDock";
 import { partyDetailedSheetCards, viewerSelfSheetCard } from "@/lib/trpg/partySheetPresentation";
+import { statModifier } from "@/lib/trpg/stats";
 import { replyStanceLabelKo, type TrpgInputOrigin, type TrpgReplySuggestion } from "@/lib/trpg/replySuggestionShared";
 import {
   compactConditions,
@@ -78,9 +79,11 @@ function HpBar({ hp, maxHp }: { hp: number; maxHp: number }) {
 function NativeSheetBody({
   surface,
   onFillAction,
+  onSelectStat,
 }: {
   surface: TrpgSheetSurface;
   onFillAction: ((draft: TrpgActionDraftFill) => void) | null;
+  onSelectStat: ((key: string) => void) | null;
 }) {
   return (
     <div className="space-y-3 text-sm text-zinc-200" data-trpg-sheet-native={surface.participantId}>
@@ -103,12 +106,33 @@ function NativeSheetBody({
       <div>
         <p className="text-xs text-zinc-500">능력치</p>
         <ul className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-3">
-          {surface.stats.map((stat) => (
-            <li key={stat.key} className="tabular-nums text-zinc-300" data-trpg-stat={stat.key}>
-              {stat.label} {stat.value}
-              <span className="text-zinc-500"> ({stat.modifier >= 0 ? `+${stat.modifier}` : String(stat.modifier)})</span>
-            </li>
-          ))}
+          {surface.stats.map((stat) => {
+            const label = (
+              <>
+                {stat.label} {stat.value}
+                <span className="text-zinc-500"> ({stat.modifier >= 0 ? `+${stat.modifier}` : String(stat.modifier)})</span>
+              </>
+            );
+            if (!onSelectStat) {
+              return (
+                <li key={stat.key} className="tabular-nums text-zinc-300" data-trpg-stat={stat.key}>
+                  {label}
+                </li>
+              );
+            }
+            return (
+              <li key={stat.key}>
+                <button
+                  type="button"
+                  data-trpg-stat={stat.key}
+                  onClick={() => onSelectStat(stat.key)}
+                  className="inline-flex min-h-11 w-full items-center rounded-lg px-1 text-left text-sm tabular-nums text-zinc-300"
+                >
+                  {label}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
       {surface.modifiersNote ? (
@@ -216,11 +240,13 @@ function SheetSurfaceView({
   renderer,
   onJsxFailed,
   onFillAction,
+  onSelectStat,
 }: {
   surface: TrpgSheetSurface;
   renderer: TrpgSheetRenderer;
   onJsxFailed: (compiled: string) => void;
   onFillAction: ((draft: TrpgActionDraftFill) => void) | null;
+  onSelectStat: ((key: string) => void) | null;
 }) {
   const propsKey = JSON.stringify(surface);
   const props = useMemo(() => JSON.parse(propsKey) as Record<string, unknown>, [propsKey]);
@@ -231,6 +257,14 @@ function SheetSurfaceView({
       if (draft) onFillAction?.(draft);
     },
     [onFillAction]
+  );
+  const onTrpgSelectedStat = useCallback(
+    (request: JsxTrpgSelectedStatRequest) => {
+      if (!onSelectStat) return;
+      if (!surface.stats.some((stat) => stat.key === request.statKey)) return;
+      onSelectStat(request.statKey);
+    },
+    [onSelectStat, surface.stats]
   );
   const onStatus = useCallback(
     (status: JsxSandboxStatus) => {
@@ -250,11 +284,18 @@ function SheetSurfaceView({
             autoHeight
             onStatus={onStatus}
             onTrpgActionDraft={onFillAction ? onTrpgActionDraft : null}
+            onTrpgSelectedStat={onFillAction ? onTrpgSelectedStat : null}
           />
         </div>
       );
     case "native":
-      return <NativeSheetBody surface={surface} onFillAction={onFillAction} />;
+      return (
+        <NativeSheetBody
+          surface={surface}
+          onFillAction={onFillAction}
+          onSelectStat={onFillAction ? onSelectStat : null}
+        />
+      );
     default: {
       const _exhaustive: never = renderer;
       return _exhaustive;
@@ -267,6 +308,7 @@ function ActionMode({
   selfSheet,
   actionType,
   actionBody,
+  selectedStat,
   suggestions,
   suggestionsBusy,
   suggestionsError,
@@ -276,6 +318,7 @@ function ActionMode({
   busy,
   onActionTypeChange,
   onActionBodyChange,
+  onSelectedStatChange,
   onToggleSuggestions,
   onRetrySuggestions,
   onPickSuggestion,
@@ -285,6 +328,7 @@ function ActionMode({
   selfSheet: TrpgSheetSnapshot | null;
   actionType: TrpgActionType;
   actionBody: string;
+  selectedStat: string | null;
   suggestions: TrpgReplySuggestion[];
   suggestionsBusy: boolean;
   suggestionsError: string;
@@ -294,6 +338,7 @@ function ActionMode({
   busy: boolean;
   onActionTypeChange: (value: TrpgActionType) => void;
   onActionBodyChange: (value: string) => void;
+  onSelectedStatChange: (value: string | null) => void;
   onToggleSuggestions: () => void;
   onRetrySuggestions: () => void;
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
@@ -317,6 +362,7 @@ function ActionMode({
   const rest = snap.safeRest;
   const showRest = Boolean(rest?.available && hp < maxHp);
   const showHint = snap.showRecoveryHint === true;
+  const explicitStat = snap.statDefs.some((def) => def.key === selectedStat) ? selectedStat : null;
 
   return (
     <div data-trpg-next-action>
@@ -326,6 +372,47 @@ function ActionMode({
       {!isTrpgVisibleActionType(actionType) ? (
         <p className="mb-2 text-xs text-zinc-400">선택한 유형: {actionTypeLabelKo(actionType)}</p>
       ) : null}
+      <div className="mb-3" data-trpg-stat-selector>
+        <p className="mb-1.5 text-xs text-zinc-500">판정 능력치</p>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            data-trpg-stat-choice="auto"
+            aria-pressed={explicitStat == null}
+            onClick={() => onSelectedStatChange(null)}
+            className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold ${
+              explicitStat == null
+                ? "bg-violet-600 text-white"
+                : "border border-white/10 bg-white/5 text-zinc-300"
+            }`}
+          >
+            자동
+          </button>
+          {snap.statDefs.map((def) => {
+            const value = selfSheet?.stats[def.key];
+            const mod = typeof value === "number" ? statModifier(value) : null;
+            const selected = explicitStat === def.key;
+            const caption =
+              typeof value === "number" && mod != null
+                ? `${def.label} ${value} (${mod >= 0 ? `+${mod}` : String(mod)})`
+                : def.label;
+            return (
+              <button
+                key={def.key}
+                type="button"
+                data-trpg-stat-choice={def.key}
+                aria-pressed={selected}
+                onClick={() => onSelectedStatChange(def.key)}
+                className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold ${
+                  selected ? "bg-violet-600 text-white" : "border border-white/10 bg-white/5 text-zinc-300"
+                }`}
+              >
+                {caption}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <div className="mb-3 flex flex-wrap gap-1.5">
         {TRPG_VISIBLE_ACTION_TYPES.map((kind) => (
           <button
@@ -480,6 +567,7 @@ export default function TrpgCommandDock({
   snap,
   actionType,
   actionBody,
+  selectedStat,
   partyBody,
   suggestions,
   suggestionsBusy,
@@ -491,6 +579,7 @@ export default function TrpgCommandDock({
   busy,
   onActionTypeChange,
   onActionBodyChange,
+  onSelectedStatChange,
   onInputOriginChange,
   onPartyBodyChange,
   onToggleSuggestions,
@@ -505,6 +594,7 @@ export default function TrpgCommandDock({
   snap: TrpgCampaignSnapshot;
   actionType: TrpgActionType;
   actionBody: string;
+  selectedStat: string | null;
   partyBody: string;
   suggestions: TrpgReplySuggestion[];
   suggestionsBusy: boolean;
@@ -516,6 +606,7 @@ export default function TrpgCommandDock({
   busy: boolean;
   onActionTypeChange: (value: TrpgActionType) => void;
   onActionBodyChange: (value: string) => void;
+  onSelectedStatChange: (value: string | null) => void;
   onInputOriginChange: (value: TrpgInputOrigin) => void;
   onPartyBodyChange: (value: string) => void;
   onToggleSuggestions: () => void;
@@ -647,6 +738,11 @@ export default function TrpgCommandDock({
     setView((current) => openTrpgCommandDockMode(current, "action", presentationBusy));
   }
 
+  function selectStat(key: string) {
+    onSelectedStatChange(key);
+    setView((current) => openTrpgCommandDockMode(current, "action", presentationBusy));
+  }
+
   const selfSurface = selfCard
     ? buildTrpgSheetSurface(selfCard, {
         statDefs: snap.statDefs,
@@ -758,6 +854,7 @@ export default function TrpgCommandDock({
                     selfSheet={selfSheet}
                     actionType={actionType}
                     actionBody={actionBody}
+                    selectedStat={selectedStat}
                     suggestions={suggestions}
                     suggestionsBusy={suggestionsBusy}
                     suggestionsError={suggestionsError}
@@ -767,6 +864,7 @@ export default function TrpgCommandDock({
                     busy={busy}
                     onActionTypeChange={onActionTypeChange}
                     onActionBodyChange={onActionBodyChange}
+                    onSelectedStatChange={onSelectedStatChange}
                     onToggleSuggestions={onToggleSuggestions}
                     onRetrySuggestions={onRetrySuggestions}
                     onPickSuggestion={onPickSuggestion}
@@ -780,6 +878,7 @@ export default function TrpgCommandDock({
                     renderer={selfRenderer}
                     onJsxFailed={onSheetJsxFailed}
                     onFillAction={fillAction}
+                    onSelectStat={selectStat}
                   />
                 ) : (
                   <p className="text-sm text-zinc-500">내 시트가 없습니다.</p>
@@ -828,6 +927,7 @@ export default function TrpgCommandDock({
                             renderer={partyRenderer}
                             onJsxFailed={onSheetJsxFailed}
                             onFillAction={null}
+                            onSelectStat={null}
                           />
                         )}
                       </div>

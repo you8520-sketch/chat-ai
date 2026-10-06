@@ -204,18 +204,30 @@ describe("TRPG sandboxed JSX sheet", () => {
     });
   });
 
-  it("E. non-treatable conditions and stats are display-only", () => {
+  it("E. non-treatable conditions stay display-only; stat clicks only select a key", () => {
     const surface = surfaceFor(card(1, "렌", true), true);
-    withDraftSpy((calls) => {
-      const tree = loadSheet()(JSON.parse(JSON.stringify(surface)));
-      const clickable = clickables(tree);
-      assert.equal(clickable.length, 3);
-      for (const el of clickable) {
-        assert.ok("data-trpg-inventory-item" in el.props || "data-trpg-condition-draft" in el.props);
-      }
-      for (const el of find(tree, "data-trpg-stat")) assert.equal(el.props.onClick, undefined);
-      assert.equal(calls.length, 0);
-    });
+    const statCalls: string[] = [];
+    const g = globalThis as { setTrpgSelectedStat?: unknown };
+    const prev = g.setTrpgSelectedStat;
+    g.setTrpgSelectedStat = (key: string) => statCalls.push(key);
+    try {
+      withDraftSpy((calls) => {
+        const tree = loadSheet()(JSON.parse(JSON.stringify(surface)));
+        const clickable = clickables(tree);
+        assert.equal(clickable.length, 5);
+        const drafts = clickable.filter(
+          (el) => "data-trpg-inventory-item" in el.props || "data-trpg-condition-draft" in el.props
+        );
+        assert.equal(drafts.length, 3);
+        const stats = find(tree, "data-trpg-stat");
+        assert.equal(stats.length, 2);
+        (stats[0]?.props.onClick as () => void)();
+        assert.deepEqual(statCalls, ["str"]);
+        assert.equal(calls.length, 0);
+      });
+    } finally {
+      g.setTrpgSelectedStat = prev;
+    }
     assert.equal(surface.effects.find((effect) => effect.label === "출혈")?.draft, null);
   });
 
@@ -227,6 +239,7 @@ describe("TRPG sandboxed JSX sheet", () => {
     withDraftSpy((calls) => {
       const tree = loadSheet()(JSON.parse(JSON.stringify(party)));
       assert.equal(clickables(tree).length, 0);
+      for (const el of find(tree, "data-trpg-stat")) assert.equal(el.props.onClick, undefined);
       assert.ok(textOf(tree).includes("마비 약 · 회복 판정 가능"));
       const forged = loadSheet()({ ...JSON.parse(JSON.stringify(party)), interactive: false, inventory: [{ key: "x", name: "x", draft: { actionType: "use_item", body: "x" } }] });
       assert.equal(clickables(forged).length, 0);
@@ -234,6 +247,7 @@ describe("TRPG sandboxed JSX sheet", () => {
     });
     const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
     assert.match(dock, /onTrpgActionDraft=\{onFillAction \? onTrpgActionDraft : null\}/);
+    assert.match(dock, /onTrpgSelectedStat=\{onFillAction \? onTrpgSelectedStat : null\}/);
     assert.match(dock, /interactive: false,\n\s+\}\)/);
     assert.match(dock, /onFillAction=\{null\}/);
     assert.doesNotMatch(dock, /ignorePartyDraft/);
@@ -320,11 +334,13 @@ describe("TRPG sandboxed JSX sheet", () => {
     const factory = runtime.slice(runtime.indexOf("new Function("), runtime.indexOf("compiled\n"));
     assert.doesNotMatch(factory, /setTrpgActionDraft/, "TRPG intent is a window global, not a factory parameter");
     assert.match(runtime, /runtimeWindow\.setTrpgActionDraft = setTrpgActionDraft/);
+    assert.match(runtime, /runtimeWindow\.setTrpgSelectedStat = setTrpgSelectedStat/);
+    assert.doesNotMatch(factory, /setTrpgSelectedStat/);
     const sandbox = readFileSync("src/components/JsxComponentSandbox.tsx", "utf8");
     assert.match(sandbox, /bridge\.setChatDraft\(decision\.text\)/);
     assert.match(sandbox, /bridge\.requestChatSend\(decision\.text\)/);
     for (const caller of ["src/components/ChatRichBlocks.tsx", "src/components/StatusWidgetCard.tsx"]) {
-      assert.doesNotMatch(readFileSync(caller, "utf8"), /onTrpgActionDraft|autoHeight/);
+      assert.doesNotMatch(readFileSync(caller, "utf8"), /onTrpgActionDraft|onTrpgSelectedStat|autoHeight/);
     }
   });
 
@@ -350,7 +366,7 @@ describe("TRPG sandboxed JSX sheet", () => {
     assert.match(sandbox, /if \(!readyRef\.current\) statusRef\.current\?\.\("error"\)/);
     const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
     assert.match(dock, /if \(status === "error" && compiled\) onJsxFailed\(compiled\)/);
-    assert.match(dock, /case "native":\n\s+return <NativeSheetBody/);
+    assert.match(dock, /case "native":\n\s+return \(\n\s+<NativeSheetBody/);
     const malformed = loadSheet()({ stats: "bad", inventory: null, effects: 3, hp: "x" });
     assert.ok(textOf(malformed).includes("HP 0/0"));
   });

@@ -1,4 +1,4 @@
-import type { TrpgActionType } from "./actionTypes";
+import { normalizeTrpgSelectedStat, type TrpgActionType } from "./actionTypes";
 export {
   CONTEXTUAL_BLEED_TREAT_DRAFT,
   CONTEXTUAL_FIRST_AID_DRAFT,
@@ -20,12 +20,28 @@ export {
 export function trpgActionComposerForRound(
   previousRound: number | null,
   nextRound: number,
-  draft: { body?: string | null; actionType?: TrpgActionType | null } | null | undefined
-): { body: string; actionType: TrpgActionType } | null {
+  draft: { body?: string | null; actionType?: TrpgActionType | null; selectedStat?: string | null } | null | undefined
+): { body: string; actionType: TrpgActionType; selectedStat: string | null } | null {
   if (previousRound == null || previousRound === nextRound) return null;
   const body = draft?.body?.trim() ? draft.body : "";
   return {
     body,
     actionType: draft?.actionType ?? "free",
+    selectedStat: draft?.selectedStat ?? null,
   };
+}
+
+/**
+ * Locked server selection wins, including an explicit automatic (null) choice.
+ * Otherwise the current-round local draft is used. Anything not on the live
+ * stat defs is automatic, so a stale key cannot stay selected.
+ */
+export function resolveTrpgSelectedStat(opts: {
+  locked: boolean;
+  serverSelectedStat: string | null | undefined;
+  localSelectedStat: string | null | undefined;
+  statDefs: readonly { key: string }[];
+}): string | null {
+  const raw = opts.locked ? opts.serverSelectedStat : opts.localSelectedStat;
+  return normalizeTrpgSelectedStat(raw, opts.statDefs);
 }
