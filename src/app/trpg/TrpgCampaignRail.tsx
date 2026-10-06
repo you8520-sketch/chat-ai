@@ -3,39 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import ChatDisplayReadabilitySettings from "@/components/ChatDisplayReadabilitySettings";
 import ChatStreamSpeedSettings from "@/components/ChatStreamSpeedSettings";
-import { ChatSettingsRailIcon, type ChatSettingsRailIconId } from "@/components/ChatSettingsRailIcons";
+import { ChatSettingsRailIcon } from "@/components/ChatSettingsRailIcons";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
-import { partyDetailedSheetCards } from "@/lib/trpg/partySheetPresentation";
-import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
-import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
-import TrpgInviteLink from "./TrpgInviteLink";
-import TrpgUserChatPanel from "./TrpgUserChatPanel";
 
-export type TrpgCampaignRailTab = "display" | "sheets" | "ooc";
+export type TrpgCampaignRailTab = "display";
 
 function tabLabel(tab: TrpgCampaignRailTab): string {
   switch (tab) {
     case "display":
       return "채팅 설정";
-    case "sheets":
-      return "시트";
-    case "ooc":
-      return "유저 채팅";
-    default: {
-      const _exhaustive: never = tab;
-      return _exhaustive;
-    }
-  }
-}
-
-function tabIcon(tab: TrpgCampaignRailTab): ChatSettingsRailIconId {
-  switch (tab) {
-    case "display":
-      return "display";
-    case "sheets":
-      return "persona";
-    case "ooc":
-      return "note";
     default: {
       const _exhaustive: never = tab;
       return _exhaustive;
@@ -47,10 +23,6 @@ function tabHint(tab: TrpgCampaignRailTab): string {
   switch (tab) {
     case "display":
       return "글꼴 · 크기 · 출력 속도";
-    case "sheets":
-      return "파티원 시트 · 내 시트는 화면 아래 고정";
-    case "ooc":
-      return "플레이어끼리만 보이며 GM 진행에는 반영되지 않습니다.";
     default: {
       const _exhaustive: never = tab;
       return _exhaustive;
@@ -59,26 +31,16 @@ function tabHint(tab: TrpgCampaignRailTab): string {
 }
 
 export default function TrpgCampaignRail({
-  snap,
   displayPrefs,
   onDisplayPrefsChange,
   streamIntervalMs,
   onStreamIntervalMsChange,
-  partyBody,
-  onPartyBodyChange,
-  onSendParty,
-  busy,
   compact,
 }: {
-  snap: TrpgCampaignSnapshot;
   displayPrefs: ChatDisplayPrefs;
   onDisplayPrefsChange: (prefs: ChatDisplayPrefs) => void;
   streamIntervalMs: number;
   onStreamIntervalMsChange: (intervalMs: number) => void;
-  partyBody: string;
-  onPartyBodyChange: (value: string) => void;
-  onSendParty: () => void;
-  busy: boolean;
   compact?: boolean;
 }) {
   const [active, setActive] = useState<TrpgCampaignRailTab | null>(null);
@@ -100,11 +62,7 @@ export default function TrpgCampaignRail({
     };
   }, [active]);
 
-  const tabs: TrpgCampaignRailTab[] = compact ? ["display", "sheets", "ooc"] : ["display", "sheets"];
-  const partyDetailedSheets = partyDetailedSheetCards(
-    snap.sheets,
-    snap.viewerParticipantId
-  );
+  const tabs: TrpgCampaignRailTab[] = ["display"];
 
   return (
     <div ref={rootRef} className="relative flex w-full flex-col">
@@ -135,57 +93,11 @@ export default function TrpgCampaignRail({
                 />
               </div>
             ) : null}
-            {active === "sheets" ? (
-              <div className="space-y-3">
-                <ul className="flex flex-wrap gap-1.5">
-                  {snap.participants.map((p) => (
-                    <li
-                      key={p.id}
-                      className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-zinc-300"
-                    >
-                      {p.displayName}
-                      {p.kind === "ai_character" ? " · AI" : ""}
-                      {p.id === snap.viewerParticipantId ? " · 나" : ""}
-                      {" · "}
-                      {trpgReadyLabel(p.ready)}
-                    </li>
-                  ))}
-                </ul>
-                {snap.inviteCode ? (
-                  <TrpgInviteLink code={snap.inviteCode} canJoin={false} />
-                ) : null}
-                {partyDetailedSheets.length > 0 ? (
-                  partyDetailedSheets.map((card) => (
-                    <div
-                      key={card.participantId}
-                      className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-zinc-200"
-                    >
-                      <div className="trpg-sheet-hud" dangerouslySetInnerHTML={{ __html: card.html }} />
-                    </div>
-                  ))
-                ) : (
-                  <p className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-xs text-zinc-400">
-                    다른 파티원이 없습니다.
-                  </p>
-                )}
-              </div>
-            ) : null}
-            {active === "ooc" ? (
-              <div className="h-[min(28rem,60dvh)]">
-                <TrpgUserChatPanel
-                  snap={snap}
-                  partyBody={partyBody}
-                  onPartyBodyChange={onPartyBodyChange}
-                  onSendParty={onSendParty}
-                  busy={busy}
-                />
-              </div>
-            ) : null}
           </div>
         </div>
       ) : null}
 
-      <nav className={compact ? "grid grid-cols-3 gap-2" : "flex flex-col gap-px py-0.5"}>
+      <nav className={compact ? "grid grid-cols-1 gap-2" : "flex flex-col gap-px py-0.5"}>
         {tabs.map((id) => (
           <button
             key={id}
@@ -198,7 +110,7 @@ export default function TrpgCampaignRail({
             } ${compact ? "min-h-14 border-white/10 bg-white/[0.03] py-2" : "w-full border-transparent py-1.5"}`}
           >
             <ChatSettingsRailIcon
-              id={tabIcon(id)}
+              id="display"
               className={compact ? "h-5 w-5" : "h-4 w-4"}
             />
             <span className={`max-w-full px-0.5 text-center font-medium leading-tight tracking-tight ${compact ? "text-xs" : "text-[9px]"}`}>

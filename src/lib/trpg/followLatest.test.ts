@@ -191,8 +191,11 @@ describe("TRPG follow-latest scroll", () => {
     assert.match(room, /aria-label="캠페인 도구"/);
     assert.match(room, /pt-\[5\.25rem\] min-\[576px\]:pt-0/);
     assert.doesNotMatch(room, /mobileMenuOpen/);
-    assert.match(rail, /grid grid-cols-3 gap-2/);
+    assert.match(rail, /grid grid-cols-1 gap-2/);
     assert.match(rail, /min-h-14/);
+    const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
+    assert.match(dock, /grid grid-cols-4 gap-1\.5/);
+    assert.match(dock, /min-h-11/);
     assert.match(rail, /h-5 w-5/);
     assert.match(room, /data-trpg-right-rail/);
     assert.match(room, /self-stretch bg-\[#0b0d14\]/);
