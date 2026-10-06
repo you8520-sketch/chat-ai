@@ -13,6 +13,7 @@ import {
   OPENROUTER_MUSE_SPARK_11_MODEL,
 } from "@/lib/chatModels";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
+import { resolveRpOpenRouterModelId } from "@/lib/openRouterConfig";
 import {
   computeCheaperInferenceMarketPreviewCost,
   computeOpenRouterTurnCost,
@@ -234,7 +235,7 @@ describe("modelPickerPreview V2", () => {
       const preview = computePreviewTurnPoints({ modelId, inputTokens: input, outputTokens: output });
       const billed =
         modelId === GEMINI_38_FLASH_MODEL
-          ? computeOpenRouterTurnCost(input, output, modelId)
+          ? computeOpenRouterTurnCost(input, output, resolveRpOpenRouterModelId(modelId))
           : computeStablePublishedPreviewPoints({ modelId, inputTokens: input, outputTokens: output }) ??
             computeCheaperInferenceMarketPreviewCost(input, output, modelId, 0.15);
       assert.equal(preview, billed, modelId);
@@ -250,7 +251,11 @@ describe("modelPickerPreview V2", () => {
         inputTokens,
         outputTokens,
       }),
-      computeOpenRouterTurnCost(inputTokens, outputTokens, GEMINI_38_FLASH_MODEL)
+      computeOpenRouterTurnCost(
+        inputTokens,
+        outputTokens,
+        resolveRpOpenRouterModelId(GEMINI_38_FLASH_MODEL)
+      )
     );
   });
 
@@ -290,7 +295,7 @@ describe("modelPickerPreview V2", () => {
       computeOpenRouterTurnCost(
         geminiInput,
         gemini.estimatedOutputTokens,
-        gemini.modelId
+        resolveRpOpenRouterModelId(gemini.modelId)
       )
     );
   });
@@ -364,7 +369,7 @@ describe("modelPickerPreview V2", () => {
       computeOpenRouterTurnCost(
         input,
         2450,
-        GEMINI_38_FLASH_MODEL
+        resolveRpOpenRouterModelId(GEMINI_38_FLASH_MODEL)
       )
     );
     assert.ok((row.estimatedPointsHigh ?? 0) > (row.estimatedPointsLow ?? 0));
