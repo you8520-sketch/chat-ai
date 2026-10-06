@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
+  clampJsxSandboxHeight,
   decideJsxHostBridgeAction,
   type JsxHostBridgeRateState,
+  type JsxTrpgActionDraftRequest,
 } from "@/lib/jsxComponent/hostBridge";
-import { JSX_SANDBOX_HEIGHT_PX } from "@/lib/jsxComponent/limits";
+import { JSX_SANDBOX_BOOT_TIMEOUT_MS, JSX_SANDBOX_HEIGHT_PX } from "@/lib/jsxComponent/limits";
 
 export type JsxHostBridge = {
   setChatDraft: (text: string) => void;
   requestChatSend: (text: string) => void;
 };
+
+export type JsxSandboxStatus = "ready" | "error";
 
 type Props = {
   compiled: string;
@@ -19,12 +23,18 @@ type Props = {
   chatSendEnabled?: boolean;
   bridge?: JsxHostBridge | null;
   heightPx?: number;
+  /** Grow/shrink to the child-reported content height (host-clamped). */
+  autoHeight?: boolean;
+  /** ready after mount; error on compile/runtime throw or boot timeout. */
+  onStatus?: (status: JsxSandboxStatus) => void;
+  /** Draft-only TRPG action intent. Absent → setTrpgActionDraft is ignored. */
+  onTrpgActionDraft?: ((request: JsxTrpgActionDraftRequest) => void) | null;
 };
 
 type SandboxMessage = {
   source?: string;
   kind?: string;
-  payload?: { text?: string; message?: string };
+  payload?: { text?: string; message?: string; actionType?: string; px?: number };
 };
 
 export default function JsxComponentSandbox({
@@ -34,11 +44,23 @@ export default function JsxComponentSandbox({
   chatSendEnabled = false,
   bridge,
   heightPx = JSX_SANDBOX_HEIGHT_PX,
+  autoHeight = false,
+  onStatus,
+  onTrpgActionDraft,
 }: Props) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const loadedRef = useRef(false);
   const rateRef = useRef<JsxHostBridgeRateState>({ lastAcceptedAt: 0, burst: 0 });
+  const statusRef = useRef(onStatus);
+  const trpgDraftRef = useRef(onTrpgActionDraft);
+  const readyRef = useRef(false);
+  const [contentHeight, setContentHeight] = useState<number | null>(null);
   const instanceId = useId();
+
+  useEffect(() => {
+    statusRef.current = onStatus;
+    trpgDraftRef.current = onTrpgActionDraft;
+  });
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -48,6 +70,38 @@ export default function JsxComponentSandbox({
       if (event.source !== frame.contentWindow) return;
       const data = event.data;
       if (!data || data.source !== "hav-jsx-sandbox") return;
+      if (data.kind === "ready") {
+        readyRef.current = true;
+        statusRef.current?.("ready");
+        return;
+      }
+      if (data.kind === "error") {
+        statusRef.current?.("error");
+        return;
+      }
+      if (data.kind === "height") {
+        if (!autoHeight) return;
+        const next = clampJsxSandboxHeight(data.payload?.px);
+        if (next !== null) setContentHeight(next);
+        return;
+      }
+      if (data.kind === "setTrpgActionDraft") {
+        const handler = trpgDraftRef.current;
+        if (!handler) return;
+        const { decision, rate } = decideJsxHostBridgeAction({
+          kind: data.kind,
+          text: data.payload?.text,
+          actionType: data.payload?.actionType,
+          chatSendEnabled: false,
+          now: Date.now(),
+          rate: rateRef.current,
+        });
+        rateRef.current = rate;
+        if (decision.action === "setTrpgActionDraft") {
+          handler({ actionType: decision.actionType, text: decision.text });
+        }
+        return;
+      }
       if (data.kind !== "setChatDraft" && data.kind !== "sendToChat") return;
       const { decision, rate } = decideJsxHostBridgeAction({
         kind: data.kind,
@@ -71,7 +125,17 @@ export default function JsxComponentSandbox({
     return () => {
       window.removeEventListener("message", onMessage);
     };
-  }, [bridge, chatSendEnabled]);
+  }, [autoHeight, bridge, chatSendEnabled]);
+
+  const watchBoot = Boolean(onStatus);
+  useEffect(() => {
+    if (!watchBoot) return;
+    readyRef.current = false;
+    const timer = window.setTimeout(() => {
+      if (!readyRef.current) statusRef.current?.("error");
+    }, JSX_SANDBOX_BOOT_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [compiled, watchBoot]);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -109,6 +173,8 @@ export default function JsxComponentSandbox({
     };
   }, []);
 
+  const height = autoHeight && contentHeight !== null ? contentHeight : heightPx;
+
   return (
     <iframe
       ref={frameRef}
@@ -117,7 +183,7 @@ export default function JsxComponentSandbox({
       sandbox="allow-scripts"
       referrerPolicy="no-referrer"
       className="w-full rounded-xl border border-white/10 bg-transparent"
-      style={{ height: heightPx, border: "0" }}
+      style={{ height, border: "0" }}
     />
   );
 }
