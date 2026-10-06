@@ -277,12 +277,22 @@ export function priorCalendarMonthWindow(window: CalendarMonthWindow): CalendarM
 export function resolveMainRpMonthlyCacheAuditModels(
   registryIds?: readonly string[]
 ): string[] {
-  const ids =
-    registryIds ??
-    MAIN_RP_USER_SELECTABLE_OPTIONS
-      .filter((option) => option.provider === "cheaperinference")
-      .map((option) => option.id);
-  return ids.map((id) => id.trim().toLowerCase()).filter(Boolean);
+  const providerByCanonicalId = new Map(
+    MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => [
+      option.id.trim().toLowerCase(),
+      option.provider,
+    ] as const)
+  );
+  const ids = registryIds ?? MAIN_RP_MODEL_IDS;
+  return ids
+    .map((id) => id.trim().toLowerCase())
+    .filter(Boolean)
+    .filter((id) => {
+      const provider = providerByCanonicalId.get(id);
+      // Known current Main RP rows are audited here only when their provider is CI.
+      // Unknown injected ids are retained for deterministic drift/expansion tests.
+      return provider == null || provider === "cheaperinference";
+    });
 }
 
 export function resolveCacheMechanism(modelId: string): CacheMechanismEvidence {
@@ -951,10 +961,10 @@ export function assertActiveModelsTrackRegistry(
   registryIds: readonly string[] = MAIN_RP_MODEL_IDS
 ): void {
   const a = [...auditModelIds].map((id) => id.toLowerCase()).sort();
-  const b = [...registryIds].map((id) => id.toLowerCase()).sort();
-  if (JSON.stringify(a) !== JSON.stringify(b)) {
+  const expected = resolveMainRpMonthlyCacheAuditModels(registryIds).sort();
+  if (JSON.stringify(a) !== JSON.stringify(expected)) {
     throw new Error(
-      `AUDITOR_DRIFT: audit models ${JSON.stringify(a)} != registry ${JSON.stringify(b)}`
+      `AUDITOR_DRIFT: audit models ${JSON.stringify(a)} != CI-routed registry projection ${JSON.stringify(expected)}`
     );
   }
 }
