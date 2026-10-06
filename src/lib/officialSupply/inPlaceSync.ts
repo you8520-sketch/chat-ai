@@ -667,6 +667,7 @@ function inspectTarget(input: {
     greeting: string;
     systemPrompt: string;
     world: string;
+    worldId: number | null;
     creatorComment: string;
     exampleDialog: string;
     tagsJson: string;
