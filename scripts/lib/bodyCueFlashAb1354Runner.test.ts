@@ -190,6 +190,73 @@ function passingSupplyPayload(overrides?: { candidateCount?: number; maxInput?: 
   };
 }
 
+function flashSseChunks(overrides?: {
+  first?: string;
+  second?: string;
+  emptyContent?: boolean;
+  omitDone?: boolean;
+  malformed?: boolean;
+  billed?: number;
+  requestId?: string;
+}): string[] {
+  const first = overrides?.emptyContent ? "" : (overrides?.first ?? "가");
+  const second = overrides?.emptyContent ? "" : (overrides?.second ?? "나다");
+  const chunks = [
+    `data: ${JSON.stringify({
+      model: BODY_CUE_1354_MODEL,
+      choices: [{ delta: { content: first } }],
+    })}\n\n`,
+    `data: ${JSON.stringify({
+      choices: [{ delta: { content: second } }],
+    })}\n\n`,
+    `data: ${JSON.stringify({
+      choices: [],
+      usage: {
+        prompt_tokens: 11,
+        completion_tokens: 7,
+        prompt_tokens_details: { cached_tokens: 2, cache_creation_tokens: 1 },
+      },
+      cheaper_inference: {
+        request_id: overrides?.requestId ?? "sse-req-1",
+        billing: { billed_cost_usd: overrides?.billed ?? 0.002, status: "settled" },
+      },
+    })}\n\n`,
+  ];
+  if (overrides?.malformed) chunks.splice(1, 0, "data: {not-json\n\n");
+  if (!overrides?.omitDone) chunks.push("data: [DONE]\n\n");
+  return chunks;
+}
+
+function sseResponse(chunks: string[], headers?: Record<string, string>): Response {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+      controller.close();
+    },
+  });
+  return new Response(body, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/event-stream",
+      "x-ci-request-id": headers?.["x-ci-request-id"] ?? "hdr-req",
+      ...headers,
+    },
+  });
+}
+
+function plainJsonCompletionResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      model: BODY_CUE_1354_MODEL,
+      choices: [{ message: { content: "plain-json" } }],
+      usage: { prompt_tokens: 11, completion_tokens: 7 },
+      cheaper_inference: { billing: { billed_cost_usd: 0.002, status: "settled" } },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json", "x-ci-request-id": "json-req" } }
+  );
+}
+
 function passingCatalogGet(overrides?: {
   modelsOk?: boolean;
   modelsPayload?: unknown;
@@ -669,6 +736,24 @@ describe("#1354 Flash A/B operator runner", () => {
         fallback: false,
       } as PaidCallResult)
     );
+    assert.throws(
+      () =>
+        assertCall1Gate({
+          httpStatus: 200,
+          model: BODY_CUE_1354_MODEL,
+          promptTokens: 10,
+          completionTokens: 16,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+          requestId: "req-1",
+          billedCostUsd: 0.000003,
+          settled: true,
+          text: "",
+          retried: false,
+          fallback: false,
+        }),
+      /empty generated text/
+    );
   });
 
   it("reuses existing owners and never calls resolveCheaperInferenceApiKey", () => {
@@ -683,6 +768,8 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.match(src, /readCompatibleCompletionProviderRequestId/);
     assert.match(src, /CHEAPER_INFERENCE_MODELS_SOURCE_URL/);
     assert.match(src, /createOperatorCheaperInferenceTransport/);
+    assert.match(src, /decodeOpenAiCompatibleSseResponse/);
+    assert.match(src, /openAiCompatibleSseDecoder/);
     assert.match(cli, /createOperatorCheaperInferenceTransport/);
     assert.match(cli, /post: transport\.post/);
     assert.match(cli, /catalogGet: transport\.catalogGet/);
@@ -693,12 +780,139 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.equal(src.includes("from \"@/lib/db\""), false);
     assert.equal(src.includes("getDb("), false);
     assert.equal(src.includes("streamOpenRouterAdult"), false);
+    assert.equal(src.includes("feedGmProviderSseBytes"), false);
     assert.equal(src.includes("executeDeepSeekWithProviderFailover"), false);
     assert.equal(src.includes("callOpenRouterCompletion"), false);
     assertPacketReadyForPaid(passingPacket());
   });
 
-  it("real CLI execute transport posts assembled bodies through a fetch stub", async () => {
+  it("pre-fix res.json() cannot recover real-shaped SSE (CALL1 schema shape)", async () => {
+    const res = sseResponse(flashSseChunks());
+    await assert.rejects(() => res.json());
+    const clone = sseResponse(flashSseChunks());
+    let parsed: unknown = null;
+    let schema = false;
+    try {
+      parsed = await clone.json();
+    } catch {
+      schema = true;
+      parsed = null;
+    }
+    assert.equal(schema, true);
+    assert.equal(parsed, null);
+  });
+
+  it("real CLI execute transport posts stream=true bodies and decodes SSE", async () => {
+    let posts = 0;
+    const streams: unknown[] = [];
+    const fetchImpl: typeof fetch = async (input, init) => {
+      const url = String(input);
+      const method = String(init?.method ?? "GET");
+      if (method === "GET" && url.includes("/models/supply")) {
+        return new Response(JSON.stringify(passingSupplyPayload()), { status: 200 });
+      }
+      if (method === "GET") {
+        return new Response(JSON.stringify(passingCatalogPayload()), { status: 200 });
+      }
+      const posted = JSON.parse(String(init?.body ?? "{}")) as { stream?: unknown };
+      streams.push(posted.stream);
+      posts += 1;
+      return sseResponse(flashSseChunks({ requestId: `wired-${posts}` }), {
+        "x-ci-request-id": `wired-${posts}`,
+      });
+    };
+    const { artifact } = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      fetchImpl,
+      assignLabels: sequentialLabels,
+    });
+    assert.equal(posts, 4);
+    assert.deepEqual(streams, [true, true, true, true]);
+    assert.equal(artifact.status, "EXECUTE_COMPLETE");
+    assert.equal(artifact.results.length, 4);
+    assert.equal(artifact.results[0]?.generatedText, "가나다");
+    assert.equal(artifact.results[0]?.billedCostUsd, 0.002);
+    assert.equal(artifact.results[0]?.settled, true);
+    assert.equal(artifact.results[0]?.model, BODY_CUE_1354_MODEL);
+    assert.equal(artifact.retries, 0);
+    assert.equal(artifact.fallback, 0);
+    assert.ok(artifact.results[0]?.requestIdSha256);
+    assertArtifactHasNoSecrets(artifact, FORBIDDEN);
+  });
+
+  it("stream=true plus plain JSON completion is not production-equivalent success", async () => {
+    const transport = createOperatorCheaperInferenceTransport({
+      fetchImpl: (async (_input, init) => {
+        const posted = JSON.parse(String(init?.body ?? "{}")) as { stream?: unknown };
+        assert.equal(posted.stream, true);
+        return plainJsonCompletionResponse();
+      }) as typeof fetch,
+    });
+    const result = await transport.post({
+      endpoint: "https://api.cheaperinference.com/v1/chat/completions",
+      headers: { Authorization: "Bearer x" },
+      body: { stream: true, model: BODY_CUE_1354_MODEL, messages: [] },
+    });
+    assert.equal(result.errorCategory, "schema");
+    assert.equal(result.text, "");
+    assert.equal(result.model, null);
+    assert.equal(result.settled, false);
+    assert.equal(result.promptTokens, 0);
+    assert.equal(result.retried, false);
+    assert.equal(result.fallback, false);
+  });
+
+  it("operator transport maps real-shaped SSE to settled completion evidence", async () => {
+    const transport = createOperatorCheaperInferenceTransport({
+      fetchImpl: (async () => sseResponse(flashSseChunks())) as typeof fetch,
+    });
+    const result = await transport.post({
+      endpoint: "https://api.cheaperinference.com/v1/chat/completions",
+      headers: { Authorization: "Bearer x" },
+      body: { stream: true, model: BODY_CUE_1354_MODEL, messages: [] },
+    });
+    assert.equal(result.errorCategory, undefined);
+    assert.equal(result.text, "가나다");
+    assert.equal(result.model, BODY_CUE_1354_MODEL);
+    assert.equal(result.promptTokens, 11);
+    assert.equal(result.completionTokens, 7);
+    assert.equal(result.cacheReadTokens, 2);
+    assert.equal(result.cacheWriteTokens, 1);
+    assert.equal(result.settled, true);
+    assert.equal(result.billedCostUsd, 0.002);
+    assert.ok(result.requestId);
+    assert.equal(result.retried, false);
+    assert.equal(result.fallback, false);
+  });
+
+  it("malformed SSE or missing DONE fail closed with zero usable completion", async () => {
+    const malformed = createOperatorCheaperInferenceTransport({
+      fetchImpl: (async () => sseResponse(flashSseChunks({ malformed: true }))) as typeof fetch,
+    });
+    const bad = await malformed.post({
+      endpoint: "https://api.cheaperinference.com/v1/chat/completions",
+      headers: {},
+      body: { stream: true, messages: [] },
+    });
+    assert.equal(bad.errorCategory, "schema");
+    assert.equal(bad.text, "");
+    assert.equal(bad.settled, false);
+
+    const eof = createOperatorCheaperInferenceTransport({
+      fetchImpl: (async () => sseResponse(flashSseChunks({ omitDone: true }))) as typeof fetch,
+    });
+    const truncated = await eof.post({
+      endpoint: "https://api.cheaperinference.com/v1/chat/completions",
+      headers: {},
+      body: { stream: true, messages: [] },
+    });
+    assert.equal(truncated.errorCategory, "schema");
+    assert.equal(truncated.settled, false);
+  });
+
+  it("empty SSE content is CALL1 blocked", async () => {
     let posts = 0;
     const fetchImpl: typeof fetch = async (input, init) => {
       const url = String(input);
@@ -710,35 +924,35 @@ describe("#1354 Flash A/B operator runner", () => {
         return new Response(JSON.stringify(passingCatalogPayload()), { status: 200 });
       }
       posts += 1;
-      return new Response(
-        JSON.stringify({
-          model: BODY_CUE_1354_MODEL,
-          choices: [{ message: { content: `wired-${posts}` } }],
-          usage: {
-            prompt_tokens: 11,
-            completion_tokens: 7,
-            prompt_tokens_details: { cached_tokens: 2, cache_creation_tokens: 1 },
-          },
-          cheaper_inference: { billing: { billed_cost_usd: 0.002, status: "settled" } },
-        }),
-        { status: 200, headers: { "x-ci-request-id": `wired-${posts}` } }
-      );
+      return sseResponse(flashSseChunks({ emptyContent: true }));
     };
-    const { artifact } = await runBodyCueFlashAb1354({
+    const error = await runBodyCueFlashAb1354({
       mode: "execute",
       secretSource: { kind: "stdin", read: () => SECRET },
       seal: passingSeal,
       fetchImpl,
-      assignLabels: sequentialLabels,
+    }).catch((caught: unknown) => caught);
+    assert.ok(error instanceof RunnerStopError);
+    assert.match(error.message, /empty generated text/);
+    assert.equal(posts, 1);
+    assert.equal(error.artifact.status, "CALL1_BLOCKED");
+    assert.equal(error.artifact.results[0]?.generatedText, "");
+  });
+
+  it("HTTP non-ok operator POST is blocked without treating body as success", async () => {
+    const transport = createOperatorCheaperInferenceTransport({
+      fetchImpl: (async () => new Response("nope", { status: 503 })) as typeof fetch,
     });
-    assert.equal(posts, 4);
-    assert.equal(artifact.status, "EXECUTE_COMPLETE");
-    assert.equal(artifact.results.length, 4);
-    assert.equal(artifact.results[0]?.generatedText, "wired-1");
-    assert.equal(artifact.results[0]?.billedCostUsd, 0.002);
-    assert.equal(artifact.results[0]?.settled, true);
-    assert.ok(artifact.results[0]?.requestIdSha256);
-    assertArtifactHasNoSecrets(artifact, FORBIDDEN);
+    const result = await transport.post({
+      endpoint: "https://api.cheaperinference.com/v1/chat/completions",
+      headers: {},
+      body: { stream: true, messages: [] },
+    });
+    assert.equal(result.httpStatus, 503);
+    assert.equal(result.errorCategory, "http");
+    assert.equal(result.text, "");
+    assert.equal(result.retried, false);
+    assert.equal(result.fallback, false);
   });
 
   it("models GET non-ok yields 0 POST", async () => {
@@ -1022,6 +1236,10 @@ describe("#1354 Flash A/B operator runner", () => {
 
   it("approved AB/BA execution order is exact", () => {
     const requests = deriveExperimentRequests(syntheticRows());
+    assert.equal(MAX_PAID_ATTEMPTS, 4);
+    for (const request of requests) {
+      assert.equal(request.requestBody.stream, true);
+    }
     assert.deepEqual(
       requests.map((item) => `${item.sceneId}:${item.variant}`),
       APPROVED_EXECUTION_PLAN.map((item) => `${item.sceneId}:${item.variant}`)

@@ -74,6 +74,12 @@ import {
   readCompatibleCompletionProviderRequestId,
   type DeliveredCompletionProvider,
 } from "@/lib/openRouterCompletion";
+import {
+  createOpenAiCompatibleSseFeedState,
+  extractOpenAiCompatibleStreamDelta,
+  feedOpenAiCompatibleSseChunk,
+  streamContentToText,
+} from "@/lib/openAiCompatibleSseDecoder";
 import { stageUsageReportingEvidenceFromTokenUsage, unreportedUsageReportingEvidence } from "@/lib/usageReportingEvidence";
 import { logOpenRouterCacheStabilityCheck } from "@/lib/openRouterCacheStability";
 import { logCharsPerTokenDiagnostic, logBannedVerbCheck, logHanjaLeakCheck, logLengthDiagnosticV2 } from "@/lib/lengthDiagnosticV2";
@@ -1055,43 +1061,7 @@ function createPrefillEchoStripper(prefill: string) {
   };
 }
 
-/** OpenRouter SSE delta — string·배열(content parts) 모두 처리 */
-function streamContentToText(content: unknown): string {
-  if (content == null) return "";
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) return content.map(streamContentToText).join("");
-  if (typeof content === "object") {
-    const o = content as { text?: unknown; content?: unknown };
-    if (typeof o.text === "string") return o.text;
-    if (typeof o.content === "string") return o.content;
-    if (o.content != null) return streamContentToText(o.content);
-  }
-  return "";
-}
-
 /** OpenRouter usage — @see parseOpenRouterUsage in openRouterUsage.ts */
-function extractOpenRouterStreamDelta(choice: {
-  delta?: {
-    content?: string | unknown[] | null;
-    text?: string | null;
-    reasoning?: string | null;
-  };
-  message?: { content?: string | unknown[] | null };
-  text?: string | null;
-}): string {
-  const delta = choice.delta;
-  if (delta?.content != null) {
-    const fromContent = streamContentToText(delta.content);
-    if (fromContent) return fromContent;
-  }
-  if (delta?.text) return delta.text;
-  if (choice.message?.content != null) {
-    const fromMessage = streamContentToText(choice.message.content);
-    if (fromMessage) return fromMessage;
-  }
-  if (choice.text) return choice.text;
-  return "";
-}
 
 /** 19+ OpenRouter — 분량 미달 시 이어쓰기 (비활성: 무한 API 호출·과출력 방지) */
 
@@ -1690,7 +1660,7 @@ export async function* streamOpenRouterAdult(
 
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
+  const sseState = createOpenAiCompatibleSseFeedState();
   let fullText = "";
   let inputTokens = 0;
   let outputTokens = 0;
@@ -1741,18 +1711,15 @@ export async function* streamOpenRouterAdult(
       if (value?.byteLength) {
         messageOpts?.phaseAudit?.mark("T12_PROVIDER_FIRST_SSE");
       }
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
+      const sseEvents = feedOpenAiCompatibleSseChunk(
+        sseState,
+        decoder.decode(value, { stream: true })
+      );
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith(":")) continue;
-        if (!trimmed.startsWith("data:")) continue;
-        const payload = trimmed.slice(5).trim();
-        if (!payload || payload === "[DONE]") continue;
+      for (const sseEvent of sseEvents) {
+        if (sseEvent.kind !== "json") continue;
         try {
-          const json = JSON.parse(payload) as {
+          const json = sseEvent.value as {
             model?: string | null;
             id?: string | null;
             stop_reason?: string | null;
@@ -1810,7 +1777,7 @@ export async function* streamOpenRouterAdult(
           }
           if (!choice) continue;
 
-          const rawDelta = extractOpenRouterStreamDelta(choice);
+          const rawDelta = extractOpenAiCompatibleStreamDelta(choice);
           const delta = rawDelta ? prefillStripper.push(rawDelta) : "";
           if (delta) {
             messageOpts?.phaseAudit?.mark("T13_PROVIDER_FIRST_VISIBLE_TOKEN");

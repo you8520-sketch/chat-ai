@@ -21,6 +21,11 @@ import {
   loadCharacterChunksReadOnly,
 } from "@/lib/characterChunks";
 import { CHEAPER_INFERENCE_MODELS_SOURCE_URL } from "@/lib/modelPricingTrackingConfig";
+import {
+  decodeOpenAiCompatibleSseResponse,
+  isOpenAiCompatibleSseContentType,
+  reconstructOpenAiCompatibleCompletionBody,
+} from "@/lib/openAiCompatibleSseDecoder";
 import { readCompatibleCompletionProviderRequestId } from "@/lib/openRouterCompletion";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
 import { classifyEnglishLayer } from "@/lib/promptTranslation";
@@ -194,6 +199,9 @@ export function applyBodyCue1354ExperimentOverrides(
   }
   if (adapted.model !== BODY_CUE_1354_MODEL) {
     throw new Error("adaptCheaperInferenceChatBody changed experiment model");
+  }
+  if (body.stream === true && adapted.stream !== true) {
+    throw new Error("adaptCheaperInferenceChatBody stripped experiment stream=true");
   }
   return adapted;
 }
@@ -548,6 +556,9 @@ export function assertPaidCallGate(result: PaidCallResult, callIndex: number): v
   if (result.httpStatus < 200 || result.httpStatus >= 300) {
     throw new Error(`${label} HTTP ${result.httpStatus}`);
   }
+  if (!result.text.trim()) {
+    throw new Error(`${label} empty generated text`);
+  }
   if (result.model !== BODY_CUE_1354_MODEL) {
     throw new Error(`${label} model mismatch`);
   }
@@ -705,28 +716,57 @@ export function createOperatorCheaperInferenceTransport(opts?: {
           errorCategory: timeout ? "timeout" : "network",
         };
       }
+      if (res.status < 200 || res.status >= 300) {
+        return interpretPaidCompletion({
+          status: res.status,
+          headers: res.headers,
+          body: null,
+        });
+      }
+      const schemaFailure = (requestId: string | null): PaidCallResult => ({
+        httpStatus: res.status,
+        model: null,
+        promptTokens: 0,
+        completionTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        billedCostUsd: null,
+        settled: false,
+        requestId,
+        text: "",
+        retried: false,
+        fallback: false,
+        errorCategory: "schema",
+      });
+      const headerRequestId = readCompatibleCompletionProviderRequestId({
+        provider: "cheaperinference",
+        headers: res.headers,
+      });
+      if (body.stream === true) {
+        if (!isOpenAiCompatibleSseContentType(res.headers.get("content-type"))) {
+          return schemaFailure(headerRequestId);
+        }
+        const evidence = await decodeOpenAiCompatibleSseResponse(res);
+        if (evidence.schemaError) {
+          return schemaFailure(
+            readCompatibleCompletionProviderRequestId({
+              provider: "cheaperinference",
+              headers: res.headers,
+              body: reconstructOpenAiCompatibleCompletionBody(evidence),
+            }) ?? headerRequestId
+          );
+        }
+        return interpretPaidCompletion({
+          status: res.status,
+          headers: res.headers,
+          body: reconstructOpenAiCompatibleCompletionBody(evidence),
+        });
+      }
       let parsed: unknown = null;
       try {
         parsed = await res.json();
       } catch {
-        return {
-          httpStatus: res.status,
-          model: null,
-          promptTokens: 0,
-          completionTokens: 0,
-          cacheReadTokens: 0,
-          cacheWriteTokens: 0,
-          billedCostUsd: null,
-          settled: false,
-          requestId: readCompatibleCompletionProviderRequestId({
-            provider: "cheaperinference",
-            headers: res.headers,
-          }),
-          text: "",
-          retried: false,
-          fallback: false,
-          errorCategory: "schema",
-        };
+        return schemaFailure(headerRequestId);
       }
       return interpretPaidCompletion({
         status: res.status,
