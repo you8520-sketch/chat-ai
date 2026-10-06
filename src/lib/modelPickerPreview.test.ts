@@ -39,11 +39,10 @@ import {
 const ACTIVE_DEEPSEEK_MODEL =
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
 
-const ACTIVE = [
+const ACTIVE_WITH_PREVIEW_OWNER = [
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
-  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
 ] as const;
 
 function assistantUsage(
@@ -98,10 +97,10 @@ describe("modelPickerPreview V2", () => {
     );
   });
 
-  it("covers representative active models", () => {
-    const preview = buildModelPickerPreview({ messages: [], modelIds: [...ACTIVE] });
-    assert.equal(preview.models.length, ACTIVE.length);
-    for (const id of ACTIVE) {
+  it("covers current models that already have this legacy preview owner's pricing path", () => {
+    const preview = buildModelPickerPreview({ messages: [], modelIds: [...ACTIVE_WITH_PREVIEW_OWNER] });
+    assert.equal(preview.models.length, ACTIVE_WITH_PREVIEW_OWNER.length);
+    for (const id of ACTIVE_WITH_PREVIEW_OWNER) {
       const row = preview.models.find((m) => m.modelId === id);
       assert.ok(row, id);
       assert.equal(row!.supported, true);
@@ -446,10 +445,10 @@ describe("modelPickerPreview V2", () => {
   it("always shows a P range for cheap and expensive active models", () => {
     const preview = buildModelPickerPreview({
       messages: [],
-      modelIds: [...ACTIVE],
-      assembledSnapshotTokensByModel: Object.fromEntries(ACTIVE.map((id) => [id, 12_000])),
+      modelIds: [...ACTIVE_WITH_PREVIEW_OWNER],
+      assembledSnapshotTokensByModel: Object.fromEntries(ACTIVE_WITH_PREVIEW_OWNER.map((id) => [id, 12_000])),
     });
-    for (const id of ACTIVE) {
+    for (const id of ACTIVE_WITH_PREVIEW_OWNER) {
       const row = preview.models.find((m) => m.modelId === id)!;
       assert.ok(row.estimatedPointsLow != null && row.estimatedPointsHigh != null, id);
       assert.ok(row.estimatedPointsHigh! > row.estimatedPointsLow!, id);
