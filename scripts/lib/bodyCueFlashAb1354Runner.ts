@@ -20,6 +20,14 @@ import {
   loadCharacterChunksForPromptReadOnly,
   loadCharacterChunksReadOnly,
 } from "@/lib/characterChunks";
+import {
+  buildUsageRequestLookupWindow,
+  CI_USAGE_CHAT_COMPLETIONS_ENDPOINT,
+  CI_USAGE_REQUEST_LOOKUP_BUDGET_MS,
+  CI_USAGE_REQUEST_LOOKUP_MAX_GETS,
+  lookupCheaperInferenceUsageRequestById,
+  type CheaperInferenceUsageRequest,
+} from "@/lib/cheaperInferenceUsage";
 import { CHEAPER_INFERENCE_MODELS_SOURCE_URL } from "@/lib/modelPricingTrackingConfig";
 import {
   decodeOpenAiCompatibleSseResponse,
@@ -28,6 +36,7 @@ import {
 } from "@/lib/openAiCompatibleSseDecoder";
 import { readCompatibleCompletionProviderRequestId } from "@/lib/openRouterCompletion";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
+import { resolveUsageReportingCheaperInferenceApiKey } from "./cheaperInferenceUsageReportingCredential";
 import { classifyEnglishLayer } from "@/lib/promptTranslation";
 import {
   assembleLiveDeployedBodyCueSceneRequests,
@@ -461,6 +470,8 @@ export function planApprovedExecution(derived: ExperimentArmRequest[]): Experime
   });
 }
 
+export type BillingEvidenceSource = "stream_inline" | "usage_requests";
+
 export type PaidCallResult = {
   httpStatus: number;
   model: string | null;
@@ -475,6 +486,8 @@ export type PaidCallResult = {
   retried: false;
   fallback: false;
   errorCategory?: string;
+  billingEvidenceSource?: BillingEvidenceSource | null;
+  providerRequestStatus?: string | null;
 };
 
 export type ProviderPostFn = (input: {
@@ -548,13 +561,27 @@ export function interpretPaidCompletion(res: {
     retried: false,
     fallback: false,
     errorCategory: res.status < 200 || res.status >= 300 ? "http" : undefined,
+    billingEvidenceSource: null,
+    providerRequestStatus: readCheaperInferenceBillingStatus(cheaper),
   };
 }
 
-export function assertPaidCallGate(result: PaidCallResult, callIndex: number): void {
+export function hasStreamInlineExactCost(result: PaidCallResult): boolean {
+  return (
+    result.settled === true &&
+    result.billedCostUsd != null &&
+    Number.isFinite(result.billedCostUsd) &&
+    result.billedCostUsd > 0
+  );
+}
+
+export function assertPaidTransportGate(result: PaidCallResult, callIndex: number): void {
   const label = `CALL ${callIndex}`;
   if (result.httpStatus < 200 || result.httpStatus >= 300) {
     throw new Error(`${label} HTTP ${result.httpStatus}`);
+  }
+  if (result.errorCategory) {
+    throw new Error(`${label} ${result.errorCategory}`);
   }
   if (!result.text.trim()) {
     throw new Error(`${label} empty generated text`);
@@ -562,18 +589,61 @@ export function assertPaidCallGate(result: PaidCallResult, callIndex: number): v
   if (result.model !== BODY_CUE_1354_MODEL) {
     throw new Error(`${label} model mismatch`);
   }
+  if (
+    !Number.isFinite(result.promptTokens) ||
+    !Number.isFinite(result.completionTokens)
+  ) {
+    throw new Error(`${label} usage missing`);
+  }
   if (result.completionTokens > BODY_CUE_1354_MAX_TOKENS) {
     throw new Error(`${label} completion_tokens exceeded 8192`);
   }
   if (!result.requestId) {
     throw new Error(`${label} missing request id`);
   }
-  if (!result.settled || result.billedCostUsd == null) {
-    throw new Error(`${label} unsettled billing evidence`);
-  }
   if (result.retried || result.fallback) {
     throw new Error(`${label} retry/fallback is forbidden`);
   }
+}
+
+export function assertPaidExactCostGate(result: PaidCallResult, callIndex: number): void {
+  const label = `CALL ${callIndex}`;
+  if (!result.settled || result.billedCostUsd == null || result.billedCostUsd <= 0) {
+    throw new Error(`${label} unsettled billing evidence`);
+  }
+}
+
+export function assertPaidCallGate(result: PaidCallResult, callIndex: number): void {
+  assertPaidTransportGate(result, callIndex);
+  assertPaidExactCostGate(result, callIndex);
+}
+
+export function applyUsageRequestExactCost(
+  result: PaidCallResult,
+  row: CheaperInferenceUsageRequest
+): { ok: true; result: PaidCallResult } | { ok: false; reason: string } {
+  if (row.status !== "settled") {
+    return { ok: false, reason: "usage request unsettled" };
+  }
+  if (!(row.billedMicroUsd > 0)) {
+    return { ok: false, reason: "usage billed cost missing" };
+  }
+  if (row.model !== BODY_CUE_1354_MODEL) {
+    return { ok: false, reason: "usage model mismatch" };
+  }
+  if (row.endpoint !== CI_USAGE_CHAT_COMPLETIONS_ENDPOINT) {
+    return { ok: false, reason: "usage endpoint mismatch" };
+  }
+  return {
+    ok: true,
+    result: {
+      ...result,
+      settled: true,
+      billedCostUsd: row.billedMicroUsd / 1_000_000,
+      billingEvidenceSource: "usage_requests",
+      providerRequestStatus: row.status,
+    },
+  };
 }
 
 export function assertCall1Gate(result: PaidCallResult): void {
@@ -800,6 +870,8 @@ export type PaidResultRecord = {
   model: string | null;
   attemptNumber: number;
   errorCategory?: string;
+  billingEvidenceSource?: BillingEvidenceSource | null;
+  providerRequestStatus?: string | null;
 };
 
 export type BlindReveal = {
@@ -1006,6 +1078,8 @@ function recordPaidResult(
     model: result.model,
     attemptNumber,
     ...(result.errorCategory ? { errorCategory: result.errorCategory } : {}),
+    billingEvidenceSource: result.billingEvidenceSource ?? null,
+    providerRequestStatus: result.providerRequestStatus ?? null,
   });
   artifact.paidPostCount = artifact.results.length;
   artifact.attemptedPostCount = artifact.results.length;
@@ -1044,9 +1118,13 @@ function failedPaidCall(partial: Partial<PaidCallResult> & { errorCategory: stri
     text: "",
     retried: false,
     fallback: false,
+    billingEvidenceSource: null,
+    providerRequestStatus: null,
     ...partial,
   };
 }
+
+export type UsageRequestLookupFn = typeof lookupCheaperInferenceUsageRequestById;
 
 export async function runBodyCueFlashAb1354(opts: {
   mode: RunnerMode;
@@ -1057,6 +1135,9 @@ export async function runBodyCueFlashAb1354(opts: {
   fetchImpl?: typeof fetch;
   productionDeploySha?: string | null;
   assignLabels?: typeof assignBlindLabels;
+  usageReportingEnv?: NodeJS.ProcessEnv;
+  lookupUsageRequest?: UsageRequestLookupFn;
+  now?: () => number;
 }): Promise<RunnerOutput> {
   let secret: string | null = null;
   if (opts.mode === "execute") {
@@ -1129,6 +1210,9 @@ export async function runBodyCueFlashAb1354(opts: {
 
   const budget = new PaidAttemptBudget();
   const seenRequestIds = new Set<string>();
+  const lookupUsage =
+    opts.lookupUsageRequest ?? lookupCheaperInferenceUsageRequestById;
+  const now = opts.now ?? Date.now;
 
   const halt = (status: Extract<RunnerStatus, "CALL1_BLOCKED" | "EARLY_STOP">, message: string): never => {
     artifact.status = status;
@@ -1140,6 +1224,7 @@ export async function runBodyCueFlashAb1354(opts: {
     const callIndex = index + 1;
     const haltStatus = callIndex === 1 ? "CALL1_BLOCKED" : "EARLY_STOP";
     const attempt = budget.consumeBeforePost();
+    const requestStartedAtMs = now();
     let result: PaidCallResult;
     try {
       result = await transport.post({
@@ -1156,18 +1241,94 @@ export async function runBodyCueFlashAb1354(opts: {
       );
       halt(haltStatus, `CALL ${callIndex} provider post failed`);
     }
-    recordPaidResult(artifact, request, result, attempt);
+    try {
+      assertPaidTransportGate(result, callIndex);
+    } catch (error) {
+      recordPaidResult(artifact, request, result, attempt);
+      halt(haltStatus, error instanceof Error ? error.message : `CALL ${callIndex} gate failed`);
+    }
     if (result.requestId) {
       if (seenRequestIds.has(result.requestId)) {
+        recordPaidResult(artifact, request, result, attempt);
         halt(haltStatus, "duplicate request id");
       }
       seenRequestIds.add(result.requestId);
     }
+    if (hasStreamInlineExactCost(result)) {
+      result = {
+        ...result,
+        billingEvidenceSource: "stream_inline",
+        providerRequestStatus: result.providerRequestStatus ?? "settled",
+      };
+    } else {
+      const reporting = resolveUsageReportingCheaperInferenceApiKey(
+        opts.usageReportingEnv ?? process.env
+      );
+      if (!reporting.ok) {
+        recordPaidResult(
+          artifact,
+          request,
+          {
+            ...result,
+            settled: false,
+            billedCostUsd: null,
+            billingEvidenceSource: null,
+          },
+          attempt
+        );
+        halt(haltStatus, `CALL ${callIndex} missing usage reporting credential`);
+      }
+      const window = buildUsageRequestLookupWindow(requestStartedAtMs, now());
+      const lookup = await lookupUsage({
+        requestId: result.requestId!,
+        startAt: window.startAt,
+        endAt: window.endAt,
+        apiKey: reporting.apiKey,
+        fetchImpl: opts.fetchImpl,
+        maxGets: CI_USAGE_REQUEST_LOOKUP_MAX_GETS,
+        totalBudgetMs: CI_USAGE_REQUEST_LOOKUP_BUDGET_MS,
+        now,
+      });
+      if (!lookup.ok) {
+        recordPaidResult(
+          artifact,
+          request,
+          {
+            ...result,
+            settled: false,
+            billedCostUsd: null,
+            billingEvidenceSource: null,
+            providerRequestStatus: null,
+          },
+          attempt
+        );
+        halt(haltStatus, `CALL ${callIndex} usage request lookup failed`);
+      }
+      const applied = applyUsageRequestExactCost(result, lookup.value);
+      if (!applied.ok) {
+        recordPaidResult(
+          artifact,
+          request,
+          {
+            ...result,
+            settled: false,
+            billedCostUsd: null,
+            billingEvidenceSource: "usage_requests",
+            providerRequestStatus: lookup.value.status,
+          },
+          attempt
+        );
+        halt(haltStatus, `CALL ${callIndex} ${applied.reason}`);
+      }
+      result = applied.result;
+    }
     try {
-      assertPaidCallGate(result, callIndex);
+      assertPaidExactCostGate(result, callIndex);
     } catch (error) {
+      recordPaidResult(artifact, request, result, attempt);
       halt(haltStatus, error instanceof Error ? error.message : `CALL ${callIndex} gate failed`);
     }
+    recordPaidResult(artifact, request, result, attempt);
   }
 
   artifact.status = "EXECUTE_COMPLETE";

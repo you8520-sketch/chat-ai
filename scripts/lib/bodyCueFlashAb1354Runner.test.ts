@@ -31,6 +31,8 @@ import {
   parseFlashCatalogGate,
   parseFlashSupplyGate,
   readExperimentSecretOnce,
+  applyUsageRequestExactCost,
+  hasStreamInlineExactCost,
   runBodyCueFlashAb1354,
   RunnerStopError,
   sealLiveDeployedInputFromDb,
@@ -47,8 +49,9 @@ const Database = require("better-sqlite3") as typeof import("better-sqlite3");
 
 const SECRET = "sk-test-experiment-secret";
 const PROD_KEY = "prod-key-must-never-be-used";
+const USAGE_KEY = "usage-read-only-test-key";
 const SOURCE_MARKER = "UNIQUE_SOURCE_MARKER_렌본부숙소창가";
-const FORBIDDEN = [SECRET, PROD_KEY, SOURCE_MARKER, "닉네임테스트", "Authorization"];
+const FORBIDDEN = [SECRET, PROD_KEY, USAGE_KEY, SOURCE_MARKER, "닉네임테스트", "Authorization"];
 
 function syntheticRows(): LiveDeployedBodyCueRows {
   return {
@@ -198,6 +201,7 @@ function flashSseChunks(overrides?: {
   malformed?: boolean;
   billed?: number;
   requestId?: string;
+  omitBilling?: boolean;
 }): string[] {
   const first = overrides?.emptyContent ? "" : (overrides?.first ?? "가");
   const second = overrides?.emptyContent ? "" : (overrides?.second ?? "나다");
@@ -218,7 +222,9 @@ function flashSseChunks(overrides?: {
       },
       cheaper_inference: {
         request_id: overrides?.requestId ?? "sse-req-1",
-        billing: { billed_cost_usd: overrides?.billed ?? 0.002, status: "settled" },
+        ...(overrides?.omitBilling
+          ? {}
+          : { billing: { billed_cost_usd: overrides?.billed ?? 0.002, status: "settled" } }),
       },
     })}\n\n`,
   ];
@@ -770,6 +776,9 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.match(src, /createOperatorCheaperInferenceTransport/);
     assert.match(src, /decodeOpenAiCompatibleSseResponse/);
     assert.match(src, /openAiCompatibleSseDecoder/);
+    assert.match(src, /lookupCheaperInferenceUsageRequestById/);
+    assert.match(src, /resolveUsageReportingCheaperInferenceApiKey/);
+    assert.equal(src.includes("reconcileCheaperInferenceRequestById"), false);
     assert.match(cli, /createOperatorCheaperInferenceTransport/);
     assert.match(cli, /post: transport\.post/);
     assert.match(cli, /catalogGet: transport\.catalogGet/);
@@ -804,10 +813,15 @@ describe("#1354 Flash A/B operator runner", () => {
 
   it("real CLI execute transport posts stream=true bodies and decodes SSE", async () => {
     let posts = 0;
+    let usageGets = 0;
     const streams: unknown[] = [];
     const fetchImpl: typeof fetch = async (input, init) => {
       const url = String(input);
       const method = String(init?.method ?? "GET");
+      if (method === "GET" && url.includes("/usage/requests")) {
+        usageGets += 1;
+        throw new Error("inline exact cost must not lookup usage");
+      }
       if (method === "GET" && url.includes("/models/supply")) {
         return new Response(JSON.stringify(passingSupplyPayload()), { status: 200 });
       }
@@ -829,8 +843,10 @@ describe("#1354 Flash A/B operator runner", () => {
       assignLabels: sequentialLabels,
     });
     assert.equal(posts, 4);
+    assert.equal(usageGets, 0);
     assert.deepEqual(streams, [true, true, true, true]);
     assert.equal(artifact.status, "EXECUTE_COMPLETE");
+    assert.equal(artifact.results[0]?.billingEvidenceSource, "stream_inline");
     assert.equal(artifact.results.length, 4);
     assert.equal(artifact.results[0]?.generatedText, "가나다");
     assert.equal(artifact.results[0]?.billedCostUsd, 0.002);
@@ -1179,9 +1195,10 @@ describe("#1354 Flash A/B operator runner", () => {
       seal: passingSeal,
       post: post.fn,
       catalogGet: passingCatalogGet().fn,
+      usageReportingEnv: { CHEAPER_INFERENCE_API_KEY: PROD_KEY } as NodeJS.ProcessEnv,
     }).catch((caught: unknown) => caught);
     assert.ok(error instanceof RunnerStopError);
-    assert.match(error.message, /unsettled/);
+    assert.match(error.message, /unsettled|missing usage reporting credential/);
     assert.equal(post.box.calls, 1);
     assert.equal(error.artifact.status, "CALL1_BLOCKED");
   });
@@ -1303,5 +1320,321 @@ describe("#1354 Flash A/B operator runner", () => {
     });
     assert.equal(typeof transport.post, "function");
     assert.equal(typeof transport.catalogGet, "function");
+  });
+});
+
+function usageSettledItem(requestId: string, overrides?: Record<string, unknown>) {
+  return {
+    request_id: requestId,
+    status: "settled",
+    billed_cost_usd: "0.000528",
+    model: BODY_CUE_1354_MODEL,
+    endpoint: "/v1/chat/completions",
+    created_at: "2026-10-06T05:56:02.480Z",
+    ...overrides,
+  };
+}
+
+function usagePage(items: unknown[]) {
+  return new Response(JSON.stringify({ data: items }), { status: 200 });
+}
+
+function deferredExecuteFetch(opts?: {
+  usagePages?: Array<unknown[] | { http: number }>;
+  emptyText?: boolean;
+  httpStatus?: number;
+  missFirstUsage?: boolean;
+}): { fetchImpl: typeof fetch; counts: { posts: number; usageGets: number; auth: string[] } } {
+  const counts = { posts: 0, usageGets: 0, auth: [] as string[] };
+  const postedIds: string[] = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = String(input);
+    const method = String(init?.method ?? "GET");
+    const headers = init?.headers as Record<string, string> | undefined;
+    const auth = String(headers?.Authorization ?? "");
+    if (method === "GET" && url.includes("/usage/requests")) {
+      counts.usageGets += 1;
+      counts.auth.push(auth);
+      if (opts?.usagePages) {
+        const page = opts.usagePages[counts.usageGets - 1] ?? opts.usagePages[opts.usagePages.length - 1]!;
+        if (!Array.isArray(page)) {
+          return new Response("denied", { status: page.http });
+        }
+        return usagePage(page);
+      }
+      if (opts?.missFirstUsage && counts.usageGets === 1) {
+        return usagePage([]);
+      }
+      return usagePage(postedIds.map((id) => usageSettledItem(id)));
+    }
+    if (method === "GET" && url.includes("/models/supply")) {
+      return new Response(JSON.stringify(passingSupplyPayload()), { status: 200 });
+    }
+    if (method === "GET") {
+      return new Response(JSON.stringify(passingCatalogPayload()), { status: 200 });
+    }
+    counts.posts += 1;
+    const requestId = `sse-req-${counts.posts}`;
+    postedIds.push(requestId);
+    if (opts?.httpStatus && opts.httpStatus >= 400) {
+      return new Response("nope", { status: opts.httpStatus });
+    }
+    return sseResponse(
+      flashSseChunks({
+        requestId,
+        omitBilling: true,
+        emptyContent: opts?.emptyText === true,
+      }),
+      { "x-ci-request-id": requestId }
+    );
+  };
+  return { fetchImpl, counts };
+}
+
+describe("bodyCueFlashAb1354Runner usage settlement parity", () => {
+  const reportingEnv = {
+    CHEAPER_INFERENCE_USAGE_API_KEY: USAGE_KEY,
+    CHEAPER_INFERENCE_BENCHMARK_API_KEY: "",
+    CHEAPER_INFERENCE_API_KEY: PROD_KEY,
+  } as NodeJS.ProcessEnv;
+
+  it("inline stream billing skips usage lookup", async () => {
+    const { fetchImpl, counts } = deferredExecuteFetch();
+    const inline: typeof fetch = async (input, init) => {
+      const url = String(input);
+      if (url.includes("/usage/requests")) {
+        counts.usageGets += 1;
+        throw new Error("inline path must not GET usage");
+      }
+      if (String(init?.method ?? "GET") !== "GET") {
+        counts.posts += 1;
+        const requestId = `inline-${counts.posts}`;
+        return sseResponse(flashSseChunks({ requestId }), {
+          "x-ci-request-id": requestId,
+        });
+      }
+      return fetchImpl(input, init);
+    };
+    const { artifact } = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      fetchImpl: inline,
+      assignLabels: sequentialLabels,
+      usageReportingEnv: reportingEnv,
+    });
+    assert.equal(artifact.status, "EXECUTE_COMPLETE");
+    assert.equal(counts.usageGets, 0);
+    assert.equal(counts.posts, 4);
+    assert.equal(artifact.results[0]?.billingEvidenceSource, "stream_inline");
+    assert.equal(artifact.results[0]?.settled, true);
+  });
+
+  it("deferred usage settled row completes CALL without extra POST", async () => {
+    const { fetchImpl, counts } = deferredExecuteFetch();
+    const { artifact } = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      fetchImpl,
+      assignLabels: sequentialLabels,
+      usageReportingEnv: reportingEnv,
+    });
+    assert.equal(artifact.status, "EXECUTE_COMPLETE");
+    assert.equal(counts.posts, 4);
+    assert.ok(counts.usageGets >= 4);
+    assert.equal(artifact.results[0]?.billingEvidenceSource, "usage_requests");
+    assert.equal(artifact.results[0]?.settled, true);
+    assert.equal(artifact.results[0]?.billedCostUsd, 0.000528);
+    assert.equal(artifact.results[0]?.providerRequestStatus, "settled");
+    assert.equal(artifact.results[0]?.generatedText, "가나다");
+    assert.ok(counts.auth.every((value) => value.includes(USAGE_KEY)));
+    assert.ok(counts.auth.every((value) => !value.includes(PROD_KEY)));
+    assertArtifactHasNoSecrets(artifact, FORBIDDEN);
+    assert.equal(JSON.stringify(artifact).includes("sse-req-1"), false);
+  });
+
+  it("polls a second usage GET when the first page misses the request", async () => {
+    const { fetchImpl, counts } = deferredExecuteFetch({ missFirstUsage: true });
+    const { artifact } = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      fetchImpl,
+      assignLabels: sequentialLabels,
+      usageReportingEnv: reportingEnv,
+    });
+    assert.equal(artifact.status, "EXECUTE_COMPLETE");
+    assert.equal(artifact.results[0]?.billingEvidenceSource, "usage_requests");
+    assert.ok(counts.usageGets >= 2);
+    assert.equal(counts.posts, 4);
+  });
+
+  it("missing usage row after bound blocks CALL1 and skips later POSTs", async () => {
+    const post = trackingPost((n) => ({
+      settled: false,
+      billedCostUsd: null,
+      requestId: `req-${n}`,
+    }));
+    let usageGets = 0;
+    const error = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      post: post.fn,
+      catalogGet: passingCatalogGet().fn,
+      usageReportingEnv: reportingEnv,
+      lookupUsageRequest: async () => {
+        usageGets += 1;
+        return { ok: false, reason: "incomplete", message: "missing" };
+      },
+    }).catch((caught: unknown) => caught);
+    assert.ok(error instanceof RunnerStopError);
+    assert.equal(error.artifact.status, "CALL1_BLOCKED");
+    assert.equal(post.box.calls, 1);
+    assert.equal(usageGets, 1);
+  });
+
+  it("unsettled usage row blocks", async () => {
+    const applied = applyUsageRequestExactCost(successCall(1, { settled: false, billedCostUsd: null }), {
+      requestId: "req-1",
+      status: "pending",
+      billedMicroUsd: 528,
+      settled: false,
+      model: BODY_CUE_1354_MODEL,
+      endpoint: "/v1/chat/completions",
+      createdAt: null,
+    });
+    assert.equal(applied.ok, false);
+  });
+
+  it("zero billed usage cost blocks", async () => {
+    const applied = applyUsageRequestExactCost(successCall(1, { settled: false, billedCostUsd: null }), {
+      requestId: "req-1",
+      status: "settled",
+      billedMicroUsd: 0,
+      settled: false,
+      model: BODY_CUE_1354_MODEL,
+      endpoint: "/v1/chat/completions",
+      createdAt: null,
+    });
+    assert.equal(applied.ok, false);
+  });
+
+  it("wrong usage request id is not applied", async () => {
+    const { fetchImpl, counts } = deferredExecuteFetch({
+      usagePages: [[usageSettledItem("other-id")]],
+    });
+    const error = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      fetchImpl,
+      usageReportingEnv: reportingEnv,
+    }).catch((caught: unknown) => caught);
+    assert.ok(error instanceof RunnerStopError);
+    assert.equal(error.artifact.status, "CALL1_BLOCKED");
+    assert.equal(counts.posts, 1);
+    assert.ok(counts.usageGets >= 1);
+  });
+
+  it("wrong usage model blocks", () => {
+    const applied = applyUsageRequestExactCost(successCall(1, { settled: false, billedCostUsd: null }), {
+      requestId: "req-1",
+      status: "settled",
+      billedMicroUsd: 528,
+      settled: true,
+      model: "deepseek-v4-flash",
+      endpoint: "/v1/chat/completions",
+      createdAt: null,
+    });
+    assert.equal(applied.ok, false);
+  });
+
+  it("wrong usage endpoint blocks", () => {
+    const applied = applyUsageRequestExactCost(successCall(1, { settled: false, billedCostUsd: null }), {
+      requestId: "req-1",
+      status: "settled",
+      billedMicroUsd: 528,
+      settled: true,
+      model: BODY_CUE_1354_MODEL,
+      endpoint: "/chat/completions",
+      createdAt: null,
+    });
+    assert.equal(applied.ok, false);
+  });
+
+  it("missing usage reporting credential blocks without production fallback", async () => {
+    const post = trackingPost((n) => ({
+      settled: false,
+      billedCostUsd: null,
+      requestId: `req-${n}`,
+    }));
+    let lookups = 0;
+    const error = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      post: post.fn,
+      catalogGet: passingCatalogGet().fn,
+      usageReportingEnv: {
+        CHEAPER_INFERENCE_API_KEY: PROD_KEY,
+      } as NodeJS.ProcessEnv,
+      lookupUsageRequest: async () => {
+        lookups += 1;
+        return { ok: false, reason: "no_key", message: "should-not-run" };
+      },
+    }).catch((caught: unknown) => caught);
+    assert.ok(error instanceof RunnerStopError);
+    assert.match(error.message, /missing usage reporting credential/);
+    assert.equal(error.artifact.status, "CALL1_BLOCKED");
+    assert.equal(post.box.calls, 1);
+    assert.equal(lookups, 0);
+    assert.equal(JSON.stringify(error.artifact).includes(PROD_KEY), false);
+  });
+
+  it("usage GET 403 blocks", async () => {
+    const { fetchImpl, counts } = deferredExecuteFetch({
+      usagePages: [{ http: 403 }],
+    });
+    const error = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      fetchImpl,
+      usageReportingEnv: reportingEnv,
+    }).catch((caught: unknown) => caught);
+    assert.ok(error instanceof RunnerStopError);
+    assert.equal(error.artifact.status, "CALL1_BLOCKED");
+    assert.equal(counts.posts, 1);
+    assert.equal(counts.usageGets, 1);
+  });
+
+  it("CALL1 transport failure does not attempt usage reconciliation", async () => {
+    let lookups = 0;
+    const error = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      fetchImpl: deferredExecuteFetch({ emptyText: true }).fetchImpl,
+      usageReportingEnv: reportingEnv,
+      lookupUsageRequest: async () => {
+        lookups += 1;
+        throw new Error("transport failure must not lookup");
+      },
+    }).catch((caught: unknown) => caught);
+    assert.ok(error instanceof RunnerStopError);
+    assert.match(error.message, /empty generated text/);
+    assert.equal(error.artifact.status, "CALL1_BLOCKED");
+    assert.equal(lookups, 0);
+  });
+
+  it("stream inline exact cost stays the fast path", () => {
+    const inline = successCall(1);
+    assert.equal(hasStreamInlineExactCost(inline), true);
+    assert.equal(
+      hasStreamInlineExactCost(successCall(1, { settled: false, billedCostUsd: null })),
+      false
+    );
   });
 });

@@ -6,9 +6,10 @@ import { toMicroUsd } from "@/lib/providerCostLedger";
 
 /**
  * CheaperInference usage/spend client (usage:read scope).
- * Uses the existing server-side credential owner (CHEAPER_INFERENCE_API_KEY);
- * never introduces a new secret. Decimals are validated as strings and
- * normalized to integer micro-USD so reconciliation never drifts on floats.
+ * Production default credential is resolveCheaperInferenceApiKey().
+ * Operator/reporting callers may pass an explicit usage:read apiKey instead.
+ * Decimals are validated as strings and normalized to integer micro-USD so
+ * reconciliation never drifts on floats.
  */
 
 export const CI_USAGE_REQUESTS_URL = `${CHEAPER_INFERENCE_BASE_URL}/usage/requests`;
@@ -158,12 +159,19 @@ type FetchOutcome =
 
 async function requestJson(
   url: string,
-  fetchImpl: UsageFetcher
+  fetchImpl: UsageFetcher,
+  apiKey?: string
 ): Promise<FetchOutcome> {
   let key: string;
   try {
-    key = resolveCheaperInferenceApiKey();
+    key = apiKey?.trim() || resolveCheaperInferenceApiKey();
   } catch {
+    return {
+      kind: "error",
+      result: { ok: false, reason: "no_key", message: "NO_CHEAPER_INFERENCE_KEY" },
+    };
+  }
+  if (!key) {
     return {
       kind: "error",
       result: { ok: false, reason: "no_key", message: "NO_CHEAPER_INFERENCE_KEY" },
@@ -215,6 +223,8 @@ export async function fetchUsageRequestsPage(opts: {
   limit?: number;
   cursor?: string | null;
   fetchImpl?: UsageFetcher;
+  /** Explicit usage:read credential. Production default still uses resolveCheaperInferenceApiKey(). */
+  apiKey?: string;
 }): Promise<UsageClientResult<{ requests: CheaperInferenceUsageRequest[]; nextCursor: string | null }>> {
   const fetchImpl = opts.fetchImpl ?? fetch;
   const params = new URLSearchParams({
@@ -223,7 +233,11 @@ export async function fetchUsageRequestsPage(opts: {
     limit: String(clampLimit(opts.limit)),
   });
   if (opts.cursor) params.set("cursor", opts.cursor);
-  const outcome = await requestJson(`${CI_USAGE_REQUESTS_URL}?${params.toString()}`, fetchImpl);
+  const outcome = await requestJson(
+    `${CI_USAGE_REQUESTS_URL}?${params.toString()}`,
+    fetchImpl,
+    opts.apiKey
+  );
   if (outcome.kind === "error") return outcome.result;
   const parsed = parseRequestsPage(outcome.payload);
   if (!parsed) {
@@ -246,6 +260,7 @@ export async function fetchAllUsageRequests(opts: {
   limit?: number;
   maxPages?: number;
   fetchImpl?: UsageFetcher;
+  apiKey?: string;
 }): Promise<UsageClientResult<{ requests: CheaperInferenceUsageRequest[]; pages: number }>> {
   const maxPages = Math.max(1, Math.floor(opts.maxPages ?? 50));
   const requests: CheaperInferenceUsageRequest[] = [];
@@ -258,6 +273,7 @@ export async function fetchAllUsageRequests(opts: {
       limit: opts.limit,
       cursor,
       fetchImpl: opts.fetchImpl,
+      apiKey: opts.apiKey,
     });
     if (!page.ok) return page;
     requests.push(...page.value.requests);
@@ -272,6 +288,90 @@ export async function fetchAllUsageRequests(opts: {
     };
   }
   return { ok: true, value: { requests, pages } };
+}
+
+export const CI_USAGE_REQUEST_LOOKUP_MAX_GETS = 3;
+export const CI_USAGE_REQUEST_LOOKUP_BUDGET_MS = 30_000;
+export const CI_USAGE_CHAT_COMPLETIONS_ENDPOINT = "/v1/chat/completions";
+
+/** Same window as production targeted reconcile: start-2min … now+1min. */
+export function buildUsageRequestLookupWindow(
+  requestStartedAtMs: number,
+  nowMs: number
+): { startAt: string; endAt: string } {
+  const startMs = Math.max(0, requestStartedAtMs - 2 * 60_000);
+  const endMs = nowMs + 60_000;
+  return {
+    startAt: new Date(startMs).toISOString(),
+    endAt: new Date(endMs).toISOString(),
+  };
+}
+
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+/**
+ * Read-only bounded lookup of one provider request id.
+ * Does not write the production ledger. HTTP errors fail closed immediately.
+ */
+export async function lookupCheaperInferenceUsageRequestById(opts: {
+  requestId: string;
+  startAt: string;
+  endAt: string;
+  apiKey: string;
+  fetchImpl?: UsageFetcher;
+  maxGets?: number;
+  totalBudgetMs?: number;
+  now?: () => number;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<UsageClientResult<CheaperInferenceUsageRequest>> {
+  const apiKey = opts.apiKey.trim();
+  if (!apiKey) {
+    return { ok: false, reason: "no_key", message: "NO_USAGE_REPORTING_KEY" };
+  }
+  const requestId = opts.requestId.trim();
+  if (!requestId) {
+    return { ok: false, reason: "schema", message: "usage lookup missing request id" };
+  }
+  const maxGets = Math.min(
+    CI_USAGE_REQUEST_LOOKUP_MAX_GETS,
+    Math.max(1, Math.floor(opts.maxGets ?? CI_USAGE_REQUEST_LOOKUP_MAX_GETS))
+  );
+  const budgetMs = Math.max(
+    0,
+    Math.floor(opts.totalBudgetMs ?? CI_USAGE_REQUEST_LOOKUP_BUDGET_MS)
+  );
+  const now = opts.now ?? Date.now;
+  const sleep = opts.sleep ?? defaultSleep;
+  const started = now();
+  let lastMissing: UsageClientResult<CheaperInferenceUsageRequest> = {
+    ok: false,
+    reason: "incomplete",
+    message: "provider request not in usage window",
+  };
+
+  for (let attempt = 0; attempt < maxGets; attempt += 1) {
+    if (now() - started > budgetMs) break;
+    const page = await fetchUsageRequestsPage({
+      startAt: opts.startAt,
+      endAt: opts.endAt,
+      apiKey,
+      fetchImpl: opts.fetchImpl,
+    });
+    if (!page.ok) return page;
+    const match = page.value.requests.find((row) => row.requestId === requestId);
+    if (match) return { ok: true, value: match };
+    if (attempt < maxGets - 1) {
+      const remaining = budgetMs - (now() - started);
+      if (remaining <= 0) break;
+      await sleep(Math.min(1_000, remaining));
+    }
+  }
+
+  return lastMissing;
 }
 
 /**
