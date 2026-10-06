@@ -156,7 +156,7 @@ async function freshBatch(
 ) {
   batchSeq += 1;
   const batchKey = `rep-batch-${batchSeq}`;
-  const styleKey = `romance_fantasy_rep_${batchSeq}`;
+  const styleKey = `romance_fantasy_v${20000 + batchSeq}`;
   store.createBatch(batchKey, testBatchConfig({ ...config, budgetUsd: { batch: 100 } }));
   store.proposeStyle({ styleKey, genre: "로맨스 판타지", candidates: ["c1", "c2", "c3"].map(testStyleCandidate) });
   store.approveStyleCandidate(styleKey, "c2", styleSeed, "owner");
@@ -618,13 +618,13 @@ describe("replacement spend and review gates", () => {
 describe("replacement tests never load production adapters", () => {
   it("stays offline and does not import production adapters or billing owners", () => {
     const dir = path.join(process.cwd(), "src/lib/officialSupply");
-    for (const file of ["officialSupply.replacement.test.ts", "replacement.ts"]) {
-      const source = fs.readFileSync(path.join(dir, file), "utf8");
-      assert.doesNotMatch(source, /from "@\/lib\/officialSupply\/productionAdapters"/);
-      assert.doesNotMatch(
-        source,
-        /chatImageGenerationPersistence|chatImagePricing|@\/lib\/points"|deductPoints/
-      );
-    }
+    const testSource = fs.readFileSync(path.join(dir, "officialSupply.replacement.test.ts"), "utf8");
+    const implSource = fs.readFileSync(path.join(dir, "replacement.ts"), "utf8");
+    assert.doesNotMatch(testSource, /from "@\/lib\/officialSupply\/productionAdapters"/);
+    assert.doesNotMatch(implSource, /from "@\/lib\/officialSupply\/productionAdapters"/);
+    assert.doesNotMatch(
+      implSource,
+      /chatImageGenerationPersistence|chatImagePricing|@\/lib\/points"|deductPoints/
+    );
   });
 });
