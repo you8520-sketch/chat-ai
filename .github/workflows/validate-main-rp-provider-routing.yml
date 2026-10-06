@@ -32,6 +32,8 @@ on:
       - "scripts/lib/mainRpBodyCuePreflight.test.ts"
       - "src/services/promptAudit.ts"
       - "src/lib/chatModels.gemini.test.ts"
+      - "src/lib/modelPickerPreview.ts"
+      - "src/lib/modelPickerPreview.test.ts"
       - "src/lib/openRouterClient.test.ts"
   workflow_dispatch:
 
@@ -61,6 +63,7 @@ jobs:
           node --conditions=react-server --import tsx --test --test-concurrency=1
           src/lib/chatModels.gemini.test.ts
           src/lib/mainRpModelRegistry.test.ts
+          src/lib/modelPickerPreview.test.ts
           src/lib/openRouterClient.test.ts
       - name: Published pricing routing compatibility
         run: >-
