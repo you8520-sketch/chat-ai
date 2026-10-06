@@ -4,7 +4,7 @@
  * Root cause: nextActionRef (earlier container, no scroll-mb-28) was the primary
  * NEXT_ACTION scroll target. block:"end" on re-run decreased scrollY at document bottom.
  *
- * Fix: bottomRef only + block:"nearest". scroll-mb-28 on bottomRef owns HUD compensation in CSS.
+ * Fix: bottomRef only + block:"nearest". Command-dock occlusion owns tail clearance.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -271,10 +271,15 @@ describe("production wiring — ONE NEXT_ACTION follow target owner", () => {
     assert.doesNotMatch(block, /block: "end"/);
   });
 
-  it("scroll-mb-28 remains CSS-owned on canonical bottomRef tail", () => {
+  it("command dock occlusion is the only bottom-tail clearance owner", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    const owner = readFileSync("src/lib/trpg/commandDock.ts", "utf8");
     assert.match(room, /ref=\{bottomRef\}/);
-    assert.match(room, /className="h-px w-full scroll-mb-28"/);
+    assert.match(room, /scrollMarginBottom: trpgCommandDockScrollMarginBottom\(dockOcclusion\)/);
+    assert.match(room, /bottom: trpgCommandDockOverlayBottom\(dockOcclusion\)/);
+    assert.match(owner, /scrollMarginPx: dockPx \+ keyboardPx/);
+    assert.doesNotMatch(room, /scroll-mb-28/);
+    assert.doesNotMatch(room, /bottom-\[5\.75rem\]/);
     assert.doesNotMatch(readFileSync("src/lib/trpg/followLatest.ts", "utf8"), /TRPG_NEXT_ACTION_TAIL/);
   });
 

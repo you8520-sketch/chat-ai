@@ -322,18 +322,20 @@ describe("TRPG reply suggestion quality fixtures", () => {
 
 describe("TRPG visible action composer ownership", () => {
   it("renders exactly six primary chips and keeps contextual recovery separate", () => {
+    const dock = fs.readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(room, /TRPG_VISIBLE_ACTION_TYPES\.map/);
-    assert.doesNotMatch(room, /TRPG_ACTION_TYPES\.map/);
-    assert.match(room, /data-trpg-action-chip=\{kind\}/);
-    assert.match(room, /🩹 응급처치/);
-    assert.match(room, /💊 상태 치료/);
-    assert.match(room, /🏕 안전한 휴식/);
-    assert.match(room, /data-contextual="first-aid"/);
-    assert.match(room, /from ["']@\/lib\/trpg\/replySuggestionShared["']/);
-    assert.doesNotMatch(room, /from ["']@\/lib\/trpg\/replySuggestions["']/);
-    assert.match(room, /replyStanceLabelKo\(item\.stance\)/);
-    assert.match(room, /actionTypeLabelKo\(item\.actionType\)/);
+    assert.match(dock, /TRPG_VISIBLE_ACTION_TYPES\.map/);
+    assert.doesNotMatch(dock, /TRPG_ACTION_TYPES\.map/);
+    assert.doesNotMatch(room, /TRPG_VISIBLE_ACTION_TYPES\.map/);
+    assert.match(dock, /data-trpg-action-chip=\{kind\}/);
+    assert.match(dock, /🩹 응급처치/);
+    assert.match(dock, /💊 상태 치료/);
+    assert.match(dock, /🏕 안전한 휴식/);
+    assert.match(dock, /data-contextual="first-aid"/);
+    assert.match(dock, /from ["']@\/lib\/trpg\/replySuggestionShared["']/);
+    assert.doesNotMatch(dock, /from ["']@\/lib\/trpg\/replySuggestions["']/);
+    assert.match(dock, /replyStanceLabelKo\(item\.stance\)/);
+    assert.match(dock, /actionTypeLabelKo\(item\.actionType\)/);
   });
 
   it("does not change actionNeedsCheck ownership for chips or free", () => {

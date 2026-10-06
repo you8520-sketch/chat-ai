@@ -57,6 +57,7 @@ export default function TrpgScrollFollowLabClient() {
         suggestionsEnabled={false}
         onActionTypeChange={setActionType}
         onActionBodyChange={setActionBody}
+        onInputOriginChange={noop}
         onPartyBodyChange={setPartyBody}
         onToggleSuggestions={noop}
         onRetrySuggestions={noop}

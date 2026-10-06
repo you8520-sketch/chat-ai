@@ -1,6 +1,6 @@
 import type { TrpgSheetHudCard } from "./sheetView";
 
-/** Presentation-only: the viewer's canonical sheet remains owned by TrpgSelfSheetHud. */
+/** Presentation-only: the viewer's canonical sheet remains owned by TrpgCommandDock. */
 export function partyDetailedSheetCards(
   sheets: readonly TrpgSheetHudCard[],
   viewerParticipantId: number | null

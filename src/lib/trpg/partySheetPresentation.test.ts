@@ -67,21 +67,25 @@ describe("TRPG party sheet rail presentation", () => {
       partyDetailedSheetCards([card(1, "렌", true)], 1),
       []
     );
-    const rail = readFileSync("src/app/trpg/TrpgCampaignRail.tsx", "utf8");
-    assert.match(rail, /snap\.participants\.map/);
-    assert.match(rail, /다른 파티원이 없습니다\./);
-    assert.match(rail, /파티원 시트 · 내 시트는 화면 아래 고정/);
+    const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
+    assert.match(dock, /다른 파티원이 없습니다\./);
+    assert.match(dock, /partyDetailedSheetCards\(snap\.sheets, snap\.viewerParticipantId\)/);
+    assert.match(dock, /data-trpg-party-tab=\{card\.participantId\}/);
+    assert.doesNotMatch(dock, /snap\.sheets\.filter\([^)]*name/);
   });
 
-  it("D/E. desktop and mobile share the filter while self HUD remains rendered", () => {
+  it("D/E. desktop and mobile share the command dock while self stays out of the party list", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
     const rail = readFileSync("src/app/trpg/TrpgCampaignRail.tsx", "utf8");
-    assert.match(room, /<TrpgSelfSheetHud/);
+    assert.match(room, /<TrpgCommandDock/);
+    assert.doesNotMatch(room, /<TrpgSelfSheetHud/);
     assert.match(room, /<TrpgCampaignRail \{\.\.\.railProps\} \/>/);
     assert.match(room, /<TrpgCampaignRail \{\.\.\.railProps\} compact \/>/);
-    assert.match(rail, /partyDetailedSheetCards\(\s*snap\.sheets,\s*snap\.viewerParticipantId/);
-    assert.match(room, /viewerSelfSheetCard/);
-    assert.doesNotMatch(rail, /snap\.sheets\.filter\([^)]*name/);
+    assert.match(dock, /viewerSelfSheetCard/);
+    assert.match(dock, /partyDetailedSheetCards\(snap\.sheets, snap\.viewerParticipantId\)/);
+    assert.doesNotMatch(rail, /partyDetailedSheetCards/);
+    assert.doesNotMatch(rail, /dangerouslySetInnerHTML/);
   });
 
   it("F. same-name participants are filtered by isSelf rather than text", () => {

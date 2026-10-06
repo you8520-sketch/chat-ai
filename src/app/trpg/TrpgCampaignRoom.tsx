@@ -13,20 +13,15 @@ import {
 import Link from "next/link";
 import { AppSectionCard } from "@/components/AppPageShell";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
-import { TRPG_VISIBLE_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
+import { actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import {
-  RECOVERY_DISCOVERY_HINT,
-  SAFE_REST_COOLDOWN_HINT,
-  SAFE_REST_ONGOING_NOTICE,
-  contextualFirstAidDraft,
-  contextualStatusTreatDraft,
-  showContextualStatusTreat,
-  contextualSafeRestDraft,
-  showContextualFirstAid,
-} from "@/lib/trpg/actionComposer";
+  trpgCommandDockOverlayBottom,
+  trpgCommandDockPresentationBusy,
+  trpgCommandDockScrollMarginBottom,
+  type TrpgCommandDockOcclusion,
+} from "@/lib/trpg/commandDock";
 import { parseTrpgBotAction } from "@/lib/trpg/botActionParse";
 import {
-  CHAT_GLOBAL_HEADER_OFFSET_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
   chatReadabilityRootStyle,
@@ -48,7 +43,6 @@ import {
   trpgRollOutcomeLabel,
 } from "@/lib/trpg/actionCardUi";
 import { formatTrpgRollCompact, trpgBillingModeLabel } from "@/lib/trpg/labels";
-import { viewerSelfSheetCard } from "@/lib/trpg/partySheetPresentation";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import { trpgSceneBeatSpacingClass } from "@/lib/trpg/trpgSceneBeatSpacing";
 import type { CharacterAsset } from "@/lib/characterAssets";
@@ -57,8 +51,7 @@ import { loadUnlockedCharacterAssetUrls } from "@/lib/characterAssetUnlocks";
 import { sanitizeTrpgActionDisplayText } from "@/lib/trpg/gmSceneAssets";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
-import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
-import { replyStanceLabelKo, type TrpgReplySuggestion } from "@/lib/trpg/replySuggestionShared";
+import type { TrpgInputOrigin, TrpgReplySuggestion } from "@/lib/trpg/replySuggestionShared";
 import {
   isTrpgDicePreviewRuntime,
   logTrpgDicePreviewInstrument,
@@ -178,13 +171,12 @@ import {
 import { processElapsedSecFromStartedAt } from "@/lib/trpg/processTimer";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
-import TrpgUserChatPanel from "./TrpgUserChatPanel";
+import TrpgCommandDock from "./TrpgCommandDock";
 import TrpgDiceOverlay, { type TrpgDiceOverlayPlaybackState } from "./TrpgDiceOverlay";
 import TrpgRollResultLane from "./TrpgRollResultLane";
 import TrpgNamedProse, { TrpgGmTalk, quoteSelectStyle } from "./TrpgNamedProse";
 import { resolveTrpgMountSeenKeys, useRevealedText } from "./useRevealedText";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
-import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
 import {
   resolveTrpgGmContentStreaming,
   resolveTrpgGmLiveAssetResolution,
@@ -339,6 +331,7 @@ export default function TrpgCampaignRoom({
   suggestionsEnabled,
   onActionTypeChange,
   onActionBodyChange,
+  onInputOriginChange,
   onPartyBodyChange,
   onToggleSuggestions,
   onRetrySuggestions,
@@ -365,6 +358,7 @@ export default function TrpgCampaignRoom({
   partyBody: string;
   onActionTypeChange: (value: TrpgActionType) => void;
   onActionBodyChange: (value: string) => void;
+  onInputOriginChange: (value: TrpgInputOrigin) => void;
   onPartyBodyChange: (value: string) => void;
   suggestions: TrpgReplySuggestion[];
   suggestionsBusy: boolean;
@@ -881,10 +875,6 @@ export default function TrpgCampaignRoom({
   ].filter((name, i, all) => name.trim() && all.indexOf(name) === i);
   const imageId = imageCharacterId(snap);
   const partyNames = partyDisplayNames(snap);
-  const selfSheet = viewerSelfSheetCard(
-    snap.sheets,
-    snap.viewerParticipantId
-  );
   const sceneRows = snap.log.filter((row) => row.narration || row.actions.some((a) => a.revealed && a.body));
   const visibleSceneRows = sceneRows;
   const cinematicRevealedIds = revealedActorIds({
@@ -1254,6 +1244,26 @@ export default function TrpgCampaignRoom({
     freshGmRound: presentationGmRevealRound,
     report: gmRevealReport,
   });
+  const presentationBusy = trpgCommandDockPresentationBusy({
+    cinematicMotion,
+    generating,
+    botGenerationInFlight: snap.botGenerationInFlight,
+    gmNarrationRevealing: roundShow.phase === "gm-narration" && !effectiveGmRevealComplete,
+  });
+  const [dockOcclusion, setDockOcclusion] = useState<TrpgCommandDockOcclusion>({
+    dockPx: 0,
+    keyboardPx: 0,
+    scrollMarginPx: 0,
+  });
+  const onDockOcclusion = useCallback((next: TrpgCommandDockOcclusion) => {
+    setDockOcclusion((prev) =>
+      prev.dockPx === next.dockPx &&
+      prev.keyboardPx === next.keyboardPx &&
+      prev.scrollMarginPx === next.scrollMarginPx
+        ? prev
+        : next
+    );
+  }, []);
   const nextActionVisible = shouldShowNextActionInput({
     serverPhase: String(phase),
     hasUnlockedDraft: Boolean(snap.myDraft && !snap.myDraft.locked),
@@ -1839,6 +1849,7 @@ export default function TrpgCampaignRoom({
     if (!showReplySuggestions && !nextActionVisible) return;
     scrollToFollowOwner("NEXT_ACTION", "smooth");
   }, [
+    dockOcclusion.scrollMarginPx,
     liveFollowOwner,
     nextActionVisible,
     scrollToFollowOwner,
@@ -1889,15 +1900,10 @@ export default function TrpgCampaignRoom({
   }, []);
 
   const railProps = {
-    snap,
     displayPrefs,
     onDisplayPrefsChange: changeDisplayPrefs,
     streamIntervalMs,
     onStreamIntervalMsChange: changeStreamIntervalMs,
-    partyBody,
-    onPartyBodyChange,
-    onSendParty,
-    busy,
   };
 
   const quoteCharacterName =
@@ -2018,18 +2024,6 @@ export default function TrpgCampaignRoom({
         aria-label="캠페인 도구"
       >
         <TrpgCampaignRail {...railProps} compact />
-      </aside>
-      <aside
-        className={`sticky ${CHAT_GLOBAL_HEADER_OFFSET_CLASS} z-30 hidden h-[calc(100dvh-7.5rem)] w-[260px] shrink-0 flex-col self-start overflow-hidden border-r border-white/10 bg-[#101010]/90 min-[576px]:flex`}
-        data-trpg-user-chat-desktop
-      >
-        <TrpgUserChatPanel
-          snap={snap}
-          partyBody={partyBody}
-          onPartyBodyChange={onPartyBodyChange}
-          onSendParty={onSendParty}
-          busy={busy}
-        />
       </aside>
       <div
         className="flex min-w-0 flex-1 flex-col"
@@ -2253,214 +2247,6 @@ export default function TrpgCampaignRoom({
             );
           })}
 
-          {nextActionVisible ? (
-            <div data-trpg-next-action>
-            <AppSectionCard title="시나리오 행동">
-              <p className="mb-3 text-sm text-zinc-400">
-                세계 안에서 무엇을 할지 적으세요. 유저끼리 대화는 「유저 채팅」입니다.
-              </p>
-              <div className="mb-3 flex flex-wrap gap-1.5">
-                {TRPG_VISIBLE_ACTION_TYPES.map((kind) => (
-                  <button
-                    key={kind}
-                    type="button"
-                    data-trpg-action-chip={kind}
-                    onClick={() => onActionTypeChange(kind)}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      actionType === kind
-                        ? "bg-violet-600 text-white"
-                        : "border border-white/10 bg-white/5 text-zinc-300"
-                    }`}
-                  >
-                    {actionTypeLabelKo(kind)}
-                  </button>
-                ))}
-              </div>
-              {(() => {
-                const selfSheet = viewerSelfSheetCard(
-                  snap.sheets,
-                  snap.viewerParticipantId
-                )?.sheet;
-                const viewerId = snap.viewerParticipantId;
-                const treatable = (snap.ongoingEffects ?? []).some(
-                  (effect) =>
-                    effect.participantId === viewerId &&
-                    (effect.kind === "periodic_harm" || effect.kind === "control")
-                );
-                const hp = selfSheet?.hp ?? 0;
-                const maxHp = selfSheet?.maxHp ?? 0;
-                const firstAid = selfSheet
-                  ? showContextualFirstAid({ hp, maxHp, treatableOngoing: treatable })
-                  : false;
-                const firstAidDraft = selfSheet
-                  ? contextualFirstAidDraft({
-                      hp,
-                      maxHp,
-                      effectLabels: (snap.ongoingEffects ?? [])
-                        .filter((effect) => effect.participantId === viewerId)
-                        .map((effect) => effect.label),
-                    })
-                  : null;
-                const statusTreat = showContextualStatusTreat({ treatableOngoing: treatable });
-                const statusTreatDraft = contextualStatusTreatDraft(
-                  (snap.ongoingEffects ?? [])
-                    .filter((effect) => effect.participantId === viewerId)
-                    .map((effect) => effect.label)
-                );
-                const rest = snap.safeRest;
-                const showRest = Boolean(rest?.available && hp < maxHp);
-                const showHint = snap.showRecoveryHint === true;
-                return (
-                  <>
-                    {showHint ? (
-                      <p className="mb-2 text-[10px] leading-4 text-zinc-500">{RECOVERY_DISCOVERY_HINT}</p>
-                    ) : null}
-                    {showHint && rest?.blockedReason === "cooldown" ? (
-                      <p className="mb-2 text-[10px] leading-4 text-zinc-500">{SAFE_REST_COOLDOWN_HINT}</p>
-                    ) : null}
-                    {firstAid || statusTreat || showRest ? (
-                      <div className="mb-2 flex flex-wrap gap-1.5">
-                        {firstAid && firstAidDraft ? (
-                          <button
-                            type="button"
-                            data-contextual="first-aid"
-                            onClick={() => {
-                              onActionTypeChange(firstAidDraft.actionType);
-                              onActionBodyChange(firstAidDraft.body);
-                            }}
-                            className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-100"
-                          >
-                            🩹 응급처치
-                          </button>
-                        ) : null}
-                        {statusTreat ? (
-                          <button
-                            type="button"
-                            data-contextual="status-treat"
-                            onClick={() => {
-                              onActionTypeChange(statusTreatDraft.actionType);
-                              onActionBodyChange(statusTreatDraft.body);
-                            }}
-                            className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-100"
-                          >
-                            💊 상태 치료
-                          </button>
-                        ) : null}
-                        {showRest && rest ? (
-                          <button
-                            type="button"
-                            data-contextual="safe-rest"
-                            onClick={() => {
-                              const draft = contextualSafeRestDraft();
-                              onActionTypeChange(draft.actionType);
-                              onActionBodyChange(draft.body);
-                            }}
-                            className="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100"
-                            title={treatable ? SAFE_REST_ONGOING_NOTICE : undefined}
-                          >
-                            {`🏕 안전한 휴식 · HP +${rest.healAmount}`}
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {showRest && treatable ? (
-                      <p className="mb-2 text-[10px] leading-4 text-zinc-500">{SAFE_REST_ONGOING_NOTICE}</p>
-                    ) : null}
-                  </>
-                );
-              })()}
-              <textarea
-                value={actionBody}
-                onChange={(e) => onActionBodyChange(e.target.value)}
-                maxLength={TRPG_ACTION_MAX_CHARS}
-                rows={4}
-                placeholder="무엇을 하는가"
-                className="w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
-              />
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={suggestionsEnabled}
-                  aria-label="행동 예시"
-                  disabled={busy}
-                  onClick={onToggleSuggestions}
-                  className={`inline-flex min-h-10 items-center rounded-xl border px-3 text-sm font-semibold disabled:opacity-50 ${
-                    suggestionsEnabled
-                      ? "border-violet-400/50 bg-violet-500/15 text-violet-100"
-                      : "border-white/10 bg-white/5 text-zinc-400 hover:border-white/20 hover:text-zinc-200"
-                  }`}
-                >
-                  {suggestionsEnabled
-                    ? suggestionsBusy
-                      ? "예시 만드는 중…"
-                      : "행동 예시 켜짐"
-                    : "행동 예시 꺼짐"}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy || !actionBody.trim()}
-                  onClick={onSendAction}
-                  className="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
-                >
-                  행동 제출
-                </button>
-              </div>
-              {showReplySuggestions ? (
-                <div className="scroll-mb-28">
-                  {suggestionsError ? (
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <p className="text-sm text-rose-200">{suggestionsError}</p>
-                      <button
-                        type="button"
-                        disabled={busy || suggestionsBusy}
-                        onClick={onRetrySuggestions}
-                        className="inline-flex min-h-9 items-center rounded-lg border border-rose-300/30 bg-rose-300/10 px-3 text-xs font-semibold text-rose-100 hover:bg-rose-300/15 disabled:opacity-50"
-                      >
-                        다시 시도
-                      </button>
-                    </div>
-                  ) : null}
-                  {suggestions.length > 0 ? (
-                    <ul className="mt-3 space-y-2">
-                      {suggestions.map((item) => (
-                        <li key={`${item.stance}:${item.actionType}:${item.text}`}>
-                          <button
-                            type="button"
-                            data-trpg-reply-stance={item.stance}
-                            onClick={() => onPickSuggestion(item)}
-                            className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left hover:bg-white/[0.07]"
-                          >
-                            <span className="flex items-baseline gap-2">
-                              <span className="text-xs font-semibold text-violet-200">
-                                {replyStanceLabelKo(item.stance)}
-                              </span>
-                              <span className="text-[10px] font-medium text-zinc-500">
-                                {actionTypeLabelKo(item.actionType)}
-                              </span>
-                            </span>
-                            {item.stage ? (
-                              <p className="mt-1 text-sm text-zinc-300">{item.stage}</p>
-                            ) : null}
-                            {item.speech ? (
-                              <p className={`${item.stage ? "mt-0.5" : "mt-1"} text-sm text-zinc-100`}>
-                                「{item.speech}」
-                              </p>
-                            ) : null}
-                            {!item.stage && !item.speech ? (
-                              <p className="mt-1 text-sm text-zinc-200">{item.text}</p>
-                            ) : null}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              ) : null}
-            </AppSectionCard>
-            </div>
-          ) : null}
-
           {snap.myDraft?.locked && waitingOthers && waitKind !== "wait_humans" ? (
             <p className="text-sm text-zinc-400">제출했습니다. 다른 플레이어를 기다립니다.</p>
           ) : null}
@@ -2525,16 +2311,38 @@ export default function TrpgCampaignRoom({
               style={{ height: `${Math.round(TRPG_LIVE_FOLLOW_TAIL_SPACER_RATIO * 100)}vh` }}
             />
           ) : null}
-          <div ref={bottomRef} aria-hidden="true" className="h-px w-full scroll-mb-28" />
-        </div>
-        {selfSheet ? (
-          <TrpgSelfSheetHud
-            card={selfSheet}
-            statDefs={snap.statDefs}
-            ongoingEffects={snap.ongoingEffects}
-            mechanicsLines={snap.mechanicsLines}
+          <div
+            ref={bottomRef}
+            aria-hidden="true"
+            data-trpg-bottom-tail
+            className="h-px w-full"
+            style={{ scrollMarginBottom: trpgCommandDockScrollMarginBottom(dockOcclusion) }}
           />
-        ) : null}
+        </div>
+        <TrpgCommandDock
+          snap={snap}
+          actionType={actionType}
+          actionBody={actionBody}
+          partyBody={partyBody}
+          suggestions={suggestions}
+          suggestionsBusy={suggestionsBusy}
+          suggestionsError={suggestionsError}
+          suggestionsEnabled={suggestionsEnabled}
+          showReplySuggestions={showReplySuggestions}
+          actionInputVisible={nextActionVisible}
+          presentationBusy={presentationBusy}
+          busy={busy}
+          onActionTypeChange={onActionTypeChange}
+          onActionBodyChange={onActionBodyChange}
+          onInputOriginChange={onInputOriginChange}
+          onPartyBodyChange={onPartyBodyChange}
+          onToggleSuggestions={onToggleSuggestions}
+          onRetrySuggestions={onRetrySuggestions}
+          onPickSuggestion={onPickSuggestion}
+          onSendAction={onSendAction}
+          onSendParty={onSendParty}
+          onOcclusionChange={onDockOcclusion}
+        />
       </div>
 
       <aside
@@ -2567,7 +2375,10 @@ export default function TrpgCampaignRoom({
       />
 
       {processStatus || (!followLatest && unseenLatest) ? (
-        <div className="pointer-events-none fixed inset-x-0 bottom-[5.75rem] z-[64] flex flex-col items-center gap-2 px-3 pb-[env(safe-area-inset-bottom)]">
+        <div
+          className="pointer-events-none fixed inset-x-0 z-[64] flex flex-col items-center gap-2 px-3"
+          style={{ bottom: trpgCommandDockOverlayBottom(dockOcclusion) }}
+        >
           {processStatus ? (
             <p
               className="pointer-events-none max-w-[min(24rem,calc(100vw-1.5rem))] rounded-full border border-white/15 bg-[#161616]/95 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow-lg"
@@ -2593,7 +2404,10 @@ export default function TrpgCampaignRoom({
       ) : null}
 
       {toast ? (
-        <p className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-full border border-white/10 bg-[#161616]/95 px-4 py-2 text-xs text-zinc-100 shadow-lg">
+        <p
+          className="fixed left-1/2 z-[70] -translate-x-1/2 rounded-full border border-white/10 bg-[#161616]/95 px-4 py-2 text-xs text-zinc-100 shadow-lg"
+          style={{ bottom: trpgCommandDockOverlayBottom(dockOcclusion) }}
+        >
           {toast}
         </p>
       ) : null}

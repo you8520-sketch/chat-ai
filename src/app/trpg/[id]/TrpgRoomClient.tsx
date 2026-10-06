@@ -658,6 +658,7 @@ export default function TrpgRoomClient({
           partyBody={partyBody}
           onActionTypeChange={setActionType}
           onActionBodyChange={setActionBody}
+          onInputOriginChange={setInputOrigin}
           onPartyBodyChange={setPartyBody}
           suggestions={suggestions}
           suggestionsBusy={suggestionsBusy}
@@ -720,8 +721,7 @@ export default function TrpgRoomClient({
           </p>
         ) : null}
         <p className="text-xs leading-relaxed text-zinc-500">
-          봇이 있으면 호출이 두 번입니다. 봇 자리는 DeepSeek V4 Pro(thinking 끔, 1:1 채팅과 같음)가
-          캐릭터 카드로 행동을 쓰고, GM은 같은 Pro(thinking 켬)가 장면을 씁니다. Flash는 쓰지 않습니다.
+          봇이 있으면 호출이 두 번입니다. 봇은 캐릭터 카드로 행동을 쓰고, GM은 장면을 씁니다.
           마진은 둘 다 {Math.round(TRPG_GM_GROSS_MARGIN * 100)}%이며 실제 토큰은 사람만 냅니다.
           GM 서술은 3,000자를 넘기며, 캐릭터마다 분량을 주고 마지막에 GM 상황 설명을 넣습니다. 상한은 없습니다.
           캠페인 사실(HP·아이템·퀘스트·플래그)은 DB가 원본이고, 최근 3라운드만 원문으로 넣습니다.
