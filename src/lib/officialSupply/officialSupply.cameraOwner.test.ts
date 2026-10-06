@@ -138,9 +138,19 @@ describe("official camera owner (#low-angle)", () => {
   });
 
   it("leaves participant imageSubjects unchanged", () => {
-    assert.equal(resolveOfficialImageSubjects(lucianSlot("scene1")).foreground, "character_plus_required_partner");
+    assert.deepEqual(resolveOfficialImageSubjects(lucianSlot("scene1")), {
+      foreground: "character_plus_required_partner",
+      partnerRole: "user",
+      partnerDepiction: "cropped_identity_neutral",
+      backgroundExtras: "optional_unnamed",
+    });
     assert.equal(resolveOfficialImageSubjects(lucianSlot("scene2")).foreground, "solo_character");
-    assert.equal(resolveOfficialImageSubjects(lucianSlot("scene3")).foreground, "character_plus_required_partner");
+    assert.deepEqual(resolveOfficialImageSubjects(lucianSlot("scene3")), {
+      foreground: "character_plus_required_partner",
+      partnerRole: "user",
+      partnerDepiction: "cropped_identity_neutral",
+      backgroundExtras: "optional_unnamed",
+    });
     const scene2 = promptsFor(lucianSlot("scene2"));
     assert.equal(officialImageSubjectRuleForSlot(lucianSlot("scene2")), scene2.primaryPrompt.split("\n").find((row) => row.includes("FOREGROUND CAST:")));
     assert.match(scene2.primaryPrompt, /exactly one foreground person/);

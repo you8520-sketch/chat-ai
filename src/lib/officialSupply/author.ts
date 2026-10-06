@@ -80,6 +80,8 @@ import { validateStyleProposal } from "@/lib/officialSupply/style";
 import {
   OFFICIAL_BACKGROUND_EXTRAS,
   OFFICIAL_FOREGROUND_CASTS,
+  OFFICIAL_PARTNER_DEPICTIONS,
+  OFFICIAL_PARTNER_ROLES,
   qaResult,
   type OfficialAppearanceLock,
   type OfficialAssetPlan,
@@ -402,6 +404,8 @@ const ASSET_PLAN_SCHEMA: Record<string, unknown> = {
             type: "object",
             properties: {
               foreground: { type: "string", enum: [...OFFICIAL_FOREGROUND_CASTS] },
+              partnerRole: { type: "string", enum: [...OFFICIAL_PARTNER_ROLES] },
+              partnerDepiction: { type: "string", enum: [...OFFICIAL_PARTNER_DEPICTIONS] },
               backgroundExtras: { type: "string", enum: [...OFFICIAL_BACKGROUND_EXTRAS] },
             },
             required: ["foreground", "backgroundExtras"],
@@ -1290,7 +1294,7 @@ export async function generateOfficialAssetPlan(input: {
       if (!isOfficialImageSubjects(slot.imageSubjects)) {
         throw new OfficialSupplyGateError(
           "author_shape_invalid",
-          `slot[${index}]: imageSubjects must be an explicit foreground/backgroundExtras contract`
+          `slot[${index}]: imageSubjects must be an explicit foreground/backgroundExtras/partner contract`
         );
       }
       return {

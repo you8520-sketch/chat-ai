@@ -62,7 +62,7 @@ export function evaluateAssetPlan(draft: OfficialCharacterDraft, plan: OfficialA
     } else if (!isOfficialImageSubjects(slot.imageSubjects)) {
       errors.push({
         code: "slot_image_subjects_invalid",
-        message: `${slot.slotKey}: imageSubjects must be a declared foreground/backgroundExtras contract`,
+        message: `${slot.slotKey}: imageSubjects must be a declared foreground/backgroundExtras/partner contract`,
       });
     }
     if (slot.personTag != null && !isAssetPersonTag(slot.personTag)) {

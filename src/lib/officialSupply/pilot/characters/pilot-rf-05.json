@@ -595,6 +595,8 @@
         "personTag": "긴장",
         "imageSubjects": {
           "foreground": "character_plus_required_partner",
+          "partnerRole": "user",
+          "partnerDepiction": "cropped_identity_neutral",
           "backgroundExtras": "optional_unnamed"
         }
       },
@@ -612,6 +614,8 @@
         "personTag": "의심",
         "imageSubjects": {
           "foreground": "character_plus_required_partner",
+          "partnerRole": "user",
+          "partnerDepiction": "cropped_identity_neutral",
           "backgroundExtras": "optional_unnamed"
         }
       },
@@ -629,6 +633,8 @@
         "personTag": "긴장",
         "imageSubjects": {
           "foreground": "character_plus_required_partner",
+          "partnerRole": "user",
+          "partnerDepiction": "cropped_identity_neutral",
           "backgroundExtras": "optional_unnamed"
         }
       }

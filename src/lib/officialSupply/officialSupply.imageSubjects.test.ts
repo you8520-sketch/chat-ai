@@ -10,8 +10,10 @@ import { buildOfficialAssetPrompts } from "@/lib/officialSupply/imagePrompt";
 import {
   OFFICIAL_FOREGROUND_CAST_MARKER,
   OFFICIAL_LEGACY_ONE_PERSON_SENTENCE,
-  OFFICIAL_REQUIRED_PARTNER_FOREGROUND_CLAUSE,
+  OFFICIAL_NAMED_PARTNER_FULL_CLAUSE,
+  OFFICIAL_REQUIRED_PARTNER_COUNT_MARKER,
   OFFICIAL_SOLO_FOREGROUND_CLAUSE,
+  OFFICIAL_USER_PARTNER_CROPPED_CLAUSE,
   officialImageSubjectRuleForSlot,
   resolveOfficialImageSubjects,
 } from "@/lib/officialSupply/imageSubjects";
@@ -48,6 +50,32 @@ function participantLine(prompt: string): string {
   const line = prompt.split("\n").find((row) => row.includes(OFFICIAL_FOREGROUND_CAST_MARKER));
   assert.ok(line, `missing ${OFFICIAL_FOREGROUND_CAST_MARKER}`);
   return line;
+}
+
+function escapeRe(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function count(text: string, needle: string): number {
+  return text.split(needle).length - 1;
+}
+
+const USER_PARTNER_SUBJECTS = {
+  foreground: "character_plus_required_partner",
+  partnerRole: "user",
+  partnerDepiction: "cropped_identity_neutral",
+  backgroundExtras: "optional_unnamed",
+} as const;
+
+const NAMED_PARTNER_SUBJECTS = {
+  foreground: "character_plus_required_partner",
+  partnerRole: "named_character",
+  partnerDepiction: "full_explicit_identity",
+  backgroundExtras: "optional_unnamed",
+} as const;
+
+function withSubjects(slot: OfficialAssetSlotPlan, imageSubjects: OfficialImageSubjects): OfficialAssetSlotPlan {
+  return { ...slot, imageSubjects };
 }
 
 function qaDraft() {
@@ -126,7 +154,8 @@ describe("official image subject owner (#participant-count)", () => {
       const subjects = resolveOfficialImageSubjects(slot);
       assert.equal(subjects.foreground, "solo_character");
       assert.match(primaryPrompt, new RegExp(OFFICIAL_SOLO_FOREGROUND_CLAUSE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-      assert.doesNotMatch(primaryPrompt, new RegExp(OFFICIAL_REQUIRED_PARTNER_FOREGROUND_CLAUSE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+      assert.doesNotMatch(primaryPrompt, new RegExp(escapeRe(OFFICIAL_USER_PARTNER_CROPPED_CLAUSE)));
+      assert.doesNotMatch(primaryPrompt, new RegExp(escapeRe(OFFICIAL_NAMED_PARTNER_FULL_CLAUSE)));
       assert.equal(participantLine(primaryPrompt), participantLine(strictFallbackPrompt));
       assert.doesNotMatch(primaryPrompt, new RegExp(OFFICIAL_LEGACY_ONE_PERSON_SENTENCE));
       assert.doesNotMatch(strictFallbackPrompt, new RegExp(OFFICIAL_LEGACY_ONE_PERSON_SENTENCE));
@@ -150,8 +179,11 @@ describe("official image subject owner (#participant-count)", () => {
     const slot = lucianSlot("scene1");
     const { primaryPrompt, strictFallbackPrompt } = promptsFor(slot);
     assert.equal(resolveOfficialImageSubjects(slot).foreground, "character_plus_required_partner");
-    assert.match(primaryPrompt, new RegExp(OFFICIAL_REQUIRED_PARTNER_FOREGROUND_CLAUSE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    assert.doesNotMatch(primaryPrompt, new RegExp(OFFICIAL_SOLO_FOREGROUND_CLAUSE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.deepEqual(resolveOfficialImageSubjects(slot), USER_PARTNER_SUBJECTS);
+    assert.equal(count(participantLine(primaryPrompt), OFFICIAL_USER_PARTNER_CROPPED_CLAUSE), 1);
+    assert.match(primaryPrompt, new RegExp(escapeRe(OFFICIAL_REQUIRED_PARTNER_COUNT_MARKER)));
+    assert.doesNotMatch(primaryPrompt, new RegExp(escapeRe(OFFICIAL_SOLO_FOREGROUND_CLAUSE)));
+    assert.doesNotMatch(primaryPrompt, new RegExp(escapeRe(OFFICIAL_NAMED_PARTNER_FULL_CLAUSE)));
     assert.doesNotMatch(primaryPrompt, new RegExp(OFFICIAL_LEGACY_ONE_PERSON_SENTENCE));
     assert.doesNotMatch(strictFallbackPrompt, new RegExp(OFFICIAL_LEGACY_ONE_PERSON_SENTENCE));
     assert.equal(participantLine(primaryPrompt), participantLine(strictFallbackPrompt));
@@ -162,8 +194,9 @@ describe("official image subject owner (#participant-count)", () => {
     const slot = lucianSlot("scene2");
     const { primaryPrompt, strictFallbackPrompt } = promptsFor(slot);
     assert.equal(resolveOfficialImageSubjects(slot).foreground, "solo_character");
-    assert.match(primaryPrompt, new RegExp(OFFICIAL_SOLO_FOREGROUND_CLAUSE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    assert.doesNotMatch(primaryPrompt, new RegExp(OFFICIAL_REQUIRED_PARTNER_FOREGROUND_CLAUSE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(primaryPrompt, new RegExp(escapeRe(OFFICIAL_SOLO_FOREGROUND_CLAUSE)));
+    assert.doesNotMatch(primaryPrompt, new RegExp(escapeRe(OFFICIAL_USER_PARTNER_CROPPED_CLAUSE)));
+    assert.doesNotMatch(primaryPrompt, new RegExp(escapeRe(OFFICIAL_NAMED_PARTNER_FULL_CLAUSE)));
     assert.equal(participantLine(primaryPrompt), participantLine(strictFallbackPrompt));
     assert.doesNotMatch(primaryPrompt, new RegExp(OFFICIAL_LEGACY_ONE_PERSON_SENTENCE));
   });
@@ -172,7 +205,10 @@ describe("official image subject owner (#participant-count)", () => {
     const slot = lucianSlot("scene3");
     const { primaryPrompt, strictFallbackPrompt } = promptsFor(slot);
     assert.equal(resolveOfficialImageSubjects(slot).foreground, "character_plus_required_partner");
-    assert.match(primaryPrompt, new RegExp(OFFICIAL_REQUIRED_PARTNER_FOREGROUND_CLAUSE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.deepEqual(resolveOfficialImageSubjects(slot), USER_PARTNER_SUBJECTS);
+    assert.equal(count(participantLine(primaryPrompt), OFFICIAL_USER_PARTNER_CROPPED_CLAUSE), 1);
+    assert.match(primaryPrompt, new RegExp(escapeRe(OFFICIAL_REQUIRED_PARTNER_COUNT_MARKER)));
+    assert.doesNotMatch(primaryPrompt, new RegExp(escapeRe(OFFICIAL_NAMED_PARTNER_FULL_CLAUSE)));
     assert.equal(participantLine(primaryPrompt), participantLine(strictFallbackPrompt));
     assert.doesNotMatch(primaryPrompt, new RegExp(OFFICIAL_LEGACY_ONE_PERSON_SENTENCE));
   });
@@ -189,6 +225,14 @@ describe("official image subject owner (#participant-count)", () => {
     }
     assert.match(promptsFor(sig3, "identity_then_style").primaryPrompt, /Image 1 IDENTITY ONLY/);
     assert.match(promptsFor(scene1, "slot_default").primaryPrompt, /IDENTITY ANCHOR ONLY/);
+    assert.equal(
+      count(participantLine(promptsFor(scene1, "slot_default").primaryPrompt), OFFICIAL_USER_PARTNER_CROPPED_CLAUSE),
+      1
+    );
+    assert.equal(
+      count(participantLine(promptsFor(scene1, "identity_then_style").primaryPrompt), OFFICIAL_USER_PARTNER_CROPPED_CLAUSE),
+      1
+    );
   });
 
   it("every official slot declares a valid imageSubjects contract", () => {
@@ -206,11 +250,39 @@ describe("official image subject owner (#participant-count)", () => {
           assert.equal(subjects.foreground, "solo_character", `${data.draftKey}/${slot.slotKey}`);
           assert.equal(subjects.backgroundExtras, "none", `${data.draftKey}/${slot.slotKey}`);
         }
+        if (subjects.foreground === "character_plus_required_partner") {
+          assert.equal(subjects.partnerRole, "user", `${data.draftKey}/${slot.slotKey}`);
+          assert.equal(subjects.partnerDepiction, "cropped_identity_neutral", `${data.draftKey}/${slot.slotKey}`);
+        } else {
+          assert.equal("partnerRole" in subjects, false, `${data.draftKey}/${slot.slotKey}`);
+          assert.equal("partnerDepiction" in subjects, false, `${data.draftKey}/${slot.slotKey}`);
+        }
       }
     }
-    assert.equal(resolveOfficialImageSubjects(lucianSlot("scene1")).foreground, "character_plus_required_partner");
+    assert.deepEqual(resolveOfficialImageSubjects(lucianSlot("scene1")), USER_PARTNER_SUBJECTS);
     assert.equal(resolveOfficialImageSubjects(lucianSlot("scene2")).foreground, "solo_character");
-    assert.equal(resolveOfficialImageSubjects(lucianSlot("scene3")).foreground, "character_plus_required_partner");
+    assert.deepEqual(resolveOfficialImageSubjects(lucianSlot("scene3")), USER_PARTNER_SUBJECTS);
+  });
+
+  it("migrates all current required-partner pilots as explicit user cropped contracts", () => {
+    const partnerSlots: string[] = [];
+    for (const file of fs.readdirSync(PILOT_DIR).filter((name) => name.endsWith(".json"))) {
+      const data = JSON.parse(fs.readFileSync(path.join(PILOT_DIR, file), "utf8")) as {
+        draftKey: string;
+        assetPlan: OfficialAssetPlan;
+      };
+      for (const slot of data.assetPlan.slots) {
+        if (slot.imageSubjects.foreground !== "character_plus_required_partner") continue;
+        partnerSlots.push(`${data.draftKey}/${slot.slotKey}`);
+        assert.deepEqual(slot.imageSubjects, {
+          foreground: "character_plus_required_partner",
+          partnerRole: "user",
+          partnerDepiction: "cropped_identity_neutral",
+          backgroundExtras: slot.imageSubjects.backgroundExtras,
+        });
+      }
+    }
+    assert.equal(partnerSlots.length, 24);
   });
 
   it("prompt assembly does not special-case scene1 or Korean partner keywords", () => {
@@ -222,9 +294,23 @@ describe("official image subject owner (#participant-count)", () => {
     assert.doesNotMatch(promptSource, /당신에게/);
     assert.doesNotMatch(ownerSource, /slotKey ===/);
     assert.doesNotMatch(ownerSource, /침입자/);
+    assert.doesNotMatch(ownerSource, /당신/);
+    assert.doesNotMatch(ownerSource, /유저/);
+    assert.doesNotMatch(ownerSource, /플레이어/);
     assert.doesNotMatch(ownerSource, /defaultOfficialImageSubjects/);
     assert.doesNotMatch(ownerSource, /Pose line/);
     assert.doesNotMatch(promptSource, new RegExp(OFFICIAL_LEGACY_ONE_PERSON_SENTENCE));
+  });
+
+  it("named explicit partners keep a full person and are not forced to a user hand", () => {
+    const slot = withSubjects(lucianSlot("scene1"), NAMED_PARTNER_SUBJECTS);
+    const { primaryPrompt, strictFallbackPrompt } = promptsFor(slot);
+    assert.equal(count(participantLine(primaryPrompt), OFFICIAL_NAMED_PARTNER_FULL_CLAUSE), 1);
+    assert.doesNotMatch(primaryPrompt, new RegExp(escapeRe(OFFICIAL_USER_PARTNER_CROPPED_CLAUSE)));
+    assert.doesNotMatch(primaryPrompt, /cropped hand|wrist|forearm/);
+    assert.equal(participantLine(primaryPrompt), participantLine(strictFallbackPrompt));
+    assert.equal(participantLine(primaryPrompt), officialImageSubjectRuleForSlot(slot));
+    assert.match(primaryPrompt, new RegExp(`Pose: ${slot.pose}`));
   });
 
   it("plan QA fails closed on missing or malformed imageSubjects", () => {
@@ -250,16 +336,62 @@ describe("official image subject owner (#participant-count)", () => {
     assert.ok(evaluateAssetPlan(draft, badExtras).errors.some((issue) => issue.code === "slot_image_subjects_invalid"));
   });
 
-  it("plan QA accepts explicit solo and required-partner contracts", () => {
+  it("plan QA accepts explicit solo and complete partner contracts", () => {
     const draft = qaDraft();
     const solo = testAssetPlan();
     assert.deepEqual(evaluateAssetPlan(draft, solo).errors, []);
-    const partner = testAssetPlan();
-    partner.slots[11] = {
-      ...partner.slots[11]!,
-      imageSubjects: { foreground: "character_plus_required_partner", backgroundExtras: "optional_unnamed" },
+    const userPartner = testAssetPlan();
+    userPartner.slots[11] = {
+      ...userPartner.slots[11]!,
+      imageSubjects: USER_PARTNER_SUBJECTS,
     };
-    assert.deepEqual(evaluateAssetPlan(draft, partner).errors, []);
+    assert.deepEqual(evaluateAssetPlan(draft, userPartner).errors, []);
+    const namedPartner = testAssetPlan();
+    namedPartner.slots[11] = {
+      ...namedPartner.slots[11]!,
+      imageSubjects: NAMED_PARTNER_SUBJECTS,
+    };
+    assert.deepEqual(evaluateAssetPlan(draft, namedPartner).errors, []);
+  });
+
+  it("plan QA fails closed when a required partner is missing role/depiction", () => {
+    const draft = qaDraft();
+    const incomplete = testAssetPlan();
+    incomplete.slots[11] = {
+      ...incomplete.slots[11]!,
+      imageSubjects: { foreground: "character_plus_required_partner", backgroundExtras: "optional_unnamed" } as unknown as OfficialImageSubjects,
+    };
+    assert.ok(
+      evaluateAssetPlan(draft, incomplete).errors.some((issue) => issue.code === "slot_image_subjects_invalid")
+    );
+
+    const mismatched = testAssetPlan();
+    mismatched.slots[11] = {
+      ...mismatched.slots[11]!,
+      imageSubjects: {
+        foreground: "character_plus_required_partner",
+        partnerRole: "user",
+        partnerDepiction: "full_explicit_identity",
+        backgroundExtras: "optional_unnamed",
+      } as unknown as OfficialImageSubjects,
+    };
+    assert.ok(
+      evaluateAssetPlan(draft, mismatched).errors.some((issue) => issue.code === "slot_image_subjects_invalid")
+    );
+
+    const soloWithPartnerFields = testAssetPlan();
+    soloWithPartnerFields.slots[0] = {
+      ...soloWithPartnerFields.slots[0]!,
+      imageSubjects: {
+        foreground: "solo_character",
+        partnerRole: "user",
+        partnerDepiction: "cropped_identity_neutral",
+        backgroundExtras: "none",
+      } as unknown as OfficialImageSubjects,
+    };
+    assert.ok(
+      evaluateAssetPlan(draft, soloWithPartnerFields).errors.some((issue) => issue.code === "slot_image_subjects_invalid")
+    );
   });
 
   it("author parse fails closed on missing or invalid imageSubjects", async () => {
@@ -301,15 +433,44 @@ describe("official image subject owner (#participant-count)", () => {
     assert.deepEqual(solo.plan.slots[0]?.imageSubjects, { foreground: "solo_character", backgroundExtras: "none" });
 
     const partner = await generateOfficialAssetPlan({
-      transport: fakeAssetPlanTransport([
-        authorSlot({ foreground: "character_plus_required_partner", backgroundExtras: "optional_unnamed" }),
-      ]),
+      transport: fakeAssetPlanTransport([authorSlot(USER_PARTNER_SUBJECTS)]),
       plan: AUTHOR_PLAN_INPUT,
     });
-    assert.deepEqual(partner.plan.slots[0]?.imageSubjects, {
-      foreground: "character_plus_required_partner",
-      backgroundExtras: "optional_unnamed",
+    assert.deepEqual(partner.plan.slots[0]?.imageSubjects, USER_PARTNER_SUBJECTS);
+
+    const named = await generateOfficialAssetPlan({
+      transport: fakeAssetPlanTransport([authorSlot(NAMED_PARTNER_SUBJECTS)]),
+      plan: AUTHOR_PLAN_INPUT,
     });
+    assert.deepEqual(named.plan.slots[0]?.imageSubjects, NAMED_PARTNER_SUBJECTS);
+  });
+
+  it("author parse fails closed on a required partner without a depiction contract", async () => {
+    await assert.rejects(
+      () =>
+        generateOfficialAssetPlan({
+          transport: fakeAssetPlanTransport([
+            authorSlot({ foreground: "character_plus_required_partner", backgroundExtras: "optional_unnamed" }),
+          ]),
+          plan: AUTHOR_PLAN_INPUT,
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_shape_invalid"
+    );
+    await assert.rejects(
+      () =>
+        generateOfficialAssetPlan({
+          transport: fakeAssetPlanTransport([
+            authorSlot({
+              foreground: "character_plus_required_partner",
+              partnerRole: "user",
+              partnerDepiction: "full_explicit_identity",
+              backgroundExtras: "optional_unnamed",
+            }),
+          ]),
+          plan: AUTHOR_PLAN_INPUT,
+        }),
+      (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_shape_invalid"
+    );
   });
 
   it("prompt assembly refuses a missing participant contract instead of defaulting to solo", () => {

@@ -581,6 +581,8 @@ export function buildAssetPlanSystem(): string {
     "- 모든 슬롯 characterPresence=required. 배경만(background-only) 금지.",
     "- imageSubjects는 모든 슬롯 필수. 누락하거나 잘못된 값은 반려된다.",
     "- imageSubjects.foreground는 슬롯이 혼자인지(solo_character) 전경 상호작용 상대가 필요한지(character_plus_required_partner) 명시한다. pose 문장에서 추정하지 말고 필드로 선언한다.",
+    "- character_plus_required_partner면 partnerRole과 partnerDepiction을 함께 선언한다. solo_character에는 이 두 필드를 넣지 않는다.",
+    "- partnerRole은 user(외형이 고정되지 않은 RP 유저) 또는 named_character(외형이 명시된 다른 인물). user는 반드시 cropped_identity_neutral, named_character는 반드시 full_explicit_identity.",
     "- imageSubjects.backgroundExtras는 none 또는 optional_unnamed. 전경 상대와 군중 엑스트라는 다르다.",
     "- representative는 depiction=standard 고정. 성인 시트가 아니면 전 슬롯 standard.",
     `- personTag는 다음 목록 중 감정과 정확히 일치할 때만 쓰고, 아니면 null(목록 외 표현 절대 금지): ${ASSET_PERSON_TAGS.join(", ")}.`,
