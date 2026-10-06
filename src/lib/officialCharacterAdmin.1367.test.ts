@@ -38,10 +38,12 @@ import {
 import {
   LUCIAN_CANONICAL_NAME,
   LUCIAN_DEFAULT_DISPLAY_CREATOR_NAME,
-  LUCIAN_DRAFT_KEY,
-  LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY,
   rejectClientOfficialDisplayCreatorAssignment,
 } from "@/lib/officialDisplayCreatorName";
+import {
+  LUCIAN_DRAFT_KEY,
+  LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY,
+} from "@/lib/officialSupply/officialDraftIdentity";
 import {
   classifyStoredAppearanceAgainstApprovedLock,
   renderAppearanceBlock,

@@ -8,9 +8,6 @@
 
 export const LUCIAN_DEFAULT_DISPLAY_CREATOR_NAME = "로맨스 공식계정";
 export const LUCIAN_CANONICAL_NAME = "루시안 바스케스";
-export const LUCIAN_DRAFT_KEY = "pilot-rf-03";
-/** Published predecessor still mapped to live Lucian. Compile/write never uses this key. */
-export const LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY = "pilot-rf-v4-03";
 
 export const OFFICIAL_DISPLAY_CREATOR_NAME_MIN = 2;
 export const OFFICIAL_DISPLAY_CREATOR_NAME_MAX = 24;
