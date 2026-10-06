@@ -22,7 +22,7 @@ export function jsxSurfacePolicyError(
   switch (surface) {
     case "chat":
       return capabilities.includes("trpg_action_draft")
-        ? "setTrpgActionDraft와 setTrpgSelectedStat은 TRPG 캐릭터 시트 컴포넌트에서만 사용할 수 있습니다."
+        ? "setTrpgActionDraft는 TRPG 캐릭터 시트 컴포넌트에서만 사용할 수 있습니다."
         : null;
     case "trpg_sheet":
       return capabilities.includes("chat_send")

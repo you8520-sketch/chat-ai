@@ -201,7 +201,10 @@ describe("selectedStat live owner", () => {
 
   it("Q. setTrpgSelectedStat is a sheet draft intent and is ignored when empty", () => {
     assert.deepEqual(analyzeJsxCapabilities("setTrpgSelectedStat('str')"), ["trpg_action_draft"]);
-    assert.match(jsxSurfacePolicyError("chat", ["trpg_action_draft"]) ?? "", /setTrpgSelectedStat/);
+    assert.match(
+      jsxSurfacePolicyError("chat", ["trpg_action_draft"]) ?? "",
+      /setTrpgActionDraft는 TRPG 캐릭터 시트 컴포넌트에서만/
+    );
     assert.equal(jsxSurfacePolicyError("trpg_sheet", ["trpg_action_draft"]), null);
     const fresh = { lastAcceptedAt: 0, burst: 0 };
     const ok = decideJsxHostBridgeAction({
