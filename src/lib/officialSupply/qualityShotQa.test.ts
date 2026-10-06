@@ -32,6 +32,7 @@ import {
   LUCIAN_V4_REPRESENTATIVE_FILE_MARKER,
   appearanceLockMatchesLucian,
   assembleLucianSig4StyleProviderReferences,
+  officialQaClusterBPrimaryStyleLocalPath,
   isLucianSig4ProofSupportedImageModel,
   lucianSig4SelectedStyleReferenceIsInClusterBCatalog,
   lucianSig4StyleLiveCostApprovalError,
@@ -373,7 +374,7 @@ describe("official shot QA lucian-sig4 trial mode", () => {
   });
 });
 
-const STYLE_PATH = `/tmp/${LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER}.webp`;
+const STYLE_PATH = path.join(process.cwd(), LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE);
 const inspectAny = () => ({ width: 1024, height: 1536 });
 const STYLE_BYTES = Buffer.from("canonical-cluster-b-b7");
 
@@ -427,6 +428,10 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
     assert.ok(fs.existsSync(path.join(process.cwd(), LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE)));
     const lib = fs.readFileSync(path.join(process.cwd(), "src/lib/officialSupply/qualityShotQa.ts"), "utf8");
     assert.doesNotMatch(lib, /CLUSTER_B_PRIMARY_GENERATION_PATHS\[0\]/);
+    assert.equal(officialQaClusterBPrimaryStyleLocalPath(CLUSTER_B_PRIMARY_STYLE_PATH), CLUSTER_B_PRIMARY_STYLE_PATH);
+    assert.equal(officialQaClusterBPrimaryStyleLocalPath(STYLE_PATH), STYLE_PATH);
+    assert.equal(officialQaClusterBPrimaryStyleLocalPath(LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE), LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE);
+    assert.equal(officialQaClusterBPrimaryStyleLocalPath(`/tmp/${LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER}.webp`), null);
   });
 
   it("assembles exactly two provider references in identity-then-style order", () => {

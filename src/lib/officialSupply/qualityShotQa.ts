@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { CHAT_IMAGE_GENERATION_KNOWN_MODEL_IDS } from "@/lib/chatImageGeneration";
 import { MAX_PROVIDER_ATTEMPTS } from "@/lib/openAiImageSafetyFallback";
 import {
@@ -546,8 +548,35 @@ export function lucianSig4SelectedStyleReferenceIsInClusterBCatalog(): boolean {
   return (CLUSTER_B_PRIMARY_GENERATION_PATHS as readonly string[]).includes(CLUSTER_B_PRIMARY_STYLE_PATH);
 }
 
+/**
+ * QA local/public correspondence to the one production primary path.
+ * Does not loosen `isOfficialClusterBPrimaryStyleRef`.
+ */
+export function officialQaClusterBPrimaryStyleLocalPath(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (isOfficialClusterBPrimaryStyleRef(trimmed)) return trimmed;
+  const posix = trimmed.replaceAll("\\", "/");
+  if (
+    posix === LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE ||
+    posix === `./${LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE}`
+  ) {
+    return trimmed;
+  }
+  if (
+    path.isAbsolute(trimmed) &&
+    path.resolve(trimmed) === path.resolve(process.cwd(), LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE)
+  ) {
+    return trimmed;
+  }
+  return null;
+}
+
 export function selectedClusterBStyleReferenceMatchesCanonical(pathValue: string): boolean {
-  return isOfficialClusterBPrimaryStyleRef(pathValue) && lucianSig4SelectedStyleReferenceIsInClusterBCatalog();
+  return (
+    officialQaClusterBPrimaryStyleLocalPath(pathValue) !== null &&
+    lucianSig4SelectedStyleReferenceIsInClusterBCatalog()
+  );
 }
 
 function requiredStyleBytes(
@@ -601,10 +630,17 @@ export function assembleLucianSig4StyleProviderReferences(input: {
   | { ok: true; references: [LucianSig4StyleProviderReference, LucianSig4StyleProviderReference] }
   | { ok: false; reason: string } {
   const identityPath = input.identityPath.trim();
+  const stylePath = input.stylePath.trim();
   if (!identityPath.includes(LUCIAN_V4_REPRESENTATIVE_FILE_MARKER)) {
     return { ok: false, reason: "identity representative is not the approved v4 Lucian representative" };
   }
-  const pair = officialClusterBVariationReferencePair(identityPath, input.stylePath);
+  if (!officialQaClusterBPrimaryStyleLocalPath(stylePath)) {
+    return { ok: false, reason: "style reference is not the selected canonical Cluster B image" };
+  }
+  const productionStyleRef = isOfficialClusterBPrimaryStyleRef(stylePath)
+    ? stylePath
+    : CLUSTER_B_PRIMARY_STYLE_PATH;
+  const pair = officialClusterBVariationReferencePair(identityPath, productionStyleRef);
   if (!pair.ok) {
     return { ok: false, reason: pair.reason };
   }
@@ -612,7 +648,7 @@ export function assembleLucianSig4StyleProviderReferences(input: {
     ok: true,
     references: [
       { index: 0, role: "IDENTITY ONLY", path: pair.references[0] },
-      { index: 1, role: "STYLE ONLY", path: pair.references[1] },
+      { index: 1, role: "STYLE ONLY", path: stylePath },
     ],
   };
 }

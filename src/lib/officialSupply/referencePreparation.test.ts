@@ -27,6 +27,35 @@ describe("official supply reference preparation", () => {
     }
   });
 
+  it("refuses a same-pathname Cluster B primary STYLE from a non-platform origin", async () => {
+    const originalFetch = globalThis.fetch;
+    const calls: string[] = [];
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+      calls.push(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+      throw new Error("network egress forbidden");
+    }) as typeof fetch;
+    try {
+      await assert.rejects(
+        prepareOfficialImageReferences(
+          [
+            "https://evil.example/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp",
+          ],
+          { NEXTAUTH_URL: "https://example.test" }
+        ),
+        (error: unknown) => {
+          assert.ok(error instanceof OfficialImageTransportError);
+          assert.equal(error.providerAttempted, false);
+          assert.equal(error.costUsd, 0);
+          assert.match(error.message, /platform public storage/);
+          return true;
+        }
+      );
+      assert.deepEqual(calls, []);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("classifies local reference preparation failure as zero-cost before provider start", async () => {
     await assert.rejects(
       prepareOfficialImageReferences(

@@ -47,6 +47,7 @@ export const PILOT_STYLE_PROOF_V4_BATCH_KEY = "pilot-romance-fantasy-04-cluster-
 /** Approved Cluster B primary STYLE root — Image 2 for non-representative slots. */
 export const CLUSTER_B_PRIMARY_STYLE_PATH =
   `${CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT}/primary/b7-black-gold-uniform.webp`;
+/** Display/audit marker only — never use as a substring matcher. */
 export const CLUSTER_B_PRIMARY_STYLE_FILE_MARKER =
   "romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform";
 
@@ -95,8 +96,22 @@ function resolveHttpsPublicUrl(path: string, env: NodeJS.ProcessEnv): string {
   return url.toString();
 }
 
+/**
+ * Production canonical Cluster B primary STYLE resource.
+ * Accepts only the exact public path, or an HTTPS URL whose pathname is that path.
+ * Query/hash, extra segments, suffix spoofs, and local/QA paths are not production matches.
+ */
 export function isOfficialClusterBPrimaryStyleRef(value: string): boolean {
-  return value.includes(CLUSTER_B_PRIMARY_STYLE_FILE_MARKER);
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed === CLUSTER_B_PRIMARY_STYLE_PATH) return true;
+  if (!/^https:\/\//i.test(trimmed)) return false;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "https:" && url.pathname === CLUSTER_B_PRIMARY_STYLE_PATH;
+  } catch {
+    return false;
+  }
 }
 
 function buildOfficialStyleSeed(input: {

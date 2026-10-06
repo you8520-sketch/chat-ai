@@ -33,9 +33,11 @@ import type { OfficialAssetPlan, OfficialAssetSlotPlan, StyleReference } from "@
 import {
   CLUSTER_B_COMPANION_STYLE_PATHS,
   CLUSTER_B_PRIMARY_GENERATION_PATHS,
+  CLUSTER_B_PRIMARY_STYLE_FILE_MARKER,
   CLUSTER_B_PRIMARY_STYLE_PATH,
   buildClusterBRofanStyleSeed,
   buildUserOwnedRofanStyleSeed,
+  isOfficialClusterBPrimaryStyleRef,
 } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
 
@@ -270,6 +272,57 @@ describe("official generation reference plan owner", () => {
     const billing = fs.readFileSync(path.join(process.cwd(), "src/lib/openAiImageEdit.ts"), "utf8");
     assert.match(billing, /imageInputTokens \* 0\.000008/);
     assert.match(billing, /form\.append\("image\[\]"/);
+  });
+
+  it("matches only the exact canonical Cluster B primary STYLE resource", () => {
+    const httpsCanonical = `https://example.test${CLUSTER_B_PRIMARY_STYLE_PATH}`;
+    assert.equal(isOfficialClusterBPrimaryStyleRef(httpsCanonical), true);
+    assert.equal(isOfficialClusterBPrimaryStyleRef(CLUSTER_B_PRIMARY_STYLE_PATH), true);
+    assert.equal(isOfficialClusterBPrimaryStyleRef(`https://example.test${CLUSTER_B_COMPANION_STYLE_PATHS[0]}`), false);
+    assert.equal(isOfficialClusterBPrimaryStyleRef(`https://example.test${CLUSTER_B_COMPANION_STYLE_PATHS[1]}`), false);
+    assert.equal(isOfficialClusterBPrimaryStyleRef(`${httpsCanonical}.evil`), false);
+    assert.equal(isOfficialClusterBPrimaryStyleRef(`${httpsCanonical}/extra`), false);
+    assert.equal(
+      isOfficialClusterBPrimaryStyleRef(`/tmp/${CLUSTER_B_PRIMARY_STYLE_FILE_MARKER}.webp`),
+      false
+    );
+    assert.equal(
+      isOfficialClusterBPrimaryStyleRef(`https://example.test/other.webp?q=${CLUSTER_B_PRIMARY_STYLE_FILE_MARKER}`),
+      false
+    );
+    assert.equal(
+      isOfficialClusterBPrimaryStyleRef(`https://example.test/other.webp#${CLUSTER_B_PRIMARY_STYLE_FILE_MARKER}`),
+      false
+    );
+    assert.equal(
+      isOfficialClusterBPrimaryStyleRef(
+        "https://example.test/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform-copy.webp"
+      ),
+      false
+    );
+    const refs = fs.readFileSync(path.join(process.cwd(), "src/lib/officialSupply/userOwnedRofanStyleRefs.ts"), "utf8");
+    assert.doesNotMatch(refs, /includes\(CLUSTER_B_PRIMARY_STYLE_FILE_MARKER\)/);
+
+    const spoofed = resolveOfficialGenerationReferencePlan({
+      kind: "signature",
+      styleSeed: {
+        ...clusterSeed(),
+        url: `https://example.test/other.webp?q=${CLUSTER_B_PRIMARY_STYLE_FILE_MARKER}`,
+      },
+      representativeUrl: IDENTITY,
+    });
+    assert.equal(spoofed.ok, false);
+    assert.deepEqual(
+      officialSlotGenerationReferences({
+        kind: "signature",
+        styleSeed: {
+          ...clusterSeed(),
+          url: `${httpsCanonical}.evil`,
+        },
+        representativeUrl: IDENTITY,
+      }),
+      []
+    );
   });
 
   it("owns the Cluster B primary style path explicitly instead of array index 0", () => {
