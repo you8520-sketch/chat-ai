@@ -5,8 +5,8 @@ import {
   OFFICIAL_ASSET_OUTPUT_COMPRESSION,
   resolveOfficialAssetImageModel,
 } from "@/lib/officialSupply/imageProfile";
+import { resolveOfficialGenerationReferencePlan } from "@/lib/officialSupply/generationReferences";
 import { buildOfficialAssetPrompts, OFFICIAL_ASSET_TEMPLATE_ID } from "@/lib/officialSupply/imagePrompt";
-import { resolveOfficialStyleGenerationReferences } from "@/lib/officialSupply/style";
 import { OfficialSupplyGateError, type OfficialSupplyStore } from "@/lib/officialSupply/store";
 import type {
   OfficialAssetModeration,
@@ -16,19 +16,17 @@ import type {
 
 /**
  * What the edit request sends as `image[]`.
- * Representative: approved style-only seeds. Other slots: the approved
- * representative URL as an identity anchor — prompt text owns composition.
+ * Delegates to `resolveOfficialGenerationReferencePlan` so references and
+ * prompt role stay one owner. Cluster B variation failures return [] so the
+ * runner can fail closed before any provider call.
  */
 export function officialSlotGenerationReferences(input: {
   kind: OfficialAssetSlotKind;
   styleSeed: StyleReference;
   representativeUrl: string | null | undefined;
 }): string[] {
-  if (input.kind === "representative") {
-    return resolveOfficialStyleGenerationReferences(input.styleSeed);
-  }
-  const url = input.representativeUrl?.trim() ?? "";
-  return url ? [url] : [];
+  const resolved = resolveOfficialGenerationReferencePlan(input);
+  return resolved.ok ? [...resolved.plan.references] : [];
 }
 
 /** Platform-funded provider port. Production wraps the canonical OpenAI edit + safety fallback owner. */
@@ -220,12 +218,16 @@ export async function runOfficialAssetSlot(
     deps.store.failSlot(draftKey, slotKey, deps.workerId, "pipeline record incomplete");
     return { status: "failed", error: "pipeline record incomplete" };
   }
-  const references = officialSlotGenerationReferences({
+  const generation = resolveOfficialGenerationReferencePlan({
     kind: plan.kind,
     styleSeed: style.styleSeed,
     representativeUrl: deps.store.representativeAsset(draftKey).resultUrl,
   });
-  if (references.length === 0 || references.some((ref) => !ref)) {
+  if (!generation.ok) {
+    deps.store.failSlot(draftKey, slotKey, deps.workerId, generation.reason);
+    return { status: "failed", error: generation.reason };
+  }
+  if (generation.plan.references.length === 0 || generation.plan.references.some((ref) => !ref)) {
     deps.store.failSlot(draftKey, slotKey, deps.workerId, "missing reference");
     return { status: "failed", error: "missing reference" };
   }
@@ -237,6 +239,7 @@ export async function runOfficialAssetSlot(
     style: candidate.dna,
     slot: plan,
     styleSeed: style.styleSeed,
+    referenceRoleLayout: generation.plan.referenceRoleLayout,
   });
   const model = resolveOfficialAssetImageModel(deps.env);
 
@@ -246,7 +249,7 @@ export async function runOfficialAssetSlot(
       model,
       primaryPrompt: prompts.primaryPrompt,
       strictFallbackPrompt: prompts.strictFallbackPrompt,
-      references,
+      references: [...generation.plan.references],
       size: profile.size,
       quality: batch.config.quality,
       outputCompression: OFFICIAL_ASSET_OUTPUT_COMPRESSION,

@@ -3,6 +3,7 @@ import path from "node:path";
 import sharp from "sharp";
 
 import { filenameFromUploadUrl, resolveExistingUploadPath } from "@/lib/uploadStorage";
+import { CLUSTER_B_PRIMARY_STYLE_PATH } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import { OfficialImageTransportError } from "@/lib/officialSupply/runner";
 
 const MAX_REFERENCE_BYTES = 20 * 1024 * 1024;
@@ -55,6 +56,15 @@ async function readReference(source: string, env: NodeJS.ProcessEnv): Promise<Bu
   if (localPublic) return fs.promises.readFile(localPublic);
 
   if (/^https:\/\//i.test(source)) {
+    let url: URL;
+    try {
+      url = new URL(source);
+    } catch {
+      throw new Error(`unsupported reference source: ${source}`);
+    }
+    if (url.pathname === CLUSTER_B_PRIMARY_STYLE_PATH) {
+      throw new Error("Cluster B primary STYLE must resolve from platform public storage");
+    }
     const response = await fetch(source, { headers: { Accept: "image/*" } });
     if (!response.ok) throw new Error(`reference fetch failed: ${response.status}`);
     const buffer = Buffer.from(await response.arrayBuffer());

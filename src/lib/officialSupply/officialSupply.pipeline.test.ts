@@ -1,4 +1,5 @@
 import { ROFAN_V4_PRODUCTION_BATCH_CONFIG } from "@/lib/officialSupply/pilotProduction";
+import { buildClusterBRofanStyleSeed } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import { PILOT_STYLE_PROOF_BATCH_CONFIG } from "@/lib/officialSupply/pilotStyleProof";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -49,7 +50,14 @@ const OTHER_VIEWER = 7002;
 const SEED = { url: "/uploads/official-style-seed.webp", provenance: "platform_owned" as const, note: "owned seed" };
 const IMAGE_ENV = { OPENAI_IMAGE_MODEL: "gpt-image-2.5-flare" } as NodeJS.ProcessEnv;
 
-type FakeCall = { model: string; size: string; references: string[]; primaryPrompt: string; idempotencyKey: string };
+type FakeCall = {
+  model: string;
+  size: string;
+  references: string[];
+  primaryPrompt: string;
+  strictFallbackPrompt: string;
+  idempotencyKey: string;
+};
 
 function encodeImage(width: number, height: number): Buffer {
   return Buffer.from(`${width}x${height}`);
@@ -81,6 +89,7 @@ class FakeWorld {
         size: input.size,
         references: input.references,
         primaryPrompt: input.primaryPrompt,
+        strictFallbackPrompt: input.strictFallbackPrompt,
         idempotencyKey: input.idempotencyKey,
       });
       await Promise.resolve();
@@ -904,5 +913,90 @@ describe("pre-provider preparation failures", () => {
     assert.equal(retried.status, "generated");
     assert.equal(world.calls.length, 1);
     assert.equal(store.getAsset(draftKey, "rep").attempts, 1);
+  });
+});
+
+describe("Cluster B production dual-reference plan", () => {
+  it("sends identity + style root, keeps fallback role, and rebuilds the same plan on retry", async () => {
+    const world = new FakeWorld();
+    batchSeq += 1;
+    const batchKey = `batch-cb-${batchSeq}`;
+    const styleKey = `romance_fantasy_v${batchSeq}`;
+    const clusterSeed = buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://example.test" });
+    store.createBatch(batchKey, testBatchConfig({ budgetUsd: { batch: 100 } }));
+    store.proposeStyle({ styleKey, genre: "로맨스 판타지", candidates: ["c1", "c2", "c3"].map(testStyleCandidate) });
+    store.approveStyleCandidate(styleKey, "c2", clusterSeed, "owner");
+    const proofKey = `proof-cb-${batchSeq}`;
+    lockThroughPlan(
+      store,
+      { batchKey, styleKey, worldKey: `proof-cb-world-${batchSeq}` },
+      uniqueDraft(proofKey, HWANG_VOCAB, "레온하르트"),
+      { isStyleProof: true }
+    );
+    assert.equal((await runOfficialAssetSlot(world.deps(store), proofKey, "rep")).status, "generated");
+    store.decideStyleProof(styleKey, "approve", "owner");
+
+    const draftKey = `cb-var-${batchSeq}`;
+    lockThroughPlan(
+      store,
+      { batchKey, styleKey, worldKey: `world-cb-${batchSeq}` },
+      uniqueDraft(draftKey, HWANG_VOCAB, "레온하르트")
+    );
+    assert.equal((await runOfficialAssetSlot(world.deps(store), draftKey, "rep")).status, "generated");
+    assert.equal((await reviewAnchorModerated(world, draftKey)).approved, true);
+
+    const expected = [store.representativeAsset(draftKey).resultUrl!, clusterSeed.url];
+    const before = world.calls.length;
+    world.failNextProvider.push({ message: "provider failed", costUsd: 0.01 });
+    assert.equal((await runOfficialAssetSlot(world.deps(store), draftKey, "sig1")).status, "failed");
+    assert.equal((await runOfficialAssetSlot(world.deps(store), draftKey, "sig1")).status, "generated");
+    const variationCalls = world.calls.slice(before);
+    assert.equal(variationCalls.length, 2);
+    assert.deepEqual(variationCalls[0]!.references, expected);
+    assert.deepEqual(variationCalls[1]!.references, expected);
+    assert.match(variationCalls[0]!.primaryPrompt, /Image 1 IDENTITY ONLY/);
+    assert.match(variationCalls[0]!.strictFallbackPrompt, /Image 1 IDENTITY ONLY/);
+    assert.match(variationCalls[1]!.primaryPrompt, /Image 2 STYLE ONLY/);
+    assert.doesNotMatch(variationCalls[0]!.primaryPrompt, /IDENTITY ANCHOR ONLY/);
+  });
+
+  it("fails Cluster B variations before a provider call when the style root is invalid", async () => {
+    const world = new FakeWorld();
+    batchSeq += 1;
+    const batchKey = `batch-cb-fail-${batchSeq}`;
+    const styleKey = `romance_fantasy_v${batchSeq}`;
+    const clusterSeed = buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://example.test" });
+    store.createBatch(batchKey, testBatchConfig({ budgetUsd: { batch: 100 } }));
+    store.proposeStyle({ styleKey, genre: "로맨스 판타지", candidates: ["c1", "c2", "c3"].map(testStyleCandidate) });
+    store.approveStyleCandidate(styleKey, "c2", clusterSeed, "owner");
+    const proofKey = `proof-cb-fail-${batchSeq}`;
+    lockThroughPlan(
+      store,
+      { batchKey, styleKey, worldKey: `proof-cb-fail-world-${batchSeq}` },
+      uniqueDraft(proofKey, HWANG_VOCAB, "레온하르트"),
+      { isStyleProof: true }
+    );
+    assert.equal((await runOfficialAssetSlot(world.deps(store), proofKey, "rep")).status, "generated");
+    store.decideStyleProof(styleKey, "approve", "owner");
+
+    const draftKey = `cb-fail-${batchSeq}`;
+    lockThroughPlan(
+      store,
+      { batchKey, styleKey, worldKey: `world-cb-fail-${batchSeq}` },
+      uniqueDraft(draftKey, HWANG_VOCAB, "레온하르트")
+    );
+    assert.equal((await runOfficialAssetSlot(world.deps(store), draftKey, "rep")).status, "generated");
+    assert.equal((await reviewAnchorModerated(world, draftKey)).approved, true);
+
+    store.database
+      .prepare("UPDATE official_supply_styles SET style_seed_json=? WHERE style_key=?")
+      .run(JSON.stringify({ ...clusterSeed, url: "https://example.test/not-primary.webp" }), styleKey);
+    const before = world.calls.length;
+    const failed = await runOfficialAssetSlot(world.deps(store), draftKey, "sig1");
+    assert.equal(failed.status, "failed");
+    assert.equal(world.calls.length, before);
+    if (failed.status === "failed") {
+      assert.match(failed.error, /primary STYLE root|styleSeed\.url|[Cc]luster B/);
+    }
   });
 });

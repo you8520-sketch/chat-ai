@@ -252,10 +252,11 @@ describe("official image-generation owners (#1376)", () => {
     assert.match(prompt, /OFFICIAL_STYLE_USE_CLAUSE/);
     assert.match(adapters, /callOpenAiImageEditWithSafetyFallback/);
     assert.match(adapters, /prepareOfficialImageReferences/);
+    assert.match(runner, /resolveOfficialGenerationReferencePlan/);
     assert.doesNotMatch(runner, /identity_then_style/);
   });
 
-  it("identity_then_style is opt-in and does not change the default official slot path", () => {
+  it("prompt layout stays a renderer; Cluster B variation plan owns identity_then_style", () => {
     const lucian = loadCompiledOfficialCharacterSource("pilot-rf-03");
     const { assetPlan } = readPilot("pilot-rf-03");
     const sig4 = assetPlan.slots.find((slot) => slot.slotKey === "sig4")!;
@@ -295,6 +296,15 @@ describe("official image-generation owners (#1376)", () => {
         representativeUrl: "/uploads/official-rep.webp",
       }),
       ["/uploads/official-rep.webp"]
+    );
+    const clusterSeed = buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://example.test" });
+    assert.deepEqual(
+      officialSlotGenerationReferences({
+        kind: "signature",
+        styleSeed: clusterSeed,
+        representativeUrl: "/uploads/official-rep.webp",
+      }),
+      ["/uploads/official-rep.webp", clusterSeed.url]
     );
   });
 });

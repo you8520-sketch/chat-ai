@@ -17,10 +17,17 @@ export const USER_OWNED_ROFAN_STYLE_PUBLIC_ROOT =
 export const PILOT_STYLE_PROOF_V3_STYLE_KEY = "romance_fantasy_v3";
 export const PILOT_STYLE_PROOF_V3_BATCH_KEY = "pilot-romance-fantasy-03-style-refs";
 
-export const USER_OWNED_ROFAN_PRIMARY_GENERATION_PATHS = [
-  `${USER_OWNED_ROFAN_STYLE_PUBLIC_ROOT}/primary/p1-face-rendering.webp`,
+export const USER_OWNED_ROFAN_PRIMARY_STYLE_PATH =
+  `${USER_OWNED_ROFAN_STYLE_PUBLIC_ROOT}/primary/p1-face-rendering.webp`;
+export const USER_OWNED_ROFAN_COMPANION_STYLE_PATHS = [
   `${USER_OWNED_ROFAN_STYLE_PUBLIC_ROOT}/primary/p2-costume-material-female.webp`,
   `${USER_OWNED_ROFAN_STYLE_PUBLIC_ROOT}/primary/p3-lighting-composition.webp`,
+] as const;
+
+/** Representative generation list: explicit primary + companions. Not an ownership index. */
+export const USER_OWNED_ROFAN_PRIMARY_GENERATION_PATHS = [
+  USER_OWNED_ROFAN_PRIMARY_STYLE_PATH,
+  ...USER_OWNED_ROFAN_COMPANION_STYLE_PATHS,
 ] as const;
 
 export const USER_OWNED_ROFAN_HOLDOUT_PATHS = [
@@ -37,14 +44,26 @@ export const CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT =
 export const PILOT_STYLE_PROOF_V4_STYLE_KEY = "romance_fantasy_v4";
 export const PILOT_STYLE_PROOF_V4_BATCH_KEY = "pilot-romance-fantasy-04-cluster-b";
 
-/**
- * Canonical PRIMARY 5 (audit catalog). Provider transport uses the first 3 in deterministic order.
- * User ref numbers: 7, 13, 5 → generation; 3, 17 → catalog rotation.
- */
-export const CLUSTER_B_PRIMARY_GENERATION_PATHS = [
-  `${CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT}/primary/b7-black-gold-uniform.webp`,
+/** Approved Cluster B primary STYLE root — Image 2 for non-representative slots. */
+export const CLUSTER_B_PRIMARY_STYLE_PATH =
+  `${CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT}/primary/b7-black-gold-uniform.webp`;
+/** Display/audit marker only — never use as a substring matcher. */
+export const CLUSTER_B_PRIMARY_STYLE_FILE_MARKER =
+  "romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform";
+
+/** Additional STYLE companions for representative generation only. */
+export const CLUSTER_B_COMPANION_STYLE_PATHS = [
   `${CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT}/primary/b13-black-red-fur.webp`,
   `${CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT}/primary/b5-red-dress-female.webp`,
+] as const;
+
+/**
+ * Representative generation set: explicit primary + companions.
+ * Do not select the primary by reading this list at `[0]`.
+ */
+export const CLUSTER_B_PRIMARY_GENERATION_PATHS = [
+  CLUSTER_B_PRIMARY_STYLE_PATH,
+  ...CLUSTER_B_COMPANION_STYLE_PATHS,
 ] as const;
 
 export const CLUSTER_B_PRIMARY_CATALOG_PATHS = [
@@ -77,29 +96,59 @@ function resolveHttpsPublicUrl(path: string, env: NodeJS.ProcessEnv): string {
   return url.toString();
 }
 
-function buildStyleSeedFromPaths(
-  paths: readonly string[],
-  env: NodeJS.ProcessEnv,
-  opts: { styleCluster?: StyleReference["styleCluster"]; note: string; bundleId: string }
-): StyleReference {
-  const limited = paths.slice(0, OFFICIAL_STYLE_GENERATION_REF_MAX);
-  const [primaryPath, ...companionPaths] = limited;
+/**
+ * Production canonical Cluster B primary STYLE resource.
+ * Accepts only the exact public path, or an HTTPS URL whose pathname is that path.
+ * Query/hash, extra segments, suffix spoofs, and local/QA paths are not production matches.
+ */
+export function isOfficialClusterBPrimaryStyleRef(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (trimmed === CLUSTER_B_PRIMARY_STYLE_PATH) return true;
+  if (!/^https:\/\//i.test(trimmed)) return false;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "https:" && url.pathname === CLUSTER_B_PRIMARY_STYLE_PATH;
+  } catch {
+    return false;
+  }
+}
+
+function buildOfficialStyleSeed(input: {
+  primaryPath: string;
+  companionPaths: readonly string[];
+  env: NodeJS.ProcessEnv;
+  styleCluster?: StyleReference["styleCluster"];
+  note: string;
+  bundleId: string;
+}): StyleReference {
+  const primaryPath = input.primaryPath.trim();
+  if (!primaryPath) {
+    throw new Error("official style seed requires an explicit primary style path");
+  }
+  const companions = input.companionPaths
+    .map((path) => path.trim())
+    .filter(Boolean)
+    .slice(0, OFFICIAL_STYLE_GENERATION_REF_MAX - 1);
   return {
-    url: resolveHttpsPublicUrl(primaryPath, env),
+    url: resolveHttpsPublicUrl(primaryPath, input.env),
     provenance: "platform_owned",
-    styleCluster: opts.styleCluster,
-    note: opts.note,
-    styleOnlyVisualReferences: companionPaths.map((path, index) => ({
-      url: resolveHttpsPublicUrl(path, env),
+    styleCluster: input.styleCluster,
+    note: input.note,
+    styleOnlyVisualReferences: companions.map((path, index) => ({
+      url: resolveHttpsPublicUrl(path, input.env),
       provenance: "platform_owned" as const,
-      note: `STYLE ONLY companion ${index + 1} (${opts.bundleId}). Identity copy forbidden.`,
+      note: `STYLE ONLY companion ${index + 1} (${input.bundleId}). Identity copy forbidden.`,
     })),
   };
 }
 
 /** v3 seed (legacy bundle — do not use for new Cluster B proofs). */
 export function buildUserOwnedRofanStyleSeed(env: NodeJS.ProcessEnv = process.env): StyleReference {
-  return buildStyleSeedFromPaths(USER_OWNED_ROFAN_PRIMARY_GENERATION_PATHS, env, {
+  return buildOfficialStyleSeed({
+    primaryPath: USER_OWNED_ROFAN_PRIMARY_STYLE_PATH,
+    companionPaths: USER_OWNED_ROFAN_COMPANION_STYLE_PATHS,
+    env,
     note:
       "STYLE ONLY — user-authored original artwork (v3 bundle). Do not copy face/hair/outfit/marks/pose/background identity. Appearance Lock owns character identity.",
     bundleId: USER_OWNED_ROFAN_STYLE_BUNDLE_ID,
@@ -108,7 +157,10 @@ export function buildUserOwnedRofanStyleSeed(env: NodeJS.ProcessEnv = process.en
 
 /** v4 Cluster B graphic webtoon seed — canonical target for recalibrated proofs. */
 export function buildClusterBRofanStyleSeed(env: NodeJS.ProcessEnv = process.env): StyleReference {
-  const seed = buildStyleSeedFromPaths(CLUSTER_B_PRIMARY_GENERATION_PATHS, env, {
+  const seed = buildOfficialStyleSeed({
+    primaryPath: CLUSTER_B_PRIMARY_STYLE_PATH,
+    companionPaths: CLUSTER_B_COMPANION_STYLE_PATHS,
+    env,
     styleCluster: "cluster_b_graphic",
     note:
       "STYLE ONLY — Cluster B graphic domestic rofan webtoon references (v4 bundle). Crisp lines, high contrast, saturated accents. Never copy reference identity; Appearance Lock wins.",

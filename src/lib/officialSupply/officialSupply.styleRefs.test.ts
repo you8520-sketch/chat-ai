@@ -28,6 +28,7 @@ import {
   CLUSTER_B_HOLDOUT_PATHS,
   CLUSTER_B_PRIMARY_CATALOG_PATHS,
   CLUSTER_B_PRIMARY_GENERATION_PATHS,
+  CLUSTER_B_PRIMARY_STYLE_PATH,
   CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT,
   PILOT_STYLE_PROOF_V3_BATCH_KEY,
   PILOT_STYLE_PROOF_V3_STYLE_KEY,
@@ -226,9 +227,13 @@ describe("Cluster B graphic rofan STYLE-ONLY references (v4)", () => {
     }
     const seed = buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://example.test" });
     const urls = resolveOfficialStyleGenerationReferences(seed);
+    assert.ok(seed.url.includes(CLUSTER_B_PRIMARY_STYLE_PATH));
     assert.ok(urls[0]!.includes("/b7-black-gold-uniform"));
     assert.ok(urls[1]!.includes("/b13-black-red-fur"));
     assert.ok(urls[2]!.includes("/b5-red-dress-female"));
+    const builder = fs.readFileSync(path.join(process.cwd(), "src/lib/officialSupply/userOwnedRofanStyleRefs.ts"), "utf8");
+    assert.match(builder, /primaryPath: CLUSTER_B_PRIMARY_STYLE_PATH/);
+    assert.doesNotMatch(builder, /CLUSTER_B_PRIMARY_GENERATION_PATHS\[0\]/);
     assert.equal(validateClusterBStyleSeedForApproval(seed), null);
     assert.equal(PILOT_STYLE_PROOF_V4_STYLE_KEY, "romance_fantasy_v4");
     assert.equal(PILOT_STYLE_PROOF_V4_BATCH_KEY, "pilot-romance-fantasy-04-cluster-b");
