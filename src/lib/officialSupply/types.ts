@@ -163,7 +163,13 @@ export type OfficialCharacterHook = {
 };
 
 export type OfficialCharacterSections = {
+  /** Shared world snapshot written to `characters.world` / World Library. */
   worldAndSituation: string;
+  /**
+   * Character-local [현재 상황 / 도입]. Compact official sheets only.
+   * Must not be copied into the shared World body.
+   */
+  currentSituation?: string;
   characterCore: string;
   relationshipsAndDrives: string;
   extraCanon: string;

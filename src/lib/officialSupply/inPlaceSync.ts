@@ -46,6 +46,10 @@ import {
 } from "@/lib/officialSupply/appearance";
 import { composeOfficialCreatorComment } from "@/lib/officialSupply/publicProfileText";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
+import {
+  ensureOfficialSharedWorldLibraryRow,
+  findOfficialSharedWorldLibraryRow,
+} from "@/lib/officialSupply/officialSharedWorld";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import { isStageAtLeast, type OfficialCharacterStage, type OfficialWorldLorebookEntry } from "@/lib/officialSupply/types";
 import { isSiteManagedUser } from "@/lib/siteManagedAccounts";
@@ -108,6 +112,7 @@ export type OfficialInPlaceSyncResult = {
     greetingHash: string;
     systemPromptHash: string;
     worldHash: string;
+    worldId: number | null;
     creatorName: string;
     official: number;
     visibility: string;
@@ -122,6 +127,7 @@ export type OfficialInPlaceSyncResult = {
     greetingHash: string;
     systemPromptHash: string;
     worldHash: string;
+    worldId: number | null;
     creatorName: string;
     lorebookKeys: string[];
     lorebookCount: number;
@@ -138,6 +144,7 @@ type OfficialCharacterRow = {
   greeting: string;
   system_prompt: string;
   world: string;
+  world_id: number | null;
   creator_id: number | null;
   creator_name: string;
   official: number;
@@ -674,7 +681,7 @@ function inspectTarget(input: {
   const source = loadCompiledOfficialCharacterSource(input.draftKey);
   const row = db
     .prepare(
-      `SELECT id, name, tagline, description, greeting, system_prompt, world, creator_id, creator_name,
+      `SELECT id, name, tagline, description, greeting, system_prompt, world, world_id, creator_id, creator_name,
               official, visibility, moderation_status, nsfw, comments_enabled, assets, images, gender,
               COALESCE(example_dialog, '') AS example_dialog,
               COALESCE(creator_comment, '') AS creator_comment,
@@ -786,6 +793,10 @@ function inspectTarget(input: {
     greeting: source.draft.greeting,
     systemPrompt: source.systemPrompt,
     world: source.draft.sections.worldAndSituation,
+    worldId:
+      source.draft.promptStandard === "compact_rp_v1" && row.creator_id
+        ? findOfficialSharedWorldLibraryRow(db, row.creator_id)?.id ?? null
+        : row.world_id,
     creatorComment: composeOfficialCreatorComment(source.draft),
     exampleDialog: composeExampleDialog({
       speech_personality: source.draft.speech.personality,
@@ -838,6 +849,7 @@ function toResult(input: {
     greetingHash: sha256(compiled.greeting),
     systemPromptHash: sha256(compiled.systemPrompt),
     worldHash: sha256(compiled.world),
+    worldId: compiled.worldId,
     creatorName: alias,
     lorebookKeys: input.lorebookKeys ?? source.resolvedLorebook.map((entry) => entry.entryKey),
     lorebookCount: source.resolvedLorebook.length,
@@ -849,6 +861,7 @@ function toResult(input: {
     greetingHash: sha256(row.greeting ?? ""),
     systemPromptHash: sha256(row.system_prompt ?? ""),
     worldHash: sha256(row.world ?? ""),
+    worldId: row.world_id ?? null,
     creatorName: row.creator_name,
     official: row.official,
     visibility: row.visibility,
@@ -864,6 +877,7 @@ function toResult(input: {
       ["greeting", before.greetingHash !== after.greetingHash],
       ["system_prompt", before.systemPromptHash !== after.systemPromptHash],
       ["world", before.worldHash !== after.worldHash],
+      ["world_id", before.worldId !== after.worldId],
       ["creator_name", before.creatorName !== after.creatorName],
       ["lorebook", JSON.stringify(before.lorebookKeys) !== JSON.stringify(after.lorebookKeys)],
       ["appearance", appearanceWrite.replaceWithCompact],
@@ -937,10 +951,18 @@ function applyGuardedCanonicalFields(input: {
       );
     }
 
+    const nextWorldId =
+      source.draft.promptStandard === "compact_rp_v1"
+        ? ensureOfficialSharedWorldLibraryRow({
+            db: input.db,
+            creatorId: owner.id,
+            bible: source.worldBible,
+          }).worldId
+        : row.world_id;
     const updated = input.db
       .prepare(
         `UPDATE characters SET
-           tagline=?, description=?, greeting=?, system_prompt=?, world=?,
+           tagline=?, description=?, greeting=?, system_prompt=?, world=?, world_id=?,
            creator_comment=?, example_dialog=?, tags=?, genre=?, genres=?, creator_name=?,
            creator_raw_description=?, creator_compiled_description_json=?, creator_canon_plan_json=?,
            appearance_raw=?, appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?,
@@ -952,6 +974,7 @@ function applyGuardedCanonicalFields(input: {
            AND moderation_status=?
            AND nsfw=?
            AND comments_enabled=?
+           AND COALESCE(world_id,0)=?
            AND COALESCE(assets,'')=?
            AND COALESCE(status_widget_json,'')=?
            AND COALESCE(jsx_components_json,'')=?
@@ -970,6 +993,7 @@ function applyGuardedCanonicalFields(input: {
         compiled.greeting,
         compiled.systemPrompt,
         compiled.world,
+        nextWorldId,
         compiled.creatorComment,
         compiled.exampleDialog,
         compiled.tagsJson,
@@ -990,6 +1014,7 @@ function applyGuardedCanonicalFields(input: {
         row.moderation_status,
         row.nsfw,
         row.comments_enabled,
+        Number(row.world_id ?? 0),
         row.assets,
         row.status_widget_json,
         row.jsx_components_json,
@@ -1119,13 +1144,14 @@ export async function syncOfficialCharacterInPlace(input: {
   kickDerivedCacheWorker();
 
   const afterRow = db
-    .prepare("SELECT id, tagline, creator_name, official, visibility FROM characters WHERE id=?")
+    .prepare("SELECT id, tagline, creator_name, official, visibility, world_id FROM characters WHERE id=?")
     .get(inspected.row.id) as {
     id: number;
     tagline: string;
     creator_name: string;
     official: number;
     visibility: string;
+    world_id: number | null;
   };
   if (afterRow.id !== inspected.row.id) {
     throw new OfficialSupplyGateError("identity_changed", "in-place sync must keep the same character id");
@@ -1142,6 +1168,7 @@ export async function syncOfficialCharacterInPlace(input: {
       ...preview.after,
       tagline: afterRow.tagline,
       creatorName: afterRow.creator_name,
+      worldId: afterRow.world_id ?? null,
       lorebookKeys: synced.map((entry) => entry.entryKey),
       lorebookCount: synced.length,
     },

@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 
 import { compileCanonPlanV1 } from "@/lib/canonPlan/compiler";
 import { isPublicVisibleChunk } from "@/lib/canonPlan/canonVisibility";
-import { compileOfficialDraftFromBible, type OfficialCharacterBible } from "@/lib/officialSupply/bible";
+import { compileOfficialDraftFromBible, type OfficialCharacterBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
 import { buildOfficialCharacterFormBody, composeOfficialSystemPrompt } from "@/lib/officialSupply/characterText";
 import {
   renderAppearanceBlock,
@@ -54,7 +54,7 @@ function lucianFile(): PilotChar {
 
 function compileLucian() {
   const file = lucianFile();
-  const world = readJson<{ bible: { name: string } }>(path.join(PILOT_DIR, "world-bible.json"));
+  const world = readJson<{ bible: OfficialWorldBible }>(path.join(PILOT_DIR, "world-bible.json"));
   const manifest = readJson<{ worldKey: string; styleKey: string }>(path.join(PILOT_DIR, "manifest.json"));
   const draft = compileOfficialDraftFromBible(file.bible, {
     draftKey: file.draftKey,
@@ -63,6 +63,7 @@ function compileLucian() {
     genres: ["로맨스 판타지"] as OfficialCharacterDraft["genres"],
     audience: file.brief.audience,
     worldName: world.bible.name,
+    worldBible: world.bible,
     hook: {
       archetype: file.brief.archetype,
       relationshipTrope: file.brief.relationshipTrope,
@@ -70,7 +71,7 @@ function compileLucian() {
       rpHook: file.brief.rpHook,
     },
   });
-  return { file, draft };
+  return { file, draft, worldBible: world.bible };
 }
 
 describe("official character prompt standard v1", () => {
@@ -124,13 +125,21 @@ describe("official character prompt standard v1", () => {
   });
 
 
-  it("keeps shared world canon in the lorebook owner instead of duplicating it into the compact runtime prompt", () => {
+  it("projects the shared Ethernos world into World and keeps Lucian incident in currentSituation", () => {
     const { file, draft } = compileLucian();
     assert.ok(file.bible.situation.worldContext.length > 0);
     assert.equal(draft.sections.worldAndSituation.includes(file.bible.situation.worldContext), false);
-    assert.equal(draft.sections.worldAndSituation.includes(file.bible.situation.personalSituation), true);
-    assert.equal(draft.sections.worldAndSituation.includes(file.bible.situation.userEntry), true);
+    assert.equal(draft.sections.worldAndSituation.includes(file.bible.situation.personalSituation), false);
+    assert.equal(draft.sections.worldAndSituation.includes(file.bible.situation.userEntry), false);
+    assert.match(draft.sections.worldAndSituation, /에테르노스 제국/);
+    assert.match(draft.sections.worldAndSituation, /공허의 밤/);
+    assert.equal(draft.sections.currentSituation?.includes(file.bible.situation.personalSituation), true);
+    assert.equal(draft.sections.currentSituation?.includes(file.bible.situation.userEntry), true);
     assert.match(draft.description, /\[세계관 설정:/);
+    const systemPrompt = composeOfficialSystemPrompt(draft);
+    assert.match(systemPrompt, /\[현재 상황 \/ 도입\]/);
+    assert.match(systemPrompt, /증권거래소 지하 금고/);
+    assert.equal((systemPrompt.match(/증권거래소 지하 금고에서 경보가 울린 순간/g) ?? []).length, 1);
   });
 
   it("keeps compact public relationship copy persona-flexible", () => {
@@ -283,6 +292,7 @@ describe("official character prompt standard v1", () => {
     assert.equal(file.draft.sections.characterCore, draft.sections.characterCore);
     assert.equal(file.draft.sections.relationshipsAndDrives, draft.sections.relationshipsAndDrives);
     assert.equal(file.draft.sections.worldAndSituation, draft.sections.worldAndSituation);
+    assert.equal(file.draft.sections.currentSituation, draft.sections.currentSituation);
     assert.deepEqual(file.draft.secrets, draft.secrets);
     assert.equal(file.draft.description, draft.description);
     assert.equal(file.draft.greeting, draft.greeting);
@@ -341,9 +351,11 @@ describe("official character prompt standard v1", () => {
     const situationSurfaces = [
       file.bible.situation.personalSituation,
       file.bible.situation.userEntry,
-      draft.sections.worldAndSituation,
-      String(formBody.world),
+      draft.sections.currentSituation ?? "",
     ].join("\n");
+    assert.doesNotMatch(draft.sections.worldAndSituation, /숨긴 기록/);
+    assert.doesNotMatch(String(formBody.world), /숨긴 기록/);
+    assert.match(String(formBody.system_prompt), /\[현재 상황 \/ 도입\]/);
     assert.match(file.bible.secrets.join("\n"), evidence);
     assert.match(draft.secrets.join("\n"), evidence);
     assert.match(systemPrompt, evidence);
