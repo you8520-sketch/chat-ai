@@ -92,9 +92,9 @@ export type OfficialAssetPromptInput = {
   /** Approved style seed — when Cluster B, calibrates DNA + reference semantics. */
   styleSeed?: StyleReference | null;
   /**
-   * Default `slot_default` keeps the production official path:
-   * representative = STYLE ONLY, other slots = IDENTITY ANCHOR ONLY.
-   * `identity_then_style` is opt-in for the lucian-sig4 style proof only.
+   * Production callers pass the layout from `resolveOfficialGenerationReferencePlan`.
+   * Default `slot_default` is representative STYLE ONLY or non-Cluster-B IDENTITY ANCHOR ONLY.
+   * `identity_then_style` is the Cluster B variation layout: Image 1 identity, Image 2 style.
    */
   referenceRoleLayout?: OfficialReferenceRoleLayout;
 };
@@ -159,7 +159,7 @@ export const OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE = [
   OFFICIAL_SHOT_POSE_EXPRESSION_OWNER_CLAUSE,
 ].join(" ");
 
-/** Dual-role proof: Image 1 = identity, Image 2 = style. Opt-in only — not the default official path. */
+/** Cluster B variation: Image 1 = identity, Image 2 = approved styleSeed.url. */
 export function officialIdentityThenStyleReferenceRule(
   styleSeed: StyleReference | null | undefined
 ): string {

@@ -57,6 +57,7 @@ import { ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
 import {
   buildClusterBRofanStyleSeed,
   CLUSTER_B_PRIMARY_GENERATION_PATHS,
+  CLUSTER_B_PRIMARY_STYLE_PATH,
 } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import type {
   OfficialAppearanceLock,
@@ -400,6 +401,10 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
   it("selects explicit b7 independently of Cluster B catalog order", () => {
     assert.equal(
       LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH,
+      CLUSTER_B_PRIMARY_STYLE_PATH
+    );
+    assert.equal(
+      CLUSTER_B_PRIMARY_STYLE_PATH,
       "/official-supply/style-seeds/romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform.webp"
     );
     assert.equal(
@@ -620,7 +625,7 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
     assert.equal(cost.planningCeilingIsProviderHardCap, false);
   });
 
-  it("keeps the default official generation path at one identity URL for signature slots", () => {
+  it("promotes Cluster B variation generation to identity + approved style root", () => {
     const { prompts } = buildSig4Prompt();
     assert.equal(prompts.primaryPrompt.includes(OFFICIAL_IDENTITY_ANCHOR_REFERENCE_RULE), true);
     assert.doesNotMatch(prompts.primaryPrompt, /Image 1 IDENTITY ONLY/);
@@ -630,7 +635,7 @@ describe("official shot QA lucian-sig4-style dual-reference prepare", () => {
         styleSeed: CLUSTER_B_SEED,
         representativeUrl: "/uploads/official-pilot-rf-v4-03__rep-a1.webp",
       }),
-      ["/uploads/official-pilot-rf-v4-03__rep-a1.webp"]
+      ["/uploads/official-pilot-rf-v4-03__rep-a1.webp", CLUSTER_B_SEED.url]
     );
   });
 

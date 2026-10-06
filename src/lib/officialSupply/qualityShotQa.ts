@@ -7,9 +7,12 @@ import {
   OFFICIAL_IMAGE2_STYLE_ONLY_EXTRA_BAN,
   officialIdentityThenStyleReferenceRule,
 } from "@/lib/officialSupply/imagePrompt";
+import { officialClusterBVariationReferencePair } from "@/lib/officialSupply/generationReferences";
 import {
   CLUSTER_B_PRIMARY_GENERATION_PATHS,
-  CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT,
+  CLUSTER_B_PRIMARY_STYLE_FILE_MARKER,
+  CLUSTER_B_PRIMARY_STYLE_PATH,
+  isOfficialClusterBPrimaryStyleRef,
 } from "@/lib/officialSupply/userOwnedRofanStyleRefs";
 import {
   OFFICIAL_ASSET_DEFAULT_QUALITY,
@@ -51,12 +54,10 @@ export const LUCIAN_SIG4_TRIAL_DRAFT_KEY = "pilot-rf-03";
 export const LUCIAN_SIG4_TRIAL_SLOT_KEY = "sig4";
 export const LUCIAN_V4_REPRESENTATIVE_FILE_MARKER = "official-pilot-rf-v4-03__rep";
 
-/** Pixel-selected STYLE ONLY file for this proof — explicit b7, not catalog index 0. */
-export const LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH =
-  `${CLUSTER_B_ROFAN_STYLE_PUBLIC_ROOT}/primary/b7-black-gold-uniform.webp`;
-export const LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER =
-  "romance-fantasy-cluster-b-v1/primary/b7-black-gold-uniform";
-export const LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE = `public${LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH}`;
+/** QA alias of the production Cluster B primary STYLE root — not a second path owner. */
+export const LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH = CLUSTER_B_PRIMARY_STYLE_PATH;
+export const LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER = CLUSTER_B_PRIMARY_STYLE_FILE_MARKER;
+export const LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE = `public${CLUSTER_B_PRIMARY_STYLE_PATH}`;
 export const LUCIAN_SIG4_OBSERVED_ONE_REFERENCE_PAID_USD = 0.030653;
 export const LUCIAN_SIG4_STYLE_ESTIMATED_TWO_REFERENCE_PRIMARY_USD = 0.05;
 
@@ -542,16 +543,11 @@ export function lucianSig4StyleTrialStyleOwner(): LucianSig4StyleTrialStyleOwner
 }
 
 export function lucianSig4SelectedStyleReferenceIsInClusterBCatalog(): boolean {
-  return (CLUSTER_B_PRIMARY_GENERATION_PATHS as readonly string[]).includes(
-    LUCIAN_SIG4_SELECTED_STYLE_REFERENCE_PUBLIC_PATH
-  );
+  return (CLUSTER_B_PRIMARY_GENERATION_PATHS as readonly string[]).includes(CLUSTER_B_PRIMARY_STYLE_PATH);
 }
 
 export function selectedClusterBStyleReferenceMatchesCanonical(pathValue: string): boolean {
-  return (
-    pathValue.includes(LUCIAN_SIG4_STYLE_REFERENCE_FILE_MARKER) &&
-    lucianSig4SelectedStyleReferenceIsInClusterBCatalog()
-  );
+  return isOfficialClusterBPrimaryStyleRef(pathValue) && lucianSig4SelectedStyleReferenceIsInClusterBCatalog();
 }
 
 function requiredStyleBytes(
@@ -605,21 +601,18 @@ export function assembleLucianSig4StyleProviderReferences(input: {
   | { ok: true; references: [LucianSig4StyleProviderReference, LucianSig4StyleProviderReference] }
   | { ok: false; reason: string } {
   const identityPath = input.identityPath.trim();
-  const stylePath = input.stylePath.trim();
   if (!identityPath.includes(LUCIAN_V4_REPRESENTATIVE_FILE_MARKER)) {
     return { ok: false, reason: "identity representative is not the approved v4 Lucian representative" };
   }
-  if (!selectedClusterBStyleReferenceMatchesCanonical(stylePath)) {
-    return { ok: false, reason: "style reference is not the selected canonical Cluster B image" };
-  }
-  if (identityPath === stylePath) {
-    return { ok: false, reason: "identity and style references must be two distinct files" };
+  const pair = officialClusterBVariationReferencePair(identityPath, input.stylePath);
+  if (!pair.ok) {
+    return { ok: false, reason: pair.reason };
   }
   return {
     ok: true,
     references: [
-      { index: 0, role: "IDENTITY ONLY", path: identityPath },
-      { index: 1, role: "STYLE ONLY", path: stylePath },
+      { index: 0, role: "IDENTITY ONLY", path: pair.references[0] },
+      { index: 1, role: "STYLE ONLY", path: pair.references[1] },
     ],
   };
 }
