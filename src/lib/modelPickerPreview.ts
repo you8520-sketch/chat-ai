@@ -437,6 +437,7 @@ export function computePreviewPointBand(opts: {
   outputTokens: number;
   targetResponseChars?: number;
 }): { low: number; mid: number; high: number } | null {
+  if (!isActivePickerModel(opts.modelId)) return null;
   const mid = computePreviewTurnPoints(opts);
   if (mid == null) return null;
   const loOut = Math.max(
