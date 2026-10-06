@@ -86,7 +86,7 @@ describe("modelPickerPreview V2", () => {
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_61_SOL_MODEL)
     );
     assert.equal(
-      preview.models.some((m) => m.modelId === GEMINI_38_FLASH_MODEL),
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
       false
     );
     assert.equal(
@@ -234,11 +234,25 @@ describe("modelPickerPreview V2", () => {
     for (const modelId of ACTIVE) {
       const preview = computePreviewTurnPoints({ modelId, inputTokens: input, outputTokens: output });
       const billed =
-        computeStablePublishedPreviewPoints({ modelId, inputTokens: input, outputTokens: output }) ??
-        computeCheaperInferenceMarketPreviewCost(input, output, modelId, 0.15) ??
-        computeOpenRouterTurnCost(input, output, modelId);
+        modelId === GEMINI_38_FLASH_MODEL
+          ? computeOpenRouterTurnCost(input, output, modelId)
+          : computeStablePublishedPreviewPoints({ modelId, inputTokens: input, outputTokens: output }) ??
+            computeCheaperInferenceMarketPreviewCost(input, output, modelId, 0.15);
       assert.equal(preview, billed, modelId);
     }
+  });
+
+  it("keeps Main RP Gemini 3.8 preview on OpenRouter even though TRPG also supports it on CheaperInference", () => {
+    const inputTokens = 15_000;
+    const outputTokens = 2_200;
+    assert.equal(
+      computePreviewTurnPoints({
+        modelId: GEMINI_38_FLASH_MODEL,
+        inputTokens,
+        outputTokens,
+      }),
+      computeOpenRouterTurnCost(inputTokens, outputTokens, GEMINI_38_FLASH_MODEL)
+    );
   });
 
   it("uses each model's assembled input snapshot with billing parity when no receipt", () => {
@@ -259,7 +273,7 @@ describe("modelPickerPreview V2", () => {
       (row) => row.modelId === ACTIVE_DEEPSEEK_MODEL
     )!;
     const gemini = preview.models.find(
-      (row) => row.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
+      (row) => row.modelId === GEMINI_38_FLASH_MODEL
     )!;
 
     assert.equal(deepSeek.estimatedInputTokens, deepSeekInput);
@@ -274,11 +288,10 @@ describe("modelPickerPreview V2", () => {
     );
     assert.equal(
       gemini.estimatedPoints,
-      computeCheaperInferenceMarketPreviewCost(
+      computeOpenRouterTurnCost(
         geminiInput,
         gemini.estimatedOutputTokens,
-        gemini.modelId,
-        0.15
+        gemini.modelId
       )
     );
   });
@@ -349,11 +362,10 @@ describe("modelPickerPreview V2", () => {
     assert.equal(row.estimatedOutputTokens, 2450);
     assert.equal(
       row.estimatedPoints,
-      computeCheaperInferenceMarketPreviewCost(
+      computeOpenRouterTurnCost(
         input,
         2450,
-        GEMINI_38_FLASH_MODEL,
-        0.15
+        GEMINI_38_FLASH_MODEL
       )
     );
     assert.ok((row.estimatedPointsHigh ?? 0) > (row.estimatedPointsLow ?? 0));
