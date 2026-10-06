@@ -19,6 +19,7 @@ import {
   isMuseModel,
   MAIN_RP_MODEL_IDS,
   resolveSelectedAI,
+  selectedAIProvider,
   USER_SELECTABLE_AI_OPTIONS,
   type SelectedAI,
 } from "@/lib/chatModels";
@@ -412,8 +413,13 @@ export function computePreviewTurnPoints(opts: {
   if (!isActivePickerModel(opts.modelId)) {
     return null;
   }
-  // V4.1 is stable-published and must preview from the same canonical published owner.
-  // Other legacy/market-priced models keep their existing preview owners.
+  // Main RP provider identity comes from the canonical picker registry.
+  // A model may also be supported by another transport for non-Main-RP workloads
+  // (for example TRPG Gemini 3.8 on CheaperInference); that must not change picker billing.
+  if (selectedAIProvider(opts.modelId) === "openrouter") {
+    return computeOpenRouterTurnCost(opts.inputTokens, opts.outputTokens, opts.modelId);
+  }
+
   return (
     computeStablePublishedPreviewPoints(opts) ??
     computeCheaperInferenceMarketPreviewCost(
@@ -421,8 +427,7 @@ export function computePreviewTurnPoints(opts: {
       opts.outputTokens,
       opts.modelId,
       0.15
-    ) ??
-    computeOpenRouterTurnCost(opts.inputTokens, opts.outputTokens, opts.modelId)
+    )
   );
 }
 
@@ -442,40 +447,45 @@ export function computePreviewPointBand(opts: {
     Math.round(opts.outputTokens * (1 + MODEL_PICKER_OUTPUT_RANGE_RATIO)),
     opts.targetResponseChars
   );
+  const provider = selectedAIProvider(opts.modelId);
   const low =
-    computeStablePublishedPreviewPoints({
-      modelId: opts.modelId,
-      inputTokens: opts.inputTokens,
-      outputTokens: loOut,
-    }) ??
-    computeCheaperInferenceMarketPreviewCost(
-      opts.inputTokens,
-      loOut,
-      opts.modelId,
-      0.3
-    ) ??
-    computePreviewTurnPoints({
-      modelId: opts.modelId,
-      inputTokens: opts.inputTokens,
-      outputTokens: loOut,
-    });
+    provider === "openrouter"
+      ? computeOpenRouterTurnCost(opts.inputTokens, loOut, opts.modelId)
+      : computeStablePublishedPreviewPoints({
+          modelId: opts.modelId,
+          inputTokens: opts.inputTokens,
+          outputTokens: loOut,
+        }) ??
+        computeCheaperInferenceMarketPreviewCost(
+          opts.inputTokens,
+          loOut,
+          opts.modelId,
+          0.3
+        ) ??
+        computePreviewTurnPoints({
+          modelId: opts.modelId,
+          inputTokens: opts.inputTokens,
+          outputTokens: loOut,
+        });
   const high =
-    computeStablePublishedPreviewPoints({
-      modelId: opts.modelId,
-      inputTokens: opts.inputTokens,
-      outputTokens: hiOut,
-    }) ??
-    computeCheaperInferenceMarketPreviewCost(
-      opts.inputTokens,
-      hiOut,
-      opts.modelId,
-      0
-    ) ??
-    computePreviewTurnPoints({
-      modelId: opts.modelId,
-      inputTokens: opts.inputTokens,
-      outputTokens: hiOut,
-    });
+    provider === "openrouter"
+      ? computeOpenRouterTurnCost(opts.inputTokens, hiOut, opts.modelId)
+      : computeStablePublishedPreviewPoints({
+          modelId: opts.modelId,
+          inputTokens: opts.inputTokens,
+          outputTokens: hiOut,
+        }) ??
+        computeCheaperInferenceMarketPreviewCost(
+          opts.inputTokens,
+          hiOut,
+          opts.modelId,
+          0
+        ) ??
+        computePreviewTurnPoints({
+          modelId: opts.modelId,
+          inputTokens: opts.inputTokens,
+          outputTokens: hiOut,
+        });
   if (low == null || high == null) return { low: mid, mid, high: mid };
 
   // Token-based band (can be tiny on cheap out-rates) ∪ minimum relative display band.
