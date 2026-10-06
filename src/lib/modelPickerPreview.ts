@@ -5,8 +5,12 @@
  */
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   GEMINI_38_FLASH_MODEL,
+  OPENROUTER_GEMINI_31_PRO_MODEL,
+  OPENROUTER_GEMINI_37_FLASH_MODEL,
   isCheaperInferenceGemini31ProModel,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
@@ -87,15 +91,27 @@ export function isActivePickerModel(modelId: string): modelId is ModelPickerActi
   return (MODEL_PICKER_ACTIVE_MODEL_IDS as readonly string[]).includes(modelId);
 }
 
-/** Canonical model id for sample filtering — matches billing selectedAI. */
+function isRetiredGeminiPickerSample(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return (
+    id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
+    id === OPENROUTER_GEMINI_31_PRO_MODEL ||
+    id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
+    id === OPENROUTER_GEMINI_37_FLASH_MODEL
+  );
+}
+
+/** Canonical model id for sample filtering — matches billing selectedAI without re-labeling retired model history. */
 export function canonicalizePreviewModelId(
   usage?: Pick<ModelPickerUsageSample, "selectedAI" | "model"> | null,
   messageModel?: string | null
 ): SelectedAI | null {
   const raw = usage?.selectedAI || usage?.model || messageModel || "";
   if (!raw.trim()) return null;
-  // Retired Muse / Terra samples must not skew active-model picker estimates.
-  if (isMuseModel(raw) || isGpt56TerraModel(raw)) return null;
+  // Retired-model history must not be relabeled as a current model's measured sample.
+  if (isMuseModel(raw) || isGpt56TerraModel(raw) || isRetiredGeminiPickerSample(raw)) {
+    return null;
+  }
   const resolved = resolveSelectedAI(raw, raw);
   return isActivePickerModel(resolved) ? resolved : null;
 }
