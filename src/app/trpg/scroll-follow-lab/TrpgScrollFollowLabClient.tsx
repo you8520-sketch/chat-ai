@@ -13,7 +13,7 @@ import {
 
 const noop = () => {};
 
-export default function TrpgScrollFollowLabClient() {
+export default function TrpgScrollFollowLabClient({ sheetJsxCompiled }: { sheetJsxCompiled: string | null }) {
   const searchParams = useSearchParams();
   const scenario = useMemo(
     () => parseScrollFollowLabScenario(searchParams.get("scenario")),
@@ -44,6 +44,7 @@ export default function TrpgScrollFollowLabClient() {
       <TrpgCampaignRoom
         key={scenario === "handoff" ? "handoff-lifetime" : scenario}
         snap={snap}
+        sheetJsxCompiled={sheetJsxCompiled}
         starting={false}
         generating={false}
         busy={false}

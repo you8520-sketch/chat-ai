@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { canAccessTrpg } from "@/lib/trpg/access";
 import { loadTrpgSnapshot } from "@/lib/trpg/engine";
+import { compileTrpgSheetJsx } from "@/lib/trpg/sheetJsxSource";
 import { ensureDefaultPublicPersona } from "@/lib/userPersonas";
 import TrpgRoomClient from "./TrpgRoomClient";
 
@@ -20,7 +21,7 @@ export default async function TrpgRoomPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="w-full min-w-0 flex-1">
-      <TrpgRoomClient initial={campaign} personas={personas} />
+      <TrpgRoomClient initial={campaign} personas={personas} sheetJsxCompiled={compileTrpgSheetJsx()} />
     </div>
   );
 }

@@ -1,19 +1,30 @@
-import { JSX_BRIDGE_MAX_TEXT, JSX_BRIDGE_MIN_INTERVAL_MS, JSX_SANDBOX_MESSAGE_BURST } from "./limits";
+import {
+  JSX_BRIDGE_ACTION_TYPE_MAX,
+  JSX_BRIDGE_MAX_TEXT,
+  JSX_BRIDGE_MIN_INTERVAL_MS,
+  JSX_SANDBOX_AUTO_HEIGHT_MAX_PX,
+  JSX_SANDBOX_AUTO_HEIGHT_MIN_PX,
+  JSX_SANDBOX_MESSAGE_BURST,
+} from "./limits";
 
 export type JsxHostBridgeAction =
   | { action: "ignore"; reason: string }
   | { action: "setChatDraft"; text: string }
-  | { action: "requestChatSend"; text: string };
+  | { action: "requestChatSend"; text: string }
+  | { action: "setTrpgActionDraft"; actionType: string; text: string };
 
 export type JsxHostBridgeRateState = {
   lastAcceptedAt: number;
   burst: number;
 };
 
+export type JsxTrpgActionDraftRequest = { actionType: string; text: string };
+
 /**
- * Canonical JSX → host chat-bridge policy.
+ * Canonical JSX → host bridge policy.
  * Never returns a provider send. iframe postMessage cannot prove a user
  * gesture, so sendToChat only drafts + asks the host user to press Send.
+ * setTrpgActionDraft is draft-only; the TRPG host owns allowlist + length.
  */
 export function normalizeJsxBridgeText(raw: unknown): string {
   return String(raw ?? "").slice(0, JSX_BRIDGE_MAX_TEXT).trim();
@@ -30,6 +41,7 @@ export function nextJsxBridgeRateState(
 export function decideJsxHostBridgeAction(input: {
   kind: string;
   text: unknown;
+  actionType?: unknown;
   chatSendEnabled: boolean;
   now: number;
   rate: JsxHostBridgeRateState;
@@ -46,6 +58,15 @@ export function decideJsxHostBridgeAction(input: {
     return { decision: { action: "ignore", reason: "rate_limit" }, rate };
   }
 
+  if (input.kind === "setTrpgActionDraft") {
+    const text = String(input.text ?? "");
+    if (!text.trim()) {
+      return { decision: { action: "ignore", reason: "empty" }, rate };
+    }
+    const actionType = String(input.actionType ?? "").slice(0, JSX_BRIDGE_ACTION_TYPE_MAX);
+    return { decision: { action: "setTrpgActionDraft", actionType, text }, rate };
+  }
+
   const text = normalizeJsxBridgeText(input.text);
   if (!text) {
     return { decision: { action: "ignore", reason: "empty" }, rate };
@@ -60,4 +81,14 @@ export function decideJsxHostBridgeAction(input: {
     return { decision: { action: "setChatDraft", text }, rate };
   }
   return { decision: { action: "requestChatSend", text }, rate };
+}
+
+/** Host-side clamp for a child-reported content height; null keeps the current height. */
+export function clampJsxSandboxHeight(
+  raw: unknown,
+  min = JSX_SANDBOX_AUTO_HEIGHT_MIN_PX,
+  max = JSX_SANDBOX_AUTO_HEIGHT_MAX_PX
+): number | null {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return null;
+  return Math.min(max, Math.max(min, Math.ceil(raw)));
 }

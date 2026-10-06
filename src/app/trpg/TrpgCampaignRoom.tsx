@@ -347,6 +347,7 @@ export default function TrpgCampaignRoom({
   labSeenLogKeysSeed = null,
   labStreamIntervalMs,
   labFreezePresentationAdvance = false,
+  sheetJsxCompiled = null,
 }: {
   snap: TrpgCampaignSnapshot;
   starting: boolean;
@@ -360,6 +361,7 @@ export default function TrpgCampaignRoom({
   onActionBodyChange: (value: string) => void;
   onInputOriginChange: (value: TrpgInputOrigin) => void;
   onPartyBodyChange: (value: string) => void;
+  sheetJsxCompiled?: string | null;
   suggestions: TrpgReplySuggestion[];
   suggestionsBusy: boolean;
   suggestionsError: string;
@@ -2335,6 +2337,7 @@ export default function TrpgCampaignRoom({
           onActionTypeChange={onActionTypeChange}
           onActionBodyChange={onActionBodyChange}
           onInputOriginChange={onInputOriginChange}
+          sheetJsxCompiled={sheetJsxCompiled}
           onPartyBodyChange={onPartyBodyChange}
           onToggleSuggestions={onToggleSuggestions}
           onRetrySuggestions={onRetrySuggestions}

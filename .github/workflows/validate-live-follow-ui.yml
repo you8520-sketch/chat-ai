@@ -58,6 +58,8 @@ jobs:
           src/lib/jsxComponent/jsxComponent.test.ts
           src/lib/statusWidget/authoringChoice.test.ts
           src/lib/statusWidget/jsxSource.test.ts
+          src/lib/trpg/sheetJsx.test.ts
+          src/lib/trpg/commandDock.test.ts
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium

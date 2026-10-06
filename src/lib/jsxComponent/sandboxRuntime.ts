@@ -99,10 +99,50 @@ function setChatDraft(text: unknown): void {
   post("setChatDraft", { text: String(text ?? "") });
 }
 
+/** Draft-only TRPG action intent; ignored unless the host mounted a TRPG draft handler. */
+function setTrpgActionDraft(actionType: unknown, text: unknown): void {
+  post("setTrpgActionDraft", { actionType: String(actionType ?? ""), text: String(text ?? "") });
+}
+
+let heightTarget: Element | null = null;
+let lastReportedHeight = -1;
+const heightObserver =
+  typeof ResizeObserver === "function" ? new ResizeObserver(() => reportHeight()) : null;
+const childObserver =
+  typeof MutationObserver === "function" ? new MutationObserver(() => trackHeightTarget()) : null;
+
+function reportHeight(): void {
+  const mountEl = document.getElementById("root");
+  const target = mountEl?.firstElementChild;
+  if (!(target instanceof HTMLElement)) return;
+  const px = Math.ceil(target.offsetTop + target.getBoundingClientRect().height);
+  if (px === lastReportedHeight) return;
+  lastReportedHeight = px;
+  post("height", { px });
+}
+
+function trackHeightTarget(): void {
+  const next = document.getElementById("root")?.firstElementChild ?? null;
+  if (next !== heightTarget) {
+    if (heightTarget) heightObserver?.unobserve(heightTarget);
+    heightTarget = next;
+    if (heightTarget) heightObserver?.observe(heightTarget);
+  }
+  reportHeight();
+}
+
+function reportRenderError(error: unknown): void {
+  const message = error instanceof Error ? error.message : "runtime throw";
+  post("error", { message });
+}
+
 function mount(compiled: string, props: Record<string, unknown>): void {
   const mountEl = document.getElementById("root");
   if (!mountEl) return;
-  if (!root) root = createRoot(mountEl);
+  if (!root) {
+    root = createRoot(mountEl, { onUncaughtError: reportRenderError });
+    childObserver?.observe(mountEl, { childList: true });
+  }
   try {
     if (!currentComponent || currentCompiled !== compiled) {
       if (currentComponent && currentCompiled !== compiled) clearRuntimeWork();
@@ -155,10 +195,12 @@ installLimits();
 const runtimeWindow = window as Window & {
   sendToChat?: typeof sendToChat;
   setChatDraft?: typeof setChatDraft;
+  setTrpgActionDraft?: typeof setTrpgActionDraft;
   React?: typeof React;
 };
 runtimeWindow.sendToChat = sendToChat;
 runtimeWindow.setChatDraft = setChatDraft;
+runtimeWindow.setTrpgActionDraft = setTrpgActionDraft;
 runtimeWindow.React = React;
 
 window.addEventListener("message", (event) => {
@@ -172,6 +214,10 @@ window.addEventListener("message", (event) => {
   if (data.type === "hav-jsx-unmount") {
     root?.unmount();
     clearRuntimeWork();
+    childObserver?.disconnect();
+    heightObserver?.disconnect();
+    heightTarget = null;
+    lastReportedHeight = -1;
     root = null;
     currentCompiled = "";
     currentComponent = null;

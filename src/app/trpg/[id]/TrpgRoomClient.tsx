@@ -61,9 +61,11 @@ const POLL_MS = TRPG_SNAPSHOT_POLL_MS;
 export default function TrpgRoomClient({
   initial,
   personas: initialPersonas,
+  sheetJsxCompiled,
 }: {
   initial: TrpgCampaignSnapshot;
   personas: PublicPersonaListItem[];
+  sheetJsxCompiled: string | null;
 }) {
   const [snap, setSnap] = useState(initial);
   const [selectedPersonaId, setSelectedPersonaId] = useState<number | null>(
@@ -648,6 +650,7 @@ export default function TrpgRoomClient({
     return (
       <>
         <TrpgCampaignRoom
+          sheetJsxCompiled={sheetJsxCompiled}
           snap={snap}
           starting={starting}
           generating={generating}

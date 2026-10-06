@@ -139,7 +139,8 @@ describe("TRPG command dock", () => {
     assert.equal(useItemActionDraft("  "), null);
     assert.equal("submit" in (bandage ?? {}), false);
     const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
-    assert.match(dock, /useItemActionDraft\(item\)/);
+    const surface = readFileSync("src/lib/trpg/sheetSurface.ts", "utf8");
+    assert.match(surface, /useItemActionDraft\(name\)/);
     assert.doesNotMatch(dock, /inventoryRemove/);
     assert.doesNotMatch(dock, /onSendAction\(\)/);
   });
@@ -199,7 +200,7 @@ describe("TRPG command dock", () => {
   it("keeps JSX chat bridge unwired and drops the stale model copy", () => {
     const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
     const client = readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8");
-    assert.doesNotMatch(dock, /jsxComponent|setChatDraft|requestChatSend|JsxComponentSandbox/);
+    assert.doesNotMatch(dock, /setChatDraft|requestChatSend|JsxHostBridgeProvider|bridge=|chatSendEnabled/);
     assert.doesNotMatch(client, /DeepSeek V4 Pro/);
     assert.doesNotMatch(client, /Flash는 쓰지/);
     assert.doesNotMatch(client, /Gemini/);
