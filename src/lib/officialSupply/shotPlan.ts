@@ -1,3 +1,4 @@
+import { resolveCanonicalOfficialDraftKey } from "@/lib/officialSupply/officialDraftIdentity";
 import {
   qaResult,
   type OfficialAssetSlotKind,
@@ -257,11 +258,12 @@ const KIND_ROTATE_SALT: Record<OfficialAssetSlotKind, number> = {
   scene: 23,
 };
 
-/** Deterministic FNV-1a seed so the same draft always gets the same rotation. */
+/** Deterministic FNV-1a seed so the same semantic official identity always gets the same rotation. */
 export function officialShotSeed(draftKey: string): number {
+  const semanticKey = resolveCanonicalOfficialDraftKey(draftKey);
   let hash = 2166136261;
-  for (let i = 0; i < draftKey.length; i += 1) {
-    hash ^= draftKey.charCodeAt(i);
+  for (let i = 0; i < semanticKey.length; i += 1) {
+    hash ^= semanticKey.charCodeAt(i);
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
@@ -276,8 +278,8 @@ function rotateItems<T>(items: readonly T[], offset: number): T[] {
 
 /**
  * Resolve the shot for a slot. Representative stays the card bust.
- * Signature / emotion / scene families rotate by draftKey so two official
- * characters do not share the same 14-slot storyboard order.
+ * Signature / emotion / scene families rotate by canonical semantic draft
+ * identity so two official characters do not share the same 14-slot storyboard.
  */
 export function resolveOfficialSlotShot(
   slot: Pick<OfficialAssetSlotPlan, "slotKey" | "kind">,

@@ -2,12 +2,11 @@ import type Database from "better-sqlite3";
 
 import { getDb } from "@/lib/db";
 import { isAdminUser } from "@/lib/isAdminUser";
+import { LUCIAN_CANONICAL_NAME, normalizeOfficialDisplayCreatorName } from "@/lib/officialDisplayCreatorName";
 import {
-  LUCIAN_CANONICAL_NAME,
   LUCIAN_DRAFT_KEY,
   LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY,
-  normalizeOfficialDisplayCreatorName,
-} from "@/lib/officialDisplayCreatorName";
+} from "@/lib/officialSupply/officialDraftIdentity";
 import { isSiteManagedUser } from "@/lib/siteManagedAccounts";
 import { isStageAtLeast, type OfficialCharacterStage } from "@/lib/officialSupply/types";
 
