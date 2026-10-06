@@ -230,7 +230,7 @@ describe("modelPickerPreview V2", () => {
   it("applies large-context input surcharge via server billing parity", () => {
     const input = 12_500;
     const output = 1800;
-    for (const modelId of ACTIVE) {
+    for (const modelId of ACTIVE_WITH_PREVIEW_OWNER) {
       const preview = computePreviewTurnPoints({ modelId, inputTokens: input, outputTokens: output });
       const billed =
         modelId === GEMINI_38_FLASH_MODEL
