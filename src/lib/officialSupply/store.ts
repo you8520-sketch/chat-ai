@@ -39,6 +39,7 @@ import {
   type OfficialCharacterDraft,
   type OfficialCharacterStage,
   type OfficialGenreStyle,
+  type OfficialReplacementStatus,
   type OfficialStyleStage,
   type OfficialVariationQaReport,
   type QaIssue,
@@ -105,6 +106,30 @@ export type OfficialAssetRecord = {
   error: string | null;
   qa: OfficialVariationQaReport | OfficialAnchorQaReport | null;
   moderation: OfficialAssetModeration | null;
+};
+
+/** One pending/reviewed replacement candidate for an already-active slot. */
+export type OfficialReplacementRecord = {
+  draftKey: string;
+  slotKey: string;
+  kind: OfficialAssetSlotKind;
+  status: OfficialReplacementStatus;
+  baseResultUrl: string;
+  candidateResultUrl: string | null;
+  width: number | null;
+  height: number | null;
+  attempts: number;
+  leaseOwner: string | null;
+  leaseExpiresAt: number | null;
+  model: string | null;
+  providerRequestId: string | null;
+  spentUsd: number;
+  hasUnknownCost: boolean;
+  appearanceLockHash: string | null;
+  error: string | null;
+  qa: OfficialVariationQaReport | OfficialAnchorQaReport | null;
+  moderation: OfficialAssetModeration | null;
+  appliedAt: string | null;
 };
 
 export class OfficialSupplyGateError extends Error {
@@ -191,6 +216,32 @@ export function ensureOfficialSupplySchema(db: Database.Database): void {
       lorebook_id INTEGER NOT NULL,
       PRIMARY KEY (world_key, entry_key, creator_id)
     );
+    CREATE TABLE IF NOT EXISTS official_supply_asset_replacements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      draft_key TEXT NOT NULL,
+      slot_key TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      base_result_url TEXT NOT NULL,
+      candidate_result_url TEXT,
+      width INTEGER,
+      height INTEGER,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      lease_owner TEXT,
+      lease_expires_at INTEGER,
+      model TEXT,
+      provider_request_id TEXT,
+      spent_usd REAL NOT NULL DEFAULT 0,
+      has_unknown_cost INTEGER NOT NULL DEFAULT 0,
+      appearance_lock_hash TEXT,
+      error TEXT,
+      moderation_json TEXT,
+      qa_json TEXT,
+      applied_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(draft_key, slot_key)
+    );
   `);
   const assetColumns = new Set(
     (db.prepare("PRAGMA table_info(official_supply_assets)").all() as Array<{ name: string }>).map((c) => c.name)
@@ -236,6 +287,29 @@ type AssetRow = {
   moderation_json: string | null;
 };
 
+type ReplacementRow = {
+  draft_key: string;
+  slot_key: string;
+  kind: string;
+  status: string;
+  base_result_url: string;
+  candidate_result_url: string | null;
+  width: number | null;
+  height: number | null;
+  attempts: number;
+  lease_owner: string | null;
+  lease_expires_at: number | null;
+  model: string | null;
+  provider_request_id: string | null;
+  spent_usd: number;
+  has_unknown_cost: number;
+  appearance_lock_hash: string | null;
+  error: string | null;
+  qa_json: string | null;
+  moderation_json: string | null;
+  applied_at: string | null;
+};
+
 function parseJson<T>(raw: string | null): T | null {
   if (!raw) return null;
   return JSON.parse(raw) as T;
@@ -278,6 +352,31 @@ function toAsset(row: AssetRow): OfficialAssetRecord {
     error: row.error,
     qa: parseJson(row.qa_json),
     moderation: parseJson<OfficialAssetModeration>(row.moderation_json),
+  };
+}
+
+function toReplacement(row: ReplacementRow): OfficialReplacementRecord {
+  return {
+    draftKey: row.draft_key,
+    slotKey: row.slot_key,
+    kind: row.kind as OfficialAssetSlotKind,
+    status: row.status as OfficialReplacementStatus,
+    baseResultUrl: row.base_result_url,
+    candidateResultUrl: row.candidate_result_url,
+    width: row.width,
+    height: row.height,
+    attempts: row.attempts,
+    leaseOwner: row.lease_owner,
+    leaseExpiresAt: row.lease_expires_at,
+    model: row.model,
+    providerRequestId: row.provider_request_id,
+    spentUsd: row.spent_usd,
+    hasUnknownCost: row.has_unknown_cost === 1,
+    appearanceLockHash: row.appearance_lock_hash,
+    error: row.error,
+    qa: parseJson(row.qa_json),
+    moderation: parseJson<OfficialAssetModeration>(row.moderation_json),
+    appliedAt: row.applied_at,
   };
 }
 
@@ -864,18 +963,29 @@ export class OfficialSupplyStore {
       (
         this.db
           .prepare(
-            `SELECT COALESCE(SUM(a.spent_usd + CASE WHEN a.has_unknown_cost=1 THEN ? ELSE 0 END), 0) AS usd
-             FROM official_supply_assets a JOIN official_supply_characters c ON c.draft_key=a.draft_key
-             JOIN official_supply_styles s ON s.style_key=c.style_key
+            `SELECT COALESCE(SUM(spent_usd + CASE WHEN has_unknown_cost=1 THEN ? ELSE 0 END), 0) AS usd
+             FROM (
+               SELECT a.spent_usd AS spent_usd, a.has_unknown_cost AS has_unknown_cost,
+                      c.draft_key AS draft_key, c.batch_key AS batch_key,
+                      c.world_key AS world_key, s.genre AS genre
+                 FROM official_supply_assets a
+                 JOIN official_supply_characters c ON c.draft_key=a.draft_key
+                 JOIN official_supply_styles s ON s.style_key=c.style_key
+               UNION ALL
+               SELECT r.spent_usd, r.has_unknown_cost, c.draft_key, c.batch_key, c.world_key, s.genre
+                 FROM official_supply_asset_replacements r
+                 JOIN official_supply_characters c ON c.draft_key=r.draft_key
+                 JOIN official_supply_styles s ON s.style_key=c.style_key
+             ) spend
              WHERE ${where}`
           )
           .get(reservePerImageUsd, ...params) as { usd: number }
       ).usd;
     return {
-      batch: sum("c.batch_key=?", character.batchKey),
-      genre: sum("c.batch_key=? AND s.genre=?", character.batchKey, style.genre),
-      world: sum("c.batch_key=? AND c.world_key=?", character.batchKey, character.worldKey),
-      character: sum("c.draft_key=?", draftKey),
+      batch: sum("batch_key=?", character.batchKey),
+      genre: sum("batch_key=? AND genre=?", character.batchKey, style.genre),
+      world: sum("batch_key=? AND world_key=?", character.batchKey, character.worldKey),
+      character: sum("draft_key=?", draftKey),
     };
   }
 
@@ -898,22 +1008,7 @@ export class OfficialSupplyStore {
    * re-run); a hard reject rejects the slot regardless of visual QA.
    */
   private moderationGate(asset: OfficialAssetRecord): "rejected" | "pass" {
-    const verdict = officialModerationVerdict(asset.moderation);
-    switch (verdict) {
-      case "missing":
-        throw new OfficialSupplyGateError("moderation_missing", `${asset.draftKey}/${asset.slotKey} has not been moderated`);
-      case "unavailable":
-        throw new OfficialSupplyGateError("moderation_unavailable", `${asset.draftKey}/${asset.slotKey} moderation unavailable; re-run moderation`);
-      case "rejected":
-        return "rejected";
-      case "adult_flagged":
-      case "clean":
-        return "pass";
-      default: {
-        const exhaustive: never = verdict;
-        throw new OfficialSupplyGateError("moderation_unknown", String(exhaustive));
-      }
-    }
+    return this.moderationGateFor(asset.moderation, asset.draftKey, asset.slotKey);
   }
 
   /** REQUIRED GATE — ANCHOR_APPROVAL. Canonical moderation + visual QA must both pass; a failed anchor is rejected (retry anchor only). */
@@ -1059,6 +1154,386 @@ export class OfficialSupplyStore {
          WHERE draft_key=? AND stage='staged_private' AND staged_character_id=?`
       )
       .run(draftKey, characterId);
+  }
+
+  /**
+   * Published official characters only. Replacement generation/review/apply
+   * never run against draft, staged-private, or unpublished rows.
+   */
+  assertPublishedOfficialCharacter(draftKey: string): OfficialCharacterRecord {
+    const character = this.getCharacter(draftKey);
+    if (character.stage !== "published") {
+      throw new OfficialSupplyGateError(
+        "character_stage",
+        `draft ${draftKey} is ${character.stage}; published official character required`
+      );
+    }
+    if (character.stagedCharacterId == null) {
+      throw new OfficialSupplyGateError("not_staged", `draft ${draftKey} has no public character`);
+    }
+    const row = this.db
+      .prepare("SELECT id, official, visibility, moderation_status FROM characters WHERE id=?")
+      .get(character.stagedCharacterId) as
+      | { id: number; official: number; visibility: string; moderation_status: string }
+      | undefined;
+    if (!row) {
+      throw new OfficialSupplyGateError("character_missing", `character ${character.stagedCharacterId} not found`);
+    }
+    if (
+      row.id !== character.stagedCharacterId ||
+      row.official !== 1 ||
+      row.visibility !== "public" ||
+      row.moderation_status !== "approved"
+    ) {
+      throw new OfficialSupplyGateError(
+        "character_not_published",
+        `character ${character.stagedCharacterId} is not the published official row`
+      );
+    }
+    return character;
+  }
+
+  /** Representative replacement is a follow-up; this lifecycle is non-representative only. */
+  assertReplacementSlotAllowed(draftKey: string, slotKey: string): OfficialAssetRecord {
+    const asset = this.getAsset(draftKey, slotKey);
+    if (asset.kind === "representative") {
+      throw new OfficialSupplyGateError(
+        "replacement_representative_forbidden",
+        `${draftKey}/${slotKey} representative replacement is not supported`
+      );
+    }
+    return asset;
+  }
+
+  listReplacements(draftKey: string): OfficialReplacementRecord[] {
+    return (
+      this.db
+        .prepare("SELECT * FROM official_supply_asset_replacements WHERE draft_key=? ORDER BY id")
+        .all(draftKey) as ReplacementRow[]
+    ).map(toReplacement);
+  }
+
+  getReplacement(draftKey: string, slotKey: string): OfficialReplacementRecord {
+    const row = this.db
+      .prepare("SELECT * FROM official_supply_asset_replacements WHERE draft_key=? AND slot_key=?")
+      .get(draftKey, slotKey) as ReplacementRow | undefined;
+    if (!row) throw new OfficialSupplyGateError("replacement_not_found", `${draftKey}/${slotKey} has no replacement candidate`);
+    return toReplacement(row);
+  }
+
+  /**
+   * Opens (or resets a finished) replacement candidate. Snapshots the current
+   * active `result_url` as `base_result_url`. Never mutates the active asset.
+   */
+  createReplacementCandidate(draftKey: string, slotKey: string): OfficialReplacementRecord {
+    const character = this.assertPublishedOfficialCharacter(draftKey);
+    this.assertTextLockCurrent(character);
+    const asset = this.assertReplacementSlotAllowed(draftKey, slotKey);
+    if (asset.status !== "approved" || !asset.resultUrl) {
+      throw new OfficialSupplyGateError(
+        "active_slot_not_approved",
+        `${draftKey}/${slotKey} is ${asset.status}; approved active slot required`
+      );
+    }
+    if (!character.appearanceLockHash || asset.appearanceLockHash !== character.appearanceLockHash) {
+      throw new OfficialSupplyGateError(
+        "appearance_lock_stale",
+        `${draftKey}/${slotKey} was planned for another appearance lock`
+      );
+    }
+    const info = this.db
+      .prepare(
+        `INSERT INTO official_supply_asset_replacements (
+           draft_key, slot_key, kind, status, base_result_url, appearance_lock_hash
+         ) VALUES (?, ?, ?, 'planned', ?, ?)
+         ON CONFLICT(draft_key, slot_key) DO UPDATE SET
+           kind=excluded.kind,
+           status='planned',
+           base_result_url=excluded.base_result_url,
+           candidate_result_url=NULL,
+           width=NULL,
+           height=NULL,
+           lease_owner=NULL,
+           lease_expires_at=NULL,
+           model=NULL,
+           provider_request_id=NULL,
+           error=NULL,
+           moderation_json=NULL,
+           qa_json=NULL,
+           applied_at=NULL,
+           appearance_lock_hash=excluded.appearance_lock_hash,
+           updated_at=datetime('now')
+         WHERE official_supply_asset_replacements.status IN ('planned','failed','rejected')`
+      )
+      .run(draftKey, slotKey, asset.kind, asset.resultUrl, character.appearanceLockHash);
+    if (info.changes !== 1) {
+      const existing = this.getReplacement(draftKey, slotKey);
+      if (existing.status === "applied") {
+        throw new OfficialSupplyGateError(
+          "replacement_already_applied",
+          `${draftKey}/${slotKey} replacement is already applied`
+        );
+      }
+      throw new OfficialSupplyGateError(
+        "replacement_busy",
+        `${draftKey}/${slotKey} replacement is ${existing.status}`
+      );
+    }
+    return this.getReplacement(draftKey, slotKey);
+  }
+
+  assertReplacementGenerationAllowed(draftKey: string, slotKey: string): {
+    character: OfficialCharacterRecord;
+    style: OfficialGenreStyle;
+    asset: OfficialAssetRecord;
+    replacement: OfficialReplacementRecord;
+  } {
+    const character = this.assertPublishedOfficialCharacter(draftKey);
+    this.assertTextLockCurrent(character);
+    this.assertReplacementSlotAllowed(draftKey, slotKey);
+    const style = this.getStyle(character.styleKey);
+    if (style.stage !== "style_locked" || !style.styleSeed) {
+      throw new OfficialSupplyGateError(
+        "style_not_locked",
+        `style ${style.styleKey} must be style_locked before replacement generation`
+      );
+    }
+    const asset = this.getAsset(draftKey, slotKey);
+    if (asset.status !== "approved" || !asset.resultUrl) {
+      throw new OfficialSupplyGateError(
+        "active_slot_not_approved",
+        `${draftKey}/${slotKey} is ${asset.status}; approved active slot required`
+      );
+    }
+    if (!character.appearanceLockHash || asset.appearanceLockHash !== character.appearanceLockHash) {
+      throw new OfficialSupplyGateError(
+        "appearance_lock_stale",
+        `${draftKey}/${slotKey} was planned for another appearance lock`
+      );
+    }
+    const replacement = this.getReplacement(draftKey, slotKey);
+    if (replacement.appearanceLockHash !== character.appearanceLockHash) {
+      throw new OfficialSupplyGateError(
+        "appearance_lock_stale",
+        `${draftKey}/${slotKey} replacement predates the appearance lock`
+      );
+    }
+    if (replacement.baseResultUrl !== asset.resultUrl) {
+      throw new OfficialSupplyGateError(
+        "replacement_base_stale",
+        `${draftKey}/${slotKey} base_result_url no longer matches the active slot`
+      );
+    }
+    if (replacement.status === "applied") {
+      throw new OfficialSupplyGateError(
+        "replacement_already_applied",
+        `${draftKey}/${slotKey} replacement is already applied`
+      );
+    }
+    return { character, style, asset, replacement };
+  }
+
+  claimReplacement(
+    draftKey: string,
+    slotKey: string,
+    workerId: string,
+    nowMs: number,
+    leaseMs: number,
+    maxAttempts: number
+  ): boolean {
+    const info = this.db
+      .prepare(
+        `UPDATE official_supply_asset_replacements
+         SET status='generating', lease_owner=?, lease_expires_at=?, attempts=attempts+1, error=NULL, updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND attempts < ?
+           AND (status IN ('planned','failed','rejected') OR (status='generating' AND lease_expires_at < ?))`
+      )
+      .run(workerId, nowMs + leaseMs, draftKey, slotKey, maxAttempts, nowMs);
+    return info.changes === 1;
+  }
+
+  recordReplacementSpend(
+    draftKey: string,
+    slotKey: string,
+    input: { costUsd: number; unknownCost: boolean; model: string; providerRequestId: string | null }
+  ): void {
+    this.db
+      .prepare(
+        `UPDATE official_supply_asset_replacements
+         SET spent_usd = spent_usd + ?, has_unknown_cost = CASE WHEN ? = 1 THEN 1 ELSE has_unknown_cost END,
+             model=?, provider_request_id=COALESCE(?, provider_request_id), updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=?`
+      )
+      .run(input.costUsd, input.unknownCost ? 1 : 0, input.model, input.providerRequestId, draftKey, slotKey);
+  }
+
+  markReplacementUploadPending(
+    draftKey: string,
+    slotKey: string,
+    workerId: string,
+    error: string,
+    width: number,
+    height: number
+  ): void {
+    this.db
+      .prepare(
+        `UPDATE official_supply_asset_replacements
+         SET status='upload_pending', lease_owner=NULL, error=?, width=?, height=?, updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND lease_owner=?`
+      )
+      .run(error, width, height, draftKey, slotKey, workerId);
+  }
+
+  completeReplacement(
+    draftKey: string,
+    slotKey: string,
+    workerId: string,
+    input: { url: string; width: number; height: number }
+  ): boolean {
+    const info = this.db
+      .prepare(
+        `UPDATE official_supply_asset_replacements
+         SET status='generated', lease_owner=NULL, lease_expires_at=NULL,
+             candidate_result_url=?, width=?, height=?, error=NULL, qa_json=NULL, moderation_json=NULL,
+             updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND status IN ('generating','upload_pending') AND lease_owner=?`
+      )
+      .run(input.url, input.width, input.height, draftKey, slotKey, workerId);
+    return info.changes === 1;
+  }
+
+  claimReplacementPendingUpload(draftKey: string, slotKey: string, workerId: string): boolean {
+    const info = this.db
+      .prepare(
+        `UPDATE official_supply_asset_replacements SET lease_owner=?, updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND status='upload_pending' AND lease_owner IS NULL`
+      )
+      .run(workerId, draftKey, slotKey);
+    return info.changes === 1;
+  }
+
+  failReplacement(draftKey: string, slotKey: string, workerId: string, error: string): void {
+    this.db
+      .prepare(
+        `UPDATE official_supply_asset_replacements
+         SET status='failed', lease_owner=NULL, lease_expires_at=NULL, error=?, updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND lease_owner=?`
+      )
+      .run(error.slice(0, 500), draftKey, slotKey, workerId);
+  }
+
+  failReplacementBeforeProvider(draftKey: string, slotKey: string, workerId: string, error: string): void {
+    const info = this.db
+      .prepare(
+        `UPDATE official_supply_asset_replacements
+         SET status='failed', attempts=CASE WHEN attempts > 0 THEN attempts - 1 ELSE 0 END,
+             lease_owner=NULL, lease_expires_at=NULL, error=?, updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND status='generating' AND lease_owner=?`
+      )
+      .run(error.slice(0, 500), draftKey, slotKey, workerId);
+    if (info.changes !== 1) {
+      throw new OfficialSupplyGateError(
+        "pre_provider_release_failed",
+        `${draftKey}/${slotKey}: current provider-free replacement claim could not be released`
+      );
+    }
+  }
+
+  recordReplacementModeration(draftKey: string, slotKey: string, moderation: OfficialAssetModeration): void {
+    const info = this.db
+      .prepare(
+        `UPDATE official_supply_asset_replacements SET moderation_json=?, updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND status='generated' AND candidate_result_url IS NOT NULL`
+      )
+      .run(JSON.stringify(moderation), draftKey, slotKey);
+    if (info.changes !== 1) {
+      throw new OfficialSupplyGateError(
+        "replacement_not_generated",
+        `${draftKey}/${slotKey} has no generated replacement to moderate`
+      );
+    }
+  }
+
+  /**
+   * Visual review of a generated replacement candidate. Writes only candidate
+   * status/qa. Does not require `anchor_approved` and never mutates the live slot.
+   */
+  reviewReplacement(draftKey: string, slotKey: string, qa: OfficialVariationQaReport): { approved: boolean } {
+    const character = this.assertPublishedOfficialCharacter(draftKey);
+    this.assertTextLockCurrent(character);
+    const asset = this.assertReplacementSlotAllowed(draftKey, slotKey);
+    if (asset.status !== "approved" || !asset.resultUrl) {
+      throw new OfficialSupplyGateError(
+        "active_slot_not_approved",
+        `${draftKey}/${slotKey} is ${asset.status}; approved active slot required`
+      );
+    }
+    if (!character.appearanceLockHash || asset.appearanceLockHash !== character.appearanceLockHash) {
+      throw new OfficialSupplyGateError(
+        "appearance_lock_stale",
+        `${draftKey}/${slotKey} was planned for another appearance lock`
+      );
+    }
+    const replacement = this.getReplacement(draftKey, slotKey);
+    if (replacement.status !== "generated") {
+      throw new OfficialSupplyGateError(
+        "replacement_not_generated",
+        `${draftKey}/${slotKey} replacement is ${replacement.status}`
+      );
+    }
+    if (!replacement.candidateResultUrl) {
+      throw new OfficialSupplyGateError(
+        "replacement_not_generated",
+        `${draftKey}/${slotKey} replacement has no candidate url`
+      );
+    }
+    if (replacement.appearanceLockHash !== character.appearanceLockHash) {
+      throw new OfficialSupplyGateError(
+        "appearance_lock_stale",
+        `${draftKey}/${slotKey} replacement predates the appearance lock`
+      );
+    }
+    if (replacement.baseResultUrl !== asset.resultUrl) {
+      throw new OfficialSupplyGateError(
+        "replacement_base_stale",
+        `${draftKey}/${slotKey} base_result_url no longer matches the active slot`
+      );
+    }
+    const approved = this.moderationGateFor(
+      replacement.moderation,
+      draftKey,
+      slotKey
+    ) === "pass" && variationQaPasses(qa);
+    this.db
+      .prepare(
+        `UPDATE official_supply_asset_replacements SET status=?, qa_json=?, updated_at=datetime('now')
+         WHERE draft_key=? AND slot_key=? AND status='generated'`
+      )
+      .run(approved ? "approved" : "rejected", JSON.stringify(qa), draftKey, slotKey);
+    return { approved };
+  }
+
+  private moderationGateFor(
+    moderation: OfficialAssetModeration | null,
+    draftKey: string,
+    slotKey: string
+  ): "rejected" | "pass" {
+    const verdict = officialModerationVerdict(moderation);
+    switch (verdict) {
+      case "missing":
+        throw new OfficialSupplyGateError("moderation_missing", `${draftKey}/${slotKey} has not been moderated`);
+      case "unavailable":
+        throw new OfficialSupplyGateError("moderation_unavailable", `${draftKey}/${slotKey} moderation unavailable; re-run moderation`);
+      case "rejected":
+        return "rejected";
+      case "adult_flagged":
+      case "clean":
+        return "pass";
+      default: {
+        const exhaustive: never = verdict;
+        throw new OfficialSupplyGateError("moderation_unknown", String(exhaustive));
+      }
+    }
   }
 
   findWorldLorebookId(worldKey: string, entryKey: string, creatorId: number): number | null {

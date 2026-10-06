@@ -312,6 +312,17 @@ export type OfficialAssetStatus =
   | "failed"
   | "stale";
 
+/** One pending/reviewed replacement candidate for an already-active slot. */
+export type OfficialReplacementStatus =
+  | "planned"
+  | "generating"
+  | "upload_pending"
+  | "generated"
+  | "approved"
+  | "rejected"
+  | "failed"
+  | "applied";
+
 export type QaCheck = { ok: boolean; note?: string };
 
 export type OfficialAnchorQaReport = {
