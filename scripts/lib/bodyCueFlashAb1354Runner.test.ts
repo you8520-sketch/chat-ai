@@ -14,11 +14,14 @@ import {
   assertPacketReadyForPaid,
   applyBodyCue1354ExperimentOverrides,
   assignBlindLabels,
+  BODY_CUE_1354_MAX_EXPERIMENT_USD,
   BODY_CUE_1354_MAX_TOKENS,
   BODY_CUE_1354_MIN_DISCOUNT_PERCENT,
   BODY_CUE_1354_MODEL,
   BODY_CUE_1354_SUPPLY_URL,
   CatalogGateError,
+  derivedMinDiscountCeilingUsdPerMillion,
+  evaluateExperimentBudget,
   createOperatorCheaperInferenceTransport,
   deriveExperimentRequests,
   ExperimentSecretError,
@@ -30,6 +33,7 @@ import {
   PaidAttemptBudgetError,
   parseFlashCatalogGate,
   parseFlashSupplyGate,
+  isSupplyMaxWithinDerivedCeiling,
   readExperimentSecretOnce,
   applyUsageRequestExactCost,
   hasStreamInlineExactCost,
@@ -134,15 +138,21 @@ function passingSeal(): LiveSeal {
   };
 }
 
-function catalogPricing(overrides?: { input?: number; output?: number; omitRates?: boolean }) {
+function catalogPricing(overrides?: {
+  input?: number;
+  output?: number;
+  discount?: number;
+  omitRates?: boolean;
+}) {
   if (overrides?.omitRates) {
     return { currency: "USD" };
   }
   return {
-    input_per_million: String(overrides?.input ?? 0.075),
-    output_per_million: String(overrides?.output ?? 0.3),
-    cache_read_input_per_million: "0.0015",
-    cache_write_input_per_million: "0.075",
+    input_per_million: String(overrides?.input ?? 0.15),
+    output_per_million: String(overrides?.output ?? 0.6),
+    discount_percent: String(overrides?.discount ?? 50),
+    cache_read_input_per_million: "0.003",
+    cache_write_input_per_million: "0.15",
   };
 }
 
@@ -185,12 +195,39 @@ function passingCatalogPayload(overrides?: {
   };
 }
 
-function passingSupplyPayload(overrides?: { candidateCount?: number; maxInput?: number; maxOutput?: number }) {
-  return {
-    candidate_count: overrides?.candidateCount ?? 2,
-    max_input_per_million: overrides?.maxInput ?? 0.075,
-    max_output_per_million: overrides?.maxOutput ?? 0.3,
+function passingSupplyPayload(overrides?: {
+  candidateCount?: number;
+  maxInput?: number;
+  maxOutput?: number;
+  minDiscount?: number;
+  listInput?: number;
+  listOutput?: number;
+  omitList?: boolean;
+  omitMax?: boolean;
+  omitDiscount?: boolean;
+}) {
+  const data: Record<string, unknown> = {
+    candidate_count: overrides?.candidateCount ?? 1,
+    max_input_per_million: overrides?.maxInput ?? 0.15,
+    max_output_per_million: overrides?.maxOutput ?? 0.6,
+    list_input_per_million: overrides?.listInput ?? 0.3,
+    list_output_per_million: overrides?.listOutput ?? 1.2,
+    min_discount_percent: overrides?.minDiscount ?? 50,
+    supply_buffer_percent: 4,
+    primary_market_min_discount_percent: 52,
   };
+  if (overrides?.omitList) {
+    delete data.list_input_per_million;
+    delete data.list_output_per_million;
+  }
+  if (overrides?.omitMax) {
+    delete data.max_input_per_million;
+    delete data.max_output_per_million;
+  }
+  if (overrides?.omitDiscount) {
+    delete data.min_discount_percent;
+  }
+  return { object: "model.supply", data };
 }
 
 function flashSseChunks(overrides?: {
@@ -621,6 +658,9 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.equal(artifact.supply.url, BODY_CUE_1354_SUPPLY_URL);
     assert.equal(artifact.supply.min_discount_percent, BODY_CUE_1354_MIN_DISCOUNT_PERCENT);
     assert.equal(artifact.supply.candidateCount, null);
+    assert.equal(artifact.budget.maxExperimentUsd, BODY_CUE_1354_MAX_EXPERIMENT_USD);
+    assert.equal(artifact.budget.totalUpperUsd, null);
+    assert.equal(artifact.pricingPolicy.minDiscountPercent, null);
     assert.equal(artifact.labelCommitmentSha256, reveal.commitmentSha256);
     assert.equal(JSON.stringify(artifact).includes('"variant":"baseline"'), false);
     assert.equal(JSON.stringify(artifact).includes('"variant":"candidate"'), false);
@@ -677,9 +717,19 @@ describe("#1354 Flash A/B operator runner", () => {
         maxInputPerMillion: artifact.supply.maxInputPerMillion,
         maxOutputPerMillion: artifact.supply.maxOutputPerMillion,
       },
-      expectedSupply
+      {
+        candidateCount: expectedSupply.candidateCount,
+        maxInputPerMillion: expectedSupply.maxInputPerMillion,
+        maxOutputPerMillion: expectedSupply.maxOutputPerMillion,
+      }
     );
     assert.equal(artifact.supply.min_discount_percent, BODY_CUE_1354_MIN_DISCOUNT_PERCENT);
+    assert.equal(artifact.pricingPolicy.minDiscountPercent, BODY_CUE_1354_MIN_DISCOUNT_PERCENT);
+    assert.equal(artifact.pricingPolicy.listInputPerMillion, 0.3);
+    assert.equal(artifact.pricingPolicy.listOutputPerMillion, 1.2);
+    assert.equal(artifact.budget.maxExperimentUsd, BODY_CUE_1354_MAX_EXPERIMENT_USD);
+    assert.equal(artifact.budget.perCallUpperUsd?.length, 4);
+    assert.ok((artifact.budget.totalUpperUsd ?? 1) <= BODY_CUE_1354_MAX_EXPERIMENT_USD);
     assert.equal(post.box.calls, 4);
     assert.equal(artifact.paidPostCount, 4);
     assert.equal(artifact.attemptedPostCount, 4);
@@ -778,6 +828,10 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.match(src, /openAiCompatibleSseDecoder/);
     assert.match(src, /lookupCheaperInferenceUsageRequestById/);
     assert.match(src, /resolveUsageReportingCheaperInferenceApiKey/);
+    assert.match(src, /from "@\/lib\/tokenEstimate"/);
+    assert.equal(src.includes("FLASH_INPUT_CEILING"), false);
+    assert.equal(src.includes("FLASH_OUTPUT_CEILING"), false);
+    assert.equal(src.includes("price_violation"), false);
     assert.equal(src.includes("reconcileCheaperInferenceRequestById"), false);
     assert.match(cli, /createOperatorCheaperInferenceTransport/);
     assert.match(cli, /post: transport\.post/);
@@ -1022,10 +1076,10 @@ describe("#1354 Flash A/B operator runner", () => {
   it("real-shape catalog without available passes the canonical gate", () => {
     const catalog = parseFlashCatalogGate(passingCatalogPayload());
     assert.equal(catalog.available, true);
-    assert.equal(catalog.inputUsdPerMillion, 0.075);
-    assert.equal(catalog.outputUsdPerMillion, 0.3);
-    assert.equal(catalog.cacheReadUsdPerMillion, 0.0015);
-    assert.equal(catalog.cacheWriteUsdPerMillion, 0.075);
+    assert.equal(catalog.inputUsdPerMillion, 0.15);
+    assert.equal(catalog.outputUsdPerMillion, 0.6);
+    assert.equal(catalog.cacheReadUsdPerMillion, 0.003);
+    assert.equal(catalog.cacheWriteUsdPerMillion, 0.15);
   });
 
   it("malformed pricing yields 0 POST", async () => {
@@ -1060,36 +1114,21 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.equal(post.box.calls, 0);
   });
 
-  it("catalog input above ceiling yields 0 POST", async () => {
+  it("catalog rates above the stale 0.075/0.30 snapshot do not fail the catalog gate", async () => {
     const post = trackingPost();
-    await assert.rejects(
-      () =>
-        runBodyCueFlashAb1354({
-          mode: "execute",
-          secretSource: { kind: "stdin", read: () => SECRET },
-          seal: passingSeal,
-          post: post.fn,
-          catalogGet: passingCatalogGet({ modelsPayload: passingCatalogPayload({ input: 0.08 }) }).fn,
-        }),
-      (error: unknown) => error instanceof CatalogGateError && error.reason === "price_violation"
-    );
-    assert.equal(post.box.calls, 0);
-  });
-
-  it("catalog output above ceiling yields 0 POST", async () => {
-    const post = trackingPost();
-    await assert.rejects(
-      () =>
-        runBodyCueFlashAb1354({
-          mode: "execute",
-          secretSource: { kind: "stdin", read: () => SECRET },
-          seal: passingSeal,
-          post: post.fn,
-          catalogGet: passingCatalogGet({ modelsPayload: passingCatalogPayload({ output: 0.31 }) }).fn,
-        }),
-      (error: unknown) => error instanceof CatalogGateError && error.reason === "price_violation"
-    );
-    assert.equal(post.box.calls, 0);
+    const { artifact } = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      post: post.fn,
+      catalogGet: passingCatalogGet({
+        modelsPayload: passingCatalogPayload({ input: 0.15, output: 0.6 }),
+      }).fn,
+    });
+    assert.equal(post.box.calls, 4);
+    assert.equal(artifact.status, "EXECUTE_COMPLETE");
+    assert.equal(artifact.catalog.inputUsdPerMillion, 0.15);
+    assert.equal(artifact.catalog.outputUsdPerMillion, 0.6);
   });
 
   it("supply candidate_count=0 yields 0 POST", async () => {
@@ -1108,7 +1147,7 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.equal(post.box.calls, 0);
   });
 
-  it("supply ceiling violation yields 0 POST", async () => {
+  it("supply maxOutput above derived 50% ceiling yields 0 POST", async () => {
     const post = trackingPost();
     await assert.rejects(
       () =>
@@ -1117,14 +1156,16 @@ describe("#1354 Flash A/B operator runner", () => {
           secretSource: { kind: "stdin", read: () => SECRET },
           seal: passingSeal,
           post: post.fn,
-          catalogGet: passingCatalogGet({ supplyPayload: passingSupplyPayload({ maxOutput: 0.31 }) }).fn,
+          catalogGet: passingCatalogGet({
+            supplyPayload: passingSupplyPayload({ maxOutput: 0.61 }),
+          }).fn,
         }),
-      (error: unknown) => error instanceof CatalogGateError && error.reason === "supply_ceiling"
+      (error: unknown) => error instanceof CatalogGateError && error.reason === "supply_contract"
     );
     assert.equal(post.box.calls, 0);
   });
 
-  it("supply maxInput ceiling violation yields 0 POST", async () => {
+  it("supply maxInput above derived 50% ceiling yields 0 POST", async () => {
     const post = trackingPost();
     await assert.rejects(
       () =>
@@ -1133,11 +1174,181 @@ describe("#1354 Flash A/B operator runner", () => {
           secretSource: { kind: "stdin", read: () => SECRET },
           seal: passingSeal,
           post: post.fn,
-          catalogGet: passingCatalogGet({ supplyPayload: passingSupplyPayload({ maxInput: 0.076 }) }).fn,
+          catalogGet: passingCatalogGet({
+            supplyPayload: passingSupplyPayload({ maxInput: 0.16 }),
+          }).fn,
         }),
-      (error: unknown) => error instanceof CatalogGateError && error.reason === "supply_ceiling"
+      (error: unknown) => error instanceof CatalogGateError && error.reason === "supply_contract"
     );
     assert.equal(post.box.calls, 0);
+  });
+
+  it("pre-fix stale 0.075/0.30 ceiling would reject live catalog 0.15/0.60; post-fix catalog+supply+budget pass", async () => {
+    const staleInputCeiling = 0.075;
+    const staleOutputCeiling = 0.3;
+    const liveCatalog = passingCatalogPayload();
+    const liveSupply = passingSupplyPayload();
+    const catalog = parseFlashCatalogGate(liveCatalog);
+    const supply = parseFlashSupplyGate(liveSupply);
+    assert.equal(catalog.inputUsdPerMillion > staleInputCeiling, true);
+    assert.equal(catalog.outputUsdPerMillion > staleOutputCeiling, true);
+    assert.equal(supply.minDiscountPercent, 50);
+    assert.equal(supply.listInputPerMillion, 0.3);
+    assert.equal(supply.listOutputPerMillion, 1.2);
+    assert.equal(supply.maxInputPerMillion, 0.15);
+    assert.equal(supply.maxOutputPerMillion, 0.6);
+    assert.equal(supply.candidateCount, 1);
+    assert.equal(
+      derivedMinDiscountCeilingUsdPerMillion(0.3, 50),
+      0.15
+    );
+    assert.equal(isSupplyMaxWithinDerivedCeiling(0.15, 0.3, 50), true);
+    assert.equal(isSupplyMaxWithinDerivedCeiling(0.6, 1.2, 50), true);
+    const post = trackingPost();
+    const { artifact } = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      post: post.fn,
+      catalogGet: passingCatalogGet({
+        modelsPayload: liveCatalog,
+        supplyPayload: liveSupply,
+      }).fn,
+    });
+    assert.equal(post.box.calls, 4);
+    assert.equal(artifact.status, "EXECUTE_COMPLETE");
+    assert.equal(artifact.pricingPolicy.maxInputPerMillion, 0.15);
+    assert.equal(artifact.pricingPolicy.maxOutputPerMillion, 0.6);
+    assert.ok((artifact.budget.totalUpperUsd ?? 1) <= BODY_CUE_1354_MAX_EXPERIMENT_USD);
+  });
+
+  it("live current 50% supply fixture parses as PASS", () => {
+    const supply = parseFlashSupplyGate(passingSupplyPayload());
+    assert.equal(supply.minDiscountPercent, 50);
+    assert.equal(supply.candidateCount, 1);
+    assert.equal(supply.listInputPerMillion, 0.3);
+    assert.equal(supply.listOutputPerMillion, 1.2);
+    assert.equal(supply.maxInputPerMillion, 0.15);
+    assert.equal(supply.maxOutputPerMillion, 0.6);
+  });
+
+  it("returned min_discount != requested 50 fails before POST", async () => {
+    const post = trackingPost();
+    await assert.rejects(
+      () =>
+        runBodyCueFlashAb1354({
+          mode: "execute",
+          secretSource: { kind: "stdin", read: () => SECRET },
+          seal: passingSeal,
+          post: post.fn,
+          catalogGet: passingCatalogGet({
+            supplyPayload: passingSupplyPayload({ minDiscount: 75 }),
+          }).fn,
+        }),
+      (error: unknown) =>
+        error instanceof CatalogGateError && error.reason === "supply_discount_mismatch"
+    );
+    assert.equal(post.box.calls, 0);
+  });
+
+  it("missing or non-positive list rates fail before POST", async () => {
+    const post = trackingPost();
+    await assert.rejects(
+      () =>
+        runBodyCueFlashAb1354({
+          mode: "execute",
+          secretSource: { kind: "stdin", read: () => SECRET },
+          seal: passingSeal,
+          post: post.fn,
+          catalogGet: passingCatalogGet({
+            supplyPayload: passingSupplyPayload({ omitList: true }),
+          }).fn,
+        }),
+      (error: unknown) =>
+        error instanceof CatalogGateError && error.reason === "supply_rate_invalid"
+    );
+    await assert.rejects(
+      async () => parseFlashSupplyGate(passingSupplyPayload({ listInput: 0 })),
+      (error: unknown) =>
+        error instanceof CatalogGateError && error.reason === "supply_rate_invalid"
+    );
+    assert.equal(post.box.calls, 0);
+  });
+
+  it("missing or non-positive max rates fail before POST", async () => {
+    const post = trackingPost();
+    await assert.rejects(
+      () =>
+        runBodyCueFlashAb1354({
+          mode: "execute",
+          secretSource: { kind: "stdin", read: () => SECRET },
+          seal: passingSeal,
+          post: post.fn,
+          catalogGet: passingCatalogGet({
+            supplyPayload: passingSupplyPayload({ omitMax: true }),
+          }).fn,
+        }),
+      (error: unknown) =>
+        error instanceof CatalogGateError && error.reason === "supply_rate_invalid"
+    );
+    await assert.rejects(
+      async () => parseFlashSupplyGate(passingSupplyPayload({ maxOutput: 0 })),
+      (error: unknown) =>
+        error instanceof CatalogGateError && error.reason === "supply_rate_invalid"
+    );
+    assert.equal(post.box.calls, 0);
+  });
+
+  it("max rates lower than the derived 50% ceiling still PASS", () => {
+    const supply = parseFlashSupplyGate(
+      passingSupplyPayload({ maxInput: 0.12, maxOutput: 0.4 })
+    );
+    assert.equal(supply.maxInputPerMillion, 0.12);
+    assert.equal(supply.maxOutputPerMillion, 0.4);
+    assert.equal(isSupplyMaxWithinDerivedCeiling(0.12, 0.3, 50), true);
+  });
+
+  it("sealed 4-call live-rate budget is under $0.25", async () => {
+    const { artifact } = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      post: trackingPost().fn,
+      catalogGet: passingCatalogGet().fn,
+    });
+    const recomputed = evaluateExperimentBudget({
+      requests: deriveExperimentRequests(passingSeal().rows),
+      maxInputPerMillion: 0.15,
+      maxOutputPerMillion: 0.6,
+    });
+    assert.equal(recomputed.ok, true);
+    assert.equal(artifact.budget.totalUpperUsd, recomputed.totalUpperUsd);
+    assert.ok((artifact.budget.totalUpperUsd ?? 1) <= BODY_CUE_1354_MAX_EXPERIMENT_USD);
+    assert.equal(artifact.paidPostCount, 4);
+  });
+
+  it("synthetic workload over $0.25 is PREFLIGHT_BLOCKED with POST 0", async () => {
+    const post = trackingPost();
+    const error = await runBodyCueFlashAb1354({
+      mode: "execute",
+      secretSource: { kind: "stdin", read: () => SECRET },
+      seal: passingSeal,
+      post: post.fn,
+      catalogGet: passingCatalogGet({
+        supplyPayload: passingSupplyPayload({
+          listInput: 10_000,
+          listOutput: 10_000,
+          maxInput: 5_000,
+          maxOutput: 5_000,
+        }),
+      }).fn,
+    }).catch((caught: unknown) => caught);
+    assert.ok(error instanceof RunnerStopError);
+    assert.equal(error.artifact.status, "PREFLIGHT_BLOCKED");
+    assert.match(error.message, /experiment budget exceeded/);
+    assert.equal(post.box.calls, 0);
+    assert.equal(error.artifact.paidPostCount, 0);
+    assert.ok((error.artifact.budget.totalUpperUsd ?? 0) > BODY_CUE_1354_MAX_EXPERIMENT_USD);
   });
 
   it("nested cheaper_inference.billing fixture parses exact billed cost", () => {
@@ -1167,8 +1378,8 @@ describe("#1354 Flash A/B operator runner", () => {
     assert.equal(parsed.text, "nested-ok");
     const catalog = parseFlashCatalogGate(passingCatalogPayload());
     assert.equal(catalog.available, true);
-    assert.equal(catalog.inputUsdPerMillion, 0.075);
-    assert.equal(catalog.outputUsdPerMillion, 0.3);
+    assert.equal(catalog.inputUsdPerMillion, 0.15);
+    assert.equal(catalog.outputUsdPerMillion, 0.6);
   });
 
   it("CALL 1 non-2xx blocks CALL 2", async () => {

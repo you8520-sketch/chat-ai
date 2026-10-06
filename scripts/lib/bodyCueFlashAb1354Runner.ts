@@ -36,6 +36,7 @@ import {
 } from "@/lib/openAiCompatibleSseDecoder";
 import { readCompatibleCompletionProviderRequestId } from "@/lib/openRouterCompletion";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
+import { estimateTokens } from "@/lib/tokenEstimate";
 import { resolveUsageReportingCheaperInferenceApiKey } from "./cheaperInferenceUsageReportingCredential";
 import { classifyEnglishLayer } from "@/lib/promptTranslation";
 import {
@@ -58,8 +59,13 @@ export const BODY_CUE_1354_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
 export const BODY_CUE_1354_MAX_TOKENS = 8192;
 export const BODY_CUE_1354_MIN_DISCOUNT_PERCENT = 50;
 export const BODY_CUE_1354_SUPPLY_URL = `${CHEAPER_INFERENCE_BASE_URL}/models/supply`;
-export const FLASH_INPUT_CEILING = 0.075;
-export const FLASH_OUTPUT_CEILING = 0.3;
+/** Absolute experiment spend budget. Not a unit token-rate ceiling. */
+export const BODY_CUE_1354_MAX_EXPERIMENT_USD = 0.25;
+/**
+ * Provider max/list rates are compared at 9 decimal places (live supply
+ * strings use that scale). Half a unit of the last place is rounding only.
+ */
+export const FLASH_SUPPLY_RATE_SCALE = 1_000_000_000;
 export const APPROVED_EXECUTION_PLAN = [
   { sceneId: "quiet_window_safe", variant: "baseline" },
   { sceneId: "relationship_turn_safe", variant: "candidate" },
@@ -115,9 +121,10 @@ export class CatalogGateError extends Error {
       | "non_ok"
       | "model_missing"
       | "malformed"
-      | "price_violation"
       | "supply_empty"
-      | "supply_ceiling"
+      | "supply_discount_mismatch"
+      | "supply_rate_invalid"
+      | "supply_contract"
   ) {
     super(message);
     this.name = "CatalogGateError";
@@ -188,6 +195,29 @@ export class PaidAttemptBudget {
   get count(): number {
     return this.attempts;
   }
+}
+
+export function usdPerMillionToScaledInt(value: number): number {
+  return Math.round(value * FLASH_SUPPLY_RATE_SCALE);
+}
+
+export function derivedMinDiscountCeilingUsdPerMillion(
+  listUsdPerMillion: number,
+  minDiscountPercent: number
+): number {
+  return listUsdPerMillion * (1 - minDiscountPercent / 100);
+}
+
+export function isSupplyMaxWithinDerivedCeiling(
+  maxUsdPerMillion: number,
+  listUsdPerMillion: number,
+  minDiscountPercent: number
+): boolean {
+  const ceiling = derivedMinDiscountCeilingUsdPerMillion(
+    listUsdPerMillion,
+    minDiscountPercent
+  );
+  return usdPerMillionToScaledInt(maxUsdPerMillion) <= usdPerMillionToScaledInt(ceiling);
 }
 
 export function applyBodyCue1354ExperimentOverrides(
@@ -687,9 +717,6 @@ export function parseFlashCatalogGate(payload: unknown): {
   if (!parsed) {
     throw new CatalogGateError("flash catalog row malformed", "malformed");
   }
-  if (parsed.inputUsdPerMillion > FLASH_INPUT_CEILING || parsed.outputUsdPerMillion > FLASH_OUTPUT_CEILING) {
-    throw new CatalogGateError("flash catalog price exceeds ceiling", "price_violation");
-  }
   return {
     available: true,
     inputUsdPerMillion: parsed.inputUsdPerMillion,
@@ -707,11 +734,27 @@ function readFiniteNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export function parseFlashSupplyGate(payload: unknown): {
-  candidateCount: number;
+function readPositiveFiniteNumber(value: unknown): number | null {
+  const n = readFiniteNumber(value);
+  return n != null && n > 0 ? n : null;
+}
+
+export type FlashSupplyEvidence = {
+  model: string | null;
+  minDiscountPercent: number;
+  listInputPerMillion: number;
+  listOutputPerMillion: number;
   maxInputPerMillion: number;
   maxOutputPerMillion: number;
-} {
+  candidateCount: number;
+  supplyBufferPercent: number | null;
+  primaryMarketMinDiscountPercent: number | null;
+};
+
+export function parseFlashSupplyGate(
+  payload: unknown,
+  requestedMinDiscountPercent: number = BODY_CUE_1354_MIN_DISCOUNT_PERCENT
+): FlashSupplyEvidence {
   if (!payload || typeof payload !== "object") {
     throw new CatalogGateError("supply payload malformed", "malformed");
   }
@@ -721,21 +764,110 @@ export function parseFlashSupplyGate(payload: unknown): {
       ? (obj.data as Record<string, unknown>)
       : obj;
   const candidateCount = readFiniteNumber(block.candidate_count);
-  const maxInput = readFiniteNumber(block.max_input_per_million);
-  const maxOutput = readFiniteNumber(block.max_output_per_million);
-  if (candidateCount == null || maxInput == null || maxOutput == null) {
+  const returnedDiscount = readFiniteNumber(block.min_discount_percent);
+  const listInput = readPositiveFiniteNumber(block.list_input_per_million);
+  const listOutput = readPositiveFiniteNumber(block.list_output_per_million);
+  const maxInput = readPositiveFiniteNumber(block.max_input_per_million);
+  const maxOutput = readPositiveFiniteNumber(block.max_output_per_million);
+  if (candidateCount == null || returnedDiscount == null) {
     throw new CatalogGateError("supply payload malformed", "malformed");
   }
   if (candidateCount < 1) {
     throw new CatalogGateError("supply candidate_count is 0", "supply_empty");
   }
-  if (maxInput > FLASH_INPUT_CEILING || maxOutput > FLASH_OUTPUT_CEILING) {
-    throw new CatalogGateError("supply ceiling violation", "supply_ceiling");
+  if (usdPerMillionToScaledInt(returnedDiscount) !== usdPerMillionToScaledInt(requestedMinDiscountPercent)) {
+    throw new CatalogGateError("supply min_discount_percent mismatch", "supply_discount_mismatch");
   }
+  if (listInput == null || listOutput == null || maxInput == null || maxOutput == null) {
+    throw new CatalogGateError("supply rates missing or not positive", "supply_rate_invalid");
+  }
+  if (
+    !isSupplyMaxWithinDerivedCeiling(maxInput, listInput, returnedDiscount) ||
+    !isSupplyMaxWithinDerivedCeiling(maxOutput, listOutput, returnedDiscount)
+  ) {
+    throw new CatalogGateError("supply max exceeds derived discount ceiling", "supply_contract");
+  }
+  const model =
+    typeof block.model === "string" && block.model.trim() ? block.model.trim() : null;
+  if (model && model.toLowerCase() !== BODY_CUE_1354_MODEL) {
+    throw new CatalogGateError("supply model mismatch", "malformed");
+  }
+  const supplyBufferPercent = readFiniteNumber(block.supply_buffer_percent);
+  const primaryMarketMinDiscountPercent = readFiniteNumber(
+    block.primary_market_min_discount_percent
+  );
   return {
-    candidateCount,
+    model,
+    minDiscountPercent: returnedDiscount,
+    listInputPerMillion: listInput,
+    listOutputPerMillion: listOutput,
     maxInputPerMillion: maxInput,
     maxOutputPerMillion: maxOutput,
+    candidateCount,
+    supplyBufferPercent,
+    primaryMarketMinDiscountPercent,
+  };
+}
+
+export function finalWirePromptText(body: Record<string, unknown>): string {
+  const messages = Array.isArray(body.messages) ? body.messages : [];
+  return messages
+    .map((message) => {
+      if (!message || typeof message !== "object") return "";
+      const content = (message as { content?: unknown }).content;
+      if (typeof content === "string") return content;
+      if (!Array.isArray(content)) return "";
+      return content
+        .map((block) => {
+          if (!block || typeof block !== "object") return "";
+          const text = (block as { text?: unknown }).text;
+          return typeof text === "string" ? text : "";
+        })
+        .join("");
+    })
+    .join("\n");
+}
+
+export function estimateSealedCallUpperUsd(opts: {
+  requestBody: Record<string, unknown>;
+  maxInputPerMillion: number;
+  maxOutputPerMillion: number;
+}): { promptEstimateTokens: number; callUpperUsd: number } {
+  const promptEstimateTokens = estimateTokens(finalWirePromptText(opts.requestBody));
+  const callUpperUsd =
+    (promptEstimateTokens / 1_000_000) * opts.maxInputPerMillion +
+    (BODY_CUE_1354_MAX_TOKENS / 1_000_000) * opts.maxOutputPerMillion;
+  return { promptEstimateTokens, callUpperUsd };
+}
+
+export function evaluateExperimentBudget(opts: {
+  requests: Array<{ requestBody: Record<string, unknown> }>;
+  maxInputPerMillion: number;
+  maxOutputPerMillion: number;
+  maxExperimentUsd?: number;
+}): {
+  maxExperimentUsd: number;
+  perCallUpperUsd: number[];
+  totalUpperUsd: number;
+  utilizationRatio: number;
+  ok: boolean;
+} {
+  const maxExperimentUsd = opts.maxExperimentUsd ?? BODY_CUE_1354_MAX_EXPERIMENT_USD;
+  const perCallUpperUsd = opts.requests.map(
+    (request) =>
+      estimateSealedCallUpperUsd({
+        requestBody: request.requestBody,
+        maxInputPerMillion: opts.maxInputPerMillion,
+        maxOutputPerMillion: opts.maxOutputPerMillion,
+      }).callUpperUsd
+  );
+  const totalUpperUsd = perCallUpperUsd.reduce((sum, value) => sum + value, 0);
+  return {
+    maxExperimentUsd,
+    perCallUpperUsd,
+    totalUpperUsd,
+    utilizationRatio: maxExperimentUsd > 0 ? totalUpperUsd / maxExperimentUsd : 0,
+    ok: totalUpperUsd <= maxExperimentUsd,
   };
 }
 
@@ -931,8 +1063,24 @@ export type RunnerArtifact = {
     url: typeof BODY_CUE_1354_SUPPLY_URL;
     min_discount_percent: number;
     candidateCount: number | null;
+    listInputPerMillion: number | null;
+    listOutputPerMillion: number | null;
     maxInputPerMillion: number | null;
     maxOutputPerMillion: number | null;
+  };
+  pricingPolicy: {
+    minDiscountPercent: number | null;
+    listInputPerMillion: number | null;
+    listOutputPerMillion: number | null;
+    maxInputPerMillion: number | null;
+    maxOutputPerMillion: number | null;
+    candidateCount: number | null;
+  };
+  budget: {
+    maxExperimentUsd: typeof BODY_CUE_1354_MAX_EXPERIMENT_USD;
+    perCallUpperUsd: number[] | null;
+    totalUpperUsd: number | null;
+    utilizationRatio: number | null;
   };
 };
 
@@ -1049,8 +1197,24 @@ function emptyArtifact(input: {
       url: BODY_CUE_1354_SUPPLY_URL,
       min_discount_percent: BODY_CUE_1354_MIN_DISCOUNT_PERCENT,
       candidateCount: null,
+      listInputPerMillion: null,
+      listOutputPerMillion: null,
       maxInputPerMillion: null,
       maxOutputPerMillion: null,
+    },
+    pricingPolicy: {
+      minDiscountPercent: null,
+      listInputPerMillion: null,
+      listOutputPerMillion: null,
+      maxInputPerMillion: null,
+      maxOutputPerMillion: null,
+      candidateCount: null,
+    },
+    budget: {
+      maxExperimentUsd: BODY_CUE_1354_MAX_EXPERIMENT_USD,
+      perCallUpperUsd: null,
+      totalUpperUsd: null,
+      utilizationRatio: null,
     },
   };
 }
@@ -1196,14 +1360,45 @@ export async function runBodyCueFlashAb1354(opts: {
     if (!supply.ok) {
       throw new CatalogGateError("supply GET non-ok", "non_ok");
     }
-    const supplyEvidence = parseFlashSupplyGate(supply.payload);
+    const supplyEvidence = parseFlashSupplyGate(
+      supply.payload,
+      BODY_CUE_1354_MIN_DISCOUNT_PERCENT
+    );
     artifact.supply = {
       url: artifact.supply.url,
-      min_discount_percent: artifact.supply.min_discount_percent,
-      ...supplyEvidence,
+      min_discount_percent: supplyEvidence.minDiscountPercent,
+      candidateCount: supplyEvidence.candidateCount,
+      listInputPerMillion: supplyEvidence.listInputPerMillion,
+      listOutputPerMillion: supplyEvidence.listOutputPerMillion,
+      maxInputPerMillion: supplyEvidence.maxInputPerMillion,
+      maxOutputPerMillion: supplyEvidence.maxOutputPerMillion,
     };
+    artifact.pricingPolicy = {
+      minDiscountPercent: supplyEvidence.minDiscountPercent,
+      listInputPerMillion: supplyEvidence.listInputPerMillion,
+      listOutputPerMillion: supplyEvidence.listOutputPerMillion,
+      maxInputPerMillion: supplyEvidence.maxInputPerMillion,
+      maxOutputPerMillion: supplyEvidence.maxOutputPerMillion,
+      candidateCount: supplyEvidence.candidateCount,
+    };
+    const budgetEvidence = evaluateExperimentBudget({
+      requests: labeled,
+      maxInputPerMillion: supplyEvidence.maxInputPerMillion,
+      maxOutputPerMillion: supplyEvidence.maxOutputPerMillion,
+    });
+    artifact.budget = {
+      maxExperimentUsd: BODY_CUE_1354_MAX_EXPERIMENT_USD,
+      perCallUpperUsd: budgetEvidence.perCallUpperUsd,
+      totalUpperUsd: budgetEvidence.totalUpperUsd,
+      utilizationRatio: budgetEvidence.utilizationRatio,
+    };
+    if (!budgetEvidence.ok) {
+      artifact.status = "PREFLIGHT_BLOCKED";
+      throw new RunnerStopError("experiment budget exceeded", artifact, reveal);
+    }
   } catch (error) {
     artifact.status = "PREFLIGHT_BLOCKED";
+    if (error instanceof RunnerStopError) throw error;
     if (error instanceof CatalogGateError) throw error;
     throw new CatalogGateError("catalog/supply gate failed", "malformed");
   }
