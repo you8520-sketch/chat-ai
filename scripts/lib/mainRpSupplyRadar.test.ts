@@ -329,8 +329,8 @@ test("official Gemini Standard schedule is risk evidence without inventing futur
     assert.equal(risk.postIntroStandardPrice.outputUsdPerMillion,7.5);
   }
   assert.equal(
-    report.models.find(row=>row.modelId==="gemini-3.1-pro-preview")?.upstreamPriceRisk,
-    null
+    report.models.some(row=>row.modelId==="gemini-3.1-pro-preview"),
+    false
   );
 });
 
