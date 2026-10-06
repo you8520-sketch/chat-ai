@@ -5,7 +5,7 @@ import {
   formatAutoRefundReasons,
   hasRepeatedLongFormBlock,
 } from "@/lib/refundAutoValidation";
-import { AUTO_REFUND_MIN_VISIBLE_CHARS } from "@/lib/reportRefundPolicy";
+import { AUTO_REFUND_UNDER_LENGTH_MAX_VISIBLE_CHARS } from "@/lib/reportRefundPolicy";
 
 describe("assessMessageForAutoRefund", () => {
   it("flags under-length output", () => {
@@ -17,7 +17,7 @@ describe("assessMessageForAutoRefund", () => {
   });
 
   it("flags duplicate vs previous assistant", () => {
-    const body = "A".repeat(AUTO_REFUND_MIN_VISIBLE_CHARS + 20);
+    const body = "A".repeat(AUTO_REFUND_UNDER_LENGTH_MAX_VISIBLE_CHARS + 20);
     const r = assessMessageForAutoRefund({
       content: body,
       previousAssistantContent: body,
@@ -47,6 +47,6 @@ describe("assessMessageForAutoRefund", () => {
   });
 
   it("formatAutoRefundReasons joins labels", () => {
-    assert.match(formatAutoRefundReasons(["under_length", "garbage_output"]), /미달/);
+    assert.match(formatAutoRefundReasons(["under_length", "garbage_output"]), /이하/);
   });
 });

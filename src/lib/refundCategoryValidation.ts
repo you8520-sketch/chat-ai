@@ -13,7 +13,7 @@ import {
   formatReportRefundCategoryLabel,
   type ReportRefundUiCategory,
 } from "@/lib/reportRefundCategories";
-import { AUTO_REFUND_MIN_VISIBLE_CHARS } from "@/lib/reportRefundPolicy";
+import { isAutoRefundUnderLengthEvidence } from "@/lib/reportRefundPolicy";
 import { diagnoseStatusWidgetFailureFromUsage } from "@/lib/statusWidgetRefundEvidence";
 import { detectDuplicateBillingEvidence } from "@/lib/duplicateChargeEvidence";
 
@@ -156,7 +156,7 @@ export function assessCategoryForAutoRefund(input: {
       }
       break;
     case "under_length":
-      if (content && visibleAssistantMessageLength(content) < AUTO_REFUND_MIN_VISIBLE_CHARS) {
+      if (content && isAutoRefundUnderLengthEvidence(visibleAssistantMessageLength(content))) {
         reasons.push("under_length");
       }
       break;

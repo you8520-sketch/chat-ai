@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { assessCategoryForAutoRefund } from "@/lib/refundCategoryValidation";
-import { AUTO_REFUND_MIN_VISIBLE_CHARS } from "@/lib/reportRefundPolicy";
+import {
+  AUTO_REFUND_UNDER_LENGTH_MAX_VISIBLE_CHARS,
+  isAutoRefundUnderLengthEvidence,
+} from "@/lib/reportRefundPolicy";
 
 function longContent(): string {
   return "정상 RP 본문입니다. ".repeat(120);
@@ -33,7 +36,7 @@ describe("refund category evidence regression", () => {
   });
 
   it("under_length with short content still auto-refunds", () => {
-    const short = "x".repeat(AUTO_REFUND_MIN_VISIBLE_CHARS - 10);
+    const short = "x".repeat(AUTO_REFUND_UNDER_LENGTH_MAX_VISIBLE_CHARS);
     const assessment = assessCategoryForAutoRefund({
       category: "under_length",
       content: short,
@@ -65,5 +68,5 @@ describe("refund category evidence regression", () => {
 });
 
 function visibleLengthAboveThreshold(content: string): boolean {
-  return content.length >= AUTO_REFUND_MIN_VISIBLE_CHARS;
+  return !isAutoRefundUnderLengthEvidence(content.length);
 }
