@@ -615,6 +615,131 @@ describe("replacement spend and review gates", () => {
   });
 });
 
+function injectApprovedReplacement(draftKey: string, slotKey: string): void {
+  const active = store.getAsset(draftKey, slotKey);
+  const character = store.getCharacter(draftKey);
+  const profile = officialImageProfileForSlot(active.kind);
+  const candidateUrl = `/uploads/official-${draftKey}__${slotKey}-injected-r1.webp`;
+  store.database
+    .prepare(
+      `INSERT INTO official_supply_asset_replacements (
+         draft_key, slot_key, kind, status, base_result_url, candidate_result_url,
+         width, height, appearance_lock_hash, moderation_json, qa_json
+       ) VALUES (?, ?, ?, 'approved', ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      draftKey,
+      slotKey,
+      active.kind,
+      active.resultUrl,
+      candidateUrl,
+      profile.width,
+      profile.height,
+      character.appearanceLockHash,
+      JSON.stringify({ status: "checked", adultFlagged: false, moderationReject: false, reason: "" }),
+      JSON.stringify(variationQa())
+    );
+}
+
+describe("A. representative create/apply fail closed", () => {
+  it("refuses representative create and injected representative apply without touching live rows", async () => {
+    const draftKey = "rep-block-1";
+    const published = await publishedOfficial(draftKey);
+    const world = new FakeWorld();
+    const before = snapshotCharacter(published.characterId);
+    const beforeActive = store.getAsset(draftKey, "rep");
+
+    assert.throws(
+      () => store.createReplacementCandidate(draftKey, "rep"),
+      (error: OfficialSupplyGateError) => error.code === "replacement_representative_forbidden"
+    );
+    assert.equal(world.calls.length, 0);
+    assert.equal(store.getAsset(draftKey, "rep").resultUrl, beforeActive.resultUrl);
+    assert.equal(store.getAsset(draftKey, "rep").status, "approved");
+    assert.deepEqual(snapshotCharacter(published.characterId).assets, before.assets);
+    assert.deepEqual(snapshotCharacter(published.characterId).images, before.images);
+
+    injectApprovedReplacement(draftKey, "rep");
+    assert.throws(
+      () => applyApprovedOfficialAssetReplacements({ store, draftKey, slotKeys: ["rep"] }),
+      (error: OfficialSupplyGateError) => error.code === "replacement_representative_forbidden"
+    );
+    assert.equal(world.calls.length, 0);
+    assert.equal(store.getAsset(draftKey, "rep").resultUrl, beforeActive.resultUrl);
+    assert.equal(store.getAsset(draftKey, "rep").status, "approved");
+    const after = snapshotCharacter(published.characterId);
+    assert.equal(after.assets, before.assets);
+    assert.equal(after.images, before.images);
+    assert.equal(store.getReplacement(draftKey, "rep").status, "approved");
+  });
+});
+
+describe("B. published official moderation_status must be approved", () => {
+  it("fails create/review/apply when public moderation_status is pending or rejected", async () => {
+    const draftKey = "mod-gate-1";
+    const published = await publishedOfficial(draftKey);
+    const world = new FakeWorld();
+    await generateApproveReplacement(world, draftKey, "sig4");
+    const beforeAssets = (
+      store.database.prepare("SELECT assets FROM characters WHERE id=?").get(published.characterId) as { assets: string }
+    ).assets;
+
+    for (const status of ["pending", "rejected"] as const) {
+      store.database.prepare("UPDATE characters SET moderation_status=? WHERE id=?").run(status, published.characterId);
+      assert.throws(
+        () => store.createReplacementCandidate(draftKey, "scene1"),
+        (error: OfficialSupplyGateError) => error.code === "character_not_published"
+      );
+      assert.throws(
+        () => store.reviewReplacement(draftKey, "sig4", variationQa()),
+        (error: OfficialSupplyGateError) => error.code === "character_not_published"
+      );
+      assert.throws(
+        () => applyApprovedOfficialAssetReplacements({ store, draftKey, slotKeys: ["sig4"] }),
+        (error: OfficialSupplyGateError) => error.code === "character_not_published"
+      );
+    }
+
+    store.database
+      .prepare("UPDATE characters SET moderation_status='approved' WHERE id=?")
+      .run(published.characterId);
+    const created = store.createReplacementCandidate(draftKey, "scene1");
+    assert.equal(created.status, "planned");
+    const applied = applyApprovedOfficialAssetReplacements({ store, draftKey, slotKeys: ["sig4"] });
+    assert.equal(applied.status, "applied");
+    const afterAssets = parseAssets(
+      (store.database.prepare("SELECT assets FROM characters WHERE id=?").get(published.characterId) as { assets: string }).assets
+    );
+    assert.notEqual(JSON.stringify(afterAssets), beforeAssets);
+    assert.equal(store.getReplacement(draftKey, "sig4").status, "applied");
+  });
+});
+
+describe("C. applied replacement cannot be reopened", () => {
+  it("keeps rollback provenance after a second create attempt", async () => {
+    const draftKey = "applied-term-1";
+    await publishedOfficial(draftKey);
+    const world = new FakeWorld();
+    await generateApproveReplacement(world, draftKey, "sig4");
+    applyApprovedOfficialAssetReplacements({ store, draftKey, slotKeys: ["sig4"] });
+    const snapshot = store.getReplacement(draftKey, "sig4");
+    assert.equal(snapshot.status, "applied");
+    assert.ok(snapshot.baseResultUrl);
+    assert.ok(snapshot.candidateResultUrl);
+    assert.ok(snapshot.appliedAt);
+
+    assert.throws(
+      () => store.createReplacementCandidate(draftKey, "sig4"),
+      (error: OfficialSupplyGateError) => error.code === "replacement_already_applied"
+    );
+    const after = store.getReplacement(draftKey, "sig4");
+    assert.equal(after.status, "applied");
+    assert.equal(after.baseResultUrl, snapshot.baseResultUrl);
+    assert.equal(after.candidateResultUrl, snapshot.candidateResultUrl);
+    assert.equal(after.appliedAt, snapshot.appliedAt);
+  });
+});
+
 describe("replacement tests never load production adapters", () => {
   it("stays offline and does not import production adapters or billing owners", () => {
     const dir = path.join(process.cwd(), "src/lib/officialSupply");

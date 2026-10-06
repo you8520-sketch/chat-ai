@@ -1172,20 +1172,37 @@ export class OfficialSupplyStore {
       throw new OfficialSupplyGateError("not_staged", `draft ${draftKey} has no public character`);
     }
     const row = this.db
-      .prepare("SELECT id, official, visibility FROM characters WHERE id=?")
+      .prepare("SELECT id, official, visibility, moderation_status FROM characters WHERE id=?")
       .get(character.stagedCharacterId) as
-      | { id: number; official: number; visibility: string }
+      | { id: number; official: number; visibility: string; moderation_status: string }
       | undefined;
     if (!row) {
       throw new OfficialSupplyGateError("character_missing", `character ${character.stagedCharacterId} not found`);
     }
-    if (row.id !== character.stagedCharacterId || row.official !== 1 || row.visibility !== "public") {
+    if (
+      row.id !== character.stagedCharacterId ||
+      row.official !== 1 ||
+      row.visibility !== "public" ||
+      row.moderation_status !== "approved"
+    ) {
       throw new OfficialSupplyGateError(
         "character_not_published",
         `character ${character.stagedCharacterId} is not the published official row`
       );
     }
     return character;
+  }
+
+  /** Representative replacement is a follow-up; this lifecycle is non-representative only. */
+  assertReplacementSlotAllowed(draftKey: string, slotKey: string): OfficialAssetRecord {
+    const asset = this.getAsset(draftKey, slotKey);
+    if (asset.kind === "representative") {
+      throw new OfficialSupplyGateError(
+        "replacement_representative_forbidden",
+        `${draftKey}/${slotKey} representative replacement is not supported`
+      );
+    }
+    return asset;
   }
 
   listReplacements(draftKey: string): OfficialReplacementRecord[] {
@@ -1211,7 +1228,7 @@ export class OfficialSupplyStore {
   createReplacementCandidate(draftKey: string, slotKey: string): OfficialReplacementRecord {
     const character = this.assertPublishedOfficialCharacter(draftKey);
     this.assertTextLockCurrent(character);
-    const asset = this.getAsset(draftKey, slotKey);
+    const asset = this.assertReplacementSlotAllowed(draftKey, slotKey);
     if (asset.status !== "approved" || !asset.resultUrl) {
       throw new OfficialSupplyGateError(
         "active_slot_not_approved",
@@ -1246,11 +1263,17 @@ export class OfficialSupplyStore {
            applied_at=NULL,
            appearance_lock_hash=excluded.appearance_lock_hash,
            updated_at=datetime('now')
-         WHERE official_supply_asset_replacements.status IN ('planned','failed','rejected','applied')`
+         WHERE official_supply_asset_replacements.status IN ('planned','failed','rejected')`
       )
       .run(draftKey, slotKey, asset.kind, asset.resultUrl, character.appearanceLockHash);
     if (info.changes !== 1) {
       const existing = this.getReplacement(draftKey, slotKey);
+      if (existing.status === "applied") {
+        throw new OfficialSupplyGateError(
+          "replacement_already_applied",
+          `${draftKey}/${slotKey} replacement is already applied`
+        );
+      }
       throw new OfficialSupplyGateError(
         "replacement_busy",
         `${draftKey}/${slotKey} replacement is ${existing.status}`
@@ -1267,6 +1290,7 @@ export class OfficialSupplyStore {
   } {
     const character = this.assertPublishedOfficialCharacter(draftKey);
     this.assertTextLockCurrent(character);
+    this.assertReplacementSlotAllowed(draftKey, slotKey);
     const style = this.getStyle(character.styleKey);
     if (style.stage !== "style_locked" || !style.styleSeed) {
       throw new OfficialSupplyGateError(
@@ -1437,7 +1461,7 @@ export class OfficialSupplyStore {
   reviewReplacement(draftKey: string, slotKey: string, qa: OfficialVariationQaReport): { approved: boolean } {
     const character = this.assertPublishedOfficialCharacter(draftKey);
     this.assertTextLockCurrent(character);
-    const asset = this.getAsset(draftKey, slotKey);
+    const asset = this.assertReplacementSlotAllowed(draftKey, slotKey);
     if (asset.status !== "approved" || !asset.resultUrl) {
       throw new OfficialSupplyGateError(
         "active_slot_not_approved",

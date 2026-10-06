@@ -23,6 +23,7 @@ type PublicCharacterRow = {
   id: number;
   official: number;
   visibility: string;
+  moderation_status: string;
   assets: string;
   images: string;
 };
@@ -74,6 +75,12 @@ function assertCandidateReadyForApply(
   activeUrl: string
 ): OfficialReplacementRecord {
   const candidate = store.getReplacement(draftKey, slotKey);
+  if (candidate.kind === "representative") {
+    throw new OfficialSupplyGateError(
+      "replacement_representative_forbidden",
+      `${draftKey}/${slotKey} representative replacement is not supported`
+    );
+  }
   if (candidate.status !== "approved") {
     throw new OfficialSupplyGateError(
       "replacement_not_approved",
@@ -144,6 +151,9 @@ export function applyApprovedOfficialAssetReplacements(input: {
   const { store, draftKey } = input;
   const slotKeys = uniqueSlotKeys(input.slotKeys);
   const character = store.assertPublishedOfficialCharacter(draftKey);
+  for (const slotKey of slotKeys) {
+    store.assertReplacementSlotAllowed(draftKey, slotKey);
+  }
   if (!character.assetPlan || !character.appearanceLockHash) {
     throw new OfficialSupplyGateError("asset_plan_missing", `${draftKey} has no asset plan`);
   }
@@ -163,10 +173,17 @@ export function applyApprovedOfficialAssetReplacements(input: {
     if (!liveCharacter.appearanceLockHash || liveCharacter.appearanceLockHash !== character.appearanceLockHash) {
       throw new OfficialSupplyGateError("appearance_lock_stale", `${draftKey} appearance lock changed during apply`);
     }
+    store.assertPublishedOfficialCharacter(draftKey);
     const publicRow = store.database
-      .prepare("SELECT id, official, visibility, assets, images FROM characters WHERE id=?")
+      .prepare("SELECT id, official, visibility, moderation_status, assets, images FROM characters WHERE id=?")
       .get(characterId) as PublicCharacterRow | undefined;
-    if (!publicRow || publicRow.id !== characterId || publicRow.official !== 1 || publicRow.visibility !== "public") {
+    if (
+      !publicRow ||
+      publicRow.id !== characterId ||
+      publicRow.official !== 1 ||
+      publicRow.visibility !== "public" ||
+      publicRow.moderation_status !== "approved"
+    ) {
       throw new OfficialSupplyGateError(
         "character_not_published",
         `character ${characterId} is not the published official row`
@@ -188,7 +205,7 @@ export function applyApprovedOfficialAssetReplacements(input: {
 
     const candidates = new Map<string, OfficialReplacementRecord>();
     for (const slotKey of slotKeys) {
-      const active = store.getAsset(draftKey, slotKey);
+      const active = store.assertReplacementSlotAllowed(draftKey, slotKey);
       if (active.status !== "approved" || !active.resultUrl) {
         throw new OfficialSupplyGateError(
           "active_slot_not_approved",
