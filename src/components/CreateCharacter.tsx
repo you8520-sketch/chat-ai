@@ -2337,8 +2337,10 @@ export default function CreateCharacter({
                     </span>
                     <span className="mt-0.5 block text-xs text-zinc-400">
                       예제를 눌러 본 뒤 적용합니다. 저장하면 AI가 대화 상황에 맞춰 호출할 수
-                      있습니다.
-                      {jsxCatalog[0] ? ` 저장됨: ${jsxCatalog[0].name}` : ""}
+                      있습니다. TRPG 캐릭터 시트도 여기서 만듭니다.
+                      {jsxCatalog.length > 0
+                        ? ` 저장됨: ${jsxCatalog.map((component) => component.name).join(", ")}`
+                        : ""}
                     </span>
                   </span>
                   <span className="shrink-0 text-xs text-zinc-500">

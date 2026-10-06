@@ -16,6 +16,7 @@ import { splitTrpgRoundCost } from "./billing";
 import { isTrpgLobbyStatus } from "./billingMode";
 import { parseBillingBreakdown } from "./economics";
 import {
+  canViewTrpgCampaign,
   loadCampaign,
   loadLatestRound,
   loadParticipants,
@@ -249,7 +250,7 @@ export function loadTrpgSnapshot(
   }
   const parts = timedSnapshotDiag("participantsMs", () => loadParticipants(db, campaignId));
   const viewer = parts.find((p) => p.kind === "human" && p.user_id === viewerUserId);
-  if (!viewer && campaign.host_user_id !== viewerUserId) return null;
+  if (!canViewTrpgCampaign(campaign, parts, viewerUserId)) return null;
 
   const scenario = loadScenario(db, campaignId);
   const round = loadLatestRound(db, campaignId);

@@ -21,6 +21,7 @@ import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import { COMMON_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
 import { OOC_HTML_MODE_SYSTEM_DIRECTIVE } from "@/lib/oocHtmlRequest";
 import {
+  AUDIT_TRPG_SHEET_PROBE,
   COMMON_PROSE_EMOTION_CUE_CANDIDATE,
   liveCommonProseEmotionCueBaseline,
   runMainRpFinalWireAudit,
@@ -306,6 +307,20 @@ describe("Main RP final-wire audit", () => {
     assert.equal(guided.jsxManifestText.split(guide).length - 1, 1);
     assert.equal(guided.jsxManifestText.split("[HAV JSX COMPONENTS]").length - 1, 1);
     assert.doesNotMatch(guided.jsxManifestText, /requestAnimationFrame|sendToChat|export default function/);
+  });
+
+  it("keeps a trpg_sheet component out of the final RP request and its token budget", () => {
+    const jsx = caseById("ds-jsx");
+    const withSheet = caseById("ds-jsx-trpg-sheet");
+    assert.equal(withSheet.jsxManifestText, jsx.jsxManifestText);
+    assert.doesNotMatch(withSheet.jsxManifestText, new RegExp(`${AUDIT_TRPG_SHEET_PROBE}|auditSheetProbeProp|audit sheet`));
+    assert.equal(withSheet.wire.systemFlatSha256, jsx.wire.systemFlatSha256);
+    assert.deepEqual(withSheet.wire.systemBlocks, jsx.wire.systemBlocks);
+    assert.deepEqual(
+      withSheet.sections.map((section) => [section.id, section.sha256]),
+      jsx.sections.map((section) => [section.id, section.sha256])
+    );
+    assert.deepEqual(withSheet.localEstimateTokens, jsx.localEstimateTokens);
   });
 
   it("keeps the live cue hashes and isolates the #1288 candidate to one character-block clause", () => {

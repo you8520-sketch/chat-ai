@@ -8,3 +8,4 @@ export * from "./catalog";
 export * from "./prompt";
 export * from "./hostBridge";
 export * from "./pitWallFixture";
+export * from "./surface";

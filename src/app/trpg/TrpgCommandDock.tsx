@@ -47,10 +47,14 @@ import {
 import {
   acceptTrpgSheetActionDraft,
   buildTrpgSheetSurface,
-  trpgSheetRenderer,
+  pickTrpgSheetRenderer,
   type TrpgSheetRenderer,
   type TrpgSheetSurface,
 } from "@/lib/trpg/sheetSurface";
+import {
+  trpgPartySheetComponentParticipantId,
+  type TrpgPartySheetComponentLoader,
+} from "@/lib/trpg/partySheetComponentClient";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import type { TrpgSheetSnapshot } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
@@ -76,7 +80,7 @@ function NativeSheetBody({
   onFillAction,
 }: {
   surface: TrpgSheetSurface;
-  onFillAction: (draft: TrpgActionDraftFill) => void;
+  onFillAction: ((draft: TrpgActionDraftFill) => void) | null;
 }) {
   return (
     <div className="space-y-3 text-sm text-zinc-200" data-trpg-sheet-native={surface.participantId}>
@@ -138,7 +142,7 @@ function NativeSheetBody({
               </li>
             ))}
             {surface.effects.map((effect) => {
-              const draft = surface.interactive ? effect.draft : null;
+              const draft = surface.interactive && onFillAction ? effect.draft : null;
               if (!draft) {
                 return (
                   <li
@@ -156,7 +160,7 @@ function NativeSheetBody({
                     type="button"
                     title={effect.hint}
                     data-trpg-condition-draft={effect.label}
-                    onClick={() => onFillAction(draft)}
+                    onClick={() => onFillAction?.(draft)}
                     className="inline-flex min-h-11 items-center rounded-full border border-sky-400/30 bg-sky-500/10 px-3 text-xs font-semibold text-sky-100"
                   >
                     {effect.badge}
@@ -174,13 +178,13 @@ function NativeSheetBody({
         ) : (
           <ul className="mt-1 flex flex-wrap gap-1.5">
             {surface.inventory.map((item) => {
-              const draft = surface.interactive ? item.draft : null;
+              const draft = surface.interactive && onFillAction ? item.draft : null;
               return draft ? (
                 <li key={item.key}>
                   <button
                     type="button"
                     data-trpg-inventory-item={item.name}
-                    onClick={() => onFillAction(draft)}
+                    onClick={() => onFillAction?.(draft)}
                     className="inline-flex min-h-11 max-w-full items-center rounded-full border border-white/10 bg-white/5 px-3 text-xs text-zinc-100"
                   >
                     <span className="truncate">{item.name}</span>
@@ -203,55 +207,51 @@ function NativeSheetBody({
 }
 
 /**
- * One visible renderer per sheet: the site-owned sandboxed JSX sheet, or the
- * native body when JSX is unavailable or reported a failure.
+ * One visible renderer per sheet, chosen by pickTrpgSheetRenderer. Only the
+ * viewer's own sheet gets a draft handler; party sheets get none, whatever the
+ * `interactive` prop says, so creator code there cannot reach host state.
  */
-function ignorePartyDraft(): void {}
-
 function SheetSurfaceView({
   surface,
-  compiled,
   renderer,
   onJsxFailed,
   onFillAction,
 }: {
   surface: TrpgSheetSurface;
-  compiled: string | null;
   renderer: TrpgSheetRenderer;
-  onJsxFailed: () => void;
-  onFillAction: (draft: TrpgActionDraftFill) => void;
+  onJsxFailed: (compiled: string) => void;
+  onFillAction: ((draft: TrpgActionDraftFill) => void) | null;
 }) {
   const propsKey = JSON.stringify(surface);
   const props = useMemo(() => JSON.parse(propsKey) as Record<string, unknown>, [propsKey]);
-  const interactive = surface.interactive;
+  const compiled = renderer.kind === "jsx" ? renderer.compiled : null;
   const onTrpgActionDraft = useCallback(
     (request: JsxTrpgActionDraftRequest) => {
-      if (!interactive) return;
       const draft = acceptTrpgSheetActionDraft(request);
-      if (draft) onFillAction(draft);
+      if (draft) onFillAction?.(draft);
     },
-    [interactive, onFillAction]
+    [onFillAction]
   );
   const onStatus = useCallback(
     (status: JsxSandboxStatus) => {
-      if (status === "error") onJsxFailed();
+      if (status === "error" && compiled) onJsxFailed(compiled);
     },
-    [onJsxFailed]
+    [compiled, onJsxFailed]
   );
-  switch (renderer) {
+  switch (renderer.kind) {
     case "jsx":
-      return compiled ? (
-        <JsxComponentSandbox
-          compiled={compiled}
-          props={props}
-          title={interactive ? "내 시트" : "파티원 시트"}
-          heightPx={JSX_SANDBOX_AUTO_HEIGHT_MIN_PX}
-          autoHeight
-          onStatus={onStatus}
-          onTrpgActionDraft={interactive ? onTrpgActionDraft : null}
-        />
-      ) : (
-        <NativeSheetBody surface={surface} onFillAction={onFillAction} />
+      return (
+        <div data-trpg-sheet-renderer={renderer.source}>
+          <JsxComponentSandbox
+            compiled={renderer.compiled}
+            props={props}
+            title={onFillAction ? "내 시트" : "파티원 시트"}
+            heightPx={JSX_SANDBOX_AUTO_HEIGHT_MIN_PX}
+            autoHeight
+            onStatus={onStatus}
+            onTrpgActionDraft={onFillAction ? onTrpgActionDraft : null}
+          />
+        </div>
       );
     case "native":
       return <NativeSheetBody surface={surface} onFillAction={onFillAction} />;
@@ -500,6 +500,7 @@ export default function TrpgCommandDock({
   onSendParty,
   onOcclusionChange,
   sheetJsxCompiled = null,
+  loadPartySheetComponent = null,
 }: {
   snap: TrpgCampaignSnapshot;
   actionType: TrpgActionType;
@@ -525,6 +526,8 @@ export default function TrpgCommandDock({
   onOcclusionChange: (occlusion: TrpgCommandDockOcclusion) => void;
   /** Site-owned sheet compiled by the server through the shared JSX compiler; null → native. */
   sheetJsxCompiled?: string | null;
+  /** Creator `trpg_sheet` lookup for AI party members; null → site sheet only. */
+  loadPartySheetComponent?: TrpgPartySheetComponentLoader | null;
 }) {
   const panelId = useId();
   const rootRef = useRef<HTMLElement>(null);
@@ -542,9 +545,42 @@ export default function TrpgCommandDock({
   const [partyParticipantId, setPartyParticipantId] = useState<number | null>(null);
   const selectedPartyId = selectPartySheetParticipantId(partyCards, partyParticipantId);
   const selectedParty = partyCards.find((card) => card.participantId === selectedPartyId) ?? null;
-  const [failedSheetJsx, setFailedSheetJsx] = useState<string | null>(null);
-  const sheetRenderer = trpgSheetRenderer({ compiled: sheetJsxCompiled, failedCompiled: failedSheetJsx });
-  const onSheetJsxFailed = useCallback(() => setFailedSheetJsx(sheetJsxCompiled), [sheetJsxCompiled]);
+  const [failedSheetJsx, setFailedSheetJsx] = useState<ReadonlySet<string>>(() => new Set());
+  const onSheetJsxFailed = useCallback(
+    (compiled: string) =>
+      setFailedSheetJsx((current) => (current.has(compiled) ? current : new Set(current).add(compiled))),
+    []
+  );
+  const [creatorSheets, setCreatorSheets] = useState<Readonly<Record<number, string | null>>>({});
+  const creatorSheetParticipantId = loadPartySheetComponent
+    ? trpgPartySheetComponentParticipantId(snap.participants, selectedPartyId)
+    : null;
+  const creatorSheetPending =
+    creatorSheetParticipantId != null && !(creatorSheetParticipantId in creatorSheets);
+  useEffect(() => {
+    if (!loadPartySheetComponent || creatorSheetParticipantId == null) return;
+    let cancelled = false;
+    void loadPartySheetComponent(creatorSheetParticipantId).then((compiled) => {
+      if (cancelled) return;
+      setCreatorSheets((current) =>
+        creatorSheetParticipantId in current ? current : { ...current, [creatorSheetParticipantId]: compiled }
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [creatorSheetParticipantId, loadPartySheetComponent]);
+  const selfRenderer = pickTrpgSheetRenderer([{ source: "site", compiled: sheetJsxCompiled }], failedSheetJsx);
+  const partyRenderer = pickTrpgSheetRenderer(
+    [
+      {
+        source: "creator",
+        compiled: creatorSheetParticipantId != null ? creatorSheets[creatorSheetParticipantId] : null,
+      },
+      { source: "site", compiled: sheetJsxCompiled },
+    ],
+    failedSheetJsx
+  );
 
   useEffect(() => {
     const key = trpgCommandDockLifecycleKey({ presentationBusy, actionInput: actionInputVisible });
@@ -741,8 +777,7 @@ export default function TrpgCommandDock({
                 return selfSurface ? (
                   <SheetSurfaceView
                     surface={selfSurface}
-                    compiled={sheetJsxCompiled}
-                    renderer={sheetRenderer}
+                    renderer={selfRenderer}
                     onJsxFailed={onSheetJsxFailed}
                     onFillAction={fillAction}
                   />
@@ -782,13 +817,19 @@ export default function TrpgCommandDock({
                     </div>
                     {partySurface ? (
                       <div data-trpg-party-sheet={partySurface.participantId}>
-                        <SheetSurfaceView
-                          surface={partySurface}
-                          compiled={sheetJsxCompiled}
-                          renderer={sheetRenderer}
-                          onJsxFailed={onSheetJsxFailed}
-                          onFillAction={ignorePartyDraft}
-                        />
+                        {creatorSheetPending ? (
+                          <p className="text-xs text-zinc-500" data-trpg-party-sheet-loading>
+                            시트를 불러오는 중…
+                          </p>
+                        ) : (
+                          <SheetSurfaceView
+                            key={`${partySurface.participantId}:${partyRenderer.kind === "jsx" ? partyRenderer.source : "native"}`}
+                            surface={partySurface}
+                            renderer={partyRenderer}
+                            onJsxFailed={onSheetJsxFailed}
+                            onFillAction={null}
+                          />
+                        )}
                       </div>
                     ) : null}
                   </div>

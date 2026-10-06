@@ -2,17 +2,20 @@
 
 import { useMemo, useState } from "react";
 import JsxComponentSandbox from "@/components/JsxComponentSandbox";
+import JsxTrpgSheetSlotEditor from "@/components/JsxTrpgSheetSlotEditor";
 import {
   hydrateJsxCatalogEditorState,
   jsxCallGuideTokenCount,
   jsxCatalogEditableFingerprint,
+  jsxCatalogSlotIndex,
   JSX_CALL_GUIDE_CATALOG_TOKEN_MAX,
   JSX_CALL_GUIDE_MAX_CHARS,
   removeJsxCatalogHead,
   resolveJsxCatalogDraft,
+  selectJsxSurfaceComponents,
   validateJsxCallGuideCatalog,
-  type JsxComponentManifestRecord,
   type JsxComponentRecord,
+  type JsxComponentSurface,
   type JsxPropDefinition,
   type JsxPropType,
 } from "@/lib/jsxComponent";
@@ -42,8 +45,58 @@ function emptyProp(): JsxPropDefinition {
   return { name: "", type: "string", required: false };
 }
 
+const SURFACE_OPTIONS: { surface: JsxComponentSurface; label: string; hint: string }[] = [
+  { surface: "chat", label: "채팅 중 호출", hint: "AI가 대화 상황에 맞춰 답변 안에서 호출합니다." },
+  {
+    surface: "trpg_sheet",
+    label: "TRPG 캐릭터 시트",
+    hint: "AI가 호출하지 않습니다. TRPG 파티 시트에 고정 데이터로 자동 표시됩니다.",
+  },
+];
+
 export default function JsxComponentCatalogEditor({ value, onChange, disabled }: Props) {
-  const saved = value[0] ?? null;
+  const [surface, setSurface] = useState<JsxComponentSurface>("chat");
+  return (
+    <div className="space-y-3">
+      <div role="radiogroup" aria-label="컴포넌트 용도" className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {SURFACE_OPTIONS.map((option) => {
+          const selected = option.surface === surface;
+          const savedSlot = value[jsxCatalogSlotIndex(value, option.surface)];
+          return (
+            <button
+              key={option.surface}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              data-jsx-surface-option={option.surface}
+              onClick={() => setSurface(option.surface)}
+              className={`min-h-11 rounded-xl border px-3 py-2 text-left ${
+                selected
+                  ? "border-violet-400 bg-violet-600/20 text-violet-50"
+                  : "border-white/10 bg-[#14141a] text-zinc-200 hover:border-white/20"
+              }`}
+            >
+              <span className="block text-sm font-semibold">{option.label}</span>
+              <span className="mt-0.5 block text-[11px] text-zinc-400">
+                {option.hint}
+                {savedSlot ? ` 저장됨: ${savedSlot.name}` : ""}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {surface === "chat" ? (
+        <ChatSurfaceEditor value={value} onChange={onChange} disabled={disabled} />
+      ) : (
+        <JsxTrpgSheetSlotEditor value={value} onChange={onChange} disabled={disabled} />
+      )}
+    </div>
+  );
+}
+
+function ChatSurfaceEditor({ value, onChange, disabled }: Props) {
+  const slot = jsxCatalogSlotIndex(value, "chat");
+  const saved = slot >= 0 ? value[slot] ?? null : null;
   const [name, setName] = useState(saved?.name ?? "");
   const [source, setSource] = useState(saved?.source ?? "");
   const [props, setProps] = useState<JsxPropDefinition[]>(saved?.props ?? []);
@@ -104,33 +157,19 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
     return compileJsxComponentSource(example.source, example.name);
   }, [browsingId]);
 
-  const manifestRecords = useMemo(() => {
-    const head = preview ?? saved;
-    const records: JsxComponentManifestRecord[] = [];
-    if (head) {
-      records.push({
-        name: head.name,
-        props: head.props,
-        chatSend: head.chatSend,
-        callGuide: draft.callGuide,
-      });
-    }
-    for (const rest of value.slice(1)) {
-      records.push({
-        name: rest.name,
-        props: rest.props,
-        chatSend: rest.chatSend,
-        callGuide: rest.callGuide,
-      });
-    }
-    return records;
-  }, [draft.callGuide, preview, saved, value]);
+  const budgetRecords = useMemo(
+    () =>
+      value.map((component, index) =>
+        index === slot ? { ...component, callGuide: draft.callGuide } : component
+      ),
+    [draft.callGuide, slot, value]
+  );
   const manifest = useMemo(
-    () => buildJsxComponentManifestBlock(value),
+    () => buildJsxComponentManifestBlock(selectJsxSurfaceComponents(value, "chat")),
     [value]
   );
   const callGuideTokens = jsxCallGuideTokenCount(draft.callGuide);
-  const callGuideBudget = validateJsxCallGuideCatalog(manifestRecords);
+  const callGuideBudget = validateJsxCallGuideCatalog(budgetRecords);
   const pendingSuggestions = suggested.filter(
     (propName) => !draft.props.some((prop) => prop.name === propName)
   );
@@ -150,6 +189,7 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
     nextCallGuide = draft.callGuide
   ) {
     const result = resolveJsxCatalogDraft(value, {
+      surface: "chat",
       name: nextName,
       source: nextSource,
       props: nextProps,
@@ -173,8 +213,8 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
   }
 
   function removeSaved() {
-    const nextCatalog = removeJsxCatalogHead(value);
-    const next = nextCatalog[0] ?? null;
+    const nextCatalog = removeJsxCatalogHead(value, "chat");
+    const next = nextCatalog[jsxCatalogSlotIndex(nextCatalog, "chat")] ?? null;
     setName(next?.name ?? "");
     setSource(next?.source ?? "");
     setProps(next?.props.map((prop) => ({ ...prop })) ?? []);
@@ -231,7 +271,9 @@ export default function JsxComponentCatalogEditor({ value, onChange, disabled }:
     if (savedBody !== draftBody) return;
     // Metadata-only edits reuse the already-compiled saved component. Recompile
     // only through applyDraft when the creator changes the source or props.
-    const nextCatalog = [{ ...saved, callGuide: next.trim() }, ...value.slice(1)];
+    const nextCatalog = value.map((component, index) =>
+      index === slot ? { ...saved, callGuide: next.trim() } : component
+    );
     const budget = validateJsxCallGuideCatalog(nextCatalog);
     if (!budget.ok) {
       setError(budget.error);

@@ -15,12 +15,23 @@ export type JsxCapability =
   | "animation"
   | "canvas"
   | "chat_send"
+  | "trpg_action_draft"
   | "external_network"
   | "storage"
   | "navigation";
 
+/**
+ * One component = one surface. `chat` components are AI-invocable in chat;
+ * `trpg_sheet` renders a TRPG character sheet from fixed TrpgSheetSurface props.
+ * Persisted records without a surface are `chat`.
+ */
+export const JSX_COMPONENT_SURFACES = ["chat", "trpg_sheet"] as const;
+export type JsxComponentSurface = (typeof JSX_COMPONENT_SURFACES)[number];
+
 export type JsxComponentRecord = {
   name: string;
+  /** Absent → chat. */
+  surface?: JsxComponentSurface;
   source: string;
   compiled: string;
   props: JsxPropDefinition[];

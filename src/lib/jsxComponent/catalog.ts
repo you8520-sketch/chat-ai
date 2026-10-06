@@ -9,8 +9,16 @@ import {
 } from "./limits";
 import { normalizeJsxPropDefinition } from "./manifest";
 import {
+  jsxComponentSurface,
+  jsxSurfacePolicyError,
+  parseJsxComponentSurface,
+  selectJsxSurfaceComponents,
+  validateJsxSurfaceCatalog,
+} from "./surface";
+import {
   JSX_COMPONENT_NAME_RE,
   type JsxComponentManifestRecord,
+  type JsxComponentSurface,
   type JsxComponentRecord,
   type JsxRuntimeComponentRecord,
   type JsxPropDefinition,
@@ -18,6 +26,7 @@ import {
 
 type StoredJsxComponent = {
   name: string;
+  surface: JsxComponentSurface;
   source: string;
   props: JsxPropDefinition[];
   callGuide?: string;
@@ -35,11 +44,13 @@ export function jsxCallGuideTokenCount(text: string | undefined): number {
   return estimateTokens(trimmed);
 }
 
+/** Chat prompt budget. Non-chat surfaces never reach the manifest, so their guides cost nothing. */
 export function validateJsxCallGuideCatalog(
-  components: Array<{ callGuide?: string }>
+  components: Array<{ callGuide?: string; surface?: JsxComponentSurface }>
 ): { ok: true } | { ok: false; error: string } {
   let total = 0;
   for (const component of components) {
+    if (jsxComponentSurface(component) !== "chat") continue;
     const guide = readJsxCallGuide(component.callGuide);
     if (guide.length > JSX_CALL_GUIDE_MAX_CHARS) {
       return {
@@ -69,7 +80,9 @@ function parseStoredJsxComponents(raw: string | null | undefined): StoredJsxComp
       const row = item as Record<string, unknown>;
       const name = String(row.name ?? "").trim();
       const source = String(row.source ?? "").trim();
+      const surface = parseJsxComponentSurface(row.surface);
       if (
+        !surface ||
         !JSX_COMPONENT_NAME_RE.test(name) ||
         !source ||
         source.length > JSX_SOURCE_MAX_CHARS
@@ -83,7 +96,7 @@ function parseStoredJsxComponents(raw: string | null | undefined): StoredJsxComp
             .slice(0, JSX_PROP_MAX)
         : [];
       const callGuide = readJsxCallGuide(row.callGuide);
-      out.push({ name, source, props, ...(callGuide ? { callGuide } : {}) });
+      out.push({ name, surface, source, props, ...(callGuide ? { callGuide } : {}) });
     }
     return out;
   } catch {
@@ -103,6 +116,7 @@ export function parseJsxComponentCatalog(raw: string | null | undefined): JsxCom
     if (!fresh.ok) continue;
     out.push({
       name: item.name,
+      ...surfaceField(item.surface),
       source: item.source,
       compiled: fresh.compiled,
       props: item.props,
@@ -122,18 +136,34 @@ export function parseJsxComponentCatalog(raw: string | null | undefined): JsxCom
 export function parseJsxComponentManifestCatalog(
   raw: string | null | undefined
 ): JsxComponentManifestRecord[] {
-  return parseStoredJsxComponents(raw).map((item) => ({
+  const stored = parseStoredJsxComponents(raw).map((item) => ({
+    ...item,
+    capabilities: analyzeJsxCapabilities(item.source),
+  }));
+  return selectJsxSurfaceComponents(stored, "chat").map((item) => ({
     name: item.name,
     props: item.props,
-    chatSend: analyzeJsxCapabilities(item.source).includes("chat_send"),
+    chatSend: item.capabilities.includes("chat_send"),
     ...(item.callGuide ? { callGuide: item.callGuide } : {}),
   }));
 }
 
+/** Chat client catalog: AI-invocable components only. */
 export function parseJsxRuntimeComponentCatalog(
   raw: string | null | undefined
 ): JsxRuntimeComponentRecord[] {
-  return parseJsxComponentCatalog(raw).map(({ source: _source, ...runtime }) => runtime);
+  return selectJsxSurfaceComponents(parseJsxComponentCatalog(raw), "chat").map(
+    ({ source: _source, ...runtime }) => runtime
+  );
+}
+
+/** The character's single TRPG sheet component, compiled by the current compiler. */
+export function findJsxTrpgSheetComponent(raw: string | null | undefined): JsxComponentRecord | null {
+  return selectJsxSurfaceComponents(parseJsxComponentCatalog(raw), "trpg_sheet")[0] ?? null;
+}
+
+function surfaceField(surface: JsxComponentSurface): { surface?: JsxComponentSurface } {
+  return surface === "chat" ? {} : { surface };
 }
 
 export function serializeJsxComponentCatalog(components: JsxComponentRecord[]): string {
@@ -142,6 +172,7 @@ export function serializeJsxComponentCatalog(components: JsxComponentRecord[]): 
       const callGuide = readJsxCallGuide(component.callGuide);
       return {
         name: component.name,
+        ...surfaceField(jsxComponentSurface(component)),
         source: component.source,
         props: component.props.slice(0, JSX_PROP_MAX),
         ...(callGuide ? { callGuide } : {}),
@@ -158,6 +189,7 @@ export function findJsxComponent(
 }
 
 export type JsxCatalogDraftInput = {
+  surface?: JsxComponentSurface;
   name: string;
   source: string;
   props: JsxPropDefinition[];
@@ -256,7 +288,9 @@ export function resolveJsxCatalogDraft(
   preview: JsxComponentRecord | null;
   unsaved: boolean;
 } {
-  const savedHead = saved[0] ?? null;
+  const surface = draft.surface ?? "chat";
+  const slot = jsxCatalogSlotIndex(saved, surface);
+  const savedHead = slot >= 0 ? saved[slot] ?? null : null;
   const unsaved =
     jsxCatalogEditableFingerprint(
       savedHead
@@ -272,14 +306,23 @@ export function resolveJsxCatalogDraft(
   if (!result.ok) {
     return { catalog: saved, error: result.error, preview: null, unsaved };
   }
-  const nextCatalog = [result.record, ...saved.slice(1)];
+  const nextCatalog =
+    slot >= 0
+      ? saved.map((component, index) => (index === slot ? result.record : component))
+      : surface === "chat"
+        ? [result.record, ...saved]
+        : [...saved, result.record];
   const guideBudget = validateJsxCallGuideCatalog(nextCatalog);
   if (!guideBudget.ok) {
     return { catalog: saved, error: guideBudget.error, preview: null, unsaved };
   }
+  const surfaces = validateJsxSurfaceCatalog(nextCatalog);
+  if (!surfaces.ok) {
+    return { catalog: saved, error: surfaces.error, preview: null, unsaved };
+  }
   return {
-    // Editing the visible first slot must not erase the rest of a saved
-    // multi-component catalog. The UI only edits one slot for now.
+    // Editing one surface slot must not erase the rest of a saved
+    // multi-component catalog. The UI edits one slot per surface.
     catalog: nextCatalog,
     error: "",
     preview: result.record,
@@ -287,17 +330,28 @@ export function resolveJsxCatalogDraft(
   };
 }
 
-/** Explicitly remove the visible first saved component, preserving other slots. */
-export function removeJsxCatalogHead(saved: JsxComponentRecord[]): JsxComponentRecord[] {
-  return saved.slice(1);
+/** The editor's visible slot for a surface: its first component. */
+export function jsxCatalogSlotIndex(catalog: readonly JsxComponentRecord[], surface: JsxComponentSurface): number {
+  return catalog.findIndex((component) => jsxComponentSurface(component) === surface);
+}
+
+/** Explicitly remove the visible saved component of a surface, preserving other slots. */
+export function removeJsxCatalogHead(
+  saved: JsxComponentRecord[],
+  surface: JsxComponentSurface = "chat"
+): JsxComponentRecord[] {
+  const slot = jsxCatalogSlotIndex(saved, surface);
+  return slot < 0 ? saved : saved.filter((_, index) => index !== slot);
 }
 
 export function compileJsxComponentDraft(input: {
+  surface?: JsxComponentSurface;
   name: string;
   source: string;
   props: unknown[];
   callGuide?: string;
 }): { ok: true; record: JsxComponentRecord } | { ok: false; error: string } {
+  const surface = input.surface ?? "chat";
   const name = input.name.trim();
   if (!JSX_COMPONENT_NAME_RE.test(name)) {
     return { ok: false, error: "컴포넌트 이름은 PascalCase여야 합니다." };
@@ -311,6 +365,23 @@ export function compileJsxComponentDraft(input: {
   }
   const compiled = compileJsxComponentSource(input.source, name);
   if (!compiled.ok) return compiled;
+  const policy = jsxSurfacePolicyError(surface, compiled.capabilities);
+  if (policy) return { ok: false, error: policy };
+  if (surface === "trpg_sheet") {
+    // TrpgSheetSurface is the fixed props contract; no AI prop schema or call guide.
+    return {
+      ok: true,
+      record: {
+        name,
+        surface,
+        source: input.source.trim(),
+        compiled: compiled.compiled,
+        props: [],
+        capabilities: compiled.capabilities,
+        chatSend: compiled.chatSend,
+      },
+    };
+  }
   const props = input.props
     .map(normalizeJsxPropDefinition)
     .filter((prop): prop is NonNullable<typeof prop> => !!prop)

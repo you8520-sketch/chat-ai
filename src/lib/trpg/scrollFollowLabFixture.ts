@@ -71,10 +71,10 @@ function roundLog(roundNumber: number, bot1Body: string, bot2Body: string): Trpg
   };
 }
 
-export type ScrollFollowLabScenario = "bot1" | "bot2" | "round2-bot1" | "handoff";
+export type ScrollFollowLabScenario = "bot1" | "bot2" | "round2-bot1" | "handoff" | "party-sheets";
 
 function parseScrollFollowLabScenario(raw: string | null): ScrollFollowLabScenario {
-  if (raw === "bot2" || raw === "round2-bot1" || raw === "handoff") return raw;
+  if (raw === "bot2" || raw === "round2-bot1" || raw === "handoff" || raw === "party-sheets") return raw;
   return "bot1";
 }
 
@@ -109,10 +109,33 @@ export function scrollFollowLabSeenLogKeys(
   return keys;
 }
 
+function labBotSheet(participantId: number, name: string): TrpgCampaignSnapshot["sheets"][number] {
+  return {
+    participantId,
+    isSelf: false,
+    html: "",
+    sheet: {
+      participantId,
+      name,
+      playerName: name,
+      level: 1,
+      hp: 18,
+      maxHp: 20,
+      stats: { str: 5, dex: 5, int: 5, wis: 5, cha: 5, con: 5 },
+      conditions: [],
+      inventory: ["붕대"],
+      location: "Lab",
+      modifiersNote: "",
+    },
+  };
+}
+
 export function buildScrollFollowLabSnapshot(opts?: {
   roundNumber?: number;
   bot1Body?: string;
   bot2Body?: string;
+  /** Adds AI party sheets so the Dock PARTY tab has creator-sheet targets. */
+  partySheets?: boolean;
 }): TrpgCampaignSnapshot {
   const roundNumber = opts?.roundNumber ?? 2;
   const bot1Body = opts?.bot1Body ?? SCROLL_FOLLOW_LAB_BOT1_PROSE;
@@ -241,6 +264,9 @@ export function buildScrollFollowLabSnapshot(opts?: {
           modifiersNote: "",
         },
       },
+      ...(opts?.partySheets
+        ? [labBotSheet(SCROLL_FOLLOW_LAB_BOT1_ID, "Bot1"), labBotSheet(SCROLL_FOLLOW_LAB_BOT2_ID, "Bot2")]
+        : []),
     ],
     myDraft: { body: "", actionType: "free", selectedStat: null, locked: true },
     currentRolls: current.rolls,
