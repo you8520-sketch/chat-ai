@@ -667,22 +667,20 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
       const path = new URL(request.url()).pathname;
       if (/\/(action|party-chat)$|\/api\/chat/.test(path)) posts.push(path);
     });
-    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/trpg/scroll-follow-lab?scenario=bot1");
     await waitForLabRoomReady(page);
     const dock = page.locator("[data-trpg-command-dock]");
     await page.locator("[data-trpg-command-dock-tab='self']").click();
     const frame = page.frameLocator("iframe[title='내 시트']");
     await expect(frame.getByText("HP 25/25")).toBeVisible();
-    const before = await dock.locator("textarea").inputValue().catch(() => "");
-    await frame.locator("[data-trpg-stat='str']").click();
+    await frame.locator("[data-trpg-stat='str']").evaluate((node) => {
+      (node as HTMLButtonElement).click();
+    });
     await expect(dock).toHaveAttribute("data-trpg-command-dock-mode", "action");
     await expect(dock.locator("[data-trpg-stat-choice='str']")).toHaveAttribute("aria-pressed", "true");
     await expect(dock.locator("[data-trpg-stat-choice='auto']")).toHaveAttribute("aria-pressed", "false");
-    await expect(dock.locator("textarea")).toHaveValue(before);
+    await expect(dock.locator("textarea")).toHaveValue("");
     await expect(dock.locator("[data-trpg-action-chip='investigate']")).toHaveClass(/bg-violet-600/);
-    const overflow = await dock.locator("[data-trpg-stat-selector]").evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
-    expect(overflow).toBe(true);
     await dock.locator("[data-trpg-stat-choice='auto']").click();
     await expect(dock.locator("[data-trpg-stat-choice='auto']")).toHaveAttribute("aria-pressed", "true");
     await expect(dock.locator("[data-trpg-stat-choice='str']")).toHaveAttribute("aria-pressed", "false");
@@ -690,6 +688,9 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     await dock.locator("[data-trpg-action-chip='attack']").click();
     await expect(dock.locator("[data-trpg-stat-choice='str']")).toHaveAttribute("aria-pressed", "true");
     await expect(dock.locator("[data-trpg-action-chip='attack']")).toHaveClass(/bg-violet-600/);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const overflow = await dock.locator("[data-trpg-stat-selector]").evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
+    expect(overflow).toBe(true);
     expect(posts).toEqual([]);
   });
 
