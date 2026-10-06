@@ -30,6 +30,7 @@ import {
   computeOpenRouterTurnCost,
 } from "@/lib/points";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
+import { resolveRpOpenRouterModelId } from "@/lib/openRouterConfig";
 import { computePublishedStandardPreviewPoints } from "@/lib/publishedUserCharge";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
 import { estimateTokens } from "@/lib/tokenEstimate";
@@ -417,7 +418,11 @@ export function computePreviewTurnPoints(opts: {
   // A model may also be supported by another transport for non-Main-RP workloads
   // (for example TRPG Gemini 3.8 on CheaperInference); that must not change picker billing.
   if (selectedAIProvider(opts.modelId) === "openrouter") {
-    return computeOpenRouterTurnCost(opts.inputTokens, opts.outputTokens, opts.modelId);
+    return computeOpenRouterTurnCost(
+      opts.inputTokens,
+      opts.outputTokens,
+      resolveRpOpenRouterModelId(opts.modelId)
+    );
   }
 
   return (
@@ -449,9 +454,11 @@ export function computePreviewPointBand(opts: {
     opts.targetResponseChars
   );
   const provider = selectedAIProvider(opts.modelId);
+  const openRouterModelId =
+    provider === "openrouter" ? resolveRpOpenRouterModelId(opts.modelId) : null;
   const low =
-    provider === "openrouter"
-      ? computeOpenRouterTurnCost(opts.inputTokens, loOut, opts.modelId)
+    openRouterModelId
+      ? computeOpenRouterTurnCost(opts.inputTokens, loOut, openRouterModelId)
       : computeStablePublishedPreviewPoints({
           modelId: opts.modelId,
           inputTokens: opts.inputTokens,
@@ -469,8 +476,8 @@ export function computePreviewPointBand(opts: {
           outputTokens: loOut,
         });
   const high =
-    provider === "openrouter"
-      ? computeOpenRouterTurnCost(opts.inputTokens, hiOut, opts.modelId)
+    openRouterModelId
+      ? computeOpenRouterTurnCost(opts.inputTokens, hiOut, openRouterModelId)
       : computeStablePublishedPreviewPoints({
           modelId: opts.modelId,
           inputTokens: opts.inputTokens,
