@@ -12,6 +12,7 @@ import {
   shouldShowTrpgReplySuggestions,
   shouldSkipRevealFinishClick,
 } from "./followLatest";
+import { createPresentationSession, resolvePresentationRoundNumber } from "./presentationSession";
 
 describe("TRPG live follow owner", () => {
   it("A: actor presentation follows the currently active actor card", () => {
@@ -289,17 +290,57 @@ describe("TRPG live follow owner", () => {
     );
   });
 
-  it("Q: active presentation card ref follows current presentation round, not liveFollowRound", () => {
+  it("Q: active presentation card ref follows the held presentation round, not the server round or liveFollowRound", () => {
+    const cinematic = { mode: "cinematic" as const, phase: "actor-action" as const, presentationIndex: 1 };
+    const heldRound = resolvePresentationRoundNumber({
+      serverRoundNumber: 49,
+      session: createPresentationSession({
+        roundNumber: 48,
+        expectedPresentationActorIds: [7],
+        resolutionOrder: [7],
+      }),
+      roundShow: cinematic,
+      releasedPresentationRoundWatermark: 0,
+    });
+    assert.equal(heldRound, 48);
+    assert.notEqual(heldRound, 49);
+
+    const releasedRound = resolvePresentationRoundNumber({
+      serverRoundNumber: 49,
+      session: createPresentationSession({
+        roundNumber: 48,
+        expectedPresentationActorIds: [7],
+        resolutionOrder: [7],
+      }),
+      roundShow: cinematic,
+      releasedPresentationRoundWatermark: 48,
+    });
+    assert.equal(releasedRound, 49);
+
+    const freshGm = liveFreshGmNarrationRow({
+      log: [
+        { roundNumber: 48, narration: "held cinematic narration" },
+        { roundNumber: 49, narration: "server round narration" },
+      ],
+      seenKeys: new Set(["n:48"]),
+    });
+    const liveFollowRound = freshGm?.roundNumber ?? heldRound;
+    assert.equal(liveFollowRound, 49);
+    assert.notEqual(liveFollowRound, heldRound);
+
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(
-      room,
-      /activePresentationCardRef=\{\s*row\.roundNumber === snap\.round\.number && activePresentationActorId != null/
+    assert.match(room, /const presentationRoundNumber = resolvePresentationRoundNumber\(/);
+    assert.match(room, /const liveFollowRound = freshGmRow\?\.roundNumber \?\? presentationRoundNumber/);
+    const card = room.match(
+      /activePresentationCardRef=\{\s*([\s\S]*?)\s*\? activePresentationCardRef/
     );
+    assert.ok(card, "active presentation card ref must name its round owner");
+    assert.match(card[1], /row\.roundNumber === presentationRoundNumber/);
+    assert.match(card[1], /activePresentationActorId != null/);
+    assert.doesNotMatch(card[1], /snap\.round\.number/);
+    assert.doesNotMatch(card[1], /liveFollowRound/);
     assert.match(room, /narrationEndRef=\{row\.roundNumber === liveFollowRound \? narrationEndRef : undefined\}/);
-    assert.doesNotMatch(
-      room,
-      /activePresentationCardRef=\{\s*row\.roundNumber === liveFollowRound/
-    );
+    assert.doesNotMatch(room, /activePresentationCardRef=\{\s*row\.roundNumber === liveFollowRound/);
   });
 
   it("U: new fresh GM round is incomplete on first render before child reports", () => {
