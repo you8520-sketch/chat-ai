@@ -41,8 +41,9 @@ const ACTIVE_DEEPSEEK_MODEL =
 
 const ACTIVE = [
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
 ] as const;
 
 function assistantUsage(
@@ -64,9 +65,9 @@ function assistantUsage(
 }
 
 describe("modelPickerPreview V2", () => {
-  it("shows the canonical 6 in the default user picker preview", () => {
+  it("shows exactly the canonical current four-model picker preview", () => {
     const preview = buildModelPickerPreview({ messages: [] });
-    assert.equal(preview.models.length, 6);
+    assert.equal(preview.models.length, 4);
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL)
     );
@@ -84,11 +85,13 @@ describe("modelPickerPreview V2", () => {
     assert.ok(
       preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_61_SOL_MODEL)
     );
-    assert.ok(
-      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)
+    assert.equal(
+      preview.models.some((m) => m.modelId === GEMINI_38_FLASH_MODEL),
+      false
     );
-    assert.ok(
-      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)
+    assert.equal(
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
+      false
     );
     assert.ok(
       preview.models.some((m) => m.modelId === GEMINI_38_FLASH_MODEL)
@@ -97,7 +100,7 @@ describe("modelPickerPreview V2", () => {
 
   it("covers representative active models", () => {
     const preview = buildModelPickerPreview({ messages: [], modelIds: [...ACTIVE] });
-    assert.equal(preview.models.length, 3);
+    assert.equal(preview.models.length, ACTIVE.length);
     for (const id of ACTIVE) {
       const row = preview.models.find((m) => m.modelId === id);
       assert.ok(row, id);
@@ -155,7 +158,7 @@ describe("modelPickerPreview V2", () => {
       assistantUsage(ACTIVE_DEEPSEEK_MODEL, 2000),
       assistantUsage(ACTIVE_DEEPSEEK_MODEL, 2200),
       assistantUsage(ACTIVE_DEEPSEEK_MODEL, 2400),
-      assistantUsage(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 8000),
+      assistantUsage(GEMINI_38_FLASH_MODEL, 8000),
     ];
     const ds = resolveModelPickerOutputTokens({
       modelId: ACTIVE_DEEPSEEK_MODEL,
@@ -164,11 +167,11 @@ describe("modelPickerPreview V2", () => {
     // newest-first: 2400,2200,2000 → p30=2000 → blend 2000*0.75+2400*0.25=2100
     assert.equal(ds.tokens, 2100);
     const gemini = resolveModelPickerOutputTokens({
-      modelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      modelId: GEMINI_38_FLASH_MODEL,
       messages: [
-        assistantUsage(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 7900),
-        assistantUsage(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 8000),
-        assistantUsage(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 8100),
+        assistantUsage(GEMINI_38_FLASH_MODEL, 7900),
+        assistantUsage(GEMINI_38_FLASH_MODEL, 8000),
+        assistantUsage(GEMINI_38_FLASH_MODEL, 8100),
       ],
     });
     const upper = capOutputSanityUpper(8000, DEFAULT_TARGET_RESPONSE_CHARS);
@@ -204,7 +207,7 @@ describe("modelPickerPreview V2", () => {
     const resolved = resolveModelPickerBaseInputTokens({
       assembledSnapshotTokens: 11_200,
       messages: [
-        assistantUsage(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 2000, { apiInputTokens: 9200 }),
+        assistantUsage(GEMINI_38_FLASH_MODEL, 2000, { apiInputTokens: 9200 }),
       ],
     });
     assert.equal(resolved.tokens, 11_200);
@@ -213,10 +216,10 @@ describe("modelPickerPreview V2", () => {
 
   it("caps assembled input by last receipt api input", () => {
     const messages = [
-      assistantUsage(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 2000, { apiInputTokens: 9_200 }),
+      assistantUsage(GEMINI_38_FLASH_MODEL, 2000, { apiInputTokens: 9_200 }),
     ];
     const aligned = resolveAlignedPreviewInputTokens({
-      modelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      modelId: GEMINI_38_FLASH_MODEL,
       assembledTokens: 14_000,
       messages,
       draftTokens: 10,
@@ -245,11 +248,11 @@ describe("modelPickerPreview V2", () => {
       messages: [],
       modelIds: [
         ACTIVE_DEEPSEEK_MODEL,
-        CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+        GEMINI_38_FLASH_MODEL,
       ],
       assembledSnapshotTokensByModel: {
         [ACTIVE_DEEPSEEK_MODEL]: deepSeekInput,
-        [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: geminiInput,
+        [GEMINI_38_FLASH_MODEL]: geminiInput,
       },
     });
     const deepSeek = preview.models.find(
@@ -286,11 +289,11 @@ describe("modelPickerPreview V2", () => {
       messages: [],
       modelIds: [
         ACTIVE_DEEPSEEK_MODEL,
-        CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+        GEMINI_38_FLASH_MODEL,
       ],
       assembledSnapshotTokensByModel: {
         [ACTIVE_DEEPSEEK_MODEL]: 20_000,
-        [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: 10_000,
+        [GEMINI_38_FLASH_MODEL]: 10_000,
       },
       draftInput,
     });
@@ -316,28 +319,28 @@ describe("modelPickerPreview V2", () => {
       apiReasoningOutputTokens: 800,
     };
     assert.equal(
-      previewCostOutputTokens(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, usage),
+      previewCostOutputTokens(GEMINI_38_FLASH_MODEL, usage),
       2500
     );
     const input = 20_000;
     const preview = buildModelPickerPreview({
       messages: [
-        assistantUsage(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 2500, {
+        assistantUsage(GEMINI_38_FLASH_MODEL, 2500, {
           apiContentOutputTokens: 1700,
           apiReasoningOutputTokens: 800,
         }),
-        assistantUsage(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 2400, {
+        assistantUsage(GEMINI_38_FLASH_MODEL, 2400, {
           apiContentOutputTokens: 1600,
           apiReasoningOutputTokens: 800,
         }),
-        assistantUsage(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 2600, {
+        assistantUsage(GEMINI_38_FLASH_MODEL, 2600, {
           apiContentOutputTokens: 1800,
           apiReasoningOutputTokens: 800,
         }),
       ],
-      modelIds: [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL],
+      modelIds: [GEMINI_38_FLASH_MODEL],
       assembledSnapshotTokensByModel: {
-        [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: input,
+        [GEMINI_38_FLASH_MODEL]: input,
       },
     });
     const row = preview.models[0]!;
@@ -349,7 +352,7 @@ describe("modelPickerPreview V2", () => {
       computeCheaperInferenceMarketPreviewCost(
         input,
         2450,
-        CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+        GEMINI_38_FLASH_MODEL,
         0.15
       )
     );
@@ -357,7 +360,7 @@ describe("modelPickerPreview V2", () => {
   });
 
   it("Gemini preview uses content output (reasoning excluded)", () => {
-    const gemBillable = previewBillableOutputTokens(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, {
+    const gemBillable = previewBillableOutputTokens(GEMINI_38_FLASH_MODEL, {
       apiOutputTokens: 2500,
       apiContentOutputTokens: 1700,
       apiReasoningOutputTokens: 800,
@@ -372,6 +375,24 @@ describe("modelPickerPreview V2", () => {
       modelIds: ["unknown/model"],
     });
     assert.equal(preview.models[0]?.estimatedPoints ?? null, null);
+  });
+
+  it("does not relabel retired Gemini 3.1/3.7 receipts as Gemini 3.8 measured samples", () => {
+    const messages = [
+      assistantUsage(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, 7900),
+      assistantUsage(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, 7800),
+    ];
+    const samples = collectModelOutputSamples({
+      modelId: GEMINI_38_FLASH_MODEL,
+      messages,
+    });
+    assert.deepEqual(samples, []);
+
+    const preview = buildModelPickerPreview({
+      messages,
+      modelIds: [GEMINI_38_FLASH_MODEL],
+    });
+    assert.equal(preview.models[0]?.outputBasis, "cold_baseline");
   });
 
   it("uses Sol receipts only for Sol estimates and ignores historical Terra samples", () => {
@@ -445,7 +466,7 @@ describe("modelPickerPreview V2", () => {
       messages: [],
     });
     const gem = resolveModelPickerOutputTokens({
-      modelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      modelId: GEMINI_38_FLASH_MODEL,
       messages: [],
     });
     assert.equal(
@@ -454,7 +475,7 @@ describe("modelPickerPreview V2", () => {
     );
     assert.equal(
       gem.tokens,
-      MODEL_PICKER_MEASURED_COLD_BASELINES[CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]
+      MODEL_PICKER_MEASURED_COLD_BASELINES[GEMINI_38_FLASH_MODEL]
     );
     assert.ok(resolveColdOutputBaseline(ACTIVE_DEEPSEEK_MODEL) < 2000);
   });
