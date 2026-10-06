@@ -5,6 +5,7 @@ import {
   buildOfficialCharacterFormBody,
   type OfficialCanonicalFormAsset,
 } from "@/lib/officialSupply/characterText";
+import { officialStagedAssetOrder } from "@/lib/officialSupply/publicAssetMap";
 import { OfficialSupplyGateError, type OfficialSupplyStore } from "@/lib/officialSupply/store";
 import { canonicalAssetModerationFields } from "@/lib/officialSupply/moderation";
 import { resolveOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
@@ -27,9 +28,7 @@ export function buildStagingAssets(store: OfficialSupplyStore, draftKey: string)
   const plan = record.assetPlan;
   if (!plan) throw new OfficialSupplyGateError("asset_plan_missing", `${draftKey} has no asset plan`);
   const byKey = new Map(store.listAssets(draftKey).map((asset) => [asset.slotKey, asset]));
-  const ordered = [...plan.slots].sort(
-    (a, b) => Number(b.kind === "representative") - Number(a.kind === "representative")
-  );
+  const ordered = officialStagedAssetOrder(plan);
   return ordered.map((slot) => {
     const asset = byKey.get(slot.slotKey);
     if (!asset?.resultUrl || asset.width == null || asset.height == null) {
