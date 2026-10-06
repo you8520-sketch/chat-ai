@@ -4,11 +4,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
-import {
-  buildOfficialAssetPrompts,
-  OFFICIAL_CAMERA_PROMPT,
-  OFFICIAL_FACE_PROMPT,
-} from "@/lib/officialSupply/imagePrompt";
+import { buildOfficialAssetPrompts } from "@/lib/officialSupply/imagePrompt";
 import {
   LUCIAN_DRAFT_KEY,
   LUCIAN_PUBLISHED_PREDECESSOR_DRAFT_KEY,
@@ -18,6 +14,8 @@ import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures
 import { LUCIAN_SIG4_REQUIRED_SHOT } from "@/lib/officialSupply/qualityShotQa";
 import { composeOfficialSlotGeneration } from "@/lib/officialSupply/runner";
 import {
+  OFFICIAL_CAMERA_PROMPT,
+  OFFICIAL_FACE_PROMPT,
   officialShotSeed,
   resolveOfficialSlotShot,
   type OfficialSlotShotResponsibility,
