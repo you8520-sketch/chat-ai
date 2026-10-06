@@ -80,7 +80,11 @@ function usageRow(partial: Record<string, unknown>): Record<string, unknown> {
 
 test("1+2+3 active registry change auto-updates auditor targets; retired excluded; new active included", () => {
   const current = resolveMainRpMonthlyCacheAuditModels(MAIN_RP_MODEL_IDS);
-  assert.deepEqual(current, [...MAIN_RP_MODEL_IDS]);
+  const expectedCurrent = MAIN_RP_USER_SELECTABLE_OPTIONS
+    .filter((o) => o.provider === "cheaperinference")
+    .map((o) => o.id);
+  assert.deepEqual(current, expectedCurrent);
+  assert.ok(!current.includes("gemini-3.8-flash"));
   assert.ok(!current.includes("deepseek-v4-pro-0813"));
 
   const expanded = resolveMainRpMonthlyCacheAuditModels([
@@ -88,7 +92,7 @@ test("1+2+3 active registry change auto-updates auditor targets; retired exclude
     "new-active-model-x",
   ]);
   assert.ok(expanded.includes("new-active-model-x"));
-  assert.equal(expanded.length, MAIN_RP_MODEL_IDS.length + 1);
+  assert.equal(expanded.length, expectedCurrent.length + 1);
 
   const shrunk = resolveMainRpMonthlyCacheAuditModels(
     MAIN_RP_MODEL_IDS.filter((id) => id !== "gpt-5.6-terra")
@@ -543,7 +547,8 @@ test("monthly comparison computes actual prior-month ratio and delta", () => {
   );
   const priorRatios = buildPriorMonthCacheReadRatios(priorRows, MAIN_RP_MODEL_IDS);
   assert.equal(priorRatios["deepseek-v4.1-flash"], 0.25);
-  assert.equal(priorRatios["gemini-3.1-pro-preview"], "NOT_MEASURED");
+  assert.equal(priorRatios["claude-opus-5.5"], "NOT_MEASURED");
+  assert.equal(priorRatios["gemini-3.8-flash"], undefined);
 
   const report = buildMonthlyCacheAuditReport({
     window: WINDOW,
