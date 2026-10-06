@@ -69,6 +69,8 @@ function jsxCapabilityLabel(capability: JsxCapability): string {
       return "캔버스";
     case "chat_send":
       return "채팅 전송 요청";
+    case "trpg_action_draft":
+      return "TRPG 행동 초안";
     case "external_network":
       return "외부 네트워크";
     case "storage":

@@ -51,6 +51,7 @@ import {
   patchOpenRouterSplitForStatusWidget,
 } from "@/lib/statusWidget/promptOverrides";
 import { serializeJsxComponentCatalog } from "@/lib/jsxComponent/catalog";
+import type { JsxComponentRecord } from "@/lib/jsxComponent/types";
 import { buildPitWallFixtureRecord } from "@/lib/jsxComponent/pitWallFixture";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
 import { COMMON_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
@@ -97,6 +98,21 @@ export function replaceCommonProseEmotionCue(text: string): {
     text: parts.join(COMMON_PROSE_EMOTION_CUE_CANDIDATE),
   };
 }
+
+export const AUDIT_TRPG_SHEET_PROBE = "AuditPartySheetProbe";
+
+const AUDIT_TRPG_SHEET_RECORD: JsxComponentRecord = {
+  name: AUDIT_TRPG_SHEET_PROBE,
+  surface: "trpg_sheet",
+  source: `export default function ${AUDIT_TRPG_SHEET_PROBE}(props) {
+  return <button onClick={() => setTrpgActionDraft("free", props.name)}>{props.name}</button>;
+}`,
+  compiled: "",
+  props: [{ name: "auditSheetProbeProp", type: "string", required: true, description: "audit sheet prop probe" }],
+  capabilities: ["trpg_action_draft"],
+  chatSend: false,
+  callGuide: "audit sheet call guide probe",
+};
 
 export const MAIN_RP_FINAL_WIRE_AUDIT_BASELINE = "386b23dc6d5a4b4aba28e06a9e57ba2ea882b0fa";
 
@@ -256,6 +272,8 @@ type CaseSpec = {
   oocHtml: boolean;
   jsx: boolean;
   jsxCallGuide?: string;
+  /** Adds a `trpg_sheet` component (with stale props/callGuide) that must not reach the wire. */
+  jsxTrpgSheet?: boolean;
   longHistory: boolean;
   withMemory: boolean;
   withLore: boolean;
@@ -379,6 +397,7 @@ function caseSpecs(): CaseSpec[] {
       jsx: true,
       jsxCallGuide: "새 퀘스트가 등장하거나 주요 진행 상황이 변경되면 사용합니다.",
     },
+    { id: "ds-jsx-trpg-sheet", model: deepseek, ...rich, jsx: true, jsxTrpgSheet: true },
   ];
 }
 
@@ -501,6 +520,7 @@ function buildCase(spec: CaseSpec): WireCaseResult {
           spec.jsxCallGuide
             ? { ...buildPitWallFixtureRecord(), callGuide: spec.jsxCallGuide }
             : buildPitWallFixtureRecord(),
+          ...(spec.jsxTrpgSheet ? [AUDIT_TRPG_SHEET_RECORD] : []),
         ])
       : "",
     systemPrompt: "백하율은 낮고 짧은 말로 대답한다.",

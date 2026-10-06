@@ -67,6 +67,7 @@ import {
   serializeJsxComponentCatalog,
   validateJsxCallGuideCatalog,
 } from "@/lib/jsxComponent/catalog";
+import { validateJsxSurfaceCatalog } from "@/lib/jsxComponent/surface";
 import {
   compiledPublicCanonText,
   compileCreatorDescriptionTriggers,
@@ -489,6 +490,10 @@ export function parseCharacterFormBody(
     const callGuideBudget = validateJsxCallGuideCatalog(parsedJsxCatalog);
     if (!callGuideBudget.ok) {
       return { ok: false as const, error: callGuideBudget.error, status: 400 };
+    }
+    const surfaces = validateJsxSurfaceCatalog(parsedJsxCatalog);
+    if (!surfaces.ok) {
+      return { ok: false as const, error: surfaces.error, status: 400 };
     }
   }
   const jsxComponentsJson =

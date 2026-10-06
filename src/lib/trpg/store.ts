@@ -95,6 +95,18 @@ export function loadCampaignByInvite(db: Database.Database, code: string): TrpgC
   );
 }
 
+/** Campaign read membership: the host or a seated human participant. */
+export function canViewTrpgCampaign(
+  campaign: Pick<TrpgCampaignRow, "host_user_id">,
+  participants: readonly Pick<TrpgParticipantRow, "kind" | "user_id">[],
+  viewerUserId: number
+): boolean {
+  return (
+    campaign.host_user_id === viewerUserId ||
+    participants.some((p) => p.kind === "human" && p.user_id === viewerUserId)
+  );
+}
+
 export function loadParticipants(db: Database.Database, campaignId: number): TrpgParticipantRow[] {
   return db
     .prepare(`SELECT * FROM trpg_participants WHERE campaign_id=? ORDER BY slot_index ASC`)

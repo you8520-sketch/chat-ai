@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import TrpgInviteLink from "../TrpgInviteLink";
 import TrpgCampaignTitle from "../TrpgCampaignTitle";
@@ -54,6 +54,10 @@ import {
   trpgPartyDraftKey,
 } from "@/lib/userInputDraft";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
+import {
+  createTrpgPartySheetComponentLoader,
+  fetchTrpgPartySheetComponent,
+} from "@/lib/trpg/partySheetComponentClient";
 
 /** Serialized snapshot observer cadence — ONE GET in flight. */
 const POLL_MS = TRPG_SNAPSHOT_POLL_MS;
@@ -68,6 +72,14 @@ export default function TrpgRoomClient({
   sheetJsxCompiled: string | null;
 }) {
   const [snap, setSnap] = useState(initial);
+  const campaignId = snap.id;
+  const loadPartySheetComponent = useMemo(
+    () =>
+      createTrpgPartySheetComponentLoader((participantId) =>
+        fetchTrpgPartySheetComponent(campaignId, participantId)
+      ),
+    [campaignId]
+  );
   const [selectedPersonaId, setSelectedPersonaId] = useState<number | null>(
     initial.viewerPersonaId ?? initialPersonas[0]?.id ?? null
   );
@@ -651,6 +663,7 @@ export default function TrpgRoomClient({
       <>
         <TrpgCampaignRoom
           sheetJsxCompiled={sheetJsxCompiled}
+          loadPartySheetComponent={loadPartySheetComponent}
           snap={snap}
           starting={starting}
           generating={generating}

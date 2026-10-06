@@ -14,6 +14,9 @@ export function analyzeJsxCapabilities(source: string): JsxCapability[] {
   if (/\bsendToChat\b/.test(source)) {
     found.add("chat_send");
   }
+  if (/\bsetTrpgActionDraft\b/.test(source)) {
+    found.add("trpg_action_draft");
+  }
   if (/\b(fetch|XMLHttpRequest|WebSocket|navigator\.sendBeacon)\b/.test(source)) {
     found.add("external_network");
   }

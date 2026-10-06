@@ -109,3 +109,66 @@ test("interactive component examples preview at 390px without chat calls", async
   await expect(page.getByText("작성 중인 초안은 적용하기 전까지 모델에 전달되지 않습니다.")).toBeVisible();
   expect(providerCalls).toEqual([]);
 });
+
+test("TRPG sheet surface edits its own slot with fixed sample data and enforces surface policy", async ({ page }) => {
+  const providerCalls: string[] = [];
+  page.on("request", (request) => {
+    if (/\/api\/chat|openrouter\.ai|api\.openai\.com/i.test(request.url())) providerCalls.push(request.url());
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const loginStatus = await page.evaluate(async () => (await fetch("/api/auth/demo-login", { method: "POST" })).status);
+  expect(loginStatus).toBe(200);
+  await page.goto("/create");
+  const pageTab = page.getByRole("tab", { name: "상태창", exact: true });
+  await expect
+    .poll(async () => {
+      if ((await pageTab.getAttribute("aria-selected")) !== "true") await pageTab.click();
+      return pageTab.getAttribute("aria-selected");
+    })
+    .toBe("true");
+  await page.getByRole("button", { name: /^대화용 인터랙티브 화면 만들기/ }).click();
+
+  const surfaces = page.getByRole("radiogroup", { name: "컴포넌트 용도" });
+  await expect(surfaces.getByRole("radio", { name: /채팅 중 호출/ })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("button", { name: /퀘스트 카드/ }).click();
+  await page.getByRole("button", { name: "이 예제 적용" }).click();
+  await expect(page.getByLabel("이름 (PascalCase)")).toHaveValue("QuestCardExample");
+
+  await surfaces.getByRole("radio", { name: /TRPG 캐릭터 시트/ }).click();
+  await expect(page.getByText("AI가 답변에서 호출하는 컴포넌트가 아니며", { exact: false })).toBeVisible();
+  await expect(page.getByLabel("AI 호출 설명")).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "예제 갤러리" })).toHaveCount(0);
+  await page.getByRole("button", { name: "기본 시트 코드로 시작" }).click();
+  await page.getByRole("button", { name: "시트 컴파일 / 미리보기" }).click();
+  const preview = page.frameLocator("iframe[title='TrpgSheet 시트 미리보기']");
+  await expect(preview.getByText("백하율")).toBeVisible();
+  await expect(preview.getByText("HP 9/20")).toBeVisible();
+  await expect(preview.getByText("폐역 승강장")).toBeVisible();
+  await expect(preview.getByText("왼팔 부상: 근력 판정 -1")).toBeVisible();
+  await expect(surfaces.getByRole("radio", { name: /TRPG 캐릭터 시트/ })).toContainText("저장됨: TrpgSheet");
+  await page.getByText("시트가 받는 고정 데이터").click();
+  await expect(page.locator("[data-jsx-trpg-sheet-editor] li").filter({ hasText: "props.modifiersNote" })).toBeVisible();
+  if (fs.existsSync("/opt/cursor/artifacts")) {
+    await page.locator("[data-jsx-trpg-sheet-editor]").screenshot({ path: "/opt/cursor/artifacts/trpg-sheet-editor-mobile.png" });
+  }
+
+  const sourceInput = page.getByLabel("시트 JSX source");
+  await sourceInput.fill(`export default function TrpgSheet() { return <button onClick={() => sendToChat("x")}>x</button>; }`);
+  await page.getByRole("button", { name: "시트 컴파일 / 미리보기" }).click();
+  await expect(page.getByText("TRPG 캐릭터 시트에서는 sendToChat을 사용할 수 없습니다.", { exact: false })).toBeVisible();
+  await expect(page.getByText("저장된 시트는 유지됩니다: TrpgSheet.", { exact: false })).toBeVisible();
+
+  await surfaces.getByRole("radio", { name: /채팅 중 호출/ }).click();
+  await expect(page.getByLabel("이름 (PascalCase)")).toHaveValue("QuestCardExample");
+  const manifest = page.getByRole("region", { name: "AI에게 실제로 전달되는 정보" });
+  await expect(manifest).toContainText("QuestCardExample");
+  await expect(manifest).not.toContainText("TrpgSheet");
+  await page.getByText("고급 JSX 코드 및 Props").click();
+  await page.getByLabel("JSX source").fill(
+    `export default function QuestCardExample() { return <button onClick={() => setTrpgActionDraft("free", "x")}>x</button>; }`
+  );
+  await page.getByRole("button", { name: "컴파일 / 미리보기" }).click();
+  await expect(page.getByText("setTrpgActionDraft는 TRPG 캐릭터 시트 컴포넌트에서만", { exact: false })).toBeVisible();
+  expect(providerCalls).toEqual([]);
+});

@@ -5,10 +5,11 @@ import * as React from "react";
 import { compileJsxComponentSource } from "../jsxComponent/compile";
 import { clampJsxSandboxHeight, decideJsxHostBridgeAction } from "../jsxComponent/hostBridge";
 import { JSX_BRIDGE_MAX_TEXT, JSX_SANDBOX_AUTO_HEIGHT_MAX_PX, JSX_SANDBOX_AUTO_HEIGHT_MIN_PX } from "../jsxComponent/limits";
+import { jsxSurfacePolicyError } from "../jsxComponent/surface";
 import { contextualStatusTreatDraft } from "./mechanicsIntent";
 import { partyDetailedSheetCards } from "./partySheetPresentation";
 import { compileTrpgSheetJsx, TRPG_SHEET_JSX_COMPONENT, TRPG_SHEET_JSX_SOURCE } from "./sheetJsxSource";
-import { acceptTrpgSheetActionDraft, buildTrpgSheetSurface, trpgSheetRenderer, type TrpgSheetSurface } from "./sheetSurface";
+import { acceptTrpgSheetActionDraft, buildTrpgSheetSurface, pickTrpgSheetRenderer, type TrpgSheetSurface } from "./sheetSurface";
 import type { TrpgSheetHudCard } from "./sheetView";
 import type { TrpgPublicOngoingEffect } from "./snapshot";
 import { TRPG_ACTION_MAX_CHARS, type TrpgStatDefinition } from "./types";
@@ -232,9 +233,10 @@ describe("TRPG sandboxed JSX sheet", () => {
       assert.equal(calls.length, 0);
     });
     const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
-    assert.match(dock, /onTrpgActionDraft=\{interactive \? onTrpgActionDraft : null\}/);
+    assert.match(dock, /onTrpgActionDraft=\{onFillAction \? onTrpgActionDraft : null\}/);
     assert.match(dock, /interactive: false,\n\s+\}\)/);
-    assert.match(dock, /onFillAction=\{ignorePartyDraft\}/);
+    assert.match(dock, /onFillAction=\{null\}/);
+    assert.doesNotMatch(dock, /ignorePartyDraft/);
   });
 
   it("G. same-name party members stay participantId-keyed", () => {
@@ -252,8 +254,10 @@ describe("TRPG sandboxed JSX sheet", () => {
     const compiled = compileJsxComponentSource(TRPG_SHEET_JSX_SOURCE, TRPG_SHEET_JSX_COMPONENT);
     assert.equal(compiled.ok, true);
     if (compiled.ok) {
-      assert.deepEqual(compiled.capabilities, []);
+      assert.deepEqual(compiled.capabilities, ["trpg_action_draft"]);
       assert.equal(compiled.chatSend, false);
+      assert.equal(jsxSurfacePolicyError("trpg_sheet", compiled.capabilities), null);
+      assert.notEqual(jsxSurfacePolicyError("chat", compiled.capabilities), null);
     }
     assert.doesNotMatch(TRPG_SHEET_JSX_SOURCE, /\b(fetch|XMLHttpRequest|localStorage|sessionStorage|cookie|href|window\.open|sendToChat|setChatDraft)\b/);
     const frame = readFileSync("public/jsx-sandbox/frame.html", "utf8");
@@ -332,10 +336,11 @@ describe("TRPG sandboxed JSX sheet", () => {
   });
 
   it("L. compile/runtime/boot failure falls back to the native renderer", () => {
-    assert.equal(trpgSheetRenderer({ compiled: null, failedCompiled: null }), "native");
-    assert.equal(trpgSheetRenderer({ compiled: "c1", failedCompiled: null }), "jsx");
-    assert.equal(trpgSheetRenderer({ compiled: "c1", failedCompiled: "c1" }), "native");
-    assert.equal(trpgSheetRenderer({ compiled: "c2", failedCompiled: "c1" }), "jsx");
+    const site = (compiled: string | null) => [{ source: "site" as const, compiled }];
+    assert.deepEqual(pickTrpgSheetRenderer(site(null), new Set()), { kind: "native" });
+    assert.deepEqual(pickTrpgSheetRenderer(site("c1"), new Set()), { kind: "jsx", source: "site", compiled: "c1" });
+    assert.deepEqual(pickTrpgSheetRenderer(site("c1"), new Set(["c1"])), { kind: "native" });
+    assert.deepEqual(pickTrpgSheetRenderer(site("c2"), new Set(["c1"])), { kind: "jsx", source: "site", compiled: "c2" });
     assert.equal(compileJsxComponentSource("function TrpgSheet() { return fetch('/x'); }", "TrpgSheet").ok, false);
 
     const runtime = readFileSync("src/lib/jsxComponent/sandboxRuntime.ts", "utf8");
@@ -344,7 +349,7 @@ describe("TRPG sandboxed JSX sheet", () => {
     assert.match(sandbox, /JSX_SANDBOX_BOOT_TIMEOUT_MS/);
     assert.match(sandbox, /if \(!readyRef\.current\) statusRef\.current\?\.\("error"\)/);
     const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
-    assert.match(dock, /if \(status === "error"\) onJsxFailed\(\)/);
+    assert.match(dock, /if \(status === "error" && compiled\) onJsxFailed\(compiled\)/);
     assert.match(dock, /case "native":\n\s+return <NativeSheetBody/);
     const malformed = loadSheet()({ stats: "bad", inventory: null, effects: 3, hp: "x" });
     assert.ok(textOf(malformed).includes("HP 0/0"));

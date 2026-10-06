@@ -660,6 +660,73 @@ test.describe("TRPG bot declaration viewport follow — production browser", () 
     expect(actionPosts).toEqual([]);
   });
 
+  test("PARTY creator sheets render per participant, gain no host power, and fall back creator → site → native", async ({
+    page,
+  }) => {
+    const hostRequests: string[] = [];
+    page.on("request", (request) => {
+      const path = new URL(request.url()).pathname;
+      if (request.method() === "POST" && /\/(action|party-chat)$|\/api\/chat/.test(path)) hostRequests.push(path);
+    });
+    await page.goto("/trpg/scroll-follow-lab?scenario=party-sheets");
+    await waitForLabRoomReady(page);
+    const dock = page.locator("[data-trpg-command-dock]");
+    await page.locator("[data-trpg-command-dock-tab='party']").click();
+    await page.locator(`[data-trpg-party-tab='${SCROLL_FOLLOW_LAB_BOT1_ID}']`).click();
+    const partyFrame = page.frameLocator("iframe[title='파티원 시트']");
+    await expect(page.locator("[data-trpg-sheet-renderer='creator']")).toBeVisible();
+    await expect(partyFrame.getByText("CREATOR-A Bot1")).toBeVisible();
+    await expect(page.locator("iframe")).toHaveCount(1);
+
+    const handle = await page.locator("iframe[title='파티원 시트']").elementHandle();
+    const frame = await handle?.contentFrame();
+    expect(frame).toBeTruthy();
+    // Space intents past the bridge rate window so each one reaches the host decision.
+    for (const call of ["setTrpgActionDraft", "setChatDraft", "sendToChat"] as const) {
+      await page.waitForTimeout(900);
+      await frame!.evaluate((name) => {
+        const w = window as unknown as Record<string, (...args: string[]) => void>;
+        if (name === "setTrpgActionDraft") w[name]!("attack_now", "파티원 시트가 넣은 행동");
+        else w[name]!("파티원 시트 채팅");
+      }, call);
+    }
+    await page.waitForTimeout(900);
+    await frame!.getByRole("button", { name: "초안" }).click();
+    await page.waitForTimeout(400);
+    await expect(dock).toHaveAttribute("data-trpg-command-dock-mode", "party");
+    await page.locator("[data-trpg-command-dock-tab='action']").click();
+    await expect(dock.locator("textarea")).not.toHaveValue(/파티원 시트/);
+    await page.locator("[data-trpg-command-dock-tab='ooc']").click();
+    await expect(dock.getByPlaceholder("유저에게 메시지 보내기")).toHaveValue("");
+
+    await page.locator("[data-trpg-command-dock-tab='party']").click();
+    await page.locator(`[data-trpg-party-tab='${SCROLL_FOLLOW_LAB_BOT1_ID}']`).click();
+    await expect(partyFrame.getByText("CREATOR-A Bot1")).toBeVisible();
+    const creatorHandle = await page.locator("iframe[title='파티원 시트']").elementHandle();
+    await (await creatorHandle!.contentFrame())!.evaluate(() => {
+      parent.postMessage({ source: "hav-jsx-sandbox", kind: "error", payload: { message: "creator boom" } }, "*");
+    });
+    await expect(page.locator("[data-trpg-sheet-renderer='site']")).toBeVisible();
+    await expect(partyFrame.getByText("HP 18/20")).toBeVisible();
+    await expect(page.locator("[data-trpg-sheet-native]")).toHaveCount(0);
+    await expect(page.locator("iframe")).toHaveCount(1);
+
+    await page.locator(`[data-trpg-party-tab='${SCROLL_FOLLOW_LAB_BOT2_ID}']`).click();
+    await expect(page.locator("[data-trpg-sheet-renderer='creator']")).toBeVisible();
+    await expect(partyFrame.getByText("CREATOR-B Bot2")).toBeVisible();
+
+    await page.locator(`[data-trpg-party-tab='${SCROLL_FOLLOW_LAB_BOT1_ID}']`).click();
+    await expect(page.locator("[data-trpg-sheet-renderer='site']")).toBeVisible();
+    const siteHandle = await page.locator("iframe[title='파티원 시트']").elementHandle();
+    await (await siteHandle!.contentFrame())!.evaluate(() => {
+      parent.postMessage({ source: "hav-jsx-sandbox", kind: "error", payload: { message: "site boom" } }, "*");
+    });
+    await expect(page.locator(`[data-trpg-sheet-native='${SCROLL_FOLLOW_LAB_BOT1_ID}']`)).toBeVisible();
+    await expect(page.locator("iframe[title='파티원 시트']")).toHaveCount(0);
+    await expect(page.locator(`[data-trpg-sheet-native] button`)).toHaveCount(0);
+    expect(hostRequests).toEqual([]);
+  });
+
   test("F1: Bot1 growth advances canonical scroll container", async ({ page }) => {
     await page.goto("/trpg/scroll-follow-lab?scenario=bot1");
     await waitForBotReveal(page, SCROLL_FOLLOW_LAB_BOT1_ID);

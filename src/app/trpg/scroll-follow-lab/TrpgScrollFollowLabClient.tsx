@@ -10,19 +10,34 @@ import {
   scrollFollowLabPresentationSeed,
   scrollFollowLabSeenLogKeys,
 } from "@/lib/trpg/scrollFollowLabFixture";
+import { createTrpgPartySheetComponentLoader } from "@/lib/trpg/partySheetComponentClient";
 
 const noop = () => {};
 
-export default function TrpgScrollFollowLabClient({ sheetJsxCompiled }: { sheetJsxCompiled: string | null }) {
+export default function TrpgScrollFollowLabClient({
+  sheetJsxCompiled,
+  partySheetsCompiled,
+}: {
+  sheetJsxCompiled: string | null;
+  partySheetsCompiled: Record<number, string>;
+}) {
   const searchParams = useSearchParams();
   const scenario = useMemo(
     () => parseScrollFollowLabScenario(searchParams.get("scenario")),
     [searchParams]
   );
   const freezePresentationAdvance = scenario !== "handoff";
+  const partySheets = scenario === "party-sheets";
   const snap = useMemo(
-    () => buildScrollFollowLabSnapshot({ roundNumber: 2 }),
-    [scenario]
+    () => buildScrollFollowLabSnapshot({ roundNumber: 2, partySheets }),
+    [scenario, partySheets]
+  );
+  const loadPartySheetComponent = useMemo(
+    () =>
+      partySheets
+        ? createTrpgPartySheetComponentLoader(async (participantId) => partySheetsCompiled[participantId] ?? null)
+        : null,
+    [partySheets, partySheetsCompiled]
   );
 
   useEffect(() => {
@@ -45,6 +60,7 @@ export default function TrpgScrollFollowLabClient({ sheetJsxCompiled }: { sheetJ
         key={scenario === "handoff" ? "handoff-lifetime" : scenario}
         snap={snap}
         sheetJsxCompiled={sheetJsxCompiled}
+        loadPartySheetComponent={loadPartySheetComponent}
         starting={false}
         generating={false}
         busy={false}
