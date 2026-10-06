@@ -2,7 +2,8 @@ import { detectCharStutter } from "@/lib/antiRepetition";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
 import { isDegenerateOutput } from "@/lib/gibberishGuard";
 import {
-  AUTO_REFUND_MIN_VISIBLE_CHARS,
+  AUTO_REFUND_UNDER_LENGTH_MAX_VISIBLE_CHARS,
+  isAutoRefundUnderLengthEvidence,
 } from "@/lib/reportRefundPolicy";
 
 export type AutoRefundReason =
@@ -90,7 +91,7 @@ export function hasRepeatedLongFormBlock(content: string): boolean {
 }
 
 const REASON_LABELS: Record<AutoRefundReason, string> = {
-  under_length: `${AUTO_REFUND_MIN_VISIBLE_CHARS}자 미달`,
+  under_length: `${AUTO_REFUND_UNDER_LENGTH_MAX_VISIBLE_CHARS}자 이하`,
   garbage_output: "비정상·퇴화 출력",
   char_stutter: "반복·조기 중단",
   repeated_block: "장문 반복 루프",
@@ -117,7 +118,7 @@ export function assessMessageForAutoRefund(input: {
   if (content && isDegenerateOutput(content)) reasons.push("garbage_output");
   if (content && detectCharStutter(content)) reasons.push("char_stutter");
   if (content && hasRepeatedLongFormBlock(content)) reasons.push("repeated_block");
-  if (content && visibleAssistantMessageLength(content) < AUTO_REFUND_MIN_VISIBLE_CHARS) {
+  if (content && isAutoRefundUnderLengthEvidence(visibleAssistantMessageLength(content))) {
     reasons.push("under_length");
   }
   if (content && isDuplicateAssistantOutput(content, input.previousAssistantContent)) {

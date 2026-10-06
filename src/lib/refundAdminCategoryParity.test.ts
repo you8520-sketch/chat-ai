@@ -4,7 +4,7 @@ import { getDb } from "@/lib/db";
 import { installIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
 import { creditPoints, deductPoints } from "@/lib/points";
 import { getReportRefundForAdmin, processReportRefund } from "@/lib/refund";
-import { AUTO_REFUND_MIN_VISIBLE_CHARS } from "@/lib/reportRefundPolicy";
+import { isAutoRefundUnderLengthEvidence } from "@/lib/reportRefundPolicy";
 
 let characterId = 0;
 
@@ -67,6 +67,6 @@ describe("admin report refund category parity", () => {
     assert.equal(detail.live_validation_pass, false);
     assert.equal(detail.live_validation_reasons.length, 0);
     assert.match(detail.live_validation_summary, /유사한 내용 출력/);
-    assert.ok(content.length >= AUTO_REFUND_MIN_VISIBLE_CHARS);
+    assert.equal(isAutoRefundUnderLengthEvidence(content.length), false);
   });
 });

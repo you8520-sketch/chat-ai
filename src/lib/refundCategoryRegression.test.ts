@@ -5,7 +5,10 @@ import { installIsolatedTestDatabase } from "@/lib/test/isolatedTestDatabase";
 import { creditPoints, deductPoints, type DeductionSlice } from "@/lib/points";
 import { processReportRefund } from "@/lib/refund";
 import { assessCategoryForAutoRefund } from "@/lib/refundCategoryValidation";
-import { AUTO_REFUND_DAILY_LIMIT, AUTO_REFUND_MIN_VISIBLE_CHARS } from "@/lib/reportRefundPolicy";
+import {
+  AUTO_REFUND_DAILY_LIMIT,
+  AUTO_REFUND_UNDER_LENGTH_MAX_VISIBLE_CHARS,
+} from "@/lib/reportRefundPolicy";
 import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
 import type { Usage } from "@/lib/chatUsage";
 
@@ -199,7 +202,7 @@ describe("refund category regression", () => {
   });
 
   it("under_length category uses visible char threshold", () => {
-    const short = "x".repeat(AUTO_REFUND_MIN_VISIBLE_CHARS - 10);
+    const short = "x".repeat(AUTO_REFUND_UNDER_LENGTH_MAX_VISIBLE_CHARS);
     const assessment = assessCategoryForAutoRefund({
       category: "under_length",
       content: short,

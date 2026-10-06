@@ -35,6 +35,17 @@ on:
       - "src/lib/pointChargePaymentBoundary.test.ts"
       - "src/lib/chargeCancellation.ts"
       - "src/lib/pointChargeRefund*.ts"
+      - "src/lib/refund.ts"
+      - "src/lib/refundAutoValidation.ts"
+      - "src/lib/refundAutoValidation.test.ts"
+      - "src/lib/refundCategoryValidation.ts"
+      - "src/lib/refundCategoryRegression.test.ts"
+      - "src/lib/refundCategoryEvidenceRegression.test.ts"
+      - "src/lib/refundAdminCategoryParity.test.ts"
+      - "src/lib/reportRefundPolicy.ts"
+      - "src/lib/reportRefundCategories.ts"
+      - "src/lib/reportRefundUnderLengthPolicy.test.ts"
+      - "src/lib/chatDisplayLength.ts"
       - "src/lib/pointUsageLog.ts"
       - "src/components/ChargeCancelButton.tsx"
 
@@ -85,6 +96,17 @@ jobs:
 
       - name: Point-charge refund exactly-once
         run: node --conditions=react-server --import tsx --test src/lib/pointChargeRefundExactlyOnce.test.ts
+
+      - name: Report-refund policy regressions
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test --test-concurrency=1
+          src/lib/reportRefundUnderLengthPolicy.test.ts
+          src/lib/refundAutoValidation.test.ts
+          src/lib/refundCategoryRegression.test.ts
+          src/lib/refundCategoryEvidenceRegression.test.ts
+          src/lib/refundAdminCategoryParity.test.ts
 
       - name: Typecheck app
         run: npm run typecheck:app
