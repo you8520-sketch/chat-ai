@@ -10,6 +10,12 @@ on:
       - "scripts/lib/rpActiveModelQualityLive.ts"
       - "scripts/lib/rpActiveModelQualityLive.test.ts"
       - "scripts/rp-active-model-quality-live.ts"
+      - "src/lib/rpQualityBaseline.ts"
+      - "src/lib/rpQualityBaseline.test.ts"
+      - "src/lib/rpQualityEvaluationPacket.ts"
+      - "src/lib/chatDisplayLength.ts"
+      - "src/lib/responseLengthConstants.ts"
+      - "src/lib/userAuthoringPolicy.ts"
       - ".github/workflows/validate-rp-active-model-quality.yml"
       - ".github/rp-active-model-quality-live.trigger"
 
@@ -42,6 +48,11 @@ jobs:
           --test --test-concurrency=1
           scripts/lib/rpModelQualificationPacket.test.ts
           scripts/lib/rpActiveModelQualityLive.test.ts
+      - name: Product quality baseline regressions
+        run: >-
+          node --conditions=react-server --import tsx
+          --import ./src/lib/test/regularTestEgressPolicy.ts
+          --test src/lib/rpQualityBaseline.test.ts
 
   live_evidence:
     needs: deterministic
