@@ -250,26 +250,18 @@ export type OfficialForegroundCast = (typeof OFFICIAL_FOREGROUND_CASTS)[number];
 export const OFFICIAL_BACKGROUND_EXTRAS = ["none", "optional_unnamed"] as const;
 export type OfficialBackgroundExtras = (typeof OFFICIAL_BACKGROUND_EXTRAS)[number];
 
-/** Who the required foreground partner is. Declared on the slot; never inferred. */
-export const OFFICIAL_PARTNER_ROLES = ["user", "named_character"] as const;
-export type OfficialPartnerRole = (typeof OFFICIAL_PARTNER_ROLES)[number];
-
 /**
- * How much of that partner the official image may show.
- * `user` is identity-unspecified in this pipeline and pairs only with
- * cropped identity-neutral depiction. `named_character` has explicit
- * visual identity and pairs only with a full person.
+ * Who the required foreground partner is. Declared on the slot; never inferred.
+ * `user` is the only supported role today and selects the identity-neutral
+ * partial depiction policy. Named-character partners are a later feature.
  */
-export const OFFICIAL_PARTNER_DEPICTIONS = [
-  "cropped_identity_neutral",
-  "full_explicit_identity",
-] as const;
-export type OfficialPartnerDepiction = (typeof OFFICIAL_PARTNER_DEPICTIONS)[number];
+export const OFFICIAL_PARTNER_ROLES = ["user"] as const;
+export type OfficialPartnerRole = (typeof OFFICIAL_PARTNER_ROLES)[number];
 
 /**
  * Canonical image-subject owner. Declared on the slot; never inferred from
  * pose/situation prose or slotKey at prompt time.
- * Required-partner slots must declare role + depiction; solo slots must not.
+ * Required-partner slots must declare partnerRole=user; solo slots must not.
  */
 export type OfficialImageSubjects =
   | {
@@ -279,13 +271,6 @@ export type OfficialImageSubjects =
   | {
       foreground: "character_plus_required_partner";
       partnerRole: "user";
-      partnerDepiction: "cropped_identity_neutral";
-      backgroundExtras: OfficialBackgroundExtras;
-    }
-  | {
-      foreground: "character_plus_required_partner";
-      partnerRole: "named_character";
-      partnerDepiction: "full_explicit_identity";
       backgroundExtras: OfficialBackgroundExtras;
     };
 

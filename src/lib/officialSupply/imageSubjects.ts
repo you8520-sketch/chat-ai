@@ -1,13 +1,11 @@
 import {
   OFFICIAL_BACKGROUND_EXTRAS,
   OFFICIAL_FOREGROUND_CASTS,
-  OFFICIAL_PARTNER_DEPICTIONS,
   OFFICIAL_PARTNER_ROLES,
   type OfficialAssetSlotPlan,
   type OfficialBackgroundExtras,
   type OfficialForegroundCast,
   type OfficialImageSubjects,
-  type OfficialPartnerDepiction,
   type OfficialPartnerRole,
 } from "@/lib/officialSupply/types";
 
@@ -22,11 +20,12 @@ export const OFFICIAL_SOLO_FOREGROUND_CLAUSE =
 /** Shared count marker — partner slots still require exactly one interaction partner. */
 export const OFFICIAL_REQUIRED_PARTNER_COUNT_MARKER = "plus one required";
 
-export const OFFICIAL_USER_PARTNER_CROPPED_CLAUSE =
-  "FOREGROUND CAST: the named character plus one required user-role interaction partner, represented only as a cropped hand, wrist, or forearm entering naturally from the frame edge.";
-
-export const OFFICIAL_NAMED_PARTNER_FULL_CLAUSE =
-  "FOREGROUND CAST: the named character plus one required named interaction partner with an explicit visual identity. Show that partner as a complete foreground person.";
+/**
+ * `partnerRole=user` depiction policy. Pose still owns the action; this clause
+ * only limits how much of an unspecified RP user may appear.
+ */
+export const OFFICIAL_USER_PARTNER_PARTIAL_CLAUSE =
+  "FOREGROUND CAST: the named character plus one required user-role interaction partner, shown only as the smallest identity-neutral cropped body fragment the Pose needs — a hand, wrist, or forearm when that is enough, or a cropped arm, shoulder, or partial torso only when the Pose requires it — with the rest of that person outside the composition.";
 
 export const OFFICIAL_NO_BACKGROUND_EXTRAS_CLAUSE = "No background extras.";
 
@@ -34,7 +33,7 @@ export const OFFICIAL_OPTIONAL_UNNAMED_EXTRAS_CLAUSE =
   "Unnamed background extras may appear only if the situation needs them; they are not foreground interaction partners.";
 
 const SOLO_SUBJECT_KEYS = ["foreground", "backgroundExtras"] as const;
-const PARTNER_SUBJECT_KEYS = ["foreground", "partnerRole", "partnerDepiction", "backgroundExtras"] as const;
+const PARTNER_SUBJECT_KEYS = ["foreground", "partnerRole", "backgroundExtras"] as const;
 
 export function isOfficialForegroundCast(value: unknown): value is OfficialForegroundCast {
   return typeof value === "string" && (OFFICIAL_FOREGROUND_CASTS as readonly string[]).includes(value);
@@ -48,30 +47,9 @@ export function isOfficialPartnerRole(value: unknown): value is OfficialPartnerR
   return typeof value === "string" && (OFFICIAL_PARTNER_ROLES as readonly string[]).includes(value);
 }
 
-export function isOfficialPartnerDepiction(value: unknown): value is OfficialPartnerDepiction {
-  return typeof value === "string" && (OFFICIAL_PARTNER_DEPICTIONS as readonly string[]).includes(value);
-}
-
 function hasExactKeys(value: object, keys: readonly string[]): boolean {
   const actual = Object.keys(value);
   return actual.length === keys.length && keys.every((key) => actual.includes(key));
-}
-
-export function isOfficialPartnerContract(
-  role: unknown,
-  depiction: unknown
-): boolean {
-  if (!isOfficialPartnerRole(role) || !isOfficialPartnerDepiction(depiction)) return false;
-  switch (role) {
-    case "user":
-      return depiction === "cropped_identity_neutral";
-    case "named_character":
-      return depiction === "full_explicit_identity";
-    default: {
-      const exhaustive: never = role;
-      throw new Error(`Unknown official partner role ${String(exhaustive)}`);
-    }
-  }
 }
 
 export function isOfficialImageSubjects(value: unknown): value is OfficialImageSubjects {
@@ -80,7 +58,6 @@ export function isOfficialImageSubjects(value: unknown): value is OfficialImageS
     foreground?: unknown;
     backgroundExtras?: unknown;
     partnerRole?: unknown;
-    partnerDepiction?: unknown;
   };
   if (!isOfficialForegroundCast(row.foreground) || !isOfficialBackgroundExtras(row.backgroundExtras)) {
     return false;
@@ -89,7 +66,7 @@ export function isOfficialImageSubjects(value: unknown): value is OfficialImageS
     case "solo_character":
       return hasExactKeys(row, SOLO_SUBJECT_KEYS);
     case "character_plus_required_partner":
-      return hasExactKeys(row, PARTNER_SUBJECT_KEYS) && isOfficialPartnerContract(row.partnerRole, row.partnerDepiction);
+      return hasExactKeys(row, PARTNER_SUBJECT_KEYS) && isOfficialPartnerRole(row.partnerRole);
     default: {
       const exhaustive: never = row.foreground;
       throw new Error(`Unknown official foreground cast ${String(exhaustive)}`);
@@ -113,12 +90,10 @@ function renderRequiredPartnerForeground(
 ): string {
   switch (subjects.partnerRole) {
     case "user":
-      return OFFICIAL_USER_PARTNER_CROPPED_CLAUSE;
-    case "named_character":
-      return OFFICIAL_NAMED_PARTNER_FULL_CLAUSE;
+      return OFFICIAL_USER_PARTNER_PARTIAL_CLAUSE;
     default: {
-      const exhaustive: never = subjects;
-      throw new Error(`Unknown official partner contract ${JSON.stringify(exhaustive)}`);
+      const exhaustive: never = subjects.partnerRole;
+      throw new Error(`Unknown official partner role ${String(exhaustive)}`);
     }
   }
 }

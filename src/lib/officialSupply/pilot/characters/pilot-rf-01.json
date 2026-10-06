@@ -659,7 +659,6 @@
         "imageSubjects": {
           "foreground": "character_plus_required_partner",
           "partnerRole": "user",
-          "partnerDepiction": "cropped_identity_neutral",
           "backgroundExtras": "optional_unnamed"
         }
       },

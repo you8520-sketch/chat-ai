@@ -80,7 +80,6 @@ import { validateStyleProposal } from "@/lib/officialSupply/style";
 import {
   OFFICIAL_BACKGROUND_EXTRAS,
   OFFICIAL_FOREGROUND_CASTS,
-  OFFICIAL_PARTNER_DEPICTIONS,
   OFFICIAL_PARTNER_ROLES,
   qaResult,
   type OfficialAppearanceLock,
@@ -405,7 +404,6 @@ const ASSET_PLAN_SCHEMA: Record<string, unknown> = {
             properties: {
               foreground: { type: "string", enum: [...OFFICIAL_FOREGROUND_CASTS] },
               partnerRole: { type: "string", enum: [...OFFICIAL_PARTNER_ROLES] },
-              partnerDepiction: { type: "string", enum: [...OFFICIAL_PARTNER_DEPICTIONS] },
               backgroundExtras: { type: "string", enum: [...OFFICIAL_BACKGROUND_EXTRAS] },
             },
             required: ["foreground", "backgroundExtras"],
