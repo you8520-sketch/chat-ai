@@ -6,8 +6,12 @@ on:
       - ".github/workflows/validate-ci-stream-cost.yml"
       - "src/lib/openRouterUsage.ts"
       - "src/lib/openRouterAdult.ts"
+      - "src/lib/openAiCompatibleSseDecoder.ts"
+      - "src/lib/openAiCompatibleSseDecoder.test.ts"
       - "src/lib/openRouterAdult.compatibleUsage.test.ts"
       - "src/lib/openRouterAdult.ciStreamCost.test.ts"
+      - "scripts/lib/bodyCueFlashAb1354Runner.ts"
+      - "scripts/lib/bodyCueFlashAb1354Runner.test.ts"
       - "src/lib/cheaperInferenceUsage.ts"
       - "src/lib/providerCostReconciliation.ts"
       - "src/lib/providerCostReconciliation.targeted.test.ts"
@@ -185,6 +189,12 @@ jobs:
 
       - name: CheaperInference compatible usage (stream + non-stream)
         run: node --conditions=react-server --import tsx --test src/lib/openRouterAdult.compatibleUsage.test.ts
+
+      - name: OpenAI-compatible SSE decoder + #1354 stream transport
+        run: >-
+          node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1
+          src/lib/openAiCompatibleSseDecoder.test.ts
+          scripts/lib/bodyCueFlashAb1354Runner.test.ts
 
       - name: CheaperInference synthetic exact-cost compatibility (not Main live contract)
         run: node --conditions=react-server --import tsx --test src/lib/openRouterAdult.ciStreamCost.test.ts
