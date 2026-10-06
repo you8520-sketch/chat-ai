@@ -301,7 +301,6 @@ test("official Gemini Standard schedule is risk evidence without inventing futur
 
   const report=buildMainRpSupplyRadarReport({
     endpointsByModel:{
-      "gemini-3.7-flash":[routedEndpoint("gemini-3.8-flash")],
       "gemini-3.8-flash":[routedEndpoint("gemini-3.8-flash")],
     },
     ciCatalogByModel:null,
