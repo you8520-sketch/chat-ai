@@ -96,10 +96,10 @@ describe("resolveRpOpenRouterModelId — keeps Pro slug", () => {
     );
   });
 
-  it("keeps 3.1 Pro slug", () => {
+  it("remaps retired 3.1 Pro slug to current Gemini 3.8 Flash", () => {
     assert.equal(
       resolveRpOpenRouterModelId(OPENROUTER_GEMINI_31_PRO_MODEL),
-      OPENROUTER_GEMINI_31_PRO_MODEL
+      OPENROUTER_GEMINI_38_FLASH_MODEL
     );
   });
 

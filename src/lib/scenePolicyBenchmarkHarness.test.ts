@@ -161,7 +161,11 @@ describe("scene policy benchmark preparation BMARK1-BMARK17", () => {
     assert.equal(schema.arm_id, "v2");
     assert.equal(schema.actual_input_tokens, null);
     assert.equal(schema.raw_output, null);
-    assert.ok(schema.generation_parameters.temperature != null || schema.generation_parameters.max_tokens != null);
+    assert.equal(schema.model_id, BENCHMARK_PILOT_MODEL_ID);
+    assert.equal(schema.provider, "openrouter");
+    // Gemini 3.8 OpenRouter omits sampling parameters by contract.
+    assert.equal(schema.generation_parameters.temperature, undefined);
+    assert.equal(schema.generation_parameters.max_tokens, undefined);
   });
 
   it("BMARK11 blind permutation preserves answer key", () => {
