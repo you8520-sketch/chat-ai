@@ -2,8 +2,6 @@ import {
   CLAUDE_OPUS_MODEL_LEGACY,
   OPENROUTER_CLAUDE_DEFAULT,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
-  OPENROUTER_GEMINI_31_PRO_MODEL,
-  OPENROUTER_GEMINI_37_FLASH_MODEL,
   OPENROUTER_GEMINI_38_FLASH_MODEL,
   GEMINI_38_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
@@ -20,11 +18,11 @@ const DEPRECATED_OPENROUTER_MODELS: Record<string, string> = {
   "google/gemini-2.5-pro-preview": OPENROUTER_GEMINI_36_FLASH_MODEL,
   "gemini-2.5-flash": OPENROUTER_GEMINI_36_FLASH_MODEL,
   "google/gemini-2.5-flash": OPENROUTER_GEMINI_36_FLASH_MODEL,
-  "gemini-3.1": OPENROUTER_GEMINI_31_PRO_MODEL,
-  "gemini-3.1-pro-preview": OPENROUTER_GEMINI_31_PRO_MODEL,
-  "google/gemini-3.1-pro-preview": OPENROUTER_GEMINI_31_PRO_MODEL,
-  "gemini-3.7-flash": OPENROUTER_GEMINI_37_FLASH_MODEL,
-  "google/gemini-3.7-flash": OPENROUTER_GEMINI_37_FLASH_MODEL,
+  "gemini-3.1": OPENROUTER_GEMINI_38_FLASH_MODEL,
+  "gemini-3.1-pro-preview": OPENROUTER_GEMINI_38_FLASH_MODEL,
+  "google/gemini-3.1-pro-preview": OPENROUTER_GEMINI_38_FLASH_MODEL,
+  "gemini-3.7-flash": OPENROUTER_GEMINI_38_FLASH_MODEL,
+  "google/gemini-3.7-flash": OPENROUTER_GEMINI_38_FLASH_MODEL,
   [GEMINI_38_FLASH_MODEL]: OPENROUTER_GEMINI_38_FLASH_MODEL,
   [OPENROUTER_GEMINI_38_FLASH_MODEL]: OPENROUTER_GEMINI_38_FLASH_MODEL,
   [OPENROUTER_MUSE_SPARK_11_MODEL]: OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -122,14 +120,6 @@ type MainRpOpenRouterRoutePolicySource = {
 export const MAIN_RP_OPENROUTER_ROUTE_POLICY_SOURCE: Readonly<
   Record<string, MainRpOpenRouterRoutePolicySource>
 > = {
-  "google/gemini-3.1-pro-preview": {
-    providerSlug: "google-ai-studio",
-    serviceTier: "flex",
-  },
-  "google/gemini-3.7-flash": {
-    providerSlug: "google-ai-studio",
-    serviceTier: "flex",
-  },
   "google/gemini-3.8-flash": {
     providerSlug: "google-ai-studio",
     serviceTier: "flex",

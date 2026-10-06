@@ -56,6 +56,6 @@ Excluded from this new prose benchmark budget: Gemini 3.1 Pro Preview, Gemini 3.
 
 Gemini 3.7 Flash is not recorded as shutting down. 3.8 Flash is the latest GA Flash and the new HAV prose baseline target.
 
-## Separate follow-up — not in this PR
+## TRPG Gemini owner
 
-TRPG Gemini 3.7 Flash -> Gemini 3.8 Flash canonical migration. Current main still uses Gemini 3.7 Flash for TRPG GM/Bot on CheaperInference. `isCheaperInferenceModel()` does not register Gemini 3.8 Flash. This is not a constant swap.
+TRPG GM/Bot now use the same Gemini 3.8 Flash id as Main RP (`GEMINI_38_FLASH_MODEL`) on CheaperInference, after catalog evidence confirmed `gemini-3.8-flash`. Historical 3.7 receipts and audit docs stay unchanged.

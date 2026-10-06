@@ -28,7 +28,6 @@ import {
   liveAuthoringCapabilityMatrix,
 } from "@/lib/rpQualityEvaluationPacket";
 import {
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   GEMINI_38_FLASH_MODEL,
   isCheaperInferenceModel,
 } from "@/lib/chatModels";
@@ -173,13 +172,16 @@ describe("rp product quality baseline", () => {
     assert.doesNotMatch(packetSrc, /USER_TAIL_LENGTH_OWNER_SENTENCE/);
   });
 
-  it("records TRPG Gemini 3.7 -> 3.8 as a separate follow-up, not a constant swap", () => {
-    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
-    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
-    assert.equal(isCheaperInferenceModel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL), true);
-    assert.equal(isCheaperInferenceModel(GEMINI_38_FLASH_MODEL), false);
+  it("uses the live Main RP registry as the quality benchmark set", () => {
+    assert.equal(TRPG_GM_MODEL, GEMINI_38_FLASH_MODEL);
+    assert.equal(TRPG_BOT_MODEL, GEMINI_38_FLASH_MODEL);
+    assert.equal(isCheaperInferenceModel(GEMINI_38_FLASH_MODEL), true);
     const contract = buildQualityEvaluationContract();
-    assert.ok(contract.futureProseBenchmarkModels.includes("Gemini 3.8 Flash"));
-    assert.ok(contract.futureProseBenchmarkExcluded.includes("Gemini 3.7 Flash"));
+    assert.deepEqual(
+      [...contract.benchmarkModels].sort(),
+      ["Claude Opus 5.5", "DeepSeek V4.1 Flash", "GPT-6.1 Sol", "Gemini 3.8 Flash"].sort()
+    );
+    assert.equal(contract.benchmarkModels.includes("Gemini 3.1 Pro Preview"), false);
+    assert.equal(contract.benchmarkModels.includes("Gemini 3.7 Flash"), false);
   });
 });

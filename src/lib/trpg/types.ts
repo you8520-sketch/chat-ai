@@ -1,10 +1,10 @@
 /** Isolated TRPG runtime — not used by 1:1 character chat. */
 
-import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
+import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
 import type { TrpgLocalSceneProgressDelta } from "./localSceneProgress";
 import type { TrpgStoryPhase } from "./scenarioPlan";
 
-export const TRPG_GM_MODEL = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
+export const TRPG_GM_MODEL = GEMINI_38_FLASH_MODEL;
 export const TRPG_MAX_SLOTS = 4;
 /** Each AI companion is its own model call, so bots stay at two. */
 export const TRPG_MAX_BOTS = 2;
@@ -16,16 +16,16 @@ export const TRPG_BOT_RECENT_ROUNDS = 5;
 export const TRPG_BOT_CONTINUITY_MAX_CHARS = 2200;
 export const TRPG_BOT_CONTINUITY_ACTION_CHARS = 80;
 export const TRPG_BOT_CONTINUITY_SCENE_CHARS = 220;
-/** Official Gemini 3.7 Flash max output tokens — single transport-capability owner for TRPG GM/Bot. */
-export const TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS = 65_536;
+/** CheaperInference Gemini 3.8 Flash catalog max_output_tokens — TRPG GM/Bot owner. */
+export const TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS = 65_535;
 /** GM transport ceiling = model capability max (not an app prose-quality cap). */
-export const TRPG_GM_MAX_TOKENS = TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS;
+export const TRPG_GM_MAX_TOKENS = TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS;
 export const TRPG_NEXT_ROUND_CONTEXT_MAX_CHARS = 400;
 export const TRPG_SEAL_SUMMARY_MAX_CHARS = 500;
 export const TRPG_SEALED_PROMPT_MAX_CHARS = 2500;
 export const TRPG_BOT_SCENE_MAX_CHARS = 2200;
 /** Bot transport ceiling = model capability max; beat length is prompt semantic scope, not max_tokens. */
-export const TRPG_BOT_MAX_TOKENS = TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS;
+export const TRPG_BOT_MAX_TOKENS = TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS;
 export const TRPG_LEDGER_QUEST_MAX = 12;
 export const TRPG_LEDGER_NPC_MAX = 16;
 export const TRPG_LEDGER_FLAG_MAX = 24;
@@ -34,7 +34,7 @@ export const TRPG_LEDGER_ITEM_MAX_CHARS = 80;
 export const TRPG_GM_GROSS_MARGIN = 0.65;
 /** Bot-seat Pro call — same 65% as RP Pro. Not Flash. */
 export const TRPG_BOT_GROSS_MARGIN = 0.65;
-export const TRPG_BOT_MODEL = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
+export const TRPG_BOT_MODEL = GEMINI_38_FLASH_MODEL;
 export const TRPG_ACTION_MAX_CHARS = 1500;
 /** Host-written party bonds, applied before campaign start. */
 export const TRPG_RELATIONSHIP_MAX_CHARS = 800;

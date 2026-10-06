@@ -6,6 +6,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   CLAUDE_OPUS_5_DISPLAY_NAME,
   CLAUDE_OPUS_MODEL,
   CLAUDE_OPUS_MODEL_LEGACY,
@@ -61,14 +62,14 @@ describe("Claude Opus 5 Main RP retirement (R-01..R-14)", () => {
     assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, true), true);
   });
 
-  it("R-04 Gemini 3.1 Pro selectable = true", () => {
-    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, false), true);
-    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, true), true);
+  it("R-04 Gemini 3.1 Pro Preview is retired from Main RP picker", () => {
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, false), false);
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, true), false);
   });
 
-  it("R-05 Gemini 3.7 Flash selectable = true", () => {
-    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, false), true);
-    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, true), true);
+  it("R-05 Gemini 3.7 Flash is retired from Main RP picker", () => {
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, false), false);
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, true), false);
   });
 
   it("R-06 Claude Opus 5 MainRP = false", () => {
@@ -145,18 +146,14 @@ describe("Claude Opus 5 Main RP retirement (R-01..R-14)", () => {
     const deepseek = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
       (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
     );
-    const gemini31 = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
-      (o) => o.id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
-    );
-    const gemini37 = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
-      (o) => o.id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
+    const gemini38 = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
+      (o) => o.id === GEMINI_38_FLASH_MODEL
     );
     assert.equal(deepseek?.label, "DeepSeek V4 Pro");
     assert.equal(deepseek?.recommended, true);
-    assert.equal(gemini31?.hint, "Google");
-    assert.equal(gemini37?.hint, "Google");
+    assert.equal(gemini38?.label, "Gemini 3.8 Flash");
+    assert.equal(gemini38?.hint, "Google AI Studio");
     assert.equal(deepseek?.provider, "cheaperinference");
-    assert.equal(gemini31?.provider, "cheaperinference");
-    assert.equal(gemini37?.provider, "cheaperinference");
+    assert.equal(gemini38?.provider, "openrouter");
   });
 });

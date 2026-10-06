@@ -17,7 +17,7 @@ import {
 import { feedGmProviderSseBytes } from "./gmProviderSse";
 import { parseTrpgGmOutput } from "./gmPrompt";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
-import { TRPG_BOT_MODEL, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
+import { TRPG_BOT_MODEL, TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 import { adaptTrpgGmChatBody } from "./gmClient";
 import { resolveOptInTestCheaperInferenceApiKey } from "../../../scripts/lib/benchmarkCheaperInferenceCredential";
 
@@ -244,7 +244,7 @@ describe("gmCompletionIntegrity fixtures", () => {
 });
 
 describe("gmCompletionIntegrity transport + config", () => {
-  it("TRPG_GM_MAX_TOKENS equals Gemini 3.7 Flash model max through adapter", () => {
+  it("TRPG_GM_MAX_TOKENS equals Gemini 3.8 Flash catalog max through adapter", () => {
     const body = adaptTrpgGmChatBody({
       model: TRPG_GM_MODEL,
       messages: [{ role: "user", content: "x" }],
@@ -253,8 +253,8 @@ describe("gmCompletionIntegrity transport + config", () => {
       response_format: { type: "json_schema", json_schema: { name: "x", strict: true, schema: {} } },
     });
     assert.equal(body.max_tokens, TRPG_GM_MAX_TOKENS);
-    assert.equal(TRPG_GM_MAX_TOKENS, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS);
-    assert.equal(TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS, 65_536);
+    assert.equal(TRPG_GM_MAX_TOKENS, TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS);
+    assert.equal(TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS, 65_535);
     assert.equal(body.response_format != null, true);
   });
 

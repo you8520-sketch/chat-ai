@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   GEMINI_38_FLASH_MODEL,
   MAIN_RP_MODEL_IDS,
   selectedAIProvider,
@@ -33,8 +33,8 @@ describe("rpActiveModelQualityLive", () => {
   it("can bound a focused false-canon resmoke to the requested active subset", () => {
     const focusedModels = [
       CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
       GEMINI_38_FLASH_MODEL,
+      CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
       CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
     ] as const;
     const plan = buildRpActiveModelQualityPlan(

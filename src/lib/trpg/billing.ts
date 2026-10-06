@@ -1,4 +1,4 @@
-import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
+import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
 import { computeOpenRouterTurnBilling } from "@/lib/points";
 import { DEFAULT_TRPG_BILLING_MODE, type TrpgBillingMode } from "./types";
 
@@ -14,22 +14,22 @@ export type TrpgModelUsage = {
   upstreamCostUsd?: number;
 };
 
-/** Typical GM scene when the provider omits usage — Gemini 3.7 Flash 65% still applies. */
+/** Typical GM scene when the provider omits usage — Gemini 3.8 Flash 65% still applies. */
 export const TRPG_GM_USAGE_FALLBACK: TrpgModelUsage = {
-  modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  modelId: GEMINI_38_FLASH_MODEL,
   inputTokens: 10_000,
   outputTokens: 3_500,
 };
 
 /** Typical bot-seat Gemini action when usage is missing. */
 export const TRPG_BOT_USAGE_FALLBACK: TrpgModelUsage = {
-  modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  modelId: GEMINI_38_FLASH_MODEL,
   inputTokens: 2_500,
   outputTokens: 400,
 };
 
 /**
- * Round charge = sum of actual model calls at RP Pro 65% (GM + bot-seat Gemini 3.7 Flash).
+ * Round charge = sum of actual model calls at RP Pro 65% (GM + bot-seat Gemini 3.8 Flash).
  */
 export function computeTrpgRoundPoints(calls: TrpgModelUsage[]): number {
   let total = 0;

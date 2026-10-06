@@ -21,7 +21,7 @@ import { adaptTrpgBotChatBody, adaptTrpgGmChatBody } from "./gmClient";
 import { buildTrpgGmUserBlock } from "./gmPrompt";
 import {
   TRPG_BOT_MAX_TOKENS,
-  TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS,
+  TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS,
   TRPG_GM_MAX_TOKENS,
   TRPG_GM_MODEL,
   TRPG_BOT_MODEL,
@@ -173,10 +173,10 @@ describe("TRPG no redundant runtime truncation", () => {
     assert.match(botUser, /CAMPAIGN WORLD[\s\S]*CAMPAIGN_WORLD_CANON FULL/);
   });
 
-  it("J: GM/Bot transport max_tokens equals Gemini 3.7 Flash model capability max", () => {
-    assert.equal(TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS, 65_536);
-    assert.equal(TRPG_GM_MAX_TOKENS, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS);
-    assert.equal(TRPG_BOT_MAX_TOKENS, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS);
+  it("J: GM/Bot transport max_tokens equals Gemini 3.8 Flash catalog max", () => {
+    assert.equal(TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS, 65_535);
+    assert.equal(TRPG_GM_MAX_TOKENS, TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS);
+    assert.equal(TRPG_BOT_MAX_TOKENS, TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS);
     assert.equal(TRPG_GM_MODEL, TRPG_BOT_MODEL);
 
     const gmBody = adaptTrpgGmChatBody({
@@ -185,7 +185,7 @@ describe("TRPG no redundant runtime truncation", () => {
       stream: true,
       max_tokens: TRPG_GM_MAX_TOKENS,
     });
-    assert.equal(gmBody.max_tokens, 65_536);
+    assert.equal(gmBody.max_tokens, 65_535);
 
     const botBody = adaptTrpgBotChatBody({
       model: TRPG_BOT_MODEL,
@@ -193,7 +193,7 @@ describe("TRPG no redundant runtime truncation", () => {
       stream: false,
       max_tokens: TRPG_BOT_MAX_TOKENS,
     });
-    assert.equal(botBody.max_tokens, 65_536);
+    assert.equal(botBody.max_tokens, 65_535);
   });
 
   it("K: callTrpgGm/callTrpgBot assemble model-max max_tokens (no omission default)", () => {

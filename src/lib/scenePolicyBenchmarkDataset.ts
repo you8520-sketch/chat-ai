@@ -10,7 +10,7 @@ import { formatMemoryMetaForPrompt, parseMemoryMeta } from "@/lib/chatMemory";
 import type { ContextBuildInput } from "@/types";
 import { INACTIVE_CURRENT_TURN_AUTHORING_DELEGATION } from "@/lib/currentTurnUserAuthoringDelegation";
 import {
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
 } from "@/lib/chatModels";
 import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
@@ -77,8 +77,8 @@ export const BENCHMARK_CHAT_ID = 88001;
 export const BENCHMARK_CHARACTER_ID = 8801;
 export const BENCHMARK_CHAR_NAME = "한서린";
 export const BENCHMARK_USER_PERSONA = "민";
-/** Scene policy provider pilot — canonical Gemini 3.7 Flash (Main RP picker). */
-export const BENCHMARK_PILOT_MODEL_ID = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
+/** Scene policy provider pilot — current Main RP Gemini (3.8 Flash). */
+export const BENCHMARK_PILOT_MODEL_ID = GEMINI_38_FLASH_MODEL;
 /** @deprecated use BENCHMARK_PILOT_MODEL_ID — kept for harness imports */
 export const BENCHMARK_DEFAULT_MODEL = BENCHMARK_PILOT_MODEL_ID;
 export const BENCHMARK_DEFAULT_TARGET_CHARS = 3200;

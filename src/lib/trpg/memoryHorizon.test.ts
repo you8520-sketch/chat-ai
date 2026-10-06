@@ -32,6 +32,7 @@ import {
 } from "./memoryHorizon";
 import { sealDroppedTrpgRounds } from "./memorySeal";
 import { ensureTrpgTables } from "./schema";
+import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
 import { TRPG_BOT_MODEL, TRPG_GM_MODEL, TRPG_RECENT_ROUND_RAW } from "./types";
 
 function memoryDb(): Database.Database {
@@ -164,8 +165,8 @@ function longHorizonEvents(totalRounds: number): TrpgMemoryEvent[] {
 
 describe("TRPG long-horizon memory invariants", () => {
   it("keeps GM/Bot models, recent RAW=3, and a single MEMORY owner", () => {
-    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
-    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(TRPG_GM_MODEL, GEMINI_38_FLASH_MODEL);
+    assert.equal(TRPG_BOT_MODEL, GEMINI_38_FLASH_MODEL);
     assert.equal(TRPG_RECENT_ROUND_RAW, 3);
     assert.deepEqual(roundsDueForSeal([0, 1, 2, 3], -1), [0]);
     const memoryMentions = TRPG_GM_SYSTEM.match(/MEMORY:/g) ?? [];

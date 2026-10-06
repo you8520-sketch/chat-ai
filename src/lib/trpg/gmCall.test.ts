@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { afterEach, describe, it } from "node:test";
 import { TextEncoder } from "node:util";
-import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
+import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
 import {
   BOT_MAX_PROVIDER_ATTEMPTS,
   callTrpgBot,
@@ -15,7 +15,7 @@ import {
 import { isTrpgGeminiLowReasoningRequest, trpgProviderRequestContract } from "./gmClient";
 import { extractTrpgHttpStatus } from "./startFailure";
 import { mockReadableStreamFromText, buildMockOpenRouterStreamChunks } from "@/lib/mockApiMode";
-import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
+import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 
 const GM_OK = buildTrpgGmStructuredWireText("문이 천천히 열린다.", {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false});
 
@@ -86,7 +86,7 @@ function completion(text: string): Response {
 
 function assertGmStreamGemini(body: Record<string, unknown>): void {
   const contract = trpgProviderRequestContract(body);
-  assert.equal(contract.model, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+  assert.equal(contract.model, GEMINI_38_FLASH_MODEL);
   assert.equal(contract.thinkingType, "");
   assert.equal(contract.reasoningEffort, "low");
   assert.equal(contract.stream, true);
@@ -101,8 +101,8 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.equal(BOT_MAX_PROVIDER_ATTEMPTS, 1);
     assert.equal(GM_PROVIDER_5XX_RETRY_DELAY_MS, 1000);
     assert.deepEqual([...GM_RETRYABLE_HTTP_STATUSES], [500, 502, 503, 504]);
-    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
-    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(TRPG_GM_MODEL, GEMINI_38_FLASH_MODEL);
+    assert.equal(TRPG_BOT_MODEL, GEMINI_38_FLASH_MODEL);
     for (const status of [500, 502, 503, 504]) assert.equal(isGmRetryableHttpStatus(status), true);
     for (const status of [400, 401, 403, 404, 422, 429]) assert.equal(isGmRetryableHttpStatus(status), false);
   });
@@ -197,25 +197,25 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     const { calls } = installProvider(() => sseCompletion(GM_OK));
     const result = await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000 });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]!.body.model, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
-    assert.equal(result.usage?.modelId, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(calls[0]!.body.model, GEMINI_38_FLASH_MODEL);
+    assert.equal(result.usage?.modelId, GEMINI_38_FLASH_MODEL);
   });
 
-  it("Bot usage.modelId matches Gemini 3.7 Flash and sends model-max max_tokens", async () => {
+  it("Bot usage.modelId matches Gemini 3.8 Flash and sends model-max max_tokens", async () => {
     const { calls } = installProvider(() =>
       completion(`행동 prose\n\n<<<ACTION_TYPE>>>\nfree\n\n<<<INTENT>>>\n조사한다.`)
     );
     const result = await callTrpgBot({ system: "sys", user: "행동", timeoutMs: 5_000 });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]!.body.model, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
-    assert.equal(result.usage?.modelId, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(calls[0]!.body.model, GEMINI_38_FLASH_MODEL);
+    assert.equal(result.usage?.modelId, GEMINI_38_FLASH_MODEL);
     assert.equal(calls[0]!.body.stream, false);
     assert.equal(calls[0]!.body.reasoning_effort, "low");
     assert.equal(calls[0]!.body.thinking, undefined);
     assert.equal(calls[0]!.body.reasoning, undefined);
     assert.equal(calls[0]!.body.max_tokens, TRPG_BOT_MAX_TOKENS);
-    assert.equal(TRPG_BOT_MAX_TOKENS, TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS);
-    assert.equal(TRPG_GEMINI_37_FLASH_MAX_OUTPUT_TOKENS, 65_536);
+    assert.equal(TRPG_BOT_MAX_TOKENS, TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS);
+    assert.equal(TRPG_GEMINI_FLASH_MAX_OUTPUT_TOKENS, 65_535);
   });
 
   it("does not retry a provider timeout / network throw", async () => {
