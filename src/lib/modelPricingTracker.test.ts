@@ -60,7 +60,6 @@ import {
   _setPublishedPricingForTest,
 } from "@/lib/publishedModelPricing";
 import {
-  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
@@ -69,7 +68,6 @@ import {
 import { listProviderModelDiscoveries } from "@/lib/providerModelDiscovery";
 
 const GEMINI = GEMINI_38_FLASH_MODEL;
-const HISTORICAL_GEMINI_31 = CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL;
 const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 const SOL = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
 const FIXED_NOW = new Date("2026-09-20T03:00:00.000Z");
@@ -123,8 +121,8 @@ describe("current procurement provider ownership", () => {
   });
 
   it("keeps CI snapshot provenance on CheaperInference even when examining CI evidence for an OpenRouter-routed model", () => {
-    const policy = getModelPricingPolicy(HISTORICAL_GEMINI_31)!;
-    const catalog = seedCatalog(HISTORICAL_GEMINI_31, {
+    const policy = getModelPricingPolicy(GEMINI)!;
+    const catalog = seedCatalog(GEMINI, {
       inputUsdPerMillion: 0.8,
       outputUsdPerMillion: 4.8,
       referenceInputUsdPerMillion: 2,
