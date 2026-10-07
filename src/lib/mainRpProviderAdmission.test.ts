@@ -478,7 +478,7 @@ describe("main RP provider point admission", () => {
     assert.match(ROUTE_SOURCE, /resolveMainRpProviderAdmissionRequiredPoints/);
   });
 
-  it("I calibrated Sol 160P still blocks 200P before any provider call", () => {
+  it("I actual-anchored Sol forecast still blocks 200P before any provider call", () => {
     const sol = computeMainRpNextTurnEstimates({
       promptTokensByModel: { [CHEAPER_INFERENCE_GPT_61_SOL_MODEL]: 34_816 },
       lastVisibleAssistantChars: 4_213,
@@ -488,15 +488,27 @@ describe("main RP provider point admission", () => {
       providerInputCalibrationByModel: {
         [CHEAPER_INFERENCE_GPT_61_SOL_MODEL]: {
           actualBillableInputTokens: 14_312,
+          actualBillableOutputTokens: 2_780,
           assembledInputTokens: 34_816,
+        },
+      },
+      historyDeltaByModel: {
+        [CHEAPER_INFERENCE_GPT_61_SOL_MODEL]: {
+          previousAssistantRetained: true,
+          retainedNewHistoryTokens: 2_780,
+          removedHistoryTokens: 0,
+          contextDeltaTokens: 0,
+          currentUserEstimatedTokens: 0,
+          previousRawHistoryState: "raw_retained",
+          nextRawHistoryState: "raw_retained",
         },
       },
       effectiveKrwPerUsd: FX,
     })[CHEAPER_INFERENCE_GPT_61_SOL_MODEL];
     assert.ok(sol);
-    assert.equal(sol!.displayPoints, 160);
+    assert.ok(sol!.displayPoints >= 171 && sol!.displayPoints <= 177);
     const required = resolveMainRpProviderAdmissionRequiredPoints(sol!.displayPoints);
-    assert.equal(required, 480);
+    assert.equal(required, sol!.displayPoints * 3);
     withDb((db) => {
       const provider: ProviderSeam = { calls: 0 };
       const result = enterWithEstimateAdmission(

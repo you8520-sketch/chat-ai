@@ -1,10 +1,12 @@
 /**
  * Next Main RP turn estimate owner.
- * Local assembled tokens → optional same-model billable-input calibration →
- * optional same-model billable-output-history median → Published user-charge out.
+ * Same-model actual-anchored input delta → optional same-model
+ * billable-output-history median → Published user-charge out.
  * `predictedBillableInputTokens` is a user-charge forecast, not a physical
- * provider tokenizer count. Ratio is capped at 1 to match settlement
- * `resolveTurnBillableInput(min(stageInput, promptAuditTotal))`.
+ * provider tokenizer count.
+ * Input forecast starts from the previous successful same-model billable
+ * input and adds/removes only the next-request history and context delta.
+ * Whole-prompt assembled ratio is not a live owner.
  * Output-history samples must already be billable tokens from
  * `usageOutputTokens` → `billableOpenRouterOutputTokens`. This owner does
  * not invent a second output-normalization rule.
@@ -31,6 +33,7 @@ import {
 import { SERVER_UNDER_LENGTH_RECOVERY_STAGE } from "@/lib/serverUnderLengthRecovery";
 import { isStatusWidgetExtractStageLabel } from "@/lib/statusWidget/receiptUsage";
 import { isSuccessfulDurableGenerationStatus } from "@/lib/streamingPersistenceShared";
+import { estimateTokens, estimateTokensFromCharCount } from "@/lib/tokenEstimate";
 
 export const NEXT_TURN_ESTIMATE_VERSION = "main-rp-next-turn-v1";
 
@@ -43,11 +46,46 @@ export type NextTurnOutputBasis =
   | "observed_ratio"
   | "same_model_output_history";
 
-export type NextTurnInputCalibrationSource =
+export type NextTurnInputForecastSource =
   | "uncalibrated_assembled"
-  | "same_model_billable_input_ratio";
+  | "same_model_actual_anchored_delta";
+
+export type NextTurnInputCalibrationSource = NextTurnInputForecastSource;
 
 export type NextTurnInputCalibrationConfidence = "none" | "latest_same_model";
+
+export type NextTurnRawHistoryState =
+  | "raw_retained"
+  | "raw_evicted"
+  | "summary_compacted"
+  | "unknown";
+
+export type NextTurnAssembledPromptChars = {
+  system?: number;
+  systemRules?: number;
+  characterSettings?: number;
+  dynamic?: number;
+  history?: number;
+  currentUser?: number;
+  total?: number;
+};
+
+export type NextTurnRawHistoryHealth = {
+  rawCompleteExchanges?: number;
+  summarizedThroughTurn?: number;
+  unsummarizedCompletedTurns?: number;
+  realRawCompleteExchanges?: number;
+};
+
+export type NextTurnHistoryDelta = {
+  previousAssistantRetained: boolean;
+  retainedNewHistoryTokens: number;
+  removedHistoryTokens: number;
+  contextDeltaTokens: number;
+  currentUserEstimatedTokens: number;
+  previousRawHistoryState: NextTurnRawHistoryState;
+  nextRawHistoryState: NextTurnRawHistoryState;
+};
 
 export type NextTurnEstimateRow = {
   promptTokens: number;
@@ -58,19 +96,32 @@ export type NextTurnEstimateRow = {
   localAssembledInputTokens: number;
   predictedBillableInputTokens: number;
   actualBillableInputTokens: number | null;
+  previousActualOutputTokens: number | null;
   priorAssembledInputTokens: number | null;
-  calibrationSource: NextTurnInputCalibrationSource;
+  calibrationSource: NextTurnInputForecastSource;
   calibrationConfidence: NextTurnInputCalibrationConfidence;
+  forecastSource: NextTurnInputForecastSource;
+  retainedNewHistoryTokens: number | null;
+  removedHistoryTokens: number | null;
+  contextDeltaTokens: number | null;
+  currentUserEstimatedTokens: number | null;
+  previousRawHistoryState: NextTurnRawHistoryState | null;
+  nextRawHistoryState: NextTurnRawHistoryState | null;
   outputHistorySampleCount: number | null;
 };
 
 export type NextTurnEstimateMap = Partial<Record<SelectedAI, NextTurnEstimateRow>>;
 
-export type NextTurnProviderInputCalibrationSample = {
+export type NextTurnProviderInputCalibrationSample = NextTurnActualAnchor;
+
+export type NextTurnActualAnchor = {
   actualBillableInputTokens: number;
-  assembledInputTokens: number;
+  actualBillableOutputTokens: number;
+  assembledInputTokens?: number | null;
   aggregateApiInputTokens?: number | null;
   syncAuxInputTokens?: number | null;
+  assembledPromptChars?: NextTurnAssembledPromptChars | null;
+  rawHistoryHealth?: NextTurnRawHistoryHealth | null;
 };
 
 function isFinitePositiveToken(value: number | null | undefined): value is number {
@@ -95,8 +146,11 @@ export type NextTurnCalibrationTurnFields = {
   lengthRecoveryPasses?: number | null;
   stages?: NextTurnCalibrationStageFields[] | null;
   usageInputTokens?: number | null;
+  usageOutputTokens?: number | null;
   apiInputTokens?: number | null;
   assembledInputTokens?: number | null;
+  assembledPromptChars?: NextTurnAssembledPromptChars | null;
+  rawHistoryHealth?: NextTurnRawHistoryHealth | null;
   statusWidgetExtractCallCount?: number | null;
   statusWidgetExtractInputTokens?: number | null;
 };
@@ -272,12 +326,12 @@ export function resolveMainRpNextTurnCalibrationModelId(
 }
 
 export function resolveNextTurnInputCalibrationConfidence(
-  source: NextTurnInputCalibrationSource
+  source: NextTurnInputForecastSource
 ): NextTurnInputCalibrationConfidence {
   switch (source) {
     case "uncalibrated_assembled":
       return "none";
-    case "same_model_billable_input_ratio":
+    case "same_model_actual_anchored_delta":
       return "latest_same_model";
     default: {
       const _never: never = source;
@@ -286,50 +340,171 @@ export function resolveNextTurnInputCalibrationConfidence(
   }
 }
 
-export function resolveProviderInputRatio(input: {
-  actualBillableInputTokens: number;
-  assembledInputTokens: number;
-}): number | null {
-  if (
-    !isFinitePositiveToken(input.actualBillableInputTokens) ||
-    !isFinitePositiveToken(input.assembledInputTokens)
-  ) {
-    return null;
-  }
-  const ratio = input.actualBillableInputTokens / input.assembledInputTokens;
-  if (!Number.isFinite(ratio) || ratio <= 0) return null;
-  return Math.min(1, ratio);
+export function isPreviousAssistantRetainedInHistory(input: {
+  nextPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
+  previousAssistantContent?: string | null;
+}): boolean {
+  const previous = (input.previousAssistantContent ?? "").trim();
+  if (!previous || !input.nextPromptHistory?.length) return false;
+  return input.nextPromptHistory.some(
+    (message) =>
+      message.role === "assistant" && (message.content ?? "").trim() === previous
+  );
 }
 
-export function applyProviderInputCalibration(input: {
+function nonHistoryAssembledChars(chars: NextTurnAssembledPromptChars | null | undefined): number {
+  if (!chars) return 0;
+  return (
+    Math.max(0, chars.system ?? 0) +
+    Math.max(0, chars.systemRules ?? 0) +
+    Math.max(0, chars.characterSettings ?? 0) +
+    Math.max(0, chars.dynamic ?? 0)
+  );
+}
+
+export function resolveNextTurnRawHistoryState(input: {
+  previous?: NextTurnRawHistoryHealth | null;
+  next?: NextTurnRawHistoryHealth | null;
+  previousAssistantRetained: boolean;
+  removedHistoryTokens: number;
+}): { previous: NextTurnRawHistoryState; next: NextTurnRawHistoryState } {
+  const prevSummarized = input.previous?.summarizedThroughTurn ?? 0;
+  const nextSummarized = input.next?.summarizedThroughTurn ?? prevSummarized;
+  if (nextSummarized > prevSummarized) {
+    return { previous: "raw_retained", next: "summary_compacted" };
+  }
+  if (input.removedHistoryTokens > 0) {
+    return {
+      previous: input.previousAssistantRetained ? "raw_retained" : "unknown",
+      next: "raw_evicted",
+    };
+  }
+  if (input.previousAssistantRetained) {
+    return { previous: "raw_retained", next: "raw_retained" };
+  }
+  return { previous: "unknown", next: "unknown" };
+}
+
+export function resolveNextTurnHistoryDelta(input: {
+  previous: NextTurnActualAnchor;
+  previousAssistantRetained: boolean;
+  currentUserEstimatedTokens?: number | null;
+  contextDeltaTokens?: number | null;
+  removedHistoryTokens?: number | null;
+  nextAssembledPromptChars?: NextTurnAssembledPromptChars | null;
+  nextRawHistoryHealth?: NextTurnRawHistoryHealth | null;
+  evictedMessageTexts?: string[] | null;
+}): NextTurnHistoryDelta {
+  const retainedNewHistoryTokens = input.previousAssistantRetained
+    ? Math.max(0, Math.round(input.previous.actualBillableOutputTokens))
+    : 0;
+  const evictedFromTexts = (input.evictedMessageTexts ?? []).reduce(
+    (sum, text) => sum + estimateTokens(text),
+    0
+  );
+  const removedHistoryTokens = Math.max(
+    0,
+    Math.round(input.removedHistoryTokens ?? evictedFromTexts)
+  );
+  let contextDeltaTokens = Math.round(input.contextDeltaTokens ?? 0);
+  if (input.contextDeltaTokens == null && input.nextAssembledPromptChars) {
+    const previousNonHistory = estimateTokensFromCharCount(
+      nonHistoryAssembledChars(input.previous.assembledPromptChars)
+    );
+    const nextNonHistory = estimateTokensFromCharCount(
+      nonHistoryAssembledChars(input.nextAssembledPromptChars)
+    );
+    if (previousNonHistory > 0 || nextNonHistory > 0) {
+      contextDeltaTokens = nextNonHistory - previousNonHistory;
+    }
+  }
+  const currentUserEstimatedTokens = Math.max(
+    0,
+    Math.round(input.currentUserEstimatedTokens ?? 0)
+  );
+  const rawState = resolveNextTurnRawHistoryState({
+    previous: input.previous.rawHistoryHealth,
+    next: input.nextRawHistoryHealth,
+    previousAssistantRetained: input.previousAssistantRetained,
+    removedHistoryTokens,
+  });
+  return {
+    previousAssistantRetained: input.previousAssistantRetained,
+    retainedNewHistoryTokens,
+    removedHistoryTokens,
+    contextDeltaTokens,
+    currentUserEstimatedTokens,
+    previousRawHistoryState: rawState.previous,
+    nextRawHistoryState: rawState.next,
+  };
+}
+
+export function applyActualAnchoredInputDelta(input: {
+  previous: NextTurnActualAnchor;
+  historyDelta: NextTurnHistoryDelta;
+  localAssembledInputTokens?: number;
+}): {
+  predictedBillableInputTokens: number;
+  actualBillableInputTokens: number;
+  previousActualOutputTokens: number;
+  forecastSource: NextTurnInputForecastSource;
+  calibrationSource: NextTurnInputForecastSource;
+  calibrationConfidence: NextTurnInputCalibrationConfidence;
+} {
+  const predicted = Math.max(
+    1,
+    Math.round(
+      input.previous.actualBillableInputTokens +
+        input.historyDelta.retainedNewHistoryTokens +
+        input.historyDelta.currentUserEstimatedTokens +
+        input.historyDelta.contextDeltaTokens -
+        input.historyDelta.removedHistoryTokens
+    )
+  );
+  const source = "same_model_actual_anchored_delta" as const;
+  return {
+    predictedBillableInputTokens: predicted,
+    actualBillableInputTokens: Math.round(input.previous.actualBillableInputTokens),
+    previousActualOutputTokens: Math.round(input.previous.actualBillableOutputTokens),
+    forecastSource: source,
+    calibrationSource: source,
+    calibrationConfidence: resolveNextTurnInputCalibrationConfidence(source),
+  };
+}
+
+export function applyNextTurnInputForecast(input: {
   localAssembledInputTokens: number;
-  sample?: NextTurnProviderInputCalibrationSample | null;
+  previous?: NextTurnActualAnchor | null;
+  historyDelta?: NextTurnHistoryDelta | null;
 }): {
   predictedBillableInputTokens: number;
   actualBillableInputTokens: number | null;
-  calibrationSource: NextTurnInputCalibrationSource;
+  previousActualOutputTokens: number | null;
+  forecastSource: NextTurnInputForecastSource;
+  calibrationSource: NextTurnInputForecastSource;
   calibrationConfidence: NextTurnInputCalibrationConfidence;
-  providerInputRatio: number | null;
 } {
   const localAssembled = Math.round(input.localAssembledInputTokens);
-  const ratio = input.sample ? resolveProviderInputRatio(input.sample) : null;
-  if (ratio == null) {
-    const source = "uncalibrated_assembled" as const;
-    return {
-      predictedBillableInputTokens: localAssembled,
-      actualBillableInputTokens: null,
-      calibrationSource: source,
-      calibrationConfidence: resolveNextTurnInputCalibrationConfidence(source),
-      providerInputRatio: null,
-    };
+  if (
+    input.previous &&
+    isFinitePositiveToken(input.previous.actualBillableInputTokens) &&
+    isFinitePositiveToken(input.previous.actualBillableOutputTokens) &&
+    input.historyDelta
+  ) {
+    return applyActualAnchoredInputDelta({
+      previous: input.previous,
+      historyDelta: input.historyDelta,
+      localAssembledInputTokens: localAssembled,
+    });
   }
-  const source = "same_model_billable_input_ratio" as const;
+  const source = "uncalibrated_assembled" as const;
   return {
-    predictedBillableInputTokens: Math.max(1, Math.round(localAssembled * ratio)),
-    actualBillableInputTokens: Math.round(input.sample!.actualBillableInputTokens),
+    predictedBillableInputTokens: localAssembled,
+    actualBillableInputTokens: null,
+    previousActualOutputTokens: null,
+    forecastSource: source,
     calibrationSource: source,
     calibrationConfidence: resolveNextTurnInputCalibrationConfidence(source),
-    providerInputRatio: ratio,
   };
 }
 
@@ -399,13 +574,7 @@ export function isUsableProviderInputCalibrationSource(
 ): boolean {
   if (!isUncontaminatedSameModelCalibrationTurn(input)) return false;
   if (!isFinitePositiveToken(input.usageInputTokens)) return false;
-  if (!isFinitePositiveToken(input.assembledInputTokens)) return false;
-  return (
-    resolveProviderInputRatio({
-      actualBillableInputTokens: input.usageInputTokens,
-      assembledInputTokens: input.assembledInputTokens,
-    }) != null
-  );
+  return isFinitePositiveToken(input.usageOutputTokens);
 }
 
 export function isUsableOutputHistorySource(input: NextTurnCalibrationTurnFields & {
@@ -427,17 +596,27 @@ export function pickLatestProviderInputCalibrationByModel(
       resolveMainRpNextTurnCalibrationModelId(candidate.selectedAI) ??
       resolveMainRpNextTurnCalibrationModelId(candidate.model);
     if (!modelId || out[modelId] != null) continue;
-    const assembledInputTokens = candidate.assembledInputTokens as number;
     const reportedInputTokens = candidate.usageInputTokens as number;
+    const reportedOutputTokens = candidate.usageOutputTokens as number;
+    const assembledInputTokens = isFinitePositiveToken(candidate.assembledInputTokens)
+      ? candidate.assembledInputTokens
+      : null;
     const aggregateApiInputTokens = isFinitePositiveToken(candidate.apiInputTokens)
       ? candidate.apiInputTokens
       : null;
     const syncAuxInputTokens = resolveSyncAuxInputTokens(candidate);
     out[modelId] = {
-      actualBillableInputTokens: Math.min(reportedInputTokens, assembledInputTokens),
-      assembledInputTokens,
+      actualBillableInputTokens: assembledInputTokens
+        ? Math.min(reportedInputTokens, assembledInputTokens)
+        : reportedInputTokens,
+      actualBillableOutputTokens: reportedOutputTokens,
+      ...(assembledInputTokens != null ? { assembledInputTokens } : {}),
       ...(aggregateApiInputTokens != null ? { aggregateApiInputTokens } : {}),
       ...(syncAuxInputTokens != null ? { syncAuxInputTokens } : {}),
+      ...(candidate.assembledPromptChars
+        ? { assembledPromptChars: candidate.assembledPromptChars }
+        : {}),
+      ...(candidate.rawHistoryHealth ? { rawHistoryHealth: candidate.rawHistoryHealth } : {}),
     };
   }
   return out;
@@ -508,8 +687,9 @@ export function computeMainRpNextTurnEstimates(input: {
   observedCharsPerTokenByModel?: Partial<Record<SelectedAI, number | null>>;
   recentBillableOutputTokensByModel?: Partial<Record<SelectedAI, number[] | null>>;
   providerInputCalibrationByModel?: Partial<
-    Record<SelectedAI, NextTurnProviderInputCalibrationSample | null>
+    Record<SelectedAI, NextTurnActualAnchor | null>
   >;
+  historyDeltaByModel?: Partial<Record<SelectedAI, NextTurnHistoryDelta | null>>;
   effectiveKrwPerUsd: number;
 }): NextTurnEstimateMap {
   const out: NextTurnEstimateMap = {};
@@ -519,11 +699,14 @@ export function computeMainRpNextTurnEstimates(input: {
       continue;
     }
     const localAssembledInputTokens = Math.round(assembled);
-    const calibrated = applyProviderInputCalibration({
+    const previous = input.providerInputCalibrationByModel?.[modelId] ?? null;
+    const historyDelta = input.historyDeltaByModel?.[modelId] ?? null;
+    const forecast = applyNextTurnInputForecast({
       localAssembledInputTokens,
-      sample: input.providerInputCalibrationByModel?.[modelId],
+      previous,
+      historyDelta,
     });
-    const predictedBillableInputTokens = calibrated.predictedBillableInputTokens;
+    const predictedBillableInputTokens = forecast.predictedBillableInputTokens;
     const observed = input.observedCharsPerTokenByModel?.[modelId];
     const outputForecast = resolveNextTurnOutputForecast({
       lastVisibleAssistantChars: input.lastVisibleAssistantChars,
@@ -547,14 +730,21 @@ export function computeMainRpNextTurnEstimates(input: {
       outputBasis: outputForecast.outputBasis,
       localAssembledInputTokens,
       predictedBillableInputTokens,
-      actualBillableInputTokens: calibrated.actualBillableInputTokens,
-      priorAssembledInputTokens: input.providerInputCalibrationByModel?.[modelId]
-        ? Math.round(
-            input.providerInputCalibrationByModel[modelId]!.assembledInputTokens
-          )
-        : null,
-      calibrationSource: calibrated.calibrationSource,
-      calibrationConfidence: calibrated.calibrationConfidence,
+      actualBillableInputTokens: forecast.actualBillableInputTokens,
+      previousActualOutputTokens: forecast.previousActualOutputTokens,
+      priorAssembledInputTokens:
+        previous?.assembledInputTokens != null
+          ? Math.round(previous.assembledInputTokens)
+          : null,
+      calibrationSource: forecast.calibrationSource,
+      calibrationConfidence: forecast.calibrationConfidence,
+      forecastSource: forecast.forecastSource,
+      retainedNewHistoryTokens: historyDelta?.retainedNewHistoryTokens ?? null,
+      removedHistoryTokens: historyDelta?.removedHistoryTokens ?? null,
+      contextDeltaTokens: historyDelta?.contextDeltaTokens ?? null,
+      currentUserEstimatedTokens: historyDelta?.currentUserEstimatedTokens ?? null,
+      previousRawHistoryState: historyDelta?.previousRawHistoryState ?? null,
+      nextRawHistoryState: historyDelta?.nextRawHistoryState ?? null,
       outputHistorySampleCount: outputForecast.outputHistorySampleCount,
     };
   }

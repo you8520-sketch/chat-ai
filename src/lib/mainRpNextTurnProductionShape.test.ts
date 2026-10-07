@@ -14,6 +14,7 @@ import {
   computeMainRpNextTurnEstimates,
   firstNextTurnCalibrationRejection,
   isUsableProviderInputCalibrationSource,
+  resolveNextTurnHistoryDelta,
 } from "@/lib/mainRpNextTurnEstimate";
 import { NARRATIVE_LENGTH_CONTINUATION_STAGE } from "@/lib/narrativeLengthContinuation";
 import { SERVER_UNDER_LENGTH_RECOVERY_STAGE } from "@/lib/serverUnderLengthRecovery";
@@ -100,6 +101,7 @@ function calibrationInputFromUsage(
     lengthRecoveryPasses: usage.lengthRecoveryPasses ?? null,
     stages: usage.stages ?? null,
     usageInputTokens: usage.input ?? null,
+    usageOutputTokens: usage.output ?? null,
     apiInputTokens: usage.apiInputTokens ?? null,
     assembledInputTokens: usage.assembledInputTokens ?? null,
     statusWidgetExtractCallCount: usage.statusWidgetExtract?.callCount ?? null,
@@ -201,6 +203,15 @@ function solEstimate(usage: Usage | null, assembled = ASSEMBLED) {
     lastVisibleAssistantChars: SAVED_CHARS,
     observedCharsPerTokenByModel: { [SOL]: SAVED_CHARS / API_OUT },
     providerInputCalibrationByModel: { [SOL]: sample ?? null },
+    historyDeltaByModel: sample
+      ? {
+          [SOL]: resolveNextTurnHistoryDelta({
+            previous: sample,
+            previousAssistantRetained: true,
+            currentUserEstimatedTokens: 0,
+          }),
+        }
+      : undefined,
     effectiveKrwPerUsd: FX,
   })[SOL];
 }
@@ -225,12 +236,12 @@ describe("production-shape Sol 14312/2780/4213 persist + eligibility", () => {
     assert.ok(fail);
     assert.equal(fail!.predicate, "finite assembledInputTokens");
     assert.equal(fail!.stored, null);
-    assert.equal(isUsableProviderInputCalibrationSource(calibrationInputFromUsage(persisted)), false);
+    assert.equal(isUsableProviderInputCalibrationSource(calibrationInputFromUsage(persisted)), true);
     const row = solEstimate(persisted);
     assert.ok(row);
-    assert.equal(row!.calibrationSource, "uncalibrated_assembled");
-    assert.equal(row!.predictedBillableInputTokens, ASSEMBLED);
-    assert.equal(row!.displayPoints, 277);
+    assert.equal(row!.forecastSource, "same_model_actual_anchored_delta");
+    assert.equal(row!.predictedBillableInputTokens, API_IN + API_OUT);
+    assert.ok(row!.displayPoints >= 171 && row!.displayPoints <= 177);
   });
 
   it("RED: admin persist first FAIL used to be apiCallCount>1 before html-flash exception", () => {
@@ -263,18 +274,19 @@ describe("production-shape Sol 14312/2780/4213 persist + eligibility", () => {
     const sample = readMainRpNextTurnProviderInputCalibration([assistantRow(persisted)])[SOL];
     assert.deepEqual(sample, {
       actualBillableInputTokens: API_IN,
+      actualBillableOutputTokens: API_OUT,
       assembledInputTokens: ASSEMBLED,
       aggregateApiInputTokens: API_IN,
     });
     const row = solEstimate(persisted);
     assert.ok(row);
-    assert.equal(row!.calibrationSource, "same_model_billable_input_ratio");
+    assert.equal(row!.calibrationSource, "same_model_actual_anchored_delta");
     assert.equal(row!.actualBillableInputTokens, API_IN);
     assert.equal(row!.priorAssembledInputTokens, ASSEMBLED);
-    assert.equal(row!.predictedBillableInputTokens, API_IN);
+    assert.equal(row!.predictedBillableInputTokens, API_IN + API_OUT);
     assert.equal(row!.expectedOutputTokens, API_OUT);
     assert.equal(row!.outputBasis, "observed_ratio");
-    assert.ok(row!.displayPoints >= 159 && row!.displayPoints <= 163);
+    assert.ok(row!.displayPoints >= 171 && row!.displayPoints <= 177);
     assert.notEqual(row!.displayPoints, 277);
   });
 
@@ -284,8 +296,8 @@ describe("production-shape Sol 14312/2780/4213 persist + eligibility", () => {
     assert.equal(firstFail(matrix), null);
     assert.equal(firstNextTurnCalibrationRejection(calibrationInputFromUsage(admin)), null);
     const row = solEstimate(admin);
-    assert.equal(row?.calibrationSource, "same_model_billable_input_ratio");
-    assert.ok((row?.displayPoints ?? 0) >= 159 && (row?.displayPoints ?? 0) <= 163);
+    assert.equal(row?.calibrationSource, "same_model_actual_anchored_delta");
+    assert.ok((row?.displayPoints ?? 0) >= 171 && (row?.displayPoints ?? 0) <= 177);
   });
 
   it("keeps continuation/recovery/fallback multi-call rejected", () => {

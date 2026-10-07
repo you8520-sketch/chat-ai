@@ -16,15 +16,20 @@ import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { billableOpenRouterOutputTokens } from "@/lib/points";
 import {
   computeMainRpNextTurnEstimates,
+  isPreviousAssistantRetainedInHistory,
   isUsableOutputCalibrationSource,
   nextTurnEstimateDisplayMap,
   pickLatestProviderInputCalibrationByModel,
   pickRecentSameModelBillableOutputTokens,
   resolveMainRpNextTurnCalibrationModelId,
+  resolveNextTurnHistoryDelta,
   resolveObservedCharsPerToken,
+  type NextTurnActualAnchor,
   type NextTurnEstimateMap,
+  type NextTurnHistoryDelta,
   type NextTurnProviderInputCalibrationSample,
 } from "@/lib/mainRpNextTurnEstimate";
+import { estimateTokens } from "@/lib/tokenEstimate";
 import { isSuccessfulDurableGenerationStatus } from "@/lib/streamingPersistenceShared";
 import { resolveModelPickerAssembledInputSnapshots } from "@/services/modelPickerInputSnapshot";
 
@@ -127,8 +132,11 @@ function calibrationTurnFields(row: EstimateMessageRow) {
     lengthRecoveryPasses: usage?.lengthRecoveryPasses ?? null,
     stages: usage?.stages ?? null,
     usageInputTokens: usage?.input ?? null,
+    usageOutputTokens: usageOutputTokens(usage, usage?.selectedAI || usage?.model || row.model || ""),
     apiInputTokens: usage?.apiInputTokens ?? null,
     assembledInputTokens: usage?.assembledInputTokens ?? null,
+    assembledPromptChars: usage?.assembledPromptChars ?? null,
+    rawHistoryHealth: usage?.rawHistoryHealth ?? null,
     statusWidgetExtractCallCount: usage?.statusWidgetExtract?.callCount ?? null,
     statusWidgetExtractInputTokens: usage?.statusWidgetExtract?.input ?? null,
   };
@@ -140,6 +148,57 @@ export function readMainRpNextTurnProviderInputCalibration(
   return pickLatestProviderInputCalibrationByModel(
     rows.filter((row) => row.role === "assistant").map((row) => calibrationTurnFields(row))
   );
+}
+
+function lastSuccessfulAssistantContent(rows: EstimateMessageRow[]): string | null {
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    const row = rows[i];
+    if (!row || row.role !== "assistant") continue;
+    if ((row.model ?? "").trim() === "greeting") continue;
+    if (!isSuccessfulDurableGenerationStatus(row.generation_status)) continue;
+    const usage = parseUsage(row.usage);
+    if (usage?.htmlFlashOnly) continue;
+    const content = row.content.trim();
+    if (!content) continue;
+    return content;
+  }
+  return null;
+}
+
+export function resolveMainRpNextTurnHistoryDeltaForAnchor(
+  rows: EstimateMessageRow[],
+  anchor: NextTurnActualAnchor | null | undefined,
+  opts?: {
+    nextPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
+    currentUserEstimatedTokens?: number | null;
+    currentUserMessage?: string | null;
+    contextDeltaTokens?: number | null;
+    removedHistoryTokens?: number | null;
+    evictedMessageTexts?: string[] | null;
+  }
+): NextTurnHistoryDelta | null {
+  if (!anchor) return null;
+  const previousAssistantContent = lastSuccessfulAssistantContent(rows);
+  const previousAssistantRetained =
+    opts?.nextPromptHistory != null
+      ? isPreviousAssistantRetainedInHistory({
+          nextPromptHistory: opts.nextPromptHistory,
+          previousAssistantContent,
+        })
+      : true;
+  const currentUserEstimatedTokens =
+    opts?.currentUserEstimatedTokens ??
+    (opts?.currentUserMessage ? estimateTokens(opts.currentUserMessage) : 0);
+  return resolveNextTurnHistoryDelta({
+    previous: anchor,
+    previousAssistantRetained,
+    currentUserEstimatedTokens,
+    contextDeltaTokens: opts?.contextDeltaTokens,
+    removedHistoryTokens: opts?.removedHistoryTokens,
+    evictedMessageTexts: opts?.evictedMessageTexts,
+    nextAssembledPromptChars: null,
+    nextRawHistoryHealth: null,
+  });
 }
 
 export function readMainRpNextTurnOutputHistory(
@@ -165,7 +224,8 @@ function estimatesFromRoomRows(
   promptTokensByModel: Partial<Record<SelectedAI, number>>,
   providerInputCalibrationByModel: Partial<
     Record<SelectedAI, NextTurnProviderInputCalibrationSample>
-  >
+  >,
+  historyDeltaByModel?: Partial<Record<SelectedAI, NextTurnHistoryDelta | null>>
 ): NextTurnEstimateMap {
   return computeMainRpNextTurnEstimates({
     promptTokensByModel,
@@ -173,8 +233,29 @@ function estimatesFromRoomRows(
     observedCharsPerTokenByModel: readObservedCharsPerTokenByModel(rows),
     recentBillableOutputTokensByModel: readMainRpNextTurnOutputHistory(rows),
     providerInputCalibrationByModel,
+    historyDeltaByModel,
     effectiveKrwPerUsd: getEffectiveKrwPerUsd(),
   });
+}
+
+function historyDeltaByModelFromRows(
+  rows: EstimateMessageRow[],
+  anchors: Partial<Record<SelectedAI, NextTurnActualAnchor>>,
+  opts?: {
+    nextPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
+    currentUserEstimatedTokens?: number | null;
+    currentUserMessage?: string | null;
+  }
+): Partial<Record<SelectedAI, NextTurnHistoryDelta>> {
+  const out: Partial<Record<SelectedAI, NextTurnHistoryDelta>> = {};
+  for (const [modelId, anchor] of Object.entries(anchors) as Array<
+    [SelectedAI, NextTurnActualAnchor | undefined]
+  >) {
+    if (!anchor) continue;
+    const delta = resolveMainRpNextTurnHistoryDeltaForAnchor(rows, anchor, opts);
+    if (delta) out[modelId] = delta;
+  }
+  return out;
 }
 
 /** One-model Published next-turn estimate. No provider I/O. Not a charge owner. */
@@ -182,6 +263,9 @@ export function resolveMainRpNextTurnPublishedEstimateForModel(opts: {
   chatId: number;
   modelId: SelectedAI;
   promptTokens: number;
+  currentUserEstimatedTokens?: number | null;
+  currentUserMessage?: string | null;
+  nextPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
 }): number | null {
   if (!Number.isFinite(opts.promptTokens) || opts.promptTokens <= 0) return null;
   const db = getDb();
@@ -191,12 +275,18 @@ export function resolveMainRpNextTurnPublishedEstimateForModel(opts: {
        FROM messages WHERE chat_id=? ORDER BY id ASC`
     )
     .all(opts.chatId) as EstimateMessageRow[];
+  const anchors = readMainRpNextTurnProviderInputCalibration(rows);
   const estimates = estimatesFromRoomRows(
     rows,
     {
       [opts.modelId]: opts.promptTokens,
     },
-    readMainRpNextTurnProviderInputCalibration(rows)
+    anchors,
+    historyDeltaByModelFromRows(rows, anchors, {
+      nextPromptHistory: opts.nextPromptHistory,
+      currentUserEstimatedTokens: opts.currentUserEstimatedTokens,
+      currentUserMessage: opts.currentUserMessage,
+    })
   );
   const points = estimates[opts.modelId]?.displayPoints;
   return typeof points === "number" && Number.isSafeInteger(points) && points > 0
@@ -253,7 +343,10 @@ export async function resolveMainRpNextTurnPickerEstimates(opts: {
   const estimates = estimatesFromRoomRows(
     rows,
     promptTokensByModel,
-    providerInputCalibrationByModel
+    providerInputCalibrationByModel,
+    historyDeltaByModelFromRows(rows, providerInputCalibrationByModel, {
+      currentUserEstimatedTokens: 0,
+    })
   );
   return {
     chatId: opts.chatId,

@@ -71,6 +71,7 @@ describe("main RP next-turn provider-input calibration reader", () => {
     ];
     assert.deepEqual(readMainRpNextTurnProviderInputCalibration(rows)[SOL], {
       actualBillableInputTokens: 14_312,
+      actualBillableOutputTokens: 2_780,
       assembledInputTokens: 34_816,
       aggregateApiInputTokens: 14_312,
     });
@@ -99,10 +100,19 @@ describe("main RP next-turn provider-input calibration reader", () => {
       assistantRow(validSolUsage({ htmlFlashOnly: true, apiInputTokens: 6 })),
       assistantRow(validSolUsage({ apiInputTokens: 7 }), { model: "greeting" }),
       assistantRow(validSolUsage({ apiInputTokens: 8 }), { generation_status: "failed" }),
-      assistantRow(validSolUsage({ apiInputTokens: 9, assembledInputTokens: undefined })),
+      assistantRow(
+        validSolUsage({
+          apiInputTokens: 9,
+          assembledInputTokens: undefined,
+          output: undefined,
+          apiOutputTokens: undefined,
+          apiContentOutputTokens: undefined,
+        })
+      ),
     ];
     assert.deepEqual(readMainRpNextTurnProviderInputCalibration(rows)[SOL], {
       actualBillableInputTokens: 14_312,
+      actualBillableOutputTokens: 2_780,
       assembledInputTokens: 34_816,
       aggregateApiInputTokens: 14_312,
     });
@@ -119,6 +129,7 @@ describe("main RP next-turn provider-input calibration reader", () => {
     ];
     assert.deepEqual(readMainRpNextTurnProviderInputCalibration(rows)[SOL], {
       actualBillableInputTokens: 14_312,
+      actualBillableOutputTokens: 2_780,
       assembledInputTokens: 34_816,
       aggregateApiInputTokens: 14_312,
     });
@@ -143,11 +154,13 @@ describe("main RP next-turn provider-input calibration reader", () => {
     const picked = readMainRpNextTurnProviderInputCalibration(rows);
     assert.deepEqual(picked[SOL], {
       actualBillableInputTokens: 14_312,
+      actualBillableOutputTokens: 2_780,
       assembledInputTokens: 34_816,
       aggregateApiInputTokens: 14_312,
     });
     assert.deepEqual(picked[FLASH], {
       actualBillableInputTokens: 9_000,
+      actualBillableOutputTokens: 2_780,
       assembledInputTokens: 9_500,
       aggregateApiInputTokens: 9_000,
     });

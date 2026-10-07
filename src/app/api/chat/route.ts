@@ -2775,6 +2775,8 @@ export async function POST(req: Request) {
         typeof assembledPromptTokens === "number" && assembledPromptTokens > 0
           ? assembledPromptTokens
           : 0,
+      currentUserEstimatedTokens: built.meta.promptAudit?.currentUserTurnTokens ?? null,
+      nextPromptHistory: historyRef,
     });
     const requiredPoints = resolveMainRpProviderAdmissionRequiredPoints(publishedEstimate);
     const liveBalance = getPointBalance(user.id);
