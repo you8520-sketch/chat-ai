@@ -10,6 +10,9 @@ import { listTrpgCampaigns, loadTrpgSnapshot } from "./engineSnapshot";
 import { parseHumanPersona } from "./hostPersona";
 import { trpgInvitePath } from "./invite";
 import { loadSheetSnapshots } from "./engineSheets";
+import { formatInventoryAuthoringText } from "./inventory";
+import { scenarioEditorSavePayload } from "./scenarioEditorState";
+import { emptyTrpgScenarioPlan } from "./scenarioPlan";
 import { insertScenarioTemplate, loadScenarioTemplate, rowToScenarioTemplate, updateScenarioTemplate } from "./scenarioTemplates";
 import {
   TRPG_SCENARIO_BUNDLE_LIMIT,
@@ -174,6 +177,44 @@ describe("TRPG scenarios and catalog", () => {
     assert.deepEqual(loadScenario(db, campaignId).startInventory, ["붕대", "붕대", "해독제", "붕대"]);
     saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
     assert.deepEqual(loadSheetSnapshots(db, campaignId)[0]?.inventory, ["붕대", "붕대", "해독제", "붕대"]);
+    db.close();
+  });
+
+  it("creator `이름 ×N` text persists raw units and reloads as the same compact text", () => {
+    const db = memoryDb();
+    const fields = {
+      title: "폐역 탐험",
+      summary: "",
+      content: "한밤의 역.",
+      secretContent: "",
+      worldId: "" as const,
+      visibility: "private" as const,
+      startLocation: "대합실",
+      inventoryText: "붕대 ×3, 해독제",
+      statKeys: ["str", "dex", "int"],
+      npcs: [],
+      genres: [],
+      assets: [],
+      plan: emptyTrpgScenarioPlan(),
+      characterIds: [],
+    };
+    const templateId = insertScenarioTemplate(db, 1, scenarioEditorSavePayload(fields));
+    const raw = () =>
+      (db.prepare(`SELECT start_inventory_json FROM trpg_scenario_templates WHERE id=?`).get(templateId) as { start_inventory_json: string })
+        .start_inventory_json;
+    const reloadText = () =>
+      formatInventoryAuthoringText(rowToScenarioTemplate(loadScenarioTemplate(db, templateId)!, { includeSecret: true }).startInventory);
+    assert.equal(raw(), JSON.stringify(["붕대", "붕대", "붕대", "해독제"]));
+    assert.equal(reloadText(), "붕대 ×3, 해독제");
+
+    updateScenarioTemplate(db, templateId, 1, scenarioEditorSavePayload({ ...fields, inventoryText: "해독제, 붕대 ×2, 고급 붕대" }));
+    assert.equal(raw(), JSON.stringify(["해독제", "붕대", "붕대", "고급 붕대"]));
+    assert.equal(reloadText(), "해독제, 붕대 ×2, 고급 붕대");
+
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1, templateId });
+    assert.deepEqual(loadScenario(db, campaignId).startInventory, ["해독제", "붕대", "붕대", "고급 붕대"]);
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: { str: 9, dex: 8, int: 8 } });
+    assert.deepEqual(loadSheetSnapshots(db, campaignId)[0]?.inventory, ["해독제", "붕대", "붕대", "고급 붕대"]);
     db.close();
   });
 

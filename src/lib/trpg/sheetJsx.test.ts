@@ -18,7 +18,7 @@ import {
   type TrpgSheetSurface,
 } from "./sheetSurface";
 import { useItemActionDraft } from "./commandDock";
-import { inventoryStackLabel, stackInventory } from "./sheetHud";
+import { inventoryStackLabel, stackInventory } from "./inventory";
 import { sheetToWidgetValues, type TrpgSheetHudCard } from "./sheetView";
 import type { TrpgPublicOngoingEffect } from "./snapshot";
 import { TRPG_ACTION_MAX_CHARS, type TrpgStatDefinition } from "./types";

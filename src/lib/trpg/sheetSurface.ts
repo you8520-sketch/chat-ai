@@ -1,6 +1,7 @@
 import { isTrpgActionType } from "./actionTypes";
 import { ongoingEffectActionDraft, useItemActionDraft, type TrpgActionDraftFill } from "./commandDock";
-import { formatOngoingBadge, hpPercent, hpRiskLevel, stackInventory, type TrpgHpRisk } from "./sheetHud";
+import { stackInventory } from "./inventory";
+import { formatOngoingBadge, hpPercent, hpRiskLevel, type TrpgHpRisk } from "./sheetHud";
 import type { TrpgSheetHudCard } from "./sheetView";
 import type { TrpgMechanicsHudLine, TrpgPublicOngoingEffect } from "./snapshot";
 import { defsFromKeys, statModifier } from "./stats";

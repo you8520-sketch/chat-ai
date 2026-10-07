@@ -525,7 +525,7 @@ import {
 import { formatClientApiError } from "@/lib/apiErrors";
 import { observeProductionRequestIncident } from "@/lib/opsRequestIncidents";
 import { refreshCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing.server";
-import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
+import { resolveMainRpPrimaryWireModelId } from "@/lib/openRouterConfig";
 import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
 import {
@@ -1522,10 +1522,7 @@ export async function POST(req: Request) {
     primaryProvider === "cheaperinference"
       ? await refreshCheaperInferenceCatalogPricing()
       : false;
-  const billingOpenRouterModelId =
-    primaryProvider === "openrouter"
-      ? resolveOpenRouterModelId(effectiveSelectedAI)
-      : effectiveSelectedAI;
+  const billingOpenRouterModelId = resolveMainRpPrimaryWireModelId(effectiveSelectedAI);
   const openRouterApiModelId = billingOpenRouterModelId;
   const canonInjectionPolicy = resolveCanonInjectionPolicy(openRouterApiModelId, {
     userId: user.id,

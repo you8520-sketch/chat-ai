@@ -1,3 +1,4 @@
+import { TRPG_START_INVENTORY_MAX_UNITS } from "./inventory";
 import { TRPG_DEFAULT_ENDING_GUIDANCE } from "./trpgPublication";
 import type { TrpgScenarioNpc } from "./scenarioTypes";
 
@@ -439,7 +440,7 @@ export function lintTrpgScenarioPlan(opts: {
   const inventoryCount = Array.isArray(opts.startInventory)
     ? opts.startInventory.filter((item) => String(item ?? "").trim()).length
     : 0;
-  if (inventoryCount > 12) {
+  if (inventoryCount > TRPG_START_INVENTORY_MAX_UNITS) {
     issues.push({ level: "error", code: "inventory_limit", message: "시작 아이템 수가 제한을 초과합니다." });
   }
   const recoveryText = [
