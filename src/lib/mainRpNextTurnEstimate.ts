@@ -55,6 +55,7 @@ export type NextTurnEstimateRow = {
   localAssembledInputTokens: number;
   predictedBillableInputTokens: number;
   actualBillableInputTokens: number | null;
+  priorAssembledInputTokens: number | null;
   calibrationSource: NextTurnInputCalibrationSource;
   calibrationConfidence: NextTurnInputCalibrationConfidence;
   outputHistorySampleCount: number | null;
@@ -82,7 +83,31 @@ export type NextTurnCalibrationTurnFields = {
   fallbackAttempted?: boolean;
   apiCallCount?: number | null;
   lengthRecoveryPasses?: number | null;
+  mainRpStageCount?: number | null;
 };
+
+/**
+ * Receipt `apiCallCount` includes HTML-flash / widget visual-card passes.
+ * Those extra calls are not Main RP stages and do not change
+ * primaryStage apiInputTokens. Continuation and recovery always persist
+ * an extra stage; reject those. Missing stage count stays conservative.
+ */
+export function isHtmlFlashOnlyInflatedApiCallCount(
+  input: NextTurnCalibrationTurnFields
+): boolean {
+  if ((input.apiCallCount ?? 1) <= 1) return false;
+  if ((input.lengthRecoveryPasses ?? 0) > 0) return false;
+  if (input.fallback) return false;
+  if (input.fallbackAttempted === true) return false;
+  return input.mainRpStageCount === 1;
+}
+
+export function isMainRpMultiCallContamination(
+  input: NextTurnCalibrationTurnFields
+): boolean {
+  if ((input.apiCallCount ?? 1) <= 1) return false;
+  return !isHtmlFlashOnlyInflatedApiCallCount(input);
+}
 
 export function isUncontaminatedSameModelCalibrationTurn(
   input: NextTurnCalibrationTurnFields
@@ -94,7 +119,7 @@ export function isUncontaminatedSameModelCalibrationTurn(
   if (input.estimated === true) return false;
   if (input.fallback) return false;
   if (input.fallbackAttempted === true) return false;
-  if ((input.apiCallCount ?? 1) > 1) return false;
+  if (isMainRpMultiCallContamination(input)) return false;
   if ((input.lengthRecoveryPasses ?? 0) > 0) return false;
 
   const selected =
@@ -306,6 +331,7 @@ export function isUsableProviderInputCalibrationSource(input: {
   fallbackAttempted?: boolean;
   apiCallCount?: number | null;
   lengthRecoveryPasses?: number | null;
+  mainRpStageCount?: number | null;
   apiInputTokens?: number | null;
   assembledInputTokens?: number | null;
 }): boolean {
@@ -463,6 +489,11 @@ export function computeMainRpNextTurnEstimates(input: {
       localAssembledInputTokens,
       predictedBillableInputTokens,
       actualBillableInputTokens: calibrated.actualBillableInputTokens,
+      priorAssembledInputTokens: input.providerInputCalibrationByModel?.[modelId]
+        ? Math.round(
+            input.providerInputCalibrationByModel[modelId]!.assembledInputTokens
+          )
+        : null,
       calibrationSource: calibrated.calibrationSource,
       calibrationConfidence: calibrated.calibrationConfidence,
       outputHistorySampleCount: outputForecast.outputHistorySampleCount,

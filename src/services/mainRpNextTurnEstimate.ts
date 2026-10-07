@@ -122,6 +122,7 @@ function calibrationTurnFields(row: EstimateMessageRow) {
     fallbackAttempted: usage?.adultRouting?.fallbackAttempted === true,
     apiCallCount: usage?.apiCallCount ?? null,
     lengthRecoveryPasses: usage?.lengthRecoveryPasses ?? null,
+    mainRpStageCount: usage?.stages?.length ?? null,
     apiInputTokens: usage?.apiInputTokens ?? null,
     assembledInputTokens: usage?.assembledInputTokens ?? null,
   };

@@ -112,6 +112,60 @@ export function attachProviderRequestLinkageForPersistence(
   return { ...persistedUsage, stages };
 }
 
+function isFinitePositiveToken(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+/**
+ * DB-persistence counterpart for next-turn calibration.
+ * Public sanitize strips assembledInputTokens / contamination flags that the
+ * next-turn reader needs from messages.usage. Restore ONLY those fields.
+ * Does not restore provider economics or prompt text.
+ */
+export function attachNextTurnCalibrationFieldsForPersistence(
+  persistedUsage: Usage,
+  internalUsage: Usage
+): Usage {
+  const next: Usage = { ...persistedUsage };
+  if (isFinitePositiveToken(internalUsage.assembledInputTokens)) {
+    next.assembledInputTokens = internalUsage.assembledInputTokens;
+  }
+  if (
+    typeof internalUsage.lengthRecoveryPasses === "number" &&
+    Number.isFinite(internalUsage.lengthRecoveryPasses) &&
+    internalUsage.lengthRecoveryPasses > 0
+  ) {
+    next.lengthRecoveryPasses = internalUsage.lengthRecoveryPasses;
+  }
+  if (
+    typeof internalUsage.apiCallCount === "number" &&
+    Number.isFinite(internalUsage.apiCallCount) &&
+    internalUsage.apiCallCount > 1
+  ) {
+    next.apiCallCount = internalUsage.apiCallCount;
+  }
+  if (internalUsage.fallback) {
+    next.fallback = internalUsage.fallback;
+  }
+  const routing = internalUsage.adultRouting;
+  if (routing && (routing.actualModel || routing.fallbackAttempted === true)) {
+    next.adultRouting = {
+      activeRoute: routing.activeRoute,
+      actualModel: routing.actualModel,
+      actualProvider: routing.actualProvider,
+      userSelectedModel: routing.userSelectedModel,
+      userSelectedModelLabel: routing.userSelectedModelLabel,
+      ...(routing.userSelectedProvider
+        ? { userSelectedProvider: routing.userSelectedProvider }
+        : {}),
+      ...(routing.fallbackAttempted != null
+        ? { fallbackAttempted: routing.fallbackAttempted }
+        : {}),
+    };
+  }
+  return next;
+}
+
 /**
  * Client serialization — adult handoff identity transformation only.
  * Economics privacy is owned by sanitizeUsageForPublicReceipt.

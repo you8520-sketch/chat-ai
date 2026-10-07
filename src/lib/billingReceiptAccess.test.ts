@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  attachNextTurnCalibrationFieldsForPersistence,
+  attachProviderRequestLinkageForPersistence,
   BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL,
   BILLING_BREAKDOWN_SYSTEM_RULES_LABEL,
   canShowFullBillingReceipt,
@@ -430,5 +432,61 @@ describe("public breakdown row serialization", () => {
     assert.doesNotMatch(json, /"allocationMethod"/);
     assert.doesNotMatch(json, /"charScope"/);
     assert.doesNotMatch(json, /"breakdown"\s*:\s*\[[^\]]*"key"/);
+  });
+});
+
+describe("next-turn calibration persist restore", () => {
+  it("restores assembledInputTokens and contamination flags after public sanitize", () => {
+    const internal = {
+      input: 14312,
+      output: 2780,
+      model: "gpt-6.1-sol",
+      selectedAI: "gpt-6.1-sol",
+      route: "safe" as const,
+      cost: 161,
+      estimated: false,
+      apiInputTokens: 14312,
+      apiOutputTokens: 2780,
+      savedOutputChars: 4213,
+      assembledInputTokens: 34816,
+      apiCallCount: 2,
+      lengthRecoveryPasses: 0,
+      stages: [
+        {
+          stage: "primary",
+          model: "gpt-6.1-sol",
+          input: 14312,
+          output: 2780,
+          cost: 161,
+          providerRequestId: "req_sol_1",
+        },
+      ],
+      adultRouting: {
+        activeRoute: "general" as const,
+        actualModel: "gpt-6.1-sol",
+        actualProvider: "cheaperinference",
+        userSelectedModel: "gpt-6.1-sol",
+        userSelectedModelLabel: "GPT-6.1 Sol",
+        fallbackAttempted: false,
+        userChargedPoints: 161,
+      },
+      breakdown: [],
+    } as Usage;
+    const sanitized = sanitizeUsageForPublicReceipt(internal);
+    assert.equal(sanitized.assembledInputTokens, undefined);
+    assert.equal(sanitized.apiCallCount, undefined);
+    assert.equal(sanitized.adultRouting, undefined);
+    const persisted = attachNextTurnCalibrationFieldsForPersistence(
+      attachProviderRequestLinkageForPersistence(sanitized, internal),
+      internal
+    );
+    assert.equal(persisted.assembledInputTokens, 34816);
+    assert.equal(persisted.apiCallCount, 2);
+    assert.equal(persisted.adultRouting?.actualModel, "gpt-6.1-sol");
+    assert.equal(persisted.adultRouting?.fallbackAttempted, false);
+    assert.equal(persisted.adultRouting?.userChargedPoints, undefined);
+    assert.equal(persisted.stages?.[0]?.providerRequestId, "req_sol_1");
+    assert.equal(persisted.apiInputTokens, 14312);
+    assert.equal(persisted.savedOutputChars, 4213);
   });
 });

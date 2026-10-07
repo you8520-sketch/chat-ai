@@ -20,6 +20,10 @@ describe("next-turn-estimates endpoint security", () => {
     assert.doesNotMatch(ROUTE_SOURCE, /systemPrompt/);
     assert.doesNotMatch(ROUTE_SOURCE, /body\.characterId/);
     assert.doesNotMatch(ROUTE_SOURCE, /draftInput/);
+    assert.doesNotMatch(ROUTE_SOURCE, /content:/);
+    assert.match(ROUTE_SOURCE, /canShowFullBillingReceipt/);
+    assert.match(ROUTE_SOURCE, /priorAssembledInputTokens/);
+    assert.match(ROUTE_SOURCE, /localAssembledInputTokens/);
   });
 
   it("does not accept a client-controlled refresh cache bypass", () => {

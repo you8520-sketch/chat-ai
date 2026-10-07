@@ -96,6 +96,21 @@ describe("main RP next-turn provider-input calibration reader", () => {
     });
   });
 
+  it("accepts html-flash-only apiCallCount=2 when a single main stage is persisted", () => {
+    const rows: EstimateMessageRow[] = [
+      assistantRow(
+        validSolUsage({
+          apiCallCount: 2,
+          stages: [{ stage: "primary", model: SOL, input: 14_312, output: 2_780, cost: 161 }],
+        })
+      ),
+    ];
+    assert.deepEqual(readMainRpNextTurnProviderInputCalibration(rows)[SOL], {
+      actualBillableInputTokens: 14_312,
+      assembledInputTokens: 34_816,
+    });
+  });
+
   it("does not reuse another model's sample after a switch", () => {
     const rows: EstimateMessageRow[] = [
       assistantRow(validSolUsage()),

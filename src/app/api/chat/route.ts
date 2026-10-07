@@ -441,6 +441,7 @@ import {
   sumCharacterReceiptContextChars,
 } from "@/lib/billingReceiptSectionBreakdown";
 import {
+  attachNextTurnCalibrationFieldsForPersistence,
   attachProviderRequestLinkageForPersistence,
   BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL,
   canShowFullBillingReceipt,
@@ -5309,8 +5310,11 @@ export async function POST(req: Request) {
         if (!showFullBillingReceipt) {
           // Public privacy stays lossy for the client; restore ONLY the
           // deterministic provider-request linkage into the DB record.
-          baseUsageRecord = attachProviderRequestLinkageForPersistence(
-            sanitizeUsageForPublicReceipt(usageRecord),
+          baseUsageRecord = attachNextTurnCalibrationFieldsForPersistence(
+            attachProviderRequestLinkageForPersistence(
+              sanitizeUsageForPublicReceipt(usageRecord),
+              usageRecord
+            ),
             usageRecord
           );
         }

@@ -15,6 +15,8 @@ import {
   computeMainRpNextTurnEstimates,
   describeNextTurnOutputBasis,
   estimateNextTurnOutputTokens,
+  isHtmlFlashOnlyInflatedApiCallCount,
+  isMainRpMultiCallContamination,
   isUsableOutputCalibrationSource,
   isUsableOutputHistorySource,
   isUsableProviderInputCalibrationSource,
@@ -444,6 +446,7 @@ describe("provider-input next-turn calibration", () => {
     );
     assert.equal(calibrated!.promptTokens, calibrated!.predictedBillableInputTokens);
     assert.equal(calibrated!.actualBillableInputTokens, PREV_PROVIDER);
+    assert.equal(calibrated!.priorAssembledInputTokens, PREV_ASSEMBLED);
     assert.equal(calibrated!.expectedOutputTokens, PREV_OUTPUT);
     assert.equal(calibrated!.outputBasis, "observed_ratio");
     assert.equal(calibrated!.calibrationSource, "same_model_billable_input_ratio");
@@ -556,6 +559,28 @@ describe("provider-input next-turn calibration", () => {
       false
     );
     assert.equal(
+      isHtmlFlashOnlyInflatedApiCallCount(
+        solValidInputSource({ apiCallCount: 2, mainRpStageCount: 1 })
+      ),
+      true
+    );
+    assert.equal(
+      isMainRpMultiCallContamination(solValidInputSource({ apiCallCount: 2, mainRpStageCount: 1 })),
+      false
+    );
+    assert.equal(
+      isUsableProviderInputCalibrationSource(
+        solValidInputSource({ apiCallCount: 2, mainRpStageCount: 1 })
+      ),
+      true
+    );
+    assert.equal(
+      isUsableProviderInputCalibrationSource(
+        solValidInputSource({ apiCallCount: 2, mainRpStageCount: 2 })
+      ),
+      false
+    );
+    assert.equal(
       isUsableProviderInputCalibrationSource(
         solValidInputSource({ lengthRecoveryPasses: 1 })
       ),
@@ -661,6 +686,7 @@ describe("provider-input next-turn calibration", () => {
     assert.notEqual(regenEstimate!.displayPoints, 277);
     assert.match(CHAT_ROUTE_SOURCE, /resolveMainRpNextTurnPublishedEstimateForModel/);
     assert.match(CHAT_ROUTE_SOURCE, /resolveMainRpProviderAdmissionRequiredPoints/);
+    assert.match(CHAT_ROUTE_SOURCE, /attachNextTurnCalibrationFieldsForPersistence/);
   });
 
   it("H picker and #1400 admission stay on the same forecast owner", () => {
