@@ -1,6 +1,7 @@
 /** Isolated TRPG runtime — not used by 1:1 character chat. */
 
 import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
+import type { TrpgInventoryEntry } from "./inventory";
 import type { TrpgLocalSceneProgressDelta } from "./localSceneProgress";
 import type { TrpgStoryPhase } from "./scenarioPlan";
 
@@ -173,7 +174,7 @@ export type TrpgSheetSnapshot = {
   maxHp: number;
   stats: Record<string, number>;
   conditions: string[];
-  inventory: string[];
+  inventory: TrpgInventoryEntry[];
   location: string;
   modifiersNote: string;
 };

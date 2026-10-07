@@ -24,9 +24,15 @@ import { evaluateSafeRestEligibility } from "./mechanicsValidate";
 import { basicFirstAidHpCeiling, safeRestHealAmount } from "./mechanicsDice";
 import type { MechanicsActorInput, MechanicsResolution, TrpgOngoingEffect } from "./mechanicsTypes";
 import type { TrpgSheetSnapshot } from "./types";
+import { inventoryUnits, parseStoredInventory, type TrpgInventoryEntry } from "./inventory";
 import { ensureTrpgTables } from "./schema";
 
-function sheet(partial: Partial<TrpgSheetSnapshot> = {}): TrpgSheetSnapshot {
+type SheetInit = Omit<Partial<TrpgSheetSnapshot>, "inventory"> & {
+  inventory?: readonly string[] | readonly TrpgInventoryEntry[];
+};
+
+function sheet(partial: SheetInit = {}): TrpgSheetSnapshot {
+  const { inventory, ...rest } = partial;
   return {
     participantId: 1,
     name: "강이현",
@@ -36,10 +42,10 @@ function sheet(partial: Partial<TrpgSheetSnapshot> = {}): TrpgSheetSnapshot {
     maxHp: 25,
     stats: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8, res: 8 },
     conditions: [],
-    inventory: [],
+    inventory: parseStoredInventory(inventory ?? []),
     location: "",
     modifiersNote: "",
-    ...partial,
+    ...rest,
   };
 }
 
@@ -235,7 +241,7 @@ describe("TRPG P0-2 + universal recovery", () => {
     });
     assert.ok(!out.ongoingClearedIds.includes(10));
     assert.deepEqual(out.consumeItems, []);
-    assert.deepEqual(extra().inventory, ["해독제"]);
+    assert.deepEqual(inventoryUnits(extra().inventory), ["해독제"]);
   });
 
   it("I. ally heal HUD is target-owned", () => {

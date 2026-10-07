@@ -123,7 +123,7 @@ function labBotSheet(participantId: number, name: string): TrpgCampaignSnapshot[
       maxHp: 20,
       stats: { str: 5, dex: 5, int: 5, wis: 5, cha: 5, con: 5 },
       conditions: [],
-      inventory: ["붕대"],
+      inventory: [{ id: "inv_lab_bandage", name: "붕대", quantity: 1 }],
       location: "Lab",
       modifiersNote: "",
     },

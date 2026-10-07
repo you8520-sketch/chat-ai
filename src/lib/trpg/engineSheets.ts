@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { parseStoredInventory, serializeInventory } from "./inventory";
 import { parseJson } from "./store";
 import { statModifier } from "./stats";
 import type { TrpgSheetSnapshot } from "./types";
@@ -49,7 +50,7 @@ export function loadSheetSnapshots(db: Database.Database, campaignId: number): T
       maxHp: row.max_hp,
       stats,
       conditions: parseJson(row.conditions_json, [] as string[]),
-      inventory: parseJson(row.inventory_json, [] as string[]),
+      inventory: parseStoredInventory(row.inventory_json),
       location: row.location,
       modifiersNote: modifiersNote(stats),
     };
@@ -72,7 +73,7 @@ export function persistSheets(db: Database.Database, sheets: TrpgSheetSnapshot[]
       sheet.hp,
       sheet.maxHp,
       JSON.stringify(sheet.conditions),
-      JSON.stringify(sheet.inventory),
+      serializeInventory(sheet.inventory),
       sheet.location,
       sheet.participantId
     );
