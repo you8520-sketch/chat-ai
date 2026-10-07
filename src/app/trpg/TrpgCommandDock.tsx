@@ -42,10 +42,10 @@ import {
   hpBarClass,
   hpPercent,
   inventoryCount,
-  inventoryStackLabel,
   mergeDisplayConditions,
   selfHudAriaLabel,
 } from "@/lib/trpg/sheetHud";
+import { inventoryStackLabel } from "@/lib/trpg/inventory";
 import {
   acceptTrpgSheetActionDraft,
   buildTrpgSheetSurface,

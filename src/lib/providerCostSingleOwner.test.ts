@@ -17,6 +17,7 @@ import {
   reconcileCheaperInferenceUsage,
 } from "./providerCostReconciliation";
 import {
+  attachNextTurnCalibrationFieldsForPersistence,
   attachProviderRequestLinkageForPersistence,
   sanitizeUsageForPublicReceipt,
   serializeUsageForPublicClient,
@@ -98,7 +99,8 @@ function insertMessage(d: Database.Database, id: number, u: Usage, paid = 5000) 
 /**
  * Persists a message through the REAL non-admin production persistence
  * transform: internal usage -> sanitizeUsageForPublicReceipt (privacy) ->
- * attachProviderRequestLinkageForPersistence (DB linkage). This proves the
+ * attachProviderRequestLinkageForPersistence (DB linkage) ->
+ * attachNextTurnCalibrationFieldsForPersistence. This proves the
  * linkage survives the production path, not a hand-injected JSON blob.
  */
 function insertMessageWithStage(
@@ -135,8 +137,11 @@ function insertMessageWithStage(
   // 1) public privacy sanitize, 2) restore DB provider-request linkage,
   // 3) re-attach shadowPricing diagnostics (route does this after sanitize).
   const sanitized = sanitizeUsageForPublicReceipt(internal as unknown as Usage);
-  const persistedDb = attachProviderRequestLinkageForPersistence(
-    sanitized,
+  const persistedDb = attachNextTurnCalibrationFieldsForPersistence(
+    attachProviderRequestLinkageForPersistence(
+      sanitized,
+      internal as unknown as Usage
+    ),
     internal as unknown as Usage
   ) as Record<string, unknown>;
   if (opts.actualKrw != null) {

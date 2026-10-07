@@ -9,7 +9,7 @@ import UserPreferenceControls from "@/components/UserPreferenceControls";
 import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerification";
 import { fetchHomeSections } from "@/lib/homeSections";
 import { getActiveHomePopupNotice } from "@/lib/homePopupNotice";
-import { cn, studioSurface, studioType } from "@/lib/studioDesign";
+import { cn, studioType } from "@/lib/studioDesign";
 
 export const dynamic = "force-dynamic";
 
@@ -24,18 +24,27 @@ const MOBILE_DISCOVERY_TABS = [
   { href: "/search", label: "검색" },
 ] as const;
 
-const SECTION_META: Record<string, { eyebrow: string; description: string }> = {
+const SECTION_META: Record<
+  string,
+  { index: string; eyebrow: string; description: string; word: string }
+> = {
   "추천 캐릭터": {
+    index: "01",
     eyebrow: "FOR YOU",
     description: "취향과 활동을 바탕으로 골라낸 이야기",
+    word: "FOR YOU",
   },
   "공모전 당선작": {
-    eyebrow: "AWARD WINNERS",
+    index: "02",
+    eyebrow: "SELECTED",
     description: "공모전에서 주목받은 캐릭터와 시뮬레이션",
+    word: "SELECTED",
   },
   "신규 캐릭터": {
+    index: "03",
     eyebrow: "NEW STORIES",
     description: "방금 공개된 새로운 만남",
+    word: "STORIES",
   },
 };
 
@@ -48,26 +57,36 @@ function SectionHeader({
 }) {
   const meta = SECTION_META[title];
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div>
+    <div className="relative mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div className="relative min-w-0 flex-1 overflow-hidden">
         {meta ? (
-          <p className="mb-1.5 text-[10px] font-semibold tracking-[0.18em] text-violet-300/80">
-            {meta.eyebrow}
+          <p
+            aria-hidden="true"
+            className="home-hero-display pointer-events-none absolute left-0 top-1/2 z-0 hidden -translate-y-1/2 select-none text-[4.25rem] leading-none tracking-[-0.05em] text-white/[0.045] md:block"
+          >
+            {meta.word}
           </p>
         ) : null}
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="text-xl font-semibold tracking-[-0.025em] text-zinc-50 sm:text-2xl">
-            {title}
-          </h2>
+        <div className="relative z-10">
           {meta ? (
-            <p className="hidden text-xs text-zinc-500 sm:block">{meta.description}</p>
+            <p className="mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-zinc-500">
+              {meta.index} / {meta.eyebrow}
+            </p>
           ) : null}
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 className="text-xl font-semibold tracking-[-0.025em] text-zinc-50 sm:text-2xl">
+              {title}
+            </h2>
+            {meta ? (
+              <p className="hidden text-xs text-zinc-500 sm:block">{meta.description}</p>
+            ) : null}
+          </div>
         </div>
       </div>
       {headerLink ? (
         <Link
           href={headerLink.href}
-          className="group inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-zinc-400 transition hover:bg-white/5 hover:text-zinc-100"
+          className="group relative z-10 inline-flex min-h-9 items-center gap-1 px-1 text-xs font-semibold text-zinc-400 underline decoration-white/15 underline-offset-4 transition hover:text-zinc-100 hover:decoration-white/40"
         >
           {headerLink.label}
           <span className="transition-transform group-hover:translate-x-0.5" aria-hidden>
@@ -119,12 +138,12 @@ function ScrollSection({
 }) {
   if (chars.length === 0) return null;
   return (
-    <section className="mt-12 border-t border-white/[0.07] pt-9 first:border-0">
+    <section className="mt-8 border-t border-white/10 pt-7 sm:mt-10">
       <SectionHeader title={title} headerLink={headerLink} />
       <HorizontalScrollRow className="home-card-row gap-3.5 pb-2 sm:gap-4">
         {chars.map((c) => (
           <div key={c.id} className={`${SCROLL_CARD_WIDTH} shrink-0`}>
-            <CharacterCard c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+            <CharacterCard c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} variant="editorial" />
           </div>
         ))}
       </HorizontalScrollRow>
@@ -147,11 +166,11 @@ function GridSection({
 }) {
   if (chars.length === 0) return null;
   return (
-    <section className="mt-12 border-t border-white/[0.07] pt-9">
+    <section className="mt-8 border-t border-white/10 pt-7 sm:mt-10">
       <SectionHeader title={title} headerLink={headerLink} />
       <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4">
         {chars.map((c) => (
-          <CharacterCard key={c.id} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+          <CharacterCard key={c.id} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} variant="editorial" />
         ))}
       </div>
     </section>
@@ -223,25 +242,17 @@ export default async function Home() {
         headerLink={{ href: "/tab/new", label: "더보기" }}
       />
       {recommended.length === 0 && contest.length === 0 && newest.length === 0 ? (
-        <div
-          className={cn(
-            studioSurface.cardDashed,
-            "relative mt-12 overflow-hidden px-6 py-14 text-center",
-          )}
-        >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,.14),transparent_48%)]" />
-          <div className="relative">
-            <p className="text-base font-semibold text-zinc-200">아직 공개된 이야기가 없습니다.</p>
-            <p className={cn(studioType.caption, "mx-auto mt-2 max-w-md")}>
-              첫 캐릭터나 시뮬레이션을 공개하면 이곳에서 바로 만날 수 있어요.
-            </p>
-            <Link
-              href="/studio"
-              className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-violet-600 px-5 text-sm font-semibold text-white transition hover:bg-violet-500"
-            >
-              첫 이야기 만들기
-            </Link>
-          </div>
+        <div className="mt-10 border border-white/10 px-6 py-12 text-center">
+          <p className="text-base font-semibold text-zinc-200">아직 공개된 이야기가 없습니다.</p>
+          <p className={cn(studioType.caption, "mx-auto mt-2 max-w-md")}>
+            첫 캐릭터나 시뮬레이션을 공개하면 이곳에서 바로 만날 수 있어요.
+          </p>
+          <Link
+            href="/studio"
+            className="mt-5 inline-flex min-h-11 items-center bg-white px-5 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200"
+          >
+            첫 이야기 만들기
+          </Link>
         </div>
       ) : null}
     </div>

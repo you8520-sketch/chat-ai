@@ -1,5 +1,6 @@
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { CharacterGenre } from "@/lib/characterGenres";
+import { parseInventoryAuthoringText } from "./inventory";
 import type { TrpgScenarioDraftField, TrpgScenarioDraftMode } from "./scenarioDraft";
 import type { TrpgScenarioPlan } from "./scenarioPlan";
 import type { TrpgScenarioNpc, TrpgScenarioTemplateInput } from "./scenarioTypes";
@@ -30,9 +31,12 @@ export function isScenarioEditorDirty(current: ScenarioEditorSnapshot, saved: st
   return scenarioEditorSnapshot(current) !== saved;
 }
 
+/** Throws the authoring error when inventory text is invalid; readiness blocks save before this. */
 export function scenarioEditorSavePayload(
   fields: ScenarioEditorSnapshot
 ): TrpgScenarioTemplateInput {
+  const inventory = parseInventoryAuthoringText(fields.inventoryText);
+  if (!inventory.ok) throw new Error(inventory.error);
   return {
     title: fields.title,
     summary: fields.summary,
@@ -41,10 +45,7 @@ export function scenarioEditorSavePayload(
     worldId: fields.worldId === "" ? null : fields.worldId,
     visibility: fields.visibility,
     startLocation: fields.startLocation,
-    startInventory: fields.inventoryText
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean),
+    startInventory: inventory.units,
     defaultPcStats: null,
     statKeys: fields.statKeys,
     npcs: fields.npcs.filter((npc) => npc.name.trim()),

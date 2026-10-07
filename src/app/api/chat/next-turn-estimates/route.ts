@@ -1,7 +1,32 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { NEXT_TURN_ESTIMATE_VERSION } from "@/lib/mainRpNextTurnEstimate";
+import { canShowFullBillingReceipt } from "@/lib/billingReceiptAccess";
+import { getDb } from "@/lib/db";
+import {
+  NEXT_TURN_ESTIMATE_VERSION,
+  type NextTurnEstimateRow,
+  type NextTurnProviderInputCalibrationSample,
+} from "@/lib/mainRpNextTurnEstimate";
 import { resolveMainRpNextTurnPickerEstimates } from "@/services/mainRpNextTurnEstimate";
+
+function nextTurnAdminCalibration(
+  row: NextTurnEstimateRow,
+  sample?: NextTurnProviderInputCalibrationSample | null
+) {
+  return {
+    localAssembledInputTokens: row.localAssembledInputTokens,
+    mainRpBillableInputTokens: row.actualBillableInputTokens,
+    aggregateApiInputTokens: sample?.aggregateApiInputTokens ?? null,
+    syncAuxInputTokens: sample?.syncAuxInputTokens ?? null,
+    priorAssembledInputTokens: row.priorAssembledInputTokens,
+    calibrationSource: row.calibrationSource,
+    predictedBillableInputTokens: row.predictedBillableInputTokens,
+    expectedOutputTokens: row.expectedOutputTokens,
+    outputBasis: row.outputBasis,
+    outputHistorySampleCount: row.outputHistorySampleCount,
+    displayPoints: row.displayPoints,
+  };
+}
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -23,6 +48,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
   }
 
+  const adminRow = getDb()
+    .prepare("SELECT is_admin FROM users WHERE id = ?")
+    .get(user.id) as { is_admin: number } | undefined;
+  const showAdminCalibration = canShowFullBillingReceipt({
+    email: user.email,
+    is_admin: adminRow?.is_admin ?? 0,
+  });
+
+  const calibration = showAdminCalibration
+    ? Object.fromEntries(
+        Object.entries(result.estimates).map(([modelId, row]) => [
+          modelId,
+          row
+            ? nextTurnAdminCalibration(
+                row,
+                result.providerInputCalibrationByModel[
+                  modelId as keyof typeof result.providerInputCalibrationByModel
+                ] ?? null
+              )
+            : null,
+        ])
+      )
+    : undefined;
+
   return NextResponse.json({
     chatId: result.chatId,
     estimates: result.displayPoints,
@@ -30,5 +79,6 @@ export async function POST(req: Request) {
     lastVisibleAssistantChars: result.lastVisibleAssistantChars,
     source: result.source,
     version: NEXT_TURN_ESTIMATE_VERSION,
+    ...(calibration ? { calibration } : {}),
   });
 }

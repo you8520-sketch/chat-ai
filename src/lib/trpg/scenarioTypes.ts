@@ -1,5 +1,6 @@
 import type { CharacterAsset } from "@/lib/characterAssets";
 import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
+import { TRPG_INVENTORY_ITEM_NAME_LIMIT, TRPG_START_INVENTORY_MAX_UNITS } from "./inventory";
 import { normalizeScenarioAssets } from "./scenarioAssets";
 import {
   DEFAULT_TRPG_STAT_DEFS,
@@ -212,9 +213,9 @@ export function parseCharacterIds(raw: unknown): number[] {
 export function parseInventory(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((item) => clip(String(item ?? ""), 40))
+    .map((item) => clip(String(item ?? ""), TRPG_INVENTORY_ITEM_NAME_LIMIT))
     .filter(Boolean)
-    .slice(0, 12);
+    .slice(0, TRPG_START_INVENTORY_MAX_UNITS);
 }
 
 export type NormalizeScenarioTemplateOptions = {

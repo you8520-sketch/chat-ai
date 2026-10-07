@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import path from "node:path";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
+import { openExplicitFreshChat } from "./helpers/openExplicitChat";
 
 const CHAT_DISPLAY_PREFS_KEY = "playai-chat-display-prefs";
 
@@ -262,10 +263,7 @@ async function waitForChatInputReady(page: Page) {
 }
 
 async function openFreshChat(page: Page, characterId = 2) {
-  await page.goto(`/chat/${characterId}?fresh=1`, {
-    waitUntil: "domcontentloaded",
-  });
-  await page.waitForURL(/\/chat\/\d+\?chat=\d+/, { timeout: 45_000 });
+  await openExplicitFreshChat(page, characterId);
   await page.waitForSelector("textarea[placeholder*='메시지 입력']", {
     timeout: 45_000,
   });

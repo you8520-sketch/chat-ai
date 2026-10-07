@@ -10,6 +10,7 @@ import { defaultAssetFlags, withAssetSize, type CharacterAsset } from "@/lib/cha
 import type { CharacterGenre } from "@/lib/characterGenres";
 import { measureImageUrl } from "@/lib/measureImageSize";
 import type { TrpgCatalog } from "@/lib/trpg/catalog";
+import { formatInventoryAuthoringText, parseInventoryAuthoringText } from "@/lib/trpg/inventory";
 import {
   TRPG_SCENARIO_MAX_ASSETS,
 } from "@/lib/trpg/scenarioAssets";
@@ -137,7 +138,7 @@ export default function TrpgScenarioEditor({
   const [worldId, setWorldId] = useState<number | "">(initial?.worldId ?? "");
   const [visibility, setVisibility] = useState<TrpgVisibility>(initial?.visibility ?? "private");
   const [startLocation, setStartLocation] = useState(initial?.startLocation ?? "");
-  const [inventoryText, setInventoryText] = useState((initial?.startInventory ?? []).join(", "));
+  const [inventoryText, setInventoryText] = useState(() => formatInventoryAuthoringText(initial?.startInventory ?? []));
   const [statKeys, setStatKeys] = useState<string[]>(() =>
     initial?.statKeys?.length ? initial.statKeys : [...DEFAULT_TRPG_STAT_KEYS]
   );
@@ -231,7 +232,7 @@ export default function TrpgScenarioEditor({
     plan.provenance.sourceWorldUpdatedAt &&
     linkedWorld.updatedAt &&
     plan.provenance.sourceWorldUpdatedAt !== linkedWorld.updatedAt;
-  const namedInventory = inventoryText.split(",").map((item) => item.trim()).filter(Boolean);
+  const inventory = useMemo(() => parseInventoryAuthoringText(inventoryText), [inventoryText]);
   const dirty = isScenarioEditorDirty(currentFields(), savedSnapshot);
   const hasManualEdits = lastDraftSnapshot
     ? isScenarioEditorDirty(currentFields(), lastDraftSnapshot)
@@ -247,10 +248,10 @@ export default function TrpgScenarioEditor({
         previousVisibility: savedVisibility,
         scenarioPlan: plan,
         npcs: namedNpcs,
-        startInventory: namedInventory,
+        inventoryText,
         bundleChars: bundleUsed,
       }),
-    [title, content, summary, visibility, savedVisibility, plan, namedNpcs, namedInventory, bundleUsed]
+    [title, content, summary, visibility, savedVisibility, plan, namedNpcs, inventoryText, bundleUsed]
   );
   const persistDecision = scenarioPersistDecision({
     dirty,
@@ -474,14 +475,14 @@ export default function TrpgScenarioEditor({
     setTouchedFields((prev) => (prev.includes(field) ? prev : [...prev, field]));
   }
 
-  function existingDraft() {
+  function existingDraft(startInventory: string[]) {
     return {
       title,
       summary,
       content,
       secretContent,
       startLocation,
-      startInventory: inventoryText.split(",").map((s) => s.trim()).filter(Boolean),
+      startInventory,
       npcs: namedNpcs,
       plan,
       touchedFields,
@@ -490,6 +491,11 @@ export default function TrpgScenarioEditor({
 
   async function requestDraft(mode: TrpgScenarioDraftMode, selectedFields: TrpgScenarioDraftField[] = []) {
     if (draftBusy) return;
+    if (!inventory.ok) {
+      setError(inventory.error);
+      revealReadinessField("inventory", "details");
+      return;
+    }
     if (
       shouldConfirmScenarioDraftApply({
         mode,
@@ -517,7 +523,7 @@ export default function TrpgScenarioEditor({
           mode,
           selectedFields,
           lockedFields,
-          existingDraft: existingDraft(),
+          existingDraft: existingDraft(inventory.units),
         }),
       });
       const data = (await res.json()) as {
@@ -543,7 +549,7 @@ export default function TrpgScenarioEditor({
       const nextSummary = data.draft.summary || summary;
       const nextLocation = data.draft.startLocation || startLocation;
       const nextInventory = data.draft.startInventory.length
-        ? data.draft.startInventory.join(", ")
+        ? formatInventoryAuthoringText(data.draft.startInventory)
         : inventoryText;
       const nextNpcs = data.draft.npcs.length ? data.draft.npcs : npcs;
       setTitle(nextTitle);
@@ -590,7 +596,7 @@ export default function TrpgScenarioEditor({
       summary,
       content,
       npcs: namedNpcs,
-      startInventory: namedInventory,
+      startInventory: inventory.ok ? inventory.units : [],
       bundleChars: bundleUsed,
       bundleLimit: TRPG_SCENARIO_BUNDLE_LIMIT,
     });
@@ -598,8 +604,8 @@ export default function TrpgScenarioEditor({
     setBusy(true);
     setError("");
     const submittedFields = currentFields();
-    const body = scenarioEditorSavePayload(submittedFields);
     try {
+      const body = scenarioEditorSavePayload(submittedFields);
       const targetId = savedId ?? initial?.id ?? null;
       const res = await fetch(targetId ? `/api/trpg/scenarios/${targetId}` : "/api/trpg/scenarios", {
         method: targetId ? "PATCH" : "POST",
@@ -1012,16 +1018,26 @@ export default function TrpgScenarioEditor({
               className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
             />
           </label>
-          <label className="mt-3 block text-sm text-zinc-300">
-            시작 소지품 (쉼표로 구분)
+          <label data-scenario-field="inventory" className="mt-3 block text-sm text-zinc-300">
+            시작 소지품 (쉼표로 구분, 여러 개는 ×N)
             <input
               value={inventoryText}
+              placeholder="예: 붕대 ×3, 해독제, 낡은 지도"
+              aria-invalid={!inventory.ok}
+              aria-describedby={inventory.ok ? undefined : "scenario-inventory-error"}
               onChange={(e) => {
                 setScenarioAuthoringActive(true);
                 setInventoryText(e.target.value);
               }}
-              className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
+              className={`mt-1 min-h-10 w-full rounded-xl border bg-[#161922] px-3 text-sm text-zinc-100 ${
+                inventory.ok ? "border-white/10" : "border-rose-400/60"
+              }`}
             />
+            {inventory.ok ? null : (
+              <span id="scenario-inventory-error" role="alert" className="mt-1 block text-xs text-rose-300">
+                {inventory.error}
+              </span>
+            )}
           </label>
           <label className="mt-3 block text-sm text-zinc-300">
             특별 규칙

@@ -5,6 +5,41 @@ import { getDb } from "@/lib/db";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
 import { parseChatSessionDeleteIds } from "@/lib/chatSessionDeleteIds";
 import { deleteChatOwnedDerivedRows } from "@/lib/chatOwnedDataCleanup";
+import { createExplicitChatSession } from "@/lib/chatSessionExplicitCreate";
+
+/** Explicit “채팅 시작 / 새 채팅” — GET/prefetch must not create rooms. */
+export async function POST(req: Request) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+  const characterId = Number(body.characterId);
+  if (!characterId) {
+    return NextResponse.json({ error: "characterId가 필요합니다." }, { status: 400 });
+  }
+  const fresh = body.fresh === true || body.fresh === 1 || body.fresh === "1";
+  const personaId =
+    body.personaId != null && body.personaId !== "" ? Number(body.personaId) : null;
+
+  const result = createExplicitChatSession({
+    user,
+    characterId,
+    fresh,
+    personaId: Number.isFinite(personaId) ? personaId : null,
+  });
+  if (!result.ok) {
+    return NextResponse.json(
+      { error: result.error, needVerify: result.needVerify },
+      { status: result.status }
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    chatId: result.chatId,
+    created: result.created,
+  });
+}
 
 /** 채팅방(분기) 삭제 — 메시지·북마크·환불 요청 포함 */
 export async function PATCH(req: Request) {

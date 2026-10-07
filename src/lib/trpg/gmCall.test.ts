@@ -5,6 +5,8 @@ import { TextEncoder } from "node:util";
 import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
 import {
   BOT_MAX_PROVIDER_ATTEMPTS,
+  buildTrpgBotProviderRequest,
+  buildTrpgGmProviderRequest,
   callTrpgBot,
   callTrpgGm,
   GM_MAX_PROVIDER_ATTEMPTS,
@@ -105,6 +107,40 @@ describe("TRPG GM provider HTTP 5xx retry", () => {
     assert.equal(TRPG_BOT_MODEL, GEMINI_38_FLASH_MODEL);
     for (const status of [500, 502, 503, 504]) assert.equal(isGmRetryableHttpStatus(status), true);
     for (const status of [400, 401, 403, 404, 422, 429]) assert.equal(isGmRetryableHttpStatus(status), false);
+  });
+
+  it("runtime GM/bot fetches send the exported builder request unchanged", async () => {
+    const gmBuilt = buildTrpgGmProviderRequest({ system: "sys", user: "장면" });
+    const { calls: gmCalls } = installProvider(() => sseCompletion(GM_OK));
+    await callTrpgGm({ system: "sys", user: "장면", timeoutMs: 5_000 });
+    assert.equal(gmCalls.length, 1);
+    assert.equal(gmCalls[0]!.url, gmBuilt.endpoint);
+    assert.deepEqual(gmCalls[0]!.body, gmBuilt.body);
+    assert.equal(gmBuilt.provider, "cheaperinference");
+    assert.equal(gmBuilt.model, GEMINI_38_FLASH_MODEL);
+    assert.equal(gmBuilt.body.model, GEMINI_38_FLASH_MODEL);
+    assert.equal(gmBuilt.body.stream, true);
+    assert.equal(gmBuilt.body.temperature, 0.7);
+    assert.equal(gmBuilt.body.max_tokens, TRPG_GM_MAX_TOKENS);
+    assert.ok(gmBuilt.body.response_format);
+    assert.equal(gmBuilt.body.reasoning_effort, "low");
+    assert.equal(GM_MAX_PROVIDER_ATTEMPTS, 2);
+
+    const botBuilt = buildTrpgBotProviderRequest({ system: "sys", user: "행동" });
+    const { calls: botCalls } = installProvider(() =>
+      completion(`행동 prose\n\n<<<ACTION_TYPE>>>\nfree\n\n<<<INTENT>>>\n조사한다.`)
+    );
+    await callTrpgBot({ system: "sys", user: "행동", timeoutMs: 5_000 });
+    assert.equal(botCalls.length, 1);
+    assert.equal(botCalls[0]!.url, botBuilt.endpoint);
+    assert.deepEqual(botCalls[0]!.body, botBuilt.body);
+    assert.equal(botBuilt.provider, "cheaperinference");
+    assert.equal(botBuilt.model, GEMINI_38_FLASH_MODEL);
+    assert.equal(botBuilt.body.stream, false);
+    assert.equal(botBuilt.body.temperature, 0.85);
+    assert.equal(botBuilt.body.max_tokens, TRPG_BOT_MAX_TOKENS);
+    assert.equal(botBuilt.body.reasoning_effort, "low");
+    assert.equal(BOT_MAX_PROVIDER_ATTEMPTS, 1);
   });
 
   it("A: retries GM 502 then succeeds on 200", async () => {
