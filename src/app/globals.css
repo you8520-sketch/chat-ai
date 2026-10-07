@@ -71,36 +71,58 @@ body {
   }
 }
 
-@keyframes home-hero-orb-float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(8deg);
-  }
-  50% {
-    transform: translateY(-0.55rem) rotate(6deg);
-  }
-}
-
 .home-hero-copy {
   animation: home-hero-copy-in 420ms ease-out both;
 }
 
-.home-hero-orb {
-  animation: home-hero-orb-float 7s ease-in-out infinite;
+.home-hero-display {
+  font-family: Cinzel, "Times New Roman", serif;
+  font-weight: 800;
 }
 
-.home-hero-grid {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: linear-gradient(90deg, transparent 8%, black 65%, transparent);
+.home-editorial-card {
+  transition:
+    box-shadow 240ms ease,
+    border-color 240ms ease;
+}
+
+.home-editorial-card:hover {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--card-keyline) 55%, transparent),
+    0 14px 34px rgba(0, 0, 0, 0.28);
+}
+
+.home-editorial-media {
+  transition: transform 300ms ease;
+}
+
+.home-editorial-card:hover .home-editorial-media {
+  transform: scale(1.03);
+}
+
+.home-editorial-name {
+  transition: color 240ms ease;
+}
+
+.home-editorial-card:hover .home-editorial-name {
+  color: var(--card-hover);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-hero-copy,
-  .home-hero-orb {
+  .home-hero-copy {
     animation: none;
+  }
+
+  .home-editorial-card,
+  .home-editorial-card:hover,
+  .home-editorial-media,
+  .home-editorial-card:hover .home-editorial-media,
+  .home-editorial-name {
+    transition: none;
+  }
+
+  .home-editorial-card:hover .home-editorial-media {
+    transform: none;
   }
 }
 
