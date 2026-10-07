@@ -82,6 +82,42 @@ export const RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER = Object.freeze({
   isCurrentProductionProof: false as const,
 });
 
+/** Benchmark target selector. Not an assumed current production proof. */
+export const RP_QUALITY_PRECALL_TARGET_SELECTOR = Object.freeze({
+  characterId: 18,
+  characterName: "라이크",
+  personaName: "렌",
+});
+
+/**
+ * Operator-only Railway hash probe. Not executed by this library.
+ * Persona hash must use toPublicPersonaDescription(), never raw DB description.
+ */
+export const RP_QUALITY_PRECALL_RAILWAY_HASH_PROBE_CONTRACT = Object.freeze({
+  dbPath: "/data/app.db",
+  sqliteUriMode: "ro",
+  pragmaQueryOnly: true,
+  personaHashOwner: "personaSecretLegacyMarkers.toPublicPersonaDescription",
+  allow: [
+    "deploy SHA",
+    "ids/names",
+    "uniqueness booleans/counts",
+    "text lengths",
+    "SHA-256 hashes",
+    "used/public metadata",
+  ],
+  forbid: [
+    "character source text",
+    "persona raw description",
+    "greeting/system/world source text",
+  ],
+});
+
+export const PRECALL_GREETING_STIMULUS_OWNER =
+  "scripts/lib/rpModelQualificationFixture.ts#buildGreetingBodyCueReviewCases";
+export const PRECALL_SCENE_SEED_OWNER =
+  "scripts/lib/rpModelQualificationFixture.ts#COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS";
+
 export const RP_QUALITY_PRECALL_MUTATION_POLICY = Object.freeze({
   chat: false,
   session: false,
@@ -158,13 +194,15 @@ export const RP_QUALITY_PRECALL_OWNER_MAP: readonly RpQualityPrecallOwnerRow[] =
       "characters.nsfw is listing/content-rating only; 19+ dedicated bench is FOLLOW-UP",
   },
   {
-    responsibility: "recent history/memory/canon inputs",
-    canonicalOwner: "services/contextBuilder.ts input layers",
+    responsibility: "deterministic benchmark stimulus",
+    canonicalOwner:
+      "rpModelQualificationFixture.buildGreetingBodyCueReviewCases + COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS",
     effectiveValueSource:
-      "history fingerprint on injected live proof; planned fixtures are plan-template only",
-    scope: "history, long-term memory, episodic, compiled canon",
-    otherReaders: ["buildContext"],
-    duplicateOrStaleOwner: "rpModelQualificationFixture frozen memory cases",
+      "current greeting as history opening + frozen scene seeds; not mutable current-room history",
+    scope: "history seed + current user turn + evaluation focus",
+    otherReaders: ["this PRECALL plan"],
+    duplicateOrStaleOwner:
+      "do not rewrite the 2026-08-25 dump opening onto the current character; do not copy seed user-turn text into a second owner",
   },
   {
     responsibility: "context builder",
@@ -243,14 +281,21 @@ export type RpQualityPrecallModelPlan = {
   wireModel: string;
 };
 
+export type RpQualityPrecallStimulusId =
+  | "quiet_window_safe"
+  | "relationship_turn_safe";
+
 export type RpQualityPrecallFixtureSpec = {
   id: RpQualityPrecallFixtureId;
   turnKind: RpQualityTurnKind;
   contentMode: RpQualityContentMode;
   authoringLevel: typeof DEFAULT_USER_AUTHORING_LEVEL;
   evaluationFocus: readonly string[];
-  historySource: "current_production_room_if_readable";
-  memoryCanonSource: "current_production_injection_if_readable";
+  historyOwner: typeof PRECALL_GREETING_STIMULUS_OWNER;
+  stimulusOwner: typeof PRECALL_SCENE_SEED_OWNER | null;
+  stimulusId: RpQualityPrecallStimulusId | null;
+  stimulusReady: boolean;
+  memoryCanonSource: "none_for_this_pilot";
   sceneControl: "production_default";
   targetLengthOwner: "UNIFIED_TIER_AIM_CHARS";
   notes: string;
@@ -263,8 +308,9 @@ export type RpQualityPrecallPlannedSemanticInput = {
   personaName: string;
   authoringLevel: typeof DEFAULT_USER_AUTHORING_LEVEL;
   contentMode: RpQualityContentMode;
-  historySource: RpQualityPrecallFixtureSpec["historySource"];
-  userTurnIntent: RpQualityPrecallFixtureId;
+  historyOwner: typeof PRECALL_GREETING_STIMULUS_OWNER;
+  stimulusOwner: typeof PRECALL_SCENE_SEED_OWNER | null;
+  stimulusId: RpQualityPrecallStimulusId | null;
   memoryCanonSource: RpQualityPrecallFixtureSpec["memoryCanonSource"];
   sceneControl: RpQualityPrecallFixtureSpec["sceneControl"];
   targetLengthOwner: RpQualityPrecallFixtureSpec["targetLengthOwner"];
@@ -312,10 +358,13 @@ export type RpQualityPrecallLiveProofInput = {
   systemPromptSha256: string;
   worldSha256: string;
   settingChunksSha256: string;
+  personaName: string;
   personaPublicSha256: string;
-  historyProvenance: string;
   authoringLevel: UserAuthoringLevel;
   contentMode: RpQualityContentMode;
+  personaId?: number;
+  personaGender?: string;
+  personaPublicChars?: number;
 };
 
 export type RpQualityPrecallLiveProof =
@@ -396,6 +445,11 @@ export type RpQualityPrecallReport = {
   fixtures: readonly RpQualityPrecallFixtureSpec[];
   plan: readonly RpQualityPrecallSamplePlan[];
   plannedSemanticParityOnly: true;
+  twelveCallConcreteStimulusReady: boolean;
+  concreteStimulus: Record<
+    RpQualityPrecallFixtureId,
+    { stimulusId: RpQualityPrecallStimulusId | null; stimulusReady: boolean }
+  >;
   liveProof: RpQualityPrecallLiveProof;
   authoring: {
     level: typeof DEFAULT_USER_AUTHORING_LEVEL;
@@ -420,6 +474,9 @@ export type RpQualityPrecallReport = {
 };
 
 const SHA256_HEX_RE = /^[a-f0-9]{64}$/i;
+const FULL_GIT_SHA_RE = /^[a-f0-9]{40}$/i;
+const ISO_TIMESTAMP_RE =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 
 function sha256Json(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value), "utf8").digest("hex");
@@ -444,6 +501,16 @@ export function historicalRowProofCannotSatisfyCurrent(input: RpQualityPrecallLi
   );
 }
 
+export function isParseableIsoTimestamp(value: string): boolean {
+  if (!ISO_TIMESTAMP_RE.test(value.trim())) return false;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed);
+}
+
+export function isFullGitSha(value: string): boolean {
+  return FULL_GIT_SHA_RE.test(value.trim());
+}
+
 export function validateLiveProof(
   input: RpQualityPrecallLiveProofInput | undefined,
   opts?: { expectedDeploySha?: string }
@@ -454,14 +521,22 @@ export function validateLiveProof(
   const generatedAt = requiredText(input.generatedAt);
   const deployedGitSha = requiredText(input.deployedGitSha);
   const characterName = requiredText(input.characterName);
-  const historyProvenance = requiredText(input.historyProvenance);
+  const personaName = requiredText(input.personaName);
   if (!source) reasons.push("missing_source");
   if (!generatedAt) reasons.push("missing_generatedAt");
+  else if (!isParseableIsoTimestamp(generatedAt)) reasons.push("invalid_generatedAt");
   if (!deployedGitSha) reasons.push("missing_deployedGitSha");
-  if (!Number.isInteger(input.characterId) || input.characterId <= 0) {
-    reasons.push("invalid_characterId");
+  else if (!isFullGitSha(deployedGitSha)) reasons.push("invalid_deployedGitSha");
+  if (input.characterId !== RP_QUALITY_PRECALL_TARGET_SELECTOR.characterId) {
+    reasons.push("characterId_does_not_match_target_selector");
   }
-  if (!characterName) reasons.push("missing_characterName");
+  if (characterName !== RP_QUALITY_PRECALL_TARGET_SELECTOR.characterName) {
+    reasons.push("characterName_does_not_match_target_selector");
+  }
+  if (!personaName) reasons.push("missing_personaName");
+  else if (personaName !== RP_QUALITY_PRECALL_TARGET_SELECTOR.personaName) {
+    reasons.push("personaName_does_not_match_target_selector");
+  }
   for (const field of [
     "greetingSha256",
     "systemPromptSha256",
@@ -471,7 +546,6 @@ export function validateLiveProof(
   ] as const) {
     if (!SHA256_HEX_RE.test(String(input[field] ?? ""))) reasons.push(`invalid_${field}`);
   }
-  if (!historyProvenance) reasons.push("missing_historyProvenance");
   if (
     input.authoringLevel !== "LIMITED" &&
     input.authoringLevel !== "NORMAL" &&
@@ -488,6 +562,8 @@ export function validateLiveProof(
   const expected = requiredText(opts?.expectedDeploySha);
   if (!expected) {
     reasons.push("missing_expectedDeploySha");
+  } else if (!isFullGitSha(expected)) {
+    reasons.push("invalid_expectedDeploySha");
   } else if (deployedGitSha && deployedGitSha.toLowerCase() !== expected.toLowerCase()) {
     reasons.push("deployedGitSha_does_not_match_expected");
   }
@@ -497,10 +573,40 @@ export function validateLiveProof(
   return { status: "VERIFIED", input };
 }
 
-export function classifyPrecallFromLiveProof(
-  liveProof: RpQualityPrecallLiveProof
+export function concreteStimulusReadiness(
+  fixtures: readonly RpQualityPrecallFixtureSpec[] = rpQualityPrecallFixtures()
+): {
+  twelveCallConcreteStimulusReady: boolean;
+  concreteStimulus: RpQualityPrecallReport["concreteStimulus"];
+} {
+  const concreteStimulus = {
+    A_relationship_emotion: {
+      stimulusId: fixtures.find((row) => row.id === "A_relationship_emotion")?.stimulusId ?? null,
+      stimulusReady:
+        fixtures.find((row) => row.id === "A_relationship_emotion")?.stimulusReady === true,
+    },
+    B_conflict_action_spatial: {
+      stimulusId: fixtures.find((row) => row.id === "B_conflict_action_spatial")?.stimulusId ?? null,
+      stimulusReady:
+        fixtures.find((row) => row.id === "B_conflict_action_spatial")?.stimulusReady === true,
+    },
+    C_continuity_progression: {
+      stimulusId: fixtures.find((row) => row.id === "C_continuity_progression")?.stimulusId ?? null,
+      stimulusReady:
+        fixtures.find((row) => row.id === "C_continuity_progression")?.stimulusReady === true,
+    },
+  };
+  return {
+    twelveCallConcreteStimulusReady: fixtures.every((row) => row.stimulusReady),
+    concreteStimulus,
+  };
+}
+
+export function classifyPrecallReport(
+  liveProof: RpQualityPrecallLiveProof,
+  twelveCallConcreteStimulusReady: boolean
 ): { classification: RpQualityPrecallClassification; precallReady: boolean } {
-  if (liveProof.status === "VERIFIED") {
+  if (liveProof.status === "VERIFIED" && twelveCallConcreteStimulusReady) {
     return { classification: "PRECALL_READY", precallReady: true };
   }
   return { classification: "NOT_REPRODUCIBLE", precallReady: false };
@@ -576,12 +682,15 @@ export function rpQualityPrecallFixtures(): readonly RpQualityPrecallFixtureSpec
         "subtle_relationship_movement",
         "repetition_control",
       ],
-      historySource: "current_production_room_if_readable",
-      memoryCanonSource: "current_production_injection_if_readable",
+      historyOwner: PRECALL_GREETING_STIMULUS_OWNER,
+      stimulusOwner: PRECALL_SCENE_SEED_OWNER,
+      stimulusId: "quiet_window_safe",
+      stimulusReady: true,
+      memoryCanonSource: "none_for_this_pilot",
       sceneControl: "production_default",
       targetLengthOwner: "UNIFIED_TIER_AIM_CHARS",
       notes:
-        "Ordinary turn. Same deployed source once a live proof is injected. No new story-prompt system.",
+        "Reuses COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.quiet_window_safe. History opening is the current greeting via buildGreetingBodyCueReviewCases.",
     },
     {
       id: "B_conflict_action_spatial",
@@ -597,12 +706,15 @@ export function rpQualityPrecallFixtures(): readonly RpQualityPrecallFixtureSpec
         "scene_stalled_in_place",
         "character_voice",
       ],
-      historySource: "current_production_room_if_readable",
-      memoryCanonSource: "current_production_injection_if_readable",
+      historyOwner: PRECALL_GREETING_STIMULUS_OWNER,
+      stimulusOwner: null,
+      stimulusId: null,
+      stimulusReady: false,
+      memoryCanonSource: "none_for_this_pilot",
       sceneControl: "production_default",
       targetLengthOwner: "UNIFIED_TIER_AIM_CHARS",
       notes:
-        "Ordinary turn. Conflict/action/spatial scene on the same character/persona once a live proof is injected.",
+        "No existing scene seed is conflict/action/spatial. New user-turn wording is last-resort FOLLOW-UP. This fixture is not concrete-ready.",
     },
     {
       id: "C_continuity_progression",
@@ -616,12 +728,15 @@ export function rpQualityPrecallFixtures(): readonly RpQualityPrecallFixtureSpec
         "repetition_across_turns",
         "ai_cast_no_initiative_always_waits",
       ],
-      historySource: "current_production_room_if_readable",
-      memoryCanonSource: "current_production_injection_if_readable",
+      historyOwner: PRECALL_GREETING_STIMULUS_OWNER,
+      stimulusOwner: PRECALL_SCENE_SEED_OWNER,
+      stimulusId: "relationship_turn_safe",
+      stimulusReady: true,
+      memoryCanonSource: "none_for_this_pilot",
       sceneControl: "production_default",
       targetLengthOwner: "UNIFIED_TIER_AIM_CHARS",
       notes:
-        "Ordinary path, not auto-progress. Auto would be turnKind=auto and scored separately.",
+        "Reuses COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.relationship_turn_safe after the same current greeting. Ordinary path, not auto-progress.",
     },
   ];
 }
@@ -631,13 +746,14 @@ export function plannedFixtureSemanticInput(
 ): RpQualityPrecallPlannedSemanticInput {
   return {
     fixtureId: fixture.id,
-    characterId: RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER.characterId,
-    characterName: RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER.characterName,
-    personaName: RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER.personaName,
+    characterId: RP_QUALITY_PRECALL_TARGET_SELECTOR.characterId,
+    characterName: RP_QUALITY_PRECALL_TARGET_SELECTOR.characterName,
+    personaName: RP_QUALITY_PRECALL_TARGET_SELECTOR.personaName,
     authoringLevel: fixture.authoringLevel,
     contentMode: fixture.contentMode,
-    historySource: fixture.historySource,
-    userTurnIntent: fixture.id,
+    historyOwner: fixture.historyOwner,
+    stimulusOwner: fixture.stimulusOwner,
+    stimulusId: fixture.stimulusId,
     memoryCanonSource: fixture.memoryCanonSource,
     sceneControl: fixture.sceneControl,
     targetLengthOwner: fixture.targetLengthOwner,
@@ -867,7 +983,11 @@ export function buildRpQualityPrecallReport(
   const liveProof = validateLiveProof(input?.liveProofInput, {
     expectedDeploySha: input?.expectedDeploySha,
   });
-  const classified = classifyPrecallFromLiveProof(liveProof);
+  const stimulus = concreteStimulusReadiness(fixtures);
+  const classified = classifyPrecallReport(
+    liveProof,
+    stimulus.twelveCallConcreteStimulusReady
+  );
   const cost = evaluateRpQualityPrecallCostBound();
   const plannedPackets = buildPlannedQualityPackets(plan);
   const pairedComparisons = buildPairedComparisonPackets(plan);
@@ -886,6 +1006,8 @@ export function buildRpQualityPrecallReport(
     fixtures,
     plan,
     plannedSemanticParityOnly: true,
+    twelveCallConcreteStimulusReady: stimulus.twelveCallConcreteStimulusReady,
+    concreteStimulus: stimulus.concreteStimulus,
     liveProof,
     authoring: {
       level: DEFAULT_USER_AUTHORING_LEVEL,
@@ -915,6 +1037,9 @@ export function buildRpQualityPrecallReport(
       "Fixture C is ordinary/manual. Auto-progress is not mixed into this 12-call pilot.",
       "19+ is a separate follow-up; listing nsfw does not force adult RP.",
       "plannedSemanticFingerprint is plan-template parity only, not production final-wire parity.",
+      "Live identity proof does not include mutable current-room history.",
+      "History opening is current greeting via buildGreetingBodyCueReviewCases; scene seeds stay in COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.",
+      "Fixture B has no existing conflict/action/spatial seed, so the 12-call plan is not concrete-ready.",
       "Live proof is injected evidence. The library does not own environment access results.",
       "Existing monthly memory-quality runner remains a different owner and still uses its historical qualification fixture.",
     ],

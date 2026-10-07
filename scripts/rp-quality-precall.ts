@@ -18,6 +18,12 @@ if (report.liveProof.status !== "NOT_PROVIDED") {
 if (report.classification !== "NOT_REPRODUCIBLE" || report.precallReady) {
   throw new Error("default PRECALL report must stay NOT_REPRODUCIBLE");
 }
+if (report.twelveCallConcreteStimulusReady) {
+  throw new Error("12-call concrete stimulus is not ready; do not claim PRECALL_READY");
+}
+if (JSON.stringify(report).includes("historyProvenance") || JSON.stringify(report).includes("current_production_room_if_readable")) {
+  throw new Error("live identity proof still carries mutable room-history provenance");
+}
 
 if (report.providerPosts !== 0) {
   throw new Error("PRECALL report claimed a provider POST");
