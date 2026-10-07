@@ -24,7 +24,7 @@ import { evaluateSafeRestEligibility } from "./mechanicsValidate";
 import { basicFirstAidHpCeiling, safeRestHealAmount } from "./mechanicsDice";
 import type { MechanicsActorInput, MechanicsResolution, TrpgOngoingEffect } from "./mechanicsTypes";
 import type { TrpgSheetSnapshot } from "./types";
-import { parseStoredInventory, type TrpgInventoryEntry } from "./inventory";
+import { inventoryUnits, parseStoredInventory, type TrpgInventoryEntry } from "./inventory";
 import { ensureTrpgTables } from "./schema";
 
 type SheetInit = Omit<Partial<TrpgSheetSnapshot>, "inventory"> & {
@@ -241,7 +241,7 @@ describe("TRPG P0-2 + universal recovery", () => {
     });
     assert.ok(!out.ongoingClearedIds.includes(10));
     assert.deepEqual(out.consumeItems, []);
-    assert.deepEqual(extra().inventory, ["해독제"]);
+    assert.deepEqual(inventoryUnits(extra().inventory), ["해독제"]);
   });
 
   it("I. ally heal HUD is target-owned", () => {

@@ -1244,8 +1244,8 @@ describe("TRPG inventory stacks over the canonical unit list — mechanics / GM 
       await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
       const after = hostSheet(db, campaignId);
       assert.equal(after.hp, 14);
-      assert.deepEqual(inventoryUnits(after.inventory), ["밧줄", "구급키트"]);
-      assert.deepEqual(selfStacks(db, campaignId), [["밧줄", 1], ["구급키트", 1]]);
+      assert.deepEqual(inventoryUnits(after.inventory), ["구급키트", "밧줄"]);
+      assert.deepEqual(selfStacks(db, campaignId), [["구급키트", 1], ["밧줄", 1]]);
       assert.equal(NO_DOUBLE_HEAL_ITEM_CONSUME, true);
       db.close();
     });

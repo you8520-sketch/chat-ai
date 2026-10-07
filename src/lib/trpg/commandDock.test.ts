@@ -141,7 +141,7 @@ describe("TRPG command dock", () => {
     assert.equal("submit" in (bandage ?? {}), false);
     const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
     const surface = readFileSync("src/lib/trpg/sheetSurface.ts", "utf8");
-    assert.match(surface, /useItemActionDraft\(name\)/);
+    assert.match(surface, /useItemActionDraft\(entry\.name\)/);
     assert.doesNotMatch(dock, /inventoryRemove/);
     assert.doesNotMatch(dock, /onSendAction\(\)/);
   });
