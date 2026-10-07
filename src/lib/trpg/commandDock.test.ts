@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { contextualStatusTreatDraft } from "./mechanicsIntent";
 import { partyDetailedSheetCards, viewerSelfSheetCard } from "./partySheetPresentation";
+import { inventoryFromUnits } from "./inventory";
 import type { TrpgSheetHudCard } from "./sheetView";
 import {
   initialTrpgCommandDockView,
@@ -31,7 +32,7 @@ function card(participantId: number, name: string, isSelf: boolean): TrpgSheetHu
       maxHp: 20,
       stats: { str: 8 },
       conditions: [],
-      inventory: ["붕대"],
+      inventory: inventoryFromUnits(["붕대"]),
       location: "폐역",
       modifiersNote: "",
     },

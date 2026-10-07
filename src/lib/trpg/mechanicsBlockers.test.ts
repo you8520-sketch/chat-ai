@@ -6,8 +6,14 @@ import { parseFlashOrEmpty, resolveRoundMechanics } from "./mechanicsResolve";
 import { parseFlashMechanicsOutput } from "./mechanicsValidate";
 import type { FlashMechanicsOutput, MechanicsActorInput, MechanicsResolution, TrpgOngoingEffect } from "./mechanicsTypes";
 import type { TrpgSheetSnapshot } from "./types";
+import { parseStoredInventory, type TrpgInventoryEntry } from "./inventory";
 
-function sheet(partial: Partial<TrpgSheetSnapshot> = {}): TrpgSheetSnapshot {
+type SheetInit = Omit<Partial<TrpgSheetSnapshot>, "inventory"> & {
+  inventory?: readonly string[] | readonly TrpgInventoryEntry[];
+};
+
+function sheet(partial: SheetInit = {}): TrpgSheetSnapshot {
+  const { inventory, ...rest } = partial;
   return {
     participantId: 1,
     name: "강이현",
@@ -17,10 +23,10 @@ function sheet(partial: Partial<TrpgSheetSnapshot> = {}): TrpgSheetSnapshot {
     maxHp: 25,
     stats: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8, res: 8 },
     conditions: [],
-    inventory: ["붕대", "해독제"],
+    inventory: parseStoredInventory(inventory ?? ["붕대", "해독제"]),
     location: "",
     modifiersNote: "",
-    ...partial,
+    ...rest,
   };
 }
 

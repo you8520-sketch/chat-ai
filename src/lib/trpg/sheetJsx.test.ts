@@ -18,7 +18,12 @@ import {
   type TrpgSheetSurface,
 } from "./sheetSurface";
 import { useItemActionDraft } from "./commandDock";
-import { inventoryStackLabel, stackInventory } from "./inventory";
+import {
+  createInventoryEntryId,
+  inventoryFromUnits,
+  inventoryStackLabel,
+  stackInventory,
+} from "./inventory";
 import { sheetToWidgetValues, type TrpgSheetHudCard } from "./sheetView";
 import type { TrpgPublicOngoingEffect } from "./snapshot";
 import { TRPG_ACTION_MAX_CHARS, type TrpgStatDefinition } from "./types";
@@ -42,7 +47,7 @@ function card(participantId: number, name: string, isSelf: boolean): TrpgSheetHu
       maxHp: 20,
       stats: { str: 12, dex: 8 },
       conditions: ["긴장"],
-      inventory: ["붕대", "  ", "밧줄"],
+      inventory: inventoryFromUnits(["붕대", "  ", "밧줄"]),
       location: "폐역 승강장",
       modifiersNote: "왼팔 부상",
     },
@@ -413,7 +418,7 @@ describe("TRPG inventory quantity stacks (presentation of the canonical unit lis
 
   function stackedCard(participantId: number, isSelf: boolean, inventory: string[] = UNITS): TrpgSheetHudCard {
     const c = card(participantId, isSelf ? "렌" : "미라", isSelf);
-    c.sheet.inventory = [...inventory];
+    c.sheet.inventory = inventoryFromUnits(inventory);
     return c;
   }
 
@@ -430,8 +435,8 @@ describe("TRPG inventory quantity stacks (presentation of the canonical unit lis
     assert.deepEqual(
       surface.inventory.map(({ key, name, quantity }) => ({ key, name, quantity })),
       [
-        { key: "붕대", name: "붕대", quantity: 3 },
-        { key: "해독제", name: "해독제", quantity: 1 },
+        { key: createInventoryEntryId("붕대"), name: "붕대", quantity: 3 },
+        { key: createInventoryEntryId("해독제"), name: "해독제", quantity: 1 },
       ]
     );
     assert.equal(surface.inventory.reduce((sum, item) => sum + item.quantity, 0), UNITS.length);
@@ -540,14 +545,15 @@ describe("TRPG inventory quantity stacks (presentation of the canonical unit lis
     const before = surfaceFor(stackedCard(1, true, ["붕대", "붕대", "붕대"]), true);
     const after = surfaceFor(stackedCard(1, true, ["붕대", "붕대"]), true);
     const gone = surfaceFor(stackedCard(1, true, []), true);
-    assert.deepEqual(before.inventory.map((item) => [item.key, item.quantity]), [["붕대", 3]]);
-    assert.deepEqual(after.inventory.map((item) => [item.key, item.quantity]), [["붕대", 2]]);
+    assert.deepEqual(before.inventory.map((item) => [item.key, item.quantity]), [[createInventoryEntryId("붕대"), 3]]);
+    assert.deepEqual(after.inventory.map((item) => [item.key, item.quantity]), [[createInventoryEntryId("붕대"), 2]]);
+    assert.equal(before.inventory[0]?.key, after.inventory[0]?.key);
     assert.deepEqual(gone.inventory, []);
   });
 
   it("setup lobby status card lists stacks from the same owner", () => {
     const stacked = stackedCard(1, true);
     assert.equal(sheetToWidgetValues(stacked.sheet).inventory, "붕대 ×3, 해독제");
-    assert.equal(sheetToWidgetValues({ ...stacked.sheet, inventory: [" "] }).inventory, "없음");
+    assert.equal(sheetToWidgetValues({ ...stacked.sheet, inventory: [] }).inventory, "없음");
   });
 });

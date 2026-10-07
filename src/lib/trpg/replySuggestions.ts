@@ -49,6 +49,7 @@ import {
   type TrpgReplySuggestion,
 } from "./replySuggestionShared";
 import { loadSheetSnapshots } from "./engineSheets";
+import { inventoryUnits } from "./inventory";
 import { loadCampaign, loadLatestRound, loadParticipants } from "./store";
 import { TRPG_ACTION_MAX_CHARS } from "./types";
 
@@ -1766,7 +1767,7 @@ export async function requestTrpgReplySuggestions(
           hp: self.hp,
           maxHp: self.maxHp,
           conditions: self.conditions,
-          inventory: self.inventory,
+          inventory: inventoryUnits(self.inventory),
           stats: self.stats,
           location: self.location,
         }

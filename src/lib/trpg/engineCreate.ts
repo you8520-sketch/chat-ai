@@ -16,6 +16,7 @@ import { TRPG_SCENARIO_MAX_BOTS } from "./scenarioTypes";
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import { clipTrpgChars } from "./campaignLedger";
 import { DEFAULT_TRPG_BILLING_MODE, TRPG_MAX_SLOTS, TRPG_RELATIONSHIP_MAX_CHARS, type TrpgBillingMode } from "./types";
+import { inventoryFromUnits, serializeInventory } from "./inventory";
 import { deriveMaxHpFromValues, evenStats, suggestBotStats, validateStatAllocation, DEFAULT_TRPG_STAT_DEFS, defsFromKeys, pointPoolFor } from "./stats";
 import { rejectTrpgFork } from "./timeline";
 import type { TrpgHumanPersona } from "./hostPersona";
@@ -53,7 +54,7 @@ export function writeSheet(
       `UPDATE trpg_character_sheets
        SET name=?, hp=?, max_hp=?, location=?, inventory_json=?, revision=revision+1, updated_at=datetime('now')
        WHERE id=?`
-    ).run(name, maxHp, maxHp, location, JSON.stringify(inventory), sheetId);
+    ).run(name, maxHp, maxHp, location, serializeInventory(inventoryFromUnits(inventory)), sheetId);
     db.prepare(`DELETE FROM trpg_character_stats WHERE sheet_id=?`).run(sheetId);
   } else {
     const info = db
@@ -62,7 +63,7 @@ export function writeSheet(
           (campaign_id, participant_id, name, hp, max_hp, location, inventory_json, revision)
          VALUES (?,?,?,?,?,?,?,1)`
       )
-      .run(campaignId, participantId, name, maxHp, maxHp, location, JSON.stringify(inventory));
+      .run(campaignId, participantId, name, maxHp, maxHp, location, serializeInventory(inventoryFromUnits(inventory)));
     sheetId = Number(info.lastInsertRowid);
   }
   const ins = db.prepare(`INSERT INTO trpg_character_stats (sheet_id, stat_key, value) VALUES (?,?,?)`);

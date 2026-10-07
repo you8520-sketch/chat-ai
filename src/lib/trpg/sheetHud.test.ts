@@ -13,8 +13,14 @@ import {
   selfHudAriaLabel,
 } from "./sheetHud";
 import type { TrpgSheetSnapshot } from "./types";
+import { parseStoredInventory, type TrpgInventoryEntry } from "./inventory";
 
-function sheet(partial: Partial<TrpgSheetSnapshot> = {}): TrpgSheetSnapshot {
+type SheetInit = Omit<Partial<TrpgSheetSnapshot>, "inventory"> & {
+  inventory?: readonly string[] | readonly TrpgInventoryEntry[];
+};
+
+function sheet(partial: SheetInit = {}): TrpgSheetSnapshot {
+  const { inventory, ...rest } = partial;
   return {
     participantId: 1,
     name: "렌",
@@ -24,10 +30,10 @@ function sheet(partial: Partial<TrpgSheetSnapshot> = {}): TrpgSheetSnapshot {
     maxHp: 40,
     stats: { str: 10, dex: 12 },
     conditions: ["경미한 출혈"],
-    inventory: ["손전등", "밧줄", "단검", "붕대"],
+    inventory: parseStoredInventory(inventory ?? ["손전등", "밧줄", "단검", "붕대"]),
     location: "북부 폐도시",
     modifiersNote: "dex+2",
-    ...partial,
+    ...rest,
   };
 }
 

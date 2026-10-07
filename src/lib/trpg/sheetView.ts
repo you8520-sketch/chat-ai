@@ -1,7 +1,12 @@
 import { renderStatusWidgetHtml } from "@/lib/statusWidget/render";
 import type { StatusWidget, StatusWidgetValues } from "@/lib/statusWidget/types";
 import { DEFAULT_TRPG_SHEET_WIDGET } from "./defaultSheet";
-import { inventoryStackLabel, stackInventory } from "./inventory";
+import {
+  addInventoryItem,
+  cloneInventory,
+  inventoryStackLabel,
+  removeInventoryItem,
+} from "./inventory";
 import { clampHp } from "./stats";
 import type { TrpgSheetSnapshot, TrpgStateDelta } from "./types";
 
@@ -19,7 +24,6 @@ export function sheetToWidgetValues(sheet: TrpgSheetSnapshot): StatusWidgetValue
   for (const [key, value] of Object.entries(sheet.stats)) {
     stats[key] = String(value);
   }
-  const inventory = stackInventory(sheet.inventory);
   return {
     name: sheet.name,
     player: sheet.playerName,
@@ -27,7 +31,7 @@ export function sheetToWidgetValues(sheet: TrpgSheetSnapshot): StatusWidgetValue
     hp: `${sheet.hp} / ${sheet.maxHp}`,
     location: sheet.location || "—",
     conditions: sheet.conditions.length ? sheet.conditions.join(", ") : "없음",
-    inventory: inventory.length ? inventory.map(inventoryStackLabel).join(", ") : "없음",
+    inventory: sheet.inventory.length ? sheet.inventory.map(inventoryStackLabel).join(", ") : "없음",
     modifiers: sheet.modifiersNote || "—",
     ...stats,
   };
@@ -71,7 +75,7 @@ export function applyValidatedStateDelta(
   sheets: TrpgSheetSnapshot[],
   delta: TrpgStateDelta
 ): { ok: true; next: TrpgSheetSnapshot[] } | { ok: false; error: DeltaApplyError; detail: string } {
-  const byId = new Map(sheets.map((s) => [s.participantId, { ...s, stats: { ...s.stats }, conditions: [...s.conditions], inventory: [...s.inventory] }]));
+  const byId = new Map(sheets.map((s) => [s.participantId, { ...s, stats: { ...s.stats }, conditions: [...s.conditions], inventory: cloneInventory(s.inventory) }]));
   const seen = new Set<number>();
 
   for (const patch of delta.players) {
@@ -94,17 +98,17 @@ export function applyValidatedStateDelta(
     if (patch.inventoryAdd) {
       for (const item of patch.inventoryAdd) {
         const t = item.trim();
-        if (t) cur.inventory.push(t);
+        if (t) cur.inventory = addInventoryItem(cur.inventory, t);
       }
     }
     if (patch.inventoryRemove) {
       for (const item of patch.inventoryRemove) {
         const t = item.trim();
-        const idx = cur.inventory.indexOf(t);
-        if (idx < 0) {
+        const removed = removeInventoryItem(cur.inventory, t);
+        if (!removed.ok) {
           return { ok: false, error: "missing_item", detail: t };
         }
-        cur.inventory.splice(idx, 1);
+        cur.inventory = removed.next;
       }
     }
     byId.set(patch.participantId, cur);

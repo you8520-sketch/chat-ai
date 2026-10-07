@@ -24,9 +24,15 @@ import { evaluateSafeRestEligibility } from "./mechanicsValidate";
 import { basicFirstAidHpCeiling, safeRestHealAmount } from "./mechanicsDice";
 import type { MechanicsActorInput, MechanicsResolution, TrpgOngoingEffect } from "./mechanicsTypes";
 import type { TrpgSheetSnapshot } from "./types";
+import { parseStoredInventory, type TrpgInventoryEntry } from "./inventory";
 import { ensureTrpgTables } from "./schema";
 
-function sheet(partial: Partial<TrpgSheetSnapshot> = {}): TrpgSheetSnapshot {
+type SheetInit = Omit<Partial<TrpgSheetSnapshot>, "inventory"> & {
+  inventory?: readonly string[] | readonly TrpgInventoryEntry[];
+};
+
+function sheet(partial: SheetInit = {}): TrpgSheetSnapshot {
+  const { inventory, ...rest } = partial;
   return {
     participantId: 1,
     name: "강이현",
@@ -36,10 +42,10 @@ function sheet(partial: Partial<TrpgSheetSnapshot> = {}): TrpgSheetSnapshot {
     maxHp: 25,
     stats: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8, res: 8 },
     conditions: [],
-    inventory: [],
+    inventory: parseStoredInventory(inventory ?? []),
     location: "",
     modifiersNote: "",
-    ...partial,
+    ...rest,
   };
 }
 
