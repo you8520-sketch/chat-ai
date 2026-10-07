@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { EffectiveRuntimeSettingsSection } from "@/components/admin/EffectiveRuntimeSettingsSection";
 import { requireAdminUser } from "@/lib/adminAuth";
+import { buildEffectiveRuntimeSettingsProjection } from "@/lib/adminEffectiveRuntimeSettings";
 import { buildAdminFinanceSummary, currentKstMonthKey } from "@/lib/adminFinance";
 import {
   fetchMemoryResearchAdminProjection,
@@ -1132,6 +1134,7 @@ export default async function AdminAutomationReportsPage() {
     fetchDomainSslMonitorProjection(),
   ]);
   const memoryRuntime = buildAdminMemoryRuntimeStatus(process.env);
+  const effectiveRuntime = buildEffectiveRuntimeSettingsProjection();
   const [codeHealth, decisionRadar, memoryResearch] = await Promise.all([
     fetchCodeHealthAdminProjection(github.groups),
     fetchDecisionRadarAdminProjection(github.groups),
@@ -1240,6 +1243,7 @@ export default async function AdminAutomationReportsPage() {
         </div>
       </section>
 
+      <EffectiveRuntimeSettingsSection projection={effectiveRuntime} />
       <PostDeployVerificationCard view={postDeploy} />
       <DomainSslMonitorCard view={domainSsl} />
 
