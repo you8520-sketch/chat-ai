@@ -17,6 +17,8 @@ import {
 } from "@/lib/turnApiBudget";
 import { stageUsageReportingEvidenceFromTokenUsage } from "@/lib/usageReportingEvidence";
 
+export const NARRATIVE_LENGTH_CONTINUATION_STAGE = "narrative-length-continuation";
+
 /** tier minimum(글자) 미달일 때만 이어쓰기 — target 미달·단어 부족만으로는 금지 */
 export function needsVisibleLengthContinuation(
   prose: string,
@@ -132,7 +134,7 @@ export async function continueNarrativeIfUnderMinimum(
     prose,
     continued: prose.length > prior.length,
     stage: {
-      stage: "narrative-length-continuation",
+      stage: NARRATIVE_LENGTH_CONTINUATION_STAGE,
       model: opts.modelId,
       input: result.usage.inputTokens,
       output: result.usage.outputTokens,

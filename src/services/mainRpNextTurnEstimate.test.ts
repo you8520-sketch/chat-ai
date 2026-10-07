@@ -4,7 +4,7 @@ import path from "path";
 import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "@/lib/chatModels";
 import type { Usage } from "@/lib/chatUsage";
@@ -18,7 +18,7 @@ import {
 
 const SOL = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
 const FLASH = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
-const GEMINI = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
+const GEMINI = GEMINI_38_FLASH_MODEL;
 const SERVICE_SOURCE = fs.readFileSync(
   path.join(process.cwd(), "src/services/mainRpNextTurnEstimate.ts"),
   "utf8"
@@ -41,6 +41,8 @@ function validSolUsage(overrides: Record<string, unknown> = {}) {
   return {
     selectedAI: SOL,
     model: SOL,
+    input: 14_312,
+    output: 2_780,
     apiInputTokens: 14_312,
     assembledInputTokens: 34_816,
     apiOutputTokens: 2_780,
@@ -48,6 +50,7 @@ function validSolUsage(overrides: Record<string, unknown> = {}) {
     htmlFlashOnly: false,
     apiCallCount: 1,
     lengthRecoveryPasses: 0,
+    stages: [{ stage: "primary", model: SOL, input: 14_312, output: 2_780, cost: 161 }],
     adultRouting: { actualModel: SOL, fallbackAttempted: false },
     ...overrides,
   };
@@ -69,6 +72,7 @@ describe("main RP next-turn provider-input calibration reader", () => {
     assert.deepEqual(readMainRpNextTurnProviderInputCalibration(rows)[SOL], {
       actualBillableInputTokens: 14_312,
       assembledInputTokens: 34_816,
+      aggregateApiInputTokens: 14_312,
     });
   });
 
@@ -83,7 +87,14 @@ describe("main RP next-turn provider-input calibration reader", () => {
           apiInputTokens: 3,
         })
       ),
-      assistantRow(validSolUsage({ apiCallCount: 2, apiInputTokens: 4 })),
+      assistantRow(
+        validSolUsage({
+          apiCallCount: 2,
+          input: 4,
+          apiInputTokens: 4,
+          stages: [],
+        })
+      ),
       assistantRow(validSolUsage({ lengthRecoveryPasses: 1, apiInputTokens: 5 })),
       assistantRow(validSolUsage({ htmlFlashOnly: true, apiInputTokens: 6 })),
       assistantRow(validSolUsage({ apiInputTokens: 7 }), { model: "greeting" }),
@@ -93,6 +104,23 @@ describe("main RP next-turn provider-input calibration reader", () => {
     assert.deepEqual(readMainRpNextTurnProviderInputCalibration(rows)[SOL], {
       actualBillableInputTokens: 14_312,
       assembledInputTokens: 34_816,
+      aggregateApiInputTokens: 14_312,
+    });
+  });
+
+  it("accepts html-flash-only apiCallCount=2 when a single main stage is persisted", () => {
+    const rows: EstimateMessageRow[] = [
+      assistantRow(
+        validSolUsage({
+          apiCallCount: 2,
+          stages: [{ stage: "primary", model: SOL, input: 14_312, output: 2_780, cost: 161 }],
+        })
+      ),
+    ];
+    assert.deepEqual(readMainRpNextTurnProviderInputCalibration(rows)[SOL], {
+      actualBillableInputTokens: 14_312,
+      assembledInputTokens: 34_816,
+      aggregateApiInputTokens: 14_312,
     });
   });
 
@@ -104,6 +132,7 @@ describe("main RP next-turn provider-input calibration reader", () => {
           ...validSolUsage(),
           selectedAI: FLASH,
           model: FLASH,
+          input: 9_000,
           apiInputTokens: 9_000,
           assembledInputTokens: 9_500,
           adultRouting: { actualModel: FLASH, fallbackAttempted: false },
@@ -115,10 +144,12 @@ describe("main RP next-turn provider-input calibration reader", () => {
     assert.deepEqual(picked[SOL], {
       actualBillableInputTokens: 14_312,
       assembledInputTokens: 34_816,
+      aggregateApiInputTokens: 14_312,
     });
     assert.deepEqual(picked[FLASH], {
       actualBillableInputTokens: 9_000,
       assembledInputTokens: 9_500,
+      aggregateApiInputTokens: 9_000,
     });
   });
 
@@ -135,18 +166,26 @@ describe("main RP next-turn provider-input calibration reader", () => {
 
   it("reads last 3-5 same-model apiOutputTokens and skips contaminated rows", () => {
     const rows: EstimateMessageRow[] = [
-      assistantRow(validSolUsage({ apiOutputTokens: 2100 })),
-      assistantRow(validSolUsage({ apiOutputTokens: 2700 })),
-      assistantRow(validSolUsage({ apiOutputTokens: 2750 })),
-      assistantRow(validSolUsage({ apiOutputTokens: 2780 })),
-      assistantRow(validSolUsage({ apiCallCount: 2, apiOutputTokens: 9000 })),
-      assistantRow(validSolUsage({ apiOutputTokens: 2800 })),
+      assistantRow(validSolUsage({ apiOutputTokens: 2100, output: 2100 })),
+      assistantRow(validSolUsage({ apiOutputTokens: 2700, output: 2700 })),
+      assistantRow(validSolUsage({ apiOutputTokens: 2750, output: 2750 })),
+      assistantRow(validSolUsage({ apiOutputTokens: 2780, output: 2780 })),
+      assistantRow(
+        validSolUsage({
+          apiCallCount: 2,
+          apiOutputTokens: 9000,
+          output: 9000,
+          stages: [],
+        })
+      ),
+      assistantRow(validSolUsage({ apiOutputTokens: 2800, output: 2800 })),
       assistantRow(
         {
           ...validSolUsage(),
           selectedAI: FLASH,
           model: FLASH,
           apiOutputTokens: 4000,
+          output: 4000,
           adultRouting: { actualModel: FLASH, fallbackAttempted: false },
         },
         { model: FLASH }
@@ -225,11 +264,11 @@ describe("main RP next-turn provider-input calibration reader", () => {
     assert.match(SERVICE_SOURCE, /providerInputCalibrationByModel/);
     assert.match(
       SERVICE_SOURCE,
-      /const estimates = estimatesFromRoomRows\(rows, \{\s*\[opts\.modelId\]: opts\.promptTokens,/
+      /estimatesFromRoomRows\(\s*rows,\s*\{\s*\[opts\.modelId\]: opts\.promptTokens,/
     );
     assert.match(
       SERVICE_SOURCE,
-      /const estimates = estimatesFromRoomRows\(rows, promptTokensByModel\)/
+      /estimatesFromRoomRows\(\s*rows,\s*promptTokensByModel,\s*providerInputCalibrationByModel/
     );
   });
 });

@@ -20,6 +20,7 @@
  */
 
 import { isMainRpModel, MAIN_RP_MODEL_IDS, type SelectedAI } from "@/lib/chatModels";
+import { NARRATIVE_LENGTH_CONTINUATION_STAGE } from "@/lib/narrativeLengthContinuation";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
 import { computePublishedStandardPreviewDisplayPoints } from "@/lib/publishedUserCharge";
 import {
@@ -27,6 +28,8 @@ import {
   KOREAN_CHARS_PER_OUTPUT_TOKEN,
   UNIFIED_TIER_AIM_CHARS,
 } from "@/lib/responseLengthConstants";
+import { SERVER_UNDER_LENGTH_RECOVERY_STAGE } from "@/lib/serverUnderLengthRecovery";
+import { isStatusWidgetExtractStageLabel } from "@/lib/statusWidget/receiptUsage";
 import { isSuccessfulDurableGenerationStatus } from "@/lib/streamingPersistenceShared";
 
 export const NEXT_TURN_ESTIMATE_VERSION = "main-rp-next-turn-v1";
@@ -55,6 +58,7 @@ export type NextTurnEstimateRow = {
   localAssembledInputTokens: number;
   predictedBillableInputTokens: number;
   actualBillableInputTokens: number | null;
+  priorAssembledInputTokens: number | null;
   calibrationSource: NextTurnInputCalibrationSource;
   calibrationConfidence: NextTurnInputCalibrationConfidence;
   outputHistorySampleCount: number | null;
@@ -65,11 +69,18 @@ export type NextTurnEstimateMap = Partial<Record<SelectedAI, NextTurnEstimateRow
 export type NextTurnProviderInputCalibrationSample = {
   actualBillableInputTokens: number;
   assembledInputTokens: number;
+  aggregateApiInputTokens?: number | null;
+  syncAuxInputTokens?: number | null;
 };
 
 function isFinitePositiveToken(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
+
+export type NextTurnCalibrationStageFields = {
+  stage?: string | null;
+  input?: number | null;
+};
 
 export type NextTurnCalibrationTurnFields = {
   generationStatus?: string | null;
@@ -82,31 +93,119 @@ export type NextTurnCalibrationTurnFields = {
   fallbackAttempted?: boolean;
   apiCallCount?: number | null;
   lengthRecoveryPasses?: number | null;
+  stages?: NextTurnCalibrationStageFields[] | null;
+  usageInputTokens?: number | null;
+  apiInputTokens?: number | null;
+  assembledInputTokens?: number | null;
+  statusWidgetExtractCallCount?: number | null;
+  statusWidgetExtractInputTokens?: number | null;
 };
 
-export function isUncontaminatedSameModelCalibrationTurn(
+export type NextTurnCalibrationRejection =
+  | "html_flash_only"
+  | "greeting"
+  | "unsuccessful_generation"
+  | "estimated"
+  | "fallback"
+  | "fallback_attempted"
+  | "length_recovery_passes"
+  | "narrative_length_continuation"
+  | "server_under_length_recovery"
+  | "unclassified_main_rp_multi_stage"
+  | "unclassified_multi_call_without_stages"
+  | "unusable_model"
+  | "model_mismatch";
+
+function stageLabel(stage: NextTurnCalibrationStageFields | null | undefined): string {
+  return typeof stage?.stage === "string" ? stage.stage : "";
+}
+
+export function isMainRpSupplementStageLabel(stage: string | null | undefined): boolean {
+  if (!stage) return false;
+  return (
+    stage === NARRATIVE_LENGTH_CONTINUATION_STAGE ||
+    stage === SERVER_UNDER_LENGTH_RECOVERY_STAGE
+  );
+}
+
+export function resolveSyncAuxInputTokens(
   input: NextTurnCalibrationTurnFields
-): boolean {
-  if (input.htmlFlashOnly) return false;
-  if ((input.model ?? "").trim() === "greeting") return false;
-  if ((input.selectedAI ?? "").trim() === "greeting") return false;
-  if (!isSuccessfulDurableGenerationStatus(input.generationStatus)) return false;
-  if (input.estimated === true) return false;
-  if (input.fallback) return false;
-  if (input.fallbackAttempted === true) return false;
-  if ((input.apiCallCount ?? 1) > 1) return false;
-  if ((input.lengthRecoveryPasses ?? 0) > 0) return false;
+): number | null {
+  if (isFinitePositiveToken(input.statusWidgetExtractInputTokens)) {
+    return input.statusWidgetExtractInputTokens;
+  }
+  const auxInputs = (input.stages ?? [])
+    .filter((stage) => isStatusWidgetExtractStageLabel(stageLabel(stage)))
+    .map((stage) => stage.input)
+    .filter(isFinitePositiveToken);
+  if (auxInputs.length === 0) return null;
+  return auxInputs.reduce((sum, value) => sum + value, 0);
+}
+
+export function resolveAuxiliaryPlatformFundedCallCount(
+  input: NextTurnCalibrationTurnFields
+): number {
+  if (
+    typeof input.statusWidgetExtractCallCount === "number" &&
+    Number.isFinite(input.statusWidgetExtractCallCount) &&
+    input.statusWidgetExtractCallCount > 0
+  ) {
+    return Math.floor(input.statusWidgetExtractCallCount);
+  }
+  return (input.stages ?? []).filter((stage) =>
+    isStatusWidgetExtractStageLabel(stageLabel(stage))
+  ).length;
+}
+
+export function firstNextTurnCalibrationRejection(
+  input: NextTurnCalibrationTurnFields
+): NextTurnCalibrationRejection | null {
+  if (input.htmlFlashOnly) return "html_flash_only";
+  if ((input.model ?? "").trim() === "greeting") return "greeting";
+  if ((input.selectedAI ?? "").trim() === "greeting") return "greeting";
+  if (!isSuccessfulDurableGenerationStatus(input.generationStatus)) {
+    return "unsuccessful_generation";
+  }
+  if (input.estimated === true) return "estimated";
+  if (input.fallback) return "fallback";
+  if (input.fallbackAttempted === true) return "fallback_attempted";
+  if ((input.lengthRecoveryPasses ?? 0) > 0) return "length_recovery_passes";
+
+  const labels = (input.stages ?? []).map(stageLabel);
+  if (labels.includes(NARRATIVE_LENGTH_CONTINUATION_STAGE)) {
+    return "narrative_length_continuation";
+  }
+  if (labels.includes(SERVER_UNDER_LENGTH_RECOVERY_STAGE)) {
+    return "server_under_length_recovery";
+  }
+
+  const mainRpStages = labels.filter(
+    (stage) => stage && !isStatusWidgetExtractStageLabel(stage)
+  );
+  if (mainRpStages.length > 1) return "unclassified_main_rp_multi_stage";
+
+  const auxCalls = resolveAuxiliaryPlatformFundedCallCount(input);
+  const extraCalls = (input.apiCallCount ?? 1) - 1 - auxCalls;
+  if ((input.stages == null || input.stages.length === 0) && extraCalls > 0) {
+    return "unclassified_multi_call_without_stages";
+  }
 
   const selected =
     resolveMainRpNextTurnCalibrationModelId(input.selectedAI) ??
     resolveMainRpNextTurnCalibrationModelId(input.model);
-  if (!selected) return false;
+  if (!selected) return "unusable_model";
 
   if (input.actualModel != null && String(input.actualModel).trim() !== "") {
     const actual = resolveMainRpNextTurnCalibrationModelId(input.actualModel);
-    if (actual == null || actual !== selected) return false;
+    if (actual == null || actual !== selected) return "model_mismatch";
   }
-  return true;
+  return null;
+}
+
+export function isUncontaminatedSameModelCalibrationTurn(
+  input: NextTurnCalibrationTurnFields
+): boolean {
+  return firstNextTurnCalibrationRejection(input) == null;
 }
 
 export function meanPositiveTokens(values: number[]): number | null {
@@ -295,26 +394,15 @@ export function isUsableOutputCalibrationSource(input: {
   }) != null;
 }
 
-export function isUsableProviderInputCalibrationSource(input: {
-  generationStatus?: string | null;
-  model?: string | null;
-  selectedAI?: string | null;
-  actualModel?: string | null;
-  htmlFlashOnly?: boolean;
-  estimated?: boolean;
-  fallback?: string | boolean | null;
-  fallbackAttempted?: boolean;
-  apiCallCount?: number | null;
-  lengthRecoveryPasses?: number | null;
-  apiInputTokens?: number | null;
-  assembledInputTokens?: number | null;
-}): boolean {
+export function isUsableProviderInputCalibrationSource(
+  input: NextTurnCalibrationTurnFields
+): boolean {
   if (!isUncontaminatedSameModelCalibrationTurn(input)) return false;
-  if (!isFinitePositiveToken(input.apiInputTokens)) return false;
+  if (!isFinitePositiveToken(input.usageInputTokens)) return false;
   if (!isFinitePositiveToken(input.assembledInputTokens)) return false;
   return (
     resolveProviderInputRatio({
-      actualBillableInputTokens: input.apiInputTokens,
+      actualBillableInputTokens: input.usageInputTokens,
       assembledInputTokens: input.assembledInputTokens,
     }) != null
   );
@@ -328,16 +416,7 @@ export function isUsableOutputHistorySource(input: NextTurnCalibrationTurnFields
 }
 
 export function pickLatestProviderInputCalibrationByModel(
-  candidatesNewestLast: Array<
-    {
-      selectedAI?: string | null;
-      model?: string | null;
-      actualModel?: string | null;
-    } & Omit<
-      Parameters<typeof isUsableProviderInputCalibrationSource>[0],
-      "selectedAI" | "model" | "actualModel"
-    >
-  >
+  candidatesNewestLast: NextTurnCalibrationTurnFields[]
 ): Partial<Record<SelectedAI, NextTurnProviderInputCalibrationSample>> {
   const out: Partial<Record<SelectedAI, NextTurnProviderInputCalibrationSample>> = {};
   for (let i = candidatesNewestLast.length - 1; i >= 0; i -= 1) {
@@ -349,10 +428,16 @@ export function pickLatestProviderInputCalibrationByModel(
       resolveMainRpNextTurnCalibrationModelId(candidate.model);
     if (!modelId || out[modelId] != null) continue;
     const assembledInputTokens = candidate.assembledInputTokens as number;
-    const reportedInputTokens = candidate.apiInputTokens as number;
+    const reportedInputTokens = candidate.usageInputTokens as number;
+    const aggregateApiInputTokens = isFinitePositiveToken(candidate.apiInputTokens)
+      ? candidate.apiInputTokens
+      : null;
+    const syncAuxInputTokens = resolveSyncAuxInputTokens(candidate);
     out[modelId] = {
       actualBillableInputTokens: Math.min(reportedInputTokens, assembledInputTokens),
       assembledInputTokens,
+      ...(aggregateApiInputTokens != null ? { aggregateApiInputTokens } : {}),
+      ...(syncAuxInputTokens != null ? { syncAuxInputTokens } : {}),
     };
   }
   return out;
@@ -463,6 +548,11 @@ export function computeMainRpNextTurnEstimates(input: {
       localAssembledInputTokens,
       predictedBillableInputTokens,
       actualBillableInputTokens: calibrated.actualBillableInputTokens,
+      priorAssembledInputTokens: input.providerInputCalibrationByModel?.[modelId]
+        ? Math.round(
+            input.providerInputCalibrationByModel[modelId]!.assembledInputTokens
+          )
+        : null,
       calibrationSource: calibrated.calibrationSource,
       calibrationConfidence: calibrated.calibrationConfidence,
       outputHistorySampleCount: outputForecast.outputHistorySampleCount,
