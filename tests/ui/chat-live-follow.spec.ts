@@ -3,6 +3,7 @@ import { DEFAULT_CHAT_DISPLAY_PREFS } from "../../src/lib/chatDisplayPrefs";
 import {
   seedCanonicalCompletedChatHistory,
 } from "./helpers/canonicalChatHistorySeed";
+import { openExplicitFreshChat } from "./helpers/openExplicitChat";
 import {
   estimateLineWrapIntervalMs,
   estimateVerticalGrowthPxPerSec,
@@ -146,8 +147,7 @@ async function setReactTextareaValue(page: Page, text: string) {
 }
 
 async function openFreshChat(page: Page, characterId = 2) {
-  await page.goto(`/chat/${characterId}?fresh=1`, { waitUntil: "domcontentloaded" });
-  await page.waitForURL(/\/chat\/\d+\?chat=\d+/, { timeout: 45_000 });
+  await openExplicitFreshChat(page, characterId);
   await page.waitForSelector("textarea[placeholder*='메시지 입력']", { timeout: 45_000 });
   await page.waitForSelector("article", { timeout: 45_000 });
   await waitForChatInputReady(page);

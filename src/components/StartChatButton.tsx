@@ -11,6 +11,7 @@ import {
   getBranchDisplayTitle,
   type UserChatSession,
 } from "@/lib/recentChats";
+import { chatRoomHref, requestExplicitChatSession } from "@/lib/chatSessionStartClient";
 
 type Props = {
   characterId: number;
@@ -52,6 +53,8 @@ export default function StartChatButton({
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState("");
 
   const hasHistory = branches.length > 0;
   const multi = branches.length > 1;
@@ -68,6 +71,27 @@ export default function StartChatButton({
       router.push(href);
     },
     [openInTop, router]
+  );
+
+  const startExplicitChat = useCallback(
+    async (fresh: boolean) => {
+      if (starting) return;
+      setStarting(true);
+      setStartError("");
+      try {
+        const { chatId } = await requestExplicitChatSession({
+          characterId,
+          fresh,
+          personaId: selectedPersonaId,
+        });
+        close();
+        go(chatRoomHref(characterId, chatId));
+      } catch (error) {
+        setStartError(error instanceof Error ? error.message : "채팅을 시작하지 못했습니다.");
+        setStarting(false);
+      }
+    },
+    [characterId, close, go, selectedPersonaId, starting]
   );
 
   useEffect(() => {
@@ -93,16 +117,25 @@ export default function StartChatButton({
     );
   }
 
-  const freshHref = chatEntryHref(characterId, {
-    fresh: true,
-    personaId: selectedPersonaId,
-  });
-
   if (alwaysNewChat || !hasHistory) {
     return (
-      <Link href={freshHref} target={linkTarget} className={baseClass}>
-        {startLabel}
-      </Link>
+      <span className="inline-flex flex-col items-center gap-2">
+        <button
+          type="button"
+          disabled={starting}
+          onClick={() => {
+            void startExplicitChat(alwaysNewChat && hasHistory);
+          }}
+          className={`${baseClass} disabled:opacity-60`}
+        >
+          {starting ? "시작하는 중…" : startLabel}
+        </button>
+        {startError ? (
+          <span className="text-xs text-rose-300" role="alert">
+            {startError}
+          </span>
+        ) : null}
+      </span>
     );
   }
 
@@ -186,18 +219,23 @@ export default function StartChatButton({
               )}
               <button
                 type="button"
+                disabled={starting}
                 onClick={() => {
-                  close();
-                  go(freshHref);
+                  void startExplicitChat(true);
                 }}
-                className={`rounded-xl px-4 py-3 text-sm font-bold ${
+                className={`rounded-xl px-4 py-3 text-sm font-bold disabled:opacity-60 ${
                   multi
                     ? "border border-white/10 bg-white/5 text-white hover:bg-white/10"
                     : "border border-white/10 bg-white/5 text-white hover:bg-white/10"
                 }`}
               >
-                처음부터 (새 대화)
+                {starting ? "시작하는 중…" : "처음부터 (새 대화)"}
               </button>
+              {startError ? (
+                <p className="text-xs text-rose-300" role="alert">
+                  {startError}
+                </p>
+              ) : null}
               <button
                 type="button"
                 onClick={close}

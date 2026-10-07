@@ -30,6 +30,8 @@ export type CreateChatSessionInput = {
   adultHandoffEnabled?: boolean;
   userAuthoringLevel?: UserAuthoringLevel;
   autoProgressionAuthoringLevel?: UserAuthoringLevel;
+  /** Test spy only — replaces the real greeting scheduler so tests never start provider work. */
+  __testOnGreetingSchedule?: (messageId: number, chatId: number) => void;
 };
 
 /** 새 채팅방 생성 + 첫 메시지(greeting) 삽입 */
@@ -94,7 +96,11 @@ export function createChatSession(input: CreateChatSessionInput): number {
       .run(chatId, "assistant", greetingForInsert, "greeting");
     const greetingMessageId = Number(greetingInfo.lastInsertRowid);
     if (Number.isFinite(greetingMessageId) && greetingMessageId > 0) {
-      scheduleGreetingSuggestedRepliesExtraction(greetingMessageId, chatId);
+      if (input.__testOnGreetingSchedule) {
+        input.__testOnGreetingSchedule(greetingMessageId, chatId);
+      } else {
+        scheduleGreetingSuggestedRepliesExtraction(greetingMessageId, chatId);
+      }
     }
   }
 
