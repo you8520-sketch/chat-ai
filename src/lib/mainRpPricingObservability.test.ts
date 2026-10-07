@@ -24,6 +24,7 @@ import {
 import {
   buildMainRpPricingObservabilityProjection,
   listMainRpObservabilityModelIds,
+  MAIN_RP_OBSERVABILITY_MODEL_IDS,
 } from "@/lib/mainRpPricingObservability";
 import { getMarketBenchmarks } from "@/lib/marketUsageBenchmarks";
 import { ensureModelPricingTrackingSchema } from "@/lib/modelPricingTrackingSchema";
