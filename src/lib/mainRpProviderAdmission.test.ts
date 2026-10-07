@@ -465,6 +465,57 @@ describe("main RP provider point admission", () => {
     });
   });
 
+  it("H picker and admission consume the same next-turn forecast owner", () => {
+    const serviceSource = fs.readFileSync(
+      path.join(process.cwd(), "src/services/mainRpNextTurnEstimate.ts"),
+      "utf8"
+    );
+    assert.match(serviceSource, /function estimatesFromRoomRows/);
+    assert.match(serviceSource, /providerInputCalibrationByModel/);
+    assert.match(serviceSource, /resolveMainRpNextTurnPickerEstimates/);
+    assert.match(serviceSource, /resolveMainRpNextTurnPublishedEstimateForModel/);
+    assert.match(ROUTE_SOURCE, /resolveMainRpNextTurnPublishedEstimateForModel/);
+    assert.match(ROUTE_SOURCE, /resolveMainRpProviderAdmissionRequiredPoints/);
+  });
+
+  it("I calibrated Sol 160P still blocks 200P before any provider call", () => {
+    const sol = computeMainRpNextTurnEstimates({
+      promptTokensByModel: { [CHEAPER_INFERENCE_GPT_61_SOL_MODEL]: 34_816 },
+      lastVisibleAssistantChars: 4_213,
+      observedCharsPerTokenByModel: {
+        [CHEAPER_INFERENCE_GPT_61_SOL_MODEL]: 4_213 / 2_780,
+      },
+      providerInputCalibrationByModel: {
+        [CHEAPER_INFERENCE_GPT_61_SOL_MODEL]: {
+          actualBillableInputTokens: 14_312,
+          assembledInputTokens: 34_816,
+        },
+      },
+      effectiveKrwPerUsd: FX,
+    })[CHEAPER_INFERENCE_GPT_61_SOL_MODEL];
+    assert.ok(sol);
+    assert.equal(sol!.displayPoints, 160);
+    const required = resolveMainRpProviderAdmissionRequiredPoints(sol!.displayPoints);
+    assert.equal(required, 480);
+    withDb((db) => {
+      const provider: ProviderSeam = { calls: 0 };
+      const result = enterWithEstimateAdmission(
+        db,
+        {
+          userId: 1,
+          chatId: 1,
+          requestId: "req_calibrated_insufficient",
+          userContent: "다음 장면",
+          balancePoints: 200,
+          publishedEstimatePoints: sol!.displayPoints,
+        },
+        provider
+      );
+      assert.equal(result, "insufficient");
+      assert.equal(provider.calls, 0);
+    });
+  });
+
   it("J cheap model 3x stays at the 80P floor; Sol and Opus rise", () => {
     const flash = computeMainRpNextTurnEstimates({
       promptTokensByModel: { [CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL]: 7000 },

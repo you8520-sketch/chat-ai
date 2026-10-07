@@ -6,21 +6,42 @@ import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "@/lib/chatModels";
 import { visibleAssistantDisplayCharCount, visibleAssistantDisplayText } from "@/lib/chatDisplayLength";
 import {
+  applyProviderInputCalibration,
   computeMainRpNextTurnEstimates,
+  describeNextTurnOutputBasis,
   estimateNextTurnOutputTokens,
   isUsableOutputCalibrationSource,
+  isUsableOutputHistorySource,
+  isUsableProviderInputCalibrationSource,
+  meanPositiveTokens,
+  medianPositiveTokens,
   nextTurnEstimateDisplayMap,
+  pickLatestProviderInputCalibrationByModel,
+  pickRecentSameModelBillableOutputTokens,
+  resolveMainRpNextTurnCalibrationModelId,
   resolveNextTurnOutputChars,
   resolveObservedCharsPerToken,
+  resolveOutputHistoryForecastTokens,
+  resolveProviderInputRatio,
+  trimmedMeanPositiveTokens,
 } from "@/lib/mainRpNextTurnEstimate";
+import { billableOpenRouterOutputTokens } from "@/lib/points";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
+import { resolveTurnBillableInput } from "@/lib/stageBillableUsage";
 import {
   computePublishedStandardPreviewDisplayPoints,
+  computePublishedStandardPreviewPoints,
 } from "@/lib/publishedUserCharge";
+import {
+  MAIN_RP_PROVIDER_ADMISSION_ESTIMATE_MULTIPLIER,
+  admitMainRpProviderByRequiredPoints,
+  resolveMainRpProviderAdmissionRequiredPoints,
+} from "@/lib/mainRpProviderAdmission";
 import {
   CATASTROPHIC_MIN_RESPONSE_CHARS,
   KOREAN_CHARS_PER_OUTPUT_TOKEN,
@@ -48,6 +69,14 @@ const SELECTED_AI_SOURCE = fs.readFileSync(
 );
 const PAGE_SOURCE = fs.readFileSync(
   path.join(process.cwd(), "src/app/chat/[id]/page.tsx"),
+  "utf8"
+);
+const CHAT_ROUTE_SOURCE = fs.readFileSync(
+  path.join(process.cwd(), "src/app/api/chat/route.ts"),
+  "utf8"
+);
+const TOKEN_ESTIMATE_SOURCE = fs.readFileSync(
+  path.join(process.cwd(), "src/lib/tokenEstimate.ts"),
   "utf8"
 );
 
@@ -346,5 +375,533 @@ describe("main RP next-turn estimate", () => {
     const display = nextTurnEstimateDisplayMap(estimates);
     assert.ok((display[CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL] ?? 0) > 0);
     assert.ok((display[CHEAPER_INFERENCE_GPT_61_SOL_MODEL] ?? 0) > 0);
+  });
+});
+
+const SOL = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
+const FLASH = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+const PREV_ASSEMBLED = 34_816;
+const PREV_PROVIDER = 14_312;
+const PREV_OUTPUT = 2_780;
+const PREV_CHARS = 4_213;
+const SOL_OBSERVED_CHARS_PER_TOKEN = PREV_CHARS / PREV_OUTPUT;
+
+function solValidInputSource(overrides: Record<string, unknown> = {}) {
+  return {
+    generationStatus: "completed",
+    model: SOL,
+    selectedAI: SOL,
+    actualModel: SOL,
+    htmlFlashOnly: false,
+    estimated: false,
+    fallback: null,
+    fallbackAttempted: false,
+    apiCallCount: 1,
+    lengthRecoveryPasses: 0,
+    apiInputTokens: PREV_PROVIDER,
+    assembledInputTokens: PREV_ASSEMBLED,
+    ...overrides,
+  };
+}
+
+function solNextTurn(input: {
+  assembled: number;
+  sample?: { actualBillableInputTokens: number; assembledInputTokens: number } | null;
+}) {
+  return computeMainRpNextTurnEstimates({
+    promptTokensByModel: { [SOL]: input.assembled },
+    lastVisibleAssistantChars: PREV_CHARS,
+    observedCharsPerTokenByModel: { [SOL]: SOL_OBSERVED_CHARS_PER_TOKEN },
+    providerInputCalibrationByModel:
+      input.sample === undefined
+        ? undefined
+        : input.sample
+          ? { [SOL]: input.sample }
+          : { [SOL]: null },
+    effectiveKrwPerUsd: FX,
+  })[SOL];
+}
+
+describe("provider-input next-turn calibration", () => {
+  it("A previous 14312/2780/4213 does not jump the next Sol estimate to ~277P", () => {
+    const nextAssembled = PREV_ASSEMBLED + 80;
+    const calibrated = solNextTurn({
+      assembled: nextAssembled,
+      sample: {
+        actualBillableInputTokens: PREV_PROVIDER,
+        assembledInputTokens: PREV_ASSEMBLED,
+      },
+    });
+    const uncalibrated = solNextTurn({ assembled: nextAssembled });
+    assert.ok(calibrated && uncalibrated);
+    assert.equal(uncalibrated!.displayPoints, 277);
+    assert.ok(calibrated!.displayPoints >= 159 && calibrated!.displayPoints <= 163);
+    assert.notEqual(calibrated!.displayPoints, 277);
+    assert.equal(calibrated!.localAssembledInputTokens, nextAssembled);
+    assert.equal(
+      calibrated!.predictedBillableInputTokens,
+      Math.round(nextAssembled * (PREV_PROVIDER / PREV_ASSEMBLED))
+    );
+    assert.equal(calibrated!.promptTokens, calibrated!.predictedBillableInputTokens);
+    assert.equal(calibrated!.actualBillableInputTokens, PREV_PROVIDER);
+    assert.equal(calibrated!.expectedOutputTokens, PREV_OUTPUT);
+    assert.equal(calibrated!.outputBasis, "observed_ratio");
+    assert.equal(calibrated!.calibrationSource, "same_model_billable_input_ratio");
+    assert.equal(calibrated!.calibrationConfidence, "latest_same_model");
+  });
+
+  it("B Published 14312/2780 stays pinned at 160 display / 161 ceil", () => {
+    const display = computePublishedStandardPreviewDisplayPoints({
+      modelId: SOL,
+      promptTokens: PREV_PROVIDER,
+      outputTokens: PREV_OUTPUT,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      effectiveKrwPerUsd: FX,
+    });
+    const ceil = computePublishedStandardPreviewPoints({
+      modelId: SOL,
+      promptTokens: PREV_PROVIDER,
+      outputTokens: PREV_OUTPUT,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      effectiveKrwPerUsd: FX,
+    });
+    assert.equal(display, 160);
+    assert.equal(ceil, 161);
+  });
+
+  it("C same-model calibration scales inflated assembled down to provider scale and caps ratio at 1", () => {
+    const ratio = resolveProviderInputRatio({
+      actualBillableInputTokens: PREV_PROVIDER,
+      assembledInputTokens: PREV_ASSEMBLED,
+    });
+    assert.ok(ratio != null);
+    assert.ok(ratio! < 1);
+    assert.equal(
+      applyProviderInputCalibration({
+        localAssembledInputTokens: PREV_ASSEMBLED,
+        sample: {
+          actualBillableInputTokens: PREV_PROVIDER,
+          assembledInputTokens: PREV_ASSEMBLED,
+        },
+      }).predictedBillableInputTokens,
+      PREV_PROVIDER
+    );
+    const capped = resolveProviderInputRatio({
+      actualBillableInputTokens: 40_000,
+      assembledInputTokens: PREV_ASSEMBLED,
+    });
+    assert.equal(capped, 1);
+    const cappedApply = applyProviderInputCalibration({
+      localAssembledInputTokens: PREV_ASSEMBLED + 10,
+      sample: {
+        actualBillableInputTokens: 40_000,
+        assembledInputTokens: PREV_ASSEMBLED,
+      },
+    });
+    assert.equal(cappedApply.predictedBillableInputTokens, PREV_ASSEMBLED + 10);
+    assert.equal(cappedApply.calibrationSource, "same_model_billable_input_ratio");
+    assert.equal(
+      resolveTurnBillableInput({
+        stageInput: 40_000,
+        promptAuditTotal: PREV_ASSEMBLED,
+      }),
+      PREV_ASSEMBLED
+    );
+    assert.equal(
+      resolveProviderInputRatio({
+        actualBillableInputTokens: 40_000,
+        assembledInputTokens: PREV_ASSEMBLED,
+      }),
+      1
+    );
+    const cappedPicked = pickLatestProviderInputCalibrationByModel([
+      solValidInputSource({
+        apiInputTokens: 40_000,
+        assembledInputTokens: PREV_ASSEMBLED,
+      }),
+    ]);
+    assert.deepEqual(cappedPicked[SOL], {
+      actualBillableInputTokens: PREV_ASSEMBLED,
+      assembledInputTokens: PREV_ASSEMBLED,
+    });
+    assert.match(ESTIMATE_SOURCE, /predictedBillableInputTokens/);
+    assert.match(ESTIMATE_SOURCE, /user-charge forecast/);
+    assert.match(ESTIMATE_SOURCE, /resolveTurnBillableInput/);
+    assert.doesNotMatch(ESTIMATE_SOURCE, /predictedProviderInputTokens/);
+  });
+
+  it("D no calibration falls back to the current uncalibrated assembled forecast", () => {
+    const fallback = solNextTurn({ assembled: PREV_ASSEMBLED });
+    assert.ok(fallback);
+    assert.equal(fallback!.promptTokens, PREV_ASSEMBLED);
+    assert.equal(fallback!.localAssembledInputTokens, PREV_ASSEMBLED);
+    assert.equal(fallback!.predictedBillableInputTokens, PREV_ASSEMBLED);
+    assert.equal(fallback!.actualBillableInputTokens, null);
+    assert.equal(fallback!.calibrationSource, "uncalibrated_assembled");
+    assert.equal(fallback!.calibrationConfidence, "none");
+    assert.equal(fallback!.displayPoints, 277);
+    assert.equal(TOKEN_ESTIMATE_SOURCE, fs.readFileSync(
+      path.join(process.cwd(), "src/lib/tokenEstimate.ts"),
+      "utf8"
+    ));
+    assert.match(TOKEN_ESTIMATE_SOURCE, /text\.length \* 0\.9/);
+  });
+
+  it("E multi-call and length-recovery turns cannot be a calibration source", () => {
+    assert.equal(isUsableProviderInputCalibrationSource(solValidInputSource()), true);
+    assert.equal(
+      isUsableProviderInputCalibrationSource(solValidInputSource({ apiCallCount: 2 })),
+      false
+    );
+    assert.equal(
+      isUsableProviderInputCalibrationSource(
+        solValidInputSource({ lengthRecoveryPasses: 1 })
+      ),
+      false
+    );
+    assert.equal(
+      isUsableProviderInputCalibrationSource(solValidInputSource({ estimated: true })),
+      false
+    );
+    assert.equal(
+      isUsableProviderInputCalibrationSource(
+        solValidInputSource({ fallback: "adult-fallback" })
+      ),
+      false
+    );
+    assert.equal(
+      isUsableProviderInputCalibrationSource(
+        solValidInputSource({ fallbackAttempted: true })
+      ),
+      false
+    );
+    assert.equal(
+      isUsableProviderInputCalibrationSource(
+        solValidInputSource({ generationStatus: "interrupted" })
+      ),
+      false
+    );
+    assert.equal(
+      isUsableProviderInputCalibrationSource(
+        solValidInputSource({ htmlFlashOnly: true })
+      ),
+      false
+    );
+    assert.equal(
+      isUsableProviderInputCalibrationSource(
+        solValidInputSource({ model: "greeting", selectedAI: "greeting" })
+      ),
+      false
+    );
+    assert.equal(
+      isUsableProviderInputCalibrationSource(
+        solValidInputSource({ apiInputTokens: null })
+      ),
+      false
+    );
+    const picked = pickLatestProviderInputCalibrationByModel([
+      solValidInputSource(),
+      solValidInputSource({ apiCallCount: 3, apiInputTokens: 9_999 }),
+      solValidInputSource({ lengthRecoveryPasses: 2, apiInputTokens: 8_888 }),
+    ]);
+    assert.deepEqual(picked[SOL], {
+      actualBillableInputTokens: PREV_PROVIDER,
+      assembledInputTokens: PREV_ASSEMBLED,
+    });
+  });
+
+  it("F a different model's ratio is not reused after a model switch", () => {
+    const flashOnly = computeMainRpNextTurnEstimates({
+      promptTokensByModel: { [SOL]: PREV_ASSEMBLED },
+      lastVisibleAssistantChars: PREV_CHARS,
+      observedCharsPerTokenByModel: { [SOL]: SOL_OBSERVED_CHARS_PER_TOKEN },
+      providerInputCalibrationByModel: {
+        [FLASH]: {
+          actualBillableInputTokens: PREV_PROVIDER,
+          assembledInputTokens: PREV_ASSEMBLED,
+        },
+      },
+      effectiveKrwPerUsd: FX,
+    })[SOL];
+    assert.ok(flashOnly);
+    assert.equal(flashOnly!.calibrationSource, "uncalibrated_assembled");
+    assert.equal(flashOnly!.displayPoints, 277);
+    assert.equal(
+      isUsableProviderInputCalibrationSource(
+        solValidInputSource({ actualModel: FLASH })
+      ),
+      false
+    );
+    assert.equal(resolveMainRpNextTurnCalibrationModelId("openai/gpt-6.1-sol"), SOL);
+    assert.equal(resolveMainRpNextTurnCalibrationModelId(FLASH), FLASH);
+  });
+
+  it("G regeneration and continuation skip contaminated later samples and keep the latest valid same-model ratio", () => {
+    const picked = pickLatestProviderInputCalibrationByModel([
+      solValidInputSource({ apiInputTokens: 12_000, assembledInputTokens: 30_000 }),
+      solValidInputSource(),
+      solValidInputSource({
+        apiCallCount: 2,
+        apiInputTokens: 50_000,
+        assembledInputTokens: 36_000,
+      }),
+    ]);
+    assert.deepEqual(picked[SOL], {
+      actualBillableInputTokens: PREV_PROVIDER,
+      assembledInputTokens: PREV_ASSEMBLED,
+    });
+    const regenEstimate = solNextTurn({
+      assembled: PREV_ASSEMBLED + 40,
+      sample: picked[SOL],
+    });
+    assert.ok(regenEstimate);
+    assert.equal(regenEstimate!.calibrationSource, "same_model_billable_input_ratio");
+    assert.notEqual(regenEstimate!.displayPoints, 277);
+    assert.match(CHAT_ROUTE_SOURCE, /resolveMainRpNextTurnPublishedEstimateForModel/);
+    assert.match(CHAT_ROUTE_SOURCE, /resolveMainRpProviderAdmissionRequiredPoints/);
+  });
+
+  it("H picker and #1400 admission stay on the same forecast owner", () => {
+    assert.match(SERVICE_SOURCE, /function estimatesFromRoomRows/);
+    assert.match(SERVICE_SOURCE, /providerInputCalibrationByModel/);
+    assert.match(SERVICE_SOURCE, /readMainRpNextTurnProviderInputCalibration/);
+    assert.match(SERVICE_SOURCE, /recentBillableOutputTokensByModel/);
+    assert.match(SERVICE_SOURCE, /readMainRpNextTurnOutputHistory/);
+    assert.match(
+      SERVICE_SOURCE,
+      /export async function resolveMainRpNextTurnPickerEstimates/
+    );
+    assert.match(
+      SERVICE_SOURCE,
+      /export function resolveMainRpNextTurnPublishedEstimateForModel/
+    );
+    const pickerAt = SERVICE_SOURCE.indexOf("resolveMainRpNextTurnPickerEstimates");
+    const admitAt = SERVICE_SOURCE.indexOf(
+      "resolveMainRpNextTurnPublishedEstimateForModel"
+    );
+    const fromRowsAt = SERVICE_SOURCE.indexOf("estimatesFromRoomRows(rows");
+    assert.ok(pickerAt > 0);
+    assert.ok(admitAt > 0);
+    assert.ok(SERVICE_SOURCE.includes("estimatesFromRoomRows(rows, {"));
+    assert.ok(SERVICE_SOURCE.includes("estimatesFromRoomRows(rows, promptTokensByModel)"));
+    assert.match(PAGE_SOURCE, /resolveMainRpNextTurnPickerEstimates/);
+    assert.match(ROUTE_SOURCE, /resolveMainRpNextTurnPickerEstimates/);
+    assert.match(CHAT_ROUTE_SOURCE, /resolveMainRpNextTurnPublishedEstimateForModel/);
+    assert.doesNotMatch(ESTIMATE_SOURCE, /Display-only next Main RP turn estimate/);
+    assert.match(ESTIMATE_SOURCE, /#1400 admission/);
+    assert.equal(fromRowsAt > 0, true);
+  });
+
+  it("I insufficient calibrated admission still blocks with provider call count 0", () => {
+    const calibrated = solNextTurn({
+      assembled: PREV_ASSEMBLED,
+      sample: {
+        actualBillableInputTokens: PREV_PROVIDER,
+        assembledInputTokens: PREV_ASSEMBLED,
+      },
+    });
+    assert.ok(calibrated);
+    assert.equal(calibrated!.displayPoints, 160);
+    const required = resolveMainRpProviderAdmissionRequiredPoints(
+      calibrated!.displayPoints
+    );
+    assert.equal(MAIN_RP_PROVIDER_ADMISSION_ESTIMATE_MULTIPLIER, 3);
+    assert.equal(required, 160 * 3);
+    const blocked = admitMainRpProviderByRequiredPoints({
+      balancePoints: 200,
+      publishedNextTurnEstimatePoints: calibrated!.displayPoints,
+    });
+    assert.equal(blocked.ok, false);
+    assert.equal(blocked.requiredPoints, required);
+    const admitted = admitMainRpProviderByRequiredPoints({
+      balancePoints: 500,
+      publishedNextTurnEstimatePoints: calibrated!.displayPoints,
+    });
+    assert.equal(admitted.ok, true);
+    const uncalibratedRequired = resolveMainRpProviderAdmissionRequiredPoints(277);
+    assert.equal(uncalibratedRequired, 277 * 3);
+    assert.ok(500 < uncalibratedRequired);
+  });
+
+  it("J settlement remains independent of the forecast owner", () => {
+    assert.doesNotMatch(ESTIMATE_SOURCE, /settleChatTurnBillingExactlyOnce/);
+    assert.doesNotMatch(SERVICE_SOURCE, /settleChatTurnBillingExactlyOnce/);
+    assert.doesNotMatch(
+      fs.readFileSync(path.join(process.cwd(), "src/lib/chatBillingSettlement.ts"), "utf8"),
+      /computeMainRpNextTurnEstimates/
+    );
+  });
+
+  it("picker omits unsent draft and does not invent keyword-lorebook prompt", () => {
+    const prepSource = fs.readFileSync(
+      path.join(process.cwd(), "src/services/nextTurnAssemblyPreparation.ts"),
+      "utf8"
+    );
+    const snapshotSource = fs.readFileSync(
+      path.join(process.cwd(), "src/services/modelPickerInputSnapshot.ts"),
+      "utf8"
+    );
+    assert.match(prepSource, /currentUserMessage: ""/);
+    assert.match(prepSource, /keywordLorebookFromUnsentDraft: "omitted"/);
+    assert.match(snapshotSource, /currentUserMessage: ""/);
+    assert.match(ESTIMATE_SOURCE, /unsent draft/);
+    assert.match(SERVICE_SOURCE, /currentUserMessage=""/);
+    assert.doesNotMatch(ESTIMATE_SOURCE, /streamOpenRouter/);
+  });
+});
+
+describe("same-model output-history forecast", () => {
+  const clustered = [2700, 2750, 2780, 2800, 2820];
+  const highOutlier = [2700, 2750, 2780, 2800, 9000];
+  const lowOutlier = [400, 2700, 2780, 2800, 2820];
+  const threeWithSpike = [2780, 9000, 2700];
+
+  it("compares mean / trimmed mean / median and chooses median", () => {
+    assert.equal(meanPositiveTokens(clustered), 2770);
+    assert.equal(medianPositiveTokens(clustered), 2780);
+    assert.equal(trimmedMeanPositiveTokens(clustered), 2776 + 2 / 3);
+
+    assert.ok((meanPositiveTokens(highOutlier) ?? 0) > 3900);
+    assert.equal(medianPositiveTokens(highOutlier), 2780);
+    assert.ok((trimmedMeanPositiveTokens(highOutlier) ?? 0) < 2800);
+
+    assert.ok((meanPositiveTokens(lowOutlier) ?? 0) < 2400);
+    assert.equal(medianPositiveTokens(lowOutlier), 2780);
+
+    assert.ok((meanPositiveTokens(threeWithSpike) ?? 0) > 4800);
+    assert.equal(medianPositiveTokens(threeWithSpike), 2780);
+    assert.equal(trimmedMeanPositiveTokens(threeWithSpike), 2780);
+
+    assert.equal(resolveOutputHistoryForecastTokens(highOutlier), 2780);
+    assert.equal(resolveOutputHistoryForecastTokens(threeWithSpike), 2780);
+    assert.equal(resolveOutputHistoryForecastTokens([2780, 2700]), null);
+    assert.equal(describeNextTurnOutputBasis("same_model_output_history"), "median_recent_billable_output_tokens");
+  });
+
+  it("uses last 3-5 same-model billable output tokens and falls back below 3", () => {
+    const six = pickRecentSameModelBillableOutputTokens([
+      solValidInputSource({ billableOutputTokens: 2100 }),
+      solValidInputSource({ billableOutputTokens: 2700 }),
+      solValidInputSource({ billableOutputTokens: 2750 }),
+      solValidInputSource({ billableOutputTokens: 2780 }),
+      solValidInputSource({ billableOutputTokens: 2800 }),
+      solValidInputSource({ billableOutputTokens: 9000 }),
+    ]);
+    assert.deepEqual(six[SOL], [2700, 2750, 2780, 2800, 9000]);
+    assert.equal(resolveOutputHistoryForecastTokens(six[SOL]), 2780);
+
+    const tooFew = pickRecentSameModelBillableOutputTokens([
+      solValidInputSource({ billableOutputTokens: 2780 }),
+      solValidInputSource({ billableOutputTokens: 9000 }),
+    ]);
+    assert.deepEqual(tooFew[SOL], [2780, 9000]);
+    assert.equal(resolveOutputHistoryForecastTokens(tooFew[SOL]), null);
+
+    const fallback = computeMainRpNextTurnEstimates({
+      promptTokensByModel: { [SOL]: PREV_ASSEMBLED },
+      lastVisibleAssistantChars: PREV_CHARS,
+      observedCharsPerTokenByModel: { [SOL]: SOL_OBSERVED_CHARS_PER_TOKEN },
+      recentBillableOutputTokensByModel: { [SOL]: [2780, 9000] },
+      effectiveKrwPerUsd: FX,
+    })[SOL];
+    assert.equal(fallback?.outputBasis, "observed_ratio");
+    assert.equal(fallback?.expectedOutputTokens, PREV_OUTPUT);
+    assert.equal(fallback?.outputHistorySampleCount, null);
+  });
+
+  it("excludes contaminated and other-model output samples", () => {
+    assert.equal(
+      isUsableOutputHistorySource(solValidInputSource({ billableOutputTokens: 2780 })),
+      true
+    );
+    assert.equal(
+      isUsableOutputHistorySource(solValidInputSource({ apiCallCount: 2, billableOutputTokens: 5000 })),
+      false
+    );
+    assert.equal(
+      isUsableOutputHistorySource(
+        solValidInputSource({ lengthRecoveryPasses: 1, billableOutputTokens: 5000 })
+      ),
+      false
+    );
+    const picked = pickRecentSameModelBillableOutputTokens([
+      solValidInputSource({ billableOutputTokens: 2700 }),
+      solValidInputSource({ billableOutputTokens: 2750 }),
+      solValidInputSource({ billableOutputTokens: 2780 }),
+      solValidInputSource({ apiCallCount: 2, billableOutputTokens: 9000 }),
+      {
+        ...solValidInputSource({ billableOutputTokens: 4000 }),
+        selectedAI: FLASH,
+        model: FLASH,
+        actualModel: FLASH,
+      },
+    ]);
+    assert.deepEqual(picked[SOL], [2700, 2750, 2780]);
+    assert.deepEqual(picked[FLASH], [4000]);
+    assert.equal(resolveOutputHistoryForecastTokens(picked[FLASH]), null);
+  });
+
+  it("history median is a price forecast only and keeps the Sol 160P fixture", () => {
+    const row = computeMainRpNextTurnEstimates({
+      promptTokensByModel: { [SOL]: PREV_ASSEMBLED + 80 },
+      lastVisibleAssistantChars: PREV_CHARS,
+      observedCharsPerTokenByModel: { [SOL]: SOL_OBSERVED_CHARS_PER_TOKEN },
+      recentBillableOutputTokensByModel: { [SOL]: [2700, 2780, 9000, 2750, 2800] },
+      providerInputCalibrationByModel: {
+        [SOL]: {
+          actualBillableInputTokens: PREV_PROVIDER,
+          assembledInputTokens: PREV_ASSEMBLED,
+        },
+      },
+      effectiveKrwPerUsd: FX,
+    })[SOL];
+    assert.ok(row);
+    assert.equal(row!.outputBasis, "same_model_output_history");
+    assert.equal(row!.expectedOutputTokens, 2780);
+    assert.equal(row!.outputHistorySampleCount, 5);
+    assert.ok(row!.predictedBillableInputTokens < 20_000);
+    assert.ok(row!.displayPoints >= 159 && row!.displayPoints <= 163);
+    assert.notEqual(row!.displayPoints, 277);
+    assert.match(ESTIMATE_SOURCE, /price forecast only/);
+    assert.doesNotMatch(ESTIMATE_SOURCE, /max_tokens/);
+  });
+
+  it("reasoning-separated Gemini history uses billable output, not raw completion", () => {
+    const GEMINI = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
+    const rawTurns = [
+      { raw: 3900, reasoning: 1200 },
+      { raw: 4000, reasoning: 1250 },
+      { raw: 4180, reasoning: 1400 },
+      { raw: 4200, reasoning: 1400 },
+      { raw: 5000, reasoning: 200 },
+    ];
+    const billable = rawTurns.map((turn) =>
+      billableOpenRouterOutputTokens(GEMINI, turn.raw, turn.reasoning)
+    );
+    assert.deepEqual(billable, [2700, 2750, 2780, 2800, 4800]);
+    assert.ok(rawTurns.every((turn, i) => turn.raw > (billable[i] ?? 0)));
+    assert.equal(medianPositiveTokens(rawTurns.map((turn) => turn.raw)), 4180);
+    assert.equal(medianPositiveTokens(billable), 2780);
+    assert.equal(resolveOutputHistoryForecastTokens(billable), 2780);
+    assert.notEqual(resolveOutputHistoryForecastTokens(rawTurns.map((turn) => turn.raw)), 2780);
+
+    const geminiValid = (billableOutputTokens: number) => ({
+      generationStatus: "completed" as const,
+      model: GEMINI,
+      selectedAI: GEMINI,
+      actualModel: GEMINI,
+      htmlFlashOnly: false,
+      estimated: false,
+      fallback: null,
+      fallbackAttempted: false,
+      apiCallCount: 1,
+      lengthRecoveryPasses: 0,
+      billableOutputTokens,
+    });
+    const picked = pickRecentSameModelBillableOutputTokens(billable.map(geminiValid));
+    assert.deepEqual(picked[GEMINI], billable);
+    assert.equal(resolveOutputHistoryForecastTokens(picked[GEMINI]), 2780);
   });
 });
