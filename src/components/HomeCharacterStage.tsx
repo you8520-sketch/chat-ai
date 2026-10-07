@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState, type KeyboardEvent } from "react";
+import { useId, useState, type AnimationEvent, type KeyboardEvent } from "react";
 
 import type { HomeStageCharacter } from "@/lib/homeStagePresentation";
 import { cn } from "@/lib/studioDesign";
@@ -12,14 +12,23 @@ const STAGE_TITLE = "추천 캐릭터";
 
 type Mode = "selector" | "feature";
 
+type Wipe = {
+  token: number;
+  wash: string;
+};
+
 type Props = {
   characters: HomeStageCharacter[];
 };
 
+function motionAllowed(): boolean {
+  return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 function giantFontSize(name: string): string {
   const length = Math.max([...name].length, 1);
-  const vw = Math.min(28, Math.max(3.6, 86 / length));
-  const cap = length <= 2 ? 13 : 8.5;
+  const vw = Math.min(30, Math.max(4.2, 96 / length));
+  const cap = length <= 2 ? 22 : length <= 6 ? 12 : 7.25;
   return `clamp(2.5rem, ${vw.toFixed(2)}vw, ${cap}rem)`;
 }
 
@@ -69,7 +78,7 @@ function PortraitFrame({
   );
 
   return (
-    <div className="relative aspect-square w-full">
+    <div className="relative aspect-square w-full" data-stage-art="selector">
       <div
         aria-hidden
         className="absolute inset-0 rounded-full"
@@ -77,6 +86,52 @@ function PortraitFrame({
       />
       {photo}
     </div>
+  );
+}
+
+function FeatureArtwork({ character }: { character: HomeStageCharacter }) {
+  return (
+    <div className="home-stage-feature-art" data-stage-art="feature">
+      {character.imageUrl ? (
+        <img
+          src={character.imageUrl}
+          alt=""
+          className="home-stage-feature-figure"
+          fetchPriority="high"
+          decoding="async"
+        />
+      ) : (
+        <span
+          aria-hidden
+          className="home-stage-feature-fallback"
+          style={{ background: character.accent.ink, color: character.accent.wash }}
+        >
+          {character.emoji}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function StageWipe({
+  wipe,
+  onDone,
+}: {
+  wipe: Wipe | null;
+  onDone: (token: number) => void;
+}) {
+  if (!wipe) return null;
+  return (
+    <div
+      key={wipe.token}
+      aria-hidden
+      className="home-stage-wipe"
+      style={{ background: wipe.wash }}
+      onAnimationEnd={(event: AnimationEvent<HTMLDivElement>) => {
+        if (event.target !== event.currentTarget) return;
+        onDone(wipe.token);
+      }}
+    />
   );
 }
 
@@ -212,6 +267,7 @@ export default function HomeCharacterStage({ characters }: Props) {
   const baseId = useId();
   const [activeIndex, setActiveIndex] = useState(0);
   const [mode, setMode] = useState<Mode>("selector");
+  const [wipe, setWipe] = useState<Wipe | null>(null);
 
   if (characters.length === 0) return null;
 
@@ -220,6 +276,33 @@ export default function HomeCharacterStage({ characters }: Props) {
   if (!character) return null;
 
   const panelId = `${baseId}-panel`;
+
+  function playWipe(wash: string) {
+    if (!motionAllowed()) return;
+    setWipe((current) => ({ token: (current?.token ?? 0) + 1, wash }));
+  }
+
+  function finishWipe(token: number) {
+    setWipe((current) => (current?.token === token ? null : current));
+  }
+
+  function selectCharacter(nextIndex: number) {
+    if (nextIndex === index) return;
+    const next = characters[nextIndex];
+    if (!next) return;
+    playWipe(next.accent.wash);
+    setActiveIndex(nextIndex);
+  }
+
+  function openFeature() {
+    playWipe(character.accent.wash);
+    setMode("feature");
+  }
+
+  function closeFeature() {
+    playWipe(character.accent.wash);
+    setMode("selector");
+  }
 
   switch (mode) {
     case "selector":
@@ -233,12 +316,8 @@ export default function HomeCharacterStage({ characters }: Props) {
           }}
         >
           <div className="grid min-h-[calc(100svh-5.25rem)] items-center gap-8 py-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(16rem,0.9fr)] lg:gap-10 lg:py-8">
-            <div key={character.id} className="home-stage-swap mx-auto w-[min(68vw,30rem)]">
-              <PortraitFrame
-                character={character}
-                priority
-                onExpand={() => setMode("feature")}
-              />
+            <div className="mx-auto w-[min(68vw,30rem)]">
+              <PortraitFrame character={character} priority onExpand={openFeature} />
             </div>
             <div className="flex min-w-0 flex-col gap-4">
               <div
@@ -246,7 +325,7 @@ export default function HomeCharacterStage({ characters }: Props) {
                 role="tabpanel"
                 id={panelId}
                 aria-labelledby={`${baseId}-tab-${character.id}`}
-                className="home-stage-swap flex min-w-0 flex-col gap-4"
+                className="flex min-w-0 flex-col gap-4"
               >
               <div>
                 <p className="text-[10px] font-semibold tracking-[0.22em] text-zinc-400">
@@ -281,12 +360,12 @@ export default function HomeCharacterStage({ characters }: Props) {
                 baseId={baseId}
                 characters={characters}
                 activeIndex={index}
-                onSelect={setActiveIndex}
+                onSelect={selectCharacter}
               />
               <div className="flex flex-wrap items-center gap-4">
                 <button
                   type="button"
-                  onClick={() => setMode("feature")}
+                  onClick={openFeature}
                   className="inline-flex min-h-12 items-center px-5 text-sm font-semibold"
                   style={{ background: character.accent.wash, color: character.accent.ink }}
                 >
@@ -301,6 +380,7 @@ export default function HomeCharacterStage({ characters }: Props) {
               </div>
             </div>
           </div>
+          <StageWipe wipe={wipe} onDone={finishWipe} />
         </section>
       );
     case "feature":
@@ -314,7 +394,11 @@ export default function HomeCharacterStage({ characters }: Props) {
           }}
         >
           <div className="relative min-h-[44rem] lg:min-h-[calc(100svh-5.25rem)]">
-            <div key={character.id} className="home-stage-swap absolute inset-0">
+            <div
+              aria-hidden
+              className="home-stage-feature-field"
+              style={{ background: character.accent.wash }}
+            />
             <p
               aria-hidden
               className="home-stage-giant"
@@ -322,9 +406,7 @@ export default function HomeCharacterStage({ characters }: Props) {
             >
               {character.name}
             </p>
-            <div className="absolute left-1/2 top-[6.5rem] z-[2] w-[min(74vw,24rem)] -translate-x-1/2 lg:left-[16%] lg:top-[12%] lg:w-[min(42%,27rem)] lg:translate-x-0">
-              <PortraitFrame character={character} priority={false} />
-            </div>
+            <FeatureArtwork character={character} />
             <div className="relative z-[3] flex min-h-[44rem] flex-col justify-between py-4 pb-24 lg:min-h-[calc(100svh-5.25rem)] lg:py-6 lg:pb-28">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-[10px] font-semibold tracking-[0.22em] text-zinc-300">
@@ -336,7 +418,7 @@ export default function HomeCharacterStage({ characters }: Props) {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setMode("selector")}
+                  onClick={closeFeature}
                   className="inline-flex min-h-11 items-center px-3 text-sm font-semibold text-zinc-100 underline decoration-white/30 underline-offset-4"
                 >
                   선택으로
@@ -371,15 +453,15 @@ export default function HomeCharacterStage({ characters }: Props) {
                 </Link>
               </div>
             </div>
-            </div>
             <div className="absolute inset-x-0 bottom-4 z-[4]">
               <StageThumbs
                 baseId={baseId}
                 characters={characters}
                 activeIndex={index}
-                onSelect={setActiveIndex}
+                onSelect={selectCharacter}
               />
             </div>
+            <StageWipe wipe={wipe} onDone={finishWipe} />
           </div>
         </section>
       );
