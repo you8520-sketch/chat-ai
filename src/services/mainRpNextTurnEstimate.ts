@@ -1,6 +1,9 @@
 /**
  * Room-scoped next-turn picker estimates.
  * Reuses the existing per-model assembled snapshot owner. No provider I/O.
+ * Picker snapshots use currentUserMessage="" (unsent draft omitted);
+ * keyword lorebook keyed only on future user text is therefore unknown.
+ * Send-time admission still receives production assembled tokens.
  */
 
 import type { User } from "@/lib/auth";
@@ -15,6 +18,7 @@ import {
   isUsableOutputCalibrationSource,
   nextTurnEstimateDisplayMap,
   pickLatestProviderInputCalibrationByModel,
+  pickRecentSameModelApiOutputTokens,
   resolveObservedCharsPerToken,
   type NextTurnEstimateMap,
   type NextTurnProviderInputCalibrationSample,
@@ -102,29 +106,38 @@ function readObservedCharsPerTokenByModel(
   return out;
 }
 
+function calibrationTurnFields(row: EstimateMessageRow) {
+  const usage = parseUsage(row.usage);
+  return {
+    generationStatus: row.generation_status,
+    model: row.model,
+    selectedAI: usage?.selectedAI ?? null,
+    actualModel: usage?.adultRouting?.actualModel || usage?.model || null,
+    htmlFlashOnly: usage?.htmlFlashOnly === true,
+    estimated: usage?.estimated === true,
+    fallback: usage?.fallback ?? null,
+    fallbackAttempted: usage?.adultRouting?.fallbackAttempted === true,
+    apiCallCount: usage?.apiCallCount ?? null,
+    lengthRecoveryPasses: usage?.lengthRecoveryPasses ?? null,
+    apiInputTokens: usage?.apiInputTokens ?? null,
+    assembledInputTokens: usage?.assembledInputTokens ?? null,
+    apiOutputTokens: usage?.apiOutputTokens ?? null,
+  };
+}
+
 export function readMainRpNextTurnProviderInputCalibration(
   rows: EstimateMessageRow[]
 ): Partial<Record<SelectedAI, NextTurnProviderInputCalibrationSample>> {
   return pickLatestProviderInputCalibrationByModel(
-    rows
-      .filter((row) => row.role === "assistant")
-      .map((row) => {
-        const usage = parseUsage(row.usage);
-        return {
-          generationStatus: row.generation_status,
-          model: row.model,
-          selectedAI: usage?.selectedAI ?? null,
-          actualModel: usage?.adultRouting?.actualModel || usage?.model || null,
-          htmlFlashOnly: usage?.htmlFlashOnly === true,
-          estimated: usage?.estimated === true,
-          fallback: usage?.fallback ?? null,
-          fallbackAttempted: usage?.adultRouting?.fallbackAttempted === true,
-          apiCallCount: usage?.apiCallCount ?? null,
-          lengthRecoveryPasses: usage?.lengthRecoveryPasses ?? null,
-          apiInputTokens: usage?.apiInputTokens ?? null,
-          assembledInputTokens: usage?.assembledInputTokens ?? null,
-        };
-      })
+    rows.filter((row) => row.role === "assistant").map((row) => calibrationTurnFields(row))
+  );
+}
+
+export function readMainRpNextTurnOutputHistory(
+  rows: EstimateMessageRow[]
+): Partial<Record<SelectedAI, number[]>> {
+  return pickRecentSameModelApiOutputTokens(
+    rows.filter((row) => row.role === "assistant").map((row) => calibrationTurnFields(row))
   );
 }
 
@@ -136,6 +149,7 @@ function estimatesFromRoomRows(
     promptTokensByModel,
     lastVisibleAssistantChars: readLastVisibleAssistantChars(rows),
     observedCharsPerTokenByModel: readObservedCharsPerTokenByModel(rows),
+    recentApiOutputTokensByModel: readMainRpNextTurnOutputHistory(rows),
     providerInputCalibrationByModel: readMainRpNextTurnProviderInputCalibration(rows),
     effectiveKrwPerUsd: getEffectiveKrwPerUsd(),
   });

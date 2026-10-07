@@ -12,15 +12,22 @@ import { visibleAssistantDisplayCharCount, visibleAssistantDisplayText } from "@
 import {
   applyProviderInputCalibration,
   computeMainRpNextTurnEstimates,
+  describeNextTurnOutputBasis,
   estimateNextTurnOutputTokens,
   isUsableOutputCalibrationSource,
+  isUsableOutputHistorySource,
   isUsableProviderInputCalibrationSource,
+  meanPositiveTokens,
+  medianPositiveTokens,
   nextTurnEstimateDisplayMap,
   pickLatestProviderInputCalibrationByModel,
+  pickRecentSameModelApiOutputTokens,
   resolveMainRpNextTurnCalibrationModelId,
   resolveNextTurnOutputChars,
   resolveObservedCharsPerToken,
+  resolveOutputHistoryForecastTokens,
   resolveProviderInputRatio,
+  trimmedMeanPositiveTokens,
 } from "@/lib/mainRpNextTurnEstimate";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import {
@@ -629,6 +636,8 @@ describe("provider-input next-turn calibration", () => {
     assert.match(SERVICE_SOURCE, /function estimatesFromRoomRows/);
     assert.match(SERVICE_SOURCE, /providerInputCalibrationByModel/);
     assert.match(SERVICE_SOURCE, /readMainRpNextTurnProviderInputCalibration/);
+    assert.match(SERVICE_SOURCE, /recentApiOutputTokensByModel/);
+    assert.match(SERVICE_SOURCE, /readMainRpNextTurnOutputHistory/);
     assert.match(
       SERVICE_SOURCE,
       /export async function resolveMainRpNextTurnPickerEstimates/
@@ -692,5 +701,139 @@ describe("provider-input next-turn calibration", () => {
       fs.readFileSync(path.join(process.cwd(), "src/lib/chatBillingSettlement.ts"), "utf8"),
       /computeMainRpNextTurnEstimates/
     );
+  });
+
+  it("picker omits unsent draft and does not invent keyword-lorebook prompt", () => {
+    const prepSource = fs.readFileSync(
+      path.join(process.cwd(), "src/services/nextTurnAssemblyPreparation.ts"),
+      "utf8"
+    );
+    const snapshotSource = fs.readFileSync(
+      path.join(process.cwd(), "src/services/modelPickerInputSnapshot.ts"),
+      "utf8"
+    );
+    assert.match(prepSource, /currentUserMessage: ""/);
+    assert.match(prepSource, /keywordLorebookFromUnsentDraft: "omitted"/);
+    assert.match(snapshotSource, /currentUserMessage: ""/);
+    assert.match(ESTIMATE_SOURCE, /unsent draft/);
+    assert.match(SERVICE_SOURCE, /currentUserMessage=""/);
+    assert.doesNotMatch(ESTIMATE_SOURCE, /streamOpenRouter/);
+  });
+});
+
+describe("same-model output-history forecast", () => {
+  const clustered = [2700, 2750, 2780, 2800, 2820];
+  const highOutlier = [2700, 2750, 2780, 2800, 9000];
+  const lowOutlier = [400, 2700, 2780, 2800, 2820];
+  const threeWithSpike = [2780, 9000, 2700];
+
+  it("compares mean / trimmed mean / median and chooses median", () => {
+    assert.equal(meanPositiveTokens(clustered), 2770);
+    assert.equal(medianPositiveTokens(clustered), 2780);
+    assert.equal(trimmedMeanPositiveTokens(clustered), 2776 + 2 / 3);
+
+    assert.ok((meanPositiveTokens(highOutlier) ?? 0) > 3900);
+    assert.equal(medianPositiveTokens(highOutlier), 2780);
+    assert.ok((trimmedMeanPositiveTokens(highOutlier) ?? 0) < 2800);
+
+    assert.ok((meanPositiveTokens(lowOutlier) ?? 0) < 2400);
+    assert.equal(medianPositiveTokens(lowOutlier), 2780);
+
+    assert.ok((meanPositiveTokens(threeWithSpike) ?? 0) > 4800);
+    assert.equal(medianPositiveTokens(threeWithSpike), 2780);
+    assert.equal(trimmedMeanPositiveTokens(threeWithSpike), 2780);
+
+    assert.equal(resolveOutputHistoryForecastTokens(highOutlier), 2780);
+    assert.equal(resolveOutputHistoryForecastTokens(threeWithSpike), 2780);
+    assert.equal(resolveOutputHistoryForecastTokens([2780, 2700]), null);
+    assert.equal(describeNextTurnOutputBasis("same_model_output_history"), "median_recent_api_output_tokens");
+  });
+
+  it("uses last 3-5 same-model apiOutputTokens and falls back below 3", () => {
+    const six = pickRecentSameModelApiOutputTokens([
+      solValidInputSource({ apiOutputTokens: 2100 }),
+      solValidInputSource({ apiOutputTokens: 2700 }),
+      solValidInputSource({ apiOutputTokens: 2750 }),
+      solValidInputSource({ apiOutputTokens: 2780 }),
+      solValidInputSource({ apiOutputTokens: 2800 }),
+      solValidInputSource({ apiOutputTokens: 9000 }),
+    ]);
+    assert.deepEqual(six[SOL], [2700, 2750, 2780, 2800, 9000]);
+    assert.equal(resolveOutputHistoryForecastTokens(six[SOL]), 2780);
+
+    const tooFew = pickRecentSameModelApiOutputTokens([
+      solValidInputSource({ apiOutputTokens: 2780 }),
+      solValidInputSource({ apiOutputTokens: 9000 }),
+    ]);
+    assert.deepEqual(tooFew[SOL], [2780, 9000]);
+    assert.equal(resolveOutputHistoryForecastTokens(tooFew[SOL]), null);
+
+    const fallback = computeMainRpNextTurnEstimates({
+      promptTokensByModel: { [SOL]: PREV_ASSEMBLED },
+      lastVisibleAssistantChars: PREV_CHARS,
+      observedCharsPerTokenByModel: { [SOL]: SOL_OBSERVED_CHARS_PER_TOKEN },
+      recentApiOutputTokensByModel: { [SOL]: [2780, 9000] },
+      effectiveKrwPerUsd: FX,
+    })[SOL];
+    assert.equal(fallback?.outputBasis, "observed_ratio");
+    assert.equal(fallback?.expectedOutputTokens, PREV_OUTPUT);
+    assert.equal(fallback?.outputHistorySampleCount, null);
+  });
+
+  it("excludes contaminated and other-model output samples", () => {
+    assert.equal(
+      isUsableOutputHistorySource(solValidInputSource({ apiOutputTokens: 2780 })),
+      true
+    );
+    assert.equal(
+      isUsableOutputHistorySource(solValidInputSource({ apiCallCount: 2, apiOutputTokens: 5000 })),
+      false
+    );
+    assert.equal(
+      isUsableOutputHistorySource(
+        solValidInputSource({ lengthRecoveryPasses: 1, apiOutputTokens: 5000 })
+      ),
+      false
+    );
+    const picked = pickRecentSameModelApiOutputTokens([
+      solValidInputSource({ apiOutputTokens: 2700 }),
+      solValidInputSource({ apiOutputTokens: 2750 }),
+      solValidInputSource({ apiOutputTokens: 2780 }),
+      solValidInputSource({ apiCallCount: 2, apiOutputTokens: 9000 }),
+      {
+        ...solValidInputSource({ apiOutputTokens: 4000 }),
+        selectedAI: FLASH,
+        model: FLASH,
+        actualModel: FLASH,
+      },
+    ]);
+    assert.deepEqual(picked[SOL], [2700, 2750, 2780]);
+    assert.deepEqual(picked[FLASH], [4000]);
+    assert.equal(resolveOutputHistoryForecastTokens(picked[FLASH]), null);
+  });
+
+  it("history median is a price forecast only and keeps the Sol 160P fixture", () => {
+    const row = computeMainRpNextTurnEstimates({
+      promptTokensByModel: { [SOL]: PREV_ASSEMBLED + 80 },
+      lastVisibleAssistantChars: PREV_CHARS,
+      observedCharsPerTokenByModel: { [SOL]: SOL_OBSERVED_CHARS_PER_TOKEN },
+      recentApiOutputTokensByModel: { [SOL]: [2700, 2780, 9000, 2750, 2800] },
+      providerInputCalibrationByModel: {
+        [SOL]: {
+          actualProviderInputTokens: PREV_PROVIDER,
+          assembledInputTokens: PREV_ASSEMBLED,
+        },
+      },
+      effectiveKrwPerUsd: FX,
+    })[SOL];
+    assert.ok(row);
+    assert.equal(row!.outputBasis, "same_model_output_history");
+    assert.equal(row!.expectedOutputTokens, 2780);
+    assert.equal(row!.outputHistorySampleCount, 5);
+    assert.ok(row!.predictedProviderInputTokens < 20_000);
+    assert.ok(row!.displayPoints >= 159 && row!.displayPoints <= 163);
+    assert.notEqual(row!.displayPoints, 277);
+    assert.match(ESTIMATE_SOURCE, /price forecast only/);
+    assert.doesNotMatch(ESTIMATE_SOURCE, /max_tokens/);
   });
 });

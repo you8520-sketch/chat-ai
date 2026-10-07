@@ -96,6 +96,12 @@ import {
 } from "@/lib/userPersonas";
 import type { ContextBuildInput } from "@/types";
 
+/**
+ * Picker / persisted next-turn snapshots omit the unsent draft.
+ * Keyword lorebook that only triggers on future user text cannot be known
+ * in advance. Do not invent extra prompt to compensate. Send-time admission
+ * uses production `buildContext` with the actual current user message.
+ */
 export const PERSISTED_NEXT_TURN_APPROXIMATION = {
   currentUserMessage: "",
   keywordLorebookFromUnsentDraft: "omitted",

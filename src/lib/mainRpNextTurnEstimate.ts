@@ -1,8 +1,16 @@
 /**
  * Next Main RP turn estimate owner.
  * Local assembled tokens → optional same-model provider-input calibration →
- * Published user-charge out. Picker display and #1400 admission both consume
- * this owner. Not a billing settlement or lease owner.
+ * optional same-model output-history median → Published user-charge out.
+ * Picker display and #1400 admission both consume this owner.
+ * Output numbers here are a price forecast only — not a generation max/cap.
+ * Not a billing settlement or lease owner.
+ *
+ * Picker assembled snapshots omit the unsent draft (`currentUserMessage=""`).
+ * Keyword lorebook that only triggers on future user text cannot be known
+ * in advance; do not invent extra prompt to compensate. Send-time admission
+ * already uses the production `buildContext` tokens that include the actual
+ * current user message and triggered lorebook.
  */
 
 import { isMainRpModel, MAIN_RP_MODEL_IDS, type SelectedAI } from "@/lib/chatModels";
@@ -17,7 +25,14 @@ import { isSuccessfulDurableGenerationStatus } from "@/lib/streamingPersistenceS
 
 export const NEXT_TURN_ESTIMATE_VERSION = "main-rp-next-turn-v1";
 
-export type NextTurnOutputBasis = "aim_floor" | "last_visible" | "observed_ratio";
+export const NEXT_TURN_OUTPUT_HISTORY_MIN_SAMPLES = 3;
+export const NEXT_TURN_OUTPUT_HISTORY_MAX_SAMPLES = 5;
+
+export type NextTurnOutputBasis =
+  | "aim_floor"
+  | "last_visible"
+  | "observed_ratio"
+  | "same_model_output_history";
 
 export type NextTurnInputCalibrationSource =
   | "uncalibrated_assembled"
@@ -36,6 +51,7 @@ export type NextTurnEstimateRow = {
   actualProviderInputTokens: number | null;
   calibrationSource: NextTurnInputCalibrationSource;
   calibrationConfidence: NextTurnInputCalibrationConfidence;
+  outputHistorySampleCount: number | null;
 };
 
 export type NextTurnEstimateMap = Partial<Record<SelectedAI, NextTurnEstimateRow>>;
@@ -47,6 +63,98 @@ export type NextTurnProviderInputCalibrationSample = {
 
 function isFinitePositiveToken(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+export type NextTurnCalibrationTurnFields = {
+  generationStatus?: string | null;
+  model?: string | null;
+  selectedAI?: string | null;
+  actualModel?: string | null;
+  htmlFlashOnly?: boolean;
+  estimated?: boolean;
+  fallback?: string | boolean | null;
+  fallbackAttempted?: boolean;
+  apiCallCount?: number | null;
+  lengthRecoveryPasses?: number | null;
+};
+
+export function isUncontaminatedSameModelCalibrationTurn(
+  input: NextTurnCalibrationTurnFields
+): boolean {
+  if (input.htmlFlashOnly) return false;
+  if ((input.model ?? "").trim() === "greeting") return false;
+  if ((input.selectedAI ?? "").trim() === "greeting") return false;
+  if (!isSuccessfulDurableGenerationStatus(input.generationStatus)) return false;
+  if (input.estimated === true) return false;
+  if (input.fallback) return false;
+  if (input.fallbackAttempted === true) return false;
+  if ((input.apiCallCount ?? 1) > 1) return false;
+  if ((input.lengthRecoveryPasses ?? 0) > 0) return false;
+
+  const selected =
+    resolveMainRpNextTurnCalibrationModelId(input.selectedAI) ??
+    resolveMainRpNextTurnCalibrationModelId(input.model);
+  if (!selected) return false;
+
+  if (input.actualModel != null && String(input.actualModel).trim() !== "") {
+    const actual = resolveMainRpNextTurnCalibrationModelId(input.actualModel);
+    if (actual == null || actual !== selected) return false;
+  }
+  return true;
+}
+
+export function meanPositiveTokens(values: number[]): number | null {
+  const clean = values.filter(isFinitePositiveToken);
+  if (clean.length === 0) return null;
+  return clean.reduce((sum, value) => sum + value, 0) / clean.length;
+}
+
+export function trimmedMeanPositiveTokens(values: number[]): number | null {
+  const clean = [...values].filter(isFinitePositiveToken).sort((a, b) => a - b);
+  if (clean.length === 0) return null;
+  if (clean.length < 3) return meanPositiveTokens(clean);
+  const inner = clean.slice(1, -1);
+  return inner.reduce((sum, value) => sum + value, 0) / inner.length;
+}
+
+export function medianPositiveTokens(values: number[]): number | null {
+  const clean = [...values].filter(isFinitePositiveToken).sort((a, b) => a - b);
+  if (clean.length === 0) return null;
+  const mid = Math.floor(clean.length / 2);
+  if (clean.length % 2 === 1) return clean[mid] ?? null;
+  const left = clean[mid - 1];
+  const right = clean[mid];
+  if (left == null || right == null) return null;
+  return (left + right) / 2;
+}
+
+export function resolveOutputHistoryForecastTokens(
+  values: number[] | null | undefined
+): number | null {
+  if (!values) return null;
+  const clean = values.filter(isFinitePositiveToken);
+  if (clean.length < NEXT_TURN_OUTPUT_HISTORY_MIN_SAMPLES) return null;
+  const window = clean.slice(-NEXT_TURN_OUTPUT_HISTORY_MAX_SAMPLES);
+  const median = medianPositiveTokens(window);
+  if (median == null) return null;
+  return Math.max(1, Math.round(median));
+}
+
+export function describeNextTurnOutputBasis(basis: NextTurnOutputBasis): string {
+  switch (basis) {
+    case "aim_floor":
+      return "target_3200_chars";
+    case "last_visible":
+      return "last_visible_chars";
+    case "observed_ratio":
+      return "last_visible_over_observed_chars_per_token";
+    case "same_model_output_history":
+      return "median_recent_api_output_tokens";
+    default: {
+      const _never: never = basis;
+      return _never;
+    }
+  }
 }
 
 export function resolveMainRpNextTurnCalibrationModelId(
@@ -195,34 +303,22 @@ export function isUsableProviderInputCalibrationSource(input: {
   apiInputTokens?: number | null;
   assembledInputTokens?: number | null;
 }): boolean {
-  if (input.htmlFlashOnly) return false;
-  if ((input.model ?? "").trim() === "greeting") return false;
-  if ((input.selectedAI ?? "").trim() === "greeting") return false;
-  if (!isSuccessfulDurableGenerationStatus(input.generationStatus)) return false;
-  if (input.estimated === true) return false;
-  if (input.fallback) return false;
-  if (input.fallbackAttempted === true) return false;
-  if ((input.apiCallCount ?? 1) > 1) return false;
-  if ((input.lengthRecoveryPasses ?? 0) > 0) return false;
+  if (!isUncontaminatedSameModelCalibrationTurn(input)) return false;
   if (!isFinitePositiveToken(input.apiInputTokens)) return false;
   if (!isFinitePositiveToken(input.assembledInputTokens)) return false;
-
-  const selected =
-    resolveMainRpNextTurnCalibrationModelId(input.selectedAI) ??
-    resolveMainRpNextTurnCalibrationModelId(input.model);
-  if (!selected) return false;
-
-  if (input.actualModel != null && String(input.actualModel).trim() !== "") {
-    const actual = resolveMainRpNextTurnCalibrationModelId(input.actualModel);
-    if (actual == null || actual !== selected) return false;
-  }
-
   return (
     resolveProviderInputRatio({
       actualProviderInputTokens: input.apiInputTokens,
       assembledInputTokens: input.assembledInputTokens,
     }) != null
   );
+}
+
+export function isUsableOutputHistorySource(input: NextTurnCalibrationTurnFields & {
+  apiOutputTokens?: number | null;
+}): boolean {
+  if (!isUncontaminatedSameModelCalibrationTurn(input)) return false;
+  return isFinitePositiveToken(input.apiOutputTokens);
 }
 
 export function pickLatestProviderInputCalibrationByModel(
@@ -254,16 +350,75 @@ export function pickLatestProviderInputCalibrationByModel(
   return out;
 }
 
+export function pickRecentSameModelApiOutputTokens(
+  candidatesOldestFirst: Array<
+    NextTurnCalibrationTurnFields & { apiOutputTokens?: number | null }
+  >
+): Partial<Record<SelectedAI, number[]>> {
+  const out: Partial<Record<SelectedAI, number[]>> = {};
+  for (const candidate of candidatesOldestFirst) {
+    if (!isUsableOutputHistorySource(candidate)) continue;
+    const modelId =
+      resolveMainRpNextTurnCalibrationModelId(candidate.selectedAI) ??
+      resolveMainRpNextTurnCalibrationModelId(candidate.model);
+    if (!modelId || !isFinitePositiveToken(candidate.apiOutputTokens)) continue;
+    const list = out[modelId] ?? [];
+    list.push(candidate.apiOutputTokens);
+    if (list.length > NEXT_TURN_OUTPUT_HISTORY_MAX_SAMPLES) list.shift();
+    out[modelId] = list;
+  }
+  return out;
+}
+
+export function resolveNextTurnOutputForecast(input: {
+  lastVisibleAssistantChars?: number | null;
+  observedCharsPerToken?: number | null;
+  recentApiOutputTokens?: number[] | null;
+}): {
+  expectedOutputTokens: number;
+  outputChars: number;
+  outputBasis: NextTurnOutputBasis;
+  outputHistorySampleCount: number | null;
+} {
+  const outputChars = resolveNextTurnOutputChars(input.lastVisibleAssistantChars);
+  const historyTokens = resolveOutputHistoryForecastTokens(input.recentApiOutputTokens);
+  if (historyTokens != null && input.recentApiOutputTokens) {
+    const count = input.recentApiOutputTokens.filter(isFinitePositiveToken).length;
+    return {
+      expectedOutputTokens: historyTokens,
+      outputChars,
+      outputBasis: "same_model_output_history",
+      outputHistorySampleCount: Math.min(count, NEXT_TURN_OUTPUT_HISTORY_MAX_SAMPLES),
+    };
+  }
+  const expectedOutputTokens = estimateNextTurnOutputTokens({
+    outputChars,
+    observedCharsPerToken: input.observedCharsPerToken,
+  });
+  const outputBasis: NextTurnOutputBasis =
+    typeof input.observedCharsPerToken === "number" && input.observedCharsPerToken > 0
+      ? "observed_ratio"
+      : outputChars > UNIFIED_TIER_AIM_CHARS
+        ? "last_visible"
+        : "aim_floor";
+  return {
+    expectedOutputTokens,
+    outputChars,
+    outputBasis,
+    outputHistorySampleCount: null,
+  };
+}
+
 export function computeMainRpNextTurnEstimates(input: {
   promptTokensByModel: Partial<Record<SelectedAI, number>>;
   lastVisibleAssistantChars?: number | null;
   observedCharsPerTokenByModel?: Partial<Record<SelectedAI, number | null>>;
+  recentApiOutputTokensByModel?: Partial<Record<SelectedAI, number[] | null>>;
   providerInputCalibrationByModel?: Partial<
     Record<SelectedAI, NextTurnProviderInputCalibrationSample | null>
   >;
   effectiveKrwPerUsd: number;
 }): NextTurnEstimateMap {
-  const outputChars = resolveNextTurnOutputChars(input.lastVisibleAssistantChars);
   const out: NextTurnEstimateMap = {};
   for (const modelId of MAIN_RP_MODEL_IDS) {
     const assembled = input.promptTokensByModel[modelId];
@@ -277,36 +432,32 @@ export function computeMainRpNextTurnEstimates(input: {
     });
     const predictedProviderInputTokens = calibrated.predictedProviderInputTokens;
     const observed = input.observedCharsPerTokenByModel?.[modelId];
-    const expectedOutputTokens = estimateNextTurnOutputTokens({
-      outputChars,
+    const outputForecast = resolveNextTurnOutputForecast({
+      lastVisibleAssistantChars: input.lastVisibleAssistantChars,
       observedCharsPerToken: observed,
+      recentApiOutputTokens: input.recentApiOutputTokensByModel?.[modelId],
     });
     const displayPoints = computePublishedStandardPreviewDisplayPoints({
       modelId,
       promptTokens: predictedProviderInputTokens,
-      outputTokens: expectedOutputTokens,
+      outputTokens: outputForecast.expectedOutputTokens,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
       effectiveKrwPerUsd: input.effectiveKrwPerUsd,
     });
     if (displayPoints == null) continue;
-    const outputBasis: NextTurnOutputBasis =
-      typeof observed === "number" && observed > 0
-        ? "observed_ratio"
-        : outputChars > UNIFIED_TIER_AIM_CHARS
-          ? "last_visible"
-          : "aim_floor";
     out[modelId] = {
       promptTokens: predictedProviderInputTokens,
-      expectedOutputTokens,
-      outputChars,
+      expectedOutputTokens: outputForecast.expectedOutputTokens,
+      outputChars: outputForecast.outputChars,
       displayPoints,
-      outputBasis,
+      outputBasis: outputForecast.outputBasis,
       localAssembledInputTokens,
       predictedProviderInputTokens,
       actualProviderInputTokens: calibrated.actualProviderInputTokens,
       calibrationSource: calibrated.calibrationSource,
       calibrationConfidence: calibrated.calibrationConfidence,
+      outputHistorySampleCount: outputForecast.outputHistorySampleCount,
     };
   }
   return out;

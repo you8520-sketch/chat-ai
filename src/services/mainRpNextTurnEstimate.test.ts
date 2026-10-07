@@ -7,6 +7,7 @@ import {
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "@/lib/chatModels";
 import {
+  readMainRpNextTurnOutputHistory,
   readMainRpNextTurnProviderInputCalibration,
   type EstimateMessageRow,
 } from "@/services/mainRpNextTurnEstimate";
@@ -125,6 +126,41 @@ describe("main RP next-turn provider-input calibration reader", () => {
       ),
     ];
     assert.equal(readMainRpNextTurnProviderInputCalibration(rows)[SOL], undefined);
+  });
+
+  it("reads last 3-5 same-model apiOutputTokens and skips contaminated rows", () => {
+    const rows: EstimateMessageRow[] = [
+      assistantRow(validSolUsage({ apiOutputTokens: 2100 })),
+      assistantRow(validSolUsage({ apiOutputTokens: 2700 })),
+      assistantRow(validSolUsage({ apiOutputTokens: 2750 })),
+      assistantRow(validSolUsage({ apiOutputTokens: 2780 })),
+      assistantRow(validSolUsage({ apiCallCount: 2, apiOutputTokens: 9000 })),
+      assistantRow(validSolUsage({ apiOutputTokens: 2800 })),
+      assistantRow(
+        {
+          ...validSolUsage(),
+          selectedAI: FLASH,
+          model: FLASH,
+          apiOutputTokens: 4000,
+          adultRouting: { actualModel: FLASH, fallbackAttempted: false },
+        },
+        { model: FLASH }
+      ),
+    ];
+    assert.deepEqual(readMainRpNextTurnOutputHistory(rows)[SOL], [
+      2100, 2700, 2750, 2780, 2800,
+    ]);
+    assert.deepEqual(readMainRpNextTurnOutputHistory(rows)[FLASH], [4000]);
+  });
+
+  it("picker omits unsent draft instead of inventing lorebook prompt", () => {
+    const prep = fs.readFileSync(
+      path.join(process.cwd(), "src/services/nextTurnAssemblyPreparation.ts"),
+      "utf8"
+    );
+    assert.match(prep, /keywordLorebookFromUnsentDraft: "omitted"/);
+    assert.match(SERVICE_SOURCE, /currentUserMessage=""/);
+    assert.match(SERVICE_SOURCE, /recentApiOutputTokensByModel/);
   });
 
   it("picker and admission both consume estimatesFromRoomRows", () => {
