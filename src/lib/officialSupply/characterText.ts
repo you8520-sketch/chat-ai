@@ -68,6 +68,7 @@ export function composeOfficialSystemPrompt(
 ): string {
   return joinSections([
     ["캐릭터 본체", draft.sections.characterCore],
+    ["현재 상황 / 도입", draft.sections.currentSituation ?? ""],
     ["관계·갈등·행동원리", draft.sections.relationshipsAndDrives],
     ["보조 인물", draft.supportingNpcs.map(formatSupportingNpcLine).join("\n")],
     ["기타 설정", draft.sections.extraCanon],
@@ -107,9 +108,11 @@ export function buildOfficialCharacterFormBody(input: {
   appearanceBlock: string;
   assets: OfficialCanonicalFormAsset[];
   lorebookIds?: number[];
+  worldId?: number | null;
 }): Record<string, unknown> {
   const { draft } = input;
   const adult = draft.adult;
+  const worldId = input.worldId != null && input.worldId > 0 ? input.worldId : null;
   return {
     content_kind: "character",
     name: draft.name,
@@ -118,6 +121,12 @@ export function buildOfficialCharacterFormBody(input: {
     creator_comment: composeOfficialCreatorComment(draft),
     greeting: draft.greeting,
     world: draft.sections.worldAndSituation,
+    ...(worldId != null
+      ? {
+          world_id: worldId,
+          world_library_ref: `world:${worldId}`,
+        }
+      : {}),
     system_prompt: composeOfficialSystemPrompt(draft, input.appearanceBlock),
     speech_personality: draft.speech.personality,
     speech_traits: draft.speech.traits,
@@ -148,6 +157,10 @@ export function officialSubstantiveCharCount(draft: OfficialCharacterDraft, appe
     draft.speech.personality.length +
     draft.speech.traits.length
   );
+}
+
+export function officialCurrentSituationCharCount(draft: OfficialCharacterDraft): number {
+  return (draft.sections.currentSituation ?? "").length;
 }
 
 export function computeTextLockHash(draft: OfficialCharacterDraft): string {
@@ -260,6 +273,7 @@ function mainSheetText(draft: OfficialCharacterDraft): string {
     draft.description,
     draft.greeting,
     draft.sections.worldAndSituation,
+    draft.sections.currentSituation ?? "",
     draft.sections.characterCore,
     draft.sections.relationshipsAndDrives,
     draft.sections.extraCanon,
@@ -385,6 +399,9 @@ export function evaluateDraftSchema(draft: OfficialCharacterDraft): QaResult {
     rpHook: draft.hook.rpHook,
   })) {
     if (!String(value ?? "").trim()) errors.push({ code: "field_missing", message: `${key} is required` });
+  }
+  if (draft.promptStandard === "compact_rp_v1" && !String(draft.sections.currentSituation ?? "").trim()) {
+    errors.push({ code: "field_missing", message: "currentSituation is required" });
   }
   if (sanitizeCharacterGenres(draft.genres).length !== draft.genres.length || draft.genres.length === 0) {
     errors.push({ code: "genre_not_canonical", message: "genres must be canonical CHARACTER_GENRES values" });

@@ -39,6 +39,10 @@ function readJson<T>(file: string): T {
   return JSON.parse(fs.readFileSync(file, "utf8")) as T;
 }
 
+export function loadOfficialPilotWorldBible(): OfficialWorldBible {
+  return readJson<{ bible: OfficialWorldBible }>(path.join(PILOT_DIR, "world-bible.json")).bible;
+}
+
 export function officialAppearanceBlockForDraft(
   draft: Pick<OfficialCharacterDraft, "promptStandard">,
   appearance: OfficialAppearanceLock
@@ -51,6 +55,7 @@ export function officialAppearanceBlockForDraft(
 export function loadCompiledOfficialCharacterSource(draftKey: string): {
   draftKey: string;
   worldKey: string;
+  worldBible: OfficialWorldBible;
   draft: OfficialCharacterDraft;
   appearanceLock: OfficialAppearanceLock;
   appearanceBlock: string;
@@ -74,6 +79,7 @@ export function loadCompiledOfficialCharacterSource(draftKey: string): {
     genres: ["로맨스 판타지"],
     audience: file.brief.audience,
     worldName: world.bible.name,
+    worldBible: world.bible,
     hook: {
       archetype: brief.archetype,
       relationshipTrope: brief.relationshipTrope,
@@ -88,6 +94,7 @@ export function loadCompiledOfficialCharacterSource(draftKey: string): {
   return {
     draftKey,
     worldKey: manifest.worldKey,
+    worldBible: world.bible,
     draft,
     appearanceLock: file.appearance,
     appearanceBlock,

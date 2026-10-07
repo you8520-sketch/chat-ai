@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { compileOfficialDraftFromBible } from "@/lib/officialSupply/bible";
+import { compileOfficialDraftFromBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
 import { buildOfficialCharacterFormBody } from "@/lib/officialSupply/characterText";
 import { buildOfficialAssetPrompts } from "@/lib/officialSupply/imagePrompt";
 import {
@@ -54,7 +54,7 @@ function sampleChars(): PilotChar[] {
 }
 
 function compileKeys(file: PilotChar) {
-  const world = readJson<{ bible: { name: string } }>(path.join(PILOT_DIR, "world-bible.json"));
+  const world = readJson<{ bible: OfficialWorldBible }>(path.join(PILOT_DIR, "world-bible.json"));
   const manifest = readJson<{ worldKey: string; styleKey: string }>(path.join(PILOT_DIR, "manifest.json"));
   return {
     draftKey: file.draftKey,
@@ -63,6 +63,7 @@ function compileKeys(file: PilotChar) {
     genres: ["로맨스 판타지"] as OfficialCharacterDraft["genres"],
     audience: file.brief.audience,
     worldName: world.bible.name,
+    worldBible: world.bible,
     hook: {
       archetype: file.brief.archetype,
       relationshipTrope: file.brief.relationshipTrope,

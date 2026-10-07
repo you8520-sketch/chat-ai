@@ -8,9 +8,12 @@ import {
 import { officialStagedAssetOrder } from "@/lib/officialSupply/publicAssetMap";
 import { OfficialSupplyGateError, type OfficialSupplyStore } from "@/lib/officialSupply/store";
 import { canonicalAssetModerationFields } from "@/lib/officialSupply/moderation";
+import { loadOfficialPilotWorldBible } from "@/lib/officialSupply/compiledOfficialSource";
 import { resolveOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
+import { ensureOfficialSharedWorldLibraryRow } from "@/lib/officialSupply/officialSharedWorld";
 import type { OfficialWorldLorebookEntry } from "@/lib/officialSupply/types";
 import { evaluateSharedLorebook } from "@/lib/officialSupply/worldQa";
+import type { OfficialWorldBible } from "@/lib/officialSupply/bible";
 
 type CanonicalSave = typeof createCharacterFromForm;
 
@@ -85,6 +88,7 @@ export async function stageOfficialCharacterPrivately(input: {
   stagingUser: SessionUser;
   sharedLorebook?: OfficialWorldLorebookEntry[];
   characterLorebook?: OfficialWorldLorebookEntry[];
+  worldBible?: OfficialWorldBible;
   save?: CanonicalSave;
 }): Promise<OfficialStagingResult> {
   const { store, draftKey, stagingUser } = input;
@@ -108,11 +112,20 @@ export async function stageOfficialCharacterPrivately(input: {
   }
   try {
     const lorebookIds = ensureWorldLorebooks(store, record.worldKey, stagingUser, entries);
+    const sharedWorld =
+      record.draft.promptStandard === "compact_rp_v1"
+        ? ensureOfficialSharedWorldLibraryRow({
+            db: store.database,
+            creatorId: stagingUser.id,
+            bible: input.worldBible ?? loadOfficialPilotWorldBible(),
+          })
+        : null;
     const body = buildOfficialCharacterFormBody({
       draft: record.draft,
       appearanceBlock: store.appearanceBlockFor(record),
       assets: buildStagingAssets(store, draftKey),
       lorebookIds,
+      worldId: sharedWorld?.worldId,
     });
     const saved = await (input.save ?? createCharacterFromForm)(stagingUser, body);
     if (!saved.ok) {

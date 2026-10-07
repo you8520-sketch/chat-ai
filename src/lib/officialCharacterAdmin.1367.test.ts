@@ -1180,14 +1180,17 @@ describe("issue 1367 official admin + in-place Lucian sync", () => {
     assert.notEqual(afterRow.creator_compiled_description_json, stale.compiledJson);
     const compiled = parseCreatorDescriptionCompiled(afterRow.creator_compiled_description_json);
     const publicCanon = compiledPublicCanonText(compiled);
-    assert.ok(publicCanon.includes(source.draft.sections.worldAndSituation.slice(0, 40)));
+    const sharedWorldLead =
+      source.draft.sections.worldAndSituation.split(/(?<=[.!?。！？])\s+/)[0] ?? "";
+    assert.match(sharedWorldLead, /에테르노스 제국/);
+    assert.ok(publicCanon.includes(sharedWorldLead));
     assert.doesNotMatch(publicCanon, /손목을 잡고/);
     const loaded = chunkText(characterId, false);
-    assert.ok(loaded.includes(source.draft.sections.worldAndSituation.slice(0, 40)));
+    assert.ok(loaded.includes(sharedWorldLead));
     assert.doesNotMatch(loaded, /손목을 잡고/);
     assert.doesNotMatch(loaded, /오래된손목비밀/);
     const persisted = chunkText(characterId, true);
-    assert.ok(persisted.includes(source.draft.sections.worldAndSituation.slice(0, 40)));
+    assert.ok(persisted.includes(sharedWorldLead));
     const plan = parseCanonPlanV1(afterRow.creator_canon_plan_json);
     assert.ok(plan);
     const locked = plan.chunks.filter((chunk) => chunk.visibility === "LOCKED_SECRET");
