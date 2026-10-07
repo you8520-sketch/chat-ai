@@ -11,6 +11,7 @@ import {
   type UserChatSession,
 } from "@/lib/recentChats";
 import { chatEntryHref, characterPageHref } from "@/lib/chatLinks";
+import { chatRoomHref, requestExplicitChatSession } from "@/lib/chatSessionStartClient";
 
 type Props = {
   open: boolean;
@@ -42,19 +43,43 @@ export default function CharacterChatBranchModal({
   const [editingTitle, setEditingTitle] = useState("");
   const [savingId, setSavingId] = useState<number | null>(null);
   const [renameError, setRenameError] = useState("");
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState("");
   if (!open) return null;
 
   const hidden = nsfw && blurNsfw;
   const multi = branches.length > 1;
   const latest = branches[0];
 
-  function enter(chatId?: number, fresh = false) {
+  function enter(chatId?: number) {
     onClose();
     if (hidden) {
       router.push("/verify");
       return;
     }
-    router.push(chatEntryHref(characterId, { chatId, fresh }));
+    router.push(chatEntryHref(characterId, { chatId }));
+  }
+
+  async function startFreshChat() {
+    if (starting) return;
+    if (hidden) {
+      onClose();
+      router.push("/verify");
+      return;
+    }
+    setStarting(true);
+    setStartError("");
+    try {
+      const { chatId } = await requestExplicitChatSession({
+        characterId,
+        fresh: true,
+      });
+      onClose();
+      router.push(chatRoomHref(characterId, chatId));
+    } catch (error) {
+      setStartError(error instanceof Error ? error.message : "채팅을 시작하지 못했습니다.");
+      setStarting(false);
+    }
   }
 
   function startRename(session: UserChatSession) {
@@ -253,11 +278,19 @@ export default function CharacterChatBranchModal({
           )}
           <button
             type="button"
-            onClick={() => enter(undefined, true)}
-            className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white hover:bg-white/10"
+            disabled={starting}
+            onClick={() => {
+              void startFreshChat();
+            }}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white hover:bg-white/10 disabled:opacity-60"
           >
-            처음부터 (새 대화)
+            {starting ? "시작하는 중…" : "처음부터 (새 대화)"}
           </button>
+          {startError ? (
+            <p className="text-xs text-rose-300" role="alert">
+              {startError}
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={onClose}

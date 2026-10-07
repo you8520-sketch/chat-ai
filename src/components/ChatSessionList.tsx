@@ -9,6 +9,7 @@ import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
 import CharacterChatBranchModal from "@/components/CharacterChatBranchModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { characterPageHref } from "@/lib/chatLinks";
+import { chatRoomHref, requestExplicitChatSession } from "@/lib/chatSessionStartClient";
 import {
   formatChatListTime,
   formatChatPreview,
@@ -196,7 +197,16 @@ export default function ChatSessionList({
         else setPickerGroup({ ...pickerGroup, sessions: remaining });
       }
       if (activeChatId === target.chat_id) {
-        router.push(`/chat/${target.character_id}?fresh=1`);
+        try {
+          const { chatId } = await requestExplicitChatSession({
+            characterId: target.character_id,
+            fresh: true,
+          });
+          router.push(chatRoomHref(target.character_id, chatId));
+        } catch {
+          setError("새 대화를 시작하지 못했습니다.");
+          router.refresh();
+        }
       } else {
         router.refresh();
       }

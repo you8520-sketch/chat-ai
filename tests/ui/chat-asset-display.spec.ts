@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { openExplicitFreshChat } from "./helpers/openExplicitChat";
 
 const PORTRAIT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400"><rect width="300" height="400" fill="#7c6aae"/><text x="150" y="200" font-size="28" text-anchor="middle" fill="white">guardrail</text></svg>`;
 const PORTRAIT_DATA_URL =
@@ -205,8 +206,7 @@ function snapshotCharacterAssets(characterId: number) {
 }
 
 async function openFreshChat(page: Page, characterId = 2) {
-  await page.goto(`/chat/${characterId}?fresh=1`, { waitUntil: "domcontentloaded" });
-  await page.waitForURL(/\/chat\/\d+\?chat=\d+/, { timeout: 45_000 });
+  await openExplicitFreshChat(page, characterId);
   await page.waitForSelector("textarea[placeholder*='메시지 입력']", { timeout: 45_000 });
 }
 
@@ -243,9 +243,9 @@ test.describe("general chat asset display guardrails (B0)", () => {
   });
 
   test("LEFT-NO-CROP: portrait image is fully visible inside its frame", async ({ page }) => {
-    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    await openFreshChat(page);
     seedPortraitAsset(2);
-    await page.goto(`/chat/2?fresh=1`, { waitUntil: "domcontentloaded" });
+    await openFreshChat(page);
     await page.waitForSelector("textarea[placeholder*='메시지 입력']", { timeout: 45_000 });
 
     const img = page.locator(".chat-room-portrait-column img:not([aria-hidden])").first();
@@ -315,7 +315,7 @@ test.describe("general chat asset display guardrails (B0)", () => {
     page,
   }) => {
     await installAssetMode(page, "inline");
-    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    await openFreshChat(page);
     seedMixedAssets(2);
     await seedAndReloadChatWithMessage(
       page,
@@ -344,7 +344,7 @@ test.describe("general chat asset display guardrails (B0)", () => {
 
   test("OFF-HIDES-ALL: off mode renders no assets and no raw markers", async ({ page }) => {
     await installAssetMode(page, "off");
-    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    await openFreshChat(page);
     seedMixedAssets(2);
     await seedAndReloadChatWithMessage(
       page,
@@ -364,7 +364,7 @@ test.describe("general chat asset display guardrails (B0)", () => {
   }) => {
     await installAssetMode(page, "left");
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    await openFreshChat(page);
     seedMixedAssets(2);
     await seedAndReloadChatWithMessage(
       page,
@@ -403,7 +403,7 @@ test.describe("general chat asset display guardrails (B0)", () => {
   }) => {
     await installAssetMode(page, "left");
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    await openFreshChat(page);
     seedMixedAssets(2);
     await seedAndReloadChatWithMessage(page, `${ASSISTANT_MARKER_TEXT}\n[태그: guardrail-tall]`);
 
@@ -418,7 +418,7 @@ test.describe("general chat asset display guardrails (B0)", () => {
   test("MOBILE-INLINE-SIZE: mobile inline assets are bounded and centered", async ({ page }) => {
     await installAssetMode(page, "inline");
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    await openFreshChat(page);
     seedMixedAssets(2);
     await seedAndReloadChatWithMessage(
       page,
@@ -460,7 +460,7 @@ test.describe("general chat asset display guardrails (B0)", () => {
     test(`MOBILE-${mode.toUpperCase()}-NO-BACKGROUND: no background layer`, async ({ page }) => {
       await installAssetMode(page, mode);
       await page.setViewportSize({ width: 390, height: 844 });
-      await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+      await openFreshChat(page);
       seedMixedAssets(2);
       await seedAndReloadChatWithMessage(
         page,
@@ -475,7 +475,7 @@ test.describe("general chat asset display guardrails (B0)", () => {
   }) => {
     await installAssetMode(page, "left");
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    await openFreshChat(page);
     await page.waitForSelector("textarea[placeholder*='메시지 입력']", { timeout: 45_000 });
 
     await page.getByRole("button", { name: "채팅 메뉴" }).click();
@@ -498,7 +498,7 @@ test.describe("general chat asset display guardrails (B0)", () => {
 
   test("QUICK-RAIL-CYCLE: rail cycles left → inline → off and persists", async ({ page }) => {
     await installAssetMode(page, "left");
-    await page.goto("/chat/2?fresh=1", { waitUntil: "domcontentloaded" });
+    await openFreshChat(page);
     await page.waitForSelector("textarea[placeholder*='메시지 입력']", { timeout: 45_000 });
 
     const rail = page.getByRole("button", { name: /캐릭터 에셋 표시 좌측/ }).first();

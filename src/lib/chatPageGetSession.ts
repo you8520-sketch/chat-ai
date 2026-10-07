@@ -6,16 +6,14 @@ export type ChatPageGetQuery = {
 };
 
 /**
- * GET /chat/[characterId] session decision.
- * This owner is read-only lookup plus the current implicit-create branch.
- * Provider work is not owned here; createChatSession remains the domain writer
- * when the decision is create-missing-or-fresh.
+ * GET /chat/[characterId] session decision — read-only.
+ * Missing rooms and ?fresh=1 never create chats or schedule provider work.
  */
 export type ChatPageGetDecision =
   | { kind: "open"; chatId: number }
   | { kind: "redirect-existing"; chatId: number }
   | { kind: "unknown-chat" }
-  | { kind: "create-missing-or-fresh" };
+  | { kind: "missing-room" };
 
 export function isChatPageFreshParam(freshParam?: string): boolean {
   return freshParam === "1" || freshParam === "true";
@@ -82,5 +80,5 @@ export function resolveChatPageGetDecision(
     return { kind: "unknown-chat" };
   }
 
-  return { kind: "create-missing-or-fresh" };
+  return { kind: "missing-room" };
 }

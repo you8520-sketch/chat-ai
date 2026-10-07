@@ -63,7 +63,6 @@ import {
 import { filterOutMessageIds, purgeOrphanUserMessages } from "@/lib/chatMessageHygiene";
 import { recoverStaleInFlightAssistantMessages } from "@/lib/streamingPersistence";
 import { takeRecentTurns, takeRecentTurnsIncludingMessage } from "@/lib/chatMessagePagination";
-import { createChatSession } from "@/lib/chatSessionCreate";
 import { resolveChatPageGetDecision } from "@/lib/chatPageGetSession";
 import { resolveNarrativePov } from "@/lib/narrativePov";
 import { parseUserAuthoringLevel } from "@/lib/userAuthoringPolicy";
@@ -196,33 +195,8 @@ export default async function ChatPage({
   if (sessionDecision.kind === "redirect-existing") {
     redirect(`/chat/${id}?chat=${sessionDecision.chatId}`);
   }
-  if (sessionDecision.kind === "create-missing-or-fresh") {
-    const bootstrapPrefs = resolveInitialUserChatPrefs({
-      serverRaw: userProfileRow.chat_prefs,
-      chatTargetResponseChars: undefined,
-    });
-    let createPersonaId = personaList[0]?.id ?? null;
-    if (personaParam) {
-      const requestedPersonaId = Number(personaParam);
-      if (Number.isFinite(requestedPersonaId)) {
-        const selection = validatePersonaSelection(personaList, requestedPersonaId);
-        if (selection.ok) {
-          createPersonaId = selection.persona.id;
-        } else if (selection.fallbackPersona) {
-          createPersonaId = selection.fallbackPersona.id;
-        }
-      }
-    }
-    const newChatId = createChatSession({
-      userId: user.id,
-      characterId: c.id,
-      greeting: c.greeting,
-      mode: c.nsfw ? "nsfw" : "safe",
-      userNote: mergeUserNoteWithChatPrefs("", bootstrapPrefs),
-      selectedPersonaId: createPersonaId,
-      targetResponseChars: bootstrapPrefs.targetResponseChars,
-    });
-    redirect(`/chat/${id}?chat=${newChatId}`);
+  if (sessionDecision.kind === "missing-room") {
+    redirect(`/character/${id}`);
   }
 
   const chat = db
