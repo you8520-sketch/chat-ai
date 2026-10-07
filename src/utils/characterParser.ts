@@ -20,6 +20,7 @@ const HEADER_PATTERNS: { re: RegExp; category: ChunkCategory }[] = [
   { re: /^(?:#{1,3}\s*)?(?:이름|성명|캐릭터\s*명|정체성|직업|identity)/i, category: "identity" },
   { re: /^(?:#{1,3}\s*)?(?:성격|personality|성향|기질|관심사|취미)/i, category: "personality" },
   { re: /^(?:#{1,3}\s*)?(?:말투|어조|대사|speech|말\s*버릇|호칭|금지\s*말투)/i, category: "speech" },
+  { re: /^(?:#{1,3}\s*)?(?:현재\s*상황|도입)/i, category: "background" },
   { re: /^(?:#{1,3}\s*)?(?:배경|과거|서사|background|history|생애)/i, category: "background" },
   { re: /^(?:#{1,3}\s*)?(?:관계|인간관계|relationship|가족|친구|연인)/i, category: "relationships" },
   { re: /^(?:#{1,3}\s*)?(?:능력|스킬|외형|외모|체형|의상|abilities|skill|외모\s*묘사)/i, category: "abilities" },

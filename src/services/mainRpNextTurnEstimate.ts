@@ -1,6 +1,10 @@
 /**
  * Room-scoped next-turn picker estimates.
  * Reuses the existing per-model assembled snapshot owner. No provider I/O.
+ * Picker snapshots use currentUserMessage="" (unsent draft omitted);
+ * keyword lorebook keyed only on future user text is therefore unknown.
+ * Send-time admission still receives production assembled tokens.
+ * Output-history samples go through usageOutputTokens → billableOpenRouterOutputTokens.
  */
 
 import type { User } from "@/lib/auth";
@@ -14,13 +18,17 @@ import {
   computeMainRpNextTurnEstimates,
   isUsableOutputCalibrationSource,
   nextTurnEstimateDisplayMap,
+  pickLatestProviderInputCalibrationByModel,
+  pickRecentSameModelBillableOutputTokens,
+  resolveMainRpNextTurnCalibrationModelId,
   resolveObservedCharsPerToken,
   type NextTurnEstimateMap,
+  type NextTurnProviderInputCalibrationSample,
 } from "@/lib/mainRpNextTurnEstimate";
 import { isSuccessfulDurableGenerationStatus } from "@/lib/streamingPersistenceShared";
 import { resolveModelPickerAssembledInputSnapshots } from "@/services/modelPickerInputSnapshot";
 
-type EstimateMessageRow = {
+export type EstimateMessageRow = {
   role: "user" | "assistant";
   content: string;
   model: string | null;
@@ -37,7 +45,8 @@ function parseUsage(raw: string | null): Usage | null {
   }
 }
 
-function usageOutputTokens(usage: Usage | null, modelId: string): number | null {
+/** Canonical billable-output owner for next-turn output history. */
+export function usageOutputTokens(usage: Usage | null, modelId: string): number | null {
   if (!usage) return null;
   const total = usage.apiOutputTokens ?? usage.output ?? 0;
   const reasoning = usage.apiReasoningOutputTokens ?? 0;
@@ -100,6 +109,50 @@ function readObservedCharsPerTokenByModel(
   return out;
 }
 
+function calibrationTurnFields(row: EstimateMessageRow) {
+  const usage = parseUsage(row.usage);
+  return {
+    generationStatus: row.generation_status,
+    model: row.model,
+    selectedAI: usage?.selectedAI ?? null,
+    actualModel: usage?.adultRouting?.actualModel || usage?.model || null,
+    htmlFlashOnly: usage?.htmlFlashOnly === true,
+    estimated: usage?.estimated === true,
+    fallback: usage?.fallback ?? null,
+    fallbackAttempted: usage?.adultRouting?.fallbackAttempted === true,
+    apiCallCount: usage?.apiCallCount ?? null,
+    lengthRecoveryPasses: usage?.lengthRecoveryPasses ?? null,
+    apiInputTokens: usage?.apiInputTokens ?? null,
+    assembledInputTokens: usage?.assembledInputTokens ?? null,
+  };
+}
+
+export function readMainRpNextTurnProviderInputCalibration(
+  rows: EstimateMessageRow[]
+): Partial<Record<SelectedAI, NextTurnProviderInputCalibrationSample>> {
+  return pickLatestProviderInputCalibrationByModel(
+    rows.filter((row) => row.role === "assistant").map((row) => calibrationTurnFields(row))
+  );
+}
+
+export function readMainRpNextTurnOutputHistory(
+  rows: EstimateMessageRow[]
+): Partial<Record<SelectedAI, number[]>> {
+  return pickRecentSameModelBillableOutputTokens(
+    rows.filter((row) => row.role === "assistant").map((row) => {
+      const usage = parseUsage(row.usage);
+      const modelId =
+        resolveMainRpNextTurnCalibrationModelId(usage?.selectedAI) ??
+        resolveMainRpNextTurnCalibrationModelId(usage?.model) ??
+        resolveMainRpNextTurnCalibrationModelId(row.model);
+      return {
+        ...calibrationTurnFields(row),
+        billableOutputTokens: usageOutputTokens(usage, modelId ?? ""),
+      };
+    })
+  );
+}
+
 function estimatesFromRoomRows(
   rows: EstimateMessageRow[],
   promptTokensByModel: Partial<Record<SelectedAI, number>>
@@ -108,6 +161,8 @@ function estimatesFromRoomRows(
     promptTokensByModel,
     lastVisibleAssistantChars: readLastVisibleAssistantChars(rows),
     observedCharsPerTokenByModel: readObservedCharsPerTokenByModel(rows),
+    recentBillableOutputTokensByModel: readMainRpNextTurnOutputHistory(rows),
+    providerInputCalibrationByModel: readMainRpNextTurnProviderInputCalibration(rows),
     effectiveKrwPerUsd: getEffectiveKrwPerUsd(),
   });
 }

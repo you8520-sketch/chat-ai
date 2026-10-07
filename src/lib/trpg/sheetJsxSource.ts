@@ -34,6 +34,10 @@ function TrpgSheet(props) {
     setTrpgSelectedStat(key);
   };
   const signed = (n) => (n >= 0 ? "+" + n : String(n));
+  const itemLabel = (item) => {
+    const quantity = num(item.quantity);
+    return quantity > 1 ? text(item.name) + " ×" + quantity : text(item.name);
+  };
 
   const label = { fontSize: 12, color: "#71717a", margin: "0 0 4px" };
   const chip = {
@@ -201,6 +205,7 @@ function TrpgSheet(props) {
                   <button
                     type="button"
                     data-trpg-inventory-item={text(item.name)}
+                    data-trpg-inventory-quantity={num(item.quantity)}
                     onClick={() => fill(item.draft)}
                     style={{
                       ...action,
@@ -209,12 +214,13 @@ function TrpgSheet(props) {
                       color: "#f4f4f5",
                     }}
                   >
-                    {text(item.name)}
+                    {itemLabel(item)}
                   </button>
                 </li>
               ) : (
                 <li
                   key={text(item.key)}
+                  data-trpg-inventory-quantity={num(item.quantity)}
                   style={{
                     ...action,
                     cursor: "default",
@@ -223,7 +229,7 @@ function TrpgSheet(props) {
                     color: "#e4e4e7",
                   }}
                 >
-                  {text(item.name)}
+                  {itemLabel(item)}
                 </li>
               )
             )}

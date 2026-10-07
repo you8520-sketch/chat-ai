@@ -30,6 +30,29 @@ export function inventoryCount(inventory: readonly string[]): number {
   return inventory.filter((item) => item.trim()).length;
 }
 
+export type TrpgInventoryStack = { name: string; quantity: number };
+
+/**
+ * Presentation-only view of the canonical unit list: one stack per trimmed
+ * exact name (same identity mechanics consume uses), first-occurrence order.
+ * quantity = unit occurrences. The unit list itself stays the state owner.
+ */
+export function stackInventory(inventory: readonly string[]): TrpgInventoryStack[] {
+  const stacks = new Map<string, TrpgInventoryStack>();
+  for (const raw of inventory) {
+    const name = raw.trim();
+    if (!name) continue;
+    const stack = stacks.get(name);
+    if (stack) stack.quantity += 1;
+    else stacks.set(name, { name, quantity: 1 });
+  }
+  return [...stacks.values()];
+}
+
+export function inventoryStackLabel(stack: TrpgInventoryStack): string {
+  return stack.quantity > 1 ? `${stack.name} ×${stack.quantity}` : stack.name;
+}
+
 export function selfHudAriaLabel(sheet: Pick<TrpgSheetSnapshot, "name" | "hp" | "maxHp" | "location" | "conditions" | "inventory">): string {
   const conditions = sheet.conditions.filter((item) => item.trim());
   const items = inventoryCount(sheet.inventory);

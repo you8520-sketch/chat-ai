@@ -2,6 +2,10 @@ import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import type { AdultConsentMode, AdultDialogueProfile } from "@/lib/adultSceneRouting";
 import { OFFICIAL_AUTHOR_QUALITY_CONTRACT, type PortfolioBriefInput } from "@/lib/officialSupply/authorPrompts";
 import {
+  composeOfficialCurrentSituation,
+  projectOfficialSharedWorld,
+} from "@/lib/officialSupply/officialSharedWorld";
+import {
   composeOfficialPublicDescription,
   evaluateOfficialPlayerGenderNeutral,
 } from "@/lib/officialSupply/publicProfileText";
@@ -1058,10 +1062,22 @@ export type CompileKeys = {
   hook: OfficialCharacterDraft["hook"];
   /** Display name for the public intro world header. Optional on older call sites. */
   worldName?: string;
+  /** Required for compact_rp_v1 so World is the shared Ethernos owner, not a local incident. */
+  worldBible?: OfficialWorldBible;
 };
 
 function joinParagraphs(parts: string[]): string {
   return parts.map((p) => p.trim()).filter(Boolean).join("\n\n");
+}
+
+function requireCompactWorldBible(keys: CompileKeys, task: string): OfficialWorldBible {
+  if (!keys.worldBible) {
+    throw new OfficialSupplyGateError(
+      "compact_world_bible_required",
+      `${task}: compact_rp_v1 requires the shared OfficialWorldBible so World is not a local incident`
+    );
+  }
+  return keys.worldBible;
 }
 
 /**
@@ -1286,12 +1302,20 @@ export function compileOfficialDraftFromBible(
     audience: keys.audience,
     sections: {
       worldAndSituation: compactRpV1
-        ? joinParagraphs([bible.situation.personalSituation, bible.situation.userEntry])
+        ? projectOfficialSharedWorld(requireCompactWorldBible(keys, task))
         : joinParagraphs([
             bible.situation.worldContext,
             bible.situation.personalSituation,
             bible.situation.userEntry,
           ]),
+      ...(compactRpV1
+        ? {
+            currentSituation: composeOfficialCurrentSituation({
+              personalSituation: bible.situation.personalSituation,
+              userEntry: bible.situation.userEntry,
+            }),
+          }
+        : {}),
       characterCore,
       relationshipsAndDrives,
       extraCanon,

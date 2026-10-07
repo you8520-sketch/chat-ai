@@ -5,7 +5,7 @@ import path from "node:path";
 
 import sharp from "sharp";
 
-import { compileOfficialDraftFromBible, type OfficialCharacterBible } from "@/lib/officialSupply/bible";
+import { compileOfficialDraftFromBible, type OfficialCharacterBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
 import {
   buildOfficialAssetPrompts,
   type OfficialReferenceRoleLayout,
@@ -185,7 +185,7 @@ function loadPilot(): {
 } {
   const root = process.cwd();
   const file = readJson<PilotFile>(path.join(root, "src/lib/officialSupply/pilot/characters/pilot-rf-03.json"));
-  const world = readJson<{ bible: { name: string } }>(path.join(root, "src/lib/officialSupply/pilot/world-bible.json"));
+  const world = readJson<{ bible: OfficialWorldBible }>(path.join(root, "src/lib/officialSupply/pilot/world-bible.json"));
   const manifest = readJson<{ worldKey: string; styleKey: string }>(
     path.join(root, "src/lib/officialSupply/pilot/manifest.json")
   );
@@ -197,6 +197,7 @@ function loadPilot(): {
     genres: ["로맨스 판타지"],
     audience: file.brief.audience,
     worldName: world.bible.name,
+    worldBible: world.bible,
     hook: {
       archetype: file.brief.archetype,
       relationshipTrope: file.brief.relationshipTrope,

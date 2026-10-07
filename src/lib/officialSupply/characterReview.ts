@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { compileOfficialDraftFromBible, type OfficialCharacterBible } from "@/lib/officialSupply/bible";
+import { compileOfficialDraftFromBible, type OfficialCharacterBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
 import { composeOfficialSystemPrompt } from "@/lib/officialSupply/characterText";
 import {
   renderAppearanceBlock,
@@ -78,10 +78,7 @@ export function buildOfficialCharacterReviewReport(draftKey = "pilot-rf-03"): st
     path.join(PILOT_DIR, "manifest.json")
   );
   const world = readJson<{
-    bible: {
-      name: string;
-      lorebook: OfficialWorldLorebookEntry[];
-    };
+    bible: OfficialWorldBible;
   }>(path.join(PILOT_DIR, "world-bible.json"));
 
   const draft = compileOfficialDraftFromBible(file.bible, {
@@ -91,6 +88,7 @@ export function buildOfficialCharacterReviewReport(draftKey = "pilot-rf-03"): st
     genres: [manifest.genre] as OfficialCharacterDraft["genres"],
     audience: file.brief.audience,
     worldName: world.bible.name,
+    worldBible: world.bible,
     hook: {
       archetype: file.brief.archetype,
       relationshipTrope: file.brief.relationshipTrope,
@@ -153,6 +151,7 @@ export function buildOfficialCharacterReviewReport(draftKey = "pilot-rf-03"): st
           fieldMatch("characterCore", stored.sections.characterCore, draft.sections.characterCore),
           fieldMatch("relationshipsAndDrives", stored.sections.relationshipsAndDrives, draft.sections.relationshipsAndDrives),
           fieldMatch("worldAndSituation", stored.sections.worldAndSituation, draft.sections.worldAndSituation),
+          fieldMatch("currentSituation", stored.sections.currentSituation ?? "", draft.sections.currentSituation ?? ""),
           fieldMatch("secrets", stored.secrets, draft.secrets),
           fieldMatch("description", stored.description, draft.description),
           fieldMatch("greeting", stored.greeting, draft.greeting),
@@ -168,8 +167,11 @@ export function buildOfficialCharacterReviewReport(draftKey = "pilot-rf-03"): st
     "## GREETING",
     draft.greeting,
     "",
-    "## WORLD / START SITUATION",
+    "## SHARED WORLD — CANONICAL ETHERNOS OWNER",
     draft.sections.worldAndSituation,
+    "",
+    "## LOCAL CURRENT SITUATION — CHARACTER OWNER, NOT WORLD",
+    draft.sections.currentSituation ?? "(none)",
     "",
     "## SYSTEM PROMPT — ACTUAL STAGED FORM",
     systemPrompt,
