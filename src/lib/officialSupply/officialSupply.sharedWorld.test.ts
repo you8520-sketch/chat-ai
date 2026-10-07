@@ -169,6 +169,47 @@ describe("official shared world owner — BEFORE vs AFTER", () => {
     assert.equal(draft.sections.worldAndSituation.includes(file.bible.situation.personalSituation), false);
     assert.equal(draft.sections.worldAndSituation.includes(file.bible.situation.userEntry), false);
     assert.doesNotMatch(draft.sections.worldAndSituation, /황제는 이미 거동이|수도로 진격|인위적으로 부추|건국 당시의 원죄|고대 신의 유해|세계의 리셋/);
+    assert.match(draft.sections.worldAndSituation, /배급제가 시행되고 있다는 사실/);
+    assert.match(draft.sections.worldAndSituation, /황권 강화 및 에테르 통제권 수복/);
+    assert.doesNotMatch(draft.sections.worldAndSituation, /남은 에테르와 패권을 두고 경쟁한다/);
+    assert.doesNotMatch(draft.sections.worldAndSituation, /허가 없는 고대 마법 연구는 금지된다/);
+  });
+
+  it("source mutation A: faction purpose/publicView changes the shared World projection", () => {
+    const original = worldBible();
+    const mutated = structuredClone(original);
+    const faction = mutated.factions.find((item) => item.name.includes("메르카토르"));
+    assert.ok(faction);
+    const before = projectOfficialSharedWorld(original);
+    faction.purpose = "뮤테이션-팩션-목적-마커";
+    faction.publicView = "뮤테이션-팩션-시선-마커";
+    const after = projectOfficialSharedWorld(mutated);
+    assert.notEqual(after, before);
+    assert.match(after, /뮤테이션-팩션-목적-마커/);
+    assert.match(after, /뮤테이션-팩션-시선-마커/);
+    assert.doesNotMatch(before, /뮤테이션-팩션-목적-마커|뮤테이션-팩션-시선-마커/);
+  });
+
+  it("source mutation B: knowledge.common changes the shared World projection", () => {
+    const original = worldBible();
+    const mutated = structuredClone(original);
+    const before = projectOfficialSharedWorld(original);
+    mutated.knowledge.common[0] = "뮤테이션-커먼-지식-마커";
+    const after = projectOfficialSharedWorld(mutated);
+    assert.notEqual(after, before);
+    assert.match(after, /뮤테이션-커먼-지식-마커/);
+    assert.doesNotMatch(before, /뮤테이션-커먼-지식-마커/);
+  });
+
+  it("hidden knowledge mutations do not leak into the shared World projection", () => {
+    const original = worldBible();
+    const mutated = structuredClone(original);
+    mutated.knowledge.faction[0] = "뮤테이션-팩션지식-누수-마커";
+    mutated.knowledge.characterLocal[0] = "뮤테이션-로컬지식-누수-마커";
+    mutated.knowledge.authorOnly[0] = "뮤테이션-저자지식-누수-마커";
+    const after = projectOfficialSharedWorld(mutated);
+    assert.equal(after, projectOfficialSharedWorld(original));
+    assert.doesNotMatch(after, /뮤테이션-팩션지식-누수-마커|뮤테이션-로컬지식-누수-마커|뮤테이션-저자지식-누수-마커/);
   });
 
   it("C: Lucian local vault incident lives in currentSituation exactly once", () => {

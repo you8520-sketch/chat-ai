@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-import type { OfficialWorldBible } from "@/lib/officialSupply/bible";
+import type { OfficialWorldBible, WorldFaction } from "@/lib/officialSupply/bible";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import {
   WORLD_CONTENT_LIMIT,
@@ -52,59 +52,133 @@ export function officialSharedWorldLibrarySummary(bible: OfficialWorldBible): st
   return compactText(bible.centralPremise || bible.premise).slice(0, WORLD_SUMMARY_LIMIT);
 }
 
-/**
- * Deterministic compact shared-world projection.
- * Shared facts only — never dumps the world-bible JSON, FACTION / CHARACTER_LOCAL
- * / AUTHOR_ONLY knowledge, or a character-local incident.
- */
-export function projectOfficialSharedWorld(bible: OfficialWorldBible): string {
+const WORLD_PROJECTION_MIN_CHARS = 1500;
+const WORLD_PROJECTION_MAX_CHARS = 2300;
+const SOCIETY_FIELD_KEYS = ["계급", "결혼/가족", "법"] as const;
+type FactionProjectionField = "purpose" | "publicView" | "relations";
+
+type SharedWorldRenderOptions = {
+  factionFields: readonly FactionProjectionField[];
+  commonCount: number;
+};
+
+function asClause(value: string): string {
+  const text = compactText(value);
+  if (!text) return "";
+  return /[.!?。]$/u.test(text) ? text : `${text}.`;
+}
+
+function labeledClause(label: string, value: string): string {
+  const text = compactText(value);
+  if (!text) return "";
+  return `${label}: ${asClause(text)}`;
+}
+
+function renderFaction(faction: WorldFaction, fields: readonly FactionProjectionField[]): string {
+  const name = compactText(faction.name);
+  if (!name) return "";
+  const parts = [asClause(name)];
+  for (const field of fields) {
+    const clause = asClause(faction[field] ?? "");
+    if (clause) parts.push(clause);
+  }
+  return parts.join(" ");
+}
+
+function selectedSocietyKeys(society: OfficialWorldBible["society"]): string[] {
+  const preferred = SOCIETY_FIELD_KEYS.filter((key) => compactText(society[key] ?? ""));
+  if (preferred.length >= 3) return [...preferred];
+  const preferredSet = new Set<string>(preferred);
+  const extra = Object.keys(society).filter((key) => !preferredSet.has(key) && compactText(society[key] ?? ""));
+  extra.sort((a, b) => a.localeCompare(b, "ko"));
+  return [...preferred, ...extra].slice(0, 3);
+}
+
+function renderOfficialSharedWorld(bible: OfficialWorldBible, options: SharedWorldRenderOptions): string {
   const name = officialSharedWorldLibraryName(bible);
-  const identity = joinParagraphs([
-    [
-      `${name}은 ${compactText(bible.genre)} 세계다.`,
-      `${compactText(bible.era)}의 무대이며, ${compactText(bible.techLevel)} 위에서 ${compactText(bible.societyForm)}이 공존한다.`,
-      `주요 지역은 ${compactText(bible.regions)}이다.`,
-    ].join(" "),
-  ]);
-
-  const crisis = [
-    compactText(bible.situation.biggestEvent),
-    "제국의 생명줄인 에테르는 해마다 줄어 배급제가 시행되고 있다.",
+  const identity = [
+    `${name}은 ${compactText(bible.genre)} 세계다.`,
+    `${compactText(bible.era)}의 무대이며, ${compactText(bible.techLevel)} 위에서 ${compactText(bible.societyForm)}이 공존한다.`,
+    `주요 지역은 ${compactText(bible.regions)}이다.`,
   ].join(" ");
 
-  const factions = [
-    "황실(태양의 옥좌), 북부 발켄하임 철혈 연맹, 메르카토르 골드 길드, 판도라 학술원이 남은 에테르와 패권을 두고 경쟁한다.",
-    "태양의 옥좌는 황권과 에테르 통제권 수복을 내세우지만 법령이 가혹해지며 민심이 불안하다.",
-    "발켄하임은 북부 자치와 마수 방벽을 지키며 황실과 긴장한다.",
-    "메르카토르는 에테르 시장과 채권으로 실권을 키우고, 판도라는 고갈 원인을 연구하며 표면적 중립을 유지한다.",
-    "북부 방벽이 무너지면 제국이 무너진다는 것은 공인된 상식이다.",
-  ].join(" ");
+  const commonFacts = (bible.knowledge.common ?? [])
+    .map((fact) => asClause(fact))
+    .filter(Boolean)
+    .slice(0, options.commonCount);
+
+  const crisis = [asClause(bible.situation.biggestEvent), ...commonFacts].filter(Boolean).join(" ");
+
+  const factions = (bible.factions ?? [])
+    .map((faction) => renderFaction(faction, options.factionFields))
+    .filter(Boolean)
+    .join(" ");
 
   const magic = [
-    `에테르 사용: ${compactText(bible.powerSystem.limits)}.`,
-    `대가: ${compactText(bible.powerSystem.costs)}.`,
-    `사회적 영향: ${compactText(bible.powerSystem.socialImpact)}.`,
-    `금기: ${compactText(bible.powerSystem.taboos)}. 허가 없는 고대 마법 연구는 금지된다.`,
-  ].join(" ");
+    labeledClause("에테르 사용", bible.powerSystem.limits),
+    labeledClause("대가", bible.powerSystem.costs),
+    labeledClause("사회적 영향", bible.powerSystem.socialImpact),
+    labeledClause("금기", bible.powerSystem.taboos),
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  const society = [
-    `계급: ${compactText(bible.society["계급"] ?? "")}`,
-    `결혼: ${compactText(bible.society["결혼/가족"] ?? "")}`,
-    `법: ${compactText(bible.society["법"] ?? "")}`,
-  ].join(" ");
+  const society = selectedSocietyKeys(bible.society)
+    .map((key) => labeledClause(key === "결혼/가족" ? "결혼" : key, bible.society[key] ?? ""))
+    .filter(Boolean)
+    .join(" ");
 
   const macro = [
-    compactText(bible.situation.upcomingChange),
-    `이득을 보는 쪽: ${compactText(bible.situation.beneficiaries)}`,
-    `위협받는 쪽: ${compactText(bible.situation.threatened)}`,
-  ].join(" ");
+    asClause(bible.situation.upcomingChange),
+    labeledClause("이득을 보는 쪽", bible.situation.beneficiaries),
+    labeledClause("위협받는 쪽", bible.situation.threatened),
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const entry = [
-    compactText(bible.userEntry.note),
-    `가능한 입장: ${bible.userEntry.allowedRoles.map((role) => compactText(role)).filter(Boolean).join(" / ")}.`,
-  ].join(" ");
+    asClause(bible.userEntry.note),
+    labeledClause(
+      "가능한 입장",
+      bible.userEntry.allowedRoles.map((role) => compactText(role)).filter(Boolean).join(" / ")
+    ),
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  const projected = joinParagraphs([identity, crisis, factions, magic, society, macro, entry]);
+  return joinParagraphs([identity, crisis, factions, magic, society, macro, entry]);
+}
+
+/**
+ * Deterministic compact shared-world projection.
+ * Domain facts come from OfficialWorldBible fields. Literals are labels,
+ * punctuation, connective wording, and section order only.
+ * Never dumps the world-bible JSON, lorebooks, FACTION / CHARACTER_LOCAL /
+ * AUTHOR_ONLY knowledge, or a character-local incident.
+ */
+export function projectOfficialSharedWorld(bible: OfficialWorldBible): string {
+  const attempts: SharedWorldRenderOptions[] = [
+    { factionFields: ["purpose", "publicView", "relations"], commonCount: Number.POSITIVE_INFINITY },
+    { factionFields: ["purpose", "publicView"], commonCount: Number.POSITIVE_INFINITY },
+    { factionFields: ["purpose", "publicView"], commonCount: 3 },
+    { factionFields: ["purpose"], commonCount: 3 },
+    { factionFields: ["purpose"], commonCount: 2 },
+  ];
+  let projected = renderOfficialSharedWorld(bible, attempts[0]!);
+  for (const options of attempts) {
+    const candidate = renderOfficialSharedWorld(bible, options);
+    if (candidate.length <= WORLD_PROJECTION_MAX_CHARS) {
+      projected = candidate;
+      break;
+    }
+    projected = candidate;
+  }
+  if (projected.length < WORLD_PROJECTION_MIN_CHARS || projected.length > WORLD_PROJECTION_MAX_CHARS) {
+    throw new OfficialSupplyGateError(
+      "official_world_projection_band",
+      `official shared world projection ${projected.length} chars is outside ${WORLD_PROJECTION_MIN_CHARS}-${WORLD_PROJECTION_MAX_CHARS}`
+    );
+  }
   assertOfficialSharedWorldProjection(projected);
   if (worldContentBundleCharCount(projected, "") > WORLD_CONTENT_LIMIT) {
     throw new OfficialSupplyGateError(
