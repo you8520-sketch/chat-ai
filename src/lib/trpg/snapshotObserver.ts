@@ -19,6 +19,8 @@ export type SnapshotCompareState = {
   rolls: number;
   draftLen: number;
   narrationLen: number;
+  /** Max sheet revision in the snapshot — monotonic persist fingerprint. */
+  maxSheetRevision: number;
 };
 
 /**
@@ -127,6 +129,9 @@ export function isTrpgSnapshotRegressive(
   next: SnapshotCompareState
 ): boolean {
   if (next.roundNumber < previous.roundNumber) return true;
+  const previousRevision = previous.maxSheetRevision ?? 0;
+  const nextRevision = next.maxSheetRevision ?? 0;
+  if (nextRevision < previousRevision) return true;
   if (next.roundNumber > previous.roundNumber) return false;
   if (isTrpgSnapshotPhaseRegression(previous, next)) return true;
   if (previous.phase === next.phase) {
@@ -151,12 +156,22 @@ export function decideSnapshotApply(opts: {
   return { apply: true };
 }
 
+function maxSheetRevisionFromSnap(sheets: readonly { sheet?: { revision?: number } }[] | undefined): number {
+  let max = 0;
+  for (const card of sheets ?? []) {
+    const revision = card.sheet?.revision;
+    if (typeof revision === "number" && Number.isFinite(revision) && revision > max) max = revision;
+  }
+  return max;
+}
+
 export function snapshotCompareState(snap: {
   round: { number: number; phase: string };
   processStage?: string | null;
   narrationRerolling?: boolean;
   currentRolls?: readonly unknown[] | null;
   gmNarrationDraft?: { text?: string } | null;
+  sheets?: readonly { sheet?: { revision?: number } }[];
   log?: readonly {
     roundNumber: number;
     narration?: string | null;
@@ -180,6 +195,7 @@ export function snapshotCompareState(snap: {
     rolls: snap.currentRolls?.length ?? 0,
     draftLen: snap.gmNarrationDraft?.text?.trim().length ?? 0,
     narrationLen: row?.narration?.trim().length ?? 0,
+    maxSheetRevision: maxSheetRevisionFromSnap(snap.sheets),
   };
 }
 

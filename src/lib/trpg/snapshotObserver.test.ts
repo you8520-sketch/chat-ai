@@ -33,6 +33,7 @@ function state(
     rolls: opts?.rolls ?? 0,
     draftLen: opts?.draftLen ?? 0,
     narrationLen: opts?.narrationLen ?? 0,
+    maxSheetRevision: opts?.maxSheetRevision ?? 0,
   };
 }
 
@@ -312,5 +313,25 @@ describe("trpg snapshotObserver", () => {
     ]);
     assert.equal(final?.appliedSeq, 4);
     assert.equal(final?.state.narrationLen, 3500, "SHORTER_REROLL_CANONICAL_ACCEPTED=true");
+  });
+
+  it("X. a later-seq poll with an older sheet revision cannot roll back an equip snapshot", () => {
+    const folded = foldSnapshotObservations([
+      { seq: 5, state: state("ACTION_INPUT", { maxSheetRevision: 4 }) },
+      { seq: 6, state: state("ACTION_INPUT", { maxSheetRevision: 5 }) },
+      { seq: 7, state: state("ACTION_INPUT", { maxSheetRevision: 4 }) },
+    ]);
+    assert.equal(folded?.appliedSeq, 6);
+    assert.equal(folded?.state.maxSheetRevision, 5);
+    assert.deepEqual(
+      decideSnapshotApply({
+        cancelled: false,
+        responseSeq: 7,
+        appliedSeq: 6,
+        previous: state("ACTION_INPUT", { maxSheetRevision: 5 }),
+        next: state("ACTION_INPUT", { maxSheetRevision: 4 }),
+      }),
+      { apply: false, reason: "regressive" }
+    );
   });
 });

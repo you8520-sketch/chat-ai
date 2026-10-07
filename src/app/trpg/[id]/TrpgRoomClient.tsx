@@ -736,6 +736,9 @@ export default function TrpgRoomClient({
           }}
           onSendAction={() => void sendAction()}
           onSendParty={() => void sendParty()}
+          onSetInventoryEquipped={(entryId, equipped) =>
+            void run(`/api/trpg/campaigns/${snap.id}/inventory`, { entryId, equipped })
+          }
           onRetryBots={() => void run(`/api/trpg/campaigns/${snap.id}/retry-bots`)}
           onRetryGm={() => void run(`/api/trpg/campaigns/${snap.id}/advance`)}
           onReroll={(roundNumber) =>

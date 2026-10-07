@@ -38,6 +38,7 @@ function TrpgSheet(props) {
     const quantity = num(item.quantity);
     return quantity > 1 ? text(item.name) + " ×" + quantity : text(item.name);
   };
+  const itemEquipped = (item) => item && item.equipped === true;
 
   const label = { fontSize: 12, color: "#71717a", margin: "0 0 4px" };
   const chip = {
@@ -201,35 +202,51 @@ function TrpgSheet(props) {
           <ul style={row}>
             {inventory.map((item) =>
               interactive && item.draft ? (
-                <li key={text(item.key)}>
+                <li key={text(item.key)} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <button
                     type="button"
                     data-trpg-inventory-item={text(item.name)}
                     data-trpg-inventory-quantity={num(item.quantity)}
+                    data-trpg-inventory-equipped={itemEquipped(item) ? "true" : "false"}
                     onClick={() => fill(item.draft)}
                     style={{
                       ...action,
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      background: "rgba(255,255,255,0.05)",
+                      border: itemEquipped(item) ? "1px solid rgba(167,139,250,0.45)" : "1px solid rgba(255,255,255,0.1)",
+                      background: itemEquipped(item) ? "rgba(139,92,246,0.15)" : "rgba(255,255,255,0.05)",
                       color: "#f4f4f5",
                     }}
                   >
                     {itemLabel(item)}
                   </button>
+                  {itemEquipped(item) ? (
+                    <span data-trpg-inventory-equipped-label="" style={{ fontSize: 11, color: "#ddd6fe" }}>
+                      장착됨
+                    </span>
+                  ) : null}
                 </li>
               ) : (
                 <li
                   key={text(item.key)}
-                  data-trpg-inventory-quantity={num(item.quantity)}
-                  style={{
-                    ...action,
-                    cursor: "default",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    background: "rgba(255,255,255,0.05)",
-                    color: "#e4e4e7",
-                  }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
                 >
-                  {itemLabel(item)}
+                  <span
+                    data-trpg-inventory-quantity={num(item.quantity)}
+                    data-trpg-inventory-equipped={itemEquipped(item) ? "true" : "false"}
+                    style={{
+                      ...action,
+                      cursor: "default",
+                      border: itemEquipped(item) ? "1px solid rgba(167,139,250,0.45)" : "1px solid rgba(255,255,255,0.1)",
+                      background: itemEquipped(item) ? "rgba(139,92,246,0.15)" : "rgba(255,255,255,0.05)",
+                      color: "#e4e4e7",
+                    }}
+                  >
+                    {itemLabel(item)}
+                  </span>
+                  {itemEquipped(item) ? (
+                    <span data-trpg-inventory-equipped-label="" style={{ fontSize: 11, color: "#ddd6fe" }}>
+                      장착됨
+                    </span>
+                  ) : null}
                 </li>
               )
             )}
