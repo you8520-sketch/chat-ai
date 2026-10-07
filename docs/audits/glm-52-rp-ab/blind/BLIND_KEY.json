@@ -1,0 +1,21 @@
+{
+  "note": "Hidden A/B mapping. Do not consult before scoring.",
+  "mapping": {
+    "S1": {
+      "X": "A",
+      "Y": "B"
+    },
+    "S2": {
+      "X": "B",
+      "Y": "A"
+    },
+    "S3": {
+      "X": "A",
+      "Y": "B"
+    },
+    "S4": {
+      "X": "B",
+      "Y": "A"
+    }
+  }
+}
