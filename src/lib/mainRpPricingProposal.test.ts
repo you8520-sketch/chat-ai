@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import {
+  GEMINI_38_FLASH_MODEL, describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { ensureModelPricingTrackingSchema } from "@/lib/modelPricingTrackingSchema";
 import type {
@@ -14,7 +15,7 @@ import {
 } from "@/lib/mainRpPricingProposal";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 
-const MODEL = "gemini-3.7-flash";
+const MODEL = GEMINI_38_FLASH_MODEL;
 const OBSERVED_1 = "2026-09-23T03:00:00.000Z";
 const OBSERVED_2 = "2026-09-24T03:00:00.000Z";
 
