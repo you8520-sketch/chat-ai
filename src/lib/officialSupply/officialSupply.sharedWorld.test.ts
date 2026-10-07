@@ -386,6 +386,37 @@ describe("official shared world library reuse", () => {
     if (owned.ok) assert.equal(owned.content, "직접 쓴 세계관");
   });
 
+  it("B metadata: World row genre follows the canonical WorldBible genre", () => {
+    const studio = createSiteManagedStudioAccount({
+      nickname: "공식스튜디오-장르",
+      email: "official-studio-genre@site-managed.invalid",
+    });
+    const original = worldBible();
+    const first = ensureOfficialSharedWorldLibraryRow({
+      db: getDb(),
+      creatorId: studio.id,
+      bible: original,
+    });
+    const before = getDb()
+      .prepare("SELECT genres FROM worlds WHERE id=?")
+      .get(first.worldId) as { genres: string };
+    assert.deepEqual(JSON.parse(before.genres), ["로맨스 판타지"]);
+
+    const mutated = structuredClone(original);
+    mutated.genre = "판타지";
+    const second = ensureOfficialSharedWorldLibraryRow({
+      db: getDb(),
+      creatorId: studio.id,
+      bible: mutated,
+    });
+    assert.equal(second.worldId, first.worldId);
+    assert.match(second.content, /판타지 세계/);
+    const after = getDb()
+      .prepare("SELECT genres FROM worlds WHERE id=?")
+      .get(first.worldId) as { genres: string };
+    assert.deepEqual(JSON.parse(after.genres), ["판타지"]);
+  });
+
   it("E+F: direct manual world input remains detached from World Library", async () => {
     const user = seedUser(4402, "direct-input");
     const saved = await createCharacterFromForm(
