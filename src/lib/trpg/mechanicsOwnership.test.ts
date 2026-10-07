@@ -16,7 +16,9 @@ import { loadTrpgSnapshot } from "./engineSnapshot";
 import { mergeMechanicsOwnedDelta, hpOwnershipOf, resolveParticipantHp } from "./mechanicsMerge";
 import { resolveRoundMechanics } from "./mechanicsResolve";
 import { insertOngoingEffect, loadLatestCompleteMechanics } from "./mechanicsStore";
+import { loadSheetSnapshots, persistSheets } from "./engineSheets";
 import { formatMechanicsHudLines } from "./sheetHud";
+import { buildTrpgSheetSurface } from "./sheetSurface";
 import {
   ALLY_SERVER_RECOVERY_TARGET_OWNER,
   BANDAGE_HEAL_AND_BLEED_TREAT,
@@ -1150,5 +1152,162 @@ describe("TRPG P0-5 strict HP / inventory ownership", () => {
     assert.deepEqual(first.consumeItems, [{ participantId: 1, item: "붕대" }]);
     assert.deepEqual(retry.consumeItems, first.consumeItems);
     assert.equal(retry.consumeItems.length, 1);
+  });
+});
+
+describe("TRPG inventory stacks over the canonical unit list — mechanics / GM ±1 / persistence", () => {
+  function selfStacks(db: Database.Database, campaignId: number): Array<[string, number]> {
+    const snap = loadTrpgSnapshot(db, campaignId, 1);
+    const self = snap?.sheets.find((c) => c.isSelf);
+    assert.ok(self, "viewer sheet is in the snapshot");
+    return buildTrpgSheetSurface(self, {
+      statDefs: [],
+      ongoingEffects: [],
+      mechanicsLines: [],
+      interactive: true,
+    }).inventory.map((item) => [item.name, item.quantity]);
+  }
+
+  function bandageTreat(inventory: string[]): MechanicsResolution {
+    return resolve({
+      sheets: [sheet({ hp: 10, inventory })],
+      effects: [bleed({ participantId: 1, startsRound: 7, treatmentMode: "item_or_support", requiredItem: "붕대" })],
+      actors: [actor({ actionType: "use_item", body: "붕대로 출혈을 지혈하고 상처를 응급처치한다.", tier: "SUCCESS" })],
+      rng: () => 4,
+    });
+  }
+
+  function gmInventory(participantId: number, patch: { inventoryAdd?: string[]; inventoryRemove?: string[] }): string {
+    return buildTrpgGmStructuredWireText("폐허가 고요하다. 바람만 분다.", {
+      players: [{ participantId, ...patch }],
+      location: "폐허",
+      next_round_context: "다음을 고른다",
+      campaign_finished: false,
+    });
+  }
+
+  it("L. authorized treatment consumes exactly one of three units (resolve + merge)", () => {
+    const resolution = bandageTreat(["붕대", "붕대", "붕대"]);
+    assert.deepEqual(resolution.consumeItems, [{ participantId: 1, item: "붕대" }]);
+    const merged = mergeMechanicsOwnedDelta([sheet({ hp: 10, inventory: ["붕대", "붕대", "붕대"] })], { players: [] }, resolution);
+    assert.equal(merged.ok, true);
+    if (merged.ok) assert.deepEqual(merged.next[0]?.inventory, ["붕대", "붕대"]);
+  });
+
+  it("L-engine. surface 붕대 ×3 → use once → round commit → 붕대 ×2", async () => {
+    await withReferee(false, async () => {
+      const db = memoryDb();
+      const deps: TrpgEngineDeps = {
+        skipBilling: true,
+        rollD20: () => 14,
+        rollDie: () => 4,
+        gmCall: async () => ({ text: gmText() }),
+      };
+      const { campaignId, hostId } = await setupSolo(db, deps);
+      pinHostVitals(db, hostId, 10, 25, ["붕대", "붕대", "붕대"]);
+      assert.deepEqual(selfStacks(db, campaignId), [["붕대", 3]]);
+      submitTrpgAction(db, { campaignId, userId: 1, body: "붕대를 사용한다.", actionType: "use_item" });
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+      const mechanics = loadLatestCompleteMechanics(db, campaignId);
+      assert.deepEqual(mechanics?.consumeItems, [{ participantId: hostId, item: "붕대" }]);
+      assert.deepEqual(hostSheet(db, campaignId).inventory, ["붕대", "붕대"]);
+      assert.deepEqual(selfStacks(db, campaignId), [["붕대", 2]]);
+      db.close();
+    });
+  });
+
+  it("M. healing-item consume removes one unit only and heals once", async () => {
+    await withReferee(false, async () => {
+      const db = memoryDb();
+      const deps: TrpgEngineDeps = {
+        skipBilling: true,
+        rollD20: () => 14,
+        rollDie: () => 4,
+        gmCall: async () => ({ text: gmText() }),
+      };
+      const { campaignId, hostId } = await setupSolo(db, deps);
+      pinHostVitals(db, hostId, 10, 25, ["구급키트", "밧줄", "구급키트"]);
+      submitTrpgAction(db, { campaignId, userId: 1, body: "구급키트를 사용한다.", actionType: "use_item" });
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+      const after = hostSheet(db, campaignId);
+      assert.equal(after.hp, 14);
+      assert.deepEqual(after.inventory, ["밧줄", "구급키트"]);
+      assert.deepEqual(selfStacks(db, campaignId), [["밧줄", 1], ["구급키트", 1]]);
+      assert.equal(NO_DOUBLE_HEAL_ITEM_CONSUME, true);
+      db.close();
+    });
+  });
+
+  it("N. mechanics consume + conflicting GM add/remove of the same item never double-consumes", () => {
+    const resolution = bandageTreat(["붕대", "붕대", "붕대"]);
+    for (const patch of [{ inventoryRemove: ["붕대"] }, { inventoryAdd: ["붕대"] }, { inventoryRemove: ["붕대", "붕대"] }]) {
+      const merged = mergeMechanicsOwnedDelta(
+        [sheet({ hp: 10, inventory: ["붕대", "붕대", "붕대"] })],
+        { players: [{ participantId: 1, ...patch }] },
+        resolution
+      );
+      assert.equal(merged.ok, true);
+      if (merged.ok) {
+        assert.deepEqual(merged.next[0]?.inventory, ["붕대", "붕대"], JSON.stringify(patch));
+        assert.equal(merged.INVALID_GM_INVENTORY_DELTA, false);
+      }
+    }
+  });
+
+  it("O/P. GM inventoryAdd / inventoryRemove occurrences are ±1 unit through the engine", async () => {
+    await withReferee(false, async () => {
+      const db = memoryDb();
+      let next = gmText();
+      const deps: TrpgEngineDeps = {
+        skipBilling: true,
+        rollD20: () => 14,
+        rollDie: () => 4,
+        gmCall: async () => ({ text: next }),
+      };
+      const { campaignId, hostId } = await setupSolo(db, deps);
+      pinHostVitals(db, hostId, 20, 25, ["열쇠"]);
+      assert.deepEqual(selfStacks(db, campaignId), [["열쇠", 1]]);
+
+      next = gmInventory(hostId, { inventoryAdd: ["열쇠"] });
+      submitTrpgAction(db, { campaignId, userId: 1, body: "서랍을 뒤진다.", actionType: "investigate" });
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+      assert.deepEqual(hostSheet(db, campaignId).inventory, ["열쇠", "열쇠"]);
+      assert.deepEqual(selfStacks(db, campaignId), [["열쇠", 2]]);
+
+      next = gmInventory(hostId, { inventoryRemove: ["열쇠"] });
+      submitTrpgAction(db, { campaignId, userId: 1, body: "문을 연다.", actionType: "investigate" });
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+      assert.deepEqual(hostSheet(db, campaignId).inventory, ["열쇠"]);
+      assert.deepEqual(selfStacks(db, campaignId), [["열쇠", 1]]);
+      db.close();
+    });
+  });
+
+  it("Q. removing more units than owned keeps the INVALID_GM_INVENTORY_DELTA semantics", () => {
+    const twice = mergeMechanicsOwnedDelta([sheet({ inventory: ["열쇠"] })], { players: [{ participantId: 1, inventoryRemove: ["열쇠", "열쇠"] }] }, null);
+    assert.equal(twice.ok, true);
+    if (twice.ok) {
+      assert.deepEqual(twice.next[0]?.inventory, []);
+      assert.equal(twice.INVALID_GM_INVENTORY_DELTA, true);
+    }
+    const absent = mergeMechanicsOwnedDelta([sheet({ inventory: ["붕대", "붕대"] })], { players: [{ participantId: 1, inventoryRemove: ["붕대 ×2"] }] }, null);
+    assert.equal(absent.ok, true);
+    if (absent.ok) {
+      assert.deepEqual(absent.next[0]?.inventory, ["붕대", "붕대"]);
+      assert.equal(absent.INVALID_GM_INVENTORY_DELTA, true);
+    }
+  });
+
+  it("R. persist / load round trip keeps raw duplicate unit strings", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = { skipBilling: true, rollD20: () => 14, rollDie: () => 4, gmCall: async () => ({ text: gmText() }) };
+    const { campaignId } = await setupSolo(db, deps);
+    const loaded = loadSheetSnapshots(db, campaignId);
+    persistSheets(db, loaded.map((s) => ({ ...s, inventory: ["붕대", "붕대", "해독제", "붕대"] })));
+    const raw = db.prepare(`SELECT inventory_json FROM trpg_character_sheets WHERE campaign_id=?`).get(campaignId) as { inventory_json: string };
+    assert.equal(raw.inventory_json, JSON.stringify(["붕대", "붕대", "해독제", "붕대"]));
+    assert.deepEqual(loadSheetSnapshots(db, campaignId)[0]?.inventory, ["붕대", "붕대", "해독제", "붕대"]);
+    assert.deepEqual(selfStacks(db, campaignId), [["붕대", 3], ["해독제", 1]]);
+    db.close();
   });
 });

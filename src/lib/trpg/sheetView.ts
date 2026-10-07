@@ -1,6 +1,7 @@
 import { renderStatusWidgetHtml } from "@/lib/statusWidget/render";
 import type { StatusWidget, StatusWidgetValues } from "@/lib/statusWidget/types";
 import { DEFAULT_TRPG_SHEET_WIDGET } from "./defaultSheet";
+import { inventoryStackLabel, stackInventory } from "./sheetHud";
 import { clampHp } from "./stats";
 import type { TrpgSheetSnapshot, TrpgStateDelta } from "./types";
 
@@ -18,6 +19,7 @@ export function sheetToWidgetValues(sheet: TrpgSheetSnapshot): StatusWidgetValue
   for (const [key, value] of Object.entries(sheet.stats)) {
     stats[key] = String(value);
   }
+  const inventory = stackInventory(sheet.inventory);
   return {
     name: sheet.name,
     player: sheet.playerName,
@@ -25,7 +27,7 @@ export function sheetToWidgetValues(sheet: TrpgSheetSnapshot): StatusWidgetValue
     hp: `${sheet.hp} / ${sheet.maxHp}`,
     location: sheet.location || "—",
     conditions: sheet.conditions.length ? sheet.conditions.join(", ") : "없음",
-    inventory: sheet.inventory.length ? sheet.inventory.join(", ") : "없음",
+    inventory: inventory.length ? inventory.map(inventoryStackLabel).join(", ") : "없음",
     modifiers: sheet.modifiersNote || "—",
     ...stats,
   };
