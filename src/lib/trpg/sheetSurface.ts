@@ -1,6 +1,6 @@
 import { isTrpgActionType } from "./actionTypes";
 import { ongoingEffectActionDraft, useItemActionDraft, type TrpgActionDraftFill } from "./commandDock";
-import { formatOngoingBadge, hpPercent, hpRiskLevel, type TrpgHpRisk } from "./sheetHud";
+import { formatOngoingBadge, hpPercent, hpRiskLevel, stackInventory, type TrpgHpRisk } from "./sheetHud";
 import type { TrpgSheetHudCard } from "./sheetView";
 import type { TrpgMechanicsHudLine, TrpgPublicOngoingEffect } from "./snapshot";
 import { defsFromKeys, statModifier } from "./stats";
@@ -24,7 +24,8 @@ export type TrpgSheetSurface = {
   stats: { key: string; label: string; value: number; modifier: number }[];
   conditions: string[];
   effects: { key: string; label: string; badge: string; hint: string; draft: TrpgActionDraftFill | null }[];
-  inventory: { key: string; name: string; draft: TrpgActionDraftFill | null }[];
+  /** Exact-name stacks of the canonical unit list; name never carries the ×N suffix. */
+  inventory: { key: string; name: string; quantity: number; draft: TrpgActionDraftFill | null }[];
   mechanics: string[];
   modifiersNote: string;
 };
@@ -65,14 +66,12 @@ export function buildTrpgSheetSurface(
         hint: effect.recoveryHint,
         draft: opts.interactive ? ongoingEffectActionDraft(effect) : null,
       })),
-    inventory: sheet.inventory
-      .map((item) => item.trim())
-      .filter(Boolean)
-      .map((name, index) => ({
-        key: `${name}:${index}`,
-        name,
-        draft: opts.interactive ? useItemActionDraft(name) : null,
-      })),
+    inventory: stackInventory(sheet.inventory).map(({ name, quantity }) => ({
+      key: name,
+      name,
+      quantity,
+      draft: opts.interactive ? useItemActionDraft(name) : null,
+    })),
     mechanics: (opts.mechanicsLines ?? [])
       .filter((line) => line.participantId === participantId)
       .map((line) => line.text),
@@ -131,7 +130,7 @@ export function sampleTrpgSheetSurface(): TrpgSheetSurface {
         maxHp: 20,
         stats: { str: 12, dex: 9, int: 14 },
         conditions: ["긴장"],
-        inventory: ["붕대", "낡은 지도"],
+        inventory: ["붕대", "낡은 지도", "붕대"],
         location: "폐역 승강장",
         modifiersNote: "왼팔 부상: 근력 판정 -1",
       },
@@ -162,7 +161,10 @@ export const TRPG_SHEET_SURFACE_FIELD_GUIDE: readonly { key: keyof TrpgSheetSurf
   { key: "stats", note: "[{ key, label, value, modifier }]" },
   { key: "conditions", note: "서술 상태 문자열 목록" },
   { key: "effects", note: "[{ key, label, badge, hint, draft }] — draft는 내 시트에서만 있음" },
-  { key: "inventory", note: "[{ key, name, draft }] — draft는 내 시트에서만 있음" },
+  {
+    key: "inventory",
+    note: "[{ key, name, quantity, draft }] — 같은 이름 아이템을 묶은 목록. quantity는 보유 개수(1 이상), name에는 ×N이 붙지 않음. draft는 내 시트에서만 있음",
+  },
   { key: "mechanics", note: "최근 판정 결과 문자열 목록" },
   { key: "modifiersNote", note: "보정 메모" },
 ];

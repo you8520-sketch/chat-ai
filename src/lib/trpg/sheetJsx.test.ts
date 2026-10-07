@@ -9,8 +9,17 @@ import { jsxSurfacePolicyError } from "../jsxComponent/surface";
 import { contextualStatusTreatDraft } from "./mechanicsIntent";
 import { partyDetailedSheetCards } from "./partySheetPresentation";
 import { compileTrpgSheetJsx, TRPG_SHEET_JSX_COMPONENT, TRPG_SHEET_JSX_SOURCE } from "./sheetJsxSource";
-import { acceptTrpgSheetActionDraft, buildTrpgSheetSurface, pickTrpgSheetRenderer, type TrpgSheetSurface } from "./sheetSurface";
-import type { TrpgSheetHudCard } from "./sheetView";
+import {
+  acceptTrpgSheetActionDraft,
+  buildTrpgSheetSurface,
+  pickTrpgSheetRenderer,
+  sampleTrpgSheetSurface,
+  TRPG_SHEET_SURFACE_FIELD_GUIDE,
+  type TrpgSheetSurface,
+} from "./sheetSurface";
+import { useItemActionDraft } from "./commandDock";
+import { inventoryStackLabel, stackInventory } from "./sheetHud";
+import { sheetToWidgetValues, type TrpgSheetHudCard } from "./sheetView";
 import type { TrpgPublicOngoingEffect } from "./snapshot";
 import { TRPG_ACTION_MAX_CHARS, type TrpgStatDefinition } from "./types";
 
@@ -396,5 +405,149 @@ describe("TRPG sandboxed JSX sheet", () => {
     assert.match(dock, /max-h-\[min\(42dvh,24rem\)\] overflow-y-auto/);
     assert.match(dock, /onOcclusionChange\(trpgCommandDockOcclusion\(el\.offsetHeight, keyboardInset\)\)/);
     assert.doesNotMatch(dock, /\bmb-\[|\bpb-\[\d|margin-bottom/);
+  });
+});
+
+describe("TRPG inventory quantity stacks (presentation of the canonical unit list)", () => {
+  const UNITS = ["붕대", "붕대", "해독제", "붕대"];
+
+  function stackedCard(participantId: number, isSelf: boolean, inventory: string[] = UNITS): TrpgSheetHudCard {
+    const c = card(participantId, isSelf ? "렌" : "미라", isSelf);
+    c.sheet.inventory = [...inventory];
+    return c;
+  }
+
+  function inventoryLabels(tree: Element): string[] {
+    return find(tree, "data-trpg-inventory-quantity").map((el) => textOf(el));
+  }
+
+  it("A. flat units group into exact-name stacks with unit counts", () => {
+    assert.deepEqual(stackInventory(UNITS), [
+      { name: "붕대", quantity: 3 },
+      { name: "해독제", quantity: 1 },
+    ]);
+    const surface = surfaceFor(stackedCard(1, true), true);
+    assert.deepEqual(
+      surface.inventory.map(({ key, name, quantity }) => ({ key, name, quantity })),
+      [
+        { key: "붕대", name: "붕대", quantity: 3 },
+        { key: "해독제", name: "해독제", quantity: 1 },
+      ]
+    );
+    assert.equal(surface.inventory.reduce((sum, item) => sum + item.quantity, 0), UNITS.length);
+  });
+
+  it("B. first occurrence order is preserved; trim is the only normalization", () => {
+    assert.deepEqual(stackInventory(["해독제", " 붕대", "해독제 ", "", "  ", "붕대"]), [
+      { name: "해독제", quantity: 2 },
+      { name: "붕대", quantity: 2 },
+    ]);
+  });
+
+  it("C. similar names, case, and substrings stay separate stacks", () => {
+    assert.deepEqual(stackInventory(["붕대", "고급 붕대", "붕대", "Rope", "rope", "붕대2"]), [
+      { name: "붕대", quantity: 2 },
+      { name: "고급 붕대", quantity: 1 },
+      { name: "Rope", quantity: 1 },
+      { name: "rope", quantity: 1 },
+      { name: "붕대2", quantity: 1 },
+    ]);
+  });
+
+  it("D/E. SELF site sheet shows ×N for stacks and a clean name for quantity 1", () => {
+    const surface = surfaceFor(stackedCard(1, true), true);
+    const tree = loadSheet()(JSON.parse(JSON.stringify(surface)));
+    assert.deepEqual(inventoryLabels(tree), ["붕대 ×3", "해독제"]);
+    const items = find(tree, "data-trpg-inventory-item");
+    assert.deepEqual(items.map((el) => el.props["data-trpg-inventory-item"]), ["붕대", "해독제"]);
+    assert.deepEqual(items.map((el) => el.props["data-trpg-inventory-quantity"]), [3, 1]);
+    for (const el of items) assert.equal((el.props.style as { minHeight?: number }).minHeight, 44);
+    assert.equal(inventoryStackLabel({ name: "붕대", quantity: 3 }), "붕대 ×3");
+    assert.equal(inventoryStackLabel({ name: "해독제", quantity: 1 }), "해독제");
+
+    const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
+    const native = dock.slice(dock.indexOf("function NativeSheetBody"), dock.indexOf("function SheetSurfaceView"));
+    assert.equal((native.match(/\{inventoryStackLabel\(item\)\}/g) ?? []).length, 2);
+    assert.match(native, /data-trpg-inventory-item=\{item\.name\}/);
+    assert.match(native, /className="inline-flex min-h-11 max-w-full/);
+    assert.doesNotMatch(native, /stackInventory|\.reduce\(|quantity \+=|new Map/);
+  });
+
+  it("F/G. SELF stacked click drafts use_item with the canonical name only and sends nothing", () => {
+    const surface = surfaceFor(stackedCard(1, true), true);
+    assert.deepEqual(surface.inventory[0]?.draft, useItemActionDraft("붕대"));
+    withDraftSpy((calls) => {
+      const tree = loadSheet()(JSON.parse(JSON.stringify(surface)));
+      const bandage = find(tree, "data-trpg-inventory-item").find((el) => el.props["data-trpg-inventory-item"] === "붕대");
+      (bandage?.props.onClick as () => void)();
+      assert.deepEqual(calls, [["use_item", "붕대를 사용한다."]]);
+      assert.doesNotMatch(calls[0]![1], /×|3/);
+    });
+  });
+
+  it("H/I. PARTY stacks are read-only, including a creator sheet forging drafts", () => {
+    const party = surfaceFor(stackedCard(2, false), false);
+    assert.deepEqual(party.inventory.map(({ name, quantity, draft }) => ({ name, quantity, draft })), [
+      { name: "붕대", quantity: 3, draft: null },
+      { name: "해독제", quantity: 1, draft: null },
+    ]);
+    withDraftSpy((calls) => {
+      const tree = loadSheet()(JSON.parse(JSON.stringify(party)));
+      assert.deepEqual(inventoryLabels(tree), ["붕대 ×3", "해독제"]);
+      assert.equal(clickables(tree).length, 0);
+      const forged = loadSheet()({
+        ...JSON.parse(JSON.stringify(party)),
+        inventory: [{ key: "붕대", name: "붕대", quantity: 3, draft: { actionType: "use_item", body: "붕대를 사용한다." } }],
+      });
+      assert.equal(clickables(forged).length, 0);
+      assert.equal(calls.length, 0);
+    });
+    const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
+    assert.match(dock, /onTrpgActionDraft=\{onFillAction \? onTrpgActionDraft : null\}/);
+  });
+
+  it("J. site JSX renders the received quantity without regrouping", () => {
+    assert.doesNotMatch(TRPG_SHEET_JSX_SOURCE, /new Map|\.reduce\(|indexOf\(/);
+    const tree = loadSheet()({
+      interactive: false,
+      inventory: [
+        { key: "a", name: "붕대", quantity: 1, draft: null },
+        { key: "b", name: "붕대", quantity: 1, draft: null },
+        { key: "c", name: "밧줄", quantity: 7, draft: null },
+        { key: "d", name: "끈", draft: null },
+      ],
+    });
+    assert.deepEqual(inventoryLabels(tree), ["붕대", "붕대", "밧줄 ×7", "끈"]);
+  });
+
+  it("K. creator trpg_sheet fixed preview props and field guide carry quantity", () => {
+    const sample = sampleTrpgSheetSurface();
+    assert.deepEqual(
+      sample.inventory.map(({ name, quantity }) => ({ name, quantity })),
+      [
+        { name: "붕대", quantity: 2 },
+        { name: "낡은 지도", quantity: 1 },
+      ]
+    );
+    assert.deepEqual(sample.inventory[0]?.draft, useItemActionDraft("붕대"));
+    assert.equal(JSON.stringify(sampleTrpgSheetSurface()), JSON.stringify(sample));
+    const guide = TRPG_SHEET_SURFACE_FIELD_GUIDE.find((field) => field.key === "inventory")?.note ?? "";
+    assert.match(guide, /\[\{ key, name, quantity, draft \}\]/);
+    assert.match(guide, /draft는 내 시트에서만/);
+  });
+
+  it("L-surface. consuming one canonical unit moves the stack 3 → 2 with a stable key", () => {
+    const before = surfaceFor(stackedCard(1, true, ["붕대", "붕대", "붕대"]), true);
+    const after = surfaceFor(stackedCard(1, true, ["붕대", "붕대"]), true);
+    const gone = surfaceFor(stackedCard(1, true, []), true);
+    assert.deepEqual(before.inventory.map((item) => [item.key, item.quantity]), [["붕대", 3]]);
+    assert.deepEqual(after.inventory.map((item) => [item.key, item.quantity]), [["붕대", 2]]);
+    assert.deepEqual(gone.inventory, []);
+  });
+
+  it("setup lobby status card lists stacks from the same owner", () => {
+    const stacked = stackedCard(1, true);
+    assert.equal(sheetToWidgetValues(stacked.sheet).inventory, "붕대 ×3, 해독제");
+    assert.equal(sheetToWidgetValues({ ...stacked.sheet, inventory: [" "] }).inventory, "없음");
   });
 });

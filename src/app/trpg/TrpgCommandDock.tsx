@@ -42,6 +42,7 @@ import {
   hpBarClass,
   hpPercent,
   inventoryCount,
+  inventoryStackLabel,
   mergeDisplayConditions,
   selfHudAriaLabel,
 } from "@/lib/trpg/sheetHud";
@@ -208,18 +209,20 @@ function NativeSheetBody({
                   <button
                     type="button"
                     data-trpg-inventory-item={item.name}
+                    data-trpg-inventory-quantity={item.quantity}
                     onClick={() => onFillAction?.(draft)}
                     className="inline-flex min-h-11 max-w-full items-center rounded-full border border-white/10 bg-white/5 px-3 text-xs text-zinc-100"
                   >
-                    <span className="truncate">{item.name}</span>
+                    <span className="truncate">{inventoryStackLabel(item)}</span>
                   </button>
                 </li>
               ) : (
                 <li
                   key={item.key}
+                  data-trpg-inventory-quantity={item.quantity}
                   className="inline-flex min-h-11 max-w-full items-center rounded-full border border-white/10 bg-white/5 px-3 text-xs text-zinc-200"
                 >
-                  <span className="truncate">{item.name}</span>
+                  <span className="truncate">{inventoryStackLabel(item)}</span>
                 </li>
               );
             })}

@@ -9,7 +9,8 @@ import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngi
 import { listTrpgCampaigns, loadTrpgSnapshot } from "./engineSnapshot";
 import { parseHumanPersona } from "./hostPersona";
 import { trpgInvitePath } from "./invite";
-import { insertScenarioTemplate, updateScenarioTemplate } from "./scenarioTemplates";
+import { loadSheetSnapshots } from "./engineSheets";
+import { insertScenarioTemplate, loadScenarioTemplate, rowToScenarioTemplate, updateScenarioTemplate } from "./scenarioTemplates";
 import {
   TRPG_SCENARIO_BUNDLE_LIMIT,
   countScenarioBundleChars,
@@ -157,6 +158,22 @@ describe("TRPG scenarios and catalog", () => {
     assert.equal(scenario.startLocation, "대합실");
     assert.deepEqual(scenario.startInventory, ["손전등"]);
     assert.equal(scenario.defaultPcStats?.dex, 7);
+    db.close();
+  });
+
+  it("keeps duplicate startInventory units through template save/update, campaign, and sheet", () => {
+    const db = memoryDb();
+    const units = ["붕대", "붕대", "해독제"];
+    const input = { title: "폐역 탐험", content: "한밤의 역.", startLocation: "대합실", startInventory: units };
+    const templateId = insertScenarioTemplate(db, 1, input);
+    const stored = () => rowToScenarioTemplate(loadScenarioTemplate(db, templateId)!, { includeSecret: true }).startInventory;
+    assert.deepEqual(stored(), units);
+    updateScenarioTemplate(db, templateId, 1, { ...input, startInventory: [...units, "붕대"] });
+    assert.deepEqual(stored(), ["붕대", "붕대", "해독제", "붕대"]);
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1, templateId });
+    assert.deepEqual(loadScenario(db, campaignId).startInventory, ["붕대", "붕대", "해독제", "붕대"]);
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    assert.deepEqual(loadSheetSnapshots(db, campaignId)[0]?.inventory, ["붕대", "붕대", "해독제", "붕대"]);
     db.close();
   });
 

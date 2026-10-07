@@ -96,7 +96,7 @@ test("TRPG sheet runs in the shared sandbox: draft-only bridge, clamped height, 
         maxHp: 20,
         stats: { str: 9 },
         conditions: [],
-        inventory: ["붕대"],
+        inventory: ["붕대", "붕대", "붕대"],
         location: "폐역",
         modifiersNote: "",
       },
@@ -151,6 +151,7 @@ test("TRPG sheet runs in the shared sandbox: draft-only bridge, clamped height, 
   await expect(frame.getByText("HP 9/20")).toBeVisible();
   await expect.poll(async () => (await messages()).some((m) => m.kind === "height" && Number(m.payload.px) > 100)).toBe(true);
 
+  await expect(frame.locator("[data-trpg-inventory-item='붕대']")).toHaveText("붕대 ×3");
   const requestsBefore = requests.length;
   await frame.locator("[data-trpg-inventory-item='붕대']").click();
   await frame.locator("[data-trpg-condition-draft='중독']").click();
@@ -166,6 +167,7 @@ test("TRPG sheet runs in the shared sandbox: draft-only bridge, clamped height, 
   const party = { ...JSON.parse(JSON.stringify(self)), interactive: false };
   await mount(compiled ?? "", party);
   await expect(frame.locator("button")).toHaveCount(0);
+  await expect(frame.locator("[data-trpg-inventory-quantity='3']")).toHaveText("붕대 ×3");
 
   const thrower = compileJsxComponentSource(
     `function Broken() { throw new Error("sheet render failed"); }`,
