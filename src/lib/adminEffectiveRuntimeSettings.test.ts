@@ -18,7 +18,8 @@ import {
   applyCheaperInferenceModelReasoningPolicy,
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
 } from "@/lib/cheaperInferenceConfig";
-import { MAIN_RP_OBSERVABILITY_MODEL_IDS } from "@/lib/mainRpPricingObservability";
+import { MAIN_RP_OBSERVABILITY_MODEL_IDS } from "@/lib/mainRpObservabilityModelIds";
+import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
 import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   resolveMainRpOpenRouterRoutePolicy,
@@ -89,6 +90,23 @@ describe("effective runtime settings projection", () => {
     for (const row of projection.mainRp.models) {
       assert.equal(row.registryProvider, selectedAIProvider(row.canonicalModelId as never));
       assert.equal(row.wireModelId, resolveMainRpPrimaryWireModelId(row.canonicalModelId as never));
+      const assembled = assemblePrimaryRpRequest({
+        system: "runtime-settings-projection",
+        history: [{ role: "user", content: "runtime-settings-projection" }],
+        modelId: row.wireModelId,
+        targetResponseChars: UNIFIED_TIER_AIM_CHARS,
+        messageOpts: {
+          sessionId: "runtime-settings-projection",
+          ...(row.registryProvider === "cheaperinference"
+            ? { transportProvider: "cheaperinference" as const }
+            : {}),
+        },
+        stream: true,
+      });
+      assert.equal(row.transportProvider, assembled.transport.provider);
+      assert.deepEqual(row.providerRouting, assembled.requestBody.provider ?? null);
+      assert.equal(row.serviceTier, assembled.requestBody.service_tier ?? null);
+      assert.equal(row.wireMaxTokens, typeof assembled.requestBody.max_tokens === "number" ? assembled.requestBody.max_tokens : null);
       const pricing = resolvePublishedPricingExact(row.wireModelId) ?? resolvePublishedPricingExact(row.canonicalModelId);
       assert.equal(row.publishedPricing?.canonicalModelId ?? null, pricing?.canonicalModelId ?? null);
       assert.equal(row.publishedPricing?.targetMargin ?? null, pricing?.pricing.targetMargin ?? null);
@@ -198,7 +216,7 @@ describe("effective runtime settings projection", () => {
     assert.equal(projection.length.applicationProseCeilingChars, null);
     assert.equal(projection.length.longerOutputPreserved, true);
     assert.equal(projection.length.wireMaxTokensSent, false);
-    assert.equal(projection.length.chargingBasis, "actual_usage");
+    assert.equal("chargingBasis" in projection.length, false);
     for (const row of projection.mainRp.models) {
       assert.equal(row.wireMaxTokens, null, row.canonicalModelId);
     }
