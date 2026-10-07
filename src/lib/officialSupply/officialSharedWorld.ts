@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 
+import { parseGenresJson } from "@/lib/characterGenres";
 import type { OfficialWorldBible, WorldFaction } from "@/lib/officialSupply/bible";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import {
@@ -20,7 +21,6 @@ import {
  * and `resolveWorldSelectionForUser` share the same owner.
  */
 export const OFFICIAL_SHARED_WORLD_LIBRARY_NAME = "에테르노스 제국";
-export const OFFICIAL_SHARED_WORLD_LIBRARY_GENRE = "로맨스 판타지";
 
 const HIDDEN_KNOWLEDGE_MARKERS = [
   /황제는 이미 거동이/u,
@@ -252,7 +252,7 @@ export function ensureOfficialSharedWorldLibraryRow(input: {
   const name = officialSharedWorldLibraryName(input.bible);
   const summary = officialSharedWorldLibrarySummary(input.bible);
   const content = projectOfficialSharedWorld(input.bible);
-  const genresJson = JSON.stringify([OFFICIAL_SHARED_WORLD_LIBRARY_GENRE]);
+  const genresJson = JSON.stringify(parseGenresJson([input.bible.genre]));
   const existing = findOfficialSharedWorldLibraryRow(input.db, input.creatorId, name);
   if (existing) {
     const needsUpdate = existing.content !== content || existing.summary !== summary;
