@@ -19,8 +19,8 @@ export type SnapshotCompareState = {
   rolls: number;
   draftLen: number;
   narrationLen: number;
-  /** Max sheet revision in the snapshot — monotonic persist fingerprint. */
-  maxSheetRevision: number;
+  /** Per-participant sheet revisions — monotonic persist fingerprints. */
+  sheetRevisions: Record<number, number>;
 };
 
 /**
@@ -129,9 +129,10 @@ export function isTrpgSnapshotRegressive(
   next: SnapshotCompareState
 ): boolean {
   if (next.roundNumber < previous.roundNumber) return true;
-  const previousRevision = previous.maxSheetRevision ?? 0;
-  const nextRevision = next.maxSheetRevision ?? 0;
-  if (nextRevision < previousRevision) return true;
+  for (const [participantId, previousRevision] of Object.entries(previous.sheetRevisions)) {
+    const nextRevision = next.sheetRevisions[Number(participantId)];
+    if (nextRevision != null && nextRevision < previousRevision) return true;
+  }
   if (next.roundNumber > previous.roundNumber) return false;
   if (isTrpgSnapshotPhaseRegression(previous, next)) return true;
   if (previous.phase === next.phase) {
@@ -156,13 +157,30 @@ export function decideSnapshotApply(opts: {
   return { apply: true };
 }
 
-function maxSheetRevisionFromSnap(sheets: readonly { sheet?: { revision?: number } }[] | undefined): number {
-  let max = 0;
+function sheetRevisionsFromSnap(
+  sheets:
+    | readonly {
+        participantId?: number;
+        sheet?: { participantId?: number; revision?: number };
+      }[]
+    | undefined
+): Record<number, number> {
+  const revisions: Record<number, number> = {};
   for (const card of sheets ?? []) {
+    const participantId = card.participantId ?? card.sheet?.participantId;
     const revision = card.sheet?.revision;
-    if (typeof revision === "number" && Number.isFinite(revision) && revision > max) max = revision;
+    if (
+      typeof participantId === "number" &&
+      Number.isInteger(participantId) &&
+      participantId > 0 &&
+      typeof revision === "number" &&
+      Number.isFinite(revision) &&
+      revision >= 0
+    ) {
+      revisions[participantId] = revision;
+    }
   }
-  return max;
+  return revisions;
 }
 
 export function snapshotCompareState(snap: {
@@ -171,7 +189,10 @@ export function snapshotCompareState(snap: {
   narrationRerolling?: boolean;
   currentRolls?: readonly unknown[] | null;
   gmNarrationDraft?: { text?: string } | null;
-  sheets?: readonly { sheet?: { revision?: number } }[];
+  sheets?: readonly {
+    participantId?: number;
+    sheet?: { participantId?: number; revision?: number };
+  }[];
   log?: readonly {
     roundNumber: number;
     narration?: string | null;
@@ -195,7 +216,7 @@ export function snapshotCompareState(snap: {
     rolls: snap.currentRolls?.length ?? 0,
     draftLen: snap.gmNarrationDraft?.text?.trim().length ?? 0,
     narrationLen: row?.narration?.trim().length ?? 0,
-    maxSheetRevision: maxSheetRevisionFromSnap(snap.sheets),
+    sheetRevisions: sheetRevisionsFromSnap(snap.sheets),
   };
 }
 
