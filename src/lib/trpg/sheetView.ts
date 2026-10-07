@@ -1,7 +1,7 @@
 import { renderStatusWidgetHtml } from "@/lib/statusWidget/render";
 import type { StatusWidget, StatusWidgetValues } from "@/lib/statusWidget/types";
 import { DEFAULT_TRPG_SHEET_WIDGET } from "./defaultSheet";
-import { inventoryStackLabel, stackInventory } from "./sheetHud";
+import { inventoryStackLabel, stackInventory } from "./inventory";
 import { clampHp } from "./stats";
 import type { TrpgSheetSnapshot, TrpgStateDelta } from "./types";
 
