@@ -516,6 +516,16 @@ describe("provider-input next-turn calibration", () => {
       }),
       1
     );
+    const cappedPicked = pickLatestProviderInputCalibrationByModel([
+      solValidInputSource({
+        apiInputTokens: 40_000,
+        assembledInputTokens: PREV_ASSEMBLED,
+      }),
+    ]);
+    assert.deepEqual(cappedPicked[SOL], {
+      actualBillableInputTokens: PREV_ASSEMBLED,
+      assembledInputTokens: PREV_ASSEMBLED,
+    });
     assert.match(ESTIMATE_SOURCE, /predictedBillableInputTokens/);
     assert.match(ESTIMATE_SOURCE, /user-charge forecast/);
     assert.match(ESTIMATE_SOURCE, /resolveTurnBillableInput/);
