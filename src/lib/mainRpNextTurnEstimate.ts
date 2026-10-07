@@ -1,10 +1,16 @@
 /**
  * Next Main RP turn estimate owner.
- * Local assembled tokens → optional same-model billable-input calibration →
- * optional same-model billable-output-history median → Published user-charge out.
+ * Same-model actual-anchored input delta → optional same-model
+ * billable-output-history median → Published user-charge out.
  * `predictedBillableInputTokens` is a user-charge forecast, not a physical
- * provider tokenizer count. Ratio is capped at 1 to match settlement
- * `resolveTurnBillableInput(min(stageInput, promptAuditTotal))`.
+ * provider tokenizer count.
+ * Input forecast starts from the previous successful same-model billable
+ * input and adds/removes only the next-request history and context delta.
+ * Actual-anchored delta is eligible only when that same-model actual is
+ * the room's immediately previous successful Main RP turn. Older same-model
+ * anchors fall back to `uncalibrated_assembled`. This owner does not replay
+ * multi-turn history from a stale model anchor.
+ * Whole-prompt assembled ratio is not a live owner.
  * Output-history samples must already be billable tokens from
  * `usageOutputTokens` → `billableOpenRouterOutputTokens`. This owner does
  * not invent a second output-normalization rule.
@@ -31,6 +37,7 @@ import {
 import { SERVER_UNDER_LENGTH_RECOVERY_STAGE } from "@/lib/serverUnderLengthRecovery";
 import { isStatusWidgetExtractStageLabel } from "@/lib/statusWidget/receiptUsage";
 import { isSuccessfulDurableGenerationStatus } from "@/lib/streamingPersistenceShared";
+import { estimateTokens, estimateTokensFromCharCount } from "@/lib/tokenEstimate";
 
 export const NEXT_TURN_ESTIMATE_VERSION = "main-rp-next-turn-v1";
 
@@ -43,11 +50,62 @@ export type NextTurnOutputBasis =
   | "observed_ratio"
   | "same_model_output_history";
 
-export type NextTurnInputCalibrationSource =
+export type NextTurnInputForecastSource =
   | "uncalibrated_assembled"
-  | "same_model_billable_input_ratio";
+  | "same_model_actual_anchored_delta";
+
+export type NextTurnInputCalibrationSource = NextTurnInputForecastSource;
 
 export type NextTurnInputCalibrationConfidence = "none" | "latest_same_model";
+
+export type NextTurnRawHistoryState =
+  | "raw_retained"
+  | "raw_evicted"
+  | "summary_compacted"
+  | "unknown";
+
+export type NextTurnAssembledPromptChars = {
+  system?: number;
+  systemRules?: number;
+  characterSettings?: number;
+  dynamic?: number;
+  history?: number;
+  currentUser?: number;
+  total?: number;
+};
+
+/** Content-free promptAudit breakdown. History/current-user stay out of context delta. */
+export type NextTurnPromptAuditSections = {
+  systemRules: number;
+  characterSetting: number;
+  worldLore: number;
+  memory: number;
+  persona: number;
+  userNote: number;
+  dialogueExamples: number;
+};
+
+export type NextTurnHistoryMessage = {
+  role?: string | null;
+  content?: string | null;
+};
+
+export type NextTurnRawHistoryHealth = {
+  rawCompleteExchanges?: number;
+  summarizedThroughTurn?: number;
+  unsummarizedCompletedTurns?: number;
+  realRawCompleteExchanges?: number;
+};
+
+export type NextTurnHistoryDelta = {
+  previousAssistantRetained: boolean;
+  retainedNewHistoryTokens: number;
+  removedHistoryTokens: number;
+  contextDeltaTokens: number;
+  currentUserEstimatedTokens: number;
+  previousRawHistoryState: NextTurnRawHistoryState;
+  nextRawHistoryState: NextTurnRawHistoryState;
+};
 
 export type NextTurnEstimateRow = {
   promptTokens: number;
@@ -58,19 +116,48 @@ export type NextTurnEstimateRow = {
   localAssembledInputTokens: number;
   predictedBillableInputTokens: number;
   actualBillableInputTokens: number | null;
+  previousActualOutputTokens: number | null;
   priorAssembledInputTokens: number | null;
-  calibrationSource: NextTurnInputCalibrationSource;
+  calibrationSource: NextTurnInputForecastSource;
   calibrationConfidence: NextTurnInputCalibrationConfidence;
+  forecastSource: NextTurnInputForecastSource;
+  retainedNewHistoryTokens: number | null;
+  removedHistoryTokens: number | null;
+  contextDeltaTokens: number | null;
+  currentUserEstimatedTokens: number | null;
+  previousRawHistoryState: NextTurnRawHistoryState | null;
+  nextRawHistoryState: NextTurnRawHistoryState | null;
   outputHistorySampleCount: number | null;
 };
 
 export type NextTurnEstimateMap = Partial<Record<SelectedAI, NextTurnEstimateRow>>;
 
-export type NextTurnProviderInputCalibrationSample = {
+export type NextTurnProviderInputCalibrationSample = NextTurnActualAnchor;
+
+export type NextTurnActualAnchor = {
   actualBillableInputTokens: number;
-  assembledInputTokens: number;
+  actualBillableOutputTokens: number;
+  assembledInputTokens?: number | null;
   aggregateApiInputTokens?: number | null;
   syncAuxInputTokens?: number | null;
+  assembledPromptChars?: NextTurnAssembledPromptChars | null;
+  rawHistoryHealth?: NextTurnRawHistoryHealth | null;
+};
+
+/** Reader-only row identity. Never expose assistant content through this type. */
+export type NextTurnAnchorRowIdentity = {
+  rowKey: string;
+  modelId: SelectedAI;
+};
+
+export type NextTurnImmediatePreviousSuccessfulTurn = {
+  identity: NextTurnAnchorRowIdentity;
+  usableSample: NextTurnActualAnchor | null;
+};
+
+export type NextTurnProviderInputCalibrationEntry = {
+  identity: NextTurnAnchorRowIdentity;
+  sample: NextTurnActualAnchor;
 };
 
 function isFinitePositiveToken(value: number | null | undefined): value is number {
@@ -95,10 +182,14 @@ export type NextTurnCalibrationTurnFields = {
   lengthRecoveryPasses?: number | null;
   stages?: NextTurnCalibrationStageFields[] | null;
   usageInputTokens?: number | null;
+  usageOutputTokens?: number | null;
   apiInputTokens?: number | null;
   assembledInputTokens?: number | null;
+  assembledPromptChars?: NextTurnAssembledPromptChars | null;
+  rawHistoryHealth?: NextTurnRawHistoryHealth | null;
   statusWidgetExtractCallCount?: number | null;
   statusWidgetExtractInputTokens?: number | null;
+  rowKey?: string | null;
 };
 
 export type NextTurnCalibrationRejection =
@@ -272,12 +363,12 @@ export function resolveMainRpNextTurnCalibrationModelId(
 }
 
 export function resolveNextTurnInputCalibrationConfidence(
-  source: NextTurnInputCalibrationSource
+  source: NextTurnInputForecastSource
 ): NextTurnInputCalibrationConfidence {
   switch (source) {
     case "uncalibrated_assembled":
       return "none";
-    case "same_model_billable_input_ratio":
+    case "same_model_actual_anchored_delta":
       return "latest_same_model";
     default: {
       const _never: never = source;
@@ -286,50 +377,264 @@ export function resolveNextTurnInputCalibrationConfidence(
   }
 }
 
-export function resolveProviderInputRatio(input: {
-  actualBillableInputTokens: number;
-  assembledInputTokens: number;
-}): number | null {
-  if (
-    !isFinitePositiveToken(input.actualBillableInputTokens) ||
-    !isFinitePositiveToken(input.assembledInputTokens)
-  ) {
-    return null;
-  }
-  const ratio = input.actualBillableInputTokens / input.assembledInputTokens;
-  if (!Number.isFinite(ratio) || ratio <= 0) return null;
-  return Math.min(1, ratio);
+export function isPreviousAssistantRetainedInHistory(input: {
+  nextPromptHistory?: NextTurnHistoryMessage[] | null;
+  previousAssistantContent?: string | null;
+}): boolean {
+  const previous = (input.previousAssistantContent ?? "").trim();
+  if (!previous || !input.nextPromptHistory?.length) return false;
+  return input.nextPromptHistory.some(
+    (message) =>
+      message.role === "assistant" && (message.content ?? "").trim() === previous
+  );
 }
 
-export function applyProviderInputCalibration(input: {
+export function nextTurnHistoryMessageIdentity(message: NextTurnHistoryMessage): string {
+  return `${message.role ?? ""}\n${(message.content ?? "").trim()}`;
+}
+
+export function resolveRemovedHistoryTexts(input: {
+  previousPromptHistory?: NextTurnHistoryMessage[] | null;
+  nextPromptHistory?: NextTurnHistoryMessage[] | null;
+}): string[] {
+  const nextKeys = new Set(
+    (input.nextPromptHistory ?? []).map(nextTurnHistoryMessageIdentity)
+  );
+  const removed: string[] = [];
+  for (const message of input.previousPromptHistory ?? []) {
+    const content = (message.content ?? "").trim();
+    if (!content) continue;
+    if (!nextKeys.has(nextTurnHistoryMessageIdentity(message))) {
+      removed.push(content);
+    }
+  }
+  return removed;
+}
+
+export function nonHistoryTokensFromPromptAuditSections(
+  sections: NextTurnPromptAuditSections | null | undefined
+): number {
+  if (!sections) return 0;
+  return (
+    Math.max(0, sections.systemRules) +
+    Math.max(0, sections.characterSetting) +
+    Math.max(0, sections.worldLore) +
+    Math.max(0, sections.memory) +
+    Math.max(0, sections.persona) +
+    Math.max(0, sections.userNote) +
+    Math.max(0, sections.dialogueExamples)
+  );
+}
+
+export function promptAuditSectionsFromAssembledPromptChars(
+  chars: NextTurnAssembledPromptChars | null | undefined
+): NextTurnPromptAuditSections | null {
+  if (!chars) return null;
+  const systemRules = estimateTokensFromCharCount(chars.systemRules ?? 0);
+  const characterSetting = estimateTokensFromCharCount(chars.characterSettings ?? 0);
+  const dynamic = estimateTokensFromCharCount(chars.dynamic ?? 0);
+  if (systemRules + characterSetting + dynamic > 0) {
+    return {
+      systemRules,
+      characterSetting,
+      worldLore: dynamic,
+      memory: 0,
+      persona: 0,
+      userNote: 0,
+      dialogueExamples: 0,
+    };
+  }
+  const system = estimateTokensFromCharCount(chars.system ?? 0);
+  if (system <= 0) return null;
+  return {
+    systemRules: system,
+    characterSetting: 0,
+    worldLore: 0,
+    memory: 0,
+    persona: 0,
+    userNote: 0,
+    dialogueExamples: 0,
+  };
+}
+
+export function promptAuditSectionsFromPromptAudit(input: {
+  breakdown?: NextTurnPromptAuditSections | null;
+}): NextTurnPromptAuditSections | null {
+  if (!input.breakdown) return null;
+  return {
+    systemRules: Math.max(0, input.breakdown.systemRules),
+    characterSetting: Math.max(0, input.breakdown.characterSetting),
+    worldLore: Math.max(0, input.breakdown.worldLore),
+    memory: Math.max(0, input.breakdown.memory),
+    persona: Math.max(0, input.breakdown.persona),
+    userNote: Math.max(0, input.breakdown.userNote),
+    dialogueExamples: Math.max(0, input.breakdown.dialogueExamples),
+  };
+}
+
+export function resolveNextTurnRawHistoryState(input: {
+  previous?: NextTurnRawHistoryHealth | null;
+  next?: NextTurnRawHistoryHealth | null;
+  previousAssistantRetained: boolean;
+  removedHistoryTokens: number;
+}): { previous: NextTurnRawHistoryState; next: NextTurnRawHistoryState } {
+  const prevSummarized = input.previous?.summarizedThroughTurn ?? 0;
+  const nextSummarized = input.next?.summarizedThroughTurn ?? prevSummarized;
+  if (nextSummarized > prevSummarized) {
+    return { previous: "raw_retained", next: "summary_compacted" };
+  }
+  if (input.removedHistoryTokens > 0) {
+    return {
+      previous: input.previousAssistantRetained ? "raw_retained" : "unknown",
+      next: "raw_evicted",
+    };
+  }
+  if (input.previousAssistantRetained) {
+    return { previous: "raw_retained", next: "raw_retained" };
+  }
+  return { previous: "unknown", next: "unknown" };
+}
+
+export function resolveNextTurnHistoryDelta(input: {
+  previous: NextTurnActualAnchor;
+  previousAssistantRetained?: boolean;
+  previousAssistantContent?: string | null;
+  currentUserEstimatedTokens?: number | null;
+  contextDeltaTokens?: number | null;
+  removedHistoryTokens?: number | null;
+  nextAssembledPromptChars?: NextTurnAssembledPromptChars | null;
+  nextPromptAuditSections?: NextTurnPromptAuditSections | null;
+  nextRawHistoryHealth?: NextTurnRawHistoryHealth | null;
+  evictedMessageTexts?: string[] | null;
+  nextPromptHistory?: NextTurnHistoryMessage[] | null;
+  previousPromptHistory?: NextTurnHistoryMessage[] | null;
+}): NextTurnHistoryDelta {
+  const previousAssistantRetained =
+    input.nextPromptHistory != null
+      ? isPreviousAssistantRetainedInHistory({
+          nextPromptHistory: input.nextPromptHistory,
+          previousAssistantContent: input.previousAssistantContent,
+        })
+      : input.previousAssistantRetained === true;
+  const retainedNewHistoryTokens = previousAssistantRetained
+    ? Math.max(0, Math.round(input.previous.actualBillableOutputTokens))
+    : 0;
+  const evictedFromHistories =
+    input.previousPromptHistory != null && input.nextPromptHistory != null
+      ? resolveRemovedHistoryTexts({
+          previousPromptHistory: input.previousPromptHistory,
+          nextPromptHistory: input.nextPromptHistory,
+        })
+      : [];
+  const evictedFromTexts = (input.evictedMessageTexts ?? evictedFromHistories).reduce(
+    (sum, text) => sum + estimateTokens(text),
+    0
+  );
+  const removedHistoryTokens = Math.max(
+    0,
+    Math.round(input.removedHistoryTokens ?? evictedFromTexts)
+  );
+  let contextDeltaTokens = Math.round(input.contextDeltaTokens ?? 0);
+  if (input.contextDeltaTokens == null) {
+    const previousSections = promptAuditSectionsFromAssembledPromptChars(
+      input.previous.assembledPromptChars
+    );
+    const nextSections =
+      input.nextPromptAuditSections ??
+      promptAuditSectionsFromAssembledPromptChars(input.nextAssembledPromptChars);
+    const previousNonHistory = nonHistoryTokensFromPromptAuditSections(previousSections);
+    const nextNonHistory = nonHistoryTokensFromPromptAuditSections(nextSections);
+    if (previousNonHistory > 0 || nextNonHistory > 0) {
+      contextDeltaTokens = nextNonHistory - previousNonHistory;
+    }
+  }
+  const currentUserEstimatedTokens = Math.max(
+    0,
+    Math.round(input.currentUserEstimatedTokens ?? 0)
+  );
+  const rawState = resolveNextTurnRawHistoryState({
+    previous: input.previous.rawHistoryHealth,
+    next: input.nextRawHistoryHealth,
+    previousAssistantRetained,
+    removedHistoryTokens,
+  });
+  return {
+    previousAssistantRetained,
+    retainedNewHistoryTokens,
+    removedHistoryTokens,
+    contextDeltaTokens,
+    currentUserEstimatedTokens,
+    previousRawHistoryState: rawState.previous,
+    nextRawHistoryState: rawState.next,
+  };
+}
+
+export function applyActualAnchoredInputDelta(input: {
+  previous: NextTurnActualAnchor;
+  historyDelta: NextTurnHistoryDelta;
+  localAssembledInputTokens?: number;
+}): {
+  predictedBillableInputTokens: number;
+  actualBillableInputTokens: number;
+  previousActualOutputTokens: number;
+  forecastSource: NextTurnInputForecastSource;
+  calibrationSource: NextTurnInputForecastSource;
+  calibrationConfidence: NextTurnInputCalibrationConfidence;
+} {
+  const predicted = Math.max(
+    1,
+    Math.round(
+      input.previous.actualBillableInputTokens +
+        input.historyDelta.retainedNewHistoryTokens +
+        input.historyDelta.currentUserEstimatedTokens +
+        input.historyDelta.contextDeltaTokens -
+        input.historyDelta.removedHistoryTokens
+    )
+  );
+  const source = "same_model_actual_anchored_delta" as const;
+  return {
+    predictedBillableInputTokens: predicted,
+    actualBillableInputTokens: Math.round(input.previous.actualBillableInputTokens),
+    previousActualOutputTokens: Math.round(input.previous.actualBillableOutputTokens),
+    forecastSource: source,
+    calibrationSource: source,
+    calibrationConfidence: resolveNextTurnInputCalibrationConfidence(source),
+  };
+}
+
+export function applyNextTurnInputForecast(input: {
   localAssembledInputTokens: number;
-  sample?: NextTurnProviderInputCalibrationSample | null;
+  previous?: NextTurnActualAnchor | null;
+  historyDelta?: NextTurnHistoryDelta | null;
 }): {
   predictedBillableInputTokens: number;
   actualBillableInputTokens: number | null;
-  calibrationSource: NextTurnInputCalibrationSource;
+  previousActualOutputTokens: number | null;
+  forecastSource: NextTurnInputForecastSource;
+  calibrationSource: NextTurnInputForecastSource;
   calibrationConfidence: NextTurnInputCalibrationConfidence;
-  providerInputRatio: number | null;
 } {
   const localAssembled = Math.round(input.localAssembledInputTokens);
-  const ratio = input.sample ? resolveProviderInputRatio(input.sample) : null;
-  if (ratio == null) {
-    const source = "uncalibrated_assembled" as const;
-    return {
-      predictedBillableInputTokens: localAssembled,
-      actualBillableInputTokens: null,
-      calibrationSource: source,
-      calibrationConfidence: resolveNextTurnInputCalibrationConfidence(source),
-      providerInputRatio: null,
-    };
+  if (
+    input.previous &&
+    isFinitePositiveToken(input.previous.actualBillableInputTokens) &&
+    isFinitePositiveToken(input.previous.actualBillableOutputTokens) &&
+    input.historyDelta
+  ) {
+    return applyActualAnchoredInputDelta({
+      previous: input.previous,
+      historyDelta: input.historyDelta,
+      localAssembledInputTokens: localAssembled,
+    });
   }
-  const source = "same_model_billable_input_ratio" as const;
+  const source = "uncalibrated_assembled" as const;
   return {
-    predictedBillableInputTokens: Math.max(1, Math.round(localAssembled * ratio)),
-    actualBillableInputTokens: Math.round(input.sample!.actualBillableInputTokens),
+    predictedBillableInputTokens: localAssembled,
+    actualBillableInputTokens: null,
+    previousActualOutputTokens: null,
+    forecastSource: source,
     calibrationSource: source,
     calibrationConfidence: resolveNextTurnInputCalibrationConfidence(source),
-    providerInputRatio: ratio,
   };
 }
 
@@ -399,12 +704,118 @@ export function isUsableProviderInputCalibrationSource(
 ): boolean {
   if (!isUncontaminatedSameModelCalibrationTurn(input)) return false;
   if (!isFinitePositiveToken(input.usageInputTokens)) return false;
-  if (!isFinitePositiveToken(input.assembledInputTokens)) return false;
+  return isFinitePositiveToken(input.usageOutputTokens);
+}
+
+export function resolveNextTurnCalibrationRowKey(
+  input: { rowKey?: string | null },
+  fallbackIndex: number
+): string {
+  const explicit = (input.rowKey ?? "").trim();
+  if (explicit) return explicit;
+  return `index:${Math.trunc(fallbackIndex)}`;
+}
+
+export function isImmediatePreviousSuccessfulMainRpAssistantTurn(
+  input: NextTurnCalibrationTurnFields
+): boolean {
+  if (input.htmlFlashOnly) return false;
+  if ((input.model ?? "").trim() === "greeting") return false;
+  if ((input.selectedAI ?? "").trim() === "greeting") return false;
+  if (!isSuccessfulDurableGenerationStatus(input.generationStatus)) return false;
+  const selected =
+    resolveMainRpNextTurnCalibrationModelId(input.selectedAI) ??
+    resolveMainRpNextTurnCalibrationModelId(input.model);
+  return selected != null;
+}
+
+export function providerInputCalibrationSampleFromTurn(
+  candidate: NextTurnCalibrationTurnFields
+): NextTurnActualAnchor | null {
+  if (!isUsableProviderInputCalibrationSource(candidate)) return null;
+  const reportedInputTokens = candidate.usageInputTokens as number;
+  const reportedOutputTokens = candidate.usageOutputTokens as number;
+  const assembledInputTokens = isFinitePositiveToken(candidate.assembledInputTokens)
+    ? candidate.assembledInputTokens
+    : null;
+  const aggregateApiInputTokens = isFinitePositiveToken(candidate.apiInputTokens)
+    ? candidate.apiInputTokens
+    : null;
+  const syncAuxInputTokens = resolveSyncAuxInputTokens(candidate);
+  return {
+    actualBillableInputTokens: assembledInputTokens
+      ? Math.min(reportedInputTokens, assembledInputTokens)
+      : reportedInputTokens,
+    actualBillableOutputTokens: reportedOutputTokens,
+    ...(assembledInputTokens != null ? { assembledInputTokens } : {}),
+    ...(aggregateApiInputTokens != null ? { aggregateApiInputTokens } : {}),
+    ...(syncAuxInputTokens != null ? { syncAuxInputTokens } : {}),
+    ...(candidate.assembledPromptChars
+      ? { assembledPromptChars: candidate.assembledPromptChars }
+      : {}),
+    ...(candidate.rawHistoryHealth ? { rawHistoryHealth: candidate.rawHistoryHealth } : {}),
+  };
+}
+
+export function resolveImmediatePreviousSuccessfulMainRpTurn(
+  candidatesNewestLast: NextTurnCalibrationTurnFields[]
+): NextTurnImmediatePreviousSuccessfulTurn | null {
+  for (let i = candidatesNewestLast.length - 1; i >= 0; i -= 1) {
+    const candidate = candidatesNewestLast[i];
+    if (!candidate) continue;
+    if (!isImmediatePreviousSuccessfulMainRpAssistantTurn(candidate)) continue;
+    const modelId =
+      resolveMainRpNextTurnCalibrationModelId(candidate.selectedAI) ??
+      resolveMainRpNextTurnCalibrationModelId(candidate.model);
+    if (!modelId) continue;
+    return {
+      identity: {
+        rowKey: resolveNextTurnCalibrationRowKey(candidate, i),
+        modelId,
+      },
+      usableSample: providerInputCalibrationSampleFromTurn(candidate),
+    };
+  }
+  return null;
+}
+
+export function pickLatestProviderInputCalibrationEntriesByModel(
+  candidatesNewestLast: NextTurnCalibrationTurnFields[]
+): Partial<Record<SelectedAI, NextTurnProviderInputCalibrationEntry>> {
+  const out: Partial<Record<SelectedAI, NextTurnProviderInputCalibrationEntry>> = {};
+  for (let i = candidatesNewestLast.length - 1; i >= 0; i -= 1) {
+    const candidate = candidatesNewestLast[i];
+    if (!candidate) continue;
+    const sample = providerInputCalibrationSampleFromTurn(candidate);
+    if (!sample) continue;
+    const modelId =
+      resolveMainRpNextTurnCalibrationModelId(candidate.selectedAI) ??
+      resolveMainRpNextTurnCalibrationModelId(candidate.model);
+    if (!modelId || out[modelId] != null) continue;
+    out[modelId] = {
+      identity: {
+        rowKey: resolveNextTurnCalibrationRowKey(candidate, i),
+        modelId,
+      },
+      sample,
+    };
+  }
+  return out;
+}
+
+export function isImmediatePreviousSameModelActualAnchor(input: {
+  forecastModelId: SelectedAI;
+  immediatePrevious: NextTurnImmediatePreviousSuccessfulTurn | null | undefined;
+  candidateIdentity: NextTurnAnchorRowIdentity | null | undefined;
+}): boolean {
+  const previous = input.immediatePrevious;
+  const candidate = input.candidateIdentity;
+  if (!previous || !previous.usableSample || !candidate) return false;
+  if (!previous.identity.rowKey || !candidate.rowKey) return false;
   return (
-    resolveProviderInputRatio({
-      actualBillableInputTokens: input.usageInputTokens,
-      assembledInputTokens: input.assembledInputTokens,
-    }) != null
+    input.forecastModelId === previous.identity.modelId &&
+    candidate.modelId === previous.identity.modelId &&
+    candidate.rowKey === previous.identity.rowKey
   );
 }
 
@@ -418,27 +829,11 @@ export function isUsableOutputHistorySource(input: NextTurnCalibrationTurnFields
 export function pickLatestProviderInputCalibrationByModel(
   candidatesNewestLast: NextTurnCalibrationTurnFields[]
 ): Partial<Record<SelectedAI, NextTurnProviderInputCalibrationSample>> {
+  const entries = pickLatestProviderInputCalibrationEntriesByModel(candidatesNewestLast);
   const out: Partial<Record<SelectedAI, NextTurnProviderInputCalibrationSample>> = {};
-  for (let i = candidatesNewestLast.length - 1; i >= 0; i -= 1) {
-    const candidate = candidatesNewestLast[i];
-    if (!candidate) continue;
-    if (!isUsableProviderInputCalibrationSource(candidate)) continue;
-    const modelId =
-      resolveMainRpNextTurnCalibrationModelId(candidate.selectedAI) ??
-      resolveMainRpNextTurnCalibrationModelId(candidate.model);
-    if (!modelId || out[modelId] != null) continue;
-    const assembledInputTokens = candidate.assembledInputTokens as number;
-    const reportedInputTokens = candidate.usageInputTokens as number;
-    const aggregateApiInputTokens = isFinitePositiveToken(candidate.apiInputTokens)
-      ? candidate.apiInputTokens
-      : null;
-    const syncAuxInputTokens = resolveSyncAuxInputTokens(candidate);
-    out[modelId] = {
-      actualBillableInputTokens: Math.min(reportedInputTokens, assembledInputTokens),
-      assembledInputTokens,
-      ...(aggregateApiInputTokens != null ? { aggregateApiInputTokens } : {}),
-      ...(syncAuxInputTokens != null ? { syncAuxInputTokens } : {}),
-    };
+  for (const modelId of MAIN_RP_MODEL_IDS) {
+    const entry = entries[modelId];
+    if (entry) out[modelId] = entry.sample;
   }
   return out;
 }
@@ -508,8 +903,9 @@ export function computeMainRpNextTurnEstimates(input: {
   observedCharsPerTokenByModel?: Partial<Record<SelectedAI, number | null>>;
   recentBillableOutputTokensByModel?: Partial<Record<SelectedAI, number[] | null>>;
   providerInputCalibrationByModel?: Partial<
-    Record<SelectedAI, NextTurnProviderInputCalibrationSample | null>
+    Record<SelectedAI, NextTurnActualAnchor | null>
   >;
+  historyDeltaByModel?: Partial<Record<SelectedAI, NextTurnHistoryDelta | null>>;
   effectiveKrwPerUsd: number;
 }): NextTurnEstimateMap {
   const out: NextTurnEstimateMap = {};
@@ -519,11 +915,14 @@ export function computeMainRpNextTurnEstimates(input: {
       continue;
     }
     const localAssembledInputTokens = Math.round(assembled);
-    const calibrated = applyProviderInputCalibration({
+    const previous = input.providerInputCalibrationByModel?.[modelId] ?? null;
+    const historyDelta = input.historyDeltaByModel?.[modelId] ?? null;
+    const forecast = applyNextTurnInputForecast({
       localAssembledInputTokens,
-      sample: input.providerInputCalibrationByModel?.[modelId],
+      previous,
+      historyDelta,
     });
-    const predictedBillableInputTokens = calibrated.predictedBillableInputTokens;
+    const predictedBillableInputTokens = forecast.predictedBillableInputTokens;
     const observed = input.observedCharsPerTokenByModel?.[modelId];
     const outputForecast = resolveNextTurnOutputForecast({
       lastVisibleAssistantChars: input.lastVisibleAssistantChars,
@@ -547,14 +946,21 @@ export function computeMainRpNextTurnEstimates(input: {
       outputBasis: outputForecast.outputBasis,
       localAssembledInputTokens,
       predictedBillableInputTokens,
-      actualBillableInputTokens: calibrated.actualBillableInputTokens,
-      priorAssembledInputTokens: input.providerInputCalibrationByModel?.[modelId]
-        ? Math.round(
-            input.providerInputCalibrationByModel[modelId]!.assembledInputTokens
-          )
-        : null,
-      calibrationSource: calibrated.calibrationSource,
-      calibrationConfidence: calibrated.calibrationConfidence,
+      actualBillableInputTokens: forecast.actualBillableInputTokens,
+      previousActualOutputTokens: forecast.previousActualOutputTokens,
+      priorAssembledInputTokens:
+        previous?.assembledInputTokens != null
+          ? Math.round(previous.assembledInputTokens)
+          : null,
+      calibrationSource: forecast.calibrationSource,
+      calibrationConfidence: forecast.calibrationConfidence,
+      forecastSource: forecast.forecastSource,
+      retainedNewHistoryTokens: historyDelta?.retainedNewHistoryTokens ?? null,
+      removedHistoryTokens: historyDelta?.removedHistoryTokens ?? null,
+      contextDeltaTokens: historyDelta?.contextDeltaTokens ?? null,
+      currentUserEstimatedTokens: historyDelta?.currentUserEstimatedTokens ?? null,
+      previousRawHistoryState: historyDelta?.previousRawHistoryState ?? null,
+      nextRawHistoryState: historyDelta?.nextRawHistoryState ?? null,
       outputHistorySampleCount: outputForecast.outputHistorySampleCount,
     };
   }

@@ -449,6 +449,24 @@ describe("next-turn calibration persist restore", () => {
       apiOutputTokens: 2780,
       savedOutputChars: 4213,
       assembledInputTokens: 34816,
+      assembledPromptChars: {
+        system: 10000,
+        systemRules: 2000,
+        characterSettings: 3000,
+        dynamic: 1500,
+        history: 18000,
+        currentUser: 400,
+        total: 34900,
+      },
+      rawHistoryHealth: {
+        rawCompleteExchanges: 4,
+        rawMessages: 8,
+        rawChars: 18000,
+        rawInternalEstimate: 16200,
+        summaryInterval: 5,
+        summarizedThroughTurn: 0,
+        unsummarizedCompletedTurns: 4,
+      },
       apiCallCount: 2,
       lengthRecoveryPasses: 0,
       stages: [
@@ -481,6 +499,8 @@ describe("next-turn calibration persist restore", () => {
       internal
     );
     assert.equal(persisted.assembledInputTokens, 34816);
+    assert.equal(persisted.assembledPromptChars?.history, 18000);
+    assert.equal(persisted.rawHistoryHealth?.rawCompleteExchanges, 4);
     assert.equal(persisted.apiCallCount, 2);
     assert.equal(persisted.adultRouting?.actualModel, "gpt-6.1-sol");
     assert.equal(persisted.adultRouting?.fallbackAttempted, false);

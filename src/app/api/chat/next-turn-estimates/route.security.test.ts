@@ -22,9 +22,11 @@ describe("next-turn-estimates endpoint security", () => {
     assert.doesNotMatch(ROUTE_SOURCE, /draftInput/);
     assert.doesNotMatch(ROUTE_SOURCE, /content:/);
     assert.match(ROUTE_SOURCE, /canShowFullBillingReceipt/);
-    assert.match(ROUTE_SOURCE, /priorAssembledInputTokens/);
-    assert.match(ROUTE_SOURCE, /localAssembledInputTokens/);
-    assert.match(ROUTE_SOURCE, /mainRpBillableInputTokens/);
+    assert.match(ROUTE_SOURCE, /previousActualInputTokens/);
+    assert.match(ROUTE_SOURCE, /previousActualOutputTokens/);
+    assert.match(ROUTE_SOURCE, /retainedNewHistoryTokens/);
+    assert.match(ROUTE_SOURCE, /predictedBillableInputTokens/);
+    assert.match(ROUTE_SOURCE, /forecastSource/);
     assert.match(ROUTE_SOURCE, /aggregateApiInputTokens/);
     assert.match(ROUTE_SOURCE, /syncAuxInputTokens/);
     assert.doesNotMatch(ROUTE_SOURCE, /priorApiInputTokens/);

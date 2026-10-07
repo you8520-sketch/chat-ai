@@ -41,7 +41,9 @@ import { resolveNarrativePov } from "@/lib/narrativePov";
 import {
   assembleNextTurnContextBuildInput,
   prepareNextTurnHistory,
+  preparePreviousRequestHistory,
 } from "@/services/nextTurnAssemblyPreparation";
+import { promptAuditSectionsFromPromptAudit } from "@/lib/mainRpNextTurnEstimate";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { resolveMainRpNextTurnPublishedEstimateForModel } from "@/services/mainRpNextTurnEstimate";
@@ -1647,6 +1649,19 @@ export async function POST(req: Request) {
     providerRawTrimFloor,
     protectOpening,
   });
+  const previousPreparedHistory = preparePreviousRequestHistory({
+    turns: turnsForRecentHistory,
+    modelId: contextModelId,
+    provider: contextProvider,
+    memoryFeatureOn,
+    completedTurnsForMemoryCoverage,
+    summarizedTurnCount: effectiveSummarizedTurnCount,
+    personaDisplayName,
+    userNickname: user.nickname,
+    providerRawPoolExchangeCount,
+    providerRawTrimFloor,
+    protectOpening,
+  });
   const canonicalRecentHistoryFull = preparedHistory.canonicalRecentHistoryFull;
   const providerTrimOpts = {
     minRealPlayableExchanges: providerRawTrimFloor,
@@ -2775,6 +2790,19 @@ export async function POST(req: Request) {
         typeof assembledPromptTokens === "number" && assembledPromptTokens > 0
           ? assembledPromptTokens
           : 0,
+      currentUserEstimatedTokens: built.meta.promptAudit?.currentUserTurnTokens ?? null,
+      nextPromptHistory: preparedHistory.promptHistory,
+      previousPromptHistory: previousPreparedHistory.promptHistory,
+      nextPromptAuditSections: promptAuditSectionsFromPromptAudit({
+        breakdown: built.meta.promptAudit?.breakdown ?? null,
+      }),
+      nextRawHistoryHealth: {
+        summarizedThroughTurn: effectiveSummarizedTurnCount,
+        unsummarizedCompletedTurns: Math.max(
+          0,
+          completedTurnsForMemoryCoverage - effectiveSummarizedTurnCount
+        ),
+      },
     });
     const requiredPoints = resolveMainRpProviderAdmissionRequiredPoints(publishedEstimate);
     const liveBalance = getPointBalance(user.id);
