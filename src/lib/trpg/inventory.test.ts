@@ -94,7 +94,8 @@ describe("TRPG start-inventory authoring text ⇄ canonical unit list", () => {
       rejected(text);
     }
     assert.match(rejected("붕대 ×0"), /1 이상의 정수/);
-    assert.deepEqual(units("3× 확대경"), ["3× 확대경"]);\n    assert.deepEqual(units("A × B"), ["A × B"]);
+    assert.deepEqual(units("3× 확대경"), ["3× 확대경"]);
+    assert.deepEqual(units("A × B"), ["A × B"]);
     assert.deepEqual(units("붕대×2"), ["붕대", "붕대"]);
     for (const alias of ["붕대 x3", "붕대 X3", "붕대 *3", "붕대 (3)", "붕대 [3]"]) {
       assert.deepEqual(units(alias), [alias], `${alias} is not a quantity alias`);
