@@ -58,7 +58,7 @@ export function parseInventoryAuthoringText(text: string): InventoryAuthoringPar
       if (!Number.isSafeInteger(quantity) || quantity < 1) {
         return { ok: false, error: `시작 소지품 "${entry}"의 수량은 1 이상의 정수로 적어 주세요. (예: 붕대 ×3)` };
       }
-    } else if (QUANTITY_LIKE_SUFFIX.test(entry)) {
+    } else if (QUANTITY_LIKE_SUFFIX.test(entry) && !PLAIN_MULTIPLICATION.test(entry)) {
       return { ok: false, error: `시작 소지품 "${entry}"의 수량은 1 이상의 정수로 적어 주세요. (예: 붕대 ×3)` };
     }
     if (!name) {
