@@ -281,9 +281,14 @@ export type RpQualityPrecallModelPlan = {
   wireModel: string;
 };
 
+export const RP_QUALITY_PRECALL_FIXTURE_STIMULUS = Object.freeze({
+  A_relationship_emotion: "quiet_window_safe",
+  B_conflict_action_spatial: "conflict_action_spatial_safe",
+  C_continuity_progression: "relationship_turn_safe",
+} as const);
+
 export type RpQualityPrecallStimulusId =
-  | "quiet_window_safe"
-  | "relationship_turn_safe";
+  (typeof RP_QUALITY_PRECALL_FIXTURE_STIMULUS)[RpQualityPrecallFixtureId];
 
 export type RpQualityPrecallFixtureSpec = {
   id: RpQualityPrecallFixtureId;
@@ -292,9 +297,8 @@ export type RpQualityPrecallFixtureSpec = {
   authoringLevel: typeof DEFAULT_USER_AUTHORING_LEVEL;
   evaluationFocus: readonly string[];
   historyOwner: typeof PRECALL_GREETING_STIMULUS_OWNER;
-  stimulusOwner: typeof PRECALL_SCENE_SEED_OWNER | null;
-  stimulusId: RpQualityPrecallStimulusId | null;
-  stimulusReady: boolean;
+  stimulusOwner: typeof PRECALL_SCENE_SEED_OWNER;
+  stimulusId: RpQualityPrecallStimulusId;
   memoryCanonSource: "none_for_this_pilot";
   sceneControl: "production_default";
   targetLengthOwner: "UNIFIED_TIER_AIM_CHARS";
@@ -309,8 +313,8 @@ export type RpQualityPrecallPlannedSemanticInput = {
   authoringLevel: typeof DEFAULT_USER_AUTHORING_LEVEL;
   contentMode: RpQualityContentMode;
   historyOwner: typeof PRECALL_GREETING_STIMULUS_OWNER;
-  stimulusOwner: typeof PRECALL_SCENE_SEED_OWNER | null;
-  stimulusId: RpQualityPrecallStimulusId | null;
+  stimulusOwner: typeof PRECALL_SCENE_SEED_OWNER;
+  stimulusId: RpQualityPrecallStimulusId;
   memoryCanonSource: RpQualityPrecallFixtureSpec["memoryCanonSource"];
   sceneControl: RpQualityPrecallFixtureSpec["sceneControl"];
   targetLengthOwner: RpQualityPrecallFixtureSpec["targetLengthOwner"];
@@ -445,10 +449,11 @@ export type RpQualityPrecallReport = {
   fixtures: readonly RpQualityPrecallFixtureSpec[];
   plan: readonly RpQualityPrecallSamplePlan[];
   plannedSemanticParityOnly: true;
+  threeFixtureConcreteStimulusReady: boolean;
   twelveCallConcreteStimulusReady: boolean;
   concreteStimulus: Record<
     RpQualityPrecallFixtureId,
-    { stimulusId: RpQualityPrecallStimulusId | null; stimulusReady: boolean }
+    { stimulusId: RpQualityPrecallStimulusId; stimulusReady: boolean }
   >;
   liveProof: RpQualityPrecallLiveProof;
   authoring: {
@@ -573,40 +578,56 @@ export function validateLiveProof(
   return { status: "VERIFIED", input };
 }
 
-export function concreteStimulusReadiness(
-  fixtures: readonly RpQualityPrecallFixtureSpec[] = rpQualityPrecallFixtures()
+export function mappedFixtureStimulus(
+  fixtureId: RpQualityPrecallFixtureId
 ): {
+  historyOwner: typeof PRECALL_GREETING_STIMULUS_OWNER;
+  stimulusOwner: typeof PRECALL_SCENE_SEED_OWNER;
+  stimulusId: RpQualityPrecallStimulusId;
+} {
+  return {
+    historyOwner: PRECALL_GREETING_STIMULUS_OWNER,
+    stimulusOwner: PRECALL_SCENE_SEED_OWNER,
+    stimulusId: RP_QUALITY_PRECALL_FIXTURE_STIMULUS[fixtureId],
+  };
+}
+
+export function concreteStimulusReadiness(
+  mapping: typeof RP_QUALITY_PRECALL_FIXTURE_STIMULUS = RP_QUALITY_PRECALL_FIXTURE_STIMULUS
+): {
+  threeFixtureConcreteStimulusReady: boolean;
   twelveCallConcreteStimulusReady: boolean;
   concreteStimulus: RpQualityPrecallReport["concreteStimulus"];
 } {
   const concreteStimulus = {
     A_relationship_emotion: {
-      stimulusId: fixtures.find((row) => row.id === "A_relationship_emotion")?.stimulusId ?? null,
-      stimulusReady:
-        fixtures.find((row) => row.id === "A_relationship_emotion")?.stimulusReady === true,
+      stimulusId: mapping.A_relationship_emotion,
+      stimulusReady: mapping.A_relationship_emotion != null,
     },
     B_conflict_action_spatial: {
-      stimulusId: fixtures.find((row) => row.id === "B_conflict_action_spatial")?.stimulusId ?? null,
-      stimulusReady:
-        fixtures.find((row) => row.id === "B_conflict_action_spatial")?.stimulusReady === true,
+      stimulusId: mapping.B_conflict_action_spatial,
+      stimulusReady: mapping.B_conflict_action_spatial != null,
     },
     C_continuity_progression: {
-      stimulusId: fixtures.find((row) => row.id === "C_continuity_progression")?.stimulusId ?? null,
-      stimulusReady:
-        fixtures.find((row) => row.id === "C_continuity_progression")?.stimulusReady === true,
+      stimulusId: mapping.C_continuity_progression,
+      stimulusReady: mapping.C_continuity_progression != null,
     },
   };
+  const threeFixtureConcreteStimulusReady = RP_QUALITY_PRECALL_FIXTURE_IDS.every(
+    (id) => mapping[id] != null
+  );
   return {
-    twelveCallConcreteStimulusReady: fixtures.every((row) => row.stimulusReady),
+    threeFixtureConcreteStimulusReady,
+    twelveCallConcreteStimulusReady: threeFixtureConcreteStimulusReady,
     concreteStimulus,
   };
 }
 
 export function classifyPrecallReport(
   liveProof: RpQualityPrecallLiveProof,
-  twelveCallConcreteStimulusReady: boolean
+  threeFixtureConcreteStimulusReady: boolean
 ): { classification: RpQualityPrecallClassification; precallReady: boolean } {
-  if (liveProof.status === "VERIFIED" && twelveCallConcreteStimulusReady) {
+  if (liveProof.status === "VERIFIED" && threeFixtureConcreteStimulusReady) {
     return { classification: "PRECALL_READY", precallReady: true };
   }
   return { classification: "NOT_REPRODUCIBLE", precallReady: false };
@@ -682,10 +703,7 @@ export function rpQualityPrecallFixtures(): readonly RpQualityPrecallFixtureSpec
         "subtle_relationship_movement",
         "repetition_control",
       ],
-      historyOwner: PRECALL_GREETING_STIMULUS_OWNER,
-      stimulusOwner: PRECALL_SCENE_SEED_OWNER,
-      stimulusId: "quiet_window_safe",
-      stimulusReady: true,
+      ...mappedFixtureStimulus("A_relationship_emotion"),
       memoryCanonSource: "none_for_this_pilot",
       sceneControl: "production_default",
       targetLengthOwner: "UNIFIED_TIER_AIM_CHARS",
@@ -706,15 +724,12 @@ export function rpQualityPrecallFixtures(): readonly RpQualityPrecallFixtureSpec
         "scene_stalled_in_place",
         "character_voice",
       ],
-      historyOwner: PRECALL_GREETING_STIMULUS_OWNER,
-      stimulusOwner: null,
-      stimulusId: null,
-      stimulusReady: false,
+      ...mappedFixtureStimulus("B_conflict_action_spatial"),
       memoryCanonSource: "none_for_this_pilot",
       sceneControl: "production_default",
       targetLengthOwner: "UNIFIED_TIER_AIM_CHARS",
       notes:
-        "No existing scene seed is conflict/action/spatial. New user-turn wording is last-resort FOLLOW-UP. This fixture is not concrete-ready.",
+        "Reuses COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.conflict_action_spatial_safe. History opening is the current greeting via buildGreetingBodyCueReviewCases. B16 is design reference only and is not this stimulus.",
     },
     {
       id: "C_continuity_progression",
@@ -728,10 +743,7 @@ export function rpQualityPrecallFixtures(): readonly RpQualityPrecallFixtureSpec
         "repetition_across_turns",
         "ai_cast_no_initiative_always_waits",
       ],
-      historyOwner: PRECALL_GREETING_STIMULUS_OWNER,
-      stimulusOwner: PRECALL_SCENE_SEED_OWNER,
-      stimulusId: "relationship_turn_safe",
-      stimulusReady: true,
+      ...mappedFixtureStimulus("C_continuity_progression"),
       memoryCanonSource: "none_for_this_pilot",
       sceneControl: "production_default",
       targetLengthOwner: "UNIFIED_TIER_AIM_CHARS",
@@ -983,10 +995,10 @@ export function buildRpQualityPrecallReport(
   const liveProof = validateLiveProof(input?.liveProofInput, {
     expectedDeploySha: input?.expectedDeploySha,
   });
-  const stimulus = concreteStimulusReadiness(fixtures);
+  const stimulus = concreteStimulusReadiness();
   const classified = classifyPrecallReport(
     liveProof,
-    stimulus.twelveCallConcreteStimulusReady
+    stimulus.threeFixtureConcreteStimulusReady
   );
   const cost = evaluateRpQualityPrecallCostBound();
   const plannedPackets = buildPlannedQualityPackets(plan);
@@ -1006,6 +1018,7 @@ export function buildRpQualityPrecallReport(
     fixtures,
     plan,
     plannedSemanticParityOnly: true,
+    threeFixtureConcreteStimulusReady: stimulus.threeFixtureConcreteStimulusReady,
     twelveCallConcreteStimulusReady: stimulus.twelveCallConcreteStimulusReady,
     concreteStimulus: stimulus.concreteStimulus,
     liveProof,
@@ -1039,7 +1052,7 @@ export function buildRpQualityPrecallReport(
       "plannedSemanticFingerprint is plan-template parity only, not production final-wire parity.",
       "Live identity proof does not include mutable current-room history.",
       "History opening is current greeting via buildGreetingBodyCueReviewCases; scene seeds stay in COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.",
-      "Fixture B has no existing conflict/action/spatial seed, so the 12-call plan is not concrete-ready.",
+      "A/B/C concrete readiness is derived from RP_QUALITY_PRECALL_FIXTURE_STIMULUS, not a separate manual bool.",
       "Live proof is injected evidence. The library does not own environment access results.",
       "Existing monthly memory-quality runner remains a different owner and still uses its historical qualification fixture.",
     ],

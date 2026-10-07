@@ -8,10 +8,13 @@ import {
 import { CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL } from "../../src/lib/chatModels";
 import {
   CANONICAL_RP_QUALIFICATION_SOURCE,
+  COMMON_PROSE_BODY_CUE_PAIRWISE_REVIEW_SEED_IDS,
+  COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS,
   RP_QUALIFICATION_SITE_POLICY_OWNERS,
   STANDARD_INTERACTIVE_REVIEW_EXAMPLES,
   buildCanonicalRpQualificationCases,
   buildCanonicalRpQualificationContextInput,
+  buildGreetingBodyCueReviewCases,
   loadCanonicalRpQualificationFixture,
 } from "./rpModelQualificationFixture";
 
@@ -94,6 +97,32 @@ function main() {
     STANDARD_INTERACTIVE_REVIEW_EXAMPLES.notAllowedWithoutDelegation.some((x) =>
       x.includes("fabricated prior event")
     )
+  );
+
+  assert.deepEqual(
+    COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.map((seed) => seed.id),
+    ["quiet_window_safe", "conflict_action_spatial_safe", "relationship_turn_safe"]
+  );
+  assert.deepEqual(
+    [...COMMON_PROSE_BODY_CUE_PAIRWISE_REVIEW_SEED_IDS],
+    ["quiet_window_safe", "relationship_turn_safe"]
+  );
+  const greetingCases = buildGreetingBodyCueReviewCases("현재 라이크 인사");
+  assert.deepEqual(
+    greetingCases.map((row) => row.id),
+    ["quiet_window_safe", "conflict_action_spatial_safe", "relationship_turn_safe"]
+  );
+  const spatial = greetingCases.find((row) => row.id === "conflict_action_spatial_safe");
+  assert.equal(spatial?.history[1]?.content, "현재 라이크 인사");
+  assert.match(spatial?.currentUserMessage ?? "", /숙소 앞 복도/);
+  assert.doesNotMatch(spatial?.currentUserMessage ?? "", /한서린|\b민\b|B16/);
+  const pairwise = buildGreetingBodyCueReviewCases(
+    "현재 라이크 인사",
+    COMMON_PROSE_BODY_CUE_PAIRWISE_REVIEW_SEED_IDS
+  );
+  assert.deepEqual(
+    pairwise.map((row) => row.id),
+    ["quiet_window_safe", "relationship_turn_safe"]
   );
 
   console.log(

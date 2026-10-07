@@ -192,6 +192,7 @@ export type CanonicalQualificationCaseId =
   | "memory_current_state_priority"
   | "memory_false_shared_event"
   | "quiet_window_safe"
+  | "conflict_action_spatial_safe"
   | "relationship_turn_safe";
 
 export type CanonicalQualificationCase = {
@@ -312,6 +313,12 @@ export function buildCanonicalRpQualificationCases(
  * User turns stay shared. History is supplied by the caller so the
  * 2026-08-25 dump opening is not rewritten onto a different character row.
  */
+/** Pairwise #1288 / #1354 review stays on these two catalog ids. */
+export const COMMON_PROSE_BODY_CUE_PAIRWISE_REVIEW_SEED_IDS = [
+  "quiet_window_safe",
+  "relationship_turn_safe",
+] as const;
+
 export const COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS = Object.freeze([
   {
     id: "quiet_window_safe" as const,
@@ -322,6 +329,25 @@ export const COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS = Object.freeze([
     reviewFocus: [
       "quiet 1:1 with no untriggered NPC",
       "emotion and relationship through scene-relevant detail, not a body-channel checklist",
+      "NORMAL user-authoring permission stays in force",
+      "3200+ soft aim, one call",
+    ],
+  },
+  {
+    id: "conflict_action_spatial_safe" as const,
+    targetResponseChars: 3200,
+    currentUserMessage: `OOC: 임무가 끝난 밤. 둘만 태형의 본부 숙소 앞 복도에 있다. 다른 인물은 없다. 둘 다 성인이다. 여기서부터 장면 계속.
+
+숙소 쪽 통로가 닫히기 시작한다. 렌은 한 걸음 옆으로 옮겨 열린 계단 쪽을 가리킨다. "태형, 지금 저쪽으로. 이 통로 닫히기 전에."`,
+    reviewFocus: [
+      "forward motion",
+      "environment grounding",
+      "physical/spatial continuity",
+      "concrete action",
+      "AI initiative",
+      "stall detection",
+      "character voice",
+      "do not invent unsupported shared history or a new NPC",
       "NORMAL user-authoring permission stays in force",
       "3200+ soft aim, one call",
     ],
@@ -342,31 +368,47 @@ export const COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS = Object.freeze([
   },
 ]);
 
-function casesFromOpening(openingAssistant: string): CanonicalQualificationCase[] {
+function selectSceneSeeds(
+  seedIds?: readonly CanonicalQualificationCaseId[]
+): typeof COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS[number][] {
+  if (!seedIds) return [...COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS];
+  return seedIds.map((id) => {
+    const seed = COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.find((row) => row.id === id);
+    if (!seed) throw new Error(`missing body-cue scene seed ${id}`);
+    return seed;
+  });
+}
+
+function casesFromOpening(
+  openingAssistant: string,
+  seedIds?: readonly CanonicalQualificationCaseId[]
+): CanonicalQualificationCase[] {
   const opening = openingAssistant.trim();
   if (!opening) throw new Error("body-cue review opening is empty");
   const history = [
     { role: "user" as const, content: "[채팅 시작]" },
     { role: "assistant" as const, content: opening },
   ];
-  return COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.map((seed) => ({
+  return selectSceneSeeds(seedIds).map((seed) => ({
     ...seed,
     history,
   }));
 }
 
 export function buildCommonProseBodyCueReviewCases(
-  rootDir = process.cwd()
+  rootDir = process.cwd(),
+  seedIds: readonly CanonicalQualificationCaseId[] = COMMON_PROSE_BODY_CUE_PAIRWISE_REVIEW_SEED_IDS
 ): CanonicalQualificationCase[] {
   const f = loadCanonicalRpQualificationFixture(rootDir);
-  return casesFromOpening(f.openingAssistant);
+  return casesFromOpening(f.openingAssistant, seedIds);
 }
 
-/** Same two user turns, but history is the supplied greeting rather than the 2026-08-25 dump. */
+/** Catalog user turns, with history from the supplied greeting rather than the 2026-08-25 dump. */
 export function buildGreetingBodyCueReviewCases(
-  greeting: string
+  greeting: string,
+  seedIds?: readonly CanonicalQualificationCaseId[]
 ): CanonicalQualificationCase[] {
-  return casesFromOpening(greeting);
+  return casesFromOpening(greeting, seedIds);
 }
 
 /**

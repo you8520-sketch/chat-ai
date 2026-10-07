@@ -18,8 +18,8 @@ if (report.liveProof.status !== "NOT_PROVIDED") {
 if (report.classification !== "NOT_REPRODUCIBLE" || report.precallReady) {
   throw new Error("default PRECALL report must stay NOT_REPRODUCIBLE");
 }
-if (report.twelveCallConcreteStimulusReady) {
-  throw new Error("12-call concrete stimulus is not ready; do not claim PRECALL_READY");
+if (!report.threeFixtureConcreteStimulusReady || !report.twelveCallConcreteStimulusReady) {
+  throw new Error("three fixtures must now resolve to concrete greeting scene seeds");
 }
 if (JSON.stringify(report).includes("historyProvenance") || JSON.stringify(report).includes("current_production_room_if_readable")) {
   throw new Error("live identity proof still carries mutable room-history provenance");

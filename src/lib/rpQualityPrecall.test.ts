@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
@@ -18,7 +19,10 @@ import {
 } from "@/lib/responseLengthConstants";
 import { resolveStreamCharCap } from "@/lib/responseLength";
 import { LIVE_DEPLOYED_ROW_PROOF } from "../../scripts/lib/mainRpBodyCuePreflight";
-import { COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS } from "../../scripts/lib/rpModelQualificationFixture";
+import {
+  COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS,
+  buildGreetingBodyCueReviewCases,
+} from "../../scripts/lib/rpModelQualificationFixture";
 import { RP_ACTIVE_MODEL_QUALITY_MODEL_IDS } from "../../scripts/lib/rpActiveModelQualityLive";
 import {
   RP_QUALITY_BENCHMARK_MODELS,
@@ -33,6 +37,8 @@ import {
   RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER,
   RP_QUALITY_PRECALL_MUTATION_POLICY,
   RP_QUALITY_PRECALL_PAID_STATUS,
+  RP_QUALITY_PRECALL_FIXTURE_IDS,
+  RP_QUALITY_PRECALL_FIXTURE_STIMULUS,
   RP_QUALITY_PRECALL_PLANNED_CALLS,
   RP_QUALITY_PRECALL_TARGET_SELECTOR,
   absentLiveProof,
@@ -78,6 +84,16 @@ function testLiveProofInput(
 }
 
 describe("rp quality PRECALL plan", () => {
+  it("1. PR branch is based on current origin/main after sync", () => {
+    const mergeBase = execFileSync("git", ["merge-base", "HEAD", "origin/main"], {
+      encoding: "utf8",
+    }).trim();
+    const originMain = execFileSync("git", ["rev-parse", "origin/main"], {
+      encoding: "utf8",
+    }).trim();
+    assert.equal(mergeBase, originMain);
+  });
+
   it("A. live identity proof no longer requires mutable current-room history", () => {
     assert.doesNotMatch(PRECALL_SRC, /historyProvenance|current_production_room_if_readable/);
     const verified = validateLiveProof(testLiveProofInput(), {
@@ -88,23 +104,60 @@ describe("rp quality PRECALL plan", () => {
     assert.equal("historyProvenance" in verified.input, false);
   });
 
-  it("B. fixture/history provenance belongs to the deterministic benchmark plan", () => {
+  it("B. A/B/C readiness is derived from the greeting scene-seed mapping", () => {
+    assert.deepEqual(Object.keys(RP_QUALITY_PRECALL_FIXTURE_STIMULUS), [
+      "A_relationship_emotion",
+      "B_conflict_action_spatial",
+      "C_continuity_progression",
+    ]);
+    assert.deepEqual([...RP_QUALITY_PRECALL_FIXTURE_IDS], Object.keys(RP_QUALITY_PRECALL_FIXTURE_STIMULUS));
+    assert.equal(RP_QUALITY_PRECALL_FIXTURE_STIMULUS.A_relationship_emotion, "quiet_window_safe");
+    assert.equal(
+      RP_QUALITY_PRECALL_FIXTURE_STIMULUS.B_conflict_action_spatial,
+      "conflict_action_spatial_safe"
+    );
+    assert.equal(RP_QUALITY_PRECALL_FIXTURE_STIMULUS.C_continuity_progression, "relationship_turn_safe");
     const fixtures = rpQualityPrecallFixtures();
+    assert.equal(fixtures.length, 3);
     assert.ok(fixtures.every((row) => row.historyOwner === PRECALL_GREETING_STIMULUS_OWNER));
-    const a = fixtures.find((row) => row.id === "A_relationship_emotion")!;
-    const c = fixtures.find((row) => row.id === "C_continuity_progression")!;
-    assert.equal(a.stimulusOwner, PRECALL_SCENE_SEED_OWNER);
-    assert.equal(a.stimulusId, "quiet_window_safe");
-    assert.equal(c.stimulusId, "relationship_turn_safe");
-    assert.ok(COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.some((seed) => seed.id === a.stimulusId));
-    assert.ok(COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.some((seed) => seed.id === c.stimulusId));
+    assert.ok(fixtures.every((row) => row.stimulusOwner === PRECALL_SCENE_SEED_OWNER));
+    assert.ok(
+      fixtures.every((row) => row.stimulusId === RP_QUALITY_PRECALL_FIXTURE_STIMULUS[row.id])
+    );
+    const b = COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.find(
+      (seed) => seed.id === "conflict_action_spatial_safe"
+    );
+    assert.ok(b);
+    for (const focus of [
+      "forward motion",
+      "environment grounding",
+      "physical/spatial continuity",
+      "concrete action",
+      "AI initiative",
+      "stall detection",
+      "character voice",
+    ]) {
+      assert.ok(b.reviewFocus.includes(focus), focus);
+    }
+    assert.ok(
+      COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.every((seed) =>
+        fixtures.some((row) => row.stimulusId === seed.id)
+      )
+    );
     assert.doesNotMatch(PRECALL_SRC, /오늘은 그냥 이렇게 있자/);
     assert.doesNotMatch(PRECALL_SRC, /나 오늘 여기 있을게/);
-    const readiness = concreteStimulusReadiness(fixtures);
+    assert.doesNotMatch(PRECALL_SRC, /이 통로 닫히기 전에/);
+    assert.doesNotMatch(PRECALL_SRC, /scenePolicyBenchmarkDataset|B16_ACTIVE_CONFLICT|한서린/);
+    assert.doesNotMatch(b.currentUserMessage, /한서린|\b민\b|B16/);
+    const greetingCases = buildGreetingBodyCueReviewCases("현재 인사 테스트");
+    assert.ok(greetingCases.some((row) => row.id === "conflict_action_spatial_safe"));
+    assert.ok(greetingCases.every((row) => row.history[1]?.content === "현재 인사 테스트"));
+    const readiness = concreteStimulusReadiness();
     assert.equal(readiness.concreteStimulus.A_relationship_emotion.stimulusReady, true);
-    assert.equal(readiness.concreteStimulus.B_conflict_action_spatial.stimulusReady, false);
+    assert.equal(readiness.concreteStimulus.B_conflict_action_spatial.stimulusReady, true);
     assert.equal(readiness.concreteStimulus.C_continuity_progression.stimulusReady, true);
-    assert.equal(readiness.twelveCallConcreteStimulusReady, false);
+    assert.equal(readiness.threeFixtureConcreteStimulusReady, true);
+    assert.equal(readiness.twelveCallConcreteStimulusReady, true);
   });
 
   it("C. personaName is required and validated", () => {
@@ -200,7 +253,8 @@ describe("rp quality PRECALL plan", () => {
     assert.equal(report.liveProof.status, "NOT_PROVIDED");
     assert.equal(report.classification, "NOT_REPRODUCIBLE");
     assert.equal(report.precallReady, false);
-    assert.equal(report.twelveCallConcreteStimulusReady, false);
+    assert.equal(report.threeFixtureConcreteStimulusReady, true);
+    assert.equal(report.twelveCallConcreteStimulusReady, true);
   });
 
   it("J. verified identity alone does not authorize a provider call", () => {
@@ -209,8 +263,9 @@ describe("rp quality PRECALL plan", () => {
       expectedDeploySha: CURRENT_DEPLOY_SHA,
     });
     assert.equal(report.liveProof.status, "VERIFIED");
-    assert.equal(report.precallReady, false);
-    assert.equal(report.classification, "NOT_REPRODUCIBLE");
+    assert.equal(report.threeFixtureConcreteStimulusReady, true);
+    assert.equal(report.precallReady, true);
+    assert.equal(report.classification, "PRECALL_READY");
     const denied = startRpQualityPrecallPaidExecution({
       liveProofInput: testLiveProofInput(),
       expectedDeploySha: CURRENT_DEPLOY_SHA,
