@@ -61,13 +61,15 @@ import {
 } from "@/lib/publishedModelPricing";
 import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "@/lib/chatModels";
 import { listProviderModelDiscoveries } from "@/lib/providerModelDiscovery";
 
-const GEMINI = CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL;
+const GEMINI = GEMINI_38_FLASH_MODEL;
+const HISTORICAL_GEMINI_31 = CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL;
 const DEEPSEEK = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 const SOL = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
 const FIXED_NOW = new Date("2026-09-20T03:00:00.000Z");
@@ -113,16 +115,16 @@ before(() => {
 
 describe("current procurement provider ownership", () => {
   it("derives active Main RP provider from the canonical picker registry", () => {
-    assert.equal(getModelPricingPolicy("gemini-3.1-pro-preview")?.provider, "openrouter");
-    assert.equal(getModelPricingPolicy("gemini-3.7-flash")?.provider, "openrouter");
     assert.equal(getModelPricingPolicy("gemini-3.8-flash")?.provider, "openrouter");
+    assert.equal(getModelPricingPolicy("gemini-3.1-pro-preview")?.provider, "cheaperinference");
+    assert.equal(getModelPricingPolicy("gemini-3.7-flash")?.provider, "cheaperinference");
     assert.equal(getModelPricingPolicy("deepseek-v4.1-flash")?.provider, "cheaperinference");
     assert.equal(getModelPricingPolicy(SOL)?.provider, "cheaperinference");
   });
 
   it("keeps CI snapshot provenance on CheaperInference even when examining CI evidence for an OpenRouter-routed model", () => {
-    const policy = getModelPricingPolicy(GEMINI)!;
-    const catalog = seedCatalog(GEMINI, {
+    const policy = getModelPricingPolicy(HISTORICAL_GEMINI_31)!;
+    const catalog = seedCatalog(HISTORICAL_GEMINI_31, {
       inputUsdPerMillion: 0.8,
       outputUsdPerMillion: 4.8,
       referenceInputUsdPerMillion: 2,
