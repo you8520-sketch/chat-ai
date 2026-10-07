@@ -20,14 +20,18 @@ import {
   type SelectedAIOptionMeta,
 } from "@/lib/chatModels";
 import {
+  adaptCheaperInferenceChatBody,
   buildCheaperInferenceChatCompletionsUrl,
+  CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
 import { MAX_MAIN_RP_EXTERNAL_PROVIDER_ATTEMPTS } from "@/lib/deepseekProviderFailover";
-import { MAIN_RP_OBSERVABILITY_MODEL_IDS } from "@/lib/mainRpPricingObservability";
+import { MAIN_RP_OBSERVABILITY_MODEL_IDS } from "@/lib/mainRpObservabilityModelIds";
 import { isMockApiMode } from "@/lib/mockApiMode";
-import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
+import { buildOpenRouterRequestBody } from "@/lib/openRouterClient";
 import {
+  OPENROUTER_CHAT_COMPLETIONS_URL,
+  resolveMainRpOpenRouterRoutePolicy,
   resolveMainRpPrimaryWireModelId,
   resolveOpenRouterApiKey,
 } from "@/lib/openRouterConfig";
@@ -60,8 +64,9 @@ import { trpgProviderRequestContract } from "@/lib/trpg/gmClient";
  * Read-only projection of the effective runtime configuration.
  *
  * This module owns no runtime value. Every field is read from the live
- * canonical owner (registry, wire assembler, request builder, policy
- * resolver). Credentials are projected as booleans only.
+ * canonical owner (registry, request builder, policy resolver).
+ * It does not import openRouterAdult or @/lib/points so inspector reads
+ * do not trigger the Muse snapshot FX refresh. Credentials are booleans only.
  */
 
 type TransportProvider = "openrouter" | "cheaperinference";
@@ -151,7 +156,6 @@ export type EffectiveRuntimeSettingsProjection = {
     applicationProseCeilingChars: number | null;
     longerOutputPreserved: boolean;
     wireMaxTokensSent: boolean;
-    chargingBasis: "actual_usage";
   };
   historical: {
     owner: string;
@@ -228,22 +232,6 @@ function projectPublishedPricing(
   return null;
 }
 
-function transportForRegistryProvider(
-  provider: SelectedAIOptionMeta["provider"]
-): TransportProvider {
-  switch (provider) {
-    case "cheaperinference":
-      return "cheaperinference";
-    case "openrouter":
-    case "openai":
-      return "openrouter";
-    default: {
-      const _exhaustive: never = provider;
-      return _exhaustive;
-    }
-  }
-}
-
 function promptCacheAffinity(
   transport: TransportProvider,
   body: Record<string, unknown>
@@ -273,21 +261,35 @@ function projectMainRpModel(
 ): MainRpModelRuntimeRow {
   const registryProvider = selectedAIProvider(option.id);
   const wireModelId = resolveMainRpPrimaryWireModelId(option.id);
-  const assembled = assemblePrimaryRpRequest({
-    system: PROBE_SYSTEM,
-    history: [{ role: "user", content: PROBE_USER }],
-    modelId: wireModelId,
-    targetResponseChars: DEFAULT_TARGET_RESPONSE_CHARS,
-    messageOpts: {
-      sessionId: PROBE_SESSION_ID,
-      ...(registryProvider === "cheaperinference"
-        ? { transportProvider: "cheaperinference" as const }
-        : {}),
-    },
-    stream: true,
-  });
-  const body = assembled.requestBody;
-  const transportProvider = assembled.transport.provider;
+  const transportProvider: TransportProvider =
+    registryProvider === "cheaperinference" ? "cheaperinference" : "openrouter";
+  const requestBodyBeforeAdapt = buildOpenRouterRequestBody(
+    wireModelId,
+    [
+      { role: "system", content: PROBE_SYSTEM },
+      { role: "user", content: PROBE_USER },
+    ],
+    true,
+    DEFAULT_TARGET_RESPONSE_CHARS,
+    PROBE_SESSION_ID
+  ) as Record<string, unknown>;
+  if (transportProvider === "openrouter") {
+    const routePolicy = resolveMainRpOpenRouterRoutePolicy(wireModelId);
+    if (routePolicy) {
+      requestBodyBeforeAdapt.provider = routePolicy.provider;
+      requestBodyBeforeAdapt.service_tier = routePolicy.serviceTier;
+    }
+  }
+  const body =
+    transportProvider === "cheaperinference"
+      ? adaptCheaperInferenceChatBody(requestBodyBeforeAdapt, {
+          deepSeekAdultHandoffTrueOff: false,
+        })
+      : requestBodyBeforeAdapt;
+  const endpoint =
+    transportProvider === "cheaperinference"
+      ? CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL
+      : OPENROUTER_CHAT_COMPLETIONS_URL;
   const billingPhase = resolvePublishedBillingPhase({
     deliveredModelId: wireModelId,
     selectedModelId: option.id,
@@ -300,7 +302,7 @@ function projectMainRpModel(
     recommended: "recommended" in option && option.recommended === true,
     registryProvider,
     transportProvider,
-    endpointHost: endpointHost(assembled.transport.endpoint),
+    endpointHost: endpointHost(endpoint),
     wireModelId: String(body.model),
     providerRouting: body.provider ?? null,
     serviceTier: body.service_tier ?? null,
@@ -364,14 +366,13 @@ function projectLength(mainRp: MainRpModelRuntimeRow[]): EffectiveRuntimeSetting
       clampResponseLength(longProbe).length === longProbe.length &&
       !isOverResponseTarget(longProbe),
     wireMaxTokensSent: mainRp.some((row) => row.wireMaxTokens != null),
-    chargingBasis: "actual_usage",
   };
 }
 
 function projectHistorical(): EffectiveRuntimeSettingsProjection["historical"] {
   const active = new Set<string>(MAIN_RP_MODEL_IDS);
   return {
-    owner: "mainRpPricingObservability.MAIN_RP_OBSERVABILITY_MODEL_IDS + chatModels.resolveSelectedAI",
+    owner: "mainRpObservabilityModelIds.MAIN_RP_OBSERVABILITY_MODEL_IDS + chatModels.resolveSelectedAI",
     retiredObservableModelIds: MAIN_RP_OBSERVABILITY_MODEL_IDS.filter((id) => !active.has(id)).map(
       (modelId) => ({
         modelId,
@@ -405,7 +406,7 @@ export function buildEffectiveRuntimeSettingsProjection(
     generatedAt: now.toISOString(),
     mutationSupported: false,
     mainRp: {
-      owner: "chatModels.MAIN_RP_USER_SELECTABLE_OPTIONS → openRouterConfig.resolveMainRpPrimaryWireModelId → openRouterAdult.assemblePrimaryRpRequest",
+      owner: "chatModels.MAIN_RP_USER_SELECTABLE_OPTIONS → openRouterConfig.resolveMainRpPrimaryWireModelId → openRouterClient.buildOpenRouterRequestBody + resolveMainRpOpenRouterRoutePolicy + adaptCheaperInferenceChatBody",
       activeModelIds: [...MAIN_RP_MODEL_IDS],
       defaultModelId: DEFAULT_SELECTED_AI,
       models: mainRpModels,

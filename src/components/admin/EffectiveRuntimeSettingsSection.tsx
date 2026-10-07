@@ -157,8 +157,8 @@ export function EffectiveRuntimeSettingsSection({
           <dd className="mt-1">{String(length.longerOutputPreserved)}</dd>
         </div>
         <div className="rounded-lg bg-black/20 p-2">
-          <dt className="text-[11px] text-zinc-500">charging</dt>
-          <dd className="mt-1">{length.chargingBasis}</dd>
+          <dt className="text-[11px] text-zinc-500">wire max_tokens sent</dt>
+          <dd className="mt-1">{String(length.wireMaxTokensSent)}</dd>
         </div>
       </dl>
       <p className="mt-1 text-[11px] text-zinc-500">{length.uiLabel}</p>
