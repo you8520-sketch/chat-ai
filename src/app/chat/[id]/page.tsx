@@ -64,6 +64,7 @@ import { filterOutMessageIds, purgeOrphanUserMessages } from "@/lib/chatMessageH
 import { recoverStaleInFlightAssistantMessages } from "@/lib/streamingPersistence";
 import { takeRecentTurns, takeRecentTurnsIncludingMessage } from "@/lib/chatMessagePagination";
 import { createChatSession } from "@/lib/chatSessionCreate";
+import { resolveChatPageGetDecision } from "@/lib/chatPageGetSession";
 import { resolveNarrativePov } from "@/lib/narrativePov";
 import { parseUserAuthoringLevel } from "@/lib/userAuthoringPolicy";
 import { parseJsxRuntimeComponentCatalog } from "@/lib/jsxComponent/catalog";
@@ -183,44 +184,19 @@ export default async function ChatPage({
   const personaSecretSettings = getPersonaSecretSettingsCapability(user.id);
   const notePresetList = listUserNotePresets(user.id);
 
-  let chat: ChatRow | undefined;
-
-  if (!startFresh) {
-    if (chatParam) {
-      const requestedId = Number(chatParam);
-      if (requestedId) {
-        chat = db
-          .prepare(
-            "SELECT id, mode, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_authoring_level, auto_progression_authoring_level, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE id=? AND user_id=? AND character_id=?"
-          )
-          .get(requestedId, user.id, c.id) as ChatRow | undefined;
-      }
-    }
-
-    if (!chat) {
-      chat = db
-        .prepare(
-          "SELECT id, mode, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_authoring_level, auto_progression_authoring_level, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE user_id=? AND character_id=? ORDER BY id DESC LIMIT 1"
-        )
-        .get(user.id, c.id) as ChatRow | undefined;
-    }
+  const sessionDecision = resolveChatPageGetDecision({
+    userId: user.id,
+    characterId: c.id,
+    chatParam,
+    freshParam,
+  });
+  if (sessionDecision.kind === "unknown-chat") {
+    notFound();
   }
-
-  if (chat && !startFresh) {
-    const requestedId = chatParam ? Number(chatParam) : 0;
-    if (requestedId !== chat.id) {
-      redirect(`/chat/${id}?chat=${chat.id}`);
-    }
+  if (sessionDecision.kind === "redirect-existing") {
+    redirect(`/chat/${id}?chat=${sessionDecision.chatId}`);
   }
-
-  if (!startFresh && chatParam) {
-    const requestedId = Number(chatParam);
-    if (requestedId && !chat) {
-      notFound();
-    }
-  }
-
-  if (startFresh || !chat) {
+  if (sessionDecision.kind === "create-missing-or-fresh") {
     const bootstrapPrefs = resolveInitialUserChatPrefs({
       serverRaw: userProfileRow.chat_prefs,
       chatTargetResponseChars: undefined,
@@ -248,6 +224,12 @@ export default async function ChatPage({
     });
     redirect(`/chat/${id}?chat=${newChatId}`);
   }
+
+  const chat = db
+    .prepare(
+      "SELECT id, mode, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_authoring_level, auto_progression_authoring_level, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name, adult_handoff_enabled FROM chats WHERE id=? AND user_id=? AND character_id=?"
+    )
+    .get(sessionDecision.chatId, user.id, c.id) as ChatRow | undefined;
 
   if (!chat) notFound();
 
