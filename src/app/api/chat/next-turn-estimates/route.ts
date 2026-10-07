@@ -5,13 +5,19 @@ import { getDb } from "@/lib/db";
 import {
   NEXT_TURN_ESTIMATE_VERSION,
   type NextTurnEstimateRow,
+  type NextTurnProviderInputCalibrationSample,
 } from "@/lib/mainRpNextTurnEstimate";
 import { resolveMainRpNextTurnPickerEstimates } from "@/services/mainRpNextTurnEstimate";
 
-function nextTurnAdminCalibration(row: NextTurnEstimateRow) {
+function nextTurnAdminCalibration(
+  row: NextTurnEstimateRow,
+  sample?: NextTurnProviderInputCalibrationSample | null
+) {
   return {
     localAssembledInputTokens: row.localAssembledInputTokens,
-    priorApiInputTokens: row.actualBillableInputTokens,
+    mainRpBillableInputTokens: row.actualBillableInputTokens,
+    aggregateApiInputTokens: sample?.aggregateApiInputTokens ?? null,
+    syncAuxInputTokens: sample?.syncAuxInputTokens ?? null,
     priorAssembledInputTokens: row.priorAssembledInputTokens,
     calibrationSource: row.calibrationSource,
     predictedBillableInputTokens: row.predictedBillableInputTokens,
@@ -54,7 +60,14 @@ export async function POST(req: Request) {
     ? Object.fromEntries(
         Object.entries(result.estimates).map(([modelId, row]) => [
           modelId,
-          row ? nextTurnAdminCalibration(row) : null,
+          row
+            ? nextTurnAdminCalibration(
+                row,
+                result.providerInputCalibrationByModel[
+                  modelId as keyof typeof result.providerInputCalibrationByModel
+                ] ?? null
+              )
+            : null,
         ])
       )
     : undefined;

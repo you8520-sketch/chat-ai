@@ -45,10 +45,13 @@ function parseUsage(raw: string | null): Usage | null {
   }
 }
 
-/** Canonical billable-output owner for next-turn output history. */
+/** Canonical Main RP billable-output owner for next-turn output history. */
 export function usageOutputTokens(usage: Usage | null, modelId: string): number | null {
   if (!usage) return null;
-  const total = usage.apiOutputTokens ?? usage.output ?? 0;
+  if (typeof usage.output === "number" && Number.isFinite(usage.output) && usage.output > 0) {
+    return usage.output;
+  }
+  const total = usage.apiOutputTokens ?? 0;
   const reasoning = usage.apiReasoningOutputTokens ?? 0;
   if (total > 0) {
     const billable = billableOpenRouterOutputTokens(modelId, total, reasoning);
@@ -122,9 +125,12 @@ function calibrationTurnFields(row: EstimateMessageRow) {
     fallbackAttempted: usage?.adultRouting?.fallbackAttempted === true,
     apiCallCount: usage?.apiCallCount ?? null,
     lengthRecoveryPasses: usage?.lengthRecoveryPasses ?? null,
-    mainRpStageCount: usage?.stages?.length ?? null,
+    stages: usage?.stages ?? null,
+    usageInputTokens: usage?.input ?? null,
     apiInputTokens: usage?.apiInputTokens ?? null,
     assembledInputTokens: usage?.assembledInputTokens ?? null,
+    statusWidgetExtractCallCount: usage?.statusWidgetExtract?.callCount ?? null,
+    statusWidgetExtractInputTokens: usage?.statusWidgetExtract?.input ?? null,
   };
 }
 
@@ -156,14 +162,17 @@ export function readMainRpNextTurnOutputHistory(
 
 function estimatesFromRoomRows(
   rows: EstimateMessageRow[],
-  promptTokensByModel: Partial<Record<SelectedAI, number>>
+  promptTokensByModel: Partial<Record<SelectedAI, number>>,
+  providerInputCalibrationByModel: Partial<
+    Record<SelectedAI, NextTurnProviderInputCalibrationSample>
+  >
 ): NextTurnEstimateMap {
   return computeMainRpNextTurnEstimates({
     promptTokensByModel,
     lastVisibleAssistantChars: readLastVisibleAssistantChars(rows),
     observedCharsPerTokenByModel: readObservedCharsPerTokenByModel(rows),
     recentBillableOutputTokensByModel: readMainRpNextTurnOutputHistory(rows),
-    providerInputCalibrationByModel: readMainRpNextTurnProviderInputCalibration(rows),
+    providerInputCalibrationByModel,
     effectiveKrwPerUsd: getEffectiveKrwPerUsd(),
   });
 }
@@ -182,9 +191,13 @@ export function resolveMainRpNextTurnPublishedEstimateForModel(opts: {
        FROM messages WHERE chat_id=? ORDER BY id ASC`
     )
     .all(opts.chatId) as EstimateMessageRow[];
-  const estimates = estimatesFromRoomRows(rows, {
-    [opts.modelId]: opts.promptTokens,
-  });
+  const estimates = estimatesFromRoomRows(
+    rows,
+    {
+      [opts.modelId]: opts.promptTokens,
+    },
+    readMainRpNextTurnProviderInputCalibration(rows)
+  );
   const points = estimates[opts.modelId]?.displayPoints;
   return typeof points === "number" && Number.isSafeInteger(points) && points > 0
     ? points
@@ -196,6 +209,9 @@ export type MainRpNextTurnEstimateResult = {
   estimates: NextTurnEstimateMap;
   displayPoints: Partial<Record<SelectedAI, number>>;
   lastVisibleAssistantChars: number | null;
+  providerInputCalibrationByModel: Partial<
+    Record<SelectedAI, NextTurnProviderInputCalibrationSample>
+  >;
   source: "assembled_snapshot";
 };
 
@@ -219,6 +235,7 @@ export async function resolveMainRpNextTurnPickerEstimates(opts: {
       estimates: {},
       displayPoints: {},
       lastVisibleAssistantChars: null,
+      providerInputCalibrationByModel: {},
       source: "assembled_snapshot",
     };
   }
@@ -231,12 +248,19 @@ export async function resolveMainRpNextTurnPickerEstimates(opts: {
     .all(opts.chatId) as EstimateMessageRow[];
 
   const lastVisibleAssistantChars = readLastVisibleAssistantChars(rows);
-  const estimates = estimatesFromRoomRows(rows, promptTokensByModel);
+  const providerInputCalibrationByModel =
+    readMainRpNextTurnProviderInputCalibration(rows);
+  const estimates = estimatesFromRoomRows(
+    rows,
+    promptTokensByModel,
+    providerInputCalibrationByModel
+  );
   return {
     chatId: opts.chatId,
     estimates,
     displayPoints: nextTurnEstimateDisplayMap(estimates),
     lastVisibleAssistantChars,
+    providerInputCalibrationByModel,
     source: "assembled_snapshot",
   };
 }

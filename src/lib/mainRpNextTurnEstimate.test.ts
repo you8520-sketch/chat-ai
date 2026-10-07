@@ -15,8 +15,7 @@ import {
   computeMainRpNextTurnEstimates,
   describeNextTurnOutputBasis,
   estimateNextTurnOutputTokens,
-  isHtmlFlashOnlyInflatedApiCallCount,
-  isMainRpMultiCallContamination,
+  firstNextTurnCalibrationRejection,
   isUsableOutputCalibrationSource,
   isUsableOutputHistorySource,
   isUsableProviderInputCalibrationSource,
@@ -400,6 +399,8 @@ function solValidInputSource(overrides: Record<string, unknown> = {}) {
     fallbackAttempted: false,
     apiCallCount: 1,
     lengthRecoveryPasses: 0,
+    stages: [{ stage: "primary", input: PREV_PROVIDER }],
+    usageInputTokens: PREV_PROVIDER,
     apiInputTokens: PREV_PROVIDER,
     assembledInputTokens: PREV_ASSEMBLED,
     ...overrides,
@@ -521,6 +522,7 @@ describe("provider-input next-turn calibration", () => {
     );
     const cappedPicked = pickLatestProviderInputCalibrationByModel([
       solValidInputSource({
+        usageInputTokens: 40_000,
         apiInputTokens: 40_000,
         assembledInputTokens: PREV_ASSEMBLED,
       }),
@@ -528,6 +530,7 @@ describe("provider-input next-turn calibration", () => {
     assert.deepEqual(cappedPicked[SOL], {
       actualBillableInputTokens: PREV_ASSEMBLED,
       assembledInputTokens: PREV_ASSEMBLED,
+      aggregateApiInputTokens: 40_000,
     });
     assert.match(ESTIMATE_SOURCE, /predictedBillableInputTokens/);
     assert.match(ESTIMATE_SOURCE, /user-charge forecast/);
@@ -552,33 +555,50 @@ describe("provider-input next-turn calibration", () => {
     assert.match(TOKEN_ESTIMATE_SOURCE, /text\.length \* 0\.9/);
   });
 
-  it("E multi-call and length-recovery turns cannot be a calibration source", () => {
+  it("E Main RP supplements and unclassified multi-call cannot be a calibration source", () => {
     assert.equal(isUsableProviderInputCalibrationSource(solValidInputSource()), true);
     assert.equal(
-      isUsableProviderInputCalibrationSource(solValidInputSource({ apiCallCount: 2 })),
+      isUsableProviderInputCalibrationSource(solValidInputSource({ apiCallCount: 2, stages: [] })),
       false
     );
     assert.equal(
-      isHtmlFlashOnlyInflatedApiCallCount(
-        solValidInputSource({ apiCallCount: 2, mainRpStageCount: 1 })
+      firstNextTurnCalibrationRejection(
+        solValidInputSource({ apiCallCount: 2, stages: [] })
+      ),
+      "unclassified_multi_call_without_stages"
+    );
+    assert.equal(
+      isUsableProviderInputCalibrationSource(
+        solValidInputSource({
+          apiCallCount: 2,
+          stages: [{ stage: "primary", input: PREV_PROVIDER }],
+        })
       ),
       true
     );
     assert.equal(
-      isMainRpMultiCallContamination(solValidInputSource({ apiCallCount: 2, mainRpStageCount: 1 })),
+      isUsableProviderInputCalibrationSource(
+        solValidInputSource({
+          apiCallCount: 2,
+          stages: [
+            { stage: "primary", input: PREV_PROVIDER },
+            { stage: "unknown-retry", input: 8_000 },
+          ],
+        })
+      ),
       false
     );
     assert.equal(
-      isUsableProviderInputCalibrationSource(
-        solValidInputSource({ apiCallCount: 2, mainRpStageCount: 1 })
+      firstNextTurnCalibrationRejection(
+        solValidInputSource({
+          apiCallCount: 2,
+          stages: [
+            { stage: "primary", input: PREV_PROVIDER },
+            { stage: "unknown-retry", input: 8_000 },
+          ],
+        })
       ),
-      true
-    );
-    assert.equal(
-      isUsableProviderInputCalibrationSource(
-        solValidInputSource({ apiCallCount: 2, mainRpStageCount: 2 })
-      ),
-      false
+      "unclassified_main_rp_multi_stage"
     );
     assert.equal(
       isUsableProviderInputCalibrationSource(
@@ -622,18 +642,28 @@ describe("provider-input next-turn calibration", () => {
     );
     assert.equal(
       isUsableProviderInputCalibrationSource(
-        solValidInputSource({ apiInputTokens: null })
+        solValidInputSource({ usageInputTokens: null })
       ),
       false
     );
     const picked = pickLatestProviderInputCalibrationByModel([
       solValidInputSource(),
-      solValidInputSource({ apiCallCount: 3, apiInputTokens: 9_999 }),
-      solValidInputSource({ lengthRecoveryPasses: 2, apiInputTokens: 8_888 }),
+      solValidInputSource({
+        apiCallCount: 3,
+        usageInputTokens: 9_999,
+        apiInputTokens: 9_999,
+        stages: [],
+      }),
+      solValidInputSource({
+        lengthRecoveryPasses: 2,
+        usageInputTokens: 8_888,
+        apiInputTokens: 8_888,
+      }),
     ]);
     assert.deepEqual(picked[SOL], {
       actualBillableInputTokens: PREV_PROVIDER,
       assembledInputTokens: PREV_ASSEMBLED,
+      aggregateApiInputTokens: PREV_PROVIDER,
     });
   });
 
@@ -665,17 +695,27 @@ describe("provider-input next-turn calibration", () => {
 
   it("G regeneration and continuation skip contaminated later samples and keep the latest valid same-model ratio", () => {
     const picked = pickLatestProviderInputCalibrationByModel([
-      solValidInputSource({ apiInputTokens: 12_000, assembledInputTokens: 30_000 }),
+      solValidInputSource({
+        usageInputTokens: 12_000,
+        apiInputTokens: 12_000,
+        assembledInputTokens: 30_000,
+      }),
       solValidInputSource(),
       solValidInputSource({
         apiCallCount: 2,
+        usageInputTokens: 50_000,
         apiInputTokens: 50_000,
         assembledInputTokens: 36_000,
+        stages: [
+          { stage: "primary", input: 20_000 },
+          { stage: "narrative-length-continuation", input: 30_000 },
+        ],
       }),
     ]);
     assert.deepEqual(picked[SOL], {
       actualBillableInputTokens: PREV_PROVIDER,
       assembledInputTokens: PREV_ASSEMBLED,
+      aggregateApiInputTokens: PREV_PROVIDER,
     });
     const regenEstimate = solNextTurn({
       assembled: PREV_ASSEMBLED + 40,
@@ -707,11 +747,13 @@ describe("provider-input next-turn calibration", () => {
     const admitAt = SERVICE_SOURCE.indexOf(
       "resolveMainRpNextTurnPublishedEstimateForModel"
     );
-    const fromRowsAt = SERVICE_SOURCE.indexOf("estimatesFromRoomRows(rows");
+    const fromRowsAt = SERVICE_SOURCE.indexOf("estimatesFromRoomRows(");
     assert.ok(pickerAt > 0);
     assert.ok(admitAt > 0);
-    assert.ok(SERVICE_SOURCE.includes("estimatesFromRoomRows(rows, {"));
-    assert.ok(SERVICE_SOURCE.includes("estimatesFromRoomRows(rows, promptTokensByModel)"));
+    assert.ok(SERVICE_SOURCE.includes("estimatesFromRoomRows("));
+    assert.ok(SERVICE_SOURCE.includes("[opts.modelId]: opts.promptTokens"));
+    assert.ok(SERVICE_SOURCE.includes("estimatesFromRoomRows("));
+    assert.ok(SERVICE_SOURCE.includes("promptTokensByModel,"));
     assert.match(PAGE_SOURCE, /resolveMainRpNextTurnPickerEstimates/);
     assert.match(ROUTE_SOURCE, /resolveMainRpNextTurnPickerEstimates/);
     assert.match(CHAT_ROUTE_SOURCE, /resolveMainRpNextTurnPublishedEstimateForModel/);
@@ -843,7 +885,9 @@ describe("same-model output-history forecast", () => {
       true
     );
     assert.equal(
-      isUsableOutputHistorySource(solValidInputSource({ apiCallCount: 2, billableOutputTokens: 5000 })),
+      isUsableOutputHistorySource(
+        solValidInputSource({ apiCallCount: 2, stages: [], billableOutputTokens: 5000 })
+      ),
       false
     );
     assert.equal(
@@ -856,7 +900,7 @@ describe("same-model output-history forecast", () => {
       solValidInputSource({ billableOutputTokens: 2700 }),
       solValidInputSource({ billableOutputTokens: 2750 }),
       solValidInputSource({ billableOutputTokens: 2780 }),
-      solValidInputSource({ apiCallCount: 2, billableOutputTokens: 9000 }),
+      solValidInputSource({ apiCallCount: 2, stages: [], billableOutputTokens: 9000 }),
       {
         ...solValidInputSource({ billableOutputTokens: 4000 }),
         selectedAI: FLASH,

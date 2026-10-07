@@ -12,10 +12,11 @@ import { CHEAPER_INFERENCE_GPT_61_SOL_MODEL } from "@/lib/chatModels";
 import type { Usage } from "@/lib/chatUsage";
 import {
   computeMainRpNextTurnEstimates,
-  isHtmlFlashOnlyInflatedApiCallCount,
-  isMainRpMultiCallContamination,
+  firstNextTurnCalibrationRejection,
   isUsableProviderInputCalibrationSource,
 } from "@/lib/mainRpNextTurnEstimate";
+import { NARRATIVE_LENGTH_CONTINUATION_STAGE } from "@/lib/narrativeLengthContinuation";
+import { SERVER_UNDER_LENGTH_RECOVERY_STAGE } from "@/lib/serverUnderLengthRecovery";
 import {
   readMainRpNextTurnProviderInputCalibration,
   type EstimateMessageRow,
@@ -97,9 +98,12 @@ function calibrationInputFromUsage(
     fallbackAttempted: usage.adultRouting?.fallbackAttempted === true,
     apiCallCount: usage.apiCallCount ?? null,
     lengthRecoveryPasses: usage.lengthRecoveryPasses ?? null,
-    mainRpStageCount: usage.stages?.length ?? null,
+    stages: usage.stages ?? null,
+    usageInputTokens: usage.input ?? null,
     apiInputTokens: usage.apiInputTokens ?? null,
     assembledInputTokens: usage.assembledInputTokens ?? null,
+    statusWidgetExtractCallCount: usage.statusWidgetExtract?.callCount ?? null,
+    statusWidgetExtractInputTokens: usage.statusWidgetExtract?.input ?? null,
   };
 }
 
@@ -142,18 +146,14 @@ function rejectionMatrix(usage: Usage) {
       pass: input.fallbackAttempted !== true,
     },
     {
-      predicate: "not Main RP multi-call contamination",
+      predicate: "no Main RP supplement or unclassified multi-call",
       stored: {
         apiCallCount: input.apiCallCount,
-        mainRpStageCount: input.mainRpStageCount,
+        stages: input.stages,
         lengthRecoveryPasses: input.lengthRecoveryPasses,
       },
-      pass: !isMainRpMultiCallContamination(input),
-      reason: isHtmlFlashOnlyInflatedApiCallCount(input)
-        ? "html-flash-only extra receipt call"
-        : (input.apiCallCount ?? 1) <= 1
-          ? "single call or missing count defaults to 1"
-          : "multi-call without single main stage",
+      pass: firstNextTurnCalibrationRejection(input) == null,
+      reason: firstNextTurnCalibrationRejection(input),
     },
     {
       predicate: "lengthRecoveryPasses === 0",
@@ -161,9 +161,9 @@ function rejectionMatrix(usage: Usage) {
       pass: (input.lengthRecoveryPasses ?? 0) === 0,
     },
     {
-      predicate: "finite apiInputTokens",
-      stored: input.apiInputTokens,
-      pass: typeof input.apiInputTokens === "number" && input.apiInputTokens > 0,
+      predicate: "finite usage.input Main RP billable tokens",
+      stored: input.usageInputTokens,
+      pass: typeof input.usageInputTokens === "number" && input.usageInputTokens > 0,
     },
     {
       predicate: "finite assembledInputTokens",
@@ -209,7 +209,9 @@ describe("production-shape Sol 14312/2780/4213 persist + eligibility", () => {
   it("documents the live persist owner still sanitizes then restores calibration fields", () => {
     assert.match(CHAT_ROUTE_SOURCE, /attachNextTurnCalibrationFieldsForPersistence/);
     assert.match(CHAT_ROUTE_SOURCE, /sanitizeUsageForPublicReceipt\(usageRecord\)/);
-    assert.match(ESTIMATE_SOURCE, /isHtmlFlashOnlyInflatedApiCallCount/);
+    assert.match(ESTIMATE_SOURCE, /firstNextTurnCalibrationRejection/);
+    assert.doesNotMatch(ESTIMATE_SOURCE, /isHtmlFlashOnlyInflatedApiCallCount/);
+    assert.doesNotMatch(ESTIMATE_SOURCE, /isMainRpMultiCallContamination/);
   });
 
   it("RED: pre-fix non-admin persist drops assembledInputTokens and forecasts ~277P", () => {
@@ -238,7 +240,7 @@ describe("production-shape Sol 14312/2780/4213 persist + eligibility", () => {
     assert.equal(input.assembledInputTokens, ASSEMBLED);
     assert.equal(input.estimated, false);
     assert.equal((input.apiCallCount ?? 1) > 1, true);
-    assert.equal(isHtmlFlashOnlyInflatedApiCallCount(input), true);
+    assert.equal(firstNextTurnCalibrationRejection(input), null);
     assert.notEqual(
       firstFail(rejectionMatrix(admin))?.predicate,
       "finite assembledInputTokens"
@@ -262,6 +264,7 @@ describe("production-shape Sol 14312/2780/4213 persist + eligibility", () => {
     assert.deepEqual(sample, {
       actualBillableInputTokens: API_IN,
       assembledInputTokens: ASSEMBLED,
+      aggregateApiInputTokens: API_IN,
     });
     const row = solEstimate(persisted);
     assert.ok(row);
@@ -279,8 +282,7 @@ describe("production-shape Sol 14312/2780/4213 persist + eligibility", () => {
     const admin = productionInternalUsage();
     const matrix = rejectionMatrix(admin);
     assert.equal(firstFail(matrix), null);
-    assert.equal(isHtmlFlashOnlyInflatedApiCallCount(calibrationInputFromUsage(admin)), true);
-    assert.equal(isMainRpMultiCallContamination(calibrationInputFromUsage(admin)), false);
+    assert.equal(firstNextTurnCalibrationRejection(calibrationInputFromUsage(admin)), null);
     const row = solEstimate(admin);
     assert.equal(row?.calibrationSource, "same_model_billable_input_ratio");
     assert.ok((row?.displayPoints ?? 0) >= 159 && (row?.displayPoints ?? 0) <= 163);
@@ -290,16 +292,19 @@ describe("production-shape Sol 14312/2780/4213 persist + eligibility", () => {
     const continuation = productionInternalUsage();
     continuation.stages = [
       { stage: "primary", model: SOL, input: API_IN, output: 1000, cost: 80 },
-      { stage: "narrative-length-continuation", model: SOL, input: 8000, output: 1780, cost: 81 },
+      { stage: NARRATIVE_LENGTH_CONTINUATION_STAGE, model: SOL, input: 8000, output: 1780, cost: 81 },
     ];
     assert.equal(isUsableProviderInputCalibrationSource(calibrationInputFromUsage(continuation)), false);
-    assert.equal(isMainRpMultiCallContamination(calibrationInputFromUsage(continuation)), true);
+    assert.equal(
+      firstNextTurnCalibrationRejection(calibrationInputFromUsage(continuation)),
+      "narrative_length_continuation"
+    );
 
     const recovery = productionInternalUsage();
     recovery.lengthRecoveryPasses = 1;
     recovery.stages = [
       { stage: "primary", model: SOL, input: API_IN, output: 400, cost: 40 },
-      { stage: "server-under-length-recovery", model: SOL, input: API_IN, output: 2380, cost: 121 },
+      { stage: SERVER_UNDER_LENGTH_RECOVERY_STAGE, model: SOL, input: API_IN, output: 2380, cost: 121 },
     ];
     assert.equal(isUsableProviderInputCalibrationSource(calibrationInputFromUsage(recovery)), false);
 

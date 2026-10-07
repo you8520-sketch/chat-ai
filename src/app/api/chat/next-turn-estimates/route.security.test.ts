@@ -24,6 +24,12 @@ describe("next-turn-estimates endpoint security", () => {
     assert.match(ROUTE_SOURCE, /canShowFullBillingReceipt/);
     assert.match(ROUTE_SOURCE, /priorAssembledInputTokens/);
     assert.match(ROUTE_SOURCE, /localAssembledInputTokens/);
+    assert.match(ROUTE_SOURCE, /mainRpBillableInputTokens/);
+    assert.match(ROUTE_SOURCE, /aggregateApiInputTokens/);
+    assert.match(ROUTE_SOURCE, /syncAuxInputTokens/);
+    assert.doesNotMatch(ROUTE_SOURCE, /priorApiInputTokens/);
+    assert.doesNotMatch(ROUTE_SOURCE, /system:/);
+    assert.doesNotMatch(ROUTE_SOURCE, /assistant:/);
   });
 
   it("does not accept a client-controlled refresh cache bypass", () => {
