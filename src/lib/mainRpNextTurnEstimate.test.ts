@@ -22,8 +22,11 @@ import {
   meanPositiveTokens,
   medianPositiveTokens,
   nextTurnEstimateDisplayMap,
+  isImmediatePreviousSameModelActualAnchor,
   pickLatestProviderInputCalibrationByModel,
+  pickLatestProviderInputCalibrationEntriesByModel,
   pickRecentSameModelBillableOutputTokens,
+  resolveImmediatePreviousSuccessfulMainRpTurn,
   resolveMainRpNextTurnCalibrationModelId,
   resolveNextTurnHistoryDelta,
   resolveNextTurnOutputChars,
@@ -381,6 +384,7 @@ describe("main RP next-turn estimate", () => {
 
 const SOL = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
 const FLASH = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+const GEMINI = GEMINI_38_FLASH_MODEL;
 const PREV_ASSEMBLED = 34_816;
 const PREV_PROVIDER = 14_312;
 const PREV_OUTPUT = 2_780;
@@ -698,6 +702,132 @@ describe("provider-input next-turn calibration", () => {
     assert.equal(resolveMainRpNextTurnCalibrationModelId(FLASH), FLASH);
   });
 
+  it("A stale Sol candidate is not actual-delta eligible after a later Gemini turn", () => {
+    const sol = { ...solValidInputSource(), rowKey: "message:10" };
+    const gemini = {
+      ...solValidInputSource({
+        usageInputTokens: 17_104,
+        usageOutputTokens: 2_726,
+        assembledInputTokens: 36_000,
+        apiInputTokens: 17_104,
+      }),
+      selectedAI: GEMINI,
+      model: GEMINI,
+      actualModel: GEMINI,
+      rowKey: "message:20",
+    };
+    const immediate = resolveImmediatePreviousSuccessfulMainRpTurn([sol, gemini]);
+    const entries = pickLatestProviderInputCalibrationEntriesByModel([sol, gemini]);
+    assert.equal(immediate?.identity.modelId, GEMINI);
+    assert.equal(immediate?.identity.rowKey, "message:20");
+    assert.equal(entries[SOL]?.identity.rowKey, "message:10");
+    assert.equal(entries[GEMINI]?.identity.rowKey, "message:20");
+    assert.equal(
+      isImmediatePreviousSameModelActualAnchor({
+        forecastModelId: GEMINI,
+        immediatePrevious: immediate,
+        candidateIdentity: entries[GEMINI]?.identity,
+      }),
+      true
+    );
+    assert.equal(
+      isImmediatePreviousSameModelActualAnchor({
+        forecastModelId: SOL,
+        immediatePrevious: immediate,
+        candidateIdentity: entries[SOL]?.identity,
+      }),
+      false
+    );
+    const mixed = computeMainRpNextTurnEstimates({
+      promptTokensByModel: { [SOL]: PREV_ASSEMBLED, [GEMINI]: 20_000 },
+      providerInputCalibrationByModel: {
+        [SOL]: entries[SOL]?.sample,
+        [GEMINI]: entries[GEMINI]?.sample,
+      },
+      historyDeltaByModel: {
+        [GEMINI]: resolveNextTurnHistoryDelta({
+          previous: entries[GEMINI]!.sample,
+          previousAssistantRetained: true,
+        }),
+      },
+      effectiveKrwPerUsd: FX,
+    });
+    assert.equal(mixed[GEMINI]?.forecastSource, "same_model_actual_anchored_delta");
+    assert.equal(mixed[SOL]?.forecastSource, "uncalibrated_assembled");
+    assert.equal(mixed[SOL]?.predictedBillableInputTokens, PREV_ASSEMBLED);
+  });
+
+  it("B a later fresh Sol turn reactivates Sol actual-delta", () => {
+    const sol = { ...solValidInputSource(), rowKey: "message:10" };
+    const gemini = {
+      ...solValidInputSource({
+        usageInputTokens: 17_104,
+        usageOutputTokens: 2_726,
+        assembledInputTokens: 36_000,
+        apiInputTokens: 17_104,
+      }),
+      selectedAI: GEMINI,
+      model: GEMINI,
+      actualModel: GEMINI,
+      rowKey: "message:20",
+    };
+    const solAgain = {
+      ...solValidInputSource({
+        usageInputTokens: 17_104,
+        usageOutputTokens: 2_726,
+        assembledInputTokens: 36_000,
+        apiInputTokens: 17_104,
+      }),
+      rowKey: "message:30",
+    };
+    const immediate = resolveImmediatePreviousSuccessfulMainRpTurn([sol, gemini, solAgain]);
+    const entries = pickLatestProviderInputCalibrationEntriesByModel([
+      sol,
+      gemini,
+      solAgain,
+    ]);
+    assert.equal(immediate?.identity.modelId, SOL);
+    assert.equal(immediate?.identity.rowKey, "message:30");
+    assert.equal(
+      isImmediatePreviousSameModelActualAnchor({
+        forecastModelId: SOL,
+        immediatePrevious: immediate,
+        candidateIdentity: entries[SOL]?.identity,
+      }),
+      true
+    );
+    assert.equal(
+      isImmediatePreviousSameModelActualAnchor({
+        forecastModelId: GEMINI,
+        immediatePrevious: immediate,
+        candidateIdentity: entries[GEMINI]?.identity,
+      }),
+      false
+    );
+  });
+
+  it("contaminated latest successful turn does not revive a stale same-model anchor", () => {
+    const sol = { ...solValidInputSource(), rowKey: "message:10" };
+    const geminiEstimated = {
+      ...solValidInputSource({ estimated: true, usageInputTokens: 9_000 }),
+      selectedAI: GEMINI,
+      model: GEMINI,
+      actualModel: GEMINI,
+      rowKey: "message:20",
+    };
+    const immediate = resolveImmediatePreviousSuccessfulMainRpTurn([sol, geminiEstimated]);
+    assert.equal(immediate?.identity.modelId, GEMINI);
+    assert.equal(immediate?.usableSample, null);
+    assert.equal(
+      isImmediatePreviousSameModelActualAnchor({
+        forecastModelId: SOL,
+        immediatePrevious: immediate,
+        candidateIdentity: { rowKey: "message:10", modelId: SOL },
+      }),
+      false
+    );
+  });
+
   it("G regeneration and continuation skip contaminated later samples and keep the latest valid same-model anchor", () => {
     const picked = pickLatestProviderInputCalibrationByModel([
       solValidInputSource({
@@ -739,6 +869,8 @@ describe("provider-input next-turn calibration", () => {
     assert.match(SERVICE_SOURCE, /function estimatesFromRoomRows/);
     assert.match(SERVICE_SOURCE, /providerInputCalibrationByModel/);
     assert.match(SERVICE_SOURCE, /historyDeltaByModel/);
+    assert.match(SERVICE_SOURCE, /isImmediatePreviousSameModelActualAnchor/);
+    assert.doesNotMatch(SERVICE_SOURCE, /lastSuccessfulAssistantContent/);
     assert.match(SERVICE_SOURCE, /readMainRpNextTurnProviderInputCalibration/);
     assert.match(SERVICE_SOURCE, /resolveModelPickerAssembledSnapshotEvidence/);
     assert.doesNotMatch(SERVICE_SOURCE, /previousAssistantRetained = true/);

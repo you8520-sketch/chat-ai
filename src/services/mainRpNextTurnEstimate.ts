@@ -5,6 +5,8 @@
  * keyword lorebook keyed only on future user text is therefore unknown.
  * Send-time admission still receives production assembled tokens.
  * Output-history samples go through usageOutputTokens → billableOpenRouterOutputTokens.
+ * Actual-anchored history delta is attached only when the model-specific
+ * candidate is the room's immediately previous successful Main RP turn.
  */
 
 import type { User } from "@/lib/auth";
@@ -16,14 +18,18 @@ import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { billableOpenRouterOutputTokens } from "@/lib/points";
 import {
   computeMainRpNextTurnEstimates,
+  isImmediatePreviousSameModelActualAnchor,
   isUsableOutputCalibrationSource,
   nextTurnEstimateDisplayMap,
-  pickLatestProviderInputCalibrationByModel,
+  pickLatestProviderInputCalibrationEntriesByModel,
   pickRecentSameModelBillableOutputTokens,
+  resolveImmediatePreviousSuccessfulMainRpTurn,
   resolveMainRpNextTurnCalibrationModelId,
+  resolveNextTurnCalibrationRowKey,
   resolveNextTurnHistoryDelta,
   resolveObservedCharsPerToken,
   type NextTurnActualAnchor,
+  type NextTurnCalibrationTurnFields,
   type NextTurnEstimateMap,
   type NextTurnHistoryDelta,
   type NextTurnPromptAuditSections,
@@ -38,6 +44,7 @@ import {
 } from "@/services/modelPickerInputSnapshot";
 
 export type EstimateMessageRow = {
+  id?: number | null;
   role: "user" | "assistant";
   content: string;
   model: string | null;
@@ -121,7 +128,10 @@ function readObservedCharsPerTokenByModel(
   return out;
 }
 
-function calibrationTurnFields(row: EstimateMessageRow) {
+function calibrationTurnFields(
+  row: EstimateMessageRow,
+  rowIndex: number
+): NextTurnCalibrationTurnFields {
   const usage = parseUsage(row.usage);
   return {
     generationStatus: row.generation_status,
@@ -143,34 +153,63 @@ function calibrationTurnFields(row: EstimateMessageRow) {
     rawHistoryHealth: usage?.rawHistoryHealth ?? null,
     statusWidgetExtractCallCount: usage?.statusWidgetExtract?.callCount ?? null,
     statusWidgetExtractInputTokens: usage?.statusWidgetExtract?.input ?? null,
+    rowKey: resolveNextTurnCalibrationRowKey(
+      {
+        rowKey:
+          typeof row.id === "number" && Number.isFinite(row.id) && row.id > 0
+            ? `message:${Math.trunc(row.id)}`
+            : null,
+      },
+      rowIndex
+    ),
   };
+}
+
+function assistantCalibrationTurns(
+  rows: EstimateMessageRow[]
+): NextTurnCalibrationTurnFields[] {
+  const out: NextTurnCalibrationTurnFields[] = [];
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex];
+    if (!row || row.role !== "assistant") continue;
+    out.push(calibrationTurnFields(row, rowIndex));
+  }
+  return out;
+}
+
+function assistantContentForRowKey(
+  rows: EstimateMessageRow[],
+  rowKey: string
+): string | null {
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex];
+    if (!row || row.role !== "assistant") continue;
+    const key = calibrationTurnFields(row, rowIndex).rowKey;
+    if (key !== rowKey) continue;
+    const content = row.content.trim();
+    return content || null;
+  }
+  return null;
 }
 
 export function readMainRpNextTurnProviderInputCalibration(
   rows: EstimateMessageRow[]
 ): Partial<Record<SelectedAI, NextTurnProviderInputCalibrationSample>> {
-  return pickLatestProviderInputCalibrationByModel(
-    rows.filter((row) => row.role === "assistant").map((row) => calibrationTurnFields(row))
+  const entries = pickLatestProviderInputCalibrationEntriesByModel(
+    assistantCalibrationTurns(rows)
   );
-}
-
-function lastSuccessfulAssistantContent(rows: EstimateMessageRow[]): string | null {
-  for (let i = rows.length - 1; i >= 0; i -= 1) {
-    const row = rows[i];
-    if (!row || row.role !== "assistant") continue;
-    if ((row.model ?? "").trim() === "greeting") continue;
-    if (!isSuccessfulDurableGenerationStatus(row.generation_status)) continue;
-    const usage = parseUsage(row.usage);
-    if (usage?.htmlFlashOnly) continue;
-    const content = row.content.trim();
-    if (!content) continue;
-    return content;
+  const out: Partial<Record<SelectedAI, NextTurnProviderInputCalibrationSample>> = {};
+  for (const [modelId, entry] of Object.entries(entries) as Array<
+    [SelectedAI, (typeof entries)[SelectedAI]]
+  >) {
+    if (entry) out[modelId] = entry.sample;
   }
-  return null;
+  return out;
 }
 
 export function resolveMainRpNextTurnHistoryDeltaForAnchor(
   rows: EstimateMessageRow[],
+  modelId: SelectedAI,
   anchor: NextTurnActualAnchor | null | undefined,
   opts?: {
     nextPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
@@ -188,7 +227,23 @@ export function resolveMainRpNextTurnHistoryDeltaForAnchor(
   if (!anchor) return null;
   const nextPromptHistory = opts?.nextPromptHistory ?? opts?.evidence?.nextPromptHistory ?? null;
   if (nextPromptHistory == null) return null;
-  const previousAssistantContent = lastSuccessfulAssistantContent(rows);
+  const turns = assistantCalibrationTurns(rows);
+  const immediatePrevious = resolveImmediatePreviousSuccessfulMainRpTurn(turns);
+  const candidateIdentity =
+    pickLatestProviderInputCalibrationEntriesByModel(turns)[modelId]?.identity ?? null;
+  if (
+    !isImmediatePreviousSameModelActualAnchor({
+      forecastModelId: modelId,
+      immediatePrevious,
+      candidateIdentity,
+    })
+  ) {
+    return null;
+  }
+  const previousAssistantContent = assistantContentForRowKey(
+    rows,
+    immediatePrevious!.identity.rowKey
+  );
   const currentUserEstimatedTokens =
     opts?.currentUserEstimatedTokens ??
     opts?.evidence?.currentUserEstimatedTokens ??
@@ -214,16 +269,19 @@ export function readMainRpNextTurnOutputHistory(
   rows: EstimateMessageRow[]
 ): Partial<Record<SelectedAI, number[]>> {
   return pickRecentSameModelBillableOutputTokens(
-    rows.filter((row) => row.role === "assistant").map((row) => {
+    rows.flatMap((row, rowIndex) => {
+      if (row.role !== "assistant") return [];
       const usage = parseUsage(row.usage);
       const modelId =
         resolveMainRpNextTurnCalibrationModelId(usage?.selectedAI) ??
         resolveMainRpNextTurnCalibrationModelId(usage?.model) ??
         resolveMainRpNextTurnCalibrationModelId(row.model);
-      return {
-        ...calibrationTurnFields(row),
-        billableOutputTokens: usageOutputTokens(usage, modelId ?? ""),
-      };
+      return [
+        {
+          ...calibrationTurnFields(row, rowIndex),
+          billableOutputTokens: usageOutputTokens(usage, modelId ?? ""),
+        },
+      ];
     })
   );
 }
@@ -247,7 +305,7 @@ function estimatesFromRoomRows(
   });
 }
 
-function historyDeltaByModelFromRows(
+export function resolveMainRpNextTurnHistoryDeltaByModelFromRows(
   rows: EstimateMessageRow[],
   anchors: Partial<Record<SelectedAI, NextTurnActualAnchor>>,
   opts?: {
@@ -265,13 +323,21 @@ function historyDeltaByModelFromRows(
     [SelectedAI, NextTurnActualAnchor | undefined]
   >) {
     if (!anchor) continue;
-    const delta = resolveMainRpNextTurnHistoryDeltaForAnchor(rows, anchor, {
+    const delta = resolveMainRpNextTurnHistoryDeltaForAnchor(rows, modelId, anchor, {
       ...opts,
       evidence: opts?.evidenceByModel?.[modelId] ?? null,
     });
     if (delta) out[modelId] = delta;
   }
   return out;
+}
+
+function historyDeltaByModelFromRows(
+  rows: EstimateMessageRow[],
+  anchors: Partial<Record<SelectedAI, NextTurnActualAnchor>>,
+  opts?: Parameters<typeof resolveMainRpNextTurnHistoryDeltaByModelFromRows>[2]
+): Partial<Record<SelectedAI, NextTurnHistoryDelta>> {
+  return resolveMainRpNextTurnHistoryDeltaByModelFromRows(rows, anchors, opts);
 }
 
 /** One-model Published next-turn estimate. No provider I/O. Not a charge owner. */
@@ -290,7 +356,7 @@ export function resolveMainRpNextTurnPublishedEstimateForModel(opts: {
   const db = getDb();
   const rows = db
     .prepare(
-      `SELECT role, content, model, usage, generation_status
+      `SELECT id, role, content, model, usage, generation_status
        FROM messages WHERE chat_id=? ORDER BY id ASC`
     )
     .all(opts.chatId) as EstimateMessageRow[];
@@ -339,7 +405,7 @@ export async function resolveMainRpNextTurnPickerEstimates(opts: {
 
   const rows = db
     .prepare(
-      `SELECT role, content, model, usage, generation_status
+      `SELECT id, role, content, model, usage, generation_status
        FROM messages WHERE chat_id=? ORDER BY id ASC`
     )
     .all(opts.chatId) as EstimateMessageRow[];

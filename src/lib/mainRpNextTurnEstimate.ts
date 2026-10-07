@@ -6,6 +6,10 @@
  * provider tokenizer count.
  * Input forecast starts from the previous successful same-model billable
  * input and adds/removes only the next-request history and context delta.
+ * Actual-anchored delta is eligible only when that same-model actual is
+ * the room's immediately previous successful Main RP turn. Older same-model
+ * anchors fall back to `uncalibrated_assembled`. This owner does not replay
+ * multi-turn history from a stale model anchor.
  * Whole-prompt assembled ratio is not a live owner.
  * Output-history samples must already be billable tokens from
  * `usageOutputTokens` → `billableOpenRouterOutputTokens`. This owner does
@@ -140,6 +144,22 @@ export type NextTurnActualAnchor = {
   rawHistoryHealth?: NextTurnRawHistoryHealth | null;
 };
 
+/** Reader-only row identity. Never expose assistant content through this type. */
+export type NextTurnAnchorRowIdentity = {
+  rowKey: string;
+  modelId: SelectedAI;
+};
+
+export type NextTurnImmediatePreviousSuccessfulTurn = {
+  identity: NextTurnAnchorRowIdentity;
+  usableSample: NextTurnActualAnchor | null;
+};
+
+export type NextTurnProviderInputCalibrationEntry = {
+  identity: NextTurnAnchorRowIdentity;
+  sample: NextTurnActualAnchor;
+};
+
 function isFinitePositiveToken(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
@@ -169,6 +189,7 @@ export type NextTurnCalibrationTurnFields = {
   rawHistoryHealth?: NextTurnRawHistoryHealth | null;
   statusWidgetExtractCallCount?: number | null;
   statusWidgetExtractInputTokens?: number | null;
+  rowKey?: string | null;
 };
 
 export type NextTurnCalibrationRejection =
@@ -686,6 +707,118 @@ export function isUsableProviderInputCalibrationSource(
   return isFinitePositiveToken(input.usageOutputTokens);
 }
 
+export function resolveNextTurnCalibrationRowKey(
+  input: { rowKey?: string | null },
+  fallbackIndex: number
+): string {
+  const explicit = (input.rowKey ?? "").trim();
+  if (explicit) return explicit;
+  return `index:${Math.trunc(fallbackIndex)}`;
+}
+
+export function isImmediatePreviousSuccessfulMainRpAssistantTurn(
+  input: NextTurnCalibrationTurnFields
+): boolean {
+  if (input.htmlFlashOnly) return false;
+  if ((input.model ?? "").trim() === "greeting") return false;
+  if ((input.selectedAI ?? "").trim() === "greeting") return false;
+  if (!isSuccessfulDurableGenerationStatus(input.generationStatus)) return false;
+  const selected =
+    resolveMainRpNextTurnCalibrationModelId(input.selectedAI) ??
+    resolveMainRpNextTurnCalibrationModelId(input.model);
+  return selected != null;
+}
+
+export function providerInputCalibrationSampleFromTurn(
+  candidate: NextTurnCalibrationTurnFields
+): NextTurnActualAnchor | null {
+  if (!isUsableProviderInputCalibrationSource(candidate)) return null;
+  const reportedInputTokens = candidate.usageInputTokens as number;
+  const reportedOutputTokens = candidate.usageOutputTokens as number;
+  const assembledInputTokens = isFinitePositiveToken(candidate.assembledInputTokens)
+    ? candidate.assembledInputTokens
+    : null;
+  const aggregateApiInputTokens = isFinitePositiveToken(candidate.apiInputTokens)
+    ? candidate.apiInputTokens
+    : null;
+  const syncAuxInputTokens = resolveSyncAuxInputTokens(candidate);
+  return {
+    actualBillableInputTokens: assembledInputTokens
+      ? Math.min(reportedInputTokens, assembledInputTokens)
+      : reportedInputTokens,
+    actualBillableOutputTokens: reportedOutputTokens,
+    ...(assembledInputTokens != null ? { assembledInputTokens } : {}),
+    ...(aggregateApiInputTokens != null ? { aggregateApiInputTokens } : {}),
+    ...(syncAuxInputTokens != null ? { syncAuxInputTokens } : {}),
+    ...(candidate.assembledPromptChars
+      ? { assembledPromptChars: candidate.assembledPromptChars }
+      : {}),
+    ...(candidate.rawHistoryHealth ? { rawHistoryHealth: candidate.rawHistoryHealth } : {}),
+  };
+}
+
+export function resolveImmediatePreviousSuccessfulMainRpTurn(
+  candidatesNewestLast: NextTurnCalibrationTurnFields[]
+): NextTurnImmediatePreviousSuccessfulTurn | null {
+  for (let i = candidatesNewestLast.length - 1; i >= 0; i -= 1) {
+    const candidate = candidatesNewestLast[i];
+    if (!candidate) continue;
+    if (!isImmediatePreviousSuccessfulMainRpAssistantTurn(candidate)) continue;
+    const modelId =
+      resolveMainRpNextTurnCalibrationModelId(candidate.selectedAI) ??
+      resolveMainRpNextTurnCalibrationModelId(candidate.model);
+    if (!modelId) continue;
+    return {
+      identity: {
+        rowKey: resolveNextTurnCalibrationRowKey(candidate, i),
+        modelId,
+      },
+      usableSample: providerInputCalibrationSampleFromTurn(candidate),
+    };
+  }
+  return null;
+}
+
+export function pickLatestProviderInputCalibrationEntriesByModel(
+  candidatesNewestLast: NextTurnCalibrationTurnFields[]
+): Partial<Record<SelectedAI, NextTurnProviderInputCalibrationEntry>> {
+  const out: Partial<Record<SelectedAI, NextTurnProviderInputCalibrationEntry>> = {};
+  for (let i = candidatesNewestLast.length - 1; i >= 0; i -= 1) {
+    const candidate = candidatesNewestLast[i];
+    if (!candidate) continue;
+    const sample = providerInputCalibrationSampleFromTurn(candidate);
+    if (!sample) continue;
+    const modelId =
+      resolveMainRpNextTurnCalibrationModelId(candidate.selectedAI) ??
+      resolveMainRpNextTurnCalibrationModelId(candidate.model);
+    if (!modelId || out[modelId] != null) continue;
+    out[modelId] = {
+      identity: {
+        rowKey: resolveNextTurnCalibrationRowKey(candidate, i),
+        modelId,
+      },
+      sample,
+    };
+  }
+  return out;
+}
+
+export function isImmediatePreviousSameModelActualAnchor(input: {
+  forecastModelId: SelectedAI;
+  immediatePrevious: NextTurnImmediatePreviousSuccessfulTurn | null | undefined;
+  candidateIdentity: NextTurnAnchorRowIdentity | null | undefined;
+}): boolean {
+  const previous = input.immediatePrevious;
+  const candidate = input.candidateIdentity;
+  if (!previous || !previous.usableSample || !candidate) return false;
+  if (!previous.identity.rowKey || !candidate.rowKey) return false;
+  return (
+    input.forecastModelId === previous.identity.modelId &&
+    candidate.modelId === previous.identity.modelId &&
+    candidate.rowKey === previous.identity.rowKey
+  );
+}
+
 export function isUsableOutputHistorySource(input: NextTurnCalibrationTurnFields & {
   billableOutputTokens?: number | null;
 }): boolean {
@@ -696,37 +829,11 @@ export function isUsableOutputHistorySource(input: NextTurnCalibrationTurnFields
 export function pickLatestProviderInputCalibrationByModel(
   candidatesNewestLast: NextTurnCalibrationTurnFields[]
 ): Partial<Record<SelectedAI, NextTurnProviderInputCalibrationSample>> {
+  const entries = pickLatestProviderInputCalibrationEntriesByModel(candidatesNewestLast);
   const out: Partial<Record<SelectedAI, NextTurnProviderInputCalibrationSample>> = {};
-  for (let i = candidatesNewestLast.length - 1; i >= 0; i -= 1) {
-    const candidate = candidatesNewestLast[i];
-    if (!candidate) continue;
-    if (!isUsableProviderInputCalibrationSource(candidate)) continue;
-    const modelId =
-      resolveMainRpNextTurnCalibrationModelId(candidate.selectedAI) ??
-      resolveMainRpNextTurnCalibrationModelId(candidate.model);
-    if (!modelId || out[modelId] != null) continue;
-    const reportedInputTokens = candidate.usageInputTokens as number;
-    const reportedOutputTokens = candidate.usageOutputTokens as number;
-    const assembledInputTokens = isFinitePositiveToken(candidate.assembledInputTokens)
-      ? candidate.assembledInputTokens
-      : null;
-    const aggregateApiInputTokens = isFinitePositiveToken(candidate.apiInputTokens)
-      ? candidate.apiInputTokens
-      : null;
-    const syncAuxInputTokens = resolveSyncAuxInputTokens(candidate);
-    out[modelId] = {
-      actualBillableInputTokens: assembledInputTokens
-        ? Math.min(reportedInputTokens, assembledInputTokens)
-        : reportedInputTokens,
-      actualBillableOutputTokens: reportedOutputTokens,
-      ...(assembledInputTokens != null ? { assembledInputTokens } : {}),
-      ...(aggregateApiInputTokens != null ? { aggregateApiInputTokens } : {}),
-      ...(syncAuxInputTokens != null ? { syncAuxInputTokens } : {}),
-      ...(candidate.assembledPromptChars
-        ? { assembledPromptChars: candidate.assembledPromptChars }
-        : {}),
-      ...(candidate.rawHistoryHealth ? { rawHistoryHealth: candidate.rawHistoryHealth } : {}),
-    };
+  for (const modelId of MAIN_RP_MODEL_IDS) {
+    const entry = entries[modelId];
+    if (entry) out[modelId] = entry.sample;
   }
   return out;
 }
