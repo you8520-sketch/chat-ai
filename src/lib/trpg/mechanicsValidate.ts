@@ -1,4 +1,5 @@
 import type { TrpgActionType } from "./actionTypes";
+import { inventoryHasName, type TrpgInventoryEntry } from "./inventory";
 import {
   DURATION_BANDS,
   DIRECT_CAUSES,
@@ -350,7 +351,7 @@ export function sanitizeOngoingAdd(
   add: FlashOngoingAdd,
   opts: {
     sheetStats: Record<string, number>;
-    inventory: readonly string[];
+    inventory: readonly TrpgInventoryEntry[];
     specialRules: string;
     startInventory: readonly string[];
   }
@@ -370,7 +371,7 @@ export function sanitizeOngoingAdd(
   let requiredItem = add.requiredItem;
   if (treatmentMode === "specific_item") {
     const item = requiredItem?.trim() ?? "";
-    const known = [...opts.inventory, ...opts.startInventory].some((row) => row === item);
+    const known = inventoryHasName(opts.inventory, item) || opts.startInventory.some((row) => row === item);
     const named = item && opts.specialRules.includes(item);
     if (!item || (!known && !named)) {
       treatmentMode = "item_or_support";
@@ -409,8 +410,8 @@ export function publicSpecialRulesText(rules: readonly string[] | null | undefin
   return (rules ?? []).map((row) => row.trim()).filter(Boolean).join("\n");
 }
 
-export function inventoryHasItem(inventory: readonly string[], item: string): boolean {
-  return inventory.some((row) => row.trim() === item.trim());
+export function inventoryHasItem(inventory: readonly TrpgInventoryEntry[], item: string): boolean {
+  return inventoryHasName(inventory, item);
 }
 
 export function inferPhysicalThreat(actionType: TrpgActionType | null, cause: DirectCause): boolean {
@@ -437,7 +438,7 @@ export function validateTreatment(opts: {
   effect: TrpgOngoingEffect | null;
   consumeItem: string | null;
   sourceParticipantId: number;
-  inventories: Array<{ participantId: number; items: readonly string[] }>;
+  inventories: Array<{ participantId: number; items: readonly TrpgInventoryEntry[] }>;
 }): { allow: TreatmentAllow; consume: boolean; ownerParticipantId: number | null; reason: string | null } {
   if (!opts.effect || !isOngoingActive(opts.effect.remainingTicks)) {
     return { allow: "none", consume: false, ownerParticipantId: null, reason: "effect_missing" };

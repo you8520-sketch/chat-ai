@@ -1,3 +1,4 @@
+import { inventoryUnitCount, type TrpgInventoryEntry } from "./inventory";
 import type { TrpgSheetSnapshot } from "./types";
 import type { MechanicsResolution, TrpgOngoingEffect } from "./mechanicsTypes";
 
@@ -26,8 +27,8 @@ export function compactConditions(conditions: readonly string[], limit = 1): str
   return conditions.map((item) => item.trim()).filter(Boolean).slice(0, limit);
 }
 
-export function inventoryCount(inventory: readonly string[]): number {
-  return inventory.filter((item) => item.trim()).length;
+export function inventoryCount(inventory: readonly TrpgInventoryEntry[]): number {
+  return inventoryUnitCount(inventory);
 }
 export function selfHudAriaLabel(sheet: Pick<TrpgSheetSnapshot, "name" | "hp" | "maxHp" | "location" | "conditions" | "inventory">): string {
   const conditions = sheet.conditions.filter((item) => item.trim());

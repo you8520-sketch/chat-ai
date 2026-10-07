@@ -1,6 +1,8 @@
 /**
- * TRPG inventory domain. The canonical state is always a flat unit list
- * (`string[]`, one entry per unit). Stacks and `이름 ×N` text are views of it.
+ * TRPG inventory domain.
+ *
+ * Runtime canonical state is a structured entry list (one exact-name stack).
+ * Scenario authoring stays a flat unit list (`string[]`) plus `이름 ×N` text.
  */
 
 export const TRPG_INVENTORY_ITEM_NAME_LIMIT = 40;
@@ -8,24 +10,186 @@ export const TRPG_START_INVENTORY_MAX_UNITS = 12;
 
 export type TrpgInventoryStack = { name: string; quantity: number };
 
+export type TrpgInventoryEntry = {
+  id: string;
+  name: string;
+  quantity: number;
+};
+
+export type InventoryRemoveResult =
+  | { ok: true; next: TrpgInventoryEntry[] }
+  | { ok: false; next: TrpgInventoryEntry[] };
+
+function fnv1a32Hex(text: string): string {
+  let hash = 0x811c9dc5;
+  for (const byte of new TextEncoder().encode(text)) {
+    hash ^= byte;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+/** One ID owner. V1 is one stack per exact name, so the id is derived from that name. */
+export function createInventoryEntryId(name: string): string {
+  return `inv_${fnv1a32Hex(name)}`;
+}
+
+export function cloneInventory(inventory: readonly TrpgInventoryEntry[]): TrpgInventoryEntry[] {
+  return inventory.map((entry) => ({ id: entry.id, name: entry.name, quantity: entry.quantity }));
+}
+
+function isPositiveInt(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 1;
+}
+
+function isInventoryEntryLike(value: unknown): value is { id?: unknown; name: unknown; quantity: unknown } {
+  if (!value || typeof value !== "object") return false;
+  const row = value as { name?: unknown; quantity?: unknown };
+  return typeof row.name === "string" && isPositiveInt(row.quantity);
+}
+
+function mergeExactNameStacks(rows: readonly { id?: unknown; name: unknown; quantity: unknown }[]): TrpgInventoryEntry[] {
+  const entries: TrpgInventoryEntry[] = [];
+  const byName = new Map<string, TrpgInventoryEntry>();
+  for (const row of rows) {
+    const name = String(row.name).trim();
+    if (!name || !isPositiveInt(row.quantity)) continue;
+    const existing = byName.get(name);
+    if (existing) {
+      existing.quantity += row.quantity;
+      continue;
+    }
+    const id = typeof row.id === "string" && row.id.trim() ? row.id.trim() : createInventoryEntryId(name);
+    const entry = { id, name, quantity: row.quantity };
+    byName.set(name, entry);
+    entries.push(entry);
+  }
+  return entries;
+}
+
+/**
+ * Start units → runtime entries. One exact-name stack; first-occurrence order.
+ */
+export function inventoryFromUnits(units: readonly string[]): TrpgInventoryEntry[] {
+  const entries: TrpgInventoryEntry[] = [];
+  const byName = new Map<string, TrpgInventoryEntry>();
+  for (const raw of units) {
+    const name = raw.trim();
+    if (!name) continue;
+    const existing = byName.get(name);
+    if (existing) {
+      existing.quantity += 1;
+      continue;
+    }
+    const entry = { id: createInventoryEntryId(name), name, quantity: 1 };
+    byName.set(name, entry);
+    entries.push(entry);
+  }
+  return entries;
+}
+
+/**
+ * Single read-boundary parser. Accepts structured entries or legacy unit `string[]`.
+ * Writers persist structured form only.
+ */
+export function parseStoredInventory(raw: unknown): TrpgInventoryEntry[] {
+  let value = raw;
+  if (typeof raw === "string") {
+    try {
+      value = JSON.parse(raw) as unknown;
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(value)) return [];
+  if (value.length === 0) return [];
+  if (value.every(isInventoryEntryLike)) return mergeExactNameStacks(value);
+  if (value.every((item) => typeof item === "string")) return inventoryFromUnits(value);
+  return [];
+}
+
+export function serializeInventory(inventory: readonly TrpgInventoryEntry[]): string {
+  return JSON.stringify(cloneInventory(inventory));
+}
+
+export function inventoryItemNames(inventory: readonly TrpgInventoryEntry[]): string[] {
+  return inventory.map((entry) => entry.name);
+}
+
+export function inventoryUnits(inventory: readonly TrpgInventoryEntry[]): string[] {
+  const units: string[] = [];
+  for (const entry of inventory) {
+    for (let i = 0; i < entry.quantity; i += 1) units.push(entry.name);
+  }
+  return units;
+}
+
+export function inventoryUnitCount(inventory: readonly TrpgInventoryEntry[]): number {
+  return inventory.reduce((sum, entry) => sum + entry.quantity, 0);
+}
+
+export function inventoryHasName(inventory: readonly TrpgInventoryEntry[], name: string): boolean {
+  const trimmed = name.trim();
+  return trimmed.length > 0 && inventory.some((entry) => entry.name === trimmed);
+}
+
+export function inventoryQuantity(inventory: readonly TrpgInventoryEntry[], name: string): number {
+  const trimmed = name.trim();
+  if (!trimmed) return 0;
+  return inventory.find((entry) => entry.name === trimmed)?.quantity ?? 0;
+}
+
+export function findInventoryEntry(
+  inventory: readonly TrpgInventoryEntry[],
+  name: string
+): TrpgInventoryEntry | undefined {
+  const trimmed = name.trim();
+  if (!trimmed) return undefined;
+  return inventory.find((entry) => entry.name === trimmed);
+}
+
+export function addInventoryItem(inventory: readonly TrpgInventoryEntry[], name: string): TrpgInventoryEntry[] {
+  const trimmed = name.trim();
+  if (!trimmed) return cloneInventory(inventory);
+  const next = cloneInventory(inventory);
+  const existing = next.find((entry) => entry.name === trimmed);
+  if (existing) {
+    existing.quantity += 1;
+    return next;
+  }
+  next.push({ id: createInventoryEntryId(trimmed), name: trimmed, quantity: 1 });
+  return next;
+}
+
+export function removeInventoryItem(inventory: readonly TrpgInventoryEntry[], name: string): InventoryRemoveResult {
+  const trimmed = name.trim();
+  const next = cloneInventory(inventory);
+  if (!trimmed) return { ok: false, next };
+  const index = next.findIndex((entry) => entry.name === trimmed);
+  if (index < 0) return { ok: false, next };
+  const existing = next[index]!;
+  if (existing.quantity > 1) {
+    existing.quantity -= 1;
+    return { ok: true, next };
+  }
+  next.splice(index, 1);
+  return { ok: true, next };
+}
+
+export function consumeInventoryItem(inventory: readonly TrpgInventoryEntry[], name: string): InventoryRemoveResult {
+  return removeInventoryItem(inventory, name);
+}
+
 /**
  * One stack per trimmed exact name (same identity mechanics consume uses),
  * first-occurrence order. quantity = unit occurrences.
  */
 export function stackInventory(inventory: readonly string[]): TrpgInventoryStack[] {
-  const stacks = new Map<string, TrpgInventoryStack>();
-  for (const raw of inventory) {
-    const name = raw.trim();
-    if (!name) continue;
-    const stack = stacks.get(name);
-    if (stack) stack.quantity += 1;
-    else stacks.set(name, { name, quantity: 1 });
-  }
-  return [...stacks.values()];
+  return inventoryFromUnits(inventory).map(({ name, quantity }) => ({ name, quantity }));
 }
 
 /** `이름 ×N` (N > 1) — shared by sheet display and creator authoring text. */
-export function inventoryStackLabel(stack: TrpgInventoryStack): string {
+export function inventoryStackLabel(stack: Pick<TrpgInventoryStack, "name" | "quantity">): string {
   return stack.quantity > 1 ? `${stack.name} ×${stack.quantity}` : stack.name;
 }
 

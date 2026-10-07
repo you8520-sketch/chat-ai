@@ -1,3 +1,4 @@
+import { cloneInventory, inventoryHasName, inventoryItemNames } from "./inventory";
 import { statModifier } from "./stats";
 import type { TrpgSheetSnapshot } from "./types";
 import {
@@ -18,7 +19,6 @@ import {
   evaluateSafeRestEligibility,
   fallbackRecoveryStat,
   healOwnerKind,
-  inventoryHasItem,
   mergeStackCureFields,
   parseFlashMechanicsOutput,
   resolvePhysicalThreat,
@@ -72,7 +72,7 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
   if (input.existing?.v === 1 && input.existing.complete) return input.existing;
   const rng = input.rng ?? DEFAULT_DICE_RNG;
   const recoveryRng = input.recoveryRng ?? (() => rng(20));
-  const sheets = new Map(input.sheets.map((sheet) => [sheet.participantId, { ...sheet, inventory: [...sheet.inventory] }]));
+  const sheets = new Map(input.sheets.map((sheet) => [sheet.participantId, { ...sheet, inventory: cloneInventory(sheet.inventory) }]));
   const liveEffects = input.effects.map((effect) => ({ ...effect }));
   const reusePre = Boolean(input.existing?.preActionOwnerComplete);
   const preActionRecoveries: RecoveryRollRecord[] = reusePre && input.existing?.preActionRecoveries?.length
@@ -345,7 +345,7 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
         actionType: actor.actionType,
         body: actor.body,
         tier: actor.tier,
-        sourceInventory: sourceSheet.inventory,
+        sourceInventory: inventoryItemNames(sourceSheet.inventory),
         startInventory: input.startInventory ?? [],
         specialRules: input.specialRules ?? "",
       });
@@ -418,7 +418,7 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
           klass: flash.directClass,
           cause: flash.cause,
           physicalThreat: threat,
-          sourceInventory: sourceSheet.inventory,
+          sourceInventory: inventoryItemNames(sourceSheet.inventory),
           startInventory: input.startInventory ?? [],
           specialRules: input.specialRules ?? "",
         });
@@ -780,14 +780,14 @@ function applyTreatmentsValidation(
         (row) => row.participantId === verdict.ownerParticipantId && row.item === flash.consumeItem
       );
       const owner = sheets.get(verdict.ownerParticipantId);
-      if (!already && owner && inventoryHasItem(owner.inventory, flash.consumeItem)) {
+      if (!already && owner && inventoryHasName(owner.inventory, flash.consumeItem)) {
         consumeItems.push({ participantId: verdict.ownerParticipantId, item: flash.consumeItem });
         consumed = true;
       }
     }
   }
   if (flash.consumeItem && !consumed && requested.length === 0) {
-    const found = inventories.find((row) => inventoryHasItem(row.items, flash.consumeItem!));
+    const found = inventories.find((row) => inventoryHasName(row.items, flash.consumeItem!));
     if (found) {
       // consume without treatment only when Flash asked and item exists — still require treatment intent
       next = next === "ok" ? "downgraded" : next;
@@ -973,7 +973,7 @@ function applyHealToSheet(opts: {
   let amount = dice.amount;
   const owner = healOwnerKind({
     body: opts.actor.body,
-    sourceInventory: opts.sourceSheet.inventory,
+    sourceInventory: inventoryItemNames(opts.sourceSheet.inventory),
     startInventory: opts.startInventory,
     specialRules: opts.specialRules,
   });
@@ -993,7 +993,7 @@ function applyHealToSheet(opts: {
   if (amount > 0 && owner === "item") {
     const item = findExplicitTreatmentItem(
       opts.actor.body,
-      opts.sourceSheet.inventory,
+      inventoryItemNames(opts.sourceSheet.inventory),
       opts.startInventory
     );
     if (item && isHpHealingItem(item)) {
@@ -1029,7 +1029,7 @@ function applyAuthorizedHeal(opts: {
     actionType: opts.actor.actionType,
     body: opts.actor.body,
     tier: opts.actor.tier,
-    sourceInventory: opts.sourceSheet.inventory,
+    sourceInventory: inventoryItemNames(opts.sourceSheet.inventory),
     startInventory: opts.startInventory,
     specialRules: opts.specialRules,
   });
@@ -1064,7 +1064,7 @@ function recordHealItemConsume(
     (row) => row.participantId === sourceSheet.participantId && row.item === item
   );
   if (already) return;
-  if (sourceSheet.inventory.indexOf(item) < 0) return;
+  if (!inventoryHasName(sourceSheet.inventory, item)) return;
   consumeItems.push({ participantId: sourceSheet.participantId, item });
 }
 

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { compileJsxComponentSource } from "../../src/lib/jsxComponent/compile";
+import { inventoryFromUnits } from "../../src/lib/trpg/inventory";
 import { compileTrpgSheetJsx } from "../../src/lib/trpg/sheetJsxSource";
 import { buildTrpgSheetSurface } from "../../src/lib/trpg/sheetSurface";
 
@@ -96,7 +97,7 @@ test("TRPG sheet runs in the shared sandbox: draft-only bridge, clamped height, 
         maxHp: 20,
         stats: { str: 9 },
         conditions: [],
-        inventory: ["붕대", "붕대", "붕대"],
+        inventory: inventoryFromUnits(["붕대", "붕대", "붕대"]),
         location: "폐역",
         modifiersNote: "",
       },

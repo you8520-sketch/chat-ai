@@ -4,8 +4,19 @@ import { describe, it } from "node:test";
 import {
   TRPG_INVENTORY_ITEM_NAME_LIMIT,
   TRPG_START_INVENTORY_MAX_UNITS,
+  addInventoryItem,
+  consumeInventoryItem,
+  createInventoryEntryId,
   formatInventoryAuthoringText,
+  inventoryFromUnits,
+  inventoryHasName,
+  inventoryQuantity,
+  inventoryUnitCount,
+  inventoryUnits,
   parseInventoryAuthoringText,
+  parseStoredInventory,
+  removeInventoryItem,
+  serializeInventory,
   stackInventory,
 } from "./inventory";
 import { scenarioEditorSavePayload } from "./scenarioEditorState";
@@ -161,5 +172,109 @@ describe("TRPG start-inventory authoring text ⇄ canonical unit list", () => {
     assert.match(editor, /data-scenario-field="inventory"/);
     const hud = readFileSync("src/lib/trpg/sheetHud.ts", "utf8");
     assert.doesNotMatch(hud, /stackInventory|inventoryStackLabel/, "stack owner lives in inventory.ts only");
+  });
+});
+
+describe("TRPG structured runtime inventory", () => {
+  const UNITS = ["붕대", "붕대", "붕대", "해독제"];
+
+  it("A. start units collapse to one exact-name stack each", () => {
+    const entries = inventoryFromUnits(UNITS);
+    assert.deepEqual(
+      entries.map(({ name, quantity }) => ({ name, quantity })),
+      [
+        { name: "붕대", quantity: 3 },
+        { name: "해독제", quantity: 1 },
+      ]
+    );
+    assert.deepEqual(inventoryUnits(entries), ["붕대", "붕대", "붕대", "해독제"]);
+    assert.equal(inventoryUnitCount(entries), 4);
+  });
+
+  it("B/C. ids are stable across parse, serialize, and reload", () => {
+    const first = inventoryFromUnits(UNITS);
+    const bandageId = createInventoryEntryId("붕대");
+    assert.equal(first[0]?.id, bandageId);
+    const stored = serializeInventory(first);
+    const reloaded = parseStoredInventory(stored);
+    assert.deepEqual(reloaded, first);
+    assert.equal(parseStoredInventory(stored)[0]?.id, bandageId);
+  });
+
+  it("D. adding an existing name increments quantity and keeps id", () => {
+    const start = inventoryFromUnits(UNITS);
+    const next = addInventoryItem(start, "붕대");
+    assert.equal(next[0]?.id, start[0]?.id);
+    assert.equal(inventoryQuantity(next, "붕대"), 4);
+    assert.equal(inventoryUnitCount(next), 5);
+  });
+
+  it("E. adding a new name creates quantity 1 with a new id", () => {
+    const start = inventoryFromUnits(UNITS);
+    const next = addInventoryItem(start, "열쇠");
+    const key = next.find((entry) => entry.name === "열쇠");
+    assert.ok(key);
+    assert.equal(key.quantity, 1);
+    assert.equal(key.id, createInventoryEntryId("열쇠"));
+    assert.notEqual(key.id, start[0]?.id);
+  });
+
+  it("F/G. remove decrements and deletes the last unit", () => {
+    const start = inventoryFromUnits(["붕대", "붕대"]);
+    const down = removeInventoryItem(start, "붕대");
+    assert.equal(down.ok, true);
+    assert.equal(down.next[0]?.id, start[0]?.id);
+    assert.equal(inventoryQuantity(down.next, "붕대"), 1);
+    const gone = removeInventoryItem(down.next, "붕대");
+    assert.equal(gone.ok, true);
+    assert.deepEqual(gone.next, []);
+  });
+
+  it("H. removing a missing name or a display label is invalid and leaves state", () => {
+    const start = inventoryFromUnits(["붕대", "붕대"]);
+    const missing = removeInventoryItem(start, "열쇠");
+    assert.equal(missing.ok, false);
+    assert.deepEqual(missing.next, start);
+    const label = removeInventoryItem(start, "붕대 ×2");
+    assert.equal(label.ok, false);
+    assert.deepEqual(label.next, start);
+    assert.equal(inventoryHasName(start, "붕대"), true);
+    assert.equal(inventoryHasName(start, "붕대 ×2"), false);
+  });
+
+  it("legacy string[] rows normalize only at the read boundary", () => {
+    const legacy = JSON.stringify(UNITS);
+    const parsed = parseStoredInventory(legacy);
+    assert.deepEqual(
+      parsed.map(({ name, quantity }) => ({ name, quantity })),
+      [
+        { name: "붕대", quantity: 3 },
+        { name: "해독제", quantity: 1 },
+      ]
+    );
+    assert.equal(parsed[0]?.id, createInventoryEntryId("붕대"));
+    assert.equal(serializeInventory(parsed).includes('"quantity":3'), true);
+    assert.equal(serializeInventory(parsed).includes("붕대"), true);
+    assert.doesNotMatch(serializeInventory(parsed), /"붕대","붕대"/);
+  });
+
+  it("consume is the same one-unit remove as GM remove", () => {
+    const start = inventoryFromUnits(["붕대", "붕대", "붕대"]);
+    const consumed = consumeInventoryItem(start, "붕대");
+    assert.equal(consumed.ok, true);
+    assert.equal(inventoryQuantity(consumed.next, "붕대"), 2);
+    assert.equal(consumed.next[0]?.id, start[0]?.id);
+  });
+
+  it("runtime merge/surface no longer own unit-list mutation or grouping", () => {
+    const merge = readFileSync("src/lib/trpg/mechanicsMerge.ts", "utf8");
+    const view = readFileSync("src/lib/trpg/sheetView.ts", "utf8");
+    const surface = readFileSync("src/lib/trpg/sheetSurface.ts", "utf8");
+    const hud = readFileSync("src/lib/trpg/sheetHud.ts", "utf8");
+    assert.match(merge, /addInventoryItem|removeInventoryItem|consumeInventoryItem/);
+    assert.doesNotMatch(merge, /inventory\.push|inventory\.indexOf|inventory\.splice/);
+    assert.doesNotMatch(view, /inventory\.push|inventory\.indexOf|inventory\.splice/);
+    assert.doesNotMatch(surface, /stackInventory/);
+    assert.match(hud, /inventoryUnitCount/);
   });
 });

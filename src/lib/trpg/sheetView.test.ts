@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { applyValidatedStateDelta, buildPartySheetHud, sheetToWidgetValues } from "./sheetView";
 import type { TrpgSheetSnapshot } from "./types";
+import { inventoryFromUnits } from "./inventory";
 
 function sheet(id: number, name: string): TrpgSheetSnapshot {
   return {
@@ -13,7 +14,7 @@ function sheet(id: number, name: string): TrpgSheetSnapshot {
     maxHp: 25,
     stats: { str: 5, dex: 5, int: 5, wis: 5, cha: 5, con: 5 },
     conditions: [],
-    inventory: ["횃불"],
+    inventory: inventoryFromUnits(["횃불"]),
     location: "여관",
     modifiersNote: "+0",
   };

@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { clipTrpgChars, loadCampaignLedger, type TrpgCampaignLedger } from "./campaignLedger";
 import { loadSheetSnapshots } from "./engineSheets";
+import { inventoryUnits } from "./inventory";
 import {
   buildHorizonPromptSections,
   loadMemoryEvents,
@@ -316,7 +317,7 @@ export function buildCampaignMemoryQuery(
     location: extra?.location ?? ledger.location,
     quests: extra?.quests ?? ledger.quests,
     npcs: extra?.npcs ?? ledger.npcs,
-    inventory: extra?.inventory ?? sheets.flatMap((sheet) => sheet.inventory),
+    inventory: extra?.inventory ?? sheets.flatMap((sheet) => inventoryUnits(sheet.inventory)),
     worldFlags: extra?.worldFlags ?? ledger.worldFlags,
     sceneText: extra?.sceneText ?? "",
     currentRound: extra?.currentRound ?? state?.round_number ?? 0,
@@ -339,7 +340,7 @@ export function buildCampaignMemoryPrompt(
     hp: s.hp,
     maxHp: s.maxHp,
     conditions: s.conditions,
-    inventory: s.inventory,
+    inventory: inventoryUnits(s.inventory),
     stats: s.stats,
   }));
   const completed = loadCompletedMemoryRounds(db, campaignId);

@@ -1,3 +1,9 @@
+import {
+  addInventoryItem,
+  cloneInventory,
+  consumeInventoryItem,
+  removeInventoryItem,
+} from "./inventory";
 import { clampHp } from "./stats";
 import type { MechanicsResolution } from "./mechanicsTypes";
 import type { TrpgSheetSnapshot, TrpgStateDelta } from "./types";
@@ -102,7 +108,7 @@ export function mergeMechanicsOwnedDelta(
   }
 
   const next = sheets.map((sheet) => {
-    const copy = { ...sheet, inventory: [...sheet.inventory], conditions: [...sheet.conditions], stats: { ...sheet.stats } };
+    const copy = { ...sheet, inventory: cloneInventory(sheet.inventory), conditions: [...sheet.conditions], stats: { ...sheet.stats } };
     if (complete && resolution) {
       copy.hp = resolveParticipantHp({
         startHp: sheet.hp,
@@ -113,8 +119,8 @@ export function mergeMechanicsOwnedDelta(
       });
       for (const row of mechanicsConsumed.values()) {
         if (row.participantId !== sheet.participantId) continue;
-        const idx = copy.inventory.indexOf(row.item);
-        if (idx >= 0) copy.inventory.splice(idx, 1);
+        const consumed = consumeInventoryItem(copy.inventory, row.item);
+        if (consumed.ok) copy.inventory = consumed.next;
       }
     }
     return copy;
@@ -134,19 +140,19 @@ export function mergeMechanicsOwnedDelta(
       for (const item of patch.inventoryAdd) {
         const t = item.trim();
         if (mechanicsConsumed.has(`${patch.participantId}\u0000${t}`)) continue;
-        if (t) cur.inventory.push(t);
+        if (t) cur.inventory = addInventoryItem(cur.inventory, t);
       }
     }
     if (patch.inventoryRemove) {
       for (const item of patch.inventoryRemove) {
         const t = item.trim();
         if (mechanicsConsumed.has(`${patch.participantId}\u0000${t}`)) continue;
-        const idx = cur.inventory.indexOf(t);
-        if (idx < 0) {
+        const removed = removeInventoryItem(cur.inventory, t);
+        if (!removed.ok) {
           invalidInventory = true;
           continue;
         }
-        cur.inventory.splice(idx, 1);
+        cur.inventory = removed.next;
       }
     }
     // Single canonical HP commit-boundary validation (shared by complete and

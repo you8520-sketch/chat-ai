@@ -10,7 +10,7 @@ import { listTrpgCampaigns, loadTrpgSnapshot } from "./engineSnapshot";
 import { parseHumanPersona } from "./hostPersona";
 import { trpgInvitePath } from "./invite";
 import { loadSheetSnapshots } from "./engineSheets";
-import { formatInventoryAuthoringText } from "./inventory";
+import { formatInventoryAuthoringText, inventoryUnits } from "./inventory";
 import { scenarioEditorSavePayload } from "./scenarioEditorState";
 import { emptyTrpgScenarioPlan } from "./scenarioPlan";
 import { insertScenarioTemplate, loadScenarioTemplate, rowToScenarioTemplate, updateScenarioTemplate } from "./scenarioTemplates";
@@ -176,7 +176,14 @@ describe("TRPG scenarios and catalog", () => {
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1, templateId });
     assert.deepEqual(loadScenario(db, campaignId).startInventory, ["붕대", "붕대", "해독제", "붕대"]);
     saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
-    assert.deepEqual(loadSheetSnapshots(db, campaignId)[0]?.inventory, ["붕대", "붕대", "해독제", "붕대"]);
+    assert.deepEqual(inventoryUnits(loadSheetSnapshots(db, campaignId)[0]?.inventory ?? []), ["붕대", "붕대", "붕대", "해독제"]);
+    assert.deepEqual(
+      loadSheetSnapshots(db, campaignId)[0]?.inventory.map(({ name, quantity }) => ({ name, quantity })),
+      [
+        { name: "붕대", quantity: 3 },
+        { name: "해독제", quantity: 1 },
+      ]
+    );
     db.close();
   });
 
@@ -214,7 +221,15 @@ describe("TRPG scenarios and catalog", () => {
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1, templateId });
     assert.deepEqual(loadScenario(db, campaignId).startInventory, ["해독제", "붕대", "붕대", "고급 붕대"]);
     saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: { str: 9, dex: 8, int: 8 } });
-    assert.deepEqual(loadSheetSnapshots(db, campaignId)[0]?.inventory, ["해독제", "붕대", "붕대", "고급 붕대"]);
+    assert.deepEqual(inventoryUnits(loadSheetSnapshots(db, campaignId)[0]?.inventory ?? []), ["해독제", "붕대", "붕대", "고급 붕대"]);
+    assert.deepEqual(
+      loadSheetSnapshots(db, campaignId)[0]?.inventory.map(({ name, quantity }) => ({ name, quantity })),
+      [
+        { name: "해독제", quantity: 1 },
+        { name: "붕대", quantity: 2 },
+        { name: "고급 붕대", quantity: 1 },
+      ]
+    );
     db.close();
   });
 

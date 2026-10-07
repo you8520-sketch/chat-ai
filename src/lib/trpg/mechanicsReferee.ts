@@ -8,6 +8,7 @@ import { executeDeepSeekBackgroundWithProviderFailover } from "@/lib/deepseekPro
 import { adaptTrpgReplySuggestionChatBody } from "./replySuggestions";
 import type { MechanicsActorInput, TrpgOngoingEffect } from "./mechanicsTypes";
 import { TRPG_MECHANICS_REFEREE_MODEL } from "./mechanicsTypes";
+import { inventoryUnits } from "./inventory";
 import type { TrpgSheetSnapshot } from "./types";
 
 export const TRPG_MECHANICS_REFEREE_MAX_TOKENS = 900;
@@ -60,7 +61,7 @@ export function buildMechanicsRefereeUserBlock(opts: {
         `${sheet.name} id=${sheet.participantId} HP ${sheet.hp}/${sheet.maxHp}`,
         `stats=${JSON.stringify(sheet.stats)}`,
         `conditions=${sheet.conditions.join(",") || "none"}`,
-        `inventory=${sheet.inventory.join(",") || "none"}`,
+        `inventory=${inventoryUnits(sheet.inventory).join(",") || "none"}`,
       ].join("\n")
     )
     .join("\n\n");
