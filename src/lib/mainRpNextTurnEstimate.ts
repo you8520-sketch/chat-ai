@@ -70,6 +70,22 @@ export type NextTurnAssembledPromptChars = {
   total?: number;
 };
 
+/** Content-free promptAudit breakdown. History/current-user stay out of context delta. */
+export type NextTurnPromptAuditSections = {
+  systemRules: number;
+  characterSetting: number;
+  worldLore: number;
+  memory: number;
+  persona: number;
+  userNote: number;
+  dialogueExamples: number;
+};
+
+export type NextTurnHistoryMessage = {
+  role?: string | null;
+  content?: string | null;
+};
+
 export type NextTurnRawHistoryHealth = {
   rawCompleteExchanges?: number;
   summarizedThroughTurn?: number;
@@ -341,7 +357,7 @@ export function resolveNextTurnInputCalibrationConfidence(
 }
 
 export function isPreviousAssistantRetainedInHistory(input: {
-  nextPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
+  nextPromptHistory?: NextTurnHistoryMessage[] | null;
   previousAssistantContent?: string | null;
 }): boolean {
   const previous = (input.previousAssistantContent ?? "").trim();
@@ -352,14 +368,87 @@ export function isPreviousAssistantRetainedInHistory(input: {
   );
 }
 
-function nonHistoryAssembledChars(chars: NextTurnAssembledPromptChars | null | undefined): number {
-  if (!chars) return 0;
-  return (
-    Math.max(0, chars.system ?? 0) +
-    Math.max(0, chars.systemRules ?? 0) +
-    Math.max(0, chars.characterSettings ?? 0) +
-    Math.max(0, chars.dynamic ?? 0)
+export function nextTurnHistoryMessageIdentity(message: NextTurnHistoryMessage): string {
+  return `${message.role ?? ""}\n${(message.content ?? "").trim()}`;
+}
+
+export function resolveRemovedHistoryTexts(input: {
+  previousPromptHistory?: NextTurnHistoryMessage[] | null;
+  nextPromptHistory?: NextTurnHistoryMessage[] | null;
+}): string[] {
+  const nextKeys = new Set(
+    (input.nextPromptHistory ?? []).map(nextTurnHistoryMessageIdentity)
   );
+  const removed: string[] = [];
+  for (const message of input.previousPromptHistory ?? []) {
+    const content = (message.content ?? "").trim();
+    if (!content) continue;
+    if (!nextKeys.has(nextTurnHistoryMessageIdentity(message))) {
+      removed.push(content);
+    }
+  }
+  return removed;
+}
+
+export function nonHistoryTokensFromPromptAuditSections(
+  sections: NextTurnPromptAuditSections | null | undefined
+): number {
+  if (!sections) return 0;
+  return (
+    Math.max(0, sections.systemRules) +
+    Math.max(0, sections.characterSetting) +
+    Math.max(0, sections.worldLore) +
+    Math.max(0, sections.memory) +
+    Math.max(0, sections.persona) +
+    Math.max(0, sections.userNote) +
+    Math.max(0, sections.dialogueExamples)
+  );
+}
+
+export function promptAuditSectionsFromAssembledPromptChars(
+  chars: NextTurnAssembledPromptChars | null | undefined
+): NextTurnPromptAuditSections | null {
+  if (!chars) return null;
+  const systemRules = estimateTokensFromCharCount(chars.systemRules ?? 0);
+  const characterSetting = estimateTokensFromCharCount(chars.characterSettings ?? 0);
+  const dynamic = estimateTokensFromCharCount(chars.dynamic ?? 0);
+  if (systemRules + characterSetting + dynamic > 0) {
+    return {
+      systemRules,
+      characterSetting,
+      worldLore: dynamic,
+      memory: 0,
+      persona: 0,
+      userNote: 0,
+      dialogueExamples: 0,
+    };
+  }
+  const system = estimateTokensFromCharCount(chars.system ?? 0);
+  if (system <= 0) return null;
+  return {
+    systemRules: system,
+    characterSetting: 0,
+    worldLore: 0,
+    memory: 0,
+    persona: 0,
+    userNote: 0,
+    dialogueExamples: 0,
+  };
+}
+
+export function promptAuditSectionsFromPromptAudit(input: {
+  breakdown?: NextTurnPromptAuditSections | null;
+}): NextTurnPromptAuditSections | null {
+  if (!input.breakdown) return null;
+  return {
+    systemRules: Math.max(0, input.breakdown.systemRules),
+    characterSetting: Math.max(0, input.breakdown.characterSetting),
+    worldLore: Math.max(0, input.breakdown.worldLore),
+    memory: Math.max(0, input.breakdown.memory),
+    persona: Math.max(0, input.breakdown.persona),
+    userNote: Math.max(0, input.breakdown.userNote),
+    dialogueExamples: Math.max(0, input.breakdown.dialogueExamples),
+  };
 }
 
 export function resolveNextTurnRawHistoryState(input: {
@@ -387,18 +476,36 @@ export function resolveNextTurnRawHistoryState(input: {
 
 export function resolveNextTurnHistoryDelta(input: {
   previous: NextTurnActualAnchor;
-  previousAssistantRetained: boolean;
+  previousAssistantRetained?: boolean;
+  previousAssistantContent?: string | null;
   currentUserEstimatedTokens?: number | null;
   contextDeltaTokens?: number | null;
   removedHistoryTokens?: number | null;
   nextAssembledPromptChars?: NextTurnAssembledPromptChars | null;
+  nextPromptAuditSections?: NextTurnPromptAuditSections | null;
   nextRawHistoryHealth?: NextTurnRawHistoryHealth | null;
   evictedMessageTexts?: string[] | null;
+  nextPromptHistory?: NextTurnHistoryMessage[] | null;
+  previousPromptHistory?: NextTurnHistoryMessage[] | null;
 }): NextTurnHistoryDelta {
-  const retainedNewHistoryTokens = input.previousAssistantRetained
+  const previousAssistantRetained =
+    input.nextPromptHistory != null
+      ? isPreviousAssistantRetainedInHistory({
+          nextPromptHistory: input.nextPromptHistory,
+          previousAssistantContent: input.previousAssistantContent,
+        })
+      : input.previousAssistantRetained === true;
+  const retainedNewHistoryTokens = previousAssistantRetained
     ? Math.max(0, Math.round(input.previous.actualBillableOutputTokens))
     : 0;
-  const evictedFromTexts = (input.evictedMessageTexts ?? []).reduce(
+  const evictedFromHistories =
+    input.previousPromptHistory != null && input.nextPromptHistory != null
+      ? resolveRemovedHistoryTexts({
+          previousPromptHistory: input.previousPromptHistory,
+          nextPromptHistory: input.nextPromptHistory,
+        })
+      : [];
+  const evictedFromTexts = (input.evictedMessageTexts ?? evictedFromHistories).reduce(
     (sum, text) => sum + estimateTokens(text),
     0
   );
@@ -407,13 +514,15 @@ export function resolveNextTurnHistoryDelta(input: {
     Math.round(input.removedHistoryTokens ?? evictedFromTexts)
   );
   let contextDeltaTokens = Math.round(input.contextDeltaTokens ?? 0);
-  if (input.contextDeltaTokens == null && input.nextAssembledPromptChars) {
-    const previousNonHistory = estimateTokensFromCharCount(
-      nonHistoryAssembledChars(input.previous.assembledPromptChars)
+  if (input.contextDeltaTokens == null) {
+    const previousSections = promptAuditSectionsFromAssembledPromptChars(
+      input.previous.assembledPromptChars
     );
-    const nextNonHistory = estimateTokensFromCharCount(
-      nonHistoryAssembledChars(input.nextAssembledPromptChars)
-    );
+    const nextSections =
+      input.nextPromptAuditSections ??
+      promptAuditSectionsFromAssembledPromptChars(input.nextAssembledPromptChars);
+    const previousNonHistory = nonHistoryTokensFromPromptAuditSections(previousSections);
+    const nextNonHistory = nonHistoryTokensFromPromptAuditSections(nextSections);
     if (previousNonHistory > 0 || nextNonHistory > 0) {
       contextDeltaTokens = nextNonHistory - previousNonHistory;
     }
@@ -425,11 +534,11 @@ export function resolveNextTurnHistoryDelta(input: {
   const rawState = resolveNextTurnRawHistoryState({
     previous: input.previous.rawHistoryHealth,
     next: input.nextRawHistoryHealth,
-    previousAssistantRetained: input.previousAssistantRetained,
+    previousAssistantRetained,
     removedHistoryTokens,
   });
   return {
-    previousAssistantRetained: input.previousAssistantRetained,
+    previousAssistantRetained,
     retainedNewHistoryTokens,
     removedHistoryTokens,
     contextDeltaTokens,

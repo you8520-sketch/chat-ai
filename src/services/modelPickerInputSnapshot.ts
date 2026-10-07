@@ -6,18 +6,39 @@ import {
 } from "@/lib/modelPickerPreview";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import { countPlayableTurns, messagesToTurns } from "@/lib/hybridMemory";
+import type {
+  NextTurnPromptAuditSections,
+  NextTurnRawHistoryHealth,
+} from "@/lib/mainRpNextTurnEstimate";
+import { promptAuditSectionsFromPromptAudit } from "@/lib/mainRpNextTurnEstimate";
 import { buildContext } from "@/services/contextBuilder";
 import {
   assemblePersistedNextTurnInputs,
   fingerprintPersistedNextTurnSource,
   loadPersistedNextTurnSource,
+  preparePreviousRequestHistory,
   resolvePersistedNextTurnPromptSections,
 } from "@/services/nextTurnAssemblyPreparation";
 import { withEnsembleRedactedPromptAssembly } from "@/lib/personaKnowledgePromptPolicy";
 
+export type ModelPickerAssemblyEvidence = {
+  assembledInputTokens: number;
+  currentUserEstimatedTokens: number;
+  nextPromptHistory: Array<{ role: "user" | "assistant"; content: string }>;
+  previousPromptHistory: Array<{ role: "user" | "assistant"; content: string }>;
+  nextPromptAuditSections: NextTurnPromptAuditSections | null;
+  nextRawHistoryHealth: NextTurnRawHistoryHealth;
+};
+
 export type SnapshotCacheEntry = {
   tokensByModel: Partial<Record<ModelPickerActiveModelId, number>>;
+  evidenceByModel?: Partial<Record<ModelPickerActiveModelId, ModelPickerAssemblyEvidence>>;
   sourceFingerprint: string;
+};
+
+export type ModelPickerAssembledSnapshot = {
+  tokensByModel: Partial<Record<ModelPickerActiveModelId, number>>;
+  evidenceByModel: Partial<Record<ModelPickerActiveModelId, ModelPickerAssemblyEvidence>>;
 };
 
 const assembledSnapshotCache = new Map<number, SnapshotCacheEntry>();
@@ -76,10 +97,11 @@ export function resetModelPickerAssembledSnapshotRebuildCount(): void {
   assembledSnapshotRebuildCount = 0;
 }
 
-export async function resolveModelPickerAssembledInputSnapshots(opts: {
+export async function resolveModelPickerAssembledSnapshotEvidence(opts: {
   chatId: number;
   user: User;
-}): Promise<Partial<Record<ModelPickerActiveModelId, number>> | null> {
+  previousSummarizedTurnCount?: number | null;
+}): Promise<ModelPickerAssembledSnapshot | null> {
   const source = loadPersistedNextTurnSource({
     chatId: opts.chatId,
     user: opts.user,
@@ -91,8 +113,14 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
   });
   const sourceFingerprint = fingerprintPersistedNextTurnSource(source, sections);
   const cached = touchSnapshotCache(opts.chatId);
-  if (matchesModelPickerSnapshotCache(cached, { sourceFingerprint })) {
-    return cached!.tokensByModel;
+  if (
+    matchesModelPickerSnapshotCache(cached, { sourceFingerprint }) &&
+    cached!.evidenceByModel
+  ) {
+    return {
+      tokensByModel: cached!.tokensByModel,
+      evidenceByModel: cached!.evidenceByModel,
+    };
   }
   assembledSnapshotRebuildCount += 1;
 
@@ -102,6 +130,9 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
       : fn();
 
   const tokensByModel: Partial<Record<ModelPickerActiveModelId, number>> = {};
+  const evidenceByModel: Partial<
+    Record<ModelPickerActiveModelId, ModelPickerAssemblyEvidence>
+  > = {};
   for (const modelId of MODEL_PICKER_ACTIVE_MODEL_IDS) {
     const contextBuildInput = await assemblePersistedNextTurnInputs({
       source,
@@ -112,22 +143,68 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
     const built = assemblePickerContext(() => buildContext(contextBuildInput));
     const tokens =
       built.meta.promptAudit?.totalAssembledTokens ?? built.meta.estimatedInputTokens;
-    if (typeof tokens === "number" && tokens > 0) {
-      tokensByModel[modelId] = tokens;
-    }
+    if (typeof tokens !== "number" || tokens <= 0) continue;
+    tokensByModel[modelId] = tokens;
+    const previousHistory = preparePreviousRequestHistory({
+      turns: source.turns,
+      modelId,
+      provider: "openrouter",
+      memoryFeatureOn: source.memoryFeatureOn,
+      completedTurnsForMemoryCoverage: source.completedTurnsForMemoryCoverage,
+      summarizedTurnCount:
+        opts.previousSummarizedTurnCount ?? source.summarizedTurnCount,
+      personaDisplayName: source.personaDisplayName,
+      userNickname: source.user.nickname,
+    });
+    evidenceByModel[modelId] = {
+      assembledInputTokens: tokens,
+      currentUserEstimatedTokens: 0,
+      nextPromptHistory: (contextBuildInput.shortTermHistory ?? []).map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+      previousPromptHistory: previousHistory.promptHistory.map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+      nextPromptAuditSections: promptAuditSectionsFromPromptAudit({
+        breakdown: built.meta.promptAudit?.breakdown ?? null,
+      }),
+      nextRawHistoryHealth: {
+        summarizedThroughTurn:
+          contextBuildInput.summarizedTurnCount ?? source.summarizedTurnCount,
+        unsummarizedCompletedTurns: Math.max(
+          0,
+          (contextBuildInput.completedTurnsForMemoryCoverage ??
+            source.completedTurnsForMemoryCoverage) - source.summarizedTurnCount
+        ),
+      },
+    };
   }
 
   if (Object.keys(tokensByModel).length > 0) {
     rememberModelPickerInputSnapshot(opts.chatId, {
       tokensByModel,
+      evidenceByModel,
       sourceFingerprint,
     });
-    return tokensByModel;
+    return { tokensByModel, evidenceByModel };
   }
 
-  return matchesModelPickerSnapshotCache(cached, { sourceFingerprint })
-    ? cached!.tokensByModel
+  return matchesModelPickerSnapshotCache(cached, { sourceFingerprint }) && cached!.evidenceByModel
+    ? {
+        tokensByModel: cached!.tokensByModel,
+        evidenceByModel: cached!.evidenceByModel,
+      }
     : null;
+}
+
+export async function resolveModelPickerAssembledInputSnapshots(opts: {
+  chatId: number;
+  user: User;
+}): Promise<Partial<Record<ModelPickerActiveModelId, number>> | null> {
+  const snapshot = await resolveModelPickerAssembledSnapshotEvidence(opts);
+  return snapshot?.tokensByModel ?? null;
 }
 
 /** @deprecated Use the per-model snapshot map for pricing previews. */

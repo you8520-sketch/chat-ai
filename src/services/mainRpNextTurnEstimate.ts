@@ -16,7 +16,6 @@ import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { billableOpenRouterOutputTokens } from "@/lib/points";
 import {
   computeMainRpNextTurnEstimates,
-  isPreviousAssistantRetainedInHistory,
   isUsableOutputCalibrationSource,
   nextTurnEstimateDisplayMap,
   pickLatestProviderInputCalibrationByModel,
@@ -27,11 +26,16 @@ import {
   type NextTurnActualAnchor,
   type NextTurnEstimateMap,
   type NextTurnHistoryDelta,
+  type NextTurnPromptAuditSections,
   type NextTurnProviderInputCalibrationSample,
+  type NextTurnRawHistoryHealth,
 } from "@/lib/mainRpNextTurnEstimate";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { isSuccessfulDurableGenerationStatus } from "@/lib/streamingPersistenceShared";
-import { resolveModelPickerAssembledInputSnapshots } from "@/services/modelPickerInputSnapshot";
+import {
+  resolveModelPickerAssembledSnapshotEvidence,
+  type ModelPickerAssemblyEvidence,
+} from "@/services/modelPickerInputSnapshot";
 
 export type EstimateMessageRow = {
   role: "user" | "assistant";
@@ -170,34 +174,39 @@ export function resolveMainRpNextTurnHistoryDeltaForAnchor(
   anchor: NextTurnActualAnchor | null | undefined,
   opts?: {
     nextPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
+    previousPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
     currentUserEstimatedTokens?: number | null;
     currentUserMessage?: string | null;
     contextDeltaTokens?: number | null;
     removedHistoryTokens?: number | null;
     evictedMessageTexts?: string[] | null;
+    nextPromptAuditSections?: NextTurnPromptAuditSections | null;
+    nextRawHistoryHealth?: NextTurnRawHistoryHealth | null;
+    evidence?: ModelPickerAssemblyEvidence | null;
   }
 ): NextTurnHistoryDelta | null {
   if (!anchor) return null;
+  const nextPromptHistory = opts?.nextPromptHistory ?? opts?.evidence?.nextPromptHistory ?? null;
+  if (nextPromptHistory == null) return null;
   const previousAssistantContent = lastSuccessfulAssistantContent(rows);
-  const previousAssistantRetained =
-    opts?.nextPromptHistory != null
-      ? isPreviousAssistantRetainedInHistory({
-          nextPromptHistory: opts.nextPromptHistory,
-          previousAssistantContent,
-        })
-      : true;
   const currentUserEstimatedTokens =
     opts?.currentUserEstimatedTokens ??
+    opts?.evidence?.currentUserEstimatedTokens ??
     (opts?.currentUserMessage ? estimateTokens(opts.currentUserMessage) : 0);
   return resolveNextTurnHistoryDelta({
     previous: anchor,
-    previousAssistantRetained,
+    previousAssistantContent,
     currentUserEstimatedTokens,
     contextDeltaTokens: opts?.contextDeltaTokens,
     removedHistoryTokens: opts?.removedHistoryTokens,
     evictedMessageTexts: opts?.evictedMessageTexts,
-    nextAssembledPromptChars: null,
-    nextRawHistoryHealth: null,
+    nextPromptHistory,
+    previousPromptHistory:
+      opts?.previousPromptHistory ?? opts?.evidence?.previousPromptHistory ?? null,
+    nextPromptAuditSections:
+      opts?.nextPromptAuditSections ?? opts?.evidence?.nextPromptAuditSections ?? null,
+    nextRawHistoryHealth:
+      opts?.nextRawHistoryHealth ?? opts?.evidence?.nextRawHistoryHealth ?? null,
   });
 }
 
@@ -243,8 +252,12 @@ function historyDeltaByModelFromRows(
   anchors: Partial<Record<SelectedAI, NextTurnActualAnchor>>,
   opts?: {
     nextPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
+    previousPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
     currentUserEstimatedTokens?: number | null;
     currentUserMessage?: string | null;
+    nextPromptAuditSections?: NextTurnPromptAuditSections | null;
+    nextRawHistoryHealth?: NextTurnRawHistoryHealth | null;
+    evidenceByModel?: Partial<Record<SelectedAI, ModelPickerAssemblyEvidence | null>>;
   }
 ): Partial<Record<SelectedAI, NextTurnHistoryDelta>> {
   const out: Partial<Record<SelectedAI, NextTurnHistoryDelta>> = {};
@@ -252,7 +265,10 @@ function historyDeltaByModelFromRows(
     [SelectedAI, NextTurnActualAnchor | undefined]
   >) {
     if (!anchor) continue;
-    const delta = resolveMainRpNextTurnHistoryDeltaForAnchor(rows, anchor, opts);
+    const delta = resolveMainRpNextTurnHistoryDeltaForAnchor(rows, anchor, {
+      ...opts,
+      evidence: opts?.evidenceByModel?.[modelId] ?? null,
+    });
     if (delta) out[modelId] = delta;
   }
   return out;
@@ -266,6 +282,9 @@ export function resolveMainRpNextTurnPublishedEstimateForModel(opts: {
   currentUserEstimatedTokens?: number | null;
   currentUserMessage?: string | null;
   nextPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
+  previousPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
+  nextPromptAuditSections?: NextTurnPromptAuditSections | null;
+  nextRawHistoryHealth?: NextTurnRawHistoryHealth | null;
 }): number | null {
   if (!Number.isFinite(opts.promptTokens) || opts.promptTokens <= 0) return null;
   const db = getDb();
@@ -284,8 +303,11 @@ export function resolveMainRpNextTurnPublishedEstimateForModel(opts: {
     anchors,
     historyDeltaByModelFromRows(rows, anchors, {
       nextPromptHistory: opts.nextPromptHistory,
+      previousPromptHistory: opts.previousPromptHistory,
       currentUserEstimatedTokens: opts.currentUserEstimatedTokens,
       currentUserMessage: opts.currentUserMessage,
+      nextPromptAuditSections: opts.nextPromptAuditSections,
+      nextRawHistoryHealth: opts.nextRawHistoryHealth,
     })
   );
   const points = estimates[opts.modelId]?.displayPoints;
@@ -315,11 +337,23 @@ export async function resolveMainRpNextTurnPickerEstimates(opts: {
     .get(opts.chatId, opts.user.id) as { id: number } | undefined;
   if (!owned) return null;
 
-  const promptTokensByModel = await resolveModelPickerAssembledInputSnapshots({
+  const rows = db
+    .prepare(
+      `SELECT role, content, model, usage, generation_status
+       FROM messages WHERE chat_id=? ORDER BY id ASC`
+    )
+    .all(opts.chatId) as EstimateMessageRow[];
+  const providerInputCalibrationByModel =
+    readMainRpNextTurnProviderInputCalibration(rows);
+  const previousSummarizedTurnCount = Object.values(providerInputCalibrationByModel)
+    .map((sample) => sample?.rawHistoryHealth?.summarizedThroughTurn)
+    .find((value) => typeof value === "number" && Number.isFinite(value));
+  const snapshot = await resolveModelPickerAssembledSnapshotEvidence({
     chatId: opts.chatId,
     user: opts.user,
+    previousSummarizedTurnCount,
   });
-  if (!promptTokensByModel) {
+  if (!snapshot) {
     return {
       chatId: opts.chatId,
       estimates: {},
@@ -330,22 +364,14 @@ export async function resolveMainRpNextTurnPickerEstimates(opts: {
     };
   }
 
-  const rows = db
-    .prepare(
-      `SELECT role, content, model, usage, generation_status
-       FROM messages WHERE chat_id=? ORDER BY id ASC`
-    )
-    .all(opts.chatId) as EstimateMessageRow[];
-
   const lastVisibleAssistantChars = readLastVisibleAssistantChars(rows);
-  const providerInputCalibrationByModel =
-    readMainRpNextTurnProviderInputCalibration(rows);
   const estimates = estimatesFromRoomRows(
     rows,
-    promptTokensByModel,
+    snapshot.tokensByModel,
     providerInputCalibrationByModel,
     historyDeltaByModelFromRows(rows, providerInputCalibrationByModel, {
       currentUserEstimatedTokens: 0,
+      evidenceByModel: snapshot.evidenceByModel,
     })
   );
   return {

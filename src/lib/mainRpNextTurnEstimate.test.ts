@@ -331,7 +331,7 @@ describe("main RP next-turn estimate", () => {
       assert.doesNotMatch(src, /settleChatTurnBillingExactlyOnce/);
       assert.doesNotMatch(src, /fetch\(/);
     }
-    assert.match(SERVICE_SOURCE, /resolveModelPickerAssembledInputSnapshots/);
+    assert.match(SERVICE_SOURCE, /resolveModelPickerAssembledSnapshotEvidence/);
     assert.match(SERVICE_SOURCE, /visibleAssistantDisplayCharCount/);
     assert.match(SERVICE_SOURCE, /billableOpenRouterOutputTokens/);
   });
@@ -740,6 +740,8 @@ describe("provider-input next-turn calibration", () => {
     assert.match(SERVICE_SOURCE, /providerInputCalibrationByModel/);
     assert.match(SERVICE_SOURCE, /historyDeltaByModel/);
     assert.match(SERVICE_SOURCE, /readMainRpNextTurnProviderInputCalibration/);
+    assert.match(SERVICE_SOURCE, /resolveModelPickerAssembledSnapshotEvidence/);
+    assert.doesNotMatch(SERVICE_SOURCE, /previousAssistantRetained = true/);
     assert.match(SERVICE_SOURCE, /recentBillableOutputTokensByModel/);
     assert.match(SERVICE_SOURCE, /readMainRpNextTurnOutputHistory/);
     assert.match(

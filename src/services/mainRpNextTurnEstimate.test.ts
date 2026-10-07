@@ -281,7 +281,7 @@ describe("main RP next-turn provider-input calibration reader", () => {
     );
     assert.match(
       SERVICE_SOURCE,
-      /estimatesFromRoomRows\(\s*rows,\s*promptTokensByModel,\s*providerInputCalibrationByModel/
+      /estimatesFromRoomRows\(\s*rows,\s*snapshot\.tokensByModel,\s*providerInputCalibrationByModel/
     );
   });
 });

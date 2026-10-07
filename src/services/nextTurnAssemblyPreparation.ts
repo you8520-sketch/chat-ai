@@ -383,6 +383,34 @@ export function prepareNextTurnHistory(input: {
   };
 }
 
+/** Prior request turns: drop the newest complete playable exchange only. */
+export function dropLastCompletePlayableTurn(turns: DialogueTurn[]): DialogueTurn[] {
+  const { opening, playable } = splitOpeningPlayableTurns(turns);
+  if (playable.length === 0) return turns;
+  const previousPlayable = playable.slice(0, -1);
+  return opening ? [opening, ...previousPlayable] : previousPlayable;
+}
+
+/**
+ * Same history planner as the next request, on the previous request's turns.
+ * Not a second RAW window algorithm.
+ */
+export function preparePreviousRequestHistory(
+  input: Parameters<typeof prepareNextTurnHistory>[0]
+): NextTurnHistoryPreparation {
+  const previousTurns = dropLastCompletePlayableTurn(input.turns);
+  const droppedPlayable =
+    countPlayableTurns(input.turns) - countPlayableTurns(previousTurns);
+  return prepareNextTurnHistory({
+    ...input,
+    turns: previousTurns,
+    completedTurnsForMemoryCoverage: Math.max(
+      0,
+      input.completedTurnsForMemoryCoverage - Math.max(0, droppedPlayable)
+    ),
+  });
+}
+
 /** Legacy picker history: untrimmed full dialogue. Kept only to prove the old mismatch. */
 export function legacyPickerUntrimmedHistory(
   turns: DialogueTurn[],
