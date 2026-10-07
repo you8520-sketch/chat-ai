@@ -279,10 +279,10 @@ export type RpQualityPrecallSamplePlan = {
   model: RpQualityPrecallModelPlan;
   semanticFingerprint: string;
   adapterFingerprint: string;
-  targetResponseChars: typeof UNIFIED_TIER_AIM_CHARS;
+  targetResponseChars: number;
   applicationMaxTokens: undefined;
   streamCharCap: number;
-  uiEditMaxChars: typeof ASSISTANT_MESSAGE_EDIT_MAX_CHARS;
+  uiEditMaxChars: number;
   retry: 0;
   fallback: 0;
   auxiliary: 0;
@@ -367,11 +367,11 @@ export type RpQualityPrecallReport = {
     matrix: ReturnType<typeof liveAuthoringCapabilityMatrix>;
   };
   length: {
-    softAimChars: typeof UNIFIED_TIER_AIM_CHARS;
+    softAimChars: number;
     applicationMaxTokens: undefined;
     streamCharCap: number;
-    centerBandMaxIsMetadataNotCap: typeof RP_QUALITY_CENTER_BAND_MAX_CHARS;
-    uiEditMaxChars: typeof ASSISTANT_MESSAGE_EDIT_MAX_CHARS;
+    centerBandMaxIsMetadataNotCap: number;
+    uiEditMaxChars: number;
     longOkClass: ReturnType<typeof classifyVisibleLength>;
   };
   cost: RpQualityPrecallCostBound;
@@ -544,7 +544,7 @@ export function buildRpQualityPrecallPlan(): RpQualityPrecallSamplePlan[] {
         targetResponseChars: UNIFIED_TIER_AIM_CHARS,
         applicationMaxTokens,
         streamCharCap: resolveStreamCharCap(UNIFIED_TIER_AIM_CHARS),
-        uiEditMaxChars: ASSISTANT_MESSAGE_EDIT_MAX_CHARS,
+        uiEditMaxChars: ASSISTANT_MESSAGE_EDIT_MAX_CHARS as number,
         retry: 0 as const,
         fallback: 0 as const,
         auxiliary: 0 as const,
