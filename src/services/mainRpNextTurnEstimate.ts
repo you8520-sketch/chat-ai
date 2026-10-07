@@ -14,13 +14,15 @@ import {
   computeMainRpNextTurnEstimates,
   isUsableOutputCalibrationSource,
   nextTurnEstimateDisplayMap,
+  pickLatestProviderInputCalibrationByModel,
   resolveObservedCharsPerToken,
   type NextTurnEstimateMap,
+  type NextTurnProviderInputCalibrationSample,
 } from "@/lib/mainRpNextTurnEstimate";
 import { isSuccessfulDurableGenerationStatus } from "@/lib/streamingPersistenceShared";
 import { resolveModelPickerAssembledInputSnapshots } from "@/services/modelPickerInputSnapshot";
 
-type EstimateMessageRow = {
+export type EstimateMessageRow = {
   role: "user" | "assistant";
   content: string;
   model: string | null;
@@ -100,6 +102,32 @@ function readObservedCharsPerTokenByModel(
   return out;
 }
 
+export function readMainRpNextTurnProviderInputCalibration(
+  rows: EstimateMessageRow[]
+): Partial<Record<SelectedAI, NextTurnProviderInputCalibrationSample>> {
+  return pickLatestProviderInputCalibrationByModel(
+    rows
+      .filter((row) => row.role === "assistant")
+      .map((row) => {
+        const usage = parseUsage(row.usage);
+        return {
+          generationStatus: row.generation_status,
+          model: row.model,
+          selectedAI: usage?.selectedAI ?? null,
+          actualModel: usage?.adultRouting?.actualModel || usage?.model || null,
+          htmlFlashOnly: usage?.htmlFlashOnly === true,
+          estimated: usage?.estimated === true,
+          fallback: usage?.fallback ?? null,
+          fallbackAttempted: usage?.adultRouting?.fallbackAttempted === true,
+          apiCallCount: usage?.apiCallCount ?? null,
+          lengthRecoveryPasses: usage?.lengthRecoveryPasses ?? null,
+          apiInputTokens: usage?.apiInputTokens ?? null,
+          assembledInputTokens: usage?.assembledInputTokens ?? null,
+        };
+      })
+  );
+}
+
 function estimatesFromRoomRows(
   rows: EstimateMessageRow[],
   promptTokensByModel: Partial<Record<SelectedAI, number>>
@@ -108,6 +136,7 @@ function estimatesFromRoomRows(
     promptTokensByModel,
     lastVisibleAssistantChars: readLastVisibleAssistantChars(rows),
     observedCharsPerTokenByModel: readObservedCharsPerTokenByModel(rows),
+    providerInputCalibrationByModel: readMainRpNextTurnProviderInputCalibration(rows),
     effectiveKrwPerUsd: getEffectiveKrwPerUsd(),
   });
 }
