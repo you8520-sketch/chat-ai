@@ -348,9 +348,11 @@ export function pickLatestProviderInputCalibrationByModel(
       resolveMainRpNextTurnCalibrationModelId(candidate.selectedAI) ??
       resolveMainRpNextTurnCalibrationModelId(candidate.model);
     if (!modelId || out[modelId] != null) continue;
+    const assembledInputTokens = candidate.assembledInputTokens as number;
+    const reportedInputTokens = candidate.apiInputTokens as number;
     out[modelId] = {
-      actualBillableInputTokens: candidate.apiInputTokens as number,
-      assembledInputTokens: candidate.assembledInputTokens as number,
+      actualBillableInputTokens: Math.min(reportedInputTokens, assembledInputTokens),
+      assembledInputTokens,
     };
   }
   return out;
