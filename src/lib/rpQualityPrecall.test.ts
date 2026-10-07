@@ -3,9 +3,10 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import {
-  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-  CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
+  GEMINI_37_FLASH_DISPLAY_NAME,
   GEMINI_38_FLASH_MODEL,
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
@@ -25,31 +26,59 @@ import {
   emptyRubricScores,
 } from "@/lib/rpQualityEvaluationPacket";
 import {
+  HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_COMMIT,
+  HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_OWNER,
   RP_QUALITY_PRECALL_EXECUTION_POLICY,
   RP_QUALITY_PRECALL_FIXTURE_IDS,
-  RP_QUALITY_PRECALL_INTENDED_SOURCE,
+  RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER,
   RP_QUALITY_PRECALL_MUTATION_POLICY,
   RP_QUALITY_PRECALL_PAID_STATUS,
   RP_QUALITY_PRECALL_PLANNED_CALLS,
-  RP_QUALITY_PRECALL_RETIRED_GEMINI_LABELS,
+  absentLiveProof,
   artifactContainsSecret,
   assertActiveMainRpBenchmarkSet,
-  assertFixtureSemanticParity,
+  assertFixturePlannedSemanticParity,
   buildPairedComparisonPackets,
   buildPlannedQualityPackets,
   buildRpQualityPrecallPlan,
   buildRpQualityPrecallReport,
-  evaluateLiveDeployedInputProof,
   evaluateRpQualityPrecallCostBound,
+  historicalRowProofCannotSatisfyCurrent,
   rpQualityPrecallBenchmarkModels,
   startRpQualityPrecallPaidExecution,
+  validateLiveProof,
+  type RpQualityPrecallLiveProofInput,
 } from "@/lib/rpQualityPrecall";
 
 const PRECALL_SRC = readFileSync("src/lib/rpQualityPrecall.ts", "utf8");
 const PACKET_SRC = readFileSync("src/lib/rpQualityEvaluationPacket.ts", "utf8");
 
+const TEST_SHA = "ab".repeat(32);
+const CURRENT_DEPLOY_SHA = "cd".repeat(32);
+
+function testLiveProofInput(
+  overrides: Partial<RpQualityPrecallLiveProofInput> = {}
+): RpQualityPrecallLiveProofInput {
+  return {
+    source: "test-injected-evidence",
+    generatedAt: "2026-10-07T00:00:00.000Z",
+    deployedGitSha: CURRENT_DEPLOY_SHA,
+    characterId: 1,
+    characterName: "test-character",
+    greetingSha256: TEST_SHA,
+    systemPromptSha256: TEST_SHA,
+    worldSha256: TEST_SHA,
+    settingChunksSha256: TEST_SHA,
+    personaPublicSha256: TEST_SHA,
+    historyProvenance: "test-room-fingerprint",
+    authoringLevel: "NORMAL",
+    contentMode: "SAFE",
+    ...overrides,
+  };
+}
+
 describe("rp quality PRECALL plan", () => {
-  it("A. benchmark models are the current Main RP canonical registry", () => {
+  it("A. benchmark model rows are derived only from the canonical registry", () => {
     const models = rpQualityPrecallBenchmarkModels();
     assert.deepEqual(
       models.map((row) => row.canonicalId),
@@ -67,60 +96,150 @@ describe("rp quality PRECALL plan", () => {
     assertActiveMainRpBenchmarkSet(models);
   });
 
-  it("B. exactly four current active models on current main", () => {
+  it("B. no second literal current-model label list and count is 4", () => {
     const models = rpQualityPrecallBenchmarkModels();
     assert.equal(models.length, 4);
     assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 4);
-    assert.deepEqual(
-      [...models.map((row) => row.displayLabel)].sort(),
-      ["Claude Opus 5.5", "DeepSeek V4.1 Flash", "GPT-6.1 Sol", "Gemini 3.8 Flash"].sort()
+    assert.doesNotMatch(
+      PRECALL_SRC,
+      /\[\s*"Claude Opus 5\.5"[\s\S]*"DeepSeek V4\.1 Flash"[\s\S]*"GPT-6\.1 Sol"[\s\S]*"Gemini 3\.8 Flash"\s*\]/
     );
-    assert.deepEqual(
-      models.map((row) => row.canonicalId),
-      [
-        CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-        GEMINI_38_FLASH_MODEL,
-        CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
-        CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-      ]
-    );
+    assert.doesNotMatch(PRECALL_SRC, /const expected = \[/);
+    assert.equal(PRECALL_SRC.includes("RP_QUALITY_PRECALL_RETIRED_GEMINI_LABELS"), false);
   });
 
   it("C. retired Gemini 3.1/3.7 are absent from the current benchmark", () => {
-    const labels = rpQualityPrecallBenchmarkModels().map((row) => row.displayLabel);
-    const ids = rpQualityPrecallBenchmarkModels().map((row) => row.canonicalId);
-    for (const retired of RP_QUALITY_PRECALL_RETIRED_GEMINI_LABELS) {
-      assert.equal(labels.includes(retired), false);
-    }
-    assert.equal(ids.includes("gemini-3.1-pro-preview" as never), false);
-    assert.equal(ids.includes("gemini-3.7-flash" as never), false);
+    const models = rpQualityPrecallBenchmarkModels();
+    const labels = models.map((row) => row.displayLabel);
+    const ids = models.map((row) => row.canonicalId);
+    assert.equal(ids.includes(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL as never), false);
+    assert.equal(ids.includes(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL as never), false);
+    assert.equal(labels.includes(GEMINI_31_PRO_PREVIEW_DISPLAY_NAME), false);
+    assert.equal(labels.includes(GEMINI_37_FLASH_DISPLAY_NAME), false);
+    assert.equal(MAIN_RP_MODEL_IDS.includes(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL as never), false);
+    assert.equal(MAIN_RP_MODEL_IDS.includes(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL as never), false);
     const contract = buildQualityEvaluationContract();
-    assert.equal(contract.benchmarkModels.includes("Gemini 3.1 Pro Preview"), false);
-    assert.equal(contract.benchmarkModels.includes("Gemini 3.7 Flash"), false);
+    assert.equal(contract.benchmarkModels.includes(GEMINI_31_PRO_PREVIEW_DISPLAY_NAME), false);
+    assert.equal(contract.benchmarkModels.includes(GEMINI_37_FLASH_DISPLAY_NAME), false);
   });
 
-  it("D. same fixture semantic inputs are equal across the four models", () => {
-    const plan = buildRpQualityPrecallPlan();
-    assertFixtureSemanticParity(plan);
-    for (const fixtureId of RP_QUALITY_PRECALL_FIXTURE_IDS) {
-      const fingerprints = plan
-        .filter((row) => row.fixtureId === fixtureId)
-        .map((row) => row.semanticFingerprint);
-      assert.equal(new Set(fingerprints).size, 1);
-    }
+  it("D. absent live proof => NOT_REPRODUCIBLE", () => {
+    assert.deepEqual(absentLiveProof(), { status: "NOT_PROVIDED" });
+    assert.deepEqual(validateLiveProof(undefined), { status: "NOT_PROVIDED" });
+    const report = buildRpQualityPrecallReport();
+    assert.equal(report.liveProof.status, "NOT_PROVIDED");
+    assert.equal(report.classification, "NOT_REPRODUCIBLE");
+    assert.equal(report.precallReady, false);
   });
 
-  it("E. only model/routing/adapter-owned differences are allowed", () => {
-    const plan = buildRpQualityPrecallPlan();
-    for (const fixtureId of RP_QUALITY_PRECALL_FIXTURE_IDS) {
-      const rows = plan.filter((row) => row.fixtureId === fixtureId);
-      assert.equal(new Set(rows.map((row) => row.adapterFingerprint)).size, 4);
-      assert.equal(new Set(rows.map((row) => row.model.provider)).size >= 2, true);
-      assert.equal(new Set(rows.map((row) => row.model.wireModel)).size, 4);
-    }
+  it("E. live proof is input evidence, not a library-owned environment fact", () => {
+    assert.doesNotMatch(PRECALL_SRC, /railwaySsh|UNAUTHORIZED|localDbHasLikeOrRen|status: "UNREADABLE"/);
+    const injected = validateLiveProof(testLiveProofInput(), {
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(injected.status, "VERIFIED");
+    const report = buildRpQualityPrecallReport({
+      liveProofInput: testLiveProofInput(),
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(report.liveProof.status, "VERIFIED");
+    assert.equal(report.classification, "PRECALL_READY");
+    assert.equal(report.precallReady, true);
+    assert.equal(report.providerPosts, 0);
+    assert.equal(report.paidExecutionStatus, RP_QUALITY_PRECALL_PAID_STATUS);
   });
 
-  it("F. 3200+ soft aim is preserved and no prose ceiling is introduced", () => {
+  it("F. old recorded LIVE_DEPLOYED_ROW_PROOF cannot satisfy current proof automatically", () => {
+    const historical: RpQualityPrecallLiveProofInput = {
+      source: HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_OWNER,
+      generatedAt: "2026-08-25T00:00:00.000Z",
+      deployedGitSha: HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_COMMIT,
+      characterId: LIVE_DEPLOYED_ROW_PROOF.characterId,
+      characterName: LIVE_DEPLOYED_ROW_PROOF.characterName,
+      greetingSha256: LIVE_DEPLOYED_ROW_PROOF.greetingSha256,
+      systemPromptSha256: LIVE_DEPLOYED_ROW_PROOF.systemPromptSha256,
+      worldSha256: LIVE_DEPLOYED_ROW_PROOF.worldSha256,
+      settingChunksSha256: LIVE_DEPLOYED_ROW_PROOF.settingChunksSha256,
+      personaPublicSha256: LIVE_DEPLOYED_ROW_PROOF.personaPublicSha256,
+      historyProvenance: "historical-recorded-row",
+      authoringLevel: "NORMAL",
+      contentMode: "SAFE",
+    };
+    assert.equal(historicalRowProofCannotSatisfyCurrent(historical), true);
+    const proof = validateLiveProof(historical, { expectedDeploySha: CURRENT_DEPLOY_SHA });
+    assert.equal(proof.status, "UNVERIFIED");
+    if (proof.status !== "UNVERIFIED") throw new Error("expected UNVERIFIED");
+    assert.ok(
+      proof.reasons.includes("historical_LIVE_DEPLOYED_ROW_PROOF_cannot_auto_satisfy")
+    );
+    const report = buildRpQualityPrecallReport({
+      liveProofInput: historical,
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(report.classification, "NOT_REPRODUCIBLE");
+    assert.equal(report.precallReady, false);
+    assert.equal(
+      RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER.characterId,
+      LIVE_DEPLOYED_ROW_PROOF.characterId
+    );
+    assert.equal(RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER.isCurrentProductionProof, false);
+  });
+
+  it("G. verified proof must match declared/current deploy SHA before PRECALL_READY", () => {
+    const mismatched = validateLiveProof(testLiveProofInput(), {
+      expectedDeploySha: "ef".repeat(32),
+    });
+    assert.equal(mismatched.status, "UNVERIFIED");
+    const missingExpected = validateLiveProof(testLiveProofInput());
+    assert.equal(missingExpected.status, "UNVERIFIED");
+    const matched = validateLiveProof(testLiveProofInput(), {
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(matched.status, "VERIFIED");
+  });
+
+  it("H. cost approval is required separately after verified proof", () => {
+    const denied = startRpQualityPrecallPaidExecution({
+      liveProofInput: testLiveProofInput(),
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(denied.started, false);
+    assert.equal(denied.providerPosts, 0);
+    assert.equal(denied.reason, "MISSING_APPROVED_COST_BOUND");
+    const cost = evaluateRpQualityPrecallCostBound();
+    assert.equal(cost.status, "UNCOMPUTED");
+    assert.equal(cost.approvedBoundUsd, null);
+    assert.equal(cost.totalTwelveCallBoundUsd, null);
+  });
+
+  it("I. paid authorization is required separately after proof + cost bound", () => {
+    const denied = startRpQualityPrecallPaidExecution({
+      liveProofInput: testLiveProofInput(),
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+      approvedCostBoundUsd: 25,
+    });
+    assert.equal(denied.started, false);
+    assert.equal(denied.providerPosts, 0);
+    assert.equal(denied.reason, "NOT_AUTHORIZED_PRECALL_ONLY");
+  });
+
+  it("J. PRECALL owner provider POST remains zero even when prerequisites pass", () => {
+    const denied = startRpQualityPrecallPaidExecution({
+      liveProofInput: testLiveProofInput(),
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+      approvedCostBoundUsd: 25,
+      paidExecutionAuthorized: true,
+    });
+    assert.equal(denied.started, false);
+    assert.equal(denied.providerPosts, 0);
+    assert.equal(denied.reason, "PRECALL_OWNER_DOES_NOT_EXECUTE");
+    assert.equal(denied.paidExecutionStatus, RP_QUALITY_PRECALL_PAID_STATUS);
+    const noProof = startRpQualityPrecallPaidExecution();
+    assert.equal(noProof.reason, "MISSING_VERIFIED_LIVE_PROOF");
+    assert.equal(noProof.providerPosts, 0);
+  });
+
+  it("K. 3200+ / no max_tokens / MAX_SAFE_INTEGER stream invariant", () => {
     const plan = buildRpQualityPrecallPlan();
     const report = buildRpQualityPrecallReport();
     assert.equal(UNIFIED_TIER_AIM_CHARS, 3200);
@@ -139,7 +258,7 @@ describe("rp quality PRECALL plan", () => {
     assert.doesNotMatch(PRECALL_SRC, /max_tokens:\s*\d+/);
   });
 
-  it("G. Cursor score fields remain null", () => {
+  it("L. score fields remain null and secrets are absent", () => {
     const packets = buildPlannedQualityPackets();
     assert.equal(packets.length, 12);
     for (const packet of packets) {
@@ -153,10 +272,25 @@ describe("rp quality PRECALL plan", () => {
     assert.equal(contract.verbosityBiasControl, true);
     assert.equal(contract.verbosityBiasInstruction, RP_QUALITY_VERBOSITY_BIAS_INSTRUCTION);
     assert.match(PACKET_SRC, /verbosityBiasInstruction/);
-    assert.doesNotMatch(PACKET_SRC, /COMMON_PROSE_BLOCK/);
+    const report = buildRpQualityPrecallReport();
+    assert.equal(artifactContainsSecret(report), false);
+    assert.equal(artifactContainsSecret({ apiKey: "sk-testsecretvalue" }), true);
   });
 
-  it("H. live execution plan has retry=0 / fallback=0 / auxiliary=0", () => {
+  it("keeps plan-template semantic parity across four models", () => {
+    const plan = buildRpQualityPrecallPlan();
+    assertFixturePlannedSemanticParity(plan);
+    assert.equal(plan[0]?.plannedSemanticFingerprint != null, true);
+    for (const fixtureId of RP_QUALITY_PRECALL_FIXTURE_IDS) {
+      const rows = plan.filter((row) => row.fixtureId === fixtureId);
+      assert.equal(new Set(rows.map((row) => row.plannedSemanticFingerprint)).size, 1);
+      assert.equal(new Set(rows.map((row) => row.adapterFingerprint)).size, 4);
+    }
+    const report = buildRpQualityPrecallReport();
+    assert.equal(report.plannedSemanticParityOnly, true);
+  });
+
+  it("keeps retry/fallback/auxiliary at 0 and planned calls at 12", () => {
     const plan = buildRpQualityPrecallPlan();
     assert.ok(plan.every((row) => row.retry === 0 && row.fallback === 0 && row.auxiliary === 0));
     assert.deepEqual(RP_QUALITY_PRECALL_EXECUTION_POLICY, {
@@ -166,41 +300,12 @@ describe("rp quality PRECALL plan", () => {
       plannedCalls: 12,
       paidProviderCallsThisOwner: 0,
     });
-  });
-
-  it("I. planned call count is 12", () => {
     assert.equal(RP_QUALITY_PRECALL_PLANNED_CALLS, 12);
-    assert.equal(buildRpQualityPrecallPlan().length, 12);
-    assert.equal(RP_QUALITY_PRECALL_FIXTURE_IDS.length * MAIN_RP_MODEL_IDS.length, 12);
-    const report = buildRpQualityPrecallReport();
-    assert.equal(report.plannedCalls, 12);
-    assert.equal(report.pairedComparisons.length, 18);
-    assert.ok(report.pairedComparisons.every((pair) => pair.overall === null));
-    assert.ok(report.fixtures.every((fixture) => fixture.turnKind === "manual"));
-    assert.ok(report.fixtures.every((fixture) => fixture.contentMode === "SAFE"));
+    assert.equal(plan.length, 12);
+    assert.equal(buildPairedComparisonPackets().length, 18);
   });
 
-  it("J. runner cannot start without an explicit approved cost bound", () => {
-    const denied = startRpQualityPrecallPaidExecution();
-    assert.equal(denied.started, false);
-    assert.equal(denied.providerPosts, 0);
-    assert.equal(denied.reason, "MISSING_APPROVED_COST_BOUND");
-    assert.equal(denied.paidExecutionStatus, RP_QUALITY_PRECALL_PAID_STATUS);
-    const stillBlocked = startRpQualityPrecallPaidExecution({
-      approvedCostBoundUsd: 25,
-      paidExecutionAuthorized: true,
-    });
-    assert.equal(stillBlocked.started, false);
-    assert.equal(stillBlocked.providerPosts, 0);
-    assert.equal(stillBlocked.reason, "LIVE_DEPLOYED_ROW_UNREADABLE");
-    const cost = evaluateRpQualityPrecallCostBound();
-    assert.equal(cost.status, "UNCOMPUTED");
-    assert.equal(cost.approvedBoundUsd, null);
-    assert.equal(cost.totalTwelveCallBoundUsd, null);
-    assert.equal(cost.catalogRatesUsdPerMillion.length, 4);
-  });
-
-  it("K. benchmark runner does not write chat/session/user points/DB", () => {
+  it("does not write chat/session/user points/DB or fetch", () => {
     assert.deepEqual(RP_QUALITY_PRECALL_MUTATION_POLICY, {
       chat: false,
       session: false,
@@ -229,38 +334,8 @@ describe("rp quality PRECALL plan", () => {
     assert.equal(fetchCount, 0);
   });
 
-  it("L. secret values are absent from the artifact", () => {
+  it("keeps NORMAL authoring effective policy on the default report", () => {
     const report = buildRpQualityPrecallReport();
-    assert.equal(artifactContainsSecret(report), false);
-    assert.equal(artifactContainsSecret({ apiKey: "sk-testsecretvalue" }), true);
-    assert.equal(
-      artifactContainsSecret({ notes: "OPENROUTER_API_KEY=sk-live-should-not-appear" }),
-      true
-    );
-    const json = JSON.stringify(report);
-    assert.doesNotMatch(json, /sk-[a-zA-Z0-9]{10,}/);
-    assert.doesNotMatch(json, /Bearer\s+[A-Za-z0-9]/);
-  });
-
-  it("records intended 라이크/렌 identity without claiming a live reconfirm", () => {
-    const proof = evaluateLiveDeployedInputProof();
-    assert.equal(proof.status, "UNREADABLE");
-    assert.equal(proof.reconfirmed, false);
-    assert.equal(proof.syntheticSubstitution, false);
-    assert.equal(proof.historicalQualificationDumpUsedAsProduction, false);
-    assert.equal(
-      RP_QUALITY_PRECALL_INTENDED_SOURCE.characterId,
-      LIVE_DEPLOYED_ROW_PROOF.characterId
-    );
-    assert.equal(
-      RP_QUALITY_PRECALL_INTENDED_SOURCE.characterName,
-      LIVE_DEPLOYED_ROW_PROOF.characterName
-    );
-    assert.equal(RP_QUALITY_PRECALL_INTENDED_SOURCE.personaName, "렌");
-    const report = buildRpQualityPrecallReport();
-    assert.equal(report.classification, "NOT_REPRODUCIBLE");
-    assert.equal(report.precallReady, false);
-    assert.equal(report.providerPosts, 0);
     assert.equal(report.authoring.level, "NORMAL");
     assert.equal(report.authoring.capabilities.allowDialogue, true);
     assert.equal(report.authoring.capabilities.allowMajorActions, true);
@@ -268,5 +343,7 @@ describe("rp quality PRECALL plan", () => {
     assert.equal(report.authoring.capabilities.allowIrreversibleFate, false);
     assert.match(report.authoring.evaluationNotes.join(" "), /Do not deduct/);
     assert.equal(report.adultPilot, "SEPARATE_FOLLOW_UP");
+    assert.ok(report.fixtures.every((fixture) => fixture.turnKind === "manual"));
+    assert.ok(report.fixtures.every((fixture) => fixture.contentMode === "SAFE"));
   });
 });

@@ -12,6 +12,12 @@ import {
 
 const report = buildRpQualityPrecallReport();
 const denied = startRpQualityPrecallPaidExecution();
+if (report.liveProof.status !== "NOT_PROVIDED") {
+  throw new Error("default PRECALL report must fail-close without injected live proof");
+}
+if (report.classification !== "NOT_REPRODUCIBLE" || report.precallReady) {
+  throw new Error("default PRECALL report must stay NOT_REPRODUCIBLE");
+}
 
 if (report.providerPosts !== 0) {
   throw new Error("PRECALL report claimed a provider POST");

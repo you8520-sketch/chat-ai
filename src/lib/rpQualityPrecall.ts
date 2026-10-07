@@ -1,11 +1,16 @@
 /**
  * Deterministic PRECALL owner for the 4-model × 3-fixture Main RP prose
- * quality benchmark. Does not call providers, mutate DB, bill users, or
- * score prose. Production prompt wording is not this file's job.
+ * quality benchmark. Owns evidence schema, validation, and start gates only.
+ * Does not own environment access results, call providers, mutate DB, bill
+ * users, or score prose. Production prompt wording is not this file's job.
  */
 import { createHash } from "node:crypto";
 
 import {
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
+  GEMINI_37_FLASH_DISPLAY_NAME,
   MAIN_RP_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   selectedAIProvider,
@@ -28,7 +33,6 @@ import {
   authoringEvaluationNotes,
   buildQualityEvaluationContract,
   buildQualityOutputPacket,
-  emptyRubricScores,
   liveAuthoringCapabilityMatrix,
   type RpQualityContentMode,
   type RpQualityOutputPacket,
@@ -37,6 +41,7 @@ import {
 import {
   DEFAULT_USER_AUTHORING_LEVEL,
   capabilitiesFromUserAuthoringLevel,
+  type UserAuthoringLevel,
 } from "@/lib/userAuthoringPolicy";
 
 export const RP_QUALITY_PRECALL_VERSION = 1;
@@ -62,19 +67,19 @@ export const RP_QUALITY_PRECALL_FIXTURE_IDS = [
 export type RpQualityPrecallFixtureId =
   (typeof RP_QUALITY_PRECALL_FIXTURE_IDS)[number];
 
-export const RP_QUALITY_PRECALL_RETIRED_GEMINI_LABELS = [
-  "Gemini 3.1 Pro Preview",
-  "Gemini 3.7 Flash",
-] as const;
+/** Historical recorded hashes only. Not current production proof. */
+export const HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_COMMIT =
+  "2f5cb0b416ce214dfeb109f50622c0a45d61f62a";
+export const HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_OWNER =
+  "scripts/lib/mainRpBodyCuePreflight.ts#LIVE_DEPLOYED_ROW_PROOF";
 
-export const RP_QUALITY_PRECALL_INTENDED_SOURCE = Object.freeze({
+export const RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER = Object.freeze({
   characterId: 18,
   characterName: "라이크",
   personaName: "렌",
-  lastRecordedDeployCommit: "2f5cb0b416ce214dfeb109f50622c0a45d61f62a",
-  lastRecordedProofOwner:
-    "scripts/lib/mainRpBodyCuePreflight.ts#LIVE_DEPLOYED_ROW_PROOF",
-  reconfirmedAgainstCurrentProduction: false as const,
+  recordedDeployCommit: HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_COMMIT,
+  recordedProofOwner: HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_OWNER,
+  isCurrentProductionProof: false as const,
 });
 
 export const RP_QUALITY_PRECALL_MUTATION_POLICY = Object.freeze({
@@ -123,14 +128,14 @@ export const RP_QUALITY_PRECALL_OWNER_MAP: readonly RpQualityPrecallOwnerRow[] =
     responsibility: "deployed character/persona snapshot",
     canonicalOwner: "production Railway /data/app.db characters + personas",
     effectiveValueSource:
-      "UNREADABLE from this VM; last recorded hashes live in LIVE_DEPLOYED_ROW_PROOF (deploy 2f5cb0b4)",
+      "externally injected immutable live proof; library validates and fail-closes when absent",
     scope: "current production rows, not historical qualification dumps",
     otherReaders: [
-      "scripts/lib/mainRpBodyCuePreflight.LIVE_DEPLOYED_ROW_PROOF",
+      "scripts/lib/mainRpBodyCuePreflight.LIVE_DEPLOYED_ROW_PROOF (historical KEEP)",
       "scripts/lib/rpModelQualificationFixture (historical 2026-08-25, not this source)",
     ],
     duplicateOrStaleOwner:
-      "CANONICAL_RP_QUALIFICATION_SOURCE / character 10 dump must not be treated as current production",
+      "environment access observations are operator evidence, not library state; LIVE_DEPLOYED_ROW_PROOF @ 2f5cb0b4 cannot auto-satisfy current proof",
   },
   {
     responsibility: "current authoring policy",
@@ -156,7 +161,7 @@ export const RP_QUALITY_PRECALL_OWNER_MAP: readonly RpQualityPrecallOwnerRow[] =
     responsibility: "recent history/memory/canon inputs",
     canonicalOwner: "services/contextBuilder.ts input layers",
     effectiveValueSource:
-      "UNREADABLE without a current production room read; not the 2026-08-25 qualification dump",
+      "history fingerprint on injected live proof; planned fixtures are plan-template only",
     scope: "history, long-term memory, episodic, compiled canon",
     otherReaders: ["buildContext"],
     duplicateOrStaleOwner: "rpModelQualificationFixture frozen memory cases",
@@ -189,7 +194,7 @@ export const RP_QUALITY_PRECALL_OWNER_MAP: readonly RpQualityPrecallOwnerRow[] =
   {
     responsibility: "provider wire request",
     canonicalOwner: "assemblePrimaryRpRequest.requestBody",
-    effectiveValueSource: "not assembled — live rows unread",
+    effectiveValueSource: "not assembled until a later paid-execution owner",
     scope: "one physical POST per planned sample, later",
     otherReaders: ["this PRECALL start gate"],
     duplicateOrStaleOwner: "none",
@@ -251,7 +256,7 @@ export type RpQualityPrecallFixtureSpec = {
   notes: string;
 };
 
-export type RpQualityPrecallSemanticInput = {
+export type RpQualityPrecallPlannedSemanticInput = {
   fixtureId: RpQualityPrecallFixtureId;
   characterId: number;
   characterName: string;
@@ -277,7 +282,8 @@ export type RpQualityPrecallAdapterDiff = {
 export type RpQualityPrecallSamplePlan = {
   fixtureId: RpQualityPrecallFixtureId;
   model: RpQualityPrecallModelPlan;
-  semanticFingerprint: string;
+  /** Plan-template parity only. Not production history / final-wire parity. */
+  plannedSemanticFingerprint: string;
   adapterFingerprint: string;
   targetResponseChars: number;
   applicationMaxTokens: undefined;
@@ -288,16 +294,38 @@ export type RpQualityPrecallSamplePlan = {
   auxiliary: 0;
 };
 
-export type RpQualityPrecallLiveProof = {
-  status: "UNREADABLE";
-  reconfirmed: false;
-  intendedSource: typeof RP_QUALITY_PRECALL_INTENDED_SOURCE;
-  localDbHasLikeOrRen: false;
-  railwaySsh: "UNAUTHORIZED";
-  syntheticSubstitution: false;
-  historicalQualificationDumpUsedAsProduction: false;
-  reason: string;
+export const RP_QUALITY_PRECALL_LIVE_PROOF_STATUSES = [
+  "NOT_PROVIDED",
+  "UNVERIFIED",
+  "VERIFIED",
+] as const;
+export type RpQualityPrecallLiveProofStatus =
+  (typeof RP_QUALITY_PRECALL_LIVE_PROOF_STATUSES)[number];
+
+export type RpQualityPrecallLiveProofInput = {
+  source: string;
+  generatedAt: string;
+  deployedGitSha: string;
+  characterId: number;
+  characterName: string;
+  greetingSha256: string;
+  systemPromptSha256: string;
+  worldSha256: string;
+  settingChunksSha256: string;
+  personaPublicSha256: string;
+  historyProvenance: string;
+  authoringLevel: UserAuthoringLevel;
+  contentMode: RpQualityContentMode;
 };
+
+export type RpQualityPrecallLiveProof =
+  | { status: "NOT_PROVIDED" }
+  | {
+      status: "UNVERIFIED";
+      input: RpQualityPrecallLiveProofInput;
+      reasons: readonly string[];
+    }
+  | { status: "VERIFIED"; input: RpQualityPrecallLiveProofInput };
 
 export type RpQualityPrecallCostBound = {
   status: "UNCOMPUTED";
@@ -340,16 +368,24 @@ export type RpQualityPrecallStartDenial = {
   paidExecutionStatus: typeof RP_QUALITY_PRECALL_PAID_STATUS;
   providerPosts: 0;
   reason:
+    | "MISSING_VERIFIED_LIVE_PROOF"
     | "MISSING_APPROVED_COST_BOUND"
-    | "LIVE_DEPLOYED_ROW_UNREADABLE"
     | "NOT_AUTHORIZED_PRECALL_ONLY"
     | "PRECALL_OWNER_DOES_NOT_EXECUTE";
+};
+
+export type RpQualityPrecallReportInput = {
+  liveProofInput?: RpQualityPrecallLiveProofInput;
+  expectedDeploySha?: string;
+  approvedCostBoundUsd?: number | null;
+  approvedCostBoundKrw?: number | null;
+  paidExecutionAuthorized?: boolean;
 };
 
 export type RpQualityPrecallReport = {
   version: typeof RP_QUALITY_PRECALL_VERSION;
   classification: RpQualityPrecallClassification;
-  precallReady: false;
+  precallReady: boolean;
   paidExecutionStatus: typeof RP_QUALITY_PRECALL_PAID_STATUS;
   providerPosts: 0;
   plannedCalls: typeof RP_QUALITY_PRECALL_PLANNED_CALLS;
@@ -359,6 +395,7 @@ export type RpQualityPrecallReport = {
   models: readonly RpQualityPrecallModelPlan[];
   fixtures: readonly RpQualityPrecallFixtureSpec[];
   plan: readonly RpQualityPrecallSamplePlan[];
+  plannedSemanticParityOnly: true;
   liveProof: RpQualityPrecallLiveProof;
   authoring: {
     level: typeof DEFAULT_USER_AUTHORING_LEVEL;
@@ -382,8 +419,98 @@ export type RpQualityPrecallReport = {
   notes: readonly string[];
 };
 
+const SHA256_HEX_RE = /^[a-f0-9]{64}$/i;
+
 function sha256Json(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value), "utf8").digest("hex");
+}
+
+function requiredText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function absentLiveProof(): Extract<RpQualityPrecallLiveProof, { status: "NOT_PROVIDED" }> {
+  return { status: "NOT_PROVIDED" };
+}
+
+export function historicalRowProofCannotSatisfyCurrent(input: RpQualityPrecallLiveProofInput): boolean {
+  const source = input.source.trim();
+  const deploy = input.deployedGitSha.trim().toLowerCase();
+  return (
+    source === HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_OWNER ||
+    deploy === HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_COMMIT
+  );
+}
+
+export function validateLiveProof(
+  input: RpQualityPrecallLiveProofInput | undefined,
+  opts?: { expectedDeploySha?: string }
+): RpQualityPrecallLiveProof {
+  if (!input) return absentLiveProof();
+  const reasons: string[] = [];
+  const source = requiredText(input.source);
+  const generatedAt = requiredText(input.generatedAt);
+  const deployedGitSha = requiredText(input.deployedGitSha);
+  const characterName = requiredText(input.characterName);
+  const historyProvenance = requiredText(input.historyProvenance);
+  if (!source) reasons.push("missing_source");
+  if (!generatedAt) reasons.push("missing_generatedAt");
+  if (!deployedGitSha) reasons.push("missing_deployedGitSha");
+  if (!Number.isInteger(input.characterId) || input.characterId <= 0) {
+    reasons.push("invalid_characterId");
+  }
+  if (!characterName) reasons.push("missing_characterName");
+  for (const field of [
+    "greetingSha256",
+    "systemPromptSha256",
+    "worldSha256",
+    "settingChunksSha256",
+    "personaPublicSha256",
+  ] as const) {
+    if (!SHA256_HEX_RE.test(String(input[field] ?? ""))) reasons.push(`invalid_${field}`);
+  }
+  if (!historyProvenance) reasons.push("missing_historyProvenance");
+  if (
+    input.authoringLevel !== "LIMITED" &&
+    input.authoringLevel !== "NORMAL" &&
+    input.authoringLevel !== "ALLOW"
+  ) {
+    reasons.push("invalid_authoringLevel");
+  }
+  if (input.contentMode !== "SAFE" && input.contentMode !== "19+") {
+    reasons.push("invalid_contentMode");
+  }
+  if (historicalRowProofCannotSatisfyCurrent(input)) {
+    reasons.push("historical_LIVE_DEPLOYED_ROW_PROOF_cannot_auto_satisfy");
+  }
+  const expected = requiredText(opts?.expectedDeploySha);
+  if (!expected) {
+    reasons.push("missing_expectedDeploySha");
+  } else if (deployedGitSha && deployedGitSha.toLowerCase() !== expected.toLowerCase()) {
+    reasons.push("deployedGitSha_does_not_match_expected");
+  }
+  if (reasons.length > 0) {
+    return { status: "UNVERIFIED", input, reasons };
+  }
+  return { status: "VERIFIED", input };
+}
+
+export function classifyPrecallFromLiveProof(
+  liveProof: RpQualityPrecallLiveProof
+): { classification: RpQualityPrecallClassification; precallReady: boolean } {
+  if (liveProof.status === "VERIFIED") {
+    return { classification: "PRECALL_READY", precallReady: true };
+  }
+  return { classification: "NOT_REPRODUCIBLE", precallReady: false };
+}
+
+export function hasApprovedCostBound(input?: {
+  approvedCostBoundUsd?: number | null;
+  approvedCostBoundKrw?: number | null;
+}): boolean {
+  return input?.approvedCostBoundUsd != null || input?.approvedCostBoundKrw != null;
 }
 
 export function rpQualityPrecallBenchmarkModels(): readonly RpQualityPrecallModelPlan[] {
@@ -398,6 +525,11 @@ export function rpQualityPrecallBenchmarkModels(): readonly RpQualityPrecallMode
 export function assertActiveMainRpBenchmarkSet(
   models: readonly RpQualityPrecallModelPlan[] = rpQualityPrecallBenchmarkModels()
 ): void {
+  if (models.length !== MAIN_RP_USER_SELECTABLE_OPTIONS.length) {
+    throw new Error(
+      `PRECALL model count drifted from MAIN_RP_USER_SELECTABLE_OPTIONS: ${models.length}`
+    );
+  }
   if (models.length !== 4) {
     throw new Error(`Expected 4 active Main RP models, got ${models.length}`);
   }
@@ -405,19 +537,26 @@ export function assertActiveMainRpBenchmarkSet(
   if (JSON.stringify(ids) !== JSON.stringify([...MAIN_RP_MODEL_IDS])) {
     throw new Error("PRECALL model set is not MAIN_RP_MODEL_IDS");
   }
-  const labels = models.map((row) => row.displayLabel).sort();
-  const expected = [
-    "Claude Opus 5.5",
-    "DeepSeek V4.1 Flash",
-    "GPT-6.1 Sol",
-    "Gemini 3.8 Flash",
-  ];
-  if (JSON.stringify(labels) !== JSON.stringify(expected)) {
-    throw new Error(`Unexpected Main RP labels: ${labels.join(", ")}`);
+  const labels = models.map((row) => row.displayLabel);
+  const registryLabels = MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.label);
+  if (JSON.stringify(labels) !== JSON.stringify(registryLabels)) {
+    throw new Error("PRECALL labels are not MAIN_RP_USER_SELECTABLE_OPTIONS labels");
   }
-  for (const retired of RP_QUALITY_PRECALL_RETIRED_GEMINI_LABELS) {
-    if (labels.includes(retired)) {
-      throw new Error(`Retired Gemini present in PRECALL set: ${retired}`);
+  const retiredIds = [
+    CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  ];
+  for (const retiredId of retiredIds) {
+    if (ids.includes(retiredId as SelectedAI)) {
+      throw new Error(`Retired Gemini present in PRECALL set: ${retiredId}`);
+    }
+  }
+  for (const retiredLabel of [
+    GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
+    GEMINI_37_FLASH_DISPLAY_NAME,
+  ]) {
+    if (labels.includes(retiredLabel)) {
+      throw new Error(`Retired Gemini present in PRECALL set: ${retiredLabel}`);
     }
   }
 }
@@ -442,7 +581,7 @@ export function rpQualityPrecallFixtures(): readonly RpQualityPrecallFixtureSpec
       sceneControl: "production_default",
       targetLengthOwner: "UNIFIED_TIER_AIM_CHARS",
       notes:
-        "Ordinary turn. Same deployed 라이크/렌 source once readable. No new story-prompt system.",
+        "Ordinary turn. Same deployed source once a live proof is injected. No new story-prompt system.",
     },
     {
       id: "B_conflict_action_spatial",
@@ -463,7 +602,7 @@ export function rpQualityPrecallFixtures(): readonly RpQualityPrecallFixtureSpec
       sceneControl: "production_default",
       targetLengthOwner: "UNIFIED_TIER_AIM_CHARS",
       notes:
-        "Ordinary turn. Conflict/action/spatial scene on the same character/persona once readable.",
+        "Ordinary turn. Conflict/action/spatial scene on the same character/persona once a live proof is injected.",
     },
     {
       id: "C_continuity_progression",
@@ -487,14 +626,14 @@ export function rpQualityPrecallFixtures(): readonly RpQualityPrecallFixtureSpec
   ];
 }
 
-export function fixtureSemanticInput(
+export function plannedFixtureSemanticInput(
   fixture: RpQualityPrecallFixtureSpec
-): RpQualityPrecallSemanticInput {
+): RpQualityPrecallPlannedSemanticInput {
   return {
     fixtureId: fixture.id,
-    characterId: RP_QUALITY_PRECALL_INTENDED_SOURCE.characterId,
-    characterName: RP_QUALITY_PRECALL_INTENDED_SOURCE.characterName,
-    personaName: RP_QUALITY_PRECALL_INTENDED_SOURCE.personaName,
+    characterId: RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER.characterId,
+    characterName: RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER.characterName,
+    personaName: RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER.personaName,
     authoringLevel: fixture.authoringLevel,
     contentMode: fixture.contentMode,
     historySource: fixture.historySource,
@@ -507,7 +646,9 @@ export function fixtureSemanticInput(
   };
 }
 
-export function semanticInputFingerprint(input: RpQualityPrecallSemanticInput): string {
+export function plannedSemanticInputFingerprint(
+  input: RpQualityPrecallPlannedSemanticInput
+): string {
   return sha256Json(input);
 }
 
@@ -521,7 +662,7 @@ export function buildRpQualityPrecallPlan(): RpQualityPrecallSamplePlan[] {
   const fixtures = rpQualityPrecallFixtures();
   const plan = models.flatMap((model) =>
     fixtures.map((fixture) => {
-      const semantic = fixtureSemanticInput(fixture);
+      const semantic = plannedFixtureSemanticInput(fixture);
       const adapter: RpQualityPrecallAdapterDiff = {
         canonicalId: model.canonicalId,
         provider: model.provider,
@@ -539,7 +680,7 @@ export function buildRpQualityPrecallPlan(): RpQualityPrecallSamplePlan[] {
       return {
         fixtureId: fixture.id,
         model,
-        semanticFingerprint: semanticInputFingerprint(semantic),
+        plannedSemanticFingerprint: plannedSemanticInputFingerprint(semantic),
         adapterFingerprint: adapterDiffFingerprint(adapter),
         targetResponseChars: UNIFIED_TIER_AIM_CHARS,
         applicationMaxTokens,
@@ -557,7 +698,7 @@ export function buildRpQualityPrecallPlan(): RpQualityPrecallSamplePlan[] {
   return plan;
 }
 
-export function assertFixtureSemanticParity(
+export function assertFixturePlannedSemanticParity(
   plan: readonly RpQualityPrecallSamplePlan[] = buildRpQualityPrecallPlan()
 ): void {
   for (const fixtureId of RP_QUALITY_PRECALL_FIXTURE_IDS) {
@@ -565,9 +706,9 @@ export function assertFixtureSemanticParity(
     if (rows.length !== 4) {
       throw new Error(`${fixtureId} must have exactly 4 model rows`);
     }
-    const semantic = new Set(rows.map((row) => row.semanticFingerprint));
+    const semantic = new Set(rows.map((row) => row.plannedSemanticFingerprint));
     if (semantic.size !== 1) {
-      throw new Error(`${fixtureId} semantic inputs are not identical across models`);
+      throw new Error(`${fixtureId} planned semantic inputs are not identical across models`);
     }
     const adapters = new Set(rows.map((row) => row.adapterFingerprint));
     if (adapters.size !== 4) {
@@ -584,20 +725,6 @@ export function assertFixtureSemanticParity(
       throw new Error(`${fixtureId} retry/fallback/auxiliary is not zero`);
     }
   }
-}
-
-export function evaluateLiveDeployedInputProof(): RpQualityPrecallLiveProof {
-  return {
-    status: "UNREADABLE",
-    reconfirmed: false,
-    intendedSource: RP_QUALITY_PRECALL_INTENDED_SOURCE,
-    localDbHasLikeOrRen: false,
-    railwaySsh: "UNAUTHORIZED",
-    syntheticSubstitution: false,
-    historicalQualificationDumpUsedAsProduction: false,
-    reason:
-      "This VM cannot read Railway /data/app.db read-only (railway ssh Unauthorized; local data/app.db has no 라이크 id=18 or 렌). LIVE_DEPLOYED_ROW_PROOF is a recorded deploy-2f5cb0b4 hash, not a reconfirmed current-main row. Synthetic/historical dumps were not substituted.",
-  };
 }
 
 export function evaluateRpQualityPrecallCostBound(): RpQualityPrecallCostBound {
@@ -624,7 +751,7 @@ export function evaluateRpQualityPrecallCostBound(): RpQualityPrecallCostBound {
     },
     catalogRatesUsdPerMillion,
     reason:
-      "Production assembled input size is unavailable without a live row read. Catalog rates are recorded as assumptions only. No USD/KRW bound is invented or approved.",
+      "Production assembled input size is unavailable until a verified live proof is injected. Catalog rates are recorded as assumptions only. No USD/KRW bound is invented or approved.",
   };
 }
 
@@ -698,62 +825,57 @@ export function artifactContainsSecret(value: unknown): boolean {
   return false;
 }
 
-export function startRpQualityPrecallPaidExecution(input?: {
-  liveProof?: RpQualityPrecallLiveProof;
-  approvedCostBoundUsd?: number | null;
-  approvedCostBoundKrw?: number | null;
-  paidExecutionAuthorized?: boolean;
-}): RpQualityPrecallStartDenial {
-  const liveProof = input?.liveProof ?? evaluateLiveDeployedInputProof();
-  const hasApprovedBound =
-    input?.approvedCostBoundUsd != null || input?.approvedCostBoundKrw != null;
-  if (!hasApprovedBound) {
-    return {
-      started: false,
-      paidExecutionStatus: RP_QUALITY_PRECALL_PAID_STATUS,
-      providerPosts: 0,
-      reason: "MISSING_APPROVED_COST_BOUND",
-    };
-  }
-  if (liveProof.status === "UNREADABLE" || liveProof.reconfirmed === false) {
-    return {
-      started: false,
-      paidExecutionStatus: RP_QUALITY_PRECALL_PAID_STATUS,
-      providerPosts: 0,
-      reason: "LIVE_DEPLOYED_ROW_UNREADABLE",
-    };
-  }
-  if (input?.paidExecutionAuthorized !== true) {
-    return {
-      started: false,
-      paidExecutionStatus: RP_QUALITY_PRECALL_PAID_STATUS,
-      providerPosts: 0,
-      reason: "NOT_AUTHORIZED_PRECALL_ONLY",
-    };
-  }
+function deny(
+  reason: RpQualityPrecallStartDenial["reason"]
+): RpQualityPrecallStartDenial {
   return {
     started: false,
     paidExecutionStatus: RP_QUALITY_PRECALL_PAID_STATUS,
     providerPosts: 0,
-    reason: "PRECALL_OWNER_DOES_NOT_EXECUTE",
+    reason,
   };
 }
 
-export function buildRpQualityPrecallReport(): RpQualityPrecallReport {
+export function startRpQualityPrecallPaidExecution(
+  input?: RpQualityPrecallReportInput & { liveProof?: RpQualityPrecallLiveProof }
+): RpQualityPrecallStartDenial {
+  const liveProof =
+    input?.liveProof ??
+    validateLiveProof(input?.liveProofInput, {
+      expectedDeploySha: input?.expectedDeploySha,
+    });
+  if (liveProof.status !== "VERIFIED") {
+    return deny("MISSING_VERIFIED_LIVE_PROOF");
+  }
+  if (!hasApprovedCostBound(input)) {
+    return deny("MISSING_APPROVED_COST_BOUND");
+  }
+  if (input?.paidExecutionAuthorized !== true) {
+    return deny("NOT_AUTHORIZED_PRECALL_ONLY");
+  }
+  return deny("PRECALL_OWNER_DOES_NOT_EXECUTE");
+}
+
+export function buildRpQualityPrecallReport(
+  input?: RpQualityPrecallReportInput
+): RpQualityPrecallReport {
   const models = rpQualityPrecallBenchmarkModels();
   assertActiveMainRpBenchmarkSet(models);
   const fixtures = rpQualityPrecallFixtures();
   const plan = buildRpQualityPrecallPlan();
-  assertFixtureSemanticParity(plan);
-  const liveProof = evaluateLiveDeployedInputProof();
+  assertFixturePlannedSemanticParity(plan);
+  const liveProof = validateLiveProof(input?.liveProofInput, {
+    expectedDeploySha: input?.expectedDeploySha,
+  });
+  const classified = classifyPrecallFromLiveProof(liveProof);
   const cost = evaluateRpQualityPrecallCostBound();
   const plannedPackets = buildPlannedQualityPackets(plan);
   const pairedComparisons = buildPairedComparisonPackets(plan);
   const contract = buildQualityEvaluationContract();
   return {
     version: RP_QUALITY_PRECALL_VERSION,
-    classification: "NOT_REPRODUCIBLE",
-    precallReady: false,
+    classification: classified.classification,
+    precallReady: classified.precallReady,
     paidExecutionStatus: RP_QUALITY_PRECALL_PAID_STATUS,
     providerPosts: 0,
     plannedCalls: RP_QUALITY_PRECALL_PLANNED_CALLS,
@@ -763,6 +885,7 @@ export function buildRpQualityPrecallReport(): RpQualityPrecallReport {
     models,
     fixtures,
     plan,
+    plannedSemanticParityOnly: true,
     liveProof,
     authoring: {
       level: DEFAULT_USER_AUTHORING_LEVEL,
@@ -791,6 +914,8 @@ export function buildRpQualityPrecallReport(): RpQualityPrecallReport {
       "Private [B] inner POV and irreversible fate remain hard gates.",
       "Fixture C is ordinary/manual. Auto-progress is not mixed into this 12-call pilot.",
       "19+ is a separate follow-up; listing nsfw does not force adult RP.",
+      "plannedSemanticFingerprint is plan-template parity only, not production final-wire parity.",
+      "Live proof is injected evidence. The library does not own environment access results.",
       "Existing monthly memory-quality runner remains a different owner and still uses its historical qualification fixture.",
     ],
   };
