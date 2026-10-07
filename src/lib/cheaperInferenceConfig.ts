@@ -10,6 +10,7 @@ import {
   isCheaperInferenceDeepSeekV4ProModel,
   isCheaperInferenceGemini31ProModel,
   isCheaperInferenceGemini37FlashModel,
+  isCheaperInferenceGemini38FlashModel,
   isCheaperInferenceQwen38MaxModel,
   isDeepSeekV4ProModel,
   isGptLunaFamilyModel,
@@ -160,7 +161,10 @@ export function applyCheaperInferenceModelReasoningPolicy(
     delete adapted.thinking;
     return adapted;
   }
-  if (isCheaperInferenceGemini37FlashModel(model)) {
+  if (
+    isCheaperInferenceGemini37FlashModel(model) ||
+    isCheaperInferenceGemini38FlashModel(model)
+  ) {
     adapted.reasoning_effort = "low";
     delete adapted.thinking;
     delete adapted.reasoning;

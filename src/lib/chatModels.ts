@@ -110,7 +110,7 @@ export const CHEAPER_INFERENCE_GPT_56_LUNA_MODEL = "gpt-5.6-luna";
 /** Cheaper Inference OpenAI-compatible API — GPT-6 Luna (current background primary). */
 export const CHEAPER_INFERENCE_GPT_6_LUNA_MODEL = "gpt-6-luna";
 
-/** Cheaper Inference OpenAI-compatible API — Gemini 3.1 Pro Preview */
+/** Historical CI / receipt id — Gemini 3.1 Pro Preview. Not a current Main RP picker id. */
 export const CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL =
   "gemini-3.1-pro-preview";
 
@@ -118,7 +118,7 @@ export const CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL =
 export const CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL =
   "gemini-3.1-flash-lite";
 
-/** Cheaper Inference OpenAI-compatible API — Gemini 3.7 Flash */
+/** Historical CI / receipt id — Gemini 3.7 Flash. Not a current Main RP or TRPG generation id. */
 export const CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
 
 /** Cheaper Inference — DeepSeek V4.1 Flash (Main RP fast/value; distinct from 0731). */
@@ -161,10 +161,10 @@ export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
   OPENROUTER_GEMINI_36_FLASH_MODEL,
 ];
 
-/** OpenRouter — Gemini 3.1 Pro Preview. Internal stored id remains provider-neutral. */
+/** Historical OpenRouter slug — Gemini 3.1 Pro Preview. New generation remaps to 3.8. */
 export const OPENROUTER_GEMINI_31_PRO_MODEL = "google/gemini-3.1-pro-preview";
 
-/** OpenRouter — Gemini 3.7 Flash. */
+/** Historical OpenRouter slug — Gemini 3.7 Flash. New generation remaps to 3.8. */
 export const OPENROUTER_GEMINI_37_FLASH_MODEL = "google/gemini-3.7-flash";
 
 /** Provider-neutral stored/Main-RP id for Gemini 3.8 Flash. */
@@ -247,13 +247,11 @@ export type SelectedAIOptionMeta = {
 /**
  * CANONICAL Main RP picker — ONE source of truth.
  *
- * DeepSeek V4.1 Flash / Gemini 3.1 Pro Preview / Gemini 3.7 Flash /
- * Gemini 3.8 Flash / GPT-6.1 Sol / Claude Opus 5.5.
- * DeepSeek V4 Pro is retired from user Main RP but remains for historical
- * receipt/billing/provider compatibility.
- * Claude Opus 5 remains retired from user Main RP. Luna, DeepSeek V4 Flash 0731,
- * Gemini 3.6 Flash, old Opus slugs, Muse, Qwen, GLM, Kimi, … are NOT Main RP.
- * Their constants remain only for auxiliary/background use or historical receipt/billing.
+ * DeepSeek V4.1 Flash / Gemini 3.8 Flash / GPT-6.1 Sol / Claude Opus 5.5.
+ * Gemini 3.1 Pro Preview and Gemini 3.7 Flash are retired from user Main RP.
+ * Their constants remain for historical receipts, legacy normalization, and
+ * non-Main-RP Gemini family helpers. Gemini 3.1 Flash-Lite stays a background
+ * reader and is not this picker.
  */
 export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
   {
@@ -263,20 +261,6 @@ export const MAIN_RP_USER_SELECTABLE_OPTIONS = [
     tier: "pro",
     hint: "",
     recommended: true,
-  },
-  {
-    id: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-    label: GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
-    provider: "openrouter",
-    tier: "pro",
-    hint: "Google AI Studio",
-  },
-  {
-    id: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-    label: GEMINI_37_FLASH_DISPLAY_NAME,
-    provider: "openrouter",
-    tier: "pro",
-    hint: "Google AI Studio",
   },
   {
     id: GEMINI_38_FLASH_MODEL,
@@ -407,6 +391,10 @@ export function isCheaperInferenceGemini37FlashModel(modelId: string): boolean {
   return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
 }
 
+export function isCheaperInferenceGemini38FlashModel(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === GEMINI_38_FLASH_MODEL;
+}
+
 export function isCheaperInferenceDeepSeekV4ProModel(
   modelId: string
 ): boolean {
@@ -453,6 +441,7 @@ export function isCheaperInferenceModel(modelId: string): boolean {
     id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_31_FLASH_LITE_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
+    id === GEMINI_38_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_LEGACY_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL ||
@@ -619,16 +608,16 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "gemini-3.0": DEFAULT_SELECTED_AI,
   "gemini-3-flash-preview": DEFAULT_SELECTED_AI,
   "gemini-3.5-flash": DEFAULT_SELECTED_AI,
-  /** 구 Gemini 3.1 slug는 현재 기본 모델로 이전 */
+  /** Bare Gemini 3.1 alias stays on the default. Exact 3.1 Pro Preview / 3.7 Flash stored ids remap to 3.8. */
   "gemini-3.1": DEFAULT_SELECTED_AI,
-  "gemini-3.1-pro-preview": CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-  "gemini-3.7-flash": CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  "google/gemini-3.7-flash": CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  "gemini-3.1-pro-preview": GEMINI_38_FLASH_MODEL,
+  "google/gemini-3.1-pro-preview": GEMINI_38_FLASH_MODEL,
+  "gemini-3.7-flash": GEMINI_38_FLASH_MODEL,
+  "google/gemini-3.7-flash": GEMINI_38_FLASH_MODEL,
   "google/gemini-2.5-pro": DEFAULT_SELECTED_AI,
   "google/gemini-2.5-pro-preview": DEFAULT_SELECTED_AI,
   "gemini-3.6-flash": DEFAULT_SELECTED_AI,
   "google/gemini-3.6-flash": DEFAULT_SELECTED_AI,
-  "google/gemini-3.1-pro-preview": DEFAULT_SELECTED_AI,
   masterpiece: DEFAULT_SELECTED_AI,
   /** Claude Opus family retired from Main RP — lazy remap to default (not Opus 5). */
   [CLAUDE_OPUS_MODEL_LEGACY]: DEFAULT_SELECTED_AI,
@@ -740,8 +729,20 @@ export function selectedAILabel(id: string): string {
   if (id === CHEAPER_INFERENCE_QWEN_38_MAX_MODEL) {
     return QWEN_38_MAX_DISPLAY_NAME;
   }
+  if (id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL) {
+    return GEMINI_31_PRO_PREVIEW_DISPLAY_NAME;
+  }
   if (id === OPENROUTER_GEMINI_31_PRO_MODEL || id.toLowerCase().includes("gemini-3.1-pro")) {
     return GEMINI_31_PRO_DISPLAY_NAME;
+  }
+  if (
+    id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
+    id.toLowerCase().includes("gemini-3.7-flash")
+  ) {
+    return GEMINI_37_FLASH_DISPLAY_NAME;
+  }
+  if (id === GEMINI_38_FLASH_MODEL || id.toLowerCase().includes("gemini-3.8-flash")) {
+    return GEMINI_38_FLASH_DISPLAY_NAME;
   }
   if (id === OPENROUTER_GLM_52_MODEL || isGlmModel(id)) {
     return GLM_52_DISPLAY_NAME;

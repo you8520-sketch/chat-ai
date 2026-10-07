@@ -24,6 +24,7 @@ import {
 import {
   buildMainRpPricingObservabilityProjection,
   listMainRpObservabilityModelIds,
+  MAIN_RP_OBSERVABILITY_MODEL_IDS,
 } from "@/lib/mainRpPricingObservability";
 import { getMarketBenchmarks } from "@/lib/marketUsageBenchmarks";
 import { ensureModelPricingTrackingSchema } from "@/lib/modelPricingTrackingSchema";
@@ -327,7 +328,7 @@ describe("mainRpPricingObservability", () => {
       fxSnapshot: FX_FIXTURE,
       now: NOW,
     });
-    const expectedObservabilityCount = MAIN_RP_MODEL_IDS.length + 1;
+    const expectedObservabilityCount = MAIN_RP_OBSERVABILITY_MODEL_IDS.length;
     assert.equal(
       listMainRpObservabilityModelIds().length,
       expectedObservabilityCount

@@ -161,7 +161,11 @@ describe("scene policy benchmark preparation BMARK1-BMARK17", () => {
     assert.equal(schema.arm_id, "v2");
     assert.equal(schema.actual_input_tokens, null);
     assert.equal(schema.raw_output, null);
-    assert.ok(schema.generation_parameters.temperature != null || schema.generation_parameters.max_tokens != null);
+    assert.equal(schema.model_id, BENCHMARK_PILOT_MODEL_ID);
+    assert.equal(schema.provider, "openrouter");
+    // Gemini 3.8 OpenRouter omits sampling parameters by contract.
+    assert.equal(schema.generation_parameters.temperature, undefined);
+    assert.equal(schema.generation_parameters.max_tokens, undefined);
   });
 
   it("BMARK11 blind permutation preserves answer key", () => {
@@ -381,10 +385,10 @@ describe("scene policy benchmark trajectory contract TRJ1-TRJ4", () => {
 });
 
 describe("scene policy benchmark pilot model MODEL1-MODEL4", () => {
-  it("MODEL1 all three arms use canonical Gemini 3.7 Flash pilot model", () => {
+  it("MODEL1 all three arms use canonical Gemini 3.8 Flash pilot model", () => {
     const pilot = getBenchmarkPilotModelDescriptor();
     assert.equal(pilot.modelId, BENCHMARK_PILOT_MODEL_ID);
-    assert.equal(pilot.modelId, "gemini-3.7-flash");
+    assert.equal(pilot.modelId, "gemini-3.8-flash");
     for (const fixture of SCENE_POLICY_BENCHMARK_FIXTURES) {
       const result = runBenchmarkCase(fixture);
       for (const arm of SCENE_POLICY_ARM_IDS) {
@@ -401,7 +405,7 @@ describe("scene policy benchmark pilot model MODEL1-MODEL4", () => {
     for (const arm of ["v2", "living"] as const) {
       assert.deepEqual(sample.arms[arm].requestBody.provider, refProvider);
     }
-    assert.equal(pilot.transportProvider, "cheaperinference");
+    assert.equal(pilot.transportProvider, "openrouter");
   });
 
   it("MODEL3 all three arms use identical non-scene generation params", () => {
@@ -431,8 +435,8 @@ describe("scene policy benchmark cost owner COST1-COST5", () => {
   it("COST1 benchmark pilot model cost owner confirmed", () => {
     const owner = verifyBenchmarkCostOwner({ modelId: BENCHMARK_PILOT_MODEL_ID });
     assert.equal(owner.status, "COST_OWNER_CONFIRMED");
-    assert.equal(owner.modelId, "gemini-3.7-flash");
-    assert.equal(owner.transportProvider, "cheaperinference");
+    assert.equal(owner.modelId, "gemini-3.8-flash");
+    assert.equal(owner.transportProvider, "openrouter");
     assert.match(owner.upstreamCostSource, /openRouterModelPricing/);
   });
 

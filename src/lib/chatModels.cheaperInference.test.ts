@@ -11,6 +11,7 @@ import {
   CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+  GEMINI_38_FLASH_MODEL,
   SELECTED_AI_OPTIONS,
   USER_SELECTABLE_AI_OPTIONS,
   isAnthropicModel,
@@ -119,16 +120,12 @@ test("GPT-6.1 Sol is a selectable Cheaper Inference model and Terra remaps to it
   );
 });
 
-test("Gemini 3.1 Pro Preview keeps its historical CI id but routes through OpenRouter", () => {
+test("Gemini 3.1 Pro Preview stays a historical CI id and remaps to 3.8", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
     ),
-    true
-  );
-  assert.equal(
-    selectedAIProvider(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
-    "openrouter"
+    false
   );
   assert.equal(
     selectedAILabel(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
@@ -138,18 +135,18 @@ test("Gemini 3.1 Pro Preview keeps its historical CI id but routes through OpenR
     isCheaperInferenceModel(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
     true
   );
+  assert.equal(
+    resolveSelectedAI(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
+    GEMINI_38_FLASH_MODEL
+  );
 });
 
-test("Gemini 3.7 Flash keeps its historical CI id but routes through OpenRouter", () => {
+test("Gemini 3.7 Flash stays a historical CI id and remaps to 3.8", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
     ),
-    true
-  );
-  assert.equal(
-    selectedAIProvider(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
-    "openrouter"
+    false
   );
   assert.equal(
     selectedAILabel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
@@ -167,14 +164,9 @@ test("Gemini 3.7 Flash keeps its historical CI id but routes through OpenRouter"
     isCheaperInferenceGemini37FlashModel(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
     false
   );
-  assert.equal(
-    resolveSelectedAI(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
-    CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
-  );
-  assert.equal(
-    resolveSelectedAI("google/gemini-3.7-flash"),
-    CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
-  );
+  assert.equal(resolveSelectedAI(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL), GEMINI_38_FLASH_MODEL);
+  assert.equal(resolveSelectedAI("google/gemini-3.7-flash"), GEMINI_38_FLASH_MODEL);
+  assert.equal(selectedAIProvider(GEMINI_38_FLASH_MODEL), "openrouter");
 });
 
 test("DeepSeek V4 Pro is retired from Main RP and migrates to V4.1 Flash", () => {

@@ -32,67 +32,70 @@ import {
 import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 
 describe("Gemini Main RP routing", () => {
-  it("routes Gemini 3.1 through OpenRouter while preserving the provider-neutral stored id", () => {
-    assert.ok(
+  it("retires 3.1/3.7 from the picker and normalizes old selections to 3.8", () => {
+    assert.equal(
       USER_SELECTABLE_AI_OPTIONS.some(
         (o) => o.id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
-      )
+      ),
+      false
     );
     assert.equal(
-      selectedAIProvider(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
-      "openrouter"
+      USER_SELECTABLE_AI_OPTIONS.some(
+        (o) => o.id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
+      ),
+      false
     );
-    // Historical-family helpers remain true for old receipts/compatibility; they are not route owners.
-    assert.equal(
-      isCheaperInferenceModel(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
-      true
-    );
+    assert.ok(USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === GEMINI_38_FLASH_MODEL));
+    assert.equal(resolveSelectedAI("gemini-3.1-pro-preview"), GEMINI_38_FLASH_MODEL);
+    assert.equal(resolveSelectedAI("google/gemini-3.1-pro-preview"), GEMINI_38_FLASH_MODEL);
+    assert.equal(resolveSelectedAI("gemini-3.7-flash"), GEMINI_38_FLASH_MODEL);
+    assert.equal(resolveSelectedAI("google/gemini-3.7-flash"), GEMINI_38_FLASH_MODEL);
+    assert.equal(selectedAILabel(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL), "Gemini 3.1 Pro Preview");
+    assert.equal(selectedAILabel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL), "Gemini 3.7 Flash");
     assert.equal(
       isCheaperInferenceGemini31ProModel(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
       true
     );
-    assert.equal(
-      resolveOpenRouterModelId(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
-      OPENROUTER_GEMINI_31_PRO_MODEL
-    );
-  });
-
-  it("routes Gemini 3.7 and 3.8 to their Google OpenRouter slugs", () => {
-    assert.equal(
-      selectedAIProvider(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
-      "openrouter"
-    );
-    assert.equal(selectedAIProvider(GEMINI_38_FLASH_MODEL), "openrouter");
-    assert.equal(
-      resolveOpenRouterModelId(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
-      OPENROUTER_GEMINI_37_FLASH_MODEL
-    );
-    assert.equal(
-      resolveOpenRouterModelId(GEMINI_38_FLASH_MODEL),
-      OPENROUTER_GEMINI_38_FLASH_MODEL
-    );
-    assert.equal(isGeminiFlashOpenRouterModel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL), true);
-    assert.equal(isGeminiFlashOpenRouterModel(GEMINI_38_FLASH_MODEL), true);
     assert.equal(
       isCheaperInferenceGemini37FlashModel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
       true
     );
   });
 
-  it("keeps every active Gemini OpenRouter route pinned to one provider on Flex with no fallback", () => {
-    for (const modelId of [
-      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-      GEMINI_38_FLASH_MODEL,
-    ]) {
-      const policy = resolveMainRpOpenRouterRoutePolicy(modelId);
-      assert.ok(policy, modelId);
-      assert.equal(policy.serviceTier, "flex");
-      assert.equal(policy.provider.only.length, 1);
-      assert.ok(policy.provider.only[0]?.trim(), modelId);
-      assert.equal(policy.provider.allow_fallbacks, false);
-      assert.equal(policy.provider.require_parameters, true);
-    }
+  it("routes Gemini 3.8 to the Google OpenRouter slug and remaps old Gemini slugs before generation", () => {
+    assert.equal(selectedAIProvider(GEMINI_38_FLASH_MODEL), "openrouter");
+    assert.equal(
+      resolveOpenRouterModelId(GEMINI_38_FLASH_MODEL),
+      OPENROUTER_GEMINI_38_FLASH_MODEL
+    );
+    assert.equal(
+      resolveOpenRouterModelId(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
+      OPENROUTER_GEMINI_38_FLASH_MODEL
+    );
+    assert.equal(
+      resolveOpenRouterModelId(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
+      OPENROUTER_GEMINI_38_FLASH_MODEL
+    );
+    assert.equal(isGeminiFlashOpenRouterModel(GEMINI_38_FLASH_MODEL), true);
+    assert.equal(isCheaperInferenceModel(GEMINI_38_FLASH_MODEL), true);
+  });
+
+  it("keeps the only active Gemini OpenRouter route pinned to one provider on Flex with no fallback", () => {
+    const policy = resolveMainRpOpenRouterRoutePolicy(GEMINI_38_FLASH_MODEL);
+    assert.ok(policy);
+    assert.equal(policy.serviceTier, "flex");
+    assert.equal(policy.provider.only.length, 1);
+    assert.ok(policy.provider.only[0]?.trim());
+    assert.equal(policy.provider.allow_fallbacks, false);
+    assert.equal(policy.provider.require_parameters, true);
+    assert.equal(
+      resolveMainRpOpenRouterRoutePolicy(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)?.provider.only[0],
+      "google-ai-studio"
+    );
+    assert.equal(
+      resolveRpOpenRouterModelId("google/gemini-3.7-flash"),
+      OPENROUTER_GEMINI_38_FLASH_MODEL
+    );
   });
 
   it("keeps Gemini 3.6 Flash retired from Main RP selection", () => {

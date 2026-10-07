@@ -124,7 +124,7 @@ function routedEndpoint(modelId: string): SupplyEndpointEvidence {
 test("active Main RP supply identities are derived exhaustively from canonical registry",()=>{
   const ids=listMainRpSupplyIdentities();
   assert.deepEqual(ids.map(x=>x.internalModelId),MAIN_RP_MODEL_IDS);
-  assert.equal(ids.length,6);
+  assert.equal(ids.length,4);
   assert.equal(ids.find(x=>x.internalModelId==="deepseek-v4.1-flash")?.openRouterSlug,"deepseek/deepseek-v4.1-flash");
   assert.equal(ids.find(x=>x.internalModelId==="gemini-3.8-flash")?.openRouterSlug,"google/gemini-3.8-flash");
   assert.equal(ids.find(x=>x.internalModelId==="gpt-6.1-sol")?.openRouterSlug,"openai/gpt-6.1-sol");
@@ -235,13 +235,13 @@ test("OpenRouter Flex route stays partial when endpoint tier evidence is ambiguo
 });
 
 test("temporary provider discount expiry updates procurement evidence without mutating published user pricing",()=>{
-  const beforePublished = getPublishedPricing("gemini-3.7-flash");
-  const promo = routedEndpoint("gemini-3.7-flash");
+  const beforePublished = getPublishedPricing("gemini-3.8-flash");
+  const promo = routedEndpoint("gemini-3.8-flash");
   const promoReport = buildMainRpSupplyRadarReport({
-    endpointsByModel:{"gemini-3.7-flash":[promo]},
+    endpointsByModel:{"gemini-3.8-flash":[promo]},
     ciCatalogByModel:null,
   });
-  const promoRow = promoReport.models.find((row)=>row.modelId==="gemini-3.7-flash")!;
+  const promoRow = promoReport.models.find((row)=>row.modelId==="gemini-3.8-flash")!;
   assert.equal(promoRow.currentProcurement?.inputUsdPerMillion,0.375);
   assert.equal(promoRow.currentProcurement?.outputUsdPerMillion,1.875);
 
@@ -252,15 +252,15 @@ test("temporary provider discount expiry updates procurement evidence without mu
     cacheReadUsdPerMillion:0.075,
   };
   const normalizedReport = buildMainRpSupplyRadarReport({
-    endpointsByModel:{"gemini-3.7-flash":[normalized]},
+    endpointsByModel:{"gemini-3.8-flash":[normalized]},
     ciCatalogByModel:null,
   });
-  const normalizedRow = normalizedReport.models.find((row)=>row.modelId==="gemini-3.7-flash")!;
+  const normalizedRow = normalizedReport.models.find((row)=>row.modelId==="gemini-3.8-flash")!;
   assert.equal(normalizedRow.currentProcurement?.inputUsdPerMillion,0.75);
   assert.equal(normalizedRow.currentProcurement?.outputUsdPerMillion,3.75);
   assert.equal(normalizedRow.publishedMarginRisk?.belowMinimumMarginFloor,true);
 
-  const afterPublished = getPublishedPricing("gemini-3.7-flash");
+  const afterPublished = getPublishedPricing("gemini-3.8-flash");
   assert.deepEqual(afterPublished,beforePublished);
 });
 
@@ -283,9 +283,9 @@ test("network helpers are GET-only and source contains no generation endpoint",a
 });
 
 test("official Gemini Standard schedule is risk evidence without inventing future Flex procurement",()=> {
-  assert.deepEqual(
-    [...GOOGLE_FLASH_STANDARD_SCHEDULE_MODEL_IDS],
-    ["gemini-3.7-flash","gemini-3.8-flash"]
+  assert.ok(
+    GOOGLE_FLASH_STANDARD_SCHEDULE_MODEL_IDS.includes("gemini-3.8-flash"),
+    "current Gemini 3.8 must retain official upstream schedule evidence"
   );
   assert.equal(GOOGLE_FLASH_STANDARD_POST_INTRO_EFFECTIVE_AT,"2027-01-01T00:00:00.000Z");
   assert.deepEqual(GOOGLE_FLASH_STANDARD_INTRO_RATES,{
@@ -301,17 +301,20 @@ test("official Gemini Standard schedule is risk evidence without inventing futur
 
   const report=buildMainRpSupplyRadarReport({
     endpointsByModel:{
-      "gemini-3.7-flash":[routedEndpoint("gemini-3.7-flash")],
       "gemini-3.8-flash":[routedEndpoint("gemini-3.8-flash")],
     },
     ciCatalogByModel:null,
     generatedAt:"2026-11-02T00:00:00.000Z",
   });
   assert.equal(report.version,2);
-  assert.deepEqual(report.upstreamPriceRisks.map(row=>row.modelId),[
-    "gemini-3.7-flash",
-    "gemini-3.8-flash",
-  ]);
+  assert.deepEqual(
+    report.upstreamPriceRisks.map(row=>row.modelId),
+    MAIN_RP_MODEL_IDS.filter((modelId) =>
+      GOOGLE_FLASH_STANDARD_SCHEDULE_MODEL_IDS.includes(
+        modelId as (typeof GOOGLE_FLASH_STANDARD_SCHEDULE_MODEL_IDS)[number]
+      )
+    )
+  );
   for(const risk of report.upstreamPriceRisks){
     assert.equal(risk.referenceTier,"google_standard");
     assert.equal(risk.currentProcurementRoute,"openrouter:google-ai-studio:flex");
@@ -326,8 +329,8 @@ test("official Gemini Standard schedule is risk evidence without inventing futur
     assert.equal(risk.postIntroStandardPrice.outputUsdPerMillion,7.5);
   }
   assert.equal(
-    report.models.find(row=>row.modelId==="gemini-3.1-pro-preview")?.upstreamPriceRisk,
-    null
+    report.models.some(row=>row.modelId==="gemini-3.1-pro-preview"),
+    false
   );
 });
 
@@ -353,7 +356,7 @@ test("upstream schedule alert windows do not claim a current-route price transit
 
 test("forecast markdown explicitly separates upstream schedule from current Flex procurement",()=> {
   const report=buildMainRpSupplyRadarReport({
-    endpointsByModel:{"gemini-3.7-flash":[routedEndpoint("gemini-3.7-flash")]},
+    endpointsByModel:{"gemini-3.8-flash":[routedEndpoint("gemini-3.8-flash")]},
     ciCatalogByModel:null,
     generatedAt:"2026-12-02T00:00:00.000Z",
   });

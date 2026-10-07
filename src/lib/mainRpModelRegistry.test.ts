@@ -1,8 +1,8 @@
 /**
- * Main RP model registry — canonical 6-model role invariant.
+ * Main RP model registry — canonical 4-model role invariant.
  *
  * ONE source of truth: MAIN_RP_MODEL_IDS / MAIN_RP_USER_SELECTABLE_OPTIONS.
- * Exactly 6 Main RP models; all others are MainRP=false (auxiliary/vision/
+ * Exactly 4 Main RP models; all others are MainRP=false (auxiliary/vision/
  * historical only). API=0.
  */
 import assert from "node:assert/strict";
@@ -35,24 +35,22 @@ import {
 
 const REPO_ROOT = resolve(process.cwd());
 
-describe("Main RP canonical 6-model registry", () => {
-  it("MAIN_RP_MODEL_COUNT=6 and picker count=6 (single source of truth)", () => {
-    assert.equal(MAIN_RP_MODEL_IDS.length, 6);
-    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 6);
-    assert.equal(SELECTED_AI_OPTIONS.length, 6);
-    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 6);
-    assert.equal(userSelectableAIOptionsForUser(false).length, 6);
-    assert.equal(userSelectableAIOptionsForUser(true).length, 6);
+describe("Main RP canonical 4-model registry", () => {
+  it("MAIN_RP_MODEL_COUNT=4 and picker count=4 (single source of truth)", () => {
+    assert.equal(MAIN_RP_MODEL_IDS.length, 4);
+    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 4);
+    assert.equal(SELECTED_AI_OPTIONS.length, 4);
+    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 4);
+    assert.equal(userSelectableAIOptionsForUser(false).length, 4);
+    assert.equal(userSelectableAIOptionsForUser(true).length, 4);
   });
 
-  it("canonical 6 are the exact expected ids and all selectable", () => {
+  it("canonical 4 are the exact expected ids and all selectable", () => {
     assert.deepEqual(
       [...MAIN_RP_MODEL_IDS].sort(),
       [
         CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
         CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-        CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-        CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
         GEMINI_38_FLASH_MODEL,
         CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
       ].sort()
@@ -70,6 +68,8 @@ describe("Main RP canonical 6-model registry", () => {
       CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
       OPENROUTER_GEMINI_36_FLASH_MODEL,
       CLAUDE_OPUS_MODEL,
       CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,

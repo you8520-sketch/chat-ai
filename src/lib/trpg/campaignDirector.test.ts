@@ -13,7 +13,7 @@ import { insertScenarioTemplate } from "./scenarioTemplates";
 import { ensureTrpgTables } from "./schema";
 import { insertParticipant, loadCampaign } from "./store";
 import { TRPG_BOT_MODEL, TRPG_GM_MODEL, TRPG_MAX_BOTS } from "./types";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
 import { TRPG_SCENARIO_DRAFT_MODEL } from "./scenarioDraft";
 import { ensureCampaignDirectorContext, isTrpgSandboxDirectorEnabled } from "./sandboxDirector";
 import { TRPG_SANDBOX_BLUEPRINT_DERIVATION_VERSION } from "./blueprintValidity";
@@ -420,8 +420,8 @@ describe("TRPG sandbox director and plan security", () => {
 
   it("keeps 0/1/2 bot-seat calls independent of director and uses the original models", async () => {
     assert.equal(TRPG_MAX_BOTS, 2);
-    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
-    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(TRPG_GM_MODEL, GEMINI_38_FLASH_MODEL);
+    assert.equal(TRPG_BOT_MODEL, GEMINI_38_FLASH_MODEL);
     assert.equal(TRPG_SCENARIO_DRAFT_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL);
 
     const db = memoryDb();

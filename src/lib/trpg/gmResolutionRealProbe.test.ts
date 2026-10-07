@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
+import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
 import { callTrpgGm } from "./gmCall";
 import {
   buildTrpgGmUserBlock,
@@ -211,7 +211,7 @@ describe("TRPG GM resolution quality — real Gemini 3.7 frozen probe", { timeou
       return;
     }
     delete process.env.MOCK_MODE;
-    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(TRPG_GM_MODEL, GEMINI_38_FLASH_MODEL);
 
     const probeResults: GmResolutionProbeResult[] = [];
     const forwardReviews: GmForwardMotionReview[] = [];

@@ -147,6 +147,21 @@ test("Gemini 3.7 Flash uses probed reasoning_effort low, not none", () => {
   });
 });
 
+test("Gemini 3.8 Flash keeps the same CheaperInference low reasoning contract", () => {
+  const body = {
+    model: "gemini-3.8-flash",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning_effort: "high",
+    thinking: { type: "enabled" },
+  };
+
+  assert.deepEqual(adaptCheaperInferenceChatBody(body), {
+    model: "gemini-3.8-flash",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning_effort: "low",
+  });
+});
+
 test("GPT-5.6 Luna historical support disables reasoning with effort none", () => {
   const body = {
     model: "gpt-5.6-luna",

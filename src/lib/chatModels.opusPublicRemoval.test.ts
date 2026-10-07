@@ -4,8 +4,10 @@ import Database from "better-sqlite3";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   CLAUDE_OPUS_5_DISPLAY_NAME,
   CLAUDE_OPUS_MODEL,
   CLAUDE_OPUS_MODEL_LEGACY,
@@ -44,31 +46,33 @@ function memoryDb() {
 }
 
 describe("Claude Opus 5 Main RP retirement (R-01..R-14)", () => {
-  it("R-01 MAIN_RP_MODEL_IDS count = 3", () => {
-    assert.equal(MAIN_RP_MODEL_IDS.length, 3);
+  it("R-01 MAIN_RP_MODEL_IDS count follows the current four-model registry", () => {
+    assert.equal(MAIN_RP_MODEL_IDS.length, MAIN_RP_USER_SELECTABLE_OPTIONS.length);
+    assert.equal(MAIN_RP_MODEL_IDS.length, 4);
   });
 
-  it("R-02 picker count = 3", () => {
-    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 3);
-    assert.equal(SELECTED_AI_OPTIONS.length, 3);
-    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 3);
-    assert.equal(userSelectableAIOptionsForUser(false).length, 3);
-    assert.equal(userSelectableAIOptionsForUser(true).length, 3);
+  it("R-02 picker aliases project the canonical current registry", () => {
+    assert.equal(SELECTED_AI_OPTIONS.length, MAIN_RP_USER_SELECTABLE_OPTIONS.length);
+    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, MAIN_RP_USER_SELECTABLE_OPTIONS.length);
+    assert.equal(userSelectableAIOptionsForUser(false).length, MAIN_RP_USER_SELECTABLE_OPTIONS.length);
+    assert.equal(userSelectableAIOptionsForUser(true).length, MAIN_RP_USER_SELECTABLE_OPTIONS.length);
   });
 
-  it("R-03 DeepSeek selectable = true", () => {
-    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, false), true);
-    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, true), true);
+  it("R-03 current DeepSeek V4.1 is selectable and retired V4 Pro is not", () => {
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, false), true);
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL, true), true);
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, false), false);
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, true), false);
   });
 
-  it("R-04 Gemini 3.1 Pro selectable = true", () => {
-    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, false), true);
-    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, true), true);
+  it("R-04 Gemini 3.1 Pro Preview is retired from Main RP picker", () => {
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, false), false);
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL, true), false);
   });
 
-  it("R-05 Gemini 3.7 Flash selectable = true", () => {
-    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, false), true);
-    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, true), true);
+  it("R-05 Gemini 3.7 Flash is retired from Main RP picker", () => {
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, false), false);
+    assert.equal(isUserSelectableAI(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL, true), false);
   });
 
   it("R-06 Claude Opus 5 MainRP = false", () => {
@@ -89,23 +93,23 @@ describe("Claude Opus 5 Main RP retirement (R-01..R-14)", () => {
     assert.equal(isValidSelectedAI(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), false);
   });
 
-  it("R-10 stored users.selected_ai=claude-opus-5 remaps to DeepSeek V4 Pro", () => {
+  it("R-10 stored users.selected_ai=claude-opus-5 remaps to the canonical default", () => {
     const db = memoryDb();
     db.prepare("INSERT INTO users (id, selected_ai) VALUES (1, ?)").run(
       CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
     );
     const r = ensureUserSelectedAI(db, 1);
     assert.equal(r.selectedAI, DEFAULT_SELECTED_AI);
-    assert.equal(r.selectedAI, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(r.selectedAI, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL);
     assert.equal(r.remappedFromRetired, true);
     const stored = db.prepare("SELECT selected_ai FROM users WHERE id=1").get() as {
       selected_ai: string;
     };
-    assert.equal(stored.selected_ai, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(stored.selected_ai, CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL);
     db.close();
   });
 
-  it("R-11 legacy Opus aliases resolve to DeepSeek V4 Pro", () => {
+  it("R-11 legacy Opus aliases resolve to the canonical default", () => {
     for (const alias of [
       CLAUDE_OPUS_MODEL_LEGACY,
       "claude-opus",
@@ -115,7 +119,7 @@ describe("Claude Opus 5 Main RP retirement (R-01..R-14)", () => {
     ]) {
       assert.equal(
         resolveSelectedAI(alias),
-        CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+        CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
         alias
       );
     }
@@ -141,22 +145,18 @@ describe("Claude Opus 5 Main RP retirement (R-01..R-14)", () => {
     assert.equal(receipt?.modelLabel, CLAUDE_OPUS_5_DISPLAY_NAME);
   });
 
-  it("R-14 DeepSeek/Gemini picker metadata unchanged", () => {
+  it("R-14 current DeepSeek/Gemini picker metadata matches the canonical registry", () => {
     const deepseek = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
-      (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+      (o) => o.id === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL
     );
-    const gemini31 = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
-      (o) => o.id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
+    const gemini38 = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
+      (o) => o.id === GEMINI_38_FLASH_MODEL
     );
-    const gemini37 = MAIN_RP_USER_SELECTABLE_OPTIONS.find(
-      (o) => o.id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
-    );
-    assert.equal(deepseek?.label, "DeepSeek V4 Pro");
+    assert.equal(deepseek?.label, "DeepSeek V4.1 Flash");
     assert.equal(deepseek?.recommended, true);
-    assert.equal(gemini31?.hint, "Google");
-    assert.equal(gemini37?.hint, "Google");
+    assert.equal(gemini38?.label, "Gemini 3.8 Flash");
+    assert.equal(gemini38?.hint, "Google AI Studio");
     assert.equal(deepseek?.provider, "cheaperinference");
-    assert.equal(gemini31?.provider, "cheaperinference");
-    assert.equal(gemini37?.provider, "cheaperinference");
+    assert.equal(gemini38?.provider, "openrouter");
   });
 });

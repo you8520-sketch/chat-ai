@@ -9,6 +9,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
@@ -16,7 +17,6 @@ import {
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   USER_SELECTABLE_AI_OPTIONS,
   isValidSelectedAI,
-  type SelectedAI,
 } from "@/lib/chatModels";
 import { setUserSelectedAI } from "@/lib/userSelectedAI";
 
@@ -48,7 +48,7 @@ function memoryDb() {
   return db;
 }
 
-describe("/api/user/selected-ai Gemini 3.7 Flash allow-list", () => {
+describe("/api/user/selected-ai Gemini 3.8 Flash allow-list", () => {
   it("PATCH uses admin-aware user selectable allow-list", () => {
     assert.match(ROUTE_SOURCE, /isUserSelectableAI\(requested, isAdmin\)/);
     assert.match(CHAT_CLIENT_SOURCE, /userSelectableAIOptionsForUser\(isAdmin\)/);
@@ -57,24 +57,21 @@ describe("/api/user/selected-ai Gemini 3.7 Flash allow-list", () => {
     assert.match(CHAT_CLIENT_SOURCE, /\/api\/chat\/next-turn-estimates/);
   });
 
-  it("allows Gemini 3.7 Flash select/save and keeps sibling picker models", () => {
-    assert.equal(isPatchAllowed(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL), true);
-    assert.equal(isPatchAllowed(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL), true);
+  it("allows Gemini 3.8 Flash select/save and rejects retired Gemini picker ids", () => {
+    assert.equal(isPatchAllowed(GEMINI_38_FLASH_MODEL), true);
+    assert.equal(isPatchAllowed(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL), false);
+    assert.equal(isPatchAllowed(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL), false);
     assert.equal(isPatchAllowed(CHEAPER_INFERENCE_GPT_61_SOL_MODEL), true);
     assert.equal(isPatchAllowed(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL), false);
     assert.equal(isPatchAllowed(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), false);
 
     const db = memoryDb();
-    const saved = setUserSelectedAI(
-      db,
-      1,
-      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL as SelectedAI
-    );
-    assert.equal(saved.selectedAI, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    const saved = setUserSelectedAI(db, 1, GEMINI_38_FLASH_MODEL);
+    assert.equal(saved.selectedAI, GEMINI_38_FLASH_MODEL);
     const stored = db.prepare("SELECT selected_ai FROM users WHERE id=1").get() as {
       selected_ai: string;
     };
-    assert.equal(stored.selected_ai, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(stored.selected_ai, GEMINI_38_FLASH_MODEL);
     db.close();
   });
 

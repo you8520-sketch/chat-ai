@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
 } from "@/lib/chatModels";
 import { adaptCheaperInferenceChatBody } from "../cheaperInferenceConfig";
 import {
@@ -22,9 +22,9 @@ function thinkingType(body: Record<string, unknown>): string {
 }
 
 describe("TRPG production model routing (PR-A)", () => {
-  it("pins Bot=Gemini 3.7 Flash and GM=Gemini 3.7 Flash", () => {
-    assert.equal(TRPG_BOT_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
-    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+  it("pins Bot=Gemini 3.8 Flash and GM=Gemini 3.8 Flash", () => {
+    assert.equal(TRPG_BOT_MODEL, GEMINI_38_FLASH_MODEL);
+    assert.equal(TRPG_GM_MODEL, GEMINI_38_FLASH_MODEL);
   });
 
   it("adaptTrpgBotChatBody sends Gemini low reasoning via canonical policy", () => {
@@ -37,7 +37,7 @@ describe("TRPG production model routing (PR-A)", () => {
       thinking: { type: "disabled" },
       reasoning_effort: "high",
     });
-    assert.equal(bot.model, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(bot.model, GEMINI_38_FLASH_MODEL);
     assert.equal(bot.stream, false);
     assert.equal(bot.reasoning_effort, "low");
     assert.equal(bot.thinking, undefined);
@@ -57,7 +57,7 @@ describe("TRPG production model routing (PR-A)", () => {
       reasoning_effort: "none",
       thinking: { type: "disabled" },
     });
-    assert.equal(gm.model, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(gm.model, GEMINI_38_FLASH_MODEL);
     assert.equal(gm.stream, true);
     assert.equal(gm.reasoning_effort, "low");
     assert.equal(gm.thinking, undefined);
@@ -68,8 +68,8 @@ describe("TRPG production model routing (PR-A)", () => {
   });
 
   it("resolveTrpgCheaperInferenceModel preserves configured models without DeepSeek fallback", () => {
-    assert.equal(resolveTrpgCheaperInferenceModel(TRPG_BOT_MODEL), CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
-    assert.equal(resolveTrpgCheaperInferenceModel(TRPG_GM_MODEL), CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(resolveTrpgCheaperInferenceModel(TRPG_BOT_MODEL), GEMINI_38_FLASH_MODEL);
+    assert.equal(resolveTrpgCheaperInferenceModel(TRPG_GM_MODEL), GEMINI_38_FLASH_MODEL);
     assert.throws(
       () => resolveTrpgCheaperInferenceModel("unknown-model"),
       /unsupported Cheaper Inference model/
@@ -80,11 +80,11 @@ describe("TRPG production model routing (PR-A)", () => {
     );
   });
 
-  it("GM and Bot transport ceilings match Gemini 3.7 Flash model max output", () => {
+  it("GM and Bot transport ceilings match Gemini 3.8 Flash catalog max output", () => {
     assert.equal(TRPG_GM_MODEL, TRPG_BOT_MODEL);
-    assert.equal(TRPG_GM_MODEL, CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL);
+    assert.equal(TRPG_GM_MODEL, GEMINI_38_FLASH_MODEL);
     assert.equal(TRPG_GM_MAX_TOKENS, TRPG_BOT_MAX_TOKENS);
-    assert.equal(TRPG_GM_MAX_TOKENS, 65_536);
+    assert.equal(TRPG_GM_MAX_TOKENS, 65_535);
   });
 
   it("preserves DeepSeek legacy true-off when explicitly passed to TRPG adapters", () => {

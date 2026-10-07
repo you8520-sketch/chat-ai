@@ -8,6 +8,9 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+  GEMINI_38_FLASH_MODEL,
+  OPENROUTER_GEMINI_31_PRO_MODEL,
+  OPENROUTER_GEMINI_37_FLASH_MODEL,
   isCheaperInferenceGemini31ProModel,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
@@ -16,6 +19,7 @@ import {
   isMuseModel,
   MAIN_RP_MODEL_IDS,
   resolveSelectedAI,
+  selectedAIProvider,
   USER_SELECTABLE_AI_OPTIONS,
   type SelectedAI,
 } from "@/lib/chatModels";
@@ -26,6 +30,7 @@ import {
   computeOpenRouterTurnCost,
 } from "@/lib/points";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
+import { resolveRpOpenRouterModelId } from "@/lib/openRouterConfig";
 import { computePublishedStandardPreviewPoints } from "@/lib/publishedUserCharge";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
 import { estimateTokens } from "@/lib/tokenEstimate";
@@ -70,8 +75,7 @@ export const MODEL_PICKER_FALLBACK_INPUT_TOKENS = 4000;
 export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerActiveModelId, number>> =
   {
     [CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL]: 1500,
-    [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: 1400,
-    [CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL]: 1400,
+    [GEMINI_38_FLASH_MODEL]: 1400,
     [CHEAPER_INFERENCE_GPT_61_SOL_MODEL]: 1400,
   };
 
@@ -89,15 +93,27 @@ export function isActivePickerModel(modelId: string): modelId is ModelPickerActi
   return (MODEL_PICKER_ACTIVE_MODEL_IDS as readonly string[]).includes(modelId);
 }
 
-/** Canonical model id for sample filtering — matches billing selectedAI. */
+function isRetiredGeminiPickerSample(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return (
+    id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
+    id === OPENROUTER_GEMINI_31_PRO_MODEL ||
+    id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
+    id === OPENROUTER_GEMINI_37_FLASH_MODEL
+  );
+}
+
+/** Canonical model id for sample filtering — matches billing selectedAI without re-labeling retired model history. */
 export function canonicalizePreviewModelId(
   usage?: Pick<ModelPickerUsageSample, "selectedAI" | "model"> | null,
   messageModel?: string | null
 ): SelectedAI | null {
   const raw = usage?.selectedAI || usage?.model || messageModel || "";
   if (!raw.trim()) return null;
-  // Retired Muse / Terra samples must not skew active-model picker estimates.
-  if (isMuseModel(raw) || isGpt56TerraModel(raw)) return null;
+  // Retired-model history must not be relabeled as a current model's measured sample.
+  if (isMuseModel(raw) || isGpt56TerraModel(raw) || isRetiredGeminiPickerSample(raw)) {
+    return null;
+  }
   const resolved = resolveSelectedAI(raw, raw);
   return isActivePickerModel(resolved) ? resolved : null;
 }
@@ -398,8 +414,17 @@ export function computePreviewTurnPoints(opts: {
   if (!isActivePickerModel(opts.modelId)) {
     return null;
   }
-  // V4.1 is stable-published and must preview from the same canonical published owner.
-  // Other legacy/market-priced models keep their existing preview owners.
+  // Main RP provider identity comes from the canonical picker registry.
+  // A model may also be supported by another transport for non-Main-RP workloads
+  // (for example TRPG Gemini 3.8 on CheaperInference); that must not change picker billing.
+  if (selectedAIProvider(opts.modelId) === "openrouter") {
+    return computeOpenRouterTurnCost(
+      opts.inputTokens,
+      opts.outputTokens,
+      resolveRpOpenRouterModelId(opts.modelId)
+    );
+  }
+
   return (
     computeStablePublishedPreviewPoints(opts) ??
     computeCheaperInferenceMarketPreviewCost(
@@ -407,8 +432,7 @@ export function computePreviewTurnPoints(opts: {
       opts.outputTokens,
       opts.modelId,
       0.15
-    ) ??
-    computeOpenRouterTurnCost(opts.inputTokens, opts.outputTokens, opts.modelId)
+    )
   );
 }
 
@@ -418,6 +442,7 @@ export function computePreviewPointBand(opts: {
   outputTokens: number;
   targetResponseChars?: number;
 }): { low: number; mid: number; high: number } | null {
+  if (!isActivePickerModel(opts.modelId)) return null;
   const mid = computePreviewTurnPoints(opts);
   if (mid == null) return null;
   const loOut = Math.max(
@@ -428,40 +453,47 @@ export function computePreviewPointBand(opts: {
     Math.round(opts.outputTokens * (1 + MODEL_PICKER_OUTPUT_RANGE_RATIO)),
     opts.targetResponseChars
   );
+  const provider = selectedAIProvider(opts.modelId);
+  const openRouterModelId =
+    provider === "openrouter" ? resolveRpOpenRouterModelId(opts.modelId) : null;
   const low =
-    computeStablePublishedPreviewPoints({
-      modelId: opts.modelId,
-      inputTokens: opts.inputTokens,
-      outputTokens: loOut,
-    }) ??
-    computeCheaperInferenceMarketPreviewCost(
-      opts.inputTokens,
-      loOut,
-      opts.modelId,
-      0.3
-    ) ??
-    computePreviewTurnPoints({
-      modelId: opts.modelId,
-      inputTokens: opts.inputTokens,
-      outputTokens: loOut,
-    });
+    openRouterModelId
+      ? computeOpenRouterTurnCost(opts.inputTokens, loOut, openRouterModelId)
+      : computeStablePublishedPreviewPoints({
+          modelId: opts.modelId,
+          inputTokens: opts.inputTokens,
+          outputTokens: loOut,
+        }) ??
+        computeCheaperInferenceMarketPreviewCost(
+          opts.inputTokens,
+          loOut,
+          opts.modelId,
+          0.3
+        ) ??
+        computePreviewTurnPoints({
+          modelId: opts.modelId,
+          inputTokens: opts.inputTokens,
+          outputTokens: loOut,
+        });
   const high =
-    computeStablePublishedPreviewPoints({
-      modelId: opts.modelId,
-      inputTokens: opts.inputTokens,
-      outputTokens: hiOut,
-    }) ??
-    computeCheaperInferenceMarketPreviewCost(
-      opts.inputTokens,
-      hiOut,
-      opts.modelId,
-      0
-    ) ??
-    computePreviewTurnPoints({
-      modelId: opts.modelId,
-      inputTokens: opts.inputTokens,
-      outputTokens: hiOut,
-    });
+    openRouterModelId
+      ? computeOpenRouterTurnCost(opts.inputTokens, hiOut, openRouterModelId)
+      : computeStablePublishedPreviewPoints({
+          modelId: opts.modelId,
+          inputTokens: opts.inputTokens,
+          outputTokens: hiOut,
+        }) ??
+        computeCheaperInferenceMarketPreviewCost(
+          opts.inputTokens,
+          hiOut,
+          opts.modelId,
+          0
+        ) ??
+        computePreviewTurnPoints({
+          modelId: opts.modelId,
+          inputTokens: opts.inputTokens,
+          outputTokens: hiOut,
+        });
   if (low == null || high == null) return { low: mid, mid, high: mid };
 
   // Token-based band (can be tiny on cheap out-rates) ∪ minimum relative display band.

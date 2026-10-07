@@ -12,6 +12,7 @@ import {
   visibleAssistantDisplayCharCount,
   visibleAssistantDisplayText,
 } from "@/lib/chatDisplayLength";
+import { MAIN_RP_USER_SELECTABLE_OPTIONS } from "@/lib/chatModels";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import {
   classifyVisibleLength,
@@ -101,17 +102,10 @@ export type RpAdultQualityOverlayId = (typeof RP_ADULT_QUALITY_OVERLAY)[number];
 export type RpQualityTurnKind = "manual" | "auto" | "regen";
 export type RpQualityContentMode = "SAFE" | "19+";
 
-export const RP_FUTURE_PROSE_BENCHMARK_MODELS = [
-  "GPT-6.1 Sol",
-  "Claude Opus 5.5",
-  "DeepSeek V4.1 Flash",
-  "Gemini 3.8 Flash",
-] as const;
-
-export const RP_FUTURE_PROSE_BENCHMARK_EXCLUDED = [
-  "Gemini 3.1 Pro Preview",
-  "Gemini 3.7 Flash",
-] as const;
+/** Benchmark model set is the live Main RP picker. No second included/excluded list. */
+export const RP_QUALITY_BENCHMARK_MODELS = MAIN_RP_USER_SELECTABLE_OPTIONS.map(
+  (option) => option.label
+);
 
 export type RpQualityAuthoringMatrix = Record<UserAuthoringLevel, UserAuthoringCapabilities>;
 
@@ -186,8 +180,7 @@ export type RpQualityEvaluationContract = {
   authoringLevels: readonly UserAuthoringLevel[];
   authoringMatrix: RpQualityAuthoringMatrix;
   ordinaryAndAutoProgressionAreIndependent: true;
-  futureProseBenchmarkModels: readonly string[];
-  futureProseBenchmarkExcluded: readonly string[];
+  benchmarkModels: readonly string[];
 };
 
 export function emptyRubricScores(): Record<RpQualityRubricDimensionId, number | null> {
@@ -248,8 +241,7 @@ export function buildQualityEvaluationContract(): RpQualityEvaluationContract {
     authoringLevels: USER_AUTHORING_LEVELS,
     authoringMatrix: liveAuthoringCapabilityMatrix(),
     ordinaryAndAutoProgressionAreIndependent: true,
-    futureProseBenchmarkModels: RP_FUTURE_PROSE_BENCHMARK_MODELS,
-    futureProseBenchmarkExcluded: RP_FUTURE_PROSE_BENCHMARK_EXCLUDED,
+    benchmarkModels: RP_QUALITY_BENCHMARK_MODELS,
   };
 }
 
