@@ -6,7 +6,7 @@ import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "@/lib/chatModels";
 import { visibleAssistantDisplayCharCount, visibleAssistantDisplayText } from "@/lib/chatDisplayLength";
@@ -895,7 +895,7 @@ describe("same-model output-history forecast", () => {
   });
 
   it("reasoning-separated Gemini history uses billable output, not raw completion", () => {
-    const GEMINI = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
+    const GEMINI = GEMINI_38_FLASH_MODEL;
     const rawTurns = [
       { raw: 3900, reasoning: 1200 },
       { raw: 4000, reasoning: 1250 },

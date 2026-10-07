@@ -4,7 +4,7 @@ import path from "path";
 import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_38_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "@/lib/chatModels";
 import type { Usage } from "@/lib/chatUsage";
@@ -18,7 +18,7 @@ import {
 
 const SOL = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
 const FLASH = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
-const GEMINI = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
+const GEMINI = GEMINI_38_FLASH_MODEL;
 const SERVICE_SOURCE = fs.readFileSync(
   path.join(process.cwd(), "src/services/mainRpNextTurnEstimate.ts"),
   "utf8"
