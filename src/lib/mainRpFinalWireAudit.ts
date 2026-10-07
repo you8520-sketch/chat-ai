@@ -33,7 +33,7 @@ import {
 } from "@/lib/sceneDirective";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import type { ChatMsg } from "@/lib/ai";
-import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
+import { resolveMainRpPrimaryWireModelId } from "@/lib/openRouterConfig";
 import {
   applyCacheAndPrefillForTransport,
   assemblePrimaryRpRequest,
@@ -406,8 +406,7 @@ function binding(model: SelectedAI): {
   wireModelId: string;
 } {
   const transport = selectedAIProvider(model);
-  const wireModelId =
-    transport === "openrouter" ? resolveOpenRouterModelId(model) : model;
+  const wireModelId = resolveMainRpPrimaryWireModelId(model);
   return {
     transport: transport === "openrouter" ? "openrouter" : "cheaperinference",
     wireModelId,

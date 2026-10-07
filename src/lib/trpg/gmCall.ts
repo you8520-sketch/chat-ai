@@ -37,14 +37,14 @@ import { recordBackgroundProviderCost } from "@/lib/providerCostLedger";
  */
 function recordTrpgProviderCost(
   requestKind: "background-trpg-gm" | "background-trpg-bot",
-  model: string,
+  request: TrpgProviderRequest,
   usage: TrpgModelUsage | undefined
 ): void {
   if (!usage) return;
   try {
     recordBackgroundProviderCost({
-      provider: "cheaperinference",
-      model,
+      provider: request.provider,
+      model: request.model,
       requestKind,
       costCenter: "trpg",
       inputTokens: usage.inputTokens,
@@ -183,22 +183,77 @@ function usageFromResponse(
   };
 }
 
+/** TRPG GM/bot transport is CheaperInference regardless of how Main RP routes the same model id. */
+export type TrpgProviderRequest = {
+  provider: "cheaperinference";
+  endpoint: string;
+  model: string;
+  body: Record<string, unknown>;
+};
+
+/** Isolated GM request. Must not go through RP adaptCheaperInferenceChatBody. */
+export function buildTrpgGmProviderRequest(input: {
+  system: string;
+  user: string;
+}): TrpgProviderRequest {
+  const model = resolveTrpgCheaperInferenceModel(TRPG_GM_MODEL);
+  return {
+    provider: "cheaperinference",
+    endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+    model,
+    body: adaptTrpgGmChatBody({
+      model,
+      messages: [
+        { role: "system", content: input.system },
+        { role: "user", content: input.user },
+      ],
+      stream: true,
+      temperature: 0.7,
+      max_tokens: TRPG_GM_MAX_TOKENS,
+      response_format: buildTrpgGmResponseFormat(),
+    }),
+  };
+}
+
+/** Bot-seat request, separate from GM narration. */
+export function buildTrpgBotProviderRequest(input: {
+  system: string;
+  user: string;
+}): TrpgProviderRequest {
+  const model = resolveTrpgCheaperInferenceModel(TRPG_BOT_MODEL);
+  return {
+    provider: "cheaperinference",
+    endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+    model,
+    body: adaptTrpgBotChatBody({
+      model,
+      messages: [
+        { role: "system", content: input.system },
+        { role: "user", content: input.user },
+      ],
+      stream: false,
+      temperature: 0.85,
+      max_tokens: TRPG_BOT_MAX_TOKENS,
+    }),
+  };
+}
+
 function resolveTrpgCheaperInferenceCredential(override?: string): string {
   const explicit = override?.trim();
   return explicit || resolveCheaperInferenceApiKey();
 }
 
 async function postTrpgChat(opts: {
-  model: string;
-  body: Record<string, unknown>;
+  request: TrpgProviderRequest;
   timeoutMs: number;
   role: "gm" | "bot";
   cheaperInferenceApiKeyOverride?: string;
 }): Promise<{ text: string; usage?: TrpgModelUsage; elapsedMs: number; reasoningTokens: number | "unavailable" }> {
-  const contract = trpgProviderRequestContract(opts.body);
+  const { request } = opts;
+  const contract = trpgProviderRequestContract(request.body);
   console.info(`[TRPG][${opts.role}] request_contract`, contract);
   const started = Date.now();
-  const serializedBody = JSON.stringify(opts.body);
+  const serializedBody = JSON.stringify(request.body);
   const headers = buildCheaperInferenceHeaders(
     resolveTrpgCheaperInferenceCredential(opts.cheaperInferenceApiKeyOverride)
   );
@@ -215,7 +270,7 @@ async function postTrpgChat(opts: {
         });
         await waitGmProviderRetryDelay();
       }
-      const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
+      const res = await fetch(request.endpoint, {
         method: "POST",
         headers,
         body: serializedBody,
@@ -251,7 +306,7 @@ async function postTrpgChat(opts: {
       const reasoningTokens = reasoningTokensFromProviderUsage(data.usage);
       const elapsedMs = Date.now() - started;
       console.info(`[TRPG][${opts.role}] response_meta`, {
-        model: opts.model,
+        model: request.model,
         elapsedMs,
         reasoningTokens,
       });
@@ -262,7 +317,7 @@ async function postTrpgChat(opts: {
           reasoningTokens,
         });
       }
-      return { text, usage: usageFromResponse(opts.model, data), elapsedMs, reasoningTokens };
+      return { text, usage: usageFromResponse(request.model, data), elapsedMs, reasoningTokens };
     }
     throw lastHttpError ?? new Error("[TRPG] provider retry exhausted");
   } catch (error) {
@@ -388,8 +443,7 @@ async function readGmProviderSseStream(opts: {
 }
 
 async function postTrpgGmStream(opts: {
-  model: string;
-  body: Record<string, unknown>;
+  request: TrpgProviderRequest;
   timeoutMs: number;
   callbacks?: TrpgGmStreamCallbacks;
   cheaperInferenceApiKeyOverride?: string;
@@ -402,7 +456,8 @@ async function postTrpgGmStream(opts: {
   finishReason: string | null;
   semanticDone: boolean;
 }> {
-  const contract = trpgProviderRequestContract(opts.body);
+  const { request } = opts;
+  const contract = trpgProviderRequestContract(request.body);
   console.info("[TRPG][gm] request_contract", contract);
   const started = Date.now();
   const timings: GmProviderTimings = {
@@ -412,7 +467,7 @@ async function postTrpgGmStream(opts: {
     completeAtMs: null,
   };
   opts.callbacks?.onProviderTimings?.({ ...timings });
-  const serializedBody = JSON.stringify(opts.body);
+  const serializedBody = JSON.stringify(request.body);
   const headers = buildCheaperInferenceHeaders(
     resolveTrpgCheaperInferenceCredential(opts.cheaperInferenceApiKeyOverride)
   );
@@ -434,7 +489,7 @@ async function postTrpgGmStream(opts: {
         timings.completeAtMs = null;
         opts.callbacks?.onProviderTimings?.({ ...timings });
       }
-      const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
+      const res = await fetch(request.endpoint, {
         method: "POST",
         headers,
         body: serializedBody,
@@ -453,14 +508,14 @@ async function postTrpgGmStream(opts: {
         throw lastHttpError;
       }
       const streamResult = await readGmProviderSseStream({
-        model: opts.model,
+        model: request.model,
         response: res,
         callbacks: opts.callbacks,
         timings,
       });
       const elapsedMs = Date.now() - started;
       console.info("[TRPG][gm] response_meta", {
-        model: opts.model,
+        model: request.model,
         elapsedMs,
         reasoningTokens: streamResult.reasoningTokens,
         finishReason: streamResult.finishReason,
@@ -523,7 +578,6 @@ function simulateMockGmStream(
   return timings;
 }
 
-/** Isolated GM Pro call. Must not go through RP adaptCheaperInferenceChatBody. */
 export async function callTrpgGm(opts: {
   system: string;
   user: string;
@@ -535,26 +589,14 @@ export async function callTrpgGm(opts: {
     const timings = simulateMockGmStream(MOCK_GM, opts.stream);
     return { text: MOCK_GM, providerTimings: timings, finishReason: "stop", semanticDone: true };
   }
-  const model = resolveTrpgCheaperInferenceModel(TRPG_GM_MODEL);
-  const body = adaptTrpgGmChatBody({
-    model,
-    messages: [
-      { role: "system", content: opts.system },
-      { role: "user", content: opts.user },
-    ],
-    stream: true,
-    temperature: 0.7,
-    max_tokens: TRPG_GM_MAX_TOKENS,
-    response_format: buildTrpgGmResponseFormat(),
-  });
+  const request = buildTrpgGmProviderRequest({ system: opts.system, user: opts.user });
   const result = await postTrpgGmStream({
-    model,
-    body,
+    request,
     timeoutMs: opts.timeoutMs ?? GM_PROVIDER_TIMEOUT_MS,
     callbacks: opts.stream,
     cheaperInferenceApiKeyOverride: opts.cheaperInferenceApiKeyOverride,
   });
-  recordTrpgProviderCost("background-trpg-gm", model, result.usage);
+  recordTrpgProviderCost("background-trpg-gm", request, result.usage);
   return {
     text: result.text,
     usage: result.usage,
@@ -566,7 +608,6 @@ export async function callTrpgGm(opts: {
   };
 }
 
-/** Bot-seat Pro call (thinking off). Separate from GM narration. */
 export async function callTrpgBot(opts: {
   system: string;
   user: string;
@@ -575,18 +616,8 @@ export async function callTrpgBot(opts: {
   if (isMockApiMode()) {
     return { text: MOCK_BOT };
   }
-  const model = resolveTrpgCheaperInferenceModel(TRPG_BOT_MODEL);
-  const body = adaptTrpgBotChatBody({
-    model,
-    messages: [
-      { role: "system", content: opts.system },
-      { role: "user", content: opts.user },
-    ],
-    stream: false,
-    temperature: 0.85,
-    max_tokens: TRPG_BOT_MAX_TOKENS,
-  });
-  const result = await postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 90_000, role: "bot" });
-  recordTrpgProviderCost("background-trpg-bot", model, result.usage);
+  const request = buildTrpgBotProviderRequest({ system: opts.system, user: opts.user });
+  const result = await postTrpgChat({ request, timeoutMs: opts.timeoutMs ?? 90_000, role: "bot" });
+  recordTrpgProviderCost("background-trpg-bot", request, result.usage);
   return result;
 }

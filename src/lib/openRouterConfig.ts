@@ -7,6 +7,7 @@ import {
   OPENROUTER_MUSE_SPARK_11_MODEL,
   coerceUserSelectableAI,
   isOpenRouterSelectedAI,
+  selectedAIProvider,
   type SelectedAI,
 } from "@/lib/chatModels";
 
@@ -94,6 +95,16 @@ export function resolveOpenRouterModelId(selectedAI?: string | null): string {
 export function resolveRpOpenRouterModelId(modelId: string): string {
   const normalized = normalizeOpenRouterModelId(modelId);
   return DEPRECATED_OPENROUTER_MODELS[normalized] ?? normalized;
+}
+
+/**
+ * Main-RP primary wire model id. The registry provider decides the transport;
+ * the same provider-neutral id may map to a different wire id on other workloads.
+ */
+export function resolveMainRpPrimaryWireModelId(selected: SelectedAI): string {
+  return selectedAIProvider(selected) === "openrouter"
+    ? resolveOpenRouterModelId(selected)
+    : selected;
 }
 
 export type MainRpOpenRouterRoutePolicy = {
