@@ -1,7 +1,13 @@
 /**
  * Next Main RP turn estimate owner.
- * Local assembled tokens → optional same-model provider-input calibration →
- * optional same-model output-history median → Published user-charge out.
+ * Local assembled tokens → optional same-model billable-input calibration →
+ * optional same-model billable-output-history median → Published user-charge out.
+ * `predictedBillableInputTokens` is a user-charge forecast, not a physical
+ * provider tokenizer count. Ratio is capped at 1 to match settlement
+ * `resolveTurnBillableInput(min(stageInput, promptAuditTotal))`.
+ * Output-history samples must already be billable tokens from
+ * `usageOutputTokens` → `billableOpenRouterOutputTokens`. This owner does
+ * not invent a second output-normalization rule.
  * Picker display and #1400 admission both consume this owner.
  * Output numbers here are a price forecast only — not a generation max/cap.
  * Not a billing settlement or lease owner.
@@ -36,7 +42,7 @@ export type NextTurnOutputBasis =
 
 export type NextTurnInputCalibrationSource =
   | "uncalibrated_assembled"
-  | "same_model_provider_ratio";
+  | "same_model_billable_input_ratio";
 
 export type NextTurnInputCalibrationConfidence = "none" | "latest_same_model";
 
@@ -47,8 +53,8 @@ export type NextTurnEstimateRow = {
   displayPoints: number;
   outputBasis: NextTurnOutputBasis;
   localAssembledInputTokens: number;
-  predictedProviderInputTokens: number;
-  actualProviderInputTokens: number | null;
+  predictedBillableInputTokens: number;
+  actualBillableInputTokens: number | null;
   calibrationSource: NextTurnInputCalibrationSource;
   calibrationConfidence: NextTurnInputCalibrationConfidence;
   outputHistorySampleCount: number | null;
@@ -57,7 +63,7 @@ export type NextTurnEstimateRow = {
 export type NextTurnEstimateMap = Partial<Record<SelectedAI, NextTurnEstimateRow>>;
 
 export type NextTurnProviderInputCalibrationSample = {
-  actualProviderInputTokens: number;
+  actualBillableInputTokens: number;
   assembledInputTokens: number;
 };
 
@@ -149,7 +155,7 @@ export function describeNextTurnOutputBasis(basis: NextTurnOutputBasis): string 
     case "observed_ratio":
       return "last_visible_over_observed_chars_per_token";
     case "same_model_output_history":
-      return "median_recent_api_output_tokens";
+      return "median_recent_billable_output_tokens";
     default: {
       const _never: never = basis;
       return _never;
@@ -172,7 +178,7 @@ export function resolveNextTurnInputCalibrationConfidence(
   switch (source) {
     case "uncalibrated_assembled":
       return "none";
-    case "same_model_provider_ratio":
+    case "same_model_billable_input_ratio":
       return "latest_same_model";
     default: {
       const _never: never = source;
@@ -182,16 +188,16 @@ export function resolveNextTurnInputCalibrationConfidence(
 }
 
 export function resolveProviderInputRatio(input: {
-  actualProviderInputTokens: number;
+  actualBillableInputTokens: number;
   assembledInputTokens: number;
 }): number | null {
   if (
-    !isFinitePositiveToken(input.actualProviderInputTokens) ||
+    !isFinitePositiveToken(input.actualBillableInputTokens) ||
     !isFinitePositiveToken(input.assembledInputTokens)
   ) {
     return null;
   }
-  const ratio = input.actualProviderInputTokens / input.assembledInputTokens;
+  const ratio = input.actualBillableInputTokens / input.assembledInputTokens;
   if (!Number.isFinite(ratio) || ratio <= 0) return null;
   return Math.min(1, ratio);
 }
@@ -200,8 +206,8 @@ export function applyProviderInputCalibration(input: {
   localAssembledInputTokens: number;
   sample?: NextTurnProviderInputCalibrationSample | null;
 }): {
-  predictedProviderInputTokens: number;
-  actualProviderInputTokens: number | null;
+  predictedBillableInputTokens: number;
+  actualBillableInputTokens: number | null;
   calibrationSource: NextTurnInputCalibrationSource;
   calibrationConfidence: NextTurnInputCalibrationConfidence;
   providerInputRatio: number | null;
@@ -211,17 +217,17 @@ export function applyProviderInputCalibration(input: {
   if (ratio == null) {
     const source = "uncalibrated_assembled" as const;
     return {
-      predictedProviderInputTokens: localAssembled,
-      actualProviderInputTokens: null,
+      predictedBillableInputTokens: localAssembled,
+      actualBillableInputTokens: null,
       calibrationSource: source,
       calibrationConfidence: resolveNextTurnInputCalibrationConfidence(source),
       providerInputRatio: null,
     };
   }
-  const source = "same_model_provider_ratio" as const;
+  const source = "same_model_billable_input_ratio" as const;
   return {
-    predictedProviderInputTokens: Math.max(1, Math.round(localAssembled * ratio)),
-    actualProviderInputTokens: Math.round(input.sample!.actualProviderInputTokens),
+    predictedBillableInputTokens: Math.max(1, Math.round(localAssembled * ratio)),
+    actualBillableInputTokens: Math.round(input.sample!.actualBillableInputTokens),
     calibrationSource: source,
     calibrationConfidence: resolveNextTurnInputCalibrationConfidence(source),
     providerInputRatio: ratio,
@@ -308,17 +314,17 @@ export function isUsableProviderInputCalibrationSource(input: {
   if (!isFinitePositiveToken(input.assembledInputTokens)) return false;
   return (
     resolveProviderInputRatio({
-      actualProviderInputTokens: input.apiInputTokens,
+      actualBillableInputTokens: input.apiInputTokens,
       assembledInputTokens: input.assembledInputTokens,
     }) != null
   );
 }
 
 export function isUsableOutputHistorySource(input: NextTurnCalibrationTurnFields & {
-  apiOutputTokens?: number | null;
+  billableOutputTokens?: number | null;
 }): boolean {
   if (!isUncontaminatedSameModelCalibrationTurn(input)) return false;
-  return isFinitePositiveToken(input.apiOutputTokens);
+  return isFinitePositiveToken(input.billableOutputTokens);
 }
 
 export function pickLatestProviderInputCalibrationByModel(
@@ -343,16 +349,16 @@ export function pickLatestProviderInputCalibrationByModel(
       resolveMainRpNextTurnCalibrationModelId(candidate.model);
     if (!modelId || out[modelId] != null) continue;
     out[modelId] = {
-      actualProviderInputTokens: candidate.apiInputTokens as number,
+      actualBillableInputTokens: candidate.apiInputTokens as number,
       assembledInputTokens: candidate.assembledInputTokens as number,
     };
   }
   return out;
 }
 
-export function pickRecentSameModelApiOutputTokens(
+export function pickRecentSameModelBillableOutputTokens(
   candidatesOldestFirst: Array<
-    NextTurnCalibrationTurnFields & { apiOutputTokens?: number | null }
+    NextTurnCalibrationTurnFields & { billableOutputTokens?: number | null }
   >
 ): Partial<Record<SelectedAI, number[]>> {
   const out: Partial<Record<SelectedAI, number[]>> = {};
@@ -361,9 +367,9 @@ export function pickRecentSameModelApiOutputTokens(
     const modelId =
       resolveMainRpNextTurnCalibrationModelId(candidate.selectedAI) ??
       resolveMainRpNextTurnCalibrationModelId(candidate.model);
-    if (!modelId || !isFinitePositiveToken(candidate.apiOutputTokens)) continue;
+    if (!modelId || !isFinitePositiveToken(candidate.billableOutputTokens)) continue;
     const list = out[modelId] ?? [];
-    list.push(candidate.apiOutputTokens);
+    list.push(candidate.billableOutputTokens);
     if (list.length > NEXT_TURN_OUTPUT_HISTORY_MAX_SAMPLES) list.shift();
     out[modelId] = list;
   }
@@ -373,7 +379,7 @@ export function pickRecentSameModelApiOutputTokens(
 export function resolveNextTurnOutputForecast(input: {
   lastVisibleAssistantChars?: number | null;
   observedCharsPerToken?: number | null;
-  recentApiOutputTokens?: number[] | null;
+  recentBillableOutputTokens?: number[] | null;
 }): {
   expectedOutputTokens: number;
   outputChars: number;
@@ -381,9 +387,9 @@ export function resolveNextTurnOutputForecast(input: {
   outputHistorySampleCount: number | null;
 } {
   const outputChars = resolveNextTurnOutputChars(input.lastVisibleAssistantChars);
-  const historyTokens = resolveOutputHistoryForecastTokens(input.recentApiOutputTokens);
-  if (historyTokens != null && input.recentApiOutputTokens) {
-    const count = input.recentApiOutputTokens.filter(isFinitePositiveToken).length;
+  const historyTokens = resolveOutputHistoryForecastTokens(input.recentBillableOutputTokens);
+  if (historyTokens != null && input.recentBillableOutputTokens) {
+    const count = input.recentBillableOutputTokens.filter(isFinitePositiveToken).length;
     return {
       expectedOutputTokens: historyTokens,
       outputChars,
@@ -413,7 +419,7 @@ export function computeMainRpNextTurnEstimates(input: {
   promptTokensByModel: Partial<Record<SelectedAI, number>>;
   lastVisibleAssistantChars?: number | null;
   observedCharsPerTokenByModel?: Partial<Record<SelectedAI, number | null>>;
-  recentApiOutputTokensByModel?: Partial<Record<SelectedAI, number[] | null>>;
+  recentBillableOutputTokensByModel?: Partial<Record<SelectedAI, number[] | null>>;
   providerInputCalibrationByModel?: Partial<
     Record<SelectedAI, NextTurnProviderInputCalibrationSample | null>
   >;
@@ -430,16 +436,16 @@ export function computeMainRpNextTurnEstimates(input: {
       localAssembledInputTokens,
       sample: input.providerInputCalibrationByModel?.[modelId],
     });
-    const predictedProviderInputTokens = calibrated.predictedProviderInputTokens;
+    const predictedBillableInputTokens = calibrated.predictedBillableInputTokens;
     const observed = input.observedCharsPerTokenByModel?.[modelId];
     const outputForecast = resolveNextTurnOutputForecast({
       lastVisibleAssistantChars: input.lastVisibleAssistantChars,
       observedCharsPerToken: observed,
-      recentApiOutputTokens: input.recentApiOutputTokensByModel?.[modelId],
+      recentBillableOutputTokens: input.recentBillableOutputTokensByModel?.[modelId],
     });
     const displayPoints = computePublishedStandardPreviewDisplayPoints({
       modelId,
-      promptTokens: predictedProviderInputTokens,
+      promptTokens: predictedBillableInputTokens,
       outputTokens: outputForecast.expectedOutputTokens,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
@@ -447,14 +453,14 @@ export function computeMainRpNextTurnEstimates(input: {
     });
     if (displayPoints == null) continue;
     out[modelId] = {
-      promptTokens: predictedProviderInputTokens,
+      promptTokens: predictedBillableInputTokens,
       expectedOutputTokens: outputForecast.expectedOutputTokens,
       outputChars: outputForecast.outputChars,
       displayPoints,
       outputBasis: outputForecast.outputBasis,
       localAssembledInputTokens,
-      predictedProviderInputTokens,
-      actualProviderInputTokens: calibrated.actualProviderInputTokens,
+      predictedBillableInputTokens,
+      actualBillableInputTokens: calibrated.actualBillableInputTokens,
       calibrationSource: calibrated.calibrationSource,
       calibrationConfidence: calibrated.calibrationConfidence,
       outputHistorySampleCount: outputForecast.outputHistorySampleCount,

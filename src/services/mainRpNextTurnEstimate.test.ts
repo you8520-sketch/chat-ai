@@ -4,16 +4,21 @@ import path from "path";
 import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "@/lib/chatModels";
+import type { Usage } from "@/lib/chatUsage";
+import { billableOpenRouterOutputTokens } from "@/lib/points";
 import {
   readMainRpNextTurnOutputHistory,
   readMainRpNextTurnProviderInputCalibration,
+  usageOutputTokens,
   type EstimateMessageRow,
 } from "@/services/mainRpNextTurnEstimate";
 
 const SOL = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
 const FLASH = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+const GEMINI = CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
 const SERVICE_SOURCE = fs.readFileSync(
   path.join(process.cwd(), "src/services/mainRpNextTurnEstimate.ts"),
   "utf8"
@@ -62,7 +67,7 @@ describe("main RP next-turn provider-input calibration reader", () => {
       assistantRow(validSolUsage()),
     ];
     assert.deepEqual(readMainRpNextTurnProviderInputCalibration(rows)[SOL], {
-      actualProviderInputTokens: 14_312,
+      actualBillableInputTokens: 14_312,
       assembledInputTokens: 34_816,
     });
   });
@@ -86,7 +91,7 @@ describe("main RP next-turn provider-input calibration reader", () => {
       assistantRow(validSolUsage({ apiInputTokens: 9, assembledInputTokens: undefined })),
     ];
     assert.deepEqual(readMainRpNextTurnProviderInputCalibration(rows)[SOL], {
-      actualProviderInputTokens: 14_312,
+      actualBillableInputTokens: 14_312,
       assembledInputTokens: 34_816,
     });
   });
@@ -108,11 +113,11 @@ describe("main RP next-turn provider-input calibration reader", () => {
     ];
     const picked = readMainRpNextTurnProviderInputCalibration(rows);
     assert.deepEqual(picked[SOL], {
-      actualProviderInputTokens: 14_312,
+      actualBillableInputTokens: 14_312,
       assembledInputTokens: 34_816,
     });
     assert.deepEqual(picked[FLASH], {
-      actualProviderInputTokens: 9_000,
+      actualBillableInputTokens: 9_000,
       assembledInputTokens: 9_500,
     });
   });
@@ -153,6 +158,58 @@ describe("main RP next-turn provider-input calibration reader", () => {
     assert.deepEqual(readMainRpNextTurnOutputHistory(rows)[FLASH], [4000]);
   });
 
+  it("output-history median uses usageOutputTokens billable semantics, not raw completion", () => {
+    assert.match(SERVICE_SOURCE, /billableOutputTokens: usageOutputTokens\(/);
+    assert.match(SERVICE_SOURCE, /billableOpenRouterOutputTokens/);
+    const reasoningTurns = [
+      { raw: 3900, reasoning: 1200 },
+      { raw: 4000, reasoning: 1250 },
+      { raw: 4180, reasoning: 1400 },
+      { raw: 4200, reasoning: 1400 },
+      { raw: 5000, reasoning: 200 },
+    ];
+    const rows: EstimateMessageRow[] = reasoningTurns.map((turn) =>
+      assistantRow(
+        {
+          selectedAI: GEMINI,
+          model: GEMINI,
+          apiInputTokens: 10_000,
+          assembledInputTokens: 12_000,
+          apiOutputTokens: turn.raw,
+          apiReasoningOutputTokens: turn.reasoning,
+          estimated: false,
+          htmlFlashOnly: false,
+          apiCallCount: 1,
+          lengthRecoveryPasses: 0,
+          adultRouting: { actualModel: GEMINI, fallbackAttempted: false },
+        },
+        { model: GEMINI }
+      )
+    );
+    const billable = reasoningTurns.map((turn) =>
+      billableOpenRouterOutputTokens(GEMINI, turn.raw, turn.reasoning)
+    );
+    assert.deepEqual(billable, [2700, 2750, 2780, 2800, 4800]);
+    assert.ok(reasoningTurns.every((turn, i) => turn.raw > (billable[i] ?? 0)));
+    const usage = JSON.parse(rows[2]!.usage ?? "null");
+    assert.equal(usageOutputTokens(usage, GEMINI), 2780);
+    assert.equal(usage.apiOutputTokens, 4180);
+    assert.deepEqual(readMainRpNextTurnOutputHistory(rows)[GEMINI], billable);
+    assert.notDeepEqual(
+      readMainRpNextTurnOutputHistory(rows)[GEMINI],
+      reasoningTurns.map((turn) => turn.raw)
+    );
+  });
+
+  it("Sol 14312/2780/4213 billable output stays equal to raw completion", () => {
+    const usage = validSolUsage({
+      apiOutputTokens: 2_780,
+      apiReasoningOutputTokens: 400,
+    });
+    assert.equal(usageOutputTokens(usage as Usage, SOL), 2_780);
+    assert.equal(billableOpenRouterOutputTokens(SOL, 2_780, 400), 2_780);
+  });
+
   it("picker omits unsent draft instead of inventing lorebook prompt", () => {
     const prep = fs.readFileSync(
       path.join(process.cwd(), "src/services/nextTurnAssemblyPreparation.ts"),
@@ -160,7 +217,7 @@ describe("main RP next-turn provider-input calibration reader", () => {
     );
     assert.match(prep, /keywordLorebookFromUnsentDraft: "omitted"/);
     assert.match(SERVICE_SOURCE, /currentUserMessage=""/);
-    assert.match(SERVICE_SOURCE, /recentApiOutputTokensByModel/);
+    assert.match(SERVICE_SOURCE, /recentBillableOutputTokensByModel/);
   });
 
   it("picker and admission both consume estimatesFromRoomRows", () => {

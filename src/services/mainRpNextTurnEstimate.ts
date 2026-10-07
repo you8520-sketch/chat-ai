@@ -4,6 +4,7 @@
  * Picker snapshots use currentUserMessage="" (unsent draft omitted);
  * keyword lorebook keyed only on future user text is therefore unknown.
  * Send-time admission still receives production assembled tokens.
+ * Output-history samples go through usageOutputTokens → billableOpenRouterOutputTokens.
  */
 
 import type { User } from "@/lib/auth";
@@ -18,7 +19,8 @@ import {
   isUsableOutputCalibrationSource,
   nextTurnEstimateDisplayMap,
   pickLatestProviderInputCalibrationByModel,
-  pickRecentSameModelApiOutputTokens,
+  pickRecentSameModelBillableOutputTokens,
+  resolveMainRpNextTurnCalibrationModelId,
   resolveObservedCharsPerToken,
   type NextTurnEstimateMap,
   type NextTurnProviderInputCalibrationSample,
@@ -43,7 +45,8 @@ function parseUsage(raw: string | null): Usage | null {
   }
 }
 
-function usageOutputTokens(usage: Usage | null, modelId: string): number | null {
+/** Canonical billable-output owner for next-turn output history. */
+export function usageOutputTokens(usage: Usage | null, modelId: string): number | null {
   if (!usage) return null;
   const total = usage.apiOutputTokens ?? usage.output ?? 0;
   const reasoning = usage.apiReasoningOutputTokens ?? 0;
@@ -121,7 +124,6 @@ function calibrationTurnFields(row: EstimateMessageRow) {
     lengthRecoveryPasses: usage?.lengthRecoveryPasses ?? null,
     apiInputTokens: usage?.apiInputTokens ?? null,
     assembledInputTokens: usage?.assembledInputTokens ?? null,
-    apiOutputTokens: usage?.apiOutputTokens ?? null,
   };
 }
 
@@ -136,8 +138,18 @@ export function readMainRpNextTurnProviderInputCalibration(
 export function readMainRpNextTurnOutputHistory(
   rows: EstimateMessageRow[]
 ): Partial<Record<SelectedAI, number[]>> {
-  return pickRecentSameModelApiOutputTokens(
-    rows.filter((row) => row.role === "assistant").map((row) => calibrationTurnFields(row))
+  return pickRecentSameModelBillableOutputTokens(
+    rows.filter((row) => row.role === "assistant").map((row) => {
+      const usage = parseUsage(row.usage);
+      const modelId =
+        resolveMainRpNextTurnCalibrationModelId(usage?.selectedAI) ??
+        resolveMainRpNextTurnCalibrationModelId(usage?.model) ??
+        resolveMainRpNextTurnCalibrationModelId(row.model);
+      return {
+        ...calibrationTurnFields(row),
+        billableOutputTokens: usageOutputTokens(usage, modelId ?? ""),
+      };
+    })
   );
 }
 
@@ -149,7 +161,7 @@ function estimatesFromRoomRows(
     promptTokensByModel,
     lastVisibleAssistantChars: readLastVisibleAssistantChars(rows),
     observedCharsPerTokenByModel: readObservedCharsPerTokenByModel(rows),
-    recentApiOutputTokensByModel: readMainRpNextTurnOutputHistory(rows),
+    recentBillableOutputTokensByModel: readMainRpNextTurnOutputHistory(rows),
     providerInputCalibrationByModel: readMainRpNextTurnProviderInputCalibration(rows),
     effectiveKrwPerUsd: getEffectiveKrwPerUsd(),
   });

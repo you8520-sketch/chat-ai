@@ -487,7 +487,7 @@ describe("main RP provider point admission", () => {
       },
       providerInputCalibrationByModel: {
         [CHEAPER_INFERENCE_GPT_61_SOL_MODEL]: {
-          actualProviderInputTokens: 14_312,
+          actualBillableInputTokens: 14_312,
           assembledInputTokens: 34_816,
         },
       },
