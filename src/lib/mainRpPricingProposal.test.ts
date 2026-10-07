@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import {
-  GEMINI_38_FLASH_MODEL, describe, it } from "node:test";
+import { describe, it } from "node:test";
 import Database from "better-sqlite3";
+import { GEMINI_38_FLASH_MODEL } from "@/lib/chatModels";
 import { ensureModelPricingTrackingSchema } from "@/lib/modelPricingTrackingSchema";
 import type {
   MainRpPricingObservabilityProjection,
