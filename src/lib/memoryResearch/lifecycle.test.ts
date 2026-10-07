@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { it } from "node:test";
 import {
   assertValidTrail,
@@ -10,7 +11,10 @@ import {
 } from "@/lib/memoryResearch/lifecycle";
 import { observation } from "@/lib/memoryResearch/labFixtures.test";
 import type { CandidateLifecycleState, ResearchCandidate } from "@/lib/memoryResearch/types";
-import { architectureFingerprintPaths } from "@/lib/memoryResearch/ownerMap";
+import {
+  architectureFingerprintPaths,
+  computeArchitectureFingerprint,
+} from "@/lib/memoryResearch/ownerMap";
 
 const now = new Date("2026-09-28T01:17:00Z");
 const ctx = { now, adapterFingerprint: null, architectureFingerprint: "arch-1", deepReview: false };
@@ -146,6 +150,12 @@ it("architecture fingerprint includes the research hook registry owner", () => {
     architectureFingerprintPaths().includes("src/lib/memoryResearch/ownerMap.ts"),
     "BENCHMARK_HOOKED_OWNERS changes must affect the architecture fingerprint"
   );
+});
+
+it("live memory architecture fingerprint is not the stale 8db565ec ledger baseline", () => {
+  const fingerprint = computeArchitectureFingerprint((path) => readFileSync(path, "utf8"));
+  assert.notEqual(fingerprint, "8db565ec");
+  assert.equal(fingerprint, "6b8a7a44c1570d4c");
 });
 
 it("reevaluation triggers: new release, new adapter evidence, benchmark-owner change, cooldown, deep review, PR retry", () => {
