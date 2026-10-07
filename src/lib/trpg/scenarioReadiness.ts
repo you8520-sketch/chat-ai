@@ -1,3 +1,4 @@
+import { parseInventoryAuthoringText } from "./inventory";
 import { hasPlayableScenarioPlan, lintTrpgScenarioPlan, type TrpgScenarioPlan } from "./scenarioPlan";
 import {
   TRPG_SCENARIO_BUNDLE_LIMIT,
@@ -19,6 +20,7 @@ export type ScenarioReadinessField =
   | "content"
   | "bundle"
   | "npcs"
+  | "inventory"
   | "advanced";
 
 export type ScenarioReadinessItem = {
@@ -37,7 +39,8 @@ export type ScenarioReadinessInput = {
   previousVisibility?: TrpgVisibility;
   scenarioPlan: TrpgScenarioPlan | null | undefined;
   npcs?: unknown;
-  startInventory?: unknown;
+  /** Creator `이름 ×N` text; parsed by the inventory authoring owner. */
+  inventoryText?: string;
   bundleChars?: number;
   bundleLimit?: number;
 };
@@ -153,6 +156,15 @@ export function evaluateScenarioReadiness(input: ScenarioReadinessInput): Scenar
       section: "details",
     });
   }
+  const inventory = parseInventoryAuthoringText(input.inventoryText ?? "");
+  if (!inventory.ok) {
+    blockers.push({
+      id: "inventory_invalid",
+      message: inventory.error,
+      field: "inventory",
+      section: "details",
+    });
+  }
   if (input.bundleChars != null && input.bundleChars > bundleLimit) {
     blockers.push({
       id: "bundle_limit",
@@ -169,7 +181,7 @@ export function evaluateScenarioReadiness(input: ScenarioReadinessInput): Scenar
     summary: input.summary,
     content,
     npcs: input.npcs,
-    startInventory: input.startInventory,
+    startInventory: inventory.ok ? inventory.units : [],
     bundleChars: input.bundleChars,
     bundleLimit,
   });
