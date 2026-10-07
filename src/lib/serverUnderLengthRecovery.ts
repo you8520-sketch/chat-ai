@@ -15,6 +15,8 @@ import {
 } from "@/lib/turnApiBudget";
 import { stageUsageReportingEvidenceFromTokenUsage } from "@/lib/usageReportingEvidence";
 
+export const SERVER_UNDER_LENGTH_RECOVERY_STAGE = "server-under-length-recovery";
+
 export type ServerUnderLengthRecoveryOpts = {
   prose: string;
   finishReason: string | undefined | null;
@@ -135,7 +137,7 @@ export async function tryServerUnderLengthRecovery(
     charsBefore,
     charsAfter,
     stage: {
-      stage: "server-under-length-recovery",
+      stage: SERVER_UNDER_LENGTH_RECOVERY_STAGE,
       model: opts.modelId,
       input: result.usage.inputTokens,
       output: result.usage.outputTokens,

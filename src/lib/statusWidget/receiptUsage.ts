@@ -94,12 +94,27 @@ function statusWidgetExtractBaseModelName(modelId: string): string {
   return id || "unknown";
 }
 
+export const STATUS_WIDGET_EXTRACT_STAGE = "상태창 추출";
+export const SHARED_INITIAL_EXTRACT_STAGE = "공유 초기 (상태창 + 추천입력)";
+export const SHARED_INITIAL_FOLLOWUP_EXTRACT_STAGE = "후처리 (공유 초기 포함)";
+
 /** Admin stage label — aggregate may include shared initial plus follow-up repairs. */
 export function statusWidgetExtractStageLabel(billingMeta: StatusWidgetExtractBillingMeta): string {
   const callCount = normalizeStatusWidgetExtractCallCount(billingMeta.callCount);
-  if (!billingMeta.postTurnSharedInitial) return "상태창 추출";
-  if (callCount === 1) return "공유 초기 (상태창 + 추천입력)";
-  return "후처리 (공유 초기 포함)";
+  if (!billingMeta.postTurnSharedInitial) return STATUS_WIDGET_EXTRACT_STAGE;
+  if (callCount === 1) return SHARED_INITIAL_EXTRACT_STAGE;
+  return SHARED_INITIAL_FOLLOWUP_EXTRACT_STAGE;
+}
+
+export function isStatusWidgetExtractStageLabel(
+  stage: string | null | undefined
+): boolean {
+  if (!stage) return false;
+  return (
+    stage === STATUS_WIDGET_EXTRACT_STAGE ||
+    stage === SHARED_INITIAL_EXTRACT_STAGE ||
+    stage === SHARED_INITIAL_FOLLOWUP_EXTRACT_STAGE
+  );
 }
 
 function statusWidgetExtractProvenanceSuffix(
