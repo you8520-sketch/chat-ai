@@ -36,7 +36,7 @@ export function formatInventoryAuthoringText(units: readonly string[]): string {
 export type InventoryAuthoringParse = { ok: true; units: string[] } | { ok: false; error: string };
 
 const NUMERIC_SUFFIX = /^(.*?)\s*×\s*(-?\d+)$/;
-const SPACED_SUFFIX = /\s×(\S*)$/;
+const QUANTITY_LIKE_SUFFIX = /×\s*\S*$/;\nconst PLAIN_MULTIPLICATION = /^(?:\d+\s*×\s+\S.*|.*\s×\s.*)$/;
 
 /**
  * Creator text → canonical unit list. Comma separates stacks; the only
