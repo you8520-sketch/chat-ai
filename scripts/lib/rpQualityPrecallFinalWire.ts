@@ -82,7 +82,11 @@ import {
   resolveEffectiveConsentMode,
 } from "@/lib/adultSceneRouting";
 import { selectedAIProvider } from "@/lib/chatModels";
-import { resolveMainRpPrimaryWireModelId } from "@/lib/openRouterConfig";
+import { buildCheaperInferenceChatCompletionsUrl } from "@/lib/cheaperInferenceConfig";
+import {
+  OPENROUTER_CHAT_COMPLETIONS_URL,
+  resolveMainRpPrimaryWireModelId,
+} from "@/lib/openRouterConfig";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import {
   assembleNextTurnContextBuildInput,
@@ -239,6 +243,18 @@ export type PrecallFinalWireReport = {
   };
 };
 
+/** In-process only. Never serialize requestBody into public PRECALL JSON. */
+export type PrecallSealedRequest = {
+  fixtureId: RpQualityPrecallFixtureId;
+  canonicalId: string;
+  provider: RpQualityPrecallModelPlan["provider"];
+  wireModel: string;
+  endpoint: string;
+  finalWireFingerprint: string;
+  requestBodyFingerprint: string;
+  requestBody: Record<string, unknown>;
+};
+
 const KNOWN_GAPS = [
   "fresh chat: no revealed persona facts",
   "fresh chat: no long/medium/archive/episodic memory",
@@ -372,6 +388,13 @@ export function assemblePrecallFinalWire(
   rows: PrecallAssemblyRows,
   models: readonly RpQualityPrecallModelPlan[] = rpQualityPrecallBenchmarkModels()
 ): PrecallFinalWireReport {
+  return assemblePrecallFinalWireWithSealedRequests(rows, models).report;
+}
+
+export function assemblePrecallFinalWireWithSealedRequests(
+  rows: PrecallAssemblyRows,
+  models: readonly RpQualityPrecallModelPlan[] = rpQualityPrecallBenchmarkModels()
+): { report: PrecallFinalWireReport; sealedRequests: PrecallSealedRequest[] } {
   const { character, persona, user } = rows;
   if (rows.creatorLorebookAttachments > 0) {
     throw new PrecallAssemblyStop("CREATOR_LOREBOOK_ATTACHED_UNSUPPORTED");
@@ -475,6 +498,7 @@ export function assemblePrecallFinalWire(
   });
 
   const plans: PrecallFinalWirePlan[] = [];
+  const sealedRequests: PrecallSealedRequest[] = [];
   let historyShape: readonly string[] = [];
   const v2Mode = getSceneDirectiveV2Mode();
 
@@ -701,6 +725,17 @@ export function assemblePrecallFinalWire(
       });
       const adapter = buildAdapterMetadata(model, assembled.messages, assembled.requestBody);
       if (adapter.maxTokensPresent) throw new PrecallAssemblyStop("MAX_TOKENS_PRESENT");
+      const finalWireFingerprint = sha256Json({
+        messages: assembled.messages,
+        body: assembled.requestBody,
+      });
+      const requestBodyFingerprint = sha256Json(assembled.requestBody);
+      const endpoint =
+        transportProvider === "cheaperinference"
+          ? buildCheaperInferenceChatCompletionsUrl({
+              promptCacheSession: PRECALL_REVIEW_SESSION_ID,
+            })
+          : OPENROUTER_CHAT_COMPLETIONS_URL;
 
       const totalInputChars = assembled.messages.reduce(
         (sum, message) => sum + messageText(message).length,
@@ -732,10 +767,7 @@ export function assemblePrecallFinalWire(
         canonicalId: model.canonicalId,
         displayLabel: model.displayLabel,
         semanticFingerprint: semanticInputFingerprint(contextBuildInput),
-        finalWireFingerprint: sha256Json({
-          messages: assembled.messages,
-          body: assembled.requestBody,
-        }),
+        finalWireFingerprint,
         adapter,
         canon: {
           rolloutStage: canonInjectionPolicy.rolloutStage,
@@ -764,6 +796,16 @@ export function assemblePrecallFinalWire(
         scenePacingOwner,
         historyRoles: promptHistory.map((message) => message.role),
       });
+      sealedRequests.push({
+        fixtureId,
+        canonicalId: model.canonicalId,
+        provider: model.provider,
+        wireModel,
+        endpoint,
+        finalWireFingerprint,
+        requestBodyFingerprint,
+        requestBody: assembled.requestBody,
+      });
     }
   }
 
@@ -772,16 +814,19 @@ export function assemblePrecallFinalWire(
     throw new Error(`expected ${models.length * fixtureTurns.length} plans, got ${plans.length}`);
   }
   return {
-    plans,
-    parity: buildParity(plans),
-    assembly: {
-      historyOpening: "CURRENT_GREETING",
-      historyShape,
-      scenePacingOwner: "legacy_v1",
-      sceneDirectiveV2Mode: v2Mode,
-      memoryFeatureOn,
-      knownGaps: KNOWN_GAPS,
+    report: {
+      plans,
+      parity: buildParity(plans),
+      assembly: {
+        historyOpening: "CURRENT_GREETING",
+        historyShape,
+        scenePacingOwner: "legacy_v1",
+        sceneDirectiveV2Mode: v2Mode,
+        memoryFeatureOn,
+        knownGaps: KNOWN_GAPS,
+      },
     },
+    sealedRequests,
   };
 }
 
