@@ -808,6 +808,7 @@ describe("turnBillableUsageCanary — structured comparison", () => {
           input: 5000,
           output: 400,
           apiOutputTokens: 400,
+          estimated: true,
         }),
       ],
       modelId: OPENROUTER_GEMINI_31_PRO_MODEL,

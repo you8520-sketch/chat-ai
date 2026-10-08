@@ -151,6 +151,9 @@ function classifyFixture(fixture: BillingParityFixture): ClosureClassification {
     }
     return "UNRESOLVED";
   }
+  if (decision.contract === "legacy" && decision.reason === "phase2_refusal_fallback_legacy") {
+    return "LEGACY_FALLBACK";
+  }
   if (candidate.status === "blocked" || candidate.status === "not_comparable") {
     return "LEGACY_FALLBACK";
   }
