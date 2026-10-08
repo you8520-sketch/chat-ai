@@ -341,6 +341,7 @@ export default function TrpgCampaignRoom({
   onPickSuggestion,
   onSendAction,
   onSendParty,
+  onSetInventoryEquipped,
   onRetryBots,
   onRetryGm,
   onReroll,
@@ -378,6 +379,7 @@ export default function TrpgCampaignRoom({
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
   onSendParty: () => void;
+  onSetInventoryEquipped?: (entryId: string, equipped: boolean) => void;
   onRetryBots: () => void;
   onRetryGm: () => void;
   onReroll: (roundNumber: number) => void;
@@ -2354,6 +2356,7 @@ export default function TrpgCampaignRoom({
           onPickSuggestion={onPickSuggestion}
           onSendAction={onSendAction}
           onSendParty={onSendParty}
+          onSetInventoryEquipped={onSetInventoryEquipped}
           onOcclusionChange={onDockOcclusion}
         />
       </div>

@@ -45,7 +45,7 @@ import {
   mergeDisplayConditions,
   selfHudAriaLabel,
 } from "@/lib/trpg/sheetHud";
-import { inventoryStackLabel } from "@/lib/trpg/inventory";
+import { inventoryStackLabel, isInventoryEntryEquipped } from "@/lib/trpg/inventory";
 import {
   acceptTrpgSheetActionDraft,
   buildTrpgSheetSurface,
@@ -204,31 +204,87 @@ function NativeSheetBody({
           <ul className="mt-1 flex flex-wrap gap-1.5">
             {surface.inventory.map((item) => {
               const draft = surface.interactive && onFillAction ? item.draft : null;
-              return draft ? (
-                <li key={item.key}>
-                  <button
-                    type="button"
-                    data-trpg-inventory-item={item.name}
-                    data-trpg-inventory-quantity={item.quantity}
-                    onClick={() => onFillAction?.(draft)}
-                    className="inline-flex min-h-11 max-w-full items-center rounded-full border border-white/10 bg-white/5 px-3 text-xs text-zinc-100"
-                  >
-                    <span className="truncate">{inventoryStackLabel(item)}</span>
-                  </button>
-                </li>
-              ) : (
-                <li
-                  key={item.key}
-                  data-trpg-inventory-quantity={item.quantity}
-                  className="inline-flex min-h-11 max-w-full items-center rounded-full border border-white/10 bg-white/5 px-3 text-xs text-zinc-200"
-                >
-                  <span className="truncate">{inventoryStackLabel(item)}</span>
+              const equipped = isInventoryEntryEquipped(item);
+              const chipClass = equipped
+                ? "inline-flex min-h-11 max-w-full items-center rounded-full border border-violet-300/40 bg-violet-500/15 px-3 text-xs text-zinc-100"
+                : "inline-flex min-h-11 max-w-full items-center rounded-full border border-white/10 bg-white/5 px-3 text-xs text-zinc-100";
+              return (
+                <li key={item.key} className="inline-flex max-w-full items-center gap-1.5">
+                  {draft ? (
+                    <button
+                      type="button"
+                      data-trpg-inventory-item={item.name}
+                      data-trpg-inventory-quantity={item.quantity}
+                      data-trpg-inventory-equipped={equipped ? "true" : "false"}
+                      onClick={() => onFillAction?.(draft)}
+                      className={chipClass}
+                    >
+                      <span className="truncate">{inventoryStackLabel(item)}</span>
+                    </button>
+                  ) : (
+                    <span
+                      data-trpg-inventory-quantity={item.quantity}
+                      data-trpg-inventory-equipped={equipped ? "true" : "false"}
+                      className={`${chipClass} text-zinc-200`}
+                    >
+                      <span className="truncate">{inventoryStackLabel(item)}</span>
+                    </span>
+                  )}
+                  {equipped ? (
+                    <span data-trpg-inventory-equipped-label className="text-[11px] text-violet-200">
+                      장착됨
+                    </span>
+                  ) : null}
                 </li>
               );
             })}
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+function HostEquipmentDock({
+  items,
+  busy,
+  onSetEquipped,
+}: {
+  items: TrpgSheetSurface["inventory"];
+  busy: boolean;
+  onSetEquipped: (entryId: string, equipped: boolean) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div data-trpg-equipment-dock className="space-y-1.5">
+      <p className="text-xs text-zinc-500">장비</p>
+      <ul className="space-y-1">
+        {items.map((item) => {
+          const equipped = isInventoryEntryEquipped(item);
+          return (
+            <li key={item.key} className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate text-sm text-zinc-200">
+                {inventoryStackLabel(item)}
+                {equipped ? (
+                  <span className="ml-1 text-[11px] text-violet-200" data-trpg-inventory-equipped-label>
+                    장착됨
+                  </span>
+                ) : null}
+              </span>
+              <button
+                type="button"
+                data-trpg-equip-entry={item.key}
+                data-trpg-equip-set={equipped ? "false" : "true"}
+                disabled={busy}
+                onClick={() => onSetEquipped(item.key, !equipped)}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-zinc-100 disabled:opacity-50"
+              >
+                {equipped ? "해제" : "장착"}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -590,6 +646,7 @@ export default function TrpgCommandDock({
   onPickSuggestion,
   onSendAction,
   onSendParty,
+  onSetInventoryEquipped,
   onOcclusionChange,
   sheetJsxCompiled = null,
   loadPartySheetComponent = null,
@@ -617,6 +674,7 @@ export default function TrpgCommandDock({
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
   onSendParty: () => void;
+  onSetInventoryEquipped?: (entryId: string, equipped: boolean) => void;
   onOcclusionChange: (occlusion: TrpgCommandDockOcclusion) => void;
   /** Site-owned sheet compiled by the server through the shared JSX compiler; null → native. */
   sheetJsxCompiled?: string | null;
@@ -876,13 +934,22 @@ export default function TrpgCommandDock({
                 );
               case "self":
                 return selfSurface ? (
-                  <SheetSurfaceView
-                    surface={selfSurface}
-                    renderer={selfRenderer}
-                    onJsxFailed={onSheetJsxFailed}
-                    onFillAction={fillAction}
-                    onSelectStat={selectStat}
-                  />
+                  <div className="space-y-3">
+                    {onSetInventoryEquipped ? (
+                      <HostEquipmentDock
+                        items={selfSurface.inventory}
+                        busy={busy}
+                        onSetEquipped={onSetInventoryEquipped}
+                      />
+                    ) : null}
+                    <SheetSurfaceView
+                      surface={selfSurface}
+                      renderer={selfRenderer}
+                      onJsxFailed={onSheetJsxFailed}
+                      onFillAction={fillAction}
+                      onSelectStat={selectStat}
+                    />
+                  </div>
                 ) : (
                   <p className="text-sm text-zinc-500">내 시트가 없습니다.</p>
                 );

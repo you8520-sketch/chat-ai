@@ -13,10 +13,12 @@ import {
   inventoryQuantity,
   inventoryUnitCount,
   inventoryUnits,
+  isInventoryEntryEquipped,
   parseInventoryAuthoringText,
   parseStoredInventory,
   removeInventoryItem,
   serializeInventory,
+  setInventoryEquipped,
   stackInventory,
 } from "./inventory";
 import { scenarioEditorSavePayload } from "./scenarioEditorState";
@@ -276,5 +278,88 @@ describe("TRPG structured runtime inventory", () => {
     assert.doesNotMatch(view, /inventory\.push|inventory\.indexOf|inventory\.splice/);
     assert.doesNotMatch(surface, /stackInventory/);
     assert.match(hud, /inventoryUnitCount/);
+  });
+});
+
+describe("TRPG inventory equipped V1", () => {
+  const SWORD = "검";
+
+  it("A. legacy string[] normalizes to equipped=false", () => {
+    const parsed = parseStoredInventory(JSON.stringify([SWORD, SWORD]));
+    assert.equal(parsed[0]?.equipped, false);
+    assert.equal(isInventoryEntryEquipped(parsed[0]!), false);
+  });
+
+  it("B. old structured {id,name,quantity} normalizes to equipped=false", () => {
+    const parsed = parseStoredInventory(
+      JSON.stringify([{ id: createInventoryEntryId(SWORD), name: SWORD, quantity: 2 }])
+    );
+    assert.equal(parsed[0]?.equipped, false);
+    assert.equal(parsed[0]?.quantity, 2);
+  });
+
+  it("C/D. structured true/false persist and reload unchanged", () => {
+    const on = inventoryFromUnits([SWORD, SWORD]);
+    const armed = setInventoryEquipped(on, on[0]!.id, true);
+    assert.equal(armed.ok, true);
+    const storedTrue = serializeInventory(armed.next);
+    assert.equal(parseStoredInventory(storedTrue)[0]?.equipped, true);
+    assert.match(storedTrue, /"equipped":true/);
+    const off = setInventoryEquipped(armed.next, on[0]!.id, false);
+    const storedFalse = serializeInventory(off.next);
+    assert.equal(parseStoredInventory(storedFalse)[0]?.equipped, false);
+    assert.match(storedFalse, /"equipped":false/);
+  });
+
+  it("E/F/Y. SET true/false is idempotent and not a toggle", () => {
+    const start = inventoryFromUnits([SWORD]);
+    const id = start[0]!.id;
+    const first = setInventoryEquipped(start, id, true);
+    const again = setInventoryEquipped(first.next, id, true);
+    assert.equal(first.next[0]?.equipped, true);
+    assert.equal(again.next[0]?.equipped, true);
+    const off = setInventoryEquipped(again.next, id, false);
+    const offAgain = setInventoryEquipped(off.next, id, false);
+    assert.equal(off.next[0]?.equipped, false);
+    assert.equal(offAgain.next[0]?.equipped, false);
+    const src = readFileSync("src/lib/trpg/inventory.ts", "utf8");
+    assert.match(src, /export function setInventoryEquipped/);
+    assert.doesNotMatch(src, /export function toggleInventory/);
+  });
+
+  it("G. unknown entry id is rejected and leaves state", () => {
+    const start = inventoryFromUnits([SWORD]);
+    const miss = setInventoryEquipped(start, "inv_missing", true);
+    assert.equal(miss.ok, false);
+    assert.deepEqual(miss.next, start);
+  });
+
+  it("K. equipped stack + add preserves true and id", () => {
+    const start = setInventoryEquipped(inventoryFromUnits([SWORD, SWORD, SWORD]), createInventoryEntryId(SWORD), true);
+    const next = addInventoryItem(start.next, SWORD);
+    assert.equal(next[0]?.id, start.next[0]?.id);
+    assert.equal(next[0]?.quantity, 4);
+    assert.equal(next[0]?.equipped, true);
+  });
+
+  it("L/M. equipped stack + remove/consume qty>1 preserves true", () => {
+    const start = setInventoryEquipped(inventoryFromUnits([SWORD, SWORD, SWORD]), createInventoryEntryId(SWORD), true);
+    const removed = removeInventoryItem(start.next, SWORD);
+    const consumed = consumeInventoryItem(start.next, SWORD);
+    assert.equal(removed.ok, true);
+    assert.equal(consumed.ok, true);
+    assert.equal(removed.next[0]?.equipped, true);
+    assert.equal(consumed.next[0]?.equipped, true);
+    assert.equal(removed.next[0]?.quantity, 2);
+  });
+
+  it("N/O. last unit removal deletes equipped state; re-add defaults false", () => {
+    const start = setInventoryEquipped(inventoryFromUnits([SWORD]), createInventoryEntryId(SWORD), true);
+    const gone = removeInventoryItem(start.next, SWORD);
+    assert.equal(gone.ok, true);
+    assert.deepEqual(gone.next, []);
+    const again = addInventoryItem(gone.next, SWORD);
+    assert.equal(again[0]?.equipped, false);
+    assert.equal(again[0]?.id, createInventoryEntryId(SWORD));
   });
 });

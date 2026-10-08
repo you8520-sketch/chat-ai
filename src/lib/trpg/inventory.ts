@@ -14,6 +14,7 @@ export type TrpgInventoryEntry = {
   id: string;
   name: string;
   quantity: number;
+  equipped: boolean;
 };
 
 export type InventoryRemoveResult =
@@ -34,8 +35,18 @@ export function createInventoryEntryId(name: string): string {
   return `inv_${fnv1a32Hex(name)}`;
 }
 
+/** Single read-normalization owner. Missing / non-true values are unequipped. */
+export function isInventoryEntryEquipped(entry: { equipped?: unknown }): boolean {
+  return entry.equipped === true;
+}
+
 export function cloneInventory(inventory: readonly TrpgInventoryEntry[]): TrpgInventoryEntry[] {
-  return inventory.map((entry) => ({ id: entry.id, name: entry.name, quantity: entry.quantity }));
+  return inventory.map((entry) => ({
+    id: entry.id,
+    name: entry.name,
+    quantity: entry.quantity,
+    equipped: isInventoryEntryEquipped(entry),
+  }));
 }
 
 function isPositiveInt(value: unknown): value is number {
@@ -48,7 +59,9 @@ function isInventoryEntryLike(value: unknown): value is { id?: unknown; name: un
   return typeof row.name === "string" && isPositiveInt(row.quantity);
 }
 
-function mergeExactNameStacks(rows: readonly { id?: unknown; name: unknown; quantity: unknown }[]): TrpgInventoryEntry[] {
+function mergeExactNameStacks(
+  rows: readonly { id?: unknown; name: unknown; quantity: unknown; equipped?: unknown }[]
+): TrpgInventoryEntry[] {
   const entries: TrpgInventoryEntry[] = [];
   const byName = new Map<string, TrpgInventoryEntry>();
   for (const row of rows) {
@@ -60,7 +73,12 @@ function mergeExactNameStacks(rows: readonly { id?: unknown; name: unknown; quan
       continue;
     }
     const id = typeof row.id === "string" && row.id.trim() ? row.id.trim() : createInventoryEntryId(name);
-    const entry = { id, name, quantity: row.quantity };
+    const entry = {
+      id,
+      name,
+      quantity: row.quantity,
+      equipped: isInventoryEntryEquipped(row),
+    };
     byName.set(name, entry);
     entries.push(entry);
   }
@@ -81,7 +99,7 @@ export function inventoryFromUnits(units: readonly string[]): TrpgInventoryEntry
       existing.quantity += 1;
       continue;
     }
-    const entry = { id: createInventoryEntryId(name), name, quantity: 1 };
+    const entry = { id: createInventoryEntryId(name), name, quantity: 1, equipped: false };
     byName.set(name, entry);
     entries.push(entry);
   }
@@ -148,6 +166,35 @@ export function findInventoryEntry(
   return inventory.find((entry) => entry.name === trimmed);
 }
 
+export function findInventoryEntryById(
+  inventory: readonly TrpgInventoryEntry[],
+  entryId: string
+): TrpgInventoryEntry | undefined {
+  const id = entryId.trim();
+  if (!id) return undefined;
+  return inventory.find((entry) => entry.id === id);
+}
+
+export type InventoryEquipResult =
+  | { ok: true; next: TrpgInventoryEntry[] }
+  | { ok: false; next: TrpgInventoryEntry[] };
+
+/**
+ * SET equipped on one exact-name stack. Not a toggle — replay of the same
+ * boolean leaves the stack in that state.
+ */
+export function setInventoryEquipped(
+  inventory: readonly TrpgInventoryEntry[],
+  entryId: string,
+  equipped: boolean
+): InventoryEquipResult {
+  const next = cloneInventory(inventory);
+  const existing = findInventoryEntryById(next, entryId);
+  if (!existing) return { ok: false, next };
+  existing.equipped = isInventoryEntryEquipped({ equipped });
+  return { ok: true, next };
+}
+
 export function addInventoryItem(inventory: readonly TrpgInventoryEntry[], name: string): TrpgInventoryEntry[] {
   const trimmed = name.trim();
   if (!trimmed) return cloneInventory(inventory);
@@ -157,7 +204,7 @@ export function addInventoryItem(inventory: readonly TrpgInventoryEntry[], name:
     existing.quantity += 1;
     return next;
   }
-  next.push({ id: createInventoryEntryId(trimmed), name: trimmed, quantity: 1 });
+  next.push({ id: createInventoryEntryId(trimmed), name: trimmed, quantity: 1, equipped: false });
   return next;
 }
 

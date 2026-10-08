@@ -49,7 +49,7 @@ describe("TRPG mechanics referee contract", () => {
           maxHp: 25,
           stats: { str: 8 },
           conditions: ["긴장"],
-          inventory: [{ id: "inv_bandage", name: "붕대", quantity: 1 }],
+          inventory: [{ id: "inv_bandage", name: "붕대", quantity: 1, equipped: false }],
           location: "폐허",
           modifiersNote: "",
         },
