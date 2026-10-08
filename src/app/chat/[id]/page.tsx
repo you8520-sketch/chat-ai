@@ -36,7 +36,11 @@ import {
   MAIN_RP_MODEL_IDS,
   selectedAILabel,
 } from "@/lib/chatModels";
-import type { ModelPickerEstimateMap } from "@/lib/modelPickerEstimate";
+import {
+  modelPickerConfidenceFromEstimateRows,
+  type ModelPickerEstimateConfidenceMap,
+  type ModelPickerEstimateMap,
+} from "@/lib/modelPickerEstimate";
 import { resolveActiveSitePromotionsForModels } from "@/lib/sitePromotion";
 import { resolveMainRpNextTurnPickerEstimates } from "@/services/mainRpNextTurnEstimate";
 
@@ -468,15 +472,22 @@ export default async function ChatPage({
     selectedAILabel
   );
   let initialModelPickerEstimates: ModelPickerEstimateMap = {};
+  let initialModelPickerEstimateConfidence: ModelPickerEstimateConfidenceMap = {};
   try {
     const nextTurn = await resolveMainRpNextTurnPickerEstimates({
       chatId: chat.id,
       user,
       lockDailyFx: false,
     });
-    if (nextTurn) initialModelPickerEstimates = nextTurn.displayPoints;
+    if (nextTurn) {
+      initialModelPickerEstimates = nextTurn.displayPoints;
+      initialModelPickerEstimateConfidence = modelPickerConfidenceFromEstimateRows(
+        nextTurn.estimates
+      );
+    }
   } catch {
     initialModelPickerEstimates = {};
+    initialModelPickerEstimateConfidence = {};
   }
 
   const isSimulation = c.content_kind === "simulation";
@@ -528,6 +539,7 @@ export default async function ChatPage({
       initialGlobalModelNotice={globalModelEntry.notice}
       initialActiveSitePromotions={initialActiveSitePromotions}
       initialModelPickerEstimates={initialModelPickerEstimates}
+      initialModelPickerEstimateConfidence={initialModelPickerEstimateConfidence}
       initialTargetResponseChars={userChatPrefs.targetResponseChars}
       initialChatTitle={chat?.title ?? ""}
       initialDisplayPrefs={userChatPrefs.displayPrefs}

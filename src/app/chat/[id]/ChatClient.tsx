@@ -134,8 +134,11 @@ import {
   type SelectedAI,
 } from "@/lib/chatModels";
 import {
-  parseModelPickerEstimates,
+  acceptPickerEstimateResponse,
+  parseModelPickerEstimatePresentation,
+  PICKER_ESTIMATE_VARIANCE_NOTE,
   selectedAIOptionLabel,
+  type ModelPickerEstimateConfidenceMap,
   type ModelPickerEstimateMap,
 } from "@/lib/modelPickerEstimate";
 import { formatAssistantLengthLabel } from "@/lib/responseLengthConstants";
@@ -924,6 +927,7 @@ export default function ChatClient({
   initialGlobalModelNotice = null,
   initialActiveSitePromotions = [],
   initialModelPickerEstimates = {},
+  initialModelPickerEstimateConfidence = {},
   initialTargetResponseChars,
   initialChatTitle = "",
   initialDisplayPrefs,
@@ -971,6 +975,8 @@ export default function ChatClient({
   initialActiveSitePromotions?: SitePromotionClientView[];
   /** Room-scoped next-turn Published display estimates for the native picker label. */
   initialModelPickerEstimates?: ModelPickerEstimateMap;
+  /** Same rows as the points map. Does not change the Published point value. */
+  initialModelPickerEstimateConfidence?: ModelPickerEstimateConfidenceMap;
   initialTargetResponseChars: number;
   initialChatTitle?: string;
   initialDisplayPrefs?: ChatDisplayPrefs;
@@ -1260,6 +1266,9 @@ export default function ChatClient({
   const [selectedAI, setSelectedAI] = useState<SelectedAI>(initialSelectedAI);
   const [modelPickerEstimates, setModelPickerEstimates] =
     useState<ModelPickerEstimateMap>(initialModelPickerEstimates);
+  const [modelPickerEstimateConfidence, setModelPickerEstimateConfidence] =
+    useState<ModelPickerEstimateConfidenceMap>(initialModelPickerEstimateConfidence);
+  const pickerEstimateRequestRef = useRef(0);
   const selectableAIOptions = useMemo(
     () => userSelectableAIOptionsForUser(isAdmin),
     [isAdmin]
@@ -1441,15 +1450,22 @@ export default function ChatClient({
 
   const refreshPickerEstimates = useCallback((roomId: number | null) => {
     if (roomId == null || roomId <= 0) return;
+    const requestId = ++pickerEstimateRequestRef.current;
     void fetch("/api/chat/next-turn-estimates", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chatId: roomId }),
     })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { estimates?: unknown } | null) => {
-        const parsed = parseModelPickerEstimates(data?.estimates);
-        if (parsed) setModelPickerEstimates(parsed);
+      .then((data: { estimates?: unknown; models?: unknown } | null) => {
+        const applied = acceptPickerEstimateResponse({
+          requestId,
+          latestRequestId: pickerEstimateRequestRef.current,
+          presentation: parseModelPickerEstimatePresentation(data),
+        });
+        if (!applied) return;
+        setModelPickerEstimates(applied.points);
+        setModelPickerEstimateConfidence(applied.confidence);
       })
       .catch(() => {});
   }, []);
@@ -1819,7 +1835,9 @@ export default function ChatClient({
     setUserNote(initialUserNote);
     setNotePresets(initialNotePresets);
     setSelectedAI(initialSelectedAI);
+    pickerEstimateRequestRef.current += 1;
     setModelPickerEstimates(initialModelPickerEstimates);
+    setModelPickerEstimateConfidence(initialModelPickerEstimateConfidence);
     setMode(initialMode);
     setAdultHandoffOn(!!initialAdultHandoffEnabled);
     adultHandoffOnRef.current = !!initialAdultHandoffEnabled;
@@ -1836,6 +1854,7 @@ export default function ChatClient({
     initialNotePresets,
     initialSelectedAI,
     initialModelPickerEstimates,
+    initialModelPickerEstimateConfidence,
     initialMode,
     initialAdultHandoffEnabled,
     initialTargetResponseChars,
@@ -6067,6 +6086,7 @@ export default function ChatClient({
               onChange={(e) => void handleSelectedAIChange(e.target.value as SelectedAI)}
               onFocus={() => refreshPickerEstimates(chatId ?? initialChatId)}
               disabled={inputLocked}
+              aria-describedby="picker-estimate-note"
               className="max-w-full rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {selectableAIOptions.map((o) => (
@@ -6074,7 +6094,8 @@ export default function ChatClient({
                   {selectedAIOptionLabel(
                     o.id as SelectedAI,
                     activeSitePromotionsByModelId,
-                    modelPickerEstimates
+                    modelPickerEstimates,
+                    modelPickerEstimateConfidence
                   )}
                 </option>
               ))}
@@ -6100,6 +6121,12 @@ export default function ChatClient({
           >
             {displayPrefs.showSuggestedReplies ? "추천 켜짐" : "추천 꺼짐"}
           </button>
+          <p
+            id="picker-estimate-note"
+            className="w-full text-[10px] leading-tight text-zinc-500"
+          >
+            {PICKER_ESTIMATE_VARIANCE_NOTE}
+          </p>
         </div>
 
         <div className="flex flex-col gap-0.5">
