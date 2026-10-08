@@ -31,14 +31,14 @@ test.describe("TRPG inline asset frame geometry", () => {
     });
     await installImageRoutes(page, slowGate);
     await page.setViewportSize({ width: 360, height: 740 });
-    await page.goto("/trpg/inline-asset-frame-lab");
+    await page.goto("/trpg/inline-asset-frame-lab", { waitUntil: "domcontentloaded" });
 
     const landscape = await figureBox(page, "landscape-16-9");
     const column = await page.locator('[data-fixture="landscape-16-9"]').boundingBox();
     expect(column).not.toBeNull();
     expect(landscape.width).toBeGreaterThan((column?.width ?? 0) - 2);
-    expect(landscape.height).toBeGreaterThan(180);
-    expect(landscape.height).toBeLessThan(230);
+    expect(landscape.width).toBeGreaterThan(240);
+    expect(Math.abs(landscape.height / landscape.width - 9 / 16)).toBeLessThan(0.03);
 
     const square = await figureBox(page, "square-1-1");
     expect(square.height).toBeLessThanOrEqual(222);
@@ -95,9 +95,12 @@ test.describe("TRPG inline asset frame geometry", () => {
     expect(Math.abs(slowBefore.height - slowAfter.height)).toBeLessThan(1);
     expect(Math.abs((anchorBefore?.y ?? 0) - (anchorAfter?.y ?? 0))).toBeLessThan(1);
 
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-fixture="portrait-9-16"] figure')).toHaveCount(1);
     await expect(page.locator('[data-fixture="landscape-16-9"] figure')).toHaveCount(1);
+    await page.screenshot({ path: "test-results/trpg-inline-mobile-top.png" });
+    await page.locator('[data-fixture="portrait-9-16"]').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "test-results/trpg-inline-mobile-portrait.png" });
   });
 
   test("desktop 1440×900 caps portrait height and keeps landscape column width", async ({ page }) => {
@@ -128,5 +131,8 @@ test.describe("TRPG inline asset frame geometry", () => {
     expect(Math.abs(square.width - square.height)).toBeLessThan(2);
     const characterWide = await figureBox(page, "character-landscape");
     expect(characterWide.width).toBeGreaterThan(700);
+    await page.screenshot({ path: "test-results/trpg-inline-desktop-top.png" });
+    await page.locator('[data-fixture="portrait-9-16"]').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "test-results/trpg-inline-desktop-portrait.png" });
   });
 });
