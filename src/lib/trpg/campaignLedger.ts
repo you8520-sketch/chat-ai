@@ -46,28 +46,67 @@ export function emptyCampaignLedger(): TrpgCampaignLedger {
 export type TrpgLocationPersistSubmission = {
   participantId: number;
   body: string;
+  tier?: string | null;
+  acceptedRoute?: string | null;
 };
 
-function bodyMentionsDestination(body: string, destination: string): boolean {
-  if (actionReferencesOpenRoute(body, [destination]) != null) return true;
-  const text = body.replace(/\s+/g, " ").trim().toLowerCase();
-  return tokenizeSceneLabel(destination).some((token) => token.length >= 2 && text.includes(token));
+export type TrpgLocationPersistSheet = {
+  participantId: number;
+  location: string;
+};
+
+function destinationMatchesDeclared(source: string, destination: string): boolean {
+  const dest = destination.trim();
+  if (!dest) return false;
+  if (actionReferencesOpenRoute(source, [dest]) != null) return true;
+  const place = tokenizeSceneLabel(dest).at(-1);
+  if (!place) return false;
+  return tokenizeSceneLabel(source).some((token) => token === place || token.startsWith(place));
+}
+
+function destUsedAsMovementTarget(body: string, destination: string): boolean {
+  const place = tokenizeSceneLabel(destination).at(-1);
+  if (!place) return false;
+  return tokenizeSceneLabel(body).some(
+    (token) => (token === place || token.startsWith(place)) && /(?:로|으로)$/.test(token)
+  );
+}
+
+function movementAttemptFailed(tier: string | null | undefined): boolean {
+  switch (tier) {
+    case "CRITICAL_FAILURE":
+    case "SEVERE_FAILURE":
+    case "FAILURE":
+      return true;
+    default:
+      return false;
+  }
 }
 
 /** True when this locked action already authorizes relocating to `destination`. */
-export function submissionAuthorizesLocation(body: string, destination: string): boolean {
+export function submissionAuthorizesLocation(
+  submission: TrpgLocationPersistSubmission,
+  destination: string
+): boolean {
   const dest = destination.trim();
   if (!dest) return false;
-  if (declaresTraversalIntent(body)) return true;
-  // Particle-attached Korean labels ("주점으로") miss exact token overlap.
-  return bodyMentionsDestination(body, dest);
+  if (movementAttemptFailed(submission.tier)) return false;
+  if (submission.acceptedRoute && destinationMatchesDeclared(submission.acceptedRoute, dest)) {
+    return true;
+  }
+  if (!destinationMatchesDeclared(submission.body, dest)) return false;
+  if (declaresTraversalIntent(submission.body)) return true;
+  // 걸어간다 misses TRAVERSAL_VERBS; 로/으로 is already the dest particle in that list.
+  return destUsedAsMovementTarget(submission.body, dest);
 }
 
 /**
  * Location persist bind — campaignLedger owner.
  * Opening may set the starting place. After that, a GM location change sticks
- * only when a locked submission already declared traversal or named that place.
- * World-forced relocation has no separate persist owner today (T9/L5).
+ * only when that participant has an accepted dest (declared + dest match,
+ * accepted routine route, and not a failure tier). Compare each sheet's
+ * previous location, not the shared ledger. World-forced relocation has no
+ * separate persist owner today (T9/L5).
  */
 export function bindGmLocationToSubmittedMovement(opts: {
   opening: boolean;
@@ -76,6 +115,7 @@ export function bindGmLocationToSubmittedMovement(opts: {
   proposedLocation: string;
   delta: TrpgStateDelta;
   submissions: readonly TrpgLocationPersistSubmission[];
+  sheetLocations?: readonly TrpgLocationPersistSheet[];
 }): { location: string; nextRoundContext: string | undefined; delta: TrpgStateDelta } {
   if (opts.opening) {
     return {
@@ -86,23 +126,32 @@ export function bindGmLocationToSubmittedMovement(opts: {
   }
   const current = opts.currentLocation.trim();
   const proposed = opts.proposedLocation.trim();
-  const allowed = new Set<number>();
-  for (const sub of opts.submissions) {
-    if (submissionAuthorizesLocation(sub.body, proposed || current)) {
-      allowed.add(sub.participantId);
-    }
-  }
+  const sheetById = new Map(
+    (opts.sheetLocations ?? []).map((row) => [row.participantId, row.location.trim()])
+  );
+  const previousLocation = (participantId: number) => sheetById.get(participantId) || current;
+  const byParticipant = new Map(opts.submissions.map((sub) => [sub.participantId, sub]));
   const players = (opts.delta.players ?? []).map((patch) => {
     if (patch.location == null) return patch;
     const dest = patch.location.trim();
-    if (!dest || dest === current || allowed.has(patch.participantId)) return patch;
+    const previous = previousLocation(patch.participantId);
+    if (!dest || dest === previous) return patch;
+    const sub = byParticipant.get(patch.participantId);
+    if (sub && submissionAuthorizesLocation(sub, dest)) return patch;
+    if (sub && proposed && proposed !== dest && submissionAuthorizesLocation(sub, proposed)) {
+      return { ...patch, location: proposed };
+    }
     const { location: _dropped, ...rest } = patch;
     return rest;
   });
-  const locationAccepted = !proposed || proposed === current || allowed.size > 0;
+  const campaignMoved = Boolean(proposed && proposed !== current);
+  const campaignAuthorized =
+    campaignMoved && opts.submissions.some((sub) => submissionAuthorizesLocation(sub, proposed));
   return {
-    location: locationAccepted && proposed ? proposed : current,
-    nextRoundContext: locationAccepted ? opts.delta.nextRoundContext : opts.currentNextRoundContext,
+    location: campaignAuthorized ? proposed : current,
+    nextRoundContext: campaignAuthorized || !campaignMoved
+      ? opts.delta.nextRoundContext
+      : opts.currentNextRoundContext,
     delta: { ...opts.delta, players },
   };
 }

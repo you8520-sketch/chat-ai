@@ -45,6 +45,7 @@ import {
   prepareTrpgBotActionBody,
   TRPG_BOT_SYSTEM,
 } from "./botActions";
+import { actionReferencesOpenRoute } from "./actionCheckContext";
 import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { applyCampaignLedger, bindGmLocationToSubmittedMovement, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
@@ -1527,12 +1528,16 @@ function commitPendingGmResult(
   const sheets = loadSheetSnapshots(db, campaign.id);
   const mechanics = loadMechanicsResolution(db, opts.roundId);
   const currentLedger = loadCampaignLedger(db, campaign.id);
+  const campaignContext = loadCampaignContext(db, campaign.id);
+  const openRoutes = campaignContext?.localSceneProgress.openRoutes ?? [];
   const lockedSubs = db
     .prepare(
-      `SELECT participant_id AS participantId, body FROM trpg_action_submissions
-       WHERE round_id=? AND locked=1 ORDER BY id ASC`
+      `SELECT s.id, s.participant_id AS participantId, s.body, r.tier
+       FROM trpg_action_submissions s
+       LEFT JOIN trpg_dice_rolls r ON r.submission_id = s.id
+       WHERE s.round_id=? AND s.locked=1 ORDER BY s.id ASC`
     )
-    .all(opts.roundId) as Array<{ participantId: number; body: string }>;
+    .all(opts.roundId) as Array<{ id: number; participantId: number; body: string; tier: string | null }>;
   const proposedFromPlayers =
     (parsed.delta.players ?? []).map((patch) => patch.location?.trim() ?? "").find(Boolean) ?? "";
   const boundLocation = bindGmLocationToSubmittedMovement({
@@ -1544,7 +1549,23 @@ function commitPendingGmResult(
       ...parsed.delta,
       nextRoundContext: parsed.nextRoundContext || parsed.delta.nextRoundContext,
     },
-    submissions: lockedSubs,
+    submissions: lockedSubs.map((sub) => {
+      const decision = loadFrozenAdjudicationDecision(db, opts.roundId, sub.id);
+      const acceptedRoute =
+        decision && !decision.needsCheck && decision.reason === "routine_traversal"
+          ? actionReferencesOpenRoute(sub.body, openRoutes)
+          : null;
+      return {
+        participantId: sub.participantId,
+        body: sub.body,
+        tier: sub.tier,
+        acceptedRoute,
+      };
+    }),
+    sheetLocations: sheets.map((sheet) => ({
+      participantId: sheet.participantId,
+      location: sheet.location,
+    })),
   });
   const applied = mergeMechanicsOwnedDelta(sheets, boundLocation.delta, mechanics);
   const nextSheets = applied.ok ? applied.next : sheets;
@@ -1552,7 +1573,6 @@ function commitPendingGmResult(
   const roundNumber = (
     db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
   ).round_number;
-  const campaignContext = loadCampaignContext(db, campaign.id);
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
   const postGmOngoingSeeds = opts.postGmOngoingSeeds ?? [];
   let postGmOngoingResult = { candidates: 0, promoted: 0, deduped: 0 };

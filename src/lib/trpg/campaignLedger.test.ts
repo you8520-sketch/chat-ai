@@ -43,6 +43,7 @@ describe("TRPG location persist bind", () => {
     body?: string;
     participantId?: number;
     playerLocation?: string;
+    tier?: string | null;
     extraPlayers?: Array<{ participantId: number; location?: string }>;
   }) {
     return bindGmLocationToSubmittedMovement({
@@ -62,8 +63,9 @@ describe("TRPG location persist bind", () => {
         nextRoundContext: tavernEntry,
       },
       submissions: opts.body
-        ? [{ participantId: opts.participantId ?? 1, body: opts.body }]
+        ? [{ participantId: opts.participantId ?? 1, body: opts.body, tier: opts.tier }]
         : [],
+      sheetLocations: [{ participantId: opts.participantId ?? 1, location: dock }],
     });
   }
 
@@ -120,9 +122,81 @@ describe("TRPG location persist bind", () => {
         { participantId: 1, body: "주점으로 간다." },
         { participantId: 2, body: "달을 주머니에 넣는다." },
       ],
+      sheetLocations: [
+        { participantId: 1, location: dock },
+        { participantId: 2, location: dock },
+      ],
     });
     assert.equal(bound.location, tavern);
     assert.equal(bound.delta.players?.[0]?.location, tavern);
     assert.equal(bound.delta.players?.[1]?.location, undefined);
+  });
+
+  it("A: 밖으로 나간다 does not accept an unnamed 성소", () => {
+    const bound = bind({ body: "밖으로 나간다.", proposed: "성소", playerLocation: "성소" });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
+  it("B: 주점을 바라본다 does not accept tavern relocation", () => {
+    const bound = bind({ body: "주점을 바라본다." });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
+  it("B extra: 회린의 날씨를 살핀다 does not accept 회린 주점", () => {
+    const bound = bind({ body: "회린의 날씨를 살핀다." });
+    assert.equal(bound.location, dock);
+  });
+
+  it("C: tavern declaration does not keep a sanctuary player location", () => {
+    const bound = bind({ body: "주점으로 간다.", playerLocation: "성소" });
+    assert.equal(bound.location, tavern);
+    assert.equal(bound.delta.players?.[0]?.location, tavern);
+  });
+
+  it("D: stationary PC is compared to sheet location, not campaign location", () => {
+    const bound = bindGmLocationToSubmittedMovement({
+      opening: false,
+      currentLocation: dock,
+      currentNextRoundContext: "부두.",
+      proposedLocation: dock,
+      delta: {
+        players: [
+          { participantId: 1, location: dock },
+          { participantId: 2, location: dock },
+        ],
+        location: dock,
+        nextRoundContext: "부두.",
+      },
+      submissions: [
+        { participantId: 1, body: "달을 주머니에 넣는다." },
+        { participantId: 2, body: "주점 안을 살핀다." },
+      ],
+      sheetLocations: [
+        { participantId: 1, location: dock },
+        { participantId: 2, location: tavern },
+      ],
+    });
+    assert.equal(bound.delta.players?.[1]?.location, undefined);
+    assert.equal(bound.location, dock);
+  });
+
+  it("E: FAILURE does not persist the declared destination", () => {
+    const bound = bindGmLocationToSubmittedMovement({
+      opening: false,
+      currentLocation: dock,
+      currentNextRoundContext: "부두.",
+      proposedLocation: tavern,
+      delta: {
+        players: [{ participantId: 1, location: tavern }],
+        location: tavern,
+        nextRoundContext: tavernEntry,
+      },
+      submissions: [{ participantId: 1, body: "급히 주점으로 간다.", tier: "CRITICAL_FAILURE" }],
+      sheetLocations: [{ participantId: 1, location: dock }],
+    });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
   });
 });
