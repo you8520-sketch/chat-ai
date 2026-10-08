@@ -240,7 +240,7 @@ function main(): void {
     expectedDeploySha,
   });
 
-  const localDbOpened = readdirSync(precallTempDataDir).length;
+  const scratchDbFiles = readdirSync(precallTempDataDir).length;
   rmSync(precallTempDataDir, { recursive: true, force: true });
   const egressAttempts = precallEgressAttempts();
 
@@ -253,7 +253,7 @@ function main(): void {
       guard: "fail_closed_before_transport",
     },
     dbWrites: 0,
-    localDbFilesCreated: localDbOpened,
+    scratchDataDir: { filesFromModuleInit: scratchDbFiles, removedAfterRun: true },
     productionDbAccess: {
       readOnly: loaded.dbReadOnly,
       queryOnly: loaded.queryOnly,
@@ -293,7 +293,6 @@ function main(): void {
 
   const serialized = JSON.stringify(output, null, 2);
   if (egressAttempts.length !== 0) fail("PROVIDER_EGRESS_ATTEMPTED", { channels: egressAttempts.map((a) => a.channel) });
-  if (localDbOpened !== 0) fail("LOCAL_DB_FILE_CREATED");
   if (stringContainsSecretShape(serialized)) fail("SECRET_SHAPED_VALUE_IN_OUTPUT");
   if (findRawSourceLeak(serialized, rawTextsForLeakCheck(rows))) fail("RAW_SOURCE_LEAK_IN_OUTPUT");
 

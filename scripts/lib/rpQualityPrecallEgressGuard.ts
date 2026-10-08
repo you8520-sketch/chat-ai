@@ -53,9 +53,15 @@ export const precallOriginalDataDir = process.env.DATA_DIR ?? "";
 
 for (const name of PROVIDER_CREDENTIAL_ENV) delete process.env[name];
 
-/** Anything that opens the app DB during module init lands in this empty dir. */
-export const precallTempDataDir = mkdtempSync(path.join(tmpdir(), "precall-empty-data-"));
+/**
+ * The prompt-assembly owners import `src/lib/db.ts`, which opens and migrates
+ * `DATA_DIR/app.db` at module init. That must land in a scratch dir, never in the
+ * production volume. PLAYWRIGHT_PROD_SERVER is dataDir.ts's existing escape hatch
+ * for a production-mode process whose data dir is not a mounted volume.
+ */
+export const precallTempDataDir = mkdtempSync(path.join(tmpdir(), "precall-scratch-data-"));
 process.env.DATA_DIR = precallTempDataDir;
+process.env.PLAYWRIGHT_PROD_SERVER = "1";
 
 const attempts: PrecallEgressAttempt[] = [];
 
