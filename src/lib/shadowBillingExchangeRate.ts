@@ -1,6 +1,7 @@
 /**
- * Shadow billing FX owner — daily KST immutable snapshots persisted in SQLite.
- * Does NOT affect legacy production billing (points.ts / exchangeRate.ts).
+ * Daily KST locked FX owner for Published user charge.
+ * Picker, admission, and settlement read this snapshot.
+ * GET/admin preview uses peek/preview and must not INSERT.
  */
 
 import "server-only";
@@ -218,6 +219,30 @@ export function previewShadowBillingFxSnapshot(
     overseasFeeRate: OVERSEAS_CARD_FEE_PERCENT,
     locked: false,
   };
+}
+
+/**
+ * Same daily FX owner for picker/admission/settlement.
+ * GET/SSR/prefetch must pass lockDailyFx=false (peek only, no INSERT).
+ * Unlocked today returns null — do not expose a confirmed estimate.
+ * Allowed non-GET writers pass lockDailyFx=true (INSERT OR IGNORE).
+ */
+export function resolvePublishedEstimateFx(opts: {
+  lockDailyFx: boolean;
+  now?: number;
+}): ShadowBillingExchangeRateSnapshot | null {
+  if (opts.lockDailyFx) {
+    return resolveShadowBillingExchangeRateSnapshot(opts.now);
+  }
+  return peekShadowBillingFxDailySnapshot(opts.now);
+}
+
+/** Reuse the admission-locked snapshot for this generation. Never opens a new dateKey. */
+export function reusePublishedFxSnapshotForRequest(
+  requestSnapshot: ShadowBillingExchangeRateSnapshot | null | undefined
+): ShadowBillingExchangeRateSnapshot | null {
+  if (requestSnapshot?.locked) return requestSnapshot;
+  return null;
 }
 
 /** Sync shadow billing lock — persisted INSERT OR IGNORE, never same-day UPDATE. */

@@ -39,7 +39,7 @@ const PRODUCTION_CACHE_READ_FIXTURE = {
   promptTokens: 12_871,
   cacheReadTokens: 12_800,
   outputTokens: 1_273,
-  expectedPoints: 10,
+  expectedPoints: 39,
 } as const;
 
 /** Immutable v1 pricing embedded in historical receipt snapshots — test-local only. */
@@ -126,8 +126,16 @@ describe("deepseekV4ProPublishedBilling", () => {
     }
   });
 
-  it("cache-write tokens → blocked (no published cache-write rate)", () => {
+  it("cache-write tokens stay Standard-only user points", () => {
     for (const modelId of [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, "deepseek-v4-pro"]) {
+      const miss = charge(
+        modelId,
+        normalizeBillableUsage({
+          modelId,
+          promptTokens: 10_000,
+          outputTokens: 500,
+        })
+      );
       const r = charge(
         modelId,
         normalizeBillableUsage({
@@ -137,9 +145,10 @@ describe("deepseekV4ProPublishedBilling", () => {
           cacheWriteTokens: 2_000,
         })
       );
-      assert.equal(r.status, "blocked", modelId);
-      if (r.status === "blocked") {
-        assert.equal(r.reason, "unsupported_cache_semantics", modelId);
+      assert.equal(miss.status, "complete", modelId);
+      assert.equal(r.status, "complete", modelId);
+      if (miss.status === "complete" && r.status === "complete") {
+        assert.equal(r.snapshot.finalPoints, miss.snapshot.finalPoints, modelId);
       }
     }
   });

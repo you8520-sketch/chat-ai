@@ -68,7 +68,7 @@ describe("Main RP user price determinism — published PRODUCT engine", () => {
     });
   }
 
-  it("Gemini 3.7 — published charge blocks non-zero cache (unknown semantics)", () => {
+  it("Gemini 3.7 — Standard-only user P ignores cache split", () => {
     const baseline = publishedProductCharge(
       CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
       25_000,
@@ -83,8 +83,8 @@ describe("Main RP user price determinism — published PRODUCT engine", () => {
       12_000,
       0
     );
-    assert.ok(baseline != null);
-    assert.equal(splitCache, null);
+    assert.ok(baseline != null && baseline > 0);
+    assert.equal(splitCache, baseline);
   });
 });
 

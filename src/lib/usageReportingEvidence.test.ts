@@ -362,14 +362,14 @@ describe("usageReportingEvidence — end-to-end candidate mapping", () => {
     });
     const r = resolveTurnBillableUsage({ stages: [stage], modelId: OPENROUTER_GEMINI_31_PRO_MODEL });
     assert.equal(r.diagnostics.fieldSources.cacheRead, "SANITIZED_MALFORMED");
-    assert.equal(r.usageCoverage, "partial");
+    assert.equal(r.usageCoverage, "complete");
   });
 
-  it("absent cache must not become complete", () => {
+  it("absent cache stays complete for published Standard-only models", () => {
     const stage = productionStageFromRaw({ prompt_tokens: 5000, completion_tokens: 400 });
     const r = resolveTurnBillableUsage({ stages: [stage], modelId: OPENROUTER_GEMINI_31_PRO_MODEL });
-    assert.equal(r.usageCoverage, "partial");
-    assert.equal(r.diagnostics.fieldSources.cacheRead, "MISSING_AND_UNKNOWN");
+    assert.equal(r.usageCoverage, "complete");
+    assert.equal(r.diagnostics.fieldSources.cacheRead, "MISSING_BUT_PRICE_NEUTRAL");
   });
 });
 

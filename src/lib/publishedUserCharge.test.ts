@@ -114,34 +114,42 @@ describe("publishedUserCharge — fail-closed gates", () => {
     }
   });
 
-  it("G37 cache read/write → blocked", () => {
+  it("G37 cache read/write stay Standard-only user points", () => {
+    const miss = completeCharge("gemini-3.7-flash", 10_000, 500);
     const read = completeCharge("gemini-3.7-flash", 10_000, 500, { read: 5_000 });
     const write = completeCharge("gemini-3.7-flash", 10_000, 500, { write: 2_000 });
-    assert.equal(read.status, "blocked");
-    assert.equal(write.status, "blocked");
-    if (read.status === "blocked") assert.equal(read.reason, "unsupported_cache_semantics");
-    if (write.status === "blocked") assert.equal(write.reason, "unsupported_cache_semantics");
+    assert.equal(miss.status, "complete");
+    assert.equal(read.status, "complete");
+    assert.equal(write.status, "complete");
+    if (miss.status === "complete" && read.status === "complete" && write.status === "complete") {
+      assert.equal(read.snapshot.finalPoints, miss.snapshot.finalPoints);
+      assert.equal(write.snapshot.finalPoints, miss.snapshot.finalPoints);
+    }
   });
 
-  it("G31 cache read/write → blocked", () => {
+  it("G31 cache read/write stay Standard-only user points", () => {
+    const miss = completeCharge("gemini-3.1-pro-preview", 10_000, 500);
     const read = completeCharge("gemini-3.1-pro-preview", 10_000, 500, { read: 5_000 });
     const write = completeCharge("gemini-3.1-pro-preview", 10_000, 500, { write: 2_000 });
-    assert.equal(read.status, "blocked");
-    assert.equal(write.status, "blocked");
+    assert.equal(miss.status, "complete");
+    assert.equal(read.status, "complete");
+    assert.equal(write.status, "complete");
+    if (miss.status === "complete" && read.status === "complete" && write.status === "complete") {
+      assert.equal(read.snapshot.finalPoints, miss.snapshot.finalPoints);
+      assert.equal(write.snapshot.finalPoints, miss.snapshot.finalPoints);
+    }
   });
 
-  it("Opus5 verified cache → complete with exact cache USD math", () => {
+  it("Opus5 verified cache → complete with Standard-only USD math", () => {
     const r = completeCharge("claude-opus-5", 10_000, 500, { read: 5_000, write: 1_000 });
     assert.equal(r.status, "complete");
     if (r.status === "complete") {
-      const expectedUsd =
-        (4_000 / 1_000_000) * 5 +
-        (5_000 / 1_000_000) * 0.5 +
-        (1_000 / 1_000_000) * 6.25 +
-        (500 / 1_000_000) * 25;
+      const expectedUsd = (10_000 / 1_000_000) * 5 + (500 / 1_000_000) * 25;
       assert.ok(Math.abs(r.snapshot.billingReferenceCostUsd - expectedUsd) < 1e-9);
       assert.equal(r.snapshot.billingReferenceCacheReadUsdPerMillion, 0.5);
       assert.equal(r.snapshot.billingReferenceCacheWriteUsdPerMillion, 6.25);
+      assert.equal(r.snapshot.cacheReadTokens, 5_000);
+      assert.equal(r.snapshot.cacheWriteTokens, 1_000);
     }
   });
 
@@ -651,7 +659,7 @@ describe("publishedUserCharge — snapshot v1 live-grade semantics", () => {
     assert.equal(isLiveGradePublishedUserChargeSnapshot(tampered), false);
   });
 
-  it("G31 self-consistent cache snapshot → live-grade false (unverified policy)", () => {
+  it("G31 self-consistent cache snapshot stays live-grade under Standard-only user charge", () => {
     const snap = requireCompleteSnapshot("gemini-3.1-pro-preview", 10_000, 500);
     const tampered = recomputeSnapshotTotalsFromEmbeddedValues({
       ...snap,
@@ -662,10 +670,10 @@ describe("publishedUserCharge — snapshot v1 live-grade semantics", () => {
     });
     assert.equal(snap.applicability.cacheSemanticStatus, "unverified");
     assert.equal(isPublishedUserChargeSnapshot(tampered), true);
-    assert.equal(isLiveGradePublishedUserChargeSnapshot(tampered), false);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(tampered), true);
   });
 
-  it("G37 self-consistent cache snapshot → live-grade false (unknown policy)", () => {
+  it("G37 self-consistent cache snapshot stays live-grade under Standard-only user charge", () => {
     const snap = requireCompleteSnapshot("gemini-3.7-flash", 10_000, 500);
     const tampered = recomputeSnapshotTotalsFromEmbeddedValues({
       ...snap,
@@ -676,7 +684,7 @@ describe("publishedUserCharge — snapshot v1 live-grade semantics", () => {
     });
     assert.equal(snap.applicability.cacheSemanticStatus, "unknown");
     assert.equal(isPublishedUserChargeSnapshot(tampered), true);
-    assert.equal(isLiveGradePublishedUserChargeSnapshot(tampered), false);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(tampered), true);
   });
 
   it("valid Opus5 cache snapshot → live-grade true", () => {
@@ -685,7 +693,7 @@ describe("publishedUserCharge — snapshot v1 live-grade semantics", () => {
     assert.equal(isLiveGradePublishedUserChargeSnapshot(snap), true);
   });
 
-  it("policy tampering without internal coherence → live-grade false", () => {
+  it("cache-rate catalog fields do not gate Standard-only live-grade snapshots", () => {
     const snap = requireCompleteSnapshot("gemini-3.1-pro-preview", 10_000, 500);
     const withCache = recomputeSnapshotTotalsFromEmbeddedValues({
       ...snap,
@@ -694,7 +702,7 @@ describe("publishedUserCharge — snapshot v1 live-grade semantics", () => {
       cacheReadTokens: 5_000,
       billingReferenceCacheReadUsdPerMillion: 0.5,
     });
-    assert.equal(isLiveGradePublishedUserChargeSnapshot(withCache), false);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(withCache), true);
     const policyTampered = {
       ...withCache,
       applicability: {
@@ -703,7 +711,7 @@ describe("publishedUserCharge — snapshot v1 live-grade semantics", () => {
       },
       billingReferenceCacheReadUsdPerMillion: null,
     };
-    assert.equal(isLiveGradePublishedUserChargeSnapshot(policyTampered), false);
+    assert.equal(isLiveGradePublishedUserChargeSnapshot(policyTampered), true);
   });
 
   it("historical snapshot validation uses embedded policy not current map", () => {

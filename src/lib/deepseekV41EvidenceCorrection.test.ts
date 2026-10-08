@@ -269,9 +269,10 @@ describe("deepseekV41EvidenceCorrection — cache write boundary", () => {
     }
   });
 
-  it("unexpected positive cacheWrite → unsupported_cache_semantics blocked", () => {
+  it("unexpected positive cacheWrite stays Standard-only published_phase2", () => {
     const row = findV41Row("TRUE_speech_lock");
     const stage = stageFromEvidenceRow(row);
+    const miss = dispatchV41([stageFromEvidenceRow(row)]);
     stage.cacheWriteTokens = 128;
     stage.usageReportingEvidence = {
       cacheRead: "reported_valid",
@@ -279,10 +280,10 @@ describe("deepseekV41EvidenceCorrection — cache write boundary", () => {
       reasoning: "unreported",
     };
     const decision = dispatchV41([stage]);
-    assert.equal(decision.contract, "published_fail_closed");
-    assert.equal(decision.points, 0);
-    assert.equal(decision.telemetry.publishedBlockReason, "unsupported_cache_semantics");
-    assert.equal(decision.telemetry.appliedFailClosedPolicy, "zero_point_billing_anomaly_waiver");
+    assert.equal(decision.contract, "published_phase2");
+    assert.equal(miss.contract, "published_phase2");
+    assert.equal(decision.points, miss.points);
+    assert.ok(decision.points > 0);
   });
 });
 

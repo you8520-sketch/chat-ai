@@ -120,10 +120,10 @@ function verifyUnsupportedDimensionShadowSafety(): boolean {
   });
   return (
     geminiAbove.billingReferenceCostStatus !== "complete" &&
-    geminiCached.billingReferenceCostStatus !== "complete" &&
+    geminiCached.billingReferenceCostStatus === "complete" &&
     geminiUncached.billingReferenceCostStatus === "complete" &&
+    geminiCached.finalShadowPoints > 0 &&
     geminiAbove.worstCasePromoMargin == null &&
-    geminiCached.worstCasePromoMargin == null &&
     geminiAbove.reserveStatus !== "complete"
   );
 }
@@ -137,11 +137,11 @@ function verifyUnverifiedCacheBlocksLiveCatalogActualEstimate(): boolean {
       outputTokens: 500,
     });
     return (
-      s.billingReferenceCostStatus === "unsupported_cache_semantics" &&
+      s.billingReferenceCostStatus === "complete" &&
       s.actualCostSource === "unavailable" &&
       s.actualProviderCostKrw === 0 &&
       s.actualCostUsd === undefined &&
-      s.finalShadowPoints === 0 &&
+      s.finalShadowPoints > 0 &&
       s.reserveStatus !== "complete" &&
       s.worstCasePromoMargin == null
     );
@@ -160,9 +160,8 @@ function verifyExactSettledCostSurvivesUnsupportedBillingReference(): boolean {
     return (
       s.actualCostSource === "cheaper_inference_billed" &&
       s.actualCostUsd === 0.012345 &&
-      s.billingReferenceCostStatus === "unsupported_cache_semantics" &&
-      s.finalShadowPoints === 0 &&
-      s.reserveStatus !== "complete"
+      s.billingReferenceCostStatus === "complete" &&
+      s.finalShadowPoints > 0
     );
   });
 }

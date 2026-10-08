@@ -56,7 +56,9 @@ describe("modelPickerEstimate labels", () => {
       `${name} [할인] · 약 31P`
     );
     assert.equal(selectedAIOptionLabel(id, {}, { [id]: 0 }), name);
+    assert.equal(selectedAIOptionLabel(id, {}, {}), name);
     assert.equal(formatPickerEstimateSuffix(null), "");
+    assert.equal(formatPickerEstimateSuffix(undefined), "");
     assert.equal(formatPickerEstimateSuffix(31), " · 약 31P");
   });
 });

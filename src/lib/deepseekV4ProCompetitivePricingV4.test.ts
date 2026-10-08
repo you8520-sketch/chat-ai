@@ -89,7 +89,7 @@ const MATRIX_FIXTURES = [
   { id: "A", promptTokens: 10_000, outputTokens: 500, cacheReadTokens: 0, v2P: 24, peak50P: 48, competitiveP: 27 },
   { id: "B", promptTokens: 30_000, outputTokens: 3_000, cacheReadTokens: 0, v2P: 81, peak50P: 161, competitiveP: 90 },
   { id: "C", promptTokens: 35_000, outputTokens: 4_000, cacheReadTokens: 0, v2P: 97, peak50P: 194, competitiveP: 108 },
-  { id: "D", promptTokens: 12_871, outputTokens: 1_273, cacheReadTokens: 12_800, v2P: 9, peak50P: 18, competitiveP: 10 },
+  { id: "D", promptTokens: 12_871, outputTokens: 1_273, cacheReadTokens: 12_800, v2P: 35, peak50P: 69, competitiveP: 39 },
   { id: "E", promptTokens: 33_247, outputTokens: 3_461, cacheReadTokens: 0, v2P: 90, peak50P: 180, competitiveP: 100 },
   { id: "F", promptTokens: 8_000, outputTokens: 1_500, cacheReadTokens: 0, v2P: 26, peak50P: 52, competitiveP: 29 },
 ] as const;
@@ -248,7 +248,7 @@ describe("deepseekV4ProCompetitivePricingV4 — variable-price invariants", () =
     }
   });
 
-  it("more cache read lowers charge for same prompt/output", () => {
+  it("same prompt/output miss and cache-hit keep the same Standard-only user P", () => {
     const noCache = chargeLive(
       normalizeBillableUsage({
         modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
@@ -268,7 +268,7 @@ describe("deepseekV4ProCompetitivePricingV4 — variable-price invariants", () =
     assert.equal(noCache.status, "complete");
     assert.equal(cacheHit.status, "complete");
     if (noCache.status === "complete" && cacheHit.status === "complete") {
-      assert.ok(cacheHit.snapshot.finalPoints < noCache.snapshot.finalPoints);
+      assert.equal(cacheHit.snapshot.finalPoints, noCache.snapshot.finalPoints);
     }
   });
 
