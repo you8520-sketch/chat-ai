@@ -300,7 +300,7 @@ type BodyCueReviewPacketCost = {
     providerUsd: number;
     userChargeKrw: number;
     fx: typeof BODY_CUE_PLANNING_FX;
-    maxTokensSent: false;
+    maxTokensSent: boolean;
   };
   supplierRoute: {
     provider: "cheaperinference";
@@ -377,7 +377,7 @@ function sha256(text: string): string {
  */
 export function resolveBodyCueProductionTurn(
   storedUserMessage: string,
-  personaName = CANONICAL_RP_QUALIFICATION_SOURCE.personaName,
+  personaName: string = CANONICAL_RP_QUALIFICATION_SOURCE.personaName,
   userNickname = personaName
 ): BodyCueProductionTurn {
   const policyUserMessage = replaceUserPlaceholder(storedUserMessage, personaName, userNickname);
@@ -503,7 +503,6 @@ function assembleScene(
     mode: "interactive",
     recentMessages: history,
     currentUserMessage: turn.policyUserMessage,
-    adultModeEnabled: false,
     chatId: "body-cue-review",
     currentTurn: 2,
     contentKind: "character",
@@ -875,7 +874,7 @@ export function buildLiveDeployedBodyCueReviewPacket(
     );
   });
   const evidence = evidenceForLiveDeployedRows(rows, usedEnglish, claim);
-  return {
+  const packet: BodyCueReviewPacketShared & { usedEnglish: boolean } = {
     providerCalls: 0,
     mainCommit: BODY_CUE_COMPARISON_REFS.historicalProseOwnerCommit,
     candidateHead: BODY_CUE_COMPARISON_REFS.candidateHead,
@@ -884,10 +883,12 @@ export function buildLiveDeployedBodyCueReviewPacket(
     nsfw: false,
     scenes,
     usedEnglish,
-    evidence,
     proseOwnerUnchanged: true,
     cost: costFromScenes(scenes),
   };
+  return evidence.source === "LIVE_VERIFIED"
+    ? { ...packet, evidence }
+    : { ...packet, evidence };
 }
 
 export function buildBodyCueReviewPacket(): HistoricalBodyCueReviewPacket {
