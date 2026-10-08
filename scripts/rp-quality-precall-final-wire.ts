@@ -254,13 +254,6 @@ function main(): void {
       rows,
       mainSha: expectedDeploySha,
       productionDeploySha: freshProofInput.deployedGitSha,
-      identityHashes: {
-        greetingSha256: freshProofInput.greetingSha256,
-        systemPromptSha256: freshProofInput.systemPromptSha256,
-        worldSha256: freshProofInput.worldSha256,
-        settingChunksSha256: freshProofInput.settingChunksSha256,
-        personaPublicSha256: freshProofInput.personaPublicSha256,
-      },
     });
     const identityHashesMatchProof = paidRunnerIdentityHashesMatchProof(
       pack.manifest.identityHashes,

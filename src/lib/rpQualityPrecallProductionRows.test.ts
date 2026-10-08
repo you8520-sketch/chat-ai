@@ -8,6 +8,10 @@ import { after, before, describe, it } from "node:test";
 import { DatabaseSync } from "node:sqlite";
 
 import {
+  identityHashesFromRows,
+  paidRunnerIdentityHashesMatchProof,
+} from "../../scripts/lib/rpQualityPaidRunnerPrepare";
+import {
   PRECALL_CHARACTER_COLUMNS,
   PrecallRowsStop,
   loadPrecallProductionRows,
@@ -96,6 +100,17 @@ describe("rp quality PRECALL production rows boundary", () => {
     assert.equal(JSON.stringify(loaded.rows).includes(RAW_EXTRA_COLUMN), false);
     assert.equal(JSON.stringify(loaded.rows).includes(RAW_EMAIL), false);
     assert.equal(loaded.proof.greetingSha256, sha256(RAW_GREETING));
+    const rowHashes = identityHashesFromRows(loaded.rows);
+    assert.equal(
+      paidRunnerIdentityHashesMatchProof(rowHashes, {
+        greetingSha256: loaded.proof.greetingSha256,
+        systemPromptSha256: loaded.proof.systemPromptSha256,
+        worldSha256: loaded.proof.worldSha256,
+        settingChunksSha256: loaded.proof.settingChunksSha256,
+        personaPublicSha256: loaded.proof.personaPublicSha256,
+      }),
+      true
+    );
     assert.equal(loaded.proof.deployedGitSha, DEPLOY_SHA);
     assert.equal(loaded.dbReadOnly && loaded.queryOnly && loaded.singleReadTransaction, true);
   });

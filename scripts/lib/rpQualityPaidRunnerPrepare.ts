@@ -70,7 +70,6 @@ export function preparePaidRunnerPack(input: {
   rows: PrecallAssemblyRows;
   mainSha: string;
   productionDeploySha: string;
-  identityHashes?: PaidRunnerIdentityHashes;
 }): PaidRunnerPreparedPack {
   paidRunnerRegistrySnapshot();
   if (input.rows.character.id !== RP_QUALITY_PRECALL_TARGET_SELECTOR.characterId) {
@@ -111,7 +110,7 @@ export function preparePaidRunnerPack(input: {
       requestBody: request.requestBody,
     };
   });
-  const identityHashes = input.identityHashes ?? identityHashesFromRows(input.rows);
+  const identityHashes = identityHashesFromRows(input.rows);
   const manifest = buildPaidRunnerPublicManifest({
     mainSha: input.mainSha,
     productionDeploySha: input.productionDeploySha,

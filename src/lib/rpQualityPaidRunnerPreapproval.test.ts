@@ -16,6 +16,8 @@ import { resolveStreamCharCap } from "@/lib/responseLength";
 import type { PrecallAssemblyRows } from "../../scripts/lib/rpQualityPrecallFinalWire";
 import {
   decidePaidRunnerPreapproval,
+  identityHashesFromRows,
+  paidRunnerIdentityHashesMatchProof,
   preparePaidRunnerPack,
   projectPaidRunnerPreapprovalCalls,
   publishedPlanningRateSnapshot,
@@ -219,6 +221,98 @@ describe("rp quality paid runner preapproval evidence", () => {
     assert.equal(report.denialReason, "LIVE_EXECUTE_NOT_APPROVED");
     assert.equal(report.approvalStatus, "NOT_APPROVED");
     assert.equal(report.liveExecuteEnabled, false);
+  });
+
+  it("identity: same rows/proof stay matched; section edits fail closed", () => {
+    const rowsA = syntheticRows();
+    const proofA = identityHashesFromRows(rowsA);
+    const matched = preparePaidRunnerPack({
+      rows: rowsA,
+      mainSha: MAIN_SHA,
+      productionDeploySha: MAIN_SHA,
+    });
+    assert.equal(
+      paidRunnerIdentityHashesMatchProof(matched.manifest.identityHashes, proofA),
+      true
+    );
+    assert.deepEqual(matched.manifest.identityHashes, proofA);
+    assert.equal(matched.manifest.calls.length, 12);
+    assert.equal(matched.manifest.providerPosts, 0);
+    assert.equal(
+      decidePaidRunnerPreapproval(readyInput({ identityHashesMatchProof: true })).decision,
+      "READY_FOR_GPT_COST_REVIEW"
+    );
+
+    const systemChanged = {
+      ...rowsA,
+      character: {
+        ...rowsA.character,
+        system_prompt: "CHANGED-SYSTEM-PROMPT 라이크는 갑자기 말이 많아진다.",
+      },
+    };
+    const personaChanged = {
+      ...rowsA,
+      persona: { ...rowsA.persona, description: "CHANGED-PERSONA 다른 사람" },
+    };
+    const greetingChanged = {
+      ...rowsA,
+      character: { ...rowsA.character, greeting: "CHANGED-GREETING 다른 인사." },
+    };
+    const worldChanged = {
+      ...rowsA,
+      character: { ...rowsA.character, world: "CHANGED-WORLD 다른 세계." },
+    };
+    const settingChanged = {
+      ...rowsA,
+      character: { ...rowsA.character, setting_chunks: "CHANGED-SETTING 다른 설정." },
+    };
+
+    for (const rowsB of [systemChanged, personaChanged, greetingChanged, worldChanged, settingChanged]) {
+      const packB = preparePaidRunnerPack({
+        rows: rowsB,
+        mainSha: MAIN_SHA,
+        productionDeploySha: MAIN_SHA,
+      });
+      assert.equal(
+        paidRunnerIdentityHashesMatchProof(packB.manifest.identityHashes, proofA),
+        false
+      );
+      assert.equal(
+        paidRunnerIdentityHashesMatchProof(identityHashesFromRows(rowsB), proofA),
+        false
+      );
+      assert.equal(packB.manifest.calls.length, 12);
+      assert.equal(packB.manifest.providerPosts, 0);
+      assert.equal(
+        decidePaidRunnerPreapproval(readyInput({ identityHashesMatchProof: false })).decision,
+        "BLOCKED_PRODUCTION_IDENTITY"
+      );
+    }
+
+    assert.equal(matched.manifest.identityHash, "ce23d16dac7e90ce792ada3c8a4c8cab572b40979307a8d81ea2c1449bdd1937");
+    assert.equal(matched.manifest.manifestFingerprint, "885133f416e8804a5fa5653f02d7c6a91cd3806b5c5dd1648e9bcf517db49288");
+    assert.deepEqual(
+      matched.manifest.calls.map((call) => call.requestBodyFingerprint),
+      [
+        "da3166b02cc85bea6d767dec10f87066997e881beddd7c15c70c7d5a7d8dba6b",
+        "e93e2c69405d1d38b98aec53ac8a9b1b94d4449b8c93087c28aff8e4f2362f0d",
+        "6e85834609be2e28c1f16802e85ea6819bccdcd908de2bf071c491931c5cc59d",
+        "55824569c292d9df7c38c2a8f0497bc2827bb1a4f7d052e19ea644c8451df186",
+        "743828c884ff697f3681c61a6a7709bdbdd83bcb8c6898b58135a822731e148c",
+        "d9ce7a386577ffe4d15ece50c91c0208c69b108123cd8c419d0b19e911e550d8",
+        "004b5609a6feabd70df5f69f9b927870be4d74446be5ec7330d3eb75be834760",
+        "954961a6c46fa0f28cff40739369f5bfbe618f0bcfac353cdeafd83e56aa0b5f",
+        "730fcfd2565491781ed74efcb13b659e48e5c8686e9e3cd54af90524fd375f55",
+        "d0f88cccd091a6321eab690be408a854a8ee18343e605e966eba33c0ae6e3536",
+        "a5846f034597a3bc52f7eb7e95213a75e584ff49773044f92056639656ffec09",
+        "12ba6ef7994f779794016873ade00ef3fe28f3105e3d6b7c9f3352ee37b36573",
+      ]
+    );
+    const publicJson = JSON.stringify({
+      manifest: matched.manifest,
+      calls: projectPaidRunnerPreapprovalCalls(matched),
+    });
+    assert.doesNotMatch(publicJson, /창가에 서서|CHANGED-SYSTEM-PROMPT|CHANGED-PERSONA|"requestBody"/);
   });
 
   it("experiment key readiness reports names only and published rates stay local", () => {
