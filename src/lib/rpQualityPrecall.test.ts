@@ -23,7 +23,6 @@ import {
   COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS,
   buildGreetingBodyCueReviewCases,
 } from "../../scripts/lib/rpModelQualificationFixture";
-import { RP_ACTIVE_MODEL_QUALITY_MODEL_IDS } from "../../scripts/lib/rpActiveModelQualityLive";
 import {
   RP_QUALITY_BENCHMARK_MODELS,
   emptyRubricScores,
@@ -67,6 +66,10 @@ import {
 } from "@/lib/rpQualityPrecall";
 
 const PRECALL_SRC = readFileSync("src/lib/rpQualityPrecall.ts", "utf8");
+const LIVE_QUALITY_SRC = readFileSync(
+  "scripts/lib/rpActiveModelQualityLive.ts",
+  "utf8"
+);
 const TEST_SHA = "ab".repeat(32);
 const CURRENT_DEPLOY_SHA = "cd".repeat(20);
 
@@ -318,7 +321,10 @@ describe("rp quality PRECALL plan", () => {
     assert.deepEqual(RP_QUALITY_BENCHMARK_MODELS, [
       ...MAIN_RP_USER_SELECTABLE_OPTIONS.map((row) => row.label),
     ]);
-    assert.deepEqual(RP_ACTIVE_MODEL_QUALITY_MODEL_IDS, MAIN_RP_MODEL_IDS);
+    assert.match(
+      LIVE_QUALITY_SRC,
+      /export const RP_ACTIVE_MODEL_QUALITY_MODEL_IDS: readonly SelectedAI\[\s*\] =\s*MAIN_RP_MODEL_IDS;/
+    );
     assert.equal(models.length, 4);
     assert.doesNotMatch(PRECALL_SRC, /const expected = \[/);
     assertActiveMainRpBenchmarkSet(models);
