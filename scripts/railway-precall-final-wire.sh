@@ -32,7 +32,12 @@ for file in "${OVERLAY[@]}"; do
   mkdir -p "$STAGE/ov/$(dirname "$file")"
   git show "HEAD:$file" > "$STAGE/ov/$file"
 done
-RUNNER_ARGS="--expected-deploy-sha $EXPECTED_SHA --pr-head $PR_HEAD"
+MAIN_SHA="${MAIN_SHA:-$EXPECTED_SHA}"
+LIVE_TRANSPORT_FLAG=""
+if [ "${LIVE_TRANSPORT_INCLUDED:-}" = "1" ]; then
+  LIVE_TRANSPORT_FLAG=" --live-transport-included"
+fi
+RUNNER_ARGS="--expected-deploy-sha $EXPECTED_SHA --pr-head $PR_HEAD --main-sha $MAIN_SHA$LIVE_TRANSPORT_FLAG"
 if [ -n "$SUPPLIED_PROOF" ]; then
   cp "$SUPPLIED_PROOF" "$STAGE/ov/supplied-proof.json"
   RUNNER_ARGS="$RUNNER_ARGS --supplied-proof supplied-proof.json --supplied-expected-sha $SUPPLIED_SHA"

@@ -36,6 +36,12 @@ import {
   type PrecallAssemblyRows,
 } from "./lib/rpQualityPrecallFinalWire";
 import { PrecallRowsStop, loadPrecallProductionRows } from "./lib/rpQualityPrecallProductionRows";
+import {
+  buildPaidRunnerPreapprovalProjection,
+  paidRunnerIdentityHashesMatchProof,
+  preparePaidRunnerPack,
+  readPaidRunnerExperimentKeyPresence,
+} from "./lib/rpQualityPaidRunnerPrepare";
 
 const PROOF_HASH_FIELDS = [
   "greetingSha256",
@@ -153,6 +159,8 @@ function main(): void {
   const prHead = argValue("--pr-head")?.trim().toLowerCase() ?? "";
   if (!/^[a-f0-9]{40}$/.test(prHead)) fail("PR_HEAD_REQUIRED");
   if (expectedDeploySha === prHead) fail("EXPECTED_SHA_IS_PR_HEAD_NOT_PRODUCTION");
+  const mainSha = argValue("--main-sha")?.trim().toLowerCase() ?? "";
+  const liveTransportIncluded = process.argv.includes("--live-transport-included");
 
   const dbPath = argValue("--db-path") ?? path.join(precallOriginalDataDir, "app.db");
   let loaded;
@@ -240,6 +248,46 @@ function main(): void {
     liveProofInput: freshProofInput,
     expectedDeploySha,
   });
+  let paidRunnerPreapproval = null;
+  try {
+    const pack = preparePaidRunnerPack({
+      rows,
+      mainSha: expectedDeploySha,
+      productionDeploySha: freshProofInput.deployedGitSha,
+    });
+    const identityHashesMatchProof = paidRunnerIdentityHashesMatchProof(
+      pack.manifest.identityHashes,
+      {
+        greetingSha256: freshProofInput.greetingSha256,
+        systemPromptSha256: freshProofInput.systemPromptSha256,
+        worldSha256: freshProofInput.worldSha256,
+        settingChunksSha256: freshProofInput.settingChunksSha256,
+        personaPublicSha256: freshProofInput.personaPublicSha256,
+      }
+    );
+    paidRunnerPreapproval = buildPaidRunnerPreapprovalProjection({
+      pack,
+      assemblySourceSha: prHead,
+      proofStatus: freshProof.status,
+      costPlanning,
+      identityHashesMatchProof,
+      productionSuccess: expectedDeploySha === freshProofInput.deployedGitSha,
+      productionShaMatchesMain:
+        Boolean(mainSha) &&
+        expectedDeploySha === mainSha &&
+        expectedDeploySha === freshProofInput.deployedGitSha,
+      liveTransportIncluded,
+      rawSourceLeak: false,
+      secretLeak: false,
+      keyPresence: readPaidRunnerExperimentKeyPresence(process.env),
+    });
+  } catch (error) {
+    if (error instanceof PrecallAssemblyStop) fail(`ASSEMBLY_STOP_${error.code}`, { proofSummary });
+    fail("PAID_RUNNER_PREPARE_FAILED", {
+      proofSummary,
+      errorName: error instanceof Error ? error.name : "Error",
+    });
+  }
 
   const scratchDbFiles = readdirSync(precallTempDataDir).length;
   rmSync(precallTempDataDir, { recursive: true, force: true });
@@ -290,6 +338,7 @@ function main(): void {
       assembly: finalWire.assembly,
     },
     costPlanning,
+    paidRunnerPreapproval,
     scores: null,
     rawSourceTextPrinted: false,
   };
