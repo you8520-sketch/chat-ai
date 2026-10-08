@@ -118,9 +118,21 @@ describe("rp quality paid runner sealed prepare", () => {
       providerPosts: number;
       liveTransport: string;
       authorized: boolean;
+      approvalStatus: string;
+      egress: {
+        attemptsBlocked: number;
+        unexpectedAttempts: number;
+        transmitted: number | null;
+        guard: string;
+      };
     };
     assert.equal(report.providerPosts, 0);
     assert.equal(report.liveTransport, "LIVE_TRANSPORT_NOT_SHIPPED");
     assert.equal(report.authorized, false);
+    assert.equal(report.approvalStatus, "NOT_APPROVED");
+    assert.equal(report.egress.guard, "rpQualityPrecallEgressGuard");
+    assert.equal(report.egress.unexpectedAttempts, 0);
+    assert.equal(report.egress.transmitted, 0);
+    assert.equal(typeof report.egress.attemptsBlocked, "number");
   });
 });

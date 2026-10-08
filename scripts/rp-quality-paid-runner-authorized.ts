@@ -2,7 +2,16 @@
  * Explicit operator entrypoint for authorized execution.
  * This PR evaluates gates only. Live transport is not shipped, so POST stays 0
  * even when every authorization field is present.
+ *
+ * First import is the existing PRECALL egress guard. This prepare-only process
+ * cannot open sockets, resolve DNS, or POST. Do not add a second guard.
  */
+import "./lib/rpQualityPrecallEgressGuard";
+
+import {
+  precallEgressAttempts,
+  precallUnexpectedEgressAttempts,
+} from "./lib/rpQualityPrecallEgressGuard";
 import {
   MAIN_RP_MODEL_IDS,
   type SelectedAI,
@@ -52,19 +61,34 @@ const gate = manifest
   ? evaluatePaidRunnerAuthorization(manifest, authorization, "AUTHORIZED")
   : { authorized: false as const, reason: "MANIFEST_FINGERPRINT_MISMATCH" as const, providerPosts: 0 as const };
 
+const blocked = precallEgressAttempts();
+const unexpected = precallUnexpectedEgressAttempts();
+const unexpectedEgress = unexpected.length > 0;
+
 process.stdout.write(
   `${JSON.stringify(
     {
       ok: false,
       mode: "AUTHORIZED",
-      authorized: gate.authorized,
-      denialReason: gate.authorized ? liveTransportError : gate.reason,
+      authorized: unexpectedEgress ? false : gate.authorized,
+      denialReason: unexpectedEgress
+        ? "UNEXPECTED_EGRESS"
+        : gate.authorized
+          ? liveTransportError
+          : gate.reason,
       providerPosts: 0,
-      networkAttempts: 0,
       dbWrites: 0,
       liveTransport: liveTransportError,
+      approvalStatus: "NOT_APPROVED",
+      egress: {
+        attemptsBlocked: blocked.length,
+        unexpectedAttempts: unexpected.length,
+        transmitted: unexpectedEgress ? null : 0,
+        guard: "rpQualityPrecallEgressGuard",
+      },
     },
     null,
     2
   )}\n`
 );
+if (unexpectedEgress) process.exitCode = 2;
