@@ -23,6 +23,8 @@ on:
       - "src/lib/memory/memory50TurnAbPrep.test.ts"
       - "src/lib/memory/memory50TurnAbScript.ts"
       - "src/lib/memory/memory50TurnAbAnswerKey.ts"
+      - "src/lib/memory/memory50TurnAbRunner.ts"
+      - "src/lib/memory/memory50TurnAbRunner.test.ts"
       - "src/lib/memory/memory-global-current-memory.test.ts"
       - "src/lib/memory/memory-global-compact-race.test.ts"
       - "src/lib/memory/memory-global-checkpoint.ts"
@@ -135,6 +137,9 @@ jobs:
 
       - name: 50-turn memory A/B preflight (provider-free)
         run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory50TurnAbPrep.test.ts
+
+      - name: 50-turn memory A/B runner preflight (provider-free)
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory50TurnAbRunner.test.ts
 
       - name: Memory architecture audit
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-architecture-audit.test.ts
