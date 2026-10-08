@@ -40,6 +40,7 @@ export type PrecallEgressChannel =
 export type PrecallEgressAttempt = {
   channel: PrecallEgressChannel;
   host: string;
+  method: string;
   /** First stack frame outside this guard and node internals: file:line only. */
   origin: string;
 };
@@ -71,6 +72,32 @@ export function precallEgressAttempts(): readonly PrecallEgressAttempt[] {
   return attempts;
 }
 
+/**
+ * App-owned import-time side effect: `pointsMuse60` resolves point rates at module
+ * init, which schedules a public exchange-rate GET. The guard rejects it before any
+ * transport; billing FX for PRECALL comes from the DB snapshot, never from this call.
+ * It is the only attempt tolerated. Every other attempt fails the run.
+ */
+export const PRECALL_KNOWN_BLOCKED_NON_PROVIDER_ATTEMPT = Object.freeze({
+  channel: "fetch",
+  host: "open.er-api.com",
+  method: "GET",
+  origin: "src/lib/exchangeRate.ts:71",
+} as const);
+
+export function precallUnexpectedEgressAttempts(): readonly PrecallEgressAttempt[] {
+  const known = PRECALL_KNOWN_BLOCKED_NON_PROVIDER_ATTEMPT;
+  return attempts.filter(
+    (attempt) =>
+      !(
+        attempt.channel === known.channel &&
+        attempt.host === known.host &&
+        attempt.method === known.method &&
+        attempt.origin === known.origin
+      )
+  );
+}
+
 function callerOrigin(): string {
   const frames = (new Error().stack ?? "").split("\n").slice(1);
   for (const frame of frames) {
@@ -84,10 +111,11 @@ function callerOrigin(): string {
   return "<unknown>";
 }
 
-function block(channel: PrecallEgressChannel, host: unknown): never {
+function block(channel: PrecallEgressChannel, host: unknown, method = "n/a"): never {
   attempts.push({
     channel,
     host: typeof host === "string" ? host.slice(0, 120) : "<unknown>",
+    method,
     origin: callerOrigin(),
   });
   throw new PrecallEgressBlockedError(channel);
@@ -126,8 +154,15 @@ for (const method of ["log", "info", "debug", "warn", "error", "trace"] as const
   console[method] = () => undefined;
 }
 
-globalThis.fetch = (async (input: unknown) => {
-  block("fetch", hostOfFetchInput(input));
+function methodOfFetch(input: unknown, init: unknown): string {
+  const fromInit = (init as { method?: unknown } | undefined)?.method;
+  if (typeof fromInit === "string") return fromInit.toUpperCase();
+  const fromRequest = (input as { method?: unknown } | null)?.method;
+  return typeof fromRequest === "string" ? fromRequest.toUpperCase() : "GET";
+}
+
+globalThis.fetch = (async (input: unknown, init?: unknown) => {
+  block("fetch", hostOfFetchInput(input), methodOfFetch(input, init));
 }) as typeof fetch;
 
 net.Socket.prototype.connect = function blockedConnect(...args: unknown[]): never {

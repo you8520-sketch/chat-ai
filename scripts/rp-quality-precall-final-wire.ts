@@ -26,6 +26,7 @@ import {
 } from "../src/lib/rpQualityPrecall";
 import {
   precallEgressAttempts,
+  precallUnexpectedEgressAttempts,
   precallOriginalDataDir,
   precallTempDataDir,
 } from "./lib/rpQualityPrecallEgressGuard";
@@ -249,6 +250,8 @@ function main(): void {
     providerPosts: 0,
     egress: {
       attemptsBlocked: egressAttempts.length,
+      unexpectedAttempts: 0,
+      blockedAttempts: egressAttempts,
       transmitted: 0,
       guard: "fail_closed_before_transport",
     },
@@ -292,7 +295,8 @@ function main(): void {
   };
 
   const serialized = JSON.stringify(output, null, 2);
-  if (egressAttempts.length !== 0) fail("PROVIDER_EGRESS_ATTEMPTED", { attempts: egressAttempts });
+  const unexpectedEgress = precallUnexpectedEgressAttempts();
+  if (unexpectedEgress.length !== 0) fail("EGRESS_ATTEMPTED", { attempts: unexpectedEgress });
   if (stringContainsSecretShape(serialized)) fail("SECRET_SHAPED_VALUE_IN_OUTPUT");
   if (findRawSourceLeak(serialized, rawTextsForLeakCheck(rows))) fail("RAW_SOURCE_LEAK_IN_OUTPUT");
 
