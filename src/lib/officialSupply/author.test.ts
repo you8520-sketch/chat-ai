@@ -6,6 +6,7 @@ import { after, before, describe, it } from "node:test";
 import { BACKGROUND_OPENROUTER_MODEL } from "@/lib/ai";
 import {
   assembleOfficialCharacterBible,
+  createAuthorCostReport,
   generateOfficialAssetPlan,
   generateOfficialCharacterBible,
   generateOfficialStyleBoard,
@@ -16,10 +17,16 @@ import {
   validatePilotBible,
   validatePilotDraftForTextLock,
   validatePilotLorebook,
+  withAuthorAccounting,
   type OfficialAuthorRawCompletion,
   type OfficialAuthorTransport,
 } from "@/lib/officialSupply/author";
-import { compileOfficialDraftFromBible, validateCharacterBible, validateWorldBible } from "@/lib/officialSupply/bible";
+import {
+  CHARACTER_VOICE_SCHEMA,
+  compileOfficialDraftFromBible,
+  validateCharacterBible,
+  validateWorldBible,
+} from "@/lib/officialSupply/bible";
 import type { OfficialWorldBible } from "@/lib/officialSupply/bible";
 import {
   CONTRACT_GREETING,
@@ -54,6 +61,57 @@ function fakeTransport(responses: Record<string, unknown>): OfficialAuthorTransp
       if (data === undefined) throw new Error(`no fake response for ${input.task}`);
       return fakeCompletion(typeof data === "string" ? data : JSON.stringify(data));
     },
+  };
+}
+
+function recordingTransport(responses: Record<string, unknown>): {
+  transport: OfficialAuthorTransport;
+  tasks: string[];
+} {
+  const tasks: string[] = [];
+  return {
+    tasks,
+    transport: {
+      label: "fake-recording",
+      async completeJson(input) {
+        tasks.push(input.task);
+        const data = responses[input.task];
+        if (data === undefined) throw new Error(`no fake response for ${input.task}`);
+        return fakeCompletion(typeof data === "string" ? data : JSON.stringify(data));
+      },
+    },
+  };
+}
+
+const GENERATION_BRIEF = {
+  slot: 1,
+  name: "카엘",
+  gender: "male" as const,
+  age: 27,
+  archetype: "기사",
+  relationshipTrope: "경계",
+  occupation: "기사단장",
+  faction: "기사단",
+  socialPosition: "고위",
+  personalityCore: "냉정",
+  visualSilhouette: "장신",
+  rpHook: "순찰",
+  adultCandidate: false,
+  speechDirection: "단호",
+  audience: "female" as const,
+};
+
+function generationArgs(transport: OfficialAuthorTransport) {
+  return {
+    transport,
+    part1: {
+      brief: GENERATION_BRIEF,
+      worldName: "테스트",
+      worldContext: "맥락",
+      siblingSketches: [],
+    },
+    voice: { name: "카엘", age: 27, adultCandidate: false, speechDirection: "단호", npcDemand: "없음" },
+    bonds: { name: "카엘", age: 27, rpHook: "순찰", adultCandidate: false, castList: [] },
   };
 }
 
@@ -223,6 +281,15 @@ function splitHalf2(combined: Record<string, unknown>): [Record<string, unknown>
   ];
 }
 
+function voiceWithNpcRelation(relation: unknown, mode: "set" | "omit" = "set"): Record<string, unknown> {
+  const [voice] = splitHalf2(fakeHalf2({ npcCount: 1 }));
+  const source = ((voice.npcs as unknown[])[0] ?? {}) as Record<string, unknown>;
+  const npc = { ...source };
+  if (mode === "omit") delete npc.relationToChar;
+  else npc.relationToChar = relation;
+  return { ...voice, npcs: [npc] };
+}
+
 const STAGING_KEYS = {
   draftKey: "pilot-test-01",
   worldKey: "pilot-test-world",
@@ -268,6 +335,15 @@ describe("official author adapter", () => {
       const source = fs.readFileSync(path.join(DIR, file), "utf8");
       assert.doesNotMatch(source, /gpt-6-luna|deepseek-v4|gemini-3\.|claude-opus|qwen-|glm-|gpt-5\.6/, file);
     }
+  });
+
+  it("Voice schema is advisory only: json_object transport and no NPC required list", () => {
+    const author = fs.readFileSync(path.join(DIR, "author.ts"), "utf8");
+    assert.match(author, /responseFormat: "json_object"/);
+    assert.doesNotMatch(author, /responseFormat: "json_schema"/);
+    const npcItems = (CHARACTER_VOICE_SCHEMA as { properties: { npcs: { items: { required?: string[] } } } }).properties
+      .npcs.items;
+    assert.equal(npcItems.required, undefined);
   });
 
   it("strict JSON parse accepts fenced JSON and rejects patched prose", () => {
@@ -427,40 +503,99 @@ describe("official author adapter", () => {
 
   it("three-call bible generation assembles through the canonical path (fake transport)", async () => {
     const [voice, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
-    const transport = fakeTransport({
-      character_bible_1: fakeHalf1(),
-      character_bible_voice: voice,
-      character_bible_bonds: bonds,
-    });
-    const { bible } = await generateOfficialCharacterBible({
-      transport,
-      part1: {
-        brief: {
-          slot: 1,
-          name: "카엘",
-          gender: "male",
-          age: 27,
-          archetype: "기사",
-          relationshipTrope: "경계",
-          occupation: "기사단장",
-          faction: "기사단",
-          socialPosition: "고위",
-          personalityCore: "냉정",
-          visualSilhouette: "장신",
-          rpHook: "순찰",
-          adultCandidate: false,
-          speechDirection: "단호",
-          audience: "female",
-        },
-        worldName: "테스트",
-        worldContext: "맥락",
-        siblingSketches: [],
-      },
-      voice: { name: "카엘", age: 27, adultCandidate: false, speechDirection: "단호", npcDemand: "없음" },
-      bonds: { name: "카엘", age: 27, rpHook: "순찰", adultCandidate: false, castList: [] },
-    });
+    const { bible } = await generateOfficialCharacterBible(
+      generationArgs(
+        fakeTransport({
+          character_bible_1: fakeHalf1(),
+          character_bible_voice: voice,
+          character_bible_bonds: bonds,
+        })
+      )
+    );
     assert.equal(bible.promptStandard, "compact_rp_v1");
     assert.equal(validatePilotBible(bible, { adultExpected: false }).ok, true);
+  });
+
+  it("Voice NPC relationToChar shape is rejected at assemble with the exact field path", () => {
+    const [, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+    const cases: Array<{ label: string; voice: Record<string, unknown> }> = [
+      { label: "missing", voice: voiceWithNpcRelation(undefined, "omit") },
+      { label: "empty", voice: voiceWithNpcRelation("") },
+      { label: "blank", voice: voiceWithNpcRelation("   ") },
+      { label: "null", voice: voiceWithNpcRelation(null) },
+      { label: "number", voice: voiceWithNpcRelation(12) },
+    ];
+    for (const { label, voice } of cases) {
+      assert.throws(
+        () => assembleOfficialCharacterBible(fakeHalf1(), voice, bonds),
+        (error: unknown) => {
+          assert.ok(error instanceof OfficialSupplyGateError, label);
+          assert.equal(error.code, "author_shape_invalid", label);
+          assert.match(error.message, /npcs\[0\]\.relationToChar must be a non-empty string/, label);
+          return true;
+        },
+        label
+      );
+    }
+    const valid = assembleOfficialCharacterBible(fakeHalf1(), voiceWithNpcRelation("카엘과 5년째 함께함"), bonds);
+    assert.equal(valid.npcs[0]?.relationToChar, "카엘과 5년째 함께함");
+  });
+
+  it("invalid Voice NPC relation rejects before Bonds and does not invent a relationship", async () => {
+    const [, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+    const { transport, tasks } = recordingTransport({
+      character_bible_1: fakeHalf1(),
+      character_bible_voice: voiceWithNpcRelation(undefined, "omit"),
+      character_bible_bonds: bonds,
+    });
+    await assert.rejects(
+      () => generateOfficialCharacterBible(generationArgs(transport)),
+      (error: unknown) => {
+        assert.ok(error instanceof OfficialSupplyGateError);
+        assert.equal(error.code, "author_shape_invalid");
+        assert.match(error.message, /npcs\[0\]\.relationToChar must be a non-empty string/);
+        return true;
+      }
+    );
+    assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice"]);
+  });
+
+  it("valid 0/1/3 Voice NPCs still call Bonds and leave relation text unchanged", async () => {
+    for (const npcCount of [0, 1, 3] as const) {
+      const [voice, bonds] = splitHalf2(fakeHalf2({ npcCount }));
+      const { transport, tasks } = recordingTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: voice,
+        character_bible_bonds: bonds,
+      });
+      const { bible } = await generateOfficialCharacterBible(generationArgs(transport));
+      assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice", "character_bible_bonds"], `npc=${npcCount}`);
+      assert.equal(bible.npcs.length, npcCount, `npc=${npcCount}`);
+      for (const npc of bible.npcs) {
+        assert.equal(npc.relationToChar, "카엘과 5년째 함께함");
+      }
+      assert.equal(validatePilotBible(bible, { adultExpected: false }).ok, true, `npc=${npcCount}`);
+    }
+  });
+
+  it("billed Voice shape rejection counts Part1 and Voice once and never starts Bonds", async () => {
+    const report = createAuthorCostReport();
+    const [, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+    const inner = recordingTransport({
+      character_bible_1: fakeHalf1(),
+      character_bible_voice: voiceWithNpcRelation(""),
+      character_bible_bonds: bonds,
+    });
+    const transport = withAuthorAccounting(inner.transport, report, { draftKey: "pilot-rf-shape", workflowAttempt: 1 });
+    await assert.rejects(() => generateOfficialCharacterBible(generationArgs(transport)));
+    assert.deepEqual(inner.tasks, ["character_bible_1", "character_bible_voice"]);
+    assert.equal(report.successfulCompletions, 2);
+    assert.equal(report.failedProviderAttempts, 0);
+    assert.equal(report.physicalAttempts, 2);
+    assert.deepEqual(
+      report.lines.map((line) => `${line.task}:${line.outcome}`),
+      ["character_bible_1:success", "character_bible_voice:success"]
+    );
   });
 
   it("prompt standard is stamped by canonical code even when provider Part1 omits it", async () => {
