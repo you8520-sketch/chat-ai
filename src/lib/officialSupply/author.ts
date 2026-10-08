@@ -24,6 +24,8 @@ import {
   buildCharacterBondsUser,
   buildCharacterVoiceSystem,
   buildCharacterVoiceUser,
+  buildNpcRelationRepairSystem,
+  buildNpcRelationRepairUser,
   buildPortfolioReplacementUser,
   buildStyleBoardSystem,
   buildStyleBoardUser,
@@ -54,6 +56,7 @@ import {
   CHARACTER_BONDS_SCHEMA,
   CHARACTER_VOICE_SCHEMA,
   compileOfficialDraftFromBible,
+  NPC_RELATION_REPAIR_SCHEMA,
   validateCharacterBible,
   validateWorldBible,
   WORLD_BIBLE_SCHEMA,
@@ -322,6 +325,43 @@ function stripCodeFence(text: string): string {
   return (fenced ? fenced[1] : trimmed).trim();
 }
 
+/** Physical provider calls allowed for one approved character run, shared by every workflow attempt. */
+export const OFFICIAL_CHARACTER_CALL_CAP = 4;
+
+export class OfficialAuthorCallBudget {
+  private spent = 0;
+
+  constructor(readonly cap: number) {}
+
+  get used(): number {
+    return this.spent;
+  }
+
+  consume(task: OfficialAuthorTask): void {
+    if (this.spent >= this.cap) {
+      throw new OfficialSupplyGateError("author_call_budget_exhausted", `${task}: call budget ${this.cap} exhausted`);
+    }
+    this.spent += 1;
+  }
+}
+
+/**
+ * Must wrap the accounting transport from the outside: a call refused here never
+ * reaches the provider and never produces a cost line.
+ */
+export function withOfficialAuthorCallBudget(
+  inner: OfficialAuthorTransport,
+  budget: OfficialAuthorCallBudget
+): OfficialAuthorTransport {
+  return {
+    label: `${inner.label}+call-budget`,
+    async completeJson(input) {
+      budget.consume(input.task);
+      return inner.completeJson(input);
+    },
+  };
+}
+
 /**
  * Strict JSON parse — no regex patching. A model that cannot emit valid JSON
  * is retried at the character level, never repaired with string surgery.
@@ -339,9 +379,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function requiredString(obj: Record<string, unknown>, key: string, task: string, fieldPath = key): string {
   const value = obj[key];
-  if (typeof value !== "string" || !value.trim()) {
+  if (!isNonEmptyString(value)) {
     throw new OfficialSupplyGateError("author_shape_invalid", `${task}: ${fieldPath} must be a non-empty string`);
   }
   return value;
@@ -815,10 +859,93 @@ function coerceNpc(raw: unknown, index: number): OfficialCharacterBible["npcs"][
   };
 }
 
+type VoiceNpcShapeIssue = { index: number; field: "npc" | "name" | "role" | "relationToChar" };
+
+/**
+ * Classifies Voice NPC shape failures so only a relation-only defect may be
+ * repaired. Throwing stays with coerceNpc, the single owner of the contract.
+ */
+function voiceNpcShapeIssues(voiceHalf: Record<string, unknown>): VoiceNpcShapeIssue[] {
+  const npcs = Array.isArray(voiceHalf.npcs) ? voiceHalf.npcs : [];
+  return npcs.flatMap((raw, index): VoiceNpcShapeIssue[] => {
+    if (!isRecord(raw)) return [{ index, field: "npc" }];
+    return (["name", "role", "relationToChar"] as const)
+      .filter((field) => !isNonEmptyString(raw[field]))
+      .map((field) => ({ index, field }));
+  });
+}
+
 /** Voice NPC required strings — same coerce as assemble, before Bonds is billed. */
 function assertVoiceNpcShape(voiceHalf: Record<string, unknown>): void {
   const npcs = Array.isArray(voiceHalf.npcs) ? voiceHalf.npcs : [];
   for (const [index, npc] of npcs.entries()) coerceNpc(npc, index);
+}
+
+function npcRelationRejected(detail: string): OfficialSupplyGateError {
+  return new OfficialSupplyGateError("author_npc_relation_rejected", `character_npc_relation: ${detail}`);
+}
+
+/**
+ * One provider call for the NPCs whose only defect is relationToChar. Only that
+ * string is copied back; name, role, other NPCs, and every other Voice field are
+ * kept as the original provider output.
+ */
+async function repairVoiceNpcRelations(input: {
+  transport: OfficialAuthorTransport;
+  name: string;
+  part1Recap: string;
+  voiceHalf: Record<string, unknown>;
+  issues: VoiceNpcShapeIssue[];
+  modelId?: string;
+}): Promise<{ voiceHalf: Record<string, unknown>; completion: OfficialAuthorRawCompletion }> {
+  const npcs = input.voiceHalf.npcs as unknown[];
+  const targets = [...new Set(input.issues.map((issue) => issue.index))];
+  const completion = await input.transport.completeJson({
+    task: "character_npc_relation",
+    system: buildNpcRelationRepairSystem(),
+    user: buildNpcRelationRepairUser({
+      name: input.name,
+      part1Recap: input.part1Recap,
+      npcs: targets.map((index) => {
+        const npc = npcs[index] as Record<string, unknown>;
+        return {
+          index,
+          name: String(npc.name ?? ""),
+          role: String(npc.role ?? ""),
+          personalityKeywords: optionalStringArray(npc.personalityKeywords),
+          appearance: typeof npc.appearance === "string" ? npc.appearance : "",
+        };
+      }),
+    }),
+    schemaName: "official_npc_relation_repair",
+    schema: NPC_RELATION_REPAIR_SCHEMA,
+    modelId: input.modelId,
+  });
+  const data = parseAuthorJson(completion.text, "character_npc_relation");
+  if (!isRecord(data) || !Array.isArray(data.npcs)) throw npcRelationRejected("npcs array required");
+
+  const relations = new Map<number, string>();
+  for (const entry of data.npcs) {
+    if (!isRecord(entry) || typeof entry.index !== "number" || !targets.includes(entry.index) || relations.has(entry.index)) {
+      throw npcRelationRejected("entry index is unknown, duplicated, or missing");
+    }
+    if (!isNonEmptyString(entry.relationToChar)) {
+      throw npcRelationRejected(`npcs[${entry.index}].relationToChar must be a non-empty string`);
+    }
+    relations.set(entry.index, entry.relationToChar.trim());
+  }
+  const missing = targets.filter((index) => !relations.has(index));
+  if (missing.length > 0) throw npcRelationRejected(`no relation returned for npcs ${missing.join(",")}`);
+
+  return {
+    voiceHalf: {
+      ...input.voiceHalf,
+      npcs: npcs.map((npc, index) =>
+        relations.has(index) ? { ...(npc as Record<string, unknown>), relationToChar: relations.get(index) } : npc
+      ),
+    },
+    completion,
+  };
 }
 
 export async function generateOfficialCharacterBible(input: {
@@ -827,9 +954,12 @@ export async function generateOfficialCharacterBible(input: {
   voice: Omit<CharacterVoiceInput, "part1Recap"> & { part1Recap?: string };
   bonds: Omit<CharacterBondsInput, "part1Recap"> & { part1Recap?: string };
   modelId?: string;
+  /** Opt-in: one targeted call may repair relation-only NPC defects. Default off. */
+  npcRelationRepair?: boolean;
 }): Promise<{
   bible: OfficialCharacterBible;
   completions: [OfficialAuthorRawCompletion, OfficialAuthorRawCompletion, OfficialAuthorRawCompletion];
+  npcRelationRepairs: OfficialAuthorRawCompletion[];
 }> {
   const first = await input.transport.completeJson({
     task: "character_bible_1",
@@ -851,9 +981,24 @@ export async function generateOfficialCharacterBible(input: {
     schema: CHARACTER_VOICE_SCHEMA,
     modelId: input.modelId,
   });
-  const voiceHalf = parseAuthorJson(second.text, "character_bible_voice");
-  if (!isRecord(voiceHalf)) {
+  const voiceRaw = parseAuthorJson(second.text, "character_bible_voice");
+  if (!isRecord(voiceRaw)) {
     throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_voice: object required");
+  }
+  let voiceHalf = voiceRaw;
+  const npcRelationRepairs: OfficialAuthorRawCompletion[] = [];
+  const npcIssues = voiceNpcShapeIssues(voiceRaw);
+  if (input.npcRelationRepair && npcIssues.length > 0 && npcIssues.every((issue) => issue.field === "relationToChar")) {
+    const repaired = await repairVoiceNpcRelations({
+      transport: input.transport,
+      name: input.voice.name,
+      part1Recap: recap,
+      voiceHalf: voiceRaw,
+      issues: npcIssues,
+      modelId: input.modelId,
+    });
+    voiceHalf = repaired.voiceHalf;
+    npcRelationRepairs.push(repaired.completion);
   }
   assertVoiceNpcShape(voiceHalf);
   const third = await input.transport.completeJson({
@@ -873,6 +1018,7 @@ export async function generateOfficialCharacterBible(input: {
   return {
     bible: { ...bible, promptStandard: "compact_rp_v1" },
     completions: [first, second, third],
+    npcRelationRepairs,
   };
 }
 

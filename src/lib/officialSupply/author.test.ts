@@ -17,7 +17,11 @@ import {
   validatePilotBible,
   validatePilotDraftForTextLock,
   validatePilotLorebook,
+  OFFICIAL_CHARACTER_CALL_CAP,
+  OfficialAuthorCallBudget,
+  reviseOfficialCharacterVoice,
   withAuthorAccounting,
+  withOfficialAuthorCallBudget,
   type OfficialAuthorRawCompletion,
   type OfficialAuthorTransport,
 } from "@/lib/officialSupply/author";
@@ -596,6 +600,329 @@ describe("official author adapter", () => {
       report.lines.map((line) => `${line.task}:${line.outcome}`),
       ["character_bible_1:success", "character_bible_voice:success"]
     );
+  });
+
+  describe("NPC relation targeted repair", () => {
+    const REPAIR_RELATION = "카엘과 5년째 함께함";
+    const REPAIR_TASKS = ["character_bible_1", "character_bible_voice", "character_npc_relation", "character_bible_bonds"];
+
+    function repairResponse(entries: Array<{ index: unknown; relationToChar: unknown }>): Record<string, unknown> {
+      return { npcs: entries };
+    }
+
+    function npcVoice(npcCount: 1 | 3, mutate: (npcs: Record<string, unknown>[]) => void): Record<string, unknown> {
+      const [voice] = splitHalf2(fakeHalf2({ npcCount }));
+      const npcs = (voice.npcs as Record<string, unknown>[]).map((npc) => ({ ...npc }));
+      mutate(npcs);
+      return { ...voice, npcs };
+    }
+
+    function scriptedTransport(responses: Record<string, unknown>, costUsd = 0) {
+      const calls: Array<{ task: string; schemaName: string }> = [];
+      const transport: OfficialAuthorTransport = {
+        label: "fake-scripted",
+        async completeJson(input) {
+          calls.push({ task: input.task, schemaName: input.schemaName });
+          const data = responses[input.task];
+          if (data === undefined) throw new Error(`no fake response for ${input.task}`);
+          return { ...fakeCompletion(typeof data === "string" ? data : JSON.stringify(data)), costUsd };
+        },
+      };
+      return { transport, calls };
+    }
+
+    const tasksOf = (calls: Array<{ task: string }>) => calls.map((call) => call.task);
+
+    it("repair OFF keeps fail-closed and never calls the repair task", async () => {
+      const [, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+      const { transport, calls } = scriptedTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: voiceWithNpcRelation(undefined, "omit"),
+        character_bible_bonds: bonds,
+        character_npc_relation: repairResponse([{ index: 0, relationToChar: REPAIR_RELATION }]),
+      });
+      await assert.rejects(
+        () => generateOfficialCharacterBible(generationArgs(transport)),
+        (error: unknown) => {
+          assert.ok(error instanceof OfficialSupplyGateError);
+          assert.equal(error.code, "author_shape_invalid");
+          return true;
+        }
+      );
+      assert.deepEqual(tasksOf(calls), ["character_bible_1", "character_bible_voice"]);
+    });
+
+    it("repair ON adds no call for valid 0/1/3 NPCs", async () => {
+      for (const npcCount of [0, 1, 3] as const) {
+        const [voice, bonds] = splitHalf2(fakeHalf2({ npcCount }));
+        const { transport, calls } = scriptedTransport({
+          character_bible_1: fakeHalf1(),
+          character_bible_voice: voice,
+          character_bible_bonds: bonds,
+        });
+        const out = await generateOfficialCharacterBible({ ...generationArgs(transport), npcRelationRepair: true });
+        assert.deepEqual(tasksOf(calls), ["character_bible_1", "character_bible_voice", "character_bible_bonds"], `npc=${npcCount}`);
+        assert.deepEqual(out.npcRelationRepairs, [], `npc=${npcCount}`);
+        assert.equal(validatePilotBible(out.bible, { adultExpected: false }).ok, true, `npc=${npcCount}`);
+      }
+    });
+
+    it("missing relationToChar gets one targeted repair and the repaired bible matches the valid baseline", async () => {
+      const [baseVoice, bonds] = splitHalf2(fakeHalf2({ npcCount: 1 }));
+      const baseline = await generateOfficialCharacterBible(
+        generationArgs(
+          scriptedTransport({
+            character_bible_1: fakeHalf1(),
+            character_bible_voice: baseVoice,
+            character_bible_bonds: bonds,
+          }).transport
+        )
+      );
+      const { transport, calls } = scriptedTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: voiceWithNpcRelation(undefined, "omit"),
+        character_bible_bonds: bonds,
+        character_npc_relation: repairResponse([{ index: 0, relationToChar: REPAIR_RELATION }]),
+      });
+      const out = await generateOfficialCharacterBible({ ...generationArgs(transport), npcRelationRepair: true });
+      assert.deepEqual(tasksOf(calls), REPAIR_TASKS);
+      assert.equal(calls[2]?.schemaName, "official_npc_relation_repair");
+      assert.equal(out.npcRelationRepairs.length, 1);
+      assert.equal(JSON.stringify(out.bible), JSON.stringify(baseline.bible));
+    });
+
+    it("repair changes only the broken NPC relation field and keeps every other Voice and Part1 field", async () => {
+      const [baseVoice, bonds] = splitHalf2(fakeHalf2({ npcCount: 1 }));
+      const baseline = await generateOfficialCharacterBible(
+        generationArgs(
+          scriptedTransport({
+            character_bible_1: fakeHalf1(),
+            character_bible_voice: baseVoice,
+            character_bible_bonds: bonds,
+          }).transport
+        )
+      );
+      const { transport } = scriptedTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: voiceWithNpcRelation(undefined, "omit"),
+        character_bible_bonds: bonds,
+        character_npc_relation: repairResponse([{ index: 0, relationToChar: `  ${REPAIR_RELATION} ` }]),
+      });
+      const out = await generateOfficialCharacterBible({ ...generationArgs(transport), npcRelationRepair: true });
+      const { npcs: repairedNpcs, ...repairedRest } = out.bible;
+      const { npcs: baselineNpcs, ...baselineRest } = baseline.bible;
+      assert.equal(JSON.stringify(repairedRest), JSON.stringify(baselineRest));
+      assert.equal(repairedNpcs[0]?.relationToChar, REPAIR_RELATION);
+      assert.equal(JSON.stringify({ ...repairedNpcs[0], relationToChar: "" }), JSON.stringify({ ...baselineNpcs[0], relationToChar: "" }));
+    });
+
+    it("invalid repair results fail closed before Bonds without a second repair call", async () => {
+      const [, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+      const singleBroken = () => voiceWithNpcRelation(undefined, "omit");
+      const doubleBroken = () =>
+        npcVoice(3, (npcs) => {
+          delete npcs[0]?.relationToChar;
+          delete npcs[2]?.relationToChar;
+        });
+      const cases: Array<{ label: string; voice: Record<string, unknown>; repair: unknown }> = [
+        { label: "empty", voice: singleBroken(), repair: repairResponse([{ index: 0, relationToChar: "" }]) },
+        { label: "blank", voice: singleBroken(), repair: repairResponse([{ index: 0, relationToChar: "   " }]) },
+        { label: "null", voice: singleBroken(), repair: repairResponse([{ index: 0, relationToChar: null }]) },
+        { label: "number", voice: singleBroken(), repair: repairResponse([{ index: 0, relationToChar: 12 }]) },
+        { label: "unknown index", voice: singleBroken(), repair: repairResponse([{ index: 1, relationToChar: REPAIR_RELATION }]) },
+        { label: "duplicate index", voice: singleBroken(), repair: repairResponse([{ index: 0, relationToChar: REPAIR_RELATION }, { index: 0, relationToChar: REPAIR_RELATION }]) },
+        { label: "no npcs array", voice: singleBroken(), repair: {} },
+        { label: "missing one of two", voice: doubleBroken(), repair: repairResponse([{ index: 0, relationToChar: REPAIR_RELATION }]) },
+      ];
+      for (const { label, voice, repair } of cases) {
+        const { transport, calls } = scriptedTransport({
+          character_bible_1: fakeHalf1(),
+          character_bible_voice: voice,
+          character_bible_bonds: bonds,
+          character_npc_relation: repair,
+        });
+        await assert.rejects(
+          () => generateOfficialCharacterBible({ ...generationArgs(transport), npcRelationRepair: true }),
+          (error: unknown) => {
+            assert.ok(error instanceof OfficialSupplyGateError, label);
+            assert.equal(error.code, "author_npc_relation_rejected", label);
+            return true;
+          },
+          label
+        );
+        assert.deepEqual(tasksOf(calls), ["character_bible_1", "character_bible_voice", "character_npc_relation"], label);
+      }
+    });
+
+    it("several broken relations share one repair call and untouched NPCs stay identical", async () => {
+      const [, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+      const voice = npcVoice(3, (npcs) => {
+        delete npcs[0]?.relationToChar;
+        delete npcs[2]?.relationToChar;
+      });
+      const { transport, calls } = scriptedTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: voice,
+        character_bible_bonds: bonds,
+        character_npc_relation: repairResponse([
+          { index: 0, relationToChar: "첫째 관계" },
+          { index: 2, relationToChar: "셋째 관계" },
+        ]),
+      });
+      const out = await generateOfficialCharacterBible({ ...generationArgs(transport), npcRelationRepair: true });
+      assert.deepEqual(tasksOf(calls), REPAIR_TASKS);
+      assert.equal(out.bible.npcs.length, 3);
+      assert.deepEqual(
+        out.bible.npcs.map((npc) => npc.relationToChar),
+        ["첫째 관계", "카엘과 5년째 함께함", "셋째 관계"]
+      );
+      assert.equal(out.bible.npcs[1]?.name, (voice.npcs as Record<string, unknown>[])[1]?.name);
+    });
+
+    it("a broken NPC name or role never triggers relation repair", async () => {
+      const [, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+      const voice = npcVoice(1, (npcs) => {
+        npcs[0]!.role = "  ";
+        delete npcs[0]?.relationToChar;
+      });
+      const { transport, calls } = scriptedTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: voice,
+        character_bible_bonds: bonds,
+        character_npc_relation: repairResponse([{ index: 0, relationToChar: REPAIR_RELATION }]),
+      });
+      await assert.rejects(
+        () => generateOfficialCharacterBible({ ...generationArgs(transport), npcRelationRepair: true }),
+        (error: unknown) => {
+          assert.ok(error instanceof OfficialSupplyGateError);
+          assert.equal(error.code, "author_shape_invalid");
+          assert.match(error.message, /npcs\[0\]\.role/);
+          return true;
+        }
+      );
+      assert.deepEqual(tasksOf(calls), ["character_bible_1", "character_bible_voice"]);
+    });
+
+    it("call budget 4 covers Part1, Voice, one repair and Bonds, then blocks any further voice revision", async () => {
+      const [, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+      const { transport, calls } = scriptedTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: voiceWithNpcRelation(undefined, "omit"),
+        character_bible_bonds: bonds,
+        character_npc_relation: repairResponse([{ index: 0, relationToChar: REPAIR_RELATION }]),
+      });
+      const budget = new OfficialAuthorCallBudget(OFFICIAL_CHARACTER_CALL_CAP);
+      const guarded = withOfficialAuthorCallBudget(transport, budget);
+      const { bible } = await generateOfficialCharacterBible({ ...generationArgs(guarded), npcRelationRepair: true });
+      assert.equal(budget.used, 4);
+      await assert.rejects(
+        () =>
+          reviseOfficialCharacterVoice({
+            transport: guarded,
+            bible,
+            voice: { name: "카엘", age: 27, adultCandidate: false, speechDirection: "단호", npcDemand: "없음" },
+            fields: ["greeting"],
+            reasons: ["greeting too short"],
+          }),
+        (error: unknown) => {
+          assert.ok(error instanceof OfficialSupplyGateError);
+          assert.equal(error.code, "author_call_budget_exhausted");
+          return true;
+        }
+      );
+      assert.equal(calls.length, 4);
+    });
+
+    it("valid NPCs leave exactly one of the four budgeted calls for a Voice revision", async () => {
+      const [voice, bonds] = splitHalf2(fakeHalf2({ npcCount: 1 }));
+      const { transport, calls } = scriptedTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: voice,
+        character_bible_bonds: bonds,
+      });
+      const budget = new OfficialAuthorCallBudget(OFFICIAL_CHARACTER_CALL_CAP);
+      const guarded = withOfficialAuthorCallBudget(transport, budget);
+      const { bible } = await generateOfficialCharacterBible({ ...generationArgs(guarded), npcRelationRepair: true });
+      assert.equal(budget.used, 3);
+      await reviseOfficialCharacterVoice({
+        transport: guarded,
+        bible,
+        voice: { name: "카엘", age: 27, adultCandidate: false, speechDirection: "단호", npcDemand: "없음" },
+        fields: ["greeting"],
+        reasons: ["greeting too short"],
+      }).catch((error: unknown) => {
+        assert.notEqual((error as { code?: string }).code, "author_call_budget_exhausted");
+      });
+      assert.equal(budget.used, 4);
+      assert.equal(calls.length, 4);
+      assert.equal(calls[3]?.task, "character_bible_voice");
+    });
+
+    it("budget exhausted before Bonds stops without a provider call for Bonds", async () => {
+      const report = createAuthorCostReport();
+      const [, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+      const inner = scriptedTransport(
+        {
+          character_bible_1: fakeHalf1(),
+          character_bible_voice: voiceWithNpcRelation(undefined, "omit"),
+          character_bible_bonds: bonds,
+          character_npc_relation: repairResponse([{ index: 0, relationToChar: REPAIR_RELATION }]),
+        },
+        0.001
+      );
+      const accounted = withAuthorAccounting(inner.transport, report, { draftKey: "pilot-rf-budget", workflowAttempt: 1 });
+      const guarded = withOfficialAuthorCallBudget(accounted, new OfficialAuthorCallBudget(3));
+      await assert.rejects(
+        () => generateOfficialCharacterBible({ ...generationArgs(guarded), npcRelationRepair: true }),
+        (error: unknown) => {
+          assert.ok(error instanceof OfficialSupplyGateError);
+          assert.equal(error.code, "author_call_budget_exhausted");
+          return true;
+        }
+      );
+      assert.deepEqual(tasksOf(inner.calls), ["character_bible_1", "character_bible_voice", "character_npc_relation"]);
+    });
+
+    it("budget guard sits outside accounting so blocked calls are not billed and completions are counted once", async () => {
+      const report = createAuthorCostReport();
+      const [, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+      const inner = scriptedTransport(
+        {
+          character_bible_1: fakeHalf1(),
+          character_bible_voice: voiceWithNpcRelation(undefined, "omit"),
+          character_bible_bonds: bonds,
+          character_npc_relation: repairResponse([{ index: 0, relationToChar: REPAIR_RELATION }]),
+        },
+        0.001
+      );
+      const accounted = withAuthorAccounting(inner.transport, report, { draftKey: "pilot-rf-budget", workflowAttempt: 1 });
+      const budget = new OfficialAuthorCallBudget(OFFICIAL_CHARACTER_CALL_CAP);
+      const guarded = withOfficialAuthorCallBudget(accounted, budget);
+      const { bible } = await generateOfficialCharacterBible({ ...generationArgs(guarded), npcRelationRepair: true });
+      assert.equal(report.physicalAttempts, 4);
+      assert.equal(report.successfulCompletions, 4);
+      assert.ok(Math.abs(report.billedCostUsd - 0.004) < 1e-9);
+      assert.deepEqual(
+        report.lines.map((line) => `${line.task}:${line.outcome}`),
+        [
+          "character_bible_1:success",
+          "character_bible_voice:success",
+          "character_npc_relation:success",
+          "character_bible_bonds:success",
+        ]
+      );
+      await assert.rejects(() =>
+        reviseOfficialCharacterVoice({
+          transport: guarded,
+          bible,
+          voice: { name: "카엘", age: 27, adultCandidate: false, speechDirection: "단호", npcDemand: "없음" },
+          fields: ["greeting"],
+          reasons: ["greeting too short"],
+        })
+      );
+      assert.equal(report.physicalAttempts, 4);
+      assert.equal(report.billedCostUsd.toFixed(3), "0.004");
+    });
   });
 
   it("prompt standard is stamped by canonical code even when provider Part1 omits it", async () => {
