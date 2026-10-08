@@ -18,12 +18,17 @@ import {
 } from "@/lib/chatModels";
 import { resolveMainRpPrimaryWireModelId } from "@/lib/openRouterConfig";
 import { resolveOpenRouterMaxTokens } from "@/lib/openRouterClient";
-import { getPublishedPricing } from "@/lib/publishedModelPricing";
+import { applyOverseasCardFee, OVERSEAS_CARD_FEE_PERCENT } from "@/lib/billingFxPolicy";
+import {
+  getPublishedPricing,
+  resolvePublishedReferenceRatesForPrompt,
+} from "@/lib/publishedModelPricing";
 import {
   ASSISTANT_MESSAGE_EDIT_MAX_CHARS,
   UNIFIED_TIER_AIM_CHARS,
 } from "@/lib/responseLengthConstants";
 import { resolveStreamCharCap } from "@/lib/responseLength";
+import { estimateTokensFromCharCount } from "@/lib/tokenEstimate";
 import {
   RP_QUALITY_CENTER_BAND_MAX_CHARS,
   classifyVisibleLength,
@@ -50,6 +55,18 @@ export const RP_QUALITY_PRECALL_RETRY = 0;
 export const RP_QUALITY_PRECALL_FALLBACK = 0;
 export const RP_QUALITY_PRECALL_AUXILIARY = 0;
 export const RP_QUALITY_PRECALL_PAID_STATUS = "NOT_AUTHORIZED_PRECALL_ONLY" as const;
+
+/**
+ * PRECALL_READY is the only readiness owner. It means verified live identity
+ * plus concrete A/B/C fixtures. It does not imply final-wire proof, an approved
+ * cost bound, or paid authorization; those are separate gates.
+ */
+export const RP_QUALITY_PRECALL_READINESS_SCOPE = Object.freeze({
+  precallReadyMeans: "VERIFIED_LIVE_IDENTITY_AND_CONCRETE_FIXTURES_ONLY",
+  finalWireProofIsSeparate: true,
+  costApprovalIsSeparate: true,
+  paidExecutionGateIsSeparate: true,
+} as const);
 
 export const RP_QUALITY_PRECALL_CLASSIFICATIONS = [
   "PRECALL_READY",
@@ -439,6 +456,7 @@ export type RpQualityPrecallReport = {
   version: typeof RP_QUALITY_PRECALL_VERSION;
   classification: RpQualityPrecallClassification;
   precallReady: boolean;
+  readinessScope: typeof RP_QUALITY_PRECALL_READINESS_SCOPE;
   paidExecutionStatus: typeof RP_QUALITY_PRECALL_PAID_STATUS;
   providerPosts: 0;
   plannedCalls: typeof RP_QUALITY_PRECALL_PLANNED_CALLS;
@@ -883,6 +901,237 @@ export function evaluateRpQualityPrecallCostBound(): RpQualityPrecallCostBound {
   };
 }
 
+export type RpQualityPrecallSizeRow = {
+  fixtureId: RpQualityPrecallFixtureId;
+  canonicalId: SelectedAI;
+  totalInputChars: number;
+  estimatedInputTokens: number;
+  systemChars: number;
+  systemEstimatedTokens: number;
+  currentUserTurnChars: number;
+  historyMessageCount: number;
+  tokenEstimator: "ceil(chars * 0.9)";
+  providerCountedTokens: null;
+};
+
+export type RpQualityPrecallFxSnapshotRow = {
+  date_key: string;
+  base_usd_krw: number;
+  source: string;
+  fetched_at: string;
+} | null;
+
+export type RpQualityPrecallFxPlanning =
+  | {
+      status: "VERIFIED";
+      owner: "billing_fx_daily_snapshots + billingFxPolicy.applyOverseasCardFee";
+      dateKey: string;
+      fetchedAt: string;
+      snapshotSource: "api_daily" | "previous_daily_snapshot";
+      baseUsdKrw: number;
+      overseasCardFeePercent: number;
+      effectiveKrwPerUsd: number;
+    }
+  | {
+      status: "UNVERIFIED";
+      owner: "billing_fx_daily_snapshots + billingFxPolicy.applyOverseasCardFee";
+      reason: string;
+    };
+
+export const RP_QUALITY_PRECALL_OUTPUT_SCENARIOS = Object.freeze([
+  { id: "aim_3200_plus", outputChars: UNIFIED_TIER_AIM_CHARS },
+  { id: "long_sensitivity_2x", outputChars: UNIFIED_TIER_AIM_CHARS * 2 },
+] as const);
+export type RpQualityPrecallOutputScenarioId =
+  (typeof RP_QUALITY_PRECALL_OUTPUT_SCENARIOS)[number]["id"];
+
+export type RpQualityPrecallCostPlanningCall = {
+  fixtureId: RpQualityPrecallFixtureId;
+  canonicalId: SelectedAI;
+  scenarioId: RpQualityPrecallOutputScenarioId;
+  inputTokens: number;
+  outputTokens: number;
+  inputUsdPerMillion: number;
+  outputUsdPerMillion: number;
+  longContextApplied: boolean;
+  uncachedInputUsd: number;
+  outputUsd: number;
+  providerUsd: number;
+  inputUsdIfFullyCacheWritten: number | null;
+  providerKrw: number | null;
+};
+
+export type RpQualityPrecallCostPlanningModelTotal = {
+  canonicalId: SelectedAI;
+  scenarioId: RpQualityPrecallOutputScenarioId;
+  calls: number;
+  providerUsd: number;
+  providerKrw: number | null;
+  estimatedUserChargeKrw: number | null;
+  targetMargin: number;
+};
+
+export type RpQualityPrecallCostPlanningAggregate = {
+  scenarioId: RpQualityPrecallOutputScenarioId;
+  calls: number;
+  providerUsd: number;
+  providerKrw: number | null;
+  estimatedUserChargeKrw: number | null;
+};
+
+export type RpQualityPrecallCostPlanning = {
+  status: "PLANNING_ONLY_NOT_APPROVED";
+  fx: RpQualityPrecallFxPlanning;
+  inputAssumption: "uncached_local_estimate_not_provider_counted";
+  outputScenarios: typeof RP_QUALITY_PRECALL_OUTPUT_SCENARIOS;
+  reasoningTokensIncluded: false;
+  calls: readonly RpQualityPrecallCostPlanningCall[];
+  perModel: readonly RpQualityPrecallCostPlanningModelTotal[];
+  aggregate: readonly RpQualityPrecallCostPlanningAggregate[];
+  separation: {
+    providerCost: "providerUsd / providerKrw";
+    estimatedUserCharge: "providerKrw / (1 - targetMargin); not a billing ledger entry; promo and minimum floors not applied";
+    approvalBudget: {
+      status: "NOT_APPROVED";
+      approvedBoundUsd: null;
+      approvedBoundKrw: null;
+    };
+  };
+  maxSingleCallExposure: {
+    status: "UNKNOWN";
+    reason: string;
+  };
+  outputCostLimitation: string;
+};
+
+export const RP_QUALITY_PRECALL_OUTPUT_COST_LIMITATION =
+  "Production sends no application max_tokens, and PRECALL must not add one. Output tokens are therefore a planning scenario, not a ceiling: a single call can exceed every figure here. Reasoning/thinking tokens are billed as output and are not included. Token counts are the repo's local ceil(chars*0.9) estimate, not provider-counted.";
+
+export function planRpQualityPrecallFx(
+  row: RpQualityPrecallFxSnapshotRow
+): RpQualityPrecallFxPlanning {
+  const owner = "billing_fx_daily_snapshots + billingFxPolicy.applyOverseasCardFee" as const;
+  if (!row) return { status: "UNVERIFIED", owner, reason: "no_fx_snapshot_row" };
+  if (row.source !== "api_daily" && row.source !== "previous_daily_snapshot") {
+    return { status: "UNVERIFIED", owner, reason: `fx_snapshot_source_${row.source}_not_verified` };
+  }
+  if (!Number.isFinite(row.base_usd_krw) || row.base_usd_krw <= 0) {
+    return { status: "UNVERIFIED", owner, reason: "fx_snapshot_rate_invalid" };
+  }
+  if (!Number.isFinite(Date.parse(row.fetched_at))) {
+    return { status: "UNVERIFIED", owner, reason: "fx_snapshot_fetched_at_invalid" };
+  }
+  return {
+    status: "VERIFIED",
+    owner,
+    dateKey: row.date_key,
+    fetchedAt: row.fetched_at,
+    snapshotSource: row.source,
+    baseUsdKrw: row.base_usd_krw,
+    overseasCardFeePercent: OVERSEAS_CARD_FEE_PERCENT,
+    effectiveKrwPerUsd: applyOverseasCardFee(row.base_usd_krw),
+  };
+}
+
+export function computeRpQualityPrecallCostPlanning(input: {
+  sizeRows: readonly RpQualityPrecallSizeRow[];
+  fxRow: RpQualityPrecallFxSnapshotRow;
+}): RpQualityPrecallCostPlanning {
+  if (input.sizeRows.length !== RP_QUALITY_PRECALL_PLANNED_CALLS) {
+    throw new Error(`cost planning needs ${RP_QUALITY_PRECALL_PLANNED_CALLS} size rows`);
+  }
+  const fx = planRpQualityPrecallFx(input.fxRow);
+  const krwPerUsd = fx.status === "VERIFIED" ? fx.effectiveKrwPerUsd : null;
+  const calls: RpQualityPrecallCostPlanningCall[] = [];
+  for (const scenario of RP_QUALITY_PRECALL_OUTPUT_SCENARIOS) {
+    for (const row of input.sizeRows) {
+      const pricing = getPublishedPricing(row.canonicalId);
+      const rates = resolvePublishedReferenceRatesForPrompt(pricing, row.estimatedInputTokens);
+      const outputTokens = estimateTokensFromCharCount(scenario.outputChars);
+      const uncachedInputUsd = (row.estimatedInputTokens / 1_000_000) * rates.inputUsdPerMillion;
+      const outputUsd = (outputTokens / 1_000_000) * rates.outputUsdPerMillion;
+      const providerUsd = uncachedInputUsd + outputUsd;
+      calls.push({
+        fixtureId: row.fixtureId,
+        canonicalId: row.canonicalId,
+        scenarioId: scenario.id,
+        inputTokens: row.estimatedInputTokens,
+        outputTokens,
+        inputUsdPerMillion: rates.inputUsdPerMillion,
+        outputUsdPerMillion: rates.outputUsdPerMillion,
+        longContextApplied: rates.longContextApplied,
+        uncachedInputUsd,
+        outputUsd,
+        providerUsd,
+        inputUsdIfFullyCacheWritten:
+          rates.cacheWriteUsdPerMillion != null
+            ? (row.estimatedInputTokens / 1_000_000) * rates.cacheWriteUsdPerMillion
+            : null,
+        providerKrw: krwPerUsd == null ? null : providerUsd * krwPerUsd,
+      });
+    }
+  }
+  const modelIds = [...new Set(input.sizeRows.map((row) => row.canonicalId))];
+  const perModel: RpQualityPrecallCostPlanningModelTotal[] = [];
+  for (const scenario of RP_QUALITY_PRECALL_OUTPUT_SCENARIOS) {
+    for (const canonicalId of modelIds) {
+      const rows = calls.filter(
+        (call) => call.canonicalId === canonicalId && call.scenarioId === scenario.id
+      );
+      const providerUsd = rows.reduce((sum, call) => sum + call.providerUsd, 0);
+      const providerKrw = krwPerUsd == null ? null : providerUsd * krwPerUsd;
+      const targetMargin = getPublishedPricing(canonicalId).targetMargin;
+      perModel.push({
+        canonicalId,
+        scenarioId: scenario.id,
+        calls: rows.length,
+        providerUsd,
+        providerKrw,
+        estimatedUserChargeKrw: providerKrw == null ? null : providerKrw / (1 - targetMargin),
+        targetMargin,
+      });
+    }
+  }
+  const aggregate: RpQualityPrecallCostPlanningAggregate[] = RP_QUALITY_PRECALL_OUTPUT_SCENARIOS.map(
+    (scenario) => {
+      const rows = perModel.filter((row) => row.scenarioId === scenario.id);
+      const providerUsd = rows.reduce((sum, row) => sum + row.providerUsd, 0);
+      const userCharges = rows.map((row) => row.estimatedUserChargeKrw);
+      return {
+        scenarioId: scenario.id,
+        calls: rows.reduce((sum, row) => sum + row.calls, 0),
+        providerUsd,
+        providerKrw: krwPerUsd == null ? null : providerUsd * krwPerUsd,
+        estimatedUserChargeKrw: userCharges.every((value): value is number => value != null)
+          ? userCharges.reduce((sum, value) => sum + value, 0)
+          : null,
+      };
+    }
+  );
+  return {
+    status: "PLANNING_ONLY_NOT_APPROVED",
+    fx,
+    inputAssumption: "uncached_local_estimate_not_provider_counted",
+    outputScenarios: RP_QUALITY_PRECALL_OUTPUT_SCENARIOS,
+    reasoningTokensIncluded: false,
+    calls,
+    perModel,
+    aggregate,
+    separation: {
+      providerCost: "providerUsd / providerKrw",
+      estimatedUserCharge:
+        "providerKrw / (1 - targetMargin); not a billing ledger entry; promo and minimum floors not applied",
+      approvalBudget: { status: "NOT_APPROVED", approvedBoundUsd: null, approvedBoundKrw: null },
+    },
+    maxSingleCallExposure: {
+      status: "UNKNOWN",
+      reason:
+        "No application max_tokens ceiling exists and none may be added by PRECALL; any estimate is non-enforceable.",
+    },
+    outputCostLimitation: RP_QUALITY_PRECALL_OUTPUT_COST_LIMITATION,
+  };
+}
+
 export function buildPlannedQualityPackets(
   plan: readonly RpQualityPrecallSamplePlan[] = buildRpQualityPrecallPlan()
 ): RpQualityOutputPacket[] {
@@ -937,9 +1186,13 @@ export function buildPairedComparisonPackets(
 const SECRET_LEAK_RE =
   /sk-[a-zA-Z0-9]{10,}|Bearer\s+[A-Za-z0-9._\-]+|OPENROUTER_API_KEY\s*=\s*\S+|CHEAPER_INFERENCE_API_KEY\s*=\s*\S+|OPENAI_API_KEY\s*=\s*\S+|authorization["']?\s*:\s*["']?Bearer/i;
 
+export function stringContainsSecretShape(text: string): boolean {
+  return SECRET_LEAK_RE.test(text);
+}
+
 export function artifactContainsSecret(value: unknown): boolean {
   if (value == null) return false;
-  if (typeof value === "string") return SECRET_LEAK_RE.test(value);
+  if (typeof value === "string") return stringContainsSecretShape(value);
   if (typeof value === "number" || typeof value === "boolean") return false;
   if (Array.isArray(value)) return value.some(artifactContainsSecret);
   if (typeof value === "object") {
@@ -1008,6 +1261,7 @@ export function buildRpQualityPrecallReport(
     version: RP_QUALITY_PRECALL_VERSION,
     classification: classified.classification,
     precallReady: classified.precallReady,
+    readinessScope: RP_QUALITY_PRECALL_READINESS_SCOPE,
     paidExecutionStatus: RP_QUALITY_PRECALL_PAID_STATUS,
     providerPosts: 0,
     plannedCalls: RP_QUALITY_PRECALL_PLANNED_CALLS,
