@@ -5,7 +5,7 @@ import AdultContentBadge from "@/components/AdultContentBadge";
 import CharacterCardCarousel from "@/components/CharacterCardCarousel";
 import { characterCardHref } from "@/lib/chatLinks";
 import { getCharacterRepresentativePublicUrls } from "@/lib/characterAssets";
-import { characterHueAccent } from "@/lib/characterHueAccent";
+import { homePresentationAccent } from "@/lib/homeStagePresentation";
 import type { CreatorTierLevel } from "@/lib/creatorShared";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
@@ -143,11 +143,11 @@ type Props = {
 
 export default function CharacterCard({ c, blurNsfw, loggedIn = false, variant = "default" }: Props) {
   const chrome = cardChrome(variant);
-  const accent = variant === "editorial" ? characterHueAccent(c.hue) : null;
+  const accent = variant === "editorial" ? homePresentationAccent(c.id) : null;
   const accentStyle: CSSProperties | undefined = accent
     ? ({
-        "--card-keyline": accent.keyline,
-        "--card-hover": accent.hover,
+        "--card-keyline": accent.wash,
+        "--card-hover": accent.wash,
       } as CSSProperties)
     : undefined;
   const tags = parseCardTags(c.tags);
@@ -206,7 +206,7 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false, variant =
             <span
               aria-hidden
               className="pointer-events-none absolute bottom-0 left-0 top-0 z-[1] w-0.5"
-              style={{ backgroundColor: accent.keyline }}
+              style={{ backgroundColor: accent.wash }}
             />
           ) : null}
 
@@ -239,7 +239,7 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false, variant =
         )}
       >
         {variant === "editorial" && genreLabel ? (
-          <p className="line-clamp-1 text-[10px] font-medium tracking-[0.14em]" style={{ color: accent?.hover }}>
+          <p className="line-clamp-1 text-[10px] font-medium tracking-[0.14em]" style={{ color: accent?.wash }}>
             {genreLabel}
           </p>
         ) : null}
