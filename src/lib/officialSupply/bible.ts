@@ -429,6 +429,22 @@ export const CHARACTER_BIBLE_1_SCHEMA: Record<string, unknown> = {
   },
 };
 
+export const NPC_RELATION_REPAIR_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    npcs: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          index: { type: "number" },
+          relationToChar: { type: "string" },
+        },
+      },
+    },
+  },
+};
+
 export const CHARACTER_VOICE_SCHEMA: Record<string, unknown> = {
   type: "object",
   properties: {

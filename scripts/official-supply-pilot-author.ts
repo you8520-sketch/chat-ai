@@ -17,6 +17,7 @@
  *   --step=public-fix             offline: apply human-approved tagline/tag decisions (public surface only)
  *   --step=relationship-repair    offline: canonical relationship targets + replacement public awareness
  *   --step=consistency-fix        offline: manifest-declared world-consistency repairs
+ *   --npc-relation-repair         (characters/character) opt-in: one targeted call repairs relation-only NPC defects; caps each character at OFFICIAL_CHARACTER_CALL_CAP calls
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -50,6 +51,9 @@ import {
   validatePilotDraftForTextLock,
   validatePilotLorebook,
   withAuthorAccounting,
+  withOfficialAuthorCallBudget,
+  OfficialAuthorCallBudget,
+  OFFICIAL_CHARACTER_CALL_CAP,
   OFFICIAL_AUTHOR_TEMPLATE_VERSION,
   OFFICIAL_AUTHOR_SNAPSHOT_VERSION,
   type OfficialAuthorCostReport,
@@ -695,18 +699,23 @@ async function generateOneCharacter(
   siblings: PortfolioBriefInput[],
   modelId: string,
   maxAttempts: number,
-  report: PilotCostFile
+  report: PilotCostFile,
+  npcRelationRepair = false
 ): Promise<CharFile> {
   const draftKey = draftKeyFor(brief.slot);
+  // One budget per approved character, shared by all workflow attempts. Off by default: existing runs keep their uncapped behavior.
+  const budget = npcRelationRepair ? new OfficialAuthorCallBudget(OFFICIAL_CHARACTER_CALL_CAP) : null;
   return runWorkflowStep({
     report,
     draftKey,
     label: `slot ${brief.slot}`,
     maxAttempts,
     quarantineKey: `character-${draftKey}`,
-    run: async (transport, attempt, feedback) => {
-      const { bible, completions } = await generateOfficialCharacterBible({
+    run: async (accountedTransport, attempt, feedback) => {
+      const transport = budget ? withOfficialAuthorCallBudget(accountedTransport, budget) : accountedTransport;
+      const { bible, completions, npcRelationRepairs } = await generateOfficialCharacterBible({
         transport,
+        npcRelationRepair,
         part1: {
           brief,
           worldName: world.name,
@@ -766,9 +775,18 @@ async function generateOneCharacter(
         accepted = revised.bible;
       }
       const draft = assertBibleAndDraft(accepted, brief);
-      const tasks: OfficialAuthorTask[] = ["character_bible_1", "character_bible_voice", "character_bible_bonds"];
-      const provenances = [...completions, ...repairs].map((completion, i) => provenanceFor(completion, attempt * 10 + i));
-      provenances.forEach((p, i) => recordRun(draftKey, tasks[i] ?? "character_bible_voice", p));
+      const calls: Array<{ task: OfficialAuthorTask; completion: OfficialAuthorRawCompletion }> = [
+        { task: "character_bible_1", completion: completions[0] },
+        { task: "character_bible_voice", completion: completions[1] },
+        ...npcRelationRepairs.map((completion) => ({ task: "character_npc_relation" as const, completion })),
+        { task: "character_bible_bonds", completion: completions[2] },
+        ...repairs.map((completion) => ({ task: "character_bible_voice" as const, completion })),
+      ];
+      const provenances = calls.map(({ task, completion }, i) => {
+        const provenance = provenanceFor(completion, attempt * 10 + i);
+        recordRun(draftKey, task, provenance);
+        return provenance;
+      });
       const file: CharFile = {
         slot: brief.slot,
         draftKey,
@@ -797,7 +815,8 @@ async function stepCharacters(
   modelId: string,
   maxAttempts: number,
   concurrency: number,
-  onlySlot?: number
+  onlySlot?: number,
+  npcRelationRepair = false
 ): Promise<void> {
   const report = loadCost();
   const world = readWorld();
@@ -818,7 +837,7 @@ async function stepCharacters(
   // Per-slot isolation: one quarantine must not abort sibling slots.
   const results = await pool(pending, concurrency, async (brief) => {
     try {
-      await generateOneCharacter(brief, world, world.portfolio, modelId, maxAttempts, report);
+      await generateOneCharacter(brief, world, world.portfolio, modelId, maxAttempts, report, npcRelationRepair);
       return { slot: brief.slot, ok: true as const };
     } catch (error) {
       return { slot: brief.slot, ok: false as const, error: String((error as Error)?.message ?? error) };
@@ -1536,7 +1555,14 @@ function stepConsistencyFix(): void {
   }
 }
 
-function parseArgs(): { step: string; slot?: number; from?: number; concurrency: number; maxAttempts: number } {
+function parseArgs(): {
+  step: string;
+  slot?: number;
+  from?: number;
+  concurrency: number;
+  maxAttempts: number;
+  npcRelationRepair: boolean;
+} {
   const args = process.argv.slice(2);
   const get = (key: string): string | undefined => {
     const hit = args.find((a) => a.startsWith(`--${key}=`));
@@ -1548,11 +1574,12 @@ function parseArgs(): { step: string; slot?: number; from?: number; concurrency:
     from: get("from") ? Number(get("from")) : undefined,
     concurrency: Number(get("concurrency") ?? 2),
     maxAttempts: Number(get("attempts") ?? 3),
+    npcRelationRepair: args.includes("--npc-relation-repair"),
   };
 }
 
 async function main(): Promise<void> {
-  const { step, slot, from, concurrency, maxAttempts } = parseArgs();
+  const { step, slot, from, concurrency, maxAttempts, npcRelationRepair } = parseArgs();
   const offline = ["portfolio-qa", "cost-reconcile", "market-fit-review", "public-fix", "relationship-repair", "consistency-fix"].includes(step);
   if (!offline && process.env.OFFICIAL_PILOT_LIVE !== "1") {
     console.error("[pilot] refusing: set OFFICIAL_PILOT_LIVE=1 to run live provider generation.");
@@ -1566,10 +1593,10 @@ async function main(): Promise<void> {
     case "world":
       return stepWorld(modelId, maxAttempts);
     case "characters":
-      return stepCharacters(modelId, maxAttempts, concurrency);
+      return stepCharacters(modelId, maxAttempts, concurrency, undefined, npcRelationRepair);
     case "character":
       if (!slot) throw new Error("--step=character requires --slot=N");
-      return stepCharacters(modelId, maxAttempts, 1, slot);
+      return stepCharacters(modelId, maxAttempts, 1, slot, npcRelationRepair);
     case "portfolio-qa":
       return stepPortfolioQa();
     case "appearance":
