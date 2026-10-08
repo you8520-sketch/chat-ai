@@ -172,5 +172,11 @@ describe("rp quality PRECALL production rows boundary", () => {
       }
     }
     assert.equal(readFileSync(dbFile).toString("base64"), before);
+    assert.equal(report.paidRunnerPreapproval.manifest.calls.length, 12);
+    assert.equal(report.paidRunnerPreapproval.approvalStatus, "NOT_APPROVED");
+    assert.equal(report.paidRunnerPreapproval.sealedBodiesExported, false);
+    assert.equal(report.paidRunnerPreapproval.providerPosts, 0);
+    assert.equal(JSON.stringify(report).includes('"requestBody"'), false);
+    assert.equal(report.paidRunnerPreapproval.decision.decision, "BLOCKED_DEPLOYMENT");
   });
 });
