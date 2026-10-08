@@ -156,7 +156,7 @@ describe("TRPG #1462 unauthorized location persist", () => {
     db.close();
   });
 
-  it("걸어간다 naming the destination still persists — existing verb list misses 걷", async () => {
+  it("걸어간다 naming the destination still persists", async () => {
     const db = memoryDb();
     const { campaignId, deps } = await startAtDock(
       db,
@@ -276,6 +276,71 @@ describe("TRPG #1462 unauthorized location persist", () => {
       })
     );
     submitTrpgAction(db, { campaignId, userId: 1, body: "우측 환풍구로 들어간다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadCampaignLedger(db, campaignId).location, DOCK);
+    assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, DOCK);
+    db.close();
+  });
+
+  it("negation 주점으로 가지 않는다 does not persist tavern relocation", async () => {
+    const db = memoryDb();
+    const { campaignId, deps } = await startAtDock(
+      db,
+      gmWire("가지 않겠다는 말로 주점에 들어갔다.", {
+        players: [{ participantId: 1, location: TAVERN, hp: 40, conditions: [] }],
+        location: TAVERN,
+        next_round_context: "주점 안에서 다음을 고른다.",
+        campaign_finished: false,
+      })
+    );
+    submitTrpgAction(db, { campaignId, userId: 1, body: "주점으로 가지 않는다" });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadCampaignLedger(db, campaignId).location, DOCK);
+    assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, DOCK);
+    db.close();
+  });
+
+  it("investigation 주점으로 가는지 살핀다 does not persist tavern relocation", async () => {
+    const db = memoryDb();
+    const { campaignId, deps } = await startAtDock(
+      db,
+      gmWire("가는지 살피다 주점에 들어갔다.", {
+        players: [{ participantId: 1, location: TAVERN, hp: 40, conditions: [] }],
+        location: TAVERN,
+        next_round_context: "주점 안에서 다음을 고른다.",
+        campaign_finished: false,
+      })
+    );
+    submitTrpgAction(db, { campaignId, userId: 1, body: "주점으로 가는지 살핀다" });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadCampaignLedger(db, campaignId).location, DOCK);
+    assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, DOCK);
+    db.close();
+  });
+
+  it("acceptedRoute 우측 환풍구 does not persist GM 좌측 환풍구", async () => {
+    const db = memoryDb();
+    const { campaignId, deps } = await startAtDock(
+      db,
+      gmWire("우측을 통과했는데 좌측 환풍구에 있다.", {
+        players: [{ participantId: 1, location: "좌측 환풍구", hp: 40, conditions: [] }],
+        location: "좌측 환풍구",
+        next_round_context: "좌측 환풍구 안.",
+        campaign_finished: false,
+      })
+    );
+    const ctx = loadCampaignContext(db, campaignId);
+    assert.ok(ctx);
+    persistCampaignContext(
+      db,
+      applyLocalSceneProgressToContext(ctx, {
+        objectiveSet: "경비 초소 돌파",
+        openRoutesAdd: [VENT],
+        remainingBlockersAdd: [],
+        sceneStateSet: "transition_ready",
+      })
+    );
+    submitTrpgAction(db, { campaignId, userId: 1, body: `${VENT}로 들어간다.` });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(loadCampaignLedger(db, campaignId).location, DOCK);
     assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, DOCK);

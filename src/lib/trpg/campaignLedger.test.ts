@@ -83,7 +83,7 @@ describe("TRPG location persist bind", () => {
     assert.equal(bound.delta.players?.[0]?.location, tavern);
   });
 
-  it("걸어간다 naming the destination still accepts — TRAVERSAL_VERBS misses 걷", () => {
+  it("걸어간다 naming the destination still accepts", () => {
     const bound = bind({ body: "주점으로 걸어간다." });
     assert.equal(bound.location, tavern);
     assert.equal(bound.delta.players?.[0]?.location, tavern);
@@ -203,6 +203,42 @@ describe("TRPG location persist bind", () => {
       body: "우측 환풍구로 들어간다.",
       proposed: "좌측 환풍구",
       playerLocation: "좌측 환풍구",
+    });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
+  it("negation 주점으로 가지 않는다 does not accept tavern relocation", () => {
+    const bound = bind({ body: "주점으로 가지 않는다" });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
+  it("investigation 주점으로 가는지 살핀다 does not accept tavern relocation", () => {
+    const bound = bind({ body: "주점으로 가는지 살핀다" });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
+  it("acceptedRoute 우측 환풍구 does not authorize GM 좌측 환풍구", () => {
+    const bound = bindGmLocationToSubmittedMovement({
+      opening: false,
+      currentLocation: dock,
+      currentNextRoundContext: "부두.",
+      proposedLocation: "좌측 환풍구",
+      delta: {
+        players: [{ participantId: 1, location: "좌측 환풍구" }],
+        location: "좌측 환풍구",
+        nextRoundContext: "좌측 환풍구 안.",
+      },
+      submissions: [
+        {
+          participantId: 1,
+          body: "우측 환풍구로 들어간다.",
+          acceptedRoute: "우측 환풍구",
+        },
+      ],
+      sheetLocations: [{ participantId: 1, location: dock }],
     });
     assert.equal(bound.location, dock);
     assert.equal(bound.delta.players?.[0]?.location, undefined);

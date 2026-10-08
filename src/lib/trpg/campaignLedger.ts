@@ -87,12 +87,10 @@ function destinationMatchesDeclared(source: string, destination: string): boolea
   return true;
 }
 
-function destUsedAsMovementTarget(body: string, destination: string): boolean {
-  const place = tokenizeSceneLabel(destination).at(-1);
-  if (!place) return false;
-  const tokens = tokenizeSceneLabel(body);
-  if (tokens.length < 2) return false;
-  return tokens.some((token) => tokenCoversPlace(token, place) && /(?:로|으로)$/.test(token));
+function sameSceneLabel(left: string, right: string): boolean {
+  const a = tokenizeSceneLabel(left);
+  const b = tokenizeSceneLabel(right);
+  return a.length > 0 && a.length === b.length && a.every((token, index) => token === b[index]);
 }
 
 function movementAttemptFailed(tier: string | null | undefined): boolean {
@@ -114,22 +112,21 @@ export function submissionAuthorizesLocation(
   const dest = destination.trim();
   if (!dest) return false;
   if (movementAttemptFailed(submission.tier)) return false;
-  if (submission.acceptedRoute && destinationMatchesDeclared(submission.acceptedRoute, dest)) {
-    return true;
+  if (submission.acceptedRoute) {
+    return sameSceneLabel(submission.acceptedRoute, dest);
   }
   if (!destinationMatchesDeclared(submission.body, dest)) return false;
-  if (declaresTraversalIntent(submission.body)) return true;
-  // 걸어간다 misses TRAVERSAL_VERBS; 로/으로 is already the dest particle in that list.
-  return destUsedAsMovementTarget(submission.body, dest);
+  return declaresTraversalIntent(submission.body);
 }
 
 /**
  * Location persist bind — campaignLedger owner.
  * Opening may set the starting place. After that, a GM location change sticks
- * only when that participant has an accepted dest (declared + dest match,
- * accepted routine route, and not a failure tier). Compare each sheet's
- * previous location, not the shared ledger. World-forced relocation has no
- * separate persist owner today (T9/L5).
+ * only when that participant has a server-confirmed dest: the frozen
+ * acceptedRoute label, or a declared traversal whose body names that dest,
+ * and not a failure tier. Compare each sheet's previous location, not the
+ * shared ledger. World-forced relocation has no separate persist owner today
+ * (T9/L5).
  */
 export function bindGmLocationToSubmittedMovement(opts: {
   opening: boolean;
