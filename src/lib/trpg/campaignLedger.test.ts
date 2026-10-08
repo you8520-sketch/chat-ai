@@ -182,6 +182,32 @@ describe("TRPG location persist bind", () => {
     assert.equal(bound.location, dock);
   });
 
+  it("dest-only 주점으로 does not accept tavern relocation", () => {
+    const bound = bind({ body: "주점으로" });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
+  it("lookalike 북쪽 창고 does not accept 남쪽 창고", () => {
+    const bound = bind({
+      body: "북쪽 창고로 간다.",
+      proposed: "남쪽 창고",
+      playerLocation: "남쪽 창고",
+    });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
+  it("lookalike 우측 환풍구 does not accept 좌측 환풍구", () => {
+    const bound = bind({
+      body: "우측 환풍구로 들어간다.",
+      proposed: "좌측 환풍구",
+      playerLocation: "좌측 환풍구",
+    });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
   it("E: FAILURE does not persist the declared destination", () => {
     const bound = bindGmLocationToSubmittedMovement({
       opening: false,

@@ -228,6 +228,60 @@ describe("TRPG #1462 unauthorized location persist", () => {
     db.close();
   });
 
+  it("dest-only 주점으로 does not persist tavern relocation", async () => {
+    const db = memoryDb();
+    const { campaignId, deps } = await startAtDock(
+      db,
+      gmWire("주점으로라는 말만으로 주점에 들어갔다.", {
+        players: [{ participantId: 1, location: TAVERN, hp: 40, conditions: [] }],
+        location: TAVERN,
+        next_round_context: "주점 안에서 다음을 고른다.",
+        campaign_finished: false,
+      })
+    );
+    submitTrpgAction(db, { campaignId, userId: 1, body: "주점으로" });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadCampaignLedger(db, campaignId).location, DOCK);
+    assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, DOCK);
+    db.close();
+  });
+
+  it("lookalike 북쪽 창고 does not persist 남쪽 창고", async () => {
+    const db = memoryDb();
+    const { campaignId, deps } = await startAtDock(
+      db,
+      gmWire("북쪽을 말했는데 남쪽 창고에 있다.", {
+        players: [{ participantId: 1, location: "남쪽 창고", hp: 40, conditions: [] }],
+        location: "남쪽 창고",
+        next_round_context: "남쪽 창고 안.",
+        campaign_finished: false,
+      })
+    );
+    submitTrpgAction(db, { campaignId, userId: 1, body: "북쪽 창고로 간다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadCampaignLedger(db, campaignId).location, DOCK);
+    assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, DOCK);
+    db.close();
+  });
+
+  it("lookalike 우측 환풍구 does not persist 좌측 환풍구", async () => {
+    const db = memoryDb();
+    const { campaignId, deps } = await startAtDock(
+      db,
+      gmWire("우측을 말했는데 좌측 환풍구에 있다.", {
+        players: [{ participantId: 1, location: "좌측 환풍구", hp: 40, conditions: [] }],
+        location: "좌측 환풍구",
+        next_round_context: "좌측 환풍구 안.",
+        campaign_finished: false,
+      })
+    );
+    submitTrpgAction(db, { campaignId, userId: 1, body: "우측 환풍구로 들어간다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadCampaignLedger(db, campaignId).location, DOCK);
+    assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, DOCK);
+    db.close();
+  });
+
   it("C: declared tavern move does not persist a different player destination", async () => {
     const db = memoryDb();
     const { campaignId, deps } = await startAtDock(

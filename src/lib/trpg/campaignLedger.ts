@@ -55,21 +55,44 @@ export type TrpgLocationPersistSheet = {
   location: string;
 };
 
+function tokenCoversPlace(token: string, place: string): boolean {
+  return token === place || token.startsWith(place);
+}
+
+function precedingQualifier(tokens: readonly string[], place: string): string | undefined {
+  const index = tokens.findIndex((token) => tokenCoversPlace(token, place));
+  return index > 0 ? tokens[index - 1] : undefined;
+}
+
 function destinationMatchesDeclared(source: string, destination: string): boolean {
   const dest = destination.trim();
   if (!dest) return false;
   if (actionReferencesOpenRoute(source, [dest]) != null) return true;
-  const place = tokenizeSceneLabel(dest).at(-1);
+  const destTokens = tokenizeSceneLabel(dest);
+  const place = destTokens.at(-1);
   if (!place) return false;
-  return tokenizeSceneLabel(source).some((token) => token === place || token.startsWith(place));
+  const sourceTokens = tokenizeSceneLabel(source);
+  if (!sourceTokens.some((token) => tokenCoversPlace(token, place))) return false;
+  const destQualifier = precedingQualifier(destTokens, place);
+  const sourceQualifier = precedingQualifier(sourceTokens, place);
+  if (
+    destQualifier &&
+    sourceQualifier &&
+    destQualifier !== sourceQualifier &&
+    !destQualifier.startsWith(sourceQualifier) &&
+    !sourceQualifier.startsWith(destQualifier)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 function destUsedAsMovementTarget(body: string, destination: string): boolean {
   const place = tokenizeSceneLabel(destination).at(-1);
   if (!place) return false;
-  return tokenizeSceneLabel(body).some(
-    (token) => (token === place || token.startsWith(place)) && /(?:로|으로)$/.test(token)
-  );
+  const tokens = tokenizeSceneLabel(body);
+  if (tokens.length < 2) return false;
+  return tokens.some((token) => tokenCoversPlace(token, place) && /(?:로|으로)$/.test(token));
 }
 
 function movementAttemptFailed(tier: string | null | undefined): boolean {
