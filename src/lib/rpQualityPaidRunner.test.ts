@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
@@ -8,7 +10,11 @@ import {
   selectedAIProvider,
   type SelectedAI,
 } from "@/lib/chatModels";
-import { resolveMainRpPrimaryWireModelId } from "@/lib/openRouterConfig";
+import { CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL } from "@/lib/cheaperInferenceConfig";
+import {
+  OPENROUTER_CHAT_COMPLETIONS_URL,
+  resolveMainRpPrimaryWireModelId,
+} from "@/lib/openRouterConfig";
 import { resolveOpenRouterMaxTokens } from "@/lib/openRouterClient";
 import {
   RP_QUALITY_PRECALL_FIXTURE_IDS,
@@ -20,19 +26,26 @@ import {
   RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV,
   assertCurrentMainRpPaidAllowlist,
   buildPaidRunnerPublicManifest,
+  createFilePaidRunnerJournalStore,
   createLivePaidRunnerTransport,
+  createMemoryPaidRunnerJournalStore,
   createMockPaidRunnerTransport,
   createPaidRunnerJournal,
   evaluatePaidRunnerAuthorization,
+  expectedPaidRunnerProvider,
   experimentSecretUsesProductionKey,
   isWellFormedPaidExperimentSecret,
   journalCanStartNextCall,
+  paidRunnerManifestDraft,
+  paidRunnerManifestFingerprint,
+  paidRunnerRequestBodyFingerprint,
   paidRunnerRegistrySnapshot,
   paidRunnerSoftAimUncapped,
   publicMetadataContainsSecret,
   runPaidRunner,
   type PaidRunnerAuthorizationInput,
   type PaidRunnerIdentityHashes,
+  type PaidRunnerJournalStore,
   type PaidRunnerPublicManifest,
   type PaidRunnerSealedCall,
 } from "@/lib/rpQualityPaidRunner";
@@ -53,7 +66,7 @@ function sealedCalls(): PaidRunnerSealedCall[] {
   let order = 1;
   for (const fixtureId of RP_QUALITY_PRECALL_FIXTURE_IDS) {
     for (const canonicalId of MAIN_RP_MODEL_IDS) {
-      const provider = selectedAIProvider(canonicalId);
+      const provider = expectedPaidRunnerProvider(canonicalId);
       const wireModel = resolveMainRpPrimaryWireModelId(canonicalId);
       const body = { model: wireModel, stream: true, messages: [{ role: "user", content: "hi" }] };
       calls.push({
@@ -63,9 +76,11 @@ function sealedCalls(): PaidRunnerSealedCall[] {
         provider,
         wireModel,
         endpointKind: provider,
-        endpoint: provider === "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : "https://api.cheaperinference.com/v1/chat/completions",
+        endpoint: provider === "openrouter"
+          ? OPENROUTER_CHAT_COMPLETIONS_URL
+          : CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
         finalWireFingerprint: `${"aa".repeat(32)}${order.toString(16).padStart(2, "0")}`.slice(0, 64),
-        requestBodyFingerprint: `${"bb".repeat(32)}${order.toString(16).padStart(2, "0")}`.slice(0, 64),
+        requestBodyFingerprint: paidRunnerRequestBodyFingerprint(body),
         effectiveCanonMode: "FULL_LEGACY",
         authoringLevel: "NORMAL",
         contentMode: "SAFE",
@@ -226,7 +241,13 @@ describe("rp quality paid runner prepare and mock execution", () => {
     assert.equal(fallback.authorized, false);
     if (!fallback.authorized) assert.equal(fallback.reason, "PRODUCTION_KEY_FALLBACK_FORBIDDEN");
     delete process.env.OPENROUTER_API_KEY;
-    const mapped = { ...manifest, calls: manifest.calls.map((call, index) => index === 0 ? { ...call, provider: "openrouter" as const, wireModel: "wrong" } : call) };
+    const mappedCalls = manifest.calls.map((call, index) => index === 0 ? { ...call, provider: "openrouter" as const, wireModel: "wrong" } : call);
+    const mappedDraft = { ...paidRunnerManifestDraft(manifest), calls: mappedCalls };
+    const mapped = {
+      ...manifest,
+      calls: mappedCalls,
+      manifestFingerprint: paidRunnerManifestFingerprint(mappedDraft),
+    };
     const mapping = evaluatePaidRunnerAuthorization(mapped, auth(mapped), "AUTHORIZED");
     assert.equal(mapping.authorized, false);
     if (!mapping.authorized) assert.equal(mapping.reason, "PROVIDER_MAPPING_MISMATCH");
@@ -425,5 +446,318 @@ describe("rp quality paid runner prepare and mock execution", () => {
     assert.equal(isWellFormedPaidExperimentSecret(SECRET), true);
     assert.throws(() => createLivePaidRunnerTransport(), /LIVE_TRANSPORT_NOT_SHIPPED/);
     assert.equal(RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV, "RP_QUALITY_PAID_EXPERIMENT_SECRET");
+  });
+
+  it("replay after timeout keeps UNKNOWN and does not POST again", async () => {
+    const { manifest, sealedCalls: calls } = pack();
+    const journal = createPaidRunnerJournal(manifest.manifestFingerprint);
+    const first = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport({ failAt: 1, failureKind: "timeout" }),
+      journal,
+    });
+    assert.equal(first.transportPosts, 1);
+    assert.equal(first.journal.entries[0]?.status, "UNKNOWN_UNRESOLVED");
+    const second = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport(),
+      journal,
+    });
+    assert.equal(second.transportPosts, 0);
+    assert.equal(second.providerPosts, 0);
+    assert.equal(second.journal.entries[0]?.status, "UNKNOWN_UNRESOLVED");
+    assert.ok(
+      second.denialReason === "FIXTURE_MODEL_REPLAY" ||
+        second.denialReason === "PRIOR_CALL_UNRESOLVED"
+    );
+  });
+
+  it("leftover SENT after crash is recovered as UNKNOWN and is not resent", async () => {
+    const { manifest, sealedCalls: calls } = pack();
+    const journal = createPaidRunnerJournal(manifest.manifestFingerprint);
+    journal.entries.push({
+      requestOrder: 1,
+      fixtureId: manifest.calls[0]!.fixtureId,
+      canonicalId: manifest.calls[0]!.canonicalId,
+      finalWireFingerprint: manifest.calls[0]!.finalWireFingerprint,
+      requestBodyFingerprint: manifest.calls[0]!.requestBodyFingerprint,
+      status: "SENT",
+      settlementSource: "unsettled",
+      providerRequestId: null,
+      httpResult: null,
+      finishReason: null,
+      promptTokens: null,
+      completionTokens: null,
+      cacheReadTokens: null,
+      cacheWriteTokens: null,
+      reasoningTokens: null,
+      billedUsd: null,
+      visibleChars: null,
+      elapsedMs: null,
+      blockReason: null,
+    });
+    const result = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport(),
+      journal,
+    });
+    assert.equal(result.transportPosts, 0);
+    assert.equal(result.journal.entries[0]?.status, "UNKNOWN_UNRESOLVED");
+    assert.equal(result.denialReason, "PRIOR_CALL_UNRESOLVED");
+  });
+
+  it("journal persist failure stops before the first POST", async () => {
+    const { manifest, sealedCalls: calls } = pack();
+    const store: PaidRunnerJournalStore = {
+      kind: "memory",
+      load: () => null,
+      persist() {
+        throw new Error("disk full");
+      },
+      tryAcquireExclusiveLock() {
+        return { ok: true, lock: { release() {} } };
+      },
+    };
+    const result = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport(),
+      journalStore: store,
+    });
+    assert.equal(result.transportPosts, 0);
+    assert.equal(result.denialReason, "JOURNAL_STORE_UNAVAILABLE");
+  });
+
+  it("concurrent launch on the same manifest is rejected with zero POSTs", async () => {
+    const { manifest, sealedCalls: calls } = pack();
+    const store = createMemoryPaidRunnerJournalStore();
+    const held = store.tryAcquireExclusiveLock(manifest.manifestFingerprint);
+    assert.equal(held.ok, true);
+    try {
+      const result = await runPaidRunner({
+        mode: "AUTHORIZED",
+        manifest,
+        sealedCalls: calls,
+        authorization: auth(manifest),
+        transport: createMockPaidRunnerTransport(),
+        journalStore: store,
+      });
+      assert.equal(result.transportPosts, 0);
+      assert.equal(result.denialReason, "CONCURRENT_LAUNCH");
+    } finally {
+      if (held.ok) held.lock.release();
+    }
+  });
+
+  it("file journal fingerprint mismatch and exclusive lock fail closed", async () => {
+    const { manifest, sealedCalls: calls } = pack();
+    const dir = mkdtempSync(path.join(tmpdir(), "rpq-journal-"));
+    const store = createFilePaidRunnerJournalStore(dir);
+    const held = store.tryAcquireExclusiveLock(manifest.manifestFingerprint);
+    assert.equal(held.ok, true);
+    try {
+      const concurrent = await runPaidRunner({
+        mode: "AUTHORIZED",
+        manifest,
+        sealedCalls: calls,
+        authorization: auth(manifest),
+        transport: createMockPaidRunnerTransport(),
+        journalStore: store,
+      });
+      assert.equal(concurrent.transportPosts, 0);
+      assert.equal(concurrent.denialReason, "CONCURRENT_LAUNCH");
+    } finally {
+      if (held.ok) held.lock.release();
+    }
+    const other = createPaidRunnerJournal("cd".repeat(32));
+    const mismatch = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport(),
+      journal: other,
+    });
+    assert.equal(mismatch.transportPosts, 0);
+    assert.equal(mismatch.denialReason, "JOURNAL_FINGERPRINT_MISMATCH");
+  });
+
+  it("tampered sealed bodies and manifest fields never reach mock POST", async () => {
+    const { manifest, sealedCalls: calls } = pack();
+    const cases: Array<[string, { manifest?: PaidRunnerPublicManifest; sealedCalls?: PaidRunnerSealedCall[] }]> = [
+      ["user message 1-char", {
+        sealedCalls: calls.map((call, index) => index === 0
+          ? {
+              ...call,
+              requestBody: {
+                ...call.requestBody,
+                messages: [{ role: "user", content: "hj" }],
+              },
+            }
+          : call),
+      }],
+      ["system content", {
+        sealedCalls: calls.map((call, index) => index === 0
+          ? {
+              ...call,
+              requestBody: {
+                ...call.requestBody,
+                messages: [
+                  { role: "system", content: "changed-system" },
+                  { role: "user", content: "hi" },
+                ],
+              },
+            }
+          : call),
+      }],
+      ["endpoint", {
+        sealedCalls: calls.map((call, index) => index === 0
+          ? { ...call, endpoint: "https://example.invalid/v1/chat/completions" }
+          : call),
+      }],
+      ["provider", {
+        sealedCalls: calls.map((call, index) => index === 0
+          ? { ...call, provider: call.provider === "openrouter" ? "cheaperinference" : "openrouter" }
+          : call),
+      }],
+      ["wire model", {
+        sealedCalls: calls.map((call, index) => index === 0
+          ? { ...call, wireModel: "tampered/wire-model" }
+          : call),
+      }],
+      ["manifest order", {
+        manifest: {
+          ...manifest,
+          calls: [manifest.calls[1]!, manifest.calls[0]!, ...manifest.calls.slice(2)],
+        },
+      }],
+      ["missing sealedCalls", { sealedCalls: calls.slice(0, 11) }],
+      ["13 sealedCalls", { sealedCalls: [...calls, { ...calls[0]!, requestOrder: 13 }] }],
+      ["identityHash", {
+        manifest: { ...manifest, identityHash: "33".repeat(32) },
+      }],
+      ["manifestFingerprint", {
+        manifest: { ...manifest, manifestFingerprint: "44".repeat(32) },
+      }],
+      ["requestBodyFingerprint", {
+        manifest: {
+          ...manifest,
+          calls: manifest.calls.map((call, index) => index === 0
+            ? { ...call, requestBodyFingerprint: "55".repeat(32) }
+            : call),
+        },
+      }],
+    ];
+    for (const [label, override] of cases) {
+      const result = await runPaidRunner({
+        mode: "AUTHORIZED",
+        manifest: override.manifest ?? manifest,
+        sealedCalls: override.sealedCalls ?? calls,
+        authorization: auth(override.manifest ?? manifest),
+        transport: createMockPaidRunnerTransport(),
+      });
+      assert.equal(result.transportPosts, 0, label);
+      assert.equal(result.providerPosts, 0, label);
+      assert.ok(result.denialReason, label);
+    }
+  });
+
+  it("transport throw/reject/reset and settlement defects stop without retry", async () => {
+    const { manifest, sealedCalls: calls } = pack();
+    const throwResult = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport({ throwAt: 1 }),
+    });
+    assert.equal(throwResult.transportPosts, 1);
+    assert.equal(throwResult.journal.entries[0]?.status, "UNKNOWN_UNRESOLVED");
+    assert.equal(throwResult.journal.entries[0]?.finishReason, "throw");
+
+    const rejectResult = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport({ rejectAt: 1 }),
+    });
+    assert.equal(rejectResult.transportPosts, 1);
+    assert.equal(rejectResult.journal.entries[0]?.status, "UNKNOWN_UNRESOLVED");
+
+    const resetResult = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport({ failAt: 1, failureKind: "connection_reset" }),
+    });
+    assert.equal(resetResult.transportPosts, 1);
+    assert.equal(resetResult.journal.entries[0]?.status, "UNKNOWN_UNRESOLVED");
+
+    const httpResult = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport({ httpStatus: 500 }),
+    });
+    assert.equal(httpResult.transportPosts, 1);
+    assert.equal(httpResult.journal.entries[0]?.status, "FAILED");
+
+    const zeroBill = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport({ billedUsd: 0 }),
+    });
+    assert.equal(zeroBill.transportPosts, 1);
+    assert.equal(zeroBill.denialReason, "COST_EVIDENCE_MISSING");
+    assert.notEqual(zeroBill.journal.entries[0]?.settlementSource, "provider_exact");
+
+    const negativeBill = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport({ billedUsd: -0.01 }),
+    });
+    assert.equal(negativeBill.transportPosts, 1);
+    assert.equal(negativeBill.denialReason, "COST_EVIDENCE_MISSING");
+
+    const wrongModel = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport({ wrongModel: true }),
+    });
+    assert.equal(wrongModel.transportPosts, 1);
+    assert.equal(wrongModel.journal.entries[0]?.status, "FAILED");
+    assert.equal(wrongModel.journal.entries[0]?.finishReason, "wrong_provider_model");
+
+    const happy = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest),
+      transport: createMockPaidRunnerTransport(),
+    });
+    assert.equal(happy.transportPosts, 12);
+    assert.equal(happy.providerPosts, 0);
+    assert.equal(happy.journal.entries.every((entry) => entry.settlementSource === "mock_exact"), true);
+    assert.equal(happy.journal.entries.every((entry) => entry.settlementSource !== "provider_exact"), true);
   });
 });

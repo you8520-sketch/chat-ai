@@ -5,13 +5,28 @@
  * is not shipped in this PR.
  */
 import { createHash } from "node:crypto";
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import path from "node:path";
 
 import {
   MAIN_RP_MODEL_IDS,
   selectedAIProvider,
   type SelectedAI,
 } from "@/lib/chatModels";
-import { resolveMainRpPrimaryWireModelId } from "@/lib/openRouterConfig";
+import { CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL } from "@/lib/cheaperInferenceConfig";
+import {
+  OPENROUTER_CHAT_COMPLETIONS_URL,
+  resolveMainRpPrimaryWireModelId,
+} from "@/lib/openRouterConfig";
 import { resolveOpenRouterMaxTokens } from "@/lib/openRouterClient";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
 import { readCompatibleCompletionProviderRequestId } from "@/lib/openRouterCompletion";
@@ -67,7 +82,11 @@ export type PaidRunnerDenialReason =
   | "PRIOR_CALL_UNRESOLVED"
   | "COST_EVIDENCE_MISSING"
   | "LIVE_TRANSPORT_NOT_SHIPPED"
-  | "APPROVAL_STATUS_NOT_APPROVED";
+  | "APPROVAL_STATUS_NOT_APPROVED"
+  | "JOURNAL_FINGERPRINT_MISMATCH"
+  | "JOURNAL_STORE_UNAVAILABLE"
+  | "CONCURRENT_LAUNCH"
+  | "SEAL_VALIDATION_FAILED";
 
 export type PaidRunnerIdentityHashes = {
   greetingSha256: string;
@@ -152,7 +171,7 @@ export type PaidRunnerJournalEntry = {
   cacheWriteTokens: number | null;
   reasoningTokens: number | null;
   billedUsd: number | null;
-  settlementSource: "provider_exact" | "estimate_not_bill" | "missing" | "unsettled";
+  settlementSource: "provider_exact" | "mock_exact" | "estimate_not_bill" | "missing" | "unsettled";
   visibleChars: number | null;
   elapsedMs: number | null;
   blockReason: PaidRunnerDenialReason | null;
@@ -206,7 +225,7 @@ export type PaidRunnerTransportSuccess = {
 
 export type PaidRunnerTransportFailure = {
   ok: false;
-  kind: "timeout" | "malformed" | "partial_stream" | "http";
+  kind: "timeout" | "malformed" | "partial_stream" | "http" | "throw" | "connection_reset";
   httpStatus: number | null;
   text: string;
   headers: Record<string, string>;
@@ -290,6 +309,143 @@ export function paidRunnerManifestFingerprint(
   });
 }
 
+export function paidRunnerRequestBodyFingerprint(body: Record<string, unknown>): string {
+  return sha256Json(body);
+}
+
+export function paidRunnerManifestDraft(
+  manifest: PaidRunnerPublicManifest
+): Omit<PaidRunnerPublicManifest, "manifestFingerprint" | "providerPosts"> {
+  const { manifestFingerprint: _fingerprint, providerPosts: _posts, ...draft } = manifest;
+  return draft;
+}
+
+export function paidRunnerEndpointMatchesCanonicalOwner(
+  provider: "openrouter" | "cheaperinference",
+  endpoint: string
+): boolean {
+  switch (provider) {
+    case "openrouter":
+      return endpoint === OPENROUTER_CHAT_COMPLETIONS_URL;
+    case "cheaperinference": {
+      if (endpoint === CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL) return true;
+      try {
+        const actual = new URL(endpoint);
+        const canonical = new URL(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL);
+        if (actual.origin !== canonical.origin || actual.pathname !== canonical.pathname) {
+          return false;
+        }
+        for (const key of actual.searchParams.keys()) {
+          if (key !== "x-ci-prompt-cache-scope" && key !== "x-ci-prompt-cache-session") {
+            return false;
+          }
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    default: {
+      const _never: never = provider;
+      return _never;
+    }
+  }
+}
+
+export function verifyPaidRunnerDispatchSeal(input: {
+  manifest: PaidRunnerPublicManifest;
+  sealedCalls: readonly PaidRunnerSealedCall[];
+}): { ok: true } | { ok: false; reason: PaidRunnerDenialReason } {
+  const { manifest, sealedCalls } = input;
+  if (paidRunnerIdentityHash(manifest.identityHashes) !== manifest.identityHash) {
+    return { ok: false, reason: "IDENTITY_HASH_MISMATCH" };
+  }
+  if (paidRunnerManifestFingerprint(paidRunnerManifestDraft(manifest)) !== manifest.manifestFingerprint) {
+    return { ok: false, reason: "MANIFEST_FINGERPRINT_MISMATCH" };
+  }
+  if (manifest.calls.length !== RP_QUALITY_PRECALL_PLANNED_CALLS) {
+    return { ok: false, reason: "PLANNED_CALL_COUNT_MISMATCH" };
+  }
+  if (sealedCalls.length > RP_QUALITY_PRECALL_PLANNED_CALLS) {
+    return { ok: false, reason: "THIRTEENTH_CALL_FORBIDDEN" };
+  }
+  if (sealedCalls.length !== RP_QUALITY_PRECALL_PLANNED_CALLS) {
+    return { ok: false, reason: "SEAL_VALIDATION_FAILED" };
+  }
+
+  const expectedPairs: Array<{ fixtureId: RpQualityPrecallFixtureId; canonicalId: SelectedAI }> = [];
+  for (const fixtureId of RP_QUALITY_PRECALL_FIXTURE_IDS) {
+    for (const canonicalId of MAIN_RP_MODEL_IDS) {
+      expectedPairs.push({ fixtureId, canonicalId });
+    }
+  }
+  const seen = new Set<string>();
+  for (let index = 0; index < RP_QUALITY_PRECALL_PLANNED_CALLS; index += 1) {
+    const sealed = sealedCalls[index];
+    const publicCall = manifest.calls[index];
+    const expected = expectedPairs[index];
+    if (!sealed || !publicCall || !expected) {
+      return { ok: false, reason: "SEAL_VALIDATION_FAILED" };
+    }
+    if (sealed.requestOrder !== index + 1 || publicCall.requestOrder !== index + 1) {
+      return { ok: false, reason: "SEAL_VALIDATION_FAILED" };
+    }
+    if (
+      sealed.fixtureId !== expected.fixtureId ||
+      publicCall.fixtureId !== expected.fixtureId ||
+      sealed.canonicalId !== expected.canonicalId ||
+      publicCall.canonicalId !== expected.canonicalId
+    ) {
+      return { ok: false, reason: "SEAL_VALIDATION_FAILED" };
+    }
+    const pairKey = `${sealed.fixtureId}:${sealed.canonicalId}`;
+    if (seen.has(pairKey)) return { ok: false, reason: "FIXTURE_MODEL_REPLAY" };
+    seen.add(pairKey);
+    let provider: "openrouter" | "cheaperinference";
+    try {
+      provider = expectedPaidRunnerProvider(sealed.canonicalId);
+    } catch {
+      return { ok: false, reason: "PROVIDER_MAPPING_MISMATCH" };
+    }
+    const wireModel = expectedPaidRunnerWireModel(sealed.canonicalId);
+    if (
+      sealed.provider !== provider ||
+      publicCall.provider !== provider ||
+      sealed.wireModel !== wireModel ||
+      publicCall.wireModel !== wireModel ||
+      sealed.endpointKind !== provider ||
+      publicCall.endpointKind !== provider
+    ) {
+      return { ok: false, reason: "PROVIDER_MAPPING_MISMATCH" };
+    }
+    if (!paidRunnerEndpointMatchesCanonicalOwner(provider, sealed.endpoint)) {
+      return { ok: false, reason: "SEAL_VALIDATION_FAILED" };
+    }
+    if (
+      "max_tokens" in sealed.requestBody ||
+      "max_completion_tokens" in sealed.requestBody ||
+      sealed.maxTokensPresent !== false ||
+      publicCall.maxTokensPresent !== false
+    ) {
+      return { ok: false, reason: "SEAL_VALIDATION_FAILED" };
+    }
+    if (typeof sealed.requestBody.model === "string" && sealed.requestBody.model !== wireModel) {
+      return { ok: false, reason: "PROVIDER_MAPPING_MISMATCH" };
+    }
+    const bodyFingerprint = paidRunnerRequestBodyFingerprint(sealed.requestBody);
+    if (
+      bodyFingerprint !== sealed.requestBodyFingerprint ||
+      bodyFingerprint !== publicCall.requestBodyFingerprint
+    ) {
+      return { ok: false, reason: "SEAL_VALIDATION_FAILED" };
+    }
+    if (sealed.finalWireFingerprint !== publicCall.finalWireFingerprint) {
+      return { ok: false, reason: "SEAL_VALIDATION_FAILED" };
+    }
+  }
+  return { ok: true };
+}
+
 export function assertCurrentMainRpPaidAllowlist(allowlist: readonly string[]): void {
   if (JSON.stringify([...allowlist]) !== JSON.stringify([...MAIN_RP_MODEL_IDS])) {
     throw new Error("PAID_RUNNER_MODEL_REGISTRY_DRIFT");
@@ -338,14 +494,19 @@ export function evaluatePaidRunnerAuthorization(
   if (!isWellFormedPaidExperimentSecret(input.experimentSecret)) {
     return deny("MALFORMED_EXPERIMENT_SECRET");
   }
-  if (input.approvedManifestFingerprint !== manifest.manifestFingerprint) {
+  const recomputedIdentity = paidRunnerIdentityHash(manifest.identityHashes);
+  if (recomputedIdentity !== manifest.identityHash || recomputedIdentity !== input.expectedIdentityHash) {
+    return deny("IDENTITY_HASH_MISMATCH");
+  }
+  const recomputedManifest = paidRunnerManifestFingerprint(paidRunnerManifestDraft(manifest));
+  if (
+    recomputedManifest !== manifest.manifestFingerprint ||
+    recomputedManifest !== input.approvedManifestFingerprint
+  ) {
     return deny("MANIFEST_FINGERPRINT_MISMATCH");
   }
   if (input.expectedProductionSha !== manifest.productionDeploySha) {
     return deny("PRODUCTION_SHA_MISMATCH");
-  }
-  if (input.expectedIdentityHash !== manifest.identityHash) {
-    return deny("IDENTITY_HASH_MISMATCH");
   }
   if (input.plannedCalls !== RP_QUALITY_PRECALL_PLANNED_CALLS) {
     return deny("PLANNED_CALL_COUNT_MISMATCH");
@@ -377,6 +538,176 @@ export function createPaidRunnerJournal(manifestFingerprint: string): PaidRunner
     entries: [],
     executedManifestFingerprints: [],
   };
+}
+
+export type PaidRunnerJournalLock = {
+  release(): void;
+};
+
+export type PaidRunnerJournalStore = {
+  kind: "memory" | "file";
+  load(manifestFingerprint: string): PaidRunnerJournal | null;
+  persist(journal: PaidRunnerJournal): void;
+  tryAcquireExclusiveLock(
+    manifestFingerprint: string
+  ):
+    | { ok: true; lock: PaidRunnerJournalLock }
+    | { ok: false; reason: "CONCURRENT_LAUNCH" | "JOURNAL_STORE_UNAVAILABLE" };
+};
+
+const memoryLaunchLocks = new Map<string, true>();
+
+function clonePaidRunnerJournal(journal: PaidRunnerJournal): PaidRunnerJournal {
+  return {
+    manifestFingerprint: journal.manifestFingerprint,
+    entries: journal.entries.map((entry) => ({ ...entry })),
+    executedManifestFingerprints: [...journal.executedManifestFingerprints],
+  };
+}
+
+function journalJsonIsPublicSafe(journal: PaidRunnerJournal): void {
+  const json = JSON.stringify({
+    manifestFingerprint: journal.manifestFingerprint,
+    entries: journal.entries,
+    executedManifestFingerprints: journal.executedManifestFingerprints,
+  });
+  if (/sk-[a-zA-Z0-9]{10,}|rpq-paid-|Authorization|Bearer /i.test(json)) {
+    throw new Error("JOURNAL_CONTAINS_SECRET");
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function fileJournalPath(directory: string, fingerprint: string): string {
+  if (!/^[a-f0-9]{64}$/.test(fingerprint)) {
+    throw new Error("JOURNAL_FINGERPRINT_MISMATCH");
+  }
+  return path.join(directory, `rp-quality-paid-journal-${fingerprint}.json`);
+}
+
+export function createMemoryPaidRunnerJournalStore(
+  seed?: PaidRunnerJournal
+): PaidRunnerJournalStore {
+  let current: PaidRunnerJournal | null = seed ? clonePaidRunnerJournal(seed) : null;
+  return {
+    kind: "memory",
+    load() {
+      return current ? clonePaidRunnerJournal(current) : null;
+    },
+    persist(journal) {
+      journalJsonIsPublicSafe(journal);
+      current = clonePaidRunnerJournal(journal);
+      if (seed) {
+        seed.manifestFingerprint = current.manifestFingerprint;
+        seed.entries = current.entries.map((entry) => ({ ...entry }));
+        seed.executedManifestFingerprints = [...current.executedManifestFingerprints];
+      }
+    },
+    tryAcquireExclusiveLock(manifestFingerprint) {
+      if (memoryLaunchLocks.has(manifestFingerprint)) {
+        return { ok: false, reason: "CONCURRENT_LAUNCH" };
+      }
+      memoryLaunchLocks.set(manifestFingerprint, true);
+      return {
+        ok: true,
+        lock: {
+          release() {
+            memoryLaunchLocks.delete(manifestFingerprint);
+          },
+        },
+      };
+    },
+  };
+}
+
+export function createFilePaidRunnerJournalStore(directory: string): PaidRunnerJournalStore {
+  return {
+    kind: "file",
+    load(manifestFingerprint) {
+      const file = fileJournalPath(directory, manifestFingerprint);
+      if (!existsSync(file)) return null;
+      const parsed = JSON.parse(readFileSync(file, "utf8")) as PaidRunnerJournal;
+      if (parsed.manifestFingerprint !== manifestFingerprint) {
+        throw new Error("JOURNAL_FINGERPRINT_MISMATCH");
+      }
+      return clonePaidRunnerJournal(parsed);
+    },
+    persist(journal) {
+      mkdirSync(directory, { recursive: true });
+      journalJsonIsPublicSafe(journal);
+      const dest = fileJournalPath(directory, journal.manifestFingerprint);
+      const tmp = `${dest}.${process.pid}.${Date.now()}.tmp`;
+      writeFileSync(
+        tmp,
+        `${JSON.stringify({
+          manifestFingerprint: journal.manifestFingerprint,
+          entries: journal.entries,
+          executedManifestFingerprints: journal.executedManifestFingerprints,
+        })}\n`,
+        "utf8"
+      );
+      renameSync(tmp, dest);
+    },
+    tryAcquireExclusiveLock(manifestFingerprint) {
+      try {
+        mkdirSync(directory, { recursive: true });
+        const lockPath = `${fileJournalPath(directory, manifestFingerprint)}.lock`;
+        if (existsSync(lockPath)) {
+          const pid = Number(readFileSync(lockPath, "utf8").trim());
+          if (Number.isInteger(pid) && pid > 0 && isProcessAlive(pid)) {
+            return { ok: false, reason: "CONCURRENT_LAUNCH" };
+          }
+          try {
+            unlinkSync(lockPath);
+          } catch {
+            return { ok: false, reason: "CONCURRENT_LAUNCH" };
+          }
+        }
+        const fd = openSync(lockPath, "wx");
+        try {
+          writeFileSync(fd, `${process.pid}\n`);
+        } finally {
+          closeSync(fd);
+        }
+        return {
+          ok: true,
+          lock: {
+            release() {
+              try {
+                unlinkSync(lockPath);
+              } catch {
+                /* lock already released */
+              }
+            },
+          },
+        };
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === "EEXIST") return { ok: false, reason: "CONCURRENT_LAUNCH" };
+        return { ok: false, reason: "JOURNAL_STORE_UNAVAILABLE" };
+      }
+    },
+  };
+}
+
+export function recoverPaidRunnerLeftoverSent(journal: PaidRunnerJournal): boolean {
+  let recovered = false;
+  for (const entry of journal.entries) {
+    if (entry.status === "SENT") {
+      entry.status = "UNKNOWN_UNRESOLVED";
+      entry.settlementSource = "unsettled";
+      entry.finishReason = entry.finishReason ?? "process_crash";
+      recovered = true;
+    }
+  }
+  return recovered;
 }
 
 function emptyUsageFields(): Pick<
@@ -432,7 +763,12 @@ export function journalCanStartNextCall(
   if (last && last.status === "BLOCKED") {
     return { ok: false, reason: last.blockReason ?? "PRIOR_CALL_UNRESOLVED" };
   }
-  if (last && last.status === "SETTLED" && last.settlementSource === "missing") {
+  if (
+    last &&
+    last.status === "SETTLED" &&
+    last.settlementSource !== "mock_exact" &&
+    last.settlementSource !== "provider_exact"
+  ) {
     return { ok: false, reason: "COST_EVIDENCE_MISSING" };
   }
   if (!last && call.requestOrder !== 1) {
@@ -463,15 +799,26 @@ export function markPaidRunnerJournalPrepared(
 
 export function createMockPaidRunnerTransport(options?: {
   failAt?: number;
+  throwAt?: number;
+  rejectAt?: number;
   failureKind?: PaidRunnerTransportFailure["kind"];
   omitRequestId?: boolean;
   omitBilledUsd?: boolean;
+  billedUsd?: number | null;
+  httpStatus?: number;
+  wrongModel?: boolean;
 }): PaidRunnerTransport {
   let count = 0;
   return {
     kind: "mock",
     async post(input) {
       count += 1;
+      if (options?.throwAt === count || (options?.failAt === count && options.failureKind === "throw")) {
+        throw new Error("PAID_RUNNER_TRANSPORT_THROW");
+      }
+      if (options?.rejectAt === count) {
+        return Promise.reject(new Error("PAID_RUNNER_TRANSPORT_REJECT"));
+      }
       if (options?.failAt === count) {
         return {
           ok: false,
@@ -482,10 +829,11 @@ export function createMockPaidRunnerTransport(options?: {
           body: options.failureKind === "malformed" ? "not-json" : {},
         };
       }
+      const billedUsd = options?.omitBilledUsd ? null : options?.billedUsd === undefined ? 0.01 : options.billedUsd;
       const text = `모의 출력 ${input.canonicalId} ${count} — 장면은 이어지고 공간은 유지된다.`;
       return {
         ok: true,
-        httpStatus: 200,
+        httpStatus: options?.httpStatus ?? 200,
         text,
         finishReason: "stop",
         usage: {
@@ -494,7 +842,7 @@ export function createMockPaidRunnerTransport(options?: {
           cacheReadTokens: 0,
           cacheWriteTokens: 0,
           reasoningTokens: 0,
-          billedUsd: options?.omitBilledUsd ? null : 0.01,
+          billedUsd,
         },
         requestId: options?.omitRequestId ? "" : `mock-req-${count}`,
         headers: {
@@ -503,10 +851,11 @@ export function createMockPaidRunnerTransport(options?: {
         },
         body: {
           id: options?.omitRequestId ? undefined : `mock-req-${count}`,
+          model: options?.wrongModel ? "wrong-provider-model" : input.body.model,
           usage: {
             prompt_tokens: 100,
             completion_tokens: 80,
-            cost: options?.omitBilledUsd ? undefined : 0.01,
+            cost: billedUsd ?? undefined,
           },
         },
       };
@@ -521,7 +870,8 @@ export function createLivePaidRunnerTransport(): never {
 function settleFromTransport(
   call: PaidRunnerSealedCall,
   result: PaidRunnerTransportResult,
-  elapsedMs: number
+  elapsedMs: number,
+  transportKind: PaidRunnerTransportKind
 ): PaidRunnerUsageEvidence {
   if (!result.ok) {
     return {
@@ -532,6 +882,52 @@ function settleFromTransport(
       providerRequestId: null,
       httpResult: result.httpStatus,
       finishReason: result.kind,
+      promptTokens: null,
+      completionTokens: null,
+      cacheReadTokens: null,
+      cacheWriteTokens: null,
+      reasoningTokens: null,
+      billedUsd: null,
+      settlementSource: "unsettled",
+      visibleChars: result.text.length || null,
+      elapsedMs,
+      finalWireFingerprint: call.finalWireFingerprint,
+    };
+  }
+  const bodyModel =
+    result.body && typeof result.body === "object" && "model" in result.body
+      ? String((result.body as { model?: unknown }).model ?? "")
+      : "";
+  if (result.httpStatus < 200 || result.httpStatus >= 300) {
+    return {
+      fixtureId: call.fixtureId,
+      canonicalId: call.canonicalId,
+      provider: call.provider,
+      wireModel: call.wireModel,
+      providerRequestId: null,
+      httpResult: result.httpStatus,
+      finishReason: "http",
+      promptTokens: null,
+      completionTokens: null,
+      cacheReadTokens: null,
+      cacheWriteTokens: null,
+      reasoningTokens: null,
+      billedUsd: null,
+      settlementSource: "unsettled",
+      visibleChars: result.text.length || null,
+      elapsedMs,
+      finalWireFingerprint: call.finalWireFingerprint,
+    };
+  }
+  if (bodyModel && bodyModel !== call.wireModel) {
+    return {
+      fixtureId: call.fixtureId,
+      canonicalId: call.canonicalId,
+      provider: call.provider,
+      wireModel: call.wireModel,
+      providerRequestId: null,
+      httpResult: result.httpStatus,
+      finishReason: "wrong_provider_model",
       promptTokens: null,
       completionTokens: null,
       cacheReadTokens: null,
@@ -560,8 +956,16 @@ function settleFromTransport(
       body: result.body,
     });
   const billedUsd = result.usage.billedUsd ?? usage.cheaperInferenceBilledCostUsd ?? usage.upstreamCostUsd ?? null;
-  const settlementSource: PaidRunnerUsageEvidence["settlementSource"] =
-    requestId && billedUsd != null ? "provider_exact" : requestId ? "unsettled" : "missing";
+  let settlementSource: PaidRunnerUsageEvidence["settlementSource"];
+  if (!requestId) {
+    settlementSource = "missing";
+  } else if (billedUsd == null || !(billedUsd > 0)) {
+    settlementSource = "unsettled";
+  } else if (transportKind === "mock") {
+    settlementSource = "mock_exact";
+  } else {
+    settlementSource = "unsettled";
+  }
   return {
     fixtureId: call.fixtureId,
     canonicalId: call.canonicalId,
@@ -581,6 +985,37 @@ function settleFromTransport(
     elapsedMs,
     finalWireFingerprint: call.finalWireFingerprint,
   };
+}
+
+function journalStatusForTransport(
+  result: PaidRunnerTransportResult,
+  usage: PaidRunnerUsageEvidence
+): PaidRunnerJournalStatus {
+  if (!result.ok) {
+    if (
+      result.kind === "timeout" ||
+      result.kind === "partial_stream" ||
+      result.kind === "throw" ||
+      result.kind === "connection_reset"
+    ) {
+      return "UNKNOWN_UNRESOLVED";
+    }
+    return "FAILED";
+  }
+  if (result.httpStatus < 200 || result.httpStatus >= 300) return "FAILED";
+  if (usage.finishReason === "wrong_provider_model") return "FAILED";
+  if (usage.settlementSource === "mock_exact" || usage.settlementSource === "provider_exact") {
+    return "SETTLED";
+  }
+  if (usage.billedUsd != null && !(usage.billedUsd > 0)) return "FAILED";
+  return "UNKNOWN_UNRESOLVED";
+}
+
+function denialForUnresolvedUsage(usage: PaidRunnerUsageEvidence): PaidRunnerDenialReason {
+  if (usage.settlementSource === "missing" || (usage.billedUsd != null && !(usage.billedUsd > 0))) {
+    return "COST_EVIDENCE_MISSING";
+  }
+  return "PRIOR_CALL_UNRESOLVED";
 }
 
 function writeJournalEntry(
@@ -675,193 +1110,255 @@ export async function runPaidRunner(input: {
   authorization: PaidRunnerAuthorizationInput;
   transport: PaidRunnerTransport;
   journal?: PaidRunnerJournal;
+  journalStore?: PaidRunnerJournalStore;
 }): Promise<PaidRunnerRunResult> {
-  const journal = input.journal ?? createPaidRunnerJournal(input.manifest.manifestFingerprint);
-  const gate = evaluatePaidRunnerAuthorization(input.manifest, input.authorization, input.mode);
   const publicResults: PaidRunnerPublicResult[] = [];
   const privateResults: PaidRunnerPrivateResult[] = [];
-  if (!gate.authorized) {
-    return {
-      mode: input.mode,
-      authorized: false,
-      denialReason: gate.reason,
-      providerPosts: 0,
-      transportPosts: 0,
-      networkAttempts: 0,
-      dbWrites: 0,
-      journal,
-      publicResults,
-      privateResults,
-      publicMetadataSafe: true,
-    };
-  }
-  if (input.transport.kind === "live") {
-    return {
-      mode: input.mode,
-      authorized: true,
-      denialReason: "LIVE_TRANSPORT_NOT_SHIPPED",
-      providerPosts: 0,
-      transportPosts: 0,
-      networkAttempts: 0,
-      dbWrites: 0,
-      journal,
-      publicResults,
-      privateResults,
-      publicMetadataSafe: true,
-    };
-  }
-
-  markPaidRunnerJournalPrepared(journal, input.manifest.calls);
-  let transportPosts = 0;
-  for (const sealed of input.sealedCalls) {
-    const startGate = journalCanStartNextCall(journal, sealed);
-    if (!startGate.ok) {
-      writeJournalEntry(journal, sealed, {
-        status: "BLOCKED",
-        blockReason: startGate.reason,
-      });
-      return {
-        mode: input.mode,
-        authorized: true,
-        denialReason: startGate.reason,
-        providerPosts: 0,
-        transportPosts,
-        networkAttempts: 0,
-        dbWrites: 0,
-        journal,
-        publicResults,
-        privateResults,
-        publicMetadataSafe: !publicMetadataContainsSecret({ publicResults, journal }),
-      };
-    }
-    writeJournalEntry(journal, sealed, { status: "SENT", settlementSource: "unsettled" });
-    const started = Date.now();
-    const result = await input.transport.post({
-      endpoint: sealed.endpoint,
-      body: sealed.requestBody,
-      canonicalId: sealed.canonicalId,
-      provider: sealed.provider,
-    });
-    transportPosts += 1;
-    const elapsedMs = Date.now() - started;
-    if (!result.ok) {
-      const status: PaidRunnerJournalStatus =
-        result.kind === "timeout" || result.kind === "partial_stream" ? "UNKNOWN_UNRESOLVED" : "FAILED";
-      writeJournalEntry(journal, sealed, {
-        status,
-        settlementSource: "unsettled",
-        httpResult: result.httpStatus,
-        finishReason: result.kind,
-        elapsedMs,
-      });
-      return {
-        mode: input.mode,
-        authorized: true,
-        denialReason: result.kind === "timeout" || result.kind === "partial_stream"
-          ? "PRIOR_CALL_UNRESOLVED"
-          : "PRIOR_CALL_UNRESOLVED",
-        providerPosts: 0,
-        transportPosts,
-        networkAttempts: 0,
-        dbWrites: 0,
-        journal,
-        publicResults,
-        privateResults,
-        publicMetadataSafe: true,
-      };
-    }
-    const usage = settleFromTransport(sealed, result, elapsedMs);
-    if (usage.settlementSource !== "provider_exact") {
-      writeJournalEntry(journal, sealed, {
-        status: "UNKNOWN_UNRESOLVED",
-        settlementSource: usage.settlementSource,
-        providerRequestId: usage.providerRequestId,
-        billedUsd: usage.billedUsd,
-        httpResult: usage.httpResult,
-        finishReason: usage.finishReason,
-        elapsedMs,
-      });
-      return {
-        mode: input.mode,
-        authorized: true,
-        denialReason: usage.settlementSource === "missing" ? "COST_EVIDENCE_MISSING" : "PRIOR_CALL_UNRESOLVED",
-        providerPosts: 0,
-        transportPosts,
-        networkAttempts: 0,
-        dbWrites: 0,
-        journal,
-        publicResults,
-        privateResults,
-        publicMetadataSafe: true,
-      };
-    }
-    writeJournalEntry(journal, sealed, {
-      status: "SETTLED",
-      settlementSource: "provider_exact",
-      providerRequestId: usage.providerRequestId,
-      httpResult: usage.httpResult,
-      finishReason: usage.finishReason,
-      promptTokens: usage.promptTokens,
-      completionTokens: usage.completionTokens,
-      cacheReadTokens: usage.cacheReadTokens,
-      cacheWriteTokens: usage.cacheWriteTokens,
-      reasoningTokens: usage.reasoningTokens,
-      billedUsd: usage.billedUsd,
-      visibleChars: usage.visibleChars,
-      elapsedMs,
-    });
-    const packet = buildQualityOutputPacket({
-      opaqueLabel: `call-${sealed.requestOrder}`,
-      generatedText: result.text,
-      model: sealed.canonicalId,
-      sceneClass: sealed.fixtureId,
-      authoringLevel: DEFAULT_USER_AUTHORING_LEVEL,
-      turnKind: "manual",
-      contentMode: "SAFE",
-      finishReason: usage.finishReason,
-      finalWireFingerprint: sealed.finalWireFingerprint,
-    });
-    publicResults.push({
-      requestOrder: sealed.requestOrder,
-      fixtureId: sealed.fixtureId,
-      status: "SETTLED",
-      visibleChars: packet.metadata.visibleChars,
-      finishReason: usage.finishReason,
-      finalWireFingerprint: sealed.finalWireFingerprint,
-      scores: emptyRubricScores(),
-    });
-    privateResults.push({
-      requestOrder: sealed.requestOrder,
-      reveal: {
-        canonicalId: sealed.canonicalId,
-        provider: sealed.provider,
-        wireModel: sealed.wireModel,
-      },
-      packet,
-      usage,
-    });
-  }
-  journal.executedManifestFingerprints.push(journal.manifestFingerprint);
-  return {
+  const emptyJournal = input.journal ?? createPaidRunnerJournal(input.manifest.manifestFingerprint);
+  const closed = (
+    partial: Partial<PaidRunnerRunResult> & Pick<PaidRunnerRunResult, "authorized" | "denialReason" | "journal">
+  ): PaidRunnerRunResult => ({
     mode: input.mode,
-    authorized: true,
-    denialReason: null,
     providerPosts: 0,
-    transportPosts,
+    transportPosts: 0,
     networkAttempts: 0,
     dbWrites: 0,
-    journal,
     publicResults,
     privateResults,
-    publicMetadataSafe: !publicMetadataContainsSecret({
+    publicMetadataSafe: true,
+    ...partial,
+  });
+
+  const gate = evaluatePaidRunnerAuthorization(input.manifest, input.authorization, input.mode);
+  if (!gate.authorized) {
+    return closed({ authorized: false, denialReason: gate.reason, journal: emptyJournal });
+  }
+  if (input.transport.kind === "live") {
+    return closed({
+      authorized: true,
+      denialReason: "LIVE_TRANSPORT_NOT_SHIPPED",
+      journal: emptyJournal,
+    });
+  }
+
+  const seal = verifyPaidRunnerDispatchSeal({
+    manifest: input.manifest,
+    sealedCalls: input.sealedCalls,
+  });
+  if (!seal.ok) {
+    return closed({ authorized: false, denialReason: seal.reason, journal: emptyJournal });
+  }
+
+  const canonicalFingerprint = paidRunnerManifestFingerprint(paidRunnerManifestDraft(input.manifest));
+  const store = input.journalStore ?? createMemoryPaidRunnerJournalStore(emptyJournal);
+  const lockResult = store.tryAcquireExclusiveLock(canonicalFingerprint);
+  if (!lockResult.ok) {
+    return closed({
+      authorized: false,
+      denialReason: lockResult.reason,
+      journal: emptyJournal,
+    });
+  }
+
+  let journal = emptyJournal;
+  let transportPosts = 0;
+  try {
+    let loaded: PaidRunnerJournal | null = null;
+    try {
+      loaded = store.load(canonicalFingerprint);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      return closed({
+        authorized: false,
+        denialReason: message === "JOURNAL_FINGERPRINT_MISMATCH"
+          ? "JOURNAL_FINGERPRINT_MISMATCH"
+          : "JOURNAL_STORE_UNAVAILABLE",
+        journal,
+      });
+    }
+    journal = loaded ?? clonePaidRunnerJournal(emptyJournal);
+    if (journal.manifestFingerprint !== canonicalFingerprint) {
+      return closed({
+        authorized: false,
+        denialReason: "JOURNAL_FINGERPRINT_MISMATCH",
+        journal,
+      });
+    }
+
+    const persist = (): PaidRunnerDenialReason | null => {
+      try {
+        store.persist(journal);
+        return null;
+      } catch {
+        return "JOURNAL_STORE_UNAVAILABLE";
+      }
+    };
+
+    if (recoverPaidRunnerLeftoverSent(journal)) {
+      const persistFail = persist();
+      return closed({
+        authorized: false,
+        denialReason: persistFail ?? "PRIOR_CALL_UNRESOLVED",
+        journal,
+      });
+    }
+
+    if (journal.entries.length === 0) {
+      markPaidRunnerJournalPrepared(journal, input.manifest.calls);
+      const persistFail = persist();
+      if (persistFail) {
+        return closed({ authorized: false, denialReason: persistFail, journal });
+      }
+    }
+
+    for (const sealed of input.sealedCalls) {
+      const startGate = journalCanStartNextCall(journal, sealed);
+      if (!startGate.ok) {
+        const existing = journal.entries.find((entry) => entry.requestOrder === sealed.requestOrder);
+        if (!existing || existing.status === "PREPARED") {
+          writeJournalEntry(journal, sealed, {
+            status: "BLOCKED",
+            blockReason: startGate.reason,
+          });
+        }
+        persist();
+        return closed({
+          authorized: true,
+          denialReason: startGate.reason,
+          journal,
+          transportPosts,
+        });
+      }
+
+      writeJournalEntry(journal, sealed, { status: "SENT", settlementSource: "unsettled" });
+      const persistSent = persist();
+      if (persistSent) {
+        writeJournalEntry(journal, sealed, { status: "PREPARED", settlementSource: "missing" });
+        return closed({
+          authorized: false,
+          denialReason: persistSent,
+          journal,
+          transportPosts,
+        });
+      }
+
+      const started = Date.now();
+      let result: PaidRunnerTransportResult;
+      try {
+        result = await input.transport.post({
+          endpoint: sealed.endpoint,
+          body: sealed.requestBody,
+          canonicalId: sealed.canonicalId,
+          provider: sealed.provider,
+        });
+      } catch {
+        result = {
+          ok: false,
+          kind: "throw",
+          httpStatus: null,
+          text: "",
+          headers: {} as Record<string, string>,
+          body: {},
+        };
+      }
+      transportPosts += 1;
+      const elapsedMs = Date.now() - started;
+      const usage = settleFromTransport(sealed, result, elapsedMs, input.transport.kind);
+      const status = journalStatusForTransport(result, usage);
+      if (status !== "SETTLED") {
+        writeJournalEntry(journal, sealed, {
+          status,
+          settlementSource: usage.settlementSource,
+          providerRequestId: usage.providerRequestId,
+          billedUsd: usage.billedUsd,
+          httpResult: usage.httpResult,
+          finishReason: usage.finishReason,
+          elapsedMs,
+        });
+        persist();
+        return closed({
+          authorized: true,
+          denialReason: denialForUnresolvedUsage(usage),
+          journal,
+          transportPosts,
+        });
+      }
+      writeJournalEntry(journal, sealed, {
+        status: "SETTLED",
+        settlementSource: usage.settlementSource,
+        providerRequestId: usage.providerRequestId,
+        httpResult: usage.httpResult,
+        finishReason: usage.finishReason,
+        promptTokens: usage.promptTokens,
+        completionTokens: usage.completionTokens,
+        cacheReadTokens: usage.cacheReadTokens,
+        cacheWriteTokens: usage.cacheWriteTokens,
+        reasoningTokens: usage.reasoningTokens,
+        billedUsd: usage.billedUsd,
+        visibleChars: usage.visibleChars,
+        elapsedMs,
+      });
+      const persistSettled = persist();
+      if (persistSettled) {
+        return closed({
+          authorized: true,
+          denialReason: persistSettled,
+          journal,
+          transportPosts,
+        });
+      }
+      const packet = buildQualityOutputPacket({
+        opaqueLabel: `call-${sealed.requestOrder}`,
+        generatedText: result.text,
+        model: sealed.canonicalId,
+        sceneClass: sealed.fixtureId,
+        authoringLevel: DEFAULT_USER_AUTHORING_LEVEL,
+        turnKind: "manual",
+        contentMode: "SAFE",
+        finishReason: usage.finishReason,
+        finalWireFingerprint: sealed.finalWireFingerprint,
+      });
+      publicResults.push({
+        requestOrder: sealed.requestOrder,
+        fixtureId: sealed.fixtureId,
+        status: "SETTLED",
+        visibleChars: packet.metadata.visibleChars,
+        finishReason: usage.finishReason,
+        finalWireFingerprint: sealed.finalWireFingerprint,
+        scores: emptyRubricScores(),
+      });
+      privateResults.push({
+        requestOrder: sealed.requestOrder,
+        reveal: {
+          canonicalId: sealed.canonicalId,
+          provider: sealed.provider,
+          wireModel: sealed.wireModel,
+        },
+        packet,
+        usage,
+      });
+    }
+    journal.executedManifestFingerprints.push(journal.manifestFingerprint);
+    persist();
+    return closed({
+      authorized: true,
+      denialReason: null,
+      journal,
+      transportPosts,
       publicResults,
-      journal: journal.entries.map((entry) => ({
-        requestOrder: entry.requestOrder,
-        status: entry.status,
-        billedUsd: entry.billedUsd,
-      })),
-    }),
-  };
+      privateResults,
+      publicMetadataSafe: !publicMetadataContainsSecret({
+        publicResults,
+        journal: journal.entries.map((entry) => ({
+          requestOrder: entry.requestOrder,
+          status: entry.status,
+          billedUsd: entry.billedUsd,
+        })),
+      }),
+    });
+  } finally {
+    lockResult.lock.release();
+  }
 }
 
 export function paidRunnerSoftAimUncapped(): {
