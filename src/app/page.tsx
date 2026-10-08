@@ -121,6 +121,7 @@ function MobileDiscoveryNav() {
     <nav
       className="grid grid-cols-5 gap-1 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-1.5 md:hidden"
       aria-label="콘텐츠 탐색"
+      data-menu-transition=""
     >
       {MOBILE_DISCOVERY_TABS.map((tab, index) => (
         <Link

@@ -276,6 +276,194 @@ body {
   }
 }
 
+/* Phase C — 메뉴 시네마틱 전환 (단일 owner: MenuTransitionHost).
+ * 3 layers: ink(전면 암막) → field(비대칭 accent 면) → slab(흰 슬래브 위 대형 타이포).
+ * 진입 방향·퇴장 방향은 motif별 --fx/--fy, --ox/--oy. transform·opacity만 사용.
+ * 오버레이는 pointer-events: none — 네비게이션을 가로막지 않는다.
+ * 타이밍(진입 ≤340ms → hold → reveal)은 menuTransitionSpec의 MENU_TRANSITION_TIMING과 맞춘다. */
+.menu-veil {
+  --fx: -101%;
+  --fy: 0%;
+  --ox: 101%;
+  --oy: 0%;
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.menu-veil[data-motif="gate"] {
+  --fx: 101%;
+  --ox: -101%;
+}
+
+.menu-veil[data-motif="rank"] {
+  --fx: 0%;
+  --fy: 101%;
+  --ox: 0%;
+  --oy: -101%;
+}
+
+.menu-veil[data-motif="edit"] {
+  --fx: 0%;
+  --fy: -101%;
+  --ox: 0%;
+  --oy: 101%;
+}
+
+.menu-veil[data-phase="reveal"] {
+  animation: menu-veil-out 320ms cubic-bezier(0.7, 0, 0.9, 0.5) forwards;
+}
+
+.menu-ink {
+  position: absolute;
+  inset: 0;
+  background: rgb(7 7 13 / 0.94);
+  animation: menu-panel-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.menu-field {
+  position: absolute;
+  top: -6vh;
+  bottom: -6vh;
+  left: -22vw;
+  width: 84vw;
+  background: var(--menu-accent, #8b5cf6);
+  --skew: -12deg;
+  transform: skewX(var(--skew));
+  animation: menu-field-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) 40ms both;
+}
+
+.menu-veil[data-motif="gate"] .menu-field {
+  left: auto;
+  right: -22vw;
+  --skew: 12deg;
+}
+
+.menu-type {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.menu-slab {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.5em;
+  margin-left: -6vw;
+  padding: 0.12em 8vw 0.2em 14vw;
+  /* 글자 수에 맞춰 뷰포트 안에 항상 들어오도록 계산 (390px 포함). */
+  font-size: min(15rem, 38vw, calc(80vw / (var(--menu-chars, 4) * 0.62)));
+  color: #07070d;
+  animation: menu-slab-in 300ms cubic-bezier(0.2, 0.8, 0.2, 1) 90ms both;
+}
+
+/* 배경만 기울여 텍스트 정렬이 skew에 밀리지 않게 한다. */
+.menu-slab::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: #fff;
+  transform: skewX(-10deg);
+}
+
+.menu-en {
+  font-size: 1em;
+  font-style: italic;
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+
+.menu-ko {
+  font-size: 0.17em;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.3em;
+  white-space: nowrap;
+  color: rgb(7 7 13 / 0.85);
+  border-top: 0.035em solid var(--menu-accent, #8b5cf6);
+  padding-top: 0.55em;
+  animation: menu-ko-in 220ms ease-out 220ms both;
+}
+
+@keyframes menu-panel-in {
+  from {
+    transform: translate3d(var(--fx), var(--fy), 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes menu-field-in {
+  from {
+    transform: translate3d(var(--fx), var(--fy), 0) skewX(var(--skew));
+  }
+  to {
+    transform: translate3d(0, 0, 0) skewX(var(--skew));
+  }
+}
+
+@keyframes menu-slab-in {
+  from {
+    transform: translate3d(calc(var(--fx) * 1.4), calc(var(--fy) * 1.4), 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes menu-ko-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes menu-veil-out {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(var(--ox), var(--oy), 0);
+  }
+}
+
+/* BEAT 1 — 클릭한 메뉴의 즉각 반응 (시각 전용). */
+.menu-flash {
+  animation: menu-flash 320ms ease-out;
+}
+
+@keyframes menu-flash {
+  0% {
+    transform: skewX(-10deg) scale(0.96);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-veil {
+    display: none;
+  }
+
+  .menu-flash {
+    animation: none;
+  }
+}
+
 @keyframes float-points-up {
   0% {
     opacity: 1;

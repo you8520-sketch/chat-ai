@@ -199,7 +199,7 @@ export default function SidebarShell({ user, recentActivity, blurNsfw, navItems 
           </Link>
         )}
 
-        <nav className="flex shrink-0 flex-col gap-0.5">
+        <nav className="flex shrink-0 flex-col gap-0.5" data-menu-transition="">
           {navItems.map((item) => (
             <SideLink
               key={item.href}

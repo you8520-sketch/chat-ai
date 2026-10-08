@@ -29,6 +29,7 @@ export default function HeaderMainNavRow() {
     <nav
       className="scrollbar-hide hidden max-w-[48vw] shrink items-stretch gap-0.5 overflow-x-auto overscroll-x-contain md:inline-flex xl:max-w-none"
       aria-label="주요 메뉴"
+      data-menu-transition=""
     >
       {baseTabs.map((t) => {
         const active = isTabActive(pathname, t.href);
