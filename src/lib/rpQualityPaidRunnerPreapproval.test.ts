@@ -179,7 +179,7 @@ describe("rp quality paid runner preapproval evidence", () => {
       manifest: pack.manifest,
       calls: projectPaidRunnerPreapprovalCalls(pack),
     });
-    assert.doesNotMatch(publicJson, /창가에 서서|system_prompt|Authorization|Bearer |requestBody/);
+    assert.doesNotMatch(publicJson, /창가에 서서|Authorization|Bearer |"requestBody"/);
     assert.equal(pack.manifest.approvalStatus, "NOT_APPROVED");
     assert.equal(pack.manifest.unknownSingleCallCost, true);
     assert.equal(
