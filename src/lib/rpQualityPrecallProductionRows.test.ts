@@ -31,6 +31,28 @@ function sha256(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
+function runPrecallRunner(args: string[]) {
+  return new Promise<{ stdout: string; stderr: string; code: number | null }>((resolve) => {
+    execFile(
+      process.execPath,
+      ["--no-warnings", "--conditions=react-server", "--import", "tsx", "scripts/rp-quality-precall-final-wire.ts", ...args],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          RAILWAY_GIT_COMMIT_SHA: DEPLOY_SHA,
+          OPENROUTER_API_KEY: "sk-test-not-a-real-key-0000",
+          DATA_DIR: "/must-not-be-used",
+        },
+        maxBuffer: 64 * 1024 * 1024,
+        timeout: 120_000,
+      },
+      (error, stdout, stderr) =>
+        resolve({ stdout, stderr, code: error ? ((error as { code?: number }).code ?? 1) : 0 })
+    );
+  });
+}
+
 function buildSyntheticDb(file: string): void {
   const db = new DatabaseSync(file);
   db.exec(`
@@ -134,39 +156,67 @@ describe("rp quality PRECALL production rows boundary", () => {
     );
   });
 
+  it("overlay refuses expectedDeploySha === prHead; deployed reseals same SHA without a fake PR head", async () => {
+    const sameSha = await runPrecallRunner([
+      "--verification-mode",
+      "overlay",
+      "--expected-deploy-sha",
+      DEPLOY_SHA,
+      "--pr-head",
+      DEPLOY_SHA,
+      "--db-path",
+      dbFile,
+    ]);
+    const sameReport = JSON.parse(sameSha.stdout) as { ok: boolean; code: string };
+    assert.equal(sameReport.ok, false);
+    assert.equal(sameReport.code, "EXPECTED_SHA_IS_PR_HEAD_NOT_PRODUCTION");
+    assert.equal(sameSha.code, 2);
+
+    const withPrHead = await runPrecallRunner([
+      "--verification-mode",
+      "deployed",
+      "--expected-deploy-sha",
+      DEPLOY_SHA,
+      "--pr-head",
+      PR_HEAD,
+      "--db-path",
+      dbFile,
+    ]);
+    const forbidden = JSON.parse(withPrHead.stdout) as { ok: boolean; code: string };
+    assert.equal(forbidden.ok, false);
+    assert.equal(forbidden.code, "DEPLOYED_MODE_FORBIDS_PR_HEAD");
+
+    const deployed = await runPrecallRunner([
+      "--verification-mode",
+      "deployed",
+      "--expected-deploy-sha",
+      DEPLOY_SHA,
+      "--main-sha",
+      DEPLOY_SHA,
+      "--live-transport-included",
+      "--db-path",
+      dbFile,
+    ]);
+    const report = JSON.parse(deployed.stdout) as Record<string, any>;
+    assert.equal(report.ok, true, deployed.stdout.slice(0, 400));
+    assert.equal(report.verificationMode, "deployed");
+    assert.equal(report.codeSource, "container_tree");
+    assert.equal(report.assemblySourceSha, DEPLOY_SHA);
+    assert.equal(report.paidRunnerPreapproval.assemblySourceSha, DEPLOY_SHA);
+    assert.equal(report.providerPosts, 0);
+    assert.equal(JSON.stringify(report).includes('"requestBody"'), false);
+  });
+
   it("runner end-to-end: 12 plans, metadata only, zero unexpected egress, DB untouched", async () => {
     const before = readFileSync(dbFile).toString("base64");
-    const run = await new Promise<{ stdout: string; stderr: string; code: number | null }>((resolve) => {
-      execFile(
-        process.execPath,
-        [
-          "--no-warnings",
-          "--conditions=react-server",
-          "--import",
-          "tsx",
-          "scripts/rp-quality-precall-final-wire.ts",
-          "--expected-deploy-sha",
-          DEPLOY_SHA,
-          "--pr-head",
-          PR_HEAD,
-          "--db-path",
-          dbFile,
-        ],
-        {
-          encoding: "utf8",
-          env: {
-            ...process.env,
-            RAILWAY_GIT_COMMIT_SHA: DEPLOY_SHA,
-            OPENROUTER_API_KEY: "sk-test-not-a-real-key-0000",
-            DATA_DIR: "/must-not-be-used",
-          },
-          maxBuffer: 64 * 1024 * 1024,
-          timeout: 120_000,
-        },
-        (error, stdout, stderr) =>
-          resolve({ stdout, stderr, code: error ? ((error as { code?: number }).code ?? 1) : 0 })
-      );
-    });
+    const run = await runPrecallRunner([
+      "--expected-deploy-sha",
+      DEPLOY_SHA,
+      "--pr-head",
+      PR_HEAD,
+      "--db-path",
+      dbFile,
+    ]);
     assert.equal(run.stderr.includes("SYNTHETIC-"), false);
     const report = JSON.parse(run.stdout) as Record<string, any>;
     assert.equal(report.ok, true, run.stdout.slice(0, 400));
