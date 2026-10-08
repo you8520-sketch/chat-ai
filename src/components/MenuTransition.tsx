@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 
 import {
   isPlainLeftClick,
-  menuTransitionSpecForPath,
+  MENU_TRANSITION_ATTR,
+  resolveMenuClickTransition,
   type MenuTransitionSpec,
 } from "@/lib/menuTransitionSpec";
 
@@ -13,7 +14,8 @@ import {
  * Phase C — 메뉴 시네마틱 전환의 단일 owner.
  *
  * - canonical navigation owner는 기존 `next/link` 그대로 (href·redirect·query 불변).
- * - 이 모듈은 시각적 향상만 담당: 클릭 감지 → 오버레이 연출 → 경로 변경 후 해제.
+ * - 이 모듈은 시각적 향상만 담당: 승인된 메뉴 영역(`data-menu-transition`)의 클릭 감지
+ *   → 오버레이 연출 → 경로 변경 후 해제. 콘텐츠 링크·최근 활동·history traversal은 대상 아님.
  * - navigation을 지연시키지 않고, router를 직접 호출하지 않으며,
  *   오버레이는 항상 `pointer-events: none`이라 기능을 가로막지 않는다.
  */
@@ -73,61 +75,58 @@ export default function MenuTransitionHost() {
     );
   }
 
-  // BEAT 1 — 메뉴 클릭의 즉각 반응 + BEAT 2 진입. navigation은 그대로 진행.
+  // BEAT 1 — 승인된 메뉴 영역 클릭의 즉각 반응 + BEAT 2 진입. navigation은 그대로 진행.
   useEffect(() => {
     function onClickCapture(e: MouseEvent) {
       if (!isPlainLeftClick(e)) return;
-      const anchor = (e.target as HTMLElement).closest?.("a[href]");
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest("a[href]");
       if (!(anchor instanceof HTMLAnchorElement)) return;
-      if (anchor.target === "_blank") return;
-      const href = anchor.getAttribute("href") ?? "";
-      if (!href.startsWith("/")) return;
-      const spec = menuTransitionSpecForPath(href);
+      if (!anchor.closest(`[${MENU_TRANSITION_ATTR}]`)) return;
+      if (anchor.target && anchor.target !== "_self") return;
+      if (anchor.hasAttribute("download")) return;
+      const dest = new URL(anchor.href, window.location.href);
+      if (dest.origin !== window.location.origin) return;
+      const spec = resolveMenuClickTransition({
+        inMenuRegion: true,
+        destPathname: dest.pathname,
+        currentPathname: window.location.pathname,
+      });
       if (!spec) return;
-      // 클릭한 링크에 즉시 반응 표시 (시각 전용, 이동 불변).
       anchor.classList.remove("menu-flash");
       void anchor.offsetWidth;
       anchor.classList.add("menu-flash");
       window.setTimeout(() => anchor.classList.remove("menu-flash"), 350);
-      scheduleBurst(spec, href.split("?")[0]!);
+      scheduleBurst(spec, dest.pathname);
     }
     document.addEventListener("click", onClickCapture, true);
     return () => document.removeEventListener("click", onClickCapture, true);
   }, []);
 
-  // BEAT 3 — 목적지 도착 시 reveal 후 해제. 뒤로/앞으로 가기도 동일 처리.
+  // BEAT 3 — 메뉴 클릭으로 시작된 burst만 목적지 도착 시 reveal. 클릭 없는 경로 변경
+  // (뒤로/앞으로 가기, 프로그래밍 이동, 콘텐츠 링크)은 veil을 만들지 않는다.
   useEffect(() => {
     if (firstPath.current === null) {
       firstPath.current = pathname;
       return;
     }
-    const prev = firstPath.current;
+    if (firstPath.current === pathname) return;
     firstPath.current = pathname;
-    if (prev === pathname) {
-      // 같은 메뉴 재클릭 — failsafe가 걷어낸다.
-      return;
-    }
     const cur = burstRef.current;
-    if (cur) {
-      const arrived: Burst = { ...cur, phase: "reveal" };
-      burstRef.current = arrived;
-      setBurst(arrived);
-      clearTimers();
-      timers.current.push(
-        window.setTimeout(() => {
-          if (burstRef.current && burstRef.current.id === arrived.id) {
-            burstRef.current = null;
-            setBurst(null);
-          }
-        }, REVEAL_MS),
-      );
-    } else {
-      // 클릭 없이 경로가 바뀐 경우(뒤로/앞으로 가기, 프로그래밍 이동) — 짧게만.
-      const spec = menuTransitionSpecForPath(pathname);
-      if (spec && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        scheduleBurst(spec, pathname);
-      }
-    }
+    if (!cur) return;
+    const arrived: Burst = { ...cur, phase: "reveal" };
+    burstRef.current = arrived;
+    setBurst(arrived);
+    clearTimers();
+    timers.current.push(
+      window.setTimeout(() => {
+        if (burstRef.current && burstRef.current.id === arrived.id) {
+          burstRef.current = null;
+          setBurst(null);
+        }
+      }, REVEAL_MS),
+    );
   }, [pathname]);
 
   useEffect(() => () => clearTimers(), []);

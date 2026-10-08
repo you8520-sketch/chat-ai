@@ -38,6 +38,7 @@ export default async function Header() {
             <Link
               href="/"
               aria-label={`${SITE_DISPLAY_NAME} 홈`}
+              data-menu-transition=""
               className="group flex shrink-0 items-center gap-2.5 text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl"
             >
               <span className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-[0.7rem] border border-violet-300/25 shadow-[0_0_24px_rgba(124,58,237,.26)] transition group-hover:rotate-[-3deg] group-hover:scale-105">

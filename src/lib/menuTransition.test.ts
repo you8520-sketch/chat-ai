@@ -5,7 +5,9 @@ import { describe, it } from "node:test";
 
 import {
   isPlainLeftClick,
+  MENU_TRANSITION_ATTR,
   menuTransitionSpecForPath,
+  resolveMenuClickTransition,
 } from "@/lib/menuTransitionSpec";
 
 const root = process.cwd();
@@ -58,6 +60,58 @@ describe("menu transition specs", () => {
       assert.equal(isPlainLeftClick({ ...plain, [mod]: true }), false, mod);
     }
     assert.equal(isPlainLeftClick({ ...plain, button: 1 }), false);
+  });
+});
+
+describe("menu click scope", () => {
+  it("runs only for approved menu regions", () => {
+    const menu = resolveMenuClickTransition({ inMenuRegion: true, destPathname: "/tab/new", currentPathname: "/" });
+    assert.equal(menu?.en, "NEW");
+    // 캐릭터 태그 /search?q=…, 제작자 /creator/:id, TRPG 내부 /trpg/… 는 메뉴 영역 밖.
+    for (const dest of ["/search", "/creator/7", "/trpg/12", "/studio", "/tab/ranking"]) {
+      assert.equal(
+        resolveMenuClickTransition({ inMenuRegion: false, destPathname: dest, currentPathname: "/" }),
+        null,
+        dest,
+      );
+    }
+  });
+
+  it("skips same-pathname re-clicks and query-only moves", () => {
+    assert.equal(
+      resolveMenuClickTransition({ inMenuRegion: true, destPathname: "/tab/new", currentPathname: "/tab/new" }),
+      null,
+    );
+    assert.equal(
+      resolveMenuClickTransition({ inMenuRegion: true, destPathname: "/", currentPathname: "/" }),
+      null,
+    );
+  });
+
+  it("marks exactly the approved menu owners and not recent activity or content links", () => {
+    const attr = new RegExp(`${MENU_TRANSITION_ATTR}=""`);
+    assert.match(read("src/components/HeaderMainNavRow.tsx"), attr);
+    assert.match(read("src/components/MobileBottomNav.tsx"), attr);
+    assert.match(read("src/components/Header.tsx"), attr);
+    assert.match(read("src/app/page.tsx"), attr);
+    const side = read("src/components/SidebarShell.tsx");
+    assert.match(side, /<nav className="flex shrink-0 flex-col gap-0\.5" data-menu-transition="">/);
+    for (const content of [
+      "src/components/SidebarRecentChatIcons.tsx",
+      "src/components/CharacterCard.tsx",
+      "src/app/creator/[id]/page.tsx",
+      "src/app/trpg/TrpgCatalogBrowse.tsx",
+    ]) {
+      assert.doesNotMatch(read(content), new RegExp(MENU_TRANSITION_ATTR), content);
+    }
+  });
+
+  it("does not start a veil from pathname changes alone", () => {
+    const owner = read("src/components/MenuTransition.tsx");
+    assert.match(owner, /closest\(`\[\$\{MENU_TRANSITION_ATTR\}\]`\)/);
+    const effect = owner.slice(owner.indexOf("// BEAT 3"));
+    assert.doesNotMatch(effect, /scheduleBurst\(/);
+    assert.doesNotMatch(owner, /menuTransitionSpecForPath/);
   });
 });
 

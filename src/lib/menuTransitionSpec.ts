@@ -52,3 +52,21 @@ type ClickModifiers = {
 export function isPlainLeftClick(e: ClickModifiers): boolean {
   return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
 }
+
+/** 메뉴 영역(nav 컨테이너·홈 로고 링크)에 붙이는 명시적 전환 대상 속성. */
+export const MENU_TRANSITION_ATTR = "data-menu-transition";
+
+/**
+ * 승인된 메뉴 영역의 클릭에서만 전환 스펙을 돌려준다.
+ * - 같은 pathname(재클릭·query-only 이동)은 전체 화면 veil 없이 네이티브 이동.
+ * - 비메뉴 링크는 호출 측에서 `inMenuRegion=false`로 걸러진다.
+ */
+export function resolveMenuClickTransition(input: {
+  inMenuRegion: boolean;
+  destPathname: string;
+  currentPathname: string;
+}): MenuTransitionSpec | null {
+  if (!input.inMenuRegion) return null;
+  if (input.destPathname === input.currentPathname) return null;
+  return menuTransitionSpecForPath(input.destPathname);
+}
