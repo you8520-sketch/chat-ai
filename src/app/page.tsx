@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import HomeCreateEventBanner from "@/components/HomeCreateEventBanner";
@@ -13,8 +14,11 @@ import { cn, studioType } from "@/lib/studioDesign";
 
 export const dynamic = "force-dynamic";
 
-/** 소개와 태그를 충분히 읽을 수 있는 세로형 카드 폭 */
-const SCROLL_CARD_WIDTH = "w-[168px] sm:w-[196px] xl:w-[216px]";
+/** 변형별 카드 폭 — 추천은 일러스트 중심의 세로형, 공모전은 더 넓은 전시 프레임 */
+const CARD_WIDTH = {
+  editorial: "w-[172px] sm:w-[208px] xl:w-[232px]",
+  exhibit: "w-[224px] sm:w-[268px] xl:w-[300px]",
+} as const;
 
 const MOBILE_DISCOVERY_TABS = [
   { href: "/", label: "추천" },
@@ -24,69 +28,83 @@ const MOBILE_DISCOVERY_TABS = [
   { href: "/search", label: "검색" },
 ] as const;
 
-const SECTION_META: Record<
-  string,
-  { index: string; eyebrow: string; description: string; word: string }
-> = {
+type SectionMeta = {
+  index: string;
+  eyebrow: string;
+  description: string;
+  slab: CSSProperties;
+  numeral: string;
+};
+
+const SECTION_META: Record<string, SectionMeta> = {
   "추천 캐릭터": {
     index: "01",
     eyebrow: "FOR YOU",
     description: "취향과 활동을 바탕으로 골라낸 이야기",
-    word: "FOR YOU",
+    slab: { "--slab-bg": "#7c3aed", "--slab-ink": "#fff" } as CSSProperties,
+    numeral: "#a78bfa",
   },
   "공모전 당선작": {
     index: "02",
     eyebrow: "SELECTED",
     description: "공모전에서 주목받은 캐릭터와 시뮬레이션",
-    word: "SELECTED",
+    slab: { "--slab-bg": "#fafafa", "--slab-ink": "#09090b" } as CSSProperties,
+    numeral: "#fafafa",
   },
   "신규 캐릭터": {
     index: "03",
     eyebrow: "NEW STORIES",
     description: "방금 공개된 새로운 만남",
-    word: "STORIES",
+    slab: {
+      "--slab-bg": "transparent",
+      "--slab-border": "1px solid rgba(255,255,255,.45)",
+      "--slab-ink": "#fff",
+    } as CSSProperties,
+    numeral: "#71717a",
   },
 };
 
 function SectionHeader({
   title,
   headerLink,
+  level = "h2",
 }: {
   title: string;
   headerLink?: { href: string; label: string };
+  level?: "h1" | "h2";
 }) {
   const meta = SECTION_META[title];
+  const Heading = level;
   return (
-    <div className="relative mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div className="relative min-w-0 flex-1 overflow-hidden">
+    <div className="mb-6 flex flex-wrap items-end gap-x-4 gap-y-2 sm:flex-nowrap">
+      {meta ? (
+        <span
+          aria-hidden="true"
+          className="home-section-num text-[3.5rem] sm:text-[5.25rem]"
+          style={{ "--num-color": meta.numeral } as CSSProperties}
+        >
+          {meta.index}
+        </span>
+      ) : null}
+      <div className="min-w-0 pb-1">
         {meta ? (
-          <p
-            aria-hidden="true"
-            className="home-hero-display pointer-events-none absolute left-0 top-1/2 z-0 hidden -translate-y-1/2 select-none text-[4.25rem] leading-none tracking-[-0.05em] text-white/[0.045] md:block"
-          >
-            {meta.word}
-          </p>
+          <p className="text-[10px] font-bold tracking-[0.26em] text-zinc-400">{meta.eyebrow}</p>
         ) : null}
-        <div className="relative z-10">
-          {meta ? (
-            <p className="mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-zinc-500">
-              {meta.index} / {meta.eyebrow}
-            </p>
-          ) : null}
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h2 className="text-xl font-semibold tracking-[-0.025em] text-zinc-50 sm:text-2xl">
-              {title}
-            </h2>
-            {meta ? (
-              <p className="hidden text-xs text-zinc-500 sm:block">{meta.description}</p>
-            ) : null}
-          </div>
-        </div>
+        <Heading
+          className="home-slab mt-1 text-[1.6rem] font-black leading-tight tracking-[-0.05em] sm:text-[2.5rem]"
+          style={meta?.slab}
+        >
+          {title}
+        </Heading>
       </div>
+      {meta ? (
+        <p className="hidden max-w-[15rem] pb-1.5 text-xs leading-5 text-zinc-500 lg:block">{meta.description}</p>
+      ) : null}
+      <span aria-hidden className="mb-3 hidden h-px min-w-6 flex-1 bg-white/15 sm:block" />
       {headerLink ? (
         <Link
           href={headerLink.href}
-          className="group relative z-10 inline-flex min-h-9 items-center gap-1 px-1 text-xs font-semibold text-zinc-400 underline decoration-white/15 underline-offset-4 transition hover:text-zinc-100 hover:decoration-white/40"
+          className="group relative z-10 ml-auto inline-flex min-h-11 items-center gap-1 px-1 text-xs font-semibold text-zinc-300 underline decoration-white/20 underline-offset-4 transition hover:text-white hover:decoration-white/60 sm:ml-0"
         >
           {headerLink.label}
           <span className="transition-transform group-hover:translate-x-0.5" aria-hidden>
@@ -129,21 +147,42 @@ function ScrollSection({
   blurNsfw,
   loggedIn,
   headerLink,
+  variant,
+  level,
+  staggered = false,
+  band = false,
+  first = false,
 }: {
   title: string;
   chars: CharacterRow[];
   blurNsfw: boolean;
   loggedIn: boolean;
   headerLink?: { href: string; label: string };
+  variant: keyof typeof CARD_WIDTH;
+  level?: "h1" | "h2";
+  staggered?: boolean;
+  band?: boolean;
+  first?: boolean;
 }) {
   if (chars.length === 0) return null;
   return (
-    <section className="mt-8 border-t border-white/10 pt-7 sm:mt-10">
-      <SectionHeader title={title} headerLink={headerLink} />
-      <HorizontalScrollRow className="home-card-row gap-3.5 pb-2 sm:gap-4">
-        {chars.map((c) => (
-          <div key={c.id} className={`${SCROLL_CARD_WIDTH} shrink-0`}>
-            <CharacterCard c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} variant="editorial" />
+    <section className={cn(first ? "mt-8 sm:mt-10" : "mt-12 sm:mt-16", band && "home-band -mx-3 px-3 sm:-mx-5 sm:px-5")}>
+      <SectionHeader title={title} headerLink={headerLink} level={level} />
+      <HorizontalScrollRow
+        className={cn(
+          "home-card-row home-card-group -mx-1 gap-4 px-1 pb-3 pt-2 sm:gap-5",
+          staggered && "home-row-stagger pb-10",
+        )}
+      >
+        {chars.map((c, index) => (
+          <div key={c.id} className={`${CARD_WIDTH[variant]} shrink-0`}>
+            <CharacterCard
+              c={c}
+              blurNsfw={blurNsfw}
+              loggedIn={loggedIn}
+              variant={variant}
+              order={index + 1}
+            />
           </div>
         ))}
       </HorizontalScrollRow>
@@ -166,11 +205,18 @@ function GridSection({
 }) {
   if (chars.length === 0) return null;
   return (
-    <section className="mt-8 border-t border-white/10 pt-7 sm:mt-10">
+    <section className="mt-12 sm:mt-16">
       <SectionHeader title={title} headerLink={headerLink} />
-      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4">
-        {chars.map((c) => (
-          <CharacterCard key={c.id} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} variant="editorial" />
+      <div className="home-card-group home-grid-stagger grid grid-cols-2 gap-x-3.5 gap-y-7 sm:grid-cols-3 sm:gap-x-5 xl:grid-cols-4">
+        {chars.map((c, index) => (
+          <CharacterCard
+            key={c.id}
+            c={c}
+            blurNsfw={blurNsfw}
+            loggedIn={loggedIn}
+            variant="index"
+            order={index + 1}
+          />
         ))}
       </div>
     </section>
@@ -191,7 +237,7 @@ export default async function Home() {
     <div className="pb-6">
       <HomePopupNotice notice={popupNotice} />
       <HomeCreateEventBanner />
-      <div className="mt-6 border-b border-white/[0.07] pb-6 md:hidden">
+      <div className="border-b border-white/[0.07] py-4 md:hidden">
         <MobileDiscoveryNav />
         <div className="mt-3 flex min-h-9 items-center justify-between gap-3 px-1">
           <UserPreferenceControls
@@ -210,7 +256,7 @@ export default async function Home() {
           </Link>
         </div>
       </div>
-      <div className="mt-6 hidden border-b border-white/[0.07] pb-6 md:block">
+      <div className="hidden border-b border-white/[0.07] py-3 md:block">
         <UserPreferenceControls
           isAdult={!!user?.is_adult}
           canDisableSafetyFilter={canDisableSafetyFilter}
@@ -226,6 +272,10 @@ export default async function Home() {
         blurNsfw={blurNsfw}
         loggedIn={loggedIn}
         headerLink={{ href: "/tab/ranking", label: "전체보기" }}
+        variant="editorial"
+        level="h1"
+        staggered
+        first
       />
       <ScrollSection
         title="공모전 당선작"
@@ -233,6 +283,8 @@ export default async function Home() {
         blurNsfw={blurNsfw}
         loggedIn={loggedIn}
         headerLink={{ href: "/tab/ranking", label: "공모전 보기" }}
+        variant="exhibit"
+        band
       />
       <GridSection
         title="신규 캐릭터"
