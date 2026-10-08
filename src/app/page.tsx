@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import HomeCharacterStage from "@/components/HomeCharacterStage";
 import HomeCreateEventBanner from "@/components/HomeCreateEventBanner";
 import HomePopupNotice from "@/components/HomePopupNotice";
 import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
@@ -10,7 +9,6 @@ import UserPreferenceControls from "@/components/UserPreferenceControls";
 import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerification";
 import { fetchHomeSections } from "@/lib/homeSections";
 import { getActiveHomePopupNotice } from "@/lib/homePopupNotice";
-import { toHomeStageCharacters } from "@/lib/homeStagePresentation";
 import { cn, studioType } from "@/lib/studioDesign";
 
 export const dynamic = "force-dynamic";
@@ -28,17 +26,25 @@ const MOBILE_DISCOVERY_TABS = [
 
 const SECTION_META: Record<
   string,
-  { index: string; eyebrow: string; description: string }
+  { index: string; eyebrow: string; description: string; word: string }
 > = {
+  "추천 캐릭터": {
+    index: "01",
+    eyebrow: "FOR YOU",
+    description: "취향과 활동을 바탕으로 골라낸 이야기",
+    word: "FOR YOU",
+  },
   "공모전 당선작": {
     index: "02",
     eyebrow: "SELECTED",
     description: "공모전에서 주목받은 캐릭터와 시뮬레이션",
+    word: "SELECTED",
   },
   "신규 캐릭터": {
     index: "03",
     eyebrow: "NEW STORIES",
     description: "방금 공개된 새로운 만남",
+    word: "STORIES",
   },
 };
 
@@ -52,8 +58,16 @@ function SectionHeader({
   const meta = SECTION_META[title];
   return (
     <div className="relative mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div className="relative min-w-0 flex-1">
-        <div>
+      <div className="relative min-w-0 flex-1 overflow-hidden">
+        {meta ? (
+          <p
+            aria-hidden="true"
+            className="home-hero-display pointer-events-none absolute left-0 top-1/2 z-0 hidden -translate-y-1/2 select-none text-[4.25rem] leading-none tracking-[-0.05em] text-white/[0.045] md:block"
+          >
+            {meta.word}
+          </p>
+        ) : null}
+        <div className="relative z-10">
           {meta ? (
             <p className="mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-zinc-500">
               {meta.index} / {meta.eyebrow}
@@ -176,7 +190,8 @@ export default async function Home() {
   return (
     <div className="pb-6">
       <HomePopupNotice notice={popupNotice} />
-      <div className="border-b border-white/[0.07] pb-4 md:hidden">
+      <HomeCreateEventBanner />
+      <div className="mt-6 border-b border-white/[0.07] pb-6 md:hidden">
         <MobileDiscoveryNav />
         <div className="mt-3 flex min-h-9 items-center justify-between gap-3 px-1">
           <UserPreferenceControls
@@ -195,7 +210,7 @@ export default async function Home() {
           </Link>
         </div>
       </div>
-      <div className="hidden border-b border-white/[0.07] pb-4 md:block">
+      <div className="mt-6 hidden border-b border-white/[0.07] pb-6 md:block">
         <UserPreferenceControls
           isAdult={!!user?.is_adult}
           canDisableSafetyFilter={canDisableSafetyFilter}
@@ -205,10 +220,13 @@ export default async function Home() {
           variant="homeRow"
         />
       </div>
-      <HomeCharacterStage
-        characters={toHomeStageCharacters(recommended, { blurNsfw, loggedIn })}
+      <ScrollSection
+        title="추천 캐릭터"
+        chars={recommended}
+        blurNsfw={blurNsfw}
+        loggedIn={loggedIn}
+        headerLink={{ href: "/tab/ranking", label: "전체보기" }}
       />
-      <HomeCreateEventBanner />
       <ScrollSection
         title="공모전 당선작"
         chars={contest}
