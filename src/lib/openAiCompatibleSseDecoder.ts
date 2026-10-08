@@ -16,6 +16,7 @@ export type OpenAiCompatibleSseFeedState = {
 export type OpenAiCompatibleSseEvidence = {
   text: string;
   responseModelId: string | null;
+  generationId: string | null;
   finishReason: string | null;
   lastUsage: unknown;
   lastCheaperInference: unknown;
@@ -33,6 +34,7 @@ export function createOpenAiCompatibleSseEvidence(): OpenAiCompatibleSseEvidence
   return {
     text: "",
     responseModelId: null,
+    generationId: null,
     finishReason: null,
     lastUsage: null,
     lastCheaperInference: null,
@@ -142,6 +144,9 @@ export function applyOpenAiCompatibleSseEvent(
   if (typeof json.model === "string" && json.model.trim()) {
     if (!evidence.responseModelId) evidence.responseModelId = json.model.trim();
   }
+  if (typeof json.id === "string" && json.id.trim()) {
+    if (!evidence.generationId) evidence.generationId = json.id.trim();
+  }
   if (json.usage != null) evidence.lastUsage = json.usage;
   if (json.cheaper_inference != null) evidence.lastCheaperInference = json.cheaper_inference;
   const choices = Array.isArray(json.choices) ? json.choices : [];
@@ -157,6 +162,7 @@ export function reconstructOpenAiCompatibleCompletionBody(
   evidence: OpenAiCompatibleSseEvidence
 ): Record<string, unknown> {
   return {
+    id: evidence.generationId,
     model: evidence.responseModelId,
     choices: [{ message: { content: evidence.text } }],
     usage: evidence.lastUsage,

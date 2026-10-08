@@ -83,6 +83,20 @@ test("model on first event is preserved when later events omit it", () => {
   assert.equal(evidence.text, "가나다");
 });
 
+test("generation id on first event is preserved when the terminal event omits it", () => {
+  const evidence = createOpenAiCompatibleSseEvidence();
+  applyOpenAiCompatibleSseEvent(evidence, {
+    kind: "json",
+    value: { id: "gen-first-chunk", model: MODEL, choices: [{ delta: { content: "가" } }] },
+  });
+  applyOpenAiCompatibleSseEvent(evidence, {
+    kind: "json",
+    value: { choices: [{ delta: {}, finish_reason: "stop" }], usage: { prompt_tokens: 1 } },
+  });
+  assert.equal(evidence.generationId, "gen-first-chunk");
+  assert.equal(reconstructOpenAiCompatibleCompletionBody(evidence).id, "gen-first-chunk");
+});
+
 test("usage and cheaper_inference on final empty-choice event are preserved", () => {
   const evidence = createOpenAiCompatibleSseEvidence();
   applyOpenAiCompatibleSseEvent(evidence, {
