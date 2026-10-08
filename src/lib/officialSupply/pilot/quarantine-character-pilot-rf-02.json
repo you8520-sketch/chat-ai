@@ -1,0 +1,5 @@
+{
+  "key": "character-pilot-rf-02",
+  "error": "character_bible_voice: relationToChar must be a non-empty string",
+  "at": "2026-10-08T00:33:43.173Z"
+}
