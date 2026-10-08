@@ -11,10 +11,13 @@ import { useCallback, useEffect, useState } from "react";
 export default function CharacterImageViewer({
   src,
   alt,
+  variant = "natural",
 }: {
   src: string;
   alt: string;
   hue: number;
+  /** `poster`: 공개 프로필 hero — 카드와 같은 2:3 크롭(상단 기준). 확대 모달은 원본 비율 그대로. */
+  variant?: "natural" | "poster";
 }) {
   const [open, setOpen] = useState(false);
 
@@ -38,14 +41,22 @@ export default function CharacterImageViewer({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group relative mx-auto block w-fit max-w-full overflow-hidden rounded-2xl bg-transparent"
+        className={
+          variant === "poster"
+            ? "group relative block h-full w-full overflow-hidden bg-transparent"
+            : "group relative mx-auto block w-fit max-w-full overflow-hidden rounded-2xl bg-transparent"
+        }
         aria-label="이미지 크게 보기"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
           alt={alt}
-          className="block h-auto max-h-[70vh] w-auto max-w-full object-contain"
+          className={
+            variant === "poster"
+              ? "block h-full w-full object-cover object-top"
+              : "block h-auto max-h-[70vh] w-auto max-w-full object-contain"
+          }
         />
         <span className="pointer-events-none absolute bottom-2 right-2 rounded bg-black/60 px-2 py-1 text-[10px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
           클릭하여 확대

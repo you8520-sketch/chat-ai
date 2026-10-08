@@ -464,6 +464,235 @@ body {
   }
 }
 
+/* Phase D-1 — 캐릭터 artwork reveal (렌더 owner: CharacterRevealScene, lifecycle owner: MenuTransitionHost).
+ * 차콜/잉크 + 아이보리 타이포 + 절제된 보라 포인트. 일러스트가 주인공이며 임의의 원색 면을 쓰지 않는다.
+ * transform·opacity·clip-path만 사용하고 pointer-events: none. 타이밍은 CHARACTER_REVEAL_TIMING과 맞춘다. */
+.rv-veil {
+  --rv-ivory: #f0e7d4;
+  --rv-violet: #a78bfa;
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.rv-ink {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 78% 40%, #1c1825 0%, #0f0e14 55%, #08080b 100%);
+  opacity: 0.97;
+  animation: rv-fade-in 240ms ease-out both;
+}
+
+.rv-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(38% 55% at 72% 48%, rgb(139 92 246 / 0.2), transparent 72%);
+  animation: rv-fade-in 700ms ease-out 120ms both;
+}
+
+.rv-frame {
+  position: absolute;
+  z-index: 2;
+  border-radius: 14px;
+  transform-origin: 0 0;
+  background: #14121a;
+  animation: rv-fly 680ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.rv-img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 14px;
+}
+
+.rv-img-hero {
+  opacity: 0;
+}
+
+.rv-frame-edge {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgb(240 231 212 / 0.26);
+}
+
+.rv-name {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  color: var(--rv-ivory);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  word-break: keep-all;
+}
+
+.rv-name-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+  white-space: nowrap;
+}
+
+.rv-name-text {
+  display: inline-block;
+  transform: translateY(108%);
+  animation: rv-rise 680ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.rv-rule {
+  position: absolute;
+  z-index: 0;
+  background: rgb(240 231 212 / 0.32);
+}
+
+.rv-rule-v {
+  width: 1px;
+  transform-origin: top;
+  animation: rv-scale-y 620ms cubic-bezier(0.16, 1, 0.3, 1) 380ms both;
+}
+
+.rv-rule-h {
+  height: 1px;
+  transform-origin: left;
+  animation: rv-scale-x 620ms cubic-bezier(0.16, 1, 0.3, 1) 440ms both;
+}
+
+.rv-rule-h::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: 2.25rem;
+  height: 3px;
+  background: var(--rv-violet);
+}
+
+.rv-meta {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgb(240 231 212 / 0.66);
+  animation: rv-rise-fade 520ms cubic-bezier(0.16, 1, 0.3, 1) 640ms both;
+}
+
+.rv-meta-genre {
+  color: var(--rv-violet);
+}
+
+.rv-veil[data-phase="reveal"] :is(.rv-ink, .rv-glow, .rv-rule, .rv-name, .rv-meta) {
+  animation: rv-fade-out 360ms ease-in forwards;
+}
+
+.rv-veil[data-phase="reveal"] .rv-frame {
+  animation: rv-settle 420ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.rv-veil[data-phase="reveal"][data-hero="0"] .rv-frame {
+  animation: rv-fade-out 360ms ease-in forwards;
+}
+
+.rv-veil[data-phase="reveal"] .rv-img-hero {
+  animation: rv-fade-in 260ms ease-out 60ms forwards;
+}
+
+@keyframes rv-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rv-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes rv-fly {
+  from {
+    transform: var(--rv-from);
+    clip-path: inset(var(--rv-ct) var(--rv-cr) var(--rv-cb) var(--rv-cl) round 14px);
+  }
+  to {
+    transform: translate3d(0, 0, 0) scale(1);
+    clip-path: inset(0px 0px 0px 0px round 14px);
+  }
+}
+
+@keyframes rv-settle {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: var(--rv-to);
+  }
+}
+
+@keyframes rv-rise {
+  from {
+    transform: translateY(108%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes rv-rise-fade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rv-scale-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes rv-scale-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv-veil {
+    display: none;
+  }
+}
+
 @keyframes float-points-up {
   0% {
     opacity: 1;

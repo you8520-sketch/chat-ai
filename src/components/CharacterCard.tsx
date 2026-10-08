@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import AdultContentBadge from "@/components/AdultContentBadge";
 import CharacterCardCarousel from "@/components/CharacterCardCarousel";
 import { characterCardHref } from "@/lib/chatLinks";
+import { CHARACTER_CARD_ATTR } from "@/lib/characterReveal";
 import { getCharacterRepresentativePublicUrls } from "@/lib/characterAssets";
 import { characterHueAccent } from "@/lib/characterHueAccent";
 import type { CreatorTierLevel } from "@/lib/creatorShared";
@@ -134,6 +135,21 @@ function cardView(c: CharacterRow, blurNsfw: boolean, loggedIn: boolean): CardVi
         }
       : creatorNameBadgeStyle(c.creator_tier_level),
     genreLabel: c.genre?.trim() || "",
+  };
+}
+
+/**
+ * Phase D-1 reveal 대상 마커. 프로필로 바로 가는(href가 /character/:id) 카드이면서
+ * 성인 가림·로그인 redirect가 아니고 공개 이미지가 있을 때만 붙인다.
+ * 실제 전환은 `MenuTransitionHost`가 href와 이미지를 다시 검증한다.
+ */
+function revealAttrs(c: CharacterRow, view: CardView): Record<string, string> {
+  if (view.hidden || !view.thumb || view.href !== `/character/${c.id}`) return {};
+  return {
+    [CHARACTER_CARD_ATTR]: String(c.id),
+    "data-character-name": c.name,
+    "data-character-genre": view.genreLabel,
+    "data-character-creator": view.creatorName,
   };
 }
 
@@ -282,7 +298,11 @@ function HomeCard({
   );
 
   return (
-    <article className={cn("home-card group/card flex h-full flex-col", `home-card--${variant}`)} style={accentStyle}>
+    <article
+      className={cn("home-card group/card flex h-full flex-col", `home-card--${variant}`)}
+      style={accentStyle}
+      {...revealAttrs(c, view)}
+    >
       <Link href={view.href} className="home-card-link relative block">
         {frame}
         {variant === "exhibit" && orderLabel ? (
@@ -366,7 +386,7 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false, variant =
 
   const chrome = DEFAULT_CHROME;
   return (
-    <article className={chrome.frame}>
+    <article className={chrome.frame} {...revealAttrs(c, view)}>
       <Link href={view.href} className="relative block">
         <div className={`relative ${CHARACTER_THUMB_ASPECT} w-full overflow-hidden`} style={cardBackdrop(c.hue)}>
           {view.thumb ? (
