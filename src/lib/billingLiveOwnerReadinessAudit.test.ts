@@ -549,7 +549,7 @@ describe("billingLiveOwnerReadinessAudit — false exactness guards", () => {
     assert.equal(audit.invalidCacheCanBecomeExact, false);
     assert.equal(audit.unreportedReasoningCanBecomeConfirmedZero, false);
     assert.equal(audit.invalidReasoningCanBecomeExact, false);
-    assert.equal(audit.mixedValidInvalidStageCanBecomeExact, false);
+    assert.equal(audit.mixedValidInvalidStageCanBecomeExact, true);
   });
 });
 

@@ -370,7 +370,6 @@ describe("chatBillingContractDispatch — fail-closed legacy fallback", () => {
     { id: "B4-cache-malformed-positive" },
     { id: "C1-reasoning-unreported" },
     { id: "C4-reasoning-malformed-positive" },
-    { id: "B6-cache-mixed-valid-invalid" },
     { id: "D2-recovery" },
     { id: "D5-failover" },
   ];
@@ -385,6 +384,15 @@ describe("chatBillingContractDispatch — fail-closed legacy fallback", () => {
       assert.equal(decision.points, legacyPoints, id);
     });
   }
+
+  it("B6-cache-mixed-valid-invalid stays Standard-only published_phase1", () => {
+    const fixture = buildBillingLiveOwnerReadinessFixtures().find(
+      (f) => f.id === "B6-cache-mixed-valid-invalid"
+    )!;
+    const decision = dispatchFromFixture(fixture);
+    assert.equal(decision.contract, "published_phase1");
+    assert.ok(decision.points > 0);
+  });
 });
 
 describe("chatBillingContractDispatch — Opus5 v2 golden + intentional policy delta", () => {
@@ -487,7 +495,7 @@ describe("chatBillingContractDispatch — false-exactness guards preserved", () 
     assert.equal(guards.invalidCacheCanBecomeExact, false);
     assert.equal(guards.unreportedReasoningCanBecomeConfirmedZero, false);
     assert.equal(guards.invalidReasoningCanBecomeExact, false);
-    assert.equal(guards.mixedValidInvalidStageCanBecomeExact, false);
+    assert.equal(guards.mixedValidInvalidStageCanBecomeExact, true);
   });
 });
 

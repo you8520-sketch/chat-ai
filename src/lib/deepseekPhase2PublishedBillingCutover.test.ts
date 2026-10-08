@@ -429,7 +429,9 @@ describe("deepseekPhase2PublishedBillingCutover — refusal fallback matrix F1-F
       phase1PublishedBillingEnabled: true,
       phase2DeepSeekPublishedBillingEnabled: true,
     });
-    assert.equal(adultDecision.contract, generalDecision.contract);
+    assert.equal(generalDecision.contract, "legacy");
+    assert.equal(adultDecision.contract, "published_phase1");
+    assert.ok(adultDecision.points > 0);
     assert.notEqual(adultDecision.reason, "phase2_refusal_fallback_legacy");
     assert.notEqual(adultDecision.telemetry.billingContract, "published_phase2");
   });
