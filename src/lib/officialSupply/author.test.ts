@@ -1002,6 +1002,307 @@ describe("official author adapter", () => {
 
   });
 
+  describe("Voice/Bonds input contract and Voice structure gate", () => {
+    const ADULT_SECTION_KEYS = [
+      "orientation",
+      "hookSummary",
+      "dialogueProfile",
+      "consentModes",
+      "tone",
+      "preferenceKeywords",
+      "boundaries",
+      "consentBehavior",
+      "scenarioExamples",
+    ];
+    const SPARSE_VOICE_CODES = [
+      "bible_behavior_rules",
+      "bible_greeting_missing",
+      "bible_speech_band",
+      "bible_pitch_band",
+      "bible_tagline_missing",
+      "bible_tags",
+      "bible_nsfw_mismatch",
+      "bible_sfw_adult_content",
+    ];
+
+    function adultArgs(transport: OfficialAuthorTransport) {
+      const base = generationArgs(transport);
+      return {
+        ...base,
+        voice: { ...base.voice, adultCandidate: true },
+        bonds: { ...base.bonds, adultCandidate: true },
+      };
+    }
+
+    function capturingTransport(responses: Record<string, unknown>) {
+      const calls: Array<{ task: string; user: string }> = [];
+      const transport: OfficialAuthorTransport = {
+        label: "fake-capture",
+        async completeJson(input) {
+          calls.push({ task: input.task, user: input.user });
+          const data = responses[input.task];
+          if (data === undefined) throw new Error(`no fake response for ${input.task}`);
+          return fakeCompletion(typeof data === "string" ? data : JSON.stringify(data));
+        },
+      };
+      return { transport, calls };
+    }
+
+    function skeletonOf(user: string, firstKey: string): Record<string, unknown> {
+      const line = user.split("\n").find((l) => l.startsWith(`{"${firstKey}"`));
+      assert.ok(line, `skeleton starting with ${firstKey} must be present in the final prompt`);
+      return JSON.parse(line) as Record<string, unknown>;
+    }
+
+    function sparseVoice(): Record<string, unknown> {
+      const [voice] = splitHalf2(fakeHalf2({ npcCount: 0 }));
+      const speech = { ...(voice.speech as Record<string, unknown>), description: prose(3, 225) };
+      const { greeting: _greeting, ...rest } = voice;
+      return {
+        ...rest,
+        speech,
+        behaviorRules: [],
+        publicProfile: { tagline: "", tags: [] },
+        nsfw: false,
+      };
+    }
+
+    function adultBondsWithSfwFlag(): Record<string, unknown> {
+      const [, bonds] = splitHalf2(fakeHalf2({ nsfw: true }));
+      return { ...bonds, nsfw: false };
+    }
+
+    function codesOf(qa: { errors: Array<{ code: string }> }): string[] {
+      return qa.errors.map((e) => e.code);
+    }
+
+    it("adult-candidate input gets an adult-consistent Voice/Bonds template", async () => {
+      const [voice, bonds] = splitHalf2(fakeHalf2({ nsfw: true }));
+      const { transport, calls } = capturingTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: voice,
+        character_bible_bonds: bonds,
+      });
+      const { bible } = await generateOfficialCharacterBible(adultArgs(transport));
+      const voiceTemplate = skeletonOf(calls.find((c) => c.task === "character_bible_voice")!.user, "speech");
+      const bondsUser = calls.find((c) => c.task === "character_bible_bonds")!.user;
+      const bondsTemplate = skeletonOf(bondsUser, "userRelationship");
+      assert.equal(voiceTemplate.nsfw, true);
+      assert.equal(bondsTemplate.nsfw, true);
+      const adult = bondsTemplate.adultSection as Record<string, unknown> | null;
+      assert.ok(adult && typeof adult === "object", "adult candidate template must not default adultSection to null");
+      assert.deepEqual(Object.keys(adult).sort(), [...ADULT_SECTION_KEYS].sort());
+      assert.ok((adult.preferenceKeywords as unknown[]).length >= 4 && (adult.preferenceKeywords as unknown[]).length <= 8);
+      assert.ok((adult.boundaries as unknown[]).length >= 3 && (adult.boundaries as unknown[]).length <= 6);
+      assert.ok((adult.scenarioExamples as unknown[]).length >= 2 && (adult.scenarioExamples as unknown[]).length <= 3);
+      assert.ok((adult.consentModes as unknown[]).length >= 1);
+      assert.doesNotMatch(bondsUser, /adultSection은 null/);
+      assert.equal(validatePilotBible(bible, { adultExpected: true }).ok, true);
+    });
+
+    it("regular-character input keeps the SFW Voice/Bonds template", async () => {
+      const [voice, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+      const { transport, calls } = capturingTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: voice,
+        character_bible_bonds: bonds,
+      });
+      await generateOfficialCharacterBible(generationArgs(transport));
+      const voiceTemplate = skeletonOf(calls.find((c) => c.task === "character_bible_voice")!.user, "speech");
+      const bondsUser = calls.find((c) => c.task === "character_bible_bonds")!.user;
+      const bondsTemplate = skeletonOf(bondsUser, "userRelationship");
+      assert.equal(voiceTemplate.nsfw, false);
+      assert.equal(bondsTemplate.nsfw, false);
+      assert.equal(bondsTemplate.adultSection, null);
+      assert.match(bondsUser, /adultSection은 null/);
+    });
+
+    it("the model's own nsfw output is never overwritten by the server", () => {
+      const [voice, bonds] = splitHalf2(fakeHalf2({ nsfw: true }));
+      const bible = assembleOfficialCharacterBible(fakeHalf1(), voice, { ...bonds, nsfw: false });
+      assert.equal(bible.nsfw, false);
+      assert.ok(codesOf(validatePilotBible(bible, { adultExpected: true })).includes("bible_nsfw_mismatch"));
+    });
+
+    it("sparse Voice + adult Bonds reproduces the recorded final QA failure types", () => {
+      const bible = assembleOfficialCharacterBible(fakeHalf1(), sparseVoice(), adultBondsWithSfwFlag());
+      const codes = codesOf(validatePilotBible(bible, { adultExpected: true }));
+      for (const code of SPARSE_VOICE_CODES) assert.ok(codes.includes(code), `${code} in ${codes.join(",")}`);
+    });
+
+    it("sparse Voice is rejected before Bonds is called, with structure-only diagnostics", async () => {
+      const { transport, tasks } = recordingTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: sparseVoice(),
+        character_bible_bonds: adultBondsWithSfwFlag(),
+      });
+      await assert.rejects(
+        () => generateOfficialCharacterBible(adultArgs(transport)),
+        (error: unknown) => {
+          assert.ok(error instanceof OfficialSupplyGateError);
+          assert.equal(error.code, "author_voice_rejected");
+          assert.match(error.message, /bible_behavior_rules/);
+          assert.match(error.message, /bible_tagline_missing/);
+          assert.match(error.message, /behaviorRules=array:0/);
+          assert.match(error.message, /greeting=missing/);
+          assert.match(error.message, /speech\.description=string:225/);
+          assert.match(error.message, /publicProfile\.tagline=string:0/);
+          assert.match(error.message, /publicProfile\.description=missing/);
+          assert.match(error.message, /publicProfile\.tags=array:0/);
+          assert.match(error.message, /nsfw=boolean:false/);
+          assert.match(error.message, /adultExpected=true/);
+          assert.ok(error.qa && !error.qa.ok);
+          return true;
+        }
+      );
+      assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice"]);
+    });
+
+    it("diagnostics carry lengths and counts only, never provider prose", async () => {
+      const voice = sparseVoice();
+      const description = (voice.speech as Record<string, unknown>).description as string;
+      const { transport } = recordingTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: voice,
+        character_bible_bonds: adultBondsWithSfwFlag(),
+      });
+      await assert.rejects(
+        () => generateOfficialCharacterBible(adultArgs(transport)),
+        (error: unknown) => {
+          assert.ok(error instanceof OfficialSupplyGateError);
+          assert.equal(error.message.includes(description.slice(0, 20)), false);
+          assert.ok(error.message.length < 1200);
+          return true;
+        }
+      );
+    });
+
+    it("billed sparse Voice rejection counts Part1 and Voice once and never bills Bonds", async () => {
+      const report = createAuthorCostReport();
+      const inner = recordingTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: sparseVoice(),
+        character_bible_bonds: adultBondsWithSfwFlag(),
+      });
+      const accounted = withAuthorAccounting(inner.transport, report, { draftKey: "pilot-rf-sparse", workflowAttempt: 1 });
+      const budget = new OfficialAuthorCallBudget(OFFICIAL_CHARACTER_CALL_CAP);
+      const guarded = withOfficialAuthorCallBudget(accounted, budget);
+      await assert.rejects(() => generateOfficialCharacterBible({ ...adultArgs(guarded), npcRelationRepair: true }));
+      assert.deepEqual(inner.tasks, ["character_bible_1", "character_bible_voice"]);
+      assert.equal(report.successfulCompletions, 2);
+      assert.equal(report.physicalAttempts, 2);
+      assert.equal(budget.used, 2);
+      assert.deepEqual(
+        report.lines.map((line) => `${line.task}:${line.outcome}`),
+        ["character_bible_1:success", "character_bible_voice:success"]
+      );
+    });
+
+    it("a doomed sparse Voice does not spend the paid NPC relation repair call", async () => {
+      const broken = voiceWithNpcRelation("");
+      const { transport, tasks } = recordingTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: { ...sparseVoice(), npcs: broken.npcs },
+        character_npc_relation: { npcs: [{ index: 0, relationToChar: "카엘과 5년째 함께함" }] },
+        character_bible_bonds: adultBondsWithSfwFlag(),
+      });
+      await assert.rejects(
+        () => generateOfficialCharacterBible({ ...adultArgs(transport), npcRelationRepair: true }),
+        (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_voice_rejected"
+      );
+      assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice"]);
+    });
+
+    it("Voice defects the existing Voice QA revision can repair still reach Bonds", async () => {
+      const [voice, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+      const { greeting: _greeting, ...withoutGreeting } = voice;
+      const repairableVoice = {
+        ...withoutGreeting,
+        publicProfile: { ...(voice.publicProfile as Record<string, unknown>), tags: [] },
+      };
+      const { transport, tasks } = recordingTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: repairableVoice,
+        character_bible_bonds: bonds,
+      });
+      const { bible } = await generateOfficialCharacterBible(generationArgs(transport));
+      assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice", "character_bible_bonds"]);
+      assert.deepEqual(codesOf(validatePilotBible(bible, { adultExpected: false })).sort(), ["bible_greeting_missing", "bible_tags"]);
+    });
+
+    it("the structure gate reuses the canonical bible QA codes for rule count and tagline", async () => {
+      const [voice, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+      const cases: Array<{ label: string; mutate: Record<string, unknown>; code: string }> = [
+        { label: "rules over band", mutate: { behaviorRules: ["a", "b", "c", "d", "e", "f", "g", "h"] }, code: "bible_behavior_rules" },
+        { label: "rules under band", mutate: { behaviorRules: ["a", "b"] }, code: "bible_behavior_rules" },
+        {
+          label: "tagline over limit",
+          mutate: { publicProfile: { ...(voice.publicProfile as Record<string, unknown>), tagline: "가".repeat(51) } },
+          code: "bible_tagline_limit",
+        },
+      ];
+      for (const { label, mutate, code } of cases) {
+        const mutated = { ...voice, ...mutate };
+        const { transport, tasks } = recordingTransport({
+          character_bible_1: fakeHalf1(),
+          character_bible_voice: mutated,
+          character_bible_bonds: bonds,
+        });
+        await assert.rejects(
+          () => generateOfficialCharacterBible(generationArgs(transport)),
+          (error: unknown) => error instanceof OfficialSupplyGateError && error.code === "author_voice_rejected" && error.message.includes(code),
+          label
+        );
+        assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice"], label);
+        const full = assembleOfficialCharacterBible(fakeHalf1(), mutated, bonds);
+        assert.ok(codesOf(validatePilotBible(full, { adultExpected: false })).includes(code), label);
+      }
+    });
+
+    it("malformed or failing Voice responses stop before Bonds", async () => {
+      const [, bonds] = splitHalf2(fakeHalf2({ nsfw: false }));
+      for (const voice of ["not json at all", "[]", '"text"']) {
+        const { transport, tasks } = recordingTransport({
+          character_bible_1: fakeHalf1(),
+          character_bible_voice: voice,
+          character_bible_bonds: bonds,
+        });
+        await assert.rejects(() => generateOfficialCharacterBible(generationArgs(transport)), voice);
+        assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice"], voice);
+      }
+      const tasks: string[] = [];
+      const failing: OfficialAuthorTransport = {
+        label: "fake-provider-failure",
+        async completeJson(input) {
+          tasks.push(input.task);
+          if (input.task === "character_bible_voice") throw new Error("CheaperInference 503: upstream unavailable");
+          return fakeCompletion(JSON.stringify(fakeHalf1()));
+        },
+      };
+      await assert.rejects(() => generateOfficialCharacterBible(generationArgs(failing)), /503/);
+      assert.deepEqual(tasks, ["character_bible_1", "character_bible_voice"]);
+    });
+
+    it("adult, age and consent QA stay enforced after the template change", async () => {
+      const [voice, bonds] = splitHalf2(fakeHalf2({ nsfw: true }));
+      const badConsent = {
+        ...bonds,
+        adultSection: { ...(bonds.adultSection as Record<string, unknown>), consentModes: ["anything_goes"] },
+      };
+      const { transport } = recordingTransport({
+        character_bible_1: fakeHalf1(),
+        character_bible_voice: voice,
+        character_bible_bonds: badConsent,
+      });
+      const { bible } = await generateOfficialCharacterBible(adultArgs(transport));
+      assert.ok(codesOf(validatePilotBible(bible, { adultExpected: true })).includes("bible_adult_consent"));
+      const minor = fakeBible(true, 17);
+      assert.ok(codesOf(validatePilotBible(minor, { adultExpected: true })).includes("bible_identity_age"));
+      const noSection = assembleOfficialCharacterBible(fakeHalf1(), voice, { ...bonds, adultSection: null });
+      assert.ok(codesOf(validatePilotBible(noSection, { adultExpected: true })).includes("bible_adult_missing"));
+    });
+  });
+
   it("prompt standard is stamped by canonical code even when provider Part1 omits it", async () => {
     const half1 = fakeHalf1();
     assert.equal("promptStandard" in half1, false);

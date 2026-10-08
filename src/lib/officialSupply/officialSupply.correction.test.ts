@@ -528,7 +528,7 @@ describe("physical-attempt cost accounting", () => {
     const inner = fake(
       {
         character_bible_1: { identity: { name: "카엘", occupation: "o", socialPosition: "s", worldRole: "w" } },
-        character_bible_voice: { speech: {}, greeting: "g" },
+        character_bible_voice: { speech: {}, greeting: "g", behaviorRules: ["a", "b", "c"], publicProfile: { tagline: "t" } },
         character_bible_bonds: { secrets: [] },
       },
       ["character_bible_1"]
