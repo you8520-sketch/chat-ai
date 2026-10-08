@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import AdultContentBadge from "@/components/AdultContentBadge";
 import CharacterCardCarousel from "@/components/CharacterCardCarousel";
 import { characterCardHref } from "@/lib/chatLinks";
+import { characterRevealAttrs } from "@/lib/characterReveal";
 import { getCharacterRepresentativePublicUrls } from "@/lib/characterAssets";
 import { characterHueAccent } from "@/lib/characterHueAccent";
 import type { CreatorTierLevel } from "@/lib/creatorShared";
@@ -135,6 +136,18 @@ function cardView(c: CharacterRow, blurNsfw: boolean, loggedIn: boolean): CardVi
       : creatorNameBadgeStyle(c.creator_tier_level),
     genreLabel: c.genre?.trim() || "",
   };
+}
+
+function revealAttrs(c: CharacterRow, view: CardView): Record<string, string> {
+  return characterRevealAttrs({
+    id: c.id,
+    name: c.name,
+    genre: view.genreLabel,
+    creator: view.creatorName,
+    href: view.href,
+    hidden: view.hidden,
+    hasThumb: Boolean(view.thumb),
+  });
 }
 
 function CardBadges({ c }: { c: CharacterRow }) {
@@ -282,7 +295,11 @@ function HomeCard({
   );
 
   return (
-    <article className={cn("home-card group/card flex h-full flex-col", `home-card--${variant}`)} style={accentStyle}>
+    <article
+      className={cn("home-card group/card flex h-full flex-col", `home-card--${variant}`)}
+      style={accentStyle}
+      {...revealAttrs(c, view)}
+    >
       <Link href={view.href} className="home-card-link relative block">
         {frame}
         {variant === "exhibit" && orderLabel ? (
@@ -366,7 +383,7 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false, variant =
 
   const chrome = DEFAULT_CHROME;
   return (
-    <article className={chrome.frame}>
+    <article className={chrome.frame} {...revealAttrs(c, view)}>
       <Link href={view.href} className="relative block">
         <div className={`relative ${CHARACTER_THUMB_ASPECT} w-full overflow-hidden`} style={cardBackdrop(c.hue)}>
           {view.thumb ? (

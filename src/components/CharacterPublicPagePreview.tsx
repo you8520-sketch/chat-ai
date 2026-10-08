@@ -10,6 +10,7 @@ import CopyPageLinkButton from "@/components/CopyPageLinkButton";
 import OfficialCreatorBadge from "@/components/OfficialCreatorBadge";
 import OfficialStudioBadge from "@/components/OfficialStudioBadge";
 import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
+import { CHARACTER_HERO_IMAGE_ATTR, splitRevealName } from "@/lib/characterReveal";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { applyProfilePlaceholders } from "@/lib/userPlaceholder";
 import {
@@ -136,6 +137,8 @@ export default function CharacterPublicPagePreview({
   collapsibleDescription = true,
   creatorHref,
   pagePath,
+  heroVariant = "default",
+  genre = "",
 }: {
   /** 채팅에서 해금한 에셋을 공개 갤러리에도 반영할 때 사용 */
   characterId?: number;
@@ -170,6 +173,9 @@ export default function CharacterPublicPagePreview({
   creatorHref?: string;
   /** 설정 시 이름 옆 링크 복사 버튼 표시 */
   pagePath?: string;
+  /** `poster`: 공개 프로필 상단 포스터 구도 (카드 reveal 전환과 연결). 제작 미리보기·임베드는 `default`. */
+  heroVariant?: "default" | "poster";
+  genre?: string;
 }) {
   const [unlockedUrls, setUnlockedUrls] = useState<ReadonlySet<string>>(() => new Set());
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -282,72 +288,171 @@ export default function CharacterPublicPagePreview({
     </div>
   );
 
-  return (
-    <div className="w-full space-y-6">
-      <div className="flex flex-col gap-5 md:flex-row md:items-start">
-        <div className="w-full shrink-0 md:w-72">{cardVisual}</div>
+  const creatorLine = creatorName.trim() ? (
+    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500">
+      {creatorHref ? (
+        <Link
+          href={creatorHref}
+          className={`hover:underline ${
+            creatorIsOfficialStudio || creatorIsPartner ? "text-zinc-50" : "text-violet-400"
+          }`}
+        >
+          @{creatorName}
+        </Link>
+      ) : (
+        <span
+          className={
+            creatorIsOfficialStudio || creatorIsPartner ? "text-zinc-50" : "text-violet-400/90"
+          }
+        >
+          @{creatorName}
+        </span>
+      )}
+      {creatorIsOfficialStudio ? <OfficialStudioBadge /> : null}
+      {!creatorIsOfficialStudio && creatorIsPartner ? <OfficialCreatorBadge /> : null}
+    </span>
+  ) : null;
 
-        <div className="min-w-0 flex-1 overflow-visible">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-[1.65rem]">
-              {displayName}
-            </h1>
-            {creatorName.trim() ? (
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500">
-                {creatorHref ? (
-                  <Link
-                    href={creatorHref}
-                    className={`hover:underline ${
-                      creatorIsOfficialStudio || creatorIsPartner
-                        ? "text-zinc-50"
-                        : "text-violet-400"
-                    }`}
-                  >
-                    @{creatorName}
-                  </Link>
-                ) : (
-                  <span
-                    className={
-                      creatorIsOfficialStudio || creatorIsPartner
-                        ? "text-zinc-50"
-                        : "text-violet-400/90"
-                    }
-                  >
-                    @{creatorName}
-                  </span>
-                )}
-                {creatorIsOfficialStudio ? <OfficialStudioBadge /> : null}
-                {!creatorIsOfficialStudio && creatorIsPartner ? <OfficialCreatorBadge /> : null}
-              </span>
-            ) : null}
+  const tagChips =
+    tagList.length > 0 ? (
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {tagList.map((t) => (
+          <span key={t} className={studioSurface.chip}>
+            #{t}
+          </span>
+        ))}
+      </div>
+    ) : null;
+
+  const galleryStrip = (
+    <AssetGalleryStrip
+      assets={resolvedGallery}
+      viewerIsCreator={viewerIsCreator}
+      unlockedUrls={unlockedUrls}
+      alt={displayName}
+      onOpenUnlocked={openUnlockedAsset}
+    />
+  );
+
+  const posterName = splitRevealName(displayName);
+  const heroSection = (
+    <section
+      data-character-hero={characterId ?? ""}
+      className="relative isolate overflow-hidden rounded-3xl border border-white/10 px-5 pb-7 pt-7 sm:px-8 md:px-10 md:py-10"
+      style={{
+        background:
+          "radial-gradient(120% 90% at 78% 30%, #1c1825 0%, #0f0e14 55%, #08080b 100%)",
+      }}
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          background:
+            "radial-gradient(38% 55% at 72% 40%, rgb(139 92 246 / 0.2), transparent 72%)",
+        }}
+      />
+      <div className="relative grid gap-0 md:grid-cols-[minmax(0,1fr)_minmax(15rem,21rem)] md:items-center">
+        <div className="relative z-10 order-1 mx-auto w-[min(74vw,19rem)] md:order-2 md:mx-0 md:w-full md:justify-self-end">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute -inset-3 rounded-[1.15rem] border border-[#f0e7d4]/20"
+          />
+          <div
+            {...(characterId ? { [CHARACTER_HERO_IMAGE_ATTR]: String(characterId) } : {})}
+            className="relative aspect-[2/3] w-full overflow-hidden rounded-[14px] bg-[#14121a]"
+          >
+            {primary && !primaryBlur ? (
+              <CharacterImageViewer src={primary} alt={displayName} hue={hue} variant="poster" />
+            ) : primary ? (
+              <CharacterAssetImage
+                src={primary}
+                alt={displayName}
+                blurForViewer
+                className="h-full w-full"
+                imgClassName="block h-full w-full object-cover object-top"
+              />
+            ) : (
+              <div
+                className="flex h-full w-full items-center justify-center text-7xl sm:text-8xl"
+                style={{
+                  background: `linear-gradient(135deg, hsl(${hue} 60% 24%), hsl(${(hue + 60) % 360} 60% 12%))`,
+                }}
+              >
+                {emoji}
+              </div>
+            )}
+            {metricsOverlay}
+          </div>
+        </div>
+
+        <div
+          className="relative z-0 order-2 -mt-4 min-w-0 [container-type:inline-size] md:order-1 md:mt-0 md:-mr-14 md:pr-16"
+          style={{ ["--hero-chars" as string]: String(posterName.maxChars) }}
+        >
+          <div className="flex items-center gap-3 pt-5 text-[11px] font-bold uppercase tracking-[0.22em] md:justify-end md:pt-0">
+            {genre.trim() ? <span className="text-violet-300">{genre.trim()}</span> : null}
+            <span aria-hidden className="h-px w-10 bg-[#f0e7d4]/30" />
+            <span className="text-[#f0e7d4]/55">Character</span>
+          </div>
+          <h1
+            className="mt-3 break-keep font-black leading-[1] tracking-[-0.04em] text-[#f0e7d4] md:text-right"
+            style={{ fontSize: "min(7.25rem, calc(96cqw / (var(--hero-chars) * 0.98)))" }}
+          >
+            <span className="sr-only">{displayName}</span>
+            <span aria-hidden className="block">
+              {posterName.lines.map((line, i) => (
+                <span key={i} className="block whitespace-nowrap pb-[0.06em]">
+                  {line}
+                </span>
+              ))}
+            </span>
+          </h1>
+          <div className="mt-4 flex flex-wrap items-center gap-2 md:justify-end">
+            {creatorLine}
             {pagePath ? <CopyPageLinkButton path={pagePath} /> : null}
           </div>
-
           {resolvedTagline.trim() ? (
-            <p className="mt-1.5 text-base font-semibold leading-snug text-violet-200/95">
+            <p className="mt-3 text-base font-semibold leading-snug text-[#f0e7d4]/85 md:text-right">
               {resolvedTagline.trim()}
             </p>
           ) : null}
-
-          {tagList.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {tagList.map((t) => (
-                <span key={t} className={studioSurface.chip}>
-                  #{t}
-                </span>
-              ))}
-            </div>
-          ) : null}
-
-          <AssetGalleryStrip
-            assets={resolvedGallery}
-            viewerIsCreator={viewerIsCreator}
-            unlockedUrls={unlockedUrls}
-            alt={displayName}
-            onOpenUnlocked={openUnlockedAsset}
-          />
+          <div className="md:flex md:justify-end">{tagChips}</div>
+          <div className="md:flex md:justify-end [&>div]:max-w-full">{galleryStrip}</div>
         </div>
       </div>
+    </section>
+  );
+
+  return (
+    <div className="w-full space-y-6">
+      {heroVariant === "poster" ? (
+        heroSection
+      ) : (
+        <div className="flex flex-col gap-5 md:flex-row md:items-start">
+          <div className="w-full shrink-0 md:w-72">{cardVisual}</div>
+
+          <div className="min-w-0 flex-1 overflow-visible">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-[1.65rem]">
+                {displayName}
+              </h1>
+              {creatorLine}
+              {pagePath ? <CopyPageLinkButton path={pagePath} /> : null}
+            </div>
+
+            {resolvedTagline.trim() ? (
+              <p className="mt-1.5 text-base font-semibold leading-snug text-violet-200/95">
+                {resolvedTagline.trim()}
+              </p>
+            ) : null}
+
+            {tagChips}
+
+            {galleryStrip}
+          </div>
+        </div>
+      )}
 
       <CharacterIntroSection
         description={description}

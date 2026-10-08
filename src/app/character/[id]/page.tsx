@@ -319,6 +319,8 @@ export default async function CharacterPage({
         creatorHref={c.creator_id ? `/creator/${c.creator_id}` : undefined}
         viewerDisplayName={user ? personaDisplayName : null}
         pagePath={`/character/${c.id}`}
+        heroVariant="poster"
+        genre={c.genre}
       />
 
       <div className="flex flex-wrap items-center gap-3">
