@@ -2,7 +2,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import {
   DECISION_RADAR_BASELINE_MODEL,
   DECISION_RADAR_MAX_CANDIDATES_PER_RUN,
+  decisionCatalogModelsUrl,
   evaluateDecisionCandidate,
+  formatDecisionCatalogHttpError,
   parseDecisionCatalog,
   parseDecisionRadarLedger,
   selectChangedDecisionCandidates,
@@ -19,8 +21,6 @@ const OUT_DIR =
 const LEDGER_PATH =
   process.env.DECISION_MODEL_RADAR_LEDGER_PATH?.trim() ||
   `${OUT_DIR}/ledger.json`;
-const MODELS_URL =
-  "https://openrouter.ai/api/v1/models?category=decisions&sort=newest";
 const MAX_ESTIMATED_CANDIDATE_COST_USD = 0.02;
 const ESTIMATED_INPUT_TOKENS_PER_CANDIDATE = 30_000;
 
@@ -38,7 +38,7 @@ function safeRunUrl(): string | null {
 }
 
 async function fetchDecisionCatalog(apiKey: string): Promise<unknown> {
-  const response = await fetch(MODELS_URL, {
+  const response = await fetch(decisionCatalogModelsUrl(), {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       Accept: "application/json",
@@ -47,7 +47,8 @@ async function fetchDecisionCatalog(apiKey: string): Promise<unknown> {
     cache: "no-store",
   });
   if (!response.ok) {
-    throw new Error(`OpenRouter decision catalog HTTP ${response.status}`);
+    const body = await response.text();
+    throw new Error(formatDecisionCatalogHttpError(response.status, body));
   }
   return response.json();
 }

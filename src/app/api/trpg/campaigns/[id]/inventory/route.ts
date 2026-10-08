@@ -9,12 +9,14 @@ export async function POST(req: Request, ctx: RouteCtx) {
   if ("error" in gate) return gate.error;
   try {
     const id = campaignIdFromParams((await ctx.params).id);
-    const body = (await req.json().catch(() => ({}))) as { entryId?: unknown; equipped?: unknown };
+    const body = (await req.json().catch(() => ({}))) as { entryId?: unknown; equipped?: unknown; slot?: unknown };
     const campaign = setTrpgInventoryEquipped(gate.db, {
       campaignId: id,
       userId: gate.user.id,
       entryId: String(body.entryId ?? ""),
       equipped: body.equipped,
+      slot: body.slot,
+      slotSpecified: Object.prototype.hasOwnProperty.call(body, "slot"),
     });
     return NextResponse.json({ ok: true, campaign });
   } catch (e) {

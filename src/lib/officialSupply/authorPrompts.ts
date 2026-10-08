@@ -51,6 +51,7 @@ export type OfficialAuthorTask =
   | "character_bible_1"
   | "character_bible_voice"
   | "character_bible_bonds"
+  | "character_npc_relation"
   | "appearance"
   | "asset_plan"
   | "adult_profile"
@@ -61,6 +62,7 @@ export const OFFICIAL_AUTHOR_MAX_TOKENS: Record<OfficialAuthorTask, number> = {
   character_bible_1: 10000,
   character_bible_voice: 8000,
   character_bible_bonds: 8000,
+  character_npc_relation: 2000,
   appearance: 3000,
   asset_plan: 5000,
   adult_profile: 4000,
@@ -72,6 +74,7 @@ export const OFFICIAL_AUTHOR_TEMPERATURE: Record<OfficialAuthorTask, number> = {
   character_bible_1: 0.75,
   character_bible_voice: 0.8,
   character_bible_bonds: 0.75,
+  character_npc_relation: 0.6,
   appearance: 0.6,
   asset_plan: 0.6,
   adult_profile: 0.7,
@@ -388,6 +391,41 @@ export type CharacterVoiceInput = {
   /** Previous attempt rejection reasons (QA codes) — must be fixed this time. */
   feedback?: string;
 };
+
+export type NpcRelationRepairInput = {
+  name: string;
+  part1Recap: string;
+  npcs: Array<{ index: number; name: string; role: string; personalityKeywords: string[]; appearance: string }>;
+};
+
+/** Relation-only repair: a separate task, never the full Voice contract. */
+export function buildNpcRelationRepairSystem(): string {
+  return [
+    "너는 공식 캐릭터 바이블의 NPC 관계 한 줄만 채우는 보정자다.",
+    "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다: {\"npcs\":[{\"index\":번호,\"relationToChar\":\"...\"}]}",
+    "요청된 index마다 relationToChar 한 개만 쓴다. 다른 필드·다른 NPC·캐릭터 본문은 쓰지 않는다.",
+    "relationToChar는 본 캐릭터와 그 NPC의 관계를 한 문장(80자 이내)으로 쓴다.",
+    "전반부 요약과 NPC의 이름·역할에서 직접 읽히는 관계만 쓴다. 새 인물·사건을 발명하지 않는다.",
+    "관계를 특정할 수 없으면 relationToChar를 빈 문자열로 둔다.",
+  ].join("\n");
+}
+
+export function buildNpcRelationRepairUser(input: NpcRelationRepairInput): string {
+  return [
+    `캐릭터: ${input.name}`,
+    "",
+    "전반부 요약:",
+    input.part1Recap,
+    "",
+    "관계를 채울 NPC:",
+    ...input.npcs.map(
+      (npc) =>
+        `- index ${npc.index}: 이름 ${npc.name} / 역할 ${npc.role} / 성격 ${npc.personalityKeywords.join(", ") || "없음"} / 외형 ${npc.appearance || "없음"}`
+    ),
+    "",
+    "JSON 한 개만 출력한다.",
+  ].join("\n");
+}
 
 export function buildCharacterVoiceSystem(): string {
   return [

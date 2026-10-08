@@ -287,6 +287,7 @@ describe("TRPG inventory equipped V1", () => {
   it("A. legacy string[] normalizes to equipped=false", () => {
     const parsed = parseStoredInventory(JSON.stringify([SWORD, SWORD]));
     assert.equal(parsed[0]?.equipped, false);
+    assert.equal(parsed[0]?.slot, null);
     assert.equal(isInventoryEntryEquipped(parsed[0]!), false);
   });
 
@@ -295,7 +296,16 @@ describe("TRPG inventory equipped V1", () => {
       JSON.stringify([{ id: createInventoryEntryId(SWORD), name: SWORD, quantity: 2 }])
     );
     assert.equal(parsed[0]?.equipped, false);
+    assert.equal(parsed[0]?.slot, null);
     assert.equal(parsed[0]?.quantity, 2);
+  });
+
+  it("1. old equipped row keeps equipped and normalizes slot=null", () => {
+    const parsed = parseStoredInventory(
+      JSON.stringify([{ id: createInventoryEntryId(SWORD), name: SWORD, quantity: 1, equipped: true }])
+    );
+    assert.equal(parsed[0]?.equipped, true);
+    assert.equal(parsed[0]?.slot, null);
   });
 
   it("C/D. structured true/false persist and reload unchanged", () => {
@@ -360,6 +370,56 @@ describe("TRPG inventory equipped V1", () => {
     assert.deepEqual(gone.next, []);
     const again = addInventoryItem(gone.next, SWORD);
     assert.equal(again[0]?.equipped, false);
+    assert.equal(again[0]?.slot, null);
     assert.equal(again[0]?.id, createInventoryEntryId(SWORD));
+  });
+
+  it("slot SET assigns, moves, unslots, and rejects occupied/invalid occupants", () => {
+    const swordId = createInventoryEntryId("검");
+    const shieldId = createInventoryEntryId("방패");
+    const start = inventoryFromUnits(["검", "방패"]);
+    const main = setInventoryEquipped(start, swordId, true, "main_hand");
+    assert.equal(main.ok, true);
+    assert.equal(main.next[0]?.equipped, true);
+    assert.equal(main.next[0]?.slot, "main_hand");
+    const replay = setInventoryEquipped(main.next, swordId, true, "main_hand");
+    assert.equal(replay.ok, true);
+    assert.equal(replay.next[0]?.slot, "main_hand");
+    const keep = setInventoryEquipped(main.next, swordId, true);
+    assert.equal(keep.next[0]?.slot, "main_hand");
+    const moved = setInventoryEquipped(main.next, swordId, true, "off_hand");
+    assert.equal(moved.ok, true);
+    assert.equal(moved.next[0]?.slot, "off_hand");
+    assert.equal(moved.next[0]?.equipped, true);
+    const reclaim = setInventoryEquipped(moved.next, shieldId, true, "main_hand");
+    assert.equal(reclaim.ok, true);
+    assert.equal(reclaim.next.find((entry) => entry.id === shieldId)?.slot, "main_hand");
+    const unslot = setInventoryEquipped(moved.next, swordId, true, null);
+    assert.equal(unslot.next[0]?.equipped, true);
+    assert.equal(unslot.next[0]?.slot, null);
+    const armed = setInventoryEquipped(start, swordId, true, "main_hand");
+    const conflict = setInventoryEquipped(armed.next, shieldId, true, "main_hand");
+    assert.equal(conflict.ok, false);
+    if (!conflict.ok) assert.equal(conflict.reason, "slot_occupied");
+    assert.equal(conflict.next.find((entry) => entry.id === swordId)?.slot, "main_hand");
+    assert.equal(conflict.next.find((entry) => entry.id === shieldId)?.equipped, false);
+    const off = setInventoryEquipped(armed.next, swordId, false);
+    assert.equal(off.next[0]?.equipped, false);
+    assert.equal(off.next[0]?.slot, null);
+  });
+
+  it("slotted stack keeps slot across add/remove/consume until last unit", () => {
+    const id = createInventoryEntryId(SWORD);
+    const start = setInventoryEquipped(inventoryFromUnits([SWORD, SWORD, SWORD]), id, true, "body");
+    const added = addInventoryItem(start.next, SWORD);
+    assert.equal(added[0]?.slot, "body");
+    assert.equal(added[0]?.quantity, 4);
+    const consumed = consumeInventoryItem(added, SWORD);
+    assert.equal(consumed.next[0]?.slot, "body");
+    const last = consumeInventoryItem(inventoryFromUnits([SWORD]).map((entry) => ({ ...entry, equipped: true, slot: "body" })), SWORD);
+    assert.deepEqual(last.next, []);
+    const again = addInventoryItem(last.next, SWORD);
+    assert.equal(again[0]?.equipped, false);
+    assert.equal(again[0]?.slot, null);
   });
 });

@@ -10,11 +10,24 @@ export const TRPG_START_INVENTORY_MAX_UNITS = 12;
 
 export type TrpgInventoryStack = { name: string; quantity: number };
 
+export const TRPG_EQUIPMENT_SLOTS = ["main_hand", "off_hand", "body", "accessory"] as const;
+export type TrpgEquipmentSlot = (typeof TRPG_EQUIPMENT_SLOTS)[number];
+
+export const TRPG_EQUIPMENT_SLOT_LABELS: Record<TrpgEquipmentSlot, string> = {
+  main_hand: "주손",
+  off_hand: "보조손",
+  body: "몸",
+  accessory: "장신구",
+};
+
+export const TRPG_EQUIPMENT_UNSPECIFIED_SLOT_LABEL = "슬롯 미지정";
+
 export type TrpgInventoryEntry = {
   id: string;
   name: string;
   quantity: number;
   equipped: boolean;
+  slot: TrpgEquipmentSlot | null;
 };
 
 export type InventoryRemoveResult =
@@ -40,13 +53,42 @@ export function isInventoryEntryEquipped(entry: { equipped?: unknown }): boolean
   return entry.equipped === true;
 }
 
-export function cloneInventory(inventory: readonly TrpgInventoryEntry[]): TrpgInventoryEntry[] {
-  return inventory.map((entry) => ({
+export function isTrpgEquipmentSlot(value: unknown): value is TrpgEquipmentSlot {
+  return typeof value === "string" && (TRPG_EQUIPMENT_SLOTS as readonly string[]).includes(value);
+}
+
+/**
+ * Slot read owner. Unequipped entries are always unslotted. Unknown slot
+ * strings normalize to null; equipped=true is preserved.
+ */
+export function inventoryEntrySlot(entry: { equipped?: unknown; slot?: unknown }): TrpgEquipmentSlot | null {
+  if (!isInventoryEntryEquipped(entry)) return null;
+  return isTrpgEquipmentSlot(entry.slot) ? entry.slot : null;
+}
+
+export function equipmentSlotLabel(slot: TrpgEquipmentSlot | null): string {
+  return slot == null ? TRPG_EQUIPMENT_UNSPECIFIED_SLOT_LABEL : TRPG_EQUIPMENT_SLOT_LABELS[slot];
+}
+
+function canonicalInventoryEntry(entry: {
+  id: string;
+  name: string;
+  quantity: number;
+  equipped?: unknown;
+  slot?: unknown;
+}): TrpgInventoryEntry {
+  const equipped = isInventoryEntryEquipped(entry);
+  return {
     id: entry.id,
     name: entry.name,
     quantity: entry.quantity,
-    equipped: isInventoryEntryEquipped(entry),
-  }));
+    equipped,
+    slot: inventoryEntrySlot({ equipped, slot: entry.slot }),
+  };
+}
+
+export function cloneInventory(inventory: readonly TrpgInventoryEntry[]): TrpgInventoryEntry[] {
+  return inventory.map((entry) => canonicalInventoryEntry(entry));
 }
 
 function isPositiveInt(value: unknown): value is number {
@@ -60,7 +102,7 @@ function isInventoryEntryLike(value: unknown): value is { id?: unknown; name: un
 }
 
 function mergeExactNameStacks(
-  rows: readonly { id?: unknown; name: unknown; quantity: unknown; equipped?: unknown }[]
+  rows: readonly { id?: unknown; name: unknown; quantity: unknown; equipped?: unknown; slot?: unknown }[]
 ): TrpgInventoryEntry[] {
   const entries: TrpgInventoryEntry[] = [];
   const byName = new Map<string, TrpgInventoryEntry>();
@@ -73,12 +115,13 @@ function mergeExactNameStacks(
       continue;
     }
     const id = typeof row.id === "string" && row.id.trim() ? row.id.trim() : createInventoryEntryId(name);
-    const entry = {
+    const entry = canonicalInventoryEntry({
       id,
       name,
       quantity: row.quantity,
-      equipped: isInventoryEntryEquipped(row),
-    };
+      equipped: row.equipped,
+      slot: row.slot,
+    });
     byName.set(name, entry);
     entries.push(entry);
   }
@@ -99,7 +142,13 @@ export function inventoryFromUnits(units: readonly string[]): TrpgInventoryEntry
       existing.quantity += 1;
       continue;
     }
-    const entry = { id: createInventoryEntryId(name), name, quantity: 1, equipped: false };
+    const entry = canonicalInventoryEntry({
+      id: createInventoryEntryId(name),
+      name,
+      quantity: 1,
+      equipped: false,
+      slot: null,
+    });
     byName.set(name, entry);
     entries.push(entry);
   }
@@ -175,23 +224,49 @@ export function findInventoryEntryById(
   return inventory.find((entry) => entry.id === id);
 }
 
+export type InventoryEquipFailure = "not_found" | "slot_occupied";
+
 export type InventoryEquipResult =
   | { ok: true; next: TrpgInventoryEntry[] }
-  | { ok: false; next: TrpgInventoryEntry[] };
+  | { ok: false; reason: InventoryEquipFailure; next: TrpgInventoryEntry[] };
+
+export function findInventoryEntryBySlot(
+  inventory: readonly TrpgInventoryEntry[],
+  slot: TrpgEquipmentSlot
+): TrpgInventoryEntry | undefined {
+  return inventory.find((entry) => entry.slot === slot);
+}
 
 /**
- * SET equipped on one exact-name stack. Not a toggle — replay of the same
- * boolean leaves the stack in that state.
+ * SET equipped / slot on one exact-name stack. Not a toggle.
+ * `slot` omitted keeps the current slot. Unequip always clears the slot.
+ * Occupied slots are rejected; the current occupant is unchanged.
  */
 export function setInventoryEquipped(
   inventory: readonly TrpgInventoryEntry[],
   entryId: string,
-  equipped: boolean
+  equipped: boolean,
+  slot?: TrpgEquipmentSlot | null
 ): InventoryEquipResult {
   const next = cloneInventory(inventory);
   const existing = findInventoryEntryById(next, entryId);
-  if (!existing) return { ok: false, next };
-  existing.equipped = isInventoryEntryEquipped({ equipped });
+  if (!existing) return { ok: false, reason: "not_found", next };
+  if (!isInventoryEntryEquipped({ equipped })) {
+    existing.equipped = false;
+    existing.slot = null;
+    return { ok: true, next };
+  }
+  existing.equipped = true;
+  if (slot === undefined) return { ok: true, next };
+  if (slot === null) {
+    existing.slot = null;
+    return { ok: true, next };
+  }
+  const occupant = findInventoryEntryBySlot(next, slot);
+  if (occupant && occupant.id !== existing.id) {
+    return { ok: false, reason: "slot_occupied", next: cloneInventory(inventory) };
+  }
+  existing.slot = slot;
   return { ok: true, next };
 }
 
@@ -204,7 +279,7 @@ export function addInventoryItem(inventory: readonly TrpgInventoryEntry[], name:
     existing.quantity += 1;
     return next;
   }
-  next.push({ id: createInventoryEntryId(trimmed), name: trimmed, quantity: 1, equipped: false });
+  next.push(canonicalInventoryEntry({ id: createInventoryEntryId(trimmed), name: trimmed, quantity: 1, equipped: false, slot: null }));
   return next;
 }
 

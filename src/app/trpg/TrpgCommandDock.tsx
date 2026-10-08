@@ -45,7 +45,14 @@ import {
   mergeDisplayConditions,
   selfHudAriaLabel,
 } from "@/lib/trpg/sheetHud";
-import { inventoryStackLabel, isInventoryEntryEquipped } from "@/lib/trpg/inventory";
+import {
+  TRPG_EQUIPMENT_SLOT_LABELS,
+  TRPG_EQUIPMENT_SLOTS,
+  TRPG_EQUIPMENT_UNSPECIFIED_SLOT_LABEL,
+  inventoryStackLabel,
+  isInventoryEntryEquipped,
+  type TrpgEquipmentSlot,
+} from "@/lib/trpg/inventory";
 import {
   acceptTrpgSheetActionDraft,
   buildTrpgSheetSurface,
@@ -235,6 +242,11 @@ function NativeSheetBody({
                       장착됨
                     </span>
                   ) : null}
+                  {equipped ? (
+                    <span data-trpg-inventory-slot={item.slot ?? ""} className="text-[11px] text-violet-200/80">
+                      {item.slotLabel}
+                    </span>
+                  ) : null}
                 </li>
               );
             })}
@@ -252,7 +264,7 @@ function HostEquipmentDock({
 }: {
   items: TrpgSheetSurface["inventory"];
   busy: boolean;
-  onSetEquipped: (entryId: string, equipped: boolean) => void;
+  onSetEquipped: (entryId: string, equipped: boolean, slot?: TrpgEquipmentSlot | null) => void;
 }) {
   if (items.length === 0) return null;
   return (
@@ -262,7 +274,7 @@ function HostEquipmentDock({
         {items.map((item) => {
           const equipped = isInventoryEntryEquipped(item);
           return (
-            <li key={item.key} className="flex items-center gap-2">
+            <li key={item.key} className="flex flex-wrap items-center gap-2">
               <span className="min-w-0 flex-1 truncate text-sm text-zinc-200">
                 {inventoryStackLabel(item)}
                 {equipped ? (
@@ -270,7 +282,32 @@ function HostEquipmentDock({
                     장착됨
                   </span>
                 ) : null}
+                {equipped ? (
+                  <span className="ml-1 text-[11px] text-violet-200/80" data-trpg-inventory-slot={item.slot ?? ""}>
+                    {item.slotLabel}
+                  </span>
+                ) : null}
               </span>
+              {equipped ? (
+                <select
+                  aria-label={`${item.name} 장비 슬롯`}
+                  data-trpg-equip-slot={item.key}
+                  disabled={busy}
+                  value={item.slot ?? ""}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    onSetEquipped(item.key, true, value === "" ? null : (value as TrpgEquipmentSlot));
+                  }}
+                  className="inline-flex min-h-11 min-w-11 items-center rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-zinc-100 disabled:opacity-50"
+                >
+                  <option value="">{TRPG_EQUIPMENT_UNSPECIFIED_SLOT_LABEL}</option>
+                  {TRPG_EQUIPMENT_SLOTS.map((slot) => (
+                    <option key={slot} value={slot}>
+                      {TRPG_EQUIPMENT_SLOT_LABELS[slot]}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
               <button
                 type="button"
                 data-trpg-equip-entry={item.key}
@@ -674,7 +711,7 @@ export default function TrpgCommandDock({
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
   onSendParty: () => void;
-  onSetInventoryEquipped?: (entryId: string, equipped: boolean) => void;
+  onSetInventoryEquipped?: (entryId: string, equipped: boolean, slot?: TrpgEquipmentSlot | null) => void;
   onOcclusionChange: (occlusion: TrpgCommandDockOcclusion) => void;
   /** Site-owned sheet compiled by the server through the shared JSX compiler; null → native. */
   sheetJsxCompiled?: string | null;
