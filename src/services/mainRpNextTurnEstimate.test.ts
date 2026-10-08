@@ -278,6 +278,8 @@ describe("main RP next-turn provider-input calibration reader", () => {
   it("picker and admission both consume estimatesFromRoomRows", () => {
     assert.match(SERVICE_SOURCE, /function estimatesFromRoomRows/);
     assert.match(SERVICE_SOURCE, /providerInputCalibrationByModel/);
+    assert.match(SERVICE_SOURCE, /if \(!fx\?\.locked\) return \{\}/);
+    assert.match(SERVICE_SOURCE, /opts\.fxSnapshot/);
     assert.match(
       SERVICE_SOURCE,
       /estimatesFromRoomRows\(\s*rows,\s*\{\s*\[opts\.modelId\]: opts\.promptTokens,/

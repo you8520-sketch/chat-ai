@@ -14,7 +14,10 @@ import { visibleAssistantDisplayCharCount } from "@/lib/chatDisplayLength";
 import type { SelectedAI } from "@/lib/chatModels";
 import type { Usage } from "@/lib/chatUsage";
 import { getDb } from "@/lib/db";
-import { resolvePublishedEstimateFx } from "@/lib/shadowBillingExchangeRate";
+import {
+  resolvePublishedEstimateFx,
+  type ShadowBillingExchangeRateSnapshot,
+} from "@/lib/shadowBillingExchangeRate";
 import { billableOpenRouterOutputTokens } from "@/lib/points";
 import {
   computeMainRpNextTurnEstimates,
@@ -293,8 +296,11 @@ function estimatesFromRoomRows(
     Record<SelectedAI, NextTurnProviderInputCalibrationSample>
   >,
   historyDeltaByModel: Partial<Record<SelectedAI, NextTurnHistoryDelta | null>> | undefined,
-  lockDailyFx: boolean
+  lockDailyFx: boolean,
+  fxSnapshot?: ShadowBillingExchangeRateSnapshot | null
 ): NextTurnEstimateMap {
+  const fx = fxSnapshot ?? resolvePublishedEstimateFx({ lockDailyFx });
+  if (!fx?.locked) return {};
   return computeMainRpNextTurnEstimates({
     promptTokensByModel,
     lastVisibleAssistantChars: readLastVisibleAssistantChars(rows),
@@ -302,7 +308,7 @@ function estimatesFromRoomRows(
     recentBillableOutputTokensByModel: readMainRpNextTurnOutputHistory(rows),
     providerInputCalibrationByModel,
     historyDeltaByModel,
-    effectiveKrwPerUsd: resolvePublishedEstimateFx({ lockDailyFx }).effectiveKrwPerUsd,
+    effectiveKrwPerUsd: fx.effectiveKrwPerUsd,
   });
 }
 
@@ -352,6 +358,7 @@ export function resolveMainRpNextTurnPublishedEstimateForModel(opts: {
   previousPromptHistory?: Array<{ role?: string | null; content?: string | null }> | null;
   nextPromptAuditSections?: NextTurnPromptAuditSections | null;
   nextRawHistoryHealth?: NextTurnRawHistoryHealth | null;
+  fxSnapshot?: ShadowBillingExchangeRateSnapshot | null;
 }): number | null {
   if (!Number.isFinite(opts.promptTokens) || opts.promptTokens <= 0) return null;
   const db = getDb();
@@ -376,7 +383,8 @@ export function resolveMainRpNextTurnPublishedEstimateForModel(opts: {
       nextPromptAuditSections: opts.nextPromptAuditSections,
       nextRawHistoryHealth: opts.nextRawHistoryHealth,
     }),
-    true
+    true,
+    opts.fxSnapshot
   );
   const points = estimates[opts.modelId]?.displayPoints;
   return typeof points === "number" && Number.isSafeInteger(points) && points > 0

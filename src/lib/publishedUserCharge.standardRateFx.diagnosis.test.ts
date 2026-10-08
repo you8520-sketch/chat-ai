@@ -183,8 +183,9 @@ describe("Sol 174P vs 162P standard-rate / FX diagnosis", () => {
     assert.match(estimateSource, /cacheWriteTokens: 0/);
     assert.match(serviceSource, /resolvePublishedEstimateFx/);
     assert.doesNotMatch(serviceSource, /getEffectiveKrwPerUsd/);
-    assert.match(routeSource, /resolveShadowBillingExchangeRateSnapshot/);
+    assert.match(routeSource, /reusePublishedFxSnapshotForRequest\(requestPublishedFx\)/);
     assert.match(routeSource, /publishedBillingFx/);
+    assert.match(routeSource, /resolveShadowBillingExchangeRateSnapshot/);
   });
 
   it("Gemini 3.8 / DeepSeek V4.1 / Opus 5.5 official Standard rates stay unchanged", () => {

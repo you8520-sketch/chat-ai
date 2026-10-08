@@ -80,11 +80,16 @@ import {
   persistAssistantMessageFinalCharge,
 } from "@/lib/chatBillingFinalCharge";
 import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
-import { resolveShadowBillingExchangeRateSnapshot } from "@/lib/shadowBillingExchangeRate";
+import {
+  resolvePublishedEstimateFx,
+  resolveShadowBillingExchangeRateSnapshot,
+  reusePublishedFxSnapshotForRequest,
+  warmShadowBillingFxPrefetch,
+  type ShadowBillingExchangeRateSnapshot,
+} from "@/lib/shadowBillingExchangeRate";
 import { observeTurnBillableUsageCanary } from "@/lib/turnBillableUsageProductionTelemetry";
 import { stripUsageReportingEvidenceFromStage } from "@/lib/usageReportingEvidence";
 import { computeShadowPricing, resolveActualTurnCostCoverage } from "@/lib/shadowPricing";
-import { warmShadowBillingFxPrefetch } from "@/lib/shadowBillingExchangeRate";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import {
   DEFAULT_AUTO_PROGRESSION_USER_AUTHORING_LEVEL,
@@ -2783,7 +2788,9 @@ export async function POST(req: Request) {
       existingByRequest.assistantStatus === "completed_with_postprocess_error");
 
   let generationLease: MainRpGenerationLeaseHandle | null = null;
+  let requestPublishedFx: ShadowBillingExchangeRateSnapshot | null = null;
   if (!alreadyCompletedTurn) {
+    requestPublishedFx = resolvePublishedEstimateFx({ lockDailyFx: true });
     const assembledPromptTokens =
       built.meta.promptAudit?.totalAssembledTokens ?? built.meta.estimatedInputTokens;
     const publishedEstimate = resolveMainRpNextTurnPublishedEstimateForModel({
@@ -2806,6 +2813,7 @@ export async function POST(req: Request) {
           completedTurnsForMemoryCoverage - effectiveSummarizedTurnCount
         ),
       },
+      fxSnapshot: requestPublishedFx,
     });
     const requiredPoints = resolveMainRpProviderAdmissionRequiredPoints(publishedEstimate);
     const liveBalance = getPointBalance(user.id);
@@ -4718,9 +4726,11 @@ export async function POST(req: Request) {
 
         let legacyFinalPointsBeforeDispatch = cost;
         let billingContractDecision: ChatBillingContractDecision | null = null;
-        const publishedBillingFx = shouldPreparePublishedBillingFxSnapshot()
-          ? resolveShadowBillingExchangeRateSnapshot()
-          : null;
+        const publishedBillingFx =
+          reusePublishedFxSnapshotForRequest(requestPublishedFx) ??
+          (shouldPreparePublishedBillingFxSnapshot()
+            ? resolveShadowBillingExchangeRateSnapshot()
+            : null);
 
         if (!htmlFlashOnlyTurn) {
           const shadowFx = publishedBillingFx;

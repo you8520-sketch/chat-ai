@@ -223,16 +223,26 @@ export function previewShadowBillingFxSnapshot(
 
 /**
  * Same daily FX owner for picker/admission/settlement.
- * GET/SSR/prefetch must pass lockDailyFx=false (peek/preview, no INSERT).
+ * GET/SSR/prefetch must pass lockDailyFx=false (peek only, no INSERT).
+ * Unlocked today returns null — do not expose a confirmed estimate.
  * Allowed non-GET writers pass lockDailyFx=true (INSERT OR IGNORE).
  */
 export function resolvePublishedEstimateFx(opts: {
   lockDailyFx: boolean;
   now?: number;
-}): ShadowBillingExchangeRateSnapshot {
-  return opts.lockDailyFx
-    ? resolveShadowBillingExchangeRateSnapshot(opts.now)
-    : previewShadowBillingFxSnapshot(opts.now);
+}): ShadowBillingExchangeRateSnapshot | null {
+  if (opts.lockDailyFx) {
+    return resolveShadowBillingExchangeRateSnapshot(opts.now);
+  }
+  return peekShadowBillingFxDailySnapshot(opts.now);
+}
+
+/** Reuse the admission-locked snapshot for this generation. Never opens a new dateKey. */
+export function reusePublishedFxSnapshotForRequest(
+  requestSnapshot: ShadowBillingExchangeRateSnapshot | null | undefined
+): ShadowBillingExchangeRateSnapshot | null {
+  if (requestSnapshot?.locked) return requestSnapshot;
+  return null;
 }
 
 /** Sync shadow billing lock — persisted INSERT OR IGNORE, never same-day UPDATE. */
