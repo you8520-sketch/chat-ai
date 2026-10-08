@@ -38,6 +38,7 @@ import {
   type TrpgActionType,
 } from "./actionTypes";
 import { clipTrpgChars } from "./clip";
+import { splitTrailingGmTalk } from "./sceneSpeech";
 import { parseHumanPersona, type TrpgHumanPersona } from "./hostPersona";
 import {
   normalizeTrpgReplyStance,
@@ -159,6 +160,9 @@ export const TRPG_REPLY_SUGGESTION_COOLDOWN_MS = 4_000;
 export const TRPG_REPLY_SUGGESTION_RESULT_CACHE_MS = 5 * 60_000;
 export const TRPG_REPLY_STYLE_MAX_CHARS = 1200;
 export const TRPG_REPLY_SCENE_MAX_CHARS = 1600;
+const TRPG_REPLY_SCENE_ASIDE_MAX_CHARS = 400;
+const TRPG_REPLY_SCENE_TAIL_SNAP_CHARS = 200;
+const SENTENCE_END_THEN_SPACE = /[.!?…"”』」]\s/u;
 export const TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS = 80;
 export const TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS = 120;
 
@@ -768,6 +772,41 @@ export function loadRecentManualHumanActions(
   return out;
 }
 
+/**
+ * The GM closes every long scene with the situation that is still unresolved,
+ * so a scene over budget keeps its tail (and the trailing `GM:` aside), never
+ * its opening. A scene that fits is passed through unchanged.
+ */
+export function selectReplySuggestionScene(narration: string, max: number = TRPG_REPLY_SCENE_MAX_CHARS): string {
+  const whole = clipTrpgChars(narration, Number.POSITIVE_INFINITY);
+  if (Array.from(whole).length <= max) return whole;
+
+  const { scene, gmTalk } = splitTrailingGmTalk(narration);
+  const aside = clipTrpgChars(gmTalk, TRPG_REPLY_SCENE_ASIDE_MAX_CHARS);
+  const asideBlock = aside ? `\nGM: ${aside}` : "";
+  const bodyBudget = max - Array.from(asideBlock).length - 1;
+  const chars = Array.from(clipTrpgChars(scene, Number.POSITIVE_INFINITY));
+  if (chars.length <= bodyBudget) return `${chars.join("")}${asideBlock}`;
+
+  const cut = chars.length - bodyBudget;
+  let tail = chars.slice(cut).join("");
+  // A word boundary is not necessarily a sentence boundary. Even when the
+  // cut lands after whitespace, snap forward to the next sentence when nearby.
+  const preceding = chars.slice(Math.max(0, cut - 3), cut).join("");
+  if (!SENTENCE_END_THEN_SPACE.test(preceding)) {
+    const boundary = SENTENCE_END_THEN_SPACE.exec(tail.slice(0, TRPG_REPLY_SCENE_TAIL_SNAP_CHARS));
+    if (boundary) {
+      tail = tail.slice(boundary.index + boundary[0].length);
+    } else if (chars[cut - 1] !== " ") {
+      // A very long sentence may have no nearby terminator. At least avoid
+      // sending a mangled first word to the model in that case.
+      const space = tail.search(/\s/u);
+      if (space >= 0 && space < TRPG_REPLY_SCENE_TAIL_SNAP_CHARS) tail = tail.slice(space + 1);
+    }
+  }
+  return `…${tail.trimStart()}${asideBlock}`;
+}
+
 export function buildReplySuggestionPublicContext(opts: {
   scene: string;
   persona: Pick<TrpgHumanPersona, "name" | "description" | "speechExamples"> | null;
@@ -787,7 +826,7 @@ export function buildReplySuggestionPublicContext(opts: {
 
 Each suggestion is a short playable beat the player can tap into the action box.
 Write BOTH parts:
-- stage (지문): what THIS PC tries to do — body, movement, gaze. An attempt, not a finished result.
+- stage (지문): what THIS PC tries to do — body, movement, gaze.
 - speech (대사): words they actually say, in quotation marks, in their voice.
 Do not output speech-only. Do not output a novel paragraph.
 Aim ${TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS}–${TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS} Korean characters per suggestion (지문 + 대사 together).
@@ -798,7 +837,7 @@ Priority for 대사 voice:
 2. Persona speechExamples
 3. Persona description
 4. Natural Korean
-지문 follows the current scene and self sheet, not the speech examples.
+지문 acts on [CURRENT PUBLIC SCENE]: use its concrete people and objects and the situation the closing "GM:" line says is still undecided, plus the self sheet — not the speech examples. The Output sample below is a format sample from an unrelated scene; never reuse its objects or actions.
 
 Rules:
 - Return exactly 3 suggestions, one for each stance: good, neutral, evil.
@@ -821,7 +860,7 @@ Output:
   const persona = opts.persona;
   const self = opts.self;
   const user = [
-    `[CURRENT PUBLIC SCENE]\n${clipTrpgChars(opts.scene, TRPG_REPLY_SCENE_MAX_CHARS) || "첫 행동 차례다."}`,
+    `[CURRENT PUBLIC SCENE]\n${selectReplySuggestionScene(opts.scene) || "첫 행동 차례다."}`,
     `[PLAYER PERSONA]\n이름: ${persona?.name.trim() || "플레이어"}\n설명: ${clipTrpgChars(persona?.description ?? "", 400)}\n말투 예시:\n${clipTrpgChars(persona?.speechExamples ?? "", 400)}`,
     `[RECENT DIRECT USER STYLE]\n${opts.recentActions.length ? opts.recentActions.map((item, i) => `${i + 1}. ${item}`).join("\n") : "(없음)"}`,
     self
