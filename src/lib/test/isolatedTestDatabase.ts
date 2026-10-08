@@ -90,13 +90,27 @@ export function assertIsolatedTestDatabaseActive(): void {
   const open = global.__db;
   if (open) {
     const openName = typeof open.name === "string" ? open.name : "";
-    if (!openName) {
-      refuse("open database path is unknown");
-    }
     if (/^(?:libsql|https|http):\/\//i.test(openName)) {
       refuse("open database is remote");
     }
-    if (path.resolve(openName) !== databasePath) {
+    if (openName && path.resolve(openName) !== databasePath) {
+      refuse("open database is not the isolated file");
+    }
+    let mainFile = "";
+    try {
+      const rows = open.prepare("PRAGMA database_list").all() as { name?: string; file?: string }[];
+      const main = rows.find((row) => row.name === "main");
+      mainFile = typeof main?.file === "string" ? main.file : "";
+    } catch {
+      refuse("open database path could not be read");
+    }
+    if (!mainFile) {
+      refuse("open database has no local file");
+    }
+    if (/^(?:libsql|https|http):\/\//i.test(mainFile)) {
+      refuse("open database is remote");
+    }
+    if (path.resolve(mainFile) !== databasePath) {
       refuse("open database is not the isolated file");
     }
   }
