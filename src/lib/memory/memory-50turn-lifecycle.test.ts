@@ -24,7 +24,8 @@ import {
   resolveLorebookExcludeFromTrimmedHistory,
   resolveProviderRawPoolExchangeCount,
 } from "@/lib/hybridMemory";
-import { splitAndNormalizeRelationshipMemoryTail } from "@/lib/relationshipMemoryTail";
+import { normalizeRelationshipMetaDeltaFromJson } from "@/lib/relationshipMemoryTail";
+import { isMainModelRelationshipSelfExtractModel } from "@/lib/relationshipMemoryTailPrompt";
 import {
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
@@ -44,8 +45,8 @@ import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { resolveGlobalCurrentMemory } from "./memory-lorebook-resolve";
 import { buildMemoryContextForChat } from "./memory-manager";
 import {
-  applyRelationshipDeltaToChat,
   loadChatRelationshipMeta,
+  mergeRelationshipMetaFromTurn,
 } from "./memory-relationship-meta";
 import {
   __getLastSummarizeTurnBatchError,
@@ -147,20 +148,25 @@ function userTextForTurn(turn: number): string {
 }
 
 function assistantTextForTurn(turn: number): string {
-  const prose = `${CHAR_NAME}이 장면${String(turn).padStart(2, "0")}을 짧게 받아 적었다.`;
+  return `${CHAR_NAME}이 장면${String(turn).padStart(2, "0")}을 짧게 받아 적었다.`;
+}
+
+function relationshipPayloadForTurn(turn: number): Record<string, unknown> | null {
   if (turn === 1) {
-    return `${prose}\n${JSON.stringify({ promisesAdd: [{ text: PROMISE }] })}`;
+    return { items: [], itemsRemove: [], promisesAdd: [{ text: PROMISE }], promisesRemove: [] };
   }
   if (turn === 21) {
-    return `${prose}\n${JSON.stringify({ promisesAdd: [{ text: OLD_REL }] })}`;
+    return { items: [], itemsRemove: [], promisesAdd: [{ text: OLD_REL }], promisesRemove: [] };
   }
   if (turn === 41) {
-    return `${prose}\n${JSON.stringify({
+    return {
+      items: [],
+      itemsRemove: [],
       promisesRemove: [OLD_REL],
       promisesAdd: [{ text: NEW_REL }],
-    })}`;
+    };
   }
-  return prose;
+  return null;
 }
 
 /** Copies `유저:` lines from the batch dialogue the real summarizer receives. */
@@ -240,19 +246,23 @@ function freezeFrontier(): void {
     .run(CHAT, "user", INCOMING_USER);
 }
 
-function applyRelationshipTails(rows: PlayableRow[]): void {
+async function applySharedRelationshipDeltas(rows: PlayableRow[]): Promise<void> {
   for (const row of rows) {
-    if (row.turn !== 1 && row.turn !== 21 && row.turn !== 41) continue;
-    const split = splitAndNormalizeRelationshipMemoryTail(row.assistant, row.user, NAMES);
-    assert.equal(split.parseOk, true, `relationship tail parse failed on turn ${row.turn}`);
-    const applied = applyRelationshipDeltaToChat({
+    const payload = relationshipPayloadForTurn(row.turn);
+    if (!payload) continue;
+    const delta = normalizeRelationshipMetaDeltaFromJson(payload, row.user, NAMES);
+    await mergeRelationshipMetaFromTurn({
       chatId: CHAT,
       names: NAMES,
-      delta: split.delta,
+      userMessage: row.user,
+      assistantMessage: row.assistant,
+      route: "safe",
+      sharedInitialAttempted: true,
+      sharedInitialParsed: true,
+      sharedInitialDelta: delta,
       sourceUserMessageId: row.userId,
       assistantMessageId: row.assistantId,
     });
-    assert.equal(applied.accepted, true, `relationship delta rejected on turn ${row.turn}`);
   }
 }
 
@@ -283,8 +293,12 @@ describe("50-turn memory lifecycle (provider-free)", () => {
       ]
     );
 
+    for (const model of MAIN_RP_USER_SELECTABLE_OPTIONS) {
+      assert.equal(isMainModelRelationshipSelfExtractModel(model.id), false, model.id);
+    }
+
     const rows = seedChat();
-    applyRelationshipTails(rows);
+    await applySharedRelationshipDeltas(rows);
     freezeFrontier();
 
     summarizerCalls = 0;
@@ -397,8 +411,16 @@ describe("50-turn memory lifecycle (provider-free)", () => {
     );
 
     const rawJoined = rawHistory.map((message) => message.content).join("\n");
+    const ledgerSentences: Record<(typeof FACTS)[number]["id"], string | null> = {
+      promise_50: PROMISE,
+      npc_30: OLD_REL,
+      world_20: null,
+      rel_10: NEW_REL,
+      now_5: null,
+    };
     const provenance = FACTS.map((fact) => {
       const record = records.find((row) => row.summary.includes(fact.marker));
+      const ledgerSentence = ledgerSentences[fact.id];
       return {
         id: fact.id,
         sourceTurn: fact.turn,
@@ -411,7 +433,9 @@ describe("50-turn memory lifecycle (provider-free)", () => {
         mediumTerm: injection.mediumTermText.includes(fact.marker),
         archive: injection.archiveText.includes(fact.marker),
         episodicPrompt: episodic.promptBlock.includes(fact.marker),
-        relationshipMemo: (relationship ?? "").includes(fact.marker),
+        relationshipMarker: (relationship ?? "").includes(fact.marker),
+        relationshipDurableText:
+          ledgerSentence == null ? null : (relationship ?? "").includes(ledgerSentence),
       };
     });
 
@@ -423,6 +447,11 @@ describe("50-turn memory lifecycle (provider-free)", () => {
       assert.equal(fact.archive, false, `${fact.id} unexpectedly in archive`);
       assert.equal(fact.episodicPrompt, false, `${fact.id} unexpectedly in episodic prompt`);
     }
+    assert.equal(provenance[0]!.relationshipDurableText, true);
+    assert.equal(provenance[1]!.relationshipDurableText, false);
+    assert.equal(provenance[2]!.relationshipDurableText, null);
+    assert.equal(provenance[3]!.relationshipDurableText, true);
+    assert.equal(provenance[4]!.relationshipDurableText, null);
     assert.equal(provenance[0]!.summaryBatch!.turnStart, 1);
     assert.equal(provenance[1]!.summaryBatch!.turnStart, 21);
     assert.equal(provenance[2]!.summaryBatch!.turnStart, 31);
@@ -593,6 +622,9 @@ describe("50-turn memory lifecycle (provider-free)", () => {
         providerRecall: "NOT_TESTED",
         semanticEpisodic: "NOT_TESTED",
         sharedPostTurnEpisodicWriter: "NOT_INVOKED",
+        relationshipExtractModel: "NOT_TESTED",
+        relationshipPersist: "mergeRelationshipMetaFromTurn sharedInitialParsed",
+        mainModelRelationshipTail: "INACTIVE_FOR_LIVE_PICKER",
         productionSealAutoExtract: false,
       },
       owners: {
@@ -601,7 +633,7 @@ describe("50-turn memory lifecycle (provider-free)", () => {
         medium: "buildMediumTermMemoryBlockForProjection",
         archive: "chat_memories.archive_summary",
         episodicRecall: "getEpisodicMemoryForPrompt",
-        relationship: "applyRelationshipDeltaToChat",
+        relationship: "mergeRelationshipMetaFromTurn",
         rawPool: "resolveProviderRawPoolExchangeCount",
         assembly: "buildContext",
       },
