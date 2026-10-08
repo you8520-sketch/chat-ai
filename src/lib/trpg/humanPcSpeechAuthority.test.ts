@@ -64,6 +64,7 @@ const RECORDED = {
       `미르: "형, 안개가 술값을 대신 내주면 좋겠어. 갈대 아저씨, 오늘 메뉴는 실종인가요, 생선인가요?"`,
       `갈대: "생선은 냄비에 있고, 실종은 골목에 널렸다."`,
       `미르: "말 한마디에 소금을 한 바가지씩 뿌려대네. 형, 이 동네 사람들은 인심 대신 독기를 씹어 삼키나 봐."`,
+      `GM: 성소 경비 쇠못이 지팡이 끝으로 바닥을 짓이기며 한결과 미르를 훑어보고 있다.`,
     ].join("\n"),
     unsubmitted: [
       `말 한마디에 소금을 한 바가지씩 뿌려대네. 형, 이 동네 사람들은 인심 대신 독기를 씹어 삼키나 봐.`,
@@ -75,6 +76,7 @@ const RECORDED = {
     narration: [
       `한결: "울음이 약해진다. 경첩부터 본다."`,
       `미르: "나는 부두의 공식 생선이다. 안쪽 아이를 보러 왔소."`,
+      `GM: 문틈은 억지로 벌어졌으나 안쪽의 괴한이 온몸으로 덧문을 짓누르며 퇴로를 차단하려 든다.`,
     ].join("\n"),
     unsubmitted: [] as string[],
     addedActions: ["문짝 한쪽 귀퉁이가 안쪽으로 1인치쯤 덜컥 내려앉았다", "경첩 핀 하나는 이미 부러져"],
@@ -84,6 +86,7 @@ const RECORDED = {
     narration: [
       `미르: "야, 안개야. 줄 서. 형 예약석이다."`,
       `미르: "말은 똑바로 하네. 칼 들이대던 솜씨치고는 발음이 꽤 정직한데. 형, 이 인간 그냥 털린 좀도둑 같은데 어쩔까? 놔두면 또 뒤통수 치려나?"`,
+      `GM: 제압당한 사내가 바닥에 엎드린 채 성소와 주점 쪽 눈치를 살핀다.`,
     ].join("\n"),
     unsubmitted: [
       `말은 똑바로 하네. 칼 들이대던 솜씨치고는 발음이 꽤 정직한데. 형, 이 인간 그냥 털린 좀도둑 같은데 어쩔까? 놔두면 또 뒤통수 치려나?`,
@@ -92,33 +95,42 @@ const RECORDED = {
   },
   A: {
     humans: { 한결: BODY_HANGYEOL_A },
-    narration: `한결: "숨소리 좀 고르라고 해. 이 골목 월세가 아깝다."`,
+    narration: [
+      `한결: "숨소리 좀 고르라고 해. 이 골목 월세가 아깝다."`,
+      `쇠못: "월세? 주둥이가 길다, 낯선 놈이."`,
+      `GM: 문틈 사이로 억눌린 비명이 다시 낮게 새어 나온다.`,
+    ].join("\n"),
     unsubmitted: [] as string[],
     addedActions: [] as string[],
   },
 } as const;
 
 describe("TRPG #1462 human PC speech and action authority", () => {
-  describe("single speech-authority owner", () => {
-    it("SPEECH FORMAT owns the speaker-line restriction, including the human PC rule", () => {
-      const speech = section(TRPG_GM_SYSTEM, "[SPEECH FORMAT]");
-      assert.match(speech, /Speaker lines are for NPCs, extras, world voices, and the GM closing aside/);
-      assert.match(speech, /never write a new spoken line for a human PC/);
+  describe("SPEECH FORMAT contract (prompt text, not model behavior)", () => {
+    const speech = () => section(TRPG_GM_SYSTEM, "[SPEECH FORMAT]");
+    const craft = () => section(TRPG_GM_SYSTEM, "[ROUND CRAFT]");
+    const length = () => section(TRPG_GM_SYSTEM, "[LENGTH — SCENE RESPONSIVE]");
+
+    it("1. forbids inventing a new spoken line or follow-up reply for a human PC", () => {
+      assert.match(speech(), /never a new line or follow-up reply/);
+      assert.match(speech(), /new dialogue, voluntary action, and choice stay under the submitted canonical action/);
     });
 
-    it("ROUND CRAFT no longer carries a second, detached speaker-line rule", () => {
-      const craft = section(TRPG_GM_SYSTEM, "[ROUND CRAFT]");
-      assert.doesNotMatch(craft, /Allowed speaker lines/);
-      assert.equal((TRPG_GM_SYSTEM.match(/speaker lines/gi) ?? []).length, 1);
+    it("2. allows exact recap of already-submitted human words only when the result connection needs it", () => {
+      assert.match(speech(), /Recap a human PC's submitted words as 이름: "대사" only when the result connection needs that exact recap/);
     });
 
-    it("ROUND CRAFT scopes a CHECK/no_check verdict to the declared action only", () => {
-      const craft = section(TRPG_GM_SYSTEM, "[ROUND CRAFT]");
-      assert.match(craft, /covers only the action that player declared, never a follow-up step/);
-      assert.match(craft, /sole authority for that human PC's voluntary action/);
+    it("3. keeps the closing GM: beat an unquoted narrator aside, not a character speaker line", () => {
+      assert.match(speech(), /The closing `GM:` beat is an unquoted narrator aside, not a character speaker line/);
+      assert.match(TRPG_GM_SYSTEM, /Keep it a GM aside, not a character `이름: "대사"` line/);
+      assert.doesNotMatch(speech(), /Speaker lines are for NPCs, extras, world voices, and the GM closing aside/);
     });
 
-    it("regenerate prefix does not repeat a speech-format rule; persona header does not ask to perform lines", () => {
+    it("4. allows NPC, extra, and world-voice new spoken lines", () => {
+      assert.match(speech(), /NPCs, extras, and world voices may invent new spoken lines/);
+    });
+
+    it("5. regenerate path shares the same SPEECH FORMAT owner and adds no competing speech rule", () => {
       const regen = buildTrpgGmUserBlock({
         worldBrief: "w",
         memoryBlock: "",
@@ -127,30 +139,66 @@ describe("TRPG #1462 human PC speech and action authority", () => {
         playerPersonas: "[PLAYER PERSONA participantId=1 name=한결]\n[말투 예시]\n짧게 말한다",
         actions: [],
       });
+      assert.equal((TRPG_GM_SYSTEM.match(/\[SPEECH FORMAT\]/g) ?? []).length, 1);
+      assert.doesNotMatch(regen, /\[SPEECH FORMAT\]/);
       assert.doesNotMatch(regen, /이름: "대사"/);
       assert.match(regen, /\[REGENERATE — same locked actions and dice\./);
       assert.doesNotMatch(regen, /portray these human PCs/);
       assert.match(regen, /speech examples are not lines to perform/);
     });
+
+    it("6. ROUND CRAFT still scopes a CHECK/no_check verdict to the declared action only", () => {
+      assert.match(craft(), /covers only the action that player declared, never a follow-up step/);
+      assert.match(craft(), /sole authority for that human PC's voluntary action/);
+      assert.doesNotMatch(craft(), /Allowed speaker lines/);
+    });
+
+    it("8. existing GM length contract stays on LENGTH / ROUND NARRATION BUDGET", () => {
+      assert.match(length(), /terminal ROUND NARRATION BUDGET as the sole numeric length contract/);
+      assert.equal((TRPG_GM_SYSTEM.match(/\[LENGTH — SCENE RESPONSIVE\]/g) ?? []).length, 1);
+      const user = buildTrpgGmUserBlock({
+        worldBrief: "w",
+        memoryBlock: "",
+        opening: false,
+        actions: [],
+      });
+      assert.match(user, /\[ROUND NARRATION BUDGET\]/);
+    });
   });
 
   describe("recorded #1461 outputs (analysis of fixtures, not model behavior)", () => {
-    it("flags the unsubmitted human lines in B and D, and nothing in A/C controls", () => {
+    it("1/2. flags invented human lines in B and D; submitted recaps in A/B/C stay allowed", () => {
       for (const key of ["A", "B", "C", "D"] as const) {
         const rec = RECORDED[key];
         const found = unsubmittedHumanSpeech(rec.narration, rec.humans).map((l) => l.text);
         assert.deepEqual(found, [...rec.unsubmitted], `case ${key}`);
       }
+      const recapsB = speakerLines(RECORDED.B.narration).filter(
+        (l) => l.speaker in RECORDED.B.humans && RECORDED.B.humans[l.speaker].includes(l.text)
+      );
+      assert.equal(recapsB.length, 3);
     });
 
-    it("recaps of submitted human lines are distinguished from invention", () => {
-      const b = RECORDED.B;
-      const all = speakerLines(b.narration).filter((l) => l.speaker in b.humans);
-      assert.equal(all.length, 4);
-      assert.equal(unsubmittedHumanSpeech(b.narration, b.humans).length, 1);
+    it("3. recorded GM: closings are unquoted narrator asides, not 이름: \"대사\" speaker lines", () => {
+      for (const key of ["A", "B", "C", "D"] as const) {
+        const gm = RECORDED[key].narration.split("\n").filter((line) => line.startsWith("GM: "));
+        assert.ok(gm.length >= 1, `case ${key} has a GM aside`);
+        for (const line of gm) {
+          assert.doesNotMatch(line, /^GM: "/);
+          assert.equal(speakerLines(line).length, 0);
+        }
+      }
     });
 
-    it("scope-expanding actions recorded for B/C/D are absent from the submitted canonical bodies", () => {
+    it("4. recorded NPC lines are new speech and are not treated as human-PC invention", () => {
+      const npc = speakerLines(RECORDED.B.narration).filter((l) => !(l.speaker in RECORDED.B.humans));
+      assert.ok(npc.some((l) => l.speaker === "갈대"));
+      assert.equal(unsubmittedHumanSpeech(RECORDED.B.narration, RECORDED.B.humans).length, 1);
+      const controlNpc = speakerLines(RECORDED.A.narration).filter((l) => l.speaker === "쇠못");
+      assert.equal(controlNpc.length, 1);
+    });
+
+    it("6. scope-expanding follow-up actions in B/C/D are absent from the submitted canonical bodies", () => {
       for (const key of ["B", "C", "D"] as const) {
         const rec = RECORDED[key];
         const submitted = Object.values(rec.humans).join("\n");
@@ -168,7 +216,7 @@ describe("TRPG #1462 human PC speech and action authority", () => {
       return db;
     }
 
-    it("passes canonical human bodies verbatim, in resolution order, with one GM call per advance and regenerate", async () => {
+    it("5/7. regenerate keeps the same speech owner, CHECK wires, and dice; one GM call per path", async () => {
       const prev = {
         referee: process.env.TRPG_MECHANICS_REFEREE_ENABLED,
         director: process.env.TRPG_SANDBOX_DIRECTOR_ENABLED,
@@ -208,6 +256,9 @@ describe("TRPG #1462 human PC speech and action authority", () => {
         assert.equal(gmCalls.length, 1);
         const [first] = gmCalls;
         assert.equal(first!.system, TRPG_GM_SYSTEM);
+        assert.match(first!.system, /\[SPEECH FORMAT\]/);
+        assert.match(first!.system, /Recap a human PC's submitted words/);
+        assert.match(first!.user, /\[ROUND NARRATION BUDGET\]/);
         for (const body of [BODY_HANGYEOL_C, BODY_MIR_C]) {
           const labelled = `${TRPG_GM_LABEL_HUMAN_ACTION}\n${body}`;
           assert.equal(first!.user.split(labelled).length - 1, 1);
@@ -218,6 +269,8 @@ describe("TRPG #1462 human PC speech and action authority", () => {
         assert.equal(gmCalls.length, 2);
         const regen = gmCalls[1]!;
         assert.equal(regen.system, first!.system);
+        assert.match(regen.system, /\[SPEECH FORMAT\]/);
+        assert.match(regen.user, /\[ROUND NARRATION BUDGET\]/);
         assert.match(regen.user, /^\[REGENERATE — same locked actions and dice\./);
         assert.doesNotMatch(regen.user, /이름: "대사"/);
         const checks = (user: string) => user.match(/\[CHECK [^\]]*\]/g) ?? [];
