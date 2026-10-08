@@ -40,6 +40,8 @@ export type PrecallEgressChannel =
 export type PrecallEgressAttempt = {
   channel: PrecallEgressChannel;
   host: string;
+  /** First stack frame outside this guard and node internals: file:line only. */
+  origin: string;
 };
 
 export class PrecallEgressBlockedError extends Error {
@@ -69,8 +71,25 @@ export function precallEgressAttempts(): readonly PrecallEgressAttempt[] {
   return attempts;
 }
 
+function callerOrigin(): string {
+  const frames = (new Error().stack ?? "").split("\n").slice(1);
+  for (const frame of frames) {
+    const match = /\(?([^()\s]+:\d+):\d+\)?$/.exec(frame.trim());
+    const location = match?.[1];
+    if (!location || location.startsWith("node:") || location.includes("rpQualityPrecallEgressGuard")) {
+      continue;
+    }
+    return location.replace(/^.*\/(src|scripts|node_modules)\//, "$1/");
+  }
+  return "<unknown>";
+}
+
 function block(channel: PrecallEgressChannel, host: unknown): never {
-  attempts.push({ channel, host: typeof host === "string" ? host.slice(0, 120) : "<unknown>" });
+  attempts.push({
+    channel,
+    host: typeof host === "string" ? host.slice(0, 120) : "<unknown>",
+    origin: callerOrigin(),
+  });
   throw new PrecallEgressBlockedError(channel);
 }
 
@@ -97,6 +116,14 @@ function hostOfConnectArgs(args: unknown[]): string {
   }
   if (typeof first === "string") return "<unix-socket>";
   return typeof args[1] === "string" ? args[1] : "localhost";
+}
+
+/**
+ * App modules log prompt-assembly diagnostics at init and runtime. Nothing but the
+ * runner's final JSON may leave the process, so every console channel is muted.
+ */
+for (const method of ["log", "info", "debug", "warn", "error", "trace"] as const) {
+  console[method] = () => undefined;
 }
 
 globalThis.fetch = (async (input: unknown) => {

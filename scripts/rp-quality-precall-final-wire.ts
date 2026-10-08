@@ -292,7 +292,7 @@ function main(): void {
   };
 
   const serialized = JSON.stringify(output, null, 2);
-  if (egressAttempts.length !== 0) fail("PROVIDER_EGRESS_ATTEMPTED", { channels: egressAttempts.map((a) => a.channel) });
+  if (egressAttempts.length !== 0) fail("PROVIDER_EGRESS_ATTEMPTED", { attempts: egressAttempts });
   if (stringContainsSecretShape(serialized)) fail("SECRET_SHAPED_VALUE_IN_OUTPUT");
   if (findRawSourceLeak(serialized, rawTextsForLeakCheck(rows))) fail("RAW_SOURCE_LEAK_IN_OUTPUT");
 
