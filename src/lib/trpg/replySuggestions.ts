@@ -790,9 +790,19 @@ export function selectReplySuggestionScene(narration: string, max: number = TRPG
 
   const cut = chars.length - bodyBudget;
   let tail = chars.slice(cut).join("");
-  if (chars[cut - 1] !== " ") {
+  // A word boundary is not necessarily a sentence boundary. Even when the
+  // cut lands after whitespace, snap forward to the next sentence when nearby.
+  const preceding = chars.slice(Math.max(0, cut - 3), cut).join("");
+  if (!SENTENCE_END_THEN_SPACE.test(preceding)) {
     const boundary = SENTENCE_END_THEN_SPACE.exec(tail.slice(0, TRPG_REPLY_SCENE_TAIL_SNAP_CHARS));
-    if (boundary) tail = tail.slice(boundary.index + boundary[0].length);
+    if (boundary) {
+      tail = tail.slice(boundary.index + boundary[0].length);
+    } else if (chars[cut - 1] !== " ") {
+      // A very long sentence may have no nearby terminator. At least avoid
+      // sending a mangled first word to the model in that case.
+      const space = tail.search(/\s/u);
+      if (space >= 0 && space < TRPG_REPLY_SCENE_TAIL_SNAP_CHARS) tail = tail.slice(space + 1);
+    }
   }
   return `…${tail.trimStart()}${asideBlock}`;
 }
