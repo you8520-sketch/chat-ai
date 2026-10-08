@@ -15,6 +15,7 @@ import {
   getEffectiveKrwPerUsd,
 } from "@/lib/exchangeRate";
 import { resolveMainRpProviderAdmissionRequiredPoints } from "@/lib/mainRpProviderAdmission";
+import { openRouterUsdCostFromRates } from "@/lib/openRouterModelPricing";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import {
   computePublishedStandardPreviewDisplayPoints,
@@ -119,7 +120,7 @@ describe("Sol 174P vs 162P standard-rate / FX diagnosis", () => {
     );
   });
 
-  it("cache read/write change current user P at the same prompt/output — policy conflict", () => {
+  it("cache read/write/miss keep the same Sol user P at the same prompt/output", () => {
     const miss = solDisplay({ promptTokens: ACTUAL_IN, cacheReadTokens: 0, cacheWriteTokens: 0 });
     const hit = solDisplay({
       promptTokens: ACTUAL_IN,
@@ -132,15 +133,40 @@ describe("Sol 174P vs 162P standard-rate / FX diagnosis", () => {
       cacheWriteTokens: 8_000,
     });
     assert.equal(miss, 174);
-    assert.ok(hit != null && write != null);
-    assert.notEqual(hit, miss);
-    assert.notEqual(write, miss);
-    assert.ok(hit! < miss!);
-    assert.ok(write! > miss!);
-    console.log(JSON.stringify({ miss, hit, write }));
+    assert.equal(hit, miss);
+    assert.equal(write, miss);
   });
 
-  it("picker always forces cache 0, so 162P is not a cache-discounted 19015 forecast at 1560.6", () => {
+  it("provider cache cost still differs while Sol user P stays Standard-only", () => {
+    const missUsd = openRouterUsdCostFromRates({
+      modelId: SOL,
+      promptTokens: ACTUAL_IN,
+      outputTokens: ACTUAL_OUT,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    }).usdCost;
+    const hitUsd = openRouterUsdCostFromRates({
+      modelId: SOL,
+      promptTokens: ACTUAL_IN,
+      outputTokens: ACTUAL_OUT,
+      cacheReadTokens: 8_000,
+      cacheWriteTokens: 0,
+    }).usdCost;
+    const writeUsd = openRouterUsdCostFromRates({
+      modelId: SOL,
+      promptTokens: ACTUAL_IN,
+      outputTokens: ACTUAL_OUT,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 8_000,
+    }).usdCost;
+    assert.ok(hitUsd < missUsd);
+    assert.ok(writeUsd > missUsd);
+    assert.equal(solDisplay({ promptTokens: ACTUAL_IN }), 174);
+    assert.equal(solDisplay({ promptTokens: ACTUAL_IN, cacheReadTokens: 8_000 }), 174);
+    assert.equal(solDisplay({ promptTokens: ACTUAL_IN, cacheWriteTokens: 8_000 }), 174);
+  });
+
+  it("picker and settlement both lock the daily shadow FX owner", () => {
     const estimateSource = readFileSync(
       path.join(process.cwd(), "src/lib/mainRpNextTurnEstimate.ts"),
       "utf8"
@@ -155,10 +181,10 @@ describe("Sol 174P vs 162P standard-rate / FX diagnosis", () => {
     );
     assert.match(estimateSource, /cacheReadTokens: 0/);
     assert.match(estimateSource, /cacheWriteTokens: 0/);
-    assert.match(serviceSource, /getEffectiveKrwPerUsd/);
-    assert.doesNotMatch(serviceSource, /resolveShadowBillingExchangeRateSnapshot/);
+    assert.match(serviceSource, /resolveShadowBillingExchangeRateSnapshot/);
+    assert.doesNotMatch(serviceSource, /getEffectiveKrwPerUsd/);
     assert.match(routeSource, /resolveShadowBillingExchangeRateSnapshot/);
-    assert.match(routeSource, /resolveBillingExchangeRateSnapshot/);
+    assert.match(routeSource, /publishedBillingFx/);
   });
 
   it("Gemini 3.8 / DeepSeek V4.1 / Opus 5.5 official Standard rates stay unchanged", () => {
@@ -194,7 +220,7 @@ describe("Sol 174P vs 162P standard-rate / FX diagnosis", () => {
   });
 });
 
-describe("same-KST-day legacy picker FX vs locked settlement FX", () => {
+describe("same-KST-day published FX lock", () => {
   let db: Database.Database;
 
   afterEach(() => {
@@ -204,7 +230,7 @@ describe("same-KST-day legacy picker FX vs locked settlement FX", () => {
     db?.close();
   });
 
-  it("reconstructs 162P picker vs 174P settlement from two FX owners on one dateKey", () => {
+  it("picker and settlement share the locked daily FX even when legacy API diverges", () => {
     db = new Database(":memory:");
     ensureShadowBillingFxTables(db);
     _setShadowBillingFxTestDb(db);
@@ -221,26 +247,20 @@ describe("same-KST-day legacy picker FX vs locked settlement FX", () => {
       source: "api",
     });
 
-    const pickerFx = getEffectiveKrwPerUsd();
-    const settlementFx = resolveShadowBillingExchangeRateSnapshot();
-    assert.equal(settlementFx.dateKey, "2026-10-08");
-    assert.equal(settlementFx.locked, true);
-    assert.equal(settlementFx.usdToKrw, 1530);
-    assert.ok(Math.abs(pickerFx - 1365.87436938) < 1e-6);
-    assert.notEqual(pickerFx, settlementFx.effectiveKrwPerUsd);
+    const first = resolveShadowBillingExchangeRateSnapshot();
+    const afterRestart = resolveShadowBillingExchangeRateSnapshot();
+    assert.equal(first.dateKey, "2026-10-08");
+    assert.equal(first.locked, true);
+    assert.equal(first.usdToKrw, 1530);
+    assert.equal(afterRestart.effectiveKrwPerUsd, first.effectiveKrwPerUsd);
+    assert.notEqual(getEffectiveKrwPerUsd(), first.effectiveKrwPerUsd);
 
-    const pickerDisplay = solDisplay({ promptTokens: PICKER_IN, fx: pickerFx });
-    const settlementDisplay = solDisplay({
-      promptTokens: ACTUAL_IN,
-      fx: settlementFx.effectiveKrwPerUsd,
-    });
-    const sameFxPicker = solDisplay({
-      promptTokens: PICKER_IN,
-      fx: settlementFx.effectiveKrwPerUsd,
-    });
-    assert.equal(pickerDisplay, 162);
-    assert.equal(settlementDisplay, 174);
-    assert.equal(sameFxPicker, 185);
-    assert.equal(solCeil({ promptTokens: ACTUAL_IN, fx: settlementFx.effectiveKrwPerUsd }), 175);
+    assert.equal(solDisplay({ promptTokens: ACTUAL_IN, fx: first.effectiveKrwPerUsd }), 174);
+    assert.equal(solDisplay({ promptTokens: PICKER_IN, fx: first.effectiveKrwPerUsd }), 185);
+    assert.equal(solCeil({ promptTokens: ACTUAL_IN, fx: first.effectiveKrwPerUsd }), 175);
+    assert.equal(
+      solDisplay({ promptTokens: PICKER_IN, fx: getEffectiveKrwPerUsd() }),
+      162
+    );
   });
 });

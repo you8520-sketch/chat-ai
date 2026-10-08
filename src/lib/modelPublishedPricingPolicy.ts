@@ -151,8 +151,8 @@ export function isPublishedCacheWriteAbsentProvenZero(modelId: string): boolean 
 
 
 /**
- * True only when missing cache read/write partition cannot alter the published
- * user charge. This does NOT claim provider cache usage was zero.
+ * Policy-map flag only. User charge is Standard-only for all published models;
+ * this does not claim provider cache usage was zero.
  */
 export function isPublishedCacheBreakdownPriceNeutral(modelId: string): boolean {
   const canonical = canonicalizePublishedModelId(modelId);
@@ -215,17 +215,10 @@ export function evaluateTierEligibilityFromApplicabilitySnapshot(
 }
 
 export function evaluateCacheEligibilityFromApplicabilitySnapshot(
-  usage: { cacheReadTokens: number; cacheWriteTokens: number },
-  applicability: PublishedApplicabilitySnapshot,
-  cacheReadRate: number | null,
-  cacheWriteRate: number | null
+  _usage: { cacheReadTokens: number; cacheWriteTokens: number },
+  _applicability: PublishedApplicabilitySnapshot,
+  _cacheReadRate: number | null,
+  _cacheWriteRate: number | null
 ): boolean {
-  const hasCacheUsage = usage.cacheReadTokens > 0 || usage.cacheWriteTokens > 0;
-  if (!hasCacheUsage) return true;
-  if (applicability.cacheSemanticStatus === "unverified" || applicability.cacheSemanticStatus === "unknown") {
-    return false;
-  }
-  if (usage.cacheReadTokens > 0 && cacheReadRate == null) return false;
-  if (usage.cacheWriteTokens > 0 && cacheWriteRate == null) return false;
   return true;
 }

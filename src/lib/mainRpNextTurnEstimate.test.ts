@@ -303,7 +303,7 @@ describe("main RP next-turn estimate", () => {
     );
   });
 
-  it("H unverified cache stays at 0", () => {
+  it("H cache partition does not change Sol user points", () => {
     assert.match(ESTIMATE_SOURCE, /cacheReadTokens: 0/);
     assert.match(ESTIMATE_SOURCE, /cacheWriteTokens: 0/);
     const withZero = computePublishedStandardPreviewDisplayPoints({
@@ -323,7 +323,7 @@ describe("main RP next-turn estimate", () => {
       effectiveKrwPerUsd: FX,
     });
     assert.ok(withZero != null && withFakeCache != null);
-    assert.notEqual(withZero, withFakeCache);
+    assert.equal(withZero, withFakeCache);
   });
 
   it("I estimate modules do not call providers or write ledgers", () => {

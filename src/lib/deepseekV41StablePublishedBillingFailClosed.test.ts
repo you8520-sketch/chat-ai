@@ -28,7 +28,6 @@ import {
   applyFinalUserChargeToUsage,
 } from "@/lib/chatBillingFinalCharge";
 import { buildAdminBillingReceiptV2 } from "@/lib/adminBillingReceiptV2";
-import { computeOpenRouterTurnBilling } from "@/lib/points";
 import { settleChatTurnBillingExactlyOnce } from "@/lib/chatBillingSettlement";
 import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
 import Database from "better-sqlite3";
@@ -139,21 +138,14 @@ describe("stable published billing fail-closed — regression matrix", () => {
     assert.ok(decision.points > 0);
   });
 
-  it("D — positive cacheWrite → published_fail_closed 0P (legacy NOT used)", () => {
-    const base = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "A1-deepseek-normal")!;
-    const stage = v41BlockedCacheWriteStage(0.012);
-    const legacyPoints = computeLiveChargeFromFixture({
-      ...base,
-      stages: [stage],
-      upstreamCostUsd: 0.012,
-      deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-      requestedSelectedAI: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-    }).totalPoints;
-    assert.ok(legacyPoints > 0);
-
-    const decision = dispatchV41([stage], { legacyFinalPoints: legacyPoints });
-    assertFailClosed(decision, "unsupported_cache_semantics");
-    assert.equal(decision.telemetry.publishedBlockReason, "unsupported_cache_semantics");
+  it("D — positive cacheWrite stays Standard-only published_phase2", () => {
+    const miss = dispatchV41([NORMAL_STAGE]);
+    const decision = dispatchV41([v41BlockedCacheWriteStage(0.012)]);
+    assert.equal(miss.contract, "published_phase2");
+    assert.equal(decision.contract, "published_phase2");
+    assert.equal(decision.points, miss.points);
+    assert.ok(decision.points > 0);
+    assert.notEqual(decision.contract, "legacy");
   });
 
   it("E — usage incomplete → published_fail_closed 0P", () => {
@@ -187,45 +179,59 @@ describe("stable published billing fail-closed — regression matrix", () => {
     assertFailClosed(decision, "invalid_fx_snapshot");
   });
 
-  it("H — V4 Pro direct-selected published block → same 0P fail-closed", () => {
-    const stage = {
+  it("H — V4 Pro cache-write stays Standard-only published_phase2", () => {
+    const missStage = {
       stage: "primary" as const,
       model: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       input: 33_247,
       output: 3_461,
       apiOutputTokens: 3_461,
       apiReportedInputTokens: 33_247,
-      cacheWriteTokens: 128,
+      cacheWriteTokens: 0,
       cacheReadTokens: 0,
       estimated: false,
       upstreamCostUsd: 0.05,
+      usageReportingEvidence: {
+        cacheRead: "reported_valid" as const,
+        cacheWrite: "unreported" as const,
+        reasoning: "reported_valid" as const,
+      },
+    };
+    const writeStage = {
+      ...missStage,
+      cacheWriteTokens: 128,
       usageReportingEvidence: {
         cacheRead: "reported_valid" as const,
         cacheWrite: "reported_valid" as const,
         reasoning: "reported_valid" as const,
       },
     };
-    const legacyHigh = computeOpenRouterTurnBilling({
-      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-      inputTokens: 33_247,
-      outputTokens: 3_461,
-      apiPromptTokens: 33_247,
-      apiCompletionTokens: 3_461,
-      upstreamCostUsd: 0.05,
-    }).total;
-    assert.ok(legacyHigh > 0);
 
-    const decision = resolveChatBillingContract({
+    const miss = resolveChatBillingContract({
       deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-      stages: [stage],
-      legacyFinalPoints: legacyHigh,
+      stages: [missStage],
+      legacyFinalPoints: 999,
       billingWaiverReason: null,
       legacyWaiverMinimum: 0,
       fxSnapshot: FX,
       phase2DeepSeekPublishedBillingEnabled: true,
     });
-    assertFailClosed(decision, "unsupported_cache_semantics");
+    const decision = resolveChatBillingContract({
+      deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      stages: [writeStage],
+      legacyFinalPoints: 999,
+      billingWaiverReason: null,
+      legacyWaiverMinimum: 0,
+      fxSnapshot: FX,
+      phase2DeepSeekPublishedBillingEnabled: true,
+    });
+    assert.equal(miss.contract, "published_phase2");
+    assert.equal(decision.contract, "published_phase2");
+    assert.equal(decision.points, miss.points);
+    assert.ok(decision.points > 0);
+    assert.notEqual(decision.contract, "legacy");
   });
 
   it("I — V4.1 direct selection stays published when Phase2 flag is disabled", () => {
@@ -371,14 +377,15 @@ describe("stable published billing fail-closed — regression matrix", () => {
   });
 
   it("N — creator reward gate: appliedNewCharge false when 0P", () => {
-    const decision = dispatchV41([v41BlockedCacheWriteStage()], { legacyFinalPoints: 55 });
+    const decision = dispatchV41([], { legacyFinalPoints: 55 });
     assert.equal(decision.points, 0);
     assert.equal(decision.contract, "published_fail_closed");
+    assert.equal(decision.reason, "usage_unresolved");
     // route.ts skips creator reward when settlement.appliedNewCharge is false
   });
 
   it("O — admin receipt exposes block reason + fail-closed policy + 0P", () => {
-    const decision = dispatchV41([v41BlockedCacheWriteStage()], { legacyFinalPoints: 55 });
+    const decision = dispatchV41([], { legacyFinalPoints: 55 });
     const dispatch = buildUsageBillingContractAdmin(decision, 0, 55);
     const usage = applyFinalUserChargeToUsage(
       {
@@ -395,16 +402,20 @@ describe("stable published billing fail-closed — regression matrix", () => {
     const receipt = buildAdminBillingReceiptV2(usage);
     assert.equal(receipt.userCharge.deductedPoints, 0);
     assert.equal(receipt.userCharge.billingContract, "published_fail_closed");
-    assert.equal(receipt.userCharge.publishedBlockReason, "unsupported_cache_semantics");
+    assert.equal(receipt.userCharge.publishedBlockReason, "no_stages");
     assert.equal(
       receipt.userCharge.appliedFailClosedPolicy,
       STABLE_PUBLISHED_BILLING_ANOMALY_FAIL_CLOSED_POLICY
     );
   });
 
-  it("P — provider upstream cost preserved on usage while user charge 0P", () => {
+  it("P — provider upstream cost preserved while user charge stays Standard-only", () => {
+    const miss = dispatchV41([NORMAL_STAGE], { legacyFinalPoints: 55 });
     const decision = dispatchV41([v41BlockedCacheWriteStage(0.012)], { legacyFinalPoints: 55 });
-    const dispatch = buildUsageBillingContractAdmin(decision, 0, 55);
+    assert.equal(decision.contract, "published_phase2");
+    assert.equal(decision.points, miss.points);
+    assert.ok(decision.points > 0);
+    const dispatch = buildUsageBillingContractAdmin(decision, decision.points, 55);
     const usage = applyFinalUserChargeToUsage(
       {
         input: 10_000,
@@ -414,21 +425,22 @@ describe("stable published billing fail-closed — regression matrix", () => {
         cost: 0,
         upstreamCostUsd: 0.012,
       },
-      0,
+      decision.points,
       dispatch
     );
-    assert.equal(usage.cost, 0);
+    assert.equal(usage.cost, decision.points);
     assert.equal(usage.upstreamCostUsd, 0.012);
   });
 });
 
 describe("stable published billing fail-closed — abuse boundary", () => {
-  it("positive cacheWrite block uses provider stage usage assembled server-side", () => {
+  it("positive cacheWrite uses provider stage usage and stays Standard-only", () => {
     // StageUsage.cacheWriteTokens + usageReportingEvidence come from provider stream
     // (openRouterAdult.ts) — not from user POST body fields.
+    const miss = dispatchV41([NORMAL_STAGE], { legacyFinalPoints: 99 });
     const decision = dispatchV41([v41BlockedCacheWriteStage()], { legacyFinalPoints: 99 });
-    assert.equal(decision.contract, "published_fail_closed");
-    assert.equal(decision.reason, "unsupported_cache_semantics");
-    assert.equal(decision.points, 0);
+    assert.equal(decision.contract, "published_phase2");
+    assert.equal(decision.points, miss.points);
+    assert.ok(decision.points > 0);
   });
 });

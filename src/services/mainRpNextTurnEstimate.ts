@@ -14,7 +14,7 @@ import { visibleAssistantDisplayCharCount } from "@/lib/chatDisplayLength";
 import type { SelectedAI } from "@/lib/chatModels";
 import type { Usage } from "@/lib/chatUsage";
 import { getDb } from "@/lib/db";
-import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
+import { resolveShadowBillingExchangeRateSnapshot } from "@/lib/shadowBillingExchangeRate";
 import { billableOpenRouterOutputTokens } from "@/lib/points";
 import {
   computeMainRpNextTurnEstimates,
@@ -301,7 +301,7 @@ function estimatesFromRoomRows(
     recentBillableOutputTokensByModel: readMainRpNextTurnOutputHistory(rows),
     providerInputCalibrationByModel,
     historyDeltaByModel,
-    effectiveKrwPerUsd: getEffectiveKrwPerUsd(),
+    effectiveKrwPerUsd: resolveShadowBillingExchangeRateSnapshot().effectiveKrwPerUsd,
   });
 }
 

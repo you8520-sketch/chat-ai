@@ -121,7 +121,10 @@ import { createStreamPostprocessHeartbeat } from "@/lib/streamPostprocessHeartbe
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isCheaperInferenceQwen38MaxModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
 import { resolveDeepSeekAdultHandoffTrueOff } from "@/lib/cheaperInferenceConfig";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
-import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
+import {
+  normalizeLegacyExchangeRateSource,
+  resolveBillingExchangeRateSnapshot,
+} from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
 import { TurnApiBudget, NARRATIVE_LENGTH_CONTINUATION_ENABLED } from "@/lib/turnApiBudget";
 import {
@@ -4715,11 +4718,12 @@ export async function POST(req: Request) {
 
         let legacyFinalPointsBeforeDispatch = cost;
         let billingContractDecision: ChatBillingContractDecision | null = null;
+        const publishedBillingFx = shouldPreparePublishedBillingFxSnapshot()
+          ? resolveShadowBillingExchangeRateSnapshot()
+          : null;
 
         if (!htmlFlashOnlyTurn) {
-          const shadowFx = shouldPreparePublishedBillingFxSnapshot()
-            ? resolveShadowBillingExchangeRateSnapshot()
-            : null;
+          const shadowFx = publishedBillingFx;
           const billingFxSnapshot: BillingFxSnapshot | undefined = shadowFx
             ? {
                 mode: shadowFx.mode,
@@ -4894,7 +4898,15 @@ export async function POST(req: Request) {
           : undefined;
 
         const billingExchangeRate = meteredReceiptBilling
-          ? resolveBillingExchangeRateSnapshot()
+          ? publishedBillingFx
+            ? {
+                mode: publishedBillingFx.mode,
+                dateKey: publishedBillingFx.dateKey,
+                usdToKrw: publishedBillingFx.usdToKrw,
+                effectiveKrwPerUsd: publishedBillingFx.effectiveKrwPerUsd,
+                source: normalizeLegacyExchangeRateSource(publishedBillingFx.source),
+              }
+            : resolveBillingExchangeRateSnapshot()
           : null;
 
         const apiInputTokens = htmlFlashOnlyTurn

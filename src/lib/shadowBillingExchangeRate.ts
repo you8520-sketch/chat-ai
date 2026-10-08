@@ -1,6 +1,7 @@
 /**
- * Shadow billing FX owner — daily KST immutable snapshots persisted in SQLite.
- * Does NOT affect legacy production billing (points.ts / exchangeRate.ts).
+ * Daily KST locked FX owner for Published user charge.
+ * Picker, admission, and settlement read this snapshot.
+ * GET/admin preview uses peek/preview and must not INSERT.
  */
 
 import "server-only";

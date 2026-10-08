@@ -136,7 +136,7 @@ describe("GPT-6.1 Sol official published and fallback pricing", () => {
     assert.equal(included.total, sameWithoutExtra.total);
   });
 
-  it("published charge applies cache read/write separately and long-context 2x/1.5x", () => {
+  it("published charge stays Standard-only and keeps long-context 2x/1.5x", () => {
     const shortCache = computePublishedUserChargeWithSnapshot({
       modelId: CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
       usage: normalizeBillableUsage({
@@ -161,6 +161,17 @@ describe("GPT-6.1 Sol official published and fallback pricing", () => {
         effectiveKrwPerUsd: FX.effectiveKrwPerUsd,
       });
       assert.equal(shortCache.snapshot.finalPoints, expected);
+      assert.equal(
+        shortCache.snapshot.finalPoints,
+        computePublishedStandardPreviewPoints({
+          modelId: CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+          promptTokens: 10_000,
+          outputTokens: 1_000,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+          effectiveKrwPerUsd: FX.effectiveKrwPerUsd,
+        })
+      );
       assert.equal(shortCache.snapshot.reasoningAccounting, "none");
       assert.equal(shortCache.snapshot.billableOutputTokens, 1_000);
     }
