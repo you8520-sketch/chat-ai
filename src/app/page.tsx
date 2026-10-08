@@ -176,11 +176,7 @@ export default async function Home() {
   return (
     <div className="pb-6">
       <HomePopupNotice notice={popupNotice} />
-      <HomeCharacterStage
-        characters={toHomeStageCharacters(recommended, { blurNsfw, loggedIn })}
-      />
-      <HomeCreateEventBanner />
-      <div className="mt-6 border-b border-white/[0.07] pb-6 md:hidden">
+      <div className="border-b border-white/[0.07] pb-4 md:hidden">
         <MobileDiscoveryNav />
         <div className="mt-3 flex min-h-9 items-center justify-between gap-3 px-1">
           <UserPreferenceControls
@@ -199,7 +195,7 @@ export default async function Home() {
           </Link>
         </div>
       </div>
-      <div className="mt-6 hidden border-b border-white/[0.07] pb-6 md:block">
+      <div className="hidden border-b border-white/[0.07] pb-4 md:block">
         <UserPreferenceControls
           isAdult={!!user?.is_adult}
           canDisableSafetyFilter={canDisableSafetyFilter}
@@ -209,6 +205,10 @@ export default async function Home() {
           variant="homeRow"
         />
       </div>
+      <HomeCharacterStage
+        characters={toHomeStageCharacters(recommended, { blurNsfw, loggedIn })}
+      />
+      <HomeCreateEventBanner />
       <ScrollSection
         title="공모전 당선작"
         chars={contest}

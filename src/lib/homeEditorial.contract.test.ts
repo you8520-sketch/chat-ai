@@ -202,6 +202,8 @@ describe("home presentation owners", () => {
     const stageAt = home.indexOf("<HomeCharacterStage");
     const bannerAt = home.indexOf("<HomeCreateEventBanner");
     assert.ok(stageAt >= 0 && bannerAt > stageAt);
+    const filterAt = home.indexOf("<UserPreferenceControls");
+    assert.ok(filterAt >= 0 && filterAt < stageAt, "taste filter stays above the viewport-height stage");
     assert.match(banner, /CREATE_MIGRATION_EVENT_REWARD/);
     assert.match(banner, /ctaHref: "\/events\/create-migration"/);
     assert.match(banner, /인기 이야기 둘러보기/);

@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState, type AnimationEvent, type KeyboardEvent } from "react";
+import {
+  useId,
+  useState,
+  type AnimationEvent,
+  type CSSProperties,
+  type KeyboardEvent,
+} from "react";
 
 import type { HomeStageCharacter } from "@/lib/homeStagePresentation";
 import { cn } from "@/lib/studioDesign";
@@ -25,11 +31,12 @@ function motionAllowed(): boolean {
   return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function giantFontSize(name: string): string {
-  const length = Math.max([...name].length, 1);
-  const vw = Math.min(30, Math.max(4.2, 96 / length));
-  const cap = length <= 2 ? 22 : length <= 6 ? 12 : 7.25;
-  return `clamp(2.5rem, ${vw.toFixed(2)}vw, ${cap}rem)`;
+/** Glyphs on the widest line once the name wraps to at most two lines. */
+function giantPerLine(name: string): number {
+  const chars = Math.max([...name.trim()].length, 1);
+  if (chars <= 6) return chars;
+  const longestWord = Math.max(...name.trim().split(/\s+/).map((word) => [...word].length));
+  return Math.max(Math.ceil(chars / 2), Math.min(longestWord, 8));
 }
 
 function PortraitFrame({
@@ -315,17 +322,17 @@ export default function HomeCharacterStage({ characters }: Props) {
             background: `radial-gradient(ellipse at 28% 42%, color-mix(in srgb, ${character.accent.wash} 38%, transparent), transparent 62%)`,
           }}
         >
-          <div className="grid min-h-[calc(100svh-5.25rem)] items-center gap-8 py-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(16rem,0.9fr)] lg:gap-10 lg:py-8">
-            <div className="mx-auto w-[min(68vw,30rem)]">
+          <div className="grid items-center gap-6 py-5 lg:min-h-[calc(100svh-9rem)] lg:grid-cols-[minmax(0,1.05fr)_minmax(16rem,0.9fr)] lg:gap-10 lg:py-8">
+            <div className="mx-auto w-[min(52vw,30rem)]">
               <PortraitFrame character={character} priority onExpand={openFeature} />
             </div>
-            <div className="flex min-w-0 flex-col gap-4">
+            <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
               <div
                 key={character.id}
                 role="tabpanel"
                 id={panelId}
                 aria-labelledby={`${baseId}-tab-${character.id}`}
-                className="flex min-w-0 flex-col gap-4"
+                className="flex min-w-0 flex-col gap-3 sm:gap-4"
               >
               <div>
                 <p className="text-[10px] font-semibold tracking-[0.22em] text-zinc-400">
@@ -334,7 +341,7 @@ export default function HomeCharacterStage({ characters }: Props) {
                 <p className="mt-1 text-xs text-zinc-500">{STAGE_TITLE}</p>
               </div>
               <p
-                className="text-5xl font-semibold leading-none tracking-[-0.06em] sm:text-6xl"
+                className="text-4xl font-semibold leading-none tracking-[-0.06em] sm:text-6xl"
                 style={{ color: character.accent.wash }}
               >
                 {character.indexLabel}
@@ -393,22 +400,14 @@ export default function HomeCharacterStage({ characters }: Props) {
             background: `radial-gradient(ellipse at 18% 40%, color-mix(in srgb, ${character.accent.wash} 46%, transparent), transparent 60%)`,
           }}
         >
-          <div className="relative min-h-[44rem] lg:min-h-[calc(100svh-5.25rem)]">
+          <div className="home-stage-feature relative lg:min-h-[calc(100svh-9rem)]">
             <div
               aria-hidden
               className="home-stage-feature-field"
               style={{ background: character.accent.wash }}
             />
-            <p
-              aria-hidden
-              className="home-stage-giant"
-              style={{ color: character.accent.wash, fontSize: giantFontSize(character.name) }}
-            >
-              {character.name}
-            </p>
-            <FeatureArtwork character={character} />
-            <div className="relative z-[3] flex min-h-[44rem] flex-col justify-between py-4 pb-24 lg:min-h-[calc(100svh-5.25rem)] lg:py-6 lg:pb-28">
-              <div className="flex items-start justify-between gap-3">
+            <div className="relative z-[3] flex flex-col py-4 pb-24 lg:min-h-[calc(100svh-9rem)] lg:justify-between lg:py-6 lg:pb-28">
+              <div className="relative z-[4] flex items-start justify-between gap-3">
                 <p className="text-[10px] font-semibold tracking-[0.22em] text-zinc-300">
                   {STAGE_INDEX} / {STAGE_EYEBROW}
                   <span className="mx-2 text-zinc-600">·</span>
@@ -424,11 +423,24 @@ export default function HomeCharacterStage({ characters }: Props) {
                   선택으로
                 </button>
               </div>
+              <FeatureArtwork character={character} />
+              <p
+                aria-hidden
+                className="home-stage-giant"
+                style={
+                  {
+                    color: character.accent.wash,
+                    "--giant-per-line": giantPerLine(character.name),
+                  } as CSSProperties
+                }
+              >
+                {character.name}
+              </p>
               <div
                 role="tabpanel"
                 id={panelId}
                 aria-labelledby={`${baseId}-tab-${character.id}`}
-                className="ml-auto flex w-[min(100%,22rem)] flex-col items-start gap-3 lg:mb-[6%]"
+                className="relative z-[4] mt-4 flex w-full flex-col items-start gap-3 lg:ml-auto lg:mt-0 lg:mb-[4%] lg:w-[min(100%,22rem)]"
               >
                 <IdentityMarks character={character} />
                 <h1 className="text-3xl font-semibold leading-tight tracking-[-0.04em] text-white [overflow-wrap:anywhere]">
