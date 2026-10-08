@@ -153,12 +153,25 @@ function fail(code: string, extra: Record<string, unknown> = {}): never {
   process.exit(2);
 }
 
+function parseVerificationMode(): "overlay" | "deployed" {
+  const raw = argValue("--verification-mode")?.trim() ?? "overlay";
+  if (raw === "overlay" || raw === "deployed") return raw;
+  fail("VERIFICATION_MODE_INVALID");
+}
+
 function main(): void {
+  const verificationMode = parseVerificationMode();
   const expectedDeploySha = argValue("--expected-deploy-sha")?.trim().toLowerCase() ?? "";
   if (!/^[a-f0-9]{40}$/.test(expectedDeploySha)) fail("EXPECTED_DEPLOY_SHA_REQUIRED");
   const prHead = argValue("--pr-head")?.trim().toLowerCase() ?? "";
-  if (!/^[a-f0-9]{40}$/.test(prHead)) fail("PR_HEAD_REQUIRED");
-  if (expectedDeploySha === prHead) fail("EXPECTED_SHA_IS_PR_HEAD_NOT_PRODUCTION");
+  if (verificationMode === "deployed") {
+    if (prHead) fail("DEPLOYED_MODE_FORBIDS_PR_HEAD");
+  } else {
+    if (!/^[a-f0-9]{40}$/.test(prHead)) fail("PR_HEAD_REQUIRED");
+    if (expectedDeploySha === prHead) fail("EXPECTED_SHA_IS_PR_HEAD_NOT_PRODUCTION");
+  }
+  const assemblySourceSha = verificationMode === "deployed" ? expectedDeploySha : prHead;
+  const wrongShaForNegative = verificationMode === "deployed" ? "b".repeat(40) : prHead;
   const mainSha = argValue("--main-sha")?.trim().toLowerCase() ?? "";
   const liveTransportIncluded = process.argv.includes("--live-transport-included");
 
@@ -191,8 +204,11 @@ function main(): void {
       ? validateLiveProof(suppliedProofInput, { expectedDeploySha: suppliedExpected })
       : null;
   const proofSummary = {
+    verificationMode,
     expectedDeploySha,
-    prHead,
+    prHead: verificationMode === "overlay" ? prHead : null,
+    assemblySourceSha,
+    codeSource: verificationMode === "deployed" ? "container_tree" : "pr_overlay",
     fresh: { status: freshProof.status, deployedGitSha: freshProofInput.deployedGitSha },
     suppliedAgainstEraSha: suppliedAgainstEra
       ? {
@@ -213,7 +229,7 @@ function main(): void {
       : null,
     defaultNoInput: validateLiveProof(undefined, { expectedDeploySha }).status,
     wrongSha: validateLiveProof(freshProofInput, {
-      expectedDeploySha: prHead,
+      expectedDeploySha: wrongShaForNegative,
     }).status,
     wrongCharacter: validateLiveProof(
       { ...freshProofInput, characterId: 99 },
@@ -267,7 +283,7 @@ function main(): void {
     );
     paidRunnerPreapproval = buildPaidRunnerPreapprovalProjection({
       pack,
-      assemblySourceSha: prHead,
+      assemblySourceSha,
       proofStatus: freshProof.status,
       costPlanning,
       identityHashesMatchProof,
@@ -295,6 +311,9 @@ function main(): void {
 
   const output = {
     ok: true,
+    verificationMode,
+    codeSource: verificationMode === "deployed" ? "container_tree" : "pr_overlay",
+    assemblySourceSha,
     providerPosts: 0,
     egress: {
       attemptsBlocked: egressAttempts.length,
