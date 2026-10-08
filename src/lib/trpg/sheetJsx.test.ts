@@ -157,7 +157,7 @@ describe("TRPG sandboxed JSX sheet", () => {
       { key: "dex", label: "민첩", value: 8, modifier: 1 },
     ]);
     assert.deepEqual(surface.inventory.map((item) => item.name), ["붕대", "밧줄"]);
-    assert.ok(surface.inventory.every((item) => item.equipped === false));
+    assert.ok(surface.inventory.every((item) => item.equipped === false && item.slot === null));
     assert.deepEqual(surface.effects.map((effect) => effect.label), ["중독", "출혈"]);
     assert.deepEqual(surface.mechanics, ["근력 판정 14 vs 12 성공"]);
 
@@ -434,10 +434,10 @@ describe("TRPG inventory quantity stacks (presentation of the canonical unit lis
     ]);
     const surface = surfaceFor(stackedCard(1, true), true);
     assert.deepEqual(
-      surface.inventory.map(({ key, name, quantity, equipped }) => ({ key, name, quantity, equipped })),
+      surface.inventory.map(({ key, name, quantity, equipped, slot }) => ({ key, name, quantity, equipped, slot })),
       [
-        { key: createInventoryEntryId("붕대"), name: "붕대", quantity: 3, equipped: false },
-        { key: createInventoryEntryId("해독제"), name: "해독제", quantity: 1, equipped: false },
+        { key: createInventoryEntryId("붕대"), name: "붕대", quantity: 3, equipped: false, slot: null },
+        { key: createInventoryEntryId("해독제"), name: "해독제", quantity: 1, equipped: false, slot: null },
       ]
     );
     assert.equal(surface.inventory.reduce((sum, item) => sum + item.quantity, 0), UNITS.length);
@@ -476,6 +476,7 @@ describe("TRPG inventory quantity stacks (presentation of the canonical unit lis
     const native = dock.slice(dock.indexOf("function NativeSheetBody"), dock.indexOf("function HostEquipmentDock"));
     assert.equal((native.match(/\{inventoryStackLabel\(item\)\}/g) ?? []).length, 2);
     assert.match(native, /data-trpg-inventory-item=\{item\.name\}/);
+    assert.match(native, /data-trpg-inventory-slot=\{item\.slot/);
     assert.match(native, /inline-flex min-h-11 max-w-full/);
     assert.doesNotMatch(native, /stackInventory|\.reduce\(|quantity \+=|new Map/);
   });
@@ -494,9 +495,9 @@ describe("TRPG inventory quantity stacks (presentation of the canonical unit lis
 
   it("H/I. PARTY stacks are read-only, including a creator sheet forging drafts", () => {
     const party = surfaceFor(stackedCard(2, false), false);
-    assert.deepEqual(party.inventory.map(({ name, quantity, equipped, draft }) => ({ name, quantity, equipped, draft })), [
-      { name: "붕대", quantity: 3, equipped: false, draft: null },
-      { name: "해독제", quantity: 1, equipped: false, draft: null },
+    assert.deepEqual(party.inventory.map(({ name, quantity, equipped, slot, draft }) => ({ name, quantity, equipped, slot, draft })), [
+      { name: "붕대", quantity: 3, equipped: false, slot: null, draft: null },
+      { name: "해독제", quantity: 1, equipped: false, slot: null, draft: null },
     ]);
     withDraftSpy((calls) => {
       const tree = loadSheet()(JSON.parse(JSON.stringify(party)));
@@ -539,7 +540,7 @@ describe("TRPG inventory quantity stacks (presentation of the canonical unit lis
     assert.deepEqual(sample.inventory[0]?.draft, useItemActionDraft("붕대"));
     assert.equal(JSON.stringify(sampleTrpgSheetSurface()), JSON.stringify(sample));
     const guide = TRPG_SHEET_SURFACE_FIELD_GUIDE.find((field) => field.key === "inventory")?.note ?? "";
-    assert.match(guide, /\[\{ key, name, quantity, equipped, draft \}\]/);
+    assert.match(guide, /\[\{ key, name, quantity, equipped, slot, slotLabel, draft \}\]/);
     assert.match(guide, /draft는 내 시트에서만/);
   });
 
@@ -556,13 +557,16 @@ describe("TRPG inventory quantity stacks (presentation of the canonical unit lis
   it("T/V. site JSX displays equipped as a sibling label and keeps use_item text canonical", () => {
     const surface = surfaceFor(stackedCard(1, true), true);
     surface.inventory[0]!.equipped = true;
+    surface.inventory[0]!.slot = "main_hand";
+    surface.inventory[0]!.slotLabel = "주손";
     const tree = loadSheet()(JSON.parse(JSON.stringify(surface)));
     const bandage = find(tree, "data-trpg-inventory-item").find((el) => el.props["data-trpg-inventory-item"] === "붕대");
     assert.equal(textOf(bandage!), "붕대 ×3");
     assert.equal(bandage?.props["data-trpg-inventory-equipped"], "true");
     const labels = find(tree, "data-trpg-inventory-equipped-label");
     assert.ok(labels.some((el) => textOf(el) === "장착됨"));
-    assert.doesNotMatch(TRPG_SHEET_JSX_SOURCE, /setInventory|setEquipped|mutateItem|onSetInventoryEquipped/);
+    assert.ok(find(tree, "data-trpg-inventory-slot").some((el) => textOf(el) === "주손"));
+    assert.doesNotMatch(TRPG_SHEET_JSX_SOURCE, /setInventory|setEquipped|setSlot|mutateItem|onSetInventoryEquipped/);
   });
 
   it("W. PARTY creator forged equipped/draft cannot mutate or draft", () => {
