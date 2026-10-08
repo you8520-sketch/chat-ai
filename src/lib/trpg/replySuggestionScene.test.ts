@@ -142,6 +142,31 @@ describe("TRPG reply suggestion scene selection (#1435)", () => {
     });
   }
 
+  it("snaps forward to a sentence when the raw cut was already on a word boundary", () => {
+    const aside = "지금 역무원이 요구한 조건에 답할지 결정해야 한다.";
+    const narrative =
+      "불길을 끈 이야기는 오래전에 마무리됐다. " +
+      "사람들은 여전히 걸음을 옮기며 오래된 선로에 관한 이야기를 나누고 있었다. ".repeat(60) +
+      "철문 너머의 수상한 소리에 대한 확인을 미루고 있던 일행은 새로운 방법을 궁리했다. ".repeat(2) +
+      "마침내 역무원이 나타나 중요한 결정을 요구했다. ";
+    const normalized = clipTrpgChars(narrative, Number.POSITIVE_INFINITY);
+    const bodyBudget = TRPG_REPLY_SCENE_MAX_CHARS - Array.from(`\nGM: ${aside}`).length - 1;
+    const cut = Array.from(normalized).length - bodyBudget;
+    assert.ok(cut > 0);
+    assert.equal(Array.from(normalized)[cut - 1], " ", "counterexample: the cut is at a word boundary");
+    const { user } = buildReplySuggestionPublicContext({
+      scene: `${narrative}\n\nGM: ${aside}`,
+      persona: null,
+      recentActions: [],
+      self: null,
+      party: [],
+    });
+    const section = sceneSection(user);
+    assert.ok(section.startsWith("…사람들은"), "must start at the next sentence, not mid-sentence");
+    assert.ok(section.endsWith(`GM: ${aside}`));
+    assert.ok(Array.from(section).length <= TRPG_REPLY_SCENE_MAX_CHARS);
+  });
+
   it("keeps a short scene whole and unmarked", () => {
     const fixture = REPLY_SUGGESTION_SCENE_FIXTURES.find((item) => item.id === "short-scene")!;
     const section = sceneSection(fixtureContext(fixture).user);
