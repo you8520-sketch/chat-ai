@@ -24,6 +24,7 @@ export type PaidRunnerArtifactRecord = {
 };
 
 export type PaidRunnerArtifactStore = {
+  kind: "memory" | "file";
   persist(record: PaidRunnerArtifactRecord): string;
   load(fingerprint: string): string | null;
 };
@@ -41,6 +42,7 @@ export function paidRunnerArtifactFingerprint(text: string): string {
 export function createMemoryPaidRunnerArtifactStore(): PaidRunnerArtifactStore {
   const records = new Map<string, string>();
   return {
+    kind: "memory",
     persist(record) {
       const fingerprint = paidRunnerArtifactFingerprint(record.text);
       if (fingerprint !== record.fingerprint) {
@@ -63,6 +65,7 @@ export function createFilePaidRunnerArtifactStore(directory: string): PaidRunner
     /* best-effort on filesystems that ignore mode */
   }
   return {
+    kind: "file",
     persist(record) {
       const fingerprint = paidRunnerArtifactFingerprint(record.text);
       if (fingerprint !== record.fingerprint) {

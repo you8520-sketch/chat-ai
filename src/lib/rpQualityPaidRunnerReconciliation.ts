@@ -74,14 +74,16 @@ function cheaperInferenceEnvelopeUsd(body: unknown): number | null {
 }
 
 function cheaperInferenceEnvelopeSettled(status: string | null): boolean {
-  return status === "settled" || status === "ok" || status === "success";
+  return status === "settled";
 }
 
 async function lookupOpenRouterGenerationCost(input: {
   generationId: string;
+  requestId: string;
+  expectedModel: string;
   apiKey: string;
   fetchImpl: typeof fetch;
-}): Promise<{ billedUsd: number; model: string | null } | null> {
+}): Promise<{ billedUsd: number; model: string } | null> {
   for (let attempt = 0; attempt < PAID_RUNNER_RECONCILE_GET_MAX_ATTEMPTS; attempt += 1) {
     try {
       const url = `${PAID_RUNNER_OPENROUTER_GENERATION_URL}?id=${encodeURIComponent(input.generationId)}`;
@@ -98,12 +100,16 @@ async function lookupOpenRouterGenerationCost(input: {
       const data = asRecord(payload?.data) ?? payload;
       if (!data) continue;
       const returnedId = typeof data.id === "string" ? data.id.trim() : "";
-      if (returnedId && returnedId !== input.generationId) continue;
-      const billedUsd = readPositiveUsd(data.total_cost ?? data.usage);
+      const returnedRequestId = typeof data.request_id === "string" ? data.request_id.trim() : "";
+      const returnedModel = typeof data.model === "string" ? data.model.trim() : "";
+      if (!returnedId || returnedId !== input.generationId) return null;
+      if (!returnedRequestId || returnedRequestId !== input.requestId) return null;
+      if (!returnedModel || returnedModel !== input.expectedModel) return null;
+      const billedUsd = readPositiveUsd(data.total_cost);
       if (billedUsd == null) return null;
       return {
         billedUsd,
-        model: typeof data.model === "string" ? data.model : null,
+        model: returnedModel,
       };
     } catch {
       /* GET only; never repeat the generation POST */
@@ -236,14 +242,13 @@ export async function reconcilePaidRunnerSettlement(
   }
   const lookedUp = await lookupOpenRouterGenerationCost({
     generationId,
+    requestId,
+    expectedModel: call.wireModel,
     apiKey: input.keys.openRouterKey,
     fetchImpl: input.fetchImpl,
   });
   if (!lookedUp || !(lookedUp.billedUsd > 0)) {
     return { ...base, ...tokens, providerRequestId: requestId, settlementSource: "unsettled" };
-  }
-  if (lookedUp.model && lookedUp.model !== call.wireModel) {
-    return { ...base, ...tokens, providerRequestId: requestId, finishReason: "wrong_provider_model" };
   }
   return {
     ...base,

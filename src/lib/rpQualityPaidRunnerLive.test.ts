@@ -32,6 +32,7 @@ import {
   type PaidRunnerIdentityHashes,
   type PaidRunnerPublicManifest,
   type PaidRunnerSealedCall,
+  type PaidRunnerTransport,
 } from "@/lib/rpQualityPaidRunner";
 import {
   createFilePaidRunnerArtifactStore,
@@ -121,6 +122,7 @@ function sseBody(input: {
   billedUsd?: number;
   omitEnvelope?: boolean;
   unsettled?: boolean;
+  firstChunkIdOnly?: boolean;
 }) {
   const frames = [
     `data: ${JSON.stringify({
@@ -129,7 +131,7 @@ function sseBody(input: {
       choices: [{ delta: { content: input.text }, finish_reason: null }],
     })}\n\n`,
     `data: ${JSON.stringify({
-      id: input.id ?? `gen-${input.model}`,
+      ...(input.firstChunkIdOnly ? {} : { id: input.id ?? `gen-${input.model}` }),
       model: input.model,
       choices: [{ delta: {}, finish_reason: "stop" }],
       usage: input.usage === false ? undefined : { prompt_tokens: 10, completion_tokens: 8, cost: 0.02 },
@@ -168,6 +170,7 @@ function createScenarioFetch(options?: {
   unsettled?: boolean;
   unknownCost?: boolean;
   sameIds?: boolean;
+  firstChunkIdOnly?: boolean;
   maxPosts?: number;
 }) {
   const counts = { posts: 0, gets: 0 };
@@ -211,6 +214,7 @@ function createScenarioFetch(options?: {
             billedUsd: options?.billedUsd,
             omitEnvelope: options?.omitEnvelope,
             unsettled: options?.unsettled,
+            firstChunkIdOnly: options?.firstChunkIdOnly,
           });
       return new Response(payload, {
         status: 200,
@@ -220,7 +224,10 @@ function createScenarioFetch(options?: {
             ? {}
             : cheaper
               ? { "x-ci-request-id": requestId }
-              : { "x-request-id": requestId }),
+              : {
+                  "x-request-id": requestId,
+                  ...(generationId ? { "x-generation-id": generationId } : {}),
+                }),
         },
       });
     }
@@ -236,6 +243,9 @@ function createScenarioFetch(options?: {
       return Response.json({
         data: {
           id: requested,
+          request_id: requested?.startsWith("or-gen-")
+            ? requested.replace("or-gen-", "or-req-")
+            : "or-req-1",
           model: resolveMainRpPrimaryWireModelId("gemini-3.8-flash"),
           ...(options?.unknownCost ? {} : { total_cost: options?.billedUsd ?? 0.02 }),
         },
@@ -769,5 +779,290 @@ describe("rp quality paid runner live transport integration", () => {
       keys: KEYS,
     });
     assert.equal(ciUsage.settlementSource, "unsettled");
+  });
+
+  it("1-3. real-network live dispatch stays closed without execute grant or file stores", async () => {
+    const { manifest, sealedCalls } = pack();
+    const { fetchImpl } = createScenarioFetch({ maxPosts: 0 });
+    const spy = (posts: { n: number }): PaidRunnerTransport => ({
+      kind: "live",
+      realNetwork: true,
+      async post() {
+        posts.n += 1;
+        throw new Error("real network post must not run");
+      },
+    });
+
+    const noGrantPosts = { n: 0 };
+    const noGrant = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls,
+      authorization: auth(manifest),
+      transport: spy(noGrantPosts),
+      reconcile: { fetchImpl, keys: KEYS },
+    });
+    assert.equal(noGrant.denialReason, "LIVE_EXECUTE_NOT_APPROVED");
+    assert.equal(noGrant.transportPosts, 0);
+    assert.equal(noGrantPosts.n, 0);
+
+    const memoryJournalPosts = { n: 0 };
+    const dir = mkdtempSync(path.join(tmpdir(), "rpq-live-file-art-"));
+    const memoryJournal = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls,
+      authorization: auth(manifest),
+      transport: spy(memoryJournalPosts),
+      reconcile: { fetchImpl, keys: KEYS },
+      liveExecuteApproved: true,
+      artifactStore: createFilePaidRunnerArtifactStore(path.join(dir, "artifacts")),
+    });
+    assert.equal(memoryJournal.denialReason, "JOURNAL_STORE_UNAVAILABLE");
+    assert.equal(memoryJournalPosts.n, 0);
+
+    const memoryArtifactPosts = { n: 0 };
+    const memoryArtifact = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls,
+      authorization: auth(manifest),
+      transport: spy(memoryArtifactPosts),
+      reconcile: { fetchImpl, keys: KEYS },
+      liveExecuteApproved: true,
+      journalStore: createFilePaidRunnerJournalStore(path.join(dir, "journal")),
+    });
+    assert.equal(memoryArtifact.denialReason, "ARTIFACT_STORE_UNAVAILABLE");
+    assert.equal(memoryArtifactPosts.n, 0);
+
+    assert.throws(
+      () => createIsolatedPaidRunnerLiveTransport({ ...KEYS }),
+      /LIVE_EXECUTE_NOT_APPROVED/
+    );
+  });
+
+  it("4-12. exact-cost identity negatives stay unresolved; matching contracts settle", async () => {
+    const { sealedCalls } = pack();
+    const openrouter = sealedCalls.find((call) => call.provider === "openrouter")!;
+    const cheaper = sealedCalls.find((call) => call.provider === "cheaperinference")!;
+    const orResult = {
+      ok: true as const,
+      httpStatus: 200,
+      text: "모의",
+      finishReason: "stop",
+      usage: {
+        promptTokens: 10,
+        completionTokens: 8,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        reasoningTokens: 0,
+        billedUsd: null,
+      },
+      requestId: "or-req-1",
+      headers: { "x-request-id": "or-req-1" },
+      body: { id: "or-gen-1", model: openrouter.wireModel },
+      generationId: "or-gen-1",
+    };
+    const generationFetch = (data: Record<string, unknown>): typeof fetch =>
+      (async (input) => {
+        if (String(input).includes("/generation")) return Response.json({ data });
+        throw new Error(`unexpected ${String(input)}`);
+      }) as typeof fetch;
+    const matchingGeneration = {
+      id: "or-gen-1",
+      request_id: "or-req-1",
+      model: openrouter.wireModel,
+      total_cost: 0.02,
+    };
+
+    const missingId = await reconcilePaidRunnerSettlement({
+      call: openrouter,
+      result: orResult,
+      elapsedMs: 10,
+      fetchImpl: generationFetch({ request_id: "or-req-1", model: openrouter.wireModel, total_cost: 0.02 }),
+      keys: KEYS,
+    });
+    assert.equal(missingId.settlementSource, "unsettled");
+
+    const wrongId = await reconcilePaidRunnerSettlement({
+      call: openrouter,
+      result: orResult,
+      elapsedMs: 10,
+      fetchImpl: generationFetch({ ...matchingGeneration, id: "or-gen-other" }),
+      keys: KEYS,
+    });
+    assert.equal(wrongId.settlementSource, "unsettled");
+
+    const wrongRequest = await reconcilePaidRunnerSettlement({
+      call: openrouter,
+      result: orResult,
+      elapsedMs: 10,
+      fetchImpl: generationFetch({ ...matchingGeneration, request_id: "or-req-other" }),
+      keys: KEYS,
+    });
+    assert.equal(wrongRequest.settlementSource, "unsettled");
+
+    const wrongModel = await reconcilePaidRunnerSettlement({
+      call: openrouter,
+      result: orResult,
+      elapsedMs: 10,
+      fetchImpl: generationFetch({ ...matchingGeneration, model: "wrong-provider-model" }),
+      keys: KEYS,
+    });
+    assert.equal(wrongModel.settlementSource, "unsettled");
+
+    const successStatus = await reconcilePaidRunnerSettlement({
+      call: cheaper,
+      result: {
+        ...orResult,
+        requestId: "ci-req-1",
+        headers: { "x-ci-request-id": "ci-req-1" },
+        body: {
+          model: cheaper.wireModel,
+          cheaper_inference: { billing: { status: "success", billed_cost_usd: 0.02 } },
+        },
+        generationId: null,
+      },
+      elapsedMs: 10,
+      fetchImpl: createScenarioFetch({ usageFail: true }).fetchImpl,
+      keys: KEYS,
+    });
+    assert.equal(successStatus.settlementSource, "unsettled");
+
+    const pending = await reconcilePaidRunnerSettlement({
+      call: cheaper,
+      result: {
+        ...orResult,
+        requestId: "ci-req-1",
+        headers: { "x-ci-request-id": "ci-req-1" },
+        body: {
+          model: cheaper.wireModel,
+          cheaper_inference: { billing: { status: "pending", billed_cost_usd: 0.02 } },
+        },
+        generationId: null,
+      },
+      elapsedMs: 10,
+      fetchImpl: createScenarioFetch({ usageFail: true }).fetchImpl,
+      keys: KEYS,
+    });
+    assert.equal(pending.settlementSource, "unsettled");
+
+    const settledEnvelope = await reconcilePaidRunnerSettlement({
+      call: cheaper,
+      result: {
+        ...orResult,
+        requestId: "ci-req-1",
+        headers: { "x-ci-request-id": "ci-req-1" },
+        body: {
+          model: cheaper.wireModel,
+          cheaper_inference: { billing: { status: "settled", billed_cost_usd: 0.02 } },
+        },
+        generationId: null,
+      },
+      elapsedMs: 10,
+      fetchImpl: createScenarioFetch({ usageFail: true }).fetchImpl,
+      keys: KEYS,
+    });
+    assert.equal(settledEnvelope.settlementSource, "provider_exact");
+    assert.equal(settledEnvelope.billedUsd, 0.02);
+
+    const usageGet = await reconcilePaidRunnerSettlement({
+      call: cheaper,
+      result: {
+        ...orResult,
+        requestId: "ci-req-1",
+        headers: { "x-ci-request-id": "ci-req-1" },
+        body: { model: cheaper.wireModel },
+        generationId: null,
+      },
+      elapsedMs: 10,
+      fetchImpl: createScenarioFetch().fetchImpl,
+      keys: KEYS,
+    });
+    assert.equal(usageGet.settlementSource, "provider_exact");
+
+    const matchingOr = await reconcilePaidRunnerSettlement({
+      call: openrouter,
+      result: orResult,
+      elapsedMs: 10,
+      fetchImpl: generationFetch(matchingGeneration),
+      keys: KEYS,
+    });
+    assert.equal(matchingOr.settlementSource, "provider_exact");
+    assert.equal(matchingOr.billedUsd, 0.02);
+  });
+
+  it("13. first-chunk-only generation id is preserved through the SSE owner", () => {
+    const evidence = createOpenAiCompatibleSseEvidence();
+    applyOpenAiCompatibleSseEvent(evidence, {
+      kind: "json",
+      value: {
+        id: "or-gen-first",
+        model: resolveMainRpPrimaryWireModelId("gemini-3.8-flash"),
+        choices: [{ delta: { content: "안녕" } }],
+      },
+    });
+    applyOpenAiCompatibleSseEvent(evidence, {
+      kind: "json",
+      value: {
+        model: resolveMainRpPrimaryWireModelId("gemini-3.8-flash"),
+        choices: [{ delta: {}, finish_reason: "stop" }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      },
+    });
+    assert.equal(evidence.generationId, "or-gen-first");
+  });
+
+  it("14-15. mock 12-call still settles and UNKNOWN does not POST again", async () => {
+    const { manifest, sealedCalls } = pack();
+    const { fetchImpl, counts } = createScenarioFetch();
+    const first = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls,
+      authorization: auth(manifest),
+      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+      reconcile: { fetchImpl, keys: KEYS },
+    });
+    assert.equal(first.transportPosts, 12);
+    assert.equal(first.providerPosts, 0);
+    assert.equal(counts.posts, 12);
+    assert.equal(first.journal.entries.every((entry) => entry.status === "SETTLED"), true);
+
+    const leftover = createPaidRunnerJournal(manifest.manifestFingerprint);
+    leftover.entries.push({
+      requestOrder: 1,
+      fixtureId: manifest.calls[0]!.fixtureId,
+      canonicalId: manifest.calls[0]!.canonicalId,
+      finalWireFingerprint: manifest.calls[0]!.finalWireFingerprint,
+      requestBodyFingerprint: manifest.calls[0]!.requestBodyFingerprint,
+      status: "UNKNOWN_UNRESOLVED",
+      settlementSource: "unsettled",
+      providerRequestId: null,
+      httpResult: null,
+      finishReason: "process_crash",
+      promptTokens: null,
+      completionTokens: null,
+      cacheReadTokens: null,
+      cacheWriteTokens: null,
+      reasoningTokens: null,
+      billedUsd: null,
+      visibleChars: null,
+      elapsedMs: null,
+      blockReason: null,
+    });
+    const { fetchImpl: blockedFetch, counts: blockedCounts } = createScenarioFetch({ maxPosts: 0 });
+    const replay = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls,
+      authorization: auth(manifest),
+      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl: blockedFetch }),
+      journal: leftover,
+      reconcile: { fetchImpl: blockedFetch, keys: KEYS },
+    });
+    assert.equal(replay.transportPosts, 0);
+    assert.equal(blockedCounts.posts, 0);
+    assert.equal(replay.journal.entries[0]?.status, "UNKNOWN_UNRESOLVED");
   });
 });

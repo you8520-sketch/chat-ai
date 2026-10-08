@@ -1190,6 +1190,27 @@ export function publicMetadataContainsSecret(value: unknown): boolean {
   return false;
 }
 
+export function paidRunnerRealNetworkDispatchDenied(input: {
+  transport: PaidRunnerTransport;
+  liveExecuteApproved?: boolean;
+  journalStore?: PaidRunnerJournalStore;
+  artifactStore?: PaidRunnerArtifactStore;
+}): PaidRunnerDenialReason | null {
+  if (input.transport.kind !== "live" || input.transport.realNetwork !== true) {
+    return null;
+  }
+  if (input.liveExecuteApproved !== true) {
+    return "LIVE_EXECUTE_NOT_APPROVED";
+  }
+  if (input.journalStore?.kind !== "file") {
+    return "JOURNAL_STORE_UNAVAILABLE";
+  }
+  if (input.artifactStore?.kind !== "file") {
+    return "ARTIFACT_STORE_UNAVAILABLE";
+  }
+  return null;
+}
+
 export async function runPaidRunner(input: {
   mode: PaidRunnerMode;
   manifest: PaidRunnerPublicManifest;
@@ -1199,6 +1220,7 @@ export async function runPaidRunner(input: {
   journal?: PaidRunnerJournal;
   journalStore?: PaidRunnerJournalStore;
   artifactStore?: PaidRunnerArtifactStore;
+  liveExecuteApproved?: boolean;
   reconcile?: {
     fetchImpl: typeof fetch;
     keys: PaidRunnerReconcileKeys;
@@ -1229,6 +1251,14 @@ export async function runPaidRunner(input: {
     return closed({
       authorized: false,
       denialReason: "MISSING_INFERENCE_KEY",
+      journal: emptyJournal,
+    });
+  }
+  const liveNetworkDenied = paidRunnerRealNetworkDispatchDenied(input);
+  if (liveNetworkDenied) {
+    return closed({
+      authorized: false,
+      denialReason: liveNetworkDenied,
       journal: emptyJournal,
     });
   }

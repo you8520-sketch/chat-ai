@@ -33,6 +33,7 @@ export type PaidRunnerLiveTransportOptions = {
   cheaperInferenceKey: string;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+  liveExecuteApproved?: boolean;
 };
 
 function headersToRecord(headers: Headers): Record<string, string> {
@@ -64,10 +65,18 @@ export function assertPaidRunnerExperimentInferenceKeys(keys: {
   }
 }
 
+function readOpenRouterGenerationIdHeader(headers: Headers): string | null {
+  const raw = headers.get("x-generation-id");
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
 export function createIsolatedPaidRunnerLiveTransport(
   options: PaidRunnerLiveTransportOptions
 ): PaidRunnerTransport {
   assertPaidRunnerExperimentInferenceKeys(options);
+  if (options.fetchImpl == null && options.liveExecuteApproved !== true) {
+    throw new Error("LIVE_EXECUTE_NOT_APPROVED");
+  }
   const fetchImpl = options.fetchImpl ?? fetch;
   const timeoutMs = options.timeoutMs ?? PAID_RUNNER_LIVE_TIMEOUT_MS;
   return {
@@ -173,9 +182,28 @@ export function createIsolatedPaidRunnerLiveTransport(
           body: reconstructOpenAiCompatibleCompletionBody(evidence),
         };
       }
+      const jsonGenerationId = evidence.generationId || readGenerationId(evidence.lastJson);
+      const headerGenerationId = readOpenRouterGenerationIdHeader(new Headers(responseHeaders));
+      if (
+        input.provider === "openrouter" &&
+        jsonGenerationId &&
+        headerGenerationId &&
+        jsonGenerationId !== headerGenerationId
+      ) {
+        return {
+          ok: false,
+          kind: "malformed",
+          httpStatus: response.status,
+          text: evidence.text,
+          headers: responseHeaders,
+          body: { error: "generation_id_header_mismatch" },
+        };
+      }
+      const generationId =
+        input.provider === "openrouter" ? jsonGenerationId || headerGenerationId : null;
       const body = {
         ...reconstructOpenAiCompatibleCompletionBody(evidence),
-        id: readGenerationId(evidence.lastJson),
+        id: generationId,
       };
       const headerBag = new Headers(response.headers);
       const requestId =
@@ -209,7 +237,7 @@ export function createIsolatedPaidRunnerLiveTransport(
         requestId,
         headers: responseHeaders,
         body,
-        generationId: input.provider === "openrouter" ? readGenerationId(evidence.lastJson) : null,
+        generationId,
         cheaperInference: evidence.lastCheaperInference,
         doneObserved: evidence.doneObserved,
         streamCompleted: evidence.streamCompleted,
