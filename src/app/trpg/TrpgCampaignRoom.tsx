@@ -51,6 +51,7 @@ import { loadUnlockedCharacterAssetUrls } from "@/lib/characterAssetUnlocks";
 import { sanitizeTrpgActionDisplayText } from "@/lib/trpg/gmSceneAssets";
 import type { TrpgPartySheetComponentLoader } from "@/lib/trpg/partySheetComponentClient";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
+import type { TrpgEquipmentSlot } from "@/lib/trpg/inventory";
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
 import type { TrpgInputOrigin, TrpgReplySuggestion } from "@/lib/trpg/replySuggestionShared";
 import {
@@ -379,7 +380,7 @@ export default function TrpgCampaignRoom({
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
   onSendParty: () => void;
-  onSetInventoryEquipped?: (entryId: string, equipped: boolean) => void;
+  onSetInventoryEquipped?: (entryId: string, equipped: boolean, slot?: TrpgEquipmentSlot | null) => void;
   onRetryBots: () => void;
   onRetryGm: () => void;
   onReroll: (roundNumber: number) => void;

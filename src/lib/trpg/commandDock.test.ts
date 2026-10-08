@@ -146,10 +146,15 @@ describe("TRPG command dock", () => {
     assert.doesNotMatch(dock, /onSendAction\(\)/);
     assert.match(dock, /function HostEquipmentDock/);
     assert.match(dock, /data-trpg-equip-entry=\{item\.key\}/);
+    assert.match(dock, /data-trpg-equip-slot=\{item\.key\}/);
     assert.match(dock, /onSetEquipped\(item\.key, !equipped\)/);
+    assert.match(dock, /data-trpg-inventory-slot=\{item\.slot/);
     const strip = dock.slice(dock.indexOf("function HostEquipmentDock"), dock.indexOf("function SheetSurfaceView"));
     assert.doesNotMatch(strip, /<button[\s\S]*<button/);
-    assert.doesNotMatch(dock, /setInventory\(|mutateItem\(|function setEquipped/);
+    assert.doesNotMatch(dock, /setInventory\(|mutateItem\(|function setEquipped|function setSlot/);
+    assert.doesNotMatch(strip, /\/action/);
+    const party = dock.slice(dock.indexOf('case "party"'), dock.indexOf('case "ooc"'));
+    assert.doesNotMatch(party, /HostEquipmentDock|onSetInventoryEquipped/);
   });
 
   it("I. treatable conditions reuse the contextual helper and other kinds stay informational", () => {

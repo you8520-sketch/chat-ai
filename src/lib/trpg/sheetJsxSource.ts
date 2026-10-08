@@ -39,6 +39,8 @@ function TrpgSheet(props) {
     return quantity > 1 ? text(item.name) + " ×" + quantity : text(item.name);
   };
   const itemEquipped = (item) => item && item.equipped === true;
+  const itemSlotLabel = (item) => (typeof item.slotLabel === "string" ? item.slotLabel : "");
+  const itemSlot = (item) => (typeof item.slot === "string" ? item.slot : "");
 
   const label = { fontSize: 12, color: "#71717a", margin: "0 0 4px" };
   const chip = {
@@ -223,6 +225,11 @@ function TrpgSheet(props) {
                       장착됨
                     </span>
                   ) : null}
+                  {itemEquipped(item) ? (
+                    <span data-trpg-inventory-slot={itemSlot(item)} style={{ fontSize: 11, color: "#c4b5fd" }}>
+                      {itemSlotLabel(item)}
+                    </span>
+                  ) : null}
                 </li>
               ) : (
                 <li
@@ -245,6 +252,11 @@ function TrpgSheet(props) {
                   {itemEquipped(item) ? (
                     <span data-trpg-inventory-equipped-label="" style={{ fontSize: 11, color: "#ddd6fe" }}>
                       장착됨
+                    </span>
+                  ) : null}
+                  {itemEquipped(item) ? (
+                    <span data-trpg-inventory-slot={itemSlot(item)} style={{ fontSize: 11, color: "#c4b5fd" }}>
+                      {itemSlotLabel(item)}
                     </span>
                   ) : null}
                 </li>

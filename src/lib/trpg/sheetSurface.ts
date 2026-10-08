@@ -1,6 +1,12 @@
 import { isTrpgActionType } from "./actionTypes";
 import { ongoingEffectActionDraft, useItemActionDraft, type TrpgActionDraftFill } from "./commandDock";
-import { inventoryFromUnits, isInventoryEntryEquipped } from "./inventory";
+import {
+  equipmentSlotLabel,
+  inventoryEntrySlot,
+  inventoryFromUnits,
+  isInventoryEntryEquipped,
+  type TrpgEquipmentSlot,
+} from "./inventory";
 import { formatOngoingBadge, hpPercent, hpRiskLevel, type TrpgHpRisk } from "./sheetHud";
 import type { TrpgSheetHudCard } from "./sheetView";
 import type { TrpgMechanicsHudLine, TrpgPublicOngoingEffect } from "./snapshot";
@@ -26,7 +32,15 @@ export type TrpgSheetSurface = {
   conditions: string[];
   effects: { key: string; label: string; badge: string; hint: string; draft: TrpgActionDraftFill | null }[];
   /** Structured inventory entries; name never carries the ×N suffix. key is the stable entry id. */
-  inventory: { key: string; name: string; quantity: number; equipped: boolean; draft: TrpgActionDraftFill | null }[];
+  inventory: {
+    key: string;
+    name: string;
+    quantity: number;
+    equipped: boolean;
+    slot: TrpgEquipmentSlot | null;
+    slotLabel: string;
+    draft: TrpgActionDraftFill | null;
+  }[];
   mechanics: string[];
   modifiersNote: string;
 };
@@ -67,13 +81,19 @@ export function buildTrpgSheetSurface(
         hint: effect.recoveryHint,
         draft: opts.interactive ? ongoingEffectActionDraft(effect) : null,
       })),
-    inventory: sheet.inventory.map((entry) => ({
-      key: entry.id,
-      name: entry.name,
-      quantity: entry.quantity,
-      equipped: isInventoryEntryEquipped(entry),
-      draft: opts.interactive ? useItemActionDraft(entry.name) : null,
-    })),
+    inventory: sheet.inventory.map((entry) => {
+      const equipped = isInventoryEntryEquipped(entry);
+      const slot = inventoryEntrySlot(entry);
+      return {
+        key: entry.id,
+        name: entry.name,
+        quantity: entry.quantity,
+        equipped,
+        slot,
+        slotLabel: equipmentSlotLabel(slot),
+        draft: opts.interactive ? useItemActionDraft(entry.name) : null,
+      };
+    }),
     mechanics: (opts.mechanicsLines ?? [])
       .filter((line) => line.participantId === participantId)
       .map((line) => line.text),
@@ -165,7 +185,7 @@ export const TRPG_SHEET_SURFACE_FIELD_GUIDE: readonly { key: keyof TrpgSheetSurf
   { key: "effects", note: "[{ key, label, badge, hint, draft }] — draft는 내 시트에서만 있음" },
   {
     key: "inventory",
-    note: "[{ key, name, quantity, equipped, draft }] — key는 안정적인 inventory id. quantity는 보유 개수(1 이상), equipped는 장착 여부, name에는 ×N이 붙지 않음. draft는 내 시트에서만 있음. equipped는 읽기 전용",
+    note: "[{ key, name, quantity, equipped, slot, slotLabel, draft }] — key는 안정적인 inventory id. quantity는 보유 개수(1 이상), equipped는 장착 여부, slot은 main_hand|off_hand|body|accessory|null, slotLabel은 표시 문구. name에는 ×N이 붙지 않음. draft는 내 시트에서만 있음. equipped/slot은 읽기 전용",
   },
   { key: "mechanics", note: "최근 판정 결과 문자열 목록" },
   { key: "modifiersNote", note: "보정 메모" },

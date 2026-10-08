@@ -9,6 +9,8 @@ import {
   TRPG_INVENTORY_EQUIP_INVALID_MESSAGE,
   TRPG_INVENTORY_EQUIP_NOT_FOUND_MESSAGE,
   TRPG_INVENTORY_EQUIP_NOT_STARTED_MESSAGE,
+  TRPG_INVENTORY_SLOT_INVALID_MESSAGE,
+  TRPG_INVENTORY_SLOT_OCCUPIED_MESSAGE,
 } from "./engineInventory";
 import { persistSheetInventory } from "./engineSheets";
 import { loadTrpgSnapshot } from "./engineSnapshot";
@@ -220,6 +222,7 @@ describe("TRPG live inventory equipped mutation", () => {
     const sandbox = readFileSync("src/lib/jsxComponent/sandboxRuntime.ts", "utf8");
     const bridge = readFileSync("src/lib/jsxComponent/hostBridge.ts", "utf8");
     const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
+    const room = readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8");
     for (const src of [sandbox, bridge]) {
       assert.doesNotMatch(src, /setInventory|setEquipped|mutateItem/);
     }
@@ -228,7 +231,119 @@ describe("TRPG live inventory equipped mutation", () => {
     const adj = readFileSync("src/lib/trpg/roundAdjudication.ts", "utf8");
     assert.doesNotMatch(dice, /equipment_modifier/);
     assert.doesNotMatch(adj, /equipment_modifier/);
-    assert.match(readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8"), /\/inventory`, \{ entryId, equipped \}/);
+    assert.match(room, /\/inventory`/);
+    assert.match(room, /entryId,\s*\n\s*equipped/);
+    assert.match(room, /\.\.\.\(slot !== undefined \? \{ slot \} : \{\}\)/);
+    assert.doesNotMatch(
+      dock.slice(dock.indexOf('case "party"'), dock.indexOf('case "ooc"')),
+      /HostEquipmentDock|onSetInventoryEquipped/
+    );
     assert.match(serializeInventory(inventoryFromUnits(["검"])), /"equipped":false/);
+    assert.match(serializeInventory(inventoryFromUnits(["검"])), /"slot":null/);
+  });
+
+  it("slot SET persists, moves, rejects occupied and invalid values", async () => {
+    const db = memoryDb();
+    const { campaignId, participantId } = await startedSolo(db);
+    persistSheetInventory(db, {
+      campaignId,
+      participantId,
+      inventory: inventoryFromUnits(["검", "방패"]),
+    });
+    const swordId = createInventoryEntryId("검");
+    const shieldId = createInventoryEntryId("방패");
+    const first = setTrpgInventoryEquipped(db, {
+      campaignId,
+      userId: 1,
+      entryId: swordId,
+      equipped: true,
+      slot: "main_hand",
+      slotSpecified: true,
+    });
+    assert.equal(first.sheets.find((card) => card.isSelf)?.sheet.inventory[0]?.slot, "main_hand");
+    assert.equal(storedInventory(db, participantId)[0]?.slot, "main_hand");
+    const keep = setTrpgInventoryEquipped(db, { campaignId, userId: 1, entryId: swordId, equipped: true });
+    assert.equal(keep.sheets.find((card) => card.isSelf)?.sheet.inventory[0]?.slot, "main_hand");
+    const moved = setTrpgInventoryEquipped(db, {
+      campaignId,
+      userId: 1,
+      entryId: swordId,
+      equipped: true,
+      slot: "off_hand",
+      slotSpecified: true,
+    });
+    assert.equal(moved.sheets.find((card) => card.isSelf)?.sheet.inventory[0]?.slot, "off_hand");
+    const unslot = setTrpgInventoryEquipped(db, {
+      campaignId,
+      userId: 1,
+      entryId: swordId,
+      equipped: true,
+      slot: null,
+      slotSpecified: true,
+    });
+    assert.equal(unslot.sheets.find((card) => card.isSelf)?.sheet.inventory[0]?.equipped, true);
+    assert.equal(unslot.sheets.find((card) => card.isSelf)?.sheet.inventory[0]?.slot, null);
+    setTrpgInventoryEquipped(db, {
+      campaignId,
+      userId: 1,
+      entryId: swordId,
+      equipped: true,
+      slot: "main_hand",
+      slotSpecified: true,
+    });
+    assert.throws(
+      () =>
+        setTrpgInventoryEquipped(db, {
+          campaignId,
+          userId: 1,
+          entryId: shieldId,
+          equipped: true,
+          slot: "main_hand",
+          slotSpecified: true,
+        }),
+      new RegExp(TRPG_INVENTORY_SLOT_OCCUPIED_MESSAGE)
+    );
+    assert.equal(storedInventory(db, participantId).find((entry) => entry.id === swordId)?.slot, "main_hand");
+    assert.equal(storedInventory(db, participantId).find((entry) => entry.id === shieldId)?.equipped, false);
+    assert.throws(
+      () =>
+        setTrpgInventoryEquipped(db, {
+          campaignId,
+          userId: 1,
+          entryId: swordId,
+          equipped: true,
+          slot: "head",
+          slotSpecified: true,
+        }),
+      new RegExp(TRPG_INVENTORY_SLOT_INVALID_MESSAGE)
+    );
+    assert.equal(storedInventory(db, participantId).find((entry) => entry.id === swordId)?.slot, "main_hand");
+    persistSheetInventory(db, {
+      campaignId,
+      participantId,
+      inventory: addInventoryItem(storedInventory(db, participantId), "검"),
+    });
+    assert.equal(storedInventory(db, participantId).find((entry) => entry.id === swordId)?.slot, "main_hand");
+    assert.equal(storedInventory(db, participantId).find((entry) => entry.id === swordId)?.quantity, 2);
+    persistSheetInventory(db, {
+      campaignId,
+      participantId,
+      inventory: consumeInventoryItem(storedInventory(db, participantId), "검").next,
+    });
+    assert.equal(storedInventory(db, participantId).find((entry) => entry.id === swordId)?.slot, "main_hand");
+    persistSheetInventory(db, {
+      campaignId,
+      participantId,
+      inventory: consumeInventoryItem(storedInventory(db, participantId), "검").next,
+    });
+    assert.equal(storedInventory(db, participantId).find((entry) => entry.id === swordId), undefined);
+    persistSheetInventory(db, {
+      campaignId,
+      participantId,
+      inventory: addInventoryItem(storedInventory(db, participantId), "검"),
+    });
+    assert.equal(storedInventory(db, participantId).find((entry) => entry.id === swordId)?.equipped, false);
+    assert.equal(storedInventory(db, participantId).find((entry) => entry.id === swordId)?.slot, null);
+    db.close();
   });
 });
