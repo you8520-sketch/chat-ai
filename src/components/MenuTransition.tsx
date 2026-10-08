@@ -95,7 +95,7 @@ function visibleRect(el: Element, rect: RevealRect): RevealRect {
 /** 클릭한 카드에서 실제로 보이던 공개 이미지와 위치를 읽어 reveal scene을 만든다. 불가하면 null. */
 function buildCharacterScene(card: Element, id: number): CharacterScene | null {
   const img = card.querySelector("img");
-  if (!(img instanceof HTMLImageElement)) return null;
+  if (!(img instanceof HTMLImageElement) || !img.complete || img.naturalWidth === 0) return null;
   const src = img.currentSrc || img.src;
   if (!src || src.includes("/media/private/")) return null;
   const r = img.getBoundingClientRect();

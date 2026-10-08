@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 import {
   CHARACTER_CARD_ATTR,
   CHARACTER_REVEAL_TIMING,
+  characterRevealAttrs,
   characterRevealDelayMs,
   computeRevealLayout,
   flipClipInset,
@@ -36,6 +37,24 @@ describe("character reveal path eligibility", () => {
     ]) {
       assert.equal(parseCharacterProfilePath(bad), null, bad);
     }
+  });
+});
+
+describe("character reveal card marker", () => {
+  const base = { id: 7, name: "강이현", genre: "로맨스", creator: "운영팀", href: "/character/7", hidden: false, hasThumb: true };
+
+  it("marks accessible profile cards that show a public image", () => {
+    const attrs = characterRevealAttrs(base);
+    assert.equal(attrs[CHARACTER_CARD_ATTR], "7");
+    assert.equal(attrs["data-character-name"], "강이현");
+  });
+
+  it("never marks login/verify redirects, adult-hidden cards or cards without an image", () => {
+    assert.deepEqual(characterRevealAttrs({ ...base, href: "/login?redirect=%2Fcharacter%2F7" }), {});
+    assert.deepEqual(characterRevealAttrs({ ...base, href: "/verify?redirect=%2Fcharacter%2F7" }), {});
+    assert.deepEqual(characterRevealAttrs({ ...base, hidden: true }), {});
+    assert.deepEqual(characterRevealAttrs({ ...base, hasThumb: false }), {});
+    assert.deepEqual(characterRevealAttrs({ ...base, href: "/character/8" }), {});
   });
 });
 
@@ -144,8 +163,8 @@ describe("character reveal ownership", () => {
 
   it("marks only accessible public cards and the real hero frame", () => {
     const card = read("src/components/CharacterCard.tsx");
-    assert.match(card, /revealAttrs/);
-    assert.match(card, /\[CHARACTER_CARD_ATTR\]/);
+    assert.match(card, /characterRevealAttrs\(/);
+    assert.match(read("src/app/tab/[tab]/page.tsx"), /characterRevealAttrs\(/);
     assert.match(host, /\/media\/private\//);
     assert.match(read("src/components/CharacterPublicPagePreview.tsx"), /\[CHARACTER_HERO_IMAGE_ATTR\]/);
     // 태그·제작자 링크는 reveal 마커를 갖지 않는다.

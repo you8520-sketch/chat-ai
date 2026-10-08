@@ -26,6 +26,29 @@ export const CHARACTER_REVEAL_TIMING = {
   failsafeMs: MENU_TRANSITION_TIMING.failsafeMs,
 } as const;
 
+/**
+ * reveal 대상 카드 마커. 프로필로 바로 가는(href가 정확히 /character/:id) 카드이면서
+ * 성인 가림·로그인 redirect가 아니고 공개 이미지가 있을 때만 값을 돌려준다.
+ * 실제 전환은 `MenuTransitionHost`가 href와 이미지를 다시 검증한다.
+ */
+export function characterRevealAttrs(input: {
+  id: number;
+  name: string;
+  genre: string;
+  creator: string;
+  href: string;
+  hidden: boolean;
+  hasThumb: boolean;
+}): Record<string, string> {
+  if (input.hidden || !input.hasThumb || input.href !== `/character/${input.id}`) return {};
+  return {
+    [CHARACTER_CARD_ATTR]: String(input.id),
+    "data-character-name": input.name,
+    "data-character-genre": input.genre,
+    "data-character-creator": input.creator,
+  };
+}
+
 export function characterRevealDelayMs(elapsedSinceClickMs: number): number {
   return Math.max(0, CHARACTER_REVEAL_TIMING.minCoverMs - elapsedSinceClickMs);
 }
@@ -135,7 +158,7 @@ export function computeRevealLayout(vw: number, vh: number, nameLines: number, n
   const availW = vw - nameLeft * 2;
   const nameFontPx = Math.max(26, Math.min(availW / (chars * GLYPH_ADVANCE), 150));
   const blockH = nameFontPx * 0.98 * lines;
-  const nameTop = top + fh - nameFontPx * 0.22;
+  const nameTop = top + fh - nameFontPx * 0.08;
   const nameBox = { left: nameLeft, top: nameTop, width: availW, height: blockH };
   const metaBox = { left: nameLeft, top: Math.min(nameTop + blockH + 14, vh - 70), width: availW, height: 52 };
   return { compact, frame, nameFontPx, nameBox, metaBox };

@@ -7,6 +7,7 @@ import CharacterCard, { type CharacterRow, CHARACTER_THUMB_ASPECT } from "@/comp
 import UserPreferenceControls from "@/components/UserPreferenceControls";
 import StudioButton from "@/components/studio/StudioButton";
 import { CHARACTER_GENRES, genreFilterSql, type CharacterGenre } from "@/lib/characterGenres";
+import { characterRevealAttrs } from "@/lib/characterReveal";
 import { listableWhere } from "@/lib/characterVisibility";
 import { characterCardHref } from "@/lib/chatLinks";
 import {
@@ -238,7 +239,18 @@ export default async function TabPage({
                 loggedIn,
               });
               return (
-                <li key={c.id}>
+                <li
+                  key={c.id}
+                  {...characterRevealAttrs({
+                    id: c.id,
+                    name: c.name,
+                    genre: c.genre?.trim() || "",
+                    creator: c.creator_name,
+                    href,
+                    hidden,
+                    hasThumb: Boolean(thumb),
+                  })}
+                >
                   <Link
                     href={href}
                     className={cn(

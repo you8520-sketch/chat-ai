@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import AdultContentBadge from "@/components/AdultContentBadge";
 import CharacterCardCarousel from "@/components/CharacterCardCarousel";
 import { characterCardHref } from "@/lib/chatLinks";
-import { CHARACTER_CARD_ATTR } from "@/lib/characterReveal";
+import { characterRevealAttrs } from "@/lib/characterReveal";
 import { getCharacterRepresentativePublicUrls } from "@/lib/characterAssets";
 import { characterHueAccent } from "@/lib/characterHueAccent";
 import type { CreatorTierLevel } from "@/lib/creatorShared";
@@ -138,19 +138,16 @@ function cardView(c: CharacterRow, blurNsfw: boolean, loggedIn: boolean): CardVi
   };
 }
 
-/**
- * Phase D-1 reveal 대상 마커. 프로필로 바로 가는(href가 /character/:id) 카드이면서
- * 성인 가림·로그인 redirect가 아니고 공개 이미지가 있을 때만 붙인다.
- * 실제 전환은 `MenuTransitionHost`가 href와 이미지를 다시 검증한다.
- */
 function revealAttrs(c: CharacterRow, view: CardView): Record<string, string> {
-  if (view.hidden || !view.thumb || view.href !== `/character/${c.id}`) return {};
-  return {
-    [CHARACTER_CARD_ATTR]: String(c.id),
-    "data-character-name": c.name,
-    "data-character-genre": view.genreLabel,
-    "data-character-creator": view.creatorName,
-  };
+  return characterRevealAttrs({
+    id: c.id,
+    name: c.name,
+    genre: view.genreLabel,
+    creator: view.creatorName,
+    href: view.href,
+    hidden: view.hidden,
+    hasThumb: Boolean(view.thumb),
+  });
 }
 
 function CardBadges({ c }: { c: CharacterRow }) {
