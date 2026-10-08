@@ -106,9 +106,6 @@ import {
 } from "./rpModelQualificationFixture";
 import { resolveBodyCueProductionTurn } from "./mainRpBodyCuePreflight";
 
-/** The preflight owner infers a literal persona type; the runtime value is any persona name. */
-type BodyCuePersonaName = Parameters<typeof resolveBodyCueProductionTurn>[1];
-
 /** A fresh chat has no id yet. One placeholder keeps all 12 plans comparable. */
 export const PRECALL_PLACEHOLDER_CHAT_ID = 1;
 export const PRECALL_REVIEW_SESSION_ID = `chat-${PRECALL_PLACEHOLDER_CHAT_ID}`;
@@ -489,8 +486,8 @@ export function assemblePrecallFinalWire(
     const storedUserMessage = fixtureTurn.caseData.currentUserMessage;
     const turn = resolveBodyCueProductionTurn(
       storedUserMessage,
-      personaName as BodyCuePersonaName,
-      userNickname as BodyCuePersonaName
+      personaName,
+      userNickname
     );
     if (classifyChatOocIntent(storedUserMessage) !== turn.intent) {
       throw new Error("OOC intent drift");
