@@ -159,14 +159,16 @@ describe("published FX lifecycle: GET hide → POST lock → request reuse", () 
   it("completed replay skips a second FX lock; recovery stays request-scoped", () => {
     const route = readFileSync(path.join(process.cwd(), "src/app/api/chat/route.ts"), "utf8");
     const admitAt = route.indexOf("if (!alreadyCompletedTurn)");
-    const lockAt = route.indexOf("requestPublishedFx = resolvePublishedEstimateFx({ lockDailyFx: true })");
-    const replayAt = route.indexOf("if (alreadyCompletedTurn)");
-    const settleAt = route.indexOf("settleChatTurnBillingExactlyOnce");
+    const lockAt = route.indexOf(
+      "requestPublishedFx = resolvePublishedEstimateFx({ lockDailyFx: true })"
+    );
+    const replayAt = route.indexOf("alreadyCompleted: true");
+    const settleAt = route.lastIndexOf("settleChatTurnBillingExactlyOnce(db,");
     assert.ok(admitAt > 0);
     assert.ok(lockAt > admitAt);
     assert.ok(replayAt > lockAt);
     assert.ok(settleAt > replayAt);
-    assert.match(route, /alreadyCompleted:\s*true/);
+    assert.match(route, /reusePublishedFxSnapshotForRequest\(requestPublishedFx\)/);
     assert.doesNotMatch(route, /CREATE TABLE/);
     assert.doesNotMatch(route, /ALTER TABLE/);
   });
