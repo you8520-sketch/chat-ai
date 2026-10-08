@@ -4,6 +4,7 @@ import StudioButton from "@/components/studio/StudioButton";
 import { CREATE_MIGRATION_EVENT_REWARD } from "@/lib/plans";
 
 const BANNER = {
+  tag: "EVENT",
   eyebrow: "CREATOR EVENT · 나만의 세계를 공개하세요",
   title: `캐릭터를 만들면 ${CREATE_MIGRATION_EVENT_REWARD.toLocaleString()}P`,
   description:
@@ -13,47 +14,49 @@ const BANNER = {
   hint: "공개 저장 후 신청",
 } as const;
 
+/** Single-row creator event strip. Characters, not the promo, own the first screen. */
 export default function HomeCreateEventBanner() {
   return (
-    <section className="home-hero relative mt-1 overflow-hidden border-b border-white/10 bg-[#07080c] lg:min-h-[17rem]">
-      <p
-        aria-hidden="true"
-        className="home-hero-display pointer-events-none absolute -right-[0.06em] top-1/2 z-0 hidden -translate-y-1/2 select-none text-[clamp(6.5rem,14vw,10.5rem)] leading-none tracking-[-0.06em] text-white/[0.06] md:block"
-      >
-        HAV.
-      </p>
-
-      <div className="relative z-10 flex max-w-xl flex-col justify-center py-7 sm:py-9 lg:min-h-[17rem] lg:py-10">
-        <div className="home-hero-copy">
-          <p className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400 sm:text-[11px]">
-            <span className="h-px w-8 bg-white/50" />
+    <section
+      aria-label="제작 이벤트"
+      className="mt-1 flex flex-col gap-2 border-b border-white/10 py-3 sm:py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
+    >
+      <div className="flex min-w-0 items-center gap-4">
+        <span
+          className="home-slab shrink-0 text-[11px] font-black tracking-[0.2em]"
+          style={{ ["--slab-bg" as string]: "#7c3aed" }}
+        >
+          {BANNER.tag}
+        </span>
+        <div className="min-w-0">
+          <p className="hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 sm:block">
             {BANNER.eyebrow}
           </p>
-          <h1 className="mt-3 max-w-[14ch] text-[1.7rem] font-semibold leading-[1.12] tracking-[-0.045em] text-white sm:text-4xl lg:text-[2.7rem]">
+          <p className="mt-0.5 text-lg font-extrabold leading-tight tracking-[-0.04em] text-white sm:mt-0.5 sm:text-2xl">
             {BANNER.title}
-          </h1>
-          <p className="mt-4 max-w-xl text-sm leading-6 text-zinc-400 sm:text-[15px] sm:leading-7">
+          </p>
+          <p className="mt-1 hidden max-w-xl truncate text-[13px] leading-5 text-zinc-400 sm:block">
             {BANNER.description}
           </p>
-
-          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2.5">
-            <StudioButton
-              href={BANNER.ctaHref}
-              size="lg"
-              className="rounded-none bg-white px-5 text-zinc-950 shadow-none hover:bg-zinc-100"
-            >
-              {BANNER.ctaLabel}
-              <span aria-hidden>→</span>
-            </StudioButton>
-            <Link
-              href="/tab/ranking"
-              className="inline-flex min-h-12 items-center text-sm font-semibold text-zinc-200 underline decoration-white/25 underline-offset-4 transition hover:text-white hover:decoration-white/70"
-            >
-              인기 이야기 둘러보기
-            </Link>
-            <span className="hidden text-xs text-zinc-500 lg:inline">{BANNER.hint}</span>
-          </div>
         </div>
+      </div>
+
+      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">
+        <StudioButton
+          href={BANNER.ctaHref}
+          size="md"
+          className="rounded-none bg-white px-4 text-zinc-950 shadow-none hover:bg-zinc-200"
+        >
+          {BANNER.ctaLabel}
+          <span aria-hidden>→</span>
+        </StudioButton>
+        <Link
+          href="/tab/ranking"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-zinc-200 underline decoration-white/25 underline-offset-4 transition hover:text-white hover:decoration-white/70"
+        >
+          인기 이야기 둘러보기
+        </Link>
+        <span className="hidden text-xs text-zinc-500 xl:inline">{BANNER.hint}</span>
       </div>
     </section>
   );

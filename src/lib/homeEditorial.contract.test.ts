@@ -64,32 +64,29 @@ describe("character hue accent", () => {
 });
 
 describe("home editorial owners", () => {
-  it("keeps the editorial variant on the home card owner and off other routes", () => {
+  it("keeps home card variants on the single card owner and off other routes", () => {
     const home = read("src/app/page.tsx");
     const card = read("src/components/CharacterCard.tsx");
-    assert.equal(home.match(/variant="editorial"/g)?.length, 2);
+    assert.match(home, /variant="editorial"/);
+    assert.match(home, /variant="exhibit"/);
+    assert.match(home, /variant="index"/);
+    assert.match(home, /level="h1"/);
     assert.match(home, /추천 캐릭터/);
     assert.match(home, /공모전 당선작/);
     assert.match(home, /신규 캐릭터/);
-    assert.match(home, /index: "01"/);
-    assert.match(home, /eyebrow: "FOR YOU"/);
-    assert.match(home, /index: "02"/);
-    assert.match(home, /eyebrow: "SELECTED"/);
-    assert.match(home, /index: "03"/);
-    assert.match(home, /eyebrow: "NEW STORIES"/);
-    assert.match(home, /\{meta\.index\} \/ \{meta\.eyebrow\}/);
     assert.match(home, /fetchHomeSections\(db, user, blurNsfw\)/);
     assert.match(home, /shouldHideAdultListings\(user\)/);
     assert.match(home, /HorizontalScrollRow/);
     assert.match(home, /aria-label="콘텐츠 탐색"/);
+    assert.doesNotMatch(home, /TEMP-PROD-PREVIEW|\/tmp\/prod-home/);
     assert.match(card, /variant = "default"/);
-    assert.match(card, /hover:-translate-y-1\.5/);
-    assert.match(card, /rounded-2xl/);
     assert.match(card, /공식/);
     assert.match(card, /다인 시뮬/);
+    assert.match(card, /AdultContentBadge/);
     assert.match(card, /z-\[3\]/);
-    assert.match(card, /z-\[1\]/);
     assert.match(card, /z-\[4\]/);
+    assert.match(card, /hover:-translate-y-1\.5/);
+    assert.match(card, /rounded-2xl/);
     assert.doesNotMatch(card, /studioSuffix|· 공식 스튜디오/);
 
     for (const consumer of [
@@ -98,26 +95,31 @@ describe("home editorial owners", () => {
       "src/app/creator/[id]/page.tsx",
       "src/components/MyCharacterCard.tsx",
     ]) {
-      assert.doesNotMatch(read(consumer), /variant="editorial"/, consumer);
+      assert.doesNotMatch(read(consumer), /variant="(editorial|exhibit|index)"/, consumer);
     }
   });
 
-  it("replaces the promo orb with a static editorial cover", () => {
+  it("keeps the event notice a slim strip, not a hero, with reward and links preserved", () => {
     const banner = read("src/components/HomeCreateEventBanner.tsx");
-    const css = read("src/app/globals.css");
-    assert.match(banner, /aria-hidden="true"/);
-    assert.match(banner, />\s*HAV\.\s*</);
-    assert.match(banner, /<h1/);
+    assert.match(banner, /CREATE_MIGRATION_EVENT_REWARD/);
     assert.match(banner, /ctaHref: "\/events\/create-migration"/);
     assert.match(banner, /인기 이야기 둘러보기/);
     assert.match(banner, /href="\/tab\/ranking"/);
-    assert.doesNotMatch(banner, /home-hero-orb|home-hero-grid|rounded-full|blur-3xl/);
-    assert.doesNotMatch(banner, /<h1[^>]*>\s*HAV/);
-    assert.match(css, /home-hero-copy-in 420ms ease-out both/);
-    assert.doesNotMatch(css, /home-hero-orb|home-hero-grid/);
+    assert.doesNotMatch(banner, /<h1/);
+    assert.doesNotMatch(banner, /aria-hidden="true"/);
+    assert.doesNotMatch(banner, /text-\[(?:8|9|1\d)rem\]|opacity-\[0?\.0[3-6]\]|blur-3xl/);
+  });
+
+  it("scopes home visuals to home-* selectors with reduced-motion support", () => {
+    const css = read("src/app/globals.css");
+    assert.doesNotMatch(css, /home-hero|home-editorial/);
+    assert.match(css, /\.home-slab\b/);
+    assert.match(css, /\.home-band\b/);
+    assert.match(css, /\.home-card:hover \.home-card-media/);
     assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
-    assert.match(css, /\.home-hero-copy \{\s*animation: none;/);
-    assert.match(css, /\.home-editorial-card:hover \.home-editorial-media \{\s*transform: none;/);
+    const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)", css.indexOf(".home-card")));
+    assert.match(reduced, /\.home-card-media/);
+    assert.match(reduced, /transition: none/);
     assert.match(read("src/components/CharacterCardCarousel.tsx"), /hidden \? "blur-md"/);
   });
 });
