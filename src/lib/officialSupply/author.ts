@@ -325,8 +325,12 @@ function stripCodeFence(text: string): string {
   return (fenced ? fenced[1] : trimmed).trim();
 }
 
-/** Physical provider calls allowed for one approved character run, shared by every workflow attempt. */
-export const OFFICIAL_CHARACTER_CALL_CAP = 4;
+/**
+ * Upper bound on physical provider calls for one approved character run with NPC
+ * repair enabled, shared by every workflow attempt: Part1 + Voice + NPC repair +
+ * Bonds + two Voice QA revisions. Unused slots are never spent.
+ */
+export const OFFICIAL_CHARACTER_CALL_CAP = 6;
 
 export class OfficialAuthorCallBudget {
   private spent = 0;
