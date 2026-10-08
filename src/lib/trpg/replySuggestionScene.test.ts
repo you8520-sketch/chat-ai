@@ -223,6 +223,12 @@ describe("TRPG reply suggestion scene selection (#1435)", () => {
     assert.ok(sent[0]!.messages.at(-1)!.content.includes(fixture.probes.aside));
   });
 
+  it("does not let the system prompt's format sample compete with the live scene", () => {
+    const { system } = fixtureContext(REPLY_SUGGESTION_SCENE_FIXTURES[0]!);
+    assert.match(system, /format sample|format-only|형식 예시/i);
+    assert.match(system, /CURRENT PUBLIC SCENE/);
+  });
+
   it("sends the newest round's GM situation to the model, not an earlier long round", async () => {
     const db = memoryDb();
     const [negotiation, wounded] = [

@@ -816,7 +816,7 @@ export function buildReplySuggestionPublicContext(opts: {
 
 Each suggestion is a short playable beat the player can tap into the action box.
 Write BOTH parts:
-- stage (지문): what THIS PC tries to do — body, movement, gaze. An attempt, not a finished result.
+- stage (지문): what THIS PC tries to do — body, movement, gaze.
 - speech (대사): words they actually say, in quotation marks, in their voice.
 Do not output speech-only. Do not output a novel paragraph.
 Aim ${TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS}–${TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS} Korean characters per suggestion (지문 + 대사 together).
@@ -827,7 +827,7 @@ Priority for 대사 voice:
 2. Persona speechExamples
 3. Persona description
 4. Natural Korean
-지문 follows the current scene and self sheet, not the speech examples.
+지문 acts on [CURRENT PUBLIC SCENE]: use its concrete people and objects and the situation the closing "GM:" line says is still undecided, plus the self sheet — not the speech examples. The Output sample below is a format sample from an unrelated scene; never reuse its objects or actions.
 
 Rules:
 - Return exactly 3 suggestions, one for each stance: good, neutral, evil.
