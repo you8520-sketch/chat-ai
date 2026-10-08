@@ -332,7 +332,6 @@ export function buildCharacterBible1System(): string {
     "고정 골격 + 가변 밀도: 종족·소속이 무의미하면 짧게. 모든 필드를 억지로 채우지 않는다.",
     "",
     "분량(한국어 글자 수, filler 금지·밀도 우선):",
-    "- part1 전체 분량은 반드시 5000자 이내로 쓴다(초과하면 반려되므로 각 필드를 간결하게).",
     "- identity: gender는 male·female·other 중 브리프 지정값 그대로, age는 브리프 나이 정수 그대로, heightCm은 140~220 정수.",
     "- appearance: 이미지/Appearance owner용 원본이다. 얼굴형·눈매·눈동자·머리색·헤어·길이·피부·키·체형·특징·표정·복장·소품을 250~500자로 기록하되, 이 장문을 RP 캐릭터 본문에 복제하지 않는다.",
     "- personality.keywords: 5~8개. personality.behavioral 450~700자:",
@@ -502,7 +501,6 @@ export function buildCharacterBondsSystem(): string {
   return [
     "너는 롤플레잉 관계·갈등 설계자다. 캐릭터 바이블의 유대 부분(관계·비밀·RP 엔진·성인)만 쓴다.",
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
-    "전체 분량은 반드시 2200자 이내로 쓴다(초과하면 반려되므로 각 필드를 간결하게).",
     "",
     "관계·비밀·엔진 규칙:",
     "- userRelationship: 기본은 persona-flexible이다. 도입부가 관계를 명시적으로 고정하지 않으면 유저의 이름·신분·성별·기존 관계를 임의로 확정하지 않는다.",

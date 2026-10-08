@@ -362,7 +362,9 @@ describe("domestic market fit review of the committed pilot", () => {
     const before = JSON.stringify(characters);
     buildDomesticMarketFitReview({ world, snapshot, policy: POLICY, genre: "로맨스 판타지", characters });
     assert.equal(JSON.stringify(characters), before);
-    assert.ok(buildCharacterBible1System().includes("part1 전체 분량은 반드시 5000자 이내"));
+    const part1 = buildCharacterBible1System();
+    assert.equal(part1.includes("5000자 이내"), false);
+    assert.ok(part1.includes("personality.behavioral 450~700자"));
     for (const c of pilot) assert.ok(JSON.stringify(c.bible).length > 8000, `${c.draftKey} bible stays deep`);
   });
 
