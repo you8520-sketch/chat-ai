@@ -1,8 +1,8 @@
 {
   "version": 2,
   "successfulCompletions": 117,
-  "failedProviderAttempts": 6,
-  "physicalAttempts": 123,
+  "failedProviderAttempts": 5,
+  "physicalAttempts": 122,
   "workflowRetries": 60,
   "billedCostUsd": 0.10807699999999999,
   "failedAttemptCostUsd": 0,
@@ -1234,17 +1234,6 @@
       "inputTokens": 4161,
       "outputTokens": 3242,
       "costUsd": 0.001498
-    },
-    {
-      "task": "character_bible_1",
-      "draftKey": "pilot-rf-02",
-      "workflowAttempt": 1,
-      "outcome": "provider_failed",
-      "model": "gpt-6-luna",
-      "inputTokens": 0,
-      "outputTokens": 0,
-      "costUsd": null,
-      "error": "CheaperInference 403: {\"error\":{\"message\":\"API key scope required: inference.\",\"type\":\"permission_denied_error\",\"param\":\"inference\",\"code\":\"permission_denied\"}}"
     }
   ],
   "legacy": {
