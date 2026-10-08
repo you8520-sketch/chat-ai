@@ -70,3 +70,22 @@ export function resolveMenuClickTransition(input: {
   if (input.destPathname === input.currentPathname) return null;
   return menuTransitionSpecForPath(input.destPathname);
 }
+
+/**
+ * 전환 타임라인. 목적지 도착이 아무리 빨라도 임팩트 장면(진입 → hold)이 끝나기 전에는
+ * reveal하지 않는다. navigation은 지연하지 않고 오버레이 해제 시점만 정한다.
+ */
+export const MENU_TRANSITION_TIMING = {
+  /** reveal 시작의 최소 시각(클릭 기준) — 진입 애니메이션 + 임팩트 hold. */
+  minCoverMs: 600,
+  /** 도착이 늦어도 이 시각에는 reveal 시작. */
+  holdMaxMs: 1100,
+  revealMs: 340,
+  /** 이동 실패·지연 대비 절대 상한(클릭 기준). */
+  failsafeMs: 1800,
+} as const;
+
+/** 도착 시점(클릭 후 경과 ms)에 대해 reveal을 시작할 때까지 더 기다릴 ms. */
+export function menuRevealDelayMs(elapsedSinceClickMs: number): number {
+  return Math.max(0, MENU_TRANSITION_TIMING.minCoverMs - elapsedSinceClickMs);
+}

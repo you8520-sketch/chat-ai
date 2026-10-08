@@ -6,6 +6,8 @@ import { describe, it } from "node:test";
 import {
   isPlainLeftClick,
   MENU_TRANSITION_ATTR,
+  MENU_TRANSITION_TIMING,
+  menuRevealDelayMs,
   menuTransitionSpecForPath,
   resolveMenuClickTransition,
 } from "@/lib/menuTransitionSpec";
@@ -112,6 +114,37 @@ describe("menu click scope", () => {
     const effect = owner.slice(owner.indexOf("// BEAT 3"));
     assert.doesNotMatch(effect, /scheduleBurst\(/);
     assert.doesNotMatch(owner, /menuTransitionSpecForPath/);
+  });
+});
+
+describe("menu transition timeline", () => {
+  it("holds the impact scene even when the destination arrives almost instantly", () => {
+    const { minCoverMs, holdMaxMs, revealMs, failsafeMs } = MENU_TRANSITION_TIMING;
+    // 실측: 프로덕션에서 pathname 변경은 클릭 후 ~45ms. reveal은 그보다 훨씬 늦어야 한다.
+    assert.equal(menuRevealDelayMs(45), minCoverMs - 45);
+    assert.equal(menuRevealDelayMs(minCoverMs + 100), 0);
+    assert.ok(minCoverMs >= 500, "cover + impact hold must outlast the 340ms entrance");
+    assert.ok(holdMaxMs >= minCoverMs);
+    assert.ok(holdMaxMs + revealMs <= failsafeMs, "late reveal must still finish before the failsafe");
+    assert.equal(failsafeMs, 1800);
+  });
+
+  it("host schedules reveal through the shared timeline, not a fixed cover timer", () => {
+    const owner = read("src/components/MenuTransition.tsx");
+    assert.match(owner, /menuRevealDelayMs\(/);
+    assert.match(owner, /MENU_TRANSITION_TIMING/);
+    assert.doesNotMatch(owner, /COVER_MS/);
+    assert.doesNotMatch(owner, /router\./);
+  });
+
+  it("css uses one set of layers and no legacy slash/baseline rules", () => {
+    const css = read("src/app/globals.css");
+    for (const cls of ["menu-ink", "menu-field", "menu-slab", "menu-en", "menu-ko"]) {
+      assert.match(css, new RegExp(`\\.${cls}\\b`), cls);
+    }
+    assert.doesNotMatch(css, /menu-slash|menu-baseline|menu-type-in/);
+    assert.match(css, /\.menu-veil\s*\{[^}]*pointer-events:\s*none/);
+    assert.match(css, /prefers-reduced-motion: reduce\)\s*\{\s*\.menu-veil\s*\{\s*display:\s*none/);
   });
 });
 

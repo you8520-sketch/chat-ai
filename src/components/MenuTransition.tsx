@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import {
   isPlainLeftClick,
   MENU_TRANSITION_ATTR,
+  MENU_TRANSITION_TIMING,
+  menuRevealDelayMs,
   resolveMenuClickTransition,
   type MenuTransitionSpec,
 } from "@/lib/menuTransitionSpec";
@@ -27,9 +29,7 @@ type Burst = {
   phase: "cover" | "reveal";
 };
 
-const COVER_MS = 620;
-const REVEAL_MS = 480;
-const FAILSAFE_MS = 1800;
+const { holdMaxMs, revealMs, failsafeMs } = MENU_TRANSITION_TIMING;
 
 let burstSeq = 0;
 
@@ -40,10 +40,27 @@ export default function MenuTransitionHost() {
   const burstRef = useRef<Burst | null>(null);
   const timers = useRef<number[]>([]);
   const firstPath = useRef<string | null>(null);
+  const startedAt = useRef(0);
 
   function clearTimers() {
     for (const t of timers.current) window.clearTimeout(t);
     timers.current = [];
+  }
+
+  function beginReveal(id: number) {
+    const cur = burstRef.current;
+    if (!cur || cur.id !== id || cur.phase === "reveal") return;
+    const revealed: Burst = { ...cur, phase: "reveal" };
+    burstRef.current = revealed;
+    setBurst(revealed);
+    timers.current.push(
+      window.setTimeout(() => {
+        if (burstRef.current && burstRef.current.id === id) {
+          burstRef.current = null;
+          setBurst(null);
+        }
+      }, revealMs),
+    );
   }
 
   function scheduleBurst(spec: MenuTransitionSpec, dest: string) {
@@ -52,18 +69,10 @@ export default function MenuTransitionHost() {
     burstSeq += 1;
     const next: Burst = { id: burstSeq, spec, dest, phase: "cover" };
     burstRef.current = next;
+    startedAt.current = performance.now();
     setBurst(next);
-    // BEAT 2 → BEAT 3: 목적지 도착 전이라도 정해진 시간에 걷힌다.
-    timers.current.push(
-      window.setTimeout(() => {
-        const cur = burstRef.current;
-        if (cur && cur.id === next.id) {
-          const revealed: Burst = { ...cur, phase: "reveal" };
-          burstRef.current = revealed;
-          setBurst(revealed);
-        }
-      }, COVER_MS),
-    );
+    // 도착이 늦거나 실패해도 정해진 시각에 걷힌다.
+    timers.current.push(window.setTimeout(() => beginReveal(next.id), holdMaxMs));
     // 이동 실패·지연 대비 failsafe — 화면을 영구히 덮지 않는다.
     timers.current.push(
       window.setTimeout(() => {
@@ -71,7 +80,7 @@ export default function MenuTransitionHost() {
           burstRef.current = null;
           setBurst(null);
         }
-      }, FAILSAFE_MS),
+      }, failsafeMs),
     );
   }
 
@@ -114,19 +123,9 @@ export default function MenuTransitionHost() {
     if (firstPath.current === pathname) return;
     firstPath.current = pathname;
     const cur = burstRef.current;
-    if (!cur) return;
-    const arrived: Burst = { ...cur, phase: "reveal" };
-    burstRef.current = arrived;
-    setBurst(arrived);
-    clearTimers();
-    timers.current.push(
-      window.setTimeout(() => {
-        if (burstRef.current && burstRef.current.id === arrived.id) {
-          burstRef.current = null;
-          setBurst(null);
-        }
-      }, REVEAL_MS),
-    );
+    if (!cur || cur.phase === "reveal") return;
+    const delay = menuRevealDelayMs(performance.now() - startedAt.current);
+    timers.current.push(window.setTimeout(() => beginReveal(cur.id), delay));
   }, [pathname]);
 
   useEffect(() => () => clearTimers(), []);
@@ -140,15 +139,16 @@ export default function MenuTransitionHost() {
       data-motif={spec.motif}
       data-phase={burst.phase}
       className="menu-veil"
-      style={{ "--menu-accent": spec.accent } as CSSProperties}
+      style={{ "--menu-accent": spec.accent, "--menu-chars": spec.en.length } as CSSProperties}
     >
-      <div className="menu-slash menu-slash-a" />
-      <div className="menu-slash menu-slash-b" />
+      <div className="menu-ink" />
+      <div className="menu-field" />
       <div className="menu-type">
-        <span className="menu-en">{spec.en}</span>
-        <span className="menu-ko">{spec.ko}</span>
+        <div className="menu-slab">
+          <span className="menu-en">{spec.en}</span>
+          <span className="menu-ko">{spec.ko}</span>
+        </div>
       </div>
-      <div className="menu-baseline" />
     </div>
   );
 }
