@@ -6,6 +6,34 @@ export const DECISION_RADAR_LEDGER_BRANCH = "decision-model-radar-ledger";
 export const DECISION_RADAR_WORKFLOW_PATH = ".github/workflows/decision-model-radar-weekly.yml";
 export const DECISION_RADAR_MAX_CANDIDATES_PER_RUN = 3;
 
+/** Official models list selector. `decisions` is an output modality, not a category. */
+export function decisionCatalogModelsUrl(): string {
+  const url = new URL("https://openrouter.ai/api/v1/models");
+  url.searchParams.set("output_modalities", "decisions");
+  url.searchParams.set("sort", "newest");
+  return url.toString();
+}
+
+/** HTTP failure text for the catalog fetch. Status plus a short non-secret body. */
+export function formatDecisionCatalogHttpError(status: number, body: string): string {
+  let detail = body;
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: unknown } };
+    if (typeof parsed.error?.message === "string") detail = parsed.error.message;
+  } catch {
+    detail = body;
+  }
+  const sanitized = detail
+    .replace(/sk-or-[A-Za-z0-9_-]+/g, "[redacted]")
+    .replace(/Bearer\s+\S+/gi, "Bearer [redacted]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 240);
+  return sanitized
+    ? `OpenRouter decision catalog HTTP ${status}: ${sanitized}`
+    : `OpenRouter decision catalog HTTP ${status}`;
+}
+
 type Obj = Record<string, unknown>;
 
 function asObj(value: unknown): Obj | null {
@@ -162,6 +190,13 @@ export function parseDecisionRadarLedger(raw: string | null | undefined): Decisi
   }
 }
 
+function declaresNonDecisionOutput(row: Obj): boolean {
+  const architecture = asObj(row.architecture);
+  const modalities = architecture?.output_modalities;
+  if (!Array.isArray(modalities)) return false;
+  return !modalities.includes("decisions");
+}
+
 function looksLikeAliasOrRouter(model: DecisionCatalogModel): boolean {
   const id = model.id.toLowerCase();
   const description = model.description.toLowerCase();
@@ -180,7 +215,7 @@ export function parseDecisionCatalog(payload: unknown): DecisionCatalogModel[] {
 
   for (const raw of data) {
     const row = asObj(raw);
-    if (!row) continue;
+    if (!row || declaresNonDecisionOutput(row)) continue;
     const id = str(row.id);
     if (!id) continue;
     const pricing = asObj(row.pricing) ?? {};

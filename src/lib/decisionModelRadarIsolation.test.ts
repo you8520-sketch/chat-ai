@@ -46,6 +46,8 @@ describe("decision model radar isolation", () => {
 
   it("requires explicit benchmark opt-in and never auto-switches models", () => {
     const runner = fs.readFileSync("scripts/decision-model-radar.ts", "utf8");
+    assert.match(runner, /decisionCatalogModelsUrl\(/);
+    assert.doesNotMatch(runner, /category=decisions/);
     assert.match(runner, /REGULAR_TEST_REAL_PROVIDER_CALLS/);
     assert.match(runner, /DECISION_MODEL_RADAR_LIVE/);
     assert.match(runner, /runtimeModelPinChanged:\s*false/);
