@@ -653,7 +653,7 @@ export async function runHarborAbDryRun(opts?: {
     summarizerCalls,
     frontier,
     rawPool,
-    excludeTurnStartGte,
+    excludeTurnStartGte: excludeTurnStartGte ?? 0,
     projectionKind: resolved.projectionKind,
     reconnectMatched: reconnect.text === injection.text,
     regenKeptPromise,
