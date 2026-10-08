@@ -23,6 +23,10 @@ import {
 
 export const RP_QUALITY_RUBRIC_TOTAL = 100;
 
+/** Evaluation-only. Not a production prompt sentence. */
+export const RP_QUALITY_VERBOSITY_BIAS_INSTRUCTION =
+  "길이가 길다는 사실 자체는 점수 가산 사유가 아니다. 추가 분량이 실제 scene development, psychology, environment, continuity를 제공하는지 보고 평가한다.";
+
 export type RpQualityRubricDimensionId =
   | "natural_korean"
   | "character_voice"
@@ -181,6 +185,8 @@ export type RpQualityEvaluationContract = {
   authoringMatrix: RpQualityAuthoringMatrix;
   ordinaryAndAutoProgressionAreIndependent: true;
   benchmarkModels: readonly string[];
+  verbosityBiasControl: true;
+  verbosityBiasInstruction: typeof RP_QUALITY_VERBOSITY_BIAS_INSTRUCTION;
 };
 
 export function emptyRubricScores(): Record<RpQualityRubricDimensionId, number | null> {
@@ -242,6 +248,8 @@ export function buildQualityEvaluationContract(): RpQualityEvaluationContract {
     authoringMatrix: liveAuthoringCapabilityMatrix(),
     ordinaryAndAutoProgressionAreIndependent: true,
     benchmarkModels: RP_QUALITY_BENCHMARK_MODELS,
+    verbosityBiasControl: true,
+    verbosityBiasInstruction: RP_QUALITY_VERBOSITY_BIAS_INSTRUCTION,
   };
 }
 

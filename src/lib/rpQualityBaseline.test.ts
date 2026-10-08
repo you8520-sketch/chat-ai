@@ -41,6 +41,8 @@ describe("rp product quality baseline", () => {
     assert.equal(contract.exactLengthIsNotAcceptance, true);
     assert.equal(contract.cursorScores, false);
     assert.equal(contract.lengthServesQuality, true);
+    assert.equal(contract.verbosityBiasControl, true);
+    assert.match(contract.verbosityBiasInstruction, /점수 가산 사유가 아니다/);
     const baselineSrc = readFileSync("src/lib/rpQualityBaseline.ts", "utf8");
     assert.doesNotMatch(baselineSrc, /RP_QUALITY_STEERING_SOFT_AIM_CHARS|=\s*3200/);
   });

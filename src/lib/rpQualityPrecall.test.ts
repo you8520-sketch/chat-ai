@@ -1,0 +1,514 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { describe, it } from "node:test";
+
+import {
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
+  GEMINI_37_FLASH_DISPLAY_NAME,
+  GEMINI_38_FLASH_MODEL,
+  MAIN_RP_MODEL_IDS,
+  MAIN_RP_USER_SELECTABLE_OPTIONS,
+} from "@/lib/chatModels";
+import { resolveOpenRouterMaxTokens } from "@/lib/openRouterClient";
+import {
+  ASSISTANT_MESSAGE_EDIT_MAX_CHARS,
+  UNIFIED_TIER_AIM_CHARS,
+} from "@/lib/responseLengthConstants";
+import { resolveStreamCharCap } from "@/lib/responseLength";
+import { LIVE_DEPLOYED_ROW_PROOF } from "../../scripts/lib/mainRpBodyCuePreflight";
+import {
+  COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS,
+  buildGreetingBodyCueReviewCases,
+} from "../../scripts/lib/rpModelQualificationFixture";
+import {
+  RP_QUALITY_BENCHMARK_MODELS,
+  emptyRubricScores,
+} from "@/lib/rpQualityEvaluationPacket";
+import {
+  HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_COMMIT,
+  HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_OWNER,
+  PRECALL_GREETING_STIMULUS_OWNER,
+  PRECALL_SCENE_SEED_OWNER,
+  RP_QUALITY_PRECALL_EXECUTION_POLICY,
+  RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER,
+  RP_QUALITY_PRECALL_MUTATION_POLICY,
+  RP_QUALITY_PRECALL_OUTPUT_SCENARIOS,
+  RP_QUALITY_PRECALL_PAID_STATUS,
+  RP_QUALITY_PRECALL_READINESS_SCOPE,
+  RP_QUALITY_PRECALL_FIXTURE_IDS,
+  RP_QUALITY_PRECALL_FIXTURE_STIMULUS,
+  RP_QUALITY_PRECALL_PLANNED_CALLS,
+  RP_QUALITY_PRECALL_TARGET_SELECTOR,
+  absentLiveProof,
+  artifactContainsSecret,
+  assertActiveMainRpBenchmarkSet,
+  assertFixturePlannedSemanticParity,
+  buildRpQualityPrecallPlan,
+  buildRpQualityPrecallReport,
+  buildPlannedQualityPackets,
+  computeRpQualityPrecallCostPlanning,
+  concreteStimulusReadiness,
+  evaluateRpQualityPrecallCostBound,
+  hasApprovedCostBound,
+  historicalRowProofCannotSatisfyCurrent,
+  rpQualityPrecallBenchmarkModels,
+  rpQualityPrecallFixtures,
+  planRpQualityPrecallFx,
+  startRpQualityPrecallPaidExecution,
+  stringContainsSecretShape,
+  validateLiveProof,
+  type RpQualityPrecallFxSnapshotRow,
+  type RpQualityPrecallLiveProofInput,
+  type RpQualityPrecallSizeRow,
+} from "@/lib/rpQualityPrecall";
+
+const PRECALL_SRC = readFileSync("src/lib/rpQualityPrecall.ts", "utf8");
+const LIVE_QUALITY_SRC = readFileSync(
+  "scripts/lib/rpActiveModelQualityLive.ts",
+  "utf8"
+);
+const TEST_SHA = "ab".repeat(32);
+const CURRENT_DEPLOY_SHA = "cd".repeat(20);
+
+function testLiveProofInput(
+  overrides: Partial<RpQualityPrecallLiveProofInput> = {}
+): RpQualityPrecallLiveProofInput {
+  return {
+    source: "test-injected-evidence",
+    generatedAt: "2026-10-07T00:00:00.000Z",
+    deployedGitSha: CURRENT_DEPLOY_SHA,
+    characterId: RP_QUALITY_PRECALL_TARGET_SELECTOR.characterId,
+    characterName: RP_QUALITY_PRECALL_TARGET_SELECTOR.characterName,
+    personaName: RP_QUALITY_PRECALL_TARGET_SELECTOR.personaName,
+    greetingSha256: TEST_SHA,
+    systemPromptSha256: TEST_SHA,
+    worldSha256: TEST_SHA,
+    settingChunksSha256: TEST_SHA,
+    personaPublicSha256: TEST_SHA,
+    authoringLevel: "NORMAL",
+    contentMode: "SAFE",
+    ...overrides,
+  };
+}
+
+describe("rp quality PRECALL plan", () => {
+  it("1. PR branch is based on current origin/main after sync", () => {
+    const mergeBase = execFileSync("git", ["merge-base", "HEAD", "origin/main"], {
+      encoding: "utf8",
+    }).trim();
+    const originMain = execFileSync("git", ["rev-parse", "origin/main"], {
+      encoding: "utf8",
+    }).trim();
+    assert.equal(mergeBase, originMain);
+  });
+
+  it("A. live identity proof no longer requires mutable current-room history", () => {
+    assert.doesNotMatch(PRECALL_SRC, /historyProvenance|current_production_room_if_readable/);
+    const verified = validateLiveProof(testLiveProofInput(), {
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(verified.status, "VERIFIED");
+    if (verified.status !== "VERIFIED") throw new Error("expected VERIFIED");
+    assert.equal("historyProvenance" in verified.input, false);
+  });
+
+  it("B. A/B/C readiness is derived from the greeting scene-seed mapping", () => {
+    assert.deepEqual(Object.keys(RP_QUALITY_PRECALL_FIXTURE_STIMULUS), [
+      "A_relationship_emotion",
+      "B_conflict_action_spatial",
+      "C_continuity_progression",
+    ]);
+    assert.deepEqual([...RP_QUALITY_PRECALL_FIXTURE_IDS], Object.keys(RP_QUALITY_PRECALL_FIXTURE_STIMULUS));
+    assert.equal(RP_QUALITY_PRECALL_FIXTURE_STIMULUS.A_relationship_emotion, "quiet_window_safe");
+    assert.equal(
+      RP_QUALITY_PRECALL_FIXTURE_STIMULUS.B_conflict_action_spatial,
+      "conflict_action_spatial_safe"
+    );
+    assert.equal(RP_QUALITY_PRECALL_FIXTURE_STIMULUS.C_continuity_progression, "relationship_turn_safe");
+    const fixtures = rpQualityPrecallFixtures();
+    assert.equal(fixtures.length, 3);
+    assert.ok(fixtures.every((row) => row.historyOwner === PRECALL_GREETING_STIMULUS_OWNER));
+    assert.ok(fixtures.every((row) => row.stimulusOwner === PRECALL_SCENE_SEED_OWNER));
+    assert.ok(
+      fixtures.every((row) => row.stimulusId === RP_QUALITY_PRECALL_FIXTURE_STIMULUS[row.id])
+    );
+    const b = COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.find(
+      (seed) => seed.id === "conflict_action_spatial_safe"
+    );
+    assert.ok(b);
+    for (const focus of [
+      "forward motion",
+      "environment grounding",
+      "physical/spatial continuity",
+      "concrete action",
+      "AI initiative",
+      "stall detection",
+      "character voice",
+    ]) {
+      assert.ok(b.reviewFocus.includes(focus), focus);
+    }
+    assert.ok(
+      COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS.every((seed) =>
+        fixtures.some((row) => row.stimulusId === seed.id)
+      )
+    );
+    assert.doesNotMatch(PRECALL_SRC, /오늘은 그냥 이렇게 있자/);
+    assert.doesNotMatch(PRECALL_SRC, /나 오늘 여기 있을게/);
+    assert.doesNotMatch(PRECALL_SRC, /이 통로 닫히기 전에/);
+    assert.doesNotMatch(PRECALL_SRC, /scenePolicyBenchmarkDataset|B16_ACTIVE_CONFLICT|한서린/);
+    assert.doesNotMatch(b.currentUserMessage, /한서린|\b민\b|B16/);
+    const greetingCases = buildGreetingBodyCueReviewCases("현재 인사 테스트");
+    assert.ok(greetingCases.some((row) => row.id === "conflict_action_spatial_safe"));
+    assert.ok(greetingCases.every((row) => row.history[1]?.content === "현재 인사 테스트"));
+    const readiness = concreteStimulusReadiness();
+    assert.equal(readiness.concreteStimulus.A_relationship_emotion.stimulusReady, true);
+    assert.equal(readiness.concreteStimulus.B_conflict_action_spatial.stimulusReady, true);
+    assert.equal(readiness.concreteStimulus.C_continuity_progression.stimulusReady, true);
+    assert.equal(readiness.threeFixtureConcreteStimulusReady, true);
+    assert.equal(readiness.twelveCallConcreteStimulusReady, true);
+  });
+
+  it("C. personaName is required and validated", () => {
+    const missing = validateLiveProof(testLiveProofInput({ personaName: "   " }), {
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(missing.status, "UNVERIFIED");
+    if (missing.status !== "UNVERIFIED") throw new Error("expected UNVERIFIED");
+    assert.ok(missing.reasons.includes("missing_personaName"));
+  });
+
+  it("D. character target mismatch => UNVERIFIED", () => {
+    const proof = validateLiveProof(
+      testLiveProofInput({ characterId: 10, characterName: "다른캐릭터" }),
+      { expectedDeploySha: CURRENT_DEPLOY_SHA }
+    );
+    assert.equal(proof.status, "UNVERIFIED");
+    if (proof.status !== "UNVERIFIED") throw new Error("expected UNVERIFIED");
+    assert.ok(proof.reasons.includes("characterId_does_not_match_target_selector"));
+    assert.ok(proof.reasons.includes("characterName_does_not_match_target_selector"));
+  });
+
+  it("E. persona target mismatch => UNVERIFIED", () => {
+    const proof = validateLiveProof(testLiveProofInput({ personaName: "다른페르소나" }), {
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(proof.status, "UNVERIFIED");
+    if (proof.status !== "UNVERIFIED") throw new Error("expected UNVERIFIED");
+    assert.ok(proof.reasons.includes("personaName_does_not_match_target_selector"));
+  });
+
+  it("F. malformed/non-full deployed SHA => UNVERIFIED", () => {
+    const shortSha = validateLiveProof(testLiveProofInput({ deployedGitSha: "f606534" }), {
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(shortSha.status, "UNVERIFIED");
+    if (shortSha.status !== "UNVERIFIED") throw new Error("expected UNVERIFIED");
+    assert.ok(shortSha.reasons.includes("invalid_deployedGitSha"));
+    const sha256AsGit = validateLiveProof(testLiveProofInput({ deployedGitSha: TEST_SHA }), {
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(sha256AsGit.status, "UNVERIFIED");
+    const mismatch = validateLiveProof(testLiveProofInput(), {
+      expectedDeploySha: "ef".repeat(20),
+    });
+    assert.equal(mismatch.status, "UNVERIFIED");
+    if (mismatch.status !== "UNVERIFIED") throw new Error("expected UNVERIFIED");
+    assert.ok(mismatch.reasons.includes("deployedGitSha_does_not_match_expected"));
+    const badHash = validateLiveProof(testLiveProofInput({ greetingSha256: "not-a-hash" }), {
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(badHash.status, "UNVERIFIED");
+    if (badHash.status !== "UNVERIFIED") throw new Error("expected UNVERIFIED");
+    assert.ok(badHash.reasons.includes("invalid_greetingSha256"));
+  });
+
+  it("G. invalid generatedAt => UNVERIFIED", () => {
+    const proof = validateLiveProof(testLiveProofInput({ generatedAt: "2026-10-07" }), {
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(proof.status, "UNVERIFIED");
+    if (proof.status !== "UNVERIFIED") throw new Error("expected UNVERIFIED");
+    assert.ok(proof.reasons.includes("invalid_generatedAt"));
+  });
+
+  it("H. historical proof cannot satisfy current proof", () => {
+    const historical: RpQualityPrecallLiveProofInput = {
+      source: HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_OWNER,
+      generatedAt: "2026-08-25T00:00:00.000Z",
+      deployedGitSha: HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_COMMIT,
+      characterId: LIVE_DEPLOYED_ROW_PROOF.characterId,
+      characterName: LIVE_DEPLOYED_ROW_PROOF.characterName,
+      personaName: RP_QUALITY_PRECALL_TARGET_SELECTOR.personaName,
+      greetingSha256: LIVE_DEPLOYED_ROW_PROOF.greetingSha256,
+      systemPromptSha256: LIVE_DEPLOYED_ROW_PROOF.systemPromptSha256,
+      worldSha256: LIVE_DEPLOYED_ROW_PROOF.worldSha256,
+      settingChunksSha256: LIVE_DEPLOYED_ROW_PROOF.settingChunksSha256,
+      personaPublicSha256: LIVE_DEPLOYED_ROW_PROOF.personaPublicSha256,
+      authoringLevel: "NORMAL",
+      contentMode: "SAFE",
+    };
+    assert.equal(historicalRowProofCannotSatisfyCurrent(historical), true);
+    const proof = validateLiveProof(historical, { expectedDeploySha: CURRENT_DEPLOY_SHA });
+    assert.equal(proof.status, "UNVERIFIED");
+    if (proof.status !== "UNVERIFIED") throw new Error("expected UNVERIFIED");
+    assert.ok(proof.reasons.includes("historical_LIVE_DEPLOYED_ROW_PROOF_cannot_auto_satisfy"));
+    assert.equal(RP_QUALITY_PRECALL_HISTORICAL_ROW_POINTER.isCurrentProductionProof, false);
+  });
+
+  it("I. absent proof => NOT_REPRODUCIBLE", () => {
+    assert.deepEqual(absentLiveProof(), { status: "NOT_PROVIDED" });
+    const report = buildRpQualityPrecallReport();
+    assert.equal(report.liveProof.status, "NOT_PROVIDED");
+    assert.equal(report.classification, "NOT_REPRODUCIBLE");
+    assert.equal(report.precallReady, false);
+    assert.equal(report.threeFixtureConcreteStimulusReady, true);
+    assert.equal(report.twelveCallConcreteStimulusReady, true);
+  });
+
+  it("J. verified identity alone does not authorize a provider call", () => {
+    const report = buildRpQualityPrecallReport({
+      liveProofInput: testLiveProofInput(),
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(report.liveProof.status, "VERIFIED");
+    assert.equal(report.threeFixtureConcreteStimulusReady, true);
+    assert.equal(report.precallReady, true);
+    assert.equal(report.classification, "PRECALL_READY");
+    const denied = startRpQualityPrecallPaidExecution({
+      liveProofInput: testLiveProofInput(),
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(denied.started, false);
+    assert.equal(denied.providerPosts, 0);
+    assert.equal(denied.reason, "MISSING_APPROVED_COST_BOUND");
+  });
+
+  it("K. approved cost alone does not authorize a provider call", () => {
+    const denied = startRpQualityPrecallPaidExecution({
+      approvedCostBoundUsd: 25,
+      paidExecutionAuthorized: true,
+    });
+    assert.equal(denied.started, false);
+    assert.equal(denied.providerPosts, 0);
+    assert.equal(denied.reason, "MISSING_VERIFIED_LIVE_PROOF");
+    const cost = evaluateRpQualityPrecallCostBound();
+    assert.equal(cost.status, "UNCOMPUTED");
+  });
+
+  it("L. PRECALL owner provider POST remains 0", () => {
+    const denied = startRpQualityPrecallPaidExecution({
+      liveProofInput: testLiveProofInput(),
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+      approvedCostBoundUsd: 25,
+      paidExecutionAuthorized: true,
+    });
+    assert.equal(denied.started, false);
+    assert.equal(denied.providerPosts, 0);
+    assert.equal(denied.reason, "PRECALL_OWNER_DOES_NOT_EXECUTE");
+    assert.equal(denied.paidExecutionStatus, RP_QUALITY_PRECALL_PAID_STATUS);
+  });
+
+  it("M. active models remain canonical picker derived", () => {
+    const models = rpQualityPrecallBenchmarkModels();
+    assert.deepEqual(models.map((row) => row.canonicalId), [...MAIN_RP_MODEL_IDS]);
+    assert.deepEqual(
+      models.map((row) => row.displayLabel),
+      MAIN_RP_USER_SELECTABLE_OPTIONS.map((row) => row.label)
+    );
+    assert.deepEqual(RP_QUALITY_BENCHMARK_MODELS, [
+      ...MAIN_RP_USER_SELECTABLE_OPTIONS.map((row) => row.label),
+    ]);
+    assert.match(
+      LIVE_QUALITY_SRC,
+      /export const RP_ACTIVE_MODEL_QUALITY_MODEL_IDS: readonly SelectedAI\[\s*\] =\s*MAIN_RP_MODEL_IDS;/
+    );
+    assert.equal(models.length, 4);
+    assert.doesNotMatch(PRECALL_SRC, /const expected = \[/);
+    assertActiveMainRpBenchmarkSet(models);
+  });
+
+  it("N. retired Gemini is absent", () => {
+    const ids = rpQualityPrecallBenchmarkModels().map((row) => row.canonicalId);
+    const labels = rpQualityPrecallBenchmarkModels().map((row) => row.displayLabel);
+    assert.equal(ids.includes(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL as never), false);
+    assert.equal(ids.includes(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL as never), false);
+    assert.equal(labels.includes(GEMINI_31_PRO_PREVIEW_DISPLAY_NAME), false);
+    assert.equal(labels.includes(GEMINI_37_FLASH_DISPLAY_NAME), false);
+  });
+
+  it("O. 3200+ / no ceiling is preserved", () => {
+    const plan = buildRpQualityPrecallPlan();
+    const report = buildRpQualityPrecallReport();
+    assert.equal(UNIFIED_TIER_AIM_CHARS, 3200);
+    assert.ok(plan.every((row) => row.targetResponseChars === UNIFIED_TIER_AIM_CHARS));
+    assert.ok(plan.every((row) => row.applicationMaxTokens === undefined));
+    assert.ok(plan.every((row) => row.streamCharCap === Number.MAX_SAFE_INTEGER));
+    assert.equal(resolveOpenRouterMaxTokens(3200, 8192, GEMINI_38_FLASH_MODEL), undefined);
+    assert.equal(resolveStreamCharCap(3200), Number.MAX_SAFE_INTEGER);
+    assert.equal(report.length.softAimChars, 3200);
+    assert.equal(report.length.uiEditMaxChars, ASSISTANT_MESSAGE_EDIT_MAX_CHARS);
+    assert.doesNotMatch(PRECALL_SRC, /slice\(0,\s*(3200|3500|5000)\)/);
+  });
+
+  it("P. subjective scores remain null", () => {
+    const packets = buildPlannedQualityPackets();
+    assert.equal(packets.length, 12);
+    for (const packet of packets) {
+      assert.deepEqual(packet.scores, emptyRubricScores());
+      assert.ok(Object.values(packet.scores).every((score) => score === null));
+    }
+  });
+
+  it("Q. no secrets or raw live source text in the PRECALL artifact", () => {
+    const report = buildRpQualityPrecallReport();
+    assert.equal(artifactContainsSecret(report), false);
+    const json = JSON.stringify(report);
+    assert.doesNotMatch(json, /sk-[a-zA-Z0-9]{10,}/);
+    assert.doesNotMatch(PRECALL_SRC, /오늘은 그냥 이렇게 있자/);
+    assert.equal(RP_QUALITY_PRECALL_TARGET_SELECTOR.characterId, 18);
+    assert.equal(RP_QUALITY_PRECALL_TARGET_SELECTOR.personaName, "렌");
+  });
+
+  it("keeps plan-template semantic parity and planned call count 12", () => {
+    const plan = buildRpQualityPrecallPlan();
+    assertFixturePlannedSemanticParity(plan);
+    assert.equal(plan.length, RP_QUALITY_PRECALL_PLANNED_CALLS);
+    assert.deepEqual(RP_QUALITY_PRECALL_EXECUTION_POLICY.paidProviderCallsThisOwner, 0);
+    assert.equal(buildRpQualityPrecallReport().plannedSemanticParityOnly, true);
+  });
+
+  it("does not write DB/session/points or fetch", () => {
+    assert.equal(RP_QUALITY_PRECALL_MUTATION_POLICY.db, false);
+    assert.equal(RP_QUALITY_PRECALL_MUTATION_POLICY.userPoints, false);
+    assert.doesNotMatch(PRECALL_SRC, /fetch\s*\(/);
+    const originalFetch = globalThis.fetch;
+    let fetchCount = 0;
+    globalThis.fetch = ((..._args: Parameters<typeof fetch>) => {
+      fetchCount += 1;
+      throw new Error("PRECALL must not fetch");
+    }) as typeof fetch;
+    try {
+      buildRpQualityPrecallReport();
+      startRpQualityPrecallPaidExecution({ approvedCostBoundUsd: 1 });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+    assert.equal(fetchCount, 0);
+  });
+});
+
+describe("rp quality PRECALL verified proof and cost planning", () => {
+  const productionSha = "4a2f0a4e7ba1de2a93c620a57f56aaec9f46c885";
+  const eraSha = "7fc2f0c209ca6653063f9f01691969ca3f55931a";
+  const verifiedFx: RpQualityPrecallFxSnapshotRow = {
+    date_key: "2026-10-08",
+    base_usd_krw: 1300,
+    source: "api_daily",
+    fetched_at: "2026-10-07T18:51:32.128Z",
+  };
+
+  function sizeRows(inputTokens = 10_000): RpQualityPrecallSizeRow[] {
+    return buildRpQualityPrecallPlan().map((sample) => ({
+      fixtureId: sample.fixtureId,
+      canonicalId: sample.model.canonicalId,
+      totalInputChars: Math.ceil(inputTokens / 0.9),
+      estimatedInputTokens: inputTokens,
+      systemChars: 1000,
+      systemEstimatedTokens: 900,
+      currentUserTurnChars: 100,
+      historyMessageCount: 2,
+      tokenEstimator: "ceil(chars * 0.9)",
+      providerCountedTokens: null,
+    }));
+  }
+
+  it("verifies a typed hash-only proof against the independently resolved production SHA only", () => {
+    const hashes = {
+      greetingSha256: TEST_SHA,
+      systemPromptSha256: TEST_SHA,
+      worldSha256: TEST_SHA,
+      settingChunksSha256: TEST_SHA,
+      personaPublicSha256: TEST_SHA,
+    };
+    const supplied = testLiveProofInput({ ...hashes, deployedGitSha: eraSha });
+    assert.equal(validateLiveProof(supplied, { expectedDeploySha: eraSha }).status, "VERIFIED");
+    const stale = validateLiveProof(supplied, { expectedDeploySha: productionSha });
+    assert.equal(stale.status, "UNVERIFIED");
+    if (stale.status !== "UNVERIFIED") throw new Error("expected UNVERIFIED");
+    assert.deepEqual(stale.reasons, ["deployedGitSha_does_not_match_expected"]);
+    assert.equal(validateLiveProof(undefined, { expectedDeploySha: productionSha }).status, "NOT_PROVIDED");
+  });
+
+  it("PRECALL_READY means verified identity plus concrete fixtures only", () => {
+    const report = buildRpQualityPrecallReport({
+      liveProofInput: testLiveProofInput(),
+      expectedDeploySha: CURRENT_DEPLOY_SHA,
+    });
+    assert.equal(report.classification, "PRECALL_READY");
+    assert.equal(report.precallReady, true);
+    assert.deepEqual(report.readinessScope, RP_QUALITY_PRECALL_READINESS_SCOPE);
+    assert.equal(report.readinessScope.finalWireProofIsSeparate, true);
+    assert.equal(report.readinessScope.costApprovalIsSeparate, true);
+    assert.equal(report.readinessScope.paidExecutionGateIsSeparate, true);
+    assert.equal(RP_QUALITY_PRECALL_PAID_STATUS, "NOT_AUTHORIZED_PRECALL_ONLY");
+  });
+
+  it("plans 12 calls x 2 output scenarios with provider cost separate from approval", () => {
+    const planning = computeRpQualityPrecallCostPlanning({ sizeRows: sizeRows(), fxRow: verifiedFx });
+    assert.equal(planning.status, "PLANNING_ONLY_NOT_APPROVED");
+    assert.equal(planning.calls.length, RP_QUALITY_PRECALL_PLANNED_CALLS * RP_QUALITY_PRECALL_OUTPUT_SCENARIOS.length);
+    assert.equal(planning.perModel.length, 4 * RP_QUALITY_PRECALL_OUTPUT_SCENARIOS.length);
+    for (const row of planning.perModel) assert.equal(row.calls, 3);
+    for (const row of planning.aggregate) assert.equal(row.calls, 12);
+    const aim = planning.calls.filter((call) => call.scenarioId === "aim_3200_plus");
+    const long = planning.calls.filter((call) => call.scenarioId === "long_sensitivity_2x");
+    assert.ok(aim.every((call) => call.outputTokens === Math.ceil(UNIFIED_TIER_AIM_CHARS * 0.9)));
+    assert.ok(long.every((call, index) => call.outputTokens === Math.ceil(UNIFIED_TIER_AIM_CHARS * 2 * 0.9) && call.providerUsd > aim[index]!.providerUsd));
+    const modelSum = planning.perModel
+      .filter((row) => row.scenarioId === "aim_3200_plus")
+      .reduce((sum, row) => sum + row.providerUsd, 0);
+    const aggregate = planning.aggregate.find((row) => row.scenarioId === "aim_3200_plus");
+    assert.ok(Math.abs((aggregate?.providerUsd ?? 0) - modelSum) < 1e-12);
+    assert.deepEqual(planning.separation.approvalBudget, {
+      status: "NOT_APPROVED",
+      approvedBoundUsd: null,
+      approvedBoundKrw: null,
+    });
+    assert.equal(planning.maxSingleCallExposure.status, "UNKNOWN");
+    assert.equal(planning.reasoningTokensIncluded, false);
+    assert.equal(hasApprovedCostBound(), false);
+    assert.equal(stringContainsSecretShape(JSON.stringify(planning)), false);
+    assert.doesNotMatch(JSON.stringify(planning), /max_tokens["']?\s*:\s*\d/);
+  });
+
+  it("KRW equivalents exist only when the FX snapshot is verified", () => {
+    const verified = computeRpQualityPrecallCostPlanning({ sizeRows: sizeRows(), fxRow: verifiedFx });
+    assert.equal(verified.fx.status, "VERIFIED");
+    assert.ok(verified.aggregate.every((row) => row.providerKrw != null && row.estimatedUserChargeKrw != null));
+    const bad: Array<RpQualityPrecallFxSnapshotRow> = [
+      null,
+      { ...verifiedFx, source: "env_fallback" },
+      { ...verifiedFx, base_usd_krw: 0 },
+      { ...verifiedFx, fetched_at: "not-a-date" },
+    ];
+    for (const fxRow of bad) {
+      assert.equal(planRpQualityPrecallFx(fxRow).status, "UNVERIFIED");
+      const planning = computeRpQualityPrecallCostPlanning({ sizeRows: sizeRows(), fxRow });
+      assert.ok(planning.calls.every((call) => call.providerKrw === null));
+      assert.ok(planning.aggregate.every((row) => row.providerKrw === null && row.estimatedUserChargeKrw === null));
+      assert.ok(planning.aggregate.every((row) => row.providerUsd > 0));
+    }
+  });
+
+  it("rejects cost planning without exactly 12 size rows", () => {
+    assert.throws(() => computeRpQualityPrecallCostPlanning({ sizeRows: sizeRows().slice(0, 11), fxRow: verifiedFx }));
+  });
+
+  it("secret-shape scan inspects values only, not key names", () => {
+    assert.equal(stringContainsSecretShape("estimatedInputTokens"), false);
+    assert.equal(stringContainsSecretShape("sk-abcdefghijklmnopqrstuvwxyz"), true);
+  });
+});

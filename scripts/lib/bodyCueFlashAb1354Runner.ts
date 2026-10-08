@@ -49,7 +49,10 @@ import {
   type LiveDeployedBodyCueRows,
   type LiveVerifiedBodyCueReviewPacket,
 } from "./mainRpBodyCuePreflight";
-import { buildGreetingBodyCueReviewCases } from "./rpModelQualificationFixture";
+import {
+  COMMON_PROSE_BODY_CUE_PAIRWISE_REVIEW_SEED_IDS,
+  buildGreetingBodyCueReviewCases,
+} from "./rpModelQualificationFixture";
 
 const require = createRequire(import.meta.url);
 const Database = require("better-sqlite3") as typeof import("better-sqlite3");
@@ -464,7 +467,10 @@ export type ExperimentArmRequest = {
 
 export function deriveExperimentRequests(rows: LiveDeployedBodyCueRows): ExperimentArmRequest[] {
   const derived: ExperimentArmRequest[] = [];
-  for (const caseData of buildGreetingBodyCueReviewCases(String(rows.character.greeting ?? ""))) {
+  for (const caseData of buildGreetingBodyCueReviewCases(
+    String(rows.character.greeting ?? ""),
+    COMMON_PROSE_BODY_CUE_PAIRWISE_REVIEW_SEED_IDS
+  )) {
     const assembled = assembleLiveDeployedBodyCueSceneRequests(rows, caseData);
     const arms: Array<{ variant: ExperimentVariant; request: typeof assembled.baseline }> = [
       { variant: "baseline", request: assembled.baseline },

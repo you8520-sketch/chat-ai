@@ -55,6 +55,7 @@ import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { resolveEffectiveUserAuthoring } from "@/lib/userCoauthorState";
 import {
   CANONICAL_RP_QUALIFICATION_SOURCE,
+  COMMON_PROSE_BODY_CUE_PAIRWISE_REVIEW_SEED_IDS,
   buildCanonicalRpQualificationContextInput,
   buildCommonProseBodyCueReviewCases,
   buildGreetingBodyCueReviewCases,
@@ -864,7 +865,10 @@ export function buildLiveDeployedBodyCueReviewPacket(
   const greeting = rows.character.greeting?.trim() ?? "";
   const names = resolveLiveRowNames(rows);
   let usedEnglish = false;
-  const scenes = buildGreetingBodyCueReviewCases(greeting).map((caseData) => {
+  const scenes = buildGreetingBodyCueReviewCases(
+    greeting,
+    COMMON_PROSE_BODY_CUE_PAIRWISE_REVIEW_SEED_IDS
+  ).map((caseData) => {
     const input = buildLiveDeployedBodyCueContextInput({ rows, caseData });
     usedEnglish = input.useEnglishCharacterPrompt === true;
     return reviewSceneFromRuns(
