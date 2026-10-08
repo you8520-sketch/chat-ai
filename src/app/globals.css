@@ -116,12 +116,12 @@ body {
   object-fit: cover;
   object-position: center top;
   -webkit-mask-image:
-    linear-gradient(to right, transparent, #000 6%, #000 94%, transparent),
-    linear-gradient(to bottom, transparent, #000 3%, #000 84%, transparent);
+    linear-gradient(to right, transparent, #000 11%, #000 89%, transparent),
+    linear-gradient(to bottom, transparent, #000 7%, #000 80%, transparent);
   -webkit-mask-composite: source-in;
   mask-image:
-    linear-gradient(to right, transparent, #000 6%, #000 94%, transparent),
-    linear-gradient(to bottom, transparent, #000 3%, #000 84%, transparent);
+    linear-gradient(to right, transparent, #000 11%, #000 89%, transparent),
+    linear-gradient(to bottom, transparent, #000 7%, #000 80%, transparent);
   mask-composite: intersect;
 }
 
@@ -150,7 +150,7 @@ body {
   position: absolute;
   z-index: 1;
   left: 0;
-  top: 0.15rem;
+  top: 5.25rem;
   width: 100%;
   margin: 0;
   font-weight: 800;
