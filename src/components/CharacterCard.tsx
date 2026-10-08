@@ -235,16 +235,18 @@ function HomeCard({
   } as CSSProperties;
   const orderLabel = order != null ? String(order).padStart(2, "0") : null;
 
-  const media = view.thumb ? (
+  const media = (
     <div className="home-card-media">
-      <CharacterCardCarousel urls={view.urls} alt={c.name} hidden={view.hidden} />
+      {view.thumb ? (
+        <CharacterCardCarousel urls={view.urls} alt={c.name} hidden={view.hidden} />
+      ) : (
+        <span
+          className={`flex h-full w-full items-center justify-center text-5xl sm:text-6xl ${view.hidden ? "blur-md" : ""}`}
+        >
+          {c.emoji}
+        </span>
+      )}
     </div>
-  ) : (
-    <span
-      className={`flex h-full w-full items-center justify-center text-5xl sm:text-6xl ${view.hidden ? "blur-md" : ""}`}
-    >
-      {c.emoji}
-    </span>
   );
 
   const frame = (
@@ -265,7 +267,7 @@ function HomeCard({
         </div>
       )}
       {variant === "editorial" ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[4] bg-gradient-to-t from-black/95 via-black/65 to-transparent px-3 pb-3.5 pt-16">
+        <div className="home-card-cap pointer-events-none absolute inset-x-0 bottom-0 z-[4] bg-gradient-to-t from-black/95 via-black/55 to-transparent px-3 pb-3.5 pt-14">
           {view.genreLabel ? (
             <p className="line-clamp-1 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: accent.hover }}>
               {view.genreLabel}
