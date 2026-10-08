@@ -11,7 +11,7 @@ import {
 } from "@/lib/chatModels";
 import { visibleAssistantDisplayCharCount, visibleAssistantDisplayText } from "@/lib/chatDisplayLength";
 import {
-  applyProviderInputCalibration,
+  applyNextTurnInputForecast,
   computeMainRpNextTurnEstimates,
   describeNextTurnOutputBasis,
   estimateNextTurnOutputTokens,
@@ -22,13 +22,16 @@ import {
   meanPositiveTokens,
   medianPositiveTokens,
   nextTurnEstimateDisplayMap,
+  isImmediatePreviousSameModelActualAnchor,
   pickLatestProviderInputCalibrationByModel,
+  pickLatestProviderInputCalibrationEntriesByModel,
   pickRecentSameModelBillableOutputTokens,
+  resolveImmediatePreviousSuccessfulMainRpTurn,
   resolveMainRpNextTurnCalibrationModelId,
+  resolveNextTurnHistoryDelta,
   resolveNextTurnOutputChars,
   resolveObservedCharsPerToken,
   resolveOutputHistoryForecastTokens,
-  resolveProviderInputRatio,
   trimmedMeanPositiveTokens,
 } from "@/lib/mainRpNextTurnEstimate";
 import { billableOpenRouterOutputTokens } from "@/lib/points";
@@ -331,7 +334,7 @@ describe("main RP next-turn estimate", () => {
       assert.doesNotMatch(src, /settleChatTurnBillingExactlyOnce/);
       assert.doesNotMatch(src, /fetch\(/);
     }
-    assert.match(SERVICE_SOURCE, /resolveModelPickerAssembledInputSnapshots/);
+    assert.match(SERVICE_SOURCE, /resolveModelPickerAssembledSnapshotEvidence/);
     assert.match(SERVICE_SOURCE, /visibleAssistantDisplayCharCount/);
     assert.match(SERVICE_SOURCE, /billableOpenRouterOutputTokens/);
   });
@@ -381,6 +384,7 @@ describe("main RP next-turn estimate", () => {
 
 const SOL = CHEAPER_INFERENCE_GPT_61_SOL_MODEL;
 const FLASH = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
+const GEMINI = GEMINI_38_FLASH_MODEL;
 const PREV_ASSEMBLED = 34_816;
 const PREV_PROVIDER = 14_312;
 const PREV_OUTPUT = 2_780;
@@ -401,6 +405,7 @@ function solValidInputSource(overrides: Record<string, unknown> = {}) {
     lengthRecoveryPasses: 0,
     stages: [{ stage: "primary", input: PREV_PROVIDER }],
     usageInputTokens: PREV_PROVIDER,
+    usageOutputTokens: PREV_OUTPUT,
     apiInputTokens: PREV_PROVIDER,
     assembledInputTokens: PREV_ASSEMBLED,
     ...overrides,
@@ -409,8 +414,19 @@ function solValidInputSource(overrides: Record<string, unknown> = {}) {
 
 function solNextTurn(input: {
   assembled: number;
-  sample?: { actualBillableInputTokens: number; assembledInputTokens: number } | null;
+  sample?: {
+    actualBillableInputTokens: number;
+    actualBillableOutputTokens?: number;
+    assembledInputTokens?: number | null;
+  } | null;
 }) {
+  const previous = input.sample
+    ? {
+        actualBillableInputTokens: input.sample.actualBillableInputTokens,
+        actualBillableOutputTokens: input.sample.actualBillableOutputTokens ?? PREV_OUTPUT,
+        assembledInputTokens: input.sample.assembledInputTokens ?? PREV_ASSEMBLED,
+      }
+    : null;
   return computeMainRpNextTurnEstimates({
     promptTokensByModel: { [SOL]: input.assembled },
     lastVisibleAssistantChars: PREV_CHARS,
@@ -418,9 +434,18 @@ function solNextTurn(input: {
     providerInputCalibrationByModel:
       input.sample === undefined
         ? undefined
-        : input.sample
-          ? { [SOL]: input.sample }
+        : previous
+          ? { [SOL]: previous }
           : { [SOL]: null },
+    historyDeltaByModel: previous
+      ? {
+          [SOL]: resolveNextTurnHistoryDelta({
+            previous,
+            previousAssistantRetained: true,
+            currentUserEstimatedTokens: 0,
+          }),
+        }
+      : undefined,
     effectiveKrwPerUsd: FX,
   })[SOL];
 }
@@ -438,19 +463,17 @@ describe("provider-input next-turn calibration", () => {
     const uncalibrated = solNextTurn({ assembled: nextAssembled });
     assert.ok(calibrated && uncalibrated);
     assert.equal(uncalibrated!.displayPoints, 277);
-    assert.ok(calibrated!.displayPoints >= 159 && calibrated!.displayPoints <= 163);
+    assert.ok(calibrated!.displayPoints >= 171 && calibrated!.displayPoints <= 177);
     assert.notEqual(calibrated!.displayPoints, 277);
     assert.equal(calibrated!.localAssembledInputTokens, nextAssembled);
-    assert.equal(
-      calibrated!.predictedBillableInputTokens,
-      Math.round(nextAssembled * (PREV_PROVIDER / PREV_ASSEMBLED))
-    );
+    assert.equal(calibrated!.predictedBillableInputTokens, PREV_PROVIDER + PREV_OUTPUT);
     assert.equal(calibrated!.promptTokens, calibrated!.predictedBillableInputTokens);
     assert.equal(calibrated!.actualBillableInputTokens, PREV_PROVIDER);
     assert.equal(calibrated!.priorAssembledInputTokens, PREV_ASSEMBLED);
     assert.equal(calibrated!.expectedOutputTokens, PREV_OUTPUT);
     assert.equal(calibrated!.outputBasis, "observed_ratio");
-    assert.equal(calibrated!.calibrationSource, "same_model_billable_input_ratio");
+    assert.equal(calibrated!.calibrationSource, "same_model_actual_anchored_delta");
+    assert.equal(calibrated!.forecastSource, "same_model_actual_anchored_delta");
     assert.equal(calibrated!.calibrationConfidence, "latest_same_model");
   });
 
@@ -475,50 +498,34 @@ describe("provider-input next-turn calibration", () => {
     assert.equal(ceil, 161);
   });
 
-  it("C same-model calibration scales inflated assembled down to provider scale and caps ratio at 1", () => {
-    const ratio = resolveProviderInputRatio({
-      actualBillableInputTokens: PREV_PROVIDER,
-      assembledInputTokens: PREV_ASSEMBLED,
-    });
-    assert.ok(ratio != null);
-    assert.ok(ratio! < 1);
-    assert.equal(
-      applyProviderInputCalibration({
-        localAssembledInputTokens: PREV_ASSEMBLED,
-        sample: {
-          actualBillableInputTokens: PREV_PROVIDER,
-          assembledInputTokens: PREV_ASSEMBLED,
-        },
-      }).predictedBillableInputTokens,
-      PREV_PROVIDER
-    );
-    const capped = resolveProviderInputRatio({
-      actualBillableInputTokens: 40_000,
-      assembledInputTokens: PREV_ASSEMBLED,
-    });
-    assert.equal(capped, 1);
-    const cappedApply = applyProviderInputCalibration({
-      localAssembledInputTokens: PREV_ASSEMBLED + 10,
-      sample: {
-        actualBillableInputTokens: 40_000,
+  it("C actual-anchored delta replaces whole-prompt ratio; settlement clamp stays separate", () => {
+    const anchored = applyNextTurnInputForecast({
+      localAssembledInputTokens: PREV_ASSEMBLED,
+      previous: {
+        actualBillableInputTokens: PREV_PROVIDER,
+        actualBillableOutputTokens: PREV_OUTPUT,
         assembledInputTokens: PREV_ASSEMBLED,
       },
+      historyDelta: resolveNextTurnHistoryDelta({
+        previous: {
+          actualBillableInputTokens: PREV_PROVIDER,
+          actualBillableOutputTokens: PREV_OUTPUT,
+        },
+        previousAssistantRetained: true,
+        currentUserEstimatedTokens: 0,
+      }),
     });
-    assert.equal(cappedApply.predictedBillableInputTokens, PREV_ASSEMBLED + 10);
-    assert.equal(cappedApply.calibrationSource, "same_model_billable_input_ratio");
+    assert.equal(anchored.forecastSource, "same_model_actual_anchored_delta");
+    assert.equal(anchored.predictedBillableInputTokens, PREV_PROVIDER + PREV_OUTPUT);
+    assert.doesNotMatch(ESTIMATE_SOURCE, /same_model_billable_input_ratio/);
+    assert.doesNotMatch(ESTIMATE_SOURCE, /resolveProviderInputRatio/);
+    assert.match(ESTIMATE_SOURCE, /same_model_actual_anchored_delta/);
     assert.equal(
       resolveTurnBillableInput({
         stageInput: 40_000,
         promptAuditTotal: PREV_ASSEMBLED,
       }),
       PREV_ASSEMBLED
-    );
-    assert.equal(
-      resolveProviderInputRatio({
-        actualBillableInputTokens: 40_000,
-        assembledInputTokens: PREV_ASSEMBLED,
-      }),
-      1
     );
     const cappedPicked = pickLatestProviderInputCalibrationByModel([
       solValidInputSource({
@@ -529,12 +536,12 @@ describe("provider-input next-turn calibration", () => {
     ]);
     assert.deepEqual(cappedPicked[SOL], {
       actualBillableInputTokens: PREV_ASSEMBLED,
+      actualBillableOutputTokens: PREV_OUTPUT,
       assembledInputTokens: PREV_ASSEMBLED,
       aggregateApiInputTokens: 40_000,
     });
     assert.match(ESTIMATE_SOURCE, /predictedBillableInputTokens/);
     assert.match(ESTIMATE_SOURCE, /user-charge forecast/);
-    assert.match(ESTIMATE_SOURCE, /resolveTurnBillableInput/);
     assert.doesNotMatch(ESTIMATE_SOURCE, /predictedProviderInputTokens/);
   });
 
@@ -662,12 +669,13 @@ describe("provider-input next-turn calibration", () => {
     ]);
     assert.deepEqual(picked[SOL], {
       actualBillableInputTokens: PREV_PROVIDER,
+      actualBillableOutputTokens: PREV_OUTPUT,
       assembledInputTokens: PREV_ASSEMBLED,
       aggregateApiInputTokens: PREV_PROVIDER,
     });
   });
 
-  it("F a different model's ratio is not reused after a model switch", () => {
+  it("F a different model's anchor is not reused after a model switch", () => {
     const flashOnly = computeMainRpNextTurnEstimates({
       promptTokensByModel: { [SOL]: PREV_ASSEMBLED },
       lastVisibleAssistantChars: PREV_CHARS,
@@ -675,6 +683,7 @@ describe("provider-input next-turn calibration", () => {
       providerInputCalibrationByModel: {
         [FLASH]: {
           actualBillableInputTokens: PREV_PROVIDER,
+          actualBillableOutputTokens: PREV_OUTPUT,
           assembledInputTokens: PREV_ASSEMBLED,
         },
       },
@@ -693,7 +702,133 @@ describe("provider-input next-turn calibration", () => {
     assert.equal(resolveMainRpNextTurnCalibrationModelId(FLASH), FLASH);
   });
 
-  it("G regeneration and continuation skip contaminated later samples and keep the latest valid same-model ratio", () => {
+  it("A stale Sol candidate is not actual-delta eligible after a later Gemini turn", () => {
+    const sol = { ...solValidInputSource(), rowKey: "message:10" };
+    const gemini = {
+      ...solValidInputSource({
+        usageInputTokens: 17_104,
+        usageOutputTokens: 2_726,
+        assembledInputTokens: 36_000,
+        apiInputTokens: 17_104,
+      }),
+      selectedAI: GEMINI,
+      model: GEMINI,
+      actualModel: GEMINI,
+      rowKey: "message:20",
+    };
+    const immediate = resolveImmediatePreviousSuccessfulMainRpTurn([sol, gemini]);
+    const entries = pickLatestProviderInputCalibrationEntriesByModel([sol, gemini]);
+    assert.equal(immediate?.identity.modelId, GEMINI);
+    assert.equal(immediate?.identity.rowKey, "message:20");
+    assert.equal(entries[SOL]?.identity.rowKey, "message:10");
+    assert.equal(entries[GEMINI]?.identity.rowKey, "message:20");
+    assert.equal(
+      isImmediatePreviousSameModelActualAnchor({
+        forecastModelId: GEMINI,
+        immediatePrevious: immediate,
+        candidateIdentity: entries[GEMINI]?.identity,
+      }),
+      true
+    );
+    assert.equal(
+      isImmediatePreviousSameModelActualAnchor({
+        forecastModelId: SOL,
+        immediatePrevious: immediate,
+        candidateIdentity: entries[SOL]?.identity,
+      }),
+      false
+    );
+    const mixed = computeMainRpNextTurnEstimates({
+      promptTokensByModel: { [SOL]: PREV_ASSEMBLED, [GEMINI]: 20_000 },
+      providerInputCalibrationByModel: {
+        [SOL]: entries[SOL]?.sample,
+        [GEMINI]: entries[GEMINI]?.sample,
+      },
+      historyDeltaByModel: {
+        [GEMINI]: resolveNextTurnHistoryDelta({
+          previous: entries[GEMINI]!.sample,
+          previousAssistantRetained: true,
+        }),
+      },
+      effectiveKrwPerUsd: FX,
+    });
+    assert.equal(mixed[GEMINI]?.forecastSource, "same_model_actual_anchored_delta");
+    assert.equal(mixed[SOL]?.forecastSource, "uncalibrated_assembled");
+    assert.equal(mixed[SOL]?.predictedBillableInputTokens, PREV_ASSEMBLED);
+  });
+
+  it("B a later fresh Sol turn reactivates Sol actual-delta", () => {
+    const sol = { ...solValidInputSource(), rowKey: "message:10" };
+    const gemini = {
+      ...solValidInputSource({
+        usageInputTokens: 17_104,
+        usageOutputTokens: 2_726,
+        assembledInputTokens: 36_000,
+        apiInputTokens: 17_104,
+      }),
+      selectedAI: GEMINI,
+      model: GEMINI,
+      actualModel: GEMINI,
+      rowKey: "message:20",
+    };
+    const solAgain = {
+      ...solValidInputSource({
+        usageInputTokens: 17_104,
+        usageOutputTokens: 2_726,
+        assembledInputTokens: 36_000,
+        apiInputTokens: 17_104,
+      }),
+      rowKey: "message:30",
+    };
+    const immediate = resolveImmediatePreviousSuccessfulMainRpTurn([sol, gemini, solAgain]);
+    const entries = pickLatestProviderInputCalibrationEntriesByModel([
+      sol,
+      gemini,
+      solAgain,
+    ]);
+    assert.equal(immediate?.identity.modelId, SOL);
+    assert.equal(immediate?.identity.rowKey, "message:30");
+    assert.equal(
+      isImmediatePreviousSameModelActualAnchor({
+        forecastModelId: SOL,
+        immediatePrevious: immediate,
+        candidateIdentity: entries[SOL]?.identity,
+      }),
+      true
+    );
+    assert.equal(
+      isImmediatePreviousSameModelActualAnchor({
+        forecastModelId: GEMINI,
+        immediatePrevious: immediate,
+        candidateIdentity: entries[GEMINI]?.identity,
+      }),
+      false
+    );
+  });
+
+  it("contaminated latest successful turn does not revive a stale same-model anchor", () => {
+    const sol = { ...solValidInputSource(), rowKey: "message:10" };
+    const geminiEstimated = {
+      ...solValidInputSource({ estimated: true, usageInputTokens: 9_000 }),
+      selectedAI: GEMINI,
+      model: GEMINI,
+      actualModel: GEMINI,
+      rowKey: "message:20",
+    };
+    const immediate = resolveImmediatePreviousSuccessfulMainRpTurn([sol, geminiEstimated]);
+    assert.equal(immediate?.identity.modelId, GEMINI);
+    assert.equal(immediate?.usableSample, null);
+    assert.equal(
+      isImmediatePreviousSameModelActualAnchor({
+        forecastModelId: SOL,
+        immediatePrevious: immediate,
+        candidateIdentity: { rowKey: "message:10", modelId: SOL },
+      }),
+      false
+    );
+  });
+
+  it("G regeneration and continuation skip contaminated later samples and keep the latest valid same-model anchor", () => {
     const picked = pickLatestProviderInputCalibrationByModel([
       solValidInputSource({
         usageInputTokens: 12_000,
@@ -714,6 +849,7 @@ describe("provider-input next-turn calibration", () => {
     ]);
     assert.deepEqual(picked[SOL], {
       actualBillableInputTokens: PREV_PROVIDER,
+      actualBillableOutputTokens: PREV_OUTPUT,
       assembledInputTokens: PREV_ASSEMBLED,
       aggregateApiInputTokens: PREV_PROVIDER,
     });
@@ -722,7 +858,7 @@ describe("provider-input next-turn calibration", () => {
       sample: picked[SOL],
     });
     assert.ok(regenEstimate);
-    assert.equal(regenEstimate!.calibrationSource, "same_model_billable_input_ratio");
+    assert.equal(regenEstimate!.calibrationSource, "same_model_actual_anchored_delta");
     assert.notEqual(regenEstimate!.displayPoints, 277);
     assert.match(CHAT_ROUTE_SOURCE, /resolveMainRpNextTurnPublishedEstimateForModel/);
     assert.match(CHAT_ROUTE_SOURCE, /resolveMainRpProviderAdmissionRequiredPoints/);
@@ -732,7 +868,12 @@ describe("provider-input next-turn calibration", () => {
   it("H picker and #1400 admission stay on the same forecast owner", () => {
     assert.match(SERVICE_SOURCE, /function estimatesFromRoomRows/);
     assert.match(SERVICE_SOURCE, /providerInputCalibrationByModel/);
+    assert.match(SERVICE_SOURCE, /historyDeltaByModel/);
+    assert.match(SERVICE_SOURCE, /isImmediatePreviousSameModelActualAnchor/);
+    assert.doesNotMatch(SERVICE_SOURCE, /lastSuccessfulAssistantContent/);
     assert.match(SERVICE_SOURCE, /readMainRpNextTurnProviderInputCalibration/);
+    assert.match(SERVICE_SOURCE, /resolveModelPickerAssembledSnapshotEvidence/);
+    assert.doesNotMatch(SERVICE_SOURCE, /previousAssistantRetained = true/);
     assert.match(SERVICE_SOURCE, /recentBillableOutputTokensByModel/);
     assert.match(SERVICE_SOURCE, /readMainRpNextTurnOutputHistory/);
     assert.match(
@@ -771,12 +912,12 @@ describe("provider-input next-turn calibration", () => {
       },
     });
     assert.ok(calibrated);
-    assert.equal(calibrated!.displayPoints, 160);
+    assert.ok(calibrated!.displayPoints >= 171 && calibrated!.displayPoints <= 177);
     const required = resolveMainRpProviderAdmissionRequiredPoints(
       calibrated!.displayPoints
     );
     assert.equal(MAIN_RP_PROVIDER_ADMISSION_ESTIMATE_MULTIPLIER, 3);
-    assert.equal(required, 160 * 3);
+    assert.equal(required, calibrated!.displayPoints * 3);
     const blocked = admitMainRpProviderByRequiredPoints({
       balancePoints: 200,
       publishedNextTurnEstimatePoints: calibrated!.displayPoints,
@@ -784,13 +925,13 @@ describe("provider-input next-turn calibration", () => {
     assert.equal(blocked.ok, false);
     assert.equal(blocked.requiredPoints, required);
     const admitted = admitMainRpProviderByRequiredPoints({
-      balancePoints: 500,
+      balancePoints: required,
       publishedNextTurnEstimatePoints: calibrated!.displayPoints,
     });
     assert.equal(admitted.ok, true);
     const uncalibratedRequired = resolveMainRpProviderAdmissionRequiredPoints(277);
     assert.equal(uncalibratedRequired, 277 * 3);
-    assert.ok(500 < uncalibratedRequired);
+    assert.ok(required < uncalibratedRequired);
   });
 
   it("J settlement remains independent of the forecast owner", () => {
@@ -913,17 +1054,24 @@ describe("same-model output-history forecast", () => {
     assert.equal(resolveOutputHistoryForecastTokens(picked[FLASH]), null);
   });
 
-  it("history median is a price forecast only and keeps the Sol 160P fixture", () => {
+  it("history median is a price forecast only and keeps the sequential Sol fixture", () => {
+    const previous = {
+      actualBillableInputTokens: PREV_PROVIDER,
+      actualBillableOutputTokens: PREV_OUTPUT,
+      assembledInputTokens: PREV_ASSEMBLED,
+    };
     const row = computeMainRpNextTurnEstimates({
       promptTokensByModel: { [SOL]: PREV_ASSEMBLED + 80 },
       lastVisibleAssistantChars: PREV_CHARS,
       observedCharsPerTokenByModel: { [SOL]: SOL_OBSERVED_CHARS_PER_TOKEN },
       recentBillableOutputTokensByModel: { [SOL]: [2700, 2780, 9000, 2750, 2800] },
-      providerInputCalibrationByModel: {
-        [SOL]: {
-          actualBillableInputTokens: PREV_PROVIDER,
-          assembledInputTokens: PREV_ASSEMBLED,
-        },
+      providerInputCalibrationByModel: { [SOL]: previous },
+      historyDeltaByModel: {
+        [SOL]: resolveNextTurnHistoryDelta({
+          previous,
+          previousAssistantRetained: true,
+          currentUserEstimatedTokens: 0,
+        }),
       },
       effectiveKrwPerUsd: FX,
     })[SOL];
@@ -931,8 +1079,8 @@ describe("same-model output-history forecast", () => {
     assert.equal(row!.outputBasis, "same_model_output_history");
     assert.equal(row!.expectedOutputTokens, 2780);
     assert.equal(row!.outputHistorySampleCount, 5);
-    assert.ok(row!.predictedBillableInputTokens < 20_000);
-    assert.ok(row!.displayPoints >= 159 && row!.displayPoints <= 163);
+    assert.equal(row!.predictedBillableInputTokens, PREV_PROVIDER + PREV_OUTPUT);
+    assert.ok(row!.displayPoints >= 171 && row!.displayPoints <= 177);
     assert.notEqual(row!.displayPoints, 277);
     assert.match(ESTIMATE_SOURCE, /price forecast only/);
     assert.doesNotMatch(ESTIMATE_SOURCE, /max_tokens/);

@@ -17,6 +17,7 @@ import {
   computeMainRpNextTurnEstimates,
   firstNextTurnCalibrationRejection,
   isUsableProviderInputCalibrationSource,
+  resolveNextTurnHistoryDelta,
 } from "@/lib/mainRpNextTurnEstimate";
 import { resolveMainRpProviderAdmissionRequiredPoints as admissionRequired } from "@/lib/mainRpProviderAdmission";
 import { NARRATIVE_LENGTH_CONTINUATION_STAGE } from "@/lib/narrativeLengthContinuation";
@@ -112,6 +113,7 @@ function calibrationInputFromUsage(usage: Usage) {
     lengthRecoveryPasses: usage.lengthRecoveryPasses ?? null,
     stages: usage.stages ?? null,
     usageInputTokens: usage.input ?? null,
+    usageOutputTokens: usage.output ?? null,
     apiInputTokens: usage.apiInputTokens ?? null,
     assembledInputTokens: usage.assembledInputTokens ?? null,
     statusWidgetExtractCallCount: usage.statusWidgetExtract?.callCount ?? null,
@@ -138,6 +140,15 @@ function solEstimate(usage: Usage) {
       lastVisibleAssistantChars: SAVED_CHARS,
       observedCharsPerTokenByModel: { [SOL]: SAVED_CHARS / MAIN_OUT },
       providerInputCalibrationByModel: { [SOL]: sample ?? null },
+      historyDeltaByModel: sample
+        ? {
+            [SOL]: resolveNextTurnHistoryDelta({
+              previous: sample,
+              previousAssistantRetained: true,
+              currentUserEstimatedTokens: 0,
+            }),
+          }
+        : undefined,
       effectiveKrwPerUsd: FX,
     })[SOL],
   };
@@ -173,19 +184,20 @@ describe("exact admin shared-initial production shape", () => {
     const { sample, row } = solEstimate(usage);
     assert.deepEqual(sample, {
       actualBillableInputTokens: MAIN_IN,
+      actualBillableOutputTokens: MAIN_OUT,
       assembledInputTokens: ASSEMBLED,
       aggregateApiInputTokens: MAIN_IN + LUNA_IN,
       syncAuxInputTokens: LUNA_IN,
     });
     assert.ok(row);
-    assert.equal(row!.calibrationSource, "same_model_billable_input_ratio");
+    assert.equal(row!.calibrationSource, "same_model_actual_anchored_delta");
     assert.equal(row!.actualBillableInputTokens, MAIN_IN);
     assert.equal(row!.priorAssembledInputTokens, ASSEMBLED);
-    assert.equal(row!.predictedBillableInputTokens, MAIN_IN);
+    assert.equal(row!.predictedBillableInputTokens, MAIN_IN + MAIN_OUT);
     assert.equal(row!.expectedOutputTokens, MAIN_OUT);
-    assert.ok(row!.displayPoints >= 159 && row!.displayPoints <= 163);
+    assert.ok(row!.displayPoints >= 171 && row!.displayPoints <= 177);
     assert.notEqual(row!.displayPoints, 277);
-    assert.equal(admissionRequired(row!.displayPoints), 480);
+    assert.equal(admissionRequired(row!.displayPoints), row!.displayPoints * 3);
   });
 
   it("2 NON-ADMIN sanitized persist restores assembledInputTokens and hides them from the client", () => {
@@ -195,7 +207,7 @@ describe("exact admin shared-initial production shape", () => {
     const { sample, row } = solEstimate(persisted);
     assert.equal(sample?.actualBillableInputTokens, MAIN_IN);
     assert.ok(row);
-    assert.ok(row!.displayPoints >= 159 && row!.displayPoints <= 163);
+    assert.ok(row!.displayPoints >= 171 && row!.displayPoints <= 177);
     const pub = serializeUsageForPublicClient(persisted);
     assert.equal(pub.assembledInputTokens, undefined);
     assert.equal(pub.apiCallCount, undefined);
@@ -208,8 +220,8 @@ describe("exact admin shared-initial production shape", () => {
     const usage = mainRpInternalUsage({ apiCallCount: 2 });
     assert.equal(firstNextTurnCalibrationRejection(calibrationInputFromUsage(usage)), null);
     const { row } = solEstimate(usage);
-    assert.equal(row?.calibrationSource, "same_model_billable_input_ratio");
-    assert.ok((row?.displayPoints ?? 0) >= 159 && (row?.displayPoints ?? 0) <= 163);
+    assert.equal(row?.calibrationSource, "same_model_actual_anchored_delta");
+    assert.ok((row?.displayPoints ?? 0) >= 171 && (row?.displayPoints ?? 0) <= 177);
   });
 
   it("4 length continuation is rejected", () => {

@@ -177,6 +177,8 @@ export type TrpgSheetSnapshot = {
   inventory: TrpgInventoryEntry[];
   location: string;
   modifiersNote: string;
+  /** Sheet row revision; used by snapshot CAS. Omitted on synthetic fixtures. */
+  revision?: number;
 };
 
 export type TrpgStateDelta = {

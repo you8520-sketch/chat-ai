@@ -147,6 +147,31 @@ export function attachNextTurnCalibrationFieldsForPersistence(
   if (internalUsage.fallback) {
     next.fallback = internalUsage.fallback;
   }
+  if (internalUsage.assembledPromptChars) {
+    next.assembledPromptChars = {
+      system: internalUsage.assembledPromptChars.system,
+      systemRules: internalUsage.assembledPromptChars.systemRules,
+      characterSettings: internalUsage.assembledPromptChars.characterSettings,
+      dynamic: internalUsage.assembledPromptChars.dynamic,
+      history: internalUsage.assembledPromptChars.history,
+      currentUser: internalUsage.assembledPromptChars.currentUser,
+      total: internalUsage.assembledPromptChars.total,
+    };
+  }
+  if (internalUsage.rawHistoryHealth) {
+    next.rawHistoryHealth = {
+      rawCompleteExchanges: internalUsage.rawHistoryHealth.rawCompleteExchanges,
+      rawMessages: internalUsage.rawHistoryHealth.rawMessages,
+      rawChars: internalUsage.rawHistoryHealth.rawChars,
+      rawInternalEstimate: internalUsage.rawHistoryHealth.rawInternalEstimate,
+      summaryInterval: internalUsage.rawHistoryHealth.summaryInterval,
+      summarizedThroughTurn: internalUsage.rawHistoryHealth.summarizedThroughTurn,
+      unsummarizedCompletedTurns: internalUsage.rawHistoryHealth.unsummarizedCompletedTurns,
+      ...(internalUsage.rawHistoryHealth.realRawCompleteExchanges != null
+        ? { realRawCompleteExchanges: internalUsage.rawHistoryHealth.realRawCompleteExchanges }
+        : {}),
+    };
+  }
   const routing = internalUsage.adultRouting;
   if (routing && (routing.actualModel || routing.fallbackAttempted === true)) {
     next.adultRouting = {

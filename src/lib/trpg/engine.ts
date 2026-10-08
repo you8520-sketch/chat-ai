@@ -10,6 +10,7 @@ export {
   regenerateTrpgNarration,
 } from "./engineAdvance";
 export { loadTrpgSnapshot, listTrpgCampaigns } from "./engineSnapshot";
+export { setTrpgInventoryEquipped } from "./engineInventory";
 export { TRPG_ACTION_MAX_CHARS, TRPG_PARTY_CHAT_MAX_CHARS, TRPG_BOT_GROSS_MARGIN, TRPG_GM_GROSS_MARGIN, TRPG_ALLOW_FORK } from "./types";
 export type { TrpgCampaignSnapshot } from "./snapshot";
 export type { TrpgEngineDeps } from "./engineAdvance";

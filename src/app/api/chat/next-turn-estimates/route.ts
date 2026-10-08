@@ -14,17 +14,21 @@ function nextTurnAdminCalibration(
   sample?: NextTurnProviderInputCalibrationSample | null
 ) {
   return {
-    localAssembledInputTokens: row.localAssembledInputTokens,
-    mainRpBillableInputTokens: row.actualBillableInputTokens,
-    aggregateApiInputTokens: sample?.aggregateApiInputTokens ?? null,
-    syncAuxInputTokens: sample?.syncAuxInputTokens ?? null,
-    priorAssembledInputTokens: row.priorAssembledInputTokens,
-    calibrationSource: row.calibrationSource,
+    previousActualInputTokens: row.actualBillableInputTokens,
+    previousActualOutputTokens: row.previousActualOutputTokens,
+    previousRawHistoryState: row.previousRawHistoryState,
+    nextRawHistoryState: row.nextRawHistoryState,
+    retainedNewHistoryTokens: row.retainedNewHistoryTokens,
+    removedHistoryTokens: row.removedHistoryTokens,
+    contextDeltaTokens: row.contextDeltaTokens,
+    currentUserEstimatedTokens: row.currentUserEstimatedTokens,
     predictedBillableInputTokens: row.predictedBillableInputTokens,
     expectedOutputTokens: row.expectedOutputTokens,
-    outputBasis: row.outputBasis,
-    outputHistorySampleCount: row.outputHistorySampleCount,
-    displayPoints: row.displayPoints,
+    predictedPoints: row.displayPoints,
+    forecastSource: row.forecastSource,
+    localAssembledInputTokens: row.localAssembledInputTokens,
+    aggregateApiInputTokens: sample?.aggregateApiInputTokens ?? null,
+    syncAuxInputTokens: sample?.syncAuxInputTokens ?? null,
   };
 }
 

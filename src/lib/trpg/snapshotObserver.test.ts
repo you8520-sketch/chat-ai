@@ -33,6 +33,7 @@ function state(
     rolls: opts?.rolls ?? 0,
     draftLen: opts?.draftLen ?? 0,
     narrationLen: opts?.narrationLen ?? 0,
+    sheetRevisions: opts?.sheetRevisions ?? {},
   };
 }
 
@@ -312,5 +313,36 @@ describe("trpg snapshotObserver", () => {
     ]);
     assert.equal(final?.appliedSeq, 4);
     assert.equal(final?.state.narrationLen, 3500, "SHORTER_REROLL_CANONICAL_ACCEPTED=true");
+  });
+
+  it("X. a later-seq poll cannot roll back one sheet even when another sheet owns the higher revision", () => {
+    const folded = foldSnapshotObservations([
+      { seq: 5, state: state("ACTION_INPUT", { sheetRevisions: { 1: 3, 2: 10 } }) },
+      { seq: 6, state: state("ACTION_INPUT", { sheetRevisions: { 1: 4, 2: 10 } }) },
+      { seq: 7, state: state("ACTION_INPUT", { sheetRevisions: { 1: 3, 2: 10 } }) },
+    ]);
+    assert.equal(folded?.appliedSeq, 6);
+    assert.deepEqual(folded?.state.sheetRevisions, { 1: 4, 2: 10 });
+    assert.deepEqual(
+      decideSnapshotApply({
+        cancelled: false,
+        responseSeq: 7,
+        appliedSeq: 6,
+        previous: state("ACTION_INPUT", { sheetRevisions: { 1: 4, 2: 10 } }),
+        next: state("ACTION_INPUT", { sheetRevisions: { 1: 3, 2: 10 } }),
+      }),
+      { apply: false, reason: "regressive" }
+    );
+  });
+
+  it("snapshotCompareState fingerprints each participant revision instead of only the max", () => {
+    const compared = snapshotCompareState({
+      round: { number: 1, phase: "ACTION_INPUT" },
+      sheets: [
+        { participantId: 1, sheet: { participantId: 1, revision: 4 } },
+        { participantId: 2, sheet: { participantId: 2, revision: 10 } },
+      ],
+    });
+    assert.deepEqual(compared.sheetRevisions, { 1: 4, 2: 10 });
   });
 });

@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { parseStoredInventory, serializeInventory } from "./inventory";
+import { parseStoredInventory, serializeInventory, type TrpgInventoryEntry } from "./inventory";
 import { parseJson } from "./store";
 import { statModifier } from "./stats";
 import type { TrpgSheetSnapshot } from "./types";
@@ -17,7 +17,7 @@ export function loadSheetSnapshots(db: Database.Database, campaignId: number): T
   const rows = db
     .prepare(
       `SELECT s.id AS sheet_id, s.participant_id, s.name, s.level, s.hp, s.max_hp,
-              s.conditions_json, s.inventory_json, s.location, p.display_name
+              s.conditions_json, s.inventory_json, s.location, s.revision, p.display_name
        FROM trpg_character_sheets s
        JOIN trpg_participants p ON p.id = s.participant_id
        WHERE s.campaign_id=?
@@ -33,6 +33,7 @@ export function loadSheetSnapshots(db: Database.Database, campaignId: number): T
     conditions_json: string;
     inventory_json: string;
     location: string;
+    revision: number;
     display_name: string;
   }>;
   const statStmt = db.prepare(`SELECT stat_key, value FROM trpg_character_stats WHERE sheet_id=?`);
@@ -53,6 +54,7 @@ export function loadSheetSnapshots(db: Database.Database, campaignId: number): T
       inventory: parseStoredInventory(row.inventory_json),
       location: row.location,
       modifiersNote: modifiersNote(stats),
+      revision: row.revision,
     };
   });
 }
@@ -81,4 +83,19 @@ export function persistSheets(db: Database.Database, sheets: TrpgSheetSnapshot[]
       updateStat.run(value, sheet.participantId, key);
     }
   }
+}
+
+/** Persist one sheet's inventory without rewriting HP/stats of the rest of the party. */
+export function persistSheetInventory(
+  db: Database.Database,
+  opts: { campaignId: number; participantId: number; inventory: readonly TrpgInventoryEntry[] }
+): void {
+  const result = db
+    .prepare(
+      `UPDATE trpg_character_sheets
+       SET inventory_json=?, revision=revision+1, updated_at=datetime('now')
+       WHERE campaign_id=? AND participant_id=?`
+    )
+    .run(serializeInventory(opts.inventory), opts.campaignId, opts.participantId);
+  if (result.changes !== 1) throw new Error("시트를 찾을 수 없습니다.");
 }

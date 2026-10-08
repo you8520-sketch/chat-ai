@@ -153,6 +153,7 @@ test("TRPG sheet runs in the shared sandbox: draft-only bridge, clamped height, 
   await expect.poll(async () => (await messages()).some((m) => m.kind === "height" && Number(m.payload.px) > 100)).toBe(true);
 
   await expect(frame.locator("[data-trpg-inventory-item='붕대']")).toHaveText("붕대 ×3");
+  await expect(frame.locator("[data-trpg-inventory-item='붕대']")).toHaveAttribute("data-trpg-inventory-equipped", "false");
   const requestsBefore = requests.length;
   await frame.locator("[data-trpg-inventory-item='붕대']").click();
   await frame.locator("[data-trpg-condition-draft='중독']").click();
