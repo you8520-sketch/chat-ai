@@ -82,7 +82,7 @@ export const PRECALL_KNOWN_BLOCKED_NON_PROVIDER_ATTEMPT = Object.freeze({
   channel: "fetch",
   host: "open.er-api.com",
   method: "GET",
-  origin: "src/lib/exchangeRate.ts:71",
+  originFile: "src/lib/exchangeRate.ts",
 } as const);
 
 export function precallUnexpectedEgressAttempts(): readonly PrecallEgressAttempt[] {
@@ -93,7 +93,7 @@ export function precallUnexpectedEgressAttempts(): readonly PrecallEgressAttempt
         attempt.channel === known.channel &&
         attempt.host === known.host &&
         attempt.method === known.method &&
-        attempt.origin === known.origin
+        attempt.origin.split(":")[0] === known.originFile
       )
   );
 }

@@ -89,7 +89,7 @@ export type PrecallProductionRows = {
   singleReadTransaction: true;
 };
 
-export function collectAllowlistedFlags(env: NodeJS.ProcessEnv): Record<string, string> {
+export function collectAllowlistedFlags(env: Readonly<Record<string, string | undefined>>): Record<string, string> {
   const flags: Record<string, string> = {};
   for (const [name, value] of Object.entries(env)) {
     if (FLAG_NAME_ALLOW.test(name) && !FLAG_NAME_DENY.test(name)) flags[name] = String(value ?? "");
@@ -100,7 +100,7 @@ export function collectAllowlistedFlags(env: NodeJS.ProcessEnv): Record<string, 
 export function loadPrecallProductionRows(input: {
   dbPath: string;
   deployedGitSha: string;
-  env: NodeJS.ProcessEnv;
+  env: Readonly<Record<string, string | undefined>>;
 }): PrecallProductionRows {
   const deployedGitSha = input.deployedGitSha.trim();
   assertRows(/^[a-f0-9]{40}$/i.test(deployedGitSha), "DEPLOY_SHA_INVALID");
