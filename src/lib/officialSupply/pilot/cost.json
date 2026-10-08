@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "successfulCompletions": 120,
+  "successfulCompletions": 123,
   "failedProviderAttempts": 5,
-  "physicalAttempts": 125,
+  "physicalAttempts": 128,
   "workflowRetries": 60,
-  "billedCostUsd": 0.11074,
+  "billedCostUsd": 0.11332800000000001,
   "failedAttemptCostUsd": 0,
-  "inputTokens": 360733,
-  "outputTokens": 242562,
+  "inputTokens": 369392,
+  "outputTokens": 248640,
   "imageCalls": 0,
   "lines": [
     {
@@ -1264,6 +1264,36 @@
       "inputTokens": 1512,
       "outputTokens": 1352,
       "costUsd": 0.000562
+    },
+    {
+      "task": "character_bible_1",
+      "draftKey": "pilot-rf-02",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 3197,
+      "outputTokens": 3055,
+      "costUsd": 0.001252
+    },
+    {
+      "task": "character_bible_voice",
+      "draftKey": "pilot-rf-02",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 3314,
+      "outputTokens": 1945,
+      "costUsd": 0.000847
+    },
+    {
+      "task": "character_bible_bonds",
+      "draftKey": "pilot-rf-02",
+      "workflowAttempt": 1,
+      "outcome": "success",
+      "model": "gpt-6-luna",
+      "inputTokens": 2148,
+      "outputTokens": 1078,
+      "costUsd": 0.000489
     }
   ],
   "legacy": {
