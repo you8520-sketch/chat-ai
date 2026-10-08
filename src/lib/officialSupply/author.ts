@@ -339,10 +339,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function requiredString(obj: Record<string, unknown>, key: string, task: string): string {
+function requiredString(obj: Record<string, unknown>, key: string, task: string, fieldPath = key): string {
   const value = obj[key];
   if (typeof value !== "string" || !value.trim()) {
-    throw new OfficialSupplyGateError("author_shape_invalid", `${task}: ${key} must be a non-empty string`);
+    throw new OfficialSupplyGateError("author_shape_invalid", `${task}: ${fieldPath} must be a non-empty string`);
   }
   return value;
 }
@@ -799,18 +799,26 @@ export async function generateOfficialWorldBible(input: {
 
 function coerceNpc(raw: unknown, index: number): OfficialCharacterBible["npcs"][number] {
   const task = "character_bible_voice";
-  if (!isRecord(raw)) throw new OfficialSupplyGateError("author_shape_invalid", `npc[${index}] invalid`);
+  if (!isRecord(raw)) {
+    throw new OfficialSupplyGateError("author_shape_invalid", `${task}: npcs[${index}] invalid`);
+  }
   return {
-    name: requiredString(raw, "name", task),
+    name: requiredString(raw, "name", task, `npcs[${index}].name`),
     age: typeof raw.age === "number" ? Math.round(raw.age) : null,
     heightCm: typeof raw.heightCm === "number" ? Math.round(raw.heightCm) : null,
     appearance: typeof raw.appearance === "string" ? raw.appearance : "",
     personalityKeywords: optionalStringArray(raw.personalityKeywords),
-    role: requiredString(raw, "role", task),
-    relationToChar: requiredString(raw, "relationToChar", task),
+    role: requiredString(raw, "role", task, `npcs[${index}].role`),
+    relationToChar: requiredString(raw, "relationToChar", task, `npcs[${index}].relationToChar`),
     speech: typeof raw.speech === "string" ? raw.speech : "",
     adultEligible: raw.adultEligible === true,
   };
+}
+
+/** Voice NPC required strings — same coerce as assemble, before Bonds is billed. */
+function assertVoiceNpcShape(voiceHalf: Record<string, unknown>): void {
+  const npcs = Array.isArray(voiceHalf.npcs) ? voiceHalf.npcs : [];
+  for (const [index, npc] of npcs.entries()) coerceNpc(npc, index);
 }
 
 export async function generateOfficialCharacterBible(input: {
@@ -847,6 +855,7 @@ export async function generateOfficialCharacterBible(input: {
   if (!isRecord(voiceHalf)) {
     throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_voice: object required");
   }
+  assertVoiceNpcShape(voiceHalf);
   const third = await input.transport.completeJson({
     task: "character_bible_bonds",
     system: buildCharacterBondsSystem(),
