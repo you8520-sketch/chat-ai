@@ -315,10 +315,15 @@ export function resolveTurnBillableUsage(
   const explicitCachePartitionNeutral =
     getModelPublishedPricingPolicy(input.modelId)?.cacheBillingPartitionSemantics ===
     "price_neutral";
+  const classifiedCacheReadSource = classifyCacheField(
+    rawCacheRead,
+    cacheReadStatus,
+    primaryStage.estimated
+  );
   const cacheReadSource =
-    cacheReadStatus === "unreported" && cacheBreakdownPriceNeutral
+    cacheBreakdownPriceNeutral && classifiedCacheReadSource === "MISSING_AND_UNKNOWN"
       ? "MISSING_BUT_PRICE_NEUTRAL"
-      : classifyCacheField(rawCacheRead, cacheReadStatus, primaryStage.estimated);
+      : classifiedCacheReadSource;
   const classifiedCacheWriteSource = classifyCacheWriteFieldSource(
     input.modelId,
     rawCacheWrite,
@@ -326,7 +331,7 @@ export function resolveTurnBillableUsage(
     primaryStage.estimated
   );
   const cacheWriteSource =
-    cacheWriteStatus === "unreported" && cacheBreakdownPriceNeutral
+    cacheBreakdownPriceNeutral && classifiedCacheWriteSource === "MISSING_AND_UNKNOWN"
       ? "MISSING_BUT_PRICE_NEUTRAL"
       : classifiedCacheWriteSource;
   if (!cacheReadReported && cacheReadSource !== "MISSING_BUT_PRICE_NEUTRAL") {
