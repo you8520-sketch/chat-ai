@@ -148,6 +148,14 @@ export default function MenuTransitionHost() {
     timers.current = [];
   }
 
+  function dropBurst(id: number) {
+    clearTimers();
+    if (burstRef.current && burstRef.current.id === id) {
+      burstRef.current = null;
+      setBurst(null);
+    }
+  }
+
   function beginReveal(id: number) {
     const cur = burstRef.current;
     if (!cur || cur.id !== id || cur.phase === "reveal") return;
@@ -252,7 +260,9 @@ export default function MenuTransitionHost() {
 
   // BEAT 3 — 클릭으로 시작된 burst만 목적지 도착 시 reveal. 클릭 없는 경로 변경
   // (뒤로/앞으로 가기, 프로그래밍 이동, 콘텐츠 링크)은 veil을 만들지 않는다.
-  // 캐릭터 burst는 자기 목적지 도착만 인정한다(전환 중 다른 이동·이전 대상의 도착은 무시).
+  // 캐릭터 burst는 자기 목적지 도착만 인정한다. 일반 콘텐츠·history로 프로필을
+  // 벗어나면 오래된 scene을 즉시 내린다. 다른 /character/:id 중간 도착은
+  // 빠른 연속 클릭이므로 유지한다.
   useEffect(() => {
     if (firstPath.current === null) {
       firstPath.current = pathname;
@@ -261,8 +271,12 @@ export default function MenuTransitionHost() {
     if (firstPath.current === pathname) return;
     firstPath.current = pathname;
     const cur = burstRef.current;
-    if (!cur || cur.phase === "reveal") return;
-    if (cur.kind === "character" && pathname !== cur.dest) return;
+    if (!cur) return;
+    if (cur.kind === "character" && pathname !== cur.dest) {
+      if (parseCharacterProfilePath(pathname) === null) dropBurst(cur.id);
+      return;
+    }
+    if (cur.phase === "reveal") return;
     const delay = revealDelayFor(cur.kind, performance.now() - startedAt.current);
     timers.current.push(window.setTimeout(() => beginReveal(cur.id), delay));
   }, [pathname]);

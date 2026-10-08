@@ -161,6 +161,12 @@ describe("character reveal ownership", () => {
     assert.match(host, /const _exhaustive: never = burst/);
   });
 
+  it("drops a leftover character scene when the path leaves character profiles", () => {
+    assert.match(host, /function dropBurst/);
+    assert.match(host, /parseCharacterProfilePath\(pathname\) === null/);
+    assert.match(host, /dropBurst\(cur\.id\)/);
+  });
+
   it("marks only accessible public cards and the real hero frame", () => {
     const card = read("src/components/CharacterCard.tsx");
     assert.match(card, /characterRevealAttrs\(/);
