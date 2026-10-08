@@ -109,6 +109,7 @@ export default function TrpgTaggedNovelText({
             asset={part.asset}
             viewerIsCreator={viewerIsCreator}
             unlockedUrls={unlockedUrls}
+            presentation="trpg"
           />
         );
       case "character": {
