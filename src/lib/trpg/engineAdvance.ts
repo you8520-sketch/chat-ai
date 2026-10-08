@@ -46,7 +46,7 @@ import {
   TRPG_BOT_SYSTEM,
 } from "./botActions";
 import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
-import { applyCampaignLedger, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
+import { applyCampaignLedger, bindGmLocationToSubmittedMovement, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm, type TrpgGmStreamCallbacks } from "./gmCall";
@@ -1526,7 +1526,27 @@ function commitPendingGmResult(
   const scenario = loadScenario(db, campaign.id);
   const sheets = loadSheetSnapshots(db, campaign.id);
   const mechanics = loadMechanicsResolution(db, opts.roundId);
-  const applied = mergeMechanicsOwnedDelta(sheets, parsed.delta, mechanics);
+  const currentLedger = loadCampaignLedger(db, campaign.id);
+  const lockedSubs = db
+    .prepare(
+      `SELECT participant_id AS participantId, body FROM trpg_action_submissions
+       WHERE round_id=? AND locked=1 ORDER BY id ASC`
+    )
+    .all(opts.roundId) as Array<{ participantId: number; body: string }>;
+  const proposedFromPlayers =
+    (parsed.delta.players ?? []).map((patch) => patch.location?.trim() ?? "").find(Boolean) ?? "";
+  const boundLocation = bindGmLocationToSubmittedMovement({
+    opening: opts.opening,
+    currentLocation: currentLedger.location,
+    currentNextRoundContext: currentLedger.nextRoundContext,
+    proposedLocation: parsed.location || parsed.delta.location || proposedFromPlayers,
+    delta: {
+      ...parsed.delta,
+      nextRoundContext: parsed.nextRoundContext || parsed.delta.nextRoundContext,
+    },
+    submissions: lockedSubs,
+  });
+  const applied = mergeMechanicsOwnedDelta(sheets, boundLocation.delta, mechanics);
   const nextSheets = applied.ok ? applied.next : sheets;
   const persistMechanics = applied.ok || mechanics?.complete === true;
   const roundNumber = (
@@ -1537,10 +1557,10 @@ function commitPendingGmResult(
   const postGmOngoingSeeds = opts.postGmOngoingSeeds ?? [];
   let postGmOngoingResult = { candidates: 0, promoted: 0, deduped: 0 };
   let stage: TrpgFailureStage = "ledger_apply";
-  const ledger = applyCampaignLedger(loadCampaignLedger(db, campaign.id), {
-    ...parsed.delta,
-    location: parsed.location || parsed.delta.location || nextSheets[0]?.location || scenario.startLocation,
-    nextRoundContext: parsed.nextRoundContext || parsed.delta.nextRoundContext,
+  const ledger = applyCampaignLedger(currentLedger, {
+    ...boundLocation.delta,
+    location: boundLocation.location || scenario.startLocation,
+    nextRoundContext: boundLocation.nextRoundContext,
     campaignFinished: parsed.campaignFinished,
   });
   // Deterministic progression floor (accepted routine traversal + GM omission).

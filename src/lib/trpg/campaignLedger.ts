@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { actionReferencesOpenRoute, declaresTraversalIntent, tokenizeSceneLabel } from "./actionCheckContext";
 import { clipTrpgChars } from "./clip";
 import { parseJson } from "./store";
 import {
@@ -40,6 +41,70 @@ function mergeFacts(current: string[], add: string[] | undefined, remove: string
 
 export function emptyCampaignLedger(): TrpgCampaignLedger {
   return { location: "", nextRoundContext: "", quests: [], npcs: [], worldFlags: [] };
+}
+
+export type TrpgLocationPersistSubmission = {
+  participantId: number;
+  body: string;
+};
+
+function bodyMentionsDestination(body: string, destination: string): boolean {
+  if (actionReferencesOpenRoute(body, [destination]) != null) return true;
+  const text = body.replace(/\s+/g, " ").trim().toLowerCase();
+  return tokenizeSceneLabel(destination).some((token) => token.length >= 2 && text.includes(token));
+}
+
+/** True when this locked action already authorizes relocating to `destination`. */
+export function submissionAuthorizesLocation(body: string, destination: string): boolean {
+  const dest = destination.trim();
+  if (!dest) return false;
+  if (declaresTraversalIntent(body)) return true;
+  // Particle-attached Korean labels ("주점으로") miss exact token overlap.
+  return bodyMentionsDestination(body, dest);
+}
+
+/**
+ * Location persist bind — campaignLedger owner.
+ * Opening may set the starting place. After that, a GM location change sticks
+ * only when a locked submission already declared traversal or named that place.
+ * World-forced relocation has no separate persist owner today (T9/L5).
+ */
+export function bindGmLocationToSubmittedMovement(opts: {
+  opening: boolean;
+  currentLocation: string;
+  currentNextRoundContext: string;
+  proposedLocation: string;
+  delta: TrpgStateDelta;
+  submissions: readonly TrpgLocationPersistSubmission[];
+}): { location: string; nextRoundContext: string | undefined; delta: TrpgStateDelta } {
+  if (opts.opening) {
+    return {
+      location: opts.proposedLocation.trim() || opts.currentLocation,
+      nextRoundContext: opts.delta.nextRoundContext,
+      delta: opts.delta,
+    };
+  }
+  const current = opts.currentLocation.trim();
+  const proposed = opts.proposedLocation.trim();
+  const allowed = new Set<number>();
+  for (const sub of opts.submissions) {
+    if (submissionAuthorizesLocation(sub.body, proposed || current)) {
+      allowed.add(sub.participantId);
+    }
+  }
+  const players = (opts.delta.players ?? []).map((patch) => {
+    if (patch.location == null) return patch;
+    const dest = patch.location.trim();
+    if (!dest || dest === current || allowed.has(patch.participantId)) return patch;
+    const { location: _dropped, ...rest } = patch;
+    return rest;
+  });
+  const locationAccepted = !proposed || proposed === current || allowed.size > 0;
+  return {
+    location: locationAccepted && proposed ? proposed : current,
+    nextRoundContext: locationAccepted ? opts.delta.nextRoundContext : opts.currentNextRoundContext,
+    delta: { ...opts.delta, players },
+  };
 }
 
 export function applyCampaignLedger(current: TrpgCampaignLedger, delta: TrpgStateDelta): TrpgCampaignLedger {
