@@ -143,7 +143,7 @@ describe("TRPG reply suggestion scene selection (#1435)", () => {
   }
 
   it("snaps forward to a sentence when the raw cut was already on a word boundary", () => {
-    const aside = "지금 역무원이 요구한 조건에 답할지 결정해야 한다.";
+    const aside = "지금 역무원이 요구한 조건에 답할지 아니면 도움을 요청할지 결정해야 한다.";
     const narrative =
       "불길을 끈 이야기는 오래전에 마무리됐다. " +
       "사람들은 여전히 걸음을 옮기며 오래된 선로에 관한 이야기를 나누고 있었다. ".repeat(60) +
