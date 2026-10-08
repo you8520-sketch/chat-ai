@@ -12,6 +12,7 @@ import {
 } from "@/lib/rpQualityPrecall";
 import {
   buildPaidRunnerPublicManifest,
+  expectedPaidRunnerProvider,
   paidRunnerRegistrySnapshot,
   type PaidRunnerIdentityHashes,
   type PaidRunnerPublicManifest,
@@ -66,13 +67,18 @@ export function preparePaidRunnerPack(input: {
     if ("max_tokens" in request.requestBody || "max_completion_tokens" in request.requestBody) {
       throw new Error("PAID_RUNNER_MAX_TOKENS_PRESENT");
     }
+    const canonicalId = request.canonicalId as SelectedAI;
+    const provider = expectedPaidRunnerProvider(canonicalId);
+    if (request.provider !== provider) {
+      throw new Error("PAID_RUNNER_PROVIDER_MAPPING_MISMATCH");
+    }
     return {
       requestOrder: index + 1,
       fixtureId: request.fixtureId,
-      canonicalId: request.canonicalId as SelectedAI,
-      provider: request.provider,
+      canonicalId,
+      provider,
       wireModel: request.wireModel,
-      endpointKind: request.provider,
+      endpointKind: provider,
       endpoint: request.endpoint,
       finalWireFingerprint: request.finalWireFingerprint,
       requestBodyFingerprint: request.requestBodyFingerprint,
