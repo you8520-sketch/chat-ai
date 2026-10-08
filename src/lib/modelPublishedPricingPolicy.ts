@@ -14,6 +14,7 @@ import {
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "@/lib/chatModels";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
+import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
 
 export type PricingApplicability = "base_tier_only" | "tier_aware";
 
@@ -151,11 +152,14 @@ export function isPublishedCacheWriteAbsentProvenZero(modelId: string): boolean 
 
 
 /**
- * True only when missing cache read/write partition cannot alter the published
- * user charge. This does NOT claim provider cache usage was zero.
+ * User charge is Standard-only for every exact published catalog model.
+ * Cache read/write stay provider evidence and must not fail-close user P.
  */
 export function isPublishedCacheBreakdownPriceNeutral(modelId: string): boolean {
   const canonical = canonicalizePublishedModelId(modelId);
+  if (resolvePublishedPricingExact(canonical) || resolvePublishedPricingExact(modelId)) {
+    return true;
+  }
   const policy = getModelPublishedPricingPolicy(canonical);
   return policy?.cacheBillingPartitionSemantics === "price_neutral";
 }
@@ -215,17 +219,10 @@ export function evaluateTierEligibilityFromApplicabilitySnapshot(
 }
 
 export function evaluateCacheEligibilityFromApplicabilitySnapshot(
-  usage: { cacheReadTokens: number; cacheWriteTokens: number },
-  applicability: PublishedApplicabilitySnapshot,
-  cacheReadRate: number | null,
-  cacheWriteRate: number | null
+  _usage: { cacheReadTokens: number; cacheWriteTokens: number },
+  _applicability: PublishedApplicabilitySnapshot,
+  _cacheReadRate: number | null,
+  _cacheWriteRate: number | null
 ): boolean {
-  const hasCacheUsage = usage.cacheReadTokens > 0 || usage.cacheWriteTokens > 0;
-  if (!hasCacheUsage) return true;
-  if (applicability.cacheSemanticStatus === "unverified" || applicability.cacheSemanticStatus === "unknown") {
-    return false;
-  }
-  if (usage.cacheReadTokens > 0 && cacheReadRate == null) return false;
-  if (usage.cacheWriteTokens > 0 && cacheWriteRate == null) return false;
   return true;
 }

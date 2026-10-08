@@ -1,4 +1,4 @@
-import { isWideInlineAsset, type CharacterAsset } from "@/lib/characterAssets";
+import type { CharacterAsset } from "@/lib/characterAssets";
 import { stripTrailingEmotionTagStreamCandidate } from "@/lib/emotionTag";
 import {
   createTrpgCombinedAssetMarkerRegExp,
@@ -109,7 +109,7 @@ export function splitTrpgGmProseForAssets(
       const tag = String(match[2] ?? "").trim();
       const asset = tag
         ? selectStableTaggedAsset(
-            opts.scenarioAssets.filter((item) => isWideInlineAsset(item)),
+            opts.scenarioAssets,
             tag,
             gmSceneAssetSeed({
               campaignId: opts.campaignId,
@@ -119,7 +119,7 @@ export function splitTrpgGmProseForAssets(
             })
           )
         : null;
-      if (asset && isWideInlineAsset(asset)) {
+      if (asset) {
         parts.push({ kind: "scenario", tag, asset });
       }
     }

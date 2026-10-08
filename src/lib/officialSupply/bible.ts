@@ -741,6 +741,26 @@ export function evaluateAuthorQualityContract(
 }
 
 /**
+ * Voice-owned fields that no Voice QA revision field covers (behaviorRules,
+ * tagline). A defect here cannot be repaired after assembly, so the author
+ * checks it before Bonds is billed; `validateCharacterBible` reuses it so the
+ * rule count and tagline limit keep a single owner.
+ */
+export function evaluateVoiceStructureContract(
+  bible: Pick<OfficialCharacterBible, "behaviorRules"> & { publicProfile?: Pick<OfficialCharacterBible["publicProfile"], "tagline"> }
+): QaResult {
+  const errors: QaIssue[] = [];
+  const rules = bible.behaviorRules ?? [];
+  if (rules.length < 3 || rules.length > 7) {
+    errors.push(err("bible_behavior_rules", `behaviorRules 3-7 required, got ${rules.length}`));
+  }
+  const tagline = bible.publicProfile?.tagline ?? "";
+  if (!nonEmpty(tagline)) errors.push(err("bible_tagline_missing", "publicProfile.tagline is required"));
+  else if (tagline.length > 50) errors.push(err("bible_tagline_limit", "tagline must fit the 50-char canonical limit"));
+  return qaResult(errors);
+}
+
+/**
  * Adult relationship dynamics lexicon. Consent/respect vocabulary is the
  * shared safety baseline (expected on every sheet) and is never counted as a
  * "dynamic"; everything else describes the character's own adult style.
@@ -956,10 +976,7 @@ export function validateCharacterBible(
     errors.push(err("bible_speech_forbidden_limit", "speech.forbidden must fit the 500-char canonical limit"));
   }
 
-  const rules = bible.behaviorRules ?? [];
-  if (rules.length < 3 || rules.length > 7) {
-    errors.push(err("bible_behavior_rules", `behaviorRules 3-7 required, got ${rules.length}`));
-  }
+  errors.push(...evaluateVoiceStructureContract(bible).errors);
 
   const rel = bible.userRelationship ?? { initialView: "", userRole: "", startingPoint: "", progression: [] };
   if (!nonEmpty(rel.initialView) || !nonEmpty(rel.userRole) || !nonEmpty(rel.startingPoint)) {
@@ -986,8 +1003,6 @@ export function validateCharacterBible(
   warnings.push(...contract.warnings);
 
   const profile = bible.publicProfile ?? { tagline: "", description: "", tags: [] };
-  if (!nonEmpty(profile.tagline)) errors.push(err("bible_tagline_missing", "publicProfile.tagline is required"));
-  else if (profile.tagline.length > 50) errors.push(err("bible_tagline_limit", "tagline must fit the 50-char canonical limit"));
   const tags = profile.tags ?? [];
   const tagBand = OFFICIAL_AUTHOR_QUALITY_CONTRACT.discoveryTags;
   if (tags.length === 0 || tags.length > tagBand.max) {

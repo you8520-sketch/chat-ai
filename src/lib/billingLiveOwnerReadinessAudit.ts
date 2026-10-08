@@ -3011,19 +3011,37 @@ export function auditFalseExactnessGuards(): FalseExactnessAudit {
   const fixtures = buildBillingLiveOwnerReadinessFixtures();
   const byId = Object.fromEntries(fixtures.map((f) => [f.id, f])) as Record<string, BillingParityFixture>;
 
-  const b1 = computeCandidateChargeFromFixture(byId["B1-cache-unreported"]!);
-  const b4 = computeCandidateChargeFromFixture(byId["B4-cache-malformed-positive"]!);
-  const c1 = computeCandidateChargeFromFixture(byId["C1-reasoning-unreported"]!);
-  const c4 = computeCandidateChargeFromFixture(byId["C4-reasoning-malformed-positive"]!);
+  const b1 = resolveTurnBillableUsage({
+    stages: byId["B1-cache-unreported"]!.stages,
+    modelId: byId["B1-cache-unreported"]!.deliveredModelId,
+  });
+  const b4 = resolveTurnBillableUsage({
+    stages: byId["B4-cache-malformed-positive"]!.stages,
+    modelId: byId["B4-cache-malformed-positive"]!.deliveredModelId,
+  });
+  const c1 = resolveTurnBillableUsage({
+    stages: byId["C1-reasoning-unreported"]!.stages,
+    modelId: byId["C1-reasoning-unreported"]!.deliveredModelId,
+  });
+  const c4 = resolveTurnBillableUsage({
+    stages: byId["C4-reasoning-malformed-positive"]!.stages,
+    modelId: byId["C4-reasoning-malformed-positive"]!.deliveredModelId,
+  });
   const b6 = computeCandidateChargeFromFixture(byId["B6-cache-mixed-valid-invalid"]!);
 
   return {
     unreportedCacheCanBecomeConfirmedZero:
-      b1.status === "charged" && b1.usageCoverage === "complete",
-    invalidCacheCanBecomeExact: b4.status === "charged" && b4.usageCoverage === "complete",
+      b1.status === "resolved" &&
+      (b1.diagnostics.fieldSources.cacheRead === "PROVIDER_REPORTED_EXACT" ||
+        b1.diagnostics.fieldSources.cacheWrite === "PROVIDER_REPORTED_EXACT"),
+    invalidCacheCanBecomeExact:
+      b4.status === "resolved" &&
+      (b4.diagnostics.fieldSources.cacheRead === "PROVIDER_REPORTED_EXACT" ||
+        b4.diagnostics.fieldSources.cacheWrite === "PROVIDER_REPORTED_EXACT"),
     unreportedReasoningCanBecomeConfirmedZero:
-      c1.status === "charged" && c1.usageCoverage === "complete",
-    invalidReasoningCanBecomeExact: c4.status === "charged" && c4.usageCoverage === "complete",
+      c1.status === "resolved" && c1.diagnostics.fieldSources.reasoning === "PROVIDER_REPORTED_EXACT",
+    invalidReasoningCanBecomeExact:
+      c4.status === "resolved" && c4.diagnostics.fieldSources.reasoning === "PROVIDER_REPORTED_EXACT",
     mixedValidInvalidStageCanBecomeExact:
       b6.status === "charged" && b6.usageCoverage === "complete",
   };

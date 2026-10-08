@@ -431,7 +431,6 @@ export function buildCharacterVoiceSystem(): string {
   return [
     "너는 롤플레잉 말투·오프닝의 장인이다. 캐릭터 바이블의 목소리 부분(말투·규칙·그리팅·공개 프로필·NPC)만 쓴다.",
     "출력은 반드시 순수 JSON 한 개(코드펜스·설명 금지)다.",
-    "전체 분량은 반드시 2800자 이내로 쓴다(초과하면 반려되므로 각 필드를 간결하게).",
     "",
     "speech 규칙:",
     "- 존댓말/반말·문장 길이·속도감·어휘·자주/거의 안 쓰는 표현·욕설·농담·호칭·감정 은폐/분노/친밀 시 말투를 모두 설계.",
@@ -481,7 +480,7 @@ export function buildCharacterVoiceUser(input: CharacterVoiceInput): string {
     input.part1Recap,
     "",
     "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. npcs는 실제 반복 역할이 필요할 때만 1~2명 추가하고, 필요 없으면 []를 유지한다.",
-    VOICE_SKELETON,
+    characterVoiceSkeleton(input.adultCandidate),
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
 }
@@ -536,17 +535,31 @@ export function buildCharacterBondsUser(input: CharacterBondsInput): string {
     "전반부 요약:",
     input.part1Recap,
     "",
-    "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 실제 반복 등장·행동 변화가 필요한 인물만 넣고 없으면 []; 성인 후보가 아니면 adultSection은 null.",
-    BONDS_SKELETON,
+    input.adultCandidate
+      ? "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 실제 반복 등장·행동 변화가 필요한 인물만 넣고 없으면 []; 성인 후보이므로 nsfw는 true, adultSection은 틀의 모든 키를 실제 내용으로 채운다."
+      : "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 실제 반복 등장·행동 변화가 필요한 인물만 넣고 없으면 []; 성인 후보가 아니면 adultSection은 null.",
+    characterBondsSkeleton(input.adultCandidate),
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
 }
 
 const BIBLE_1_SKELETON = `{"identity": {"name": "", "gender": "male", "age": 27, "apparentAge": "", "heightCm": 184, "species": "인간", "occupation": "", "socialPosition": "", "affiliation": "", "worldRole": ""}, "appearance": {"faceShape": "", "eyes": "", "eyeColor": "", "hairColor": "", "hairstyle": "", "hairLength": "", "skin": "", "build": "", "musculature": "", "distinguishingFeatures": "", "usualExpression": "", "defaultOutfit": "", "accessories": "", "impression": ""}, "personality": {"keywords": ["", "", "", "", ""], "behavioral": ""}, "contradiction": "", "values": {"desires": ["", ""], "fears": ["", ""], "coreValues": ["", ""], "nonNegotiable": [""]}, "backstory": {"events": [{"event": "", "choice": "", "residue": ""}, {"event": "", "choice": "", "residue": ""}]}, "abilities": [{"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}, {"name": "", "scope": "", "level": "", "limit": "", "cost": "", "usage": ""}], "habits": {"hobbies": ["", "", ""], "habits": ["", "", ""], "likes": ["", ""], "dislikes": ["", ""]}, "dailyLife": "", "situation": {"worldContext": "", "personalSituation": "", "userEntry": ""}}`;
 
-const VOICE_SKELETON = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": ["", ""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": ["", "", "", ""], "description": "", "examples": "대사1\\n대사2\\n대사3\\n대사4", "forbidden": ""}, "behaviorRules": ["", "", ""], "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": ["", "", "", ""]}, "npcs": [], "nsfw": false}`;
+const VOICE_SKELETON_HEAD = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": ["", ""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": ["", "", "", ""], "description": "", "examples": "대사1\\n대사2\\n대사3\\n대사4", "forbidden": ""}, "behaviorRules": ["", "", ""], "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": ["", "", "", ""]}, "npcs": [], "nsfw": `;
 
-const BONDS_SKELETON = `{"userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [], "secrets": ["", ""], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "nsfw": false, "adultSection": null}`;
+const BONDS_SKELETON_HEAD = `{"userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [], "secrets": ["", ""], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "nsfw": `;
+
+/** Shape mirrors the adult QA bands in `validateCharacterBible` (prefs 4-8, boundaries 3-6, scenarios 2-3). */
+const ADULT_SECTION_SKELETON = `{"orientation": "", "hookSummary": "", "dialogueProfile": "", "consentModes": [""], "tone": "", "preferenceKeywords": ["", "", "", ""], "boundaries": ["", "", ""], "consentBehavior": "", "scenarioExamples": ["", ""]}`;
+
+/** The manifest's adultCandidate owns the nsfw/adultSection defaults the model is shown. */
+function characterVoiceSkeleton(adultCandidate: boolean): string {
+  return `${VOICE_SKELETON_HEAD}${adultCandidate}}`;
+}
+
+function characterBondsSkeleton(adultCandidate: boolean): string {
+  return `${BONDS_SKELETON_HEAD}${adultCandidate}, "adultSection": ${adultCandidate ? ADULT_SECTION_SKELETON : "null"}}`;
+}
 
 export type AppearanceInput = {
   name: string;

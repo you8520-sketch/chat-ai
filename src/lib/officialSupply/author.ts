@@ -56,6 +56,7 @@ import {
   CHARACTER_BONDS_SCHEMA,
   CHARACTER_VOICE_SCHEMA,
   compileOfficialDraftFromBible,
+  evaluateVoiceStructureContract,
   NPC_RELATION_REPAIR_SCHEMA,
   validateCharacterBible,
   validateWorldBible,
@@ -885,6 +886,51 @@ function assertVoiceNpcShape(voiceHalf: Record<string, unknown>): void {
   for (const [index, npc] of npcs.entries()) coerceNpc(npc, index);
 }
 
+function describeShapeValue(value: unknown): string {
+  if (value === undefined) return "missing";
+  if (value === null) return "null";
+  if (typeof value === "string") return `string:${value.length}`;
+  if (Array.isArray(value)) return `array:${value.length}`;
+  if (typeof value === "boolean") return `boolean:${value}`;
+  return typeof value;
+}
+
+/** Field presence, type, length/count only — never the provider text itself. */
+function describeVoiceShape(voiceHalf: Record<string, unknown>): string {
+  const speech = isRecord(voiceHalf.speech) ? voiceHalf.speech : {};
+  const profile = isRecord(voiceHalf.publicProfile) ? voiceHalf.publicProfile : {};
+  const fields: Array<[string, unknown]> = [
+    ["behaviorRules", voiceHalf.behaviorRules],
+    ["greeting", voiceHalf.greeting],
+    ["speech.description", speech.description],
+    ["publicProfile.tagline", profile.tagline],
+    ["publicProfile.description", profile.description],
+    ["publicProfile.tags", profile.tags],
+    ["npcs", voiceHalf.npcs],
+    ["nsfw", voiceHalf.nsfw],
+  ];
+  return fields.map(([path, value]) => `${path}=${describeShapeValue(value)}`).join(" ");
+}
+
+/**
+ * Voice defects that the post-assembly Voice QA revision cannot repair
+ * (behaviorRules, tagline) are rejected before Bonds is billed. Revisable
+ * fields (greeting, speech, pitch, tags) are left to the existing revision.
+ */
+function assertVoiceStructure(voiceHalf: Record<string, unknown>, adultExpected: boolean): void {
+  const profile = isRecord(voiceHalf.publicProfile) ? voiceHalf.publicProfile : {};
+  const qa = evaluateVoiceStructureContract({
+    behaviorRules: strArray(voiceHalf.behaviorRules),
+    publicProfile: { tagline: String(profile.tagline ?? "") },
+  });
+  if (qa.ok) return;
+  throw new OfficialSupplyGateError(
+    "author_voice_rejected",
+    `character_bible_voice: ${qa.errors.map((e) => `${e.code}(${e.message})`).join("; ")}; shape: ${describeVoiceShape(voiceHalf)} adultExpected=${adultExpected}`,
+    qa
+  );
+}
+
 function npcRelationRejected(detail: string): OfficialSupplyGateError {
   return new OfficialSupplyGateError("author_npc_relation_rejected", `character_npc_relation: ${detail}`);
 }
@@ -989,6 +1035,7 @@ export async function generateOfficialCharacterBible(input: {
   if (!isRecord(voiceRaw)) {
     throw new OfficialSupplyGateError("author_shape_invalid", "character_bible_voice: object required");
   }
+  assertVoiceStructure(voiceRaw, input.voice.adultCandidate);
   let voiceHalf = voiceRaw;
   const npcRelationRepairs: OfficialAuthorRawCompletion[] = [];
   const npcIssues = voiceNpcShapeIssues(voiceRaw);

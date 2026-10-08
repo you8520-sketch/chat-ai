@@ -49,7 +49,7 @@ const GOLDEN_POINTS = 100;
 const CACHE_HIT_INPUT = 12_871;
 const CACHE_HIT_READ = 12_800;
 const CACHE_HIT_OUTPUT = 1_273;
-const CACHE_HIT_POINTS = 10;
+const CACHE_HIT_POINTS = 39;
 
 function completeDeepSeekStage(
   partial: Partial<StageUsage> & Pick<StageUsage, "stage">
@@ -149,7 +149,7 @@ describe("deepseekPhase2PublishedBillingCutover — golden fixtures", () => {
     assert.notEqual(decision.telemetry.billingContract, "published_phase1");
   });
 
-  it("cache-hit fixture → published_phase2 exactly 10P with cache read rate", () => {
+  it("cache-hit fixture → published_phase2 Standard-only points", () => {
     const stages = [
       completeDeepSeekStage({
         stage: "primary",
@@ -284,32 +284,29 @@ describe("deepseekPhase2PublishedBillingCutover — direct routing matrix D1-D10
     assert.equal(decision.points, CACHE_HIT_POINTS);
   });
 
-  it("D6 cacheWriteTokens>0 → published_fail_closed 0P", () => {
+  it("D6 cacheWriteTokens>0 stays Standard-only published_phase2", () => {
     const decision = dispatchDeepSeek([
       completeDeepSeekStage({ stage: "primary", cacheWriteTokens: 2000 }),
     ]);
-    assert.equal(decision.contract, "published_fail_closed");
-    assert.equal(decision.points, 0);
-    assert.equal(decision.reason, "unsupported_cache_semantics");
-    assert.equal(decision.telemetry.appliedFailClosedPolicy, "zero_point_billing_anomaly_waiver");
+    assert.equal(decision.contract, "published_phase2");
+    assert.equal(decision.points, GOLDEN_POINTS);
   });
 
-  it("D7 incomplete usage (cache_read unreported) → published_fail_closed 0P", () => {
+  it("D7 unreported cache stays Standard-only published_phase2", () => {
     const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "A1-deepseek-normal")!;
-    const legacyPoints = computeLiveChargeFromFixture(fixture).totalPoints;
     const decision = resolveChatBillingContract({
       deliveredModelId: fixture.deliveredModelId,
       selectedModelId: fixture.deliveredModelId,
       stages: fixture.stages,
-      legacyFinalPoints: legacyPoints,
+      legacyFinalPoints: 999,
       billingWaiverReason: null,
       legacyWaiverMinimum: 0,
       fxSnapshot: FX_DETERMINISTIC,
       phase2DeepSeekPublishedBillingEnabled: true,
     });
-    assert.equal(decision.contract, "published_fail_closed");
-    assert.equal(decision.points, 0);
-    assert.equal(decision.reason, "usage_coverage_incomplete");
+    assert.equal(decision.contract, "published_phase2");
+    assert.ok(decision.points > 0);
+    assert.notEqual(decision.points, 999);
   });
 
   it("D8 unknown usage (no stages) → published_fail_closed 0P", () => {
@@ -431,7 +428,10 @@ describe("deepseekPhase2PublishedBillingCutover — refusal fallback matrix F1-F
       phase1PublishedBillingEnabled: true,
       phase2DeepSeekPublishedBillingEnabled: true,
     });
-    assert.equal(adultDecision.contract, generalDecision.contract);
+    assert.equal(generalDecision.contract, "published_phase1");
+    assert.ok(generalDecision.points > 0);
+    assert.equal(adultDecision.contract, "published_phase1");
+    assert.ok(adultDecision.points > 0);
     assert.notEqual(adultDecision.reason, "phase2_refusal_fallback_legacy");
     assert.notEqual(adultDecision.telemetry.billingContract, "published_phase2");
   });

@@ -416,7 +416,7 @@ describe("turnBillableUsage — LEVEL 1 route parity (complete scenarios)", () =
 });
 
 describe("turnBillableUsage — cache evidence", () => {
-  it("C — absent cache fields → partial, not complete", () => {
+  it("C — absent cache fields stay complete for published Standard-only models", () => {
     const r = resolveTurnBillableUsage({
       stages: [
         stage({
@@ -430,9 +430,9 @@ describe("turnBillableUsage — cache evidence", () => {
       modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
     });
     assert.equal(r.status, "resolved");
-    assert.equal(r.usageCoverage, "partial");
+    assert.equal(r.usageCoverage, "complete");
     assert.equal(r.diagnostics.cacheReadReported, false);
-    assert.equal(r.diagnostics.fieldSources.cacheRead, "MISSING_AND_UNKNOWN");
+    assert.equal(r.diagnostics.fieldSources.cacheRead, "MISSING_BUT_PRICE_NEUTRAL");
   });
 
   it("Opus 5.5 absent cache partition stays complete because published input buckets are price-neutral", () => {
@@ -505,7 +505,7 @@ describe("turnBillableUsage — cache evidence", () => {
     assert.equal(r.diagnostics.fieldSources.cacheWrite, "PROVIDER_REPORTED_EXACT");
     assert.equal(
       r.diagnostics.coverageReasons.includes("cache_exceeds_capped_prompt"),
-      false
+      true
     );
   });
 
@@ -608,7 +608,7 @@ describe("turnBillableUsage — cache production reachability", () => {
     assert.equal(stageUsage.cacheWriteTokens, 3);
   });
 
-  it("production absent cache evidence yields partial candidate coverage", () => {
+  it("production absent cache evidence stays complete for published Standard-only models", () => {
     const parsed = parseOpenRouterUsage({ prompt_tokens: 5000, completion_tokens: 400 });
     const tokenUsage = tokenUsageFromOpenRouterBreakdown(parsed);
     const stageUsage = productionStageUsageFromTokenUsage(
@@ -621,9 +621,10 @@ describe("turnBillableUsage — cache production reachability", () => {
       stages: [stageUsage],
       modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
     });
-    assert.equal(r.usageCoverage, "partial");
+    assert.equal(r.usageCoverage, "complete");
     assert.equal(r.diagnostics.cacheReadReported, false);
     assert.equal(r.diagnostics.cacheWriteReported, false);
+    assert.equal(r.diagnostics.fieldSources.cacheRead, "MISSING_BUT_PRICE_NEUTRAL");
   });
 
   it("production explicit-zero cache evidence yields complete candidate coverage", () => {
@@ -807,6 +808,7 @@ describe("turnBillableUsageCanary — structured comparison", () => {
           input: 5000,
           output: 400,
           apiOutputTokens: 400,
+          estimated: true,
         }),
       ],
       modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
@@ -918,7 +920,7 @@ describe("turnBillableUsage → Published — production-reachable explicit zero
     assert.equal(candidate.diagnostics.cacheWriteReported, true);
   });
 
-  it("G31 absent cache → partial blocks Published complete charge", () => {
+  it("G31 absent cache stays Standard-only published complete", () => {
     const candidate = resolveTurnBillableUsage({
       stages: [
         stage({
@@ -931,7 +933,7 @@ describe("turnBillableUsage → Published — production-reachable explicit zero
       ],
       modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
     });
-    assert.equal(candidate.usageCoverage, "partial");
+    assert.equal(candidate.usageCoverage, "complete");
     const published = computePublishedUserChargeWithSnapshot({
       modelId: "gemini-3.1-pro-preview",
       usage: candidate.usage!,
@@ -939,7 +941,7 @@ describe("turnBillableUsage → Published — production-reachable explicit zero
       fxSnapshot: FX_1530,
       adjustment: { kind: "none" },
     });
-    assert.notEqual(published.status, "complete");
+    assert.equal(published.status, "complete");
   });
 });
 

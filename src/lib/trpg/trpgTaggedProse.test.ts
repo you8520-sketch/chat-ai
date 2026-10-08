@@ -24,19 +24,27 @@ describe("TRPG tagged GM prose", () => {
     assert.equal(image.asset.url, "/tae-anger.webp");
     assert.equal(isWideInlineAsset(image.asset), false);
     const renderer = readFileSync("src/components/TrpgCharacterSceneAsset.tsx", "utf8");
+    const scenario = readFileSync("src/app/trpg/TrpgTaggedNovelText.tsx", "utf8");
     assert.match(renderer, /data-testid="trpg-character-scene-asset"/);
-    assert.match(renderer, /max-w-\[min\(16rem,72vw\)\]/);
-    assert.doesNotMatch(renderer, /isWideInlineAsset\(asset\) \? "my-3 w-full"/);
+    assert.match(renderer, /trpgInlineAssetFrame/);
+    assert.match(scenario, /presentation="trpg"/);
+    assert.doesNotMatch(renderer, /max-w-\[min\(16rem,72vw\)\]/);
+    assert.doesNotMatch(renderer, /isWideInlineAsset/);
   });
 
-  it("U. still refuses a scenario portrait on the scenario path", () => {
-    const parts = splitTrpgGmProseForAssets("[태그: 표지]\n[태그: 대합실]", {
-      scenarioAssets: [scenarioPortrait, scenarioWide],
+  it("U. renders a scenario portrait and a scenario landscape for the same marker grammar", () => {
+    const square = withAssetSize({ url: "/square.webp", tag: "광장", chat: true }, 1000, 1000);
+    const parts = splitTrpgGmProseForAssets("[태그: 표지]\n앞 서술.\n[태그: 대합실]\n[태그: 광장]\n뒤 대사.", {
+      scenarioAssets: [scenarioPortrait, scenarioWide, square],
       campaignId: 9,
       roundNumber: 3,
     });
-    assert.equal(parts.some((part) => part.kind === "scenario" && part.asset.url === "/cover.webp"), false);
+    assert.equal(parts.some((part) => part.kind === "scenario" && part.asset.url === "/cover.webp"), true);
     assert.equal(parts.some((part) => part.kind === "scenario" && part.asset.url === "/hall.webp"), true);
+    assert.equal(parts.some((part) => part.kind === "scenario" && part.asset.url === "/square.webp"), true);
+    const text = parts.map((part) => (part.kind === "text" ? part.text : "")).join("");
+    assert.match(text, /앞 서술/);
+    assert.match(text, /뒤 대사/);
   });
 
   it("V. does not change global chat inline splitting", () => {

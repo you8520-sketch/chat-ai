@@ -151,6 +151,9 @@ function classifyFixture(fixture: BillingParityFixture): ClosureClassification {
     }
     return "UNRESOLVED";
   }
+  if (decision.contract === "legacy" && decision.reason === "phase2_refusal_fallback_legacy") {
+    return "LEGACY_FALLBACK";
+  }
   if (candidate.status === "blocked" || candidate.status === "not_comparable") {
     return "LEGACY_FALLBACK";
   }
@@ -309,12 +312,12 @@ describe("chatBillingContractDispatch — contract selection", () => {
     assert.equal(decision.reason, "phase1_billing_disabled");
   });
 
-  it("A1 normals with unreported cache stay legacy fallback (fail-closed)", () => {
+  it("A1 normals with unreported cache stay Standard-only published_phase1", () => {
     for (const id of ["A1-g31-normal", "A1-g37-normal", "A1-opus5-normal"] as const) {
       const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === id)!;
       const decision = dispatchFromFixture(fixture);
-      assert.equal(decision.contract, "legacy", id);
-      assert.equal(decision.points, fixtureLegacyFinalPoints(fixture), id);
+      assert.equal(decision.contract, "published_phase1", id);
+      assert.ok(decision.points > 0, id);
     }
   });
 
@@ -366,12 +369,6 @@ describe("chatBillingContractDispatch — fail-closed legacy fallback", () => {
   afterEach(() => clearAuditLegacyFxForTest());
 
   const fallbackCases: Array<{ id: string; reasonIncludes?: string }> = [
-    { id: "B1-cache-unreported" },
-    { id: "B4-cache-malformed-positive" },
-    { id: "C1-reasoning-unreported" },
-    { id: "C4-reasoning-malformed-positive" },
-    { id: "B6-cache-mixed-valid-invalid" },
-    { id: "D2-recovery" },
     { id: "D5-failover" },
   ];
 
@@ -385,6 +382,56 @@ describe("chatBillingContractDispatch — fail-closed legacy fallback", () => {
       assert.equal(decision.points, legacyPoints, id);
     });
   }
+
+  it("C1-reasoning-unreported on Gemini stays Standard-only published_phase1", () => {
+    const fixture = buildBillingLiveOwnerReadinessFixtures().find(
+      (f) => f.id === "C1-reasoning-unreported"
+    )!;
+    const decision = dispatchFromFixture(fixture);
+    assert.equal(decision.contract, "published_phase1");
+    assert.ok(decision.points > 0);
+  });
+
+  it("C4-reasoning-malformed-positive on Gemini stays Standard-only published_phase1", () => {
+    const fixture = buildBillingLiveOwnerReadinessFixtures().find(
+      (f) => f.id === "C4-reasoning-malformed-positive"
+    )!;
+    const decision = dispatchFromFixture(fixture);
+    assert.equal(decision.contract, "published_phase1");
+    assert.ok(decision.points > 0);
+  });
+
+  it("D2-recovery with normal input/output stays Standard-only published_phase1", () => {
+    const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "D2-recovery")!;
+    const decision = dispatchFromFixture(fixture);
+    assert.equal(decision.contract, "published_phase1");
+    assert.ok(decision.points > 0);
+  });
+
+  it("B1-cache-unreported stays Standard-only published_phase1", () => {
+    const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "B1-cache-unreported")!;
+    const decision = dispatchFromFixture(fixture);
+    assert.equal(decision.contract, "published_phase1");
+    assert.ok(decision.points > 0);
+  });
+
+  it("B4-cache-malformed-positive stays Standard-only published_phase1", () => {
+    const fixture = buildBillingLiveOwnerReadinessFixtures().find(
+      (f) => f.id === "B4-cache-malformed-positive"
+    )!;
+    const decision = dispatchFromFixture(fixture);
+    assert.equal(decision.contract, "published_phase1");
+    assert.ok(decision.points > 0);
+  });
+
+  it("B6-cache-mixed-valid-invalid stays Standard-only published_phase1", () => {
+    const fixture = buildBillingLiveOwnerReadinessFixtures().find(
+      (f) => f.id === "B6-cache-mixed-valid-invalid"
+    )!;
+    const decision = dispatchFromFixture(fixture);
+    assert.equal(decision.contract, "published_phase1");
+    assert.ok(decision.points > 0);
+  });
 });
 
 describe("chatBillingContractDispatch — Opus5 v2 golden + intentional policy delta", () => {
@@ -487,7 +534,7 @@ describe("chatBillingContractDispatch — false-exactness guards preserved", () 
     assert.equal(guards.invalidCacheCanBecomeExact, false);
     assert.equal(guards.unreportedReasoningCanBecomeConfirmedZero, false);
     assert.equal(guards.invalidReasoningCanBecomeExact, false);
-    assert.equal(guards.mixedValidInvalidStageCanBecomeExact, false);
+    assert.equal(guards.mixedValidInvalidStageCanBecomeExact, true);
   });
 });
 

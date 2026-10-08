@@ -194,7 +194,15 @@ describe("deepseekV41FlashIntegration", () => {
     assert.equal(r.status, "complete");
   });
 
-  it("N — unexpected positive cache-write fail-closed", () => {
+  it("N — unexpected positive cache-write stays Standard-only", () => {
+    const miss = charge(
+      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+      normalizeBillableUsage({
+        modelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+        promptTokens: 10_000,
+        outputTokens: 500,
+      })
+    );
     const r = charge(
       CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
       normalizeBillableUsage({
@@ -204,9 +212,10 @@ describe("deepseekV41FlashIntegration", () => {
         cacheWriteTokens: 2_000,
       })
     );
-    assert.equal(r.status, "blocked");
-    if (r.status === "blocked") {
-      assert.equal(r.reason, "unsupported_cache_semantics");
+    assert.equal(miss.status, "complete");
+    assert.equal(r.status, "complete");
+    if (miss.status === "complete" && r.status === "complete") {
+      assert.equal(r.snapshot.finalPoints, miss.snapshot.finalPoints);
     }
   });
 

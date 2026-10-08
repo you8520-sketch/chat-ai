@@ -333,40 +333,14 @@ function evaluateTierGate(
   return null;
 }
 
-function evaluateCacheGate(
-  usage: NormalizedBillableUsage,
-  policy: ModelPublishedPricingPolicy | null,
-  pricing: PublishedModelPricing
-): PublishedChargeBlockedReason | null {
-  const hasCacheUsage = usage.cacheReadTokens > 0 || usage.cacheWriteTokens > 0;
-  if (!hasCacheUsage) return null;
-
-  const cacheStatus = policy?.cacheSemanticStatus ?? "unknown";
-  if (cacheStatus === "unverified" || cacheStatus === "unknown") {
-    return "unsupported_cache_semantics";
-  }
-
-  if (usage.cacheReadTokens > 0 && pricing.billingReferenceCacheReadUsdPerMillion == null) {
-    return "unsupported_cache_semantics";
-  }
-  if (usage.cacheWriteTokens > 0 && pricing.billingReferenceCacheWriteUsdPerMillion == null) {
-    return "unsupported_cache_semantics";
-  }
-
-  return null;
-}
-
+/** User-point USD: official Standard input/output only. Cache buckets stay evidence. */
 function computeBillingReferenceCostUsd(
   usage: NormalizedBillableUsage,
   pricing: PublishedModelPricing
 ): number {
   const rates = resolvePublishedReferenceRatesForPrompt(pricing, usage.promptTokens);
-  const cacheReadRate = rates.cacheReadUsdPerMillion ?? 0;
-  const cacheWriteRate = rates.cacheWriteUsdPerMillion ?? 0;
   return (
-    (usage.standardInputTokens / 1_000_000) * rates.inputUsdPerMillion +
-    (usage.cacheReadTokens / 1_000_000) * cacheReadRate +
-    (usage.cacheWriteTokens / 1_000_000) * cacheWriteRate +
+    (usage.promptTokens / 1_000_000) * rates.inputUsdPerMillion +
     (usage.billableOutputTokens / 1_000_000) * rates.outputUsdPerMillion
   );
 }
@@ -532,16 +506,6 @@ function computePublishedUserChargeCore(
     };
   }
 
-  const cacheBlock = evaluateCacheGate(usage, policy, resolved.pricing);
-  if (cacheBlock) {
-    return {
-      status: "blocked",
-      reason: cacheBlock,
-      canonicalModelId: resolved.canonicalModelId,
-      finalPoints: null,
-    };
-  }
-
   const snapshot = buildSnapshot(
     requestedModelId,
     resolved,
@@ -627,7 +591,6 @@ function resolvePublishedStandardPreviewCharge(input: {
 
   const policy = resolvePolicyForModel(resolved.canonicalModelId, resolved.pricing);
   if (evaluateTierGate(usage, policy, resolved.pricing)) return null;
-  if (evaluateCacheGate(usage, policy, resolved.pricing)) return null;
 
   return computePublishedStandardCharge(
     usage,
