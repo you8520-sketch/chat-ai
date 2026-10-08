@@ -9,7 +9,6 @@ import type { BillingFxSnapshot } from "@/lib/billingFxSnapshot";
 import {
   installAuditLegacyFxForTest,
   clearAuditLegacyFxForTest,
-  computeLiveChargeFromFixture,
   buildBillingLiveOwnerReadinessFixtures,
 } from "@/lib/billingLiveOwnerReadinessAudit";
 import {
@@ -148,18 +147,12 @@ describe("stable published billing fail-closed — regression matrix", () => {
     assert.notEqual(decision.contract, "legacy");
   });
 
-  it("E — usage incomplete → published_fail_closed 0P", () => {
-    const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "A1-deepseek-normal")!;
-    const legacyPoints = computeLiveChargeFromFixture({
-      ...fixture,
-      deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-      requestedSelectedAI: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-    }).totalPoints;
+  it("E — estimated input/output still fail-closes", () => {
     const decision = resolveChatBillingContract({
       deliveredModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
       selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-      stages: fixture.stages,
-      legacyFinalPoints: legacyPoints,
+      stages: [{ ...NORMAL_STAGE, estimated: true }],
+      legacyFinalPoints: 50,
       billingWaiverReason: null,
       legacyWaiverMinimum: 0,
       fxSnapshot: FX,
@@ -296,7 +289,7 @@ describe("stable published billing fail-closed — regression matrix", () => {
     assert.equal(decision.points, 21);
   });
 
-  it("L — Phase1 Opus unreported cache still legacy fallback (Phase2 unchanged)", () => {
+  it("L — Phase1 Opus unreported cache stays Standard-only published_phase1", () => {
     const fixture = buildBillingLiveOwnerReadinessFixtures().find((f) => f.id === "B1-cache-unreported")!;
     assert.equal(fixture.deliveredModelId, CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL);
     const decision = resolveChatBillingContract({
@@ -310,8 +303,9 @@ describe("stable published billing fail-closed — regression matrix", () => {
       phase1PublishedBillingEnabled: true,
       phase2DeepSeekPublishedBillingEnabled: true,
     });
-    assert.equal(decision.contract, "legacy");
-    assert.equal(decision.points, 77);
+    assert.equal(decision.contract, "published_phase1");
+    assert.ok(decision.points > 0);
+    assert.notEqual(decision.points, 77);
   });
 
   it("M — settlement replay → exactly one waived settlement", () => {

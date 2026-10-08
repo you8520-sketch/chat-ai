@@ -14,6 +14,7 @@ import {
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
 } from "@/lib/chatModels";
 import { canonicalizePublishedModelId } from "@/lib/publishedModelAliases";
+import { resolvePublishedPricingExact } from "@/lib/publishedModelPricing";
 
 export type PricingApplicability = "base_tier_only" | "tier_aware";
 
@@ -151,11 +152,14 @@ export function isPublishedCacheWriteAbsentProvenZero(modelId: string): boolean 
 
 
 /**
- * Policy-map flag only. User charge is Standard-only for all published models;
- * this does not claim provider cache usage was zero.
+ * User charge is Standard-only for every exact published catalog model.
+ * Cache read/write stay provider evidence and must not fail-close user P.
  */
 export function isPublishedCacheBreakdownPriceNeutral(modelId: string): boolean {
   const canonical = canonicalizePublishedModelId(modelId);
+  if (resolvePublishedPricingExact(canonical) || resolvePublishedPricingExact(modelId)) {
+    return true;
+  }
   const policy = getModelPublishedPricingPolicy(canonical);
   return policy?.cacheBillingPartitionSemantics === "price_neutral";
 }

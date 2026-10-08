@@ -221,6 +221,20 @@ export function previewShadowBillingFxSnapshot(
   };
 }
 
+/**
+ * Same daily FX owner for picker/admission/settlement.
+ * GET/SSR/prefetch must pass lockDailyFx=false (peek/preview, no INSERT).
+ * Allowed non-GET writers pass lockDailyFx=true (INSERT OR IGNORE).
+ */
+export function resolvePublishedEstimateFx(opts: {
+  lockDailyFx: boolean;
+  now?: number;
+}): ShadowBillingExchangeRateSnapshot {
+  return opts.lockDailyFx
+    ? resolveShadowBillingExchangeRateSnapshot(opts.now)
+    : previewShadowBillingFxSnapshot(opts.now);
+}
+
 /** Sync shadow billing lock — persisted INSERT OR IGNORE, never same-day UPDATE. */
 export function resolveShadowBillingExchangeRateSnapshot(
   now = resolveNow()

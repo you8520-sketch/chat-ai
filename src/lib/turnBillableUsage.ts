@@ -27,6 +27,7 @@ import {
   type UsageFieldReportingStatus,
 } from "@/lib/usageReportingEvidence";
 import {
+  getModelPublishedPricingPolicy,
   isPublishedCacheBreakdownPriceNeutral,
   isPublishedCacheWriteAbsentProvenZero,
 } from "@/lib/modelPublishedPricingPolicy";
@@ -200,20 +201,29 @@ function fieldSourceFromReportingStatus(
 function resolveUsageCoverage(
   fieldSources: TurnBillableUsageFieldSources,
   coverageReasons: string[],
-  usage: NormalizedBillableUsage
+  usage: NormalizedBillableUsage,
+  cacheBreakdownPriceNeutral: boolean
 ): UserBillableUsageCoverage {
   const required = [fieldSources.prompt, fieldSources.completion];
   if (required.some((s) => s === "MISSING_AND_UNKNOWN")) return "unknown";
 
-  const all = Object.values(fieldSources);
-  if (all.some((s) => s === "SANITIZED_MALFORMED")) return "partial";
-  if (all.some((s) => s === "ESTIMATED" || s === "FALLBACK_VALUE")) return "partial";
-  if ([fieldSources.cacheRead, fieldSources.cacheWrite].some((s) => s === "MISSING_AND_UNKNOWN")) {
+  const coverageSources = cacheBreakdownPriceNeutral
+    ? [fieldSources.prompt, fieldSources.completion, fieldSources.reasoning]
+    : Object.values(fieldSources);
+  if (coverageSources.some((s) => s === "SANITIZED_MALFORMED")) return "partial";
+  if (coverageSources.some((s) => s === "ESTIMATED" || s === "FALLBACK_VALUE")) return "partial";
+  if (
+    !cacheBreakdownPriceNeutral &&
+    [fieldSources.cacheRead, fieldSources.cacheWrite].some((s) => s === "MISSING_AND_UNKNOWN")
+  ) {
     return "partial";
   }
   if (usage.reasoningAccounting === "unknown") return "unknown";
   if (!validateNormalizedBillableUsage(usage)) return "unknown";
-  if (coverageReasons.length > 0) return "partial";
+  const userChargeReasons = cacheBreakdownPriceNeutral
+    ? coverageReasons.filter((reason) => !reason.startsWith("cache_"))
+    : coverageReasons;
+  if (userChargeReasons.length > 0) return "partial";
   return "complete";
 }
 
@@ -302,6 +312,9 @@ export function resolveTurnBillableUsage(
   const rawCacheWrite = primaryStage.cacheWriteTokens ?? 0;
   const cacheBreakdownPriceNeutral =
     !primaryStage.estimated && isPublishedCacheBreakdownPriceNeutral(input.modelId);
+  const explicitCachePartitionNeutral =
+    getModelPublishedPricingPolicy(input.modelId)?.cacheBillingPartitionSemantics ===
+    "price_neutral";
   const cacheReadSource =
     cacheReadStatus === "unreported" && cacheBreakdownPriceNeutral
       ? "MISSING_BUT_PRICE_NEUTRAL"
@@ -334,25 +347,21 @@ export function resolveTurnBillableUsage(
     ? Math.max(0, Math.floor(Number(rawCacheWrite) || 0))
     : 0;
 
-  /**
-   * Published price-neutral cache models (currently Opus 5.5) charge the same USER P
-   * regardless of prompt cache partition. Provider cache-creation counters can be based
-   * on a broader/tokenizer-specific prefix than the route's prompt-audit billing cap, so
-   * using those raw partition counters in NormalizedBillableUsage can create an impossible
-   * cache>prompt state and incorrectly fail closed to 0P.
-   *
-   * Keep the raw provider cache evidence on StageUsage/receipt diagnostics, but normalize
-   * USER billing usage as an unpartitioned prompt when cache partition is price-neutral.
-   */
-  const cacheReadTokens = cacheBreakdownPriceNeutral ? 0 : reportedCacheReadTokens;
-  const cacheWriteTokens = cacheBreakdownPriceNeutral ? 0 : reportedCacheWriteTokens;
-
-  if (
-    !cacheBreakdownPriceNeutral &&
-    reportedCacheReadTokens + reportedCacheWriteTokens > routeTotalInput
-  ) {
+  const cacheExceedsCappedPrompt =
+    reportedCacheReadTokens + reportedCacheWriteTokens > routeTotalInput;
+  if (cacheExceedsCappedPrompt) {
     coverageReasons.push("cache_exceeds_capped_prompt");
   }
+
+  /**
+   * User charge is Standard-only for published models, but NormalizedBillableUsage
+   * still carries provider cache evidence for LEVEL-1 parity and cost telemetry.
+   * Zero buckets only when the explicit Opus 5.5 partition flag applies, or when
+   * cache>prompt would otherwise fail validation and block user P.
+   */
+  const zeroUserCacheBuckets = explicitCachePartitionNeutral || cacheExceedsCappedPrompt;
+  const cacheReadTokens = zeroUserCacheBuckets ? 0 : reportedCacheReadTokens;
+  const cacheWriteTokens = zeroUserCacheBuckets ? 0 : reportedCacheWriteTokens;
 
   const summedApiOutput = sumOpenRouterStageOutputTokens(input.stages);
   const summedApiReasoning = sumOpenRouterStageReasoningTokens(input.stages);
@@ -415,10 +424,7 @@ export function resolveTurnBillableUsage(
     reasoningTokens: summedApiReasoning,
   });
 
-  if (
-    !cacheBreakdownPriceNeutral &&
-    reportedCacheReadTokens + reportedCacheWriteTokens > routeTotalInput
-  ) {
+  if (!cacheBreakdownPriceNeutral && cacheExceedsCappedPrompt) {
     return {
       status: "unavailable",
       usage: null,
@@ -438,7 +444,12 @@ export function resolveTurnBillableUsage(
     };
   }
 
-  const usageCoverage = resolveUsageCoverage(diagnostics.fieldSources, coverageReasons, usage);
+  const usageCoverage = resolveUsageCoverage(
+    diagnostics.fieldSources,
+    coverageReasons,
+    usage,
+    cacheBreakdownPriceNeutral
+  );
 
   return {
     status: "resolved",

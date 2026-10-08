@@ -14,7 +14,7 @@ import { visibleAssistantDisplayCharCount } from "@/lib/chatDisplayLength";
 import type { SelectedAI } from "@/lib/chatModels";
 import type { Usage } from "@/lib/chatUsage";
 import { getDb } from "@/lib/db";
-import { resolveShadowBillingExchangeRateSnapshot } from "@/lib/shadowBillingExchangeRate";
+import { resolvePublishedEstimateFx } from "@/lib/shadowBillingExchangeRate";
 import { billableOpenRouterOutputTokens } from "@/lib/points";
 import {
   computeMainRpNextTurnEstimates,
@@ -292,7 +292,8 @@ function estimatesFromRoomRows(
   providerInputCalibrationByModel: Partial<
     Record<SelectedAI, NextTurnProviderInputCalibrationSample>
   >,
-  historyDeltaByModel?: Partial<Record<SelectedAI, NextTurnHistoryDelta | null>>
+  historyDeltaByModel: Partial<Record<SelectedAI, NextTurnHistoryDelta | null>> | undefined,
+  lockDailyFx: boolean
 ): NextTurnEstimateMap {
   return computeMainRpNextTurnEstimates({
     promptTokensByModel,
@@ -301,7 +302,7 @@ function estimatesFromRoomRows(
     recentBillableOutputTokensByModel: readMainRpNextTurnOutputHistory(rows),
     providerInputCalibrationByModel,
     historyDeltaByModel,
-    effectiveKrwPerUsd: resolveShadowBillingExchangeRateSnapshot().effectiveKrwPerUsd,
+    effectiveKrwPerUsd: resolvePublishedEstimateFx({ lockDailyFx }).effectiveKrwPerUsd,
   });
 }
 
@@ -374,7 +375,8 @@ export function resolveMainRpNextTurnPublishedEstimateForModel(opts: {
       currentUserMessage: opts.currentUserMessage,
       nextPromptAuditSections: opts.nextPromptAuditSections,
       nextRawHistoryHealth: opts.nextRawHistoryHealth,
-    })
+    }),
+    true
   );
   const points = estimates[opts.modelId]?.displayPoints;
   return typeof points === "number" && Number.isSafeInteger(points) && points > 0
@@ -396,6 +398,8 @@ export type MainRpNextTurnEstimateResult = {
 export async function resolveMainRpNextTurnPickerEstimates(opts: {
   chatId: number;
   user: User;
+  /** GET/SSR/prefetch must stay false. POST picker/admission may lock. */
+  lockDailyFx?: boolean;
 }): Promise<MainRpNextTurnEstimateResult | null> {
   const db = getDb();
   const owned = db
@@ -438,7 +442,8 @@ export async function resolveMainRpNextTurnPickerEstimates(opts: {
     historyDeltaByModelFromRows(rows, providerInputCalibrationByModel, {
       currentUserEstimatedTokens: 0,
       evidenceByModel: snapshot.evidenceByModel,
-    })
+    }),
+    opts.lockDailyFx === true
   );
   return {
     chatId: opts.chatId,

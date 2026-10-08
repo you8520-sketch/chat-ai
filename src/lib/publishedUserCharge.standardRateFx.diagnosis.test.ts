@@ -181,7 +181,7 @@ describe("Sol 174P vs 162P standard-rate / FX diagnosis", () => {
     );
     assert.match(estimateSource, /cacheReadTokens: 0/);
     assert.match(estimateSource, /cacheWriteTokens: 0/);
-    assert.match(serviceSource, /resolveShadowBillingExchangeRateSnapshot/);
+    assert.match(serviceSource, /resolvePublishedEstimateFx/);
     assert.doesNotMatch(serviceSource, /getEffectiveKrwPerUsd/);
     assert.match(routeSource, /resolveShadowBillingExchangeRateSnapshot/);
     assert.match(routeSource, /publishedBillingFx/);
