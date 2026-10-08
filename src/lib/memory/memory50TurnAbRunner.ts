@@ -22,6 +22,7 @@ import {
 } from "@/lib/rpQualityPaidRunner";
 import { paidRunnerArtifactFingerprint } from "@/lib/rpQualityPaidRunnerArtifacts";
 import { estimateTokens, estimateTokensFromCharCount } from "@/lib/tokenEstimate";
+import { assertIsolatedTestDatabaseActive } from "@/lib/test/isolatedTestDatabase";
 import { buildContext } from "@/services/contextBuilder";
 import {
   AB_ANSWER_KEY,
@@ -257,6 +258,7 @@ export function extractiveFakeHarborSummary(userContent: string): string {
 }
 
 export function cleanupHarborExperimentChat(): void {
+  assertIsolatedTestDatabaseActive();
   const db = getDb();
   db.prepare("DELETE FROM episodic_memory_facts WHERE chat_id=?").run(AB_CHAT_ID);
   db.prepare("DELETE FROM chat_turn_summaries WHERE chat_id=?").run(AB_CHAT_ID);
@@ -268,6 +270,7 @@ export function cleanupHarborExperimentChat(): void {
 }
 
 export function seedHarborExperimentChat(): { firstAssistantId: number } {
+  assertIsolatedTestDatabaseActive();
   cleanupHarborExperimentChat();
   const db = getDb();
   db.prepare(`INSERT INTO users (id, email, nickname, pw_hash) VALUES (?,?,?,?)`).run(
@@ -402,6 +405,7 @@ export async function runHarborAbDryRun(opts?: {
   summarizer?: HarborAbSummarizer | "empty";
   refreshTurn1?: boolean;
 }): Promise<HarborAbRunResult> {
+  assertIsolatedTestDatabaseActive();
   const gate = evaluateHarborAbGate({
     mode: "DRY_RUN_ONLY",
     runnerRetry: 0,

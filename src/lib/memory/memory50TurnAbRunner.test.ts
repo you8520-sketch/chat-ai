@@ -11,12 +11,15 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { AI_LEARNING_LIMIT } from "@/lib/characterFormLimits";
 import { MAIN_RP_USER_SELECTABLE_OPTIONS } from "@/lib/chatModels";
 import { RP_QUALITY_PAID_PRODUCTION_KEY_ENVS } from "@/lib/rpQualityPaidRunner";
 import {
+  ISOLATED_TEST_DB_REQUIRED,
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
@@ -45,18 +48,85 @@ import {
   evaluateHarborAbGate,
   harborCharacterChunks,
   runHarborAbDryRun,
+  seedHarborExperimentChat,
 } from "./memory50TurnAbRunner";
 import { ARCHIVE_CAPACITY_FIXED, MEMORY_CAPACITY_FIXED } from "./memory-capacity-shared";
 import { __setSummarizeTurnBatchCallerForTests } from "./memory-rolling-summary";
 
-before(() => installIsolatedTestDatabase());
-after(() => {
-  __setSummarizeTurnBatchCallerForTests(null);
-  cleanupHarborExperimentChat();
-  uninstallIsolatedTestDatabase();
+function assertIsolationRefused(fn: () => unknown): void {
+  assert.throws(fn, (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.match(error.message, new RegExp(ISOLATED_TEST_DB_REQUIRED));
+    return true;
+  });
+}
+
+describe("50-turn memory A/B runner refuses unisolated DB writes", () => {
+  it("rejects cleanup, seed, and dry-run before any DB change", async () => {
+    const previousDataDir = process.env.DATA_DIR;
+    const previousNodeEnv = process.env.NODE_ENV;
+    const witness = mkdtempSync(path.join(tmpdir(), "harbor-unisolated-witness-"));
+    process.env.DATA_DIR = witness;
+    process.env.NODE_ENV = "test";
+    try {
+      assertIsolationRefused(() => cleanupHarborExperimentChat());
+      assertIsolationRefused(() => seedHarborExperimentChat());
+      await assert.rejects(
+        () => runHarborAbDryRun({ refreshTurn1: false }),
+        (error: unknown) => {
+          assert.ok(error instanceof Error);
+          assert.match(error.message, new RegExp(ISOLATED_TEST_DB_REQUIRED));
+          return true;
+        }
+      );
+      assert.equal(existsSync(path.join(witness, "app.db")), false);
+      assert.deepEqual(readdirSync(witness), []);
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+      if (previousDataDir === undefined) delete process.env.DATA_DIR;
+      else process.env.DATA_DIR = previousDataDir;
+      rmSync(witness, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects remote Turso config even if a caller would treat NODE_ENV as enough", () => {
+    const previousUrl = process.env.TURSO_DATABASE_URL;
+    const previousToken = process.env.TURSO_AUTH_TOKEN;
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.TURSO_DATABASE_URL = "libsql://example.invalid";
+    process.env.TURSO_AUTH_TOKEN = "not-a-production-token";
+    process.env.NODE_ENV = "test";
+    try {
+      assertIsolationRefused(() => cleanupHarborExperimentChat());
+      assertIsolationRefused(() => seedHarborExperimentChat());
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+      if (previousUrl === undefined) delete process.env.TURSO_DATABASE_URL;
+      else process.env.TURSO_DATABASE_URL = previousUrl;
+      if (previousToken === undefined) delete process.env.TURSO_AUTH_TOKEN;
+      else process.env.TURSO_AUTH_TOKEN = previousToken;
+    }
+  });
 });
 
 describe("50-turn memory A/B runner preflight (provider-free)", () => {
+  before(() => installIsolatedTestDatabase());
+  after(() => {
+    __setSummarizeTurnBatchCallerForTests(null);
+    cleanupHarborExperimentChat();
+    uninstallIsolatedTestDatabase();
+  });
+
+  it("rejects cleanup when DATA_DIR is swapped after isolated install", () => {
+    const previous = process.env.DATA_DIR;
+    process.env.DATA_DIR = path.join(tmpdir(), "harbor-spoofed-data-dir");
+    try {
+      assertIsolationRefused(() => cleanupHarborExperimentChat());
+    } finally {
+      process.env.DATA_DIR = previous;
+    }
+  });
+
   it("locks the #1467 empty-A assembly as not an operational A/B", () => {
     const limit = describePrepAssemblyLimit();
     assert.equal(limit.longTermMemory, null);

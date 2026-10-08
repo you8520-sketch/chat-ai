@@ -25,6 +25,7 @@ on:
       - "src/lib/memory/memory50TurnAbAnswerKey.ts"
       - "src/lib/memory/memory50TurnAbRunner.ts"
       - "src/lib/memory/memory50TurnAbRunner.test.ts"
+      - "src/lib/test/isolatedTestDatabase.ts"
       - "src/lib/memory/memory-global-current-memory.test.ts"
       - "src/lib/memory/memory-global-compact-race.test.ts"
       - "src/lib/memory/memory-global-checkpoint.ts"
