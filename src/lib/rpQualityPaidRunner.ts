@@ -1,13 +1,15 @@
 /**
  * Paid 12-call Main RP quality runner owner. Prepare/dry-run is the default.
  * This file never opens sockets, never reads production provider keys, and
- * never fills rubric scores. Live POST is a separate operator entrypoint and
- * is not shipped in this PR.
+ * never fills rubric scores. Isolated live transport lives in a separate
+ * module and a separate operator process; this PR does not grant cost approval.
  */
 import { createHash } from "node:crypto";
 import {
+  chmodSync,
   closeSync,
   existsSync,
+  fsyncSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -50,6 +52,15 @@ import {
 } from "@/lib/rpQualityEvaluationPacket";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import { DEFAULT_USER_AUTHORING_LEVEL } from "@/lib/userAuthoringPolicy";
+import {
+  createMemoryPaidRunnerArtifactStore,
+  paidRunnerArtifactFingerprint,
+  type PaidRunnerArtifactStore,
+} from "@/lib/rpQualityPaidRunnerArtifacts";
+import {
+  reconcilePaidRunnerSettlement,
+  type PaidRunnerReconcileKeys,
+} from "@/lib/rpQualityPaidRunnerReconciliation";
 
 export const RP_QUALITY_PAID_RUNNER_VERSION = 1;
 export const RP_QUALITY_PAID_RUNNER_DEFAULT_MODE = "PREPARE" as const;
@@ -86,7 +97,12 @@ export type PaidRunnerDenialReason =
   | "JOURNAL_FINGERPRINT_MISMATCH"
   | "JOURNAL_STORE_UNAVAILABLE"
   | "CONCURRENT_LAUNCH"
-  | "SEAL_VALIDATION_FAILED";
+  | "SEAL_VALIDATION_FAILED"
+  | "ARTIFACT_STORE_UNAVAILABLE"
+  | "RECONCILIATION_FAILED"
+  | "LIVE_EXECUTE_NOT_APPROVED"
+  | "CORRUPT_JOURNAL"
+  | "MISSING_INFERENCE_KEY";
 
 export type PaidRunnerIdentityHashes = {
   greetingSha256: string;
@@ -175,6 +191,8 @@ export type PaidRunnerJournalEntry = {
   visibleChars: number | null;
   elapsedMs: number | null;
   blockReason: PaidRunnerDenialReason | null;
+  artifactFingerprint?: string | null;
+  generationId?: string | null;
 };
 
 export type PaidRunnerJournal = {
@@ -221,6 +239,11 @@ export type PaidRunnerTransportSuccess = {
   requestId: string;
   headers: Record<string, string>;
   body: unknown;
+  generationId?: string | null;
+  cheaperInference?: unknown;
+  doneObserved?: boolean;
+  streamCompleted?: boolean;
+  contentType?: string;
 };
 
 export type PaidRunnerTransportFailure = {
@@ -230,12 +253,14 @@ export type PaidRunnerTransportFailure = {
   text: string;
   headers: Record<string, string>;
   body: unknown;
+  contentType?: string;
 };
 
 export type PaidRunnerTransportResult = PaidRunnerTransportSuccess | PaidRunnerTransportFailure;
 
 export type PaidRunnerTransport = {
   kind: PaidRunnerTransportKind;
+  realNetwork?: boolean;
   post(input: {
     endpoint: string;
     body: Record<string, unknown>;
@@ -627,33 +652,86 @@ export function createMemoryPaidRunnerJournalStore(
   };
 }
 
+export function probePaidRunnerJournalDirectory(directory: string): {
+  privateMode: boolean;
+  dirFsyncSupported: boolean;
+} {
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  try {
+    chmodSync(directory, 0o700);
+  } catch {
+    /* ignore */
+  }
+  let dirFsyncSupported = false;
+  try {
+    const dirFd = openSync(directory, "r");
+    try {
+      fsyncSync(dirFd);
+      dirFsyncSupported = true;
+    } finally {
+      closeSync(dirFd);
+    }
+  } catch {
+    dirFsyncSupported = false;
+  }
+  return { privateMode: true, dirFsyncSupported };
+}
+
 export function createFilePaidRunnerJournalStore(directory: string): PaidRunnerJournalStore {
+  probePaidRunnerJournalDirectory(directory);
   return {
     kind: "file",
     load(manifestFingerprint) {
       const file = fileJournalPath(directory, manifestFingerprint);
       if (!existsSync(file)) return null;
-      const parsed = JSON.parse(readFileSync(file, "utf8")) as PaidRunnerJournal;
-      if (parsed.manifestFingerprint !== manifestFingerprint) {
-        throw new Error("JOURNAL_FINGERPRINT_MISMATCH");
+      let parsed: PaidRunnerJournal;
+      try {
+        parsed = JSON.parse(readFileSync(file, "utf8")) as PaidRunnerJournal;
+      } catch {
+        throw new Error("CORRUPT_JOURNAL");
+      }
+      if (!parsed || parsed.manifestFingerprint !== manifestFingerprint || !Array.isArray(parsed.entries)) {
+        throw new Error(parsed?.manifestFingerprint !== manifestFingerprint ? "JOURNAL_FINGERPRINT_MISMATCH" : "CORRUPT_JOURNAL");
       }
       return clonePaidRunnerJournal(parsed);
     },
     persist(journal) {
-      mkdirSync(directory, { recursive: true });
+      probePaidRunnerJournalDirectory(directory);
       journalJsonIsPublicSafe(journal);
       const dest = fileJournalPath(directory, journal.manifestFingerprint);
       const tmp = `${dest}.${process.pid}.${Date.now()}.tmp`;
-      writeFileSync(
-        tmp,
-        `${JSON.stringify({
-          manifestFingerprint: journal.manifestFingerprint,
-          entries: journal.entries,
-          executedManifestFingerprints: journal.executedManifestFingerprints,
-        })}\n`,
-        "utf8"
-      );
+      const fd = openSync(tmp, "w", 0o600);
+      try {
+        writeFileSync(
+          fd,
+          `${JSON.stringify({
+            manifestFingerprint: journal.manifestFingerprint,
+            entries: journal.entries,
+            executedManifestFingerprints: journal.executedManifestFingerprints,
+          })}\n`,
+          "utf8"
+        );
+        fsyncSync(fd);
+      } finally {
+        closeSync(fd);
+      }
+      try {
+        chmodSync(tmp, 0o600);
+      } catch {
+        /* ignore */
+      }
       renameSync(tmp, dest);
+      try {
+        chmodSync(dest, 0o600);
+      } catch {
+        /* ignore */
+      }
+      const dirFd = openSync(directory, "r");
+      try {
+        fsyncSync(dirFd);
+      } finally {
+        closeSync(dirFd);
+      }
     },
     tryAcquireExclusiveLock(manifestFingerprint) {
       try {
@@ -723,6 +801,8 @@ function emptyUsageFields(): Pick<
   | "billedUsd"
   | "visibleChars"
   | "elapsedMs"
+  | "artifactFingerprint"
+  | "generationId"
 > {
   return {
     providerRequestId: null,
@@ -736,6 +816,8 @@ function emptyUsageFields(): Pick<
     billedUsd: null,
     visibleChars: null,
     elapsedMs: null,
+    artifactFingerprint: null,
+    generationId: null,
   };
 }
 
@@ -955,7 +1037,10 @@ function settleFromTransport(
       headers: headerBag,
       body: result.body,
     });
-  const billedUsd = result.usage.billedUsd ?? usage.cheaperInferenceBilledCostUsd ?? usage.upstreamCostUsd ?? null;
+  const billedUsd =
+    transportKind === "live"
+      ? null
+      : result.usage.billedUsd ?? usage.cheaperInferenceBilledCostUsd ?? usage.upstreamCostUsd ?? null;
   let settlementSource: PaidRunnerUsageEvidence["settlementSource"];
   if (!requestId) {
     settlementSource = "missing";
@@ -1003,7 +1088,9 @@ function journalStatusForTransport(
     return "FAILED";
   }
   if (result.httpStatus < 200 || result.httpStatus >= 300) return "FAILED";
-  if (usage.finishReason === "wrong_provider_model") return "FAILED";
+  if (usage.finishReason === "wrong_provider_model" || usage.finishReason === "empty_content") {
+    return "FAILED";
+  }
   if (usage.settlementSource === "mock_exact" || usage.settlementSource === "provider_exact") {
     return "SETTLED";
   }
@@ -1111,6 +1198,11 @@ export async function runPaidRunner(input: {
   transport: PaidRunnerTransport;
   journal?: PaidRunnerJournal;
   journalStore?: PaidRunnerJournalStore;
+  artifactStore?: PaidRunnerArtifactStore;
+  reconcile?: {
+    fetchImpl: typeof fetch;
+    keys: PaidRunnerReconcileKeys;
+  };
 }): Promise<PaidRunnerRunResult> {
   const publicResults: PaidRunnerPublicResult[] = [];
   const privateResults: PaidRunnerPrivateResult[] = [];
@@ -1133,10 +1225,10 @@ export async function runPaidRunner(input: {
   if (!gate.authorized) {
     return closed({ authorized: false, denialReason: gate.reason, journal: emptyJournal });
   }
-  if (input.transport.kind === "live") {
+  if (input.transport.kind === "live" && !input.reconcile) {
     return closed({
-      authorized: true,
-      denialReason: "LIVE_TRANSPORT_NOT_SHIPPED",
+      authorized: false,
+      denialReason: "MISSING_INFERENCE_KEY",
       journal: emptyJournal,
     });
   }
@@ -1168,11 +1260,15 @@ export async function runPaidRunner(input: {
       loaded = store.load(canonicalFingerprint);
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
+      const denial: PaidRunnerDenialReason =
+        message === "JOURNAL_FINGERPRINT_MISMATCH"
+          ? "JOURNAL_FINGERPRINT_MISMATCH"
+          : message === "CORRUPT_JOURNAL"
+            ? "CORRUPT_JOURNAL"
+            : "JOURNAL_STORE_UNAVAILABLE";
       return closed({
         authorized: false,
-        denialReason: message === "JOURNAL_FINGERPRINT_MISMATCH"
-          ? "JOURNAL_FINGERPRINT_MISMATCH"
-          : "JOURNAL_STORE_UNAVAILABLE",
+        denialReason: denial,
         journal,
       });
     }
@@ -1263,7 +1359,25 @@ export async function runPaidRunner(input: {
       }
       transportPosts += 1;
       const elapsedMs = Date.now() - started;
-      const usage = settleFromTransport(sealed, result, elapsedMs, input.transport.kind);
+      let usage = settleFromTransport(sealed, result, elapsedMs, input.transport.kind);
+      if (
+        input.transport.kind === "live" &&
+        input.reconcile &&
+        result.ok &&
+        usage.finishReason !== "wrong_provider_model" &&
+        usage.finishReason !== "http"
+      ) {
+        usage = await reconcilePaidRunnerSettlement({
+          call: sealed,
+          result,
+          elapsedMs,
+          fetchImpl: input.reconcile.fetchImpl,
+          keys: input.reconcile.keys,
+        });
+      }
+      if (result.ok && !result.text.trim()) {
+        usage = { ...usage, finishReason: "empty_content", settlementSource: "unsettled" };
+      }
       const status = journalStatusForTransport(result, usage);
       if (status !== "SETTLED") {
         writeJournalEntry(journal, sealed, {
@@ -1274,13 +1388,45 @@ export async function runPaidRunner(input: {
           httpResult: usage.httpResult,
           finishReason: usage.finishReason,
           elapsedMs,
+          generationId: result.ok ? result.generationId ?? null : null,
         });
         persist();
         return closed({
           authorized: true,
-          denialReason: denialForUnresolvedUsage(usage),
+          denialReason: result.ok && input.transport.kind === "live" && usage.settlementSource !== "provider_exact"
+            ? usage.settlementSource === "missing"
+              ? "COST_EVIDENCE_MISSING"
+              : "RECONCILIATION_FAILED"
+            : denialForUnresolvedUsage(usage),
           journal,
           transportPosts,
+          providerPosts: input.transport.realNetwork ? transportPosts : 0,
+        });
+      }
+      const artifacts = input.artifactStore ?? createMemoryPaidRunnerArtifactStore();
+      const fingerprint = paidRunnerArtifactFingerprint(result.ok ? result.text : "");
+      try {
+        artifacts.persist({
+          requestOrder: sealed.requestOrder,
+          fingerprint,
+          text: result.ok ? result.text : "",
+        });
+      } catch {
+        writeJournalEntry(journal, sealed, {
+          status: "UNKNOWN_UNRESOLVED",
+          settlementSource: usage.settlementSource,
+          providerRequestId: usage.providerRequestId,
+          billedUsd: usage.billedUsd,
+          finishReason: "artifact_persist_failed",
+          elapsedMs,
+        });
+        persist();
+        return closed({
+          authorized: true,
+          denialReason: "ARTIFACT_STORE_UNAVAILABLE",
+          journal,
+          transportPosts,
+          providerPosts: input.transport.realNetwork ? transportPosts : 0,
         });
       }
       writeJournalEntry(journal, sealed, {
@@ -1297,6 +1443,8 @@ export async function runPaidRunner(input: {
         billedUsd: usage.billedUsd,
         visibleChars: usage.visibleChars,
         elapsedMs,
+        artifactFingerprint: fingerprint,
+        generationId: result.ok ? result.generationId ?? null : null,
       });
       const persistSettled = persist();
       if (persistSettled) {
@@ -1305,6 +1453,7 @@ export async function runPaidRunner(input: {
           denialReason: persistSettled,
           journal,
           transportPosts,
+          providerPosts: input.transport.realNetwork ? transportPosts : 0,
         });
       }
       const packet = buildQualityOutputPacket({
@@ -1345,6 +1494,7 @@ export async function runPaidRunner(input: {
       denialReason: null,
       journal,
       transportPosts,
+      providerPosts: input.transport.realNetwork ? transportPosts : 0,
       publicResults,
       privateResults,
       publicMetadataSafe: !publicMetadataContainsSecret({
