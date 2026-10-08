@@ -1,18 +1,19 @@
 /**
  * Operator PRECALL runner: production final-wire plans + cost planning.
  *
- * Usage (stdout of the Railway extractor is piped straight in; it carries raw
- * rows and must never be redirected to a file):
- *   railway ssh ... node /tmp/x.js | node --conditions=react-server --import tsx \
- *     scripts/rp-quality-precall-final-wire.ts --expected-deploy-sha <railway sha> \
- *     [--supplied-proof <hash-only json> --supplied-expected-sha <sha>]
+ * Runs INSIDE the approved Railway production container (see
+ * `scripts/railway-precall-final-wire.sh`). Raw production rows are read
+ * read-only into memory, assembled in-process, and only metadata leaves the
+ * process: hashes, lengths, token estimates, model/fixture metadata, cost
+ * scenarios and parity results. Raw rows never reach stdout, SSH, a pipe or a file.
  *
- * Provider POST = 0 (fetch is trapped), DB write = 0 (DATA_DIR is an empty temp
- * dir that must stay empty), prose scores = null. Output is size/hash metadata.
+ * Provider egress is blocked fail-closed by the egress guard, which must stay
+ * the first import. DB write = 0 (DATA_DIR is an empty temp dir that must stay
+ * empty), prose scores = null.
  */
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import "./lib/rpQualityPrecallEgressGuard";
+
+import { readdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 
 import {
@@ -21,28 +22,19 @@ import {
   computeRpQualityPrecallCostPlanning,
   stringContainsSecretShape,
   validateLiveProof,
-  type RpQualityPrecallFxSnapshotRow,
   type RpQualityPrecallLiveProofInput,
 } from "../src/lib/rpQualityPrecall";
+import {
+  precallEgressAttempts,
+  precallOriginalDataDir,
+  precallTempDataDir,
+} from "./lib/rpQualityPrecallEgressGuard";
 import {
   PrecallAssemblyStop,
   assemblePrecallFinalWire,
   type PrecallAssemblyRows,
 } from "./lib/rpQualityPrecallFinalWire";
-
-type ExtractorOk = {
-  ok: true;
-  proof: RpQualityPrecallLiveProofInput;
-  rows: PrecallAssemblyRows & {
-    fx: RpQualityPrecallFxSnapshotRow;
-    flags: Record<string, string>;
-  };
-  flagNamePattern: string;
-  providerPosts: 0;
-  dbReadOnly: true;
-  queryOnly: true;
-  singleReadTransaction: true;
-};
+import { PrecallRowsStop, loadPrecallProductionRows } from "./lib/rpQualityPrecallProductionRows";
 
 const PROOF_HASH_FIELDS = [
   "greetingSha256",
@@ -63,32 +55,9 @@ const REQUIRED_PROOF_STRING_FIELDS = [
   ...PROOF_HASH_FIELDS,
 ] as const;
 
-const PROVIDER_CREDENTIAL_ENV = [
-  "CHEAPER_INFERENCE_API_KEY",
-  "CHEAPER_INFERENCE_BENCHMARK_API_KEY",
-  "OPENROUTER_API_KEY",
-  "OPENAI_API_KEY",
-  "GEMINI_API_KEY",
-  "GOOGLE_API_KEY",
-  "FLUENCE_API_KEY",
-  "TURSO_DATABASE_URL",
-  "TURSO_AUTH_TOKEN",
-  "TURSO_DATABASE_TURSO_AUTH_TOKEN",
-] as const;
-
 function argValue(name: string): string | undefined {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : undefined;
-}
-
-function readStdin(): string {
-  const text = readFileSync(0, "utf8");
-  if (!text.trim()) fail("EXTRACTOR_OUTPUT_EMPTY");
-  return text;
-}
-
-function git(args: string[]): string {
-  return execFileSync("git", args, { encoding: "utf8" }).trim();
 }
 
 /** Typed hash-only subset. Anything else in the supplied file is ignored. */
@@ -127,15 +96,6 @@ function hashFieldsEqual(
   return Object.fromEntries(
     PROOF_HASH_FIELDS.map((field) => [field, a[field] === b[field]])
   ) as Record<(typeof PROOF_HASH_FIELDS)[number], boolean>;
-}
-
-function applyProductionFlags(flags: Record<string, string>, namePattern: string): string[] {
-  const pattern = new RegExp(namePattern);
-  for (const name of Object.keys(process.env)) {
-    if (pattern.test(name)) delete process.env[name];
-  }
-  for (const [name, value] of Object.entries(flags)) process.env[name] = value;
-  return Object.keys(flags).sort();
 }
 
 function describeFlags(flags: Record<string, string>): Record<string, string> {
@@ -180,29 +140,32 @@ function findRawSourceLeak(output: string, rawTexts: readonly string[]): boolean
 }
 
 function fail(code: string, extra: Record<string, unknown> = {}): never {
-  process.stdout.write(`${JSON.stringify({ ok: false, code, providerPosts: 0, ...extra }, null, 2)}\n`);
+  process.stdout.write(
+    `${JSON.stringify({ ok: false, code, providerPosts: 0, egressAttemptsBlocked: precallEgressAttempts().length, ...extra }, null, 2)}\n`
+  );
   process.exit(2);
 }
 
 function main(): void {
-  let providerPosts = 0;
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = ((...args: Parameters<typeof fetch>) => {
-    providerPosts += 1;
-    return realFetch(...args);
-  }) as typeof fetch;
-  for (const name of PROVIDER_CREDENTIAL_ENV) delete process.env[name];
-  const dataDir = mkdtempSync(path.join(tmpdir(), "precall-empty-data-"));
-  process.env.DATA_DIR = dataDir;
-
   const expectedDeploySha = argValue("--expected-deploy-sha")?.trim().toLowerCase() ?? "";
   if (!/^[a-f0-9]{40}$/.test(expectedDeploySha)) fail("EXPECTED_DEPLOY_SHA_REQUIRED");
-  const prHead = git(["rev-parse", "HEAD"]).toLowerCase();
+  const prHead = argValue("--pr-head")?.trim().toLowerCase() ?? "";
+  if (!/^[a-f0-9]{40}$/.test(prHead)) fail("PR_HEAD_REQUIRED");
   if (expectedDeploySha === prHead) fail("EXPECTED_SHA_IS_PR_HEAD_NOT_PRODUCTION");
 
-  const extracted = JSON.parse(readStdin()) as ExtractorOk | { ok: false; code: string };
-  if (!extracted.ok) fail(`EXTRACTOR_${extracted.code}`);
-  const { proof: freshProofInput, rows } = extracted;
+  const dbPath = argValue("--db-path") ?? path.join(precallOriginalDataDir, "app.db");
+  let loaded;
+  try {
+    loaded = loadPrecallProductionRows({
+      dbPath,
+      deployedGitSha: process.env.RAILWAY_GIT_COMMIT_SHA ?? "",
+      env: process.env,
+    });
+  } catch (error) {
+    if (error instanceof PrecallRowsStop) fail(`ROWS_${error.code}`);
+    throw error;
+  }
+  const { proof: freshProofInput, rows, fx, flags } = loaded;
 
   const suppliedFile = argValue("--supplied-proof");
   const suppliedExpected = argValue("--supplied-expected-sha")?.trim().toLowerCase();
@@ -260,8 +223,6 @@ function main(): void {
     fail("ROW_PROOF_IDENTITY_MISMATCH");
   }
 
-  const appliedFlags = applyProductionFlags(rows.flags, extracted.flagNamePattern);
-
   let finalWire;
   try {
     finalWire = assemblePrecallFinalWire(rows);
@@ -272,32 +233,39 @@ function main(): void {
 
   const costPlanning = computeRpQualityPrecallCostPlanning({
     sizeRows: finalWire.plans.map((plan) => plan.size),
-    fxRow: rows.fx,
+    fxRow: fx,
   });
   const precall = buildRpQualityPrecallReport({
     liveProofInput: freshProofInput,
     expectedDeploySha,
   });
 
-  const localDbOpened = readdirSync(dataDir).length;
-  rmSync(dataDir, { recursive: true, force: true });
+  const localDbOpened = readdirSync(precallTempDataDir).length;
+  rmSync(precallTempDataDir, { recursive: true, force: true });
+  const egressAttempts = precallEgressAttempts();
 
   const output = {
     ok: true,
-    providerPosts,
+    providerPosts: 0,
+    egress: {
+      attemptsBlocked: egressAttempts.length,
+      transmitted: 0,
+      guard: "fail_closed_before_transport",
+    },
     dbWrites: 0,
     localDbFilesCreated: localDbOpened,
     productionDbAccess: {
-      readOnly: extracted.dbReadOnly,
-      queryOnly: extracted.queryOnly,
-      singleReadTransaction: extracted.singleReadTransaction,
+      readOnly: loaded.dbReadOnly,
+      queryOnly: loaded.queryOnly,
+      singleReadTransaction: loaded.singleReadTransaction,
+      rawRowsLeftProcess: false,
     },
     proofSummary,
     classification: precall.classification,
     precallReady: precall.precallReady,
     readinessScope: precall.readinessScope,
-    productionFlagsApplied: describeFlags(rows.flags),
-    appliedFlagCount: appliedFlags.length,
+    productionFlagsObserved: describeFlags(flags),
+    observedFlagCount: Object.keys(flags).length,
     finalWire: {
       plans: finalWire.plans.map((plan) => ({
         fixtureId: plan.fixtureId,
@@ -324,14 +292,17 @@ function main(): void {
   };
 
   const serialized = JSON.stringify(output, null, 2);
-  if (providerPosts !== 0) fail("PROVIDER_POST_ATTEMPTED");
+  if (egressAttempts.length !== 0) fail("PROVIDER_EGRESS_ATTEMPTED", { channels: egressAttempts.map((a) => a.channel) });
   if (localDbOpened !== 0) fail("LOCAL_DB_FILE_CREATED");
   if (stringContainsSecretShape(serialized)) fail("SECRET_SHAPED_VALUE_IN_OUTPUT");
   if (findRawSourceLeak(serialized, rawTextsForLeakCheck(rows))) fail("RAW_SOURCE_LEAK_IN_OUTPUT");
 
-  const artifactPath = argValue("--write-artifact");
-  if (artifactPath) writeFileSync(artifactPath, `${serialized}\n`, "utf8");
   process.stdout.write(`${serialized}\n`);
 }
 
-main();
+try {
+  main();
+} catch (error) {
+  fail("RUNNER_FAILED", { errorName: error instanceof Error ? error.name : "Error" });
+}
+
