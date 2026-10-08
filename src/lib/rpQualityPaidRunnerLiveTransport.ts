@@ -1,7 +1,9 @@
 /**
  * Isolated live transport for the paid runner. Reuses production header,
  * endpoint, and SSE decoder owners. Does not import the PRECALL egress guard.
- * Default fetch is injectable so tests never open a real provider socket.
+ * Live vs simulated is an explicit contract (`simulation: true`), not inferred
+ * from `fetchImpl` presence. Simulated transports require an injected fixture
+ * fetch and never fall back to global `fetch`.
  */
 import { buildCheaperInferenceHeaders } from "@/lib/cheaperInferenceConfig";
 import {
@@ -34,6 +36,8 @@ export type PaidRunnerLiveTransportOptions = {
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   liveExecuteApproved?: boolean;
+  /** Test-only simulated contract. Requires an injected fixture fetch; never uses global fetch. */
+  simulation?: true;
 };
 
 function headersToRecord(headers: Headers): Record<string, string> {
@@ -74,14 +78,20 @@ export function createIsolatedPaidRunnerLiveTransport(
   options: PaidRunnerLiveTransportOptions
 ): PaidRunnerTransport {
   assertPaidRunnerExperimentInferenceKeys(options);
-  if (options.fetchImpl == null && options.liveExecuteApproved !== true) {
+  const simulated = options.simulation === true;
+  if (simulated) {
+    if (options.fetchImpl == null) {
+      throw new Error("SIMULATED_TRANSPORT_REQUIRES_FETCH_IMPL");
+    }
+  } else if (options.liveExecuteApproved !== true) {
     throw new Error("LIVE_EXECUTE_NOT_APPROVED");
   }
   const fetchImpl = options.fetchImpl ?? fetch;
   const timeoutMs = options.timeoutMs ?? PAID_RUNNER_LIVE_TIMEOUT_MS;
   return {
     kind: "live",
-    realNetwork: options.fetchImpl == null,
+    realNetwork: !simulated,
+    simulation: simulated,
     async post(input): Promise<PaidRunnerTransportResult> {
       if (!paidRunnerEndpointMatchesCanonicalOwner(input.provider, input.endpoint)) {
         return {

@@ -99,6 +99,10 @@ function pack() {
   return { manifest, sealedCalls: calls };
 }
 
+function simulatedLive(fetchImpl: typeof fetch) {
+  return createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl, simulation: true });
+}
+
 function auth(manifest: PaidRunnerPublicManifest, extra: Partial<PaidRunnerAuthorizationInput> = {}) {
   return {
     userCostApproved: true,
@@ -116,11 +120,13 @@ function sseBody(input: {
   text: string;
   model: string;
   id?: string;
+  requestId?: string;
   cheaper?: boolean;
   done?: boolean;
   usage?: boolean;
   billedUsd?: number;
   omitEnvelope?: boolean;
+  omitRequestId?: boolean;
   unsettled?: boolean;
   firstChunkIdOnly?: boolean;
 }) {
@@ -137,6 +143,7 @@ function sseBody(input: {
       usage: input.usage === false ? undefined : { prompt_tokens: 10, completion_tokens: 8, cost: 0.02 },
       cheaper_inference: input.cheaper && !input.omitEnvelope
         ? {
+            ...(input.requestId && !input.omitRequestId ? { request_id: input.requestId } : {}),
             billing: {
               status:
                 input.unsettled || (input.billedUsd != null && input.billedUsd <= 0)
@@ -209,10 +216,12 @@ function createScenarioFetch(options?: {
             text,
             model,
             id: generationId,
+            requestId,
             cheaper,
             done: options?.eofBeforeDone ? false : true,
             billedUsd: options?.billedUsd,
             omitEnvelope: options?.omitEnvelope,
+            omitRequestId: options?.omitRequestId,
             unsettled: options?.unsettled,
             firstChunkIdOnly: options?.firstChunkIdOnly,
           });
@@ -303,7 +312,7 @@ describe("rp quality paid runner live transport integration", () => {
       manifest,
       sealedCalls,
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+      transport: simulatedLive(fetchImpl),
       artifactStore: artifacts,
       reconcile: { fetchImpl, keys: KEYS },
     });
@@ -330,7 +339,7 @@ describe("rp quality paid runner live transport integration", () => {
       manifest,
       sealedCalls,
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+      transport: simulatedLive(fetchImpl),
       reconcile: { fetchImpl, keys: KEYS },
     });
     const ci = result.journal.entries.find((_, index) => sealedCalls[index]?.provider === "cheaperinference");
@@ -374,7 +383,7 @@ describe("rp quality paid runner live transport integration", () => {
         manifest,
         sealedCalls,
         authorization: auth(manifest),
-        transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+        transport: simulatedLive(fetchImpl),
         reconcile: { fetchImpl, keys: KEYS },
       });
       assert.ok(result.transportPosts <= maxPosts, `${label} posts=${result.transportPosts}`);
@@ -401,7 +410,7 @@ describe("rp quality paid runner live transport integration", () => {
       manifest,
       sealedCalls,
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+      transport: simulatedLive(fetchImpl),
       reconcile: { fetchImpl, keys: KEYS },
     });
     assert.equal(counts.posts, 1);
@@ -427,7 +436,7 @@ describe("rp quality paid runner live transport integration", () => {
       manifest,
       sealedCalls,
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+      transport: simulatedLive(fetchImpl),
       journalStore: failStore,
       reconcile: { fetchImpl, keys: KEYS },
     });
@@ -461,7 +470,7 @@ describe("rp quality paid runner live transport integration", () => {
       manifest,
       sealedCalls,
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+      transport: simulatedLive(fetchImpl),
       journal: leftover,
       reconcile: { fetchImpl, keys: KEYS },
     });
@@ -478,7 +487,7 @@ describe("rp quality paid runner live transport integration", () => {
       manifest,
       sealedCalls,
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl: okFetch }),
+      transport: simulatedLive(okFetch),
       artifactStore: brokenArtifacts,
       reconcile: { fetchImpl: okFetch, keys: KEYS },
     });
@@ -498,7 +507,7 @@ describe("rp quality paid runner live transport integration", () => {
       manifest,
       sealedCalls,
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+      transport: simulatedLive(fetchImpl),
       journalStore: store,
       reconcile: { fetchImpl, keys: KEYS },
     });
@@ -513,7 +522,7 @@ describe("rp quality paid runner live transport integration", () => {
         manifest,
         sealedCalls,
         authorization: auth(manifest),
-        transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+        transport: simulatedLive(fetchImpl),
         journalStore: held,
         reconcile: { fetchImpl, keys: KEYS },
       });
@@ -528,7 +537,7 @@ describe("rp quality paid runner live transport integration", () => {
       manifest,
       sealedCalls,
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl: createScenarioFetch().fetchImpl }),
+      transport: simulatedLive(createScenarioFetch().fetchImpl),
       reconcile: { fetchImpl: createScenarioFetch().fetchImpl, keys: KEYS },
     });
     const replay = await runPaidRunner({
@@ -536,7 +545,7 @@ describe("rp quality paid runner live transport integration", () => {
       manifest,
       sealedCalls,
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+      transport: simulatedLive(fetchImpl),
       journal: first.journal,
       reconcile: { fetchImpl, keys: KEYS },
     });
@@ -553,7 +562,7 @@ describe("rp quality paid runner live transport integration", () => {
         manifest,
         sealedCalls,
         authorization: auth(manifest, { expectedProductionSha: "1".repeat(40) }),
-        transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+        transport: simulatedLive(fetchImpl),
         reconcile: { fetchImpl, keys: KEYS },
       }],
       ["identity", {
@@ -561,7 +570,7 @@ describe("rp quality paid runner live transport integration", () => {
         manifest,
         sealedCalls,
         authorization: auth(manifest, { expectedIdentityHash: "22".repeat(32) }),
-        transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+        transport: simulatedLive(fetchImpl),
         reconcile: { fetchImpl, keys: KEYS },
       }],
       ["approval", {
@@ -569,7 +578,7 @@ describe("rp quality paid runner live transport integration", () => {
         manifest,
         sealedCalls,
         authorization: auth(manifest, { userCostApproved: false }),
-        transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+        transport: simulatedLive(fetchImpl),
         reconcile: { fetchImpl, keys: KEYS },
       }],
       ["secret", {
@@ -577,7 +586,7 @@ describe("rp quality paid runner live transport integration", () => {
         manifest,
         sealedCalls,
         authorization: auth(manifest, { experimentSecret: null }),
-        transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+        transport: simulatedLive(fetchImpl),
         reconcile: { fetchImpl, keys: KEYS },
       }],
       ["production key", {
@@ -585,7 +594,7 @@ describe("rp quality paid runner live transport integration", () => {
         manifest,
         sealedCalls,
         authorization: auth(manifest, { experimentSecret: "sk-or-production-lookalike-0001" }),
-        transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+        transport: simulatedLive(fetchImpl),
         reconcile: { fetchImpl, keys: KEYS },
       }],
       ["tampered body", {
@@ -595,7 +604,7 @@ describe("rp quality paid runner live transport integration", () => {
           ? { ...call, requestBody: { ...call.requestBody, messages: [{ role: "user", content: "hj" }] } }
           : call),
         authorization: auth(manifest),
-        transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+        transport: simulatedLive(fetchImpl),
         reconcile: { fetchImpl, keys: KEYS },
       }],
       ["13th", {
@@ -603,7 +612,7 @@ describe("rp quality paid runner live transport integration", () => {
         manifest,
         sealedCalls: [...sealedCalls, { ...sealedCalls[0]!, requestOrder: 13 }],
         authorization: auth(manifest),
-        transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+        transport: simulatedLive(fetchImpl),
         reconcile: { fetchImpl, keys: KEYS },
       }],
     ];
@@ -623,7 +632,7 @@ describe("rp quality paid runner live transport integration", () => {
         ? { ...call, requestBody: { ...call.requestBody, max_tokens: 16 } }
         : call),
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+      transport: simulatedLive(fetchImpl),
       reconcile: { fetchImpl, keys: KEYS },
     });
     assert.equal(maxTokens.transportPosts, 0);
@@ -698,7 +707,7 @@ describe("rp quality paid runner live transport integration", () => {
       manifest,
       sealedCalls,
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+      transport: simulatedLive(fetchImpl),
     });
     assert.equal(missingReconcile.denialReason, "MISSING_INFERENCE_KEY");
     assert.equal(counts.posts, 0);
@@ -955,7 +964,10 @@ describe("rp quality paid runner live transport integration", () => {
         headers: { "x-ci-request-id": "ci-req-1" },
         body: {
           model: cheaper.wireModel,
-          cheaper_inference: { billing: { status: "settled", billed_cost_usd: 0.02 } },
+          cheaper_inference: {
+            request_id: "ci-req-1",
+            billing: { status: "settled", billed_cost_usd: 0.02 },
+          },
         },
         generationId: null,
       },
@@ -1021,7 +1033,7 @@ describe("rp quality paid runner live transport integration", () => {
       manifest,
       sealedCalls,
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl }),
+      transport: simulatedLive(fetchImpl),
       reconcile: { fetchImpl, keys: KEYS },
     });
     assert.equal(first.transportPosts, 12);
@@ -1057,12 +1069,201 @@ describe("rp quality paid runner live transport integration", () => {
       manifest,
       sealedCalls,
       authorization: auth(manifest),
-      transport: createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl: blockedFetch }),
+      transport: simulatedLive(blockedFetch),
       journal: leftover,
       reconcile: { fetchImpl: blockedFetch, keys: KEYS },
     });
     assert.equal(replay.transportPosts, 0);
     assert.equal(blockedCounts.posts, 0);
     assert.equal(replay.journal.entries[0]?.status, "UNKNOWN_UNRESOLVED");
+  });
+
+  it("1. unapproved real-fetch-like transport never POSTs", async () => {
+    const { manifest, sealedCalls } = pack();
+    let posts = 0;
+    const spyFetch: typeof fetch = async (_input, init) => {
+      if (String(init?.method ?? "GET").toUpperCase() === "POST") posts += 1;
+      return new Response("no", { status: 500, headers: { "content-type": "application/json" } });
+    };
+    assert.throws(
+      () => createIsolatedPaidRunnerLiveTransport({ ...KEYS, fetchImpl: spyFetch }),
+      /LIVE_EXECUTE_NOT_APPROVED/
+    );
+    const transport: PaidRunnerTransport = {
+      kind: "live",
+      realNetwork: false,
+      async post() {
+        posts += 1;
+        throw new Error("unapproved fetch-like post must not run");
+      },
+    };
+    const result = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls,
+      authorization: auth(manifest),
+      transport,
+      reconcile: { fetchImpl: spyFetch, keys: KEYS },
+    });
+    assert.equal(result.denialReason, "LIVE_EXECUTE_NOT_APPROVED");
+    assert.equal(posts, 0);
+    assert.equal(result.providerPosts, 0);
+    assert.equal(result.transportPosts, 0);
+  });
+
+  it("2. memory journal or artifact cannot bypass live file-store gates", async () => {
+    const { manifest, sealedCalls } = pack();
+    const { fetchImpl } = createScenarioFetch({ maxPosts: 0 });
+    const posts = { n: 0 };
+    const transport: PaidRunnerTransport = {
+      kind: "live",
+      realNetwork: false,
+      async post() {
+        posts.n += 1;
+        throw new Error("memory-store live bypass must not POST");
+      },
+    };
+    const dir = mkdtempSync(path.join(tmpdir(), "rpq-live-memory-bypass-"));
+    const memoryJournal = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls,
+      authorization: auth(manifest),
+      transport,
+      reconcile: { fetchImpl, keys: KEYS },
+      liveExecuteApproved: true,
+      journalStore: createMemoryPaidRunnerJournalStore(),
+      artifactStore: createFilePaidRunnerArtifactStore(path.join(dir, "artifacts")),
+    });
+    assert.equal(memoryJournal.denialReason, "JOURNAL_STORE_UNAVAILABLE");
+    assert.equal(memoryJournal.providerPosts, 0);
+    assert.equal(posts.n, 0);
+
+    const memoryArtifact = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls,
+      authorization: auth(manifest),
+      transport,
+      reconcile: { fetchImpl, keys: KEYS },
+      liveExecuteApproved: true,
+      journalStore: createFilePaidRunnerJournalStore(path.join(dir, "journal")),
+      artifactStore: createMemoryPaidRunnerArtifactStore(),
+    });
+    assert.equal(memoryArtifact.denialReason, "ARTIFACT_STORE_UNAVAILABLE");
+    assert.equal(memoryArtifact.providerPosts, 0);
+    assert.equal(posts.n, 0);
+  });
+
+  it("3. live non-simulation providerPosts match actual POST attempts", async () => {
+    const { manifest, sealedCalls } = pack();
+    const { fetchImpl, counts } = createScenarioFetch();
+    const dir = mkdtempSync(path.join(tmpdir(), "rpq-live-post-count-"));
+    const result = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls,
+      authorization: auth(manifest),
+      transport: createIsolatedPaidRunnerLiveTransport({
+        ...KEYS,
+        fetchImpl,
+        liveExecuteApproved: true,
+      }),
+      reconcile: { fetchImpl, keys: KEYS },
+      liveExecuteApproved: true,
+      journalStore: createFilePaidRunnerJournalStore(path.join(dir, "journal")),
+      artifactStore: createFilePaidRunnerArtifactStore(path.join(dir, "artifacts")),
+    });
+    assert.equal(result.authorized, true);
+    assert.equal(result.denialReason, null);
+    assert.equal(counts.posts, 12);
+    assert.equal(result.transportPosts, 12);
+    assert.equal(result.providerPosts, 12);
+    assert.equal(result.providerPosts, counts.posts);
+    assert.equal(result.journal.entries.every((entry) => entry.status === "SETTLED"), true);
+  });
+
+  it("4-6. CI envelope request identity mismatch/missing fail-closed; numeric equivalent binds", async () => {
+    const { sealedCalls } = pack();
+    const cheaper = sealedCalls.find((call) => call.provider === "cheaperinference")!;
+    const usageFail = createScenarioFetch({ usageFail: true }).fetchImpl;
+    const base = {
+      ok: true as const,
+      httpStatus: 200,
+      text: "모의",
+      finishReason: "stop",
+      usage: {
+        promptTokens: 1,
+        completionTokens: 1,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        reasoningTokens: 0,
+        billedUsd: null,
+      },
+      generationId: null as string | null,
+    };
+
+    const mismatch = await reconcilePaidRunnerSettlement({
+      call: cheaper,
+      result: {
+        ...base,
+        requestId: "ci-req-trusted",
+        headers: { "x-ci-request-id": "ci-req-trusted" },
+        body: {
+          model: cheaper.wireModel,
+          cheaper_inference: {
+            request_id: "ci-req-OTHER",
+            billing: { status: "settled", billed_cost_usd: 0.02 },
+          },
+        },
+      },
+      elapsedMs: 10,
+      fetchImpl: usageFail,
+      keys: KEYS,
+    });
+    assert.equal(mismatch.settlementSource, "unsettled");
+    assert.notEqual(mismatch.settlementSource, "provider_exact");
+
+    const missing = await reconcilePaidRunnerSettlement({
+      call: cheaper,
+      result: {
+        ...base,
+        requestId: "ci-req-trusted",
+        headers: { "x-ci-request-id": "ci-req-trusted" },
+        body: {
+          model: cheaper.wireModel,
+          cheaper_inference: {
+            billing: { status: "settled", billed_cost_usd: 0.02 },
+          },
+        },
+      },
+      elapsedMs: 10,
+      fetchImpl: usageFail,
+      keys: KEYS,
+    });
+    assert.equal(missing.settlementSource, "unsettled");
+    assert.notEqual(missing.settlementSource, "provider_exact");
+
+    const numeric = await reconcilePaidRunnerSettlement({
+      call: cheaper,
+      result: {
+        ...base,
+        requestId: "4812",
+        headers: { "x-ci-request-id": "4812" },
+        body: {
+          model: cheaper.wireModel,
+          cheaper_inference: {
+            request_id: 4812,
+            billing: { status: "settled", billed_cost_usd: 0.02 },
+          },
+        },
+      },
+      elapsedMs: 10,
+      fetchImpl: usageFail,
+      keys: KEYS,
+    });
+    assert.equal(numeric.settlementSource, "provider_exact");
+    assert.equal(numeric.billedUsd, 0.02);
+    assert.equal(numeric.providerRequestId, "4812");
   });
 });

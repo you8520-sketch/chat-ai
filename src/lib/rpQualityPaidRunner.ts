@@ -261,6 +261,8 @@ export type PaidRunnerTransportResult = PaidRunnerTransportSuccess | PaidRunnerT
 export type PaidRunnerTransport = {
   kind: PaidRunnerTransportKind;
   realNetwork?: boolean;
+  /** Explicit test-only simulated live contract. Absence means live dispatch gates apply. */
+  simulation?: boolean;
   post(input: {
     endpoint: string;
     body: Record<string, unknown>;
@@ -1190,13 +1192,16 @@ export function publicMetadataContainsSecret(value: unknown): boolean {
   return false;
 }
 
-export function paidRunnerRealNetworkDispatchDenied(input: {
+export function paidRunnerLiveDispatchDenied(input: {
   transport: PaidRunnerTransport;
   liveExecuteApproved?: boolean;
   journalStore?: PaidRunnerJournalStore;
   artifactStore?: PaidRunnerArtifactStore;
 }): PaidRunnerDenialReason | null {
-  if (input.transport.kind !== "live" || input.transport.realNetwork !== true) {
+  if (input.transport.kind !== "live") {
+    return null;
+  }
+  if (input.transport.simulation === true) {
     return null;
   }
   if (input.liveExecuteApproved !== true) {
@@ -1209,6 +1214,16 @@ export function paidRunnerRealNetworkDispatchDenied(input: {
     return "ARTIFACT_STORE_UNAVAILABLE";
   }
   return null;
+}
+
+export function paidRunnerReportedProviderPosts(
+  transport: PaidRunnerTransport,
+  transportPosts: number
+): number {
+  if (transport.kind !== "live" || transport.simulation === true) {
+    return 0;
+  }
+  return transportPosts;
 }
 
 export async function runPaidRunner(input: {
@@ -1254,7 +1269,7 @@ export async function runPaidRunner(input: {
       journal: emptyJournal,
     });
   }
-  const liveNetworkDenied = paidRunnerRealNetworkDispatchDenied(input);
+  const liveNetworkDenied = paidRunnerLiveDispatchDenied(input);
   if (liveNetworkDenied) {
     return closed({
       authorized: false,
@@ -1430,7 +1445,7 @@ export async function runPaidRunner(input: {
             : denialForUnresolvedUsage(usage),
           journal,
           transportPosts,
-          providerPosts: input.transport.realNetwork ? transportPosts : 0,
+          providerPosts: paidRunnerReportedProviderPosts(input.transport, transportPosts),
         });
       }
       const artifacts = input.artifactStore ?? createMemoryPaidRunnerArtifactStore();
@@ -1456,7 +1471,7 @@ export async function runPaidRunner(input: {
           denialReason: "ARTIFACT_STORE_UNAVAILABLE",
           journal,
           transportPosts,
-          providerPosts: input.transport.realNetwork ? transportPosts : 0,
+          providerPosts: paidRunnerReportedProviderPosts(input.transport, transportPosts),
         });
       }
       writeJournalEntry(journal, sealed, {
@@ -1483,7 +1498,7 @@ export async function runPaidRunner(input: {
           denialReason: persistSettled,
           journal,
           transportPosts,
-          providerPosts: input.transport.realNetwork ? transportPosts : 0,
+          providerPosts: paidRunnerReportedProviderPosts(input.transport, transportPosts),
         });
       }
       const packet = buildQualityOutputPacket({
@@ -1524,7 +1539,7 @@ export async function runPaidRunner(input: {
       denialReason: null,
       journal,
       transportPosts,
-      providerPosts: input.transport.realNetwork ? transportPosts : 0,
+      providerPosts: paidRunnerReportedProviderPosts(input.transport, transportPosts),
       publicResults,
       privateResults,
       publicMetadataSafe: !publicMetadataContainsSecret({

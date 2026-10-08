@@ -77,6 +77,30 @@ function cheaperInferenceEnvelopeSettled(status: string | null): boolean {
   return status === "settled";
 }
 
+function cheaperInferenceHeaderRequestId(headers: Headers): string | null {
+  return readCompatibleCompletionProviderRequestId({
+    provider: "cheaperinference",
+    headers,
+  });
+}
+
+function cheaperInferenceEnvelopeRequestId(body: unknown): string | null {
+  return readCompatibleCompletionProviderRequestId({
+    provider: "cheaperinference",
+    headers: new Headers(),
+    body,
+  });
+}
+
+function cheaperInferenceEnvelopeMatchesCanonicalRequestId(input: {
+  headers: Headers;
+  body: unknown;
+}): boolean {
+  const headerRequestId = cheaperInferenceHeaderRequestId(input.headers);
+  const envelopeRequestId = cheaperInferenceEnvelopeRequestId(input.body);
+  return Boolean(headerRequestId && envelopeRequestId && headerRequestId === envelopeRequestId);
+}
+
 async function lookupOpenRouterGenerationCost(input: {
   generationId: string;
   requestId: string;
@@ -204,7 +228,15 @@ export async function reconcilePaidRunnerSettlement(
     if (status === "failed" || status === "error") {
       return { ...base, ...tokens, providerRequestId: requestId, settlementSource: "unsettled" };
     }
-    if (cheaperInferenceEnvelopeSettled(status) && envelopeUsd != null && envelopeUsd > 0) {
+    if (
+      cheaperInferenceEnvelopeSettled(status) &&
+      envelopeUsd != null &&
+      envelopeUsd > 0 &&
+      cheaperInferenceEnvelopeMatchesCanonicalRequestId({
+        headers: headerBag,
+        body: result.body,
+      })
+    ) {
       return {
         ...base,
         ...tokens,
