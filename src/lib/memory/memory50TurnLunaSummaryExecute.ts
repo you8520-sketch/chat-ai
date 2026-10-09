@@ -93,7 +93,8 @@ export const LUNA_SUMMARY_JOURNAL_DIR_ENV = "MEMORY_LUNA_SUMMARY_JOURNAL_DIR";
 export const LUNA_SUMMARY_CANONICAL_JOURNAL_DIR =
   "/opt/cursor/artifacts/luna-summary-journal-v1" as const;
 export const LUNA_SUMMARY_JOURNAL_DIR_PREFIX = "luna-summary-journal";
-export const LUNA_SUMMARY_LIVE_APPROVAL_STATUS = "NOT_APPROVED" as const;
+export type LunaLiveApprovalStatus = "NOT_APPROVED" | "APPROVED";
+export const LUNA_SUMMARY_LIVE_APPROVAL_STATUS: LunaLiveApprovalStatus = "NOT_APPROVED";
 export const LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS = [
   "b0bdd7591f55845993aa03fcc871fdc2fa07a1ae5c8c6ece10f47f805b7579ef",
   "482b02d3be9680b79c8132904b944584d67dddc4e222d396196b3797ec7410b0",
