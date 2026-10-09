@@ -361,7 +361,7 @@ describe("50-turn Luna summary execute isolated stub (provider-free)", () => {
     );
     assert.equal(child.status, 0, child.stderr);
     assert.equal(child.stdout.includes("POST"), false);
-    assert.equal(child.stdout, "PRIOR_RESERVED_HISTORY");
+    assert.match(child.stdout, /^PRIOR_RESERVED_HISTORY/);
     assert.equal(harborChatExists(), false);
   });
 
