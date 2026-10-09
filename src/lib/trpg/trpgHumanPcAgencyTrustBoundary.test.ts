@@ -109,3 +109,77 @@ describe("TRPG human PC agency — structural separation", () => {
     assert.ok(block.includes(TRPG_GM_LABEL_HUMAN_ACTION));
   });
 });
+
+describe("TRPG GM location-ownership prompt contract (#1462 F)", () => {
+  const moon = "달을 주머니에 넣는다.";
+  const walk = "주점으로 간다.";
+
+  function resolveUser(body: string): string {
+    return buildTrpgGmUserBlock({
+      worldBrief: "회린 부두. 주점과 성소가 보인다.",
+      memoryBlock: "[TRPG STRUCTURED STATE — authoritative; do not contradict HP/items/location/flags]\nlocation=회린 부두",
+      opening: false,
+      actions: [humanAction({ name: "한결", body })],
+    });
+  }
+
+  it("F: mechanics Rules no longer treat bare location as GM-owned PC relocation", () => {
+    assert.doesNotMatch(
+      TRPG_GM_SYSTEM,
+      /Inventory, location, quests, NPCs, flags, and story progress remain yours/
+    );
+    assert.match(
+      TRPG_GM_SYSTEM,
+      /Inventory, quests, NPCs, flags, story progress, and world\/NPC location remain yours/
+    );
+    assert.match(
+      TRPG_GM_SYSTEM,
+      /sole authority for that human PC's voluntary action, movement, route choice/
+    );
+  });
+
+  it("F resolve prompt still labels the moon action as the only human authority", () => {
+    const user = resolveUser(moon);
+    assert.match(user, /\[RESOLVE THIS ROUND\]/);
+    assert.ok(user.includes(TRPG_GM_LABEL_HUMAN_ACTION));
+    assert.equal(user.split(moon).length - 1, 1);
+    assert.doesNotMatch(user, /Do not invent the human PC's voluntary movement/);
+  });
+
+  it("explicit declared walk remains a canonical human action", () => {
+    const user = resolveUser(walk);
+    assert.ok(user.includes(TRPG_GM_LABEL_HUMAN_ACTION));
+    assert.equal(user.split(walk).length - 1, 1);
+    assert.match(TRPG_GM_SYSTEM, /For routine_traversal no-check actions, the submitted traversal succeeds/);
+  });
+
+  it("ROUND CRAFT still lets the world open destinations without choosing PC movement", () => {
+    assert.match(TRPG_GM_SYSTEM, /open fiction outward via reachable space, destination, route/);
+    assert.match(TRPG_GM_SYSTEM, /not permission to choose PC movement/);
+    assert.match(TRPG_GM_SYSTEM, /movement stays player choice/);
+    assert.match(TRPG_GM_SYSTEM, /Extra NPCs: invent world extras/);
+  });
+
+  it("opening, resolve, and regenerate share the same system owner and add no new section", () => {
+    const opening = buildTrpgGmUserBlock({
+      worldBrief: "회린 부두",
+      memoryBlock: "",
+      opening: true,
+      actions: [],
+    });
+    const regen = buildTrpgGmUserBlock({
+      worldBrief: "회린 부두",
+      memoryBlock: "",
+      opening: false,
+      regenerate: true,
+      actions: [humanAction({ name: "한결", body: moon })],
+    });
+    assert.match(opening, /Do not invent the human PC's voluntary movement, route choice, dialogue, decision, or inner commitment/);
+    assert.match(regen, /\[REGENERATE — same locked actions and dice/);
+    assert.equal((TRPG_GM_SYSTEM.match(/\[ROUND CRAFT\]/g) ?? []).length, 1);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[PLAYER AGENCY\]/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /\[LOCATION AUTHORITY\]/);
+    assert.match(TRPG_GM_SYSTEM, /\[LENGTH — SCENE RESPONSIVE\]/);
+    assert.match(TRPG_GM_SYSTEM, /Use the terminal ROUND NARRATION BUDGET as the sole numeric length contract/);
+  });
+});
