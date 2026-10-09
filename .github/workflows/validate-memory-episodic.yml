@@ -27,6 +27,11 @@ on:
       - "src/lib/memory/memory50TurnAbRunner.test.ts"
       - "src/lib/memory/memory50TurnLunaSummaryPrepare.ts"
       - "src/lib/memory/memory50TurnLunaSummaryPrepare.test.ts"
+      - "src/lib/memory/memory50TurnLunaSummaryExecute.ts"
+      - "src/lib/memory/memory50TurnLunaSummaryExecute.test.ts"
+      - "scripts/luna-summary-lock-child.ts"
+      - "scripts/luna-summary-restart-child.ts"
+      - "scripts/luna-summary-attempt-execute.ts"
       - "src/lib/test/isolatedTestDatabase.ts"
       - "src/lib/memory/memory-global-current-memory.test.ts"
       - "src/lib/memory/memory-global-compact-race.test.ts"
@@ -146,6 +151,9 @@ jobs:
 
       - name: 50-turn Luna summary prepare gate (provider-free)
         run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory50TurnLunaSummaryPrepare.test.ts
+
+      - name: 50-turn Luna summary execute gate (provider-free)
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory50TurnLunaSummaryExecute.test.ts
 
       - name: Memory architecture audit
         run: node --conditions=react-server --import tsx --test --test-concurrency=1 src/lib/memory/memory-architecture-audit.test.ts
