@@ -1,5 +1,8 @@
 # GPT review packet — input only
 
+**DIAGNOSTIC ONLY. Not the approved style-eval fixture.**
+This packet is the first-run B03a / 한서린 / 민 assembly. It is not comparable to PR #1318 Q1–Q9 or PR #1430 A/B/C. Do not score it as a 라이크/렌 style sample.
+
 Do not score in this file. Cursor did not assign an RP style score.
 
 ## Live user-authoring policy (current HAV default)

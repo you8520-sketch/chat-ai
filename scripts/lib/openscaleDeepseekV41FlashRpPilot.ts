@@ -9,17 +9,24 @@ import { capabilitiesFromUserAuthoringLevel, DEFAULT_USER_AUTHORING_LEVEL } from
 import { COLLABORATIVE_INTERACTIVE_OWNER_TITLE } from "@/lib/noGodmodding";
 import { parseReasoningTokens } from "@/lib/openRouterUsage";
 import { isValidReportedTokenValue } from "@/lib/usageReportingEvidence";
+import {
+  RP_QUALITY_PRECALL_FIXTURE_IDS,
+  RP_QUALITY_PRECALL_TARGET_SELECTOR,
+  validateLiveProof,
+  type RpQualityPrecallLiveProofInput,
+} from "@/lib/rpQualityPrecall";
 import { buildContext } from "@/services/contextBuilder";
 import type { ContextBuildInput } from "@/types";
 import {
   BENCHMARK_CHAR_NAME,
+  BENCHMARK_CHARACTER_ID,
   BENCHMARK_CHAT_ID,
   BENCHMARK_DEFAULT_TARGET_CHARS,
   BENCHMARK_USER_PERSONA,
   buildBenchmarkContextBase,
   getBenchmarkFixtureById,
 } from "@/lib/scenePolicyBenchmarkDataset";
-import { executeCompatibleSupplyProbe, type ProbeJson } from "./compatibleSupplyProbe";
+import type { ProbeJson } from "./compatibleSupplyProbe";
 
 export const OPENSCALE_BASE_URL = "https://api.openscale.so/v1";
 export const OPENSCALE_MODELS_URL = `${OPENSCALE_BASE_URL}/models`;
@@ -27,8 +34,76 @@ export const OPENSCALE_CHAT_ENDPOINT = `${OPENSCALE_BASE_URL}/chat/completions`;
 export const OPENSCALE_OFFICIAL_MODEL_ID = "deepseek/deepseek-v4.1-flash";
 export const OPENSCALE_KEY_ENV = "OPENSCALE_KEY";
 export const OPENSCALE_RP_PILOT_OPT_IN = "OPENSCALE_RP_PILOT";
-export const OPENSCALE_PILOT_FIXTURE_ID = "B03a";
+/** Wrong first-run fixture. Kept only as a non-comparable diagnostic label. */
+export const OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID = "B03a";
 export const OPENSCALE_PILOT_SCREENING_BUDGET_USD = 0.02;
+export const OPENSCALE_APPROVED_STYLE_EVAL_PERSONA_ID = 1;
+export const OPENSCALE_APPROVED_STYLE_EVAL_PERSONA_GENDER = "male";
+export const OPENSCALE_PHASE2_STYLE_EVAL_PR = 1318;
+export const OPENSCALE_CURRENT_PRECALL_PR = 1430;
+
+export const OPENSCALE_PHASE2_STYLE_EVAL_SCENE_IDS = [
+  "Q1-quiet",
+  "Q2-banter",
+  "Q3-tension",
+  "Q4-action",
+  "Q5-emotional",
+  "Q6-short",
+  "Q7-auto",
+  "Q8-regen",
+  "Q9-memory",
+] as const;
+export type OpenScalePhase2StyleEvalSceneId =
+  (typeof OPENSCALE_PHASE2_STYLE_EVAL_SCENE_IDS)[number];
+
+export const OPENSCALE_PHASE2_STYLE_EVAL_TURN_KINDS = Object.freeze({
+  "Q1-quiet": "interactive",
+  "Q2-banter": "interactive",
+  "Q3-tension": "interactive",
+  "Q4-action": "interactive",
+  "Q5-emotional": "interactive",
+  "Q6-short": "interactive",
+  "Q7-auto": "auto_progression",
+  "Q8-regen": "regenerate",
+  "Q9-memory": "memory",
+} as const);
+
+export type OpenScaleStyleEvalSceneFamily =
+  | "phase2_q1_q9"
+  | "rp_quality_precall_abc"
+  | "scene_policy_benchmark";
+
+export const OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY = Object.freeze({
+  characterId: RP_QUALITY_PRECALL_TARGET_SELECTOR.characterId,
+  characterName: RP_QUALITY_PRECALL_TARGET_SELECTOR.characterName,
+  characterCardName: "조태형",
+  personaId: OPENSCALE_APPROVED_STYLE_EVAL_PERSONA_ID,
+  personaName: RP_QUALITY_PRECALL_TARGET_SELECTOR.personaName,
+  personaGender: OPENSCALE_APPROVED_STYLE_EVAL_PERSONA_GENDER,
+  authoringLevel: DEFAULT_USER_AUTHORING_LEVEL,
+  originalSceneFamily: "phase2_q1_q9" as const,
+  originalSceneIds: OPENSCALE_PHASE2_STYLE_EVAL_SCENE_IDS,
+  originalFixtureJsonInThisTree: false,
+  currentMainPrecallFamily: "rp_quality_precall_abc" as const,
+  currentMainPrecallFixtureIds: RP_QUALITY_PRECALL_FIXTURE_IDS,
+  rejectedFixtureIds: [OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID],
+  historicalHashesAreNotCurrentProof: true,
+});
+
+export const OPENSCALE_B03A_DIAGNOSTIC = Object.freeze({
+  comparableToApprovedStyleEval: false,
+  fixtureId: OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID,
+  characterId: BENCHMARK_CHARACTER_ID,
+  characterName: BENCHMARK_CHAR_NAME,
+  personaName: BENCHMARK_USER_PERSONA,
+  outputChars: 945,
+  providerInferencePosts: 1,
+  executedSourceSha: "f7a72dd596b86a8dab674b71985d119a00da2582",
+  evidenceCommit: "cebd58135b120d2d1799a3989835f77d604394f1",
+  systemPromptSha256: "59a2216f1b9aaf912bdd0a4dbde2a9d9a6a69a23567845aab0c93ec40b091768",
+  promptSha256: "3ec3f303aa31020395603001f2cac4bf3fdf83c46e556ae1d0b5925bbe8430af",
+  note: "Wrong-fixture diagnostic. Not a style-eval baseline and not comparable to Q1-Q9 or A/B/C.",
+});
 
 /** Catalog-observed OpenScale DeepSeek V4.1 Flash rates. Screening estimate only. */
 export const OPENSCALE_CATALOG_RATES = Object.freeze({
@@ -44,7 +119,9 @@ export type OpenScalePilotStatus =
   | "LIVE_COMPLETED"
   | "LIVE_FAILED"
   | "BLOCKED_CREDENTIAL"
-  | "BLOCKED_OPT_IN";
+  | "BLOCKED_OPT_IN"
+  | "FIXTURE_PARITY_FAIL"
+  | "FIXTURE_PARITY_PASS";
 
 type JsonObject = Record<string, unknown>;
 
@@ -186,8 +263,183 @@ export function currentUserAuthoringForEval() {
   };
 }
 
-export function buildOpenScalePilotAssembly() {
-  const fixture = getBenchmarkFixtureById(OPENSCALE_PILOT_FIXTURE_ID);
+export type OpenScaleStyleEvalProposedFixture = {
+  characterId?: number;
+  characterName?: string;
+  personaId?: number;
+  personaName?: string;
+  sceneId?: string;
+  sceneFamily?: OpenScaleStyleEvalSceneFamily | string;
+  promptFingerprint?: string;
+  expectedPromptFingerprint?: string;
+  liveProofInput?: RpQualityPrecallLiveProofInput;
+  expectedDeploySha?: string;
+  originalFixtureJsonRestored?: boolean;
+  currentSettingsRestored?: boolean;
+};
+
+export type OpenScaleStyleEvalParityReason =
+  | "characterId_mismatch"
+  | "characterName_mismatch"
+  | "personaId_missing"
+  | "personaId_mismatch"
+  | "personaName_mismatch"
+  | "sceneId_missing"
+  | "sceneId_rejected"
+  | "sceneId_not_in_phase2_q1_q9"
+  | "scene_family_missing"
+  | "scene_family_not_approved"
+  | "requested_family_is_not_original_style_eval"
+  | "b03a_not_comparable"
+  | "original_q1_q9_fixture_json_unrestored"
+  | "current_settings_unrestored"
+  | "live_proof_not_provided"
+  | "live_proof_not_verified"
+  | "prompt_fingerprint_missing"
+  | "prompt_fingerprint_mismatch"
+  | "replacement_data_forbidden";
+
+export type OpenScaleStyleEvalParityResult = {
+  status: "FIXTURE_PARITY_PASS" | "FIXTURE_PARITY_FAIL";
+  reasons: OpenScaleStyleEvalParityReason[];
+  liveProofStatus: ReturnType<typeof validateLiveProof>["status"];
+  liveProofReasons: readonly string[];
+  comparisons: {
+    characterId: boolean;
+    characterName: boolean;
+    personaId: boolean;
+    personaName: boolean;
+    sceneFamily: boolean;
+    sceneId: boolean;
+    promptFingerprint: boolean;
+    liveProof: boolean;
+    originalFixtureJson: boolean;
+    currentSettings: boolean;
+  };
+  required: typeof OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY;
+  proposed: OpenScaleStyleEvalProposedFixture;
+  diagnosticB03a: typeof OPENSCALE_B03A_DIAGNOSTIC;
+};
+
+export function defaultOpenScaleStyleEvalProposedFixture(): OpenScaleStyleEvalProposedFixture {
+  return {
+    characterId: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.characterId,
+    characterName: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.characterName,
+    personaId: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaId,
+    personaName: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaName,
+    sceneFamily: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.originalSceneFamily,
+    originalFixtureJsonRestored: false,
+    currentSettingsRestored: false,
+  };
+}
+
+function isPhase2SceneId(value: string | undefined): value is OpenScalePhase2StyleEvalSceneId {
+  return (
+    typeof value === "string" &&
+    (OPENSCALE_PHASE2_STYLE_EVAL_SCENE_IDS as readonly string[]).includes(value)
+  );
+}
+
+export function evaluateOpenScaleStyleEvalFixtureParity(
+  proposed: OpenScaleStyleEvalProposedFixture = defaultOpenScaleStyleEvalProposedFixture()
+): OpenScaleStyleEvalParityResult {
+  const required = OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY;
+  const reasons: OpenScaleStyleEvalParityReason[] = [];
+  const characterIdMatch = proposed.characterId === required.characterId;
+  const characterNameMatch = proposed.characterName === required.characterName;
+  const personaIdPresent = proposed.personaId != null;
+  const personaIdMatch = proposed.personaId === required.personaId;
+  const personaNameMatch = proposed.personaName === required.personaName;
+  const family = proposed.sceneFamily;
+  const sceneId = proposed.sceneId?.trim() ?? "";
+  const rejectedScene =
+    sceneId === OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID ||
+    family === "scene_policy_benchmark" ||
+    proposed.characterName === BENCHMARK_CHAR_NAME ||
+    proposed.personaName === BENCHMARK_USER_PERSONA;
+
+  if (!characterIdMatch) reasons.push("characterId_mismatch");
+  if (!characterNameMatch) reasons.push("characterName_mismatch");
+  if (!personaIdPresent) reasons.push("personaId_missing");
+  else if (!personaIdMatch) reasons.push("personaId_mismatch");
+  if (!personaNameMatch) reasons.push("personaName_mismatch");
+
+  if (!family) reasons.push("scene_family_missing");
+  else if (family === "scene_policy_benchmark" || rejectedScene) {
+    reasons.push("b03a_not_comparable");
+    if (sceneId === OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID) reasons.push("sceneId_rejected");
+  } else if (family === "rp_quality_precall_abc") {
+    reasons.push("requested_family_is_not_original_style_eval");
+  } else if (family !== "phase2_q1_q9") {
+    reasons.push("scene_family_not_approved");
+  }
+
+  if (family === "phase2_q1_q9") {
+    if (!sceneId) reasons.push("sceneId_missing");
+    else if (!isPhase2SceneId(sceneId)) reasons.push("sceneId_not_in_phase2_q1_q9");
+    if (proposed.originalFixtureJsonRestored !== true) {
+      reasons.push("original_q1_q9_fixture_json_unrestored");
+    }
+  }
+
+  if (proposed.currentSettingsRestored !== true) {
+    reasons.push("current_settings_unrestored");
+  }
+
+  const liveProof = validateLiveProof(proposed.liveProofInput, {
+    expectedDeploySha: proposed.expectedDeploySha,
+  });
+  if (liveProof.status === "NOT_PROVIDED") {
+    reasons.push("live_proof_not_provided");
+    reasons.push("live_proof_not_verified");
+  } else if (liveProof.status !== "VERIFIED") {
+    reasons.push("live_proof_not_verified");
+  }
+
+  const expectedFp = proposed.expectedPromptFingerprint?.trim() ?? "";
+  const actualFp = proposed.promptFingerprint?.trim() ?? "";
+  if (expectedFp) {
+    if (!actualFp) reasons.push("prompt_fingerprint_missing");
+    else if (actualFp !== expectedFp) reasons.push("prompt_fingerprint_mismatch");
+  }
+
+  if (
+    proposed.originalFixtureJsonRestored !== true ||
+    proposed.currentSettingsRestored !== true
+  ) {
+    reasons.push("replacement_data_forbidden");
+  }
+
+  const uniqueReasons = [...new Set(reasons)];
+  const sceneFamilyMatch = family === required.originalSceneFamily;
+  const sceneIdMatch = isPhase2SceneId(sceneId);
+  const promptMatch = expectedFp ? actualFp === expectedFp : true;
+  return {
+    status: uniqueReasons.length === 0 ? "FIXTURE_PARITY_PASS" : "FIXTURE_PARITY_FAIL",
+    reasons: uniqueReasons,
+    liveProofStatus: liveProof.status,
+    liveProofReasons: liveProof.status === "UNVERIFIED" ? liveProof.reasons : [],
+    comparisons: {
+      characterId: characterIdMatch,
+      characterName: characterNameMatch,
+      personaId: personaIdPresent && personaIdMatch,
+      personaName: personaNameMatch,
+      sceneFamily: sceneFamilyMatch,
+      sceneId: sceneIdMatch,
+      promptFingerprint: promptMatch,
+      liveProof: liveProof.status === "VERIFIED",
+      originalFixtureJson: proposed.originalFixtureJsonRestored === true,
+      currentSettings: proposed.currentSettingsRestored === true,
+    },
+    required,
+    proposed,
+    diagnosticB03a: OPENSCALE_B03A_DIAGNOSTIC,
+  };
+}
+
+/** Archived wrong-fixture assembly. Not the style-eval default. */
+export function buildOpenScaleB03aDiagnosticAssembly() {
+  const fixture = getBenchmarkFixtureById(OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID);
   if (!fixture) throw new Error("missing_synthetic_fixture");
   const modelId = CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL;
   const contextBase = buildBenchmarkContextBase();
@@ -261,7 +513,14 @@ export function buildOpenScalePilotAssembly() {
     promptSha256: sha256Text(promptText),
     estimatedPromptTokens: estimateTokens(promptText),
     userAuthoring: currentUserAuthoringForEval(),
+    comparableToApprovedStyleEval: false as const,
   };
+}
+
+export function buildOpenScalePilotAssembly(): never {
+  throw new Error(
+    "FIXTURE_PARITY_FAIL: B03a/한서린/민 is not the approved style-eval fixture"
+  );
 }
 
 export function adaptOpenScalePilotBody(productionBody: JsonObject): JsonObject {
@@ -451,169 +710,36 @@ export async function runOpenScaleRpPilot(input?: {
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   allowLivePost?: boolean;
+  proposedFixture?: OpenScaleStyleEvalProposedFixture;
 }): Promise<JsonObject> {
   const env = input?.env ?? process.env;
   const credentials = resolveOpenScalePilotKey(env);
-  const assembly = buildOpenScalePilotAssembly();
-  const screening = screeningEstimateFromAssembly(assembly.estimatedPromptTokens);
-  const productionControls = {
-    model: assembly.productionRequestBody.model,
-    temperature: assembly.productionRequestBody.temperature,
-    top_p: assembly.productionRequestBody.top_p,
-    max_tokens: assembly.productionRequestBody.max_tokens ?? null,
-    thinking: assembly.productionRequestBody.thinking ?? null,
-    reasoning_effort: assembly.productionRequestBody.reasoning_effort ?? null,
-    stream: assembly.productionRequestBody.stream ?? null,
-  };
-  const candidateControls = {
-    model: assembly.candidateBody.model,
-    temperature: assembly.candidateBody.temperature,
-    top_p: assembly.candidateBody.top_p,
-    max_tokens: assembly.candidateBody.max_tokens ?? null,
-    reasoning_effort: assembly.candidateBody.reasoning_effort ?? null,
-    stream: assembly.candidateBody.stream ?? null,
-  };
-
-  if (!credentials.ok) {
+  const parity = evaluateOpenScaleStyleEvalFixtureParity(
+    input?.proposedFixture ?? defaultOpenScaleStyleEvalProposedFixture()
+  );
+  if (parity.status === "FIXTURE_PARITY_FAIL") {
     return {
-      status: credentials.status,
+      status: "FIXTURE_PARITY_FAIL",
       providerInferencePosts: 0,
-      stopReason: credentials.reason,
+      cheaperInferencePosts: 0,
+      retry: 0,
+      fallback: 0,
       productionRouteChanges: 0,
-      screening,
+      stopReason: "FIXTURE_PARITY_FAIL",
+      parity,
+      diagnosticB03a: OPENSCALE_B03A_DIAGNOSTIC,
     };
   }
-
-  const prevalidation = await runOpenScaleModelsPrevalidation({
-    env,
-    fetchImpl: input?.fetchImpl,
-  });
-  if (prevalidation.status !== "PREVALIDATION_ONLY") {
-    return {
-      ...prevalidation,
-      productionRouteChanges: 0,
-      screening,
-      productionControls,
-      candidateControls,
-    };
-  }
-
-  const liveRequested = input?.allowLivePost === true || resolveOpenScaleLiveOptIn(env);
-  if (!liveRequested) {
-    return {
-      status: "BLOCKED_OPT_IN",
-      providerInferencePosts: 0,
-      stopReason: "openscale_rp_pilot_opt_in_missing",
-      catalog: prevalidation.catalog,
-      productionRouteChanges: 0,
-      screening,
-      productionControls,
-      candidateControls,
-      fixtureId: assembly.fixtureId,
-      estimatedPromptTokens: assembly.estimatedPromptTokens,
-    };
-  }
-
-  if (!screening.underScreeningBudget) {
-    return {
-      status: "PREVALIDATION_FAILED",
-      providerInferencePosts: 0,
-      stopReason: "screening_estimate_above_budget",
-      catalog: prevalidation.catalog,
-      productionRouteChanges: 0,
-      screening,
-    };
-  }
-
-  const started = Date.now();
-  const response = await executeCompatibleSupplyProbe({
-    endpoint: OPENSCALE_CHAT_ENDPOINT,
-    headers: {
-      Authorization: `Bearer ${credentials.key}`,
-      "Content-Type": "application/json",
-      Accept: "text/event-stream",
-    },
-    body: assembly.candidateBody,
-    timeoutMs: input?.timeoutMs ?? 180_000,
-    strict: true,
-    fetchImpl: input?.fetchImpl,
-  });
-  const usage = extractOpenScaleUsage(response.usage);
-  const outputTokens = usage.completionTokens;
-  const tokensPerSecond =
-    outputTokens != null && response.ttftSeconds != null
-      ? outputTokens / Math.max(0.001, response.totalSeconds - response.ttftSeconds)
-      : null;
-  const estimatedActualUsd =
-    usage.promptTokens != null && usage.completionTokens != null
-      ? estimateOpenScaleUsd({
-          promptTokens: usage.promptTokens,
-          cachedTokens: usage.cachedTokens ?? 0,
-          outputTokens: usage.completionTokens,
-          rates: {
-            inputUsdPerMillion: prevalidation.catalog?.inputUsdPerMillion ?? OPENSCALE_CATALOG_RATES.inputUsdPerMillion,
-            cachedInputUsdPerMillion:
-              prevalidation.catalog?.cachedInputUsdPerMillion ??
-              OPENSCALE_CATALOG_RATES.cachedInputUsdPerMillion,
-            outputUsdPerMillion:
-              prevalidation.catalog?.outputUsdPerMillion ?? OPENSCALE_CATALOG_RATES.outputUsdPerMillion,
-          },
-        })
-      : null;
-  const rawOutput = redactSecretText(response.text, [credentials.key]);
-  const error = response.error
-    ? redactSecretText(response.error, [credentials.key])
-    : null;
-  const liveFailed =
-    Boolean(error) ||
-    response.httpStatus !== 200 ||
-    !rawOutput.trim();
-
   return {
-    status: liveFailed ? "LIVE_FAILED" : "LIVE_COMPLETED",
-    providerInferencePosts: response.requestStarted ? 1 : 0,
+    status: "FIXTURE_PARITY_PASS",
+    providerInferencePosts: 0,
+    cheaperInferencePosts: 0,
+    retry: 0,
+    fallback: 0,
     productionRouteChanges: 0,
-    stopReason: liveFailed
-      ? error ?? (rawOutput.trim() ? `http_${response.httpStatus}` : "empty_output")
-      : null,
-    catalog: prevalidation.catalog,
-    screening,
-    fixture: {
-      id: assembly.fixtureId,
-      label: assembly.fixtureLabel,
-      characterName: assembly.characterName,
-      personaName: assembly.personaName,
-      currentUserMessage: assembly.currentUserMessage,
-      history: assembly.history,
-      systemPromptSha256: assembly.systemPromptSha256,
-      promptSha256: assembly.promptSha256,
-      estimatedPromptTokens: assembly.estimatedPromptTokens,
-      userAuthoring: assembly.userAuthoring,
-    },
-    productionControls,
-    candidateControls,
-    httpStatus: response.httpStatus,
-    requestedModelId: OPENSCALE_OFFICIAL_MODEL_ID,
-    responseModelId: response.resolvedModel,
-    finishReason: response.finishReason,
-    sawDone: response.sawDone,
-    rawOutput,
-    outputChars: response.visibleChars,
-    ttftSeconds: response.ttftSeconds,
-    totalSeconds: response.totalSeconds,
-    tokensPerSecond,
-    usage,
-    reasoningEvidence: extractReasoningEvidence(response.envelope, response.usage),
-    estimatedActualUsd,
-    providerReportedCostUsd: usage.providerReportedCostUsd,
-    dashboardActualUsd: null,
-    dashboardNote: "No public OpenScale balance/usage GET succeeded. Dashboard deduction is NOT_OBSERVED via API.",
-    streamAnomalies: {
-      empty: !rawOutput.trim(),
-      timeout: error === "timeout",
-      incomplete: error === "incomplete_stream",
-      replacementChars: rawOutput.includes("\uFFFD"),
-    },
-    elapsedWallMs: Date.now() - started,
+    stopReason: "parity_pass_inference_not_authorized_this_turn",
+    parity,
+    diagnosticB03a: OPENSCALE_B03A_DIAGNOSTIC,
+    credentialPresent: credentials.ok,
   };
 }

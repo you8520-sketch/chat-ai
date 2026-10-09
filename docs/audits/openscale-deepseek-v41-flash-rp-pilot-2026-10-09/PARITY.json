@@ -1,0 +1,52 @@
+{
+  "status": "FIXTURE_PARITY_FAIL",
+  "thisTurnProviderInferencePosts": 0,
+  "thisTurnCheaperInferencePosts": 0,
+  "retry": 0,
+  "fallback": 0,
+  "productionDbWrites": 0,
+  "required": {
+    "characterId": 18,
+    "characterName": "라이크",
+    "personaId": 1,
+    "personaName": "렌",
+    "personaGender": "male",
+    "sceneFamily": "phase2_q1_q9",
+    "sceneIds": [
+      "Q1-quiet",
+      "Q2-banter",
+      "Q3-tension",
+      "Q4-action",
+      "Q5-emotional",
+      "Q6-short",
+      "Q7-auto",
+      "Q8-regen",
+      "Q9-memory"
+    ],
+    "originalFixtureJsonInThisTree": false,
+    "currentMainPrecallFamily": "rp_quality_precall_abc"
+  },
+  "rejectedDiagnostic": {
+    "fixtureId": "B03a",
+    "characterName": "한서린",
+    "personaName": "민",
+    "outputChars": 945,
+    "providerInferencePosts": 1,
+    "comparableToApprovedStyleEval": false
+  },
+  "liveRailway": {
+    "productionDeployId": "5bc7cb1e-5e02-49f6-b48a-1e83f1e35707",
+    "productionCommit": "7573e6fd3552a5802e97d1507f8f671d361447a2",
+    "ssh": "NOT_EXECUTED",
+    "dbHashProbe": "NOT_OBSERVED",
+    "historicalLiveDeployedRowProofIsCurrent": false
+  },
+  "defaultGateReasons": [
+    "sceneId_missing",
+    "original_q1_q9_fixture_json_unrestored",
+    "current_settings_unrestored",
+    "live_proof_not_provided",
+    "live_proof_not_verified",
+    "replacement_data_forbidden"
+  ]
+}

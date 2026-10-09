@@ -5,13 +5,26 @@ import { describe, it } from "node:test";
 
 import { MAIN_RP_USER_SELECTABLE_OPTIONS } from "@/lib/chatModels";
 import {
+  HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_COMMIT,
+  HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_OWNER,
+  RP_QUALITY_PRECALL_FIXTURE_IDS,
+  RP_QUALITY_PRECALL_TARGET_SELECTOR,
+  type RpQualityPrecallLiveProofInput,
+} from "@/lib/rpQualityPrecall";
+import {
   adaptOpenScalePilotBody,
+  buildOpenScaleB03aDiagnosticAssembly,
   buildOpenScalePilotAssembly,
+  defaultOpenScaleStyleEvalProposedFixture,
   estimateOpenScaleUsd,
+  evaluateOpenScaleStyleEvalFixtureParity,
+  OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY,
+  OPENSCALE_B03A_DIAGNOSTIC,
+  OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID,
   OPENSCALE_CATALOG_RATES,
-  OPENSCALE_CHAT_ENDPOINT,
   OPENSCALE_KEY_ENV,
   OPENSCALE_OFFICIAL_MODEL_ID,
+  OPENSCALE_PHASE2_STYLE_EVAL_SCENE_IDS,
   OPENSCALE_PILOT_SCREENING_BUDGET_USD,
   parseOpenScaleFlashCatalog,
   redactSecretText,
@@ -22,6 +35,8 @@ import {
 } from "./openscaleDeepseekV41FlashRpPilot";
 
 const POLICY_IMPORT = "./src/lib/test/regularTestEgressPolicy.ts";
+const TEST_SHA = "ab".repeat(32);
+const CURRENT_DEPLOY_SHA = "cd".repeat(20);
 
 function catalogPayload() {
   return {
@@ -56,27 +71,46 @@ function catalogPayload() {
   };
 }
 
-function sseResponse(text: string, usage?: Record<string, unknown>) {
-  const events = [
-    `data: ${JSON.stringify({
-      id: "synthetic-os",
-      model: OPENSCALE_OFFICIAL_MODEL_ID,
-      choices: [{ delta: { content: text } }],
-    })}\n`,
-    `data: ${JSON.stringify({
-      choices: [{ finish_reason: "stop", delta: {} }],
-      usage: usage ?? {
-        prompt_tokens: 1200,
-        completion_tokens: 800,
-        prompt_tokens_details: { cached_tokens: 0 },
-      },
-    })}\n`,
-    "data: [DONE]\n",
-  ].join("");
-  return new Response(events, {
-    status: 200,
-    headers: { "Content-Type": "text/event-stream" },
-  });
+function verifiedLiveProof(
+  overrides: Partial<RpQualityPrecallLiveProofInput> = {}
+): RpQualityPrecallLiveProofInput {
+  return {
+    source: "test-injected-evidence",
+    generatedAt: "2026-10-09T00:00:00.000Z",
+    deployedGitSha: CURRENT_DEPLOY_SHA,
+    characterId: RP_QUALITY_PRECALL_TARGET_SELECTOR.characterId,
+    characterName: RP_QUALITY_PRECALL_TARGET_SELECTOR.characterName,
+    personaName: RP_QUALITY_PRECALL_TARGET_SELECTOR.personaName,
+    greetingSha256: TEST_SHA,
+    systemPromptSha256: TEST_SHA,
+    worldSha256: TEST_SHA,
+    settingChunksSha256: TEST_SHA,
+    personaPublicSha256: TEST_SHA,
+    authoringLevel: "NORMAL",
+    contentMode: "SAFE",
+    personaId: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaId,
+    ...overrides,
+  };
+}
+
+function restoredStyleEvalFixture(
+  overrides: Partial<ReturnType<typeof defaultOpenScaleStyleEvalProposedFixture>> = {}
+) {
+  return {
+    characterId: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.characterId,
+    characterName: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.characterName,
+    personaId: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaId,
+    personaName: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaName,
+    sceneFamily: "phase2_q1_q9" as const,
+    sceneId: "Q1-quiet",
+    originalFixtureJsonRestored: true,
+    currentSettingsRestored: true,
+    liveProofInput: verifiedLiveProof(),
+    expectedDeploySha: CURRENT_DEPLOY_SHA,
+    promptFingerprint: TEST_SHA,
+    expectedPromptFingerprint: TEST_SHA,
+    ...overrides,
+  };
 }
 
 describe("OpenScale DeepSeek V4.1 Flash isolated RP pilot", () => {
@@ -113,21 +147,22 @@ describe("OpenScale DeepSeek V4.1 Flash isolated RP pilot", () => {
     assert.deepEqual(catalog.reasoningEffortValues, ["none", "low"]);
   });
 
-  it("keeps production sampling and omits a forced max_tokens ceiling", () => {
-    const assembly = buildOpenScalePilotAssembly();
-    assert.equal(assembly.fixtureId, "B03a");
-    assert.equal(assembly.candidateBody.model, OPENSCALE_OFFICIAL_MODEL_ID);
-    assert.equal(assembly.candidateBody.stream, true);
-    assert.equal(assembly.candidateBody.max_tokens, undefined);
-    assert.equal(assembly.productionRequestBody.max_tokens, undefined);
-    assert.equal(assembly.candidateBody.temperature, 0.92);
-    assert.equal(assembly.candidateBody.top_p, 0.92);
-    assert.equal(assembly.candidateBody.reasoning_effort, "none");
-    assert.equal("thinking" in assembly.candidateBody, false);
-    assert.ok(Array.isArray(assembly.candidateBody.messages));
-    const screening = screeningEstimateFromAssembly(assembly.estimatedPromptTokens);
-    assert.equal(screening.underScreeningBudget, true);
-    assert.ok(screening.estimatedUsd < OPENSCALE_PILOT_SCREENING_BUDGET_USD);
+  it("keeps production sampling and omits a forced max_tokens ceiling on the adapter", () => {
+    const remapped = adaptOpenScalePilotBody({
+      model: "deepseek-v4.1-flash",
+      temperature: 0.92,
+      top_p: 0.92,
+      stream: true,
+      thinking: { type: "disabled" },
+      messages: [{ role: "user", content: "테스트" }],
+    });
+    assert.equal(remapped.model, OPENSCALE_OFFICIAL_MODEL_ID);
+    assert.equal(remapped.stream, true);
+    assert.equal(remapped.max_tokens, undefined);
+    assert.equal(remapped.temperature, 0.92);
+    assert.equal(remapped.top_p, 0.92);
+    assert.equal(remapped.reasoning_effort, "none");
+    assert.equal("thinking" in remapped, false);
   });
 
   it("does not treat a screening estimate as an invoice cap", () => {
@@ -149,69 +184,6 @@ describe("OpenScale DeepSeek V4.1 Flash isolated RP pilot", () => {
       redactSecretText("Bearer secret-key and secret-key", ["secret-key"]),
       "Bearer [REDACTED] and [REDACTED]"
     );
-  });
-
-  it("stops after GET /v1/models auth failure without a generation POST", async () => {
-    let posts = 0;
-    const result = await runOpenScaleRpPilot({
-      env: { [OPENSCALE_KEY_ENV]: "synthetic-os", OPENSCALE_RP_PILOT: "1" },
-      allowLivePost: true,
-      fetchImpl: async (url, init) => {
-        if (String(init?.method ?? "GET").toUpperCase() === "POST") posts += 1;
-        assert.match(String(url), /\/models$/);
-        return new Response(JSON.stringify({ error: { message: "unauthorized" } }), {
-          status: 401,
-        });
-      },
-    });
-    assert.equal(result.status, "PREVALIDATION_FAILED");
-    assert.equal(result.providerInferencePosts, 0);
-    assert.equal(result.stopReason, "auth_or_billing_401");
-    assert.equal(posts, 0);
-  });
-
-  it("does not POST when live opt-in is absent", async () => {
-    let posts = 0;
-    const result = await runOpenScaleRpPilot({
-      env: { [OPENSCALE_KEY_ENV]: "synthetic-os" },
-      fetchImpl: async (url, init) => {
-        if (String(init?.method ?? "GET").toUpperCase() === "POST") posts += 1;
-        return new Response(JSON.stringify(catalogPayload()), { status: 200 });
-      },
-    });
-    assert.equal(result.status, "BLOCKED_OPT_IN");
-    assert.equal(result.providerInferencePosts, 0);
-    assert.equal(posts, 0);
-  });
-
-  it("records one mocked stream without retry or CI fallback", async () => {
-    const calls: string[] = [];
-    const result = await runOpenScaleRpPilot({
-      env: {
-        [OPENSCALE_KEY_ENV]: "synthetic-os",
-        OPENSCALE_RP_PILOT: "1",
-        CHEAPER_INFERENCE_API_KEY: "must-not-be-used",
-      },
-      allowLivePost: true,
-      fetchImpl: async (url, init) => {
-        const method = String(init?.method ?? "GET").toUpperCase();
-        calls.push(`${method} ${String(url)}`);
-        if (method === "GET") {
-          return new Response(JSON.stringify(catalogPayload()), { status: 200 });
-        }
-        assert.equal(String(url), OPENSCALE_CHAT_ENDPOINT);
-        const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
-        assert.equal(body.model, OPENSCALE_OFFICIAL_MODEL_ID);
-        assert.equal(body.max_tokens, undefined);
-        return sseResponse("한서린은 버튼을 보고 짧게 고개를 끄덕였다.");
-      },
-    });
-    assert.equal(result.status, "LIVE_COMPLETED");
-    assert.equal(result.providerInferencePosts, 1);
-    assert.equal(calls.filter((row) => row.startsWith("POST")).length, 1);
-    assert.ok(!calls.some((row) => row.includes("cheaperinference")));
-    assert.equal(result.rawOutput, "한서린은 버튼을 보고 짧게 고개를 끄덕였다.");
-    assert.equal(result.finishReason, "stop");
   });
 
   it("treats GET /v1/models as zero inference POSTs", async () => {
@@ -254,18 +226,173 @@ describe("OpenScale DeepSeek V4.1 Flash isolated RP pilot", () => {
     assert.equal(seen.ci, null);
   });
 
-  it("preserves production prompt text while remapping only the wire model", () => {
-    const assembly = buildOpenScalePilotAssembly();
+  it("preserves production prompt text while remapping only the wire model on the diagnostic assembly", () => {
+    const assembly = buildOpenScaleB03aDiagnosticAssembly();
     const remapped = adaptOpenScalePilotBody(assembly.productionRequestBody);
     const original = assembly.productionRequestBody.messages as Array<{
       role: string;
       content: unknown;
     }>;
     const remappedMessages = remapped.messages as Array<{ role: string; content: string }>;
+    assert.equal(assembly.fixtureId, OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID);
+    assert.equal(assembly.comparableToApprovedStyleEval, false);
     assert.equal(remappedMessages.length, original.length);
     assert.equal(remapped.model, OPENSCALE_OFFICIAL_MODEL_ID);
     assert.notEqual(assembly.productionRequestBody.model, OPENSCALE_OFFICIAL_MODEL_ID);
     assert.ok(remappedMessages.some((message) => message.content.includes("한서린")));
     assert.ok(remappedMessages.some((message) => message.content.includes("엘리베이터")));
+  });
+});
+
+describe("OpenScale style-eval fixture parity gate", () => {
+  it("binds the approved identity to 라이크 18 / 렌 1 and Q1-Q9", () => {
+    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.characterId, 18);
+    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.characterName, "라이크");
+    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaId, 1);
+    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaName, "렌");
+    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaGender, "male");
+    assert.deepEqual(
+      [...OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.originalSceneIds],
+      [...OPENSCALE_PHASE2_STYLE_EVAL_SCENE_IDS]
+    );
+    assert.deepEqual(
+      [...OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.currentMainPrecallFixtureIds],
+      [...RP_QUALITY_PRECALL_FIXTURE_IDS]
+    );
+    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.originalFixtureJsonInThisTree, false);
+    assert.equal(OPENSCALE_B03A_DIAGNOSTIC.comparableToApprovedStyleEval, false);
+    assert.equal(OPENSCALE_B03A_DIAGNOSTIC.outputChars, 945);
+  });
+
+  it("fails closed on the default runner because Q1-Q9 and live settings are unrestored", async () => {
+    let posts = 0;
+    const result = await runOpenScaleRpPilot({
+      env: { [OPENSCALE_KEY_ENV]: "synthetic-os", OPENSCALE_RP_PILOT: "1" },
+      allowLivePost: true,
+      fetchImpl: async (_url, init) => {
+        if (String(init?.method ?? "GET").toUpperCase() === "POST") posts += 1;
+        return new Response(JSON.stringify(catalogPayload()), { status: 200 });
+      },
+    });
+    assert.equal(result.status, "FIXTURE_PARITY_FAIL");
+    assert.equal(result.providerInferencePosts, 0);
+    assert.equal(result.cheaperInferencePosts, 0);
+    assert.equal(posts, 0);
+    const parity = result.parity as ReturnType<typeof evaluateOpenScaleStyleEvalFixtureParity>;
+    assert.ok(parity.reasons.includes("original_q1_q9_fixture_json_unrestored"));
+    assert.ok(parity.reasons.includes("current_settings_unrestored"));
+    assert.ok(parity.reasons.includes("live_proof_not_provided"));
+    assert.ok(parity.reasons.includes("sceneId_missing"));
+    assert.ok(parity.reasons.includes("replacement_data_forbidden"));
+    assert.notEqual(parity.proposed.sceneId, OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID);
+  });
+
+  it("fails closed when the proposed characterId is wrong", () => {
+    const parity = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredStyleEvalFixture({ characterId: 99 })
+    );
+    assert.equal(parity.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(parity.reasons.includes("characterId_mismatch"));
+    assert.equal(parity.comparisons.characterId, false);
+  });
+
+  it("fails closed when the proposed personaId is wrong", () => {
+    const parity = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredStyleEvalFixture({ personaId: 99 })
+    );
+    assert.equal(parity.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(parity.reasons.includes("personaId_mismatch"));
+    assert.equal(parity.comparisons.personaId, false);
+  });
+
+  it("fails closed when B03a or another unapproved sceneId is selected", () => {
+    const b03a = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredStyleEvalFixture({
+        sceneId: OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID,
+        sceneFamily: "scene_policy_benchmark",
+        characterName: "한서린",
+        personaName: "민",
+      })
+    );
+    assert.equal(b03a.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(b03a.reasons.includes("b03a_not_comparable"));
+    assert.ok(b03a.reasons.includes("sceneId_rejected"));
+
+    const unknown = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredStyleEvalFixture({ sceneId: "synthetic-wrong-scene" })
+    );
+    assert.equal(unknown.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(unknown.reasons.includes("sceneId_not_in_phase2_q1_q9"));
+  });
+
+  it("fails closed when the prompt fingerprint does not match", () => {
+    const parity = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredStyleEvalFixture({
+        promptFingerprint: "ff".repeat(32),
+        expectedPromptFingerprint: TEST_SHA,
+      })
+    );
+    assert.equal(parity.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(parity.reasons.includes("prompt_fingerprint_mismatch"));
+    assert.equal(parity.comparisons.promptFingerprint, false);
+  });
+
+  it("does not treat A/B/C or the historical dump as the original Q1-Q9 fixture", () => {
+    const abc = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredStyleEvalFixture({
+        sceneFamily: "rp_quality_precall_abc",
+        sceneId: "A_relationship_emotion",
+      })
+    );
+    assert.equal(abc.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(abc.reasons.includes("requested_family_is_not_original_style_eval"));
+
+    const historical = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredStyleEvalFixture({
+        liveProofInput: verifiedLiveProof({
+          source: HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_OWNER,
+          deployedGitSha: HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_COMMIT,
+        }),
+        expectedDeploySha: HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_COMMIT,
+      })
+    );
+    assert.equal(historical.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(historical.reasons.includes("live_proof_not_verified"));
+    assert.ok(
+      historical.liveProofReasons.includes("historical_LIVE_DEPLOYED_ROW_PROOF_cannot_auto_satisfy")
+    );
+  });
+
+  it("passes the predicate only when Q1-Q9 plus live proof plus fingerprint are restored", () => {
+    const parity = evaluateOpenScaleStyleEvalFixtureParity(restoredStyleEvalFixture());
+    assert.equal(parity.status, "FIXTURE_PARITY_PASS");
+    assert.deepEqual(parity.reasons, []);
+  });
+
+  it("never POSTs even when the predicate is synthetically restored", async () => {
+    let posts = 0;
+    const result = await runOpenScaleRpPilot({
+      env: { [OPENSCALE_KEY_ENV]: "synthetic-os", OPENSCALE_RP_PILOT: "1" },
+      allowLivePost: true,
+      proposedFixture: restoredStyleEvalFixture(),
+      fetchImpl: async (_url, init) => {
+        if (String(init?.method ?? "GET").toUpperCase() === "POST") posts += 1;
+        return new Response(JSON.stringify(catalogPayload()), { status: 200 });
+      },
+    });
+    assert.equal(result.status, "FIXTURE_PARITY_PASS");
+    assert.equal(result.providerInferencePosts, 0);
+    assert.equal(result.stopReason, "parity_pass_inference_not_authorized_this_turn");
+    assert.equal(posts, 0);
+  });
+
+  it("refuses the old default assembly helper so B03a cannot be selected silently", () => {
+    assert.throws(() => buildOpenScalePilotAssembly(), /FIXTURE_PARITY_FAIL/);
+    const diagnostic = buildOpenScaleB03aDiagnosticAssembly();
+    const defaultProposed = defaultOpenScaleStyleEvalProposedFixture();
+    assert.equal(diagnostic.fixtureId, OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID);
+    assert.notEqual(defaultProposed.sceneId, diagnostic.fixtureId);
+    assert.notEqual(defaultProposed.characterName, diagnostic.characterName);
+    assert.notEqual(defaultProposed.personaName, diagnostic.personaName);
   });
 });

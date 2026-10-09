@@ -46,7 +46,11 @@ async function main() {
       outputDir,
     })
   );
-  if (status === "PREVALIDATION_FAILED" || status === "LIVE_FAILED") {
+  if (
+    status === "PREVALIDATION_FAILED" ||
+    status === "LIVE_FAILED" ||
+    status === "FIXTURE_PARITY_FAIL"
+  ) {
     process.exitCode = 1;
   }
 }

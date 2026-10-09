@@ -1,13 +1,190 @@
 # OpenScale DeepSeek V4.1 Flash RP Pilot
 
-Status: **LIVE_COMPLETED — 1 inference POST. Draft only. No production activation.**
+Status: **FIXTURE_PARITY_FAIL — PRECALL only. Draft only. No additional paid POST. No production activation.**
 
 This is an isolated provider experiment. It is not a production supplier promotion. Cursor did not assign an RP style score.
 
-Audit baseline: `7573e6fd3552a5802e97d1507f8f671d361447a2` (`origin/main`).
-Live runner SHA: `f7a72dd596b86a8dab674b71985d119a00da2582`.
+Audit baseline: `7573e6fd3552a5802e97d1507f8f671d361447a2` (`origin/main` = current Railway production commit).
+First-run (wrong fixture) SHA: `f7a72dd596b86a8dab674b71985d119a00da2582`.
+Evidence commit of that run: `cebd58135b120d2d1799a3989835f77d604394f1`.
+
+This-turn paid calls: OpenScale POST **0**, CheaperInference POST **0**, retry **0**, fallback **0**, production DB write **0**.
 
 ## BEFORE
+
+Confirmed style-eval identity on current-main owners, not the first OpenScale run:
+
+| Item | Confirmed owner / fact |
+| --- | --- |
+| Character | 라이크 / 조태형, id **18** (`RP_QUALITY_PRECALL_TARGET_SELECTOR`, AGENTS.md roster) |
+| Persona | 렌, admin persona id **1**, male |
+| Earlier actual style eval | PR **#1318** Q1–Q9 (interactive + auto + regen + memory). Fixture JSON is **not** in this tree or in the #1318 packet |
+| Current-main quality PRECALL | PR **#1430** A/B/C (`src/lib/rpQualityPrecall.ts`). Same cast, **different** scenes (greeting + `COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS`). All `turnKind=manual` |
+| Historical dump | `rpModelQualificationFixture` chat=4 / user=1 / character=**10** dated 2026-08-25. Stale vs id 18. Not current deploy data |
+| Historical live hashes | `LIVE_DEPLOYED_ROW_PROOF` @ `2f5cb0b4` — `isCurrentProductionProof=false` |
+| First OpenScale run | Synthetic `B03a` 한서린 / 민 / 945 chars / 1 OpenScale POST |
+
+The first run did not inspect #1318 / #1430 before choosing a scene.
+
+## ROOT CAUSE
+
+Exact code path that selected B03a:
+
+1. Isolated pilot reused `scenePolicyBenchmarkDataset` because it is public, non-adult, and not a live user chat.
+2. `scripts/lib/openscaleDeepseekV41FlashRpPilot.ts` hardcoded `OPENSCALE_PILOT_FIXTURE_ID = "B03a"`.
+3. `buildOpenScalePilotAssembly()` called `getBenchmarkFixtureById("B03a")` then `buildBenchmarkContextBase()` (`BENCHMARK_CHAR_NAME=한서린`, `BENCHMARK_USER_PERSONA=민`, `BENCHMARK_CHARACTER_ID=8801`).
+4. `runOpenScaleRpPilot()` assembled that fixture and POSTed once.
+
+That path bypassed the approved style-eval cast (라이크 18 / 렌 1) and the approved scene families (Q1–Q9, or separately A/B/C). B03a is a scene-policy synthetic fixture, not a style-eval fixture.
+
+## OWNER MAP
+
+| Responsibility | Canonical owner | This PR |
+| --- | --- | --- |
+| Style-eval cast | `src/lib/rpQualityPrecall.ts#RP_QUALITY_PRECALL_TARGET_SELECTOR` + admin persona id 1 | reused |
+| Live identity proof | `validateLiveProof` + Railway `/data/app.db` hash-only probe | reused; live hashes **NOT_OBSERVED** this turn |
+| Current-main quality scenes | `rpQualityPrecall` A/B/C + `buildGreetingBodyCueReviewCases` + `COMMON_PROSE_BODY_CUE_REVIEW_SCENE_SEEDS` | documented as **different** from Q1–Q9 |
+| Original style-eval scenes | PR #1318 Q1–Q9 public index. Fixture JSON unrestored | not invented |
+| Prompt / wire assembly | `contextBuilder#buildContext` + `assemblePrimaryRpRequest` | unchanged |
+| Length | `UNIFIED_TIER_AIM_CHARS` 3200+ soft aim; no `max_tokens` | unchanged |
+| Authoring | `DEFAULT_USER_AUTHORING_LEVEL=NORMAL` | unchanged |
+| This isolated contract | `scripts/lib/openscaleDeepseekV41FlashRpPilot.ts` | parity gate added; B03a default removed |
+| B03a 945-char result | `docs/audits/openscale-deepseek-v41-flash-rp-pilot-2026-10-09/` | preserved as non-comparable diagnostic |
+
+No new experiment runner, picker, billing, routing, or model registration.
+
+## CORRECT FIXTURE IDENTITY
+
+Required for an original-style-eval comparison:
+
+- Character id **18**, name 라이크, card name 조태형
+- Persona id **1**, name 렌, gender male
+- Scene family **phase2_q1_q9**: Q1-quiet, Q2-banter, Q3-tension, Q4-action, Q5-emotional, Q6-short, Q7-auto, Q8-regen, Q9-memory
+- Paths: Q1–Q6 interactive, Q7 auto_progression, Q8 regenerate, Q9 memory
+- Authoring: NORMAL
+- History / memory / lorebook: from the original #1318 fixture JSON — **unrestored**
+- Current character/persona source: current Railway production rows — **not restored in-process this turn**
+
+Public #1318 user-turn SHA-256 (index text only; not used as a replacement fixture):
+
+| Scene | sha256(public user turn) |
+| --- | --- |
+| Q1-quiet | `82916a916c3b00421983d65af1888605ce50b8c6bd4d8712af75f2aa8ae6f52a` |
+| Q2-banter | `e22a6879d2e57bb0fbc7d7ac64578f9164cc88e07bcdbe1aa3bf5bdef64424c5` |
+| Q3-tension | `571305b8a1398aef933f3d05d285c558be028379539e329b8c048c0d4e626c00` |
+| Q4-action | `2d12248085036e8814cdc529ef2cde7a11c6c29bb174dc3d262588537cb8e566` |
+| Q5-emotional | `cfad7c9259c4862934a72b0cec72f599bb5c417b67bce9dfb4cbfa971dea93db` |
+| Q6-short | `8025c713f26164a6787608a6cbce1b8ac0cfe963a42e1416578db60193e95224` |
+| Q8-regen | `a2e619f7791a359c13d02909a9eeefe1b94358cd5c3bda62f69951bd7330d30f` |
+| Q9-memory | `b6071edceb94e314cecb57da745342f42152def53897fee0424597f58fbe47e9` |
+
+Q7-auto current turn is the continue-command wrapper, not a short display string. It is not hashed here because the original fixture JSON is unrestored.
+
+A/B/C remains the current-main PRECALL scene family (same cast, different scenes). Using A/B/C as if it were Q1–Q9 is a parity fail.
+
+#1318 short hashes `sourceHash 295f4d8ae3dc8391` / `descriptionHash 9ef42c7f92091ca1` match the historical `LIVE_DEPLOYED_ROW_PROOF` prefixes at `2f5cb0b4`. They are **not** current production proof.
+
+### Live Railway identity this turn
+
+- `railway deployment list` production SUCCESS: deploy `5bc7cb1e-5e02-49f6-b48a-1e83f1e35707`, commit `7573e6fd3552a5802e97d1507f8f671d361447a2` (matches `origin/main`)
+- `railway ssh` **NOT_EXECUTED**: this environment’s `RAILWAY_SSH_PRIVATE_KEY` / `RAILWAY_SSH_PUBLIC_KEY` are 11-character stubs, not OpenSSH keys
+- `railway whoami` returned Unauthorized
+- `/data/app.db` hash probe: **NOT_OBSERVED**
+- No private setting text was read, copied, or written
+
+Because current settings were not restored, the gate returns `FIXTURE_PARITY_FAIL` and does not invent 라이크/렌 source text.
+
+## SYSTEM DELTA
+
+Changed:
+
+- Default OpenScale style-eval path no longer hardcodes B03a
+- `buildOpenScalePilotAssembly()` now throws `FIXTURE_PARITY_FAIL`
+- Archived wrong assembly is `buildOpenScaleB03aDiagnosticAssembly()` and is marked non-comparable
+- `runOpenScaleRpPilot()` evaluates `evaluateOpenScaleStyleEvalFixtureParity` first and never POSTs
+- B03a 945-char packet stays in this folder as a diagnostic
+
+Unchanged: picker, billing, routing, production prompt wording, length owner, Railway DB.
+
+## PAIRWISE REQUEST PARITY
+
+Compared **before** any new inference. Required side cannot be assembled, so the gate fails closed.
+
+| Gate | B03a first run | Required style-eval | Match |
+| --- | --- | --- | --- |
+| Character ID | 8801 | 18 | FAIL |
+| Character name | 한서린 | 라이크 | FAIL |
+| Character source hash | synthetic benchmark | current Railway SHA-256 | NOT_RESTORED |
+| Persona ID | none (synthetic 민) | 1 | FAIL |
+| Persona name | 민 | 렌 | FAIL |
+| Public persona hash | synthetic | `toPublicPersonaDescription` of live 렌 | NOT_RESTORED |
+| Scene / current user turn | B03a elevator | Q1–Q9 unrestored | FAIL |
+| History / memory / lorebook | synthetic apartment | original fixture JSON unrestored | FAIL |
+| User-authoring | NORMAL | NORMAL | PASS |
+| Final system prompt / user-tail | `59a2216f…` / `3ec3f303…` | current assembly of live 18/렌 + Q scene | NOT_RESTORED |
+| Length owner | 3200+ soft aim, no max_tokens | same | PASS |
+| Cache boundary | uncached first call | uncached first call | PASS (policy only) |
+| Sampling | 0.92 / 0.92 | 0.92 / 0.92 | PASS |
+| Reasoning | OpenScale `reasoning_effort=none`; CI `thinking.disabled` omitted on OpenScale | same required API delta | PROVIDER_REQUIRED |
+| Streaming | true + `include_usage` | true | PASS |
+| Fixture fingerprint | B03a | phase2_q1_q9 + live proof | FAIL |
+
+Provider-required differences (keep separate; do not flatten):
+
+- Wire model id: `deepseek/deepseek-v4.1-flash` vs CI `deepseek-v4.1-flash`
+- OpenScale catalog has `reasoning_effort` and does not list CI `thinking`
+- Catalog rates `$0.06 / $0.003 / $0.24` vs published CI `$0.30 / $0.006 / $1.20`
+
+Result: **`FIXTURE_PARITY_FAIL`**. No replacement prompt was assembled. No second POST.
+
+## REGRESSION PROOF
+
+Deterministic gate tests cover:
+
+- Default runner → `FIXTURE_PARITY_FAIL`, OpenScale POST 0, does not select B03a
+- Wrong `characterId` (99)
+- Wrong `personaId` (99)
+- Wrong `sceneId` (`B03a` and `synthetic-wrong-scene`)
+- Wrong prompt fingerprint
+- A/B/C family is not Q1–Q9
+- Historical `LIVE_DEPLOYED_ROW_PROOF` cannot auto-satisfy
+- Predicate can pass only when Q scene + live proof + fingerprint are restored
+- Even a synthetic PASS still authorizes **0** inference POSTs this turn
+- Old `buildOpenScalePilotAssembly()` throws
+
+## FOLLOW-UP COST PLAN
+
+Do **not** run the next paid OpenScale call until all of these are true:
+
+1. Original Q1–Q9 fixture JSON restored, or a reviewer explicitly accepts a **different** comparison against current-main A/B/C (not as Q1–Q9)
+2. Current Railway `/data/app.db` hash-only proof is `VERIFIED` against `7573e6fd…` or a newer listed production SHA
+3. Final system prompt + user-tail hashes are assembled in-process from live rows (existing PRECALL final-wire owner), never from invented text
+4. Pairwise request parity is `FIXTURE_PARITY_PASS`
+5. Screening estimate stays under the existing $0.02 isolated budget
+6. Authorization is still one OpenScale POST, zero CheaperInference POST, zero retry/fallback
+
+GPT then scores the new output with the same axes as #1318. Cursor does not score.
+
+Catalog estimate for a later Flash call at this turn’s B03a token shape was $0.00047562. That number is not a Q1–Q9 cost forecast.
+
+## STOP CONDITIONS
+
+Stop now because:
+
+- `FIXTURE_PARITY_FAIL`
+- Q1–Q9 fixture JSON unrestored
+- Current Railway settings unrestored (SSH identity unavailable)
+- Historical hashes must not be treated as current deploy data
+- This turn forbids additional paid POSTs
+- Draft PR only; no auto-merge
+
+---
+
+## ARCHIVED FIRST-RUN DIAGNOSTIC (B03a, not comparable)
+
+The following sections are the original 2026-10-09 B03a packet. They are **not** a style-eval baseline.
+
+## BEFORE (first-run, superseded for style-eval)
 
 Current Main RP DeepSeek path on `origin/main`:
 

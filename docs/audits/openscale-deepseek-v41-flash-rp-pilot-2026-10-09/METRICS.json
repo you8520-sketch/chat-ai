@@ -1,4 +1,6 @@
 {
+  "comparableToApprovedStyleEval": false,
+  "diagnosticNote": "Archived B03a first-run metrics. Not a 라이크/렌 style-eval baseline.",
   "status": "LIVE_COMPLETED",
   "providerInferencePosts": 1,
   "cheaperInferencePosts": 0,
