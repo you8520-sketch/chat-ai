@@ -1,0 +1,36 @@
+{
+  "FIXTURE_ID": "F2",
+  "CHARACTER_CNC_OPT_IN_ALLOWED": false,
+  "REQUESTED_CONSENT_MODE": "standard",
+  "EFFECTIVE_CONSENT_MODE": "standard",
+  "EXPLICIT_CNC_OPT_IN_IN_CURRENT_INPUT": false,
+  "EFFECTIVE_COAUTHOR_MODE": "OFF",
+  "RUNTIME_MODE": "interactive",
+  "SCENE_MODE": "normal",
+  "USED_ENGLISH_CHARACTER_LAYER": true,
+  "MODEL": "deepseek",
+  "MODEL_ID": "deepseek-v4-pro-0813",
+  "TRUE_OFF": true,
+  "TEMPERATURE": 0.92,
+  "MAX_TOKENS": null,
+  "THINKING": {
+    "type": "disabled"
+  },
+  "REASONING_EFFORT": "none",
+  "ADAPTER_DIFF": {
+    "removed": [
+      "frequency_penalty",
+      "include_reasoning",
+      "presence_penalty",
+      "reasoning"
+    ],
+    "added": [
+      "reasoning_effort",
+      "thinking"
+    ],
+    "changed": []
+  },
+  "SYSTEM_SHA256": "18f30074e178622bc9ea6887b0ba344c7aad75bc50c444b374f47ac36adb75f0",
+  "HISTORY_SHA256": "0452e8fb4967fea6bdd4480f88f6de4800e63f80e1e8beccec6364dab908fe98",
+  "HISTORY_MESSAGE_COUNT": 5
+}
