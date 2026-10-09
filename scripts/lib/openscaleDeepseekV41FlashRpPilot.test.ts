@@ -26,6 +26,8 @@ import {
   OPENSCALE_OFFICIAL_MODEL_ID,
   OPENSCALE_PHASE2_STYLE_EVAL_SCENE_IDS,
   OPENSCALE_PILOT_SCREENING_BUDGET_USD,
+  contentFingerprintFromRequestBody,
+  describeOpenScaleWireDelta,
   parseOpenScaleFlashCatalog,
   redactSecretText,
   resolveOpenScalePilotKey,
@@ -37,6 +39,7 @@ import {
 const POLICY_IMPORT = "./src/lib/test/regularTestEgressPolicy.ts";
 const TEST_SHA = "ab".repeat(32);
 const CURRENT_DEPLOY_SHA = "cd".repeat(20);
+const LIVE_PERSONA_ID = 7;
 
 function catalogPayload() {
   return {
@@ -88,27 +91,44 @@ function verifiedLiveProof(
     personaPublicSha256: TEST_SHA,
     authoringLevel: "NORMAL",
     contentMode: "SAFE",
-    personaId: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaId,
+    personaId: LIVE_PERSONA_ID,
     ...overrides,
   };
 }
 
-function restoredStyleEvalFixture(
+function syntheticProductionBody(overrides: Record<string, unknown> = {}) {
+  return {
+    model: "deepseek-v4.1-flash",
+    messages: [
+      { role: "system", content: "synthetic-system" },
+      { role: "user", content: "[채팅 시작]" },
+      { role: "assistant", content: "synthetic-greeting" },
+      { role: "user", content: "synthetic-turn" },
+    ],
+    temperature: 0.92,
+    top_p: 0.92,
+    stream: true,
+    thinking: { type: "disabled" },
+    reasoning_effort: "none",
+    ...overrides,
+  };
+}
+
+function restoredAbcFixture(
   overrides: Partial<ReturnType<typeof defaultOpenScaleStyleEvalProposedFixture>> = {}
 ) {
+  const productionRequestBody = syntheticProductionBody();
   return {
     characterId: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.characterId,
     characterName: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.characterName,
-    personaId: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaId,
+    personaId: LIVE_PERSONA_ID,
     personaName: OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaName,
-    sceneFamily: "phase2_q1_q9" as const,
-    sceneId: "Q1-quiet",
-    originalFixtureJsonRestored: true,
-    currentSettingsRestored: true,
+    sceneFamily: "rp_quality_precall_abc" as const,
+    fixtureId: "A_relationship_emotion",
     liveProofInput: verifiedLiveProof(),
     expectedDeploySha: CURRENT_DEPLOY_SHA,
-    promptFingerprint: TEST_SHA,
-    expectedPromptFingerprint: TEST_SHA,
+    productionRequestBody,
+    expectedContentFingerprint: contentFingerprintFromRequestBody(productionRequestBody),
     ...overrides,
   };
 }
@@ -244,27 +264,26 @@ describe("OpenScale DeepSeek V4.1 Flash isolated RP pilot", () => {
   });
 });
 
-describe("OpenScale style-eval fixture parity gate", () => {
-  it("binds the approved identity to 라이크 18 / 렌 1 and Q1-Q9", () => {
+describe("OpenScale A/B/C PRECALL fixture parity gate", () => {
+  it("binds the current baseline to 라이크 18 / 렌 / A/B/C, not Q1-Q9", () => {
     assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.characterId, 18);
     assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.characterName, "라이크");
-    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaId, 1);
     assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaName, "렌");
-    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaGender, "male");
+    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaIdOwner, "verified_live_proof_only");
+    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.sceneFamily, "rp_quality_precall_abc");
+    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.distinctFromPhase2Q1Q9, true);
     assert.deepEqual(
-      [...OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.originalSceneIds],
-      [...OPENSCALE_PHASE2_STYLE_EVAL_SCENE_IDS]
-    );
-    assert.deepEqual(
-      [...OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.currentMainPrecallFixtureIds],
+      [...OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.fixtureIds],
       [...RP_QUALITY_PRECALL_FIXTURE_IDS]
     );
-    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.originalFixtureJsonInThisTree, false);
+    assert.notDeepEqual(
+      [...OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.fixtureIds],
+      [...OPENSCALE_PHASE2_STYLE_EVAL_SCENE_IDS]
+    );
     assert.equal(OPENSCALE_B03A_DIAGNOSTIC.comparableToApprovedStyleEval, false);
-    assert.equal(OPENSCALE_B03A_DIAGNOSTIC.outputChars, 945);
   });
 
-  it("fails closed on the default runner because Q1-Q9 and live settings are unrestored", async () => {
+  it("fails closed on the default runner because live assembly is not restored", async () => {
     let posts = 0;
     const result = await runOpenScaleRpPilot({
       env: { [OPENSCALE_KEY_ENV]: "synthetic-os", OPENSCALE_RP_PILOT: "1" },
@@ -275,40 +294,36 @@ describe("OpenScale style-eval fixture parity gate", () => {
       },
     });
     assert.equal(result.status, "FIXTURE_PARITY_FAIL");
+    assert.equal(result.precallReady, false);
     assert.equal(result.providerInferencePosts, 0);
     assert.equal(result.cheaperInferencePosts, 0);
     assert.equal(posts, 0);
     const parity = result.parity as ReturnType<typeof evaluateOpenScaleStyleEvalFixtureParity>;
-    assert.ok(parity.reasons.includes("original_q1_q9_fixture_json_unrestored"));
-    assert.ok(parity.reasons.includes("current_settings_unrestored"));
     assert.ok(parity.reasons.includes("live_proof_not_provided"));
+    assert.ok(parity.reasons.includes("assembly_not_provided"));
+    assert.ok(parity.reasons.includes("expected_content_fingerprint_missing"));
     assert.ok(parity.reasons.includes("sceneId_missing"));
-    assert.ok(parity.reasons.includes("replacement_data_forbidden"));
-    assert.notEqual(parity.proposed.sceneId, OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID);
+    assert.equal(parity.proposed.sceneFamily, "rp_quality_precall_abc");
   });
 
   it("fails closed when the proposed characterId is wrong", () => {
-    const parity = evaluateOpenScaleStyleEvalFixtureParity(
-      restoredStyleEvalFixture({ characterId: 99 })
-    );
+    const parity = evaluateOpenScaleStyleEvalFixtureParity(restoredAbcFixture({ characterId: 99 }));
     assert.equal(parity.status, "FIXTURE_PARITY_FAIL");
     assert.ok(parity.reasons.includes("characterId_mismatch"));
-    assert.equal(parity.comparisons.characterId, false);
   });
 
-  it("fails closed when the proposed personaId is wrong", () => {
-    const parity = evaluateOpenScaleStyleEvalFixtureParity(
-      restoredStyleEvalFixture({ personaId: 99 })
-    );
+  it("fails closed when the proposed personaId disagrees with live proof", () => {
+    const parity = evaluateOpenScaleStyleEvalFixtureParity(restoredAbcFixture({ personaId: 99 }));
     assert.equal(parity.status, "FIXTURE_PARITY_FAIL");
     assert.ok(parity.reasons.includes("personaId_mismatch"));
-    assert.equal(parity.comparisons.personaId, false);
+    assert.equal(parity.confirmedPersonaId, LIVE_PERSONA_ID);
   });
 
-  it("fails closed when B03a or another unapproved sceneId is selected", () => {
+  it("fails closed when B03a is selected", () => {
     const b03a = evaluateOpenScaleStyleEvalFixtureParity(
-      restoredStyleEvalFixture({
+      restoredAbcFixture({
         sceneId: OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID,
+        fixtureId: OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID,
         sceneFamily: "scene_policy_benchmark",
         characterName: "한서린",
         personaName: "민",
@@ -316,39 +331,45 @@ describe("OpenScale style-eval fixture parity gate", () => {
     );
     assert.equal(b03a.status, "FIXTURE_PARITY_FAIL");
     assert.ok(b03a.reasons.includes("b03a_not_comparable"));
-    assert.ok(b03a.reasons.includes("sceneId_rejected"));
-
-    const unknown = evaluateOpenScaleStyleEvalFixtureParity(
-      restoredStyleEvalFixture({ sceneId: "synthetic-wrong-scene" })
-    );
-    assert.equal(unknown.status, "FIXTURE_PARITY_FAIL");
-    assert.ok(unknown.reasons.includes("sceneId_not_in_phase2_q1_q9"));
   });
 
-  it("fails closed when the prompt fingerprint does not match", () => {
+  it("fails closed when Q1-Q9 is mixed into the A/B/C baseline", () => {
+    const q = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredAbcFixture({
+        sceneFamily: "phase2_q1_q9",
+        fixtureId: "Q1-quiet",
+        sceneId: "Q1-quiet",
+      })
+    );
+    assert.equal(q.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(q.reasons.includes("q1_q9_is_not_abc_baseline"));
+  });
+
+  it("fails closed on an empty expected fingerprint", () => {
     const parity = evaluateOpenScaleStyleEvalFixtureParity(
-      restoredStyleEvalFixture({
-        promptFingerprint: "ff".repeat(32),
+      restoredAbcFixture({ expectedContentFingerprint: "" })
+    );
+    assert.equal(parity.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(parity.reasons.includes("expected_content_fingerprint_missing"));
+  });
+
+  it("ignores caller-supplied fingerprints and boolean restore flags", () => {
+    const parity = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredAbcFixture({
+        promptFingerprint: TEST_SHA,
         expectedPromptFingerprint: TEST_SHA,
+        originalFixtureJsonRestored: true,
+        currentSettingsRestored: true,
       })
     );
     assert.equal(parity.status, "FIXTURE_PARITY_FAIL");
-    assert.ok(parity.reasons.includes("prompt_fingerprint_mismatch"));
-    assert.equal(parity.comparisons.promptFingerprint, false);
+    assert.ok(parity.reasons.includes("caller_fingerprint_ignored"));
+    assert.ok(parity.reasons.includes("boolean_restore_flag_ignored"));
   });
 
-  it("does not treat A/B/C or the historical dump as the original Q1-Q9 fixture", () => {
-    const abc = evaluateOpenScaleStyleEvalFixtureParity(
-      restoredStyleEvalFixture({
-        sceneFamily: "rp_quality_precall_abc",
-        sceneId: "A_relationship_emotion",
-      })
-    );
-    assert.equal(abc.status, "FIXTURE_PARITY_FAIL");
-    assert.ok(abc.reasons.includes("requested_family_is_not_original_style_eval"));
-
+  it("fails closed on a stale historical Railway proof", () => {
     const historical = evaluateOpenScaleStyleEvalFixtureParity(
-      restoredStyleEvalFixture({
+      restoredAbcFixture({
         liveProofInput: verifiedLiveProof({
           source: HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_OWNER,
           deployedGitSha: HISTORICAL_LIVE_DEPLOYED_ROW_PROOF_COMMIT,
@@ -363,36 +384,69 @@ describe("OpenScale style-eval fixture parity gate", () => {
     );
   });
 
-  it("passes the predicate only when Q1-Q9 plus live proof plus fingerprint are restored", () => {
-    const parity = evaluateOpenScaleStyleEvalFixtureParity(restoredStyleEvalFixture());
+  it("fails closed when the expected content fingerprint does not match assembled messages", () => {
+    const parity = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredAbcFixture({ expectedContentFingerprint: TEST_SHA })
+    );
+    assert.equal(parity.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(parity.reasons.includes("content_fingerprint_mismatch"));
+  });
+
+  it("fails closed when max_tokens is introduced", () => {
+    const body = syntheticProductionBody({ max_tokens: 800 });
+    const parity = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredAbcFixture({
+        productionRequestBody: body,
+        expectedContentFingerprint: contentFingerprintFromRequestBody(body),
+      })
+    );
+    assert.equal(parity.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(parity.reasons.includes("max_tokens_present"));
+  });
+
+  it("rejects provider-wire changes outside the allowlist", () => {
+    const production = syntheticProductionBody();
+    const candidate = adaptOpenScalePilotBody(production);
+    candidate.temperature = 0.1;
+    const delta = describeOpenScaleWireDelta(production, candidate);
+    assert.equal(delta.samplingMatch, false);
+    assert.ok(delta.unauthorized.includes("temperature"));
+  });
+
+  it("passes only when live proof, A/B/C assembly, and computed fingerprints match", () => {
+    const parity = evaluateOpenScaleStyleEvalFixtureParity(restoredAbcFixture());
     assert.equal(parity.status, "FIXTURE_PARITY_PASS");
+    assert.equal(parity.precallReady, true);
+    assert.equal(parity.classification, "PRECALL_READY");
+    assert.equal(parity.confirmedPersonaId, LIVE_PERSONA_ID);
     assert.deepEqual(parity.reasons, []);
   });
 
-  it("never POSTs even when the predicate is synthetically restored", async () => {
+  it("never POSTs even when A/B/C parity is synthetically restored", async () => {
     let posts = 0;
     const result = await runOpenScaleRpPilot({
       env: { [OPENSCALE_KEY_ENV]: "synthetic-os", OPENSCALE_RP_PILOT: "1" },
       allowLivePost: true,
-      proposedFixture: restoredStyleEvalFixture(),
+      proposedFixture: restoredAbcFixture(),
       fetchImpl: async (_url, init) => {
         if (String(init?.method ?? "GET").toUpperCase() === "POST") posts += 1;
         return new Response(JSON.stringify(catalogPayload()), { status: 200 });
       },
     });
     assert.equal(result.status, "FIXTURE_PARITY_PASS");
+    assert.equal(result.precallReady, true);
     assert.equal(result.providerInferencePosts, 0);
-    assert.equal(result.stopReason, "parity_pass_inference_not_authorized_this_turn");
+    assert.equal(result.stopReason, "PRECALL_READY_inference_not_authorized_this_turn");
     assert.equal(posts, 0);
   });
 
-  it("refuses the old default assembly helper so B03a cannot be selected silently", () => {
+  it("keeps B03a on the diagnostic path only", () => {
     assert.throws(() => buildOpenScalePilotAssembly(), /FIXTURE_PARITY_FAIL/);
     const diagnostic = buildOpenScaleB03aDiagnosticAssembly();
     const defaultProposed = defaultOpenScaleStyleEvalProposedFixture();
     assert.equal(diagnostic.fixtureId, OPENSCALE_B03A_DIAGNOSTIC_FIXTURE_ID);
-    assert.notEqual(defaultProposed.sceneId, diagnostic.fixtureId);
+    assert.equal(diagnostic.comparableToApprovedStyleEval, false);
+    assert.equal(defaultProposed.sceneFamily, "rp_quality_precall_abc");
     assert.notEqual(defaultProposed.characterName, diagnostic.characterName);
-    assert.notEqual(defaultProposed.personaName, diagnostic.personaName);
   });
 });

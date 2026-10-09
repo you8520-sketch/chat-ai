@@ -1,6 +1,101 @@
 # OpenScale DeepSeek V4.1 Flash RP Pilot
 
-Status: **FIXTURE_PARITY_FAIL — PRECALL only. Draft only. No additional paid POST. No production activation.**
+Status: **FIXTURE_PARITY_FAIL — A/B/C PRECALL not ready. Draft only. No additional paid POST.**
+
+This is an isolated provider experiment. It is not a production supplier promotion. Cursor did not assign an RP style score.
+
+A/B/C is the current comparison baseline. Q1–Q9 is a different experiment and is not claimed to be the same.
+
+## BEFORE
+
+Current-main quality PRECALL owners already exist and were not reimplemented:
+
+- `src/lib/rpQualityPrecall.ts` — cast `라이크` id 18 / persona name 렌, fixtures A/B/C, `validateLiveProof`, `PRECALL_READY`
+- `scripts/lib/rpQualityPrecallFinalWire.ts` — in-process A/B/C final-wire assembly
+- `scripts/lib/rpQualityPrecallProductionRows.ts` — read-only Railway `/data/app.db` loader
+- `scripts/railway-precall-final-wire.sh` — in-container hash-only + final-wire path
+
+#1474 first used B03a (한서린/민). The previous correction required Q1–Q9 and treated A/B/C as a mismatch. That gate also accepted `restored=true` plus a caller-supplied fingerprint.
+
+## PROBLEM
+
+OpenScale cannot be compared to recent HAV style quality until it uses the same A/B/C character, persona, scene, history, authoring, and assembled request. The previous gate still pointed at Q1–Q9 and could be satisfied without a real final-wire assembly.
+
+## ROOT CAUSE
+
+1. First run hardcoded `B03a`.
+2. The follow-up gate required `phase2_q1_q9` and failed `rp_quality_precall_abc`.
+3. Boolean restore flags and caller fingerprints could mark parity PASS without assembled messages.
+4. This environment cannot run the existing Railway in-container PRECALL: `RAILWAY_SSH_*` are 11-character stubs, `railway ssh` finds no usable key, and no new key was generated.
+
+## OWNER MAP
+
+| Responsibility | Owner |
+| --- | --- |
+| A/B/C fixtures / live proof | `src/lib/rpQualityPrecall.ts` |
+| Final-wire assembly | `scripts/lib/rpQualityPrecallFinalWire.ts` |
+| Production rows | `scripts/lib/rpQualityPrecallProductionRows.ts` |
+| Railway launcher | `scripts/railway-precall-final-wire.sh` |
+| OpenScale A/B/C parity | `scripts/lib/openscaleDeepseekV41FlashRpPilot.ts` |
+| B03a diagnostic | same file, `buildOpenScaleB03aDiagnosticAssembly` only |
+
+## AFTER
+
+- Required family is `rp_quality_precall_abc` (A/B/C).
+- Q1–Q9 mixing fails `q1_q9_is_not_abc_baseline`.
+- B03a remains diagnostic-only.
+- Parity requires verified live proof, an actual production request body, and a content fingerprint computed from that body. Empty expected fingerprints fail. Caller fingerprints and `restored=true` fail.
+- Persona id is taken only from verified live proof. #1318’s id 1 is historical, not current proof.
+- OpenScale candidate may change only `model`, `thinking`, `reasoning_effort`, `stream_options`, and `session_id`.
+
+## REMOVED
+
+- Q1–Q9 as the required OpenScale style-eval family
+- `restored=true` / caller fingerprint as a pass condition
+- Hardcoded current persona id `1` as proof
+
+## PRESERVED
+
+- B03a 945-char diagnostic packet
+- 3200+ soft aim / no `max_tokens`
+- NORMAL authoring
+- Isolated experiment (no picker / billing / routing)
+- Zero additional paid POSTs
+
+## REGRESSION RISKS
+
+Without Railway SSH, live A/B/C fingerprints cannot be produced. A later authorized run must use the existing in-container owner, not invented 라이크/렌 source text.
+
+## PROOF
+
+Railway this turn:
+
+- Production commit from `railway deployment list`: `7573e6fd3552a5802e97d1507f8f671d361447a2`
+- SSH: **NOT_EXECUTED** (no usable OpenSSH identity; no key generated)
+- `/data/app.db` hashes: **NOT_OBSERVED**
+- Confirmed live persona id: **UNCONFIRMED**
+- A/B/C content fingerprints: **NOT_OBSERVED**
+- CheaperInference A/B/C comparable outputs for this PRECALL plan: **none**. Paid PRECALL execution was never authorized. Body-cue #1354 used two overlapping seeds under a different proof and is not this A/B/C pack.
+
+Default CLI: `FIXTURE_PARITY_FAIL`, `precallReady=false`, OpenScale POST 0.
+
+Per-scene fingerprint / anonymized setting metadata / expected cost:
+
+| Scene | stimulus | content fingerprint | prompt tokens | OpenScale screening |
+| --- | --- | --- | --- | --- |
+| A_relationship_emotion | quiet_window_safe | NOT_OBSERVED | NOT_OBSERVED | UNCOMPUTED |
+| B_conflict_action_spatial | conflict_action_spatial_safe | NOT_OBSERVED | NOT_OBSERVED | UNCOMPUTED |
+| C_continuity_progression | relationship_turn_safe | NOT_OBSERVED | NOT_OBSERVED | UNCOMPUTED |
+
+Catalog rates remain `$0.06 / $0.003 / $0.24` per 1M. A 3-call bound is not approved in this PR.
+
+## SYSTEM DELTA
+
+Changed only the isolated OpenScale contract and this audit. Production chat, picker, billing, and Railway DB are unchanged.
+
+---
+
+Previous status note kept below for the Q1–Q9 investigation. That investigation still stands: Q1–Q9 is unrestored and is a different experiment.
 
 This is an isolated provider experiment. It is not a production supplier promotion. Cursor did not assign an RP style score.
 
