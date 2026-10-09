@@ -4,7 +4,10 @@
  * uncapped fields. Manifest fingerprint rotation after a deploy SHA change is
  * expected and is not body drift.
  */
-import type { PaidRunnerIdentityHashes } from "@/lib/rpQualityPaidRunner";
+import type {
+  PaidRunnerIdentityHashes,
+  PaidRunnerPublicManifest,
+} from "@/lib/rpQualityPaidRunner";
 
 export const PUBLISHED_1466_PRODUCTION_SHA =
   "88d277f868c4a445e8dd7d24ea50f322fff1483d" as const;
@@ -205,23 +208,46 @@ export function published1466ComparableSeal(): Published1466ComparableSeal {
   };
 }
 
-export function compareToPublished1466Seal(
-  current: Published1466ComparableSeal
-): Published1466CompareResult {
-  const published = published1466ComparableSeal();
-  const identityMatch =
-    current.identityHash === published.identityHash &&
-    current.identityHashes.greetingSha256 === published.identityHashes.greetingSha256 &&
-    current.identityHashes.systemPromptSha256 === published.identityHashes.systemPromptSha256 &&
-    current.identityHashes.worldSha256 === published.identityHashes.worldSha256 &&
-    current.identityHashes.settingChunksSha256 === published.identityHashes.settingChunksSha256 &&
-    current.identityHashes.personaPublicSha256 === published.identityHashes.personaPublicSha256;
+export function paidRunnerPublicSealFromManifest(
+  manifest: PaidRunnerPublicManifest
+): Published1466ComparableSeal {
+  return {
+    mainSha: manifest.mainSha,
+    productionDeploySha: manifest.productionDeploySha,
+    identityHash: manifest.identityHash,
+    identityHashes: { ...manifest.identityHashes },
+    manifestFingerprint: manifest.manifestFingerprint,
+    calls: manifest.calls.map((call) => ({
+      requestOrder: call.requestOrder,
+      fixtureId: call.fixtureId,
+      canonicalId: call.canonicalId,
+      provider: call.provider,
+      wireModel: call.wireModel,
+      effectiveCanonMode: call.effectiveCanonMode,
+      requestBodyFingerprint: call.requestBodyFingerprint,
+      finalWireFingerprint: call.finalWireFingerprint,
+      maxTokensPresent: call.maxTokensPresent,
+    })),
+  };
+}
 
-  let requestBodyMatch = current.calls.length === published.calls.length;
+export function comparePaidRunnerPublicSeal(
+  current: Published1466ComparableSeal,
+  baseline: Published1466ComparableSeal
+): Published1466CompareResult {
+  const identityMatch =
+    current.identityHash === baseline.identityHash &&
+    current.identityHashes.greetingSha256 === baseline.identityHashes.greetingSha256 &&
+    current.identityHashes.systemPromptSha256 === baseline.identityHashes.systemPromptSha256 &&
+    current.identityHashes.worldSha256 === baseline.identityHashes.worldSha256 &&
+    current.identityHashes.settingChunksSha256 === baseline.identityHashes.settingChunksSha256 &&
+    current.identityHashes.personaPublicSha256 === baseline.identityHashes.personaPublicSha256;
+
+  let requestBodyMatch = current.calls.length === baseline.calls.length;
   let finalWireMatch = requestBodyMatch;
   let providerCanonUncappedMatch = requestBodyMatch;
-  for (let index = 0; index < published.calls.length; index += 1) {
-    const expected = published.calls[index];
+  for (let index = 0; index < baseline.calls.length; index += 1) {
+    const expected = baseline.calls[index];
     const actual = current.calls[index];
     if (!expected || !actual) {
       requestBodyMatch = false;
@@ -251,10 +277,10 @@ export function compareToPublished1466Seal(
   }
 
   const bodyDrift = !identityMatch || !requestBodyMatch || !finalWireMatch || !providerCanonUncappedMatch;
-  const manifestFingerprintMatch = current.manifestFingerprint === published.manifestFingerprint;
+  const manifestFingerprintMatch = current.manifestFingerprint === baseline.manifestFingerprint;
   const deployShaChanged =
-    current.productionDeploySha !== published.productionDeploySha ||
-    (current.mainSha != null && current.mainSha !== published.mainSha);
+    current.productionDeploySha !== baseline.productionDeploySha ||
+    (current.mainSha != null && baseline.mainSha != null && current.mainSha !== baseline.mainSha);
 
   let verdict: Published1466CompareVerdict;
   if (bodyDrift) {
@@ -277,4 +303,10 @@ export function compareToPublished1466Seal(
     deployShaChanged,
     verdict,
   };
+}
+
+export function compareToPublished1466Seal(
+  current: Published1466ComparableSeal
+): Published1466CompareResult {
+  return comparePaidRunnerPublicSeal(current, published1466ComparableSeal());
 }

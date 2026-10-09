@@ -10,6 +10,7 @@ import {
   closeSync,
   existsSync,
   fsyncSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -102,7 +103,10 @@ export type PaidRunnerDenialReason =
   | "RECONCILIATION_FAILED"
   | "LIVE_EXECUTE_NOT_APPROVED"
   | "CORRUPT_JOURNAL"
-  | "MISSING_INFERENCE_KEY";
+  | "MISSING_INFERENCE_KEY"
+  | "RUNTIME_SHA_UNAVAILABLE"
+  | "RUNTIME_SHA_MISMATCH"
+  | "BODY_DRIFT";
 
 export type PaidRunnerIdentityHashes = {
   greetingSha256: string;
@@ -658,6 +662,9 @@ export function probePaidRunnerJournalDirectory(directory: string): {
   privateMode: boolean;
   dirFsyncSupported: boolean;
 } {
+  if (existsSync(directory) && lstatSync(directory).isSymbolicLink()) {
+    throw new Error("JOURNAL_STORE_UNAVAILABLE");
+  }
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   try {
     chmodSync(directory, 0o700);

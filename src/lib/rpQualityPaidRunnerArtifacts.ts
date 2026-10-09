@@ -9,6 +9,7 @@ import {
   closeSync,
   existsSync,
   fsyncSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -58,6 +59,9 @@ export function createMemoryPaidRunnerArtifactStore(): PaidRunnerArtifactStore {
 }
 
 export function createFilePaidRunnerArtifactStore(directory: string): PaidRunnerArtifactStore {
+  if (existsSync(directory) && lstatSync(directory).isSymbolicLink()) {
+    throw new Error("ARTIFACT_STORE_UNAVAILABLE");
+  }
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   try {
     chmodSync(directory, 0o700);
