@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  CONFIRMED_APPROVED_EXPERIMENT_REQUEST_ID_HASHES,
   classifyForwardSettledSpend,
   hashProviderRequestId,
   unknownRequestFingerprint,
@@ -10,7 +11,6 @@ import {
 const LEDGER = new Set(["prod-1"]);
 const EVIDENCE = {
   confirmedRequestIdHashes: new Set([hashProviderRequestId("exp-gemini-1")]),
-  exclusiveKeyNamePrefixes: ["HAV-1354-"],
 };
 
 describe("approved experiment spend classification", () => {
@@ -29,7 +29,6 @@ describe("approved experiment spend classification", () => {
     assert.equal(
       classifyForwardSettledSpend({
         requestId: "exp-gemini-1",
-        apiKeyName: "operator-agent",
         ledgerIds: LEDGER,
         evidence: EVIDENCE,
       }),
@@ -37,11 +36,37 @@ describe("approved experiment spend classification", () => {
     );
   });
 
-  it("confirms exclusive experiment-key use without a hash allowlist hit", () => {
+  it("A. the live catalog is 25 unique request-id hashes and confirms only those ids", () => {
+    assert.equal(CONFIRMED_APPROVED_EXPERIMENT_REQUEST_ID_HASHES.size, 25);
+    assert.equal(new Set(CONFIRMED_APPROVED_EXPERIMENT_REQUEST_ID_HASHES).size, 25);
+    for (const hex of CONFIRMED_APPROVED_EXPERIMENT_REQUEST_ID_HASHES) {
+      assert.match(hex, /^[0-9a-f]{64}$/);
+    }
+    const listed = "listed-experiment-request";
     assert.equal(
       classifyForwardSettledSpend({
-        requestId: "exp-flash-new",
-        apiKeyName: "HAV-1354-FLASH-AB-4CALL-20261006",
+        requestId: listed,
+        ledgerIds: new Set(),
+        evidence: { confirmedRequestIdHashes: new Set([hashProviderRequestId(listed)]) },
+      }),
+      "APPROVED_EXPERIMENT_CONFIRMED"
+    );
+  });
+
+  it("B. a new request on HAV-1354-FLASH-AB-* is UNKNOWN, not prefix-confirmed", () => {
+    assert.equal(
+      classifyForwardSettledSpend({
+        requestId: "exp-flash-new-unapproved",
+        ledgerIds: new Set(),
+      }),
+      "UNKNOWN_UNMATCHED"
+    );
+  });
+
+  it("C. the same HAV-1354 name with an allowlisted request id stays CONFIRMED", () => {
+    assert.equal(
+      classifyForwardSettledSpend({
+        requestId: "exp-gemini-1",
         ledgerIds: LEDGER,
         evidence: EVIDENCE,
       }),
@@ -53,8 +78,6 @@ describe("approved experiment spend classification", () => {
     assert.equal(
       classifyForwardSettledSpend({
         requestId: "unknown-1",
-        apiKeyId: null,
-        apiKeyName: null,
         ledgerIds: LEDGER,
         evidence: EVIDENCE,
       }),
@@ -66,7 +89,6 @@ describe("approved experiment spend classification", () => {
     assert.equal(
       classifyForwardSettledSpend({
         requestId: "never-called",
-        apiKeyName: "HAV-PRODUCTION",
         ledgerIds: LEDGER,
         evidence: EVIDENCE,
       }),
@@ -74,11 +96,10 @@ describe("approved experiment spend classification", () => {
     );
   });
 
-  it("refuses to confirm from a production-like name that is not an exclusive prefix", () => {
+  it("D. a new unlisted production request stays UNKNOWN", () => {
     assert.equal(
       classifyForwardSettledSpend({
         requestId: "prod-unlinked",
-        apiKeyName: "HAV-PRODUCTION",
         ledgerIds: new Set(),
         evidence: EVIDENCE,
       }),

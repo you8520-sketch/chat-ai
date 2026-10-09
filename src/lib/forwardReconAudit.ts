@@ -74,8 +74,6 @@ export type ForwardReconAudit = {
   unmatchedSettledMicroUsd: number;
   approvedExperimentCount: number;
   approvedExperimentMicroUsd: number;
-  probableExperimentCount: number;
-  probableExperimentMicroUsd: number;
   unknownRequestFingerprint: string | null;
   unverifiableTimestampCount: number;
   unverifiableSettledCount: number;
@@ -231,8 +229,6 @@ function emptyAudit(
       unmatchedSettledMicroUsd: 0,
       approvedExperimentCount: 0,
       approvedExperimentMicroUsd: 0,
-      probableExperimentCount: 0,
-      probableExperimentMicroUsd: 0,
       unknownRequestFingerprint: null,
       unverifiableTimestampCount: 0,
       unverifiableSettledCount: 0,
@@ -262,8 +258,6 @@ function emptyAudit(
     unmatchedSettledMicroUsd: 0,
     approvedExperimentCount: 0,
     approvedExperimentMicroUsd: 0,
-    probableExperimentCount: 0,
-    probableExperimentMicroUsd: 0,
     unknownRequestFingerprint: null,
     unverifiableTimestampCount: 0,
     unverifiableSettledCount: 0,
@@ -314,8 +308,6 @@ export function buildForwardReconAudit(input: {
   let unmatchedSettledMicroUsd = 0;
   let approvedExperimentCount = 0;
   let approvedExperimentMicroUsd = 0;
-  let probableExperimentCount = 0;
-  let probableExperimentMicroUsd = 0;
   let matchedLuna = 0;
   let unmatchedLuna = 0;
   let approvedExperiment = 0;
@@ -356,8 +348,6 @@ export function buildForwardReconAudit(input: {
 
     const spendClass = classifyForwardSettledSpend({
       requestId: request.requestId,
-      apiKeyId: request.apiKeyId,
-      apiKeyName: request.apiKeyName,
       ledgerIds: input.ledgerIds,
       evidence: input.experimentEvidence,
     });
@@ -371,16 +361,6 @@ export function buildForwardReconAudit(input: {
         approvedExperimentCount += 1;
         approvedExperimentMicroUsd += request.billedMicroUsd;
         approvedExperiment += 1;
-        break;
-      case "APPROVED_EXPERIMENT_PROBABLE":
-        probableExperimentCount += 1;
-        probableExperimentMicroUsd += request.billedMicroUsd;
-        unmatchedLedgerCount += 1;
-        unmatchedSettledMicroUsd += request.billedMicroUsd;
-        bucket.unmatchedCount += 1;
-        bucket.unmatchedMicroUsd += request.billedMicroUsd;
-        unknownRequestIds.push(request.requestId);
-        if (isLunaUsageModel(request.model)) unmatchedLuna += 1;
         break;
       case "UNKNOWN_UNMATCHED":
         unmatchedLedgerCount += 1;
@@ -426,8 +406,6 @@ export function buildForwardReconAudit(input: {
     unmatchedSettledMicroUsd,
     approvedExperimentCount,
     approvedExperimentMicroUsd,
-    probableExperimentCount,
-    probableExperimentMicroUsd,
     unknownRequestFingerprint: unknownRequestFingerprint(unknownRequestIds),
     unverifiableTimestampCount,
     unverifiableSettledCount,
@@ -573,8 +551,6 @@ export function parseStoredForwardReconAudit(raw: unknown): ForwardReconAudit | 
     unmatchedSettledMicroUsd: finiteInt(row.unmatchedSettledMicroUsd),
     approvedExperimentCount: finiteInt(row.approvedExperimentCount),
     approvedExperimentMicroUsd: finiteInt(row.approvedExperimentMicroUsd),
-    probableExperimentCount: finiteInt(row.probableExperimentCount),
-    probableExperimentMicroUsd: finiteInt(row.probableExperimentMicroUsd),
     unknownRequestFingerprint:
       typeof row.unknownRequestFingerprint === "string" && row.unknownRequestFingerprint.trim()
         ? row.unknownRequestFingerprint.trim()

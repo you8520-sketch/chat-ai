@@ -6,13 +6,13 @@ import { createHash } from "node:crypto";
  * price calculator, or billing writer.
  *
  * Confirmed experiment identities are SHA-256 hex of provider request_id.
- * Raw request IDs, API keys, and key UUIDs are not stored here.
+ * A key name or prefix never confirms spend. Raw request IDs, API keys,
+ * and key UUIDs are not stored here.
  */
 
 export type ForwardSpendClass =
   | "PRODUCTION_LEDGER_MATCHED"
   | "APPROVED_EXPERIMENT_CONFIRMED"
-  | "APPROVED_EXPERIMENT_PROBABLE"
   | "UNKNOWN_UNMATCHED"
   | "UNVERIFIABLE";
 
@@ -37,8 +37,10 @@ const GEMINI_1468_REQUEST_ID_HASHES = [
 ] as const;
 
 /**
- * #1425 official-author Luna lines. Confirmation is remote billed micro-USD
- * plus the authorized UTC windows on a non-production key — not a name match.
+ * #1425 official-author Luna lines. Each hash is one remote request_id
+ * whose billed micro-USD and UTC instant matched an authorized cost.json
+ * line on the non-production key that also served the confirmed Gemini
+ * experiment IDs. Not an aggregate or name match.
  */
 const LUNA_1425_REQUEST_ID_HASHES = [
   "b2a05bcb413ab6c67d3e61ffbbae65c94d0bad1273c4f002d65f602951866611",
@@ -66,12 +68,8 @@ export const CONFIRMED_APPROVED_EXPERIMENT_REQUEST_ID_HASHES: ReadonlySet<string
   ...DEEPSEEK_1354_REQUEST_ID_HASHES,
 ]);
 
-/** Dashboard names already recorded on #1354. Exclusive experiment-key family. */
-export const EXCLUSIVE_EXPERIMENT_KEY_NAME_PREFIXES = ["HAV-1354-"] as const;
-
 export type ApprovedExperimentEvidence = {
   confirmedRequestIdHashes?: ReadonlySet<string>;
-  exclusiveKeyNamePrefixes?: readonly string[];
 };
 
 export function hashProviderRequestId(requestId: string): string {
@@ -88,19 +86,8 @@ export function unknownRequestFingerprint(requestIds: readonly string[]): string
   return hashProviderRequestId(hashes.join(",")).slice(0, 16);
 }
 
-function nameMatchesExclusivePrefix(
-  apiKeyName: string | null | undefined,
-  prefixes: readonly string[]
-): boolean {
-  const name = apiKeyName?.trim() ?? "";
-  if (!name) return false;
-  return prefixes.some((prefix) => prefix.length > 0 && name.startsWith(prefix));
-}
-
 export function classifyForwardSettledSpend(input: {
   requestId: string;
-  apiKeyId?: string | null;
-  apiKeyName?: string | null;
   ledgerIds: ReadonlySet<string>;
   evidence?: ApprovedExperimentEvidence;
 }): ForwardSpendClass {
@@ -110,11 +97,6 @@ export function classifyForwardSettledSpend(input: {
 
   const hashes = input.evidence?.confirmedRequestIdHashes ?? CONFIRMED_APPROVED_EXPERIMENT_REQUEST_ID_HASHES;
   if (hashes.has(hashProviderRequestId(requestId))) {
-    return "APPROVED_EXPERIMENT_CONFIRMED";
-  }
-
-  const prefixes = input.evidence?.exclusiveKeyNamePrefixes ?? EXCLUSIVE_EXPERIMENT_KEY_NAME_PREFIXES;
-  if (nameMatchesExclusivePrefix(input.apiKeyName, prefixes)) {
     return "APPROVED_EXPERIMENT_CONFIRMED";
   }
 
