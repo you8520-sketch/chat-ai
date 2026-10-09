@@ -136,7 +136,7 @@ export function lunaSummaryLiveExecuteManifestFingerprint(): string {
 }
 
 export const LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST =
-  lunaSummaryLiveExecuteManifestFingerprint();
+  "90ec7ecde5b0fdf5a34ba1cf8bd1af1b4cb9e308cbcf46bc1fdbee54e6f6fde7" as const;
 
 export type LunaExecuteDenialReason =
   | LunaSummaryDenialReason

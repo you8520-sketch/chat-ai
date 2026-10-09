@@ -321,7 +321,7 @@ describe("50-turn Luna summary execute isolated stub (provider-free)", () => {
   });
 
   it("refuses reserved SENT/SETTLED/FAILED history before seed and extra POSTs", async () => {
-    for (const status of ["SENT", "SETTLED", "FAILED"] as const) {
+    for (const status of ["SENT", "SETTLED", "FAILED", "EMPTY_STOP", "UNKNOWN_UNRESOLVED"] as const) {
       const dir = journalDir();
       const store = createLunaDurableJournalStore(dir);
       store.persist(reservedJournal(status));
