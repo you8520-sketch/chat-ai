@@ -13,6 +13,18 @@ export const CHARACTER_CARD_ATTR = "data-character-card";
 /** 프로필 hero 이미지 프레임 마커. 값은 캐릭터 id. */
 export const CHARACTER_HERO_IMAGE_ATTR = "data-character-hero-image";
 
+/**
+ * reveal 오버레이의 정보 요소(overlay)와 프로필 hero의 같은 요소(hero)를 잇는 키.
+ * hero 요소에는 `data-hero-item`, 오버레이 요소에는 `data-rv-item`을 둔다.
+ */
+export const REVEAL_ITEM_KEYS = ["eyebrow", "tagline", "tags"] as const;
+export type RevealItemKey = (typeof REVEAL_ITEM_KEYS)[number];
+export const HERO_ITEM_ATTR = "data-hero-item";
+export const REVEAL_ITEM_ATTR = "data-rv-item";
+
+/** 오버레이에 그리는 키워드 칩 최대 수 (hero는 전체 표시). */
+export const REVEAL_MAX_TAGS = 3;
+
 /** hero/일러스트 프레임 비율 (카드 표준 2:3 — 693×1024). */
 export const REVEAL_FRAME_ASPECT = 2 / 3;
 
@@ -35,18 +47,41 @@ export function characterRevealAttrs(input: {
   id: number;
   name: string;
   genre: string;
-  creator: string;
+  /** 카드에 이미 공개된 한 줄 소개. `{{user}}`·`{{char}}`가 남은 문장은 오버레이에 쓰지 않는다. */
+  tagline?: string | null;
+  /** 카드에 이미 공개된 키워드. */
+  tags?: readonly string[];
   href: string;
   hidden: boolean;
   hasThumb: boolean;
 }): Record<string, string> {
   if (input.hidden || !input.hasThumb || input.href !== `/character/${input.id}`) return {};
-  return {
+  const attrs: Record<string, string> = {
     [CHARACTER_CARD_ATTR]: String(input.id),
     "data-character-name": input.name,
     "data-character-genre": input.genre,
-    "data-character-creator": input.creator,
   };
+  const tagline = input.tagline?.trim() ?? "";
+  if (tagline && !/\{\{[^}]*\}\}/.test(tagline)) attrs["data-character-tagline"] = tagline;
+  const tags = (input.tags ?? []).map((t) => t.trim()).filter(Boolean).slice(0, REVEAL_MAX_TAGS);
+  if (tags.length > 0) attrs["data-character-tags"] = JSON.stringify(tags);
+  return attrs;
+}
+
+/** 카드의 `data-character-tags`를 안전하게 읽는다. 형식이 틀리면 빈 배열. */
+export function parseRevealTags(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((t): t is string => typeof t === "string")
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, REVEAL_MAX_TAGS);
+  } catch {
+    return [];
+  }
 }
 
 export function characterRevealDelayMs(elapsedSinceClickMs: number): number {
@@ -113,16 +148,25 @@ export type RevealLayout = {
   frame: RevealRect;
   nameFontPx: number;
   nameBox: RevealRect;
-  metaBox: RevealRect;
+  /** 장르 eyebrow / 한 줄 소개·키워드 묶음의 위치. 데스크톱은 우측 정렬, 모바일은 좌측 정렬. */
+  info: { left: number; width: number; eyebrowTop: number; subTop: number };
 };
 
 /** 한글 전각 글자 평균 advance(letter-spacing -0.04em 반영). */
 const GLYPH_ADVANCE = 0.98;
+/** 프레임 폭 대비 이름이 일러스트 뒤로 들어가는 비율 — 마지막 글자가 읽히는 수준만 겹친다. */
+const NAME_TUCK = 0.015;
+const EYEBROW_BLOCK = 34;
+/** 한 줄 소개 2줄 + 간격 + 키워드 칩 한 줄. */
+const SUB_BLOCK = 112;
+const SUB_GAP = 16;
+const INFO_MAX_WIDTH = 416;
 
 /**
  * 뷰포트 기준 포스터 구도.
- * 데스크톱: 일러스트 우측, 거대한 이름이 일러스트 뒤(좌측)에서 일부 겹침.
- * 모바일: 일러스트 우측 정렬 상단, 이름이 하단에서 일러스트와 살짝 겹침.
+ * 데스크톱: 일러스트 우측, 거대한 이름이 일러스트 뒤(좌측)에서 마지막 글자 가장자리만 살짝 겹치고,
+ *   장르 eyebrow(위) · 한 줄 소개/키워드(아래)가 이름 기둥에 정렬된다.
+ * 모바일: 일러스트 아래로 eyebrow → 이름 → 소개/키워드가 한 열로 쌓인다(이름은 가려지지 않음).
  */
 export function computeRevealLayout(vw: number, vh: number, nameLines: number, nameMaxChars: number): RevealLayout {
   const compact = vw < 768;
@@ -139,29 +183,40 @@ export function computeRevealLayout(vw: number, vh: number, nameLines: number, n
     const left = vw - fw - vw * 0.11;
     const top = (vh - fh) / 2;
     const frame = { left, top, width: fw, height: fh };
-    const nameRight = left + fw * 0.1;
+    const nameRight = left + fw * NAME_TUCK;
     const nameLeft = vw * 0.06;
     const availW = nameRight - nameLeft;
-    const nameFontPx = Math.max(28, Math.min(availW / (chars * GLYPH_ADVANCE), (fh * 0.62) / lines, 300));
-    const blockH = nameFontPx * 0.98 * lines;
-    const nameBox = { left: nameLeft, top: top + fh * 0.6 - blockH / 2, width: availW, height: blockH };
-    const metaBox = { left: nameLeft, top: top + 6, width: Math.max(160, left - nameLeft - 28), height: 64 };
-    return { compact, frame, nameFontPx, nameBox, metaBox };
+    const nameFontPx = Math.max(28, Math.min(availW / (chars * GLYPH_ADVANCE), (fh * 0.5) / lines, 280));
+    const blockH = nameFontPx * 1.06 * lines;
+    const stackH = EYEBROW_BLOCK + blockH + SUB_GAP + SUB_BLOCK;
+    const eyebrowTop = top + Math.max(0, (fh - stackH) / 2);
+    const nameBox = { left: nameLeft, top: eyebrowTop + EYEBROW_BLOCK, width: availW, height: blockH };
+    const infoRight = left - 16;
+    const infoWidth = Math.max(160, Math.min(INFO_MAX_WIDTH, infoRight - nameLeft));
+    const info = {
+      left: infoRight - infoWidth,
+      width: infoWidth,
+      eyebrowTop,
+      subTop: nameBox.top + blockH + SUB_GAP,
+    };
+    return { compact, frame, nameFontPx, nameBox, info };
   }
 
-  const fw = Math.min(vw * 0.74, vh * 0.5 * REVEAL_FRAME_ASPECT * 1.45);
-  const fh = fw / REVEAL_FRAME_ASPECT;
-  const left = vw - fw - vw * 0.06;
-  const top = Math.max(vh * 0.08, 56);
-  const frame = { left, top, width: fw, height: fh };
   const nameLeft = vw * 0.06;
   const availW = vw - nameLeft * 2;
   const nameFontPx = Math.max(26, Math.min(availW / (chars * GLYPH_ADVANCE), 150));
-  const blockH = nameFontPx * 0.98 * lines;
-  const nameTop = top + fh - nameFontPx * 0.08;
-  const nameBox = { left: nameLeft, top: nameTop, width: availW, height: blockH };
-  const metaBox = { left: nameLeft, top: Math.min(nameTop + blockH + 14, vh - 70), width: availW, height: 52 };
-  return { compact, frame, nameFontPx, nameBox, metaBox };
+  const blockH = nameFontPx * 1.06 * lines;
+  const top = Math.max(vh * 0.08, 56);
+  const reserve = EYEBROW_BLOCK + blockH + SUB_GAP + SUB_BLOCK + 20;
+  const wantedFh = Math.min(vw * 0.74, vh * 0.5 * REVEAL_FRAME_ASPECT * 1.45) / REVEAL_FRAME_ASPECT;
+  const fh = Math.min(wantedFh, Math.max(vh - top - reserve, 140));
+  const fw = fh * REVEAL_FRAME_ASPECT;
+  const left = vw - fw - vw * 0.06;
+  const frame = { left, top, width: fw, height: fh };
+  const eyebrowTop = top + fh + 12;
+  const nameBox = { left: nameLeft, top: eyebrowTop + EYEBROW_BLOCK - 12, width: availW, height: blockH };
+  const info = { left: nameLeft, width: availW, eyebrowTop, subTop: nameBox.top + blockH + SUB_GAP };
+  return { compact, frame, nameFontPx, nameBox, info };
 }
 
 /** from(카드 이미지) → to(프레임) 로 되돌리는 FLIP transform. 프레임 좌상단 기준(transform-origin: 0 0). */
@@ -191,14 +246,3 @@ export function flipClipInset(
     bottom: clamp(frame.height - localH),
   };
 }
-
-export type CharacterRevealPayload = {
-  id: number;
-  name: string;
-  genre: string;
-  creator: string;
-  /** 클릭 시점에 카드에 실제로 보이던 공개 이미지. */
-  src: string;
-  from: RevealRect;
-  visible: RevealRect;
-};
