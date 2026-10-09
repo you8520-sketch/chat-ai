@@ -150,6 +150,7 @@ function runLiveCli(args: string[], env: NodeJS.ProcessEnv = {}) {
             "CHEAPER_INFERENCE_API_KEY",
             "OPENAI_API_KEY",
             "RAILWAY_GIT_COMMIT_SHA",
+            "DATA_DIR",
           ]) {
             if (!(key in env)) delete next[key];
           }
@@ -160,8 +161,22 @@ function runLiveCli(args: string[], env: NodeJS.ProcessEnv = {}) {
   } catch (error) {
     stdout = String((error as { stdout?: string }).stdout ?? "");
   }
+  const jsonStart = stdout.lastIndexOf('{\n  "ok":');
+  const from = jsonStart >= 0 ? stdout.slice(jsonStart) : stdout;
+  let depth = 0;
+  let jsonEnd = from.length;
+  for (let index = 0; index < from.length; index += 1) {
+    if (from[index] === "{") depth += 1;
+    if (from[index] === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        jsonEnd = index + 1;
+        break;
+      }
+    }
+  }
   return {
-    report: JSON.parse(stdout) as {
+    report: JSON.parse(from.slice(0, jsonEnd)) as {
       providerPosts: number;
       denialReason: string | null;
       approvalStatus: string;

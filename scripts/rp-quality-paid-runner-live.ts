@@ -1,13 +1,11 @@
 /**
  * Isolated operator entrypoint for live paid-runner execution.
  * This process does NOT import the PRECALL egress guard.
- * Default path never grants cost approval and never calls runPaidRunner.
- * Sealed bodies are assembled in-process from canonical production rows after
- * grants + an independently observed RAILWAY_GIT_COMMIT_SHA. There is no
- * --sealed-pack-file path.
+ * Default path never grants cost approval, never loads the assembler, and
+ * never calls runPaidRunner. Sealed bodies are assembled in-process from
+ * canonical production rows only after grants + an independently observed
+ * RAILWAY_GIT_COMMIT_SHA. There is no --sealed-pack-file path.
  */
-import "./lib/rpQualityPaidRunnerAssemblyIsolation";
-
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import { RP_QUALITY_PRECALL_PLANNED_CALLS } from "@/lib/rpQualityPrecall";
 import {
@@ -21,11 +19,8 @@ import {
   paidRunnerLiveExecuteEnabled,
   readPaidRunnerLiveInferenceKeys,
 } from "@/lib/rpQualityPaidRunnerLiveTransport";
-import { paidRunnerOriginalDataDir } from "./lib/rpQualityPaidRunnerAssemblyIsolation";
-import {
-  loadInProcessPaidRunnerPack,
-  observePaidRunnerRuntimeSha,
-} from "./lib/rpQualityPaidRunnerInProcessPack";
+import { resolveCanonicalProductionDbPath } from "./lib/rpQualityPaidRunnerCanonicalDb";
+import { observePaidRunnerRuntimeSha } from "./lib/rpQualityPaidRunnerRuntimeSha";
 import { dispatchPaidRunnerLive } from "./lib/rpQualityPaidRunnerLiveDispatch";
 
 function readArg(name: string): string | undefined {
@@ -38,6 +33,32 @@ function loadPublicManifest(): PaidRunnerPublicManifest | null {
   const raw = readArg("--manifest-json");
   if (!raw) return null;
   return JSON.parse(raw) as PaidRunnerPublicManifest;
+}
+
+async function loadCanonicalSealedPack(input: {
+  runtimeSha: string;
+  expectedProductionSha: string;
+}): Promise<{
+  manifest: PaidRunnerPublicManifest;
+  sealedCalls: PaidRunnerSealedCall[];
+} | null> {
+  const originalDataDir = process.env.DATA_DIR ?? "";
+  if (!resolveCanonicalProductionDbPath(originalDataDir)) {
+    return null;
+  }
+  // Deferred on purpose: assembler/getDb must not load (or write stdout) until
+  // grants exist and the canonical DB path is real. Isolation has to evaluate
+  // before the pack loader.
+  await import("./lib/rpQualityPaidRunnerAssemblyIsolation");
+  const { loadInProcessPaidRunnerPack } = await import("./lib/rpQualityPaidRunnerInProcessPack");
+  const loaded = loadInProcessPaidRunnerPack({
+    runtimeSha: input.runtimeSha,
+    expectedProductionSha: input.expectedProductionSha,
+    originalDataDir,
+    env: process.env,
+  });
+  if (!loaded.ok) return null;
+  return { manifest: loaded.pack.manifest, sealedCalls: loaded.pack.sealedCalls };
 }
 
 async function main(): Promise<void> {
@@ -63,15 +84,13 @@ async function main(): Promise<void> {
     actualRuntimeSha &&
     actualRuntimeSha === authorization.expectedProductionSha.trim().toLowerCase()
   ) {
-    const loaded = loadInProcessPaidRunnerPack({
+    const loaded = await loadCanonicalSealedPack({
       runtimeSha: actualRuntimeSha,
       expectedProductionSha: authorization.expectedProductionSha,
-      originalDataDir: paidRunnerOriginalDataDir,
-      env: process.env,
     });
-    if (loaded.ok) {
-      manifest = loaded.pack.manifest;
-      sealedCalls = loaded.pack.sealedCalls;
+    if (loaded) {
+      manifest = loaded.manifest;
+      sealedCalls = loaded.sealedCalls;
     }
   }
 

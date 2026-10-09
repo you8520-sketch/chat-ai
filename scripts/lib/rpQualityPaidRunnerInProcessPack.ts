@@ -3,9 +3,6 @@
  * Reads canonical production rows with the existing PRECALL loader, assembles
  * through preparePaidRunnerPack, and never writes request bodies to disk.
  */
-import { existsSync, lstatSync } from "node:fs";
-import path from "node:path";
-
 import { isFullGitSha, validateLiveProof } from "@/lib/rpQualityPrecall";
 import type { PaidRunnerDenialReason } from "@/lib/rpQualityPaidRunner";
 import { PrecallRowsStop, loadPrecallProductionRows } from "./rpQualityPrecallProductionRows";
@@ -14,34 +11,10 @@ import {
   preparePaidRunnerPack,
   type PaidRunnerPreparedPack,
 } from "./rpQualityPaidRunnerPrepare";
+import { resolveCanonicalProductionDbPath } from "./rpQualityPaidRunnerCanonicalDb";
+import { observePaidRunnerRuntimeSha } from "./rpQualityPaidRunnerRuntimeSha";
 
-export function observePaidRunnerRuntimeSha(
-  env: NodeJS.ProcessEnv = process.env
-): string | null {
-  const raw = env.RAILWAY_GIT_COMMIT_SHA?.trim().toLowerCase() ?? "";
-  return isFullGitSha(raw) ? raw : null;
-}
-
-export function resolveCanonicalProductionDbPath(originalDataDir: string): string | null {
-  if (!originalDataDir || !path.isAbsolute(originalDataDir)) return null;
-  let directoryStat;
-  try {
-    directoryStat = lstatSync(originalDataDir);
-  } catch {
-    return null;
-  }
-  if (directoryStat.isSymbolicLink() || !directoryStat.isDirectory()) return null;
-  const dbPath = path.join(originalDataDir, "app.db");
-  let fileStat;
-  try {
-    fileStat = lstatSync(dbPath);
-  } catch {
-    return null;
-  }
-  if (fileStat.isSymbolicLink() || !fileStat.isFile()) return null;
-  if (!existsSync(dbPath)) return null;
-  return dbPath;
-}
+export { observePaidRunnerRuntimeSha, resolveCanonicalProductionDbPath };
 
 export function loadInProcessPaidRunnerPack(input: {
   runtimeSha: string;
