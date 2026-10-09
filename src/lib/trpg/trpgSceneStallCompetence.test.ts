@@ -89,6 +89,18 @@ describe("TRPG scene stall + routine competence correction (P0)", () => {
     assert.equal(decision.needsCheck, true);
   });
 
+  it("talk 말을 걸어본다 is NOT routine traversal of an open vent", () => {
+    const scene = applyLocalSceneProgressDelta(emptyLocalSceneProgress(), {
+      openRoutesAdd: ["우측 환풍구"],
+    });
+    const body = "우측 환풍구 앞에서 사람에게 말을 걸어본다.";
+    assert.equal(declaresTraversalIntent(body), false);
+    assert.equal(actionReferencesOpenRoute(body, scene.openRoutes), "우측 환풍구");
+    assert.equal(isRoutineOpenRouteTraversal({ body, localScene: scene }), false);
+    const decision = resolveTrpgActionCheckDecision({ body, actionType: "free", localScene: scene });
+    assert.notEqual(decision.reason, "routine_traversal");
+  });
+
   it("M4 — stealth traversal still rolls", () => {
     const scene = stallScene();
     const body = "우측 통로로 몰래 빠져나간다.";

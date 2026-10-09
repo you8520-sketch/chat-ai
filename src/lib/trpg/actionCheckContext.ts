@@ -8,7 +8,7 @@ export const TRPG_ROUTINE_COMPETENCE_STAT_MIN = 10;
 export const TRPG_STRONG_COMPETENCE_STAT_MIN = 12;
 
 const TRAVERSAL_VERBS =
-  /(?:나가|빠져나|탈출|통과|이동|진입|건너|들어(?:가|서)|나선|걸어|향(?:해)?(?:간|간다|한다)|(?:로|으로)\s?(?:간|간다|향|이동|나|빠|들|진입|통과))/;
+  /(?:나가|빠져나|탈출|통과|이동|진입|건너|들어(?:가|서)|나선|걸어\s?(?:간|가)|향(?:해)?(?:간|간다|한다)|(?:로|으로)\s?(?:간|간다|향|이동|나|빠|들|진입|통과))/;
 
 const NON_TRAVERSAL_INVESTIGATION =
   /(?:조사|살피|살펴|확인|훑|바라보|질문|물어|파악)(?:한다|하며|할)/;

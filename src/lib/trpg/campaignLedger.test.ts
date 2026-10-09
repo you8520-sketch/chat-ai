@@ -89,6 +89,26 @@ describe("TRPG location persist bind", () => {
     assert.equal(bound.delta.players?.[0]?.location, tavern);
   });
 
+  it("말을 걸어본다 does not accept an open-route destination", () => {
+    const bound = bind({
+      body: "우측 환풍구 앞에서 사람에게 말을 걸어본다.",
+      proposed: "우측 환풍구",
+      playerLocation: "우측 환풍구",
+    });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
+  it("우측 환풍구로 걸어간다 still accepts that destination", () => {
+    const bound = bind({
+      body: "우측 환풍구로 걸어간다.",
+      proposed: "우측 환풍구",
+      playerLocation: "우측 환풍구",
+    });
+    assert.equal(bound.location, "우측 환풍구");
+    assert.equal(bound.delta.players?.[0]?.location, "우측 환풍구");
+  });
+
   it("T9/L5: NPC/world event without submitted movement does not persist relocation", () => {
     const bound = bind({
       body: "주변을 살핀다.",
