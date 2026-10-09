@@ -5,10 +5,12 @@ import { describe, it } from "node:test";
 
 import {
   CHARACTER_CARD_ATTR,
+  REVEAL_ITEM_KEYS,
   CHARACTER_REVEAL_TIMING,
   characterRevealAttrs,
   characterRevealDelayMs,
   computeRevealLayout,
+  parseRevealTags,
   flipClipInset,
   flipTransform,
   parseCharacterProfilePath,
@@ -41,12 +43,35 @@ describe("character reveal path eligibility", () => {
 });
 
 describe("character reveal card marker", () => {
-  const base = { id: 7, name: "강이현", genre: "로맨스", creator: "운영팀", href: "/character/7", hidden: false, hasThumb: true };
+  const base = { id: 7, name: "강이현", genre: "로맨스", href: "/character/7", hidden: false, hasThumb: true };
 
   it("marks accessible profile cards that show a public image", () => {
     const attrs = characterRevealAttrs(base);
     assert.equal(attrs[CHARACTER_CARD_ATTR], "7");
     assert.equal(attrs["data-character-name"], "강이현");
+    assert.equal(attrs["data-character-genre"], "로맨스");
+    assert.equal("data-character-creator" in attrs, false);
+  });
+
+  it("carries the already-public tagline and at most three tags for the dossier overlay", () => {
+    const attrs = characterRevealAttrs({ ...base, tagline: "  차갑게 식은 새벽  ", tags: ["집착", " 냉미남 ", "", "경호", "연상"] });
+    assert.equal(attrs["data-character-tagline"], "차갑게 식은 새벽");
+    assert.deepEqual(parseRevealTags(attrs["data-character-tags"]), ["집착", "냉미남", "경호"]);
+    const bare = characterRevealAttrs(base);
+    assert.equal("data-character-tagline" in bare, false);
+    assert.equal("data-character-tags" in bare, false);
+  });
+
+  it("never exposes unresolved {{user}}/{{char}} taglines to the overlay", () => {
+    assert.equal("data-character-tagline" in characterRevealAttrs({ ...base, tagline: "{{user}}만 바라보는 사람" }), false);
+    assert.equal("data-character-tagline" in characterRevealAttrs({ ...base, tagline: "{{ char }}의 아침" }), false);
+  });
+
+  it("parses malformed tag payloads as empty", () => {
+    assert.deepEqual(parseRevealTags(null), []);
+    assert.deepEqual(parseRevealTags("not json"), []);
+    assert.deepEqual(parseRevealTags('{"a":1}'), []);
+    assert.deepEqual(parseRevealTags('["a",1,null,"b"]'), ["a", "b"]);
   });
 
   it("never marks login/verify redirects, adult-hidden cards or cards without an image", () => {
@@ -89,12 +114,23 @@ describe("character reveal name layout", () => {
       for (const name of ["강이현", "루시안 바스케스", "엘레노어 폰 하이덴베르크 드 라 몽테뉴 대공녀"]) {
         const { lines, maxChars } = splitRevealName(name);
         const layout = computeRevealLayout(vw, vh, lines.length, maxChars);
-        const { frame, nameBox, nameFontPx } = layout;
+        const { frame, nameBox, nameFontPx, info } = layout;
         assert.ok(Math.abs(frame.width / frame.height - REVEAL_FRAME_ASPECT) < 0.001, `${vw}x${vh} aspect`);
         assert.ok(frame.left >= 0 && frame.left + frame.width <= vw + 0.5, `${vw}x${vh} frame x`);
         assert.ok(frame.top >= 0, `${vw}x${vh} frame top`);
         assert.ok(nameBox.left >= 0 && nameBox.left + nameBox.width <= vw + 0.5, `${vw}x${vh} name x`);
         assert.ok(nameFontPx >= 26, `${vw}x${vh} name size`);
+        assert.ok(info.left >= 0 && info.left + info.width <= vw + 0.5, `${vw}x${vh} info x`);
+        assert.ok(info.eyebrowTop >= 0, `${vw}x${vh} eyebrow top`);
+        assert.ok(nameBox.top >= info.eyebrowTop, `${vw}x${vh} eyebrow above name`);
+        assert.ok(info.subTop >= nameBox.top + nameBox.height, `${vw}x${vh} sub below name`);
+        assert.ok(info.subTop + 112 <= vh + 0.5, `${vw}x${vh} dossier fits viewport height`);
+        if (layout.compact) {
+          assert.ok(nameBox.top >= frame.top + frame.height, `${vw}x${vh} mobile name never covers the illustration`);
+        } else {
+          assert.ok(nameBox.left + nameBox.width - frame.left <= frame.width * 0.05, `${vw}x${vh} name tucks only a sliver behind the illustration`);
+          assert.ok(info.left + info.width <= frame.left, `${vw}x${vh} dossier stays clear of the illustration`);
+        }
         assert.equal(layout.compact, vw < 768);
       }
     }
@@ -165,6 +201,23 @@ describe("character reveal ownership", () => {
     assert.match(host, /function dropBurst/);
     assert.match(host, /parseCharacterProfilePath\(pathname\) === null/);
     assert.match(host, /dropBurst\(cur\.id\)/);
+  });
+
+  it("keeps the overlay dossier and the profile hero wired through the same item keys", () => {
+    const preview = read("src/components/CharacterPublicPagePreview.tsx");
+    const scene = read("src/components/CharacterRevealScene.tsx");
+    for (const key of REVEAL_ITEM_KEYS) {
+      assert.match(preview, new RegExp(`\\[HERO_ITEM_ATTR\\]: "${key}"`), `hero ${key}`);
+      assert.match(scene, new RegExp(`\\[REVEAL_ITEM_ATTR\\]: "${key}"`), `overlay ${key}`);
+    }
+    assert.doesNotMatch(scene, /creator/i, "creator is not part of the overlay dossier");
+  });
+
+  it("moves the gallery out of the poster hero into its own body section", () => {
+    const preview = read("src/components/CharacterPublicPagePreview.tsx");
+    const hero = preview.slice(preview.indexOf("const heroSection"), preview.indexOf("return (\n    <div className=\"w-full space-y-6\">"));
+    assert.doesNotMatch(hero, /galleryStrip/);
+    assert.match(preview, /aria-label="갤러리"/);
   });
 
   it("marks only accessible public cards and the real hero frame", () => {

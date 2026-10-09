@@ -15,11 +15,15 @@ import {
   CHARACTER_CARD_ATTR,
   CHARACTER_HERO_IMAGE_ATTR,
   CHARACTER_REVEAL_TIMING,
+  HERO_ITEM_ATTR,
+  REVEAL_ITEM_ATTR,
+  REVEAL_ITEM_KEYS,
   characterRevealDelayMs,
   computeRevealLayout,
   flipClipInset,
   flipTransform,
   parseCharacterProfilePath,
+  parseRevealTags,
   splitRevealName,
   type RevealRect,
 } from "@/lib/characterReveal";
@@ -112,10 +116,12 @@ function buildCharacterScene(card: Element, id: number): CharacterScene | null {
     src,
     lines,
     genre: (card.getAttribute("data-character-genre") ?? "").trim(),
-    creator: (card.getAttribute("data-character-creator") ?? "").trim(),
+    tagline: (card.getAttribute("data-character-tagline") ?? "").trim(),
+    tags: parseRevealTags(card.getAttribute("data-character-tags")),
     layout,
     start: { ...start, clip: flipClipInset(visible, from, layout.frame, start.scale) },
     hero: null,
+    items: {},
   };
 }
 
@@ -130,6 +136,24 @@ function readHeroTarget(scene: CharacterScene): CharacterScene["hero"] {
     ...flipTransform({ left: r.left, top: r.top, width: r.width, height: r.height }, scene.layout.frame),
     src: heroImg instanceof HTMLImageElement ? heroImg.currentSrc || heroImg.src : "",
   };
+}
+
+/** 오버레이 정보 요소가 도착한 프로필 hero의 같은 요소 위치로 정렬되도록 이동량을 읽는다. */
+function readItemTargets(scene: CharacterScene): CharacterScene["items"] {
+  const items: CharacterScene["items"] = {};
+  const hero = document.querySelector(`[data-character-hero="${scene.id}"]`);
+  const veil = document.querySelector(`[data-character-reveal="${scene.id}"]`);
+  if (!hero || !veil) return items;
+  for (const key of REVEAL_ITEM_KEYS) {
+    const from = veil.querySelector(`[${REVEAL_ITEM_ATTR}="${key}"]`);
+    const to = hero.querySelector(`[${HERO_ITEM_ATTR}="${key}"]`);
+    if (!from || !to) continue;
+    const a = from.getBoundingClientRect();
+    const b = to.getBoundingClientRect();
+    if (b.width < 8 || b.height < 8) continue;
+    items[key] = { tx: b.left - a.left, ty: b.top - a.top };
+  }
+  return items;
 }
 
 let burstSeq = 0;
@@ -159,12 +183,17 @@ export default function MenuTransitionHost() {
   function beginReveal(id: number) {
     const cur = burstRef.current;
     if (!cur || cur.id !== id || cur.phase === "reveal") return;
+    const arrived = cur.kind === "character" && window.location.pathname === cur.dest;
     const revealed: Burst =
       cur.kind === "character"
         ? {
             ...cur,
             phase: "reveal",
-            scene: { ...cur.scene, hero: window.location.pathname === cur.dest ? readHeroTarget(cur.scene) : null },
+            scene: {
+              ...cur.scene,
+              hero: arrived ? readHeroTarget(cur.scene) : null,
+              items: arrived ? readItemTargets(cur.scene) : {},
+            },
           }
         : { ...cur, phase: "reveal" };
     burstRef.current = revealed;
