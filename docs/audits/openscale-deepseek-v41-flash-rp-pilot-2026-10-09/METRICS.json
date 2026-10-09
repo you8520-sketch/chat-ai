@@ -1,0 +1,43 @@
+{
+  "status": "LIVE_COMPLETED",
+  "providerInferencePosts": 1,
+  "cheaperInferencePosts": 0,
+  "httpStatus": 200,
+  "requestedModelId": "deepseek/deepseek-v4.1-flash",
+  "responseModelId": "deepseek/deepseek-v4.1-flash",
+  "finishReason": "stop",
+  "sawDone": true,
+  "outputChars": 945,
+  "ttftSeconds": 1.658,
+  "totalSeconds": 8.467,
+  "tokensPerSecond": 103.09883977089144,
+  "usage": {
+    "promptTokens": 5119,
+    "completionTokens": 702,
+    "cachedTokens": 0,
+    "reasoningTokens": 0
+  },
+  "cost": {
+    "catalogInputUsdPerMillion": 0.06,
+    "catalogCachedUsdPerMillion": 0.003,
+    "catalogOutputUsdPerMillion": 0.24,
+    "estimatedActualUsd": 0.00047562,
+    "estimatedBreakdownUsd": {
+      "standardInput": 0.00030714,
+      "cachedInput": 0,
+      "output": 0.00016848
+    },
+    "providerReportedCostUsd": null,
+    "dashboardActualUsd": null,
+    "screeningEstimateUsd": 0.00244122,
+    "screeningNote": "Screening estimate only. Not an invoice cap or actual billed amount."
+  },
+  "streamAnomalies": {
+    "empty": false,
+    "timeout": false,
+    "incomplete": false,
+    "replacementChars": false
+  },
+  "executedSourceSha": "f7a72dd596b86a8dab674b71985d119a00da2582",
+  "auditMainSha": "7573e6fd3552a5802e97d1507f8f671d361447a2"
+}
