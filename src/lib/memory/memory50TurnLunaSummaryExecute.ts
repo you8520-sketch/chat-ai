@@ -117,8 +117,24 @@ export const LUNA_SUMMARY_LIVE_WIRE_CONTRACT = {
   requestKind: LUNA_SUMMARY_REQUEST_KIND,
 } as const;
 
-export function lunaSummaryLiveExecuteManifestFingerprint(): string {
-  return paidRunnerRequestBodyFingerprint({
+export const LUNA_SUMMARY_LIVE_COUPLED_APPROVAL_MANIFEST =
+  "90ec7ecde5b0fdf5a34ba1cf8bd1af1b4cb9e308cbcf46bc1fdbee54e6f6fde7" as const;
+
+export function lunaSummaryLiveExecuteManifestIdentity(): {
+  version: 2;
+  mode: "LIVE_EXECUTE";
+  mainSha: typeof LUNA_SUMMARY_EXECUTE_MAIN_SHA;
+  prepareManifestFingerprint: typeof LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST;
+  scriptHash: typeof LUNA_SUMMARY_APPROVED_SCRIPT_HASH;
+  liveBatchFingerprints: string[];
+  prepareBatchFingerprints: string[];
+  temperature: number;
+  stream: false;
+  disableReasoning: true;
+  maxTokens: null;
+  journalCanonicalDirectory: typeof LUNA_SUMMARY_CANONICAL_JOURNAL_DIR;
+} {
+  return {
     version: 2,
     mode: "LIVE_EXECUTE",
     mainSha: LUNA_SUMMARY_EXECUTE_MAIN_SHA,
@@ -126,17 +142,20 @@ export function lunaSummaryLiveExecuteManifestFingerprint(): string {
     scriptHash: LUNA_SUMMARY_APPROVED_SCRIPT_HASH,
     liveBatchFingerprints: [...LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS],
     prepareBatchFingerprints: [...LUNA_SUMMARY_APPROVED_BATCH_FINGERPRINTS],
-    approvalStatus: LUNA_SUMMARY_LIVE_APPROVAL_STATUS,
     temperature: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.temperature,
     stream: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.stream,
     disableReasoning: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.disableReasoning,
     maxTokens: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.maxTokens,
     journalCanonicalDirectory: LUNA_SUMMARY_CANONICAL_JOURNAL_DIR,
-  });
+  };
+}
+
+export function lunaSummaryLiveExecuteManifestFingerprint(): string {
+  return paidRunnerRequestBodyFingerprint(lunaSummaryLiveExecuteManifestIdentity());
 }
 
 export const LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST =
-  "90ec7ecde5b0fdf5a34ba1cf8bd1af1b4cb9e308cbcf46bc1fdbee54e6f6fde7" as const;
+  "a638043e55fc89e216a9c02bb213a46514620d82ff8e028d0b91068d79a2515f" as const;
 
 export type LunaExecuteDenialReason =
   | LunaSummaryDenialReason

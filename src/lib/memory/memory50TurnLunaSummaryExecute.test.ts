@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
+import { paidRunnerRequestBodyFingerprint } from "@/lib/rpQualityPaidRunner";
 import { getDb } from "@/lib/db";
 import {
   ISOLATED_TEST_DB_REQUIRED,
@@ -38,8 +39,10 @@ import {
   LUNA_SUMMARY_EXECUTE_MAIN_SHA,
   LUNA_SUMMARY_LIVE_APPROVAL_STATUS,
   LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS,
+  LUNA_SUMMARY_LIVE_COUPLED_APPROVAL_MANIFEST,
   LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
   LUNA_SUMMARY_LIVE_WIRE_CONTRACT,
+  lunaSummaryLiveExecuteManifestIdentity,
   countReservedNetworkAttempts,
   createLunaDurableJournalStore,
   createLunaSummaryLiveCaller,
@@ -178,6 +181,52 @@ describe("50-turn Luna summary execute gate (provider-free)", () => {
       }).reason,
       "APPROVAL_STATUS_NOT_APPROVED"
     );
+  });
+
+  it("keeps manifest identity stable when approval status flips", () => {
+    const identity = lunaSummaryLiveExecuteManifestIdentity();
+    assert.equal("approvalStatus" in identity, false);
+    assert.deepEqual(identity.liveBatchFingerprints, [...LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS]);
+    assert.equal(lunaSummaryLiveExecuteManifestFingerprint(), LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
+    assert.equal(
+      LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
+      "a638043e55fc89e216a9c02bb213a46514620d82ff8e028d0b91068d79a2515f"
+    );
+    const coupledNotApproved = paidRunnerRequestBodyFingerprint({
+      version: identity.version,
+      mode: identity.mode,
+      mainSha: identity.mainSha,
+      prepareManifestFingerprint: identity.prepareManifestFingerprint,
+      scriptHash: identity.scriptHash,
+      liveBatchFingerprints: identity.liveBatchFingerprints,
+      prepareBatchFingerprints: identity.prepareBatchFingerprints,
+      approvalStatus: "NOT_APPROVED",
+      temperature: identity.temperature,
+      stream: identity.stream,
+      disableReasoning: identity.disableReasoning,
+      maxTokens: identity.maxTokens,
+      journalCanonicalDirectory: identity.journalCanonicalDirectory,
+    });
+    const coupledApproved = paidRunnerRequestBodyFingerprint({
+      version: identity.version,
+      mode: identity.mode,
+      mainSha: identity.mainSha,
+      prepareManifestFingerprint: identity.prepareManifestFingerprint,
+      scriptHash: identity.scriptHash,
+      liveBatchFingerprints: identity.liveBatchFingerprints,
+      prepareBatchFingerprints: identity.prepareBatchFingerprints,
+      approvalStatus: "APPROVED",
+      temperature: identity.temperature,
+      stream: identity.stream,
+      disableReasoning: identity.disableReasoning,
+      maxTokens: identity.maxTokens,
+      journalCanonicalDirectory: identity.journalCanonicalDirectory,
+    });
+    assert.equal(coupledNotApproved, LUNA_SUMMARY_LIVE_COUPLED_APPROVAL_MANIFEST);
+    assert.notEqual(coupledApproved, coupledNotApproved);
+    assert.notEqual(LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST, coupledNotApproved);
+    assert.notEqual(LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST, coupledApproved);
+    assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "NOT_APPROVED");
   });
 
   it("fail-closes journal identity and refuses mkdtemp attempt paths", () => {
