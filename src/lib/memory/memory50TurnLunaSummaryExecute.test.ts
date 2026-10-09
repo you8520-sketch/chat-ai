@@ -12,16 +12,18 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
+import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
+import { getDb } from "@/lib/db";
 import {
   ISOLATED_TEST_DB_REQUIRED,
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
-import { AB_COMPLETED_TURNS, extractiveFakeHarborSummary } from "./memory50TurnAbRunner";
+import { AB_CHAT_ID, AB_COMPLETED_TURNS, extractiveFakeHarborSummary } from "./memory50TurnAbRunner";
 import {
   LUNA_SUMMARY_APPROVED_BATCH_FINGERPRINTS,
   LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST,
@@ -32,19 +34,33 @@ import {
   harborScriptHash,
 } from "./memory50TurnLunaSummaryPrepare";
 import {
-  LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT,
+  LUNA_SUMMARY_CANONICAL_JOURNAL_DIR,
   LUNA_SUMMARY_EXECUTE_MAIN_SHA,
+  LUNA_SUMMARY_LIVE_APPROVAL_STATUS,
+  LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS,
+  LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
+  LUNA_SUMMARY_LIVE_WIRE_CONTRACT,
   countReservedNetworkAttempts,
   createLunaDurableJournalStore,
   createLunaSummaryLiveCaller,
   evaluateLunaSummaryExecuteGate,
+  journalHasReservedHistory,
+  lunaSummaryLiveExecuteManifestFingerprint,
   recoverLunaLeftoverSent,
+  resolveLunaSummaryJournalDirectory,
   runAuthorizedLunaSummaryExperiment,
   verifyLunaRequestIdentity,
+  type LunaDurableJournal,
+  type LunaDurableJournalEntry,
+  type LunaDurableStatus,
 } from "./memory50TurnLunaSummaryExecute";
 import { __setSummarizeTurnBatchCallerForTests, summarizeTurnBatch } from "./memory-rolling-summary";
 
 const EXPERIMENT = "luna-experiment-only-not-production";
+
+function journalDir(): string {
+  return mkdtempSync(path.join(tmpdir(), "luna-summary-journal-"));
+}
 
 function stubCompletion(): NonNullable<Parameters<typeof runAuthorizedLunaSummaryExperiment>[0]["completion"]> {
   return async ({ history }) => ({
@@ -57,9 +73,46 @@ function stubCompletion(): NonNullable<Parameters<typeof runAuthorizedLunaSummar
   });
 }
 
+function reservedEntry(status: LunaDurableStatus, batchIndex = 1): LunaDurableJournalEntry {
+  return {
+    batchIndex,
+    turnStart: (batchIndex - 1) * 5 + 1,
+    turnEnd: batchIndex * 5,
+    requestKind: "background-memory-extract",
+    requestFingerprint: LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS[batchIndex - 1] ?? LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS[0]!,
+    status,
+    accepted: status === "SETTLED" ? true : false,
+    rejectedReason: status === "FAILED" ? "provider" : null,
+    rawSummaryFingerprint: null,
+    storedSummaryFingerprint: null,
+    promptTokens: 1,
+    completionTokens: 1,
+    billedUsd: null,
+    settlementSource: status === "SETTLED" ? "estimate_not_bill" : "unsettled",
+    providerRequestId: null,
+    networkAttempts: batchIndex,
+  };
+}
+
+function reservedJournal(status: LunaDurableStatus): LunaDurableJournal {
+  return {
+    manifestFingerprint: LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
+    requestIdentityFingerprint: LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
+    executed: false,
+    networkAttempts: 1,
+    entries: [reservedEntry(status)],
+  };
+}
+
+function harborChatExists(): boolean {
+  const row = getDb().prepare("SELECT id FROM chats WHERE id=?").get(AB_CHAT_ID) as { id: number } | undefined;
+  return row?.id === AB_CHAT_ID;
+}
+
 describe("50-turn Luna summary execute gate (provider-free)", () => {
-  it("keeps #1473 request identity and refuses unpaid AUTHORIZED posts", async () => {
+  it("keeps #1473 request identity and pins the live prelude fingerprints", async () => {
     assert.equal(LUNA_SUMMARY_LIVE_EXECUTE_SHIPPED, false);
+    assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "NOT_APPROVED");
     assert.equal(harborScriptHash(), LUNA_SUMMARY_APPROVED_SCRIPT_HASH);
     const identity = await verifyLunaRequestIdentity();
     assert.equal(identity.shaOnlyDifference.requestPayloadUnchanged, true);
@@ -67,9 +120,22 @@ describe("50-turn Luna summary execute gate (provider-free)", () => {
     assert.deepEqual(identity.batchFingerprints, [...LUNA_SUMMARY_APPROVED_BATCH_FINGERPRINTS]);
     assert.equal(identity.shaOnlyDifference.currentMainSha, LUNA_SUMMARY_EXECUTE_MAIN_SHA);
     assert.equal(identity.liveSealMatchesPrepareCapture, false);
-    assert.equal(identity.ok, false);
-    assert.equal(identity.liveSealFingerprints[0] !== identity.batchFingerprints[0], true);
+    assert.equal(identity.liveSealFingerprints[0], LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS[0]);
+    assert.equal(
+      identity.liveSealFingerprints[0],
+      "b0bdd7591f55845993aa03fcc871fdc2fa07a1ae5c8c6ece10f47f805b7579ef"
+    );
+    assert.equal(
+      identity.batchFingerprints[0],
+      "de7bd2ffe3ad2b8dcf9740228674105eb9f33d8d82d46a373bbc577f14749372"
+    );
     assert.deepEqual(identity.liveSealFingerprints.slice(1), identity.batchFingerprints.slice(1));
+    assert.deepEqual(identity.liveSealFingerprints, [...LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS]);
+    assert.equal(identity.liveSealMatchesLivePins, true);
+    assert.equal(identity.ok, true);
+    assert.equal(identity.liveExecuteManifestFingerprint, LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
+    assert.equal(lunaSummaryLiveExecuteManifestFingerprint(), LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
+    assert.notEqual(LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST, LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST);
     assert.equal(evaluateLunaSummaryGate({ mode: "PREPARE" }).paidPostsAllowed, 0);
     assert.equal(attemptLunaSummaryLiveExecute({ mode: "AUTHORIZED" }).paidPosts, 0);
     assert.equal(
@@ -100,38 +166,73 @@ describe("50-turn Luna summary execute gate (provider-free)", () => {
       }).reason,
       "ISOLATED_TEST_DB_REQUIRED"
     );
+    assert.equal(
+      evaluateLunaSummaryExecuteGate({
+        userCostApproved: true,
+        experimentKey: EXPERIMENT,
+        identityOk: true,
+        isolatedDb: true,
+        allowRealNetwork: true,
+        requireLiveApproval: true,
+        env: {},
+      }).reason,
+      "APPROVAL_STATUS_NOT_APPROVED"
+    );
   });
 
-  it("refuses an 11th reserved attempt and a leftover SENT after restart", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "luna-journal-"));
+  it("fail-closes journal identity and refuses mkdtemp attempt paths", () => {
+    const attemptSrc = readFileSync("scripts/luna-summary-attempt-execute.ts", "utf8");
+    assert.equal(attemptSrc.includes("mkdtempSync"), false);
+    assert.match(attemptSrc, /LUNA_SUMMARY_CANONICAL_JOURNAL_DIR/);
+    assert.equal(resolveLunaSummaryJournalDirectory({}).ok, false);
+    assert.equal(resolveLunaSummaryJournalDirectory({ journalDirectory: "" }).reason, "JOURNAL_PATH_MISSING");
+    assert.equal(
+      resolveLunaSummaryJournalDirectory({
+        journalDirectory: mkdtempSync(path.join(tmpdir(), "luna-attempt-")),
+      }).reason,
+      "JOURNAL_PATH_UNSAFE"
+    );
+    assert.equal(
+      resolveLunaSummaryJournalDirectory({
+        journalDirectory: path.join(tmpdir(), "luna-summary-journal-inside-data"),
+        env: { DATA_DIR: tmpdir() },
+      }).reason,
+      "JOURNAL_PATH_UNSAFE"
+    );
+    assert.equal(
+      resolveLunaSummaryJournalDirectory({
+        journalDirectory: "/workspace/data/luna-summary-journal-prod",
+      }).reason,
+      "JOURNAL_PATH_UNSAFE"
+    );
+    const resolved = resolveLunaSummaryJournalDirectory({
+      journalDirectory: LUNA_SUMMARY_CANONICAL_JOURNAL_DIR,
+    });
+    assert.equal(resolved.ok, true);
+    if (resolved.ok) {
+      assert.equal(
+        resolveLunaSummaryJournalDirectory({ journalDirectory: LUNA_SUMMARY_CANONICAL_JOURNAL_DIR }).directory,
+        resolved.directory
+      );
+    }
+    const tmp = journalDir();
+    assert.equal(resolveLunaSummaryJournalDirectory({ journalDirectory: tmp }).ok, true);
+  });
+
+  it("refuses an 11th reserved attempt and keeps leftover SENT as a follow-up", async () => {
+    const dir = journalDir();
     const store = createLunaDurableJournalStore(dir);
     const journal = {
-      manifestFingerprint: LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT,
-      requestIdentityFingerprint: LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT,
+      manifestFingerprint: LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
+      requestIdentityFingerprint: LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
       executed: false,
       networkAttempts: 10,
-      entries: Array.from({ length: 10 }, (_, index) => ({
-        batchIndex: index + 1,
-        turnStart: index * 5 + 1,
-        turnEnd: index * 5 + 5,
-        requestKind: "background-memory-extract",
-        requestFingerprint: LUNA_SUMMARY_APPROVED_BATCH_FINGERPRINTS[index]!,
-        status: "SETTLED" as const,
-        accepted: true,
-        rejectedReason: null,
-        rawSummaryFingerprint: null,
-        storedSummaryFingerprint: null,
-        promptTokens: 1,
-        completionTokens: 1,
-        billedUsd: null,
-        settlementSource: "estimate_not_bill" as const,
-        providerRequestId: null,
-        networkAttempts: index + 1,
-      })),
+      entries: Array.from({ length: 10 }, (_, index) => reservedEntry("SETTLED", index + 1)),
     };
     store.persist(journal);
-    const reloaded = store.load(LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT)!;
+    const reloaded = store.load(LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST)!;
     assert.equal(countReservedNetworkAttempts(reloaded), 10);
+    assert.equal(journalHasReservedHistory(reloaded), true);
     const limited = createLunaSummaryLiveCaller({
       experimentKey: EXPERIMENT,
       env: {},
@@ -145,26 +246,14 @@ describe("50-turn Luna summary execute gate (provider-free)", () => {
       /NETWORK_ATTEMPT_LIMIT/
     );
 
-    const crashed = {
-      manifestFingerprint: LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT,
-      requestIdentityFingerprint: LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT,
-      executed: false,
-      networkAttempts: 1,
-      entries: [
-        {
-          ...journal.entries[0]!,
-          status: "SENT" as const,
-          settlementSource: "unsettled" as const,
-        },
-      ],
-    };
-    const crashDir = mkdtempSync(path.join(tmpdir(), "luna-journal-crash-"));
+    const crashed = reservedJournal("SENT");
+    const crashDir = journalDir();
     const crashStore = createLunaDurableJournalStore(crashDir);
     crashStore.persist(crashed);
-    const afterRestart = crashStore.load(LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT)!;
+    const afterRestart = crashStore.load(LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST)!;
     assert.equal(recoverLunaLeftoverSent(afterRestart), true);
     crashStore.persist(afterRestart);
-    const again = crashStore.load(LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT)!;
+    const again = crashStore.load(LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST)!;
     assert.equal(again.entries[0]?.status, "UNKNOWN_UNRESOLVED");
     const blocked = createLunaSummaryLiveCaller({
       experimentKey: EXPERIMENT,
@@ -182,11 +271,9 @@ describe("50-turn Luna summary execute gate (provider-free)", () => {
   });
 
   it("blocks a second process from taking the same journal lock", () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "luna-lock-"));
+    const dir = journalDir();
     const store = createLunaDurableJournalStore(dir);
-    const lock = store.lockStore.tryAcquireExclusiveLock(
-      LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT
-    );
+    const lock = store.lockStore.tryAcquireExclusiveLock(LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
     assert.equal(lock.ok, true);
     const child = spawnSync(
       process.execPath,
@@ -196,7 +283,7 @@ describe("50-turn Luna summary execute gate (provider-free)", () => {
         "tsx",
         "scripts/luna-summary-lock-child.ts",
         dir,
-        LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT,
+        LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
       ],
       { encoding: "utf8" }
     );
@@ -222,7 +309,7 @@ describe("50-turn Luna summary execute isolated stub (provider-free)", () => {
         userCostApproved: true,
         experimentKey: EXPERIMENT,
         env: {},
-        journalDirectory: mkdtempSync(path.join(tmpdir(), "luna-exec-")),
+        journalDirectory: journalDir(),
         completion: stubCompletion(),
       });
       assert.equal(result.executed, false);
@@ -233,8 +320,77 @@ describe("50-turn Luna summary execute isolated stub (provider-free)", () => {
     }
   });
 
-  it("seals 10 stub batches through the live caller without a second retry POST", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "luna-exec-"));
+  it("refuses reserved SENT/SETTLED/FAILED history before seed and extra POSTs", async () => {
+    for (const status of ["SENT", "SETTLED", "FAILED"] as const) {
+      const dir = journalDir();
+      const store = createLunaDurableJournalStore(dir);
+      store.persist(reservedJournal(status));
+      let posts = 0;
+      const result = await runAuthorizedLunaSummaryExperiment({
+        userCostApproved: true,
+        experimentKey: EXPERIMENT,
+        env: {},
+        journalDirectory: dir,
+        completion: async (opts) => {
+          posts += 1;
+          return stubCompletion()(opts);
+        },
+      });
+      assert.equal(result.abortReason, "PRIOR_RESERVED_HISTORY");
+      assert.equal(result.paidPosts, 0);
+      assert.equal(posts, 0);
+      assert.equal(result.journal.entries[0]?.status, status);
+      assert.equal(harborChatExists(), false);
+    }
+  });
+
+  it("blocks a second process on the same journal directory from posting", async () => {
+    const dir = journalDir();
+    const store = createLunaDurableJournalStore(dir);
+    store.persist(reservedJournal("SETTLED"));
+    const child = spawnSync(
+      process.execPath,
+      [
+        "--conditions=react-server",
+        "--import",
+        "tsx",
+        "scripts/luna-summary-restart-child.ts",
+        dir,
+      ],
+      { encoding: "utf8" }
+    );
+    assert.equal(child.status, 0, child.stderr);
+    assert.equal(child.stdout.includes("POST"), false);
+    assert.equal(child.stdout, "PRIOR_RESERVED_HISTORY");
+    assert.equal(harborChatExists(), false);
+  });
+
+  it("refuses missing and production keys with zero POSTs and no seed", async () => {
+    const missing = await runAuthorizedLunaSummaryExperiment({
+      userCostApproved: true,
+      experimentKey: null,
+      env: {},
+      journalDirectory: journalDir(),
+      allowRealNetwork: true,
+    });
+    assert.equal(missing.paidPosts, 0);
+    assert.equal(missing.abortReason, "MISSING_EXPERIMENT_KEY");
+    assert.equal(harborChatExists(), false);
+
+    const production = await runAuthorizedLunaSummaryExperiment({
+      userCostApproved: true,
+      experimentKey: "sk-prod",
+      env: { CHEAPER_INFERENCE_API_KEY: "sk-prod" },
+      journalDirectory: journalDir(),
+      allowRealNetwork: true,
+    });
+    assert.equal(production.paidPosts, 0);
+    assert.equal(production.abortReason, "PRODUCTION_KEY_FORBIDDEN");
+    assert.equal(harborChatExists(), false);
+  });
+
+  it("records HTTP success without accepted=true when summary validation fails", async () => {
+    const dir = journalDir();
     let posts = 0;
     const result = await runAuthorizedLunaSummaryExperiment({
       userCostApproved: true,
@@ -243,10 +399,88 @@ describe("50-turn Luna summary execute isolated stub (provider-free)", () => {
       journalDirectory: dir,
       completion: async (opts) => {
         posts += 1;
+        assert.equal(opts.model, LUNA_SUMMARY_LIVE_WIRE_CONTRACT.model);
+        assert.equal(opts.temperature, LUNA_SUMMARY_LIVE_WIRE_CONTRACT.temperature);
+        assert.equal(opts.maxTokens, LUNA_SUMMARY_LIVE_WIRE_CONTRACT.maxTokens);
+        assert.equal(opts.disableReasoning, LUNA_SUMMARY_LIVE_WIRE_CONTRACT.disableReasoning);
+        assert.equal(opts.requestKind, LUNA_SUMMARY_LIVE_WIRE_CONTRACT.requestKind);
+        const wire = adaptCheaperInferenceChatBody({
+          model: opts.model,
+          messages: [
+            { role: "system", content: opts.system },
+            ...opts.history,
+          ],
+          stream: false,
+          temperature: opts.temperature,
+          ...(opts.maxTokens != null ? { max_tokens: opts.maxTokens } : {}),
+          reasoning: { effort: "none" },
+          include_reasoning: false,
+        });
+        assert.equal(wire.stream, false);
+        assert.equal("max_tokens" in wire, false);
+        assert.deepEqual(wire.reasoning, { effort: "none" });
+        return {
+          text: "너무 짧은 응답",
+          usage: { inputTokens: 8, outputTokens: 3, estimated: true },
+        };
+      },
+    });
+    assert.equal(posts, 1);
+    assert.equal(result.networkPosts, 1);
+    assert.equal(result.paidPosts, 0);
+    assert.equal(result.sealedRounds, 0);
+    assert.equal(result.abortReason, "SUMMARY_VALIDATION_FAILED");
+    assert.equal(result.journal.entries[0]?.status, "SETTLED");
+    assert.equal(result.journal.entries[0]?.accepted, false);
+    assert.equal(result.journal.entries[0]?.rejectedReason, "SUMMARY_VALIDATION_FAILED");
+
+    const restart = await runAuthorizedLunaSummaryExperiment({
+      userCostApproved: true,
+      experimentKey: EXPERIMENT,
+      env: {},
+      journalDirectory: dir,
+      completion: async () => {
+        posts += 1;
+        return stubCompletion()({
+          system: "",
+          history: [],
+          model: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.model,
+        });
+      },
+    });
+    assert.equal(restart.abortReason, "PRIOR_RESERVED_HISTORY");
+    assert.equal(posts, 1);
+  });
+
+  it("seals 10 stub batches through the live caller without a second retry POST", async () => {
+    const dir = journalDir();
+    let posts = 0;
+    const captured: Array<{
+      model: string;
+      temperature?: number;
+      maxTokens?: number | null;
+      disableReasoning?: boolean;
+      requestKind?: string;
+    }> = [];
+    const result = await runAuthorizedLunaSummaryExperiment({
+      userCostApproved: true,
+      experimentKey: EXPERIMENT,
+      env: {},
+      journalDirectory: dir,
+      completion: async (opts) => {
+        posts += 1;
+        captured.push({
+          model: opts.model,
+          temperature: opts.temperature,
+          maxTokens: opts.maxTokens,
+          disableReasoning: opts.disableReasoning,
+          requestKind: opts.requestKind,
+        });
         return stubCompletion()(opts);
       },
     });
     assert.equal(result.identity.shaOnlyDifference.requestPayloadUnchanged, true);
+    assert.equal(result.identity.ok, true);
     assert.equal(result.sealedRounds, 10);
     assert.equal(result.frontier, AB_COMPLETED_TURNS);
     assert.equal(result.networkPosts, 10);
@@ -256,19 +490,36 @@ describe("50-turn Luna summary execute isolated stub (provider-free)", () => {
     assert.equal(result.answerKeyLeakedIntoArmA, false);
     assert.match(result.globalMemory, /열쇠/);
     assert.match(result.armAMemory, /열쇠/);
+    assert.deepEqual(
+      result.journal.entries.map((entry) => entry.requestFingerprint),
+      [...LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS]
+    );
+    assert.equal(result.journal.entries.every((entry) => entry.status === "SETTLED"), true);
+    assert.equal(result.journal.entries.every((entry) => entry.accepted === true), true);
+    assert.equal(
+      result.journal.entries.every((entry) =>
+        Boolean(entry.storedSummaryFingerprint && entry.storedSummaryFingerprint === entry.storedSummaryFingerprint)
+      ),
+      true
+    );
+    assert.equal(captured.every((opts) => opts.model === LUNA_SUMMARY_LIVE_WIRE_CONTRACT.model), true);
+    assert.equal(captured.every((opts) => opts.temperature === 0.3), true);
+    assert.equal(captured.every((opts) => opts.maxTokens === null), true);
+    assert.equal(captured.every((opts) => opts.disableReasoning === true), true);
+    assert.equal(captured.every((opts) => opts.requestKind === "background-memory-extract"), true);
 
     const retryCaller = createLunaSummaryLiveCaller({
       experimentKey: EXPERIMENT,
       env: {},
       journal: {
-        manifestFingerprint: LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT,
-        requestIdentityFingerprint: LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT,
+        manifestFingerprint: LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
+        requestIdentityFingerprint: LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
         executed: false,
         networkAttempts: 0,
         entries: [],
       },
       persist() {},
-      artifactStore: createLunaDurableJournalStore(mkdtempSync(path.join(tmpdir(), "luna-art-"))).artifactStore,
+      artifactStore: createLunaDurableJournalStore(journalDir()).artifactStore,
       completion: async () => ({
         text: "",
         usage: { inputTokens: 1, outputTokens: 0, estimated: true },
@@ -295,7 +546,7 @@ describe("50-turn Luna summary execute isolated stub (provider-free)", () => {
       journalDirectory: dir,
       completion: stubCompletion(),
     });
-    assert.equal(duplicate.abortReason, "DUPLICATE_MANIFEST_EXECUTION");
+    assert.equal(duplicate.abortReason, "PRIOR_RESERVED_HISTORY");
     assert.equal(duplicate.paidPosts, 0);
   });
 });
@@ -305,7 +556,13 @@ after(() => {
     mkdirSync("/opt/cursor/artifacts", { recursive: true });
     writeFileSync(
       "/opt/cursor/artifacts/memory_50turn_luna_summary_execute_prepare.json",
-      `${JSON.stringify({ executeShipped: true, paidPostsThisSuite: 0 }, null, 2)}\n`,
+      `${JSON.stringify({
+        executeShipped: true,
+        liveApprovalStatus: LUNA_SUMMARY_LIVE_APPROVAL_STATUS,
+        liveExecuteManifest: LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
+        liveBatchFingerprints: LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS,
+        paidPostsThisSuite: 0,
+      }, null, 2)}\n`,
       "utf8"
     );
   } catch {

@@ -14,6 +14,7 @@ import {
   renameSync,
   writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
@@ -88,11 +89,62 @@ export const LUNA_SUMMARY_EXECUTE_MAIN_SHA =
 export const LUNA_SUMMARY_EXECUTE_SHIPPED = true;
 export const LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST_FINGERPRINT =
   LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST;
+export const LUNA_SUMMARY_JOURNAL_DIR_ENV = "MEMORY_LUNA_SUMMARY_JOURNAL_DIR";
+export const LUNA_SUMMARY_CANONICAL_JOURNAL_DIR =
+  "/opt/cursor/artifacts/luna-summary-journal-v1" as const;
+export const LUNA_SUMMARY_JOURNAL_DIR_PREFIX = "luna-summary-journal";
+export const LUNA_SUMMARY_LIVE_APPROVAL_STATUS = "NOT_APPROVED" as const;
+export const LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS = [
+  "b0bdd7591f55845993aa03fcc871fdc2fa07a1ae5c8c6ece10f47f805b7579ef",
+  "482b02d3be9680b79c8132904b944584d67dddc4e222d396196b3797ec7410b0",
+  "f56c75ebaa224aaea8ce4ec32d039649c953dc1e4a6a2af6b45ad4db9547631c",
+  "a510be4f863a37ddd7798a79376b9141e52c38dce85f4b5c7e2615d564fd1171",
+  "d60b94b653a61713757fd08afa0171bc3574c578288e78eb1901e1ac1773c295",
+  "17e975a68f247d53ad1c5ecbf7736e40ea8cbc0be1097660efd5beaef9ba7ee3",
+  "1531941805edec6c7915ab7a070c9fab8313212f62496123b72dfdaba93a671a",
+  "f9e66e2a5cec971ccc6eef9191863ed78aff1c7de16ba657346763562c2aadc6",
+  "55b48b897cbf8108a8e6d95000b736a180a252f5c7db1f73e05db8a97fc3f371",
+  "fdebfff8d04a74969cba22ed1872f8be0d7993b7ecb72fb4cad87e4d78ac1f45",
+] as const;
+export const LUNA_SUMMARY_LIVE_WIRE_CONTRACT = {
+  model: CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
+  endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+  temperature: 0.3,
+  stream: false,
+  disableReasoning: true,
+  maxTokens: null,
+  requestKind: LUNA_SUMMARY_REQUEST_KIND,
+} as const;
+
+export function lunaSummaryLiveExecuteManifestFingerprint(): string {
+  return paidRunnerRequestBodyFingerprint({
+    version: 2,
+    mode: "LIVE_EXECUTE",
+    mainSha: LUNA_SUMMARY_EXECUTE_MAIN_SHA,
+    prepareManifestFingerprint: LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST,
+    scriptHash: LUNA_SUMMARY_APPROVED_SCRIPT_HASH,
+    liveBatchFingerprints: [...LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS],
+    prepareBatchFingerprints: [...LUNA_SUMMARY_APPROVED_BATCH_FINGERPRINTS],
+    approvalStatus: LUNA_SUMMARY_LIVE_APPROVAL_STATUS,
+    temperature: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.temperature,
+    stream: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.stream,
+    disableReasoning: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.disableReasoning,
+    maxTokens: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.maxTokens,
+    journalCanonicalDirectory: LUNA_SUMMARY_CANONICAL_JOURNAL_DIR,
+  });
+}
+
+export const LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST =
+  lunaSummaryLiveExecuteManifestFingerprint();
 
 export type LunaExecuteDenialReason =
   | LunaSummaryDenialReason
   | "REQUEST_IDENTITY_MISMATCH"
   | "JOURNAL_STORE_UNAVAILABLE"
+  | "JOURNAL_PATH_MISSING"
+  | "JOURNAL_PATH_UNSAFE"
+  | "PRIOR_RESERVED_HISTORY"
+  | "SUMMARY_VALIDATION_FAILED"
   | "MISSING_EXPERIMENT_KEY"
   | "REAL_NETWORK_NOT_ENABLED";
 
@@ -148,6 +200,43 @@ function emptyJournal(fingerprint: string, requestIdentityFingerprint: string): 
   };
 }
 
+function isInsideDirectory(parent: string, child: string): boolean {
+  const relative = path.relative(parent, child);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+export function resolveLunaSummaryJournalDirectory(input?: {
+  journalDirectory?: string | null;
+  env?: NodeJS.ProcessEnv;
+}):
+  | { ok: true; directory: string }
+  | { ok: false; reason: "JOURNAL_PATH_MISSING" | "JOURNAL_PATH_UNSAFE" } {
+  const env = input?.env ?? process.env;
+  const raw = input?.journalDirectory?.trim() || env[LUNA_SUMMARY_JOURNAL_DIR_ENV]?.trim() || "";
+  if (!raw) return { ok: false, reason: "JOURNAL_PATH_MISSING" };
+  if (raw.includes("\0")) return { ok: false, reason: "JOURNAL_PATH_UNSAFE" };
+  const resolved = path.resolve(raw);
+  if (!path.isAbsolute(resolved)) return { ok: false, reason: "JOURNAL_PATH_UNSAFE" };
+  if (!path.basename(resolved).startsWith(LUNA_SUMMARY_JOURNAL_DIR_PREFIX)) {
+    return { ok: false, reason: "JOURNAL_PATH_UNSAFE" };
+  }
+  const allowed =
+    isInsideDirectory(path.resolve(tmpdir()), resolved) ||
+    isInsideDirectory(path.resolve("/opt/cursor/artifacts"), resolved);
+  if (!allowed) return { ok: false, reason: "JOURNAL_PATH_UNSAFE" };
+  const dataDir = env.DATA_DIR?.trim();
+  if (dataDir && isInsideDirectory(path.resolve(dataDir), resolved)) {
+    return { ok: false, reason: "JOURNAL_PATH_UNSAFE" };
+  }
+  if (
+    isInsideDirectory(path.resolve("/workspace/data"), resolved) ||
+    isInsideDirectory(path.resolve(process.cwd(), "data"), resolved)
+  ) {
+    return { ok: false, reason: "JOURNAL_PATH_UNSAFE" };
+  }
+  return { ok: true, directory: resolved };
+}
+
 function lunaJournalPath(directory: string, fingerprint: string): string {
   if (!/^[a-f0-9]{64}$/.test(fingerprint)) {
     throw new Error("JOURNAL_FINGERPRINT_MISMATCH");
@@ -168,13 +257,28 @@ export function recoverLunaLeftoverSent(journal: LunaDurableJournal): boolean {
   return recovered;
 }
 
+export function journalHasReservedHistory(journal: LunaDurableJournal): boolean {
+  return journal.executed || journal.entries.some((entry) =>
+    entry.status === "SENT" ||
+    entry.status === "SETTLED" ||
+    entry.status === "FAILED" ||
+    entry.status === "EMPTY_STOP" ||
+    entry.status === "UNKNOWN_UNRESOLVED"
+  );
+}
+
 export function createLunaDurableJournalStore(directory: string): {
   lockStore: PaidRunnerJournalStore;
   artifactStore: PaidRunnerArtifactStore;
   load(fingerprint: string): LunaDurableJournal | null;
   persist(journal: LunaDurableJournal): void;
 } {
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const resolved = resolveLunaSummaryJournalDirectory({ journalDirectory: directory });
+  if (!resolved.ok) {
+    throw new Error(resolved.reason);
+  }
+  mkdirSync(resolved.directory, { recursive: true, mode: 0o700 });
+  directory = resolved.directory;
   const lockStore = createFilePaidRunnerJournalStore(directory);
   const artifactStore = createFilePaidRunnerArtifactStore(directory);
   return {
@@ -273,9 +377,12 @@ export async function verifyLunaRequestIdentity(): Promise<{
   reason: LunaExecuteDenialReason | null;
   scriptHash: string;
   prepareManifestFingerprint: string;
+  liveExecuteManifestFingerprint: string;
+  liveApprovalStatus: typeof LUNA_SUMMARY_LIVE_APPROVAL_STATUS;
   batchFingerprints: string[];
   liveSealFingerprints: string[];
   liveSealMatchesPrepareCapture: boolean;
+  liveSealMatchesLivePins: boolean;
   shaOnlyDifference: {
     pinnedPrepareMainSha: string;
     currentMainSha: typeof LUNA_SUMMARY_EXECUTE_MAIN_SHA;
@@ -296,19 +403,26 @@ export async function verifyLunaRequestIdentity(): Promise<{
     manifest.requestKind === LUNA_SUMMARY_REQUEST_KIND &&
     manifest.outputTokenPolicy.productionMaxTokensApplied === null &&
     manifest.plannedPosts === LUNA_SUMMARY_PLANNED_POSTS &&
-    manifest.maximumNetworkAttempts === LUNA_SUMMARY_MAX_NETWORK_ATTEMPTS;
+    manifest.maximumNetworkAttempts === LUNA_SUMMARY_MAX_NETWORK_ATTEMPTS &&
+    manifest.approvalStatus === "NOT_APPROVED";
   const liveSealMatchesPrepareCapture = liveSealFingerprints.every(
     (fp, index) => fp === LUNA_SUMMARY_APPROVED_BATCH_FINGERPRINTS[index]
   );
-  const payloadUnchanged = prepareCaptureUnchanged && liveSealMatchesPrepareCapture;
+  const liveSealMatchesLivePins =
+    liveSealFingerprints.length === LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS.length &&
+    liveSealFingerprints.every((fp, index) => fp === LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS[index]);
+  const liveIdentityOk = prepareCaptureUnchanged && liveSealMatchesLivePins;
   return {
-    ok: payloadUnchanged,
-    reason: payloadUnchanged ? null : "REQUEST_IDENTITY_MISMATCH",
+    ok: liveIdentityOk,
+    reason: liveIdentityOk ? null : "REQUEST_IDENTITY_MISMATCH",
     scriptHash,
     prepareManifestFingerprint: manifest.manifestFingerprint,
+    liveExecuteManifestFingerprint: LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
+    liveApprovalStatus: LUNA_SUMMARY_LIVE_APPROVAL_STATUS,
     batchFingerprints,
     liveSealFingerprints,
     liveSealMatchesPrepareCapture,
+    liveSealMatchesLivePins,
     shaOnlyDifference: {
       pinnedPrepareMainSha: manifest.mainSha,
       currentMainSha: LUNA_SUMMARY_EXECUTE_MAIN_SHA,
@@ -324,6 +438,7 @@ export function evaluateLunaSummaryExecuteGate(input: {
   identityOk: boolean;
   isolatedDb: boolean;
   allowRealNetwork?: boolean;
+  requireLiveApproval?: boolean;
 }): LunaExecuteGate {
   const env = input.env ?? process.env;
   const prepare = evaluateLunaSummaryGate({
@@ -351,6 +466,9 @@ export function evaluateLunaSummaryExecuteGate(input: {
   }
   if (!input.isolatedDb) {
     return { ok: false, paidPostsAllowed: 0, reason: "ISOLATED_TEST_DB_REQUIRED" };
+  }
+  if (input.requireLiveApproval === true && LUNA_SUMMARY_LIVE_APPROVAL_STATUS !== "APPROVED") {
+    return { ok: false, paidPostsAllowed: 0, reason: "APPROVAL_STATUS_NOT_APPROVED" };
   }
   if (input.allowRealNetwork !== true) {
     return { ok: false, paidPostsAllowed: 0, reason: "REAL_NETWORK_NOT_ENABLED" };
@@ -399,7 +517,7 @@ export function createLunaSummaryLiveCaller(opts: {
       user,
     });
     const expectedFingerprint =
-      LUNA_SUMMARY_APPROVED_BATCH_FINGERPRINTS[countReservedNetworkAttempts(opts.journal)];
+      LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS[countReservedNetworkAttempts(opts.journal)];
     if (
       opts.allowRealNetwork === true &&
       !opts.completion &&
@@ -453,11 +571,11 @@ export function createLunaSummaryLiveCaller(opts: {
       const result = await post({
         system,
         history,
-        model: CHEAPER_INFERENCE_GPT_6_LUNA_MODEL,
-        temperature: 0.3,
-        maxTokens: null,
-        disableReasoning: true,
-        requestKind: LUNA_SUMMARY_REQUEST_KIND,
+        model: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.model,
+        temperature: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.temperature,
+        maxTokens: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.maxTokens,
+        disableReasoning: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.disableReasoning,
+        requestKind: LUNA_SUMMARY_LIVE_WIRE_CONTRACT.requestKind,
         cheaperInferenceApiKeyOverride: opts.experimentKey,
       });
       const text = result.text ?? "";
@@ -475,7 +593,7 @@ export function createLunaSummaryLiveCaller(opts: {
         throw new Error("EMPTY_SUMMARY_STOP");
       }
       entry.status = "SETTLED";
-      entry.accepted = true;
+      entry.accepted = null;
       entry.rawSummaryFingerprint = paidRunnerArtifactFingerprint(text);
       opts.artifactStore.persist({
         requestOrder: batchIndex,
@@ -491,8 +609,9 @@ export function createLunaSummaryLiveCaller(opts: {
           error instanceof CompatibleCompletionError === false &&
           /timeout|ETIMEDOUT|ECONNRESET|aborted|fetch failed|network/i.test(message);
         entry.status = unresolved ? "UNKNOWN_UNRESOLVED" : "FAILED";
+        entry.accepted = false;
         entry.rejectedReason = unresolved ? "UNKNOWN_UNRESOLVED_NO_RESEND" : message.slice(0, 300);
-        entry.settlementSource = "unsettled";
+        entry.settlementSource = unresolved ? "unsettled" : entry.settlementSource;
         opts.persist(opts.journal);
         if (unresolved) throw new Error("UNKNOWN_UNRESOLVED_NO_RESEND");
       }
@@ -524,7 +643,34 @@ export async function runAuthorizedLunaSummaryExperiment(input: {
   oracleWrittenToDb: boolean;
   answerKeyLeakedIntoArmA: boolean;
 }> {
+  const journalDir = resolveLunaSummaryJournalDirectory({
+    journalDirectory: input.journalDirectory,
+    env: input.env,
+  });
   const identity = await verifyLunaRequestIdentity();
+  const emptyAbort = (
+    abortReason: LunaExecuteDenialReason,
+    journal: LunaDurableJournal = emptyJournal(
+      LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
+      LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST
+    )
+  ) => ({
+    executed: false,
+    paidPosts: 0,
+    networkPosts: journal.networkAttempts,
+    sealedRounds: 0,
+    frontier: 0,
+    abortReason,
+    journal,
+    identity,
+    globalMemory: "",
+    armAMemory: "",
+    oracleWrittenToDb: false,
+    answerKeyLeakedIntoArmA: false,
+  });
+  if (!journalDir.ok) {
+    return emptyAbort(journalDir.reason);
+  }
   const isolated = (() => {
     try {
       assertIsolatedTestDatabaseActive();
@@ -541,61 +687,21 @@ export async function runAuthorizedLunaSummaryExperiment(input: {
     identityOk: paying ? identity.ok : identity.shaOnlyDifference.requestPayloadUnchanged,
     isolatedDb: isolated,
     allowRealNetwork: paying || Boolean(input.completion),
+    requireLiveApproval: paying,
   });
-  const fingerprint = LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST;
-  const store = createLunaDurableJournalStore(input.journalDirectory);
+  const fingerprint = LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST;
+  const store = createLunaDurableJournalStore(journalDir.directory);
   const lock = store.lockStore.tryAcquireExclusiveLock(fingerprint);
   if (!lock.ok) {
-    return {
-      executed: false,
-      paidPosts: 0,
-      networkPosts: 0,
-      sealedRounds: 0,
-      frontier: 0,
-      abortReason: lock.reason,
-      journal: emptyJournal(fingerprint, fingerprint),
-      identity,
-      globalMemory: "",
-      armAMemory: "",
-      oracleWrittenToDb: false,
-      answerKeyLeakedIntoArmA: false,
-    };
+    return emptyAbort(lock.reason);
   }
   try {
     const journal = store.load(fingerprint) ?? emptyJournal(fingerprint, fingerprint);
-    recoverLunaLeftoverSent(journal);
-    store.persist(journal);
-    if (journal.executed) {
-      return {
-        executed: false,
-        paidPosts: 0,
-        networkPosts: journal.networkAttempts,
-        sealedRounds: 0,
-        frontier: 0,
-        abortReason: "DUPLICATE_MANIFEST_EXECUTION",
-        journal,
-        identity,
-        globalMemory: "",
-        armAMemory: "",
-        oracleWrittenToDb: false,
-        answerKeyLeakedIntoArmA: false,
-      };
+    if (journalHasReservedHistory(journal)) {
+      return emptyAbort("PRIOR_RESERVED_HISTORY", journal);
     }
     if (!gate.ok) {
-      return {
-        executed: false,
-        paidPosts: 0,
-        networkPosts: journal.networkAttempts,
-        sealedRounds: 0,
-        frontier: 0,
-        abortReason: gate.reason,
-        journal,
-        identity,
-        globalMemory: "",
-        armAMemory: "",
-        oracleWrittenToDb: false,
-        answerKeyLeakedIntoArmA: false,
-      };
+      return emptyAbort(gate.reason, journal);
     }
     seedHarborExperimentChat();
     const caller = createLunaSummaryLiveCaller({
@@ -624,7 +730,13 @@ export async function runAuthorizedLunaSummaryExperiment(input: {
             memoryCapacity: MEMORY_CAPACITY_FIXED,
           });
           if (!sealed) {
-            if (sealedRounds < LUNA_SUMMARY_PLANNED_POSTS) {
+            const lastEntry = journal.entries[journal.entries.length - 1];
+            if (lastEntry?.status === "SETTLED" && lastEntry.accepted !== true) {
+              lastEntry.accepted = false;
+              lastEntry.rejectedReason = lastEntry.rejectedReason ?? "SUMMARY_VALIDATION_FAILED";
+              store.persist(journal);
+              abortReason = "SUMMARY_VALIDATION_FAILED";
+            } else if (sealedRounds < LUNA_SUMMARY_PLANNED_POSTS) {
               abortReason = journal.entries.some((entry) => entry.status === "UNKNOWN_UNRESOLVED")
                 ? "UNKNOWN_UNRESOLVED_NO_RESEND"
                 : "EMPTY_SUMMARY_STOP";
@@ -632,27 +744,46 @@ export async function runAuthorizedLunaSummaryExperiment(input: {
             break;
           }
           const records = listMemoryRecordsForChat(AB_CHAT_ID).filter((record) => !record.inactive);
+          const confirmed = listMemoryRecordsForChat(AB_CHAT_ID).filter((record) => !record.inactive);
           const last = records[records.length - 1];
+          const sealedRow = confirmed[confirmed.length - 1];
           const lastEntry = journal.entries[journal.entries.length - 1];
-          if (lastEntry && last?.summary) {
-            lastEntry.storedSummaryFingerprint = paidRunnerArtifactFingerprint(last.summary);
+          if (
+            lastEntry &&
+            last?.summary &&
+            sealedRow?.summary === last.summary
+          ) {
+            lastEntry.storedSummaryFingerprint = paidRunnerArtifactFingerprint(sealedRow.summary);
             lastEntry.accepted = true;
             store.persist(journal);
             store.artifactStore.persist({
               requestOrder: lastEntry.batchIndex + 100,
               fingerprint: lastEntry.storedSummaryFingerprint,
-              text: last.summary,
+              text: sealedRow.summary,
             });
+          } else if (lastEntry) {
+            lastEntry.accepted = false;
+            lastEntry.rejectedReason = "SUMMARY_VALIDATION_FAILED";
+            store.persist(journal);
+            abortReason = "SUMMARY_VALIDATION_FAILED";
+            break;
           }
           sealedRounds += 1;
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
+          const lastEntry = journal.entries[journal.entries.length - 1];
+          if (lastEntry?.status === "SETTLED" && lastEntry.accepted !== true) {
+            lastEntry.accepted = false;
+            lastEntry.rejectedReason = lastEntry.rejectedReason ?? "SUMMARY_VALIDATION_FAILED";
+            store.persist(journal);
+          }
           if (message.includes("EMPTY_SUMMARY_STOP")) abortReason = "EMPTY_SUMMARY_STOP";
-          else if (message.includes("INTERNAL_RETRY_NETWORK_FORBIDDEN")) abortReason = "INTERNAL_RETRY_NETWORK_FORBIDDEN";
+          else if (message.includes("INTERNAL_RETRY_NETWORK_FORBIDDEN")) abortReason = "SUMMARY_VALIDATION_FAILED";
           else if (message.includes("NETWORK_ATTEMPT_LIMIT")) abortReason = "NETWORK_ATTEMPT_LIMIT";
           else if (message.includes("UNKNOWN_UNRESOLVED_NO_RESEND")) abortReason = "UNKNOWN_UNRESOLVED_NO_RESEND";
           else if (message.includes("DUPLICATE_MANIFEST_EXECUTION")) abortReason = "DUPLICATE_MANIFEST_EXECUTION";
           else if (message.includes("REQUEST_IDENTITY_MISMATCH")) abortReason = "REQUEST_IDENTITY_MISMATCH";
+          else if (message.includes("SUMMARY_VALIDATION_FAILED")) abortReason = "SUMMARY_VALIDATION_FAILED";
           else throw error;
           break;
         }

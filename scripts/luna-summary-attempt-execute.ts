@@ -11,16 +11,16 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import { mkdirSync, writeFileSync } from "node:fs";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import {
   installIsolatedTestDatabase,
   uninstallIsolatedTestDatabase,
 } from "../src/lib/test/isolatedTestDatabase.ts";
 import { LUNA_SUMMARY_EXPERIMENT_KEY_ENV } from "../src/lib/memory/memory50TurnLunaSummaryPrepare.ts";
 import {
+  LUNA_SUMMARY_CANONICAL_JOURNAL_DIR,
+  LUNA_SUMMARY_JOURNAL_DIR_ENV,
   lunaExecuteExperimentKeyPresent,
+  resolveLunaSummaryJournalDirectory,
   runAuthorizedLunaSummaryExperiment,
   verifyLunaRequestIdentity,
 } from "../src/lib/memory/memory50TurnLunaSummaryExecute.ts";
@@ -28,13 +28,39 @@ import {
 async function main(): Promise<void> {
   const identity = await verifyLunaRequestIdentity();
   const key = lunaExecuteExperimentKeyPresent();
+  const journalDir = resolveLunaSummaryJournalDirectory({
+    journalDirectory: process.env[LUNA_SUMMARY_JOURNAL_DIR_ENV] ?? LUNA_SUMMARY_CANONICAL_JOURNAL_DIR,
+    env: process.env,
+  });
+  if (!journalDir.ok) {
+    const report = {
+      paidPosts: 0,
+      networkPosts: 0,
+      executed: false,
+      abortReason: journalDir.reason,
+      keyPresent: key.present,
+      keyEqualsProduction: key.equalsProduction,
+      identityOk: identity.ok,
+      liveApprovalStatus: identity.liveApprovalStatus,
+      liveExecuteManifestFingerprint: identity.liveExecuteManifestFingerprint,
+      liveSealFingerprints: identity.liveSealFingerprints,
+    };
+    mkdirSync("/opt/cursor/artifacts", { recursive: true });
+    writeFileSync(
+      "/opt/cursor/artifacts/memory_50turn_luna_summary_execute_stop.json",
+      `${JSON.stringify(report, null, 2)}\n`,
+      "utf8"
+    );
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
   installIsolatedTestDatabase();
   try {
     const result = await runAuthorizedLunaSummaryExperiment({
       userCostApproved: true,
       experimentKey: process.env[LUNA_SUMMARY_EXPERIMENT_KEY_ENV] ?? null,
       env: process.env,
-      journalDirectory: mkdtempSync(path.join(tmpdir(), "luna-attempt-")),
+      journalDirectory: journalDir.directory,
       allowRealNetwork: true,
     });
     const report = {
@@ -47,8 +73,12 @@ async function main(): Promise<void> {
       identityOk: identity.ok,
       prepareCaptureUnchanged: identity.shaOnlyDifference.requestPayloadUnchanged,
       liveSealMatchesPrepareCapture: identity.liveSealMatchesPrepareCapture,
+      liveSealMatchesLivePins: identity.liveSealMatchesLivePins,
+      liveApprovalStatus: identity.liveApprovalStatus,
+      liveExecuteManifestFingerprint: identity.liveExecuteManifestFingerprint,
       liveSealFingerprints: identity.liveSealFingerprints,
       prepareFingerprints: identity.batchFingerprints,
+      journalDirectory: journalDir.directory,
       sealedRounds: result.sealedRounds,
       frontier: result.frontier,
     };
