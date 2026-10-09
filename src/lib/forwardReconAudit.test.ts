@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { hashProviderRequestId } from "@/lib/approvedExperimentSpend";
 import type { CheaperInferenceUsageRequest } from "@/lib/cheaperInferenceUsage";
+import { buildFinanceAnomalyReport } from "@/lib/financeAnomalyRadar";
 import {
   buildForwardReconAudit,
   markForwardReconFetchFailure,
@@ -26,13 +28,15 @@ function req(
     endpoint: extra?.endpoint ?? "/chat/completions",
     createdAt,
     apiKeyId: extra && "apiKeyId" in extra ? extra.apiKeyId : "key-a",
+    apiKeyName: extra?.apiKeyName ?? null,
   };
 }
 
 function audit(
   requests: CheaperInferenceUsageRequest[],
   ledgerIds: string[] = [],
-  observedSince = T0
+  observedSince = T0,
+  experimentEvidence?: Parameters<typeof buildForwardReconAudit>[0]["experimentEvidence"]
 ) {
   return buildForwardReconAudit({
     requests,
@@ -40,6 +44,7 @@ function audit(
     observedSince,
     observationSource: "first_successful_query",
     fetchStatus: "ok",
+    experimentEvidence,
   });
 }
 
@@ -278,5 +283,231 @@ describe("forward recon audit fixtures", () => {
     assert.deepEqual(result.cases, ["zero_new_calls"]);
     assert.equal(result.verificationStatus, "verified");
     assert.equal(result.unverifiableTimestampCount, 0);
+  });
+});
+
+describe("forward recon approved-experiment fixtures", () => {
+  const geminiIds = Array.from({ length: 13 }, (_, i) => `gemini-exp-${i + 1}`);
+  const evidence = {
+    confirmedRequestIdHashes: new Set(geminiIds.map(hashProviderRequestId)),
+    exclusiveKeyNamePrefixes: ["HAV-1354-"],
+  };
+
+  function geminiReqs(ids = geminiIds) {
+    return ids.map((id, i) =>
+      req(id, `2026-10-08 09:${String(i).padStart(2, "0")}:00`, {
+        model: "gemini-3.8-flash",
+        billedMicroUsd: 6_000 + i,
+        apiKeyName: "operator-agent",
+      })
+    );
+  }
+
+  function radar(forward: ReturnType<typeof audit>) {
+    return buildFinanceAnomalyReport({
+      summary: {
+        monthKey: "2026-10",
+        providerReconciliation: {
+          status: "mismatch",
+          windowStart: "2026-10-01 00:00:00",
+          windowEnd: "2026-11-01 00:00:00",
+          dailyDeltaMicroUsd: 88_511,
+          unreconciledProviderMicroUsd: 88_511,
+          forwardAudit: forward,
+        },
+      } as never,
+      pricing: null,
+    });
+  }
+
+  it("1. approved experiment 13 only → unmatched WARNING 0 and no invented extra cost", () => {
+    const result = audit(geminiReqs(), [], T0, evidence);
+    assert.equal(result.approvedExperimentCount, 13);
+    assert.equal(result.unmatchedLedgerCount, 0);
+    assert.equal(result.unmatchedSettledMicroUsd, 0);
+    assert.equal(result.matchedLedgerCount, 0);
+    assert.ok(result.cases.includes("approved_experiment"));
+    assert.equal(result.cases.includes("unmatched_luna"), false);
+    const report = radar(result);
+    assert.equal(
+      report.anomalies.some((row) => row.code === "FORWARD_UNMATCHED_REMOTE_SPEND"),
+      false
+    );
+  });
+
+  it("2. approved experiment + production ledger stay separately classified", () => {
+    const result = audit(
+      [
+        ...geminiReqs(),
+        req("prod-luna", "2026-10-08 12:00:00", {
+          billedMicroUsd: 1_500,
+          apiKeyName: "HAV-PRODUCTION",
+        }),
+      ],
+      ["prod-luna"],
+      T0,
+      evidence
+    );
+    assert.equal(result.approvedExperimentCount, 13);
+    assert.equal(result.matchedLedgerCount, 1);
+    assert.equal(result.unmatchedLedgerCount, 0);
+    assert.ok(result.cases.includes("approved_experiment"));
+    assert.ok(result.cases.includes("matched_luna"));
+  });
+
+  it("3. a new unknown request after experiments raises unmatched WARNING", () => {
+    const result = audit(
+      [
+        ...geminiReqs(),
+        req("new-unknown", "2026-10-09 01:00:00", {
+          model: "gemini-3.8-flash",
+          billedMicroUsd: 9_000,
+          apiKeyName: "HAV-PRODUCTION",
+        }),
+      ],
+      [],
+      T0,
+      evidence
+    );
+    assert.equal(result.approvedExperimentCount, 13);
+    assert.equal(result.unmatchedLedgerCount, 1);
+    assert.equal(result.unmatchedSettledMicroUsd, 9_000);
+    const report = radar(result);
+    assert.equal(report.status, "WARNING");
+    assert.equal(
+      report.anomalies.some((row) => row.code === "FORWARD_UNMATCHED_REMOTE_SPEND"),
+      true
+    );
+    assert.match(report.anomalies[0]?.summary ?? "", /13 confirmed approved-experiment/);
+  });
+
+  it("4+5. same request ids keep one fingerprint after reorder; a new id changes it", () => {
+    const first = audit(
+      [
+        ...geminiReqs(),
+        req("new-unknown", "2026-10-09 01:00:00", {
+          model: "gemini-3.8-flash",
+          billedMicroUsd: 9_000,
+        }),
+      ],
+      [],
+      T0,
+      evidence
+    );
+    const reordered = audit(
+      [
+        req("new-unknown", "2026-10-09 01:00:00", {
+          model: "gemini-3.8-flash",
+          billedMicroUsd: 9_000,
+        }),
+        ...geminiReqs().reverse(),
+      ],
+      [],
+      T0,
+      evidence
+    );
+    assert.equal(first.unknownRequestFingerprint, reordered.unknownRequestFingerprint);
+    assert.equal(first.unmatchedLedgerCount, reordered.unmatchedLedgerCount);
+    assert.equal(first.approvedExperimentCount, reordered.approvedExperimentCount);
+    const firstRef = radar(first).anomalies[0]?.sourceRef;
+    const againRef = radar(reordered).anomalies[0]?.sourceRef;
+    assert.equal(firstRef, againRef);
+    assert.equal(radar(first).anomalies[0]?.id, radar(reordered).anomalies[0]?.id);
+
+    const withNew = audit(
+      [
+        ...geminiReqs(),
+        req("new-unknown", "2026-10-09 01:00:00", {
+          model: "gemini-3.8-flash",
+          billedMicroUsd: 9_000,
+        }),
+        req("newer-unknown", "2026-10-09 02:00:00", {
+          model: "gemini-3.8-flash",
+          billedMicroUsd: 1_000,
+        }),
+      ],
+      [],
+      T0,
+      evidence
+    );
+    assert.notEqual(withNew.unknownRequestFingerprint, first.unknownRequestFingerprint);
+    assert.notEqual(radar(withNew).anomalies[0]?.sourceRef, firstRef);
+    assert.equal(radar(withNew).anomalies[0]?.id, radar(first).anomalies[0]?.id);
+  });
+
+  it("6. same model on a production ledger key vs an experiment key stay distinct", () => {
+    const result = audit(
+      [
+        req("luna-prod", "2026-10-08 07:00:00", {
+          apiKeyName: "HAV-PRODUCTION",
+          billedMicroUsd: 1_241,
+        }),
+        req("luna-exp", "2026-10-08 07:12:14", {
+          apiKeyName: "operator-agent",
+          billedMicroUsd: 1_252,
+        }),
+      ],
+      ["luna-prod"],
+      T0,
+      {
+        confirmedRequestIdHashes: new Set([hashProviderRequestId("luna-exp")]),
+        exclusiveKeyNamePrefixes: ["HAV-1354-"],
+      }
+    );
+    assert.equal(result.matchedLedgerCount, 1);
+    assert.equal(result.approvedExperimentCount, 1);
+    assert.equal(result.unmatchedLedgerCount, 0);
+  });
+
+  it("7. missing API key identity cannot confirm an unlisted request", () => {
+    const result = audit(
+      [
+        req("no-key-unknown", "2026-10-08 07:00:00", {
+          apiKeyId: null,
+          apiKeyName: null,
+          billedMicroUsd: 800,
+        }),
+      ],
+      [],
+      T0,
+      evidence
+    );
+    assert.equal(result.approvedExperimentCount, 0);
+    assert.equal(result.unmatchedLedgerCount, 1);
+    assert.equal(radar(result).status, "WARNING");
+  });
+
+  it("8. fetch failure / incomplete pages cannot be classified as healthy unmatched-zero", () => {
+    const failed = buildForwardReconAudit({
+      requests: geminiReqs(),
+      ledgerIds: new Set(),
+      observedSince: T0,
+      observationSource: "stored_watermark",
+      fetchStatus: "incomplete",
+      experimentEvidence: evidence,
+    });
+    assert.equal(failed.verificationStatus, "fetch_failed");
+    assert.deepEqual(failed.cases, ["fetch_failure"]);
+    assert.equal(failed.approvedExperimentCount, 0);
+    assert.equal(failed.unmatchedSettledMicroUsd, 0);
+    const report = radar(failed);
+    assert.notEqual(report.status, "HEALTHY");
+    assert.equal(
+      report.anomalies.some((row) => row.code === "FORWARD_UNMATCHED_REMOTE_SPEND"),
+      false
+    );
+    assert.equal(
+      report.anomalies.some((row) => row.code === "FORWARD_RECON_FETCH_FAILURE"),
+      true
+    );
+  });
+
+  it("9. an unused experiment catalog does not invent spend", () => {
+    const result = audit([], [], T0, evidence);
+    assert.equal(result.approvedExperimentCount, 0);
+    assert.equal(result.approvedExperimentMicroUsd, 0);
+    assert.equal(result.settledMicroUsd, 0);
+    assert.equal(result.unmatchedLedgerCount, 0);
+    assert.deepEqual(result.cases, ["zero_new_calls"]);
   });
 });

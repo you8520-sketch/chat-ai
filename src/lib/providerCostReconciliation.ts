@@ -7,6 +7,7 @@ import {
   fetchUsageDaily,
   type CheaperInferenceUsageRequest,
 } from "@/lib/cheaperInferenceUsage";
+import type { ApprovedExperimentEvidence } from "@/lib/approvedExperimentSpend";
 import {
   buildForwardReconAudit,
   inspectObservedSinceEnv,
@@ -68,6 +69,7 @@ type ReconciliationDeps = {
   now?: () => number;
   persistInTests?: boolean;
   observedSinceEnv?: string | null;
+  experimentEvidence?: ApprovedExperimentEvidence;
 };
 
 function identityExists(db: Database.Database, requestId: string): boolean {
@@ -769,6 +771,7 @@ export async function reconcileCheaperInferenceUsage(
       : baseline.source,
     fetchStatus: "ok",
     configInvalid: baseline.configInvalid,
+    experimentEvidence: deps.experimentEvidence,
   });
   persistForwardReconAudit(db, result.forwardAudit);
   return result;
