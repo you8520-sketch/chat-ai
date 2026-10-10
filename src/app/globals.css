@@ -723,9 +723,9 @@ body {
   animation: rv-item-settle 420ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
 }
 
-/* Destination hero copy stays hidden while the overlay owns the same text.
+/* Destination hero copy stays hidden while the overlay owns the same face and text.
  * visibility (not display) so MenuTransitionHost can still measure settle targets. */
-html:has(.rv-veil) [data-character-hero] [data-hero-item] {
+html:has(.rv-veil) [data-character-hero] :is([data-hero-item], [data-character-hero-image]) {
   visibility: hidden;
 }
 
