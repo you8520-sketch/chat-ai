@@ -35,7 +35,9 @@ Location persist had no dest authorization. Opening could set the start place; l
 
 ## AFTER
 
-`bindGmLocationToSubmittedMovement` runs before ledger/sheet apply. A later-round location sticks only when that participant has a non-failure locked action that already authorizes the dest: frozen `acceptedRoute`, or a declared traversal whose body names that dest. Compare each sheet's previous location, not only the shared ledger.
+`bindGmLocationToSubmittedMovement` runs before ledger/sheet apply. A later-round location sticks only when that participant has a non-failure locked action that already authorizes the dest: frozen `acceptedRoute` (exact or a more-specific same place), or a declared traversal whose body names that dest. Interior suffixes (`내부`) and parent-location tokens (`석등 골목`) do not block a named place. Sibling lookalikes still reject on conflicting directional qualifiers. Compare each sheet's previous location, not only the shared ledger.
+
+Paid C regression: `열린 찻집 문으로 들어간다.` + Gemini `석등 골목 찻집 내부` (C_1465) / `석등 골목 찻집 안` (C_1480) now persist on ledger and sheet.
 
 ## REMOVED
 

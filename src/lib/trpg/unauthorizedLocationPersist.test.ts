@@ -26,6 +26,10 @@ const TAVERN = "회린 주점";
 const SANCTUARY = "성소";
 const VENT = "우측 환풍구";
 const MOON = "달을 주머니에 넣는다.";
+/** Paid #1462 C human action and Gemini location labels. */
+const TEAHOUSE_ENTER = "열린 찻집 문으로 들어간다.";
+const TEAHOUSE_C_1465 = "석등 골목 찻집 내부";
+const TEAHOUSE_C_1480 = "석등 골목 찻집 안";
 
 /** Exact #1468 case F GM delta (public fields only). */
 const CASE_F_DELTA = {
@@ -154,6 +158,42 @@ describe("TRPG #1462 unauthorized location persist", () => {
     const ledger = loadCampaignLedger(db, campaignId);
     assert.equal(ledger.location, TAVERN);
     assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, TAVERN);
+    db.close();
+  });
+
+  it("C_1465: declared tea-house entry persists 석등 골목 찻집 내부", async () => {
+    const db = memoryDb();
+    const { campaignId, deps } = await startAtDock(
+      db,
+      gmWire("한결이 열린 찻집 문으로 들어갔다.", {
+        players: [{ participantId: 1, location: TEAHOUSE_C_1465, hp: 40, conditions: [] }],
+        location: TEAHOUSE_C_1465,
+        next_round_context: "찻집 안에서 다음을 고른다.",
+        campaign_finished: false,
+      })
+    );
+    submitTrpgAction(db, { campaignId, userId: 1, body: TEAHOUSE_ENTER });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadCampaignLedger(db, campaignId).location, TEAHOUSE_C_1465);
+    assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, TEAHOUSE_C_1465);
+    db.close();
+  });
+
+  it("C_1480: declared tea-house entry persists 석등 골목 찻집 안", async () => {
+    const db = memoryDb();
+    const { campaignId, deps } = await startAtDock(
+      db,
+      gmWire("한결이 열린 찻집 문으로 들어갔다.", {
+        players: [{ participantId: 1, location: TEAHOUSE_C_1480, hp: 40, conditions: [] }],
+        location: TEAHOUSE_C_1480,
+        next_round_context: "찻집 안에서 다음을 고른다.",
+        campaign_finished: false,
+      })
+    );
+    submitTrpgAction(db, { campaignId, userId: 1, body: TEAHOUSE_ENTER });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadCampaignLedger(db, campaignId).location, TEAHOUSE_C_1480);
+    assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, TEAHOUSE_C_1480);
     db.close();
   });
 

@@ -55,6 +55,12 @@ export type TrpgLocationPersistSheet = {
   location: string;
 };
 
+/** Interior/exterior suffixes refine a named place; they are not the place. */
+const INTERIOR_SUFFIXES = new Set(["내부", "안쪽", "바깥", "바깥쪽", "속", "실내", "실외"]);
+
+/** Only these preceding tokens distinguish sibling places (north/south, left/right). */
+const DIRECTIONAL_QUALIFIERS = new Set(["북쪽", "남쪽", "동쪽", "서쪽", "좌측", "우측", "왼쪽", "오른쪽"]);
+
 function tokenCoversPlace(token: string, place: string): boolean {
   return token === place || token.startsWith(place);
 }
@@ -64,17 +70,35 @@ function precedingQualifier(tokens: readonly string[], place: string): string | 
   return index > 0 ? tokens[index - 1] : undefined;
 }
 
-function destinationMatchesDeclared(source: string, destination: string): boolean {
+function scenePlaceToken(tokens: readonly string[]): string | undefined {
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    const token = tokens[i];
+    if (token && !INTERIOR_SUFFIXES.has(token)) return token;
+  }
+  return undefined;
+}
+
+function directionalQualifier(tokens: readonly string[], place: string): string | undefined {
+  const qualifier = precedingQualifier(tokens, place);
+  return qualifier && DIRECTIONAL_QUALIFIERS.has(qualifier) ? qualifier : undefined;
+}
+
+/**
+ * Dest names the same place as `source`, possibly with extra parent-location
+ * tokens or an interior suffix. Sibling lookalikes stay rejected when both
+ * sides carry conflicting directional qualifiers. Does not use substring
+ * authorization of the full destination string.
+ */
+function destinationRefinesDeclared(source: string, destination: string): boolean {
   const dest = destination.trim();
   if (!dest) return false;
-  if (actionReferencesOpenRoute(source, [dest]) != null) return true;
   const destTokens = tokenizeSceneLabel(dest);
-  const place = destTokens.at(-1);
+  const place = scenePlaceToken(destTokens);
   if (!place) return false;
   const sourceTokens = tokenizeSceneLabel(source);
   if (!sourceTokens.some((token) => tokenCoversPlace(token, place))) return false;
-  const destQualifier = precedingQualifier(destTokens, place);
-  const sourceQualifier = precedingQualifier(sourceTokens, place);
+  const destQualifier = directionalQualifier(destTokens, place);
+  const sourceQualifier = directionalQualifier(sourceTokens, place);
   if (
     destQualifier &&
     sourceQualifier &&
@@ -87,10 +111,11 @@ function destinationMatchesDeclared(source: string, destination: string): boolea
   return true;
 }
 
-function sameSceneLabel(left: string, right: string): boolean {
-  const a = tokenizeSceneLabel(left);
-  const b = tokenizeSceneLabel(right);
-  return a.length > 0 && a.length === b.length && a.every((token, index) => token === b[index]);
+function destinationMatchesDeclared(source: string, destination: string): boolean {
+  const dest = destination.trim();
+  if (!dest) return false;
+  if (actionReferencesOpenRoute(source, [dest]) != null) return true;
+  return destinationRefinesDeclared(source, dest);
 }
 
 function movementAttemptFailed(tier: string | null | undefined): boolean {
@@ -113,7 +138,7 @@ export function submissionAuthorizesLocation(
   if (!dest) return false;
   if (movementAttemptFailed(submission.tier)) return false;
   if (submission.acceptedRoute) {
-    return sameSceneLabel(submission.acceptedRoute, dest);
+    return destinationRefinesDeclared(submission.acceptedRoute, dest);
   }
   if (!destinationMatchesDeclared(submission.body, dest)) return false;
   return declaresTraversalIntent(submission.body);
@@ -123,10 +148,10 @@ export function submissionAuthorizesLocation(
  * Location persist bind — campaignLedger owner.
  * Opening may set the starting place. After that, a GM location change sticks
  * only when that participant has a server-confirmed dest: the frozen
- * acceptedRoute label, or a declared traversal whose body names that dest,
- * and not a failure tier. Compare each sheet's previous location, not the
- * shared ledger. World-forced relocation has no separate persist owner today
- * (T9/L5).
+ * acceptedRoute label (exact or a more-specific same place), or a declared
+ * traversal whose body names that dest, and not a failure tier. Compare each
+ * sheet's previous location, not the shared ledger. World-forced relocation
+ * has no separate persist owner today (T9/L5).
  */
 export function bindGmLocationToSubmittedMovement(opts: {
   opening: boolean;

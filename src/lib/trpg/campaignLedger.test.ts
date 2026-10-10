@@ -83,6 +83,36 @@ describe("TRPG location persist bind", () => {
     assert.equal(bound.delta.players?.[0]?.location, tavern);
   });
 
+  it("C_1465: declared tea-house entry accepts 석등 골목 찻집 내부", () => {
+    const bound = bind({
+      body: "열린 찻집 문으로 들어간다.",
+      proposed: "석등 골목 찻집 내부",
+      playerLocation: "석등 골목 찻집 내부",
+    });
+    assert.equal(bound.location, "석등 골목 찻집 내부");
+    assert.equal(bound.delta.players?.[0]?.location, "석등 골목 찻집 내부");
+  });
+
+  it("C_1480: declared tea-house entry accepts 석등 골목 찻집 안", () => {
+    const bound = bind({
+      body: "열린 찻집 문으로 들어간다.",
+      proposed: "석등 골목 찻집 안",
+      playerLocation: "석등 골목 찻집 안",
+    });
+    assert.equal(bound.location, "석등 골목 찻집 안");
+    assert.equal(bound.delta.players?.[0]?.location, "석등 골목 찻집 안");
+  });
+
+  it("declared tea-house entry does not accept alley-only dest", () => {
+    const bound = bind({
+      body: "열린 찻집 문으로 들어간다.",
+      proposed: "석등 골목",
+      playerLocation: "석등 골목",
+    });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
   it("걸어간다 naming the destination still accepts", () => {
     const bound = bind({ body: "주점으로 걸어간다." });
     assert.equal(bound.location, tavern);
@@ -238,6 +268,30 @@ describe("TRPG location persist bind", () => {
     const bound = bind({ body: "주점으로 가는지 살핀다" });
     assert.equal(bound.location, dock);
     assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
+  it("acceptedRoute 찻집 accepts more-specific 석등 골목 찻집 내부", () => {
+    const bound = bindGmLocationToSubmittedMovement({
+      opening: false,
+      currentLocation: dock,
+      currentNextRoundContext: "부두.",
+      proposedLocation: "석등 골목 찻집 내부",
+      delta: {
+        players: [{ participantId: 1, location: "석등 골목 찻집 내부" }],
+        location: "석등 골목 찻집 내부",
+        nextRoundContext: "찻집 안.",
+      },
+      submissions: [
+        {
+          participantId: 1,
+          body: "열린 찻집 문으로 들어간다.",
+          acceptedRoute: "찻집",
+        },
+      ],
+      sheetLocations: [{ participantId: 1, location: dock }],
+    });
+    assert.equal(bound.location, "석등 골목 찻집 내부");
+    assert.equal(bound.delta.players?.[0]?.location, "석등 골목 찻집 내부");
   });
 
   it("acceptedRoute 우측 환풍구 does not authorize GM 좌측 환풍구", () => {
