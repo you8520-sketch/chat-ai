@@ -222,6 +222,114 @@ describe("#1486 Phase 1 live memory path (라이크 18 / 렌)", () => {
     );
   });
 
+  it("C-neg. calendar unigrams do not inject 달리기/달빛/소년/주머니", () => {
+    const db = createDb();
+    persistTurn(
+      db,
+      8,
+      sceneEvent({
+        value: "rain_two_days_ago",
+        fact_text: "이틀 전 라이크와 렌이 비를 맞으며 정류장까지 걸었다.",
+      })
+    );
+    persistTurn(
+      db,
+      12,
+      sceneEvent({
+        value: "alley_running_drill",
+        fact_text: "라이크가 골목에서 달리기 연습을 했다.",
+      })
+    );
+    persistTurn(
+      db,
+      20,
+      sceneEvent({
+        value: "rooftop_moonlight",
+        fact_text: "옥상에 달빛이 떨어졌다.",
+      })
+    );
+    persistTurn(
+      db,
+      28,
+      sceneEvent({
+        value: "pocket_matches",
+        fact_text: "렌이 주머니에서 성냥을 꺼냈다.",
+      })
+    );
+    persistTurn(
+      db,
+      36,
+      sceneEvent({
+        value: "saw_the_boy",
+        fact_text: "라이크는 그 소년을 처음 보았다.",
+      })
+    );
+    persistTurn(
+      db,
+      40,
+      sceneEvent({
+        value: "move_two_months_ago",
+        fact_text: "두 달 전 렌이 라이크의 하숙집으로 짐을 옮겼다.",
+      })
+    );
+
+    const contrast = "이틀 전과 두 달 전 일을 구분해줘";
+    const runFact = {
+      subject: "laike_ren",
+      attribute: "scene_event",
+      value: "alley_running_drill",
+      fact_text: "라이크가 골목에서 달리기 연습을 했다.",
+    };
+    const moonFact = {
+      subject: "laike_ren",
+      attribute: "scene_event",
+      value: "rooftop_moonlight",
+      fact_text: "옥상에 달빛이 떨어졌다.",
+    };
+    const pocketFact = {
+      subject: "laike_ren",
+      attribute: "scene_event",
+      value: "pocket_matches",
+      fact_text: "렌이 주머니에서 성냥을 꺼냈다.",
+    };
+    const boyFact = {
+      subject: "laike_ren",
+      attribute: "scene_event",
+      value: "saw_the_boy",
+      fact_text: "라이크는 그 소년을 처음 보았다.",
+    };
+    const monthFact = {
+      subject: "laike_ren",
+      attribute: "scene_event",
+      value: "move_two_months_ago",
+      fact_text: "두 달 전 렌이 라이크의 하숙집으로 짐을 옮겼다.",
+    };
+
+    assert.equal(inspectLexicalRelevanceForDebug(runFact, contrast).relevanceScore, 0);
+    assert.equal(inspectLexicalRelevanceForDebug(moonFact, contrast).relevanceScore, 0);
+    assert.equal(inspectLexicalRelevanceForDebug(pocketFact, "한 주 전 일이야?").relevanceScore, 0);
+    assert.equal(inspectLexicalRelevanceForDebug(boyFact, "몇 년 전 일이야?").relevanceScore, 0);
+    assert.ok(inspectLexicalRelevanceForDebug(monthFact, contrast).relevanceScore > 0);
+    assert.ok(inspectLexicalRelevanceForDebug(runFact, "달리기 하던 날 기억나?").relevanceScore > 0);
+
+    const contrastRecall = recall(db, 46, contrast);
+    assert.match(contrastRecall.promptBlock, /이틀 전/);
+    assert.match(contrastRecall.promptBlock, /두 달 전/);
+    assert.equal(contrastRecall.promptBlock.includes("달리기"), false);
+    assert.equal(contrastRecall.promptBlock.includes("달빛"), false);
+    assert.equal(contrastRecall.promptBlock.includes("주머니"), false);
+    assert.equal(contrastRecall.promptBlock.includes("소년"), false);
+
+    const moonQuery = "달이 뜬 밤 기억나?";
+    assert.equal(inspectLexicalRelevanceForDebug(monthFact, moonQuery).relevanceScore, 0);
+    const moonRecall = recall(db, 46, moonQuery);
+    assert.equal(moonRecall.promptBlock.includes("두 달 전"), false);
+
+    const twoCharRecall = recall(db, 46, "달리기 하던 날 기억나?");
+    assert.match(twoCharRecall.promptBlock, /달리기/);
+    assert.equal(twoCharRecall.promptBlock.includes("두 달 전"), false);
+  });
+
   it("D. keeps past event, blocks current-only emotion, and does not invent a future plan", () => {
     const past = classifyEpisodicFactTemporalNature({
       attribute: "scene_event",
