@@ -1130,6 +1130,15 @@ describe("official author adapter", () => {
       for (const code of SPARSE_VOICE_CODES) assert.ok(codes.includes(code), `${code} in ${codes.join(",")}`);
     });
 
+    it("pins the recorded 2026-10-08 #1425 slot-2 quarantine codes to that sparse-Voice set", () => {
+      const recorded =
+        "slot 2 bible QA: bible_behavior_rules(behaviorRules 3-7 required, got 0); bible_greeting_missing(greeting is required); bible_speech_band(speech.description 225 chars (production band 250-600)); bible_pitch_band(publicProfile.description 0 chars (production band 200-500)); bible_tagline_missing(publicProfile.tagline is required); bible_tags(publicProfile.tags 4-7 required, got 0); bible_nsfw_mismatch(nsfw=false, manifest expects true); bible_sfw_adult_content(SFW sheets must not carry adult authoring content)";
+      assert.deepEqual(
+        [...recorded.matchAll(/bible_[a-z_]+/g)].map((match) => match[0]),
+        SPARSE_VOICE_CODES
+      );
+    });
+
     it("sparse Voice is rejected before Bonds is called, with structure-only diagnostics", async () => {
       const { transport, tasks } = recordingTransport({
         character_bible_1: fakeHalf1(),
