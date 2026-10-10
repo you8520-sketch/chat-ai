@@ -78,6 +78,7 @@ on:
       - "src/lib/memory/memory-rp-benchmark-hooks.test.ts"
       - "src/lib/memory/monthlyRpMemoryQualityPhase1.test.ts"
       - "src/lib/memory/monthlyRpMemoryQualityPhase2b.test.ts"
+      - "src/lib/memory/monthlyRpMemoryQualityPhase2bFixture.ts"
       - "src/lib/memory/memoryEvidenceProvenance.ts"
       - "src/lib/memory/memoryEvidenceProvenance.test.ts"
       - "src/lib/openRouterEmbeddings.ts"
