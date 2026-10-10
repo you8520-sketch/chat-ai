@@ -409,17 +409,16 @@ export type OwnedProductionRequestParity = {
   runtimeDeployShaObserved: boolean;
 };
 
-function observedRuntimeDeploySha(
-  env: Readonly<Record<string, string | undefined>>
-): string {
-  const sha = readRailwayDeploymentSha(env as NodeJS.ProcessEnv);
+function observedRuntimeDeploySha(): string {
+  const sha = readRailwayDeploymentSha();
   return /^[0-9a-f]{40}$/.test(sha) ? sha : "";
 }
 
 /**
  * Reloads the sealed golden and the given DB itself. Caller hashes are not
- * evidence. Operational MATCH requires Railway `/data/app.db` plus an observed
- * 40-hex `RAILWAY_GIT_COMMIT_SHA` that equals both the caller SHA and the
+ * evidence. `input.env` is only for existing DB/admin flag reads.
+ * Operational MATCH requires Railway `/data/app.db` plus the executing
+ * process `RAILWAY_GIT_COMMIT_SHA` (40 hex) equal to the caller SHA and the
  * golden SHA. A temp-DB fingerprint hit is fixture diagnostic only.
  */
 export function evaluateOwnedProductionRequestParity(input: {
@@ -439,7 +438,7 @@ export function evaluateOwnedProductionRequestParity(input: {
   const reasons: string[] = [];
   const goldenSha = golden.publicManifest.deployedGitSha.trim().toLowerCase();
   const callerSha = input.deployedGitSha.trim().toLowerCase();
-  const runtimeSha = observedRuntimeDeploySha(input.env);
+  const runtimeSha = observedRuntimeDeploySha();
   const runtimeDeployShaObserved = runtimeSha.length === 40;
   const railwayProductionDb = input.dbPath === RAILWAY_PRODUCTION_DB_PATH;
   if (!railwayProductionDb) reasons.push("db_path_is_not_railway_production");

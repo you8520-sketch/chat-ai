@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -21,9 +22,56 @@ import {
   publicGoldenStdout,
   reloadMainRpStyleLengthGolden,
   sealedSnapshotFingerprint,
+  type OwnedProductionRequestParity,
 } from "./rpMainRpStyleLengthGolden";
 
 const DEPLOY_SHA = "e1fdab509d2e9713be617025f77ea40a5bfb85f5";
+
+function evaluateOwnedParityInIsolatedProcess(input: {
+  dbPath: string;
+  deployedGitSha: string;
+  callerEnv: Record<string, string | undefined>;
+  processRailwaySha: string | null;
+  version: number;
+  root: string;
+}): OwnedProductionRequestParity {
+  const probe = path.join(input.root, "runtime-sha-probe.mts");
+  const payload = {
+    dbPath: input.dbPath,
+    deployedGitSha: input.deployedGitSha,
+    env: input.callerEnv,
+    version: input.version,
+    root: input.root,
+  };
+  const outFile = path.join(input.root, "runtime-sha-probe.json");
+  writeFileSync(
+    probe,
+    `import { writeFileSync } from "node:fs";
+import { evaluateOwnedProductionRequestParity } from ${JSON.stringify(
+      path.resolve("scripts/lib/rpMainRpStyleLengthGolden.ts")
+    )};
+const result = evaluateOwnedProductionRequestParity(${JSON.stringify(payload)});
+writeFileSync(${JSON.stringify(outFile)}, JSON.stringify(result));
+`
+  );
+  const childEnv = { ...process.env };
+  if (input.processRailwaySha == null) delete childEnv.RAILWAY_GIT_COMMIT_SHA;
+  else childEnv.RAILWAY_GIT_COMMIT_SHA = input.processRailwaySha;
+  execFileSync(
+    process.execPath,
+    [
+      "--no-warnings",
+      "--conditions=react-server",
+      "--import",
+      "tsx",
+      "--import",
+      "./src/lib/test/regularTestEgressPolicy.ts",
+      probe,
+    ],
+    { encoding: "utf8", cwd: process.cwd(), env: childEnv }
+  );
+  return JSON.parse(readFileSync(outFile, "utf8")) as OwnedProductionRequestParity;
+}
 
 function buildSyntheticDb(file: string, opts?: { characterId?: number; personaName?: string }): void {
   const db = new DatabaseSync(file);
@@ -329,29 +377,44 @@ describe("MAIN_RP_STYLE_LENGTH golden operator", () => {
       sealed: assembled.sealed,
       publicManifest: { ...assembled.publicManifest, privateStore: `${root}/v10` },
     });
-    const newerRuntimeSha = "b15e87e75b61d5ae4f84203865a6597df9916064";
-    const injectedRuntime = evaluateOwnedProductionRequestParity({
+    const forgedInput = evaluateOwnedProductionRequestParity({
       dbPath: dbFile,
       deployedGitSha: DEPLOY_SHA,
       env: { RAILWAY_GIT_COMMIT_SHA: DEPLOY_SHA },
       version: 10,
       root,
     });
-    assert.equal(injectedRuntime.productionRequestParity, "NOT_COMPARABLE");
-    assert.equal(injectedRuntime.fixtureFingerprintParity, "MATCH");
-    assert.equal(injectedRuntime.railwayProductionDb, false);
-    assert.equal(injectedRuntime.runtimeDeployShaObserved, true);
-    assert.equal(injectedRuntime.qualityScoreEligible, false);
-    const spoofedOldSha = evaluateOwnedProductionRequestParity({
+    assert.equal(forgedInput.productionRequestParity, "NOT_COMPARABLE");
+    assert.equal(forgedInput.fixtureFingerprintParity, "MATCH");
+    assert.equal(forgedInput.railwayProductionDb, false);
+    assert.equal(forgedInput.runtimeDeployShaObserved, false);
+    assert.ok(forgedInput.reasons.includes("runtime_deploy_sha_unobserved"));
+    assert.equal(forgedInput.qualityScoreEligible, false);
+    const newerRuntimeSha = "b15e87e75b61d5ae4f84203865a6597df9916064";
+    const missingRuntime = evaluateOwnedParityInIsolatedProcess({
       dbPath: dbFile,
       deployedGitSha: DEPLOY_SHA,
-      env: { RAILWAY_GIT_COMMIT_SHA: newerRuntimeSha },
+      callerEnv: { RAILWAY_GIT_COMMIT_SHA: DEPLOY_SHA },
+      processRailwaySha: null,
+      version: 10,
+      root,
+    });
+    assert.equal(missingRuntime.productionRequestParity, "NOT_COMPARABLE");
+    assert.equal(missingRuntime.runtimeDeployShaObserved, false);
+    assert.ok(missingRuntime.reasons.includes("runtime_deploy_sha_unobserved"));
+    assert.equal(missingRuntime.qualityScoreEligible, false);
+    const spoofedOldSha = evaluateOwnedParityInIsolatedProcess({
+      dbPath: dbFile,
+      deployedGitSha: DEPLOY_SHA,
+      callerEnv: { RAILWAY_GIT_COMMIT_SHA: DEPLOY_SHA },
+      processRailwaySha: newerRuntimeSha,
       version: 10,
       root,
     });
     assert.notEqual(spoofedOldSha.productionRequestParity, "MATCH");
     assert.equal(spoofedOldSha.productionRequestParity, "NOT_COMPARABLE");
     assert.equal(spoofedOldSha.fixtureFingerprintParity, "MATCH");
+    assert.equal(spoofedOldSha.runtimeDeployShaObserved, true);
     assert.ok(spoofedOldSha.reasons.includes("caller_deploy_sha_does_not_match_runtime"));
     assert.ok(spoofedOldSha.reasons.includes("stale_production_snapshot"));
     assert.equal(spoofedOldSha.qualityScoreEligible, false);
