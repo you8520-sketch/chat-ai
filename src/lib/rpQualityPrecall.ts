@@ -186,6 +186,7 @@ export const RP_QUALITY_PRECALL_OWNER_MAP: readonly RpQualityPrecallOwnerRow[] =
     otherReaders: [
       "scripts/lib/mainRpBodyCuePreflight.LIVE_DEPLOYED_ROW_PROOF (historical KEEP)",
       "scripts/lib/rpModelQualificationFixture (historical 2026-08-25, not this source)",
+      "src/lib/rpMainRpStyleLengthFixture (MAIN_RP_STYLE_LENGTH identity gate + classifyMainRpProductionParity)",
     ],
     duplicateOrStaleOwner:
       "environment access observations are operator evidence, not library state; LIVE_DEPLOYED_ROW_PROOF @ 2f5cb0b4 cannot auto-satisfy current proof",
@@ -288,6 +289,19 @@ export const RP_QUALITY_PRECALL_OWNER_MAP: readonly RpQualityPrecallOwnerRow[] =
     otherReaders: ["rpQualityBaseline length class (3500 = center-band metadata, not a cap)"],
     duplicateOrStaleOwner:
       "ASSISTANT_MESSAGE_EDIT_MAX_CHARS=5000 is UI manual-edit only",
+  },
+  {
+    responsibility: "production parity gate for quality scores",
+    canonicalOwner: "rpMainRpStyleLengthFixture.classifyMainRpProductionParity",
+    effectiveValueSource:
+      "live production hashes + UNIFIED_TIER_AIM_CHARS + mainRpStyleLengthSitePolicy",
+    scope:
+      "fail-closed quality-score eligibility; PRECALL_READY and paid auth stay separate",
+    otherReaders: [
+      "scripts/lib/openscaleDeepseekV41FlashRpPilot (first consumer)",
+      "FOLLOW-UP: rpQualityPrecall / rpQualityPaidRunner / rpActiveModelQualityLive",
+    ],
+    duplicateOrStaleOwner: "do not copy this gate into each runner",
   },
 ];
 

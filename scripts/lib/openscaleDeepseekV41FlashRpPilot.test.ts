@@ -12,6 +12,11 @@ import {
   type RpQualityPrecallLiveProofInput,
 } from "@/lib/rpQualityPrecall";
 import {
+  MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC,
+  classifyMainRpProductionParity,
+} from "@/lib/rpMainRpStyleLengthFixture";
+import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
+import {
   adaptOpenScalePilotBody,
   buildOpenScaleB03aDiagnosticAssembly,
   buildOpenScalePilotAssembly,
@@ -26,6 +31,7 @@ import {
   OPENSCALE_OFFICIAL_MODEL_ID,
   OPENSCALE_PHASE2_STYLE_EVAL_SCENE_IDS,
   OPENSCALE_PILOT_SCREENING_BUDGET_USD,
+  OPENSCALE_VS_CHEAPERINFERENCE_INVENTORY,
   contentFingerprintFromRequestBody,
   describeOpenScaleWireDelta,
   parseOpenScaleFlashCatalog,
@@ -272,6 +278,12 @@ describe("OpenScale A/B/C PRECALL fixture parity gate", () => {
     assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.personaIdOwner, "verified_live_proof_only");
     assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.sceneFamily, "rp_quality_precall_abc");
     assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.distinctFromPhase2Q1Q9, true);
+    assert.equal(
+      OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.productionParityOwner,
+      "src/lib/rpMainRpStyleLengthFixture.classifyMainRpProductionParity"
+    );
+    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.softAimChars, UNIFIED_TIER_AIM_CHARS);
+    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.lengthOwner, "UNIFIED_TIER_AIM_CHARS");
     assert.deepEqual(
       [...OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.fixtureIds],
       [...RP_QUALITY_PRECALL_FIXTURE_IDS]
@@ -304,6 +316,10 @@ describe("OpenScale A/B/C PRECALL fixture parity gate", () => {
     assert.ok(parity.reasons.includes("expected_content_fingerprint_missing"));
     assert.ok(parity.reasons.includes("sceneId_missing"));
     assert.equal(parity.proposed.sceneFamily, "rp_quality_precall_abc");
+    assert.equal(parity.productionParity.status, "NOT_COMPARABLE");
+    assert.equal(parity.qualityScoreEligible, false);
+    assert.equal(result.qualityScoreEligible, false);
+    assert.equal(result.productionParityStatus, "NOT_COMPARABLE");
   });
 
   it("fails closed when the proposed characterId is wrong", () => {
@@ -420,6 +436,10 @@ describe("OpenScale A/B/C PRECALL fixture parity gate", () => {
     assert.equal(parity.classification, "PRECALL_READY");
     assert.equal(parity.confirmedPersonaId, LIVE_PERSONA_ID);
     assert.deepEqual(parity.reasons, []);
+    assert.equal(parity.productionParity.status, "NOT_COMPARABLE");
+    assert.equal(parity.qualityScoreEligible, false);
+    assert.ok(parity.productionParity.reasons.includes("synthetic_not_quality_score"));
+    assert.equal(parity.productionParity.softAimChars, UNIFIED_TIER_AIM_CHARS);
   });
 
   it("never POSTs even when A/B/C parity is synthetically restored", async () => {
@@ -437,6 +457,8 @@ describe("OpenScale A/B/C PRECALL fixture parity gate", () => {
     assert.equal(result.precallReady, true);
     assert.equal(result.providerInferencePosts, 0);
     assert.equal(result.stopReason, "PRECALL_READY_inference_not_authorized_this_turn");
+    assert.equal(result.qualityScoreEligible, false);
+    assert.equal(result.productionParityStatus, "NOT_COMPARABLE");
     assert.equal(posts, 0);
   });
 
@@ -448,5 +470,153 @@ describe("OpenScale A/B/C PRECALL fixture parity gate", () => {
     assert.equal(diagnostic.comparableToApprovedStyleEval, false);
     assert.equal(defaultProposed.sceneFamily, "rp_quality_precall_abc");
     assert.notEqual(defaultProposed.characterName, diagnostic.characterName);
+  });
+});
+
+describe("OpenScale consumes the shared production parity owner", () => {
+  it("does not invent a second length owner or eval-only style prompt", () => {
+    assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.softAimChars, UNIFIED_TIER_AIM_CHARS);
+    assert.ok(
+      OPENSCALE_VS_CHEAPERINFERENCE_INVENTORY.fields.some(
+        (field) => field.field === "thinking" && field.classification === "semantic_unconfirmed"
+      )
+    );
+    assert.ok(
+      OPENSCALE_VS_CHEAPERINFERENCE_INVENTORY.fields.some(
+        (field) => field.field === "reasoning_effort" && field.classification === "semantic_unconfirmed"
+      )
+    );
+  });
+
+  it("keeps golden v1 stale against current origin/main SUCCESS and never scores it", () => {
+    const parity = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredAbcFixture({
+        useGoldenV1Expected: true,
+        capturedDeploySha: MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.deployedGitSha,
+        currentProductionSuccessSha: "4d83c100666878cca747408ae72a18f3360310ac",
+      })
+    );
+    assert.equal(parity.status, "FIXTURE_PARITY_PASS");
+    assert.equal(parity.precallReady, true);
+    assert.equal(parity.productionParity.status, "STALE_PRODUCTION_SNAPSHOT");
+    assert.equal(parity.qualityScoreEligible, false);
+    assert.equal(parity.goldenV1Stale, true);
+  });
+
+  it("classifies OpenScale thinking remap as SEMANTIC_PARITY_UNCONFIRMED, not verified", () => {
+    const parity = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredAbcFixture({
+        currentLiveVerified: true,
+        currentProductionSuccessSha: TEST_SHA.slice(0, 40),
+        assemblySourceSha: TEST_SHA.slice(0, 40),
+        capturedDeploySha: TEST_SHA.slice(0, 40),
+        thinkingSemanticEquivalent: null,
+        reasoningSemanticEquivalent: null,
+        identityHashes: {
+          greetingSha256: TEST_SHA,
+          systemPromptSha256: TEST_SHA,
+          worldSha256: TEST_SHA,
+          settingChunksSha256: TEST_SHA,
+          personaPublicSha256: TEST_SHA,
+        },
+        expectedIdentityHashes: {
+          greetingSha256: TEST_SHA,
+          systemPromptSha256: TEST_SHA,
+          worldSha256: TEST_SHA,
+          settingChunksSha256: TEST_SHA,
+          personaPublicSha256: TEST_SHA,
+        },
+        finalWireFingerprint: TEST_SHA,
+        expectedFinalWireFingerprint: TEST_SHA,
+        requestBodyFingerprint: TEST_SHA,
+        expectedRequestBodyFingerprint: TEST_SHA,
+      })
+    );
+    assert.equal(parity.productionParity.status, "SEMANTIC_PARITY_UNCONFIRMED");
+    assert.equal(parity.qualityScoreEligible, false);
+  });
+
+  it("routes max_tokens and style-section drift through the shared classifier", () => {
+    const body = syntheticProductionBody({ max_tokens: 800 });
+    const maxTokens = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredAbcFixture({
+        productionRequestBody: body,
+        expectedContentFingerprint: contentFingerprintFromRequestBody(body),
+      })
+    );
+    assert.equal(maxTokens.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(maxTokens.reasons.includes("max_tokens_present"));
+    assert.ok(maxTokens.productionParity.reasons.includes("max_tokens_present"));
+
+    const section = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredAbcFixture({
+        currentLiveVerified: true,
+        currentProductionSuccessSha: TEST_SHA.slice(0, 40),
+        assemblySourceSha: TEST_SHA.slice(0, 40),
+        capturedDeploySha: TEST_SHA.slice(0, 40),
+        thinkingSemanticEquivalent: true,
+        reasoningSemanticEquivalent: true,
+        identityHashes: {
+          greetingSha256: TEST_SHA,
+          systemPromptSha256: TEST_SHA,
+          worldSha256: TEST_SHA,
+          settingChunksSha256: TEST_SHA,
+          personaPublicSha256: TEST_SHA,
+        },
+        expectedIdentityHashes: {
+          greetingSha256: TEST_SHA,
+          systemPromptSha256: TEST_SHA,
+          worldSha256: TEST_SHA,
+          settingChunksSha256: TEST_SHA,
+          personaPublicSha256: TEST_SHA,
+        },
+        finalWireFingerprint: TEST_SHA,
+        expectedFinalWireFingerprint: TEST_SHA,
+        requestBodyFingerprint: TEST_SHA,
+        expectedRequestBodyFingerprint: TEST_SHA,
+        commonStyleSectionContentHash: "1".repeat(16),
+        expectedCommonStyleSectionContentHash: "2".repeat(16),
+      })
+    );
+    assert.equal(section.productionParity.status, "PRODUCTION_PARITY_MISMATCH");
+    assert.equal(section.qualityScoreEligible, false);
+    const shared = classifyMainRpProductionParity(section.productionParity && {
+      evidenceKind: "CURRENT_LIVE",
+      currentProductionSuccessSha: TEST_SHA.slice(0, 40),
+      assemblySourceSha: TEST_SHA.slice(0, 40),
+      capturedDeploySha: TEST_SHA.slice(0, 40),
+      currentLiveVerified: true,
+      characterId: 18,
+      characterName: "라이크",
+      personaId: LIVE_PERSONA_ID,
+      personaName: "렌",
+      fixtureId: "A_relationship_emotion",
+      authoringLevel: "NORMAL",
+      contentMode: "SAFE",
+      softAimChars: UNIFIED_TIER_AIM_CHARS,
+      identityHashes: {
+        greetingSha256: TEST_SHA,
+        systemPromptSha256: TEST_SHA,
+        worldSha256: TEST_SHA,
+        settingChunksSha256: TEST_SHA,
+        personaPublicSha256: TEST_SHA,
+      },
+      expectedIdentityHashes: {
+        greetingSha256: TEST_SHA,
+        systemPromptSha256: TEST_SHA,
+        worldSha256: TEST_SHA,
+        settingChunksSha256: TEST_SHA,
+        personaPublicSha256: TEST_SHA,
+      },
+      finalWireFingerprint: TEST_SHA,
+      expectedFinalWireFingerprint: TEST_SHA,
+      requestBodyFingerprint: TEST_SHA,
+      expectedRequestBodyFingerprint: TEST_SHA,
+      commonStyleSectionContentHash: "1".repeat(16),
+      expectedCommonStyleSectionContentHash: "2".repeat(16),
+      thinkingSemanticEquivalent: true,
+      reasoningSemanticEquivalent: true,
+    });
+    assert.equal(shared.status, "PRODUCTION_PARITY_MISMATCH");
   });
 });

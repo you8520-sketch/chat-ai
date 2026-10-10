@@ -1,12 +1,78 @@
 # OpenScale DeepSeek V4.1 Flash RP Pilot
 
-Status: **FIXTURE_PARITY_FAIL — A/B/C PRECALL not ready. Draft only. No additional paid POST.**
+Status: **NOT_COMPARABLE / STALE_PRODUCTION_SNAPSHOT — production parity not verified. Draft only. Provider POST 0. Cursor did not assign an RP style score.**
 
-This is an isolated provider experiment. It is not a production supplier promotion. Cursor did not assign an RP style score.
+This is an isolated provider experiment. It is not a production supplier promotion.
 
 A/B/C is the current comparison baseline. Q1–Q9 is a different experiment and is not claimed to be the same.
 
+`PRECALL_READY`, `PRODUCTION_PARITY_VERIFIED`, and paid authorization are separate. Synthetic fixture PASS is not a homepage quality score.
+
+## BEFORE / PROBLEM / ROOT CAUSE (this turn)
+
+#1483 already owns MAIN_RP_STYLE_LENGTH identity, public hash-only Golden v1, and live-vs-golden compare on current main (`src/lib/rpMainRpStyleLengthFixture.ts`). OpenScale #1474 still had a runner-local A/B/C fixture gate and no shared fail-closed production-parity statuses.
+
+Creating a second Production Parity Manifest owner would violate one-owner. The correct move is to consume the #1483 owner and add `classifyMainRpProductionParity()` there.
+
+Golden v1 was captured at `e1fdab509d2e9713be617025f77ea40a5bfb85f5`. Current `origin/main` SUCCESS is `4d83c100666878cca747408ae72a18f3360310ac`. Railway SSH is still unavailable, so CURRENT_LIVE cannot be re-verified. OpenScale vs CheaperInference `thinking` / `reasoning_effort` meaning is inventoried but not proven equivalent.
+
+## OWNER MAP
+
+| Responsibility | Owner |
+| --- | --- |
+| Common RP style + final assembly | `contextBuilder` + `assemblePrimaryRpRequest` |
+| Length soft aim | `responseLengthConstants.UNIFIED_TIER_AIM_CHARS` (3200+, read, not hardcoded in eval) |
+| Authoring | `userAuthoringPolicy.DEFAULT_USER_AUTHORING_LEVEL = NORMAL` |
+| A/B/C fixtures / PRECALL_READY | `src/lib/rpQualityPrecall.ts` |
+| MAIN_RP_STYLE_LENGTH identity + public golden + **production parity gate** | `src/lib/rpMainRpStyleLengthFixture.ts` |
+| Section fingerprint helper | `src/lib/promptSectionFingerprint.ts` (hash-only; not a second parity owner) |
+| OpenScale consumer | `scripts/lib/openscaleDeepseekV41FlashRpPilot.ts` |
+| B03a diagnostic | same OpenScale file, not quality-score eligible |
+
+## AFTER / REMOVED / PRESERVED
+
+- Added `classifyMainRpProductionParity()` on the existing MAIN_RP_STYLE_LENGTH owner.
+- Statuses: `PRODUCTION_PARITY_VERIFIED` / `PRODUCTION_PARITY_MISMATCH` / `SEMANTIC_PARITY_UNCONFIRMED` / `STALE_PRODUCTION_SNAPSHOT` / `NOT_COMPARABLE`.
+- Quality scores require `PRODUCTION_PARITY_VERIFIED` only.
+- OpenScale consumes that owner. Soft aim is read from `UNIFIED_TIER_AIM_CHARS`.
+- Brought public Golden v1 (`docs/audits/main-rp-laike-ren-golden/v1.public.json`) onto this branch as hash-only evidence. Private prompt text is not stored.
+- Did not create a new prompt owner, length owner, or eval assembler.
+- Did not copy the gate into other runners.
+
+## Active quality runners and PRODUCTION_PARITY
+
+| Runner | Consumes shared gate this PR? |
+| --- | --- |
+| `rpMainRpStyleLengthFixture.classifyMainRpProductionParity` | owner |
+| `scripts/lib/openscaleDeepseekV41FlashRpPilot.ts` | yes — first consumer |
+| `src/lib/rpQualityPrecall.ts` / `scripts/rp-quality-precall.ts` | FOLLOW-UP |
+| `scripts/lib/rpQualityPrecallFinalWire.ts` | FOLLOW-UP |
+| `src/lib/rpQualityPaidRunner.ts` | FOLLOW-UP |
+| `scripts/lib/rpActiveModelQualityLive.ts` | FOLLOW-UP (different qualification cases, not A/B/C style/length) |
+| #1318 Q1–Q9 | unrestored / not activated |
+
+## Field inventory OpenScale vs CheaperInference
+
+| Field | Classification | Allowed because |
+| --- | --- | --- |
+| `model` | allowed_provider_inventory | official OpenScale id remap |
+| `stream_options` | allowed_provider_inventory | usage include only |
+| `temperature` / `top_p` | must match production | copied, not flattened to a shared value |
+| `max_tokens` | must stay absent | length owner is soft aim, not a ceiling |
+| `thinking` vs omitted | `SEMANTIC_PARITY_UNCONFIRMED` | meaning not proven |
+| `reasoning_effort=none` | `SEMANTIC_PARITY_UNCONFIRMED` | catalog `none` ≠ proven CI TRUE-OFF equivalent |
+| message flatten | `SEMANTIC_PARITY_UNCONFIRMED` unless text-identical proof | multipart → string |
+
+## STOP this turn
+
+- `PRODUCTION_PARITY_VERIFIED` is **not** claimed.
+- Default OpenScale path: `FIXTURE_PARITY_FAIL` + `NOT_COMPARABLE`.
+- Golden v1 vs current SUCCESS: `STALE_PRODUCTION_SNAPSHOT`.
+- OpenScale thinking remap: `SEMANTIC_PARITY_UNCONFIRMED`.
+- Provider POST 0. DB write 0. Env change 0. Production prompt change 0. No merge.
+
 ## BEFORE
+
 
 Current-main quality PRECALL owners already exist and were not reimplemented:
 

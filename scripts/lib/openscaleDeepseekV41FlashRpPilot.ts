@@ -19,6 +19,16 @@ import {
   type RpQualityPrecallFixtureId,
   type RpQualityPrecallLiveProofInput,
 } from "@/lib/rpQualityPrecall";
+import {
+  MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC,
+  classifyMainRpProductionParity,
+  goldenV1StaleAgainstCurrentSuccess,
+  mainRpStyleLengthSitePolicy,
+  type ProductionParityEvidenceKind,
+  type ProductionParityInput,
+  type ProductionParityResult,
+} from "@/lib/rpMainRpStyleLengthFixture";
+import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import { buildContext } from "@/services/contextBuilder";
 import type { ContextBuildInput } from "@/types";
 import {
@@ -101,6 +111,65 @@ export const OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY = Object.freeze({
   originalSceneIds: RP_QUALITY_PRECALL_FIXTURE_IDS,
   currentMainPrecallFamily: "rp_quality_precall_abc" as const,
   currentMainPrecallFixtureIds: RP_QUALITY_PRECALL_FIXTURE_IDS,
+  productionParityOwner: "src/lib/rpMainRpStyleLengthFixture.classifyMainRpProductionParity",
+  lengthOwner: "UNIFIED_TIER_AIM_CHARS",
+  softAimChars: UNIFIED_TIER_AIM_CHARS,
+});
+
+/** Inventory only. These deltas do not prove semantic equality. */
+export const OPENSCALE_VS_CHEAPERINFERENCE_INVENTORY = Object.freeze({
+  comparableWhen:
+    "same 라이크 18 / 렌 / A/B/C / authoring / history; each model keeps its homepage adapter",
+  fields: [
+    {
+      field: "model",
+      cheaperInference: "deepseek-v4.1-flash",
+      openscale: OPENSCALE_OFFICIAL_MODEL_ID,
+      classification: "allowed_provider_inventory" as const,
+    },
+    {
+      field: "thinking",
+      cheaperInference: '{ type: "disabled" }',
+      openscale: "omitted",
+      classification: "semantic_unconfirmed" as const,
+    },
+    {
+      field: "reasoning_effort",
+      cheaperInference: "none",
+      openscale: "none",
+      classification: "semantic_unconfirmed" as const,
+    },
+    {
+      field: "stream_options",
+      cheaperInference: "provider-specific or absent",
+      openscale: "{ include_usage: true }",
+      classification: "allowed_provider_inventory" as const,
+    },
+    {
+      field: "messages",
+      cheaperInference: "assembled production messages",
+      openscale: "same text; multipart content flattened",
+      classification: "semantic_unconfirmed" as const,
+    },
+    {
+      field: "temperature",
+      cheaperInference: "copied from assemblePrimaryRpRequest",
+      openscale: "copied",
+      classification: "match" as const,
+    },
+    {
+      field: "top_p",
+      cheaperInference: "copied from assemblePrimaryRpRequest",
+      openscale: "copied",
+      classification: "match" as const,
+    },
+    {
+      field: "max_tokens",
+      cheaperInference: "absent",
+      openscale: "absent",
+      classification: "match" as const,
+    },
+  ],
 });
 
 export const OPENSCALE_ALLOWED_WIRE_DELTAS = Object.freeze([
@@ -302,6 +371,31 @@ export type OpenScaleStyleEvalProposedFixture = {
   expectedPromptFingerprint?: string;
   originalFixtureJsonRestored?: boolean;
   currentSettingsRestored?: boolean;
+  currentLiveVerified?: boolean;
+  currentProductionSuccessSha?: string;
+  assemblySourceSha?: string;
+  capturedDeploySha?: string;
+  thinkingSemanticEquivalent?: boolean | null;
+  reasoningSemanticEquivalent?: boolean | null;
+  useGoldenV1Expected?: boolean;
+  flattenedLosingMeaning?: boolean;
+  featureFlagsMatch?: boolean | null;
+  recoveryPath?: string;
+  expectedRecoveryPath?: string;
+  identityHashes?: ProductionParityInput["identityHashes"];
+  expectedIdentityHashes?: ProductionParityInput["expectedIdentityHashes"];
+  finalWireFingerprint?: string;
+  expectedFinalWireFingerprint?: string;
+  requestBodyFingerprint?: string;
+  expectedRequestBodyFingerprint?: string;
+  commonStyleSectionOrderHash?: string;
+  expectedCommonStyleSectionOrderHash?: string;
+  modelStyleSectionOrderHash?: string;
+  expectedModelStyleSectionOrderHash?: string;
+  commonStyleSectionContentHash?: string;
+  expectedCommonStyleSectionContentHash?: string;
+  modelStyleSectionContentHash?: string;
+  expectedModelStyleSectionContentHash?: string;
 };
 
 export type OpenScaleStyleEvalParityReason =
@@ -355,6 +449,10 @@ export type OpenScaleStyleEvalParityResult = {
   required: typeof OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY;
   proposed: OpenScaleStyleEvalProposedFixture;
   diagnosticB03a: typeof OPENSCALE_B03A_DIAGNOSTIC;
+  productionParity: ProductionParityResult;
+  qualityScoreEligible: boolean;
+  providerInventory: typeof OPENSCALE_VS_CHEAPERINFERENCE_INVENTORY;
+  goldenV1Stale: boolean;
 };
 
 export function defaultOpenScaleStyleEvalProposedFixture(): OpenScaleStyleEvalProposedFixture {
@@ -445,6 +543,77 @@ export function describeOpenScaleWireDelta(
     messagesMatch,
     samplingMatch,
     maxTokensAbsent,
+  };
+}
+
+function resolveOpenScaleParityEvidenceKind(
+  proposed: OpenScaleStyleEvalProposedFixture
+): ProductionParityEvidenceKind {
+  if (proposed.originalFixtureJsonRestored === true || proposed.currentSettingsRestored === true) {
+    return "SYNTHETIC";
+  }
+  if (proposed.currentLiveVerified === true) return "CURRENT_LIVE";
+  if (proposed.useGoldenV1Expected === true) return "GOLDEN_SNAPSHOT";
+  if (proposed.productionRequestBody) return "SYNTHETIC";
+  return "MISSING";
+}
+
+export function buildOpenScaleProductionParityInput(
+  proposed: OpenScaleStyleEvalProposedFixture,
+  extras?: {
+    sceneId?: string;
+    livePersonaId?: number | null;
+    maxTokensPresent?: boolean;
+    sampling?: { temperature?: unknown; top_p?: unknown } | null;
+  }
+): ProductionParityInput {
+  const sceneId = extras?.sceneId ?? (proposed.fixtureId ?? proposed.sceneId)?.trim() ?? "";
+  const site = mainRpStyleLengthSitePolicy();
+  return {
+    evidenceKind: resolveOpenScaleParityEvidenceKind(proposed),
+    currentProductionSuccessSha: proposed.currentProductionSuccessSha ?? null,
+    assemblySourceSha: proposed.assemblySourceSha ?? null,
+    capturedDeploySha:
+      proposed.capturedDeploySha ??
+      (proposed.useGoldenV1Expected
+        ? MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.deployedGitSha
+        : null),
+    currentLiveVerified: proposed.currentLiveVerified === true,
+    characterId: proposed.characterId,
+    characterName: proposed.characterName,
+    personaId: extras?.livePersonaId ?? proposed.personaId ?? proposed.liveProofInput?.personaId,
+    personaName: proposed.personaName,
+    fixtureId: sceneId || null,
+    fixtureIds: sceneId ? [sceneId] : [...OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.fixtureIds],
+    authoringLevel: site.authoringLevel,
+    contentMode: proposed.liveProofInput?.contentMode ?? site.contentMode,
+    softAimChars: site.softAimChars,
+    maxTokensPresent: extras?.maxTokensPresent === true,
+    maxCompletionTokensPresent: extras?.maxTokensPresent === true,
+    identityHashes: proposed.identityHashes ?? null,
+    expectedIdentityHashes: proposed.expectedIdentityHashes ?? null,
+    finalWireFingerprint: proposed.finalWireFingerprint ?? null,
+    expectedFinalWireFingerprint: proposed.expectedFinalWireFingerprint ?? null,
+    requestBodyFingerprint: proposed.requestBodyFingerprint ?? null,
+    expectedRequestBodyFingerprint: proposed.expectedRequestBodyFingerprint ?? null,
+    commonStyleSectionOrderHash: proposed.commonStyleSectionOrderHash ?? null,
+    expectedCommonStyleSectionOrderHash: proposed.expectedCommonStyleSectionOrderHash ?? null,
+    modelStyleSectionOrderHash: proposed.modelStyleSectionOrderHash ?? null,
+    expectedModelStyleSectionOrderHash: proposed.expectedModelStyleSectionOrderHash ?? null,
+    commonStyleSectionContentHash: proposed.commonStyleSectionContentHash ?? null,
+    expectedCommonStyleSectionContentHash: proposed.expectedCommonStyleSectionContentHash ?? null,
+    modelStyleSectionContentHash: proposed.modelStyleSectionContentHash ?? null,
+    expectedModelStyleSectionContentHash: proposed.expectedModelStyleSectionContentHash ?? null,
+    messagesFingerprint: null,
+    expectedMessagesFingerprint: null,
+    sampling: extras?.sampling ?? null,
+    expectedSampling: extras?.sampling ?? null,
+    thinkingSemanticEquivalent: proposed.thinkingSemanticEquivalent ?? null,
+    reasoningSemanticEquivalent: proposed.reasoningSemanticEquivalent ?? null,
+    recoveryPath: proposed.recoveryPath ?? "assemblePrimaryRpRequest",
+    expectedRecoveryPath: proposed.expectedRecoveryPath ?? "assemblePrimaryRpRequest",
+    flattenedLosingMeaning: proposed.flattenedLosingMeaning === true,
+    featureFlagsMatch: proposed.featureFlagsMatch ?? true,
   };
 }
 
@@ -549,6 +718,16 @@ export function evaluateOpenScaleStyleEvalFixtureParity(
   const assemblyOk = Boolean(productionBody) && Boolean(contentFingerprint) && Boolean(expectedFp);
   const precallReady =
     uniqueReasons.length === 0 && classified.precallReady && assemblyOk;
+  const productionParity = classifyMainRpProductionParity(
+    buildOpenScaleProductionParityInput(proposed, {
+      sceneId,
+      livePersonaId,
+      maxTokensPresent: uniqueReasons.includes("max_tokens_present"),
+      sampling: productionBody
+        ? { temperature: productionBody.temperature, top_p: productionBody.top_p }
+        : null,
+    })
+  );
   return {
     status: uniqueReasons.length === 0 ? "FIXTURE_PARITY_PASS" : "FIXTURE_PARITY_FAIL",
     reasons: uniqueReasons,
@@ -574,6 +753,10 @@ export function evaluateOpenScaleStyleEvalFixtureParity(
     required,
     proposed,
     diagnosticB03a: OPENSCALE_B03A_DIAGNOSTIC,
+    productionParity,
+    qualityScoreEligible: productionParity.qualityScoreEligible,
+    providerInventory: OPENSCALE_VS_CHEAPERINFERENCE_INVENTORY,
+    goldenV1Stale: goldenV1StaleAgainstCurrentSuccess(proposed.currentProductionSuccessSha),
   };
 }
 
@@ -862,6 +1045,8 @@ export async function runOpenScaleRpPilot(input?: {
       status: "FIXTURE_PARITY_FAIL",
       precallReady: false,
       classification: parity.classification,
+      productionParityStatus: parity.productionParity.status,
+      qualityScoreEligible: false,
       providerInferencePosts: 0,
       cheaperInferencePosts: 0,
       retry: 0,
@@ -876,6 +1061,8 @@ export async function runOpenScaleRpPilot(input?: {
     status: "FIXTURE_PARITY_PASS",
     precallReady: parity.precallReady,
     classification: parity.precallReady ? "PRECALL_READY" : parity.classification,
+    productionParityStatus: parity.productionParity.status,
+    qualityScoreEligible: parity.qualityScoreEligible,
     providerInferencePosts: 0,
     cheaperInferencePosts: 0,
     retry: 0,
