@@ -45,6 +45,7 @@ import {
   decideChatBurstAction,
   isSameChatRoom,
   parseChatResumeHref,
+  parseChatRoomPath,
   resolveChatArrival,
   resolveChatResumeTarget,
   type ChatRoomRef,
@@ -269,6 +270,8 @@ export default function MenuTransitionHost() {
   const timers = useRef<number[]>([]);
   const lastLoc = useRef<{ path: string; key: string } | null>(null);
   const startedAt = useRef(0);
+  const chatLeftOrigin = useRef(false);
+  const chatRevealArmed = useRef(false);
 
   function clearTimers() {
     for (const t of timers.current) window.clearTimeout(t);
@@ -315,6 +318,10 @@ export default function MenuTransitionHost() {
     clearTimers();
     burstRef.current = next;
     startedAt.current = performance.now();
+    if (next.kind === "chat") {
+      chatLeftOrigin.current = false;
+      chatRevealArmed.current = false;
+    }
     setBurst(next);
     const timing = timingFor(next.kind);
     // 메뉴·캐릭터는 도착이 늦어도 holdMax에 분할한다. 채팅은 실제 방이 오기 전에
@@ -340,6 +347,7 @@ export default function MenuTransitionHost() {
   function syncChatBurst(id: number) {
     const cur = burstRef.current;
     if (!cur || cur.id !== id || cur.kind !== "chat") return;
+    if (parseChatRoomPath(window.location.pathname) !== null) chatLeftOrigin.current = true;
     const arrival = resolveChatArrival({
       dest: cur.scene.room,
       origin: cur.origin,
@@ -348,10 +356,11 @@ export default function MenuTransitionHost() {
       url: `${window.location.pathname}${window.location.search}`,
       superseded: cur.superseded,
       from: cur.from,
+      leftOrigin: chatLeftOrigin.current,
     });
     const action = decideChatBurstAction(
       arrival,
-      arrival === "pending" && chatResumePageLooksFailed(document),
+      arrival === "pending" && chatResumePageLooksFailed(document, window.location.pathname),
     );
     switch (action) {
       case "drop":
@@ -360,7 +369,8 @@ export default function MenuTransitionHost() {
       case "hold":
         return;
       case "reveal":
-        if (cur.phase === "cover") {
+        if (cur.phase === "cover" && !chatRevealArmed.current) {
+          chatRevealArmed.current = true;
           const delay = revealDelayFor("chat", performance.now() - startedAt.current);
           timers.current.push(window.setTimeout(() => beginReveal(id), delay));
         }

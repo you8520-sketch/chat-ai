@@ -108,12 +108,14 @@ export function resolveChatArrival(input: {
   superseded?: readonly string[];
   /** 클릭 당시 위치. 아직 이 자리에 있으면 목적지로 떠나지 않은 pending이다. */
   from?: string;
+  /** 한 번 채팅 경로에 들어간 뒤 다시 출발 페이지로 돌아온 경우(뒤로 가기). */
+  leftOrigin?: boolean;
 }): ChatArrival {
-  const { dest, origin, room, pathname, url, superseded = [], from } = input;
+  const { dest, origin, room, pathname, url, superseded = [], from, leftOrigin = false } = input;
   if (isSameChatRoom(room, dest)) return "arrived";
   if (superseded.includes(url)) return "pending";
   const pathCharacter = parseChatRoomPath(pathname);
-  if (pathCharacter === null) return from != null && url === from ? "pending" : "abandoned";
+  if (pathCharacter === null) return from != null && url === from && !leftOrigin ? "pending" : "abandoned";
   if (!room || isSameChatRoom(room, origin)) return "pending";
   const queryAt = url.indexOf("?");
   const urlRoom = parseChatResumeHref(pathname, queryAt === -1 ? "" : url.slice(queryAt));
@@ -142,8 +144,9 @@ export function decideChatBurstAction(arrival: ChatArrival, pageFailed: boolean)
   }
 }
 
-/** 채팅 경로에 방이 없고 Next가 404/에러 페이지를 그린 경우만 실패로 본다. */
-export function chatResumePageLooksFailed(root: ParentNode): boolean {
+/** 채팅 경로에 방이 없고 Next가 404/에러 페이지를 그린 경우만 실패로 본다. 출발 목록 문구는 보지 않는다. */
+export function chatResumePageLooksFailed(root: ParentNode, pathname?: string): boolean {
+  if (pathname !== undefined && parseChatRoomPath(pathname) === null) return false;
   if (root.querySelector(`[${CHAT_ROOM_ID_ATTR}]`)) return false;
   const heading = (root.querySelector("h1, h2")?.textContent ?? "").replace(/\s+/g, " ").trim();
   if (/^404\b/.test(heading) || /this page could not be found/i.test(heading)) return true;

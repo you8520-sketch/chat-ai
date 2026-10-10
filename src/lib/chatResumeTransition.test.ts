@@ -206,6 +206,18 @@ describe("chat resume arrival", () => {
       }),
       "abandoned",
     );
+    assert.equal(
+      resolveChatArrival({
+        dest,
+        origin: null,
+        room: null,
+        pathname: "/tab/new",
+        url: "/tab/new",
+        from: "/tab/new",
+        leftOrigin: true,
+      }),
+      "abandoned",
+    );
   });
 
   it("abandons on redirects away from the room and on other characters' rooms", () => {
@@ -245,6 +257,8 @@ describe("chat resume arrival", () => {
     assert.equal(chatResumePageLooksFailed(failed as unknown as ParentNode), true);
     assert.equal(chatResumePageLooksFailed(ready as unknown as ParentNode), false);
     assert.equal(chatResumePageLooksFailed(home as unknown as ParentNode), false);
+    assert.equal(chatResumePageLooksFailed(failed as unknown as ParentNode, "/tab/new"), false);
+    assert.equal(chatResumePageLooksFailed(failed as unknown as ParentNode, "/chat/7"), true);
   });
 
   it("waits through rooms and pages that rapid consecutive clicks superseded", () => {
@@ -391,6 +405,9 @@ describe("chat resume ownership", () => {
     assert.match(host, /MutationObserver/);
     assert.match(host, /next\.kind !== "chat"/);
     assert.match(host, /from: `\$\{window\.location\.pathname\}/);
+    assert.match(host, /chatRevealArmed/);
+    assert.match(host, /chatLeftOrigin/);
+    assert.match(host, /chatResumePageLooksFailed\(document, window\.location\.pathname\)/);
     assert.match(host, /readChatRoom\(\)/);
     assert.match(host, /dropBurst\(id\)/);
     assert.match(read("src/app/chat/[id]/ChatClient.tsx"), /chatRoomAttrs\(/);
