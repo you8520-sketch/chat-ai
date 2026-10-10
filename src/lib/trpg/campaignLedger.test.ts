@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  acceptedSceneLocationFromBoundState,
   applyCampaignLedger,
   bindGmLocationToSubmittedMovement,
   emptyCampaignLedger,
@@ -364,5 +365,37 @@ describe("TRPG location persist bind", () => {
     });
     assert.equal(bound.location, dock);
     assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+});
+
+describe("accepted scene location from bound state", () => {
+  it("records the campaign place when every sheet agrees", () => {
+    assert.equal(
+      acceptedSceneLocationFromBoundState({
+        campaignLocation: "회린 부두",
+        sheetLocations: ["회린 부두"],
+      }),
+      "회린 부두"
+    );
+  });
+
+  it("omits a split-party scene instead of claiming one place for every PC", () => {
+    assert.equal(
+      acceptedSceneLocationFromBoundState({
+        campaignLocation: "회린 부두",
+        sheetLocations: ["회린 부두", "회린 주점"],
+      }),
+      null
+    );
+  });
+
+  it("omits an empty campaign place", () => {
+    assert.equal(
+      acceptedSceneLocationFromBoundState({
+        campaignLocation: "  ",
+        sheetLocations: ["회린 부두"],
+      }),
+      null
+    );
   });
 });

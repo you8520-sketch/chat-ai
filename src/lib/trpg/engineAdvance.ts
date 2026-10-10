@@ -47,7 +47,15 @@ import {
 } from "./botActions";
 import { actionReferencesOpenRoute } from "./actionCheckContext";
 import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
-import { applyCampaignLedger, bindGmLocationToSubmittedMovement, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
+import {
+  acceptedSceneLocationFromBoundState,
+  applyCampaignLedger,
+  bindGmLocationToSubmittedMovement,
+  clipTrpgChars,
+  loadCampaignLedger,
+  persistAcceptedRoundLocationIfAbsent,
+  persistCampaignLedger,
+} from "./campaignLedger";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm, type TrpgGmStreamCallbacks } from "./gmCall";
@@ -1642,6 +1650,14 @@ function commitPendingGmResult(
         ).run(campaign.id, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(parsed.delta));
       }
       persistCampaignLedger(db, campaign.id, roundNumber, ledger);
+      persistAcceptedRoundLocationIfAbsent(
+        db,
+        opts.roundId,
+        acceptedSceneLocationFromBoundState({
+          campaignLocation: ledger.location,
+          sheetLocations: (persistMechanics ? nextSheets : sheets).map((sheet) => sheet.location),
+        })
+      );
       const effectiveLocalSceneDelta = resolveEffectiveLocalSceneDelta();
       const hasLocalSceneDelta = hasLocalSceneProgressDelta(effectiveLocalSceneDelta);
       if (campaignContext && (hasLocalSceneDelta || resolvedPlan)) {
