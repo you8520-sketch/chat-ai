@@ -16,6 +16,9 @@
  */
 const bootStart = Date.now();
 
+const { loadEnvConfig } = require("@next/env");
+loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production");
+
 const { assertRailwayProductionNodeEnv } = require("./src/lib/railwayProductionBootGuard.js");
 assertRailwayProductionNodeEnv();
 

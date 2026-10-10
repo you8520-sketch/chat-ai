@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import Module from "node:module";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -379,6 +380,16 @@ describe("server.js boot contract", () => {
     assert.doesNotMatch(serverJs, /Module\._load\s*=/);
   });
 
+  it("loads Next env config before require(next)", () => {
+    const serverJs = readFileSync(path.join(repoRoot, "server.js"), "utf8");
+    const envLoadIndex = serverJs.indexOf(
+      "loadEnvConfig(process.cwd(), process.env.NODE_ENV !== \"production\")"
+    );
+    const nextRequireIndex = serverJs.indexOf('require("next")');
+    assert.ok(envLoadIndex >= 0);
+    assert.ok(nextRequireIndex > envLoadIndex);
+  });
+
   it("does not install boundary before require(next) or app.prepare", () => {
     const serverJs = readFileSync(path.join(repoRoot, "server.js"), "utf8");
     const nextRequireIndex = serverJs.indexOf('require("next")');
@@ -407,6 +418,134 @@ describe("server.js boot contract", () => {
     const productionStart = pkg.scripts?.start ?? "";
     assert.equal(productionStart, "tsx server.js");
     assert.doesNotMatch(productionStart, /--conditions=react-server/);
+  });
+});
+
+type ExtractedEnvLoad = {
+  paths: string[];
+  preserved: string | undefined;
+  common: string | undefined;
+  mode: string | undefined;
+  developmentLocal: string | undefined;
+  productionLocal: string | undefined;
+  railwayGuardOk: boolean;
+};
+
+function extractServerLoadEnvConfigCall(): string {
+  const serverJs = readFileSync(path.join(repoRoot, "server.js"), "utf8");
+  const match = serverJs.match(/loadEnvConfig\(([\s\S]*?)\);/);
+  assert.ok(match, "server.js must call loadEnvConfig");
+  return match[0];
+}
+
+function runExtractedServerEnvLoad(input: {
+  nodeEnv: string;
+  railwayEnvironmentName?: string;
+}): ExtractedEnvLoad {
+  const tmp = mkdtempSync(path.join(tmpdir(), "hav-server-env-"));
+  writeFileSync(path.join(tmp, ".env"), "HAV_ENV_PROBE_BASE=base\n");
+  writeFileSync(
+    path.join(tmp, ".env.local"),
+    "HAV_ENV_PROBE_COMMON=common\nHAV_ENV_PROBE_PRESERVED=file\n"
+  );
+  writeFileSync(path.join(tmp, ".env.development"), "HAV_ENV_PROBE_MODE=development\n");
+  writeFileSync(path.join(tmp, ".env.development.local"), "HAV_ENV_PROBE_DEV_LOCAL=1\n");
+  writeFileSync(path.join(tmp, ".env.production"), "HAV_ENV_PROBE_MODE=production\n");
+  writeFileSync(path.join(tmp, ".env.production.local"), "HAV_ENV_PROBE_PROD_LOCAL=1\n");
+
+  const call = extractServerLoadEnvConfigCall();
+  const script = `
+    import { createRequire } from "node:module";
+    const req = createRequire(${JSON.stringify(`${repoRoot}/`)});
+    const { loadEnvConfig } = req("@next/env");
+    const { assertRailwayProductionNodeEnv } = req(${JSON.stringify(
+      path.join(repoRoot, "src/lib/railwayProductionBootGuard.js")
+    )});
+    process.chdir(${JSON.stringify(tmp)});
+    const loaded = ${call};
+    let railwayGuardOk = true;
+    try {
+      assertRailwayProductionNodeEnv();
+    } catch {
+      railwayGuardOk = false;
+    }
+    console.log("__SERVER_ENV_LOAD__" + JSON.stringify({
+      paths: loaded.loadedEnvFiles.map((file) => file.path),
+      preserved: process.env.HAV_ENV_PROBE_PRESERVED,
+      common: process.env.HAV_ENV_PROBE_COMMON,
+      mode: process.env.HAV_ENV_PROBE_MODE,
+      developmentLocal: process.env.HAV_ENV_PROBE_DEV_LOCAL,
+      productionLocal: process.env.HAV_ENV_PROBE_PROD_LOCAL,
+      railwayGuardOk,
+    }));
+  `;
+
+  try {
+    const output = execFileSync(process.execPath, ["--import", "tsx", "-e", script], {
+      cwd: repoRoot,
+      env: {
+        PATH: process.env.PATH,
+        HOME: process.env.HOME,
+        NODE_ENV: input.nodeEnv,
+        HAV_ENV_PROBE_PRESERVED: "shell",
+        ...(input.railwayEnvironmentName
+          ? { RAILWAY_ENVIRONMENT_NAME: input.railwayEnvironmentName }
+          : {}),
+      },
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    for (const line of output.split(/\r?\n/)) {
+      const idx = line.indexOf("__SERVER_ENV_LOAD__");
+      if (idx >= 0) {
+        return JSON.parse(line.slice(idx + "__SERVER_ENV_LOAD__".length)) as ExtractedEnvLoad;
+      }
+    }
+    throw new Error("server env-load probe marker missing from child stdout");
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+describe("server.js env load contract", () => {
+  it("selects development env files and keeps process env / Railway production guard", () => {
+    const loaded = runExtractedServerEnvLoad({ nodeEnv: "development" });
+    assert.deepEqual(
+      [...loaded.paths].sort(),
+      [".env", ".env.development", ".env.development.local", ".env.local"].sort()
+    );
+    assert.equal(loaded.mode, "development");
+    assert.equal(loaded.common, "common");
+    assert.equal(loaded.developmentLocal, "1");
+    assert.equal(loaded.productionLocal, undefined);
+    assert.equal(loaded.preserved, "shell");
+    assert.equal(loaded.railwayGuardOk, true);
+  });
+
+  it("selects production env files and keeps Railway production NODE_ENV invariant", () => {
+    const loaded = runExtractedServerEnvLoad({
+      nodeEnv: "production",
+      railwayEnvironmentName: "production",
+    });
+    assert.deepEqual(
+      [...loaded.paths].sort(),
+      [".env", ".env.local", ".env.production", ".env.production.local"].sort()
+    );
+    assert.equal(loaded.mode, "production");
+    assert.equal(loaded.common, "common");
+    assert.equal(loaded.productionLocal, "1");
+    assert.equal(loaded.developmentLocal, undefined);
+    assert.equal(loaded.preserved, "shell");
+    assert.equal(loaded.railwayGuardOk, true);
+  });
+
+  it("still rejects Railway production when NODE_ENV is not production", () => {
+    const loaded = runExtractedServerEnvLoad({
+      nodeEnv: "development",
+      railwayEnvironmentName: "production",
+    });
+    assert.equal(loaded.railwayGuardOk, false);
+    assert.equal(loaded.mode, "development");
   });
 });
 
