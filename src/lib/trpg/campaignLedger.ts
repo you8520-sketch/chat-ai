@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { actionReferencesOpenRoute, declaresTraversalIntent, tokenizeSceneLabel } from "./actionCheckContext";
+import { declaresTraversalIntent, tokenizeSceneLabel } from "./actionCheckContext";
 import { clipTrpgChars } from "./clip";
 import { parseJson } from "./store";
 import {
@@ -58,7 +58,7 @@ export type TrpgLocationPersistSheet = {
 /** Interior/exterior suffixes refine a named place; they are not the place. */
 const INTERIOR_SUFFIXES = new Set(["내부", "안쪽", "바깥", "바깥쪽", "속", "실내", "실외"]);
 
-/** Only these preceding tokens distinguish sibling places (north/south, left/right). */
+/** Opposite directions always conflict, even when dest adds parent-location tokens. */
 const DIRECTIONAL_QUALIFIERS = new Set(["북쪽", "남쪽", "동쪽", "서쪽", "좌측", "우측", "왼쪽", "오른쪽"]);
 
 function tokenCoversPlace(token: string, place: string): boolean {
@@ -78,16 +78,32 @@ function scenePlaceToken(tokens: readonly string[]): string | undefined {
   return undefined;
 }
 
-function directionalQualifier(tokens: readonly string[], place: string): string | undefined {
-  const qualifier = precedingQualifier(tokens, place);
-  return qualifier && DIRECTIONAL_QUALIFIERS.has(qualifier) ? qualifier : undefined;
+function destCoreLength(tokens: readonly string[]): number {
+  return tokens.filter((token) => !INTERIOR_SUFFIXES.has(token)).length;
+}
+
+function qualifiersConflict(sourceTokens: readonly string[], destTokens: readonly string[], place: string): boolean {
+  const destQualifier = precedingQualifier(destTokens, place);
+  const sourceQualifier = precedingQualifier(sourceTokens, place);
+  if (!destQualifier || !sourceQualifier) return false;
+  if (
+    destQualifier === sourceQualifier ||
+    destQualifier.startsWith(sourceQualifier) ||
+    sourceQualifier.startsWith(destQualifier)
+  ) {
+    return false;
+  }
+  const bothDirectional =
+    DIRECTIONAL_QUALIFIERS.has(destQualifier) && DIRECTIONAL_QUALIFIERS.has(sourceQualifier);
+  // Bare dest (qualifier + place) is a sibling swap. Extra parent tokens may
+  // refine the same place. Opposite directions always conflict.
+  return bothDirectional || destCoreLength(destTokens) <= 2;
 }
 
 /**
  * Dest names the same place as `source`, possibly with extra parent-location
- * tokens or an interior suffix. Sibling lookalikes stay rejected when both
- * sides carry conflicting directional qualifiers. Does not use substring
- * authorization of the full destination string.
+ * tokens or an interior suffix. Persist auth does not reuse open-route
+ * discovery: that matcher allows a 1-token overlap on 2-token labels.
  */
 function destinationRefinesDeclared(source: string, destination: string): boolean {
   const dest = destination.trim();
@@ -97,25 +113,8 @@ function destinationRefinesDeclared(source: string, destination: string): boolea
   if (!place) return false;
   const sourceTokens = tokenizeSceneLabel(source);
   if (!sourceTokens.some((token) => tokenCoversPlace(token, place))) return false;
-  const destQualifier = directionalQualifier(destTokens, place);
-  const sourceQualifier = directionalQualifier(sourceTokens, place);
-  if (
-    destQualifier &&
-    sourceQualifier &&
-    destQualifier !== sourceQualifier &&
-    !destQualifier.startsWith(sourceQualifier) &&
-    !sourceQualifier.startsWith(destQualifier)
-  ) {
-    return false;
-  }
+  if (qualifiersConflict(sourceTokens, destTokens, place)) return false;
   return true;
-}
-
-function destinationMatchesDeclared(source: string, destination: string): boolean {
-  const dest = destination.trim();
-  if (!dest) return false;
-  if (actionReferencesOpenRoute(source, [dest]) != null) return true;
-  return destinationRefinesDeclared(source, dest);
 }
 
 function movementAttemptFailed(tier: string | null | undefined): boolean {
@@ -140,7 +139,7 @@ export function submissionAuthorizesLocation(
   if (submission.acceptedRoute) {
     return destinationRefinesDeclared(submission.acceptedRoute, dest);
   }
-  if (!destinationMatchesDeclared(submission.body, dest)) return false;
+  if (!destinationRefinesDeclared(submission.body, dest)) return false;
   return declaresTraversalIntent(submission.body);
 }
 

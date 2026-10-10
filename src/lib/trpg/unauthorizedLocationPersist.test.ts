@@ -378,6 +378,60 @@ describe("TRPG #1462 unauthorized location persist", () => {
     db.close();
   });
 
+  it("A: 우측 환풍구 안으로 들어간다 does not persist 좌측 환풍구", async () => {
+    const db = memoryDb();
+    const { campaignId, deps } = await startAtDock(
+      db,
+      gmWire("우측을 말했는데 좌측 환풍구에 있다.", {
+        players: [{ participantId: 1, location: "좌측 환풍구", hp: 40, conditions: [] }],
+        location: "좌측 환풍구",
+        next_round_context: "좌측 환풍구 안.",
+        campaign_finished: false,
+      })
+    );
+    submitTrpgAction(db, { campaignId, userId: 1, body: "우측 환풍구 안으로 들어간다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadCampaignLedger(db, campaignId).location, DOCK);
+    assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, DOCK);
+    db.close();
+  });
+
+  it("B: 북쪽 창고 안으로 들어간다 does not persist 남쪽 창고", async () => {
+    const db = memoryDb();
+    const { campaignId, deps } = await startAtDock(
+      db,
+      gmWire("북쪽을 말했는데 남쪽 창고에 있다.", {
+        players: [{ participantId: 1, location: "남쪽 창고", hp: 40, conditions: [] }],
+        location: "남쪽 창고",
+        next_round_context: "남쪽 창고 안.",
+        campaign_finished: false,
+      })
+    );
+    submitTrpgAction(db, { campaignId, userId: 1, body: "북쪽 창고 안으로 들어간다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadCampaignLedger(db, campaignId).location, DOCK);
+    assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, DOCK);
+    db.close();
+  });
+
+  it("C: 붉은 창고로 간다 does not persist 푸른 창고", async () => {
+    const db = memoryDb();
+    const { campaignId, deps } = await startAtDock(
+      db,
+      gmWire("붉은 창고를 말했는데 푸른 창고에 있다.", {
+        players: [{ participantId: 1, location: "푸른 창고", hp: 40, conditions: [] }],
+        location: "푸른 창고",
+        next_round_context: "푸른 창고 안.",
+        campaign_finished: false,
+      })
+    );
+    submitTrpgAction(db, { campaignId, userId: 1, body: "붉은 창고로 간다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(loadCampaignLedger(db, campaignId).location, DOCK);
+    assert.equal(loadSheetSnapshots(db, campaignId)[0]?.location, DOCK);
+    db.close();
+  });
+
   it("lookalike 우측 환풍구 does not persist 좌측 환풍구", async () => {
     const db = memoryDb();
     const { campaignId, deps } = await startAtDock(

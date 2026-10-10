@@ -35,7 +35,7 @@ Location persist had no dest authorization. Opening could set the start place; l
 
 ## AFTER
 
-`bindGmLocationToSubmittedMovement` runs before ledger/sheet apply. A later-round location sticks only when that participant has a non-failure locked action that already authorizes the dest: frozen `acceptedRoute` (exact or a more-specific same place), or a declared traversal whose body names that dest. Interior suffixes (`내부`) and parent-location tokens (`석등 골목`) do not block a named place. Sibling lookalikes still reject on conflicting directional qualifiers. Compare each sheet's previous location, not only the shared ledger.
+`bindGmLocationToSubmittedMovement` runs before ledger/sheet apply. A later-round location sticks only when that participant has a non-failure locked action that already authorizes the dest: frozen `acceptedRoute` (exact or a more-specific same place), or a declared traversal whose body names that dest. Interior suffixes (`내부`) and parent-location tokens (`석등 골목`) do not block a named place. Persist auth does not reuse `actionReferencesOpenRoute` (1-token overlap on 2-token labels). Sibling lookalikes reject on opposite directions and on a bare dest whose preceding qualifier differs (`붉은 창고` / `푸른 창고`). Compare each sheet's previous location, not only the shared ledger.
 
 Paid C regression: `열린 찻집 문으로 들어간다.` + Gemini `석등 골목 찻집 내부` (C_1465) / `석등 골목 찻집 안` (C_1480) now persist on ledger and sheet.
 
@@ -58,7 +58,7 @@ Paid case D_1480 emitted `players[0].hp=8` with no input HP change. That run nev
 ## PROOF
 
 Deterministic `unauthorizedLocationPersist.test.ts` and `campaignLedger.test.ts` through `commitPendingGmResult`:
-- Fail-before on #1489 HEAD `d11c1da1`: talk-at-vent stays blocked; paid C_1465 / C_1480 tea-house interiors were rejected back to `회린 부두`
-- Pass-after this patch: C_1465 `석등 골목 찻집 내부` and C_1480 `석등 골목 찻집 안` persist on ledger + sheet
-- Controls kept: vent-talk, `주점으로 간다.`, `주점으로 걸어간다.`, `우측 환풍구로 걸어간다.`, negation, north/south, left/right, per-PC, opening, regenerate, failure tier
-- Persist files 50/50 (original 44 + 6 C/direct regressions). `actionCheck.test.ts` 29/29
+- Fail-before on #1489 HEAD `80e63a01`: `우측 환풍구 안으로 들어간다.` persisted `좌측 환풍구`; `북쪽 창고 안으로 들어간다.` persisted `남쪽 창고`; `붉은 창고로 간다.` persisted `푸른 창고`
+- Pass-after this patch: those three stay at the previous location; C_1465 / C_1480 tea-house interiors still persist
+- Controls kept: vent-talk, `주점으로 간다.`, frozen route match/mismatch, opening, regenerate, failure tier, per-PC
+- Persist files keep the prior 50 plus A/B/C direct regressions. `actionCheck.test.ts` 29/29

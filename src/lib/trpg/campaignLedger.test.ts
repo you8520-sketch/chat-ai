@@ -248,6 +248,36 @@ describe("TRPG location persist bind", () => {
     assert.equal(bound.delta.players?.[0]?.location, undefined);
   });
 
+  it("A: 우측 환풍구 안으로 들어간다 does not accept 좌측 환풍구", () => {
+    const bound = bind({
+      body: "우측 환풍구 안으로 들어간다.",
+      proposed: "좌측 환풍구",
+      playerLocation: "좌측 환풍구",
+    });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
+  it("B: 북쪽 창고 안으로 들어간다 does not accept 남쪽 창고", () => {
+    const bound = bind({
+      body: "북쪽 창고 안으로 들어간다.",
+      proposed: "남쪽 창고",
+      playerLocation: "남쪽 창고",
+    });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
+  it("C: 붉은 창고로 간다 does not accept 푸른 창고", () => {
+    const bound = bind({
+      body: "붉은 창고로 간다.",
+      proposed: "푸른 창고",
+      playerLocation: "푸른 창고",
+    });
+    assert.equal(bound.location, dock);
+    assert.equal(bound.delta.players?.[0]?.location, undefined);
+  });
+
   it("lookalike 우측 환풍구 does not accept 좌측 환풍구", () => {
     const bound = bind({
       body: "우측 환풍구로 들어간다.",
