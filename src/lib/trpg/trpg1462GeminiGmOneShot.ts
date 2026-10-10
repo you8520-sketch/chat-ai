@@ -131,7 +131,6 @@ export function isTrpg1462LiveNetworkAttempt(opts: {
   transport?: Trpg1462Transport;
 }): boolean {
   if (opts.transport === "live") return true;
-  if (opts.transport === "mock") return false;
   return !isTrpg1462MockFetch(opts.fetchImpl);
 }
 

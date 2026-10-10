@@ -61,6 +61,15 @@ function runOneShot(
   });
 }
 
+function countingUntaggedFetch(): { fetchImpl: Trpg1462OneShotFetch; count: { n: number } } {
+  const count = { n: 0 };
+  const fetchImpl: Trpg1462OneShotFetch = async () => {
+    count.n += 1;
+    return new Response("untagged-local", { status: 500 });
+  };
+  return { fetchImpl, count };
+}
+
 function spawnChild(env: NodeJS.ProcessEnv): Promise<{ code: number | null; stdout: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(
@@ -628,6 +637,42 @@ describe("TRPG #1462 Gemini GM one-shot execution gate", () => {
     assert.equal(result.reason, "APPROVAL_MISMATCH");
     assert.equal(result.posts, 0);
     assert.equal(mock.log.count, 0);
+  });
+
+  it("rejects TEST_ONLY + transport mock + untagged fetch before reserve", async () => {
+    const root = tempRoot();
+    const { fetchImpl, count } = countingUntaggedFetch();
+    const result = await executeTrpg1462OneShot({
+      requestId: "A",
+      root,
+      fetchImpl,
+      approval: createTrpg1462TestApproval(),
+      apiKey: TRPG_1462_TEST_API_KEY,
+      transport: "mock",
+    });
+    assert.equal(result.blocked, true);
+    assert.equal(result.reason, "TEST_ONLY_NETWORK_FORBIDDEN");
+    assert.equal(result.posts, 0);
+    assert.equal(count.n, 0);
+    assert.equal(existsSync(trpg1462PrecallJournalPath(root)), false);
+  });
+
+  it("rejects MOCK_LIVE_GATE + transport mock + untagged fetch before reserve", async () => {
+    const root = tempRoot();
+    const { fetchImpl, count } = countingUntaggedFetch();
+    const result = await executeTrpg1462OneShot({
+      requestId: "A",
+      root,
+      fetchImpl,
+      approval: createTrpg1462MockLiveApproval(),
+      apiKey: TRPG_1462_TEST_API_KEY,
+      transport: "mock",
+    });
+    assert.equal(result.blocked, true);
+    assert.equal(result.reason, "LIVE_APPROVAL_NOT_GRANTED");
+    assert.equal(result.posts, 0);
+    assert.equal(count.n, 0);
+    assert.equal(existsSync(trpg1462PrecallJournalPath(root)), false);
   });
 
   it("LIVE mock concurrent reserve still produces one POST", async () => {

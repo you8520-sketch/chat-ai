@@ -79,7 +79,7 @@ A process crash after `wx` and before the lock token is written leaves an unclea
 
 ## LIVE APPROVAL GATE
 
-TEST_ONLY and LIVE are separate records. TEST_ONLY cannot take `transport: "live"` or an untagged/network fetch. A mock LIVE record (`grantedBy=MOCK_LIVE_GATE`) can exercise case IDs, request SHAs, execution SHA, model, provider, maxCalls, and cost cap on the existing executor, but it is not a user-granted paid approval and cannot open a live network POST.
+TEST_ONLY and LIVE are separate records. TEST_ONLY and `grantedBy=MOCK_LIVE_GATE` run only on a trusted tagged mock fetch. `transport: "mock"` does not clear live-path classification; an untagged fetch stays live-capable. `transport: "live"` is always a live path. A mock LIVE record can exercise case IDs, request SHAs, execution SHA, model, provider, maxCalls, and cost cap on the existing executor, but it is not a user-granted paid approval and cannot open a live network POST.
 
 Approved `maxCalls` is compared to journal consumption before reserve. Exceeding the approval budget fails closed with `APPROVAL_MAX_CALLS`. Cursor did not mint a live paid approval and did not call Gemini.
 
