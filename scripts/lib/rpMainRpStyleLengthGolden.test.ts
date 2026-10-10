@@ -270,10 +270,14 @@ describe("MAIN_RP_STYLE_LENGTH golden operator", () => {
       version: 9,
       root,
     });
-    assert.equal(matched.productionRequestParity, "MATCH");
+    assert.equal(matched.productionRequestParity, "NOT_COMPARABLE");
+    assert.equal(matched.fixtureFingerprintParity, "MATCH");
     assert.equal(matched.providerSemanticParity, "NOT_IN_SCOPE");
     assert.equal(matched.qualityScoreEligible, false);
     assert.equal(matched.railwayProductionDb, false);
+    assert.equal(matched.runtimeDeployShaObserved, false);
+    assert.ok(matched.reasons.includes("db_path_is_not_railway_production"));
+    assert.ok(matched.reasons.includes("runtime_deploy_sha_unobserved"));
     const stale = evaluateOwnedProductionRequestParity({
       dbPath: dbFile,
       deployedGitSha: "4d83c100666878cca747408ae72a18f3360310ac",
@@ -281,7 +285,8 @@ describe("MAIN_RP_STYLE_LENGTH golden operator", () => {
       version: 9,
       root,
     });
-    assert.equal(stale.productionRequestParity, "STALE_PRODUCTION_SNAPSHOT");
+    assert.equal(stale.productionRequestParity, "NOT_COMPARABLE");
+    assert.equal(stale.fixtureFingerprintParity, "STALE_PRODUCTION_SNAPSHOT");
     assert.equal(stale.qualityScoreEligible, false);
     const otherDb = path.join(dir, "owned-other.db");
     buildSyntheticDb(otherDb);
@@ -295,7 +300,60 @@ describe("MAIN_RP_STYLE_LENGTH golden operator", () => {
       version: 9,
       root,
     });
-    assert.equal(drifted.productionRequestParity, "MISMATCH");
+    assert.equal(drifted.productionRequestParity, "NOT_COMPARABLE");
+    assert.equal(drifted.fixtureFingerprintParity, "MISMATCH");
     assert.equal(drifted.qualityScoreEligible, false);
+  });
+
+  it("does not grant operational MATCH from a synthetic DB or a spoofed older SHA", () => {
+    const dbFile = path.join(dir, "owned-spoof.db");
+    buildSyntheticDb(dbFile);
+    const loaded = loadPrecallProductionRows({
+      dbPath: dbFile,
+      deployedGitSha: DEPLOY_SHA,
+      env: {},
+    });
+    const assembled = assembleMainRpStyleLengthSnapshot({
+      rows: loaded.rows,
+      deployedGitSha: DEPLOY_SHA,
+      version: 10,
+      listing: { nsfwListing: 1, officialListing: 0, greetingChars: 2 },
+      personaPublicChars: loaded.proof.personaPublicChars,
+      fixtureKind: "CURRENT_LIVE",
+      adminVerified: true,
+    });
+    const root = path.join(dir, "owned-spoof-root");
+    persistMainRpStyleLengthGolden({
+      root,
+      version: 10,
+      sealed: assembled.sealed,
+      publicManifest: { ...assembled.publicManifest, privateStore: `${root}/v10` },
+    });
+    const newerRuntimeSha = "b15e87e75b61d5ae4f84203865a6597df9916064";
+    const injectedRuntime = evaluateOwnedProductionRequestParity({
+      dbPath: dbFile,
+      deployedGitSha: DEPLOY_SHA,
+      env: { RAILWAY_GIT_COMMIT_SHA: DEPLOY_SHA },
+      version: 10,
+      root,
+    });
+    assert.equal(injectedRuntime.productionRequestParity, "NOT_COMPARABLE");
+    assert.equal(injectedRuntime.fixtureFingerprintParity, "MATCH");
+    assert.equal(injectedRuntime.railwayProductionDb, false);
+    assert.equal(injectedRuntime.runtimeDeployShaObserved, true);
+    assert.equal(injectedRuntime.qualityScoreEligible, false);
+    const spoofedOldSha = evaluateOwnedProductionRequestParity({
+      dbPath: dbFile,
+      deployedGitSha: DEPLOY_SHA,
+      env: { RAILWAY_GIT_COMMIT_SHA: newerRuntimeSha },
+      version: 10,
+      root,
+    });
+    assert.notEqual(spoofedOldSha.productionRequestParity, "MATCH");
+    assert.equal(spoofedOldSha.productionRequestParity, "NOT_COMPARABLE");
+    assert.equal(spoofedOldSha.fixtureFingerprintParity, "MATCH");
+    assert.ok(spoofedOldSha.reasons.includes("caller_deploy_sha_does_not_match_runtime"));
+    assert.ok(spoofedOldSha.reasons.includes("stale_production_snapshot"));
+    assert.equal(spoofedOldSha.qualityScoreEligible, false);
   });
 });

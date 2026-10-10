@@ -1,6 +1,6 @@
 # OpenScale DeepSeek V4.1 Flash RP Pilot
 
-Status: **NOT_COMPARABLE / SEMANTIC_PARITY_UNCONFIRMED — caller provenance cannot grant `PRODUCTION_PARITY_VERIFIED`. Production-request comparison is owned by `evaluateOwnedProductionRequestParity` (golden reload + live DB read + fresh assembly). OpenScale transport meaning stays unconfirmed. `qualityScoreEligible` stays false. Draft only. Provider POST 0. Cursor did not assign an RP style score.**
+Status: **NOT_COMPARABLE / SEMANTIC_PARITY_UNCONFIRMED — caller provenance cannot grant `PRODUCTION_PARITY_VERIFIED`. Owned production-request `MATCH` requires Railway `/data/app.db` plus an observed 40-hex `RAILWAY_GIT_COMMIT_SHA`. A synthetic DB fingerprint hit is fixture diagnostic only. OpenScale transport meaning stays unconfirmed. `qualityScoreEligible` stays false. Draft only. Provider POST 0. Cursor did not assign an RP style score.**
 
 This is an isolated provider experiment. It is not a production supplier promotion.
 

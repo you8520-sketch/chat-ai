@@ -6,6 +6,7 @@
 import { createHash } from "node:crypto";
 
 import { MAIN_RP_MODEL_IDS, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
+import { readRailwayDeploymentSha } from "@/lib/opsRequestIncidents";
 import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
 import {
   buildPaidRunnerPublicManifest,
@@ -392,18 +393,34 @@ export function compareCurrentLiveToGolden(input: {
 
 const RAILWAY_PRODUCTION_DB_PATH = "/data/app.db";
 
+export type OwnedFingerprintParity =
+  | "MATCH"
+  | "MISMATCH"
+  | "STALE_PRODUCTION_SNAPSHOT"
+  | "NOT_COMPARABLE";
+
 export type OwnedProductionRequestParity = {
-  productionRequestParity: "MATCH" | "MISMATCH" | "STALE_PRODUCTION_SNAPSHOT" | "NOT_COMPARABLE";
+  productionRequestParity: OwnedFingerprintParity;
+  fixtureFingerprintParity: OwnedFingerprintParity;
   providerSemanticParity: "NOT_IN_SCOPE";
   qualityScoreEligible: false;
   reasons: readonly string[];
   railwayProductionDb: boolean;
+  runtimeDeployShaObserved: boolean;
 };
 
+function observedRuntimeDeploySha(
+  env: Readonly<Record<string, string | undefined>>
+): string {
+  const sha = readRailwayDeploymentSha(env as NodeJS.ProcessEnv);
+  return /^[0-9a-f]{40}$/.test(sha) ? sha : "";
+}
+
 /**
- * Reads the sealed golden and the live DB itself. Caller-supplied hashes and
- * provenance labels are not arguments. This is production-request parity only.
- * Provider transport meaning and quality scores stay separate.
+ * Reloads the sealed golden and the given DB itself. Caller hashes are not
+ * evidence. Operational MATCH requires Railway `/data/app.db` plus an observed
+ * 40-hex `RAILWAY_GIT_COMMIT_SHA` that equals both the caller SHA and the
+ * golden SHA. A temp-DB fingerprint hit is fixture diagnostic only.
  */
 export function evaluateOwnedProductionRequestParity(input: {
   dbPath: string;
@@ -421,10 +438,16 @@ export function evaluateOwnedProductionRequestParity(input: {
   const assembled = assemblePrecallFinalWireWithSealedRequests(live.rows);
   const reasons: string[] = [];
   const goldenSha = golden.publicManifest.deployedGitSha.trim().toLowerCase();
-  const liveSha = input.deployedGitSha.trim().toLowerCase();
+  const callerSha = input.deployedGitSha.trim().toLowerCase();
+  const runtimeSha = observedRuntimeDeploySha(input.env);
+  const runtimeDeployShaObserved = runtimeSha.length === 40;
   const railwayProductionDb = input.dbPath === RAILWAY_PRODUCTION_DB_PATH;
   if (!railwayProductionDb) reasons.push("db_path_is_not_railway_production");
-  if (goldenSha !== liveSha) reasons.push("stale_production_snapshot");
+  if (!runtimeDeployShaObserved) reasons.push("runtime_deploy_sha_unobserved");
+  else if (runtimeSha !== callerSha) reasons.push("caller_deploy_sha_does_not_match_runtime");
+  if (goldenSha !== callerSha || (runtimeDeployShaObserved && runtimeSha !== goldenSha)) {
+    reasons.push("stale_production_snapshot");
+  }
   const goldenByKey = new Map(
     golden.publicManifest.calls.map((call) => [`${call.fixtureId}:${call.canonicalId}`, call])
   );
@@ -440,17 +463,28 @@ export function evaluateOwnedProductionRequestParity(input: {
     }
   }
   if (fingerprintMismatch) reasons.push("final_wire_or_body_fingerprint_mismatch");
-  let productionRequestParity: OwnedProductionRequestParity["productionRequestParity"] = "MATCH";
-  if (goldenSha !== liveSha) productionRequestParity = "STALE_PRODUCTION_SNAPSHOT";
-  else if (fingerprintMismatch) productionRequestParity = "MISMATCH";
+  const fixtureFingerprintParity: OwnedFingerprintParity =
+    goldenSha !== callerSha
+      ? "STALE_PRODUCTION_SNAPSHOT"
+      : fingerprintMismatch
+        ? "MISMATCH"
+        : "MATCH";
+  let productionRequestParity: OwnedFingerprintParity = "NOT_COMPARABLE";
+  if (railwayProductionDb && runtimeDeployShaObserved && runtimeSha === callerSha) {
+    if (runtimeSha !== goldenSha) productionRequestParity = "STALE_PRODUCTION_SNAPSHOT";
+    else if (fingerprintMismatch) productionRequestParity = "MISMATCH";
+    else productionRequestParity = "MATCH";
+  }
   reasons.push("provider_semantic_parity_not_evaluated");
   reasons.push("quality_score_requires_separate_gate");
   return {
     productionRequestParity,
+    fixtureFingerprintParity,
     providerSemanticParity: "NOT_IN_SCOPE",
     qualityScoreEligible: false,
     reasons,
     railwayProductionDb,
+    runtimeDeployShaObserved,
   };
 }
 

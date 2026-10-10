@@ -8,6 +8,12 @@
   "originMainSuccessSha": "NOT_OBSERVED_THIS_TURN",
   "previouslyObservedSuccessShaNotReused": "4d83c100666878cca747408ae72a18f3360310ac",
   "productionRequestParity": "NOT_OWNED_BY_CALLER",
+  "ownedProductionRequestParity": "NOT_COMPARABLE",
+  "ownedMatchRequires": [
+    "/data/app.db",
+    "observed 40-hex RAILWAY_GIT_COMMIT_SHA equal to caller and golden"
+  ],
+  "syntheticDbFingerprintMatch": "fixture_diagnostic_only",
   "providerSemanticParity": "SEMANTIC_PARITY_UNCONFIRMED",
   "productionParityOwner": "scripts/lib/rpMainRpStyleLengthGolden.evaluateOwnedProductionRequestParity",
   "advisoryParityClassifier": "src/lib/rpMainRpStyleLengthFixture.classifyMainRpProductionParity",
