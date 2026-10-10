@@ -12,6 +12,7 @@ import {
 } from "@/lib/chatModels";
 import { MainRpStyleLengthFixtureError } from "@/lib/rpMainRpStyleLengthFixture";
 import {
+  CANONICAL_RP_QUALIFICATION_SOURCE,
   buildCanonicalRpQualificationCases,
   buildCanonicalRpQualificationContextInput,
 } from "./rpModelQualificationFixture";
@@ -23,6 +24,7 @@ import {
   buildRpActiveModelQualityPlan,
   buildRpActiveModelQualityRequest,
   executeRpActiveModelQualityProbe,
+  renderRpActiveModelQualityMarkdown,
   resolveRpActiveModelQualitySource,
   runRpActiveModelQualityLive,
 } from "./rpActiveModelQualityLive";
@@ -156,6 +158,38 @@ describe("rpActiveModelQualityLive", () => {
     assert.match(yml, /PR trigger absent; provider calls=0/);
     assert.match(yml, /RP_ACTIVE_MODEL_QUALITY_SOURCE: HISTORICAL_ONLY/);
     assert.doesNotMatch(yml, /gh pr merge|--auto\b|ready-for-review/);
+  });
+
+  it("does not title HISTORICAL_ONLY evidence as current-site memory quality", () => {
+    const markdown = renderRpActiveModelQualityMarkdown({
+      version: 2,
+      generatedAt: "2026-10-10T00:00:00.000Z",
+      source: CANONICAL_RP_QUALIFICATION_SOURCE,
+      modelIds: RP_ACTIVE_MODEL_QUALITY_MODEL_IDS,
+      excludedModels: RP_ACTIVE_MODEL_QUALITY_EXCLUDED,
+      ordinaryInputAuthoringLevel: "NORMAL",
+      providerCalls: 0,
+      maxProviderCalls: RP_ACTIVE_MODEL_QUALITY_MAX_CALLS,
+      qualityScoreGenerated: false,
+      results: [],
+      notes: ["HISTORICAL_ONLY: 2026-08-25 character id=10 dump."],
+      memoryEvidenceProvenance: "HISTORICAL_ONLY",
+      canClaimCurrentLiveProvider: false,
+    });
+    assert.match(markdown, /^# HISTORICAL_ONLY memory evidence — not current-site quality/m);
+    assert.match(markdown, /memory evidence provenance: \*\*HISTORICAL_ONLY\*\*/);
+    assert.match(markdown, /character: id=10/);
+    assert.match(markdown, /CURRENT_LIVE_PROVIDER claim: \*\*false\*\*/);
+    assert.doesNotMatch(markdown, /# Active Main RP — Human Quality Review Evidence/);
+  });
+
+  it("keeps Phase 1 retrieve fixtures in research and episodic CI gates", () => {
+    const research = readFileSync(".github/workflows/memory-research-cycle.yml", "utf8");
+    const episodic = readFileSync(".github/workflows/validate-memory-episodic.yml", "utf8");
+    assert.match(research, /monthlyRpMemoryQualityPhase1\.test\.ts/);
+    assert.match(research, /memoryEvidenceProvenance\.test\.ts/);
+    assert.match(episodic, /monthlyRpMemoryQualityPhase1\.test\.ts/);
+    assert.match(episodic, /memoryEvidenceProvenance\.test\.ts/);
   });
 
   it("parses one bounded fake SSE generation without retry/fallback", async () => {

@@ -40,10 +40,12 @@ function writeNotRun(reason: string): void {
   writeFileSync(
     join(OUTPUT_DIR, "REPORT.md"),
     [
-      "# Active Main RP — Human Quality Review Evidence",
+      "# HISTORICAL_ONLY memory evidence — not current-site quality",
       "",
       "- status: **NOT_RUN**",
       `- reason: ${reason}`,
+      "- memory evidence provenance: **HISTORICAL_ONLY**",
+      "- CURRENT_LIVE_PROVIDER claim: **false**",
       "- provider calls: **0**",
       "",
     ].join("\n"),
