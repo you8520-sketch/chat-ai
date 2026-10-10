@@ -57,4 +57,8 @@ Paid case D_1480 emitted `players[0].hp=8` with no input HP change. That run nev
 
 ## PROOF
 
-Deterministic `unauthorizedLocationPersist.test.ts` and `campaignLedger.test.ts`: fail-before on main (talk-at-vent persists dest), pass-after bind (stays), adjacent walk/enter/opening/regenerate/failed-move preserved.
+Deterministic `unauthorizedLocationPersist.test.ts` and `campaignLedger.test.ts` through `commitPendingGmResult`:
+- Fail-before on #1489 HEAD `d11c1da1`: talk-at-vent stays blocked; paid C_1465 / C_1480 tea-house interiors were rejected back to `회린 부두`
+- Pass-after this patch: C_1465 `석등 골목 찻집 내부` and C_1480 `석등 골목 찻집 안` persist on ledger + sheet
+- Controls kept: vent-talk, `주점으로 간다.`, `주점으로 걸어간다.`, `우측 환풍구로 걸어간다.`, negation, north/south, left/right, per-PC, opening, regenerate, failure tier
+- Persist files 50/50 (original 44 + 6 C/direct regressions). `actionCheck.test.ts` 29/29
