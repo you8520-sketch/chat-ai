@@ -131,6 +131,10 @@ A later event-time ranker could starve recent RAW-adjacent facts if added carele
 
 `src/lib/memory/monthlyRpMemoryQualityPhase1.test.ts` — live-path A–I plus 10k cap. No Cursor quality score.
 
+- Phase 1 + `memory-retrieval-v2` + `episodicMemoryTemporal`: 27/27 pass (C now injects both dated events).
+- Adjacent `memory-distinctive-utterance-audit` + `memory-episodic-long-horizon` + `episodicMemoryFacts.test.ts`: 130/134. The same 4 `episodicMemoryFacts.test.ts` failures exist on main `b864d7eb` (persist `messages` table / empty browse retrieve). Not introduced here.
+- `git diff --check`, `npm run lint`, `npm run typecheck:app`: pass.
+
 ## SYSTEM DELTA
 
 One retrieve-tokenizer keep-list + one deterministic live-path suite + this report. No second memory stack. No OpenScale / #1490 change. No monthly paid-job retarget.
