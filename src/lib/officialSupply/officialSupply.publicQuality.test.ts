@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 
 import { compileOfficialDraftFromBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
 import { buildOfficialCharacterFormBody } from "@/lib/officialSupply/characterText";
+import { canonicalPrimaryTrope } from "@/lib/officialSupply/marketFit";
 import { buildOfficialAssetPrompts } from "@/lib/officialSupply/imagePrompt";
 import {
   HWANG_VOCAB,
@@ -373,14 +374,14 @@ describe("Wolfgang GPT-authored public copy", () => {
       file.brief.rpHook,
       "금지 마석 사건과 연결된 당신의 처형 명령서에 자신의 인장이 찍힌 것을 발견한 북부대공이, 흑철 요새에서 당신과 문서의 진위를 확인하려 한다."
     );
-    assert.equal(file.brief.relationshipTrope, "누명으로 얽힌 혐관, 선택에 따라 깊어질 수 있는 신뢰");
+    assert.equal(file.brief.relationshipTrope, "의심 속에서도 처형을 막는 보호자, 선택에 따라 깊어지는 신뢰");
     assert.equal(
       file.bible.userRelationship.initialView,
       "금지 마석 사건의 관련자로 황실 처형 명령서에 이름이 적힌 인물. 서류의 진위가 불분명하므로 경계하지만 유죄라고 단정하지 않는다."
     );
     assert.equal(
       file.bible.userRelationship.userRole,
-      "당신은 금지 마석 사건과 위조 처형 명령서의 진위를 자신의 방식으로 확인할 수 있다. 기록을 조사할지, 명령을 공개할지, 봉인을 지킬지는 당신의 선택이다."
+      "당신은 위조 처형 명령서의 진위를 확인할 수 있다. 기록을 조사할지, 명령을 공개할지, 봉인을 지킬지는 당신의 선택이다."
     );
     const world = readJson<{ bible: OfficialWorldBible }>(path.join(PILOT_DIR, "world-bible.json"));
     const portfolio = world.bible.portfolio.find((item) => item.slot === 2);
@@ -391,12 +392,21 @@ describe("Wolfgang GPT-authored public copy", () => {
     assert.equal(draft.hook.rpHook, file.brief.rpHook);
     assert.equal(draft.hook.relationshipTrope, file.brief.relationshipTrope);
     assert.match(comment, /금지 마석 사건과 연결된 당신의 처형 명령서/);
-    assert.match(comment, /누명으로 얽힌 혐관, 선택에 따라 깊어질 수 있는 신뢰/);
+    assert.match(comment, /의심 속에서도 처형을 막는 보호자, 선택에 따라 깊어지는 신뢰/);
+    assert.match(comment, /당신은 위조 처형 명령서의 진위를 확인할 수 있다/);
+    assert.doesNotMatch(comment, /자신의 방식으로 확인할 수 있다/);
+    assert.doesNotMatch(comment, /진위를 자신의<\/p>/);
     assert.doesNotMatch(comment, /압송해 심문/);
     assert.doesNotMatch(comment, /정략적 혐오에서 맹목적 충성으로/);
     assert.deepEqual(officialPlayStartChoices(draft), ["기록을 조사할지", "명령을 공개할지", "봉인을 지킬지"]);
     assert.match(comment, /기록을 조사할지 · 명령을 공개할지 · 봉인을 지킬지/);
     assert.doesNotMatch(file.bible.userRelationship.initialView, /유죄라고 단정한다|이미 유죄/);
+    assert.equal(canonicalPrimaryTrope(file.brief.relationshipTrope), "보호자");
+    assert.equal(canonicalPrimaryTrope(portfolio!.relationshipTrope), "보호자");
+    const edric = readJson<PilotChar>(path.join(PILOT_DIR, "characters", "pilot-rf-06.json"));
+    const noel = readJson<PilotChar>(path.join(PILOT_DIR, "characters", "pilot-rf-08.json"));
+    assert.equal(canonicalPrimaryTrope(edric.brief.relationshipTrope), "혐관");
+    assert.equal(canonicalPrimaryTrope(noel.brief.relationshipTrope), "혐관");
   });
 });
 
