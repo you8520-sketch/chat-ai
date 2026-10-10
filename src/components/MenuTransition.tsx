@@ -57,9 +57,29 @@ import {
   type ChatRoomRef,
 } from "@/lib/chatResumeTransition";
 import ChatResumeScene, { type ChatResumeScene as ChatScene } from "@/components/ChatResumeScene";
+import {
+  TRPG_RESUME_ATTR,
+  TRPG_RESUME_GLYPH_ATTR,
+  TRPG_RESUME_NAME_ATTR,
+  TRPG_RESUME_TIMING,
+  TRPG_ROOM_ID_ATTR,
+  computeTrpgResumeLayout,
+  decideTrpgBurstAction,
+  isSameTrpgRoom,
+  parseTrpgResumeHref,
+  parseTrpgRoomPath,
+  resolveTrpgArrival,
+  resolveTrpgResumeTarget,
+  trpgResumeInkRadius,
+  trpgResumeIris,
+  trpgResumePageLooksFailed,
+  trpgResumeRevealDelayMs,
+  type TrpgRoomRef,
+} from "@/lib/trpgResumeTransition";
+import TrpgResumeScene, { type TrpgResumeScene as TrpgScene } from "@/components/TrpgResumeScene";
 
 /**
- * 공통 전환 lifecycle의 단일 owner (Phase C 메뉴 + Phase D-1 캐릭터 reveal + Phase D-2 채팅방 이어가기).
+ * 공통 전환 lifecycle의 단일 owner (Phase C 메뉴 + Phase D-1 캐릭터 + Phase D-2 채팅 + Phase D-3 TRPG).
  *
  * - canonical navigation owner는 기존 `next/link` 그대로 (href·redirect·query 불변).
  * - 시각 렌더만 kind로 구분한다.
@@ -67,7 +87,9 @@ import ChatResumeScene, { type ChatResumeScene as ChatScene } from "@/components
  *   - `character`: 캐릭터 카드(`data-character-card`)의 프로필 링크 클릭 → artwork reveal.
  *   - `chat`: 최근 활동의 캐릭터 채팅 행(`data-chat-resume`) 클릭 → 기존 채팅방 reveal.
  *     방은 characterId + chatId로 식별하고(query-only 이동 포함), 실제 방 마커가 도착해야 분할한다.
- *   콘텐츠 링크(태그·제작자)·TRPG 최근 활동·history traversal은 대상 아님.
+ *   - `trpg`: 최근 활동의 TRPG 행(`data-trpg-resume`) 클릭 → 기존 캠페인 방 reveal.
+ *     캠페인 id로 식별하고, 실제 룸 마커가 도착해야 분할한다. 로비(`/trpg`)는 대상 아님.
+ *   콘텐츠 링크(태그·제작자)·history traversal은 대상 아님.
  * - navigation을 지연시키지 않고, router를 직접 호출하지 않으며,
  *   오버레이는 항상 `pointer-events: none`이라 기능을 가로막지 않는다.
  */
@@ -90,7 +112,15 @@ type ChatBurst = BurstBase & {
   /** 클릭 당시 위치. 늦은 RSC 동안 그대로면 pending이다. */
   from: string;
 };
-type Burst = MenuBurst | CharacterBurst | ChatBurst;
+type TrpgBurst = BurstBase & {
+  kind: "trpg";
+  scene: TrpgScene;
+  origin: TrpgRoomRef | null;
+  url: string;
+  superseded: string[];
+  from: string;
+};
+type Burst = MenuBurst | CharacterBurst | ChatBurst | TrpgBurst;
 
 function timingFor(kind: Burst["kind"]) {
   switch (kind) {
@@ -100,6 +130,8 @@ function timingFor(kind: Burst["kind"]) {
       return CHARACTER_REVEAL_TIMING;
     case "chat":
       return CHAT_RESUME_TIMING;
+    case "trpg":
+      return TRPG_RESUME_TIMING;
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;
@@ -115,6 +147,8 @@ function revealDelayFor(kind: Burst["kind"], elapsedMs: number): number {
       return characterRevealDelayMs(elapsedMs);
     case "chat":
       return chatResumeRevealDelayMs(elapsedMs);
+    case "trpg":
+      return trpgResumeRevealDelayMs(elapsedMs);
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;
@@ -241,6 +275,42 @@ function currentChatRoom(): ChatRoomRef | null {
   return readChatRoom() ?? parseChatResumeHref(window.location.pathname, window.location.search);
 }
 
+/** 실제 TRPG 룸(TrpgRoomClient 루트 마커)에 지금 열려 있는 캠페인. 없으면 null. */
+function readTrpgRoom(): TrpgRoomRef | null {
+  const el = document.querySelector(`[${TRPG_ROOM_ID_ATTR}]`);
+  if (!el) return null;
+  const campaignId = Number(el.getAttribute(TRPG_ROOM_ID_ATTR));
+  return Number.isSafeInteger(campaignId) && campaignId > 0 ? { campaignId } : null;
+}
+
+function currentTrpgRoom(): TrpgRoomRef | null {
+  return readTrpgRoom() ?? parseTrpgResumeHref(window.location.pathname, window.location.search);
+}
+
+/** 클릭한 TRPG 행의 D20 원과 공개 제목만 읽어 scene을 만든다. 원을 못 읽으면 null. */
+function buildTrpgResumeScene(anchor: Element, room: TrpgRoomRef): TrpgScene | null {
+  const glyph = anchor.querySelector(`[${TRPG_RESUME_GLYPH_ATTR}]`);
+  if (!(glyph instanceof HTMLElement)) return null;
+  const rect = glyph.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const d = Math.min(rect.width, rect.height);
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+  if (d < 16 || x < 0 || x > vw || y < 0 || y > vh) return null;
+
+  const { lines, maxChars } = splitRevealName(anchor.getAttribute(TRPG_RESUME_NAME_ATTR) ?? "");
+  const layout = computeTrpgResumeLayout(vw, vh, lines.length, maxChars);
+  const origin: RevealRect = { left: x - d / 2, top: y - d / 2, width: d, height: d };
+  return {
+    room,
+    lines,
+    layout,
+    ink: { x, y, r0: d / 2, r1: trpgResumeInkRadius(x, y, vw, vh) },
+    iris: trpgResumeIris(origin, layout.frame),
+  };
+}
+
 /** 클릭한 최근 활동 행에서 이미 보이던 공개 썸네일·이름만 읽어 scene을 만든다. 썸네일 원을 못 읽으면 null. */
 function buildChatResumeScene(anchor: Element, room: ChatRoomRef): ChatScene | null {
   const thumb = anchor.querySelector(`[${CHAT_RESUME_THUMB_ATTR}]`);
@@ -289,6 +359,8 @@ export default function MenuTransitionHost() {
   const startedAt = useRef(0);
   const chatLeftOrigin = useRef(false);
   const chatRevealArmed = useRef(false);
+  const trpgLeftOrigin = useRef(false);
+  const trpgRevealArmed = useRef(false);
 
   function clearTimers() {
     for (const t of timers.current) window.clearTimeout(t);
@@ -339,20 +411,28 @@ export default function MenuTransitionHost() {
       chatLeftOrigin.current = false;
       chatRevealArmed.current = false;
     }
+    if (next.kind === "trpg") {
+      trpgLeftOrigin.current = false;
+      trpgRevealArmed.current = false;
+    }
     setBurst(next);
     const timing = timingFor(next.kind);
-    // 메뉴·캐릭터는 도착이 늦어도 holdMax에 분할한다. 채팅은 실제 방이 오기 전에
+    // 메뉴·캐릭터는 도착이 늦어도 holdMax에 분할한다. 채팅·TRPG는 실제 방이 오기 전에
     // 분할하면 이전 화면이 드러나므로 holdMax로 열지 않는다.
-    if (next.kind !== "chat") {
+    if (next.kind !== "chat" && next.kind !== "trpg") {
       timers.current.push(window.setTimeout(() => beginReveal(next.id), timing.holdMaxMs));
     }
-    // 이동 실패 대비 failsafe. 채팅의 pending(늦은 RSC)은 여기로 걷지 않는다.
+    // 이동 실패 대비 failsafe. 채팅·TRPG의 pending(늦은 RSC)은 여기로 걷지 않는다.
     timers.current.push(
       window.setTimeout(() => {
         const cur = burstRef.current;
         if (!cur || cur.id !== next.id) return;
         if (cur.kind === "chat") {
           syncChatBurst(cur.id);
+          return;
+        }
+        if (cur.kind === "trpg") {
+          syncTrpgBurst(cur.id);
           return;
         }
         burstRef.current = null;
@@ -399,6 +479,44 @@ export default function MenuTransitionHost() {
     }
   }
 
+  function syncTrpgBurst(id: number) {
+    const cur = burstRef.current;
+    if (!cur || cur.id !== id || cur.kind !== "trpg") return;
+    if (parseTrpgRoomPath(window.location.pathname) !== null) trpgLeftOrigin.current = true;
+    const arrival = resolveTrpgArrival({
+      dest: cur.scene.room,
+      origin: cur.origin,
+      room: readTrpgRoom(),
+      pathname: window.location.pathname,
+      url: `${window.location.pathname}${window.location.search}`,
+      superseded: cur.superseded,
+      from: cur.from,
+      leftOrigin: trpgLeftOrigin.current,
+    });
+    const action = decideTrpgBurstAction(
+      arrival,
+      arrival === "pending" && trpgResumePageLooksFailed(document, window.location.pathname),
+    );
+    switch (action) {
+      case "drop":
+        dropBurst(id);
+        return;
+      case "hold":
+        return;
+      case "reveal":
+        if (cur.phase === "cover" && !trpgRevealArmed.current) {
+          trpgRevealArmed.current = true;
+          const delay = revealDelayFor("trpg", performance.now() - startedAt.current);
+          timers.current.push(window.setTimeout(() => beginReveal(id), delay));
+        }
+        return;
+      default: {
+        const _exhaustive: never = action;
+        return _exhaustive;
+      }
+    }
+  }
+
   function scheduleMenuBurst(spec: MenuTransitionSpec, dest: string) {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     burstSeq += 1;
@@ -431,7 +549,28 @@ export default function MenuTransitionHost() {
     });
   }
 
-  // BEAT 1 — 승인된 영역(메뉴 / 캐릭터 카드 / 최근 채팅 행)의 클릭에 즉각 반응. navigation은 그대로 진행.
+  function scheduleTrpgBurst(scene: TrpgScene, dest: URL, origin: TrpgRoomRef | null) {
+    const running = burstRef.current;
+    const superseded = running
+      ? running.kind === "trpg"
+        ? [...running.superseded, running.url]
+        : [running.dest]
+      : [];
+    burstSeq += 1;
+    startBurst({
+      kind: "trpg",
+      id: burstSeq,
+      scene,
+      dest: dest.pathname,
+      url: `${dest.pathname}${dest.search}`,
+      from: `${window.location.pathname}${window.location.search}`,
+      origin,
+      superseded,
+      phase: "cover",
+    });
+  }
+
+  // BEAT 1 — 승인된 영역(메뉴 / 캐릭터 카드 / 최근 채팅 행 / TRPG 행)의 클릭에 즉각 반응. navigation은 그대로 진행.
   useEffect(() => {
     function onClickCapture(e: MouseEvent) {
       if (!isPlainLeftClick(e)) return;
@@ -445,7 +584,29 @@ export default function MenuTransitionHost() {
       if (dest.origin !== window.location.origin) return;
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-      // 최근 활동의 캐릭터 채팅 행(href가 정확히 /chat/:id?chat=:chatId)만. TRPG·성인 가림(/verify) 행은 마커가 없다.
+      // 최근 활동의 TRPG 캠페인 행(href가 정확히 /trpg/:id)만. 로비·메뉴 `/trpg`는 마커가 없다.
+      if (anchor.hasAttribute(TRPG_RESUME_ATTR)) {
+        const room = resolveTrpgResumeTarget({
+          markerCampaignId: anchor.getAttribute(TRPG_RESUME_ATTR),
+          destPathname: dest.pathname,
+          destSearch: dest.search,
+        });
+        if (reduced || !room) return;
+        const current = currentTrpgRoom();
+        if (isSameTrpgRoom(current, room)) return;
+        const running = burstRef.current;
+        if (running?.kind === "trpg" && isSameTrpgRoom(running.scene.room, room)) return;
+        const scene = buildTrpgResumeScene(anchor, room);
+        if (!scene) return;
+        anchor.classList.remove("tr-pick");
+        void anchor.offsetWidth;
+        anchor.classList.add("tr-pick");
+        window.setTimeout(() => anchor.classList.remove("tr-pick"), 420);
+        scheduleTrpgBurst(scene, dest, current);
+        return;
+      }
+
+      // 최근 활동의 캐릭터 채팅 행(href가 정확히 /chat/:id?chat=:chatId)만. 성인 가림(/verify) 행은 마커가 없다.
       if (anchor.hasAttribute(CHAT_RESUME_ATTR)) {
         const room = resolveChatResumeTarget({
           markerCharacterId: anchor.getAttribute(CHAT_RESUME_ATTR),
@@ -521,6 +682,10 @@ export default function MenuTransitionHost() {
       syncChatBurst(cur.id);
       return;
     }
+    if (cur.kind === "trpg") {
+      syncTrpgBurst(cur.id);
+      return;
+    }
     if (prev.path === pathname) return;
     if (cur.kind === "character" && pathname !== cur.dest) {
       if (parseCharacterProfilePath(pathname) === null) dropBurst(cur.id);
@@ -531,18 +696,24 @@ export default function MenuTransitionHost() {
     timers.current.push(window.setTimeout(() => beginReveal(cur.id), delay));
   }, [pathname, search]);
 
-  // 채팅 전환: URL이 먼저 커밋되고 방 마커가 늦게 붙는 경우를 같은 owner 안에서 감지한다.
+  // 채팅·TRPG 전환: URL이 먼저 커밋되고 룸 마커가 늦게 붙는 경우를 같은 owner 안에서 감지한다.
   useEffect(() => {
-    if (!burst || burst.kind !== "chat") return;
+    if (!burst || (burst.kind !== "chat" && burst.kind !== "trpg")) return;
     const id = burst.id;
-    const mo = new MutationObserver(() => syncChatBurst(id));
+    const kind = burst.kind;
+    const mo = new MutationObserver(() => {
+      if (kind === "chat") syncChatBurst(id);
+      else syncTrpgBurst(id);
+    });
     mo.observe(document.documentElement, {
       subtree: true,
       childList: true,
       attributes: true,
-      attributeFilter: [CHAT_ROOM_ID_ATTR, CHAT_ROOM_CHARACTER_ATTR],
+      attributeFilter:
+        kind === "chat" ? [CHAT_ROOM_ID_ATTR, CHAT_ROOM_CHARACTER_ATTR] : [TRPG_ROOM_ID_ATTR],
     });
-    syncChatBurst(id);
+    if (kind === "chat") syncChatBurst(id);
+    else syncTrpgBurst(id);
     return () => mo.disconnect();
   }, [burst?.id, burst?.kind]);
 
@@ -576,6 +747,8 @@ export default function MenuTransitionHost() {
       return <CharacterRevealScene key={burst.id} scene={burst.scene} phase={burst.phase} />;
     case "chat":
       return <ChatResumeScene key={burst.id} scene={burst.scene} phase={burst.phase} />;
+    case "trpg":
+      return <TrpgResumeScene key={burst.id} scene={burst.scene} phase={burst.phase} />;
     default: {
       const _exhaustive: never = burst;
       return _exhaustive;

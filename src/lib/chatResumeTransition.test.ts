@@ -426,7 +426,7 @@ describe("chat resume ownership", () => {
   });
 
   it("css uses only compositor properties, never blocks input and is off for reduced motion", () => {
-    const block = css.slice(css.indexOf("/* Phase D-2"), css.indexOf("@keyframes float-points-up"));
+    const block = css.slice(css.indexOf("/* Phase D-2"), css.indexOf("/* Phase D-3"));
     assert.match(block, /\.cr-veil \{[^}]*pointer-events: none/);
     assert.match(block, /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.cr-veil \{\s*display: none;/);
     assert.doesNotMatch(block, /animation:[^;]*\b(width|height|top|left)\b/);
@@ -438,7 +438,7 @@ describe("chat resume ownership", () => {
   });
 
   it("does not paint the Phase C primary-colour slab or the D-1 reveal classes", () => {
-    const block = css.slice(css.indexOf("/* Phase D-2"), css.indexOf("@keyframes float-points-up"));
+    const block = css.slice(css.indexOf("/* Phase D-2"), css.indexOf("/* Phase D-3"));
     assert.doesNotMatch(block, /menu-|\brv-/);
     assert.doesNotMatch(read("src/components/ChatResumeScene.tsx"), /menu-veil|rv-veil|--menu-accent/);
   });
