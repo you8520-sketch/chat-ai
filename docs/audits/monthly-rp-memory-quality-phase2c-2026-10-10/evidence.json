@@ -3,6 +3,10 @@
   "executedAt": "2026-10-10T13:28:08.460Z",
   "originMainSha": "3a5238542dd594d72b55e46ba64cb498946b9082",
   "railwaySuccessSha": "3a5238542dd594d72b55e46ba64cb498946b9082",
+  "executionHost": "CURSOR_VM",
+  "runtimeShaSource": "GITHUB_DEPLOY_METADATA",
+  "observedRuntimeSha": null,
+  "railwayShaMeaning": "DEPLOY_METADATA_NOT_OBSERVED_RUNTIME",
   "resolvedModel": "gpt-6-luna",
   "backgroundMemoryModelEnv": null,
   "provider": "cheaperinference",
@@ -91,7 +95,12 @@
   ],
   "provenance": "CURRENT_LIVE_PROVIDER",
   "canClaimCurrentLiveProvider": true,
+  "canClaimCurrentProductionParity": false,
+  "productionRuntimeParity": "UNPROVEN",
+  "productionIdentityParity": "UNPROVEN",
+  "homepageParity": "UNPROVEN",
+  "rerunAuthorized": false,
   "estimatedUsd": 0.000209,
   "billedUsd": 0.000209,
-  "experimentDelta": "Wrapper records callBackgroundMemory args/results only. system, history, turnTrace, requestKind, model, max_tokens, and retry owner stay summarizeTurnBatch."
+  "experimentDelta": "Wrapper recorded callBackgroundMemory args/results only. system, history, turnTrace, requestKind, model, max_tokens, and retry owner stayed summarizeTurnBatch. Execute harness removed after the completed sample."
 }
