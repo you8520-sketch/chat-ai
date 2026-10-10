@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import type { RecentActivityEntry, RecentTrpgCampaignEntry } from "@/lib/recentActivity";
 import type { UserChatSession } from "@/lib/recentChats";
-import { CHAT_RESUME_THUMB_ATTR, chatResumeAttrs } from "@/lib/chatResume";
+import { CHAT_RESUME_THUMB_ATTR, chatResumeAttrs } from "@/lib/chatResumeTransition";
 
 const DEFAULT_MAX_ICONS = 10;
 const COLLAPSED_MAX_ICONS = 8;

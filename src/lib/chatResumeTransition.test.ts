@@ -22,7 +22,7 @@ import {
   parseChatRoomPath,
   resolveChatArrival,
   resolveChatResumeTarget,
-} from "@/lib/chatResume";
+} from "@/lib/chatResumeTransition";
 import { recentCharacterChatHref } from "@/lib/recentActivity";
 import { splitRevealName } from "@/lib/characterReveal";
 
@@ -315,7 +315,7 @@ describe("chat resume ownership", () => {
   it("never mutates sessions: the row is a plain existing Link and no fetch is added", () => {
     assert.match(row, /<Link\s+href=\{href\}/);
     assert.doesNotMatch(host, /fetch\(|XMLHttpRequest|sendBeacon/);
-    assert.doesNotMatch(read("src/lib/chatResume.ts"), /getDb|better-sqlite3|fetch\(/);
+    assert.doesNotMatch(read("src/lib/chatResumeTransition.ts"), /getDb|better-sqlite3|fetch\(/);
   });
 
   it("css uses only compositor properties, never blocks input and is off for reduced motion", () => {

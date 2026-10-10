@@ -7,7 +7,7 @@ import {
   chatResumeGlyphDelayMs,
   type ChatResumeLayout,
   type ChatRoomRef,
-} from "@/lib/chatResume";
+} from "@/lib/chatResumeTransition";
 
 /**
  * Phase D-2 — 최근 활동 채팅방 진입 전환의 순수 렌더러.

@@ -46,7 +46,7 @@ import {
   resolveChatArrival,
   resolveChatResumeTarget,
   type ChatRoomRef,
-} from "@/lib/chatResume";
+} from "@/lib/chatResumeTransition";
 import ChatResumeScene, { type ChatResumeScene as ChatScene } from "@/components/ChatResumeScene";
 
 /**

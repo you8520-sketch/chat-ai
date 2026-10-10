@@ -317,7 +317,7 @@ import {
   resolveChatAssetPresentation,
 } from "@/lib/chatAssetPresentation";
 import { useChatDesktopViewport } from "@/lib/useChatDesktopViewport";
-import { chatRoomAttrs } from "@/lib/chatResume";
+import { chatRoomAttrs } from "@/lib/chatResumeTransition";
 
 const CHAT_FETCH_TIMEOUT_MS = 240_000;
 /** Slow reasoning models (e.g. OpenRouter Opus) need a longer client window. */
