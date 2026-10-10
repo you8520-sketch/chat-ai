@@ -44,6 +44,7 @@ import {
   LUNA_SUMMARY_LIVE_COUPLED_APPROVAL_MANIFEST,
   LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
   LUNA_SUMMARY_LIVE_WIRE_CONTRACT,
+  __setLunaEvalPersistForTests,
   loadLunaSummaryEvalEvidence,
   lunaSummaryEvalEvidencePath,
   lunaSummaryLiveExecuteManifestIdentity,
@@ -350,6 +351,7 @@ describe("50-turn Luna summary execute isolated stub (provider-free)", () => {
   before(() => installIsolatedTestDatabase());
   after(() => {
     __setSummarizeTurnBatchCallerForTests(null);
+    __setLunaEvalPersistForTests(null);
     uninstallIsolatedTestDatabase();
   });
 
@@ -536,6 +538,8 @@ describe("50-turn Luna summary execute isolated stub (provider-free)", () => {
     assert.equal(result.identity.ok, true);
     assert.equal(result.sealedRounds, 10);
     assert.equal(result.frontier, AB_COMPLETED_TURNS);
+    assert.equal(result.executed, true);
+    assert.equal(result.journal.executed, true);
     assert.equal(result.networkPosts, 10);
     assert.equal(result.paidPosts, 0);
     assert.equal(posts, 10);
@@ -618,6 +622,57 @@ describe("50-turn Luna summary execute isolated stub (provider-free)", () => {
       true
     );
   });
+
+  it("does not confirm executed when eval persist fails and keeps reserved history", async () => {
+    __setLunaEvalPersistForTests(() => {
+      throw new Error("EVAL_EVIDENCE_PERSIST_FAILED");
+    });
+    const dir = journalDir();
+    let posts = 0;
+    try {
+      const result = await runAuthorizedLunaSummaryExperiment({
+        userCostApproved: true,
+        experimentKey: EXPERIMENT,
+        env: {},
+        journalDirectory: dir,
+        completion: async (opts) => {
+          posts += 1;
+          return stubCompletion()(opts);
+        },
+      });
+      assert.equal(result.executed, false);
+      assert.equal(result.journal.executed, false);
+      assert.equal(result.abortReason, "EVAL_EVIDENCE_PERSIST_FAILED");
+      assert.equal(result.sealedRounds, 10);
+      assert.equal(result.networkPosts, 10);
+      assert.equal(result.paidPosts, 0);
+      assert.equal(posts, 10);
+      assert.equal(result.journal.entries.length, 10);
+      assert.equal(result.journal.entries.every((entry) => entry.status === "SETTLED"), true);
+      const reloaded = createLunaDurableJournalStore(dir).load(LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
+      assert.equal(reloaded?.executed, false);
+      assert.equal(reloaded?.entries.every((entry) => entry.status === "SETTLED"), true);
+
+      const retry = await runAuthorizedLunaSummaryExperiment({
+        userCostApproved: true,
+        experimentKey: EXPERIMENT,
+        env: {},
+        journalDirectory: dir,
+        completion: async (opts) => {
+          posts += 1;
+          return stubCompletion()(opts);
+        },
+      });
+      assert.equal(retry.abortReason, "PRIOR_RESERVED_HISTORY");
+      assert.equal(retry.executed, false);
+      assert.equal(retry.paidPosts, 0);
+      assert.equal(posts, 10);
+      assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "NOT_APPROVED");
+      assert.equal(lunaSummaryLiveExecuteManifestFingerprint(), LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
+    } finally {
+      __setLunaEvalPersistForTests(null);
+    }
+  });
 });
 
 describe("50-turn Luna eval evidence survives isolated DB removal", () => {
@@ -637,6 +692,7 @@ describe("50-turn Luna eval evidence survives isolated DB removal", () => {
       uninstallIsolatedTestDatabase();
     }
     assert.equal(result.sealedRounds, 10);
+    assert.equal(result.executed, true);
     assert.equal(result.evalEvidence?.probes.map((probe) => probe.id).join(","), AB_PROBES.map((probe) => probe.id).join(","));
     assert.equal(existsSync(lunaSummaryEvalEvidencePath(dir, LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST)), true);
     const reopened = loadLunaSummaryEvalEvidence(dir);

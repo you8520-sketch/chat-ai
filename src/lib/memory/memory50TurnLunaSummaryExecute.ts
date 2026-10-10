@@ -167,7 +167,8 @@ export type LunaExecuteDenialReason =
   | "PRIOR_RESERVED_HISTORY"
   | "SUMMARY_VALIDATION_FAILED"
   | "MISSING_EXPERIMENT_KEY"
-  | "REAL_NETWORK_NOT_ENABLED";
+  | "REAL_NETWORK_NOT_ENABLED"
+  | "EVAL_EVIDENCE_PERSIST_FAILED";
 
 export type LunaDurableStatus =
   | "PREPARED"
@@ -336,7 +337,7 @@ function persistEvalText(
   return fingerprint;
 }
 
-export function persistLunaSummaryEvalEvidence(input: {
+type LunaEvalPersistInput = {
   directory: string;
   artifactStore: PaidRunnerArtifactStore;
   sealedRounds: number;
@@ -351,7 +352,21 @@ export function persistLunaSummaryEvalEvidence(input: {
     injection: string;
     armACurrentMemory: string;
   }>;
-}): LunaSummaryEvalEvidence {
+};
+
+let persistLunaEvalEvidenceForTests: ((input: LunaEvalPersistInput) => LunaSummaryEvalEvidence) | null =
+  null;
+
+export function __setLunaEvalPersistForTests(
+  persist: ((input: LunaEvalPersistInput) => LunaSummaryEvalEvidence) | null
+): void {
+  persistLunaEvalEvidenceForTests = persist;
+}
+
+export function persistLunaSummaryEvalEvidence(input: LunaEvalPersistInput): LunaSummaryEvalEvidence {
+  if (persistLunaEvalEvidenceForTests) {
+    return persistLunaEvalEvidenceForTests(input);
+  }
   const resolved = resolveLunaSummaryJournalDirectory({ journalDirectory: input.directory });
   if (!resolved.ok) throw new Error(resolved.reason);
   const globalMemoryFingerprint = persistEvalText(input.artifactStore, 300, input.globalMemory);
@@ -445,6 +460,69 @@ export function loadLunaSummaryEvalEvidence(
         : null,
     })),
   };
+}
+
+export function lunaSummaryEvalEvidenceComplete(input: {
+  reopened: ReturnType<typeof loadLunaSummaryEvalEvidence>;
+  globalMemory: string;
+  armAMemory: string;
+  probes: LunaEvalPersistInput["probes"];
+  journal: LunaDurableJournal;
+  sealedRounds: number;
+  frontier: number;
+}): boolean {
+  const reopened = input.reopened;
+  if (!reopened) return false;
+  if (reopened.evidence.manifestFingerprint !== LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST) return false;
+  if (!reopened.globalMemory || reopened.globalMemory !== input.globalMemory) return false;
+  if (!reopened.armAMemory || reopened.armAMemory !== input.armAMemory) return false;
+  if (
+    reopened.evidence.globalMemoryFingerprint !==
+    paidRunnerArtifactFingerprint(reopened.globalMemory)
+  ) {
+    return false;
+  }
+  if (
+    reopened.evidence.armAMemoryFingerprint !== paidRunnerArtifactFingerprint(reopened.armAMemory)
+  ) {
+    return false;
+  }
+  if (reopened.probes.length !== AB_PROBES.length || reopened.probes.length !== input.probes.length) {
+    return false;
+  }
+  if (
+    !reopened.probes.every((probe, index) => {
+      const expected = input.probes[index];
+      const recorded = reopened.evidence.probes[index];
+      return (
+        expected != null &&
+        recorded != null &&
+        probe.id === expected.id &&
+        probe.id === AB_PROBES[index]?.id &&
+        probe.injection === expected.injection &&
+        probe.armACurrentMemory === expected.armACurrentMemory &&
+        Boolean(probe.injection && probe.armACurrentMemory) &&
+        paidRunnerArtifactFingerprint(probe.injection!) === recorded.injectionFingerprint &&
+        paidRunnerArtifactFingerprint(probe.armACurrentMemory!) ===
+          recorded.armACurrentMemoryFingerprint
+      );
+    })
+  ) {
+    return false;
+  }
+  if (input.sealedRounds !== 10 || input.frontier !== AB_COMPLETED_TURNS) return false;
+  if (reopened.batches.length !== LUNA_SUMMARY_PLANNED_POSTS) return false;
+  return reopened.batches.every((batch, index) => {
+    const entry = input.journal.entries[index];
+    return (
+      entry != null &&
+      batch.rawSummaryFingerprint === entry.rawSummaryFingerprint &&
+      batch.storedSummaryFingerprint === entry.storedSummaryFingerprint &&
+      Boolean(batch.rawSummary && batch.storedSummary) &&
+      paidRunnerArtifactFingerprint(batch.rawSummary!) === batch.rawSummaryFingerprint &&
+      paidRunnerArtifactFingerprint(batch.storedSummary!) === batch.storedSummaryFingerprint
+    );
+  });
 }
 
 export function recoverLunaLeftoverSent(journal: LunaDurableJournal): boolean {
@@ -1079,21 +1157,52 @@ export async function runAuthorizedLunaSummaryExperiment(input: {
     }
     const records = listMemoryRecordsForChat(AB_CHAT_ID).filter((record) => !record.inactive);
     const frontier = highestContiguousCompletedTurn(records, AB_COMPLETED_TURNS);
-    if (sealedRounds === 10 && frontier === AB_COMPLETED_TURNS) {
-      journal.executed = true;
-      store.persist(journal);
+    const readyToCommit =
+      sealedRounds === LUNA_SUMMARY_PLANNED_POSTS &&
+      frontier === AB_COMPLETED_TURNS &&
+      !abortReason;
+    let materials = {
+      globalMemory: "",
+      armAMemory: "",
+      probes: [] as LunaEvalPersistInput["probes"],
+      oracleWrittenToDb: false,
+      answerKeyLeakedIntoArmA: false,
+    };
+    let evalEvidence: LunaSummaryEvalEvidence | null = null;
+    try {
+      materials = await captureLunaEvalMaterials(frontier);
+      evalEvidence = persistLunaSummaryEvalEvidence({
+        directory: journalDir.directory,
+        artifactStore: store.artifactStore,
+        sealedRounds,
+        frontier,
+        journal,
+        globalMemory: materials.globalMemory,
+        armAMemory: materials.armAMemory,
+        probes: materials.probes,
+      });
+      if (readyToCommit) {
+        const reopened = loadLunaSummaryEvalEvidence(journalDir.directory);
+        if (
+          !lunaSummaryEvalEvidenceComplete({
+            reopened,
+            globalMemory: materials.globalMemory,
+            armAMemory: materials.armAMemory,
+            probes: materials.probes,
+            journal,
+            sealedRounds,
+            frontier,
+          })
+        ) {
+          abortReason = "EVAL_EVIDENCE_PERSIST_FAILED";
+        } else {
+          journal.executed = true;
+          store.persist(journal);
+        }
+      }
+    } catch {
+      abortReason = abortReason ?? "EVAL_EVIDENCE_PERSIST_FAILED";
     }
-    const materials = await captureLunaEvalMaterials(frontier);
-    const evalEvidence = persistLunaSummaryEvalEvidence({
-      directory: journalDir.directory,
-      artifactStore: store.artifactStore,
-      sealedRounds,
-      frontier,
-      journal,
-      globalMemory: materials.globalMemory,
-      armAMemory: materials.armAMemory,
-      probes: materials.probes,
-    });
     return {
       executed: journal.executed,
       paidPosts: input.allowRealNetwork === true && !input.completion ? journal.networkAttempts : 0,
