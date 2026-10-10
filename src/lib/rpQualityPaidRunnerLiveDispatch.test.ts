@@ -557,6 +557,8 @@ describe("rp quality paid runner live dispatch boundary", () => {
         journalDir,
         "--artifact-dir",
         artifactDir,
+        "--manifest-json",
+        JSON.stringify(pack.manifest),
       ],
       readyEnv
     );

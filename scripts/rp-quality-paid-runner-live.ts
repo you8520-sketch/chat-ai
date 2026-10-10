@@ -11,6 +11,7 @@ import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import { RP_QUALITY_PRECALL_PLANNED_CALLS } from "@/lib/rpQualityPrecall";
 import {
   RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV,
+  evaluatePaidRunnerAuthorization,
   type PaidRunnerAuthorizationInput,
   type PaidRunnerPublicManifest,
   type PaidRunnerSealedCall,
@@ -97,7 +98,10 @@ async function main(): Promise<void> {
       journalDir,
       artifactDir,
     });
-    if (assemblyGrant.ok) {
+    const publicManifestAuthorized =
+      !manifest ||
+      evaluatePaidRunnerAuthorization(manifest, authorization, "AUTHORIZED").authorized;
+    if (assemblyGrant.ok && publicManifestAuthorized) {
       const loaded = await loadCanonicalSealedPack({
         runtimeSha: actualRuntimeSha,
         expectedProductionSha: authorization.expectedProductionSha,
