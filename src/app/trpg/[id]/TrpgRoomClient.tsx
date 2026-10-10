@@ -411,9 +411,7 @@ export default function TrpgRoomClient({
     const roundNumber = snap.round.number;
     const ok = await run(`/api/trpg/campaigns/${campaignId}/action`, {
       body: actionBody,
-      actionType,
       inputOrigin,
-      selectedStat,
     });
     if (ok) clearUserInputDraft(trpgActionDraftKey(campaignId, roundNumber));
   }

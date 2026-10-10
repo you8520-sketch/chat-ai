@@ -19,12 +19,13 @@ export async function POST(req: Request, ctx: RouteCtx) {
       idempotencyKey?: unknown;
       inputOrigin?: unknown;
     };
+    // Human composer no longer owns type/stat. Stale client fields are ignored.
+    void body.actionType;
+    void body.selectedStat;
     submitTrpgAction(gate.db, {
       campaignId: id,
       userId: gate.user.id,
       body: String(body.body ?? ""),
-      actionType: typeof body.actionType === "string" ? body.actionType : null,
-      selectedStat: typeof body.selectedStat === "string" ? body.selectedStat : null,
       idempotencyKey: typeof body.idempotencyKey === "string" ? body.idempotencyKey : null,
       inputOrigin: parseTrpgInputOrigin(body.inputOrigin),
     });

@@ -22,7 +22,7 @@ import {
   toModelUsageCalls,
   type TrpgRoundUsageEntry,
 } from "./roundUsage";
-import { isTrpgActionType, pickStatForAction } from "./actionTypes";
+import { pickStatForAction, resolveHumanSubmittedActionType } from "./actionTypes";
 import { logTrpgMechanicsCheckTelemetry } from "./mechanicsObservability";
 import {
   computeTrpgRoundPoints,
@@ -461,14 +461,17 @@ export function submitTrpgAction(
   const text = opts.body.replace(/\s+/g, " ").trim();
   if (!text) throw new Error("행동을 입력하세요.");
   if (Array.from(text).length > TRPG_ACTION_MAX_CHARS) throw new Error("행동이 너무 깁니다.");
-  const actionType = opts.actionType && isTrpgActionType(opts.actionType) ? opts.actionType : "free";
+  // Client actionType/selectedStat cannot steer human adjudication.
+  void opts.actionType;
+  void opts.selectedStat;
+  const actionType = resolveHumanSubmittedActionType(text);
   upsertLockedAction(
     db,
     round.id,
     me.id,
     text,
     actionType,
-    opts.selectedStat ?? null,
+    null,
     "human",
     opts.idempotencyKey,
     parseTrpgInputOrigin(opts.inputOrigin)

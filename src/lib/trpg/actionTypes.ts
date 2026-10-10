@@ -1,6 +1,7 @@
 import type { TrpgStatDefinition } from "./types";
 import {
   compatibleStatsForAction,
+  inferActionTypeFromMethodHints,
   scoreActionMethodHints,
 } from "./actionMethodHints";
 
@@ -162,6 +163,12 @@ export function pickStatForAction(opts: {
   defs: TrpgStatDefinition[];
 }): string {
   return pickStatForActionDetailed(opts).statKey;
+}
+
+/** Human composer no longer chooses a type. Method hints own the mapping. */
+export function resolveHumanSubmittedActionType(body: string): TrpgActionType {
+  const inferred = inferActionTypeFromMethodHints(body);
+  return inferred && isTrpgActionType(inferred) ? inferred : "free";
 }
 
 export function resolveAdjudicationStat(opts: {

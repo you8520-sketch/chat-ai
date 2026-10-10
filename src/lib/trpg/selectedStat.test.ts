@@ -168,31 +168,38 @@ describe("selectedStat live owner", () => {
     assert.doesNotMatch(pick, /setSelectedStat/);
   });
 
-  it("B/H/I. send includes selectedStat and clears the local draft only after success", () => {
+  it("B/H/I. send posts body only and clears the local draft only after success", () => {
     const client = readFileSync("src/app/trpg/[id]/TrpgRoomClient.tsx", "utf8");
     const send = client.slice(client.indexOf("async function sendAction"), client.indexOf("const requestSuggestions"));
-    assert.match(send, /selectedStat,/);
+    assert.match(send, /body: actionBody/);
+    assert.match(send, /inputOrigin/);
+    assert.doesNotMatch(send, /actionType,/);
+    assert.doesNotMatch(send, /selectedStat/);
     assert.match(send, /if \(ok\) clearUserInputDraft\(trpgActionDraftKey\(campaignId, roundNumber\)\)/);
     assert.doesNotMatch(send, /clearUserInputDraft\([\s\S]*if \(ok\)/);
     const route = readFileSync("src/app/api/trpg/campaigns/[id]/action/route.ts", "utf8");
-    assert.match(route, /selectedStat: typeof body\.selectedStat === "string" \? body\.selectedStat : null/);
+    assert.match(route, /Stale client fields are ignored/);
+    assert.doesNotMatch(route, /actionType: typeof body\.actionType === "string"/);
+    assert.doesNotMatch(route, /selectedStat: typeof body\.selectedStat === "string"/);
     assert.doesNotMatch(route, /normalizeTrpgSelectedStat/);
     const engine = readFileSync("src/lib/trpg/engineAdvance.ts", "utf8");
     assert.doesNotMatch(engine, /normalizeTrpgSelectedStat/);
+    assert.match(engine, /resolveHumanSubmittedActionType\(text\)/);
     assert.match(
       engine,
       /upsertLockedAction\(db, opts\.roundId, bot\.id, body, parseTrpgBotAction\(body\)\.actionType, null, "bot_model"\)/
     );
   });
 
-  it("E/F/G/P/Q. SELF selects a stat; PARTY has no handler; chips can return to automatic", () => {
+  it("E/F/G/P/Q. SELF can still draft a stat locally; composer chips are gone; PARTY has no handler", () => {
     const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
     const select = dock.slice(dock.indexOf("function selectStat"), dock.indexOf("const selfSurface"));
     assert.match(select, /onSelectedStatChange\(key\)/);
     assert.match(select, /openTrpgCommandDockMode\(current, "action"/);
     assert.doesNotMatch(select, /onActionTypeChange|onActionBodyChange|onInputOriginChange|onSendAction/);
-    assert.match(dock, /onSelectedStatChange\(null\)/);
-    assert.match(dock, /onClick=\{\(\) => onActionTypeChange\(kind\)\}/);
+    assert.doesNotMatch(dock, /data-trpg-stat-selector/);
+    assert.doesNotMatch(dock, /data-trpg-action-chip/);
+    assert.doesNotMatch(dock, /TRPG_VISIBLE_ACTION_TYPES\.map/);
     assert.match(dock, /onTrpgSelectedStat=\{onFillAction \? onTrpgSelectedStat : null\}/);
     assert.match(dock, /onFillAction=\{null\}/);
     assert.match(dock, /onSelectStat=\{null\}/);
@@ -254,15 +261,17 @@ describe("selectedStat live owner", () => {
       actionType: "attack",
       selectedStat: "cha",
     });
-    const stored = db.prepare(`SELECT selected_stat, locked FROM trpg_action_submissions`).get() as {
+    const stored = db.prepare(`SELECT action_type, selected_stat, locked FROM trpg_action_submissions`).get() as {
+      action_type: string;
       selected_stat: string | null;
       locked: number;
     };
-    assert.equal(stored.selected_stat, "cha");
+    assert.equal(stored.action_type, "attack");
+    assert.equal(stored.selected_stat, null);
     assert.equal(stored.locked, 1);
     const snap = loadTrpgSnapshot(db, campaignId, 1);
     assert.equal(snap?.myDraft?.locked, true);
-    assert.equal(snap?.myDraft?.selectedStat, "cha");
+    assert.equal(snap?.myDraft?.selectedStat, null);
     const round = loadLatestRound(db, campaignId)!;
     const ctx = ensureRoundAdjudicationContext(db, {
       campaignId,
@@ -279,7 +288,7 @@ describe("selectedStat live owner", () => {
     const roll = db.prepare(`SELECT stat_key FROM trpg_dice_rolls WHERE round_id=?`).get(round.id) as
       | { stat_key: string }
       | undefined;
-    assert.equal(roll?.stat_key, "cha");
+    assert.equal(roll?.stat_key, "str");
     db.close();
   });
 });
