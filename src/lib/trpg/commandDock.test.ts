@@ -12,6 +12,8 @@ import {
   reconcileTrpgCommandDockLifecycle,
   selectPartySheetParticipantId,
   selectTrpgCommandDockMode,
+  nextOverflowPanelScrollTop,
+  overflowPanelScrollBehavior,
   trpgCommandDockOcclusion,
   trpgCommandDockPresentationBusy,
   useItemActionDraft,
@@ -190,10 +192,79 @@ describe("TRPG command dock", () => {
     assert.equal(still.expanded, true);
     const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.doesNotMatch(dock, /scrollIntoView|scrollTo\(|scrollBy\(/);
+    const owner = readFileSync("src/lib/trpg/commandDock.ts", "utf8");
+    assert.doesNotMatch(dock, /scrollIntoView/);
+    assert.doesNotMatch(dock, /window\.scrollTo|window\.scrollBy/);
+    assert.match(dock, /nextOverflowPanelScrollTop/);
+    assert.match(dock, /panel\.scrollTo/);
+    assert.match(owner, /export function nextOverflowPanelScrollTop/);
     assert.match(room, /manualScrollDetachedRef/);
     assert.match(room, /if \(!followLatestRef\.current \|\| manualScrollDetachedRef\.current\) return/);
     assert.match(room, /trpgCommandDockScrollMarginBottom\(dockOcclusion\)/);
+  });
+
+  it("reuses the overflow panel to reveal a target without window scroll", () => {
+    assert.equal(
+      nextOverflowPanelScrollTop({
+        panelScrollTop: 0,
+        panelClientHeight: 240,
+        panelScrollHeight: 720,
+        panelTop: 400,
+        targetTop: 400,
+        targetHeight: 72,
+        paddingPx: 8,
+      }),
+      null
+    );
+    assert.equal(
+      nextOverflowPanelScrollTop({
+        panelScrollTop: 0,
+        panelClientHeight: 240,
+        panelScrollHeight: 720,
+        panelTop: 400,
+        targetTop: 640,
+        targetHeight: 72,
+        paddingPx: 8,
+      }),
+      232
+    );
+    assert.equal(
+      nextOverflowPanelScrollTop({
+        panelScrollTop: 200,
+        panelClientHeight: 240,
+        panelScrollHeight: 720,
+        panelTop: 400,
+        targetTop: 320,
+        targetHeight: 48,
+        paddingPx: 8,
+      }),
+      112
+    );
+    assert.equal(
+      nextOverflowPanelScrollTop({
+        panelScrollTop: 0,
+        panelClientHeight: 240,
+        panelScrollHeight: 300,
+        panelTop: 400,
+        targetTop: 800,
+        targetHeight: 72,
+        paddingPx: 8,
+      }),
+      60
+    );
+    assert.equal(
+      nextOverflowPanelScrollTop({
+        panelScrollTop: 0,
+        panelClientHeight: 240,
+        panelScrollHeight: 200,
+        panelTop: 400,
+        targetTop: 800,
+        targetHeight: 72,
+      }),
+      null
+    );
+    assert.equal(overflowPanelScrollBehavior(true), "instant");
+    assert.equal(overflowPanelScrollBehavior(false), "smooth");
   });
 
   it("K. mobile dock stays a compact/expanded surface with safe area and keyboard inset", () => {
@@ -202,6 +273,10 @@ describe("TRPG command dock", () => {
     assert.match(dock, /env\(safe-area-inset-bottom\)/);
     assert.match(dock, /visualViewport/);
     assert.match(dock, /max-h-\[min\(42dvh,24rem\)\]/);
+    assert.match(dock, /data-trpg-command-dock-panel/);
+    assert.match(dock, /data-trpg-action-suggestions/);
+    assert.match(dock, /aria-controls=\{suggestionsRegionId\}/);
+    assert.match(dock, /aria-label="행동 예시 목록"/);
     assert.doesNotMatch(dock, /role="dialog"/);
     assert.doesNotMatch(dock, /hover-only|sm:hidden[\s\S]{0,40}group-hover/);
     const occlusion = trpgCommandDockOcclusion(88, 240);
