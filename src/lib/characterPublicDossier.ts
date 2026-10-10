@@ -96,6 +96,49 @@ function parseOptionalPublicInt(
   };
 }
 
+const PUBLIC_DOSSIER_BODY_KEYS = [
+  "gender_public",
+  "genderPublic",
+  "height_cm",
+  "heightCm",
+  "weight_kg",
+  "weightKg",
+  "world_public_name",
+  "worldPublicName",
+  "world_public",
+  "worldPublic",
+] as const;
+
+export function hasPublicDossierInput(b: Record<string, unknown>): boolean {
+  return PUBLIC_DOSSIER_BODY_KEYS.some((key) => Object.prototype.hasOwnProperty.call(b, key));
+}
+
+function parseStoredPublicInt(value: unknown, min: number, max: number): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value >= min && value <= max) {
+    return value;
+  }
+  return null;
+}
+
+export function readPublicDossierStored(row: PublicDossierRow | null | undefined): PublicDossierStored {
+  if (!row) {
+    return {
+      genderPublic: false,
+      heightCm: null,
+      weightKg: null,
+      worldPublicName: "",
+      worldPublic: false,
+    };
+  }
+  return {
+    genderPublic: parsePublicFlag(row.gender_public),
+    heightCm: parseStoredPublicInt(row.height_cm, HEIGHT_CM_MIN, HEIGHT_CM_MAX),
+    weightKg: parseStoredPublicInt(row.weight_kg, WEIGHT_KG_MIN, WEIGHT_KG_MAX),
+    worldPublicName: parseWorldPublicName(row.world_public_name),
+    worldPublic: parsePublicFlag(row.world_public),
+  };
+}
+
 export function parsePublicDossierFromBody(
   b: Record<string, unknown>,
 ): { ok: true; data: PublicDossierStored } | { ok: false; error: string } {

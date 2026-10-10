@@ -232,6 +232,35 @@ describe("public dossier save contract", () => {
     assert.equal(readPublicDossier(row).world, null);
   });
 
+  it("PATCH public_profile without dossier fields keeps stored public metadata", async () => {
+    const id = insertCharacter(testDb);
+    await updateCharacterPublicProfileFromForm(
+      adultUser,
+      id,
+      publicProfileBody({
+        gender_public: true,
+        height_cm: 183,
+        weight_kg: 71,
+        world_public_name: "에테르노스 제국",
+        world_public: true,
+      }),
+    );
+    const result = await updateCharacterPublicProfileFromForm(
+      adultUser,
+      id,
+      publicProfileBody({ tagline: "한 줄만 바꿈" }),
+    );
+    assert.equal(result.ok, true);
+    const row = readDossierRow(testDb, id);
+    assert.equal(row.gender_public, 1);
+    assert.equal(row.height_cm, 183);
+    assert.equal(row.weight_kg, 71);
+    assert.equal(row.world_public_name, "에테르노스 제국");
+    assert.equal(row.world_public, 1);
+    assert.equal(row.gender, "male");
+    assert.equal(row.world, "빌린 세계관 스냅샷");
+  });
+
   it("rejects invalid height on public_profile PATCH and leaves the row unchanged", async () => {
     const id = insertCharacter(testDb);
     const result = await updateCharacterPublicProfileFromForm(

@@ -18,8 +18,10 @@ import { canPublishAsRepresentative } from "@/lib/assetVisionPolicy";
 import { bindTrustedCharacterMedia } from "@/lib/mediaAccess";
 import { parseCharacterGender } from "@/lib/characterGender";
 import {
+  hasPublicDossierInput,
   parsePublicDossierFromBody,
   publicDossierSqlValues,
+  readPublicDossierStored,
 } from "@/lib/characterPublicDossier";
 import { buildSaveCharacterChunksAndEnqueueDerivedRefresh } from "@/lib/characterChunks";
 import {
@@ -1514,7 +1516,8 @@ export async function updateCharacterPublicProfileFromForm(
               images, nsfw, name, greeting, creator_comment, tags, participant_min_age, adult_status,
               COALESCE(content_kind, 'character') AS content_kind,
               COALESCE(simulation_cast, '') AS simulation_cast,
-              COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json
+              COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json,
+              gender_public, height_cm, weight_kg, world_public_name, world_public
        FROM characters WHERE id=?`
     )
     .get(characterId) as
@@ -1537,6 +1540,11 @@ export async function updateCharacterPublicProfileFromForm(
         content_kind: string | null;
         simulation_cast: string;
         simulation_visual_subjects_json: string;
+        gender_public: number | null;
+        height_cm: number | null;
+        weight_kg: number | null;
+        world_public_name: string | null;
+        world_public: number | null;
       }
     | undefined;
 
@@ -1548,7 +1556,9 @@ export async function updateCharacterPublicProfileFromForm(
     return { ok: false as const, error: "공식 캐릭터는 수정할 수 없습니다.", status: 403 };
   }
 
-  const publicDossier = parsePublicDossierFromBody(b);
+  const publicDossier = hasPublicDossierInput(b)
+    ? parsePublicDossierFromBody(b)
+    : { ok: true as const, data: readPublicDossierStored(row) };
   if (!publicDossier.ok) return { ok: false as const, error: publicDossier.error, status: 400 };
 
   const tagline = String(b.tagline || "").trim().slice(0, TAGLINE_LIMIT);

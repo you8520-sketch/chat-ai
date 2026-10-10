@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   emptyPublicDossierView,
+  hasPublicDossierInput,
   parsePublicDossierFromBody,
   publicDossierHasItems,
   publicDossierLines,
@@ -10,6 +11,7 @@ import {
   publicDossierRevealAttrs,
   readPublicDossier,
   readPublicDossierFromCard,
+  readPublicDossierStored,
 } from "@/lib/characterPublicDossier";
 
 describe("parsePublicDossierFromBody", () => {
@@ -74,6 +76,31 @@ describe("parsePublicDossierFromBody", () => {
     if (!parsed.ok) return;
     assert.equal(parsed.data.heightCm, null);
     assert.equal(parsed.data.weightKg, null);
+  });
+
+  it("detects whether a public_profile body is carrying dossier fields", () => {
+    assert.equal(hasPublicDossierInput({ tagline: "한 줄" }), false);
+    assert.equal(hasPublicDossierInput({ gender_public: false }), true);
+    assert.equal(hasPublicDossierInput({ height_cm: "" }), true);
+  });
+
+  it("reads stored consent flags without inventing a world name", () => {
+    assert.deepEqual(
+      readPublicDossierStored({
+        gender_public: 1,
+        height_cm: 183,
+        weight_kg: 71,
+        world_public_name: "에테르노스 제국",
+        world_public: 0,
+      }),
+      {
+        genderPublic: true,
+        heightCm: 183,
+        weightKg: 71,
+        worldPublicName: "에테르노스 제국",
+        worldPublic: false,
+      },
+    );
   });
 
   it("never copies worlds.name, world_shares.name, or characters.world", () => {
