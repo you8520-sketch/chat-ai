@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import {
   isPlainLeftClick,
@@ -29,15 +29,36 @@ import {
   type RevealRect,
 } from "@/lib/characterReveal";
 import CharacterRevealScene, { type CharacterScene } from "@/components/CharacterRevealScene";
+import {
+  CHAT_RESUME_ATTR,
+  CHAT_RESUME_CHAT_ATTR,
+  CHAT_RESUME_NAME_ATTR,
+  CHAT_RESUME_THUMB_ATTR,
+  CHAT_RESUME_TIMING,
+  CHAT_ROOM_CHARACTER_ATTR,
+  CHAT_ROOM_ID_ATTR,
+  chatResumeInkRadius,
+  chatResumeIris,
+  chatResumeRevealDelayMs,
+  computeChatResumeLayout,
+  isSameChatRoom,
+  parseChatResumeHref,
+  resolveChatArrival,
+  resolveChatResumeTarget,
+  type ChatRoomRef,
+} from "@/lib/chatResume";
+import ChatResumeScene, { type ChatResumeScene as ChatScene } from "@/components/ChatResumeScene";
 
 /**
- * 공통 전환 lifecycle의 단일 owner (Phase C 메뉴 + Phase D-1 캐릭터 reveal).
+ * 공통 전환 lifecycle의 단일 owner (Phase C 메뉴 + Phase D-1 캐릭터 reveal + Phase D-2 채팅방 이어가기).
  *
  * - canonical navigation owner는 기존 `next/link` 그대로 (href·redirect·query 불변).
  * - 시각 렌더만 kind로 구분한다.
  *   - `menu`: 승인된 메뉴 영역(`data-menu-transition`) 클릭 → Phase C 그래픽 전환.
  *   - `character`: 캐릭터 카드(`data-character-card`)의 프로필 링크 클릭 → artwork reveal.
- *   콘텐츠 링크(태그·제작자)·최근 활동·history traversal은 대상 아님.
+ *   - `chat`: 최근 활동의 캐릭터 채팅 행(`data-chat-resume`) 클릭 → 기존 채팅방 reveal.
+ *     방은 characterId + chatId로 식별하고(query-only 이동 포함), 실제 방 마커가 도착해야 걷힌다.
+ *   콘텐츠 링크(태그·제작자)·TRPG 최근 활동·history traversal은 대상 아님.
  * - navigation을 지연시키지 않고, router를 직접 호출하지 않으며,
  *   오버레이는 항상 `pointer-events: none`이라 기능을 가로막지 않는다.
  */
@@ -49,7 +70,16 @@ type BurstBase = {
 };
 type MenuBurst = BurstBase & { kind: "menu"; spec: MenuTransitionSpec };
 type CharacterBurst = BurstBase & { kind: "character"; scene: CharacterScene };
-type Burst = MenuBurst | CharacterBurst;
+type ChatBurst = BurstBase & {
+  kind: "chat";
+  scene: ChatScene;
+  origin: ChatRoomRef | null;
+  /** 목적지 위치(pathname + search). */
+  url: string;
+  /** 이 burst가 밀어낸 이전 burst들의 목적지 — 먼저 도착해도 최종 방이 아니다. */
+  superseded: string[];
+};
+type Burst = MenuBurst | CharacterBurst | ChatBurst;
 
 function timingFor(kind: Burst["kind"]) {
   switch (kind) {
@@ -57,6 +87,8 @@ function timingFor(kind: Burst["kind"]) {
       return MENU_TRANSITION_TIMING;
     case "character":
       return CHARACTER_REVEAL_TIMING;
+    case "chat":
+      return CHAT_RESUME_TIMING;
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;
@@ -70,6 +102,8 @@ function revealDelayFor(kind: Burst["kind"], elapsedMs: number): number {
       return menuRevealDelayMs(elapsedMs);
     case "character":
       return characterRevealDelayMs(elapsedMs);
+    case "chat":
+      return chatResumeRevealDelayMs(elapsedMs);
     default: {
       const _exhaustive: never = kind;
       return _exhaustive;
@@ -169,15 +203,67 @@ function readItemTargets(scene: CharacterScene): CharacterScene["items"] {
   return items;
 }
 
+/** 실제 채팅방(ChatClient 루트 마커)에 지금 열려 있는 방. 없으면 null. */
+function readChatRoom(): ChatRoomRef | null {
+  const el = document.querySelector(`[${CHAT_ROOM_ID_ATTR}]`);
+  if (!el) return null;
+  const characterId = Number(el.getAttribute(CHAT_ROOM_CHARACTER_ATTR));
+  const chatId = Number(el.getAttribute(CHAT_ROOM_ID_ATTR));
+  return Number.isSafeInteger(characterId) && characterId > 0 && Number.isSafeInteger(chatId) && chatId > 0
+    ? { characterId, chatId }
+    : null;
+}
+
+/** 지금 보고 있는 방: 마커가 우선이고, 아직 마운트 전이면 URL로 식별한다. */
+function currentChatRoom(): ChatRoomRef | null {
+  return readChatRoom() ?? parseChatResumeHref(window.location.pathname, window.location.search);
+}
+
+/** 클릭한 최근 활동 행에서 이미 보이던 공개 썸네일·이름만 읽어 scene을 만든다. 썸네일 원을 못 읽으면 null. */
+function buildChatResumeScene(anchor: Element, room: ChatRoomRef): ChatScene | null {
+  const thumb = anchor.querySelector(`[${CHAT_RESUME_THUMB_ATTR}]`);
+  if (!(thumb instanceof HTMLElement)) return null;
+  const rect = thumb.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const d = Math.min(rect.width, rect.height);
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+  if (d < 16 || x < 0 || x > vw || y < 0 || y > vh) return null;
+
+  const img = thumb.querySelector("img");
+  const loaded = img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0;
+  const rawSrc = loaded ? img.currentSrc || img.src : "";
+  const src = rawSrc && !rawSrc.includes("/media/private/") ? rawSrc : null;
+  const background = getComputedStyle(thumb).backgroundColor;
+  const fill = /^rgba?\([\d\s.,/]+\)$/.test(background) ? background : null;
+  const glyph = Array.from((thumb.textContent ?? "").trim()).slice(0, 2).join("");
+
+  const { lines, maxChars } = splitRevealName(anchor.getAttribute(CHAT_RESUME_NAME_ATTR) ?? "");
+  const layout = computeChatResumeLayout(vw, vh, lines.length, maxChars);
+  const origin: RevealRect = { left: x - d / 2, top: y - d / 2, width: d, height: d };
+  return {
+    room,
+    src,
+    fill,
+    glyph,
+    lines,
+    layout,
+    ink: { x, y, r0: d / 2, r1: chatResumeInkRadius(x, y, vw, vh) },
+    iris: chatResumeIris(origin, layout.frame),
+  };
+}
+
 let burstSeq = 0;
 
 /** 루트 레이아웃에 상주하는 단일 전환 레이어. */
 export default function MenuTransitionHost() {
   const pathname = usePathname();
+  const search = useSearchParams().toString();
   const [burst, setBurst] = useState<Burst | null>(null);
   const burstRef = useRef<Burst | null>(null);
   const timers = useRef<number[]>([]);
-  const firstPath = useRef<string | null>(null);
+  const lastLoc = useRef<{ path: string; key: string } | null>(null);
   const startedAt = useRef(0);
 
   function clearTimers() {
@@ -251,7 +337,27 @@ export default function MenuTransitionHost() {
     startBurst({ kind: "character", id: burstSeq, scene, dest, phase: "cover" });
   }
 
-  // BEAT 1 — 승인된 영역(메뉴 / 캐릭터 카드)의 클릭에 즉각 반응. navigation은 그대로 진행.
+  function scheduleChatBurst(scene: ChatScene, dest: URL, origin: ChatRoomRef | null) {
+    const running = burstRef.current;
+    const superseded = running
+      ? running.kind === "chat"
+        ? [...running.superseded, running.url]
+        : [running.dest]
+      : [];
+    burstSeq += 1;
+    startBurst({
+      kind: "chat",
+      id: burstSeq,
+      scene,
+      dest: dest.pathname,
+      url: `${dest.pathname}${dest.search}`,
+      origin,
+      superseded,
+      phase: "cover",
+    });
+  }
+
+  // BEAT 1 — 승인된 영역(메뉴 / 캐릭터 카드 / 최근 채팅 행)의 클릭에 즉각 반응. navigation은 그대로 진행.
   useEffect(() => {
     function onClickCapture(e: MouseEvent) {
       if (!isPlainLeftClick(e)) return;
@@ -264,6 +370,29 @@ export default function MenuTransitionHost() {
       const dest = new URL(anchor.href, window.location.href);
       if (dest.origin !== window.location.origin) return;
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      // 최근 활동의 캐릭터 채팅 행(href가 정확히 /chat/:id?chat=:chatId)만. TRPG·성인 가림(/verify) 행은 마커가 없다.
+      if (anchor.hasAttribute(CHAT_RESUME_ATTR)) {
+        const room = resolveChatResumeTarget({
+          markerCharacterId: anchor.getAttribute(CHAT_RESUME_ATTR),
+          markerChatId: anchor.getAttribute(CHAT_RESUME_CHAT_ATTR),
+          destPathname: dest.pathname,
+          destSearch: dest.search,
+        });
+        if (reduced || !room) return;
+        const current = currentChatRoom();
+        if (isSameChatRoom(current, room)) return;
+        const running = burstRef.current;
+        if (running?.kind === "chat" && isSameChatRoom(running.scene.room, room)) return;
+        const scene = buildChatResumeScene(anchor, room);
+        if (!scene) return;
+        anchor.classList.remove("cr-pick");
+        void anchor.offsetWidth;
+        anchor.classList.add("cr-pick");
+        window.setTimeout(() => anchor.classList.remove("cr-pick"), 420);
+        scheduleChatBurst(scene, dest, current);
+        return;
+      }
 
       // 캐릭터 카드의 프로필 링크(href가 정확히 /character/:id)만. 태그·제작자·login/verify redirect는 제외.
       const card = anchor.closest(`[${CHARACTER_CARD_ATTR}]`);
@@ -305,15 +434,32 @@ export default function MenuTransitionHost() {
   // 캐릭터 burst는 자기 목적지 도착만 인정한다. 일반 콘텐츠·history로 프로필을
   // 벗어나면 오래된 scene을 즉시 내린다. 다른 /character/:id 중간 도착은
   // 빠른 연속 클릭이므로 유지한다.
+  // 채팅 burst는 query-only 이동(?chat=)도 도착 신호로 보고, 실제 방 마커(characterId + chatId)가
+  // 확인될 때만 reveal한다. 채팅방이 아닌 곳이나 다른 캐릭터의 방으로 가면 즉시 내린다.
   useEffect(() => {
-    if (firstPath.current === null) {
-      firstPath.current = pathname;
-      return;
-    }
-    if (firstPath.current === pathname) return;
-    firstPath.current = pathname;
+    const key = `${pathname}?${search}`;
+    const prev = lastLoc.current;
+    lastLoc.current = { path: pathname, key };
+    if (prev === null || prev.key === key) return;
     const cur = burstRef.current;
     if (!cur) return;
+    if (cur.kind === "chat") {
+      const arrival = resolveChatArrival({
+        dest: cur.scene.room,
+        origin: cur.origin,
+        room: readChatRoom(),
+        pathname,
+        url: `${window.location.pathname}${window.location.search}`,
+        superseded: cur.superseded,
+      });
+      if (arrival === "abandoned") dropBurst(cur.id);
+      else if (arrival === "arrived" && cur.phase === "cover") {
+        const delay = revealDelayFor(cur.kind, performance.now() - startedAt.current);
+        timers.current.push(window.setTimeout(() => beginReveal(cur.id), delay));
+      }
+      return;
+    }
+    if (prev.path === pathname) return;
     if (cur.kind === "character" && pathname !== cur.dest) {
       if (parseCharacterProfilePath(pathname) === null) dropBurst(cur.id);
       return;
@@ -321,7 +467,7 @@ export default function MenuTransitionHost() {
     if (cur.phase === "reveal") return;
     const delay = revealDelayFor(cur.kind, performance.now() - startedAt.current);
     timers.current.push(window.setTimeout(() => beginReveal(cur.id), delay));
-  }, [pathname]);
+  }, [pathname, search]);
 
   useEffect(() => () => clearTimers(), []);
 
@@ -351,6 +497,8 @@ export default function MenuTransitionHost() {
     }
     case "character":
       return <CharacterRevealScene key={burst.id} scene={burst.scene} phase={burst.phase} />;
+    case "chat":
+      return <ChatResumeScene key={burst.id} scene={burst.scene} phase={burst.phase} />;
     default: {
       const _exhaustive: never = burst;
       return _exhaustive;
