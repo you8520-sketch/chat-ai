@@ -1,0 +1,5 @@
+{
+  "key": "character-pilot-rf-02",
+  "error": "slot 2 bible QA: bible_behavior_rules(behaviorRules 3-7 required, got 0); bible_greeting_missing(greeting is required); bible_speech_band(speech.description 225 chars (production band 250-600)); bible_pitch_band(publicProfile.description 0 chars (production band 200-500)); bible_tagline_missing(publicProfile.tagline is required); bible_tags(publicProfile.tags 4-7 required, got 0); bible_nsfw_mismatch(nsfw=false, manifest expects true); bible_sfw_adult_content(SFW sheets must not carry adult authoring content)",
+  "at": "2026-10-08T07:13:49.768Z"
+}
