@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import JsxComponentSandbox, { type JsxSandboxStatus } from "@/components/JsxComponentSandbox";
 import type { JsxTrpgActionDraftRequest, JsxTrpgSelectedStatRequest } from "@/lib/jsxComponent/hostBridge";
 import { JSX_SANDBOX_AUTO_HEIGHT_MIN_PX } from "@/lib/jsxComponent/limits";
@@ -24,7 +33,9 @@ import {
   commandDockModeLabel,
   initialTrpgCommandDockView,
   isTreatableOngoingKind,
+  nextOverflowPanelScrollTop,
   openTrpgCommandDockMode,
+  overflowPanelScrollBehavior,
   reconcileTrpgCommandDockLifecycle,
   selectPartySheetParticipantId,
   selectTrpgCommandDockMode,
@@ -419,6 +430,8 @@ function ActionMode({
   onRetrySuggestions,
   onPickSuggestion,
   onSendAction,
+  suggestionsRegionId,
+  suggestionsRegionRef,
 }: {
   snap: TrpgCampaignSnapshot;
   selfSheet: TrpgSheetSnapshot | null;
@@ -432,6 +445,8 @@ function ActionMode({
   showReplySuggestions: boolean;
   actionInputVisible: boolean;
   busy: boolean;
+  suggestionsRegionId: string;
+  suggestionsRegionRef: RefObject<HTMLDivElement | null>;
   onActionTypeChange: (value: TrpgActionType) => void;
   onActionBodyChange: (value: string) => void;
   onSelectedStatChange: (value: string | null) => void;
@@ -594,6 +609,7 @@ function ActionMode({
           type="button"
           role="switch"
           aria-checked={suggestionsEnabled}
+          aria-controls={suggestionsRegionId}
           aria-label="행동 예시"
           disabled={busy}
           onClick={onToggleSuggestions}
@@ -614,44 +630,61 @@ function ActionMode({
           행동 제출
         </button>
       </div>
-      {showReplySuggestions ? (
-        <div>
-          {suggestionsError ? (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <p className="text-sm text-rose-200">{suggestionsError}</p>
-              <button
-                type="button"
-                disabled={busy || suggestionsBusy}
-                onClick={onRetrySuggestions}
-                className="inline-flex min-h-11 items-center rounded-lg border border-rose-300/30 bg-rose-300/10 px-3 text-xs font-semibold text-rose-100 disabled:opacity-50"
-              >
-                다시 시도
-              </button>
-            </div>
+      {suggestionsEnabled ? (
+        <div
+          ref={suggestionsRegionRef}
+          id={suggestionsRegionId}
+          role="region"
+          aria-label="행동 예시 목록"
+          aria-live="polite"
+          aria-busy={suggestionsBusy}
+          data-trpg-action-suggestions
+        >
+          {suggestionsBusy && suggestions.length === 0 && !suggestionsError ? (
+            <p className="mt-2 text-sm text-zinc-400" data-trpg-action-suggestions-status="busy">
+              예시를 만들고 있습니다.
+            </p>
           ) : null}
-          {suggestions.length > 0 ? (
-            <ul className="mt-3 space-y-2">
-              {suggestions.map((item) => (
-                <li key={`${item.stance}:${item.actionType}:${item.text}`}>
+          {showReplySuggestions ? (
+            <div>
+              {suggestionsError ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <p className="text-sm text-rose-200">{suggestionsError}</p>
                   <button
                     type="button"
-                    data-trpg-reply-stance={item.stance}
-                    onClick={() => onPickSuggestion(item)}
-                    className="min-h-11 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left"
+                    disabled={busy || suggestionsBusy}
+                    onClick={onRetrySuggestions}
+                    className="inline-flex min-h-11 items-center rounded-lg border border-rose-300/30 bg-rose-300/10 px-3 text-xs font-semibold text-rose-100 disabled:opacity-50"
                   >
-                    <span className="flex items-baseline gap-2">
-                      <span className="text-xs font-semibold text-violet-200">{replyStanceLabelKo(item.stance)}</span>
-                      <span className="text-[10px] font-medium text-zinc-500">{actionTypeLabelKo(item.actionType)}</span>
-                    </span>
-                    {item.stage ? <p className="mt-1 text-sm text-zinc-300">{item.stage}</p> : null}
-                    {item.speech ? (
-                      <p className={`${item.stage ? "mt-0.5" : "mt-1"} text-sm text-zinc-100`}>「{item.speech}」</p>
-                    ) : null}
-                    {!item.stage && !item.speech ? <p className="mt-1 text-sm text-zinc-200">{item.text}</p> : null}
+                    다시 시도
                   </button>
-                </li>
-              ))}
-            </ul>
+                </div>
+              ) : null}
+              {suggestions.length > 0 ? (
+                <ul className="mt-3 space-y-2">
+                  {suggestions.map((item) => (
+                    <li key={`${item.stance}:${item.actionType}:${item.text}`}>
+                      <button
+                        type="button"
+                        data-trpg-reply-stance={item.stance}
+                        onClick={() => onPickSuggestion(item)}
+                        className="min-h-11 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-left"
+                      >
+                        <span className="flex items-baseline gap-2">
+                          <span className="text-xs font-semibold text-violet-200">{replyStanceLabelKo(item.stance)}</span>
+                          <span className="text-[10px] font-medium text-zinc-500">{actionTypeLabelKo(item.actionType)}</span>
+                        </span>
+                        {item.stage ? <p className="mt-1 text-sm text-zinc-300">{item.stage}</p> : null}
+                        {item.speech ? (
+                          <p className={`${item.stage ? "mt-0.5" : "mt-1"} text-sm text-zinc-100`}>「{item.speech}」</p>
+                        ) : null}
+                        {!item.stage && !item.speech ? <p className="mt-1 text-sm text-zinc-200">{item.text}</p> : null}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -719,7 +752,13 @@ export default function TrpgCommandDock({
   loadPartySheetComponent?: TrpgPartySheetComponentLoader | null;
 }) {
   const panelId = useId();
+  const suggestionsRegionId = useId();
   const rootRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const suggestionsRegionRef = useRef<HTMLDivElement>(null);
+  const panelFollowDetachedRef = useRef(false);
+  const programmaticPanelScrollRef = useRef(false);
+  const programmaticPanelScrollTimerRef = useRef<number | null>(null);
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [view, setView] = useState(() =>
     initialTrpgCommandDockView({
@@ -825,7 +864,95 @@ export default function TrpgCommandDock({
     return () => window.removeEventListener("keydown", onKey);
   }, [view.expanded]);
 
+  const handleToggleSuggestions = useCallback(() => {
+    if (!suggestionsEnabled) {
+      panelFollowDetachedRef.current = false;
+    }
+    onToggleSuggestions();
+  }, [onToggleSuggestions, suggestionsEnabled]);
+
+  const revealSuggestionsInPanel = useCallback(() => {
+    const panel = panelRef.current;
+    const region = suggestionsRegionRef.current;
+    if (!panel || !region || panelFollowDetachedRef.current) return;
+    const target =
+      region.querySelector("[data-trpg-reply-stance]") ??
+      region.querySelector("[data-trpg-action-suggestions-status]") ??
+      region;
+    const next = nextOverflowPanelScrollTop({
+      panelScrollTop: panel.scrollTop,
+      panelClientHeight: panel.clientHeight,
+      panelScrollHeight: panel.scrollHeight,
+      panelTop: panel.getBoundingClientRect().top,
+      targetTop: target.getBoundingClientRect().top,
+      targetHeight: target.getBoundingClientRect().height,
+      paddingPx: 8,
+    });
+    if (next == null) return;
+    if (programmaticPanelScrollTimerRef.current != null) {
+      window.clearTimeout(programmaticPanelScrollTimerRef.current);
+    }
+    programmaticPanelScrollRef.current = true;
+    const behavior = overflowPanelScrollBehavior(
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+    panel.scrollTo({ top: next, left: 0, behavior });
+    programmaticPanelScrollTimerRef.current = window.setTimeout(
+      () => {
+        programmaticPanelScrollRef.current = false;
+        programmaticPanelScrollTimerRef.current = null;
+      },
+      behavior === "smooth" ? 800 : 48
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    if (view.mode !== "action" || !view.expanded) return;
+    if (!suggestionsEnabled) return;
+    if (!suggestionsBusy && !showReplySuggestions) return;
+    revealSuggestionsInPanel();
+    const frame = window.requestAnimationFrame(() => {
+      revealSuggestionsInPanel();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    revealSuggestionsInPanel,
+    showReplySuggestions,
+    suggestions,
+    suggestionsBusy,
+    suggestionsEnabled,
+    suggestionsError,
+    view.expanded,
+    view.mode,
+  ]);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !view.expanded) return;
+    const detach = () => {
+      if (programmaticPanelScrollRef.current) return;
+      panelFollowDetachedRef.current = true;
+    };
+    panel.addEventListener("wheel", detach, { passive: true });
+    panel.addEventListener("touchmove", detach, { passive: true });
+    return () => {
+      panel.removeEventListener("wheel", detach);
+      panel.removeEventListener("touchmove", detach);
+    };
+  }, [view.expanded, view.mode]);
+
+  useEffect(() => {
+    return () => {
+      if (programmaticPanelScrollTimerRef.current != null) {
+        window.clearTimeout(programmaticPanelScrollTimerRef.current);
+      }
+    };
+  }, []);
+
   function chooseMode(mode: TrpgCommandDockMode) {
+    if (mode === "action" && view.mode !== "action") {
+      panelFollowDetachedRef.current = false;
+    }
     setView((current) => selectTrpgCommandDockMode(current, mode, presentationBusy));
   }
 
@@ -938,9 +1065,11 @@ export default function TrpgCommandDock({
       </div>
       {view.expanded ? (
         <div
+          ref={panelRef}
           id={panelId}
           role="tabpanel"
           aria-labelledby={`${panelId}-${view.mode}`}
+          data-trpg-command-dock-panel
           className="mt-3 max-h-[min(42dvh,24rem)] overflow-y-auto overscroll-contain border-t border-white/5 pt-3"
         >
           {(() => {
@@ -963,10 +1092,12 @@ export default function TrpgCommandDock({
                     onActionTypeChange={onActionTypeChange}
                     onActionBodyChange={onActionBodyChange}
                     onSelectedStatChange={onSelectedStatChange}
-                    onToggleSuggestions={onToggleSuggestions}
+                    onToggleSuggestions={handleToggleSuggestions}
                     onRetrySuggestions={onRetrySuggestions}
                     onPickSuggestion={onPickSuggestion}
                     onSendAction={onSendAction}
+                    suggestionsRegionId={suggestionsRegionId}
+                    suggestionsRegionRef={suggestionsRegionRef}
                   />
                 );
               case "self":
