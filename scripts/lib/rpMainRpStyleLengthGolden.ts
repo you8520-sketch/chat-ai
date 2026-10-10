@@ -59,6 +59,10 @@ function sha256Text(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
+function jsonPlain<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 function publicCalls(
   sealed: ReturnType<typeof assemblePrecallFinalWireWithSealedRequests>["sealedRequests"]
 ): MainRpStyleLengthPublicCall[] {
@@ -188,10 +192,10 @@ export function assembleMainRpStyleLengthSnapshot(input: {
       adminUserId: Number(input.rows.user.id),
     },
     identityHashes,
-    rows: input.rows,
+    rows: jsonPlain(input.rows),
     listing: input.listing,
-    sealedRequests: assembled.sealedRequests,
-    plans: assembled.report.plans,
+    sealedRequests: jsonPlain(assembled.sealedRequests),
+    plans: jsonPlain(assembled.report.plans),
   };
   const publicManifest = buildMainRpStyleLengthPublicManifest({
     version: input.version,
