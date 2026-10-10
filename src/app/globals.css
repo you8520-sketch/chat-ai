@@ -666,6 +666,12 @@ body {
   animation: rv-item-settle 420ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
 }
 
+/* Destination hero copy stays hidden while the overlay owns the same text.
+ * visibility (not display) so MenuTransitionHost can still measure settle targets. */
+html:has(.rv-veil) [data-character-hero] [data-hero-item] {
+  visibility: hidden;
+}
+
 .rv-veil[data-phase="reveal"] .rv-frame {
   animation: rv-settle 420ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
 }
@@ -787,15 +793,10 @@ body {
 }
 
 @keyframes rv-item-settle {
-  0% {
-    opacity: 1;
+  from {
     transform: translate3d(0, 0, 0) scale(1);
   }
-  70% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
+  to {
     transform: translate3d(var(--rv-itx, 0px), var(--rv-ity, 0px), 0) scale(var(--rv-isc, 1));
   }
 }

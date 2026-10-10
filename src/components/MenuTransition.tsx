@@ -29,7 +29,6 @@ import {
   type RevealRect,
 } from "@/lib/characterReveal";
 import CharacterRevealScene, { type CharacterScene } from "@/components/CharacterRevealScene";
-import { parsePublicProfileFacts } from "@/lib/publicProfileFacts";
 
 /**
  * 공통 전환 lifecycle의 단일 owner (Phase C 메뉴 + Phase D-1 캐릭터 reveal).
@@ -111,10 +110,7 @@ function buildCharacterScene(card: Element, id: number): CharacterScene | null {
   if (visible.width < 24 || visible.height < 24) return null;
 
   const { lines, maxChars } = splitRevealName(card.getAttribute("data-character-name") ?? "");
-  const facts = parsePublicProfileFacts(card.getAttribute("data-character-facts"));
-  const layout = computeRevealLayout(window.innerWidth, window.innerHeight, lines.length, maxChars, {
-    facts: facts.length > 0,
-  });
+  const layout = computeRevealLayout(window.innerWidth, window.innerHeight, lines.length, maxChars);
   const start = flipTransform(from, layout.frame);
   const viewport = document.documentElement;
   return {
@@ -124,7 +120,6 @@ function buildCharacterScene(card: Element, id: number): CharacterScene | null {
     genre: (card.getAttribute("data-character-genre") ?? "").trim(),
     tagline: (card.getAttribute("data-character-tagline") ?? "").trim(),
     tags: parseRevealTags(card.getAttribute("data-character-tags")),
-    facts,
     layout,
     card: {
       top: visible.top,

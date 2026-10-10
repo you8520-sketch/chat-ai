@@ -1,6 +1,5 @@
 import type { CSSProperties } from "react";
 
-import CharacterRecord from "@/components/CharacterRecord";
 import {
   REVEAL_BEATS,
   REVEAL_FIT_ATTR,
@@ -13,13 +12,12 @@ import {
   splitRevealGraphemes,
   type RevealLayout,
 } from "@/lib/characterReveal";
-import type { PublicProfileFact } from "@/lib/publicProfileFacts";
 import { studioSurface } from "@/lib/studioDesign";
 
 /**
  * Phase D-1 — 캐릭터 kinetic assembly의 순수 렌더러.
  * 상태·타이머·navigation은 `MenuTransitionHost`(단일 owner)가 갖고, 여기서는 scene만 그린다.
- * 접근 가능한 카드에서 클릭 시점에 이미 보이던 공개 이미지·이름·장르·한 줄 소개·키워드·공개 인적사항만 사용한다.
+ * 접근 가능한 카드에서 클릭 시점에 이미 보이던 공개 이미지·이름·장르·한 줄 소개·키워드만 사용한다.
  */
 export type RevealItemTarget = { tx: number; ty: number; scale: number };
 
@@ -30,7 +28,6 @@ export type CharacterScene = {
   genre: string;
   tagline: string;
   tags: string[];
-  facts: PublicProfileFact[];
   layout: RevealLayout;
   /** 카드 이미지 위치에서 시작하는 FLIP + 잘림(clip) 보정. */
   start: { tx: number; ty: number; scale: number; clip: { top: number; right: number; bottom: number; left: number } };
@@ -205,12 +202,6 @@ export default function CharacterRevealScene({
           </div>
         </div>
       </div>
-
-      {scene.facts.length > 0 ? (
-        <div className="rv-info" data-align={align} style={column(info.factsTop)}>
-          <CharacterRecord characterId={scene.id} facts={scene.facts} variant="overlay" itemStyle={(key) => itemStyle(scene, key)} />
-        </div>
-      ) : null}
 
       {hasSub ? (
         <div className="rv-info rv-info-sub" data-align={align} style={column(info.subTop)}>

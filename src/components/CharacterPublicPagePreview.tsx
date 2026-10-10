@@ -10,9 +10,7 @@ import CopyPageLinkButton from "@/components/CopyPageLinkButton";
 import OfficialCreatorBadge from "@/components/OfficialCreatorBadge";
 import OfficialStudioBadge from "@/components/OfficialStudioBadge";
 import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
-import CharacterRecord from "@/components/CharacterRecord";
 import { CHARACTER_HERO_IMAGE_ATTR, HERO_ITEM_ATTR, REVEAL_FIT_ATTR, revealTagKey, splitRevealName } from "@/lib/characterReveal";
-import type { PublicProfileFact } from "@/lib/publicProfileFacts";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { applyProfilePlaceholders } from "@/lib/userPlaceholder";
 import {
@@ -145,7 +143,6 @@ export default function CharacterPublicPagePreview({
   pagePath,
   heroVariant = "default",
   genre = "",
-  facts = [],
 }: {
   /** 채팅에서 해금한 에셋을 공개 갤러리에도 반영할 때 사용 */
   characterId?: number;
@@ -183,8 +180,6 @@ export default function CharacterPublicPagePreview({
   /** `poster`: 공개 프로필 상단 포스터 구도 (카드 reveal 전환과 연결). 제작 미리보기·임베드는 `default`. */
   heroVariant?: "default" | "poster";
   genre?: string;
-  /** 공개 승인된 기본 인적사항. 값이 있는 항목만 전달한다 (poster hero 전용). */
-  facts?: PublicProfileFact[];
 }) {
   const [unlockedUrls, setUnlockedUrls] = useState<ReadonlySet<string>>(() => new Set());
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -423,11 +418,6 @@ export default function CharacterPublicPagePreview({
               ))}
             </span>
           </h1>
-          {facts.length > 0 ? (
-            <div className="mt-4">
-              <CharacterRecord characterId={characterId ?? 0} facts={facts} variant="hero" />
-            </div>
-          ) : null}
           <div className="mt-4 flex flex-wrap items-center gap-2 md:justify-end">
             {creatorLine}
             {pagePath ? <CopyPageLinkButton path={pagePath} /> : null}
