@@ -99,7 +99,7 @@ jobs:
           ls -la "$RUNNER_TEMP"
 
       - name: Memory CI gate (benchmark owner + research lab)
-        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory-rp-benchmark.test.ts src/lib/memoryResearch/*.test.ts
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory-rp-benchmark.test.ts src/lib/memory/monthlyRpMemoryQualityPhase1.test.ts src/lib/memory/memoryEvidenceProvenance.test.ts src/lib/memoryResearch/*.test.ts
 
       - name: Run research cycle
         id: cycle

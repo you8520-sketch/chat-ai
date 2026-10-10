@@ -10,6 +10,8 @@ on:
       - "scripts/lib/rpActiveModelQualityLive.ts"
       - "scripts/lib/rpActiveModelQualityLive.test.ts"
       - "scripts/rp-active-model-quality-live.ts"
+      - "src/lib/memory/memoryEvidenceProvenance.ts"
+      - "src/lib/memory/memoryEvidenceProvenance.test.ts"
       - "src/lib/rpQualityBaseline.ts"
       - "src/lib/rpQualityBaseline.test.ts"
       - "src/lib/rpQualityEvaluationPacket.ts"
