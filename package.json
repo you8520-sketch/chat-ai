@@ -38,6 +38,8 @@
     "test:code-health-audit": "node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 \"src/lib/codeHealth/*.test.ts\"",
     "official-supply:review-character": "node --conditions=react-server --import tsx scripts/official-supply-character-review.ts",
     "official-supply:quality-shot-qa": "node --conditions=react-server --import tsx scripts/official-supply-quality-shot-qa.ts",
+    "luna:precall": "node --conditions=react-server --import tsx scripts/luna-summary-local-precall.ts",
+    "luna:execute": "node --conditions=react-server --import tsx scripts/luna-summary-attempt-execute.ts",
     "ab:1354-flash": "node --conditions=react-server --import tsx scripts/body-cue-flash-ab-1354.ts",
     "test:1354-flash-ab-runner": "node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 scripts/lib/bodyCueFlashAb1354Runner.test.ts"
   },

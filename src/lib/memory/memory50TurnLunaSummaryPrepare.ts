@@ -55,6 +55,7 @@ export const LUNA_SUMMARY_MAX_NETWORK_ATTEMPTS = 10;
 export const LUNA_SUMMARY_PLANNED_POSTS = 10;
 export const LUNA_SUMMARY_REQUEST_KIND = "background-memory-extract" as const;
 export const LUNA_SUMMARY_EXPERIMENT_KEY_ENV = "MEMORY_LUNA_SUMMARY_EXPERIMENT_KEY";
+export const LUNA_SUMMARY_HARD_MAXIMUM_USD = "UNBOUNDED_WITHOUT_REQUEST_MAX_TOKENS" as const;
 export const LUNA_SUMMARY_LIVE_EXECUTE_SHIPPED = false;
 export const LUNA_SUMMARY_APPROVED_SCRIPT_HASH =
   "c7d1c0a1a060526b99538e98e58fddc75fae42499990ecf50fa1c961997394e8" as const;
@@ -456,7 +457,7 @@ export async function buildLunaSummaryPrepareManifest(
       productionMaxTokensApplied: null,
       resolverDefaultUnused: resolveBackgroundMaxOutputTokens(LUNA_SUMMARY_REQUEST_KIND),
       acceptedClampChars: ROLLING_SUMMARY_MAX_CHARS,
-      hardMaximumUsd: "UNBOUNDED_WITHOUT_REQUEST_MAX_TOKENS",
+      hardMaximumUsd: LUNA_SUMMARY_HARD_MAXIMUM_USD,
     },
     pricingSnapshot: {
       owner: "resolveOpenRouterModelRates",
