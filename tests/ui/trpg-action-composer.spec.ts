@@ -9,8 +9,9 @@ async function openActionComposer(page: Page) {
   await demoLogin(page);
   await page.goto("/trpg/scroll-follow-lab?scenario=bot1");
   await page.waitForSelector("[data-trpg-scroll-follow-lab='true']", { timeout: 30_000 });
+  await page.locator('[data-trpg-command-dock-tab="self"]').click();
   await page.locator('[data-trpg-command-dock-tab="action"]').click();
-  await expect(page.locator("textarea[placeholder='무엇을 하는가']")).toBeVisible();
+  await expect(page.locator("[data-trpg-next-action] textarea")).toBeVisible();
 }
 
 test.describe("TRPG action composer auto adjudication", () => {
