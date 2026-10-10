@@ -11,6 +11,8 @@ Module._load = function (request, parent, isMain) {
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { before, describe, it } from "node:test";
 
 import {
@@ -29,6 +31,7 @@ import { formatMemoryBlock } from "@/lib/memory/memory-turn-summary";
 import {
   PHASE3A_CALL_PLAN,
   PHASE3A_OUT_OF_SCOPE,
+  PHASE3A_PHASE2C_EVIDENCE_PATH,
   PHASE3A_REUSED_CONTRASTS,
   PHASE3A_REUSED_PROBES,
   emptyPhase3aGptReviewPacket,
@@ -83,8 +86,11 @@ describe("#1486 Phase 3A Main RP recall preflight", () => {
     assert.equal(PHASE3A_CALL_PLAN.pathA.lunaPosts, 0);
     assert.equal(PHASE3A_CALL_PLAN.pathA.mainRpPostsIfLaterApproved, 8);
     assert.equal(PHASE3A_CALL_PLAN.pathA.chatGenerationsToBuildHistory, 0);
+    assert.equal(PHASE3A_CALL_PLAN.pathBLite.status, "FOLLOW_UP");
     assert.equal(PHASE3A_CALL_PLAN.pathBLite.newLunaPosts, 0);
-    assert.equal(PHASE3A_CALL_PLAN.pathBLite.mainRpPostsIfLaterApproved, 4);
+    assert.equal(PHASE3A_CALL_PLAN.pathBLite.mainRpPostsIfLaterApproved, 0);
+    assert.equal(PHASE3A_CALL_PLAN.pathBLite.mustNotUsePhase1AUmbrellaQuery, true);
+    assert.equal(PHASE3A_CALL_PLAN.pathBLite.distinctFromPathBFull, true);
     assert.equal(PHASE3A_CALL_PLAN.pathBLite.usesPhase2cSample, true);
     assert.equal(PHASE3A_CALL_PLAN.pathBLite.phase2cRerunAuthorized, false);
     assert.equal(PHASE3A_CALL_PLAN.pathBFull.fiftyChatGenerations, 0);
@@ -94,12 +100,19 @@ describe("#1486 Phase 3A Main RP recall preflight", () => {
   });
 
   it("reuses Phase 1 A/B and Phase 2B fixtures instead of adding scenes", () => {
+    assert.equal(PHASE3A_REUSED_PROBES.pinKind, "PHASE1_AB_SNAPSHOT");
+    assert.equal(PHASE3A_REUSED_PROBES.ownerTest, "src/lib/memory/monthlyRpMemoryQualityPhase1.test.ts");
     assert.equal(PHASE3A_REUSED_PROBES.t6.phase1Case, "A");
     assert.equal(PHASE3A_REUSED_PROBES.t6.currentTurn - PHASE3A_REUSED_PROBES.t6.sourceTurn, 6);
     assert.match(PHASE3A_REUSED_PROBES.t6.factText, /우산/);
     assert.equal(PHASE3A_REUSED_PROBES.t50.phase1Case, "B");
     assert.equal(PHASE3A_REUSED_PROBES.t50.currentTurn, 51);
     assert.match(PHASE3A_REUSED_PROBES.t50.factText, /옥상에서 처음으로 담배를/);
+    const phase1Source = readFileSync(path.join(process.cwd(), PHASE3A_REUSED_PROBES.ownerTest), "utf8");
+    assert.equal(phase1Source.includes(PHASE3A_REUSED_PROBES.t6.factText), true);
+    assert.equal(phase1Source.includes(PHASE3A_REUSED_PROBES.t6.query), true);
+    assert.equal(phase1Source.includes(PHASE3A_REUSED_PROBES.t50.factText), true);
+    assert.equal(phase1Source.includes(PHASE3A_REUSED_PROBES.t50.query), true);
     assert.equal(phase3aReusedPhase2bTurnCount(), 5);
     assert.equal(phase3aReusedPhase2bFactCount(), 8);
     assert.equal(
@@ -108,6 +121,21 @@ describe("#1486 Phase 3A Main RP recall preflight", () => {
     );
     assert.ok(PHASE3A_OUT_OF_SCOPE.some((row) => row.includes("50 consecutive")));
     assert.ok(PHASE3A_OUT_OF_SCOPE.some((row) => row.includes("이안/서린")));
+    assert.ok(PHASE3A_OUT_OF_SCOPE.some((row) => row.includes("B-lite")));
+  });
+
+  it("does not grade Path A umbrella from the archived Phase 2C Luna summary", () => {
+    const evidence = JSON.parse(
+      readFileSync(path.join(process.cwd(), PHASE3A_PHASE2C_EVIDENCE_PATH), "utf8")
+    ) as { selectedSummary?: string };
+    const summary = evidence.selectedSummary ?? "";
+    assert.match(summary, /황동 라이터/);
+    assert.match(summary, /약속/);
+    assert.equal(summary.includes("우산"), false);
+    assert.equal(PHASE3A_REUSED_PROBES.t6.query.includes("우산"), true);
+    assert.equal(PHASE3A_CALL_PLAN.pathBLite.status, "FOLLOW_UP");
+    assert.equal(PHASE3A_CALL_PLAN.pathBLite.mustNotUsePhase1AUmbrellaQuery, true);
+    assert.equal(PHASE3A_CALL_PLAN.pathA.mainRpPostsIfLaterApproved, 8);
   });
 
   it("labels production 라이크 18 / 렌 unread on this VM", () => {
@@ -129,7 +157,7 @@ describe("#1486 Phase 3A Main RP recall preflight", () => {
     );
   });
 
-  it("assembles a Path A packet final-wire without a model response or provider POST", () => {
+  it("keeps a context preview distinct from provider final-wire and DB retrieval", () => {
     const probe = PHASE3A_REUSED_PROBES.t6;
     const injected = `[T${probe.sourceTurn}] ${probe.factText}`;
     const built = buildContext({
@@ -148,13 +176,16 @@ describe("#1486 Phase 3A Main RP recall preflight", () => {
       storedEpisodes: [probe.factText],
       retrievalCandidates: [probe.factText],
       injected,
-      finalWire: built.systemPrompt,
+      contextSystemPromptPreview: built.systemPrompt,
     };
+    assert.match(packet.contextSystemPromptPreview ?? "", /우산/);
+    assert.equal(packet.finalWire, null);
+    assert.equal(packet.dbRetrievalExecuted, false);
+    assert.equal(packet.assemblePrimaryRpRequestExecuted, false);
     assert.equal(packet.modelResponse, null);
     assert.equal(packet.cursorQualityScore, null);
     assert.equal(packet.pathAPassMustNotImplyPathB, true);
     assert.equal(packet.provenance, "CURRENT_CODE_DETERMINISTIC");
-    assert.match(packet.finalWire ?? "", /우산/);
     const currentMemory = (built.meta?.trackedSections ?? []).find(
       (section) => section.id === "current-memory"
     );

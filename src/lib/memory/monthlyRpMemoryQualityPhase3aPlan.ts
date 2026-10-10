@@ -26,8 +26,14 @@ export type Phase3aPath = (typeof PHASE3A_PATHS)[number];
 export const PHASE3A_HORIZONS = ["t6", "t50"] as const;
 export type Phase3aHorizon = (typeof PHASE3A_HORIZONS)[number];
 
-/** Existing Phase 1 A/B retrieve probes. Not new scene text. */
+/**
+ * Pinned snapshot of Phase 1 A/B probe strings.
+ * Not a second fixture owner. Retrieval proof stays in
+ * `monthlyRpMemoryQualityPhase1.test.ts`.
+ */
 export const PHASE3A_REUSED_PROBES = {
+  pinKind: "PHASE1_AB_SNAPSHOT",
+  ownerTest: "src/lib/memory/monthlyRpMemoryQualityPhase1.test.ts",
   t6: {
     phase1Case: "A",
     sourceTurn: 1,
@@ -46,6 +52,9 @@ export const PHASE3A_REUSED_PROBES = {
   },
 } as const;
 
+export const PHASE3A_PHASE2C_EVIDENCE_PATH =
+  "docs/audits/monthly-rp-memory-quality-phase2c-2026-10-10/evidence.json" as const;
+
 /** Contrast already owned by Phase 1 / 2B. Do not add a second fixture. */
 export const PHASE3A_REUSED_CONTRASTS = [
   { id: "past_vs_current", owner: "Phase 1 D", paidInPhase3a: false },
@@ -61,6 +70,7 @@ export const PHASE3A_OUT_OF_SCOPE = [
   "memory50TurnAbScript harbor 이안/서린 — different fixture family",
   "50 consecutive Main RP chat generations",
   "Phase 2C Luna re-call",
+  "B-lite archived-summary probe with a new grounded question",
   "production character-18 / admin 렌 sheet read on this VM",
 ] as const;
 
@@ -73,7 +83,10 @@ export type Phase3aGptReviewPacket = {
   storedEpisodes: readonly string[];
   retrievalCandidates: readonly string[];
   injected: string | null;
+  contextSystemPromptPreview: string | null;
   finalWire: string | null;
+  dbRetrievalExecuted: false;
+  assemblePrimaryRpRequestExecuted: false;
   modelResponse: string | null;
   missingFacts: string[];
   wrongTimeActorRelationOwnership: string[];
@@ -101,7 +114,10 @@ export function emptyPhase3aGptReviewPacket(
     storedEpisodes: [],
     retrievalCandidates: [],
     injected: null,
+    contextSystemPromptPreview: null,
     finalWire: null,
+    dbRetrievalExecuted: false,
+    assemblePrimaryRpRequestExecuted: false,
     modelResponse: null,
     missingFacts: [],
     wrongTimeActorRelationOwnership: [],
@@ -129,11 +145,14 @@ export const PHASE3A_CALL_PLAN = {
     chatGenerationsToBuildHistory: 0,
   },
   pathBLite: {
+    status: "FOLLOW_UP",
     meaning:
-      "Reuse the archived Phase 2C Luna 5-turn summary. No Luna re-call. Then one Main RP reply per model at the 6-turn probe.",
+      "Archived Phase 2C summary inject is not Path A t6 umbrella and is not new Luna seal→persist→retrieve E2E. A grounded Phase 2C question would be a new case; deferred.",
     newLunaPosts: 0,
-    mainRpPostsIfLaterApproved: MAIN_RP_MODEL_IDS.length,
+    mainRpPostsIfLaterApproved: 0,
     usesPhase2cSample: true,
+    mustNotUsePhase1AUmbrellaQuery: true,
+    distinctFromPathBFull: true,
     phase2cRerunAuthorized: MONTHLY_RP_MEMORY_QUALITY_PHASE2C_SAMPLE_EVIDENCE.rerunAuthorized,
   },
   pathBFull: {

@@ -45,9 +45,9 @@ Retrieve/inject can be proven by existing tests. Reply quality needs later paid 
 **B. Real Luna seal → store → retrieve → inject → Main RP reply.**
 A Path A pass is not a Path B pass. Phase 2C already produced one 5-turn Luna sample; do not re-call it.
 
-**B-lite (preferred later 6-turn Path B):** inject the archived Phase 2C summary, then one Main RP reply per model. New Luna POST 0.
+**B-lite: FOLLOW-UP.** The archived Phase 2C Luna summary is rooftop / brass lighter / station promise. It does not contain the Path A t6 umbrella fact. Do not grade a model on that mismatch. A grounded Phase 2C question would be a new case; deferred. Archived-summary inject ≠ new Luna seal→persist→retrieve E2E.
 
-**B-full 50-turn:** 10 seal batches × existing max 3 attempts + 4 Main RP replies. Not approved. Do not generate 50 chat turns to build that history.
+**B-full:** new Luna seals plus Main RP. Not approved. Do not generate 50 chat turns.
 
 Identity: **FIXTURE_ONLY**. Local `data/app.db` has characters 1–9 only. Production sheets unread. Homepage / Railway-container parity UNPROVEN.
 
@@ -83,14 +83,7 @@ If a later operator approves Path A only:
 | Luna POSTs | **0** |
 | Chat generations to seed history | **0** |
 
-If a later operator approves 6-turn Path B-lite (reuse Phase 2C summary):
-
-| Item | Count |
-| --- | --- |
-| Main RP POSTs | **4** |
-| New Luna POSTs | **0** |
-
-Path B-full remains a separate approval. Duplicate-run prevention: archival evidence + `paidEvaluationApproved: false` + no execute CLI. Do not add a new permanently runnable paid path.
+B-lite is FOLLOW-UP, not in the later 8-POST Path A plan. Path B-full remains a separate approval. Duplicate-run prevention: archival evidence + `paidEvaluationApproved: false` + no execute CLI. Do not add a new permanently runnable paid path.
 
 Rates come from `resolveOpenRouterModelRates(resolveMainRpPrimaryWireModelId(id))`. Gemini wire id is `google/gemini-3.8-flash`. Actual billed USD is provider-reported, not this estimate.
 
@@ -98,13 +91,13 @@ Rates come from `resolveOpenRouterModelRates(resolveMainRpPrimaryWireModelId(id)
 
 `emptyPhase3aGptReviewPacket` reserves:
 
-source turns, stored summary/episodes, retrieval candidates, injected text, final-wire, model response, missing facts, wrong time/actor/relation/ownership, ungrounded memory, tokens/USD/finish reason, SHA, provenance.
+source turns, stored summary/episodes, retrieval candidates, injected text, `contextSystemPromptPreview`, `finalWire` (null until `assemblePrimaryRpRequest`), model response, missing facts, wrong time/actor/relation/ownership, ungrounded memory, tokens/USD/finish reason, SHA, provenance.
 
-`cursorQualityScore` is always null. GPT scores Korean naturalness, relationship/emotion, scene continuity, and dialogue balance later.
+`cursorQualityScore` is always null. A manually injected `episodicMemoryBlock` is not DB retrieval. Phase 1 A/B remains the retrieve proof. GPT scores Korean naturalness, relationship/emotion, scene continuity, and dialogue balance later.
 
 ## AFTER
 
-Plan constant + packet shape + provider-free assembly of a Path A 6-turn final-wire. No execute helper. No new memory owner. No prompt or pricing change.
+Plan constant + packet shape. Path A stays 6턴·50턴 × 4 models = 8 later POSTs. B-lite moved to FOLLOW-UP. `buildContext().systemPrompt` is a preview only; `finalWire` stays null. No execute helper. No new memory owner. No prompt or pricing change.
 
 ## REMOVED
 
@@ -116,7 +109,11 @@ Phase 1 / 2A / 2B / 2C evidence, Phase 2B fixture, Phase 2C Luna text/usage, `su
 
 ## REGRESSION RISKS
 
-CI now runs the Phase 3A preflight next to Phase 1/2B/provenance. The new files must not import a paid execute path.
+- Grading Path A umbrella from a Phase 2C summary that never mentioned 우산
+- Treating `contextSystemPromptPreview` as `assemblePrimaryRpRequest` final-wire
+- Claiming DB retrieval from a manual `episodicMemoryBlock`
+- Promoting Path A pass to Path B pass
+- Promoting fixture-only / HISTORICAL_ONLY to production parity
 
 ## PROOF
 
@@ -132,7 +129,7 @@ Preflight labels and a GPT packet schema on the existing provenance owner. Share
 
 ## FOLLOW-UP (not this PR)
 
-Separately approved Path A 8-call Main RP experiment; optional 6-turn Path B-lite using the archived Luna sample; Path B-full only with a new quantified approval; Railway hash probe for production identity; CURRENT_PRODUCTION_PARITY only after observed runtime SHA + sheet read.
+Separately approved Path A 8-call Main RP experiment; B-lite only after a question grounded in the actual Phase 2C summary; Path B-full only with a new quantified approval; Railway hash probe for production identity; CURRENT_PRODUCTION_PARITY only after observed runtime SHA + sheet read; `finalWire` only after `assemblePrimaryRpRequest`.
 
 ## STOP
 
