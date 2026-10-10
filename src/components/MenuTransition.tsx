@@ -39,8 +39,10 @@ import {
   CHAT_ROOM_ID_ATTR,
   chatResumeInkRadius,
   chatResumeIris,
+  chatResumePageLooksFailed,
   chatResumeRevealDelayMs,
   computeChatResumeLayout,
+  decideChatBurstAction,
   isSameChatRoom,
   parseChatResumeHref,
   resolveChatArrival,
@@ -57,7 +59,7 @@ import ChatResumeScene, { type ChatResumeScene as ChatScene } from "@/components
  *   - `menu`: 승인된 메뉴 영역(`data-menu-transition`) 클릭 → Phase C 그래픽 전환.
  *   - `character`: 캐릭터 카드(`data-character-card`)의 프로필 링크 클릭 → artwork reveal.
  *   - `chat`: 최근 활동의 캐릭터 채팅 행(`data-chat-resume`) 클릭 → 기존 채팅방 reveal.
- *     방은 characterId + chatId로 식별하고(query-only 이동 포함), 실제 방 마커가 도착해야 걷힌다.
+ *     방은 characterId + chatId로 식별하고(query-only 이동 포함), 실제 방 마커가 도착해야 분할한다.
  *   콘텐츠 링크(태그·제작자)·TRPG 최근 활동·history traversal은 대상 아님.
  * - navigation을 지연시키지 않고, router를 직접 호출하지 않으며,
  *   오버레이는 항상 `pointer-events: none`이라 기능을 가로막지 않는다.
@@ -313,17 +315,58 @@ export default function MenuTransitionHost() {
     startedAt.current = performance.now();
     setBurst(next);
     const timing = timingFor(next.kind);
-    // 도착이 늦거나 실패해도 정해진 시각에 걷힌다.
-    timers.current.push(window.setTimeout(() => beginReveal(next.id), timing.holdMaxMs));
-    // 이동 실패·지연 대비 failsafe — 화면을 영구히 덮지 않는다.
+    // 메뉴·캐릭터는 도착이 늦어도 holdMax에 분할한다. 채팅은 실제 방이 오기 전에
+    // 분할하면 이전 화면이 드러나므로 holdMax로 열지 않는다.
+    if (next.kind !== "chat") {
+      timers.current.push(window.setTimeout(() => beginReveal(next.id), timing.holdMaxMs));
+    }
+    // 이동 실패 대비 failsafe. 채팅의 pending(늦은 RSC)은 여기로 걷지 않는다.
     timers.current.push(
       window.setTimeout(() => {
-        if (burstRef.current && burstRef.current.id === next.id) {
-          burstRef.current = null;
-          setBurst(null);
+        const cur = burstRef.current;
+        if (!cur || cur.id !== next.id) return;
+        if (cur.kind === "chat") {
+          syncChatBurst(cur.id);
+          return;
         }
+        burstRef.current = null;
+        setBurst(null);
       }, timing.failsafeMs),
     );
+  }
+
+  function syncChatBurst(id: number) {
+    const cur = burstRef.current;
+    if (!cur || cur.id !== id || cur.kind !== "chat") return;
+    const arrival = resolveChatArrival({
+      dest: cur.scene.room,
+      origin: cur.origin,
+      room: readChatRoom(),
+      pathname: window.location.pathname,
+      url: `${window.location.pathname}${window.location.search}`,
+      superseded: cur.superseded,
+    });
+    const action = decideChatBurstAction(
+      arrival,
+      arrival === "pending" && chatResumePageLooksFailed(document),
+    );
+    switch (action) {
+      case "drop":
+        dropBurst(id);
+        return;
+      case "hold":
+        return;
+      case "reveal":
+        if (cur.phase === "cover") {
+          const delay = revealDelayFor("chat", performance.now() - startedAt.current);
+          timers.current.push(window.setTimeout(() => beginReveal(id), delay));
+        }
+        return;
+      default: {
+        const _exhaustive: never = action;
+        return _exhaustive;
+      }
+    }
   }
 
   function scheduleMenuBurst(spec: MenuTransitionSpec, dest: string) {
@@ -444,19 +487,7 @@ export default function MenuTransitionHost() {
     const cur = burstRef.current;
     if (!cur) return;
     if (cur.kind === "chat") {
-      const arrival = resolveChatArrival({
-        dest: cur.scene.room,
-        origin: cur.origin,
-        room: readChatRoom(),
-        pathname,
-        url: `${window.location.pathname}${window.location.search}`,
-        superseded: cur.superseded,
-      });
-      if (arrival === "abandoned") dropBurst(cur.id);
-      else if (arrival === "arrived" && cur.phase === "cover") {
-        const delay = revealDelayFor(cur.kind, performance.now() - startedAt.current);
-        timers.current.push(window.setTimeout(() => beginReveal(cur.id), delay));
-      }
+      syncChatBurst(cur.id);
       return;
     }
     if (prev.path === pathname) return;
@@ -468,6 +499,21 @@ export default function MenuTransitionHost() {
     const delay = revealDelayFor(cur.kind, performance.now() - startedAt.current);
     timers.current.push(window.setTimeout(() => beginReveal(cur.id), delay));
   }, [pathname, search]);
+
+  // 채팅 전환: URL이 먼저 커밋되고 방 마커가 늦게 붙는 경우를 같은 owner 안에서 감지한다.
+  useEffect(() => {
+    if (!burst || burst.kind !== "chat") return;
+    const id = burst.id;
+    const mo = new MutationObserver(() => syncChatBurst(id));
+    mo.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: [CHAT_ROOM_ID_ATTR, CHAT_ROOM_CHARACTER_ATTR],
+    });
+    syncChatBurst(id);
+    return () => mo.disconnect();
+  }, [burst?.id, burst?.kind]);
 
   useEffect(() => () => clearTimers(), []);
 
