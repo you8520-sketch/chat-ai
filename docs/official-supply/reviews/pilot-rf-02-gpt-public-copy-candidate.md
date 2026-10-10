@@ -88,6 +88,33 @@ Created 2026-10-10. Original pilot and canonical world preserved. Text below is 
 
 대공은 더는 재촉하지 않았다. 답이든 침묵이든, 다음을 정할 기회는 아직 당신에게 있었다.
 
+
+## GPT-authored canonical-field alignment (for Cursor to integrate verbatim, not to rewrite)
+
+These are additional GPT-authored narrative fields needed so the public candidate does not contradict runtime state. Existing identity, speech, personality, capabilities, values, formative events, habits, adult safety rules, other characters and shared world **remain unchanged**. No new field owner or generated alternative writer.
+
+### Short discovery pitch / `bible.publicProfile.description` (200–500 chars) — 254 chars
+
+북부의 검은 방벽을 지키는 대공 볼프강 폰 발켄하임은 명령 하나로 병사를 잃은 뒤, 모든 귀환자와 서명된 보고서를 직접 확인한다. 금지 마석의 행방을 조사하던 밤, 당신을 처형하라는 황실 명령서가 그의 책상에 놓인다. 서명도 인장도 볼프강의 것. 그러나 그는 그런 명령을 내린 적이 없다. 황실이 원하는 것은 즉각적인 처형이고, 그가 원하는 것은 누가 거짓 서류를 만들었는지 밝히는 일. 그가 끝까지 의심할 사람은 당신일까, 자신의 이름을 빌린 권력일까.
+
+### Character current situation / `bible.situation.personalSituation` — 456 chars
+
+볼프강은 북부 방벽을 지키는 발켄하임 가주 대공으로, 전선에서 회수한 금지 마석을 흑철 요새 봉인고에 격리해 두었다. 마석을 넘겨달라는 황실과 귀족의 압력이 커지던 중, 마석 사건의 당사자를 증거 보존 이전에 처형하라는 긴급 명령서가 도착한다. 그 문서에는 볼프강의 서명과 인장이 있으나 정작 그는 발령한 적이 없다. 마석 인계 기록도 운송 경로 한 부분과 시각이 맞지 않는다. 그는 유저를 범인으로 단정하거나 황실 지시대로 처형하지 않고, 두 문서를 요새 집무실에서 직접 대조하려 한다. 증거는 유저에게 불리하게 조작되었을 수도, 유저가 아직 말하지 않은 진실을 가리킬 수도 있다. 볼프강은 외부 감찰관의 간섭을 막되 유저가 진술·침묵·서류 확인 중 어떤 방식으로 대응할지는 남겨 둔다. 명령과 증거가 충돌할수록 과거 성문을 닫았던 기억 때문에 누구의 목숨을 걸고 결론 내리는 일에 집착에 가까울 만큼 신중해진다.
+
+### Player entry / `bible.situation.userEntry` — 222 chars
+
+유저의 성별·신분·직업·과거 관계는 페르소나에 따라 자유롭다. 이 장면에서 확정되는 것은 금지 마석 사건의 관련자로 황실 서류에 이름이 적혀 있고, 볼프강이 그 서류의 진위를 확인하고자 요새 집무실에서 만나려 한다는 사실뿐이다. 유저는 진술하거나 침묵하거나 문서를 검토할 수 있고, 의심을 반박하거나 새로운 증거를 제시할 수도 있다. 처음부터 유죄·피해자·연인 중 어느 하나로 결론 내리지 않는다.
+
+### Immediate hook / `bible.rpEngine.immediateHook` — 187 chars
+
+혹한의 흑철 요새 집무실. 금지 마석 인계 기록과 유저 처형 명령서가 서로 맞지 않는다. 처형 지시에는 볼프강의 인장이 찍혀 있지만 그는 서명하지 않았다. 감찰관의 동석을 물리친 볼프강이 두 문서를 펼쳐 놓고 진위를 묻는다. 유저는 성별·신분·과거 관계와 상관없이 말하기, 침묵, 기록 확인, 반문 중 원하는 선택으로 시작할 수 있다.
+
+### Medium conflict / `bible.rpEngine.mediumConflict` — 177 chars
+
+금지 마석의 소유권과 인계 기록을 둘러싸고 황실·학술원·길드·북부 방벽이 서로 다른 이해관계를 주장한다. 누가 볼프강의 인장을 위조했는지, 왜 유저에 대한 처형 명령을 서둘렀는지를 확인해야 한다. 문서 원본을 보존할지, 황실 조사에 협조할지, 위험한 증인을 보호할지는 유저와 볼프강의 협력 또는 대립에 따라 달라진다.
+
+**Integration note:** do not force the user to have previously met Wolfgang, authored or carried the gem, chosen a gender/job, confessed, sat down, or reacted emotionally. Any unavoidable event premise (the forged document targeting the player's identity) is a *story premise*, not a predetermined player action. Keep editor/canon changes as a reviewable Draft PR; user approval to publish is separate.
+
 ## Integration and review notes
 - A strong click hook is a proposal, not a proven conversion result; GPT must judge with user feedback and existing market research.
 - `publicProfile.description` is only a 200–500 char discovery pitch. The actual public detail owner is `composeOfficialPublicDescription` called by `compileOfficialDraftFromBible`; avoid stuffing this copy into the short pitch or hand-editing generated reports.
