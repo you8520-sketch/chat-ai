@@ -1,0 +1,15 @@
+{
+  "id": "017",
+  "url": "https://openrouter.ai/api/v1/chat/completions",
+  "method": "POST",
+  "status": 200,
+  "model": "deepseek/deepseek-v4-flash-0731",
+  "requestSha": "e377a3e664eb3ca55ebd759575649ce96557cfd9e384a9aadecf145cc08be16b",
+  "rawSha": "79cc51cac59fdbdb88fa3475cb7a7212e03565609c8120ea8c22426b07c55719",
+  "ttftMs": 779,
+  "latencyMs": 4477,
+  "finishReason": null,
+  "usage": null,
+  "visibleChars": 0,
+  "capturedAt": "2026-08-24T11:16:49.091Z"
+}
