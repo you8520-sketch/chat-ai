@@ -18,7 +18,9 @@ import {
 import {
   LUCIAN_REVIEW_RELATIVE_PATH,
   LUCIAN_REVIEW_REPRODUCE,
+  WOLFGANG_REVIEW_RELATIVE_PATH,
   buildOfficialCharacterReviewReport,
+  officialCharacterReviewReproduce,
 } from "@/lib/officialSupply/characterReview";
 import { composeOfficialCreatorComment } from "@/lib/officialSupply/publicProfileText";
 import type {
@@ -270,6 +272,19 @@ describe("official character prompt standard v1", () => {
     assert.equal(committed, generated);
     assert.doesNotMatch(generated, /OPENROUTER_API_KEY|sk-[A-Za-z0-9]{20,}|BEGIN PRIVATE KEY/);
     assert.match(LUCIAN_REVIEW_REPRODUCE, /official-supply:review-character/);
+    assert.equal(LUCIAN_REVIEW_REPRODUCE, officialCharacterReviewReproduce("pilot-rf-03"));
+  });
+
+  it("prints the reviewed draftKey in the Wolfgang reproduction command", () => {
+    const generated = buildOfficialCharacterReviewReport("pilot-rf-02");
+    const committed = fs.readFileSync(path.join(process.cwd(), WOLFGANG_REVIEW_RELATIVE_PATH), "utf8");
+    assert.equal(committed, generated);
+    assert.match(generated, /official-supply:review-character -- pilot-rf-02 docs\/official-supply\/reviews\/pilot-rf-02-wolfgang.md/);
+    assert.doesNotMatch(generated, /pilot-rf-03 docs\/official-supply\/reviews\/pilot-rf-03-lucian.md/);
+    assert.equal(
+      officialCharacterReviewReproduce("pilot-rf-02"),
+      "npm run official-supply:review-character -- pilot-rf-02 docs/official-supply/reviews/pilot-rf-02-wolfgang.md"
+    );
   });
 
   it("keeps one persona-flexible opening and does not force romance or a first meeting", () => {

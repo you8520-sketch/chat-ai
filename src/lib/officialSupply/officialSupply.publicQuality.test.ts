@@ -256,6 +256,80 @@ describe("official detailed intro + creator comment", () => {
     assert.ok(evaluateOfficialPublicDescription("황자가 온실에서 당신을 기다린다. 거래가 시작된다.").errors.length > 0);
     assert.equal(typeof pitch, "function");
   });
+
+  it("uses an authored detailed description as draft.description without shortening", () => {
+    const file = sampleChars()[0]!;
+    const authored = "[세계관 설정: 에테르노스 제국]\n남겨 둔 문장.\n\n[캐릭터 설정]\n이름: 테스트\n나이: 34세\n키: 188cm\n직업/소속: 사령관 / 연맹\n\n외형: 머리: 흑회색, 울프컷 / 눈: 회청색, 긴 눈매 / 피부: 창백 / 체형: 넓은 어깨\n성격: 냉정\n능력/역할: 지휘\n배경: 배경.\n\n[관계 포인트]\n관계는 선택에 따라 달라진다.\n\n[도입 상황]\n당신이 집무실에 있다.";
+    const composed = composeOfficialPublicDescription({
+      worldName: "에테르노스 제국 (Aethernos Empire)",
+      rpHook: file.brief.rpHook,
+      relationshipTrope: file.brief.relationshipTrope,
+      identity: file.bible.identity,
+      appearance: file.bible.appearance,
+      personality: file.bible.personality,
+      abilities: file.bible.abilities,
+      situation: file.bible.situation,
+      userRole: file.bible.userRelationship.userRole,
+      detailedDescription: authored,
+    });
+    assert.equal(composed, authored);
+    assert.doesNotMatch(composed, /이름: 카엘룸|이름: 레온/);
+  });
+});
+
+describe("Wolfgang GPT-authored public copy", () => {
+  function section(md: string, start: string, end: string): string {
+    const from = md.indexOf(start);
+    const to = md.indexOf(end, from + start.length);
+    return md.slice(from + start.length, to).trim();
+  }
+
+  function candidate() {
+    const md = fs.readFileSync(
+      path.join(process.cwd(), "docs/official-supply/reviews/pilot-rf-02-gpt-public-copy-candidate.md"),
+      "utf8"
+    );
+    return {
+      tagline: section(md, "## One-line tagline (37/50 characters)\n\n", "\n\n## Public detailed description"),
+      detailedDescription: section(md, "## Public detailed description (1299/3,000 characters)\n\n", "\n\n## Greeting / opening"),
+      greeting: section(md, "## Greeting / opening (1547 characters; editorial aim approximately 1,500; storage ceiling 2,000)\n\n", "\n\n\n## GPT-authored"),
+      pitch: section(md, "### Short discovery pitch / `bible.publicProfile.description` (200–500 chars) — 254 chars\n\n", "\n\n### Character current situation"),
+      personalSituation: section(md, "### Character current situation / `bible.situation.personalSituation` — 456 chars\n\n", "\n\n### Player entry"),
+      userEntry: section(md, "### Player entry / `bible.situation.userEntry` — 222 chars\n\n", "\n\n### Immediate hook"),
+      immediateHook: section(md, "### Immediate hook / `bible.rpEngine.immediateHook` — 187 chars\n\n", "\n\n### Medium conflict"),
+      mediumConflict: section(md, "### Medium conflict / `bible.rpEngine.mediumConflict` — 177 chars\n\n", "\n\n**Integration note:**"),
+    };
+  }
+
+  it("keeps compiled Wolfgang public surfaces byte-identical to the GPT candidate", () => {
+    const file = readJson<PilotChar>(path.join(PILOT_DIR, "characters", "pilot-rf-02.json"));
+    const copy = candidate();
+    const draft = compileOfficialDraftFromBible(file.bible, compileKeys(file));
+    assert.equal(file.bible.publicProfile.tagline, copy.tagline);
+    assert.equal(file.bible.publicProfile.description, copy.pitch);
+    assert.equal(file.bible.publicProfile.detailedDescription, copy.detailedDescription);
+    assert.equal(file.bible.greeting, copy.greeting);
+    assert.equal(file.bible.situation.personalSituation, copy.personalSituation);
+    assert.equal(file.bible.situation.userEntry, copy.userEntry);
+    assert.equal(file.bible.rpEngine.immediateHook, copy.immediateHook);
+    assert.equal(file.bible.rpEngine.mediumConflict, copy.mediumConflict);
+    assert.equal(draft.description, copy.detailedDescription);
+    assert.equal(draft.greeting, copy.greeting);
+    assert.equal(draft.tagline, copy.tagline);
+    assert.notEqual(draft.description, file.bible.publicProfile.description);
+    assert.equal(copy.tagline.length, 37);
+    assert.equal(copy.detailedDescription.length, 1299);
+    assert.equal(copy.greeting.length, 1547);
+    assert.ok(copy.greeting.length <= 2000);
+    assert.deepEqual(evaluateOfficialPublicDescription(draft.description, draft.name).errors, []);
+    assert.match(draft.description, /세계관 설정: 에테르노스 제국/);
+    assert.match(draft.description, /캐릭터 설정/);
+    assert.match(draft.description, /도입 상황/);
+    assert.doesNotMatch(draft.description, /정략적 혐오에서 맹목적 충성으로/);
+    assert.doesNotMatch(draft.greeting, /눈과 서리를 묻힌 당신이|젖은 외투/);
+    assert.doesNotMatch(file.bible.identity.worldRole, /92kg|92㎏/);
+    assert.match(draft.description, /몸무게 약 92kg/);
+  });
 });
 
 describe("official shot QA path stays non-persistent", () => {

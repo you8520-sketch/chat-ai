@@ -34,7 +34,7 @@ import { buildRofanMatureMaleVisualAgeDirection } from "@/lib/officialSupply/app
  * other half, so short-but-complete prose passes and padded prose fails.
  */
 export const OFFICIAL_AUTHOR_QUALITY_CONTRACT = {
-  greeting: { min: 700, max: 1400 },
+  greeting: { min: 700, max: 1800 },
   speechDescription: { min: 250, max: 600 },
   publicDescription: { min: 200, max: 500 },
   /** Core discovery tags: genre · relationship · personality · material · direction. */
@@ -441,6 +441,7 @@ export function buildCharacterVoiceSystem(): string {
     "- behaviorRules 3~7개. 부정문 나열보다 캐릭터 고유 행동 논리. 유저 관계 메타규칙은 bonds의 userRelationship owner가 담당하므로 여기서 반복하지 않는다.",
     "",
     `greeting 규칙(실제 RP 첫 장면, 반드시 ${Q.greeting.min}자 이상 ${Q.greeting.max}자 이하):`,
+    "- 편집 목표는 약 1500자다. 저장 상한 2000자와 Main RP 출력 한도는 바꾸지 않으며, 700자를 넘는 기존 유효 오프닝을 탈락시키지 않는다.",
     "- 장소·상황·분위기·캐릭터 행동·목소리·유저가 그 자리에 있는 최소 단서·반응 여지.",
     "- 캐릭터의 대사를 따옴표로 최소 1줄 넣고, 유저를 '당신'으로 지칭한다.",
     "- 유저 쪽 지칭은 성별 중립적으로 유지한다. 당신·상대·목격자·계약자·방문객·동행자·협상 상대처럼 역할과 상황으로 표현한다.",

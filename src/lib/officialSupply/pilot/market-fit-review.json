@@ -114,8 +114,8 @@
       },
       "audience": "female",
       "portfolioHook": "전선에서 노획한 금지된 마석의 소유권을 두고 플레이어를 혹한의 요새 집무실로 압송해 심문함",
-      "publicTagline": "금지된 마석을 쥔 당신을 압송해 온 북부의 대공.",
-      "publicDescriptionOpening": "북부 방벽 수호사령관 볼프강 폰 발켄하임은 시간을 분 단위로 쪼개 보급과 병력의 생존을 확인하는 냉정한 지휘관이다.",
+      "publicTagline": "“널 처형하라는 명령서에 내 인장이 찍혔다. 난 서명한 적 없다.”",
+      "publicDescriptionOpening": "북부의 검은 방벽을 지키는 대공 볼프강 폰 발켄하임은 명령 하나로 병사를 잃은 뒤, 모든 귀환자와 서명된 보고서를 직접 확인한다.",
       "primaryTrope": "계약·정략",
       "secondaryTropes": [
         "혐관",
@@ -131,11 +131,12 @@
       ],
       "ungroundedTags": [],
       "taglineWorldTerms": [],
-      "taglineHasUserRelationship": true,
+      "taglineHasUserRelationship": false,
       "userRole": "마석의 출처·소유권·전선에서의 행적에 관해 증언하거나 조사에 협력할 수 있는 사람이다. 협조 여부와 관계의 방향은 유저의 선택으로 정해진다.",
       "adult": true,
       "marketFitBrief": null,
       "findings": [
+        "tagline_relationship_unclear: tagline \"“널 처형하라는 명령서에 내 인장이 찍혔다. 난 서명한 적 없다.”\" carries mood only, no user relationship/conflict",
         "market_fit_brief_absent: authored before the market-fit owner existed"
       ]
     },

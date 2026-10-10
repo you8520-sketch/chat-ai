@@ -318,7 +318,13 @@ export type OfficialCharacterBible = {
     longTermChange: string;
   };
   greeting: string;
-  publicProfile: { tagline: string; description: string; tags: string[] };
+  publicProfile: {
+    tagline: string;
+    description: string;
+    tags: string[];
+    /** GPT-authored public-page body. When present, compiler uses it as draft.description. */
+    detailedDescription?: string;
+  };
   npcs: OfficialSupportingNpc[];
   nsfw: boolean;
   adultSection: BibleAdultSection | null;
@@ -477,6 +483,7 @@ export const CHARACTER_VOICE_SCHEMA: Record<string, unknown> = {
         tagline: { type: "string" },
         description: { type: "string" },
         tags: { type: "array", items: { type: "string" } },
+        detailedDescription: { type: "string" },
       },
     },
     npcs: {
@@ -1324,6 +1331,7 @@ export function compileOfficialDraftFromBible(
       situation: bible.situation,
       userRole: bible.userRelationship.userRole,
       personaFlexible: compactRpV1,
+      detailedDescription: bible.publicProfile.detailedDescription,
     }),
     greeting: bible.greeting,
     gender: id.gender as OfficialCharacterDraft["gender"],

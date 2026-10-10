@@ -131,6 +131,8 @@ export type OfficialPublicIntroInput = {
   userRole: string;
   /** compact_rp_v1: prior user-character relationship comes from the user persona/dialogue, not the card. */
   personaFlexible?: boolean;
+  /** GPT-authored public-page body. When present, skip auto-composition. */
+  detailedDescription?: string;
 };
 
 function clipPhrase(text: string, maxChars: number): string {
@@ -169,6 +171,9 @@ export function publicAppearanceFacts(appearance: OfficialPublicIntroInput["appe
 }
 
 export function composeOfficialPublicDescription(input: OfficialPublicIntroInput): string {
+  const authored = input.detailedDescription?.trim();
+  if (authored) return authored;
+
   const id = input.identity;
   const worldBody = firstSentences(input.situation.worldContext, 280, 3);
   const looks = publicAppearanceFacts(input.appearance).join(" / ");
@@ -276,19 +281,24 @@ export function evaluateOfficialPublicDescription(description: string, name?: st
   if (!/\d+\s*세/.test(text) || !/\d+\s*cm/i.test(text)) {
     errors.push({ code: "public_intro_stats_missing", message: "detailed intro must state age and height" });
   }
-  if (!/직업\/소속/.test(text) || !/외형:/.test(text) || !/성격:/.test(text) || !/능력\/역할:/.test(text)) {
-    errors.push({ code: "public_intro_facts_missing", message: "detailed intro must cover occupation, looks, personality, role" });
-  }
-  const looks = text.match(/외형:\s*([^\n]+)/)?.[1] ?? "";
-  const lookLabels = [/머리:/, /눈:/, /피부:/, /체형:/, /특징:/, /복식:/];
-  if (looks.length < 40 || lookLabels.filter((cue) => cue.test(looks)).length < 3) {
-    errors.push({
-      code: "public_intro_looks_thin",
-      message: "detailed intro looks must include 3–5 labeled public identifying features",
-    });
-  }
-  if (/[가-힣](?:보다|하며|하고)\s*\//.test(looks)) {
-    errors.push({ code: "public_intro_looks_truncated", message: "detailed intro looks must not cut a source sentence mid-clause" });
+  const isAutoSheet = /이름:/.test(text) && /직업\/소속/.test(text) && /능력\/역할:/.test(text);
+  if (isAutoSheet) {
+    if (!/직업\/소속/.test(text) || !/외형:/.test(text) || !/성격:/.test(text) || !/능력\/역할:/.test(text)) {
+      errors.push({ code: "public_intro_facts_missing", message: "detailed intro must cover occupation, looks, personality, role" });
+    }
+    const looks = text.match(/외형:\s*([^\n]+)/)?.[1] ?? "";
+    const lookLabels = [/머리:/, /눈:/, /피부:/, /체형:/, /특징:/, /복식:/];
+    if (looks.length < 40 || lookLabels.filter((cue) => cue.test(looks)).length < 3) {
+      errors.push({
+        code: "public_intro_looks_thin",
+        message: "detailed intro looks must include 3–5 labeled public identifying features",
+      });
+    }
+    if (/[가-힣](?:보다|하며|하고)\s*\//.test(looks)) {
+      errors.push({ code: "public_intro_looks_truncated", message: "detailed intro looks must not cut a source sentence mid-clause" });
+    }
+  } else if (!/외형:/.test(text) || !/성격:/.test(text)) {
+    errors.push({ code: "public_intro_facts_missing", message: "detailed intro must cover looks and personality" });
   }
   errors.push(...evaluateOfficialPlayerGenderNeutral({ description: text }).errors);
   return qaResult(errors);
