@@ -52,6 +52,16 @@ Unchanged: 10,000 LTM cap, RAW4, 5-turn seal, relationship ledger, character/cha
 
 Do not treat these replies as production-site 라이크 18 / 렌 style scores.
 
+## EVIDENCE LIMITATIONS — attribution and horizon
+
+**This paid Path A is a synthetic explicit-memory-injection reply test, not proof that a model independently retrieved a 50-turn-old fact.**
+
+- For **both** t6 and t50, the exact answer is present twice in the final provider system request: (1) an experiment-seeded **`[1~5턴]` Current Memory** constructed with `formatMemoryBlock`, and (2) the live-retrieved `[T1]` episodic memory. Correct output cannot be attributed uniquely to the episodic retrieval owner: the model may have answered from the seeded Current Memory alone.
+- `sourceTurn=1` and `currentTurn=7/51` represent the **isolated retrieval-age metadata**. The generation requests did not contain six or fifty fully generated chat turns, a real changing rolling-summary sequence, or equivalent intervening distractions. Phase 1 B tests retrieval under filler seeding separately; this Path A paid output does not test that full production chronology.
+- Evidence actually proven here: canonical isolated memory retrieval selected T1, `assemblePrimaryRpRequest` put seeded Current Memory plus episodic facts into model request, and six HTTP 200 model outputs reflected the explicitly supplied memory. Model-specific unsupported shared-history claims remain a real response-quality concern.
+- `CURRENT_LIVE_PROVIDER` means live model output, **not** `CURRENT_PRODUCTION_PARITY`; production character/persona and observed Railway process SHA remain unverified. These results are neither an evaluation of genuine 50-turn end-to-end retention nor proof of the deployed character's voice.
+- No further generation, scoring automation, or prompt change is authorized by this archival correction. The eight outbound generation POSTs are already exhausted. Gemini 401 is an execution/auth failure, not a model-memory score. Raw responses and billed-cost `UNREPORTED` are preserved unchanged.
+
 ## COMPARISON
 
 | 모델 | T6 실제 응답 | T50 실제 응답 | provider POST | 토큰 in/out | 원가 | 오류 |
