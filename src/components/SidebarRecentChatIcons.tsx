@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import type { RecentActivityEntry, RecentTrpgCampaignEntry } from "@/lib/recentActivity";
 import type { UserChatSession } from "@/lib/recentChats";
 import { CHAT_RESUME_THUMB_ATTR, chatResumeAttrs } from "@/lib/chatResumeTransition";
+import { TRPG_RESUME_GLYPH_ATTR, trpgResumeAttrs } from "@/lib/trpgResumeTransition";
 
 const DEFAULT_MAX_ICONS = 10;
 const COLLAPSED_MAX_ICONS = 8;
@@ -135,11 +136,13 @@ function RecentTrpgRow({
       title={entry.title}
       data-trpg-recent-kind="trpg_campaign"
       data-trpg-recent-icon="d20"
+      {...trpgResumeAttrs({ campaignId: entry.campaignId, title: entry.title, href: entry.href })}
       className={`flex w-full min-w-0 items-center rounded-lg transition hover:bg-white/[0.06] ${
         compact ? "justify-center px-0 py-0.5" : "gap-2 px-1 py-1"
       } ${active ? "bg-white/[0.06]" : ""}`}
     >
       <span
+        {...{ [TRPG_RESUME_GLYPH_ATTR]: "" }}
         className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-violet-300 ring-1 ${
           active ? "ring-violet-300/50" : "ring-white/10"
         }`}

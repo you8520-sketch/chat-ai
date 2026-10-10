@@ -35,6 +35,7 @@ import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import { trpgBillingModeLabel } from "@/lib/trpg/labels";
 import { trpgRoomGenerating } from "@/lib/trpg/roomClientState";
+import { trpgRoomAttrs } from "@/lib/trpgResumeTransition";
 import {
   afterSnapshotObservationSettled,
   allocateRequestSeq,
@@ -704,7 +705,7 @@ export default function TrpgRoomClient({
   }, [editingId]);
   if (!setup || starting) {
     return (
-      <>
+      <div className="contents" {...trpgRoomAttrs(snap.id)}>
         <TrpgCampaignRoom
           sheetJsxCompiled={sheetJsxCompiled}
           loadPartySheetComponent={loadPartySheetComponent}
@@ -752,12 +753,12 @@ export default function TrpgRoomClient({
           onBillingModeChange={(mode) => void saveBillingMode(mode)}
         />
         <ChatImageGeneratorPanel showRailTrigger={false} />
-      </>
+      </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 pt-6">
+    <div className="mx-auto max-w-3xl space-y-4 pt-6" {...trpgRoomAttrs(snap.id)}>
       <header className="space-y-1">
         <p className="text-xs font-medium uppercase tracking-wide text-violet-300/80">TRPG</p>
         {snap.viewerIsHost ? (
