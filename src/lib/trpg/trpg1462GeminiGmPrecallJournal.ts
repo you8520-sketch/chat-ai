@@ -1,4 +1,15 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  closeSync,
+  existsSync,
+  fsyncSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import {
   TRPG_1462_MIN_PAID_REQUEST_IDS,
@@ -31,6 +42,12 @@ export type Trpg1462JournalCase = {
   status: Trpg1462JournalStatus;
   httpStatus: number | null;
   postedAt: string | null;
+  finishReason?: string | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  narrationSha256?: string | null;
+  deltaSha256?: string | null;
+  resultFile?: string | null;
 };
 
 export type Trpg1462AttemptJournal = {
@@ -140,10 +157,90 @@ export function loadTrpg1462AttemptJournal(path: string): Trpg1462AttemptJournal
 }
 
 export function writeTrpg1462AttemptJournal(path: string, journal: Trpg1462AttemptJournal): void {
-  mkdirSync(dirname(path), { recursive: true });
-  const tmp = `${path}.tmp`;
+  assertNotForbiddenPrivatePath(path);
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  const tmp = `${path}.${process.pid}.tmp`;
   writeFileSync(tmp, `${JSON.stringify(journal, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  const fd = openSync(tmp, "r+");
+  try {
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
   renameSync(tmp, path);
+  try {
+    chmodSync(path, 0o600);
+    chmodSync(dirname(path), 0o700);
+  } catch {
+    /* best-effort private mode */
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function tryAcquireTrpg1462JournalLock(
+  root: string
+): { ok: true; release: () => void } | { ok: false; reason: "CONCURRENT_RESERVE" | "LOCK_UNAVAILABLE" } {
+  assertNotForbiddenPrivatePath(root);
+  mkdirSync(root, { recursive: true, mode: 0o700 });
+  const lockPath = `${trpg1462PrecallJournalPath(root)}.lock`;
+  if (existsSync(lockPath)) {
+    const pid = Number(readFileSync(lockPath, "utf8").trim());
+    if (Number.isInteger(pid) && pid > 0 && isProcessAlive(pid)) {
+      return { ok: false, reason: "CONCURRENT_RESERVE" };
+    }
+    try {
+      unlinkSync(lockPath);
+    } catch {
+      return { ok: false, reason: "CONCURRENT_RESERVE" };
+    }
+  }
+  try {
+    const fd = openSync(lockPath, "wx");
+    try {
+      writeFileSync(fd, `${process.pid}\n`);
+    } finally {
+      closeSync(fd);
+    }
+    try {
+      chmodSync(lockPath, 0o600);
+    } catch {
+      /* best-effort */
+    }
+    return {
+      ok: true,
+      release() {
+        try {
+          unlinkSync(lockPath);
+        } catch {
+          /* already released */
+        }
+      },
+    };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EEXIST") return { ok: false, reason: "CONCURRENT_RESERVE" };
+    return { ok: false, reason: "LOCK_UNAVAILABLE" };
+  }
+}
+
+export function consumedTrpg1462Attempts(journal: Trpg1462AttemptJournal): number {
+  let n = 0;
+  for (const id of TRPG_1462_NEW_BENCHMARK_REQUEST_IDS) {
+    if (BLOCKED_STATUSES.has(journal.cases[id].status)) n += 1;
+  }
+  return n;
+}
+
+export function trpg1462ResultPath(root: string, id: Trpg1462NewBenchmarkRequestId): string {
+  return join(root, "results", `${id}.json`);
 }
 
 export function assertNotForbiddenPrivatePath(path: string): void {
