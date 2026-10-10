@@ -56,7 +56,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     .prepare(
       `SELECT id, name, tagline, description, greeting, system_prompt, world, world_id, source_world_share_id, example_dialog, status_window_prompt, status_widget_json,
               COALESCE(jsx_components_json, '') AS jsx_components_json,
-              genres, tags, nsfw, emoji, hue, audience, gender, visibility, assets, recommended_writing_style, narration_style_instructions, comments_enabled, creator_comment, appearance_raw, appearance_compiled,
+              genres, tags, nsfw, emoji, hue, audience, gender, gender_public, height_cm, weight_kg, world_public_name, world_public, visibility, assets, recommended_writing_style, narration_style_instructions, comments_enabled, creator_comment, appearance_raw, appearance_compiled,
               content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed, participant_min_age,
               COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json, creator_id
        FROM characters WHERE id=?`
@@ -82,6 +82,11 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     hue: number;
     audience: string;
     gender: string;
+    gender_public: number;
+    height_cm: number | null;
+    weight_kg: number | null;
+    world_public_name: string;
+    world_public: number;
     visibility: string;
     assets: string;
     recommended_writing_style: string;
@@ -190,6 +195,11 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     hue: c.hue,
     audience: c.audience,
     gender: parseCharacterGender(c.gender) ?? "other",
+    gender_public: c.gender_public === 1,
+    height_cm: c.height_cm,
+    weight_kg: c.weight_kg,
+    world_public_name: c.world_public_name ?? "",
+    world_public: c.world_public === 1,
     visibility: c.visibility,
     recommended_writing_style: normalizeCreatorRecommendedStyle(c.recommended_writing_style),
     narration_style_instructions: c.narration_style_instructions ?? "",

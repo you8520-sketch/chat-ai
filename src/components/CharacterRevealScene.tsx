@@ -28,6 +28,10 @@ export type CharacterScene = {
   genre: string;
   tagline: string;
   tags: string[];
+  world: string;
+  gender: string;
+  height: string;
+  weight: string;
   layout: RevealLayout;
   /** 카드 이미지 위치에서 시작하는 FLIP + 잘림(clip) 보정. */
   start: { tx: number; ty: number; scale: number; clip: { top: number; right: number; bottom: number; left: number } };
@@ -132,6 +136,7 @@ export default function CharacterRevealScene({
       textAlign: compact ? "left" : "right",
     }) as CSSProperties;
   const hasSub = Boolean(scene.tagline) || scene.tags.length > 0;
+  const hasDossier = Boolean(scene.world || scene.gender || scene.height || scene.weight);
 
   return (
     <div
@@ -232,6 +237,76 @@ export default function CharacterRevealScene({
                   </div>
                 );
               })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {hasDossier ? (
+        <div className="rv-info rv-info-dossier" data-align={align} style={column(info.dossierTop)}>
+          {scene.world ? (
+            <div className="rv-item" {...{ [REVEAL_ITEM_ATTR]: "world" }} style={itemStyle(scene, "world")}>
+              <div className="rv-world">
+                <span
+                  aria-hidden
+                  className="rv-world-rule rv-draw"
+                  style={entry(REVEAL_BEATS.worldStartMs, REVEAL_BEATS.worldMs)}
+                />
+                <span
+                  className="rv-world-label rv-wipe"
+                  style={entry(REVEAL_BEATS.worldStartMs + 40, REVEAL_BEATS.worldMs)}
+                >
+                  WORLD
+                </span>
+                <span className="rv-world-name rv-wipe" style={entry(REVEAL_BEATS.worldStartMs + 80, REVEAL_BEATS.worldMs)}>
+                  {scene.world}
+                </span>
+              </div>
+            </div>
+          ) : null}
+          {scene.gender ? (
+            <div className="rv-item" {...{ [REVEAL_ITEM_ATTR]: "gender" }} style={itemStyle(scene, "gender")}>
+              <div
+                className="rv-record rv-scatter"
+                style={entry(REVEAL_BEATS.genderStartMs, REVEAL_BEATS.genderMs, {
+                  "--s-x": "-18vw",
+                  "--s-y": "6vh",
+                  "--s-r": "-4deg",
+                })}
+              >
+                <span className="rv-record-label">성별</span>
+                <span className="rv-record-value">{scene.gender}</span>
+              </div>
+            </div>
+          ) : null}
+          {scene.height ? (
+            <div className="rv-item" {...{ [REVEAL_ITEM_ATTR]: "height" }} style={itemStyle(scene, "height")}>
+              <div
+                className="rv-record rv-scatter"
+                style={entry(REVEAL_BEATS.heightStartMs, REVEAL_BEATS.heightMs, {
+                  "--s-x": "16vw",
+                  "--s-y": "-10vh",
+                  "--s-r": "5deg",
+                })}
+              >
+                <span className="rv-record-label">키</span>
+                <span className="rv-record-value">{scene.height}</span>
+              </div>
+            </div>
+          ) : null}
+          {scene.weight ? (
+            <div className="rv-item" {...{ [REVEAL_ITEM_ATTR]: "weight" }} style={itemStyle(scene, "weight")}>
+              <div
+                className="rv-record rv-scatter"
+                style={entry(REVEAL_BEATS.weightStartMs, REVEAL_BEATS.weightMs, {
+                  "--s-x": "-8vw",
+                  "--s-y": "14vh",
+                  "--s-r": "3deg",
+                })}
+              >
+                <span className="rv-record-label">몸무게</span>
+                <span className="rv-record-value">{scene.weight}</span>
+              </div>
             </div>
           ) : null}
         </div>

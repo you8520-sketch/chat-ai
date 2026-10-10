@@ -52,7 +52,12 @@ function setupTestDb(): Database.Database {
       trpg_reuse_allowed INTEGER NOT NULL DEFAULT 0,
       content_kind TEXT NOT NULL DEFAULT 'character',
       simulation_cast TEXT NOT NULL DEFAULT '',
-      simulation_visual_subjects_json TEXT NOT NULL DEFAULT ''
+      simulation_visual_subjects_json TEXT NOT NULL DEFAULT '',
+      gender_public INTEGER NOT NULL DEFAULT 0,
+      height_cm INTEGER,
+      weight_kg INTEGER,
+      world_public_name TEXT NOT NULL DEFAULT '',
+      world_public INTEGER NOT NULL DEFAULT 0
     );
   `);
   ensureStatusWidgetTriggerTables(db);

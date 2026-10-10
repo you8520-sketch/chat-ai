@@ -365,6 +365,23 @@ export function ensureCharacterAppearanceColumns(db: Pick<Database.Database, "pr
   addColumn("characters", "appearance_compiled_version", "INTEGER NOT NULL DEFAULT 0");
 }
 
+/** 제작자 선택형 공개 인물 정보. 기존 행은 기본값(비공개/없음)으로 남긴다. */
+export function ensureCharacterPublicDossierColumns(
+  db: Pick<Database.Database, "prepare" | "exec">,
+): void {
+  const addColumn = (table: string, col: string, def: string) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+    }
+  };
+  addColumn("characters", "gender_public", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("characters", "height_cm", "INTEGER");
+  addColumn("characters", "weight_kg", "INTEGER");
+  addColumn("characters", "world_public_name", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "world_public", "INTEGER NOT NULL DEFAULT 0");
+}
+
 export function ensureMemoryResetBoundaryColumns(
   db: Pick<Database.Database, "prepare" | "exec">
 ): void {
@@ -657,6 +674,7 @@ function migrate(db: Database.Database) {
   );
   migrateCharacterAdultStatusMetadata(db);
   ensureCharacterAppearanceColumns(db);
+  ensureCharacterPublicDossierColumns(db);
   addColumn("chats", "status_widget_mode", "TEXT NOT NULL DEFAULT 'character_only'");
   addColumn("chats", "user_status_widget_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "status_widget_stack_order", "TEXT NOT NULL DEFAULT 'character_first'");
