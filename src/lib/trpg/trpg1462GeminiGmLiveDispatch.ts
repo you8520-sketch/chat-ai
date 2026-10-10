@@ -120,7 +120,8 @@ export function verifyTrpg1462OperatorApprovedCases(
 }
 
 export function estimateTrpg1462PublishedCostUsd(calls: number): number {
-  return (TRPG_1462_PUBLISHED_SIX_CALL_ESTIMATE_USD / TRPG_1462_MAX_PAID_CALLS) * calls;
+  if (calls === TRPG_1462_MAX_PAID_CALLS) return TRPG_1462_PUBLISHED_SIX_CALL_ESTIMATE_USD;
+  return Number(((TRPG_1462_PUBLISHED_SIX_CALL_ESTIMATE_USD / TRPG_1462_MAX_PAID_CALLS) * calls).toFixed(6));
 }
 
 export function measureTrpg1462UsageCostUsd(
