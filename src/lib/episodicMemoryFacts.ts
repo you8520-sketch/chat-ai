@@ -1369,11 +1369,25 @@ function normalizeRetrievalToken(token: string): string {
   );
 }
 
+/**
+ * Korean calendar-unit unigrams that must survive the length>=2 filter.
+ * Contrast queries like "이틀 전과 두 달 전" tokenize as 이틀 + 두(1) + 달(1) + 전(1).
+ * Without these units only the compound day token remains injectable, so a
+ * persisted month-old scene_event fails the relevance floor (issue #1486 C).
+ * Do not add 전/후/일 — those over-match ordinary Korean stems.
+ */
+const KOREAN_CALENDAR_UNIT_UNIGRAMS = new Set(["달", "년", "주"]);
+
+function isKeepableRetrievalToken(token: string): boolean {
+  if (token.length >= 2) return true;
+  return token.length === 1 && KOREAN_CALENDAR_UNIT_UNIGRAMS.has(token);
+}
+
 function tokenizeForSimpleBoost(text: string): string[] {
   const seen = new Set<string>();
   const tokens: string[] = [];
   const push = (token: string) => {
-    if (token.length < 2 || seen.has(token) || tokens.length >= 32) return;
+    if (!isKeepableRetrievalToken(token) || seen.has(token) || tokens.length >= 32) return;
     seen.add(token);
     tokens.push(token);
   };
@@ -1441,7 +1455,7 @@ export function inspectLexicalRelevanceForDebug(
     tokensAfterFirst5,
     tokens: rawTokens.map((raw) => {
       const normalized = normalizeRetrievalToken(raw);
-      const lengthFilterPass = normalized.length >= 2;
+      const lengthFilterPass = isKeepableRetrievalToken(normalized);
       const selected = lengthFilterPass && tokensAfterFirst5.includes(normalized);
       return {
         raw,
