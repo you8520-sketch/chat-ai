@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
+import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
 import {
   advanceTrpgCampaign,
@@ -10,6 +11,7 @@ import {
   submitTrpgAction,
   type TrpgEngineDeps,
 } from "./engineAdvance";
+import { TRPG_GM_LABEL_AI_ATTEMPT } from "./gmPrompt";
 import { insertParticipant } from "./store";
 import { ensureTrpgTables } from "./schema";
 import { DEFAULT_TRPG_STAT_DEFS, defsFromKeys, floorStats } from "./stats";
@@ -20,6 +22,13 @@ import {
   pickInitiativeStat,
   sortByResolutionOrder,
 } from "./initiative";
+
+const YUNA_PRESENTATION = "유나-먼저";
+const KAI_PRESENTATION = "카이-다음";
+const YUNA_INTENT = "유나는 화물칸을 먼저 살핀다.";
+const KAI_INTENT = "카이는 화물칸 입구를 지킨다.";
+const YUNA_BOT_BODY = `${YUNA_PRESENTATION}\n\n<<<ACTION_TYPE>>>\ninvestigate\n\n<<<INTENT>>>\n${YUNA_INTENT}`;
+const KAI_BOT_BODY = `${KAI_PRESENTATION}\n\n<<<ACTION_TYPE>>>\ninvestigate\n\n<<<INTENT>>>\n${KAI_INTENT}`;
 
 function memoryDb(): Database.Database {
   const db = new Database(":memory:");
@@ -69,14 +78,19 @@ describe("TRPG initiative resolution order", () => {
           assert.match(user, /\[RESOLUTION ORDER\]/);
           assert.match(user, /카이 — 속도 15/);
           assert.match(user, /유나 — 속도 8/);
+          assert.match(user, new RegExp(TRPG_GM_LABEL_AI_ATTEMPT.replace(/[[\]]/g, "\\$&")));
+          assert.match(user, new RegExp(YUNA_INTENT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+          assert.match(user, new RegExp(KAI_INTENT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+          assert.doesNotMatch(user, new RegExp(YUNA_PRESENTATION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+          assert.doesNotMatch(user, new RegExp(KAI_PRESENTATION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
         }
         return { text: gmText("순서") };
       },
       botCall: async (_system, user) => {
         botCalls += 1;
         botUsers.push(user);
-        if (user.includes("[NAME]\n유나")) return { text: "유나-먼저" };
-        return { text: "카이-다음" };
+        if (user.includes("[NAME]\n유나")) return { text: YUNA_BOT_BODY };
+        return { text: KAI_BOT_BODY };
       },
     };
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
@@ -107,8 +121,37 @@ describe("TRPG initiative resolution order", () => {
     assert.equal(botUsers.length, 2);
     assert.match(botUsers[0] ?? "", /\[NAME\]\n유나/);
     assert.doesNotMatch(botUsers[0] ?? "", /유나-먼저/);
+    assert.doesNotMatch(botUsers[0] ?? "", /canonical attempt unavailable/);
     assert.match(botUsers[1] ?? "", /\[NAME\]\n카이/);
-    assert.match(botUsers[1] ?? "", /유나-먼저/);
+    assert.match(botUsers[1] ?? "", /유나는 화물칸을 먼저 살핀다/);
+    assert.doesNotMatch(botUsers[1] ?? "", /canonical attempt unavailable/);
+    assert.doesNotMatch(botUsers[1] ?? "", /유나-먼저/);
+    const storedBots = db
+      .prepare(
+        `SELECT p.display_name AS name, s.body
+         FROM trpg_action_submissions s
+         JOIN trpg_participants p ON p.id = s.participant_id
+         JOIN trpg_rounds r ON r.id = s.round_id
+         WHERE r.campaign_id=? AND r.round_number=1 AND p.kind='ai_character'
+         ORDER BY p.slot_index ASC`
+      )
+      .all(campaignId) as Array<{ name: string; body: string }>;
+    assert.deepEqual(
+      storedBots.map((row) => row.name),
+      ["유나", "카이"]
+    );
+    const yunaResolved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: storedBots[0]?.body ?? "",
+    });
+    const kaiResolved = resolveTrpgCanonicalAttempt({
+      participantKind: "ai_character",
+      submissionBody: storedBots[1]?.body ?? "",
+    });
+    assert.equal(yunaResolved.presentationProse, YUNA_PRESENTATION);
+    assert.equal(yunaResolved.canonicalAttempt, YUNA_INTENT);
+    assert.equal(kaiResolved.presentationProse, KAI_PRESENTATION);
+    assert.equal(kaiResolved.canonicalAttempt, KAI_INTENT);
     assert.deepEqual(
       (after.resolutionOrder ?? []).map((row) => row.name),
       ["카이", "유나", "렌"]
