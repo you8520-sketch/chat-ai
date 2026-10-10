@@ -167,6 +167,7 @@ Spoken dialogue keeps each character's speech level. Quoted in-world text may ke
 Spoken dialogue only: write each actual spoken line as 이름: "대사" using the speaker's name, never the addressee.
 Everything else — narration, thoughts, remembered phrases, signs, documents — stays ordinary prose without a speaker prefix or spoken quotation marks.
 UI speaker labels come only from explicit \`이름:\` lines.
+NPCs, extras, and world voices may invent new spoken lines. Recap a human PC's submitted words as 이름: "대사" only when the result connection needs that exact recap — never a new line or follow-up reply. That PC's new dialogue, voluntary action, and choice stay under the submitted canonical action. The closing \`GM:\` beat is an unquoted narrator aside, not a character speaker line.
 
 [GM SCENE CRAFT — ADAPTIVE NARRATION]
 Continue timeline from submitted actions into outcomes and the world's next move.
@@ -176,7 +177,7 @@ Match density: BRIEF/MID get vivid motion.
 
 [ROUND CRAFT]
 1. Start narration at the first new consequence or changed state — not at restaging submitted action.
-2. Submitted canonical actions fix intent only. ${TRPG_GM_LABEL_HUMAN_ACTION} is the sole authority for that human PC's voluntary action, movement, route choice, dialogue, allegiance, decision, and inner state. ${TRPG_GM_LABEL_AI_ATTEMPT} owns only that AI PC's submitted turn action.
+2. Submitted canonical actions fix intent only. ${TRPG_GM_LABEL_HUMAN_ACTION} is the sole authority for that human PC's voluntary action, movement, route choice, dialogue, allegiance, decision, and inner state; a CHECK result or no_check verdict covers only the action that player declared, never a follow-up step they did not. ${TRPG_GM_LABEL_AI_ATTEMPT} owns only that AI PC's submitted turn action.
 3. Resolve related outcomes in one compact resolution bridge — typically one combined paragraph; two only if tiers or locations truly conflict. Merge adjudicated results into one coherent changed scene state, then pivot immediately to NEW material.
 4. Spend the substantial majority of narration on NEW world/story material: NPC/world initiative, changed circumstances, discoveries, actionable consequences, objective progress, opened routes, and causally active plot threads. Advance what is already causally available; a quiet beat is enough when the fiction genuinely calls for it.
 5. When encounter purpose is spent — or local scene state is transition_ready — open fiction outward via reachable space, destination, route, objective, or consequence; transition_ready means the local dramatic purpose is sufficiently resolved for the world to open outward, not permission to choose PC movement. When fiction enters a genuinely new local dramatic situation, use sceneTransitionTo rather than objectiveSet alone; one location may still yield new play until then; movement stays player choice.
@@ -189,7 +190,6 @@ When several ordinary FAILURES land in the same round, respect each tier but fol
 For talk/ask (CHECK no_check reason=talk), spoken words are in-scene; resolve through listener and world.
 For routine_traversal no-check actions, the submitted traversal succeeds.
 For routine_competence / no_meaningful_uncertainty no-check actions, realize the submitted ordinary action normally without a failure roll.
-Allowed speaker lines: NPC, world voice where appropriate, GM closing aside.
 
 [LENGTH — SCENE RESPONSIVE]
 Use the terminal ROUND NARRATION BUDGET as the sole numeric length contract.
@@ -358,7 +358,7 @@ export function buildTrpgGmUserBlock(opts: {
 
   return [
     opts.regenerate
-      ? "[REGENERATE — same locked actions and dice. Write a different scene. Keep CHARACTER SHEETS canon. Use 이름: \"대사\" for speech.]"
+      ? "[REGENERATE — same locked actions and dice. Write a different scene. Keep CHARACTER SHEETS canon.]"
       : opts.opening
         ? "[OPENING SCENE — describe the start and ask what they do. You may portray AI companions with brief in-character action and dialogue per character canon. Do not invent the human PC's voluntary movement, route choice, dialogue, decision, or inner commitment.]"
         : "[RESOLVE THIS ROUND]",
@@ -372,7 +372,7 @@ export function buildTrpgGmUserBlock(opts: {
     secret
       ? `[GM SECRET — never quote, never tell players, use only to drive events]\n${secret}`
       : "",
-    personas ? `[PLAYER PERSONAS — portray these human PCs as written. Do not invent a different identity.]\n${personas}` : "",
+    personas ? `[PLAYER PERSONAS — identity and voice reference for these human PCs; speech examples are not lines to perform. Do not invent a different identity.]\n${personas}` : "",
     opts.relationshipBrief?.trim()
       ? `[PARTY RELATIONSHIPS — table canon for how PCs know each other. Do not invent a conflicting history.]\n${opts.relationshipBrief.trim()}`
       : "",
