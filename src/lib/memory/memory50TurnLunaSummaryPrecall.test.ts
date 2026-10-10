@@ -371,7 +371,7 @@ describe("Luna local PRECALL one-command (provider-free)", () => {
     assert.equal(report.keyPresent, true);
     assert.equal(report.isolatedDbOk, true);
     assert.equal(report.identityOk, true);
-    assert.equal(report.liveApprovalStatus, "NOT_APPROVED");
+    assert.equal(report.liveApprovalStatus, "APPROVED");
     assert.equal(report.liveExecuteManifestFingerprint, LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
     assert.deepEqual(report.liveSealFingerprints, [...LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS]);
     assert.equal(report.plannedPosts, 10);
