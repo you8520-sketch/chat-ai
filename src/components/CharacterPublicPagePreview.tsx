@@ -11,6 +11,13 @@ import OfficialCreatorBadge from "@/components/OfficialCreatorBadge";
 import OfficialStudioBadge from "@/components/OfficialStudioBadge";
 import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
 import { CHARACTER_HERO_IMAGE_ATTR, HERO_ITEM_ATTR, REVEAL_FIT_ATTR, revealTagKey, splitRevealName } from "@/lib/characterReveal";
+import {
+  formatPublicHeight,
+  formatPublicWeight,
+  publicDossierHasItems,
+  publicDossierRecordLines,
+  type PublicDossierView,
+} from "@/lib/characterPublicDossier";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { applyProfilePlaceholders } from "@/lib/userPlaceholder";
 import {
@@ -115,6 +122,71 @@ function AssetGalleryStrip({
   );
 }
 
+export function PublicDossierBlock({
+  dossier,
+  align = "start",
+}: {
+  dossier: PublicDossierView;
+  align?: "start" | "end";
+}) {
+  if (!publicDossierHasItems(dossier)) return null;
+  const records = publicDossierRecordLines(dossier);
+  const rowClass = `flex items-baseline gap-3 text-xs ${align === "end" ? "md:justify-end" : ""}`;
+  return (
+    <div
+      className={`mt-3 w-fit max-w-full space-y-2 ${align === "end" ? "md:ml-auto md:text-right" : ""}`}
+    >
+      {dossier.world ? (
+        <div
+          {...{ [HERO_ITEM_ATTR]: "world" }}
+          className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] ${
+            align === "end" ? "md:justify-end" : ""
+          }`}
+        >
+          <span aria-hidden className="h-px w-6 bg-[#f0e7d4]/30" />
+          <span className="text-[#f0e7d4]/50">WORLD</span>
+          <span className="tracking-[0.08em] text-[#f0e7d4]">{dossier.world}</span>
+        </div>
+      ) : null}
+      {records.length > 0 ? (
+        <div className="space-y-1">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#f0e7d4]/40">
+            Character record
+          </p>
+          {dossier.gender ? (
+            <div {...{ [HERO_ITEM_ATTR]: "gender" }} className={rowClass}>
+              <span className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#f0e7d4]/45">
+                성별
+              </span>
+              <span className="font-semibold tabular-nums text-[#f0e7d4]/90">{dossier.gender}</span>
+            </div>
+          ) : null}
+          {dossier.heightCm != null ? (
+            <div {...{ [HERO_ITEM_ATTR]: "height" }} className={rowClass}>
+              <span className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#f0e7d4]/45">
+                키
+              </span>
+              <span className="font-semibold tabular-nums text-[#f0e7d4]/90">
+                {formatPublicHeight(dossier.heightCm)}
+              </span>
+            </div>
+          ) : null}
+          {dossier.weightKg != null ? (
+            <div {...{ [HERO_ITEM_ATTR]: "weight" }} className={rowClass}>
+              <span className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#f0e7d4]/45">
+                몸무게
+              </span>
+              <span className="font-semibold tabular-nums text-[#f0e7d4]/90">
+                {formatPublicWeight(dossier.weightKg)}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** 홈 → 캐릭터 카드 클릭 시 보이는 공개 페이지 레이아웃 */
 export default function CharacterPublicPagePreview({
   characterId,
@@ -143,6 +215,7 @@ export default function CharacterPublicPagePreview({
   pagePath,
   heroVariant = "default",
   genre = "",
+  dossier,
 }: {
   /** 채팅에서 해금한 에셋을 공개 갤러리에도 반영할 때 사용 */
   characterId?: number;
@@ -180,6 +253,7 @@ export default function CharacterPublicPagePreview({
   /** `poster`: 공개 프로필 상단 포스터 구도 (카드 reveal 전환과 연결). 제작 미리보기·임베드는 `default`. */
   heroVariant?: "default" | "poster";
   genre?: string;
+  dossier?: PublicDossierView;
 }) {
   const [unlockedUrls, setUnlockedUrls] = useState<ReadonlySet<string>>(() => new Set());
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -431,6 +505,7 @@ export default function CharacterPublicPagePreview({
             </p>
           ) : null}
           <div className="md:flex md:justify-end">{tagChips}</div>
+          {dossier ? <PublicDossierBlock dossier={dossier} align="end" /> : null}
         </div>
       </div>
     </section>
@@ -471,6 +546,8 @@ export default function CharacterPublicPagePreview({
             ) : null}
 
             {tagChips}
+
+            {dossier ? <PublicDossierBlock dossier={dossier} /> : null}
 
             {galleryStrip}
           </div>

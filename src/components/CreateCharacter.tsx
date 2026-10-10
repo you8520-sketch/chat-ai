@@ -94,6 +94,14 @@ import {
   type CharacterCreateDraft,
 } from "@/lib/characterCreateDraft";
 import {
+  parsePublicDossierFromBody,
+  publicDossierHasItems,
+  readPublicDossier,
+  WORLD_PUBLIC_NAME_MAX,
+  type PublicDossierView,
+} from "@/lib/characterPublicDossier";
+import { PublicDossierBlock } from "@/components/CharacterPublicPagePreview";
+import {
   cn,
   studioInputClass,
   studioSelectClass,
@@ -195,6 +203,11 @@ export default function CreateCharacter({
     hue: 260,
     audience: "all",
     gender: "" as "" | CharacterGender,
+    gender_public: false,
+    height_cm: "",
+    weight_kg: "",
+    world_public_name: "",
+    world_public: false,
     visibility: "public" as "public" | "link" | "private",
     narration_style_instructions: "",
     comments_enabled: true,
@@ -334,6 +347,11 @@ export default function CreateCharacter({
       simulation_rules: draft.form.simulation_rules ?? "",
       participant_min_age: draft.form.participant_min_age ?? "",
       narration_style_instructions: draft.form.narration_style_instructions ?? "",
+      gender_public: draft.form.gender_public === true,
+      height_cm: draft.form.height_cm ?? "",
+      weight_kg: draft.form.weight_kg ?? "",
+      world_public_name: draft.form.world_public_name ?? "",
+      world_public: draft.form.world_public === true,
     });
     setSimulationImports(Array.isArray(draft.simulationImports) ? draft.simulationImports : []);
     setAssets(persistLoadedAssets(draft.assets));
@@ -723,6 +741,11 @@ export default function CreateCharacter({
           hue: Number(data.hue) || 260,
           audience: data.audience ?? "all",
           gender: data.gender ?? "",
+          gender_public: data.gender_public === true,
+          height_cm: data.height_cm != null ? String(data.height_cm) : "",
+          weight_kg: data.weight_kg != null ? String(data.weight_kg) : "",
+          world_public_name: data.world_public_name ?? "",
+          world_public: data.world_public === true,
           visibility: data.visibility ?? "public",
           narration_style_instructions: data.narration_style_instructions ?? "",
           comments_enabled: data.comments_enabled !== false,
@@ -1082,6 +1105,17 @@ export default function CreateCharacter({
     }
     if (assets.length === 0) {
       setError("감정 에셋 이미지를 1장 이상 업로드해 주세요.");
+      return;
+    }
+    const dossierParsed = parsePublicDossierFromBody({
+      gender_public: form.gender_public,
+      height_cm: form.height_cm,
+      weight_kg: form.weight_kg,
+      world_public_name: form.world_public_name,
+      world_public: form.world_public,
+    });
+    if (!dossierParsed.ok) {
+      setError(dossierParsed.error);
       return;
     }
     const ageParsed = parseParticipantMinAgeInput(form.participant_min_age);
@@ -2281,6 +2315,11 @@ export default function CreateCharacter({
                 {countPublicDescriptionVisibleChars(form.description).toLocaleString()} /{" "}
                 {PROFILE_BIOGRAPHY_LIMIT.toLocaleString()}자
               </p>
+              <PublicDossierFields
+                form={form}
+                disabled={loading || editLoading}
+                onChange={(patch) => setForm({ ...form, ...patch })}
+              />
             </section>
           </div>
 
@@ -2657,6 +2696,159 @@ export default function CreateCharacter({
           </p>
         ) : null}
       </StudioSaveBar>
+    </div>
+  );
+}
+
+type PublicDossierFormPatch = {
+  gender_public?: boolean;
+  height_cm?: string;
+  weight_kg?: string;
+  world_public_name?: string;
+  world_public?: boolean;
+};
+
+function PublicDossierFields({
+  form,
+  disabled,
+  onChange,
+}: {
+  form: {
+    gender: "" | CharacterGender;
+    gender_public: boolean;
+    height_cm: string;
+    weight_kg: string;
+    world_public_name: string;
+    world_public: boolean;
+    content_kind: ContentKind;
+  };
+  disabled: boolean;
+  onChange: (patch: PublicDossierFormPatch) => void;
+}) {
+  const heightError = form.height_cm.trim()
+    ? parsePublicDossierFromBody({ height_cm: form.height_cm }).ok
+      ? ""
+      : (parsePublicDossierFromBody({ height_cm: form.height_cm }) as { error: string }).error
+    : "";
+  const weightError = form.weight_kg.trim()
+    ? parsePublicDossierFromBody({ weight_kg: form.weight_kg }).ok
+      ? ""
+      : (parsePublicDossierFromBody({ weight_kg: form.weight_kg }) as { error: string }).error
+    : "";
+  const preview: PublicDossierView = readPublicDossier({
+    gender: form.gender || undefined,
+    gender_public: form.gender_public ? 1 : 0,
+    height_cm: /^\d+$/.test(form.height_cm.trim()) ? Number(form.height_cm.trim()) : null,
+    weight_kg: /^\d+$/.test(form.weight_kg.trim()) ? Number(form.weight_kg.trim()) : null,
+    world_public_name: form.world_public_name,
+    world_public: form.world_public ? 1 : 0,
+  });
+  const worldPreview = form.world_public_name.trim()
+    ? form.world_public_name.trim().slice(0, WORLD_PUBLIC_NAME_MAX)
+    : "";
+
+  return (
+    <div className="mt-6 space-y-5 border-t border-white/10 pt-5">
+      <div>
+        <h3 className="text-sm font-semibold text-zinc-100">공개 인물 정보</h3>
+        <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
+          동의한 항목만 공개 프로필과 등장 연출에 표시됩니다. 기본값은 모두 비공개입니다.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <label className={studioType.label}>세계관 이름</label>
+        <p className="text-xs text-zinc-400">
+          공개 프로필에 쓸 표시명입니다. 비공개 세계관 원문이나 빌린 세계관 이름은 자동으로 넣지 않습니다.
+        </p>
+        <input
+          className={studioInputClass}
+          maxLength={WORLD_PUBLIC_NAME_MAX}
+          disabled={disabled}
+          placeholder="예: 에테르노스 제국"
+          value={form.world_public_name}
+          onChange={(event) =>
+            onChange({ world_public_name: event.target.value.slice(0, WORLD_PUBLIC_NAME_MAX) })
+          }
+        />
+        <p className="text-right text-xs text-zinc-500">
+          {form.world_public_name.trim().length} / {WORLD_PUBLIC_NAME_MAX}자
+        </p>
+        <ToggleSwitch
+          checked={form.world_public}
+          disabled={disabled}
+          label="세계관 이름 프로필 공개"
+          description="기본 OFF. 켜면 아래 미리보기 문구가 그대로 공개됩니다."
+          onChange={(world_public) => onChange({ world_public })}
+        />
+        <p className="rounded-lg border border-white/10 bg-[#161922] px-3 py-2 text-xs text-zinc-300">
+          공개될 텍스트:{" "}
+          {form.world_public && worldPreview ? (
+            <span className="font-semibold text-[#f0e7d4]">WORLD / {worldPreview}</span>
+          ) : (
+            <span className="text-zinc-500">표시하지 않음</span>
+          )}
+        </p>
+      </div>
+
+      {form.content_kind === "character" ? (
+        <div className="space-y-2">
+          <p className={studioType.label}>성별 공개</p>
+          <p className="text-xs text-zinc-400">
+            AI용 성별은 부가 설정에서 선택합니다. 현재 값:{" "}
+            <span className="font-semibold text-zinc-200">
+              {form.gender ? GENDER_LABELS[form.gender] : "미선택"}
+            </span>
+          </p>
+          <ToggleSwitch
+            checked={form.gender_public}
+            disabled={disabled || !form.gender}
+            label="AI용 성별을 프로필에 공개"
+            description="기본 OFF. 비공개 성별 입력의 의미는 바뀌지 않습니다."
+            onChange={(gender_public) => onChange({ gender_public })}
+          />
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className={studioType.label}>키 · cm</label>
+          <input
+            className={studioInputClass}
+            inputMode="numeric"
+            disabled={disabled}
+            placeholder="예: 183"
+            value={form.height_cm}
+            onChange={(event) => onChange({ height_cm: event.target.value })}
+          />
+          {heightError ? <p className="mt-1 text-xs text-rose-400">{heightError}</p> : null}
+          <p className="mt-1 text-xs text-zinc-500">공란이면 미표시</p>
+        </div>
+        <div>
+          <label className={studioType.label}>몸무게 · kg</label>
+          <input
+            className={studioInputClass}
+            inputMode="numeric"
+            disabled={disabled}
+            placeholder="예: 71"
+            value={form.weight_kg}
+            onChange={(event) => onChange({ weight_kg: event.target.value })}
+          />
+          {weightError ? <p className="mt-1 text-xs text-rose-400">{weightError}</p> : null}
+          <p className="mt-1 text-xs text-zinc-500">공란이면 미표시</p>
+        </div>
+      </div>
+
+      {publicDossierHasItems(preview) ? (
+        <div className="rounded-xl border border-white/10 bg-[#0e1120] p-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+            공개 미리보기
+          </p>
+          <PublicDossierBlock dossier={preview} />
+        </div>
+      ) : (
+        <p className="text-xs text-zinc-500">공개할 인물 정보가 없으면 프로필에서 이 영역은 생략됩니다.</p>
+      )}
     </div>
   );
 }

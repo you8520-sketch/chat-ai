@@ -30,6 +30,12 @@ import {
 } from "@/lib/characterReveal";
 import CharacterRevealScene, { type CharacterScene } from "@/components/CharacterRevealScene";
 import {
+  formatPublicHeight,
+  formatPublicWeight,
+  publicDossierLines,
+  readPublicDossierFromCard,
+} from "@/lib/characterPublicDossier";
+import {
   CHAT_RESUME_ATTR,
   CHAT_RESUME_CHAT_ATTR,
   CHAT_RESUME_NAME_ATTR,
@@ -149,7 +155,14 @@ function buildCharacterScene(card: Element, id: number): CharacterScene | null {
   if (visible.width < 24 || visible.height < 24) return null;
 
   const { lines, maxChars } = splitRevealName(card.getAttribute("data-character-name") ?? "");
-  const layout = computeRevealLayout(window.innerWidth, window.innerHeight, lines.length, maxChars);
+  const dossier = readPublicDossierFromCard(card);
+  const layout = computeRevealLayout(
+    window.innerWidth,
+    window.innerHeight,
+    lines.length,
+    maxChars,
+    publicDossierLines(dossier).length,
+  );
   const start = flipTransform(from, layout.frame);
   const viewport = document.documentElement;
   return {
@@ -159,6 +172,10 @@ function buildCharacterScene(card: Element, id: number): CharacterScene | null {
     genre: (card.getAttribute("data-character-genre") ?? "").trim(),
     tagline: (card.getAttribute("data-character-tagline") ?? "").trim(),
     tags: parseRevealTags(card.getAttribute("data-character-tags")),
+    world: dossier.world ?? "",
+    gender: dossier.gender ?? "",
+    height: dossier.heightCm != null ? formatPublicHeight(dossier.heightCm) : "",
+    weight: dossier.weightKg != null ? formatPublicWeight(dossier.weightKg) : "",
     layout,
     card: {
       top: visible.top,
