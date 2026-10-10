@@ -1,8 +1,11 @@
 /**
  * Isolated operator entrypoint for live paid-runner execution.
  * This process does NOT import the PRECALL egress guard.
- * This PR never grants cost approval and never sets RP_QUALITY_PAID_LIVE_EXECUTE,
- * so it evaluates gates and stops before any provider POST.
+ * Default path never grants cost approval, never loads the assembler, and
+ * never calls runPaidRunner. Sealed bodies are assembled in-process from
+ * canonical production rows only after grants + an independently observed
+ * RAILWAY_GIT_COMMIT_SHA + experiment secret/keys + approved hashes +
+ * journal/artifact paths. There is no --sealed-pack-file path.
  */
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import { RP_QUALITY_PRECALL_PLANNED_CALLS } from "@/lib/rpQualityPrecall";
@@ -11,13 +14,19 @@ import {
   evaluatePaidRunnerAuthorization,
   type PaidRunnerAuthorizationInput,
   type PaidRunnerPublicManifest,
+  type PaidRunnerSealedCall,
 } from "@/lib/rpQualityPaidRunner";
 import {
-  RP_QUALITY_PAID_LIVE_EXECUTE_ENV,
   livePaidRunnerUsesCanonicalModels,
   paidRunnerLiveExecuteEnabled,
   readPaidRunnerLiveInferenceKeys,
 } from "@/lib/rpQualityPaidRunnerLiveTransport";
+import { resolveCanonicalProductionDbPath } from "./lib/rpQualityPaidRunnerCanonicalDb";
+import { observePaidRunnerRuntimeSha } from "./lib/rpQualityPaidRunnerRuntimeSha";
+import {
+  dispatchPaidRunnerLive,
+  evaluatePaidRunnerLiveAssemblyGrant,
+} from "./lib/rpQualityPaidRunnerLiveDispatch";
 
 function readArg(name: string): string | undefined {
   const index = process.argv.indexOf(name);
@@ -25,65 +34,100 @@ function readArg(name: string): string | undefined {
   return process.argv[index + 1];
 }
 
-function loadManifest(): PaidRunnerPublicManifest | null {
+function loadPublicManifest(): PaidRunnerPublicManifest | null {
   const raw = readArg("--manifest-json");
   if (!raw) return null;
   return JSON.parse(raw) as PaidRunnerPublicManifest;
 }
 
-const manifest = loadManifest();
-const keys = readPaidRunnerLiveInferenceKeys();
-const authorization: PaidRunnerAuthorizationInput = {
-  userCostApproved: process.argv.includes("--user-cost-approved"),
-  approvedManifestFingerprint: readArg("--approved-manifest-fingerprint") ?? "",
-  expectedProductionSha: readArg("--expected-production-sha") ?? "",
-  expectedIdentityHash: readArg("--expected-identity-hash") ?? "",
-  experimentSecret: process.env[RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV] ?? null,
-  allowlist: [...MAIN_RP_MODEL_IDS],
-  plannedCalls: RP_QUALITY_PRECALL_PLANNED_CALLS,
-};
+async function loadCanonicalSealedPack(input: {
+  runtimeSha: string;
+  expectedProductionSha: string;
+}): Promise<{
+  manifest: PaidRunnerPublicManifest;
+  sealedCalls: PaidRunnerSealedCall[];
+} | null> {
+  const originalDataDir = process.env.DATA_DIR ?? "";
+  if (!resolveCanonicalProductionDbPath(originalDataDir)) {
+    return null;
+  }
+  // Deferred on purpose: assembler/getDb must not load (or write stdout) until
+  // grants exist and the canonical DB path is real. Isolation has to evaluate
+  // before the pack loader.
+  await import("./lib/rpQualityPaidRunnerAssemblyIsolation");
+  const { loadInProcessPaidRunnerPack } = await import("./lib/rpQualityPaidRunnerInProcessPack");
+  const loaded = loadInProcessPaidRunnerPack({
+    runtimeSha: input.runtimeSha,
+    expectedProductionSha: input.expectedProductionSha,
+    originalDataDir,
+    env: process.env,
+  });
+  if (!loaded.ok) return null;
+  return { manifest: loaded.pack.manifest, sealedCalls: loaded.pack.sealedCalls };
+}
 
-const gate = manifest
-  ? evaluatePaidRunnerAuthorization(manifest, authorization, "AUTHORIZED")
-  : { authorized: false as const, reason: "MANIFEST_FINGERPRINT_MISMATCH" as const, providerPosts: 0 as const };
+async function main(): Promise<void> {
+  const acceptPaidExecution = process.argv.includes("--accept-paid-execution");
+  const liveExecuteEnabled = paidRunnerLiveExecuteEnabled();
+  const authorization: PaidRunnerAuthorizationInput = {
+    userCostApproved: process.argv.includes("--user-cost-approved"),
+    approvedManifestFingerprint: readArg("--approved-manifest-fingerprint") ?? "",
+    expectedProductionSha: readArg("--expected-production-sha") ?? "",
+    expectedIdentityHash: readArg("--expected-identity-hash") ?? "",
+    experimentSecret: process.env[RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV] ?? null,
+    allowlist: [...MAIN_RP_MODEL_IDS],
+    plannedCalls: RP_QUALITY_PRECALL_PLANNED_CALLS,
+  };
+  const actualRuntimeSha = observePaidRunnerRuntimeSha();
+  const keys = readPaidRunnerLiveInferenceKeys();
+  const journalDir = readArg("--journal-dir");
+  const artifactDir = readArg("--artifact-dir");
+  let manifest = loadPublicManifest();
+  let sealedCalls: PaidRunnerSealedCall[] | null = null;
 
-const executeEnabled = paidRunnerLiveExecuteEnabled();
-const modelsCanonical = livePaidRunnerUsesCanonicalModels(MAIN_RP_MODEL_IDS);
-const denialReason = !executeEnabled
-  ? "LIVE_EXECUTE_NOT_APPROVED"
-  : !gate.authorized
-    ? gate.reason
-    : !modelsCanonical
-      ? "MODEL_ALLOWLIST_MISMATCH"
-      : !keys.openRouterKey || !keys.cheaperInferenceKey
-        ? "MISSING_INFERENCE_KEY"
-        : "LIVE_EXECUTE_NOT_APPROVED";
+  if (
+    acceptPaidExecution &&
+    liveExecuteEnabled &&
+    authorization.userCostApproved &&
+    actualRuntimeSha &&
+    actualRuntimeSha === authorization.expectedProductionSha.trim().toLowerCase()
+  ) {
+    const assemblyGrant = evaluatePaidRunnerLiveAssemblyGrant({
+      authorization,
+      keys,
+      journalDir,
+      artifactDir,
+    });
+    const publicManifestAuthorized =
+      !manifest ||
+      evaluatePaidRunnerAuthorization(manifest, authorization, "AUTHORIZED").authorized;
+    if (assemblyGrant.ok && publicManifestAuthorized) {
+      const loaded = await loadCanonicalSealedPack({
+        runtimeSha: actualRuntimeSha,
+        expectedProductionSha: authorization.expectedProductionSha,
+      });
+      if (loaded) {
+        manifest = loaded.manifest;
+        sealedCalls = loaded.sealedCalls;
+      }
+    }
+  }
 
-process.stdout.write(
-  `${JSON.stringify(
-    {
-      ok: false,
-      mode: "LIVE",
-      authorized: false,
-      denialReason,
-      providerPosts: 0,
-      networkTransmitted: 0,
-      dbWrites: 0,
-      approvalStatus: "NOT_APPROVED",
-      liveExecuteEnv: RP_QUALITY_PAID_LIVE_EXECUTE_ENV,
-      liveExecuteEnabled: executeEnabled,
-      modelsCanonical,
-      unknownSingleCallCost: true,
-      historicalPlanningNotBudget: true,
-      providerInternalRetry: {
-        clientPostRetry: 0,
-        cheaperInference:
-          "provider may internally retry or fail over; 12 client POSTs do not guarantee 12 identical upstream inferences",
-        openrouter: "served model is confirmed via generation metadata; client POST retry is 0",
-      },
-    },
-    null,
-    2
-  )}\n`
-);
-process.exitCode = 2;
+  const report = await dispatchPaidRunnerLive({
+    acceptPaidExecution,
+    liveExecuteEnabled,
+    modelsCanonical: livePaidRunnerUsesCanonicalModels(MAIN_RP_MODEL_IDS),
+    authorization,
+    manifest,
+    sealedCalls,
+    keys,
+    journalDir,
+    artifactDir,
+    allowCreateLiveTransport: true,
+    actualRuntimeSha,
+  });
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  process.exitCode = report.ok ? 0 : 2;
+}
+
+void main();

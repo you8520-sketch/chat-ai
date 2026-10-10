@@ -10,6 +10,7 @@ import {
   closeSync,
   existsSync,
   fsyncSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -102,7 +103,10 @@ export type PaidRunnerDenialReason =
   | "RECONCILIATION_FAILED"
   | "LIVE_EXECUTE_NOT_APPROVED"
   | "CORRUPT_JOURNAL"
-  | "MISSING_INFERENCE_KEY";
+  | "MISSING_INFERENCE_KEY"
+  | "RUNTIME_SHA_UNAVAILABLE"
+  | "RUNTIME_SHA_MISMATCH"
+  | "BODY_DRIFT";
 
 export type PaidRunnerIdentityHashes = {
   greetingSha256: string;
@@ -506,13 +510,11 @@ export function experimentSecretUsesProductionKey(
   });
 }
 
-export function evaluatePaidRunnerAuthorization(
-  manifest: PaidRunnerPublicManifest,
+export function evaluatePaidRunnerAuthorizationPrerequisites(
   input: PaidRunnerAuthorizationInput,
   mode: PaidRunnerMode
 ): PaidRunnerAuthorization {
   if (mode === "PREPARE") return deny("PREPARE_MODE_DOES_NOT_POST");
-  if (manifest.approvalStatus !== "NOT_APPROVED") return deny("APPROVAL_STATUS_NOT_APPROVED");
   if (input.userCostApproved !== true) return deny("MISSING_USER_COST_APPROVAL");
   if (!input.experimentSecret) return deny("MISSING_EXPERIMENT_SECRET");
   if (experimentSecretUsesProductionKey(input.experimentSecret)) {
@@ -521,6 +523,34 @@ export function evaluatePaidRunnerAuthorization(
   if (!isWellFormedPaidExperimentSecret(input.experimentSecret)) {
     return deny("MALFORMED_EXPERIMENT_SECRET");
   }
+  if (input.plannedCalls !== RP_QUALITY_PRECALL_PLANNED_CALLS) {
+    return deny("PLANNED_CALL_COUNT_MISMATCH");
+  }
+  try {
+    assertCurrentMainRpPaidAllowlist(input.allowlist);
+  } catch {
+    return deny("MODEL_ALLOWLIST_MISMATCH");
+  }
+  if (!/^[a-f0-9]{64}$/.test(input.approvedManifestFingerprint.trim())) {
+    return deny("MANIFEST_FINGERPRINT_MISMATCH");
+  }
+  if (!/^[a-f0-9]{64}$/.test(input.expectedIdentityHash.trim())) {
+    return deny("IDENTITY_HASH_MISMATCH");
+  }
+  if (!input.expectedProductionSha.trim()) {
+    return deny("PRODUCTION_SHA_MISMATCH");
+  }
+  return { authorized: true, providerPosts: 0 };
+}
+
+export function evaluatePaidRunnerAuthorization(
+  manifest: PaidRunnerPublicManifest,
+  input: PaidRunnerAuthorizationInput,
+  mode: PaidRunnerMode
+): PaidRunnerAuthorization {
+  const prerequisites = evaluatePaidRunnerAuthorizationPrerequisites(input, mode);
+  if (!prerequisites.authorized) return prerequisites;
+  if (manifest.approvalStatus !== "NOT_APPROVED") return deny("APPROVAL_STATUS_NOT_APPROVED");
   const recomputedIdentity = paidRunnerIdentityHash(manifest.identityHashes);
   if (recomputedIdentity !== manifest.identityHash || recomputedIdentity !== input.expectedIdentityHash) {
     return deny("IDENTITY_HASH_MISMATCH");
@@ -535,16 +565,8 @@ export function evaluatePaidRunnerAuthorization(
   if (input.expectedProductionSha !== manifest.productionDeploySha) {
     return deny("PRODUCTION_SHA_MISMATCH");
   }
-  if (input.plannedCalls !== RP_QUALITY_PRECALL_PLANNED_CALLS) {
-    return deny("PLANNED_CALL_COUNT_MISMATCH");
-  }
   if (manifest.calls.length !== RP_QUALITY_PRECALL_PLANNED_CALLS) {
     return deny("PLANNED_CALL_COUNT_MISMATCH");
-  }
-  try {
-    assertCurrentMainRpPaidAllowlist(input.allowlist);
-  } catch {
-    return deny("MODEL_ALLOWLIST_MISMATCH");
   }
   for (const call of manifest.calls) {
     if (!input.allowlist.includes(call.canonicalId)) return deny("MODEL_ALLOWLIST_MISMATCH");
@@ -658,6 +680,9 @@ export function probePaidRunnerJournalDirectory(directory: string): {
   privateMode: boolean;
   dirFsyncSupported: boolean;
 } {
+  if (existsSync(directory) && lstatSync(directory).isSymbolicLink()) {
+    throw new Error("JOURNAL_STORE_UNAVAILABLE");
+  }
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   try {
     chmodSync(directory, 0o700);
