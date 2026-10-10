@@ -89,10 +89,12 @@ export type ChatArrival = "arrived" | "pending" | "abandoned";
 
 /**
  * 목적지 방이 실제로 도착했는지 판정한다.
- * - 도착: 목적지 방 마커가 DOM에 있다. 같은 캐릭터의 다른 방(서버가 기존 방으로 redirect)도 도착으로 본다.
+ * - 도착: 목적지 방 마커가 DOM에 있다. 서버가 같은 캐릭터의 기존 방으로 redirect한 경우는
+ *   현재 canonical URL(`?chat=`)과 실제 방 마커가 같은 방일 때만 도착으로 본다.
+ *   URL과 마커가 어긋나면(이전 방 마커가 잠시 남은 경우 등) 도착이 아니다.
  * - 대기: 아직 방 마커가 없거나 출발 방 그대로다. 빠른 연속 클릭으로 밀려난 이전 목적지(superseded)가
  *   먼저 도착해도 기다린다.
- * - 포기: 채팅방이 아닌 경로로 갔거나(권한·로그인·인증 redirect, 뒤로 가기) 다른 캐릭터의 방이다.
+ * - 포기: 채팅방이 아닌 경로로 갔거나(권한·로그인·인증 redirect, 뒤로 가기) URL과 일치하는 다른 캐릭터의 방이다.
  */
 export function resolveChatArrival(input: {
   dest: ChatRoomRef;
@@ -110,6 +112,9 @@ export function resolveChatArrival(input: {
   const pathCharacter = parseChatRoomPath(pathname);
   if (pathCharacter === null) return "abandoned";
   if (!room || isSameChatRoom(room, origin)) return "pending";
+  const queryAt = url.indexOf("?");
+  const urlRoom = parseChatResumeHref(pathname, queryAt === -1 ? "" : url.slice(queryAt));
+  if (!isSameChatRoom(room, urlRoom)) return "pending";
   return room.characterId === dest.characterId ? "arrived" : "abandoned";
 }
 

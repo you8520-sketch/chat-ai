@@ -154,6 +154,29 @@ describe("chat resume arrival", () => {
     assert.equal(arrive({ origin: null, room: room(7, 72), pathname: "/chat/7", search: "?chat=72" }), "arrived");
   });
 
+  it("does not accept another session of the same character while the URL still names the destination", () => {
+    const stale = room(7, 99);
+    assert.equal(arrive({ origin: null, room: stale, pathname: "/chat/7", search: "?chat=70" }), "pending");
+    assert.equal(arrive({ room: stale, pathname: "/chat/7", search: "?chat=70" }), "pending");
+  });
+
+  it("requires the real room marker to equal the canonical URL before accepting a redirect-existing arrival", () => {
+    const redirected = room(7, 72);
+    assert.equal(arrive({ room: redirected, pathname: "/chat/7", search: "?chat=72" }), "arrived");
+    assert.equal(arrive({ room: redirected, pathname: "/chat/7", search: "?chat=73" }), "pending");
+    assert.equal(arrive({ room: redirected, pathname: "/chat/7", search: "" }), "pending");
+    assert.equal(arrive({ room: redirected, pathname: "/chat/7", search: "?chat=72&x=1" }), "pending");
+  });
+
+  it("never accepts a superseded destination as a redirect-existing arrival", () => {
+    const superseded = ["/chat/7?chat=71"];
+    assert.equal(arrive({ room: room(7, 71), pathname: "/chat/7", search: "?chat=71", superseded }), "pending");
+  });
+
+  it("does not abandon on a room/URL mismatch of another character (still settling)", () => {
+    assert.equal(arrive({ room: room(9, 90), pathname: "/chat/7", search: "?chat=70" }), "pending");
+  });
+
   it("keeps waiting when the destination URL is committed but no room is mounted yet (server redirect in flight, notFound)", () => {
     assert.equal(arrive({ room: null, pathname: "/chat/7", search: "?chat=70" }), "pending");
   });
