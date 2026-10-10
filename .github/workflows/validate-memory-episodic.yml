@@ -77,6 +77,7 @@ on:
       - "src/lib/memory/memory-rp-benchmark.test.ts"
       - "src/lib/memory/memory-rp-benchmark-hooks.test.ts"
       - "src/lib/memory/monthlyRpMemoryQualityPhase1.test.ts"
+      - "src/lib/memory/monthlyRpMemoryQualityPhase2b.test.ts"
       - "src/lib/memory/memoryEvidenceProvenance.ts"
       - "src/lib/memory/memoryEvidenceProvenance.test.ts"
       - "src/lib/openRouterEmbeddings.ts"
@@ -216,7 +217,7 @@ jobs:
         run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/openRouterEmbeddings.test.ts
 
       - name: Memory benchmark semantic regression
-        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory-rp-benchmark.test.ts src/lib/memory/memory-rp-benchmark-hooks.test.ts src/lib/memory/monthlyRpMemoryQualityPhase1.test.ts src/lib/memory/memoryEvidenceProvenance.test.ts
+        run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memory/memory-rp-benchmark.test.ts src/lib/memory/memory-rp-benchmark-hooks.test.ts src/lib/memory/monthlyRpMemoryQualityPhase1.test.ts src/lib/memory/monthlyRpMemoryQualityPhase2b.test.ts src/lib/memory/memoryEvidenceProvenance.test.ts
 
       - name: Memory research lab (lifecycle, gates, sources, Draft PR, isolation)
         run: node --conditions=react-server --import tsx --import ./src/lib/test/regularTestEgressPolicy.ts --test --test-concurrency=1 src/lib/memoryResearch/*.test.ts

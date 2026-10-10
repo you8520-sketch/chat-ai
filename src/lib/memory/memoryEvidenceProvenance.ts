@@ -31,6 +31,27 @@ export const MONTHLY_RP_MEMORY_QUALITY_PHASE1_EVIDENCE = {
   summaryQuality: DeterministicSummaryQualityClaim;
 };
 
+/** #1486 Phase 2B — 5-turn summary request + validator-gap fixtures. Not Luna output. */
+export const MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE = {
+  provenance: "CURRENT_CODE_DETERMINISTIC",
+  characterId: 18,
+  characterName: "라이크",
+  personaName: "렌",
+  providerPosts: 0,
+  summaryQuality: "NOT_PROVEN",
+  paidEvaluationApproved: false,
+  maxAttemptsPerCase: 3,
+} as const satisfies {
+  provenance: MemoryEvidenceProvenance;
+  characterId: number;
+  characterName: string;
+  personaName: string;
+  providerPosts: number;
+  summaryQuality: DeterministicSummaryQualityClaim;
+  paidEvaluationApproved: false;
+  maxAttemptsPerCase: 3;
+};
+
 export function canClaimCurrentLiveProvider(
   provenance: MemoryEvidenceProvenance
 ): boolean {
