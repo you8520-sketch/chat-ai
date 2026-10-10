@@ -5,6 +5,7 @@ import { HISTORICAL_RP_QUALIFICATION_CHARACTER_ID } from "@/lib/rpMainRpStyleLen
 import { RP_QUALITY_PRECALL_TARGET_SELECTOR } from "@/lib/rpQualityPrecall";
 import {
   MONTHLY_RP_MEMORY_QUALITY_PHASE1_EVIDENCE,
+  MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE,
   canClaimCurrentLiveProvider,
   isDeterministicCodeRegression,
   memoryEvidenceTitle,
@@ -29,6 +30,22 @@ describe("memory evidence provenance", () => {
     assert.equal(
       isDeterministicCodeRegression(MONTHLY_RP_MEMORY_QUALITY_PHASE1_EVIDENCE.provenance),
       true
+    );
+  });
+
+  it("does not promote Phase 2B canned summaries to CURRENT_LIVE_PROVIDER", () => {
+    assert.equal(
+      MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE.provenance,
+      "CURRENT_CODE_DETERMINISTIC"
+    );
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE.characterId, 18);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE.providerPosts, 0);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE.summaryQuality, "NOT_PROVEN");
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE.paidEvaluationApproved, false);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE.maxAttemptsPerCase, 3);
+    assert.equal(
+      canClaimCurrentLiveProvider(MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE.provenance),
+      false
     );
   });
 
