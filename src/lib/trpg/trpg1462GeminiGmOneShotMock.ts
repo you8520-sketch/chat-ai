@@ -102,5 +102,6 @@ export function createTrpg1462MockFetch(script: {
     });
     return new Response(built.body, { status: built.status });
   };
+  fetchImpl.trpg1462Mock = true;
   return { fetchImpl, log };
 }

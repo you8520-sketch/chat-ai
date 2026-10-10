@@ -40,13 +40,24 @@ export const TRPG_1462_APPROVED_MODEL = TRPG_GM_MODEL;
 export const TRPG_1462_MAX_PAID_CALLS = 6;
 export const TRPG_1462_ONESHOT_TIMEOUT_MS = 180_000;
 export const TRPG_1462_TEST_APPROVAL_KIND = "TEST_ONLY";
+export const TRPG_1462_LIVE_APPROVAL_KIND = "LIVE";
 export const TRPG_1462_TEST_EXECUTION_BASE_SHA = "test-only-not-a-live-approval";
 export const TRPG_1462_TEST_MAX_COST_USD = 0.03;
 export const TRPG_1462_TEST_API_KEY = "trpg-1462-test-key";
+export const TRPG_1462_MOCK_LIVE_GRANTED_BY = "MOCK_LIVE_GATE";
+export const TRPG_1462_MOCK_LIVE_EXECUTION_SHA = "mock-live-not-a-user-approval";
 
-export type Trpg1462PaidApprovalRecord = {
+export type Trpg1462Transport = "mock" | "live";
+
+export type Trpg1462OneShotFetch = ((
+  input: string,
+  init: { method: string; headers: Record<string, string>; body: string; signal?: AbortSignal }
+) => Promise<Response>) & {
+  trpg1462Mock?: true;
+};
+
+type Trpg1462ApprovalFields = {
   experiment: typeof TRPG_1462_NEW_BENCHMARK_ID;
-  kind: typeof TRPG_1462_TEST_APPROVAL_KIND;
   approvedCaseIds: Trpg1462NewBenchmarkRequestId[];
   requestBodySha256: Record<Trpg1462NewBenchmarkRequestId, string>;
   model: typeof TRPG_1462_APPROVED_MODEL;
@@ -54,20 +65,34 @@ export type Trpg1462PaidApprovalRecord = {
   maxCalls: number;
   maxCostUsd: number;
   executionBaseSha: string;
+};
+
+export type Trpg1462TestOnlyApprovalRecord = Trpg1462ApprovalFields & {
+  kind: typeof TRPG_1462_TEST_APPROVAL_KIND;
   grantedBy: "TEST_FIXTURE";
 };
 
-export function createTrpg1462TestApproval(
-  overrides: Partial<Trpg1462PaidApprovalRecord> = {}
-): Trpg1462PaidApprovalRecord {
-  const requestBodySha256 = Object.fromEntries(
+export type Trpg1462LiveApprovalRecord = Trpg1462ApprovalFields & {
+  kind: typeof TRPG_1462_LIVE_APPROVAL_KIND;
+  grantedBy: string;
+};
+
+export type Trpg1462PaidApprovalRecord = Trpg1462TestOnlyApprovalRecord | Trpg1462LiveApprovalRecord;
+
+function pinnedRequestBodyShas(): Record<Trpg1462NewBenchmarkRequestId, string> {
+  return Object.fromEntries(
     TRPG_1462_NEW_BENCHMARK_REQUEST_IDS.map((id) => [id, TRPG_1462_PINNED_REQUEST_HASHES[id].requestBodySha256])
   ) as Record<Trpg1462NewBenchmarkRequestId, string>;
+}
+
+export function createTrpg1462TestApproval(
+  overrides: Partial<Trpg1462TestOnlyApprovalRecord> = {}
+): Trpg1462TestOnlyApprovalRecord {
   return {
     experiment: TRPG_1462_NEW_BENCHMARK_ID,
     kind: TRPG_1462_TEST_APPROVAL_KIND,
     approvedCaseIds: [...TRPG_1462_NEW_BENCHMARK_REQUEST_IDS],
-    requestBodySha256,
+    requestBodySha256: pinnedRequestBodyShas(),
     model: TRPG_1462_APPROVED_MODEL,
     provider: TRPG_1462_APPROVED_PROVIDER,
     maxCalls: TRPG_1462_MAX_PAID_CALLS,
@@ -78,14 +103,43 @@ export function createTrpg1462TestApproval(
   };
 }
 
-export function assertTrpg1462PaidApproval(
-  approval: Trpg1462PaidApprovalRecord | null | undefined,
+/** Mock LIVE record for gate tests. Not a user-granted paid approval. */
+export function createTrpg1462MockLiveApproval(
+  overrides: Partial<Trpg1462LiveApprovalRecord> = {}
+): Trpg1462LiveApprovalRecord {
+  return {
+    experiment: TRPG_1462_NEW_BENCHMARK_ID,
+    kind: TRPG_1462_LIVE_APPROVAL_KIND,
+    approvedCaseIds: [...TRPG_1462_NEW_BENCHMARK_REQUEST_IDS],
+    requestBodySha256: pinnedRequestBodyShas(),
+    model: TRPG_1462_APPROVED_MODEL,
+    provider: TRPG_1462_APPROVED_PROVIDER,
+    maxCalls: TRPG_1462_MAX_PAID_CALLS,
+    maxCostUsd: TRPG_1462_TEST_MAX_COST_USD,
+    executionBaseSha: TRPG_1462_MOCK_LIVE_EXECUTION_SHA,
+    grantedBy: TRPG_1462_MOCK_LIVE_GRANTED_BY,
+    ...overrides,
+  };
+}
+
+export function isTrpg1462MockFetch(fetchImpl: Trpg1462OneShotFetch): boolean {
+  return fetchImpl.trpg1462Mock === true;
+}
+
+export function isTrpg1462LiveNetworkAttempt(opts: {
+  fetchImpl: Trpg1462OneShotFetch;
+  transport?: Trpg1462Transport;
+}): boolean {
+  if (opts.transport === "live") return true;
+  if (opts.transport === "mock") return false;
+  return !isTrpg1462MockFetch(opts.fetchImpl);
+}
+
+function assertSharedApprovalFields(
+  approval: Trpg1462PaidApprovalRecord,
   requestId: Trpg1462NewBenchmarkRequestId,
   bodySha: string
 ): void {
-  if (!approval) throw new Error("APPROVAL_DENIED");
-  if (approval.kind !== TRPG_1462_TEST_APPROVAL_KIND) throw new Error("APPROVAL_DENIED");
-  if (approval.grantedBy !== "TEST_FIXTURE") throw new Error("APPROVAL_DENIED");
   if (approval.experiment !== TRPG_1462_NEW_BENCHMARK_ID) throw new Error("APPROVAL_MISMATCH");
   if (approval.model !== TRPG_1462_APPROVED_MODEL) throw new Error("APPROVAL_MISMATCH");
   if (approval.provider !== TRPG_1462_APPROVED_PROVIDER) throw new Error("APPROVAL_MISMATCH");
@@ -96,17 +150,60 @@ export function assertTrpg1462PaidApproval(
   if (approval.requestBodySha256[requestId] !== bodySha) throw new Error("APPROVAL_MISMATCH");
 }
 
+export function assertTrpg1462PaidApproval(
+  approval: Trpg1462PaidApprovalRecord | null | undefined,
+  requestId: Trpg1462NewBenchmarkRequestId,
+  bodySha: string
+): asserts approval is Trpg1462PaidApprovalRecord {
+  if (!approval) throw new Error("APPROVAL_DENIED");
+  switch (approval.kind) {
+    case TRPG_1462_TEST_APPROVAL_KIND:
+      if (approval.grantedBy !== "TEST_FIXTURE") throw new Error("APPROVAL_DENIED");
+      break;
+    case TRPG_1462_LIVE_APPROVAL_KIND:
+      if (approval.grantedBy.trim() === "" || approval.grantedBy === "TEST_FIXTURE") {
+        throw new Error("APPROVAL_DENIED");
+      }
+      if (approval.executionBaseSha === TRPG_1462_TEST_EXECUTION_BASE_SHA) {
+        throw new Error("APPROVAL_MISMATCH");
+      }
+      break;
+    default: {
+      const unexpected: never = approval;
+      throw new Error(`APPROVAL_DENIED:${String(unexpected)}`);
+    }
+  }
+  assertSharedApprovalFields(approval, requestId, bodySha);
+}
+
+export function assertTrpg1462NetworkPolicy(
+  approval: Trpg1462PaidApprovalRecord,
+  fetchImpl: Trpg1462OneShotFetch,
+  transport?: Trpg1462Transport
+): void {
+  const liveNetwork = isTrpg1462LiveNetworkAttempt({ fetchImpl, transport });
+  if (!liveNetwork) return;
+  if (approval.kind === TRPG_1462_TEST_APPROVAL_KIND) {
+    throw new Error("TEST_ONLY_NETWORK_FORBIDDEN");
+  }
+  if (approval.grantedBy === TRPG_1462_MOCK_LIVE_GRANTED_BY) {
+    throw new Error("LIVE_APPROVAL_NOT_GRANTED");
+  }
+}
+
+export function approvalCallBudgetRemaining(
+  approval: Trpg1462PaidApprovalRecord,
+  consumed: number
+): number {
+  return Math.min(approval.maxCalls, TRPG_1462_MAX_PAID_CALLS) - consumed;
+}
+
 /** Experiment-only. Pass an explicit key so production env is never consulted. */
 export function buildTrpg1462OneShotProviderHeaders(apiKey: string | undefined): Record<string, string> {
   const key = apiKey?.trim() ?? "";
   if (!key) throw new Error("AUTH_MISSING");
   return buildCheaperInferenceHeaders(key);
 }
-
-export type Trpg1462OneShotFetch = (
-  input: string,
-  init: { method: string; headers: Record<string, string>; body: string; signal?: AbortSignal }
-) => Promise<Response>;
 
 export type Trpg1462OneShotResult = {
   ok: boolean;
@@ -302,6 +399,7 @@ export async function executeTrpg1462OneShot(opts: {
   crashAfterReserve?: boolean;
   approval?: Trpg1462PaidApprovalRecord | null;
   apiKey?: string;
+  transport?: Trpg1462Transport;
 }): Promise<Trpg1462OneShotResult> {
   assertNotForbiddenPrivatePath(opts.root);
   if (!isApprovedRequestId(opts.requestId)) {
@@ -318,8 +416,11 @@ export async function executeTrpg1462OneShot(opts: {
   }
 
   let headers: Record<string, string>;
+  let approval: Trpg1462PaidApprovalRecord;
   try {
     assertTrpg1462PaidApproval(opts.approval, id, sealed.bodySha);
+    approval = opts.approval;
+    assertTrpg1462NetworkPolicy(approval, opts.fetchImpl, opts.transport);
     headers = buildTrpg1462OneShotProviderHeaders(opts.apiKey);
   } catch (error) {
     return blocked(id, error instanceof Error ? error.message : "APPROVAL_DENIED");
@@ -336,8 +437,9 @@ export async function executeTrpg1462OneShot(opts: {
     if (journal.cases[id].requestBodySha256 !== sealed.bodySha) {
       return blocked(id, "REQUEST_BODY_SHA_MISMATCH");
     }
-    if (consumedTrpg1462Attempts(journal) >= TRPG_1462_MAX_PAID_CALLS) {
-      return blocked(id, "MAX_PAID_CALLS");
+    const consumed = consumedTrpg1462Attempts(journal);
+    if (approvalCallBudgetRemaining(approval, consumed) <= 0) {
+      return blocked(id, consumed >= approval.maxCalls ? "APPROVAL_MAX_CALLS" : "MAX_PAID_CALLS");
     }
     if (!canPostTrpg1462Attempt(journal, id, sealed.bodySha)) {
       return blocked(id, `ONE_SHOT_BLOCKED_${journal.cases[id].status.toUpperCase()}`);

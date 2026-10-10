@@ -1,5 +1,6 @@
 import { createTrpg1462MockFetch } from "./trpg1462GeminiGmOneShotMock";
 import {
+  createTrpg1462MockLiveApproval,
   createTrpg1462TestApproval,
   executeTrpg1462OneShot,
   TRPG_1462_TEST_API_KEY,
@@ -31,7 +32,10 @@ async function main(): Promise<void> {
       fetchImpl,
       timeoutMs: Number(process.env.TRPG_1462_ONESHOT_TIMEOUT_MS ?? 180_000),
       crashAfterReserve: process.env.TRPG_1462_ONESHOT_CRASH_AFTER_RESERVE === "1",
-      approval: createTrpg1462TestApproval(),
+      approval:
+        process.env.TRPG_1462_ONESHOT_APPROVAL === "live"
+          ? createTrpg1462MockLiveApproval()
+          : createTrpg1462TestApproval(),
       apiKey: TRPG_1462_TEST_API_KEY,
     });
     process.stdout.write(`${JSON.stringify({ ...result, mockPosts: log.count })}\n`);

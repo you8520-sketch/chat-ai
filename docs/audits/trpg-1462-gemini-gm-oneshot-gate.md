@@ -5,7 +5,8 @@ Status:
 - ONE_SHOT_TRANSPORT_VERIFIED
 - DURABLE_JOURNAL_VERIFIED
 - APPROVAL_GATE_VERIFIED
-- PAID_EXECUTION_GATE_VERIFIED: **not claimed** — TEST_ONLY mock approval only; no live approval record; actual provider POST = 0
+- LIVE_APPROVAL_GATE_VERIFIED (mock only)
+- PAID_EXECUTION_GATE_VERIFIED: **not claimed** — no user-granted LIVE approval; actual provider POST = 0
 - BLOCKED: no
 
 Provider POSTs this turn: **0**
@@ -76,6 +77,14 @@ A process crash after `wx` and before the lock token is written leaves an unclea
 - Production DB writes 0
 - Actual provider POST 0
 
+## LIVE APPROVAL GATE
+
+TEST_ONLY and LIVE are separate records. TEST_ONLY cannot take `transport: "live"` or an untagged/network fetch. A mock LIVE record (`grantedBy=MOCK_LIVE_GATE`) can exercise case IDs, request SHAs, execution SHA, model, provider, maxCalls, and cost cap on the existing executor, but it is not a user-granted paid approval and cannot open a live network POST.
+
+Approved `maxCalls` is compared to journal consumption before reserve. Exceeding the approval budget fails closed with `APPROVAL_MAX_CALLS`. Cursor did not mint a live paid approval and did not call Gemini.
+
+Mock coverage added: zero approved cases, partial approval, full approval, excess calls, LIVE SHA mismatch, LIVE concurrent reserve, TEST_ONLY network forbidden, mock LIVE + live transport forbidden.
+
 ## SYSTEM DELTA
 
-Hardening of the existing one-shot executor and journal lock only. No new experiment runner, no billing change, no production GM path change.
+Hardening of the existing one-shot executor and journal lock only. LIVE vs TEST_ONLY is a gate on that executor. No new experiment runner, no billing change, no production GM path change, no live provider POST.
