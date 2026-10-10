@@ -63,6 +63,7 @@ import {
   LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST,
   LUNA_SUMMARY_APPROVED_SCRIPT_HASH,
   LUNA_SUMMARY_EXPERIMENT_KEY_ENV,
+  LUNA_SUMMARY_GRADER_ITEMS,
   LUNA_SUMMARY_MAX_NETWORK_ATTEMPTS,
   LUNA_SUMMARY_PLANNED_POSTS,
   LUNA_SUMMARY_REQUEST_KIND,
@@ -204,6 +205,41 @@ export type LunaDurableJournal = {
   entries: LunaDurableJournalEntry[];
 };
 
+export type LunaSummaryEvalBatchRecord = {
+  batchIndex: number;
+  status: LunaDurableStatus;
+  accepted: boolean | null;
+  rawSummaryFingerprint: string | null;
+  storedSummaryFingerprint: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  billedUsd: number | null;
+  providerRequestId: string | null;
+  settlementSource: LunaDurableJournalEntry["settlementSource"];
+};
+
+export type LunaSummaryEvalProbeRecord = {
+  id: (typeof AB_PROBES)[number]["id"];
+  kind: (typeof AB_PROBES)[number]["kind"];
+  user: string;
+  injectionFingerprint: string;
+  armACurrentMemoryFingerprint: string;
+};
+
+export type LunaSummaryEvalEvidence = {
+  version: 1;
+  manifestFingerprint: typeof LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST;
+  liveApprovalStatus: LunaLiveApprovalStatus;
+  sealedRounds: number;
+  frontier: number;
+  globalMemoryFingerprint: string | null;
+  armAMemoryFingerprint: string | null;
+  batches: LunaSummaryEvalBatchRecord[];
+  probes: LunaSummaryEvalProbeRecord[];
+  graderItems: typeof LUNA_SUMMARY_GRADER_ITEMS;
+  storesSecrets: false;
+};
+
 export type LunaCompletionFn = typeof callOpenRouterCompletion;
 
 export type LunaExecuteGate =
@@ -264,6 +300,153 @@ function lunaJournalPath(directory: string, fingerprint: string): string {
   return path.join(directory, `luna-summary-journal-${fingerprint}.json`);
 }
 
+export function lunaSummaryEvalEvidencePath(directory: string, fingerprint: string): string {
+  if (!/^[a-f0-9]{64}$/.test(fingerprint)) {
+    throw new Error("JOURNAL_FINGERPRINT_MISMATCH");
+  }
+  return path.join(directory, `luna-summary-eval-${fingerprint}.json`);
+}
+
+function persistAtomicJson(dest: string, value: unknown): void {
+  const tmp = `${dest}.${process.pid}.${Date.now()}.tmp`;
+  const fd = openSync(tmp, "w", 0o600);
+  try {
+    writeFileSync(fd, `${JSON.stringify(value)}\n`, "utf8");
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+  renameSync(tmp, dest);
+  const dirFd = openSync(path.dirname(dest), "r");
+  try {
+    fsyncSync(dirFd);
+  } finally {
+    closeSync(dirFd);
+  }
+}
+
+function persistEvalText(
+  artifactStore: PaidRunnerArtifactStore,
+  requestOrder: number,
+  text: string
+): string | null {
+  if (!text) return null;
+  const fingerprint = paidRunnerArtifactFingerprint(text);
+  artifactStore.persist({ requestOrder, fingerprint, text });
+  return fingerprint;
+}
+
+export function persistLunaSummaryEvalEvidence(input: {
+  directory: string;
+  artifactStore: PaidRunnerArtifactStore;
+  sealedRounds: number;
+  frontier: number;
+  journal: LunaDurableJournal;
+  globalMemory: string;
+  armAMemory: string;
+  probes: Array<{
+    id: LunaSummaryEvalProbeRecord["id"];
+    kind: LunaSummaryEvalProbeRecord["kind"];
+    user: string;
+    injection: string;
+    armACurrentMemory: string;
+  }>;
+}): LunaSummaryEvalEvidence {
+  const resolved = resolveLunaSummaryJournalDirectory({ journalDirectory: input.directory });
+  if (!resolved.ok) throw new Error(resolved.reason);
+  const globalMemoryFingerprint = persistEvalText(input.artifactStore, 300, input.globalMemory);
+  const armAMemoryFingerprint = persistEvalText(input.artifactStore, 301, input.armAMemory);
+  const probes: LunaSummaryEvalProbeRecord[] = input.probes.map((probe, index) => ({
+    id: probe.id,
+    kind: probe.kind,
+    user: probe.user,
+    injectionFingerprint: persistEvalText(input.artifactStore, 400 + index, probe.injection) ??
+      paidRunnerArtifactFingerprint(probe.injection),
+    armACurrentMemoryFingerprint:
+      persistEvalText(input.artifactStore, 500 + index, probe.armACurrentMemory) ??
+      paidRunnerArtifactFingerprint(probe.armACurrentMemory),
+  }));
+  const evidence: LunaSummaryEvalEvidence = {
+    version: 1,
+    manifestFingerprint: LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
+    liveApprovalStatus: LUNA_SUMMARY_LIVE_APPROVAL_STATUS,
+    sealedRounds: input.sealedRounds,
+    frontier: input.frontier,
+    globalMemoryFingerprint,
+    armAMemoryFingerprint,
+    batches: input.journal.entries.map((entry) => ({
+      batchIndex: entry.batchIndex,
+      status: entry.status,
+      accepted: entry.accepted,
+      rawSummaryFingerprint: entry.rawSummaryFingerprint,
+      storedSummaryFingerprint: entry.storedSummaryFingerprint,
+      promptTokens: entry.promptTokens,
+      completionTokens: entry.completionTokens,
+      billedUsd: entry.billedUsd,
+      providerRequestId: entry.providerRequestId,
+      settlementSource: entry.settlementSource,
+    })),
+    probes,
+    graderItems: LUNA_SUMMARY_GRADER_ITEMS,
+    storesSecrets: false,
+  };
+  persistAtomicJson(lunaSummaryEvalEvidencePath(resolved.directory, LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST), evidence);
+  return evidence;
+}
+
+export function loadLunaSummaryEvalEvidence(
+  directory: string,
+  fingerprint: string = LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST
+): {
+  evidence: LunaSummaryEvalEvidence;
+  globalMemory: string | null;
+  armAMemory: string | null;
+  probes: Array<{
+    id: LunaSummaryEvalProbeRecord["id"];
+    kind: LunaSummaryEvalProbeRecord["kind"];
+    user: string;
+    injection: string | null;
+    armACurrentMemory: string | null;
+  }>;
+  batches: Array<LunaSummaryEvalBatchRecord & { rawSummary: string | null; storedSummary: string | null }>;
+} | null {
+  const resolved = resolveLunaSummaryJournalDirectory({ journalDirectory: directory });
+  if (!resolved.ok) return null;
+  const file = lunaSummaryEvalEvidencePath(resolved.directory, fingerprint);
+  if (!existsSync(file)) return null;
+  const evidence = JSON.parse(readFileSync(file, "utf8")) as LunaSummaryEvalEvidence;
+  if (
+    !evidence ||
+    evidence.manifestFingerprint !== fingerprint ||
+    !Array.isArray(evidence.probes) ||
+    !Array.isArray(evidence.batches)
+  ) {
+    throw new Error("CORRUPT_JOURNAL");
+  }
+  const artifacts = createFilePaidRunnerArtifactStore(resolved.directory);
+  return {
+    evidence,
+    globalMemory: evidence.globalMemoryFingerprint
+      ? artifacts.load(evidence.globalMemoryFingerprint)
+      : null,
+    armAMemory: evidence.armAMemoryFingerprint ? artifacts.load(evidence.armAMemoryFingerprint) : null,
+    probes: evidence.probes.map((probe) => ({
+      id: probe.id,
+      kind: probe.kind,
+      user: probe.user,
+      injection: artifacts.load(probe.injectionFingerprint),
+      armACurrentMemory: artifacts.load(probe.armACurrentMemoryFingerprint),
+    })),
+    batches: evidence.batches.map((batch) => ({
+      ...batch,
+      rawSummary: batch.rawSummaryFingerprint ? artifacts.load(batch.rawSummaryFingerprint) : null,
+      storedSummary: batch.storedSummaryFingerprint
+        ? artifacts.load(batch.storedSummaryFingerprint)
+        : null,
+    })),
+  };
+}
+
 export function recoverLunaLeftoverSent(journal: LunaDurableJournal): boolean {
   let recovered = false;
   for (const entry of journal.entries) {
@@ -317,22 +500,7 @@ export function createLunaDurableJournalStore(directory: string): {
       };
     },
     persist(journal) {
-      const dest = lunaJournalPath(directory, journal.manifestFingerprint);
-      const tmp = `${dest}.${process.pid}.${Date.now()}.tmp`;
-      const fd = openSync(tmp, "w", 0o600);
-      try {
-        writeFileSync(fd, `${JSON.stringify(journal)}\n`, "utf8");
-        fsyncSync(fd);
-      } finally {
-        closeSync(fd);
-      }
-      renameSync(tmp, dest);
-      const dirFd = openSync(directory, "r");
-      try {
-        fsyncSync(dirFd);
-      } finally {
-        closeSync(dirFd);
-      }
+      persistAtomicJson(lunaJournalPath(directory, journal.manifestFingerprint), journal);
     },
   };
 }
@@ -642,6 +810,102 @@ export function createLunaSummaryLiveCaller(opts: {
   return caller;
 }
 
+async function captureLunaEvalMaterials(frontier: number): Promise<{
+  globalMemory: string;
+  armAMemory: string;
+  probes: Array<{
+    id: LunaSummaryEvalProbeRecord["id"];
+    kind: LunaSummaryEvalProbeRecord["kind"];
+    user: string;
+    injection: string;
+    armACurrentMemory: string;
+  }>;
+  oracleWrittenToDb: boolean;
+  answerKeyLeakedIntoArmA: boolean;
+}> {
+  const records = listMemoryRecordsForChat(AB_CHAT_ID).filter((record) => !record.inactive);
+  const global = resolveGlobalCurrentMemory(AB_CHAT_ID, MEMORY_CAPACITY_FIXED);
+  const chunks = harborCharacterChunks();
+  const oracle = buildOracleDiagnosticMemory();
+  const storedJoined = records.map((record) => record.summary).join("\n");
+  const freezeInjection = await buildMemoryContextForChat({
+    chatId: AB_CHAT_ID,
+    userId: AB_USER_ID,
+    characterId: AB_CHARACTER_ID,
+    tier: "pro",
+    memoryCapacity: MEMORY_CAPACITY_FIXED,
+    userMessage: AB_PROBES[0]!.user,
+    modelId: "deepseek-v4.1-flash",
+  });
+  const freezeArmA = buildContext({
+    charName: AB_CHARACTER_NAME,
+    chunks,
+    userNickname: AB_PERSONA_NAME,
+    userPersona: AB_PERSONA_CARD,
+    longTermMemory: freezeInjection.text,
+    shortTermHistory: [],
+    currentUserMessage: AB_FREEZE_USER,
+    nsfw: false,
+    provider: "cheaperinference",
+    modelId: "deepseek-v4.1-flash",
+    completedTurns: AB_COMPLETED_TURNS,
+    summarizedTurnCount: frontier,
+  });
+  const armAMemory =
+    (freezeArmA.meta.trackedSections ?? []).find((section) => section.id === "current-memory")?.text ??
+    freezeInjection.text;
+  const probes: Array<{
+    id: LunaSummaryEvalProbeRecord["id"];
+    kind: LunaSummaryEvalProbeRecord["kind"];
+    user: string;
+    injection: string;
+    armACurrentMemory: string;
+  }> = [];
+  for (const probe of AB_PROBES) {
+    const injection = await buildMemoryContextForChat({
+      chatId: AB_CHAT_ID,
+      userId: AB_USER_ID,
+      characterId: AB_CHARACTER_ID,
+      tier: "pro",
+      memoryCapacity: MEMORY_CAPACITY_FIXED,
+      userMessage: probe.user,
+      modelId: "deepseek-v4.1-flash",
+    });
+    const armA = buildContext({
+      charName: AB_CHARACTER_NAME,
+      chunks,
+      userNickname: AB_PERSONA_NAME,
+      userPersona: AB_PERSONA_CARD,
+      longTermMemory: injection.text,
+      shortTermHistory: [],
+      currentUserMessage: probe.user,
+      nsfw: false,
+      provider: "cheaperinference",
+      modelId: "deepseek-v4.1-flash",
+      completedTurns: AB_COMPLETED_TURNS,
+      summarizedTurnCount: frontier,
+    });
+    const currentMemory =
+      (armA.meta.trackedSections ?? []).find((section) => section.id === "current-memory")?.text ??
+      injection.text;
+    probes.push({
+      id: probe.id,
+      kind: probe.kind,
+      user: probe.user,
+      injection: injection.text,
+      armACurrentMemory: currentMemory,
+    });
+  }
+  return {
+    globalMemory: global.text,
+    armAMemory,
+    probes,
+    oracleWrittenToDb: storedJoined.includes("[진단 메모]"),
+    answerKeyLeakedIntoArmA:
+      freezeArmA.systemPrompt.includes(oracle) || freezeArmA.systemPrompt.includes("[진단 메모]"),
+  };
+}
+
 export async function runAuthorizedLunaSummaryExperiment(input: {
   userCostApproved: boolean;
   experimentKey?: string | null;
@@ -660,6 +924,7 @@ export async function runAuthorizedLunaSummaryExperiment(input: {
   identity: Awaited<ReturnType<typeof verifyLunaRequestIdentity>>;
   globalMemory: string;
   armAMemory: string;
+  evalEvidence: LunaSummaryEvalEvidence | null;
   oracleWrittenToDb: boolean;
   answerKeyLeakedIntoArmA: boolean;
 }> {
@@ -685,6 +950,7 @@ export async function runAuthorizedLunaSummaryExperiment(input: {
     identity,
     globalMemory: "",
     armAMemory: "",
+    evalEvidence: null,
     oracleWrittenToDb: false,
     answerKeyLeakedIntoArmA: false,
   });
@@ -817,32 +1083,17 @@ export async function runAuthorizedLunaSummaryExperiment(input: {
       journal.executed = true;
       store.persist(journal);
     }
-    const global = resolveGlobalCurrentMemory(AB_CHAT_ID, MEMORY_CAPACITY_FIXED);
-    const injection = await buildMemoryContextForChat({
-      chatId: AB_CHAT_ID,
-      userId: AB_USER_ID,
-      characterId: AB_CHARACTER_ID,
-      tier: "pro",
-      memoryCapacity: MEMORY_CAPACITY_FIXED,
-      userMessage: AB_PROBES[0]!.user,
-      modelId: "deepseek-v4.1-flash",
+    const materials = await captureLunaEvalMaterials(frontier);
+    const evalEvidence = persistLunaSummaryEvalEvidence({
+      directory: journalDir.directory,
+      artifactStore: store.artifactStore,
+      sealedRounds,
+      frontier,
+      journal,
+      globalMemory: materials.globalMemory,
+      armAMemory: materials.armAMemory,
+      probes: materials.probes,
     });
-    const armA = buildContext({
-      charName: AB_CHARACTER_NAME,
-      chunks: harborCharacterChunks(),
-      userNickname: AB_PERSONA_NAME,
-      userPersona: AB_PERSONA_CARD,
-      longTermMemory: injection.text,
-      shortTermHistory: [],
-      currentUserMessage: AB_FREEZE_USER,
-      nsfw: false,
-      provider: "cheaperinference",
-      modelId: "deepseek-v4.1-flash",
-      completedTurns: AB_COMPLETED_TURNS,
-      summarizedTurnCount: frontier,
-    });
-    const oracle = buildOracleDiagnosticMemory();
-    const storedJoined = records.map((record) => record.summary).join("\n");
     return {
       executed: journal.executed,
       paidPosts: input.allowRealNetwork === true && !input.completion ? journal.networkAttempts : 0,
@@ -852,10 +1103,11 @@ export async function runAuthorizedLunaSummaryExperiment(input: {
       abortReason,
       journal,
       identity,
-      globalMemory: global.text,
-      armAMemory: (armA.meta.trackedSections ?? []).find((section) => section.id === "current-memory")?.text ?? injection.text,
-      oracleWrittenToDb: storedJoined.includes("[진단 메모]"),
-      answerKeyLeakedIntoArmA: armA.systemPrompt.includes(oracle) || armA.systemPrompt.includes("[진단 메모]"),
+      globalMemory: materials.globalMemory,
+      armAMemory: materials.armAMemory,
+      evalEvidence,
+      oracleWrittenToDb: materials.oracleWrittenToDb,
+      answerKeyLeakedIntoArmA: materials.answerKeyLeakedIntoArmA,
     };
   } finally {
     lock.lock.release();

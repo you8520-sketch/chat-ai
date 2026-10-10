@@ -12,7 +12,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -25,10 +25,12 @@ import {
   uninstallIsolatedTestDatabase,
 } from "@/lib/test/isolatedTestDatabase";
 import { AB_CHAT_ID, AB_COMPLETED_TURNS, extractiveFakeHarborSummary } from "./memory50TurnAbRunner";
+import { AB_PROBES } from "./memory50TurnAbScript";
 import {
   LUNA_SUMMARY_APPROVED_BATCH_FINGERPRINTS,
   LUNA_SUMMARY_APPROVED_PREPARE_MANIFEST,
   LUNA_SUMMARY_APPROVED_SCRIPT_HASH,
+  LUNA_SUMMARY_GRADER_ITEMS,
   LUNA_SUMMARY_LIVE_EXECUTE_SHIPPED,
   attemptLunaSummaryLiveExecute,
   evaluateLunaSummaryGate,
@@ -42,6 +44,8 @@ import {
   LUNA_SUMMARY_LIVE_COUPLED_APPROVAL_MANIFEST,
   LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST,
   LUNA_SUMMARY_LIVE_WIRE_CONTRACT,
+  loadLunaSummaryEvalEvidence,
+  lunaSummaryEvalEvidencePath,
   lunaSummaryLiveExecuteManifestIdentity,
   countReservedNetworkAttempts,
   createLunaDurableJournalStore,
@@ -597,6 +601,62 @@ describe("50-turn Luna summary execute isolated stub (provider-free)", () => {
     });
     assert.equal(duplicate.abortReason, "PRIOR_RESERVED_HISTORY");
     assert.equal(duplicate.paidPosts, 0);
+    assert.equal(result.evalEvidence?.probes.length, AB_PROBES.length);
+    assert.equal(result.evalEvidence?.batches.length, 10);
+    assert.deepEqual(result.evalEvidence?.graderItems, [...LUNA_SUMMARY_GRADER_ITEMS]);
+    assert.equal(result.evalEvidence?.manifestFingerprint, LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
+    const reopenedWhileDbLive = loadLunaSummaryEvalEvidence(dir);
+    assert.equal(reopenedWhileDbLive?.probes.length, 8);
+    assert.equal(reopenedWhileDbLive?.globalMemory, result.globalMemory);
+    assert.equal(reopenedWhileDbLive?.armAMemory, result.armAMemory);
+    assert.equal(reopenedWhileDbLive?.batches.every((batch) => Boolean(batch.rawSummary)), true);
+    assert.equal(reopenedWhileDbLive?.batches.every((batch) => Boolean(batch.storedSummary)), true);
+    assert.equal(
+      reopenedWhileDbLive?.batches.every(
+        (batch) => batch.promptTokens != null && batch.completionTokens != null
+      ),
+      true
+    );
+  });
+});
+
+describe("50-turn Luna eval evidence survives isolated DB removal", () => {
+  it("reopens journal texts after the temp DB is gone", async () => {
+    installIsolatedTestDatabase();
+    const dir = journalDir();
+    let result: Awaited<ReturnType<typeof runAuthorizedLunaSummaryExperiment>>;
+    try {
+      result = await runAuthorizedLunaSummaryExperiment({
+        userCostApproved: true,
+        experimentKey: EXPERIMENT,
+        env: {},
+        journalDirectory: dir,
+        completion: stubCompletion(),
+      });
+    } finally {
+      uninstallIsolatedTestDatabase();
+    }
+    assert.equal(result.sealedRounds, 10);
+    assert.equal(result.evalEvidence?.probes.map((probe) => probe.id).join(","), AB_PROBES.map((probe) => probe.id).join(","));
+    assert.equal(existsSync(lunaSummaryEvalEvidencePath(dir, LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST)), true);
+    const reopened = loadLunaSummaryEvalEvidence(dir);
+    assert.ok(reopened);
+    assert.equal(reopened.evidence.liveApprovalStatus, "NOT_APPROVED");
+    assert.equal(reopened.evidence.manifestFingerprint, LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
+    assert.equal(reopened.globalMemory, result.globalMemory);
+    assert.equal(reopened.armAMemory, result.armAMemory);
+    assert.match(reopened.globalMemory ?? "", /열쇠/);
+    assert.match(reopened.armAMemory ?? "", /열쇠/);
+    assert.equal(reopened.probes.length, 8);
+    assert.equal(reopened.probes.every((probe) => Boolean(probe.injection && probe.armACurrentMemory)), true);
+    assert.equal(reopened.batches.length, 10);
+    assert.equal(reopened.batches.every((batch) => Boolean(batch.rawSummary && batch.storedSummary)), true);
+    assert.equal(
+      reopened.batches.every((batch) => batch.promptTokens === 10 && batch.completionTokens === 20),
+      true
+    );
+    assert.equal(lunaSummaryLiveExecuteManifestFingerprint(), LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
+    assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "NOT_APPROVED");
   });
 });
 
