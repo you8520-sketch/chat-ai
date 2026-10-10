@@ -22,7 +22,13 @@ async function main(): Promise<void> {
   if (!result.ok) {
     const payload = { ok: false, reason: result.reason, evidence: result.evidence ?? null };
     writeFileSync(evidencePath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
-    writeFileSync(path.join(repoEvidenceDir, "evidence.json"), `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+    if (result.evidence) {
+      writeFileSync(
+        path.join(repoEvidenceDir, "evidence.json"),
+        `${JSON.stringify(result.evidence, null, 2)}\n`,
+        "utf8"
+      );
+    }
     console.error(JSON.stringify({ ok: false, reason: result.reason, providerPosts: result.evidence?.providerPosts ?? 0 }));
     process.exitCode = 2;
     return;
