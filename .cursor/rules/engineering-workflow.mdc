@@ -45,6 +45,8 @@ Adopted vocabulary and what it replaces here:
 
 **Evidence handoff.** Local WSL Agent posts sanitized eval/review evidence to the working Draft PR. On this machine, reuse Windows `gh.exe` authenticated by its keyring: call `gh.exe api` with explicit repository/PR parameters for creation and comments, because Windows `gh.exe` cannot infer the WSL git repository for `gh pr` commands. Keep git operations in WSL; never export or persist plaintext GitHub tokens. Do not use the user's Downloads folder or ChatGPT upload as the default path. Cloud Agent does not own this machine's journal or GitHub posting. Do not add a parallel handoff script or a second process rule.
 
+**Official character creative owner.** For official world/character writing and public/greeting copy, follow `docs/official-supply/gpt-editorial-standard.md`: GPT writes and approves the narrative; Cursor only integrates exact approved prose into canonical data/compilers, tests, and opens Draft PRs. A technically passing author QA is not GPT literary approval. When current code's length/renderer contracts conflict with that editorial brief, identify the one live owner and report for a scoped fix instead of silently truncating or adding a parallel writer.
+
 **Sensitive STOP.** These beat pstack `never-block-on-the-human`:
 
 - destructive DB migration
