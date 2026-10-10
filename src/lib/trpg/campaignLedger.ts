@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { declaresTraversalIntent, tokenizeSceneLabel } from "./actionCheckContext";
 import { clipTrpgChars } from "./clip";
 import { parseJson } from "./store";
 import {
@@ -40,6 +41,163 @@ function mergeFacts(current: string[], add: string[] | undefined, remove: string
 
 export function emptyCampaignLedger(): TrpgCampaignLedger {
   return { location: "", nextRoundContext: "", quests: [], npcs: [], worldFlags: [] };
+}
+
+export type TrpgLocationPersistSubmission = {
+  participantId: number;
+  body: string;
+  tier?: string | null;
+  acceptedRoute?: string | null;
+};
+
+export type TrpgLocationPersistSheet = {
+  participantId: number;
+  location: string;
+};
+
+/** Interior/exterior suffixes refine a named place; they are not the place. */
+const INTERIOR_SUFFIXES = new Set(["내부", "안쪽", "바깥", "바깥쪽", "속", "실내", "실외"]);
+
+/** Opposite directions always conflict, even when dest adds parent-location tokens. */
+const DIRECTIONAL_QUALIFIERS = new Set(["북쪽", "남쪽", "동쪽", "서쪽", "좌측", "우측", "왼쪽", "오른쪽"]);
+
+function tokenCoversPlace(token: string, place: string): boolean {
+  return token === place || token.startsWith(place);
+}
+
+function precedingQualifier(tokens: readonly string[], place: string): string | undefined {
+  const index = tokens.findIndex((token) => tokenCoversPlace(token, place));
+  return index > 0 ? tokens[index - 1] : undefined;
+}
+
+function scenePlaceToken(tokens: readonly string[]): string | undefined {
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    const token = tokens[i];
+    if (token && !INTERIOR_SUFFIXES.has(token)) return token;
+  }
+  return undefined;
+}
+
+function destCoreLength(tokens: readonly string[]): number {
+  return tokens.filter((token) => !INTERIOR_SUFFIXES.has(token)).length;
+}
+
+function qualifiersConflict(sourceTokens: readonly string[], destTokens: readonly string[], place: string): boolean {
+  const destQualifier = precedingQualifier(destTokens, place);
+  const sourceQualifier = precedingQualifier(sourceTokens, place);
+  if (!destQualifier || !sourceQualifier) return false;
+  if (
+    destQualifier === sourceQualifier ||
+    destQualifier.startsWith(sourceQualifier) ||
+    sourceQualifier.startsWith(destQualifier)
+  ) {
+    return false;
+  }
+  const bothDirectional =
+    DIRECTIONAL_QUALIFIERS.has(destQualifier) && DIRECTIONAL_QUALIFIERS.has(sourceQualifier);
+  // Bare dest (qualifier + place) is a sibling swap. Extra parent tokens may
+  // refine the same place. Opposite directions always conflict.
+  return bothDirectional || destCoreLength(destTokens) <= 2;
+}
+
+/**
+ * Dest names the same place as `source`, possibly with extra parent-location
+ * tokens or an interior suffix. Persist auth does not reuse open-route
+ * discovery: that matcher allows a 1-token overlap on 2-token labels.
+ */
+function destinationRefinesDeclared(source: string, destination: string): boolean {
+  const dest = destination.trim();
+  if (!dest) return false;
+  const destTokens = tokenizeSceneLabel(dest);
+  const place = scenePlaceToken(destTokens);
+  if (!place) return false;
+  const sourceTokens = tokenizeSceneLabel(source);
+  if (!sourceTokens.some((token) => tokenCoversPlace(token, place))) return false;
+  if (qualifiersConflict(sourceTokens, destTokens, place)) return false;
+  return true;
+}
+
+function movementAttemptFailed(tier: string | null | undefined): boolean {
+  switch (tier) {
+    case "CRITICAL_FAILURE":
+    case "SEVERE_FAILURE":
+    case "FAILURE":
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** True when this locked action already authorizes relocating to `destination`. */
+export function submissionAuthorizesLocation(
+  submission: TrpgLocationPersistSubmission,
+  destination: string
+): boolean {
+  const dest = destination.trim();
+  if (!dest) return false;
+  if (movementAttemptFailed(submission.tier)) return false;
+  if (submission.acceptedRoute) {
+    return destinationRefinesDeclared(submission.acceptedRoute, dest);
+  }
+  if (!destinationRefinesDeclared(submission.body, dest)) return false;
+  return declaresTraversalIntent(submission.body);
+}
+
+/**
+ * Location persist bind — campaignLedger owner.
+ * Opening may set the starting place. After that, a GM location change sticks
+ * only when that participant has a server-confirmed dest: the frozen
+ * acceptedRoute label (exact or a more-specific same place), or a declared
+ * traversal whose body names that dest, and not a failure tier. Compare each
+ * sheet's previous location, not the shared ledger. World-forced relocation
+ * has no separate persist owner today (T9/L5).
+ */
+export function bindGmLocationToSubmittedMovement(opts: {
+  opening: boolean;
+  currentLocation: string;
+  currentNextRoundContext: string;
+  proposedLocation: string;
+  delta: TrpgStateDelta;
+  submissions: readonly TrpgLocationPersistSubmission[];
+  sheetLocations?: readonly TrpgLocationPersistSheet[];
+}): { location: string; nextRoundContext: string | undefined; delta: TrpgStateDelta } {
+  if (opts.opening) {
+    return {
+      location: opts.proposedLocation.trim() || opts.currentLocation,
+      nextRoundContext: opts.delta.nextRoundContext,
+      delta: opts.delta,
+    };
+  }
+  const current = opts.currentLocation.trim();
+  const proposed = opts.proposedLocation.trim();
+  const sheetById = new Map(
+    (opts.sheetLocations ?? []).map((row) => [row.participantId, row.location.trim()])
+  );
+  const previousLocation = (participantId: number) => sheetById.get(participantId) || current;
+  const byParticipant = new Map(opts.submissions.map((sub) => [sub.participantId, sub]));
+  const players = (opts.delta.players ?? []).map((patch) => {
+    if (patch.location == null) return patch;
+    const dest = patch.location.trim();
+    const previous = previousLocation(patch.participantId);
+    if (!dest || dest === previous) return patch;
+    const sub = byParticipant.get(patch.participantId);
+    if (sub && submissionAuthorizesLocation(sub, dest)) return patch;
+    if (sub && proposed && proposed !== dest && submissionAuthorizesLocation(sub, proposed)) {
+      return { ...patch, location: proposed };
+    }
+    const { location: _dropped, ...rest } = patch;
+    return rest;
+  });
+  const campaignMoved = Boolean(proposed && proposed !== current);
+  const campaignAuthorized =
+    campaignMoved && opts.submissions.some((sub) => submissionAuthorizesLocation(sub, proposed));
+  return {
+    location: campaignAuthorized ? proposed : current,
+    nextRoundContext: campaignAuthorized || !campaignMoved
+      ? opts.delta.nextRoundContext
+      : opts.currentNextRoundContext,
+    delta: { ...opts.delta, players },
+  };
 }
 
 export function applyCampaignLedger(current: TrpgCampaignLedger, delta: TrpgStateDelta): TrpgCampaignLedger {
