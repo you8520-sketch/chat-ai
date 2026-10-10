@@ -242,9 +242,12 @@ describe("character reveal ownership", () => {
     assert.doesNotMatch(scene, /creator/i, "creator is not part of the overlay");
   });
 
-  it("hides destination hero copy while the overlay owns the same text", () => {
+  it("hides destination hero copy while the overlay owns the same face and text", () => {
     const css = read("src/app/globals.css");
-    assert.match(css, /html:has\(\.rv-veil\)\s+\[data-character-hero\]\s+\[data-hero-item\]/);
+    assert.match(
+      css,
+      /html:has\(\.rv-veil\)\s+\[data-character-hero\]\s+:is\(\[data-hero-item\],\s*\[data-character-hero-image\]\)/,
+    );
     assert.match(css, /visibility:\s*hidden/);
     const settle = css.slice(css.indexOf("@keyframes rv-item-settle"), css.indexOf("@media (prefers-reduced-motion: reduce)"));
     assert.doesNotMatch(settle, /opacity:\s*0/);
