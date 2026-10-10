@@ -52,6 +52,29 @@ export const MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE = {
   maxAttemptsPerCase: 3;
 };
 
+/** #1486 Phase 2C — approved one-case Luna execute plan. Not a score. */
+export const MONTHLY_RP_MEMORY_QUALITY_PHASE2C_PLAN_EVIDENCE = {
+  provenance: "CURRENT_CODE_DETERMINISTIC",
+  characterId: 18,
+  characterName: "라이크",
+  personaName: "렌",
+  providerPosts: 0,
+  summaryQuality: "NOT_PROVEN",
+  paidEvaluationApproved: true,
+  maxAttemptsPerCase: 3,
+  maxCases: 1,
+} as const satisfies {
+  provenance: MemoryEvidenceProvenance;
+  characterId: number;
+  characterName: string;
+  personaName: string;
+  providerPosts: number;
+  summaryQuality: DeterministicSummaryQualityClaim;
+  paidEvaluationApproved: true;
+  maxAttemptsPerCase: 3;
+  maxCases: 1;
+};
+
 export function canClaimCurrentLiveProvider(
   provenance: MemoryEvidenceProvenance
 ): boolean {

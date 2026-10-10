@@ -6,6 +6,7 @@ import { RP_QUALITY_PRECALL_TARGET_SELECTOR } from "@/lib/rpQualityPrecall";
 import {
   MONTHLY_RP_MEMORY_QUALITY_PHASE1_EVIDENCE,
   MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE,
+  MONTHLY_RP_MEMORY_QUALITY_PHASE2C_PLAN_EVIDENCE,
   canClaimCurrentLiveProvider,
   isDeterministicCodeRegression,
   memoryEvidenceTitle,
@@ -45,6 +46,19 @@ describe("memory evidence provenance", () => {
     assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE.maxAttemptsPerCase, 3);
     assert.equal(
       canClaimCurrentLiveProvider(MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE.provenance),
+      false
+    );
+  });
+
+  it("does not promote the Phase 2C plan constant to CURRENT_LIVE_PROVIDER before a paid output", () => {
+    assert.equal(
+      MONTHLY_RP_MEMORY_QUALITY_PHASE2C_PLAN_EVIDENCE.provenance,
+      "CURRENT_CODE_DETERMINISTIC"
+    );
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE2C_PLAN_EVIDENCE.paidEvaluationApproved, true);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE2C_PLAN_EVIDENCE.providerPosts, 0);
+    assert.equal(
+      canClaimCurrentLiveProvider(MONTHLY_RP_MEMORY_QUALITY_PHASE2C_PLAN_EVIDENCE.provenance),
       false
     );
   });
