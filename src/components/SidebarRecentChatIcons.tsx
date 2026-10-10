@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import type { RecentActivityEntry, RecentTrpgCampaignEntry } from "@/lib/recentActivity";
 import type { UserChatSession } from "@/lib/recentChats";
+import { CHAT_RESUME_THUMB_ATTR, chatResumeAttrs } from "@/lib/chatResumeTransition";
 
 const DEFAULT_MAX_ICONS = 10;
 const COLLAPSED_MAX_ICONS = 8;
@@ -82,11 +83,18 @@ function RecentChatRow({
       href={href}
       title={`${characterName} · ${preview}`}
       data-trpg-recent-kind="character_chat"
+      {...chatResumeAttrs({
+        characterId: session.character_id,
+        chatId: session.chat_id,
+        name: characterName,
+        hidden,
+      })}
       className={`flex w-full min-w-0 items-center rounded-lg transition hover:bg-white/[0.06] ${
         compact ? "justify-center px-0 py-0.5" : "gap-2 px-1 py-1"
       } ${active ? "bg-white/[0.06]" : ""}`}
     >
       <span
+        {...{ [CHAT_RESUME_THUMB_ATTR]: "" }}
         className={`relative block h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ${
           active ? "ring-white/30" : "ring-white/10"
         }`}

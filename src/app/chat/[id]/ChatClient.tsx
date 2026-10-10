@@ -317,6 +317,7 @@ import {
   resolveChatAssetPresentation,
 } from "@/lib/chatAssetPresentation";
 import { useChatDesktopViewport } from "@/lib/useChatDesktopViewport";
+import { chatRoomAttrs } from "@/lib/chatResumeTransition";
 
 const CHAT_FETCH_TIMEOUT_MS = 240_000;
 /** Slow reasoning models (e.g. OpenRouter Opus) need a longer client window. */
@@ -5327,7 +5328,10 @@ export default function ChatClient({
 
   return (
     <JsxHostBridgeProvider value={jsxBridge} catalog={jsxCatalog}>
-    <div className="flex min-w-0 flex-1 items-stretch gap-0">
+    <div
+      className="flex min-w-0 flex-1 items-stretch gap-0"
+      {...(chatId != null ? chatRoomAttrs({ characterId: character.id, chatId }) : {})}
+    >
       <div
         className="chat-readability-root flex min-w-0 flex-1 flex-col"
         style={chatReadabilityRootStyle(displayPrefs)}

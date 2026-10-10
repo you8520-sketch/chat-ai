@@ -807,6 +807,359 @@ html:has(.rv-veil) [data-character-hero] [data-hero-item] {
   }
 }
 
+/* Phase D-2 — 최근 활동 채팅방 이어가기 (렌더 owner: ChatResumeScene, lifecycle owner: MenuTransitionHost).
+ * 차콜 잉크 + 아이보리 + 절제된 보라. 클릭한 썸네일 원에서 잉크 마스크·선이 펼쳐지고,
+ * 썸네일이 초상 프레임으로 열리며 이름이 줄 마스크에서 조립된다. reveal에서는 비스듬한 두 면이
+ * 서로 다른 방향·시간으로 열려 실제 채팅방이 드러난다. 가짜 채팅 화면은 그리지 않는다.
+ * transform·opacity·clip-path만 사용하고 pointer-events: none.
+ * 시간·지속은 CHAT_RESUME_BEATS(chatResume.ts)가 CSS 변수와 inline delay로 정한다. */
+.cr-veil {
+  --cr-ivory: #f0e7d4;
+  --cr-violet: #a78bfa;
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.cr-ink {
+  position: absolute;
+  inset: 0;
+  clip-path: circle(var(--cr-r1) at var(--cr-ox) var(--cr-oy));
+  animation: cr-ink-open var(--cr-ink-ms) cubic-bezier(0.62, 0, 0.18, 1) both;
+}
+
+.cr-panel {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(46% 70% at 52% 50%, rgb(139 92 246 / 0.16), transparent 72%),
+    linear-gradient(100deg, #0d0c12 0%, #18131f 48%, #0b0a10 100%);
+}
+
+.cr-panel-a {
+  clip-path: polygon(0 0, var(--cr-seam-t) 0, var(--cr-seam-b) 100%, 0 100%);
+}
+
+.cr-panel-b {
+  clip-path: polygon(
+    calc(var(--cr-seam-t) - 1px) 0,
+    100% 0,
+    100% 100%,
+    calc(var(--cr-seam-b) - 1px) 100%
+  );
+}
+
+.cr-veil[data-phase="reveal"] .cr-panel-a {
+  animation: cr-split-up var(--cr-up-ms) cubic-bezier(0.7, 0, 0.2, 1) both;
+}
+
+.cr-veil[data-phase="reveal"] .cr-panel-b {
+  animation: cr-split-down var(--cr-down-ms) cubic-bezier(0.6, 0, 0.15, 1) var(--cr-down-delay) both;
+}
+
+.cr-edge {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--cr-violet) 18%,
+    var(--cr-ivory) 50%,
+    var(--cr-violet) 82%,
+    transparent
+  );
+  transform-origin: 50% 0;
+  animation: cr-seam-draw var(--cr-seam-ms) cubic-bezier(0.2, 0.8, 0.2, 1) var(--cr-seam-delay) both;
+}
+
+.cr-panel-a .cr-edge {
+  clip-path: polygon(
+    calc(var(--cr-seam-t) - 2px) 0,
+    var(--cr-seam-t) 0,
+    var(--cr-seam-b) 100%,
+    calc(var(--cr-seam-b) - 2px) 100%
+  );
+}
+
+.cr-panel-b .cr-edge {
+  clip-path: polygon(
+    calc(var(--cr-seam-t) - 1px) 0,
+    calc(var(--cr-seam-t) + 1px) 0,
+    calc(var(--cr-seam-b) + 1px) 100%,
+    calc(var(--cr-seam-b) - 1px) 100%
+  );
+}
+
+.cr-line {
+  position: absolute;
+  background: var(--cr-ivory);
+  opacity: 0;
+}
+
+.cr-line-h {
+  left: 0;
+  right: 0;
+  top: var(--cr-oy);
+  height: 1px;
+  transform-origin: var(--cr-ox) 50%;
+  animation: cr-line-x var(--cr-line-ms) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.cr-line-v {
+  top: 0;
+  bottom: 0;
+  left: var(--cr-ox);
+  width: 1px;
+  transform-origin: 50% var(--cr-oy);
+  animation: cr-line-y var(--cr-line-ms) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.cr-ring {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px solid var(--cr-violet);
+  border-radius: 999px;
+  opacity: 0;
+  animation: cr-ring-out var(--cr-ring-ms) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.cr-frame {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0b0a10;
+  transform-origin: var(--cr-pivot);
+  clip-path: circle(var(--cr-iris-r1) at 50% var(--cr-iris-cy));
+  animation: cr-frame-open var(--cr-frame-ms) cubic-bezier(0.16, 1, 0.3, 1) var(--cr-frame-delay) both;
+}
+
+.cr-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgb(240 231 212 / 0.42);
+  opacity: 0;
+  animation: cr-fade-in 220ms ease-out 380ms both;
+}
+
+.cr-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.cr-glyph {
+  line-height: 1;
+  color: var(--cr-ivory);
+  opacity: 0.88;
+}
+
+.cr-eyebrow {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 20px;
+  color: var(--cr-violet);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  animation: cr-eyebrow-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.cr-eyebrow-rule {
+  width: 34px;
+  height: 1px;
+  background: currentColor;
+  transform-origin: 0 50%;
+  animation: cr-rule-draw 280ms cubic-bezier(0.2, 0.8, 0.2, 1) 260ms both;
+}
+
+.cr-name {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  color: var(--cr-ivory);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  text-align: left;
+}
+
+.cr-name-line {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.cr-g {
+  display: inline-block;
+  animation: cr-glyph-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes cr-ink-open {
+  from {
+    clip-path: circle(var(--cr-r0) at var(--cr-ox) var(--cr-oy));
+  }
+  to {
+    clip-path: circle(var(--cr-r1) at var(--cr-ox) var(--cr-oy));
+  }
+}
+
+@keyframes cr-split-up {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-5%, -104%, 0);
+  }
+}
+
+@keyframes cr-split-down {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(4%, 106%, 0);
+  }
+}
+
+@keyframes cr-seam-draw {
+  from {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 0.9;
+  }
+}
+
+@keyframes cr-line-x {
+  0% {
+    transform: scaleX(0);
+    opacity: 0.7;
+  }
+  55% {
+    transform: scaleX(1);
+    opacity: 0.45;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+@keyframes cr-line-y {
+  0% {
+    transform: scaleY(0);
+    opacity: 0.7;
+  }
+  55% {
+    transform: scaleY(1);
+    opacity: 0.45;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+
+@keyframes cr-ring-out {
+  from {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(3.4);
+    opacity: 0;
+  }
+}
+
+@keyframes cr-frame-open {
+  from {
+    transform: var(--cr-from);
+    clip-path: circle(var(--cr-iris-r0) at 50% var(--cr-iris-cy));
+  }
+  to {
+    transform: none;
+    clip-path: circle(var(--cr-iris-r1) at 50% var(--cr-iris-cy));
+  }
+}
+
+@keyframes cr-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cr-eyebrow-in {
+  from {
+    opacity: 0;
+    transform: translate3d(-14px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes cr-rule-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes cr-glyph-in {
+  from {
+    transform: translate3d(0, var(--cr-gy), 0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* BEAT 1 — 클릭한 최근 활동 행의 즉각 반응 (시각 전용). */
+.cr-pick {
+  animation: cr-pick 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes cr-pick {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cr-veil {
+    display: none;
+  }
+
+  .cr-pick {
+    animation: none;
+  }
+}
+
 @keyframes float-points-up {
   0% {
     opacity: 1;
