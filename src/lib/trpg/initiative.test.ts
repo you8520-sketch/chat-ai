@@ -126,17 +126,16 @@ describe("TRPG initiative resolution order", () => {
     assert.match(botUsers[1] ?? "", /유나는 화물칸을 먼저 살핀다/);
     assert.doesNotMatch(botUsers[1] ?? "", /canonical attempt unavailable/);
     assert.doesNotMatch(botUsers[1] ?? "", /유나-먼저/);
-    const storedRoundId = after.round.id;
-    assert.ok(storedRoundId);
     const storedBots = db
       .prepare(
         `SELECT p.display_name AS name, s.body
          FROM trpg_action_submissions s
          JOIN trpg_participants p ON p.id = s.participant_id
-         WHERE s.round_id=? AND p.kind='ai_character'
+         JOIN trpg_rounds r ON r.id = s.round_id
+         WHERE r.campaign_id=? AND r.round_number=1 AND p.kind='ai_character'
          ORDER BY p.slot_index ASC`
       )
-      .all(storedRoundId) as Array<{ name: string; body: string }>;
+      .all(campaignId) as Array<{ name: string; body: string }>;
     assert.deepEqual(
       storedBots.map((row) => row.name),
       ["유나", "카이"]
