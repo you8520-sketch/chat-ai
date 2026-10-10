@@ -50,7 +50,7 @@ describe("TRPG action stat pick", () => {
 });
 
 describe("TRPG visible action chips", () => {
-  it("keeps eight backend types while exposing exactly six composer chips", () => {
+  it("keeps eight backend types; suggestion vocabulary stays six visible kinds", () => {
     assert.deepEqual(TRPG_ACTION_TYPES, [
       "attack",
       "defend",

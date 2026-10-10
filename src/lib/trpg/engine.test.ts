@@ -129,7 +129,7 @@ describe("TRPG campaign loop", () => {
     db.close();
   });
 
-  it("rolls when an explicit resolution chip is dialogue-only", async () => {
+  it("does not let a stale client attack type force a roll on dialogue-only speech", async () => {
     const db = memoryDb();
     const deps: TrpgEngineDeps = {
       skipBilling: true,
@@ -144,7 +144,7 @@ describe("TRPG campaign loop", () => {
       actionType: "attack",
     });
     const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
-    assert.equal(after.log.find((row) => row.roundNumber === 1)?.rolls.length, 1);
+    assert.equal(after.log.find((row) => row.roundNumber === 1)?.rolls.length, 0);
     db.close();
   });
 
