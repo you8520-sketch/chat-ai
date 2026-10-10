@@ -257,6 +257,38 @@ describe("official detailed intro + creator comment", () => {
     assert.equal(typeof pitch, "function");
   });
 
+  it("still rejects an auto-sheet that is missing occupation or role labels", () => {
+    const file = sampleChars()[0]!;
+    assert.equal(file.bible.publicProfile.detailedDescription, undefined);
+    const complete = composeOfficialPublicDescription({
+      worldName: "에테르노스 제국 (Aethernos Empire)",
+      rpHook: file.brief.rpHook,
+      relationshipTrope: file.brief.relationshipTrope,
+      identity: file.bible.identity,
+      appearance: file.bible.appearance,
+      personality: file.bible.personality,
+      abilities: file.bible.abilities,
+      situation: file.bible.situation,
+      userRole: file.bible.userRelationship.userRole,
+    });
+    assert.match(complete, /^이름:/m);
+    assert.match(complete, /^나이:/m);
+    assert.match(complete, /^키:/m);
+    assert.match(complete, /직업\/소속/);
+    assert.match(complete, /능력\/역할:/);
+    const malformed = complete.replace(/직업\/소속:[^\n]*\n/, "").replace(/능력\/역할:[^\n]*\n/, "");
+    assert.doesNotMatch(malformed, /직업\/소속/);
+    assert.doesNotMatch(malformed, /능력\/역할:/);
+    assert.match(malformed, /^이름:/m);
+    assert.match(malformed, /^나이:/m);
+    assert.match(malformed, /^키:/m);
+    const qa = evaluateOfficialPublicDescription(malformed, file.bible.identity.name);
+    assert.ok(
+      qa.errors.some((issue) => issue.code === "public_intro_facts_missing"),
+      JSON.stringify(qa.errors)
+    );
+  });
+
   it("uses an authored detailed description as draft.description without shortening", () => {
     const file = sampleChars()[0]!;
     const authored = "[세계관 설정: 에테르노스 제국]\n남겨 둔 문장.\n\n[캐릭터 설정]\n이름: 테스트\n나이: 34세\n키: 188cm\n직업/소속: 사령관 / 연맹\n\n외형: 머리: 흑회색, 울프컷 / 눈: 회청색, 긴 눈매 / 피부: 창백 / 체형: 넓은 어깨\n성격: 냉정\n능력/역할: 지휘\n배경: 배경.\n\n[관계 포인트]\n관계는 선택에 따라 달라진다.\n\n[도입 상황]\n당신이 집무실에 있다.";
@@ -329,6 +361,42 @@ describe("Wolfgang GPT-authored public copy", () => {
     assert.doesNotMatch(draft.greeting, /눈과 서리를 묻힌 당신이|젖은 외투/);
     assert.doesNotMatch(file.bible.identity.worldRole, /92kg|92㎏/);
     assert.match(draft.description, /몸무게 약 92kg/);
+  });
+
+  it("keeps Wolfgang creator comment on the GPT hook, trope, and action-only start choices", () => {
+    const file = readJson<PilotChar>(path.join(PILOT_DIR, "characters", "pilot-rf-02.json"));
+    const draft = compileOfficialDraftFromBible(file.bible, compileKeys(file));
+    const comment = composeOfficialCreatorComment(draft);
+    const qa = evaluateOfficialCreatorComment(comment, draft.description);
+    assert.deepEqual(qa.errors, [], JSON.stringify(qa.errors));
+    assert.equal(
+      file.brief.rpHook,
+      "금지 마석 사건과 연결된 당신의 처형 명령서에 자신의 인장이 찍힌 것을 발견한 북부대공이, 흑철 요새에서 당신과 문서의 진위를 확인하려 한다."
+    );
+    assert.equal(file.brief.relationshipTrope, "누명으로 얽힌 혐관, 선택에 따라 깊어질 수 있는 신뢰");
+    assert.equal(
+      file.bible.userRelationship.initialView,
+      "금지 마석 사건의 관련자로 황실 처형 명령서에 이름이 적힌 인물. 서류의 진위가 불분명하므로 경계하지만 유죄라고 단정하지 않는다."
+    );
+    assert.equal(
+      file.bible.userRelationship.userRole,
+      "당신은 금지 마석 사건과 위조 처형 명령서의 진위를 자신의 방식으로 확인할 수 있다. 기록을 조사할지, 명령을 공개할지, 봉인을 지킬지는 당신의 선택이다."
+    );
+    const world = readJson<{ bible: OfficialWorldBible }>(path.join(PILOT_DIR, "world-bible.json"));
+    const portfolio = world.bible.portfolio.find((item) => item.slot === 2);
+    assert.equal(portfolio?.rpHook, file.brief.rpHook);
+    assert.equal(portfolio?.relationshipTrope, file.brief.relationshipTrope);
+    assert.equal(file.draft.hook.rpHook, file.brief.rpHook);
+    assert.equal(file.draft.hook.relationshipTrope, file.brief.relationshipTrope);
+    assert.equal(draft.hook.rpHook, file.brief.rpHook);
+    assert.equal(draft.hook.relationshipTrope, file.brief.relationshipTrope);
+    assert.match(comment, /금지 마석 사건과 연결된 당신의 처형 명령서/);
+    assert.match(comment, /누명으로 얽힌 혐관, 선택에 따라 깊어질 수 있는 신뢰/);
+    assert.doesNotMatch(comment, /압송해 심문/);
+    assert.doesNotMatch(comment, /정략적 혐오에서 맹목적 충성으로/);
+    assert.deepEqual(officialPlayStartChoices(draft), ["기록을 조사할지", "명령을 공개할지", "봉인을 지킬지"]);
+    assert.match(comment, /기록을 조사할지 · 명령을 공개할지 · 봉인을 지킬지/);
+    assert.doesNotMatch(file.bible.userRelationship.initialView, /유죄라고 단정한다|이미 유죄/);
   });
 });
 

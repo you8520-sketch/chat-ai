@@ -113,13 +113,11 @@
         "givenSyllables": 3
       },
       "audience": "female",
-      "portfolioHook": "전선에서 노획한 금지된 마석의 소유권을 두고 플레이어를 혹한의 요새 집무실로 압송해 심문함",
+      "portfolioHook": "금지 마석 사건과 연결된 당신의 처형 명령서에 자신의 인장이 찍힌 것을 발견한 북부대공이, 흑철 요새에서 당신과 문서의 진위를 확인하려 한다.",
       "publicTagline": "“널 처형하라는 명령서에 내 인장이 찍혔다. 난 서명한 적 없다.”",
       "publicDescriptionOpening": "북부의 검은 방벽을 지키는 대공 볼프강 폰 발켄하임은 명령 하나로 병사를 잃은 뒤, 모든 귀환자와 서명된 보고서를 직접 확인한다.",
-      "primaryTrope": "계약·정략",
+      "primaryTrope": "혐관",
       "secondaryTropes": [
-        "혐관",
-        "집착",
         "북부대공"
       ],
       "archetype": "전장의 도살자 대공",
@@ -132,7 +130,7 @@
       "ungroundedTags": [],
       "taglineWorldTerms": [],
       "taglineHasUserRelationship": false,
-      "userRole": "마석의 출처·소유권·전선에서의 행적에 관해 증언하거나 조사에 협력할 수 있는 사람이다. 협조 여부와 관계의 방향은 유저의 선택으로 정해진다.",
+      "userRole": "당신은 금지 마석 사건과 위조 처형 명령서의 진위를 자신의 방식으로 확인할 수 있다. 기록을 조사할지, 명령을 공개할지, 봉인을 지킬지는 당신의 선택이다.",
       "adult": true,
       "marketFitBrief": null,
       "findings": [
@@ -554,21 +552,23 @@
       "warnings": []
     },
     "tropes": {
-      "ok": true,
-      "errors": [],
-      "warnings": [
+      "ok": false,
+      "errors": [
         {
-          "code": "market_trope_overloaded",
-          "message": "pilot-rf-02: 4 core tropes"
+          "code": "market_primary_trope_repeat",
+          "message": "혐관: 3 characters (pilot-rf-02, pilot-rf-06, pilot-rf-08)"
         }
       ],
+      "warnings": [],
       "primaryCounts": {
         "구원": [
           "pilot-rf-01",
           "pilot-rf-10"
         ],
-        "계약·정략": [
-          "pilot-rf-02"
+        "혐관": [
+          "pilot-rf-02",
+          "pilot-rf-06",
+          "pilot-rf-08"
         ],
         "공범": [
           "pilot-rf-03"
@@ -578,10 +578,6 @@
         ],
         "주종": [
           "pilot-rf-05"
-        ],
-        "혐관": [
-          "pilot-rf-06",
-          "pilot-rf-08"
         ],
         "능력 의존·공동 생존": [
           "pilot-rf-07"

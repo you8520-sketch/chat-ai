@@ -281,7 +281,7 @@ export function evaluateOfficialPublicDescription(description: string, name?: st
   if (!/\d+\s*세/.test(text) || !/\d+\s*cm/i.test(text)) {
     errors.push({ code: "public_intro_stats_missing", message: "detailed intro must state age and height" });
   }
-  const isAutoSheet = /이름:/.test(text) && /직업\/소속/.test(text) && /능력\/역할:/.test(text);
+  const isAutoSheet = /(?:^|\n)이름:/.test(text) && /(?:^|\n)나이:/.test(text) && /(?:^|\n)키:/.test(text);
   if (isAutoSheet) {
     if (!/직업\/소속/.test(text) || !/외형:/.test(text) || !/성격:/.test(text) || !/능력\/역할:/.test(text)) {
       errors.push({ code: "public_intro_facts_missing", message: "detailed intro must cover occupation, looks, personality, role" });
