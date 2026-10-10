@@ -23,6 +23,12 @@ import {
   isMainRpStyleLengthEvaluationRequested,
   type MainRpStyleLengthMode,
 } from "@/lib/rpMainRpStyleLengthFixture";
+import {
+  canClaimCurrentLiveProvider,
+  memoryEvidenceTitle,
+  provenanceFromQualityFixtureKind,
+  type MemoryEvidenceProvenance,
+} from "@/lib/memory/memoryEvidenceProvenance";
 import { buildContext } from "@/services/contextBuilder";
 import {
   CANONICAL_RP_QUALIFICATION_SOURCE,
@@ -138,6 +144,8 @@ export type RpActiveModelQualityLiveReport = {
   qualityScoreGenerated: false;
   results: RpActiveModelQualityTurnResult[];
   notes: string[];
+  memoryEvidenceProvenance: MemoryEvidenceProvenance;
+  canClaimCurrentLiveProvider: boolean;
 };
 
 function sha256(value: string): string {
@@ -479,6 +487,10 @@ export async function runRpActiveModelQualityLive(input: {
       maxProviderCalls: RP_ACTIVE_MODEL_QUALITY_MAX_CALLS,
       qualityScoreGenerated: false,
       results: [],
+      memoryEvidenceProvenance: provenanceFromQualityFixtureKind(source),
+      canClaimCurrentLiveProvider: canClaimCurrentLiveProvider(
+        provenanceFromQualityFixtureKind(source)
+      ),
       notes: [
         "MAIN_RP_STYLE_LENGTH uses Golden/CURRENT_LIVE sealed final-wire through the paid-runner owner.",
         `sealedSha256=${dry.sealedSha256}`,
@@ -536,6 +548,10 @@ export async function runRpActiveModelQualityLive(input: {
     maxProviderCalls: RP_ACTIVE_MODEL_QUALITY_MAX_CALLS,
     qualityScoreGenerated: false,
     results,
+    memoryEvidenceProvenance: provenanceFromQualityFixtureKind(
+      CANONICAL_RP_QUALIFICATION_SOURCE.fixtureKind
+    ),
+    canClaimCurrentLiveProvider: false,
     notes: [
       "Raw outputs are evidence for GPT/user review; the runner does not score or rank models.",
       input.modelIds
@@ -549,12 +565,23 @@ export async function runRpActiveModelQualityLive(input: {
   };
 }
 
+function qualityReportCharacterId(
+  source: RpActiveModelQualityLiveReport["source"]
+): number {
+  if ("sourceCharacterId" in source) return source.sourceCharacterId;
+  return source.characterId;
+}
+
 export function renderRpActiveModelQualityMarkdown(
   report: RpActiveModelQualityLiveReport
 ): string {
+  const provenance = report.memoryEvidenceProvenance;
   const lines = [
-    "# Active Main RP — Human Quality Review Evidence",
+    `# ${memoryEvidenceTitle(provenance)}`,
     "",
+    `- memory evidence provenance: **${provenance}**`,
+    `- character: id=${qualityReportCharacterId(report.source)} (${report.source.characterName}) / ${report.source.personaName}`,
+    `- CURRENT_LIVE_PROVIDER claim: **${report.canClaimCurrentLiveProvider}**`,
     `- models: ${report.modelIds.map(modelLabel).join(", ")}`,
     `- provider calls: **${report.providerCalls}/${report.maxProviderCalls}**`,
     `- ordinary input authoring: **${report.ordinaryInputAuthoringLevel}**`,

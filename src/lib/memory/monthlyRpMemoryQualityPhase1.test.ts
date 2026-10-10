@@ -25,6 +25,10 @@ import {
 import { classifyEpisodicFactTemporalNature } from "@/lib/episodicMemoryTemporal";
 import { MEMORY_CAPACITY_FIXED } from "@/lib/memory/memory-capacity-shared";
 import {
+  MONTHLY_RP_MEMORY_QUALITY_PHASE1_EVIDENCE,
+  canClaimCurrentLiveProvider,
+} from "@/lib/memory/memoryEvidenceProvenance";
+import {
   MEMORY_POLICY_ID,
   RAW_HISTORY_COMPLETE_EXCHANGES,
   ROLLING_SUMMARY_INTERVAL,
@@ -116,6 +120,9 @@ describe("#1486 Phase 1 live memory path (라이크 18 / 렌)", () => {
     assert.equal(ROLLING_SUMMARY_INTERVAL, 5);
     assert.equal(RAW_HISTORY_COMPLETE_EXCHANGES, 4);
     assert.equal(MEMORY_CAPACITY_FIXED, 10000);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE1_EVIDENCE.provenance, "CURRENT_CODE_DETERMINISTIC");
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE1_EVIDENCE.summaryQuality, "NOT_PROVEN");
+    assert.equal(canClaimCurrentLiveProvider(MONTHLY_RP_MEMORY_QUALITY_PHASE1_EVIDENCE.provenance), false);
   });
 
   it("A. recalls a 6-turn-old scene event under production minAge", () => {
@@ -426,6 +433,11 @@ describe("#1486 Phase 1 live memory path (라이크 18 / 렌)", () => {
     assert.match(ROLLING_SUMMARY_SYSTEM_PROMPT, /유저의 생각·의도·감정을 입력에 없는 내용으로 추측하지 않는다/);
     assert.equal(ROLLING_SUMMARY_SYSTEM_PROMPT.includes("더 길게 써라"), false);
     assert.equal(ROLLING_SUMMARY_SYSTEM_PROMPT.includes("심리학을 써라"), false);
+    assert.equal(
+      MONTHLY_RP_MEMORY_QUALITY_PHASE1_EVIDENCE.summaryQuality,
+      "NOT_PROVEN",
+      "prompt-contract checks do not prove Luna 5-turn summary quality"
+    );
   });
 
   it("I. retrieved episodic facts reach contextBuilder section 3a", () => {
