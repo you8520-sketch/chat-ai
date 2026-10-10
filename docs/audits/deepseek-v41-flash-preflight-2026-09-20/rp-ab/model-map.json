@@ -1,0 +1,11 @@
+{
+  "blindSeed": "f0012dc63a10fb43",
+  "modelMap": {
+    "Sample A": "deepseek-v4-pro-0813",
+    "Sample B": "deepseek-v4.1-flash"
+  },
+  "blindAssignment": {
+    "pro": "A",
+    "flash": "B"
+  }
+}

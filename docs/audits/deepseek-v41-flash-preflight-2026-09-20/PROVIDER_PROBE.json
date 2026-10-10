@@ -1,0 +1,198 @@
+{
+  "generatedAt": "2026-09-20T15:26:16.024Z",
+  "plannedCalls": 4,
+  "maxCalls": 4,
+  "results": [
+    {
+      "modelId": "deepseek-v4-pro-0813",
+      "cacheWarmup": false,
+      "status": "success",
+      "latencyMs": 6612,
+      "responseModelId": "deepseek-v4-pro-0813",
+      "requestedModelId": "deepseek-v4-pro-0813",
+      "finishReason": "stop",
+      "outputChars": 13,
+      "usageRaw": {
+        "prompt_tokens": 134,
+        "completion_tokens": 12,
+        "total_tokens": 146,
+        "is_byok": true,
+        "prompt_tokens_details": {
+          "cached_tokens": 128,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        },
+        "cost": 0.00002,
+        "cost_details": {
+          "upstream_inference_cost": 0.00002
+        }
+      },
+      "parsedUsage": {
+        "promptTokens": 134,
+        "completionTokens": 12,
+        "reasoningTokens": 0,
+        "cacheReadTokens": 128,
+        "cacheWriteTokens": 0,
+        "standardInputTokens": 6,
+        "reportingEvidence": {
+          "cacheRead": "reported_valid",
+          "cacheWrite": "reported_valid",
+          "reasoning": "reported_valid"
+        },
+        "upstreamCostUsd": 0.00002,
+        "promptTokensDetailsRaw": {
+          "cached_tokens": 128
+        },
+        "estimated": false
+      },
+      "usageReportingEvidence": null
+    },
+    {
+      "modelId": "deepseek-v4-pro-0813",
+      "cacheWarmup": true,
+      "status": "success",
+      "latencyMs": 6089,
+      "responseModelId": "deepseek-v4-pro-0813",
+      "requestedModelId": "deepseek-v4-pro-0813",
+      "finishReason": "stop",
+      "outputChars": 4,
+      "usageRaw": {
+        "prompt_tokens": 2033,
+        "completion_tokens": 4,
+        "total_tokens": 2037,
+        "is_byok": true,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        },
+        "cost": 0.000905,
+        "cost_details": {
+          "upstream_inference_cost": 0.000905
+        }
+      },
+      "parsedUsage": {
+        "promptTokens": 2033,
+        "completionTokens": 4,
+        "reasoningTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "standardInputTokens": 2033,
+        "reportingEvidence": {
+          "cacheRead": "reported_valid",
+          "cacheWrite": "reported_valid",
+          "reasoning": "reported_valid"
+        },
+        "upstreamCostUsd": 0.000905,
+        "estimated": false
+      },
+      "usageReportingEvidence": null
+    },
+    {
+      "modelId": "deepseek-v4.1-flash",
+      "cacheWarmup": false,
+      "status": "success",
+      "latencyMs": 6802,
+      "responseModelId": "deepseek-v4.1-flash",
+      "requestedModelId": "deepseek-v4.1-flash",
+      "finishReason": "stop",
+      "outputChars": 12,
+      "usageRaw": {
+        "prompt_tokens": 135,
+        "completion_tokens": 12,
+        "total_tokens": 147,
+        "is_byok": true,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        },
+        "cost": 0.000023,
+        "cost_details": {
+          "upstream_inference_cost": 0.000023
+        }
+      },
+      "parsedUsage": {
+        "promptTokens": 135,
+        "completionTokens": 12,
+        "reasoningTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "standardInputTokens": 135,
+        "reportingEvidence": {
+          "cacheRead": "reported_valid",
+          "cacheWrite": "reported_valid",
+          "reasoning": "reported_valid"
+        },
+        "upstreamCostUsd": 0.000023,
+        "estimated": false
+      },
+      "usageReportingEvidence": null
+    },
+    {
+      "modelId": "deepseek-v4.1-flash",
+      "cacheWarmup": true,
+      "status": "success",
+      "latencyMs": 6945,
+      "responseModelId": "deepseek-v4.1-flash",
+      "requestedModelId": "deepseek-v4.1-flash",
+      "finishReason": "stop",
+      "outputChars": 16,
+      "usageRaw": {
+        "prompt_tokens": 2033,
+        "completion_tokens": 16,
+        "total_tokens": 2049,
+        "is_byok": true,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        },
+        "cost": 0.000254,
+        "cost_details": {
+          "upstream_inference_cost": 0.000254
+        }
+      },
+      "parsedUsage": {
+        "promptTokens": 2033,
+        "completionTokens": 16,
+        "reasoningTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "standardInputTokens": 2033,
+        "reportingEvidence": {
+          "cacheRead": "reported_valid",
+          "cacheWrite": "reported_valid",
+          "reasoning": "reported_valid"
+        },
+        "upstreamCostUsd": 0.000254,
+        "estimated": false
+      },
+      "usageReportingEvidence": null
+    }
+  ]
+}
