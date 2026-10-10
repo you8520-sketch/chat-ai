@@ -4,7 +4,8 @@
  * Default path never grants cost approval, never loads the assembler, and
  * never calls runPaidRunner. Sealed bodies are assembled in-process from
  * canonical production rows only after grants + an independently observed
- * RAILWAY_GIT_COMMIT_SHA. There is no --sealed-pack-file path.
+ * RAILWAY_GIT_COMMIT_SHA + experiment secret/keys + approved hashes +
+ * journal/artifact paths. There is no --sealed-pack-file path.
  */
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import { RP_QUALITY_PRECALL_PLANNED_CALLS } from "@/lib/rpQualityPrecall";
@@ -21,7 +22,10 @@ import {
 } from "@/lib/rpQualityPaidRunnerLiveTransport";
 import { resolveCanonicalProductionDbPath } from "./lib/rpQualityPaidRunnerCanonicalDb";
 import { observePaidRunnerRuntimeSha } from "./lib/rpQualityPaidRunnerRuntimeSha";
-import { dispatchPaidRunnerLive } from "./lib/rpQualityPaidRunnerLiveDispatch";
+import {
+  dispatchPaidRunnerLive,
+  evaluatePaidRunnerLiveAssemblyGrant,
+} from "./lib/rpQualityPaidRunnerLiveDispatch";
 
 function readArg(name: string): string | undefined {
   const index = process.argv.indexOf(name);
@@ -74,6 +78,9 @@ async function main(): Promise<void> {
     plannedCalls: RP_QUALITY_PRECALL_PLANNED_CALLS,
   };
   const actualRuntimeSha = observePaidRunnerRuntimeSha();
+  const keys = readPaidRunnerLiveInferenceKeys();
+  const journalDir = readArg("--journal-dir");
+  const artifactDir = readArg("--artifact-dir");
   let manifest = loadPublicManifest();
   let sealedCalls: PaidRunnerSealedCall[] | null = null;
 
@@ -84,13 +91,21 @@ async function main(): Promise<void> {
     actualRuntimeSha &&
     actualRuntimeSha === authorization.expectedProductionSha.trim().toLowerCase()
   ) {
-    const loaded = await loadCanonicalSealedPack({
-      runtimeSha: actualRuntimeSha,
-      expectedProductionSha: authorization.expectedProductionSha,
+    const assemblyGrant = evaluatePaidRunnerLiveAssemblyGrant({
+      authorization,
+      keys,
+      journalDir,
+      artifactDir,
     });
-    if (loaded) {
-      manifest = loaded.manifest;
-      sealedCalls = loaded.sealedCalls;
+    if (assemblyGrant.ok) {
+      const loaded = await loadCanonicalSealedPack({
+        runtimeSha: actualRuntimeSha,
+        expectedProductionSha: authorization.expectedProductionSha,
+      });
+      if (loaded) {
+        manifest = loaded.manifest;
+        sealedCalls = loaded.sealedCalls;
+      }
     }
   }
 
@@ -101,9 +116,9 @@ async function main(): Promise<void> {
     authorization,
     manifest,
     sealedCalls,
-    keys: readPaidRunnerLiveInferenceKeys(),
-    journalDir: readArg("--journal-dir"),
-    artifactDir: readArg("--artifact-dir"),
+    keys,
+    journalDir,
+    artifactDir,
     allowCreateLiveTransport: true,
     actualRuntimeSha,
   });

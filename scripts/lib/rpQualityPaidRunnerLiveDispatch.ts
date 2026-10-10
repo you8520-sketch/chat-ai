@@ -8,7 +8,9 @@ import { isFullGitSha } from "@/lib/rpQualityPrecall";
 import {
   createFilePaidRunnerJournalStore,
   evaluatePaidRunnerAuthorization,
+  evaluatePaidRunnerAuthorizationPrerequisites,
   experimentSecretUsesProductionKey,
+  probePaidRunnerJournalDirectory,
   runPaidRunner,
   type PaidRunnerAuthorizationInput,
   type PaidRunnerDenialReason,
@@ -169,6 +171,39 @@ function runtimeShaDenial(
   return null;
 }
 
+export function evaluatePaidRunnerLiveAssemblyGrant(input: {
+  authorization: PaidRunnerAuthorizationInput;
+  keys: PaidRunnerLiveDispatchInput["keys"];
+  journalDir?: string;
+  artifactDir?: string;
+}): { ok: true } | { ok: false; reason: PaidRunnerDenialReason } {
+  const prerequisites = evaluatePaidRunnerAuthorizationPrerequisites(input.authorization, "AUTHORIZED");
+  if (!prerequisites.authorized) {
+    return { ok: false, reason: prerequisites.reason };
+  }
+  const keyDenial = inferenceKeyDenial(input.keys);
+  if (keyDenial) {
+    return { ok: false, reason: keyDenial };
+  }
+  if (!input.journalDir) {
+    return { ok: false, reason: "JOURNAL_STORE_UNAVAILABLE" };
+  }
+  if (!input.artifactDir) {
+    return { ok: false, reason: "ARTIFACT_STORE_UNAVAILABLE" };
+  }
+  try {
+    probePaidRunnerJournalDirectory(input.journalDir);
+  } catch {
+    return { ok: false, reason: "JOURNAL_STORE_UNAVAILABLE" };
+  }
+  try {
+    createFilePaidRunnerArtifactStore(input.artifactDir);
+  } catch {
+    return { ok: false, reason: "ARTIFACT_STORE_UNAVAILABLE" };
+  }
+  return { ok: true };
+}
+
 function fileStoreOrDenial(
   input: PaidRunnerLiveDispatchInput
 ):
@@ -218,10 +253,26 @@ export async function dispatchPaidRunnerLive(
   if (shaDenial) {
     return closedReport(input, shaDenial);
   }
+  if (input.allowCreateLiveTransport === true && !input.transport) {
+    const assemblyGrant = evaluatePaidRunnerLiveAssemblyGrant({
+      authorization: input.authorization,
+      keys: input.keys,
+      journalDir: input.journalDir,
+      artifactDir: input.artifactDir,
+    });
+    if (!assemblyGrant.ok) {
+      return closedReport(input, assemblyGrant.reason);
+    }
+  }
 
-  const gate = input.manifest
-    ? evaluatePaidRunnerAuthorization(input.manifest, input.authorization, "AUTHORIZED")
-    : { authorized: false as const, reason: "MANIFEST_FINGERPRINT_MISMATCH" as const, providerPosts: 0 as const };
+  if (!input.manifest) {
+    const prerequisites = evaluatePaidRunnerAuthorizationPrerequisites(input.authorization, "AUTHORIZED");
+    if (!prerequisites.authorized) {
+      return closedReport(input, prerequisites.reason);
+    }
+    return closedReport(input, "MANIFEST_FINGERPRINT_MISMATCH");
+  }
+  const gate = evaluatePaidRunnerAuthorization(input.manifest, input.authorization, "AUTHORIZED");
   if (!gate.authorized) {
     return closedReport(input, gate.reason);
   }

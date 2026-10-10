@@ -13,12 +13,16 @@ import {
 import {
   createMemoryPaidRunnerJournalStore,
   createMockPaidRunnerTransport,
+  evaluatePaidRunnerAuthorizationPrerequisites,
   type PaidRunnerAuthorizationInput,
   type PaidRunnerPublicManifest,
 } from "@/lib/rpQualityPaidRunner";
 import type { PrecallAssemblyRows } from "../../scripts/lib/rpQualityPrecallFinalWire";
 import { preparePaidRunnerPack } from "../../scripts/lib/rpQualityPaidRunnerPrepare";
-import { dispatchPaidRunnerLive } from "../../scripts/lib/rpQualityPaidRunnerLiveDispatch";
+import {
+  dispatchPaidRunnerLive,
+  evaluatePaidRunnerLiveAssemblyGrant,
+} from "../../scripts/lib/rpQualityPaidRunnerLiveDispatch";
 import {
   loadInProcessPaidRunnerPack,
   observePaidRunnerRuntimeSha,
@@ -183,6 +187,7 @@ function runLiveCli(args: string[], env: NodeJS.ProcessEnv = {}) {
       liveExecuteEnabled: boolean;
       dbWrites: number;
       runtimeShaObserved?: boolean;
+      sealedCallsPresent?: boolean;
     },
     stdout,
   };
@@ -482,5 +487,96 @@ describe("rp quality paid runner live dispatch boundary", () => {
     assert.equal(ignoredFile.report.providerPosts, 0);
     assert.doesNotMatch(ignoredFile.stdout, /SEALED-BODY-MUST-NOT-LEAVE-PROCESS/);
     assert.doesNotMatch(defaultRun.stdout + liveEnvNoAccept.stdout, /sk-or-|ci_liv|Bearer /);
+  });
+
+  it("partial approval stops before production DB read; journal and key gaps stay POST 0", () => {
+    const pack = fixturePack();
+    const dataDir = mkdtempSync(path.join(tmpdir(), "rpq-preassembly-db-"));
+    writeSyntheticProductionDb(dataDir);
+    const journalDir = mkdtempSync(path.join(tmpdir(), "rpq-preassembly-journal-"));
+    const artifactDir = mkdtempSync(path.join(tmpdir(), "rpq-preassembly-artifact-"));
+    const readyArgs = [
+      "--user-cost-approved",
+      "--accept-paid-execution",
+      "--expected-production-sha",
+      MAIN_SHA,
+      "--approved-manifest-fingerprint",
+      pack.manifest.manifestFingerprint,
+      "--expected-identity-hash",
+      pack.manifest.identityHash,
+      "--journal-dir",
+      journalDir,
+      "--artifact-dir",
+      artifactDir,
+    ];
+    const readyEnv = {
+      RP_QUALITY_PAID_LIVE_EXECUTE: "1",
+      RP_QUALITY_PAID_OPENROUTER_KEY: KEYS.openRouterKey,
+      RP_QUALITY_PAID_CHEAPERINFERENCE_KEY: KEYS.cheaperInferenceKey,
+      RP_QUALITY_PAID_EXPERIMENT_SECRET: SECRET,
+      RAILWAY_GIT_COMMIT_SHA: MAIN_SHA,
+      DATA_DIR: dataDir,
+    };
+
+    const missingSecret = runLiveCli(readyArgs, { ...readyEnv, RP_QUALITY_PAID_EXPERIMENT_SECRET: "" });
+    assert.equal(missingSecret.report.denialReason, "MISSING_EXPERIMENT_SECRET");
+    assert.equal(missingSecret.report.sealedCallsPresent, false);
+    assert.equal(missingSecret.report.providerPosts, 0);
+    assert.equal(missingSecret.report.dbWrites, 0);
+    assert.doesNotMatch(missingSecret.stdout, /창가에 서서|exchangeRate/);
+
+    const missingKey = runLiveCli(readyArgs, { ...readyEnv, RP_QUALITY_PAID_OPENROUTER_KEY: "" });
+    assert.equal(missingKey.report.denialReason, "MISSING_INFERENCE_KEY");
+    assert.equal(missingKey.report.sealedCallsPresent, false);
+    assert.equal(missingKey.report.providerPosts, 0);
+
+    const staleSha = runLiveCli(readyArgs, { ...readyEnv, RAILWAY_GIT_COMMIT_SHA: OTHER_SHA });
+    assert.equal(staleSha.report.denialReason, "RUNTIME_SHA_MISMATCH");
+    assert.equal(staleSha.report.sealedCallsPresent, false);
+    assert.equal(staleSha.report.providerPosts, 0);
+
+    const missingJournal = runLiveCli(
+      readyArgs.filter((value, index, all) => value !== "--journal-dir" && all[index - 1] !== "--journal-dir"),
+      readyEnv
+    );
+    assert.equal(missingJournal.report.denialReason, "JOURNAL_STORE_UNAVAILABLE");
+    assert.equal(missingJournal.report.sealedCallsPresent, false);
+    assert.equal(missingJournal.report.providerPosts, 0);
+
+    const staleFingerprint = runLiveCli(
+      [
+        "--user-cost-approved",
+        "--accept-paid-execution",
+        "--expected-production-sha",
+        MAIN_SHA,
+        "--approved-manifest-fingerprint",
+        "aa".repeat(32),
+        "--expected-identity-hash",
+        pack.manifest.identityHash,
+        "--journal-dir",
+        journalDir,
+        "--artifact-dir",
+        artifactDir,
+      ],
+      readyEnv
+    );
+    assert.equal(staleFingerprint.report.denialReason, "MANIFEST_FINGERPRINT_MISMATCH");
+    assert.equal(staleFingerprint.report.sealedCallsPresent, false);
+    assert.equal(staleFingerprint.report.providerPosts, 0);
+
+    const grant = evaluatePaidRunnerLiveAssemblyGrant({
+      authorization: auth(pack.manifest, { experimentSecret: null }),
+      keys: KEYS,
+      journalDir,
+      artifactDir,
+    });
+    assert.equal(grant.ok, false);
+    if (!grant.ok) assert.equal(grant.reason, "MISSING_EXPERIMENT_SECRET");
+    const prereq = evaluatePaidRunnerAuthorizationPrerequisites(
+      auth(pack.manifest, { approvedManifestFingerprint: "" }),
+      "AUTHORIZED"
+    );
+    assert.equal(prereq.authorized, false);
+    if (!prereq.authorized) assert.equal(prereq.reason, "MANIFEST_FINGERPRINT_MISMATCH");
   });
 });

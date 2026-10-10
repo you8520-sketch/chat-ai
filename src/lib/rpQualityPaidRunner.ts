@@ -510,13 +510,11 @@ export function experimentSecretUsesProductionKey(
   });
 }
 
-export function evaluatePaidRunnerAuthorization(
-  manifest: PaidRunnerPublicManifest,
+export function evaluatePaidRunnerAuthorizationPrerequisites(
   input: PaidRunnerAuthorizationInput,
   mode: PaidRunnerMode
 ): PaidRunnerAuthorization {
   if (mode === "PREPARE") return deny("PREPARE_MODE_DOES_NOT_POST");
-  if (manifest.approvalStatus !== "NOT_APPROVED") return deny("APPROVAL_STATUS_NOT_APPROVED");
   if (input.userCostApproved !== true) return deny("MISSING_USER_COST_APPROVAL");
   if (!input.experimentSecret) return deny("MISSING_EXPERIMENT_SECRET");
   if (experimentSecretUsesProductionKey(input.experimentSecret)) {
@@ -525,6 +523,34 @@ export function evaluatePaidRunnerAuthorization(
   if (!isWellFormedPaidExperimentSecret(input.experimentSecret)) {
     return deny("MALFORMED_EXPERIMENT_SECRET");
   }
+  if (input.plannedCalls !== RP_QUALITY_PRECALL_PLANNED_CALLS) {
+    return deny("PLANNED_CALL_COUNT_MISMATCH");
+  }
+  try {
+    assertCurrentMainRpPaidAllowlist(input.allowlist);
+  } catch {
+    return deny("MODEL_ALLOWLIST_MISMATCH");
+  }
+  if (!/^[a-f0-9]{64}$/.test(input.approvedManifestFingerprint.trim())) {
+    return deny("MANIFEST_FINGERPRINT_MISMATCH");
+  }
+  if (!/^[a-f0-9]{64}$/.test(input.expectedIdentityHash.trim())) {
+    return deny("IDENTITY_HASH_MISMATCH");
+  }
+  if (!input.expectedProductionSha.trim()) {
+    return deny("PRODUCTION_SHA_MISMATCH");
+  }
+  return { authorized: true, providerPosts: 0 };
+}
+
+export function evaluatePaidRunnerAuthorization(
+  manifest: PaidRunnerPublicManifest,
+  input: PaidRunnerAuthorizationInput,
+  mode: PaidRunnerMode
+): PaidRunnerAuthorization {
+  const prerequisites = evaluatePaidRunnerAuthorizationPrerequisites(input, mode);
+  if (!prerequisites.authorized) return prerequisites;
+  if (manifest.approvalStatus !== "NOT_APPROVED") return deny("APPROVAL_STATUS_NOT_APPROVED");
   const recomputedIdentity = paidRunnerIdentityHash(manifest.identityHashes);
   if (recomputedIdentity !== manifest.identityHash || recomputedIdentity !== input.expectedIdentityHash) {
     return deny("IDENTITY_HASH_MISMATCH");
@@ -539,16 +565,8 @@ export function evaluatePaidRunnerAuthorization(
   if (input.expectedProductionSha !== manifest.productionDeploySha) {
     return deny("PRODUCTION_SHA_MISMATCH");
   }
-  if (input.plannedCalls !== RP_QUALITY_PRECALL_PLANNED_CALLS) {
-    return deny("PLANNED_CALL_COUNT_MISMATCH");
-  }
   if (manifest.calls.length !== RP_QUALITY_PRECALL_PLANNED_CALLS) {
     return deny("PLANNED_CALL_COUNT_MISMATCH");
-  }
-  try {
-    assertCurrentMainRpPaidAllowlist(input.allowlist);
-  } catch {
-    return deny("MODEL_ALLOWLIST_MISMATCH");
   }
   for (const call of manifest.calls) {
     if (!input.allowlist.includes(call.canonicalId)) return deny("MODEL_ALLOWLIST_MISMATCH");
