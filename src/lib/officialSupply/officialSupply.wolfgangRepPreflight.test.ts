@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
@@ -44,7 +45,7 @@ const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot/charact
 const WOLFGANG_KEY = "pilot-rf-02";
 const LUCIAN_KEY = "pilot-rf-03";
 const ENV = { NEXTAUTH_URL: "https://example.test" } as NodeJS.ProcessEnv;
-const ARTIFACT_PATH = "/opt/cursor/artifacts/wolfgang-rep-preflight.json";
+const ARTIFACT_PATH = path.join(os.tmpdir(), "wolfgang-rep-preflight.json");
 
 type PilotFile = {
   bible: {
