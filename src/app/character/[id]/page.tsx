@@ -49,6 +49,7 @@ import { isActivePartnerCreator } from "@/lib/partnerTier";
 import { isSiteManagedUser } from "@/lib/siteManagedAccounts";
 import { recordCharacterClick } from "@/lib/characterClicks";
 import { canAccessTrpg } from "@/lib/trpg/access";
+import { readPublicDossier } from "@/lib/characterPublicDossier";
 
 export const dynamic = "force-dynamic";
 
@@ -134,6 +135,7 @@ export default async function CharacterPage({
 
 
   const tags: string[] = JSON.parse(c.tags || "[]");
+  const dossier = readPublicDossier(c);
 
   const liked = user
 
@@ -208,6 +210,7 @@ export default async function CharacterPage({
           creatorHref={c.creator_id ? `/creator/${c.creator_id}` : undefined}
           viewerDisplayName={user ? personaDisplayName : null}
           pagePath={`/character/${c.id}`}
+          dossier={dossier}
         />
         <div className="border-t border-white/10 pt-4">
           <CharacterStartRow
@@ -321,6 +324,7 @@ export default async function CharacterPage({
         pagePath={`/character/${c.id}`}
         heroVariant="poster"
         genre={c.genre}
+        dossier={dossier}
       />
 
       <div className="flex flex-wrap items-center gap-3">

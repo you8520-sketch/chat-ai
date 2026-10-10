@@ -1,0 +1,106 @@
+{
+  "caseId": "phase2c_like18_ren_5turn_v1",
+  "executedAt": "2026-10-10T13:28:08.460Z",
+  "originMainSha": "3a5238542dd594d72b55e46ba64cb498946b9082",
+  "railwaySuccessSha": "3a5238542dd594d72b55e46ba64cb498946b9082",
+  "executionHost": "CURSOR_VM",
+  "runtimeShaSource": "GITHUB_DEPLOY_METADATA",
+  "observedRuntimeSha": null,
+  "railwayShaMeaning": "DEPLOY_METADATA_NOT_OBSERVED_RUNTIME",
+  "resolvedModel": "gpt-6-luna",
+  "backgroundMemoryModelEnv": null,
+  "provider": "cheaperinference",
+  "requestKinds": [
+    "background-memory-extract"
+  ],
+  "providerPosts": 1,
+  "identitySource": "FIXTURE_NOT_PRODUCTION_SHEET",
+  "characterSheetRead": false,
+  "systemPrompt": "[5턴 히스토리 요약]\n\n5턴 배치의 사건을 발생 순서대로 요약한다. 사건 시기와 인과관계를 누락하지 않는다.\n마지막 턴만 보고 요약하지 않는다. 응답 전에 요약 대상 source 턴의 앞·중간·뒤를 모두 검토하고,\n서로 다른 중요한 사건이 있으면 각 구간의 원인·전환·결과가 최종 요약에 남았는지 자체 점검한다.\n단, 변화가 없는 짧은 반응이나 반복은 생략할 수 있다.\n작중 시간은 본문·상태창·정본에 명시된 경우에만 기록하며, 불명확하면 추측하지 않는다.\n현실 날짜·요약 생성일·턴 범위는 본문에 쓰지 않고 서버 metadata로 관리한다.\n\n[형식]\n- 음슴체(명사형·~함·~임 종결)로 간결하게. 존댓말 서술(~했다/~였다)보다 글자를 절약한다.\n- 원인 → 행동·선택 → 결과 → 관계·감정 변화 순\n- 최대 600자. 중요 정보가 적으면 짧게 끝내며 분량을 억지로 채우지 않는다. 반복 장면이면 짧아도 된다.\n- 파편식 단문 나열과 분위기 묘사 중심 요약 금지\n- 유저의 명확한 선택이 캐릭터의 태도·감정·행동에 영향을 주었으면 반드시 기록\n- 유저의 생각·의도·감정을 입력에 없는 내용으로 추측하지 않는다.\n\n[반드시 보존]\n1. 주요 사건과 그 결과\n2. 관계 역학 또는 감정 방향의 변화\n3. 인물이 자신이나 상대를 규정한 선언\n4. 약속·계약·임무·미해결 목표\n5. 중요한 물건의 획득·전달·분실과 현재 소유자\n6. 새로 밝혀진 비밀·정체·세계관 정보\n7. 부상·능력·신분·장소 등 이후 전개에 영향을 주는 상태 변화\n8. 관계와 사건의 전환점이 된 대사\n\n[전환점 대사]\n- 원문 메시지에서 정확히 확인 가능한 경우에만 최대 1~2개를 그대로 인용\n- 문구가 불확실하면 인용문을 새로 만들지 말고 의미만 요약\n- 장식적인 대사와 반복 대사는 제외\n\n[삭제·압축]\n- 참가자·행위 방향·역할 방향이 사건 의미를 바꾸면 참가자와 방향을 명시적으로 보존한다. 참가자 역할·방향이 다른 사건은 중복이 아니다. 관계나 감정 방향 변화 없이 같은 패턴이 반복되는 경우만 최초 또는 가장 강한 전환점 한 번으로 압축한다\n- 관계나 사건 변화가 없는 분위기·감각·일상 묘사 삭제\n- 성행위 턴: 체위·신음·신체 동작 묘사만 삭제. 그 안의 중요한 대화·감정 변화·관계 전환·동의·경계·약속·후유증·공수 포지션(누가 누구에게 안기는지)은 다른 사건과 똑같이 보존\n- 같은 흐름이 여러 턴 이어지면 하나의 인과 흐름으로 병합\n- 이미 캐논에 고정된 외형·직업·말투를 반복 기록하지 않음\n\n[판단 기준]\n다음 질문 중 하나라도 \"예\"이면 보존한다.\n- 이 줄을 삭제하면 이후 사건의 인과가 달라지는가?\n- 관계 궤적이나 감정 방향이 달라지는가?\n- 누가 무엇을 알고 있는지가 달라지는가?\n- 약속·임무·소유물·현재 상태가 달라지는가?\n\n[식별정보]: 캐릭터/유저 식별정보가 제공되면 성별·호칭·신체 묘사를 뒤집지 않는다.\n[OOC 제외]: (OOC:) 메타·UI·SNS mock·RP 중단 연출은 기록하지 않는다. 요약 본문만 출력한다.\n\n[CANONICAL GROUNDING — REQUIRED]\n- Output the event summary itself. Never repeat, paraphrase, or explain these summary instructions.\n- Write a normal, concise RP scene summary. Character perception, sensation, and estimates (\"파장을 감지했다\", \"안정을 느꼈다\", \"S급으로 추정되는\") are scene content — state them plainly as what the character experienced.\n- Only for strong claims that would change canon (각성, 정체, 등급 상승, 배신, 기억상실): if the source had them as a character's guess, keep the guess framing (\"추측했다\", \"가능성이 제기됐다\").\n- For any pre-existing relationship/history involving the USER and a character/NPC/family/organization, USER text/canon/memory is the grounding source. An ASSISTANT-only claim stays attributed as what the character said; never rewrite it as objective shared history.\n- Character backstory that does not create a prior relationship with the USER may be summarized normally.\n- \"널 본 기억이 안 난다\" does NOT mean global amnesia or \"기억을 잃었다\".\n- Do not expose turn numbers, source checklists, or prompt wording in the final summary.",
+  "userPrompt": "[1~5턴 원본 대화]\n[1턴]\n유저: 저녁 일곱 시, 옥상에서 라이크에게 황동 라이터를 건넨다. 지난달에 처음 만난 건 맞잖아.\n라이크: 라이크는 라이터를 받아 주머니에 넣었다. \"우린 어릴 때부터 알았어.\" 렌이 지난달에 처음 만났다고 하자 그는 어깨만 으쓱했다.\n\n[2턴]\n유저: 여덟 시, 계단에서 떠나지 않고 남는다. 화를 풀 때까지 여기 있을게.\n라이크: 라이크의 화가 가라앉고 그는 렌에게 미안하다고 했다. 렌이 남기로 한 뒤에야 목소리가 낮아졌다.\n\n[3턴]\n유저: 같은 계단에 다시 앉아 라이크가 먼저 안길 때까지 따른다.\n라이크: 라이크가 먼저 렌을 안았고 렌이 따랐다. 라이크는 받은 황동 라이터로 담배를 붙였다. 비슷한 침묵이 한 번 더 이어졌다.\n\n[4턴]\n유저: 내일 아침 여섯 시에 역에서 기다리겠다는 말을 듣는다. 그래, 거기서 보자.\n라이크: 라이크는 내일 아침 여섯 시에 역에서 기다리겠다고 약속했다. 렌이 받자 그는 짧게 고개를 끄덕였다.\n\n[5턴]\n유저: 다음날 아침 여섯 시 십 분, 역에 조금 늦게 도착한다.\n라이크: 라이크는 이미 역에서 기다리고 있었고 황동 라이터는 여전히 그의 주머니에 있었다. 시계는 여섯 시 십 분을 가리켰다.\n\n[요약 대상 RP source 턴]\n[1턴] [2턴] [3턴] [4턴] [5턴]\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. OPENING/PRELUDE CONTEXT가 있으면 턴 1~5 이해에 필요한 설정·사실만 보존하고 장식적 인사만은 요약하지 않는다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: 라이크\n\n[캐릭터 식별정보 — 성별·호칭·신체 묘사 절대 준수]\n이름/호칭: 라이크\n성별: 남\nPhase 2B fixture identity — not the production character sheet.\n\n[유저 페르소나 — 성별·호칭·신체 묘사 절대 준수]\n이름/호칭: 렌\n성별: 남\nPhase 2B fixture persona — not a live user row.\n\n[5턴 히스토리 요약] 최대 600자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:",
+  "sourceTurns": [
+    {
+      "turnIndex": 1,
+      "turn": {
+        "user": "저녁 일곱 시, 옥상에서 라이크에게 황동 라이터를 건넨다. 지난달에 처음 만난 건 맞잖아.",
+        "assistant": "라이크는 라이터를 받아 주머니에 넣었다. \"우린 어릴 때부터 알았어.\" 렌이 지난달에 처음 만났다고 하자 그는 어깨만 으쓱했다."
+      }
+    },
+    {
+      "turnIndex": 2,
+      "turn": {
+        "user": "여덟 시, 계단에서 떠나지 않고 남는다. 화를 풀 때까지 여기 있을게.",
+        "assistant": "라이크의 화가 가라앉고 그는 렌에게 미안하다고 했다. 렌이 남기로 한 뒤에야 목소리가 낮아졌다."
+      }
+    },
+    {
+      "turnIndex": 3,
+      "turn": {
+        "user": "같은 계단에 다시 앉아 라이크가 먼저 안길 때까지 따른다.",
+        "assistant": "라이크가 먼저 렌을 안았고 렌이 따랐다. 라이크는 받은 황동 라이터로 담배를 붙였다. 비슷한 침묵이 한 번 더 이어졌다."
+      }
+    },
+    {
+      "turnIndex": 4,
+      "turn": {
+        "user": "내일 아침 여섯 시에 역에서 기다리겠다는 말을 듣는다. 그래, 거기서 보자.",
+        "assistant": "라이크는 내일 아침 여섯 시에 역에서 기다리겠다고 약속했다. 렌이 받자 그는 짧게 고개를 끄덕였다."
+      }
+    },
+    {
+      "turnIndex": 5,
+      "turn": {
+        "user": "다음날 아침 여섯 시 십 분, 역에 조금 늦게 도착한다.",
+        "assistant": "라이크는 이미 역에서 기다리고 있었고 황동 라이터는 여전히 그의 주머니에 있었다. 시계는 여섯 시 십 분을 가리켰다."
+      }
+    }
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "requestKind": "background-memory-extract",
+      "startedAt": "2026-10-10T13:28:09.483Z",
+      "finishedAt": "2026-10-10T13:28:14.319Z",
+      "rawText": "렌이 지난달 처음 만났다고 밝히자 라이크는 둘이 어릴 때부터 알았다고 주장했으나, 이는 라이크의 말로만 제시됨. 렌은 화가 가라앉을 때까지 계단에 남겠다고 했고, 라이크는 진정한 뒤 사과함. 이후 라이크가 먼저 렌을 안았으며, 렌은 그를 따랐고 라이크는 렌이 건넨 황동 라이터로 담배를 붙임. 라이크는 다음 날 아침 여섯 시 역에서 만나기로 약속했고, 렌은 약속을 받아들임. 다음 날 6시 10분 렌이 도착했을 때 라이크는 기다리고 있었고 라이터도 여전히 소지 중이었음.",
+      "clampedText": "렌이 지난달 처음 만났다고 밝히자 라이크는 둘이 어릴 때부터 알았다고 주장했으나, 이는 라이크의 말로만 제시됨. 렌은 화가 가라앉을 때까지 계단에 남겠다고 했고, 라이크는 진정한 뒤 사과함. 이후 라이크가 먼저 렌을 안았으며, 렌은 그를 따랐고 라이크는 렌이 건넨 황동 라이터로 담배를 붙임. 라이크는 다음 날 아침 여섯 시 역에서 만나기로 약속했고, 렌은 약속을 받아들임. 다음 날 6시 10분 렌이 도착했을 때 라이크는 기다리고 있었고 라이터도 여전히 소지 중이었음.",
+      "clampChanged": false,
+      "narrativeOk": true,
+      "narrativeReason": null,
+      "grounded": true,
+      "usage": {
+        "inputTokens": 1854,
+        "outputTokens": 180,
+        "estimated": false,
+        "finishReason": "stop",
+        "cacheWriteTokens": 1852,
+        "standardInputTokens": 2,
+        "cheaperInferenceBilledCostUsd": 0.000209,
+        "upstreamCostUsd": 0.000209,
+        "usageReportingEvidence": {
+          "cacheRead": "reported_valid",
+          "cacheWrite": "reported_valid",
+          "reasoning": "reported_valid"
+        },
+        "providerRequestId": "52c1bd6a-23c2-4f82-83b4-9c9db9361694"
+      },
+      "error": null
+    }
+  ],
+  "selectedSummary": "렌이 지난달 처음 만났다고 밝히자 라이크는 둘이 어릴 때부터 알았다고 주장했으나, 이는 라이크의 말로만 제시됨. 렌은 화가 가라앉을 때까지 계단에 남겠다고 했고, 라이크는 진정한 뒤 사과함. 이후 라이크가 먼저 렌을 안았으며, 렌은 그를 따랐고 라이크는 렌이 건넨 황동 라이터로 담배를 붙임. 라이크는 다음 날 아침 여섯 시 역에서 만나기로 약속했고, 렌은 약속을 받아들임. 다음 날 6시 10분 렌이 도착했을 때 라이크는 기다리고 있었고 라이터도 여전히 소지 중이었음.",
+  "selectedFromAttempt": 1,
+  "missingMustKeepIds": [
+    "time_order",
+    "user_choice",
+    "role_direction"
+  ],
+  "provenance": "CURRENT_LIVE_PROVIDER",
+  "canClaimCurrentLiveProvider": true,
+  "canClaimCurrentProductionParity": false,
+  "productionRuntimeParity": "UNPROVEN",
+  "productionIdentityParity": "UNPROVEN",
+  "homepageParity": "UNPROVEN",
+  "rerunAuthorized": false,
+  "estimatedUsd": 0.000209,
+  "billedUsd": 0.000209,
+  "experimentDelta": "Wrapper recorded callBackgroundMemory args/results only. system, history, turnTrace, requestKind, model, max_tokens, and retry owner stayed summarizeTurnBatch. Execute harness removed after the completed sample."
+}

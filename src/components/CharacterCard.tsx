@@ -5,6 +5,7 @@ import AdultContentBadge from "@/components/AdultContentBadge";
 import CharacterCardCarousel from "@/components/CharacterCardCarousel";
 import { characterCardHref } from "@/lib/chatLinks";
 import { characterRevealAttrs } from "@/lib/characterReveal";
+import { readPublicDossier } from "@/lib/characterPublicDossier";
 import { getCharacterRepresentativePublicUrls } from "@/lib/characterAssets";
 import { characterHueAccent } from "@/lib/characterHueAccent";
 import type { CreatorTierLevel } from "@/lib/creatorShared";
@@ -35,6 +36,12 @@ export type CharacterRow = {
   images?: string;
   assets?: string;
   content_kind?: "character" | "simulation" | string;
+  gender?: string | null;
+  gender_public?: number | null;
+  height_cm?: number | null;
+  weight_kg?: number | null;
+  world_public_name?: string | null;
+  world_public?: number | null;
 };
 
 
@@ -148,6 +155,7 @@ function revealAttrs(c: CharacterRow, view: CardView): Record<string, string> {
     href: view.href,
     hidden: view.hidden,
     hasThumb: Boolean(view.thumb),
+    dossier: readPublicDossier(c),
   });
 }
 

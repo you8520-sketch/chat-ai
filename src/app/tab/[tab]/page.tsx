@@ -8,6 +8,7 @@ import UserPreferenceControls from "@/components/UserPreferenceControls";
 import StudioButton from "@/components/studio/StudioButton";
 import { CHARACTER_GENRES, genreFilterSql, type CharacterGenre } from "@/lib/characterGenres";
 import { characterRevealAttrs } from "@/lib/characterReveal";
+import { readPublicDossier } from "@/lib/characterPublicDossier";
 import { listableWhere } from "@/lib/characterVisibility";
 import { characterCardHref } from "@/lib/chatLinks";
 import {
@@ -249,6 +250,7 @@ export default async function TabPage({
                     href,
                     hidden,
                     hasThumb: Boolean(thumb),
+                    dossier: readPublicDossier(c),
                   })}
                 >
                   <Link

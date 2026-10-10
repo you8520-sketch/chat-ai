@@ -240,6 +240,48 @@ export function loadCampaignLedger(db: Database.Database, campaignId: number): T
   };
 }
 
+/**
+ * Scene location metadata for one round. Records the already-bound campaign
+ * place only when every persisted sheet agrees. Split-party or empty campaign
+ * place is omitted — this does not re-authorize movement.
+ */
+export function acceptedSceneLocationFromBoundState(opts: {
+  campaignLocation: string;
+  sheetLocations: readonly string[];
+}): string | null {
+  const campaign = opts.campaignLocation.trim();
+  if (!campaign) return null;
+  for (const loc of opts.sheetLocations) {
+    const sheet = loc.trim();
+    if (sheet && sheet !== campaign) return null;
+  }
+  return campaign;
+}
+
+/** First commit only. NULL stays NULL (legacy / ambiguous / regenerate). */
+export function persistAcceptedRoundLocationIfAbsent(
+  db: Database.Database,
+  roundId: number,
+  location: string | null
+): void {
+  const accepted = location?.trim() ?? "";
+  if (!accepted) return;
+  db.prepare(
+    `UPDATE trpg_rounds SET accepted_location=? WHERE id=? AND accepted_location IS NULL`
+  ).run(accepted, roundId);
+}
+
+export function loadAcceptedRoundLocation(
+  db: Database.Database,
+  roundId: number
+): string | null {
+  const row = db
+    .prepare(`SELECT accepted_location FROM trpg_rounds WHERE id=?`)
+    .get(roundId) as { accepted_location: string | null } | undefined;
+  const value = row?.accepted_location?.trim() ?? "";
+  return value || null;
+}
+
 export function persistCampaignLedger(
   db: Database.Database,
   campaignId: number,

@@ -87,6 +87,27 @@ describe("character reveal card marker", () => {
     assert.deepEqual(characterRevealAttrs({ ...base, hasThumb: false }), {});
     assert.deepEqual(characterRevealAttrs({ ...base, href: "/character/8" }), {});
   });
+
+  it("attaches only consented public dossier values and omits them when hidden", () => {
+    const attrs = characterRevealAttrs({
+      ...base,
+      dossier: { world: "에테르노스 제국", gender: "남성", heightCm: 183, weightKg: 71 },
+    });
+    assert.equal(attrs["data-character-world"], "에테르노스 제국");
+    assert.equal(attrs["data-character-gender"], "남성");
+    assert.equal(attrs["data-character-height"], "183cm");
+    assert.equal(attrs["data-character-weight"], "71kg");
+    const hidden = characterRevealAttrs({
+      ...base,
+      hidden: true,
+      dossier: { world: "에테르노스 제국", gender: "남성", heightCm: 183, weightKg: 71 },
+    });
+    assert.equal("data-character-gender" in hidden, false);
+    assert.equal("data-character-world" in hidden, false);
+    const empty = characterRevealAttrs(base);
+    assert.equal("data-character-gender" in empty, false);
+    assert.equal("data-character-world" in empty, false);
+  });
 });
 
 describe("character reveal name layout", () => {
@@ -212,7 +233,7 @@ describe("character reveal ownership", () => {
   it("keeps every overlay element wired to a profile hero element through the same key", () => {
     const preview = read("src/components/CharacterPublicPagePreview.tsx");
     const scene = read("src/components/CharacterRevealScene.tsx");
-    for (const key of ["name", "eyebrow", "tagline"]) {
+    for (const key of ["name", "eyebrow", "tagline", "world", "gender", "height", "weight"]) {
       assert.match(preview, new RegExp(`\\[HERO_ITEM_ATTR\\]: "${key}"`), `hero ${key}`);
       assert.match(scene, new RegExp(`\\[REVEAL_ITEM_ATTR\\]: "${key}"`), `overlay ${key}`);
     }
@@ -295,9 +316,13 @@ describe("character kinetic assembly choreography", () => {
     const lastGlyphEnd = revealGlyphDelayMs(revealGlyphRanks(44).length - 1, 44) + B.nameGlyphMs;
     const tagsEnd = B.tagStartMs + 2 * B.tagStepMs + B.tagMs;
     const taglineEnd = B.taglineStartMs + B.taglineMs;
-    for (const end of [B.inkOpenMs, B.frameFlyMs, lastGlyphEnd, tagsEnd, taglineEnd]) {
+    const worldEnd = B.worldStartMs + B.worldMs;
+    const weightEnd = B.weightStartMs + B.weightMs;
+    for (const end of [B.inkOpenMs, B.frameFlyMs, lastGlyphEnd, tagsEnd, taglineEnd, worldEnd, weightEnd]) {
       assert.ok(end <= minCoverMs + 100, `beat ends at ${end}ms`);
     }
+    assert.ok(B.worldStartMs < B.genderStartMs && B.genderStartMs < B.heightStartMs && B.heightStartMs < B.weightStartMs);
+    assert.notEqual(B.worldStartMs, B.taglineStartMs);
     assert.ok(minCoverMs + revealMs <= 1500);
     assert.ok(holdMaxMs + revealMs <= CHARACTER_REVEAL_TIMING.failsafeMs);
     // beat가 시간상 겹친다: 이름이 끝나기 전에 소개·태그가 시작한다.

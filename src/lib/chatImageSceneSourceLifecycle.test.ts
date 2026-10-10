@@ -9,6 +9,7 @@ import {
 } from "./chatImageScenePlan";
 import { ensureTrpgTables } from "./trpg/schema";
 import { loadTrpgIllustrationScene } from "./trpg/illustrationCast";
+import { buildTrpgRoundSourceText } from "./trpg/roundSource";
 
 describe("chat image scene source lifecycle", () => {
   it("G1 DIALOGUE ONLY: sceneBackground stays empty", () => {
@@ -113,23 +114,25 @@ describe("TRPG illustration canonical source", () => {
     ).run();
     db.prepare(`INSERT INTO trpg_rounds (id, campaign_id, round_number, phase) VALUES (10, 1, 1, 'ROUND_COMPLETE')`).run();
     db.prepare(`INSERT INTO trpg_rounds (id, campaign_id, round_number, phase) VALUES (11, 1, 2, 'ROUND_COMPLETE')`).run();
+    db.prepare(`UPDATE trpg_rounds SET accepted_location='Round 1 Tavern' WHERE id=10`).run();
+    db.prepare(`UPDATE trpg_rounds SET accepted_location='Round 2 Forest' WHERE id=11`).run();
     db.prepare(
       `INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (10, ?, ?)`
     ).run(
       "Round 1 GM narration canonical.",
-      JSON.stringify({ location: "Round 1 Tavern", delta: { location: "Round 1 Tavern" } })
+      JSON.stringify({ location: "Round 1 Tavern RAW", delta: { location: "Round 1 Tavern RAW" } })
     );
     db.prepare(
       `INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (11, ?, ?)`
     ).run(
       "Round 2 GM narration canonical.",
-      JSON.stringify({ location: "Round 2 Forest", delta: { location: "Round 2 Forest" } })
+      JSON.stringify({ location: "Round 2 Forest RAW", delta: { location: "Round 2 Forest RAW" } })
     );
     db.prepare(`UPDATE trpg_character_sheets SET location='CURRENT_SHEET_LOC' WHERE campaign_id=1`).run();
     return { db, campaignId: 1 };
   }
 
-  it("G9/G10 loads round N narration and round-associated location, not current sheet", () => {
+  it("G9/G10 loads round N narration and accepted snapshot location, not current sheet or GM RAW", () => {
     const { db, campaignId } = memoryCampaignWithRounds();
     const round1 = loadTrpgIllustrationScene(db, {
       campaignId,
@@ -139,6 +142,7 @@ describe("TRPG illustration canonical source", () => {
     assert.match(round1?.narration ?? "", /Round 1 GM narration/);
     assert.equal(round1?.location, "Round 1 Tavern");
     assert.notEqual(round1?.location, "CURRENT_SHEET_LOC");
+    assert.notEqual(round1?.location, "Round 1 Tavern RAW");
 
     const round2 = loadTrpgIllustrationScene(db, {
       campaignId,
@@ -147,6 +151,20 @@ describe("TRPG illustration canonical source", () => {
     });
     assert.match(round2?.narration ?? "", /Round 2 GM narration/);
     assert.equal(round2?.location, "Round 2 Forest");
+    assert.notEqual(round2?.location, "Round 2 Forest RAW");
+  });
+
+  it("G9/G10 omits location metadata when the accepted snapshot is NULL", () => {
+    const { db, campaignId } = memoryCampaignWithRounds();
+    db.prepare(`UPDATE trpg_rounds SET accepted_location=NULL WHERE id=10`).run();
+    const round1 = loadTrpgIllustrationScene(db, {
+      campaignId,
+      viewerUserId: 1,
+      roundNumber: 1,
+    });
+    assert.equal(round1?.location, "");
+    assert.ok(round1);
+    assert.doesNotMatch(buildTrpgRoundSourceText(round1), /^장소:/m);
   });
 
   it("G8 returns empty narration before GM commit", () => {

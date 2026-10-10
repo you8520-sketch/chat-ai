@@ -5,6 +5,10 @@
  */
 
 import { MENU_TRANSITION_TIMING } from "@/lib/menuTransitionSpec";
+import {
+  publicDossierRevealAttrs,
+  type PublicDossierView,
+} from "@/lib/characterPublicDossier";
 
 export type RevealRect = { left: number; top: number; width: number; height: number };
 
@@ -16,7 +20,7 @@ export const CHARACTER_HERO_IMAGE_ATTR = "data-character-hero-image";
 /**
  * reveal 오버레이의 요소(overlay)와 프로필 hero의 같은 요소(hero)를 잇는 키.
  * hero 요소에는 `data-hero-item`, 오버레이 요소에는 `data-rv-item`을 둔다.
- * 키: `name` · `eyebrow` · `tagline` · `tag:<index>`.
+ * 키: `name` · `eyebrow` · `tagline` · `tag:<index>` · `world` · `gender` · `height` · `weight`.
  */
 export const HERO_ITEM_ATTR = "data-hero-item";
 export const REVEAL_ITEM_ATTR = "data-rv-item";
@@ -56,6 +60,8 @@ export function characterRevealAttrs(input: {
   href: string;
   hidden: boolean;
   hasThumb: boolean;
+  /** 공개 계약 view만. 비공개 gender·세계관 원문을 넘기지 않는다. */
+  dossier?: PublicDossierView;
 }): Record<string, string> {
   if (input.hidden || !input.hasThumb || input.href !== `/character/${input.id}`) return {};
   const attrs: Record<string, string> = {
@@ -67,6 +73,7 @@ export function characterRevealAttrs(input: {
   if (tagline && !/\{\{[^}]*\}\}/.test(tagline)) attrs["data-character-tagline"] = tagline;
   const tags = (input.tags ?? []).map((t) => t.trim()).filter(Boolean).slice(0, REVEAL_MAX_TAGS);
   if (tags.length > 0) attrs["data-character-tags"] = JSON.stringify(tags);
+  if (input.dossier) Object.assign(attrs, publicDossierRevealAttrs(input.dossier));
   return attrs;
 }
 
@@ -122,6 +129,14 @@ export const REVEAL_BEATS = {
   tagStartMs: 560,
   tagStepMs: 55,
   tagMs: 380,
+  worldStartMs: 300,
+  worldMs: 420,
+  genderStartMs: 460,
+  genderMs: 360,
+  heightStartMs: 520,
+  heightMs: 360,
+  weightStartMs: 580,
+  weightMs: 360,
 } as const;
 
 /** 각 요소가 시작하는 흩어진 위치. 뷰포트 단위라 360/390/1440 모두에서 서로 다른 방향이 유지된다. */
@@ -241,7 +256,7 @@ export type RevealLayout = {
   nameFontPx: number;
   nameBox: RevealRect;
   /** eyebrow / 한 줄 소개·키워드 묶음의 위치. 데스크톱은 우측 정렬, 모바일은 좌측 정렬. */
-  info: { left: number; width: number; eyebrowTop: number; subTop: number };
+  info: { left: number; width: number; eyebrowTop: number; subTop: number; dossierTop: number };
 };
 
 /** 한글 전각 글자 평균 advance(letter-spacing -0.04em 반영). */
@@ -261,15 +276,19 @@ const NAME_LINE_HEIGHT = 1.06;
  *   장르 eyebrow(위) · 한 줄 소개/키워드가 이름 기둥에 정렬된다.
  * 모바일: 일러스트 아래로 eyebrow → 이름 → 소개/키워드가 한 열로 쌓인다(이름은 가려지지 않음).
  */
+const DOSSIER_BLOCK = 72;
+
 export function computeRevealLayout(
   vw: number,
   vh: number,
   nameLines: number,
   nameMaxChars: number,
+  dossierCount = 0,
 ): RevealLayout {
   const compact = vw < 768;
   const lines = Math.max(1, nameLines);
   const chars = Math.max(1, nameMaxChars);
+  const extra = dossierCount > 0 ? DOSSIER_BLOCK : 0;
 
   if (!compact) {
     let fh = Math.min(vh * 0.84, 780);
@@ -286,16 +305,18 @@ export function computeRevealLayout(
     const availW = nameRight - nameLeft;
     const nameFontPx = Math.max(28, Math.min(availW / (chars * GLYPH_ADVANCE), (fh * 0.46) / lines, 280));
     const blockH = nameFontPx * NAME_LINE_HEIGHT * lines;
-    const stackH = EYEBROW_BLOCK + blockH + SUB_GAP + SUB_BLOCK;
+    const stackH = EYEBROW_BLOCK + blockH + SUB_GAP + SUB_BLOCK + extra;
     const eyebrowTop = top + Math.max(0, (fh - stackH) / 2);
     const nameBox = { left: nameLeft, top: eyebrowTop + EYEBROW_BLOCK, width: availW, height: blockH };
     const infoRight = left - 16;
     const infoWidth = Math.max(160, Math.min(INFO_MAX_WIDTH, infoRight - nameLeft));
+    const subTop = nameBox.top + blockH + SUB_GAP;
     const info = {
       left: infoRight - infoWidth,
       width: infoWidth,
       eyebrowTop,
-      subTop: nameBox.top + blockH + SUB_GAP,
+      subTop,
+      dossierTop: subTop + SUB_BLOCK,
     };
     return { compact, frame, nameFontPx, nameBox, info };
   }
@@ -305,7 +326,7 @@ export function computeRevealLayout(
   const nameFontPx = Math.max(26, Math.min(availW / (chars * GLYPH_ADVANCE), 150));
   const blockH = nameFontPx * NAME_LINE_HEIGHT * lines;
   const top = Math.max(vh * 0.08, 56);
-  const reserve = EYEBROW_BLOCK + blockH + SUB_GAP + SUB_BLOCK + 20;
+  const reserve = EYEBROW_BLOCK + blockH + SUB_GAP + SUB_BLOCK + extra + 20;
   const wantedFh = Math.min(vw * 0.74, vh * 0.5 * REVEAL_FRAME_ASPECT * 1.45) / REVEAL_FRAME_ASPECT;
   const fh = Math.min(wantedFh, Math.max(vh - top - reserve, 140));
   const fw = fh * REVEAL_FRAME_ASPECT;
@@ -313,7 +334,8 @@ export function computeRevealLayout(
   const frame = { left, top, width: fw, height: fh };
   const eyebrowTop = top + fh + 12;
   const nameBox = { left: nameLeft, top: eyebrowTop + EYEBROW_BLOCK - 12, width: availW, height: blockH };
-  const info = { left: nameLeft, width: availW, eyebrowTop, subTop: nameBox.top + blockH + SUB_GAP };
+  const subTop = nameBox.top + blockH + SUB_GAP;
+  const info = { left: nameLeft, width: availW, eyebrowTop, subTop, dossierTop: subTop + SUB_BLOCK };
   return { compact, frame, nameFontPx, nameBox, info };
 }
 

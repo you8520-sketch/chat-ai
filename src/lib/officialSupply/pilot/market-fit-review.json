@@ -113,13 +113,11 @@
         "givenSyllables": 3
       },
       "audience": "female",
-      "portfolioHook": "전선에서 노획한 금지된 마석의 소유권을 두고 플레이어를 혹한의 요새 집무실로 압송해 심문함",
-      "publicTagline": "금지된 마석을 쥔 당신을 압송해 온 북부의 대공.",
-      "publicDescriptionOpening": "북부 방벽 수호사령관 볼프강 폰 발켄하임은 시간을 분 단위로 쪼개 보급과 병력의 생존을 확인하는 냉정한 지휘관이다.",
-      "primaryTrope": "계약·정략",
+      "portfolioHook": "금지 마석 사건과 연결된 당신의 처형 명령서에 자신의 인장이 찍힌 것을 발견한 북부대공이, 흑철 요새에서 당신과 문서의 진위를 확인하려 한다.",
+      "publicTagline": "“널 처형하라는 명령서에 내 인장이 찍혔다. 난 서명한 적 없다.”",
+      "publicDescriptionOpening": "북부의 검은 방벽을 지키는 대공 볼프강 폰 발켄하임은 명령 하나로 병사를 잃은 뒤, 모든 귀환자와 서명된 보고서를 직접 확인한다.",
+      "primaryTrope": "보호자",
       "secondaryTropes": [
-        "혐관",
-        "집착",
         "북부대공"
       ],
       "archetype": "전장의 도살자 대공",
@@ -131,11 +129,12 @@
       ],
       "ungroundedTags": [],
       "taglineWorldTerms": [],
-      "taglineHasUserRelationship": true,
-      "userRole": "마석의 출처·소유권·전선에서의 행적에 관해 증언하거나 조사에 협력할 수 있는 사람이다. 협조 여부와 관계의 방향은 유저의 선택으로 정해진다.",
+      "taglineHasUserRelationship": false,
+      "userRole": "당신은 위조 처형 명령서의 진위를 확인할 수 있다. 기록을 조사할지, 명령을 공개할지, 봉인을 지킬지는 당신의 선택이다.",
       "adult": true,
       "marketFitBrief": null,
       "findings": [
+        "tagline_relationship_unclear: tagline \"“널 처형하라는 명령서에 내 인장이 찍혔다. 난 서명한 적 없다.”\" carries mood only, no user relationship/conflict",
         "market_fit_brief_absent: authored before the market-fit owner existed"
       ]
     },
@@ -555,18 +554,13 @@
     "tropes": {
       "ok": true,
       "errors": [],
-      "warnings": [
-        {
-          "code": "market_trope_overloaded",
-          "message": "pilot-rf-02: 4 core tropes"
-        }
-      ],
+      "warnings": [],
       "primaryCounts": {
         "구원": [
           "pilot-rf-01",
           "pilot-rf-10"
         ],
-        "계약·정략": [
+        "보호자": [
           "pilot-rf-02"
         ],
         "공범": [

@@ -320,7 +320,7 @@ describe("author quality contract (prompt == QA)", () => {
     assert.ok(system.includes(`${C.greeting.min}자 이상 ${C.greeting.max}자 이하`));
     assert.ok(system.includes(`${C.speechDescription.min}자 이상 ${C.speechDescription.max}자 이하`));
     assert.ok(system.includes(`${C.publicDescription.min}자 이상 ${C.publicDescription.max}자 이하`));
-    for (const stale of ["900자 이상", "400자 이상 600자", "300자 이상 500자"]) assert.ok(!system.includes(stale), stale);
+    for (const stale of ["900자 이상", "400자 이상 600자", "300자 이상 500자", "1400자 이하"]) assert.ok(!system.includes(stale), stale);
   });
 
   it("complete contract prose passes", () => {
@@ -331,6 +331,20 @@ describe("author quality contract (prompt == QA)", () => {
     const short = CONTRACT_GREETING.slice(0, C.greeting.min - 1);
     assert.ok(evaluateAuthorQualityContract(voiceBible({ greeting: short })).errors.some((e) => e.code === "bible_greeting_band"));
     assert.ok(CONTRACT_GREETING.length >= C.greeting.min);
+  });
+
+  it("keeps the previous 700-1400 greetings inside the quality band and leaves the 2000 storage cap independent", () => {
+    assert.equal(C.greeting.min, 700);
+    assert.equal(C.greeting.max, 1800);
+    assert.ok(CONTRACT_GREETING.length >= C.greeting.min && CONTRACT_GREETING.length <= 1400);
+    assert.equal(
+      evaluateAuthorQualityContract(voiceBible()).errors.some((issue) => issue.code === "bible_greeting_band"),
+      false
+    );
+    const overBand = `${CONTRACT_GREETING}${"가".repeat(C.greeting.max + 1 - CONTRACT_GREETING.length)}`;
+    assert.equal(overBand.length, C.greeting.max + 1);
+    assert.ok(overBand.length <= 2000);
+    assert.ok(evaluateAuthorQualityContract(voiceBible({ greeting: overBand })).errors.some((issue) => issue.code === "bible_greeting_band"));
   });
 
   it("greeting must be an in-scene opening with voice and the user", () => {

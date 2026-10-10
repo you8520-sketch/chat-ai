@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 
 import { compileOfficialDraftFromBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
 import { buildOfficialCharacterFormBody } from "@/lib/officialSupply/characterText";
+import { canonicalPrimaryTrope } from "@/lib/officialSupply/marketFit";
 import { buildOfficialAssetPrompts } from "@/lib/officialSupply/imagePrompt";
 import {
   HWANG_VOCAB,
@@ -255,6 +256,157 @@ describe("official detailed intro + creator comment", () => {
     const pitch = composeOfficialPublicDescription;
     assert.ok(evaluateOfficialPublicDescription("황자가 온실에서 당신을 기다린다. 거래가 시작된다.").errors.length > 0);
     assert.equal(typeof pitch, "function");
+  });
+
+  it("still rejects an auto-sheet that is missing occupation or role labels", () => {
+    const file = sampleChars()[0]!;
+    assert.equal(file.bible.publicProfile.detailedDescription, undefined);
+    const complete = composeOfficialPublicDescription({
+      worldName: "에테르노스 제국 (Aethernos Empire)",
+      rpHook: file.brief.rpHook,
+      relationshipTrope: file.brief.relationshipTrope,
+      identity: file.bible.identity,
+      appearance: file.bible.appearance,
+      personality: file.bible.personality,
+      abilities: file.bible.abilities,
+      situation: file.bible.situation,
+      userRole: file.bible.userRelationship.userRole,
+    });
+    assert.match(complete, /^이름:/m);
+    assert.match(complete, /^나이:/m);
+    assert.match(complete, /^키:/m);
+    assert.match(complete, /직업\/소속/);
+    assert.match(complete, /능력\/역할:/);
+    const malformed = complete.replace(/직업\/소속:[^\n]*\n/, "").replace(/능력\/역할:[^\n]*\n/, "");
+    assert.doesNotMatch(malformed, /직업\/소속/);
+    assert.doesNotMatch(malformed, /능력\/역할:/);
+    assert.match(malformed, /^이름:/m);
+    assert.match(malformed, /^나이:/m);
+    assert.match(malformed, /^키:/m);
+    const qa = evaluateOfficialPublicDescription(malformed, file.bible.identity.name);
+    assert.ok(
+      qa.errors.some((issue) => issue.code === "public_intro_facts_missing"),
+      JSON.stringify(qa.errors)
+    );
+  });
+
+  it("uses an authored detailed description as draft.description without shortening", () => {
+    const file = sampleChars()[0]!;
+    const authored = "[세계관 설정: 에테르노스 제국]\n남겨 둔 문장.\n\n[캐릭터 설정]\n이름: 테스트\n나이: 34세\n키: 188cm\n직업/소속: 사령관 / 연맹\n\n외형: 머리: 흑회색, 울프컷 / 눈: 회청색, 긴 눈매 / 피부: 창백 / 체형: 넓은 어깨\n성격: 냉정\n능력/역할: 지휘\n배경: 배경.\n\n[관계 포인트]\n관계는 선택에 따라 달라진다.\n\n[도입 상황]\n당신이 집무실에 있다.";
+    const composed = composeOfficialPublicDescription({
+      worldName: "에테르노스 제국 (Aethernos Empire)",
+      rpHook: file.brief.rpHook,
+      relationshipTrope: file.brief.relationshipTrope,
+      identity: file.bible.identity,
+      appearance: file.bible.appearance,
+      personality: file.bible.personality,
+      abilities: file.bible.abilities,
+      situation: file.bible.situation,
+      userRole: file.bible.userRelationship.userRole,
+      detailedDescription: authored,
+    });
+    assert.equal(composed, authored);
+    assert.doesNotMatch(composed, /이름: 카엘룸|이름: 레온/);
+  });
+});
+
+describe("Wolfgang GPT-authored public copy", () => {
+  function section(md: string, start: string, end: string): string {
+    const from = md.indexOf(start);
+    const to = md.indexOf(end, from + start.length);
+    return md.slice(from + start.length, to).trim();
+  }
+
+  function candidate() {
+    const md = fs.readFileSync(
+      path.join(process.cwd(), "docs/official-supply/reviews/pilot-rf-02-gpt-public-copy-candidate.md"),
+      "utf8"
+    );
+    return {
+      tagline: section(md, "## One-line tagline (37/50 characters)\n\n", "\n\n## Public detailed description"),
+      detailedDescription: section(md, "## Public detailed description (1299/3,000 characters)\n\n", "\n\n## Greeting / opening"),
+      greeting: section(md, "## Greeting / opening (1547 characters; editorial aim approximately 1,500; storage ceiling 2,000)\n\n", "\n\n\n## GPT-authored"),
+      pitch: section(md, "### Short discovery pitch / `bible.publicProfile.description` (200–500 chars) — 254 chars\n\n", "\n\n### Character current situation"),
+      personalSituation: section(md, "### Character current situation / `bible.situation.personalSituation` — 456 chars\n\n", "\n\n### Player entry"),
+      userEntry: section(md, "### Player entry / `bible.situation.userEntry` — 222 chars\n\n", "\n\n### Immediate hook"),
+      immediateHook: section(md, "### Immediate hook / `bible.rpEngine.immediateHook` — 187 chars\n\n", "\n\n### Medium conflict"),
+      mediumConflict: section(md, "### Medium conflict / `bible.rpEngine.mediumConflict` — 177 chars\n\n", "\n\n**Integration note:**"),
+    };
+  }
+
+  it("keeps compiled Wolfgang public surfaces byte-identical to the GPT candidate", () => {
+    const file = readJson<PilotChar>(path.join(PILOT_DIR, "characters", "pilot-rf-02.json"));
+    const copy = candidate();
+    const draft = compileOfficialDraftFromBible(file.bible, compileKeys(file));
+    assert.equal(file.bible.publicProfile.tagline, copy.tagline);
+    assert.equal(file.bible.publicProfile.description, copy.pitch);
+    assert.equal(file.bible.publicProfile.detailedDescription, copy.detailedDescription);
+    assert.equal(file.bible.greeting, copy.greeting);
+    assert.equal(file.bible.situation.personalSituation, copy.personalSituation);
+    assert.equal(file.bible.situation.userEntry, copy.userEntry);
+    assert.equal(file.bible.rpEngine.immediateHook, copy.immediateHook);
+    assert.equal(file.bible.rpEngine.mediumConflict, copy.mediumConflict);
+    assert.equal(draft.description, copy.detailedDescription);
+    assert.equal(draft.greeting, copy.greeting);
+    assert.equal(draft.tagline, copy.tagline);
+    assert.notEqual(draft.description, file.bible.publicProfile.description);
+    assert.equal(copy.tagline.length, 37);
+    assert.equal(copy.detailedDescription.length, 1299);
+    assert.equal(copy.greeting.length, 1547);
+    assert.ok(copy.greeting.length <= 2000);
+    assert.deepEqual(evaluateOfficialPublicDescription(draft.description, draft.name).errors, []);
+    assert.match(draft.description, /세계관 설정: 에테르노스 제국/);
+    assert.match(draft.description, /캐릭터 설정/);
+    assert.match(draft.description, /도입 상황/);
+    assert.doesNotMatch(draft.description, /정략적 혐오에서 맹목적 충성으로/);
+    assert.doesNotMatch(draft.greeting, /눈과 서리를 묻힌 당신이|젖은 외투/);
+    assert.doesNotMatch(file.bible.identity.worldRole, /92kg|92㎏/);
+    assert.match(draft.description, /몸무게 약 92kg/);
+  });
+
+  it("keeps Wolfgang creator comment on the GPT hook, trope, and action-only start choices", () => {
+    const file = readJson<PilotChar>(path.join(PILOT_DIR, "characters", "pilot-rf-02.json"));
+    const draft = compileOfficialDraftFromBible(file.bible, compileKeys(file));
+    const comment = composeOfficialCreatorComment(draft);
+    const qa = evaluateOfficialCreatorComment(comment, draft.description);
+    assert.deepEqual(qa.errors, [], JSON.stringify(qa.errors));
+    assert.equal(
+      file.brief.rpHook,
+      "금지 마석 사건과 연결된 당신의 처형 명령서에 자신의 인장이 찍힌 것을 발견한 북부대공이, 흑철 요새에서 당신과 문서의 진위를 확인하려 한다."
+    );
+    assert.equal(file.brief.relationshipTrope, "의심 속에서도 처형을 막는 보호자, 선택에 따라 깊어지는 신뢰");
+    assert.equal(
+      file.bible.userRelationship.initialView,
+      "금지 마석 사건의 관련자로 황실 처형 명령서에 이름이 적힌 인물. 서류의 진위가 불분명하므로 경계하지만 유죄라고 단정하지 않는다."
+    );
+    assert.equal(
+      file.bible.userRelationship.userRole,
+      "당신은 위조 처형 명령서의 진위를 확인할 수 있다. 기록을 조사할지, 명령을 공개할지, 봉인을 지킬지는 당신의 선택이다."
+    );
+    const world = readJson<{ bible: OfficialWorldBible }>(path.join(PILOT_DIR, "world-bible.json"));
+    const portfolio = world.bible.portfolio.find((item) => item.slot === 2);
+    assert.equal(portfolio?.rpHook, file.brief.rpHook);
+    assert.equal(portfolio?.relationshipTrope, file.brief.relationshipTrope);
+    assert.equal(file.draft.hook.rpHook, file.brief.rpHook);
+    assert.equal(file.draft.hook.relationshipTrope, file.brief.relationshipTrope);
+    assert.equal(draft.hook.rpHook, file.brief.rpHook);
+    assert.equal(draft.hook.relationshipTrope, file.brief.relationshipTrope);
+    assert.match(comment, /금지 마석 사건과 연결된 당신의 처형 명령서/);
+    assert.match(comment, /의심 속에서도 처형을 막는 보호자, 선택에 따라 깊어지는 신뢰/);
+    assert.match(comment, /당신은 위조 처형 명령서의 진위를 확인할 수 있다/);
+    assert.doesNotMatch(comment, /자신의 방식으로 확인할 수 있다/);
+    assert.doesNotMatch(comment, /진위를 자신의<\/p>/);
+    assert.doesNotMatch(comment, /압송해 심문/);
+    assert.doesNotMatch(comment, /정략적 혐오에서 맹목적 충성으로/);
+    assert.deepEqual(officialPlayStartChoices(draft), ["기록을 조사할지", "명령을 공개할지", "봉인을 지킬지"]);
+    assert.match(comment, /기록을 조사할지 · 명령을 공개할지 · 봉인을 지킬지/);
+    assert.doesNotMatch(file.bible.userRelationship.initialView, /유죄라고 단정한다|이미 유죄/);
+    assert.equal(canonicalPrimaryTrope(file.brief.relationshipTrope), "보호자");
+    assert.equal(canonicalPrimaryTrope(portfolio!.relationshipTrope), "보호자");
+    const edric = readJson<PilotChar>(path.join(PILOT_DIR, "characters", "pilot-rf-06.json"));
+    const noel = readJson<PilotChar>(path.join(PILOT_DIR, "characters", "pilot-rf-08.json"));
+    assert.equal(canonicalPrimaryTrope(edric.brief.relationshipTrope), "혐관");
+    assert.equal(canonicalPrimaryTrope(noel.brief.relationshipTrope), "혐관");
   });
 });
 

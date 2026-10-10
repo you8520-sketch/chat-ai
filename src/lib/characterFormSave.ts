@@ -17,6 +17,12 @@ import {
 import { canPublishAsRepresentative } from "@/lib/assetVisionPolicy";
 import { bindTrustedCharacterMedia } from "@/lib/mediaAccess";
 import { parseCharacterGender } from "@/lib/characterGender";
+import {
+  hasPublicDossierInput,
+  parsePublicDossierFromBody,
+  publicDossierSqlValues,
+  readPublicDossierStored,
+} from "@/lib/characterPublicDossier";
 import { buildSaveCharacterChunksAndEnqueueDerivedRefresh } from "@/lib/characterChunks";
 import {
   characterAdultTextBlob,
@@ -182,6 +188,11 @@ export type ParsedCharacterForm = {
   exampleDialog: string;
   speechInput: ReturnType<typeof parseSpeechCreatorFromBody>;
   gender: NonNullable<ReturnType<typeof parseCharacterGender>>;
+  genderPublic: boolean;
+  heightCm: number | null;
+  weightKg: number | null;
+  worldPublicName: string;
+  worldPublic: boolean;
   genres: ReturnType<typeof sanitizeCharacterGenres>;
   primaryGenre: string;
   narrationStyleInstructions: string;
@@ -686,6 +697,8 @@ export function parseCharacterFormBody(
   const gender =
     contentKind === "simulation" ? "other" : parseCharacterGender(b.gender);
   if (!gender) return { ok: false, error: "캐릭터 성별(남성/여성/기타)을 선택해 주세요.", status: 400 };
+  const publicDossier = parsePublicDossierFromBody(b);
+  if (!publicDossier.ok) return { ok: false, error: publicDossier.error, status: 400 };
 
   const genres = sanitizeCharacterGenres(b.genres ?? b.genre);
   if (genres.length === 0) {
@@ -758,6 +771,11 @@ export function parseCharacterFormBody(
       exampleDialog,
       speechInput,
       gender,
+      genderPublic: publicDossier.data.genderPublic,
+      heightCm: publicDossier.data.heightCm,
+      weightKg: publicDossier.data.weightKg,
+      worldPublicName: publicDossier.data.worldPublicName,
+      worldPublic: publicDossier.data.worldPublic,
       genres,
       primaryGenre: primaryCharacterGenre(genres),
       narrationStyleInstructions,
@@ -1057,10 +1075,10 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
     .prepare(
       `INSERT INTO characters
         (name, tagline, description, greeting, system_prompt, world, world_id, source_world_share_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json, genre, genres, tags, nsfw, emoji, hue,
-         creator_id, creator_name, audience, gender, images, assets, setting_chunks, visibility, moderation_status, moderation_note, share_slug,
+         creator_id, creator_name, audience, gender, gender_public, height_cm, weight_kg, world_public_name, world_public, images, assets, setting_chunks, visibility, moderation_status, moderation_note, share_slug,
          recommended_writing_style, narration_style_instructions, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version,
          content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed, simulation_visual_subjects_json)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       data.name,
@@ -1085,6 +1103,13 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       user.nickname,
       data.audience,
       data.gender,
+      ...publicDossierSqlValues({
+        genderPublic: data.genderPublic,
+        heightCm: data.heightCm,
+        weightKg: data.weightKg,
+        worldPublicName: data.worldPublicName,
+        worldPublic: data.worldPublic,
+      }),
       JSON.stringify(data.images),
       JSON.stringify(data.assets),
       "[]",
@@ -1338,7 +1363,7 @@ export async function updateCharacterFromForm(
     `UPDATE characters SET
       name=?, tagline=?, description=?, greeting=?, system_prompt=?, world=?, world_id=?, source_world_share_id=?, lorebook_id=?,
       example_dialog=?, status_window_prompt=?, status_widget_json=?, genre=?, genres=?, tags=?, nsfw=?, emoji=?, hue=?,
-      audience=?, gender=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
+      audience=?, gender=?, gender_public=?, height_cm=?, weight_kg=?, world_public_name=?, world_public=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
       share_slug=?, recommended_writing_style=?, narration_style_instructions=?, comments_enabled=?, creator_comment=?, creator_name=?,
       creator_raw_description=?, creator_compiled_description_json=?, creator_canon_plan_json=?, appearance_raw=?, appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?,
       content_kind=?, simulation_cast=?, simulation_rules=?, simulation_imports_json=?, simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?, simulation_visual_subjects_json=?,
@@ -1365,6 +1390,13 @@ export async function updateCharacterFromForm(
     data.hue,
     data.audience,
     data.gender,
+    ...publicDossierSqlValues({
+      genderPublic: data.genderPublic,
+      heightCm: data.heightCm,
+      weightKg: data.weightKg,
+      worldPublicName: data.worldPublicName,
+      worldPublic: data.worldPublic,
+    }),
     JSON.stringify(data.images),
     JSON.stringify(data.assets),
     finalVisibility,
@@ -1484,7 +1516,8 @@ export async function updateCharacterPublicProfileFromForm(
               images, nsfw, name, greeting, creator_comment, tags, participant_min_age, adult_status,
               COALESCE(content_kind, 'character') AS content_kind,
               COALESCE(simulation_cast, '') AS simulation_cast,
-              COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json
+              COALESCE(simulation_visual_subjects_json, '') AS simulation_visual_subjects_json,
+              gender_public, height_cm, weight_kg, world_public_name, world_public
        FROM characters WHERE id=?`
     )
     .get(characterId) as
@@ -1507,6 +1540,11 @@ export async function updateCharacterPublicProfileFromForm(
         content_kind: string | null;
         simulation_cast: string;
         simulation_visual_subjects_json: string;
+        gender_public: number | null;
+        height_cm: number | null;
+        weight_kg: number | null;
+        world_public_name: string | null;
+        world_public: number | null;
       }
     | undefined;
 
@@ -1517,6 +1555,11 @@ export async function updateCharacterPublicProfileFromForm(
   if (row.official === 1) {
     return { ok: false as const, error: "공식 캐릭터는 수정할 수 없습니다.", status: 403 };
   }
+
+  const publicDossier = hasPublicDossierInput(b)
+    ? parsePublicDossierFromBody(b)
+    : { ok: true as const, data: readPublicDossierStored(row) };
+  if (!publicDossier.ok) return { ok: false as const, error: publicDossier.error, status: 400 };
 
   const tagline = String(b.tagline || "").trim().slice(0, TAGLINE_LIMIT);
   if (!tagline) return { ok: false as const, error: "한 줄 소개를 입력해 주세요.", status: 400 };
@@ -1643,7 +1686,8 @@ export async function updateCharacterPublicProfileFromForm(
       audience=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
       share_slug=?, comments_enabled=?, creator_comment=?, creator_name=?, status_widget_json=?,
       simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?,
-      participant_min_age=?, adult_status=?, simulation_visual_subjects_json=?
+      participant_min_age=?, adult_status=?, simulation_visual_subjects_json=?,
+      gender_public=?, height_cm=?, weight_kg=?, world_public_name=?, world_public=?
      WHERE id=?`
   ).run(
     tagline,
@@ -1671,6 +1715,7 @@ export async function updateCharacterPublicProfileFromForm(
     participantMinAge,
     adultStatus,
     visualSubjectsJson,
+    ...publicDossierSqlValues(publicDossier.data),
     characterId
   );
   saveCharacterStatusWidgetTriggers(db, characterId, parsedTriggers.triggers);

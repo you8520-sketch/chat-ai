@@ -32,6 +32,11 @@ export type CharacterCreateDraft = {
     hue: number;
     audience: string;
     gender: "" | CharacterGender;
+    gender_public?: boolean;
+    height_cm?: string;
+    weight_kg?: string;
+    world_public_name?: string;
+    world_public?: boolean;
     visibility: "public" | "link" | "private";
     /** @deprecated legacy draft field — ignored on load */
     recommended_writing_style?: string;
