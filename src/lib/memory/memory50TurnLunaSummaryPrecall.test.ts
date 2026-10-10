@@ -170,6 +170,20 @@ describe("Luna local PRECALL one-command (provider-free)", () => {
     assert.equal(canonical.createdJournal, false);
     assert.notEqual(canonical.journalDirectory, missing);
     assert.equal(LUNA_SUMMARY_JOURNAL_DIR_ENV, "MEMORY_LUNA_SUMMARY_JOURNAL_DIR");
+
+    const cloudDir = journalDir();
+    const cloudCached = await runLunaSummaryLocalPrecall({
+      env: { [LUNA_SUMMARY_EXPERIMENT_KEY_ENV]: EXPERIMENT },
+      journalDirectory: cloudDir,
+      nodeVersion: "v22.12.0",
+      persistCache: true,
+      detectHost: cloudHost,
+      readRepoSha: () => REPO_SHA,
+      verifyIdentity: async () => okIdentity(),
+      probeIsolatedDatabase: () => ({ ok: true, installedThenUninstalled: false }),
+    });
+    assert.equal(cloudCached.LIVE_PRECALL_READY, false);
+    assert.equal(existsSync(path.join(cloudDir, LUNA_SUMMARY_PRECALL_CACHE_FILENAME)), false);
   });
 
   it("detects Cloud from the live host markers without treating this VM as WSL", () => {
@@ -282,15 +296,16 @@ describe("Luna local PRECALL one-command (provider-free)", () => {
   });
 
   it("maps the Cursor secret name in-process without leaking the value", async () => {
-    const env: NodeJS.ProcessEnv = { [LUNA_SUMMARY_CURSOR_SECRET_ENV]: SECRET_VALUE };
-    const mapped = applyLunaExperimentKeyFromCursorSecret(env);
+    const mappedEnv: NodeJS.ProcessEnv = { [LUNA_SUMMARY_CURSOR_SECRET_ENV]: SECRET_VALUE };
+    const mapped = applyLunaExperimentKeyFromCursorSecret(mappedEnv);
     assert.equal(mapped.mapped, true);
     assert.equal(mapped.present, true);
     assert.equal(mapped.equalsProduction, false);
-    assert.equal(env[LUNA_SUMMARY_EXPERIMENT_KEY_ENV], SECRET_VALUE);
+    assert.equal(mappedEnv[LUNA_SUMMARY_EXPERIMENT_KEY_ENV], SECRET_VALUE);
 
+    const reportEnv: NodeJS.ProcessEnv = { [LUNA_SUMMARY_CURSOR_SECRET_ENV]: SECRET_VALUE };
     const report = await runReady({
-      env,
+      env: reportEnv,
     });
     assert.equal(report.keyPresent, true);
     assert.equal(report.keyMappedFromCursorSecret, true);

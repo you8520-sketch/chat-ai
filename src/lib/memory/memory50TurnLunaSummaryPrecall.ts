@@ -405,6 +405,7 @@ export async function runLunaSummaryLocalPrecall(
 
   if (
     input.persistCache !== false &&
+    !host.cloudAgent &&
     journalDirectory &&
     existsSync(journalDirectory) &&
     repoSha &&
