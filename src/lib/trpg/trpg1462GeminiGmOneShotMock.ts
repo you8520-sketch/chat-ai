@@ -5,7 +5,18 @@ export type Trpg1462MockFetchLog = {
   count: number;
   urls: string[];
   bodies: string[];
+  authorizationPresent: boolean[];
+  authorizationScheme: string[];
 };
+
+function authorizationPresence(headers: Record<string, string>): {
+  present: boolean;
+  scheme: string;
+} {
+  const raw = headers.Authorization ?? headers.authorization ?? "";
+  const scheme = raw.trim().split(/\s+/)[0] ?? "";
+  return { present: raw.trim().length > 0, scheme };
+}
 
 export function createTrpg1462MockSseResponse(opts?: {
   narration?: string;
@@ -45,11 +56,20 @@ export function createTrpg1462MockFetch(script: {
   status?: number;
   narration?: string;
 }): { fetchImpl: Trpg1462OneShotFetch; log: Trpg1462MockFetchLog } {
-  const log: Trpg1462MockFetchLog = { count: 0, urls: [], bodies: [] };
+  const log: Trpg1462MockFetchLog = {
+    count: 0,
+    urls: [],
+    bodies: [],
+    authorizationPresent: [],
+    authorizationScheme: [],
+  };
   const fetchImpl: Trpg1462OneShotFetch = async (input, init) => {
+    const auth = authorizationPresence(init.headers);
     log.count += 1;
     log.urls.push(String(input));
     log.bodies.push(init.body);
+    log.authorizationPresent.push(auth.present);
+    log.authorizationScheme.push(auth.scheme);
     if (script.mode === "hang") {
       return await new Promise<Response>((_resolve, reject) => {
         const abort = () => {

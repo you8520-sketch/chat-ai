@@ -1,6 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
-import { CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL } from "@/lib/cheaperInferenceConfig";
+import { existsSync, readFileSync } from "node:fs";
+import { CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, buildCheaperInferenceHeaders } from "@/lib/cheaperInferenceConfig";
 import { buildTrpgGmProviderRequest } from "./gmCall";
 import { finishReasonFromSsePayload } from "./gmCompletionIntegrity";
 import { parseTrpgGmOutput } from "./gmPrompt";
@@ -9,6 +8,7 @@ import {
   assembleTrpg1462NewBenchmark,
   assertProductionGmContract,
   sha256Utf8,
+  TRPG_1462_NEW_BENCHMARK_ID,
   TRPG_1462_NEW_BENCHMARK_REQUEST_IDS,
   TRPG_1462_PINNED_REQUEST_HASHES,
   TRPG_1462_SYSTEM_SHA_1465,
@@ -20,13 +20,17 @@ import {
   consumedTrpg1462Attempts,
   createTrpg1462AttemptJournal,
   loadTrpg1462AttemptJournal,
+  markTrpg1462Attempted,
+  markTrpg1462PossiblySent,
   reserveTrpg1462Attempt,
   settleTrpg1462Attempt,
   trpg1462PrecallJournalPath,
   trpg1462ResultPath,
   tryAcquireTrpg1462JournalLock,
+  writePrivateAtomicJson,
   writeTrpg1462AttemptJournal,
   type Trpg1462AttemptJournal,
+  type Trpg1462DurableWriteHooks,
   type Trpg1462JournalStatus,
 } from "./trpg1462GeminiGmPrecallJournal";
 import { TRPG_GM_MODEL } from "./types";
@@ -35,6 +39,69 @@ export const TRPG_1462_APPROVED_PROVIDER = "cheaperinference";
 export const TRPG_1462_APPROVED_MODEL = TRPG_GM_MODEL;
 export const TRPG_1462_MAX_PAID_CALLS = 6;
 export const TRPG_1462_ONESHOT_TIMEOUT_MS = 180_000;
+export const TRPG_1462_TEST_APPROVAL_KIND = "TEST_ONLY";
+export const TRPG_1462_TEST_EXECUTION_BASE_SHA = "test-only-not-a-live-approval";
+export const TRPG_1462_TEST_MAX_COST_USD = 0.03;
+export const TRPG_1462_TEST_API_KEY = "trpg-1462-test-key";
+
+export type Trpg1462PaidApprovalRecord = {
+  experiment: typeof TRPG_1462_NEW_BENCHMARK_ID;
+  kind: typeof TRPG_1462_TEST_APPROVAL_KIND;
+  approvedCaseIds: Trpg1462NewBenchmarkRequestId[];
+  requestBodySha256: Record<Trpg1462NewBenchmarkRequestId, string>;
+  model: typeof TRPG_1462_APPROVED_MODEL;
+  provider: typeof TRPG_1462_APPROVED_PROVIDER;
+  maxCalls: number;
+  maxCostUsd: number;
+  executionBaseSha: string;
+  grantedBy: "TEST_FIXTURE";
+};
+
+export function createTrpg1462TestApproval(
+  overrides: Partial<Trpg1462PaidApprovalRecord> = {}
+): Trpg1462PaidApprovalRecord {
+  const requestBodySha256 = Object.fromEntries(
+    TRPG_1462_NEW_BENCHMARK_REQUEST_IDS.map((id) => [id, TRPG_1462_PINNED_REQUEST_HASHES[id].requestBodySha256])
+  ) as Record<Trpg1462NewBenchmarkRequestId, string>;
+  return {
+    experiment: TRPG_1462_NEW_BENCHMARK_ID,
+    kind: TRPG_1462_TEST_APPROVAL_KIND,
+    approvedCaseIds: [...TRPG_1462_NEW_BENCHMARK_REQUEST_IDS],
+    requestBodySha256,
+    model: TRPG_1462_APPROVED_MODEL,
+    provider: TRPG_1462_APPROVED_PROVIDER,
+    maxCalls: TRPG_1462_MAX_PAID_CALLS,
+    maxCostUsd: TRPG_1462_TEST_MAX_COST_USD,
+    executionBaseSha: TRPG_1462_TEST_EXECUTION_BASE_SHA,
+    grantedBy: "TEST_FIXTURE",
+    ...overrides,
+  };
+}
+
+export function assertTrpg1462PaidApproval(
+  approval: Trpg1462PaidApprovalRecord | null | undefined,
+  requestId: Trpg1462NewBenchmarkRequestId,
+  bodySha: string
+): void {
+  if (!approval) throw new Error("APPROVAL_DENIED");
+  if (approval.kind !== TRPG_1462_TEST_APPROVAL_KIND) throw new Error("APPROVAL_DENIED");
+  if (approval.grantedBy !== "TEST_FIXTURE") throw new Error("APPROVAL_DENIED");
+  if (approval.experiment !== TRPG_1462_NEW_BENCHMARK_ID) throw new Error("APPROVAL_MISMATCH");
+  if (approval.model !== TRPG_1462_APPROVED_MODEL) throw new Error("APPROVAL_MISMATCH");
+  if (approval.provider !== TRPG_1462_APPROVED_PROVIDER) throw new Error("APPROVAL_MISMATCH");
+  if (approval.executionBaseSha.trim() === "") throw new Error("APPROVAL_MISMATCH");
+  if (!(approval.maxCalls > 0 && approval.maxCalls <= TRPG_1462_MAX_PAID_CALLS)) throw new Error("APPROVAL_MISMATCH");
+  if (!(approval.maxCostUsd > 0)) throw new Error("APPROVAL_MISMATCH");
+  if (!approval.approvedCaseIds.includes(requestId)) throw new Error("APPROVAL_MISMATCH");
+  if (approval.requestBodySha256[requestId] !== bodySha) throw new Error("APPROVAL_MISMATCH");
+}
+
+/** Experiment-only. Pass an explicit key so production env is never consulted. */
+export function buildTrpg1462OneShotProviderHeaders(apiKey: string | undefined): Record<string, string> {
+  const key = apiKey?.trim() ?? "";
+  if (!key) throw new Error("AUTH_MISSING");
+  return buildCheaperInferenceHeaders(key);
+}
 
 export type Trpg1462OneShotFetch = (
   input: string,
@@ -131,9 +198,14 @@ function blocked(
 function persistJournal(
   path: string,
   journal: Trpg1462AttemptJournal,
-  persist: (path: string, journal: Trpg1462AttemptJournal) => void
+  persist: ((path: string, journal: Trpg1462AttemptJournal) => void) | undefined,
+  hooks: Trpg1462DurableWriteHooks
 ): void {
-  persist(path, journal);
+  if (persist) {
+    persist(path, journal);
+    return;
+  }
+  writeTrpg1462AttemptJournal(path, journal, hooks);
 }
 
 export function ensureTrpg1462AttemptJournal(root: string): Trpg1462AttemptJournal {
@@ -207,11 +279,11 @@ export function parseTrpg1462OneShotProviderText(text: string): {
 function writeResultFile(
   root: string,
   id: Trpg1462NewBenchmarkRequestId,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  hooks: Trpg1462DurableWriteHooks = {}
 ): string {
   const path = trpg1462ResultPath(root, id);
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-  writeFileSync(path, `${JSON.stringify(payload, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  writePrivateAtomicJson(path, payload, hooks);
   return path;
 }
 
@@ -225,20 +297,32 @@ export async function executeTrpg1462OneShot(opts: {
   fetchImpl: Trpg1462OneShotFetch;
   timeoutMs?: number;
   persist?: (path: string, journal: Trpg1462AttemptJournal) => void;
+  durableHooks?: Trpg1462DurableWriteHooks;
+  resultWriteHooks?: Trpg1462DurableWriteHooks;
   crashAfterReserve?: boolean;
+  approval?: Trpg1462PaidApprovalRecord | null;
+  apiKey?: string;
 }): Promise<Trpg1462OneShotResult> {
   assertNotForbiddenPrivatePath(opts.root);
   if (!isApprovedRequestId(opts.requestId)) {
     return blocked(opts.requestId, "UNAPPROVED_CASE_ID");
   }
   const id = opts.requestId;
-  const persist = opts.persist ?? writeTrpg1462AttemptJournal;
+  const durableHooks = opts.durableHooks ?? {};
   const journalPath = trpg1462PrecallJournalPath(opts.root);
   let sealed;
   try {
     sealed = buildSealedProviderRequest(id);
   } catch (error) {
     return blocked(id, error instanceof Error ? error.message : "FINGERPRINT_MISMATCH");
+  }
+
+  let headers: Record<string, string>;
+  try {
+    assertTrpg1462PaidApproval(opts.approval, id, sealed.bodySha);
+    headers = buildTrpg1462OneShotProviderHeaders(opts.apiKey);
+  } catch (error) {
+    return blocked(id, error instanceof Error ? error.message : "APPROVAL_DENIED");
   }
 
   const lock = tryAcquireTrpg1462JournalLock(opts.root);
@@ -259,8 +343,9 @@ export async function executeTrpg1462OneShot(opts: {
       return blocked(id, `ONE_SHOT_BLOCKED_${journal.cases[id].status.toUpperCase()}`);
     }
     const reservedJournal = reserveTrpg1462Attempt(journal, id, sealed.bodySha);
-    persistJournal(journalPath, reservedJournal, persist);
+    persistJournal(journalPath, reservedJournal, opts.persist, durableHooks);
     reserved = true;
+    persistJournal(journalPath, markTrpg1462Attempted(reservedJournal, id), opts.persist, durableHooks);
   } catch (error) {
     return blocked(id, error instanceof Error && /one-shot blocked/.test(error.message) ? "ONE_SHOT_BLOCKED" : "JOURNAL_WRITE_FAILED");
   } finally {
@@ -282,7 +367,7 @@ export async function executeTrpg1462OneShot(opts: {
     posts = 1;
     const response = await opts.fetchImpl(sealed.request.endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: sealed.serialized,
       signal: AbortSignal.timeout(opts.timeoutMs ?? TRPG_1462_ONESHOT_TIMEOUT_MS),
     });
@@ -304,7 +389,7 @@ export async function executeTrpg1462OneShot(opts: {
   }
 
   const parsedOut = parsed.raw.trim() ? parseTrpgGmOutput(parsed.raw) : null;
-  const resultFile = writeResultFile(opts.root, id, {
+  const resultPayload = {
     requestId: id,
     requestBodySha256: sealed.bodySha,
     status: settleStatus,
@@ -316,7 +401,36 @@ export async function executeTrpg1462OneShot(opts: {
     narration: parsedOut?.narration ?? null,
     delta: parsedOut?.delta ?? null,
     posts,
-  });
+  };
+
+  let resultFile: string;
+  try {
+    resultFile = writeResultFile(opts.root, id, resultPayload, opts.resultWriteHooks);
+  } catch {
+    const failLock = tryAcquireTrpg1462JournalLock(opts.root);
+    if (failLock.ok) {
+      try {
+        const latest = loadTrpg1462AttemptJournal(journalPath);
+        persistJournal(journalPath, markTrpg1462PossiblySent(latest, id), opts.persist, durableHooks);
+      } finally {
+        failLock.release();
+      }
+    }
+    return {
+      ok: false,
+      blocked: false,
+      reason: "RESULT_WRITE_FAILED",
+      requestId: id,
+      posts,
+      status: settleStatus,
+      httpStatus,
+      finishReason: parsed.finishReason,
+      narration: parsedOut?.narration ?? null,
+      delta: parsedOut?.delta ?? null,
+      inputTokens: parsed.inputTokens,
+      outputTokens: parsed.outputTokens,
+    };
+  }
 
   const settleLock = tryAcquireTrpg1462JournalLock(opts.root);
   if (!settleLock.ok) {
@@ -344,7 +458,7 @@ export async function executeTrpg1462OneShot(opts: {
     settled.cases[id].narrationSha256 = parsedOut ? sha256Utf8(parsedOut.narration) : null;
     settled.cases[id].deltaSha256 = parsedOut ? sha256Utf8(JSON.stringify(parsedOut.delta)) : null;
     settled.cases[id].resultFile = resultFile;
-    persistJournal(journalPath, settled, persist);
+    persistJournal(journalPath, settled, opts.persist, durableHooks);
   } finally {
     settleLock.release();
   }
