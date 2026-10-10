@@ -1,6 +1,6 @@
-# Wolfgang — GPT-authored public copy candidate (NOT approved for publish)
+# Wolfgang — GPT-authored approved canon (NOT approved for live publishing)
 
-Created 2026-10-10. Original pilot and canonical world preserved. Text below is a **new GPT creative proposal**, not Cursor-created prose. The forged execution directive is a **new plot detail**, and 92kg weight is a **new character specification proposal** requiring user editorial approval before entering canon. The user may inhabit any gender/persona/role; no past actions, speech, emotions, appearance, or profession are imposed on them. All sections are plain text unless shown as headings.
+Created 2026-10-10. **On 2026-10-10 the user explicitly approved the forged execution order as Wolfgang's story canon and the 92kg character weight.** Text was written by GPT, not Cursor; the original character and shared-world background remain preserved. The user may inhabit any gender/persona/role, with no predetermined player actions, speech, emotions, appearance or profession. **Content approval is not paid image-generation authorization or permission to stage/publish.**
 
 ## One-line tagline (37/50 characters)
 
@@ -118,7 +118,7 @@ These are additional GPT-authored narrative fields needed so the public candidat
 ## Integration and review notes
 - A strong click hook is a proposal, not a proven conversion result; GPT must judge with user feedback and existing market research.
 - `publicProfile.description` is only a 200–500 char discovery pitch. The actual public detail owner is `composeOfficialPublicDescription` called by `compileOfficialDraftFromBible`; avoid stuffing this copy into the short pitch or hand-editing generated reports.
-- Existing `OFFICIAL_AUTHOR_QUALITY_CONTRACT.greeting` soft author band is 700–1400; user now requests average 1,500. Resolve in the **existing owner**, preserving the independent 2,000-char storage ceiling and Main RP output behavior.
-- The weight value must not silently become canonical: existing identity data does not contain a confirmed weight. The proposal can be kept in the editorial draft until user approves, and code should not pretend it existed before.
-- The original canonical plot is detention/interrogation over a forbidden aether stone. The forged imperial execution order is a new premise/hook option for editorial review, not a fact from the original approved world.
-- Do not mutate `pilot-rf-02.json`, its snapshot or world bible, nor merge/publish on the existence of this candidate alone. The Cursor Agent only integrates **exact approved GPT prose** into existing owners after explicit approval; it does not invent replacement prose or make subjective quality scores.
+- The canonical `OFFICIAL_AUTHOR_QUALITY_CONTRACT.greeting` quality band was updated by merged PR #1502 to 700–1800, targeting approximately 1,500. The independent 2,000-char storage ceiling and Main RP output remain unchanged.
+- **Weight 92kg is user-approved canon.** It is currently part of the approved detailed intro; no parallel `identity` field/schema or image-width inference was required. The canonical Appearance Lock still owns the drawn proportions.
+- **Forged execution order is user-approved canon**, incorporated into the Wolfgang brief, situation and greeting in #1502. The original forbidden-aether-stone conflict and common-world canon are preserved.
+- The approved GPT texts and the scoped Wolfgang portfolio fields were integrated and merged through #1502. Any **new** image-plan edits still require scoped QA and Draft PR. Site staging/publishing, paid provider image generation, and public visibility remain separate user-approval gates.
