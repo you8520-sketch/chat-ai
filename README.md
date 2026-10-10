@@ -24,6 +24,8 @@ npm run dev
 
 http://localhost:3000 접속
 
+WSL에서 기존 설치를 재사용할 때는 `docs/local-wsl-dev.md`를 본다.
+
 ## API 키 설정
 
 `.env.local` 파일에 키를 입력하세요. (키가 없으면 데모 응답으로 동작)

@@ -379,6 +379,14 @@ describe("server.js boot contract", () => {
     assert.doesNotMatch(serverJs, /Module\._load\s*=/);
   });
 
+  it("loads Next env config before require(next)", () => {
+    const serverJs = readFileSync(path.join(repoRoot, "server.js"), "utf8");
+    const envLoadIndex = serverJs.indexOf("loadEnvConfig(process.cwd())");
+    const nextRequireIndex = serverJs.indexOf('require("next")');
+    assert.ok(envLoadIndex >= 0);
+    assert.ok(nextRequireIndex > envLoadIndex);
+  });
+
   it("does not install boundary before require(next) or app.prepare", () => {
     const serverJs = readFileSync(path.join(repoRoot, "server.js"), "utf8");
     const nextRequireIndex = serverJs.indexOf('require("next")');
