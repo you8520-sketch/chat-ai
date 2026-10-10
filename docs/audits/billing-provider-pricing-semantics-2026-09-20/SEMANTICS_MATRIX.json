@@ -1,0 +1,492 @@
+{
+  "generatedAt": "2026-09-20T15:08:06.858Z",
+  "head": "audit-only",
+  "fx": {
+    "usdToKrw": 1530,
+    "effectiveKrwPerUsd": 1560.6,
+    "overseasFeeRate": 0.02
+  },
+  "g37ThreeBasisMatrix": [
+    {
+      "basisId": "A_STANDARD_INTRO",
+      "benchmarkId": "gemini37_competitor_a",
+      "inputTokens": 24952,
+      "outputTokens": 2367,
+      "referenceRawKrw": 43.1,
+      "ourBaseP": 96,
+      "competitorP": 55,
+      "deltaP": 41,
+      "deltaPercent": 74.5,
+      "targetMargin": 0.55,
+      "ciProcurementKrw": 15.1,
+      "ciProcurementRealizedMargin": 0.8
+    },
+    {
+      "basisId": "A_STANDARD_INTRO",
+      "benchmarkId": "gemini37_competitor_b",
+      "inputTokens": 42195,
+      "outputTokens": 3862,
+      "referenceRawKrw": 72,
+      "ourBaseP": 160,
+      "competitorP": 84.4,
+      "deltaP": 75.6,
+      "deltaPercent": 89.6,
+      "targetMargin": 0.55,
+      "ciProcurementKrw": 25.2,
+      "ciProcurementRealizedMargin": 0.8
+    },
+    {
+      "basisId": "B_STANDARD_POST_INTRO",
+      "benchmarkId": "gemini37_competitor_a",
+      "inputTokens": 24952,
+      "outputTokens": 2367,
+      "referenceRawKrw": 86.1,
+      "ourBaseP": 192,
+      "competitorP": 55,
+      "deltaP": 137,
+      "deltaPercent": 249.1,
+      "targetMargin": 0.55,
+      "ciProcurementKrw": 15.1,
+      "ciProcurementRealizedMargin": 0.9
+    },
+    {
+      "basisId": "B_STANDARD_POST_INTRO",
+      "benchmarkId": "gemini37_competitor_b",
+      "inputTokens": 42195,
+      "outputTokens": 3862,
+      "referenceRawKrw": 144,
+      "ourBaseP": 320,
+      "competitorP": 84.4,
+      "deltaP": 235.6,
+      "deltaPercent": 279.1,
+      "targetMargin": 0.55,
+      "ciProcurementKrw": 25.2,
+      "ciProcurementRealizedMargin": 0.9
+    },
+    {
+      "basisId": "C_FLEX_BATCH_INTRO",
+      "benchmarkId": "gemini37_competitor_a",
+      "inputTokens": 24952,
+      "outputTokens": 2367,
+      "referenceRawKrw": 21.5,
+      "ourBaseP": 48,
+      "competitorP": 55,
+      "deltaP": -7,
+      "deltaPercent": -12.7,
+      "targetMargin": 0.55,
+      "ciProcurementKrw": 15.1,
+      "ciProcurementRealizedMargin": 0.7
+    },
+    {
+      "basisId": "C_FLEX_BATCH_INTRO",
+      "benchmarkId": "gemini37_competitor_b",
+      "inputTokens": 42195,
+      "outputTokens": 3862,
+      "referenceRawKrw": 36,
+      "ourBaseP": 80,
+      "competitorP": 84.4,
+      "deltaP": -4.4,
+      "deltaPercent": -5.2,
+      "targetMargin": 0.55,
+      "ciProcurementKrw": 25.2,
+      "ciProcurementRealizedMargin": 0.7
+    }
+  ],
+  "deepseekMatrix": [
+    {
+      "modelFamily": "V4_PRO",
+      "tier": "OFF_PEAK",
+      "shape": "NORMAL",
+      "inputTokens": 33247,
+      "outputTokens": 3461,
+      "cacheReadTokens": 0,
+      "referenceRawKrw": 44.9,
+      "ourPublishedBaseP": null,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_PRO",
+      "tier": "PEAK",
+      "shape": "NORMAL",
+      "inputTokens": 33247,
+      "outputTokens": 3461,
+      "cacheReadTokens": 0,
+      "referenceRawKrw": 89.9,
+      "ourPublishedBaseP": null,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_PRO",
+      "tier": "PUBLISHED_REFERENCE",
+      "shape": "NORMAL",
+      "inputTokens": 33247,
+      "outputTokens": 3461,
+      "cacheReadTokens": 0,
+      "referenceRawKrw": 44.9,
+      "ourPublishedBaseP": 90,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_PRO",
+      "tier": "CI_CURRENT",
+      "shape": "NORMAL",
+      "inputTokens": 33247,
+      "outputTokens": 3461,
+      "cacheReadTokens": 0,
+      "referenceRawKrw": 19.1,
+      "ourPublishedBaseP": 90,
+      "competitorP": null,
+      "ciProcurementKrw": 19.1,
+      "realizedMargin": 0.8
+    },
+    {
+      "modelFamily": "V4_1_FLASH",
+      "tier": "OFF_PEAK",
+      "shape": "NORMAL",
+      "inputTokens": 33247,
+      "outputTokens": 3461,
+      "cacheReadTokens": 0,
+      "referenceRawKrw": 11,
+      "ourPublishedBaseP": null,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_1_FLASH",
+      "tier": "PEAK",
+      "shape": "NORMAL",
+      "inputTokens": 33247,
+      "outputTokens": 3461,
+      "cacheReadTokens": 0,
+      "referenceRawKrw": 22,
+      "ourPublishedBaseP": null,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_PRO",
+      "tier": "OFF_PEAK",
+      "shape": "MEMORY_HEAVY",
+      "inputTokens": 12871,
+      "outputTokens": 1273,
+      "cacheReadTokens": 12800,
+      "referenceRawKrw": 4.4,
+      "ourPublishedBaseP": null,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_PRO",
+      "tier": "PEAK",
+      "shape": "MEMORY_HEAVY",
+      "inputTokens": 12871,
+      "outputTokens": 1273,
+      "cacheReadTokens": 12800,
+      "referenceRawKrw": 8.9,
+      "ourPublishedBaseP": null,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_PRO",
+      "tier": "PUBLISHED_REFERENCE",
+      "shape": "MEMORY_HEAVY",
+      "inputTokens": 12871,
+      "outputTokens": 1273,
+      "cacheReadTokens": 12800,
+      "referenceRawKrw": 4.4,
+      "ourPublishedBaseP": 9,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_PRO",
+      "tier": "CI_CURRENT",
+      "shape": "MEMORY_HEAVY",
+      "inputTokens": 12871,
+      "outputTokens": 1273,
+      "cacheReadTokens": 12800,
+      "referenceRawKrw": 5.9,
+      "ourPublishedBaseP": 9,
+      "competitorP": null,
+      "ciProcurementKrw": 5.9,
+      "realizedMargin": 0.3
+    },
+    {
+      "modelFamily": "V4_1_FLASH",
+      "tier": "OFF_PEAK",
+      "shape": "MEMORY_HEAVY",
+      "inputTokens": 12871,
+      "outputTokens": 1273,
+      "cacheReadTokens": 12800,
+      "referenceRawKrw": 1.3,
+      "ourPublishedBaseP": null,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_1_FLASH",
+      "tier": "PEAK",
+      "shape": "MEMORY_HEAVY",
+      "inputTokens": 12871,
+      "outputTokens": 1273,
+      "cacheReadTokens": 12800,
+      "referenceRawKrw": 2.5,
+      "ourPublishedBaseP": null,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_PRO",
+      "tier": "OFF_PEAK",
+      "shape": "BOUNDED_VALID_STRESS",
+      "inputTokens": 80000,
+      "outputTokens": 5000,
+      "cacheReadTokens": 0,
+      "referenceRawKrw": 97.8,
+      "ourPublishedBaseP": null,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_PRO",
+      "tier": "PEAK",
+      "shape": "BOUNDED_VALID_STRESS",
+      "inputTokens": 80000,
+      "outputTokens": 5000,
+      "cacheReadTokens": 0,
+      "referenceRawKrw": 195.7,
+      "ourPublishedBaseP": null,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_PRO",
+      "tier": "PUBLISHED_REFERENCE",
+      "shape": "BOUNDED_VALID_STRESS",
+      "inputTokens": 80000,
+      "outputTokens": 5000,
+      "cacheReadTokens": 0,
+      "referenceRawKrw": 97.8,
+      "ourPublishedBaseP": 196,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_PRO",
+      "tier": "CI_CURRENT",
+      "shape": "BOUNDED_VALID_STRESS",
+      "inputTokens": 80000,
+      "outputTokens": 5000,
+      "cacheReadTokens": 0,
+      "referenceRawKrw": 42.8,
+      "ourPublishedBaseP": 196,
+      "competitorP": null,
+      "ciProcurementKrw": 42.8,
+      "realizedMargin": 0.8
+    },
+    {
+      "modelFamily": "V4_1_FLASH",
+      "tier": "OFF_PEAK",
+      "shape": "BOUNDED_VALID_STRESS",
+      "inputTokens": 80000,
+      "outputTokens": 5000,
+      "cacheReadTokens": 0,
+      "referenceRawKrw": 23.4,
+      "ourPublishedBaseP": null,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    },
+    {
+      "modelFamily": "V4_1_FLASH",
+      "tier": "PEAK",
+      "shape": "BOUNDED_VALID_STRESS",
+      "inputTokens": 80000,
+      "outputTokens": 5000,
+      "cacheReadTokens": 0,
+      "referenceRawKrw": 46.8,
+      "ourPublishedBaseP": null,
+      "competitorP": null,
+      "ciProcurementKrw": null,
+      "realizedMargin": null
+    }
+  ],
+  "promotionDoubleApplication": [
+    {
+      "caseId": "A",
+      "label": "BASE already uses official promotional Standard intro price + site promo active",
+      "baseUsesPromotionalPrice": true,
+      "sitePromoActive": true,
+      "procurementTierChanged": false,
+      "baseUserChargePoints": 100,
+      "finalUserChargePoints": 70,
+      "doubleDiscountRisk": true,
+      "notes": "If BASE_USER_CHARGE is calibrated to Google intro $0.75/$3.75 AND an official_provider_promotions row passes 50% through site promotion, user sees stacked discount. Existing code applies site promo on BASE only — risk is semantic (BASE already embeds intro), not duplicate applySitePromotion calls."
+    },
+    {
+      "caseId": "B",
+      "label": "BASE uses normal non-promotional baseline + site promo active",
+      "baseUsesPromotionalPrice": false,
+      "sitePromoActive": true,
+      "procurementTierChanged": false,
+      "baseUserChargePoints": 100,
+      "finalUserChargePoints": 70,
+      "doubleDiscountRisk": false,
+      "notes": "Expected layered behavior: BASE=100 → FINAL=70 at site 30% (official 50% × pass-through 0.6)."
+    },
+    {
+      "caseId": "C",
+      "label": "Flex/off-peak/CI marketplace tier changes procurement only",
+      "baseUsesPromotionalPrice": false,
+      "sitePromoActive": false,
+      "procurementTierChanged": true,
+      "baseUserChargePoints": 100,
+      "finalUserChargePoints": 100,
+      "doubleDiscountRisk": false,
+      "notes": "BASE and site promo unchanged; CI current or DeepSeek off-peak procurement moves ACTUAL_REALIZED_MARGIN only. Live bug: when BASE follows CI current (pointsReasoningMargins), procurement swing also moves BASE — violates intended separation."
+    }
+  ],
+  "ownerMap": {
+    "PROVIDER_NORMAL_BASELINE": {
+      "intendedOwner": "publishedModelPricing.billingReference* (cutover) / competitor benchmark calibration",
+      "currentLiveOwner": "pointsReasoningMargins.ts fallback + CI catalog overlay (bug: follows current)",
+      "notes": "Google Standard intro; DeepSeek peak cache-miss per product policy"
+    },
+    "OFFICIAL_TEMP_PROMO": {
+      "intendedOwner": "officialProviderPromotion.ts (verified admin rows)",
+      "currentLiveOwner": "officialProviderPromotion.ts",
+      "notes": "Explicit provider credits / time-boxed official discounts — NOT Flex/Batch/off-peak"
+    },
+    "PROCUREMENT_TIER": {
+      "intendedOwner": "procurementCost.ts + upstreamCostUsd",
+      "currentLiveOwner": "procurementCost.ts; also incorrectly drives BASE via upstreamCostUsd path",
+      "notes": "DeepSeek off-peak, Google Flex if actually procured, CI current"
+    },
+    "CI_REFERENCE_QUOTE": {
+      "intendedOwner": "cheaperInferenceCatalogPricing reference_* fields (informational list)",
+      "currentLiveOwner": "gemini37CalibrationEvidence / billingPreflightModelPricingEvidence",
+      "notes": "NOT proven equal to provider undiscounted list (G37: CI list=Standard, published ref=Flex)"
+    },
+    "CI_CURRENT_PROCUREMENT": {
+      "intendedOwner": "cheaperInferenceCatalogPricing input/output current rates",
+      "currentLiveOwner": "withLiveCheaperInferenceCatalogPricing in pointsReasoningMargins",
+      "notes": "30% marketplace discount — never site promotion"
+    },
+    "ACTUAL_UPSTREAM_COST": {
+      "intendedOwner": "providerCostLedger + upstreamCostUsd envelope",
+      "currentLiveOwner": "providerCostLedger.ts, chat usage upstreamCostUsd",
+      "notes": "Settlement truth for realized margin"
+    },
+    "BASE_USER_CHARGE": {
+      "intendedOwner": "publishedUserCharge.ts (stable reference + target margin)",
+      "currentLiveOwner": "pointsReasoningMargins.ts computeReasoningPointCost / upstream override",
+      "notes": "Cutover STOP on PR #991"
+    },
+    "SITE_PROMOTION": {
+      "intendedOwner": "sitePromotion.ts on BASE only",
+      "currentLiveOwner": "sitePromotion.ts applySitePromotionToTurnBilling",
+      "notes": "60% pass-through, 7-day cap; CI discountPercent excluded"
+    },
+    "FINAL_USER_CHARGE": {
+      "intendedOwner": "BASE minus site promotion (+ surcharges)",
+      "currentLiveOwner": "pointsReasoningMargins.ts",
+      "notes": "Unchanged by procurement tier when separation correct"
+    },
+    "ACTUAL_REALIZED_MARGIN": {
+      "intendedOwner": "admin finance / shadow diagnostics",
+      "currentLiveOwner": "upstreamCostUsd vs charged points",
+      "notes": "Procurement tier affects this, not BASE_USER_CHARGE"
+    }
+  },
+  "g37Provenance": {
+    "publishedReference": {
+      "inputUsdPerMillion": 0.375,
+      "outputUsdPerMillion": 1.875,
+      "targetMargin": 0.55,
+      "pricingVersion": 2,
+      "publishedAt": "2026-08-28T14:00:00.000Z"
+    },
+    "calibrationEvidence": {
+      "provider": "cheaper_inference",
+      "modelId": "gemini-3.7-flash",
+      "observedAt": "2026-08-28T00:00:00.000Z",
+      "sourceKind": "provider_public_model_page",
+      "referenceInputUsdPerMillion": 0.375,
+      "referenceOutputUsdPerMillion": 1.875,
+      "observedCurrentInputUsdPerMillion": 0.2625,
+      "observedCurrentOutputUsdPerMillion": 1.3125,
+      "observedDiscountPercent": 30
+    },
+    "ciListEvidence": {
+      "listInputUsdPerMillion": 0.75,
+      "listOutputUsdPerMillion": 3.75,
+      "currentInputUsdPerMillion": 0.525,
+      "currentOutputUsdPerMillion": 2.625,
+      "discountPercent": 30,
+      "observedAt": "2026-09-20 audit fixture (repo + user-provided CI evidence)"
+    },
+    "matchesFlexBatch": true,
+    "ciListMatchesGoogleStandard": true,
+    "directStandardStressMarginBenchmarkA": 0.1,
+    "directStandardStressMarginBenchmarkB": 0.1,
+    "pricingBases": [
+      {
+        "id": "A_STANDARD_INTRO",
+        "label": "Google current Standard PayGo (introductory)",
+        "inputUsdPerMillion": 0.75,
+        "outputUsdPerMillion": 3.75,
+        "googleMode": "GOOGLE_STANDARD_PAYGO_INTRO",
+        "validThrough": "2026-12-31"
+      },
+      {
+        "id": "B_STANDARD_POST_INTRO",
+        "label": "Google future Standard PayGo (post-intro)",
+        "inputUsdPerMillion": 1.5,
+        "outputUsdPerMillion": 7.5,
+        "googleMode": "GOOGLE_STANDARD_PAYGO_POST_INTRO",
+        "validThrough": "2027-01-01 onward"
+      },
+      {
+        "id": "C_FLEX_BATCH_INTRO",
+        "label": "Google Flex/Batch (introductory half-rate)",
+        "inputUsdPerMillion": 0.375,
+        "outputUsdPerMillion": 1.875,
+        "googleMode": "GOOGLE_FLEX_BATCH_INTRO",
+        "validThrough": "2026-12-31"
+      }
+    ],
+    "provenanceStatus": "UNCLEAR — published ref equals Flex/Batch; CI list equals Standard; no documented Flex intent in PR #709"
+  },
+  "deepSeekIdentity": {
+    "repoCanonicalIds": [
+      "deepseek-v4-pro-0813",
+      "deepseek-v4-pro (alias → 0813)",
+      "deepseek-v4-flash-0731",
+      "deepseek-v4-flash (alias → default picker)"
+    ],
+    "ciCatalogIdsNotInRepo": [
+      "deepseek-v4.1-flash",
+      "deepseek-flash (official API name — not wired as CI model id in repo)"
+    ],
+    "deliveredModelRuntime": "DELIVERED_MODEL_RUNTIME_UNVERIFIED",
+    "competitorBenchmark": "COMPETITOR_BENCHMARK_MISSING"
+  },
+  "classification": "BLOCKED_BY_PROVIDER_IDENTITY"
+}
