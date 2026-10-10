@@ -1369,11 +1369,42 @@ function normalizeRetrievalToken(token: string): string {
   );
 }
 
+/**
+ * Korean calendar-unit unigrams that must survive the length>=2 filter.
+ * Contrast queries like "이틀 전과 두 달 전" tokenize as 이틀 + 두(1) + 달(1) + 전(1).
+ * Without these units only the compound day token remains injectable, so a
+ * persisted month-old scene_event fails the relevance floor (issue #1486 C).
+ * Do not add 전/후/일 — those over-match ordinary Korean stems.
+ */
+const KOREAN_CALENDAR_UNIT_UNIGRAMS = new Set(["달", "년", "주"]);
+const KOREAN_CALENDAR_UNIT_NUMERAL = /(?:\d+|[한두세네댓몇열영일이삼사오육칠팔구십]+)/u;
+
+function isKeepableRetrievalToken(token: string): boolean {
+  if (token.length >= 2) return true;
+  return token.length === 1 && KOREAN_CALENDAR_UNIT_UNIGRAMS.has(token);
+}
+
+function haystackHasStandaloneCalendarUnit(text: string, unit: string): boolean {
+  if (!KOREAN_CALENDAR_UNIT_UNIGRAMS.has(unit)) return false;
+  const pattern = new RegExp(
+    `(?:^|[^가-힣])${KOREAN_CALENDAR_UNIT_NUMERAL.source}?\\s*${unit}(?:\\s*[전후]|[^가-힣]|$)`,
+    "u"
+  );
+  return pattern.test(text);
+}
+
+function tokenMatchesHaystack(haystack: string, token: string): boolean {
+  if (KOREAN_CALENDAR_UNIT_UNIGRAMS.has(token)) {
+    return haystackHasStandaloneCalendarUnit(haystack, token);
+  }
+  return haystack.includes(token);
+}
+
 function tokenizeForSimpleBoost(text: string): string[] {
   const seen = new Set<string>();
   const tokens: string[] = [];
   const push = (token: string) => {
-    if (token.length < 2 || seen.has(token) || tokens.length >= 32) return;
+    if (!isKeepableRetrievalToken(token) || seen.has(token) || tokens.length >= 32) return;
     seen.add(token);
     tokens.push(token);
   };
@@ -1382,8 +1413,12 @@ function tokenizeForSimpleBoost(text: string): string[] {
     // Keep the surface form before particle strip. Stripping 이/는/에 first
     // then applying length>=2 drops the only tokens that still match stored
     // Korean fact_text (달이→달, 뜨는→뜨, 밤에→밤).
-    push(raw.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ""));
-    push(normalizeRetrievalToken(raw));
+    const surface = raw.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+    push(surface);
+    const normalized = normalizeRetrievalToken(raw);
+    // "달이"(moon) must not become the calendar unigram 달 and match "두 달 전".
+    if (normalized === surface || KOREAN_CALENDAR_UNIT_UNIGRAMS.has(normalized)) continue;
+    push(normalized);
   }
   return tokens;
 }
@@ -1402,7 +1437,7 @@ function lexicalRelevance(
   const tokens = tokenizeForSimpleBoost(currentUserMessage);
   if (tokens.length === 0) return 0;
   const haystack = factSearchText(fact);
-  return Math.min(2, tokens.filter((token) => haystack.includes(token)).length);
+  return Math.min(2, tokens.filter((token) => tokenMatchesHaystack(haystack, token)).length);
 }
 
 /** Existing-owner diagnostic — same tokenizer/scorer as production ranking. */
@@ -1441,7 +1476,7 @@ export function inspectLexicalRelevanceForDebug(
     tokensAfterFirst5,
     tokens: rawTokens.map((raw) => {
       const normalized = normalizeRetrievalToken(raw);
-      const lengthFilterPass = normalized.length >= 2;
+      const lengthFilterPass = isKeepableRetrievalToken(normalized);
       const selected = lengthFilterPass && tokensAfterFirst5.includes(normalized);
       return {
         raw,
@@ -1449,10 +1484,10 @@ export function inspectLexicalRelevanceForDebug(
         lengthFilterPass,
         relevanceLaneSelected: selected,
         sqlLike: lengthFilterPass ? `%${normalized}%` : null,
-        targetSubjectMatch: lengthFilterPass && subject.includes(normalized),
-        targetAttributeMatch: lengthFilterPass && attribute.includes(normalized),
-        targetValueMatch: lengthFilterPass && value.includes(normalized),
-        targetFactTextMatch: lengthFilterPass && factText.includes(normalized),
+        targetSubjectMatch: lengthFilterPass && tokenMatchesHaystack(subject, normalized),
+        targetAttributeMatch: lengthFilterPass && tokenMatchesHaystack(attribute, normalized),
+        targetValueMatch: lengthFilterPass && tokenMatchesHaystack(value, normalized),
+        targetFactTextMatch: lengthFilterPass && tokenMatchesHaystack(factText, normalized),
       };
     }),
     relevanceScore: lexicalRelevance(fact, query),
