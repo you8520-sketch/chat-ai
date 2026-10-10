@@ -268,6 +268,14 @@ describe("official image subject owner (#participant-count)", () => {
     assert.deepEqual(resolveOfficialImageSubjects(lucianSlot("scene1")), USER_PARTNER_SUBJECTS);
     assert.equal(resolveOfficialImageSubjects(lucianSlot("scene2")).foreground, "solo_character");
     assert.deepEqual(resolveOfficialImageSubjects(lucianSlot("scene3")), USER_PARTNER_SUBJECTS);
+    const wolfgang = readPilot("pilot-rf-02");
+    for (const slotKey of ["scene1", "scene2", "scene3"] as const) {
+      assert.deepEqual(
+        resolveOfficialImageSubjects(wolfgang.assetPlan.slots.find((slot) => slot.slotKey === slotKey)!),
+        { foreground: "solo_character", backgroundExtras: "none" },
+        `pilot-rf-02/${slotKey}`
+      );
+    }
   });
 
   it("keeps all current required-partner pilots as explicit user-role contracts", () => {
@@ -287,7 +295,11 @@ describe("official image subject owner (#participant-count)", () => {
         });
       }
     }
-    assert.equal(partnerSlots.length, 24);
+    assert.equal(partnerSlots.some((key) => key.startsWith("pilot-rf-02/")), false);
+    assert.ok(partnerSlots.includes("pilot-rf-03/scene1"));
+    assert.ok(partnerSlots.includes("pilot-rf-03/scene3"));
+    assert.equal(partnerSlots.includes("pilot-rf-03/scene2"), false);
+    assert.equal(partnerSlots.length, 21);
   });
 
   it("user-role contract keeps interaction poses and allows a pose-needed partial fragment", () => {

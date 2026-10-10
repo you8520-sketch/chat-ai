@@ -507,9 +507,9 @@
       {
         "slotKey": "emo1",
         "kind": "emotion",
-        "tag": "차가운 심문",
-        "expression": "상대의 답과 소지품을 대조하는 날 선 시선",
-        "pose": "책상 너머로 몸을 기울여 질문한다",
+        "tag": "기록의 모순",
+        "expression": "서로 다른 인장이 찍힌 문서를 바라보며 눈썹을 미세하게 좁힌 의심",
+        "pose": "서로 다른 인장이 찍힌 문서를 바라본다",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -577,7 +577,7 @@
         "kind": "emotion",
         "tag": "경계의 완화",
         "expression": "신뢰를 완전히 주지는 않지만 압박을 거둔 표정",
-        "pose": "상대의 수갑을 풀도록 손짓한다",
+        "pose": "검을 쥔 손을 천천히 놓고 반박 자료를 읽도록 문서를 펼쳐 둔다",
         "outfit": "default",
         "location": null,
         "situation": null,
@@ -609,55 +609,52 @@
       {
         "slotKey": "scene1",
         "kind": "scene",
-        "tag": "봉인 상자 앞의 심문",
-        "expression": "압박 속에서도 답을 기다리는 엄정한 표정",
-        "pose": "봉인된 증거 상자 옆에서 상대의 진술과 운반 경위를 묻는다",
+        "tag": "위조된 명령서의 밤",
+        "expression": "증거를 보여주며 판단을 보류하는 표정",
+        "pose": "장갑 낀 손으로 서로 모순된 문서를 보여주며 판단을 보류한다",
         "outfit": "default",
         "location": "발켄하임 혹한의 검은 방벽 (흑철 요새) 집무실",
-        "situation": "금지된 마석의 소유권을 주장하는 플레이어를 압송해 온 볼프강이 상자를 열기 전 출처를 묻는다. 답변·침묵·증거 제시·반문 중 무엇을 택하느냐에 따라 심문과 신뢰의 방향이 달라진다.",
+        "situation": "흑철 요새 집무실, 황실 문장과 볼프강 인장이 있는 서로 모순된 문서 두 장, 장갑 낀 볼프강이 증거를 보여주며 판단을 보류한다.",
         "characterPresence": "required",
         "depiction": "standard",
         "personTag": "의심",
         "imageSubjects": {
-          "foreground": "character_plus_required_partner",
-          "partnerRole": "user",
-          "backgroundExtras": "optional_unnamed"
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
         }
       },
       {
         "slotKey": "scene2",
         "kind": "scene",
-        "tag": "관할권의 증거 대조",
+        "tag": "봉인된 장부의 빈칸",
         "expression": "서로 다른 문서의 모순을 놓치지 않는 집중",
-        "pose": "플레이어와 함께 증인 진술과 감정 결과를 펼쳐 놓고 자료를 대조한다",
+        "pose": "서로 다른 인계 기록과 증인의 서류를 맞춰 본다",
         "outfit": "default",
         "location": "판도라 대도서관 심연의 아카이브",
-        "situation": "황실·학술원·길드가 마석의 관할권을 주장하며 상충하는 문서와 증인을 내민다. 볼프강과 플레이어는 증거를 보존할지, 위험을 감수하고 출처를 추적할지 결정해야 한다.",
+        "situation": "판도라 아카이브에서 서로 다른 인계 기록·증인의 서류를 맞춰 보는 볼프강.",
         "characterPresence": "required",
         "depiction": "standard",
         "personTag": "진지함",
         "imageSubjects": {
-          "foreground": "character_plus_required_partner",
-          "partnerRole": "user",
-          "backgroundExtras": "optional_unnamed"
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
         }
       },
       {
         "slotKey": "scene3",
         "kind": "scene",
-        "tag": "차폐막 붕괴의 선택",
-        "expression": "위기 속에서도 상대의 판단을 기다리는 단호한 표정",
-        "pose": "차폐막 제어반 앞에서 플레이어에게 선택지를 맡기고 직접 대응 태세를 취한다",
+        "tag": "황실의 마지막 압박",
+        "expression": "처형 명령을 강요하는 황실 권력에 단호히 맞서는 표정",
+        "pose": "불안정한 차폐막과 조명 아래 처형 명령을 강요하는 황실 권력에 단호히 맞선다",
         "outfit": "default",
         "location": "솔라리스 유리온실 (태양궁 최상층)",
-        "situation": "에너지망 고갈로 온실 차폐막이 무너지기 시작하고, 황실 측은 마석의 즉각 가동을 요구한다. 볼프강은 명령에 따를지 공개적으로 거부할지 플레이어와 함께 결정하며, 선택의 책임과 두 사람의 협력 관계가 걸린다.",
+        "situation": "솔라리스 유리온실의 불안정한 차폐막과 조명 아래, 처형 명령을 강요하는 황실 권력에 볼프강이 단호히 맞선다.",
         "characterPresence": "required",
         "depiction": "standard",
         "personTag": "긴장",
         "imageSubjects": {
-          "foreground": "character_plus_required_partner",
-          "partnerRole": "user",
-          "backgroundExtras": "optional_unnamed"
+          "foreground": "solo_character",
+          "backgroundExtras": "none"
         }
       }
     ]
