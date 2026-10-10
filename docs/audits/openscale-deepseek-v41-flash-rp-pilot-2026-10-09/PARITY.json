@@ -1,0 +1,95 @@
+{
+  "status": "FIXTURE_PARITY_FAIL",
+  "precallReady": false,
+  "productionParityStatus": "NOT_COMPARABLE",
+  "qualityScoreEligible": false,
+  "goldenV1StaleAgainstOriginMain": true,
+  "goldenV1DeployedGitSha": "e1fdab509d2e9713be617025f77ea40a5bfb85f5",
+  "originMainSuccessSha": "NOT_OBSERVED_THIS_TURN",
+  "previouslyObservedSuccessShaNotReused": "4d83c100666878cca747408ae72a18f3360310ac",
+  "productionRequestParity": "NOT_OWNED_BY_CALLER",
+  "ownedProductionRequestParity": "NOT_COMPARABLE",
+  "ownedMatchRequires": [
+    "/data/app.db",
+    "observed 40-hex RAILWAY_GIT_COMMIT_SHA equal to caller and golden"
+  ],
+  "syntheticDbFingerprintMatch": "fixture_diagnostic_only",
+  "providerSemanticParity": "SEMANTIC_PARITY_UNCONFIRMED",
+  "productionParityOwner": "scripts/lib/rpMainRpStyleLengthGolden.evaluateOwnedProductionRequestParity",
+  "advisoryParityClassifier": "src/lib/rpMainRpStyleLengthFixture.classifyMainRpProductionParity",
+  "lengthOwner": "UNIFIED_TIER_AIM_CHARS",
+  "softAimChars": 3200,
+  "thinkingReasoningSemantic": "SEMANTIC_PARITY_UNCONFIRMED",
+  "classification": "NOT_REPRODUCIBLE",
+  "baseline": "rp_quality_precall_abc",
+  "distinctFromPhase2Q1Q9": true,
+  "thisTurnProviderInferencePosts": 0,
+  "thisTurnCheaperInferencePosts": 0,
+  "retry": 0,
+  "fallback": 0,
+  "productionDbWrites": 0,
+  "required": {
+    "characterId": 18,
+    "characterName": "라이크",
+    "personaName": "렌",
+    "personaId": "FROM_VERIFIED_LIVE_PROOF_ONLY",
+    "historicalRecordedPersonaId": 1,
+    "sceneFamily": "rp_quality_precall_abc",
+    "fixtureIds": [
+      "A_relationship_emotion",
+      "B_conflict_action_spatial",
+      "C_continuity_progression"
+    ],
+    "stimulus": {
+      "A_relationship_emotion": "quiet_window_safe",
+      "B_conflict_action_spatial": "conflict_action_spatial_safe",
+      "C_continuity_progression": "relationship_turn_safe"
+    }
+  },
+  "scenes": {
+    "A_relationship_emotion": {
+      "stimulusId": "quiet_window_safe",
+      "contentFingerprint": null,
+      "estimatedPromptTokens": null,
+      "screeningUsd": null
+    },
+    "B_conflict_action_spatial": {
+      "stimulusId": "conflict_action_spatial_safe",
+      "contentFingerprint": null,
+      "estimatedPromptTokens": null,
+      "screeningUsd": null
+    },
+    "C_continuity_progression": {
+      "stimulusId": "relationship_turn_safe",
+      "contentFingerprint": null,
+      "estimatedPromptTokens": null,
+      "screeningUsd": null
+    }
+  },
+  "rejectedDiagnostic": {
+    "fixtureId": "B03a",
+    "characterName": "한서린",
+    "personaName": "민",
+    "outputChars": 945,
+    "comparableToApprovedStyleEval": false
+  },
+  "liveRailway": {
+    "productionDeployId": "e1c8670c-8210-4062-88da-dbd6c0b26906",
+    "productionCommit": "b15e87e75b61d5ae4f84203865a6597df9916064",
+    "observedAt": "2026-10-10T07:30:56.704Z",
+    "observation": "railway deployment list SUCCESS metadata only",
+    "ssh": "NOT_EXECUTED",
+    "sshReason": "no usable SSH key; railway whoami unauthorized; no key generated",
+    "dbHashProbe": "NOT_OBSERVED",
+    "confirmedPersonaId": null,
+    "historicalLiveDeployedRowProofIsCurrent": false
+  },
+  "cheaperInferenceAbcComparableOutputs": "NONE_FOR_CURRENT_PRECALL_PLAN",
+  "defaultGateReasons": [
+    "sceneId_missing",
+    "live_proof_not_provided",
+    "live_proof_not_verified",
+    "assembly_not_provided",
+    "expected_content_fingerprint_missing"
+  ]
+}

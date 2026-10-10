@@ -10,6 +10,8 @@
  *   `REGULAR_TEST_REAL_PROVIDER_CALLS=1`. That flag only gates manual live-probe
  *   eligibility (together with a probe-specific flag and
  *   `CHEAPER_INFERENCE_BENCHMARK_API_KEY`); it never unlocks production keys.
+ * - Isolated experiment credentials (`FLUENCE_API_KEY`, `OPENSCALE_KEY`) are
+ *   also removed so regular tests cannot reuse them as a production fallback.
  * - The benchmark-only credential is left untouched.
  *
  * Production blast radius is zero: production never loads this module, and
@@ -23,3 +25,4 @@ delete process.env.CHEAPER_INFERENCE_API_KEY;
 delete process.env.OPENROUTER_API_KEY;
 delete process.env.OPENAI_API_KEY;
 delete process.env.FLUENCE_API_KEY;
+delete process.env.OPENSCALE_KEY;

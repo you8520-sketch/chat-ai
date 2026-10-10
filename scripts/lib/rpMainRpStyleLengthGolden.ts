@@ -6,6 +6,7 @@
 import { createHash } from "node:crypto";
 
 import { MAIN_RP_MODEL_IDS, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
+import { readRailwayDeploymentSha } from "@/lib/opsRequestIncidents";
 import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
 import {
   buildPaidRunnerPublicManifest,
@@ -388,6 +389,102 @@ export function compareCurrentLiveToGolden(input: {
     goldenFinalWires: golden.publicManifest.calls.map((call) => call.finalWireFingerprint),
     liveFinalWires: assembled.sealedRequests.map((request) => request.finalWireFingerprint),
   });
+}
+
+const RAILWAY_PRODUCTION_DB_PATH = "/data/app.db";
+
+export type OwnedFingerprintParity =
+  | "MATCH"
+  | "MISMATCH"
+  | "STALE_PRODUCTION_SNAPSHOT"
+  | "NOT_COMPARABLE";
+
+export type OwnedProductionRequestParity = {
+  productionRequestParity: OwnedFingerprintParity;
+  fixtureFingerprintParity: OwnedFingerprintParity;
+  providerSemanticParity: "NOT_IN_SCOPE";
+  qualityScoreEligible: false;
+  reasons: readonly string[];
+  railwayProductionDb: boolean;
+  runtimeDeployShaObserved: boolean;
+};
+
+function observedRuntimeDeploySha(): string {
+  const sha = readRailwayDeploymentSha();
+  return /^[0-9a-f]{40}$/.test(sha) ? sha : "";
+}
+
+/**
+ * Reloads the sealed golden and the given DB itself. Caller hashes are not
+ * evidence. `input.env` is only for existing DB/admin flag reads.
+ * Operational MATCH requires Railway `/data/app.db` plus the executing
+ * process `RAILWAY_GIT_COMMIT_SHA` (40 hex) equal to the caller SHA and the
+ * golden SHA. A temp-DB fingerprint hit is fixture diagnostic only.
+ */
+export function evaluateOwnedProductionRequestParity(input: {
+  dbPath: string;
+  deployedGitSha: string;
+  env: Readonly<Record<string, string | undefined>>;
+  version: number;
+  root?: string;
+}): OwnedProductionRequestParity {
+  const golden = reloadMainRpStyleLengthGolden({ root: input.root, version: input.version });
+  const live = loadPrecallProductionRows({
+    dbPath: input.dbPath,
+    deployedGitSha: input.deployedGitSha,
+    env: input.env,
+  });
+  const assembled = assemblePrecallFinalWireWithSealedRequests(live.rows);
+  const reasons: string[] = [];
+  const goldenSha = golden.publicManifest.deployedGitSha.trim().toLowerCase();
+  const callerSha = input.deployedGitSha.trim().toLowerCase();
+  const runtimeSha = observedRuntimeDeploySha();
+  const runtimeDeployShaObserved = runtimeSha.length === 40;
+  const railwayProductionDb = input.dbPath === RAILWAY_PRODUCTION_DB_PATH;
+  if (!railwayProductionDb) reasons.push("db_path_is_not_railway_production");
+  if (!runtimeDeployShaObserved) reasons.push("runtime_deploy_sha_unobserved");
+  else if (runtimeSha !== callerSha) reasons.push("caller_deploy_sha_does_not_match_runtime");
+  if (goldenSha !== callerSha || (runtimeDeployShaObserved && runtimeSha !== goldenSha)) {
+    reasons.push("stale_production_snapshot");
+  }
+  const goldenByKey = new Map(
+    golden.publicManifest.calls.map((call) => [`${call.fixtureId}:${call.canonicalId}`, call])
+  );
+  let fingerprintMismatch = golden.publicManifest.calls.length !== assembled.sealedRequests.length;
+  for (const request of assembled.sealedRequests) {
+    const expected = goldenByKey.get(`${request.fixtureId}:${request.canonicalId}`);
+    if (
+      !expected ||
+      expected.finalWireFingerprint !== request.finalWireFingerprint ||
+      expected.requestBodyFingerprint !== request.requestBodyFingerprint
+    ) {
+      fingerprintMismatch = true;
+    }
+  }
+  if (fingerprintMismatch) reasons.push("final_wire_or_body_fingerprint_mismatch");
+  const fixtureFingerprintParity: OwnedFingerprintParity =
+    goldenSha !== callerSha
+      ? "STALE_PRODUCTION_SNAPSHOT"
+      : fingerprintMismatch
+        ? "MISMATCH"
+        : "MATCH";
+  let productionRequestParity: OwnedFingerprintParity = "NOT_COMPARABLE";
+  if (railwayProductionDb && runtimeDeployShaObserved && runtimeSha === callerSha) {
+    if (runtimeSha !== goldenSha) productionRequestParity = "STALE_PRODUCTION_SNAPSHOT";
+    else if (fingerprintMismatch) productionRequestParity = "MISMATCH";
+    else productionRequestParity = "MATCH";
+  }
+  reasons.push("provider_semantic_parity_not_evaluated");
+  reasons.push("quality_score_requires_separate_gate");
+  return {
+    productionRequestParity,
+    fixtureFingerprintParity,
+    providerSemanticParity: "NOT_IN_SCOPE",
+    qualityScoreEligible: false,
+    reasons,
+    railwayProductionDb,
+    runtimeDeployShaObserved,
+  };
 }
 
 export function paidSealedCallsFromGoldenSnapshot(

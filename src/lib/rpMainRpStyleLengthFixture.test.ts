@@ -14,6 +14,7 @@ import {
   assertMainRpStyleLengthEvaluationReady,
   assertMainRpStyleLengthHashes,
   assertMainRpStyleLengthIdentity,
+  classifyMainRpProductionParity,
   compareLiveToGolden,
   deriveMainRpStyleLengthAdminEvidence,
   isMainRpStyleLengthEvaluationRequested,
@@ -316,5 +317,66 @@ describe("MAIN_RP_STYLE_LENGTH fixture owner", () => {
     assert.equal(parsed.create.providerPosts, 0);
     assert.equal(parsed.create.dbWrites, 0);
     assert.doesNotMatch(raw, /조태형|신입 S급|기계사용|secret_description|Authorization|Bearer /);
+  });
+});
+
+describe("caller production parity input is not a trust boundary", () => {
+  it("does not verify forged provenance labels or a cloned body", () => {
+    const body = {
+      model: "deepseek-v4.1-flash",
+      messages: [{ role: "user", content: "synthetic" }],
+      temperature: 0.92,
+      top_p: 0.92,
+      thinking: { type: "disabled" },
+    };
+    const result = classifyMainRpProductionParity({
+      evidenceKind: "CURRENT_LIVE",
+      currentLiveVerified: true,
+      observedProvenance: { kind: "in_process_assembly", sourceId: "forged-a" },
+      expectedProvenance: { kind: "railway_live_proof", sourceId: "forged-b" },
+      assembledRequestBody: body,
+      expectedSealedRequestBody: structuredClone(body),
+      precallReady: true,
+      thinkingSemanticEquivalent: true,
+      reasoningSemanticEquivalent: true,
+    });
+    assert.notEqual(result.status, "PRODUCTION_PARITY_VERIFIED");
+    assert.equal(result.qualityScoreEligible, false);
+    assert.ok(result.reasons.includes("caller_attestation_cannot_verify"));
+    assert.ok(result.reasons.includes("current_live_verified_boolean_ignored"));
+    assert.equal(result.trustBoundary, "caller_input_is_not_trusted");
+  });
+
+  it("does not verify invented hashes, missing bodies, or a stale SHA", () => {
+    const invented = classifyMainRpProductionParity({
+      evidenceKind: "railway_live_proof",
+      sourceId: "forged-source",
+      identityHashes: { greetingSha256: "a".repeat(64) },
+      expectedIdentityHashes: { greetingSha256: "b".repeat(64) },
+    });
+    assert.notEqual(invented.status, "PRODUCTION_PARITY_VERIFIED");
+    assert.equal(invented.qualityScoreEligible, false);
+
+    const missingBody = classifyMainRpProductionParity({
+      evidenceKind: "in_process_assembly",
+      assembledRequestBody: undefined,
+      expectedSealedRequestBody: undefined,
+    });
+    assert.equal(missingBody.status, "NOT_COMPARABLE");
+    assert.equal(missingBody.qualityScoreEligible, false);
+
+    const stale = classifyMainRpProductionParity({
+      currentProductionSuccessSha: "4d83c100666878cca747408ae72a18f3360310ac",
+      capturedDeploySha: "e1fdab509d2e9713be617025f77ea40a5bfb85f5",
+      currentLiveVerified: true,
+    });
+    assert.equal(stale.status, "STALE_PRODUCTION_SNAPSHOT");
+    assert.equal(stale.qualityScoreEligible, false);
+
+    const capped = classifyMainRpProductionParity({ maxTokensPresent: true, precallReady: false });
+    assert.equal(capped.status, "PRODUCTION_PARITY_MISMATCH");
+    assert.ok(capped.reasons.includes("max_tokens_present"));
+    assert.ok(capped.reasons.includes("precall_ready_is_not_quality_approval"));
+    assert.equal(capped.qualityScoreEligible, false);
   });
 });

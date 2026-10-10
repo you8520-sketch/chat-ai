@@ -17,6 +17,7 @@ import {
   type RpQualityPrecallFixtureId,
 } from "@/lib/rpQualityPrecall";
 import type { PaidRunnerIdentityHashes } from "@/lib/rpQualityPaidRunner";
+import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import {
   DEFAULT_USER_AUTHORING_LEVEL,
   capabilitiesFromUserAuthoringLevel,
@@ -330,4 +331,76 @@ export function isMainRpStyleLengthEvaluationRequested(
   env: NodeJS.ProcessEnv = process.env
 ): boolean {
   return env.MAIN_RP_STYLE_LENGTH === "1" || env.MAIN_RP_STYLE_LENGTH_EVALUATION === "1";
+}
+
+export const PRODUCTION_PARITY_STATUSES = [
+  "PRODUCTION_PARITY_VERIFIED",
+  "PRODUCTION_PARITY_MISMATCH",
+  "SEMANTIC_PARITY_UNCONFIRMED",
+  "STALE_PRODUCTION_SNAPSHOT",
+  "NOT_COMPARABLE",
+] as const;
+export type ProductionParityStatus = (typeof PRODUCTION_PARITY_STATUSES)[number];
+
+/**
+ * Caller-supplied provenance is advisory only. PRODUCTION_PARITY_VERIFIED and
+ * quality-score eligibility are not granted here. Owned comparison lives in
+ * scripts/lib/rpMainRpStyleLengthGolden.evaluateOwnedProductionRequestParity.
+ */
+export type ProductionParityInput = {
+  evidenceKind?: string;
+  currentProductionSuccessSha?: string | null;
+  capturedDeploySha?: string | null;
+  currentLiveVerified?: boolean;
+  maxTokensPresent?: boolean;
+  precallReady?: boolean | null;
+  [key: string]: unknown;
+};
+
+export type ProductionParityResult = {
+  status: ProductionParityStatus;
+  qualityScoreEligible: false;
+  reasons: readonly string[];
+  softAimChars: typeof UNIFIED_TIER_AIM_CHARS;
+  targetLengthOwner: "UNIFIED_TIER_AIM_CHARS";
+  precallReadyIsSeparate: true;
+  paidAuthorizationIsSeparate: true;
+  trustBoundary: "caller_input_is_not_trusted";
+};
+
+export function goldenV1StaleAgainstCurrentSuccess(
+  currentSuccessSha: string | null | undefined
+): boolean {
+  const current = (currentSuccessSha ?? "").trim().toLowerCase();
+  if (!current) return true;
+  return current !== MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.deployedGitSha.toLowerCase();
+}
+
+export function classifyMainRpProductionParity(
+  input: ProductionParityInput = {}
+): ProductionParityResult {
+  const reasons = ["caller_attestation_cannot_verify"];
+  const current = (input.currentProductionSuccessSha ?? "").trim().toLowerCase();
+  const captured = (input.capturedDeploySha ?? "").trim().toLowerCase();
+  let status: ProductionParityStatus = "NOT_COMPARABLE";
+  if (input.maxTokensPresent === true) {
+    reasons.push("max_tokens_present");
+    status = "PRODUCTION_PARITY_MISMATCH";
+  } else if (captured && current && captured !== current) {
+    reasons.push("stale_production_snapshot");
+    status = "STALE_PRODUCTION_SNAPSHOT";
+  } else if (input.currentLiveVerified === true) {
+    reasons.push("current_live_verified_boolean_ignored");
+  }
+  if (input.precallReady === false) reasons.push("precall_ready_is_not_quality_approval");
+  return {
+    status,
+    qualityScoreEligible: false,
+    reasons,
+    softAimChars: UNIFIED_TIER_AIM_CHARS,
+    targetLengthOwner: "UNIFIED_TIER_AIM_CHARS",
+    precallReadyIsSeparate: true,
+    paidAuthorizationIsSeparate: true,
+    trustBoundary: "caller_input_is_not_trusted",
+  };
 }
