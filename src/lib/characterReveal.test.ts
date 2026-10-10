@@ -319,6 +319,17 @@ describe("character kinetic assembly choreography", () => {
     assert.notEqual(B.taglineStartMs, B.tagStartMs);
   });
 
+  it("has no leftover uniform-motion keyframes and every rv animation is defined", () => {
+    const css = read("src/app/globals.css");
+    for (const dead of ["rv-rise", "rv-rise-fade", "rv-name-text", "rv-item-in", ".rv-chip"]) {
+      assert.ok(!css.includes(dead), `${dead} should be removed`);
+    }
+    const defined = new Set([...css.matchAll(/@keyframes (rv-[\w-]+)/g)].map((m) => m[1]));
+    const used = new Set([...css.matchAll(/animation:\s*(rv-[\w-]+)/g)].map((m) => m[1]));
+    for (const name of used) assert.ok(defined.has(name), `${name} is defined`);
+    for (const name of defined) assert.ok(used.has(name), `${name} is used`);
+  });
+
   it("computes per-element settle deltas and scales only fitted elements", () => {
     const from = { left: 100, top: 300, width: 600, height: 240 };
     const to = { left: 400, top: 200, width: 300, height: 120 };
