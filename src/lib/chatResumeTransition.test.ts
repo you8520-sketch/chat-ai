@@ -183,6 +183,31 @@ describe("chat resume arrival", () => {
     assert.equal(arrive({ room: null, pathname: "/chat/7", search: "?chat=70" }), "pending");
   });
 
+  it("keeps holding while a delayed navigation is still on the page that was clicked", () => {
+    assert.equal(
+      resolveChatArrival({
+        dest,
+        origin: null,
+        room: null,
+        pathname: "/tab/new",
+        url: "/tab/new",
+        from: "/tab/new",
+      }),
+      "pending",
+    );
+    assert.equal(
+      resolveChatArrival({
+        dest,
+        origin: null,
+        room: null,
+        pathname: "/login",
+        url: "/login",
+        from: "/tab/new",
+      }),
+      "abandoned",
+    );
+  });
+
   it("abandons on redirects away from the room and on other characters' rooms", () => {
     for (const pathname of ["/login", "/verify", "/character/7", "/tab/new", "/"]) {
       assert.equal(arrive({ room: null, pathname }), "abandoned", pathname);
@@ -365,6 +390,7 @@ describe("chat resume ownership", () => {
     assert.match(host, /decideChatBurstAction\(/);
     assert.match(host, /MutationObserver/);
     assert.match(host, /next\.kind !== "chat"/);
+    assert.match(host, /from: `\$\{window\.location\.pathname\}/);
     assert.match(host, /readChatRoom\(\)/);
     assert.match(host, /dropBurst\(id\)/);
     assert.match(read("src/app/chat/[id]/ChatClient.tsx"), /chatRoomAttrs\(/);

@@ -80,6 +80,8 @@ type ChatBurst = BurstBase & {
   url: string;
   /** 이 burst가 밀어낸 이전 burst들의 목적지 — 먼저 도착해도 최종 방이 아니다. */
   superseded: string[];
+  /** 클릭 당시 위치. 늦은 RSC 동안 그대로면 pending이다. */
+  from: string;
 };
 type Burst = MenuBurst | CharacterBurst | ChatBurst;
 
@@ -345,6 +347,7 @@ export default function MenuTransitionHost() {
       pathname: window.location.pathname,
       url: `${window.location.pathname}${window.location.search}`,
       superseded: cur.superseded,
+      from: cur.from,
     });
     const action = decideChatBurstAction(
       arrival,
@@ -394,6 +397,7 @@ export default function MenuTransitionHost() {
       scene,
       dest: dest.pathname,
       url: `${dest.pathname}${dest.search}`,
+      from: `${window.location.pathname}${window.location.search}`,
       origin,
       superseded,
       phase: "cover",
