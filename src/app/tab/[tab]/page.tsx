@@ -8,6 +8,7 @@ import UserPreferenceControls from "@/components/UserPreferenceControls";
 import StudioButton from "@/components/studio/StudioButton";
 import { CHARACTER_GENRES, genreFilterSql, type CharacterGenre } from "@/lib/characterGenres";
 import { characterRevealAttrs } from "@/lib/characterReveal";
+import { readPublicProfileFacts } from "@/lib/publicProfileFacts";
 import { listableWhere } from "@/lib/characterVisibility";
 import { characterCardHref } from "@/lib/chatLinks";
 import {
@@ -246,6 +247,7 @@ export default async function TabPage({
                     name: c.name,
                     genre: c.genre?.trim() || "",
                     tagline: c.tagline,
+                    facts: readPublicProfileFacts(c.id),
                     href,
                     hidden,
                     hasThumb: Boolean(thumb),

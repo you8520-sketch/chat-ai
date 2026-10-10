@@ -5,6 +5,7 @@ import AdultContentBadge from "@/components/AdultContentBadge";
 import CharacterCardCarousel from "@/components/CharacterCardCarousel";
 import { characterCardHref } from "@/lib/chatLinks";
 import { characterRevealAttrs } from "@/lib/characterReveal";
+import { readPublicProfileFacts } from "@/lib/publicProfileFacts";
 import { getCharacterRepresentativePublicUrls } from "@/lib/characterAssets";
 import { characterHueAccent } from "@/lib/characterHueAccent";
 import type { CreatorTierLevel } from "@/lib/creatorShared";
@@ -145,6 +146,7 @@ function revealAttrs(c: CharacterRow, view: CardView): Record<string, string> {
     genre: view.genreLabel,
     tagline: c.tagline,
     tags: view.tags,
+    facts: readPublicProfileFacts(c.id),
     href: view.href,
     hidden: view.hidden,
     hasThumb: Boolean(view.thumb),

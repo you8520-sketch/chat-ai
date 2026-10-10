@@ -49,6 +49,7 @@ import { isActivePartnerCreator } from "@/lib/partnerTier";
 import { isSiteManagedUser } from "@/lib/siteManagedAccounts";
 import { recordCharacterClick } from "@/lib/characterClicks";
 import { canAccessTrpg } from "@/lib/trpg/access";
+import { readPublicProfileFacts } from "@/lib/publicProfileFacts";
 
 export const dynamic = "force-dynamic";
 
@@ -321,6 +322,7 @@ export default async function CharacterPage({
         pagePath={`/character/${c.id}`}
         heroVariant="poster"
         genre={c.genre}
+        facts={readPublicProfileFacts(c.id)}
       />
 
       <div className="flex flex-wrap items-center gap-3">

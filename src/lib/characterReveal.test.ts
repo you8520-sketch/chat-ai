@@ -5,8 +5,15 @@ import { describe, it } from "node:test";
 
 import {
   CHARACTER_CARD_ATTR,
-  REVEAL_ITEM_KEYS,
   CHARACTER_REVEAL_TIMING,
+  REVEAL_BEATS,
+  REVEAL_FACT_SCATTER,
+  REVEAL_TAG_SCATTER,
+  revealGlyphDelayMs,
+  revealGlyphMotion,
+  revealGlyphRanks,
+  revealSettleDelta,
+  splitRevealGraphemes,
   characterRevealAttrs,
   characterRevealDelayMs,
   computeRevealLayout,
@@ -18,6 +25,13 @@ import {
   splitRevealName,
 } from "@/lib/characterReveal";
 import { MENU_TRANSITION_TIMING } from "@/lib/menuTransitionSpec";
+import {
+  formatRecordFileLabel,
+  normalizePublicProfileFacts,
+  parsePublicProfileFacts,
+  readPublicProfileFacts,
+  serializePublicProfileFacts,
+} from "@/lib/publicProfileFacts";
 
 const root = process.cwd();
 const read = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
@@ -113,7 +127,8 @@ describe("character reveal name layout", () => {
     ] as const) {
       for (const name of ["강이현", "루시안 바스케스", "엘레노어 폰 하이덴베르크 드 라 몽테뉴 대공녀"]) {
         const { lines, maxChars } = splitRevealName(name);
-        const layout = computeRevealLayout(vw, vh, lines.length, maxChars);
+        for (const withFacts of [false, true]) {
+        const layout = computeRevealLayout(vw, vh, lines.length, maxChars, { facts: withFacts });
         const { frame, nameBox, nameFontPx, info } = layout;
         assert.ok(Math.abs(frame.width / frame.height - REVEAL_FRAME_ASPECT) < 0.001, `${vw}x${vh} aspect`);
         assert.ok(frame.left >= 0 && frame.left + frame.width <= vw + 0.5, `${vw}x${vh} frame x`);
@@ -124,7 +139,9 @@ describe("character reveal name layout", () => {
         assert.ok(info.eyebrowTop >= 0, `${vw}x${vh} eyebrow top`);
         assert.ok(nameBox.top >= info.eyebrowTop, `${vw}x${vh} eyebrow above name`);
         assert.ok(info.subTop >= nameBox.top + nameBox.height, `${vw}x${vh} sub below name`);
-        assert.ok(info.subTop + 112 <= vh + 0.5, `${vw}x${vh} dossier fits viewport height`);
+        assert.ok(info.factsTop >= nameBox.top + nameBox.height, `${vw}x${vh} facts below name`);
+        assert.ok(info.subTop >= info.factsTop + (withFacts ? 60 : 0), `${vw}x${vh} sub below facts`);
+        assert.ok(info.subTop + 112 <= vh + 0.5, `${vw}x${vh} dossier fits viewport height (facts=${withFacts})`);
         if (layout.compact) {
           assert.ok(nameBox.top >= frame.top + frame.height, `${vw}x${vh} mobile name never covers the illustration`);
         } else {
@@ -132,6 +149,7 @@ describe("character reveal name layout", () => {
           assert.ok(info.left + info.width <= frame.left, `${vw}x${vh} dossier stays clear of the illustration`);
         }
         assert.equal(layout.compact, vw < 768);
+        }
       }
     }
   });
@@ -203,14 +221,21 @@ describe("character reveal ownership", () => {
     assert.match(host, /dropBurst\(cur\.id\)/);
   });
 
-  it("keeps the overlay dossier and the profile hero wired through the same item keys", () => {
+  it("keeps every overlay element wired to a profile hero element through the same key", () => {
     const preview = read("src/components/CharacterPublicPagePreview.tsx");
     const scene = read("src/components/CharacterRevealScene.tsx");
-    for (const key of REVEAL_ITEM_KEYS) {
+    const record = read("src/components/CharacterRecord.tsx");
+    for (const key of ["name", "eyebrow", "tagline"]) {
       assert.match(preview, new RegExp(`\\[HERO_ITEM_ATTR\\]: "${key}"`), `hero ${key}`);
       assert.match(scene, new RegExp(`\\[REVEAL_ITEM_ATTR\\]: "${key}"`), `overlay ${key}`);
     }
-    assert.doesNotMatch(scene, /creator/i, "creator is not part of the overlay dossier");
+    assert.match(preview, /HERO_ITEM_ATTR\]: revealTagKey\(i\)/);
+    assert.match(scene, /REVEAL_ITEM_ATTR\]: key/);
+    // 인적사항은 hero와 오버레이가 같은 마크업(CharacterRecord)을 쓴다.
+    assert.match(preview, /<CharacterRecord[^>]*variant="hero"/);
+    assert.match(scene, /<CharacterRecord[^>]*variant="overlay"/);
+    assert.match(record, /itemAttr = overlay \? REVEAL_ITEM_ATTR : HERO_ITEM_ATTR/);
+    assert.doesNotMatch(scene, /creator/i, "creator is not part of the overlay");
   });
 
   it("moves the gallery out of the poster hero into its own body section", () => {
@@ -237,5 +262,110 @@ describe("character reveal ownership", () => {
     const block = css.slice(css.indexOf("/* Phase D-1"), css.indexOf("@keyframes float-points-up"));
     assert.doesNotMatch(block, /animation:[^;]*\b(width|height|top|left)\b/);
     assert.doesNotMatch(block, /filter:\s*blur|backdrop-filter/);
+  });
+});
+
+describe("character kinetic assembly choreography", () => {
+  it("splits names by grapheme without breaking Hangul, jamo sequences or emoji", () => {
+    assert.deepEqual(splitRevealGraphemes("강이현"), ["강", "이", "현"]);
+    assert.deepEqual(splitRevealGraphemes("A-1 · 강"), ["A", "-", "1", " ", "·", " ", "강"]);
+    const decomposed = "\u1100\u1161\u11a8"; // ㄱ+ㅏ+ㄱ (조합형)
+    assert.equal(splitRevealGraphemes(decomposed).length, 1);
+    assert.equal(splitRevealGraphemes("👩‍💻나").length, 2);
+    assert.equal(splitRevealGraphemes("").length, 0);
+  });
+
+  it("converges glyphs from both ends toward the middle", () => {
+    assert.deepEqual(revealGlyphRanks(0), []);
+    assert.deepEqual(revealGlyphRanks(1), [0]);
+    assert.deepEqual(revealGlyphRanks(3), [0, 2, 1]);
+    assert.deepEqual(revealGlyphRanks(5), [0, 2, 4, 3, 1]);
+    for (const n of [2, 7, 12, 44]) {
+      assert.deepEqual([...revealGlyphRanks(n)].sort((a, b) => a - b), Array.from({ length: n }, (_, i) => i));
+    }
+  });
+
+  it("gives neighbouring glyphs different entry directions (not one shared slide)", () => {
+    const dirs = Array.from({ length: 6 }, (_, k) => Math.sign(revealGlyphMotion(k).y));
+    assert.ok(dirs.includes(1) && dirs.includes(-1));
+    for (let k = 0; k < 6; k++) assert.notEqual(Math.sign(revealGlyphMotion(k).y), Math.sign(revealGlyphMotion(k + 1).y));
+    const xs = new Set(Array.from({ length: 6 }, (_, k) => revealGlyphMotion(k).x));
+    assert.ok(xs.size >= 5);
+  });
+
+  it("starts tags and facts from distinct scattered positions", () => {
+    for (const table of [REVEAL_TAG_SCATTER, REVEAL_FACT_SCATTER]) {
+      assert.equal(new Set(table.map((t) => `${t.x}|${t.y}`)).size, table.length);
+      assert.ok(new Set(table.map((t) => Math.sign(parseFloat(t.y)))).size === 2, "both above and below");
+    }
+  });
+
+  it("keeps the whole assembly inside the existing 1.4s budget and overlaps the beats", () => {
+    const B = REVEAL_BEATS;
+    const { minCoverMs, holdMaxMs, revealMs } = CHARACTER_REVEAL_TIMING;
+    const lastGlyphEnd = revealGlyphDelayMs(revealGlyphRanks(44).length - 1, 44) + B.nameGlyphMs;
+    const factsEnd = B.factStartMs + 2 * B.factStepMs + B.factMs;
+    const tagsEnd = B.tagStartMs + 2 * B.tagStepMs + B.tagMs;
+    const taglineEnd = B.taglineStartMs + B.taglineMs;
+    for (const end of [B.inkOpenMs, B.frameFlyMs, lastGlyphEnd, factsEnd, tagsEnd, taglineEnd]) {
+      assert.ok(end <= minCoverMs + 100, `beat ends at ${end}ms`);
+    }
+    assert.ok(minCoverMs + revealMs <= 1500);
+    assert.ok(holdMaxMs + revealMs <= CHARACTER_REVEAL_TIMING.failsafeMs);
+    // beat가 시간상 겹친다: 이름이 끝나기 전에 인적사항·소개·태그가 시작한다.
+    const nameEnd = revealGlyphDelayMs(0, 3) + B.nameGlyphMs;
+    assert.ok(B.recordStartMs < nameEnd && B.factStartMs < nameEnd && B.taglineStartMs < nameEnd && B.tagStartMs < nameEnd);
+    // 소개와 태그는 서로 다른 시작 시각을 갖는다.
+    assert.notEqual(B.taglineStartMs, B.tagStartMs);
+  });
+
+  it("computes per-element settle deltas and scales only fitted elements", () => {
+    const from = { left: 100, top: 300, width: 600, height: 240 };
+    const to = { left: 400, top: 200, width: 300, height: 120 };
+    assert.deepEqual(revealSettleDelta(from, to, true), { tx: 300, ty: -100, scale: 0.5 });
+    assert.deepEqual(revealSettleDelta(from, to, false), { tx: 300, ty: -100, scale: 1 });
+    assert.equal(revealSettleDelta({ ...from, width: 0 }, to, true).scale, 1);
+    assert.equal(revealSettleDelta(from, { ...to, width: 100000 }, true).scale, 3);
+  });
+});
+
+describe("public profile facts data contract", () => {
+  it("has no public source today: real characters get no facts and the area is omitted", () => {
+    assert.deepEqual(readPublicProfileFacts(9820173), []);
+    const attrs = characterRevealAttrs({ id: 7, name: "강이현", genre: "", href: "/character/7", hidden: false, hasThumb: true, facts: [] });
+    assert.equal("data-character-facts" in attrs, false);
+  });
+
+  it("keeps only valid values in a fixed order and omits the rest", () => {
+    assert.deepEqual(normalizePublicProfileFacts({ gender: "female", heightCm: 168.4, weightKg: 52 }).map((f) => `${f.key}:${f.value}`), [
+      "gender:여성",
+      "height:168cm",
+      "weight:52kg",
+    ]);
+    assert.deepEqual(normalizePublicProfileFacts({ heightCm: 180 }).map((f) => f.key), ["height"]);
+    assert.deepEqual(normalizePublicProfileFacts({ gender: null, heightCm: 12, weightKg: Number.NaN }), []);
+    assert.deepEqual(normalizePublicProfileFacts({ heightCm: 999, weightKg: 5 }), []);
+  });
+
+  it("round-trips through the card marker and rejects malformed payloads", () => {
+    const facts = normalizePublicProfileFacts({ gender: "male", heightCm: 181, weightKg: 70 });
+    const attrs = characterRevealAttrs({ id: 7, name: "강이현", genre: "", href: "/character/7", hidden: false, hasThumb: true, facts });
+    assert.deepEqual(parsePublicProfileFacts(attrs["data-character-facts"]), facts);
+    assert.equal(serializePublicProfileFacts([]), "[]");
+    assert.deepEqual(parsePublicProfileFacts(null), []);
+    assert.deepEqual(parsePublicProfileFacts("nope"), []);
+    assert.deepEqual(parsePublicProfileFacts('[{"key":"secret","label":"x","value":"y"}]'), []);
+    assert.deepEqual(parsePublicProfileFacts('[{"key":"height","label":"키","value":""}]'), []);
+  });
+
+  it("derives the FILE number from the id only", () => {
+    assert.equal(formatRecordFileLabel(1), "FILE 001");
+    assert.equal(formatRecordFileLabel(9820173), "FILE 9820173");
+    assert.equal(formatRecordFileLabel(-4), "FILE 000");
+  });
+
+  it("never reads the private gender setting or prompt text for public facts", () => {
+    const reader = read("src/lib/publicProfileFacts.ts");
+    assert.doesNotMatch(reader.replace(/\/\*[\s\S]*?\*\//g, ""), /system_prompt|characters\.gender|\.gender\b.*row|appearance/);
   });
 });
