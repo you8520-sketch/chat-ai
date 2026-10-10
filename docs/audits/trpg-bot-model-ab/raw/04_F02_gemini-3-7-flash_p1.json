@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F02",
+  "model": "gemini-3.7-flash",
+  "pass": 1,
+  "call_index": 4,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 8021,
+  "output_token_count": 269,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 8897,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "세라는 들고 있던 양피지 수첩을 가볍게 털어내며 석문 가까이 다가섰습니다. 벽면에 잔류한 청백색 마력광을 따라 시선을 옮기자, 얽혀 있는 룬의 나열이 흐릿하게 드러났습니다.\n\n\"왕실 금고 기록에서 언급되던 3왕조 후기 봉인식과 유사합니다, 단장님.\"\n\n그녀는 장갑 낀 손가락으로 허공을 짚으며 문양의 흐름을 덧그렸습니다.\n\n\"다만 결계 붕괴 이후 마력의 역류로 인해 중심부 각인이 뒤틀려 있습니다. 우회로를 찾기보다 이 원천의 안정성을 먼저 파악해야 안전한 경로를 판단할 수 있을 것으로 보입니다. 잠시 시간을 주십시오.\"\n\n세라는 조심스럽게 문틈 사이로 마력의 파동을 흘려보내며 내부의 잔류 술식을 분석하기 시작했습니다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n<<<INTENT>>>\n세라는 석문에 새겨진 뒤틀린 룬 패턴과 문틈으로 새어 나오는 마력 파동을 분석하여 내부 원천의 위험도를 확인하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 459,
+    "outputTokenEstimate": 255,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "세라는 들고 있던 양피지 수첩을 가볍게 털어내며 석문 가까이 다가섰습니다. 벽면에 잔류한 청백색 마력광을 따라 시선을 옮기자, 얽혀 있는 룬의 나열이 흐릿하게 드러났습니다.\n\n\"왕실 금고 기록에서 언급되던 3왕조 후기 봉인식과 유사합니다, 단장님.\"\n\n그녀는 장갑 낀 손가락으로 허공을 짚으며 문양의 흐름을 덧그렸습니다.\n\n\"다만 결계 붕괴 이후 마력의 역류로 인해 중심부 각인이 뒤틀려 있습니다. 우회로를 찾기보다 이 원천의 안정성을 먼저 파악해야 안전한 경로를 판단할 수 있을 것으로 보입니다. 잠시 시간을 주십시오.\"\n\n세라는 조심스럽게 문틈 사이로 마력의 파동을 흘려보내며 내부의 잔류 술식을 분석하기 시작했습니다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "세라는 석문에 새겨진 뒤틀린 룬 패턴과 문틈으로 새어 나오는 마력 파동을 분석하여 내부 원천의 위험도를 확인하려 했다."
+  }
+}

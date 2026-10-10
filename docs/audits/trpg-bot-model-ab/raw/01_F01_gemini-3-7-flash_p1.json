@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F01",
+  "model": "gemini-3.7-flash",
+  "pass": 1,
+  "call_index": 1,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 8055,
+  "output_token_count": 363,
+  "cached_input_tokens": 4077,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 13894,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "카일은 혀를 차며 빠르게 손을 뻗어 유저의 어깨띠를 낚아채듯 잡았다. 붕괴된 석재 틈새로 새어 나오는 서늘한 기운과 바닥에 엉겨 붙은 마법진 흔적이 도적 특유의 불길한 육감을 자극하고 있었다.\n\n\"잠깐, 성급하게 몸부터 들이밀지 마. 저 틈새 천장 봤어? 네 어깨로 건드렸다간 통째로 무너져서 우리 다 생매장당해.\"\n\n그는 유저를 반 발자국 뒤로 물러서게 한 뒤, 몸을 낮춰 좁아진 문틈과 천장의 균열 사이로 시선을 던졌다. 틈새 안쪽의 마력 흐름이 불안정하게 흔들리는지, 아니면 실버크로우의 끄나풀이나 수호자가 숨겨둔 부비트랩이라도 얽혀 있는지 확인해야 했다.\n\n\"내가 먼저 틈새 사이로 함정선이나 불안정한 잔해 있는지 훑어볼 테니까, 너는 뒤에서 숨만 쉬고 있어.\"\n\n카일은 가벼운 농담을 툭 던지면서도 단검 손잡이를 쥔 채, 좁은 통로 입구의 잔해와 마력 잔광을 예리한 눈빛으로 뜯어보기 시작했다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n<<<INTENT>>>\n카일은 유저의 진입을 제지한 뒤, 좁아진 석실 입구와 천장 잔해에 함정이나 붕괴 위험이 있는지 먼저 조사하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 558,
+    "outputTokenEstimate": 310,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "카일은 혀를 차며 빠르게 손을 뻗어 유저의 어깨띠를 낚아채듯 잡았다. 붕괴된 석재 틈새로 새어 나오는 서늘한 기운과 바닥에 엉겨 붙은 마법진 흔적이 도적 특유의 불길한 육감을 자극하고 있었다.\n\n\"잠깐, 성급하게 몸부터 들이밀지 마. 저 틈새 천장 봤어? 네 어깨로 건드렸다간 통째로 무너져서 우리 다 생매장당해.\"\n\n그는 유저를 반 발자국 뒤로 물러서게 한 뒤, 몸을 낮춰 좁아진 문틈과 천장의 균열 사이로 시선을 던졌다. 틈새 안쪽의 마력 흐름이 불안정하게 흔들리는지, 아니면 실버크로우의 끄나풀이나 수호자가 숨겨둔 부비트랩이라도 얽혀 있는지 확인해야 했다.\n\n\"내가 먼저 틈새 사이로 함정선이나 불안정한 잔해 있는지 훑어볼 테니까, 너는 뒤에서 숨만 쉬고 있어.\"\n\n카일은 가벼운 농담을 툭 던지면서도 단검 손잡이를 쥔 채, 좁은 통로 입구의 잔해와 마력 잔광을 예리한 눈빛으로 뜯어보기 시작했다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "카일은 유저의 진입을 제지한 뒤, 좁아진 석실 입구와 천장 잔해에 함정이나 붕괴 위험이 있는지 먼저 조사하려 했다."
+  }
+}

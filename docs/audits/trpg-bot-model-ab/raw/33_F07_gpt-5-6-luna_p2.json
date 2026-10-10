@@ -1,0 +1,42 @@
+{
+  "fixture_id": "F07",
+  "model": "gpt-5.6-luna",
+  "pass": 2,
+  "call_index": 33,
+  "request_contract": {
+    "model": "gpt-5.6-luna",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none",
+    "reasoning": {
+      "effort": "none"
+    }
+  },
+  "input_token_count": 8255,
+  "output_token_count": 390,
+  "cached_input_tokens": 8252,
+  "reasoning_tokens": 0,
+  "latency_ms": 7954,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "철제 문틈에서 새어 나온 냉기가 손등의 룬 각인을 스쳤다. 문 너머로 지나간 망토 형체는 공격보다 망설임에 가까운 움직임을 보였지만, 오래된 혈흔과 바닥의 마법진 잔해는 이곳이 단순한 통로가 아님을 말해 주고 있었다. 실버크로우의 스카우트가 이미 주변을 살폈다는 사실도 마음에 걸렸다. 지금 섣불리 문을 열면 석실 안의 존재뿐 아니라 바깥의 추적자에게도 우리의 위치를 알릴 수 있다.\n\n나는 유저가 말을 걸 수 있도록 한 걸음 뒤로 물러나되, 룬 스케치가 보이는 수첩을 펼쳐 문 옆 벽에 기대었다. 그리고 문틈과 바닥의 마법진을 번갈아 살피며, 목소리가 닿을 만큼만 낮게 입을 열었다.\n\n\"혹시 이 문양의 의미를 아십니까? 저희는 왕좌의 파편을 찾는 조사단입니다. 적대할 뜻은 없으니, 말씀 나누시죠.\"\n\n말을 마친 뒤에는 대답을 재촉하지 않고 숨을 죽였다. 상대가 왕실의 수호자라면 금고 열쇠의 단서와 연결될 가능성이 있었고, 반대로 잔당의 미끼라면 문을 넘지 않은 채 반응부터 읽어야 했다.\n\n<<<ACTION_TYPE>>>\npersuade\n\n<<<INTENT>>>\n세라는 문 너머의 망토 형체에게 조사단의 목적과 비적대 의사를 밝히며, 룬 문양의 의미와 정체를 말하도록 설득하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": false,
+    "outputCharCount": 610,
+    "outputTokenEstimate": 339,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "철제 문틈에서 새어 나온 냉기가 손등의 룬 각인을 스쳤다. 문 너머로 지나간 망토 형체는 공격보다 망설임에 가까운 움직임을 보였지만, 오래된 혈흔과 바닥의 마법진 잔해는 이곳이 단순한 통로가 아님을 말해 주고 있었다. 실버크로우의 스카우트가 이미 주변을 살폈다는 사실도 마음에 걸렸다. 지금 섣불리 문을 열면 석실 안의 존재뿐 아니라 바깥의 추적자에게도 우리의 위치를 알릴 수 있다.\n\n나는 유저가 말을 걸 수 있도록 한 걸음 뒤로 물러나되, 룬 스케치가 보이는 수첩을 펼쳐 문 옆 벽에 기대었다. 그리고 문틈과 바닥의 마법진을 번갈아 살피며, 목소리가 닿을 만큼만 낮게 입을 열었다.\n\n\"혹시 이 문양의 의미를 아십니까? 저희는 왕좌의 파편을 찾는 조사단입니다. 적대할 뜻은 없으니, 말씀 나누시죠.\"\n\n말을 마친 뒤에는 대답을 재촉하지 않고 숨을 죽였다. 상대가 왕실의 수호자라면 금고 열쇠의 단서와 연결될 가능성이 있었고, 반대로 잔당의 미끼라면 문을 넘지 않은 채 반응부터 읽어야 했다.",
+    "parsedActionType": "persuade",
+    "parsedIntent": "세라는 문 너머의 망토 형체에게 조사단의 목적과 비적대 의사를 밝히며, 룬 문양의 의미와 정체를 말하도록 설득하려 했다."
+  }
+}

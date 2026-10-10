@@ -1,0 +1,129 @@
+{
+  "probedAt": "2026-08-28T08:41:17.689Z",
+  "fixtureId": "F01",
+  "estimatedInputTokens": 8481,
+  "GEMINI_REQUEST_CONTRACT": {
+    "productionAdapter": {
+      "model": "gemini-3.7-flash",
+      "stream": false,
+      "temperature": 0.85,
+      "max_tokens": 2048,
+      "reasoning_effort": "low"
+    },
+    "GEMINI_TRUE_OFF_SUPPORTED": false,
+    "GEMINI_REASONING_MODE": "low",
+    "variants": [
+      {
+        "variant": "gemini_reasoning_effort_none",
+        "contract": {
+          "model": "gemini-3.7-flash",
+          "stream": false,
+          "temperature": 0.85,
+          "max_tokens": 2048,
+          "reasoning_effort": "none"
+        },
+        "result": {
+          "ok": true,
+          "status": 200,
+          "latencyMs": 6802,
+          "reasoningTokens": "unavailable",
+          "outputTokens": 309,
+          "inputTokens": 8055,
+          "finishReason": "stop",
+          "textLen": 470
+        }
+      },
+      {
+        "variant": "gemini_reasoning_effort_low",
+        "contract": {
+          "model": "gemini-3.7-flash",
+          "stream": false,
+          "temperature": 0.85,
+          "max_tokens": 2048,
+          "reasoning_effort": "low"
+        },
+        "result": {
+          "ok": true,
+          "status": 200,
+          "latencyMs": 10122,
+          "reasoningTokens": 0,
+          "outputTokens": 293,
+          "inputTokens": 8053,
+          "costUsd": 0.014277,
+          "finishReason": "stop",
+          "textLen": 456
+        }
+      },
+      {
+        "variant": "gemini_thinking_disabled",
+        "contract": {
+          "model": "gemini-3.7-flash",
+          "stream": false,
+          "temperature": 0.85,
+          "max_tokens": 2048,
+          "reasoning_effort": "none",
+          "thinking": {
+            "type": "disabled"
+          }
+        },
+        "result": {
+          "ok": true,
+          "status": 200,
+          "latencyMs": 9666,
+          "reasoningTokens": "unavailable",
+          "outputTokens": 334,
+          "inputTokens": 8055,
+          "finishReason": "stop",
+          "textLen": 525
+        }
+      },
+      {
+        "variant": "gemini_production_adapter",
+        "contract": {
+          "model": "gemini-3.7-flash",
+          "stream": false,
+          "temperature": 0.85,
+          "max_tokens": 2048,
+          "reasoning_effort": "low"
+        },
+        "result": {
+          "ok": true,
+          "status": 200,
+          "latencyMs": 28588,
+          "reasoningTokens": "unavailable",
+          "outputTokens": 352,
+          "inputTokens": 8055,
+          "finishReason": "stop",
+          "textLen": 527
+        }
+      }
+    ]
+  },
+  "LUNA_REQUEST_CONTRACT": {
+    "contract": {
+      "model": "gpt-5.6-luna",
+      "stream": false,
+      "temperature": 0.85,
+      "max_tokens": 2048,
+      "reasoning_effort": "none",
+      "reasoning": {
+        "effort": "none"
+      }
+    },
+    "LUNA_TRUE_OFF_SUPPORTED": true,
+    "LUNA_REASONING_MODE": "none",
+    "probe": {
+      "ok": true,
+      "status": 200,
+      "latencyMs": 12470,
+      "reasoningTokens": 0,
+      "outputTokens": 396,
+      "inputTokens": 8369,
+      "finishReason": "stop",
+      "textLen": 606
+    }
+  },
+  "temperature": 0.85,
+  "stream": false,
+  "retry": 0
+}

@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F04",
+  "model": "gemini-3.7-flash",
+  "pass": 1,
+  "call_index": 8,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 7978,
+  "output_token_count": 348,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 6007,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "벽면을 타고 흐르는 푸르스름한 마력 잔광이 유저의 그림자를 길게 늘어뜨렸다. 습한 냉기 속에서 희미하게 쇠 긁는 소리가 멎었지만, 피부에 닿는 기운은 여전히 불길했다.\n\n은우는 소리 없이 등 뒤의 활을 쥐어 잡았다. 유저의 시선이 천장 쪽 환기 틈으로 향하는 것을 보고, 발소리를 죽인 채 무너진 석재 더미 옆으로 몸을 바짝 붙였다. \n\n창문 틈새로 흘러드는 기류의 방향과 어둠 속의 미세한 움직임을 눈으로 좇았다. 실버크로우의 척후든, 다른 무언가든 위쪽 사각지대에 도사리고 있다면 사정거리 안에 둘 생각이었다.\n\n화살 한 채를 시위에 살며시 걸치며 턱짓으로 위쪽 균열을 가리켰다.\n\n\"…보고 있어. 살펴봐.\"\n\n낮게 가라앉은 목소리는 거의 숨소리에 가까웠다. 은우는 숨을 멈추고 활시위를 반쯤 당긴 채, 유저가 바라보는 상단 틈새 주변의 어둠을 날카롭게 응시했다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n<<<INTENT>>>\n은우는 활을 겨눈 채 유저가 확인하려는 통로 상단 창문 틈과 그 주변 사각지대에 적이나 함정이 숨어 있는지 시각과 청각을 곤두세워 살피려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 554,
+    "outputTokenEstimate": 308,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "벽면을 타고 흐르는 푸르스름한 마력 잔광이 유저의 그림자를 길게 늘어뜨렸다. 습한 냉기 속에서 희미하게 쇠 긁는 소리가 멎었지만, 피부에 닿는 기운은 여전히 불길했다.\n\n은우는 소리 없이 등 뒤의 활을 쥐어 잡았다. 유저의 시선이 천장 쪽 환기 틈으로 향하는 것을 보고, 발소리를 죽인 채 무너진 석재 더미 옆으로 몸을 바짝 붙였다.\n\n창문 틈새로 흘러드는 기류의 방향과 어둠 속의 미세한 움직임을 눈으로 좇았다. 실버크로우의 척후든, 다른 무언가든 위쪽 사각지대에 도사리고 있다면 사정거리 안에 둘 생각이었다.\n\n화살 한 채를 시위에 살며시 걸치며 턱짓으로 위쪽 균열을 가리켰다.\n\n\"…보고 있어. 살펴봐.\"\n\n낮게 가라앉은 목소리는 거의 숨소리에 가까웠다. 은우는 숨을 멈추고 활시위를 반쯤 당긴 채, 유저가 바라보는 상단 틈새 주변의 어둠을 날카롭게 응시했다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "은우는 활을 겨눈 채 유저가 확인하려는 통로 상단 창문 틈과 그 주변 사각지대에 적이나 함정이 숨어 있는지 시각과 청각을 곤두세워 살피려 했다."
+  }
+}

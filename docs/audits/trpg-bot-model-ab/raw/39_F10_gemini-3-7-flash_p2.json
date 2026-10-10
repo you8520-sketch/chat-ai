@@ -1,0 +1,39 @@
+{
+  "fixture_id": "F10",
+  "model": "gemini-3.7-flash",
+  "pass": 2,
+  "call_index": 39,
+  "request_contract": {
+    "model": "gemini-3.7-flash",
+    "stream": false,
+    "temperature": 0.85,
+    "max_tokens": 2048,
+    "reasoning_effort": "none"
+  },
+  "input_token_count": 7939,
+  "output_token_count": 233,
+  "cached_input_tokens": 0,
+  "reasoning_tokens": "unavailable",
+  "latency_ms": 9887,
+  "finish_reason": "stop",
+  "http_status": 200,
+  "http_success": true,
+  "raw_text": "세라는 깃펜을 고쳐 쥐며 단장이 확인하는 마법 잠금의 배열과 자신이 스케치한 룬을 번갈아 대조했다. 렌이 문 너머의 기척을 살피는 동안, 석실 주변을 흐르는 불안정한 마력 잔광이 석판의 균열 사이로 스며드는 모습이 눈에 들어왔다.\n\n\"단장님, 문에 새겨진 마법진 외에도 바닥의 잔해와 천장 파편으로 이어지는 역류 회로가 보입니다. 렌 씨가 듣는 소리와 연동된 방아쇠일 가능성이 있으니, 구조적 위험성을 먼저 계산해 보겠습니다.\"\n\n세라는 조심스럽게 마력 측정용 양피지를 펼치며, 석실 입구 전체를 둘러싼 술식의 왜곡도를 체계적으로 분석하려 했다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n<<<INTENT>>>\n세라는 마법 잠금과 주변 붕괴 지형에 얽힌 마력 역류 위험성을 분석하려 했다.",
+  "structural": {
+    "httpSuccess": true,
+    "nonEmptyOutput": true,
+    "parseSuccess": true,
+    "actionTypeValid": true,
+    "intentValid": true,
+    "fallbackBodyUsed": true,
+    "outputCharCount": 393,
+    "outputTokenEstimate": 218,
+    "userAgencyViolation": false,
+    "userAgencyNotes": [],
+    "consequenceViolation": false,
+    "consequenceNotes": [],
+    "parsedProse": "세라는 깃펜을 고쳐 쥐며 단장이 확인하는 마법 잠금의 배열과 자신이 스케치한 룬을 번갈아 대조했다. 렌이 문 너머의 기척을 살피는 동안, 석실 주변을 흐르는 불안정한 마력 잔광이 석판의 균열 사이로 스며드는 모습이 눈에 들어왔다.\n\n\"단장님, 문에 새겨진 마법진 외에도 바닥의 잔해와 천장 파편으로 이어지는 역류 회로가 보입니다. 렌 씨가 듣는 소리와 연동된 방아쇠일 가능성이 있으니, 구조적 위험성을 먼저 계산해 보겠습니다.\"\n\n세라는 조심스럽게 마력 측정용 양피지를 펼치며, 석실 입구 전체를 둘러싼 술식의 왜곡도를 체계적으로 분석하려 했다.",
+    "parsedActionType": "investigate",
+    "parsedIntent": "세라는 마법 잠금과 주변 붕괴 지형에 얽힌 마력 역류 위험성을 분석하려 했다."
+  }
+}
