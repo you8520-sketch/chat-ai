@@ -280,9 +280,12 @@ describe("#1486 Phase 2B 5-turn summary packet (라이크 18 / 렌)", () => {
       longTermMemory: otherChat,
       currentUserMessage: "다른 방",
     });
-    const ids = (built.meta?.trackedSections ?? []).map((section) => section.id);
-    assert.ok(ids.includes("current-memory"));
-    assert.match(built.systemPrompt, /\[3\] Current Memory/);
+    const currentMemory = (built.meta?.trackedSections ?? []).find(
+      (section) => section.id === "current-memory"
+    );
+    assert.equal(currentMemory?.id, "current-memory");
+    assert.equal(currentMemory?.label, "[3] Current Memory");
+    assert.equal(currentMemory?.text.includes(lorebook), true);
     assert.equal(built.systemPrompt.includes(lorebook), true);
     assert.equal(built.systemPrompt.includes("다른 방의 요약은 여기 없어야 함"), false);
     assert.equal(isolated.systemPrompt.includes(lorebook), false);

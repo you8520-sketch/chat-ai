@@ -160,7 +160,7 @@ An invented proper name is **not** generally blocked by the live grounding funct
 
 ## Store / inject drift
 
-At the persist/inject layer: **none**. `formatMemoryBlock(1, 5, text)` prefixes `[1~5턴] ` and `buildContext({ longTermMemory })` injects that string inside `[3] Current Memory`. Another chat's lorebook does not appear. Fact loss that already happened in the accepted summary is copied through.
+At the persist/inject layer: **none**. `formatMemoryBlock(1, 5, text)` prefixes `[1~5턴] `. `buildContext({ longTermMemory })` tracks section id `current-memory` with label `[3] Current Memory` and copies the lorebook into the `[Memory]` body. Another chat's lorebook does not appear. Fact loss that already happened in the accepted summary is copied through.
 
 ## Paid preflight (do not call)
 
