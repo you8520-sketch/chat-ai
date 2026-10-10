@@ -28,6 +28,21 @@ export const MAIN_RP_STYLE_LENGTH_SNAPSHOT_SCHEMA = 1;
 export const MAIN_RP_STYLE_LENGTH_PRIVATE_ROOT = "/data/private-golden-fixtures";
 export const HISTORICAL_RP_QUALIFICATION_CHARACTER_ID = 10;
 
+/** Pinned public evidence for the already-created Railway Golden v1. Do not rewrite v1. */
+export const MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC = Object.freeze({
+  snapshotVersion: 1,
+  sealedSha256: "becd3255c38cfc44932d9dc9da98656206b76b64c679f75a1f20ad20cf1fa1d9",
+  characterId: 18,
+  characterName: "라이크",
+  personaId: 1,
+  personaName: "렌",
+  personaGender: "male",
+  adminUserId: 1,
+  uniqueAdminRenPersona: true,
+  deployedGitSha: "e1fdab509d2e9713be617025f77ea40a5bfb85f5",
+  sealedRequestCount: 12,
+});
+
 export const MAIN_RP_STYLE_LENGTH_MODES = ["GOLDEN_SNAPSHOT", "CURRENT_LIVE"] as const;
 export type MainRpStyleLengthMode = (typeof MAIN_RP_STYLE_LENGTH_MODES)[number];
 
@@ -71,10 +86,13 @@ export type MainRpStyleLengthIdentityInput = {
   fixtureKind: MainRpStyleLengthKind;
   personaId?: number;
   personaGender?: string;
+  adminUserId?: number;
   adminVerified?: boolean;
   personaCount?: number;
+  expectedPersonaId?: number;
   models?: readonly string[];
   finalWireFingerprints?: readonly string[];
+  requestBodies?: readonly unknown[];
 };
 
 export type MainRpStyleLengthPublicCall = {
@@ -169,14 +187,21 @@ export function assertMainRpStyleLengthIdentity(
   if (input.personaName.trim() !== MAIN_RP_STYLE_LENGTH_TARGET.personaName) {
     reject("PERSONA_NOT_REN");
   }
-  if (input.adminVerified === false) {
+  if (input.adminVerified !== true || typeof input.adminUserId !== "number" || input.adminUserId <= 0) {
     reject("ADMIN_UNVERIFIED");
   }
-  if (input.personaCount === 0) {
+  if (typeof input.personaId !== "number" || input.personaId <= 0) {
     reject("PERSONA_MISSING");
   }
-  if (typeof input.personaCount === "number" && input.personaCount > 1) {
+  if (input.personaCount !== 1) {
+    if (input.personaCount === 0 || input.personaCount == null) reject("PERSONA_MISSING");
     reject("PERSONA_AMBIGUOUS");
+  }
+  if (
+    typeof input.expectedPersonaId === "number" &&
+    input.personaId !== input.expectedPersonaId
+  ) {
+    reject("FIXTURE_IDENTITY_MISMATCH");
   }
   if (input.models) {
     if (input.models.length === 0) reject("INACTIVE_MODEL");
@@ -187,6 +212,49 @@ export function assertMainRpStyleLengthIdentity(
   if (input.finalWireFingerprints && input.finalWireFingerprints.length === 0) {
     reject("FINAL_WIRE_MISSING");
   }
+}
+
+function requestBodyPresent(body: unknown): boolean {
+  return body !== null && typeof body === "object" && !Array.isArray(body) && Object.keys(body).length > 0;
+}
+
+export function deriveMainRpStyleLengthAdminEvidence(input: {
+  adminUserId?: number;
+  personaId?: number;
+  personaName?: string;
+  characterId?: number;
+  characterName?: string;
+  uniqueAdminRenPersona?: boolean;
+}): { adminVerified: boolean; personaCount: number; adminUserId: number } {
+  const adminUserId = typeof input.adminUserId === "number" ? input.adminUserId : 0;
+  const unique = input.uniqueAdminRenPersona === true;
+  const verified =
+    unique &&
+    adminUserId > 0 &&
+    typeof input.personaId === "number" &&
+    input.personaId > 0 &&
+    String(input.personaName ?? "").trim() === MAIN_RP_STYLE_LENGTH_TARGET.personaName &&
+    input.characterId === MAIN_RP_STYLE_LENGTH_TARGET.characterId &&
+    String(input.characterName ?? "").trim() === MAIN_RP_STYLE_LENGTH_TARGET.characterName;
+  return {
+    adminVerified: verified,
+    personaCount: unique && verified ? 1 : 0,
+    adminUserId,
+  };
+}
+
+export function assertMainRpStyleLengthEvaluationReady(
+  input: MainRpStyleLengthIdentityInput
+): void {
+  assertMainRpStyleLengthIdentity(input);
+  if (!input.models || input.models.length === 0) reject("INACTIVE_MODEL");
+  const fingerprints = input.finalWireFingerprints;
+  const bodies = input.requestBodies;
+  if (!fingerprints || fingerprints.length === 0) reject("FINAL_WIRE_MISSING");
+  if (!bodies || bodies.length === 0) reject("FINAL_WIRE_MISSING");
+  if (fingerprints.length !== bodies.length) reject("FINAL_WIRE_MISSING");
+  if (!fingerprints.every((hash) => /^[a-f0-9]{64}$/.test(hash))) reject("FINAL_WIRE_MISSING");
+  if (!bodies.every(requestBodyPresent)) reject("FINAL_WIRE_MISSING");
 }
 
 export function assertMainRpStyleLengthHashes(input: {

@@ -10,9 +10,12 @@ import {
   MAIN_RP_STYLE_LENGTH_EVALUATION,
   MAIN_RP_STYLE_LENGTH_TARGET,
   MainRpStyleLengthFixtureError,
+  MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC,
+  assertMainRpStyleLengthEvaluationReady,
   assertMainRpStyleLengthHashes,
   assertMainRpStyleLengthIdentity,
   compareLiveToGolden,
+  deriveMainRpStyleLengthAdminEvidence,
   isMainRpStyleLengthEvaluationRequested,
   mainRpStyleLengthSitePolicy,
 } from "@/lib/rpMainRpStyleLengthFixture";
@@ -24,6 +27,7 @@ const LIVE = {
   personaId: 1,
   personaGender: "male",
   fixtureKind: "CURRENT_LIVE" as const,
+  adminUserId: 1,
   adminVerified: true,
   personaCount: 1,
   models: MAIN_RP_MODEL_IDS,
@@ -57,6 +61,12 @@ describe("MAIN_RP_STYLE_LENGTH fixture owner", () => {
 
   it("accepts live 라이크 18 / 렌", () => {
     assert.doesNotThrow(() => assertMainRpStyleLengthIdentity(LIVE));
+    assert.doesNotThrow(() =>
+      assertMainRpStyleLengthEvaluationReady({
+        ...LIVE,
+        requestBodies: [{ model: "deepseek-v4.1-flash", messages: [{ role: "user", content: "x" }] }],
+      })
+    );
   });
 
   it("rejects historical id=10 and HISTORICAL_ONLY", () => {
@@ -74,6 +84,90 @@ describe("MAIN_RP_STYLE_LENGTH fixture owner", () => {
       () => assertMainRpStyleLengthIdentity({ ...LIVE, fixtureKind: "HISTORICAL_ONLY" }),
       (error: unknown) =>
         error instanceof MainRpStyleLengthFixtureError && error.code === "HISTORICAL_ID10_REJECTED"
+    );
+  });
+
+  it("rejects missing adminVerified, personaCount, personaId, and final-wire evidence", () => {
+    const { adminVerified: _admin, ...noAdmin } = LIVE;
+    const { adminUserId: _adminUser, ...noAdminUser } = LIVE;
+    const { personaCount: _count, ...noCount } = LIVE;
+    const { personaId: _id, ...noId } = LIVE;
+    const { finalWireFingerprints: _fp, ...noFp } = LIVE;
+    assert.throws(
+      () => assertMainRpStyleLengthIdentity(noAdmin),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "ADMIN_UNVERIFIED"
+    );
+    assert.throws(
+      () => assertMainRpStyleLengthIdentity(noAdminUser),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "ADMIN_UNVERIFIED"
+    );
+    assert.throws(
+      () =>
+        assertMainRpStyleLengthIdentity({
+          ...LIVE,
+          adminVerified: 1 as unknown as boolean,
+        }),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "ADMIN_UNVERIFIED"
+    );
+    assert.throws(
+      () => assertMainRpStyleLengthIdentity(noCount),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "PERSONA_MISSING"
+    );
+    assert.throws(
+      () => assertMainRpStyleLengthIdentity(noId),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "PERSONA_MISSING"
+    );
+    assert.throws(
+      () => assertMainRpStyleLengthEvaluationReady({ ...noFp, requestBodies: [{ model: "x" }] }),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "FINAL_WIRE_MISSING"
+    );
+    assert.throws(
+      () =>
+        assertMainRpStyleLengthEvaluationReady({
+          ...LIVE,
+          requestBodies: [],
+        }),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "FINAL_WIRE_MISSING"
+    );
+    assert.throws(
+      () => assertMainRpStyleLengthEvaluationReady({ ...LIVE }),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "FINAL_WIRE_MISSING"
+    );
+    assert.throws(
+      () =>
+        assertMainRpStyleLengthEvaluationReady({
+          ...LIVE,
+          requestBodies: [{}],
+        }),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "FINAL_WIRE_MISSING"
+    );
+    assert.throws(
+      () =>
+        assertMainRpStyleLengthEvaluationReady({
+          ...LIVE,
+          requestBodies: [null],
+        }),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "FINAL_WIRE_MISSING"
+    );
+    assert.throws(
+      () =>
+        assertMainRpStyleLengthIdentity({
+          ...LIVE,
+          expectedPersonaId: MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.personaId,
+          personaId: 99,
+        }),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "FIXTURE_IDENTITY_MISMATCH"
     );
   });
 
@@ -160,6 +254,38 @@ describe("MAIN_RP_STYLE_LENGTH fixture owner", () => {
   it("only treats explicit MAIN_RP_STYLE_LENGTH env as the current evaluation", () => {
     assert.equal(isMainRpStyleLengthEvaluationRequested({}), false);
     assert.equal(isMainRpStyleLengthEvaluationRequested({ MAIN_RP_STYLE_LENGTH: "1" }), true);
+  });
+
+  it("does not fill adminVerified or personaCount from undefined uniqueness", () => {
+    const missing = deriveMainRpStyleLengthAdminEvidence({
+      adminUserId: 1,
+      personaId: 1,
+      personaName: "렌",
+      characterId: 18,
+      characterName: "라이크",
+    });
+    assert.equal(missing.adminVerified, false);
+    assert.equal(missing.personaCount, 0);
+    const numeric = deriveMainRpStyleLengthAdminEvidence({
+      adminUserId: 1,
+      personaId: 1,
+      personaName: "렌",
+      characterId: 18,
+      characterName: "라이크",
+      uniqueAdminRenPersona: 1 as unknown as boolean,
+    });
+    assert.equal(numeric.adminVerified, false);
+    assert.equal(numeric.personaCount, 0);
+    const ok = deriveMainRpStyleLengthAdminEvidence({
+      adminUserId: 1,
+      personaId: 1,
+      personaName: "렌",
+      characterId: 18,
+      characterName: "라이크",
+      uniqueAdminRenPersona: true,
+    });
+    assert.equal(ok.adminVerified, true);
+    assert.equal(ok.personaCount, 1);
   });
 
   it("keeps the public v1 manifest hash-only", () => {

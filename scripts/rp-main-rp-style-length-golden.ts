@@ -13,6 +13,7 @@ import {
 import {
   compareCurrentLiveToGolden,
   createLiveMainRpStyleLengthGolden,
+  dryRunMainRpStyleLengthEvaluation,
   publicGoldenStdout,
   reloadMainRpStyleLengthGolden,
   type GoldenListingMeta,
@@ -51,7 +52,7 @@ function readListingMeta(dbPath: string, characterId: number): GoldenListingMeta
   }
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const action = requiredArg("--action");
   const version = Number(requiredArg("--version"));
   const dbPath = argValue("--db") ?? "/data/app.db";
@@ -93,6 +94,38 @@ function main(): void {
     return;
   }
 
+  if (action === "evaluate") {
+    const mode = (argValue("--mode") ?? "GOLDEN_SNAPSHOT") as "GOLDEN_SNAPSHOT" | "CURRENT_LIVE";
+    const dry = await dryRunMainRpStyleLengthEvaluation({
+        mode,
+        version,
+        root,
+        dbPath,
+        deployedGitSha,
+        env: process.env,
+        verifyPinnedPublicV1: process.argv.includes("--verify-pinned-v1"),
+      });
+    process.stdout.write(
+      publicGoldenStdout({
+        action: "evaluate",
+        publicManifest: dry.publicManifest,
+        sealedSha256: dry.sealedSha256,
+        compare: dry.compare,
+        providerPosts: dry.providerPosts,
+        dbWrites: dry.dbWrites,
+        evaluation: {
+          mode: dry.mode,
+          sealOk: dry.seal.ok,
+          requestBodiesPresent: dry.requestBodiesPresent,
+          fingerprintsMatchPinnedV1: dry.fingerprintsMatchPinnedV1,
+          transportPosts: dry.transportPosts,
+          networkAttempts: dry.networkAttempts,
+        },
+      })
+    );
+    return;
+  }
+
   if (action === "current-live") {
     const compare = compareCurrentLiveToGolden({
       dbPath,
@@ -112,7 +145,10 @@ function main(): void {
     return;
   }
 
-  throw new Error("action must be create, reload, or current-live");
+  throw new Error("action must be create, reload, current-live, or evaluate");
 }
 
-main();
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});

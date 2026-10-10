@@ -10,6 +10,8 @@
 #     reload 1 <expected-production-sha>
 #   VERIFICATION_MODE=overlay scripts/railway-main-rp-style-length-golden.sh \
 #     current-live 1 <expected-production-sha>
+#   VERIFICATION_MODE=overlay scripts/railway-main-rp-style-length-golden.sh \
+#     evaluate 1 <expected-production-sha>
 set -euo pipefail
 
 ACTION="${1:?action required: create|reload|current-live}"
@@ -28,6 +30,9 @@ PR_HEAD="$(git rev-parse HEAD)"
 git diff --quiet HEAD -- src scripts || { echo "worktree not clean under src/scripts" >&2; exit 2; }
 
 RUNNER="scripts/rp-main-rp-style-length-golden.ts --action $ACTION --version $VERSION --deploy-sha $EXPECTED_SHA --db /data/app.db --root /data/private-golden-fixtures"
+if [ "$ACTION" = "evaluate" ]; then
+  RUNNER="$RUNNER --mode GOLDEN_SNAPSHOT --verify-pinned-v1"
+fi
 
 if [ "$VERIFICATION_MODE" = "deployed" ]; then
   railway ssh "${RAILWAY_ARGS[@]}" -i "$SSH_IDENTITY" -- sh -c \

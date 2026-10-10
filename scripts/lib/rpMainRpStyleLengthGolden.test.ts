@@ -11,9 +11,11 @@ import {
   MainRpStyleLengthFixtureError,
   assertMainRpStyleLengthIdentity,
 } from "@/lib/rpMainRpStyleLengthFixture";
-import { loadPrecallProductionRows } from "./rpQualityPrecallProductionRows";
+import { runRpActiveModelQualityLive } from "./rpActiveModelQualityLive";
+import { loadPrecallProductionRows, PrecallRowsStop } from "./rpQualityPrecallProductionRows";
 import {
   assembleMainRpStyleLengthSnapshot,
+  dryRunMainRpStyleLengthEvaluation,
   persistMainRpStyleLengthGolden,
   publicGoldenStdout,
   reloadMainRpStyleLengthGolden,
@@ -75,7 +77,7 @@ describe("MAIN_RP_STYLE_LENGTH golden operator", () => {
 
   after(() => rmSync(dir, { recursive: true, force: true }));
 
-  it("assembles, persists, and reloads the same 라이크18/렌 snapshot", () => {
+  it("assembles, persists, and reloads the same 라이크18/렌 snapshot", async () => {
     const dbFile = path.join(dir, "app.db");
     buildSyntheticDb(dbFile);
     const before = readFileSync(dbFile);
@@ -91,6 +93,11 @@ describe("MAIN_RP_STYLE_LENGTH golden operator", () => {
       listing: { nsfwListing: 1, officialListing: 0, greetingChars: 2 },
       personaPublicChars: loaded.proof.personaPublicChars,
       fixtureKind: "CURRENT_LIVE",
+      adminVerified:
+        Number(loaded.rows.user.id) > 0 &&
+        Number(loaded.proof.personaId) > 0 &&
+        loaded.proof.personaName === "렌" &&
+        loaded.proof.characterId === 18,
     });
     assert.equal(assembled.publicManifest.characterId, 18);
     assert.equal(assembled.publicManifest.personaId, 1);
@@ -117,6 +124,39 @@ describe("MAIN_RP_STYLE_LENGTH golden operator", () => {
     });
     assert.doesNotMatch(stdout, /hidden@example.invalid|시스템|세계관|조용한 사람/);
     assert.match(stdout, /MAIN_RP_STYLE_LENGTH/);
+    const dry = await dryRunMainRpStyleLengthEvaluation({
+      mode: "GOLDEN_SNAPSHOT",
+      version: 1,
+      root,
+    });
+    assert.equal(dry.seal.ok, true);
+    assert.equal(dry.requestBodiesPresent, true);
+    assert.equal(dry.sealedCalls.length, RP_QUALITY_PRECALL_PLANNED_CALLS);
+    assert.equal(dry.providerPosts, 0);
+    assert.equal(dry.transportPosts, 12);
+    assert.equal(dry.networkAttempts, 0);
+    assert.equal(dry.dbWrites, 0);
+    assert.equal(dry.publicManifest.characterId, 18);
+    assert.equal(dry.publicManifest.personaId, 1);
+    assert.equal(dry.sealedSha256, persisted.sealedSha256);
+    for (const call of dry.sealedCalls) {
+      assert.ok(call.requestBody && Object.keys(call.requestBody).length > 0);
+      assert.equal(call.finalWireFingerprint.length, 64);
+    }
+    const report = await runRpActiveModelQualityLive({
+      credentials: { cheaperinference: "", openrouter: "" },
+      runId: "unit-style-length",
+      source: "GOLDEN_SNAPSHOT",
+      goldenRoot: root,
+      goldenVersion: 1,
+    });
+    assert.equal(report.providerCalls, 0);
+    assert.equal(report.qualityScoreGenerated, false);
+    if (!("fixtureKind" in report.source)) throw new Error("expected golden source");
+    assert.equal(report.source.fixtureKind, "GOLDEN_SNAPSHOT");
+    assert.equal(report.source.characterId, 18);
+    assert.equal(report.source.personaName, "렌");
+    assert.equal(report.source.sealedSha256, persisted.sealedSha256);
   });
 
   it("rejects historical id=10 rows before assembly", () => {
@@ -130,6 +170,71 @@ describe("MAIN_RP_STYLE_LENGTH golden operator", () => {
         }),
       (error: unknown) =>
         error instanceof MainRpStyleLengthFixtureError && error.code === "HISTORICAL_ID10_REJECTED"
+    );
+  });
+
+  it("re-checks live admin uniqueness and rejects CURRENT_LIVE without a DB", async () => {
+    const dbFile = path.join(dir, "live-unique.db");
+    buildSyntheticDb(dbFile);
+    const loaded = loadPrecallProductionRows({
+      dbPath: dbFile,
+      deployedGitSha: DEPLOY_SHA,
+      env: {},
+    });
+    const assembled = assembleMainRpStyleLengthSnapshot({
+      rows: loaded.rows,
+      deployedGitSha: DEPLOY_SHA,
+      version: 2,
+      listing: { nsfwListing: 1, officialListing: 0, greetingChars: 2 },
+      personaPublicChars: loaded.proof.personaPublicChars,
+      fixtureKind: "CURRENT_LIVE",
+      adminVerified: true,
+    });
+    const root = path.join(dir, "private-live");
+    persistMainRpStyleLengthGolden({
+      root,
+      version: 2,
+      sealed: assembled.sealed,
+      publicManifest: { ...assembled.publicManifest, privateStore: `${root}/v2` },
+    });
+    await assert.rejects(
+      () =>
+        dryRunMainRpStyleLengthEvaluation({
+          mode: "CURRENT_LIVE",
+          version: 2,
+          root,
+        }),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "SOURCE_DRIFT"
+    );
+    const db = new DatabaseSync(dbFile);
+    db.prepare(
+      "INSERT INTO user_personas (id, user_id, name, gender, description) VALUES (2, 1, '렌', 'male', '두번째')"
+    ).run();
+    db.close();
+    await assert.rejects(
+      () =>
+        dryRunMainRpStyleLengthEvaluation({
+          mode: "CURRENT_LIVE",
+          version: 2,
+          root,
+          dbPath: dbFile,
+          deployedGitSha: DEPLOY_SHA,
+          env: {},
+        }),
+      (error: unknown) => error instanceof PrecallRowsStop && error.code === "PERSONA_COUNT_INVALID"
+    );
+    assert.throws(
+      () =>
+        assembleMainRpStyleLengthSnapshot({
+          rows: loaded.rows,
+          deployedGitSha: DEPLOY_SHA,
+          version: 3,
+          listing: { nsfwListing: 1, officialListing: 0, greetingChars: 2 },
+          fixtureKind: "CURRENT_LIVE",
+        }),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "ADMIN_UNVERIFIED"
     );
   });
 });
