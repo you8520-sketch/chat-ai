@@ -6,7 +6,7 @@ Windows + WSL machine path that reuses them.
 | Responsibility | Owner |
 |---|---|
 | Local startup | `npm run dev` → `scripts/dev-server.ts` → `server.js` |
-| Env load | `server.js` calls Next `loadEnvConfig(process.cwd())` before `require("next")` |
+| Env load | `server.js` calls Next `loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production")` before `require("next")` |
 | DB path | `src/lib/dataDir.ts` (`DATA_DIR` or `./data`) |
 | DB init / migrate / seed | `src/lib/db.ts` |
 | Regular tests | `npm run test:regular` + `src/lib/test/regularTestEgressPolicy.ts` |
