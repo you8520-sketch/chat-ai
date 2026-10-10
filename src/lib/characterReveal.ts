@@ -1,6 +1,6 @@
 /**
- * Phase D-1 — 캐릭터 카드 → 프로필 artwork reveal (순수 로직).
- * 시각 owner는 기존 `MenuTransitionHost`이고, 이 모듈은 레이아웃·타이밍 계산만 제공한다.
+ * Phase D-1 — 캐릭터 카드 → 프로필 kinetic assembly (순수 로직).
+ * 시각 owner는 기존 `MenuTransitionHost`이고, 이 모듈은 레이아웃·타이밍·동작 표를 계산만 한다.
  * navigation(href·redirect·권한)은 건드리지 않는다.
  */
 
@@ -12,6 +12,20 @@ export type RevealRect = { left: number; top: number; width: number; height: num
 export const CHARACTER_CARD_ATTR = "data-character-card";
 /** 프로필 hero 이미지 프레임 마커. 값은 캐릭터 id. */
 export const CHARACTER_HERO_IMAGE_ATTR = "data-character-hero-image";
+
+/**
+ * reveal 오버레이의 요소(overlay)와 프로필 hero의 같은 요소(hero)를 잇는 키.
+ * hero 요소에는 `data-hero-item`, 오버레이 요소에는 `data-rv-item`을 둔다.
+ * 키: `name` · `eyebrow` · `tagline` · `tag:<index>`.
+ */
+export const HERO_ITEM_ATTR = "data-hero-item";
+export const REVEAL_ITEM_ATTR = "data-rv-item";
+/** 이름처럼 크기가 달라지는 요소는 너비 비율로 함께 스케일한다. */
+export const REVEAL_FIT_ATTR = "data-rv-fit";
+export const revealTagKey = (index: number) => `tag:${index}`;
+
+/** 오버레이에 그리는 키워드 칩 최대 수 (hero는 전체 표시). */
+export const REVEAL_MAX_TAGS = 3;
 
 /** hero/일러스트 프레임 비율 (카드 표준 2:3 — 693×1024). */
 export const REVEAL_FRAME_ASPECT = 2 / 3;
@@ -35,18 +49,41 @@ export function characterRevealAttrs(input: {
   id: number;
   name: string;
   genre: string;
-  creator: string;
+  /** 카드에 이미 공개된 한 줄 소개. `{{user}}`·`{{char}}`가 남은 문장은 오버레이에 쓰지 않는다. */
+  tagline?: string | null;
+  /** 카드에 이미 공개된 키워드. */
+  tags?: readonly string[];
   href: string;
   hidden: boolean;
   hasThumb: boolean;
 }): Record<string, string> {
   if (input.hidden || !input.hasThumb || input.href !== `/character/${input.id}`) return {};
-  return {
+  const attrs: Record<string, string> = {
     [CHARACTER_CARD_ATTR]: String(input.id),
     "data-character-name": input.name,
     "data-character-genre": input.genre,
-    "data-character-creator": input.creator,
   };
+  const tagline = input.tagline?.trim() ?? "";
+  if (tagline && !/\{\{[^}]*\}\}/.test(tagline)) attrs["data-character-tagline"] = tagline;
+  const tags = (input.tags ?? []).map((t) => t.trim()).filter(Boolean).slice(0, REVEAL_MAX_TAGS);
+  if (tags.length > 0) attrs["data-character-tags"] = JSON.stringify(tags);
+  return attrs;
+}
+
+/** 카드의 `data-character-tags`를 안전하게 읽는다. 형식이 틀리면 빈 배열. */
+export function parseRevealTags(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((t): t is string => typeof t === "string")
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, REVEAL_MAX_TAGS);
+  } catch {
+    return [];
+  }
 }
 
 export function characterRevealDelayMs(elapsedSinceClickMs: number): number {
@@ -59,6 +96,96 @@ export function parseCharacterProfilePath(pathname: string): number | null {
   if (!m) return null;
   const id = Number(m[1]);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+/**
+ * 한 시간축(클릭 기준 ms)의 beat 표. 각 요소는 서로 다른 시작 위치·방향을 갖고 시간상 겹쳐 진행하며,
+ * 모두 `CHARACTER_REVEAL_TIMING.minCoverMs` 근처에서 조립이 끝나 reveal(FINAL ASSEMBLY)로 이어진다.
+ *  A ARTWORK  : 잉크 마스크가 카드 위치에서 열리고(rv-open) 프레임이 카드에서 분리돼 확장(rv-fly).
+ *  B NAME     : 글자(grapheme) 단위가 위/아래 마스크 줄에서 엇갈려 들어와 양끝→가운데로 결합.
+ *  C PERSONAL : 한 줄 소개는 가로 마스크 와이프, 태그는 각기 다른 위치에서 정렬.
+ *  D ASSEMBLY : reveal phase — 모든 요소가 프로필의 대응 요소로 개별 이동.
+ */
+export const REVEAL_BEATS = {
+  inkOpenMs: 620,
+  frameFlyMs: 680,
+  imageDriftMs: 900,
+  nameStartMs: 140,
+  nameGlyphMs: 520,
+  /** 첫 글자와 마지막 글자 시작 사이 최대 간격. */
+  nameSpreadMs: 260,
+  nameMaxStepMs: 46,
+  eyebrowStartMs: 240,
+  eyebrowMs: 420,
+  taglineStartMs: 520,
+  taglineMs: 420,
+  tagStartMs: 560,
+  tagStepMs: 55,
+  tagMs: 380,
+} as const;
+
+/** 각 요소가 시작하는 흩어진 위치. 뷰포트 단위라 360/390/1440 모두에서 서로 다른 방향이 유지된다. */
+export type RevealScatter = { x: string; y: string; r: number };
+export const REVEAL_TAG_SCATTER: readonly RevealScatter[] = [
+  { x: "-26vw", y: "-16vh", r: -9 },
+  { x: "8vw", y: "20vh", r: 6 },
+  { x: "24vw", y: "-12vh", r: -5 },
+];
+
+/** 한 글자의 시작 모양. y는 글자 높이 %, x는 em — 줄 마스크가 가려 위/아래에서 나타나게 한다. */
+export type RevealGlyphMotion = { x: number; y: number; r: number };
+const GLYPH_MOTIONS: readonly RevealGlyphMotion[] = [
+  { x: -0.35, y: 118, r: -7 },
+  { x: 0.3, y: -118, r: 6 },
+  { x: 0.5, y: 118, r: 5 },
+  { x: -0.45, y: -118, r: -5 },
+  { x: 0.15, y: 118, r: -4 },
+  { x: -0.2, y: -118, r: 7 },
+];
+export function revealGlyphMotion(index: number): RevealGlyphMotion {
+  return GLYPH_MOTIONS[((index % GLYPH_MOTIONS.length) + GLYPH_MOTIONS.length) % GLYPH_MOTIONS.length];
+}
+
+/** 한 줄을 grapheme 단위로 나눈다. 완성형·조합형 한글, 결합 문자, ZWJ 이모지를 쪼개지 않는다. */
+export function splitRevealGraphemes(line: string): string[] {
+  const text = line.normalize("NFC");
+  if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
+    const segmenter = new Intl.Segmenter("ko", { granularity: "grapheme" });
+    return Array.from(segmenter.segment(text), (seg) => seg.segment);
+  }
+  return Array.from(text);
+}
+
+/** n개 글자가 결합되는 순서(rank): 양끝에서 시작해 가운데로 모인다. 반환값[k] = k번째 글자의 순번. */
+export function revealGlyphRanks(n: number): number[] {
+  const order: number[] = [];
+  let lo = 0;
+  let hi = n - 1;
+  while (lo <= hi) {
+    order.push(lo++);
+    if (lo <= hi) order.push(hi--);
+  }
+  const ranks = new Array<number>(n);
+  order.forEach((glyph, rank) => {
+    ranks[glyph] = rank;
+  });
+  return ranks;
+}
+
+export function revealGlyphDelayMs(rank: number, count: number): number {
+  const step = count > 1 ? Math.min(REVEAL_BEATS.nameMaxStepMs, REVEAL_BEATS.nameSpreadMs / (count - 1)) : 0;
+  return Math.round(REVEAL_BEATS.nameStartMs + rank * step);
+}
+
+/** 오버레이 요소 → hero 요소로의 이동량(좌상단 기준). fit이면 너비 비율로 스케일한다. */
+export function revealSettleDelta(
+  from: RevealRect,
+  to: RevealRect,
+  fit: boolean,
+): { tx: number; ty: number; scale: number } {
+  const raw = fit && from.width > 0 ? to.width / from.width : 1;
+  const scale = Math.min(3, Math.max(0.2, raw));
+  return { tx: to.left - from.left, ty: to.top - from.top, scale };
 }
 
 const MAX_NAME_CHARS = 44;
@@ -113,18 +240,33 @@ export type RevealLayout = {
   frame: RevealRect;
   nameFontPx: number;
   nameBox: RevealRect;
-  metaBox: RevealRect;
+  /** eyebrow / 한 줄 소개·키워드 묶음의 위치. 데스크톱은 우측 정렬, 모바일은 좌측 정렬. */
+  info: { left: number; width: number; eyebrowTop: number; subTop: number };
 };
 
 /** 한글 전각 글자 평균 advance(letter-spacing -0.04em 반영). */
 const GLYPH_ADVANCE = 0.98;
+/** 프레임 폭 대비 이름이 일러스트 뒤로 들어가는 비율 — 마지막 글자가 읽히는 수준만 겹친다. */
+const NAME_TUCK = 0.015;
+const EYEBROW_BLOCK = 34;
+/** 한 줄 소개 2줄 + 간격 + 키워드 칩 한 줄. */
+const SUB_BLOCK = 112;
+const SUB_GAP = 16;
+const INFO_MAX_WIDTH = 416;
+const NAME_LINE_HEIGHT = 1.06;
 
 /**
  * 뷰포트 기준 포스터 구도.
- * 데스크톱: 일러스트 우측, 거대한 이름이 일러스트 뒤(좌측)에서 일부 겹침.
- * 모바일: 일러스트 우측 정렬 상단, 이름이 하단에서 일러스트와 살짝 겹침.
+ * 데스크톱: 일러스트 우측, 거대한 이름이 일러스트 뒤(좌측)에서 마지막 글자 가장자리만 살짝 겹치고,
+ *   장르 eyebrow(위) · 한 줄 소개/키워드가 이름 기둥에 정렬된다.
+ * 모바일: 일러스트 아래로 eyebrow → 이름 → 소개/키워드가 한 열로 쌓인다(이름은 가려지지 않음).
  */
-export function computeRevealLayout(vw: number, vh: number, nameLines: number, nameMaxChars: number): RevealLayout {
+export function computeRevealLayout(
+  vw: number,
+  vh: number,
+  nameLines: number,
+  nameMaxChars: number,
+): RevealLayout {
   const compact = vw < 768;
   const lines = Math.max(1, nameLines);
   const chars = Math.max(1, nameMaxChars);
@@ -139,29 +281,40 @@ export function computeRevealLayout(vw: number, vh: number, nameLines: number, n
     const left = vw - fw - vw * 0.11;
     const top = (vh - fh) / 2;
     const frame = { left, top, width: fw, height: fh };
-    const nameRight = left + fw * 0.1;
+    const nameRight = left + fw * NAME_TUCK;
     const nameLeft = vw * 0.06;
     const availW = nameRight - nameLeft;
-    const nameFontPx = Math.max(28, Math.min(availW / (chars * GLYPH_ADVANCE), (fh * 0.62) / lines, 300));
-    const blockH = nameFontPx * 0.98 * lines;
-    const nameBox = { left: nameLeft, top: top + fh * 0.6 - blockH / 2, width: availW, height: blockH };
-    const metaBox = { left: nameLeft, top: top + 6, width: Math.max(160, left - nameLeft - 28), height: 64 };
-    return { compact, frame, nameFontPx, nameBox, metaBox };
+    const nameFontPx = Math.max(28, Math.min(availW / (chars * GLYPH_ADVANCE), (fh * 0.46) / lines, 280));
+    const blockH = nameFontPx * NAME_LINE_HEIGHT * lines;
+    const stackH = EYEBROW_BLOCK + blockH + SUB_GAP + SUB_BLOCK;
+    const eyebrowTop = top + Math.max(0, (fh - stackH) / 2);
+    const nameBox = { left: nameLeft, top: eyebrowTop + EYEBROW_BLOCK, width: availW, height: blockH };
+    const infoRight = left - 16;
+    const infoWidth = Math.max(160, Math.min(INFO_MAX_WIDTH, infoRight - nameLeft));
+    const info = {
+      left: infoRight - infoWidth,
+      width: infoWidth,
+      eyebrowTop,
+      subTop: nameBox.top + blockH + SUB_GAP,
+    };
+    return { compact, frame, nameFontPx, nameBox, info };
   }
 
-  const fw = Math.min(vw * 0.74, vh * 0.5 * REVEAL_FRAME_ASPECT * 1.45);
-  const fh = fw / REVEAL_FRAME_ASPECT;
-  const left = vw - fw - vw * 0.06;
-  const top = Math.max(vh * 0.08, 56);
-  const frame = { left, top, width: fw, height: fh };
   const nameLeft = vw * 0.06;
   const availW = vw - nameLeft * 2;
   const nameFontPx = Math.max(26, Math.min(availW / (chars * GLYPH_ADVANCE), 150));
-  const blockH = nameFontPx * 0.98 * lines;
-  const nameTop = top + fh - nameFontPx * 0.08;
-  const nameBox = { left: nameLeft, top: nameTop, width: availW, height: blockH };
-  const metaBox = { left: nameLeft, top: Math.min(nameTop + blockH + 14, vh - 70), width: availW, height: 52 };
-  return { compact, frame, nameFontPx, nameBox, metaBox };
+  const blockH = nameFontPx * NAME_LINE_HEIGHT * lines;
+  const top = Math.max(vh * 0.08, 56);
+  const reserve = EYEBROW_BLOCK + blockH + SUB_GAP + SUB_BLOCK + 20;
+  const wantedFh = Math.min(vw * 0.74, vh * 0.5 * REVEAL_FRAME_ASPECT * 1.45) / REVEAL_FRAME_ASPECT;
+  const fh = Math.min(wantedFh, Math.max(vh - top - reserve, 140));
+  const fw = fh * REVEAL_FRAME_ASPECT;
+  const left = vw - fw - vw * 0.06;
+  const frame = { left, top, width: fw, height: fh };
+  const eyebrowTop = top + fh + 12;
+  const nameBox = { left: nameLeft, top: eyebrowTop + EYEBROW_BLOCK - 12, width: availW, height: blockH };
+  const info = { left: nameLeft, width: availW, eyebrowTop, subTop: nameBox.top + blockH + SUB_GAP };
+  return { compact, frame, nameFontPx, nameBox, info };
 }
 
 /** from(카드 이미지) → to(프레임) 로 되돌리는 FLIP transform. 프레임 좌상단 기준(transform-origin: 0 0). */
@@ -191,14 +344,3 @@ export function flipClipInset(
     bottom: clamp(frame.height - localH),
   };
 }
-
-export type CharacterRevealPayload = {
-  id: number;
-  name: string;
-  genre: string;
-  creator: string;
-  /** 클릭 시점에 카드에 실제로 보이던 공개 이미지. */
-  src: string;
-  from: RevealRect;
-  visible: RevealRect;
-};

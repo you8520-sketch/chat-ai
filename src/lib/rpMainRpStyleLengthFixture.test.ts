@@ -4,28 +4,21 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
-import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
-import {
-  RP_QUALITY_PRECALL_TARGET_SELECTOR,
-  type RpQualityPrecallLiveProofInput,
-} from "@/lib/rpQualityPrecall";
+import { RP_QUALITY_PRECALL_TARGET_SELECTOR } from "@/lib/rpQualityPrecall";
 import {
   HISTORICAL_RP_QUALIFICATION_CHARACTER_ID,
   MAIN_RP_STYLE_LENGTH_EVALUATION,
   MAIN_RP_STYLE_LENGTH_TARGET,
   MainRpStyleLengthFixtureError,
   MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC,
-  PRODUCTION_PARITY_QUALITY_SCORE_RULE,
   assertMainRpStyleLengthEvaluationReady,
   assertMainRpStyleLengthHashes,
   assertMainRpStyleLengthIdentity,
   classifyMainRpProductionParity,
   compareLiveToGolden,
   deriveMainRpStyleLengthAdminEvidence,
-  goldenV1StaleAgainstCurrentSuccess,
   isMainRpStyleLengthEvaluationRequested,
   mainRpStyleLengthSitePolicy,
-  type ProductionParityInput,
 } from "@/lib/rpMainRpStyleLengthFixture";
 
 const LIVE = {
@@ -64,8 +57,6 @@ describe("MAIN_RP_STYLE_LENGTH fixture owner", () => {
     });
     assert.equal(policy.contentMode, "SAFE");
     assert.equal(policy.artificialMaxOutputChars, null);
-    assert.equal(policy.softAimChars, UNIFIED_TIER_AIM_CHARS);
-    assert.equal(policy.targetLengthOwner, "UNIFIED_TIER_AIM_CHARS");
     assert.deepEqual(policy.models, MAIN_RP_MODEL_IDS);
   });
 
@@ -329,322 +320,63 @@ describe("MAIN_RP_STYLE_LENGTH fixture owner", () => {
   });
 });
 
-const LIVE_SHA = "aa".repeat(20);
-const HASH = "ab".repeat(32);
-const GOLDEN_SHA = MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.deployedGitSha;
-const GOLDEN_HASHES = MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.identityHashes;
-
-function selfDeclaredParityInput(
-  overrides: Partial<ProductionParityInput> = {}
-): ProductionParityInput {
-  return {
-    evidenceKind: "CURRENT_LIVE",
-    currentProductionSuccessSha: LIVE_SHA,
-    assemblySourceSha: LIVE_SHA,
-    capturedDeploySha: LIVE_SHA,
-    currentLiveVerified: true,
-    characterId: 18,
-    characterName: "라이크",
-    personaId: 1,
-    personaName: "렌",
-    fixtureId: "A_relationship_emotion",
-    fixtureIds: ["A_relationship_emotion"],
-    authoringLevel: "NORMAL",
-    contentMode: "SAFE",
-    softAimChars: UNIFIED_TIER_AIM_CHARS,
-    maxTokensPresent: false,
-    maxCompletionTokensPresent: false,
-    identityHashes: HASHES,
-    expectedIdentityHashes: HASHES,
-    finalWireFingerprint: HASH,
-    expectedFinalWireFingerprint: HASH,
-    requestBodyFingerprint: HASH,
-    expectedRequestBodyFingerprint: HASH,
-    thinkingSemanticEquivalent: true,
-    reasoningSemanticEquivalent: true,
-    featureFlagsMatch: true,
-    flattenedLosingMeaning: false,
-    recoveryPath: "assemblePrimaryRpRequest",
-    expectedRecoveryPath: "assemblePrimaryRpRequest",
-    sampling: { temperature: 0.92, top_p: 0.92 },
-    expectedSampling: { temperature: 0.92, top_p: 0.92 },
-    ...overrides,
-  };
-}
-
-function independentLiveProof(
-  overrides: Partial<RpQualityPrecallLiveProofInput> = {}
-): RpQualityPrecallLiveProofInput {
-  return {
-    source: "railway-readonly-in-process-hash-probe",
-    generatedAt: "2026-10-10T05:43:19.680Z",
-    deployedGitSha: GOLDEN_SHA,
-    characterId: 18,
-    characterName: "라이크",
-    personaName: "렌",
-    personaId: 1,
-    authoringLevel: "NORMAL",
-    contentMode: "SAFE",
-    ...GOLDEN_HASHES,
-    ...overrides,
-  };
-}
-
-function independentAssembledBody(overrides: Record<string, unknown> = {}) {
-  return {
-    model: "deepseek-v4.1-flash",
-    messages: [
-      { role: "system", content: "common-style" },
-      { role: "user", content: "[채팅 시작]" },
-    ],
-    temperature: 0.92,
-    top_p: 0.92,
-    stream: true,
-    thinking: { type: "disabled" },
-    reasoning_effort: "none",
-    ...overrides,
-  };
-}
-
-function independentStyleSections() {
-  return [
-    { sectionId: "openrouter-korean-prose-top", sha256: "aa".repeat(8) },
-    { sectionId: "prose-style-xml-bundle", sha256: "bb".repeat(8) },
-    { sectionId: "deepseek-thinking-off", sha256: "cc".repeat(8) },
-  ];
-}
-
-function independentParityInput(
-  overrides: Partial<ProductionParityInput> = {}
-): ProductionParityInput {
-  const assembledRequestBody = independentAssembledBody();
-  const expectedSealedRequestBody = independentAssembledBody();
-  const observedStyleSections = independentStyleSections();
-  const expectedStyleSections = independentStyleSections();
-  const observedRuntimeFlags = { contentMode: "SAFE", authoringLevel: "NORMAL" };
-  const expectedRuntimeFlags = { contentMode: "SAFE", authoringLevel: "NORMAL" };
-  return {
-    evidenceKind: "CURRENT_LIVE",
-    observedProvenance: { kind: "in_process_assembly", sourceId: "in-process-assembly-run" },
-    expectedProvenance: { kind: "railway_live_proof", sourceId: "railway-live-expected" },
-    liveProofInput: independentLiveProof(),
-    expectedIdentityHashes: { ...GOLDEN_HASHES },
-    assembledRequestBody,
-    expectedSealedRequestBody,
-    observedStyleSections,
-    expectedStyleSections,
-    observedRuntimeFlags,
-    expectedRuntimeFlags,
-    precallReady: true,
-    currentProductionSuccessSha: GOLDEN_SHA,
-    assemblySourceSha: GOLDEN_SHA,
-    capturedDeploySha: GOLDEN_SHA,
-    characterId: 18,
-    characterName: "라이크",
-    personaId: 1,
-    personaName: "렌",
-    fixtureId: "A_relationship_emotion",
-    fixtureIds: ["A_relationship_emotion"],
-    recoveryPath: "assemblePrimaryRpRequest",
-    expectedRecoveryPath: "assemblePrimaryRpRequest",
-    flattenedLosingMeaning: false,
-    ...overrides,
-  };
-}
-
-describe("MAIN_RP_STYLE_LENGTH production parity gate", () => {
-  it("keeps PRECALL_READY and paid authorization separate from quality eligibility", () => {
-    assert.equal(PRODUCTION_PARITY_QUALITY_SCORE_RULE.requiredStatus, "PRODUCTION_PARITY_VERIFIED");
-    assert.equal(PRODUCTION_PARITY_QUALITY_SCORE_RULE.precallReadyIsSeparate, true);
-    assert.equal(PRODUCTION_PARITY_QUALITY_SCORE_RULE.paidAuthorizationIsSeparate, true);
-    assert.equal(PRODUCTION_PARITY_QUALITY_SCORE_RULE.syntheticCannotPromoteToQualityScore, true);
-    assert.equal(PRODUCTION_PARITY_QUALITY_SCORE_RULE.callerAnnotationCannotVerify, true);
-    const verified = classifyMainRpProductionParity(independentParityInput());
-    assert.equal(verified.status, "PRODUCTION_PARITY_VERIFIED");
-    assert.equal(verified.qualityScoreEligible, true);
-    assert.equal(verified.softAimChars, UNIFIED_TIER_AIM_CHARS);
-    assert.equal(verified.precallReadyIsSeparate, true);
-  });
-
-  it("fail-before: self-supplied equal fake hashes cannot reach VERIFIED", () => {
-    const result = classifyMainRpProductionParity(selfDeclaredParityInput());
+describe("caller production parity input is not a trust boundary", () => {
+  it("does not verify forged provenance labels or a cloned body", () => {
+    const body = {
+      model: "deepseek-v4.1-flash",
+      messages: [{ role: "user", content: "synthetic" }],
+      temperature: 0.92,
+      top_p: 0.92,
+      thinking: { type: "disabled" },
+    };
+    const result = classifyMainRpProductionParity({
+      evidenceKind: "CURRENT_LIVE",
+      currentLiveVerified: true,
+      observedProvenance: { kind: "in_process_assembly", sourceId: "forged-a" },
+      expectedProvenance: { kind: "railway_live_proof", sourceId: "forged-b" },
+      assembledRequestBody: body,
+      expectedSealedRequestBody: structuredClone(body),
+      precallReady: true,
+      thinkingSemanticEquivalent: true,
+      reasoningSemanticEquivalent: true,
+    });
     assert.notEqual(result.status, "PRODUCTION_PARITY_VERIFIED");
     assert.equal(result.qualityScoreEligible, false);
+    assert.ok(result.reasons.includes("caller_attestation_cannot_verify"));
     assert.ok(result.reasons.includes("current_live_verified_boolean_ignored"));
-    assert.ok(result.reasons.includes("assembled_request_body_missing"));
-    assert.ok(
-      result.reasons.includes("caller_annotation_cannot_verify") ||
-        result.reasons.includes("provenance_missing")
-    );
+    assert.equal(result.trustBoundary, "caller_input_is_not_trusted");
   });
 
-  it("fail-before: omitted required independent evidence cannot verify", () => {
-    const result = classifyMainRpProductionParity(
-      independentParityInput({
-        assembledRequestBody: null,
-        expectedSealedRequestBody: null,
-        observedStyleSections: null,
-        expectedStyleSections: null,
-      })
-    );
-    assert.equal(result.status, "NOT_COMPARABLE");
-    assert.equal(result.qualityScoreEligible, false);
-    assert.ok(result.reasons.includes("assembled_request_body_missing"));
-  });
+  it("does not verify invented hashes, missing bodies, or a stale SHA", () => {
+    const invented = classifyMainRpProductionParity({
+      evidenceKind: "railway_live_proof",
+      sourceId: "forged-source",
+      identityHashes: { greetingSha256: "a".repeat(64) },
+      expectedIdentityHashes: { greetingSha256: "b".repeat(64) },
+    });
+    assert.notEqual(invented.status, "PRODUCTION_PARITY_VERIFIED");
+    assert.equal(invented.qualityScoreEligible, false);
 
-  it("does not promote synthetic fixtures to quality scores", () => {
-    const result = classifyMainRpProductionParity(
-      selfDeclaredParityInput({ evidenceKind: "SYNTHETIC", currentLiveVerified: false })
-    );
-    assert.equal(result.status, "NOT_COMPARABLE");
-    assert.equal(result.qualityScoreEligible, false);
-    assert.ok(result.reasons.includes("synthetic_not_quality_score"));
-  });
+    const missingBody = classifyMainRpProductionParity({
+      evidenceKind: "in_process_assembly",
+      assembledRequestBody: undefined,
+      expectedSealedRequestBody: undefined,
+    });
+    assert.equal(missingBody.status, "NOT_COMPARABLE");
+    assert.equal(missingBody.qualityScoreEligible, false);
 
-  it("fails closed on a missing current-live snapshot", () => {
-    const result = classifyMainRpProductionParity({ evidenceKind: "MISSING" });
-    assert.equal(result.status, "NOT_COMPARABLE");
-    assert.equal(result.qualityScoreEligible, false);
-    assert.ok(result.reasons.includes("current_live_evidence_missing"));
-  });
+    const stale = classifyMainRpProductionParity({
+      currentProductionSuccessSha: "4d83c100666878cca747408ae72a18f3360310ac",
+      capturedDeploySha: "e1fdab509d2e9713be617025f77ea40a5bfb85f5",
+      currentLiveVerified: true,
+    });
+    assert.equal(stale.status, "STALE_PRODUCTION_SNAPSHOT");
+    assert.equal(stale.qualityScoreEligible, false);
 
-  it("fails closed on a different character or persona", () => {
-    const result = classifyMainRpProductionParity(
-      selfDeclaredParityInput({ characterId: 10, characterName: "에녹", personaName: "다른사람" })
-    );
-    assert.equal(result.status, "NOT_COMPARABLE");
-    assert.ok(result.reasons.includes("identity_not_laike_ren"));
-  });
-
-  it("fails closed when 라이크/렌 names match but live persona id is missing", () => {
-    const result = classifyMainRpProductionParity(
-      selfDeclaredParityInput({ personaId: undefined })
-    );
-    assert.equal(result.status, "NOT_COMPARABLE");
-    assert.ok(result.reasons.includes("persona_id_unconfirmed"));
-    assert.equal(result.reasons.includes("identity_not_laike_ren"), false);
-  });
-
-  it("fails closed on a non-A/B/C scene", () => {
-    const result = classifyMainRpProductionParity(
-      selfDeclaredParityInput({ fixtureId: "B03a", fixtureIds: ["B03a"] })
-    );
-    assert.equal(result.status, "NOT_COMPARABLE");
-    assert.ok(result.reasons.includes("fixture_not_abc"));
-  });
-
-  it("marks golden v1 stale against a different production SUCCESS SHA", () => {
-    assert.equal(
-      goldenV1StaleAgainstCurrentSuccess("4d83c100666878cca747408ae72a18f3360310ac"),
-      true
-    );
-    assert.equal(
-      goldenV1StaleAgainstCurrentSuccess(MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.deployedGitSha),
-      false
-    );
-    const result = classifyMainRpProductionParity(
-      independentParityInput({
-        evidenceKind: "GOLDEN_SNAPSHOT",
-        expectedProvenance: {
-          kind: "golden_public_manifest",
-          sourceId: MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.sourceId,
-        },
-        currentProductionSuccessSha: "4d83c100666878cca747408ae72a18f3360310ac",
-        liveProofInput: independentLiveProof({
-          deployedGitSha: "4d83c100666878cca747408ae72a18f3360310ac",
-        }),
-      })
-    );
-    assert.equal(result.status, "STALE_PRODUCTION_SNAPSHOT");
-    assert.equal(result.qualityScoreEligible, false);
-  });
-
-  it("fails closed when common or model style section hashes change", () => {
-    const result = classifyMainRpProductionParity(
-      independentParityInput({
-        expectedStyleSections: [
-          { sectionId: "openrouter-korean-prose-top", sha256: "11".repeat(8) },
-          { sectionId: "prose-style-xml-bundle", sha256: "22".repeat(8) },
-          { sectionId: "deepseek-thinking-off", sha256: "33".repeat(8) },
-        ],
-      })
-    );
-    assert.equal(result.status, "PRODUCTION_PARITY_MISMATCH");
-    assert.ok(result.reasons.includes("commonStyleSectionContentHash_mismatch"));
-    assert.ok(result.reasons.includes("modelStyleSectionContentHash_mismatch"));
-  });
-
-  it("fails closed on authoring, feature-flag, sampling, length, and max_tokens drift", () => {
-    const authoring = classifyMainRpProductionParity(
-      independentParityInput({
-        liveProofInput: independentLiveProof({ authoringLevel: "LIMITED" }),
-      })
-    );
-    assert.equal(authoring.status, "PRODUCTION_PARITY_MISMATCH");
-    assert.ok(authoring.reasons.includes("authoring_policy_mismatch"));
-
-    const flags = classifyMainRpProductionParity(
-      independentParityInput({
-        expectedRuntimeFlags: { contentMode: "19+", authoringLevel: "NORMAL" },
-      })
-    );
-    assert.equal(flags.status, "PRODUCTION_PARITY_MISMATCH");
-    assert.ok(flags.reasons.includes("feature_flag_or_runtime_mode_mismatch"));
-
-    const sampling = classifyMainRpProductionParity(
-      independentParityInput({
-        expectedSealedRequestBody: independentAssembledBody({ temperature: 0.1 }),
-      })
-    );
-    assert.equal(sampling.status, "PRODUCTION_PARITY_MISMATCH");
-    assert.ok(sampling.reasons.includes("sampling_mismatch"));
-
-    const length = classifyMainRpProductionParity(independentParityInput({ softAimChars: 800 }));
-    assert.equal(length.status, "PRODUCTION_PARITY_MISMATCH");
-    assert.ok(length.reasons.includes("length_owner_drift"));
-    assert.equal(length.softAimChars, UNIFIED_TIER_AIM_CHARS);
-
-    const maxTokens = classifyMainRpProductionParity(
-      independentParityInput({
-        assembledRequestBody: independentAssembledBody({ max_tokens: 800 }),
-        expectedSealedRequestBody: independentAssembledBody({ max_tokens: 800 }),
-      })
-    );
-    assert.equal(maxTokens.status, "PRODUCTION_PARITY_MISMATCH");
-    assert.ok(maxTokens.reasons.includes("max_tokens_present"));
-  });
-
-  it("fails closed on a different recovery path or flattened request meaning", () => {
-    const recovery = classifyMainRpProductionParity(
-      independentParityInput({ recoveryPath: "benchmark-flatten" })
-    );
-    assert.equal(recovery.status, "PRODUCTION_PARITY_MISMATCH");
-    assert.ok(recovery.reasons.includes("recovery_path_mismatch"));
-
-    const flattened = classifyMainRpProductionParity(
-      independentParityInput({ flattenedLosingMeaning: true })
-    );
-    assert.equal(flattened.status, "PRODUCTION_PARITY_MISMATCH");
-    assert.ok(flattened.reasons.includes("flattened_losing_meaning"));
-  });
-
-  it("classifies unproven thinking or reasoning meaning as SEMANTIC_PARITY_UNCONFIRMED", () => {
-    const { thinking: _thinking, reasoning_effort: _effort, ...noThinking } =
-      independentAssembledBody();
-    const result = classifyMainRpProductionParity(
-      independentParityInput({
-        assembledRequestBody: noThinking,
-        expectedSealedRequestBody: { ...noThinking },
-      })
-    );
-    assert.equal(result.status, "SEMANTIC_PARITY_UNCONFIRMED");
-    assert.equal(result.qualityScoreEligible, false);
-    assert.ok(result.reasons.includes("thinking_or_reasoning_semantic_unconfirmed"));
-  });
-
-  it("does not treat PRECALL_READY false as a quality score even when wire evidence matches", () => {
-    const result = classifyMainRpProductionParity(independentParityInput({ precallReady: false }));
-    assert.equal(result.status, "PRODUCTION_PARITY_VERIFIED");
-    assert.equal(result.qualityScoreEligible, false);
+    const capped = classifyMainRpProductionParity({ maxTokensPresent: true, precallReady: false });
+    assert.equal(capped.status, "PRODUCTION_PARITY_MISMATCH");
+    assert.ok(capped.reasons.includes("max_tokens_present"));
+    assert.ok(capped.reasons.includes("precall_ready_is_not_quality_approval"));
+    assert.equal(capped.qualityScoreEligible, false);
   });
 });

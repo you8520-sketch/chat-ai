@@ -133,6 +133,7 @@ describe("Main RP body-cue preflight", () => {
     assert.equal(packet.evidence.recordedLiveRow.englishLayerPresent, true);
     assert.equal(packet.evidence.recordedLiveRow.englishLayerApplied, "UNVERIFIED");
     assert.equal(packet.evidence.assemblyGaps.liveSourceTextAssembled, false);
+    assert.equal(CANONICAL_RP_QUALIFICATION_SOURCE.fixtureKind, "HISTORICAL_ONLY");
     assert.equal(CANONICAL_RP_QUALIFICATION_SOURCE.sourceCharacterId, 10);
     assert.notEqual(LIVE_DEPLOYED_ROW_PROOF.characterId, 10);
     assert.equal(LIVE_ASSEMBLED_REQUEST_UNVERIFIED_GAPS.englishLayerApplied, "UNVERIFIED");

@@ -10,6 +10,7 @@ import {
   MAIN_RP_MODEL_IDS,
   selectedAIProvider,
 } from "@/lib/chatModels";
+import { MainRpStyleLengthFixtureError } from "@/lib/rpMainRpStyleLengthFixture";
 import {
   buildCanonicalRpQualificationCases,
   buildCanonicalRpQualificationContextInput,
@@ -22,6 +23,8 @@ import {
   buildRpActiveModelQualityPlan,
   buildRpActiveModelQualityRequest,
   executeRpActiveModelQualityProbe,
+  resolveRpActiveModelQualitySource,
+  runRpActiveModelQualityLive,
 } from "./rpActiveModelQualityLive";
 
 describe("rpActiveModelQualityLive", () => {
@@ -39,7 +42,8 @@ describe("rpActiveModelQualityLive", () => {
     ] as const;
     const plan = buildRpActiveModelQualityPlan(
       ["false_canon_trap"],
-      focusedModels
+      focusedModels,
+      "HISTORICAL_ONLY"
     );
     assert.equal(plan.length, 4);
     assert.deepEqual(
@@ -50,7 +54,11 @@ describe("rpActiveModelQualityLive", () => {
   });
 
   it("bounds the default monthly run to two memory cases across all active models", () => {
-    const plan = buildRpActiveModelQualityPlan();
+    const plan = buildRpActiveModelQualityPlan(
+      RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS,
+      RP_ACTIVE_MODEL_QUALITY_MODEL_IDS,
+      "HISTORICAL_ONLY"
+    );
     assert.deepEqual(RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS, [
       "memory_current_state_priority",
       "memory_false_shared_event",
@@ -114,6 +122,7 @@ describe("rpActiveModelQualityLive", () => {
         modelId,
         caseData,
         sessionId: "quality-test-session",
+        source: "HISTORICAL_ONLY",
       });
       const provider = selectedAIProvider(modelId);
       assert.equal(request.provider, provider);
@@ -145,12 +154,17 @@ describe("rpActiveModelQualityLive", () => {
     assert.match(yml, /\.github\/rp-active-model-quality-live\.trigger/);
     assert.match(yml, /RP_ACTIVE_MODEL_QUALITY_MODEL_IDS_OVERRIDE/);
     assert.match(yml, /PR trigger absent; provider calls=0/);
+    assert.match(yml, /RP_ACTIVE_MODEL_QUALITY_SOURCE: HISTORICAL_ONLY/);
     assert.doesNotMatch(yml, /gh pr merge|--auto\b|ready-for-review/);
   });
 
   it("parses one bounded fake SSE generation without retry/fallback", async () => {
     const caseData = buildCanonicalRpQualificationCases()[1]!;
-    const probe = buildRpActiveModelQualityPlan([caseData.id]).find(
+    const probe = buildRpActiveModelQualityPlan(
+      [caseData.id],
+      RP_ACTIVE_MODEL_QUALITY_MODEL_IDS,
+      "HISTORICAL_ONLY"
+    ).find(
       (row) =>
         row.modelId === CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL &&
         row.caseId === caseData.id
@@ -179,6 +193,7 @@ describe("rpActiveModelQualityLive", () => {
       probe,
       caseData,
       sessionId: "quality-test-session",
+      source: "HISTORICAL_ONLY",
       fetchImpl,
       now: () => 1_000,
     });
@@ -190,5 +205,54 @@ describe("rpActiveModelQualityLive", () => {
     assert.equal(result.text, "태형은 고개를 기울였다.");
     assert.equal(result.promptTokens, 100);
     assert.equal(result.completionTokens, 20);
+  });
+
+  it("connects MAIN_RP_STYLE_LENGTH to a Golden snapshot instead of throwing only", async () => {
+    assert.equal(resolveRpActiveModelQualitySource("GOLDEN_SNAPSHOT"), "GOLDEN_SNAPSHOT");
+    const previous = process.env.MAIN_RP_STYLE_LENGTH;
+    process.env.MAIN_RP_STYLE_LENGTH = "1";
+    try {
+      assert.equal(resolveRpActiveModelQualitySource(), "GOLDEN_SNAPSHOT");
+      await assert.rejects(
+        () =>
+          runRpActiveModelQualityLive({
+            credentials: { cheaperinference: "", openrouter: "" },
+            runId: "style-length-missing-golden",
+            source: "GOLDEN_SNAPSHOT",
+            goldenRoot: "/tmp/main-rp-style-length-missing",
+            goldenVersion: 1,
+          }),
+        (error: unknown) =>
+          error instanceof MainRpStyleLengthFixtureError && error.code === "GOLDEN_VERSION_MISSING"
+      );
+    } finally {
+      if (previous == null) delete process.env.MAIN_RP_STYLE_LENGTH;
+      else process.env.MAIN_RP_STYLE_LENGTH = previous;
+    }
+  });
+
+  it("fail-before A: omitted source without MAIN_RP_STYLE_LENGTH rejects historical id10", () => {
+    assert.throws(
+      () => resolveRpActiveModelQualitySource(undefined, {}),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "HISTORICAL_ID10_REJECTED"
+    );
+    assert.throws(
+      () => buildRpActiveModelQualityPlan(),
+      (error: unknown) =>
+        error instanceof MainRpStyleLengthFixtureError && error.code === "HISTORICAL_ID10_REJECTED"
+    );
+    const previous = process.env.MAIN_RP_STYLE_LENGTH;
+    process.env.MAIN_RP_STYLE_LENGTH = "1";
+    try {
+      assert.throws(
+        () => buildRpActiveModelQualityPlan(),
+        (error: unknown) =>
+          error instanceof MainRpStyleLengthFixtureError && error.code === "HISTORICAL_ID10_REJECTED"
+      );
+    } finally {
+      if (previous == null) delete process.env.MAIN_RP_STYLE_LENGTH;
+      else process.env.MAIN_RP_STYLE_LENGTH = previous;
+    }
   });
 });

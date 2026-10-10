@@ -245,7 +245,7 @@ export default async function TabPage({
                     id: c.id,
                     name: c.name,
                     genre: c.genre?.trim() || "",
-                    creator: c.creator_name,
+                    tagline: c.tagline,
                     href,
                     hidden,
                     hasThumb: Boolean(thumb),

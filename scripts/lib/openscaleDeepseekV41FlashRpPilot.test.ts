@@ -280,6 +280,10 @@ describe("OpenScale A/B/C PRECALL fixture parity gate", () => {
     assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.distinctFromPhase2Q1Q9, true);
     assert.equal(
       OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.productionParityOwner,
+      "scripts/lib/rpMainRpStyleLengthGolden.evaluateOwnedProductionRequestParity"
+    );
+    assert.equal(
+      OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.advisoryParityClassifier,
       "src/lib/rpMainRpStyleLengthFixture.classifyMainRpProductionParity"
     );
     assert.equal(OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.softAimChars, UNIFIED_TIER_AIM_CHARS);
@@ -317,9 +321,12 @@ describe("OpenScale A/B/C PRECALL fixture parity gate", () => {
     assert.ok(parity.reasons.includes("sceneId_missing"));
     assert.equal(parity.proposed.sceneFamily, "rp_quality_precall_abc");
     assert.equal(parity.productionParity.status, "NOT_COMPARABLE");
+    assert.equal(parity.productionRequestParity, "NOT_OWNED_BY_CALLER");
+    assert.equal(parity.providerSemanticParity, "NOT_COMPARABLE");
     assert.equal(parity.qualityScoreEligible, false);
     assert.equal(result.qualityScoreEligible, false);
     assert.equal(result.productionParityStatus, "NOT_COMPARABLE");
+    assert.equal(result.providerSemanticParity, "NOT_COMPARABLE");
   });
 
   it("fails closed when the proposed characterId is wrong", () => {
@@ -437,8 +444,16 @@ describe("OpenScale A/B/C PRECALL fixture parity gate", () => {
     assert.equal(parity.confirmedPersonaId, LIVE_PERSONA_ID);
     assert.deepEqual(parity.reasons, []);
     assert.equal(parity.productionParity.status, "NOT_COMPARABLE");
+    assert.equal(parity.productionRequestParity, "NOT_OWNED_BY_CALLER");
+    assert.equal(parity.providerSemanticParity, "SEMANTIC_PARITY_UNCONFIRMED");
+    assert.ok(parity.providerSemanticReasons.includes("thinking_omitted_on_openscale_candidate"));
+    assert.ok(
+      parity.providerSemanticReasons.includes(
+        "reasoning_effort_none_not_proven_equal_to_production_thinking"
+      )
+    );
     assert.equal(parity.qualityScoreEligible, false);
-    assert.ok(parity.productionParity.reasons.includes("synthetic_not_quality_score"));
+    assert.ok(parity.productionParity.reasons.includes("caller_attestation_cannot_verify"));
     assert.equal(parity.productionParity.softAimChars, UNIFIED_TIER_AIM_CHARS);
   });
 
@@ -488,17 +503,19 @@ describe("OpenScale consumes the shared production parity owner", () => {
     );
   });
 
-  it("keeps golden v1 stale against current origin/main SUCCESS and never scores it", () => {
+  it("keeps golden v1 stale against the observed production SUCCESS SHA and never scores it", () => {
     const parity = evaluateOpenScaleStyleEvalFixtureParity(
       restoredAbcFixture({
         useGoldenV1Expected: true,
         capturedDeploySha: MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.deployedGitSha,
-        currentProductionSuccessSha: "4d83c100666878cca747408ae72a18f3360310ac",
+        currentProductionSuccessSha: "b15e87e75b61d5ae4f84203865a6597df9916064",
       })
     );
     assert.equal(parity.status, "FIXTURE_PARITY_PASS");
     assert.equal(parity.precallReady, true);
     assert.equal(parity.productionParity.status, "STALE_PRODUCTION_SNAPSHOT");
+    assert.equal(parity.productionRequestParity, "NOT_OWNED_BY_CALLER");
+    assert.equal(parity.providerSemanticParity, "SEMANTIC_PARITY_UNCONFIRMED");
     assert.equal(parity.qualityScoreEligible, false);
     assert.equal(parity.goldenV1Stale, true);
   });

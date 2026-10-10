@@ -1,6 +1,6 @@
 # OpenScale DeepSeek V4.1 Flash RP Pilot
 
-Status: **NOT_COMPARABLE / STALE_PRODUCTION_SNAPSHOT — production parity not verified. `PRODUCTION_PARITY_VERIFIED` now requires independently derived live proof + assembled request bodies. Caller hash pairs and `currentLiveVerified=true` cannot pass. Draft only. Provider POST 0. Cursor did not assign an RP style score.**
+Status: **NOT_COMPARABLE / SEMANTIC_PARITY_UNCONFIRMED — caller provenance cannot grant `PRODUCTION_PARITY_VERIFIED`. Production-request comparison is owned by `evaluateOwnedProductionRequestParity` (golden reload + live DB read + fresh assembly). OpenScale transport meaning stays unconfirmed. `qualityScoreEligible` stays false. Draft only. Provider POST 0. Cursor did not assign an RP style score.**
 
 This is an isolated provider experiment. It is not a production supplier promotion.
 
@@ -14,7 +14,7 @@ A/B/C is the current comparison baseline. Q1–Q9 is a different experiment and 
 
 Creating a second Production Parity Manifest owner would violate one-owner. The correct move is to consume the #1483 owner and add `classifyMainRpProductionParity()` there.
 
-Golden v1 was captured at `e1fdab509d2e9713be617025f77ea40a5bfb85f5`. Current `origin/main` SUCCESS is `4d83c100666878cca747408ae72a18f3360310ac`. Railway SSH is still unavailable, so CURRENT_LIVE cannot be re-verified. OpenScale vs CheaperInference `thinking` / `reasoning_effort` meaning is inventoried but not proven equivalent.
+Golden v1 was captured at `e1fdab509d2e9713be617025f77ea40a5bfb85f5`. A fresh `railway deployment list` on 2026-10-10 shows production SUCCESS `b15e87e75b61d5ae4f84203865a6597df9916064` (deploy `e1c8670c-8210-4062-88da-dbd6c0b26906`). That SHA is deployment metadata only. Railway SSH has no usable key, so `/data/app.db` and the live final-wire were not read. CURRENT_LIVE stays unproven. OpenScale `thinking` omission and `reasoning_effort=none` stay `SEMANTIC_PARITY_UNCONFIRMED`.
 
 ## OWNER MAP
 
@@ -24,7 +24,9 @@ Golden v1 was captured at `e1fdab509d2e9713be617025f77ea40a5bfb85f5`. Current `o
 | Length soft aim | `responseLengthConstants.UNIFIED_TIER_AIM_CHARS` (3200+, read, not hardcoded in eval) |
 | Authoring | `userAuthoringPolicy.DEFAULT_USER_AUTHORING_LEVEL = NORMAL` |
 | A/B/C fixtures / PRECALL_READY | `src/lib/rpQualityPrecall.ts` |
-| MAIN_RP_STYLE_LENGTH identity + public golden + **production parity gate** | `src/lib/rpMainRpStyleLengthFixture.ts` |
+| MAIN_RP_STYLE_LENGTH identity + public golden | `src/lib/rpMainRpStyleLengthFixture.ts` |
+| Owned production-request parity | `scripts/lib/rpMainRpStyleLengthGolden.evaluateOwnedProductionRequestParity` |
+| Advisory caller classifier (never VERIFIED) | `classifyMainRpProductionParity` |
 | Section fingerprint helper | `src/lib/promptSectionFingerprint.ts` (hash-only; not a second parity owner) |
 | OpenScale consumer | `scripts/lib/openscaleDeepseekV41FlashRpPilot.ts` |
 | B03a diagnostic | same OpenScale file, not quality-score eligible |
@@ -43,7 +45,8 @@ Golden v1 was captured at `e1fdab509d2e9713be617025f77ea40a5bfb85f5`. Current `o
 
 | Runner | Consumes shared gate this PR? |
 | --- | --- |
-| `rpMainRpStyleLengthFixture.classifyMainRpProductionParity` | owner |
+| `rpMainRpStyleLengthGolden.evaluateOwnedProductionRequestParity` | production-request owner |
+| `rpMainRpStyleLengthFixture.classifyMainRpProductionParity` | advisory only; cannot return VERIFIED |
 | `scripts/lib/openscaleDeepseekV41FlashRpPilot.ts` | yes — first consumer |
 | `src/lib/rpQualityPrecall.ts` / `scripts/rp-quality-precall.ts` | FOLLOW-UP |
 | `scripts/lib/rpQualityPrecallFinalWire.ts` | FOLLOW-UP |

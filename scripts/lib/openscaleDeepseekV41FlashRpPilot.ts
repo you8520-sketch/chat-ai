@@ -23,12 +23,7 @@ import {
   MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC,
   classifyMainRpProductionParity,
   goldenV1StaleAgainstCurrentSuccess,
-  type ProductionParityEvidenceKind,
-  type ProductionParityInput,
-  type ProductionParityProvenance,
   type ProductionParityResult,
-  type ProductionParityRuntimeFlags,
-  type ProductionParitySection,
 } from "@/lib/rpMainRpStyleLengthFixture";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import { buildContext } from "@/services/contextBuilder";
@@ -113,7 +108,10 @@ export const OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY = Object.freeze({
   originalSceneIds: RP_QUALITY_PRECALL_FIXTURE_IDS,
   currentMainPrecallFamily: "rp_quality_precall_abc" as const,
   currentMainPrecallFixtureIds: RP_QUALITY_PRECALL_FIXTURE_IDS,
-  productionParityOwner: "src/lib/rpMainRpStyleLengthFixture.classifyMainRpProductionParity",
+  productionParityOwner:
+    "scripts/lib/rpMainRpStyleLengthGolden.evaluateOwnedProductionRequestParity",
+  advisoryParityClassifier:
+    "src/lib/rpMainRpStyleLengthFixture.classifyMainRpProductionParity",
   lengthOwner: "UNIFIED_TIER_AIM_CHARS",
   softAimChars: UNIFIED_TIER_AIM_CHARS,
 });
@@ -385,14 +383,8 @@ export type OpenScaleStyleEvalProposedFixture = {
   recoveryPath?: string;
   expectedRecoveryPath?: string;
   expectedSealedRequestBody?: Record<string, unknown>;
-  observedProvenance?: ProductionParityProvenance;
-  expectedProvenance?: ProductionParityProvenance;
-  observedStyleSections?: ProductionParitySection[];
-  expectedStyleSections?: ProductionParitySection[];
-  observedRuntimeFlags?: ProductionParityRuntimeFlags;
-  expectedRuntimeFlags?: ProductionParityRuntimeFlags;
-  identityHashes?: ProductionParityInput["identityHashes"];
-  expectedIdentityHashes?: ProductionParityInput["expectedIdentityHashes"];
+  identityHashes?: unknown;
+  expectedIdentityHashes?: unknown;
   finalWireFingerprint?: string;
   expectedFinalWireFingerprint?: string;
   requestBodyFingerprint?: string;
@@ -459,7 +451,10 @@ export type OpenScaleStyleEvalParityResult = {
   proposed: OpenScaleStyleEvalProposedFixture;
   diagnosticB03a: typeof OPENSCALE_B03A_DIAGNOSTIC;
   productionParity: ProductionParityResult;
-  qualityScoreEligible: boolean;
+  productionRequestParity: "NOT_OWNED_BY_CALLER";
+  providerSemanticParity: "SEMANTIC_PARITY_UNCONFIRMED" | "NOT_COMPARABLE";
+  providerSemanticReasons: readonly string[];
+  qualityScoreEligible: false;
   providerInventory: typeof OPENSCALE_VS_CHEAPERINFERENCE_INVENTORY;
   goldenV1Stale: boolean;
 };
@@ -555,85 +550,52 @@ export function describeOpenScaleWireDelta(
   };
 }
 
-function resolveOpenScaleParityEvidenceKind(
-  proposed: OpenScaleStyleEvalProposedFixture
-): ProductionParityEvidenceKind {
-  if (proposed.originalFixtureJsonRestored === true || proposed.currentSettingsRestored === true) {
-    return "SYNTHETIC";
+export function classifyOpenScaleTransportSemantics(
+  productionBody: JsonObject,
+  candidateBody: JsonObject
+): {
+  status: "SEMANTIC_PARITY_UNCONFIRMED";
+  qualityScoreEligible: false;
+  reasons: readonly string[];
+} {
+  const reasons = ["openscale_candidate_is_not_production_request_parity"];
+  if ("thinking" in productionBody && !("thinking" in candidateBody)) {
+    reasons.push("thinking_omitted_on_openscale_candidate");
   }
-  if (proposed.currentLiveVerified === true) return "CURRENT_LIVE";
-  if (proposed.useGoldenV1Expected === true) return "GOLDEN_SNAPSHOT";
-  if (proposed.productionRequestBody) return "SYNTHETIC";
-  return "MISSING";
+  if (
+    candidateBody.reasoning_effort === "none" &&
+    JSON.stringify(productionBody.thinking) !== JSON.stringify(candidateBody.reasoning_effort)
+  ) {
+    reasons.push("reasoning_effort_none_not_proven_equal_to_production_thinking");
+  }
+  const productionMessages = JSON.stringify(productionBody.messages ?? null);
+  const candidateMessages = JSON.stringify(candidateBody.messages ?? null);
+  if (productionMessages !== candidateMessages) {
+    reasons.push("message_content_flattened_or_reordered");
+  }
+  return {
+    status: "SEMANTIC_PARITY_UNCONFIRMED",
+    qualityScoreEligible: false,
+    reasons,
+  };
 }
 
 export function buildOpenScaleProductionParityInput(
   proposed: OpenScaleStyleEvalProposedFixture,
   extras?: {
-    sceneId?: string;
-    livePersonaId?: number | null;
     maxTokensPresent?: boolean;
-    sampling?: { temperature?: unknown; top_p?: unknown } | null;
     precallReady?: boolean;
   }
-): ProductionParityInput {
-  const sceneId = extras?.sceneId ?? (proposed.fixtureId ?? proposed.sceneId)?.trim() ?? "";
-  const assembled =
-    proposed.productionRequestBody && typeof proposed.productionRequestBody === "object"
-      ? proposed.productionRequestBody
-      : null;
-  const expectedSealed =
-    proposed.expectedSealedRequestBody && typeof proposed.expectedSealedRequestBody === "object"
-      ? proposed.expectedSealedRequestBody
-      : null;
+) {
   return {
-    evidenceKind: resolveOpenScaleParityEvidenceKind(proposed),
-    observedProvenance: proposed.observedProvenance ?? {
-      kind: assembled ? "in_process_assembly" : "caller_annotation",
-      sourceId: assembled ? "openscale-observed-assembly" : "openscale-default-observed",
-    },
-    expectedProvenance: proposed.expectedProvenance ?? {
-      kind: proposed.useGoldenV1Expected ? "golden_public_manifest" : "caller_annotation",
-      sourceId: proposed.useGoldenV1Expected
-        ? MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.sourceId
-        : "openscale-default-expected",
-    },
-    liveProofInput: proposed.liveProofInput ?? null,
-    assembledRequestBody: assembled,
-    expectedSealedRequestBody: assembled && assembled === expectedSealed ? null : expectedSealed,
-    observedStyleSections: proposed.observedStyleSections ?? null,
-    expectedStyleSections: proposed.expectedStyleSections ?? null,
-    observedRuntimeFlags: proposed.observedRuntimeFlags ?? null,
-    expectedRuntimeFlags: proposed.expectedRuntimeFlags ?? null,
-    precallReady: extras?.precallReady === true,
+    evidenceKind: "CALLER_ADVISORY",
     currentProductionSuccessSha: proposed.currentProductionSuccessSha ?? null,
-    assemblySourceSha: proposed.assemblySourceSha ?? null,
     capturedDeploySha:
       proposed.capturedDeploySha ??
-      (proposed.useGoldenV1Expected
-        ? MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.deployedGitSha
-        : null),
+      (proposed.useGoldenV1Expected ? MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.deployedGitSha : null),
     currentLiveVerified: proposed.currentLiveVerified === true,
-    characterId: proposed.characterId,
-    characterName: proposed.characterName,
-    personaId: extras?.livePersonaId ?? proposed.personaId ?? proposed.liveProofInput?.personaId,
-    personaName: proposed.personaName,
-    fixtureId: sceneId || null,
-    fixtureIds: sceneId ? [sceneId] : [...OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.fixtureIds],
-    authoringLevel: proposed.liveProofInput?.authoringLevel ?? null,
-    contentMode: proposed.liveProofInput?.contentMode ?? null,
     maxTokensPresent: extras?.maxTokensPresent === true,
-    maxCompletionTokensPresent: extras?.maxTokensPresent === true,
-    expectedIdentityHashes: proposed.useGoldenV1Expected ? null : proposed.expectedIdentityHashes ?? null,
-    expectedFinalWireFingerprint: proposed.expectedFinalWireFingerprint ?? null,
-    expectedRequestBodyFingerprint: proposed.expectedRequestBodyFingerprint ?? null,
-    expectedMessagesFingerprint: null,
-    thinkingSemanticEquivalent: proposed.thinkingSemanticEquivalent ?? null,
-    reasoningSemanticEquivalent: proposed.reasoningSemanticEquivalent ?? null,
-    recoveryPath: proposed.recoveryPath ?? null,
-    expectedRecoveryPath: proposed.expectedRecoveryPath ?? null,
-    flattenedLosingMeaning: proposed.flattenedLosingMeaning === true,
-    featureFlagsMatch: proposed.featureFlagsMatch ?? null,
+    precallReady: extras?.precallReady === true,
   };
 }
 
@@ -740,12 +702,17 @@ export function evaluateOpenScaleStyleEvalFixtureParity(
     uniqueReasons.length === 0 && classified.precallReady && assemblyOk;
   const productionParity = classifyMainRpProductionParity(
     buildOpenScaleProductionParityInput(proposed, {
-      sceneId,
-      livePersonaId,
       maxTokensPresent: uniqueReasons.includes("max_tokens_present"),
       precallReady,
     })
   );
+  const providerSemantic = productionBody
+    ? classifyOpenScaleTransportSemantics(productionBody, adaptOpenScalePilotBody(productionBody))
+    : {
+        status: "NOT_COMPARABLE" as const,
+        qualityScoreEligible: false as const,
+        reasons: ["candidate_body_missing"] as const,
+      };
   return {
     status: uniqueReasons.length === 0 ? "FIXTURE_PARITY_PASS" : "FIXTURE_PARITY_FAIL",
     reasons: uniqueReasons,
@@ -772,7 +739,10 @@ export function evaluateOpenScaleStyleEvalFixtureParity(
     proposed,
     diagnosticB03a: OPENSCALE_B03A_DIAGNOSTIC,
     productionParity,
-    qualityScoreEligible: productionParity.qualityScoreEligible,
+    productionRequestParity: "NOT_OWNED_BY_CALLER" as const,
+    providerSemanticParity: providerSemantic.status,
+    providerSemanticReasons: providerSemantic.reasons,
+    qualityScoreEligible: false as const,
     providerInventory: OPENSCALE_VS_CHEAPERINFERENCE_INVENTORY,
     goldenV1Stale: goldenV1StaleAgainstCurrentSuccess(proposed.currentProductionSuccessSha),
   };
@@ -1064,6 +1034,8 @@ export async function runOpenScaleRpPilot(input?: {
       precallReady: false,
       classification: parity.classification,
       productionParityStatus: parity.productionParity.status,
+      productionRequestParity: parity.productionRequestParity,
+      providerSemanticParity: parity.providerSemanticParity,
       qualityScoreEligible: false,
       providerInferencePosts: 0,
       cheaperInferencePosts: 0,
@@ -1080,7 +1052,9 @@ export async function runOpenScaleRpPilot(input?: {
     precallReady: parity.precallReady,
     classification: parity.precallReady ? "PRECALL_READY" : parity.classification,
     productionParityStatus: parity.productionParity.status,
-    qualityScoreEligible: parity.qualityScoreEligible,
+    productionRequestParity: parity.productionRequestParity,
+    providerSemanticParity: parity.providerSemanticParity,
+    qualityScoreEligible: false,
     providerInferencePosts: 0,
     cheaperInferencePosts: 0,
     retry: 0,

@@ -10,7 +10,7 @@ import CopyPageLinkButton from "@/components/CopyPageLinkButton";
 import OfficialCreatorBadge from "@/components/OfficialCreatorBadge";
 import OfficialStudioBadge from "@/components/OfficialStudioBadge";
 import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
-import { CHARACTER_HERO_IMAGE_ATTR, splitRevealName } from "@/lib/characterReveal";
+import { CHARACTER_HERO_IMAGE_ATTR, HERO_ITEM_ATTR, REVEAL_FIT_ATTR, revealTagKey, splitRevealName } from "@/lib/characterReveal";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { applyProfilePlaceholders } from "@/lib/userPlaceholder";
 import {
@@ -48,7 +48,9 @@ function AssetGalleryStrip({
   unlockedUrls,
   alt,
   onOpenUnlocked,
+  singleRow = false,
 }: {
+  singleRow?: boolean;
   assets: CharacterAsset[];
   viewerIsCreator: boolean;
   unlockedUrls: ReadonlySet<string>;
@@ -59,7 +61,9 @@ function AssetGalleryStrip({
   return (
     <div className="mt-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]">
       {/* 가로 스크롤 · 2행 그리드 (열 우선 채움) */}
-      <div className="grid w-max auto-cols-[4.75rem] grid-flow-col grid-rows-2 gap-2 sm:auto-cols-[5.25rem]">
+      <div
+        className={`grid w-max auto-cols-[4.75rem] grid-flow-col gap-2 sm:auto-cols-[5.25rem] ${singleRow ? "grid-rows-1" : "grid-rows-2"}`}
+      >
         {assets.map((asset, i) => {
           const blurred =
             !isRepresentativeAsset(asset) &&
@@ -316,23 +320,22 @@ export default function CharacterPublicPagePreview({
   const tagChips =
     tagList.length > 0 ? (
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {tagList.map((t) => (
-          <span key={t} className={studioSurface.chip}>
+        {tagList.map((t, i) => (
+          <span key={t} {...{ [HERO_ITEM_ATTR]: revealTagKey(i) }} className={studioSurface.chip}>
             #{t}
           </span>
         ))}
       </div>
     ) : null;
 
-  const galleryStrip = (
-    <AssetGalleryStrip
-      assets={resolvedGallery}
-      viewerIsCreator={viewerIsCreator}
-      unlockedUrls={unlockedUrls}
-      alt={displayName}
-      onOpenUnlocked={openUnlockedAsset}
-    />
-  );
+  const galleryStripProps = {
+    assets: resolvedGallery,
+    viewerIsCreator,
+    unlockedUrls,
+    alt: displayName,
+    onOpenUnlocked: openUnlockedAsset,
+  };
+  const galleryStrip = <AssetGalleryStrip {...galleryStripProps} />;
 
   const posterName = splitRevealName(displayName);
   const heroSection = (
@@ -352,7 +355,7 @@ export default function CharacterPublicPagePreview({
             "radial-gradient(38% 55% at 72% 40%, rgb(139 92 246 / 0.2), transparent 72%)",
         }}
       />
-      <div className="relative grid gap-0 md:grid-cols-[minmax(0,1fr)_minmax(15rem,21rem)] md:items-center">
+      <div className="relative grid gap-0 md:grid-cols-[minmax(0,26rem)_minmax(15rem,21rem)] md:items-center md:justify-center">
         <div className="relative z-10 order-1 mx-auto w-[min(74vw,19rem)] md:order-2 md:mx-0 md:w-full md:justify-self-end">
           <span
             aria-hidden
@@ -387,22 +390,29 @@ export default function CharacterPublicPagePreview({
         </div>
 
         <div
-          className="relative z-0 order-2 -mt-4 min-w-0 [container-type:inline-size] md:order-1 md:mt-0 md:-mr-14 md:pr-16"
+          className="relative z-0 order-2 -mt-4 min-w-0 [container-type:inline-size] md:order-1 md:mt-0 md:-mr-14 md:pr-[4.75rem]"
           style={{ ["--hero-chars" as string]: String(posterName.maxChars) }}
         >
-          <div className="flex items-center gap-3 pt-5 text-[11px] font-bold uppercase tracking-[0.22em] md:justify-end md:pt-0">
+          <div
+            {...{ [HERO_ITEM_ATTR]: "eyebrow" }}
+            className="flex w-fit items-center gap-3 pt-5 text-[11px] font-bold uppercase tracking-[0.22em] md:ml-auto md:pt-0"
+          >
             {genre.trim() ? <span className="text-violet-300">{genre.trim()}</span> : null}
             <span aria-hidden className="h-px w-10 bg-[#f0e7d4]/30" />
             <span className="text-[#f0e7d4]/55">Character</span>
           </div>
           <h1
             className="mt-3 break-keep font-black leading-[1] tracking-[-0.04em] text-[#f0e7d4] md:text-right"
-            style={{ fontSize: "min(7.25rem, calc(96cqw / (var(--hero-chars) * 0.98)))" }}
+            style={{ fontSize: "min(8.5rem, calc(96cqw / (var(--hero-chars) * 0.98)))" }}
           >
             <span className="sr-only">{displayName}</span>
-            <span aria-hidden className="block">
+            <span
+              aria-hidden
+              {...{ [HERO_ITEM_ATTR]: "name", [REVEAL_FIT_ATTR]: "width" }}
+              className="block w-fit md:ml-auto"
+            >
               {posterName.lines.map((line, i) => (
-                <span key={i} className="block whitespace-nowrap pb-[0.06em]">
+                <span key={i} className="block whitespace-nowrap pb-[0.06em] md:text-right">
                   {line}
                 </span>
               ))}
@@ -413,12 +423,14 @@ export default function CharacterPublicPagePreview({
             {pagePath ? <CopyPageLinkButton path={pagePath} /> : null}
           </div>
           {resolvedTagline.trim() ? (
-            <p className="mt-3 text-base font-semibold leading-snug text-[#f0e7d4]/85 md:text-right">
+            <p
+              {...{ [HERO_ITEM_ATTR]: "tagline" }}
+              className="mt-3 w-fit max-w-full text-base font-semibold leading-snug text-[#f0e7d4]/85 md:ml-auto md:text-right"
+            >
               {resolvedTagline.trim()}
             </p>
           ) : null}
           <div className="md:flex md:justify-end">{tagChips}</div>
-          <div className="md:flex md:justify-end [&>div]:max-w-full">{galleryStrip}</div>
         </div>
       </div>
     </section>
@@ -427,7 +439,18 @@ export default function CharacterPublicPagePreview({
   return (
     <div className="w-full space-y-6">
       {heroVariant === "poster" ? (
-        heroSection
+        <>
+          {heroSection}
+          {imageCount > 1 ? (
+            <section aria-label="갤러리" className="rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-4">
+              <h2 className="text-sm font-semibold text-zinc-100">
+                갤러리
+                <span className="ml-2 text-xs font-medium tabular-nums text-zinc-500">{imageCount.toLocaleString()}</span>
+              </h2>
+              <AssetGalleryStrip {...galleryStripProps} singleRow />
+            </section>
+          ) : null}
+        </>
       ) : (
         <div className="flex flex-col gap-5 md:flex-row md:items-start">
           <div className="w-full shrink-0 md:w-72">{cardVisual}</div>
