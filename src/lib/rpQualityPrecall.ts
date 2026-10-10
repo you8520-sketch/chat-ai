@@ -185,7 +185,8 @@ export const RP_QUALITY_PRECALL_OWNER_MAP: readonly RpQualityPrecallOwnerRow[] =
     scope: "current production rows, not historical qualification dumps",
     otherReaders: [
       "scripts/lib/mainRpBodyCuePreflight.LIVE_DEPLOYED_ROW_PROOF (historical KEEP)",
-      "scripts/lib/rpModelQualificationFixture (historical 2026-08-25, not this source)",
+      "scripts/lib/rpModelQualificationFixture (HISTORICAL_ONLY 2026-08-25, not this source)",
+      "src/lib/rpMainRpStyleLengthFixture (MAIN_RP_STYLE_LENGTH identity gate)",
     ],
     duplicateOrStaleOwner:
       "environment access observations are operator evidence, not library state; LIVE_DEPLOYED_ROW_PROOF @ 2f5cb0b4 cannot auto-satisfy current proof",

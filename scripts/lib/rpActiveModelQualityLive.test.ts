@@ -10,6 +10,7 @@ import {
   MAIN_RP_MODEL_IDS,
   selectedAIProvider,
 } from "@/lib/chatModels";
+import { MainRpStyleLengthFixtureError } from "@/lib/rpMainRpStyleLengthFixture";
 import {
   buildCanonicalRpQualificationCases,
   buildCanonicalRpQualificationContextInput,
@@ -190,5 +191,20 @@ describe("rpActiveModelQualityLive", () => {
     assert.equal(result.text, "태형은 고개를 기울였다.");
     assert.equal(result.promptTokens, 100);
     assert.equal(result.completionTokens, 20);
+  });
+
+  it("refuses MAIN_RP_STYLE_LENGTH evaluation on the historical id=10 dump", () => {
+    const previous = process.env.MAIN_RP_STYLE_LENGTH;
+    process.env.MAIN_RP_STYLE_LENGTH = "1";
+    try {
+      assert.throws(
+        () => buildRpActiveModelQualityPlan(),
+        (error: unknown) =>
+          error instanceof MainRpStyleLengthFixtureError && error.code === "HISTORICAL_ID10_REJECTED"
+      );
+    } finally {
+      if (previous == null) delete process.env.MAIN_RP_STYLE_LENGTH;
+      else process.env.MAIN_RP_STYLE_LENGTH = previous;
+    }
   });
 });

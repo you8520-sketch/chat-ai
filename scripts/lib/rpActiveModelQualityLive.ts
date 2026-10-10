@@ -17,6 +17,10 @@ import {
   resolveOpenRouterModelId,
 } from "@/lib/openRouterConfig";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
+import {
+  MainRpStyleLengthFixtureError,
+  isMainRpStyleLengthEvaluationRequested,
+} from "@/lib/rpMainRpStyleLengthFixture";
 import { buildContext } from "@/services/contextBuilder";
 import {
   CANONICAL_RP_QUALIFICATION_SOURCE,
@@ -140,6 +144,9 @@ export function buildRpActiveModelQualityPlan(
   caseIds: readonly CanonicalQualificationCaseId[] = RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS,
   modelIds: readonly SelectedAI[] = RP_ACTIVE_MODEL_QUALITY_MODEL_IDS
 ): RpActiveModelQualityProbe[] {
+  if (isMainRpStyleLengthEvaluationRequested()) {
+    throw new MainRpStyleLengthFixtureError("HISTORICAL_ID10_REJECTED");
+  }
   const uniqueModelIds = [...new Set(modelIds)];
   for (const modelId of uniqueModelIds) {
     if (!MAIN_RP_MODEL_IDS.includes(modelId)) {
