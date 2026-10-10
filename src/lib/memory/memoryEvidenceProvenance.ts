@@ -113,6 +113,50 @@ export const MONTHLY_RP_MEMORY_QUALITY_PHASE2C_SAMPLE_EVIDENCE = {
 };
 
 /**
+ * #1486 Phase 3A — 6/50-turn Main RP recall preflight.
+ * Not a paid-run license. Retrieve PASS is not model-reply quality.
+ */
+export const MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE = {
+  provenance: "CURRENT_CODE_DETERMINISTIC",
+  characterId: 18,
+  characterName: "라이크",
+  personaName: "렌",
+  providerPosts: 0,
+  summaryQuality: "NOT_PROVEN",
+  modelReplyQuality: "NOT_PROVEN",
+  pathASeededRecall: "NOT_EXECUTED",
+  pathBLunaEndToEnd: "NOT_EXECUTED",
+  identitySource: "FIXTURE_NOT_PRODUCTION_SHEET",
+  characterSheetRead: false,
+  productionPersonaRead: false,
+  executionHost: "CURSOR_VM",
+  productionRuntimeParity: "UNPROVEN",
+  productionIdentityParity: "UNPROVEN",
+  homepageParity: "UNPROVEN",
+  rerunAuthorized: false,
+  paidEvaluationApproved: false,
+} as const satisfies {
+  provenance: MemoryEvidenceProvenance;
+  characterId: number;
+  characterName: string;
+  personaName: string;
+  providerPosts: number;
+  summaryQuality: DeterministicSummaryQualityClaim;
+  modelReplyQuality: DeterministicSummaryQualityClaim;
+  pathASeededRecall: "NOT_EXECUTED";
+  pathBLunaEndToEnd: "NOT_EXECUTED";
+  identitySource: "FIXTURE_NOT_PRODUCTION_SHEET";
+  characterSheetRead: false;
+  productionPersonaRead: false;
+  executionHost: MemoryEvidenceExecutionHost;
+  productionRuntimeParity: ProductionParityClaim;
+  productionIdentityParity: ProductionParityClaim;
+  homepageParity: ProductionParityClaim;
+  rerunAuthorized: false;
+  paidEvaluationApproved: false;
+};
+
+/**
  * True when the packet recorded an actual paid provider response.
  * This is not production-container, homepage, or character-sheet parity.
  */

@@ -7,6 +7,7 @@ import {
   MONTHLY_RP_MEMORY_QUALITY_PHASE1_EVIDENCE,
   MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE,
   MONTHLY_RP_MEMORY_QUALITY_PHASE2C_SAMPLE_EVIDENCE,
+  MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE,
   canClaimCurrentLiveProvider,
   canClaimCurrentProductionParity,
   isDeterministicCodeRegression,
@@ -127,6 +128,32 @@ describe("memory evidence provenance", () => {
     assert.match(
       memoryEvidenceTitle("CURRENT_LIVE_PROVIDER"),
       /not proven production-runtime parity/
+    );
+  });
+
+  it("does not treat the Phase 3A preflight plan as live provider or production parity", () => {
+    assert.equal(
+      MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.provenance,
+      "CURRENT_CODE_DETERMINISTIC"
+    );
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.providerPosts, 0);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.paidEvaluationApproved, false);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.pathASeededRecall, "NOT_EXECUTED");
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.pathBLunaEndToEnd, "NOT_EXECUTED");
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.modelReplyQuality, "NOT_PROVEN");
+    assert.equal(
+      canClaimCurrentLiveProvider(MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.provenance),
+      false
+    );
+    assert.equal(
+      canClaimCurrentProductionParity({
+        executionHost: MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.executionHost,
+        runtimeShaSource: "UNOBSERVED",
+        observedRuntimeSha: null,
+        characterSheetRead: MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.characterSheetRead,
+        productionPersonaRead: MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.productionPersonaRead,
+      }),
+      false
     );
   });
 
