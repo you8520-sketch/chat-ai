@@ -1,6 +1,6 @@
 # OpenScale DeepSeek V4.1 Flash RP Pilot
 
-Status: **NOT_COMPARABLE / STALE_PRODUCTION_SNAPSHOT — production parity not verified. Draft only. Provider POST 0. Cursor did not assign an RP style score.**
+Status: **NOT_COMPARABLE / STALE_PRODUCTION_SNAPSHOT — production parity not verified. `PRODUCTION_PARITY_VERIFIED` now requires independently derived live proof + assembled request bodies. Caller hash pairs and `currentLiveVerified=true` cannot pass. Draft only. Provider POST 0. Cursor did not assign an RP style score.**
 
 This is an isolated provider experiment. It is not a production supplier promotion.
 

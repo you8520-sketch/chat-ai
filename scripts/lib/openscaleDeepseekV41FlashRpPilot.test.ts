@@ -503,52 +503,8 @@ describe("OpenScale consumes the shared production parity owner", () => {
     assert.equal(parity.goldenV1Stale, true);
   });
 
-  it("classifies OpenScale thinking remap as SEMANTIC_PARITY_UNCONFIRMED, not verified", () => {
+  it("does not accept forged CURRENT_LIVE plus copied hash pairs as VERIFIED", () => {
     const parity = evaluateOpenScaleStyleEvalFixtureParity(
-      restoredAbcFixture({
-        currentLiveVerified: true,
-        currentProductionSuccessSha: TEST_SHA.slice(0, 40),
-        assemblySourceSha: TEST_SHA.slice(0, 40),
-        capturedDeploySha: TEST_SHA.slice(0, 40),
-        thinkingSemanticEquivalent: null,
-        reasoningSemanticEquivalent: null,
-        identityHashes: {
-          greetingSha256: TEST_SHA,
-          systemPromptSha256: TEST_SHA,
-          worldSha256: TEST_SHA,
-          settingChunksSha256: TEST_SHA,
-          personaPublicSha256: TEST_SHA,
-        },
-        expectedIdentityHashes: {
-          greetingSha256: TEST_SHA,
-          systemPromptSha256: TEST_SHA,
-          worldSha256: TEST_SHA,
-          settingChunksSha256: TEST_SHA,
-          personaPublicSha256: TEST_SHA,
-        },
-        finalWireFingerprint: TEST_SHA,
-        expectedFinalWireFingerprint: TEST_SHA,
-        requestBodyFingerprint: TEST_SHA,
-        expectedRequestBodyFingerprint: TEST_SHA,
-      })
-    );
-    assert.equal(parity.productionParity.status, "SEMANTIC_PARITY_UNCONFIRMED");
-    assert.equal(parity.qualityScoreEligible, false);
-  });
-
-  it("routes max_tokens and style-section drift through the shared classifier", () => {
-    const body = syntheticProductionBody({ max_tokens: 800 });
-    const maxTokens = evaluateOpenScaleStyleEvalFixtureParity(
-      restoredAbcFixture({
-        productionRequestBody: body,
-        expectedContentFingerprint: contentFingerprintFromRequestBody(body),
-      })
-    );
-    assert.equal(maxTokens.status, "FIXTURE_PARITY_FAIL");
-    assert.ok(maxTokens.reasons.includes("max_tokens_present"));
-    assert.ok(maxTokens.productionParity.reasons.includes("max_tokens_present"));
-
-    const section = evaluateOpenScaleStyleEvalFixtureParity(
       restoredAbcFixture({
         currentLiveVerified: true,
         currentProductionSuccessSha: TEST_SHA.slice(0, 40),
@@ -574,26 +530,33 @@ describe("OpenScale consumes the shared production parity owner", () => {
         expectedFinalWireFingerprint: TEST_SHA,
         requestBodyFingerprint: TEST_SHA,
         expectedRequestBodyFingerprint: TEST_SHA,
-        commonStyleSectionContentHash: "1".repeat(16),
-        expectedCommonStyleSectionContentHash: "2".repeat(16),
       })
     );
-    assert.equal(section.productionParity.status, "PRODUCTION_PARITY_MISMATCH");
-    assert.equal(section.qualityScoreEligible, false);
-    const shared = classifyMainRpProductionParity(section.productionParity && {
+    assert.notEqual(parity.productionParity.status, "PRODUCTION_PARITY_VERIFIED");
+    assert.equal(parity.qualityScoreEligible, false);
+    assert.ok(parity.productionParity.reasons.includes("current_live_verified_boolean_ignored"));
+  });
+
+  it("routes max_tokens through the shared classifier without scoring", () => {
+    const body = syntheticProductionBody({ max_tokens: 800 });
+    const maxTokens = evaluateOpenScaleStyleEvalFixtureParity(
+      restoredAbcFixture({
+        productionRequestBody: body,
+        expectedContentFingerprint: contentFingerprintFromRequestBody(body),
+      })
+    );
+    assert.equal(maxTokens.status, "FIXTURE_PARITY_FAIL");
+    assert.ok(maxTokens.reasons.includes("max_tokens_present"));
+    assert.ok(maxTokens.productionParity.reasons.includes("max_tokens_present"));
+    assert.equal(maxTokens.qualityScoreEligible, false);
+    const shared = classifyMainRpProductionParity({
       evidenceKind: "CURRENT_LIVE",
-      currentProductionSuccessSha: TEST_SHA.slice(0, 40),
-      assemblySourceSha: TEST_SHA.slice(0, 40),
-      capturedDeploySha: TEST_SHA.slice(0, 40),
       currentLiveVerified: true,
       characterId: 18,
       characterName: "라이크",
       personaId: LIVE_PERSONA_ID,
       personaName: "렌",
       fixtureId: "A_relationship_emotion",
-      authoringLevel: "NORMAL",
-      contentMode: "SAFE",
-      softAimChars: UNIFIED_TIER_AIM_CHARS,
       identityHashes: {
         greetingSha256: TEST_SHA,
         systemPromptSha256: TEST_SHA,
@@ -608,15 +571,10 @@ describe("OpenScale consumes the shared production parity owner", () => {
         settingChunksSha256: TEST_SHA,
         personaPublicSha256: TEST_SHA,
       },
-      finalWireFingerprint: TEST_SHA,
-      expectedFinalWireFingerprint: TEST_SHA,
-      requestBodyFingerprint: TEST_SHA,
-      expectedRequestBodyFingerprint: TEST_SHA,
-      commonStyleSectionContentHash: "1".repeat(16),
-      expectedCommonStyleSectionContentHash: "2".repeat(16),
       thinkingSemanticEquivalent: true,
       reasoningSemanticEquivalent: true,
     });
-    assert.equal(shared.status, "PRODUCTION_PARITY_MISMATCH");
+    assert.notEqual(shared.status, "PRODUCTION_PARITY_VERIFIED");
+    assert.equal(shared.qualityScoreEligible, false);
   });
 });

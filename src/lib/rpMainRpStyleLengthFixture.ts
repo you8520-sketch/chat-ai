@@ -17,9 +17,14 @@ import {
 import {
   RP_QUALITY_PRECALL_FIXTURE_IDS,
   RP_QUALITY_PRECALL_TARGET_SELECTOR,
+  validateLiveProof,
   type RpQualityPrecallFixtureId,
+  type RpQualityPrecallLiveProofInput,
 } from "@/lib/rpQualityPrecall";
-import type { PaidRunnerIdentityHashes } from "@/lib/rpQualityPaidRunner";
+import {
+  paidRunnerRequestBodyFingerprint,
+  type PaidRunnerIdentityHashes,
+} from "@/lib/rpQualityPaidRunner";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import {
   DEFAULT_USER_AUTHORING_LEVEL,
@@ -34,6 +39,7 @@ export const HISTORICAL_RP_QUALIFICATION_CHARACTER_ID = 10;
 
 /** Pinned public evidence for the already-created Railway Golden v1. Do not rewrite v1. */
 export const MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC = Object.freeze({
+  sourceId: "docs/audits/main-rp-laike-ren-golden/v1.public.json",
   snapshotVersion: 1,
   sealedSha256: "becd3255c38cfc44932d9dc9da98656206b76b64c679f75a1f20ad20cf1fa1d9",
   characterId: 18,
@@ -45,6 +51,13 @@ export const MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC = Object.freeze({
   uniqueAdminRenPersona: true,
   deployedGitSha: "e1fdab509d2e9713be617025f77ea40a5bfb85f5",
   sealedRequestCount: 12,
+  identityHashes: {
+    greetingSha256: "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+    systemPromptSha256: "44c293ce3e6aaa7ab885ad93c93342a0e4d1ed803a2c7e22119f42991ee44d6b",
+    worldSha256: "6e197c4e91f3f5dbe9a3b867232c564230272fe6a29e24f26d2f41964a500fa9",
+    settingChunksSha256: "8eee31d5ce8cd6a736030613ac615a3755542a718d22f082a02c4d9ba0aa90cc",
+    personaPublicSha256: "9ef42c7f92091ca158a53c4321b06dab4e687d3a882210c4a576e87029703a36",
+  } satisfies PaidRunnerIdentityHashes,
 });
 
 export const MAIN_RP_STYLE_LENGTH_MODES = ["GOLDEN_SNAPSHOT", "CURRENT_LIVE"] as const;
@@ -351,7 +364,35 @@ export const PRODUCTION_PARITY_QUALITY_SCORE_RULE = Object.freeze({
   precallReadyIsSeparate: true,
   paidAuthorizationIsSeparate: true,
   syntheticCannotPromoteToQualityScore: true,
+  callerAnnotationCannotVerify: true,
+  sameSourceHashPairCannotVerify: true,
+  currentLiveVerifiedBooleanCannotVerify: true,
 });
+
+export const PRODUCTION_PARITY_PROVENANCE_KINDS = [
+  "in_process_assembly",
+  "railway_live_proof",
+  "golden_public_manifest",
+  "caller_annotation",
+] as const;
+export type ProductionParityProvenanceKind =
+  (typeof PRODUCTION_PARITY_PROVENANCE_KINDS)[number];
+
+export type ProductionParityProvenance = {
+  kind: ProductionParityProvenanceKind;
+  sourceId: string;
+};
+
+export type ProductionParitySection = {
+  sectionId: string;
+  sha256: string;
+};
+
+export type ProductionParityRuntimeFlags = {
+  contentMode?: string;
+  authoringLevel?: string;
+  [key: string]: unknown;
+};
 
 export type ProductionParityFieldClassification =
   | "match"
@@ -375,9 +416,20 @@ export type ProductionParityEvidenceKind =
 
 export type ProductionParityInput = {
   evidenceKind: ProductionParityEvidenceKind;
+  observedProvenance?: ProductionParityProvenance | null;
+  expectedProvenance?: ProductionParityProvenance | null;
+  liveProofInput?: RpQualityPrecallLiveProofInput | null;
+  assembledRequestBody?: Record<string, unknown> | null;
+  expectedSealedRequestBody?: Record<string, unknown> | null;
+  observedStyleSections?: readonly ProductionParitySection[] | null;
+  expectedStyleSections?: readonly ProductionParitySection[] | null;
+  observedRuntimeFlags?: ProductionParityRuntimeFlags | null;
+  expectedRuntimeFlags?: ProductionParityRuntimeFlags | null;
+  precallReady?: boolean | null;
   currentProductionSuccessSha?: string | null;
   assemblySourceSha?: string | null;
   capturedDeploySha?: string | null;
+  /** Caller annotation only. Never sufficient for VERIFIED. */
   currentLiveVerified?: boolean;
   characterId?: number;
   characterName?: string;
@@ -408,6 +460,7 @@ export type ProductionParityInput = {
   expectedMessagesFingerprint?: string | null;
   sampling?: { temperature?: unknown; top_p?: unknown } | null;
   expectedSampling?: { temperature?: unknown; top_p?: unknown } | null;
+  /** Caller annotation only. VERIFIED requires JSON-equal thinking on independent bodies. */
   thinkingSemanticEquivalent?: boolean | null;
   reasoningSemanticEquivalent?: boolean | null;
   recoveryPath?: string | null;
@@ -432,6 +485,92 @@ function normalizeParitySha(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
 }
 
+function isRequestBody(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length > 0;
+}
+
+function isTrustedObservedProvenance(value: ProductionParityProvenance | null | undefined): boolean {
+  return value?.kind === "in_process_assembly" || value?.kind === "railway_live_proof";
+}
+
+function isTrustedExpectedProvenance(value: ProductionParityProvenance | null | undefined): boolean {
+  return value?.kind === "golden_public_manifest" || value?.kind === "railway_live_proof";
+}
+
+function provenanceSourceId(value: ProductionParityProvenance | null | undefined): string {
+  return (value?.sourceId ?? "").trim().toLowerCase();
+}
+
+function isOfficialGoldenExpected(value: ProductionParityProvenance | null | undefined): boolean {
+  return (
+    value?.kind === "golden_public_manifest" &&
+    provenanceSourceId(value) === normalizeParitySha(MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.sourceId)
+  );
+}
+
+function identityHashesFromLiveProof(
+  input: RpQualityPrecallLiveProofInput | null | undefined
+): PaidRunnerIdentityHashes | null {
+  if (!input) return null;
+  const hashes: PaidRunnerIdentityHashes = {
+    greetingSha256: input.greetingSha256,
+    systemPromptSha256: input.systemPromptSha256,
+    worldSha256: input.worldSha256,
+    settingChunksSha256: input.settingChunksSha256,
+    personaPublicSha256: input.personaPublicSha256,
+  };
+  return Object.values(hashes).every((hash) => /^[a-f0-9]{64}$/i.test(hash)) ? hashes : null;
+}
+
+function samplingFromBody(
+  body: Record<string, unknown> | null
+): { temperature?: unknown; top_p?: unknown } | null {
+  if (!body || (!("temperature" in body) && !("top_p" in body))) return null;
+  return { temperature: body.temperature, top_p: body.top_p };
+}
+
+function messagesFingerprintFromBody(body: Record<string, unknown> | null): string | null {
+  if (!body || !Array.isArray(body.messages)) return null;
+  return paidRunnerRequestBodyFingerprint({ messages: body.messages });
+}
+
+function finalWireFingerprintFromBody(body: Record<string, unknown> | null): string | null {
+  if (!body || !Array.isArray(body.messages)) return null;
+  return paidRunnerRequestBodyFingerprint({ messages: body.messages, body });
+}
+
+function isCommonStyleSection(sectionId: string): boolean {
+  return /prose-style|korean-prose/i.test(sectionId);
+}
+
+function sectionOrderHash(sections: readonly ProductionParitySection[]): string {
+  return paidRunnerRequestBodyFingerprint({
+    order: sections.map((section) => section.sectionId),
+  });
+}
+
+function sectionContentHash(sections: readonly ProductionParitySection[]): string {
+  return paidRunnerRequestBodyFingerprint({
+    content: sections.map((section) => `${section.sectionId}:${section.sha256}`),
+  });
+}
+
+function splitStyleSections(sections: readonly ProductionParitySection[] | null | undefined): {
+  common: ProductionParitySection[];
+  model: ProductionParitySection[];
+} {
+  const list = sections ?? [];
+  return {
+    common: list.filter((section) => isCommonStyleSection(section.sectionId)),
+    model: list.filter((section) => !isCommonStyleSection(section.sectionId)),
+  };
+}
+
+function jsonEqual(left: unknown, right: unknown): boolean {
+  if (left === undefined || right === undefined) return false;
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function classifyHashPair(
   actual: string | null | undefined,
   expected: string | null | undefined
@@ -453,8 +592,9 @@ function resolveParityStatus(input: {
   evidenceKind: ProductionParityEvidenceKind;
   identityOk: boolean;
   fixturesOk: boolean;
+  independentEvidenceOk: boolean;
   requiredHashMissing: boolean;
-  currentLiveVerified: boolean;
+  liveProofVerified: boolean;
   currentSha: string;
   assemblySha: string;
   capturedSha: string;
@@ -476,15 +616,16 @@ function resolveParityStatus(input: {
     return "NOT_COMPARABLE";
   }
   if (input.stale) return "STALE_PRODUCTION_SNAPSHOT";
-  if (input.mismatch) return "PRODUCTION_PARITY_MISMATCH";
+  if (!input.independentEvidenceOk || !input.liveProofVerified) {
+    return "NOT_COMPARABLE";
+  }
+  if (input.mismatch || input.requiredHashMissing) return "PRODUCTION_PARITY_MISMATCH";
   if (input.semanticUnconfirmed) return "SEMANTIC_PARITY_UNCONFIRMED";
   if (
     input.evidenceKind === "CURRENT_LIVE" &&
-    input.currentLiveVerified &&
     Boolean(input.currentSha) &&
     (!input.assemblySha || input.assemblySha === input.currentSha) &&
     (!input.capturedSha || input.capturedSha === input.currentSha) &&
-    !input.requiredHashMissing &&
     input.thinkingConfirmed &&
     input.softAimMatchesOwner &&
     input.maxTokensAbsent &&
@@ -569,6 +710,193 @@ export function classifyMainRpProductionParity(
     });
   }
 
+  if (input.currentLiveVerified === true) {
+    reasons.push("current_live_verified_boolean_ignored");
+    fields.push({
+      field: "currentLiveVerified",
+      classification: "missing_evidence",
+      reason: "caller_boolean_cannot_satisfy_current_live",
+    });
+  }
+
+  const observedProvenance = input.observedProvenance ?? null;
+  const expectedProvenance = input.expectedProvenance ?? null;
+  if (!observedProvenance || !expectedProvenance) {
+    reasons.push("provenance_missing");
+    fields.push({
+      field: "provenance",
+      classification: "missing_evidence",
+      reason: "observed_and_expected_provenance_required",
+    });
+  } else if (
+    observedProvenance.kind === "caller_annotation" ||
+    expectedProvenance.kind === "caller_annotation"
+  ) {
+    reasons.push("caller_annotation_cannot_verify");
+    fields.push({
+      field: "provenance",
+      classification: "missing_evidence",
+      reason: "caller_annotation_is_not_independent_evidence",
+    });
+  } else if (
+    !isTrustedObservedProvenance(observedProvenance) ||
+    !isTrustedExpectedProvenance(expectedProvenance)
+  ) {
+    reasons.push("provenance_not_trusted");
+    fields.push({
+      field: "provenance",
+      classification: "missing_evidence",
+      reason: "observed_or_expected_provenance_not_trusted",
+    });
+  } else if (
+    !provenanceSourceId(observedProvenance) ||
+    provenanceSourceId(observedProvenance) === provenanceSourceId(expectedProvenance)
+  ) {
+    reasons.push("same_source_hash_pair");
+    fields.push({
+      field: "provenance",
+      classification: "mismatch",
+      reason: "expected_and_observed_must_use_distinct_source_ids",
+    });
+  } else {
+    fields.push({
+      field: "provenance",
+      classification: "match",
+      reason: `${observedProvenance.kind}_vs_${expectedProvenance.kind}`,
+    });
+  }
+
+  const liveProof = validateLiveProof(input.liveProofInput ?? undefined, {
+    expectedDeploySha: input.currentProductionSuccessSha ?? input.capturedDeploySha ?? undefined,
+  });
+  const liveProofVerified = liveProof.status === "VERIFIED";
+  if (!input.liveProofInput) {
+    reasons.push("live_proof_not_provided");
+    fields.push({
+      field: "liveProof",
+      classification: "missing_evidence",
+      reason: "validateLiveProof_required",
+    });
+  } else if (!liveProofVerified) {
+    reasons.push("live_proof_not_verified");
+    fields.push({
+      field: "liveProof",
+      classification: "missing_evidence",
+      reason: liveProof.status === "UNVERIFIED" ? liveProof.reasons.join(",") : "not_verified",
+    });
+  } else {
+    fields.push({ field: "liveProof", classification: "match", reason: "validateLiveProof" });
+  }
+
+  const assembledBody = isRequestBody(input.assembledRequestBody) ? input.assembledRequestBody : null;
+  const expectedBody = isRequestBody(input.expectedSealedRequestBody)
+    ? input.expectedSealedRequestBody
+    : null;
+  if (!assembledBody) {
+    reasons.push("assembled_request_body_missing");
+    fields.push({
+      field: "assembledRequestBody",
+      classification: "missing_evidence",
+      reason: "observed_wire_must_be_computed_from_assembled_body",
+    });
+  }
+  if (assembledBody && expectedBody && assembledBody === expectedBody) {
+    reasons.push("same_source_hash_pair");
+    fields.push({
+      field: "requestBodies",
+      classification: "mismatch",
+      reason: "expected_sealed_body_is_the_same_object_as_observed",
+    });
+  }
+
+  const observedIdentity = identityHashesFromLiveProof(
+    liveProof.status === "VERIFIED" || liveProof.status === "UNVERIFIED" ? liveProof.input : null
+  );
+  const expectedIdentity = isOfficialGoldenExpected(expectedProvenance)
+    ? MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.identityHashes
+    : input.expectedIdentityHashes ?? null;
+  if (observedIdentity && expectedIdentity && observedIdentity === expectedIdentity) {
+    reasons.push("same_source_hash_pair");
+  }
+
+  const observedRequestBodyFingerprint = assembledBody
+    ? paidRunnerRequestBodyFingerprint(assembledBody)
+    : null;
+  const observedMessagesFingerprint = messagesFingerprintFromBody(assembledBody);
+  const observedFinalWireFingerprint = finalWireFingerprintFromBody(assembledBody);
+  const expectedRequestBodyFingerprint = expectedBody
+    ? paidRunnerRequestBodyFingerprint(expectedBody)
+    : isOfficialGoldenExpected(expectedProvenance)
+      ? input.expectedRequestBodyFingerprint ?? null
+      : input.expectedRequestBodyFingerprint ?? null;
+  const expectedMessagesFingerprint = expectedBody
+    ? messagesFingerprintFromBody(expectedBody)
+    : input.expectedMessagesFingerprint ?? null;
+  const expectedFinalWireFingerprint = expectedBody
+    ? finalWireFingerprintFromBody(expectedBody)
+    : input.expectedFinalWireFingerprint ?? null;
+
+  const observedSampling = samplingFromBody(assembledBody);
+  const expectedSampling = samplingFromBody(expectedBody);
+  if (input.sampling && input.expectedSampling && input.sampling === input.expectedSampling) {
+    reasons.push("same_source_hash_pair");
+    fields.push({
+      field: "sampling",
+      classification: "missing_evidence",
+      reason: "tautological_sampling_pair_ignored",
+    });
+  }
+
+  const observedThinking = assembledBody?.thinking;
+  const expectedThinking = expectedBody?.thinking;
+  const observedReasoning = assembledBody?.reasoning_effort ?? assembledBody?.reasoning;
+  const expectedReasoning = expectedBody?.reasoning_effort ?? expectedBody?.reasoning;
+  if (input.thinkingSemanticEquivalent === true || input.reasoningSemanticEquivalent === true) {
+    reasons.push("thinking_boolean_ignored");
+    fields.push({
+      field: "thinking_reasoning",
+      classification: "semantic_unconfirmed",
+      reason: "caller_boolean_cannot_prove_provider_semantics",
+    });
+  }
+
+  const observedStyle = splitStyleSections(input.observedStyleSections);
+  const expectedStyle = splitStyleSections(input.expectedStyleSections);
+  if (
+    input.observedStyleSections &&
+    input.expectedStyleSections &&
+    input.observedStyleSections === input.expectedStyleSections
+  ) {
+    reasons.push("same_source_hash_pair");
+  }
+  const observedCommonOrder = observedStyle.common.length ? sectionOrderHash(observedStyle.common) : null;
+  const expectedCommonOrder = expectedStyle.common.length ? sectionOrderHash(expectedStyle.common) : null;
+  const observedCommonContent = observedStyle.common.length
+    ? sectionContentHash(observedStyle.common)
+    : null;
+  const expectedCommonContent = expectedStyle.common.length
+    ? sectionContentHash(expectedStyle.common)
+    : null;
+  const observedModelOrder = observedStyle.model.length ? sectionOrderHash(observedStyle.model) : null;
+  const expectedModelOrder = expectedStyle.model.length ? sectionOrderHash(expectedStyle.model) : null;
+  const observedModelContent = observedStyle.model.length ? sectionContentHash(observedStyle.model) : null;
+  const expectedModelContent = expectedStyle.model.length ? sectionContentHash(expectedStyle.model) : null;
+
+  const observedFlags = input.observedRuntimeFlags ?? null;
+  const expectedFlags = input.expectedRuntimeFlags ?? null;
+  if (observedFlags && expectedFlags && observedFlags === expectedFlags) {
+    reasons.push("same_source_hash_pair");
+  }
+
+  const observedAuthoring =
+    liveProof.status === "VERIFIED" || liveProof.status === "UNVERIFIED"
+      ? liveProof.input.authoringLevel
+      : null;
+  const observedContentMode =
+    liveProof.status === "VERIFIED" || liveProof.status === "UNVERIFIED"
+      ? liveProof.input.contentMode
+      : null;
+
   const currentSha = normalizeParitySha(input.currentProductionSuccessSha);
   const capturedSha = normalizeParitySha(input.capturedDeploySha);
   const assemblySha = normalizeParitySha(input.assemblySourceSha);
@@ -612,30 +940,46 @@ export function classifyMainRpProductionParity(
     });
   }
 
-  if (input.authoringLevel != null && input.authoringLevel !== policy.authoringLevel) {
+  const authoringObserved = observedAuthoring ?? input.authoringLevel ?? null;
+  if (authoringObserved != null && authoringObserved !== policy.authoringLevel) {
     reasons.push("authoring_policy_mismatch");
     fields.push({
       field: "authoringLevel",
       classification: "mismatch",
       reason: `expected_${policy.authoringLevel}`,
     });
-  } else if (input.authoringLevel === policy.authoringLevel) {
+  } else if (authoringObserved === policy.authoringLevel) {
     fields.push({
       field: "authoringLevel",
       classification: "match",
       reason: policy.authoringLevel,
     });
+  } else {
+    reasons.push("authoring_evidence_missing");
+    fields.push({
+      field: "authoringLevel",
+      classification: "missing_evidence",
+      reason: "authoring_must_come_from_verified_live_proof",
+    });
   }
 
-  if (input.contentMode != null && input.contentMode !== policy.contentMode) {
+  const contentObserved = observedContentMode ?? input.contentMode ?? null;
+  if (contentObserved != null && contentObserved !== policy.contentMode) {
     reasons.push("content_mode_mismatch");
     fields.push({
       field: "contentMode",
       classification: "mismatch",
       reason: `expected_${policy.contentMode}`,
     });
-  } else if (input.contentMode === policy.contentMode) {
+  } else if (contentObserved === policy.contentMode) {
     fields.push({ field: "contentMode", classification: "match", reason: policy.contentMode });
+  } else {
+    reasons.push("content_mode_evidence_missing");
+    fields.push({
+      field: "contentMode",
+      classification: "missing_evidence",
+      reason: "content_mode_must_come_from_verified_live_proof",
+    });
   }
 
   if (input.softAimChars != null && input.softAimChars !== UNIFIED_TIER_AIM_CHARS) {
@@ -645,7 +989,7 @@ export function classifyMainRpProductionParity(
       classification: "mismatch",
       reason: "must_read_UNIFIED_TIER_AIM_CHARS",
     });
-  } else if (input.softAimChars === UNIFIED_TIER_AIM_CHARS) {
+  } else {
     fields.push({
       field: "softAimChars",
       classification: "match",
@@ -653,7 +997,11 @@ export function classifyMainRpProductionParity(
     });
   }
 
-  if (input.maxTokensPresent === true || input.maxCompletionTokensPresent === true) {
+  const maxTokensOnWire =
+    Boolean(assembledBody && ("max_tokens" in assembledBody || "max_completion_tokens" in assembledBody)) ||
+    input.maxTokensPresent === true ||
+    input.maxCompletionTokensPresent === true;
+  if (maxTokensOnWire) {
     reasons.push("max_tokens_present");
     fields.push({
       field: "max_tokens",
@@ -666,36 +1014,25 @@ export function classifyMainRpProductionParity(
     "identityHashes",
     "finalWireFingerprint",
     "requestBodyFingerprint",
+    "messagesFingerprint",
+    "commonStyleSectionOrderHash",
+    "modelStyleSectionOrderHash",
+    "commonStyleSectionContentHash",
+    "modelStyleSectionContentHash",
   ] as const;
   const hashPairs: Array<[string, string | null | undefined, string | null | undefined]> = [
     [
       "identityHashes",
-      input.identityHashes ? JSON.stringify(input.identityHashes) : null,
-      input.expectedIdentityHashes ? JSON.stringify(input.expectedIdentityHashes) : null,
+      observedIdentity ? JSON.stringify(observedIdentity) : null,
+      expectedIdentity ? JSON.stringify(expectedIdentity) : null,
     ],
-    ["finalWireFingerprint", input.finalWireFingerprint, input.expectedFinalWireFingerprint],
-    ["requestBodyFingerprint", input.requestBodyFingerprint, input.expectedRequestBodyFingerprint],
-    ["messagesFingerprint", input.messagesFingerprint, input.expectedMessagesFingerprint],
-    [
-      "commonStyleSectionOrderHash",
-      input.commonStyleSectionOrderHash,
-      input.expectedCommonStyleSectionOrderHash,
-    ],
-    [
-      "modelStyleSectionOrderHash",
-      input.modelStyleSectionOrderHash,
-      input.expectedModelStyleSectionOrderHash,
-    ],
-    [
-      "commonStyleSectionContentHash",
-      input.commonStyleSectionContentHash,
-      input.expectedCommonStyleSectionContentHash,
-    ],
-    [
-      "modelStyleSectionContentHash",
-      input.modelStyleSectionContentHash,
-      input.expectedModelStyleSectionContentHash,
-    ],
+    ["finalWireFingerprint", observedFinalWireFingerprint, expectedFinalWireFingerprint],
+    ["requestBodyFingerprint", observedRequestBodyFingerprint, expectedRequestBodyFingerprint],
+    ["messagesFingerprint", observedMessagesFingerprint, expectedMessagesFingerprint],
+    ["commonStyleSectionOrderHash", observedCommonOrder, expectedCommonOrder],
+    ["modelStyleSectionOrderHash", observedModelOrder, expectedModelOrder],
+    ["commonStyleSectionContentHash", observedCommonContent, expectedCommonContent],
+    ["modelStyleSectionContentHash", observedModelContent, expectedModelContent],
   ];
 
   let comparableHashMismatch = false;
@@ -726,10 +1063,10 @@ export function classifyMainRpProductionParity(
     }
   }
 
-  if (input.sampling && input.expectedSampling) {
+  if (observedSampling && expectedSampling) {
     const samplingMatch =
-      input.sampling.temperature === input.expectedSampling.temperature &&
-      input.sampling.top_p === input.expectedSampling.top_p;
+      observedSampling.temperature === expectedSampling.temperature &&
+      observedSampling.top_p === expectedSampling.top_p;
     if (!samplingMatch) {
       reasons.push("sampling_mismatch");
       fields.push({
@@ -744,8 +1081,17 @@ export function classifyMainRpProductionParity(
         reason: "temperature_top_p_preserved",
       });
     }
+  } else {
+    reasons.push("sampling_evidence_missing");
+    fields.push({
+      field: "sampling",
+      classification: "missing_evidence",
+      reason: "sampling_must_be_read_from_independent_request_bodies",
+    });
   }
 
+  const thinkingPresent = observedThinking !== undefined && expectedThinking !== undefined;
+  const reasoningPresent = observedReasoning !== undefined && expectedReasoning !== undefined;
   if (input.thinkingSemanticEquivalent === false || input.reasoningSemanticEquivalent === false) {
     reasons.push("thinking_or_reasoning_semantic_mismatch");
     fields.push({
@@ -753,29 +1099,46 @@ export function classifyMainRpProductionParity(
       classification: "mismatch",
       reason: "semantic_not_equivalent",
     });
-  } else if (
-    input.thinkingSemanticEquivalent == null ||
-    input.reasoningSemanticEquivalent == null
-  ) {
+  } else if (!thinkingPresent && !reasoningPresent) {
     reasons.push("thinking_or_reasoning_semantic_unconfirmed");
     fields.push({
       field: "thinking_reasoning",
       classification: "semantic_unconfirmed",
       reason: "provider_field_meaning_not_proven",
     });
-  } else {
+  } else if (
+    (thinkingPresent && !jsonEqual(observedThinking, expectedThinking)) ||
+    (reasoningPresent && !jsonEqual(observedReasoning, expectedReasoning))
+  ) {
+    reasons.push("thinking_or_reasoning_semantic_mismatch");
+    fields.push({
+      field: "thinking_reasoning",
+      classification: "mismatch",
+      reason: "independent_bodies_do_not_match",
+    });
+  } else if (thinkingPresent && reasoningPresent) {
     fields.push({
       field: "thinking_reasoning",
       classification: "match",
-      reason: "semantic_equivalent",
+      reason: "json_equal_on_independent_bodies",
+    });
+  } else {
+    reasons.push("thinking_or_reasoning_semantic_unconfirmed");
+    fields.push({
+      field: "thinking_reasoning",
+      classification: "semantic_unconfirmed",
+      reason: "provider_field_meaning_not_proven",
     });
   }
 
-  if (
-    input.recoveryPath != null &&
-    input.expectedRecoveryPath != null &&
-    input.recoveryPath !== input.expectedRecoveryPath
-  ) {
+  if (input.recoveryPath == null || input.expectedRecoveryPath == null) {
+    reasons.push("recovery_path_missing");
+    fields.push({
+      field: "recoveryPath",
+      classification: "missing_evidence",
+      reason: "recovery_path_must_be_provided_on_both_sides",
+    });
+  } else if (input.recoveryPath !== input.expectedRecoveryPath) {
     reasons.push("recovery_path_mismatch");
     fields.push({
       field: "recoveryPath",
@@ -793,7 +1156,14 @@ export function classifyMainRpProductionParity(
     });
   }
 
-  if (input.featureFlagsMatch === false) {
+  if (!observedFlags || !expectedFlags) {
+    reasons.push("runtime_flags_missing");
+    fields.push({
+      field: "featureFlags",
+      classification: "missing_evidence",
+      reason: "runtime_flags_must_come_from_independent_observations",
+    });
+  } else if (!jsonEqual(observedFlags, expectedFlags) || input.featureFlagsMatch === false) {
     reasons.push("feature_flag_or_runtime_mode_mismatch");
     fields.push({
       field: "featureFlags",
@@ -805,8 +1175,11 @@ export function classifyMainRpProductionParity(
   const uniqueReasons = [...new Set(reasons)];
   const stale =
     Boolean(capturedSha && currentSha && capturedSha !== currentSha) ||
-    (input.evidenceKind === "GOLDEN_SNAPSHOT" && input.currentLiveVerified !== true) ||
-    Boolean(input.liveCompare?.deployShaChanged);
+    (input.evidenceKind === "GOLDEN_SNAPSHOT" &&
+      normalizeParitySha(MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.deployedGitSha) !== currentSha) ||
+    Boolean(input.liveCompare?.deployShaChanged) ||
+    (isOfficialGoldenExpected(expectedProvenance) &&
+      goldenV1StaleAgainstCurrentSuccess(input.currentProductionSuccessSha));
   const mismatch =
     comparableHashMismatch ||
     [
@@ -823,30 +1196,54 @@ export function classifyMainRpProductionParity(
       "assembly_source_sha_not_current_success",
     ].some((reason) => uniqueReasons.includes(reason));
 
+  const independentEvidenceOk =
+    isTrustedObservedProvenance(observedProvenance) &&
+    isTrustedExpectedProvenance(expectedProvenance) &&
+    Boolean(provenanceSourceId(observedProvenance)) &&
+    provenanceSourceId(observedProvenance) !== provenanceSourceId(expectedProvenance) &&
+    Boolean(assembledBody) &&
+    Boolean(expectedBody || expectedRequestBodyFingerprint) &&
+    !uniqueReasons.includes("same_source_hash_pair") &&
+    !uniqueReasons.includes("caller_annotation_cannot_verify") &&
+    !uniqueReasons.includes("provenance_missing") &&
+    !uniqueReasons.includes("provenance_not_trusted") &&
+    !uniqueReasons.includes("assembled_request_body_missing") &&
+    !uniqueReasons.includes("sampling_evidence_missing") &&
+    !uniqueReasons.includes("runtime_flags_missing") &&
+    !uniqueReasons.includes("recovery_path_missing") &&
+    !uniqueReasons.includes("authoring_evidence_missing") &&
+    !uniqueReasons.includes("content_mode_evidence_missing") &&
+    Boolean(observedCommonOrder && expectedCommonOrder && observedModelOrder && expectedModelOrder);
+
   const status = resolveParityStatus({
     evidenceKind: input.evidenceKind,
     identityOk,
     fixturesOk,
+    independentEvidenceOk,
     requiredHashMissing,
-    currentLiveVerified: input.currentLiveVerified === true,
+    liveProofVerified,
     currentSha,
     assemblySha,
     capturedSha,
     stale,
     mismatch,
-    semanticUnconfirmed: uniqueReasons.includes("thinking_or_reasoning_semantic_unconfirmed"),
+    semanticUnconfirmed:
+      uniqueReasons.includes("thinking_or_reasoning_semantic_unconfirmed") ||
+      uniqueReasons.includes("thinking_boolean_ignored"),
     thinkingConfirmed:
-      input.thinkingSemanticEquivalent === true && input.reasoningSemanticEquivalent === true,
-    softAimMatchesOwner: input.softAimChars === UNIFIED_TIER_AIM_CHARS,
-    maxTokensAbsent:
-      input.maxTokensPresent !== true && input.maxCompletionTokensPresent !== true,
+      thinkingPresent &&
+      reasoningPresent &&
+      jsonEqual(observedThinking, expectedThinking) &&
+      jsonEqual(observedReasoning, expectedReasoning),
+    softAimMatchesOwner: true,
+    maxTokensAbsent: !maxTokensOnWire,
     flattenedLosingMeaning: input.flattenedLosingMeaning === true,
-    featureFlagsOk: input.featureFlagsMatch !== false,
+    featureFlagsOk: Boolean(observedFlags && expectedFlags && jsonEqual(observedFlags, expectedFlags)),
   });
 
   return {
     status,
-    qualityScoreEligible: status === "PRODUCTION_PARITY_VERIFIED",
+    qualityScoreEligible: status === "PRODUCTION_PARITY_VERIFIED" && input.precallReady === true,
     reasons: uniqueReasons,
     fields,
     softAimChars: UNIFIED_TIER_AIM_CHARS,

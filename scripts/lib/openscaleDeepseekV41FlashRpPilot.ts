@@ -23,10 +23,12 @@ import {
   MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC,
   classifyMainRpProductionParity,
   goldenV1StaleAgainstCurrentSuccess,
-  mainRpStyleLengthSitePolicy,
   type ProductionParityEvidenceKind,
   type ProductionParityInput,
+  type ProductionParityProvenance,
   type ProductionParityResult,
+  type ProductionParityRuntimeFlags,
+  type ProductionParitySection,
 } from "@/lib/rpMainRpStyleLengthFixture";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import { buildContext } from "@/services/contextBuilder";
@@ -382,6 +384,13 @@ export type OpenScaleStyleEvalProposedFixture = {
   featureFlagsMatch?: boolean | null;
   recoveryPath?: string;
   expectedRecoveryPath?: string;
+  expectedSealedRequestBody?: Record<string, unknown>;
+  observedProvenance?: ProductionParityProvenance;
+  expectedProvenance?: ProductionParityProvenance;
+  observedStyleSections?: ProductionParitySection[];
+  expectedStyleSections?: ProductionParitySection[];
+  observedRuntimeFlags?: ProductionParityRuntimeFlags;
+  expectedRuntimeFlags?: ProductionParityRuntimeFlags;
   identityHashes?: ProductionParityInput["identityHashes"];
   expectedIdentityHashes?: ProductionParityInput["expectedIdentityHashes"];
   finalWireFingerprint?: string;
@@ -565,12 +574,38 @@ export function buildOpenScaleProductionParityInput(
     livePersonaId?: number | null;
     maxTokensPresent?: boolean;
     sampling?: { temperature?: unknown; top_p?: unknown } | null;
+    precallReady?: boolean;
   }
 ): ProductionParityInput {
   const sceneId = extras?.sceneId ?? (proposed.fixtureId ?? proposed.sceneId)?.trim() ?? "";
-  const site = mainRpStyleLengthSitePolicy();
+  const assembled =
+    proposed.productionRequestBody && typeof proposed.productionRequestBody === "object"
+      ? proposed.productionRequestBody
+      : null;
+  const expectedSealed =
+    proposed.expectedSealedRequestBody && typeof proposed.expectedSealedRequestBody === "object"
+      ? proposed.expectedSealedRequestBody
+      : null;
   return {
     evidenceKind: resolveOpenScaleParityEvidenceKind(proposed),
+    observedProvenance: proposed.observedProvenance ?? {
+      kind: assembled ? "in_process_assembly" : "caller_annotation",
+      sourceId: assembled ? "openscale-observed-assembly" : "openscale-default-observed",
+    },
+    expectedProvenance: proposed.expectedProvenance ?? {
+      kind: proposed.useGoldenV1Expected ? "golden_public_manifest" : "caller_annotation",
+      sourceId: proposed.useGoldenV1Expected
+        ? MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.sourceId
+        : "openscale-default-expected",
+    },
+    liveProofInput: proposed.liveProofInput ?? null,
+    assembledRequestBody: assembled,
+    expectedSealedRequestBody: assembled && assembled === expectedSealed ? null : expectedSealed,
+    observedStyleSections: proposed.observedStyleSections ?? null,
+    expectedStyleSections: proposed.expectedStyleSections ?? null,
+    observedRuntimeFlags: proposed.observedRuntimeFlags ?? null,
+    expectedRuntimeFlags: proposed.expectedRuntimeFlags ?? null,
+    precallReady: extras?.precallReady === true,
     currentProductionSuccessSha: proposed.currentProductionSuccessSha ?? null,
     assemblySourceSha: proposed.assemblySourceSha ?? null,
     capturedDeploySha:
@@ -585,35 +620,20 @@ export function buildOpenScaleProductionParityInput(
     personaName: proposed.personaName,
     fixtureId: sceneId || null,
     fixtureIds: sceneId ? [sceneId] : [...OPENSCALE_APPROVED_STYLE_EVAL_IDENTITY.fixtureIds],
-    authoringLevel: site.authoringLevel,
-    contentMode: proposed.liveProofInput?.contentMode ?? site.contentMode,
-    softAimChars: site.softAimChars,
+    authoringLevel: proposed.liveProofInput?.authoringLevel ?? null,
+    contentMode: proposed.liveProofInput?.contentMode ?? null,
     maxTokensPresent: extras?.maxTokensPresent === true,
     maxCompletionTokensPresent: extras?.maxTokensPresent === true,
-    identityHashes: proposed.identityHashes ?? null,
-    expectedIdentityHashes: proposed.expectedIdentityHashes ?? null,
-    finalWireFingerprint: proposed.finalWireFingerprint ?? null,
+    expectedIdentityHashes: proposed.useGoldenV1Expected ? null : proposed.expectedIdentityHashes ?? null,
     expectedFinalWireFingerprint: proposed.expectedFinalWireFingerprint ?? null,
-    requestBodyFingerprint: proposed.requestBodyFingerprint ?? null,
     expectedRequestBodyFingerprint: proposed.expectedRequestBodyFingerprint ?? null,
-    commonStyleSectionOrderHash: proposed.commonStyleSectionOrderHash ?? null,
-    expectedCommonStyleSectionOrderHash: proposed.expectedCommonStyleSectionOrderHash ?? null,
-    modelStyleSectionOrderHash: proposed.modelStyleSectionOrderHash ?? null,
-    expectedModelStyleSectionOrderHash: proposed.expectedModelStyleSectionOrderHash ?? null,
-    commonStyleSectionContentHash: proposed.commonStyleSectionContentHash ?? null,
-    expectedCommonStyleSectionContentHash: proposed.expectedCommonStyleSectionContentHash ?? null,
-    modelStyleSectionContentHash: proposed.modelStyleSectionContentHash ?? null,
-    expectedModelStyleSectionContentHash: proposed.expectedModelStyleSectionContentHash ?? null,
-    messagesFingerprint: null,
     expectedMessagesFingerprint: null,
-    sampling: extras?.sampling ?? null,
-    expectedSampling: extras?.sampling ?? null,
     thinkingSemanticEquivalent: proposed.thinkingSemanticEquivalent ?? null,
     reasoningSemanticEquivalent: proposed.reasoningSemanticEquivalent ?? null,
-    recoveryPath: proposed.recoveryPath ?? "assemblePrimaryRpRequest",
-    expectedRecoveryPath: proposed.expectedRecoveryPath ?? "assemblePrimaryRpRequest",
+    recoveryPath: proposed.recoveryPath ?? null,
+    expectedRecoveryPath: proposed.expectedRecoveryPath ?? null,
     flattenedLosingMeaning: proposed.flattenedLosingMeaning === true,
-    featureFlagsMatch: proposed.featureFlagsMatch ?? true,
+    featureFlagsMatch: proposed.featureFlagsMatch ?? null,
   };
 }
 
@@ -723,9 +743,7 @@ export function evaluateOpenScaleStyleEvalFixtureParity(
       sceneId,
       livePersonaId,
       maxTokensPresent: uniqueReasons.includes("max_tokens_present"),
-      sampling: productionBody
-        ? { temperature: productionBody.temperature, top_p: productionBody.top_p }
-        : null,
+      precallReady,
     })
   );
   return {
