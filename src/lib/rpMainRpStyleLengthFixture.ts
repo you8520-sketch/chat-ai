@@ -516,18 +516,25 @@ export function classifyMainRpProductionParity(
   const reasons: string[] = [];
   const policy = mainRpStyleLengthSitePolicy();
 
-  const identityOk =
+  const namesOk =
     input.characterId === MAIN_RP_STYLE_LENGTH_TARGET.characterId &&
     (input.characterName ?? "").trim() === MAIN_RP_STYLE_LENGTH_TARGET.characterName &&
-    (input.personaName ?? "").trim() === MAIN_RP_STYLE_LENGTH_TARGET.personaName &&
-    typeof input.personaId === "number" &&
-    input.personaId > 0;
-  if (!identityOk) {
+    (input.personaName ?? "").trim() === MAIN_RP_STYLE_LENGTH_TARGET.personaName;
+  const personaIdOk = typeof input.personaId === "number" && input.personaId > 0;
+  const identityOk = namesOk && personaIdOk;
+  if (!namesOk) {
     reasons.push("identity_not_laike_ren");
     fields.push({
       field: "identity",
       classification: input.characterId == null ? "missing_evidence" : "mismatch",
       reason: "requires_character_18_laike_and_persona_ren",
+    });
+  } else if (!personaIdOk) {
+    reasons.push("persona_id_unconfirmed");
+    fields.push({
+      field: "personaId",
+      classification: "missing_evidence",
+      reason: "persona_id_must_come_from_verified_live_db",
     });
   } else {
     fields.push({ field: "identity", classification: "match", reason: "laike_18_ren" });

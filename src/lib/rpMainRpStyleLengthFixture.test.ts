@@ -404,6 +404,15 @@ describe("MAIN_RP_STYLE_LENGTH production parity gate", () => {
     assert.ok(result.reasons.includes("identity_not_laike_ren"));
   });
 
+  it("fails closed when 라이크/렌 names match but live persona id is missing", () => {
+    const result = classifyMainRpProductionParity(
+      verifiedParityInput({ personaId: undefined })
+    );
+    assert.equal(result.status, "NOT_COMPARABLE");
+    assert.ok(result.reasons.includes("persona_id_unconfirmed"));
+    assert.equal(result.reasons.includes("identity_not_laike_ren"), false);
+  });
+
   it("fails closed on a non-A/B/C scene", () => {
     const result = classifyMainRpProductionParity(
       verifiedParityInput({ fixtureId: "B03a", fixtureIds: ["B03a"] })
