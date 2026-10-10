@@ -16,14 +16,15 @@ import {
   CHARACTER_HERO_IMAGE_ATTR,
   CHARACTER_REVEAL_TIMING,
   HERO_ITEM_ATTR,
+  REVEAL_FIT_ATTR,
   REVEAL_ITEM_ATTR,
-  REVEAL_ITEM_KEYS,
   characterRevealDelayMs,
   computeRevealLayout,
   flipClipInset,
   flipTransform,
   parseCharacterProfilePath,
   parseRevealTags,
+  revealSettleDelta,
   splitRevealName,
   type RevealRect,
 } from "@/lib/characterReveal";
@@ -111,6 +112,7 @@ function buildCharacterScene(card: Element, id: number): CharacterScene | null {
   const { lines, maxChars } = splitRevealName(card.getAttribute("data-character-name") ?? "");
   const layout = computeRevealLayout(window.innerWidth, window.innerHeight, lines.length, maxChars);
   const start = flipTransform(from, layout.frame);
+  const viewport = document.documentElement;
   return {
     id,
     src,
@@ -119,6 +121,12 @@ function buildCharacterScene(card: Element, id: number): CharacterScene | null {
     tagline: (card.getAttribute("data-character-tagline") ?? "").trim(),
     tags: parseRevealTags(card.getAttribute("data-character-tags")),
     layout,
+    card: {
+      top: visible.top,
+      left: visible.left,
+      right: Math.max(0, viewport.clientWidth - (visible.left + visible.width)),
+      bottom: Math.max(0, viewport.clientHeight - (visible.top + visible.height)),
+    },
     start: { ...start, clip: flipClipInset(visible, from, layout.frame, start.scale) },
     hero: null,
     items: {},
@@ -138,20 +146,25 @@ function readHeroTarget(scene: CharacterScene): CharacterScene["hero"] {
   };
 }
 
-/** 오버레이 정보 요소가 도착한 프로필 hero의 같은 요소 위치로 정렬되도록 이동량을 읽는다. */
+/** 오버레이의 각 요소가 도착한 프로필 hero의 같은 요소 위치로 이동하도록 이동량을 읽는다. */
 function readItemTargets(scene: CharacterScene): CharacterScene["items"] {
   const items: CharacterScene["items"] = {};
   const hero = document.querySelector(`[data-character-hero="${scene.id}"]`);
   const veil = document.querySelector(`[data-character-reveal="${scene.id}"]`);
   if (!hero || !veil) return items;
-  for (const key of REVEAL_ITEM_KEYS) {
-    const from = veil.querySelector(`[${REVEAL_ITEM_ATTR}="${key}"]`);
+  for (const from of veil.querySelectorAll(`[${REVEAL_ITEM_ATTR}]`)) {
+    const key = from.getAttribute(REVEAL_ITEM_ATTR);
+    if (!key) continue;
     const to = hero.querySelector(`[${HERO_ITEM_ATTR}="${key}"]`);
-    if (!from || !to) continue;
+    if (!to) continue;
     const a = from.getBoundingClientRect();
     const b = to.getBoundingClientRect();
-    if (b.width < 8 || b.height < 8) continue;
-    items[key] = { tx: b.left - a.left, ty: b.top - a.top };
+    if (b.width < 8 || b.height < 8 || a.width < 1) continue;
+    items[key] = revealSettleDelta(
+      { left: a.left, top: a.top, width: a.width, height: a.height },
+      { left: b.left, top: b.top, width: b.width, height: b.height },
+      from.getAttribute(REVEAL_FIT_ATTR) === "width",
+    );
   }
   return items;
 }

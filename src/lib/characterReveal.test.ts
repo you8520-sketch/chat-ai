@@ -5,8 +5,14 @@ import { describe, it } from "node:test";
 
 import {
   CHARACTER_CARD_ATTR,
-  REVEAL_ITEM_KEYS,
   CHARACTER_REVEAL_TIMING,
+  REVEAL_BEATS,
+  REVEAL_TAG_SCATTER,
+  revealGlyphDelayMs,
+  revealGlyphMotion,
+  revealGlyphRanks,
+  revealSettleDelta,
+  splitRevealGraphemes,
   characterRevealAttrs,
   characterRevealDelayMs,
   computeRevealLayout,
@@ -203,14 +209,24 @@ describe("character reveal ownership", () => {
     assert.match(host, /dropBurst\(cur\.id\)/);
   });
 
-  it("keeps the overlay dossier and the profile hero wired through the same item keys", () => {
+  it("keeps every overlay element wired to a profile hero element through the same key", () => {
     const preview = read("src/components/CharacterPublicPagePreview.tsx");
     const scene = read("src/components/CharacterRevealScene.tsx");
-    for (const key of REVEAL_ITEM_KEYS) {
+    for (const key of ["name", "eyebrow", "tagline"]) {
       assert.match(preview, new RegExp(`\\[HERO_ITEM_ATTR\\]: "${key}"`), `hero ${key}`);
       assert.match(scene, new RegExp(`\\[REVEAL_ITEM_ATTR\\]: "${key}"`), `overlay ${key}`);
     }
-    assert.doesNotMatch(scene, /creator/i, "creator is not part of the overlay dossier");
+    assert.match(preview, /HERO_ITEM_ATTR\]: revealTagKey\(i\)/);
+    assert.match(scene, /REVEAL_ITEM_ATTR\]: key/);
+    assert.doesNotMatch(scene, /creator/i, "creator is not part of the overlay");
+  });
+
+  it("hides destination hero copy while the overlay owns the same text", () => {
+    const css = read("src/app/globals.css");
+    assert.match(css, /html:has\(\.rv-veil\)\s+\[data-character-hero\]\s+\[data-hero-item\]/);
+    assert.match(css, /visibility:\s*hidden/);
+    const settle = css.slice(css.indexOf("@keyframes rv-item-settle"), css.indexOf("@media (prefers-reduced-motion: reduce)"));
+    assert.doesNotMatch(settle, /opacity:\s*0/);
   });
 
   it("moves the gallery out of the poster hero into its own body section", () => {
@@ -237,5 +253,96 @@ describe("character reveal ownership", () => {
     const block = css.slice(css.indexOf("/* Phase D-1"), css.indexOf("@keyframes float-points-up"));
     assert.doesNotMatch(block, /animation:[^;]*\b(width|height|top|left)\b/);
     assert.doesNotMatch(block, /filter:\s*blur|backdrop-filter/);
+  });
+});
+
+describe("character kinetic assembly choreography", () => {
+  it("splits names by grapheme without breaking Hangul, jamo sequences or emoji", () => {
+    assert.deepEqual(splitRevealGraphemes("강이현"), ["강", "이", "현"]);
+    assert.deepEqual(splitRevealGraphemes("A-1 · 강"), ["A", "-", "1", " ", "·", " ", "강"]);
+    const decomposed = "\u1100\u1161\u11a8"; // ㄱ+ㅏ+ㄱ (조합형)
+    assert.equal(splitRevealGraphemes(decomposed).length, 1);
+    assert.equal(splitRevealGraphemes("👩‍💻나").length, 2);
+    assert.equal(splitRevealGraphemes("").length, 0);
+  });
+
+  it("converges glyphs from both ends toward the middle", () => {
+    assert.deepEqual(revealGlyphRanks(0), []);
+    assert.deepEqual(revealGlyphRanks(1), [0]);
+    assert.deepEqual(revealGlyphRanks(3), [0, 2, 1]);
+    assert.deepEqual(revealGlyphRanks(5), [0, 2, 4, 3, 1]);
+    for (const n of [2, 7, 12, 44]) {
+      assert.deepEqual([...revealGlyphRanks(n)].sort((a, b) => a - b), Array.from({ length: n }, (_, i) => i));
+    }
+  });
+
+  it("gives neighbouring glyphs different entry directions (not one shared slide)", () => {
+    const dirs = Array.from({ length: 6 }, (_, k) => Math.sign(revealGlyphMotion(k).y));
+    assert.ok(dirs.includes(1) && dirs.includes(-1));
+    for (let k = 0; k < 6; k++) assert.notEqual(Math.sign(revealGlyphMotion(k).y), Math.sign(revealGlyphMotion(k + 1).y));
+    const xs = new Set(Array.from({ length: 6 }, (_, k) => revealGlyphMotion(k).x));
+    assert.ok(xs.size >= 5);
+  });
+
+  it("starts tags from distinct scattered positions", () => {
+    assert.equal(new Set(REVEAL_TAG_SCATTER.map((t) => `${t.x}|${t.y}`)).size, REVEAL_TAG_SCATTER.length);
+    assert.ok(new Set(REVEAL_TAG_SCATTER.map((t) => Math.sign(parseFloat(t.y)))).size === 2, "both above and below");
+  });
+
+  it("keeps the whole assembly inside the existing 1.4s budget and overlaps the beats", () => {
+    const B = REVEAL_BEATS;
+    const { minCoverMs, holdMaxMs, revealMs } = CHARACTER_REVEAL_TIMING;
+    const lastGlyphEnd = revealGlyphDelayMs(revealGlyphRanks(44).length - 1, 44) + B.nameGlyphMs;
+    const tagsEnd = B.tagStartMs + 2 * B.tagStepMs + B.tagMs;
+    const taglineEnd = B.taglineStartMs + B.taglineMs;
+    for (const end of [B.inkOpenMs, B.frameFlyMs, lastGlyphEnd, tagsEnd, taglineEnd]) {
+      assert.ok(end <= minCoverMs + 100, `beat ends at ${end}ms`);
+    }
+    assert.ok(minCoverMs + revealMs <= 1500);
+    assert.ok(holdMaxMs + revealMs <= CHARACTER_REVEAL_TIMING.failsafeMs);
+    // beat가 시간상 겹친다: 이름이 끝나기 전에 소개·태그가 시작한다.
+    const nameEnd = revealGlyphDelayMs(0, 3) + B.nameGlyphMs;
+    assert.ok(B.taglineStartMs < nameEnd && B.tagStartMs < nameEnd);
+    // 소개와 태그는 서로 다른 시작 시각을 갖는다.
+    assert.notEqual(B.taglineStartMs, B.tagStartMs);
+  });
+
+  it("has no leftover uniform-motion keyframes and every rv animation is defined", () => {
+    const css = read("src/app/globals.css");
+    for (const dead of ["rv-rise", "rv-rise-fade", "rv-name-text", "rv-item-in", ".rv-chip"]) {
+      assert.ok(!css.includes(dead), `${dead} should be removed`);
+    }
+    const defined = new Set([...css.matchAll(/@keyframes (rv-[\w-]+)/g)].map((m) => m[1]));
+    const used = new Set([...css.matchAll(/animation:\s*(rv-[\w-]+)/g)].map((m) => m[1]));
+    for (const name of used) assert.ok(defined.has(name), `${name} is defined`);
+    for (const name of defined) assert.ok(used.has(name), `${name} is used`);
+  });
+
+  it("computes per-element settle deltas and scales only fitted elements", () => {
+    const from = { left: 100, top: 300, width: 600, height: 240 };
+    const to = { left: 400, top: 200, width: 300, height: 120 };
+    assert.deepEqual(revealSettleDelta(from, to, true), { tx: 300, ty: -100, scale: 0.5 });
+    assert.deepEqual(revealSettleDelta(from, to, false), { tx: 300, ty: -100, scale: 1 });
+    assert.equal(revealSettleDelta({ ...from, width: 0 }, to, true).scale, 1);
+    assert.equal(revealSettleDelta(from, { ...to, width: 100000 }, true).scale, 3);
+  });
+});
+
+describe("dead public facts system is gone", () => {
+  it("does not keep a reader, card marker, or CharacterRecord without public data", () => {
+    assert.equal(fs.existsSync(path.join(root, "src/lib/publicProfileFacts.ts")), false);
+    assert.equal(fs.existsSync(path.join(root, "src/components/CharacterRecord.tsx")), false);
+    for (const rel of [
+      "src/lib/characterReveal.ts",
+      "src/components/CharacterRevealScene.tsx",
+      "src/components/MenuTransition.tsx",
+      "src/components/CharacterPublicPagePreview.tsx",
+      "src/components/CharacterCard.tsx",
+      "src/app/tab/[tab]/page.tsx",
+      "src/app/character/[id]/page.tsx",
+    ]) {
+      const src = read(rel);
+      assert.doesNotMatch(src, /publicProfileFacts|CharacterRecord|data-character-facts|readPublicProfileFacts|REVEAL_FACT_SCATTER|revealFactKey/, rel);
+    }
   });
 });
