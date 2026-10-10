@@ -21,9 +21,11 @@ import {
   resolveOfficialAssetImageModel,
 } from "@/lib/officialSupply/imageProfile";
 import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
+import { PILOT_CLUSTER_B_PROOF_BATCH_CONFIG } from "@/lib/officialSupply/pilotClusterBStyleProof";
 import { ROFAN_V4_PRODUCTION_BATCH_CONFIG } from "@/lib/officialSupply/pilotProduction";
 import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
 import {
+  isLucianSig4ProofSupportedImageModel,
   LUCIAN_SIG4_OBSERVED_ONE_REFERENCE_PAID_USD,
   LUCIAN_SIG4_STYLE_REFERENCE_REPO_RELATIVE,
   officialQaClusterBPrimaryStyleLocalPath,
@@ -271,5 +273,60 @@ describe("Wolfgang representative NO_POST preflight", () => {
     fs.writeFileSync(ARTIFACT_PATH, `${JSON.stringify(evidence, null, 2)}\n`);
     assert.equal(evidence.providerCalls, 0);
     assert.equal(evidence.paidPost, 0);
+  });
+
+  it("reports one-invocation POST ceiling without adding a Wolfgang retry owner", () => {
+    const liveModel = resolveOfficialAssetImageModel({ OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" });
+    assert.equal(liveModel, "gpt-image-2.5-sunburst");
+    assert.notEqual(liveModel, CHAT_IMAGE_GENERATION_DEFAULT_MODEL);
+    assert.equal(isLucianSig4ProofSupportedImageModel(liveModel), true);
+    const composed = composeOfficialSlotGeneration({
+      character: wolfgangCharacter(plan),
+      style: {
+        styleKey: compiled.draft.styleKey,
+        genre: "로맨스 판타지",
+        stage: "style_locked",
+        candidates: [candidate],
+        approvedCandidateId: candidate.candidateId,
+        styleSeed,
+        proofAssetLimit: 1,
+      },
+      slotKey: "rep",
+      representativeUrl: null,
+      env: { OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" },
+    });
+    assert.equal(composed.ok, true);
+    if (!composed.ok) return;
+    assert.equal(composed.model, "gpt-image-2.5-sunburst");
+
+    const havSeed = buildClusterBRofanStyleSeed({ NEXTAUTH_URL: "https://hav.chat" });
+    const havRefs = resolveOfficialGenerationReferencePlan({
+      kind: "representative",
+      styleSeed: havSeed,
+      representativeUrl: null,
+    });
+    assert.equal(havRefs.ok, true);
+    if (!havRefs.ok) return;
+    assert.deepEqual(havRefs.plan.references, [
+      `https://hav.chat${CLUSTER_B_PRIMARY_STYLE_PATH}`,
+      ...CLUSTER_B_COMPANION_STYLE_PATHS.map((item) => `https://hav.chat${item}`),
+    ]);
+
+    assert.equal(MAX_PROVIDER_ATTEMPTS, 2);
+    assert.equal(ROFAN_V4_PRODUCTION_BATCH_CONFIG.maxAttemptsPerSlot, 2);
+    assert.equal(
+      ROFAN_V4_PRODUCTION_BATCH_CONFIG.maxAttemptsPerSlot * MAX_PROVIDER_ATTEMPTS,
+      4
+    );
+    assert.equal(PILOT_CLUSTER_B_PROOF_BATCH_CONFIG.maxAttemptsPerSlot, 1);
+    assert.equal(PILOT_CLUSTER_B_PROOF_BATCH_CONFIG.maxAttemptsPerSlot * MAX_PROVIDER_ATTEMPTS, 2);
+
+    const adapters = fs.readFileSync(path.join(process.cwd(), "src/lib/officialSupply/productionAdapters.ts"), "utf8");
+    const fallback = fs.readFileSync(path.join(process.cwd(), "src/lib/openAiImageSafetyFallback.ts"), "utf8");
+    assert.match(adapters, /callOpenAiImageEditWithSafetyFallback/);
+    assert.match(fallback, /strict_safety_fallback/);
+    assert.match(fallback, /One primary call \+ one strict-safety fallback = max 2 provider attempts/);
+    assert.doesNotMatch(adapters, /wolfgang/i);
+    assert.doesNotMatch(fallback, /wolfgang/i);
   });
 });
