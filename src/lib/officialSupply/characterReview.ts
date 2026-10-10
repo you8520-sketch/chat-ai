@@ -21,8 +21,22 @@ import type {
 } from "@/lib/officialSupply/types";
 
 export const LUCIAN_REVIEW_RELATIVE_PATH = "docs/official-supply/reviews/pilot-rf-03-lucian.md";
-export const LUCIAN_REVIEW_REPRODUCE =
-  "npm run official-supply:review-character -- pilot-rf-03 docs/official-supply/reviews/pilot-rf-03-lucian.md";
+export const WOLFGANG_REVIEW_RELATIVE_PATH = "docs/official-supply/reviews/pilot-rf-02-wolfgang.md";
+
+export function officialCharacterReviewRelativePath(draftKey: string): string {
+  if (draftKey === "pilot-rf-03") return LUCIAN_REVIEW_RELATIVE_PATH;
+  if (draftKey === "pilot-rf-02") return WOLFGANG_REVIEW_RELATIVE_PATH;
+  return `docs/official-supply/reviews/${draftKey}.md`;
+}
+
+export function officialCharacterReviewReproduce(
+  draftKey: string,
+  outputPath = officialCharacterReviewRelativePath(draftKey)
+): string {
+  return `npm run official-supply:review-character -- ${draftKey} ${outputPath}`;
+}
+
+export const LUCIAN_REVIEW_REPRODUCE = officialCharacterReviewReproduce("pilot-rf-03");
 
 type PilotCharFile = {
   draftKey: string;
@@ -72,7 +86,10 @@ function lorebookBlock(title: string, entries: readonly OfficialWorldLorebookEnt
   ];
 }
 
-export function buildOfficialCharacterReviewReport(draftKey = "pilot-rf-03"): string {
+export function buildOfficialCharacterReviewReport(
+  draftKey = "pilot-rf-03",
+  outputPath = officialCharacterReviewRelativePath(draftKey)
+): string {
   const file = loadPilotCharacter(draftKey);
   const manifest = readJson<{ worldKey: string; styleKey: string; genre: string }>(
     path.join(PILOT_DIR, "manifest.json")
@@ -115,7 +132,7 @@ export function buildOfficialCharacterReviewReport(draftKey = "pilot-rf-03"): st
     "This markdown is the exact output of the official review compiler. Do not hand-edit.",
     "",
     "```",
-    LUCIAN_REVIEW_REPRODUCE,
+    officialCharacterReviewReproduce(draftKey, outputPath),
     "```",
     "",
     "## LAYER MAP",

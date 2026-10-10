@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
-  LUCIAN_REVIEW_RELATIVE_PATH,
+  officialCharacterReviewRelativePath,
   buildOfficialCharacterReviewReport,
 } from "@/lib/officialSupply/characterReview";
 
@@ -10,9 +10,9 @@ const draftKey = process.argv[2]?.trim() || process.env.OFFICIAL_REVIEW_DRAFT_KE
 const outputPath =
   process.argv[3]?.trim() ||
   process.env.OFFICIAL_REVIEW_OUTPUT_PATH?.trim() ||
-  LUCIAN_REVIEW_RELATIVE_PATH;
+  officialCharacterReviewRelativePath(draftKey);
 
-const report = buildOfficialCharacterReviewReport(draftKey);
+const report = buildOfficialCharacterReviewReport(draftKey, outputPath);
 if (outputPath) {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, report, "utf8");
