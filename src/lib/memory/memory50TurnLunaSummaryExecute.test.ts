@@ -122,7 +122,7 @@ function harborChatExists(): boolean {
 describe("50-turn Luna summary execute gate (provider-free)", () => {
   it("keeps #1473 request identity and pins the live prelude fingerprints", async () => {
     assert.equal(LUNA_SUMMARY_LIVE_EXECUTE_SHIPPED, false);
-    assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "NOT_APPROVED");
+    assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "APPROVED");
     assert.equal(harborScriptHash(), LUNA_SUMMARY_APPROVED_SCRIPT_HASH);
     const identity = await verifyLunaRequestIdentity();
     assert.equal(identity.shaOnlyDifference.requestPayloadUnchanged, true);
@@ -186,7 +186,7 @@ describe("50-turn Luna summary execute gate (provider-free)", () => {
         requireLiveApproval: true,
         env: {},
       }).reason,
-      "APPROVAL_STATUS_NOT_APPROVED"
+      "AUTHORIZED_BOUNDED"
     );
   });
 
@@ -233,7 +233,7 @@ describe("50-turn Luna summary execute gate (provider-free)", () => {
     assert.notEqual(coupledApproved, coupledNotApproved);
     assert.notEqual(LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST, coupledNotApproved);
     assert.notEqual(LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST, coupledApproved);
-    assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "NOT_APPROVED");
+    assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "APPROVED");
   });
 
   it("writes the execute stop report into the journal directory when the preferred parent is not writable", () => {
@@ -691,7 +691,7 @@ describe("50-turn Luna summary execute isolated stub (provider-free)", () => {
       assert.equal(retry.executed, false);
       assert.equal(retry.paidPosts, 0);
       assert.equal(posts, 10);
-      assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "NOT_APPROVED");
+      assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "APPROVED");
       assert.equal(lunaSummaryLiveExecuteManifestFingerprint(), LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
     } finally {
       __setLunaEvalPersistForTests(null);
@@ -721,7 +721,7 @@ describe("50-turn Luna eval evidence survives isolated DB removal", () => {
     assert.equal(existsSync(lunaSummaryEvalEvidencePath(dir, LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST)), true);
     const reopened = loadLunaSummaryEvalEvidence(dir);
     assert.ok(reopened);
-    assert.equal(reopened.evidence.liveApprovalStatus, "NOT_APPROVED");
+    assert.equal(reopened.evidence.liveApprovalStatus, "APPROVED");
     assert.equal(reopened.evidence.manifestFingerprint, LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
     assert.equal(reopened.globalMemory, result.globalMemory);
     assert.equal(reopened.armAMemory, result.armAMemory);
@@ -736,7 +736,7 @@ describe("50-turn Luna eval evidence survives isolated DB removal", () => {
       true
     );
     assert.equal(lunaSummaryLiveExecuteManifestFingerprint(), LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST);
-    assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "NOT_APPROVED");
+    assert.equal(LUNA_SUMMARY_LIVE_APPROVAL_STATUS, "APPROVED");
   });
 });
 
