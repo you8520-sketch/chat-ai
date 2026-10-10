@@ -20,6 +20,8 @@ import {
   isSameChatRoom,
   parseChatResumeHref,
   parseChatRoomPath,
+  chatResumePageLooksFailed,
+  decideChatBurstAction,
   resolveChatArrival,
   resolveChatResumeTarget,
 } from "@/lib/chatResumeTransition";
@@ -181,11 +183,82 @@ describe("chat resume arrival", () => {
     assert.equal(arrive({ room: null, pathname: "/chat/7", search: "?chat=70" }), "pending");
   });
 
+  it("keeps holding while a delayed navigation is still on the page that was clicked", () => {
+    assert.equal(
+      resolveChatArrival({
+        dest,
+        origin: null,
+        room: null,
+        pathname: "/tab/new",
+        url: "/tab/new",
+        from: "/tab/new",
+      }),
+      "pending",
+    );
+    assert.equal(
+      resolveChatArrival({
+        dest,
+        origin: null,
+        room: null,
+        pathname: "/login",
+        url: "/login",
+        from: "/tab/new",
+      }),
+      "abandoned",
+    );
+    assert.equal(
+      resolveChatArrival({
+        dest,
+        origin: null,
+        room: null,
+        pathname: "/tab/new",
+        url: "/tab/new",
+        from: "/tab/new",
+        leftOrigin: true,
+      }),
+      "abandoned",
+    );
+  });
+
   it("abandons on redirects away from the room and on other characters' rooms", () => {
     for (const pathname of ["/login", "/verify", "/character/7", "/tab/new", "/"]) {
       assert.equal(arrive({ room: null, pathname }), "abandoned", pathname);
     }
     assert.equal(arrive({ room: room(9, 90), pathname: "/chat/9", search: "?chat=90" }), "abandoned");
+  });
+
+  it("holds the cover when the destination room is not ready, even if the URL already moved", () => {
+    assert.equal(decideChatBurstAction("pending", false), "hold");
+    assert.equal(decideChatBurstAction("arrived", false), "reveal");
+    assert.equal(decideChatBurstAction("abandoned", false), "drop");
+    assert.equal(decideChatBurstAction("pending", true), "drop");
+    assert.equal(decideChatBurstAction("arrived", true), "reveal");
+  });
+
+  it("treats a 404 heading without a room marker as a failed page, never a ready room", () => {
+    const failed = {
+      querySelector(sel: string) {
+        if (sel.includes("data-chat-room-id") || sel.includes("data-next")) return null;
+        if (sel.includes("h1")) return { textContent: "404" };
+        return null;
+      },
+    };
+    const ready = {
+      querySelector(sel: string) {
+        if (sel.includes("data-chat-room-id")) return { getAttribute: () => "70" };
+        return null;
+      },
+    };
+    const home = {
+      querySelector() {
+        return { textContent: "실시간 신작" };
+      },
+    };
+    assert.equal(chatResumePageLooksFailed(failed as unknown as ParentNode), true);
+    assert.equal(chatResumePageLooksFailed(ready as unknown as ParentNode), false);
+    assert.equal(chatResumePageLooksFailed(home as unknown as ParentNode), false);
+    assert.equal(chatResumePageLooksFailed(failed as unknown as ParentNode, "/tab/new"), false);
+    assert.equal(chatResumePageLooksFailed(failed as unknown as ParentNode, "/chat/7"), true);
   });
 
   it("waits through rooms and pages that rapid consecutive clicks superseded", () => {
@@ -328,8 +401,15 @@ describe("chat resume ownership", () => {
 
   it("confirms the real room before the transition lifts, and never reads the clicked row's message text", () => {
     assert.match(host, /resolveChatArrival\(/);
+    assert.match(host, /decideChatBurstAction\(/);
+    assert.match(host, /MutationObserver/);
+    assert.match(host, /next\.kind !== "chat"/);
+    assert.match(host, /from: `\$\{window\.location\.pathname\}/);
+    assert.match(host, /chatRevealArmed/);
+    assert.match(host, /chatLeftOrigin/);
+    assert.match(host, /chatResumePageLooksFailed\(document, window\.location\.pathname\)/);
     assert.match(host, /readChatRoom\(\)/);
-    assert.match(host, /dropBurst\(cur\.id\)/);
+    assert.match(host, /dropBurst\(id\)/);
     assert.match(read("src/app/chat/[id]/ChatClient.tsx"), /chatRoomAttrs\(/);
     const scene = read("src/components/ChatResumeScene.tsx");
     const builder = host.slice(host.indexOf("function buildChatResumeScene"), host.indexOf("let burstSeq"));

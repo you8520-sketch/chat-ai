@@ -86,14 +86,15 @@ export function resolveChatResumeTarget(input: {
 }
 
 export type ChatArrival = "arrived" | "pending" | "abandoned";
+export type ChatBurstAction = "reveal" | "hold" | "drop";
 
 /**
  * 목적지 방이 실제로 도착했는지 판정한다.
  * - 도착: 목적지 방 마커가 DOM에 있다. 서버가 같은 캐릭터의 기존 방으로 redirect한 경우는
  *   현재 canonical URL(`?chat=`)과 실제 방 마커가 같은 방일 때만 도착으로 본다.
  *   URL과 마커가 어긋나면(이전 방 마커가 잠시 남은 경우 등) 도착이 아니다.
- * - 대기: 아직 방 마커가 없거나 출발 방 그대로다. 빠른 연속 클릭으로 밀려난 이전 목적지(superseded)가
- *   먼저 도착해도 기다린다.
+ * - 대기: 아직 방 마커가 없거나 출발 방 그대로다. 클릭한 페이지에 그대로 있는 늦은 RSC도 대기다.
+ *   빠른 연속 클릭으로 밀려난 이전 목적지(superseded)가 먼저 도착해도 기다린다.
  * - 포기: 채팅방이 아닌 경로로 갔거나(권한·로그인·인증 redirect, 뒤로 가기) URL과 일치하는 다른 캐릭터의 방이다.
  */
 export function resolveChatArrival(input: {
@@ -105,12 +106,16 @@ export function resolveChatArrival(input: {
   url: string;
   /** 이 전환이 시작되며 밀어낸 이전 전환의 목적지(pathname + search). */
   superseded?: readonly string[];
+  /** 클릭 당시 위치. 아직 이 자리에 있으면 목적지로 떠나지 않은 pending이다. */
+  from?: string;
+  /** 한 번 채팅 경로에 들어간 뒤 다시 출발 페이지로 돌아온 경우(뒤로 가기). */
+  leftOrigin?: boolean;
 }): ChatArrival {
-  const { dest, origin, room, pathname, url, superseded = [] } = input;
+  const { dest, origin, room, pathname, url, superseded = [], from, leftOrigin = false } = input;
   if (isSameChatRoom(room, dest)) return "arrived";
   if (superseded.includes(url)) return "pending";
   const pathCharacter = parseChatRoomPath(pathname);
-  if (pathCharacter === null) return "abandoned";
+  if (pathCharacter === null) return from != null && url === from && !leftOrigin ? "pending" : "abandoned";
   if (!room || isSameChatRoom(room, origin)) return "pending";
   const queryAt = url.indexOf("?");
   const urlRoom = parseChatResumeHref(pathname, queryAt === -1 ? "" : url.slice(queryAt));
@@ -119,7 +124,38 @@ export function resolveChatArrival(input: {
 }
 
 /**
+ * 채팅 전환 레이어가 지금 할 일.
+ * - reveal: 실제 방이 준비됐다. minCover가 끝났으면 즉시 분할한다.
+ * - hold: 아직 방 마커가 없다. 이전 화면을 드러내지 않고 cover를 유지한다.
+ * - drop: 채팅이 아닌 곳으로 갔거나, 목적지가 실패 페이지다.
+ */
+export function decideChatBurstAction(arrival: ChatArrival, pageFailed: boolean): ChatBurstAction {
+  switch (arrival) {
+    case "arrived":
+      return "reveal";
+    case "abandoned":
+      return "drop";
+    case "pending":
+      return pageFailed ? "drop" : "hold";
+    default: {
+      const _exhaustive: never = arrival;
+      return _exhaustive;
+    }
+  }
+}
+
+/** 채팅 경로에 방이 없고 Next가 404/에러 페이지를 그린 경우만 실패로 본다. 출발 목록 문구는 보지 않는다. */
+export function chatResumePageLooksFailed(root: ParentNode, pathname?: string): boolean {
+  if (pathname !== undefined && parseChatRoomPath(pathname) === null) return false;
+  if (root.querySelector(`[${CHAT_ROOM_ID_ATTR}]`)) return false;
+  const heading = (root.querySelector("h1, h2")?.textContent ?? "").replace(/\s+/g, " ").trim();
+  if (/^404\b/.test(heading) || /this page could not be found/i.test(heading)) return true;
+  return Boolean(root.querySelector("[data-nextjs-error-body], [data-next-error]"));
+}
+
+/**
  * 전환 타임라인(클릭 기준 ms). 도착이 아무리 빨라도 identity 장면이 보이기 전에는 열지 않는다.
+ * 채팅 전환은 holdMax로 분할을 시작하지 않는다. 방이 준비되면 minCover 이후 즉시 연다.
  * navigation은 지연하지 않고 오버레이 해제 시점만 정한다.
  */
 export const CHAT_RESUME_TIMING = {
