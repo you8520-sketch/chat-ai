@@ -154,6 +154,10 @@ describe("chat resume arrival", () => {
     assert.equal(arrive({ origin: null, room: room(7, 72), pathname: "/chat/7", search: "?chat=72" }), "arrived");
   });
 
+  it("keeps waiting when the destination URL is committed but no room is mounted yet (server redirect in flight, notFound)", () => {
+    assert.equal(arrive({ room: null, pathname: "/chat/7", search: "?chat=70" }), "pending");
+  });
+
   it("abandons on redirects away from the room and on other characters' rooms", () => {
     for (const pathname of ["/login", "/verify", "/character/7", "/tab/new", "/"]) {
       assert.equal(arrive({ room: null, pathname }), "abandoned", pathname);
