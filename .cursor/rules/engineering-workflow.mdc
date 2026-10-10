@@ -43,7 +43,7 @@ Adopted vocabulary and what it replaces here:
 
 **Merge authority.** Default end state is a Draft PR. Do not use pstack opening-a-pr "ready, never draft", shipping, autopilot-full, or auto-merge as HAV defaults. Merge only after a separate GPT/user review.
 
-**Evidence handoff.** Local WSL Agent posts sanitized eval/review evidence to that Draft PR with `gh pr create --draft` or `gh pr comment`. Do not use the user Downloads folder or ChatGPT upload as the default path. Cloud Agent is not the owner of this machine's journal or GitHub posting. Reuse existing `gh`; do not add a parallel handoff script or a second process rule.
+**Evidence handoff.** Local WSL Agent posts sanitized eval/review evidence to the working Draft PR. On this machine, reuse Windows `gh.exe` authenticated by its keyring: call `gh.exe api` with explicit repository/PR parameters for creation and comments, because Windows `gh.exe` cannot infer the WSL git repository for `gh pr` commands. Keep git operations in WSL; never export or persist plaintext GitHub tokens. Do not use the user's Downloads folder or ChatGPT upload as the default path. Cloud Agent does not own this machine's journal or GitHub posting. Do not add a parallel handoff script or a second process rule.
 
 **Sensitive STOP.** These beat pstack `never-block-on-the-human`:
 
