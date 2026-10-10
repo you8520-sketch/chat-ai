@@ -15,6 +15,7 @@ import {
 import {
   LUNA_SUMMARY_APPROVED_BATCH_FINGERPRINTS,
   LUNA_SUMMARY_EXPERIMENT_KEY_ENV,
+  LUNA_SUMMARY_HARD_MAXIMUM_USD,
   LUNA_SUMMARY_MAX_NETWORK_ATTEMPTS,
   LUNA_SUMMARY_PLANNED_POSTS,
 } from "./memory50TurnLunaSummaryPrepare";
@@ -39,8 +40,14 @@ export const LUNA_SUMMARY_PRECALL_CACHE_FILENAME = "luna-summary-precall-cache.j
 export const LUNA_SUMMARY_PRECALL_CACHE_VERSION = 1 as const;
 export const LUNA_SUMMARY_CLOUD_CANNOT_VERIFY_WSL =
   "Cloud Agent cannot perform Windows/WSL local verification" as const;
+export const LUNA_SUMMARY_PRECALL_REPORT_FILENAME = "luna-summary-precall-report.json" as const;
 
 export type LunaPrecallHostKind = "cloud" | "wsl2" | "linux" | "windows" | "unknown";
+export type LunaPrecallVerdict =
+  | "READY_FOR_APPROVAL"
+  | "BLOCKED"
+  | "ALREADY_EXECUTED"
+  | "UNRESOLVED_NO_RETRY";
 
 export type LunaPrecallHost = {
   kind: LunaPrecallHostKind;
@@ -60,6 +67,8 @@ export type LunaPrecallIdentity = {
 
 export type LunaSummaryPrecallReport = {
   command: "luna:precall";
+  verdict: LunaPrecallVerdict;
+  blocker: string | null;
   LIVE_PRECALL_READY: boolean;
   cloudAgent: boolean;
   cloudCannotVerifyWsl: boolean;
@@ -76,6 +85,7 @@ export type LunaSummaryPrecallReport = {
   journalDurable: boolean;
   journalReason: string | null;
   journalReservedHistory: boolean;
+  journalHasUnknownUnresolved: boolean;
   journalExecuted: boolean | null;
   journalNetworkAttempts: number | null;
   createdJournal: false;
@@ -95,6 +105,10 @@ export type LunaSummaryPrecallReport = {
   liveApprovalStatus: LunaLiveApprovalStatus;
   plannedPosts: typeof LUNA_SUMMARY_PLANNED_POSTS;
   maximumNetworkAttempts: typeof LUNA_SUMMARY_MAX_NETWORK_ATTEMPTS;
+  maxTokens: null;
+  hardMaximumUsd: typeof LUNA_SUMMARY_HARD_MAXIMUM_USD;
+  spendCapPresent: false;
+  callCountCap: typeof LUNA_SUMMARY_PLANNED_POSTS;
   identityFingerprint: string;
   cacheHit: boolean;
   paidPosts: 0;
@@ -266,6 +280,7 @@ function inspectExistingJournal(directory: string | null): {
   directoryExists: boolean;
   fileExists: boolean;
   reservedHistory: boolean;
+  hasUnknownUnresolved: boolean;
   executed: boolean | null;
   networkAttempts: number | null;
 } {
@@ -274,6 +289,7 @@ function inspectExistingJournal(directory: string | null): {
       directoryExists: false,
       fileExists: false,
       reservedHistory: false,
+      hasUnknownUnresolved: false,
       executed: null,
       networkAttempts: null,
     };
@@ -284,6 +300,7 @@ function inspectExistingJournal(directory: string | null): {
       directoryExists: true,
       fileExists: false,
       reservedHistory: false,
+      hasUnknownUnresolved: false,
       executed: false,
       networkAttempts: 0,
     };
@@ -295,6 +312,7 @@ function inspectExistingJournal(directory: string | null): {
         directoryExists: true,
         fileExists: true,
         reservedHistory: true,
+        hasUnknownUnresolved: false,
         executed: null,
         networkAttempts: null,
       };
@@ -303,6 +321,7 @@ function inspectExistingJournal(directory: string | null): {
       directoryExists: true,
       fileExists: true,
       reservedHistory: journalHasReservedHistory(parsed),
+      hasUnknownUnresolved: parsed.entries.some((entry) => entry.status === "UNKNOWN_UNRESOLVED"),
       executed: parsed.executed,
       networkAttempts: parsed.networkAttempts,
     };
@@ -311,9 +330,51 @@ function inspectExistingJournal(directory: string | null): {
       directoryExists: true,
       fileExists: true,
       reservedHistory: true,
+      hasUnknownUnresolved: false,
       executed: null,
       networkAttempts: null,
     };
+  }
+}
+
+export function classifyLunaPrecallVerdict(input: {
+  cloudAgent: boolean;
+  executed: boolean | null;
+  hasUnknownUnresolved: boolean;
+  reservedHistory: boolean;
+  blockers: string[];
+}): { verdict: LunaPrecallVerdict; blocker: string | null } {
+  if (input.cloudAgent) {
+    return { verdict: "BLOCKED", blocker: "CLOUD_AGENT_WRONG_HOST" };
+  }
+  if (input.executed) {
+    return { verdict: "ALREADY_EXECUTED", blocker: null };
+  }
+  if (input.hasUnknownUnresolved) {
+    return { verdict: "UNRESOLVED_NO_RETRY", blocker: null };
+  }
+  if (input.reservedHistory) {
+    return { verdict: "BLOCKED", blocker: "PRIOR_RESERVED_HISTORY" };
+  }
+  if (input.blockers.length > 0) {
+    return { verdict: "BLOCKED", blocker: input.blockers[0] ?? "BLOCKED" };
+  }
+  return { verdict: "READY_FOR_APPROVAL", blocker: null };
+}
+
+export function formatLunaPrecallStdout(report: LunaSummaryPrecallReport): string {
+  const cost = `spendCapPresent=false hardMaximumUsd=${report.hardMaximumUsd} plannedPosts=${report.plannedPosts} maxTokens=null`;
+  switch (report.verdict) {
+    case "BLOCKED":
+      return `BLOCKED\n${report.blocker ?? "BLOCKED"}\n${cost}`;
+    case "READY_FOR_APPROVAL":
+    case "ALREADY_EXECUTED":
+    case "UNRESOLVED_NO_RETRY":
+      return `${report.verdict}\n${cost}`;
+    default: {
+      const exhaustive: never = report.verdict;
+      return exhaustive;
+    }
   }
 }
 
@@ -440,22 +501,19 @@ export async function runLunaSummaryLocalPrecall(
   if (!isolated.ok) blockers.push("ISOLATED_TEST_DB_REQUIRED");
   if (!identity.ok) blockers.push(identity.reason ?? "REQUEST_IDENTITY_MISMATCH");
 
-  const ready =
-    !host.cloudAgent &&
-    host.wsl2 &&
-    nodeOk &&
-    Boolean(repoSha) &&
-    resolved.ok &&
-    inspected.directoryExists &&
-    durable &&
-    !inspected.reservedHistory &&
-    key.present &&
-    !key.equalsProduction &&
-    isolated.ok &&
-    identity.ok;
+  const classified = classifyLunaPrecallVerdict({
+    cloudAgent: host.cloudAgent,
+    executed: inspected.executed,
+    hasUnknownUnresolved: inspected.hasUnknownUnresolved,
+    reservedHistory: inspected.reservedHistory,
+    blockers,
+  });
+  const ready = classified.verdict === "READY_FOR_APPROVAL";
 
   return {
     command: "luna:precall",
+    verdict: classified.verdict,
+    blocker: classified.blocker,
     LIVE_PRECALL_READY: ready,
     cloudAgent: host.cloudAgent,
     cloudCannotVerifyWsl: host.cloudCannotVerifyWsl,
@@ -472,6 +530,7 @@ export async function runLunaSummaryLocalPrecall(
     journalDurable: durable,
     journalReason,
     journalReservedHistory: inspected.reservedHistory,
+    journalHasUnknownUnresolved: inspected.hasUnknownUnresolved,
     journalExecuted: inspected.executed,
     journalNetworkAttempts: inspected.networkAttempts,
     createdJournal: false,
@@ -491,6 +550,10 @@ export async function runLunaSummaryLocalPrecall(
     liveApprovalStatus: identity.liveApprovalStatus,
     plannedPosts: LUNA_SUMMARY_PLANNED_POSTS,
     maximumNetworkAttempts: LUNA_SUMMARY_MAX_NETWORK_ATTEMPTS,
+    maxTokens: null,
+    hardMaximumUsd: LUNA_SUMMARY_HARD_MAXIMUM_USD,
+    spendCapPresent: false,
+    callCountCap: LUNA_SUMMARY_PLANNED_POSTS,
     identityFingerprint,
     cacheHit: identityReused,
     paidPosts: 0,

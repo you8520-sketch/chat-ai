@@ -34,6 +34,7 @@ import {
   LUNA_SUMMARY_PRECALL_CACHE_FILENAME,
   applyLunaExperimentKeyFromCursorSecret,
   detectLunaPrecallHost,
+  formatLunaPrecallStdout,
   lunaPrecallJournalDurable,
   lunaPrecallNodeOk,
   lunaSummaryPrecallIdentityFingerprint,
@@ -144,6 +145,8 @@ describe("Luna local PRECALL one-command (provider-free)", () => {
       probeIsolatedDatabase: () => ({ ok: true, installedThenUninstalled: false }),
     });
     assert.equal(report.LIVE_PRECALL_READY, false);
+    assert.equal(report.verdict, "BLOCKED");
+    assert.equal(report.blocker, "CLOUD_AGENT_WRONG_HOST");
     assert.equal(report.cloudAgent, true);
     assert.equal(report.cloudCannotVerifyWsl, true);
     assert.equal(report.cloudReport, LUNA_SUMMARY_CLOUD_CANNOT_VERIFY_WSL);
@@ -166,6 +169,8 @@ describe("Luna local PRECALL one-command (provider-free)", () => {
     });
     assert.equal(canonical.journalDirectory, LUNA_SUMMARY_CANONICAL_JOURNAL_DIR);
     assert.equal(canonical.LIVE_PRECALL_READY, false);
+    assert.equal(canonical.verdict, "BLOCKED");
+    assert.equal(canonical.blocker, "CLOUD_AGENT_WRONG_HOST");
     assert.equal(canonical.paidPosts, 0);
     assert.equal(canonical.createdJournal, false);
     assert.notEqual(canonical.journalDirectory, missing);
@@ -214,6 +219,8 @@ describe("Luna local PRECALL one-command (provider-free)", () => {
       persistCache: true,
     });
     assert.equal(report.LIVE_PRECALL_READY, false);
+    assert.equal(report.verdict, "BLOCKED");
+    assert.equal(report.blocker, "JOURNAL_DIRECTORY_MISSING");
     assert.equal(report.journalDirectoryExists, false);
     assert.equal(report.createdJournal, false);
     assert.equal(existsSync(missing), false);
@@ -233,6 +240,8 @@ describe("Luna local PRECALL one-command (provider-free)", () => {
       persistCache: false,
     });
     assert.equal(report.LIVE_PRECALL_READY, false);
+    assert.equal(report.verdict, "BLOCKED");
+    assert.equal(report.blocker, "PRIOR_RESERVED_HISTORY");
     assert.equal(report.journalReservedHistory, true);
     assert.equal(report.journalFileExists, true);
     assert.equal(report.deletedHistory, false);
@@ -268,6 +277,7 @@ describe("Luna local PRECALL one-command (provider-free)", () => {
       verifyIdentity,
     });
     assert.equal(second.LIVE_PRECALL_READY, true);
+    assert.equal(second.verdict, "READY_FOR_APPROVAL");
     assert.equal(second.cacheHit, true);
     assert.equal(second.identityReused, true);
     assert.equal(verifyCalls, 1);
@@ -322,6 +332,8 @@ describe("Luna local PRECALL one-command (provider-free)", () => {
     };
     const report = await runReady({ env });
     assert.equal(report.LIVE_PRECALL_READY, false);
+    assert.equal(report.verdict, "BLOCKED");
+    assert.equal(report.blocker, "PRODUCTION_KEY_FORBIDDEN");
     assert.equal(report.keyEqualsProduction, true);
     assert.equal(report.paidPosts, 0);
     assert.ok(report.blockers.includes("PRODUCTION_KEY_FORBIDDEN"));
@@ -347,6 +359,8 @@ describe("Luna local PRECALL one-command (provider-free)", () => {
     const directory = journalDir();
     const report = await runReady({ journalDirectory: directory });
     assert.equal(report.LIVE_PRECALL_READY, true);
+    assert.equal(report.verdict, "READY_FOR_APPROVAL");
+    assert.equal(report.blocker, null);
     assert.equal(report.command, "luna:precall");
     assert.equal(report.hostKind, "wsl2");
     assert.equal(report.nodeOk, true);
@@ -362,6 +376,9 @@ describe("Luna local PRECALL one-command (provider-free)", () => {
     assert.deepEqual(report.liveSealFingerprints, [...LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS]);
     assert.equal(report.plannedPosts, 10);
     assert.equal(report.maximumNetworkAttempts, 10);
+    assert.equal(report.maxTokens, null);
+    assert.equal(report.hardMaximumUsd, "UNBOUNDED_WITHOUT_REQUEST_MAX_TOKENS");
+    assert.equal(report.spendCapPresent, false);
     assert.equal(report.paidPosts, 0);
     assert.equal(report.networkPosts, 0);
     assert.equal(report.identityFingerprint, lunaSummaryPrecallIdentityFingerprint());
@@ -377,5 +394,37 @@ describe("Luna local PRECALL one-command (provider-free)", () => {
     assert.equal(lunaPrecallJournalDurable(LUNA_SUMMARY_CANONICAL_JOURNAL_DIR, "wsl2"), true);
     assert.equal(lunaPrecallJournalDurable(LUNA_SUMMARY_CANONICAL_JOURNAL_DIR, "cloud"), false);
     assert.equal(lunaPrecallJournalDurable("/mnt/c/Users/ray/luna-summary-journal-v1", "wsl2"), false);
+  });
+
+  it("prints ALREADY_EXECUTED and UNRESOLVED_NO_RETRY without rewriting journal history", async () => {
+    const executedDir = journalDir();
+    const executedPath = path.join(
+      executedDir,
+      `luna-summary-journal-${LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST}.json`
+    );
+    const executed = reservedJournal();
+    executed.executed = true;
+    writeFileSync(executedPath, `${JSON.stringify(executed)}\n`, "utf8");
+    const executedReport = await runReady({ journalDirectory: executedDir });
+    assert.equal(executedReport.verdict, "ALREADY_EXECUTED");
+    assert.equal(executedReport.LIVE_PRECALL_READY, false);
+    assert.equal(executedReport.paidPosts, 0);
+    assert.equal(JSON.parse(readFileSync(executedPath, "utf8")).executed, true);
+    assert.match(formatLunaPrecallStdout(executedReport), /^ALREADY_EXECUTED\n/);
+
+    const unknownDir = journalDir();
+    const unknownPath = path.join(
+      unknownDir,
+      `luna-summary-journal-${LUNA_SUMMARY_LIVE_EXECUTE_MANIFEST}.json`
+    );
+    const unknown = reservedJournal();
+    unknown.entries[0] = { ...unknown.entries[0]!, status: "UNKNOWN_UNRESOLVED" };
+    writeFileSync(unknownPath, `${JSON.stringify(unknown)}\n`, "utf8");
+    const unknownReport = await runReady({ journalDirectory: unknownDir });
+    assert.equal(unknownReport.verdict, "UNRESOLVED_NO_RETRY");
+    assert.equal(unknownReport.journalHasUnknownUnresolved, true);
+    assert.equal(unknownReport.deletedHistory, false);
+    assert.equal(JSON.parse(readFileSync(unknownPath, "utf8")).entries[0].status, "UNKNOWN_UNRESOLVED");
+    assert.match(formatLunaPrecallStdout(unknownReport), /^UNRESOLVED_NO_RETRY\n/);
   });
 });
