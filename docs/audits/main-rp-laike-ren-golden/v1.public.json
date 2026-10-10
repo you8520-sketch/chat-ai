@@ -1,0 +1,174 @@
+{
+  "evaluation": "MAIN_RP_STYLE_LENGTH",
+  "note": "Hash-only public manifest. Sealed source and assembled requests stay on Railway /data/private-golden-fixtures/v1.",
+  "create": {
+    "capturedAt": "2026-10-10T05:43:19.680Z",
+    "sealedSha256": "becd3255c38cfc44932d9dc9da98656206b76b64c679f75a1f20ad20cf1fa1d9",
+    "providerPosts": 0,
+    "dbWrites": 0
+  },
+  "reload": {
+    "sealedSha256": "becd3255c38cfc44932d9dc9da98656206b76b64c679f75a1f20ad20cf1fa1d9",
+    "identicalToCreate": true
+  },
+  "currentLive": {
+    "sourceDrift": false,
+    "deployShaChanged": false,
+    "identityHashMatch": true,
+    "finalWireMatch": true
+  },
+  "manifest": {
+    "evaluation": "MAIN_RP_STYLE_LENGTH",
+    "snapshotSchema": 1,
+    "snapshotVersion": 1,
+    "mode": "GOLDEN_SNAPSHOT",
+    "capturedAt": "2026-10-10T05:43:19.680Z",
+    "deployedGitSha": "e1fdab509d2e9713be617025f77ea40a5bfb85f5",
+    "characterId": 18,
+    "characterName": "라이크",
+    "personaId": 1,
+    "personaName": "렌",
+    "personaGender": "male",
+    "adminUserId": 1,
+    "uniqueAdminRenPersona": true,
+    "authoringLevel": "NORMAL",
+    "userCoauthor": {
+      "allowDialogue": true,
+      "allowMajorActions": true,
+      "allowInnerPov": false,
+      "allowIrreversibleFate": false
+    },
+    "contentMode": "SAFE",
+    "contentKind": "character",
+    "nsfwListing": 1,
+    "officialListing": 0,
+    "creatorLorebookAttachments": 0,
+    "globalLorebookEnabled": 1,
+    "greetingChars": 1318,
+    "personaPublicChars": 583,
+    "identityHashes": {
+      "greetingSha256": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58",
+      "systemPromptSha256": "44c293ce3e6aaa7ab885ad93c93342a0e4d1ed803a2c7e22119f42991ee44d6b",
+      "worldSha256": "6e197c4e91f3f5dbe9a3b867232c564230272fe6a29e24f26d2f41964a500fa9",
+      "settingChunksSha256": "8eee31d5ce8cd6a736030613ac615a3755542a718d22f082a02c4d9ba0aa90cc",
+      "personaPublicSha256": "9ef42c7f92091ca158a53c4321b06dab4e687d3a882210c4a576e87029703a36"
+    },
+    "combinedIdentityHash": "5f400d361ffd7eba0747cada89726d43ee38a36677768beac048c8732af02ded",
+    "fixtureIds": [
+      "A_relationship_emotion",
+      "B_conflict_action_spatial",
+      "C_continuity_progression"
+    ],
+    "models": [
+      "deepseek-v4.1-flash",
+      "gemini-3.8-flash",
+      "gpt-6.1-sol",
+      "claude-opus-5.5"
+    ],
+    "calls": [
+      {
+        "fixtureId": "A_relationship_emotion",
+        "canonicalId": "deepseek-v4.1-flash",
+        "provider": "cheaperinference",
+        "wireModel": "deepseek-v4.1-flash",
+        "finalWireFingerprint": "d86943df3ad8a6b4e6fa224d4f5ffb75a6247a61a415ad47f3ec793c3f8bceef",
+        "requestBodyFingerprint": "abc20b50d25306c9e61b99b105caadc0a67fea719642c0c3582fb6b97fc0f702"
+      },
+      {
+        "fixtureId": "A_relationship_emotion",
+        "canonicalId": "gemini-3.8-flash",
+        "provider": "openrouter",
+        "wireModel": "google/gemini-3.8-flash",
+        "finalWireFingerprint": "ff5256394f6b05510084bdf91729a88eb062988a5065c3c2b67b4cf9e8b3c559",
+        "requestBodyFingerprint": "c9748fb3457f730b622662c59ede103f96ab12140dc4f8b9289af93f8e64c57f"
+      },
+      {
+        "fixtureId": "A_relationship_emotion",
+        "canonicalId": "gpt-6.1-sol",
+        "provider": "cheaperinference",
+        "wireModel": "gpt-6.1-sol",
+        "finalWireFingerprint": "87645438c97f2e9c4b082e3a63c10b4ae2bf7879f292e15f5f2152927af20b4f",
+        "requestBodyFingerprint": "f02880f68985fec7252945db49a3c22118f9e6237bcb86f8b82afd449b9b0a4a"
+      },
+      {
+        "fixtureId": "A_relationship_emotion",
+        "canonicalId": "claude-opus-5.5",
+        "provider": "cheaperinference",
+        "wireModel": "claude-opus-5.5",
+        "finalWireFingerprint": "b594f0740fa027b44fa1346f396edb931e269bbebf3eb517982e035b320a3f11",
+        "requestBodyFingerprint": "2fdcfa40c78389c6e4f5847171a27de231877fffda9a5a0355361a2bc54c8f3f"
+      },
+      {
+        "fixtureId": "B_conflict_action_spatial",
+        "canonicalId": "deepseek-v4.1-flash",
+        "provider": "cheaperinference",
+        "wireModel": "deepseek-v4.1-flash",
+        "finalWireFingerprint": "4f1b48a8e75314b2ec7acc52318243e4ab72dd41929991a4b6a797e310adb25d",
+        "requestBodyFingerprint": "b55af31957ea16fe994879d6bb407ca6351032ea176f44dee517e8a49b7b2dff"
+      },
+      {
+        "fixtureId": "B_conflict_action_spatial",
+        "canonicalId": "gemini-3.8-flash",
+        "provider": "openrouter",
+        "wireModel": "google/gemini-3.8-flash",
+        "finalWireFingerprint": "7a9ef77e07efee85e5871ef4673a6041909b174286e42903a0a7a35d38061f4c",
+        "requestBodyFingerprint": "e75df878bab5c291e66bd7272c8fbc30a22a6ed2b19fe2e1fa943e7b62d1c9cd"
+      },
+      {
+        "fixtureId": "B_conflict_action_spatial",
+        "canonicalId": "gpt-6.1-sol",
+        "provider": "cheaperinference",
+        "wireModel": "gpt-6.1-sol",
+        "finalWireFingerprint": "fc0644a89d18e9cd19d2055328cb34a6b03010065bff6775ed0f59495321e13e",
+        "requestBodyFingerprint": "9378bcdb0462adfdc42d22c15aeb555fc4b269a22a2af965347434b4655124f0"
+      },
+      {
+        "fixtureId": "B_conflict_action_spatial",
+        "canonicalId": "claude-opus-5.5",
+        "provider": "cheaperinference",
+        "wireModel": "claude-opus-5.5",
+        "finalWireFingerprint": "7effb290fd309a6f26f0606c80d773c8cd08f41075c4b33fcb68c3a4ee21a395",
+        "requestBodyFingerprint": "1719113d8000a06dcbf2fd6ce9d377f6734e5013d170a33ada40f3671fbeb963"
+      },
+      {
+        "fixtureId": "C_continuity_progression",
+        "canonicalId": "deepseek-v4.1-flash",
+        "provider": "cheaperinference",
+        "wireModel": "deepseek-v4.1-flash",
+        "finalWireFingerprint": "de9b2bae1c6e83632a6bc4d383b5b0df85670b5f90778b6ca9e0c4cdceecb130",
+        "requestBodyFingerprint": "7120205e28d91bf6b7fdc98d63a85842e616af87d378d1b99eda4fe90ab04ea5"
+      },
+      {
+        "fixtureId": "C_continuity_progression",
+        "canonicalId": "gemini-3.8-flash",
+        "provider": "openrouter",
+        "wireModel": "google/gemini-3.8-flash",
+        "finalWireFingerprint": "5b151fd0c7841474cda70308dd386e1b8bb77ce998709ea136ce375da907422b",
+        "requestBodyFingerprint": "973b65d9e3d8332c9e0f43e1b2d5cd3168dd1e0751b5eb90a9ea78d6d74c5e7d"
+      },
+      {
+        "fixtureId": "C_continuity_progression",
+        "canonicalId": "gpt-6.1-sol",
+        "provider": "cheaperinference",
+        "wireModel": "gpt-6.1-sol",
+        "finalWireFingerprint": "6e3414a6e84684f7e3a625a920bddab8933841cc4eab2f287276edb5e00f7cc3",
+        "requestBodyFingerprint": "5d285c925b08aed0e7dd79b2bd9b5706efe379550ab48767079c71a5e1c31ba8"
+      },
+      {
+        "fixtureId": "C_continuity_progression",
+        "canonicalId": "claude-opus-5.5",
+        "provider": "cheaperinference",
+        "wireModel": "claude-opus-5.5",
+        "finalWireFingerprint": "09c7b356a2b4d0b4e1f28a05168550e294f418ffb5fafaebede6314aa3898adb",
+        "requestBodyFingerprint": "4faec6bac164a1be4b676356c88c84a4b55fc80103c80b7a2a247966b656b193"
+      }
+    ],
+    "sealedRequestCount": 12,
+    "sourceKind": "railway-production-readonly-in-process-v1",
+    "privateStore": "/data/private-golden-fixtures/v1",
+    "overwrite": false,
+    "providerPosts": 0,
+    "dbWrites": 0,
+    "qualityScores": null
+  }
+}

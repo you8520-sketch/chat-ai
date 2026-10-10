@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, it } from "node:test";
 
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
@@ -158,5 +160,35 @@ describe("MAIN_RP_STYLE_LENGTH fixture owner", () => {
   it("only treats explicit MAIN_RP_STYLE_LENGTH env as the current evaluation", () => {
     assert.equal(isMainRpStyleLengthEvaluationRequested({}), false);
     assert.equal(isMainRpStyleLengthEvaluationRequested({ MAIN_RP_STYLE_LENGTH: "1" }), true);
+  });
+
+  it("keeps the public v1 manifest hash-only", () => {
+    const raw = readFileSync(
+      path.join(process.cwd(), "docs/audits/main-rp-laike-ren-golden/v1.public.json"),
+      "utf8"
+    );
+    const parsed = JSON.parse(raw) as {
+      manifest: {
+        characterId: number;
+        personaId: number;
+        personaName: string;
+        sealedRequestCount: number;
+        qualityScores: null;
+      };
+      create: { sealedSha256: string; providerPosts: number; dbWrites: number };
+      reload: { sealedSha256: string; identicalToCreate: boolean };
+      currentLive: { sourceDrift: boolean };
+    };
+    assert.equal(parsed.manifest.characterId, 18);
+    assert.equal(parsed.manifest.personaId, 1);
+    assert.equal(parsed.manifest.personaName, "렌");
+    assert.equal(parsed.manifest.sealedRequestCount, 12);
+    assert.equal(parsed.manifest.qualityScores, null);
+    assert.equal(parsed.create.sealedSha256, parsed.reload.sealedSha256);
+    assert.equal(parsed.reload.identicalToCreate, true);
+    assert.equal(parsed.currentLive.sourceDrift, false);
+    assert.equal(parsed.create.providerPosts, 0);
+    assert.equal(parsed.create.dbWrites, 0);
+    assert.doesNotMatch(raw, /조태형|신입 S급|기계사용|secret_description|Authorization|Bearer /);
   });
 });
