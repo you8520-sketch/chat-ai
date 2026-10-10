@@ -100,7 +100,8 @@ export const LUNA_SUMMARY_EXECUTE_STOP_FILENAME =
   "memory_50turn_luna_summary_execute_stop.json" as const;
 export const LUNA_SUMMARY_EXECUTE_STOP_PREFERRED_DIR = "/opt/cursor/artifacts" as const;
 export type LunaLiveApprovalStatus = "NOT_APPROVED" | "APPROVED";
-export const LUNA_SUMMARY_LIVE_APPROVAL_STATUS: LunaLiveApprovalStatus = "NOT_APPROVED";
+/** One-time, user-authorized, unbounded-USD 10-POST Luna experiment. Do not merge this approval into main. */
+export const LUNA_SUMMARY_LIVE_APPROVAL_STATUS: LunaLiveApprovalStatus = "APPROVED";
 export const LUNA_SUMMARY_LIVE_BATCH_FINGERPRINTS = [
   "b0bdd7591f55845993aa03fcc871fdc2fa07a1ae5c8c6ece10f47f805b7579ef",
   "482b02d3be9680b79c8132904b944584d67dddc4e222d396196b3797ec7410b0",
