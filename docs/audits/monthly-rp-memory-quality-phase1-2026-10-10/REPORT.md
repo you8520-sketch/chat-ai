@@ -1,6 +1,6 @@
 # Monthly RP Memory Quality — Phase 1
 
-Status: **live-path A–I fixtures + one retrieve-owner fix. No provider POST. No 10,000-char raise. No monthly paid-call change. Cursor did not score memory or style.**
+Status: **live-path A–I + C-neg fixtures, calendar-unigram retrieve owner. No provider POST. No 10,000-char raise. No monthly paid-call change. Cursor did not score memory or style.**
 
 EXACT MAIN SHA at branch start: `b864d7eb454a0081dc2a8d74f5e732563bdd81e8` (also the reported Railway PRECALL SUCCESS SHA). This PR does not repeat PRECALL.
 
@@ -22,7 +22,9 @@ Both dated `scene_event` rows persist. `resolveLatestFactsByLogicalKey` keeps di
 
 `tokenizeForSimpleBoost("이틀 전과 두 달 전 일을 구분해줘")` kept `이틀` / `전과` / `일을` / `구분해줘` and dropped `두` / `달` / `전` (length &lt; 2). `lexicalRelevance` for the T40 fact was 0, so `passes` was false and T40 never injected. T8 survived only because `이틀` is already a two-character compound.
 
-Owner: `tokenizeForSimpleBoost` / `isKeepableRetrievalToken` in `src/lib/episodicMemoryFacts.ts`. Not a new prompt. Not a 10,000-char raise.
+Owner: `tokenizeForSimpleBoost` / `lexicalRelevance` in `src/lib/episodicMemoryFacts.ts`. Not a new prompt. Not a 10,000-char raise.
+
+**C-neg (GPT review):** admitting `달`/`년`/`주` then matching with `haystack.includes(token)` made `달리기`/`달빛`/`소년`/`주머니` relevant. Particle-stripped `달이`→`달` also made a moon query hit “두 달 전”. Reproduced on HEAD `8dcd913d` (`달리기` relevanceScore 1). Fix: keep standalone calendar unigrams in the query, match them only as standalone calendar units in the fact, and do not emit a calendar unigram from particle stripping.
 
 A, B (after ledger-correct rooftop-smoke fixture), D–I already passed on the live retrieve/inject path. B's first fail was a fixture using “약속했다” (relationship-ledger owned) — not a retrieve bug.
 
@@ -62,13 +64,14 @@ Persist gate `validateSummaryNarrative` checks empty / OOC / instruction-echo / 
 
 ## AFTER
 
-`tokenizeForSimpleBoost` now keeps Korean calendar-unit unigrams `달` / `년` / `주` so day-vs-month contrast queries can hit both stored facts. `전` / `후` / `일` stay excluded (over-match).
+`tokenizeForSimpleBoost` keeps standalone Korean calendar-unit unigrams `달` / `년` / `주`. `lexicalRelevance` counts those units only when the fact has a standalone calendar context (`두 달 전`, `3년 전`), not a syllable inside `달리기` / `달빛` / `소년` / `주머니`. Particle-stripped `달이` does not become `달`. `전` / `후` / `일` stay excluded.
 
 Added `src/lib/memory/monthlyRpMemoryQualityPhase1.test.ts` against the live owners (라이크 18 / 렌):
 
 - A 6-turn-old event recall (production minAge)
 - B 50-turn-old event among filler
 - C day-old vs month-old wording kept distinct
+- C-neg calendar unigrams do not inject 달리기/달빛/소년/주머니; moon query does not retrieve a month-ago event; 2+ char `달리기` still retrieves
 - D past event vs current emotion vs invented future
 - E explicit 공수 direction, no gender inference
 - F completed emotion-change vs momentary mood
@@ -123,7 +126,7 @@ Live memory write/inject, user isolation, model final-wire, summary cost policy,
 
 ## REGRESSION RISKS
 
-Keeping `달`/`년`/`주` can add those unigrams to the first-5 relevance lane when a user mentions a month/year/week. Unrelated facts that merely contain those syllables can now pass the relevance floor. `전`/`일` were left out for that reason. Existing zero-overlap cases (`바다 항해` vs tower color) stay closed.
+SQL relevance lane still uses `LIKE %달%`, so colliding rows may enter candidates. They now fail the relevance floor and are not injected. A later Hangul-boundary SQL pattern is FOLLOW-UP, not required for `[3a]` injection. Existing zero-overlap cases (`바다 항해` vs tower color) stay closed.
 
 A later event-time ranker could starve recent RAW-adjacent facts if added carelessly. Do not raise 10k from this file.
 
@@ -131,10 +134,11 @@ A later event-time ranker could starve recent RAW-adjacent facts if added carele
 
 `src/lib/memory/monthlyRpMemoryQualityPhase1.test.ts` — live-path A–I plus 10k cap. No Cursor quality score.
 
-- Phase 1 + `memory-retrieval-v2` + `episodicMemoryTemporal`: 27/27 pass (C now injects both dated events).
-- Adjacent `memory-distinctive-utterance-audit` + `memory-episodic-long-horizon` + `episodicMemoryFacts.test.ts`: 130/134. The same 4 `episodicMemoryFacts.test.ts` failures exist on main `b864d7eb` (persist `messages` table / empty browse retrieve). Not introduced here.
+- Phase 1 + `memory-retrieval-v2` + `episodicMemoryTemporal` + distinctive-utterance: 35/35 pass after C-neg (was 1/1 fail on `8dcd913d` before the standalone-unit matcher).
+- `memory-episodic-long-horizon`: 47/47.
+- Adjacent `episodicMemoryFacts.test.ts` still has the same 4 main-baseline failures.
 - `git diff --check`, `npm run lint`, `npm run typecheck:app`: pass.
 
 ## SYSTEM DELTA
 
-One retrieve-tokenizer keep-list + one deterministic live-path suite + this report. No second memory stack. No OpenScale / #1490 change. No monthly paid-job retarget.
+Calendar-unigram keep-list + standalone-unit matcher + A–I/C-neg suite + this report. No second memory stack. No OpenScale / #1490 change. No monthly paid-job retarget.
