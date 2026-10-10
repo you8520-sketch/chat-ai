@@ -128,37 +128,22 @@ export function applyTrpgCastImagePicks(
   });
 }
 
-function locationFromGmStructuredJson(structuredJson: string | null | undefined): string {
-  if (!structuredJson?.trim()) return "";
-  try {
-    const parsed = JSON.parse(structuredJson) as Record<string, unknown>;
-    const delta =
-      parsed.delta && typeof parsed.delta === "object" && !Array.isArray(parsed.delta)
-        ? (parsed.delta as Record<string, unknown>)
-        : null;
-    const location = parsed.location ?? delta?.location;
-    return typeof location === "string" ? location.trim() : "";
-  } catch {
-    return "";
-  }
-}
-
 function loadRoundGmRecord(
   db: Database.Database,
   campaignId: number,
   roundNumber: number
 ): { narration: string; location: string } | null {
   const round = db
-    .prepare(`SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=?`)
-    .get(campaignId, roundNumber) as { id: number } | undefined;
+    .prepare(`SELECT id, accepted_location FROM trpg_rounds WHERE campaign_id=? AND round_number=?`)
+    .get(campaignId, roundNumber) as { id: number; accepted_location: string | null } | undefined;
   if (!round) return null;
   const gm = db
-    .prepare(`SELECT narration, structured_json FROM trpg_gm_messages WHERE round_id=?`)
-    .get(round.id) as { narration: string; structured_json: string | null } | undefined;
+    .prepare(`SELECT narration FROM trpg_gm_messages WHERE round_id=?`)
+    .get(round.id) as { narration: string } | undefined;
   if (!gm?.narration?.trim()) return null;
   return {
     narration: gm.narration.trim(),
-    location: locationFromGmStructuredJson(gm.structured_json),
+    location: round.accepted_location?.trim() ?? "",
   };
 }
 
