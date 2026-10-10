@@ -10,7 +10,9 @@ import {
   RP_ACTIVE_MODEL_QUALITY_MODEL_IDS,
   RP_ACTIVE_MODEL_QUALITY_MAX_CALLS,
   renderRpActiveModelQualityMarkdown,
+  resolveRpActiveModelQualitySource,
   runRpActiveModelQualityLive,
+  type RpActiveModelQualitySource,
 } from "./lib/rpActiveModelQualityLive";
 
 const OUTPUT_DIR =
@@ -50,6 +52,52 @@ function writeNotRun(reason: string): void {
 }
 
 async function main(): Promise<void> {
+  const requestedSource = process.env.RP_ACTIVE_MODEL_QUALITY_SOURCE?.trim() as
+    | RpActiveModelQualitySource
+    | undefined;
+  let source: RpActiveModelQualitySource;
+  try {
+    source = resolveRpActiveModelQualitySource(
+      requestedSource === "HISTORICAL_ONLY" ||
+        requestedSource === "GOLDEN_SNAPSHOT" ||
+        requestedSource === "CURRENT_LIVE"
+        ? requestedSource
+        : undefined
+    );
+  } catch {
+    writeNotRun("historical_id10_default_removed_set_HISTORICAL_ONLY_or_MAIN_RP_STYLE_LENGTH");
+    console.log("NOT_RUN — provider calls=0");
+    return;
+  }
+  if (source === "GOLDEN_SNAPSHOT" || source === "CURRENT_LIVE") {
+    const report = await runRpActiveModelQualityLive({
+      credentials: { cheaperinference: "", openrouter: "" },
+      runId: process.env.GITHUB_RUN_ID?.trim() || `style-length-${new Date().toISOString().slice(0, 16)}`,
+      source,
+      goldenRoot: process.env.MAIN_RP_STYLE_LENGTH_GOLDEN_ROOT,
+      goldenVersion: Number(process.env.MAIN_RP_STYLE_LENGTH_GOLDEN_VERSION ?? "1"),
+      verifyPinnedPublicV1: process.env.MAIN_RP_STYLE_LENGTH_VERIFY_PINNED_V1 === "1",
+      dbPath: process.env.MAIN_RP_STYLE_LENGTH_DB,
+      deployedGitSha: process.env.RAILWAY_GIT_COMMIT_SHA,
+    });
+    mkdirSync(OUTPUT_DIR, { recursive: true });
+    writeFileSync(join(OUTPUT_DIR, "report.json"), JSON.stringify(report, null, 2), "utf8");
+    writeFileSync(join(OUTPUT_DIR, "REPORT.md"), renderRpActiveModelQualityMarkdown(report), "utf8");
+    console.log(
+      JSON.stringify(
+        {
+          status: "DRY_RUN",
+          source,
+          providerCalls: report.providerCalls,
+          outputDir: OUTPUT_DIR,
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+
   const ciApiKey = resolveOptInTestCheaperInferenceApiKey(
     RP_ACTIVE_MODEL_QUALITY_LIVE_FLAG
   );
@@ -102,6 +150,7 @@ async function main(): Promise<void> {
     runId,
     caseIds,
     modelIds: modelIds as Parameters<typeof runRpActiveModelQualityLive>[0]["modelIds"],
+    source: "HISTORICAL_ONLY",
   });
 
   mkdirSync(OUTPUT_DIR, { recursive: true });

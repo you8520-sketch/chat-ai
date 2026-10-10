@@ -24,6 +24,8 @@ function count(text: string, needle: string): number {
 
 function main() {
   const fixture = loadCanonicalRpQualificationFixture();
+  assert.equal(CANONICAL_RP_QUALIFICATION_SOURCE.fixtureKind, "HISTORICAL_ONLY");
+  assert.equal(CANONICAL_RP_QUALIFICATION_SOURCE.currentMainRpStyleLengthUse, false);
   assert.equal(CANONICAL_RP_QUALIFICATION_SOURCE.sourceCharacterId, 10);
   assert.equal(CANONICAL_RP_QUALIFICATION_SOURCE.characterName, "라이크");
   assert.equal(CANONICAL_RP_QUALIFICATION_SOURCE.personaName, "렌");

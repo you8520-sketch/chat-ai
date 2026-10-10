@@ -17,6 +17,12 @@ import {
   resolveOpenRouterModelId,
 } from "@/lib/openRouterConfig";
 import { parseCompatibleUsage } from "@/lib/openRouterUsage";
+import {
+  MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC,
+  MainRpStyleLengthFixtureError,
+  isMainRpStyleLengthEvaluationRequested,
+  type MainRpStyleLengthMode,
+} from "@/lib/rpMainRpStyleLengthFixture";
 import { buildContext } from "@/services/contextBuilder";
 import {
   CANONICAL_RP_QUALIFICATION_SOURCE,
@@ -26,6 +32,25 @@ import {
   type CanonicalQualificationCaseId,
 } from "./rpModelQualificationFixture";
 import { processOpenRouterSupplySseLine } from "./mainRpSupplyLiveQualification";
+import { dryRunMainRpStyleLengthEvaluation } from "./rpMainRpStyleLengthGolden";
+
+export const RP_ACTIVE_MODEL_QUALITY_SOURCES = [
+  "HISTORICAL_ONLY",
+  "GOLDEN_SNAPSHOT",
+  "CURRENT_LIVE",
+] as const;
+export type RpActiveModelQualitySource = (typeof RP_ACTIVE_MODEL_QUALITY_SOURCES)[number];
+
+export function resolveRpActiveModelQualitySource(
+  source?: RpActiveModelQualitySource,
+  env: NodeJS.ProcessEnv = process.env
+): RpActiveModelQualitySource {
+  if (source === "HISTORICAL_ONLY" || source === "GOLDEN_SNAPSHOT" || source === "CURRENT_LIVE") {
+    return source;
+  }
+  if (isMainRpStyleLengthEvaluationRequested(env)) return "GOLDEN_SNAPSHOT";
+  throw new MainRpStyleLengthFixtureError("HISTORICAL_ID10_REJECTED");
+}
 
 type JsonObject = Record<string, unknown>;
 type FetchLike = typeof fetch;
@@ -95,7 +120,16 @@ export type RpActiveModelQualityTurnResult = {
 export type RpActiveModelQualityLiveReport = {
   version: number;
   generatedAt: string;
-  source: typeof CANONICAL_RP_QUALIFICATION_SOURCE;
+  source:
+    | typeof CANONICAL_RP_QUALIFICATION_SOURCE
+    | {
+        fixtureKind: MainRpStyleLengthMode;
+        characterId: number;
+        characterName: string;
+        personaId: number;
+        personaName: string;
+        sealedSha256: string;
+      };
   modelIds: readonly RpActiveModelQualityProbe["modelId"][];
   excludedModels: typeof RP_ACTIVE_MODEL_QUALITY_EXCLUDED;
   ordinaryInputAuthoringLevel: "NORMAL";
@@ -138,8 +172,12 @@ function modelLabel(modelId: SelectedAI): string {
 
 export function buildRpActiveModelQualityPlan(
   caseIds: readonly CanonicalQualificationCaseId[] = RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS,
-  modelIds: readonly SelectedAI[] = RP_ACTIVE_MODEL_QUALITY_MODEL_IDS
+  modelIds: readonly SelectedAI[] = RP_ACTIVE_MODEL_QUALITY_MODEL_IDS,
+  source?: RpActiveModelQualitySource
 ): RpActiveModelQualityProbe[] {
+  if (resolveRpActiveModelQualitySource(source) !== "HISTORICAL_ONLY") {
+    throw new MainRpStyleLengthFixtureError("HISTORICAL_ID10_REJECTED");
+  }
   const uniqueModelIds = [...new Set(modelIds)];
   for (const modelId of uniqueModelIds) {
     if (!MAIN_RP_MODEL_IDS.includes(modelId)) {
@@ -177,12 +215,16 @@ export function buildRpActiveModelQualityRequest(input: {
   modelId: RpActiveModelQualityProbe["modelId"];
   caseData: CanonicalQualificationCase;
   sessionId: string;
+  source?: RpActiveModelQualitySource;
 }): {
   provider: RpActiveModelQualityProvider;
   url: string;
   body: JsonObject;
   evidence: RpActiveModelQualityTurnResult["requestEvidence"];
 } {
+  if (resolveRpActiveModelQualitySource(input.source) !== "HISTORICAL_ONLY") {
+    throw new MainRpStyleLengthFixtureError("HISTORICAL_ID10_REJECTED");
+  }
   const provider = selectedAIProvider(input.modelId);
   if (provider !== "cheaperinference" && provider !== "openrouter") {
     throw new Error(`Unsupported Main RP quality provider: ${provider}`);
@@ -292,6 +334,7 @@ export async function executeRpActiveModelQualityProbe(input: {
   probe: RpActiveModelQualityProbe;
   caseData: CanonicalQualificationCase;
   sessionId: string;
+  source?: RpActiveModelQualitySource;
   fetchImpl?: FetchLike;
   now?: () => number;
 }): Promise<RpActiveModelQualityTurnResult> {
@@ -301,6 +344,7 @@ export async function executeRpActiveModelQualityProbe(input: {
     modelId: input.probe.modelId,
     caseData: input.caseData,
     sessionId: input.sessionId,
+    source: input.source,
   });
   const state: SseState = {
     text: "",
@@ -398,13 +442,59 @@ export async function runRpActiveModelQualityLive(input: {
   runId: string;
   caseIds?: readonly CanonicalQualificationCaseId[];
   modelIds?: readonly SelectedAI[];
+  source?: RpActiveModelQualitySource;
+  goldenRoot?: string;
+  goldenVersion?: number;
+  verifyPinnedPublicV1?: boolean;
+  dbPath?: string;
+  deployedGitSha?: string;
   fetchImpl?: FetchLike;
 }): Promise<RpActiveModelQualityLiveReport> {
+  const source = resolveRpActiveModelQualitySource(input.source);
+  if (source === "GOLDEN_SNAPSHOT" || source === "CURRENT_LIVE") {
+    const dry = await dryRunMainRpStyleLengthEvaluation({
+      mode: source,
+      version: input.goldenVersion ?? MAIN_RP_STYLE_LENGTH_GOLDEN_V1_PUBLIC.snapshotVersion,
+      root: input.goldenRoot,
+      dbPath: input.dbPath,
+      deployedGitSha: input.deployedGitSha,
+      env: process.env,
+      verifyPinnedPublicV1: input.verifyPinnedPublicV1,
+    });
+    return {
+      version: RP_ACTIVE_MODEL_QUALITY_LIVE_VERSION,
+      generatedAt: new Date().toISOString(),
+      source: {
+        fixtureKind: source,
+        characterId: dry.publicManifest.characterId,
+        characterName: dry.publicManifest.characterName,
+        personaId: dry.publicManifest.personaId,
+        personaName: dry.publicManifest.personaName,
+        sealedSha256: dry.sealedSha256,
+      },
+      modelIds: dry.publicManifest.models,
+      excludedModels: RP_ACTIVE_MODEL_QUALITY_EXCLUDED,
+      ordinaryInputAuthoringLevel: "NORMAL",
+      providerCalls: dry.providerPosts,
+      maxProviderCalls: RP_ACTIVE_MODEL_QUALITY_MAX_CALLS,
+      qualityScoreGenerated: false,
+      results: [],
+      notes: [
+        "MAIN_RP_STYLE_LENGTH uses Golden/CURRENT_LIVE sealed final-wire through the paid-runner owner.",
+        `sealedSha256=${dry.sealedSha256}`,
+        `sealOk=${dry.seal.ok}`,
+        `requestBodiesPresent=${dry.requestBodiesPresent}`,
+        `transportPosts=${dry.transportPosts}`,
+        `networkAttempts=${dry.networkAttempts}`,
+        "Provider POST=0. Quality scores are not generated.",
+      ],
+    };
+  }
   const cases = new Map(
     buildCanonicalRpQualificationCases().map((entry) => [entry.id, entry])
   );
   const selectedModelIds = input.modelIds ?? RP_ACTIVE_MODEL_QUALITY_MODEL_IDS;
-  const plan = buildRpActiveModelQualityPlan(input.caseIds, selectedModelIds);
+  const plan = buildRpActiveModelQualityPlan(input.caseIds, selectedModelIds, source);
   const results: RpActiveModelQualityTurnResult[] = [];
 
   for (const probe of plan) {
@@ -425,6 +515,7 @@ export async function runRpActiveModelQualityLive(input: {
         probe,
         caseData,
         sessionId,
+        source,
         fetchImpl: input.fetchImpl,
       })
     );
@@ -451,7 +542,7 @@ export async function runRpActiveModelQualityLive(input: {
         ? "This one-shot PR evidence run uses an explicit subset of current Main-RP models; monthly/default runs still derive from the full active registry."
         : "The model set is derived directly from the current Main-RP user-selectable registry; retired/non-chat models are not probed.",
       "The default monthly evidence is bounded to two memory-continuity cases across all active models.",
-      "All cases use the frozen deployed 조태형(라이크)+관리자 페르소나 렌 fixture with current-main prompt/wire assembly.",
+      "HISTORICAL_ONLY: 2026-08-25 character id=10 dump. MAIN_RP_STYLE_LENGTH must use Golden v1 / CURRENT_LIVE instead.",
       "Ordinary interactive user-authoring is current product default NORMAL: dialogue/actions allowed, private inner POV and irreversible user fate not allowed.",
       "Each probe follows the canonical Main-RP registry provider. One provider attempt per model/case; no retry/fallback generation.",
     ],

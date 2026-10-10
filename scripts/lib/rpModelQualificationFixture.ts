@@ -8,16 +8,15 @@ import { EMPTY_MEMORY_META, formatMemoryMetaForPrompt } from "@/lib/chatMemory";
 export const RP_MODEL_QUALIFICATION_FIXTURE_VERSION = 1;
 
 /**
- * Canonical real-production RP identity fixture.
+ * HISTORICAL_ONLY pinned dump from 2026-08-25 (chat=4, user=1, character=10).
  *
- * Source is the already-committed production prompt dump captured from:
- * chat=4, user=1, character=10 on 2026-08-25.
- *
- * Do not duplicate the character/persona text in a second fixture. The files
- * below are the single pinned source. Candidate-model tests must fail closed
- * if any pinned blob changes.
+ * Current deployed 라이크 is characters.id=18. Live id=10 is 에녹.
+ * MAIN_RP_STYLE_LENGTH must not use this source. Keep the pinned blobs for
+ * historical Q1–Q9 / qualification evidence. Fail closed if a pinned blob changes.
  */
 export const CANONICAL_RP_QUALIFICATION_SOURCE = Object.freeze({
+  fixtureKind: "HISTORICAL_ONLY" as const,
+  currentMainRpStyleLengthUse: false as const,
   capturedAt: "2026-08-25",
   sourceChatId: 4,
   sourceUserId: 1,
