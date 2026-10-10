@@ -46,6 +46,8 @@ export const TRPG_1462_TEST_MAX_COST_USD = 0.03;
 export const TRPG_1462_TEST_API_KEY = "trpg-1462-test-key";
 export const TRPG_1462_MOCK_LIVE_GRANTED_BY = "MOCK_LIVE_GATE";
 export const TRPG_1462_MOCK_LIVE_EXECUTION_SHA = "mock-live-not-a-user-approval";
+export const TRPG_1462_MOCK_OPERATOR_GRANTED_BY = "MOCK_OPERATOR_RECORD";
+export const TRPG_1462_MOCK_OPERATOR_EXECUTION_SHA = "mock-operator-not-a-user-approval";
 
 export type Trpg1462Transport = "mock" | "live";
 
@@ -175,6 +177,14 @@ export function assertTrpg1462PaidApproval(
   assertSharedApprovalFields(approval, requestId, bodySha);
 }
 
+export function isTrpg1462NonPaidGrantor(grantedBy: string): boolean {
+  return (
+    grantedBy === "TEST_FIXTURE" ||
+    grantedBy === TRPG_1462_MOCK_LIVE_GRANTED_BY ||
+    grantedBy === TRPG_1462_MOCK_OPERATOR_GRANTED_BY
+  );
+}
+
 export function assertTrpg1462NetworkPolicy(
   approval: Trpg1462PaidApprovalRecord,
   fetchImpl: Trpg1462OneShotFetch,
@@ -185,7 +195,7 @@ export function assertTrpg1462NetworkPolicy(
   if (approval.kind === TRPG_1462_TEST_APPROVAL_KIND) {
     throw new Error("TEST_ONLY_NETWORK_FORBIDDEN");
   }
-  if (approval.grantedBy === TRPG_1462_MOCK_LIVE_GRANTED_BY) {
+  if (isTrpg1462NonPaidGrantor(approval.grantedBy)) {
     throw new Error("LIVE_APPROVAL_NOT_GRANTED");
   }
 }

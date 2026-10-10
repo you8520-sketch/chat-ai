@@ -22,6 +22,7 @@ import {
 /** Experiment-only. Do not reuse #1483 golden or #1477 12-call paths. */
 export const TRPG_1462_PRECALL_PRIVATE_ROOT = "/data/private-trpg-1462-gm-precall";
 export const TRPG_1462_PRECALL_JOURNAL_NAME = "attempt-journal.json";
+export const TRPG_1462_LIVE_APPROVAL_NAME = "live-approval.json";
 export const TRPG_1462_FORBIDDEN_PRIVATE_PATHS = [
   "/data/private-golden-fixtures",
   "/data/rp-quality-12call",
@@ -93,6 +94,10 @@ export function trpg1462PrecallJournalPath(root: string = TRPG_1462_PRECALL_PRIV
 
 export function trpg1462JournalLockPath(root: string = TRPG_1462_PRECALL_PRIVATE_ROOT): string {
   return `${trpg1462PrecallJournalPath(root)}.lock`;
+}
+
+export function trpg1462LiveApprovalPath(root: string = TRPG_1462_PRECALL_PRIVATE_ROOT): string {
+  return join(root, TRPG_1462_LIVE_APPROVAL_NAME);
 }
 
 export function createTrpg1462AttemptJournal(

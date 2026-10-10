@@ -6,7 +6,8 @@ Status:
 - DURABLE_JOURNAL_VERIFIED
 - APPROVAL_GATE_VERIFIED
 - LIVE_APPROVAL_GATE_VERIFIED (mock only)
-- PAID_EXECUTION_GATE_VERIFIED: **not claimed** — no user-granted LIVE approval; actual provider POST = 0
+- LIVE_DISPATCH_MOCK_VERIFIED
+- PAID_EXECUTION_GATE_VERIFIED: **not claimed** — no operator-granted paid LIVE record; actual provider POST = 0
 - BLOCKED: no
 
 Provider POSTs this turn: **0**
@@ -85,6 +86,12 @@ Approved `maxCalls` is compared to journal consumption before reserve. Exceeding
 
 Mock coverage added: zero approved cases, partial approval, full approval, excess calls, LIVE SHA mismatch, LIVE concurrent reserve, TEST_ONLY network forbidden, mock LIVE + live transport forbidden.
 
+## LIVE DISPATCH PRECALL
+
+`dispatchTrpg1462LiveOneShot` reuses `executeTrpg1462OneShot`. Operator LIVE records require `grantKind=OPERATOR_PRIVATE_RECORD`, the six sealed case IDs and request SHAs, model `gemini-3.8-flash`, provider `cheaperinference`, baseline/execution SHA, maxCalls ≤ 6, published estimate vs usage-based measured cost, grantor + evidence, and manifest version. Cursor did not mint a paid-executable LIVE file.
+
+`mode=live` additionally requires `transport=live`, an untagged fetch, and a non-mock grantor. Mock fixtures (`TEST_ONLY`, `MOCK_LIVE_GATE`, `MOCK_OPERATOR_RECORD`) cannot open that path. `mode=mock-verify` is test-only and requires a trusted tagged mock. Published six-call estimate is $0.027; `costCapGuaranteed` is always false.
+
 ## SYSTEM DELTA
 
-Hardening of the existing one-shot executor and journal lock only. LIVE vs TEST_ONLY is a gate on that executor. No new experiment runner, no billing change, no production GM path change, no live provider POST.
+Operator LIVE dispatch boundary on the existing one-shot executor and file journal. No new experiment runner, no billing change, no production GM path change, no live provider POST.
