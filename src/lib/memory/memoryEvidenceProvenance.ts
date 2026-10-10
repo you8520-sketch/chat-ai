@@ -157,6 +157,67 @@ export const MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE = {
 };
 
 /**
+ * #1486 Phase 3B — archival Path A Main RP 6/50-turn sample.
+ * Not a rerun license. Not production-runtime / homepage / identity parity.
+ * Cursor does not score reply quality. Gemini 401s are recorded, not retried.
+ */
+export const MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE = {
+  provenance: "CURRENT_LIVE_PROVIDER",
+  characterId: 18,
+  characterName: "라이크",
+  personaName: "렌",
+  path: "A_SEEDED_MEMORY",
+  providerPosts: 8,
+  successfulGenerationPosts: 6,
+  failedGenerationPosts: 2,
+  lunaPosts: 0,
+  productionDbWrites: 0,
+  billedUsd: null,
+  billedUsdStatus: "UNREPORTED",
+  identitySource: "FIXTURE_NOT_PRODUCTION_SHEET",
+  characterSheetRead: false,
+  productionPersonaRead: false,
+  executionHost: "CURSOR_VM",
+  runtimeShaSource: "GITHUB_DEPLOY_METADATA",
+  observedRuntimeSha: null,
+  railwayDeployMetadataSha: "f8bf8c823f86364388fc0261b3a6d36a34777551",
+  railwayDeployId: 6983458003,
+  productionRuntimeParity: "UNPROVEN",
+  productionIdentityParity: "UNPROVEN",
+  homepageParity: "UNPROVEN",
+  rerunAuthorized: false,
+  paidEvaluationApproved: false,
+  evidencePath: "docs/audits/monthly-rp-memory-quality-phase3b-2026-10-10/evidence.json",
+} as const satisfies {
+  provenance: MemoryEvidenceProvenance;
+  characterId: number;
+  characterName: string;
+  personaName: string;
+  path: "A_SEEDED_MEMORY";
+  providerPosts: number;
+  successfulGenerationPosts: number;
+  failedGenerationPosts: number;
+  lunaPosts: 0;
+  productionDbWrites: 0;
+  billedUsd: null;
+  billedUsdStatus: "UNREPORTED";
+  identitySource: "FIXTURE_NOT_PRODUCTION_SHEET";
+  characterSheetRead: false;
+  productionPersonaRead: false;
+  executionHost: MemoryEvidenceExecutionHost;
+  runtimeShaSource: MemoryEvidenceRuntimeShaSource;
+  observedRuntimeSha: null;
+  railwayDeployMetadataSha: string;
+  railwayDeployId: number;
+  productionRuntimeParity: ProductionParityClaim;
+  productionIdentityParity: ProductionParityClaim;
+  homepageParity: ProductionParityClaim;
+  rerunAuthorized: false;
+  paidEvaluationApproved: false;
+  evidencePath: string;
+};
+
+/**
  * True when the packet recorded an actual paid provider response.
  * This is not production-container, homepage, or character-sheet parity.
  */

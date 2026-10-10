@@ -8,6 +8,7 @@ import {
   MONTHLY_RP_MEMORY_QUALITY_PHASE2B_EVIDENCE,
   MONTHLY_RP_MEMORY_QUALITY_PHASE2C_SAMPLE_EVIDENCE,
   MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE,
+  MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE,
   canClaimCurrentLiveProvider,
   canClaimCurrentProductionParity,
   isDeterministicCodeRegression,
@@ -152,6 +153,41 @@ describe("memory evidence provenance", () => {
         observedRuntimeSha: null,
         characterSheetRead: MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.characterSheetRead,
         productionPersonaRead: MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE.productionPersonaRead,
+      }),
+      false
+    );
+  });
+
+  it("archives the Phase 3B Path A sample without a rerun license or production parity", () => {
+    assert.equal(
+      MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.provenance,
+      "CURRENT_LIVE_PROVIDER"
+    );
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.providerPosts, 8);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.successfulGenerationPosts, 6);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.failedGenerationPosts, 2);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.lunaPosts, 0);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.productionDbWrites, 0);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.billedUsd, null);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.billedUsdStatus, "UNREPORTED");
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.rerunAuthorized, false);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.paidEvaluationApproved, false);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.executionHost, "CURSOR_VM");
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.path, "A_SEEDED_MEMORY");
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.characterSheetRead, false);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.productionPersonaRead, false);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.productionRuntimeParity, "UNPROVEN");
+    assert.equal(
+      canClaimCurrentLiveProvider(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.provenance),
+      true
+    );
+    assert.equal(
+      canClaimCurrentProductionParity({
+        executionHost: MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.executionHost,
+        runtimeShaSource: MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.runtimeShaSource,
+        observedRuntimeSha: MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.observedRuntimeSha,
+        characterSheetRead: MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.characterSheetRead,
+        productionPersonaRead: MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.productionPersonaRead,
       }),
       false
     );
