@@ -1,5 +1,6 @@
 import type { TrpgCampaignSnapshot, TrpgPublicAction, TrpgPublicLog, TrpgPublicRoll } from "./snapshot";
-import type { RoundPresentationState } from "./roundPresentation";
+import { idlePresentation, type RoundPresentationState } from "./roundPresentation";
+import type { TrpgReplySuggestion } from "./replySuggestionShared";
 import { DEFAULT_TRPG_STAT_DEFS, pointPoolFor } from "./stats";
 import { DEFAULT_TRPG_BILLING_MODE, DEFAULT_TRPG_DICE_RULES, TRPG_GM_GROSS_MARGIN } from "./types";
 
@@ -71,18 +72,65 @@ function roundLog(roundNumber: number, bot1Body: string, bot2Body: string): Trpg
   };
 }
 
-export type ScrollFollowLabScenario = "bot1" | "bot2" | "round2-bot1" | "handoff" | "party-sheets";
+export type ScrollFollowLabScenario =
+  | "bot1"
+  | "bot2"
+  | "round2-bot1"
+  | "handoff"
+  | "party-sheets"
+  | "action-examples";
+
+export type ActionExamplesLabMode = "async" | "cached" | "error";
 
 function parseScrollFollowLabScenario(raw: string | null): ScrollFollowLabScenario {
-  if (raw === "bot2" || raw === "round2-bot1" || raw === "handoff" || raw === "party-sheets") return raw;
+  if (
+    raw === "bot2" ||
+    raw === "round2-bot1" ||
+    raw === "handoff" ||
+    raw === "party-sheets" ||
+    raw === "action-examples"
+  ) {
+    return raw;
+  }
   return "bot1";
 }
+
+export function parseActionExamplesLabMode(raw: string | null): ActionExamplesLabMode {
+  if (raw === "cached" || raw === "error") return raw;
+  return "async";
+}
+
+/** Deterministic Korean examples for the action-panel visibility lab. No provider. */
+export const ACTION_EXAMPLE_LAB_SUGGESTIONS: TrpgReplySuggestion[] = [
+  {
+    stance: "good",
+    actionType: "investigate",
+    text: "무너진 난간을 먼저 손으로 더듬어 안전한 디딤을 찾는다.",
+    stage: "무너진 난간을 먼저 손으로 더듬어 안전한 디딤을 찾는다.",
+    speech: "이쪽, 밟을 곳부터 확인하자.",
+  },
+  {
+    stance: "neutral",
+    actionType: "free",
+    text: "손전등을 낮춰 바닥 균열만 따라가며 천천히 이동한다.",
+    stage: "손전등을 낮춰 바닥 균열만 따라가며 천천히 이동한다.",
+    speech: "서두르지 마. 발밑만 보자.",
+  },
+  {
+    stance: "evil",
+    actionType: "attack",
+    text: "앞에 선 사람을 밀어 내가 먼저 건넌다.",
+    stage: "앞에 선 사람을 밀어 내가 먼저 건넌다.",
+    speech: "미안한데, 내가 먼저다.",
+  },
+];
 
 export { parseScrollFollowLabScenario };
 
 export function scrollFollowLabPresentationSeed(
   scenario: ScrollFollowLabScenario
 ): RoundPresentationState {
+  if (scenario === "action-examples") return idlePresentation();
   if (scenario === "bot2") {
     return { mode: "cinematic", phase: "actor-action", presentationIndex: 2 };
   }
@@ -105,6 +153,13 @@ export function scrollFollowLabSeenLogKeys(
   keys.push(`a:${roundNumber}:${SCROLL_FOLLOW_LAB_HUMAN_ID}`);
   if (scenario === "bot2") {
     keys.push(`a:${roundNumber}:${SCROLL_FOLLOW_LAB_BOT1_ID}`);
+  }
+  if (scenario === "action-examples") {
+    const current = roundLog(roundNumber, SCROLL_FOLLOW_LAB_BOT1_PROSE, SCROLL_FOLLOW_LAB_BOT2_PROSE);
+    for (const item of current.actions) {
+      if (item.revealed && item.body.trim()) keys.push(`a:${current.roundNumber}:${item.participantId}`);
+    }
+    if (current.narration?.trim()) keys.push(`n:${current.roundNumber}`);
   }
   return keys;
 }
@@ -136,10 +191,13 @@ export function buildScrollFollowLabSnapshot(opts?: {
   bot2Body?: string;
   /** Adds AI party sheets so the Dock PARTY tab has creator-sheet targets. */
   partySheets?: boolean;
+  /** ACTION_INPUT + unlocked draft for the action-example visibility lab. */
+  actionInput?: boolean;
 }): TrpgCampaignSnapshot {
   const roundNumber = opts?.roundNumber ?? 2;
   const bot1Body = opts?.bot1Body ?? SCROLL_FOLLOW_LAB_BOT1_PROSE;
   const bot2Body = opts?.bot2Body ?? SCROLL_FOLLOW_LAB_BOT2_PROSE;
+  const actionInput = opts?.actionInput === true;
   const round1 = roundLog(1, scrollFollowLabLongProse(180), scrollFollowLabLongProse(180));
   const current = roundLog(roundNumber, bot1Body, bot2Body);
   const resolutionOrder = [
@@ -201,7 +259,7 @@ export function buildScrollFollowLabSnapshot(opts?: {
     round: {
       id: roundNumber,
       number: roundNumber,
-      phase: "GENERATING_NARRATION",
+      phase: actionInput ? "ACTION_INPUT" : "GENERATING_NARRATION",
       expectedPresentationActorIds: adjudicatedParticipantIds,
     },
     participants: [
@@ -268,8 +326,8 @@ export function buildScrollFollowLabSnapshot(opts?: {
         ? [labBotSheet(SCROLL_FOLLOW_LAB_BOT1_ID, "Bot1"), labBotSheet(SCROLL_FOLLOW_LAB_BOT2_ID, "Bot2")]
         : []),
     ],
-    myDraft: { body: "", actionType: "free", selectedStat: null, locked: true },
-    currentRolls: current.rolls,
+    myDraft: { body: "", actionType: "free", selectedStat: null, locked: !actionInput },
+    currentRolls: actionInput ? [] : current.rolls,
     resolutionOrder,
     adjudicatedParticipantIds,
     participantAdjudicationOutcomes: {
