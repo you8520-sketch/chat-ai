@@ -72,7 +72,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <MenuTransitionHost />
         </Suspense>
         <Header />
-        <div className="app-shell mx-auto flex w-full max-w-7xl flex-1 items-start gap-6 px-4 pb-24 pt-4 md:pb-6">
+        <div className="app-shell mx-auto flex w-full max-w-7xl flex-1 items-start gap-6 px-4 pb-24 pt-4 min-[576px]:pb-6">
           <Sidebar />
           <main className="flex min-w-0 flex-1 flex-col">{children}</main>
         </div>

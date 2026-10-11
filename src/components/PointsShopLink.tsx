@@ -7,7 +7,7 @@ export default function PointsShopLink() {
       href="/points"
       title="포인트 충전"
       aria-label="포인트 충전"
-      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-violet-300"
+      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-violet-300"
     >
       <svg
         viewBox="0 0 24 24"

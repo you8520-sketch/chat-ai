@@ -27,7 +27,7 @@ export default function MobileBottomNav({ loggedIn }: Props) {
 
   return (
     <nav
-      className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur min-[576px]:hidden"
+      className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#0b0d14]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur min-[576px]:hidden"
       aria-label="모바일 메뉴"
       data-menu-transition=""
     >
@@ -38,6 +38,7 @@ export default function MobileBottomNav({ loggedIn }: Props) {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
                 "relative flex min-h-12 flex-1 flex-col items-center justify-center text-xs font-semibold transition",
                 active ? "text-violet-200" : "text-zinc-400 hover:text-zinc-200",

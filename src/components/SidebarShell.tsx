@@ -249,6 +249,7 @@ function SideLink({
       <Link
         href={href}
         title={label}
+        aria-current={active ? "page" : undefined}
         className={`flex h-11 w-full items-center justify-center rounded-xl transition ${tone}`}
       >
         <SidebarNavIcon id={icon} />
@@ -259,6 +260,7 @@ function SideLink({
   return (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={`flex min-h-11 items-center gap-2.5 rounded-xl px-2.5 text-sm font-medium transition ${tone}`}
     >
       <SidebarNavIcon id={icon} />

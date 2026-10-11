@@ -20,14 +20,24 @@ function isTabActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** 데스크톱 상단 탭 — 모바일은 하단 탭 사용. 채팅방에서는 숨김 */
-export default function HeaderMainNavRow() {
+type Props = {
+  /** inline: lg 이상 로고 옆 · strip: 576–1023px 헤더 둘째 줄 (모바일은 하단 탭 사용) */
+  variant?: "inline" | "strip";
+};
+
+/** 상단 주요 탭 — 채팅방에서는 숨김 */
+export default function HeaderMainNavRow({ variant = "inline" }: Props) {
   const pathname = usePathname();
   if (isChatRoomPathname(pathname)) return null;
 
   return (
     <nav
-      className="scrollbar-hide hidden max-w-[48vw] shrink items-stretch gap-0.5 overflow-x-auto overscroll-x-contain md:inline-flex xl:max-w-none"
+      className={cn(
+        "scrollbar-hide items-stretch gap-0.5 overflow-x-auto overscroll-x-contain",
+        variant === "inline"
+          ? "hidden shrink lg:inline-flex"
+          : "hidden min-[576px]:flex lg:hidden",
+      )}
       aria-label="주요 메뉴"
       data-menu-transition=""
     >
@@ -37,6 +47,7 @@ export default function HeaderMainNavRow() {
           <Link
             key={t.href}
             href={t.href}
+            aria-current={active ? "page" : undefined}
             className={cn(
               "relative inline-flex min-h-11 shrink-0 items-center px-3 text-sm font-semibold transition after:absolute after:inset-x-3 after:bottom-0 after:h-px after:origin-left after:bg-violet-400 after:transition-transform",
               active
