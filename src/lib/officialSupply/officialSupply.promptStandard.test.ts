@@ -247,7 +247,7 @@ describe("official character prompt standard v1", () => {
     const draft = source.draft;
     const lockBefore = computeTextLockHash(draft);
     assert.equal(draft.promptStandard, undefined);
-    assert.equal(draft.secrets.length, 8);
+    assert.equal(draft.secrets.length, 2);
 
     const systemPrompt = composeOfficialSystemPrompt(draft, source.appearanceBlock);
     const creatorComment = composeOfficialCreatorComment(draft);
@@ -325,7 +325,7 @@ describe("official character prompt standard v1", () => {
     assert.match(source, /hobbies는 짧은 명사\/구 3~5개/);
     assert.match(source, /기본은 persona-flexible/);
     assert.match(source, /출연진 전체를 채우지 않는다/);
-    assert.match(source, /이름이 대화에 등장할 때만/);
+    assert.match(source, /다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다/);
     assert.doesNotMatch(source, /0~3명/);
     assert.match(source, /행동 기반 변화 조건/);
     assert.match(source, /획일적인 장문 합의/);
@@ -337,7 +337,7 @@ describe("official character prompt standard v1", () => {
     const draft = source.draft;
     const file = lucianFile();
     assert.equal(draft.promptStandard, undefined);
-    assert.equal(draft.secrets.length, 8);
+    assert.equal(draft.secrets.length, 2);
     assert.match(draft.sections.characterCore, /기본 스펙:\n이름: 볼프강 폰 발켄하임/);
     assert.match(draft.sections.characterCore, /성격 키워드:/);
     assert.match(draft.sections.characterCore, /과거 서사:/);

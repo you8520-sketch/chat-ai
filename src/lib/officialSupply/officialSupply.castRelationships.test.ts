@@ -95,7 +95,7 @@ describe("canonical cast relationship target owner", () => {
     }
   });
 
-  it("10. replacement reconciliation adds only public awareness; 11. private/hidden are never forced", () => {
+  it("10. replacement does not auto-fill official cast; 11. one-way public ties stay optional", () => {
     const entries = [
       { draftKey: "a", name: "볼프강 폰 발켄하임", publicRole: "북부 방벽 수호사령관", relationships: [rel("루시안 바스케스")] },
       { draftKey: "b", name: "루시안 바스케스", publicRole: "브로커", relationships: [rel("볼프강 폰 발켄하임")] },
@@ -107,18 +107,12 @@ describe("canonical cast relationship target owner", () => {
       },
     ];
     const before = evaluateCastRelationshipGraph(entries, { replacedDraftKeys: ["n"] });
-    assert.ok(before.errors.some((e) => e.code === "relationship_replacement_one_way"));
+    assert.equal(before.errors.some((e) => e.code === "relationship_replacement_one_way"), false);
+    assert.deepEqual(before.errors, []);
     const additions = reconcileReplacementPublicRelationships(entries, ["n"]);
-    assert.deepEqual(additions.get("a"), [
-      { target: "에드릭", public: "대신전 이단심문관. 공개된 접점(에드릭 측): 군사 정보를 주고받는다.", privateOpinion: "", hidden: "" },
-    ]);
-    assert.equal(additions.has("b"), false, "no public tie declared → no awareness invented");
-    const after = evaluateCastRelationshipGraph(
-      entries.map((e) => ({ ...e, relationships: [...e.relationships, ...(additions.get(e.draftKey) ?? [])] })),
-      { replacedDraftKeys: ["n"] }
-    );
-    assert.deepEqual(after.errors, []);
-    assert.deepEqual(after.stats.oneWay, [["n", "b"]], "general asymmetry is reported, not forced");
+    assert.equal(additions.size, 0);
+    assert.deepEqual(before.stats.oneWayPublicFromReplaced, [["n", "a"]]);
+    assert.deepEqual(before.stats.oneWay, [["n", "a"], ["n", "b"]]);
   });
 });
 

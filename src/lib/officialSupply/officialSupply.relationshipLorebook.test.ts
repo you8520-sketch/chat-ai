@@ -9,9 +9,7 @@ import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compil
 import {
   attachOfficialCharacterLorebooks,
   projectOtherRelationshipsToCharacterLorebook,
-  relationshipLorebookEntryKey,
   resolveOfficialCharacterLorebooks,
-  sanitizeRelationshipLorebookText,
 } from "@/lib/officialSupply/lorebookAttach";
 import { evaluateOfficialStagedSaveLength, officialSubstantiveCharCount } from "@/lib/officialSupply/characterText";
 import { evaluateSharedLorebook } from "@/lib/officialSupply/worldQa";
@@ -22,17 +20,6 @@ import {
 import type { OfficialWorldLorebookEntry } from "@/lib/officialSupply/types";
 
 const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
-const WOLFGANG_TARGETS = [
-  "카엘룸 폰 에테르노스",
-  "루시안 바스케스",
-  "율리우스 클라인",
-  "바스티안 에반스",
-  "세라피나 오로라",
-  "이노센트 0호",
-  "에드릭",
-  "테오",
-  "노엘 벨로체",
-] as const;
 
 function readJson<T>(file: string): T {
   return JSON.parse(fs.readFileSync(file, "utf8")) as T;
@@ -43,55 +30,25 @@ function asKeywordEntries(entries: readonly OfficialWorldLorebookEntry[]) {
 }
 
 describe("official otherRelationships lorebook attach", () => {
-  it("projects Wolfgang public relationships into character-local lorebooks and activates them by name", () => {
+  it("does not keep unused official-cast ties or their hidden notes on Wolfgang", () => {
     const source = loadCompiledOfficialCharacterSource("pilot-rf-02");
     const file = readJson<{ bible: OfficialCharacterBible }>(path.join(PILOT_DIR, "characters", "pilot-rf-02.json"));
     const projected = projectOtherRelationshipsToCharacterLorebook(file.bible.otherRelationships, "pilot-rf-02");
+    const unused = /카엘룸|루시안|율리우스|바스티안|세라피나|이노센트|에드릭|테오|노엘/;
 
-    assert.equal(file.bible.otherRelationships.map((rel) => rel.target).join("|"), WOLFGANG_TARGETS.join("|"));
-    assert.equal(projected.length, 9);
-    assert.equal(source.characterLorebook.length, 9);
-    assert.equal(source.resolvedLorebook.length, source.sharedLorebook.length + 9);
-    assert.ok(source.resolvedLorebook.length <= 20);
+    assert.deepEqual(file.bible.otherRelationships, []);
+    assert.deepEqual(projected, []);
+    assert.equal(source.characterLorebook.some((entry) => entry.entryKey.startsWith("cast_rel_")), false);
+    assert.equal(source.draft.secrets.length, 2);
+    assert.equal(source.draft.secrets.some((secret) => unused.test(secret)), false);
+    assert.doesNotMatch(source.draft.sections.relationshipsAndDrives, unused);
+    assert.doesNotMatch(source.systemPrompt, unused);
 
-    const alwaysOn = [
-      source.draft.sections.characterCore,
-      source.draft.sections.relationshipsAndDrives,
-      source.draft.sections.worldAndSituation,
-      source.draft.sections.currentSituation ?? "",
-      source.draft.sections.extraCanon,
-    ].join("\n");
-    for (const target of WOLFGANG_TARGETS) {
-      const entry = source.characterLorebook.find(
-        (item) => item.entryKey === relationshipLorebookEntryKey("pilot-rf-02", target)
-      );
-      const bibleRel = file.bible.otherRelationships.find((rel) => rel.target === target);
-      assert.ok(entry, target);
-      assert.ok(bibleRel, target);
-      assert.ok(entry.keywords.includes(target.split(" ")[0]!));
-      assert.match(entry.content, new RegExp(target));
-      assert.ok(entry.content.includes(sanitizeRelationshipLorebookText(bibleRel.public).slice(0, 12)));
-      if (bibleRel.hidden) assert.equal(entry.content.includes(bibleRel.hidden), false);
-      assert.equal(alwaysOn.includes(target), false, target);
-    }
-
-    const kaelum = matchKeywordLorebookEntryDetails(asKeywordEntries(source.characterLorebook), {
+    const mentioned = matchKeywordLorebookEntryDetails(asKeywordEntries(source.characterLorebook), {
       currentUserText: "카엘룸이 온실에서 승인을 기다리고 있습니다.",
     });
-    assert.equal(kaelum.length, 1);
-    assert.match(kaelum[0]!.content, /카엘룸 폰 에테르노스/);
-    assert.match(kaelum[0]!.content, /황태자 대행/);
-    assert.doesNotMatch(kaelum[0]!.content, /독자적인 손실 장부/);
+    assert.equal(mentioned.length, 0);
 
-    const idle = matchKeywordLorebookEntryDetails(asKeywordEntries(source.characterLorebook), {
-      currentUserText: "요새 난방을 먼저 확인하자.",
-    });
-    assert.equal(idle.length, 0);
-
-    for (const secret of source.draft.secrets) {
-      assert.equal(source.resolvedLorebook.some((entry) => entry.content.includes(secret)), false);
-    }
-    assert.equal(source.draft.secrets.length, 8);
     assert.match(source.systemPrompt, /\[비밀 — 캐릭터는 앎\]/);
     assert.equal(evaluateOfficialStagedSaveLength(source.draft, source.appearanceBlock).ok, true);
     assert.ok(officialSubstantiveCharCount(source.draft, source.appearanceBlock) <= 12_000);
@@ -107,33 +64,11 @@ describe("official otherRelationships lorebook attach", () => {
     const authored = resolveOfficialCharacterLorebooks(source.sharedLorebook, file.characterLorebook);
     assert.equal(authored.length, 12);
     assert.equal(source.characterLorebook.some((entry) => entry.entryKey === "mercator_internal_dealings"), true);
-    assert.equal(source.characterLorebook.filter((entry) => entry.entryKey.startsWith("cast_rel_")).length, 3);
     assert.deepEqual(
       file.bible.otherRelationships.map((rel) => rel.target),
       ["에드릭", "테오", "노엘 벨로체"]
     );
     assert.doesNotMatch(source.systemPrompt, /카엘룸|볼프강|율리우스|바스티안|세라피나|이노센트|에드릭|테오|노엘/);
-
-    const edric = matchKeywordLorebookEntryDetails(asKeywordEntries(source.characterLorebook), {
-      currentUserText: "에드릭이 성기사 자격으로 정보를 요청했다.",
-    });
-    assert.equal(edric.length, 1);
-    assert.match(edric[0]!.content, /에드릭/);
-    assert.doesNotMatch(edric[0]!.content, /숨김|LOCKED_SECRET/);
-  });
-
-  it("does not share one character hidden opinion into another character lorebook", () => {
-    const wolfgang = loadCompiledOfficialCharacterSource("pilot-rf-02");
-    const lucian = loadCompiledOfficialCharacterSource("pilot-rf-03");
-    const wolfgangHidden = wolfgang.draft.secrets.filter((secret) => secret.includes("루시안"));
-    assert.ok(wolfgangHidden.length > 0);
-    for (const secret of wolfgangHidden) {
-      assert.equal(lucian.resolvedLorebook.some((entry) => entry.content.includes(secret)), false);
-    }
-    const lucianKeys = new Set(lucian.resolvedLorebook.map((entry) => entry.entryKey));
-    for (const entry of wolfgang.characterLorebook) {
-      assert.equal(lucianKeys.has(entry.entryKey), false);
-    }
   });
 
   it("does not cap compact otherRelationships at three people", () => {
@@ -160,21 +95,21 @@ describe("official otherRelationships lorebook attach", () => {
     assert.equal(attached.length, 4);
   });
 
-  it("author bonds prompt records needed people without a 3-person cap", () => {
+  it("author bonds prompt does not auto-fill official cast", () => {
     const system = buildCharacterBondsSystem();
     const user = buildCharacterBondsUser({
       name: "볼프강",
       age: 34,
       rpHook: "위조 처형 명령서",
       adultCandidate: true,
-      castList: ["카엘룸", "루시안", "율리우스", "바스티안"],
+      castList: [],
       part1Recap: "북부 방벽 지휘관",
     });
-    assert.match(system, /필요한 인원을 임의 숫자로 자르지 않는다/);
-    assert.match(system, /이름이 대화에 등장할 때만/);
-    assert.match(system, /hidden은 로어북에 넣지 않고/);
+    assert.match(system, /다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다/);
+    assert.match(system, /같은 세계관에 존재하거나 나중에 만날 수 있다는 이유만으로는 넣지 않는다/);
+    assert.match(system, /인원 수를 채우는 목표는 없다/);
     assert.doesNotMatch(system, /0~3명/);
-    assert.doesNotMatch(user, /0~3명/);
-    assert.match(user, /인원 상한 없음/);
+    assert.match(user, /자동으로 채우지 않는다/);
+    assert.match(user, /없으면 \[\]/);
   });
 });

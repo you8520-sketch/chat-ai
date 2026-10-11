@@ -509,9 +509,10 @@ export function buildCharacterBondsSystem(): string {
     "  initialView/userRole/startingPoint는 현재 장면에서의 태도와 이해관계 중심으로 쓰고, 성별 고정 호칭을 쓰지 않는다.",
     "  progression은 초기·중기·후기 일정표가 아니라 행동 기반 변화 조건이다. 단계 수를 채우지 말고, 협력·배신·적대·친밀·이탈·재회·관계 역전이 모두 가능하게 쓴다.",
     "  자동 사랑 빠짐 금지. 기존 관계가 있으면 그 관계의 신뢰와 갈등을 유지한 채 변화하고, 관계가 없으면 실제 행동과 사건 결과에 따라 신뢰/친밀/적대가 생긴다.",
-    "- otherRelationships: 이 캐릭터의 실제 RP에서 이름·역할·관계가 필요한 등장인물을 기록한다. 필요한 인원을 임의 숫자로 자르지 않는다. 출연진 전체를 채우지 않는다. 현재 RP와 무관한 인물을 넣지 않는다.",
-    "  otherRelationships는 메인 시스템 프롬프트에 상시 주입하지 않는다. 공개 이름·역할·관계는 캐릭터 runtime 로어북으로 투영되어, 해당 이름이 대화에 등장할 때만 활성화된다.",
-    "  hidden은 로어북에 넣지 않고 캐릭터 비밀(LOCKED_SECRET)로만 유지한다.",
+    "- otherRelationships: 이 캐릭터 자신의 사건·과거·목표·판단·행동을 실제로 바꾸는 인물만 기록한다. 없으면 [].",
+    "  다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다. 같은 세계관에 존재하거나 나중에 만날 수 있다는 이유만으로는 넣지 않는다.",
+    "  인원 수를 채우는 목표는 없다. 출연진 전체를 채우지 않는다. 현재 RP와 무관한 인물을 넣지 않는다.",
+    "  otherRelationships는 메인 시스템 프롬프트에 상시 주입하지 않는다. hidden은 로어북이나 새 비밀로 옮기지 않는다. 정말 필요한 비밀만 유지한다.",
     "- secrets 1~3개. 캐릭터 자신이 알고 있으나 공개하지 않는 핵심 사실만. RP progression·갈등·관계 변화에 실제 영향을 주는 것만 남기고 trivial 반전은 금지.",
     "- rpEngine: immediateHook + repeatable 반드시 3개 이상(비사건성 일상 포함) + mediumConflict + longTermChange.",
     "  엔딩 고정 금지.",
@@ -533,14 +534,16 @@ export function buildCharacterBondsUser(input: CharacterBondsInput): string {
     `캐릭터: ${input.name} (${input.age}세)`,
     `RP 훅: ${input.rpHook}`,
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
-    `출연진 참고 목록(관계 생성 의무 없음; 실제 직접 관련 인물만 otherRelationships 후보, 인원 상한 없음): ${input.castList.join(" / ")}`,
+    input.castList.length
+      ? `다른 공식 캐릭터는 관계 자동 채움 대상이 아니다. 이 인물의 사건·과거·목표에 실제로 필요없으면 otherRelationships에 넣지 않는다: ${input.castList.join(" / ")}`
+      : "다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다. otherRelationships는 이 인물의 사건·과거·목표에 실제로 필요한 경우만 기록하고 없으면 [].",
     "",
     "전반부 요약:",
     input.part1Recap,
     "",
     input.adultCandidate
-      ? "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 실제 반복 등장·행동 변화가 필요한 인물만 넣고 없으면 []; 성인 후보이므로 nsfw는 true, adultSection은 틀의 모든 키를 실제 내용으로 채운다."
-      : "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 실제 반복 등장·행동 변화가 필요한 인물만 넣고 없으면 []; 성인 후보가 아니면 adultSection은 null.",
+      ? "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 이 인물의 사건·과거·목표를 바꾸는 인물만 넣고 없으면 []; 성인 후보이므로 nsfw는 true, adultSection은 틀의 모든 키를 실제 내용으로 채운다."
+      : "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 이 인물의 사건·과거·목표를 바꾸는 인물만 넣고 없으면 []; 성인 후보가 아니면 adultSection은 null.",
     characterBondsSkeleton(input.adultCandidate),
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
