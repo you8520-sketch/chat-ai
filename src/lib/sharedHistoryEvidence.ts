@@ -4,6 +4,10 @@
  * This helper owns evidence granularity only. Generation semantics stay in
  * historicalTruthPolicy.ts. Summary/episodic layers reuse this owner so a broad
  * user statement cannot validate assistant-invented specifics.
+ *
+ * Evidence is judged per USER utterance / clause. Joined 5-turn blobs and a
+ * trailing "기억나?" must not mix unrelated tokens or discard a concrete
+ * assertion in the same message.
  */
 
 const HARD_PRIOR_SHARED_RELATIONSHIP_CUE =
@@ -33,28 +37,10 @@ const SUPPORT_STOPWORDS = new Set([
 ]);
 
 const RECALL_PRESUPPOSITION_CUE =
-  /기억(?:하지|나|나지|해|하니|하냐)|알(?:지|잖아)(?:[?!….,\s]|$)|(?:뭐|무엇|어떤).{0,16}(?:였더라|했더라|먹었더라|갔더라|봤더라)/u;
+  /기억(?:하지|나|나지|해|하니|하냐)|알(?:지|잖아)(?:[?!….,\s]|$)|(?:뭐|무엇|어떤).{0,16}(?:였더라|했더라|먹었더라|갔더라|봤더라|였지)/u;
 
-/**
- * Current-turn USER text that only presupposes a past ("기억나?", "알지?")
- * is not evidence for missing shared-history specifics.
- * Concrete assertions and OOC setup stay eligible for token support.
- */
-export function userTextIsRecallPresuppositionOnly(text: string | null | undefined): boolean {
-  const value = text?.trim() ?? "";
-  if (!value) return false;
-  if (/(?:^|\n)\s*OOC\s*:/iu.test(value)) return false;
-  if (!RECALL_PRESUPPOSITION_CUE.test(value) && !/[?？]/.test(value)) return false;
-  const withoutQuestion = value
-    .replace(RECALL_PRESUPPOSITION_CUE, " ")
-    .replace(/[?？]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!withoutQuestion) return true;
-  // Short recall questions whose leftover tokens are only the presupposed
-  // topic are not assertions of new shared-history detail.
-  return withoutQuestion.length <= 24;
-}
+const FINITE_PAST_ASSERTION =
+  /(?:돌아왔|도착했|함께했|지냈|만났|줬|갔|봤|왔|샀|먹|했)(?:어(?:요)?|다|잖아|는데|고|습니다)/u;
 
 function normalizeSupportToken(token: string): string {
   return token
@@ -98,57 +84,6 @@ export function looksLikeHardPriorSharedUserRelationship(text: string): boolean 
   return HARD_PRIOR_SHARED_RELATIONSHIP_CUE.test(text);
 }
 
-/**
- * Evidence is bounded to the detail the user actually supplied.
- * "몇 차례 임무를 함께했다" supports that broad history, not a specific gate,
- * line of dialogue, meal, purchase, or visit.
- */
-export function userTextSupportsPriorSharedHistoryClaim(
-  claimText: string,
-  userText: string
-): boolean {
-  if (!looksLikePriorSharedUserHistory(claimText)) return true;
-  const user = userText.trim();
-  if (!user) return false;
-  if (userTextIsRecallPresuppositionOnly(user)) return false;
-
-  const claimTokens = sharedHistorySupportTokens(claimText);
-  if (claimTokens.length === 0) return false;
-  const matched = matchingClaimTokens(claimText, user);
-
-  // Two concrete overlaps are the minimum evidence for a derived shared-history
-  // sentence. Broad temporal words alone are intentionally insufficient.
-  return matched.length >= Math.min(2, claimTokens.length);
-}
-
-/**
- * True when a prior/shared-history summary contains concrete detail that is
- * absent from USER evidence but present in ASSISTANT prose.
- *
- * This does not require the assistant sentence to contain a fixed temporal
- * keyword. That avoids missing lines such as "그 브레이크 진입 때 내가..." where
- * the event is plainly past context but a regex may not match the exact phrasing.
- */
-export function assistantSuppliesUnsupportedSharedHistoryDetail(
-  claimText: string,
-  assistantText: string,
-  userText: string
-): boolean {
-  if (!looksLikePriorSharedUserHistory(claimText)) return false;
-  if (userTextSupportsPriorSharedHistoryClaim(claimText, userText)) return false;
-
-  const assistantMatches = matchingClaimTokens(claimText, assistantText);
-  if (assistantMatches.length === 0) return false;
-
-  const userCompact = normalizedCompact(userText);
-  const assistantOnly = assistantMatches.filter(
-    (token) => !userCompact.includes(normalizedCompact(token))
-  );
-
-  if (assistantOnly.length >= 2) return true;
-  return assistantOnly.some((token) => token.length >= 4);
-}
-
 function oocBody(text: string): string | null {
   const match = text.match(/(?:^|\n)\s*OOC\s*:\s*([^\n]+)/iu);
   return match?.[1]?.trim() || null;
@@ -170,4 +105,133 @@ export function extractExplicitSharedHistoryScope(
     .filter(Boolean)
     .filter((sentence) => looksLikePriorSharedUserHistory(sentence))
     .slice(0, 4);
+}
+
+function splitUserSourceTurns(userText: string): string[] {
+  return userText
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function splitUserClauses(text: string): string[] {
+  return text
+    .split(/(?<=[.!?。！？])\s+|,\s*(?=기억(?:하지|나|나지|해|하니|하냐))/u)
+    .map((part) => part.replace(/^[,.\s]+|[,.\s]+$/g, "").trim())
+    .filter(Boolean);
+}
+
+function stripOocLines(text: string): string {
+  return text
+    .split(/\n/)
+    .filter((line) => !/^\s*OOC\s*:/iu.test(line))
+    .join("\n")
+    .trim();
+}
+
+function isQuestionClause(clause: string): boolean {
+  return /[?？]/.test(clause) || RECALL_PRESUPPOSITION_CUE.test(clause);
+}
+
+function hasFinitePastAssertion(clause: string): boolean {
+  return FINITE_PAST_ASSERTION.test(clause);
+}
+
+function isRecallPresuppositionClause(clause: string): boolean {
+  if (!isQuestionClause(clause)) return false;
+  return !hasFinitePastAssertion(clause);
+}
+
+function isSharedHistoryEvidenceClause(clause: string): boolean {
+  if (isRecallPresuppositionClause(clause)) return false;
+  return looksLikePriorSharedUserHistory(clause) || hasFinitePastAssertion(clause);
+}
+
+function claimSupportedByEvidenceUnit(claimText: string, unit: string): boolean {
+  const claimTokens = sharedHistorySupportTokens(claimText);
+  if (claimTokens.length === 0) return false;
+  const matched = matchingClaimTokens(claimText, unit);
+  return matched.length >= Math.min(2, claimTokens.length);
+}
+
+/**
+ * USER evidence units that may support a prior shared-history claim.
+ * Recall-only questions and unrelated current-scene lines are omitted.
+ * Each unit is one utterance or clause — tokens are never pooled across turns.
+ */
+export function userSharedHistoryEvidenceUnits(userText: string | null | undefined): string[] {
+  const value = userText?.trim() ?? "";
+  if (!value) return [];
+
+  const units: string[] = [];
+  for (const turn of splitUserSourceTurns(value)) {
+    for (const scope of extractExplicitSharedHistoryScope(turn)) {
+      units.push(scope);
+    }
+    for (const clause of splitUserClauses(stripOocLines(turn))) {
+      if (isSharedHistoryEvidenceClause(clause)) units.push(clause);
+    }
+  }
+  return units;
+}
+
+/**
+ * True when USER text only presupposes a past ("기억나?", "알지?") and
+ * contains no concrete assertion or OOC shared-history setup.
+ */
+export function userTextIsRecallPresuppositionOnly(text: string | null | undefined): boolean {
+  const value = text?.trim() ?? "";
+  if (!value) return false;
+  if (userSharedHistoryEvidenceUnits(value).length > 0) return false;
+  return splitUserSourceTurns(value).some((turn) =>
+    splitUserClauses(stripOocLines(turn)).some(isRecallPresuppositionClause)
+  );
+}
+
+/**
+ * Evidence is bounded to the detail the user actually supplied in one
+ * utterance or clause. "몇 차례 임무를 함께했다" supports that broad history,
+ * not a specific gate, line of dialogue, meal, purchase, or visit.
+ */
+export function userTextSupportsPriorSharedHistoryClaim(
+  claimText: string,
+  userText: string
+): boolean {
+  if (!looksLikePriorSharedUserHistory(claimText)) return true;
+  const user = userText.trim();
+  if (!user) return false;
+
+  return userSharedHistoryEvidenceUnits(user).some((unit) =>
+    claimSupportedByEvidenceUnit(claimText, unit)
+  );
+}
+
+/**
+ * True when a prior/shared-history summary contains concrete detail that is
+ * absent from USER evidence but present in ASSISTANT prose.
+ *
+ * This does not require the assistant sentence to contain a fixed temporal
+ * keyword. That avoids missing lines such as "그 브레이크 진입 때 내가..." where
+ * the event is plainly past context but a regex may not match the exact phrasing.
+ */
+export function assistantSuppliesUnsupportedSharedHistoryDetail(
+  claimText: string,
+  assistantText: string,
+  userText: string
+): boolean {
+  if (!looksLikePriorSharedUserHistory(claimText)) return false;
+  if (userTextSupportsPriorSharedHistoryClaim(claimText, userText)) return false;
+
+  const assistantMatches = matchingClaimTokens(claimText, assistantText);
+  if (assistantMatches.length === 0) return false;
+
+  const evidenceCompact = normalizedCompact(
+    userSharedHistoryEvidenceUnits(userText).join("\n")
+  );
+  const assistantOnly = assistantMatches.filter(
+    (token) => !evidenceCompact.includes(normalizedCompact(token))
+  );
+
+  if (assistantOnly.length >= 2) return true;
+  return assistantOnly.some((token) => token.length >= 4);
 }

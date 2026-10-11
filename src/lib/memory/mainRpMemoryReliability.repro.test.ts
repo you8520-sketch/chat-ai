@@ -18,6 +18,7 @@ import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import { restrictRelationshipMetaDeltaToDurableAutoFacts } from "@/lib/chatMemory";
 import {
   assistantSuppliesUnsupportedSharedHistoryDetail,
+  userSharedHistoryEvidenceUnits,
   userTextIsRecallPresuppositionOnly,
   userTextSupportsPriorSharedHistoryClaim,
 } from "@/lib/sharedHistoryEvidence";
@@ -45,6 +46,50 @@ const T50_ASSISTANT = readFileSync(
 
 function dialogue(turn: number, user: string, assistant: string, charName = "라이크"): string {
   return `[${turn}턴]\n유저: ${user}\n${charName}: ${assistant}`;
+}
+
+function fiveTurnDialogue(
+  users: readonly string[],
+  assistants: readonly string[],
+  charName = "라이크"
+): string {
+  return users
+    .map((user, index) => dialogue(index + 1, user, assistants[index] ?? `${charName}는 고개를 끄덕였다.`, charName))
+    .join("\n\n");
+}
+
+const T6_INVENTED =
+  "그때 렌의 어깨가 반쯤 젖어 있었고 라이크가 우산을 렌 쪽으로 밀었는데도 그랬다. 그날 이후 라이크는 우산을 두 개 챙기게 되었고, 골목 가로등 아래에서 그 일을 사실처럼 남겼다.";
+const T50_INVENTED =
+  "그날 렌이 먼저 말 걸었고 라이터도 없이 와서 담배를 달라고 했으며 두 모금 만에 기침했다. 그날 이후 둘은 옥상에 자주 올라갔다.";
+const FILLER_USERS = [
+  "비가 많이 내리네.",
+  "지금은 그냥 여기 앉아 있자.",
+  "커피라도 한 잔 마실까?",
+  "오늘도 날씨가 좀 흐리다.",
+] as const;
+const FILLER_ASSISTANTS = [
+  "라이크는 골목 쪽 하늘을 한 번 올려다봤다.",
+  "라이크는 낮은 턱에 걸터앉았다.",
+  "라이크는 짧게 어깨를 으쓱했다.",
+  "라이크는 주머니에 손을 넣고 서 있었다.",
+] as const;
+
+/** Exact a29d9ba1 24-char leftover heuristic — documents the pre-fix 5-turn miss. */
+function a29d9ba1RecallPresuppositionOnly(text: string): boolean {
+  const value = text.trim();
+  if (!value) return false;
+  if (/(?:^|\n)\s*OOC\s*:/iu.test(value)) return false;
+  const cue =
+    /기억(?:하지|나|나지|해|하니|하냐)|알(?:지|잖아)(?:[?!….,\s]|$)|(?:뭐|무엇|어떤).{0,16}(?:였더라|했더라|먹었더라|갔더라|봤더라)/u;
+  if (!cue.test(value) && !/[?？]/.test(value)) return false;
+  const withoutQuestion = value
+    .replace(cue, " ")
+    .replace(/[?？]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!withoutQuestion) return true;
+  return withoutQuestion.length <= 24;
 }
 
 describe("P1 memory reliability — Phase 3B restorage and allow/deny", () => {
@@ -170,8 +215,7 @@ describe("P1 memory reliability — Phase 3B restorage and allow/deny", () => {
   });
 
   it("F/G Phase 3B DeepSeek t6 invented user acts must not become sealed facts", () => {
-    const invented =
-      "그때 렌의 어깨가 반쯤 젖어 있었고 라이크가 우산을 렌 쪽으로 밀었는데도 그랬다. 그날 이후 라이크는 우산을 두 개 챙기게 되었다.";
+    const invented = T6_INVENTED;
     assert.equal(userTextIsRecallPresuppositionOnly(T6_QUERY), true);
     assert.equal(userTextSupportsPriorSharedHistoryClaim(invented, T6_QUERY), false);
     assert.equal(
@@ -209,8 +253,7 @@ describe("P1 memory reliability — Phase 3B restorage and allow/deny", () => {
   });
 
   it("F/G Phase 3B DeepSeek t50 invented first-day user acts must not become sealed facts", () => {
-    const invented =
-      "그날 렌이 먼저 말 걸었고 라이터도 없이 와서 담배를 달라고 했으며 두 모금 만에 기침했다. 그날 이후 둘은 옥상에 자주 올라갔다.";
+    const invented = T50_INVENTED;
     assert.equal(userTextIsRecallPresuppositionOnly(T50_QUERY), true);
     assert.equal(userTextSupportsPriorSharedHistoryClaim(invented, T50_QUERY), false);
     assert.equal(
@@ -266,6 +309,137 @@ describe("P1 memory reliability — Phase 3B restorage and allow/deny", () => {
       ),
       null
     );
+  });
+
+  it("5-turn joined recall + fillers cannot validate invented umbrella details", () => {
+    const joinedUsers = [T6_QUERY, ...FILLER_USERS].join("\n");
+    const dialogueText = fiveTurnDialogue([T6_QUERY, ...FILLER_USERS], [T6_ASSISTANT, ...FILLER_ASSISTANTS]);
+    assert.equal(a29d9ba1RecallPresuppositionOnly(T6_QUERY), true);
+    assert.equal(a29d9ba1RecallPresuppositionOnly(joinedUsers), false);
+    assert.equal(userTextIsRecallPresuppositionOnly(T6_QUERY), true);
+    assert.equal(userTextIsRecallPresuppositionOnly(joinedUsers), true);
+    assert.deepEqual(userSharedHistoryEvidenceUnits(joinedUsers), []);
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(T6_INVENTED, joinedUsers), false);
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(T6_INVENTED, dialogueText, PERSONA),
+      false
+    );
+    assert.equal(
+      detectUnsupportedEvidenceFact(
+        {
+          category: "relationship",
+          subject: "like_ren",
+          attribute: "scene_event",
+          value: "pushed_umbrella_wet_shoulder",
+          importance: "important",
+          fact_text: T6_INVENTED,
+          evidence_type: "explicit_scene_event",
+        },
+        joinedUsers,
+        [T6_QUERY, ...FILLER_USERS].map((text, index) => ({
+          turn: index + 1,
+          messageId: index + 1,
+          text,
+        }))
+      ),
+      "unsupported_assistant_user_relationship"
+    );
+  });
+
+  it("live summarizeTurnBatch rejects 5-turn invented umbrella restorage", async () => {
+    const dialogueText = fiveTurnDialogue(
+      [T6_QUERY, ...FILLER_USERS],
+      [T6_ASSISTANT, ...FILLER_ASSISTANTS]
+    );
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: T6_INVENTED }));
+    const sealed = await summarizeTurnBatch({
+      dialogue: dialogueText,
+      charName: "라이크",
+      userPersona: PERSONA,
+      startTurn: 1,
+      endTurn: 5,
+    });
+    assert.equal(sealed, "");
+  });
+
+  it("5-turn joined rooftop recall cannot validate invented first-day user acts", () => {
+    const joinedUsers = [T50_QUERY, ...FILLER_USERS].join("\n");
+    const dialogueText = fiveTurnDialogue(
+      [T50_QUERY, ...FILLER_USERS],
+      [T50_ASSISTANT, ...FILLER_ASSISTANTS]
+    );
+    assert.deepEqual(userSharedHistoryEvidenceUnits(joinedUsers), []);
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(T50_INVENTED, joinedUsers), false);
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(T50_INVENTED, dialogueText, PERSONA),
+      false
+    );
+  });
+
+  it("5-turn recall + unrelated OOC cannot validate invented umbrella details", () => {
+    const users = [
+      T6_QUERY,
+      FILLER_USERS[0],
+      FILLER_USERS[1],
+      "OOC: 오늘 날씨 묘사만 유지한다.",
+      FILLER_USERS[3],
+    ];
+    const joinedUsers = users.join("\n");
+    const dialogueText = fiveTurnDialogue(users, [T6_ASSISTANT, ...FILLER_ASSISTANTS]);
+    assert.equal(a29d9ba1RecallPresuppositionOnly(joinedUsers), false);
+    assert.deepEqual(userSharedHistoryEvidenceUnits(joinedUsers), []);
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(T6_INVENTED, joinedUsers), false);
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(T6_INVENTED, dialogueText, PERSONA),
+      false
+    );
+  });
+
+  it("explicit user assertion plus 기억나? supports only the asserted fact", () => {
+    const market = "어제 우리 둘이 시장에 갔어. 기억나?";
+    const ring = "어제 내가 네게 반지를 줬어. 기억나?";
+    const firstMeet = "우리가 어제 처음 만났는데, 기억나?";
+    assert.equal(a29d9ba1RecallPresuppositionOnly(market), true);
+    assert.equal(userTextIsRecallPresuppositionOnly(market), false);
+    assert.deepEqual(userSharedHistoryEvidenceUnits(market), [
+      "어제 우리 둘이 시장에 갔어",
+    ]);
+    assert.equal(
+      userTextSupportsPriorSharedHistoryClaim(
+        "렌과 라이크는 어제 시장에 함께 갔다.",
+        market
+      ),
+      true
+    );
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(T6_INVENTED, market), false);
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "렌과 라이크는 어제 시장에 함께 갔고, 라이크는 그 말을 듣고 고개를 끄덕였다.",
+        dialogue(1, market, "라이크는 고개를 끄덕였다."),
+        PERSONA
+      ),
+      true
+    );
+
+    assert.equal(userTextIsRecallPresuppositionOnly(ring), false);
+    assert.equal(
+      userTextSupportsPriorSharedHistoryClaim(
+        "렌이 어제 라이크에게 반지를 주었다.",
+        ring
+      ),
+      true
+    );
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(T6_INVENTED, ring), false);
+
+    assert.equal(userTextIsRecallPresuppositionOnly(firstMeet), false);
+    assert.equal(
+      userTextSupportsPriorSharedHistoryClaim(
+        "렌과 라이크는 어제 처음 만났다.",
+        firstMeet
+      ),
+      true
+    );
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(T50_INVENTED, firstMeet), false);
   });
 
   it("H auto-extract cannot promote invented familiarity thoughts or honorifics", () => {
