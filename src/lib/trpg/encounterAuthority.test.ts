@@ -13,11 +13,11 @@ import {
   type TrpgEngineDeps,
 } from "./engineAdvance";
 import { loadCampaignContext } from "./campaignContext";
-import { governedEncounters, resolveThreatStrikes } from "./encounterStrikes";
+import { acceptEncountersEnded, governedEncounters, resolveThreatStrikes } from "./encounterStrikes";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { mergeMechanicsOwnedDelta } from "./mechanicsMerge";
 import { resolveRoundMechanics } from "./mechanicsResolve";
-import { loadOngoingEffects, loadMechanicsResolution, loadThreatStrikeCounts } from "./mechanicsStore";
+import { loadEndedEncounterIds, loadOngoingEffects, loadMechanicsResolution, loadThreatStrikeCounts } from "./mechanicsStore";
 import { applyPostGmOngoingSeeds, derivePostGmOngoingSeeds } from "./postGmOngoing";
 import {
   emptyTrpgScenarioPlan,
@@ -27,7 +27,8 @@ import {
   type TrpgScenarioEncounter,
 } from "./scenarioPlan";
 import { mergeScenarioDraft, parseScenarioDraftJson } from "./scenarioDraft";
-import { insertScenarioTemplate } from "./scenarioTemplates";
+import { insertScenarioTemplate, updateScenarioTemplate } from "./scenarioTemplates";
+import { TRPG_GM_STRUCTURED_RESPONSE_FORMAT } from "./gmStructuredOutput";
 import { ensureTrpgTables } from "./schema";
 import { insertParticipant } from "./store";
 import type { TrpgSheetSnapshot } from "./types";
@@ -695,6 +696,55 @@ describe("encounter authority: billing, composition and authoring", () => {
     db.close();
   });
 
+  it("governed ending through a billing fault and retry: ended once, strike once, one charge, no GM re-call, no strike next round", async () => {
+    const db = chargedDb();
+    const seat = setup(db, [{ ...WOLF, activateRound: 1, maxStrikes: 6 }]);
+    let gmCalls = 0;
+    const play = (fault?: TrpgEngineDeps["billingFault"]): TrpgEngineDeps => ({
+      skipBilling: false,
+      billingFault: fault,
+      rollD20: () => 15,
+      rollDie: () => 4,
+      gmCall: async () => {
+        gmCalls += 1;
+        return {
+          text: buildTrpgGmStructuredWireText("사냥꾼이 쓰러졌다. GM: 무엇을 하겠는가.", {
+            players: [{ participantId: seat.hostId, hp: 40 }],
+            location: "복도",
+            next_round_context: "다음",
+            campaign_finished: false,
+            encountersEnded: ["enc_hunter"],
+          }),
+          usage: usage(),
+        };
+      },
+    });
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps: { ...play(), skipBilling: true } });
+    creditPointsWithIds(db, 1, (computeTrpgRoundPoints([usage()]) + 200) * 2, "PAID", "test-credit-PAID");
+    const before = getPointBalanceOnDb(db, 1).total;
+    submitTrpgAction(db, { campaignId: seat.campaignId, userId: 1, body: "맞서 싸운다.", actionType: "investigate" });
+    await advanceTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps: play("billing_persist") });
+    assert.deepEqual(loadEndedEncounterIds(db, seat.campaignId, 999), [], "the faulted commit rolled back the ending too");
+    const callsAfterFault = gmCalls;
+    await advanceTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps: play() });
+    assert.equal(gmCalls, callsAfterFault);
+    assert.deepEqual(loadEndedEncounterIds(db, seat.campaignId, 999), ["enc_hunter"]);
+    assert.equal(logRows(db, seat), 2, "opening + round 1, one row each");
+    const round1 = roundIdByNumber(db, seat.campaignId, 1);
+    const strikes = loadMechanicsResolution(db, round1)!.threatStrikes!;
+    assert.equal(strikes.length, 1);
+    assert.equal(hpOf(db, seat.hostId), 40 - strikes[0]!.dice!.amount);
+    const charged = before - getPointBalanceOnDb(db, 1).total;
+    assert.equal((db.prepare(`SELECT billed FROM trpg_rounds WHERE id=?`).get(round1) as { billed: number }).billed, 1);
+    await advanceTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps: play() });
+    assert.equal(before - getPointBalanceOnDb(db, 1).total, charged, "duplicate advance does not charge again");
+    assert.equal(logRows(db, seat), 2, "duplicate commit does not write a second ending");
+    submitTrpgAction(db, { campaignId: seat.campaignId, userId: 1, body: "쉰다.", actionType: "investigate" });
+    await advanceTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps: play() });
+    assert.equal((loadMechanicsResolution(db, roundIdByNumber(db, seat.campaignId, 2))!.threatStrikes ?? []).length, 0);
+    db.close();
+  });
+
   it("an existing server tick and a strike in the same round both apply; GM numbers do not override either", async () => {
     const db = memoryDb();
     const seat = setup(db, [{ ...WOLF, activateRound: 1 }]);
@@ -730,5 +780,307 @@ describe("encounter authority: billing, composition and authoring", () => {
       generated: parseScenarioDraftJson(JSON.stringify({ title: "t", summary: "s", ...PLAN, encounters: [WOLF] })),
     });
     assert.equal("encounters" in noAuthored.plan, false);
+  });
+});
+
+type EndStep = { hp?: number | null; ended?: string[]; location?: string; extra?: Record<string, unknown> };
+
+function scriptedGm(seat: Seat, steps: EndStep[], extraPlayers: number[] = []) {
+  let call = 0;
+  const deps: TrpgEngineDeps = {
+    skipBilling: true,
+    rollD20: () => 15,
+    rollDie: () => 4,
+    gmCall: async () => {
+      const step = steps[call] ?? {};
+      call += 1;
+      const players = [seat.hostId, ...extraPlayers].map((participantId) => ({
+        participantId,
+        ...(step.hp != null ? { hp: step.hp } : {}),
+        ...(step.location ? { location: step.location } : {}),
+      }));
+      return {
+        text: buildTrpgGmStructuredWireText("복도의 공기가 무겁게 가라앉았다. GM: 무엇을 하겠는가.", {
+          players,
+          location: step.location ?? "복도",
+          next_round_context: "다음",
+          campaign_finished: false,
+          ...(step.ended ? { encountersEnded: step.ended } : {}),
+          ...(step.extra ?? {}),
+        }),
+      };
+    },
+  };
+  return deps;
+}
+
+const strikesOf = (db: Database.Database, seat: Seat, n: number) =>
+  loadMechanicsResolution(db, roundIdByNumber(db, seat.campaignId, n))?.threatStrikes ?? [];
+const ended = (db: Database.Database, seat: Seat) => loadEndedEncounterIds(db, seat.campaignId, 999);
+const logRows = (db: Database.Database, seat: Seat) =>
+  (db.prepare(`SELECT COUNT(*) AS n FROM trpg_state_change_log WHERE campaign_id=?`).get(seat.campaignId) as { n: number }).n;
+const HUNTER: TrpgScenarioEncounter = { ...WOLF, activateRound: 1, maxStrikes: 6 };
+
+describe("encounter authority: suppress-only GM ending", () => {
+  it("a same-place enemy strikes, the GM ends it with its id, and it never strikes again while the party stays", async () => {
+    const db = memoryDb();
+    const seat = setup(db, [HUNTER]);
+    const deps = scriptedGm(seat, [{}, { hp: 40 }, { hp: 40, ended: ["enc_hunter"] }, { hp: 5 }, { hp: 5 }]);
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    await playRound(db, seat, deps, "문을 두드린다.");
+    assert.equal(hpOf(db, seat.hostId), 32);
+    await playRound(db, seat, deps, "벽을 살핀다.");
+    assert.equal(strikesOf(db, seat, 2).length, 1);
+    assert.equal(hpOf(db, seat.hostId), 24, "round 2 strike was decided before narration; GM's 40 and its ending do not undo it");
+    assert.deepEqual(loadEndedEncounterIds(db, seat.campaignId, 2), [], "round 2 itself cannot see an ending proposed in round 2");
+    await playRound(db, seat, deps, "쓰러진 사냥꾼 곁에 머문다.");
+    assert.equal(strikesOf(db, seat, 3).length, 0, "ended threat cannot strike the next round even with the party still there");
+    assert.deepEqual(ended(db, seat), ["enc_hunter"]);
+    assert.equal(hpOf(db, seat.hostId), 24);
+    await playRound(db, seat, deps, "숨을 고른다.");
+    assert.equal(hpOf(db, seat.hostId), 24, "GM HP 5 is still ignored: ending the only threat does not hand HP authority back");
+    db.close();
+  });
+
+  it("without an ending id the narrated defeat is only text: npcsRemove / flags do not stop strikes", async () => {
+    const db = memoryDb();
+    const seat = setup(db, [HUNTER]);
+    const deps = scriptedGm(seat, [{}, {}, { extra: { npcsRemove: ["그림자 사냥꾼"], flagsAdd: ["사냥꾼 처치됨"] } }, {}]);
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    await playRound(db, seat, deps, "문을 두드린다.");
+    await playRound(db, seat, deps, "맞서 싸운다.");
+    await playRound(db, seat, deps, "쉰다.");
+    assert.equal(strikesOf(db, seat, 3).length, 1);
+    assert.deepEqual(ended(db, seat), []);
+    db.close();
+  });
+
+  it("unknown ids and encounters nobody is near cannot be ended; a different encounter keeps striking and is not ended by mistake", async () => {
+    const db = memoryDb();
+    const far: TrpgScenarioEncounter = { ...HUNTER, id: "enc_archive", name: "서고지기", location: "서고" };
+    const seat = setup(db, [HUNTER, far]);
+    const deps = scriptedGm(seat, [{}, { ended: ["ghost", "enc_archive", "서고지기"] }, { ended: ["enc_hunter"] }, { location: "서고" }, {}, {}]);
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    await playRound(db, seat, deps, "문을 두드린다.");
+    assert.deepEqual(ended(db, seat), [], "unknown id, cross-scene id and a free-text name are all rejected");
+    await playRound(db, seat, deps, "벽을 살핀다.");
+    assert.deepEqual(strikesOf(db, seat, 2).map((row) => row.encounterId), ["enc_hunter"]);
+    await playRound(db, seat, deps, "서고로 간다.");
+    assert.deepEqual(ended(db, seat), ["enc_hunter"]);
+    assert.deepEqual(strikesOf(db, seat, 3), [], "enc_hunter is ended and the party has not reached the archive yet");
+    await playRound(db, seat, deps, "서가를 본다.");
+    assert.deepEqual(strikesOf(db, seat, 4).map((row) => row.encounterId), ["enc_archive"], "the other place's threat was never ended");
+    db.close();
+  });
+
+  it("two enemies in one place are independent: ending one leaves the other striking", async () => {
+    const db = memoryDb();
+    const other: TrpgScenarioEncounter = { ...HUNTER, id: "enc_hound", name: "그림자 사냥개" };
+    const seat = setup(db, [HUNTER, other]);
+    const deps = scriptedGm(seat, [{}, {}, { ended: ["enc_hunter"] }, {}]);
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    await playRound(db, seat, deps, "문을 두드린다.");
+    await playRound(db, seat, deps, "맞서 싸운다.");
+    assert.equal(strikesOf(db, seat, 2).length, 2);
+    await playRound(db, seat, deps, "사냥개를 경계한다.");
+    assert.deepEqual(strikesOf(db, seat, 3).map((row) => row.encounterId), ["enc_hound"]);
+    db.close();
+  });
+
+  it("a GM-invented enemy gets no HP authority, and ending it by id does nothing", async () => {
+    const db = memoryDb();
+    const seat = setup(db, [{ ...HUNTER, location: "서고" }]);
+    const deps = scriptedGm(seat, [{}, { hp: 10, ended: ["new_goblin"], extra: { npcsAdd: ["새 고블린"], flagsAdd: ["고블린 습격"] } }, { hp: 10 }]);
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    await playRound(db, seat, deps, "문을 두드린다.");
+    await playRound(db, seat, deps, "문을 다시 두드린다.");
+    assert.equal(hpOf(db, seat.hostId), 40);
+    assert.deepEqual(ended(db, seat), []);
+    assert.equal(strikesOf(db, seat, 1).length + strikesOf(db, seat, 2).length, 0);
+    db.close();
+  });
+
+  it("the opening scene cannot pre-end an authored threat", async () => {
+    const db = memoryDb();
+    const seat = setup(db, [HUNTER]);
+    const deps = scriptedGm(seat, [{ ended: ["enc_hunter"] }, {}]);
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    await playRound(db, seat, deps, "문을 두드린다.");
+    assert.equal(strikesOf(db, seat, 1).length, 1);
+    assert.deepEqual(ended(db, seat), []);
+    db.close();
+  });
+
+  it("an existing server tick and recovery keep working after the enemy is ended", async () => {
+    const db = memoryDb();
+    const seat = setup(db, [HUNTER]);
+    const deps = scriptedGm(seat, [{}, { ended: ["enc_hunter"] }, {}]);
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    applyPostGmOngoingSeeds(db, { campaignId: seat.campaignId, roundNumber: 0, seeds: [{ participantId: seat.hostId, family: "POISON" }] });
+    await playRound(db, seat, deps, "문을 두드린다.");
+    const round1 = loadMechanicsResolution(db, roundIdByNumber(db, seat.campaignId, 1))!;
+    assert.equal(round1.ongoingTicks.length, 1, "server tick and strike compose in the ending round");
+    assert.equal(round1.threatStrikes?.length, 1);
+    const stillActive = loadOngoingEffects(db, seat.campaignId).some((effect) => effect.stackKey === "poison" && effect.remainingTicks !== 0);
+    await playRound(db, seat, deps, "숨을 고른다.");
+    const round2 = loadMechanicsResolution(db, roundIdByNumber(db, seat.campaignId, 2))!;
+    assert.equal(round2.threatStrikes?.length ?? 0, 0);
+    if (stillActive) assert.ok(round2.ongoingTicks.length + round2.recoveries.length > 0, "poison owner kept running after the ending");
+    db.close();
+  });
+
+  it("2 humans + 2 AI: two encounters in two places end independently and never mix targets", async () => {
+    const db = memoryDb();
+    db.prepare(`INSERT INTO users (id, email, nickname, points) VALUES (2,'b@t','태현',5000)`).run();
+    const w2: TrpgScenarioEncounter = { ...HUNTER, id: "enc_cellar", name: "지하 감시자", location: "지하" };
+    const seat = setup(db, [HUNTER, w2]);
+    const invite = (db.prepare(`SELECT invite_code FROM trpg_campaigns WHERE id=?`).get(seat.campaignId) as { invite_code: string }).invite_code;
+    joinTrpgCampaign(db, { code: invite, userId: 2, nickname: "태현" });
+    saveTrpgSheet(db, { campaignId: seat.campaignId, userId: 2, name: "태현", stats: EVEN_STATS });
+    const human2 = (db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=2`).get(seat.campaignId) as { id: number }).id;
+    const ai: number[] = [];
+    for (const [slot, name, place] of [[2, "유나", "복도"], [3, "카이", "지하"]] as const) {
+      const id = insertParticipant(db, { campaignId: seat.campaignId, slotIndex: slot, kind: "ai_character", userId: null, characterId: null, displayName: name });
+      writeSheet(db, seat.campaignId, id, name, EVEN_STATS, place);
+      ai.push(id);
+    }
+    const deps = scriptedGm(seat, [{}, { ended: ["enc_cellar"] }, { ended: ["enc_hunter"] }, {}]);
+    deps.botCall = async () => ({ text: "조용히 주변을 살핀다." });
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    const act = async () => {
+      submitTrpgAction(db, { campaignId: seat.campaignId, userId: 1, body: "주변을 둘러본다.", actionType: "investigate" });
+      submitTrpgAction(db, { campaignId: seat.campaignId, userId: 2, body: "문을 살핀다.", actionType: "investigate" });
+      await advanceTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    };
+    await act();
+    const r1 = strikesOf(db, seat, 1);
+    assert.deepEqual(r1.map((row) => row.encounterId).sort(), ["enc_cellar", "enc_hunter"]);
+    const cellar = r1.find((row) => row.encounterId === "enc_cellar")!;
+    const hall = r1.find((row) => row.encounterId === "enc_hunter")!;
+    assert.deepEqual(cellar.eligibleParticipantIds, [ai[1]!], "the cellar threat can only reach the seat in the cellar");
+    assert.deepEqual(hall.eligibleParticipantIds, [seat.hostId, human2, ai[0]!].sort((a, b) => a - b));
+    assert.deepEqual(ended(db, seat), ["enc_cellar"]);
+    const cellarSeatHp = hpOf(db, ai[1]!);
+    await act();
+    const r2 = strikesOf(db, seat, 2);
+    assert.deepEqual(r2.map((row) => row.encounterId), ["enc_hunter"], "only the ended cellar threat stopped");
+    assert.ok(r2[0]!.eligibleParticipantIds.every((id) => id !== ai[1]!));
+    assert.equal(hpOf(db, ai[1]!), cellarSeatHp, "the cellar seat is untouched once its threat ended");
+    await act();
+    assert.deepEqual(ended(db, seat).sort(), ["enc_cellar", "enc_hunter"]);
+    assert.equal(strikesOf(db, seat, 3).length, 0);
+    db.close();
+  });
+});
+
+describe("encounter authority: regeneration and pure ending rules", () => {
+  it("regeneration neither adds nor removes an ending", async () => {
+    const db = memoryDb();
+    const seat = setup(db, [HUNTER]);
+    const deps = scriptedGm(seat, [{}, {}, { ended: ["enc_hunter"] }, {}]);
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    await playRound(db, seat, deps, "문을 두드린다.");
+    await regenerateTrpgNarration(db, { campaignId: seat.campaignId, userId: 1, deps });
+    assert.deepEqual(ended(db, seat), [], "a regenerated GM result proposing an ending is not committed state");
+    const hp = hpOf(db, seat.hostId);
+    const deps2 = scriptedGm(seat, [{ ended: ["enc_hunter"] }, { ended: [] }]);
+    await playRound(db, seat, deps2, "벽을 살핀다.");
+    assert.deepEqual(ended(db, seat), ["enc_hunter"]);
+    const rows = logRows(db, seat);
+    await regenerateTrpgNarration(db, { campaignId: seat.campaignId, userId: 1, deps: deps2 });
+    assert.deepEqual(ended(db, seat), ["enc_hunter"], "regeneration cannot undo an accepted ending");
+    assert.equal(logRows(db, seat), rows);
+    assert.ok(hpOf(db, seat.hostId) < hp, "round 2 strike remained");
+    db.close();
+  });
+
+  it("acceptEncountersEnded: only known, present, not-yet-ended ids are accepted, once", () => {
+    const encounters = [HUNTER, { ...HUNTER, id: "enc_archive", name: "서고지기", location: "서고" }];
+    const result = acceptEncountersEnded({
+      proposed: ["enc_hunter", "enc_hunter", "enc_archive", "ghost", " enc_archive "],
+      encounters,
+      alreadyEnded: [],
+      seatLocations: ["복도"],
+    });
+    assert.deepEqual(result.accepted, ["enc_hunter"]);
+    assert.deepEqual(result.rejected.map((row) => `${row.id}:${row.reason}`), [
+      "enc_hunter:duplicate",
+      "enc_archive:not_in_scene",
+      "ghost:unknown",
+      "enc_archive:duplicate",
+    ]);
+    const again = acceptEncountersEnded({ proposed: ["enc_hunter"], encounters, alreadyEnded: ["enc_hunter"], seatLocations: ["복도"] });
+    assert.deepEqual(again.accepted, []);
+    assert.equal(again.rejected[0]?.reason, "already_ended");
+    assert.deepEqual(acceptEncountersEnded({ proposed: undefined, encounters, alreadyEnded: [], seatLocations: ["복도"] }).accepted, []);
+  });
+
+  it("the GM-facing surfaces expose stable ids and the single typed field without a new prompt section", () => {
+    const plan = parseTrpgScenarioPlan({ ...PLAN, encounters: [WOLF] })!;
+    assert.match(serializeTrpgScenarioPlanForGm(plan), /\[enc_hunter\] 그림자 사냥꾼 @ 복도/);
+    const props = (TRPG_GM_STRUCTURED_RESPONSE_FORMAT.json_schema.schema.properties.delta.properties as Record<string, unknown>);
+    assert.ok("encountersEnded" in props);
+  });
+});
+
+describe("encounter authority: malformed author config is rejected at the save boundary", () => {
+  const base = { title: "폐역", summary: "유령 기차", content: "유령 기차를 기다린다.", visibility: "public" as const, startLocation: "복도" };
+  const tryInsert = (db: Database.Database, encounters: unknown) =>
+    insertScenarioTemplate(db, 7, { ...base, scenarioPlan: { ...PLAN, encounters } as never });
+  const count = (db: Database.Database) => (db.prepare(`SELECT COUNT(*) AS n FROM trpg_scenario_templates`).get() as { n: number }).n;
+
+  it("rejects each malformed encounter instead of silently dropping it", () => {
+    const db = memoryDb();
+    const bad: Array<[string, unknown, RegExp]> = [
+      ["missing location", [{ ...WOLF, location: "" }], /장소\(location\)가 없습니다/],
+      ["bad damage class", [{ ...WOLF, damageClass: "NONE" }], /damageClass/],
+      ["bad activateRound", [{ ...WOLF, activateRound: 0 }], /activateRound/],
+      ["bad hitDc", [{ ...WOLF, hitDc: 99 }], /hitDc/],
+      ["duplicate id", [WOLF, { ...WOLF, name: "다른 적" }], /중복/],
+      ["bad kind", [{ ...WOLF, kind: "ally" }], /kind/],
+      ["maxStrikes over cap", [{ ...WOLF, maxStrikes: 99 }], /maxStrikes/],
+      ["not an array", { id: "x" }, /목록 형식/],
+      ["row not an object", ["적"], /객체 형식/],
+      ["too many", Array.from({ length: 7 }, (_, i) => ({ ...WOLF, id: `e${i}`, name: `적${i}` })), /최대/],
+      ["one bad row among good rows", [WOLF, { ...WOLF, id: "second", location: "" }], /#2/],
+    ];
+    for (const [label, encounters, pattern] of bad) {
+      assert.throws(() => tryInsert(db, encounters), pattern, label);
+    }
+    assert.equal(count(db), 0, "nothing was stored");
+    db.close();
+  });
+
+  it("also rejects on update and for a JSON-string plan; absent, null and empty encounters stay valid", () => {
+    const db = memoryDb();
+    const id = tryInsert(db, [WOLF]);
+    assert.throws(
+      () => updateScenarioTemplate(db, id, 7, { ...base, scenarioPlan: { ...PLAN, encounters: [{ ...WOLF, location: "" }] } as never }),
+      /장소\(location\)/
+    );
+    assert.throws(
+      () => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: JSON.stringify({ ...PLAN, encounters: [{ ...WOLF, damageClass: "X" }] }) as never }),
+      /damageClass/
+    );
+    for (const encounters of [undefined, null, []]) {
+      assert.doesNotThrow(() => tryInsert(db, encounters));
+    }
+    const stored = db.prepare(`SELECT scenario_plan_json FROM trpg_scenario_templates WHERE id=?`).get(id) as { scenario_plan_json: string };
+    assert.equal(parseTrpgScenarioPlan(stored.scenario_plan_json)?.encounters?.[0]?.location, "복도", "a rejected update leaves the stored plan intact");
+    db.close();
+  });
+
+  it("a valid config still reaches governed play, and model drafts still cannot create or overwrite it", () => {
+    const db = memoryDb();
+    const id = tryInsert(db, [WOLF]);
+    const stored = db.prepare(`SELECT scenario_plan_json FROM trpg_scenario_templates WHERE id=?`).get(id) as { scenario_plan_json: string };
+    assert.deepEqual(parseTrpgScenarioPlan(stored.scenario_plan_json)?.encounters, [WOLF]);
+    const merged = mergeScenarioDraft({
+      mode: "regenerate_all",
+      existing: { title: "폐역", plan: { ...emptyTrpgScenarioPlan(), ...PLAN, encounters: [WOLF] } },
+      generated: parseScenarioDraftJson(JSON.stringify({ title: "t", summary: "s", ...PLAN, encounters: [{ ...WOLF, id: "model", location: "" }] })),
+    });
+    assert.deepEqual(merged.plan.encounters, [WOLF]);
+    db.close();
   });
 });

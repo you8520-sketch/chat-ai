@@ -15,6 +15,7 @@ import {
   loadLastSafeRestRounds,
   loadMechanicsResolution,
   loadOngoingEffects,
+  loadEndedEncounterIds,
   loadThreatStrikeCounts,
   saveMechanicsResolution,
 } from "./mechanicsStore";
@@ -167,6 +168,7 @@ export async function completeRoundMechanics(
     lastSafeRestByParticipant: loadLastSafeRestRounds(db, opts.campaignId),
     encounters,
     priorThreatStrikes: encounters.length ? loadThreatStrikeCounts(db, opts.campaignId, opts.roundId) : {},
+    endedEncounterIds: encounters.length ? loadEndedEncounterIds(db, opts.campaignId, roundNumber) : [],
   });
   saveMechanicsResolution(db, resolved);
   logMechanicsObservability(resolved);

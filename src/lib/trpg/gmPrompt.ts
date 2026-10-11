@@ -86,6 +86,8 @@ function asDelta(raw: unknown): TrpgStateDelta {
   const threadsResolve = stringList(src.threadsResolve) ?? stringList(src.threads_resolve);
   if (threadsAdd) delta.threadsAdd = threadsAdd;
   if (threadsResolve) delta.threadsResolve = threadsResolve;
+  const encountersEnded = stringList(src.encountersEnded);
+  if (encountersEnded) delta.encountersEnded = encountersEnded;
   if (typeof src.endingConditionId === "string") delta.endingConditionId = src.endingConditionId;
   else if (typeof src.ending_condition_id === "string") delta.endingConditionId = src.ending_condition_id;
   const localScene =

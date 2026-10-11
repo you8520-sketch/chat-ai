@@ -72,6 +72,8 @@ export type MechanicsResolveInput = {
   /** Author-approved encounters (trusted source only). Non-empty switches the campaign to server HP authority. */
   encounters?: readonly TrpgScenarioEncounter[];
   priorThreatStrikes?: Record<string, number>;
+  /** Encounter ids retired by an accepted GM commit in an earlier round. */
+  endedEncounterIds?: readonly string[];
 };
 
 export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsResolution {
@@ -625,6 +627,7 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
         encounters: input.encounters ?? [],
         roundNumber: input.roundNumber,
         priorStrikes: input.priorThreatStrikes ?? {},
+        endedEncounterIds: input.endedEncounterIds ?? [],
         sheets,
         rng,
         rollD20: recoveryRng,
@@ -1216,7 +1219,7 @@ function formatAuthoritativePacket(opts: {
     return lines.join("\n");
   });
   const authorityNote = opts.encounterAuthority
-    ? "\n\nENCOUNTER_AUTHORITY: HP loss this round is only what THREAT_STRIKE / ONGOING lines above state. Narrate any other peril without HP numbers — use position, time, pursuit or new obstacles. Narrate every THREAT_STRIKE result exactly (hit or miss). 중독/출혈 labels you add are narrative only here and do not tick HP."
+    ? "\n\nENCOUNTER_AUTHORITY: HP loss this round is only what THREAT_STRIKE / ONGOING lines above state. Narrate any other peril without HP numbers — use position, time, pursuit or new obstacles. Narrate every THREAT_STRIKE result exactly (hit or miss). 중독/출혈 labels you add are narrative only here and do not tick HP. If this round's story ends a listed threat (defeated, fled, truce), put its [id] in delta.encountersEnded; that only stops its later strikes and never grants damage, hits, rewards or healing."
     : "";
   return `[AUTHORITATIVE MECHANICS]\n${blocks.join("\n\n")}${authorityNote}`;
 }

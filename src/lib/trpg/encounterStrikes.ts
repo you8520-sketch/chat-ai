@@ -39,12 +39,15 @@ export function resolveThreatStrikes(opts: {
   roundNumber: number;
   priorStrikes: Readonly<Record<string, number>>;
   sheets: Map<number, TrpgSheetSnapshot>;
+  endedEncounterIds?: readonly string[];
   rng: DiceRng;
   rollD20: () => number;
   baseDc: number;
 }): ThreatStrikeRecord[] {
   const out: ThreatStrikeRecord[] = [];
+  const ended = new Set(opts.endedEncounterIds ?? []);
   for (const encounter of opts.encounters) {
+    if (ended.has(encounter.id)) continue;
     const used = opts.priorStrikes[encounter.id] ?? 0;
     if (opts.roundNumber < encounter.activateRound || used >= encounter.maxStrikes) continue;
     const eligible = eligibleTargets(encounter, opts.sheets);
@@ -77,6 +80,39 @@ export function resolveThreatStrikes(opts: {
     });
   }
   return out;
+}
+
+export type EncounterEndingRejection = { id: string; reason: "unknown" | "already_ended" | "not_in_scene" | "duplicate" };
+
+/**
+ * Suppress-only GM ending. Accepts an id only if it names an approved encounter that is not already ended
+ * and whose authored place was occupied by some seat this round (start-of-round or accepted post-round
+ * location). Free text, names and other delta fields are never consulted. The result can only remove
+ * future strikes; nothing here creates a threat, damage, hit, reward or heal.
+ */
+export function acceptEncountersEnded(opts: {
+  proposed: readonly string[] | undefined;
+  encounters: readonly TrpgScenarioEncounter[];
+  alreadyEnded: readonly string[];
+  seatLocations: readonly string[];
+}): { accepted: string[]; rejected: EncounterEndingRejection[] } {
+  const accepted: string[] = [];
+  const rejected: EncounterEndingRejection[] = [];
+  const known = new Map(opts.encounters.map((encounter) => [encounter.id, encounter]));
+  const ended = new Set(opts.alreadyEnded);
+  const seen = new Set<string>();
+  for (const raw of opts.proposed ?? []) {
+    const id = raw.trim();
+    const encounter = known.get(id);
+    if (!encounter) rejected.push({ id, reason: "unknown" });
+    else if (seen.has(id)) rejected.push({ id, reason: "duplicate" });
+    else if (ended.has(id)) rejected.push({ id, reason: "already_ended" });
+    else if (!opts.seatLocations.some((location) => destinationRefinesDeclared(encounter.location, location))) {
+      rejected.push({ id, reason: "not_in_scene" });
+    } else accepted.push(id);
+    seen.add(id);
+  }
+  return { accepted, rejected };
 }
 
 export function formatThreatStrikeLines(

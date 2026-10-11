@@ -150,9 +150,9 @@ import {
   type MechanicsRoundDeps,
 } from "./mechanicsRound";
 import { mergeMechanicsOwnedDelta } from "./mechanicsMerge";
-import { governedEncounters } from "./encounterStrikes";
+import { acceptEncountersEnded, governedEncounters } from "./encounterStrikes";
 import { evaluateThreatShadow, formatThreatShadowLog, threatShadowHasSignal } from "./threatShadow";
-import { loadMechanicsResolution, markMechanicsApplied } from "./mechanicsStore";
+import { loadEndedEncounterIds, loadMechanicsResolution, markMechanicsApplied } from "./mechanicsStore";
 import {
   applyPostGmOngoingSeeds,
   derivePostGmOngoingSeeds,
@@ -1607,6 +1607,20 @@ function commitPendingGmResult(
     db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
   ).round_number;
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
+  const endedProposals = parsed.delta.encountersEnded;
+  const encounterEnding =
+    governedCampaign && !opts.opening && !opts.regenerate
+      ? acceptEncountersEnded({
+          proposed: endedProposals,
+          encounters: governedEncounters(campaignContext),
+          alreadyEnded: loadEndedEncounterIds(db, campaign.id, roundNumber),
+          seatLocations: [...sheets, ...nextSheets].map((sheet) => sheet.location),
+        })
+      : { accepted: [] as string[], rejected: [] };
+  const { encountersEnded: _proposedEnding, ...deltaWithoutEnding } = parsed.delta;
+  const committedDelta = encounterEnding.accepted.length
+    ? { ...deltaWithoutEnding, encountersEnded: encounterEnding.accepted }
+    : deltaWithoutEnding;
   const postGmOngoingSeeds = governedCampaign
     ? withoutHpHarmSeeds(opts.postGmOngoingSeeds ?? [])
     : (opts.postGmOngoingSeeds ?? []);
@@ -1674,7 +1688,7 @@ function commitPendingGmResult(
         db.prepare(
           `INSERT OR IGNORE INTO trpg_state_change_log (campaign_id, round_id, idempotency_key, applied_json)
            VALUES (?,?,?,?)`
-        ).run(campaign.id, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(parsed.delta));
+        ).run(campaign.id, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(committedDelta));
       }
       persistCampaignLedger(db, campaign.id, roundNumber, ledger);
       persistAcceptedRoundLocationIfAbsent(
@@ -1712,6 +1726,13 @@ function commitPendingGmResult(
       clearPendingGmResult(db, opts.roundId);
       stage = "round_complete";
     })();
+    if (encounterEnding.accepted.length || encounterEnding.rejected.length) {
+      console.info("[trpg-encounter-ended]", {
+        proposed: endedProposals?.length ?? 0,
+        accepted: encounterEnding.accepted,
+        rejected: encounterEnding.rejected,
+      });
+    }
     if (!opts.regenerate && !opts.opening) {
       logPostGmOngoingObservability({
         seeds: postGmOngoingSeeds,
