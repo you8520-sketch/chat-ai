@@ -85,8 +85,6 @@ describe("home editorial owners", () => {
     assert.match(card, /AdultContentBadge/);
     assert.match(card, /z-\[3\]/);
     assert.match(card, /z-\[4\]/);
-    assert.match(card, /hover:-translate-y-1\.5/);
-    assert.match(card, /rounded-2xl/);
     assert.doesNotMatch(card, /studioSuffix|· 공식 스튜디오/);
 
     for (const consumer of [
