@@ -1,0 +1,1449 @@
+[
+  {
+    "round": 0,
+    "sheetsBefore": [
+      {
+        "id": 8,
+        "name": "렌",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 9,
+        "name": "서하",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 10,
+        "name": "도윤",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 11,
+        "name": "현",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      }
+    ],
+    "sheetsAfter": [
+      {
+        "id": 8,
+        "name": "렌",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 9,
+        "name": "서하",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 10,
+        "name": "도윤",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 11,
+        "name": "현",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      }
+    ],
+    "gmMessage": [
+      {
+        "id": 1,
+        "round_id": 4,
+        "narration": "차륜이 레일을 짓이기며 멈춰 서는 소리는 낡은 쇠붙이가 비명을 지르는 듯했다. 덜컹거리는 디젤 동차의 녹슨 문이 거칠게 열리고, 차가운 밤공기와 눅눅한 빗줄기가 한꺼번에 들이쳤다. 일행이 발을 내디딘 곳은 십 년 전 지도에서 영구 결번으로 지워진 간이역, 무령역의 1번 승강장이었다. 승객을 내려놓은 마지막 열차는 엔진의 거친 숨을 고르지도 않은 채, 도망치듯 붉은 후미등을 번뜩이며 빗속으로 미끄러져 사라졌다. 궤도를 따라 멀어지는 붉은 불빛이 짙은 안개 속으로 완전히 침몰하자, 승강장에는 비바람에 삭아 내리는 처마 밑 낙수 소리와 발목까지 차오른 한기만이 고였다.\\n\\n바닥은 이미 깨진 보도블록 틈새로 잡초가 제멋대로 얽혀 있었고, 빗물에 젖은 침목에서는 썩은 기름 냄새와 비린 흙내음이 섞여 올라왔다. 승강장 처마 끝에 매달린 낡은 백열등 하나가 빗방울을 맞으며 파지직, 거친 파열음을 내며 깜빡였다. 누르스름한 불빛이 깜빡일 때마다 시야가 열렸다 닫히기를 반복했다. 녹슨 쇠기둥에 비스듬히 걸린 역명판은 빗물에 씻겨 '무…역'이라는 희미한 페인트 자국만을 간신히 드러내고 있었다.\\n\\n빗방울이 코트 깃을 적시는 가운데, 서하가 방수 외투의 모자를 깊게 눌러쓰며 승강장 바닥을 내려다보았다. 그녀의 시선은 침목 사이로 뻗어 나간 녹슨 철길의 끝자락, 그리고 승강장 한구석에 덩그러니 놓인 젖은 신문 뭉치와 깨진 표지판을 조용히 훑고 있었다. 십 년 전 철도 사고조사관으로 일했던 감각이 되살아난 것인지, 그녀의 호흡은 차분하면서도 칼날처럼 예리하게 가라앉아 있었다.\\n\\n서하: \"…사고 당시의 선로 배치가 그대로 방치되어 있군요. 십 년 전 공식 조사 보고서에서는 분명 이 구역 철거가 완료되었다고 적혀 있었습니다. 하지만 현실은 거짓말을 하지 않죠.\"\\n\\n서하는 외투 주머니에서 가죽 장갑을 낀 손을 꺼내더니, 승강장 기둥에 선명하게 남아 있는 거친 긁힘 자국을 손끝으로 천천히 훑었다. 기차의 차체가 긁고 지나간 듯한 깊은 궤적이었다. 그녀의 담담한 어조 속에는 오래 묵은 진실을 반드시 파헤치겠다는 서늘한 집념이 배어 있었다.\\n\\n반면 도윤은 커다란 체구를 움츠리며 목덜미로 파고드는 빗물을 거칠게 털어냈다. 그는 작업복 주머니에서 불이 꺼진 일회용 라이터를 꺼내 찰칵거리며 불안을 달래려 애썼지만, 축축한 습기 탓에 불꽃은 튀지 않았다. 어릴 적 이 역에서 영영 돌아오지 못한 아버지를 떠올린 것인지, 도윤의 거친 눈매가 짙은 안개로 뒤덮인 선로 쪽을 쏘아보았다. 도윤의 시선 끝에는 짙은 어둠이 아가리를 벌리고 있었다.\\n\\n도윤: \"하, 여기 공기 한번 더럽게 차네. 십 년 동안 사람 발길 끊겼다더니, 그냥 버려진 게 아니라 아예 세상에서 격리시켜 놓은 무덤 꼴이잖아. 야, 서하 씨. 그딴 녹슨 쇠기둥 만지고 있을 때가 아닌 것 같은데? 당장 저 선로 밑바닥에서 뭐가 기어나와도 이상하지 않겠다고.\"\\n\\n도윤이 퉁명스럽게 내뱉으며 빗물이 고인 웅덩이를 짓밟았지만, 떨리는 턱관절은 그의 말이 허세에 불과함을 보여주고 있었다. 그의 말대로, 승강장을 둘러싼 공기는 평범한 폐역의 쓸쓸함과는 전혀 달랐다. 사람의 체온을 거부하는 극단적인 적막 속에서, 빗소리조차 무언가의 거대한 숨소리에 삼켜지는 듯한 기괴한 압박감이 일행의 어깨를 짓누르고 있었다.\\n\\n승강장 끝을 바라보자, 빗줄기 너머로 비현실적으로 우뚝 솟은 시계탑의 실루엣이 보였다. 로마 숫자가 새겨진 거대한 시계는 십 년 전 그날의 참극을 증명하듯 11시 47분에 멈춰 서 있었다. 비바람을 맞아 시계판 유리는 금이 가 있었고, 시계탑 기단부에는 빗물이 들이치지 않는 깊은 그늘 속에 철제 점검함의 모서리가 희미하게 모습을 드러내고 있었다. 시계탑 꼭대기에는 낡은 철제 종이 매달려 있었는데, 바람이 불 때마다 종추가 미세하게 흔들리며 불길한 쇳소리를 냈다.\\n\\n그리고 승강장 중앙, 녹슨 개찰구 너머로는 대합실로 이어지는 통로가 열려 있었다. 유리창이 깨져 나간 여닫이문 틈새로 대합실 내부의 앙상한 풍경이 엿보였다. 벽면에 찢긴 채 매달린 십 년 전의 노선도, 굳게 닫힌 채 곰팡이가 피어오른 매표소의 나무 창구, 그리고 그 뒤편으로 이어지는 굳게 잠긴 역장실 문짝까지. 승강장에 비해 바람은 덜 들이치겠지만, 그 갇힌 공간 안에는 어떤 묵은 공포가 도사리고 있을지 알 수 없었다.\\n\\n그때였다. 선로 먼 곳, 안개가 자욱하게 깔린 어둠의 심연에서 묵직한 공기의 진동이 전해졌다. 빗소리를 가르고 낮게 울리는 그것은, 쇠바퀴가 녹슨 레일 위를 미끄러질 때 나는 둔탁한 마찰음과도 같았고, 동시에 수많은 사람의 억눌린 신음이 겹쳐진 소리 같기도 했다. 소문 속의 '불 꺼진 열차'가 정말로 이 선로 위를 배회하고 있는 것일까. 승강장 끝 선로 쪽 어둠 속에서, 빗방울을 밀어내며 일렁이는 검고 거대한 덩어리가 잠깐 모습을 드러냈다가 사라졌다. 그것은 마치 살아 있는 그림자처럼 레일 위를 기어가며, 승강장의 불빛을 피해 도사리고 있었다.\\n\\n도윤이 반사적으로 렌과 현의 앞을 가로막듯 한 걸음 물러서며 쇠파이프를 쥐듯 주먹을 꽉 쥐었다. 그의 거친 숨소리가 빗속에 흩어졌다.\\n\\n도윤: \"…봤냐? 방금 저 밑에서 시커먼 게 꿈틀거렸는데. 야, 서하 씨, 저게 네가 말한 그 지워진 기록이냐?\"\\n\\n서하는 시선을 선로에서 떼지 않은 채, 침착하지만 낮게 가라앉은 목소리로 답했다.\\n\\n서하: \"그림자 사냥꾼… 자정을 알리는 종이 울리기 전까지는 저곳에서 벗어나지 않는다고 전해집니다. 하지만 우리에게 주어진 시간이 그리 많지 않다는 뜻이기도 하죠. 십 년 전 사라진 승무원 열두 명… 그들의 억울한 죽음과 사고의 전말이 담긴 기관사의 일지를 찾아야 합니다. 일지를 본래의 자리로 돌려놓고 그들의 이름을 불러주지 않는다면, 우리 역시 이 승강장을 벗어날 수 없을 겁니다.\"\\n\\n차가운 빗줄기가 승강장 바닥을 세차게 때리며 튀어 올랐다. 승강장 한쪽 끝에는 11시 47분에 멈춘 시계탑과 그 아래의 점검함이, 반대편에는 오래된 매표소와 잠긴 역장실이 있는 대합실로 향하는 개찰구가 입을 벌리고 있었다. 그리고 선로 저편의 어둠 속에서는 웅크린 그림자가 차가운 살의를 품은 채, 시계탑의 바늘이 자정을 가리키기만을 기다리고 있었다.\\n\\n빗방울이 점차 굵어지며 승강장의 낡은 백열등이 위태롭게 흔들렸다. 차가운 빗물이 발목을 적셔오는 가운데, 어디로 먼저 발걸음을 옮길지 결정해야 했다.\\n\\nGM: 빗줄기 너머 시계탑 아래의 점검함과 개찰구 너머의 어두운 대합실 중 어느 쪽을 먼저 조사할 것인가? 선로 저편에서 웅크린 그림자의 기척이 점점 짙어지고 있다.",
+        "structured_json": "{\"narration\":\"차륜이 레일을 짓이기며 멈춰 서는 소리는 낡은 쇠붙이가 비명을 지르는 듯했다. 덜컹거리는 디젤 동차의 녹슨 문이 거칠게 열리고, 차가운 밤공기와 눅눅한 빗줄기가 한꺼번에 들이쳤다. 일행이 발을 내디딘 곳은 십 년 전 지도에서 영구 결번으로 지워진 간이역, 무령역의 1번 승강장이었다. 승객을 내려놓은 마지막 열차는 엔진의 거친 숨을 고르지도 않은 채, 도망치듯 붉은 후미등을 번뜩이며 빗속으로 미끄러져 사라졌다. 궤도를 따라 멀어지는 붉은 불빛이 짙은 안개 속으로 완전히 침몰하자, 승강장에는 비바람에 삭아 내리는 처마 밑 낙수 소리와 발목까지 차오른 한기만이 고였다.\\\\n\\\\n바닥은 이미 깨진 보도블록 틈새로 잡초가 제멋대로 얽혀 있었고, 빗물에 젖은 침목에서는 썩은 기름 냄새와 비린 흙내음이 섞여 올라왔다. 승강장 처마 끝에 매달린 낡은 백열등 하나가 빗방울을 맞으며 파지직, 거친 파열음을 내며 깜빡였다. 누르스름한 불빛이 깜빡일 때마다 시야가 열렸다 닫히기를 반복했다. 녹슨 쇠기둥에 비스듬히 걸린 역명판은 빗물에 씻겨 '무…역'이라는 희미한 페인트 자국만을 간신히 드러내고 있었다.\\\\n\\\\n빗방울이 코트 깃을 적시는 가운데, 서하가 방수 외투의 모자를 깊게 눌러쓰며 승강장 바닥을 내려다보았다. 그녀의 시선은 침목 사이로 뻗어 나간 녹슨 철길의 끝자락, 그리고 승강장 한구석에 덩그러니 놓인 젖은 신문 뭉치와 깨진 표지판을 조용히 훑고 있었다. 십 년 전 철도 사고조사관으로 일했던 감각이 되살아난 것인지, 그녀의 호흡은 차분하면서도 칼날처럼 예리하게 가라앉아 있었다.\\\\n\\\\n서하: \\\"…사고 당시의 선로 배치가 그대로 방치되어 있군요. 십 년 전 공식 조사 보고서에서는 분명 이 구역 철거가 완료되었다고 적혀 있었습니다. 하지만 현실은 거짓말을 하지 않죠.\\\"\\\\n\\\\n서하는 외투 주머니에서 가죽 장갑을 낀 손을 꺼내더니, 승강장 기둥에 선명하게 남아 있는 거친 긁힘 자국을 손끝으로 천천히 훑었다. 기차의 차체가 긁고 지나간 듯한 깊은 궤적이었다. 그녀의 담담한 어조 속에는 오래 묵은 진실을 반드시 파헤치겠다는 서늘한 집념이 배어 있었다.\\\\n\\\\n반면 도윤은 커다란 체구를 움츠리며 목덜미로 파고드는 빗물을 거칠게 털어냈다. 그는 작업복 주머니에서 불이 꺼진 일회용 라이터를 꺼내 찰칵거리며 불안을 달래려 애썼지만, 축축한 습기 탓에 불꽃은 튀지 않았다. 어릴 적 이 역에서 영영 돌아오지 못한 아버지를 떠올린 것인지, 도윤의 거친 눈매가 짙은 안개로 뒤덮인 선로 쪽을 쏘아보았다. 도윤의 시선 끝에는 짙은 어둠이 아가리를 벌리고 있었다.\\\\n\\\\n도윤: \\\"하, 여기 공기 한번 더럽게 차네. 십 년 동안 사람 발길 끊겼다더니, 그냥 버려진 게 아니라 아예 세상에서 격리시켜 놓은 무덤 꼴이잖아. 야, 서하 씨. 그딴 녹슨 쇠기둥 만지고 있을 때가 아닌 것 같은데? 당장 저 선로 밑바닥에서 뭐가 기어나와도 이상하지 않겠다고.\\\"\\\\n\\\\n도윤이 퉁명스럽게 내뱉으며 빗물이 고인 웅덩이를 짓밟았지만, 떨리는 턱관절은 그의 말이 허세에 불과함을 보여주고 있었다. 그의 말대로, 승강장을 둘러싼 공기는 평범한 폐역의 쓸쓸함과는 전혀 달랐다. 사람의 체온을 거부하는 극단적인 적막 속에서, 빗소리조차 무언가의 거대한 숨소리에 삼켜지는 듯한 기괴한 압박감이 일행의 어깨를 짓누르고 있었다.\\\\n\\\\n승강장 끝을 바라보자, 빗줄기 너머로 비현실적으로 우뚝 솟은 시계탑의 실루엣이 보였다. 로마 숫자가 새겨진 거대한 시계는 십 년 전 그날의 참극을 증명하듯 11시 47분에 멈춰 서 있었다. 비바람을 맞아 시계판 유리는 금이 가 있었고, 시계탑 기단부에는 빗물이 들이치지 않는 깊은 그늘 속에 철제 점검함의 모서리가 희미하게 모습을 드러내고 있었다. 시계탑 꼭대기에는 낡은 철제 종이 매달려 있었는데, 바람이 불 때마다 종추가 미세하게 흔들리며 불길한 쇳소리를 냈다.\\\\n\\\\n그리고 승강장 중앙, 녹슨 개찰구 너머로는 대합실로 이어지는 통로가 열려 있었다. 유리창이 깨져 나간 여닫이문 틈새로 대합실 내부의 앙상한 풍경이 엿보였다. 벽면에 찢긴 채 매달린 십 년 전의 노선도, 굳게 닫힌 채 곰팡이가 피어오른 매표소의 나무 창구, 그리고 그 뒤편으로 이어지는 굳게 잠긴 역장실 문짝까지. 승강장에 비해 바람은 덜 들이치겠지만, 그 갇힌 공간 안에는 어떤 묵은 공포가 도사리고 있을지 알 수 없었다.\\\\n\\\\n그때였다. 선로 먼 곳, 안개가 자욱하게 깔린 어둠의 심연에서 묵직한 공기의 진동이 전해졌다. 빗소리를 가르고 낮게 울리는 그것은, 쇠바퀴가 녹슨 레일 위를 미끄러질 때 나는 둔탁한 마찰음과도 같았고, 동시에 수많은 사람의 억눌린 신음이 겹쳐진 소리 같기도 했다. 소문 속의 '불 꺼진 열차'가 정말로 이 선로 위를 배회하고 있는 것일까. 승강장 끝 선로 쪽 어둠 속에서, 빗방울을 밀어내며 일렁이는 검고 거대한 덩어리가 잠깐 모습을 드러냈다가 사라졌다. 그것은 마치 살아 있는 그림자처럼 레일 위를 기어가며, 승강장의 불빛을 피해 도사리고 있었다.\\\\n\\\\n도윤이 반사적으로 렌과 현의 앞을 가로막듯 한 걸음 물러서며 쇠파이프를 쥐듯 주먹을 꽉 쥐었다. 그의 거친 숨소리가 빗속에 흩어졌다.\\\\n\\\\n도윤: \\\"…봤냐? 방금 저 밑에서 시커먼 게 꿈틀거렸는데. 야, 서하 씨, 저게 네가 말한 그 지워진 기록이냐?\\\"\\\\n\\\\n서하는 시선을 선로에서 떼지 않은 채, 침착하지만 낮게 가라앉은 목소리로 답했다.\\\\n\\\\n서하: \\\"그림자 사냥꾼… 자정을 알리는 종이 울리기 전까지는 저곳에서 벗어나지 않는다고 전해집니다. 하지만 우리에게 주어진 시간이 그리 많지 않다는 뜻이기도 하죠. 십 년 전 사라진 승무원 열두 명… 그들의 억울한 죽음과 사고의 전말이 담긴 기관사의 일지를 찾아야 합니다. 일지를 본래의 자리로 돌려놓고 그들의 이름을 불러주지 않는다면, 우리 역시 이 승강장을 벗어날 수 없을 겁니다.\\\"\\\\n\\\\n차가운 빗줄기가 승강장 바닥을 세차게 때리며 튀어 올랐다. 승강장 한쪽 끝에는 11시 47분에 멈춘 시계탑과 그 아래의 점검함이, 반대편에는 오래된 매표소와 잠긴 역장실이 있는 대합실로 향하는 개찰구가 입을 벌리고 있었다. 그리고 선로 저편의 어둠 속에서는 웅크린 그림자가 차가운 살의를 품은 채, 시계탑의 바늘이 자정을 가리키기만을 기다리고 있었다.\\\\n\\\\n빗방울이 점차 굵어지며 승강장의 낡은 백열등이 위태롭게 흔들렸다. 차가운 빗물이 발목을 적셔오는 가운데, 어디로 먼저 발걸음을 옮길지 결정해야 했다.\\\\n\\\\nGM: 빗줄기 너머 시계탑 아래의 점검함과 개찰구 너머의 어두운 대합실 중 어느 쪽을 먼저 조사할 것인가? 선로 저편에서 웅크린 그림자의 기척이 점점 짙어지고 있다.\",\"delta\":{\"players\":[{\"participantId\":8,\"hp\":40,\"conditions\":[],\"inventoryAdd\":[],\"inventoryRemove\":[],\"location\":\"승강장\"},{\"participantId\":9,\"hp\":40,\"conditions\":[],\"inventoryAdd\":[],\"inventoryRemove\":[],\"location\":\"승강장\"},{\"participantId\":10,\"hp\":40,\"conditions\":[],\"inventoryAdd\":[],\"inventoryRemove\":[],\"location\":\"승강장\"},{\"participantId\":11,\"hp\":40,\"conditions\":[],\"inventoryAdd\":[],\"inventoryRemove\":[],\"location\":\"승강장\"}],\"location\":\"무령역 승강장\",\"nextRoundContext\":\"일행이 무령역 승강장에 도착했으며, 멈춘 시계탑과 대합실 개찰구, 그리고 선로 쪽 그림자의 기척을 확인한 상태입니다.\",\"questsAdd\":[\"기관사의 일지를 찾아 사고의 진실 확인하기\",\"사라진 승무원 열두 명의 안식 찾기\"],\"flagsAdd\":[\"무령역_도착\"],\"storyPhase\":\"INTRO\",\"threadsAdd\":[\"기관사 일지의 행방\",\"사라진 승무원 12명의 명단\",\"자정에 울릴 시계탑의 종\"],\"endingConditionId\":\"\"},\"location\":\"무령역 승강장\",\"campaignFinished\":false,\"nextRoundContext\":\"일행이 무령역 승강장에 도착했으며, 멈춘 시계탑과 대합실 개찰구, 그리고 선로 쪽 그림자의 기척을 확인한 상태입니다.\"}",
+        "created_at": "2026-10-11 13:36:02",
+        "round_number": 0
+      }
+    ]
+  },
+  {
+    "round": 1,
+    "humanActions": [
+      {
+        "player": "렌",
+        "userId": 910001,
+        "actionType": "investigate",
+        "body": "승강장을 천천히 둘러보며 시계탑과 선로, 벤치 주변을 조심스럽게 살핀다."
+      },
+      {
+        "player": "현",
+        "userId": 910002,
+        "actionType": "persuade",
+        "body": "서하에게 십 년 전 사고 이야기를 조용히 묻는다."
+      }
+    ],
+    "sheetsBefore": [
+      {
+        "id": 8,
+        "name": "렌",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 9,
+        "name": "서하",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 10,
+        "name": "도윤",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 11,
+        "name": "현",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      }
+    ],
+    "roundRowPhase": "ROUND_COMPLETE",
+    "actionsAsResolved": [
+      {
+        "name": "렌",
+        "kind": "human",
+        "body": "승강장을 천천히 둘러보며 시계탑과 선로, 벤치 주변을 조심스럽게 살핀다.",
+        "actionType": "investigate",
+        "source": "human",
+        "d20": 14,
+        "finalScore": 15,
+        "dc": 9,
+        "tier": "SUCCESS"
+      },
+      {
+        "name": "현",
+        "kind": "human",
+        "body": "서하에게 십 년 전 사고 이야기를 조용히 묻는다.",
+        "actionType": "persuade",
+        "source": "human",
+        "d20": 13,
+        "finalScore": 14,
+        "dc": 11,
+        "tier": "SUCCESS"
+      },
+      {
+        "name": "서하",
+        "kind": "ai_character",
+        "body": "승강장 기둥을 짚고 있던 가죽 장갑 위로 차가운 빗방울이 번졌다. 현의 나직한 물음이 비 내리는 적막을 뚫고 귓가에 닿았지만, 서하의 시선은 선로 먼 곳에서 전해져 온 미세한 공기의 떨림 쪽을 먼저 향했다. 어둠 속에서 녹슨 쇠가 삐걱거리는 듯한 무게감. 본능적으로 턱을 당겨 목소리를 한 톤 더 낮췄다.\n\n\"십 년 전 오늘, 23시 47분입니다.\"\n\n서하는 기둥에서 손을 떼고 방수 외투 안주머니 쪽을 굳게 여미며 말을 이었다. 열두 명의 얼굴과 직함이 머릿속에서 빗물처럼 차갑게 스쳐 지나갔다.\n\n\"마지막 열차가 이 승강장으로 진입하던 중 신호 체계가 먹통이 됐고, 열두 명의 승무원과 함께 궤도 위에서 증발했습니다. 상부에서는 단순 탈선 후 유실로 덮었지만… 제 장부에서 지워진 이름은 결코 사라지지 않았죠. 저 시계탑이 멈춘 시간이 바로 그 시작점입니다.\"\n\n서하는 시계탑 상부의 흔들리는 종추를 눈으로 훑은 뒤, 곧바로 렌이 살피고 있는 동선과 개찰구 너머의 대합실 쪽을 교차해 응시했다. 선로 밑바닥의 기척이 자정의 종소리와 함께 움직이기 시작한다면, 승강장에 오래 머무는 것은 조사관의 원칙상 자살행위나 다름없었다.\n\n\"현 씨, 렌 씨. 선로 쪽에 시선을 오래 두지 마십시오. 호기심으로 마주할 상대가 아닙니다. 놈이 움직이기 전에, 일지가 보관되어 있을 역장실로 통하는 대합실 안쪽 경로를 확보해야 합니다.\"\n\n서하는 렌의 등 뒤쪽을 침착하게 엄호하듯 발걸음을 옮겨 개찰구 부근의 바닥 흔적과 문의 잠금 상태를 빠르게 살피기 시작했다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n\n<<<INTENT>>>\n서하는 대합실로 이어지는 개찰구와 문 주변의 흔적 및 잠금 상태를 관찰하여 안전한 진입로가 확보되어 있는지 확인하려 했다.",
+        "actionType": "investigate",
+        "source": "bot_model",
+        "d20": 15,
+        "finalScore": 16,
+        "dc": 9,
+        "tier": "SUCCESS"
+      },
+      {
+        "name": "도윤",
+        "kind": "ai_character",
+        "body": "귓가를 파고드는 쇠바퀴 소리에 목덜미의 솜털이 바짝 곤두섰다. 라이터를 쥔 손가락에 뻣뻣하게 힘이 들어갔다. 철거 현장에서 숱하게 겪었던 붕괴 직전의 쎄한 기운, 아니, 그보다 훨씬 더 질척하고 차가운 게 저 선로 밑바닥 어둠 속에서 스멀스멀 기어 나오는 느낌이었다.\n\n도윤은 불도 붙지 않는 라이터를 거칠게 바지춤에 쑤셔 넣고는 혀를 찼다. 침을 한 번 삼켰지만 목구멍이 바싹 말라붙어 쓰라리기만 했다. 현이 서하에게 옛날 사고를 묻고 서하가 개찰구 쪽을 살피는 사이, 도윤은 커다란 덩치로 두 사람과 어두운 선로 사이를 가로막듯 비스듬히 섰다.\n\n\"야, 현아. 옛날이야기는 안으로 대가리 들이밀고 나서 해. 저기 선로 쪽에서 덜컹거리는 꼴 안 들리냐? 당장이라도 뭐가 튀어나와서 목덜미 물어뜯게 생겼구만.\"\n\n도윤은 투덜거리면서도 눈길을 짙은 안개가 웅크린 선로 쪽에서 떼지 않았다. 작업화로 승강장 바닥을 쿵 구르며 주변에 굴러다니던 큼직한 쇳조각이나 쇠파이프 같은 묵직한 잔해가 있는지 발끝으로 툭툭 건드려 살폈다. 맨손으로 그 괴물딱지 같은 걸 마주할 생각은 추호도 없었다.\n\n언제든 선로 쪽에서 무언가 튀어나오면 일행 앞을 틀어막을 수 있도록, 도윤은 무릎을 낮추고 어둠을 노려보며 단단히 버텨 섰다.\n\n<<<ACTION_TYPE>>>\ndefend\n\n<<<INTENT>>>\n도윤은 선로 쪽 어둠과 이상한 소리를 경계하며 동료들 앞을 가로막는 자세를 취하고, 발치 주변에서 무기로 쥘 만한 쇠붙이나 파편을 찾으며 기습에 대비해 버티려 했다.",
+        "actionType": "defend",
+        "source": "bot_model",
+        "d20": 12,
+        "finalScore": 13,
+        "dc": 9,
+        "tier": "SUCCESS"
+      }
+    ],
+    "authoritativeMechanics": {
+      "v": 1,
+      "complete": true,
+      "preActionOwnerComplete": true,
+      "campaignId": 8,
+      "roundId": 5,
+      "roundNumber": 1,
+      "calledFlash": false,
+      "model": null,
+      "latencyMs": 0,
+      "fallback": "gm_legacy",
+      "validation": "ok",
+      "preActionRecoveries": [],
+      "actionModifiers": {},
+      "actors": [
+        {
+          "participantId": 8,
+          "actionType": "investigate",
+          "tier": "SUCCESS",
+          "physicalThreat": false,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 8,
+            "targetParticipantId": 8,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        },
+        {
+          "participantId": 11,
+          "actionType": "persuade",
+          "tier": "SUCCESS",
+          "physicalThreat": false,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 11,
+            "targetParticipantId": 11,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        },
+        {
+          "participantId": 9,
+          "actionType": "investigate",
+          "tier": "SUCCESS",
+          "physicalThreat": false,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 9,
+            "targetParticipantId": 9,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        },
+        {
+          "participantId": 10,
+          "actionType": "defend",
+          "tier": "SUCCESS",
+          "physicalThreat": true,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 10,
+            "targetParticipantId": 10,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        }
+      ],
+      "ongoingTicks": [],
+      "recoveries": [],
+      "ongoingAdds": [],
+      "ongoingUpdates": [],
+      "ongoingClearedIds": [],
+      "consumeItems": [],
+      "hpAfter": {
+        "8": 40,
+        "9": 40,
+        "10": 40,
+        "11": 40
+      },
+      "incapacitated": [],
+      "safeRests": [],
+      "hpOwnership": {
+        "8": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        },
+        "9": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        },
+        "10": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        },
+        "11": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        }
+      },
+      "applied": true,
+      "flashRaw": null,
+      "packet": "[AUTHORITATIVE MECHANICS]\n렌\nPRE_ACTION_HP 40\nCURRENT ACTION: investigate SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40\n\n서하\nPRE_ACTION_HP 40\nCURRENT ACTION: investigate SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40\n\n도윤\nPRE_ACTION_HP 40\nCURRENT ACTION: defend SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40\n\n현\nPRE_ACTION_HP 40\nCURRENT ACTION: persuade SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40",
+      "observability": {
+        "MECHANICS_CALLED": false,
+        "MECHANICS_MODEL": null,
+        "MECHANICS_LATENCY_MS": 0,
+        "MECHANICS_EFFECT_COUNT": 0,
+        "MECHANICS_HARM_COUNT": 0,
+        "MECHANICS_HEAL_COUNT": 0,
+        "ONGOING_ACTIVE_COUNT": 0,
+        "ONGOING_TICK_COUNT": 0,
+        "ONGOING_DAMAGE_TOTAL": 0,
+        "ONGOING_CLEARED_COUNT": 0,
+        "RECOVERY_ROLL_COUNT": 0,
+        "RECOVERY_SUCCESS_COUNT": 0,
+        "MECHANICS_VALIDATION_RESULT": "ok",
+        "MECHANICS_FALLBACK": "gm_legacy",
+        "FLASH_CALLS_PER_ROUND": 0
+      }
+    },
+    "sheetsAfter": [
+      {
+        "id": 8,
+        "name": "렌",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 9,
+        "name": "서하",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장",
+        "conditions": []
+      },
+      {
+        "id": 10,
+        "name": "도윤",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 11,
+        "name": "현",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      }
+    ],
+    "callsThisRound": [
+      {
+        "seq": 2,
+        "kind": "bot",
+        "error": null
+      },
+      {
+        "seq": 3,
+        "kind": "bot",
+        "error": null
+      },
+      {
+        "seq": 4,
+        "kind": "gm",
+        "error": null
+      }
+    ]
+  },
+  {
+    "round": 2,
+    "humanActions": [
+      {
+        "player": "렌",
+        "userId": 910001,
+        "actionType": "investigate",
+        "body": "승강장 끝의 시계탑 아래로 걸어가 바닥과 점검함 주변을 꼼꼼히 조사한다."
+      },
+      {
+        "player": "현",
+        "userId": 910002,
+        "actionType": "investigate",
+        "body": "승강장에서 대합실로 돌아가 잠긴 역장실 문을 살피고 열쇠 구멍과 문틈을 조사한다."
+      }
+    ],
+    "sheetsBefore": [
+      {
+        "id": 8,
+        "name": "렌",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 9,
+        "name": "서하",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장",
+        "conditions": []
+      },
+      {
+        "id": 10,
+        "name": "도윤",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      },
+      {
+        "id": 11,
+        "name": "현",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      }
+    ],
+    "roundRowPhase": "ROUND_COMPLETE",
+    "actionsAsResolved": [
+      {
+        "name": "렌",
+        "kind": "human",
+        "body": "승강장 끝의 시계탑 아래로 걸어가 바닥과 점검함 주변을 꼼꼼히 조사한다.",
+        "actionType": "investigate",
+        "source": "human",
+        "d20": 15,
+        "finalScore": 16,
+        "dc": 9,
+        "tier": "SUCCESS"
+      },
+      {
+        "name": "현",
+        "kind": "human",
+        "body": "승강장에서 대합실로 돌아가 잠긴 역장실 문을 살피고 열쇠 구멍과 문틈을 조사한다.",
+        "actionType": "investigate",
+        "source": "human",
+        "d20": 12,
+        "finalScore": 13,
+        "dc": 9,
+        "tier": "SUCCESS"
+      },
+      {
+        "name": "도윤",
+        "kind": "ai_character",
+        "body": "철골 사이를 훑고 지나가는 빗바람이 목덜미를 후려쳤지만, 도윤은 굳은살 박인 손으로 쥐어 잡은 레일 스파이크 렌치를 놓지 않았다. 묵직하고 차가운 쇠의 감각이 손바닥을 짓누르는 것이 차라리 가슴속에서 치밀어 오르는 지독한 불안을 눌러주었다. 자정이 가까워질수록 시계탑 초침 소리는 빗소리 틈바구니에서도 귓전을 날카롭게 긁어댔다. 11시 48분. 이제 십여 분밖에 남지 않았다.\n\n선로 아래의 질척한 자갈밭 사이에서 꿈틀거리던 그림자는 여전히 끈적하게 웅크린 채 틈을 노리고 있었다. 렌은 점검함 쪽으로 붙었고, 현은 개찰구를 지나 대합실 깊숙한 곳으로 몸을 돌렸다. 둘 다 무방비하게 등을 내보이고 조사에 몰두하고 있었다. 여기서 녀석이 튀어 오르면 그대로 끝장이다.\n\n도윤은 뒤편에서 서하의 가라앉은 목소리가 이어지든 말든, 턱에 힘을 준 채 승강장 턱 바로 앞까지 반 걸음 더 다가섰다. 어깨를 으쓱 올려 비를 털어내며 렌치 모서리로 젖은 콘크리트 바닥을 딱, 소리 나게 찍었다.\n\n\"어이, 거기 처박혀 있는 먹물 덩어리 놈아. 냄새 풍기지 말고 계속 거기 딱 붙어 있어라. 이쪽은 눈 시퍼렇게 뜨고 있으니까.\"\n\n목소리는 평소처럼 능청스럽고 괄괄하게 뱉었지만, 도윤의 시선은 빗물이 고여 번들거리는 침목과 자갈 틈을 한 뼘도 놓치지 않고 쏘아보았다. 도윤은 렌의 등 뒤와 선로 사이를 가로막는 위치에 단단히 버텨 선 채, 렌치를 어깨 위로 쳐들고 언제든 놈이 기어오르면 그대로 내리칠 기세로 전방을 경계했다.\n\n<<<ACTION_TYPE>>>\ndefend\n\n<<<INTENT>>>\n도윤은 렌과 선로 사이를 가로막고 서서 손에 쥔 레일 스파이크 렌치로 위협적인 자세를 취하며, 선로 아래 웅크린 그림자가 렌이나 대합실 쪽으로 기어오르지 못하도록 철저히 경계하고 길목을 방어하려 했다.",
+        "actionType": "defend",
+        "source": "bot_model",
+        "d20": 14,
+        "finalScore": 15,
+        "dc": 11,
+        "tier": "SUCCESS"
+      },
+      {
+        "name": "서하",
+        "kind": "ai_character",
+        "body": "시계탑의 분침이 둔중한 금속음을 내며 11시 48분을 가리켰다. 자정까지 남은 시간은 고작 십이 분. 서하는 바닥에 고인 빗물 위로 번지는 검은 기름 흔적을 눈으로 좇은 뒤, 개찰구 너머 대합실로 발걸음을 옮겼다.\n\n선로 쪽은 도윤이 레일 스파이크 렌치를 꼬나쥐고 버티고 있었고, 렌은 시계탑 기단부의 점검함을 향해 다가갔다. 현이 먼저 역장실 문 앞으로 다가서는 것을 확인한 서하는 곧장 매표소 안쪽으로 시선을 돌렸다. 은폐된 진실을 규명하려면 기록이 필요했다. 지워진 열두 명의 이름을 증명할 최초의 장부가 그곳에 있어야 했다.\n\n\"현 씨, 역장실 문은 제가 매표소에서 열쇠나 비상 열쇠함을 확보하는 대로 맞춰보겠습니다. 서두르되 문틈의 흔적을 훼손하지 마십시오.\"\n\n서하는 덜렁거리는 삼각 차단기 틈을 조심스럽게 지나쳐 대합실 매표소 창구 안쪽으로 진입했다. 마른 먼지와 유리 파편이 깔린 바닥을 디디며, 과거 역무원들이 일지를 보관했을 낡은 서랍과 매표 창구 하부 수납함을 신속히 손으로 더듬어 확인하기 시작했다.\n\n<<<ACTION_TYPE>>>\ninvestigate\n\n<<<INTENT>>>\n서하는 대합실 매표소 창구 안쪽으로 진입해 낡은 서랍과 수납함을 수색하며, 역장실 열쇠나 비상 열쇠함의 유무, 그리고 십 년 전 사고 당시 승무원 명단과 관련된 기록물을 찾아내려 했다.",
+        "actionType": "investigate",
+        "source": "bot_model",
+        "d20": 13,
+        "finalScore": 14,
+        "dc": 9,
+        "tier": "SUCCESS"
+      }
+    ],
+    "authoritativeMechanics": {
+      "v": 1,
+      "complete": true,
+      "preActionOwnerComplete": true,
+      "campaignId": 8,
+      "roundId": 6,
+      "roundNumber": 2,
+      "calledFlash": false,
+      "model": null,
+      "latencyMs": 0,
+      "fallback": "gm_legacy",
+      "validation": "ok",
+      "preActionRecoveries": [],
+      "actionModifiers": {},
+      "actors": [
+        {
+          "participantId": 8,
+          "actionType": "investigate",
+          "tier": "SUCCESS",
+          "physicalThreat": false,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 8,
+            "targetParticipantId": 8,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        },
+        {
+          "participantId": 11,
+          "actionType": "investigate",
+          "tier": "SUCCESS",
+          "physicalThreat": false,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 11,
+            "targetParticipantId": 11,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        },
+        {
+          "participantId": 10,
+          "actionType": "defend",
+          "tier": "SUCCESS",
+          "physicalThreat": true,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 10,
+            "targetParticipantId": 10,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        },
+        {
+          "participantId": 9,
+          "actionType": "investigate",
+          "tier": "SUCCESS",
+          "physicalThreat": false,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 9,
+            "targetParticipantId": 9,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        }
+      ],
+      "ongoingTicks": [],
+      "recoveries": [],
+      "ongoingAdds": [],
+      "ongoingUpdates": [],
+      "ongoingClearedIds": [],
+      "consumeItems": [],
+      "hpAfter": {
+        "8": 40,
+        "9": 40,
+        "10": 40,
+        "11": 40
+      },
+      "incapacitated": [],
+      "safeRests": [],
+      "hpOwnership": {
+        "8": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        },
+        "9": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        },
+        "10": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        },
+        "11": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        }
+      },
+      "applied": true,
+      "flashRaw": null,
+      "packet": "[AUTHORITATIVE MECHANICS]\n렌\nPRE_ACTION_HP 40\nCURRENT ACTION: investigate SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40\n\n서하\nPRE_ACTION_HP 40\nCURRENT ACTION: investigate SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40\n\n도윤\nPRE_ACTION_HP 40\nCURRENT ACTION: defend SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40\n\n현\nPRE_ACTION_HP 40\nCURRENT ACTION: investigate SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40",
+      "observability": {
+        "MECHANICS_CALLED": false,
+        "MECHANICS_MODEL": null,
+        "MECHANICS_LATENCY_MS": 0,
+        "MECHANICS_EFFECT_COUNT": 0,
+        "MECHANICS_HARM_COUNT": 0,
+        "MECHANICS_HEAL_COUNT": 0,
+        "ONGOING_ACTIVE_COUNT": 0,
+        "ONGOING_TICK_COUNT": 0,
+        "ONGOING_DAMAGE_TOTAL": 0,
+        "ONGOING_CLEARED_COUNT": 0,
+        "RECOVERY_ROLL_COUNT": 0,
+        "RECOVERY_SUCCESS_COUNT": 0,
+        "MECHANICS_VALIDATION_RESULT": "ok",
+        "MECHANICS_FALLBACK": "gm_legacy",
+        "FLASH_CALLS_PER_ROUND": 0
+      }
+    },
+    "sheetsAfter": [
+      {
+        "id": 8,
+        "name": "렌",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 시계탑 앞",
+        "conditions": []
+      },
+      {
+        "id": 9,
+        "name": "서하",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 대합실 매표소",
+        "conditions": []
+      },
+      {
+        "id": 10,
+        "name": "도윤",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 및 대합실",
+        "conditions": []
+      },
+      {
+        "id": 11,
+        "name": "현",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      }
+    ],
+    "callsThisRound": [
+      {
+        "seq": 5,
+        "kind": "bot",
+        "error": null
+      },
+      {
+        "seq": 6,
+        "kind": "bot",
+        "error": null
+      },
+      {
+        "seq": 7,
+        "kind": "gm",
+        "error": null
+      }
+    ]
+  },
+  {
+    "round": 3,
+    "humanActions": [
+      {
+        "player": "렌",
+        "userId": 910001,
+        "actionType": "attack",
+        "body": "그림자 사냥꾼에게 달려들어 짧은 칼로 정면에서 공격한다."
+      },
+      {
+        "player": "현",
+        "userId": 910002,
+        "actionType": "defend",
+        "body": "대합실에서 승강장으로 달려가 다친 동료 앞을 막아서며 사냥꾼의 시선을 끈다."
+      }
+    ],
+    "sheetsBefore": [
+      {
+        "id": 8,
+        "name": "렌",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 시계탑 앞",
+        "conditions": []
+      },
+      {
+        "id": 9,
+        "name": "서하",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 대합실 매표소",
+        "conditions": []
+      },
+      {
+        "id": 10,
+        "name": "도윤",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 및 대합실",
+        "conditions": []
+      },
+      {
+        "id": 11,
+        "name": "현",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      }
+    ],
+    "roundRowPhase": "ROUND_COMPLETE",
+    "actionsAsResolved": [
+      {
+        "name": "렌",
+        "kind": "human",
+        "body": "그림자 사냥꾼에게 달려들어 짧은 칼로 정면에서 공격한다.",
+        "actionType": "attack",
+        "source": "human",
+        "d20": 16,
+        "finalScore": 17,
+        "dc": 11,
+        "tier": "SUCCESS"
+      },
+      {
+        "name": "현",
+        "kind": "human",
+        "body": "대합실에서 승강장으로 달려가 다친 동료 앞을 막아서며 사냥꾼의 시선을 끈다.",
+        "actionType": "defend",
+        "source": "human",
+        "d20": 13,
+        "finalScore": 14,
+        "dc": 9,
+        "tier": "SUCCESS"
+      },
+      {
+        "name": "도윤",
+        "kind": "ai_character",
+        "body": "자갈밭 밑으로 꺼져가던 검은 형체가 지독하게 끈적이는 비린내를 풍기며 다시금 형체를 비틀어 올렸다. 빗줄기를 뚫고 솟구치는 검은 기척에 시선을 떼지 않던 순간, 시계탑 아래에서 일지를 확보하려던 렌이 별안간 칼날을 빼 들고 그림자 사냥꾼의 정면으로 쇄도했다. 게다가 대합실 쪽에 있던 현까지 승강장으로 뛰쳐나와 사냥꾼의 시선을 끌겠답시고 몸을 던지는 꼴이 눈에 박혔다.\n\n저 미친것들이 진짜 겁도 없이 맨몸으로 들이박네.\n\n등골을 타고 오르는 서늘한 공포를 털어내듯, 도윤은 굵은 빗물이 줄줄 흘러내리는 턱을 거칠게 훔치며 양손으로 쥔 레일 스파이크 렌치를 바짝 고쳐 잡았다. 겁이 덜컥 났지만, 앞뒤 재지 않고 뛰어드는 동료들을 보고 가만히 서 있을 수는 없었다.\n\n\"야, 이 돌대가리들아! 거길 왜 맨몸으로 처박고 지랄이야!\"\n\n도윤은 육중한 작업화로 승강장 바닥을 쾅 박차고 내달렸다. 정면으로 뛰어든 렌과 시선을 끌려는 현이 사냥꾼의 검은 칼날이나 손톱에 꿰뚫리지 않도록, 거대한 덩치로 그들의 측면 틈새를 비집고 파고들었다. 도윤은 온 체중을 실어 묵직한 쇠 렌치를 사냥꾼의 형체가 뻗어나오는 옆구리 쪽으로 거칠게 휘둘러 쳐내며, 두 사람에게 쏟아질 반격을 가로막아 세우려 버텼다.\n\n<<<ACTION_TYPE>>>\ndefend\n\n<<<INTENT>>>\n도윤은 그림자 사냥꾼에게 무작정 뛰어든 렌과 현이 공격당하지 않도록 둘의 틈새로 끼어들어, 레일 스파이크 렌치로 사냥꾼의 반격 궤적을 거칠게 쳐내며 두 동료를 온몸으로 엄호하고 버티려 했다.",
+        "actionType": "defend",
+        "source": "bot_model",
+        "d20": 15,
+        "finalScore": 16,
+        "dc": 11,
+        "tier": "SUCCESS"
+      },
+      {
+        "name": "서하",
+        "kind": "ai_character",
+        "body": "손에 쥔 승무원 명부의 낡은 종이 질감이 손끝에 선명하게 닿았다. 11시 49분. 자정까지 남은 시간은 단 11분뿐이었고, 밖에서는 렌과 도윤, 그리고 달려 나간 현이 실체화된 사냥꾼의 그림자와 직접 부딪치는 파열음이 대합실 유리창을 뒤흔들고 있었다.\n\n물리적인 타격만으로는 저것을 잠재울 수 없다. 전승대로라면 기관사의 일지와 사라진 열두 명의 이름이 온전히 맞물려야만 이 비극의 궤도가 멈춘다. 서하는 주머니에 챙겨 넣은 비상 열쇠의 감촉을 확인하며 지체 없이 승강장으로 발을 옮겼다. 비바람이 들이치는 문턱을 넘어서자마자, 선로 위를 짓누르는 끈적한 어둠과 피비린내 섞인 쇠 냄새가 폐부를 찔렀다.\n\n동료들이 목숨을 걸고 사냥꾼의 발을 묶고 있는 틈을 헛되이 넘길 수는 없었다. 서하는 빗물에 젖어드는 승무원 명부를 가슴팍 안쪽으로 단단히 감싸 쥐며, 십 년 전 사고 보고서에서 영구 결번으로 지워졌던 첫 번째 이름들을 낮고 명확한 목소리로 읊조리기 시작했다. 사냥꾼의 흩어지는 이목을 묶어두고, 렌이 점검함의 일지를 완전히 회수할 시간을 벌기 위한 정밀한 호명이었다.\n\n\"…제1호 열차 승무원, 박진석. 차장, 이민우.\"\n\n<<<ACTION_TYPE>>>\nsupport\n\n<<<INTENT>>>\n서하는 비바람 속에서 승무원 명부를 보호한 채, 교전 중인 사냥꾼의 혼란을 유도하고 동료들의 시간을 벌기 위해 십 년 전 사라진 승무원들의 이름을 명확한 발음으로 외치며 일지의 수습 경로를 지원하려 했다.",
+        "actionType": "support",
+        "source": "bot_model",
+        "d20": 14,
+        "finalScore": 15,
+        "dc": 9,
+        "tier": "SUCCESS"
+      }
+    ],
+    "authoritativeMechanics": {
+      "v": 1,
+      "complete": true,
+      "preActionOwnerComplete": true,
+      "campaignId": 8,
+      "roundId": 7,
+      "roundNumber": 3,
+      "calledFlash": false,
+      "model": null,
+      "latencyMs": 0,
+      "fallback": "gm_legacy",
+      "validation": "ok",
+      "preActionRecoveries": [],
+      "actionModifiers": {},
+      "actors": [
+        {
+          "participantId": 8,
+          "actionType": "attack",
+          "tier": "SUCCESS",
+          "physicalThreat": true,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 8,
+            "targetParticipantId": 8,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        },
+        {
+          "participantId": 11,
+          "actionType": "defend",
+          "tier": "SUCCESS",
+          "physicalThreat": true,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 11,
+            "targetParticipantId": 11,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        },
+        {
+          "participantId": 10,
+          "actionType": "defend",
+          "tier": "SUCCESS",
+          "physicalThreat": true,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 10,
+            "targetParticipantId": 10,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        },
+        {
+          "participantId": 9,
+          "actionType": "support",
+          "tier": "SUCCESS",
+          "physicalThreat": false,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 9,
+            "targetParticipantId": 9,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        }
+      ],
+      "ongoingTicks": [],
+      "recoveries": [],
+      "ongoingAdds": [],
+      "ongoingUpdates": [],
+      "ongoingClearedIds": [],
+      "consumeItems": [],
+      "hpAfter": {
+        "8": 40,
+        "9": 40,
+        "10": 40,
+        "11": 40
+      },
+      "incapacitated": [],
+      "safeRests": [],
+      "hpOwnership": {
+        "8": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        },
+        "9": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        },
+        "10": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        },
+        "11": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        }
+      },
+      "applied": true,
+      "flashRaw": null,
+      "packet": "[AUTHORITATIVE MECHANICS]\n렌\nPRE_ACTION_HP 40\nCURRENT ACTION: attack SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40\n\n서하\nPRE_ACTION_HP 40\nCURRENT ACTION: support SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40\n\n도윤\nPRE_ACTION_HP 40\nCURRENT ACTION: defend SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40\n\n현\nPRE_ACTION_HP 40\nCURRENT ACTION: defend SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40",
+      "observability": {
+        "MECHANICS_CALLED": false,
+        "MECHANICS_MODEL": null,
+        "MECHANICS_LATENCY_MS": 0,
+        "MECHANICS_EFFECT_COUNT": 0,
+        "MECHANICS_HARM_COUNT": 0,
+        "MECHANICS_HEAL_COUNT": 0,
+        "ONGOING_ACTIVE_COUNT": 0,
+        "ONGOING_TICK_COUNT": 0,
+        "ONGOING_DAMAGE_TOTAL": 0,
+        "ONGOING_CLEARED_COUNT": 0,
+        "RECOVERY_ROLL_COUNT": 0,
+        "RECOVERY_SUCCESS_COUNT": 0,
+        "MECHANICS_VALIDATION_RESULT": "ok",
+        "MECHANICS_FALLBACK": "gm_legacy",
+        "FLASH_CALLS_PER_ROUND": 0
+      }
+    },
+    "sheetsAfter": [
+      {
+        "id": 8,
+        "name": "렌",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 시계탑 앞",
+        "conditions": []
+      },
+      {
+        "id": 9,
+        "name": "서하",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 대합실 매표소",
+        "conditions": []
+      },
+      {
+        "id": 10,
+        "name": "도윤",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 및 대합실",
+        "conditions": []
+      },
+      {
+        "id": 11,
+        "name": "현",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      }
+    ],
+    "callsThisRound": [
+      {
+        "seq": 8,
+        "kind": "bot",
+        "error": null
+      },
+      {
+        "seq": 9,
+        "kind": "bot",
+        "error": null
+      },
+      {
+        "seq": 10,
+        "kind": "gm",
+        "error": null
+      },
+      {
+        "seq": 11,
+        "kind": "memory",
+        "error": null
+      }
+    ]
+  },
+  {
+    "round": 4,
+    "humanActions": [
+      {
+        "player": "렌",
+        "userId": 910001,
+        "actionType": "persuade",
+        "body": "칼을 내리고 시계탑 아래 점검함에 일지를 놓은 뒤, 사냥꾼에게 더는 싸울 뜻이 없다고 말한다."
+      },
+      {
+        "player": "현",
+        "userId": 910002,
+        "actionType": "support",
+        "body": "사라진 승무원들의 이름을 하나씩 부르며 일지를 소리 내어 읽어 준다."
+      }
+    ],
+    "sheetsBefore": [
+      {
+        "id": 8,
+        "name": "렌",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 시계탑 앞",
+        "conditions": []
+      },
+      {
+        "id": 9,
+        "name": "서하",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 대합실 매표소",
+        "conditions": []
+      },
+      {
+        "id": 10,
+        "name": "도윤",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 및 대합실",
+        "conditions": []
+      },
+      {
+        "id": 11,
+        "name": "현",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      }
+    ],
+    "roundRowPhase": "ERROR_RECOVERY",
+    "actionsAsResolved": [
+      {
+        "name": "렌",
+        "kind": "human",
+        "body": "칼을 내리고 시계탑 아래 점검함에 일지를 놓은 뒤, 사냥꾼에게 더는 싸울 뜻이 없다고 말한다.",
+        "actionType": "persuade",
+        "source": "human",
+        "d20": 14,
+        "finalScore": 15,
+        "dc": 9,
+        "tier": "SUCCESS"
+      },
+      {
+        "name": "현",
+        "kind": "human",
+        "body": "사라진 승무원들의 이름을 하나씩 부르며 일지를 소리 내어 읽어 준다.",
+        "actionType": "support",
+        "source": "human",
+        "d20": 15,
+        "finalScore": 16,
+        "dc": 9,
+        "tier": "SUCCESS"
+      },
+      {
+        "name": "도윤",
+        "kind": "ai_character",
+        "body": "사냥꾼의 거친 파열음을 받아내느라 얼얼해진 팔뚝을 털어내기도 전에, 시계탑의 쇳소리가 귀청을 찢을 듯이 울려 퍼졌다. 11시 53분. 미친 듯이 내달리는 분침 꼬락서니를 보자니 속에서 끓어오르는 욕짓거리를 삼킬 틈도 없었다. 자정까지 남은 시간은 기껏해야 몇 분 남짓인데, 렌과 현은 벌써 칼을 거두고 점검함 앞에서 의식이라도 치를 기세였다.\n\n\"야, 야! 속 편하게 읊조릴 시간 없다니까! 저 바늘 돌아가는 꼴 좀 봐, 아주 모가지 따러 오겠다고 발광을 하잖아!\"\n\n저 녀석들이 이름을 부르고 일지를 바치는 게 맞다 쳐도, 시계가 자정을 쳐 버리면 다 끝장이다. 도윤은 빗물에 젖어 미끄러운 바닥을 단단히 디디며 점검함 옆으로 성큼 다가섰다. 덜렁거리는 덮개 안쪽에서 불길하게 요동치는 태엽 레버가 눈에 들어오자마자, 들고 있던 렌치를 다른 손으로 고쳐 쥐고 거친 손바닥으로 레버를 단단히 틀어쥐었다.\n\n\"이 빌어먹을 태엽이든 톱니바퀴든, 내가 바늘 꺾어버릴 기세로 붙잡고 있을 테니까! 그사이에 얼른 다 읽고 끝내, 알았어?!\"\n\n근육이 터져나갈 듯 힘을 주며 레버를 역방향으로 억누른 채, 도윤은 흘러내리는 빗물을 턱 끝으로 털어내며 괴물이 다시 뭉쳐나오지 않는지 선로 쪽 어둠을 매섭게 쏘아보았다.\n\n<<<ACTION_TYPE>>>\nsupport\n\n<<<INTENT>>>\n도윤은 렌과 현이 일지를 안치하고 이름을 낭독할 시간을 벌기 위해, 폭주하며 돌아가는 시계탑 점검함 내부의 태엽 레버를 완력으로 붙잡아 억누르며 분침의 전진을 늦추려 시도했다.",
+        "actionType": "support",
+        "source": "bot_model",
+        "d20": null,
+        "finalScore": null,
+        "dc": null,
+        "tier": null
+      },
+      {
+        "name": "서하",
+        "kind": "ai_character",
+        "body": "귀를 찢는 쇳소리와 함께 시계탑의 바늘이 자정을 향해 미친 듯이 치닫고 있었다. 도윤이 온몸으로 태엽 레버를 틀어쥐며 시간을 붙잡고, 렌이 내려놓은 일지 앞에서 현의 목소리가 빗줄기를 가르며 남아 있는 이름들을 부르고 있었다.\n\n서하는 흔들리는 시야 속에서도 호흡을 가다듬었다. 시계탑의 태엽을 억누르고 일지를 제자리에 돌려놓는 것만으로는 부족했다. 십 년 전 그 밤, 열차가 마지막으로 멈춰 선 원인은 끊어진 신호와 제어 불능이었다. 대합실 저편, 굳게 닫혔던 역장실 문틈으로 새어 나오는 붉은 비상 신호등의 점멸이 명확한 인과를 가리키고 있었다.\n\n사고를 끝맺으려면 모든 신호가 정상으로 돌아가야만 한다.\n\n서하는 품속에서 매표소 수색 당시 확보해 두었던 열쇠 뭉치를 꽉 쥐었다. 비바람을 뚫고 빗물에 미끄러운 승강장 바닥을 박차 대합실, 붉은 신호가 새어 나오는 역장실 문 앞으로 쇄도했다.\n\n\"나머지 여섯 분의 몫까지 다 읽어주십시오. 저는 신호 제어반을 닫겠습니다.\"\n\n단정하고 낮은 목소리를 동료들의 등 뒤로 던진 서하는 지체 없이 역장실 문고리에 열쇠를 꽂아 돌렸다.\n\n<<<ACTION_TYPE>>>\nsupport\n\n<<<INTENT>>>\n서하는 동료들이 일지 안치와 호명을 마치는 동안 열차 사고의 원인이었던 신호 체계를 정상화하기 위해, 확보한 열쇠로 대합실 역장실 문을 열고 들어가 비상 신호가 작동 중인 신호 제어반을 확인하고 차단하려 했다.",
+        "actionType": "support",
+        "source": "bot_model",
+        "d20": 13,
+        "finalScore": 14,
+        "dc": 9,
+        "tier": "SUCCESS"
+      }
+    ],
+    "authoritativeMechanics": {
+      "v": 1,
+      "complete": true,
+      "preActionOwnerComplete": true,
+      "campaignId": 8,
+      "roundId": 8,
+      "roundNumber": 4,
+      "calledFlash": false,
+      "model": null,
+      "latencyMs": 0,
+      "fallback": "gm_legacy",
+      "validation": "ok",
+      "preActionRecoveries": [],
+      "actionModifiers": {},
+      "actors": [
+        {
+          "participantId": 8,
+          "actionType": "persuade",
+          "tier": "SUCCESS",
+          "physicalThreat": false,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 8,
+            "targetParticipantId": 8,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        },
+        {
+          "participantId": 11,
+          "actionType": "support",
+          "tier": "SUCCESS",
+          "physicalThreat": false,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 11,
+            "targetParticipantId": 11,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        },
+        {
+          "participantId": 10,
+          "actionType": "support",
+          "tier": null,
+          "physicalThreat": false,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 10,
+            "targetParticipantId": 10,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        },
+        {
+          "participantId": 9,
+          "actionType": "support",
+          "tier": "SUCCESS",
+          "physicalThreat": false,
+          "preActionHp": 40,
+          "skippedPhysicalAction": false,
+          "skipReason": null,
+          "directHpOwner": "GM_LEGACY",
+          "direct": {
+            "effect": "none",
+            "class": "NONE",
+            "cause": "none",
+            "sourceParticipantId": 9,
+            "targetParticipantId": 9,
+            "dice": null,
+            "hpBefore": 40,
+            "hpAfter": 40,
+            "rejected": false,
+            "rejectReason": null,
+            "owner": "GM_LEGACY"
+          }
+        }
+      ],
+      "ongoingTicks": [],
+      "recoveries": [],
+      "ongoingAdds": [],
+      "ongoingUpdates": [],
+      "ongoingClearedIds": [],
+      "consumeItems": [],
+      "hpAfter": {
+        "8": 40,
+        "9": 40,
+        "10": 40,
+        "11": 40
+      },
+      "incapacitated": [],
+      "safeRests": [],
+      "hpOwnership": {
+        "8": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        },
+        "9": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        },
+        "10": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        },
+        "11": {
+          "SERVER_PREACTION": false,
+          "SERVER_RECOVERY": false,
+          "FLASH_REFEREE": false,
+          "GM_LEGACY": true
+        }
+      },
+      "applied": false,
+      "flashRaw": null,
+      "packet": "[AUTHORITATIVE MECHANICS]\n렌\nPRE_ACTION_HP 40\nCURRENT ACTION: persuade SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40\n\n서하\nPRE_ACTION_HP 40\nCURRENT ACTION: support SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40\n\n도윤\nPRE_ACTION_HP 40\nCURRENT ACTION: support\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40\n\n현\nPRE_ACTION_HP 40\nCURRENT ACTION: support SUCCESS\nGM_LEGACY_DIRECT current action HP is not mechanics-classified\n최종: HP 40/40",
+      "observability": {
+        "MECHANICS_CALLED": false,
+        "MECHANICS_MODEL": null,
+        "MECHANICS_LATENCY_MS": 0,
+        "MECHANICS_EFFECT_COUNT": 0,
+        "MECHANICS_HARM_COUNT": 0,
+        "MECHANICS_HEAL_COUNT": 0,
+        "ONGOING_ACTIVE_COUNT": 0,
+        "ONGOING_TICK_COUNT": 0,
+        "ONGOING_DAMAGE_TOTAL": 0,
+        "ONGOING_CLEARED_COUNT": 0,
+        "RECOVERY_ROLL_COUNT": 0,
+        "RECOVERY_SUCCESS_COUNT": 0,
+        "MECHANICS_VALIDATION_RESULT": "ok",
+        "MECHANICS_FALLBACK": "gm_legacy",
+        "FLASH_CALLS_PER_ROUND": 0
+      }
+    },
+    "sheetsAfter": [
+      {
+        "id": 8,
+        "name": "렌",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 시계탑 앞",
+        "conditions": []
+      },
+      {
+        "id": 9,
+        "name": "서하",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 대합실 매표소",
+        "conditions": []
+      },
+      {
+        "id": 10,
+        "name": "도윤",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 및 대합실",
+        "conditions": []
+      },
+      {
+        "id": 11,
+        "name": "현",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      }
+    ],
+    "callsThisRound": [
+      {
+        "seq": 12,
+        "kind": "bot",
+        "error": null
+      },
+      {
+        "seq": 13,
+        "kind": "bot",
+        "error": null
+      },
+      {
+        "seq": 14,
+        "kind": "gm",
+        "error": "The operation was aborted due to timeout"
+      }
+    ]
+  },
+  {
+    "round": 5,
+    "humanActions": [
+      {
+        "player": "렌",
+        "userId": 910001,
+        "actionType": "investigate",
+        "body": "승강장에 남아 시계탑 아래를 마저 살피며 열차가 들어올 기척을 기다린다."
+      },
+      {
+        "player": "현",
+        "userId": 910002,
+        "actionType": "free",
+        "body": "벤치에 앉아 숨을 고르며 주변의 그림자와 소리를 살핀다."
+      }
+    ],
+    "sheetsBefore": [
+      {
+        "id": 8,
+        "name": "렌",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 시계탑 앞",
+        "conditions": []
+      },
+      {
+        "id": 9,
+        "name": "서하",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 대합실 매표소",
+        "conditions": []
+      },
+      {
+        "id": 10,
+        "name": "도윤",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 및 대합실",
+        "conditions": []
+      },
+      {
+        "id": 11,
+        "name": "현",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      }
+    ],
+    "roundRowPhase": null,
+    "actionsAsResolved": [],
+    "authoritativeMechanics": null,
+    "sheetsAfter": [
+      {
+        "id": 8,
+        "name": "렌",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 시계탑 앞",
+        "conditions": []
+      },
+      {
+        "id": 9,
+        "name": "서하",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 대합실 매표소",
+        "conditions": []
+      },
+      {
+        "id": 10,
+        "name": "도윤",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "무령역 승강장 및 대합실",
+        "conditions": []
+      },
+      {
+        "id": 11,
+        "name": "현",
+        "hp": 40,
+        "maxHp": 40,
+        "location": "승강장",
+        "conditions": []
+      }
+    ],
+    "callsThisRound": []
+  }
+]

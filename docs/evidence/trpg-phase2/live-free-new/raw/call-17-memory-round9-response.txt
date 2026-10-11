@@ -1,0 +1,65 @@
+{
+  "summary": "렌과 현이 등대에 잠입해 등대지기 알렌의 고백과 현장 정보를 확보함. 알렌의 손녀는 세관 감독관 에른스트와 조합 간부 바르토에게 인질로 잡혀 있으며, 알렌은 협박받아 등롱을 검은 턱 바위굴에 맞추고 있었음. 푸른 불빛은 밀수 연금술 광물 찌꺼기를 태우는 신호임. 현은 바위굴과 배수 갑문 3호, 폭파용 화약·도화선, 접근 중인 검은 파도호와 선상 에른스트·바르토를 확인함. 알렌이 배관 도면과 비밀 환기 수직구 경로를 건넴. 검은 파도호 진입 및 폭파가 임박했고, 바다갈매기호 선원들의 생사와 구조는 미해결임.",
+  "events": [
+    {
+      "type": "reveal",
+      "fact": "알렌은 손녀를 인질로 잡은 에른스트와 바르토의 협박에 따라 등롱을 검은 턱 바위굴에 맞췄다고 고백함.",
+      "actors": ["알렌", "에른스트", "바르토"],
+      "entities": ["등대", "검은 턱 바위굴"],
+      "keywords": ["인질", "협박", "등롱"],
+      "importance": "important",
+      "scope": "party_observed",
+      "round": 6
+    },
+    {
+      "type": "reveal",
+      "fact": "푸른 등대 불빛은 세관이 밀수한 연금술 광물 찌꺼기를 태워 안개를 가르는 신호 불꽃임.",
+      "actors": ["알렌"],
+      "entities": ["푸른 불빛", "등대"],
+      "keywords": ["밀수", "신호 불꽃", "연금술 광물"],
+      "importance": "important",
+      "scope": "party_observed",
+      "round": 6
+    },
+    {
+      "type": "clue",
+      "fact": "현은 검은 턱 바위굴과 세관 지하 배수 갑문 3호, 절벽에 배치된 화약 궤짝과 도화선을 확인함.",
+      "actors": ["현"],
+      "entities": ["검은 턱 바위굴", "세관 지하 배수 갑문 3호", "화약 궤짝"],
+      "keywords": ["관측", "폭파 계획", "갑문"],
+      "importance": "important",
+      "scope": "party_observed",
+      "round": 6
+    },
+    {
+      "type": "reveal",
+      "fact": "검은 파도호가 만조를 이용해 바위굴로 접근 중이며, 선상에 에른스트와 바르토로 보이는 인물들이 있었음.",
+      "actors": ["에른스트", "바르토"],
+      "entities": ["검은 파도호", "검은 턱 바위굴"],
+      "keywords": ["밀수선", "만조", "접근 중"],
+      "importance": "critical",
+      "scope": "party_observed",
+      "round": 6
+    },
+    {
+      "type": "item",
+      "fact": "알렌이 렌과 현에게 바위굴 배수 배관 도면과 비밀 환기 수직구 경로를 건넴.",
+      "actors": ["알렌", "렌", "현"],
+      "entities": ["배수 배관 도면", "비밀 환기 수직구"],
+      "keywords": ["도면", "잠입 경로"],
+      "importance": "important",
+      "scope": "party_observed",
+      "round": 6
+    },
+    {
+      "type": "quest",
+      "fact": "검은 파도호가 바위굴에 진입하기 전에 폭파를 막고 갇힌 바다갈매기호 선원들을 구해야 함.",
+      "actors": ["렌", "현"],
+      "entities": ["검은 파도호", "바다갈매기호 선원들", "검은 턱 바위굴"],
+      "keywords": ["폭파 저지", "구조", "미해결"],
+      "importance": "critical",
+      "scope": "party_observed",
+      "round": 6
+    }
+  ]
+}

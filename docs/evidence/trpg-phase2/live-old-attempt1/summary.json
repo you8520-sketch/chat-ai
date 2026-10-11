@@ -1,0 +1,512 @@
+{
+  "version": "old",
+  "mode": "live",
+  "encountersConfigured": false,
+  "templateId": 2,
+  "campaignId": 8,
+  "calls": [
+    {
+      "seq": 1,
+      "kind": "gm",
+      "round": 0,
+      "systemSha256": "b05323723b8246af8489e7136433d5c11086986e8974974f53b1791d97e6068b",
+      "userSha256": "5013339e62644afb4bd257d27c9aeaabef31b4d925149b3c4ae09f891b053e39",
+      "systemChars": 9167,
+      "userChars": 6018,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 4230,
+        "outputTokens": 2677
+      },
+      "responseChars": 4719,
+      "error": null,
+      "elapsedMs": 26547,
+      "estKrw": 9.58
+    },
+    {
+      "seq": 2,
+      "kind": "bot",
+      "round": 1,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "5257b6ceb9b8f63e77800015e21dee5a77ed7abaf3cd8fc298430dd8f67f02f5",
+      "systemChars": 3181,
+      "userChars": 3617,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 2876,
+        "outputTokens": 542,
+        "upstreamCostUsd": 0.002723
+      },
+      "responseChars": 868,
+      "error": null,
+      "elapsedMs": 14463,
+      "estKrw": 3.95
+    },
+    {
+      "seq": 3,
+      "kind": "bot",
+      "round": 1,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "6a1f80e9335e63ece3110ff5def7d23bc26ac5ad4e9a6410aa12d9a0f38be759",
+      "systemChars": 3181,
+      "userChars": 3651,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 2903,
+        "outputTokens": 512,
+        "upstreamCostUsd": 0.002663
+      },
+      "responseChars": 756,
+      "error": null,
+      "elapsedMs": 10070,
+      "estKrw": 3.86
+    },
+    {
+      "seq": 4,
+      "kind": "gm",
+      "round": 1,
+      "systemSha256": "b05323723b8246af8489e7136433d5c11086986e8974974f53b1791d97e6068b",
+      "userSha256": "b40b05c7e6c806fc9d4743725e0b96592cb84657faa8e1c1d29502031fd708e8",
+      "systemChars": 9167,
+      "userChars": 11147,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 7163,
+        "outputTokens": 2889
+      },
+      "responseChars": 5002,
+      "error": null,
+      "elapsedMs": 28865,
+      "estKrw": 11.75
+    },
+    {
+      "seq": 5,
+      "kind": "bot",
+      "round": 2,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "bbe6496612ee1d2d91a25c9aab6b4731bd3355f31da9f9bf753cdf01d06d03a5",
+      "systemChars": 3181,
+      "userChars": 4034,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3149,
+        "outputTokens": 593,
+        "upstreamCostUsd": 0.00298
+      },
+      "responseChars": 888,
+      "error": null,
+      "elapsedMs": 8192,
+      "estKrw": 4.32
+    },
+    {
+      "seq": 6,
+      "kind": "bot",
+      "round": 2,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "28a50d1b62bfa9231c5129ecc3883294693acf6e90e680a70de93d9a3506ef15",
+      "systemChars": 3181,
+      "userChars": 4144,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3219,
+        "outputTokens": 417,
+        "upstreamCostUsd": 0.002585
+      },
+      "responseChars": 664,
+      "error": null,
+      "elapsedMs": 7734,
+      "estKrw": 3.75
+    },
+    {
+      "seq": 7,
+      "kind": "gm",
+      "round": 2,
+      "systemSha256": "b05323723b8246af8489e7136433d5c11086986e8974974f53b1791d97e6068b",
+      "userSha256": "200605c24d2958d8256479bbb16a97e088d62e230aa1b9c06aa6ecd5f9ed3030",
+      "systemChars": 9167,
+      "userChars": 15254,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 9824,
+        "outputTokens": 2935
+      },
+      "responseChars": 4944,
+      "error": null,
+      "elapsedMs": 33571,
+      "estKrw": 13.32
+    },
+    {
+      "seq": 8,
+      "kind": "bot",
+      "round": 3,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "ff3ad39222a7feb84ea55c491bb89ed144b0e45ad6f0cd630408dd8883b94400",
+      "systemChars": 3181,
+      "userChars": 4078,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3195,
+        "outputTokens": 511,
+        "upstreamCostUsd": 0.002803
+      },
+      "responseChars": 757,
+      "error": null,
+      "elapsedMs": 8817,
+      "estKrw": 4.06
+    },
+    {
+      "seq": 9,
+      "kind": "bot",
+      "round": 3,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "6e802047ae90c46153460b0cdfd1c2dd08e8e72f262328a2e5aa9b5f25987791",
+      "systemChars": 3181,
+      "userChars": 4182,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3264,
+        "outputTokens": 477,
+        "upstreamCostUsd": 0.002753
+      },
+      "responseChars": 730,
+      "error": null,
+      "elapsedMs": 24221,
+      "estKrw": 3.99
+    },
+    {
+      "seq": 10,
+      "kind": "gm",
+      "round": 3,
+      "systemSha256": "b05323723b8246af8489e7136433d5c11086986e8974974f53b1791d97e6068b",
+      "userSha256": "489f5e252e12c341b762d0ddd8b8a59c944e5c304955cf4fea3903a39e2f2aa1",
+      "systemChars": 9167,
+      "userChars": 19530,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 12562,
+        "outputTokens": 3055
+      },
+      "responseChars": 5131,
+      "error": null,
+      "elapsedMs": 36016,
+      "estKrw": 15.14
+    },
+    {
+      "seq": 11,
+      "kind": "memory",
+      "round": 3,
+      "systemSha256": "655ea1c98fd0088f7ffa46240316d2eaf00ebc44b5ddcc32fc7b88029189735f",
+      "userSha256": "e441bd7f8025ff2c96ec59304ede2e5ab192e965cedb3f27de1425bd3a85c11b",
+      "systemChars": 1341,
+      "userChars": 3331,
+      "usage": {
+        "modelId": "background-memory",
+        "inputTokens": 2599,
+        "outputTokens": 607,
+        "upstreamCostUsd": 0.000408
+      },
+      "responseChars": 1350,
+      "error": null,
+      "elapsedMs": 5177,
+      "estKrw": 0.59
+    },
+    {
+      "seq": 12,
+      "kind": "bot",
+      "round": 4,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "1d683534169f58df3e79017feb845c8a2bfdc1e99ae279ce7cd43b5a972cc84e",
+      "systemChars": 3181,
+      "userChars": 4522,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3485,
+        "outputTokens": 510,
+        "upstreamCostUsd": 0.002942
+      },
+      "responseChars": 757,
+      "error": null,
+      "elapsedMs": 9455,
+      "estKrw": 4.27
+    },
+    {
+      "seq": 13,
+      "kind": "bot",
+      "round": 4,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "9bc77357fbbe57f04017daf10832cc464f233c4ff0f19ec2107132e7d0f2f699",
+      "systemChars": 3181,
+      "userChars": 4618,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3545,
+        "outputTokens": 440,
+        "upstreamCostUsd": 0.0028
+      },
+      "responseChars": 707,
+      "error": null,
+      "elapsedMs": 6998,
+      "estKrw": 4.06
+    },
+    {
+      "seq": 14,
+      "kind": "gm",
+      "round": 4,
+      "systemSha256": "b05323723b8246af8489e7136433d5c11086986e8974974f53b1791d97e6068b",
+      "userSha256": "234f2637459843a037edf7c17a3f57562bed4d2e7f43d4e205b3814cfa89a061",
+      "systemChars": 9167,
+      "userChars": 21042,
+      "usage": null,
+      "responseChars": 0,
+      "error": "The operation was aborted due to timeout",
+      "elapsedMs": 180002,
+      "estKrw": 0
+    }
+  ],
+  "fetchLog": [
+    {
+      "n": 1,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 18694,
+      "status": 200,
+      "blocked": false,
+      "ms": 9766
+    },
+    {
+      "n": 2,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 11421,
+      "status": 200,
+      "blocked": false,
+      "ms": 14456
+    },
+    {
+      "n": 3,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 11497,
+      "status": 200,
+      "blocked": false,
+      "ms": 10060
+    },
+    {
+      "n": 4,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 29135,
+      "status": 200,
+      "blocked": false,
+      "ms": 2615
+    },
+    {
+      "n": 5,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 12334,
+      "status": 200,
+      "blocked": false,
+      "ms": 8182
+    },
+    {
+      "n": 6,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 12618,
+      "status": 200,
+      "blocked": false,
+      "ms": 7725
+    },
+    {
+      "n": 7,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 39079,
+      "status": 200,
+      "blocked": false,
+      "ms": 3485
+    },
+    {
+      "n": 8,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 12420,
+      "status": 200,
+      "blocked": false,
+      "ms": 8808
+    },
+    {
+      "n": 9,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 12690,
+      "status": 200,
+      "blocked": false,
+      "ms": 24213
+    },
+    {
+      "n": 10,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 49208,
+      "status": 200,
+      "blocked": false,
+      "ms": 7517
+    },
+    {
+      "n": 11,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 9532,
+      "status": 200,
+      "blocked": false,
+      "ms": 5166
+    },
+    {
+      "n": 12,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 13424,
+      "status": 200,
+      "blocked": false,
+      "ms": 9444
+    },
+    {
+      "n": 13,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 13674,
+      "status": 200,
+      "blocked": false,
+      "ms": 6987
+    },
+    {
+      "n": 14,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 52798,
+      "status": 200,
+      "blocked": false,
+      "ms": 3660
+    }
+  ],
+  "totalCalls": {
+    "gm": 5,
+    "bot": 8,
+    "memory": 1
+  },
+  "totalEstKrw": 82.64,
+  "fxAssumptionKrwPerUsd": 1450,
+  "tokens": {
+    "input": 62014,
+    "output": 16165,
+    "cacheRead": 0
+  },
+  "testPointsBilled": {
+    "start": {
+      "host": {
+        "total": 20000,
+        "paid": 20000,
+        "free": 0
+      },
+      "guest": {
+        "total": 20000,
+        "paid": 20000,
+        "free": 0
+      }
+    },
+    "end": {
+      "host": {
+        "total": 19972,
+        "paid": 19972,
+        "free": 0
+      },
+      "guest": {
+        "total": 19973,
+        "paid": 19973,
+        "free": 0
+      }
+    }
+  },
+  "errors": [
+    "round 5: 지금은 행동을 제출할 수 없습니다."
+  ],
+  "diceLog": [
+    {
+      "round": 1,
+      "kind": "d20",
+      "value": 14
+    },
+    {
+      "round": 1,
+      "kind": "d20",
+      "value": 13
+    },
+    {
+      "round": 1,
+      "kind": "d20",
+      "value": 15
+    },
+    {
+      "round": 1,
+      "kind": "d20",
+      "value": 12
+    },
+    {
+      "round": 2,
+      "kind": "d20",
+      "value": 15
+    },
+    {
+      "round": 2,
+      "kind": "d20",
+      "value": 12
+    },
+    {
+      "round": 2,
+      "kind": "d20",
+      "value": 14
+    },
+    {
+      "round": 2,
+      "kind": "d20",
+      "value": 13
+    },
+    {
+      "round": 3,
+      "kind": "d20",
+      "value": 16
+    },
+    {
+      "round": 3,
+      "kind": "d20",
+      "value": 13
+    },
+    {
+      "round": 3,
+      "kind": "d20",
+      "value": 15
+    },
+    {
+      "round": 3,
+      "kind": "d20",
+      "value": 14
+    },
+    {
+      "round": 4,
+      "kind": "d20",
+      "value": 14
+    },
+    {
+      "round": 4,
+      "kind": "d20",
+      "value": 15
+    },
+    {
+      "round": 4,
+      "kind": "d20",
+      "value": 13
+    }
+  ]
+}

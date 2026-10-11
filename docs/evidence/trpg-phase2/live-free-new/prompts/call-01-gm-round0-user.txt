@@ -1,0 +1,61 @@
+[OPENING SCENE — describe the start and ask what they do. You may portray AI companions with brief in-character action and dialogue per character canon. Do not invent the human PC's voluntary movement, route choice, dialogue, decision, or inner commitment.]
+
+[WORLD]
+해무가 일 년의 절반을 덮는 항구도시 마레노. 어시장, 선원 조합, 세관, 오래된 등대가 얽힌 도시.
+
+마레노는 만 안쪽에 자리 잡은 중소 규모의 항구도시다. 연중 절반은 짙은 해무가 낀다.
+
+도시의 중심은 새벽마다 서는 어시장이고, 부두 쪽에는 선원 조합 회관과 세관이 마주 보고 있다. 곶 끝에는 백 년 된 등대가 서 있고 등대지기 가문이 대대로 관리한다.
+
+선원 조합은 항로와 임금을 쥐고 있고, 세관은 입항 기록과 관세를 쥐고 있어 두 기관은 늘 불편한 관계다. 어시장 상인들은 이 둘 사이에서 눈치를 보며 장사를 한다.
+
+이 도시의 사람들은 대체로 낯선 방문객에게 경계심을 보이지만, 값을 치르거나 호의를 보이면 의외로 쉽게 마음을 연다.
+
+[LOCAL SCENE DELTA CONTRACT]
+Optional nested "localScene" in <<<DELTA>>> JSON. Omission is not deletion — persist prior routes/obstacles unless explicitly removed.
+Fields: objectiveSet (refine objective only), sceneTransitionTo (new local scene — resets collections), resolvedObstaclesAdd/Remove, openRoutesAdd/Remove, remainingBlockersAdd/Remove, sceneStateSet ("active"|"transition_ready").
+When removing an item, copy the exact label from [LOCAL SCENE STATE]; non-matching remove values are no-ops.
+When the submitted action establishes entry into a genuinely new local dramatic situation, include sceneTransitionTo in localScene.
+Record world/scene availability only — not unsubmitted PC decisions or movement.
+Example:
+{"players":[],"location":"","next_round_context":"","localScene":{"objectiveSet":"건물 탈출 경로 확보","openRoutesAdd":["우측 환풍구"],"remainingBlockersAdd":["환풍구 앞 기생종"],"sceneStateSet":"active"}}
+
+[TONE CONTEXT] No listed WORLD genres. Data only — follow the system TONE owner.
+
+[SCENARIO SHEET STATS — only these exist; pick from this list]
+- 힘 (str): 근접·완력·파괴  5–15
+- 민첩 (dex): 은신·선공·잔기술  5–15
+- 체력 (con): 지구력·HP  5–15
+- 지능 (int): 조사·지식·추론  5–15
+- 지혜 (wis): 통찰·감지·판단  5–15
+- 매력 (cha): 설득·사교·위압  5–15
+
+[PARTY SHEETS — canon; use these values for checks and competence]
+[PC 렌]
+힘 8(+1) · 민첩 8(+1) · 체력 8(+1) · 지능 7(+1) · 지혜 7(+1) · 매력 7(+1)
+[PC 현]
+힘 8(+1) · 민첩 8(+1) · 체력 8(+1) · 지능 7(+1) · 지혜 7(+1) · 매력 7(+1)
+
+[PLAYER PERSONAS — portray these human PCs as written. Do not invent a different identity.]
+[PLAYER PERSONA participantId=8 name=렌]
+이름/호칭: 렌
+
+[PLAYER PERSONA participantId=9 name=현]
+이름/호칭: 현
+
+[TRPG STRUCTURED STATE — authoritative; do not contradict HP/items/location/flags]
+round=0
+location=—
+- 렌: HP 40/40 stats=cha:7,con:8,dex:8,int:7,str:8,wis:7
+- 현: HP 40/40 stats=cha:7,con:8,dex:8,int:7,str:8,wis:7
+
+(no player actions — opening scene only)
+
+[ROUND EXECUTION — binding]
+Apply [GM SCENE CRAFT — ADAPTIVE NARRATION] and [ROUND CRAFT] from system to the submitted actions above.
+Return JSON with narration and delta per system OUTPUT contract.
+[ROUND NARRATION BUDGET]
+Input density: SPARSE
+Minimum new GM narration: 2800 Korean characters
+Target new GM narration: 3600–4600 Korean characters
+Finish at or above Minimum; TARGET is the normal complete-scene range.

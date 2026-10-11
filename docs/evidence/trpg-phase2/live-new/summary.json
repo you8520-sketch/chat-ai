@@ -1,0 +1,710 @@
+{
+  "version": "new",
+  "mode": "live",
+  "encountersConfigured": true,
+  "templateId": 2,
+  "campaignId": 8,
+  "calls": [
+    {
+      "seq": 1,
+      "kind": "gm",
+      "round": 0,
+      "systemSha256": "02aa55fd029ba8fe1bdb30c6cb70cdcbfeaa6a7f339531861acc1f00145ef59d",
+      "userSha256": "9bcf0de257fbb55fe7cee90569e523c17d486e318dcc21f74f1c30a65be43136",
+      "systemChars": 9427,
+      "userChars": 6103,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 4776,
+        "outputTokens": 2484
+      },
+      "responseChars": 4192,
+      "error": null,
+      "elapsedMs": 35033,
+      "estKrw": 9.35
+    },
+    {
+      "seq": 2,
+      "kind": "bot",
+      "round": 1,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "e6a917cabcb7f616a3883758e6298ef485fbfd18093f941cf236fe572bb47f32",
+      "systemChars": 3181,
+      "userChars": 3598,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 2839,
+        "outputTokens": 460,
+        "upstreamCostUsd": 0.002505
+      },
+      "responseChars": 745,
+      "error": null,
+      "elapsedMs": 10044,
+      "estKrw": 3.63
+    },
+    {
+      "seq": 3,
+      "kind": "bot",
+      "round": 1,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "19222032aaa9a51a2e86b290b753d7e8ad96df6e66299f2b4a963198ca9b0dcd",
+      "systemChars": 3181,
+      "userChars": 3656,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 2887,
+        "outputTokens": 489,
+        "upstreamCostUsd": 0.002599
+      },
+      "responseChars": 734,
+      "error": null,
+      "elapsedMs": 10144,
+      "estKrw": 3.77
+    },
+    {
+      "seq": 4,
+      "kind": "gm",
+      "round": 1,
+      "systemSha256": "02aa55fd029ba8fe1bdb30c6cb70cdcbfeaa6a7f339531861acc1f00145ef59d",
+      "userSha256": "5e5029019bd786cabb1eca732d4da75898b21cb1e91dfa79dab27fb05ac98777",
+      "systemChars": 9427,
+      "userChars": 11347,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 7110,
+        "outputTokens": 2579,
+        "cacheReadTokens": 5213
+      },
+      "responseChars": 4492,
+      "error": null,
+      "elapsedMs": 30011,
+      "estKrw": 8.33
+    },
+    {
+      "seq": 5,
+      "kind": "bot",
+      "round": 2,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "7575f4782d2524ab0637fbe8eebb3b7069b6e46993f8c59eb10bce1ca10261b4",
+      "systemChars": 3181,
+      "userChars": 3937,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3027,
+        "outputTokens": 490,
+        "upstreamCostUsd": 0.00267
+      },
+      "responseChars": 711,
+      "error": null,
+      "elapsedMs": 11236,
+      "estKrw": 3.87
+    },
+    {
+      "seq": 6,
+      "kind": "bot",
+      "round": 2,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "ca72b9d1d08d3c0d2ab3a9ec15eb3ab92ec9a755467767a4739e8bd983093b2e",
+      "systemChars": 3181,
+      "userChars": 4028,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3087,
+        "outputTokens": 409,
+        "upstreamCostUsd": 0.002501
+      },
+      "responseChars": 644,
+      "error": null,
+      "elapsedMs": 10303,
+      "estKrw": 3.63
+    },
+    {
+      "seq": 7,
+      "kind": "gm",
+      "round": 2,
+      "systemSha256": "02aa55fd029ba8fe1bdb30c6cb70cdcbfeaa6a7f339531861acc1f00145ef59d",
+      "userSha256": "256f73390ee52bc5fa044baec16c0741f737453e5d328ecd7a1122384982df44",
+      "systemChars": 9427,
+      "userChars": 15174,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 9574,
+        "outputTokens": 2583
+      },
+      "responseChars": 4567,
+      "error": null,
+      "elapsedMs": 28661,
+      "estKrw": 12.23
+    },
+    {
+      "seq": 8,
+      "kind": "bot",
+      "round": 3,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "1f9a8fac41b50aca99c102f3fd555a13793d36c1089ad322fed1cf9f5151e1f3",
+      "systemChars": 3181,
+      "userChars": 4011,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3139,
+        "outputTokens": 482,
+        "upstreamCostUsd": 0.002705
+      },
+      "responseChars": 713,
+      "error": null,
+      "elapsedMs": 12611,
+      "estKrw": 3.92
+    },
+    {
+      "seq": 9,
+      "kind": "bot",
+      "round": 3,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "bf731d23489f77cee183b5aafc8203fbab3b32b55d6abb67b184be0b463fc1aa",
+      "systemChars": 3181,
+      "userChars": 4106,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3199,
+        "outputTokens": 408,
+        "upstreamCostUsd": 0.002554
+      },
+      "responseChars": 663,
+      "error": null,
+      "elapsedMs": 17468,
+      "estKrw": 3.7
+    },
+    {
+      "seq": 10,
+      "kind": "gm",
+      "round": 3,
+      "systemSha256": "02aa55fd029ba8fe1bdb30c6cb70cdcbfeaa6a7f339531861acc1f00145ef59d",
+      "userSha256": "7ccbb08ad7104296862d816ab70b4a8b18d02318eba8650d2b2001360295b7dc",
+      "systemChars": 9427,
+      "userChars": 18837,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 11874,
+        "outputTokens": 2948,
+        "cacheReadTokens": 9918
+      },
+      "responseChars": 4994,
+      "error": null,
+      "elapsedMs": 36652,
+      "estKrw": 9.62
+    },
+    {
+      "seq": 11,
+      "kind": "memory",
+      "round": 3,
+      "systemSha256": "655ea1c98fd0088f7ffa46240316d2eaf00ebc44b5ddcc32fc7b88029189735f",
+      "userSha256": "47973d2101508046efa3614f7ef4a3351375647a1e4476868efca848e9b3c6d2",
+      "systemChars": 1341,
+      "userChars": 2929,
+      "usage": {
+        "modelId": "background-memory",
+        "inputTokens": 2299,
+        "outputTokens": 485,
+        "upstreamCostUsd": 0.000344
+      },
+      "responseChars": 1091,
+      "error": null,
+      "elapsedMs": 4537,
+      "estKrw": 0.5
+    },
+    {
+      "seq": 12,
+      "kind": "bot",
+      "round": 4,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "383fc076678a66e23549234e3f5136c7f18ae9556b6755b25693c2e8bbe338fc",
+      "systemChars": 3181,
+      "userChars": 4308,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3296,
+        "outputTokens": 530,
+        "upstreamCostUsd": 0.002898
+      },
+      "responseChars": 855,
+      "error": null,
+      "elapsedMs": 6868,
+      "estKrw": 4.2
+    },
+    {
+      "seq": 13,
+      "kind": "bot",
+      "round": 4,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "9fac5d200dde4d2c86175c465bb27f5b3d1c1bed634269a0ddabfa52d05d9788",
+      "systemChars": 3181,
+      "userChars": 4399,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3363,
+        "outputTokens": 567,
+        "upstreamCostUsd": 0.003021
+      },
+      "responseChars": 859,
+      "error": null,
+      "elapsedMs": 7925,
+      "estKrw": 4.38
+    },
+    {
+      "seq": 14,
+      "kind": "gm",
+      "round": 4,
+      "systemSha256": "02aa55fd029ba8fe1bdb30c6cb70cdcbfeaa6a7f339531861acc1f00145ef59d",
+      "userSha256": "baff529ba8a5d400e13b169d8763dbdb4f6b44a6260a601abeb55a98b0c0053b",
+      "systemChars": 9427,
+      "userChars": 20667,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 13076,
+        "outputTokens": 2490
+      },
+      "responseChars": 4074,
+      "error": null,
+      "elapsedMs": 27084,
+      "estKrw": 13.88
+    },
+    {
+      "seq": 15,
+      "kind": "memory",
+      "round": 4,
+      "systemSha256": "655ea1c98fd0088f7ffa46240316d2eaf00ebc44b5ddcc32fc7b88029189735f",
+      "userSha256": "e6dc0131aa1d30aa7e7945bc71287df1d7be35d9db7afaf39a3ff2217dd244f5",
+      "systemChars": 1341,
+      "userChars": 3769,
+      "usage": {
+        "modelId": "background-memory",
+        "inputTokens": 2862,
+        "outputTokens": 652,
+        "upstreamCostUsd": 0.000444
+      },
+      "responseChars": 1400,
+      "error": null,
+      "elapsedMs": 5292,
+      "estKrw": 0.64
+    },
+    {
+      "seq": 16,
+      "kind": "bot",
+      "round": 5,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "65e82efbda0824765a90f0126ab0467dc78b7a323aa35b20e4d834571bc6a20d",
+      "systemChars": 3181,
+      "userChars": 4450,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3361,
+        "outputTokens": 400,
+        "upstreamCostUsd": 0.002613
+      },
+      "responseChars": 619,
+      "error": null,
+      "elapsedMs": 7325,
+      "estKrw": 3.79
+    },
+    {
+      "seq": 17,
+      "kind": "bot",
+      "round": 5,
+      "systemSha256": "f187c36d09a6a31cc68619ccd8dd16049d96ccb41602cad91614a5cc37177739",
+      "userSha256": "b59b094facbaaf3b1566313e4907952b60b5419ed69f1292ca1f3587e8ce56bd",
+      "systemChars": 3181,
+      "userChars": 4532,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3422,
+        "outputTokens": 579,
+        "upstreamCostUsd": 0.003079
+      },
+      "responseChars": 823,
+      "error": null,
+      "elapsedMs": 13145,
+      "estKrw": 4.46
+    },
+    {
+      "seq": 18,
+      "kind": "gm",
+      "round": 5,
+      "systemSha256": "02aa55fd029ba8fe1bdb30c6cb70cdcbfeaa6a7f339531861acc1f00145ef59d",
+      "userSha256": "e2d3be94c50147368078368df7e1a233d827457e8b415d7b7075703f3b1c6348",
+      "systemChars": 9427,
+      "userChars": 21116,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 13377,
+        "outputTokens": 3938
+      },
+      "responseChars": 6629,
+      "error": null,
+      "elapsedMs": 37557,
+      "estKrw": 17.98
+    },
+    {
+      "seq": 19,
+      "kind": "memory",
+      "round": 5,
+      "systemSha256": "655ea1c98fd0088f7ffa46240316d2eaf00ebc44b5ddcc32fc7b88029189735f",
+      "userSha256": "6669c7b8bea938b10f450a51b32d107b0c5505bd714e7bcc051a5dc506147d4c",
+      "systemChars": 1341,
+      "userChars": 3472,
+      "usage": {
+        "modelId": "background-memory",
+        "inputTokens": 2691,
+        "outputTokens": 647,
+        "upstreamCostUsd": 0.000428
+      },
+      "responseChars": 1366,
+      "error": null,
+      "elapsedMs": 4822,
+      "estKrw": 0.62
+    }
+  ],
+  "fetchLog": [
+    {
+      "n": 1,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 19153,
+      "status": 200,
+      "blocked": false,
+      "ms": 17356
+    },
+    {
+      "n": 2,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 11397,
+      "status": 200,
+      "blocked": false,
+      "ms": 10034
+    },
+    {
+      "n": 3,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 11531,
+      "status": 200,
+      "blocked": false,
+      "ms": 10134
+    },
+    {
+      "n": 4,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 29225,
+      "status": 200,
+      "blocked": false,
+      "ms": 8511
+    },
+    {
+      "n": 5,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 12166,
+      "status": 200,
+      "blocked": false,
+      "ms": 11224
+    },
+    {
+      "n": 6,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 12399,
+      "status": 200,
+      "blocked": false,
+      "ms": 10293
+    },
+    {
+      "n": 7,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 38498,
+      "status": 200,
+      "blocked": false,
+      "ms": 6417
+    },
+    {
+      "n": 8,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 12277,
+      "status": 200,
+      "blocked": false,
+      "ms": 12601
+    },
+    {
+      "n": 9,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 12520,
+      "status": 200,
+      "blocked": false,
+      "ms": 17460
+    },
+    {
+      "n": 10,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 47141,
+      "status": 200,
+      "blocked": false,
+      "ms": 8653
+    },
+    {
+      "n": 11,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 8622,
+      "status": 200,
+      "blocked": false,
+      "ms": 4527
+    },
+    {
+      "n": 12,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 12945,
+      "status": 200,
+      "blocked": false,
+      "ms": 6860
+    },
+    {
+      "n": 13,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 13160,
+      "status": 200,
+      "blocked": false,
+      "ms": 7917
+    },
+    {
+      "n": 14,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 51517,
+      "status": 200,
+      "blocked": false,
+      "ms": 3671
+    },
+    {
+      "n": 15,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 10703,
+      "status": 200,
+      "blocked": false,
+      "ms": 5283
+    },
+    {
+      "n": 16,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 13261,
+      "status": 200,
+      "blocked": false,
+      "ms": 7316
+    },
+    {
+      "n": 17,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 13453,
+      "status": 200,
+      "blocked": false,
+      "ms": 13135
+    },
+    {
+      "n": 18,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 52575,
+      "status": 200,
+      "blocked": false,
+      "ms": 3938
+    },
+    {
+      "n": 19,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 9942,
+      "status": 200,
+      "blocked": false,
+      "ms": 4814
+    }
+  ],
+  "totalCalls": {
+    "gm": 6,
+    "bot": 10,
+    "memory": 3
+  },
+  "totalEstKrw": 112.51,
+  "fxAssumptionKrwPerUsd": 1450,
+  "tokens": {
+    "input": 99259,
+    "output": 23620,
+    "cacheRead": 15131
+  },
+  "testPointsBilled": {
+    "start": {
+      "host": {
+        "total": 20000,
+        "paid": 20000,
+        "free": 0
+      },
+      "guest": {
+        "total": 20000,
+        "paid": 20000,
+        "free": 0
+      }
+    },
+    "end": {
+      "host": {
+        "total": 19948,
+        "paid": 19948,
+        "free": 0
+      },
+      "guest": {
+        "total": 19951,
+        "paid": 19951,
+        "free": 0
+      }
+    }
+  },
+  "errors": [],
+  "diceLog": [
+    {
+      "round": 1,
+      "kind": "d20",
+      "value": 14
+    },
+    {
+      "round": 1,
+      "kind": "d20",
+      "value": 13
+    },
+    {
+      "round": 1,
+      "kind": "d20",
+      "value": 15
+    },
+    {
+      "round": 1,
+      "kind": "d20",
+      "value": 12
+    },
+    {
+      "round": 2,
+      "kind": "d20",
+      "value": 15
+    },
+    {
+      "round": 2,
+      "kind": "d20",
+      "value": 12
+    },
+    {
+      "round": 2,
+      "kind": "d20",
+      "value": 14
+    },
+    {
+      "round": 2,
+      "kind": "d20",
+      "value": 13
+    },
+    {
+      "round": 2,
+      "kind": "die_d4",
+      "value": 2
+    },
+    {
+      "round": 2,
+      "kind": "threat_strike_d20",
+      "value": 15
+    },
+    {
+      "round": 2,
+      "kind": "die_d6",
+      "value": 3
+    },
+    {
+      "round": 3,
+      "kind": "d20",
+      "value": 16
+    },
+    {
+      "round": 3,
+      "kind": "d20",
+      "value": 13
+    },
+    {
+      "round": 3,
+      "kind": "d20",
+      "value": 15
+    },
+    {
+      "round": 3,
+      "kind": "die_d4",
+      "value": 2
+    },
+    {
+      "round": 3,
+      "kind": "threat_strike_d20",
+      "value": 14
+    },
+    {
+      "round": 3,
+      "kind": "die_d6",
+      "value": 3
+    },
+    {
+      "round": 4,
+      "kind": "d20",
+      "value": 14
+    },
+    {
+      "round": 4,
+      "kind": "d20",
+      "value": 15
+    },
+    {
+      "round": 4,
+      "kind": "d20",
+      "value": 13
+    },
+    {
+      "round": 4,
+      "kind": "die_d4",
+      "value": 2
+    },
+    {
+      "round": 4,
+      "kind": "threat_strike_d20",
+      "value": 15
+    },
+    {
+      "round": 4,
+      "kind": "die_d6",
+      "value": 3
+    },
+    {
+      "round": 5,
+      "kind": "d20",
+      "value": 13
+    },
+    {
+      "round": 5,
+      "kind": "d20",
+      "value": 14
+    },
+    {
+      "round": 5,
+      "kind": "d20",
+      "value": 15
+    }
+  ]
+}
