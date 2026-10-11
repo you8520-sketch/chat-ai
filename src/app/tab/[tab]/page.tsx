@@ -10,6 +10,7 @@ import { CHARACTER_GENRES, genreFilterSql, type CharacterGenre } from "@/lib/cha
 import { characterRevealAttrs } from "@/lib/characterReveal";
 import { readPublicDossier } from "@/lib/characterPublicDossier";
 import { listableWhere } from "@/lib/characterVisibility";
+import { buildHomeListFilter, fetchNewestCharacters } from "@/lib/homeSections";
 import { characterCardHref } from "@/lib/chatLinks";
 import {
   fetchCharacterRanking,
@@ -25,6 +26,9 @@ import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
 import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
 
 export const dynamic = "force-dynamic";
+
+/** 홈 '신규 캐릭터'(25)의 '더보기'이므로 홈보다 넓게 보여준다. */
+const NEW_TAB_LIMIT = 50;
 
 const GENRE_TABS = ["전체", ...CHARACTER_GENRES] as const;
 
@@ -95,11 +99,7 @@ export default async function TabPage({
       break;
     case "new":
       title = "실시간 신작";
-      chars = db
-        .prepare(
-          `SELECT * FROM characters WHERE ${listableWhere("official=0")} ${filter} ORDER BY created_at DESC, id DESC LIMIT 50`,
-        )
-        .all(...fparams) as CharacterRow[];
+      chars = fetchNewestCharacters(db, buildHomeListFilter(user, blurNsfw), NEW_TAB_LIMIT);
       break;
     case "ranking":
       title = "랭킹";
@@ -181,7 +181,8 @@ export default async function TabPage({
       notFound();
   }
 
-  chars = decorateCharactersWithCreatorTiers(db, chars);
+  // `new` comes from fetchNewestCharacters, which already decorates creator tiers.
+  if (tab !== "new") chars = decorateCharactersWithCreatorTiers(db, chars);
   bookmarkedChars = decorateCharactersWithCreatorTiers(db, bookmarkedChars);
   followingCreatorChars = decorateCharactersWithCreatorTiers(db, followingCreatorChars);
 
