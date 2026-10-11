@@ -15,6 +15,7 @@ import {
   computeTextLockHash,
   evaluateOfficialStagedSaveLength,
   evaluateOfficialTextLength,
+  officialSubstantiveCharCount,
 } from "@/lib/officialSupply/characterText";
 import {
   renderAppearanceBlock,
@@ -246,7 +247,7 @@ describe("official character prompt standard v1", () => {
     const draft = source.draft;
     const lockBefore = computeTextLockHash(draft);
     assert.equal(draft.promptStandard, undefined);
-    assert.equal(draft.secrets.length, 8);
+    assert.equal(draft.secrets.length, 2);
 
     const systemPrompt = composeOfficialSystemPrompt(draft, source.appearanceBlock);
     const creatorComment = composeOfficialCreatorComment(draft);
@@ -324,7 +325,44 @@ describe("official character prompt standard v1", () => {
     assert.match(source, /hobbies는 짧은 명사\/구 3~5개/);
     assert.match(source, /기본은 persona-flexible/);
     assert.match(source, /출연진 전체를 채우지 않는다/);
-    assert.match(source, /lorebook 후보 메모/);
+    assert.match(source, /다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다/);
+    assert.doesNotMatch(source, /0~3명/);
+    assert.match(source, /행동 기반 변화 조건/);
+    assert.match(source, /획일적인 장문 합의/);
+    assert.match(source, /이 캐릭터만의 욕망/);
+  });
+
+  it("keeps Wolfgang on the non-compact path while removing appearance duplication and forced relationship stages", () => {
+    const source = loadCompiledOfficialCharacterSource("pilot-rf-02");
+    const draft = source.draft;
+    const file = lucianFile();
+    assert.equal(draft.promptStandard, undefined);
+    assert.equal(draft.secrets.length, 2);
+    assert.match(draft.sections.characterCore, /기본 스펙:\n이름: 볼프강 폰 발켄하임/);
+    assert.match(draft.sections.characterCore, /성격 키워드:/);
+    assert.match(draft.sections.characterCore, /과거 서사:/);
+    assert.doesNotMatch(draft.sections.characterCore, /광대|턱선|헤어스타일|머리색:|기본 복장:|액세서리:/);
+    assert.equal((source.systemPrompt.match(/\[외형\]/g) ?? []).length, 1);
+    assert.doesNotMatch(source.systemPrompt, /광대가 도드라지지 않는|매끈한 턱선|기본 복장:/);
+    assert.match(source.appearanceBlock, /188cm/);
+    assert.doesNotMatch(source.appearanceBlock, /얼굴:|연령대 인상:|기본 의상:/);
+
+    assert.match(draft.sections.relationshipsAndDrives, /유저 페르소나와 대화에서 명시된 설정을 우선/);
+    assert.match(draft.sections.relationshipsAndDrives, /관계 변화 조건:/);
+    assert.doesNotMatch(draft.sections.relationshipsAndDrives, /관계 진행:.*초기:.*→ 중기:.*→ 후기:/);
+    assert.match(draft.sections.relationshipsAndDrives, /배신과 적대는 가능한 결말/);
+    assert.match(draft.sections.relationshipsAndDrives, /기존 연인·동료·상관·라이벌/);
+    assert.doesNotMatch(draft.sections.relationshipsAndDrives, /카엘룸 폰 에테르노스\(공개\)/);
+
+    assert.match(draft.adult.adultHookSummary, /취향: 억눌린 욕망의 짧은 폭발/);
+    assert.match(draft.adult.adultHookSummary, /질투와 독점/);
+    assert.doesNotMatch(draft.adult.adultHookSummary, /합의: 시작 전 역할의 범위와 허용·금지 사항/);
+    assert.doesNotMatch(source.systemPrompt, /체온·수분·상처와 정서 상태를 살핀다/);
+
+    assert.equal(evaluateOfficialTextLength(draft).ok, true);
+    assert.equal(evaluateOfficialStagedSaveLength(draft, source.appearanceBlock).ok, true);
+    assert.ok(officialSubstantiveCharCount(draft, source.appearanceBlock) <= 12000);
+    assert.doesNotMatch(file.draft.sections.characterCore, /볼프강/);
   });
   it("keeps the reusable review dump read-only and provider-free", () => {
     const source = [

@@ -214,7 +214,7 @@ export function evaluateWorldTermCollisions(worlds: ReadonlyArray<{ worldKey: st
 export const SECRET_LEAK_CONTAINMENT = 0.7;
 
 /** Wording that marks hidden canon — never valid in a shared, all-characters lorebook. */
-const HIDDEN_KNOWLEDGE_RE = /(숨겨진|비밀|정체를\s*숨|진짜\s*정체|사실은|혈통|출생의\s*비밀|속마음|흑막|훗날|미래에|장차|결국\s*\S+하게\s*된다)/;
+export const HIDDEN_KNOWLEDGE_RE = /(숨겨진|비밀|정체를\s*숨|진짜\s*정체|사실은|혈통|출생의\s*비밀|속마음|흑막|훗날|미래에|장차|결국\s*\S+하게\s*된다)/;
 
 /**
  * Same-world shared lorebook boundary: only public, knowable facts. Each entry

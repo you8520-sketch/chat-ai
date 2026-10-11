@@ -12,7 +12,7 @@ import {
   type QaResult,
 } from "@/lib/officialSupply/types";
 
-export const SUPPORTING_NPC_MAX = 3;
+/** Supporting NPCs may exist in the bible; only scene-relevant names enter RP. */
 /** ~200 chars target per NPC line; hard ceiling leaves room for long names. */
 export const SUPPORTING_NPC_LINE_SOFT_MAX = 200;
 export const SUPPORTING_NPC_LINE_HARD_MAX = 240;
@@ -63,6 +63,24 @@ function joinSections(parts: Array<[string, string]>): string {
     .join("\n\n");
 }
 
+/**
+ * Opening-scene NPC filter only. Names that appear later in conversation are
+ * not scanned here; public otherRelationships use the existing keyword lorebook
+ * owner instead of this always-on RP section.
+ */
+export function sceneRelevantSupportingNpcs(draft: OfficialCharacterDraft): OfficialSupportingNpc[] {
+  const scene = [
+    draft.sections.currentSituation ?? "",
+    draft.sections.worldAndSituation,
+    draft.sections.relationshipsAndDrives,
+    draft.greeting,
+  ].join("\n");
+  return draft.supportingNpcs.filter((npc) => {
+    const name = npc.name.trim();
+    return name.length > 0 && scene.includes(name);
+  });
+}
+
 /** `system_prompt` composition. `[외형]` is appended only after the Appearance Lock. */
 export function composeOfficialSystemPrompt(
   draft: OfficialCharacterDraft,
@@ -72,7 +90,7 @@ export function composeOfficialSystemPrompt(
     ["캐릭터 본체", draft.sections.characterCore],
     ["현재 상황 / 도입", draft.sections.currentSituation ?? ""],
     ["관계·갈등·행동원리", draft.sections.relationshipsAndDrives],
-    ["보조 인물", draft.supportingNpcs.map(formatSupportingNpcLine).join("\n")],
+    ["보조 인물", sceneRelevantSupportingNpcs(draft).map(formatSupportingNpcLine).join("\n")],
     ["기타 설정", draft.sections.extraCanon],
     // Character-known secrets use the existing LOCKED_SECRET canon owner.
     // compact_rp_v1 is not required; omitting this when secrets exist drops them from RP.
@@ -248,9 +266,6 @@ export function evaluateOfficialStagedSaveLength(
 export function evaluateSupportingNpcs(draft: OfficialCharacterDraft): QaResult {
   const errors: QaIssue[] = [];
   const warnings: QaIssue[] = [];
-  if (draft.supportingNpcs.length > SUPPORTING_NPC_MAX) {
-    errors.push({ code: "npc_count", message: `at most ${SUPPORTING_NPC_MAX} supporting NPCs` });
-  }
   const names = new Set<string>();
   for (const npc of draft.supportingNpcs) {
     const line = formatSupportingNpcLine(npc);

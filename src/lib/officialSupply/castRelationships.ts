@@ -171,44 +171,16 @@ export function evaluateCastRelationshipGraph(
     const rel = byKey.get(from)!.relationships.find((r) => normalize(r.target) === normalize(byKey.get(to)!.name));
     return Boolean(rel?.public.trim());
   });
-  for (const [from, to] of oneWayPublicFromReplaced) {
-    errors.push({
-      code: "relationship_replacement_one_way",
-      message: `${to} does not know replaced ${from}, although ${from} declares a public tie`,
-    });
-  }
   return { ...qaResult(errors), stats: { edges: edges.size, oneWay, oneWayPublicFromReplaced } };
 }
 
 /**
- * Minimal public awareness for kept characters of a replaced character that
- * publicly declared a tie to them. Built only from the replaced character's own
- * public role and its declared public tie; privateOpinion/hidden stay empty.
+ * Replacement awareness is not auto-filled. Other official characters stay off
+ * a sheet unless that sheet's own event/past/goal already required them.
  */
 export function reconcileReplacementPublicRelationships(
-  entries: readonly (CastRelationshipEntry & { publicRole: string })[],
-  replacedDraftKeys: readonly string[]
+  _entries: readonly (CastRelationshipEntry & { publicRole: string })[],
+  _replacedDraftKeys: readonly string[]
 ): Map<string, CastRelationship[]> {
-  const replaced = new Set(replacedDraftKeys);
-  const byKey = new Map(entries.map((e) => [e.draftKey, e] as const));
-  const additions = new Map<string, CastRelationship[]>();
-  for (const source of entries.filter((e) => replaced.has(e.draftKey))) {
-    for (const rel of source.relationships) {
-      const target = entries.find((e) => normalize(e.name) === normalize(rel.target));
-      if (!target || replaced.has(target.draftKey) || !rel.public.trim()) continue;
-      const knows = byKey
-        .get(target.draftKey)!
-        .relationships.some((r) => normalize(r.target) === normalize(source.name));
-      if (knows) continue;
-      const list = additions.get(target.draftKey) ?? [];
-      list.push({
-        target: normalize(source.name),
-        public: `${source.publicRole}. 공개된 접점(${normalize(source.name)} 측): ${rel.public.trim()}`,
-        privateOpinion: "",
-        hidden: "",
-      });
-      additions.set(target.draftKey, list);
-    }
-  }
-  return additions;
+  return new Map();
 }

@@ -5,9 +5,8 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import { computeAppearanceLockHash } from "@/lib/officialSupply/appearance";
 import { computeTextLockHash } from "@/lib/officialSupply/characterText";
-import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import { composeOfficialSlotGeneration, runOfficialAssetSlot } from "@/lib/officialSupply/runner";
-import { buildPilotClusterBStyleProofDraft } from "@/lib/officialSupply/pilotClusterBStyleProof";
+import { loadApprovedWolfgangV4Source } from "@/lib/officialSupply/lockedSnapshotReconcileOperator";
 import { ROFAN_V4_PRODUCTION_BATCH_CONFIG } from "@/lib/officialSupply/pilotProduction";
 import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
 import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
@@ -59,7 +58,7 @@ function currentPlan(): OfficialAssetPlan {
 }
 
 function currentDraft(): OfficialCharacterDraft {
-  return buildPilotClusterBStyleProofDraft(loadCompiledOfficialCharacterSource("pilot-rf-02").draft);
+  return loadApprovedWolfgangV4Source().nextDraft;
 }
 
 function snapshot(store: OfficialSupplyStore, draftKey: string): unknown {

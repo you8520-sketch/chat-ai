@@ -92,7 +92,8 @@ describe("Part1 / Bonds false total caps removed", () => {
     assert.match(part1, /dailyLife 120~250자/);
     assert.match(part1, /filler 금지·밀도 우선/);
     const bonds = buildCharacterBondsSystem();
-    assert.match(bonds, /200자 이상 300자 이하/);
+    assert.match(bonds, /80자 이상/);
+    assert.match(bonds, /preferenceKeywords 4~8개/);
     assert.match(bonds, /consentModes는 standard·power_play·cnc_opt_in/);
     const adult = buildCharacterBondsUser({ name: "카엘", age: 30, rpHook: "순찰", adultCandidate: true, castList: [], part1Recap: "r" });
     const regular = buildCharacterBondsUser({ name: "카엘", age: 30, rpHook: "순찰", adultCandidate: false, castList: [], part1Recap: "r" });
@@ -244,7 +245,9 @@ describe("canonical 12k save owner", () => {
 
   it("detects a staged-save overflow before image generation", () => {
     const file = loadPilot(2);
-    const overAppearance = `${renderAppearanceBlock(file.appearance)}\n${"가".repeat(2_000)}`;
+    const appearance = renderAppearanceBlock(file.appearance);
+    const base = officialSubstantiveCharCount(file.draft, appearance);
+    const overAppearance = `${appearance}\n${"가".repeat(AI_LEARNING_LIMIT - base + 1)}`;
     const staged = evaluateOfficialStagedSaveLength(file.draft, overAppearance);
     assert.equal(staged.ok, false);
     assert.ok(staged.errors.some((error) => error.code === "text_exceeds_canonical_ceiling"));

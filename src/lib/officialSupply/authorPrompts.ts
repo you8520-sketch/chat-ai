@@ -507,10 +507,13 @@ export function buildCharacterBondsSystem(): string {
     "- userRelationship: 기본은 persona-flexible이다. 도입부가 관계를 명시적으로 고정하지 않으면 유저의 이름·신분·성별·기존 관계를 임의로 확정하지 않는다.",
     "  유저 페르소나가 가족/동료/연인/상관/초면 등 기존 관계를 제시하면 그 설정을 우선한다. opening 자체가 특정 관계를 핵심 전제로 삼을 때만 최소 관계를 고정한다.",
     "  initialView/userRole/startingPoint는 현재 장면에서의 태도와 이해관계 중심으로 쓰고, 성별 고정 호칭을 쓰지 않는다.",
-    "  progression은 최소 3단계지만 자동 사랑 빠짐 금지. 기존 관계가 있으면 그 관계에서 변화하고, 관계가 없으면 행동에 따라 신뢰/친밀/적대가 생기게 한다.",
-    "- otherRelationships: 0~3명. 실제 RP에 반복 등장하거나 이 캐릭터의 행동을 바꾸는 인물만 기록한다. 출연진 전체를 채우지 않는다.",
-    "  otherRelationships는 캐릭터 runtime 본문에 상시 주입하지 않는 lorebook 후보 메모다.",
-    "- secrets 1~3개. 캐릭터 자신이 알고 있으나 공개하지 않는 핵심 사실만. RP progression·갈등·관계 변화에 실제 영향을 주는 것만 남기고 trivial 반전은 금지.",
+    "  progression은 초기·중기·후기 일정표가 아니라 행동 기반 변화 조건이다. 단계 수를 채우지 말고, 협력·배신·적대·친밀·이탈·재회·관계 역전이 모두 가능하게 쓴다.",
+    "  자동 사랑 빠짐 금지. 기존 관계가 있으면 그 관계의 신뢰와 갈등을 유지한 채 변화하고, 관계가 없으면 실제 행동과 사건 결과에 따라 신뢰/친밀/적대가 생긴다.",
+    "- otherRelationships: 이 캐릭터 자신의 사건·과거·목표·판단·행동을 실제로 바꾸는 인물만 기록한다. 없으면 [].",
+    "  다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다. 같은 세계관에 존재하거나 나중에 만날 수 있다는 이유만으로는 넣지 않는다.",
+    "  인원 수를 채우는 목표는 없다. 출연진 전체를 채우지 않는다. 현재 RP와 무관한 인물을 넣지 않는다.",
+    "  otherRelationships는 메인 시스템 프롬프트에 상시 주입하지 않는다. hidden은 로어북이나 새 비밀로 옮기지 않는다. 정말 필요한 비밀만 유지한다.",
+    "- secrets: 캐릭터 자신이 알고 있으나 공개하지 않는 핵심 사실 중 RP progression·갈등·관계 변화에 실제 영향을 주는 것만 최대 3개. 필요한 비밀이 없으면 []이며 개수를 채우지 않는다. trivial 반전은 금지.",
     "- rpEngine: immediateHook + repeatable 반드시 3개 이상(비사건성 일상 포함) + mediumConflict + longTermChange.",
     "  엔딩 고정 금지.",
     "",
@@ -518,8 +521,10 @@ export function buildCharacterBondsSystem(): string {
     "- dialogueProfile은 auto·none·suggestive·explicit_rare·explicit_frequent 중 하나.",
     "- consentModes는 standard·power_play·cnc_opt_in 중 1개 이상.",
     "- orientation·hookSummary(성인 관계 캐논 일부, 전체의 25% 이내).",
-    "- tone은 반드시 200자 이상 300자 이하·preferenceKeywords 4~8개·boundaries 3~6개·",
-    "  consentBehavior는 반드시 200자 이상 300자 이하·scenarioExamples 2~3개(짧고 행동 중심).",
+    "- preferenceKeywords 4~8개(이 캐릭터만의 욕망·기호·거부감·친밀 반응). 다른 캐릭터의 취향을 복사하지 않는다.",
+    "- tone은 친밀한 자리에서 이 인물이 실제로 보이는 말투·손·거리·질투·통제·절제를 80자 이상으로 쓴다.",
+    "  획일적인 장문 합의·경계·사후 돌봄 에세이를 쓰지 않는다. boundaries·consentBehavior는 인물 고유 거부가 있을 때만 짧게.",
+    "- scenarioExamples 2~3개(짧고 행동 중심). 모든 성인 캐릭터를 다정하거나 도덕적으로 교정하지 않는다.",
     "- NSFW를 빼도 직업·성격·목표·과거·갈등·취미·관계가 살아 있어야 한다.",
   ].join("\n");
 }
@@ -529,14 +534,16 @@ export function buildCharacterBondsUser(input: CharacterBondsInput): string {
     `캐릭터: ${input.name} (${input.age}세)`,
     `RP 훅: ${input.rpHook}`,
     `성인 후보: ${input.adultCandidate ? "예" : "아니오"}`,
-    `출연진 참고 목록(관계 생성 의무 없음; 실제 직접 관련 0~3명만 otherRelationships 후보): ${input.castList.join(" / ")}`,
+    input.castList.length
+      ? `다른 공식 캐릭터는 관계 자동 채움 대상이 아니다. 이 인물의 사건·과거·목표에 실제로 필요없으면 otherRelationships에 넣지 않는다: ${input.castList.join(" / ")}`
+      : "다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다. otherRelationships는 이 인물의 사건·과거·목표에 실제로 필요한 경우만 기록하고 없으면 [].",
     "",
     "전반부 요약:",
     input.part1Recap,
     "",
     input.adultCandidate
-      ? "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 실제 반복 등장·행동 변화가 필요한 인물만 넣고 없으면 []; 성인 후보이므로 nsfw는 true, adultSection은 틀의 모든 키를 실제 내용으로 채운다."
-      : "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 실제 반복 등장·행동 변화가 필요한 인물만 넣고 없으면 []; 성인 후보가 아니면 adultSection은 null.",
+      ? "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 이 인물의 사건·과거·목표를 바꾸는 인물만 넣고 없으면 []; 성인 후보이므로 nsfw는 true, adultSection은 틀의 모든 키를 실제 내용으로 채운다."
+      : "아래 빈 틀의 필수 값을 채워 JSON 한 개만 출력한다. otherRelationships는 이 인물의 사건·과거·목표를 바꾸는 인물만 넣고 없으면 []; 성인 후보가 아니면 adultSection은 null.",
     characterBondsSkeleton(input.adultCandidate),
     input.feedback?.trim() ? `이전 시도 반려 사유(반드시 수정):\n${input.feedback.trim()}` : "",
   ].join("\n");
@@ -546,10 +553,10 @@ const BIBLE_1_SKELETON = `{"identity": {"name": "", "gender": "male", "age": 27,
 
 const VOICE_SKELETON_HEAD = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": ["", ""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": ["", "", "", ""], "description": "", "examples": "대사1\\n대사2\\n대사3\\n대사4", "forbidden": ""}, "behaviorRules": ["", "", ""], "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": ["", "", "", ""]}, "npcs": [], "nsfw": `;
 
-const BONDS_SKELETON_HEAD = `{"userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [], "secrets": ["", ""], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "nsfw": `;
+const BONDS_SKELETON_HEAD = `{"userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [], "secrets": [], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "nsfw": `;
 
-/** Shape mirrors the adult QA bands in `validateCharacterBible` (prefs 4-8, boundaries 3-6, scenarios 2-3). */
-const ADULT_SECTION_SKELETON = `{"orientation": "", "hookSummary": "", "dialogueProfile": "", "consentModes": [""], "tone": "", "preferenceKeywords": ["", "", "", ""], "boundaries": ["", "", ""], "consentBehavior": "", "scenarioExamples": ["", ""]}`;
+/** Shape mirrors the adult QA bands in `validateCharacterBible` (prefs 4-8, scenarios 2-3). */
+const ADULT_SECTION_SKELETON = `{"orientation": "", "hookSummary": "", "dialogueProfile": "", "consentModes": [""], "tone": "", "preferenceKeywords": ["", "", "", ""], "boundaries": [], "consentBehavior": "", "scenarioExamples": ["", ""]}`;
 
 /** The manifest's adultCandidate owns the nsfw/adultSection defaults the model is shown. */
 function characterVoiceSkeleton(adultCandidate: boolean): string {
@@ -718,15 +725,17 @@ export function buildAdultProfileSystem(): string {
     "불변 규칙(절대 변경 금지):",
     "- 모든 참여자는 19세 이상. 나이·participantMinAge를 바꾸지 않는다. 미성년 연상 표현 금지.",
     "- 합의가 기본값이다. 비합의를 기본 전제로 삼지 않으며 cnc 계열을 쓰지 않는다.",
-    "- power_play가 있으면 사전 합의·중단 신호·사후 확인을 반드시 서술한다.",
-    "- 노골적 행위 묘사 금지. 성격·말투·관계 역학·합의 방식이 성인 맥락에서도 유지되는지를 쓴다.",
+    "- 서버 성인 모드·안전 처리를 원고에 중복 서술하지 않는다. 획일적인 장문 합의·경계·사후 돌봄 에세이를 쓰지 않는다.",
+    "- 노골적 행위 묘사 금지. 성격·말투·욕망·기호·거부감이 성인 맥락에서도 이 인물답게 유지되는지를 쓴다.",
     "- 캐릭터 고유의 성향으로 쓴다. 다른 성인 캐릭터가 이미 쓰는 역학은 반복하지 않는다.",
+    "- 집착·질투·통제욕·오만·위험한 성격도 인물에 맞으면 유지한다. 다정하거나 도덕적으로 교정하지 않는다.",
     "",
     "필드:",
     "- orientation(기존 값 유지)·hookSummary(성인 관계 캐논 요약 1~2문장).",
     "- dialogueProfile·consentModes는 지정값 그대로.",
-    "- tone 200~300자·preferenceKeywords 4~8개(캐릭터 고유 역학)·boundaries 3~6개(캐릭터 성격과 연결)·",
-    "  consentBehavior 200~300자(의사 확인·거절 반응·속도·권력관계 처리)·scenarioExamples 2~3개(짧고 행동 중심).",
+    "- preferenceKeywords 4~8개(이 캐릭터만의 욕망·기호·거부감·친밀 반응).",
+    "- tone은 친밀한 자리의 실제 말투·손·거리·질투·통제·절제(80자 이상).",
+    "  boundaries·consentBehavior는 인물 고유 거부가 있을 때만 짧게. scenarioExamples 2~3개(짧고 행동 중심).",
   ].join("\n");
 }
 

@@ -15,7 +15,7 @@
  *   --step=market-fit-review      offline facts-only Domestic Market Fit review (no rewrites)
  *   --step=replace-slots          re-plan the manifest's replaced slots inside the existing world (briefs only)
  *   --step=public-fix             offline: apply human-approved tagline/tag decisions (public surface only)
- *   --step=relationship-repair    offline: canonical relationship targets + replacement public awareness
+ *   --step=relationship-repair    offline: canonical relationship targets only (no official-cast auto-fill)
  *   --step=consistency-fix        offline: manifest-declared world-consistency repairs
  *   --npc-relation-repair         (characters/character) opt-in: one targeted call repairs relation-only NPC defects; caps each character at OFFICIAL_CHARACTER_CALL_CAP calls
  */
@@ -97,7 +97,6 @@ import {
 import {
   evaluateCastRelationshipGraph,
   normalizeOfficialCastRelationships,
-  reconcileReplacementPublicRelationships,
   type CastIdentity,
 } from "@/lib/officialSupply/castRelationships";
 import { clearQuarantine, writeQuarantine } from "@/lib/officialSupply/pilotArtifacts";
@@ -555,10 +554,6 @@ function siblingSketches(briefs: PortfolioBriefInput[], excludeSlot: number): st
     .map((b) => `${b.name}(${b.age}세 ${b.gender}, ${b.occupation}, ${b.archetype}, ${b.relationshipTrope})`);
 }
 
-function castList(briefs: PortfolioBriefInput[]): string[] {
-  return briefs.map((b) => `${b.name} — ${b.occupation}(${b.faction})`);
-}
-
 async function pool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let cursor = 0;
@@ -728,7 +723,7 @@ async function generateOneCharacter(
           age: brief.age,
           adultCandidate: brief.adultCandidate,
           speechDirection: brief.speechDirection,
-          npcDemand: "특별한 이유가 없으면 1~2명을 만든다. 0명은 기존 관계망만으로 충분할 때만 허용.",
+          npcDemand: "이야기에 반복 역할이 실제로 필요할 때만 1~2명을 만든다. 필요 없으면 0명([])이 정상이다.",
           marketFit: brief.marketFit,
           feedback,
         },
@@ -737,7 +732,7 @@ async function generateOneCharacter(
           age: brief.age,
           rpHook: brief.rpHook,
           adultCandidate: brief.adultCandidate,
-          castList: castList(siblings),
+          castList: [],
           feedback,
         },
         modelId,
@@ -1433,8 +1428,8 @@ function castIdentities(world: OfficialWorldBible): CastIdentity[] {
 /**
  * Offline: canonical relationship repair through the cast-relationship owner.
  * Aliases → canonical full names, self/removed links dropped, unknown /
- * ambiguous / duplicate targets refused, and kept characters gain minimal
- * public awareness of replaced characters that declared a public tie.
+ * ambiguous / duplicate targets refused. Other official characters are not
+ * auto-added just because a sibling declared a public tie.
  */
 function stepRelationshipRepair(): void {
   const world = readWorld();
@@ -1446,26 +1441,14 @@ function stepRelationshipRepair(): void {
     if (n.issues.length) throw new Error(`relationship repair refused: ${n.issues.map((i) => i.message).join("; ")}`);
     return { file, n };
   });
-  const replacedKeys = MANIFEST.replacement.slots.map((s) => draftKeyFor(s.slot));
-  const additions = reconcileReplacementPublicRelationships(
-    normalized.map(({ file, n }) => ({
-      draftKey: file.draftKey,
-      name: file.bible.identity.name,
-      relationships: n.relationships,
-      publicRole: file.bible.identity.occupation,
-    })),
-    replacedKeys
-  );
   for (const { file, n } of normalized) {
-    const added = additions.get(file.draftKey) ?? [];
-    const next = [...n.relationships, ...added];
+    const next = n.relationships;
     if (JSON.stringify(next) === JSON.stringify(file.bible.otherRelationships)) continue;
     const bible: OfficialCharacterBible = { ...file.bible, otherRelationships: next };
     const draft = assertBibleAndDraft(bible, file.brief, { checkTags: false });
     const reasons = [
       n.renamed.length ? `canonical targets: ${n.renamed.map((r) => `${r.from}→${r.to}`).join(", ")}` : "",
       n.dropped.length ? `dropped: ${n.dropped.map((d) => `${d.target} (${d.code})`).join(", ")}` : "",
-      added.length ? `public awareness added: ${added.map((a) => a.target).join(", ")}` : "",
     ].filter(Boolean);
     writeJson(charPath(file.slot), {
       ...file,

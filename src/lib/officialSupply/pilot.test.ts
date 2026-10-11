@@ -629,7 +629,6 @@ describe("pilot cast correction: 06-08 replaced by male romance targets", () => 
       { removedNames: m().replacement.replacedNames, replacedDraftKeys: m().replacement.slots.map((s) => `pilot-rf-${String(s.slot).padStart(2, "0")}`) }
     );
     assert.deepEqual(qa.errors, []);
-    assert.deepEqual(qa.stats.oneWayPublicFromReplaced, []);
     const canonical = new Set(world.portfolio.map((b) => b.name));
     for (const f of files) {
       for (const rel of f.bible.otherRelationships) assert.ok(canonical.has(rel.target), `${f.draftKey}: ${rel.target}`);

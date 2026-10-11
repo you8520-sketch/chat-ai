@@ -6,10 +6,8 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
-import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import { officialModerationVerdict } from "@/lib/officialSupply/moderation";
 import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
-import { buildPilotClusterBStyleProofDraft } from "@/lib/officialSupply/pilotClusterBStyleProof";
 import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
 import { composeOfficialSlotGeneration } from "@/lib/officialSupply/runner";
 import { ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
@@ -100,6 +98,10 @@ const CURRENT_PLAN_PATH = path.join(
   process.cwd(),
   "src/lib/officialSupply/pilot/characters",
   `${WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.sourceDraftKey}.json`
+);
+const APPROVED_TEXT_LOCK_DRAFT_PATH = path.join(
+  process.cwd(),
+  "src/lib/officialSupply/pilot/fixtures/pilot-rf-02-approved-text-lock-draft.json"
 );
 
 type CharacterInspectRow = {
@@ -283,10 +285,11 @@ export function loadApprovedWolfgangV4Source(): {
   nextDraft: OfficialCharacterDraft;
   nextPlan: OfficialAssetPlan;
 } {
-  const compiled = loadCompiledOfficialCharacterSource(WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.sourceDraftKey);
-  const nextDraft = buildPilotClusterBStyleProofDraft(compiled.draft);
+  const approved = JSON.parse(fs.readFileSync(APPROVED_TEXT_LOCK_DRAFT_PATH, "utf8")) as {
+    draft: OfficialCharacterDraft;
+  };
   const file = JSON.parse(fs.readFileSync(CURRENT_PLAN_PATH, "utf8")) as { assetPlan: OfficialAssetPlan };
-  return { nextDraft, nextPlan: file.assetPlan };
+  return { nextDraft: approved.draft, nextPlan: file.assetPlan };
 }
 
 function approvedAssemblyStyle(env: NodeJS.ProcessEnv): OfficialGenreStyle {

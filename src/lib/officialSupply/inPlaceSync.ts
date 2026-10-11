@@ -896,7 +896,7 @@ function toResult(input: {
     notifiedFollowers: false,
     displayCreatorName: alias,
     systemPromptHash: after.systemPromptHash,
-    appearanceKind: source.draft.promptStandard === "compact_rp_v1" ? "runtime_compact" : "full_visual",
+    appearanceKind: "runtime_compact",
     preflightSnapshot,
     lorebookPlan,
     before,
