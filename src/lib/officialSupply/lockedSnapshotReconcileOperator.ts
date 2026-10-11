@@ -34,6 +34,11 @@ import {
 import { gitCommitMatchesDeployment } from "@/lib/postDeployVerification";
 
 export const OFFICIAL_LOCKED_SNAPSHOT_APPLY_ENV = "OFFICIAL_LOCKED_SNAPSHOT_APPLY";
+export const OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS_ENV = "OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS";
+export const OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_DRAFT_KEY_ENV =
+  "OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_DRAFT_KEY";
+export const OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CONFIRM_ENV =
+  "OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CONFIRM";
 export const WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET = {
   draftKey: "pilot-rf-v4-02",
   sourceDraftKey: "pilot-rf-02",
@@ -237,6 +242,24 @@ export function isLockedSnapshotApplyAuthorized(
   env: NodeJS.ProcessEnv
 ): boolean {
   return argv.includes("apply") && env[OFFICIAL_LOCKED_SNAPSHOT_APPLY_ENV] === "1";
+}
+
+/** Wolfgang v4 only. Does not lift the default production refuse by itself. */
+export function isWolfgangV4ProductionCasAuthorized(env: NodeJS.ProcessEnv = process.env): boolean {
+  return (
+    env[OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS_ENV] === "1" &&
+    env[OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_DRAFT_KEY_ENV] === WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey &&
+    env[OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CONFIRM_ENV] === WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey
+  );
+}
+
+export function isProductionLockedSnapshotApplyBlocked(input: {
+  dbPath: string;
+  env: NodeJS.ProcessEnv;
+}): boolean {
+  const production =
+    isRailwayProductionApplyEnvironment(input.env) || isRailwayProductionSqlitePath(input.dbPath);
+  return production && !isWolfgangV4ProductionCasAuthorized(input.env);
 }
 
 export function openOfficialSupplyReadonlyDatabase(dbPath: string): Database.Database {
@@ -714,10 +737,10 @@ export function applyLockedSnapshot(input: {
   if (!isLockedSnapshotApplyAuthorized(input.argv, input.env)) {
     stop("locked_snapshot_apply_forbidden", "apply requires argv apply and OFFICIAL_LOCKED_SNAPSHOT_APPLY=1");
   }
-  if (isRailwayProductionApplyEnvironment(input.env) || isRailwayProductionSqlitePath(input.dbPath)) {
+  if (isProductionLockedSnapshotApplyBlocked({ dbPath: input.dbPath, env: input.env })) {
     stop(
       "locked_snapshot_production_apply_blocked",
-      "this operator refuses Railway production and any path that resolves to /data/app.db"
+      "this operator refuses Railway production and /data/app.db unless Wolfgang v4 production CAS is explicitly authorized"
     );
   }
   if (!FULL_SHA.test(input.expectedSha)) {

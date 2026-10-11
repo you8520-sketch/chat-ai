@@ -16,9 +16,14 @@ import {
   isPatchedIndependentSqliteVersion,
   inspectLockedSnapshot,
   isLockedSnapshotApplyAuthorized,
+  isProductionLockedSnapshotApplyBlocked,
   isProtectedSqlitePath,
   isRailwayProductionApplyEnvironment,
   isRailwayProductionSqlitePath,
+  isWolfgangV4ProductionCasAuthorized,
+  OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS_ENV,
+  OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CONFIRM_ENV,
+  OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_DRAFT_KEY_ENV,
   loadApprovedWolfgangV4Source,
   openOfficialSupplyReadonlyDatabase,
   WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET,
@@ -53,6 +58,16 @@ function applyEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
     RAILWAY_GIT_COMMIT_SHA: SHA,
     ...overrides,
   };
+}
+
+function productionCasEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  return applyEnv({
+    RAILWAY_ENVIRONMENT_NAME: "production",
+    [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS_ENV]: "1",
+    [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_DRAFT_KEY_ENV]: WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey,
+    [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CONFIRM_ENV]: WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey,
+    ...overrides,
+  });
 }
 
 type StaleFixture = {
@@ -519,6 +534,108 @@ describe("Wolfgang v4 locked snapshot operator", () => {
       (error: OfficialSupplyGateError) => error.code === "locked_snapshot_production_apply_blocked"
     );
     assert.deepEqual(snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey), before);
+  });
+
+  it("keeps the production refuse unless the Wolfgang v4 confirm envs are exact", () => {
+    const draftKey = WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey;
+    assert.equal(isWolfgangV4ProductionCasAuthorized({}), false);
+    assert.equal(
+      isWolfgangV4ProductionCasAuthorized({ [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS_ENV]: "1" }),
+      false
+    );
+    assert.equal(
+      isWolfgangV4ProductionCasAuthorized({
+        [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS_ENV]: "1",
+        [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_DRAFT_KEY_ENV]: draftKey,
+        [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CONFIRM_ENV]: "pilot-rf-v4-03",
+      }),
+      false
+    );
+    assert.equal(isWolfgangV4ProductionCasAuthorized(productionCasEnv()), true);
+    assert.equal(
+      isProductionLockedSnapshotApplyBlocked({ dbPath: "/data/app.db", env: applyEnv() }),
+      true
+    );
+    assert.equal(
+      isProductionLockedSnapshotApplyBlocked({ dbPath: "/data/app.db", env: productionCasEnv() }),
+      false
+    );
+    assert.equal(
+      isProductionLockedSnapshotApplyBlocked({ dbPath: getDatabasePath(), env: applyEnv() }),
+      false
+    );
+    const before = snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey);
+    assert.throws(
+      () =>
+        applyLockedSnapshot({
+          dbPath: getDatabasePath(),
+          expectedSha: SHA,
+          runtimeSha: SHA,
+          backupPath: path.join(path.dirname(getDatabasePath()), "unused.db"),
+          argv: ["apply"],
+          env: applyEnv({
+            RAILWAY_ENVIRONMENT_NAME: "production",
+            [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS_ENV]: "1",
+            [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_DRAFT_KEY_ENV]: draftKey,
+            [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CONFIRM_ENV]: "no",
+          }),
+        }),
+      (error: OfficialSupplyGateError) => error.code === "locked_snapshot_production_apply_blocked"
+    );
+    assert.throws(
+      () =>
+        applyLockedSnapshot({
+          dbPath: getDatabasePath(),
+          expectedSha: SHA,
+          runtimeSha: SHA,
+          backupPath: path.join(path.dirname(getDatabasePath()), "missing-prod-cas.db"),
+          argv: ["apply"],
+          env: productionCasEnv(),
+        }),
+      (error: OfficialSupplyGateError) => error.code === "locked_snapshot_backup_missing"
+    );
+    assert.deepEqual(snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey), before);
+  });
+
+  it("authorized production env still uses the merged CAS and preserves rep, 14 rows, and sibling", () => {
+    const beforeAssets = snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey);
+    const beforeSibling = snapshot(store, SIBLING_KEY);
+    const backupPath = path.join(path.dirname(getDatabasePath()), "wolfgang-prod-cas-backup.db");
+    vacuumInto(store, backupPath);
+    const first = applyLockedSnapshot({
+      dbPath: getDatabasePath(),
+      expectedSha: SHA,
+      runtimeSha: SHA,
+      backupPath,
+      argv: ["apply"],
+      env: productionCasEnv(),
+    });
+    assert.equal(first.storeWriter, "OfficialSupplyStore.reconcileLockedSnapshot");
+    assert.equal(first.target, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey);
+    assert.equal(first.result.status, "updated");
+    assert.equal(first.result.textLockHash, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.expectedNextTextLockHash);
+    assert.deepEqual(
+      (snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey) as { assets: unknown }).assets,
+      (beforeAssets as { assets: unknown }).assets
+    );
+    assert.deepEqual(snapshot(store, SIBLING_KEY), beforeSibling);
+    const currentBackup = path.join(path.dirname(getDatabasePath()), "wolfgang-prod-cas-backup-current.db");
+    vacuumInto(store, currentBackup);
+    const second = applyLockedSnapshot({
+      dbPath: getDatabasePath(),
+      expectedSha: SHA,
+      runtimeSha: SHA,
+      backupPath: currentBackup,
+      argv: ["apply"],
+      env: productionCasEnv(),
+    });
+    assert.equal(second.result.status, "already_current");
+    assert.equal(second.wrote, false);
+    assert.deepEqual(
+      (snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey) as { assets: unknown }).assets,
+      (beforeAssets as { assets: unknown }).assets
+    );
+    assert.deepEqual(snapshot(store, SIBLING_KEY), beforeSibling);
   });
 
   it("pins the observed old draft/plan SHA and stops on hook, plan, or partial drift", () => {
