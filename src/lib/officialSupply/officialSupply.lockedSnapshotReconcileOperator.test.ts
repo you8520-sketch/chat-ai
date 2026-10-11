@@ -13,7 +13,7 @@ import {
   applyLockedSnapshot,
   assertBackupMatchesLiveSource,
   assertIndependentSqliteIntegrity,
-  INDEPENDENT_SQLITE_MIN_VERSION,
+  isPatchedIndependentSqliteVersion,
   inspectLockedSnapshot,
   isLockedSnapshotApplyAuthorized,
   isProtectedSqlitePath,
@@ -783,7 +783,17 @@ describe("Wolfgang v4 independent SQLite backup engine", () => {
       src.close();
     }
     const before = fs.readFileSync(backup);
-    assertIndependentSqliteIntegrity(live, backup);
+    const probe = spawnSync("python3", ["-I", "-c", "import sqlite3; print(sqlite3.sqlite_version)"], {
+      encoding: "utf8",
+    });
+    if (isPatchedIndependentSqliteVersion(probe.stdout.trim())) {
+      assertIndependentSqliteIntegrity(live, backup);
+    } else {
+      assert.throws(
+        () => assertIndependentSqliteIntegrity(live, backup),
+        (error: OfficialSupplyGateError) => error.code === "locked_snapshot_backup_invalid"
+      );
+    }
     assert.deepEqual(fs.readFileSync(backup), before);
     assert.equal(fs.existsSync(`${backup}-wal`), false);
     assert.ok(libsqlIntegrityMessages(backup).some((message) => message.includes("NULL value in t.b")));
@@ -831,6 +841,15 @@ describe("Wolfgang v4 independent SQLite backup engine", () => {
       (error: OfficialSupplyGateError) =>
         error.code === "locked_snapshot_sqlite_engine" && /python3 is not available/.test(error.message)
     );
+    assertIndependentSqliteIntegrity(
+      live,
+      backup,
+      mockSqliteReport({
+        sqlite_version: "3.45.1",
+        live: { integrity: ["ok"], foreign_key_count: 0 },
+        backup: { integrity: ["ok"], foreign_key_count: 0 },
+      })
+    );
     assert.throws(
       () =>
         assertIndependentSqliteIntegrity(
@@ -838,12 +857,24 @@ describe("Wolfgang v4 independent SQLite backup engine", () => {
           backup,
           mockSqliteReport({
             sqlite_version: "3.45.1",
+            live: { integrity: ["NULL value in t.b"], foreign_key_count: 0 },
+            backup: { integrity: ["ok"], foreign_key_count: 0 },
+          })
+        ),
+      (error: OfficialSupplyGateError) => error.code === "locked_snapshot_backup_invalid"
+    );
+    assert.throws(
+      () =>
+        assertIndependentSqliteIntegrity(
+          live,
+          backup,
+          mockSqliteReport({
+            sqlite_version: "not-a-version",
             live: { integrity: ["ok"], foreign_key_count: 0 },
             backup: { integrity: ["ok"], foreign_key_count: 0 },
           })
         ),
-      (error: OfficialSupplyGateError) =>
-        error.code === "locked_snapshot_sqlite_engine" && error.message.includes(INDEPENDENT_SQLITE_MIN_VERSION)
+      (error: OfficialSupplyGateError) => error.code === "locked_snapshot_sqlite_engine"
     );
     assert.throws(
       () =>

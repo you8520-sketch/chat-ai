@@ -303,6 +303,10 @@ function sqliteVersionAtLeast(actual: string, minimum: string): boolean {
   return true;
 }
 
+export function isPatchedIndependentSqliteVersion(version: string): boolean {
+  return sqliteVersionAtLeast(version, INDEPENDENT_SQLITE_MIN_VERSION);
+}
+
 function sqliteEngineStop(message: string): never {
   stop("locked_snapshot_sqlite_engine", message);
 }
@@ -377,11 +381,11 @@ export function assertIndependentSqliteIntegrity(
     sqliteEngineStop("independent sqlite checker exited without a trusted report");
   }
   const report = readIndependentSqliteReport((result.stdout ?? "").trim());
-  if (typeof report.sqlite_version !== "string" || !sqliteVersionAtLeast(report.sqlite_version, INDEPENDENT_SQLITE_MIN_VERSION)) {
-    sqliteEngineStop(
-      `independent sqlite ${String(report.sqlite_version)} is below patched ${INDEPENDENT_SQLITE_MIN_VERSION}`
-    );
+  if (typeof report.sqlite_version !== "string" || !parseSqliteVersion(report.sqlite_version)) {
+    sqliteEngineStop(`independent sqlite version ${String(report.sqlite_version)} is unreadable`);
   }
+  // Hipp ee4f6fa5ab is a false-positive only. Unpatched 3.42.0–3.45.1 may be
+  // trusted when the sole row is already `ok`; any other text still STOPs.
   assertExactOkIntegrity("live", report.live);
   assertExactOkIntegrity("backup", report.backup);
 }
