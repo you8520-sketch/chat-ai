@@ -182,10 +182,12 @@ export function submissionAuthorizesLocation(
  * failure tier. Compare each sheet's previous location, not the shared ledger.
  * World-forced relocation has no separate persist owner today (T9/L5).
  *
- * The next-round hook is stored only when it can agree with the persisted place:
- * either the campaign place did not change, or the move was authorized. When the GM
- * proposed a relocation the server refused, the hook is cleared rather than kept
- * from an earlier round, so a stale place is never re-injected as the next decision.
+ * The next-round hook is free GM text that may assert where people are. It is stored verbatim only
+ * when every place the GM claimed was approved: no seat's claimed place was refused or replaced,
+ * and, when the campaign place moved, the move was authorized and every seat ended at it. Otherwise
+ * it is cleared (never replaced by an older round's hook). The facts of that round are not lost: they
+ * travel through the typed delta (quests / npcs / flags) and the round narration, which this binder
+ * does not touch. No sentence of the hook is parsed.
  */
 export function bindGmLocationToSubmittedMovement(opts: {
   opening: boolean;
@@ -209,6 +211,7 @@ export function bindGmLocationToSubmittedMovement(opts: {
   );
   const previousLocation = (participantId: number) => sheetById.get(participantId) || current;
   const byParticipant = new Map(opts.submissions.map((sub) => [sub.participantId, sub]));
+  let refusedSeatPlace = false;
   const players: NonNullable<TrpgStateDelta["players"]> = (opts.delta.players ?? []).map((patch) => {
     if (patch.location == null) return patch;
     const dest = patch.location.trim();
@@ -216,6 +219,7 @@ export function bindGmLocationToSubmittedMovement(opts: {
     if (!dest || dest === previous) return patch;
     const sub = byParticipant.get(patch.participantId);
     if (sub && submissionAuthorizesLocation(sub, dest)) return patch;
+    refusedSeatPlace = true;
     if (sub && proposed && proposed !== dest && submissionAuthorizesLocation(sub, proposed)) {
       return { ...patch, location: proposed };
     }
@@ -225,42 +229,23 @@ export function bindGmLocationToSubmittedMovement(opts: {
   const campaignMoved = Boolean(proposed && proposed !== current);
   const campaignAuthorized =
     campaignMoved && opts.submissions.some((sub) => submissionAuthorizesLocation(sub, proposed));
-  const refusedRelocation = campaignMoved && !campaignAuthorized;
-  const reachedPlaces: string[] = [
-    current,
-    ...(opts.sheetLocations ?? []).map((row) => row.location),
-    ...players.map((patch) => patch.location ?? ""),
-  ];
+  const location = campaignAuthorized ? proposed : current;
+  const seatIds = new Set([
+    ...sheetById.keys(),
+    ...byParticipant.keys(),
+    ...players.map((patch) => patch.participantId),
+  ]);
+  const everySeatAtLedgerPlace = [...seatIds].every((participantId) => {
+    const patch = players.find((row) => row.participantId === participantId);
+    return (patch?.location?.trim() || previousLocation(participantId)) === location;
+  });
+  const hookAssertsApprovedPlaces =
+    !refusedSeatPlace && (campaignMoved ? campaignAuthorized && everySeatAtLedgerPlace : true);
   return {
-    location: campaignAuthorized ? proposed : current,
-    nextRoundContext: refusedRelocation
-      ? withoutRefusedPlaceSentences(opts.delta.nextRoundContext, proposed, reachedPlaces)
-      : opts.delta.nextRoundContext,
+    location,
+    nextRoundContext: hookAssertsApprovedPlaces ? opts.delta.nextRoundContext : "",
     delta: { ...opts.delta, players },
   };
-}
-
-/**
- * A refused GM relocation must not leave a hook that assumes the party is there, and must not
- * resurrect an older round's hook. Sentences that name the refused place (a label token that no
- * reached place carries) are dropped; the remaining grounded facts of the GM's hook stay.
- */
-function withoutRefusedPlaceSentences(
-  hook: string | undefined,
-  refusedPlace: string,
-  reachedPlaces: readonly string[]
-): string {
-  const text = hook?.trim() ?? "";
-  if (!text) return "";
-  const reached = new Set(reachedPlaces.flatMap((place) => tokenizeSceneLabel(place)));
-  const refusedTokens = tokenizeSceneLabel(refusedPlace)
-    .filter((token) => !reached.has(token) && !isPlacePartWord(token))
-    .map((token) => (token.length > 2 && token.endsWith("의") ? token.slice(0, -1) : token));
-  if (refusedTokens.length === 0) return text;
-  return text
-    .split(/(?<=[.!?。…])\s+/)
-    .filter((sentence) => !refusedTokens.some((token) => sentence.includes(token)))
-    .join(" ");
 }
 
 export function applyCampaignLedger(current: TrpgCampaignLedger, delta: TrpgStateDelta): TrpgCampaignLedger {
