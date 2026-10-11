@@ -466,9 +466,19 @@ describe("OfficialSupplyStore.reconcileLockedSnapshot", () => {
       }
     );
 
+    expectNoWrite("locked_snapshot_assets_drift", () => {
+      store.database.prepare("UPDATE official_supply_assets SET slot_key='sig-unknown' WHERE draft_key=? AND slot_key='sig1'").run(DRAFT_KEY);
+    }, () => {
+      store.database.prepare("UPDATE official_supply_assets SET slot_key='sig1' WHERE draft_key=? AND slot_key='sig-unknown'").run(DRAFT_KEY);
+    });
+
     expectNoWrite("locked_snapshot_identity_changed", () => undefined, () => undefined, {
       ...input,
       nextDraft: { ...input.nextDraft, age: 40 },
+    });
+    expectNoWrite("locked_snapshot_identity_changed", () => undefined, () => undefined, {
+      ...input,
+      nextDraft: { ...input.nextDraft, adult: { ...input.nextDraft.adult, orientation: "changed without approval" } },
     });
 
     expectNoWrite("character_stage", () => {
