@@ -65,6 +65,8 @@ import {
 
 export const RP_QUALITY_PAID_RUNNER_VERSION = 1;
 export const RP_QUALITY_PAID_RUNNER_DEFAULT_MODE = "PREPARE" as const;
+export const PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE = "A_relationship_emotion" as const;
+export type PaidRunnerExecutionScope = typeof PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE;
 export const RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV = "RP_QUALITY_PAID_EXPERIMENT_SECRET";
 export const RP_QUALITY_PAID_EXPERIMENT_SECRET_RE = /^rpq-paid-[A-Za-z0-9_-]{24,}$/;
 export const RP_QUALITY_PAID_PRODUCTION_KEY_ENVS = [
@@ -106,7 +108,9 @@ export type PaidRunnerDenialReason =
   | "MISSING_INFERENCE_KEY"
   | "RUNTIME_SHA_UNAVAILABLE"
   | "RUNTIME_SHA_MISMATCH"
-  | "BODY_DRIFT";
+  | "BODY_DRIFT"
+  | "EXECUTION_SCOPE_MISMATCH"
+  | "FIFTH_CALL_FORBIDDEN";
 
 export type PaidRunnerIdentityHashes = {
   greetingSha256: string;
@@ -146,6 +150,8 @@ export type PaidRunnerPublicManifest = {
   pricingSnapshotProvenance: "publishedModelPricing.getPublishedPricing";
   unknownSingleCallCost: true;
   manifestFingerprint: string;
+  /** Present only for scoped execution. Omitted keeps the existing 12-call fingerprint. */
+  executionScope?: PaidRunnerExecutionScope;
 };
 
 export type PaidRunnerSealedCall = PaidRunnerPublicCall & {
@@ -161,6 +167,7 @@ export type PaidRunnerAuthorizationInput = {
   experimentSecret: string | null | undefined;
   allowlist: readonly SelectedAI[];
   plannedCalls: number;
+  executionScope?: PaidRunnerExecutionScope;
 };
 
 export type PaidRunnerAuthorization =
@@ -318,6 +325,24 @@ export function paidRunnerIdentityHash(hashes: PaidRunnerIdentityHashes): string
   return sha256Json(hashes);
 }
 
+export function isPaidRunnerARelationshipEmotionScope(
+  value: unknown
+): value is PaidRunnerExecutionScope {
+  return value === PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE;
+}
+
+export function selectPaidRunnerExecutableSealedCalls(
+  sealedCalls: readonly PaidRunnerSealedCall[],
+  executionScope?: PaidRunnerExecutionScope
+): readonly PaidRunnerSealedCall[] {
+  if (executionScope === PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE) {
+    return sealedCalls.filter(
+      (call) => call.fixtureId === PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE
+    );
+  }
+  return sealedCalls;
+}
+
 export function paidRunnerManifestFingerprint(
   manifest: Omit<PaidRunnerPublicManifest, "manifestFingerprint" | "providerPosts">
 ): string {
@@ -337,6 +362,9 @@ export function paidRunnerManifestFingerprint(
       finalWireFingerprint: call.finalWireFingerprint,
       requestBodyFingerprint: call.requestBodyFingerprint,
     })),
+    ...(manifest.executionScope
+      ? { executionScope: manifest.executionScope }
+      : {}),
   });
 }
 
@@ -567,6 +595,21 @@ export function evaluatePaidRunnerAuthorization(
   }
   if (manifest.calls.length !== RP_QUALITY_PRECALL_PLANNED_CALLS) {
     return deny("PLANNED_CALL_COUNT_MISMATCH");
+  }
+  if ((input.executionScope ?? undefined) !== (manifest.executionScope ?? undefined)) {
+    return deny("EXECUTION_SCOPE_MISMATCH");
+  }
+  if (manifest.executionScope === PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE) {
+    const scoped = manifest.calls.filter(
+      (call) => call.fixtureId === PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE
+    );
+    if (
+      scoped.length !== MAIN_RP_MODEL_IDS.length ||
+      !MAIN_RP_MODEL_IDS.every((canonicalId, index) => scoped[index]?.canonicalId === canonicalId) ||
+      scoped.some((call, index) => call.requestOrder !== index + 1)
+    ) {
+      return deny("EXECUTION_SCOPE_MISMATCH");
+    }
   }
   for (const call of manifest.calls) {
     if (!input.allowlist.includes(call.canonicalId)) return deny("MODEL_ALLOWLIST_MISMATCH");
@@ -850,10 +893,18 @@ function emptyUsageFields(): Pick<
 
 export function journalCanStartNextCall(
   journal: PaidRunnerJournal,
-  call: PaidRunnerPublicCall
+  call: PaidRunnerPublicCall,
+  executionScope?: PaidRunnerExecutionScope
 ): { ok: true } | { ok: false; reason: PaidRunnerDenialReason } {
   if (call.requestOrder > RP_QUALITY_PRECALL_PLANNED_CALLS) {
     return { ok: false, reason: "THIRTEENTH_CALL_FORBIDDEN" };
+  }
+  if (
+    executionScope === PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE &&
+    (call.fixtureId !== PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE ||
+      call.requestOrder > MAIN_RP_MODEL_IDS.length)
+  ) {
+    return { ok: false, reason: "FIFTH_CALL_FORBIDDEN" };
   }
   if (journal.executedManifestFingerprints.includes(journal.manifestFingerprint)) {
     return { ok: false, reason: "DUPLICATE_MANIFEST_EXECUTION" };
@@ -1163,6 +1214,7 @@ export function buildPaidRunnerPublicManifest(input: {
   productionDeploySha: string;
   identityHashes: PaidRunnerIdentityHashes;
   sealedCalls: readonly PaidRunnerSealedCall[];
+  executionScope?: PaidRunnerExecutionScope;
 }): PaidRunnerPublicManifest {
   const identityHash = paidRunnerIdentityHash(input.identityHashes);
   const calls = input.sealedCalls.map((call) => ({
@@ -1192,6 +1244,7 @@ export function buildPaidRunnerPublicManifest(input: {
     approvalStatus: "NOT_APPROVED" as const,
     pricingSnapshotProvenance: "publishedModelPricing.getPublishedPricing" as const,
     unknownSingleCallCost: true as const,
+    ...(input.executionScope ? { executionScope: input.executionScope } : {}),
   };
   return {
     ...draft,
@@ -1369,16 +1422,35 @@ export async function runPaidRunner(input: {
       });
     }
 
+    const executableCalls = selectPaidRunnerExecutableSealedCalls(
+      input.sealedCalls,
+      input.manifest.executionScope
+    );
+    if (
+      input.manifest.executionScope === PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE &&
+      executableCalls.length !== MAIN_RP_MODEL_IDS.length
+    ) {
+      return closed({
+        authorized: false,
+        denialReason: "EXECUTION_SCOPE_MISMATCH",
+        journal,
+      });
+    }
+
     if (journal.entries.length === 0) {
-      markPaidRunnerJournalPrepared(journal, input.manifest.calls);
+      markPaidRunnerJournalPrepared(journal, executableCalls);
       const persistFail = persist();
       if (persistFail) {
         return closed({ authorized: false, denialReason: persistFail, journal });
       }
     }
 
-    for (const sealed of input.sealedCalls) {
-      const startGate = journalCanStartNextCall(journal, sealed);
+    for (const sealed of executableCalls) {
+      const startGate = journalCanStartNextCall(
+        journal,
+        sealed,
+        input.manifest.executionScope
+      );
       if (!startGate.ok) {
         const existing = journal.entries.find((entry) => entry.requestOrder === sealed.requestOrder);
         if (!existing || existing.status === "PREPARED") {

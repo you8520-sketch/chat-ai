@@ -208,6 +208,56 @@ describe("MAIN_RP_STYLE_LENGTH golden operator", () => {
     assert.equal(report.source.sealedSha256, persisted.sealedSha256);
   });
 
+  it("CURRENT_LIVE binds the live SHA and mock-posts only A_relationship_emotion", async () => {
+    const dbFile = path.join(dir, "current-live-a4.db");
+    buildSyntheticDb(dbFile);
+    const loaded = loadPrecallProductionRows({
+      dbPath: dbFile,
+      deployedGitSha: DEPLOY_SHA,
+      env: {},
+    });
+    const assembled = assembleMainRpStyleLengthSnapshot({
+      rows: loaded.rows,
+      deployedGitSha: DEPLOY_SHA,
+      version: 11,
+      listing: { nsfwListing: 1, officialListing: 0, greetingChars: 2 },
+      personaPublicChars: loaded.proof.personaPublicChars,
+      fixtureKind: "CURRENT_LIVE",
+      adminVerified: true,
+    });
+    const root = path.join(dir, "current-live-a4-root");
+    persistMainRpStyleLengthGolden({
+      root,
+      version: 11,
+      sealed: assembled.sealed,
+      publicManifest: { ...assembled.publicManifest, privateStore: `${root}/v11` },
+    });
+    const liveSha = "efea11182d43abba4af31af10f461f160d97b923";
+    const dry = await dryRunMainRpStyleLengthEvaluation({
+      mode: "CURRENT_LIVE",
+      version: 11,
+      root,
+      dbPath: dbFile,
+      deployedGitSha: liveSha,
+      env: {},
+    });
+    assert.equal(dry.sealedCalls.length, RP_QUALITY_PRECALL_PLANNED_CALLS);
+    assert.equal(dry.seal.ok, true);
+    assert.equal(dry.paidManifest.calls.length, 12);
+    assert.equal(dry.paidManifest.productionDeploySha, liveSha);
+    assert.equal(dry.paidManifest.mainSha, liveSha);
+    assert.notEqual(dry.paidManifest.productionDeploySha, assembled.publicManifest.deployedGitSha);
+    assert.equal(dry.paidManifest.executionScope, "A_relationship_emotion");
+    assert.equal(dry.transportPosts, 4);
+    assert.equal(dry.providerPosts, 0);
+    assert.equal(dry.networkAttempts, 0);
+    assert.equal(dry.dbWrites, 0);
+    assert.equal(dry.compare?.sourceDrift, false);
+    assert.equal(dry.compare?.deployShaChanged, true);
+    assert.equal(dry.compare?.identityHashMatch, true);
+    assert.equal(dry.compare?.finalWireMatch, true);
+  });
+
   it("rejects historical id=10 rows before assembly", () => {
     assert.throws(
       () =>

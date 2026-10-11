@@ -36,6 +36,7 @@ import {
   experimentSecretUsesProductionKey,
   isWellFormedPaidExperimentSecret,
   journalCanStartNextCall,
+  PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE,
   paidRunnerManifestDraft,
   paidRunnerManifestFingerprint,
   paidRunnerRequestBodyFingerprint,
@@ -91,6 +92,18 @@ function sealedCalls(): PaidRunnerSealedCall[] {
     }
   }
   return calls;
+}
+
+function packA() {
+  const calls = sealedCalls();
+  const manifest = buildPaidRunnerPublicManifest({
+    mainSha: MAIN_SHA,
+    productionDeploySha: DEPLOY_SHA,
+    identityHashes: HASHES,
+    sealedCalls: calls,
+    executionScope: PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE,
+  });
+  return { manifest, sealedCalls: calls };
 }
 
 function pack(overrides: Partial<PaidRunnerPublicManifest> = {}) {
@@ -170,6 +183,91 @@ describe("rp quality paid runner prepare and mock execution", () => {
     });
     assert.equal(second.transportPosts, 0);
     assert.equal(second.denialReason, "DUPLICATE_MANIFEST_EXECUTION");
+  });
+
+  it("A-scope mock posts only the four A_relationship_emotion models", async () => {
+    const { manifest, sealedCalls: calls } = packA();
+    assert.equal(manifest.calls.length, 12);
+    assert.equal(manifest.executionScope, PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE);
+    assert.notEqual(manifest.manifestFingerprint, pack().manifest.manifestFingerprint);
+    const result = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls: calls,
+      authorization: auth(manifest, { executionScope: PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE }),
+      transport: createMockPaidRunnerTransport(),
+    });
+    assert.equal(result.transportPosts, 4);
+    assert.equal(result.providerPosts, 0);
+    assert.equal(result.networkAttempts, 0);
+    assert.equal(result.publicResults.length, 4);
+    assert.ok(result.publicResults.every((row) => row.fixtureId === "A_relationship_emotion"));
+    assert.equal(result.journal.entries.filter((entry) => entry.status === "SETTLED").length, 4);
+    assert.equal(
+      result.journal.entries.filter((entry) => entry.fixtureId !== "A_relationship_emotion").length,
+      0
+    );
+  });
+
+  it("A-scope blocks a fifth POST, forged fingerprint, and 12-call reuse", async () => {
+    const scoped = packA();
+    const unscoped = pack();
+    const journal = createPaidRunnerJournal(scoped.manifest.manifestFingerprint);
+    const first = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest: scoped.manifest,
+      sealedCalls: scoped.sealedCalls,
+      authorization: auth(scoped.manifest, { executionScope: PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE }),
+      transport: createMockPaidRunnerTransport(),
+      journal,
+    });
+    assert.equal(first.transportPosts, 4);
+    const fifth = scoped.sealedCalls[4]!;
+    assert.equal(fifth.fixtureId, "B_conflict_action_spatial");
+    const fifthGate = journalCanStartNextCall(
+      journal,
+      fifth,
+      PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE
+    );
+    assert.equal(fifthGate.ok, false);
+    if (!fifthGate.ok) assert.equal(fifthGate.reason, "FIFTH_CALL_FORBIDDEN");
+    const replay = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest: scoped.manifest,
+      sealedCalls: scoped.sealedCalls,
+      authorization: auth(scoped.manifest, { executionScope: PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE }),
+      transport: createMockPaidRunnerTransport(),
+      journal,
+    });
+    assert.equal(replay.transportPosts, 0);
+    assert.equal(replay.denialReason, "DUPLICATE_MANIFEST_EXECUTION");
+    const forged = evaluatePaidRunnerAuthorization(
+      scoped.manifest,
+      auth(scoped.manifest, {
+        executionScope: PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE,
+        approvedManifestFingerprint: unscoped.manifest.manifestFingerprint,
+      }),
+      "AUTHORIZED"
+    );
+    assert.equal(forged.authorized, false);
+    if (!forged.authorized) assert.equal(forged.reason, "MANIFEST_FINGERPRINT_MISMATCH");
+    const scopeMismatch = evaluatePaidRunnerAuthorization(
+      unscoped.manifest,
+      auth(unscoped.manifest, { executionScope: PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE }),
+      "AUTHORIZED"
+    );
+    assert.equal(scopeMismatch.authorized, false);
+    if (!scopeMismatch.authorized) assert.equal(scopeMismatch.reason, "EXECUTION_SCOPE_MISMATCH");
+    const staleSha = evaluatePaidRunnerAuthorization(
+      scoped.manifest,
+      auth(scoped.manifest, {
+        executionScope: PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE,
+        expectedProductionSha: "e1fdab509d2e9713be617025f77ea40a5bfb85f5",
+      }),
+      "AUTHORIZED"
+    );
+    assert.equal(staleSha.authorized, false);
+    if (!staleSha.authorized) assert.equal(staleSha.reason, "PRODUCTION_SHA_MISMATCH");
   });
 
   it("D. same fixture/model replay is blocked", () => {

@@ -12,6 +12,7 @@ import {
   buildPaidRunnerPublicManifest,
   createMockPaidRunnerTransport,
   expectedPaidRunnerProvider,
+  PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE,
   paidRunnerIdentityHash,
   runPaidRunner,
   verifyPaidRunnerDispatchSeal,
@@ -604,11 +605,22 @@ export function prepareMainRpStyleLengthEvaluation(input: {
     finalWireFingerprints: sealedCalls.map((call) => call.finalWireFingerprint),
     requestBodies: sealedCalls.map((call) => call.requestBody),
   });
+  const paidSha =
+    input.mode === "CURRENT_LIVE"
+      ? input.deployedGitSha ?? ""
+      : sealed.deployedGitSha;
+  const paidIdentityHashes =
+    input.mode === "CURRENT_LIVE"
+      ? identityHashesFromRows(live!.rows)
+      : loaded.publicManifest.identityHashes;
   const paidManifest = buildPaidRunnerPublicManifest({
-    mainSha: sealed.deployedGitSha,
-    productionDeploySha: sealed.deployedGitSha,
-    identityHashes: loaded.publicManifest.identityHashes,
+    mainSha: paidSha,
+    productionDeploySha: paidSha,
+    identityHashes: paidIdentityHashes,
     sealedCalls,
+    ...(input.mode === "CURRENT_LIVE"
+      ? { executionScope: PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE }
+      : {}),
   });
   const seal = verifyPaidRunnerDispatchSeal({
     manifest: paidManifest,
@@ -668,6 +680,9 @@ export async function dryRunMainRpStyleLengthEvaluation(
       experimentSecret: "rpq-paid-style-length-dryrun-0000001",
       allowlist: [...MAIN_RP_MODEL_IDS],
       plannedCalls: prepared.sealedCalls.length,
+      ...(prepared.paidManifest.executionScope
+        ? { executionScope: prepared.paidManifest.executionScope }
+        : {}),
     },
     transport: createMockPaidRunnerTransport(),
   });
