@@ -30,10 +30,13 @@ function memoryDb(): Database.Database {
 }
 
 function gmText(participantId?: number, conditions?: string[]): string {
-  return buildTrpgGmStructuredWireText(participantId?: number, conditions?[], {
-    players: [],
-    location: "문턱",
-    next_round_context: "다음",
+  return buildTrpgGmStructuredWireText("상태가 장면에 남는다.", {
+    players:
+      participantId == null
+        ? []
+        : [{ participantId, ...(conditions == null ? {} : { conditions }) }],
+    location: "폐허",
+    next_round_context: "",
     campaign_finished: false,
   });
 }
