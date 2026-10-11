@@ -208,7 +208,8 @@ export type EpisodicMemoryDuplicateReason =
   | "duplicate_lorebook"
   | "duplicate_relationship_memory"
   | "duplicate_triggered_event"
-  | "duplicate_subject_attribute";
+  | "duplicate_subject_attribute"
+  | "duplicate_same_evidence";
 
 export type EpisodicMemoryBudgetReason =
   | "max_facts"
@@ -730,16 +731,16 @@ function filterUnsafeEpisodicFactsForSave(
     sourceUserText?: string | null;
     batchUserSources?: readonly EpisodicBatchUserSource[];
     userPersona?: string | null;
+    /** Evidence-bound writes are authorized by the server quote gate, not by gloss-token overlap. */
+    evidenceBound?: boolean;
   } = {}
 ): EpisodicExtractedFact[] {
-  return filterUnsupportedEvidenceFactsForSave(
-    filterUnverifiedCanonicalizationFactsForSave(
-      filterAbstractPsychologicalInferenceFactsForSave(
-        filterRelationshipLedgerOwnedFactsForSave(filterContaminatedFactsForSave(facts))
-      )
-    ),
-    opts
+  const screened = filterUnverifiedCanonicalizationFactsForSave(
+    filterAbstractPsychologicalInferenceFactsForSave(
+      filterRelationshipLedgerOwnedFactsForSave(filterContaminatedFactsForSave(facts))
+    )
   );
+  return opts.evidenceBound ? screened : filterUnsupportedEvidenceFactsForSave(screened, opts);
 }
 
 export type SummarizeEpisodicFactPersistCandidatesOptions = {
@@ -1063,6 +1064,7 @@ export function persistEpisodicMemoryFactsCore(
     sourceUserText,
     batchUserSources: batchUserSources.length > 0 ? batchUserSources : undefined,
     userPersona: input.userPersona,
+    evidenceBound: input.evidenceBinding != null,
   };
   let facts = dedupeFactsWithinResponse(
     filterUnsafeEpisodicFactsForSave(
@@ -1499,15 +1501,19 @@ function tokenizeForSimpleBoost(text: string): string[] {
   return tokens;
 }
 
-function factSearchText(
-  fact: Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text">
-): string {
+type FactSearchFields = Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text"> & {
+  metadata?: string | null;
+};
+
+/** Relevance is judged against the text that would actually be injected: the gloss plus a verified row's verbatim quote. */
+function factSearchText(fact: FactSearchFields): string {
   const safeFactText = sanitizeRecalledMemoryFactText(fact.fact_text);
-  return `${fact.subject} ${fact.attribute} ${fact.value} ${safeFactText}`.toLowerCase();
+  const quote = readVerifiedEvidence(fact.metadata)?.quote ?? "";
+  return `${fact.subject} ${fact.attribute} ${fact.value} ${safeFactText} ${quote}`.toLowerCase();
 }
 
 function lexicalRelevance(
-  fact: Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text">,
+  fact: FactSearchFields,
   currentUserMessage: string
 ): number {
   const tokens = tokenizeForSimpleBoost(currentUserMessage);
@@ -1626,6 +1632,9 @@ function findDuplicateReason(
   fact: EpisodicMemoryFactRecord,
   input: GetEpisodicMemoryForPromptInput
 ): EpisodicMemoryDuplicateReason | null {
+  // Surrounding prompt text carries no machine-readable speaker, so it cannot prove
+  // it represents the same source as a verified quote. Keep the provenance-bearing row.
+  if (readVerifiedEvidence(fact.metadata)) return null;
   if (textLooksDuplicated(fact, input.currentUserMessage)) return "duplicate_current_user";
   if (textLooksDuplicated(fact, input.recentChatText)) return "duplicate_recent_chat";
   if (textLooksDuplicated(fact, input.longTermMemoryText)) return "duplicate_long_term_memory";
@@ -2317,12 +2326,13 @@ function fetchEpisodicMemoryCandidateRows(
     }
     const tokenClauses = tokens.map(
       () =>
-        "(LOWER(fact_text) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(attribute) LIKE ? OR LOWER(value) LIKE ?)"
+        `(LOWER(fact_text) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(attribute) LIKE ? OR LOWER(value) LIKE ?
+          OR LOWER(CASE WHEN json_valid(metadata) THEN json_extract(metadata, '$.evidence.quote') END) LIKE ?)`
     );
     relevanceWhere.push(`(${tokenClauses.join(" OR ")})`);
     for (const token of tokens) {
       const pattern = `%${token.toLowerCase()}%`;
-      relevanceParams.push(pattern, pattern, pattern, pattern);
+      relevanceParams.push(pattern, pattern, pattern, pattern, pattern);
     }
     relevanceRows = (db
       .prepare(
@@ -2976,8 +2986,17 @@ export function getEpisodicMemoryForPrompt(
     }
 
     const deduped: EpisodicMemoryFactRecord[] = [];
+    const seenEvidenceKeys = new Set<string>();
     for (const fact of resolved) {
-      const duplicateReason = findDuplicateReason(fact, input);
+      const evidence = readVerifiedEvidence(fact.metadata);
+      const evidenceKey = evidence
+        ? JSON.stringify([evidence.role, evidence.message_id, evidence.quote])
+        : null;
+      const duplicateReason: EpisodicMemoryDuplicateReason | null =
+        evidenceKey && seenEvidenceKeys.has(evidenceKey)
+          ? "duplicate_same_evidence"
+          : findDuplicateReason(fact, input);
+      if (evidenceKey && !duplicateReason) seenEvidenceKeys.add(evidenceKey);
       if (duplicateReason) {
         const debug = debugById.get(fact.id);
         if (debug) debug.duplicate_reason = duplicateReason;
