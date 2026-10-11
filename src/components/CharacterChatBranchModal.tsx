@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import {
   formatChatListTime,
   formatChatPreview,
@@ -50,6 +50,15 @@ function BranchAvatar({
   className: string;
 }) {
   const thumb = parseThumb(avatar.images);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const showImage = thumb !== null && thumb !== failedSrc;
+
+  useEffect(() => {
+    const img = imgRef.current;
+    if (thumb && img && img.complete && img.naturalWidth === 0) setFailedSrc(thumb);
+  }, [thumb]);
+
   return (
     <span
       {...{ [CHAT_RESUME_THUMB_ATTR]: "" }}
@@ -57,11 +66,13 @@ function BranchAvatar({
       className={`relative block shrink-0 overflow-hidden rounded-full ring-1 ring-white/15 ${className}`}
       style={{ background: `hsl(${avatar.hue} 60% 22%)` }}
     >
-      {thumb ? (
+      {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={imgRef}
           src={thumb}
           alt=""
+          onError={() => setFailedSrc(thumb)}
           className={`h-full w-full object-cover object-top ${hidden ? "blur-md" : ""}`}
         />
       ) : (

@@ -128,6 +128,15 @@ describe("chats list: ownership and regression guards", () => {
     assert.match(host, /includes\("\/media\/private\/"\)/);
   });
 
+  it("drops a failed avatar image so the fill colour and emoji glyph show instead of a broken image", () => {
+    const avatar = modal.slice(modal.indexOf("function BranchAvatar"), modal.indexOf("export default function"));
+    assert.match(avatar, /onError=\{\(\) => setFailedSrc\(thumb\)\}/);
+    assert.match(avatar, /img\.complete && img\.naturalWidth === 0/);
+    assert.match(avatar, /showImage \?/);
+    assert.match(avatar, /\{avatar\.emoji\}/);
+    assert.match(avatar, /hidden \? "blur-md" : ""/);
+  });
+
   it("keeps the character photo link to the profile and the card body as the picker opener", () => {
     assert.match(grid, /href=\{characterPageHref\(group\.character_id, hidden, group\.nsfw === 1\)\}/);
     assert.match(grid, /onClick=\{selectionMode \? onToggleSelection : onOpenBranches\}/);
