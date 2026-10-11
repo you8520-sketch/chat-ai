@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cn, studioInputClass } from "@/lib/studioDesign";
-import { sanitizeSearchQuery } from "@/lib/tagSearch";
+import { normalizeCatalogSearchQuery } from "@/lib/tagSearch";
 
 type Props = {
   defaultQuery?: string;
@@ -24,7 +24,7 @@ export default function TagSearchBar({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const trimmed = sanitizeSearchQuery(q);
+    const trimmed = normalizeCatalogSearchQuery(q);
     if (!trimmed) return;
     const params = new URLSearchParams();
     params.set("q", trimmed);

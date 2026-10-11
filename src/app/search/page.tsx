@@ -17,7 +17,7 @@ import {
 import {
   buildCharacterSearchSql,
   isValidSearchQuery,
-  sanitizeSearchQuery,
+  normalizeCatalogSearchQuery,
   searchSqlLikePattern,
 } from "@/lib/tagSearch";
 
@@ -76,7 +76,7 @@ export default async function SearchPage({
   searchParams: Promise<{ q?: string; g?: string }>;
 }) {
   const { q: rawQ, g: rawG } = await searchParams;
-  const query = sanitizeSearchQuery(rawQ ?? "");
+  const query = normalizeCatalogSearchQuery(rawQ ?? "");
   const genre =
     rawG && isCharacterGenre(rawG.trim()) ? (rawG.trim() as CharacterGenre) : null;
   const db = getDb();

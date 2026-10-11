@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
 
@@ -11,14 +12,22 @@ import { computeTextLockHash } from "@/lib/officialSupply/characterText";
 import {
   applyLockedSnapshot,
   assertBackupMatchesLiveSource,
+  assertIndependentSqliteIntegrity,
+  isPatchedIndependentSqliteVersion,
   inspectLockedSnapshot,
   isLockedSnapshotApplyAuthorized,
+  isProductionLockedSnapshotApplyBlocked,
   isProtectedSqlitePath,
   isRailwayProductionApplyEnvironment,
   isRailwayProductionSqlitePath,
+  isWolfgangV4ProductionCasAuthorized,
+  OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS_ENV,
+  OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CONFIRM_ENV,
+  OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_DRAFT_KEY_ENV,
   loadApprovedWolfgangV4Source,
   openOfficialSupplyReadonlyDatabase,
   WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET,
+  type IndependentSqliteCheckDeps,
 } from "@/lib/officialSupply/lockedSnapshotReconcileOperator";
 import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
 import { ROFAN_V4_PRODUCTION_BATCH_CONFIG } from "@/lib/officialSupply/pilotProduction";
@@ -49,6 +58,16 @@ function applyEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
     RAILWAY_GIT_COMMIT_SHA: SHA,
     ...overrides,
   };
+}
+
+function productionCasEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  return applyEnv({
+    RAILWAY_ENVIRONMENT_NAME: "production",
+    [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS_ENV]: "1",
+    [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_DRAFT_KEY_ENV]: WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey,
+    [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CONFIRM_ENV]: WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey,
+    ...overrides,
+  });
 }
 
 type StaleFixture = {
@@ -160,6 +179,69 @@ function insertLockedCharacter(
 function vacuumInto(store: OfficialSupplyStore, destination: string): void {
   if (fs.existsSync(destination)) fs.rmSync(destination);
   store.database.exec(`VACUUM INTO '${destination.replaceAll("'", "''")}'`);
+}
+
+function libsqlIntegrityMessages(file: string): string[] {
+  const db = new Database(file, { readonly: true, fileMustExist: true });
+  try {
+    return (db.prepare("PRAGMA integrity_check").all() as Array<{ integrity_check?: string }>).map((row) =>
+      String(row.integrity_check ?? "")
+    );
+  } finally {
+    db.close();
+  }
+}
+
+function writeSimpleSqliteFixture(file: string): void {
+  const db = new Database(file);
+  try {
+    db.exec("CREATE TABLE t (id INTEGER PRIMARY KEY); INSERT INTO t (id) VALUES (1);");
+  } finally {
+    db.close();
+  }
+}
+
+function writeHippAlterRealFixture(file: string): ReturnType<typeof spawnSync> {
+  return spawnSync(
+    "python3",
+    [
+      "-I",
+      "-c",
+      "import sqlite3, sys\ncon = sqlite3.connect(sys.argv[1])\ncon.executescript(\"CREATE TABLE t (a); INSERT INTO t (a) VALUES (0); ALTER TABLE t ADD COLUMN b REAL NOT NULL DEFAULT 0.25; ALTER TABLE t ADD COLUMN c CHECK (1);\")\ncon.close()",
+      file,
+    ],
+    { encoding: "utf8" }
+  );
+}
+
+function writeForeignKeyViolationFixture(file: string): void {
+  const result = spawnSync(
+    "python3",
+    [
+      "-I",
+      "-c",
+      "import sqlite3, sys\ncon = sqlite3.connect(sys.argv[1])\ncon.execute('PRAGMA foreign_keys=OFF')\ncon.executescript('CREATE TABLE parent (id INTEGER PRIMARY KEY); CREATE TABLE child (id INTEGER PRIMARY KEY, parent_id INTEGER NOT NULL REFERENCES parent(id)); INSERT INTO child (id, parent_id) VALUES (1, 99);')\ncon.close()",
+      file,
+    ],
+    { encoding: "utf8" }
+  );
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+}
+
+function mockSqliteReport(
+  report: unknown,
+  extras: { status?: number; error?: NodeJS.ErrnoException; signal?: NodeJS.Signals | null } = {}
+): IndependentSqliteCheckDeps {
+  return {
+    spawn: () =>
+      ({
+        status: extras.status ?? 0,
+        stdout: `${JSON.stringify(report)}\n`,
+        stderr: "",
+        signal: extras.signal ?? null,
+        error: extras.error,
+      }) as ReturnType<typeof spawnSync>,
+  };
 }
 
 describe("Wolfgang v4 locked snapshot operator", () => {
@@ -454,6 +536,108 @@ describe("Wolfgang v4 locked snapshot operator", () => {
     assert.deepEqual(snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey), before);
   });
 
+  it("keeps the production refuse unless the Wolfgang v4 confirm envs are exact", () => {
+    const draftKey = WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey;
+    assert.equal(isWolfgangV4ProductionCasAuthorized({}), false);
+    assert.equal(
+      isWolfgangV4ProductionCasAuthorized({ [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS_ENV]: "1" }),
+      false
+    );
+    assert.equal(
+      isWolfgangV4ProductionCasAuthorized({
+        [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS_ENV]: "1",
+        [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_DRAFT_KEY_ENV]: draftKey,
+        [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CONFIRM_ENV]: "pilot-rf-v4-03",
+      }),
+      false
+    );
+    assert.equal(isWolfgangV4ProductionCasAuthorized(productionCasEnv()), true);
+    assert.equal(
+      isProductionLockedSnapshotApplyBlocked({ dbPath: "/data/app.db", env: applyEnv() }),
+      true
+    );
+    assert.equal(
+      isProductionLockedSnapshotApplyBlocked({ dbPath: "/data/app.db", env: productionCasEnv() }),
+      false
+    );
+    assert.equal(
+      isProductionLockedSnapshotApplyBlocked({ dbPath: getDatabasePath(), env: applyEnv() }),
+      false
+    );
+    const before = snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey);
+    assert.throws(
+      () =>
+        applyLockedSnapshot({
+          dbPath: getDatabasePath(),
+          expectedSha: SHA,
+          runtimeSha: SHA,
+          backupPath: path.join(path.dirname(getDatabasePath()), "unused.db"),
+          argv: ["apply"],
+          env: applyEnv({
+            RAILWAY_ENVIRONMENT_NAME: "production",
+            [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS_ENV]: "1",
+            [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_DRAFT_KEY_ENV]: draftKey,
+            [OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CONFIRM_ENV]: "no",
+          }),
+        }),
+      (error: OfficialSupplyGateError) => error.code === "locked_snapshot_production_apply_blocked"
+    );
+    assert.throws(
+      () =>
+        applyLockedSnapshot({
+          dbPath: getDatabasePath(),
+          expectedSha: SHA,
+          runtimeSha: SHA,
+          backupPath: path.join(path.dirname(getDatabasePath()), "missing-prod-cas.db"),
+          argv: ["apply"],
+          env: productionCasEnv(),
+        }),
+      (error: OfficialSupplyGateError) => error.code === "locked_snapshot_backup_missing"
+    );
+    assert.deepEqual(snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey), before);
+  });
+
+  it("authorized production env still uses the merged CAS and preserves rep, 14 rows, and sibling", () => {
+    const beforeAssets = snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey);
+    const beforeSibling = snapshot(store, SIBLING_KEY);
+    const backupPath = path.join(path.dirname(getDatabasePath()), "wolfgang-prod-cas-backup.db");
+    vacuumInto(store, backupPath);
+    const first = applyLockedSnapshot({
+      dbPath: getDatabasePath(),
+      expectedSha: SHA,
+      runtimeSha: SHA,
+      backupPath,
+      argv: ["apply"],
+      env: productionCasEnv(),
+    });
+    assert.equal(first.storeWriter, "OfficialSupplyStore.reconcileLockedSnapshot");
+    assert.equal(first.target, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey);
+    assert.equal(first.result.status, "updated");
+    assert.equal(first.result.textLockHash, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.expectedNextTextLockHash);
+    assert.deepEqual(
+      (snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey) as { assets: unknown }).assets,
+      (beforeAssets as { assets: unknown }).assets
+    );
+    assert.deepEqual(snapshot(store, SIBLING_KEY), beforeSibling);
+    const currentBackup = path.join(path.dirname(getDatabasePath()), "wolfgang-prod-cas-backup-current.db");
+    vacuumInto(store, currentBackup);
+    const second = applyLockedSnapshot({
+      dbPath: getDatabasePath(),
+      expectedSha: SHA,
+      runtimeSha: SHA,
+      backupPath: currentBackup,
+      argv: ["apply"],
+      env: productionCasEnv(),
+    });
+    assert.equal(second.result.status, "already_current");
+    assert.equal(second.wrote, false);
+    assert.deepEqual(
+      (snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey) as { assets: unknown }).assets,
+      (beforeAssets as { assets: unknown }).assets
+    );
+    assert.deepEqual(snapshot(store, SIBLING_KEY), beforeSibling);
+  });
+
   it("pins the observed old draft/plan SHA and stops on hook, plan, or partial drift", () => {
     const before = snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey);
     const expectStop = (mutate: () => void) => {
@@ -626,6 +810,48 @@ describe("Wolfgang v4 locked snapshot operator", () => {
     );
   });
 
+  it("stops when only the backup representative provider_request_id drifted", () => {
+    const backupPath = path.join(path.dirname(getDatabasePath()), "request-id-backup.db");
+    vacuumInto(store, backupPath);
+    const backup = new Database(backupPath);
+    try {
+      backup
+        .prepare(
+          "UPDATE official_supply_assets SET provider_request_id=? WHERE draft_key=? AND slot_key='rep'"
+        )
+        .run("req_only_drift", WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey);
+    } finally {
+      backup.close();
+    }
+    assert.throws(
+      () => assertBackupMatchesLiveSource(backupPath, getDatabasePath()),
+      (error: OfficialSupplyGateError) => error.code === "locked_snapshot_backup_mismatch"
+    );
+  });
+
+  it("stops when the backup path is a symlink or hard link to the live database", () => {
+    const backupPath = path.join(path.dirname(getDatabasePath()), "matching-link-backup.db");
+    vacuumInto(store, backupPath);
+    const alias = path.join(path.dirname(getDatabasePath()), "live-alias.db");
+    fs.symlinkSync(getDatabasePath(), alias);
+    assert.throws(
+      () => assertBackupMatchesLiveSource(alias, getDatabasePath()),
+      (error: OfficialSupplyGateError) => error.code === "locked_snapshot_backup_invalid"
+    );
+    const hard = path.join(path.dirname(getDatabasePath()), "live-hard.db");
+    try {
+      fs.linkSync(getDatabasePath(), hard);
+      assert.throws(
+        () => assertBackupMatchesLiveSource(hard, getDatabasePath()),
+        (error: OfficialSupplyGateError) => error.code === "locked_snapshot_backup_invalid"
+      );
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EXDEV" && !(error instanceof OfficialSupplyGateError)) {
+        throw error;
+      }
+    }
+  });
+
   it("CLI defaults to NOT_RUN and cannot apply without the apply argv", () => {
     const result = spawnSync(
       process.execPath,
@@ -638,5 +864,170 @@ describe("Wolfgang v4 locked snapshot operator", () => {
     );
     assert.equal(result.status, 0);
     assert.match(result.stdout, /NOT_RUN/);
+  });
+});
+
+describe("Wolfgang v4 independent SQLite backup engine", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "hav-independent-sqlite-"));
+
+  before(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.mkdirSync(root, { recursive: true });
+  });
+  after(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("reproduces the libsql ALTER REAL NOT NULL DEFAULT false-positive and accepts the same files via patched python3", () => {
+    const live = path.join(root, "hipp-live.db");
+    const backup = path.join(root, "hipp-backup.db");
+    const libsqlAlter = path.join(root, "hipp-libsql-alter.db");
+    const libsqlDb = new Database(libsqlAlter);
+    try {
+      assert.throws(
+        () =>
+          libsqlDb.exec(
+            "CREATE TABLE t (a); INSERT INTO t (a) VALUES (0); ALTER TABLE t ADD COLUMN b REAL NOT NULL DEFAULT 0.25; ALTER TABLE t ADD COLUMN c CHECK (1);"
+          ),
+        /NOT NULL constraint failed/
+      );
+    } finally {
+      libsqlDb.close();
+    }
+    const created = writeHippAlterRealFixture(live);
+    if (!isPatchedIndependentSqliteVersion(
+      spawnSync("python3", ["-I", "-c", "import sqlite3; print(sqlite3.sqlite_version)"], { encoding: "utf8" }).stdout.trim()
+    )) {
+      assert.match(created.stderr || created.stdout, /NOT NULL constraint failed/);
+      assert.equal(created.status, 1);
+      return;
+    }
+    assert.equal(created.status, 0, created.stderr || created.stdout);
+    const libsqlMessages = libsqlIntegrityMessages(live);
+    assert.ok(
+      libsqlMessages.some((message) => message.includes("NULL value in t.b")),
+      `expected Hipp false-positive, got ${libsqlMessages.join(" | ") || "<empty>"}`
+    );
+    assert.ok(!libsqlMessages.includes("ok"));
+    const src = new Database(live);
+    try {
+      src.exec(`VACUUM INTO '${backup.replaceAll("'", "''")}'`);
+    } finally {
+      src.close();
+    }
+    const before = fs.readFileSync(backup);
+    assertIndependentSqliteIntegrity(live, backup);
+    assert.deepEqual(fs.readFileSync(backup), before);
+    assert.equal(fs.existsSync(`${backup}-wal`), false);
+    assert.ok(libsqlIntegrityMessages(backup).some((message) => message.includes("NULL value in t.b")));
+  });
+
+  it("stops on a tampered backup, a foreign-key violation, missing python, unpatched sqlite, and timeout", () => {
+    const live = path.join(root, "clean-live.db");
+    const backup = path.join(root, "clean-backup.db");
+    writeSimpleSqliteFixture(live);
+    const src = new Database(live);
+    try {
+      src.exec(`VACUUM INTO '${backup.replaceAll("'", "''")}'`);
+    } finally {
+      src.close();
+    }
+    const tampered = path.join(root, "tampered-backup.db");
+    const bytes = Buffer.from(fs.readFileSync(backup));
+    bytes.write("NOT_A_SQLITE_FILE", 0);
+    fs.writeFileSync(tampered, bytes);
+    assert.throws(
+      () => assertIndependentSqliteIntegrity(live, tampered),
+      (error: OfficialSupplyGateError) =>
+        error.code === "locked_snapshot_backup_invalid" || error.code === "locked_snapshot_sqlite_engine"
+    );
+    const fk = path.join(root, "fk-violation.db");
+    writeForeignKeyViolationFixture(fk);
+    assert.throws(
+      () => assertIndependentSqliteIntegrity(live, fk),
+      (error: OfficialSupplyGateError) => error.code === "locked_snapshot_backup_invalid"
+    );
+    assert.throws(
+      () =>
+        assertIndependentSqliteIntegrity(
+          live,
+          backup,
+          mockSqliteReport(
+            {
+              sqlite_version: "3.50.4",
+              live: { integrity: ["ok"], foreign_key_count: 0 },
+              backup: { integrity: ["ok"], foreign_key_count: 0 },
+            },
+            { error: Object.assign(new Error("spawn python3 ENOENT"), { code: "ENOENT" }) }
+          )
+        ),
+      (error: OfficialSupplyGateError) =>
+        error.code === "locked_snapshot_sqlite_engine" && /python3 is not available/.test(error.message)
+    );
+    assertIndependentSqliteIntegrity(
+      live,
+      backup,
+      mockSqliteReport({
+        sqlite_version: "3.45.1",
+        live: { integrity: ["ok"], foreign_key_count: 0 },
+        backup: { integrity: ["ok"], foreign_key_count: 0 },
+      })
+    );
+    assert.throws(
+      () =>
+        assertIndependentSqliteIntegrity(
+          live,
+          backup,
+          mockSqliteReport({
+            sqlite_version: "3.45.1",
+            live: { integrity: ["NULL value in t.b"], foreign_key_count: 0 },
+            backup: { integrity: ["ok"], foreign_key_count: 0 },
+          })
+        ),
+      (error: OfficialSupplyGateError) => error.code === "locked_snapshot_backup_invalid"
+    );
+    assert.throws(
+      () =>
+        assertIndependentSqliteIntegrity(
+          live,
+          backup,
+          mockSqliteReport({
+            sqlite_version: "not-a-version",
+            live: { integrity: ["ok"], foreign_key_count: 0 },
+            backup: { integrity: ["ok"], foreign_key_count: 0 },
+          })
+        ),
+      (error: OfficialSupplyGateError) => error.code === "locked_snapshot_sqlite_engine"
+    );
+    assert.throws(
+      () =>
+        assertIndependentSqliteIntegrity(
+          live,
+          backup,
+          mockSqliteReport({
+            sqlite_version: "3.50.4",
+            live: { integrity: ["NULL value in user_personas.image_focus_x"], foreign_key_count: 0 },
+            backup: { integrity: ["ok"], foreign_key_count: 0 },
+          })
+        ),
+      (error: OfficialSupplyGateError) => error.code === "locked_snapshot_backup_invalid"
+    );
+    assert.throws(
+      () =>
+        assertIndependentSqliteIntegrity(
+          live,
+          backup,
+          mockSqliteReport(
+            {
+              sqlite_version: "3.50.4",
+              live: { integrity: ["ok"], foreign_key_count: 0 },
+              backup: { integrity: ["ok"], foreign_key_count: 0 },
+            },
+            { error: Object.assign(new Error("spawnSync ETIMEDOUT"), { code: "ETIMEDOUT" }), signal: "SIGTERM" }
+          )
+        ),
+      (error: OfficialSupplyGateError) =>
+        error.code === "locked_snapshot_sqlite_engine" && /timed out/.test(error.message)
+    );
   });
 });

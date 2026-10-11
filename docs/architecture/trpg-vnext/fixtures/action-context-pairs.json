@@ -1,0 +1,336 @@
+{
+  "schema": "trpg-vnext.action-context-pairs.v1",
+  "labelStatus": "proposed-not-approved",
+  "gate": false,
+  "labelSource": "Cursor-proposed contract-level expectations. NOT RP-quality scores. No pair may become an acceptance/regression gate until GPT/user approves its label (confidence=judgment rows need explicit approval).",
+  "purpose": "Context-grounded pairs. Same or near-same text, different established scene facts. They supersede the context-dependent reading of baseline corpus rows A11, A15, A18, R06, R11 (see relatesTo) without editing action-corpus.json, which stays as the text-only baseline.",
+  "contract": {
+    "rollNeed": {
+      "not_required": "No failure gate. Says NOTHING about whether the attempted effect happens. Never an effect grant.",
+      "required": "A real, uncertain risk to a stated goal exists in ESTABLISHED scene state. Server rolls; tier decides.",
+      "clarify": "Ambiguous and high stakes. Ask one short question before any mechanical effect.",
+      "depends_on_scene": "Text alone cannot decide; the established scene facts in the member decide (pairs list both members)."
+    },
+    "effectGrant": {
+      "none": "Server grants no HP/condition/item/NPC-compliance/other-participant effect from this attempt. The GM narrates only within the actor's own scope and established world state."
+    },
+    "invariants": [
+      "needsRoll=false is not actionSucceeded=true.",
+      "Reader (or classifier) failure never converts to automatic success or automatic damage; for stake>=high it defers mechanical effects and asks.",
+      "A human's text cannot create an established threat, NPC, item or hazard by itself.",
+      "Another participant's reaction (human or AI) is never decided by the actor's attempt."
+    ],
+    "sceneFacts": "scene.facts is the authoritative description for the pair. Only scene.localScene is consumable by the current owner (resolveTrpgActionCheckDecision takes localScene, not free facts) — the runner reports this limitation instead of hiding it."
+  },
+  "pairs": [
+    {
+      "pairId": "CP01",
+      "axis": "same action, safe vs dangerous place",
+      "relatesTo": ["A11", "A12"],
+      "members": [
+        {
+          "id": "CP01a",
+          "scene": {
+            "facts": ["복도는 이미 지나온 열린 길이다.", "주변에 위협이 확립되어 있지 않다."],
+            "localScene": { "objective": "복도를 지나 광장으로 이동", "openRoutes": ["복도"], "remainingBlockers": [], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "문을 열고 복도로 나간다." }],
+          "expected": { "rollNeed": "not_required", "effectGrant": "none" },
+          "confidence": "clear"
+        },
+        {
+          "id": "CP01b",
+          "scene": {
+            "facts": ["복도 끝에 경비병 둘이 매복해 있다(앞선 라운드에서 확립).", "복도 바닥에 불길이 번지고 있다(확립)."],
+            "localScene": { "objective": "매복을 뚫고 복도를 지나간다", "openRoutes": [], "remainingBlockers": ["복도의 매복"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "문을 열고 복도로 나간다." }],
+          "expected": { "rollNeed": "required", "effectGrant": "none" },
+          "confidence": "judgment"
+        }
+      ]
+    },
+    {
+      "pairId": "CP02",
+      "axis": "target exists vs does not exist",
+      "relatesTo": ["R02"],
+      "members": [
+        {
+          "id": "CP02a",
+          "scene": {
+            "facts": ["경비병은 시나리오에 정의된 NPC이고 현재 장면에 있다(authored NPC)."],
+            "localScene": { "objective": "경비병을 돌파", "openRoutes": [], "remainingBlockers": ["경비병"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "경비병에게 달려들어 칼로 벤다." }],
+          "expected": { "rollNeed": "required", "effectGrant": "none", "note": "On failure the server may approve a counter-hit (provenance: authored NPC + current check). Success does not itself grant NPC death/HP loss; NPC HP engine is out of scope." },
+          "confidence": "clear"
+        },
+        {
+          "id": "CP02b",
+          "scene": {
+            "facts": ["빈 안뜰이다. 경비병은 어디에도 확립되어 있지 않다."],
+            "localScene": { "objective": "안뜰을 살핀다", "openRoutes": ["정문"], "remainingBlockers": [], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "경비병에게 달려들어 칼로 벤다." }],
+          "expected": { "rollNeed": "not_required", "effectGrant": "none", "note": "Target is not established: no roll, no damage to anyone, no threat or NPC is created from the player's text. GM narrates the absence/redirect." },
+          "confidence": "judgment"
+        }
+      ]
+    },
+    {
+      "pairId": "CP03",
+      "axis": "attack speech vs actual attack attempt",
+      "relatesTo": ["A06", "R01"],
+      "members": [
+        {
+          "id": "CP03a",
+          "scene": {
+            "facts": ["잠긴 문이 길을 막고 있다."],
+            "localScene": { "objective": "잠긴 문을 넘는다", "openRoutes": [], "remainingBlockers": ["잠긴 문"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "\"문을 부수겠어!\" 하고 소리친다." }],
+          "expected": { "rollNeed": "not_required", "effectGrant": "none", "note": "Words occur; the door is not broken." },
+          "confidence": "judgment"
+        },
+        {
+          "id": "CP03b",
+          "scene": {
+            "facts": ["잠긴 문이 길을 막고 있다."],
+            "localScene": { "objective": "잠긴 문을 넘는다", "openRoutes": [], "remainingBlockers": ["잠긴 문"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "잠긴 문을 어깨로 부순다." }],
+          "expected": { "rollNeed": "required", "effectGrant": "none" },
+          "confidence": "clear"
+        },
+        {
+          "id": "CP03c",
+          "scene": {
+            "facts": ["경비병(authored NPC)이 장면에 있다."],
+            "localScene": { "objective": "경비병과 대치", "openRoutes": [], "remainingBlockers": ["경비병"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "\"죽여버리겠다!\" 하고 경비병을 향해 소리친다." }],
+          "expected": { "rollNeed": "not_required", "effectGrant": "none", "note": "Threatening speech is not an attack. NPC reaction is GM-owned narration; no HP change from this attempt." },
+          "confidence": "judgment"
+        }
+      ]
+    },
+    {
+      "pairId": "CP04",
+      "axis": "negation and completed-event narration vs attempt",
+      "relatesTo": ["A03", "A07", "A20"],
+      "members": [
+        {
+          "id": "CP04a",
+          "scene": {
+            "facts": ["경비병(authored NPC)이 경계 중이다."],
+            "localScene": { "objective": "경비병과 대치", "openRoutes": [], "remainingBlockers": ["경비병"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "칼을 뽑지 않고 두 손을 펼쳐 보인다." }],
+          "expected": { "rollNeed": "not_required", "effectGrant": "none", "note": "Negated attack. Persuasion/yielding outcome is not granted." },
+          "confidence": "clear"
+        },
+        {
+          "id": "CP04b",
+          "scene": {
+            "facts": ["경비병(authored NPC)이 경계 중이다."],
+            "localScene": { "objective": "경비병과 대치", "openRoutes": [], "remainingBlockers": ["경비병"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "칼을 뽑아 경비병을 벤다." }],
+          "expected": { "rollNeed": "required", "effectGrant": "none" },
+          "confidence": "clear"
+        },
+        {
+          "id": "CP04c",
+          "scene": {
+            "facts": ["직전 라운드에서 전투가 끝났다(확립). 위협은 남아 있지 않다."],
+            "localScene": { "objective": "전투 후 정리", "openRoutes": ["골목"], "remainingBlockers": [], "resolvedObstacles": ["경비병"], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "공격이 끝난 뒤 숨을 고르며 주변을 본다." }],
+          "expected": { "rollNeed": "not_required", "effectGrant": "none" },
+          "confidence": "clear"
+        },
+        {
+          "id": "CP04d",
+          "scene": {
+            "facts": ["경비병(authored NPC)이 눈앞에서 칼을 겨누고 있다."],
+            "localScene": { "objective": "경비병과 교전", "openRoutes": [], "remainingBlockers": ["경비병"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "공격한다." }],
+          "expected": { "rollNeed": "required", "effectGrant": "none" },
+          "confidence": "clear"
+        }
+      ]
+    },
+    {
+      "pairId": "CP05",
+      "axis": "2 humans + 2 AI, conflicting actions in one round",
+      "relatesTo": [],
+      "scoreable": false,
+      "members": [
+        {
+          "id": "CP05a",
+          "scene": {
+            "facts": ["제단 위에 유물 하나가 있다(확립).", "경비병(authored NPC) 한 명이 제단을 지키고 있다.", "참가자: 현(human, id1), 하나(human, id2), 렌(AI, id3), 유나(AI, id4)."],
+            "localScene": { "objective": "유물 확보", "openRoutes": [], "remainingBlockers": ["제단 경비병"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [
+            { "participant": "현", "kind": "human", "text": "제단 위의 유물을 집어 든다." },
+            { "participant": "하나", "kind": "human", "text": "먼저 유물을 낚아챈다." },
+            { "participant": "렌", "kind": "ai_character", "text": "경비병을 벤다." },
+            { "participant": "유나", "kind": "ai_character", "text": "경비병에게 달려들어 칼로 벤다." }
+          ],
+          "expected": {
+            "rollNeed": "per_submission",
+            "effectGrant": "none",
+            "arbitration": [
+              "The relic ends with at most ONE holder, decided by the server from persisted check results + a deterministic tie-break (not by the GM and not by resolutionOrder, which is presentation order only).",
+              "Each participant keeps authority over their own PC: no submission decides another participant's reaction.",
+              "At most ONE server-approved direct HP event per target per round, even if several failures point at the same target; additional failures become non-HP costs.",
+              "Events for different targets stay separate (a hit on 현 never changes 하나, 렌 or 유나)."
+            ]
+          },
+          "confidence": "judgment"
+        }
+      ]
+    },
+    {
+      "pairId": "CP06",
+      "axis": "no-roll action does not grant control over another actor",
+      "relatesTo": ["A18"],
+      "members": [
+        {
+          "id": "CP06a",
+          "scene": {
+            "facts": ["렌은 AI 동료 참가자이고 우호적이다."],
+            "localScene": { "objective": "휴식", "openRoutes": [], "remainingBlockers": [], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "렌에게 다가가 손을 잡는다." }],
+          "expected": { "rollNeed": "not_required", "effectGrant": "none", "note": "현's attempt needs no roll. 렌's reaction (accept/recoil) belongs to 렌's own action; the attempt does not assert it succeeded or that 렌 consented." },
+          "confidence": "clear"
+        },
+        {
+          "id": "CP06b",
+          "scene": {
+            "facts": ["두목(authored boss NPC)은 현에게 적대적이다."],
+            "localScene": { "objective": "두목과 대치", "openRoutes": [], "remainingBlockers": ["두목"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "두목에게 다가가 손을 잡는다." }],
+          "expected": { "rollNeed": "depends_on_scene", "effectGrant": "none", "note": "Contact with a hostile NPC is contested/risky in this scene; label needs GPT/user approval." },
+          "confidence": "judgment"
+        }
+      ]
+    },
+    {
+      "pairId": "CP07",
+      "axis": "ambiguous and high stakes; Reader failure",
+      "relatesTo": [],
+      "members": [
+        {
+          "id": "CP07a",
+          "scene": {
+            "facts": ["장면에 적대 경비병과 우호 동료 렌이 모두 있다. '그'가 누구인지 확립되지 않았다."],
+            "localScene": { "objective": "대치", "openRoutes": [], "remainingBlockers": ["경비병"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "그를 처리한다." }],
+          "expected": { "rollNeed": "clarify", "effectGrant": "none", "note": "One short question; no mechanical effect before the answer." },
+          "confidence": "judgment"
+        },
+        {
+          "id": "CP07b",
+          "scene": {
+            "facts": ["장면에 포박된 도둑 하나만 있다. '처리'가 처형인지 인계인지 확립되지 않았다."],
+            "localScene": { "objective": "도둑 처분", "openRoutes": [], "remainingBlockers": [], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "그를 처리한다." }],
+          "expected": {
+            "rollNeed": "clarify",
+            "effectGrant": "none",
+            "onReaderFailure": { "roll": "not_forced", "damage": "none", "success": "not_granted", "behavior": "defer mechanical effects; ask the player; GM narrates a non-committal beat" }
+          },
+          "confidence": "judgment"
+        }
+      ]
+    },
+    {
+      "pairId": "CP08",
+      "axis": "scene-dependent risk of the same posture",
+      "relatesTo": ["R11"],
+      "members": [
+        {
+          "id": "CP08a",
+          "scene": {
+            "facts": ["자기 방이다. 방 안에 아무도 없음이 확립되어 있다."],
+            "localScene": { "objective": "방 점검", "openRoutes": ["방문"], "remainingBlockers": [], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "총을 겨눈 채 천천히 문을 연다." }],
+          "expected": { "rollNeed": "not_required", "effectGrant": "none" },
+          "confidence": "judgment"
+        },
+        {
+          "id": "CP08b",
+          "scene": {
+            "facts": ["문 너머에 무장한 적이 숨어 있음이 확립되어 있다."],
+            "localScene": { "objective": "매복 돌파", "openRoutes": [], "remainingBlockers": ["문 너머의 무장한 적"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "총을 겨눈 채 천천히 문을 연다." }],
+          "expected": { "rollNeed": "required", "effectGrant": "none" },
+          "confidence": "judgment"
+        }
+      ]
+    },
+    {
+      "pairId": "CP09",
+      "axis": "hazard state decides risk",
+      "relatesTo": ["R06"],
+      "members": [
+        {
+          "id": "CP09a",
+          "scene": {
+            "facts": ["병에 묻은 독은 이미 말라 중화되었음이 확립되어 있다."],
+            "localScene": { "objective": "병 조사", "openRoutes": [], "remainingBlockers": [], "resolvedObstacles": ["병의 독"], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "독이 묻은 병을 맨손으로 집는다." }],
+          "expected": { "rollNeed": "not_required", "effectGrant": "none" },
+          "confidence": "judgment"
+        },
+        {
+          "id": "CP09b",
+          "scene": {
+            "facts": ["병에 묻은 독이 아직 젖어 있고 피부에 닿으면 위험함이 확립되어 있다."],
+            "localScene": { "objective": "병 조사", "openRoutes": [], "remainingBlockers": ["젖은 독"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "독이 묻은 병을 맨손으로 집는다." }],
+          "expected": { "rollNeed": "required", "effectGrant": "none", "note": "On failure a poison effect may be created ONLY through the existing ongoing-effect owner with provenance = established hazard + current check." },
+          "confidence": "clear"
+        }
+      ]
+    },
+    {
+      "pairId": "CP10",
+      "axis": "player-asserted fact is not an established fact",
+      "relatesTo": ["A15"],
+      "members": [
+        {
+          "id": "CP10a",
+          "scene": {
+            "facts": ["경비병이 칼을 들고 다가오는 중임이 이전 서사에서 확립되어 있다."],
+            "localScene": { "objective": "접근하는 경비병 대응", "openRoutes": [], "remainingBlockers": ["경비병"], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "그가 칼을 들고 다가온다는 것을 알아차린다." }],
+          "expected": { "rollNeed": "not_required", "effectGrant": "none", "note": "Noticing an established fact needs no roll; it neither stops nor causes the approach." },
+          "confidence": "judgment"
+        },
+        {
+          "id": "CP10b",
+          "scene": {
+            "facts": ["장면에 접근하는 사람이 확립되어 있지 않다."],
+            "localScene": { "objective": "골목 관찰", "openRoutes": ["골목"], "remainingBlockers": [], "resolvedObstacles": [], "sceneState": "active" }
+          },
+          "submissions": [{ "participant": "현", "kind": "human", "text": "그가 칼을 들고 다가온다는 것을 알아차린다." }],
+          "expected": { "rollNeed": "not_required", "effectGrant": "none", "note": "The text cannot mint a threat or an armed NPC. GM is not obliged to accept the asserted fact; no threat record is created from player text." },
+          "confidence": "judgment"
+        }
+      ]
+    }
+  ]
+}

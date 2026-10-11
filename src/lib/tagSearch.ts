@@ -5,6 +5,16 @@ export function sanitizeSearchQuery(raw: string): string {
   return raw.trim().slice(0, SEARCH_QUERY_MAX).replace(/["\\%_]/g, "");
 }
 
+/**
+ * 캐릭터 통합 검색(캐릭터명·제작자명·태그) 입력용 정규화.
+ * 선행 `#`는 태그 표기이고 인기 태그 칩은 `#` 없이 `q=태그`로 이동하므로, 같은 검색어가 되도록 제거한다.
+ * 중간 `#`("C# 개발자")와 `#`만 입력한 경우는 유지한다.
+ * 공유 `sanitizeSearchQuery`는 TRPG 캐릭터 검색에서도 쓰이므로 계약을 바꾸지 않는다.
+ */
+export function normalizeCatalogSearchQuery(raw: string): string {
+  return sanitizeSearchQuery(raw.replace(/["\\%_]/g, "").trim().replace(/^#+\s*(?=[^#\s])/, ""));
+}
+
 export function searchSqlLikePattern(query: string): string {
   return `%${sanitizeSearchQuery(query)}%`;
 }
