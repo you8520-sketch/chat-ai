@@ -258,22 +258,8 @@ function integrityOk(db: Database.Database): boolean {
 }
 
 function assetRowDigest(rows: AssetInspectRow[]): string {
-  return sha256(
-    canonicalJson(
-      rows.map((row) => ({
-        id: row.id,
-        slot_key: row.slot_key,
-        kind: row.kind,
-        status: row.status,
-        attempts: row.attempts,
-        result_url: row.result_url,
-        lease_owner: row.lease_owner,
-        spent_usd: row.spent_usd,
-        appearance_lock_hash: row.appearance_lock_hash,
-        moderation_json: row.moderation_json,
-      }))
-    )
-  );
+  // The backup must match every persisted column, not only the operator's inspect subset.
+  return sha256(canonicalJson(rows));
 }
 
 export function assertBackupMatchesLiveSource(backupPath: string, liveDbPath: string): void {
@@ -357,9 +343,7 @@ function readTarget(db: Database.Database, draftKey: string): {
   if (!character) stop("character_not_found", `draft ${draftKey} not found`);
   const assets = db
     .prepare(
-      `SELECT id, slot_key, kind, status, attempts, result_url, lease_owner, spent_usd,
-              appearance_lock_hash, moderation_json
-         FROM official_supply_assets WHERE draft_key=? ORDER BY id`
+      "SELECT * FROM official_supply_assets WHERE draft_key=? ORDER BY id"
     )
     .all(draftKey) as AssetInspectRow[];
   const replacements = (
