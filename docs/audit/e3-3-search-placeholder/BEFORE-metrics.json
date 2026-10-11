@@ -1,0 +1,128 @@
+{
+ "m360-default": {
+  "placeholder": "캐릭터명, 제작자명, 태그 검색 (예: 카스펜, 틤작, 츤데레)",
+  "fontSize": "14px",
+  "textWidth": 347,
+  "innerWidth": 210,
+  "clipped": true,
+  "inputWidth": 264,
+  "buttonWidth": 56,
+  "url": "/search",
+  "docOverflowX": false
+ },
+ "m360-focus": {
+  "focusedIsSearch": true,
+  "ring": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0"
+ },
+ "m360-typed": {
+  "url": "/search?q=%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+  "summary": "「아포칼립스」 검색 결과 1건",
+  "names": [
+   "강이현"
+  ]
+ },
+ "m360-long": {
+  "len": 40,
+  "docOverflowX": false
+ },
+ "m360-cleared": {
+  "placeholder": "캐릭터명, 제작자명, 태그 검색 (예: 카스펜, 틤작, 츤데레)",
+  "fontSize": "14px",
+  "textWidth": 347,
+  "innerWidth": 210,
+  "clipped": true,
+  "inputWidth": 264,
+  "buttonWidth": 56,
+  "url": "/search",
+  "docOverflowX": false
+ },
+ "m360-genre-reduced": {
+  "url": "/search?q=%EA%B0%95%EC%9D%B4%ED%98%84&g=%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+  "reduced": true,
+  "summary": "「강이현」 · 아포칼립스 검색 결과 0건"
+ },
+ "m390-default": {
+  "placeholder": "캐릭터명, 제작자명, 태그 검색 (예: 카스펜, 틤작, 츤데레)",
+  "fontSize": "14px",
+  "textWidth": 347,
+  "innerWidth": 240,
+  "clipped": true,
+  "inputWidth": 294,
+  "buttonWidth": 56,
+  "url": "/search",
+  "docOverflowX": false
+ },
+ "m390-focus": {
+  "focusedIsSearch": true,
+  "ring": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0"
+ },
+ "m390-typed": {
+  "url": "/search?q=%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+  "summary": "「아포칼립스」 검색 결과 1건",
+  "names": [
+   "강이현"
+  ]
+ },
+ "m390-long": {
+  "len": 40,
+  "docOverflowX": false
+ },
+ "m390-cleared": {
+  "placeholder": "캐릭터명, 제작자명, 태그 검색 (예: 카스펜, 틤작, 츤데레)",
+  "fontSize": "14px",
+  "textWidth": 347,
+  "innerWidth": 240,
+  "clipped": true,
+  "inputWidth": 294,
+  "buttonWidth": 56,
+  "url": "/search",
+  "docOverflowX": false
+ },
+ "m390-genre-reduced": {
+  "url": "/search?q=%EA%B0%95%EC%9D%B4%ED%98%84&g=%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+  "reduced": true,
+  "summary": "「강이현」 · 아포칼립스 검색 결과 0건"
+ },
+ "pc1440-default": {
+  "placeholder": "캐릭터명, 제작자명, 태그 검색 (예: 카스펜, 틤작, 츤데레)",
+  "fontSize": "14px",
+  "textWidth": 347,
+  "innerWidth": 458,
+  "clipped": false,
+  "inputWidth": 512,
+  "buttonWidth": 56,
+  "url": "/search",
+  "docOverflowX": false
+ },
+ "pc1440-focus": {
+  "focusedIsSearch": true,
+  "ring": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0"
+ },
+ "pc1440-typed": {
+  "url": "/search?q=%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+  "summary": "「아포칼립스」 검색 결과 1건",
+  "names": [
+   "강이현"
+  ]
+ },
+ "pc1440-long": {
+  "len": 40,
+  "docOverflowX": false
+ },
+ "pc1440-cleared": {
+  "placeholder": "캐릭터명, 제작자명, 태그 검색 (예: 카스펜, 틤작, 츤데레)",
+  "fontSize": "14px",
+  "textWidth": 347,
+  "innerWidth": 458,
+  "clipped": false,
+  "inputWidth": 512,
+  "buttonWidth": 56,
+  "url": "/search",
+  "docOverflowX": false
+ },
+ "pc1440-genre-reduced": {
+  "url": "/search?q=%EA%B0%95%EC%9D%B4%ED%98%84&g=%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+  "reduced": true,
+  "summary": "「강이현」 · 아포칼립스 검색 결과 0건"
+ }
+}
