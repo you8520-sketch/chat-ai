@@ -441,6 +441,7 @@ export async function scheduleMemoryUpdate(opts: {
         assistantMessageId: opts.assistantMessageId,
         sourceUserMessageId,
         sourceUserText: opts.userMessage,
+        userPersona: opts.userPersona,
         boundarySnapshot,
         episodic: opts.sharedInitialEpisodic ?? {
           present: false,

@@ -58,6 +58,7 @@ const VALID_FACT: EpisodicExtractedFact = {
   importance: "important",
   fact_text: "사용자는 커피에 시럽을 두 번 넣어 마신다.",
   evidence_type: "explicit_user_statement",
+  evidence: { source_role: "user", source_quote: "커피에 시럽을 두 번 넣어." },
 };
 
 const PROMISE_FACT: EpisodicExtractedFact = {
@@ -68,6 +69,7 @@ const PROMISE_FACT: EpisodicExtractedFact = {
   importance: "important",
   fact_text: "캐릭터는 내일 다시 만나자고 약속했다.",
   evidence_type: "explicit_scene_event",
+  evidence: { source_role: "assistant", source_quote: "캐릭터가 고개를 끄덕였다." },
 };
 
 const WIDGET: StatusWidget = {
@@ -116,12 +118,12 @@ function seedTurn(assistantId: number, userId: number) {
     userId,
     CHAT,
     "user",
-    "user message"
+    "커피에 시럽을 두 번 넣어."
   );
   db.prepare(
     `INSERT INTO messages (id, chat_id, role, content, user_message_id, generation_status, model)
-     VALUES (?, ?, 'assistant', ?, ?, 'canonical', 'test-model')`
-  ).run(assistantId, CHAT, "assistant prose", userId);
+     VALUES (?, ?, 'assistant', ?, ?, 'completed', 'test-model')`
+  ).run(assistantId, CHAT, "캐릭터가 고개를 끄덕였다. 알겠어, 시럽 두 번 넣을게.", userId);
 }
 
 before(() => installIsolatedTestDatabase());
@@ -252,6 +254,7 @@ describe("shared initial episodic consumer", () => {
       importance: "normal",
       fact_text: "캐릭터는 고개를 끄덕였다.",
       evidence_type: "explicit_scene_event",
+      evidence: { source_role: "assistant", source_quote: "캐릭터가 고개를 끄덕였다." },
     };
     reconcileSharedEpisodicFactsForTurn(getDb(), {
       chatId: CHAT,

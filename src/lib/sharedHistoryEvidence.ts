@@ -4,13 +4,17 @@
  * This helper owns evidence granularity only. Generation semantics stay in
  * historicalTruthPolicy.ts. Summary/episodic layers reuse this owner so a broad
  * user statement cannot validate assistant-invented specifics.
+ *
+ * Evidence is judged per USER utterance / clause, then per claim/subclaim.
+ * A topic overlap on the whole claim (어제+시장) must not whitelist an extra
+ * relationship or shared-event subclaim. Questions never count as evidence.
  */
 
 const HARD_PRIOR_SHARED_RELATIONSHIP_CUE =
-  /(?:만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|전에.{0,24}(?:만났|함께|약속|알았|연락)|예전에.{0,24}(?:만났|함께|약속|알았|연락)|지난번.{0,24}(?:만났|함께|약속|알았|연락)|그때\s*우리|네가\s*약속했|(?:유저|사용자).{0,18}(?:친분|인연|관계))/i;
+  /(?:만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|전에.{0,24}(?:만났|함께|약속|알았|연락)|예전(?:에|부터).{0,24}(?:만났|함께|약속|알았|알고|연락)|지난번.{0,24}(?:만났|함께|약속|알았|연락)|그때\s*우리|네가\s*약속했|(?:유저|사용자).{0,18}(?:친분|인연|관계))/i;
 
 const PRIOR_SHARED_HISTORY_CUE =
-  /(?:첫\s*만남|만난\s*(?:뒤|후)|이후|만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|네가\s*약속했|전에|예전에|지난번|저번(?:에)?|어제|그때|아까|몇\s*(?:차례|번)|여러\s*번|그동안|(?:유저|사용자).{0,18}(?:친분|인연|관계))/i;
+  /(?:첫\s*만남|만난\s*(?:뒤|후)|이후|만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|네가\s*약속했|전에|예전(?:에|부터)|지난번|저번(?:에)?|어제|그때|아까|몇\s*(?:차례|번)|여러\s*번|그동안|(?:유저|사용자).{0,18}(?:친분|인연|관계))/i;
 
 const SUPPORT_STOPWORDS = new Set([
   "유저",
@@ -31,6 +35,12 @@ const SUPPORT_STOPWORDS = new Set([
   "있다",
   "있어",
 ]);
+
+const RECALL_PRESUPPOSITION_CUE =
+  /기억(?:하지|나|나지|해|하니|하냐)|알(?:지|잖아)(?:[?!….,\s]|$)|(?:뭐|무엇|어떤).{0,16}(?:였더라|했더라|먹었더라|갔더라|봤더라|였지)/u;
+
+const FINITE_PAST_ASSERTION =
+  /(?:돌아왔|도착했|함께했|지냈|만났|줬|갔|봤|왔|샀|먹|했)(?:어(?:요)?|다|잖아|는데|고|습니다)/u;
 
 function normalizeSupportToken(token: string): string {
   return token
@@ -74,26 +84,178 @@ export function looksLikeHardPriorSharedUserRelationship(text: string): boolean 
   return HARD_PRIOR_SHARED_RELATIONSHIP_CUE.test(text);
 }
 
+function oocBody(text: string): string | null {
+  const match = text.match(/(?:^|\n)\s*OOC\s*:\s*([^\n]+)/iu);
+  return match?.[1]?.trim() || null;
+}
+
+function trimClause(text: string): string {
+  return text.replace(/^[,.\s]+|[.,。\s]+$/g, "").trim();
+}
+
 /**
- * Evidence is bounded to the detail the user actually supplied.
- * "몇 차례 임무를 함께했다" supports that broad history, not a specific gate,
- * line of dialogue, meal, purchase, or visit.
+ * Literal current-user historical setup only. No model/NLP inference.
+ * The exact historical-looking OOC clause is preserved so the generation layer
+ * can carry its abstraction level without fabricating missing specifics.
+ */
+export function extractExplicitSharedHistoryScope(
+  text: string | null | undefined
+): string[] {
+  const body = oocBody(text ?? "");
+  if (!body) return [];
+  return body
+    .split(/(?<=[.!?。！？])\s+/u)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((sentence) => looksLikePriorSharedUserHistory(sentence))
+    .slice(0, 4);
+}
+
+function splitUserSourceTurns(userText: string): string[] {
+  return userText
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+export function splitSharedHistoryClauses(text: string): string[] {
+  return text
+    .split(/(?<=[.!?。！？])\s+|,\s+/u)
+    .map(trimClause)
+    .filter(Boolean);
+}
+
+function stripOocLines(text: string): string {
+  return text
+    .split(/\n/)
+    .filter((line) => !/^\s*OOC\s*:/iu.test(line))
+    .join("\n")
+    .trim();
+}
+
+function isQuestionClause(clause: string): boolean {
+  return /[?？]/.test(clause) || RECALL_PRESUPPOSITION_CUE.test(clause);
+}
+
+function hasFinitePastAssertion(clause: string): boolean {
+  return FINITE_PAST_ASSERTION.test(clause);
+}
+
+function isSharedHistoryEvidenceClause(clause: string): boolean {
+  if (isQuestionClause(clause)) return false;
+  return looksLikePriorSharedUserHistory(clause) || hasFinitePastAssertion(clause);
+}
+
+const COVERAGE_IGNORE = new Set([
+  ...SUPPORT_STOPWORDS,
+  "사이",
+  "사이다",
+  "지로",
+  "지낸",
+  "지냈",
+  "있고",
+  "적이",
+  "달라고",
+  "달라",
+]);
+
+const VERB_PARAPHRASE =
+  /^(?:갔|왔|봤|줬|주었|했|샀|먹|만났|만난|알|끄덕|잠갔|열었|앉|걸|돌아왔|도착)/u;
+
+const FAMILY_PARTICIPANT =
+  /누나|언니|오빠|동생|엄마|아빠|어머니|아버지|부모|친구|(?<![가-힣])형(?![가-힣])/u;
+
+/**
+ * A USER unit covers a claim only as a ceiling: extra non-verb content
+ * (누나, 반지, 브레이크) is not proven by topic overlap (어제+시장).
+ */
+function participantNames(text: string): string[] {
+  return [...text.matchAll(/([가-힣]{2,4})(?:는|은|이|가|에게|한테|와|과|랑|의)/g)]
+    .map((match) => match[1] ?? "")
+    .filter((name) => name && !FAMILY_PARTICIPANT.test(name));
+}
+
+export function userUnitCoversClaim(
+  unit: string,
+  claimText: string,
+  ignoreNames: readonly string[] = []
+): boolean {
+  const ignore = new Set([
+    ...COVERAGE_IGNORE,
+    ...ignoreNames.filter(Boolean),
+    ...participantNames(claimText),
+  ]);
+  const tokens = sharedHistorySupportTokens(claimText).filter((token) => !ignore.has(token));
+  if (tokens.length === 0) return false;
+  const haystack = normalizedCompact(unit);
+  const content = tokens.filter((token) => !VERB_PARAPHRASE.test(token));
+  const extra = content.filter((token) => !haystack.includes(normalizedCompact(token)));
+  if (extra.length > 0) return false;
+  const matched = (content.length > 0 ? content : tokens).filter((token) =>
+    haystack.includes(normalizedCompact(token))
+  );
+  const required = content.length > 0 ? content : tokens;
+  return matched.length >= Math.min(2, required.length);
+}
+
+/**
+ * USER evidence units that may support a prior shared-history claim.
+ * Recall-only questions and unrelated current-scene lines are omitted.
+ * Each unit is one utterance or clause — tokens are never pooled across turns.
+ */
+export function userSharedHistoryEvidenceUnits(userText: string | null | undefined): string[] {
+  const value = userText?.trim() ?? "";
+  if (!value) return [];
+
+  const units: string[] = [];
+  for (const turn of splitUserSourceTurns(value)) {
+    for (const scope of extractExplicitSharedHistoryScope(turn)) {
+      units.push(scope);
+    }
+    for (const clause of splitSharedHistoryClauses(stripOocLines(turn))) {
+      if (isSharedHistoryEvidenceClause(clause)) units.push(clause);
+    }
+  }
+  return units;
+}
+
+/**
+ * True when USER text only presupposes a past ("기억나?", "알지?") and
+ * contains no concrete assertion or OOC shared-history setup.
+ */
+export function userTextIsRecallPresuppositionOnly(text: string | null | undefined): boolean {
+  const value = text?.trim() ?? "";
+  if (!value) return false;
+  if (userSharedHistoryEvidenceUnits(value).length > 0) return false;
+  return splitUserSourceTurns(value).some((turn) =>
+    splitSharedHistoryClauses(stripOocLines(turn)).some(isQuestionClause)
+  );
+}
+
+/**
+ * Evidence is bounded to the detail the user actually supplied in one
+ * utterance or clause. "몇 차례 임무를 함께했다" supports that broad history,
+ * not a specific gate, line of dialogue, meal, purchase, or visit.
  */
 export function userTextSupportsPriorSharedHistoryClaim(
   claimText: string,
   userText: string
 ): boolean {
-  if (!looksLikePriorSharedUserHistory(claimText)) return true;
   const user = userText.trim();
-  if (!user) return false;
+  if (!user) return !looksLikePriorSharedUserHistory(claimText);
 
-  const claimTokens = sharedHistorySupportTokens(claimText);
-  if (claimTokens.length === 0) return false;
-  const matched = matchingClaimTokens(claimText, user);
-
-  // Two concrete overlaps are the minimum evidence for a derived shared-history
-  // sentence. Broad temporal words alone are intentionally insufficient.
-  return matched.length >= Math.min(2, claimTokens.length);
+  const units = userSharedHistoryEvidenceUnits(user);
+  const parts = splitSharedHistoryClauses(claimText);
+  const clauses = parts.length > 0 ? parts : [claimText];
+  const linked = clauses.filter(
+    (clause) =>
+      looksLikePriorSharedUserHistory(clause) ||
+      looksLikeHardPriorSharedUserRelationship(clause) ||
+      FAMILY_PARTICIPANT.test(clause)
+  );
+  if (linked.length === 0) return true;
+  if (units.length === 0) return false;
+  return linked.every((clause) => units.some((unit) => userUnitCoversClaim(unit, clause)));
 }
 
 /**
@@ -115,34 +277,13 @@ export function assistantSuppliesUnsupportedSharedHistoryDetail(
   const assistantMatches = matchingClaimTokens(claimText, assistantText);
   if (assistantMatches.length === 0) return false;
 
-  const userCompact = normalizedCompact(userText);
+  const evidenceCompact = normalizedCompact(
+    userSharedHistoryEvidenceUnits(userText).join("\n")
+  );
   const assistantOnly = assistantMatches.filter(
-    (token) => !userCompact.includes(normalizedCompact(token))
+    (token) => !evidenceCompact.includes(normalizedCompact(token))
   );
 
   if (assistantOnly.length >= 2) return true;
   return assistantOnly.some((token) => token.length >= 4);
-}
-
-function oocBody(text: string): string | null {
-  const match = text.match(/(?:^|\n)\s*OOC\s*:\s*([^\n]+)/iu);
-  return match?.[1]?.trim() || null;
-}
-
-/**
- * Literal current-user historical setup only. No model/NLP inference.
- * The exact historical-looking OOC clause is preserved so the generation layer
- * can carry its abstraction level without fabricating missing specifics.
- */
-export function extractExplicitSharedHistoryScope(
-  text: string | null | undefined
-): string[] {
-  const body = oocBody(text ?? "");
-  if (!body) return [];
-  return body
-    .split(/(?<=[.!?。！？])\s+/u)
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .filter((sentence) => looksLikePriorSharedUserHistory(sentence))
-    .slice(0, 4);
 }

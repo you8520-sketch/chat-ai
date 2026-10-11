@@ -7,8 +7,12 @@ import { isFallbackMemoryRecordSummary } from "./memory-summary-clamp";
 import {
   assistantSuppliesUnsupportedSharedHistoryDetail,
   looksLikePriorSharedUserHistory,
-  userTextSupportsPriorSharedHistoryClaim,
 } from "@/lib/sharedHistoryEvidence";
+import {
+  hasUnsupportedObjectiveUserLinkedFact,
+  resolvePersonaName,
+  sourcesFromUserText,
+} from "./memory-source-authority";
 import {
   newBatchEndForStart,
   resolveNextBatchRange,
@@ -254,16 +258,26 @@ function resolveSummaryUserName(userPersona?: string | null): string | null {
 function summaryInventsUnsupportedUserRelationship(
   summary: string,
   source: { user: string; assistant: string },
-  userPersona?: string | null
+  userPersona?: string | null,
+  charName?: string | null
 ): boolean {
+  const personaName = resolvePersonaName(userPersona) ?? resolveSummaryUserName(userPersona);
+  if (
+    hasUnsupportedObjectiveUserLinkedFact(summary, {
+      sources: sourcesFromUserText(source.user),
+      personaName,
+      charName:
+        charName ??
+        source.assistant.match(/^([가-힣A-Za-z0-9]{1,12})는/)?.[1] ??
+        null,
+    })
+  ) {
+    return true;
+  }
   if (!looksLikePriorSharedUserHistory(summary)) return false;
-  // USER evidence is bounded to the detail level actually written by USER.
-  if (userTextSupportsPriorSharedHistoryClaim(summary, source.user)) return false;
-  // Preserve "the character said/claimed X" as an attributed claim; the guard
-  // blocks only promotion to objective shared-history fact.
   if (ATTRIBUTED_RELATIONSHIP_CLAIM_MARKER.test(summary)) return false;
 
-  const userName = resolveSummaryUserName(userPersona);
+  const userName = personaName;
   const summaryNamesUser =
     /(?:유저|사용자)/.test(summary) || (!!userName && summary.includes(userName));
   if (!summaryNamesUser) return false;
@@ -315,12 +329,13 @@ function splitDialogueSources(dialogue: string): { user: string; assistant: stri
 export function isRollingSummaryGroundedInDialogue(
   summary: string,
   dialogue: string,
-  userPersona?: string | null
+  userPersona?: string | null,
+  charName?: string | null
 ): boolean {
   if (isLikelySummaryInstructionEcho(summary)) return false;
 
   const source = splitDialogueSources(dialogue);
-  if (summaryInventsUnsupportedUserRelationship(summary, source, userPersona)) {
+  if (summaryInventsUnsupportedUserRelationship(summary, source, userPersona, charName)) {
     return false;
   }
   if (STRONG_GLOBAL_MEMORY_LOSS.test(summary) && !STRONG_GLOBAL_MEMORY_LOSS.test(dialogue)) {

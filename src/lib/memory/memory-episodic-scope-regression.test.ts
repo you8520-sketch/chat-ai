@@ -48,6 +48,7 @@ const VALID_FACT: EpisodicExtractedFact = {
   importance: "important",
   fact_text: "사용자는 저녁 산책을 제안했다.",
   evidence_type: "explicit_user_statement",
+  evidence: { source_role: "user", source_quote: "오늘 저녁에 같이 산책할래?" },
 };
 
 const PREFERENCE_MSG =
@@ -96,7 +97,7 @@ function seedBase() {
 
 function insertTurn(
   userText: string,
-  assistantText = "assistant prose"
+  assistantText = "알겠어, 같이 산책하자."
 ): { userId: number; assistantId: number; turn: number } {
   const db = getDb();
   const userId = db
@@ -297,6 +298,7 @@ describe("SCOPE episodic memory eligibility", () => {
       importance: "important",
       fact_text: "사용자는 앞으로 3인칭 서술을 요청했다.",
       evidence_type: "explicit_user_statement",
+      evidence: { source_role: "user", source_quote: "앞으로는 항상 3인칭 서술로 답해줘" },
     };
     assert.equal(
       reconcile({ userId, assistantId, userText: PREFERENCE_MSG, facts: [preferenceFact] })
@@ -433,7 +435,7 @@ describe("SCOPE episodic memory eligibility", () => {
   it("SCOPE-11 main canon regen replacement — unrelated facts preserved", () => {
     const t1 = insertTurn(NORMAL_MAIN_MSG);
     reconcile({ ...t1, userText: NORMAL_MAIN_MSG });
-    const t2 = insertTurn("두 번째 본편 턴입니다.");
+    const t2 = insertTurn("두 번째 본편 턴입니다.", "에녹은 차분하게 대답했다.");
     const t2Fact: EpisodicExtractedFact = {
       category: "character",
       subject: "char",
@@ -442,18 +444,20 @@ describe("SCOPE episodic memory eligibility", () => {
       importance: "normal",
       fact_text: "캐릭터는 두 번째 턴에서 차분하게 대답했다.",
       evidence_type: "explicit_scene_event",
+      evidence: { source_role: "assistant", source_quote: "에녹은 차분하게 대답했다." },
     };
     reconcile({ ...t2, userText: "두 번째 본편 턴입니다.", facts: [t2Fact] });
     assert.equal(episodicCount(), 2);
 
     const newFact: EpisodicExtractedFact = {
       category: "relationship",
-      subject: "char_user",
+      subject: "char",
       attribute: "evening_plan",
       value: "walk_together",
       importance: "important",
       fact_text: "캐릭터는 저녁 산책 제안에 긍정적으로 응했다.",
       evidence_type: "explicit_scene_event",
+      evidence: { source_role: "assistant", source_quote: "알겠어, 같이 산책하자." },
     };
     reconcile({
       userId: t1.userId,

@@ -11,12 +11,7 @@ import {
   currentUserNeedsHistoricalTruthRecencyRef,
 } from "@/lib/historicalTruthPolicy";
 import { buildNoGodmoddingBlock } from "@/lib/noGodmodding";
-import {
-  CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-  CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  GEMINI_38_FLASH_MODEL,
-} from "@/lib/chatModels";
+import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 
 function countHistoricalTruthFullOwner(text: string): number {
   const escaped = HISTORICAL_TRUTH_POLICY_TITLE.replace(/[[\]]/g, "\\$&");
@@ -151,12 +146,7 @@ describe("historical truth — production miss-path owner matrix", () => {
   });
 
   it("places one compact historical-truth pointer on risky current USER input for all active quality models", () => {
-    for (const modelId of [
-      CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
-      CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-      GEMINI_38_FLASH_MODEL,
-      CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
-    ]) {
+    for (const modelId of MAIN_RP_MODEL_IDS) {
       const built = buildBase({
         modelId,
         currentUserMessage:

@@ -162,7 +162,11 @@ function persistTurnFact(assistantMessageId: number, userText: string, fact: Epi
     characterId: CHAR,
     assistantMessageId,
     sourceUserText: userText,
-    episodic: { present: true, valid: true, facts: [fact] },
+    episodic: {
+      present: true,
+      valid: true,
+      facts: [{ ...fact, evidence: { source_role: "user", source_quote: userText } }],
+    },
     isRegeneration: false,
     contentRoute: "safe",
   });

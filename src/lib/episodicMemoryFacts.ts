@@ -1,5 +1,13 @@
 import type Database from "better-sqlite3";
 import { sanitizeEpisodicExtractedFacts } from "@/lib/memory/memory-episodic-normalize";
+import {
+  evaluateEpisodicFactEvidence,
+  loadEpisodicEvidenceSources,
+  readVerifiedEvidence,
+  renderVerifiedEvidenceText,
+  type EpisodicEvidenceBinding,
+  type EpisodicVerifiedEvidence,
+} from "@/lib/memory/memory-episodic-evidence";
 import type {
   EpisodicBatchUserSource,
   EpisodicExtractedFact,
@@ -15,11 +23,13 @@ import {
   type MemorySourceBoundary,
 } from "@/lib/memory/memory-source-boundary";
 import { EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES } from "@/lib/historicalTruthPolicy";
+import { looksLikeHardPriorSharedUserRelationship } from "@/lib/sharedHistoryEvidence";
 import {
-  looksLikeHardPriorSharedUserRelationship,
-  looksLikePriorSharedUserHistory,
-  userTextSupportsPriorSharedHistoryClaim,
-} from "@/lib/sharedHistoryEvidence";
+  hasUnsupportedObjectiveUserLinkedFact,
+  resolveMemorySourceAuthority,
+  resolvePersonaName,
+  type MemoryAuthoritySource,
+} from "@/lib/memory/memory-source-authority";
 import { sanitizeRecalledMemoryFactText } from "@/lib/runtimePromptContaminationGuard";
 import {
   decodeEmbeddingBlob,
@@ -73,9 +83,17 @@ export type PersistEpisodicMemoryFactsInput = {
   sourceUserText?: string | null;
   /** Full 5-turn batch user sources for seal-aligned evidence validation. */
   batchUserSources?: EpisodicBatchUserSource[];
+  userPersona?: string | null;
   boundarySnapshot?: MemorySourceBoundary;
   facts?: EpisodicExtractedFact[] | null;
   metadata?: Record<string, unknown>;
+  /**
+   * Shared Initial live path: when set, every fact must carry an extractor quote that
+   * is proven verbatim in the canonical USER / finalized ASSISTANT message of this turn
+   * (resolved here, inside the write transaction). Unverified facts are dropped.
+   * Absent for legacy / non-Shared-Initial callers, whose rows stay evidence-less.
+   */
+  evidenceBinding?: EpisodicEvidenceBinding;
   /**
    * Regeneration: delete existing facts for this chat/source_turn (same character/user)
    * before inserting the new attempt. Unrelated turns are never touched.
@@ -322,26 +340,33 @@ function normalizeEvidenceToken(token: string): string {
 function assistantInventedUserRelationshipHasUserSupport(
   fact: Pick<EpisodicExtractedFact, "category" | "value" | "fact_text" | "evidence_type">,
   sourceUserText?: string | null,
-  batchUserSources?: readonly EpisodicBatchUserSource[]
+  batchUserSources?: readonly EpisodicBatchUserSource[],
+  userPersona?: string | null
 ): boolean {
-  if (fact.category !== "relationship" || fact.evidence_type !== "explicit_scene_event") {
+  const attributed = fact.evidence_type === "explicit_character_claim";
+  if (attributed) return true;
+  if (fact.category !== "relationship" && fact.evidence_type !== "explicit_scene_event") {
     return true;
   }
-  const claimText = `${fact.value ?? ""}\n${fact.fact_text ?? ""}`;
-  if (!looksLikePriorSharedUserHistory(claimText)) {
-    return true;
+  const claimText = String(fact.fact_text || fact.value || "").trim();
+  const sources: MemoryAuthoritySource[] = batchUserSources?.length
+    ? batchUserSources.map((source) => ({
+        turn: source.turn,
+        messageId: source.messageId,
+        text: source.text,
+      }))
+    : sourceUserText !== undefined
+      ? [{ turn: null, messageId: null, text: sourceUserText ?? "" }]
+      : [];
+  if (sources.length === 0) {
+    return !looksLikeHardPriorSharedUserRelationship(claimText);
   }
-  if (batchUserSources?.length) {
-    return batchUserSources.some((source) =>
-      userTextSupportsPriorSharedHistoryClaim(claimText, source.text)
-    );
-  }
-  if (sourceUserText !== undefined) {
-    return userTextSupportsPriorSharedHistoryClaim(claimText, sourceUserText ?? "");
-  }
-  // Older rows can lack raw user provenance. Preserve them unless they match
-  // the established high-confidence relationship-contamination shape.
-  return !looksLikeHardPriorSharedUserRelationship(claimText);
+  return !hasUnsupportedObjectiveUserLinkedFact(claimText, {
+    sources,
+    personaName: resolvePersonaName(userPersona),
+    attributed,
+    category: fact.category,
+  });
 }
 
 function explicitUserStatementHasRawSupport(
@@ -382,7 +407,8 @@ export function resolveExplicitUserStatementProvenance(
 export function detectUnsupportedEvidenceFact(
   fact: Pick<EpisodicExtractedFact, "category" | "value" | "fact_text" | "evidence_type">,
   sourceUserText?: string | null,
-  batchUserSources?: readonly EpisodicBatchUserSource[]
+  batchUserSources?: readonly EpisodicBatchUserSource[],
+  userPersona?: string | null
 ):
   | "higher_authority_canon_source"
   | "unsupported_explicit_user_statement"
@@ -393,7 +419,8 @@ export function detectUnsupportedEvidenceFact(
     !assistantInventedUserRelationshipHasUserSupport(
       fact,
       sourceUserText,
-      batchUserSources
+      batchUserSources,
+      userPersona
     )
   ) {
     return "unsupported_assistant_user_relationship";
@@ -674,11 +701,17 @@ function filterUnsupportedEvidenceFactsForSave(
   opts: {
     sourceUserText?: string | null;
     batchUserSources?: readonly EpisodicBatchUserSource[];
+    userPersona?: string | null;
   } = {}
 ): EpisodicExtractedFact[] {
   return facts.filter(
     (fact) =>
-      !detectUnsupportedEvidenceFact(fact, opts.sourceUserText, opts.batchUserSources)
+      !detectUnsupportedEvidenceFact(
+        fact,
+        opts.sourceUserText,
+        opts.batchUserSources,
+        opts.userPersona
+      )
   );
 }
 
@@ -696,6 +729,7 @@ function filterUnsafeEpisodicFactsForSave(
   opts: {
     sourceUserText?: string | null;
     batchUserSources?: readonly EpisodicBatchUserSource[];
+    userPersona?: string | null;
   } = {}
 ): EpisodicExtractedFact[] {
   return filterUnsupportedEvidenceFactsForSave(
@@ -1028,13 +1062,35 @@ export function persistEpisodicMemoryFactsCore(
   const evidenceOpts = {
     sourceUserText,
     batchUserSources: batchUserSources.length > 0 ? batchUserSources : undefined,
+    userPersona: input.userPersona,
   };
-  const facts = dedupeFactsWithinResponse(
+  let facts = dedupeFactsWithinResponse(
     filterUnsafeEpisodicFactsForSave(
       sanitizeEpisodicExtractedFacts(input.facts ?? []),
       evidenceOpts
     )
   );
+  const verifiedEvidence = new Map<EpisodicExtractedFact, EpisodicVerifiedEvidence>();
+  if (input.evidenceBinding && facts.length > 0) {
+    const sources = loadEpisodicEvidenceSources(db, chatId, input.evidenceBinding);
+    facts = facts.filter((fact) => {
+      const decision = evaluateEpisodicFactEvidence(fact, sources, {
+        userPersona: input.userPersona,
+      });
+      if (decision.accepted) {
+        verifiedEvidence.set(fact, decision.evidence);
+        return true;
+      }
+      console.info("EPISODIC_EVIDENCE_REJECTED", {
+        chat_id: chatId,
+        source_turn: sourceTurn,
+        reason: decision.reason,
+        evidence_type: fact.evidence_type ?? null,
+        category: fact.category,
+      });
+      return false;
+    });
+  }
   if (facts.length === 0) return 0;
   if (scopeIneligible) return 0;
 
@@ -1051,14 +1107,30 @@ export function persistEpisodicMemoryFactsCore(
       batchUserSources.length > 0
         ? resolveExplicitUserStatementProvenance(fact, batchUserSources)
         : { supported: true, messageId: null, turn: null };
+    const authority = resolveMemorySourceAuthority(String(fact.fact_text || fact.value || "").trim(), {
+      sources: batchUserSources.map((source) => ({
+        turn: source.turn,
+        messageId: source.messageId,
+        text: source.text,
+      })),
+      personaName: resolvePersonaName(input.userPersona),
+      attributed: fact.evidence_type === "explicit_character_claim",
+      category: fact.category,
+    });
     const factSourceUserMessageId =
       fact.evidence_type === "explicit_user_statement" && provenance.messageId != null
         ? provenance.messageId
-        : sourceUserMessageId;
+        : batchUserSources.length > 0
+          ? authority.kind === "USER_EXPLICIT"
+            ? authority.sourceMessageId ?? sourceUserMessageId
+            : null
+          : sourceUserMessageId;
+    const verified = verifiedEvidence.get(fact);
     const metadataJson = JSON.stringify({
       ...(input.metadata ?? {}),
       memory_evidence_type: fact.evidence_type ?? "legacy_unknown",
       ...(provenance.turn != null ? { evidence_source_turn: provenance.turn } : {}),
+      ...(verified ? { evidence: verified } : {}),
     });
     insert.run(
       chatId,
@@ -1167,6 +1239,8 @@ export type ReconcileEpisodicMemoryFactsInput = {
   facts?: EpisodicExtractedFact[] | null;
   isRegeneration: boolean;
   metadata?: Record<string, unknown>;
+  userPersona?: string | null;
+  evidenceBinding?: EpisodicEvidenceBinding;
 };
 
 export function reconcileEpisodicMemoryFactsForGeneration(
@@ -1208,6 +1282,8 @@ export function reconcileEpisodicMemoryFactsForGeneration(
         facts,
         replaceSourceTurn: input.isRegeneration,
         metadata: input.metadata,
+        userPersona: input.userPersona,
+        evidenceBinding: input.evidenceBinding,
       });
       return { replaced: input.isRegeneration, inserted };
     };
@@ -2690,6 +2766,19 @@ function resolveLatestFactsByLogicalKey(rows: EpisodicMemoryFactRecord[]): Episo
   return result;
 }
 
+/**
+ * Single owner of the text an episodic row contributes to the prompt (and to its
+ * budget). Rows with server-verified evidence inject only their verbatim quote:
+ * their LLM `fact_text` is a retrieval gloss that the quote may not entail.
+ * Legacy rows without evidence keep injecting `fact_text`.
+ */
+export function resolveEpisodicPromptFactText(
+  fact: Pick<EpisodicMemoryFactRecord, "fact_text"> & { metadata?: string | null }
+): string {
+  const verified = readVerifiedEvidence(fact.metadata);
+  return verified ? renderVerifiedEvidenceText(verified) : fact.fact_text;
+}
+
 export function formatEpisodicMemoryPromptSection(
   facts: EpisodicMemoryFactRecord[],
   maxFacts = EPISODIC_MEMORY_PROMPT_MAX_FACTS,
@@ -2700,7 +2789,7 @@ export function formatEpisodicMemoryPromptSection(
   const lines: string[] = [];
   let usedChars = 0;
   for (const fact of facts.slice(0, maxFacts)) {
-    const safeText = sanitizeRecalledMemoryFactText(fact.fact_text);
+    const safeText = sanitizeRecalledMemoryFactText(resolveEpisodicPromptFactText(fact));
     if (!safeText) continue;
     const nextChars = usedChars + safeText.length;
     // Never inject a truncated/incomplete fact_text — skip this fact only and
@@ -2959,7 +3048,7 @@ export function getEpisodicMemoryForPrompt(
         budgetReason = "dynamic_memory_total_budget";
       } else if (selected.length >= maxFacts) {
         budgetReason = "max_facts";
-      } else if (usedChars + fact.fact_text.length > effectiveMaxChars) {
+      } else if (usedChars + resolveEpisodicPromptFactText(fact).length > effectiveMaxChars) {
         budgetReason = "max_chars";
       }
 
@@ -2969,7 +3058,7 @@ export function getEpisodicMemoryForPrompt(
       }
 
       selected.push(fact);
-      usedChars += fact.fact_text.length;
+      usedChars += resolveEpisodicPromptFactText(fact).length;
       if (debug) debug.would_inject = true;
     }
 
@@ -3166,14 +3255,16 @@ export function inspectEpisodicMemoryFactsForDebug(
     let budgetReason: EpisodicMemoryBudgetReason | null = null;
     if (effectiveMaxChars <= 0) budgetReason = "dynamic_memory_total_budget";
     else if (selectedIds.size >= maxFacts) budgetReason = "max_facts";
-    else if (usedChars + fact.fact_text.length > effectiveMaxChars) budgetReason = "max_chars";
+    else if (usedChars + resolveEpisodicPromptFactText(fact).length > effectiveMaxChars) {
+      budgetReason = "max_chars";
+    }
 
     if (budgetReason) {
       fact.budget_reason = budgetReason;
       continue;
     }
     selectedIds.add(fact.id);
-    usedChars += fact.fact_text.length;
+    usedChars += resolveEpisodicPromptFactText(fact).length;
     fact.would_inject = true;
   }
 
