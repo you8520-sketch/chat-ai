@@ -1,4 +1,4 @@
-import { namesOverlap } from "./memoryHorizon";
+import { destinationRefinesDeclared } from "./campaignLedger";
 import type { TrpgCampaignContext } from "./campaignContext";
 import { clampHpAmount, rollDiceExpression, type DiceRng } from "./mechanicsDice";
 import type { ThreatStrikeRecord } from "./mechanicsTypes";
@@ -21,14 +21,17 @@ function eligibleTargets(
 ): TrpgSheetSnapshot[] {
   return [...sheets.values()]
     .filter((sheet) => sheet.hp > 0)
-    .filter((sheet) => !encounter.location || namesOverlap(sheet.location, encounter.location))
+    .filter((sheet) => destinationRefinesDeclared(encounter.location, sheet.location))
     .sort((a, b) => a.participantId - b.participantId);
 }
 
 /**
  * Decides this round's server strikes. Mutates `sheets` HP so later owners see the post-strike state.
- * Per active encounter, in authored order: pick one eligible target, roll d20 against the hit DC, and on a
- * hit roll the encounter's damage class dice. Every number here is server-rolled; no GM input is read.
+ * Presence is the seat's own server-bound location (the same place matcher that authorizes movement),
+ * read from the start-of-round sheets, so a party that just arrived has had one round before it can be
+ * struck and a party that left is out of reach. Per active encounter, in authored order: pick one
+ * eligible target, roll d20 against the hit DC, and on a hit roll the encounter's damage class dice.
+ * Every number here is server-rolled; no GM input is read.
  * No cap, stacking or area rule is applied across encounters in this slice.
  */
 export function resolveThreatStrikes(opts: {

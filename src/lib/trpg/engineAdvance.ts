@@ -158,6 +158,7 @@ import {
   derivePostGmOngoingSeeds,
   logPostGmOngoingCandidates,
   logPostGmOngoingObservability,
+  withoutHpHarmSeeds,
   type PostGmOngoingSeed,
 } from "./postGmOngoing";
 import {
@@ -1436,6 +1437,7 @@ async function runGmForRound(
         : derivePostGmOngoingSeeds({
             startingSheets: sheets,
             delta: parsed.delta,
+            hpHarmAuthority: encounterAuthority ? "server" : "gm",
           });
     logPostGmOngoingCandidates(postGmOngoingSeeds);
     if (!opts.regenerate) {
@@ -1595,8 +1597,9 @@ function commitPendingGmResult(
       location: sheet.location,
     })),
   });
+  const governedCampaign = governedEncounters(campaignContext).length > 0;
   const applied = mergeMechanicsOwnedDelta(sheets, boundLocation.delta, mechanics, {
-    encounterAuthority: governedEncounters(campaignContext).length > 0,
+    encounterAuthority: governedCampaign,
   });
   const nextSheets = applied.ok ? applied.next : sheets;
   const persistMechanics = applied.ok || mechanics?.complete === true;
@@ -1604,7 +1607,9 @@ function commitPendingGmResult(
     db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
   ).round_number;
   const resolvedPlan = resolvedCampaignPlan(campaignContext);
-  const postGmOngoingSeeds = opts.postGmOngoingSeeds ?? [];
+  const postGmOngoingSeeds = governedCampaign
+    ? withoutHpHarmSeeds(opts.postGmOngoingSeeds ?? [])
+    : (opts.postGmOngoingSeeds ?? []);
   let postGmOngoingResult = { candidates: 0, promoted: 0, deduped: 0 };
   let stage: TrpgFailureStage = "ledger_apply";
   const ledger = applyCampaignLedger(currentLedger, {

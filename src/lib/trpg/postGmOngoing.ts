@@ -77,9 +77,20 @@ export function classifyPostGmCondition(value: string): PostGmOngoingFamily | nu
   return null;
 }
 
+/** Control effects (마비) never tick HP. Poison/bleed are the families that do. */
+export function withoutHpHarmSeeds(seeds: readonly PostGmOngoingSeed[]): PostGmOngoingSeed[] {
+  return seeds.filter((seed) => FAMILY_DEFAULTS[seed.family].kind !== "periodic_harm");
+}
+
+/**
+ * `hpHarmAuthority: "server"` is the encounter-governed mode: a GM-written 중독/출혈 label stays a
+ * narrative condition on the sheet but is not promoted to a ticking HP effect, because the server did
+ * not approve a source for it. Effects the server already owns keep ticking untouched.
+ */
 export function derivePostGmOngoingSeeds(opts: {
   startingSheets: readonly TrpgSheetSnapshot[];
   delta: TrpgStateDelta;
+  hpHarmAuthority?: "gm" | "server";
 }): PostGmOngoingSeed[] {
   const sheets = new Map(opts.startingSheets.map((sheet) => [sheet.participantId, sheet]));
   const out: PostGmOngoingSeed[] = [];
@@ -102,7 +113,7 @@ export function derivePostGmOngoingSeeds(opts: {
       out.push({ participantId: patch.participantId, family });
     }
   }
-  return out;
+  return opts.hpHarmAuthority === "server" ? withoutHpHarmSeeds(out) : out;
 }
 
 /**

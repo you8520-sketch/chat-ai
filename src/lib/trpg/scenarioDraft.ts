@@ -288,6 +288,7 @@ export function mergeScenarioDraft(opts: {
       ? generated.plan.playLength
       : existingPlan.playLength,
     provenance: opts.provenance ?? generated.plan.provenance ?? existingPlan.provenance ?? null,
+    ...(existingPlan.encounters?.length ? { encounters: existingPlan.encounters } : {}),
   };
   return {
     title: text("title", opts.existing.title, generated.title).slice(0, TRPG_SCENARIO_TITLE_LIMIT),

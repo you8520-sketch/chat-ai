@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
-import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
+import { creditPointsWithIds, getPointBalanceOnDb } from "@/lib/points";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+import { computeTrpgRoundPoints, TRPG_GM_USAGE_FALLBACK } from "./billing";
+import { EVEN_STATS, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
 import {
   advanceTrpgCampaign,
   regenerateTrpgNarration,
@@ -14,9 +17,16 @@ import { governedEncounters, resolveThreatStrikes } from "./encounterStrikes";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { mergeMechanicsOwnedDelta } from "./mechanicsMerge";
 import { resolveRoundMechanics } from "./mechanicsResolve";
-import { loadMechanicsResolution, loadThreatStrikeCounts } from "./mechanicsStore";
-import { parseScenarioEncounters, parseTrpgScenarioPlan, type TrpgScenarioEncounter } from "./scenarioPlan";
-import { parseScenarioDraftJson } from "./scenarioDraft";
+import { loadOngoingEffects, loadMechanicsResolution, loadThreatStrikeCounts } from "./mechanicsStore";
+import { applyPostGmOngoingSeeds, derivePostGmOngoingSeeds } from "./postGmOngoing";
+import {
+  emptyTrpgScenarioPlan,
+  parseScenarioEncounters,
+  parseTrpgScenarioPlan,
+  serializeTrpgScenarioPlanForGm,
+  type TrpgScenarioEncounter,
+} from "./scenarioPlan";
+import { mergeScenarioDraft, parseScenarioDraftJson } from "./scenarioDraft";
 import { insertScenarioTemplate } from "./scenarioTemplates";
 import { ensureTrpgTables } from "./schema";
 import { insertParticipant } from "./store";
@@ -37,6 +47,7 @@ const WOLF: TrpgScenarioEncounter = {
   activateRound: 2,
   maxStrikes: 2,
   hitDc: 10,
+  location: "복도",
 };
 
 function memoryDb(): Database.Database {
@@ -62,6 +73,7 @@ function setup(db: Database.Database, encounters: TrpgScenarioEncounter[] | null
           summary: "유령 기차",
           content: "유령 기차를 기다린다.",
           visibility: "public",
+          startLocation: "복도",
           scenarioPlan: { ...PLAN, ...(encounters.length ? { encounters } : {}) },
         });
   const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1, templateId });
@@ -110,8 +122,9 @@ describe("encounter authority: scenario source and parsing", () => {
       { id: "bad_round", name: "x", kind: "enemy", damageClass: "LIGHT", activateRound: 0 },
       { id: "bad_dc", name: "x", kind: "enemy", damageClass: "LIGHT", activateRound: 1, hitDc: 99 },
       { id: "trap", name: "낙석", kind: "hazard", damageClass: "LIGHT", activateRound: 3, maxStrikes: 99, location: "지하" },
+      { id: "no_place", name: "어디에나 있는 적", kind: "enemy", damageClass: "LIGHT", activateRound: 1 },
     ]);
-    assert.deepEqual(rows.map((row) => row.id), ["enc_hunter", "trap"]);
+    assert.deepEqual(rows.map((row) => row.id), ["enc_hunter", "trap"], "an encounter without a location is not a valid source");
     assert.equal(rows[1]?.maxStrikes, 6);
     assert.equal(rows[1]?.location, "지하");
   });
@@ -195,6 +208,7 @@ describe("encounter authority: real engine path", () => {
     await playRound(db, seat, deps, "소리를 듣는다.");
     assert.equal(hpOf(db, seat.hostId), 40);
     assert.match(seen[seen.length - 1]!, /MISS, no damage/);
+    assert.deepEqual(loadThreatStrikeCounts(db, seat.campaignId, 0), { enc_hunter: 1 }, "an attempted strike spends the budget, hit or miss");
     db.close();
   });
 
@@ -227,11 +241,16 @@ describe("encounter authority: real engine path", () => {
     }
   });
 
-  it("1 human + 2 AI seats: only the picked seat is struck; other seats are untouched", async () => {
+  it("2 humans + 2 AI, full engine: only a seat present at the threat's place is struck; a split-party seat and GM numbers are untouched", async () => {
     const db = memoryDb();
+    db.prepare(`INSERT INTO users (id, email, nickname, points) VALUES (2,'b@t','태현',5000)`).run();
     const seat = setup(db, [{ ...WOLF, activateRound: 1 }]);
+    const invite = (db.prepare(`SELECT invite_code FROM trpg_campaigns WHERE id=?`).get(seat.campaignId) as { invite_code: string }).invite_code;
+    joinTrpgCampaign(db, { code: invite, userId: 2, nickname: "태현" });
+    saveTrpgSheet(db, { campaignId: seat.campaignId, userId: 2, name: "태현", stats: EVEN_STATS });
+    const human2 = (db.prepare(`SELECT id FROM trpg_participants WHERE campaign_id=? AND user_id=2`).get(seat.campaignId) as { id: number }).id;
     const ai: number[] = [];
-    for (const [slot, name] of [[1, "유나"], [2, "카이"]] as const) {
+    for (const [slot, name, place] of [[2, "유나", "복도"], [3, "카이", "지하"]] as const) {
       const id = insertParticipant(db, {
         campaignId: seat.campaignId,
         slotIndex: slot,
@@ -240,19 +259,108 @@ describe("encounter authority: real engine path", () => {
         characterId: null,
         displayName: name,
       });
-      writeSheet(db, seat.campaignId, id, name, EVEN_STATS, "");
+      writeSheet(db, seat.campaignId, id, name, EVEN_STATS, place);
       ai.push(id);
     }
-    const deps = makeDeps({ script: [null, 10], hostId: () => seat.hostId, die: 2 });
+    const everyone = [seat.hostId, human2, ...ai];
+    const deps = makeDeps({ script: [null, null], hostId: () => seat.hostId, die: 2 });
     deps.botCall = async () => ({ text: "조용히 주변을 살핀다." });
+    deps.gmCall = async () => ({
+      text: buildTrpgGmStructuredWireText("복도의 공기가 무겁게 가라앉았다. GM: 무엇을 하겠는가.", {
+        players: everyone.map((participantId) => ({ participantId, hp: 5 })),
+        location: "복도",
+        next_round_context: "다음",
+        campaign_finished: false,
+      }),
+    });
     await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
-    await playRound(db, seat, deps, "문을 두드린다.");
+    const hpBeforeRound = everyone.map((id) => hpOf(db, id));
+    assert.deepEqual(hpBeforeRound, [40, 40, 40, 40], "opening GM numbers are not trusted either");
+    submitTrpgAction(db, { campaignId: seat.campaignId, userId: 1, body: "문을 두드린다.", actionType: "investigate" });
+    submitTrpgAction(db, { campaignId: seat.campaignId, userId: 2, body: "주변을 둘러본다.", actionType: "investigate" });
+    await advanceTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
     const strike = loadMechanicsResolution(db, roundIdByNumber(db, seat.campaignId, 1))!.threatStrikes![0]!;
-    assert.deepEqual(strike.eligibleParticipantIds, [seat.hostId, ...ai].sort((a, b) => a - b));
-    const struck = strike.targetParticipantId;
-    for (const id of [seat.hostId, ...ai]) {
-      assert.equal(hpOf(db, id), id === struck ? 40 - 4 : 40, `participant ${id}`);
+    assert.deepEqual(strike.eligibleParticipantIds, [seat.hostId, human2, ai[0]!].sort((a, b) => a - b));
+    assert.ok(strike.hit && strike.dice);
+    for (const id of everyone) {
+      const expected = id === strike.targetParticipantId ? 40 - strike.dice!.amount : 40;
+      assert.equal(hpOf(db, id), expected, `participant ${id}: GM's HP 5 is ignored, only the server strike applies`);
     }
+    assert.equal(hpOf(db, ai[1]!), 40, "split-party seat at another place is never targeted");
+    db.close();
+  });
+
+  it("scene lifecycle: not struck before arriving, struck while present, safe after leaving", async () => {
+    const db = memoryDb();
+    const seat = setup(db, [{ ...WOLF, id: "enc_archive", name: "서고지기", activateRound: 1, maxStrikes: 6, location: "서고" }]);
+    const moveTo = (location: string) => ({ players: [{ participantId: seat.hostId, location }], location });
+    const rounds = [moveTo("복도"), moveTo("복도"), moveTo("서고"), moveTo("서고"), moveTo("복도"), moveTo("복도")];
+    let call = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 15,
+      rollDie: () => 4,
+      gmCall: async () => {
+        const row = rounds[call] ?? rounds[rounds.length - 1]!;
+        call += 1;
+        return {
+          text: buildTrpgGmStructuredWireText("조용한 장면이 이어진다. GM: 무엇을 하겠는가.", {
+            ...row,
+            next_round_context: "다음",
+            campaign_finished: false,
+          }),
+        };
+      },
+    };
+    const act = async (body: string) => {
+      submitTrpgAction(db, { campaignId: seat.campaignId, userId: 1, body, actionType: "free" });
+      await advanceTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    };
+    const strikesIn = (n: number) => loadMechanicsResolution(db, roundIdByNumber(db, seat.campaignId, n))?.threatStrikes?.length ?? 0;
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    await act("복도를 둘러본다.");
+    await act("벽을 살핀다.");
+    assert.equal(hpOf(db, seat.hostId), 40, "round >= activateRound alone does not attack a party in another place");
+    assert.equal(strikesIn(1) + strikesIn(2), 0);
+    await act("서고로 간다.");
+    assert.equal(hpOf(db, seat.hostId), 40, "arrival round: strikes read the start-of-round place, so the party gets one round first");
+    await act("서가를 살핀다.");
+    assert.equal(strikesIn(4), 1, "present in the threat's place at round start: autonomous strike lands even though the player ignores it");
+    assert.equal(hpOf(db, seat.hostId), 32);
+    await act("복도로 간다.");
+    assert.equal(strikesIn(5), 1, "the round the party leaves still resolves from where it stood");
+    const afterLeaving = hpOf(db, seat.hostId);
+    await act("복도에서 쉰다.");
+    assert.equal(strikesIn(6), 0, "party left the place: the threat cannot reach it");
+    assert.equal(hpOf(db, seat.hostId), afterLeaving);
+    db.close();
+  });
+
+  it("a GM-only relocation into the threat's place is not accepted movement, so it creates no strike", async () => {
+    const db = memoryDb();
+    const seat = setup(db, [{ ...WOLF, activateRound: 1, location: "서고", maxStrikes: 6 }]);
+    const deps = makeDeps({ script: [null, null, null], hostId: () => seat.hostId });
+    deps.gmCall = async () => ({
+      text: buildTrpgGmStructuredWireText("GM이 장면을 서고로 옮겼다고 서술한다. GM: 무엇을 하겠는가.", {
+        players: [{ participantId: seat.hostId, location: "서고" }],
+        location: "서고",
+        next_round_context: "다음",
+        campaign_finished: false,
+      }),
+    });
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    const openingPlace = (db.prepare(`SELECT location FROM trpg_character_sheets WHERE participant_id=?`).get(seat.hostId) as { location: string }).location;
+    assert.equal(openingPlace, "서고", "the opening is the one place the GM may set the starting scene");
+    db.prepare(`UPDATE trpg_character_sheets SET location='복도' WHERE participant_id=?`).run(seat.hostId);
+    await playRound(db, seat, deps, "복도에서 기다린다.");
+    await playRound(db, seat, deps, "복도에서 기다린다.");
+    assert.equal(
+      (db.prepare(`SELECT location FROM trpg_character_sheets WHERE participant_id=?`).get(seat.hostId) as { location: string }).location,
+      "복도",
+      "movement owner rejected the GM-only relocation"
+    );
+    assert.equal(hpOf(db, seat.hostId), 40);
+    assert.equal(loadThreatStrikeCounts(db, seat.campaignId, 0)["enc_hunter"] ?? 0, 0);
     db.close();
   });
 });
@@ -323,6 +431,26 @@ describe("encounter authority: resolver and merge contracts", () => {
     });
     assert.deepEqual(strikes, [], "old-scene enemy cannot attack seats that left, nor a downed seat");
     assert.equal(sheets.get(2)!.hp, 40);
+  });
+
+  it("presence uses the movement owner's place matcher: refinements count, neighbouring places that merely contain the name do not", () => {
+    const at = (location: string) => new Map([[1, sheet(1, "인간A", 40, location)]]);
+    const strike = (location: string) =>
+      resolveThreatStrikes({
+        encounters: [{ ...WOLF, activateRound: 1, location: "서고" }],
+        roundNumber: 1,
+        priorStrikes: {},
+        sheets: at(location),
+        rng: () => 1,
+        rollD20: () => 20,
+        baseDc: 12,
+      }).length;
+    assert.equal(strike("서고"), 1);
+    assert.equal(strike("지하 서고"), 1, "more specific label of the same place");
+    assert.equal(strike("서고 내부"), 1, "interior suffix refines the place");
+    assert.equal(strike("서고 앞 복도"), 0, "a corridor in front of the archive is not the archive");
+    assert.equal(strike("복도"), 0);
+    assert.equal(strike(""), 0, "unknown place is never a target");
   });
 
   it("multiple encounters resolve as separate source/target events without a stacking rule", () => {
@@ -425,5 +553,182 @@ describe("encounter authority: resolver and merge contracts", () => {
       resolution
     );
     assert.equal(gmHeal.ok && gmHeal.next[0]!.hp, 34);
+  });
+});
+
+describe("encounter authority: GM conditions do not create HP damage", () => {
+  async function conditionRounds(opts: { governed: boolean; conditions: string[]; seed?: "POISON" }) {
+    const db = memoryDb();
+    const seat = setup(db, opts.governed ? [{ ...WOLF, id: "far", name: "먼 위협", location: "서고", activateRound: 1, maxStrikes: 6 }] : null);
+    let call = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 3,
+      rollDie: () => 4,
+      gmCall: async () => {
+        const players = call === 1 ? [{ participantId: seat.hostId, conditions: opts.conditions }] : [];
+        call += 1;
+        return {
+          text: buildTrpgGmStructuredWireText("조용한 방이다. GM: 무엇을 하겠는가.", {
+            players,
+            location: "복도",
+            next_round_context: "다음",
+            campaign_finished: false,
+          }),
+        };
+      },
+    };
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    if (opts.seed) {
+      applyPostGmOngoingSeeds(db, { campaignId: seat.campaignId, roundNumber: 0, seeds: [{ participantId: seat.hostId, family: opts.seed }] });
+    }
+    await playRound(db, seat, deps, "방을 둘러본다.");
+    const hpAfterGmRound = hpOf(db, seat.hostId);
+    await playRound(db, seat, deps, "방을 더 둘러본다.");
+    const conditions = JSON.parse(
+      (db.prepare(`SELECT conditions_json FROM trpg_character_sheets WHERE participant_id=?`).get(seat.hostId) as { conditions_json: string }).conditions_json
+    ) as string[];
+    return {
+      db,
+      seat,
+      hpAfterGmRound,
+      hpAfterNextRound: hpOf(db, seat.hostId),
+      effects: loadOngoingEffects(db, seat.campaignId),
+      conditions,
+    };
+  }
+
+  it("ungoverned campaign keeps the legacy promotion: GM 중독 becomes a ticking effect next round", async () => {
+    const r = await conditionRounds({ governed: false, conditions: ["중독"] });
+    assert.equal(r.effects.some((effect) => effect.stackKey === "poison"), true);
+    assert.ok(r.hpAfterNextRound < r.hpAfterGmRound, "legacy tick damage");
+    r.db.close();
+  });
+
+  it("governed campaign: GM 중독/출혈 stay narrative labels and never tick HP", async () => {
+    const r = await conditionRounds({ governed: true, conditions: ["중독", "출혈"] });
+    assert.deepEqual(r.effects, []);
+    assert.equal(r.hpAfterGmRound, 40);
+    assert.equal(r.hpAfterNextRound, 40);
+    assert.ok(r.conditions.includes("중독") && r.conditions.includes("출혈"), "the RP condition text is preserved on the sheet");
+    r.db.close();
+  });
+
+  it("governed campaign: a non-HP control condition (마비) is still promoted and an unrelated label is kept", async () => {
+    const r = await conditionRounds({ governed: true, conditions: ["마비", "피로"] });
+    assert.deepEqual(r.effects.map((effect) => effect.stackKey), ["paralysis"]);
+    assert.equal(r.hpAfterNextRound, 40, "control effects do not cost HP");
+    assert.ok(r.conditions.includes("피로"));
+    r.db.close();
+  });
+
+  it("governed campaign: an already-approved ongoing effect keeps ticking", async () => {
+    const r = await conditionRounds({ governed: true, conditions: [], seed: "POISON" });
+    assert.ok(r.hpAfterGmRound < 40, "server-owned tick still lands in a governed campaign");
+    const tick = loadMechanicsResolution(r.db, roundIdByNumber(r.db, r.seat.campaignId, 1))!.ongoingTicks;
+    assert.equal(tick.length, 1);
+    r.db.close();
+  });
+
+  it("seed derivation: server mode drops poison/bleed but not paralysis; default mode is unchanged", () => {
+    const base = { startingSheets: [sheet(1, "인간A", 40)], delta: { players: [{ participantId: 1, conditions: ["중독", "출혈", "마비"] }] } };
+    assert.deepEqual(derivePostGmOngoingSeeds(base).map((seed) => seed.family), ["POISON", "BLEED", "PARALYSIS"]);
+    assert.deepEqual(derivePostGmOngoingSeeds({ ...base, hpHarmAuthority: "server" }).map((seed) => seed.family), ["PARALYSIS"]);
+  });
+});
+
+describe("encounter authority: billing, composition and authoring", () => {
+  function chargedDb(): Database.Database {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, nickname TEXT NOT NULL, points REAL NOT NULL DEFAULT 0, creator_points REAL NOT NULL DEFAULT 0);
+      CREATE TABLE point_transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, point_type TEXT NOT NULL, remaining_amount REAL NOT NULL, expires_at TEXT NOT NULL);
+      CREATE TABLE point_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, delta REAL NOT NULL, reason TEXT NOT NULL, message_id INTEGER, chat_id INTEGER);
+      CREATE TABLE characters (id INTEGER PRIMARY KEY, name TEXT NOT NULL DEFAULT '', creator_id INTEGER, official INTEGER NOT NULL DEFAULT 0);
+    `);
+    db.prepare(`INSERT INTO users (id, email, nickname, points, creator_points) VALUES (1,'a@t','렌',0,0)`).run();
+    ensureTrpgTables(db);
+    return db;
+  }
+  const usage = () => ({
+    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+    inputTokens: TRPG_GM_USAGE_FALLBACK.inputTokens,
+    outputTokens: TRPG_GM_USAGE_FALLBACK.outputTokens,
+  });
+
+  it("governed campaign: a billing fault then retry applies the strike once, bills once and never recalls the GM", async () => {
+    const db = chargedDb();
+    const seat = setup(db, [{ ...WOLF, activateRound: 1 }]);
+    let gmCalls = 0;
+    const play = (fault?: TrpgEngineDeps["billingFault"]): TrpgEngineDeps => ({
+      skipBilling: false,
+      billingFault: fault,
+      rollD20: () => 15,
+      rollDie: () => 4,
+      gmCall: async () => {
+        gmCalls += 1;
+        return { text: gmWith(seat.hostId, 5), usage: usage() };
+      },
+    });
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps: { ...play(), skipBilling: true } });
+    creditPointsWithIds(db, 1, computeTrpgRoundPoints([usage()]) + 200, "PAID", "test-credit-PAID");
+    const before = getPointBalanceOnDb(db, 1).total;
+    submitTrpgAction(db, { campaignId: seat.campaignId, userId: 1, body: "문을 두드린다.", actionType: "investigate" });
+    await advanceTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps: play("billing_persist") });
+    assert.equal(hpOf(db, seat.hostId), 40, "the faulted commit rolled back, including the strike");
+    assert.equal(getPointBalanceOnDb(db, 1).total, before);
+    const callsAfterFault = gmCalls;
+    await advanceTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps: play() });
+    assert.equal(gmCalls, callsAfterFault, "retry commits the pending GM result without a provider call");
+    const roundId = roundIdByNumber(db, seat.campaignId, 1);
+    const strikes = loadMechanicsResolution(db, roundId)!.threatStrikes!;
+    assert.equal(strikes.length, 1);
+    assert.equal(hpOf(db, seat.hostId), 40 - strikes[0]!.dice!.amount, "one server hit, GM's 5 ignored");
+    const row = db.prepare(`SELECT billed, billed_points FROM trpg_rounds WHERE id=?`).get(roundId) as { billed: number; billed_points: number };
+    assert.equal(row.billed, 1);
+    const charged = before - getPointBalanceOnDb(db, 1).total;
+    assert.equal(charged, row.billed_points);
+    assert.ok(charged > 0);
+    await advanceTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps: play() });
+    assert.equal(before - getPointBalanceOnDb(db, 1).total, charged, "no second charge");
+    assert.deepEqual(loadThreatStrikeCounts(db, seat.campaignId, 0), { enc_hunter: 1 });
+    db.close();
+  });
+
+  it("an existing server tick and a strike in the same round both apply; GM numbers do not override either", async () => {
+    const db = memoryDb();
+    const seat = setup(db, [{ ...WOLF, activateRound: 1 }]);
+    const deps = makeDeps({ script: [null, 40], hostId: () => seat.hostId, d20: 3, die: 4 });
+    await startTrpgCampaign(db, { campaignId: seat.campaignId, userId: 1, deps });
+    applyPostGmOngoingSeeds(db, { campaignId: seat.campaignId, roundNumber: 0, seeds: [{ participantId: seat.hostId, family: "POISON" }] });
+    const deps2 = makeDeps({ script: [40], hostId: () => seat.hostId, d20: 15, die: 4 });
+    await playRound(db, seat, deps2, "문을 두드린다.");
+    const resolution = loadMechanicsResolution(db, roundIdByNumber(db, seat.campaignId, 1))!;
+    const tick = resolution.ongoingTicks.reduce((sum, row) => sum + row.dice?.amount ?? 0, 0);
+    const strike = resolution.threatStrikes![0]!.dice!.amount;
+    assert.ok(tick > 0 && strike > 0);
+    assert.equal(hpOf(db, seat.hostId), 40 - tick - strike);
+    db.close();
+  });
+
+  it("the GM sees authored threats in the existing plan block, with their place", () => {
+    const plan = parseTrpgScenarioPlan({ ...PLAN, encounters: [WOLF] })!;
+    assert.match(serializeTrpgScenarioPlanForGm(plan), /그림자 사냥꾼 @ 복도/);
+    assert.doesNotMatch(serializeTrpgScenarioPlanForGm(parseTrpgScenarioPlan(PLAN)), /승인된 위협/);
+  });
+
+  it("applying an AI draft in the editor keeps the author's encounters and never takes generated ones", () => {
+    const merged = mergeScenarioDraft({
+      mode: "fill_empty",
+      existing: { title: "폐역", plan: { ...emptyTrpgScenarioPlan(), ...PLAN, encounters: [WOLF] } },
+      generated: parseScenarioDraftJson(JSON.stringify({ title: "t", summary: "s", ...PLAN, encounters: [{ ...WOLF, id: "model" }] })),
+    });
+    assert.deepEqual(merged.plan.encounters, [WOLF]);
+    const noAuthored = mergeScenarioDraft({
+      mode: "fill_empty",
+      existing: { title: "폐역", plan: { ...emptyTrpgScenarioPlan(), ...PLAN } },
+      generated: parseScenarioDraftJson(JSON.stringify({ title: "t", summary: "s", ...PLAN, encounters: [WOLF] })),
+    });
+    assert.equal("encounters" in noAuthored.plan, false);
   });
 });

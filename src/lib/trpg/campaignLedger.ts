@@ -105,7 +105,7 @@ function qualifiersConflict(sourceTokens: readonly string[], destTokens: readonl
  * tokens or an interior suffix. Persist auth does not reuse open-route
  * discovery: that matcher allows a 1-token overlap on 2-token labels.
  */
-function destinationRefinesDeclared(source: string, destination: string): boolean {
+export function destinationRefinesDeclared(source: string, destination: string): boolean {
   const dest = destination.trim();
   if (!dest) return false;
   const destTokens = tokenizeSceneLabel(dest);

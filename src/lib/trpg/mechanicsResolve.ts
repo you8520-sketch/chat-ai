@@ -1216,7 +1216,7 @@ function formatAuthoritativePacket(opts: {
     return lines.join("\n");
   });
   const authorityNote = opts.encounterAuthority
-    ? "\n\nENCOUNTER_AUTHORITY: HP loss this round is only what THREAT_STRIKE / ONGOING lines above state. Narrate any other peril without HP numbers — use position, time, pursuit or new obstacles. Narrate every THREAT_STRIKE result exactly (hit or miss)."
+    ? "\n\nENCOUNTER_AUTHORITY: HP loss this round is only what THREAT_STRIKE / ONGOING lines above state. Narrate any other peril without HP numbers — use position, time, pursuit or new obstacles. Narrate every THREAT_STRIKE result exactly (hit or miss). 중독/출혈 labels you add are narrative only here and do not tick HP."
     : "";
   return `[AUTHORITATIVE MECHANICS]\n${blocks.join("\n\n")}${authorityNote}`;
 }

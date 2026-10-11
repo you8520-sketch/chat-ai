@@ -66,8 +66,12 @@ export const TRPG_ENCOUNTER_LIMITS = {
 /**
  * Author-defined hostile source. Lives in the scenario template plan (human-authored) and is
  * copied into the campaign snapshot. Only the server may turn it into HP damage: the GM can
- * narrate it freely but never declares it. `activateRound` is the server round number from which
- * it may act; `maxStrikes` bounds how many server-rolled attacks it gets in total.
+ * narrate it freely but never declares it.
+ *
+ * It can only strike seats whose server-bound location (the campaignLedger movement owner) is
+ * `location`, and only from `activateRound` (earliest server round) while strikes remain.
+ * `maxStrikes` bounds the total server-rolled attempts, misses included. There is no
+ * defeat/flee signal yet: leaving `location` is the only way a party escapes it.
  */
 export type TrpgScenarioEncounter = {
   id: string;
@@ -77,7 +81,7 @@ export type TrpgScenarioEncounter = {
   activateRound: number;
   maxStrikes: number;
   hitDc?: number;
-  location?: string;
+  location: string;
 };
 
 export type TrpgScenarioPlanProvenance = {
@@ -195,6 +199,8 @@ export function parseScenarioEncounters(raw: unknown): TrpgScenarioEncounter[] {
     if (!Number.isInteger(activateRound) || activateRound < 1 || activateRound > TRPG_ENCOUNTER_LIMITS.maxActivateRound) continue;
     const maxStrikesRaw = row.maxStrikes == null ? TRPG_ENCOUNTER_LIMITS.defaultMaxStrikes : Number(row.maxStrikes);
     if (!Number.isInteger(maxStrikesRaw) || maxStrikesRaw < 1) continue;
+    const location = clip(String(row.location ?? ""), TRPG_ENCOUNTER_LIMITS.locationChars);
+    if (!location) continue;
     const encounter: TrpgScenarioEncounter = {
       id,
       name,
@@ -202,14 +208,13 @@ export function parseScenarioEncounters(raw: unknown): TrpgScenarioEncounter[] {
       damageClass: damageClass as TrpgEncounterDamageClass,
       activateRound,
       maxStrikes: Math.min(maxStrikesRaw, TRPG_ENCOUNTER_LIMITS.maxStrikesCap),
+      location,
     };
     if (row.hitDc != null) {
       const hitDc = Number(row.hitDc);
       if (!Number.isInteger(hitDc) || hitDc < TRPG_ENCOUNTER_LIMITS.minHitDc || hitDc > TRPG_ENCOUNTER_LIMITS.maxHitDc) continue;
       encounter.hitDc = hitDc;
     }
-    const location = clip(String(row.location ?? ""), TRPG_ENCOUNTER_LIMITS.locationChars);
-    if (location) encounter.location = location;
     seen.add(id);
     out.push(encounter);
     if (out.length >= TRPG_ENCOUNTER_LIMITS.maxEncounters) break;
@@ -392,6 +397,10 @@ export function serializeTrpgScenarioPlanForGm(
     bullets("단서:", plan.clues),
     bullets("금지 사건:", plan.forbiddenEvents),
     skipBoss ? "" : line("보스:", plan.boss),
+    bullets(
+      "승인된 위협 (해당 장소에서만 서버가 공격을 판정; 결과는 THREAT_STRIKE로 주어진다):",
+      (plan.encounters ?? []).map((encounter) => `${encounter.name} @ ${encounter.location}`)
+    ),
     bullets("특별 규칙:", plan.specialRules),
     plan.difficulty ? `난이도: ${plan.difficulty}` : "",
     line("클라이맥스:", plan.climax),
