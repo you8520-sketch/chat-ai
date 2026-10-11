@@ -6167,7 +6167,7 @@ export default function ChatClient({
               disabled={inputLocked}
               rows={2}
               placeholder="메시지 입력 · 지문은 * * 또는 ( ) · Ctrl+Enter 전송"
-              className="min-h-[3.5rem] flex-1 resize-none rounded-lg border border-white/25 bg-[#1a1a1a] px-3 py-2.5 text-zinc-100 outline-none placeholder:text-zinc-400 focus:border-violet-400/60 focus:ring-1 focus:ring-violet-500/35 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[2.75rem] sm:py-2"
+              className="min-h-[3.5rem] flex-1 resize-none rounded-lg border border-white/25 bg-[#1a1a1a] px-3 py-2.5 text-zinc-100 outline-none placeholder:text-zinc-400/80 focus:border-violet-400/60 focus:ring-1 focus:ring-violet-500/35 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[2.75rem] sm:py-2"
               style={{ fontSize: "calc(var(--font-size-chat) + 0.0625rem)", lineHeight: "var(--line-height-chat)" }}
             />
             <div className="flex shrink-0 flex-col gap-1">
