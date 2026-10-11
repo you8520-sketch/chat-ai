@@ -5,8 +5,14 @@ import { describe, it } from "node:test";
 
 import { compileCanonPlanV1 } from "@/lib/canonPlan/compiler";
 import { isPublicVisibleChunk } from "@/lib/canonPlan/canonVisibility";
+import { renderPrivateCharacterSecretBlock } from "@/lib/canonPlan/privateCharacterSecretRenderer";
 import { compileOfficialDraftFromBible, type OfficialCharacterBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
-import { buildOfficialCharacterFormBody, composeOfficialSystemPrompt } from "@/lib/officialSupply/characterText";
+import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
+import {
+  buildOfficialCharacterFormBody,
+  composeOfficialSystemPrompt,
+  computeTextLockHash,
+} from "@/lib/officialSupply/characterText";
 import {
   renderAppearanceBlock,
   renderRuntimeAppearanceBlock,
@@ -230,6 +236,57 @@ describe("official character prompt standard v1", () => {
     for (const chunk of locked) {
       assert.equal(isPublicVisibleChunk(chunk.visibility), false);
     }
+  });
+
+  it("routes Wolfgang secrets through LOCKED_SECRET without converting the draft to compact_rp_v1", () => {
+    const source = loadCompiledOfficialCharacterSource("pilot-rf-02");
+    const draft = source.draft;
+    const lockBefore = computeTextLockHash(draft);
+    assert.equal(draft.promptStandard, undefined);
+    assert.equal(draft.secrets.length, 8);
+
+    const systemPrompt = composeOfficialSystemPrompt(draft, source.appearanceBlock);
+    const creatorComment = composeOfficialCreatorComment(draft);
+    assert.equal(draft.promptStandard, undefined);
+    assert.equal(computeTextLockHash(draft), lockBefore);
+    assert.match(systemPrompt, /\[비밀 — 캐릭터는 앎\]/);
+    assert.equal((systemPrompt.match(/\[비밀 — 캐릭터는 앎\]/g) ?? []).length, 1);
+
+    const publicSurfaces = [draft.description, draft.tagline, draft.greeting, creatorComment].join("\n");
+    const lorebook = source.resolvedLorebook.map((entry) => entry.content).join("\n");
+    for (const secret of draft.secrets) {
+      assert.equal((systemPrompt.split(secret).length - 1), 1, secret.slice(0, 24));
+      assert.equal(publicSurfaces.includes(secret), false, secret.slice(0, 24));
+      assert.equal(lorebook.includes(secret), false, secret.slice(0, 24));
+    }
+
+    const compiled = compileCanonPlanV1({
+      creatorRawDescription: [draft.description, draft.sections.worldAndSituation, systemPrompt].join("\n\n"),
+      compilerDescription: [draft.sections.worldAndSituation, systemPrompt].join("\n\n"),
+    });
+    assert.equal(compiled.ok, true);
+    if (!compiled.ok) return;
+    const locked = compiled.plan.chunks.filter((chunk) => chunk.visibility === "LOCKED_SECRET");
+    assert.ok(locked.length >= draft.secrets.length);
+    for (const chunk of locked) {
+      assert.equal(isPublicVisibleChunk(chunk.visibility), false);
+    }
+    const s2 = renderPrivateCharacterSecretBlock(compiled.plan);
+    assert.ok((s2.s2IncludedCount ?? 0) > 0);
+    assert.equal(s2.s2OmittedCount, 0);
+    for (const secret of draft.secrets) {
+      assert.match(s2.block ?? "", new RegExp(secret.slice(0, 12)));
+    }
+
+    const formBody = buildOfficialCharacterFormBody({
+      draft,
+      appearanceBlock: source.appearanceBlock,
+      assets: [],
+    });
+    assert.equal(formBody.visibility, "private");
+    assert.equal(formBody.world_id, undefined);
+    assert.match(String(formBody.world), /에테르노스/);
+    assert.match(String(formBody.system_prompt), /\[비밀 — 캐릭터는 앎\]/);
   });
 
   it("keeps the full appearance lock for visuals but stages only compact RP anchors", () => {
