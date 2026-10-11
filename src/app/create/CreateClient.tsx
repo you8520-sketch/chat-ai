@@ -115,7 +115,7 @@ export default function CreateClient() {
   }
 
   const cls =
-    "w-full rounded-xl bg-[#0e1120] px-4 py-3 text-sm text-white outline-none focus:ring-1 focus:ring-violet-500 placeholder:text-gray-600";
+    "w-full rounded-xl bg-[#0e1120] px-4 py-3 text-sm text-white outline-none focus:ring-1 focus:ring-violet-500 placeholder:text-zinc-400";
 
   return (
     <div className="mx-auto mt-4 max-w-2xl">
@@ -135,7 +135,7 @@ export default function CreateClient() {
           <textarea rows={6} maxLength={DESC_LIMIT} className={cls}
             placeholder="소개 페이지에 표시되는 설명입니다. AI에 학습되지 않습니다."
             value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          <p className="mt-1 text-[11px] text-gray-600">소개 페이지용 · AI에 학습되지 않음 · 최대 {DESC_LIMIT.toLocaleString()}자</p>
+          <p className="mt-1 text-xs text-zinc-400">소개 페이지용 · AI에 학습되지 않음 · 최대 {DESC_LIMIT.toLocaleString()}자</p>
         </div>
 
         <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
@@ -195,7 +195,7 @@ export default function CreateClient() {
               <div>
                 <div className="mb-1 flex items-baseline justify-between">
                   <label className="text-xs font-semibold text-gray-300">
-                    <span className="text-gray-500">[선택]</span> 금지 말투
+                    <span className="text-zinc-400">[선택]</span> 금지 말투
                   </label>
                   <Counter now={form.speech_forbidden.length} max={SPEECH_FORBIDDEN_LIMIT} />
                 </div>
@@ -212,7 +212,7 @@ export default function CreateClient() {
               </div>
             </div>
           </div>
-          <p className="mt-2 text-[11px] text-gray-600">
+          <p className="mt-2 text-xs text-zinc-400">
             설정+세계관+기본 말투 합쳐서 최대 {PROMPT_LIMIT.toLocaleString()}자 · 대사
             예시/금지 말투는 각 {SPEECH_EXAMPLES_LIMIT.toLocaleString()}자(합산 제외)
           </p>
@@ -226,7 +226,7 @@ export default function CreateClient() {
         <div>
           <div className="mb-1 flex items-baseline justify-between">
             <label className="text-sm font-semibold text-gray-300">캐릭터 이미지</label>
-            <span className="text-xs text-gray-500">{files.length} / {MAX_IMAGES}장</span>
+            <span className="text-xs text-zinc-400">{files.length} / {MAX_IMAGES}장</span>
           </div>
           <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden
             onChange={(e) => { pickFiles(e.target.files); e.target.value = ""; }} />
@@ -281,7 +281,7 @@ export default function CreateClient() {
             onChange={(e) => setForm({ ...form, nsfw: e.target.checked })} className="h-5 w-5 accent-violet-500" />
           <div>
             <p className="font-semibold text-zinc-100">성인용 캐릭터</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-zinc-400">
               성인인증을 완료하고 ‘성인 캐릭터 표시’를 켠 사용자에게만 목록에 노출됩니다.
             </p>
           </div>
@@ -298,7 +298,7 @@ export default function CreateClient() {
 
 function Counter({ now, max }: { now: number; max: number }) {
   return (
-    <span className={`text-xs ${now > max ? "font-bold text-rose-400" : "text-gray-500"}`}>
+    <span className={`text-xs ${now > max ? "font-bold text-rose-400" : "text-zinc-400"}`}>
       {now.toLocaleString()} / {max.toLocaleString()}자
     </span>
   );

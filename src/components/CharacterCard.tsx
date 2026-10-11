@@ -62,7 +62,7 @@ function creatorNameBadgeStyle(tier: CreatorTierLevel | null | undefined): Creat
       };
     case "standard":
       return {
-        byClassName: "text-zinc-500",
+        byClassName: "text-zinc-400",
         nameClassName: "font-semibold text-zinc-300",
       };
     case "pro":
@@ -74,8 +74,8 @@ function creatorNameBadgeStyle(tier: CreatorTierLevel | null | undefined): Creat
       };
     default:
       return {
-        byClassName: "text-zinc-600",
-        nameClassName: "font-medium text-zinc-500",
+        byClassName: "text-zinc-500",
+        nameClassName: "font-medium text-zinc-400",
       };
   }
 }
@@ -364,7 +364,7 @@ function HomeCard({
               {view.displayTagline}
             </p>
           ) : (
-            <p className="min-h-[2.5rem] text-xs leading-5 text-zinc-600">한 줄 소개 없음</p>
+            <p className="min-h-[2.5rem] text-xs leading-5 text-zinc-400">한 줄 소개 없음</p>
           )}
         </Link>
         {variant !== "index" ? (

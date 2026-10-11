@@ -97,7 +97,7 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
           );
         })}
       </div>
-      <p className="mt-2 text-[11px] text-zinc-400">
+      <p className="mt-2 text-xs text-zinc-400">
         출석 포인트는 지급일로부터 {ATTENDANCE_POINTS_VALID_DAYS}일 유효합니다. 연속으로 못 나와도 이번 주 N번째 출석이 N일차
         보상을 받으며, 새 주(월요일)마다 1일차부터 다시 시작합니다.
       </p>
@@ -117,7 +117,7 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
             >
               {loading ? "처리 중…" : checkedIn ? "오늘 출석 완료 ✓" : "출석 체크"}
             </button>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-zinc-400">
               {checkedIn
                 ? "내일 0시 이후 다시 출석할 수 있어요."
                 : "버튼을 눌러 오늘의 출석 보상을 받으세요."}

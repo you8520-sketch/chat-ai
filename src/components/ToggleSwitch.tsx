@@ -17,7 +17,7 @@ export default function ToggleSwitch({
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-gray-200">{label}</p>
-        {description && <p className="mt-0.5 text-[11px] text-gray-500">{description}</p>}
+        {description && <p className="mt-0.5 break-keep text-xs leading-relaxed text-zinc-400">{description}</p>}
       </div>
       <button
         type="button"

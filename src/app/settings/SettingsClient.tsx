@@ -116,7 +116,7 @@ export default function SettingsClient({ user, pendingCommentReviews = 0 }: Prop
             크리에이터 페이지
           </Link>
           {!user.isCreator && (
-            <p className="w-full text-[11px] leading-relaxed text-zinc-500">
+            <p className="w-full break-keep text-xs leading-relaxed text-zinc-400">
               캐릭터를 만들고 공개하면 수익·정산·등급 조건을 확인할 수 있습니다.
             </p>
           )}
@@ -214,15 +214,15 @@ export default function SettingsClient({ user, pendingCommentReviews = 0 }: Prop
         <h2 className={studioType.sectionTitle}>로그인 정보</h2>
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex justify-between">
-            <dt className="text-zinc-500">이메일</dt>
+            <dt className="text-zinc-400">이메일</dt>
             <dd className="text-zinc-200">{user.email}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-zinc-500">로그인 방식</dt>
+            <dt className="text-zinc-400">로그인 방식</dt>
             <dd className="text-zinc-200">{user.google ? "Google 간편 로그인" : "이메일 / 비밀번호"}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-zinc-500">성인인증</dt>
+            <dt className="text-zinc-400">성인인증</dt>
             <dd>
               {user.isAdult ? (
                 <span className="text-zinc-200">완료 ✅</span>

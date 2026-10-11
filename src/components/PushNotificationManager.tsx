@@ -236,7 +236,7 @@ export default function PushNotificationManager() {
           description="내 프로필·캐릭터·게시글에 댓글이 달리면 푸시로 받습니다. 기본은 꺼져 있어요."
         />
         {state !== "on" && state !== "loading" && state !== "unconfigured" && state !== "unsupported" ? (
-          <p className="text-[11px] text-zinc-500">좋아요·댓글 푸시를 받으려면 먼저 위의 앱 푸시 알림을 켜 주세요.</p>
+          <p className="break-keep text-xs leading-relaxed text-zinc-400">좋아요·댓글 푸시를 받으려면 먼저 위의 앱 푸시 알림을 켜 주세요.</p>
         ) : null}
       </div>
       {message ? <p className="mt-3 text-xs text-violet-200">{message}</p> : null}
