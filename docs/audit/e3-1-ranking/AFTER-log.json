@@ -1,0 +1,380 @@
+[
+ {
+  "vn": "m390",
+  "n": "1-default",
+  "path": "/tab/ranking",
+  "desc": "누적 대화 턴",
+  "active": [
+   "전체"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 2,
+  "cta": [],
+  "emptyText": null
+ },
+ {
+  "vn": "m390",
+  "n": "2-all",
+  "path": "/tab/ranking?p=all",
+  "desc": "누적 대화 턴",
+  "active": [
+   "전체"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 2,
+  "cta": [],
+  "emptyText": null
+ },
+ {
+  "vn": "m390",
+  "n": "3-realtime-empty",
+  "path": "/tab/ranking?p=realtime",
+  "desc": "최근 6시간 대화 시작 수",
+  "active": [
+   "실시간",
+   "전체 랭킹 보기"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간",
+   "전체 랭킹 보기"
+  ],
+  "rows": 0,
+  "cta": [
+   "전체 랭킹 보기->/tab/ranking?p=all"
+  ],
+  "emptyText": "최근 6시간 동안 대화가 시작된 캐릭터가 없습니다."
+ },
+ {
+  "vn": "m390",
+  "n": "4-chip-monthly",
+  "path": "/tab/ranking?p=monthly",
+  "desc": "최근 30일",
+  "active": [
+   "월간"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 1,
+  "cta": [],
+  "emptyText": null
+ },
+ {
+  "vn": "m390",
+  "n": "4b-back",
+  "path": "/tab/ranking",
+  "desc": "누적 대화 턴",
+  "active": [
+   "전체"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 2,
+  "cta": [],
+  "emptyText": null
+ },
+ {
+  "vn": "m390",
+  "n": "5-card-entry",
+  "href": "/character/267",
+  "veil": true,
+  "arrived": "/character/267",
+  "h1": "강이현강이현"
+ },
+ {
+  "vn": "m390",
+  "n": "5b-back",
+  "path": "/tab/ranking?p=all",
+  "desc": "누적 대화 턴",
+  "active": [
+   "전체"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 2,
+  "cta": [],
+  "emptyText": "아직 최근 활동이 없습니다."
+ },
+ {
+  "vn": "m360",
+  "n": "1-default",
+  "path": "/tab/ranking",
+  "desc": "누적 대화 턴",
+  "active": [
+   "전체"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 2,
+  "cta": [],
+  "emptyText": null
+ },
+ {
+  "vn": "m360",
+  "n": "2-all",
+  "path": "/tab/ranking?p=all",
+  "desc": "누적 대화 턴",
+  "active": [
+   "전체"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 2,
+  "cta": [],
+  "emptyText": null
+ },
+ {
+  "vn": "m360",
+  "n": "3-realtime-empty",
+  "path": "/tab/ranking?p=realtime",
+  "desc": "최근 6시간 대화 시작 수",
+  "active": [
+   "실시간",
+   "전체 랭킹 보기"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간",
+   "전체 랭킹 보기"
+  ],
+  "rows": 0,
+  "cta": [
+   "전체 랭킹 보기->/tab/ranking?p=all"
+  ],
+  "emptyText": "최근 6시간 동안 대화가 시작된 캐릭터가 없습니다."
+ },
+ {
+  "vn": "m360",
+  "n": "4-chip-monthly",
+  "path": "/tab/ranking?p=monthly",
+  "desc": "최근 30일",
+  "active": [
+   "월간"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 1,
+  "cta": [],
+  "emptyText": null
+ },
+ {
+  "vn": "m360",
+  "n": "4b-back",
+  "path": "/tab/ranking",
+  "desc": "누적 대화 턴",
+  "active": [
+   "전체"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 2,
+  "cta": [],
+  "emptyText": null
+ },
+ {
+  "vn": "m360",
+  "n": "5-card-entry",
+  "href": "/character/267",
+  "veil": true,
+  "arrived": "/character/267",
+  "h1": "강이현강이현"
+ },
+ {
+  "vn": "m360",
+  "n": "5b-back",
+  "path": "/tab/ranking?p=all",
+  "desc": "누적 대화 턴",
+  "active": [
+   "전체"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 2,
+  "cta": [],
+  "emptyText": "아직 최근 활동이 없습니다."
+ },
+ {
+  "vn": "pc1440",
+  "n": "1-default",
+  "path": "/tab/ranking",
+  "desc": "누적 대화 턴",
+  "active": [
+   "전체"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 2,
+  "cta": [],
+  "emptyText": null
+ },
+ {
+  "vn": "pc1440",
+  "n": "2-all",
+  "path": "/tab/ranking?p=all",
+  "desc": "누적 대화 턴",
+  "active": [
+   "전체"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 2,
+  "cta": [],
+  "emptyText": null
+ },
+ {
+  "vn": "pc1440",
+  "n": "3-realtime-empty",
+  "path": "/tab/ranking?p=realtime",
+  "desc": "최근 6시간 대화 시작 수",
+  "active": [
+   "실시간",
+   "전체 랭킹 보기"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간",
+   "전체 랭킹 보기"
+  ],
+  "rows": 0,
+  "cta": [
+   "전체 랭킹 보기->/tab/ranking?p=all"
+  ],
+  "emptyText": "최근 6시간 동안 대화가 시작된 캐릭터가 없습니다."
+ },
+ {
+  "vn": "pc1440",
+  "n": "4-chip-monthly",
+  "path": "/tab/ranking?p=monthly",
+  "desc": "최근 30일",
+  "active": [
+   "월간"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 1,
+  "cta": [],
+  "emptyText": null
+ },
+ {
+  "vn": "pc1440",
+  "n": "4b-back",
+  "path": "/tab/ranking",
+  "desc": "누적 대화 턴",
+  "active": [
+   "전체"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 2,
+  "cta": [],
+  "emptyText": null
+ },
+ {
+  "vn": "pc1440",
+  "n": "5-card-entry",
+  "href": "/character/267",
+  "veil": true,
+  "arrived": "/character/267",
+  "h1": "강이현강이현"
+ },
+ {
+  "vn": "pc1440",
+  "n": "5b-back",
+  "path": "/tab/ranking?p=all",
+  "desc": "누적 대화 턴",
+  "active": [
+   "전체"
+  ],
+  "chips": [
+   "전체",
+   "실시간",
+   "일간",
+   "주간",
+   "월간"
+  ],
+  "rows": 2,
+  "cta": [],
+  "emptyText": "아직 최근 활동이 없습니다."
+ }
+]
