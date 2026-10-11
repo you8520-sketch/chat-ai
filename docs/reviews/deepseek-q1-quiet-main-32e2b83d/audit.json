@@ -1,0 +1,35 @@
+{
+  "model": "deepseek-v4.1-flash",
+  "stream": false,
+  "temperature": 0.92,
+  "top_p": 0.92,
+  "thinking": {
+    "type": "disabled"
+  },
+  "reasoning_effort": "none",
+  "noMaxTokens": true,
+  "topKeys": [
+    "model",
+    "messages",
+    "stream",
+    "temperature",
+    "stream_options",
+    "top_p",
+    "thinking",
+    "reasoning_effort"
+  ],
+  "messageRoles": [
+    "system",
+    "user",
+    "assistant",
+    "user"
+  ],
+  "currentUserAnchorOnce": 1,
+  "lengthSentenceCount": 1,
+  "scenePacingCount": 1,
+  "commonProseCount": 1,
+  "허용된변화": 0,
+  "전개초점": 0,
+  "creatorNote": 0,
+  "compactSha256": "fc237326fabcbb94a55eb6d8004dc5e3949dfa3f39db3df0c8554ee148d6b756"
+}

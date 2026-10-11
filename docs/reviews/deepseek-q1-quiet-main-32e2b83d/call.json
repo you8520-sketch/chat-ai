@@ -1,0 +1,31 @@
+{
+  "label": "CONTROLLED_FIXTURE_NOT_LIVE_PRODUCTION",
+  "model": "deepseek-v4.1-flash",
+  "route": "cheaperinference",
+  "endpoint": "POST /v1/chat/completions (non-stream)",
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "promptTokens": 4416,
+  "completionTokens": 1892,
+  "usage": {
+    "prompt_tokens": 4416,
+    "completion_tokens": 1892,
+    "total_tokens": 6308,
+    "prompt_tokens_details": {
+      "cached_tokens": 3968
+    },
+    "prompt_cache_hit_tokens": 3968,
+    "prompt_cache_miss_tokens": 448,
+    "cost": 0.000607,
+    "cost_details": {
+      "upstream_inference_cost": 0.000607
+    }
+  },
+  "requestId": "1607e7f3-e057-440a-ae15-1a70240d989a",
+  "rawChars": 2425,
+  "visibleChars": 1782,
+  "seconds": 16.008,
+  "requestCompactSha256": "fc237326fabcbb94a55eb6d8004dc5e3949dfa3f39db3df0c8554ee148d6b756",
+  "rawFileSha256": "4812561ae81c74732eb63dca349816217acf09353da7acf660f6dfad1df7e77c",
+  "error": null
+}
