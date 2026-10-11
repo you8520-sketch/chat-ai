@@ -1,0 +1,252 @@
+{
+ "log": {
+  "m390-chip": {
+   "url": "/search?q=%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "",
+   "summary": "「아포칼립스」 검색 결과 1건",
+   "names": [
+    "강이현"
+   ]
+  },
+  "m390-typed": {
+   "url": "/search?q=%23%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "#아포칼립스",
+   "summary": "「#아포칼립스」 검색 결과 0건",
+   "names": []
+  },
+  "m390-normal": {
+   "url": "/search?q=%EA%B0%95%EC%9D%B4%ED%98%84",
+   "inputValue": "강이현",
+   "summary": "「강이현」 검색 결과 1건",
+   "names": [
+    "강이현"
+   ]
+  },
+  "m360-chip": {
+   "url": "/search?q=%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "",
+   "summary": "「아포칼립스」 검색 결과 1건",
+   "names": [
+    "강이현"
+   ]
+  },
+  "m360-typed": {
+   "url": "/search?q=%23%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "#아포칼립스",
+   "summary": "「#아포칼립스」 검색 결과 0건",
+   "names": []
+  },
+  "m360-normal": {
+   "url": "/search?q=%EA%B0%95%EC%9D%B4%ED%98%84",
+   "inputValue": "강이현",
+   "summary": "「강이현」 검색 결과 1건",
+   "names": [
+    "강이현"
+   ]
+  },
+  "pc1440-chip": {
+   "url": "/search?q=%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "",
+   "summary": "「아포칼립스」 검색 결과 1건",
+   "names": [
+    "강이현"
+   ]
+  },
+  "pc1440-typed": {
+   "url": "/search?q=%23%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "#아포칼립스",
+   "summary": "「#아포칼립스」 검색 결과 0건",
+   "names": []
+  },
+  "pc1440-normal": {
+   "url": "/search?q=%EA%B0%95%EC%9D%B4%ED%98%84",
+   "inputValue": "강이현",
+   "summary": "「강이현」 검색 결과 1건",
+   "names": [
+    "강이현"
+   ]
+  }
+ },
+ "mat": [
+  {
+   "label": "tag plain",
+   "text": "아포칼립스",
+   "url": "/search?q=%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "아포칼립스",
+   "summary": "「아포칼립스」 검색 결과 1건",
+   "names": [
+    "강이현"
+   ]
+  },
+  {
+   "label": "hash tag",
+   "text": "#아포칼립스",
+   "url": "/search?q=%23%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "#아포칼립스",
+   "summary": "「#아포칼립스」 검색 결과 0건",
+   "names": []
+  },
+  {
+   "label": "spaced hash",
+   "text": " #아포칼립스 ",
+   "url": "/search?q=%23%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": " #아포칼립스 ",
+   "summary": "「#아포칼립스」 검색 결과 0건",
+   "names": []
+  },
+  {
+   "label": "double hash",
+   "text": "##아포칼립스",
+   "url": "/search?q=%23%23%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "##아포칼립스",
+   "summary": "「##아포칼립스」 검색 결과 0건",
+   "names": []
+  },
+  {
+   "label": "hash then space",
+   "text": "# 아포칼립스",
+   "url": "/search?q=%23+%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "# 아포칼립스",
+   "summary": "「# 아포칼립스」 검색 결과 0건",
+   "names": []
+  },
+  {
+   "label": "name",
+   "text": "강이현",
+   "url": "/search?q=%EA%B0%95%EC%9D%B4%ED%98%84",
+   "inputValue": "강이현",
+   "summary": "「강이현」 검색 결과 1건",
+   "names": [
+    "강이현"
+   ]
+  },
+  {
+   "label": "hash name",
+   "text": "#강이현",
+   "url": "/search?q=%23%EA%B0%95%EC%9D%B4%ED%98%84",
+   "inputValue": "#강이현",
+   "summary": "「#강이현」 검색 결과 0건",
+   "names": []
+  },
+  {
+   "label": "creator",
+   "text": "공식계정",
+   "url": "/search?q=%EA%B3%B5%EC%8B%9D%EA%B3%84%EC%A0%95",
+   "inputValue": "공식계정",
+   "summary": "「공식계정」 검색 결과 3건",
+   "names": [
+    "C# 개발자",
+    "루시안 바스케스",
+    "강이현"
+   ]
+  },
+  {
+   "label": "inner hash name",
+   "text": "C# 개발자",
+   "url": "/search?q=C%23+%EA%B0%9C%EB%B0%9C%EC%9E%90",
+   "inputValue": "C# 개발자",
+   "summary": "「C# 개발자」 검색 결과 1건",
+   "names": [
+    "C# 개발자"
+   ]
+  },
+  {
+   "label": "inner hash",
+   "text": "C#",
+   "url": "/search?q=C%23",
+   "inputValue": "C#",
+   "summary": "「C#」 검색 결과 1건",
+   "names": [
+    "C# 개발자"
+   ]
+  },
+  {
+   "label": "hash no match",
+   "text": "#없는태그",
+   "url": "/search?q=%23%EC%97%86%EB%8A%94%ED%83%9C%EA%B7%B8",
+   "inputValue": "#없는태그",
+   "summary": "「#없는태그」 검색 결과 0건",
+   "names": []
+  },
+  {
+   "label": "no match",
+   "text": "없는태그",
+   "url": "/search?q=%EC%97%86%EB%8A%94%ED%83%9C%EA%B7%B8",
+   "inputValue": "없는태그",
+   "summary": "「없는태그」 검색 결과 0건",
+   "names": []
+  },
+  {
+   "label": "hash only",
+   "text": "#",
+   "url": "/search?q=%23",
+   "inputValue": "#",
+   "summary": "「#」 검색 결과 1건",
+   "names": [
+    "C# 개발자"
+   ]
+  },
+  {
+   "label": "blank",
+   "text": "   ",
+   "url": "/search",
+   "inputValue": "   ",
+   "summary": null,
+   "names": []
+  },
+  {
+   "label": "special",
+   "text": "%_\"\\",
+   "url": "/search",
+   "inputValue": "%_\"\\",
+   "summary": null,
+   "names": []
+  },
+  {
+   "label": "long hash",
+   "text": "#가가가가가가가…(61)",
+   "url": "/search?q=%23%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80",
+   "inputValue": "#가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+   "summary": "「#가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가」 검색 결과 0건",
+   "names": []
+  },
+  {
+   "label": "long plain",
+   "text": "가가가가가가가가…(60)",
+   "url": "/search?q=%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80%EA%B0%80",
+   "inputValue": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+   "summary": "「가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가」 검색 결과 0건",
+   "names": []
+  },
+  {
+   "label": "direct /search?q=#아포칼립스",
+   "url": "/search?q=%23%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "#아포칼립스",
+   "summary": "「#아포칼립스」 검색 결과 0건",
+   "names": []
+  },
+  {
+   "label": "direct /search?q=아포칼립스",
+   "url": "/search?q=%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "아포칼립스",
+   "summary": "「아포칼립스」 검색 결과 1건",
+   "names": [
+    "강이현"
+   ]
+  },
+  {
+   "label": "direct /search?q=#아포칼립스&g=현대 판타지",
+   "url": "/search?q=%23%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4&g=%ED%98%84%EB%8C%80%20%ED%8C%90%ED%83%80%EC%A7%80",
+   "inputValue": "#아포칼립스",
+   "summary": "「#아포칼립스」 · 현대 판타지 검색 결과 0건",
+   "names": []
+  },
+  {
+   "label": "viewer typed hash",
+   "url": "/search?q=%23%EC%95%84%ED%8F%AC%EC%B9%BC%EB%A6%BD%EC%8A%A4",
+   "inputValue": "#아포칼립스",
+   "summary": "「#아포칼립스」 검색 결과 0건",
+   "names": []
+  }
+ ]
+}
