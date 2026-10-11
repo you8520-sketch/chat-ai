@@ -275,7 +275,7 @@ after(() => {
 
 describe("50-turn memory lifecycle (provider-free)", () => {
   it("seals, stores, and reinjects facts after raw history drops them", async () => {
-    assert.equal(AI_LEARNING_LIMIT, 10000);
+    assert.equal(AI_LEARNING_LIMIT, 12000);
     assert.equal(MEMORY_CAPACITY_FIXED, 10000);
     assert.equal(ARCHIVE_CAPACITY_FIXED, 3000);
     assert.equal(MEMORY_POLICY_ID, "summary5_raw4");

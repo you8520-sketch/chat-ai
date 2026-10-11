@@ -12,7 +12,7 @@ import {
   substantiveAiLearningCharCount,
 } from "@/lib/creatorNarrationStyle";
 import { buildSimulationSystemPrompt } from "@/lib/simulationMode";
-import { AI_LEARNING_LIMIT, AI_LEARNING_MIN } from "@/lib/characterFormLimits";
+import { AI_LEARNING_LIMIT, AI_LEARNING_MIN, aiLearningLimitExceededMessage } from "@/lib/characterFormLimits";
 
 const LONG_PROMPT = "설정".repeat(800);
 
@@ -430,7 +430,7 @@ describe("simulation import budget validation", () => {
     );
     assert.equal(overLimit.ok, false);
     if (overLimit.ok) return;
-    assert.match(overLimit.error, /10,000/);
+    assert.equal(overLimit.error, aiLearningLimitExceededMessage());
   });
 
   it("style excluded from minimum and included in maximum", () => {
@@ -476,7 +476,8 @@ describe("simulation import budget validation", () => {
     assert.equal(atMin.ok, true);
 
     const nearMaxWorld = "세".repeat(1000);
-    const nearMaxPrompt = "설".repeat(8700);
+    const styleChars = 300;
+    const nearMaxPrompt = "설".repeat(AI_LEARNING_LIMIT - nearMaxWorld.length - styleChars);
     const atMax = parseCharacterFormBody(
       characterBody({
         world: nearMaxWorld,
@@ -485,7 +486,7 @@ describe("simulation import budget validation", () => {
         speech_traits: "",
         speech_examples: "",
         speech_forbidden: "",
-        narration_style_instructions: "가".repeat(300),
+        narration_style_instructions: "가".repeat(styleChars),
       }),
       { id: ownerId, nickname: `user${ownerId}`, is_adult: 1 }
     );
@@ -499,13 +500,13 @@ describe("simulation import budget validation", () => {
         speech_traits: "",
         speech_examples: "",
         speech_forbidden: "",
-        narration_style_instructions: "가".repeat(300),
+        narration_style_instructions: "가".repeat(styleChars),
       }),
       { id: ownerId, nickname: `user${ownerId}`, is_adult: 1 }
     );
     assert.equal(overMax.ok, false);
     if (overMax.ok) return;
-    assert.match(overMax.error, /10,000/);
+    assert.equal(overMax.error, aiLearningLimitExceededMessage());
   });
 });
 

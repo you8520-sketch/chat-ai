@@ -25,11 +25,15 @@ import {
 import { buildOfficialAssetPrompts } from "@/lib/officialSupply/imagePrompt";
 import { evaluateAssetPlan, OFFICIAL_ASSET_TOTAL } from "@/lib/officialSupply/assetPlan";
 import { evaluateAppearanceLock } from "@/lib/officialSupply/appearance";
+import { AI_LEARNING_LIMIT } from "@/lib/characterFormLimits";
 import {
   evaluateAgeAndAdultConsistency,
+  evaluateOfficialStagedSaveLength,
   evaluateOfficialTextLength,
   evaluateSupportingNpcs,
   formatSupportingNpcLine,
+  officialSubstantiveCharCount,
+  OFFICIAL_COMPILED_CHAR_CEILING,
   SUPPORTING_NPC_LINE_HARD_MAX,
 } from "@/lib/officialSupply/characterText";
 import {
@@ -227,15 +231,19 @@ describe("character text QA", () => {
     assert.ok(qa.warnings.some((w) => w.code === "length_total"));
   });
 
-  it("hard limits: too thin, and canonical 10k ceiling incl. appearance reserve", () => {
+  it("hard limits: too thin, and canonical ceiling incl. appearance reserve", () => {
     const thin = hwang();
     thin.sections.worldAndSituation = prose(HWANG_VOCAB, 300);
     thin.sections.characterCore = `27세 ${prose(HWANG_VOCAB, 500)}`;
     thin.sections.relationshipsAndDrives = prose(HWANG_VOCAB, 200);
     assert.ok(evaluateOfficialTextLength(thin).errors.some((e) => e.code === "text_too_thin"));
     const huge = hwang();
-    huge.sections.characterCore = `27세 ${prose(HWANG_VOCAB, 6000)}`;
+    huge.sections.characterCore += "가".repeat(OFFICIAL_COMPILED_CHAR_CEILING - officialSubstantiveCharCount(huge) + 1);
     assert.ok(evaluateOfficialTextLength(huge).errors.some((e) => e.code === "text_exceeds_canonical_ceiling"));
+    const stagedOver = hwang();
+    stagedOver.sections.characterCore += "가".repeat(AI_LEARNING_LIMIT - officialSubstantiveCharCount(stagedOver, "외형") + 1);
+    assert.equal(evaluateOfficialStagedSaveLength(stagedOver, "외형").ok, false);
+    assert.equal(evaluateOfficialStagedSaveLength(hwang(), "외형").ok, true);
   });
 
   it("supporting NPCs: 0, 1 and 3 accepted; 4 rejected; keyword-dense line bound", () => {

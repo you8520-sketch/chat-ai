@@ -140,6 +140,7 @@ import {
   AI_LEARNING_MIN,
   GREETING_LIMIT,
   TAGLINE_LIMIT,
+  aiLearningLimitExceededMessage,
 } from "./characterFormLimits";
 
 export {
@@ -678,7 +679,7 @@ export function parseCharacterFormBody(
   ) {
     return {
       ok: false,
-      error: "세계관/배경 + 캐릭터 설정 + 기본 말투는 합쳐서 10,000자 이하여야 합니다.",
+      error: aiLearningLimitExceededMessage(),
       status: 400,
     };
   }
