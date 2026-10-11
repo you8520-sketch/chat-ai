@@ -361,3 +361,9 @@ export function fetchHomeSections(
 
   return { recommended, contest, newest };
 }
+
+/** 실제로 표시되는(비어 있지 않은) 섹션만 표시 순서대로 01부터 번호를 매긴다. */
+export function homeSectionNumbers(sectionSizes: readonly number[]): string[] {
+  let shown = 0;
+  return sectionSizes.map((size) => (size > 0 ? String(++shown).padStart(2, "0") : ""));
+}
