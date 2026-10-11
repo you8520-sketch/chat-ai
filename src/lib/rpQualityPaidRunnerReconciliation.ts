@@ -1,9 +1,11 @@
 /**
  * Exact-cost reconciliation for the paid runner. Reuses parseCompatibleUsage
  * token fields and the CheaperInference usage-request lookup owner.
- * OpenRouter generation metadata is corroboration only when a generation id is
- * present and distinct from the request id — stream usage.cost is never
- * labeled provider_exact by itself.
+ * OpenRouter generation metadata is the exact-cost owner when a generation id
+ * is present and distinct from any transport request id. A missing transport
+ * request id must not skip that GET; official metadata `request_id` is then
+ * required. When a transport request id is present it must match. Stream
+ * usage.cost is never labeled provider_exact by itself.
  */
 import {
   CI_USAGE_REQUESTS_URL,
@@ -103,11 +105,11 @@ function cheaperInferenceEnvelopeMatchesCanonicalRequestId(input: {
 
 async function lookupOpenRouterGenerationCost(input: {
   generationId: string;
-  requestId: string;
+  requestId: string | null;
   expectedModel: string;
   apiKey: string;
   fetchImpl: typeof fetch;
-}): Promise<{ billedUsd: number; model: string } | null> {
+}): Promise<{ billedUsd: number; model: string; requestId: string } | null> {
   for (let attempt = 0; attempt < PAID_RUNNER_RECONCILE_GET_MAX_ATTEMPTS; attempt += 1) {
     try {
       const url = `${PAID_RUNNER_OPENROUTER_GENERATION_URL}?id=${encodeURIComponent(input.generationId)}`;
@@ -127,13 +129,15 @@ async function lookupOpenRouterGenerationCost(input: {
       const returnedRequestId = typeof data.request_id === "string" ? data.request_id.trim() : "";
       const returnedModel = typeof data.model === "string" ? data.model.trim() : "";
       if (!returnedId || returnedId !== input.generationId) return null;
-      if (!returnedRequestId || returnedRequestId !== input.requestId) return null;
+      if (!returnedRequestId) return null;
+      if (input.requestId && returnedRequestId !== input.requestId) return null;
       if (!returnedModel || returnedModel !== input.expectedModel) return null;
       const billedUsd = readPositiveUsd(data.total_cost);
       if (billedUsd == null) return null;
       return {
         billedUsd,
         model: returnedModel,
+        requestId: returnedRequestId,
       };
     } catch {
       /* GET only; never repeat the generation POST */
@@ -218,11 +222,10 @@ export async function reconcilePaidRunnerSettlement(
     cacheWriteTokens: result.usage.cacheWriteTokens || parsed.cacheWriteTokens || null,
     reasoningTokens: result.usage.reasoningTokens || parsed.reasoningTokens || null,
   };
-  if (!requestId) {
-    return { ...base, ...tokens, settlementSource: "missing" };
-  }
-
   if (call.provider === "cheaperinference") {
+    if (!requestId) {
+      return { ...base, ...tokens, settlementSource: "missing" };
+    }
     const status = cheaperInferenceBillingStatus(result.body);
     const envelopeUsd = cheaperInferenceEnvelopeUsd(result.body);
     if (status === "failed" || status === "error") {
@@ -269,23 +272,33 @@ export async function reconcilePaidRunnerSettlement(
   }
 
   const generationId = result.generationId || readOpenRouterGenerationId(result.body);
-  if (!generationId || generationId === requestId) {
-    return { ...base, ...tokens, providerRequestId: requestId, settlementSource: "unsettled" };
+  if (!generationId || (requestId && generationId === requestId)) {
+    return {
+      ...base,
+      ...tokens,
+      providerRequestId: requestId || null,
+      settlementSource: requestId ? "unsettled" : "missing",
+    };
   }
   const lookedUp = await lookupOpenRouterGenerationCost({
     generationId,
-    requestId,
+    requestId: requestId || null,
     expectedModel: call.wireModel,
     apiKey: input.keys.openRouterKey,
     fetchImpl: input.fetchImpl,
   });
   if (!lookedUp || !(lookedUp.billedUsd > 0)) {
-    return { ...base, ...tokens, providerRequestId: requestId, settlementSource: "unsettled" };
+    return {
+      ...base,
+      ...tokens,
+      providerRequestId: requestId || null,
+      settlementSource: requestId ? "unsettled" : "missing",
+    };
   }
   return {
     ...base,
     ...tokens,
-    providerRequestId: requestId,
+    providerRequestId: lookedUp.requestId,
     billedUsd: lookedUp.billedUsd,
     settlementSource: "provider_exact",
     visibleChars: result.text.length,

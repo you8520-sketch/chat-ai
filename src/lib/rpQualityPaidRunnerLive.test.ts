@@ -1266,4 +1266,197 @@ describe("rp quality paid runner live transport integration", () => {
     assert.equal(numeric.billedUsd, 0.02);
     assert.equal(numeric.providerRequestId, "4812");
   });
+
+  it("OpenRouter generation-id GET settles when the transport request id is absent", async () => {
+    const { sealedCalls } = pack();
+    const gemini = sealedCalls.find((call) => call.provider === "openrouter")!;
+    const cheaper = sealedCalls.find((call) => call.provider === "cheaperinference")!;
+    const generationId = "gen-1791704575-g9euUXxrA3vGySZiIS7J";
+    const officialRequestId = "or-req-from-generation-metadata";
+    const orBase = {
+      ok: true as const,
+      httpStatus: 200,
+      text: "모의",
+      finishReason: "stop",
+      requestId: "",
+      generationId,
+      headers: { "x-generation-id": generationId },
+      body: { id: generationId, model: gemini.wireModel },
+      usage: {
+        promptTokens: 13710,
+        completionTokens: 2519,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        reasoningTokens: 0,
+        billedUsd: null,
+      },
+    };
+
+    function generationFetch(data: Record<string, unknown>, gets: { n: number }): typeof fetch {
+      return async (input) => {
+        const url = String(input);
+        assert.equal(url.includes("/chat/completions"), false);
+        if (url.includes("/generation")) {
+          gets.n += 1;
+          const requested = new URL(url, "https://openrouter.ai").searchParams.get("id");
+          assert.equal(requested, generationId);
+          return Response.json({ data });
+        }
+        throw new Error(`unexpected ${url}`);
+      };
+    }
+
+    const successGets = { n: 0 };
+    const settled = await reconcilePaidRunnerSettlement({
+      call: gemini,
+      result: orBase,
+      elapsedMs: 10,
+      fetchImpl: generationFetch(
+        {
+          id: generationId,
+          request_id: officialRequestId,
+          model: gemini.wireModel,
+          total_cost: 0.0050155,
+        },
+        successGets
+      ),
+      keys: KEYS,
+    });
+    assert.equal(successGets.n, 1);
+    assert.equal(settled.settlementSource, "provider_exact");
+    assert.equal(settled.billedUsd, 0.0050155);
+    assert.equal(settled.providerRequestId, officialRequestId);
+
+    const datedGets = { n: 0 };
+    const dated = await reconcilePaidRunnerSettlement({
+      call: gemini,
+      result: orBase,
+      elapsedMs: 10,
+      fetchImpl: generationFetch(
+        {
+          id: generationId,
+          request_id: officialRequestId,
+          model: `${gemini.wireModel}-20260902`,
+          total_cost: 0.0050155,
+        },
+        datedGets
+      ),
+      keys: KEYS,
+    });
+    assert.equal(datedGets.n, 1);
+    assert.equal(dated.settlementSource, "missing");
+    assert.equal(dated.billedUsd, null);
+
+    const mismatchGets = { n: 0 };
+    const mismatch = await reconcilePaidRunnerSettlement({
+      call: gemini,
+      result: { ...orBase, requestId: "or-req-transport" },
+      elapsedMs: 10,
+      fetchImpl: generationFetch(
+        {
+          id: generationId,
+          request_id: officialRequestId,
+          model: gemini.wireModel,
+          total_cost: 0.0050155,
+        },
+        mismatchGets
+      ),
+      keys: KEYS,
+    });
+    assert.equal(mismatchGets.n, 1);
+    assert.equal(mismatch.settlementSource, "unsettled");
+    assert.equal(mismatch.billedUsd, null);
+
+    const wrongIdGets = { n: 0 };
+    const wrongId = await reconcilePaidRunnerSettlement({
+      call: gemini,
+      result: orBase,
+      elapsedMs: 10,
+      fetchImpl: generationFetch(
+        {
+          id: "gen-other",
+          request_id: officialRequestId,
+          model: gemini.wireModel,
+          total_cost: 0.0050155,
+        },
+        wrongIdGets
+      ),
+      keys: KEYS,
+    });
+    assert.equal(wrongIdGets.n, 1);
+    assert.equal(wrongId.settlementSource, "missing");
+    assert.equal(wrongId.billedUsd, null);
+
+    const noOfficialRequestIdGets = { n: 0 };
+    const noOfficialRequestId = await reconcilePaidRunnerSettlement({
+      call: gemini,
+      result: orBase,
+      elapsedMs: 10,
+      fetchImpl: generationFetch(
+        {
+          id: generationId,
+          model: gemini.wireModel,
+          total_cost: 0.0050155,
+        },
+        noOfficialRequestIdGets
+      ),
+      keys: KEYS,
+    });
+    assert.equal(noOfficialRequestIdGets.n, 1);
+    assert.equal(noOfficialRequestId.settlementSource, "missing");
+    assert.equal(noOfficialRequestId.billedUsd, null);
+
+    const zeroCostGets = { n: 0 };
+    const zeroCost = await reconcilePaidRunnerSettlement({
+      call: gemini,
+      result: orBase,
+      elapsedMs: 10,
+      fetchImpl: generationFetch(
+        {
+          id: generationId,
+          request_id: officialRequestId,
+          model: gemini.wireModel,
+          total_cost: 0,
+        },
+        zeroCostGets
+      ),
+      keys: KEYS,
+    });
+    assert.equal(zeroCostGets.n, 1);
+    assert.equal(zeroCost.settlementSource, "missing");
+    assert.equal(zeroCost.billedUsd, null);
+
+    const ciGets = { n: 0 };
+    const ciMissing = await reconcilePaidRunnerSettlement({
+      call: cheaper,
+      result: {
+        ok: true,
+        httpStatus: 200,
+        text: "모의",
+        finishReason: "stop",
+        requestId: "",
+        generationId: null,
+        headers: {},
+        body: { model: cheaper.wireModel },
+        usage: {
+          promptTokens: 1,
+          completionTokens: 1,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+          reasoningTokens: 0,
+          billedUsd: null,
+        },
+      },
+      elapsedMs: 10,
+      fetchImpl: async (input) => {
+        const url = String(input);
+        if (url.includes("/generation") || url.includes("/usage/requests")) ciGets.n += 1;
+        throw new Error(`CI missing request id must not GET ${url}`);
+      },
+      keys: KEYS,
+    });
+    assert.equal(ciGets.n, 0);
+    assert.equal(ciMissing.settlementSource, "missing");
+    assert.equal(ciMissing.billedUsd, null);
+  });
 });
