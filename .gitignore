@@ -5,6 +5,8 @@ out
 data/*.db
 data/*.db-*
 data/app.db.*
+data/uploads/
+data/media/
 data/training-exports/
 data/secure-uploads/
 data/terra-prompt-canary-debug/

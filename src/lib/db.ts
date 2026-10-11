@@ -47,6 +47,7 @@ import { ensureShadowBillingFxTables } from "@/lib/shadowBillingFxPersistence";
 import { ensureDerivedCacheJobsTable } from "@/lib/derivedCache/jobs";
 import { ensureChatBillingSettlementSchema } from "@/lib/chatBillingSettlementSchema";
 import { ensureChatGenerationLeaseSchema } from "@/lib/chatGenerationLeaseSchema";
+import { ensureLocalUiFixtures, shouldInstallLocalUiFixtures } from "@/lib/localDevFixtures";
 import { isRetryableRemoteSchemaError } from "@/lib/libsqlErrors";
 import { initializeRemoteSchema } from "@/lib/remoteSchemaBootstrap";
 import { ensureEmailSignupSchema } from "@/lib/emailSignupSchema";
@@ -349,6 +350,13 @@ function init(db: Database.Database) {
   `);
   migrate(db);
   seed(db);
+  if (shouldInstallLocalUiFixtures()) {
+    try {
+      ensureLocalUiFixtures(db);
+    } catch (error) {
+      console.error("[local-ui-fixtures] install failed", error);
+    }
+  }
 }
 
 // 기존 DB에 새 컬럼 추가 (이미 있으면 무시)
