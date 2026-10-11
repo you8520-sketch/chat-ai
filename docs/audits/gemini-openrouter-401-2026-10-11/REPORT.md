@@ -1,7 +1,7 @@
 # Gemini 3.8 Flash OpenRouter 401 — auth investigation
 
 Status: **ROOT_CAUSE_CONFIRMED_CONFIG_ACTION_REQUIRED**
-Cursor did not score model quality. Provider generation POST **0**. Production DB write **0**. Secret change **0**. Draft only. Do not merge.
+Cursor did not score model quality. Provider generation POST **0**. Production DB write **0**. Secret change **0**. Evidence-only archival; the VM credential is still invalid.
 
 ## EXACT MAIN / HEAD
 
@@ -72,7 +72,7 @@ Two other Cursor VM env names (`OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY`, `OPENR
 | Final-wire | `assemblePrimaryRpRequest` |
 | Production key | `resolveOpenRouterApiKey` ← `OPENROUTER_API_KEY` only |
 | Headers | `buildOpenRouterHeaders` |
-| Auth probe | `GET /api/v1/key` (`OPENROUTER_KEY_AUTH_URL`) |
+| Auth probe | `GET https://openrouter.ai/api/v1/key` (investigation-only read-only request, no application owner added) |
 | Catalog (not auth) | `GET /api/v1/models` |
 | TRPG Gemini | Cheaper Inference (`TRPG_GM_MODEL` / `TRPG_BOT_MODEL`), separate from Main RP OpenRouter |
 | Phase 3B 401 packet | #1520 evidence (unchanged) |
@@ -83,16 +83,11 @@ Two other Cursor VM env names (`OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY`, `OPENR
 
 No operating prompt, price, margin, Gemini slug, provider pin, or other-model routing change.
 
-Added:
-
-- `OPENROUTER_KEY_AUTH_URL` / `OPENROUTER_MODELS_CATALOG_URL` / `classifyOpenRouterReadOnlyProbe`
-- `OPENROUTER_PRODUCTION_API_KEY_ENV` + explicit non-production env name list
-- `resolveOpenRouterApiKey` reads that env constant
-- Deterministic owner tests + Main RP routing workflow hook
+The credential defect is outside the repository. The initial PR introduced helper constants and extra auth-owner tests, but review removed them as unnecessary for this VM-only failure. This PR archives the reproduced evidence only; application/runtime code and workflow remain unchanged.
 
 ## REMOVED
 
-Nothing from production request assembly. No paid execute path added.
+Removed proposed auth URL constants, redundant environment-name owner list/classification helper, new auth-owner tests, and CI workflow hook from this PR. No production code or paid execute path changed.
 
 ## PRESERVED
 
@@ -105,7 +100,7 @@ Nothing from production request assembly. No paid execute path added.
 
 ## REGRESSION RISKS
 
-- Low: env constant rename is source-only; runtime still reads `OPENROUTER_API_KEY`
+- No application/runtime regression: this PR only adds a diagnostic report.
 - Pre-existing on main (not this change): `openRouterConfig.test.ts` expects `X-Title` `하브` while `OPENROUTER_DEFAULT_WIRE_APP_TITLE` is `Hav`. Unrelated to 401. Not patched here.
 
 ## PROOF
@@ -114,11 +109,11 @@ Nothing from production request assembly. No paid execute path added.
 - GET `/key` with Cursor VM `OPENROUTER_API_KEY`: 401 `User not found.`
 - Phase 3B Gemini URL/body/status match the live assembler on current main
 - Railway unread (`railway whoami` → Unauthorized)
-- New tests: `src/lib/openRouterAuthOwner.test.ts`
+- The original code/test additions were dropped after GPT review as non-root-cause patches. No new automated auth tests; repro is the read-only 401 response already collected.
 
 ## SYSTEM DELTA
 
-Auth-owner documentation + regression locks. **No secret rotation.** Replacing the Cursor Cloud `OPENROUTER_API_KEY` (and independently verifying Railway) is an operator action outside this PR.
+Documented the authentication root cause without introducing a second key owner, live auth-probe subsystem, CI gate, or fallback. **No secret rotation.** Replacing the Cursor Cloud `OPENROUTER_API_KEY` (and independently verifying Railway) is an operator action outside this PR.
 
 ## Production impact
 
