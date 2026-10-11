@@ -25,6 +25,29 @@ export const PAID_RUNNER_OPENROUTER_GENERATION_URL = `${OPENROUTER_BASE_URL}/gen
 export const PAID_RUNNER_RECONCILE_GET_MAX_ATTEMPTS = 2;
 export const PAID_RUNNER_RECONCILE_GET_TIMEOUT_MS = 15_000;
 
+/**
+ * Official OpenRouter catalog binding only. `GET /api/v1/models` reports
+ * `id=google/gemini-3.8-flash` with
+ * `canonical_slug=google/gemini-3.8-flash-20260902`. Do not treat `:batch`,
+ * other dates, or family prefixes as equivalent.
+ */
+export const OPENROUTER_GENERATION_MODEL_EQUIVALENCE: ReadonlyArray<
+  readonly [requestedWire: string, catalogCanonicalSlug: string]
+> = [["google/gemini-3.8-flash", "google/gemini-3.8-flash-20260902"]];
+
+export function openRouterGenerationModelMatchesExpected(input: {
+  expectedModel: string;
+  returnedModel: string;
+}): boolean {
+  if (!input.expectedModel || !input.returnedModel) return false;
+  if (input.returnedModel === input.expectedModel) return true;
+  return OPENROUTER_GENERATION_MODEL_EQUIVALENCE.some(
+    ([requestedWire, catalogCanonicalSlug]) =>
+      (input.expectedModel === requestedWire && input.returnedModel === catalogCanonicalSlug) ||
+      (input.expectedModel === catalogCanonicalSlug && input.returnedModel === requestedWire)
+  );
+}
+
 export type PaidRunnerReconcileKeys = {
   openRouterKey: string;
   cheaperInferenceKey: string;
@@ -131,7 +154,15 @@ async function lookupOpenRouterGenerationCost(input: {
       if (!returnedId || returnedId !== input.generationId) return null;
       if (!returnedRequestId) return null;
       if (input.requestId && returnedRequestId !== input.requestId) return null;
-      if (!returnedModel || returnedModel !== input.expectedModel) return null;
+      if (
+        !returnedModel ||
+        !openRouterGenerationModelMatchesExpected({
+          expectedModel: input.expectedModel,
+          returnedModel,
+        })
+      ) {
+        return null;
+      }
       const billedUsd = readPositiveUsd(data.total_cost);
       if (billedUsd == null) return null;
       return {

@@ -44,6 +44,7 @@ import {
   livePaidRunnerUsesCanonicalModels,
 } from "@/lib/rpQualityPaidRunnerLiveTransport";
 import {
+  openRouterGenerationModelMatchesExpected,
   reconcilePaidRunnerSettlement,
 } from "@/lib/rpQualityPaidRunnerReconciliation";
 
@@ -1336,7 +1337,7 @@ describe("rp quality paid runner live transport integration", () => {
         {
           id: generationId,
           request_id: officialRequestId,
-          model: `${gemini.wireModel}-20260902`,
+          model: "google/gemini-3.8-flash-20260902",
           total_cost: 0.0050155,
         },
         datedGets
@@ -1344,8 +1345,53 @@ describe("rp quality paid runner live transport integration", () => {
       keys: KEYS,
     });
     assert.equal(datedGets.n, 1);
-    assert.equal(dated.settlementSource, "missing");
-    assert.equal(dated.billedUsd, null);
+    assert.equal(dated.settlementSource, "provider_exact");
+    assert.equal(dated.billedUsd, 0.0050155);
+    assert.equal(dated.providerRequestId, officialRequestId);
+    assert.equal(
+      openRouterGenerationModelMatchesExpected({
+        expectedModel: gemini.wireModel,
+        returnedModel: "google/gemini-3.8-flash-20260902",
+      }),
+      true
+    );
+
+    const spoofs = [
+      "google/gemini-3.8-flash-20260903",
+      "google/gemini-3.8-flash:batch",
+      "google/gemini-3.8-pro",
+      "google/gemini-3.7-flash",
+      "gemini-3.8-flash",
+    ];
+    for (const spoof of spoofs) {
+      const spoofGets = { n: 0 };
+      const rejected = await reconcilePaidRunnerSettlement({
+        call: gemini,
+        result: orBase,
+        elapsedMs: 10,
+        fetchImpl: generationFetch(
+          {
+            id: generationId,
+            request_id: officialRequestId,
+            model: spoof,
+            total_cost: 0.0050155,
+          },
+          spoofGets
+        ),
+        keys: KEYS,
+      });
+      assert.equal(spoofGets.n, 1, spoof);
+      assert.equal(rejected.settlementSource, "missing", spoof);
+      assert.equal(rejected.billedUsd, null, spoof);
+      assert.equal(
+        openRouterGenerationModelMatchesExpected({
+          expectedModel: gemini.wireModel,
+          returnedModel: spoof,
+        }),
+        false,
+        spoof
+      );
+    }
 
     const mismatchGets = { n: 0 };
     const mismatch = await reconcilePaidRunnerSettlement({
