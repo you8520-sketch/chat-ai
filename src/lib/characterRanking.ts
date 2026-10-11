@@ -9,12 +9,14 @@ function listableWhereAliased(alias: string, extra = "1=1"): string {
 
 export type RankingPeriod = "realtime" | "daily" | "weekly" | "monthly" | "all";
 
-export const RANKING_PERIODS: { id: RankingPeriod; label: string; desc: string }[] = [
-  { id: "realtime", label: "실시간", desc: "최근 6시간 대화 시작 수" },
-  { id: "daily", label: "일간", desc: "최근 24시간" },
-  { id: "weekly", label: "주간", desc: "최근 7일" },
-  { id: "monthly", label: "월간", desc: "최근 30일" },
-  { id: "all", label: "전체", desc: "누적 대화 턴" },
+export const DEFAULT_RANKING_PERIOD: RankingPeriod = "all";
+
+export const RANKING_PERIODS: { id: RankingPeriod; label: string; desc: string; window: string | null }[] = [
+  { id: "all", label: "전체", desc: "누적 대화 턴", window: null },
+  { id: "realtime", label: "실시간", desc: "최근 6시간 대화 시작 수", window: "최근 6시간" },
+  { id: "daily", label: "일간", desc: "최근 24시간", window: "최근 24시간" },
+  { id: "weekly", label: "주간", desc: "최근 7일", window: "최근 7일" },
+  { id: "monthly", label: "월간", desc: "최근 30일", window: "최근 30일" },
 ];
 
 export type RankedCharacter = CharacterRow & { period_chats: number };
@@ -23,7 +25,7 @@ export function parseRankingPeriod(raw: string | undefined): RankingPeriod {
   if (raw && RANKING_PERIODS.some((p) => p.id === raw)) {
     return raw as RankingPeriod;
   }
-  return "realtime";
+  return DEFAULT_RANKING_PERIOD;
 }
 
 function chatSinceSql(period: RankingPeriod): string | null {
@@ -76,10 +78,13 @@ export function fetchCharacterRanking(
   return decorateCharactersWithCreatorTiers(db, rows);
 }
 
-export function rankingPeriodLabel(period: RankingPeriod): string {
-  return RANKING_PERIODS.find((p) => p.id === period)?.label ?? "랭킹";
-}
-
 export function rankingPeriodDesc(period: RankingPeriod): string {
   return RANKING_PERIODS.find((p) => p.id === period)?.desc ?? "";
+}
+
+export function rankingEmptyMessage(period: RankingPeriod): string {
+  const window = RANKING_PERIODS.find((p) => p.id === period)?.window;
+  return window
+    ? `${window} 동안 대화가 시작된 캐릭터가 없습니다.`
+    : "아직 랭킹에 표시할 캐릭터가 없습니다.";
 }
