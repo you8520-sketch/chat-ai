@@ -32,6 +32,30 @@ const SUPPORT_STOPWORDS = new Set([
   "있어",
 ]);
 
+const RECALL_PRESUPPOSITION_CUE =
+  /기억(?:하지|나|나지|해|하니|하냐)|알(?:지|잖아)(?:[?!….,\s]|$)|(?:뭐|무엇|어떤).{0,16}(?:였더라|했더라|먹었더라|갔더라|봤더라)/u;
+
+/**
+ * Current-turn USER text that only presupposes a past ("기억나?", "알지?")
+ * is not evidence for missing shared-history specifics.
+ * Concrete assertions and OOC setup stay eligible for token support.
+ */
+export function userTextIsRecallPresuppositionOnly(text: string | null | undefined): boolean {
+  const value = text?.trim() ?? "";
+  if (!value) return false;
+  if (/(?:^|\n)\s*OOC\s*:/iu.test(value)) return false;
+  if (!RECALL_PRESUPPOSITION_CUE.test(value) && !/[?？]/.test(value)) return false;
+  const withoutQuestion = value
+    .replace(RECALL_PRESUPPOSITION_CUE, " ")
+    .replace(/[?？]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!withoutQuestion) return true;
+  // Short recall questions whose leftover tokens are only the presupposed
+  // topic are not assertions of new shared-history detail.
+  return withoutQuestion.length <= 24;
+}
+
 function normalizeSupportToken(token: string): string {
   return token
     .toLowerCase()
@@ -86,6 +110,7 @@ export function userTextSupportsPriorSharedHistoryClaim(
   if (!looksLikePriorSharedUserHistory(claimText)) return true;
   const user = userText.trim();
   if (!user) return false;
+  if (userTextIsRecallPresuppositionOnly(user)) return false;
 
   const claimTokens = sharedHistorySupportTokens(claimText);
   if (claimTokens.length === 0) return false;

@@ -350,7 +350,11 @@ export async function summarizeTurnBatch(opts: {
       const first = finishSummary(text);
       const narrative = validateSummaryNarrative(first, "main_canon");
       const grounded = narrative.ok
-        ? isRollingSummaryGroundedInDialogue(narrative.text, opts.dialogue)
+        ? isRollingSummaryGroundedInDialogue(
+            narrative.text,
+            opts.dialogue,
+            opts.userPersona
+          )
         : false;
       if (narrative.ok && grounded) {
         return narrative.text;
