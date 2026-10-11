@@ -4,6 +4,7 @@ import { afterEach, describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { creditPointsWithIds, getPointBalanceOnDb } from "@/lib/points";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+import { buildMockOpenRouterStreamChunks, mockReadableStreamFromText } from "@/lib/mockApiMode";
 import { computeTrpgRoundPoints, TRPG_GM_USAGE_FALLBACK } from "./billing";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet } from "./engineCreate";
 import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
@@ -11,6 +12,7 @@ import { loadPendingGmResult } from "./pendingGmResult";
 import { ensureTrpgTables } from "./schema";
 import { extractTrpgHttpStatus, parseTrpgStartFailureJson } from "./startFailure";
 import { isTrpgMechanicsRefereeEnabled } from "./mechanicsTypes";
+import { TRPG_GM_MODEL } from "./types";
 
 const OPENING = buildTrpgGmStructuredWireText("시작 장면. 낡은 등불이 흔들린다.", {"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false});
 
@@ -79,17 +81,23 @@ function httpError(status: number, text = "provider down"): Response {
   return new Response(text, { status, headers: { "Content-Type": "text/plain" } });
 }
 
+/** Production GM calls request `stream: true` and read SSE; a non-SSE body parses to an empty completion. */
 function completion(text: string): Response {
-  return new Response(
-    JSON.stringify({
-      choices: [{ message: { content: text } }],
+  const chunks = [
+    ...buildMockOpenRouterStreamChunks(text, TRPG_GM_MODEL).slice(0, 1),
+    `data: ${JSON.stringify({
+      choices: [{ delta: {}, finish_reason: "stop" }],
       usage: {
         prompt_tokens: TRPG_GM_USAGE_FALLBACK.inputTokens,
         completion_tokens: TRPG_GM_USAGE_FALLBACK.outputTokens,
       },
-    }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
-  );
+    })}\n\n`,
+    "data: [DONE]\n\n",
+  ];
+  return new Response(mockReadableStreamFromText(chunks), {
+    status: 200,
+    headers: { "Content-Type": "text/event-stream" },
+  });
 }
 
 function count(db: Database.Database, sql: string, id: number): number {
