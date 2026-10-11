@@ -1,6 +1,7 @@
 /**
  * Action-adjudication method hints — separate from persona stat hints in TRPG_STAT_CATALOG.
- * Used only when resolving which sheet stat applies to a submitted action body.
+ * Used only by pickStat to choose which sheet stat applies to a submitted body.
+ * These hints must not decide action type or needsCheck.
  */
 
 export const ACTION_COMPATIBLE_STATS: Record<string, readonly string[]> = {
@@ -78,64 +79,4 @@ export function compatibleStatsForAction(actionType: string | null): readonly st
     return ACTION_COMPATIBLE_STATS[actionType]!;
   }
   return ACTION_COMPATIBLE_STATS.free!;
-}
-
-/**
- * Type-grade method families only. Short stat nouns (창, 활, 총, 독) stay on
- * pickStat via scoreActionMethodHints — they must not lock EXPLICIT_ALWAYS_ROLL.
- * Omitted on purpose (not a second mechanics owner):
- * - DEX: free-action fallback; movement words would become stealth/attack.
- * - INT: too many generic words (정리/확인/흐름) that appear in flavor.
- *   Investigate type comes from PER/INS; INT still wins stat pick.
- * - WIS/REC/FTH/SAN: first-aid and rest already roll via mechanicsIntent;
- *   mapping them to support would force-roll ordinary bandage item use.
- * - TEC: lockpicking already rolls as a free challenge; mapping to use_item
- *   would skip the check through ordinary_item_use.
- */
-const METHOD_STAT_TO_ACTION = {
-  str: "attack",
-  mag: "attack",
-  acc: "attack",
-  con: "defend",
-  grd: "defend",
-  res: "defend",
-  per: "investigate",
-  ins: "investigate",
-  cha: "persuade",
-  pre: "persuade",
-  inf: "persuade",
-  emp: "persuade",
-} as const;
-
-const TYPE_HINT_MIN_LEN = 2;
-const TYPE_HINT_PARTICLE = /(?:을|를|이|가|은|는|과|와|도|만|으로|로|에게|한테)/;
-
-function hintOccursAsTypeLock(hay: string, hint: string): boolean {
-  const token = hint.toLowerCase();
-  if (hint.length >= TYPE_HINT_MIN_LEN) return hay.includes(token);
-  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`${escaped}${TYPE_HINT_PARTICLE.source}`).test(hay);
-}
-
-function scoreActionTypeHints(text: string, key: string): number {
-  const hay = text.toLowerCase();
-  const hints = ACTION_METHOD_STAT_HINTS[key];
-  if (!hints?.length) return 0;
-  return hints.reduce((n, hint) => n + (hintOccursAsTypeLock(hay, hint) ? 1 : 0), 0);
-}
-
-/** Visible action prose only. Caller strips quotes / talk / flavor / safe travel first. */
-export function inferActionTypeFromMethodHints(body: string): keyof typeof ACTION_COMPATIBLE_STATS | null {
-  const text = body.trim();
-  if (!text) return null;
-  let bestType: keyof typeof ACTION_COMPATIBLE_STATS | null = null;
-  let bestScore = 0;
-  for (const [stat, actionType] of Object.entries(METHOD_STAT_TO_ACTION)) {
-    const score = scoreActionTypeHints(text, stat);
-    if (score > bestScore) {
-      bestScore = score;
-      bestType = actionType;
-    }
-  }
-  return bestScore > 0 ? bestType : null;
 }

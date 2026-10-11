@@ -14,10 +14,10 @@ export function stripQuotedDialogue(body: string): string {
     .trim();
 }
 
-const INVESTIGATION = /수색|뒤지|훔치|조사한다|살핀다|살피|훑|확인한다|기척|탐색|숨은/;
+const INVESTIGATION = /수색|뒤지|뒤진|훔치|조사한다|살핀다|살피|훑|확인한다|기척|탐색|숨은/;
 /** Door/window *noun* prefixes are not challenges — 연다/민다/부순/억지로 already cover forcing them. */
 const CHALLENGE =
-  /(?<![가-힣])문을?\s|화물|조준|석궁|때리|치며|달리|뛰어|돌진|막는다|막으려|막아|가로막|방어|집어|던지|부순|연다|민다|뽑는다|베|찌르|잠근|휘두|메고|꽂|파고들|주먹|내지르|억지로|딴다|칼을|은신|숨는|숨어서|몰래/;
+  /(?<![가-힣])문을?\s|화물|조준|석궁|때리|치며|달리|뛰어|돌진|막는다|막으려|막아|가로막|방어|집어|던지|부순|연다|민다|뽑는다|베|벤다|찌르|찌른|공격|외운다|잠근|휘두|메고|꽂|파고들|주먹|내지르|억지로|딴다|칼을|은신|숨는|숨어서|몰래/;
 
 const HAZARD_ENGAGEMENT =
   /무너지(?:는|는|진)?[^.]{0,24}(?:뛰|넘|밀|들)|(?:뛰(?:어)?(?:넘)?|넘(?:어)?|밀(?:어)?|들(?:어)?|밟|가로질|통과|파(?:고)?)[^.]{0,24}(?:잔해|틈|포자(?:층|낭| 구역| 지대)?)|(?:잔해|틈|포자(?:층|낭| 구역| 지대)?)[^.]{0,24}(?:뛰(?:어)?(?:넘)?|넘(?:어)?|밀(?:어)?|들(?:어)?|밟|가로질|통과|파(?:고)?)|맨(?:손|몸)[^.]{0,20}(?:집|잡|만|붙|쥐|넣|닿)|잠긴[^.]{0,20}(?:문|창)[^.]{0,20}(?:연|밀|딴|부|억)|(?:억지|강제)[^.]{0,16}(?:연|밀|딴|부)/;
@@ -25,7 +25,12 @@ const HAZARD_ENGAGEMENT =
 const PHYSICAL_ENTRY =
   /(?:들여(?:놓|넣)|(?:한\s)?발(?:을)?[^.]{0,20}(?:들|옮|내디|디)|(?:안쪽|안으로|통로|틈|문턱)[^.]{0,20}(?:들|진입|밀|뛰)|(?:뛰|달|진)[^.]{0,16}(?:들|진입|통과))/;
 
-const CONTESTED = /속이|거짓말|협박|위협|설득하려|통과하려|거짓말로|속이려/;
+/** Attempted social contest — not a topic-noun mention such as 거짓말은. */
+const CONTESTED = /속이|협박|위협|설득(?:한다|하려|해)|통과하려|거짓말(?:로|을)|속이려/;
+
+/** Combat attempt verbs from the existing CHALLENGE owner — not stat-hint nouns. */
+const ATTACK_ATTEMPT = /조준|석궁|때리|돌진|부순|베|벤다|찌르|찌른|휘두|주먹|내지르|칼을|공격|외운다/;
+const DEFEND_ATTEMPT = /막는다|막으려|막아|가로막|방어/;
 
 function hasHazardEngagement(text: string): boolean {
   const normalized = normalizeBody(text);
@@ -86,5 +91,21 @@ export function classifyChallengeKind(body: string): "challenge" | "hazard" | "c
   if (hasHazardEngagement(text)) return "hazard";
   if (hasActorPhysicalEntry(text)) return "challenge";
   if (INVESTIGATION.test(text) || CHALLENGE.test(text)) return "challenge";
+  return null;
+}
+
+/**
+ * Attempted-action type from existing semantic owners.
+ * Noun / stat-hint matches are not a type. pickStat still uses those separately.
+ */
+export function inferAttemptedActionType(
+  body: string
+): "attack" | "defend" | "investigate" | "persuade" | null {
+  const text = normalizeBody(body);
+  if (!text) return null;
+  if (CONTESTED.test(text)) return "persuade";
+  if (INVESTIGATION.test(text)) return "investigate";
+  if (DEFEND_ATTEMPT.test(text)) return "defend";
+  if (ATTACK_ATTEMPT.test(text)) return "attack";
   return null;
 }

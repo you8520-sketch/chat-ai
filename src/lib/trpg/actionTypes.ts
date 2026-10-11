@@ -1,11 +1,12 @@
 import { isHarmlessFlavorAction, isTalkOnlyAction } from "./actionCheck";
 import { declaresTraversalIntent } from "./actionCheckContext";
+import { compatibleStatsForAction, scoreActionMethodHints } from "./actionMethodHints";
 import {
-  compatibleStatsForAction,
-  inferActionTypeFromMethodHints,
-  scoreActionMethodHints,
-} from "./actionMethodHints";
-import { classifyChallengeKind, hasChallengeSignal, stripQuotedDialogue } from "./actionSemantics";
+  classifyChallengeKind,
+  hasChallengeSignal,
+  inferAttemptedActionType,
+  stripQuotedDialogue,
+} from "./actionSemantics";
 import type { TrpgStatDefinition } from "./types";
 
 export const TRPG_ACTION_TYPES = [
@@ -176,8 +177,8 @@ function isSafeTravelWithoutChallenge(visible: string): boolean {
 
 /**
  * Human composer no longer chooses a type.
- * Talk / flavor / safe travel stay free. Method-hint families may lock a type
- * only on leftover visible action prose, and never via 1-char stat nouns.
+ * Talk / flavor / safe travel stay free. Any leftover type comes from
+ * attempted-action meaning, not from stat-hint nouns.
  */
 export function resolveHumanSubmittedActionType(body: string): TrpgActionType {
   if (isTalkOnlyAction(body)) return "free";
@@ -185,8 +186,7 @@ export function resolveHumanSubmittedActionType(body: string): TrpgActionType {
   if (!visible) return "free";
   if (isHarmlessFlavorAction(body) || isHarmlessFlavorAction(visible)) return "free";
   if (isSafeTravelWithoutChallenge(visible)) return "free";
-  const inferred = inferActionTypeFromMethodHints(visible);
-  return inferred && isTrpgActionType(inferred) ? inferred : "free";
+  return inferAttemptedActionType(visible) ?? "free";
 }
 
 export function resolveAdjudicationStat(opts: {
