@@ -266,11 +266,13 @@ export function parseScenarioEncounters(raw: unknown): TrpgScenarioEncounter[] {
 
 /**
  * Save-boundary guard. `encounters` absent/null/[] means the author set none (legacy campaign semantics
- * stay), and so does an empty plan string. A non-empty plan string must be parseable JSON, and any
- * explicit encounters must be fully valid: a partly or wholly dropped list would otherwise leave the
- * campaign on GM-owned HP without telling the author.
+ * stay), and so does an empty plan string. A non-empty plan string must be parseable JSON, any explicit
+ * plan must be an object (a parsed `[]`/`123`/`null` or a direct array/number/boolean would read as "no plan"
+ * and overwrite the stored one), and any explicit encounters must be fully valid: a partly or wholly
+ * dropped list would otherwise leave the campaign on GM-owned HP without telling the author.
  */
 export function assertAuthoredEncountersValid(rawPlan: unknown): void {
+  if (rawPlan == null) return;
   let plan: unknown = rawPlan;
   if (typeof rawPlan === "string") {
     const text = rawPlan.trim();
@@ -281,7 +283,9 @@ export function assertAuthoredEncountersValid(rawPlan: unknown): void {
       throw new Error("시나리오 계획(scenarioPlan) JSON을 읽을 수 없습니다. 형식을 확인해 주세요.");
     }
   }
-  if (!plan || typeof plan !== "object" || Array.isArray(plan)) return;
+  if (!plan || typeof plan !== "object" || Array.isArray(plan)) {
+    throw new Error("시나리오 계획(scenarioPlan)은 JSON 객체여야 합니다. 형식을 확인해 주세요.");
+  }
   const raw = (plan as Record<string, unknown>).encounters;
   if (raw == null) return;
   if (!Array.isArray(raw)) throw new Error("위협(encounters) 설정 오류: 목록 형식이어야 합니다.");

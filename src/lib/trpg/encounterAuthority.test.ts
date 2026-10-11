@@ -1098,6 +1098,50 @@ describe("encounter authority: malformed author config is rejected at the save b
     db.close();
   });
 
+  it("an update with a syntactically valid but non-object JSON plan string is rejected and the stored encounters survive", () => {
+    const db = memoryDb();
+    const id = tryInsert(db, [WOLF]);
+    const before = db.prepare(`SELECT title, scenario_plan_json FROM trpg_scenario_templates WHERE id=?`).get(id) as { title: string; scenario_plan_json: string };
+    for (const nonPlan of ["[]", "[1]", "123", "true", "false", "null", '"text"', " [] "]) {
+      assert.throws(
+        () => updateScenarioTemplate(db, id, 7, { ...base, title: "바뀐 제목", scenarioPlan: nonPlan as never }),
+        /시나리오 계획\(scenarioPlan\)은 JSON 객체여야 합니다/,
+        nonPlan
+      );
+    }
+    const after = db.prepare(`SELECT title, scenario_plan_json FROM trpg_scenario_templates WHERE id=?`).get(id) as { title: string; scenario_plan_json: string };
+    assert.equal(after.title, before.title, "title unchanged");
+    assert.equal(after.scenario_plan_json, before.scenario_plan_json, "stored plan unchanged");
+    assert.deepEqual(parseTrpgScenarioPlan(after.scenario_plan_json)?.encounters, [WOLF]);
+    assert.throws(() => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: "[]" as never }), /JSON 객체여야 합니다/);
+    assert.equal(count(db), 1, "no new row from the rejected insert");
+    db.close();
+  });
+
+  it("non-object plans passed directly to the save owner are rejected the same way; unset and null stay allowed", () => {
+    const db = memoryDb();
+    const id = tryInsert(db, [WOLF]);
+    for (const nonPlan of [[], [WOLF], 0, 7, true, false]) {
+      assert.throws(
+        () => updateScenarioTemplate(db, id, 7, { ...base, title: "바뀐 제목", scenarioPlan: nonPlan as never }),
+        /JSON 객체여야 합니다/,
+        JSON.stringify(nonPlan)
+      );
+    }
+    const after = db.prepare(`SELECT title, scenario_plan_json FROM trpg_scenario_templates WHERE id=?`).get(id) as { title: string; scenario_plan_json: string };
+    assert.equal(after.title, "폐역");
+    assert.deepEqual(parseTrpgScenarioPlan(after.scenario_plan_json)?.encounters, [WOLF]);
+    assert.doesNotThrow(() => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: undefined }));
+    assert.doesNotThrow(() => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: null as never }));
+    db.close();
+  });
+
+  it("the lenient reader is unchanged: a non-object plan still reads as no plan", () => {
+    for (const nonPlan of ["[]", "123", "null", "not json", [], 5, null, undefined, ""]) {
+      assert.equal(parseTrpgScenarioPlan(nonPlan as never), null, String(nonPlan));
+    }
+  });
+
   it("valid JSON strings, empty/whitespace strings, and unset/null/empty encounters keep working", () => {
     const db = memoryDb();
     assert.doesNotThrow(() => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: JSON.stringify({ ...PLAN, encounters: [WOLF] }) as never }));
