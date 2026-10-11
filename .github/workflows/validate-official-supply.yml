@@ -47,6 +47,9 @@ jobs:
       - name: Anchor approval operator defaults to zero mutations
         run: npm run official-supply:approve-anchor
 
+      - name: Locked snapshot operator defaults to inspect-only NOT_RUN
+        run: npm run official-supply:reconcile-locked-snapshot
+
       - name: Lucian variation operator defaults to zero calls
         run: npm run official-supply:generate-lucian-variations
 
