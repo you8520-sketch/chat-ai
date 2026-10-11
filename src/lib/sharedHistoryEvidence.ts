@@ -5,16 +5,16 @@
  * historicalTruthPolicy.ts. Summary/episodic layers reuse this owner so a broad
  * user statement cannot validate assistant-invented specifics.
  *
- * Evidence is judged per USER utterance / clause. Joined 5-turn blobs and a
- * trailing "기억나?" must not mix unrelated tokens or discard a concrete
- * assertion in the same message.
+ * Evidence is judged per USER utterance / clause, then per claim/subclaim.
+ * A topic overlap on the whole claim (어제+시장) must not whitelist an extra
+ * relationship or shared-event subclaim. Questions never count as evidence.
  */
 
 const HARD_PRIOR_SHARED_RELATIONSHIP_CUE =
-  /(?:만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|전에.{0,24}(?:만났|함께|약속|알았|연락)|예전에.{0,24}(?:만났|함께|약속|알았|연락)|지난번.{0,24}(?:만났|함께|약속|알았|연락)|그때\s*우리|네가\s*약속했|(?:유저|사용자).{0,18}(?:친분|인연|관계))/i;
+  /(?:만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|전에.{0,24}(?:만났|함께|약속|알았|연락)|예전(?:에|부터).{0,24}(?:만났|함께|약속|알았|알고|연락)|지난번.{0,24}(?:만났|함께|약속|알았|연락)|그때\s*우리|네가\s*약속했|(?:유저|사용자).{0,18}(?:친분|인연|관계))/i;
 
 const PRIOR_SHARED_HISTORY_CUE =
-  /(?:첫\s*만남|만난\s*(?:뒤|후)|이후|만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|네가\s*약속했|전에|예전에|지난번|저번(?:에)?|어제|그때|아까|몇\s*(?:차례|번)|여러\s*번|그동안|(?:유저|사용자).{0,18}(?:친분|인연|관계))/i;
+  /(?:첫\s*만남|만난\s*(?:뒤|후)|이후|만난\s*적|아는\s*사이|알던\s*사이|안부.{0,12}(?:전해|전하|부탁)|네가\s*약속했|전에|예전(?:에|부터)|지난번|저번(?:에)?|어제|그때|아까|몇\s*(?:차례|번)|여러\s*번|그동안|(?:유저|사용자).{0,18}(?:친분|인연|관계))/i;
 
 const SUPPORT_STOPWORDS = new Set([
   "유저",
@@ -89,6 +89,10 @@ function oocBody(text: string): string | null {
   return match?.[1]?.trim() || null;
 }
 
+function trimClause(text: string): string {
+  return text.replace(/^[,.\s]+|[.,。\s]+$/g, "").trim();
+}
+
 /**
  * Literal current-user historical setup only. No model/NLP inference.
  * The exact historical-looking OOC clause is preserved so the generation layer
@@ -117,7 +121,7 @@ function splitUserSourceTurns(userText: string): string[] {
 function splitUserClauses(text: string): string[] {
   return text
     .split(/(?<=[.!?。！？])\s+|,\s*(?=기억(?:하지|나|나지|해|하니|하냐))/u)
-    .map((part) => part.replace(/^[,.\s]+|[,.\s]+$/g, "").trim())
+    .map(trimClause)
     .filter(Boolean);
 }
 
@@ -137,17 +141,32 @@ function hasFinitePastAssertion(clause: string): boolean {
   return FINITE_PAST_ASSERTION.test(clause);
 }
 
-function isRecallPresuppositionClause(clause: string): boolean {
-  if (!isQuestionClause(clause)) return false;
-  return !hasFinitePastAssertion(clause);
-}
-
 function isSharedHistoryEvidenceClause(clause: string): boolean {
-  if (isRecallPresuppositionClause(clause)) return false;
+  if (isQuestionClause(clause)) return false;
   return looksLikePriorSharedUserHistory(clause) || hasFinitePastAssertion(clause);
 }
 
+function splitClaimSubclaims(claimText: string): string[] {
+  const parts = splitUserClauses(claimText);
+  const historical = parts.filter(
+    (part) =>
+      looksLikePriorSharedUserHistory(part) || looksLikeHardPriorSharedUserRelationship(part)
+  );
+  return historical.length > 0 ? historical : parts.length > 0 ? parts : [claimText];
+}
+
+/**
+ * One USER evidence unit covers one claim/subclaim.
+ * A topic overlap (어제+시장) cannot whitelist a harder relationship
+ * subclaim that the unit itself does not assert.
+ */
 function claimSupportedByEvidenceUnit(claimText: string, unit: string): boolean {
+  if (
+    looksLikeHardPriorSharedUserRelationship(claimText) &&
+    !looksLikeHardPriorSharedUserRelationship(unit)
+  ) {
+    return false;
+  }
   const claimTokens = sharedHistorySupportTokens(claimText);
   if (claimTokens.length === 0) return false;
   const matched = matchingClaimTokens(claimText, unit);
@@ -184,7 +203,7 @@ export function userTextIsRecallPresuppositionOnly(text: string | null | undefin
   if (!value) return false;
   if (userSharedHistoryEvidenceUnits(value).length > 0) return false;
   return splitUserSourceTurns(value).some((turn) =>
-    splitUserClauses(stripOocLines(turn)).some(isRecallPresuppositionClause)
+    splitUserClauses(stripOocLines(turn)).some(isQuestionClause)
   );
 }
 
@@ -201,8 +220,11 @@ export function userTextSupportsPriorSharedHistoryClaim(
   const user = userText.trim();
   if (!user) return false;
 
-  return userSharedHistoryEvidenceUnits(user).some((unit) =>
-    claimSupportedByEvidenceUnit(claimText, unit)
+  const units = userSharedHistoryEvidenceUnits(user);
+  if (units.length === 0) return false;
+
+  return splitClaimSubclaims(claimText).every((subclaim) =>
+    units.some((unit) => claimSupportedByEvidenceUnit(subclaim, unit))
   );
 }
 

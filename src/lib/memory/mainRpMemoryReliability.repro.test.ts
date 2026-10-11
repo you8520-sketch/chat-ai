@@ -175,6 +175,9 @@ describe("P1 memory reliability — Phase 3B restorage and allow/deny", () => {
     const sourceAssistant = "라이크는 짧게 고개를 끄덕이고 걸음을 맞췄다.";
     const summary =
       "렌과 라이크는 예전부터 알고 지낸 사이로, 오늘 골목에서 다시 만났다. 라이크는 고개를 끄덕이고 걸음을 맞췄다.";
+    assert.deepEqual(userSharedHistoryEvidenceUnits(sourceUser), [
+      "둘은 예전부터 알고 지냈다.",
+    ]);
     assert.equal(
       userTextSupportsPriorSharedHistoryClaim(summary, sourceUser),
       true
@@ -440,6 +443,207 @@ describe("P1 memory reliability — Phase 3B restorage and allow/deny", () => {
       true
     );
     assert.equal(userTextSupportsPriorSharedHistoryClaim(T50_INVENTED, firstMeet), false);
+  });
+
+  it("A 5-turn market assertion cannot whitelist an invented sister-familiarity suffix", async () => {
+    const sourceUser = "어제 우리 둘이 시장에 갔어. 기억나?";
+    const allowed =
+      "렌과 라이크는 어제 시장에 갔다. 라이크는 그 말을 듣고 고개를 끄덕인 뒤 골목 쪽으로 걸음을 맞추며 하늘을 한 번 올려다봤다.";
+    const invented =
+      "렌과 라이크는 어제 시장에 갔다. 그 시장에서 라이크의 누나를 처음 만났고 누나는 렌에게 예전에 본 적이 있다며 안부를 전해 달라고 부탁했다. 라이크는 고개를 끄덕이며 걸음을 이어 갔다.";
+    const dialogueText = fiveTurnDialogue(
+      [sourceUser, ...FILLER_USERS],
+      ["라이크는 고개를 끄덕였다.", ...FILLER_ASSISTANTS]
+    );
+    const units = userSharedHistoryEvidenceUnits(sourceUser);
+    assert.deepEqual(units, ["어제 우리 둘이 시장에 갔어"]);
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(allowed, sourceUser), true);
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(invented, sourceUser), false);
+    assert.equal(isRollingSummaryGroundedInDialogue(allowed, dialogueText, PERSONA), true);
+    assert.equal(isRollingSummaryGroundedInDialogue(invented, dialogueText, PERSONA), false);
+    assert.equal(
+      detectUnsupportedEvidenceFact(
+        {
+          category: "relationship",
+          subject: "like_ren",
+          attribute: "scene_event",
+          value: "sister_prior_familiarity",
+          importance: "important",
+          fact_text: invented,
+          evidence_type: "explicit_scene_event",
+        },
+        [sourceUser, ...FILLER_USERS].join("\n"),
+        [sourceUser, ...FILLER_USERS].map((text, index) => ({
+          turn: index + 1,
+          messageId: index + 1,
+          text,
+        }))
+      ),
+      "unsupported_assistant_user_relationship"
+    );
+    assert.equal(
+      detectUnsupportedEvidenceFact(
+        {
+          category: "relationship",
+          subject: "like_ren",
+          attribute: "scene_event",
+          value: "yesterday_market",
+          importance: "important",
+          fact_text: allowed,
+          evidence_type: "explicit_scene_event",
+        },
+        sourceUser,
+        [{ turn: 1, messageId: 1, text: sourceUser }]
+      ),
+      null
+    );
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: invented }));
+    assert.equal(
+      await summarizeTurnBatch({
+        dialogue: dialogueText,
+        charName: "라이크",
+        userPersona: PERSONA,
+        startTurn: 1,
+        endTurn: 5,
+      }),
+      ""
+    );
+  });
+
+  it("B 5-turn first-meet assertion cannot whitelist an invented sister-knew-user past", async () => {
+    const sourceUser = "우리가 어제 처음 만났는데, 기억나?";
+    const allowed =
+      "렌과 라이크는 어제 처음 만났다. 라이크는 그 말을 듣고 고개를 끄덕인 뒤 골목 쪽으로 걸음을 맞추며 하늘을 한 번 올려다봤다.";
+    const invented =
+      "렌과 라이크는 어제 처음 만났다. 라이크의 누나는 렌을 예전부터 알고 있었다. 라이크는 고개를 끄덕인 뒤 골목 쪽으로 걸음을 맞추며 하늘을 올려다봤다.";
+    const dialogueText = fiveTurnDialogue(
+      [sourceUser, ...FILLER_USERS],
+      ["라이크는 고개를 끄덕였다.", ...FILLER_ASSISTANTS]
+    );
+    assert.deepEqual(userSharedHistoryEvidenceUnits(sourceUser), [
+      "우리가 어제 처음 만났는데",
+    ]);
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(allowed, sourceUser), true);
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(invented, sourceUser), false);
+    assert.equal(isRollingSummaryGroundedInDialogue(allowed, dialogueText, PERSONA), true);
+    assert.equal(isRollingSummaryGroundedInDialogue(invented, dialogueText, PERSONA), false);
+    assert.equal(
+      detectUnsupportedEvidenceFact(
+        {
+          category: "relationship",
+          subject: "like_ren",
+          attribute: "scene_event",
+          value: "sister_knew_user",
+          importance: "important",
+          fact_text: invented,
+          evidence_type: "explicit_scene_event",
+        },
+        sourceUser,
+        [{ turn: 1, messageId: 1, text: sourceUser }]
+      ),
+      "unsupported_assistant_user_relationship"
+    );
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: invented }));
+    assert.equal(
+      await summarizeTurnBatch({
+        dialogue: dialogueText,
+        charName: "라이크",
+        userPersona: PERSONA,
+        startTurn: 1,
+        endTurn: 5,
+      }),
+      ""
+    );
+  });
+
+  it("C 5-turn past question cannot persist the meeting as a confirmed fact", async () => {
+    const sourceUser = "우리 전에 시장에서 누나를 만났어?";
+    const questioned =
+      "렌이 전에 시장에서 누나를 만났는지 물었다고 말했고, 라이크는 고개를 끄덕인 뒤 골목 쪽으로 걸음을 맞추며 하늘을 한 번 올려다봤다.";
+    const invented =
+      "렌과 라이크는 전에 시장에서 누나를 만났다. 라이크는 고개를 끄덕인 뒤 골목 쪽으로 걸음을 맞추며 하늘을 한 번 올려다봤다.";
+    const dialogueText = fiveTurnDialogue(
+      [sourceUser, ...FILLER_USERS],
+      ["라이크는 고개를 끄덕였다.", ...FILLER_ASSISTANTS]
+    );
+    assert.deepEqual(userSharedHistoryEvidenceUnits(sourceUser), []);
+    assert.equal(userTextIsRecallPresuppositionOnly(sourceUser), true);
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(invented, sourceUser), false);
+    assert.equal(isRollingSummaryGroundedInDialogue(questioned, dialogueText, PERSONA), true);
+    assert.equal(isRollingSummaryGroundedInDialogue(invented, dialogueText, PERSONA), false);
+    assert.equal(
+      detectUnsupportedEvidenceFact(
+        {
+          category: "relationship",
+          subject: "like_ren",
+          attribute: "scene_event",
+          value: "prior_market_sister_meeting",
+          importance: "important",
+          fact_text: invented,
+          evidence_type: "explicit_scene_event",
+        },
+        sourceUser,
+        [{ turn: 1, messageId: 1, text: sourceUser }]
+      ),
+      "unsupported_assistant_user_relationship"
+    );
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: invented }));
+    assert.equal(
+      await summarizeTurnBatch({
+        dialogue: dialogueText,
+        charName: "라이크",
+        userPersona: PERSONA,
+        startTurn: 1,
+        endTurn: 5,
+      }),
+      ""
+    );
+  });
+
+  it("D OOC 예전부터 setup is real evidence at the stated scope only", async () => {
+    const sourceUser = "OOC: 둘은 예전부터 알고 지냈다. 오늘 골목에서 다시 만났다.";
+    const allowed =
+      "렌과 라이크는 예전부터 알고 지낸 사이로, 오늘 골목에서 다시 만났다. 라이크는 고개를 끄덕이고 걸음을 맞추며 골목 쪽 하늘을 한 번 올려다봤다.";
+    const invented =
+      "렌과 라이크는 예전부터 알고 지냈다. 라이크의 누나는 렌에게 안부를 전해 달라고 했다. 라이크는 고개를 끄덕이며 걸음을 이어 갔다.";
+    const dialogueText = fiveTurnDialogue(
+      [sourceUser, ...FILLER_USERS],
+      ["라이크는 짧게 고개를 끄덕이고 걸음을 맞췄다.", ...FILLER_ASSISTANTS]
+    );
+    const units = userSharedHistoryEvidenceUnits(sourceUser);
+    assert.ok(units.length > 0, "OOC 예전부터 must produce a real evidence unit");
+    assert.deepEqual(units, ["둘은 예전부터 알고 지냈다."]);
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(allowed, sourceUser), true);
+    assert.equal(userTextSupportsPriorSharedHistoryClaim(invented, sourceUser), false);
+    assert.equal(isRollingSummaryGroundedInDialogue(allowed, dialogueText, PERSONA), true);
+    assert.equal(isRollingSummaryGroundedInDialogue(invented, dialogueText, PERSONA), false);
+    assert.equal(
+      detectUnsupportedEvidenceFact(
+        {
+          category: "relationship",
+          subject: "like_ren",
+          attribute: "scene_event",
+          value: "ooc_sister_suffix",
+          importance: "important",
+          fact_text: invented,
+          evidence_type: "explicit_scene_event",
+        },
+        sourceUser,
+        [{ turn: 1, messageId: 1, text: sourceUser }]
+      ),
+      "unsupported_assistant_user_relationship"
+    );
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: allowed }));
+    assert.equal(
+      await summarizeTurnBatch({
+        dialogue: dialogueText,
+        charName: "라이크",
+        userPersona: PERSONA,
+        startTurn: 1,
+        endTurn: 5,
+      }),
+      allowed
+    );
   });
 
   it("H auto-extract cannot promote invented familiarity thoughts or honorifics", () => {
