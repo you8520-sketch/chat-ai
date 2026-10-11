@@ -119,6 +119,10 @@ describe("movement authority: real engine path (#1541)", () => {
       { location: "세관 청사 1층", hook: "렌은 세관에 들어섰다." },
       { location: "세관 청사 1층", hook: "렌은 세관 서류를 살핀다." },
       { location: "곶 끝의 등대 내부", hook: "GM이 임의로 등대로 되돌렸다." },
+      {
+        location: "곶 끝의 등대 내부",
+        hook: "세관 서류 사이에서 밀수 장부가 나왔다. 렌은 등대 안으로 되돌아갔다.",
+      },
     ];
     const deps = scriptedGm(() => [hostId], steps);
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
@@ -164,6 +168,15 @@ describe("movement authority: real engine path (#1541)", () => {
     assert.equal(strikes(6), 0, "a scene the party already left does not attack it");
     assert.equal(sheetAt(db, hostId).hp, hpAfterLeaving);
     assert.equal(loadAcceptedRoundLocation(db, roundId(db, campaignId, 6)), "세관 청사 1층");
+
+    await play("세관 서류를 더 뒤진다.");
+    assert.equal(loadCampaignLedger(db, campaignId).location, "세관 청사 1층");
+    assert.equal(
+      loadCampaignLedger(db, campaignId).nextRoundContext,
+      "세관 서류 사이에서 밀수 장부가 나왔다.",
+      "the clue found in place survives; only the sentence about the refused relocation is dropped"
+    );
+    assert.equal(strikes(7), 0);
     db.close();
   });
 

@@ -130,10 +130,15 @@ describe("movement authority: what is not a declared move", () => {
   const dock = "회린 부두";
   const market = "회린 시장";
   const reject = (body: string, extra: Partial<Seat> = {}, gm = market) => {
-    const bound = bind({ current: dock, gm, seats: [{ id: 1, at: dock, body, ...extra }] });
+    const bound = bind({
+      current: dock,
+      gm,
+      seats: [{ id: 1, at: dock, body, ...extra }],
+      hook: `부두 일꾼이 소문을 전했다. 렌은 ${gm}에 도착했다.`,
+    });
     assert.equal(bound.location, dock, body);
     assert.equal(placeOf(bound, 1), undefined, body);
-    assert.equal(bound.nextRoundContext, "", `${body}: no hook that assumes the refused place`);
+    assert.equal(bound.nextRoundContext, "부두 일꾼이 소문을 전했다.", `${body}: only the sentence assuming the refused place is dropped`);
   };
 
   it("a negated move", () => {
@@ -221,7 +226,8 @@ describe("movement authority: inside / outside boundary", () => {
 
   it("the same place's detail wording is accepted: parents before the name, sub-areas after it", () => {
     assert.equal(go("어시장으로 이동한다.", "마레노 어시장"), "마레노 어시장");
-    assert.equal(go("어시장으로 이동한다.", "마레노 어시장 외곽 부두"), "마레노 어시장 외곽 부두");
+    assert.equal(go("어시장으로 이동한다.", "마레노 어시장 외곽"), "마레노 어시장 외곽");
+    assert.equal(go("어시장으로 이동한다.", "마레노 어시장 외곽 부두"), "마레노 부두", "a dock beyond the market is another place");
     assert.equal(go("열린 찻집 문으로 들어간다.", "석등 골목 찻집 내부"), "석등 골목 찻집 내부");
     assert.equal(go("열린 찻집 문으로 들어간다.", "석등 골목"), "마레노 부두", "the parent alley is not the tea house");
   });
@@ -390,6 +396,21 @@ describe("movement authority: #1555 server threat targeting stays strict", () =>
     });
     assert.deepEqual(targets(seatLocations), [2, 4], "seats that left are out of reach; the two still inside are the only candidates");
   });
+
+  it("a player who only aims at the threat's place is not moved there by a GM proposal and is not a strike candidate", () => {
+    const shot = bind({
+      current: "선원 조합 회관",
+      gm: "곶 끝의 등대 내부",
+      seats: [
+        { id: 1, at: "선원 조합 회관", body: "등대를 향해 화살을 쏜다." },
+        { id: 2, at: "선원 조합 회관", body: "등대로 가는 길을 조사한다." },
+        { id: 3, at: "선원 조합 회관", body: "곶 끝의 등대로 이동한다." },
+      ],
+    });
+    const at = (id: number) => placeOf(shot, id) ?? "선원 조합 회관";
+    assert.deepEqual([at(1), at(2), at(3)], ["선원 조합 회관", "선원 조합 회관", "곶 끝의 등대 내부"]);
+    assert.deepEqual(targets({ 1: at(1), 2: at(2), 3: at(3) }), [3], "only the seat that really moved can be struck");
+  });
 });
 
 describe("movement authority: one definition of declared movement", () => {
@@ -412,5 +433,117 @@ describe("movement authority: one definition of declared movement", () => {
     ]) {
       assert.equal(declaresTraversalIntent(body), false, body);
     }
+  });
+});
+
+describe("movement authority: #1567 review — aiming, route talk and destination identity", () => {
+  const home = "선원 조합 회관";
+  const go = (body: string, gm: string, tier?: string) =>
+    bind({ current: home, gm, seats: [{ id: 1, at: home, body, tier }] }).location;
+
+  it("aiming, firing or pointing at a place is not moving to it", () => {
+    for (const body of [
+      "등대를 향해 화살을 쏜다.",
+      "등대를 향해 활을 겨눈다.",
+      "곶 끝의 등대를 향해 주문을 외운다.",
+      "등대를 향해 소리친다.",
+    ]) {
+      assert.equal(go(body, "곶 끝의 등대"), home, body);
+      assert.equal(declaresTraversalIntent(body), false, body);
+    }
+  });
+
+  it("talking about or investigating the way to a place is not traversing it", () => {
+    for (const body of [
+      "등대로 가는 길을 조사한다.",
+      "등대로 가는 길을 지도에서 찾아본다.",
+      "등대로 갈 길을 살핀다.",
+      "곶 끝의 등대로 이어지는 길을 확인한다.",
+    ]) {
+      assert.equal(go(body, "곶 끝의 등대"), home, body);
+      assert.equal(declaresTraversalIntent(body), false, body);
+    }
+  });
+
+  it("a real movement toward a place still passes, with or without a following action", () => {
+    assert.equal(go("등대를 향해 달려간다.", "곶 끝의 등대"), "곶 끝의 등대");
+    assert.equal(go("등대를 향해 전속력으로 달려간다.", "곶 끝의 등대"), "곶 끝의 등대");
+    assert.equal(go("등대로 가서 주변을 조사한다.", "곶 끝의 등대"), "곶 끝의 등대");
+    assert.equal(go("곶 끝의 등대로 이동한다.", "곶 끝의 등대 외곽"), "곶 끝의 등대 외곽");
+    assert.equal(go("등대 위로 올라가 바다를 살핀다.", "곶 끝의 등대 내부"), "곶 끝의 등대 내부");
+    assert.equal(go("곶 끝의 등대로 갈 것이다.", "곶 끝의 등대"), "곶 끝의 등대");
+    assert.equal(go("등대를 향한다.", "곶 끝의 등대"), "곶 끝의 등대");
+  });
+
+  it("when the aim and the run cannot be tied together the server fails closed", () => {
+    assert.equal(go("등대를 향해 화살을 쏘며 달려간다.", "곶 끝의 등대"), home, "the aim and the run are separated by another object");
+    assert.equal(go("등대를 향해 화살을 쏘고 제자리에서 버틴다.", "곶 끝의 등대"), home);
+    assert.equal(go("등대로 달려가며 화살을 쏜다.", "곶 끝의 등대"), "곶 끝의 등대", "the goal-marked place with a run is a move");
+  });
+
+  it("a different place that only contains the declared name as one word is refused", () => {
+    for (const gm of ["등대 마을", "곶 끝의 등대 마을", "등대 선술집", "등대 앞 광장", "등대 어시장"]) {
+      assert.equal(go("등대로 이동한다.", gm), home, gm);
+      assert.equal(go("곶 끝의 등대로 이동한다.", gm), home, gm);
+    }
+  });
+
+  it("the same place with parents before it and structural sub-areas after it is accepted", () => {
+    for (const gm of ["곶 끝의 등대", "곶 끝의 등대 외곽", "곶 끝의 등대 내부", "곶 끝의 등대 2층", "등대 꼭대기", "등대 옥상"]) {
+      assert.equal(go("등대로 이동한다.", gm), gm, gm);
+    }
+    assert.equal(go("세관으로 향한다.", "세관 청사 1층"), "세관 청사 1층");
+    assert.equal(go("세관으로 향한다.", "세관 본관 로비"), "세관 본관 로비");
+  });
+
+  it("a refused top-level relocation keeps the facts that do not assume the refused place", () => {
+    const kept = bind({
+      current: home,
+      gm: "곶 끝의 등대 내부",
+      seats: [{ id: 1, at: home, body: "회관 게시판을 살핀다." }],
+      hook: "게시판 뒤에서 바르토의 서신이 나왔다. 서신의 인장을 확인할지 정한다.",
+    });
+    assert.equal(kept.location, home);
+    assert.equal(kept.nextRoundContext, "게시판 뒤에서 바르토의 서신이 나왔다. 서신의 인장을 확인할지 정한다.");
+
+    const mixed = bind({
+      current: home,
+      gm: "곶 끝의 등대 내부",
+      seats: [{ id: 1, at: home, body: "회관 게시판을 살핀다." }],
+      hook: "게시판 뒤에서 바르토의 서신이 나왔다. 렌은 등대 안으로 들어섰다.",
+    });
+    assert.equal(mixed.nextRoundContext, "게시판 뒤에서 바르토의 서신이 나왔다.", "only the sentence about the refused place is dropped");
+  });
+
+  it("a split party keeps the hook facts about the place that was really reached", () => {
+    const bound = bindGmLocationToSubmittedMovement({
+      opening: false,
+      currentLocation: home,
+      proposedLocation: "세관 청사 1층",
+      delta: {
+        players: [
+          { participantId: 1, location: "어시장" },
+          { participantId: 2, location: "세관 청사 1층" },
+        ],
+        location: "세관 청사 1층",
+        nextRoundContext: "렌은 어시장에서 소문을 들었다. 바르토는 회관에 남았다. 둘은 세관에서 만나기로 했다.",
+      },
+      submissions: [
+        { participantId: 1, body: "어시장으로 이동한다." },
+        { participantId: 2, body: "회관 장부를 살핀다." },
+      ],
+      sheetLocations: [
+        { participantId: 1, location: home },
+        { participantId: 2, location: home },
+      ],
+    });
+    assert.equal(bound.location, home);
+    assert.equal(placeOf(bound, 1), "어시장", "the seat that declared 어시장 reached it");
+    assert.equal(placeOf(bound, 2), undefined, "the seat that only read the ledger is not sent to 세관");
+    assert.equal(
+      bound.nextRoundContext,
+      "렌은 어시장에서 소문을 들었다. 바르토는 회관에 남았다.",
+      "facts about the reached place and the stayed seat survive; only the refused 세관 sentence goes"
+    );
   });
 });
