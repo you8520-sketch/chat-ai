@@ -300,7 +300,7 @@ const PAGE_COPY: Record<PublicPagePath, string> = {
   "/": "콘텐츠 탐색 취향 설정",
   "/search": "장르 카테고리 캐릭터명 · 제작자명 · 태그",
   "/tab/new": "실시간 신작",
-  "/tab/ranking": "최근 6시간 대화 시작 수",
+  "/tab/ranking": "누적 대화 턴",
 };
 
 function htmlResponse(path: PublicPagePath, body = PAGE_COPY[path]): Response {

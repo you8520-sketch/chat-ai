@@ -15,8 +15,8 @@ import {
   fetchCharacterRanking,
   parseRankingPeriod,
   RANKING_PERIODS,
+  rankingEmptyMessage,
   rankingPeriodDesc,
-  rankingPeriodLabel,
   type RankedCharacter,
 } from "@/lib/characterRanking";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
@@ -309,11 +309,12 @@ export default async function TabPage({
             })}
           </ol>
         ) : (
-          <p className={cn(studioType.helper, "mt-10 text-center")}>
-            {rankingPeriod === "all"
-              ? "표시할 캐릭터가 없습니다."
-              : `${rankingPeriodLabel(rankingPeriod)} 기간에 대화가 시작된 캐릭터가 없습니다.`}
-          </p>
+          <EmptyPanel
+            className="mt-6"
+            message={rankingEmptyMessage(rankingPeriod)}
+            cta={rankingPeriod === "all" ? "/" : "/tab/ranking?p=all"}
+            ctaLabel={rankingPeriod === "all" ? "홈으로" : "전체 랭킹 보기"}
+          />
         )
       ) : tab === "following" ? (
         <div className="mt-6 space-y-8">
@@ -373,12 +374,28 @@ function Empty({
   return (
     <div className="mt-2">
       <h1 className={studioType.heading}>{title}</h1>
-      <div className={cn(studioSurface.cardDashed, "mt-8 p-10 text-center")}>
-        <p className={studioType.body}>{message}</p>
-        <StudioButton href={cta} className="mt-5">
-          {ctaLabel}
-        </StudioButton>
-      </div>
+      <EmptyPanel className="mt-8" message={message} cta={cta} ctaLabel={ctaLabel} />
+    </div>
+  );
+}
+
+function EmptyPanel({
+  message,
+  cta,
+  ctaLabel,
+  className,
+}: {
+  message: string;
+  cta: string;
+  ctaLabel: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn(studioSurface.cardDashed, "p-10 text-center", className)}>
+      <p className={cn(studioType.body, "break-keep")}>{message}</p>
+      <StudioButton href={cta} className="mt-5">
+        {ctaLabel}
+      </StudioButton>
     </div>
   );
 }
