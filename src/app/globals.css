@@ -1217,6 +1217,310 @@ html:has(.rv-veil) [data-character-hero] :is([data-hero-item], [data-character-h
   }
 }
 
+/* Phase D-3 — 최근 활동 TRPG 캠페인 진입 (렌더 owner: TrpgResumeScene, lifecycle owner: MenuTransitionHost).
+ * D20 문양에서 기하 잉크가 열리고 캠페인 제목이 조립된 뒤, D-2와 반대 기울기의 비대칭 분할로
+ * 실제 캠페인 화면이 드러난다. 주사위 결과·참가자·세계관 원문·비용은 그리지 않는다.
+ * transform·opacity·clip-path만 사용하고 pointer-events: none.
+ * 시간·지속은 TRPG_RESUME_BEATS(trpgResumeTransition.ts)가 CSS 변수와 inline delay로 정한다. */
+.tr-veil {
+  --tr-ivory: #f0e7d4;
+  --tr-violet: #c4b5fd;
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.tr-ink {
+  position: absolute;
+  inset: 0;
+  clip-path: circle(var(--tr-r1) at var(--tr-ox) var(--tr-oy));
+  animation: tr-ink-open var(--tr-ink-ms) cubic-bezier(0.62, 0, 0.18, 1) both;
+}
+
+.tr-panel {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(46% 70% at 48% 50%, rgb(139 92 246 / 0.14), transparent 72%),
+    linear-gradient(80deg, #100e18 0%, #1a1528 48%, #0b0a10 100%);
+}
+
+.tr-panel-a {
+  clip-path: polygon(0 0, var(--tr-seam-t) 0, var(--tr-seam-b) 100%, 0 100%);
+}
+
+.tr-panel-b {
+  clip-path: polygon(
+    calc(var(--tr-seam-t) - 1px) 0,
+    100% 0,
+    100% 100%,
+    calc(var(--tr-seam-b) - 1px) 100%
+  );
+}
+
+.tr-veil[data-phase="reveal"] .tr-panel-a {
+  animation: tr-split-up var(--tr-up-ms) cubic-bezier(0.7, 0, 0.2, 1) both;
+}
+
+.tr-veil[data-phase="reveal"] .tr-panel-b {
+  animation: tr-split-down var(--tr-down-ms) cubic-bezier(0.6, 0, 0.15, 1) var(--tr-down-delay) both;
+}
+
+.tr-edge {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--tr-violet) 18%,
+    var(--tr-ivory) 50%,
+    var(--tr-violet) 82%,
+    transparent
+  );
+  transform-origin: 50% 0;
+  animation: tr-seam-draw var(--tr-seam-ms) cubic-bezier(0.2, 0.8, 0.2, 1) var(--tr-seam-delay) both;
+}
+
+.tr-panel-a .tr-edge {
+  clip-path: polygon(
+    calc(var(--tr-seam-t) - 2px) 0,
+    var(--tr-seam-t) 0,
+    var(--tr-seam-b) 100%,
+    calc(var(--tr-seam-b) - 2px) 100%
+  );
+}
+
+.tr-panel-b .tr-edge {
+  clip-path: polygon(
+    calc(var(--tr-seam-t) - 1px) 0,
+    calc(var(--tr-seam-t) + 1px) 0,
+    calc(var(--tr-seam-b) + 1px) 100%,
+    calc(var(--tr-seam-b) - 1px) 100%
+  );
+}
+
+.tr-line {
+  position: absolute;
+  background: rgb(240 231 212 / 0.22);
+  transform-origin: var(--tr-ox) var(--tr-oy);
+  animation: tr-line-draw var(--tr-line-ms) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.tr-line-h {
+  top: var(--tr-oy);
+  left: 0;
+  width: 100%;
+  height: 1px;
+}
+
+.tr-line-v {
+  left: var(--tr-ox);
+  top: 0;
+  width: 1px;
+  height: 100%;
+}
+
+.tr-ring {
+  position: absolute;
+  border: 1px solid rgb(196 181 253 / 0.7);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  animation: tr-ring-out var(--tr-ring-ms) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.tr-frame {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tr-ivory);
+  background: radial-gradient(circle at 50% 42%, #2a2150 0%, #14101f 68%);
+  transform-origin: var(--tr-pivot);
+  clip-path: circle(var(--tr-iris-r1) at 50% var(--tr-iris-cy));
+  animation: tr-frame-open var(--tr-frame-ms) cubic-bezier(0.16, 1, 0.3, 1) var(--tr-frame-delay) both;
+}
+
+.tr-crest {
+  color: var(--tr-ivory);
+}
+
+.tr-eyebrow {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 20px;
+  color: var(--tr-violet);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  animation: tr-eyebrow-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.tr-eyebrow-rule {
+  width: 34px;
+  height: 1px;
+  background: currentColor;
+  transform-origin: 0 50%;
+  animation: tr-rule-draw 280ms cubic-bezier(0.2, 0.8, 0.2, 1) 260ms both;
+}
+
+.tr-name {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  color: var(--tr-ivory);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  text-align: left;
+}
+
+.tr-name-line {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.tr-g {
+  display: inline-block;
+  animation: tr-glyph-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.tr-g-space {
+  display: inline-block;
+}
+
+@keyframes tr-ink-open {
+  from {
+    clip-path: circle(var(--tr-r0) at var(--tr-ox) var(--tr-oy));
+  }
+  to {
+    clip-path: circle(var(--tr-r1) at var(--tr-ox) var(--tr-oy));
+  }
+}
+
+@keyframes tr-split-up {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-8%, -108%, 0);
+  }
+}
+
+@keyframes tr-split-down {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(8%, 108%, 0);
+  }
+}
+
+@keyframes tr-seam-draw {
+  from {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes tr-line-draw {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes tr-ring-out {
+  from {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(3.4);
+  }
+}
+
+@keyframes tr-frame-open {
+  from {
+    transform: var(--tr-from);
+    clip-path: circle(var(--tr-iris-r0) at 50% var(--tr-iris-cy));
+  }
+  to {
+    transform: none;
+    clip-path: circle(var(--tr-iris-r1) at 50% var(--tr-iris-cy));
+  }
+}
+
+@keyframes tr-eyebrow-in {
+  from {
+    opacity: 0;
+    transform: translate3d(-12px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes tr-rule-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes tr-glyph-in {
+  from {
+    transform: translate3d(0, var(--tr-gy), 0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.tr-pick {
+  animation: tr-pick 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes tr-pick {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tr-veil {
+    display: none;
+  }
+
+  .tr-pick {
+    animation: none;
+  }
+}
+
 @keyframes float-points-up {
   0% {
     opacity: 1;
