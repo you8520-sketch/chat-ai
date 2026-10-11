@@ -12,8 +12,10 @@ node --conditions=react-server --import tsx \
 # -> docs/architecture/trpg-vnext/baseline/baseline-796d279f.json
 ```
 
-입력 fixture: `../fixtures/action-corpus.json` (한국어 행동 32건, Cursor가 제안한 *메커닉 해석* 라벨 — GPT/사용자 확인 전까지 게이트로 쓰지 않는다).
-`confidence: "judgment"` 항목은 라벨 자체에 판단 여지가 있다.
+입력 fixture (모두 Cursor가 제안한 *메커닉 해석* 라벨 — GPT/사용자 승인 전까지 게이트로 쓰지 않는다):
+- `../fixtures/action-corpus.json` — 한국어 행동 32건. **text-only baseline probe** 이며 보편 oracle 이 아니다(A11 A15 A18 R06 R11 은 장면 의존 → context pair 로 보완).
+- `../fixtures/action-context-pairs.json` — context-grounded pair 10그룹/22멤버, `proposed-not-approved`, `gate:false`.
+- `../fixtures/outcome-contract-cases.json` — 서버 결과 계약 O01–O20 **명세**(현재 main 에서는 실행 불가; Slice 1a/1b 테스트의 청사진). H1–H10 은 이 러너가 실제 실행.
 
 ## P1 — HP / 아이템 / 상태 권한 (실제 `resolveRoundMechanics` + `mergeMechanicsOwnedDelta`)
 
@@ -43,6 +45,15 @@ probe 문맥: `localScene=null`, `intent=null` (운영에서는 둘 다 전달�
 | actionType `attack` 칩 | 11 | no_roll 20건 **20건 전부 오롤**, roll 11건은 전부 롤 |
 | clarify 경로 | 없음 | C01(`그를 처리한다.`)에 대한 되묻기 owner 부재 |
 
+## P2b — context pair (`action-context-pairs.json`, 참고용 · 게이트 아님)
+
+현재 owner(`resolveTrpgActionCheckDecision`)는 `localScene` 만 받고 장면 사실(`facts`)은 받을 수 없다. 러너는 각 fixture 장면의 `localScene` 투영만 전달한다.
+
+- 비교 가능한 18 멤버(필수/불필요 라벨이 있는 것) 중 라벨 일치 11 (라벨 미승인이므로 정확도 아님).
+- 같은 문장·다른 기대 4쌍(CP01 CP02 CP08 CP09) 중 현재 owner 결과가 갈리는 쌍 **1** (CP01, `routine_traversal` 경로).
+- 대상 부재(CP02b)·단언된 사실(CP10b)·부정문(CP04a)도 굴림으로 판정됨 → 대상 존재/부정을 입력으로 쓰지 않음.
+- 모호·고위험(CP07) 되묻기 경로 없음.
+
 ## P3 — 장기 기억 가시성 / 시간순서 (`memoryHorizon`, 이벤트 5건 · R5/R20/R50/R100)
 
 가정: 운영은 RAW 3라운드 밖으로 밀린 라운드만 seal 하므로 probe는 `roundEnd <= current-3` 이벤트만 사용한다.
@@ -53,10 +64,15 @@ probe 문맥: `localScene=null`, `intent=null` (운영에서는 둘 다 전달�
 - `eventVisibleToViewer`: viewerKind는 `gm | bot` 뿐 → **인간 참가자별 시점 없음**. GM은 `actor_only` 비밀 열람 가능(설계 의도), 유나 bot은 렌의 배신 비밀을 못 봄(정상).
 - `knownParticipantIds`는 저장(`persistMemoryEvents`)되지만 가시성 판정에는 **읽히지 않음**.
 
+## P3b — 기억 identity / GM 가시성 표시
+
+- `memoryEventFingerprint` 는 라운드를 포함하지 않는다: 같은 문장의 재획득·재화해는 같은 fingerprint → `persistMemoryEvents` 의 `INSERT OR IGNORE ... UNIQUE(campaign_id, fingerprint)` 로 **버려진다**.
+- `formatMemoryLines` 출력은 `- R30: 렌은 몰래 길드에 파티 위치를 넘겼다.` — `actor_only` 사실도 scope/knower 표시가 없다(GM 이 누가 아는지 구분 불가).
+
 ## 전체 TRPG 회귀 baseline
 
 canonical regular runner (`regularTestEgressPolicy`) @ `796d279f`: tests 2049 · pass 2016 · **fail 32** · skipped 1 (전체 로그는 PR 아티팩트).
-이 PR은 runtime 코드를 바꾸지 않으므로 이 숫자는 그대로여야 한다. 실패 목록(중복 제거, 작업과 무관한 기존 문제):
+이 PR은 runtime 코드를 바꾸지 않으므로 이 숫자는 그대로여야 한다. 분류(상세는 RFC §11.3): **GATE-1** `postGmOngoingTrust.test.ts` 파싱 불가(1a/1b 필수 선행), **GATE-2** `gmProviderRetry` F/G/H(멱등성 증명 테스트), 봇 좌석 drift, 나머지 무관. 실패 목록(중복 제거, 작업과 무관한 기존 문제):
 
 - `src/lib/trpg/postGmOngoingTrust.test.ts` — **파싱 불가** (`gmText(participantId?: number, conditions?[], {` 구문 오류, 커밋 `ae26a4b5` 이후). GM condition→DOT owner의 유일한 trust 테스트가 실행되지 않는다.
 - engine 봇 좌석 테스트(`calls the bot seat before the GM and keeps them as two Pro turns`, `lets the second companion see the first companion's action`): mock 내부 assertion 불일치로 ERROR_RECOVERY (런타임 경로는 ACTION_INPUT 완료 — test drift).

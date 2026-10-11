@@ -1026,5 +1026,368 @@
       "note": "Events are append-only facts with no supersede/closure link; a gain (R12) and a loss (R45) both rank into recall with no state resolution."
     },
     "humanViewerFilter": "none — viewerKind is only 'gm' | 'bot'; there is no per-human-participant view in TrpgMemoryQuery"
+  },
+  "memoryIdentity": {
+    "fingerprintExcludesRound": true,
+    "sameSentenceReacquiredLaterHasSameFingerprint": true,
+    "sameSentenceReconciledLaterHasSameFingerprint": true,
+    "consequence": "persistMemoryEvents uses INSERT OR IGNORE on UNIQUE(campaign_id, fingerprint): a later event with identical type/actors/normalized text is silently dropped (re-acquisition, repeated reconciliation).",
+    "formattedLineForActorOnlySecret": "- R30: 렌은 몰래 길드에 파티 위치를 넘겼다.",
+    "formattedLineCarriesScopeOrKnowers": false,
+    "note": "formatEventLine emits '- R<round>: <fact>' only, so the GM memory block cannot tell which participants know an actor_only fact."
+  },
+  "contextPairs": {
+    "gate": false,
+    "labelStatus": "proposed-not-approved",
+    "currentOwnerCanConsumeSceneFacts": false,
+    "note": "resolveTrpgActionCheckDecision receives only localScene (objective/openRoutes/remainingBlockers/...). scene.facts cannot be passed; only the localScene projection of each fixture scene is used.",
+    "comparableMembers": 18,
+    "matches": 11,
+    "samePairsWithDifferentExpectation": 4,
+    "samePairsWhereCurrentOwnerDiffers": 1,
+    "pairs": [
+      {
+        "pairId": "CP01",
+        "sameText": true,
+        "expectedDiffers": true,
+        "currentDiffers": true
+      },
+      {
+        "pairId": "CP02",
+        "sameText": true,
+        "expectedDiffers": true,
+        "currentDiffers": false
+      },
+      {
+        "pairId": "CP03",
+        "sameText": false,
+        "expectedDiffers": true,
+        "currentDiffers": true
+      },
+      {
+        "pairId": "CP04",
+        "sameText": false,
+        "expectedDiffers": true,
+        "currentDiffers": true
+      },
+      {
+        "pairId": "CP06",
+        "sameText": false,
+        "expectedDiffers": true,
+        "currentDiffers": false
+      },
+      {
+        "pairId": "CP07",
+        "sameText": true,
+        "expectedDiffers": false,
+        "currentDiffers": false
+      },
+      {
+        "pairId": "CP08",
+        "sameText": true,
+        "expectedDiffers": true,
+        "currentDiffers": false
+      },
+      {
+        "pairId": "CP09",
+        "sameText": true,
+        "expectedDiffers": true,
+        "currentDiffers": false
+      },
+      {
+        "pairId": "CP10",
+        "sameText": true,
+        "expectedDiffers": false,
+        "currentDiffers": false
+      }
+    ],
+    "members": [
+      {
+        "pairId": "CP01",
+        "id": "CP01a",
+        "text": "문을 열고 복도로 나간다.",
+        "expectedRollNeed": "not_required",
+        "confidence": "clear",
+        "currentDecision": {
+          "needsCheck": false,
+          "reason": "routine_traversal"
+        },
+        "comparable": true,
+        "matches": true
+      },
+      {
+        "pairId": "CP01",
+        "id": "CP01b",
+        "text": "문을 열고 복도로 나간다.",
+        "expectedRollNeed": "required",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "challenge"
+        },
+        "comparable": true,
+        "matches": true
+      },
+      {
+        "pairId": "CP02",
+        "id": "CP02a",
+        "text": "경비병에게 달려들어 칼로 벤다.",
+        "expectedRollNeed": "required",
+        "confidence": "clear",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "challenge"
+        },
+        "comparable": true,
+        "matches": true
+      },
+      {
+        "pairId": "CP02",
+        "id": "CP02b",
+        "text": "경비병에게 달려들어 칼로 벤다.",
+        "expectedRollNeed": "not_required",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "challenge"
+        },
+        "comparable": true,
+        "matches": false
+      },
+      {
+        "pairId": "CP03",
+        "id": "CP03a",
+        "text": "\"문을 부수겠어!\" 하고 소리친다.",
+        "expectedRollNeed": "not_required",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": false,
+          "reason": "no_meaningful_uncertainty"
+        },
+        "comparable": true,
+        "matches": true
+      },
+      {
+        "pairId": "CP03",
+        "id": "CP03b",
+        "text": "잠긴 문을 어깨로 부순다.",
+        "expectedRollNeed": "required",
+        "confidence": "clear",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "hazard"
+        },
+        "comparable": true,
+        "matches": true
+      },
+      {
+        "pairId": "CP03",
+        "id": "CP03c",
+        "text": "\"죽여버리겠다!\" 하고 경비병을 향해 소리친다.",
+        "expectedRollNeed": "not_required",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": false,
+          "reason": "no_meaningful_uncertainty"
+        },
+        "comparable": true,
+        "matches": true
+      },
+      {
+        "pairId": "CP04",
+        "id": "CP04a",
+        "text": "칼을 뽑지 않고 두 손을 펼쳐 보인다.",
+        "expectedRollNeed": "not_required",
+        "confidence": "clear",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "challenge"
+        },
+        "comparable": true,
+        "matches": false
+      },
+      {
+        "pairId": "CP04",
+        "id": "CP04b",
+        "text": "칼을 뽑아 경비병을 벤다.",
+        "expectedRollNeed": "required",
+        "confidence": "clear",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "challenge"
+        },
+        "comparable": true,
+        "matches": true
+      },
+      {
+        "pairId": "CP04",
+        "id": "CP04c",
+        "text": "공격이 끝난 뒤 숨을 고르며 주변을 본다.",
+        "expectedRollNeed": "not_required",
+        "confidence": "clear",
+        "currentDecision": {
+          "needsCheck": false,
+          "reason": "ordinary_free"
+        },
+        "comparable": true,
+        "matches": true
+      },
+      {
+        "pairId": "CP04",
+        "id": "CP04d",
+        "text": "공격한다.",
+        "expectedRollNeed": "required",
+        "confidence": "clear",
+        "currentDecision": {
+          "needsCheck": false,
+          "reason": "no_meaningful_uncertainty"
+        },
+        "comparable": true,
+        "matches": false
+      },
+      {
+        "pairId": "CP05",
+        "id": "CP05a",
+        "text": "제단 위의 유물을 집어 든다.",
+        "expectedRollNeed": "per_submission",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "challenge"
+        },
+        "comparable": false,
+        "matches": null
+      },
+      {
+        "pairId": "CP06",
+        "id": "CP06a",
+        "text": "렌에게 다가가 손을 잡는다.",
+        "expectedRollNeed": "not_required",
+        "confidence": "clear",
+        "currentDecision": {
+          "needsCheck": false,
+          "reason": "ordinary_free"
+        },
+        "comparable": true,
+        "matches": true
+      },
+      {
+        "pairId": "CP06",
+        "id": "CP06b",
+        "text": "두목에게 다가가 손을 잡는다.",
+        "expectedRollNeed": "depends_on_scene",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": false,
+          "reason": "ordinary_free"
+        },
+        "comparable": false,
+        "matches": null
+      },
+      {
+        "pairId": "CP07",
+        "id": "CP07a",
+        "text": "그를 처리한다.",
+        "expectedRollNeed": "clarify",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": false,
+          "reason": "no_meaningful_uncertainty"
+        },
+        "comparable": false,
+        "matches": null
+      },
+      {
+        "pairId": "CP07",
+        "id": "CP07b",
+        "text": "그를 처리한다.",
+        "expectedRollNeed": "clarify",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": false,
+          "reason": "no_meaningful_uncertainty"
+        },
+        "comparable": false,
+        "matches": null
+      },
+      {
+        "pairId": "CP08",
+        "id": "CP08a",
+        "text": "총을 겨눈 채 천천히 문을 연다.",
+        "expectedRollNeed": "not_required",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "challenge"
+        },
+        "comparable": true,
+        "matches": false
+      },
+      {
+        "pairId": "CP08",
+        "id": "CP08b",
+        "text": "총을 겨눈 채 천천히 문을 연다.",
+        "expectedRollNeed": "required",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "challenge"
+        },
+        "comparable": true,
+        "matches": true
+      },
+      {
+        "pairId": "CP09",
+        "id": "CP09a",
+        "text": "독이 묻은 병을 맨손으로 집는다.",
+        "expectedRollNeed": "not_required",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "hazard"
+        },
+        "comparable": true,
+        "matches": false
+      },
+      {
+        "pairId": "CP09",
+        "id": "CP09b",
+        "text": "독이 묻은 병을 맨손으로 집는다.",
+        "expectedRollNeed": "required",
+        "confidence": "clear",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "hazard"
+        },
+        "comparable": true,
+        "matches": true
+      },
+      {
+        "pairId": "CP10",
+        "id": "CP10a",
+        "text": "그가 칼을 들고 다가온다는 것을 알아차린다.",
+        "expectedRollNeed": "not_required",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "challenge"
+        },
+        "comparable": true,
+        "matches": false
+      },
+      {
+        "pairId": "CP10",
+        "id": "CP10b",
+        "text": "그가 칼을 들고 다가온다는 것을 알아차린다.",
+        "expectedRollNeed": "not_required",
+        "confidence": "judgment",
+        "currentDecision": {
+          "needsCheck": true,
+          "reason": "challenge"
+        },
+        "comparable": true,
+        "matches": false
+      }
+    ]
   }
 }

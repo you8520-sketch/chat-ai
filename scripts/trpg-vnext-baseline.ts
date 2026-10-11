@@ -14,6 +14,8 @@ import { parseStoredInventory } from "../src/lib/trpg/inventory.ts";
 import {
   buildHorizonPromptSections,
   eventVisibleToViewer,
+  formatMemoryLines,
+  memoryEventFingerprint,
   selectHistoricalRecall,
   type TrpgMemoryEvent,
   type TrpgMemoryQuery,
@@ -23,6 +25,7 @@ import { resolveRoundMechanics } from "../src/lib/trpg/mechanicsResolve.ts";
 import type { MechanicsActorInput, MechanicsResolution } from "../src/lib/trpg/mechanicsTypes.ts";
 import { derivePostGmOngoingSeeds } from "../src/lib/trpg/postGmOngoing.ts";
 import type { TrpgActionType } from "../src/lib/trpg/actionTypes.ts";
+import type { TrpgLocalSceneProgressV1 } from "../src/lib/trpg/localSceneProgress.ts";
 import type { TrpgSheetSnapshot, TrpgStateDelta } from "../src/lib/trpg/types.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -315,6 +318,71 @@ function actionProbes(): { items: ActionProbe[]; summary: Record<string, number>
   return { items, summary };
 }
 
+
+type ContextPairMember = {
+  id: string;
+  scene: { facts: string[]; localScene: Omit<TrpgLocalSceneProgressV1, "version"> };
+  submissions: Array<{ participant: string; kind: string; text: string }>;
+  expected: { rollNeed: string };
+  confidence: string;
+};
+type ContextPair = { pairId: string; axis: string; scoreable?: boolean; members: ContextPairMember[] };
+
+function contextPairProbes() {
+  const file = JSON.parse(
+    readFileSync(resolvePath(root, "docs/architecture/trpg-vnext/fixtures/action-context-pairs.json"), "utf8")
+  ) as { pairs: ContextPair[] };
+  const byText = new Map<string, string[]>();
+  const members = file.pairs.flatMap((pair) =>
+    pair.members.map((member) => {
+      const first = member.submissions[0]!;
+      const decision = resolveTrpgActionCheckDecision({
+        body: first.text,
+        actionType: "free" as TrpgActionType,
+        localScene: { version: 1, ...member.scene.localScene },
+      });
+      const list = byText.get(first.text) ?? [];
+      list.push(member.id);
+      byText.set(first.text, list);
+      const expected = member.expected.rollNeed;
+      const comparable = pair.scoreable !== false && (expected === "required" || expected === "not_required");
+      return {
+        pairId: pair.pairId,
+        id: member.id,
+        text: first.text,
+        expectedRollNeed: expected,
+        confidence: member.confidence,
+        currentDecision: decision,
+        comparable,
+        matches: comparable ? decision.needsCheck === (expected === "required") : null,
+      };
+    })
+  );
+  const pairs = file.pairs
+    .filter((pair) => pair.scoreable !== false)
+    .map((pair) => {
+      const rows = members.filter((row) => row.pairId === pair.pairId);
+      const sameText = new Set(rows.map((row) => row.text)).size === 1 && rows.length > 1;
+      const expectedDiffers = new Set(rows.map((row) => row.expectedRollNeed)).size > 1;
+      const currentDiffers = new Set(rows.map((row) => row.currentDecision.needsCheck)).size > 1;
+      return { pairId: pair.pairId, sameText, expectedDiffers, currentDiffers };
+    });
+  const samePairs = pairs.filter((pair) => pair.sameText && pair.expectedDiffers);
+  const comparable = members.filter((row) => row.comparable);
+  return {
+    gate: false,
+    labelStatus: "proposed-not-approved",
+    currentOwnerCanConsumeSceneFacts: false,
+    note: "resolveTrpgActionCheckDecision receives only localScene (objective/openRoutes/remainingBlockers/...). scene.facts cannot be passed; only the localScene projection of each fixture scene is used.",
+    comparableMembers: comparable.length,
+    matches: comparable.filter((row) => row.matches).length,
+    samePairsWithDifferentExpectation: samePairs.length,
+    samePairsWhereCurrentOwnerDiffers: samePairs.filter((pair) => pair.currentDiffers).length,
+    pairs,
+    members,
+  };
+}
+
 function ev(
   id: number,
   round: number,
@@ -417,7 +485,34 @@ function memoryProbes() {
   };
 }
 
+
+function memoryIdentityProbes() {
+  const first = memoryEventFingerprint({ campaignId: 1, type: "item", actors: ["강이현"], fact: "현이 은색 열쇠를 얻었다." });
+  const reacquired = memoryEventFingerprint({ campaignId: 1, type: "item", actors: ["강이현"], fact: "현이 은색 열쇠를 얻었다." });
+  const trust1 = memoryEventFingerprint({ campaignId: 1, type: "relationship", actors: ["렌", "유나"], fact: "렌이 유나를 신뢰한다." });
+  const trust2 = memoryEventFingerprint({ campaignId: 1, type: "relationship", actors: ["유나", "렌"], fact: "렌이 유나를 신뢰한다." });
+  const secret: TrpgMemoryEvent = ev(9, 30, {
+    type: "betrayal",
+    fact: "렌은 몰래 길드에 파티 위치를 넘겼다.",
+    actors: ["렌"],
+    scope: "actor_only",
+    knownParticipantIds: [3],
+  });
+  const line = formatMemoryLines([secret], 500);
+  return {
+    fingerprintExcludesRound: true,
+    sameSentenceReacquiredLaterHasSameFingerprint: first === reacquired,
+    sameSentenceReconciledLaterHasSameFingerprint: trust1 === trust2,
+    consequence: "persistMemoryEvents uses INSERT OR IGNORE on UNIQUE(campaign_id, fingerprint): a later event with identical type/actors/normalized text is silently dropped (re-acquisition, repeated reconciliation).",
+    formattedLineForActorOnlySecret: line,
+    formattedLineCarriesScopeOrKnowers: /actor_only|knows|known|알|비밀/.test(line.replace(secret.fact, "")),
+    note: "formatEventLine emits '- R<round>: <fact>' only, so the GM memory block cannot tell which participants know an actor_only fact.",
+  };
+}
+
 const hp = hpProbes();
+const contextPairs = contextPairProbes();
+const memoryIdentity = memoryIdentityProbes();
 const actions = actionProbes();
 const memory = memoryProbes();
 
@@ -436,8 +531,10 @@ const result = {
   actions: actions.summary,
   actionItems: actions.items,
   memory,
+  memoryIdentity,
+  contextPairs,
 };
 
 mkdirSync(outDir, { recursive: true });
 writeFileSync(resolvePath(outDir, `baseline-${baseCommit}.json`), `${JSON.stringify(result, null, 2)}\n`, "utf8");
-console.log(JSON.stringify({ hpSummary: result.hpSummary, actions: result.actions, memory: { visibility: memory.visibility, chronological: memory.recallChronologicalAtR100, order: memory.recallRoundOrderAtR100, contradictions: memory.contradictions } }, null, 2));
+console.log(JSON.stringify({ contextPairs: { comparableMembers: contextPairs.comparableMembers, matches: contextPairs.matches, samePairsWithDifferentExpectation: contextPairs.samePairsWithDifferentExpectation, samePairsWhereCurrentOwnerDiffers: contextPairs.samePairsWhereCurrentOwnerDiffers }, memoryIdentity, hpSummary: result.hpSummary, actions: result.actions, memory: { visibility: memory.visibility, chronological: memory.recallChronologicalAtR100, order: memory.recallRoundOrderAtR100, contradictions: memory.contradictions } }, null, 2));
