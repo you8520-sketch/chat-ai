@@ -1,0 +1,40 @@
+[
+  {
+    "label": "desktop",
+    "size": {
+      "width": 1280,
+      "height": 800
+    },
+    "geometry": {
+      "panelTop": 454,
+      "panelBottom": 790,
+      "firstTop": 534,
+      "firstBottom": 614,
+      "firstVisibleInPanel": true,
+      "windowScrollY": 957,
+      "panelScrollTop": 287,
+      "panelScrollHeight": 622,
+      "panelClientHeight": 335,
+      "toggleText": "행동 예시 켜짐"
+    }
+  },
+  {
+    "label": "mobile",
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "geometry": {
+      "panelTop": 479.53125,
+      "panelBottom": 834,
+      "firstTop": 537.53125,
+      "firstBottom": 637.53125,
+      "firstVisibleInPanel": true,
+      "windowScrollY": 1639,
+      "panelScrollTop": 429,
+      "panelScrollHeight": 782,
+      "panelClientHeight": 353,
+      "toggleText": "행동 예시 켜짐"
+    }
+  }
+]

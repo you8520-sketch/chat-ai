@@ -141,6 +141,44 @@ export function trpgCommandDockOcclusion(
   return { dockPx, keyboardPx, scrollMarginPx: dockPx + keyboardPx };
 }
 
+/**
+ * Scroll the existing command-dock overflow panel so `target` enters its
+ * visible band. Returns the next panel scrollTop, or null when already visible
+ * / no movement is possible. Never touches window scroll.
+ */
+export function nextOverflowPanelScrollTop(opts: {
+  panelScrollTop: number;
+  panelClientHeight: number;
+  panelScrollHeight: number;
+  panelTop: number;
+  targetTop: number;
+  targetHeight: number;
+  paddingPx?: number;
+}): number | null {
+  const panelClientHeight = Number.isFinite(opts.panelClientHeight) ? opts.panelClientHeight : 0;
+  const panelScrollHeight = Number.isFinite(opts.panelScrollHeight) ? opts.panelScrollHeight : 0;
+  const panelScrollTop = Number.isFinite(opts.panelScrollTop) ? opts.panelScrollTop : 0;
+  if (panelClientHeight <= 0 || panelScrollHeight <= panelClientHeight) return null;
+  const padding = Number.isFinite(opts.paddingPx) ? Math.max(0, opts.paddingPx ?? 0) : 8;
+  const targetHeight = Number.isFinite(opts.targetHeight) ? Math.max(0, opts.targetHeight) : 0;
+  const targetOffset = panelScrollTop + (opts.targetTop - opts.panelTop);
+  const visibleStart = panelScrollTop + padding;
+  const visibleEnd = panelScrollTop + panelClientHeight - padding;
+  const targetStart = targetOffset;
+  const targetEnd = targetOffset + targetHeight;
+  if (targetStart >= visibleStart && targetEnd <= visibleEnd) return null;
+  const desired = Math.min(
+    Math.max(0, panelScrollHeight - panelClientHeight),
+    Math.max(0, targetOffset - padding)
+  );
+  if (Math.abs(desired - panelScrollTop) < 1) return null;
+  return desired;
+}
+
+export function overflowPanelScrollBehavior(prefersReducedMotion: boolean): ScrollBehavior {
+  return prefersReducedMotion ? "instant" : "smooth";
+}
+
 export function trpgCommandDockScrollMarginBottom(
   occlusion: Pick<TrpgCommandDockOcclusion, "scrollMarginPx">
 ): string {

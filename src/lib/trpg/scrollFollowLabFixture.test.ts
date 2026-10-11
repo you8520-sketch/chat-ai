@@ -61,4 +61,19 @@ describe("scroll follow lab fixture", () => {
     assert.ok(seen.includes(`a:2:${SCROLL_FOLLOW_LAB_HUMAN_ID}`));
     assert.ok(!seen.includes(`a:2:${SCROLL_FOLLOW_LAB_BOT1_ID}`));
   });
+
+  it("action-examples seeds idle ACTION_INPUT without a provider call", () => {
+    const seed = scrollFollowLabPresentationSeed("action-examples");
+    assert.equal(seed.mode, "idle");
+    const snap = buildScrollFollowLabSnapshot({ actionInput: true });
+    assert.equal(snap.round.phase, "ACTION_INPUT");
+    assert.equal(snap.myDraft?.locked, false);
+    assert.deepEqual(snap.currentRolls, []);
+    const seen = scrollFollowLabSeenLogKeys(2, "action-examples");
+    assert.ok(seen.includes(`a:2:${SCROLL_FOLLOW_LAB_BOT1_ID}`));
+    assert.ok(seen.includes(`n:2`));
+    const client = readFileSync("src/app/trpg/scroll-follow-lab/TrpgScrollFollowLabClient.tsx", "utf8");
+    assert.match(client, /ACTION_EXAMPLE_LAB_SUGGESTIONS/);
+    assert.doesNotMatch(client, /fetch\(/);
+  });
 });
