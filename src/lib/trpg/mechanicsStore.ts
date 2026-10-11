@@ -149,6 +149,31 @@ export function loadLastSafeRestRounds(
   return out;
 }
 
+/** Strikes already committed per encounter id. Derived from applied resolutions, so no extra state exists. */
+export function loadThreatStrikeCounts(
+  db: Database.Database,
+  campaignId: number,
+  beforeRoundId: number
+): Record<string, number> {
+  if (!hasTable(db, "trpg_mechanics_resolutions")) return {};
+  const rows = db
+    .prepare(
+      `SELECT m.resolution_json
+       FROM trpg_mechanics_resolutions m
+       WHERE m.campaign_id=? AND m.round_id<>?`
+    )
+    .all(campaignId, beforeRoundId) as Array<{ resolution_json: string }>;
+  const out: Record<string, number> = {};
+  for (const row of rows) {
+    const parsed = parseJson(row.resolution_json, null as MechanicsResolution | null);
+    if (parsed?.v !== 1 || !parsed.applied) continue;
+    for (const strike of parsed.threatStrikes ?? []) {
+      out[strike.encounterId] = (out[strike.encounterId] ?? 0) + 1;
+    }
+  }
+  return out;
+}
+
 export function loadLatestCompleteMechanics(
   db: Database.Database,
   campaignId: number

@@ -102,6 +102,8 @@ export type HpOwnershipFlags = {
   SERVER_RECOVERY: boolean;
   FLASH_REFEREE: boolean;
   GM_LEGACY: boolean;
+  /** Server-rolled strike from an author-approved encounter. Absent on pre-encounter resolutions. */
+  SERVER_THREAT?: boolean;
 };
 
 export type SafeRestBlockedReason =
@@ -217,6 +219,26 @@ export type DirectResolution = {
   owner?: DirectHpOwner;
 };
 
+/**
+ * One server-decided attack from an author-approved encounter. Source, target, d20, DC and damage
+ * dice are all decided and persisted by the server before the GM narrates; `hpAfter` is final.
+ */
+export type ThreatStrikeRecord = {
+  encounterId: string;
+  name: string;
+  kind: "enemy" | "hazard";
+  targetParticipantId: number;
+  eligibleParticipantIds: number[];
+  strikeIndex: number;
+  d20: number;
+  dc: number;
+  hit: boolean;
+  damageClass: Exclude<MechanicsClass, "NONE">;
+  dice: DiceRollRecord | null;
+  hpBefore: number;
+  hpAfter: number;
+};
+
 export type OngoingTickRecord = {
   effectId: number;
   participantId: number;
@@ -292,6 +314,10 @@ export type MechanicsResolution = {
   incapacitated: Array<{ participantId: number; reason: "hp_zero" }>;
   safeRests?: SafeRestRecord[];
   hpOwnership?: Record<string, HpOwnershipFlags>;
+  /** Server-decided encounter strikes (author-approved threats only). */
+  threatStrikes?: ThreatStrikeRecord[];
+  /** The campaign has author-approved encounters: GM HP decreases are not a HP source. */
+  encounterAuthority?: boolean;
   applied?: boolean;
   flashRaw?: string | null;
   packet: string;

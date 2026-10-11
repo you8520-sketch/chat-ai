@@ -47,6 +47,39 @@ export const TRPG_PLAN_FIELD_LIMITS = {
   factionChanges: 8,
 } as const;
 
+export const TRPG_ENCOUNTER_KINDS = ["enemy", "hazard"] as const;
+export type TrpgEncounterKind = (typeof TRPG_ENCOUNTER_KINDS)[number];
+export const TRPG_ENCOUNTER_DAMAGE_CLASSES = ["CHIP", "LIGHT", "MEDIUM", "HEAVY", "SEVERE", "CRITICAL"] as const;
+export type TrpgEncounterDamageClass = (typeof TRPG_ENCOUNTER_DAMAGE_CLASSES)[number];
+export const TRPG_ENCOUNTER_LIMITS = {
+  maxEncounters: 6,
+  maxStrikesCap: 6,
+  defaultMaxStrikes: 3,
+  nameChars: 40,
+  idChars: 40,
+  locationChars: 80,
+  minHitDc: 5,
+  maxHitDc: 25,
+  maxActivateRound: 999,
+} as const;
+
+/**
+ * Author-defined hostile source. Lives in the scenario template plan (human-authored) and is
+ * copied into the campaign snapshot. Only the server may turn it into HP damage: the GM can
+ * narrate it freely but never declares it. `activateRound` is the server round number from which
+ * it may act; `maxStrikes` bounds how many server-rolled attacks it gets in total.
+ */
+export type TrpgScenarioEncounter = {
+  id: string;
+  name: string;
+  kind: TrpgEncounterKind;
+  damageClass: TrpgEncounterDamageClass;
+  activateRound: number;
+  maxStrikes: number;
+  hitDc?: number;
+  location?: string;
+};
+
 export type TrpgScenarioPlanProvenance = {
   generatorModel: string;
   schemaVersion: string;
@@ -75,6 +108,8 @@ export type TrpgScenarioPlan = {
   gmDirection: string;
   playLength: TrpgScenarioPlayLength;
   provenance?: TrpgScenarioPlanProvenance | null;
+  /** Typed, author-approved threats. Omitted when the scenario defines none. */
+  encounters?: TrpgScenarioEncounter[];
 };
 
 export type TrpgScenarioPlanLintIssue = {
@@ -142,6 +177,46 @@ export function emptyTrpgScenarioPlan(): TrpgScenarioPlan {
   };
 }
 
+export function parseScenarioEncounters(raw: unknown): TrpgScenarioEncounter[] {
+  if (!Array.isArray(raw)) return [];
+  const out: TrpgScenarioEncounter[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const row = item as Record<string, unknown>;
+    const id = clip(String(row.id ?? ""), TRPG_ENCOUNTER_LIMITS.idChars);
+    const name = clip(String(row.name ?? ""), TRPG_ENCOUNTER_LIMITS.nameChars);
+    const kind = String(row.kind ?? "");
+    const damageClass = String(row.damageClass ?? "LIGHT");
+    if (!id || !name || seen.has(id)) continue;
+    if (!(TRPG_ENCOUNTER_KINDS as readonly string[]).includes(kind)) continue;
+    if (!(TRPG_ENCOUNTER_DAMAGE_CLASSES as readonly string[]).includes(damageClass)) continue;
+    const activateRound = Number(row.activateRound ?? 1);
+    if (!Number.isInteger(activateRound) || activateRound < 1 || activateRound > TRPG_ENCOUNTER_LIMITS.maxActivateRound) continue;
+    const maxStrikesRaw = row.maxStrikes == null ? TRPG_ENCOUNTER_LIMITS.defaultMaxStrikes : Number(row.maxStrikes);
+    if (!Number.isInteger(maxStrikesRaw) || maxStrikesRaw < 1) continue;
+    const encounter: TrpgScenarioEncounter = {
+      id,
+      name,
+      kind: kind as TrpgEncounterKind,
+      damageClass: damageClass as TrpgEncounterDamageClass,
+      activateRound,
+      maxStrikes: Math.min(maxStrikesRaw, TRPG_ENCOUNTER_LIMITS.maxStrikesCap),
+    };
+    if (row.hitDc != null) {
+      const hitDc = Number(row.hitDc);
+      if (!Number.isInteger(hitDc) || hitDc < TRPG_ENCOUNTER_LIMITS.minHitDc || hitDc > TRPG_ENCOUNTER_LIMITS.maxHitDc) continue;
+      encounter.hitDc = hitDc;
+    }
+    const location = clip(String(row.location ?? ""), TRPG_ENCOUNTER_LIMITS.locationChars);
+    if (location) encounter.location = location;
+    seen.add(id);
+    out.push(encounter);
+    if (out.length >= TRPG_ENCOUNTER_LIMITS.maxEncounters) break;
+  }
+  return out;
+}
+
 function parseProvenance(raw: unknown): TrpgScenarioPlanProvenance | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const row = raw as Record<string, unknown>;
@@ -193,6 +268,8 @@ export function parseTrpgScenarioPlan(raw: unknown): TrpgScenarioPlan | null {
     playLength: parseTrpgScenarioPlayLength(row.playLength),
     provenance: parseProvenance(row.provenance),
   };
+  const encounters = parseScenarioEncounters(row.encounters);
+  if (encounters.length) plan.encounters = encounters;
   return isTrpgScenarioPlanEmpty(plan) ? null : plan;
 }
 
@@ -212,7 +289,8 @@ export function isTrpgScenarioPlanEmpty(plan: TrpgScenarioPlan | null | undefine
     plan.climax ||
     plan.endingCandidates.length ||
     plan.factionChanges.length ||
-    plan.gmDirection
+    plan.gmDirection ||
+    plan.encounters?.length
   );
 }
 

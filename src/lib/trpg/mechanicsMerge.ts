@@ -71,6 +71,9 @@ export function hpOwnershipOf(resolution: MechanicsResolution, participantId: nu
       GM_LEGACY: resolution.actors.some(
         (row) => row.participantId === participantId && row.directHpOwner === "GM_LEGACY"
       ),
+      SERVER_THREAT: (resolution.threatStrikes ?? []).some(
+        (row) => row.targetParticipantId === participantId && row.hit
+      ),
     }
   );
 }
@@ -88,12 +91,20 @@ export type MechanicsMergeResult =
  * Layered HP commit. Fallback string is not a binary "all mechanics / all GM" switch.
  * SERVER_PREACTION / SERVER_RECOVERY always persist. FLASH_REFEREE is authoritative
  * when present. GM_LEGACY only owns unclassified current-action HP.
+ *
+ * Encounter authority (campaign has author-approved encounters): GM HP decreases are never a HP source.
+ * Only server owners (ticks, recovery, server threat strikes) lower HP; GM HP increases keep their legacy
+ * behavior and cannot undo a server strike. Campaigns without encounters keep GM_LEGACY unchanged.
  */
 export function mergeMechanicsOwnedDelta(
   sheets: TrpgSheetSnapshot[],
   gmDelta: TrpgStateDelta,
-  resolution: MechanicsResolution | null
+  rawResolution: MechanicsResolution | null,
+  opts?: { encounterAuthority?: boolean }
 ): MechanicsMergeResult {
+  const authority = opts?.encounterAuthority === true || rawResolution?.encounterAuthority === true;
+  const resolution =
+    authority && rawResolution ? { ...rawResolution, encounterAuthority: true } : rawResolution;
   const complete = resolution?.complete === true;
   const mechanicsConsumed = new Map<string, { participantId: number; item: string }>();
   if (complete && resolution) {
@@ -175,7 +186,8 @@ export function mergeMechanicsOwnedDelta(
         gmHp,
       });
     } else if (gmHpValid && !complete) {
-      cur.hp = clampHp(gmHp, cur.maxHp);
+      const start = sheets.find((row) => row.participantId === cur.participantId)?.hp ?? cur.hp;
+      cur.hp = authority && gmHp <= start ? cur.hp : clampHp(gmHp, cur.maxHp);
     }
   }
 
@@ -222,6 +234,13 @@ export function resolveParticipantHp(opts: {
   // consultation that produced no HP effect), GM structured HP is honored so
   // narration and sheet state stay consistent.
   const mechanicsOwnsCurrentActionHp = ownership.FLASH_REFEREE || ownership.SERVER_RECOVERY;
+
+  if (opts.resolution.encounterAuthority === true) {
+    if (ownership.SERVER_THREAT && stored != null) return clampHp(stored, opts.maxHp);
+    if (opts.gmHp != null && opts.gmHp <= opts.startHp) {
+      return resolveParticipantHp({ ...opts, gmHp: null });
+    }
+  }
 
   if (ownership.FLASH_REFEREE && stored != null) {
     return clampHp(stored, opts.maxHp);

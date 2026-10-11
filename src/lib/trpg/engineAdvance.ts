@@ -150,6 +150,7 @@ import {
   type MechanicsRoundDeps,
 } from "./mechanicsRound";
 import { mergeMechanicsOwnedDelta } from "./mechanicsMerge";
+import { governedEncounters } from "./encounterStrikes";
 import { evaluateThreatShadow, formatThreatShadowLog, threatShadowHasSignal } from "./threatShadow";
 import { loadMechanicsResolution, markMechanicsApplied } from "./mechanicsStore";
 import {
@@ -1250,6 +1251,7 @@ async function runGmForRound(
   if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
   const scenario = loadScenario(db, opts.campaignId);
   const campaignContext = loadCampaignContext(db, opts.campaignId);
+  const encounterAuthority = governedEncounters(campaignContext).length > 0;
   const storedSnapshot = parseJson(
     (db.prepare(`SELECT input_snapshot_json FROM trpg_rounds WHERE id=?`).get(opts.roundId) as
       | { input_snapshot_json: string | null }
@@ -1427,7 +1429,7 @@ async function runGmForRound(
       usedNpcKeys,
     }).text;
     stage = "state_validation";
-    mergeMechanicsOwnedDelta(sheets, parsed.delta, mechanics);
+    mergeMechanicsOwnedDelta(sheets, parsed.delta, mechanics, { encounterAuthority });
     const postGmOngoingSeeds =
       opts.opening || opts.regenerate
         ? []
@@ -1593,7 +1595,9 @@ function commitPendingGmResult(
       location: sheet.location,
     })),
   });
-  const applied = mergeMechanicsOwnedDelta(sheets, boundLocation.delta, mechanics);
+  const applied = mergeMechanicsOwnedDelta(sheets, boundLocation.delta, mechanics, {
+    encounterAuthority: governedEncounters(campaignContext).length > 0,
+  });
   const nextSheets = applied.ok ? applied.next : sheets;
   const persistMechanics = applied.ok || mechanics?.complete === true;
   const roundNumber = (

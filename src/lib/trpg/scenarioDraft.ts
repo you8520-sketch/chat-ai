@@ -321,7 +321,9 @@ export function mergeScenarioDraft(opts: {
 export function parseScenarioDraftJson(raw: string): TrpgScenarioDraftResult {
   const parsed = extractJsonObject(raw);
   if (!parsed) throw new Error("시나리오 초안 JSON을 읽지 못했습니다.");
-  const plan = parseTrpgScenarioPlan(parsed) ?? emptyTrpgScenarioPlan();
+  const parsedPlan = parseTrpgScenarioPlan(parsed) ?? emptyTrpgScenarioPlan();
+  // Model output is never a trusted source of mechanical threats; only the human author adds encounters.
+  const { encounters: _modelEncounters, ...plan } = parsedPlan;
   const title = String(parsed.title ?? "").trim().slice(0, TRPG_SCENARIO_TITLE_LIMIT);
   const summary = String(parsed.summary ?? "").trim().slice(0, TRPG_SCENARIO_SUMMARY_LIMIT);
   return {

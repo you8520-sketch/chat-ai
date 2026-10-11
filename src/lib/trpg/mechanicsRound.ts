@@ -11,7 +11,14 @@ import {
   TRPG_MECHANICS_REFEREE_SYSTEM,
 } from "./mechanicsReferee";
 import { parseFlashOrEmpty, resolveRoundMechanics, shouldCallMechanicsFlash } from "./mechanicsResolve";
-import { loadLastSafeRestRounds, loadMechanicsResolution, loadOngoingEffects, saveMechanicsResolution } from "./mechanicsStore";
+import {
+  loadLastSafeRestRounds,
+  loadMechanicsResolution,
+  loadOngoingEffects,
+  loadThreatStrikeCounts,
+  saveMechanicsResolution,
+} from "./mechanicsStore";
+import { governedEncounters } from "./encounterStrikes";
 import {
   isOngoingActive,
   isTrpgMechanicsRefereeEnabled,
@@ -78,6 +85,7 @@ export async function completeRoundMechanics(
   if (existing?.complete) return existing;
   const campaignContext = loadCampaignContext(db, opts.campaignId);
   const scenario = loadScenario(db, opts.campaignId);
+  const encounters = governedEncounters(campaignContext);
   const specialRules = publicSpecialRulesText(resolvedCampaignPlan(campaignContext)?.specialRules);
   const sheets = loadSheetSnapshots(db, opts.campaignId);
   const effects = loadOngoingEffects(db, opts.campaignId);
@@ -157,6 +165,8 @@ export async function completeRoundMechanics(
     rng: opts.deps?.rollDie,
     recoveryRng: opts.deps?.rollD20,
     lastSafeRestByParticipant: loadLastSafeRestRounds(db, opts.campaignId),
+    encounters,
+    priorThreatStrikes: encounters.length ? loadThreatStrikeCounts(db, opts.campaignId, opts.roundId) : {},
   });
   saveMechanicsResolution(db, resolved);
   logMechanicsObservability(resolved);
