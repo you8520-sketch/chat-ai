@@ -315,12 +315,16 @@ describe("OWNER — responsibility consolidation gates", () => {
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /무기능 반복/);
   });
 
-  it("OWNER9 USER_TAIL length owner stays compact — no prose anti-fixation duplicate", () => {
+  it("OWNER9 USER_TAIL length owner stays compact — no prose fill-method duplicate", () => {
     assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /3,200자 이상/);
-    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /\[AI_CAST\]/);
     assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /분량 채우기/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /\[AI_CAST\]/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /감각 변화를 먼저 깊게 전개/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /관찰·심리·판단/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /같은 감정·상태/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /의무적으로 회상/);
+    assert.match(COMMON_PROSE_BLOCK, /조용한 장면도 요약 없이 대화·내면·분위기로 전개한다/);
+    assert.match(COMMON_PROSE_BLOCK, /같은 화자의 연속된 말은 하나의 충분한 발화로 묶는다/);
   });
 });
 
