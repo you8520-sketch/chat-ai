@@ -1,0 +1,13 @@
+import { chromium } from "playwright-core";
+import fs from "fs";
+const [,, BASE, user, vw, path, out, clip] = process.argv;
+const fx = JSON.parse(fs.readFileSync("/tmp/e43-fixtures.json", "utf8"));
+const b = await chromium.launch();
+const ctx = await b.newContext({ viewport: { width: +vw, height: +vw < 700 ? 800 : 900 }, locale: "ko-KR", hasTouch: +vw < 600, isMobile: +vw < 600 });
+if (user !== "guest") await ctx.addCookies([{ name: "session", value: fx.tokens[user], url: BASE }]);
+const p = await ctx.newPage();
+await p.goto(BASE + path, { waitUntil: "load" });
+await p.waitForTimeout(1200);
+const ok = p.getByRole("button", { name: "확인" }); if (await ok.count()) await ok.first().click().catch(() => {});
+await p.screenshot({ path: out, clip: clip ? { x: 0, y: 0, width: +vw, height: +clip } : undefined });
+await b.close();

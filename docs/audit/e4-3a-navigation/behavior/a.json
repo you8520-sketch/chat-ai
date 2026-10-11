@@ -1,0 +1,979 @@
+{
+ "sweep": [
+  {
+   "w": 540,
+   "navRows": 0,
+   "tabCount": 0,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 513,
+   "vw": 540,
+   "overflowX": false,
+   "headerH": 65,
+   "railTop": null
+  },
+  {
+   "w": 560,
+   "navRows": 0,
+   "tabCount": 0,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 533,
+   "vw": 560,
+   "overflowX": false,
+   "headerH": 65,
+   "railTop": null
+  },
+  {
+   "w": 580,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 553,
+   "vw": 580,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 600,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 573,
+   "vw": 600,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 620,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 593,
+   "vw": 620,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 640,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 609,
+   "vw": 640,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 660,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 629,
+   "vw": 660,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 680,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 649,
+   "vw": 680,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 700,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 669,
+   "vw": 700,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 720,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 689,
+   "vw": 720,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 740,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 709,
+   "vw": 740,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 760,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 729,
+   "vw": 760,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 780,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 749,
+   "vw": 780,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 800,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 769,
+   "vw": 800,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 820,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 789,
+   "vw": 820,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 840,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 809,
+   "vw": 840,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 860,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 829,
+   "vw": 860,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 880,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 849,
+   "vw": 880,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 900,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 869,
+   "vw": 900,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 920,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 889,
+   "vw": 920,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 940,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 909,
+   "vw": 940,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 960,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 929,
+   "vw": 960,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 980,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 949,
+   "vw": 980,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 1000,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 969,
+   "vw": 1000,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 1020,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 989,
+   "vw": 1020,
+   "overflowX": false,
+   "headerH": 110,
+   "railTop": 110
+  },
+  {
+   "w": 1040,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 1009,
+   "vw": 1040,
+   "overflowX": false,
+   "headerH": 65,
+   "railTop": 65
+  },
+  {
+   "w": 1060,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 1029,
+   "vw": 1060,
+   "overflowX": false,
+   "headerH": 65,
+   "railTop": 65
+  },
+  {
+   "w": 1080,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 1049,
+   "vw": 1080,
+   "overflowX": false,
+   "headerH": 65,
+   "railTop": 65
+  },
+  {
+   "w": 1100,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 1069,
+   "vw": 1100,
+   "overflowX": false,
+   "headerH": 65,
+   "railTop": 65
+  },
+  {
+   "w": 1120,
+   "navRows": 1,
+   "tabCount": 6,
+   "tabsClipped": 0,
+   "overlap": 0,
+   "row1MaxRight": 1089,
+   "vw": 1120,
+   "overflowX": false,
+   "headerH": 65,
+   "railTop": 65
+  }
+ ],
+ "clicks": {
+  "header-1440": {
+   "landed": "/tab/new",
+   "expect": "/tab/new",
+   "ariaCurrent": [
+    "신작"
+   ],
+   "sawVeil": true,
+   "pageErrors": 0
+  },
+  "strip-768": {
+   "landed": "/tab/ranking",
+   "expect": "/tab/ranking",
+   "ariaCurrent": [
+    "랭킹"
+   ],
+   "sawVeil": true,
+   "pageErrors": 0
+  },
+  "strip-600": {
+   "landed": "/trpg",
+   "expect": "/trpg",
+   "ariaCurrent": [
+    "TRPG"
+   ],
+   "sawVeil": true,
+   "pageErrors": 0
+  },
+  "bottom-390": {
+   "landed": "/chats",
+   "expect": "/chats",
+   "ariaCurrent": [
+    "대화"
+   ],
+   "sawVeil": true,
+   "pageErrors": 0
+  },
+  "bottom-360": {
+   "landed": "/studio",
+   "expect": "/studio",
+   "ariaCurrent": [
+    "제작"
+   ],
+   "sawVeil": true,
+   "pageErrors": 0
+  }
+ },
+ "safety": {
+  "admin": {
+   "before": {
+    "pressed": "false",
+    "text": "세이프티 OFF",
+    "disabled": false,
+    "box": {
+     "x": 181,
+     "y": 14,
+     "width": 126,
+     "height": 36
+    }
+   },
+   "after": {
+    "pressed": "true",
+    "text": "세이프티 ON",
+    "disabled": false,
+    "box": {
+     "x": 181,
+     "y": 14,
+     "width": 126,
+     "height": 36
+    },
+    "status": 200
+   },
+   "reloaded": {
+    "pressed": "true",
+    "text": "세이프티 ON",
+    "disabled": false,
+    "box": {
+     "x": 181,
+     "y": 14,
+     "width": 126,
+     "height": 36
+    }
+   }
+  },
+  "std": {
+   "before": {
+    "pressed": "true",
+    "text": "세이프티 ON",
+    "disabled": true,
+    "box": {
+     "x": 208,
+     "y": 14,
+     "width": 126,
+     "height": 36
+    }
+   },
+   "after": {
+    "pressed": "true",
+    "text": "세이프티 ON",
+    "disabled": true,
+    "box": {
+     "x": 208,
+     "y": 14,
+     "width": 126,
+     "height": 36
+    }
+   },
+   "reloaded": {
+    "pressed": "true",
+    "text": "세이프티 ON",
+    "disabled": true,
+    "box": {
+     "x": 208,
+     "y": 14,
+     "width": 126,
+     "height": 36
+    }
+   }
+  }
+ },
+ "keyboard": {
+  "pc1280": [
+   {
+    "region": "header",
+    "label": "하브 홈",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "홈",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "신작",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "랭킹",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "TRPG",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "검색",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "북마크/팔로잉",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "알림 121건",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "보유 포인트 12,345,",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "성인인증",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "프로필 메뉴",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "rail",
+    "label": "대화 목록",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "rail",
+    "label": "페르소나·노트",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "rail",
+    "label": "제작",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "rail",
+    "label": "크리에이터",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "rail",
+    "label": "성인인증",
+    "ring": true,
+    "inView": true
+   }
+  ],
+  "tablet768": [
+   {
+    "region": "header",
+    "label": "하브 홈",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "알림 121건",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "보유 포인트 12,345,",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "성인인증",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "프로필 메뉴",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "홈",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "신작",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "랭킹",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "TRPG",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "검색",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "북마크/팔로잉",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "rail",
+    "label": "대화 목록",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "rail",
+    "label": "페르소나·노트",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "rail",
+    "label": "제작",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "rail",
+    "label": "크리에이터",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "rail",
+    "label": "성인인증",
+    "ring": true,
+    "inView": true
+   }
+  ],
+  "mobile390": [
+   {
+    "region": "header",
+    "label": "하브 홈",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "알림 1건",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "보유 포인트 0P — 사용",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "bottom",
+    "label": "홈",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "bottom",
+    "label": "대화",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "bottom",
+    "label": "제작",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "bottom",
+    "label": "설정",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "제작 이벤트 참여→",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "인기 이야기 둘러보기",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "추천",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "신작랭킹",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "랭킹",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "TRPG",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "검색",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "취향여성향▾",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "취향 설정",
+    "ring": true,
+    "inView": true
+   }
+  ],
+  "guest390": [
+   {
+    "region": "header",
+    "label": "하브 홈",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "알림 1건",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "header",
+    "label": "로그인",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "제작 이벤트 참여→",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "인기 이야기 둘러보기",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "추천",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "신작랭킹",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "랭킹",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "TRPG",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "검색",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "취향전체▾",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "로그인 후 저장",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "취향 설정",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "전체보기→",
+    "ring": true,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "공식현대 판타지공식 라이크",
+    "ring": false,
+    "inView": true
+   },
+   {
+    "region": "main",
+    "label": "by 공식계정",
+    "ring": true,
+    "inView": true
+   }
+  ]
+ },
+ "chatRoom": {
+  "390": {
+   "first": {
+    "headerVisible": false,
+    "bottomNav": false,
+    "railW": null,
+    "spacerW": null,
+    "overflowX": false,
+    "url": "/chat/844?chat=168"
+   },
+   "toggled": null
+  },
+  "700": {
+   "first": {
+    "headerVisible": false,
+    "bottomNav": false,
+    "railW": 44,
+    "spacerW": 44,
+    "overflowX": false,
+    "url": "/chat/844?chat=168"
+   },
+   "toggled": {
+    "afterFirst": {
+     "headerVisible": false,
+     "bottomNav": false,
+     "railW": 176,
+     "spacerW": 176,
+     "overflowX": false,
+     "url": "/chat/844?chat=168"
+    },
+    "afterSecond": {
+     "headerVisible": false,
+     "bottomNav": false,
+     "railW": 44,
+     "spacerW": 44,
+     "overflowX": false,
+     "url": "/chat/844?chat=168"
+    }
+   }
+  },
+  "1440": {
+   "first": {
+    "headerVisible": false,
+    "bottomNav": false,
+    "railW": 44,
+    "spacerW": 44,
+    "overflowX": false,
+    "url": "/chat/844?chat=168"
+   },
+   "toggled": {
+    "afterFirst": {
+     "headerVisible": false,
+     "bottomNav": false,
+     "railW": 176,
+     "spacerW": 176,
+     "overflowX": false,
+     "url": "/chat/844?chat=168"
+    },
+    "afterSecond": {
+     "headerVisible": false,
+     "bottomNav": false,
+     "railW": 44,
+     "spacerW": 44,
+     "overflowX": false,
+     "url": "/chat/844?chat=168"
+    }
+   }
+  }
+ },
+ "trpg": {
+  "390": {
+   "url": "/trpg/4",
+   "headerVisible": true,
+   "bottomNav": true,
+   "rail": false,
+   "overflowX": false
+  },
+  "768": {
+   "url": "/trpg/4",
+   "headerVisible": true,
+   "bottomNav": false,
+   "rail": true,
+   "overflowX": false
+  },
+  "1440": {
+   "url": "/trpg/4",
+   "headerVisible": true,
+   "bottomNav": false,
+   "rail": true,
+   "overflowX": false
+  },
+  "href": "/trpg/4"
+ },
+ "notification": {
+  "open": 1,
+  "closedByEsc": true,
+  "focusOnBell": true
+ },
+ "reducedMotion": {
+  "landed": "/search"
+ }
+}
