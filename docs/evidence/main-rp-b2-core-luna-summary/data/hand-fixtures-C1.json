@@ -1,0 +1,482 @@
+[
+  {
+    "persona": "bare_route_today",
+    "id": "N1_이후_감정해석",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "N2_이후_화해",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "N3_그때_순차",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "N4_어제_유저진술",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "N5_그동안_순차",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "N6_NPC_이후",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "N7_아까_윈도우내",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "N8_캐릭터과거",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "N9_유저관계선언",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "N10_OOC설정_공유과거",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "N11_전에_유저진술",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "N12_귀속주장",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "N13_이후_감정_그후",
+    "fabricated": false,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "F1_가짜평생약속",
+    "fabricated": true,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "F2_누나친분_예전부터",
+    "fabricated": true,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "F2c_누나친분_오래전부터",
+    "fabricated": true,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "F2d_누나친분_어제",
+    "fabricated": true,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "F2e_누나친분_이후",
+    "fabricated": true,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "F2f_누나친분_표지없음",
+    "fabricated": true,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "bare_route_today",
+    "id": "F4_커피키스",
+    "fabricated": true,
+    "personaName": null,
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N1_이후_감정해석",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N2_이후_화해",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": true,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N3_그때_순차",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N4_어제_유저진술",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N5_그동안_순차",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": true,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N6_NPC_이후",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N7_아까_윈도우내",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": true,
+    "accepted": false,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N8_캐릭터과거",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": true,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N9_유저관계선언",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N10_OOC설정_공유과거",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": true,
+    "accepted": false,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N11_전에_유저진술",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N12_귀속주장",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": true,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "N13_이후_감정_그후",
+    "fabricated": false,
+    "personaName": "렌",
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "F1_가짜평생약속",
+    "fabricated": true,
+    "personaName": "렌",
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "F2_누나친분_예전부터",
+    "fabricated": true,
+    "personaName": "렌",
+    "stage1Rejects": true,
+    "accepted": false,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "F2c_누나친분_오래전부터",
+    "fabricated": true,
+    "personaName": "렌",
+    "stage1Rejects": true,
+    "accepted": false,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "F2d_누나친분_어제",
+    "fabricated": true,
+    "personaName": "렌",
+    "stage1Rejects": true,
+    "accepted": false,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "F2e_누나친분_이후",
+    "fabricated": true,
+    "personaName": "렌",
+    "stage1Rejects": true,
+    "accepted": false,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "F2f_누나친분_표지없음",
+    "fabricated": true,
+    "personaName": "렌",
+    "stage1Rejects": true,
+    "accepted": false,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "labelled_background_identity",
+    "id": "F4_커피키스",
+    "fabricated": true,
+    "personaName": "렌",
+    "stage1Rejects": false,
+    "accepted": true,
+    "stage2OnlyRejects": false
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N1_이후_감정해석",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N2_이후_화해",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N3_그때_순차",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N4_어제_유저진술",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N5_그동안_순차",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N6_NPC_이후",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N7_아까_윈도우내",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N8_캐릭터과거",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N9_유저관계선언",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N10_OOC설정_공유과거",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N11_전에_유저진술",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N12_귀속주장",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "N13_이후_감정_그후",
+    "fabricated": false,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "F1_가짜평생약속",
+    "fabricated": true,
+    "accepted": true
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "F2_누나친분_예전부터",
+    "fabricated": true,
+    "accepted": false
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "F2c_누나친분_오래전부터",
+    "fabricated": true,
+    "accepted": false
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "F2d_누나친분_어제",
+    "fabricated": true,
+    "accepted": false
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "F2e_누나친분_이후",
+    "fabricated": true,
+    "accepted": false
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "F2f_누나친분_표지없음",
+    "fabricated": true,
+    "accepted": false
+  },
+  {
+    "persona": "HYPOTHETICAL_narrowed_family_or_hard_only",
+    "id": "F4_커피키스",
+    "fabricated": true,
+    "accepted": true
+  }
+]
