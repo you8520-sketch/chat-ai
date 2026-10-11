@@ -112,3 +112,64 @@ Added archival docs, provenance constant, and a no-rerun test. Did not change op
 - B-lite only with a question grounded in the Phase 2C Luna summary
 - B-full / 50 chat generations only with a new approval
 - CURRENT_PRODUCTION_PARITY only after observed Railway process SHA + production character/persona read
+
+## PHASE 3B GEMINI COMPLETION (2026-10-11) — additional 2 POSTs
+
+Status: **ADDITIONAL 2/2 HTTP 200. Original 8 cases and two Gemini 401 records remain immutable. Cursor did not score quality. Draft PR only. Do not merge. Do not re-run.**
+
+Authorization: https://github.com/you8520-sketch/chat-ai/issues/1486#issuecomment-6105636606
+GPT instruction: https://github.com/you8520-sketch/chat-ai/pull/1520#issuecomment-6105637086
+This is a **new** 2-call approval. It does not delete, replace, or recalculate the original 8/8 attempts.
+
+### EXACT MAIN / HEAD at completion
+
+- origin/main at completion execute: `34608ea5a742119bc2922584fb079dac8f26266b`
+- Draft PR #1520 branch HEAD at execute: `36ef653d5fd76cb9d845472ff6fece9d40156071`
+- Original Phase 3B execute origin/main: `f8bf8c823f86364388fc0261b3a6d36a34777551` (unchanged historical record)
+- Cloud agent run: `bc-ea2f8943-1d84-4934-a380-fe0760bf30ef`
+- Read-only `GET https://openrouter.ai/api/v1/key` in the same process: **200**
+- Railway production container credential validity: **UNVERIFIED**
+- Gemini Main RP live owner on current main: `gemini-3.8-flash` → OpenRouter `google/gemini-3.8-flash`, provider `google-ai-studio`, `service_tier: flex`, fallback OFF. No material conflict with the archived Gemini final-wire.
+
+### BEFORE / EXECUTION PATH / OWNER MAP / AFTER
+
+BEFORE: original Path A packet has six HTTP 200 texts and two Gemini OpenRouter 401 `User not found.` records. Those 8 POSTs stay spent.
+
+EXECUTION PATH: same isolated `:memory:` seed → live `getEpisodicMemoryForPrompt` → seeded `formatMemoryBlock` (SEEDED_NOT_LUNA) → `buildContext` (provider omitted, matching the original archive) → `assemblePrimaryRpRequest` → one `fetch` POST per new attempt. Reconstructed request body matched the original Gemini final-wire except the new `session_id` / attempt ID. No `streamOpenRouterAdultToClient`. No retry. No fallback. Luna 0. Production DB write 0.
+
+OWNER MAP: unchanged. Picker `MAIN_RP_MODEL_IDS`. Retrieve `getEpisodicMemoryForPrompt`. Current Memory `formatMemoryBlock` (seeded). Prompt `buildContext`. Final-wire `assemblePrimaryRpRequest`. Usage `parseCompatibleUsage`.
+
+AFTER: two new attempt IDs recorded under `completion-2026-10-11/`. Original `phase3b_t6_gemini-3.8-flash` / `phase3b_t50_gemini-3.8-flash` 401 files, hashes, and POST counter stay as they were.
+
+### Evidence limitations (unchanged)
+
+A. Current Memory `[1~5턴]` and retrieved episodic `[T1]` both contain the exact answer fact.
+B. T50 is isolated retrieval-age metadata (`currentTurn=51`), not a generated 50-turn chat.
+
+This remains `SYNTHETIC_EXPLICIT_MEMORY_INJECTION_REPLY`. New Gemini texts do not replace the original 401 slots and are not production-persona scores.
+
+### Completion comparison
+
+| 모델 | 새 T6 실제 응답 | 새 T50 실제 응답 | 추가 POST | 토큰 in/out | 원가 | 오류 |
+| --- | --- | --- | --- | --- | --- | --- |
+| gemini-3.8-flash | [2616자](completion-2026-10-11/responses/phase3b_gemini_completion_t6_2026-10-11.txt) `gen-1791695655-nCiSBKfa94pvipOVo5tN` finish=stop | [1318자](completion-2026-10-11/responses/phase3b_gemini_completion_t50_2026-10-11.txt) `gen-1791695678-MgYIgjiEMdAsMuZp43zX` finish=stop | 1+1 | 3677/1664 · 3682/829 | 0.004498875 + 0.002935125 = **0.007434** (OpenRouter `usage.cost`) | none |
+
+Original Gemini 401 artifacts remain empty and are **not** overwritten:
+- `responses/phase3b_t6_gemini-3.8-flash.txt`
+- `responses/phase3b_t50_gemini-3.8-flash.txt`
+
+### Totals after completion
+
+- Additional provider generation POST: **2 / 2**
+- Cumulative provider generation POST: **10** (original 8 + additional 2)
+- Cumulative successful HTTP 200 with text: **8** (original 6 + additional 2)
+- Historic Gemini 401 preserved: **2**
+- Label: **8 successful responses from total 10 attempts (2 historic 401)**
+- Not `8/8`. Not `original 401 recovered`.
+- Luna: **0**
+- Production DB write: **0**
+- Additional tokens: input **7359** / output **2493**
+- Additional billed USD: **0.007434** (provider-reported `usage.cost`)
+- Original 8-call billed USD: still **UNREPORTED**
+- Paid execute script: not committed; temporary runner deleted after the two POSTs
+- `rerunAuthorized`: false. `paidEvaluationApproved`: false.

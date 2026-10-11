@@ -218,6 +218,74 @@ export const MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE = {
 };
 
 /**
+ * #1486 Phase 3B Gemini completion — archival additional 2 POSTs.
+ * Distinct from the original 8-case packet. Not a rerun license.
+ * Does not replace the two historic Gemini 401 records.
+ */
+export const MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE = {
+  provenance: "CURRENT_LIVE_PROVIDER",
+  characterId: 18,
+  characterName: "라이크",
+  personaName: "렌",
+  path: "A_SEEDED_MEMORY",
+  originalProviderPosts: 8,
+  additionalProviderPosts: 2,
+  cumulativeProviderPosts: 10,
+  originalSuccessfulGenerationPosts: 6,
+  additionalSuccessfulGenerationPosts: 2,
+  cumulativeSuccessfulGenerationPosts: 8,
+  historicGemini401Preserved: 2,
+  lunaPosts: 0,
+  productionDbWrites: 0,
+  billedUsd: 0.007434,
+  billedUsdStatus: "PROVIDER_REPORTED_USAGE_COST",
+  identitySource: "FIXTURE_NOT_PRODUCTION_SHEET",
+  characterSheetRead: false,
+  productionPersonaRead: false,
+  executionHost: "CURSOR_VM",
+  runtimeShaSource: "GITHUB_DEPLOY_METADATA",
+  observedRuntimeSha: null,
+  originMainShaAtCompletion: "34608ea5a742119bc2922584fb079dac8f26266b",
+  productionRuntimeParity: "UNPROVEN",
+  productionIdentityParity: "UNPROVEN",
+  homepageParity: "UNPROVEN",
+  rerunAuthorized: false,
+  paidEvaluationApproved: false,
+  evidencePath:
+    "docs/audits/monthly-rp-memory-quality-phase3b-2026-10-10/completion-2026-10-11/evidence.json",
+} as const satisfies {
+  provenance: MemoryEvidenceProvenance;
+  characterId: number;
+  characterName: string;
+  personaName: string;
+  path: "A_SEEDED_MEMORY";
+  originalProviderPosts: 8;
+  additionalProviderPosts: 2;
+  cumulativeProviderPosts: 10;
+  originalSuccessfulGenerationPosts: 6;
+  additionalSuccessfulGenerationPosts: 2;
+  cumulativeSuccessfulGenerationPosts: 8;
+  historicGemini401Preserved: 2;
+  lunaPosts: 0;
+  productionDbWrites: 0;
+  billedUsd: number;
+  billedUsdStatus: "PROVIDER_REPORTED_USAGE_COST";
+  identitySource: "FIXTURE_NOT_PRODUCTION_SHEET";
+  characterSheetRead: false;
+  productionPersonaRead: false;
+  executionHost: MemoryEvidenceExecutionHost;
+  runtimeShaSource: MemoryEvidenceRuntimeShaSource;
+  observedRuntimeSha: null;
+  originMainShaAtCompletion: string;
+  productionRuntimeParity: ProductionParityClaim;
+  productionIdentityParity: ProductionParityClaim;
+  homepageParity: ProductionParityClaim;
+  rerunAuthorized: false;
+  paidEvaluationApproved: false;
+  evidencePath: string;
+};
+
+/**
  * True when the packet recorded an actual paid provider response.
  * This is not production-container, homepage, or character-sheet parity.
  */

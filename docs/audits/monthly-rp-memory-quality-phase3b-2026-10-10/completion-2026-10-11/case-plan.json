@@ -1,0 +1,34 @@
+{
+  "kind": "PHASE3B_GEMINI_COMPLETION",
+  "originMainShaAtCompletion": "34608ea5a742119bc2922584fb079dac8f26266b",
+  "executionBranchSha": "36ef653d5fd76cb9d845472ff6fece9d40156071",
+  "maxAdditionalProviderPosts": 2,
+  "cases": [
+    {
+      "attemptId": "phase3b_gemini_completion_t6_2026-10-11",
+      "originalCaseId": "phase3b_t6_gemini-3.8-flash",
+      "modelId": "gemini-3.8-flash",
+      "horizon": "t6",
+      "sourceTurn": 1,
+      "currentTurn": 7,
+      "factText": "라이크와 렌이 비 오는 골목에서 우산을 같이 썼다.",
+      "query": "그때 우산 같이 썼던 거 기억나?",
+      "originMainShaAtCompletion": "34608ea5a742119bc2922584fb079dac8f26266b",
+      "executionBranchSha": "36ef653d5fd76cb9d845472ff6fece9d40156071",
+      "caseSha256": "04c2bf506ef297126396515b8eac0168c4da23ee04176fa454a7717db75c99d9"
+    },
+    {
+      "attemptId": "phase3b_gemini_completion_t50_2026-10-11",
+      "originalCaseId": "phase3b_t50_gemini-3.8-flash",
+      "modelId": "gemini-3.8-flash",
+      "horizon": "t50",
+      "sourceTurn": 1,
+      "currentTurn": 51,
+      "factText": "라이크와 렌이 옥상에서 처음으로 담배를 나눠 피웠다.",
+      "query": "옥상에서 담배 피웠던 첫날 기억해?",
+      "originMainShaAtCompletion": "34608ea5a742119bc2922584fb079dac8f26266b",
+      "executionBranchSha": "36ef653d5fd76cb9d845472ff6fece9d40156071",
+      "caseSha256": "abf36d601ad274b04f2486122c1f3d810cc5091e9591ea995ba948789c0c53ff"
+    }
+  ]
+}

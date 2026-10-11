@@ -17,7 +17,12 @@ import {
 import { PHASE3A_REUSED_PROBES } from "@/lib/memory/monthlyRpMemoryQualityPhase3aPlan";
 
 const EVIDENCE_DIR = "docs/audits/monthly-rp-memory-quality-phase3b-2026-10-10";
+const COMPLETION_DIR = `${EVIDENCE_DIR}/completion-2026-10-11`;
 const EXECUTE_SCRIPT = "scripts/monthly-rp-memory-quality-phase3b-execute.ts";
+const COMPLETION_ATTEMPT_IDS = [
+  "phase3b_gemini_completion_t6_2026-10-11",
+  "phase3b_gemini_completion_t50_2026-10-11",
+] as const;
 
 const EXPECTED_CASE_IDS = MAIN_RP_MODEL_IDS.flatMap((modelId) => [
   `phase3b_t6_${modelId}`,
@@ -127,5 +132,72 @@ describe("#1486 Phase 3B Path A archival packet", () => {
     assert.equal(existsSync("src/lib/memory/monthlyRpMemoryQualityPhase2b.test.ts"), true);
     assert.equal(existsSync("src/lib/memory/monthlyRpMemoryQualityPhase3a.test.ts"), true);
     assert.equal(existsSync("docs/audits/monthly-rp-memory-quality-phase2c-2026-10-10/evidence.json"), true);
+  });
+
+  it("archives Gemini completion as new attempt IDs without replacing the original 401s", () => {
+    const originalEvidence = JSON.parse(
+      readFileSync(path.join(EVIDENCE_DIR, "evidence.json"), "utf8")
+    ) as { providerPosts: number; cases: Phase3bCase[] };
+    const completion = JSON.parse(
+      readFileSync(path.join(COMPLETION_DIR, "evidence.json"), "utf8")
+    ) as {
+      originalProviderPosts: number;
+      additionalProviderPosts: number;
+      cumulativeProviderPosts: number;
+      cumulativeSuccessfulGenerationPosts: number;
+      historicGemini401Preserved: number;
+      lunaPosts: number;
+      productionDbWrites: number;
+      label: string;
+      attempts: Array<{
+        attemptId: string;
+        originalCaseId: string;
+        ok: boolean;
+        httpStatus: number;
+        cursorQualityScore: null;
+        doesNotReplaceOriginal401: boolean;
+      }>;
+    };
+    assert.equal(originalEvidence.providerPosts, 8);
+    assert.equal(completion.originalProviderPosts, 8);
+    assert.equal(completion.additionalProviderPosts, 2);
+    assert.equal(completion.cumulativeProviderPosts, 10);
+    assert.equal(completion.cumulativeSuccessfulGenerationPosts, 8);
+    assert.equal(completion.historicGemini401Preserved, 2);
+    assert.equal(completion.lunaPosts, 0);
+    assert.equal(completion.productionDbWrites, 0);
+    assert.equal(
+      completion.label,
+      "8 successful responses from total 10 attempts (2 historic 401)"
+    );
+    assert.deepEqual(
+      completion.attempts.map((row) => row.attemptId),
+      [...COMPLETION_ATTEMPT_IDS]
+    );
+    for (const row of completion.attempts) {
+      assert.equal(row.ok, true);
+      assert.equal(row.httpStatus, 200);
+      assert.equal(row.cursorQualityScore, null);
+      assert.equal(row.doesNotReplaceOriginal401, true);
+      assert.equal((EXPECTED_CASE_IDS as readonly string[]).includes(row.attemptId), false);
+      assert.equal(existsSync(path.join(COMPLETION_DIR, "final-wire", `${row.attemptId}.json`)), true);
+      assert.equal(existsSync(path.join(COMPLETION_DIR, "responses", `${row.attemptId}.txt`)), true);
+      assert.ok(
+        readFileSync(path.join(COMPLETION_DIR, "responses", `${row.attemptId}.txt`), "utf8").length > 0
+      );
+    }
+    const originalGemini = originalEvidence.cases.filter((row) => row.modelId === "gemini-3.8-flash");
+    assert.equal(originalGemini.every((row) => row.ok === false && row.httpStatus === 401), true);
+    assert.equal(
+      readFileSync(path.join(EVIDENCE_DIR, "responses", "phase3b_t6_gemini-3.8-flash.txt"), "utf8"),
+      ""
+    );
+    assert.equal(
+      readFileSync(path.join(EVIDENCE_DIR, "responses", "phase3b_t50_gemini-3.8-flash.txt"), "utf8"),
+      ""
+    );
+    assert.equal(existsSync(EXECUTE_SCRIPT), false);
+    assert.equal(existsSync("scripts/_tmp_phase3b_gemini_completion.ts"), false);
+    assert.equal(existsSync("scripts/_tmp_phase3b_prompt_diff.ts"), false);
   });
 });

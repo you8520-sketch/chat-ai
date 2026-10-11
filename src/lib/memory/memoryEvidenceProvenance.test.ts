@@ -9,6 +9,7 @@ import {
   MONTHLY_RP_MEMORY_QUALITY_PHASE2C_SAMPLE_EVIDENCE,
   MONTHLY_RP_MEMORY_QUALITY_PHASE3A_PLAN_EVIDENCE,
   MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE,
+  MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE,
   canClaimCurrentLiveProvider,
   canClaimCurrentProductionParity,
   isDeterministicCodeRegression,
@@ -190,6 +191,41 @@ describe("memory evidence provenance", () => {
         productionPersonaRead: MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.productionPersonaRead,
       }),
       false
+    );
+  });
+
+  it("archives the Gemini completion separately from the original 8-case packet", () => {
+    assert.equal(
+      MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.provenance,
+      "CURRENT_LIVE_PROVIDER"
+    );
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.providerPosts, 8);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.originalProviderPosts, 8);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.additionalProviderPosts, 2);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.cumulativeProviderPosts, 10);
+    assert.equal(
+      MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.cumulativeSuccessfulGenerationPosts,
+      8
+    );
+    assert.equal(
+      MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.historicGemini401Preserved,
+      2
+    );
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.lunaPosts, 0);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.productionDbWrites, 0);
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.billedUsd, 0.007434);
+    assert.equal(
+      MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.billedUsdStatus,
+      "PROVIDER_REPORTED_USAGE_COST"
+    );
+    assert.equal(MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.rerunAuthorized, false);
+    assert.equal(
+      MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.paidEvaluationApproved,
+      false
+    );
+    assert.notEqual(
+      MONTHLY_RP_MEMORY_QUALITY_PHASE3B_GEMINI_COMPLETION_EVIDENCE.evidencePath,
+      MONTHLY_RP_MEMORY_QUALITY_PHASE3B_SAMPLE_EVIDENCE.evidencePath
     );
   });
 
