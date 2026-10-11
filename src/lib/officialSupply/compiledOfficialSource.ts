@@ -8,7 +8,7 @@ import {
   type OfficialWorldBible,
 } from "@/lib/officialSupply/bible";
 import { composeOfficialSystemPrompt } from "@/lib/officialSupply/characterText";
-import { resolveOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
+import { attachOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
 import type {
   OfficialAppearanceLock,
   OfficialCharacterDraft,
@@ -84,7 +84,15 @@ export function loadCompiledOfficialCharacterSource(draftKey: string): {
   });
   if (!file.appearance) throw new Error(`official source ${draftKey} is missing appearance lock`);
   const sharedLorebook = world.bible.lorebook;
-  const characterLorebook = file.characterLorebook ?? [];
+  const resolvedLorebook = attachOfficialCharacterLorebooks({
+    shared: sharedLorebook,
+    characterLocal: file.characterLorebook ?? [],
+    otherRelationships: file.bible.otherRelationships ?? [],
+    ownerKey: file.draftKey,
+  });
+  const characterLorebook = resolvedLorebook.filter(
+    (entry) => !sharedLorebook.some((shared) => shared.entryKey === entry.entryKey)
+  );
   const appearanceBlock = officialAppearanceBlockForDraft(draft, file.appearance);
   return {
     draftKey,
@@ -96,6 +104,6 @@ export function loadCompiledOfficialCharacterSource(draftKey: string): {
     systemPrompt: composeOfficialSystemPrompt(draft, appearanceBlock),
     sharedLorebook,
     characterLorebook,
-    resolvedLorebook: resolveOfficialCharacterLorebooks(sharedLorebook, characterLorebook),
+    resolvedLorebook,
   };
 }

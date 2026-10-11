@@ -325,7 +325,8 @@ describe("official character prompt standard v1", () => {
     assert.match(source, /hobbies는 짧은 명사\/구 3~5개/);
     assert.match(source, /기본은 persona-flexible/);
     assert.match(source, /출연진 전체를 채우지 않는다/);
-    assert.match(source, /lorebook 후보 메모/);
+    assert.match(source, /이름이 대화에 등장할 때만/);
+    assert.doesNotMatch(source, /0~3명/);
     assert.match(source, /행동 기반 변화 조건/);
     assert.match(source, /획일적인 장문 합의/);
     assert.match(source, /이 캐릭터만의 욕망/);

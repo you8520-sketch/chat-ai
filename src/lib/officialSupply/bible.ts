@@ -1019,16 +1019,6 @@ export function validateCharacterBible(
     warnings.push(err("bible_tags_few", `publicProfile.tags ${tags.length} < ${tagBand.min} core tags`));
   }
 
-  const otherRelationships = bible.otherRelationships ?? [];
-  if (compactRpV1 && otherRelationships.length > 3) {
-    errors.push(
-      err(
-        "bible_other_relationships_dense",
-        `compact_rp_v1 keeps only 0-3 action-relevant lorebook candidates, got ${otherRelationships.length}`
-      )
-    );
-  }
-
   const secrets = bible.secrets ?? [];
   if (secrets.length < 1 || secrets.length > 4) {
     errors.push(err("bible_secrets", `secrets 1-4 required, got ${secrets.length}`));
@@ -1114,7 +1104,9 @@ function requireCompactWorldBible(keys: CompileKeys, task: string): OfficialWorl
  * Single canonical compiler. Character core reuses the Lucian structure
  * (identity, keywords, behavior, past, limits) for every draft. Long visual
  * geometry stays in the Appearance Lock; hidden relationship opinions compile
- * into local secrets; FACTION/CHARACTER_LOCAL/AUTHOR_ONLY knowledge never enters.
+ * into local secrets; public otherRelationships stay out of the always-on RP
+ * body and attach as character-local lorebooks; FACTION/CHARACTER_LOCAL/
+ * AUTHOR_ONLY knowledge never enters.
  */
 export function compileOfficialDraftFromBible(
   bible: OfficialCharacterBible,

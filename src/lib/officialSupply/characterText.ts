@@ -63,7 +63,11 @@ function joinSections(parts: Array<[string, string]>): string {
     .join("\n\n");
 }
 
-/** NPCs stay in the bible; only names already present in the current scene enter RP. */
+/**
+ * Opening-scene NPC filter only. Names that appear later in conversation are
+ * not scanned here; public otherRelationships use the existing keyword lorebook
+ * owner instead of this always-on RP section.
+ */
 export function sceneRelevantSupportingNpcs(draft: OfficialCharacterDraft): OfficialSupportingNpc[] {
   const scene = [
     draft.sections.currentSituation ?? "",

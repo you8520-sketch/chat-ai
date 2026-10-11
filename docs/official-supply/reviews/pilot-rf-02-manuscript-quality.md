@@ -144,3 +144,27 @@ Cursor는 점수를 매기지 않는다. 아래 원문을 GPT가 직접 평가�
 미적용: `#51` DB, 공식 공개, 이미지 재생성, 서버 성인 라우팅/CNC/안전 시스템, CP·정산, 포인트, 관리자 소유권.
 
 Text Lock 후보 갱신은 GPT 승인 후에만 정식으로 반영한다. 기존 승인 Lock `6ff02833…`은 `pilot-rf-02-approved-text-lock-draft.json`에 동결해 두었고, locked-snapshot operator는 이 후보를 자동 적용하지 않는다.
+
+## 8. GPT 88점 채택 후 잔여 2건 — 관계 로어북
+
+검수 HEAD `14a45306`. 본문·관계 변화 조건·성인 성향은 유지했다. 이번 보완은 출연진 공개 관계를 메인 RP에 되돌리지 않고, 기존 캐릭터 로어북 owner로 이름 등장 시에만 전달한다.
+
+### 8-1. 볼프강 9명 공개 관계 → 캐릭터 로어북
+
+바이블 `otherRelationships` 9명(카엘룸, 루시안, 율리우스, 바스티안, 세라피나, 이노센트, 에드릭, 테오, 노엘 벨로체)의 **공개 이름·역할·관계**와 **태도(`privateOpinion`)**만 `cast_rel_pilot-rf-02_*` 캐릭터 로어북으로 투영한다.
+
+- 키워드: 성명 + 띄어쓰기 없는 성명 + 이름(첫 토큰). 예: `카엘룸`, `루시안`.
+- 활성화: 기존 `matchKeywordLorebookEntryDetails` — 현재 발화/최근 원문에 이름이 있을 때만.
+- `hidden` 6개는 로어북에 넣지 않는다. 기존처럼 비밀 8개(`LOCKED_SECRET`)로만 유지한다.
+- 메인 `[관계·갈등·행동원리]`와 본체/세계/도입에는 9명 지도를 다시 넣지 않는다.
+- `sceneRelevantSupportingNpcs()`는 고정 시작 장면 이름만 본다. 대화 중 등장 인물은 이 로어북 경로다.
+
+### 8-2. 작성 지시문 3명 상한 제거
+
+`authorPrompts.ts`에서 `otherRelationships 0~3명`과 출연진 참고 목록의 `0~3명`을 삭제했다. 필요한 인원을 숫자로 자르지 않고, 무관한 인물을 상시 주입하지도 않는다. compact QA `bible_other_relationships_dense`(3명 초과 거부)도 같은 임의 상한이라 제거했다. 루시안 바이블 원문(에드릭·테오·노엘 벨로체 3명)은 그대로다.
+
+### 8-3. 검증 원문 위치
+
+- 볼프강 리뷰 덤프 `CAST RELATIONSHIP LOREBOOK`: [`pilot-rf-02-wolfgang.md`](./pilot-rf-02-wolfgang.md)
+- 루시안 리뷰 덤프(원고 본문 유지, 관계 로어북 3개만 추가 표시): [`pilot-rf-03-lucian.md`](./pilot-rf-03-lucian.md)
+- 메인 RP 본문(출연진 미주입): [`pilot-rf-02-after-rp.txt`](./pilot-rf-02-after-rp.txt)

@@ -12,7 +12,10 @@ import {
   renderAppearanceBlock,
   renderRuntimeAppearanceBlock,
 } from "@/lib/officialSupply/appearance";
-import { resolveOfficialCharacterLorebooks } from "@/lib/officialSupply/lorebookAttach";
+import {
+  attachOfficialCharacterLorebooks,
+  projectOtherRelationshipsToCharacterLorebook,
+} from "@/lib/officialSupply/lorebookAttach";
 import { composeOfficialCreatorComment } from "@/lib/officialSupply/publicProfileText";
 import type {
   OfficialAppearanceLock,
@@ -118,8 +121,17 @@ export function buildOfficialCharacterReviewReport(
   const fullVisualAppearance = renderAppearanceBlock(file.appearance);
   const systemPrompt = composeOfficialSystemPrompt(draft, runtimeAppearance);
   const creatorComment = composeOfficialCreatorComment(draft);
-  const resolvedLorebook = resolveOfficialCharacterLorebooks(world.bible.lorebook, file.characterLorebook);
   const approvedLocal = file.characterLorebook ?? [];
+  const relationshipLorebook = projectOtherRelationshipsToCharacterLorebook(
+    file.bible.otherRelationships ?? [],
+    file.draftKey
+  );
+  const resolvedLorebook = attachOfficialCharacterLorebooks({
+    shared: world.bible.lorebook,
+    characterLocal: approvedLocal,
+    otherRelationships: file.bible.otherRelationships ?? [],
+    ownerKey: file.draftKey,
+  });
   const sharedKeys = new Set(world.bible.lorebook.map((entry) => entry.entryKey));
   const reusedKeys = approvedLocal.filter((entry) => sharedKeys.has(entry.entryKey)).map((entry) => entry.entryKey);
   const extraKeys = approvedLocal.filter((entry) => !sharedKeys.has(entry.entryKey)).map((entry) => entry.entryKey);
@@ -139,7 +151,8 @@ export function buildOfficialCharacterReviewReport(
     "- AUTHORING SOURCE: bible, appearance lock, characterLorebook, otherRelationships in the pilot fixture.",
     "- STORED SNAPSHOT: the `draft` object persisted in the same fixture after the last official compile.",
     "- COMPILED STAGED FORM: live `compileOfficialDraftFromBible` + public-text owners + `composeOfficialSystemPrompt`. This is the official-supply staging payload, not a hand rewrite.",
-    "- NOT IN THIS DUMP: chat `buildContext`, provider messages, turn-time lorebook keyword activation. Those paths are not executed here.",
+    "- CAST RELATIONSHIP LOREBOOK: public otherRelationships project into character-local keyword lorebooks. hidden stays LOCKED_SECRET.",
+    "- NOT IN THIS DUMP: chat `buildContext`, provider messages, live keyword-match execution. Projected entries below are the attach set those keywords would activate.",
     "",
     "## SENSITIVITY",
     "The hosting repository is public. This dump contains fictional character-known secrets that already exist in the official pilot fixture. It must not contain user PII or operations credentials.",
@@ -200,6 +213,10 @@ export function buildOfficialCharacterReviewReport(
     ...lorebookBlock(
       "## CHARACTER-LOCAL LOREBOOK — DISTINCT KEYS, SHARED WORLD OWNER PRESERVED",
       approvedLocal
+    ),
+    ...lorebookBlock(
+      "## CAST RELATIONSHIP LOREBOOK — NAME-TRIGGERED, NOT ALWAYS-ON",
+      relationshipLorebook
     ),
     ...lorebookBlock("## RESOLVED LOREBOOK — ACTUAL ATTACH SET", resolvedLorebook),
     "## LOREBOOK DIFF — APPROVED LOCAL vs RESOLVED ATTACH",
