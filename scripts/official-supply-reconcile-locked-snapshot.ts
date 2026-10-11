@@ -33,15 +33,21 @@ function main(): void {
     );
     return;
   }
-  const expectedSha = process.env[SHA_ENV]?.trim() || process.env.RAILWAY_GIT_COMMIT_SHA?.trim() || "";
-  const runtimeSha = process.env.RAILWAY_GIT_COMMIT_SHA?.trim() || expectedSha;
-  if (!expectedSha || !runtimeSha) {
-    throw new OfficialSupplyGateError(
-      "locked_snapshot_sha_mismatch",
-      `${SHA_ENV} or RAILWAY_GIT_COMMIT_SHA is required`
-    );
-  }
+  const runtimeSha = process.env.RAILWAY_GIT_COMMIT_SHA?.trim() || "";
   if (isLockedSnapshotApplyAuthorized(argv, process.env)) {
+    const expectedSha = process.env[SHA_ENV]?.trim() || "";
+    if (!expectedSha) {
+      throw new OfficialSupplyGateError(
+        "locked_snapshot_sha_mismatch",
+        `apply requires independently provided ${SHA_ENV}`
+      );
+    }
+    if (!runtimeSha) {
+      throw new OfficialSupplyGateError(
+        "locked_snapshot_sha_mismatch",
+        "apply requires RAILWAY_GIT_COMMIT_SHA from the running deploy"
+      );
+    }
     const backupPath = process.env[BACKUP_ENV]?.trim() || "";
     const result = applyLockedSnapshot({
       dbPath,
@@ -60,10 +66,18 @@ function main(): void {
       `apply argv without ${APPLY_ENV}=1 stays inspect-only`
     );
   }
+  const inspectExpected = process.env[SHA_ENV]?.trim() || runtimeSha;
+  const inspectRuntime = runtimeSha || inspectExpected;
+  if (!inspectExpected || !inspectRuntime) {
+    throw new OfficialSupplyGateError(
+      "locked_snapshot_sha_mismatch",
+      `${SHA_ENV} or RAILWAY_GIT_COMMIT_SHA is required for inspect SHA reporting`
+    );
+  }
   const report = inspectLockedSnapshot({
     dbPath,
-    expectedSha,
-    runtimeSha,
+    expectedSha: inspectExpected,
+    runtimeSha: inspectRuntime,
     env: process.env,
   });
   console.log(

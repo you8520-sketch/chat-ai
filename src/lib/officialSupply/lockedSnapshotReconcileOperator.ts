@@ -45,7 +45,12 @@ export const WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET = {
   expectedRepUrl: "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
   expectedRepAttempts: 1,
   expectedRepSha256: "a66c49d4d947209206b70a284c99f2e26ef868934ed5426818042c29ba3a45f1",
+  expectedOldDraftJsonSha256: "2f7d4f653e02ef3fceb7e2e02a551853c38fcb14db81f14985d219c5d92b4858",
+  expectedOldAssetPlanJsonSha256: "f2f3371754d767041275186b1db50d09fa85e8529c5bd3faecf36fb4d398bc44",
 } as const;
+
+const RAILWAY_PRODUCTION_DB_PATH = "/data/app.db";
+const FULL_SHA = /^[a-f0-9]{40}$/i;
 
 const STALE_NEEDLES = ["압송", "수갑", "character_plus_required_partner", "플레이어와 함께", "차가운 심문"] as const;
 const CURRENT_PLAN_PATH = path.join(
@@ -144,12 +149,49 @@ function sha256(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nested]) => `${JSON.stringify(key)}:${canonicalJson(nested)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "undefined";
+}
+
 function stop(code: string, message: string): never {
   throw new OfficialSupplyGateError(code, message);
 }
 
+export function isRailwayProductionApplyEnvironment(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.RAILWAY_ENVIRONMENT_NAME === "production";
+}
+
+export function isProtectedSqlitePath(dbPath: string, protectedPath = RAILWAY_PRODUCTION_DB_PATH): boolean {
+  const canonical = path.resolve(protectedPath);
+  const resolved = path.resolve(dbPath);
+  if (resolved === canonical) return true;
+  let realDb: string | null = null;
+  try {
+    if (fs.existsSync(dbPath)) realDb = fs.realpathSync(dbPath);
+  } catch {
+    realDb = null;
+  }
+  if (realDb === canonical) return true;
+  if (!fs.existsSync(protectedPath) || !fs.existsSync(dbPath)) return false;
+  try {
+    if (realDb && fs.realpathSync(protectedPath) === realDb) return true;
+    const left = fs.statSync(protectedPath);
+    const right = fs.statSync(dbPath);
+    return left.dev === right.dev && left.ino === right.ino;
+  } catch {
+    return false;
+  }
+}
+
 export function isRailwayProductionSqlitePath(dbPath: string): boolean {
-  return path.resolve(dbPath) === path.resolve("/data/app.db");
+  return isProtectedSqlitePath(dbPath, RAILWAY_PRODUCTION_DB_PATH);
 }
 
 export function isLockedSnapshotApplyAuthorized(
@@ -215,19 +257,74 @@ function integrityOk(db: Database.Database): boolean {
   return false;
 }
 
-export function assertRestorableSqliteBackup(backupPath: string): void {
+function assetRowDigest(rows: AssetInspectRow[]): string {
+  return sha256(
+    canonicalJson(
+      rows.map((row) => ({
+        id: row.id,
+        slot_key: row.slot_key,
+        kind: row.kind,
+        status: row.status,
+        attempts: row.attempts,
+        result_url: row.result_url,
+        lease_owner: row.lease_owner,
+        spent_usd: row.spent_usd,
+        appearance_lock_hash: row.appearance_lock_hash,
+        moderation_json: row.moderation_json,
+      }))
+    )
+  );
+}
+
+export function assertBackupMatchesLiveSource(backupPath: string, liveDbPath: string): void {
   if (!fs.existsSync(backupPath)) {
     stop("locked_snapshot_backup_missing", "apply requires an existing VACUUM INTO snapshot");
   }
-  const db = new Database(backupPath, { readonly: true, fileMustExist: true });
+  let backupReal: string;
+  let liveReal: string;
   try {
-    db.pragma("query_only = ON");
-    if (!integrityOk(db)) stop("locked_snapshot_backup_invalid", "backup integrity_check is not ok");
+    backupReal = fs.realpathSync(backupPath);
+    liveReal = fs.realpathSync(liveDbPath);
+  } catch {
+    stop("locked_snapshot_backup_invalid", "backup or live database path is unreadable");
+  }
+  if (backupReal === liveReal) {
+    stop("locked_snapshot_backup_invalid", "backup path must be a distinct file from the live database");
+  }
+  const live = openOfficialSupplyReadonlyDatabase(liveDbPath);
+  let liveCharacter: CharacterInspectRow;
+  let liveAssets: AssetInspectRow[];
+  try {
+    const read = readTarget(live, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey);
+    liveCharacter = read.character;
+    liveAssets = read.assets;
+  } finally {
+    live.close();
+  }
+  const backup = openOfficialSupplyReadonlyDatabase(backupPath);
+  try {
+    if (!integrityOk(backup)) stop("locked_snapshot_backup_invalid", "backup integrity_check is not ok");
     if (fs.existsSync(`${backupPath}-wal`)) {
       stop("locked_snapshot_backup_invalid", "backup must not include a live WAL file");
     }
+    const { character, assets, replacements, styleStage, batchStatus } = readTarget(
+      backup,
+      WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey
+    );
+    assertInspectInvariants(character, assets, { replacements, styleStage, batchStatus });
+    if (
+      character.draft_json !== liveCharacter.draft_json ||
+      character.asset_plan_json !== liveCharacter.asset_plan_json ||
+      character.text_lock_hash !== liveCharacter.text_lock_hash ||
+      character.appearance_lock_hash !== liveCharacter.appearance_lock_hash
+    ) {
+      stop("locked_snapshot_backup_mismatch", "backup official-supply text/plan/lock is not the live pre-CAS row");
+    }
+    if (assetRowDigest(assets) !== assetRowDigest(liveAssets)) {
+      stop("locked_snapshot_backup_mismatch", "backup 14 asset rows are not the live pre-CAS rows");
+    }
   } finally {
-    db.close();
+    backup.close();
   }
 }
 
@@ -336,6 +433,28 @@ function assertInspectInvariants(
   if (inFlight.length > 0) stop("locked_snapshot_in_flight", "in-flight asset rows present");
 }
 
+function classifyLockedSnapshot(
+  character: CharacterInspectRow,
+  nextDraft: OfficialCharacterDraft,
+  nextPlan: OfficialAssetPlan
+): "old_exact" | "approved_exact" {
+  const draftSha = sha256(character.draft_json);
+  const planSha = sha256(character.asset_plan_json!);
+  const oldExact =
+    draftSha === WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.expectedOldDraftJsonSha256 &&
+    planSha === WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.expectedOldAssetPlanJsonSha256 &&
+    character.text_lock_hash === WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.expectedOldTextLockHash;
+  if (oldExact) return "old_exact";
+  const storedDraft = JSON.parse(character.draft_json) as OfficialCharacterDraft;
+  const storedPlan = JSON.parse(character.asset_plan_json!) as OfficialAssetPlan;
+  const approvedExact =
+    character.text_lock_hash === WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.expectedNextTextLockHash &&
+    canonicalJson(storedDraft) === canonicalJson(nextDraft) &&
+    canonicalJson(storedPlan) === canonicalJson(nextPlan);
+  if (approvedExact) return "approved_exact";
+  stop("locked_snapshot_preimage_mismatch", "stored draft/plan is neither the observed 2026-09-27 snapshot nor the approved source");
+}
+
 export function inspectLockedSnapshot(input: {
   dbPath: string;
   expectedSha: string;
@@ -388,9 +507,7 @@ export function inspectLockedSnapshot(input: {
     const staleNeedles = STALE_NEEDLES.filter(
       (needle) => character.draft_json.includes(needle) || character.asset_plan_json!.includes(needle)
     );
-    const textMatchesApproved =
-      character.text_lock_hash === WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.expectedNextTextLockHash;
-    const ready = qa.ok && assembliesFailed === 0 && !textMatchesApproved;
+    const snapshotClass = classifyLockedSnapshot(character, nextDraft, nextPlan);
     if (!qa.ok || assembliesFailed > 0) {
       stop("locked_snapshot_qa_failed", "approved source failed plan QA or no-provider assembly");
     }
@@ -409,8 +526,8 @@ export function inspectLockedSnapshot(input: {
       isStyleProof: character.is_style_proof === 1,
       textLockHash: character.text_lock_hash!,
       appearanceLockHash: character.appearance_lock_hash!,
-      textMatchesOld: character.text_lock_hash === WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.expectedOldTextLockHash,
-      textMatchesApproved,
+      textMatchesOld: snapshotClass === "old_exact",
+      textMatchesApproved: snapshotClass === "approved_exact",
       draftJsonSha256: sha256(character.draft_json),
       assetPlanJsonSha256: sha256(character.asset_plan_json!),
       imageSubjectsPresent: plan.slots.filter((slot) => slot && "imageSubjects" in slot).length,
@@ -440,7 +557,7 @@ export function inspectLockedSnapshot(input: {
       replacements,
       planQaOk: qa.ok,
       assemblies: { ok: assembliesOk, failed: assembliesFailed },
-      verdict: ready ? "ready_for_cas" : "already_current",
+      verdict: snapshotClass === "old_exact" ? "ready_for_cas" : "already_current",
       backupPlan: {
         owner: "VACUUM INTO",
         copyLiveWalForbidden: true,
@@ -464,35 +581,46 @@ export function applyLockedSnapshot(input: {
   if (!isLockedSnapshotApplyAuthorized(input.argv, input.env)) {
     stop("locked_snapshot_apply_forbidden", "apply requires argv apply and OFFICIAL_LOCKED_SNAPSHOT_APPLY=1");
   }
-  if (isRailwayProductionSqlitePath(input.dbPath)) {
+  if (isRailwayProductionApplyEnvironment(input.env) || isRailwayProductionSqlitePath(input.dbPath)) {
     stop(
       "locked_snapshot_production_apply_blocked",
-      "this operator refuses /data/app.db until a separate live-write approval lifts the production path"
+      "this operator refuses Railway production and any path that resolves to /data/app.db"
     );
+  }
+  if (!FULL_SHA.test(input.expectedSha)) {
+    stop("locked_snapshot_sha_mismatch", "apply requires an independently provided full expected deploy SHA");
+  }
+  const runtimeSha = input.env.RAILWAY_GIT_COMMIT_SHA?.trim() ?? "";
+  if (!FULL_SHA.test(runtimeSha) || runtimeSha !== input.runtimeSha) {
+    stop("locked_snapshot_sha_mismatch", "apply runtime SHA must be the process RAILWAY_GIT_COMMIT_SHA");
+  }
+  if (!gitCommitMatchesDeployment(runtimeSha, input.expectedSha)) {
+    stop("locked_snapshot_sha_mismatch", "apply expected deploy SHA does not match RAILWAY_GIT_COMMIT_SHA");
   }
   const inspect = inspectLockedSnapshot({
     dbPath: input.dbPath,
     expectedSha: input.expectedSha,
-    runtimeSha: input.runtimeSha,
+    runtimeSha,
     env: input.env,
   });
   if (inspect.verdict !== "ready_for_cas" && inspect.verdict !== "already_current") {
     stop("locked_snapshot_qa_failed", "inspect did not authorize apply");
   }
-  assertRestorableSqliteBackup(input.backupPath);
+  assertBackupMatchesLiveSource(input.backupPath, input.dbPath);
+  const { nextDraft, nextPlan } = loadApprovedWolfgangV4Source();
   const readonly = openOfficialSupplyReadonlyDatabase(input.dbPath);
   let expectedDraftJson: string;
   let expectedAssetPlanJson: string;
   let expectedTextLockHash: string;
   try {
     const { character } = readTarget(readonly, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey);
+    classifyLockedSnapshot(character, nextDraft, nextPlan);
     expectedDraftJson = character.draft_json;
     expectedAssetPlanJson = character.asset_plan_json!;
     expectedTextLockHash = character.text_lock_hash!;
   } finally {
     readonly.close();
   }
-  const { nextDraft, nextPlan } = loadApprovedWolfgangV4Source();
   const previousDataDir = process.env.DATA_DIR;
   process.env.DATA_DIR = path.dirname(input.dbPath);
   try {

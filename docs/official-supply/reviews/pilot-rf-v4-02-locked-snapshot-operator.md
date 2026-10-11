@@ -76,7 +76,14 @@ Verdict: **ready for a later one-target CAS**. Not authorized in this PR.
 
 ## AFTER (code only)
 
-Default CLI is inspect or `NOT_RUN`. Inspect never instantiates `OfficialSupplyStore`. Apply requires `apply` argv **and** `OFFICIAL_LOCKED_SNAPSHOT_APPLY=1`, reads preimage from the same SQLite file, then calls the existing Store method once. Apply **refuses** `/data/app.db` in this revision.
+Default CLI is inspect or `NOT_RUN`. Inspect never instantiates `OfficialSupplyStore`. Apply requires `apply` argv **and** `OFFICIAL_LOCKED_SNAPSHOT_APPLY=1`, reads preimage from the same SQLite file, then calls the existing Store method once.
+
+Fail-closed gates after GPT #1533 review:
+
+1. Apply refuses Railway `RAILWAY_ENVIRONMENT_NAME=production` and any path whose `realpath`/inode resolves to `/data/app.db`.
+2. `ready_for_cas` requires the observed live `draft_json`/`asset_plan_json` SHA-256 pair. Hook-only or plan-only drift STOPs. `already_current` requires the full compiled draft+plan, including hook.
+3. Backup must be a distinct `VACUUM INTO` file whose Wolfgang row and 14 asset rows match the live pre-CAS source. Integrity-only unrelated SQLite is rejected.
+4. Apply requires independently provided `OFFICIAL_LOCKED_SNAPSHOT_EXPECTED_DEPLOY_SHA` and matching `RAILWAY_GIT_COMMIT_SHA`. Inspect still reports runtime SHA.
 
 ## Backup / restore plan (future apply precondition)
 
