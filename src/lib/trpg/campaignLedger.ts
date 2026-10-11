@@ -1,5 +1,11 @@
 import type Database from "better-sqlite3";
-import { declaresTraversalIntent, tokenizeSceneLabel } from "./actionCheckContext";
+import { tokenizeSceneLabel } from "./actionCheckContext";
+import {
+  DIRECTIONAL_QUALIFIERS,
+  declaredMovementGoals,
+  describeMovementGoal,
+  spatialPolarity,
+} from "./movementDeclaration";
 import { clipTrpgChars } from "./clip";
 import { parseJson } from "./store";
 import {
@@ -58,9 +64,6 @@ export type TrpgLocationPersistSheet = {
 /** Interior/exterior suffixes refine a named place; they are not the place. */
 const INTERIOR_SUFFIXES = new Set(["내부", "안쪽", "바깥", "바깥쪽", "속", "실내", "실외"]);
 
-/** Opposite directions always conflict, even when dest adds parent-location tokens. */
-const DIRECTIONAL_QUALIFIERS = new Set(["북쪽", "남쪽", "동쪽", "서쪽", "좌측", "우측", "왼쪽", "오른쪽"]);
-
 function tokenCoversPlace(token: string, place: string): boolean {
   return token === place || token.startsWith(place);
 }
@@ -82,9 +85,13 @@ function destCoreLength(tokens: readonly string[]): number {
   return tokens.filter((token) => !INTERIOR_SUFFIXES.has(token)).length;
 }
 
-function qualifiersConflict(sourceTokens: readonly string[], destTokens: readonly string[], place: string): boolean {
+/** Opposite directions always conflict, even when dest adds parent-location tokens. */
+function qualifiersConflict(
+  sourceQualifier: string | undefined,
+  destTokens: readonly string[],
+  place: string
+): boolean {
   const destQualifier = precedingQualifier(destTokens, place);
-  const sourceQualifier = precedingQualifier(sourceTokens, place);
   if (!destQualifier || !sourceQualifier) return false;
   if (
     destQualifier === sourceQualifier ||
@@ -101,9 +108,10 @@ function qualifiersConflict(sourceTokens: readonly string[], destTokens: readonl
 }
 
 /**
- * Dest names the same place as `source`, possibly with extra parent-location
- * tokens or an interior suffix. Persist auth does not reuse open-route
- * discovery: that matcher allows a 1-token overlap on 2-token labels.
+ * Presence matcher: `destination` is the same place as `source`, possibly with extra
+ * parent-location tokens or an interior suffix. Encounter strikes and encounter endings use it to
+ * decide who stands in an approved threat's place, so it stays strict and is NOT the movement
+ * authorization matcher (see `movementGoalNamesDestination`).
  */
 export function destinationRefinesDeclared(source: string, destination: string): boolean {
   const dest = destination.trim();
@@ -113,7 +121,7 @@ export function destinationRefinesDeclared(source: string, destination: string):
   if (!place) return false;
   const sourceTokens = tokenizeSceneLabel(source);
   if (!sourceTokens.some((token) => tokenCoversPlace(token, place))) return false;
-  if (qualifiersConflict(sourceTokens, destTokens, place)) return false;
+  if (qualifiersConflict(precedingQualifier(sourceTokens, place), destTokens, place)) return false;
   return true;
 }
 
@@ -128,6 +136,22 @@ function movementAttemptFailed(tier: string | null | undefined): boolean {
   }
 }
 
+/**
+ * Movement matcher: the GM-proposed `destination` is the place a player declared as the goal of a
+ * motion. Identity is the declared place name; the label may add parent tokens before it and
+ * sub-area tokens after it (등대 → 곶 끝의 등대 외곽). It never crosses an explicit inside/outside
+ * boundary the player declared (세관 앞 → 세관 내부), nor a conflicting qualifier (북쪽 창고 → 남쪽 창고).
+ */
+export function movementGoalNamesDestination(goalPhrase: string, destination: string): boolean {
+  const goal = describeMovementGoal(goalPhrase);
+  if (!goal.place) return false;
+  const destTokens = tokenizeSceneLabel(destination);
+  if (!destTokens.includes(goal.place)) return false;
+  const destPolarity = spatialPolarity(destination.split(/\s+/));
+  if (goal.polarity && destPolarity && goal.polarity !== destPolarity) return false;
+  return !qualifiersConflict(goal.qualifier, destTokens, goal.place);
+}
+
 /** True when this locked action already authorizes relocating to `destination`. */
 export function submissionAuthorizesLocation(
   submission: TrpgLocationPersistSubmission,
@@ -136,26 +160,30 @@ export function submissionAuthorizesLocation(
   const dest = destination.trim();
   if (!dest) return false;
   if (movementAttemptFailed(submission.tier)) return false;
-  if (submission.acceptedRoute) {
-    return destinationRefinesDeclared(submission.acceptedRoute, dest);
-  }
-  if (!destinationRefinesDeclared(submission.body, dest)) return false;
-  return declaresTraversalIntent(submission.body);
+  const declaredGoals = [
+    ...(submission.acceptedRoute ? [submission.acceptedRoute] : []),
+    ...declaredMovementGoals(submission.body),
+  ];
+  return declaredGoals.some((goal) => movementGoalNamesDestination(goal, dest));
 }
 
 /**
  * Location persist bind — campaignLedger owner.
  * Opening may set the starting place. After that, a GM location change sticks
  * only when that participant has a server-confirmed dest: the frozen
- * acceptedRoute label (exact or a more-specific same place), or a declared
- * traversal whose body names that dest, and not a failure tier. Compare each
- * sheet's previous location, not the shared ledger. World-forced relocation
- * has no separate persist owner today (T9/L5).
+ * acceptedRoute label or a goal-marked place in a live motion clause of that
+ * participant's own submission (`movementGoalNamesDestination`), and not a
+ * failure tier. Compare each sheet's previous location, not the shared ledger.
+ * World-forced relocation has no separate persist owner today (T9/L5).
+ *
+ * The next-round hook is stored only when it can agree with the persisted place:
+ * either the campaign place did not change, or the move was authorized. When the GM
+ * proposed a relocation the server refused, the hook is cleared rather than kept
+ * from an earlier round, so a stale place is never re-injected as the next decision.
  */
 export function bindGmLocationToSubmittedMovement(opts: {
   opening: boolean;
   currentLocation: string;
-  currentNextRoundContext: string;
   proposedLocation: string;
   delta: TrpgStateDelta;
   submissions: readonly TrpgLocationPersistSubmission[];
@@ -193,9 +221,7 @@ export function bindGmLocationToSubmittedMovement(opts: {
     campaignMoved && opts.submissions.some((sub) => submissionAuthorizesLocation(sub, proposed));
   return {
     location: campaignAuthorized ? proposed : current,
-    nextRoundContext: campaignAuthorized || !campaignMoved
-      ? opts.delta.nextRoundContext
-      : opts.currentNextRoundContext,
+    nextRoundContext: campaignAuthorized || !campaignMoved ? opts.delta.nextRoundContext : "",
     delta: { ...opts.delta, players },
   };
 }
