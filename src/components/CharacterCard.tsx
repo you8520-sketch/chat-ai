@@ -220,6 +220,14 @@ function CardTags({ tags, max, className, tagClassName }: { tags: string[]; max:
   );
 }
 
+function CardEmoji({ emoji, hidden }: { emoji: string; hidden: boolean }) {
+  return (
+    <span className={`flex h-full w-full items-center justify-center text-5xl sm:text-6xl ${hidden ? "blur-md" : ""}`}>
+      {emoji}
+    </span>
+  );
+}
+
 function cardBackdrop(hue: number): CSSProperties {
   return { background: `linear-gradient(135deg, hsl(${hue} 50% 18%), hsl(${(hue + 40) % 360} 45% 10%))` };
 }
@@ -261,13 +269,14 @@ function HomeCard({
   const media = (
     <div className="home-card-media">
       {view.thumb ? (
-        <CharacterCardCarousel urls={view.urls} alt={c.name} hidden={view.hidden} />
+        <CharacterCardCarousel
+          urls={view.urls}
+          alt={c.name}
+          hidden={view.hidden}
+          fallback={<CardEmoji emoji={c.emoji} hidden={view.hidden} />}
+        />
       ) : (
-        <span
-          className={`flex h-full w-full items-center justify-center text-5xl sm:text-6xl ${view.hidden ? "blur-md" : ""}`}
-        >
-          {c.emoji}
-        </span>
+        <CardEmoji emoji={c.emoji} hidden={view.hidden} />
       )}
     </div>
   );
@@ -400,14 +409,15 @@ function DefaultCard({ c, view }: { c: CharacterRow; view: CardView }) {
         <div className={cn("relative w-full overflow-hidden", CHARACTER_THUMB_ASPECT)} style={cardBackdrop(c.hue)}>
           {view.thumb ? (
             <div className={chrome.media}>
-              <CharacterCardCarousel urls={view.urls} alt={c.name} hidden={view.hidden} />
+              <CharacterCardCarousel
+                urls={view.urls}
+                alt={c.name}
+                hidden={view.hidden}
+                fallback={<CardEmoji emoji={c.emoji} hidden={view.hidden} />}
+              />
             </div>
           ) : (
-            <span
-              className={`flex h-full w-full items-center justify-center text-5xl sm:text-6xl ${view.hidden ? "blur-md" : ""}`}
-            >
-              {c.emoji}
-            </span>
+            <CardEmoji emoji={c.emoji} hidden={view.hidden} />
           )}
           <span aria-hidden className={chrome.fade} />
           <span aria-hidden className={chrome.keyline} />

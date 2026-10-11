@@ -22,3 +22,8 @@ export function shouldRunCarousel(input: {
     input.documentVisible
   );
 }
+
+/** 로딩에 실패한 URL은 회전 후보에서 뺀다. 재시도하지 않는다. */
+export function usableCarouselUrls(urls: readonly string[], failed: ReadonlySet<string>): string[] {
+  return urls.filter((url) => !failed.has(url));
+}

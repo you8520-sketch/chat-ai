@@ -6,7 +6,9 @@ Module._load = function (request, parent, isMain) {
   if (request === "server-only") return {};
   if (request === "next/link") return { __esModule: true, default: "a" };
   if (request === "@/components/CharacterCardCarousel") {
-    return { __esModule: true, default: ({ urls, hidden }: { urls: string[]; hidden: boolean }) => `[carousel ${urls.join(",")} hidden=${hidden}]` };
+    return { __esModule: true, default: ({ urls, hidden, fallback }: { urls: string[]; hidden: boolean; fallback?: ReactNode }) =>
+        `[carousel ${urls.join(",")} hidden=${hidden} fallback=${expand(fallback)}]`,
+    };
   }
   return originalLoad.call(this, request, parent, isMain);
 } as typeof Module._load;
@@ -71,7 +73,7 @@ describe("default CharacterCard", () => {
       assert.ok(html.includes(text), text);
     }
     assert.match(html, /data-character-card/);
-    assert.ok(html.includes("[carousel /uploads/a.png hidden=false]"));
+    assert.ok(html.includes("[carousel /uploads/a.png hidden=false fallback=<span"));
     assert.match(html, /data-character-name="강이현"/);
     assert.match(html, /href="\/character\/7"/);
     assert.match(html, /href="\/search\?q=%EC%83%9D%EC%A1%B4"/);
@@ -81,6 +83,15 @@ describe("default CharacterCard", () => {
     const html = await render(row({ images: "[]", assets: "[]", tagline: "" }));
     assert.ok(html.includes("🌙"));
     assert.ok(html.includes("한 줄 소개 없음"));
+  });
+
+  it("hands the emoji to the carousel as the all-images-failed fallback, blurred for gated cards", async () => {
+    const open = await render(row({ emoji: "🦊" }), { loggedIn: true });
+    assert.ok(open.includes("fallback=<span") && open.includes("🦊"));
+    const gated = await render(row({ emoji: "🦊", nsfw: 1 }), { blurNsfw: true, loggedIn: true });
+    assert.match(gated, /fallback=<span className="[^"]*blur-md[^"]*">🦊/);
+    const home = await render(row({ emoji: "🦊" }), { variant: "index", loggedIn: true });
+    assert.ok(home.includes("fallback=<span") && home.includes("🦊"));
   });
 
   it("keeps adult cards gated: blurred overlay, no tagline leak, login-gated link", async () => {
