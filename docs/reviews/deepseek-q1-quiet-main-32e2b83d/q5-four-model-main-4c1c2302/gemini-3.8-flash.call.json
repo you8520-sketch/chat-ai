@@ -1,0 +1,42 @@
+{
+  "label": "CONTROLLED_FIXTURE_NOT_LIVE_PRODUCTION",
+  "model": "google/gemini-3.8-flash",
+  "route": "openrouter",
+  "endpoint": "POST https://openrouter.ai/api/v1/chat/completions (non-stream)",
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "nativeFinishReason": "STOP",
+  "promptTokens": 3802,
+  "completionTokens": 2342,
+  "usage": {
+    "prompt_tokens": 3802,
+    "completion_tokens": 2342,
+    "total_tokens": 6144,
+    "cost": 0.0047270333333333334,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 3442,
+      "cache_write_tokens": 3442,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0047270333333333334,
+      "upstream_inference_prompt_cost": 0.00033578333333333335,
+      "upstream_inference_completions_cost": 0.00439125
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "upstreamProvider": "Google AI Studio",
+  "requestId": "gen-1791729974-aznL7tb4djJ17jhIghab",
+  "rawChars": 3597,
+  "visibleChars": 2692,
+  "seconds": 29.639,
+  "requestCompactSha256": "a04d70d17bcbb74c17efa7d2f06b39fcc83b87f8b7d23d46067ecc5db5f30ba2",
+  "rawFileSha256": "cb8804fb6e9476fd2f5e81a34df7b34d8368acae460f45c3e229cd7e24439dab",
+  "error": null
+}

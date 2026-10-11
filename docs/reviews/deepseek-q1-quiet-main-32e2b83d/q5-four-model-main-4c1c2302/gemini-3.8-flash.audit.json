@@ -1,0 +1,45 @@
+{
+  "model": "google/gemini-3.8-flash",
+  "provider": "openrouter",
+  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+  "stream": false,
+  "options": {
+    "model": "google/gemini-3.8-flash",
+    "stream": false,
+    "stream_options": {
+      "include_usage": true
+    },
+    "include_reasoning": false,
+    "reasoning": {
+      "effort": "low",
+      "exclude": true
+    },
+    "provider": {
+      "only": [
+        "google-ai-studio"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true
+    },
+    "service_tier": "flex"
+  },
+  "noMaxTokens": true,
+  "roles": [
+    "system",
+    "user",
+    "assistant",
+    "user"
+  ],
+  "currentUserAnchorOnce": 1,
+  "lengthSentenceCount": 1,
+  "scenePacingCount": 1,
+  "commonProseCount": 1,
+  "terminalDialogueBudgetCount": 1,
+  "허용된변화": 0,
+  "전개초점": 0,
+  "creatorNote": 0,
+  "deepseekOnlyLine": 0,
+  "keyEnv": "RP_QUALITY_PAID_OPENROUTER_KEY",
+  "keyPresent": true,
+  "compactSha256": "a04d70d17bcbb74c17efa7d2f06b39fcc83b87f8b7d23d46067ecc5db5f30ba2"
+}
