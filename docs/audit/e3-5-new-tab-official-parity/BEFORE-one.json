@@ -1,0 +1,53 @@
+{
+ "m390": {
+  "homeNew": {
+   "names": [
+    "공식 단독"
+   ],
+   "badges": 1
+  },
+  "tab": {
+   "url": "/tab/new",
+   "title": "실시간 신작",
+   "names": [],
+   "badges": 0,
+   "markers": 0,
+   "empty": true
+  },
+  "profile": null
+ },
+ "m360": {
+  "homeNew": {
+   "names": [
+    "공식 단독"
+   ],
+   "badges": 1
+  },
+  "tab": {
+   "url": "/tab/new",
+   "title": "실시간 신작",
+   "names": [],
+   "badges": 0,
+   "markers": 0,
+   "empty": true
+  },
+  "profile": null
+ },
+ "pc1440": {
+  "homeNew": {
+   "names": [
+    "공식 단독"
+   ],
+   "badges": 1
+  },
+  "tab": {
+   "url": "/tab/new",
+   "title": "실시간 신작",
+   "names": [],
+   "badges": 0,
+   "markers": 0,
+   "empty": true
+  },
+  "profile": null
+ }
+}

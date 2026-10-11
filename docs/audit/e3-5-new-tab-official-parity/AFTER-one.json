@@ -1,0 +1,71 @@
+{
+ "m390": {
+  "homeNew": {
+   "names": [
+    "공식 단독"
+   ],
+   "badges": 1
+  },
+  "tab": {
+   "url": "/tab/new",
+   "title": "실시간 신작",
+   "names": [
+    "공식 단독"
+   ],
+   "badges": 1,
+   "markers": 1,
+   "empty": false
+  },
+  "profile": {
+   "href": "/character/483",
+   "landed": "/character/483",
+   "h1": "공식 단독공식 단독"
+  }
+ },
+ "m360": {
+  "homeNew": {
+   "names": [
+    "공식 단독"
+   ],
+   "badges": 1
+  },
+  "tab": {
+   "url": "/tab/new",
+   "title": "실시간 신작",
+   "names": [
+    "공식 단독"
+   ],
+   "badges": 1,
+   "markers": 1,
+   "empty": false
+  },
+  "profile": {
+   "href": "/character/483",
+   "landed": "/character/483",
+   "h1": "공식 단독공식 단독"
+  }
+ },
+ "pc1440": {
+  "homeNew": {
+   "names": [
+    "공식 단독"
+   ],
+   "badges": 1
+  },
+  "tab": {
+   "url": "/tab/new",
+   "title": "실시간 신작",
+   "names": [
+    "공식 단독"
+   ],
+   "badges": 1,
+   "markers": 1,
+   "empty": false
+  },
+  "profile": {
+   "href": "/character/483",
+   "landed": "/character/483",
+   "h1": "공식 단독공식 단독"
+  }
+ }
+}

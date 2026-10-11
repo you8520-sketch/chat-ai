@@ -1,0 +1,32 @@
+{
+ "m390": {
+  "homeNew": null,
+  "tab": {
+   "url": "/tab/new",
+   "title": "실시간 신작",
+   "names": [],
+   "empty": true
+  },
+  "profile": null
+ },
+ "m360": {
+  "homeNew": null,
+  "tab": {
+   "url": "/tab/new",
+   "title": "실시간 신작",
+   "names": [],
+   "empty": true
+  },
+  "profile": null
+ },
+ "pc1440": {
+  "homeNew": null,
+  "tab": {
+   "url": "/tab/new",
+   "title": "실시간 신작",
+   "names": [],
+   "empty": true
+  },
+  "profile": null
+ }
+}
