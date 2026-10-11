@@ -1,0 +1,56 @@
+[
+ {
+  "label": "multi",
+  "MODE": "404",
+  "TAG": "AUDIT",
+  "probe": [
+   {
+    "hasImg": false,
+    "imgBroken": null,
+    "glyph": "✨",
+    "bg": "rgb(45, 22, 90)"
+   },
+   {
+    "hasImg": false,
+    "imgBroken": null,
+    "glyph": "✨",
+    "bg": "rgb(45, 22, 90)"
+   }
+  ],
+  "veilState": {
+   "phase": "reveal",
+   "glyph": "✨Resume강이현",
+   "imgs": 0
+  },
+  "end": {
+   "path": "/chat/13?chat=871370",
+   "room": "871370",
+   "veil": false
+  },
+  "ok": true
+ },
+ {
+  "label": "single",
+  "MODE": "404",
+  "TAG": "AUDIT",
+  "probe": [
+   {
+    "hasImg": false,
+    "imgBroken": null,
+    "glyph": "✨",
+    "bg": "rgb(45, 22, 90)"
+   }
+  ],
+  "veilState": {
+   "phase": "reveal",
+   "glyph": "✨Resume루시안바스케스",
+   "imgs": 0
+  },
+  "end": {
+   "path": "/chat/50?chat=871372",
+   "room": "871372",
+   "veil": false
+  },
+  "ok": true
+ }
+]

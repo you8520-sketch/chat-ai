@@ -1,0 +1,302 @@
+[
+  {
+    "name": "D-2 after entrance: no veil node, nothing covers the page, body not locked",
+    "ok": true,
+    "info": {
+      "cover": {
+        "topIsVeil": false,
+        "bodyPE": "auto",
+        "htmlOv": "visible",
+        "bodyOv": "visible",
+        "veilNodes": 0
+      },
+      "s0": {
+        "path": "/chat/13?chat=871370",
+        "veil": null,
+        "active": "body",
+        "chatRoom": "871370",
+        "trpgRoom": null,
+        "list": false,
+        "modal": false
+      }
+    }
+  },
+  {
+    "name": "D-2 after entrance: Tab moves keyboard focus to a real control",
+    "ok": true,
+    "info": {
+      "active": "button(뒤로가기)"
+    }
+  },
+  {
+    "name": "D-2 after entrance: message input accepts typing (not sent)",
+    "ok": true,
+    "info": {
+      "v": "audit-typing"
+    }
+  },
+  {
+    "name": "D-2 identity: URL, character and chat marker match the picked row",
+    "ok": true,
+    "info": {
+      "path": "/chat/13?chat=871370",
+      "veil": null,
+      "active": "textarea",
+      "chatRoom": "871370",
+      "trpgRoom": null,
+      "list": false,
+      "modal": false
+    }
+  },
+  {
+    "name": "back button returns to /chats list, no veil, picker closed",
+    "ok": true,
+    "info": {
+      "path": "/chats",
+      "veil": null,
+      "active": "body",
+      "chatRoom": null,
+      "trpgRoom": null,
+      "list": true,
+      "modal": false
+    }
+  },
+  {
+    "name": "forward button returns to the exact room, no veil",
+    "ok": true,
+    "info": {
+      "path": "/chat/13?chat=871370",
+      "veil": null,
+      "active": "body",
+      "chatRoom": "871370",
+      "trpgRoom": null,
+      "list": false,
+      "modal": false
+    }
+  },
+  {
+    "name": "re-entry into the other room after back: cinematic plays and the exact room arrives",
+    "ok": true,
+    "info": {
+      "sawVeil": true,
+      "s": {
+        "path": "/chat/13?chat=871371",
+        "veil": null,
+        "active": "body",
+        "chatRoom": "871371",
+        "trpgRoom": null,
+        "list": false,
+        "modal": false
+      }
+    }
+  },
+  {
+    "name": "back during a pending cinematic: no stuck veil afterwards",
+    "ok": true,
+    "info": {
+      "path": "/search",
+      "veil": null,
+      "active": "body",
+      "chatRoom": null,
+      "trpgRoom": null,
+      "list": false,
+      "modal": false
+    }
+  },
+  {
+    "name": "D-3 after entrance: no veil node, nothing covers the page, body not locked",
+    "ok": true,
+    "info": {
+      "cover": {
+        "topIsVeil": false,
+        "bodyPE": "auto",
+        "htmlOv": "visible",
+        "bodyOv": "visible",
+        "veilNodes": 0
+      },
+      "s0": {
+        "path": "/trpg/98",
+        "veil": null,
+        "active": "body",
+        "chatRoom": null,
+        "trpgRoom": "98",
+        "list": false,
+        "modal": false
+      }
+    }
+  },
+  {
+    "name": "D-3 after entrance: Tab moves keyboard focus to a real control",
+    "ok": true,
+    "info": {
+      "active": "button"
+    }
+  },
+  {
+    "name": "D-3 after entrance: room controls respond (내 시트 tab clickable)",
+    "ok": true,
+    "info": {
+      "visible": true
+    }
+  },
+  {
+    "name": "D-3 identity: URL and campaign marker match the picked card",
+    "ok": true,
+    "info": {
+      "path": "/trpg/98",
+      "veil": null,
+      "active": "button",
+      "chatRoom": null,
+      "trpgRoom": "98",
+      "list": false,
+      "modal": false
+    }
+  },
+  {
+    "name": "D-3 back button returns to /chats list with no veil",
+    "ok": true,
+    "info": {
+      "path": "/chats",
+      "veil": null,
+      "active": "body",
+      "chatRoom": null,
+      "trpgRoom": null,
+      "list": true,
+      "modal": false
+    }
+  },
+  {
+    "name": "D-3 re-entry after back plays the cinematic and arrives at the exact campaign",
+    "ok": true,
+    "info": {
+      "sawVeil": true,
+      "r": {
+        "path": "/trpg/98",
+        "veil": null,
+        "active": "body",
+        "chatRoom": null,
+        "trpgRoom": "98",
+        "list": false,
+        "modal": false
+      }
+    }
+  },
+  {
+    "name": "reduced-motion D-2: no veil node, nothing covers the page, body not locked",
+    "ok": true,
+    "info": {
+      "cover": {
+        "topIsVeil": false,
+        "bodyPE": "auto",
+        "htmlOv": "visible",
+        "bodyOv": "visible",
+        "veilNodes": 0
+      },
+      "s0": {
+        "path": "/chat/13?chat=871370",
+        "veil": null,
+        "active": "body",
+        "chatRoom": "871370",
+        "trpgRoom": null,
+        "list": false,
+        "modal": false
+      }
+    }
+  },
+  {
+    "name": "reduced-motion D-2: Tab moves keyboard focus to a real control",
+    "ok": true,
+    "info": {
+      "active": "button(뒤로가기)"
+    }
+  },
+  {
+    "name": "reduced-motion D-2: message input accepts typing (not sent)",
+    "ok": true,
+    "info": {
+      "v": "audit-typing"
+    }
+  },
+  {
+    "name": "picker is a labelled modal dialog",
+    "ok": true,
+    "info": {
+      "role": "dialog",
+      "modal": "true",
+      "labelledby": "chat-branch-title",
+      "title": "강이현"
+    }
+  },
+  {
+    "name": "each room row is a link and has reachable 이름 변경 / 삭제 buttons",
+    "ok": true,
+    "info": {
+      "rows": 2,
+      "rename": 2,
+      "del": 2
+    }
+  },
+  {
+    "name": "rename opens an input with focus, cancel closes it, no cinematic",
+    "ok": true,
+    "info": {
+      "editing": {
+        "active": "INPUT",
+        "isInput": true
+      },
+      "veilAfterRename": false
+    }
+  },
+  {
+    "name": "delete opens a confirm and cancel leaves data untouched, no cinematic",
+    "ok": true,
+    "info": {
+      "confirmShown": true
+    }
+  },
+  {
+    "name": "keyboard Enter on a picker row enters that exact room",
+    "ok": true,
+    "info": {
+      "path": "/chat/13?chat=871371",
+      "veil": null,
+      "active": "body",
+      "chatRoom": "871371",
+      "trpgRoom": null,
+      "list": false,
+      "modal": false
+    }
+  },
+  {
+    "name": "bottom nav repeated moves land on each exact destination, veil closed",
+    "ok": true,
+    "info": [
+      "/->/",
+      "/chats->/chats",
+      "/settings->/settings",
+      "/chats->/chats",
+      "/->/"
+    ]
+  },
+  {
+    "name": "bottom nav rapid taps end on the last destination with the veil closed",
+    "ok": true,
+    "info": {
+      "path": "/",
+      "veil": null,
+      "active": "a",
+      "chatRoom": null,
+      "trpgRoom": null,
+      "list": false,
+      "modal": false
+    }
+  },
+  {
+    "name": "bottom nav rapid taps: veil has no gap between first and last frame",
+    "ok": true,
+    "info": {
+      "first": 4,
+      "last": 74
+    }
+  }
+]

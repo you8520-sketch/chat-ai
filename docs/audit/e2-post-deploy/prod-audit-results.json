@@ -1,0 +1,231 @@
+{
+  "health": {
+    "ok": true,
+    "service": "playai",
+    "skipAdultVerification": true,
+    "demoEnv": false,
+    "webPushConfigured": true,
+    "gitCommit": "f338ac6",
+    "gitBranch": "main",
+    "buildBanner": "slide-v1"
+  },
+  "results": [
+    {
+      "name": "deployed gitCommit is f338ac6 (contains merge 58bfdb5a)",
+      "ok": true,
+      "info": {
+        "ok": true,
+        "service": "playai",
+        "skipAdultVerification": true,
+        "demoEnv": false,
+        "webPushConfigured": true,
+        "gitCommit": "f338ac6",
+        "gitBranch": "main",
+        "buildBanner": "slide-v1"
+      }
+    },
+    {
+      "name": "deployed client bundle carries the D-2 / D-3 resume markers",
+      "ok": true,
+      "info": {
+        "chatThumb": 1,
+        "trpgGlyph": 1,
+        "chatResume": 1,
+        "trpgResume": 1
+      }
+    },
+    {
+      "name": "m390 /chats without session redirects to login and keeps redirect target",
+      "ok": true,
+      "info": {
+        "path": "/login?redirect=/chats",
+        "veil": null,
+        "active": "body",
+        "title": "하브 - AI 캐릭터 채팅"
+      }
+    },
+    {
+      "name": "m360 /chats without session redirects to login and keeps redirect target",
+      "ok": true,
+      "info": {
+        "path": "/login?redirect=/chats",
+        "veil": null,
+        "active": "body",
+        "title": "하브 - AI 캐릭터 채팅"
+      }
+    },
+    {
+      "name": "pc1440 /chats without session redirects to login and keeps redirect target",
+      "ok": true,
+      "info": {
+        "path": "/login?redirect=/chats",
+        "veil": null,
+        "active": "body",
+        "title": "하브 - AI 캐릭터 채팅"
+      }
+    },
+    {
+      "name": "logged-out character card goes to /login?redirect=/character/13 with no veil frames",
+      "ok": true,
+      "info": {
+        "s": {
+          "path": "/login?redirect=%2Fcharacter%2F13",
+          "veil": null,
+          "active": "body",
+          "title": "하브 - AI 캐릭터 채팅"
+        },
+        "veilFrames": 0
+      }
+    },
+    {
+      "name": "m390 repeated menu moves with back button land on each exact destination with the veil closed",
+      "ok": true,
+      "info": [
+        "/tab/new->/tab/new",
+        "back->/",
+        "/tab/ranking->/tab/ranking",
+        "back->/",
+        "/search->/search",
+        "back->/",
+        "/tab/new->/tab/new",
+        "back->/"
+      ]
+    },
+    {
+      "name": "m360 repeated menu moves with back button land on each exact destination with the veil closed",
+      "ok": true,
+      "info": [
+        "/tab/new->/tab/new",
+        "back->/",
+        "/tab/ranking->/tab/ranking",
+        "back->/",
+        "/search->/search",
+        "back->/",
+        "/tab/new->/tab/new",
+        "back->/"
+      ]
+    },
+    {
+      "name": "pc1440 repeated menu moves land on each exact destination with the veil closed",
+      "ok": true,
+      "info": [
+        "/tab/new->/tab/new",
+        "/tab/ranking->/tab/ranking",
+        "/search->/search",
+        "/->/",
+        "/tab/new->/tab/new"
+      ]
+    },
+    {
+      "name": "m390 rapid menu clicks end on the last destination (/tab/ranking), veil closed",
+      "ok": true,
+      "info": {
+        "path": "/tab/ranking",
+        "veil": null,
+        "active": "body",
+        "title": "하브 - AI 캐릭터 채팅"
+      }
+    },
+    {
+      "name": "m390 rapid menu clicks: no veil gap between first and last veil frame",
+      "ok": true,
+      "info": {
+        "firstVeil": 3,
+        "lastVeil": 59
+      }
+    },
+    {
+      "name": "pc1440 rapid menu clicks end on the last destination (/search), veil closed",
+      "ok": true,
+      "info": {
+        "path": "/search",
+        "veil": null,
+        "active": "a[/search]",
+        "title": "하브 - AI 캐릭터 채팅"
+      }
+    },
+    {
+      "name": "pc1440 rapid menu clicks: no veil gap between first and last veil frame",
+      "ok": true,
+      "info": {
+        "firstVeil": 3,
+        "lastVeil": 96
+      }
+    },
+    {
+      "name": "browser back returns to / with no veil",
+      "ok": true,
+      "info": {
+        "path": "/",
+        "veil": null,
+        "active": "body",
+        "title": "하브 - AI 캐릭터 채팅"
+      }
+    },
+    {
+      "name": "browser forward returns to /tab/new with no veil",
+      "ok": true,
+      "info": {
+        "path": "/tab/new",
+        "veil": null,
+        "active": "body",
+        "title": "하브 - AI 캐릭터 채팅"
+      }
+    },
+    {
+      "name": "re-entry after back/forward works",
+      "ok": true,
+      "info": {
+        "path": "/search",
+        "veil": null,
+        "active": "body",
+        "title": "하브 - AI 캐릭터 채팅"
+      }
+    },
+    {
+      "name": "keyboard Enter on a menu link navigates and the veil closes",
+      "ok": true,
+      "info": {
+        "path": "/tab/ranking",
+        "veil": null,
+        "active": "body",
+        "title": "하브 - AI 캐릭터 채팅"
+      }
+    },
+    {
+      "name": "Tab after the transition moves focus (page is operable)",
+      "ok": true,
+      "info": {
+        "before": "body",
+        "afterTab": "button"
+      }
+    },
+    {
+      "name": "page scrolls after the transition and nothing covers the viewport",
+      "ok": true,
+      "info": {
+        "y0": 0,
+        "y1": 0,
+        "styleLeak": {
+          "bodyPE": "auto",
+          "htmlOverflow": "visible",
+          "bodyOverflow": "visible",
+          "topEl": "page"
+        }
+      }
+    },
+    {
+      "name": "reduced-motion: navigation works and the veil is not rendered visibly",
+      "ok": true,
+      "info": {
+        "s": {
+          "path": "/tab/new",
+          "veil": null,
+          "active": "body",
+          "title": "하브 - AI 캐릭터 채팅"
+        },
+        "veilFrames": 0
+      }
+    }
+  ]
+}
