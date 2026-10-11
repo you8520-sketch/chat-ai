@@ -1,0 +1,18 @@
+[
+  {
+    "model": "deepseek-v4.1-flash",
+    "onlyDifferenceIsContractLine": true,
+    "maxTokensAbsent": true,
+    "stream": false,
+    "beforeRequestJsonSha256": "0468f19ed58e50c46320ab569b6eb8ad0296e13bf7da36665f1e50a4d3732b49",
+    "afterRequestJsonSha256": "0dec66e3a0c9436d4f54db423b5be4c59ff79033fcf99cef7025e1bfa8edba77"
+  },
+  {
+    "model": "claude-opus-5.5",
+    "onlyDifferenceIsContractLine": true,
+    "maxTokensAbsent": true,
+    "stream": false,
+    "beforeRequestJsonSha256": "d9b9b05896fac6b2986cf10da96280cd50c99441988047f4d15f4876b81d07eb",
+    "afterRequestJsonSha256": "e65c15eb003dfec7c2e770934f92abe0e7e94efa7d64cec4daaaf43fd52069e4"
+  }
+]
