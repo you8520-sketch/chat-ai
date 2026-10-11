@@ -1,0 +1,928 @@
+{
+ "summary": {
+  "OLDproxy_factText": {
+   "Q": "0/6",
+   "R": "10/14",
+   "E": "0/13",
+   "S": "6/16",
+   "all": "16/49"
+  },
+  "CUR_prose": {
+   "Q": "4/6",
+   "R": "12/14",
+   "E": "11/13",
+   "S": "16/16",
+   "all": "43/49"
+  },
+  "B_base_quotes": {
+   "Q": "0/6",
+   "R": "7/14",
+   "E": "1/13",
+   "S": "5/16",
+   "all": "13/49"
+  },
+  "B_widen_quotes": {
+   "Q": "0/6",
+   "R": "6/14",
+   "E": "1/13",
+   "S": "6/16",
+   "all": "13/49"
+  },
+  "C_anchors": {
+   "Q": "3/6",
+   "R": "9/14",
+   "E": "8/13",
+   "S": "11/16",
+   "all": "31/49"
+  },
+  "C_anchors+freetags": {
+   "Q": "3/6",
+   "R": "9/14",
+   "E": "10/13",
+   "S": "11/16",
+   "all": "33/49"
+  },
+  "C_anchors+B_base": {
+   "Q": "3/6",
+   "R": "9/14",
+   "E": "9/13",
+   "S": "11/16",
+   "all": "32/49"
+  },
+  "C2_anchors_cap12": {
+   "Q": "5/6",
+   "R": "12/14",
+   "E": "10/13",
+   "S": "14/16",
+   "all": "41/49"
+  }
+ },
+ "miss": {
+  "OLDproxy_factText": [
+   [
+    "N01_insult_emotion",
+    "Q",
+    "아마추어"
+   ],
+   [
+    "N01_insult_emotion",
+    "E",
+    "입술.*깨물|시선.*(피|돌)|피했"
+   ],
+   [
+    "N01_insult_emotion",
+    "Q",
+    "아직 부족"
+   ],
+   [
+    "N02_reconcile_sequence",
+    "S",
+    "아침"
+   ],
+   [
+    "N03_npc_arrival",
+    "R",
+    "처음"
+   ],
+   [
+    "N04_char_backstory",
+    "E",
+    "위로|놀라|조용히 듣|듣"
+   ],
+   [
+    "N05_user_relationship",
+    "E",
+    "손.*(잡|맞잡)|맞잡"
+   ],
+   [
+    "N05_user_relationship",
+    "Q",
+    "나쁘지 않"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "R",
+    "3년|삼 년"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "S",
+    "재회|오랜만"
+   ],
+   [
+    "N08_char_attributed_claim",
+    "E",
+    "의아|금시초문|몰랐|처음 듣"
+   ],
+   [
+    "N09_injury_care",
+    "E",
+    "고맙|감사"
+   ],
+   [
+    "N10_promise_real",
+    "R",
+    "북문"
+   ],
+   [
+    "N11_jealousy",
+    "E",
+    "퉁명|굳은"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "부러"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "마음"
+   ],
+   [
+    "N13_journey_sequence",
+    "S",
+    "시장"
+   ],
+   [
+    "N13_journey_sequence",
+    "S",
+    "돌아"
+   ],
+   [
+    "N14_night_watch",
+    "S",
+    "담요"
+   ],
+   [
+    "N14_night_watch",
+    "E",
+    "어색|모른 척|모르는 척|무심"
+   ],
+   [
+    "N15_gift",
+    "S",
+    "검집"
+   ],
+   [
+    "N16_duel",
+    "S",
+    "대련"
+   ],
+   [
+    "N16_duel",
+    "E",
+    "손을 내|내밀|손"
+   ],
+   [
+    "N17_cancel_promise",
+    "R",
+    "약속"
+   ],
+   [
+    "N17_cancel_promise",
+    "E",
+    "아쉬|어깨"
+   ],
+   [
+    "N18_hug",
+    "S",
+    "안아|안았|안긴|포옹|품"
+   ],
+   [
+    "N18_hug",
+    "E",
+    "불안|숨"
+   ],
+   [
+    "N19_exact_quote",
+    "Q",
+    "돌아올 곳"
+   ],
+   [
+    "N19_exact_quote",
+    "E",
+    "먹먹|가슴"
+   ],
+   [
+    "N20_secret_reveal",
+    "E",
+    "곁에"
+   ],
+   [
+    "N21_user_friend_mention",
+    "S",
+    "편지"
+   ],
+   [
+    "N22_banter",
+    "S",
+    "농담"
+   ],
+   [
+    "N22_banter",
+    "E",
+    "웃"
+   ]
+  ],
+  "CUR_prose": [
+   [
+    "N01_insult_emotion",
+    "Q",
+    "아직 부족"
+   ],
+   [
+    "N03_npc_arrival",
+    "R",
+    "처음"
+   ],
+   [
+    "N04_char_backstory",
+    "E",
+    "위로|놀라|조용히 듣|듣"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "부러"
+   ],
+   [
+    "N14_night_watch",
+    "E",
+    "어색|모른 척|모르는 척|무심"
+   ],
+   [
+    "N17_cancel_promise",
+    "R",
+    "약속"
+   ]
+  ],
+  "B_base_quotes": [
+   [
+    "N01_insult_emotion",
+    "Q",
+    "아마추어"
+   ],
+   [
+    "N01_insult_emotion",
+    "E",
+    "입술.*깨물|시선.*(피|돌)|피했"
+   ],
+   [
+    "N01_insult_emotion",
+    "Q",
+    "아직 부족"
+   ],
+   [
+    "N02_reconcile_sequence",
+    "S",
+    "아침"
+   ],
+   [
+    "N03_npc_arrival",
+    "R",
+    "처음"
+   ],
+   [
+    "N04_char_backstory",
+    "S",
+    "스승"
+   ],
+   [
+    "N04_char_backstory",
+    "E",
+    "위로|놀라|조용히 듣|듣"
+   ],
+   [
+    "N05_user_relationship",
+    "E",
+    "손.*(잡|맞잡)|맞잡"
+   ],
+   [
+    "N05_user_relationship",
+    "Q",
+    "나쁘지 않"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "R",
+    "3년|삼 년"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "R",
+    "용병단"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "S",
+    "재회|오랜만"
+   ],
+   [
+    "N08_char_attributed_claim",
+    "E",
+    "의아|금시초문|몰랐|처음 듣"
+   ],
+   [
+    "N09_injury_care",
+    "E",
+    "고맙|감사"
+   ],
+   [
+    "N10_promise_real",
+    "R",
+    "북문"
+   ],
+   [
+    "N11_jealousy",
+    "E",
+    "퉁명|굳은"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "부러"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "마음"
+   ],
+   [
+    "N13_journey_sequence",
+    "S",
+    "시장"
+   ],
+   [
+    "N13_journey_sequence",
+    "S",
+    "돌아"
+   ],
+   [
+    "N14_night_watch",
+    "S",
+    "담요"
+   ],
+   [
+    "N14_night_watch",
+    "E",
+    "어색|모른 척|모르는 척|무심"
+   ],
+   [
+    "N15_gift",
+    "S",
+    "검집"
+   ],
+   [
+    "N16_duel",
+    "S",
+    "대련"
+   ],
+   [
+    "N17_cancel_promise",
+    "R",
+    "약속"
+   ],
+   [
+    "N17_cancel_promise",
+    "E",
+    "아쉬|어깨"
+   ],
+   [
+    "N18_hug",
+    "S",
+    "안아|안았|안긴|포옹|품"
+   ],
+   [
+    "N18_hug",
+    "E",
+    "불안|숨"
+   ],
+   [
+    "N19_exact_quote",
+    "Q",
+    "돌아올 곳"
+   ],
+   [
+    "N19_exact_quote",
+    "E",
+    "먹먹|가슴"
+   ],
+   [
+    "N20_secret_reveal",
+    "R",
+    "쫓겨|추방"
+   ],
+   [
+    "N20_secret_reveal",
+    "R",
+    "동료"
+   ],
+   [
+    "N20_secret_reveal",
+    "E",
+    "곁에"
+   ],
+   [
+    "N21_user_friend_mention",
+    "S",
+    "편지"
+   ],
+   [
+    "N22_banter",
+    "S",
+    "농담"
+   ],
+   [
+    "N22_banter",
+    "E",
+    "웃"
+   ]
+  ],
+  "B_widen_quotes": [
+   [
+    "N01_insult_emotion",
+    "Q",
+    "아마추어"
+   ],
+   [
+    "N01_insult_emotion",
+    "Q",
+    "아직 부족"
+   ],
+   [
+    "N02_reconcile_sequence",
+    "S",
+    "아침"
+   ],
+   [
+    "N03_npc_arrival",
+    "S",
+    "의뢰"
+   ],
+   [
+    "N03_npc_arrival",
+    "R",
+    "처음"
+   ],
+   [
+    "N04_char_backstory",
+    "E",
+    "위로|놀라|조용히 듣|듣"
+   ],
+   [
+    "N05_user_relationship",
+    "R",
+    "연인"
+   ],
+   [
+    "N05_user_relationship",
+    "E",
+    "손.*(잡|맞잡)|맞잡"
+   ],
+   [
+    "N05_user_relationship",
+    "Q",
+    "나쁘지 않"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "S",
+    "재회|오랜만"
+   ],
+   [
+    "N08_char_attributed_claim",
+    "E",
+    "의아|금시초문|몰랐|처음 듣"
+   ],
+   [
+    "N09_injury_care",
+    "E",
+    "고맙|감사"
+   ],
+   [
+    "N10_promise_real",
+    "R",
+    "북문"
+   ],
+   [
+    "N10_promise_real",
+    "R",
+    "새벽"
+   ],
+   [
+    "N11_jealousy",
+    "S",
+    "서린"
+   ],
+   [
+    "N11_jealousy",
+    "E",
+    "퉁명|굳은"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "부러"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "마음"
+   ],
+   [
+    "N13_journey_sequence",
+    "S",
+    "시장"
+   ],
+   [
+    "N13_journey_sequence",
+    "S",
+    "돌아"
+   ],
+   [
+    "N14_night_watch",
+    "E",
+    "어색|모른 척|모르는 척|무심"
+   ],
+   [
+    "N15_gift",
+    "S",
+    "검집"
+   ],
+   [
+    "N16_duel",
+    "S",
+    "대련"
+   ],
+   [
+    "N16_duel",
+    "E",
+    "손을 내|내밀|손"
+   ],
+   [
+    "N17_cancel_promise",
+    "R",
+    "약속"
+   ],
+   [
+    "N17_cancel_promise",
+    "E",
+    "아쉬|어깨"
+   ],
+   [
+    "N18_hug",
+    "E",
+    "불안|숨"
+   ],
+   [
+    "N19_exact_quote",
+    "Q",
+    "돌아올 곳"
+   ],
+   [
+    "N19_exact_quote",
+    "E",
+    "먹먹|가슴"
+   ],
+   [
+    "N20_secret_reveal",
+    "R",
+    "쫓겨|추방"
+   ],
+   [
+    "N20_secret_reveal",
+    "R",
+    "동료"
+   ],
+   [
+    "N20_secret_reveal",
+    "E",
+    "곁에"
+   ],
+   [
+    "N21_user_friend_mention",
+    "R",
+    "도윤"
+   ],
+   [
+    "N21_user_friend_mention",
+    "S",
+    "편지"
+   ],
+   [
+    "N22_banter",
+    "S",
+    "농담"
+   ],
+   [
+    "N22_banter",
+    "E",
+    "웃"
+   ]
+  ],
+  "C_anchors": [
+   [
+    "N01_insult_emotion",
+    "Q",
+    "아직 부족"
+   ],
+   [
+    "N02_reconcile_sequence",
+    "S",
+    "아침"
+   ],
+   [
+    "N03_npc_arrival",
+    "R",
+    "처음"
+   ],
+   [
+    "N04_char_backstory",
+    "S",
+    "스승"
+   ],
+   [
+    "N04_char_backstory",
+    "E",
+    "위로|놀라|조용히 듣|듣"
+   ],
+   [
+    "N05_user_relationship",
+    "E",
+    "손.*(잡|맞잡)|맞잡"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "R",
+    "3년|삼 년"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "R",
+    "용병단"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "S",
+    "재회|오랜만"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "부러"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "마음"
+   ],
+   [
+    "N15_gift",
+    "S",
+    "검집"
+   ],
+   [
+    "N16_duel",
+    "S",
+    "대련"
+   ],
+   [
+    "N16_duel",
+    "E",
+    "손을 내|내밀|손"
+   ],
+   [
+    "N17_cancel_promise",
+    "R",
+    "약속"
+   ],
+   [
+    "N17_cancel_promise",
+    "E",
+    "아쉬|어깨"
+   ],
+   [
+    "N19_exact_quote",
+    "E",
+    "먹먹|가슴"
+   ],
+   [
+    "N20_secret_reveal",
+    "R",
+    "동료"
+   ]
+  ],
+  "C_anchors+freetags": [
+   [
+    "N01_insult_emotion",
+    "Q",
+    "아직 부족"
+   ],
+   [
+    "N02_reconcile_sequence",
+    "S",
+    "아침"
+   ],
+   [
+    "N03_npc_arrival",
+    "R",
+    "처음"
+   ],
+   [
+    "N04_char_backstory",
+    "S",
+    "스승"
+   ],
+   [
+    "N04_char_backstory",
+    "E",
+    "위로|놀라|조용히 듣|듣"
+   ],
+   [
+    "N05_user_relationship",
+    "E",
+    "손.*(잡|맞잡)|맞잡"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "R",
+    "3년|삼 년"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "R",
+    "용병단"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "S",
+    "재회|오랜만"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "부러"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "마음"
+   ],
+   [
+    "N15_gift",
+    "S",
+    "검집"
+   ],
+   [
+    "N16_duel",
+    "S",
+    "대련"
+   ],
+   [
+    "N17_cancel_promise",
+    "R",
+    "약속"
+   ],
+   [
+    "N19_exact_quote",
+    "E",
+    "먹먹|가슴"
+   ],
+   [
+    "N20_secret_reveal",
+    "R",
+    "동료"
+   ]
+  ],
+  "C_anchors+B_base": [
+   [
+    "N01_insult_emotion",
+    "Q",
+    "아직 부족"
+   ],
+   [
+    "N02_reconcile_sequence",
+    "S",
+    "아침"
+   ],
+   [
+    "N03_npc_arrival",
+    "R",
+    "처음"
+   ],
+   [
+    "N04_char_backstory",
+    "S",
+    "스승"
+   ],
+   [
+    "N04_char_backstory",
+    "E",
+    "위로|놀라|조용히 듣|듣"
+   ],
+   [
+    "N05_user_relationship",
+    "E",
+    "손.*(잡|맞잡)|맞잡"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "R",
+    "3년|삼 년"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "R",
+    "용병단"
+   ],
+   [
+    "N06_user_ooc_shared_past",
+    "S",
+    "재회|오랜만"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "부러"
+   ],
+   [
+    "N12_callback_in_window",
+    "Q",
+    "마음"
+   ],
+   [
+    "N15_gift",
+    "S",
+    "검집"
+   ],
+   [
+    "N16_duel",
+    "S",
+    "대련"
+   ],
+   [
+    "N17_cancel_promise",
+    "R",
+    "약속"
+   ],
+   [
+    "N17_cancel_promise",
+    "E",
+    "아쉬|어깨"
+   ],
+   [
+    "N19_exact_quote",
+    "E",
+    "먹먹|가슴"
+   ],
+   [
+    "N20_secret_reveal",
+    "R",
+    "동료"
+   ]
+  ],
+  "C2_anchors_cap12": [
+   [
+    "N01_insult_emotion",
+    "Q",
+    "아직 부족"
+   ],
+   [
+    "N03_npc_arrival",
+    "R",
+    "처음"
+   ],
+   [
+    "N05_user_relationship",
+    "E",
+    "손.*(잡|맞잡)|맞잡"
+   ],
+   [
+    "N08_char_attributed_claim",
+    "E",
+    "의아|금시초문|몰랐|처음 듣"
+   ],
+   [
+    "N13_journey_sequence",
+    "S",
+    "시장"
+   ],
+   [
+    "N16_duel",
+    "S",
+    "대련"
+   ],
+   [
+    "N17_cancel_promise",
+    "R",
+    "약속"
+   ],
+   [
+    "N19_exact_quote",
+    "E",
+    "먹먹|가슴"
+   ]
+  ]
+ }
+}

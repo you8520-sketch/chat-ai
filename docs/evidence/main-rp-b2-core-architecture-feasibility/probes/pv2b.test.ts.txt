@@ -1,0 +1,68 @@
+import Module from "module";
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (request: string, parent: NodeModule, isMain: boolean) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+import { it } from "node:test";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { callBackgroundMemory } from "@/lib/ai";
+import {
+  evaluateEpisodicFactEvidence,
+  normalizeEvidenceSpan,
+  renderVerifiedEvidenceText,
+} from "./memory-episodic-evidence";
+
+const SRCS = (process.env.SRCS ?? "/opt/cursor/artifacts/gate4/sources.json,/opt/cursor/artifacts/gate5/sources-p3b.json,/opt/cursor/artifacts/gate5/sources-g2.json").split(",");
+const OUTF = process.env.OUTF ?? "/opt/cursor/artifacts/gate5/v2-anchors.json";
+const CAP_USD = Number(process.env.CAP_USD ?? 0.05);
+const PERSONA = "이름/호칭: 렌\n성격: 조용함";
+
+const SYSTEM = `당신은 한국어 롤플레이 5턴 구간의 '근거 인용 기억'을 만든다. 출력은 JSON 객체 하나만(코드펜스·설명 금지).
+{"anchors":[{"turn":1,"role":"user|assistant","quote":"..."}],"tags":[{"turn":1,"who":"인물명","state":"..."}]}
+규칙:
+- anchors: 이후 관계·장면 연속성에 중요한 것만(유저의 직접 발언/선택, 캐릭터·NPC의 구체적 행동, 감정이 드러나는 관찰 가능한 반응, 약속·관계 선언·이별, 시간 순서가 중요한 사건). 최대 12개. 구간의 모든 관계 변화·선언, NPC 등장/행동, 감정이 드러나는 관찰 가능한 반응, 시간 순서 단서는 각각 빠짐없이 별도 anchor로 남긴다.
+- quote는 해당 turn 원문에서 글자 그대로 복사한 한 절 또는 한 문장(6~120자). 바꿔 쓰기·요약·합치기 금지. role=user는 [유저] 원문에서만, role=assistant는 [캐릭터] 원문에서만 복사한다.
+- tags: 해당 turn의 quote에서 직접 보이는 인물의 감정/태도(16자 이내 명사구, turn당 최대 2개). quote에 없는 사건·과거·관계는 쓰지 않는다.`;
+
+const sources: Record<string, { kind: string; turns: { user: string; assistant: string }[] }> = {};
+for (const f of SRCS) Object.assign(sources, JSON.parse(readFileSync(f, "utf8")));
+const out: Record<string, any> = existsSync(OUTF) ? JSON.parse(readFileSync(OUTF, "utf8")).windows ?? {} : {};
+let spent = 0;
+
+it("v2 anchored contract on windows", async () => {
+  for (const [id, src] of Object.entries(sources)) {
+    if (out[id]) continue;
+    if (spent > CAP_USD) { out[id] = { skipped: "CAP" }; continue; }
+    const dialogue = src.turns.map((t, i) => `[${i + 1}턴]\n[유저] ${t.user}\n[캐릭터] ${t.assistant}`).join("\n\n");
+    const r = await callBackgroundMemory(SYSTEM, [{ role: "user", content: dialogue }], undefined, "background-memory-extract", { maxTokens: 2500 });
+    const usd = (r.usage as unknown as { cheaperInferenceBilledCostUsd?: number }).cheaperInferenceBilledCostUsd ?? 0;
+    spent += usd;
+    let parsed: any = null;
+    try { parsed = JSON.parse(r.text.replace(/^```(?:json)?\s*|\s*```$/g, "").trim()); } catch { parsed = null; }
+    const anchors: any[] = Array.isArray(parsed?.anchors) ? parsed.anchors : [];
+    const verified = anchors.map((a) => {
+      const turn = src.turns[Number(a.turn) - 1];
+      if (!turn) return { ...a, accepted: false, reason: "turn_out_of_range" };
+      const role = a.role === "user" ? "user" : "assistant";
+      const quoteText = String(a.quote ?? "");
+      const inDialogue = /[“”"「」]/u.test(quoteText);
+      const evidenceType = role === "user" ? "explicit_user_statement" : inDialogue ? "explicit_character_claim" : "explicit_scene_event";
+      const fact: any = {
+        category: "character", subject: role === "user" ? "user" : "character", attribute: "anchor", value: "x", importance: "normal",
+        fact_text: String(a.quote ?? ""), evidence_type: evidenceType, evidence: { source_role: role, source_quote: String(a.quote ?? "") },
+      };
+      const decision = evaluateEpisodicFactEvidence(
+        fact,
+        { user: { id: 1, text: normalizeEvidenceSpan(turn.user) }, assistant: { id: 2, text: normalizeEvidenceSpan(turn.assistant) } },
+        { userPersona: PERSONA }
+      );
+      return decision.accepted
+        ? { ...a, accepted: true, authority: decision.evidence.authority, rendered: renderVerifiedEvidenceText(decision.evidence) }
+        : { ...a, accepted: false, reason: decision.reason };
+    });
+    out[id] = { kind: src.kind, usd, parseOk: parsed !== null, anchors: verified, tags: Array.isArray(parsed?.tags) ? parsed.tags : [], rawLen: r.text.length };
+    writeFileSync(OUTF, JSON.stringify({ spent, windows: out }, null, 2));
+  }
+  writeFileSync(OUTF, JSON.stringify({ spent, windows: out }, null, 2));
+});
