@@ -6,7 +6,6 @@ import type { OpenAiImageQuality } from "@/lib/openAiImageEdit";
 import {
   computeAppearanceLockHash,
   evaluateAppearanceLock,
-  renderAppearanceBlock,
   renderRuntimeAppearanceBlock,
 } from "@/lib/officialSupply/appearance";
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
@@ -1944,8 +1943,6 @@ export class OfficialSupplyStore {
     draft: Pick<OfficialCharacterDraft, "promptStandard">,
     lock: OfficialAppearanceLock
   ): string {
-    return draft.promptStandard === "compact_rp_v1"
-      ? renderRuntimeAppearanceBlock(lock)
-      : renderAppearanceBlock(lock);
+    return renderRuntimeAppearanceBlock(lock);
   }
 }

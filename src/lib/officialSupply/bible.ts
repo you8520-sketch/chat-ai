@@ -989,8 +989,8 @@ export function validateCharacterBible(
   if (!nonEmpty(rel.initialView) || !nonEmpty(rel.userRole) || !nonEmpty(rel.startingPoint)) {
     errors.push(err("bible_user_rel_missing", "userRelationship needs initialView + userRole + startingPoint"));
   }
-  if (!Array.isArray(rel.progression) || rel.progression.length < 3) {
-    errors.push(err("bible_progression_missing", "relationship progression needs ≥3 stages"));
+  if (!Array.isArray(rel.progression) || rel.progression.some((step) => !nonEmpty(step))) {
+    errors.push(err("bible_progression_invalid", "userRelationship.progression must be action-based change conditions"));
   }
 
   const engine = bible.rpEngine ?? { immediateHook: "", repeatable: [], mediumConflict: "", longTermChange: "" };
@@ -1034,7 +1034,6 @@ export function validateCharacterBible(
     errors.push(err("bible_secrets", `secrets 1-4 required, got ${secrets.length}`));
   }
   const npcs = bible.npcs ?? [];
-  if (npcs.length > 3) errors.push(err("bible_npc_count", `at most 3 supporting NPCs, got ${npcs.length}`));
   const PLACEHOLDERS = new Set(["이름", "역할", "외모", "말투", "성격", "관계", "대사1", "예시"]);
   for (const npc of npcs) {
     if (PLACEHOLDERS.has(npc.name.trim()) || PLACEHOLDERS.has(npc.role.trim())) {
@@ -1065,14 +1064,7 @@ export function validateCharacterBible(
       }
       const prefs = adult.preferenceKeywords ?? [];
       if (prefs.length < 4 || prefs.length > 8) errors.push(err("bible_adult_prefs", `preferenceKeywords 4-8 required, got ${prefs.length}`));
-      const boundaries = adult.boundaries ?? [];
-      if (boundaries.length < 3 || boundaries.length > 6) {
-        errors.push(err("bible_adult_boundaries", `boundaries 3-6 required, got ${boundaries.length}`));
-      }
-      if ((adult.tone ?? "").length < 150) errors.push(err("bible_adult_tone", "adultSection.tone must be ≥150 chars"));
-      if ((adult.consentBehavior ?? "").length < 150) {
-        errors.push(err("bible_adult_consent_behavior", "adultSection.consentBehavior must be ≥150 chars"));
-      }
+      if ((adult.tone ?? "").length < 80) errors.push(err("bible_adult_tone", "adultSection.tone must describe this character's intimate manner (≥80 chars)"));
       const scenarios = adult.scenarioExamples ?? [];
       if (scenarios.length < 2 || scenarios.length > 3) {
         errors.push(err("bible_adult_scenarios", `scenarioExamples 2-3 required, got ${scenarios.length}`));
@@ -1119,9 +1111,10 @@ function requireCompactWorldBible(keys: CompileKeys, task: string): OfficialWorl
 }
 
 /**
- * Single canonical compiler. Personality keywords stay indexing-only (never
- * dumped into runtime prose); hidden relationship opinions compile into local
- * secrets; FACTION/CHARACTER_LOCAL/AUTHOR_ONLY knowledge never enters.
+ * Single canonical compiler. Character core reuses the Lucian structure
+ * (identity, keywords, behavior, past, limits) for every draft. Long visual
+ * geometry stays in the Appearance Lock; hidden relationship opinions compile
+ * into local secrets; FACTION/CHARACTER_LOCAL/AUTHOR_ONLY knowledge never enters.
  */
 export function compileOfficialDraftFromBible(
   bible: OfficialCharacterBible,
@@ -1141,22 +1134,9 @@ export function compileOfficialDraftFromBible(
   if (bible.greeting.length > 2000) {
     throw new OfficialSupplyGateError("author_shape_invalid", `${task}: greeting exceeds 2000 chars`);
   }
-  if (bible.npcs.length > 3) {
-    throw new OfficialSupplyGateError("author_shape_invalid", `${task}: at most 3 supporting NPCs`);
-  }
-
   const cleanSentence = (value: string): string =>
     value.trim().replace(/[.!?。！？]+$/u, "");
-  const stripOwnedHeightPrefix = (value: string): string =>
-    value
-      .trim()
-      .replace(new RegExp(`^\\s*${id.heightCm}\\s*cm(?:의)?\\s*`), "")
-      .trim();
 
-  const identityLine = [
-    `${id.name}(${id.age}세, ${id.occupation} · ${id.socialPosition} · ${id.affiliation}).`,
-    `${cleanSentence(id.worldRole)}.`,
-  ].join(" ");
   const compactGender = id.gender === "male" ? "남성" : id.gender === "female" ? "여성" : "기타";
   const compactIdentityText = [
     `이름: ${id.name}`,
@@ -1169,87 +1149,48 @@ export function compileOfficialDraftFromBible(
   ]
     .filter(nonEmpty)
     .join("\n");
-  const appearanceSummary = [
-    `얼굴: ${cleanSentence(bible.appearance.faceShape)}.`,
-    `눈: ${cleanSentence(bible.appearance.eyes)}. 눈동자: ${cleanSentence(bible.appearance.eyeColor)}.`,
-    `머리색: ${cleanSentence(bible.appearance.hairColor)}. 헤어스타일: ${cleanSentence(
-      bible.appearance.hairstyle
-    )}. 길이: ${cleanSentence(bible.appearance.hairLength)}.`,
-    `키: ${id.heightCm}cm. 체격: ${cleanSentence(
-      stripOwnedHeightPrefix(bible.appearance.build)
-    )}. 피부: ${cleanSentence(bible.appearance.skin)}.`,
-    `특징: ${cleanSentence(bible.appearance.distinguishingFeatures)}.`,
-    `표정: ${cleanSentence(bible.appearance.usualExpression)}.`,
-    `기본 복장: ${cleanSentence(bible.appearance.defaultOutfit)}.`,
-    `액세서리: ${cleanSentence(bible.appearance.accessories)}.`,
-    `인상: ${cleanSentence(bible.appearance.impression)}.`,
-  ].join(" ");
   const valuesText = [
-    `${compactRpV1 ? "목표/욕망" : "원하는 것"}: ${bible.values.desires.join(" / ")}`,
-    `${compactRpV1 ? "두려움" : "두려운 것"}: ${bible.values.fears.join(" / ")}`,
+    `목표/욕망: ${bible.values.desires.join(" / ")}`,
+    `두려움: ${bible.values.fears.join(" / ")}`,
     `가치관: ${bible.values.coreValues.join(" / ")}`,
-    `${compactRpV1 ? "금기/넘지 않는 선" : "포기 못 하는 것"}: ${bible.values.nonNegotiable.join(" / ")}`,
+    `금기/넘지 않는 선: ${bible.values.nonNegotiable.join(" / ")}`,
   ].join("\n");
   const backstoryText = bible.backstory.events
-    .map((event) =>
-      compactRpV1
-        ? `· ${event.event} → 당시 선택: ${event.choice} → 현재 흔적: ${event.residue}`
-        : `· ${event.event} 당시 선택: ${event.choice} 남은 것: ${event.residue}`
-    )
+    .map((event) => `· ${event.event} → 당시 선택: ${event.choice} → 현재 흔적: ${event.residue}`)
     .join("\n");
   const abilityText = bible.abilities
     .map((ability) => {
       const limit = [ability.limit, ability.cost].filter(nonEmpty).join(" / ");
-      if (!compactRpV1) {
-        return `· ${ability.name}(${ability.level}): ${ability.scope}${limit ? ` [한계·대가: ${limit}]` : ""} ${ability.usage}`;
-      }
       const usage = cleanSentence(ability.usage);
       return `· ${ability.name}: ${cleanSentence(ability.scope)}${limit ? ` [한계·대가: ${limit}]` : ""}${usage ? ` — ${usage}` : ""}`;
     })
     .join("\n");
-  const habitsText = compactRpV1
-    ? [
-        `취미: ${bible.habits.hobbies.join(" / ")}`,
-        `습관: ${bible.habits.habits.join(" / ")}`,
-        `호불호: 좋아함 ${bible.habits.likes.join(" / ")} · 싫어함 ${bible.habits.dislikes.join(" / ")}`,
-        `일상: ${bible.dailyLife}`,
-      ].join("\n")
-    : [
-        `취미: ${bible.habits.hobbies.join(" / ")}`,
-        `습관: ${bible.habits.habits.join(" / ")}`,
-        `일상: ${bible.dailyLife}`,
-      ].join("\n");
+  const habitsText = [
+    `취미: ${bible.habits.hobbies.join(" / ")}`,
+    `습관: ${bible.habits.habits.join(" / ")}`,
+    `호불호: 좋아함 ${bible.habits.likes.join(" / ")} · 싫어함 ${bible.habits.dislikes.join(" / ")}`,
+    `일상: ${bible.dailyLife}`,
+  ].join("\n");
 
-  const characterCore = compactRpV1
-    ? joinParagraphs([
-        `기본 스펙:\n${compactIdentityText}`,
-        `성격 키워드: ${bible.personality.keywords.join(" / ")}`,
-        `성격·행동: ${bible.personality.behavioral}`,
-        `내적 모순: ${bible.contradiction}`,
-        valuesText,
-        `과거 서사:\n${backstoryText}`,
-        `능력·권력:\n${abilityText}`,
-        habitsText,
-      ])
-    : joinParagraphs([
-        identityLine,
-        appearanceSummary,
-        bible.personality.behavioral,
-        `내적 모순: ${bible.contradiction}`,
-        valuesText,
-        backstoryText,
-        abilityText,
-        habitsText,
-      ]);
+  const characterCore = joinParagraphs([
+    `기본 스펙:\n${compactIdentityText}`,
+    `성격 키워드: ${bible.personality.keywords.join(" / ")}`,
+    `성격·행동: ${bible.personality.behavioral}`,
+    `내적 모순: ${bible.contradiction}`,
+    valuesText,
+    `과거 서사:\n${backstoryText}`,
+    `능력·권력:\n${abilityText}`,
+    habitsText,
+  ]);
 
-  const otherPublic = bible.otherRelationships.map((rel) =>
-    [`· ${rel.target}(공개): ${rel.public}`, rel.privateOpinion ? `속내: ${rel.privateOpinion}` : ""]
-      .filter(Boolean)
-      .join(" ")
-  );
+  const relationshipPrinciple =
+    "유저 관계 원칙: 유저의 이름·신분·성별과 유저-캐릭터 간 기존 관계는 유저 페르소나와 대화에서 명시된 설정을 우선한다. 도입부가 관계를 명시적으로 고정하지 않는 한 현재 장면만 고정한다.";
+  const actionChangeConditions = bible.userRelationship.progression
+    .map((step) => `· ${step}`)
+    .join("\n");
   const relationshipsAndDrives = compactRpV1
     ? joinParagraphs([
-        `유저 관계 원칙: 유저의 이름·신분·성별과 유저-캐릭터 간 기존 관계는 유저 페르소나와 대화에서 명시된 설정을 우선한다. 도입부가 관계를 명시적으로 고정하지 않는 한 현재 장면만 고정한다.`,
+        relationshipPrinciple,
         `첫인식: ${bible.userRelationship.initialView}`,
         `유저 역할: ${bible.userRelationship.userRole}`,
         `시작점: ${bible.userRelationship.startingPoint}`,
@@ -1258,21 +1199,16 @@ export function compileOfficialDraftFromBible(
         `장기 변화: ${bible.rpEngine.longTermChange}`,
       ])
     : joinParagraphs([
+        relationshipPrinciple,
         `첫인식: ${bible.userRelationship.initialView}`,
         `유저 역할: ${bible.userRelationship.userRole}`,
         `시작점: ${bible.userRelationship.startingPoint}`,
-        `관계 진행: ${bible.userRelationship.progression.join(" → ")}`,
-        otherPublic.length ? otherPublic.join("\n") : "",
-        `욕망과 두려움: ${bible.values.desires.join(" / ")} vs ${bible.values.fears.join(" / ")}`,
-        `중기 갈등: ${bible.rpEngine.mediumConflict}`,
-        `장기 변화: ${bible.rpEngine.longTermChange}`,
+        actionChangeConditions ? `관계 변화 조건:\n${actionChangeConditions}` : "",
+        `중기 갈등(선택 소재): ${bible.rpEngine.mediumConflict}`,
+        `장기 변화(선택 소재): ${bible.rpEngine.longTermChange}`,
       ]);
 
-  const extraCanon = compactRpV1
-    ? ""
-    : joinParagraphs([
-        `호불호: 좋아하는 것 ${bible.habits.likes.join(" / ")} / 싫어하는 것 ${bible.habits.dislikes.join(" / ")}`,
-      ]);
+  const extraCanon = "";
 
   const speechTraits = [
     `구어체: ${bible.speech.register} · 문장 ${bible.speech.sentenceLength} · 속도 ${bible.speech.tempo}`,
@@ -1303,8 +1239,8 @@ export function compileOfficialDraftFromBible(
         adultHookSummary: [
           bible.adultSection?.hookSummary ?? "",
           nonEmpty(bible.adultSection?.tone ?? "") ? `성향: ${bible.adultSection?.tone}` : "",
-          nonEmpty(bible.adultSection?.consentBehavior ?? "")
-            ? `합의: ${bible.adultSection?.consentBehavior}`
+          (bible.adultSection?.preferenceKeywords ?? []).filter(nonEmpty).length
+            ? `취향: ${(bible.adultSection?.preferenceKeywords ?? []).filter(nonEmpty).join(" / ")}`
             : "",
         ]
           .filter(Boolean)

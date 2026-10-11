@@ -246,8 +246,8 @@ describe("character text QA", () => {
     assert.equal(evaluateOfficialStagedSaveLength(hwang(), "외형").ok, true);
   });
 
-  it("supporting NPCs: 0, 1 and 3 accepted; 4 rejected; keyword-dense line bound", () => {
-    for (const count of [0, 1, 3]) {
+  it("supporting NPCs: 0, 1, 3 and 4 accepted; keyword-dense line bound", () => {
+    for (const count of [0, 1, 3, 4]) {
       const draft = testDraft({
         draftKey: "n",
         name: "레온",
@@ -256,13 +256,6 @@ describe("character text QA", () => {
       });
       assert.equal(evaluateSupportingNpcs(draft).ok, true, `count ${count}`);
     }
-    const four = testDraft({
-      draftKey: "n",
-      name: "레온",
-      vocabulary: HWANG_VOCAB,
-      npcs: Array.from({ length: 4 }, (_, i) => testNpc(`보좌관${i}`, 29)),
-    });
-    assert.ok(evaluateSupportingNpcs(four).errors.some((e) => e.code === "npc_count"));
     const line = formatSupportingNpcLine(testNpc("이도현", 29));
     assert.equal(line, "이도현 · 29세 · 184cm · 흑발/회안 · 냉정·충성 · 직속 보좌관 · {{char}}와 8년째 함께 일함 · 존댓말");
     const long = testNpc("이도현", 29);

@@ -371,6 +371,8 @@ describe("official author adapter", () => {
     assert.equal(validatePilotBible(bible, { adultExpected: true }).ok, true);
     const draft = compileOfficialDraftFromBible(bible, STAGING_KEYS);
     assert.equal(draft.adult.nsfw, true);
+    assert.match(draft.adult.adultHookSummary, /취향: 느린 친밀감 \/ 신뢰 우선 \/ 주도적 보호 \/ 언어적 긴장/);
+    assert.doesNotMatch(draft.adult.adultHookSummary, /합의:/);
     const lock = validatePilotDraftForTextLock(draft, []);
     assert.equal(lock.ok, true, JSON.stringify(lock.errors));
   });
@@ -386,24 +388,27 @@ describe("official author adapter", () => {
     assert.ok(qa.errors.some((e) => e.code === "adult_main_under_19"));
   });
 
-  it("NPC count 0/1/3 pass, 4 fails", () => {
-    for (const npcCount of [0, 1, 3] as const) {
+  it("NPC count 0/1/3/4 pass when placeholders are filled", () => {
+    for (const npcCount of [0, 1, 3, 4] as const) {
       const [voice, bonds] = splitHalf2(fakeHalf2({ npcCount }));
       const bible = assembleOfficialCharacterBible(fakeHalf1(), voice, bonds);
       assert.equal(validatePilotBible(bible, { adultExpected: false }).ok, true, `npc=${npcCount}`);
     }
-    const [voice4, bonds4] = splitHalf2(fakeHalf2({ npcCount: 4 }));
-    const over = assembleOfficialCharacterBible(fakeHalf1(), voice4, bonds4);
-    const qa = validatePilotBible(over, { adultExpected: false });
-    assert.ok(qa.errors.some((e) => e.code === "bible_npc_count"));
   });
 
-  it("bible QA requires contradiction, progression, engine, speech examples, secrets", () => {
+  it("bible QA requires contradiction, engine, speech examples, secrets", () => {
     const base = fakeBible(false);
     assert.ok(!validateCharacterBible({ ...base, contradiction: "" }, { adultExpected: false }).ok);
+    assert.equal(
+      validateCharacterBible(
+        { ...base, userRelationship: { ...base.userRelationship, progression: ["협력하면 조사 범위를 넓힌다"] } },
+        { adultExpected: false }
+      ).ok,
+      true
+    );
     assert.ok(
       !validateCharacterBible(
-        { ...base, userRelationship: { ...base.userRelationship, progression: ["경계"] } },
+        { ...base, userRelationship: { ...base.userRelationship, progression: [""] } },
         { adultExpected: false }
       ).ok
     );
@@ -444,7 +449,7 @@ describe("official author adapter", () => {
     assert.ok(!validateCharacterBible({ ...adult, adultSection: null }, { adultExpected: true }).ok);
   });
 
-  it("compiler keeps keywords out of runtime prose and folds hidden opinions into secrets", () => {
+  it("compiler keeps Lucian core structure, indexes keywords, and folds hidden opinions into secrets", () => {
     const draft = compileOfficialDraftFromBible(
       {
         ...fakeBible(false),
@@ -452,12 +457,15 @@ describe("official author adapter", () => {
       },
       STAGING_KEYS
     );
-    assert.doesNotMatch(draft.sections.characterCore, /냉정.*책임감.*자존심.*통제욕.*충성.*고집/);
+    assert.match(draft.sections.characterCore, /기본 스펙:/);
+    assert.match(draft.sections.characterCore, /성격 키워드:/);
+    assert.match(draft.sections.characterCore, /과거 서사:/);
     assert.ok(draft.secrets.some((s) => s.includes("리안") && s.includes("의심")));
     assert.match(draft.sections.characterCore, /27세/);
+    assert.doesNotMatch(draft.sections.relationshipsAndDrives, /리안\(공개\)/);
   });
 
-  it("compiler treats Korean appearance fields as complete text and keeps height single-owned", () => {
+  it("compiler keeps long appearance out of character core", () => {
     const base = fakeBible(false);
     const bible = {
       ...base,
@@ -480,11 +488,9 @@ describe("official author adapter", () => {
     const draft = compileOfficialDraftFromBible(bible, STAGING_KEYS);
     const core = draft.sections.characterCore;
 
-    assert.match(core, /키: 184cm\. 체격: 유연하고 길쭉한 체격\./);
-    assert.match(core, /피부: 햇볕에 그을린 구리빛 피부\./);
-    assert.match(core, /기본 복장: 짙은 녹색 실크 베스트를 입는다\./);
-    assert.doesNotMatch(core, /184cm\s+184cm/);
-    assert.doesNotMatch(core, /피부\.?\s*피부/);
+    assert.match(core, /기본 스펙:/);
+    assert.doesNotMatch(core, /광대|턱선|헤어스타일|머리색:|기본 복장:|액세서리:/);
+    assert.doesNotMatch(core, /184cm/);
     assert.doesNotMatch(core, /이어진다\.에/);
     assert.doesNotMatch(core, /\.\./);
   });
@@ -1093,7 +1099,7 @@ describe("official author adapter", () => {
       assert.ok(adult && typeof adult === "object", "adult candidate template must not default adultSection to null");
       assert.deepEqual(Object.keys(adult).sort(), [...ADULT_SECTION_KEYS].sort());
       assert.ok((adult.preferenceKeywords as unknown[]).length >= 4 && (adult.preferenceKeywords as unknown[]).length <= 8);
-      assert.ok((adult.boundaries as unknown[]).length >= 3 && (adult.boundaries as unknown[]).length <= 6);
+      assert.ok(Array.isArray(adult.boundaries));
       assert.ok((adult.scenarioExamples as unknown[]).length >= 2 && (adult.scenarioExamples as unknown[]).length <= 3);
       assert.ok((adult.consentModes as unknown[]).length >= 1);
       assert.doesNotMatch(bondsUser, /adultSection은 null/);

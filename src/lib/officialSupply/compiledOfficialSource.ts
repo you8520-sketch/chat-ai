@@ -1,10 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import {
-  renderAppearanceBlock,
-  renderRuntimeAppearanceBlock,
-} from "@/lib/officialSupply/appearance";
+import { renderRuntimeAppearanceBlock } from "@/lib/officialSupply/appearance";
 import {
   compileOfficialDraftFromBible,
   type OfficialCharacterBible,
@@ -44,12 +41,10 @@ export function loadOfficialPilotWorldBible(): OfficialWorldBible {
 }
 
 export function officialAppearanceBlockForDraft(
-  draft: Pick<OfficialCharacterDraft, "promptStandard">,
+  _draft: Pick<OfficialCharacterDraft, "promptStandard">,
   appearance: OfficialAppearanceLock
 ): string {
-  return draft.promptStandard === "compact_rp_v1"
-    ? renderRuntimeAppearanceBlock(appearance)
-    : renderAppearanceBlock(appearance);
+  return renderRuntimeAppearanceBlock(appearance);
 }
 
 export function loadCompiledOfficialCharacterSource(draftKey: string): {
