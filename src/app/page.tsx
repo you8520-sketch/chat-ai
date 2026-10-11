@@ -8,7 +8,7 @@ import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import HorizontalScrollRow from "@/components/HorizontalScrollRow";
 import UserPreferenceControls from "@/components/UserPreferenceControls";
 import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerification";
-import { fetchHomeSections } from "@/lib/homeSections";
+import { fetchHomeSections, homeSectionNumbers } from "@/lib/homeSections";
 import { getActiveHomePopupNotice } from "@/lib/homePopupNotice";
 import { cn, studioType } from "@/lib/studioDesign";
 
@@ -29,7 +29,6 @@ const MOBILE_DISCOVERY_TABS = [
 ] as const;
 
 type SectionMeta = {
-  index: string;
   eyebrow: string;
   description: string;
   slab: CSSProperties;
@@ -38,21 +37,18 @@ type SectionMeta = {
 
 const SECTION_META: Record<string, SectionMeta> = {
   "추천 캐릭터": {
-    index: "01",
     eyebrow: "FOR YOU",
     description: "취향과 활동을 바탕으로 골라낸 이야기",
     slab: { "--slab-bg": "#7c3aed", "--slab-ink": "#fff" } as CSSProperties,
     numeral: "#a78bfa",
   },
   "공모전 당선작": {
-    index: "02",
     eyebrow: "SELECTED",
     description: "공모전에서 주목받은 캐릭터와 시뮬레이션",
     slab: { "--slab-bg": "#fafafa", "--slab-ink": "#09090b" } as CSSProperties,
     numeral: "#fafafa",
   },
   "신규 캐릭터": {
-    index: "03",
     eyebrow: "NEW STORIES",
     description: "방금 공개된 새로운 만남",
     slab: {
@@ -66,10 +62,12 @@ const SECTION_META: Record<string, SectionMeta> = {
 
 function SectionHeader({
   title,
+  number,
   headerLink,
   level = "h2",
 }: {
   title: string;
+  number: string;
   headerLink?: { href: string; label: string };
   level?: "h1" | "h2";
 }) {
@@ -83,7 +81,7 @@ function SectionHeader({
           className="home-section-num text-[3.5rem] sm:text-[5.25rem]"
           style={{ "--num-color": meta.numeral } as CSSProperties}
         >
-          {meta.index}
+          {number}
         </span>
       ) : null}
       <div className="min-w-0 pb-1">
@@ -144,6 +142,7 @@ function MobileDiscoveryNav() {
 
 function ScrollSection({
   title,
+  number,
   chars,
   blurNsfw,
   loggedIn,
@@ -155,6 +154,7 @@ function ScrollSection({
   first = false,
 }: {
   title: string;
+  number: string;
   chars: CharacterRow[];
   blurNsfw: boolean;
   loggedIn: boolean;
@@ -168,7 +168,7 @@ function ScrollSection({
   if (chars.length === 0) return null;
   return (
     <section className={cn(first ? "mt-8 sm:mt-10" : "mt-12 sm:mt-16", band && "home-band -mx-3 px-3 sm:-mx-5 sm:px-5")}>
-      <SectionHeader title={title} headerLink={headerLink} level={level} />
+      <SectionHeader title={title} number={number} headerLink={headerLink} level={level} />
       <HorizontalScrollRow
         className={cn(
           "home-card-row home-card-group -mx-1 gap-4 px-1 pb-3 pt-2 sm:gap-5",
@@ -193,12 +193,14 @@ function ScrollSection({
 
 function GridSection({
   title,
+  number,
   chars,
   blurNsfw,
   loggedIn,
   headerLink,
 }: {
   title: string;
+  number: string;
   chars: CharacterRow[];
   blurNsfw: boolean;
   loggedIn: boolean;
@@ -207,7 +209,7 @@ function GridSection({
   if (chars.length === 0) return null;
   return (
     <section className="mt-12 sm:mt-16">
-      <SectionHeader title={title} headerLink={headerLink} />
+      <SectionHeader title={title} number={number} headerLink={headerLink} />
       <div className="home-card-group home-grid-stagger grid grid-cols-2 gap-x-3.5 gap-y-7 sm:grid-cols-3 sm:gap-x-5 xl:grid-cols-4">
         {chars.map((c, index) => (
           <CharacterCard
@@ -233,6 +235,11 @@ export default async function Home() {
 
   const { recommended, contest, newest } = fetchHomeSections(db, user, blurNsfw);
   const popupNotice = getActiveHomePopupNotice(db);
+  const [recommendedNo, contestNo, newestNo] = homeSectionNumbers([
+    recommended.length,
+    contest.length,
+    newest.length,
+  ]);
 
   return (
     <div className="pb-6">
@@ -269,6 +276,7 @@ export default async function Home() {
       </div>
       <ScrollSection
         title="추천 캐릭터"
+        number={recommendedNo}
         chars={recommended}
         blurNsfw={blurNsfw}
         loggedIn={loggedIn}
@@ -280,6 +288,7 @@ export default async function Home() {
       />
       <ScrollSection
         title="공모전 당선작"
+        number={contestNo}
         chars={contest}
         blurNsfw={blurNsfw}
         loggedIn={loggedIn}
@@ -289,6 +298,7 @@ export default async function Home() {
       />
       <GridSection
         title="신규 캐릭터"
+        number={newestNo}
         chars={newest}
         blurNsfw={blurNsfw}
         loggedIn={loggedIn}
