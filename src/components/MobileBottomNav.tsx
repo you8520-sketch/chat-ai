@@ -40,7 +40,7 @@ export default function MobileBottomNav({ loggedIn }: Props) {
               href={item.href}
               className={cn(
                 "relative flex min-h-12 flex-1 flex-col items-center justify-center text-xs font-semibold transition",
-                active ? "text-violet-200" : "text-zinc-500 hover:text-zinc-300",
+                active ? "text-violet-200" : "text-zinc-400 hover:text-zinc-200",
               )}
             >
               {item.label}

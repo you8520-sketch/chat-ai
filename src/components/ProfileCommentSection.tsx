@@ -183,7 +183,7 @@ export default function ProfileCommentSection({
                 }
               }}
               placeholder="댓글을 입력하세요…"
-              className="flex-1 rounded-lg bg-[#0e1120] px-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-violet-500 placeholder:text-gray-600"
+              className="flex-1 rounded-lg bg-[#0e1120] px-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-violet-500 placeholder:text-zinc-400"
             />
             <button
               onClick={submit}

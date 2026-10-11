@@ -127,7 +127,7 @@ function MobileDiscoveryNav() {
           href={tab.href}
           aria-current={index === 0 ? "page" : undefined}
           className={cn(
-            "flex min-h-11 min-w-0 items-center justify-center rounded-xl px-1 text-center text-[11px] font-semibold tracking-[-0.03em] transition",
+            "flex min-h-11 min-w-0 items-center justify-center rounded-xl px-1 text-center text-xs font-semibold tracking-[-0.03em] transition",
             index === 0
               ? "bg-violet-600 text-white shadow-[0_6px_18px_rgba(124,58,237,.22)]"
               : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100",
@@ -258,7 +258,7 @@ export default async function Home() {
           />
           <Link
             href="/settings"
-            className="shrink-0 text-[11px] font-medium text-zinc-500 transition hover:text-zinc-300"
+            className="shrink-0 text-xs font-medium text-zinc-400 transition hover:text-zinc-200"
           >
             취향 설정
           </Link>

@@ -694,7 +694,7 @@ export default function PersonaClient({
             <h2 className={studioType.sectionTitle}>
               내 페르소나 ({personas.length} / {USER_PERSONA_MAX_COUNT})
             </h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">
+            <p className="mt-0.5 text-xs text-zinc-400">
               최대 {USER_PERSONA_MAX_COUNT.toLocaleString()}개 · 기본+비밀 합계 최대{" "}
               {PERSONA_CONTENT_MAX.toLocaleString()}자
             </p>
@@ -735,19 +735,19 @@ export default function PersonaClient({
                   <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 font-semibold text-white">
                     {p.name || "(이름 없음)"}
-                    <span className="text-[10px] font-normal text-zinc-500">
+                    <span className="text-[11px] font-normal text-zinc-400">
                       · {GENDER_LABELS[p.gender ?? "other"]}
                     </span>
                   </p>
                   {p.memo?.trim() && (
-                    <p className="mt-0.5 text-[11px] text-zinc-500">
+                    <p className="mt-0.5 text-xs text-zinc-400">
                       {p.memo}
                     </p>
                   )}
                   <p className={`mt-1 line-clamp-2 ${studioType.caption}`}>
                     {desc || "(설명 없음)"}
                   </p>
-                  <p className="mt-1 text-[10px] text-zinc-600">
+                  <p className="mt-1 text-[11px] text-zinc-400">
                     {desc.length.toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
                   </p>
                   </div>
@@ -814,7 +814,7 @@ export default function PersonaClient({
                 {PERSONA_CONTENT_MAX.toLocaleString()}자
               </span>
             </div>
-            <p className="text-[11px] text-zinc-500">
+            <p className="text-xs text-zinc-400">
               기본 설정과 비밀 설정의 합계는 {PERSONA_CONTENT_MAX.toLocaleString()}자까지입니다.
             </p>
             <PersonaImageEditor
@@ -931,7 +931,7 @@ export default function PersonaClient({
                   }}
                 />
                 {!creating && !draftSecretDescriptionLoaded && (
-                  <p className="text-[11px] text-zinc-500">비밀 설정을 불러오는 중…</p>
+                  <p className="text-xs text-zinc-400">비밀 설정을 불러오는 중…</p>
                 )}
                 {compileSummary && (
                   <details className="text-[11px] text-zinc-400">
@@ -950,14 +950,14 @@ export default function PersonaClient({
                   </details>
                 )}
                 {compilePreservedPrior && (
-                  <p className="text-[11px] leading-relaxed text-amber-300">
+                  <p className="text-xs leading-relaxed text-amber-300">
                     페르소나 설정은 저장됐지만 비밀 설정 분석에 실패했습니다. 기존 분석 결과는
                     보존되었으며, 같은 내용을 다시 저장하면 분석을 재시도합니다.
                   </p>
                 )}
               </div>
             ) : (
-              <p className="rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2 text-[11px] text-zinc-500">
+              <p className="rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2 text-xs text-zinc-400">
                 비밀 설정은 현재 일부 사용자에게 순차 공개 중입니다.
               </p>
             )}
@@ -986,7 +986,7 @@ export default function PersonaClient({
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className={studioType.sectionTitle}>유저 노트 보관함 ({notePresets.length})</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">
+            <p className="mt-0.5 text-xs text-zinc-400">
               고집중(중요 기억) 구간만 저장 · 채팅에서 불러와 사용
             </p>
           </div>
@@ -1013,7 +1013,7 @@ export default function PersonaClient({
                     <p className={`mt-1 line-clamp-2 ${studioType.caption}`}>
                       {parsed.body.trim() || "(내용 없음)"}
                     </p>
-                    <p className="mt-1 text-[10px] text-zinc-600">
+                    <p className="mt-1 text-[11px] text-zinc-400">
                       {chars.toLocaleString()} / {focusMaxChars.toLocaleString()}자
                     </p>
                   </div>
@@ -1106,7 +1106,7 @@ export default function PersonaClient({
             <h2 className={studioType.sectionTitle}>
               상태창 보관함 ({statusWidgetPresets.length})
             </h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">
+            <p className="mt-0.5 text-xs text-zinc-400">
               디자인과 상태값으로 만들거나, 직접 제작에서 HTML·JSX를 작성합니다
             </p>
           </div>
@@ -1277,7 +1277,7 @@ export default function PersonaClient({
                 커뮤니티에서 내리기
               </button>
             ) : (
-              <p className="text-[11px] text-zinc-500">이 링크는 커뮤니티 목록에 보이지 않습니다.</p>
+              <p className="text-xs text-zinc-400">이 링크는 커뮤니티 목록에 보이지 않습니다.</p>
             )}
           </div>
         )}

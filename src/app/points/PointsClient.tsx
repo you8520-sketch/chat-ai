@@ -89,14 +89,14 @@ function formatLogTimestamp(iso: string): string {
 
 function formatLogReason(reason: string, createdAt: string) {
   const timestamp = (
-    <span className="mt-0.5 block text-[10px] tabular-nums text-zinc-500">{formatLogTimestamp(createdAt)}</span>
+    <span className="mt-0.5 block text-[11px] tabular-nums text-zinc-400">{formatLogTimestamp(createdAt)}</span>
   );
   const withModel = reason.match(/^대화 · (.+?) \((.+)\)$/);
   if (withModel) {
     return (
       <span className="min-w-0 text-zinc-300">
         대화 · <span className="font-semibold text-violet-300">{withModel[1]}</span>
-        <span className="mt-0.5 block text-xs text-zinc-500">{withModel[2]}</span>
+        <span className="mt-0.5 block text-xs text-zinc-400">{withModel[2]}</span>
         {timestamp}
       </span>
     );
@@ -119,7 +119,7 @@ function PointLogList({
   onRefresh: () => void;
 }) {
   if (logs.length === 0) {
-    return <p className="p-4 text-sm text-zinc-500">내역이 없습니다.</p>;
+    return <p className="p-4 text-sm text-zinc-400">내역이 없습니다.</p>;
   }
 
   return (
@@ -537,7 +537,7 @@ export default function PointsClient({
               <span className="mx-2 text-zinc-600">→</span>
               상대 수령 <b className="tabular-nums text-violet-300">{giftPreview.net.toLocaleString()}P</b>
             </p>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-zinc-400">
               예상 차감 구성: 유료 {giftPreview.paidGross.toLocaleString()}P · 무료{" "}
               {giftPreview.freeGross.toLocaleString()}P (만료 임박 우선)
             </p>
@@ -604,7 +604,7 @@ export default function PointsClient({
         >
           {historyTab === "usage" ? (
             usageLoading ? (
-              <p className="p-4 text-sm text-zinc-500">불러오는 중…</p>
+              <p className="p-4 text-sm text-zinc-400">불러오는 중…</p>
             ) : (
               <PointLogList
                 logs={usageLogs}
@@ -614,7 +614,7 @@ export default function PointsClient({
             )
           ) : historyTab === "paid" ? (
             paid.loading ? (
-              <p className="p-4 text-sm text-zinc-500">불러오는 중…</p>
+              <p className="p-4 text-sm text-zinc-400">불러오는 중…</p>
             ) : (
               <PointLogList
                 logs={paid.logs}
@@ -623,7 +623,7 @@ export default function PointsClient({
               />
             )
           ) : free.loading ? (
-            <p className="p-4 text-sm text-zinc-500">불러오는 중…</p>
+            <p className="p-4 text-sm text-zinc-400">불러오는 중…</p>
           ) : (
             <PointLogList
               logs={free.logs}

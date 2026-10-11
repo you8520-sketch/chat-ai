@@ -364,7 +364,7 @@ function HomeCard({
               {view.displayTagline}
             </p>
           ) : (
-            <p className="min-h-[2.5rem] text-xs leading-5 text-zinc-600">한 줄 소개 없음</p>
+            <p className="min-h-[2.5rem] text-xs leading-5 text-zinc-400">한 줄 소개 없음</p>
           )}
         </Link>
         {variant !== "index" ? (

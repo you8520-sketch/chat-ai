@@ -160,7 +160,7 @@ export const CHAT_FONT_OPTIONS = [
   {
     id: "sans",
     label: "고딕",
-    css: "'Pretendard', 'Noto Sans KR', sans-serif",
+    css: "'Pretendard Variable', 'Pretendard', 'Noto Sans KR', sans-serif",
     loadName: "Pretendard",
     google: null as string | null,
   },

@@ -35,13 +35,13 @@ export const studioSpace = {
 
 /** Typography — 6 levels only */
 export const studioType = {
-  heading: "text-2xl font-semibold tracking-tight text-zinc-50",
-  sectionTitle: "text-base font-semibold tracking-tight text-zinc-50",
+  heading: "break-keep text-2xl font-semibold leading-snug tracking-tight text-zinc-50",
+  sectionTitle: "break-keep text-base font-semibold leading-snug tracking-tight text-zinc-50",
   label: "mb-1.5 block text-sm font-medium text-zinc-300",
   body: "text-sm leading-relaxed text-zinc-300",
-  caption: "text-xs leading-relaxed text-zinc-400",
-  helper: "text-xs leading-relaxed text-zinc-400",
-  counter: "text-xs tabular-nums text-zinc-500",
+  caption: "text-[13px] leading-relaxed text-zinc-400",
+  helper: "break-keep text-[13px] leading-relaxed text-zinc-400",
+  counter: "text-xs tabular-nums text-zinc-400",
 } as const;
 
 export const studioSurface = {
@@ -77,7 +77,7 @@ export const studioSurface = {
 } as const;
 
 export const studioInputClass =
-  "w-full rounded-xl border border-white/10 bg-[#161922] px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50";
+  "w-full rounded-xl border border-white/10 bg-[#161922] px-4 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-400 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50";
 
 export const studioSelectClass =
   "rounded-xl border border-white/10 bg-[#161922] px-3 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50";

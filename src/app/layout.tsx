@@ -45,6 +45,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" className="h-full">
+      <head>
+        <link rel="stylesheet" href="/fonts/pretendard/pretendard-variable-dynamic-subset.css" />
+      </head>
       <body className="flex min-h-full flex-col">
         {/* Paint-time chat-room class — avoids header/chrome flash before hydration. */}
         <Script id="chat-room-active-boot" strategy="beforeInteractive">

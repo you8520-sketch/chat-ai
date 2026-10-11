@@ -87,7 +87,7 @@ function LoginForm({ showDemo }: { showDemo: boolean }) {
       {showDemo && (
         <DemoLoginButton redirectTo={redirectTo === "/" ? "/studio" : redirectTo} />
       )}
-      <p className={`mt-4 text-center ${studioType.body} text-zinc-500`}>
+      <p className={`mt-4 text-center ${studioType.body} text-zinc-400`}>
         계정이 없나요?{" "}
         <Link href="/signup" className="text-violet-400 hover:underline">
           회원가입
