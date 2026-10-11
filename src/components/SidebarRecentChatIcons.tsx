@@ -92,7 +92,7 @@ function RecentChatRow({
       })}
       className={`flex w-full min-w-0 items-center rounded-lg transition hover:bg-white/[0.06] ${
         compact ? "justify-center px-0 py-0.5" : "gap-2 px-1 py-1"
-      } ${active ? "bg-white/[0.06]" : ""}`}
+      } ${active ? "bg-violet-500/15" : ""}`}
     >
       <span
         {...{ [CHAT_RESUME_THUMB_ATTR]: "" }}
@@ -113,8 +113,15 @@ function RecentChatRow({
         )}
       </span>
       {!compact && (
-        <span className="min-w-0 flex-1 text-left text-[11px] leading-snug text-zinc-300 line-clamp-2">
-          {preview}
+        <span className="flex min-w-0 flex-1 flex-col text-left leading-snug">
+          {hidden ? null : (
+            <span className="truncate text-xs font-semibold text-zinc-100">{characterName}</span>
+          )}
+          <span
+            className={`text-[11px] text-zinc-400 ${hidden ? "line-clamp-2" : "truncate"}`}
+          >
+            {preview}
+          </span>
         </span>
       )}
     </Link>
@@ -139,7 +146,7 @@ function RecentTrpgRow({
       {...trpgResumeAttrs({ campaignId: entry.campaignId, title: entry.title, href: entry.href })}
       className={`flex w-full min-w-0 items-center rounded-lg transition hover:bg-white/[0.06] ${
         compact ? "justify-center px-0 py-0.5" : "gap-2 px-1 py-1"
-      } ${active ? "bg-white/[0.06]" : ""}`}
+      } ${active ? "bg-violet-500/15" : ""}`}
     >
       <span
         {...{ [TRPG_RESUME_GLYPH_ATTR]: "" }}
@@ -226,7 +233,9 @@ export default function SidebarRecentChatIcons({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {showHeader && (
-        <p className="mb-1 px-0.5 text-[11px] font-medium text-zinc-200">최근 활동</p>
+        <p className="mb-1 border-t border-white/[0.06] px-1 pt-3 text-[11px] font-semibold tracking-wide text-zinc-400">
+          최근 활동
+        </p>
       )}
       <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
         {displayEntries.map((entry) => (

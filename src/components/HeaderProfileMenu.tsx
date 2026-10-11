@@ -44,7 +44,7 @@ export default function HeaderProfileMenu({ nickname }: Props) {
         aria-label="프로필 메뉴"
         title={nickname}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-9 max-w-[7rem] items-center gap-1 rounded-xl px-1.5 text-xs font-semibold text-zinc-300 transition hover:bg-white/[0.06] hover:text-white sm:px-2"
+        className="inline-flex h-9 max-w-[7rem] items-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] px-1.5 text-xs font-semibold text-zinc-200 transition hover:border-white/20 hover:bg-white/[0.07] hover:text-white sm:px-2"
       >
         <span
           aria-hidden

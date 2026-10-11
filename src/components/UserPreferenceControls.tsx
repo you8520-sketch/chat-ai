@@ -326,7 +326,7 @@ function HeaderNsfwToggle({
       aria-pressed={safetyFilterOn}
       aria-label="세이프티 필터"
       title={canDisable ? "세이프티 필터" : "일반 회원은 세이프티 필터를 끌 수 없습니다"}
-      className="flex min-h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-[#161922] px-2 text-[11px] font-medium text-zinc-300 transition hover:border-white/20 disabled:cursor-not-allowed"
+      className="flex min-h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-2 text-[11px] font-medium text-zinc-300 transition hover:border-white/20 hover:bg-white/[0.07] disabled:cursor-not-allowed"
     >
       <span>
         <span className="sm:hidden">세이프티</span>

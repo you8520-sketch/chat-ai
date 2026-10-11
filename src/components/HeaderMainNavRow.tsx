@@ -36,7 +36,7 @@ export default function HeaderMainNavRow({ variant = "inline" }: Props) {
         "scrollbar-hide items-stretch gap-0.5 overflow-x-auto overscroll-x-contain",
         variant === "inline"
           ? "hidden shrink lg:inline-flex"
-          : "hidden min-[576px]:flex lg:hidden",
+          : "hidden border-t border-white/[0.06] min-[576px]:flex lg:hidden",
       )}
       aria-label="주요 메뉴"
       data-menu-transition=""
@@ -49,7 +49,7 @@ export default function HeaderMainNavRow({ variant = "inline" }: Props) {
             href={t.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "relative inline-flex min-h-11 shrink-0 items-center px-3 text-sm font-semibold transition after:absolute after:inset-x-3 after:bottom-0 after:h-px after:origin-left after:bg-violet-400 after:transition-transform",
+              "relative inline-flex min-h-11 shrink-0 items-center px-3 text-sm font-semibold transition after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:origin-left after:rounded-full after:bg-violet-400 after:transition-transform",
               active
                 ? "text-zinc-50 after:scale-x-100"
                 : "text-zinc-400 after:scale-x-0 hover:text-zinc-100 hover:after:scale-x-100",

@@ -111,7 +111,7 @@ export default function AnimatedPointsBadge({
         href={`/points#${POINT_USAGE_HASH}`}
         title="포인트 사용 내역"
         aria-label={`보유 포인트 ${formatPoints(displayPoints)}P — 사용 내역 보기`}
-        className="relative z-50 inline-flex min-h-9 items-center rounded-full bg-violet-600/20 px-2.5 text-xs font-semibold tabular-nums text-violet-300 transition hover:bg-violet-600/30 hover:text-violet-200 sm:px-3"
+        className="relative z-50 inline-flex min-h-9 items-center rounded-xl border border-violet-400/20 bg-violet-500/10 px-2.5 text-xs font-semibold tabular-nums text-violet-200 transition hover:border-violet-400/35 hover:bg-violet-500/15 sm:px-3"
       >
         <span ref={pointsRef}>{formatPoints(initialPoints)}P</span>
       </Link>

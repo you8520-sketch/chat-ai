@@ -31,7 +31,7 @@ export default function MobileBottomNav({ loggedIn }: Props) {
       aria-label="모바일 메뉴"
       data-menu-transition=""
     >
-      <div className="mx-auto flex max-w-lg">
+      <div className="mx-auto flex max-w-lg gap-1 px-2 py-1">
         {items.map((item) => {
           const active = isActive(pathname, item.href);
           return (
@@ -40,17 +40,13 @@ export default function MobileBottomNav({ loggedIn }: Props) {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex min-h-12 flex-1 flex-col items-center justify-center text-xs font-semibold transition",
-                active ? "text-violet-200" : "text-zinc-400 hover:text-zinc-200",
+                "relative flex min-h-11 flex-1 flex-col items-center justify-center rounded-xl text-xs font-semibold transition",
+                active
+                  ? "bg-violet-500/15 text-violet-50"
+                  : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200",
               )}
             >
               {item.label}
-              {active ? (
-                <span
-                  className="absolute inset-x-8 bottom-1.5 h-0.5 rounded-full bg-violet-500"
-                  aria-hidden
-                />
-              ) : null}
             </Link>
           );
         })}
