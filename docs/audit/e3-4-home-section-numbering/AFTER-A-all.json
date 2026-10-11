@@ -1,0 +1,65 @@
+{
+ "m390": {
+  "sections": [
+   {
+    "num": "01",
+    "title": "추천 캐릭터",
+    "cards": 0
+   },
+   {
+    "num": "02",
+    "title": "공모전 당선작",
+    "cards": 0
+   },
+   {
+    "num": "03",
+    "title": "신규 캐릭터",
+    "cards": 0
+   }
+  ],
+  "cardMarkers": 0,
+  "empty": false
+ },
+ "m360": {
+  "sections": [
+   {
+    "num": "01",
+    "title": "추천 캐릭터",
+    "cards": 0
+   },
+   {
+    "num": "02",
+    "title": "공모전 당선작",
+    "cards": 0
+   },
+   {
+    "num": "03",
+    "title": "신규 캐릭터",
+    "cards": 0
+   }
+  ],
+  "cardMarkers": 0,
+  "empty": false
+ },
+ "pc1440": {
+  "sections": [
+   {
+    "num": "01",
+    "title": "추천 캐릭터",
+    "cards": 0
+   },
+   {
+    "num": "02",
+    "title": "공모전 당선작",
+    "cards": 0
+   },
+   {
+    "num": "03",
+    "title": "신규 캐릭터",
+    "cards": 0
+   }
+  ],
+  "cardMarkers": 0,
+  "empty": false
+ }
+}

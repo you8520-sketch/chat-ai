@@ -1,0 +1,35 @@
+{
+ "m390": {
+  "sections": [
+   {
+    "num": "01",
+    "title": "신규 캐릭터",
+    "cards": 4
+   }
+  ],
+  "cardMarkers": 4,
+  "empty": false
+ },
+ "m360": {
+  "sections": [
+   {
+    "num": "01",
+    "title": "신규 캐릭터",
+    "cards": 4
+   }
+  ],
+  "cardMarkers": 4,
+  "empty": false
+ },
+ "pc1440": {
+  "sections": [
+   {
+    "num": "01",
+    "title": "신규 캐릭터",
+    "cards": 4
+   }
+  ],
+  "cardMarkers": 4,
+  "empty": false
+ }
+}

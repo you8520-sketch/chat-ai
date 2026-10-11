@@ -1,0 +1,50 @@
+{
+ "m390": {
+  "sections": [
+   {
+    "num": "01",
+    "title": "공모전 당선작",
+    "cards": 2
+   },
+   {
+    "num": "02",
+    "title": "신규 캐릭터",
+    "cards": 4
+   }
+  ],
+  "cardMarkers": 6,
+  "empty": false
+ },
+ "m360": {
+  "sections": [
+   {
+    "num": "01",
+    "title": "공모전 당선작",
+    "cards": 2
+   },
+   {
+    "num": "02",
+    "title": "신규 캐릭터",
+    "cards": 4
+   }
+  ],
+  "cardMarkers": 6,
+  "empty": false
+ },
+ "pc1440": {
+  "sections": [
+   {
+    "num": "01",
+    "title": "공모전 당선작",
+    "cards": 2
+   },
+   {
+    "num": "02",
+    "title": "신규 캐릭터",
+    "cards": 4
+   }
+  ],
+  "cardMarkers": 6,
+  "empty": false
+ }
+}
