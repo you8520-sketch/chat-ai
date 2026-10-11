@@ -1,0 +1,1532 @@
+[
+ {
+  "caseId": "g2_A_direct_quote_old_deepseek-v4.1-flash",
+  "arm": "old",
+  "sceneId": "A_direct_quote",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "temperature",
+   "stream_options",
+   "top_p",
+   "thinking",
+   "reasoning_effort"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11818,
+  "estimatedInputTokens": 11099,
+  "ceilingInputTokens": 12332,
+  "systemSha": "0cfa12cab95076571f2460af85d91b7428e6b5e284991626692c70dd1a5ac369",
+  "bodySha": "bbbb3eebbb1d80135df1c7083b7ef3df1841d696a372642bf5f05b85a195dc12",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 951
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 200
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 740
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_A_direct_quote_old_gemini-3.8-flash",
+  "arm": "old",
+  "sceneId": "A_direct_quote",
+  "modelId": "gemini-3.8-flash",
+  "wireModel": "google/gemini-3.8-flash",
+  "provider": "openrouter",
+  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "stream_options",
+   "session_id",
+   "include_reasoning",
+   "reasoning",
+   "provider",
+   "service_tier"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11524,
+  "estimatedInputTokens": 10944,
+  "ceilingInputTokens": 12159,
+  "systemSha": "ebb294324d2d41efad0f3758eda1c7394015aa134966527f6c4688d5df364cce",
+  "bodySha": "0a580518e18ffd5a5d22153e2e8fc16d15e962c54b8c4c55028d911ac3260eaa",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 887
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 144
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 740
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_A_direct_quote_old_gpt-6.1-sol",
+  "arm": "old",
+  "sceneId": "A_direct_quote",
+  "modelId": "gpt-6.1-sol",
+  "wireModel": "gpt-6.1-sol",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "temperature",
+   "stream_options",
+   "reasoning",
+   "reasoning_effort"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11524,
+  "estimatedInputTokens": 10812,
+  "ceilingInputTokens": 12013,
+  "systemSha": "ebb294324d2d41efad0f3758eda1c7394015aa134966527f6c4688d5df364cce",
+  "bodySha": "46f822cdb24b9e04cee3f42b595db949a955d0fcf44fee6146d55ffb1b1661ba",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 887
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 144
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 740
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_B_npc_no_cue_old_deepseek-v4.1-flash",
+  "arm": "old",
+  "sceneId": "B_npc_no_cue",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "temperature",
+   "stream_options",
+   "top_p",
+   "thinking",
+   "reasoning_effort"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 12058,
+  "estimatedInputTokens": 11317,
+  "ceilingInputTokens": 12574,
+  "systemSha": "e796d8be3bfa8959b985080e40861acdc8b144e041afb55fd621c3831e7d2269",
+  "bodySha": "70e61c2a308b7a9f4ca93b3f63f48d0df93b1620e6803c528cff98fddb56a224",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 951
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 200
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 950
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_B_npc_no_cue_old_gemini-3.8-flash",
+  "arm": "old",
+  "sceneId": "B_npc_no_cue",
+  "modelId": "gemini-3.8-flash",
+  "wireModel": "google/gemini-3.8-flash",
+  "provider": "openrouter",
+  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "stream_options",
+   "session_id",
+   "include_reasoning",
+   "reasoning",
+   "provider",
+   "service_tier"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11764,
+  "estimatedInputTokens": 11161,
+  "ceilingInputTokens": 12401,
+  "systemSha": "ec9aac840ab0528bcde50a20d65aa2067c9c2b520c2eb82bbbe9c408de3b325a",
+  "bodySha": "0d1792efc4972481ee233d29610212ccf4a454553f40b58aece614257d547812",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 887
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 144
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 950
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_B_npc_no_cue_old_gpt-6.1-sol",
+  "arm": "old",
+  "sceneId": "B_npc_no_cue",
+  "modelId": "gpt-6.1-sol",
+  "wireModel": "gpt-6.1-sol",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "temperature",
+   "stream_options",
+   "reasoning",
+   "reasoning_effort"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11764,
+  "estimatedInputTokens": 11030,
+  "ceilingInputTokens": 12255,
+  "systemSha": "ec9aac840ab0528bcde50a20d65aa2067c9c2b520c2eb82bbbe9c408de3b325a",
+  "bodySha": "84d293364f2acea500f18dd0cdc780c5f00700ca4fe02b16966ca772da2a0918",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 887
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 144
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 950
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_A_direct_quote_b1_deepseek-v4.1-flash",
+  "arm": "b1",
+  "sceneId": "A_direct_quote",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "temperature",
+   "stream_options",
+   "top_p",
+   "thinking",
+   "reasoning_effort"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11825,
+  "estimatedInputTokens": 11106,
+  "ceilingInputTokens": 12339,
+  "systemSha": "11739fabce930204a507dabd66937e6ab40f1d2d4e06db96ebbe0576fa1dc0ea",
+  "bodySha": "fc23a08f695e9cf2993d6dca4e882bbd916320fc98a6f147e353b1e58a390372",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 951
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 200
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 747
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_A_direct_quote_b1_gemini-3.8-flash",
+  "arm": "b1",
+  "sceneId": "A_direct_quote",
+  "modelId": "gemini-3.8-flash",
+  "wireModel": "google/gemini-3.8-flash",
+  "provider": "openrouter",
+  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "stream_options",
+   "session_id",
+   "include_reasoning",
+   "reasoning",
+   "provider",
+   "service_tier"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11531,
+  "estimatedInputTokens": 10950,
+  "ceilingInputTokens": 12166,
+  "systemSha": "e46bed66dde774882bc65f03e13011d1909f8078bceafb905e796a2af9516156",
+  "bodySha": "515bbdb5fa67fcf32addfb3fd5e0120db7e18b511d9b8c738c15ff75c6241fee",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 887
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 144
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 747
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_A_direct_quote_b1_gpt-6.1-sol",
+  "arm": "b1",
+  "sceneId": "A_direct_quote",
+  "modelId": "gpt-6.1-sol",
+  "wireModel": "gpt-6.1-sol",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "temperature",
+   "stream_options",
+   "reasoning",
+   "reasoning_effort"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11531,
+  "estimatedInputTokens": 10818,
+  "ceilingInputTokens": 12020,
+  "systemSha": "e46bed66dde774882bc65f03e13011d1909f8078bceafb905e796a2af9516156",
+  "bodySha": "19fbd8d5a4676817f32b50fae500c5ef99c3b1ad073b8af87d9b81faef0dc848",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 887
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 144
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 747
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_B_npc_no_cue_b1_deepseek-v4.1-flash",
+  "arm": "b1",
+  "sceneId": "B_npc_no_cue",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "temperature",
+   "stream_options",
+   "top_p",
+   "thinking",
+   "reasoning_effort"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 12156,
+  "estimatedInputTokens": 11405,
+  "ceilingInputTokens": 12672,
+  "systemSha": "491cee51cc83e384a35940b602bceab7e9069025e0a883459272da82c75907e5",
+  "bodySha": "a8e82060fb8570f730533363909ae102c2bd89bade55e7b22d8ac32192d476a2",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 951
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 200
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 1048
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_B_npc_no_cue_b1_gemini-3.8-flash",
+  "arm": "b1",
+  "sceneId": "B_npc_no_cue",
+  "modelId": "gemini-3.8-flash",
+  "wireModel": "google/gemini-3.8-flash",
+  "provider": "openrouter",
+  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "stream_options",
+   "session_id",
+   "include_reasoning",
+   "reasoning",
+   "provider",
+   "service_tier"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11862,
+  "estimatedInputTokens": 11250,
+  "ceilingInputTokens": 12499,
+  "systemSha": "00d35c9955828fe2224b251b33f329da971372ece9af9524ba788e2c7b13a6b0",
+  "bodySha": "359ae7102f0c30b49c7907f599d08e3eeaf134fa192015dde8da1a3e70e120a1",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 887
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 144
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 1048
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_B_npc_no_cue_b1_gpt-6.1-sol",
+  "arm": "b1",
+  "sceneId": "B_npc_no_cue",
+  "modelId": "gpt-6.1-sol",
+  "wireModel": "gpt-6.1-sol",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "temperature",
+   "stream_options",
+   "reasoning",
+   "reasoning_effort"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11862,
+  "estimatedInputTokens": 11118,
+  "ceilingInputTokens": 12353,
+  "systemSha": "00d35c9955828fe2224b251b33f329da971372ece9af9524ba788e2c7b13a6b0",
+  "bodySha": "fe06ac403114ade46eea67ea8d7ebd497bf2f68d55afbd16ab7060d90e065b96",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 887
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 144
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 1048
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_A_direct_quote_cur_deepseek-v4.1-flash",
+  "arm": "cur",
+  "sceneId": "A_direct_quote",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "temperature",
+   "stream_options",
+   "top_p",
+   "thinking",
+   "reasoning_effort"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11866,
+  "estimatedInputTokens": 11142,
+  "ceilingInputTokens": 12380,
+  "systemSha": "5bc57673e2c5814b86925b186be286603ee24a89f50f9f9708e0114b135dda24",
+  "bodySha": "9699bda6ef80b7dac0934b0a33cb5d9dac15c8b3f2aa1b59b1f7f122285b9b48",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 951
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 200
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 787
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_A_direct_quote_cur_gemini-3.8-flash",
+  "arm": "cur",
+  "sceneId": "A_direct_quote",
+  "modelId": "gemini-3.8-flash",
+  "wireModel": "google/gemini-3.8-flash",
+  "provider": "openrouter",
+  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "stream_options",
+   "session_id",
+   "include_reasoning",
+   "reasoning",
+   "provider",
+   "service_tier"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11572,
+  "estimatedInputTokens": 10987,
+  "ceilingInputTokens": 12207,
+  "systemSha": "f936a0bf47e1d46f53d7f61817291feba87a9ccd3c8d0f5475354e1ae92cefc6",
+  "bodySha": "0eff521409f0882a09f15ea195419f080dc2c4d24d780133de8a075836335137",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 887
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 144
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 787
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_A_direct_quote_cur_gpt-6.1-sol",
+  "arm": "cur",
+  "sceneId": "A_direct_quote",
+  "modelId": "gpt-6.1-sol",
+  "wireModel": "gpt-6.1-sol",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "temperature",
+   "stream_options",
+   "reasoning",
+   "reasoning_effort"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11572,
+  "estimatedInputTokens": 10855,
+  "ceilingInputTokens": 12061,
+  "systemSha": "f936a0bf47e1d46f53d7f61817291feba87a9ccd3c8d0f5475354e1ae92cefc6",
+  "bodySha": "c3bb0160beed943da9c0353d56b97232bd7363e7c6569a3ed738616db620094c",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 887
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 144
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 787
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_B_npc_no_cue_cur_deepseek-v4.1-flash",
+  "arm": "cur",
+  "sceneId": "B_npc_no_cue",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "temperature",
+   "stream_options",
+   "top_p",
+   "thinking",
+   "reasoning_effort"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 12150,
+  "estimatedInputTokens": 11400,
+  "ceilingInputTokens": 12666,
+  "systemSha": "4b9f144c00fcf78eed07efab0e388d8fb64cda7b1c08550015bcdf242b94501c",
+  "bodySha": "06d64e9da412512d754ba8120fef62b7fc263e58abcf8f465a24216103f2df10",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 951
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 200
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 1042
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_B_npc_no_cue_cur_gemini-3.8-flash",
+  "arm": "cur",
+  "sceneId": "B_npc_no_cue",
+  "modelId": "gemini-3.8-flash",
+  "wireModel": "google/gemini-3.8-flash",
+  "provider": "openrouter",
+  "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "stream_options",
+   "session_id",
+   "include_reasoning",
+   "reasoning",
+   "provider",
+   "service_tier"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11856,
+  "estimatedInputTokens": 11244,
+  "ceilingInputTokens": 12493,
+  "systemSha": "d1305d931a3ba01e6e4e73ef6af8f329baf38f94378e4b4aa46fd4e901f80034",
+  "bodySha": "db969671af1716b4ee679e31e112c9beb2d64d82591128f97d746a067e861053",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 887
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 144
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 1042
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ },
+ {
+  "caseId": "g2_B_npc_no_cue_cur_gpt-6.1-sol",
+  "arm": "cur",
+  "sceneId": "B_npc_no_cue",
+  "modelId": "gpt-6.1-sol",
+  "wireModel": "gpt-6.1-sol",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "bodyKeys": [
+   "model",
+   "messages",
+   "stream",
+   "temperature",
+   "stream_options",
+   "reasoning",
+   "reasoning_effort"
+  ],
+  "hasMaxTokens": false,
+  "messageRoles": [
+   "system",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user",
+   "assistant",
+   "user"
+  ],
+  "inputChars": 11856,
+  "estimatedInputTokens": 11113,
+  "ceilingInputTokens": 12347,
+  "systemSha": "d1305d931a3ba01e6e4e73ef6af8f329baf38f94378e4b4aa46fd4e901f80034",
+  "bodySha": "1711b09651c67781e2fe2501d817b20e631abbc131087eac9b3142d0dff138b6",
+  "hasEpisodic": true,
+  "hasCurrentMemory": true,
+  "trackedSections": [
+   {
+    "id": "openrouter-korean-prose-top",
+    "chars": 819
+   },
+   {
+    "id": "runtime-prompt-contamination-guard",
+    "chars": 887
+   },
+   {
+    "id": "no-godmodding",
+    "chars": 1096
+   },
+   {
+    "id": "rule-historical-truth-canonical-memory",
+    "chars": 953
+   },
+   {
+    "id": "character-core-identity",
+    "chars": 144
+   },
+   {
+    "id": "identity-and-rules",
+    "chars": 259
+   },
+   {
+    "id": "prose-style-xml-bundle",
+    "chars": 1299
+   },
+   {
+    "id": "current-memory",
+    "chars": 1914
+   },
+   {
+    "id": "episodic-memory-retrieved-facts",
+    "chars": 1042
+   },
+   {
+    "id": "rule-output-layout-recency",
+    "chars": 744
+   },
+   {
+    "id": "user-persona-reference-owner",
+    "chars": 796
+   }
+  ]
+ }
+]

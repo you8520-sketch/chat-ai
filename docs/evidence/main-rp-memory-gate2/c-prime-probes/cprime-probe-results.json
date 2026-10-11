@@ -1,0 +1,721 @@
+{
+  "validatorProbe": {
+    "formatted_name_line": [
+      {
+        "id": "F1_fake_lifelong_promise",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "promise not in source (generated-summary fabrication)",
+        "summary": "라이크가 렌에게 평생 지키겠다고 약속했고 렌은 그 약속을 받아들였다. 렌이 아마추어 같다고 하자 라이크는 입술을 깨물었다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F1b_fake_promise_short_form",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "same fabrication, different wording",
+        "summary": "라이크는 렌에게 평생 곁에서 지켜 주겠다고 맹세했다. 렌이 솔직히 아마추어 같다고 했고 라이크는 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F2_fake_sister_familiarity_objective",
+        "batch": [
+          21,
+          25
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": false,
+        "authorityKind": "UNSUPPORTED",
+        "verdict": "REJECTED_AT_SEAL",
+        "correct": true,
+        "note": "sister familiarity stated as objective shared history",
+        "summary": "렌은 라이크의 누나와 예전부터 알던 사이였고 시장에서 서로 알아보았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F2b_sister_attributed_character_claim",
+        "batch": [
+          21,
+          25
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CHARACTER_CLAIM",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "attributed CHARACTER_CLAIM must stay allowed",
+        "summary": "라이크는 누나가 시장에서 렌을 알아봤다고 말했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F2c_sister_familiarity_variant",
+        "batch": [
+          21,
+          25
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": false,
+        "authorityKind": "UNSUPPORTED",
+        "verdict": "REJECTED_AT_SEAL",
+        "correct": true,
+        "note": "sister familiarity variant wording",
+        "summary": "렌은 라이크의 누나와 오래전부터 알고 지낸 친구 사이다. 누나는 렌을 시장에서 반갑게 맞았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F3_wrong_speaker_amateur",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CHARACTER_CLAIM",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "speaker inverted: source = user said it to the character",
+        "summary": "라이크가 렌에게 솔직히 아마추어 같다고 말했고 렌은 입술을 깨물며 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F4_kiss_from_coffee",
+        "batch": [
+          26,
+          30
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "kiss invented from a coffee utterance",
+        "summary": "렌과 라이크는 커피를 마시다 입을 맞췄고 둘의 사이는 한층 가까워졌다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F4b_hug_from_coffee",
+        "batch": [
+          26,
+          30
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "physical action invented (user-owned action)",
+        "summary": "렌이 커피를 마시자 라이크는 렌을 끌어안았고 렌은 그에게 기대어 울었다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L1_legit_npc_door",
+        "batch": [
+          16,
+          20
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "legitimate NPC action",
+        "summary": "서린이 문을 열고 들어와 라이크에게 목례했다. 렌은 문 쪽을 바라보았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L2_user_relationship_declaration",
+        "batch": [
+          6,
+          10
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CHARACTER_CLAIM",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "user-direct relationship declaration",
+        "summary": "렌이 라이크에게 오늘부터 연인하자고 말했고 라이크는 놀라 한참 말이 없다가 손을 맞잡았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L3_user_breakup_declaration",
+        "batch": [
+          36,
+          40
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CHARACTER_CLAIM",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "user-direct relationship change",
+        "summary": "렌이 미안하다며 그만 헤어지자고 말했고 라이크는 말없이 시선을 떨궜다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L4_true_quote_and_reaction",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "exact line + lip-bite reaction",
+        "summary": "렌이 라이크에게 솔직히 너 좀 아마추어 같다고 말하자 라이크는 입술을 깨물며 시선을 피했고 아직 부족하긴 하다고 답했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L5_emotion_interpretation",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": false,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "REJECTED_AT_SEAL",
+        "correct": false,
+        "note": "emotional interpretation grounded in an observed action",
+        "summary": "렌이 아마추어 같다고 하자 라이크는 상처받은 듯 시선을 피했다. 이후 검술에 대한 자존심이 흔들렸을 가능성이 있다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L6_character_backstory",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "character-authored personal past (not a user tie)",
+        "summary": "라이크는 어릴 때 스승에게 검을 배운 견습 검사로, 렌의 말에 입술을 깨물며 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      }
+    ],
+    "bare_name_as_passed_by_chat_route": [
+      {
+        "id": "F1_fake_lifelong_promise",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "promise not in source (generated-summary fabrication)",
+        "summary": "라이크가 렌에게 평생 지키겠다고 약속했고 렌은 그 약속을 받아들였다. 렌이 아마추어 같다고 하자 라이크는 입술을 깨물었다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F1b_fake_promise_short_form",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "same fabrication, different wording",
+        "summary": "라이크는 렌에게 평생 곁에서 지켜 주겠다고 맹세했다. 렌이 솔직히 아마추어 같다고 했고 라이크는 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F2_fake_sister_familiarity_objective",
+        "batch": [
+          21,
+          25
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "sister familiarity stated as objective shared history",
+        "summary": "렌은 라이크의 누나와 예전부터 알던 사이였고 시장에서 서로 알아보았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F2b_sister_attributed_character_claim",
+        "batch": [
+          21,
+          25
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CHARACTER_CLAIM",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "attributed CHARACTER_CLAIM must stay allowed",
+        "summary": "라이크는 누나가 시장에서 렌을 알아봤다고 말했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F2c_sister_familiarity_variant",
+        "batch": [
+          21,
+          25
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "sister familiarity variant wording",
+        "summary": "렌은 라이크의 누나와 오래전부터 알고 지낸 친구 사이다. 누나는 렌을 시장에서 반갑게 맞았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F3_wrong_speaker_amateur",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CHARACTER_CLAIM",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "speaker inverted: source = user said it to the character",
+        "summary": "라이크가 렌에게 솔직히 아마추어 같다고 말했고 렌은 입술을 깨물며 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F4_kiss_from_coffee",
+        "batch": [
+          26,
+          30
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "kiss invented from a coffee utterance",
+        "summary": "렌과 라이크는 커피를 마시다 입을 맞췄고 둘의 사이는 한층 가까워졌다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F4b_hug_from_coffee",
+        "batch": [
+          26,
+          30
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "physical action invented (user-owned action)",
+        "summary": "렌이 커피를 마시자 라이크는 렌을 끌어안았고 렌은 그에게 기대어 울었다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L1_legit_npc_door",
+        "batch": [
+          16,
+          20
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "legitimate NPC action",
+        "summary": "서린이 문을 열고 들어와 라이크에게 목례했다. 렌은 문 쪽을 바라보았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L2_user_relationship_declaration",
+        "batch": [
+          6,
+          10
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CHARACTER_CLAIM",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "user-direct relationship declaration",
+        "summary": "렌이 라이크에게 오늘부터 연인하자고 말했고 라이크는 놀라 한참 말이 없다가 손을 맞잡았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L3_user_breakup_declaration",
+        "batch": [
+          36,
+          40
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CHARACTER_CLAIM",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "user-direct relationship change",
+        "summary": "렌이 미안하다며 그만 헤어지자고 말했고 라이크는 말없이 시선을 떨궜다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L4_true_quote_and_reaction",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "exact line + lip-bite reaction",
+        "summary": "렌이 라이크에게 솔직히 너 좀 아마추어 같다고 말하자 라이크는 입술을 깨물며 시선을 피했고 아직 부족하긴 하다고 답했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L5_emotion_interpretation",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "emotional interpretation grounded in an observed action",
+        "summary": "렌이 아마추어 같다고 하자 라이크는 상처받은 듯 시선을 피했다. 이후 검술에 대한 자존심이 흔들렸을 가능성이 있다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L6_character_backstory",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "character-authored personal past (not a user tie)",
+        "summary": "라이크는 어릴 때 스승에게 검을 배운 견습 검사로, 렌의 말에 입술을 깨물며 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      }
+    ],
+    "none": [
+      {
+        "id": "F1_fake_lifelong_promise",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "promise not in source (generated-summary fabrication)",
+        "summary": "라이크가 렌에게 평생 지키겠다고 약속했고 렌은 그 약속을 받아들였다. 렌이 아마추어 같다고 하자 라이크는 입술을 깨물었다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F1b_fake_promise_short_form",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "same fabrication, different wording",
+        "summary": "라이크는 렌에게 평생 곁에서 지켜 주겠다고 맹세했다. 렌이 솔직히 아마추어 같다고 했고 라이크는 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F2_fake_sister_familiarity_objective",
+        "batch": [
+          21,
+          25
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "sister familiarity stated as objective shared history",
+        "summary": "렌은 라이크의 누나와 예전부터 알던 사이였고 시장에서 서로 알아보았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F2b_sister_attributed_character_claim",
+        "batch": [
+          21,
+          25
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CHARACTER_CLAIM",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "attributed CHARACTER_CLAIM must stay allowed",
+        "summary": "라이크는 누나가 시장에서 렌을 알아봤다고 말했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F2c_sister_familiarity_variant",
+        "batch": [
+          21,
+          25
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "sister familiarity variant wording",
+        "summary": "렌은 라이크의 누나와 오래전부터 알고 지낸 친구 사이다. 누나는 렌을 시장에서 반갑게 맞았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F3_wrong_speaker_amateur",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CHARACTER_CLAIM",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "speaker inverted: source = user said it to the character",
+        "summary": "라이크가 렌에게 솔직히 아마추어 같다고 말했고 렌은 입술을 깨물며 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F4_kiss_from_coffee",
+        "batch": [
+          26,
+          30
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "kiss invented from a coffee utterance",
+        "summary": "렌과 라이크는 커피를 마시다 입을 맞췄고 둘의 사이는 한층 가까워졌다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "F4b_hug_from_coffee",
+        "batch": [
+          26,
+          30
+        ],
+        "expected": "REJECT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": false,
+        "note": "physical action invented (user-owned action)",
+        "summary": "렌이 커피를 마시자 라이크는 렌을 끌어안았고 렌은 그에게 기대어 울었다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L1_legit_npc_door",
+        "batch": [
+          16,
+          20
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "legitimate NPC action",
+        "summary": "서린이 문을 열고 들어와 라이크에게 목례했다. 렌은 문 쪽을 바라보았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L2_user_relationship_declaration",
+        "batch": [
+          6,
+          10
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CHARACTER_CLAIM",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "user-direct relationship declaration",
+        "summary": "렌이 라이크에게 오늘부터 연인하자고 말했고 라이크는 놀라 한참 말이 없다가 손을 맞잡았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L3_user_breakup_declaration",
+        "batch": [
+          36,
+          40
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CHARACTER_CLAIM",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "user-direct relationship change",
+        "summary": "렌이 미안하다며 그만 헤어지자고 말했고 라이크는 말없이 시선을 떨궜다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L4_true_quote_and_reaction",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "exact line + lip-bite reaction",
+        "summary": "렌이 라이크에게 솔직히 너 좀 아마추어 같다고 말하자 라이크는 입술을 깨물며 시선을 피했고 아직 부족하긴 하다고 답했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L5_emotion_interpretation",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "emotional interpretation grounded in an observed action",
+        "summary": "렌이 아마추어 같다고 하자 라이크는 상처받은 듯 시선을 피했다. 이후 검술에 대한 자존심이 흔들렸을 가능성이 있다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      },
+      {
+        "id": "L6_character_backstory",
+        "batch": [
+          1,
+          5
+        ],
+        "expected": "ACCEPT",
+        "narrativeOk": true,
+        "grounded": true,
+        "authorityKind": "CURRENT_SCENE",
+        "verdict": "ACCEPTED_AT_SEAL",
+        "correct": true,
+        "note": "character-authored personal past (not a user tie)",
+        "summary": "라이크는 어릴 때 스승에게 검을 배운 견습 검사로, 렌의 말에 입술을 깨물며 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+      }
+    ]
+  },
+  "pipelineProbe": {
+    "sealed": 16,
+    "attemptsByBatchStart": {
+      "1": 1,
+      "6": 1,
+      "11": 1,
+      "16": 1,
+      "21": 1,
+      "26": 1,
+      "31": 1,
+      "36": 1,
+      "41": 1,
+      "46": 1,
+      "51": 1,
+      "56": 1,
+      "61": 1,
+      "66": 1,
+      "71": 1,
+      "76": 1
+    },
+    "batch1_persistedSummary": {
+      "kind": "main_canon",
+      "userEdited": false,
+      "summary": "라이크는 렌에게 평생 지키겠다고 약속했다. 렌이 솔직히 아마추어 같다고 하자 라이크는 입술을 깨물며 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+    },
+    "batch21_persistedSummary": {
+      "kind": "main_canon",
+      "userEdited": false,
+      "summary": "렌은 라이크의 누나와 예전부터 알던 사이였다. 시장에서 서로 알아보았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다."
+    },
+    "currentMemoryContains_F1_promise": true,
+    "currentMemoryContains_F2_sister": true,
+    "currentMemoryHeader": "[현재기억] | 최근 대화(히스토리)에 없는 이전 구간의 요약이다. 연속성은 히스토리와 관계 메모를 우선한다.",
+    "currentMemoryFirstBlock": [
+      "[1~5턴] 라이크는 렌에게 평생 지키겠다고 약속했다. 렌이 솔직히 아마추어 같다고 하자 라이크는 입술을 깨물며 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다.",
+      "[6~10턴] 오늘의 잡담 6 오늘의 잡담 7 오늘의 잡담 8 오늘의 잡담 9 좋아, 우리 오늘부터 연인하자. 오늘의 잡담 6 오늘의 잡담 7 오늘의 잡담 8 오늘의 잡담 9 좋아, 우리 오늘부터 연인하자."
+    ],
+    "scopePayloadOfLlmRecord": {
+      "scope_payload": "{\"v\":1,\"scopes\":{\"main_canon\":\"라이크는 렌에게 평생 지키겠다고 약속했다. 렌이 솔직히 아마추어 같다고 하자 라이크는 입술을 깨물며 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다.\"},\"branchId\":null,\"branchStatus\":null,\"promotedBy\":null,\"promotedAt\":null}"
+    },
+    "userEdit": {
+      "accepted": true,
+      "rowAfter": {
+        "summary_kind": "main_canon",
+        "user_edited": 1,
+        "scope_payload": "{\"v\":1,\"scopes\":{\"main_canon\":\"라이크는 렌에게 평생 지키겠다고 약속했다. 렌이 솔직히 아마추어 같다고 하자 라이크는 입술을 깨물며 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다.\"},\"branchId\":null,\"branchStatus\":null,\"promotedBy\":null,\"promotedAt\":null}"
+      },
+      "renderedBlockBefore": "[1~5턴] 라이크는 렌에게 평생 지키겠다고 약속했다. 렌이 솔직히 아마추어 같다고 하자 라이크는 입술을 깨물며 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다.",
+      "renderedBlockAfter": "[1~5턴] 라이크는 렌에게 평생 지키겠다고 약속했다. 렌이 솔직히 아마추어 같다고 하자 라이크는 입술을 깨물며 시선을 피했다. 둘은 오늘의 잡담을 나누며 장작을 쌓았다.",
+      "renderedDistinguishable": false
+    }
+  },
+  "compactionProbe": {
+    "budgetRows": [
+      {
+        "avgSummaryChars": 250,
+        "perBatchChars": 259,
+        "turnsUntil10kReached": 193
+      },
+      {
+        "avgSummaryChars": 350,
+        "perBatchChars": 359,
+        "turnsUntil10kReached": 139
+      },
+      {
+        "avgSummaryChars": 450,
+        "perBatchChars": 459,
+        "turnsUntil10kReached": 109
+      },
+      {
+        "avgSummaryChars": 600,
+        "perBatchChars": 609,
+        "turnsUntil10kReached": 82
+      }
+    ],
+    "inputChars": 13708,
+    "trimmedChars": 9731,
+    "firstSurvivingBlock": "36~40",
+    "survivingBlockCount": 17,
+    "oldestBlockSurvives": false
+  }
+}
