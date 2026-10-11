@@ -86,7 +86,7 @@ function SectionHeader({
       ) : null}
       <div className="min-w-0 pb-1">
         {meta ? (
-          <p className="text-[10px] font-bold tracking-[0.26em] text-zinc-400">{meta.eyebrow}</p>
+          <p className="text-[11px] font-bold tracking-[0.26em] text-violet-300">{meta.eyebrow}</p>
         ) : null}
         <Heading
           className="home-slab mt-1 text-[1.6rem] font-black leading-tight tracking-[-0.05em] sm:text-[2.5rem]"
@@ -96,7 +96,7 @@ function SectionHeader({
         </Heading>
       </div>
       {meta ? (
-        <p className="hidden max-w-[15rem] pb-1.5 text-xs leading-5 text-zinc-500 lg:block">{meta.description}</p>
+        <p className="hidden max-w-[15rem] pb-1.5 text-xs leading-5 text-zinc-400 lg:block">{meta.description}</p>
       ) : null}
       <span aria-hidden className="mb-3 hidden h-px min-w-6 flex-1 bg-white/15 sm:block" />
       {headerLink ? (

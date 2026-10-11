@@ -35,8 +35,8 @@ export const studioSpace = {
 
 /** Typography — 6 levels only */
 export const studioType = {
-  heading: "break-keep text-2xl font-semibold leading-snug tracking-tight text-zinc-50",
-  sectionTitle: "break-keep text-base font-semibold leading-snug tracking-tight text-zinc-50",
+  heading: "break-keep border-l-4 border-violet-400 pl-3 text-[1.65rem] font-extrabold leading-tight tracking-[-0.045em] text-white sm:text-[2rem]",
+  sectionTitle: "break-keep text-[1.0625rem] font-bold leading-snug tracking-[-0.03em] text-white",
   label: "mb-1.5 block text-sm font-medium text-zinc-300",
   body: "text-sm leading-relaxed text-zinc-300",
   caption: "text-[13px] leading-relaxed text-zinc-400",
