@@ -1,0 +1,40 @@
+[
+  {
+    "arm": "AFTER_1550",
+    "model": "deepseek-v4.1-flash",
+    "route": "cheaperinference",
+    "endpoint": "POST /v1/chat/completions (non-stream)",
+    "branchHead": "d5982c70cf45c9747fbb815b3f03183699f56279",
+    "afterWireSha256": "7650477054bfd52cb7fdd64ec0f7c38cb870bd4c3913d3116dc08ed6e2d072ea",
+    "httpStatus": 200,
+    "finishReason": "stop",
+    "promptTokens": 4449,
+    "completionTokens": 746,
+    "billedUsd": 0.000557,
+    "requestId": "2abf897c-51a5-4271-b2f0-efdd213c209c",
+    "rawChars": 929,
+    "seconds": 8.061,
+    "error": null,
+    "file": "deepseek-v4.1-flash-Q5-after-1550.txt",
+    "rawFileSha256": "e84e852a39ee7d7c61134e22ebc7fd90893564c31732c5e2543a343ca2d6fc5c"
+  },
+  {
+    "arm": "AFTER_1550",
+    "model": "claude-opus-5.5",
+    "route": "cheaperinference",
+    "endpoint": "POST /v1/chat/completions (non-stream)",
+    "branchHead": "d5982c70cf45c9747fbb815b3f03183699f56279",
+    "afterWireSha256": "23a862f37f12ff6fe8e2437080eb5d45ec50c1e79e7ab1d6f30745038097c806",
+    "httpStatus": 200,
+    "finishReason": "stop",
+    "promptTokens": 6562,
+    "completionTokens": 4324,
+    "billedUsd": 0.075789,
+    "requestId": "msg_011CfvKKqedkJVicWrcTKhUa",
+    "rawChars": 3104,
+    "seconds": 58.386,
+    "error": null,
+    "file": "claude-opus-5.5-Q5-after-1550.txt",
+    "rawFileSha256": "16a078a96fd23f913d01eb113bb272618dfcc7028a6f069b036732490e9d06b7"
+  }
+]

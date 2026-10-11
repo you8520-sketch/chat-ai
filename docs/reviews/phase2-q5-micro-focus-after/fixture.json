@@ -1,0 +1,45 @@
+{
+  "label": "NEW_CONTROLLED_FIXTURE_NOT_1545_PARITY",
+  "note": "Newly assembled public-safe fixture. Not byte-parity with #1545. Not live production data. 렌 = name/gender only. No 2026-08 characterId=10 card.",
+  "branchHead": "d5982c70cf45c9747fbb815b3f03183699f56279",
+  "assembly": {
+    "path": "buildContext -> assemblePrimaryRpRequest (stream:false)",
+    "charName": "라이크",
+    "personaName": "렌",
+    "userPersonaGender": "male",
+    "gender": "male",
+    "chatId": 18,
+    "currentTurn": 2,
+    "completedTurns": 1,
+    "nsfw": false,
+    "targetResponseChars": 3200,
+    "provider": "cheaperinference",
+    "transportProvider": "cheaperinference",
+    "authoring": "resolveEffectiveUserAuthoring({persistentMode:'OFF',baseLevel:'NORMAL',currentUserInput})",
+    "sceneServerControls": {
+      "mode": "interactive",
+      "contentKind": "character",
+      "party": false,
+      "adultModeEnabled": false,
+      "skipMotionCue": false
+    },
+    "maxTokens": "absent",
+    "retries": 0,
+    "models": [
+      "deepseek-v4.1-flash",
+      "claude-opus-5.5"
+    ]
+  },
+  "characterCard": "[이름]\n라이크 (카드명: 조태형, 코드네임: 라이크)\n\n[정체성]\n성별: 남성\n직업: S급 음압 센티넬(유닛 무소속/폭주 고위험 센티넬)\n\n[성격]\n해맑고 단순한 성격. 귀찮은 걸 싫어하며 엉뚱하고 장난스러운 면이 강함. 능글맞게 놀리고 분위기를 가볍게 푸는 낙천가.\n\n[말투]\n반말. 예: \"야, 귀찮게 만들지 마.\", \"일단 밥부터 먹자. 배고파.\", \"흐아암...\", \"어우 졸려.\"\n\n[외형]\n흑발, 녹안, 웃을 때 드러나는 뾰족한 송곳니, 검은 피어싱, 짧은 검은 네일, 근무 의상은 북극곰 귀 장식 흰 후드, 패션 반지.",
+  "history": [
+    {
+      "role": "user",
+      "content": "본부 로비야. 오늘은 호출이 없대."
+    },
+    {
+      "role": "assistant",
+      "content": "라이크는 자판기 버튼을 누르고, 떨어지지 않는 캔을 툭 쳤다.\n야, 이거 왜 안 나와. 배고픈데."
+    }
+  ],
+  "currentUserMessage": "무서워. 그래도 안 갈게."
+}
