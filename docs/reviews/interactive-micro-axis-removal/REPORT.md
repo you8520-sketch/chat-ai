@@ -16,7 +16,7 @@ Main BEFORE request == archived #1550 BEFORE request (byte-equal JSON). AFTER di
 
 Real `buildSceneDirective` over 400 (chat, turn) seeds with the lobby history:
 
-- Q1 (quiet), Q3 (siren), Q5 (fear) all resolve to `MICRO_MOTION`, scene kind `neutral`, and the identical axis distribution `environment 121 / daily_life 89 / relationship 81 / lore_clue 58 / consequence 28 / comedy 23`. The axis never reads the user turn.
+- Q1 (quiet), Q3 (siren), Q5 (fear) all resolve to `MICRO_MOTION`, scene kind `neutral`, and the identical axis distribution `environment 121 / daily_life 89 / relationship 81 / lore_clue 58 / consequence 28 / comedy 23`. Scene-signal keywords only shift the draw weights; the axis is not derived from what the user turn means (Q1/Q3/Q5 gave the same distribution).
 - For `무서워. 그래도 안 갈게.` only 20% of draws are `관계 변화`; 15% print `단서`, 6% print `개그/오해`, 22% print `생활 변수`, 30% `환경 변화`.
 - At the Phase 2 seed (chat 18, turn 2) every scene Q1-Q8 prints `환경 변화`.
 

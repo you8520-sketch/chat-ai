@@ -730,7 +730,7 @@ describe("interactive MICRO_MOTION contract does not print a content-blind progr
     assert.match(block, /새 인물 도입: 없음/);
   });
 
-  it("auto progression and simulation MICRO keep the drawn axis (no user turn to anchor)", () => {
+  it("auto progression and simulation MICRO keep the drawn axis (previous contract unchanged)", () => {
     const auto = buildSceneDirective({
       mode: "auto_progression",
       recentMessages: LOBBY_HISTORY,

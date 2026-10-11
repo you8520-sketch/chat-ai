@@ -1132,12 +1132,13 @@ export function getLastProgressionSelectionMeta(): ProgressionSelectionMeta | nu
   return lastSelectionMeta;
 }
 
-/** Canonical execution contract — shared by full and compact Standard renderers. */
 /**
- * The progression axis is a weighted seeded draw that never reads the user turn.
- * A user-anchored interactive MICRO beat already follows the current input, so
- * printing the draw as "허용된 변화" only steers it away from that input.
- * Auto progression and simulation have no user turn to anchor on and keep the axis.
+ * The progression axis is a seeded weighted draw. Scene-signal keywords only
+ * shift its weights; it is not derived from what the current user turn means.
+ * An interactive MICRO beat already follows the current input, so printing the
+ * draw as "허용된 변화" can steer it away from that input.
+ * Auto progression and simulation MICRO are left on their previous contract and
+ * keep printing the axis; this predicate does not change them.
  */
 export function exposesProgressionAxis(
   directive: Pick<SceneDirective, "motionDecision" | "mode" | "castFocus">
@@ -1149,6 +1150,7 @@ export function exposesProgressionAxis(
   );
 }
 
+/** Canonical execution contract — shared by full and compact Standard renderers. */
 export function renderSceneExecutionContract(input: {
   motionDecision: SceneMotionDecision;
   progressionTypes: SceneProgressionType[];
