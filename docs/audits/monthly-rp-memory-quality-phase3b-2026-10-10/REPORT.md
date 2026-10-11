@@ -158,6 +158,8 @@ Original Gemini 401 artifacts remain empty and are **not** overwritten:
 - `responses/phase3b_t6_gemini-3.8-flash.txt`
 - `responses/phase3b_t50_gemini-3.8-flash.txt`
 
+`.txt` display copies had end-of-line trailing spaces stripped for `git diff --check`. Exact streamed text remains in `completion-2026-10-11/evidence.json` `attempts[].modelResponse`.
+
 ### Totals after completion
 
 - Additional provider generation POST: **2 / 2**
