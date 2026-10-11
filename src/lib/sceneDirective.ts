@@ -1159,9 +1159,14 @@ export function renderSceneExecutionContract(input: {
       ? `기존 NPC (${existingNpc})의 행동만`
       : "없음";
 
+  const changeLine =
+    input.motionDecision === "MICRO_MOTION"
+      ? `전개 초점: ${allowedSources || "현재 캐릭터·환경"} (인물의 반응·판단·행동·관계 흐름은 현재 상호작용에 맞게 이어간다)`
+      : `허용된 변화: ${allowedSources || "현재 캐릭터·환경"}`;
+
   return [
     `전개 필요: ${input.motionDecision === "MICRO_MOTION" ? "MICRO" : input.motionDecision === "ESCALATE" ? "ESCALATE" : "ADVANCE"}`,
-    `허용된 변화: ${allowedSources || "현재 캐릭터·환경"}`,
+    changeLine,
     `기존 NPC 행동: ${npcAction}`,
     `새 인물 도입: ${newNpc}`,
   ].join("\n");

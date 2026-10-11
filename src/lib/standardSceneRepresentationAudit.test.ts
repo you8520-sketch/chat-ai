@@ -77,6 +77,7 @@ function extractExecutionContract(text: string): string {
     }
     if (
       line.startsWith("전개 필요:") ||
+      line.startsWith("전개 초점:") ||
       line.startsWith("허용된 변화:") ||
       line.startsWith("기존 NPC 행동:") ||
       line.startsWith("새 인물 도입:")

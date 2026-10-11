@@ -654,3 +654,103 @@ describe("canonical directive object propagation O11–O13", () => {
     );
   });
 });
+
+const MICRO_FOCUS_SUFFIX =
+  "(인물의 반응·판단·행동·관계 흐름은 현재 상호작용에 맞게 이어간다)";
+
+const Q5_HISTORY = [
+  { role: "user" as const, content: "본부 로비야. 오늘은 호출이 없대." },
+  {
+    role: "assistant" as const,
+    content:
+      "라이크는 자판기 버튼을 누르고, 떨어지지 않는 캔을 툭 쳤다.\n야, 이거 왜 안 나와. 배고픈데.",
+  },
+];
+const Q5_ANCHOR = "무서워. 그래도 안 갈게.";
+
+function q5Directive(currentTurn: number) {
+  return buildSceneDirective({
+    mode: "interactive",
+    contentKind: "character",
+    primaryCharacterName: "라이크",
+    chatId: 18,
+    currentTurn,
+    recentMessages: Q5_HISTORY,
+    currentUserMessage: Q5_ANCHOR,
+  });
+}
+
+describe("MICRO_MOTION execution contract expresses a focus, not an exclusive permission", () => {
+  for (const turn of [1, 2]) {
+    it(`Q5-emotional chatId=18 turn ${turn} — environment axis kept, shown as 전개 초점 on the final wire`, () => {
+      const directive = q5Directive(turn);
+      assert.equal(directive.motionDecision, "MICRO_MOTION");
+      assert.deepEqual(directive.progressionTypes, ["environment"]);
+      assert.equal(mapSceneMotionDecisionToPacingLevel(directive.motionDecision), "AMBIENT");
+
+      const applied = wireStandardInteractive({
+        system: `[CORE]\n${SCENE_FLOW_BLOCK}`,
+        user: Q5_ANCHOR,
+        sceneDirective: directive,
+      });
+      const pacing = extractScenePacingBlock(applied.systemText);
+      assert.equal(countPacingOwners(applied.systemText).scene_pacing, 1);
+      assert.match(pacing, /전개 필요: MICRO/);
+      assert.ok(pacing.includes(`전개 초점: 환경 변화 ${MICRO_FOCUS_SUFFIX}`));
+      assert.equal(pacing.split("전개 초점:").length - 1, 1);
+      assert.doesNotMatch(pacing, /허용된 변화/);
+      assert.match(pacing, /기존 NPC 행동: 없음/);
+      assert.match(pacing, /새 인물 도입: 없음/);
+      assert.match(pacing, /새 인물·별도 사건은 만들지 않는다/);
+    });
+  }
+
+  it("other MICRO axes keep the originally selected axis (relationship, daily_life)", () => {
+    const rel = q5Directive(3);
+    assert.equal(rel.motionDecision, "MICRO_MOTION");
+    assert.deepEqual(rel.progressionTypes, ["relationship"]);
+    assert.ok(
+      renderCompactScenePacingCue(rel).includes(`전개 초점: 관계 변화 ${MICRO_FOCUS_SUFFIX}`)
+    );
+
+    const daily = fixtureDirective({
+      motionDecision: "MICRO_MOTION",
+      progressionTypes: ["daily_life"],
+    });
+    assert.ok(
+      renderCompactScenePacingCue(daily).includes(`전개 초점: 생활 변수 ${MICRO_FOCUS_SUFFIX}`)
+    );
+    assert.doesNotMatch(renderCompactScenePacingCue(daily), /허용된 변화/);
+  });
+
+  it("MICRO focus line is the shared renderer output for compact and full forms (no second owner)", () => {
+    const directive = q5Directive(1);
+    const compact = renderCompactScenePacingCue(directive);
+    const full = renderSceneDirectiveForPrompt(directive);
+    const line = `전개 초점: 환경 변화 ${MICRO_FOCUS_SUFFIX}`;
+    assert.equal(compact.split(line).length - 1, 1);
+    assert.equal(full.split(line).length - 1, 1);
+    assert.doesNotMatch(full, /허용된 변화/);
+  });
+
+  it("HOLD keeps its quiet-beat contract with no focus line", () => {
+    const hold = fixtureDirective({ motionDecision: "HOLD" });
+    const cue = renderCompactScenePacingCue(hold);
+    assert.match(cue, /전개 필요: 없음 \(현재 비트 유지\)/);
+    assert.match(cue, /기존 NPC 행동: 없음/);
+    assert.match(cue, /새 인물 도입: 없음/);
+    assert.doesNotMatch(cue, /전개 초점|허용된 변화/);
+  });
+
+  for (const motionDecision of ["SCENE_ADVANCE", "ESCALATE"] as const) {
+    it(`${motionDecision} keeps 허용된 변화 and gains no focus line`, () => {
+      const directive = fixtureDirective({
+        motionDecision,
+        progressionTypes: ["environment"],
+      });
+      const cue = renderCompactScenePacingCue(directive);
+      assert.match(cue, /허용된 변화: 환경 변화$/m);
+      assert.doesNotMatch(cue, /전개 초점/);
+    });
+  }
+});

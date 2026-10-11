@@ -62,7 +62,8 @@ describe("auto progression scene contract owner", () => {
     const again = renderSceneDirectiveForPrompt(quietAutoDirective());
     assert.equal(again, block);
     assert.match(block, /전개 필요: MICRO/);
-    assert.match(block, /허용된 변화: 환경 변화/);
+    assert.match(block, /전개 초점: 환경 변화 \(인물의 반응·판단·행동·관계 흐름은 현재 상호작용에 맞게 이어간다\)/);
+    assert.doesNotMatch(block, /허용된 변화:/);
     assert.match(block, /기존 NPC 행동: 없음/);
     assert.match(block, /새 인물 도입: 없음/);
     assert.match(block, /직접 발화 중심: 라이크\./);
