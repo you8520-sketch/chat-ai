@@ -208,7 +208,8 @@ export type EpisodicMemoryDuplicateReason =
   | "duplicate_lorebook"
   | "duplicate_relationship_memory"
   | "duplicate_triggered_event"
-  | "duplicate_subject_attribute";
+  | "duplicate_subject_attribute"
+  | "duplicate_same_evidence";
 
 export type EpisodicMemoryBudgetReason =
   | "max_facts"
@@ -1601,12 +1602,6 @@ function textLooksDuplicated(fact: EpisodicMemoryFactRecord, sourceText?: string
   const normalizedSource = normalizeForMemoryDedupe(sourceText);
   if (normalizedSource.length < 8) return false;
 
-  const verified = readVerifiedEvidence(fact.metadata);
-  if (verified) {
-    const normalizedQuote = normalizeForMemoryDedupe(verified.quote);
-    return normalizedQuote.length >= 6 && normalizedSource.includes(normalizedQuote);
-  }
-
   const safeFactText = sanitizeRecalledMemoryFactText(fact.fact_text);
   const normalizedFact = normalizeForMemoryDedupe(safeFactText);
   if (normalizedFact.length >= 8 && normalizedSource.includes(normalizedFact)) return true;
@@ -1637,6 +1632,9 @@ function findDuplicateReason(
   fact: EpisodicMemoryFactRecord,
   input: GetEpisodicMemoryForPromptInput
 ): EpisodicMemoryDuplicateReason | null {
+  // Surrounding prompt text carries no machine-readable speaker, so it cannot prove
+  // it represents the same source as a verified quote. Keep the provenance-bearing row.
+  if (readVerifiedEvidence(fact.metadata)) return null;
   if (textLooksDuplicated(fact, input.currentUserMessage)) return "duplicate_current_user";
   if (textLooksDuplicated(fact, input.recentChatText)) return "duplicate_recent_chat";
   if (textLooksDuplicated(fact, input.longTermMemoryText)) return "duplicate_long_term_memory";
@@ -2988,8 +2986,17 @@ export function getEpisodicMemoryForPrompt(
     }
 
     const deduped: EpisodicMemoryFactRecord[] = [];
+    const seenEvidenceKeys = new Set<string>();
     for (const fact of resolved) {
-      const duplicateReason = findDuplicateReason(fact, input);
+      const evidence = readVerifiedEvidence(fact.metadata);
+      const evidenceKey = evidence
+        ? `${evidence.role}:${evidence.message_id}:${normalizeForMemoryDedupe(evidence.quote)}`
+        : null;
+      const duplicateReason: EpisodicMemoryDuplicateReason | null =
+        evidenceKey && seenEvidenceKeys.has(evidenceKey)
+          ? "duplicate_same_evidence"
+          : findDuplicateReason(fact, input);
+      if (evidenceKey && !duplicateReason) seenEvidenceKeys.add(evidenceKey);
       if (duplicateReason) {
         const debug = debugById.get(fact.id);
         if (debug) debug.duplicate_reason = duplicateReason;

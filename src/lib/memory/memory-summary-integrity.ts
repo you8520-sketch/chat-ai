@@ -4,7 +4,6 @@
  */
 import { ROLLING_SUMMARY_INTERVAL, ROLLING_SUMMARY_MIN_CHARS } from "./memory-constants";
 import { isFallbackMemoryRecordSummary } from "./memory-summary-clamp";
-import { normalizeEvidenceSpan } from "./memory-episodic-evidence";
 import {
   assistantSuppliesUnsupportedSharedHistoryDetail,
   looksLikePriorSharedUserHistory,
@@ -372,34 +371,6 @@ export function isRollingSummaryGroundedInDialogue(
   }
 
   return true;
-}
-
-const SUMMARY_QUOTE_MIN_CHARS = 6;
-const SUMMARY_QUOTE_SPAN = /“([^“”]+)”|"([^"]+)"|「([^「」]+)」|『([^『』]+)』/gu;
-const QUOTE_EDGE_PUNCTUATION = /^[\s.,!?…~。！？、·\-]+|[\s.,!?…~。！？、·\-]+$/gu;
-
-/**
- * The summary prompt only allows a quoted line when it is exact in the source.
- * Enforce that contract on generated text: a quoted span that is not a verbatim
- * span of `sourceText` loses its quote marks and stays plain narrative, so a
- * stored quote always means "this is the original wording". Speaker and
- * entailment of the surrounding sentence are not judged here.
- */
-export function unquoteUnverifiedSummaryQuotes(
-  summary: string,
-  sourceText: string
-): { text: string; unquoted: number } {
-  const source = normalizeEvidenceSpan(sourceText);
-  let unquoted = 0;
-  const text = summary.replace(SUMMARY_QUOTE_SPAN, (whole, ...groups: unknown[]) => {
-    const inner = String(groups.slice(0, 4).find((g) => typeof g === "string") ?? "");
-    const span = normalizeEvidenceSpan(inner).replace(QUOTE_EDGE_PUNCTUATION, "");
-    if ([...span.replace(/\s+/gu, "")].length < SUMMARY_QUOTE_MIN_CHARS) return whole;
-    if (source.includes(span)) return whole;
-    unquoted += 1;
-    return inner;
-  });
-  return { text, unquoted };
 }
 
 /** Validate LLM / fixture summary before persist. */

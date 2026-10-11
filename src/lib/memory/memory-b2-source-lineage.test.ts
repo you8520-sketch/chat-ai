@@ -27,13 +27,6 @@ import {
 } from "@/lib/episodicMemoryFacts";
 import { executeAtomicManualEditCore } from "@/lib/rpDerivedStateLifecycle";
 import {
-  __setCompactCurrentMemoryTestOverride,
-  __setSummarizeTurnBatchCallerForTests,
-  compactCurrentMemory,
-  summarizeTurnBatch,
-} from "./memory-rolling-summary";
-import { unquoteUnverifiedSummaryQuotes } from "./memory-summary-integrity";
-import {
   parseSharedEpisodicSection,
   reconcileSharedEpisodicFactsForTurn,
 } from "./memory-episodic-shared";
@@ -261,56 +254,105 @@ describe("B-2 retrieval: relevance is judged on the verified quote that is injec
   });
 });
 
-describe("B-2 dedupe: a verified row is deduplicated by its injected quote, not its gloss", () => {
-  it("a summary that only paraphrases the gloss does not hide the verbatim line", () => {
-    const turn = seedChat({
-      userText: "솔직히 너 좀 아마추어 같아.",
-      assistantText: "라이크는 입술을 깨물었다.",
-    });
+describe("B-2 dedupe: verified provenance is never suppressed by untyped surrounding text", () => {
+  const LINE = "솔직히 너 좀 아마추어 같아.";
+
+  function seedVerifiedUserLine(): Turn {
+    const turn = seedChat({ userText: LINE, assistantText: "라이크는 입술을 깨물었다." });
     reconcile(turn, [
       userQuoteFact(
         { attribute: "criticism", fact_text: "유저가 라이크의 검술 실력을 초보 수준이라고 평가했다." },
-        "솔직히 너 좀 아마추어 같아."
+        LINE
       ),
     ]);
-    const result = getEpisodicMemoryForPrompt(
+    return turn;
+  }
+
+  function recall(chatId: number, input: { query: string; longTermMemoryText?: string; recentChatText?: string }) {
+    return getEpisodicMemoryForPrompt(
       getDb(),
       {
-        chatId: turn.chatId,
+        chatId,
         characterId: CHAR,
         userId: USER,
         currentTurn: 80,
-        currentUserMessage: "아마추어 같다는 말 기억해?",
-        recentChatText: "평범한 최근 대화",
-        longTermMemoryText: "유저가 라이크의 검술 실력을 초보 수준이라고 평가했다. 라이크는 입술을 깨물었다.",
+        currentUserMessage: input.query,
+        recentChatText: input.recentChatText ?? "평범한 최근 대화",
+        longTermMemoryText: input.longTermMemoryText,
       },
       { EPISODIC_MEMORY_RECALL_ENABLED: "1" } as NodeJS.ProcessEnv
-    );
-    assert.ok(result.promptBlock.includes("솔직히 너 좀 아마추어 같아."), result.promptBlock);
+    ).promptBlock;
+  }
+
+  it("a summary that paraphrases the gloss does not hide the verbatim line", () => {
+    const turn = seedVerifiedUserLine();
+    const block = recall(turn.chatId, {
+      query: "아마추어 같다는 말 기억해?",
+      longTermMemoryText: "유저가 라이크의 검술 실력을 초보 수준이라고 평가했다. 라이크는 입술을 깨물었다.",
+    });
+    assert.ok(block.includes(LINE), block);
   });
 
-  it("a summary that already quotes the exact line dedupes the episodic copy", () => {
+  it("a summary that attributes the exact line to the wrong speaker cannot remove the USER_EXPLICIT row", () => {
+    const turn = seedVerifiedUserLine();
+    const block = recall(turn.chatId, {
+      query: "아마추어 같다는 말 기억해?",
+      longTermMemoryText: `라이크는 "${LINE}"라고 말했다. 유저는 고개를 숙였다.`,
+    });
+    assert.ok(block.includes("[유저가 직접 쓴 원문]"), block);
+    assert.ok(block.includes(LINE), block);
+  });
+
+  it("a quoted question about who said it keeps the provenance-bearing row", () => {
+    const turn = seedVerifiedUserLine();
+    const block = recall(turn.chatId, { query: `"${LINE}" 이 말을 누가 했지?` });
+    assert.ok(block.includes("[유저가 직접 쓴 원문]"), block);
+  });
+
+  it("the exact line present in recent RAW text without a speaker label does not remove the row", () => {
+    const turn = seedVerifiedUserLine();
+    const block = recall(turn.chatId, {
+      query: "아마추어 같다는 말 기억해?",
+      recentChatText: `${LINE}\n라이크는 입술을 깨물었다.`,
+    });
+    assert.ok(block.includes(LINE), block);
+  });
+
+  it("two rows verified against the same role, message and quote inject the line once", () => {
+    const turn = seedChat({ userText: LINE, assistantText: "라이크는 입술을 깨물었다." });
+    reconcile(turn, [
+      userQuoteFact({ attribute: "criticism", value: "mild_insult" }, LINE),
+      userQuoteFact(
+        { category: "character", subject: "user", attribute: "opinion", value: "unskilled", fact_text: "유저는 라이크의 실력을 낮게 봤다." },
+        LINE
+      ),
+    ]);
+    assert.equal(storedRows(turn.chatId).length, 2);
+    const block = recall(turn.chatId, { query: "아마추어 같다는 말 기억해?" });
+    assert.equal(block.split(LINE).length - 1, 1, block);
+  });
+
+  it("the same wording from different roles is not collapsed", () => {
     const turn = seedChat({
-      userText: "솔직히 너 좀 아마추어 같아.",
-      assistantText: "라이크는 입술을 깨물었다.",
+      userText: LINE,
+      assistantText: `라이크가 말했다. "${LINE}"`,
     });
     reconcile(turn, [
-      userQuoteFact({ attribute: "criticism" }, "솔직히 너 좀 아마추어 같아."),
-    ]);
-    const result = getEpisodicMemoryForPrompt(
-      getDb(),
+      userQuoteFact({ attribute: "criticism" }, LINE),
       {
-        chatId: turn.chatId,
-        characterId: CHAR,
-        userId: USER,
-        currentTurn: 80,
-        currentUserMessage: "아마추어 같다는 말 기억해?",
-        recentChatText: "평범한 최근 대화",
-        longTermMemoryText: '유저가 "솔직히 너 좀 아마추어 같아."라고 말함.',
+        category: "character",
+        subject: "laike",
+        attribute: "said",
+        value: "echo",
+        importance: "important",
+        fact_text: "라이크는 같은 말을 되받아 말했다.",
+        evidence_type: "explicit_character_claim",
+        evidence: { source_role: "assistant", source_quote: LINE },
       },
-      { EPISODIC_MEMORY_RECALL_ENABLED: "1" } as NodeJS.ProcessEnv
-    );
-    assert.equal(result.promptBlock.includes("솔직히 너 좀 아마추어 같아."), false);
+    ]);
+    const block = recall(turn.chatId, { query: "아마추어 같다는 말 기억해?" });
+    assert.ok(block.includes("[유저가 직접 쓴 원문]"), block);
+    assert.ok(block.includes("[캐릭터 발언(미확정 주장)]"), block);
   });
 });
 
@@ -396,62 +438,6 @@ describe("B-2 lifecycle: verified rows follow their source message", () => {
       deleteEpisodicMemoryFactsByAssistantMessageIds(getDb(), turn.chatId, [turn.assistantMessageId]),
       1
     );
-  });
-});
-
-describe("B-2 summary quotes: a stored quote means original wording", () => {
-  const DIALOGUE =
-    "[1턴]\n유저: 솔직히 너 좀 아마추어 같아.\n라이크: 라이크는 입술을 깨물었다. \"그래, 맞아.\"";
-
-  it("keeps a verbatim quote, with or without terminal punctuation, and ignores short spans", () => {
-    const kept = unquoteUnverifiedSummaryQuotes(
-      '유저가 "솔직히 너 좀 아마추어 같아"라고 말함. 라이크는 "그래"라고 답함.',
-      DIALOGUE
-    );
-    assert.equal(kept.unquoted, 0);
-    assert.ok(kept.text.includes('"솔직히 너 좀 아마추어 같아"'));
-  });
-
-  it("strips the marks from a fabricated or altered quote and keeps the sentence", () => {
-    const result = unquoteUnverifiedSummaryQuotes(
-      '라이크가 “나는 평생 너를 지키겠다”고 맹세함. 유저는 "너 정말 아마추어구나"라고 비웃음.',
-      DIALOGUE
-    );
-    assert.equal(result.unquoted, 2);
-    assert.equal(result.text.includes("“"), false);
-    assert.equal(result.text.includes('"'), false);
-    assert.ok(result.text.includes("나는 평생 너를 지키겠다고 맹세함"));
-  });
-
-  it("live summarizeTurnBatch seals the summary without the fabricated quote marks", async () => {
-    const summary =
-      '라이크는 입술을 깨물며 속상해함. 라이크가 "나는 평생 너를 지키겠다"고 다짐하며 훈련을 이어가기로 함. 이후 야영지로 돌아가 모닥불 곁에서 식사를 하며 하루를 정리함. 다음 날 새벽 훈련장으로 다시 나가기로 약속하고 일찍 잠자리에 듦.';
-    __setSummarizeTurnBatchCallerForTests(async () => ({ text: summary }));
-    try {
-      const sealed = await summarizeTurnBatch({
-        dialogue: DIALOGUE,
-        charName: "라이크",
-        startTurn: 1,
-        endTurn: 1,
-      });
-      assert.ok(sealed.length > 0);
-      assert.equal(sealed.includes('"'), false);
-      assert.ok(sealed.includes("나는 평생 너를 지키겠다고 다짐하며"));
-    } finally {
-      __setSummarizeTurnBatchCallerForTests(null);
-    }
-  });
-
-  it("compaction output keeps quotes present in its input and unquotes invented ones", async () => {
-    const existing = `유저가 "솔직히 너 좀 아마추어 같아"라고 말하고 라이크는 속상해함. ${"x".repeat(40)}`;
-    __setCompactCurrentMemoryTestOverride(null);
-    const result = unquoteUnverifiedSummaryQuotes(
-      '유저가 "솔직히 너 좀 아마추어 같아"라고 말함. 라이크는 "다시는 도망치지 않겠다"고 말함.',
-      existing
-    );
-    assert.equal(result.unquoted, 1);
-    assert.ok(result.text.includes('"솔직히 너 좀 아마추어 같아"'));
-    assert.equal(typeof compactCurrentMemory, "function");
   });
 });
 
