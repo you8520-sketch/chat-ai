@@ -166,6 +166,7 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
   endTurn: number;
   dialogue: string;
   batchUserSources: EpisodicBatchUserSource[];
+  userPersona?: string | null;
   boundarySnapshot?: MemorySourceBoundary;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
 }): Promise<EpisodicSealExtractPersistResult> {
@@ -246,6 +247,7 @@ export async function extractAndPersistEpisodicFactsForSealedBatch(opts: {
     sourceUserMessageId:
       opts.batchUserSources[opts.batchUserSources.length - 1]?.messageId ?? null,
     batchUserSources: opts.batchUserSources,
+    userPersona: opts.userPersona,
     boundarySnapshot: guardBefore.boundary,
     facts: outcome.facts,
     replaceSummarySealBatch: { batchStart: opts.startTurn, batchEnd: opts.endTurn },

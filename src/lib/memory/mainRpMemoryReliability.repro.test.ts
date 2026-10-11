@@ -26,9 +26,14 @@ import {
   isRollingSummaryGroundedInDialogue,
 } from "@/lib/memory/memory-summary-integrity";
 import {
+  resolveMemorySourceAuthority,
+  sourcesFromUserText,
+} from "@/lib/memory/memory-source-authority";
+import {
   __setSummarizeTurnBatchCallerForTests,
   summarizeTurnBatch,
 } from "@/lib/memory/memory-rolling-summary";
+import { isMemorySourceEligible } from "@/lib/memory/memory-source-boundary";
 
 const PERSONA = "이름/호칭: 렌";
 const T6_QUERY = "그때 우산 같이 썼던 거 기억나?";
@@ -643,6 +648,187 @@ describe("P1 memory reliability — Phase 3B restorage and allow/deny", () => {
         endTurn: 5,
       }),
       allowed
+    );
+  });
+
+  it("B+C 1-10 source-authority stays aligned across summary and persist", async () => {
+    const personaName = "렌";
+    const marketUser = "어제 우리 둘이 시장에 갔어.";
+    const marketSources = [{ turn: 1, messageId: 11, text: marketUser }];
+    const pad = (text: string) =>
+      `${text} 라이크는 골목 끝에서 우산을 고쳐 잡았고 렌의 옷깃이 비에 젖은 채로 남았으며, 빗소리가 처마를 따라 길게 흘렀다.`;
+
+    const cases: Array<{
+      id: string;
+      user: string;
+      summary: string;
+      fact: string;
+      category?: "relationship" | "character";
+      evidence?: "explicit_scene_event" | "explicit_character_claim";
+      expectKind: "USER_EXPLICIT" | "CHARACTER_CLAIM" | "CURRENT_SCENE" | "UNSUPPORTED";
+      expectPersist: boolean;
+    }> = [
+      {
+        id: "1_ring_extra",
+        user: marketUser,
+        summary: pad("렌과 라이크는 어제 시장에 갔다. 라이크의 누나는 렌에게 반지를 선물했다."),
+        fact: "라이크의 누나는 렌에게 반지를 선물했다.",
+        expectKind: "UNSUPPORTED",
+        expectPersist: false,
+      },
+      {
+        id: "2_sister_friend",
+        user: marketUser,
+        summary: pad("렌과 라이크는 어제 시장에 가서 라이크의 누나를 만나 친해졌다."),
+        fact: "렌과 라이크는 어제 시장에 가서 라이크의 누나를 만나 친해졌다.",
+        expectKind: "UNSUPPORTED",
+        expectPersist: false,
+      },
+      {
+        id: "3_question_only",
+        user: "우리 전에 시장에서 누나를 만났어?",
+        summary: pad("렌과 라이크는 전에 시장에서 누나를 만났다."),
+        fact: "렌과 라이크는 전에 시장에서 누나를 만났다.",
+        expectKind: "UNSUPPORTED",
+        expectPersist: false,
+      },
+      {
+        id: "4_ooc_scope",
+        user: "OOC: 둘은 예전부터 알고 지냈다. 오늘 골목에서 다시 만났다.",
+        summary: pad("렌과 라이크는 예전부터 알고 지낸 사이다."),
+        fact: "렌과 라이크는 예전부터 알고 지낸 사이다.",
+        expectKind: "USER_EXPLICIT",
+        expectPersist: true,
+      },
+      {
+        id: "5_door_lock",
+        user: "지금 나가면 안 돼.",
+        summary: pad("라이크는 문을 잠그고 렌에게 남으라고 했다."),
+        fact: "라이크는 문을 잠그고 렌에게 남으라고 했다.",
+        category: "character",
+        expectKind: "CURRENT_SCENE",
+        expectPersist: true,
+      },
+      {
+        id: "6_npc_enter",
+        user: "가게에 누가 들어오나?",
+        summary: pad("낯선 손님이 가게 문으로 들어왔다."),
+        fact: "낯선 손님이 가게 문으로 들어왔다.",
+        category: "character",
+        expectKind: "CURRENT_SCENE",
+        expectPersist: true,
+      },
+      {
+        id: "7_character_claim",
+        user: marketUser,
+        summary: pad("라이크는 누나가 렌을 전에 봤다고 말했다."),
+        fact: "라이크는 누나가 렌을 전에 봤다고 말했다.",
+        evidence: "explicit_character_claim",
+        expectKind: "CHARACTER_CLAIM",
+        expectPersist: true,
+      },
+      {
+        id: "8_assistant_raw_not_proof",
+        user: marketUser,
+        summary: pad("예전에 라이크의 누나가 렌에게 반지를 선물했다."),
+        fact: "예전에 라이크의 누나가 렌에게 반지를 선물했다.",
+        expectKind: "UNSUPPORTED",
+        expectPersist: false,
+      },
+      {
+        id: "9_actor_swap",
+        user: marketUser,
+        summary: pad("라이크의 누나가 렌을 시장에서 봤고 렌이 누나에게 반지를 줬다."),
+        fact: "렌이 라이크의 누나에게 반지를 줬다.",
+        expectKind: "UNSUPPORTED",
+        expectPersist: false,
+      },
+    ];
+
+    for (const row of cases) {
+      const authority = resolveMemorySourceAuthority(row.fact, {
+        sources: sourcesFromUserText(row.user),
+        personaName,
+        charName: "라이크",
+        attributed: row.evidence === "explicit_character_claim",
+        category: row.category ?? "relationship",
+      });
+      assert.equal(authority.kind, row.expectKind, `${row.id} authority`);
+
+      const dialogueText = fiveTurnDialogue([row.user, ...FILLER_USERS], FILLER_ASSISTANTS);
+      assert.equal(
+        isRollingSummaryGroundedInDialogue(row.summary, dialogueText, PERSONA, "라이크"),
+        row.expectKind !== "UNSUPPORTED",
+        `${row.id} summary`
+      );
+
+      const persist = detectUnsupportedEvidenceFact(
+        {
+          category: row.category ?? "relationship",
+          subject: "like_ren",
+          attribute: "scene_event",
+          value: row.id,
+          importance: "important",
+          fact_text: row.fact,
+          evidence_type: row.evidence ?? "explicit_scene_event",
+        },
+        row.user,
+        [{ turn: 1, messageId: 11, text: row.user }, { turn: 5, messageId: 99, text: FILLER_USERS[3]! }],
+        PERSONA
+      );
+      assert.equal(persist == null, row.expectPersist, `${row.id} persist`);
+
+      if (row.expectKind === "USER_EXPLICIT") {
+        const bound = resolveMemorySourceAuthority(row.fact, {
+          sources: marketSources,
+          personaName,
+          charName: "라이크",
+          category: "relationship",
+        });
+        if (row.id === "4_ooc_scope") {
+          const oocBound = resolveMemorySourceAuthority(row.fact, {
+            sources: [{ turn: 1, messageId: 11, text: row.user }],
+            personaName,
+            charName: "라이크",
+            category: "relationship",
+          });
+          assert.equal(oocBound.sourceMessageId, 11, `${row.id} source message`);
+          assert.notEqual(oocBound.sourceMessageId, 99);
+        } else {
+          assert.equal(bound.sourceMessageId, 11, `${row.id} source message`);
+        }
+      }
+
+      __setSummarizeTurnBatchCallerForTests(async () => ({ text: row.summary }));
+      const sealed = await summarizeTurnBatch({
+        dialogue: dialogueText,
+        charName: "라이크",
+        userPersona: PERSONA,
+        startTurn: 1,
+        endTurn: 5,
+      });
+      if (row.expectKind === "UNSUPPORTED") {
+        assert.equal(sealed, "", `${row.id} seal`);
+      } else {
+        assert.equal(sealed, row.summary, `${row.id} seal`);
+      }
+    }
+
+    assert.equal(
+      isMemorySourceEligible({
+        sourceUserMessageId: 5,
+        boundary: { resetAfterMessageId: 10, epoch: 2 },
+      }),
+      false,
+      "10 stale source"
+    );
+    assert.equal(
+      isMemorySourceEligible({
+        sourceUserMessageId: 21,
+        boundary: { resetAfterMessageId: 10, epoch: 2 },
+      }),
+      true,
+      "10 eligible source"
     );
   });
 

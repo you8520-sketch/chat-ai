@@ -12,6 +12,7 @@ on:
       - "src/lib/historicalTruthPolicy.ts"
       - "src/lib/historicalTruthPolicy.test.ts"
       - "src/lib/sharedHistoryEvidence.ts"
+      - "src/lib/memory/memory-source-authority.ts"
       - "src/lib/memory/mainRpMemoryReliability.repro.test.ts"
       - "src/lib/memory/memory-summary-integrity.ts"
       - "src/lib/memory/memory-summary-integrity.test.ts"

@@ -118,9 +118,9 @@ function splitUserSourceTurns(userText: string): string[] {
     .filter(Boolean);
 }
 
-function splitUserClauses(text: string): string[] {
+export function splitSharedHistoryClauses(text: string): string[] {
   return text
-    .split(/(?<=[.!?。！？])\s+|,\s*(?=기억(?:하지|나|나지|해|하니|하냐))/u)
+    .split(/(?<=[.!?。！？])\s+|,\s+/u)
     .map(trimClause)
     .filter(Boolean);
 }
@@ -146,31 +146,56 @@ function isSharedHistoryEvidenceClause(clause: string): boolean {
   return looksLikePriorSharedUserHistory(clause) || hasFinitePastAssertion(clause);
 }
 
-function splitClaimSubclaims(claimText: string): string[] {
-  const parts = splitUserClauses(claimText);
-  const historical = parts.filter(
-    (part) =>
-      looksLikePriorSharedUserHistory(part) || looksLikeHardPriorSharedUserRelationship(part)
-  );
-  return historical.length > 0 ? historical : parts.length > 0 ? parts : [claimText];
-}
+const COVERAGE_IGNORE = new Set([
+  ...SUPPORT_STOPWORDS,
+  "사이",
+  "사이다",
+  "지로",
+  "지낸",
+  "지냈",
+  "있고",
+  "적이",
+  "달라고",
+  "달라",
+]);
+
+const VERB_PARAPHRASE =
+  /^(?:갔|왔|봤|줬|주었|했|샀|먹|만났|만난|알|끄덕|잠갔|열었|앉|걸|돌아왔|도착)/u;
+
+const FAMILY_PARTICIPANT =
+  /누나|언니|오빠|동생|엄마|아빠|어머니|아버지|부모|친구|(?<![가-힣])형(?![가-힣])/u;
 
 /**
- * One USER evidence unit covers one claim/subclaim.
- * A topic overlap (어제+시장) cannot whitelist a harder relationship
- * subclaim that the unit itself does not assert.
+ * A USER unit covers a claim only as a ceiling: extra non-verb content
+ * (누나, 반지, 브레이크) is not proven by topic overlap (어제+시장).
  */
-function claimSupportedByEvidenceUnit(claimText: string, unit: string): boolean {
-  if (
-    looksLikeHardPriorSharedUserRelationship(claimText) &&
-    !looksLikeHardPriorSharedUserRelationship(unit)
-  ) {
-    return false;
-  }
-  const claimTokens = sharedHistorySupportTokens(claimText);
-  if (claimTokens.length === 0) return false;
-  const matched = matchingClaimTokens(claimText, unit);
-  return matched.length >= Math.min(2, claimTokens.length);
+function participantNames(text: string): string[] {
+  return [...text.matchAll(/([가-힣]{2,4})(?:는|은|이|가|에게|한테|와|과|랑|의)/g)]
+    .map((match) => match[1] ?? "")
+    .filter((name) => name && !FAMILY_PARTICIPANT.test(name));
+}
+
+export function userUnitCoversClaim(
+  unit: string,
+  claimText: string,
+  ignoreNames: readonly string[] = []
+): boolean {
+  const ignore = new Set([
+    ...COVERAGE_IGNORE,
+    ...ignoreNames.filter(Boolean),
+    ...participantNames(claimText),
+  ]);
+  const tokens = sharedHistorySupportTokens(claimText).filter((token) => !ignore.has(token));
+  if (tokens.length === 0) return false;
+  const haystack = normalizedCompact(unit);
+  const content = tokens.filter((token) => !VERB_PARAPHRASE.test(token));
+  const extra = content.filter((token) => !haystack.includes(normalizedCompact(token)));
+  if (extra.length > 0) return false;
+  const matched = (content.length > 0 ? content : tokens).filter((token) =>
+    haystack.includes(normalizedCompact(token))
+  );
+  const required = content.length > 0 ? content : tokens;
+  return matched.length >= Math.min(2, required.length);
 }
 
 /**
@@ -187,7 +212,7 @@ export function userSharedHistoryEvidenceUnits(userText: string | null | undefin
     for (const scope of extractExplicitSharedHistoryScope(turn)) {
       units.push(scope);
     }
-    for (const clause of splitUserClauses(stripOocLines(turn))) {
+    for (const clause of splitSharedHistoryClauses(stripOocLines(turn))) {
       if (isSharedHistoryEvidenceClause(clause)) units.push(clause);
     }
   }
@@ -203,7 +228,7 @@ export function userTextIsRecallPresuppositionOnly(text: string | null | undefin
   if (!value) return false;
   if (userSharedHistoryEvidenceUnits(value).length > 0) return false;
   return splitUserSourceTurns(value).some((turn) =>
-    splitUserClauses(stripOocLines(turn)).some(isQuestionClause)
+    splitSharedHistoryClauses(stripOocLines(turn)).some(isQuestionClause)
   );
 }
 
@@ -216,16 +241,21 @@ export function userTextSupportsPriorSharedHistoryClaim(
   claimText: string,
   userText: string
 ): boolean {
-  if (!looksLikePriorSharedUserHistory(claimText)) return true;
   const user = userText.trim();
-  if (!user) return false;
+  if (!user) return !looksLikePriorSharedUserHistory(claimText);
 
   const units = userSharedHistoryEvidenceUnits(user);
-  if (units.length === 0) return false;
-
-  return splitClaimSubclaims(claimText).every((subclaim) =>
-    units.some((unit) => claimSupportedByEvidenceUnit(subclaim, unit))
+  const parts = splitSharedHistoryClauses(claimText);
+  const clauses = parts.length > 0 ? parts : [claimText];
+  const linked = clauses.filter(
+    (clause) =>
+      looksLikePriorSharedUserHistory(clause) ||
+      looksLikeHardPriorSharedUserRelationship(clause) ||
+      FAMILY_PARTICIPANT.test(clause)
   );
+  if (linked.length === 0) return true;
+  if (units.length === 0) return false;
+  return linked.every((clause) => units.some((unit) => userUnitCoversClaim(unit, clause)));
 }
 
 /**

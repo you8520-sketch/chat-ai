@@ -15,11 +15,13 @@ import {
   type MemorySourceBoundary,
 } from "@/lib/memory/memory-source-boundary";
 import { EPISODIC_RETRIEVED_EVENT_INTERPRETATION_LINES } from "@/lib/historicalTruthPolicy";
+import { looksLikeHardPriorSharedUserRelationship } from "@/lib/sharedHistoryEvidence";
 import {
-  looksLikeHardPriorSharedUserRelationship,
-  looksLikePriorSharedUserHistory,
-  userTextSupportsPriorSharedHistoryClaim,
-} from "@/lib/sharedHistoryEvidence";
+  hasUnsupportedObjectiveUserLinkedFact,
+  resolveMemorySourceAuthority,
+  resolvePersonaName,
+  type MemoryAuthoritySource,
+} from "@/lib/memory/memory-source-authority";
 import { sanitizeRecalledMemoryFactText } from "@/lib/runtimePromptContaminationGuard";
 import {
   decodeEmbeddingBlob,
@@ -73,6 +75,7 @@ export type PersistEpisodicMemoryFactsInput = {
   sourceUserText?: string | null;
   /** Full 5-turn batch user sources for seal-aligned evidence validation. */
   batchUserSources?: EpisodicBatchUserSource[];
+  userPersona?: string | null;
   boundarySnapshot?: MemorySourceBoundary;
   facts?: EpisodicExtractedFact[] | null;
   metadata?: Record<string, unknown>;
@@ -322,26 +325,33 @@ function normalizeEvidenceToken(token: string): string {
 function assistantInventedUserRelationshipHasUserSupport(
   fact: Pick<EpisodicExtractedFact, "category" | "value" | "fact_text" | "evidence_type">,
   sourceUserText?: string | null,
-  batchUserSources?: readonly EpisodicBatchUserSource[]
+  batchUserSources?: readonly EpisodicBatchUserSource[],
+  userPersona?: string | null
 ): boolean {
-  if (fact.category !== "relationship" || fact.evidence_type !== "explicit_scene_event") {
+  const attributed = fact.evidence_type === "explicit_character_claim";
+  if (attributed) return true;
+  if (fact.category !== "relationship" && fact.evidence_type !== "explicit_scene_event") {
     return true;
   }
-  const claimText = `${fact.value ?? ""}\n${fact.fact_text ?? ""}`;
-  if (!looksLikePriorSharedUserHistory(claimText)) {
-    return true;
+  const claimText = String(fact.fact_text || fact.value || "").trim();
+  const sources: MemoryAuthoritySource[] = batchUserSources?.length
+    ? batchUserSources.map((source) => ({
+        turn: source.turn,
+        messageId: source.messageId,
+        text: source.text,
+      }))
+    : sourceUserText !== undefined
+      ? [{ turn: null, messageId: null, text: sourceUserText ?? "" }]
+      : [];
+  if (sources.length === 0) {
+    return !looksLikeHardPriorSharedUserRelationship(claimText);
   }
-  if (batchUserSources?.length) {
-    return batchUserSources.some((source) =>
-      userTextSupportsPriorSharedHistoryClaim(claimText, source.text)
-    );
-  }
-  if (sourceUserText !== undefined) {
-    return userTextSupportsPriorSharedHistoryClaim(claimText, sourceUserText ?? "");
-  }
-  // Older rows can lack raw user provenance. Preserve them unless they match
-  // the established high-confidence relationship-contamination shape.
-  return !looksLikeHardPriorSharedUserRelationship(claimText);
+  return !hasUnsupportedObjectiveUserLinkedFact(claimText, {
+    sources,
+    personaName: resolvePersonaName(userPersona),
+    attributed,
+    category: fact.category,
+  });
 }
 
 function explicitUserStatementHasRawSupport(
@@ -382,7 +392,8 @@ export function resolveExplicitUserStatementProvenance(
 export function detectUnsupportedEvidenceFact(
   fact: Pick<EpisodicExtractedFact, "category" | "value" | "fact_text" | "evidence_type">,
   sourceUserText?: string | null,
-  batchUserSources?: readonly EpisodicBatchUserSource[]
+  batchUserSources?: readonly EpisodicBatchUserSource[],
+  userPersona?: string | null
 ):
   | "higher_authority_canon_source"
   | "unsupported_explicit_user_statement"
@@ -393,7 +404,8 @@ export function detectUnsupportedEvidenceFact(
     !assistantInventedUserRelationshipHasUserSupport(
       fact,
       sourceUserText,
-      batchUserSources
+      batchUserSources,
+      userPersona
     )
   ) {
     return "unsupported_assistant_user_relationship";
@@ -674,11 +686,17 @@ function filterUnsupportedEvidenceFactsForSave(
   opts: {
     sourceUserText?: string | null;
     batchUserSources?: readonly EpisodicBatchUserSource[];
+    userPersona?: string | null;
   } = {}
 ): EpisodicExtractedFact[] {
   return facts.filter(
     (fact) =>
-      !detectUnsupportedEvidenceFact(fact, opts.sourceUserText, opts.batchUserSources)
+      !detectUnsupportedEvidenceFact(
+        fact,
+        opts.sourceUserText,
+        opts.batchUserSources,
+        opts.userPersona
+      )
   );
 }
 
@@ -696,6 +714,7 @@ function filterUnsafeEpisodicFactsForSave(
   opts: {
     sourceUserText?: string | null;
     batchUserSources?: readonly EpisodicBatchUserSource[];
+    userPersona?: string | null;
   } = {}
 ): EpisodicExtractedFact[] {
   return filterUnsupportedEvidenceFactsForSave(
@@ -1028,6 +1047,7 @@ export function persistEpisodicMemoryFactsCore(
   const evidenceOpts = {
     sourceUserText,
     batchUserSources: batchUserSources.length > 0 ? batchUserSources : undefined,
+    userPersona: input.userPersona,
   };
   const facts = dedupeFactsWithinResponse(
     filterUnsafeEpisodicFactsForSave(
@@ -1051,10 +1071,24 @@ export function persistEpisodicMemoryFactsCore(
       batchUserSources.length > 0
         ? resolveExplicitUserStatementProvenance(fact, batchUserSources)
         : { supported: true, messageId: null, turn: null };
+    const authority = resolveMemorySourceAuthority(String(fact.fact_text || fact.value || "").trim(), {
+      sources: batchUserSources.map((source) => ({
+        turn: source.turn,
+        messageId: source.messageId,
+        text: source.text,
+      })),
+      personaName: resolvePersonaName(input.userPersona),
+      attributed: fact.evidence_type === "explicit_character_claim",
+      category: fact.category,
+    });
     const factSourceUserMessageId =
       fact.evidence_type === "explicit_user_statement" && provenance.messageId != null
         ? provenance.messageId
-        : sourceUserMessageId;
+        : batchUserSources.length > 0
+          ? authority.kind === "USER_EXPLICIT"
+            ? authority.sourceMessageId ?? sourceUserMessageId
+            : null
+          : sourceUserMessageId;
     const metadataJson = JSON.stringify({
       ...(input.metadata ?? {}),
       memory_evidence_type: fact.evidence_type ?? "legacy_unknown",

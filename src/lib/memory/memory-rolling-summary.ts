@@ -353,7 +353,8 @@ export async function summarizeTurnBatch(opts: {
         ? isRollingSummaryGroundedInDialogue(
             narrative.text,
             opts.dialogue,
-            opts.userPersona
+            opts.userPersona,
+            opts.charName
           )
         : false;
       if (narrative.ok && grounded) {
