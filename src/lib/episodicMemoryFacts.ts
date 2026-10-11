@@ -2990,7 +2990,7 @@ export function getEpisodicMemoryForPrompt(
     for (const fact of resolved) {
       const evidence = readVerifiedEvidence(fact.metadata);
       const evidenceKey = evidence
-        ? `${evidence.role}:${evidence.message_id}:${normalizeForMemoryDedupe(evidence.quote)}`
+        ? JSON.stringify([evidence.role, evidence.message_id, evidence.quote])
         : null;
       const duplicateReason: EpisodicMemoryDuplicateReason | null =
         evidenceKey && seenEvidenceKeys.has(evidenceKey)

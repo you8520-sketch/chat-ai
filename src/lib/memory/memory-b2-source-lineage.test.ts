@@ -332,6 +332,27 @@ describe("B-2 dedupe: verified provenance is never suppressed by untyped surroun
     assert.equal(block.split(LINE).length - 1, 1, block);
   });
 
+  it("two quotes from one message that differ only by punctuation are both injected", () => {
+    const turn = seedChat({
+      userText: "정말 괜찮아? 정말 괜찮아.",
+      assistantText: "라이크는 입술을 깨물었다.",
+    });
+    const result = reconcile(turn, [
+      userQuoteFact(
+        { attribute: "asked", value: "asked_ok", fact_text: "유저가 상대의 상태를 물었다." },
+        "정말 괜찮아?"
+      ),
+      userQuoteFact(
+        { attribute: "answered", value: "said_ok", fact_text: "유저가 괜찮다고 말했다." },
+        "정말 괜찮아."
+      ),
+    ]);
+    assert.equal(result.inserted, 2);
+    const block = recall(turn.chatId, { query: "정말 괜찮아 라고 했던 말" });
+    assert.ok(block.includes("“정말 괜찮아?”"), block);
+    assert.ok(block.includes("“정말 괜찮아.”"), block);
+  });
+
   it("the same wording from different roles is not collapsed", () => {
     const turn = seedChat({
       userText: LINE,
