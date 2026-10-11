@@ -15,6 +15,7 @@ import {
 } from "./engineAdvance";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { loadMechanicsResolution } from "./mechanicsStore";
+import { buildCampaignMemoryPrompt } from "./memory";
 import type { TrpgScenarioEncounter } from "./scenarioPlan";
 import { insertScenarioTemplate } from "./scenarioTemplates";
 import { ensureTrpgTables } from "./schema";
@@ -79,7 +80,7 @@ function roundId(db: Database.Database, campaignId: number, n: number): number {
   ).id;
 }
 
-type Step = { location: string; hook: string; seats?: Record<number, string> };
+type Step = { location: string; hook: string; seats?: Record<number, string>; extra?: Record<string, unknown> };
 
 function scriptedGm(everyone: () => number[], steps: Step[]) {
   let call = 0;
@@ -100,6 +101,7 @@ function scriptedGm(everyone: () => number[], steps: Step[]) {
           location: step.location,
           next_round_context: step.hook,
           campaign_finished: false,
+          ...step.extra,
         }),
       };
     },
@@ -122,6 +124,7 @@ describe("movement authority: real engine path (#1541)", () => {
       {
         location: "곶 끝의 등대 내부",
         hook: "세관 서류 사이에서 밀수 장부가 나왔다. 렌은 등대 안으로 되돌아갔다.",
+        extra: { npcsAdd: ["세관 직원: 밀수 장부를 보여 주었다"] },
       },
     ];
     const deps = scriptedGm(() => [hostId], steps);
@@ -171,12 +174,42 @@ describe("movement authority: real engine path (#1541)", () => {
 
     await play("세관 서류를 더 뒤진다.");
     assert.equal(loadCampaignLedger(db, campaignId).location, "세관 청사 1층");
-    assert.equal(
-      loadCampaignLedger(db, campaignId).nextRoundContext,
-      "세관 서류 사이에서 밀수 장부가 나왔다.",
-      "the clue found in place survives; only the sentence about the refused relocation is dropped"
+    assert.equal(loadCampaignLedger(db, campaignId).nextRoundContext, "");
+    assert.deepEqual(
+      loadCampaignLedger(db, campaignId).npcs,
+      ["세관 직원: 밀수 장부를 보여 주었다"],
+      "the clue found in place survives through the typed ledger, not the refused hook"
     );
     assert.equal(strikes(7), 0);
+    db.close();
+  });
+
+  it("a refused exterior-to-interior relocation reaches the next prompt as the server's place, without the false entry, and keeps the typed clues", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = setup(db, "곶 끝의 등대 외곽");
+    const deps = scriptedGm(() => [hostId], [
+      { location: "곶 끝의 등대 외곽", hook: "등대 외곽에 도착했다." },
+      {
+        location: "곶 끝의 등대 내부",
+        hook: "렌은 등대 내부에 들어갔다. 외곽에서 종소리가 울렸다.",
+        extra: { npcsAdd: ["종지기: 열쇠는 등대지기가 가졌다"], flagsAdd: ["종소리가 울렸다"] },
+      },
+      { location: "곶 끝의 등대 외곽", hook: "경비를 계속 선다." },
+    ]);
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    submitTrpgAction(db, { campaignId, userId: 1, body: "등대 외곽에서 경비를 선다.", actionType: "free" });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const ledger = loadCampaignLedger(db, campaignId);
+    assert.equal(ledger.location, "곶 끝의 등대 외곽");
+    assert.equal(sheetAt(db, hostId).location, "곶 끝의 등대 외곽");
+    assert.equal(loadAcceptedRoundLocation(db, roundId(db, campaignId, 1)), "곶 끝의 등대 외곽");
+    assert.equal(ledger.nextRoundContext, "");
+    const prompt = buildCampaignMemoryPrompt(db, campaignId);
+    assert.match(prompt, /location=곶 끝의 등대 외곽/);
+    assert.doesNotMatch(prompt, /\[NEXT DECISION\]/, "no stale and no refused hook is re-injected as the next decision");
+    assert.match(prompt, /npcs: 종지기: 열쇠는 등대지기가 가졌다/);
+    assert.match(prompt, /flags: 종소리가 울렸다/);
+    assert.equal(loadMechanicsResolution(db, roundId(db, campaignId, 1))?.threatStrikes?.length ?? 0, 0);
     db.close();
   });
 
@@ -226,6 +259,7 @@ describe("movement authority: real engine path (#1541)", () => {
     assert.equal(where(human2), "마레노 부두", "the second human only read the notice board");
     assert.equal(where(ai[0]!), LIGHTHOUSE, "the AI that declared it follows");
     assert.equal(where(ai[1]!), "마레노 부두", "the AI that stayed is not moved by the GM's group placement");
+    assert.equal(loadCampaignLedger(db, campaignId).nextRoundContext, "", "the GM's group-move hook is not kept when two seats stayed");
 
     submitTrpgAction(db, { campaignId, userId: 1, body: "등대 안을 살핀다.", actionType: "investigate" });
     submitTrpgAction(db, { campaignId, userId: 2, body: "부두를 살핀다.", actionType: "investigate" });

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  applyCampaignLedger,
   bindGmLocationToSubmittedMovement,
   destinationRefinesDeclared,
   type TrpgLocationPersistSubmission,
@@ -134,11 +135,11 @@ describe("movement authority: what is not a declared move", () => {
       current: dock,
       gm,
       seats: [{ id: 1, at: dock, body, ...extra }],
-      hook: `부두 일꾼이 소문을 전했다. 렌은 ${gm}에 도착했다.`,
+      hook: `렌은 ${gm}에 도착했다.`,
     });
     assert.equal(bound.location, dock, body);
     assert.equal(placeOf(bound, 1), undefined, body);
-    assert.equal(bound.nextRoundContext, "부두 일꾼이 소문을 전했다.", `${body}: only the sentence assuming the refused place is dropped`);
+    assert.equal(bound.nextRoundContext, "", `${body}: a hook written for the refused place is not kept`);
   };
 
   it("a negated move", () => {
@@ -496,26 +497,18 @@ describe("movement authority: #1567 review — aiming, route talk and destinatio
     assert.equal(go("세관으로 향한다.", "세관 본관 로비"), "세관 본관 로비");
   });
 
-  it("a refused top-level relocation keeps the facts that do not assume the refused place", () => {
-    const kept = bind({
-      current: home,
-      gm: "곶 끝의 등대 내부",
-      seats: [{ id: 1, at: home, body: "회관 게시판을 살핀다." }],
-      hook: "게시판 뒤에서 바르토의 서신이 나왔다. 서신의 인장을 확인할지 정한다.",
-    });
-    assert.equal(kept.location, home);
-    assert.equal(kept.nextRoundContext, "게시판 뒤에서 바르토의 서신이 나왔다. 서신의 인장을 확인할지 정한다.");
-
-    const mixed = bind({
+  it("a refused top-level relocation clears the hook; the in-place state and typed facts stay", () => {
+    const refused = bind({
       current: home,
       gm: "곶 끝의 등대 내부",
       seats: [{ id: 1, at: home, body: "회관 게시판을 살핀다." }],
       hook: "게시판 뒤에서 바르토의 서신이 나왔다. 렌은 등대 안으로 들어섰다.",
     });
-    assert.equal(mixed.nextRoundContext, "게시판 뒤에서 바르토의 서신이 나왔다.", "only the sentence about the refused place is dropped");
+    assert.equal(refused.location, home);
+    assert.equal(refused.nextRoundContext, "");
   });
 
-  it("a split party keeps the hook facts about the place that was really reached", () => {
+  it("a split party keeps each seat's real place and drops the group hook the GM wrote", () => {
     const bound = bindGmLocationToSubmittedMovement({
       opening: false,
       currentLocation: home,
@@ -540,10 +533,131 @@ describe("movement authority: #1567 review — aiming, route talk and destinatio
     assert.equal(bound.location, home);
     assert.equal(placeOf(bound, 1), "어시장", "the seat that declared 어시장 reached it");
     assert.equal(placeOf(bound, 2), undefined, "the seat that only read the ledger is not sent to 세관");
-    assert.equal(
-      bound.nextRoundContext,
-      "렌은 어시장에서 소문을 들었다. 바르토는 회관에 남았다.",
-      "facts about the reached place and the stayed seat survive; only the refused 세관 sentence goes"
+    assert.equal(bound.nextRoundContext, "", "the hook mixes an approved and a refused claim; none of it is re-injected as authority");
+  });
+});
+
+describe("movement authority: the next-round hook never asserts a place or move the server did not approve (#1567)", () => {
+  type Place = { id: number; at: string; body: string; goTo?: string };
+  const bindSeats = (opts: {
+    current: string;
+    gm: string;
+    seats: Place[];
+    hook: string;
+    extra?: Partial<Parameters<typeof bindGmLocationToSubmittedMovement>[0]["delta"]>;
+  }) =>
+    bindGmLocationToSubmittedMovement({
+      opening: false,
+      currentLocation: opts.current,
+      proposedLocation: opts.gm,
+      delta: {
+        players: opts.seats.map((seat) => ({ participantId: seat.id, location: seat.goTo ?? opts.gm })),
+        location: opts.gm,
+        nextRoundContext: opts.hook,
+        ...opts.extra,
+      },
+      submissions: opts.seats.map((seat): TrpgLocationPersistSubmission => ({ participantId: seat.id, body: seat.body })),
+      sheetLocations: opts.seats.map((seat) => ({ participantId: seat.id, location: seat.at })),
+    });
+
+  it("A. guarding outside the lighthouse while the GM says the party went inside", () => {
+    const bound = bindSeats({
+      current: "곶 끝의 등대 외곽",
+      gm: "곶 끝의 등대 내부",
+      seats: [{ id: 1, at: "곶 끝의 등대 외곽", body: "등대 외곽에서 경비를 선다." }],
+      hook: "렌은 등대 내부에 들어갔다. 외곽에서 종소리가 울렸다.",
+    });
+    assert.equal(bound.location, "곶 끝의 등대 외곽");
+    assert.equal(bound.nextRoundContext, "");
+  });
+
+  it("B. staying on the customs second floor while the GM says the party went down to the first floor", () => {
+    const bound = bindSeats({
+      current: "세관 청사 2층",
+      gm: "세관 청사 1층",
+      seats: [{ id: 1, at: "세관 청사 2층", body: "2층 사무실의 장부를 살핀다." }],
+      hook: "렌은 1층으로 내려갔다. 장부 사이에서 밀수 기록이 나왔다.",
+    });
+    assert.equal(bound.location, "세관 청사 2층");
+    assert.equal(bound.nextRoundContext, "");
+  });
+
+  it("C. 2 humans + 2 AI apart: a group-move hook is not kept when only some seats really moved or one seat was already there", () => {
+    const apart: Place[] = [
+      { id: 1, at: "어시장", body: "어시장 장부를 살핀다." },
+      { id: 2, at: "선원 조합 회관", body: "회관 게시판을 살핀다." },
+      { id: 3, at: "세관 청사 1층", body: "세관 서류를 정리한다." },
+      { id: 4, at: "선원 조합 회관", body: "회관 입구를 지킨다." },
+    ];
+    const alreadyThere = bindSeats({
+      current: "선원 조합 회관",
+      gm: "어시장",
+      seats: apart,
+      hook: "일행은 모두 어시장에 모였다. 상인이 소문을 전했다.",
+    });
+    assert.equal(alreadyThere.location, "선원 조합 회관");
+    assert.equal(alreadyThere.nextRoundContext, "", "seat 1 standing in 어시장 does not approve the group's move");
+    assert.equal(alreadyThere.delta.players?.some((patch) => patch.location !== undefined && patch.participantId !== 1), false);
+
+    const partlyMoved = bindSeats({
+      current: "선원 조합 회관",
+      gm: "어시장",
+      seats: apart.map((seat) =>
+        seat.id === 3 ? { ...seat, body: "어시장으로 이동한다." } : seat
+      ),
+      hook: "일행은 모두 어시장에 모였다. 상인이 소문을 전했다.",
+    });
+    const placeById = new Map((partlyMoved.delta.players ?? []).map((patch) => [patch.participantId, patch.location]));
+    assert.equal(placeById.get(3), "어시장", "the seat that declared it did move");
+    assert.equal(placeById.get(2), undefined);
+    assert.equal(partlyMoved.nextRoundContext, "", "the hook says everyone moved, but only one seat did");
+  });
+
+  it("D. clues and NPC facts reach the ledger through the typed delta even when the hook is cleared", () => {
+    const bound = bindSeats({
+      current: "곶 끝의 등대 외곽",
+      gm: "곶 끝의 등대 내부",
+      seats: [{ id: 1, at: "곶 끝의 등대 외곽", body: "등대 외곽에서 경비를 선다." }],
+      hook: "렌은 등대 내부에 들어갔다. 종지기가 열쇠 이야기를 했다.",
+      extra: { npcsAdd: ["종지기: 열쇠는 등대지기가 가졌다고 말했다"], flagsAdd: ["종소리가 세 번 울렸다"], questsAdd: ["등대 열쇠를 찾는다"] },
+    });
+    const ledger = applyCampaignLedger(
+      { location: "곶 끝의 등대 외곽", nextRoundContext: "R4 이전 맥락", quests: [], npcs: [], worldFlags: [] },
+      { ...bound.delta, location: bound.location, nextRoundContext: bound.nextRoundContext }
     );
+    assert.equal(ledger.location, "곶 끝의 등대 외곽");
+    assert.equal(ledger.nextRoundContext, "", "neither the refused move nor the older round's hook survives");
+    assert.deepEqual(ledger.npcs, ["종지기: 열쇠는 등대지기가 가졌다고 말했다"]);
+    assert.deepEqual(ledger.worldFlags, ["종소리가 세 번 울렸다"]);
+    assert.deepEqual(ledger.quests, ["등대 열쇠를 찾는다"]);
+  });
+
+  it("a hook is kept when nothing was refused: an approved move for the whole party, an unchanged place, a persistent split", () => {
+    const together = bindSeats({
+      current: "마레노 부두",
+      gm: "마레노 어시장",
+      seats: [
+        { id: 1, at: "마레노 부두", body: "어시장으로 가서 소문을 묻는다." },
+        { id: 2, at: "마레노 부두", body: "렌과 함께 어시장으로 이동한다." },
+      ],
+      hook: "렌은 어시장 상인에게 소문을 물었다.",
+    });
+    assert.equal(together.nextRoundContext, "렌은 어시장 상인에게 소문을 물었다.");
+
+    const split = bindGmLocationToSubmittedMovement({
+      opening: false,
+      currentLocation: "마레노 어시장",
+      proposedLocation: "마레노 어시장",
+      delta: { players: [], location: "마레노 어시장", nextRoundContext: "렌은 어시장, 현은 회관에서 각자 조사한다." },
+      submissions: [
+        { participantId: 1, body: "상인에게 말을 건다." },
+        { participantId: 2, body: "회관 장부를 살핀다." },
+      ],
+      sheetLocations: [
+        { participantId: 1, location: "마레노 어시장" },
+        { participantId: 2, location: "선원 조합 회관" },
+      ],
+    });
+    assert.equal(split.nextRoundContext, "렌은 어시장, 현은 회관에서 각자 조사한다.");
   });
 });
