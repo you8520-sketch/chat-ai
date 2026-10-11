@@ -38,6 +38,12 @@ const MOTION_PREDICATES: readonly RegExp[] = [
   /^(?:와|온|올|왔|오)(?:$|다|서|며|고|는|자|면|도|야|라|려|니|던)/,
 ];
 
+/**
+ * `X를 향해` is an adverbial of direction. It declares a move only when a real motion predicate of the
+ * same clause follows it (`향해 달려간다`); `향해 화살을 쏜다` aims, it does not travel.
+ */
+const DIRECTION_CONVERB = /^향(?:해|하여|하며|하고|하면서|하다가|해서)/;
+
 const MOVEMENT_VETOES: readonly RegExp[] = [
   /지\s?(?:않|말|못)/,
   /(?:^|\s)(?:안|못)\s?(?:간|가|이동|들어|나가|나간|건너|도착|돌아)/,
@@ -71,6 +77,8 @@ const OUTSIDE_WORDS = new Set([
   "정문",
 ]);
 const NEUTRAL_PART_WORDS = new Set(["문", "현관", "대문", "출입구", "위", "아래", "옆", "뒤", "쪽", "꼭대기", "옥상"]);
+/** Generic building-part nouns: they subdivide the named place but never name another one. */
+const STRUCTURE_WORDS = new Set(["청사", "건물", "본관", "별관", "로비"]);
 export const DIRECTIONAL_QUALIFIERS = new Set(["북쪽", "남쪽", "동쪽", "서쪽", "좌측", "우측", "왼쪽", "오른쪽"]);
 
 function trimPunctuation(word: string): string {
@@ -81,6 +89,36 @@ function isMotionPredicate(word: string): boolean {
   return MOTION_PREDICATES.some((pattern) => pattern.test(word));
 }
 
+function finalJongseong(word: string): number {
+  const last = word.charCodeAt(word.length - 1);
+  return last >= 0xac00 && last <= 0xd7a3 ? (last - 0xac00) % 28 : -1;
+}
+
+/**
+ * Attributive forms (`가는`, `간`, `향한`, `올라갈`) modify a following noun (`가는 길`); they describe
+ * something, they do not perform the motion. The one exception is the future periphrasis `-ㄹ 것/거`.
+ */
+function isAttributiveForm(words: readonly string[], index: number): boolean {
+  const word = words[index]!;
+  if (word.endsWith("는") || word.endsWith("던")) return true;
+  const jongseong = finalJongseong(word);
+  if (jongseong === 8) return !/^(?:것|거)/.test(words[index + 1] ?? "");
+  return jongseong === 4;
+}
+
+/** True when `words[index]` is the predicate of a live motion rather than a mention of one. */
+function isMotionAt(words: readonly string[], index: number): boolean {
+  const word = words[index]!;
+  if (!isMotionPredicate(word) || isAttributiveForm(words, index)) return false;
+  if (!DIRECTION_CONVERB.test(word)) return true;
+  const end = Math.min(words.length, index + 1 + GOAL_PREDICATE_REACH);
+  for (let next = index + 1; next < end; next += 1) {
+    if (OBJECT_PARTICLE.test(words[next]!)) return false;
+    if (isMotionAt(words, next)) return true;
+  }
+  return false;
+}
+
 function hasModifierEnding(word: string): boolean {
   if (DIRECTIONAL_QUALIFIERS.has(word) || word.endsWith("의")) return true;
   const last = word.charCodeAt(word.length - 1);
@@ -89,6 +127,20 @@ function hasModifierEnding(word: string): boolean {
 
 function isInsideWord(word: string): boolean {
   return INSIDE_WORDS.has(word) || /^\d+층$/.test(word);
+}
+
+/**
+ * A label token that only subdivides a place (side, floor, building part). Any other token after the
+ * place name makes the label a different place (`등대 마을`, `등대 선술집`).
+ */
+export function isPlacePartWord(token: string): boolean {
+  return (
+    INSIDE_WORDS.has(token) ||
+    OUTSIDE_WORDS.has(token) ||
+    NEUTRAL_PART_WORDS.has(token) ||
+    STRUCTURE_WORDS.has(token) ||
+    /^\d+층$/.test(token)
+  );
 }
 
 export function spatialPolarity(words: readonly string[]): SpatialPolarity | undefined {
@@ -117,11 +169,11 @@ function goalPhraseBefore(words: readonly string[], index: number, head: string)
   return phrase.join(" ");
 }
 
-function predicateFollows(words: readonly string[], goalIndex: number, accept: (word: string) => boolean): boolean {
+function predicateFollows(words: readonly string[], goalIndex: number, accept: (index: number) => boolean): boolean {
   const end = Math.min(words.length, goalIndex + 1 + GOAL_PREDICATE_REACH);
   for (let j = goalIndex + 1; j < end; j += 1) {
     const word = words[j]!;
-    if (accept(word)) return true;
+    if (accept(j)) return true;
     if (OBJECT_PARTICLE.test(word) || GOAL_PARTICLE.test(word)) return false;
   }
   return false;
@@ -131,12 +183,15 @@ function clauseGoals(words: readonly string[]): string[] {
   const goals: string[] = [];
   words.forEach((word, index) => {
     const goal = word.match(GOAL_PARTICLE);
-    if (goal && predicateFollows(words, index, isMotionPredicate)) {
+    if (goal && predicateFollows(words, index, (next) => isMotionAt(words, next))) {
       goals.push(goalPhraseBefore(words, index, goal[1]!));
       return;
     }
     const object = word.match(OBJECT_PARTICLE);
-    if (object && predicateFollows(words, index, (next) => OBJECT_GOAL_PREDICATE.test(next))) {
+    if (
+      object &&
+      predicateFollows(words, index, (next) => OBJECT_GOAL_PREDICATE.test(words[next]!) && isMotionAt(words, next))
+    ) {
       goals.push(goalPhraseBefore(words, index, object[1]!));
     }
   });
@@ -148,7 +203,7 @@ export function parseMovementDeclaration(body: string): MovementDeclaration {
   for (const clause of splitClauses(stripQuotedDialogue(body))) {
     if (MOVEMENT_VETOES.some((pattern) => pattern.test(clause))) continue;
     const words = clause.split(/\s+/).map(trimPunctuation).filter(Boolean);
-    if (!words.some(isMotionPredicate)) continue;
+    if (!words.some((_word, index) => isMotionAt(words, index))) continue;
     declaration.live = true;
     declaration.goals.push(...clauseGoals(words));
   }

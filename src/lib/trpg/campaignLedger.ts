@@ -4,6 +4,7 @@ import {
   DIRECTIONAL_QUALIFIERS,
   declaredMovementGoals,
   describeMovementGoal,
+  isPlacePartWord,
   spatialPolarity,
 } from "./movementDeclaration";
 import { clipTrpgChars } from "./clip";
@@ -138,18 +139,23 @@ function movementAttemptFailed(tier: string | null | undefined): boolean {
 
 /**
  * Movement matcher: the GM-proposed `destination` is the place a player declared as the goal of a
- * motion. Identity is the declared place name; the label may add parent tokens before it and
- * sub-area tokens after it (등대 → 곶 끝의 등대 외곽). It never crosses an explicit inside/outside
- * boundary the player declared (세관 앞 → 세관 내부), nor a conflicting qualifier (북쪽 창고 → 남쪽 창고).
+ * motion. Identity is the declared place name as a whole label token: the label may add parent tokens
+ * before it (등대 → 곶 끝의 등대) and only structural sub-area tokens after it (외곽, 내부, 2층, 청사),
+ * never another noun (등대 마을, 등대 선술집). It never crosses an explicit inside/outside boundary the
+ * player declared (세관 앞 → 세관 내부), nor a conflicting qualifier (북쪽 창고 → 남쪽 창고).
  */
 export function movementGoalNamesDestination(goalPhrase: string, destination: string): boolean {
   const goal = describeMovementGoal(goalPhrase);
   if (!goal.place) return false;
   const destTokens = tokenizeSceneLabel(destination);
-  if (!destTokens.includes(goal.place)) return false;
+  const place = goal.place;
+  const isTheNamedPlace = destTokens.some(
+    (token, index) => token === place && destTokens.slice(index + 1).every(isPlacePartWord)
+  );
+  if (!isTheNamedPlace) return false;
   const destPolarity = spatialPolarity(destination.split(/\s+/));
   if (goal.polarity && destPolarity && goal.polarity !== destPolarity) return false;
-  return !qualifiersConflict(goal.qualifier, destTokens, goal.place);
+  return !qualifiersConflict(goal.qualifier, destTokens, place);
 }
 
 /** True when this locked action already authorizes relocating to `destination`. */
@@ -203,7 +209,7 @@ export function bindGmLocationToSubmittedMovement(opts: {
   );
   const previousLocation = (participantId: number) => sheetById.get(participantId) || current;
   const byParticipant = new Map(opts.submissions.map((sub) => [sub.participantId, sub]));
-  const players = (opts.delta.players ?? []).map((patch) => {
+  const players: NonNullable<TrpgStateDelta["players"]> = (opts.delta.players ?? []).map((patch) => {
     if (patch.location == null) return patch;
     const dest = patch.location.trim();
     const previous = previousLocation(patch.participantId);
@@ -219,11 +225,42 @@ export function bindGmLocationToSubmittedMovement(opts: {
   const campaignMoved = Boolean(proposed && proposed !== current);
   const campaignAuthorized =
     campaignMoved && opts.submissions.some((sub) => submissionAuthorizesLocation(sub, proposed));
+  const refusedRelocation = campaignMoved && !campaignAuthorized;
+  const reachedPlaces: string[] = [
+    current,
+    ...(opts.sheetLocations ?? []).map((row) => row.location),
+    ...players.map((patch) => patch.location ?? ""),
+  ];
   return {
     location: campaignAuthorized ? proposed : current,
-    nextRoundContext: campaignAuthorized || !campaignMoved ? opts.delta.nextRoundContext : "",
+    nextRoundContext: refusedRelocation
+      ? withoutRefusedPlaceSentences(opts.delta.nextRoundContext, proposed, reachedPlaces)
+      : opts.delta.nextRoundContext,
     delta: { ...opts.delta, players },
   };
+}
+
+/**
+ * A refused GM relocation must not leave a hook that assumes the party is there, and must not
+ * resurrect an older round's hook. Sentences that name the refused place (a label token that no
+ * reached place carries) are dropped; the remaining grounded facts of the GM's hook stay.
+ */
+function withoutRefusedPlaceSentences(
+  hook: string | undefined,
+  refusedPlace: string,
+  reachedPlaces: readonly string[]
+): string {
+  const text = hook?.trim() ?? "";
+  if (!text) return "";
+  const reached = new Set(reachedPlaces.flatMap((place) => tokenizeSceneLabel(place)));
+  const refusedTokens = tokenizeSceneLabel(refusedPlace)
+    .filter((token) => !reached.has(token) && !isPlacePartWord(token))
+    .map((token) => (token.length > 2 && token.endsWith("의") ? token.slice(0, -1) : token));
+  if (refusedTokens.length === 0) return text;
+  return text
+    .split(/(?<=[.!?。…])\s+/)
+    .filter((sentence) => !refusedTokens.some((token) => sentence.includes(token)))
+    .join(" ");
 }
 
 export function applyCampaignLedger(current: TrpgCampaignLedger, delta: TrpgStateDelta): TrpgCampaignLedger {
