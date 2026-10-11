@@ -204,6 +204,60 @@ async function lookupCheaperInferenceUsageCost(input: {
   return { billedUsd, settled: true, model: page.value.model };
 }
 
+export type PaidRunnerUnknownJournalReconcileResult =
+  | { ok: true; billedUsd: number; requestId: string; model: string }
+  | { ok: false };
+
+/**
+ * GET-only exact-cost recovery for an already-billed UNKNOWN row.
+ * Never POSTs /chat/completions and never fetches generation content.
+ */
+export async function reconcilePaidRunnerUnknownJournalEntry(input: {
+  provider: "openrouter" | "cheaperinference";
+  wireModel: string;
+  generationId?: string | null;
+  providerRequestId?: string | null;
+  elapsedMs: number;
+  fetchImpl: typeof fetch;
+  keys: PaidRunnerReconcileKeys;
+}): Promise<PaidRunnerUnknownJournalReconcileResult> {
+  if (input.provider === "cheaperinference") {
+    const requestId = input.providerRequestId?.trim() ?? "";
+    if (!requestId) return { ok: false };
+    const lookedUp = await lookupCheaperInferenceUsageCost({
+      requestId,
+      apiKey: input.keys.cheaperInferenceKey,
+      fetchImpl: input.fetchImpl,
+      elapsedMs: input.elapsedMs,
+    });
+    if (!lookedUp || !lookedUp.settled || !(lookedUp.billedUsd > 0)) return { ok: false };
+    if (lookedUp.model && lookedUp.model !== input.wireModel) return { ok: false };
+    return {
+      ok: true,
+      billedUsd: lookedUp.billedUsd,
+      requestId,
+      model: lookedUp.model ?? input.wireModel,
+    };
+  }
+  const generationId = input.generationId?.trim() ?? "";
+  if (!generationId) return { ok: false };
+  const requestId = input.providerRequestId?.trim() || null;
+  const lookedUp = await lookupOpenRouterGenerationCost({
+    generationId,
+    requestId,
+    expectedModel: input.wireModel,
+    apiKey: input.keys.openRouterKey,
+    fetchImpl: input.fetchImpl,
+  });
+  if (!lookedUp || !(lookedUp.billedUsd > 0)) return { ok: false };
+  return {
+    ok: true,
+    billedUsd: lookedUp.billedUsd,
+    requestId: lookedUp.requestId,
+    model: lookedUp.model,
+  };
+}
+
 export async function reconcilePaidRunnerSettlement(
   input: PaidRunnerReconcileInput
 ): Promise<PaidRunnerUsageEvidence> {
