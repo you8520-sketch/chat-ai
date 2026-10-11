@@ -35,6 +35,7 @@ import {
   type OfficialAssetModeration,
   type OfficialAssetPlan,
   type OfficialAssetSlotKind,
+  type OfficialAssetSlotPlan,
   type OfficialAssetStatus,
   type OfficialCharacterDraft,
   type OfficialCharacterStage,
@@ -85,6 +86,25 @@ export type OfficialCharacterRecord = {
   assetPlan: OfficialAssetPlan | null;
   isStyleProof: boolean;
   stagedCharacterId: number | null;
+};
+
+export type OfficialLockedSnapshotReconcileInput = {
+  expectedDraftJson: string;
+  expectedAssetPlanJson: string;
+  expectedTextLockHash: string;
+  expectedAppearanceLockHash: string;
+  expectedRepresentative: {
+    status: "generated";
+    resultUrl: string;
+    attempts: number;
+  };
+  nextDraft: OfficialCharacterDraft;
+  nextPlan: OfficialAssetPlan;
+};
+
+export type OfficialLockedSnapshotReconcileResult = {
+  status: "updated" | "already_current";
+  textLockHash: string;
 };
 
 export type OfficialAssetRecord = {
@@ -379,6 +399,50 @@ function toReplacement(row: ReplacementRow): OfficialReplacementRecord {
     appliedAt: row.applied_at,
   };
 }
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nested]) => `${JSON.stringify(key)}:${canonicalJson(nested)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "undefined";
+}
+
+const REPRESENTATIVE_LOOK_FIELDS = [
+  "slotKey",
+  "kind",
+  "tag",
+  "expression",
+  "pose",
+  "outfit",
+  "location",
+  "situation",
+  "characterPresence",
+  "depiction",
+  "personTag",
+] as const;
+
+type LockedCharacterRow = {
+  draft_key: string;
+  batch_key: string;
+  world_key: string;
+  style_key: string;
+  stage: string;
+  draft_json: string;
+  text_lock_hash: string | null;
+  appearance_json: string | null;
+  appearance_lock_hash: string | null;
+  asset_plan_json: string | null;
+  is_style_proof: number;
+  anchor_approved_by: string | null;
+  staging_claim: string | null;
+  staged_character_id: number | null;
+};
+
+type AssetSnapshotRow = AssetRow & { id: number; updated_at: string };
 
 function anchorQaPasses(qa: OfficialAnchorQaReport): boolean {
   return Object.values(qa).every((check) => check.ok);
@@ -792,6 +856,303 @@ export class OfficialSupplyStore {
     });
     tx();
     return qa;
+  }
+
+  /**
+   * CAS rewrite of a locked character's stored draft + asset plan when the
+   * generated representative and all 14 asset rows must stay untouched.
+   * `updateDraft` / `lockAssetPlan` are the wrong owners here.
+   */
+  reconcileLockedSnapshot(
+    draftKey: string,
+    input: OfficialLockedSnapshotReconcileInput
+  ): OfficialLockedSnapshotReconcileResult {
+    return this.db.transaction(() => this.reconcileLockedSnapshotTx(draftKey, input))();
+  }
+
+  private readLockedCharacterRow(draftKey: string): LockedCharacterRow {
+    const row = this.db
+      .prepare(
+        `SELECT draft_key, batch_key, world_key, style_key, stage, draft_json, text_lock_hash,
+                appearance_json, appearance_lock_hash, asset_plan_json, is_style_proof,
+                anchor_approved_by, staging_claim, staged_character_id
+           FROM official_supply_characters WHERE draft_key=?`
+      )
+      .get(draftKey) as LockedCharacterRow | undefined;
+    if (!row) throw new OfficialSupplyGateError("character_not_found", `draft ${draftKey} not found`);
+    return row;
+  }
+
+  private snapshotAssetRows(draftKey: string): AssetSnapshotRow[] {
+    return this.db
+      .prepare("SELECT * FROM official_supply_assets WHERE draft_key=? ORDER BY id")
+      .all(draftKey) as AssetSnapshotRow[];
+  }
+
+  private assertRepresentativeLookPreserved(
+    draftKey: string,
+    expectedPlan: OfficialAssetPlan | { slots: Array<Record<string, unknown>> },
+    nextPlan: OfficialAssetPlan
+  ): void {
+    const expectedRep = expectedPlan.slots.find((slot) => slot.kind === "representative");
+    const nextRep = nextPlan.slots.find((slot) => slot.kind === "representative");
+    if (!expectedRep || !nextRep) {
+      throw new OfficialSupplyGateError("locked_snapshot_rep_plan_changed", `${draftKey}: representative slot missing`);
+    }
+    for (const field of REPRESENTATIVE_LOOK_FIELDS) {
+      if (canonicalJson(expectedRep[field]) !== canonicalJson(nextRep[field])) {
+        throw new OfficialSupplyGateError(
+          "locked_snapshot_rep_plan_changed",
+          `${draftKey}: representative ${field} cannot change`
+        );
+      }
+    }
+    const subjects = nextRep.imageSubjects;
+    if (!subjects) {
+      throw new OfficialSupplyGateError(
+        "locked_snapshot_rep_plan_changed",
+        `${draftKey}: representative imageSubjects is required`
+      );
+    }
+    if (
+      subjects.foreground !== "solo_character" ||
+      subjects.backgroundExtras !== "none" ||
+      "partnerRole" in subjects
+    ) {
+      throw new OfficialSupplyGateError(
+        "locked_snapshot_rep_plan_changed",
+        `${draftKey}: representative imageSubjects must stay solo_character/none`
+      );
+    }
+  }
+
+  private assertLockedSnapshotAssets(
+    draftKey: string,
+    input: OfficialLockedSnapshotReconcileInput,
+    appearanceLockHash: string,
+    rows: AssetSnapshotRow[]
+  ): void {
+    if (rows.length !== 14) {
+      throw new OfficialSupplyGateError("locked_snapshot_assets_drift", `${draftKey}: expected 14 asset rows, found ${rows.length}`);
+    }
+    const kinds = { representative: 0, signature: 0, emotion: 0, scene: 0 };
+    let inFlight = 0;
+    let startedNonRep = 0;
+    let rep: AssetSnapshotRow | undefined;
+    for (const row of rows) {
+      if (row.draft_key !== draftKey) {
+        throw new OfficialSupplyGateError("locked_snapshot_assets_drift", `${draftKey}: asset row draft mismatch`);
+      }
+      if (row.appearance_lock_hash !== appearanceLockHash) {
+        throw new OfficialSupplyGateError("appearance_lock_stale", `${draftKey}/${row.slot_key} appearance hash drifted`);
+      }
+      kinds[row.kind as OfficialAssetSlotKind] += 1;
+      if (row.status === "generating" || row.status === "upload_pending" || row.lease_owner != null) {
+        inFlight += 1;
+      }
+      if (row.kind === "representative") {
+        if (rep) throw new OfficialSupplyGateError("locked_snapshot_assets_drift", `${draftKey}: duplicate representative`);
+        rep = row;
+        continue;
+      }
+      if (row.status !== "planned" || row.attempts !== 0 || row.result_url != null || row.lease_owner != null) {
+        startedNonRep += 1;
+      }
+    }
+    if (kinds.representative !== 1 || kinds.signature !== 4 || kinds.emotion !== 6 || kinds.scene !== 3) {
+      throw new OfficialSupplyGateError(
+        "locked_snapshot_assets_drift",
+        `${draftKey}: slot kinds ${JSON.stringify(kinds)}`
+      );
+    }
+    if (inFlight > 0) {
+      throw new OfficialSupplyGateError("locked_snapshot_in_flight", `${draftKey}: in-flight asset rows present`);
+    }
+    if (startedNonRep > 0) {
+      throw new OfficialSupplyGateError("locked_snapshot_assets_drift", `${draftKey}: non-representative slot already started`);
+    }
+    if (!rep || rep.slot_key !== "rep") {
+      throw new OfficialSupplyGateError("locked_snapshot_rep_drift", `${draftKey}: representative row missing`);
+    }
+    const expected = input.expectedRepresentative;
+    if (
+      rep.status !== expected.status ||
+      rep.result_url !== expected.resultUrl ||
+      rep.attempts !== expected.attempts ||
+      rep.lease_owner != null ||
+      officialModerationVerdict(parseJson<OfficialAssetModeration>(rep.moderation_json)) !== "clean"
+    ) {
+      throw new OfficialSupplyGateError(
+        "locked_snapshot_rep_drift",
+        `${draftKey}: representative status/url/attempts/moderation drifted`
+      );
+    }
+    const replacements = this.db
+      .prepare("SELECT COUNT(*) AS n FROM official_supply_asset_replacements WHERE draft_key=?")
+      .get(draftKey) as { n: number };
+    if (replacements.n > 0) {
+      throw new OfficialSupplyGateError("locked_snapshot_replacement_present", `${draftKey}: replacements exist`);
+    }
+  }
+
+  private assertNextLockedSnapshot(
+    row: LockedCharacterRow,
+    input: OfficialLockedSnapshotReconcileInput
+  ): { nextTextLockHash: string; appearance: OfficialAppearanceLock } {
+    const expectedDraft = JSON.parse(input.expectedDraftJson) as OfficialCharacterDraft;
+    const next = input.nextDraft;
+    if (
+      next.draftKey !== row.draft_key ||
+      next.worldKey !== row.world_key ||
+      next.styleKey !== row.style_key ||
+      next.name !== expectedDraft.name ||
+      next.gender !== expectedDraft.gender ||
+      next.age !== expectedDraft.age ||
+      next.adult.nsfw !== expectedDraft.adult.nsfw ||
+      (next.adult.nsfw &&
+        expectedDraft.adult.nsfw &&
+        next.adult.participantMinAge !== expectedDraft.adult.participantMinAge)
+    ) {
+      throw new OfficialSupplyGateError("locked_snapshot_identity_changed", `${row.draft_key}: identity/world/style/adult drifted`);
+    }
+    if (computeTextLockHash(expectedDraft) !== input.expectedTextLockHash) {
+      throw new OfficialSupplyGateError(
+        "locked_snapshot_preimage_mismatch",
+        `${row.draft_key}: expected text hash does not match the supplied old draft`
+      );
+    }
+    if (!row.appearance_json || !row.appearance_lock_hash) {
+      throw new OfficialSupplyGateError("appearance_lock_stale", `${row.draft_key}: appearance lock missing`);
+    }
+    const appearance = JSON.parse(row.appearance_json) as OfficialAppearanceLock;
+    if (
+      row.appearance_lock_hash !== input.expectedAppearanceLockHash ||
+      computeAppearanceLockHash(appearance) !== input.expectedAppearanceLockHash
+    ) {
+      throw new OfficialSupplyGateError("appearance_lock_stale", `${row.draft_key}: appearance lock drifted`);
+    }
+    const expectedPlan = JSON.parse(input.expectedAssetPlanJson) as { slots: OfficialAssetSlotPlan[] };
+    this.assertRepresentativeLookPreserved(row.draft_key, expectedPlan, input.nextPlan);
+    const qa = mergeQa(
+      evaluateDraftSchema(next),
+      evaluateOfficialTextLength(next),
+      evaluateAgeAndAdultConsistency(next),
+      evaluateAppearanceLock(next, appearance),
+      evaluateAssetPlan(next, input.nextPlan)
+    );
+    if (!qa.ok) {
+      throw new OfficialSupplyGateError("locked_snapshot_qa_failed", `${row.draft_key}: next draft/plan failed QA`, qa);
+    }
+    return { nextTextLockHash: computeTextLockHash(next), appearance };
+  }
+
+  private reconcileLockedSnapshotTx(
+    draftKey: string,
+    input: OfficialLockedSnapshotReconcileInput
+  ): OfficialLockedSnapshotReconcileResult {
+    const row = this.readLockedCharacterRow(draftKey);
+    if (row.stage !== "asset_plan_locked") {
+      throw new OfficialSupplyGateError("character_stage", `draft ${draftKey} is ${row.stage}`);
+    }
+    if (row.anchor_approved_by || row.staging_claim || row.staged_character_id != null) {
+      throw new OfficialSupplyGateError(
+        "locked_snapshot_stage",
+        `${draftKey}: approval/staging state is not empty`
+      );
+    }
+    if (!row.asset_plan_json) {
+      throw new OfficialSupplyGateError("locked_snapshot_preimage_mismatch", `${draftKey}: asset plan missing`);
+    }
+    const assetsBefore = this.snapshotAssetRows(draftKey);
+    this.assertLockedSnapshotAssets(draftKey, input, input.expectedAppearanceLockHash, assetsBefore);
+    const { nextTextLockHash } = this.assertNextLockedSnapshot(row, input);
+
+    const dbDraftCanon = canonicalJson(JSON.parse(row.draft_json));
+    const dbPlanCanon = canonicalJson(JSON.parse(row.asset_plan_json));
+    const nextDraftCanon = canonicalJson(input.nextDraft);
+    const nextPlanCanon = canonicalJson(input.nextPlan);
+    const expectedDraftCanon = canonicalJson(JSON.parse(input.expectedDraftJson));
+    const expectedPlanCanon = canonicalJson(JSON.parse(input.expectedAssetPlanJson));
+    const draftAlreadyNext = dbDraftCanon === nextDraftCanon;
+    const planAlreadyNext = dbPlanCanon === nextPlanCanon;
+    if (draftAlreadyNext !== planAlreadyNext) {
+      throw new OfficialSupplyGateError("locked_snapshot_partial", `${draftKey}: draft/plan only one side is current`);
+    }
+    if (draftAlreadyNext && planAlreadyNext) {
+      if (row.text_lock_hash !== nextTextLockHash) {
+        throw new OfficialSupplyGateError("locked_snapshot_partial", `${draftKey}: stored text hash is not current`);
+      }
+      return { status: "already_current", textLockHash: nextTextLockHash };
+    }
+    if (row.draft_json !== input.expectedDraftJson || row.asset_plan_json !== input.expectedAssetPlanJson) {
+      throw new OfficialSupplyGateError(
+        "locked_snapshot_preimage_mismatch",
+        `${draftKey}: stored draft/plan is not the exact observed preimage`
+      );
+    }
+    if (canonicalJson(JSON.parse(row.draft_json)) !== expectedDraftCanon || canonicalJson(JSON.parse(row.asset_plan_json)) !== expectedPlanCanon) {
+      throw new OfficialSupplyGateError("locked_snapshot_preimage_mismatch", `${draftKey}: preimage parse drifted`);
+    }
+    if (row.text_lock_hash !== input.expectedTextLockHash) {
+      throw new OfficialSupplyGateError("locked_snapshot_preimage_mismatch", `${draftKey}: stored text hash is not the observed preimage`);
+    }
+    if (row.appearance_lock_hash !== input.expectedAppearanceLockHash) {
+      throw new OfficialSupplyGateError("appearance_lock_stale", `${draftKey}: appearance hash is not the observed preimage`);
+    }
+
+    const nextDraftJson = JSON.stringify(input.nextDraft);
+    const nextPlanJson = JSON.stringify(input.nextPlan);
+    const updated = this.db
+      .prepare(
+        `UPDATE official_supply_characters
+         SET draft_json=?, text_lock_hash=?, asset_plan_json=?, updated_at=datetime('now')
+         WHERE draft_key=? AND stage='asset_plan_locked'
+           AND draft_json=? AND asset_plan_json=? AND text_lock_hash=?
+           AND appearance_lock_hash=? AND batch_key=? AND world_key=? AND style_key=?
+           AND is_style_proof=? AND anchor_approved_by IS NULL AND staging_claim IS NULL
+           AND staged_character_id IS NULL`
+      )
+      .run(
+        nextDraftJson,
+        nextTextLockHash,
+        nextPlanJson,
+        draftKey,
+        input.expectedDraftJson,
+        input.expectedAssetPlanJson,
+        input.expectedTextLockHash,
+        input.expectedAppearanceLockHash,
+        row.batch_key,
+        row.world_key,
+        row.style_key,
+        row.is_style_proof
+      );
+    if (updated.changes !== 1) {
+      throw new OfficialSupplyGateError("locked_snapshot_cas_failed", `${draftKey}: CAS updated ${updated.changes} rows`);
+    }
+
+    const after = this.readLockedCharacterRow(draftKey);
+    if (
+      after.stage !== "asset_plan_locked" ||
+      after.draft_json !== nextDraftJson ||
+      after.asset_plan_json !== nextPlanJson ||
+      after.text_lock_hash !== nextTextLockHash ||
+      after.appearance_json !== row.appearance_json ||
+      after.appearance_lock_hash !== row.appearance_lock_hash ||
+      after.batch_key !== row.batch_key ||
+      after.world_key !== row.world_key ||
+      after.style_key !== row.style_key ||
+      after.is_style_proof !== row.is_style_proof ||
+      after.anchor_approved_by ||
+      after.staging_claim ||
+      after.staged_character_id != null
+    ) {
+      throw new OfficialSupplyGateError("locked_snapshot_cas_failed", `${draftKey}: postcondition drifted`);
+    }
+    const assetsAfter = this.snapshotAssetRows(draftKey);
+    if (canonicalJson(assetsAfter) !== canonicalJson(assetsBefore)) {
+      throw new OfficialSupplyGateError("locked_snapshot_assets_drift", `${draftKey}: asset rows changed`);
+    }
+    return { status: "updated", textLockHash: nextTextLockHash };
   }
 
   listAssets(draftKey: string): OfficialAssetRecord[] {
