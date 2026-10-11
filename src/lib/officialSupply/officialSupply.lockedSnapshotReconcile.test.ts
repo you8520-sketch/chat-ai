@@ -5,9 +5,8 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import { computeAppearanceLockHash } from "@/lib/officialSupply/appearance";
 import { computeTextLockHash } from "@/lib/officialSupply/characterText";
-import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import { composeOfficialSlotGeneration, runOfficialAssetSlot } from "@/lib/officialSupply/runner";
-import { buildPilotClusterBStyleProofDraft } from "@/lib/officialSupply/pilotClusterBStyleProof";
+import { loadApprovedWolfgangV4Source } from "@/lib/officialSupply/lockedSnapshotReconcileOperator";
 import { ROFAN_V4_PRODUCTION_BATCH_CONFIG } from "@/lib/officialSupply/pilotProduction";
 import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
 import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
@@ -31,7 +30,7 @@ const DRAFT_KEY = "pilot-rf-v4-02";
 const SIBLING_KEY = "pilot-rf-v4-99";
 const WORLD_KEY = "pilot-rf-erendel";
 const ENV = { NEXTAUTH_URL: "https://hav.chat", OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as NodeJS.ProcessEnv;
-const APPROVED_TEXT_HASH = "00ccbac57fe5c655e174eb7b0b039c868e259a0a7e7fed207c7658d469aa1cd7";
+const APPROVED_TEXT_HASH = "6ff02833cfd45a542866aa1afa749486d94362eff5358e10f995b8f77fabd5fd";
 
 type StaleFixture = {
   expectedTextLockHash: string;
@@ -59,7 +58,7 @@ function currentPlan(): OfficialAssetPlan {
 }
 
 function currentDraft(): OfficialCharacterDraft {
-  return buildPilotClusterBStyleProofDraft(loadCompiledOfficialCharacterSource("pilot-rf-02").draft);
+  return loadApprovedWolfgangV4Source().nextDraft;
 }
 
 function snapshot(store: OfficialSupplyStore, draftKey: string): unknown {

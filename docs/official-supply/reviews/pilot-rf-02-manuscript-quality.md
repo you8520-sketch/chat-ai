@@ -143,4 +143,4 @@ Cursor는 점수를 매기지 않는다. 아래 원문을 GPT가 직접 평가�
 
 미적용: `#51` DB, 공식 공개, 이미지 재생성, 서버 성인 라우팅/CNC/안전 시스템, CP·정산, 포인트, 관리자 소유권.
 
-Text Lock 후보 갱신은 GPT 승인 후에만 정식으로 반영한다.
+Text Lock 후보 갱신은 GPT 승인 후에만 정식으로 반영한다. 기존 승인 Lock `6ff02833…`은 `pilot-rf-02-approved-text-lock-draft.json`에 동결해 두었고, locked-snapshot operator는 이 후보를 자동 적용하지 않는다.

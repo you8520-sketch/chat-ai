@@ -6,10 +6,8 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import { evaluateAssetPlan } from "@/lib/officialSupply/assetPlan";
-import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import { officialModerationVerdict } from "@/lib/officialSupply/moderation";
 import { testStyleCandidate } from "@/lib/officialSupply/officialSupply.fixtures";
-import { buildPilotClusterBStyleProofDraft } from "@/lib/officialSupply/pilotClusterBStyleProof";
 import { PILOT_STYLE_PROOF_CANDIDATE_ID } from "@/lib/officialSupply/pilotStyleProof";
 import { composeOfficialSlotGeneration } from "@/lib/officialSupply/runner";
 import { ROFAN_CLUSTER_B_VISUAL_STYLE_DNA } from "@/lib/officialSupply/style";
@@ -46,7 +44,7 @@ export const WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET = {
   styleKey: PILOT_STYLE_PROOF_V4_STYLE_KEY,
   batchKey: PILOT_STYLE_PROOF_V4_BATCH_KEY,
   expectedOldTextLockHash: "13b5d5aa3ba731b7d7ee080028b0425a65e6b49b9759664100852bc40f172726",
-  expectedNextTextLockHash: "00ccbac57fe5c655e174eb7b0b039c868e259a0a7e7fed207c7658d469aa1cd7",
+  expectedNextTextLockHash: "6ff02833cfd45a542866aa1afa749486d94362eff5358e10f995b8f77fabd5fd",
   expectedAppearanceLockHash: "1c3ccd134203a6dea6ae869c27cc443c42ff5498d1d0130c6f9765407c24dcc3",
   expectedRepUrl: "/uploads/official-pilot-rf-v4-02__rep-a1.webp",
   expectedRepAttempts: 1,
@@ -100,6 +98,10 @@ const CURRENT_PLAN_PATH = path.join(
   process.cwd(),
   "src/lib/officialSupply/pilot/characters",
   `${WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.sourceDraftKey}.json`
+);
+const APPROVED_TEXT_LOCK_DRAFT_PATH = path.join(
+  process.cwd(),
+  "src/lib/officialSupply/pilot/fixtures/pilot-rf-02-approved-text-lock-draft.json"
 );
 
 type CharacterInspectRow = {
@@ -283,10 +285,11 @@ export function loadApprovedWolfgangV4Source(): {
   nextDraft: OfficialCharacterDraft;
   nextPlan: OfficialAssetPlan;
 } {
-  const compiled = loadCompiledOfficialCharacterSource(WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.sourceDraftKey);
-  const nextDraft = buildPilotClusterBStyleProofDraft(compiled.draft);
+  const approved = JSON.parse(fs.readFileSync(APPROVED_TEXT_LOCK_DRAFT_PATH, "utf8")) as {
+    draft: OfficialCharacterDraft;
+  };
   const file = JSON.parse(fs.readFileSync(CURRENT_PLAN_PATH, "utf8")) as { assetPlan: OfficialAssetPlan };
-  return { nextDraft, nextPlan: file.assetPlan };
+  return { nextDraft: approved.draft, nextPlan: file.assetPlan };
 }
 
 function approvedAssemblyStyle(env: NodeJS.ProcessEnv): OfficialGenreStyle {
