@@ -110,6 +110,24 @@ export function IconStudioLorebook({ className = base }: IconProps) {
   );
 }
 
+export function IconNavHome({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 11.5 12 4l8 7.5V20h-5.5v-5.5h-5V20H4v-8.5z" />
+    </svg>
+  );
+}
+
+export function IconNavSettings({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className} aria-hidden>
+      <path strokeLinecap="round" d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+      <circle cx="15" cy="7" r="2" />
+      <circle cx="9" cy="17" r="2" />
+    </svg>
+  );
+}
+
 const ICON_MAP = {
   chat: IconSidebarChat,
   persona: IconSidebarPersona,

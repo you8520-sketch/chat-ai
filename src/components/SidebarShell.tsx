@@ -241,7 +241,7 @@ function SideLink({
   active: boolean;
 }) {
   const tone = active
-    ? "relative bg-violet-500/15 font-semibold text-violet-50 before:absolute before:inset-y-2.5 before:left-0 before:w-0.5 before:rounded-full before:bg-violet-400"
+    ? "relative bg-gradient-to-r from-violet-500/25 via-violet-500/10 to-transparent font-semibold text-white before:absolute before:inset-y-2.5 before:left-0 before:w-0.5 before:rounded-full before:bg-violet-300 before:shadow-[0_0_10px_rgba(167,139,250,.8)]"
     : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100";
 
   if (collapsed) {

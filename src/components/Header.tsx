@@ -32,7 +32,7 @@ export default async function Header() {
 
   return (
     <>
-      <header className="site-header sticky top-0 z-40 border-b border-white/[0.08] bg-[#070910]/88 shadow-[0_12px_40px_rgba(0,0,0,.18)] backdrop-blur-xl">
+      <header className="site-header sticky top-0 z-40 border-b border-white/[0.08] bg-[linear-gradient(180deg,rgba(124,58,237,.09),rgba(7,9,16,.88)_72%)] shadow-[0_12px_40px_rgba(0,0,0,.18)] backdrop-blur-xl after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-violet-400/45 after:to-transparent">
         <div className="mx-auto flex min-h-16 max-w-7xl flex-nowrap items-center justify-between gap-2 px-3 text-xs sm:gap-3 sm:px-4">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <Link

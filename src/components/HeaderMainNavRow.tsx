@@ -49,7 +49,7 @@ export default function HeaderMainNavRow({ variant = "inline" }: Props) {
             href={t.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "relative inline-flex min-h-11 shrink-0 items-center px-3 text-sm font-semibold transition after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:origin-left after:rounded-full after:bg-violet-400 after:transition-transform",
+              "relative inline-flex min-h-11 shrink-0 items-center px-3 text-sm font-semibold transition after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:origin-left after:rounded-full after:bg-violet-300 after:shadow-[0_0_10px_rgba(167,139,250,.7)] after:transition-transform",
               active
                 ? "text-zinc-50 after:scale-x-100"
                 : "text-zinc-400 after:scale-x-0 hover:text-zinc-100 hover:after:scale-x-100",
