@@ -1,0 +1,43 @@
+{
+ "partial": {
+  "srcsSeen": [
+   "/uploads/daf5931a-b453-4e53-adc3-c5c018dc0509.png",
+   "/uploads/official-pilot-rf-v4-03__rep-a1.webp"
+  ],
+  "onlyHealthyShown": true,
+  "finalImgCount": 1
+ },
+ "multiRotation": {
+  "srcsSeen": [
+   "/uploads/official-pilot-rf-v4-03__rep-a1.webp",
+   "/uploads/daf5931a-b453-4e53-adc3-c5c018dc0509.png"
+  ],
+  "rotates": true
+ },
+ "allFailedHasImg": {
+  "전부실패": 0,
+  "중단": 0,
+  "이미지404": 0
+ },
+ "hoverPause": true,
+ "clickAllFailed": "/character/825",
+ "d1Partial": {
+  "marker": true,
+  "overlay": true,
+  "landed": "/character/824"
+ },
+ "d1AllFailed": {
+  "overlay": false,
+  "landed": "/character/823",
+  "pageErrors": 0
+ },
+ "adult": {
+  "gated": true,
+  "img": 0,
+  "emojiBlur": true,
+  "taglineHidden": true
+ },
+ "reducedMotionRotation": true,
+ "reducedMotionFailedFallback": true,
+ "focusRing": true
+}
