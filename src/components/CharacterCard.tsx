@@ -159,15 +159,16 @@ function revealAttrs(c: CharacterRow, view: CardView): Record<string, string> {
   });
 }
 
-function CardBadges({ c }: { c: CharacterRow }) {
+const HOME_OFFICIAL_BADGE =
+  "rounded-md border border-white/10 bg-violet-600/90 px-1.5 py-1 text-[9px] font-bold leading-none text-white shadow-sm backdrop-blur";
+
+function CardBadges({ c, officialClassName = HOME_OFFICIAL_BADGE }: { c: CharacterRow; officialClassName?: string }) {
   return (
     <>
       {c.nsfw === 1 && <AdultContentBadge className="absolute right-2.5 top-2.5 z-[4] shadow-sm" />}
       <div className="absolute left-2.5 top-2.5 z-[4] flex flex-wrap gap-1">
         {c.official === 1 && (
-          <span className="rounded-md border border-white/10 bg-violet-600/90 px-1.5 py-1 text-[9px] font-bold leading-none text-white shadow-sm backdrop-blur">
-            공식
-          </span>
+          <span className={officialClassName}>공식</span>
         )}
         {c.content_kind === "simulation" && (
           <span className="rounded-md border border-white/10 bg-cyan-700/90 px-1.5 py-1 text-[9px] font-bold leading-none text-white shadow-sm backdrop-blur">
@@ -370,7 +371,7 @@ function HomeCard({
   );
 }
 
-const DEFAULT_CHROME = {
+const LEGACY_CHROME = {
   frame: cn(
     studioSurface.card,
     "group/card flex h-full flex-col overflow-hidden rounded-2xl bg-[#11141f] shadow-[0_18px_50px_rgba(0,0,0,.18)] transition duration-300 hover:-translate-y-1.5 hover:border-violet-400/40 hover:shadow-[0_22px_60px_rgba(0,0,0,.34)]",
@@ -384,13 +385,104 @@ const DEFAULT_CHROME = {
   tag: "rounded-md border border-white/[0.06] bg-white/[0.035] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 transition hover:border-violet-400/20 hover:bg-violet-600/15 hover:text-violet-200",
 } as const;
 
+const FOCUS = "outline-none focus-visible:ring-2 focus-visible:ring-violet-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0d14]";
+
+const CANDIDATE_CHROME = {
+  A: {
+    frame:
+      "group/card relative flex h-full flex-col overflow-hidden rounded-[1.15rem] border border-indigo-200/[0.09] bg-[#0f1124] shadow-[inset_0_1px_0_rgba(255,255,255,.06),0_18px_44px_-20px_rgba(6,4,28,.95)] transition duration-300 hover:-translate-y-1 hover:border-violet-300/30 hover:shadow-[inset_0_1px_0_rgba(255,255,255,.08),0_26px_56px_-22px_rgba(139,92,246,.42)] focus-within:border-violet-300/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+    mediaBox: "",
+    media: "h-full w-full transition duration-500 group-hover/card:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover/card:scale-100",
+    fade: "pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-[34%] bg-gradient-to-t from-[#0f1124] via-[#0f1124]/45 to-transparent",
+    keyline: "pointer-events-none absolute inset-0 z-[2] rounded-t-[1.15rem] ring-1 ring-inset ring-white/[0.08]",
+    overlay:
+      "absolute inset-0 z-[3] flex items-center justify-center bg-[#07081a]/65 px-2 text-center text-[11px] font-semibold text-white sm:text-xs",
+    official:
+      "rounded-md border border-violet-200/25 bg-[#241a52]/85 px-1.5 py-1 text-[9px] font-bold leading-none text-violet-100 shadow-sm backdrop-blur",
+    body: "relative z-[2] -mt-7 flex min-h-[9.5rem] flex-1 flex-col gap-1.5 px-4 pb-4",
+    eyebrow: "line-clamp-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-200/70",
+    name: "line-clamp-2 text-[16.5px] font-bold leading-[1.2] tracking-[-0.03em] text-white transition group-hover/card:text-violet-100 [overflow-wrap:anywhere]",
+    tagline: "line-clamp-2 min-h-[2.5rem] text-[12.5px] leading-5 text-zinc-300/90",
+    tagsWrap: "mt-auto flex max-h-[1.9rem] flex-wrap gap-1.5 overflow-hidden pt-1.5",
+    tag: "max-w-full truncate rounded-full bg-white/[0.05] px-2 py-0.5 text-[10.5px] font-medium text-zinc-300 ring-1 ring-inset ring-white/10 transition hover:bg-violet-400/20 hover:text-white hover:ring-violet-300/30",
+  },
+  B: {
+    frame: "group/card flex h-full flex-col transition duration-300",
+    mediaBox: "rounded-[0.4rem] bg-[#0c0d11] transition duration-300 group-hover/card:shadow-[0_18px_40px_-22px_rgba(0,0,0,.9)]",
+    media: "h-full w-full transition duration-500 group-hover/card:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover/card:scale-100",
+    fade: "pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-1/4 bg-gradient-to-t from-black/45 to-transparent",
+    keyline: "pointer-events-none absolute inset-0 z-[2] rounded-[0.4rem] ring-1 ring-inset ring-white/[0.14] transition duration-300 group-hover/card:ring-white/35",
+    overlay:
+      "absolute inset-0 z-[3] flex items-center justify-center bg-black/70 px-2 text-center text-[11px] font-semibold text-white sm:text-xs",
+    official:
+      "rounded-[0.2rem] border border-white/35 bg-black/70 px-1.5 py-1 text-[9px] font-bold leading-none tracking-[0.08em] text-white backdrop-blur",
+    body: "flex flex-1 flex-col gap-1.5 px-0.5 pt-3",
+    eyebrow: "line-clamp-1 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500",
+    name: "line-clamp-2 text-[17px] font-extrabold leading-[1.15] tracking-[-0.04em] text-white decoration-violet-300/70 decoration-2 underline-offset-4 group-hover/card:underline [overflow-wrap:anywhere]",
+    tagline: "line-clamp-2 min-h-[2.5rem] text-[12px] leading-5 text-zinc-400",
+    tagsWrap: "mt-auto flex max-h-[1.9rem] flex-wrap gap-x-2.5 gap-y-1 overflow-hidden border-t border-white/[0.08] pt-2",
+    tag: "max-w-full truncate text-[11px] font-medium text-zinc-500 transition hover:text-white",
+  },
+} as const;
+
+function candidateDesign(): "before" | "A" | "B" {
+  const v = process.env.CARD_DESIGN;
+  return v === "A" || v === "B" ? v : "before";
+}
+
+function DefaultCard({ c, view, design }: { c: CharacterRow; view: CardView; design: "A" | "B" }) {
+  const chrome = CANDIDATE_CHROME[design];
+  return (
+    <article className={chrome.frame} {...revealAttrs(c, view)}>
+      <Link href={view.href} className={cn("relative block", FOCUS)}>
+        <div className={cn("relative w-full overflow-hidden", CHARACTER_THUMB_ASPECT, chrome.mediaBox)} style={cardBackdrop(c.hue)}>
+          {view.thumb ? (
+            <div className={chrome.media}>
+              <CharacterCardCarousel urls={view.urls} alt={c.name} hidden={view.hidden} />
+            </div>
+          ) : (
+            <span
+              className={`flex h-full w-full items-center justify-center text-5xl sm:text-6xl ${view.hidden ? "blur-md" : ""}`}
+            >
+              {c.emoji}
+            </span>
+          )}
+          <span aria-hidden className={chrome.fade} />
+          <span aria-hidden className={chrome.keyline} />
+          <CardBadges c={c} officialClassName={chrome.official} />
+          {view.hidden && <div className={chrome.overlay}>{view.overlayLabel}</div>}
+        </div>
+      </Link>
+
+      <div className={chrome.body}>
+        {view.genreLabel ? <p className={chrome.eyebrow}>{view.genreLabel}</p> : null}
+        <Link href={view.href} className={cn("min-w-0", FOCUS)}>
+          <h3 className={chrome.name}>{c.name}</h3>
+        </Link>
+        <CreatorLine view={view} />
+        <Link href={view.href} className={cn("min-w-0", FOCUS)}>
+          {view.displayTagline ? (
+            <p className={chrome.tagline}>{view.displayTagline}</p>
+          ) : (
+            <p className="min-h-[2.5rem] text-xs leading-5 text-zinc-600">한 줄 소개 없음</p>
+          )}
+        </Link>
+        <CardTags tags={view.tags} max={4} className={chrome.tagsWrap} tagClassName={chrome.tag} />
+      </div>
+    </article>
+  );
+}
+
 export default function CharacterCard({ c, blurNsfw, loggedIn = false, variant = "default", order }: Props) {
   const view = cardView(c, blurNsfw, loggedIn);
   if (variant !== "default") {
     return <HomeCard c={c} view={view} variant={variant} order={order} />;
   }
 
-  const chrome = DEFAULT_CHROME;
+  const design = candidateDesign();
+  if (design !== "before") return <DefaultCard c={c} view={view} design={design} />;
+
+  const chrome = LEGACY_CHROME;
   return (
     <article className={chrome.frame} {...revealAttrs(c, view)}>
       <Link href={view.href} className="relative block">
