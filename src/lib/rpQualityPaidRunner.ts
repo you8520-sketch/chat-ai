@@ -13,6 +13,7 @@ import {
   lstatSync,
   mkdirSync,
   openSync,
+  readdirSync,
   readFileSync,
   renameSync,
   unlinkSync,
@@ -60,6 +61,7 @@ import {
 } from "@/lib/rpQualityPaidRunnerArtifacts";
 import {
   reconcilePaidRunnerSettlement,
+  reconcilePaidRunnerUnknownJournalEntry,
   type PaidRunnerReconcileKeys,
 } from "@/lib/rpQualityPaidRunnerReconciliation";
 
@@ -197,12 +199,34 @@ export type PaidRunnerJournalEntry = {
   blockReason: PaidRunnerDenialReason | null;
   artifactFingerprint?: string | null;
   generationId?: string | null;
+  outputAvailability?: "persisted" | "unavailable";
 };
 
 export type PaidRunnerJournal = {
   manifestFingerprint: string;
+  identityHash?: string;
+  experimentContinuityFingerprint?: string;
   entries: PaidRunnerJournalEntry[];
   executedManifestFingerprints: string[];
+};
+
+export type PaidRunnerJournalContinuity =
+  | "exact_fingerprint"
+  | "sha_only_rotation"
+  | "body_or_identity_drift"
+  | "unrelated";
+
+export type PaidRunnerJournalDiscovery = {
+  continuityFingerprint: string;
+  identityHash: string;
+  calls: readonly Pick<
+    PaidRunnerPublicCall,
+    | "requestOrder"
+    | "fixtureId"
+    | "canonicalId"
+    | "requestBodyFingerprint"
+    | "finalWireFingerprint"
+  >[];
 };
 
 export type PaidRunnerUsageEvidence = {
@@ -338,6 +362,78 @@ export function paidRunnerManifestFingerprint(
       requestBodyFingerprint: call.requestBodyFingerprint,
     })),
   });
+}
+
+export function paidRunnerExperimentContinuityFingerprint(
+  manifest: Pick<PaidRunnerPublicManifest, "version" | "characterId" | "personaName" | "identityHash" | "calls">
+): string {
+  return sha256Json({
+    version: manifest.version,
+    characterId: manifest.characterId,
+    personaName: manifest.personaName,
+    identityHash: manifest.identityHash,
+    calls: manifest.calls.map((call) => ({
+      requestOrder: call.requestOrder,
+      fixtureId: call.fixtureId,
+      canonicalId: call.canonicalId,
+      provider: call.provider,
+      wireModel: call.wireModel,
+      finalWireFingerprint: call.finalWireFingerprint,
+      requestBodyFingerprint: call.requestBodyFingerprint,
+    })),
+  });
+}
+
+export function classifyPaidRunnerJournalContinuity(
+  journal: PaidRunnerJournal,
+  discovery: PaidRunnerJournalDiscovery,
+  manifestFingerprint: string
+): PaidRunnerJournalContinuity {
+  if (journal.identityHash && journal.identityHash !== discovery.identityHash) {
+    return "body_or_identity_drift";
+  }
+  if (
+    journal.experimentContinuityFingerprint &&
+    journal.experimentContinuityFingerprint !== discovery.continuityFingerprint
+  ) {
+    return "body_or_identity_drift";
+  }
+  const expected = new Map(
+    discovery.calls.map((call) => [call.requestOrder, call] as const)
+  );
+  let compared = 0;
+  for (const entry of journal.entries) {
+    const call = expected.get(entry.requestOrder);
+    if (!call) {
+      return journal.manifestFingerprint === manifestFingerprint
+        ? "body_or_identity_drift"
+        : "unrelated";
+    }
+    if (entry.fixtureId !== call.fixtureId || entry.canonicalId !== call.canonicalId) {
+      return journal.manifestFingerprint === manifestFingerprint
+        ? "body_or_identity_drift"
+        : "unrelated";
+    }
+    if (!entry.requestBodyFingerprint || !entry.finalWireFingerprint) {
+      return "body_or_identity_drift";
+    }
+    if (
+      entry.requestBodyFingerprint !== call.requestBodyFingerprint ||
+      entry.finalWireFingerprint !== call.finalWireFingerprint
+    ) {
+      return "body_or_identity_drift";
+    }
+    compared += 1;
+  }
+  if (journal.manifestFingerprint === manifestFingerprint) return "exact_fingerprint";
+  if (compared === 0) return "unrelated";
+  if (
+    journal.experimentContinuityFingerprint === discovery.continuityFingerprint ||
+    compared === discovery.calls.length
+  ) {
+    return "sha_only_rotation";
+  }
+  return "unrelated";
 }
 
 export function paidRunnerRequestBodyFingerprint(body: Record<string, unknown>): string {
@@ -581,9 +677,17 @@ export function evaluatePaidRunnerAuthorization(
   return { authorized: true, providerPosts: 0 };
 }
 
-export function createPaidRunnerJournal(manifestFingerprint: string): PaidRunnerJournal {
+export function createPaidRunnerJournal(
+  manifestFingerprint: string,
+  extras?: {
+    identityHash?: string;
+    experimentContinuityFingerprint?: string;
+  }
+): PaidRunnerJournal {
   return {
     manifestFingerprint,
+    identityHash: extras?.identityHash,
+    experimentContinuityFingerprint: extras?.experimentContinuityFingerprint,
     entries: [],
     executedManifestFingerprints: [],
   };
@@ -595,10 +699,14 @@ export type PaidRunnerJournalLock = {
 
 export type PaidRunnerJournalStore = {
   kind: "memory" | "file";
-  load(manifestFingerprint: string): PaidRunnerJournal | null;
+  load(
+    manifestFingerprint: string,
+    discovery?: PaidRunnerJournalDiscovery
+  ): PaidRunnerJournal | null;
   persist(journal: PaidRunnerJournal): void;
   tryAcquireExclusiveLock(
-    manifestFingerprint: string
+    manifestFingerprint: string,
+    continuityFingerprint?: string
   ):
     | { ok: true; lock: PaidRunnerJournalLock }
     | { ok: false; reason: "CONCURRENT_LAUNCH" | "JOURNAL_STORE_UNAVAILABLE" };
@@ -609,17 +717,33 @@ const memoryLaunchLocks = new Map<string, true>();
 function clonePaidRunnerJournal(journal: PaidRunnerJournal): PaidRunnerJournal {
   return {
     manifestFingerprint: journal.manifestFingerprint,
+    identityHash: journal.identityHash,
+    experimentContinuityFingerprint: journal.experimentContinuityFingerprint,
     entries: journal.entries.map((entry) => ({ ...entry })),
     executedManifestFingerprints: [...journal.executedManifestFingerprints],
   };
 }
 
-function journalJsonIsPublicSafe(journal: PaidRunnerJournal): void {
-  const json = JSON.stringify({
+function journalPublicPayload(journal: PaidRunnerJournal): {
+  manifestFingerprint: string;
+  identityHash?: string;
+  experimentContinuityFingerprint?: string;
+  entries: PaidRunnerJournalEntry[];
+  executedManifestFingerprints: string[];
+} {
+  return {
     manifestFingerprint: journal.manifestFingerprint,
+    ...(journal.identityHash ? { identityHash: journal.identityHash } : {}),
+    ...(journal.experimentContinuityFingerprint
+      ? { experimentContinuityFingerprint: journal.experimentContinuityFingerprint }
+      : {}),
     entries: journal.entries,
     executedManifestFingerprints: journal.executedManifestFingerprints,
-  });
+  };
+}
+
+function journalJsonIsPublicSafe(journal: PaidRunnerJournal): void {
+  const json = JSON.stringify(journalPublicPayload(journal));
   if (/sk-[a-zA-Z0-9]{10,}|rpq-paid-|Authorization|Bearer /i.test(json)) {
     throw new Error("JOURNAL_CONTAINS_SECRET");
   }
@@ -641,6 +765,101 @@ function fileJournalPath(directory: string, fingerprint: string): string {
   return path.join(directory, `rp-quality-paid-journal-${fingerprint}.json`);
 }
 
+function exclusiveLockKeys(
+  manifestFingerprint: string,
+  continuityFingerprint?: string
+): string[] {
+  if (continuityFingerprint && continuityFingerprint !== manifestFingerprint) {
+    return [continuityFingerprint, manifestFingerprint];
+  }
+  return [manifestFingerprint];
+}
+
+const FILE_JOURNAL_NAME_RE = /^rp-quality-paid-journal-([a-f0-9]{64})\.json$/;
+
+function readFilePaidRunnerJournal(file: string): PaidRunnerJournal {
+  let parsed: PaidRunnerJournal;
+  try {
+    parsed = JSON.parse(readFileSync(file, "utf8")) as PaidRunnerJournal;
+  } catch {
+    throw new Error("CORRUPT_JOURNAL");
+  }
+  if (!parsed || typeof parsed.manifestFingerprint !== "string" || !Array.isArray(parsed.entries)) {
+    throw new Error("CORRUPT_JOURNAL");
+  }
+  return clonePaidRunnerJournal(parsed);
+}
+
+function discoverFilePaidRunnerJournal(
+  directory: string,
+  manifestFingerprint: string,
+  discovery: PaidRunnerJournalDiscovery
+): PaidRunnerJournal | null {
+  let adopted: PaidRunnerJournal | null = null;
+  for (const name of readdirSync(directory)) {
+    const match = FILE_JOURNAL_NAME_RE.exec(name);
+    if (!match) continue;
+    if (match[1] === manifestFingerprint) continue;
+    const parsed = readFilePaidRunnerJournal(path.join(directory, name));
+    const verdict = classifyPaidRunnerJournalContinuity(parsed, discovery, manifestFingerprint);
+    if (verdict === "body_or_identity_drift") {
+      throw new Error("BODY_DRIFT");
+    }
+    if (verdict !== "sha_only_rotation") continue;
+    if (adopted && adopted.manifestFingerprint !== parsed.manifestFingerprint) {
+      throw new Error("JOURNAL_FINGERPRINT_MISMATCH");
+    }
+    adopted = parsed;
+  }
+  return adopted;
+}
+
+function acquireFileJournalLock(
+  directory: string,
+  fingerprint: string
+):
+  | { ok: true; lock: PaidRunnerJournalLock; lockPath: string }
+  | { ok: false; reason: "CONCURRENT_LAUNCH" | "JOURNAL_STORE_UNAVAILABLE" } {
+  try {
+    mkdirSync(directory, { recursive: true });
+    const lockPath = `${fileJournalPath(directory, fingerprint)}.lock`;
+    if (existsSync(lockPath)) {
+      const pid = Number(readFileSync(lockPath, "utf8").trim());
+      if (Number.isInteger(pid) && pid > 0 && isProcessAlive(pid)) {
+        return { ok: false, reason: "CONCURRENT_LAUNCH" };
+      }
+      try {
+        unlinkSync(lockPath);
+      } catch {
+        return { ok: false, reason: "CONCURRENT_LAUNCH" };
+      }
+    }
+    const fd = openSync(lockPath, "wx");
+    try {
+      writeFileSync(fd, `${process.pid}\n`);
+    } finally {
+      closeSync(fd);
+    }
+    return {
+      ok: true,
+      lockPath,
+      lock: {
+        release() {
+          try {
+            unlinkSync(lockPath);
+          } catch {
+            /* lock already released */
+          }
+        },
+      },
+    };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EEXIST") return { ok: false, reason: "CONCURRENT_LAUNCH" };
+    return { ok: false, reason: "JOURNAL_STORE_UNAVAILABLE" };
+  }
+}
+
 export function createMemoryPaidRunnerJournalStore(
   seed?: PaidRunnerJournal
 ): PaidRunnerJournalStore {
@@ -655,20 +874,23 @@ export function createMemoryPaidRunnerJournalStore(
       current = clonePaidRunnerJournal(journal);
       if (seed) {
         seed.manifestFingerprint = current.manifestFingerprint;
+        seed.identityHash = current.identityHash;
+        seed.experimentContinuityFingerprint = current.experimentContinuityFingerprint;
         seed.entries = current.entries.map((entry) => ({ ...entry }));
         seed.executedManifestFingerprints = [...current.executedManifestFingerprints];
       }
     },
-    tryAcquireExclusiveLock(manifestFingerprint) {
-      if (memoryLaunchLocks.has(manifestFingerprint)) {
+    tryAcquireExclusiveLock(manifestFingerprint, continuityFingerprint) {
+      const keys = exclusiveLockKeys(manifestFingerprint, continuityFingerprint);
+      if (keys.some((key) => memoryLaunchLocks.has(key))) {
         return { ok: false, reason: "CONCURRENT_LAUNCH" };
       }
-      memoryLaunchLocks.set(manifestFingerprint, true);
+      for (const key of keys) memoryLaunchLocks.set(key, true);
       return {
         ok: true,
         lock: {
           release() {
-            memoryLaunchLocks.delete(manifestFingerprint);
+            for (const key of keys) memoryLaunchLocks.delete(key);
           },
         },
       };
@@ -708,19 +930,27 @@ export function createFilePaidRunnerJournalStore(directory: string): PaidRunnerJ
   probePaidRunnerJournalDirectory(directory);
   return {
     kind: "file",
-    load(manifestFingerprint) {
+    load(manifestFingerprint, discovery) {
       const file = fileJournalPath(directory, manifestFingerprint);
-      if (!existsSync(file)) return null;
-      let parsed: PaidRunnerJournal;
-      try {
-        parsed = JSON.parse(readFileSync(file, "utf8")) as PaidRunnerJournal;
-      } catch {
-        throw new Error("CORRUPT_JOURNAL");
+      if (existsSync(file)) {
+        const parsed = readFilePaidRunnerJournal(file);
+        if (parsed.manifestFingerprint !== manifestFingerprint) {
+          throw new Error("JOURNAL_FINGERPRINT_MISMATCH");
+        }
+        if (discovery) {
+          const verdict = classifyPaidRunnerJournalContinuity(
+            parsed,
+            discovery,
+            manifestFingerprint
+          );
+          if (verdict === "body_or_identity_drift") {
+            throw new Error("BODY_DRIFT");
+          }
+        }
+        return parsed;
       }
-      if (!parsed || parsed.manifestFingerprint !== manifestFingerprint || !Array.isArray(parsed.entries)) {
-        throw new Error(parsed?.manifestFingerprint !== manifestFingerprint ? "JOURNAL_FINGERPRINT_MISMATCH" : "CORRUPT_JOURNAL");
-      }
-      return clonePaidRunnerJournal(parsed);
+      if (!discovery) return null;
+      return discoverFilePaidRunnerJournal(directory, manifestFingerprint, discovery);
     },
     persist(journal) {
       probePaidRunnerJournalDirectory(directory);
@@ -729,15 +959,7 @@ export function createFilePaidRunnerJournalStore(directory: string): PaidRunnerJ
       const tmp = `${dest}.${process.pid}.${Date.now()}.tmp`;
       const fd = openSync(tmp, "w", 0o600);
       try {
-        writeFileSync(
-          fd,
-          `${JSON.stringify({
-            manifestFingerprint: journal.manifestFingerprint,
-            entries: journal.entries,
-            executedManifestFingerprints: journal.executedManifestFingerprints,
-          })}\n`,
-          "utf8"
-        );
+        writeFileSync(fd, `${JSON.stringify(journalPublicPayload(journal))}\n`, "utf8");
         fsyncSync(fd);
       } finally {
         closeSync(fd);
@@ -760,44 +982,25 @@ export function createFilePaidRunnerJournalStore(directory: string): PaidRunnerJ
         closeSync(dirFd);
       }
     },
-    tryAcquireExclusiveLock(manifestFingerprint) {
-      try {
-        mkdirSync(directory, { recursive: true });
-        const lockPath = `${fileJournalPath(directory, manifestFingerprint)}.lock`;
-        if (existsSync(lockPath)) {
-          const pid = Number(readFileSync(lockPath, "utf8").trim());
-          if (Number.isInteger(pid) && pid > 0 && isProcessAlive(pid)) {
-            return { ok: false, reason: "CONCURRENT_LAUNCH" };
-          }
-          try {
-            unlinkSync(lockPath);
-          } catch {
-            return { ok: false, reason: "CONCURRENT_LAUNCH" };
-          }
+    tryAcquireExclusiveLock(manifestFingerprint, continuityFingerprint) {
+      const keys = exclusiveLockKeys(manifestFingerprint, continuityFingerprint);
+      const acquired: PaidRunnerJournalLock[] = [];
+      for (const key of keys) {
+        const next = acquireFileJournalLock(directory, key);
+        if (!next.ok) {
+          for (const lock of acquired.reverse()) lock.release();
+          return next;
         }
-        const fd = openSync(lockPath, "wx");
-        try {
-          writeFileSync(fd, `${process.pid}\n`);
-        } finally {
-          closeSync(fd);
-        }
-        return {
-          ok: true,
-          lock: {
-            release() {
-              try {
-                unlinkSync(lockPath);
-              } catch {
-                /* lock already released */
-              }
-            },
-          },
-        };
-      } catch (error) {
-        const code = (error as NodeJS.ErrnoException).code;
-        if (code === "EEXIST") return { ok: false, reason: "CONCURRENT_LAUNCH" };
-        return { ok: false, reason: "JOURNAL_STORE_UNAVAILABLE" };
+        acquired.push(next.lock);
       }
+      return {
+        ok: true,
+        lock: {
+          release() {
+            for (const lock of acquired.reverse()) lock.release();
+          },
+        },
+      };
     },
   };
 }
@@ -887,6 +1090,115 @@ export function journalCanStartNextCall(
     return { ok: false, reason: "PRIOR_CALL_UNRESOLVED" };
   }
   return { ok: true };
+}
+
+export function journalEntryMatchesSealedCall(
+  entry: PaidRunnerJournalEntry,
+  call: PaidRunnerPublicCall
+): boolean {
+  return (
+    entry.requestOrder === call.requestOrder &&
+    entry.fixtureId === call.fixtureId &&
+    entry.canonicalId === call.canonicalId &&
+    Boolean(entry.requestBodyFingerprint) &&
+    Boolean(entry.finalWireFingerprint) &&
+    entry.requestBodyFingerprint === call.requestBodyFingerprint &&
+    entry.finalWireFingerprint === call.finalWireFingerprint
+  );
+}
+
+export function journalEntryIsExactSettled(
+  entry: PaidRunnerJournalEntry,
+  call?: PaidRunnerPublicCall
+): boolean {
+  if (entry.status !== "SETTLED") return false;
+  if (entry.settlementSource !== "provider_exact" && entry.settlementSource !== "mock_exact") {
+    return false;
+  }
+  if (call && !journalEntryMatchesSealedCall(entry, call)) return false;
+  return true;
+}
+
+export function journalAllCallsExactSettled(
+  journal: PaidRunnerJournal,
+  calls: readonly PaidRunnerPublicCall[]
+): boolean {
+  return calls.every((call) => {
+    const entry = journal.entries.find((row) => row.requestOrder === call.requestOrder);
+    return Boolean(entry && journalEntryIsExactSettled(entry, call));
+  });
+}
+
+function denialForUnresolvedJournalEntry(
+  entry: PaidRunnerJournalEntry
+): PaidRunnerDenialReason {
+  if (entry.status === "BLOCKED") return entry.blockReason ?? "PRIOR_CALL_UNRESOLVED";
+  if (entry.settlementSource === "missing") return "COST_EVIDENCE_MISSING";
+  if (entry.status === "UNKNOWN_UNRESOLVED" && entry.generationId) {
+    return "RECONCILIATION_FAILED";
+  }
+  return "PRIOR_CALL_UNRESOLVED";
+}
+
+export async function recoverPaidRunnerUnknownSettlements(input: {
+  journal: PaidRunnerJournal;
+  sealedCalls: readonly PaidRunnerSealedCall[];
+  reconcile: {
+    fetchImpl: typeof fetch;
+    keys: PaidRunnerReconcileKeys;
+  };
+}): Promise<{
+  wrote: boolean;
+  stillUnresolved: boolean;
+  denialReason: PaidRunnerDenialReason | null;
+}> {
+  let wrote = false;
+  for (const entry of input.journal.entries) {
+    if (entry.status !== "UNKNOWN_UNRESOLVED") continue;
+    const call = input.sealedCalls.find((row) => row.requestOrder === entry.requestOrder);
+    if (!call || !journalEntryMatchesSealedCall(entry, call)) {
+      return { wrote, stillUnresolved: true, denialReason: "BODY_DRIFT" };
+    }
+    const recovered = await reconcilePaidRunnerUnknownJournalEntry({
+      provider: call.provider,
+      wireModel: call.wireModel,
+      generationId: entry.generationId,
+      providerRequestId: entry.providerRequestId,
+      elapsedMs: entry.elapsedMs ?? 0,
+      fetchImpl: input.reconcile.fetchImpl,
+      keys: input.reconcile.keys,
+    });
+    if (!recovered.ok) {
+      return {
+        wrote,
+        stillUnresolved: true,
+        denialReason:
+          entry.generationId || entry.providerRequestId
+            ? "RECONCILIATION_FAILED"
+            : denialForUnresolvedJournalEntry(entry),
+      };
+    }
+    entry.status = "SETTLED";
+    entry.settlementSource = "provider_exact";
+    entry.billedUsd = recovered.billedUsd;
+    entry.providerRequestId = recovered.requestId;
+    entry.outputAvailability = entry.artifactFingerprint ? "persisted" : "unavailable";
+    wrote = true;
+  }
+  const unresolved = input.journal.entries.find(
+    (entry) =>
+      entry.status === "SENT" ||
+      entry.status === "UNKNOWN_UNRESOLVED" ||
+      entry.status === "FAILED"
+  );
+  if (unresolved) {
+    return {
+      wrote,
+      stillUnresolved: true,
+      denialReason: denialForUnresolvedJournalEntry(unresolved),
+    };
+  }
+  return { wrote, stillUnresolved: false, denialReason: null };
 }
 
 export function markPaidRunnerJournalPrepared(
@@ -1268,7 +1580,19 @@ export async function runPaidRunner(input: {
 }): Promise<PaidRunnerRunResult> {
   const publicResults: PaidRunnerPublicResult[] = [];
   const privateResults: PaidRunnerPrivateResult[] = [];
-  const emptyJournal = input.journal ?? createPaidRunnerJournal(input.manifest.manifestFingerprint);
+  const manifestDraft = paidRunnerManifestDraft(input.manifest);
+  const continuityFingerprint = paidRunnerExperimentContinuityFingerprint(manifestDraft);
+  const discovery: PaidRunnerJournalDiscovery = {
+    continuityFingerprint,
+    identityHash: input.manifest.identityHash,
+    calls: input.manifest.calls,
+  };
+  const emptyJournal =
+    input.journal ??
+    createPaidRunnerJournal(input.manifest.manifestFingerprint, {
+      identityHash: input.manifest.identityHash,
+      experimentContinuityFingerprint: continuityFingerprint,
+    });
   const closed = (
     partial: Partial<PaidRunnerRunResult> & Pick<PaidRunnerRunResult, "authorized" | "denialReason" | "journal">
   ): PaidRunnerRunResult => ({
@@ -1311,9 +1635,9 @@ export async function runPaidRunner(input: {
     return closed({ authorized: false, denialReason: seal.reason, journal: emptyJournal });
   }
 
-  const canonicalFingerprint = paidRunnerManifestFingerprint(paidRunnerManifestDraft(input.manifest));
+  const canonicalFingerprint = paidRunnerManifestFingerprint(manifestDraft);
   const store = input.journalStore ?? createMemoryPaidRunnerJournalStore(emptyJournal);
-  const lockResult = store.tryAcquireExclusiveLock(canonicalFingerprint);
+  const lockResult = store.tryAcquireExclusiveLock(canonicalFingerprint, continuityFingerprint);
   if (!lockResult.ok) {
     return closed({
       authorized: false,
@@ -1327,7 +1651,7 @@ export async function runPaidRunner(input: {
   try {
     let loaded: PaidRunnerJournal | null = null;
     try {
-      loaded = store.load(canonicalFingerprint);
+      loaded = store.load(canonicalFingerprint, discovery);
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       const denial: PaidRunnerDenialReason =
@@ -1335,7 +1659,9 @@ export async function runPaidRunner(input: {
           ? "JOURNAL_FINGERPRINT_MISMATCH"
           : message === "CORRUPT_JOURNAL"
             ? "CORRUPT_JOURNAL"
-            : "JOURNAL_STORE_UNAVAILABLE";
+            : message === "BODY_DRIFT"
+              ? "BODY_DRIFT"
+              : "JOURNAL_STORE_UNAVAILABLE";
       return closed({
         authorized: false,
         denialReason: denial,
@@ -1344,11 +1670,41 @@ export async function runPaidRunner(input: {
     }
     journal = loaded ?? clonePaidRunnerJournal(emptyJournal);
     if (journal.manifestFingerprint !== canonicalFingerprint) {
-      return closed({
-        authorized: false,
-        denialReason: "JOURNAL_FINGERPRINT_MISMATCH",
+      const verdict = classifyPaidRunnerJournalContinuity(
         journal,
-      });
+        discovery,
+        canonicalFingerprint
+      );
+      if (verdict === "body_or_identity_drift") {
+        return closed({
+          authorized: false,
+          denialReason: "BODY_DRIFT",
+          journal,
+        });
+      }
+      if (verdict !== "sha_only_rotation") {
+        return closed({
+          authorized: false,
+          denialReason: "JOURNAL_FINGERPRINT_MISMATCH",
+          journal,
+        });
+      }
+      journal.identityHash = journal.identityHash ?? input.manifest.identityHash;
+      journal.experimentContinuityFingerprint =
+        journal.experimentContinuityFingerprint ?? continuityFingerprint;
+    } else if (discovery) {
+      const exactVerdict = classifyPaidRunnerJournalContinuity(
+        journal,
+        discovery,
+        canonicalFingerprint
+      );
+      if (exactVerdict === "body_or_identity_drift") {
+        return closed({
+          authorized: false,
+          denialReason: "BODY_DRIFT",
+          journal,
+        });
+      }
     }
 
     const persist = (): PaidRunnerDenialReason | null => {
@@ -1371,13 +1727,74 @@ export async function runPaidRunner(input: {
 
     if (journal.entries.length === 0) {
       markPaidRunnerJournalPrepared(journal, input.manifest.calls);
+      journal.identityHash = journal.identityHash ?? input.manifest.identityHash;
+      journal.experimentContinuityFingerprint =
+        journal.experimentContinuityFingerprint ?? continuityFingerprint;
       const persistFail = persist();
       if (persistFail) {
         return closed({ authorized: false, denialReason: persistFail, journal });
       }
     }
 
+    if (input.reconcile) {
+      const recoveredUnknown = await recoverPaidRunnerUnknownSettlements({
+        journal,
+        sealedCalls: input.sealedCalls,
+        reconcile: input.reconcile,
+      });
+      if (recoveredUnknown.wrote) {
+        const persistFail = persist();
+        if (persistFail) {
+          return closed({ authorized: false, denialReason: persistFail, journal });
+        }
+      }
+      if (recoveredUnknown.stillUnresolved) {
+        return closed({
+          authorized: true,
+          denialReason: recoveredUnknown.denialReason ?? "COST_EVIDENCE_MISSING",
+          journal,
+        });
+      }
+    } else {
+      const unresolved = journal.entries.find(
+        (entry) =>
+          entry.status === "SENT" ||
+          entry.status === "UNKNOWN_UNRESOLVED" ||
+          entry.status === "FAILED"
+      );
+      if (unresolved) {
+        return closed({
+          authorized: true,
+          denialReason: denialForUnresolvedJournalEntry(unresolved),
+          journal,
+        });
+      }
+    }
+
+    if (
+      journal.executedManifestFingerprints.includes(journal.manifestFingerprint) ||
+      journalAllCallsExactSettled(journal, input.manifest.calls)
+    ) {
+      return closed({
+        authorized: true,
+        denialReason: "DUPLICATE_MANIFEST_EXECUTION",
+        journal,
+      });
+    }
+
     for (const sealed of input.sealedCalls) {
+      const existing = journal.entries.find((entry) => entry.requestOrder === sealed.requestOrder);
+      if (existing && journalEntryIsExactSettled(existing, sealed)) {
+        continue;
+      }
+      if (existing && existing.status === "SETTLED" && !journalEntryMatchesSealedCall(existing, sealed)) {
+        persist();
+        return closed({
+          authorized: true,
+          denialReason: "BODY_DRIFT",
+          journal,
+        });
+      }
       const startGate = journalCanStartNextCall(journal, sealed);
       if (!startGate.ok) {
         const existing = journal.entries.find((entry) => entry.requestOrder === sealed.requestOrder);
@@ -1515,6 +1932,7 @@ export async function runPaidRunner(input: {
         elapsedMs,
         artifactFingerprint: fingerprint,
         generationId: result.ok ? result.generationId ?? null : null,
+        outputAvailability: "persisted",
       });
       const persistSettled = persist();
       if (persistSettled) {
