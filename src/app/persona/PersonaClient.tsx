@@ -1040,7 +1040,7 @@ export default function PersonaClient({
             );
           })}
           {notePresets.length === 0 && (
-            <li className="rounded-xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-zinc-500">
+            <li className="rounded-xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-zinc-400">
               저장된 유저 노트가 없습니다. 채팅 설정에서 작성·저장하거나 여기서 추가하세요.
             </li>
           )}
@@ -1185,7 +1185,7 @@ export default function PersonaClient({
             );
           })}
           {statusWidgetPresets.length === 0 && (
-            <li className="rounded-xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-zinc-500">
+            <li className="rounded-xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-zinc-400">
               저장된 상태창이 없습니다. 아래에서 새로 만들 수 있습니다.
             </li>
           )}

@@ -117,7 +117,7 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
             >
               {loading ? "처리 중…" : checkedIn ? "오늘 출석 완료 ✓" : "출석 체크"}
             </button>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-zinc-400">
               {checkedIn
                 ? "내일 0시 이후 다시 출석할 수 있어요."
                 : "버튼을 눌러 오늘의 출석 보상을 받으세요."}
