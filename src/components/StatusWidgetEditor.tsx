@@ -539,7 +539,7 @@ function FieldCard({
             value={field.label}
             onChange={(e) => onLabelChange(e.target.value)}
             placeholder="예: 시간, 속마음, 호감도"
-            className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#0b0d14] px-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20"
+            className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#0b0d14] px-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-400 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20"
           />
         </label>
         {key ? (
@@ -568,7 +568,7 @@ function FieldCard({
           onChange={(e) => onInstructionChange(e.target.value)}
           rows={2}
           placeholder="예: 현재 대화 시점의 시간을 24시간 형식으로 작성하세요. 출력 예시: 14:30"
-          className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#0b0d14] px-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20"
+          className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#0b0d14] px-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-400 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20"
         />
       </label>
     </div>

@@ -96,7 +96,7 @@ function SectionHeader({
         </Heading>
       </div>
       {meta ? (
-        <p className="hidden max-w-[15rem] pb-1.5 text-xs leading-5 text-zinc-500 lg:block">{meta.description}</p>
+        <p className="hidden max-w-[15rem] pb-1.5 text-xs leading-5 text-zinc-400 lg:block">{meta.description}</p>
       ) : null}
       <span aria-hidden className="mb-3 hidden h-px min-w-6 flex-1 bg-white/15 sm:block" />
       {headerLink ? (

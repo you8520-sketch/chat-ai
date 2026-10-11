@@ -217,7 +217,7 @@ export default function SidebarRecentChatIcons({
   if (displayEntries.length === 0) {
     if (!showHeader) return null;
     return (
-      <p className="px-1 py-2 text-left text-[11px] text-zinc-600">
+      <p className="px-1 py-2 text-left text-[11px] text-zinc-400">
         아직 최근 활동이 없습니다.
       </p>
     );

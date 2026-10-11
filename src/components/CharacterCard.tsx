@@ -56,7 +56,7 @@ function creatorNameBadgeStyle(tier: CreatorTierLevel | null | undefined): Creat
   switch (tier) {
     case "sprout":
       return {
-        byClassName: "text-emerald-600/80",
+        byClassName: "text-emerald-500",
         nameClassName: "font-medium text-emerald-400/90",
         label: "새싹 크리에이터",
       };
@@ -74,7 +74,7 @@ function creatorNameBadgeStyle(tier: CreatorTierLevel | null | undefined): Creat
       };
     default:
       return {
-        byClassName: "text-zinc-500",
+        byClassName: "text-zinc-400/80",
         nameClassName: "font-medium text-zinc-400",
       };
   }
@@ -136,7 +136,7 @@ function cardView(c: CharacterRow, blurNsfw: boolean, loggedIn: boolean): CardVi
     creatorHref: c.creator_id != null && Number(c.creator_id) > 0 ? `/creator/${c.creator_id}` : null,
     creatorStyle: c.creator_site_managed
       ? {
-          byClassName: "text-violet-500/80",
+          byClassName: "text-violet-400/90",
           nameClassName: "font-semibold text-violet-200",
           label: "공식",
         }
@@ -197,14 +197,14 @@ function CreatorLine({ view, className, byClassName }: { view: CardView; classNa
     return (
       <Link
         href={view.creatorHref}
-        className={cn("line-clamp-1 text-[10px] transition hover:text-violet-200", creatorStyle.nameClassName, className)}
+        className={cn("line-clamp-1 text-[11px] transition hover:text-violet-200", creatorStyle.nameClassName, className)}
         title={`${view.creatorName} 프로필`}
       >
         {inner}
       </Link>
     );
   }
-  return <p className={cn("line-clamp-1 text-[10px]", creatorStyle.nameClassName, className)}>{inner}</p>;
+  return <p className={cn("line-clamp-1 text-[11px]", creatorStyle.nameClassName, className)}>{inner}</p>;
 }
 
 function CardTags({ tags, max, className, tagClassName }: { tags: string[]; max: number; className: string; tagClassName: string }) {
@@ -350,7 +350,7 @@ function HomeCard({
 
       <div className="flex flex-1 flex-col gap-1.5 px-0.5 pt-2.5">
         {variant !== "editorial" && view.genreLabel ? (
-          <p className="line-clamp-1 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">{view.genreLabel}</p>
+          <p className="line-clamp-1 text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-400">{view.genreLabel}</p>
         ) : null}
         <CreatorLine view={view} />
         <Link href={view.href} className="min-w-0">
@@ -372,7 +372,7 @@ function HomeCard({
             tags={view.tags}
             max={variant === "exhibit" ? 4 : 3}
             className="mt-auto flex max-h-[1.75rem] flex-wrap gap-x-2.5 gap-y-1 overflow-hidden pt-1"
-            tagClassName="text-[11px] font-medium text-zinc-500 transition hover:text-zinc-100"
+            tagClassName="text-[11px] font-medium text-zinc-400 transition hover:text-zinc-100"
           />
         ) : null}
       </div>

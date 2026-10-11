@@ -95,7 +95,7 @@ export default function ProfileCommentSection({
 
   return (
     <div className="mt-6 rounded-2xl border border-white/5 bg-[#131626] p-5">
-      <p className="text-xs font-bold text-gray-500">
+      <p className="text-xs font-bold text-zinc-400">
         댓글 {isOwner ? comments.length : publicCount}
         {isOwner && comments.some((c) => c.is_private) && (
           <span className="ml-1 font-normal text-zinc-600">
@@ -112,7 +112,7 @@ export default function ProfileCommentSection({
             } ${c.is_blinded ? "opacity-60" : ""}`}
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] text-gray-500">
+              <p className="text-xs text-zinc-400">
                 <span className="font-semibold text-violet-300">{c.author_name}</span>
                 {c.is_private && (
                   <span className="ml-1.5 rounded bg-violet-500/20 px-1.5 py-0.5 text-[9px] font-bold text-violet-300">
@@ -165,11 +165,11 @@ export default function ProfileCommentSection({
           </div>
         ))}
         {comments.length === 0 && (
-          <p className="text-xs text-gray-600">아직 댓글이 없습니다.</p>
+          <p className="text-xs text-zinc-400">아직 댓글이 없습니다.</p>
         )}
       </div>
       {!loggedIn ? (
-        <p className="mt-3 text-xs text-gray-600">로그인 후 댓글을 달 수 있습니다.</p>
+        <p className="mt-3 text-xs text-zinc-400">로그인 후 댓글을 달 수 있습니다.</p>
       ) : canWrite ? (
         <div className="mt-3 space-y-2">
           <div className="flex gap-2">
@@ -195,7 +195,7 @@ export default function ProfileCommentSection({
           </div>
         </div>
       ) : (
-        <p className="mt-3 text-xs text-gray-500">
+        <p className="mt-3 text-xs text-zinc-400">
           {writeBlockedMessage ?? "댓글을 작성할 수 없습니다."}
         </p>
       )}

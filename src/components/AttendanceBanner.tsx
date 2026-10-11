@@ -82,9 +82,9 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
                     : "border-white/10 bg-black/20 text-zinc-400"
               }`}
             >
-              <div className="text-[10px] font-bold sm:text-[11px]">{day}일차</div>
+              <div className="text-[11px] font-bold">{day}일차</div>
               <div className="mt-1 text-lg">{done ? "✓" : isBonus ? "🎁" : "•"}</div>
-              <div className="text-[9px] sm:hidden">
+              <div className="text-[10px] sm:hidden">
                 <span className="block font-bold leading-tight">{reward.base.toLocaleString()}P</span>
                 {reward.bonus > 0 && (
                   <span className="block leading-tight text-violet-100/90">

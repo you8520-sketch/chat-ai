@@ -6084,7 +6084,7 @@ export default function ChatClient({
         <SitePromotionChatNotice promotion={selectedModelSitePromotion} />
         <div className={`flex flex-wrap items-center gap-2 overflow-visible ${leftLayout ? "mb-1" : "mb-1"}`}>
           <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-zinc-400 sm:flex-none">
-            <span className="shrink-0 font-semibold text-zinc-500">AI</span>
+            <span className="shrink-0 font-semibold text-zinc-400">AI</span>
             <select
               value={selectedAI}
               onChange={(e) => void handleSelectedAIChange(e.target.value as SelectedAI)}
@@ -6127,7 +6127,7 @@ export default function ChatClient({
           </button>
           <p
             id="picker-estimate-note"
-            className="w-full text-[10px] leading-tight text-zinc-500"
+            className="w-full text-[11px] leading-tight text-zinc-400"
           >
             {PICKER_ESTIMATE_VARIANCE_NOTE}
           </p>
@@ -6167,7 +6167,7 @@ export default function ChatClient({
               disabled={inputLocked}
               rows={2}
               placeholder="메시지 입력 · 지문은 * * 또는 ( ) · Ctrl+Enter 전송"
-              className="min-h-[3.5rem] flex-1 resize-none rounded-lg border border-white/25 bg-[#1a1a1a] px-3 py-2.5 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-violet-400/60 focus:ring-1 focus:ring-violet-500/35 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[2.75rem] sm:py-2"
+              className="min-h-[3.5rem] flex-1 resize-none rounded-lg border border-white/25 bg-[#1a1a1a] px-3 py-2.5 text-zinc-100 outline-none placeholder:text-zinc-400 focus:border-violet-400/60 focus:ring-1 focus:ring-violet-500/35 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[2.75rem] sm:py-2"
               style={{ fontSize: "calc(var(--font-size-chat) + 0.0625rem)", lineHeight: "var(--line-height-chat)" }}
             />
             <div className="flex shrink-0 flex-col gap-1">
@@ -6209,7 +6209,7 @@ export default function ChatClient({
             >
               {input.length.toLocaleString()} / {CHAT_MESSAGE_MAX.toLocaleString()}자
             </span>
-            <span className="hidden text-[10px] text-zinc-500 min-[576px]:inline"> · Ctrl+Enter 전송</span>
+            <span className="hidden text-[10px] text-zinc-400 min-[576px]:inline"> · Ctrl+Enter 전송</span>
           </p>
         </div>
       </div>
