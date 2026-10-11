@@ -212,6 +212,10 @@ export function assertNeverTrpg(x: never, label: string): never {
   throw new Error(`[TRPG] unhandled ${label}: ${String(x)}`);
 }
 
+export function isTrpgSuccessTier(value: string | null | undefined): value is TrpgSuccessTier {
+  return value != null && (TRPG_SUCCESS_TIERS as readonly string[]).includes(value);
+}
+
 export function isTrpgRoundPhase(value: string): value is TrpgRoundPhase {
   return (TRPG_ROUND_PHASES as readonly string[]).includes(value);
 }
