@@ -1,3 +1,4 @@
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -51,6 +52,43 @@ export const WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET = {
 
 const RAILWAY_PRODUCTION_DB_PATH = "/data/app.db";
 const FULL_SHA = /^[a-f0-9]{40}$/i;
+export const INDEPENDENT_SQLITE_MIN_VERSION = "3.45.2";
+const INDEPENDENT_SQLITE_TIMEOUT_MS = 30_000;
+const INDEPENDENT_SQLITE_MAX_BUFFER = 16_384;
+const INDEPENDENT_SQLITE_CHECKER = `
+import json, sqlite3, sys
+from pathlib import Path
+
+def check(path):
+    resolved = Path(path).resolve()
+    if not resolved.is_file():
+        raise SystemExit("missing")
+    con = sqlite3.connect(resolved.as_uri() + "?mode=ro", uri=True)
+    try:
+        con.execute("PRAGMA query_only=ON")
+        query_only = con.execute("PRAGMA query_only").fetchone()
+        if not query_only or int(query_only[0]) != 1:
+            raise SystemExit("query_only")
+        integrity = [row[0] for row in con.execute("PRAGMA integrity_check")]
+        foreign_key_count = len(list(con.execute("PRAGMA foreign_key_check")))
+        return {"integrity": integrity, "foreign_key_count": foreign_key_count}
+    finally:
+        con.close()
+
+if len(sys.argv) != 3:
+    raise SystemExit("usage")
+print(json.dumps({
+    "sqlite_version": sqlite3.sqlite_version,
+    "live": check(sys.argv[1]),
+    "backup": check(sys.argv[2]),
+}))
+`.trim();
+
+export type IndependentSqliteCheckDeps = {
+  spawn?: typeof spawnSync;
+  pythonPath?: string;
+  timeoutMs?: number;
+};
 
 const STALE_NEEDLES = ["압송", "수갑", "character_plus_required_partner", "플레이어와 함께", "차가운 심문"] as const;
 const CURRENT_PLAN_PATH = path.join(
@@ -248,13 +286,108 @@ function dataFreeBytes(dbPath: string): number | null {
   }
 }
 
-function integrityOk(db: Database.Database): boolean {
-  const value = db.pragma("integrity_check", { simple: true });
-  if (value === "ok") return true;
-  if (value && typeof value === "object" && "integrity_check" in value) {
-    return (value as { integrity_check?: string }).integrity_check === "ok";
+function parseSqliteVersion(value: string): [number, number, number] | null {
+  const match = /^(\d+)\.(\d+)\.(\d+)\b/.exec(value.trim());
+  if (!match) return null;
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function sqliteVersionAtLeast(actual: string, minimum: string): boolean {
+  const left = parseSqliteVersion(actual);
+  const right = parseSqliteVersion(minimum);
+  if (!left || !right) return false;
+  for (let index = 0; index < 3; index += 1) {
+    if (left[index] > right[index]) return true;
+    if (left[index] < right[index]) return false;
   }
-  return false;
+  return true;
+}
+
+export function isPatchedIndependentSqliteVersion(version: string): boolean {
+  return sqliteVersionAtLeast(version, INDEPENDENT_SQLITE_MIN_VERSION);
+}
+
+function sqliteEngineStop(message: string): never {
+  stop("locked_snapshot_sqlite_engine", message);
+}
+
+type IndependentSqliteFileReport = {
+  integrity: unknown;
+  foreign_key_count: unknown;
+};
+
+type IndependentSqliteReport = {
+  sqlite_version: unknown;
+  live: IndependentSqliteFileReport;
+  backup: IndependentSqliteFileReport;
+};
+
+function readIndependentSqliteReport(stdout: string): IndependentSqliteReport {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch {
+    sqliteEngineStop("independent sqlite checker returned non-JSON output");
+  }
+  if (!parsed || typeof parsed !== "object") {
+    sqliteEngineStop("independent sqlite checker returned an invalid report");
+  }
+  const record = parsed as Partial<IndependentSqliteReport>;
+  if (!record.live || !record.backup) {
+    sqliteEngineStop("independent sqlite checker omitted live or backup results");
+  }
+  return record as IndependentSqliteReport;
+}
+
+function assertExactOkIntegrity(label: string, report: IndependentSqliteFileReport): void {
+  if (!Array.isArray(report.integrity) || report.integrity.length !== 1 || report.integrity[0] !== "ok") {
+    stop("locked_snapshot_backup_invalid", `${label} independent sqlite integrity_check is not the sole row ok`);
+  }
+  if (report.foreign_key_count !== 0) {
+    stop("locked_snapshot_backup_invalid", `${label} independent sqlite foreign_key_check is not empty`);
+  }
+}
+
+export function assertIndependentSqliteIntegrity(
+  liveDbPath: string,
+  backupPath: string,
+  deps: IndependentSqliteCheckDeps = {}
+): void {
+  const spawn = deps.spawn ?? spawnSync;
+  const pythonPath = deps.pythonPath ?? "python3";
+  const timeoutMs = deps.timeoutMs ?? INDEPENDENT_SQLITE_TIMEOUT_MS;
+  let result: SpawnSyncReturns<string>;
+  try {
+    result = spawn(pythonPath, ["-I", "-c", INDEPENDENT_SQLITE_CHECKER, liveDbPath, backupPath], {
+      encoding: "utf8",
+      timeout: timeoutMs,
+      maxBuffer: INDEPENDENT_SQLITE_MAX_BUFFER,
+      windowsHide: true,
+      env: { ...process.env, TZ: "UTC" },
+    });
+  } catch {
+    sqliteEngineStop("independent sqlite checker failed to start");
+  }
+  if (result.error?.message.includes("ETIMEDOUT") || result.signal === "SIGTERM") {
+    sqliteEngineStop("independent sqlite checker timed out");
+  }
+  if (result.error) {
+    const code = "code" in result.error ? String(result.error.code) : "";
+    if (code === "ENOENT") sqliteEngineStop("python3 is not available for independent sqlite verification");
+    if (code === "ETIMEDOUT") sqliteEngineStop("independent sqlite checker timed out");
+    sqliteEngineStop("independent sqlite checker failed to start");
+  }
+  if (result.status !== 0) {
+    sqliteEngineStop("independent sqlite checker exited without a trusted report");
+  }
+  const report = readIndependentSqliteReport((result.stdout ?? "").trim());
+  if (typeof report.sqlite_version !== "string" || !parseSqliteVersion(report.sqlite_version)) {
+    sqliteEngineStop(`independent sqlite version ${String(report.sqlite_version)} is unreadable`);
+  }
+  // Hipp ee4f6fa5ab is a false-positive only. Unpatched 3.42.0–3.45.1 may be
+  // trusted when the sole row is already `ok`; any other text still STOPs.
+  assertExactOkIntegrity("live", report.live);
+  assertExactOkIntegrity("backup", report.backup);
 }
 
 function assetRowDigest(rows: AssetInspectRow[]): string {
@@ -262,7 +395,11 @@ function assetRowDigest(rows: AssetInspectRow[]): string {
   return sha256(canonicalJson(rows));
 }
 
-export function assertBackupMatchesLiveSource(backupPath: string, liveDbPath: string): void {
+export function assertBackupMatchesLiveSource(
+  backupPath: string,
+  liveDbPath: string,
+  sqliteCheck: IndependentSqliteCheckDeps = {}
+): void {
   if (!fs.existsSync(backupPath)) {
     stop("locked_snapshot_backup_missing", "apply requires an existing VACUUM INTO snapshot");
   }
@@ -277,6 +414,21 @@ export function assertBackupMatchesLiveSource(backupPath: string, liveDbPath: st
   if (backupReal === liveReal) {
     stop("locked_snapshot_backup_invalid", "backup path must be a distinct file from the live database");
   }
+  let backupStat: fs.Stats;
+  let liveStat: fs.Stats;
+  try {
+    backupStat = fs.statSync(backupReal);
+    liveStat = fs.statSync(liveReal);
+  } catch {
+    stop("locked_snapshot_backup_invalid", "backup or live database path is unreadable");
+  }
+  if (backupStat.dev === liveStat.dev && backupStat.ino === liveStat.ino) {
+    stop("locked_snapshot_backup_invalid", "backup path must be a distinct file from the live database");
+  }
+  if (fs.existsSync(`${backupPath}-wal`) || fs.existsSync(`${backupReal}-wal`)) {
+    stop("locked_snapshot_backup_invalid", "backup must not include a live WAL file");
+  }
+  assertIndependentSqliteIntegrity(liveReal, backupReal, sqliteCheck);
   const live = openOfficialSupplyReadonlyDatabase(liveDbPath);
   let liveCharacter: CharacterInspectRow;
   let liveAssets: AssetInspectRow[];
@@ -289,10 +441,6 @@ export function assertBackupMatchesLiveSource(backupPath: string, liveDbPath: st
   }
   const backup = openOfficialSupplyReadonlyDatabase(backupPath);
   try {
-    if (!integrityOk(backup)) stop("locked_snapshot_backup_invalid", "backup integrity_check is not ok");
-    if (fs.existsSync(`${backupPath}-wal`)) {
-      stop("locked_snapshot_backup_invalid", "backup must not include a live WAL file");
-    }
     const { character, assets, replacements, styleStage, batchStatus } = readTarget(
       backup,
       WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey
@@ -561,6 +709,7 @@ export function applyLockedSnapshot(input: {
   backupPath: string;
   argv: readonly string[];
   env: NodeJS.ProcessEnv;
+  sqliteCheck?: IndependentSqliteCheckDeps;
 }): LockedSnapshotApplyReport {
   if (!isLockedSnapshotApplyAuthorized(input.argv, input.env)) {
     stop("locked_snapshot_apply_forbidden", "apply requires argv apply and OFFICIAL_LOCKED_SNAPSHOT_APPLY=1");
@@ -590,7 +739,7 @@ export function applyLockedSnapshot(input: {
   if (inspect.verdict !== "ready_for_cas" && inspect.verdict !== "already_current") {
     stop("locked_snapshot_qa_failed", "inspect did not authorize apply");
   }
-  assertBackupMatchesLiveSource(input.backupPath, input.dbPath);
+  assertBackupMatchesLiveSource(input.backupPath, input.dbPath, input.sqliteCheck);
   const { nextDraft, nextPlan } = loadApprovedWolfgangV4Source();
   const readonly = openOfficialSupplyReadonlyDatabase(input.dbPath);
   let expectedDraftJson: string;
