@@ -44,6 +44,14 @@ import {
   classifyStoredAppearanceAgainstApprovedLock,
   type StoredAppearanceIdentityClass,
 } from "@/lib/officialSupply/appearance";
+import {
+  applyWolfgangSupplyPlan,
+  assertWolfgangStoredAppearanceCompatible,
+  isWolfgangInPlaceSource,
+  planWolfgangSupply,
+  resolveInPlaceSourceDraftKey,
+  type WolfgangSupplyPlan,
+} from "@/lib/officialSupply/inPlaceWolfgang";
 import { composeOfficialCreatorComment } from "@/lib/officialSupply/publicProfileText";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 import {
@@ -82,6 +90,10 @@ export type OfficialInPlacePreflightSnapshot = {
   targetWorldHash: string;
   targetDisplayCreatorName: string;
   lorebookPlanHash: string;
+  supplyDraftKey?: string;
+  supplyDraftHash?: string;
+  supplyTextLockHash?: string;
+  targetTextLockHash?: string;
   token: string;
 };
 
@@ -496,6 +508,48 @@ function planLucianAppearanceWrite(
   };
 }
 
+function planPreservedAppearanceWrite(
+  row: OfficialCharacterRow,
+  source: ReturnType<typeof loadCompiledOfficialCharacterSource>
+): AppearanceWritePlan {
+  const appearanceClass = assertWolfgangStoredAppearanceCompatible({
+    stored: row.appearance_raw,
+    lock: source.appearanceLock,
+    approvedCompact: source.appearanceBlock,
+  });
+  return {
+    class: appearanceClass,
+    replaceWithCompact: false,
+    nextRaw: row.appearance_raw,
+    nextCompiled: row.appearance_compiled,
+    nextHash: row.appearance_compiled_source_hash,
+    nextVersion: row.appearance_compiled_version,
+  };
+}
+
+function planAppearanceWrite(input: {
+  draftKey: string;
+  row: OfficialCharacterRow;
+  source: ReturnType<typeof loadCompiledOfficialCharacterSource>;
+  preserveStoredFullLock: boolean;
+}): AppearanceWritePlan {
+  if (input.draftKey === LUCIAN_DRAFT_KEY) {
+    return planLucianAppearanceWrite(input.row, input.source);
+  }
+  if (input.preserveStoredFullLock) {
+    return planPreservedAppearanceWrite(input.row, input.source);
+  }
+  assertStoredAppearanceCompatible(input.row, input.source.appearanceBlock);
+  return {
+    class: storedAppearancePrompt(input.row) ? "approved_compact" : "empty",
+    replaceWithCompact: false,
+    nextRaw: input.row.appearance_raw,
+    nextCompiled: input.row.appearance_compiled,
+    nextHash: input.row.appearance_compiled_source_hash,
+    nextVersion: input.row.appearance_compiled_version,
+  };
+}
+
 function snapshotToken(parts: Omit<OfficialInPlacePreflightSnapshot, "token">): string {
   return sha256(
     JSON.stringify({
@@ -520,6 +574,10 @@ function snapshotToken(parts: Omit<OfficialInPlacePreflightSnapshot, "token">): 
       targetWorldHash: parts.targetWorldHash,
       targetDisplayCreatorName: parts.targetDisplayCreatorName,
       lorebookPlanHash: parts.lorebookPlanHash,
+      supplyDraftKey: parts.supplyDraftKey,
+      supplyDraftHash: parts.supplyDraftHash,
+      supplyTextLockHash: parts.supplyTextLockHash,
+      targetTextLockHash: parts.targetTextLockHash,
     })
   );
 }
@@ -539,6 +597,7 @@ function buildPreflightSnapshot(input: {
   };
   lorebookPlan: readonly OfficialInPlaceLorebookPlan[];
   lorebookEntries: readonly OfficialWorldLorebookEntry[];
+  wolfgangSupply: WolfgangSupplyPlan | null;
 }): OfficialInPlacePreflightSnapshot {
   const parts = {
     characterId: input.characterId,
@@ -562,6 +621,14 @@ function buildPreflightSnapshot(input: {
     targetWorldHash: sha256(input.compiled.world),
     targetDisplayCreatorName: input.alias,
     lorebookPlanHash: lorebookTargetFingerprint(input.lorebookPlan, input.lorebookEntries),
+    ...(input.wolfgangSupply
+      ? {
+          supplyDraftKey: input.wolfgangSupply.supplyDraftKey,
+          supplyDraftHash: sha256(input.wolfgangSupply.expectedDraftJson),
+          supplyTextLockHash: input.wolfgangSupply.expectedTextLockHash,
+          targetTextLockHash: input.wolfgangSupply.nextTextLockHash,
+        }
+      : {}),
   };
   return { ...parts, token: snapshotToken(parts) };
 }
@@ -676,6 +743,7 @@ function inspectTarget(input: {
   };
   lorebookPlan: OfficialInPlaceLorebookPlan[];
   supply: SupplyLink;
+  wolfgangSupply: WolfgangSupplyPlan | null;
   appearanceWrite: AppearanceWritePlan;
 } {
   const db = getDb();
@@ -724,11 +792,25 @@ function inspectTarget(input: {
     );
   }
 
-  const supply = requireLucianSupplyLink({
-    db,
-    draftKey: input.draftKey,
-    row,
-  });
+  const wolfgangSupply = isWolfgangInPlaceSource(input.draftKey)
+    ? planWolfgangSupply({
+        db,
+        characterId: row.id,
+        characterName: row.name,
+        source,
+      })
+    : null;
+  const supply: SupplyLink = wolfgangSupply
+    ? {
+        draft_key: wolfgangSupply.supplyDraftKey,
+        staged_character_id: row.id,
+        stage: wolfgangSupply.stage,
+      }
+    : requireLucianSupplyLink({
+        db,
+        draftKey: input.draftKey,
+        row,
+      });
 
   const officialDuplicate = db
     .prepare("SELECT id FROM characters WHERE name=? AND official=1 AND id!=? LIMIT 1")
@@ -770,22 +852,12 @@ function inspectTarget(input: {
     entries: source.resolvedLorebook,
   });
   assertNoSharedLorebookConflict(lorebookPlan);
-  const appearanceWrite =
-    input.draftKey === LUCIAN_DRAFT_KEY
-      ? planLucianAppearanceWrite(row, source)
-      : (() => {
-          assertStoredAppearanceCompatible(row, source.appearanceBlock);
-          return {
-            class: storedAppearancePrompt(row)
-              ? ("approved_compact" as const)
-              : ("empty" as const),
-            replaceWithCompact: false,
-            nextRaw: row.appearance_raw,
-            nextCompiled: row.appearance_compiled,
-            nextHash: row.appearance_compiled_source_hash,
-            nextVersion: row.appearance_compiled_version,
-          };
-        })();
+  const appearanceWrite = planAppearanceWrite({
+    draftKey: input.draftKey,
+    row,
+    source,
+    preserveStoredFullLock: wolfgangSupply != null,
+  });
 
   const genres = sanitizeCharacterGenres(source.draft.genres);
   const compiled = {
@@ -821,6 +893,7 @@ function inspectTarget(input: {
     compiled,
     lorebookPlan,
     supply,
+    wolfgangSupply,
     appearanceWrite,
   };
 }
@@ -831,7 +904,7 @@ function toResult(input: {
   applied: boolean;
   lorebookKeys?: string[];
 }): OfficialInPlaceSyncResult {
-  const { row, source, compiled, alias, attachedIds, beforeKeys, assetsJson, lorebookPlan, appearanceWrite } =
+  const { row, source, compiled, alias, attachedIds, beforeKeys, assetsJson, lorebookPlan, appearanceWrite, wolfgangSupply } =
     input.inspected;
   const preflightSnapshot = buildPreflightSnapshot({
     characterId: row.id,
@@ -843,6 +916,7 @@ function toResult(input: {
     compiled,
     lorebookPlan,
     lorebookEntries: source.resolvedLorebook,
+    wolfgangSupply,
   });
   const after = {
     tagline: compiled.tagline,
@@ -882,6 +956,7 @@ function toResult(input: {
       ["creator_name", before.creatorName !== after.creatorName],
       ["lorebook", JSON.stringify(before.lorebookKeys) !== JSON.stringify(after.lorebookKeys)],
       ["appearance", appearanceWrite.replaceWithCompact],
+      ["supply_text_lock", wolfgangSupply?.state === "previous_lock"],
     ] as const
   )
     .filter(([, changed]) => changed)
@@ -911,7 +986,8 @@ function applyGuardedCanonicalFields(input: {
   inspected: ReturnType<typeof inspectTarget>;
   testInjectFailure?: OfficialInPlaceTestInjectFailure;
 }): { id: number; entryKey: string }[] {
-  const { row, owner, source, compiled, alias, lorebookPlan, supply, appearanceWrite } = input.inspected;
+  const { row, owner, source, compiled, alias, lorebookPlan, supply, appearanceWrite, wolfgangSupply } =
+    input.inspected;
   const existingTriggers = sqliteTableExists(input.db, "status_widget_triggers")
     ? listCharacterStatusWidgetTriggers(input.db, row.id)
     : [];
@@ -1059,7 +1135,9 @@ function applyGuardedCanonicalFields(input: {
     });
     enqueueCharacterDerivedRefreshJob(input.db, row.id);
 
-    if (sqliteTableExists(input.db, "official_supply_characters")) {
+    if (wolfgangSupply) {
+      applyWolfgangSupplyPlan(input.db, wolfgangSupply);
+    } else if (sqliteTableExists(input.db, "official_supply_characters")) {
       const supplyWrite = input.db
         .prepare(
           `UPDATE official_supply_characters
@@ -1096,7 +1174,7 @@ export async function syncOfficialCharacterInPlace(input: {
     throw new OfficialSupplyGateError("test_hook_forbidden", "testInjectFailure is test-only");
   }
 
-  const draftKey = input.draftKey?.trim() || LUCIAN_DRAFT_KEY;
+  const draftKey = resolveInPlaceSourceDraftKey(input.draftKey?.trim() || LUCIAN_DRAFT_KEY);
   const db = getDb();
   const inspectInput = {
     admin: input.admin,

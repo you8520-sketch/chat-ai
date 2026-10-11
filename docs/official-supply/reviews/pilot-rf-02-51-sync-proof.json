@@ -1,0 +1,77 @@
+{
+  "dryRun": {
+    "changedFields": [
+      "system_prompt",
+      "supply_text_lock"
+    ],
+    "writesNothing": true,
+    "token": "168b00d43bd5d611"
+  },
+  "apply": {
+    "changedFields": [
+      "system_prompt",
+      "supply_text_lock"
+    ],
+    "applied": true,
+    "sameCharacterId": true,
+    "createdNewCharacter": false,
+    "notifiedFollowers": false
+  },
+  "textLock": {
+    "supplyBefore": "6ff02833cfd45a542866aa1afa749486d94362eff5358e10f995b8f77fabd5fd",
+    "supplyAfter": "c91ba66ab5cd45976c53c4298a7c355fbb286e3f761758d3a6cd5ce14f993dc9",
+    "storedDraftHashAfter": "c91ba66ab5cd45976c53c4298a7c355fbb286e3f761758d3a6cd5ce14f993dc9",
+    "stage": "staged_private",
+    "stagedCharacterId": 51,
+    "draftKeyAfter": "pilot-rf-v4-02",
+    "styleKeyAfter": "romance_fantasy_v4"
+  },
+  "preserved": {
+    "official": [
+      0,
+      0
+    ],
+    "visibility": [
+      "private",
+      "private"
+    ],
+    "assetsSame": true,
+    "imagesSame": true,
+    "appearanceRawSame": true,
+    "appearanceCompiledSame": true,
+    "appearanceHashSame": true,
+    "assetCount": 14,
+    "lorebooksSame": true,
+    "attachmentIdsAndOrderSame": true,
+    "attachmentCountFor51": 8,
+    "supplyAssetRowsSame": true,
+    "siblingCharacter50Same": true,
+    "characterCountSame": true,
+    "supplyOtherColumnsSame": true
+  },
+  "manuscript": {
+    "systemPromptCharsBefore": 7776,
+    "systemPromptCharsAfter": 5445,
+    "equalsCompiledSource": true
+  },
+  "secrets": {
+    "removedCount": 6,
+    "newSecretCount": 2,
+    "removedPresentInBuildBefore": 5,
+    "removedPresentInBuildAfter": 0,
+    "newSecretsPresentInBuildAfter": 2
+  },
+  "retiredNamesInBuildAfter": [],
+  "buildContext": {
+    "charsBefore": 17482,
+    "charsAfter": 16001,
+    "sha256After": "1ecc46d4c836595ec6a2a71c3a8fcdb16a3a47e601d363e1048de0967f9fcad8"
+  },
+  "derivedJobs": [
+    {
+      "job_kind": "character_derived_refresh",
+      "status": "pending",
+      "entity_id": 51
+    }
+  ]
+}
