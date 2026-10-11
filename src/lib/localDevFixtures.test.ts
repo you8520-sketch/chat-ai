@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import Database from "better-sqlite3";
+
 import { getDb } from "@/lib/db";
 import { listableWhere } from "@/lib/characterVisibility";
 import {
@@ -28,9 +30,34 @@ describe("local UI fixtures", () => {
     assert.equal(shouldInstallLocalUiFixtures(), false);
   });
 
+  it("installs only when opted in during development", () => {
+    const prevFlag = process.env.HAV_LOCAL_UI_FIXTURES;
+    const prevNode = process.env.NODE_ENV;
+    try {
+      process.env.HAV_LOCAL_UI_FIXTURES = "1";
+      process.env.NODE_ENV = "production";
+      assert.equal(shouldInstallLocalUiFixtures(), false);
+    } finally {
+      if (prevFlag === undefined) delete process.env.HAV_LOCAL_UI_FIXTURES;
+      else process.env.HAV_LOCAL_UI_FIXTURES = prevFlag;
+      if (prevNode === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = prevNode;
+    }
+  });
+
+  it("fails before serving when required tables are missing", () => {
+    const empty = new Database(":memory:");
+    assert.throws(() => ensureLocalUiFixtures(empty), /require migrated/);
+    empty.close();
+  });
+
   it("installs official public rows and synthetic density without duplicating", () => {
     const db = getDb();
     const first = ensureLocalUiFixtures(db, { allowNetwork: false });
+    db.prepare("UPDATE characters SET description=? WHERE id=?").run(
+      "LOCAL-EDIT-MUST-SURVIVE-REINSTALL",
+      LOCAL_DRAFT_ID
+    );
     const second = ensureLocalUiFixtures(db, { allowNetwork: false });
 
     assert.equal(first.officialIds.length, 2);
@@ -67,6 +94,27 @@ describe("local UI fixtures", () => {
     assert.equal(kangRow?.official, 0);
     assert.equal(lucianRow?.official, 1);
     assert.ok(published.every((row) => row.visibility === "public" && row.creator_id != null));
+
+    const kangCreator = db
+      .prepare("SELECT site_managed FROM users WHERE id=?")
+      .get(kangRow!.creator_id) as { site_managed: number };
+    const lucianCreator = db
+      .prepare("SELECT site_managed FROM users WHERE id=?")
+      .get(lucianRow!.creator_id) as { site_managed: number };
+    assert.equal(kangCreator.site_managed, 0);
+    assert.equal(lucianCreator.site_managed, 1);
+
+    const newestOfficialZero = db
+      .prepare(
+        `SELECT id FROM characters WHERE ${listableWhere("official=0")} ORDER BY created_at DESC, id DESC LIMIT 1`
+      )
+      .get() as { id: number };
+    assert.equal(newestOfficialZero.id, LOCAL_KANG_ID);
+
+    const editedDraft = db.prepare("SELECT description FROM characters WHERE id=?").get(LOCAL_DRAFT_ID) as {
+      description: string;
+    };
+    assert.equal(editedDraft.description, "LOCAL-EDIT-MUST-SURVIVE-REINSTALL");
 
     const listable = db
       .prepare(`SELECT COUNT(*) AS c FROM characters WHERE ${listableWhere()}`)

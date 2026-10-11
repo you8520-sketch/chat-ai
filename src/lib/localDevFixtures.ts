@@ -5,7 +5,7 @@ import path from "node:path";
 
 import type Database from "better-sqlite3";
 
-import { getDataDir, isProductionRuntime } from "@/lib/dataDir";
+import { getDataDir } from "@/lib/dataDir";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
 
 export const LOCAL_UI_FIXTURES_META_KEY = "local_ui_parity_fixtures_v1";
@@ -79,7 +79,7 @@ const STUDIO_USERS: FixtureUser[] = [
     nickname: "공식계정",
     password: null,
     isAdmin: false,
-    siteManaged: true,
+    siteManaged: false,
     isAdult: true,
   },
   {
@@ -111,12 +111,57 @@ function isTransientTestDataDir(dir: string): boolean {
 
 export function shouldInstallLocalUiFixtures(): boolean {
   if (process.env.HAV_LOCAL_UI_FIXTURES !== "1") return false;
-  if (process.env.NODE_ENV === "test") return false;
-  if (isProductionRuntime()) return false;
+  if (process.env.NODE_ENV !== "development") return false;
   const dataDir = path.resolve(getDataDir());
   if (dataDir === "/data") return false;
   if (isTransientTestDataDir(dataDir)) return false;
   return true;
+}
+
+function fixturesAlreadyInstalled(db: Database.Database): boolean {
+  if (!tableExists(db, "app_meta")) return false;
+  const row = db
+    .prepare("SELECT value FROM app_meta WHERE key=?")
+    .get(LOCAL_UI_FIXTURES_META_KEY) as { value: string } | undefined;
+  return row?.value === "1";
+}
+
+function collectInstalledResult(db: Database.Database): LocalUiFixtureInstallResult {
+  const users: Record<string, number> = {};
+  for (const user of [...LOGIN_USERS, ...STUDIO_USERS]) {
+    const row = db.prepare("SELECT id FROM users WHERE email=?").get(user.email) as
+      | { id: number }
+      | undefined;
+    if (row) users[user.email] = row.id;
+  }
+
+  const syntheticIds: number[] = [];
+  for (let i = 0; i < LOCAL_SYNTHETIC_COUNT; i += 1) {
+    const id = LOCAL_SYNTHETIC_ID_START + i;
+    const row = db.prepare("SELECT id FROM characters WHERE id=?").get(id) as { id: number } | undefined;
+    if (row) syntheticIds.push(id);
+  }
+
+  const imageUrls: string[] = [];
+  for (const id of [LOCAL_KANG_ID, LOCAL_LUCIAN_ID]) {
+    const row = db.prepare("SELECT images FROM characters WHERE id=?").get(id) as
+      | { images: string }
+      | undefined;
+    if (!row?.images) continue;
+    try {
+      const parsed = JSON.parse(row.images) as unknown;
+      if (Array.isArray(parsed) && typeof parsed[0] === "string") imageUrls.push(parsed[0]);
+    } catch {
+      // Presentation URL is optional on the skip path.
+    }
+  }
+
+  return {
+    users,
+    officialIds: [LOCAL_KANG_ID, LOCAL_LUCIAN_ID],
+    syntheticIds,
+    imageUrls,
+  };
 }
 
 function hashPassword(pw: string): string {
@@ -400,6 +445,10 @@ export function ensureLocalUiFixtures(
     throw new Error("local UI fixtures require migrated users/characters/app_meta");
   }
 
+  if (fixturesAlreadyInstalled(db)) {
+    return collectInstalledResult(db);
+  }
+
   const users: Record<string, number> = {};
   for (const user of [...LOGIN_USERS, ...STUDIO_USERS]) {
     users[user.email] = upsertUser(db, user);
@@ -424,7 +473,7 @@ export function ensureLocalUiFixtures(
       "너는 공개된 공식 캐릭터 강이현이다. 아포칼립스의 루트 브로커로 짧게 대답한다. 로컬 UI 검증용 공개 메타데이터만 사용한다.",
     genre: "아포칼립스",
     genres: ["아포칼립스"],
-    tags: ["공식", "아포칼립스"],
+    tags: ["아포칼립스"],
     nsfw: 0,
     official: 0,
     creatorId: officialStudioId,
@@ -469,7 +518,7 @@ export function ensureLocalUiFixtures(
   for (let i = 0; i < LOCAL_SYNTHETIC_COUNT; i += 1) {
     const id = LOCAL_SYNTHETIC_ID_START + i;
     const genre = SYNTHETIC_GENRES[i % SYNTHETIC_GENRES.length]!;
-    const dayOffset = i;
+    const dayOffset = i + 1;
     upsertCharacter(db, {
       id,
       name: `로컬 신작 ${String(i + 1).padStart(2, "0")}`,
@@ -497,6 +546,8 @@ export function ensureLocalUiFixtures(
     });
     syntheticIds.push(id);
   }
+
+  db.prepare(`UPDATE characters SET created_at=datetime('now') WHERE id=?`).run(LOCAL_KANG_ID);
 
   upsertCharacter(db, {
     id: LOCAL_DRAFT_ID,

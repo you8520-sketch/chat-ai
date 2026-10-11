@@ -30,9 +30,11 @@ Windows + WSL machine path that reuses them.
 - Windows `npm.cmd` / `dev-server.mdc` port-kill is Windows-only. On WSL use
   `npm run dev` and stop the existing process before a second bind on 3000.
 - For homepage / ranking / official-card UI parity, set gitignored
-  `HAV_LOCAL_UI_FIXTURES=1`. `src/lib/db.ts` then reuses `seed()` and installs
-  official public presentation rows plus synthetic local accounts. Repeat
-  installs are idempotent. Do not copy Railway `/data`.
+  `HAV_LOCAL_UI_FIXTURES=1` in development only. `src/lib/db.ts` then reuses
+  `seed()` and installs official public presentation rows plus synthetic local
+  accounts once (`app_meta.local_ui_parity_fixtures_v1`). Later boots reuse that
+  marker and do not overwrite local edits. A failed opted-in install aborts
+  startup. Do not copy Railway `/data`.
 - Local login accounts (`.invalid` only, not production credentials):
   - `local-user@hav.invalid` / `hav-local-dev`
   - `local-admin@hav.invalid` / `hav-local-dev`

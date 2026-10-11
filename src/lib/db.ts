@@ -351,11 +351,7 @@ function init(db: Database.Database) {
   migrate(db);
   seed(db);
   if (shouldInstallLocalUiFixtures()) {
-    try {
-      ensureLocalUiFixtures(db);
-    } catch (error) {
-      console.error("[local-ui-fixtures] install failed", error);
-    }
+    ensureLocalUiFixtures(db);
   }
 }
 
