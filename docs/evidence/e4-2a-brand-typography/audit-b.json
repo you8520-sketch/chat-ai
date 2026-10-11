@@ -1,0 +1,820 @@
+{
+ "home-390": {
+  "n": 138,
+  "sizes": {
+   "9": 4,
+   "10": 49,
+   "11": 31,
+   "12": 29,
+   "14": 3,
+   "16": 7,
+   "18": 1,
+   "19": 6,
+   "26": 2,
+   "48": 4,
+   "56": 2
+  },
+  "lowCount": 36,
+  "lowSample": [
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 3.72
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 3.72
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 3.72
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 3.72
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 3.72
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 3.72
+   }
+  ],
+  "overflowX": 0,
+  "url": "/",
+  "title": "추천 캐릭터",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:6"
+   ],
+   "p": [
+    "Pretendard Variable*:5"
+   ],
+   "button": []
+  }
+ },
+ "new-390": {
+  "n": 80,
+  "sizes": {
+   "9": 3,
+   "10": 22,
+   "11": 33,
+   "12": 6,
+   "13": 6,
+   "17": 7,
+   "26": 1,
+   "48": 2
+  },
+  "lowCount": 1,
+  "lowSample": [
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/tab/new",
+  "title": "실시간 신작",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:6"
+   ],
+   "p": [
+    "Pretendard Variable*:2"
+   ],
+   "button": []
+  }
+ },
+ "search-390": {
+  "n": 131,
+  "sizes": {
+   "9": 3,
+   "10": 29,
+   "11": 33,
+   "12": 6,
+   "13": 9,
+   "14": 41,
+   "17": 7,
+   "26": 1,
+   "48": 2
+  },
+  "lowCount": 2,
+  "lowSample": [
+   {
+    "t": "🔍",
+    "fs": 14,
+    "ratio": 4.02
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/search",
+  "title": "검색",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:2"
+   ],
+   "p": [
+    "Noto Color Emoji:1"
+   ],
+   "button": []
+  }
+ },
+ "create-390": {
+  "n": 26,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 16,
+   "12": 5,
+   "13": 1,
+   "14": 1,
+   "26": 1
+  },
+  "lowCount": 1,
+  "lowSample": [
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/create",
+  "title": "성인인증이 필요합니다",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:11"
+   ],
+   "p": [
+    "Pretendard Variable*:28"
+   ],
+   "button": []
+  }
+ },
+ "studio-390": {
+  "n": 26,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 16,
+   "12": 5,
+   "13": 1,
+   "14": 1,
+   "26": 1
+  },
+  "lowCount": 1,
+  "lowSample": [
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/studio",
+  "title": "성인인증이 필요합니다",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:11"
+   ],
+   "p": [
+    "Pretendard Variable*:32"
+   ],
+   "button": []
+  }
+ },
+ "settings-390": {
+  "n": 60,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 16,
+   "12": 12,
+   "13": 5,
+   "14": 16,
+   "16": 1,
+   "17": 6,
+   "18": 1,
+   "26": 1
+  },
+  "lowCount": 3,
+  "lowSample": [
+   {
+    "t": "취향",
+    "fs": 12,
+    "ratio": 3.89
+   },
+   {
+    "t": "▾",
+    "fs": 12,
+    "ratio": 3.89
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/settings",
+  "title": "내 정보 · 설정",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:9"
+   ],
+   "p": [
+    "Pretendard Variable*:6"
+   ],
+   "button": []
+  }
+ },
+ "points-390": {
+  "n": 89,
+  "sizes": {
+   "9": 8,
+   "10": 8,
+   "11": 16,
+   "12": 7,
+   "13": 17,
+   "14": 16,
+   "16": 1,
+   "17": 3,
+   "18": 12,
+   "24": 1
+  },
+  "lowCount": 1,
+  "lowSample": [
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/points",
+  "title": "매일 출석하고 무료 포인트 받기",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:17"
+   ],
+   "p": [
+    "Pretendard Variable*:44"
+   ],
+   "button": []
+  }
+ },
+ "chats-390": {
+  "n": 32,
+  "sizes": {
+   "9": 2,
+   "10": 4,
+   "11": 16,
+   "12": 8,
+   "13": 1,
+   "26": 1
+  },
+  "lowCount": 4,
+  "lowSample": [
+   {
+    "t": "23분 전 대화",
+    "fs": 9,
+    "ratio": 3.72
+   },
+   {
+    "t": "강이현: *눈썹이 한 번 움직",
+    "fs": 10,
+    "ratio": 3.72
+   },
+   {
+    "t": "캐릭터 대화와 TRPG 방을 ",
+    "fs": 12,
+    "ratio": 3.83
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/chats",
+  "title": "대화 목록",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:5"
+   ],
+   "p": [
+    "Pretendard Variable*:32"
+   ],
+   "button": []
+  }
+ },
+ "persona-390": {
+  "n": 46,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 22,
+   "12": 14,
+   "13": 1,
+   "14": 2,
+   "16": 1,
+   "17": 3,
+   "26": 1
+  },
+  "lowCount": 1,
+  "lowSample": [
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/persona",
+  "title": "페르소나·노트 제작",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:10"
+   ],
+   "p": [
+    "Pretendard Variable*:36"
+   ],
+   "button": []
+  }
+ },
+ "login-390": {
+  "n": 27,
+  "sizes": {
+   "9": 1,
+   "11": 15,
+   "12": 5,
+   "14": 5,
+   "26": 1
+  },
+  "lowCount": 2,
+  "lowSample": [
+   {
+    "t": "또는",
+    "fs": 12,
+    "ratio": 2.32
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/login",
+  "title": "로그인",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:3"
+   ],
+   "p": [
+    "Pretendard Variable*:13"
+   ],
+   "button": []
+  }
+ },
+ "home-1440": {
+  "n": 149,
+  "sizes": {
+   "9": 4,
+   "10": 48,
+   "11": 32,
+   "12": 24,
+   "13": 1,
+   "14": 17,
+   "16": 7,
+   "19": 6,
+   "20": 1,
+   "24": 1,
+   "40": 2,
+   "60": 4,
+   "84": 2
+  },
+  "lowCount": 36,
+  "lowSample": [
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 3.72
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 3.72
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 3.72
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 3.72
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 3.72
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 3.72
+   }
+  ],
+  "overflowX": 0,
+  "url": "/",
+  "title": "추천 캐릭터",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:6"
+   ],
+   "p": [
+    "Pretendard Variable*:5"
+   ],
+   "button": [
+    "Pretendard Variable*:1"
+   ]
+  }
+ },
+ "new-1440": {
+  "n": 92,
+  "sizes": {
+   "9": 3,
+   "10": 22,
+   "11": 34,
+   "12": 5,
+   "13": 6,
+   "14": 11,
+   "17": 7,
+   "20": 1,
+   "32": 1,
+   "60": 2
+  },
+  "lowCount": 1,
+  "lowSample": [
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/tab/new",
+  "title": "실시간 신작",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:6"
+   ],
+   "p": [
+    "Pretendard Variable*:2"
+   ],
+   "button": [
+    "Pretendard Variable*:1"
+   ]
+  }
+ },
+ "search-1440": {
+  "n": 143,
+  "sizes": {
+   "9": 3,
+   "10": 29,
+   "11": 34,
+   "12": 5,
+   "13": 9,
+   "14": 52,
+   "17": 7,
+   "20": 1,
+   "32": 1,
+   "60": 2
+  },
+  "lowCount": 2,
+  "lowSample": [
+   {
+    "t": "🔍",
+    "fs": 14,
+    "ratio": 4.02
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/search",
+  "title": "검색",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:2"
+   ],
+   "p": [
+    "Noto Color Emoji:1"
+   ],
+   "button": [
+    "Pretendard Variable*:1"
+   ]
+  }
+ },
+ "create-1440": {
+  "n": 38,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 17,
+   "12": 4,
+   "13": 1,
+   "14": 12,
+   "20": 1,
+   "32": 1
+  },
+  "lowCount": 1,
+  "lowSample": [
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/create",
+  "title": "성인인증이 필요합니다",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:11"
+   ],
+   "p": [
+    "Pretendard Variable*:28"
+   ],
+   "button": [
+    "Pretendard Variable*:1"
+   ]
+  }
+ },
+ "studio-1440": {
+  "n": 38,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 17,
+   "12": 4,
+   "13": 1,
+   "14": 12,
+   "20": 1,
+   "32": 1
+  },
+  "lowCount": 1,
+  "lowSample": [
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/studio",
+  "title": "성인인증이 필요합니다",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:11"
+   ],
+   "p": [
+    "Pretendard Variable*:32"
+   ],
+   "button": [
+    "Pretendard Variable*:1"
+   ]
+  }
+ },
+ "settings-1440": {
+  "n": 72,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 17,
+   "12": 11,
+   "13": 5,
+   "14": 27,
+   "16": 1,
+   "17": 6,
+   "18": 1,
+   "20": 1,
+   "32": 1
+  },
+  "lowCount": 3,
+  "lowSample": [
+   {
+    "t": "취향",
+    "fs": 12,
+    "ratio": 3.89
+   },
+   {
+    "t": "▾",
+    "fs": 12,
+    "ratio": 3.89
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/settings",
+  "title": "내 정보 · 설정",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:9"
+   ],
+   "p": [
+    "Pretendard Variable*:6"
+   ],
+   "button": [
+    "Pretendard Variable*:1"
+   ]
+  }
+ },
+ "points-1440": {
+  "n": 101,
+  "sizes": {
+   "9": 1,
+   "10": 8,
+   "11": 24,
+   "12": 6,
+   "13": 17,
+   "14": 27,
+   "16": 1,
+   "17": 3,
+   "18": 12,
+   "20": 1,
+   "24": 1
+  },
+  "lowCount": 1,
+  "lowSample": [
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/points",
+  "title": "매일 출석하고 무료 포인트 받기",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:17"
+   ],
+   "p": [
+    "Pretendard Variable*:45"
+   ],
+   "button": [
+    "Pretendard Variable*:1"
+   ]
+  }
+ },
+ "chats-1440": {
+  "n": 44,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 17,
+   "12": 7,
+   "13": 1,
+   "14": 14,
+   "18": 1,
+   "20": 1,
+   "32": 1
+  },
+  "lowCount": 4,
+  "lowSample": [
+   {
+    "t": "24분 전 대화",
+    "fs": 12,
+    "ratio": 3.72
+   },
+   {
+    "t": "강이현: *눈썹이 한 번 움직",
+    "fs": 14,
+    "ratio": 3.72
+   },
+   {
+    "t": "캐릭터 대화와 TRPG 방을 ",
+    "fs": 12,
+    "ratio": 3.83
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/chats",
+  "title": "대화 목록",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:5"
+   ],
+   "p": [
+    "Pretendard Variable*:32"
+   ],
+   "button": [
+    "Pretendard Variable*:1"
+   ]
+  }
+ },
+ "persona-1440": {
+  "n": 58,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 23,
+   "12": 13,
+   "13": 1,
+   "14": 13,
+   "16": 1,
+   "17": 3,
+   "20": 1,
+   "32": 1
+  },
+  "lowCount": 1,
+  "lowSample": [
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/persona",
+  "title": "페르소나·노트 제작",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:10"
+   ],
+   "p": [
+    "Pretendard Variable*:36"
+   ],
+   "button": [
+    "Pretendard Variable*:1"
+   ]
+  }
+ },
+ "login-1440": {
+  "n": 40,
+  "sizes": {
+   "9": 1,
+   "11": 15,
+   "12": 5,
+   "14": 17,
+   "20": 1,
+   "32": 1
+  },
+  "lowCount": 2,
+  "lowSample": [
+   {
+    "t": "또는",
+    "fs": 12,
+    "ratio": 2.32
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/login",
+  "title": "로그인",
+  "fonts": {
+   "h1": [
+    "Pretendard Variable*:3"
+   ],
+   "p": [
+    "Pretendard Variable*:13"
+   ],
+   "button": [
+    "Pretendard Variable*:1"
+   ]
+  }
+ }
+}

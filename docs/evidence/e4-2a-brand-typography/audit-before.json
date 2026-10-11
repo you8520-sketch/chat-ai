@@ -1,0 +1,1068 @@
+{
+ "home-390": {
+  "n": 147,
+  "sizes": {
+   "9": 5,
+   "10": 54,
+   "11": 38,
+   "12": 24,
+   "14": 3,
+   "16": 7,
+   "18": 1,
+   "19": 7,
+   "26": 2,
+   "48": 4,
+   "56": 2
+  },
+  "lowCount": 50,
+  "lowSample": [
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 2.51
+   },
+   {
+    "t": "한 줄 소개 없음",
+    "fs": 12,
+    "ratio": 2.51
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 2.51
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 2.51
+   },
+   {
+    "t": "한 줄 소개 없음",
+    "fs": 12,
+    "ratio": 2.51
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 2.51
+   }
+  ],
+  "overflowX": 0,
+  "url": "/",
+  "title": "추천 캐릭터",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:5",
+    "Noto Sans:1"
+   ],
+   "p": [
+    "Noto Sans:5"
+   ],
+   "button": []
+  }
+ },
+ "new-390": {
+  "n": 80,
+  "sizes": {
+   "9": 3,
+   "10": 22,
+   "11": 33,
+   "12": 6,
+   "13": 6,
+   "17": 7,
+   "24": 1,
+   "48": 2
+  },
+  "lowCount": 7,
+  "lowSample": [
+   {
+    "t": "하브 스튜디오",
+    "fs": 10,
+    "ratio": 3.86
+   },
+   {
+    "t": "하브 스튜디오",
+    "fs": 10,
+    "ratio": 3.86
+   },
+   {
+    "t": "홈",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "대화",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "제작",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "설정",
+    "fs": 12,
+    "ratio": 4.02
+   }
+  ],
+  "overflowX": 0,
+  "url": "/tab/new",
+  "title": "실시간 신작",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:5",
+    "Noto Sans:1"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:2"
+   ],
+   "button": []
+  }
+ },
+ "search-390": {
+  "n": 131,
+  "sizes": {
+   "9": 3,
+   "10": 29,
+   "11": 33,
+   "12": 9,
+   "13": 6,
+   "14": 41,
+   "17": 7,
+   "24": 1,
+   "48": 2
+  },
+  "lowCount": 8,
+  "lowSample": [
+   {
+    "t": "하브 스튜디오",
+    "fs": 10,
+    "ratio": 3.86
+   },
+   {
+    "t": "하브 스튜디오",
+    "fs": 10,
+    "ratio": 3.86
+   },
+   {
+    "t": "홈",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "대화",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "제작",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "설정",
+    "fs": 12,
+    "ratio": 4.02
+   }
+  ],
+  "overflowX": 0,
+  "url": "/search",
+  "title": "검색",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:2"
+   ],
+   "p": [
+    "Noto Color Emoji:1"
+   ],
+   "button": []
+  }
+ },
+ "create-390": {
+  "n": 26,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 16,
+   "12": 6,
+   "14": 1,
+   "20": 1
+  },
+  "lowCount": 5,
+  "lowSample": [
+   {
+    "t": "홈",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "대화",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "제작",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "설정",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/create",
+  "title": "성인인증이 필요합니다",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:10",
+    "Noto Sans:1"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:22",
+    "Noto Sans:6"
+   ],
+   "button": []
+  }
+ },
+ "studio-390": {
+  "n": 26,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 16,
+   "12": 6,
+   "14": 1,
+   "20": 1
+  },
+  "lowCount": 4,
+  "lowSample": [
+   {
+    "t": "홈",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "대화",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "설정",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/studio",
+  "title": "성인인증이 필요합니다",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:10",
+    "Noto Sans:1"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:24",
+    "Noto Sans:8"
+   ],
+   "button": []
+  }
+ },
+ "settings-390": {
+  "n": 60,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 20,
+   "12": 13,
+   "14": 16,
+   "16": 7,
+   "18": 1,
+   "24": 1
+  },
+  "lowCount": 13,
+  "lowSample": [
+   {
+    "t": "내 캐릭터에 하트가 달리면 푸",
+    "fs": 11,
+    "ratio": 3.71
+   },
+   {
+    "t": "내 프로필·캐릭터·게시글에 댓",
+    "fs": 11,
+    "ratio": 3.71
+   },
+   {
+    "t": "좋아요·댓글 푸시를 받으려면 ",
+    "fs": 11,
+    "ratio": 3.72
+   },
+   {
+    "t": "캐릭터를 만들고 공개하면 수익",
+    "fs": 11,
+    "ratio": 3.72
+   },
+   {
+    "t": "이메일",
+    "fs": 14,
+    "ratio": 3.72
+   },
+   {
+    "t": "로그인 방식",
+    "fs": 14,
+    "ratio": 3.72
+   }
+  ],
+  "overflowX": 0,
+  "url": "/settings",
+  "title": "내 정보 · 설정",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:5",
+    "Noto Sans:4"
+   ],
+   "p": [
+    "Noto Sans:6"
+   ],
+   "button": []
+  }
+ },
+ "points-390": {
+  "n": 89,
+  "sizes": {
+   "9": 8,
+   "10": 8,
+   "11": 17,
+   "12": 23,
+   "14": 16,
+   "16": 4,
+   "18": 12,
+   "24": 1
+  },
+  "lowCount": 7,
+  "lowSample": [
+   {
+    "t": "내역이 없습니다.",
+    "fs": 14,
+    "ratio": 3.72
+   },
+   {
+    "t": "홈",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "대화",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "제작",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "설정",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "버튼을 눌러 오늘의 출석 보상",
+    "fs": 12,
+    "ratio": 4.02
+   }
+  ],
+  "overflowX": 0,
+  "url": "/points",
+  "title": "매일 출석하고 무료 포인트 받기",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:13",
+    "Noto Sans:3"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:31",
+    "Noto Sans:14"
+   ],
+   "button": []
+  }
+ },
+ "chats-390": {
+  "n": 28,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 16,
+   "12": 6,
+   "14": 3,
+   "24": 1
+  },
+  "lowCount": 4,
+  "lowSample": [
+   {
+    "t": "홈",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "제작",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "설정",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/chats",
+  "title": "대화 목록",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:4",
+    "Noto Sans:1"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:14",
+    "Noto Sans:10"
+   ],
+   "button": []
+  }
+ },
+ "persona-390": {
+  "n": 46,
+  "sizes": {
+   "9": 1,
+   "10": 3,
+   "11": 23,
+   "12": 12,
+   "14": 2,
+   "16": 4,
+   "24": 1
+  },
+  "lowCount": 12,
+  "lowSample": [
+   {
+    "t": "0",
+    "fs": 10,
+    "ratio": 2.43
+   },
+   {
+    "t": "최대",
+    "fs": 11,
+    "ratio": 3.72
+   },
+   {
+    "t": "고집중(중요 기억) 구간만 저",
+    "fs": 11,
+    "ratio": 3.72
+   },
+   {
+    "t": "저장된 유저 노트가 없습니다.",
+    "fs": 12,
+    "ratio": 3.72
+   },
+   {
+    "t": "디자인과 상태값으로 만들거나,",
+    "fs": 11,
+    "ratio": 3.72
+   },
+   {
+    "t": "저장된 상태창이 없습니다. 아",
+    "fs": 12,
+    "ratio": 3.72
+   }
+  ],
+  "overflowX": 0,
+  "url": "/persona",
+  "title": "페르소나·노트 제작",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:8",
+    "Noto Sans:2"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:28",
+    "Noto Sans:7"
+   ],
+   "button": []
+  }
+ },
+ "login-390": {
+  "n": 27,
+  "sizes": {
+   "9": 1,
+   "11": 15,
+   "12": 5,
+   "14": 5,
+   "24": 1
+  },
+  "lowCount": 3,
+  "lowSample": [
+   {
+    "t": "또는",
+    "fs": 12,
+    "ratio": 2.32
+   },
+   {
+    "t": "계정이 없나요?",
+    "fs": 14,
+    "ratio": 3.72
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/login",
+  "title": "로그인",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:3"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:10",
+    "Noto Sans:3"
+   ],
+   "button": []
+  }
+ },
+ "home-1440": {
+  "n": 157,
+  "sizes": {
+   "9": 5,
+   "10": 53,
+   "11": 32,
+   "12": 25,
+   "13": 1,
+   "14": 17,
+   "16": 7,
+   "19": 7,
+   "20": 1,
+   "24": 1,
+   "40": 2,
+   "60": 4,
+   "84": 2
+  },
+  "lowCount": 49,
+  "lowSample": [
+   {
+    "t": "아직 최근 활동이 없습니다.",
+    "fs": 11,
+    "ratio": 2.51
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 2.51
+   },
+   {
+    "t": "한 줄 소개 없음",
+    "fs": 12,
+    "ratio": 2.51
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 2.51
+   },
+   {
+    "t": "by",
+    "fs": 10,
+    "ratio": 2.51
+   },
+   {
+    "t": "한 줄 소개 없음",
+    "fs": 12,
+    "ratio": 2.51
+   }
+  ],
+  "overflowX": 0,
+  "url": "/",
+  "title": "추천 캐릭터",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:5",
+    "Noto Sans:1"
+   ],
+   "p": [
+    "Noto Sans:5"
+   ],
+   "button": [
+    "WenQuanYi Micro Hei:1"
+   ]
+  }
+ },
+ "new-1440": {
+  "n": 91,
+  "sizes": {
+   "9": 3,
+   "10": 22,
+   "11": 33,
+   "12": 5,
+   "13": 6,
+   "14": 11,
+   "17": 7,
+   "20": 1,
+   "24": 1,
+   "60": 2
+  },
+  "lowCount": 4,
+  "lowSample": [
+   {
+    "t": "아직 최근 활동이 없습니다.",
+    "fs": 11,
+    "ratio": 2.51
+   },
+   {
+    "t": "하브 스튜디오",
+    "fs": 10,
+    "ratio": 3.86
+   },
+   {
+    "t": "하브 스튜디오",
+    "fs": 10,
+    "ratio": 3.86
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/tab/new",
+  "title": "실시간 신작",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:5",
+    "Noto Sans:1"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:2"
+   ],
+   "button": [
+    "WenQuanYi Micro Hei:1"
+   ]
+  }
+ },
+ "search-1440": {
+  "n": 142,
+  "sizes": {
+   "9": 3,
+   "10": 29,
+   "11": 33,
+   "12": 8,
+   "13": 6,
+   "14": 52,
+   "17": 7,
+   "20": 1,
+   "24": 1,
+   "60": 2
+  },
+  "lowCount": 5,
+  "lowSample": [
+   {
+    "t": "아직 최근 활동이 없습니다.",
+    "fs": 11,
+    "ratio": 2.51
+   },
+   {
+    "t": "하브 스튜디오",
+    "fs": 10,
+    "ratio": 3.86
+   },
+   {
+    "t": "하브 스튜디오",
+    "fs": 10,
+    "ratio": 3.86
+   },
+   {
+    "t": "🔍",
+    "fs": 14,
+    "ratio": 4.02
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/search",
+  "title": "검색",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:2"
+   ],
+   "p": [
+    "Noto Color Emoji:1"
+   ],
+   "button": [
+    "WenQuanYi Micro Hei:1"
+   ]
+  }
+ },
+ "create-1440": {
+  "n": 37,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 16,
+   "12": 5,
+   "14": 12,
+   "20": 2
+  },
+  "lowCount": 2,
+  "lowSample": [
+   {
+    "t": "아직 최근 활동이 없습니다.",
+    "fs": 11,
+    "ratio": 2.51
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/create",
+  "title": "성인인증이 필요합니다",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:10",
+    "Noto Sans:1"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:22",
+    "Noto Sans:6"
+   ],
+   "button": [
+    "WenQuanYi Micro Hei:1"
+   ]
+  }
+ },
+ "studio-1440": {
+  "n": 37,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 16,
+   "12": 5,
+   "14": 12,
+   "20": 2
+  },
+  "lowCount": 2,
+  "lowSample": [
+   {
+    "t": "아직 최근 활동이 없습니다.",
+    "fs": 11,
+    "ratio": 2.51
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/studio",
+  "title": "성인인증이 필요합니다",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:10",
+    "Noto Sans:1"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:24",
+    "Noto Sans:8"
+   ],
+   "button": [
+    "WenQuanYi Micro Hei:1"
+   ]
+  }
+ },
+ "settings-1440": {
+  "n": 71,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 20,
+   "12": 12,
+   "14": 27,
+   "16": 7,
+   "18": 1,
+   "20": 1,
+   "24": 1
+  },
+  "lowCount": 11,
+  "lowSample": [
+   {
+    "t": "아직 최근 활동이 없습니다.",
+    "fs": 11,
+    "ratio": 2.51
+   },
+   {
+    "t": "내 캐릭터에 하트가 달리면 푸",
+    "fs": 11,
+    "ratio": 3.71
+   },
+   {
+    "t": "내 프로필·캐릭터·게시글에 댓",
+    "fs": 11,
+    "ratio": 3.71
+   },
+   {
+    "t": "좋아요·댓글 푸시를 받으려면 ",
+    "fs": 11,
+    "ratio": 3.72
+   },
+   {
+    "t": "캐릭터를 만들고 공개하면 수익",
+    "fs": 11,
+    "ratio": 3.72
+   },
+   {
+    "t": "이메일",
+    "fs": 14,
+    "ratio": 3.72
+   }
+  ],
+  "overflowX": 0,
+  "url": "/settings",
+  "title": "내 정보 · 설정",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:5",
+    "Noto Sans:4"
+   ],
+   "p": [
+    "Noto Sans:6"
+   ],
+   "button": [
+    "WenQuanYi Micro Hei:1"
+   ]
+  }
+ },
+ "points-1440": {
+  "n": 100,
+  "sizes": {
+   "9": 1,
+   "10": 8,
+   "11": 24,
+   "12": 22,
+   "14": 27,
+   "16": 4,
+   "18": 12,
+   "20": 1,
+   "24": 1
+  },
+  "lowCount": 4,
+  "lowSample": [
+   {
+    "t": "아직 최근 활동이 없습니다.",
+    "fs": 11,
+    "ratio": 2.51
+   },
+   {
+    "t": "내역이 없습니다.",
+    "fs": 14,
+    "ratio": 3.72
+   },
+   {
+    "t": "버튼을 눌러 오늘의 출석 보상",
+    "fs": 12,
+    "ratio": 4.02
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/points",
+  "title": "매일 출석하고 무료 포인트 받기",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:13",
+    "Noto Sans:4"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:31",
+    "Noto Sans:14"
+   ],
+   "button": [
+    "WenQuanYi Micro Hei:1"
+   ]
+  }
+ },
+ "chats-1440": {
+  "n": 39,
+  "sizes": {
+   "9": 1,
+   "10": 1,
+   "11": 16,
+   "12": 5,
+   "14": 14,
+   "20": 1,
+   "24": 1
+  },
+  "lowCount": 2,
+  "lowSample": [
+   {
+    "t": "아직 최근 활동이 없습니다.",
+    "fs": 11,
+    "ratio": 2.51
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/chats",
+  "title": "대화 목록",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:4",
+    "Noto Sans:1"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:14",
+    "Noto Sans:10"
+   ],
+   "button": [
+    "WenQuanYi Micro Hei:1"
+   ]
+  }
+ },
+ "persona-1440": {
+  "n": 57,
+  "sizes": {
+   "9": 1,
+   "10": 3,
+   "11": 23,
+   "12": 11,
+   "14": 13,
+   "16": 4,
+   "20": 1,
+   "24": 1
+  },
+  "lowCount": 9,
+  "lowSample": [
+   {
+    "t": "0",
+    "fs": 10,
+    "ratio": 2.43
+   },
+   {
+    "t": "아직 최근 활동이 없습니다.",
+    "fs": 11,
+    "ratio": 2.51
+   },
+   {
+    "t": "최대",
+    "fs": 11,
+    "ratio": 3.72
+   },
+   {
+    "t": "고집중(중요 기억) 구간만 저",
+    "fs": 11,
+    "ratio": 3.72
+   },
+   {
+    "t": "저장된 유저 노트가 없습니다.",
+    "fs": 12,
+    "ratio": 3.72
+   },
+   {
+    "t": "디자인과 상태값으로 만들거나,",
+    "fs": 11,
+    "ratio": 3.72
+   }
+  ],
+  "overflowX": 0,
+  "url": "/persona",
+  "title": "페르소나·노트 제작",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:8",
+    "Noto Sans:2"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:28",
+    "Noto Sans:8"
+   ],
+   "button": [
+    "WenQuanYi Micro Hei:1"
+   ]
+  }
+ },
+ "login-1440": {
+  "n": 40,
+  "sizes": {
+   "9": 1,
+   "11": 15,
+   "12": 5,
+   "14": 17,
+   "20": 1,
+   "24": 1
+  },
+  "lowCount": 3,
+  "lowSample": [
+   {
+    "t": "또는",
+    "fs": 12,
+    "ratio": 2.32
+   },
+   {
+    "t": "계정이 없나요?",
+    "fs": 14,
+    "ratio": 3.72
+   },
+   {
+    "t": "1",
+    "fs": 9,
+    "ratio": 4.4
+   }
+  ],
+  "overflowX": 0,
+  "url": "/login",
+  "title": "로그인",
+  "fonts": {
+   "h1": [
+    "WenQuanYi Micro Hei:3"
+   ],
+   "p": [
+    "WenQuanYi Micro Hei:10",
+    "Noto Sans:3"
+   ],
+   "button": [
+    "WenQuanYi Micro Hei:1"
+   ]
+  }
+ }
+}
