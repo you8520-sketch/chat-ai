@@ -102,7 +102,7 @@ Cursor는 점수를 매기지 않는다. 아래 원문을 GPT가 직접 평가�
 - P0-1: 비compact `characterCore`가 `appearanceSummary`를 넣고 `composeOfficialSystemPrompt`가 Appearance Lock을 다시 넣었다. 루시안 compact는 이미 본문에서 기하를 뺐다. 이제 **모든 공식 초안**이 루시안 본체를 쓰고, RP `[외형]`은 `renderRuntimeAppearanceBlock` 한 곳만 쓴다. Lock 해시 owner(`renderAppearanceBlock`)는 그대로다.
 - P0-2: `progression ≥ 3` 강제를 제거했다. 볼프강 진행표를 행동 조건으로 바꿨다. 유저 성별·직업·신분을 확정하지 않고, 기존 연인·동료·상관 페르소나를 덮어쓰지 않는다.
 - P0-3: `boundaries 3~6`, `consentBehavior ≥150` 작성 의무를 제거했다. `preferenceKeywords`가 `adultHookSummary`의 `취향:`으로 최종 RP에 들어간다. 획일 `합의:` 에세이는 컴파일하지 않는다. 볼프강은 책임·규율·통제욕·군인다운 절제와 억눌린 욕망을 유지한다.
-- NPC: 바이블 인원 상한 3을 제거했다. 메인 RP에는 현재 장면에 이름이 있는 보조 인물만 넣는다. 볼프강 출연진 숨김 6개는 비밀로 남아 총 8개를 유지한다.
+- NPC: 바이블 인원 상한 3을 제거했다. 메인 RP에는 현재 장면에 이름이 있는 보조 인물만 넣는다. 볼프강 출연진 9명과 숨김 6개는 삭제했고, 필요한 비밀 2개만 유지한다.
 
 ## 6. 향후 자동제작에 반영된 검증
 
