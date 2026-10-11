@@ -5,6 +5,8 @@ import { useState } from "react";
 import { cn, studioInputClass } from "@/lib/studioDesign";
 import { normalizeCatalogSearchQuery } from "@/lib/tagSearch";
 
+const SEARCH_PLACEHOLDER = "캐릭터·제작자·태그 검색";
+
 type Props = {
   defaultQuery?: string;
   /** Preserve active genre filter when submitting a text search */
@@ -47,11 +49,7 @@ export default function TagSearchBar({
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={
-            compact
-              ? "캐릭터·제작자·태그 검색"
-              : "캐릭터명, 제작자명, 태그 검색 (예: 카스펜, 틤작, 츤데레)"
-          }
+          placeholder={SEARCH_PLACEHOLDER}
           maxLength={40}
           className={cn(
             studioInputClass,
