@@ -267,6 +267,25 @@ describe("TRPG command dock", () => {
     assert.equal(overflowPanelScrollBehavior(false), "smooth");
   });
 
+  it("user wheel/touch during overflow reveal detaches immediately", () => {
+    const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
+    const detach = dock.slice(
+      dock.indexOf("const detach = "),
+      dock.indexOf('panel.addEventListener("wheel"')
+    );
+    assert.match(detach, /panelFollowDetachedRef\.current = true/);
+    assert.match(detach, /behavior:\s*["']instant["']/);
+    assert.doesNotMatch(detach, /programmaticPanelScrollRef/);
+    assert.doesNotMatch(dock, /programmaticPanelScrollRef/);
+    assert.doesNotMatch(dock, /programmaticPanelScrollTimerRef/);
+    assert.match(dock, /addEventListener\("wheel"/);
+    assert.match(dock, /addEventListener\("touchmove"/);
+    assert.doesNotMatch(detach, /addEventListener\("scroll"/);
+    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /cancelProgrammaticScrollOwnership/);
+    assert.match(room, /if \(!followLatestRef\.current \|\| manualScrollDetachedRef\.current\) return/);
+  });
+
   it("K. mobile dock stays a compact/expanded surface with safe area and keyboard inset", () => {
     const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
     assert.match(dock, /min-h-11/);

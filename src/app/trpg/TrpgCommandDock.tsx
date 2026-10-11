@@ -757,8 +757,6 @@ export default function TrpgCommandDock({
   const panelRef = useRef<HTMLDivElement>(null);
   const suggestionsRegionRef = useRef<HTMLDivElement>(null);
   const panelFollowDetachedRef = useRef(false);
-  const programmaticPanelScrollRef = useRef(false);
-  const programmaticPanelScrollTimerRef = useRef<number | null>(null);
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [view, setView] = useState(() =>
     initialTrpgCommandDockView({
@@ -889,21 +887,10 @@ export default function TrpgCommandDock({
       paddingPx: 8,
     });
     if (next == null) return;
-    if (programmaticPanelScrollTimerRef.current != null) {
-      window.clearTimeout(programmaticPanelScrollTimerRef.current);
-    }
-    programmaticPanelScrollRef.current = true;
     const behavior = overflowPanelScrollBehavior(
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
     );
     panel.scrollTo({ top: next, left: 0, behavior });
-    programmaticPanelScrollTimerRef.current = window.setTimeout(
-      () => {
-        programmaticPanelScrollRef.current = false;
-        programmaticPanelScrollTimerRef.current = null;
-      },
-      behavior === "smooth" ? 800 : 48
-    );
   }, []);
 
   useLayoutEffect(() => {
@@ -930,8 +917,9 @@ export default function TrpgCommandDock({
     const panel = panelRef.current;
     if (!panel || !view.expanded) return;
     const detach = () => {
-      if (programmaticPanelScrollRef.current) return;
+      if (panelFollowDetachedRef.current) return;
       panelFollowDetachedRef.current = true;
+      panel.scrollTo({ top: panel.scrollTop, left: 0, behavior: "instant" });
     };
     panel.addEventListener("wheel", detach, { passive: true });
     panel.addEventListener("touchmove", detach, { passive: true });
@@ -940,14 +928,6 @@ export default function TrpgCommandDock({
       panel.removeEventListener("touchmove", detach);
     };
   }, [view.expanded, view.mode]);
-
-  useEffect(() => {
-    return () => {
-      if (programmaticPanelScrollTimerRef.current != null) {
-        window.clearTimeout(programmaticPanelScrollTimerRef.current);
-      }
-    };
-  }, []);
 
   function chooseMode(mode: TrpgCommandDockMode) {
     if (mode === "action" && view.mode !== "action") {

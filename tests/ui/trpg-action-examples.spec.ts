@@ -15,9 +15,9 @@ type ExampleGeometry = {
 async function openActionExamples(
   page: Page,
   examples: "cached" | "async" | "error",
-  opts?: { autoOn?: boolean }
+  opts?: { autoOn?: boolean; reducedMotion?: "reduce" | "no-preference" }
 ) {
-  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.emulateMedia({ reducedMotion: opts?.reducedMotion ?? "reduce" });
   const autoOn = opts?.autoOn === false ? "" : "&autoon=1";
   await page.goto(`${LAB}&examples=${examples}${autoOn}`, { waitUntil: "domcontentloaded" });
   await page.locator("[data-trpg-command-dock]").waitFor({ state: "visible" });
@@ -81,7 +81,7 @@ test.describe("TRPG action example panel visibility", () => {
     const after = await measureExamples(page);
     expect(after.itemCount).toBeGreaterThan(0);
     expect(after.toggleChecked).toBe("true");
-    expect(Math.abs(after.windowScrollY - windowBefore) < 80 || after.firstVisibleInPanel).toBeTruthy();
+    expect(Math.abs(after.windowScrollY - windowBefore)).toBeLessThan(80);
   });
 
   test("async examples show loading then the first item in the panel", async ({ page }) => {
@@ -135,6 +135,44 @@ test.describe("TRPG action example panel visibility", () => {
     await page.locator('[data-trpg-command-dock-tab="ooc"]').click({ force: true });
     await page.locator('[data-trpg-command-dock-tab="action"]').click({ force: true });
     await expect.poll(async () => (await measureExamples(page)).firstVisibleInPanel).toBe(true);
+  });
+
+  test("normal-motion wheel during smooth reveal keeps the user's panel scroll", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openActionExamples(page, "async", { reducedMotion: "no-preference" });
+    await expect(page.locator('[data-trpg-action-suggestions-status="busy"]')).toBeVisible();
+    await page.waitForTimeout(80);
+    await page.evaluate(() => {
+      const panel = document.querySelector("[data-trpg-command-dock-panel]");
+      if (!(panel instanceof HTMLElement)) return;
+      panel.dispatchEvent(new WheelEvent("wheel", { deltaY: -80, bubbles: true }));
+      panel.scrollTop = 0;
+    });
+    await page.locator("[data-trpg-reply-stance]").first().waitFor({ state: "attached" });
+    await page.waitForTimeout(850);
+    const after = await measureExamples(page);
+    expect(after.itemCount).toBeGreaterThan(0);
+    expect(after.panelScrollTop).toBeLessThan(40);
+    expect(after.firstVisibleInPanel).toBe(false);
+  });
+
+  test("normal-motion touchmove during smooth reveal keeps the user's panel scroll", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openActionExamples(page, "async", { reducedMotion: "no-preference" });
+    await expect(page.locator('[data-trpg-action-suggestions-status="busy"]')).toBeVisible();
+    await page.waitForTimeout(80);
+    await page.evaluate(() => {
+      const panel = document.querySelector("[data-trpg-command-dock-panel]");
+      if (!(panel instanceof HTMLElement)) return;
+      panel.dispatchEvent(new TouchEvent("touchmove", { bubbles: true, cancelable: true }));
+      panel.scrollTop = 0;
+    });
+    await page.locator("[data-trpg-reply-stance]").first().waitFor({ state: "attached" });
+    await page.waitForTimeout(850);
+    const after = await measureExamples(page);
+    expect(after.itemCount).toBeGreaterThan(0);
+    expect(after.panelScrollTop).toBeLessThan(40);
+    expect(after.firstVisibleInPanel).toBe(false);
   });
 
   test("mobile viewport keeps the first cached example in the panel", async ({ page }) => {
