@@ -19,6 +19,19 @@ describe("brand typography", () => {
     assert.ok(existsSync(path.join(ROOT, "public", FONT_CSS_URL)));
   });
 
+  it("preloaded font subsets exist and are declared by the stylesheet", () => {
+    const layout = read("src/app/layout.tsx");
+    const list = layout.match(/PRETENDARD_PRELOAD_SUBSETS = \[([^\]]+)\]/);
+    assert.ok(list);
+    const css = read(`public${FONT_CSS_URL}`);
+    const subsets = list[1].split(",").map((n) => n.trim());
+    assert.ok(subsets.length > 0);
+    for (const n of subsets) {
+      assert.ok(existsSync(path.join(ROOT, "public/fonts/pretendard", `PretendardVariable.subset.${n}.woff2`)), n);
+      assert.ok(css.includes(`PretendardVariable.subset.${n}.woff2`), n);
+    }
+  });
+
   it("every font file referenced by the Pretendard stylesheet is shipped", () => {
     const css = read(`public${FONT_CSS_URL}`);
     const urls = [...css.matchAll(/url\((\/fonts\/pretendard\/[^)]+\.woff2)\)/g)].map((m) => m[1]);

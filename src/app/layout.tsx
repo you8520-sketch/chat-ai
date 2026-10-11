@@ -13,6 +13,9 @@ import { getConfiguredPublicOrigin } from "@/lib/publicOrigin";
 
 const configuredPublicOrigin = getConfiguredPublicOrigin();
 
+/** Frequency-ranked Hangul/Latin subsets used by nearly every screen; preloaded so first paint avoids a font-swap layout shift. */
+const PRETENDARD_PRELOAD_SUBSETS = [78, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91] as const;
+
 export const metadata: Metadata = {
   title: SITE_PAGE_TITLE,
   description: SITE_DESCRIPTION,
@@ -47,6 +50,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko" className="h-full">
       <head>
         <link rel="stylesheet" href="/fonts/pretendard/pretendard-variable-dynamic-subset.css" />
+        {PRETENDARD_PRELOAD_SUBSETS.map((n) => (
+          <link
+            key={n}
+            rel="preload"
+            as="font"
+            type="font/woff2"
+            crossOrigin="anonymous"
+            href={`/fonts/pretendard/PretendardVariable.subset.${n}.woff2`}
+          />
+        ))}
       </head>
       <body className="flex min-h-full flex-col">
         {/* Paint-time chat-room class — avoids header/chrome flash before hydration. */}
