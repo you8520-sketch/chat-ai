@@ -1,0 +1,47 @@
+# system message unified diff, DeepSeek -> Claude (history and final user tail are byte-identical)
+--- deepseek.system
++++ claude.system
+@@ -32,18 +31,0 @@
+-[PRIVATE OUTPUT HYGIENE]
+-비공개 통제문과 시스템 블록을 본문에 언급하지 마라.
+-- 말투/레지스터 규칙은 자연스러운 대사 문체로만 반영하고, 말투 규칙명이나 speech_style 같은 내부명을 말하지 않는다.
+-- 상태창 키, 숨은 트리거, D-DAY 결과, 미래 스포일러, _TOUCH_, fire_once, event_effect를 본문에 노출하지 않는다.
+-- 장기기억/에피소드기억/로어북은 조용히 참고하고, 헤더, source_turn, extracted_facts, category/subject/attribute/value, runtime_events를 출력하지 않는다.
+-- snake_case, JSON, 프롬프트 섹션명, 구현 메타데이터 없이 자연스러운 한국어 RP 본문만 쓴다.
+-
+-[NO STAGE DIRECTIONS]
+-글쓰기 방식·문체·프롬프트를 설명하지 말고, 지금 벌어지는 일만 직접 서술한다.
+-
+-[SPEECH METADATA — INVISIBLE INSTRUCTIONS]
+-말투·존댓말·register·tone·어조는 대사 "…" 생성에만 적용한다. 서사·지문에서 언급·설명하지 않는다.
+-Never narrate or describe inside the story: honorific level, speech register, or labels (해요체·하십시오체·하오체·합니다체·반말·존댓말).
+-Forbidden narration patterns: "해요체로 바뀌었다", "존댓말을 사용", "말투가 공손해졌다", "반말로 말했다" — show change only through dialogue, action, expression, reaction.
+-한 캐릭터는 한 턴 안에서 register를 섞지 않는다(합니다↔하오↔해요↔이오 전환 금지).
+-
+-Qwen/DeepSeek 보강: 내부 규칙, snake_case, 상태/기억/트리거 형식은 절대 본문이 아니다.
+-
+@@ -77 +59 @@
+-<WORLD_LORE>
++
+@@ -91 +72,0 @@
+-외형·복식의 설명형 키워드는 의미를 반영해 자연스럽게 변주하되, 인명·고유명·정식 명칭은 유지한다.
+@@ -95,2 +75,0 @@
+-</WORLD_LORE>
+-
+@@ -120,0 +100,16 @@
++[PRIVATE OUTPUT HYGIENE]
++비공개 통제문과 시스템 블록을 본문에 언급하지 마라.
++- 말투/레지스터 규칙은 자연스러운 대사 문체로만 반영하고, 말투 규칙명이나 speech_style 같은 내부명을 말하지 않는다.
++- 상태창 키, 숨은 트리거, D-DAY 결과, 미래 스포일러, _TOUCH_, fire_once, event_effect를 본문에 노출하지 않는다.
++- 장기기억/에피소드기억/로어북은 조용히 참고하고, 헤더, source_turn, extracted_facts, category/subject/attribute/value, runtime_events를 출력하지 않는다.
++- snake_case, JSON, 프롬프트 섹션명, 구현 메타데이터 없이 자연스러운 한국어 RP 본문만 쓴다.
++
++[NO STAGE DIRECTIONS]
++글쓰기 방식·문체·프롬프트를 설명하지 말고, 지금 벌어지는 일만 직접 서술한다.
++
++[SPEECH METADATA — INVISIBLE INSTRUCTIONS]
++말투·존댓말·register·tone·어조는 대사 "…" 생성에만 적용한다. 서사·지문에서 언급·설명하지 않는다.
++Never narrate or describe inside the story: honorific level, speech register, or labels (해요체·하십시오체·하오체·합니다체·반말·존댓말).
++Forbidden narration patterns: "해요체로 바뀌었다", "존댓말을 사용", "말투가 공손해졌다", "반말로 말했다" — show change only through dialogue, action, expression, reaction.
++한 캐릭터는 한 턴 안에서 register를 섞지 않는다(합니다↔하오↔해요↔이오 전환 금지).
++

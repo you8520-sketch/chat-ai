@@ -1,0 +1,34 @@
+{
+  "model": "claude-opus-5.5",
+  "stream": false,
+  "temperature": 0.82,
+  "thinking": {
+    "type": "disabled"
+  },
+  "reasoning_effort": "low",
+  "noMaxTokens": true,
+  "topKeys": [
+    "model",
+    "messages",
+    "stream",
+    "temperature",
+    "stream_options",
+    "thinking",
+    "output_config",
+    "reasoning_effort"
+  ],
+  "messageRoles": [
+    "system",
+    "user",
+    "assistant",
+    "user"
+  ],
+  "currentUserAnchorOnce": 1,
+  "lengthSentenceCount": 1,
+  "scenePacingCount": 1,
+  "commonProseCount": 1,
+  "허용된변화": 0,
+  "전개초점": 0,
+  "creatorNote": 0,
+  "compactSha256": "bfe5a14d8913fac7b3462870ab95ea4eba80559dc37802749f6dc1ad1ed43f03"
+}

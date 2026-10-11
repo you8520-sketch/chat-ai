@@ -1,0 +1,27 @@
+{
+  "label": "CONTROLLED_FIXTURE_NOT_LIVE_PRODUCTION",
+  "model": "claude-opus-5.5",
+  "route": "cheaperinference",
+  "endpoint": "POST /v1/chat/completions (non-stream)",
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "promptTokens": 6519,
+  "completionTokens": 4073,
+  "usage": {
+    "prompt_tokens": 6519,
+    "completion_tokens": 4073,
+    "total_tokens": 10592,
+    "cache_creation_input_tokens": 3817,
+    "cost": 0.072379,
+    "cost_details": {
+      "upstream_inference_cost": 0.072379
+    }
+  },
+  "requestId": "msg_011CfvZRAJZnAbBwCKmxiBx3",
+  "rawChars": 2796,
+  "visibleChars": 2045,
+  "seconds": 55.631,
+  "requestCompactSha256": "bfe5a14d8913fac7b3462870ab95ea4eba80559dc37802749f6dc1ad1ed43f03",
+  "rawFileSha256": "016f8c7e635999cf34e124bfce1af7019cc7ca27f7553d2fdfd94e9bf64485cf",
+  "error": null
+}
