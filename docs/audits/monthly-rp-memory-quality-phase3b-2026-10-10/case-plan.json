@@ -1,0 +1,94 @@
+{
+  "originMainSha": "f8bf8c823f86364388fc0261b3a6d36a34777551",
+  "maxProviderPosts": 8,
+  "cases": [
+    {
+      "caseId": "phase3b_t6_deepseek-v4.1-flash",
+      "modelId": "deepseek-v4.1-flash",
+      "horizon": "t6",
+      "sourceTurn": 1,
+      "currentTurn": 7,
+      "factText": "라이크와 렌이 비 오는 골목에서 우산을 같이 썼다.",
+      "query": "그때 우산 같이 썼던 거 기억나?",
+      "originMainSha": "f8bf8c823f86364388fc0261b3a6d36a34777551",
+      "caseSha256": "6adb9665580d361d14fecb480b5a65ab06e998b3c54e9616729d22755e681061"
+    },
+    {
+      "caseId": "phase3b_t50_deepseek-v4.1-flash",
+      "modelId": "deepseek-v4.1-flash",
+      "horizon": "t50",
+      "sourceTurn": 1,
+      "currentTurn": 51,
+      "factText": "라이크와 렌이 옥상에서 처음으로 담배를 나눠 피웠다.",
+      "query": "옥상에서 담배 피웠던 첫날 기억해?",
+      "originMainSha": "f8bf8c823f86364388fc0261b3a6d36a34777551",
+      "caseSha256": "7fef32419771dec0fc3b4ef7be7f2ba4d1fafe9d3024b4826c1224d41b753a2b"
+    },
+    {
+      "caseId": "phase3b_t6_gemini-3.8-flash",
+      "modelId": "gemini-3.8-flash",
+      "horizon": "t6",
+      "sourceTurn": 1,
+      "currentTurn": 7,
+      "factText": "라이크와 렌이 비 오는 골목에서 우산을 같이 썼다.",
+      "query": "그때 우산 같이 썼던 거 기억나?",
+      "originMainSha": "f8bf8c823f86364388fc0261b3a6d36a34777551",
+      "caseSha256": "9e98abf76cb8e6cf44cda0a7f7e26a6fb03998bfa7b6a5ff5d8b5e69d1bb8b7b"
+    },
+    {
+      "caseId": "phase3b_t50_gemini-3.8-flash",
+      "modelId": "gemini-3.8-flash",
+      "horizon": "t50",
+      "sourceTurn": 1,
+      "currentTurn": 51,
+      "factText": "라이크와 렌이 옥상에서 처음으로 담배를 나눠 피웠다.",
+      "query": "옥상에서 담배 피웠던 첫날 기억해?",
+      "originMainSha": "f8bf8c823f86364388fc0261b3a6d36a34777551",
+      "caseSha256": "8ead3cda8a8b403c7c2aad2df7c677a3d416fe7915bb021b722445c573f22ed0"
+    },
+    {
+      "caseId": "phase3b_t6_gpt-6.1-sol",
+      "modelId": "gpt-6.1-sol",
+      "horizon": "t6",
+      "sourceTurn": 1,
+      "currentTurn": 7,
+      "factText": "라이크와 렌이 비 오는 골목에서 우산을 같이 썼다.",
+      "query": "그때 우산 같이 썼던 거 기억나?",
+      "originMainSha": "f8bf8c823f86364388fc0261b3a6d36a34777551",
+      "caseSha256": "e4eec606600e354edccedd3540528cbdca50a98b58a0a32a3b6706f6e49714e4"
+    },
+    {
+      "caseId": "phase3b_t50_gpt-6.1-sol",
+      "modelId": "gpt-6.1-sol",
+      "horizon": "t50",
+      "sourceTurn": 1,
+      "currentTurn": 51,
+      "factText": "라이크와 렌이 옥상에서 처음으로 담배를 나눠 피웠다.",
+      "query": "옥상에서 담배 피웠던 첫날 기억해?",
+      "originMainSha": "f8bf8c823f86364388fc0261b3a6d36a34777551",
+      "caseSha256": "4ac79f417c0e4ae34d306cf8b4f4c8230f90a5ac876dc86eeffce438d2ef8106"
+    },
+    {
+      "caseId": "phase3b_t6_claude-opus-5.5",
+      "modelId": "claude-opus-5.5",
+      "horizon": "t6",
+      "sourceTurn": 1,
+      "currentTurn": 7,
+      "factText": "라이크와 렌이 비 오는 골목에서 우산을 같이 썼다.",
+      "query": "그때 우산 같이 썼던 거 기억나?",
+      "originMainSha": "f8bf8c823f86364388fc0261b3a6d36a34777551",
+      "caseSha256": "46c37b654f99dc8939ef8c7e7fb632470636ee2f2b3bdb2069cf1121e0b22fcc"
+    },
+    {
+      "caseId": "phase3b_t50_claude-opus-5.5",
+      "modelId": "claude-opus-5.5",
+      "horizon": "t50",
+      "sourceTurn": 1,
+      "currentTurn": 51,
+      "factText": "라이크와 렌이 옥상에서 처음으로 담배를 나눠 피웠다.",
+      "query": "옥상에서 담배 피웠던 첫날 기억해?",
+      "originMainSha": "f8bf8c823f86364388fc0261b3a6d36a34777551",
+      "caseSha256": "faef51f40a8266f294c4efeb7e54e93266234abcd7e51ac342063e1a8ccc1ca9"
+    }
+  ]
+}
