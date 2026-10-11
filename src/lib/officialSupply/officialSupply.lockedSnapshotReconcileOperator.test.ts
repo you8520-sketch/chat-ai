@@ -552,6 +552,22 @@ describe("Wolfgang v4 locked snapshot operator", () => {
     const matching = path.join(path.dirname(getDatabasePath()), "matching-backup.db");
     vacuumInto(store, matching);
     assertBackupMatchesLiveSource(matching, getDatabasePath());
+    const repRequest = store.database
+      .prepare("SELECT provider_request_id FROM official_supply_assets WHERE draft_key=? AND slot_key='rep'")
+      .get(WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey) as { provider_request_id: string | null };
+    store.database
+      .prepare("UPDATE official_supply_assets SET provider_request_id='changed-after-backup' WHERE draft_key=? AND slot_key='rep'")
+      .run(WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey);
+    try {
+      assert.throws(
+        () => assertBackupMatchesLiveSource(matching, getDatabasePath()),
+        (error: OfficialSupplyGateError) => error.code === "locked_snapshot_backup_mismatch"
+      );
+    } finally {
+      store.database
+        .prepare("UPDATE official_supply_assets SET provider_request_id=? WHERE draft_key=? AND slot_key='rep'")
+        .run(repRequest.provider_request_id, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey);
+    }
     assert.deepEqual(snapshot(store, WOLFGANG_V4_LOCKED_SNAPSHOT_TARGET.draftKey), before);
   });
 
