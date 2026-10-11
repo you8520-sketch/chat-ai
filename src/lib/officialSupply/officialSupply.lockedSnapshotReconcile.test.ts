@@ -31,7 +31,7 @@ const DRAFT_KEY = "pilot-rf-v4-02";
 const SIBLING_KEY = "pilot-rf-v4-99";
 const WORLD_KEY = "pilot-rf-erendel";
 const ENV = { NEXTAUTH_URL: "https://hav.chat", OPENAI_IMAGE_MODEL: "gpt-image-2.5-sunburst" } as NodeJS.ProcessEnv;
-const APPROVED_TEXT_HASH = "6ff02833cfd45a542866aa1afa749486d94362eff5358e10f995b8f77fabd5fd";
+const APPROVED_TEXT_HASH = "00ccbac57fe5c655e174eb7b0b039c868e259a0a7e7fed207c7658d469aa1cd7";
 
 type StaleFixture = {
   expectedTextLockHash: string;
