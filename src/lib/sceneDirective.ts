@@ -1133,10 +1133,27 @@ export function getLastProgressionSelectionMeta(): ProgressionSelectionMeta | nu
 }
 
 /** Canonical execution contract — shared by full and compact Standard renderers. */
+/**
+ * The progression axis is a weighted seeded draw that never reads the user turn.
+ * A user-anchored interactive MICRO beat already follows the current input, so
+ * printing the draw as "허용된 변화" only steers it away from that input.
+ * Auto progression and simulation have no user turn to anchor on and keep the axis.
+ */
+export function exposesProgressionAxis(
+  directive: Pick<SceneDirective, "motionDecision" | "mode" | "castFocus">
+): boolean {
+  if (directive.motionDecision !== "MICRO_MOTION") return true;
+  return (
+    directive.mode === "auto_progression" ||
+    directive.castFocus.sceneCastMode === "simulation"
+  );
+}
+
 export function renderSceneExecutionContract(input: {
   motionDecision: SceneMotionDecision;
   progressionTypes: SceneProgressionType[];
   npcGrounding: NpcGroundingResult;
+  showProgressionAxis: boolean;
 }): string {
   if (input.motionDecision === "HOLD") {
     return [
@@ -1161,10 +1178,12 @@ export function renderSceneExecutionContract(input: {
 
   return [
     `전개 필요: ${input.motionDecision === "MICRO_MOTION" ? "MICRO" : input.motionDecision === "ESCALATE" ? "ESCALATE" : "ADVANCE"}`,
-    `허용된 변화: ${allowedSources || "현재 캐릭터·환경"}`,
+    input.showProgressionAxis ? `허용된 변화: ${allowedSources || "현재 캐릭터·환경"}` : "",
     `기존 NPC 행동: ${npcAction}`,
     `새 인물 도입: ${newNpc}`,
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective {
@@ -1287,6 +1306,7 @@ function autoTurnKeepsEnsembleSceneRule(directive: SceneDirective): boolean {
 
 export function renderSceneDirectiveForPrompt(directive: SceneDirective): string {
   const modeLabel = directive.mode === "auto_progression" ? "자동진행" : "일반 RP";
+  const showProgressionAxis = exposesProgressionAxis(directive);
   const progression =
     directive.progressionTypes.length > 0
       ? directive.progressionTypes.map((type) => PROGRESSION_LABELS[type]).join(" + ")
@@ -1296,6 +1316,7 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
     motionDecision: directive.motionDecision,
     progressionTypes: directive.progressionTypes,
     npcGrounding: directive.npcGrounding,
+    showProgressionAxis,
   });
   return [
     renderSceneEngineRule(directive.motionDecision),
@@ -1305,9 +1326,9 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
     `정체 감지: ${directive.recentStagnation ? "있음" : "없음"}`,
     `권장 강도: ${renderIntensity(directive.recommendedIntensity, directive.recentStagnation)}`,
     executionContract,
-    `전개 방향: ${progression}`,
+    showProgressionAxis ? `전개 방향: ${progression}` : "",
     `피할 것: ${directive.avoid.join(", ")}`,
-    directive.nextBeatHint && directive.motionDecision !== "HOLD"
+    showProgressionAxis && directive.nextBeatHint && directive.motionDecision !== "HOLD"
       ? `다음 장면 힌트: ${directive.nextBeatHint}`
       : "",
     primaryFocusLine ?? "",

@@ -654,3 +654,120 @@ describe("canonical directive object propagation O11–O13", () => {
     );
   });
 });
+
+describe("interactive MICRO_MOTION contract does not print a content-blind progression axis", () => {
+  const LOBBY_HISTORY = [
+    { role: "user" as const, content: "본부 로비야. 오늘은 호출이 없대." },
+    {
+      role: "assistant" as const,
+      content: "라이크는 자판기 버튼을 누르고, 떨어지지 않는 캔을 툭 쳤다.\n야, 이거 왜 안 나와. 배고픈데.",
+    },
+  ];
+  const Q5_FEAR = "무서워. 그래도 안 갈게.";
+  const Q3_SIREN = "복도 쪽에서 사이렌이 짧게 울렸어. 아직 방송은 없는데.";
+  const AXIS_LABELS = /환경 변화|관계 변화|생활 변수|단서|이전 선택의 결과|개그\/오해|세계 반응|작전\/조사/;
+
+  function interactiveCue(message: string, chatId: number, turn: number) {
+    const directive = buildSceneDirective({
+      mode: "interactive",
+      recentMessages: LOBBY_HISTORY,
+      currentUserMessage: message,
+      chatId,
+      currentTurn: turn,
+      contentKind: "character",
+      primaryCharacterName: "라이크",
+      party: false,
+    });
+    return { directive, cue: renderCompactScenePacingCue(directive) };
+  }
+
+  it("Q5 fear line: every seeded MICRO cue keeps the body and NPC bounds but no drawn axis", () => {
+    const seenAxes = new Set<string>();
+    for (let chatId = 1; chatId <= 40; chatId++) {
+      for (let turn = 2; turn <= 11; turn++) {
+        const { directive, cue } = interactiveCue(Q5_FEAR, chatId, turn);
+        assert.equal(directive.motionDecision, "MICRO_MOTION");
+        directive.progressionTypes.forEach((t) => seenAxes.add(t));
+        assert.equal(
+          cue,
+          [
+            "[SCENE PACING]",
+            "현재 상호작용 안에서 작은 관계·감각·환경 변화 하나를 조용히 이어간다. 새 인물·별도 사건은 만들지 않는다.",
+            "전개 필요: MICRO",
+            "기존 NPC 행동: 없음",
+            "새 인물 도입: 없음",
+          ].join("\n")
+        );
+        assert.doesNotMatch(cue.split("\n").slice(2).join("\n"), AXIS_LABELS);
+      }
+    }
+    assert.ok(seenAxes.size >= 4, "selection itself stays seeded and unchanged");
+  });
+
+  it("Q3 siren and Q5 fear resolve to the same directive, so the cue must not carry the draw", () => {
+    const q5 = interactiveCue(Q5_FEAR, 18, 2);
+    const q3 = interactiveCue(Q3_SIREN, 18, 2);
+    assert.equal(q5.directive.motionDecision, q3.directive.motionDecision);
+    assert.deepEqual(q5.directive.progressionTypes, q3.directive.progressionTypes);
+    assert.equal(q5.cue, q3.cue);
+  });
+
+  it("full interactive party MICRO block drops the drawn 전개 방향 and axis-derived hint", () => {
+    const directive = buildSceneDirective({
+      mode: "interactive",
+      recentMessages: LOBBY_HISTORY,
+      currentUserMessage: Q5_FEAR,
+      chatId: 18,
+      currentTurn: 2,
+      contentKind: "character",
+      primaryCharacterName: "라이크",
+      party: true,
+    });
+    assert.equal(directive.motionDecision, "MICRO_MOTION");
+    const block = renderSceneDirectiveForPrompt(directive);
+    assert.doesNotMatch(block, /허용된 변화|전개 방향:|다음 장면 힌트:/);
+    assert.match(block, /전개 필요: MICRO/);
+    assert.match(block, /새 인물 도입: 없음/);
+  });
+
+  it("auto progression and simulation MICRO keep the drawn axis (no user turn to anchor)", () => {
+    const auto = buildSceneDirective({
+      mode: "auto_progression",
+      recentMessages: LOBBY_HISTORY,
+      currentUserMessage: "[SYSTEM DIRECTIVE: CONTINUE THE NARRATIVE]",
+      chatId: 18,
+      currentTurn: 2,
+      contentKind: "character",
+      primaryCharacterName: "라이크",
+      party: false,
+    });
+    assert.equal(auto.motionDecision, "MICRO_MOTION");
+    assert.match(renderCompactScenePacingCue(auto), /허용된 변화: /);
+    assert.match(renderSceneDirectiveForPrompt(auto), /허용된 변화: [\s\S]*전개 방향: /);
+
+    const sim = buildSceneDirective({
+      mode: "interactive",
+      recentMessages: LOBBY_HISTORY,
+      currentUserMessage: Q5_FEAR,
+      chatId: 18,
+      currentTurn: 2,
+      contentKind: "simulation",
+      primaryCharacterName: "라이크",
+      party: false,
+    });
+    assert.equal(sim.motionDecision, "MICRO_MOTION");
+    assert.match(renderCompactScenePacingCue(sim), /허용된 변화: /);
+  });
+
+  it("HOLD, SCENE_ADVANCE and ESCALATE contracts are unchanged", () => {
+    const hold = renderCompactScenePacingCue(fixtureDirective({ motionDecision: "HOLD" }));
+    assert.match(hold, /전개 필요: 없음 \(현재 비트 유지\)/);
+    assert.doesNotMatch(hold, /허용된 변화/);
+    for (const motionDecision of ["SCENE_ADVANCE", "ESCALATE"] as const) {
+      const cue = renderCompactScenePacingCue(
+        fixtureDirective({ motionDecision, progressionTypes: ["relationship"] })
+      );
+      assert.match(cue, /허용된 변화: 관계 변화/);
+    }
+  });
+});

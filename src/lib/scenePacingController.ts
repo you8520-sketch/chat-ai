@@ -17,6 +17,7 @@ import type { SceneProgressionHistoryEntry } from "@/lib/sceneProgressionState";
 import {
   buildSceneDirective,
   buildSceneSignalText,
+  exposesProgressionAxis,
   renderSceneExecutionContract,
   renderSceneMotionBody,
   resolveSceneCastFocus,
@@ -453,6 +454,7 @@ export function renderCompactScenePacingCue(directive: SceneDirective): string {
     motionDecision: directive.motionDecision,
     progressionTypes: directive.progressionTypes,
     npcGrounding: directive.npcGrounding,
+    showProgressionAxis: exposesProgressionAxis(directive),
   });
   return `[SCENE PACING]\n${body}\n${contract}`;
 }

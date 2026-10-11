@@ -13,6 +13,7 @@ import {
 import {
   buildSceneDirective,
   renderSceneDirectiveForPrompt,
+  exposesProgressionAxis,
   renderSceneExecutionContract,
   renderSceneMotionBody,
   type NpcGroundingResult,
@@ -102,6 +103,7 @@ function assertPermissionParity(d: SceneDirective, label: string) {
     motionDecision: d.motionDecision,
     progressionTypes: d.progressionTypes,
     npcGrounding: d.npcGrounding,
+    showProgressionAxis: exposesProgressionAxis(d),
   });
   const body = renderSceneMotionBody(d.motionDecision);
 
@@ -115,7 +117,10 @@ function assertPermissionParity(d: SceneDirective, label: string) {
     assert.match(contract, /기존 NPC 행동: 없음/);
     assert.match(contract, /새 인물 도입: 없음/);
   } else {
-    for (const type of d.progressionTypes) {
+    if (!exposesProgressionAxis(d)) {
+      assert.doesNotMatch(contract, /허용된 변화:/, `${label}: no drawn axis on user-anchored MICRO`);
+    }
+    for (const type of exposesProgressionAxis(d) ? d.progressionTypes : []) {
       const labels: Record<SceneProgressionType, string> = {
         relationship: "관계 변화",
         daily_life: "생활 변수",
@@ -482,7 +487,7 @@ describe("standard representation audit — full-only field presence", () => {
     assert.match(userAgencyOwner, /\[B\]의 새로운 직접 대사/);
     assert.doesNotMatch(compact, /\[B\]의 새로운 직접 대사/);
 
-    if (d.nextBeatHint && d.motionDecision !== "HOLD") {
+    if (d.nextBeatHint && d.motionDecision !== "HOLD" && exposesProgressionAxis(d)) {
       assert.match(full, /다음 장면 힌트:/);
       assert.doesNotMatch(compact, /다음 장면 힌트:/);
     }
