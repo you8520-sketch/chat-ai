@@ -1551,7 +1551,7 @@ function commitPendingGmResult(
   const openRoutes = campaignContext?.localSceneProgress.openRoutes ?? [];
   const lockedSubs = db
     .prepare(
-      `SELECT s.id, s.participant_id AS participantId, s.body, s.action_type AS actionType, r.tier
+      `SELECT s.id, s.participant_id AS participantId, s.body, s.action_type AS actionType, s.source, r.tier
        FROM trpg_action_submissions s
        LEFT JOIN trpg_dice_rolls r ON r.submission_id = s.id
        WHERE s.round_id=? AND s.locked=1 ORDER BY s.id ASC`
@@ -1561,6 +1561,7 @@ function commitPendingGmResult(
     participantId: number;
     body: string;
     actionType: string | null;
+    source: string | null;
     tier: string | null;
   }>;
   const proposedFromPlayers =
@@ -1721,6 +1722,7 @@ function commitPendingGmResult(
             actionType: sub.actionType && isTrpgActionType(sub.actionType) ? sub.actionType : null,
             body: sub.body,
             tier: isTrpgSuccessTier(sub.tier) ? sub.tier : null,
+            source: sub.source,
           })),
           authoredNpcNames: loadCampaignScenarioNpcs(db, campaign.template_id).map((npc) => npc.name),
           ledgerNpcNames: currentLedger.npcs,

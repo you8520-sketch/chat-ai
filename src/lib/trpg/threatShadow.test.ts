@@ -90,6 +90,8 @@ type Scenario = {
   authored?: string[];
   ledger?: string[];
   effects?: TrpgOngoingEffect[];
+  /** participantId → trpg_action_submissions.source; defaults to "human". */
+  sources?: Record<number, string>;
 };
 
 type Outcome = {
@@ -127,6 +129,7 @@ function run(s: Scenario): Outcome {
     actionType: row.actionType,
     body: row.body,
     tier: row.tier,
+    source: s.sources?.[row.participantId] ?? "human",
   }));
   const frozen = JSON.stringify({ sheets: s.sheets, delta, mechanics });
   const report = evaluateThreatShadow({
@@ -156,8 +159,8 @@ function claimOf(report: ThreatShadowReport, id: number) {
   return claim;
 }
 
-describe("Slice 1a threat shadow — classification (no HP/state change)", () => {
-  it("1. listen + GM false HP drop → UNGROUNDED, no candidate; legacy HP application untouched", () => {
+describe("Slice 1a threat shadow — classification (no HP/state change, no approval)", () => {
+  it("1. listen + GM false HP drop → UNGROUNDED, no signal; legacy HP application untouched", () => {
     const out = run({
       sheets: [sheet(1)],
       actors: [actor(1)],
@@ -167,16 +170,16 @@ describe("Slice 1a threat shadow — classification (no HP/state change)", () =>
     const claim = claimOf(out.report, 1);
     assert.equal(claim.grounding, "UNGROUNDED");
     assert.equal(claim.verdict, "NO_SERVER_BASIS");
-    assert.equal(claim.insufficientGrounding, true);
     assert.equal(claim.divergence, true);
-    assert.equal(out.report.candidates.length, 0);
+    assert.equal(claim.withinPotentialCeiling, null);
+    assert.equal(out.report.signals.length, 0);
     assert.deepEqual(out.report.policyOpen, ["AUTONOMOUS_THREAT_UNVERIFIABLE"]);
     assert.equal(hp(out.merged, 1), 8, "GM_LEGACY keeps applying the GM HP in Slice 1a");
     assert.equal(claim.appliedGmDropHp, 22);
     assert.deepEqual(out.merged, out.withoutShadow);
   });
 
-  it("2. legitimate NPC counter (failed attack on authored NPC) → server candidate within envelope", () => {
+  it("2. failed attack naming a template NPC stays INSUFFICIENT_GROUNDING (name is a hint, not scene presence)", () => {
     const out = run({
       sheets: [sheet(1)],
       actors: [actor(1, { actionType: "attack", body: "도적을 공격한다", tier: "FAILURE" })],
@@ -185,32 +188,31 @@ describe("Slice 1a threat shadow — classification (no HP/state change)", () =>
       ledger: ["도적"],
     });
     const claim = claimOf(out.report, 1);
-    assert.equal(claim.grounding, "AUTHORED");
-    assert.equal(claim.verdict, "CANDIDATE_WITHIN_ENVELOPE");
+    assert.equal(claim.grounding, "INSUFFICIENT_GROUNDING");
+    assert.equal(claim.verdict, "INSUFFICIENT_GROUNDING");
     assert.equal(claim.neededClass, "HEAVY");
-    assert.equal(claim.divergence, false);
-    assert.deepEqual(claim.candidateSources, [1]);
-    assert.equal(out.report.candidates[0]?.boundNpc, "도적");
-    assert.equal(hp(out.merged, 1), 22);
+    assert.equal(claim.withinPotentialCeiling, true, "diagnostic ceiling comparison only");
+    const signal = out.report.signals[0]!;
+    assert.deepEqual(signal.nameHint, { name: "도적", listedIn: "TEMPLATE" });
+    assert.equal(signal.threatPresence, "UNVERIFIED");
+    assert.equal(signal.targetBinding, "UNVERIFIED");
+    assert.ok(out.report.policyOpen.includes("TARGET_BINDING_UNAVAILABLE"));
+    assert.equal(hp(out.merged, 1), 22, "existing legitimate combat HP result is unchanged");
   });
 
-  it("2b. ledger-only NPC → ESTABLISHED; unnamed engagement → CURRENT_CHECK", () => {
-    const established = run({
+  it("2b. ledger-only (GM-writable) NPC is a hint labelled LEDGER_GM_WRITABLE, never ESTABLISHED", () => {
+    const out = run({
       sheets: [sheet(1)],
       actors: [actor(1, { actionType: "attack", body: "그림자를 공격한다", tier: "FAILURE" })],
       gmPlayers: [{ participantId: 1, hp: 25 }],
       ledger: ["그림자"],
     });
-    assert.equal(claimOf(established.report, 1).grounding, "ESTABLISHED");
-    const unnamed = run({
-      sheets: [sheet(1)],
-      actors: [actor(1, { actionType: "attack", body: "앞을 막는 자를 공격한다", tier: "FAILURE" })],
-      gmPlayers: [{ participantId: 1, hp: 25 }],
-    });
-    assert.equal(claimOf(unnamed.report, 1).grounding, "CURRENT_CHECK");
+    const claim = claimOf(out.report, 1);
+    assert.equal(claim.verdict, "INSUFFICIENT_GROUNDING");
+    assert.deepEqual(out.report.signals[0]?.nameHint, { name: "그림자", listedIn: "LEDGER_GM_WRITABLE" });
   });
 
-  it("3. GM omits damage number → server candidate preserved and flagged gmOmitted; HP unchanged", () => {
+  it("3. GM omits damage number → signal preserved and flagged gmOmitted; HP unchanged", () => {
     const out = run({
       sheets: [sheet(1)],
       actors: [actor(1, { actionType: "attack", body: "도적을 공격한다", tier: "FAILURE" })],
@@ -218,13 +220,38 @@ describe("Slice 1a threat shadow — classification (no HP/state change)", () =>
       authored: ["도적"],
     });
     assert.equal(out.report.claims.length, 0);
-    assert.equal(out.report.candidates.length, 1);
-    assert.equal(out.report.candidates[0]?.gmOmitted, true);
-    assert.equal(out.report.candidates[0]?.expression, "1d8");
+    assert.equal(out.report.signals.length, 1);
+    assert.equal(out.report.signals[0]?.gmOmitted, true);
+    assert.equal(out.report.signals[0]?.expression, "1d8");
     assert.equal(hp(out.merged, 1), 30, "H2 stays as is: nothing is applied by the shadow");
   });
 
-  it("4. attack on a nonexistent NPC never produces an HP approval candidate", () => {
+  it("4a. attack on a nonexistent NPC with no NPC anywhere: frozen roll proves nothing", () => {
+    const out = run({
+      sheets: [sheet(1)],
+      actors: [actor(1, { actionType: "attack", body: "존재하지 않는 유령을 벤다", tier: "FAILURE" })],
+      gmPlayers: [{ participantId: 1, hp: 22 }],
+    });
+    const claim = claimOf(out.report, 1);
+    assert.equal(claim.grounding, "INSUFFICIENT_GROUNDING");
+    assert.equal(claim.verdict, "INSUFFICIENT_GROUNDING");
+    assert.equal(out.report.signals[0]?.nameHint, null);
+    assert.equal(out.report.signals[0]?.threatPresence, "UNVERIFIED");
+    assert.equal(out.report.signals[0]?.targetBinding, "UNVERIFIED");
+  });
+
+  it("4b. template NPC that is not in this scene gets no presence credit from a name match", () => {
+    const out = run({
+      sheets: [sheet(1)],
+      actors: [actor(1, { actionType: "attack", body: "먼 도시의 왕을 공격한다", tier: "FAILURE" })],
+      gmPlayers: [{ participantId: 1, hp: 22 }],
+      authored: ["왕"],
+    });
+    assert.equal(claimOf(out.report, 1).verdict, "INSUFFICIENT_GROUNDING");
+    assert.equal(out.report.signals[0]?.threatPresence, "UNVERIFIED");
+  });
+
+  it("4c. no engagement at all, or a drop larger than any ceiling, is explicit", () => {
     const listened = run({
       sheets: [sheet(1)],
       actors: [actor(1)],
@@ -232,7 +259,7 @@ describe("Slice 1a threat shadow — classification (no HP/state change)", () =>
       authored: ["도적"],
       ledger: ["도적"],
     });
-    assert.equal(listened.report.candidates.length, 0);
+    assert.equal(listened.report.signals.length, 0);
     assert.equal(claimOf(listened.report, 1).verdict, "NO_SERVER_BASIS");
     const oversized = run({
       sheets: [sheet(1)],
@@ -241,27 +268,39 @@ describe("Slice 1a threat shadow — classification (no HP/state change)", () =>
       authored: ["도적"],
     });
     const claim = claimOf(oversized.report, 1);
-    assert.equal(claim.verdict, "CANDIDATE_EXCEEDS_ENVELOPE");
+    assert.equal(claim.verdict, "INSUFFICIENT_GROUNDING");
+    assert.equal(claim.withinPotentialCeiling, false);
     assert.equal(claim.neededClass, "SEVERE");
-    assert.equal(claim.singleMaxHp, 2);
+    assert.equal(claim.potentialCeilingSingleHp, 2);
   });
 
-  it("5. existing trap exposure (human + failed check) is grounded; GM-invented trap on a plain action is not", () => {
-    const grounded = run({
+  it("4d. another participant's unknown-target attack does not ground a bystander's drop", () => {
+    const out = run({
+      sheets: [sheet(1), sheet(2)],
+      actors: [actor(1, { actionType: "attack", body: "앞을 공격한다", tier: "FAILURE" }), actor(2, { body: "기다린다" })],
+      gmPlayers: [{ participantId: 2, hp: 22 }],
+    });
+    const claim = claimOf(out.report, 2);
+    assert.equal(claim.signalBasis, "OTHER_ACTOR");
+    assert.equal(claim.verdict, "INSUFFICIENT_GROUNDING");
+    assert.ok(out.report.policyOpen.includes("TARGET_BINDING_UNAVAILABLE"));
+  });
+
+  it("5. a trap word in player text or a GM-invented trap is never a grounded hazard", () => {
+    const worded = run({
       sheets: [sheet(1)],
       actors: [actor(1, { body: "함정이 깔린 복도를 지나간다", tier: "FAILURE" })],
       gmPlayers: [{ participantId: 1, hp: 26 }],
     });
-    const claim = claimOf(grounded.report, 1);
-    assert.equal(claim.grounding, "CURRENT_CHECK");
-    assert.equal(claim.verdict, "CANDIDATE_WITHIN_ENVELOPE");
+    assert.equal(claimOf(worded.report, 1).verdict, "INSUFFICIENT_GROUNDING");
+    assert.equal(worded.report.signals[0]?.engagement, "HUMAN_TEXT_CUE");
     const invented = run({
       sheets: [sheet(1)],
       actors: [actor(1, { body: "복도를 걷는다", tier: "FAILURE" })],
       gmPlayers: [{ participantId: 1, hp: 26 }],
     });
     assert.equal(claimOf(invented.report, 1).grounding, "UNGROUNDED");
-    assert.equal(invented.report.candidates.length, 0);
+    assert.equal(invented.report.signals.length, 0);
   });
 
   it("6. GM claims a new threat and damage in the same round → no self-approval", () => {
@@ -276,7 +315,7 @@ describe("Slice 1a threat shadow — classification (no HP/state change)", () =>
     assert.equal(claim.grounding, "GM_PROPOSAL");
     assert.equal(claim.verdict, "NO_SELF_APPROVAL_NEW_THREAT");
     assert.equal(claim.newThreatThisRound, true);
-    assert.equal(out.report.candidates.length, 0);
+    assert.equal(out.report.signals.length, 0);
     const knownNpc = run({
       sheets: [sheet(1)],
       actors: [actor(1)],
@@ -287,16 +326,14 @@ describe("Slice 1a threat shadow — classification (no HP/state change)", () =>
     assert.equal(claimOf(knownNpc.report, 1).grounding, "UNGROUNDED");
   });
 
-  it("7. 2 human + 2 AI seats are independent damage targets", () => {
+  it("7. 2 human + 2 AI seats are independent damage targets; AI action type is not discarded", () => {
     const sheets = [1, 2, 3, 4].map((id) => sheet(id));
+    const attack = (id: number, tier: MechanicsActorInput["tier"]) =>
+      actor(id, { actionType: "attack", body: "적을 공격한다", tier });
     const out = run({
       sheets,
-      actors: [
-        actor(1, { actionType: "attack", body: "적을 공격한다", tier: "FAILURE" }),
-        actor(2, { actionType: "attack", body: "적을 공격한다", tier: "SUCCESS" }),
-        actor(3, { actionType: "attack", body: "적을 공격한다", tier: "PARTIAL_SUCCESS" }),
-        actor(4, { actionType: "attack", body: "적을 공격한다", tier: "FAILURE" }),
-      ],
+      actors: [attack(1, "FAILURE"), attack(2, "SUCCESS"), attack(3, "PARTIAL_SUCCESS"), attack(4, "FAILURE")],
+      sources: { 3: "bot_model", 4: "bot_model" },
       gmPlayers: [
         { participantId: 1, hp: 24 },
         { participantId: 2, hp: 24 },
@@ -308,17 +345,50 @@ describe("Slice 1a threat shadow — classification (no HP/state change)", () =>
     assert.equal(new Set(out.report.claims.map((row) => row.eventKey)).size, 4);
     for (const id of [1, 2, 3, 4]) {
       const claim = claimOf(out.report, id);
-      assert.equal(claim.candidateBasis, "SELF");
-      assert.deepEqual(claim.candidateSources, [id]);
+      assert.equal(claim.signalBasis, "SELF_ACTION");
+      assert.deepEqual(claim.signalSources, [id]);
+      assert.equal(claim.verdict, "INSUFFICIENT_GROUNDING");
     }
-    assert.equal(claimOf(out.report, 1).verdict, "CANDIDATE_WITHIN_ENVELOPE");
-    assert.equal(claimOf(out.report, 2).verdict, "CANDIDATE_EXCEEDS_ENVELOPE");
-    assert.equal(claimOf(out.report, 3).verdict, "CANDIDATE_WITHIN_ENVELOPE");
-    assert.equal(claimOf(out.report, 4).verdict, "CANDIDATE_WITHIN_ENVELOPE");
-    assert.deepEqual(out.report.policyOpen, []);
+    assert.equal(claimOf(out.report, 1).withinPotentialCeiling, true);
+    assert.equal(claimOf(out.report, 2).withinPotentialCeiling, false);
+    assert.equal(claimOf(out.report, 3).withinPotentialCeiling, true);
+    assert.deepEqual(
+      out.report.signals.map((row) => row.sourceKind),
+      ["HUMAN", "HUMAN", "NON_HUMAN", "NON_HUMAN"]
+    );
   });
 
-  it("8a. multi-attack on one target is reported as combined-envelope policy-open, not silently capped", () => {
+  it("7b. AI free text never becomes a hint or a cue; human text with the same words does", () => {
+    const body = "도적을 습격한다";
+    const ai = run({
+      sheets: [sheet(1)],
+      actors: [actor(1, { actionType: "free", body, tier: "FAILURE" })],
+      sources: { 1: "bot_model" },
+      gmPlayers: [{ participantId: 1, hp: 22 }],
+      authored: ["도적"],
+    });
+    assert.equal(ai.report.signals.length, 0, "AI text cue is ignored");
+    assert.equal(claimOf(ai.report, 1).verdict, "NO_SERVER_BASIS");
+    const aiTyped = run({
+      sheets: [sheet(1)],
+      actors: [actor(1, { actionType: "attack", body, tier: "FAILURE" })],
+      sources: { 1: "host_fill" },
+      gmPlayers: [{ participantId: 1, hp: 22 }],
+      authored: ["도적"],
+    });
+    assert.equal(aiTyped.report.signals[0]?.nameHint, null, "AI text cannot name a threat");
+    assert.equal(claimOf(aiTyped.report, 1).verdict, "INSUFFICIENT_GROUNDING");
+    const human = run({
+      sheets: [sheet(1)],
+      actors: [actor(1, { actionType: "free", body, tier: "FAILURE" })],
+      gmPlayers: [{ participantId: 1, hp: 22 }],
+      authored: ["도적"],
+    });
+    assert.equal(human.report.signals[0]?.engagement, "HUMAN_TEXT_CUE");
+    assert.equal(claimOf(human.report, 1).verdict, "INSUFFICIENT_GROUNDING");
+  });
+
+  it("8a. multi-attack on one target is reported as combined-ceiling policy-open, not silently capped", () => {
     const out = run({
       sheets: [sheet(1), sheet(2), sheet(3)],
       actors: [
@@ -329,12 +399,12 @@ describe("Slice 1a threat shadow — classification (no HP/state change)", () =>
       gmPlayers: [{ participantId: 2, hp: 16 }],
     });
     const claim = claimOf(out.report, 2);
-    assert.equal(claim.candidateBasis, "OTHER_ACTOR");
-    assert.deepEqual(claim.candidateSources, [1, 3]);
-    assert.equal(claim.singleMaxHp, 8);
-    assert.equal(claim.combinedMaxHp, 16);
-    assert.equal(claim.verdict, "CANDIDATE_NEEDS_MULTI_SOURCE");
-    assert.deepEqual(out.report.policyOpen, ["MULTI_SOURCE_SAME_TARGET"]);
+    assert.equal(claim.signalBasis, "OTHER_ACTOR");
+    assert.deepEqual(claim.signalSources, [1, 3]);
+    assert.equal(claim.potentialCeilingSingleHp, 8);
+    assert.equal(claim.potentialCeilingCombinedHp, 16);
+    assert.equal(claim.verdict, "INSUFFICIENT_GROUNDING");
+    assert.ok(out.report.policyOpen.includes("MULTI_SOURCE_SAME_TARGET"));
   });
 
   it("8b. one source hitting several targets (area) is reported as policy-open", () => {
@@ -346,8 +416,8 @@ describe("Slice 1a threat shadow — classification (no HP/state change)", () =>
         { participantId: 3, hp: 26 },
       ],
     });
-    assert.deepEqual(out.report.policyOpen, ["ONE_SOURCE_MULTI_TARGET"]);
-    assert.equal(out.report.candidates[0]?.boundTargets.length, 2);
+    assert.ok(out.report.policyOpen.includes("ONE_SOURCE_MULTI_TARGET"));
+    assert.equal(out.report.signals[0]?.matchedTargets.length, 2);
   });
 
   it("9. existing DOT is server-explained; GM hp equal to server tick is not a GM claim to approve", () => {
