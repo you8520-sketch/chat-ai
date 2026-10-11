@@ -1573,7 +1573,6 @@ function commitPendingGmResult(
   const boundLocation = bindGmLocationToSubmittedMovement({
     opening: opts.opening,
     currentLocation: currentLedger.location,
-    currentNextRoundContext: currentLedger.nextRoundContext,
     proposedLocation: parsed.location || parsed.delta.location || proposedFromPlayers,
     delta: {
       ...parsed.delta,

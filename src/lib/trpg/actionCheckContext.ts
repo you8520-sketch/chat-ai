@@ -1,17 +1,12 @@
 import type { TrpgActionType } from "./actionTypes";
 import { classifyChallengeKind, stripQuotedDialogue } from "./actionSemantics";
 import type { TrpgLocalSceneProgressV1 } from "./localSceneProgress";
+import { parseMovementDeclaration } from "./movementDeclaration";
 
 /** Minimum structured stat for specialist routine competence skip (modifier +2). */
 export const TRPG_ROUTINE_COMPETENCE_STAT_MIN = 10;
 /** Strong competence lowers difficulty band one step at +3 modifier. */
 export const TRPG_STRONG_COMPETENCE_STAT_MIN = 12;
-
-const TRAVERSAL_VERBS =
-  /(?:나가|빠져나|탈출|통과|이동|진입|건너|들어(?:가|서)|나선|걸어\s?(?:간|가)|향(?:해)?(?:간|간다|한다)|(?:로|으로)\s?(?:간|간다|향|이동|나|빠|들|진입|통과))/;
-
-const NON_TRAVERSAL_INVESTIGATION =
-  /(?:조사|살피|살펴|확인|훑|바라보|질문|물어|파악)(?:한다|하며|할)/;
 
 const TIME_PRESSURE = /(?:\d+\s?초|\d+\s?분|급히|서둘|압박|포위|마감|전력|질주|시간(?:이|을)?\s?(?:없|부족|촉박))/;
 const HOSTILE_INTERFERENCE = /(?:적(?:의|이|을)?|방해|교란|추격|기생(?:종|체)|공격(?:받|당|하)|포화|매복|저항(?:하는|하는)?)/;
@@ -101,10 +96,7 @@ export function actionReferencesOpenRoute(body: string, openRoutes: readonly str
 }
 
 export function declaresTraversalIntent(body: string): boolean {
-  const text = normalizeLabel(stripQuotedDialogue(body));
-  if (!text) return false;
-  if (NON_TRAVERSAL_INVESTIGATION.test(text) && !TRAVERSAL_VERBS.test(text)) return false;
-  return TRAVERSAL_VERBS.test(text);
+  return parseMovementDeclaration(body).live;
 }
 
 export function hasHardTraversalPressure(body: string): boolean {

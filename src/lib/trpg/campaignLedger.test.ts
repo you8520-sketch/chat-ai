@@ -50,7 +50,6 @@ describe("TRPG location persist bind", () => {
     return bindGmLocationToSubmittedMovement({
       opening: opts.opening === true,
       currentLocation: dock,
-      currentNextRoundContext: "부두에서 다음을 고른다.",
       proposedLocation: opts.proposed ?? tavern,
       delta: {
         players: [
@@ -73,7 +72,7 @@ describe("TRPG location persist bind", () => {
   it("#1468 F: undeclared moon action does not accept tavern location or next-round lock-in", () => {
     const bound = bind({ body: "달을 주머니에 넣는다." });
     assert.equal(bound.location, dock);
-    assert.equal(bound.nextRoundContext, "부두에서 다음을 고른다.");
+    assert.equal(bound.nextRoundContext, "", "an unaccepted relocation neither locks in the GM hook nor revives an older one");
     assert.equal(bound.delta.players?.[0]?.location, undefined);
   });
 
@@ -159,7 +158,6 @@ describe("TRPG location persist bind", () => {
     const bound = bindGmLocationToSubmittedMovement({
       opening: false,
       currentLocation: dock,
-      currentNextRoundContext: "부두.",
       proposedLocation: tavern,
       delta: {
         players: [
@@ -210,7 +208,6 @@ describe("TRPG location persist bind", () => {
     const bound = bindGmLocationToSubmittedMovement({
       opening: false,
       currentLocation: dock,
-      currentNextRoundContext: "부두.",
       proposedLocation: dock,
       delta: {
         players: [
@@ -305,7 +302,6 @@ describe("TRPG location persist bind", () => {
     const bound = bindGmLocationToSubmittedMovement({
       opening: false,
       currentLocation: dock,
-      currentNextRoundContext: "부두.",
       proposedLocation: "석등 골목 찻집 내부",
       delta: {
         players: [{ participantId: 1, location: "석등 골목 찻집 내부" }],
@@ -329,7 +325,6 @@ describe("TRPG location persist bind", () => {
     const bound = bindGmLocationToSubmittedMovement({
       opening: false,
       currentLocation: dock,
-      currentNextRoundContext: "부두.",
       proposedLocation: "좌측 환풍구",
       delta: {
         players: [{ participantId: 1, location: "좌측 환풍구" }],
@@ -353,7 +348,6 @@ describe("TRPG location persist bind", () => {
     const bound = bindGmLocationToSubmittedMovement({
       opening: false,
       currentLocation: dock,
-      currentNextRoundContext: "부두.",
       proposedLocation: tavern,
       delta: {
         players: [{ participantId: 1, location: tavern }],
