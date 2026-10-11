@@ -21,6 +21,11 @@ import {
 import { buildPostTurnSharedInitialJsonSchema } from "@/lib/postTurnSharedInitial/schema";
 import { buildPostTurnSharedInitialSystem } from "@/lib/postTurnSharedInitial/prompt";
 import { parsePostTurnSharedInitialResponse } from "@/lib/postTurnSharedInitial/parse";
+import {
+  getEpisodicMemoryForPrompt,
+  replaceEpisodicMemoryFactsForCanonicalMutation,
+  resolveEpisodicPromptFactText,
+} from "@/lib/episodicMemoryFacts";
 import { EPISODIC_FACTS_EXTRACT_INSTRUCTIONS } from "./memory-episodic-prompt";
 import {
   parseSharedEpisodicSection,
@@ -634,5 +639,245 @@ describe("B-1 canonical prompt/schema contract", () => {
     const parsed = parsePostTurnSharedInitialResponse(text, input);
     assert.equal(parsed.relationship.valid, true);
     assert.equal(parsed.episodic.valid, false);
+  });
+});
+
+function injectedMemory(chatId: number, query: string): string {
+  return getEpisodicMemoryForPrompt(
+    getDb(),
+    {
+      chatId,
+      characterId: CHAR,
+      userId: USER,
+      currentTurn: 80,
+      currentUserMessage: query,
+      recentChatText: "평범한 최근 대화",
+    },
+    { EPISODIC_MEMORY_RECALL_ENABLED: "1" } as NodeJS.ProcessEnv
+  ).promptBlock;
+}
+
+const REN_PERSONA = "이름/호칭: ren\n성격: 조용함";
+
+describe("B-1 fact-vs-quote entailment (GPT blockers on the live writer)", () => {
+  it("BLOCKER 1: a real USER quote cannot authorize an unrelated user action in the injected memory", () => {
+    const turn = seedChat({
+      userText: "나는 오늘 커피를 마실래.",
+      assistantText: "라이크가 고개를 끄덕였다.",
+    });
+    const result = reconcile(
+      turn,
+      [
+        fact(
+          {
+            subject: "ren",
+            attribute: "action",
+            value: "kissed_laike",
+            fact_text: "렌은 라이크에게 먼저 입을 맞췄다.",
+          },
+          { source_role: "user", source_quote: "나는 오늘 커피를 마실래." }
+        ),
+      ],
+      { userPersona: REN_PERSONA }
+    );
+    const [row] = rows(turn.chatId);
+    const evidence = row ? evidenceOf(row) : undefined;
+    const injected = injectedMemory(turn.chatId, "커피 키스 입을 맞췄다 라이크 렌");
+    assert.equal(
+      injected.includes("입을 맞췄"),
+      false,
+      `kiss reached the prompt (inserted=${result.inserted}, authority=${String(evidence?.authority)})`
+    );
+    assert.ok(injected.includes("나는 오늘 커피를 마실래."), "the real user words are what is injected");
+  });
+
+  it("BLOCKER 2: a real ASSISTANT quote cannot launder an extra event into the injected memory", () => {
+    const turn = seedChat({
+      userText: PLAIN_USER,
+      assistantText: "라이크는 문을 잠갔다.",
+    });
+    const result = reconcile(turn, [
+      fact(
+        {
+          subject: "laike",
+          value: "burned_book",
+          fact_text: "라이크는 문을 잠근 뒤 중요한 책을 불태웠다.",
+        },
+        { source_role: "assistant", source_quote: "라이크는 문을 잠갔다." }
+      ),
+    ]);
+    const [row] = rows(turn.chatId);
+    const evidence = row ? evidenceOf(row) : undefined;
+    const injected = injectedMemory(turn.chatId, "라이크 문 잠갔다 책 불태웠다");
+    assert.equal(
+      injected.includes("불태웠"),
+      false,
+      `book burning reached the prompt (inserted=${result.inserted}, authority=${String(evidence?.authority)})`
+    );
+    assert.ok(injected.includes("라이크는 문을 잠갔다."), "the real scene event is what is injected");
+  });
+
+  it("persona-name bypass: assistant narration of a persona-owned action is not stored when subject is the persona", () => {
+    const turn = seedChat({
+      userText: PLAIN_USER,
+      assistantText: "ren이 라이크에게 먼저 입을 맞췄다.",
+    });
+    const result = reconcile(
+      turn,
+      [
+        fact(
+          {
+            subject: "ren",
+            attribute: "action",
+            value: "kissed_laike",
+            fact_text: "렌은 라이크에게 먼저 입을 맞췄다.",
+          },
+          { source_role: "assistant", source_quote: "ren이 라이크에게 먼저 입을 맞췄다." }
+        ),
+      ],
+      { userPersona: REN_PERSONA }
+    );
+    assert.equal(result.inserted, 0);
+    assert.equal(rows(turn.chatId).length, 0);
+  });
+
+  it("control: a real NPC scene event is injected as the verified assistant quote", () => {
+    const turn = seedChat({
+      userText: PLAIN_USER,
+      assistantText: "라이크가 렌의 손목을 붙잡았다. 낮게 숨을 골랐다.",
+    });
+    const result = reconcile(
+      turn,
+      [
+        fact(
+          {
+            subject: "laike",
+            attribute: "action",
+            value: "grabbed_wrist",
+            fact_text: "라이크는 렌이 떠나려 하자 손목을 붙잡았다.",
+          },
+          { source_role: "assistant", source_quote: "라이크가 렌의 손목을 붙잡았다." }
+        ),
+      ],
+      { userPersona: REN_PERSONA }
+    );
+    assert.equal(result.inserted, 1);
+    const injected = injectedMemory(turn.chatId, "라이크 렌 손목 붙잡았다");
+    assert.ok(injected.includes("라이크가 렌의 손목을 붙잡았다."));
+  });
+
+  it("an attributed character claim is injected only as an unconfirmed character statement", () => {
+    const turn = seedChat({
+      userText: PLAIN_USER,
+      assistantText: '리아가 말했다. "누나가 널 예전에 시장에서 봤대."',
+    });
+    const result = reconcile(turn, [
+      fact(
+        {
+          category: "character",
+          subject: "lia",
+          attribute: "claim_about_sister",
+          value: "sister_saw_user",
+          fact_text: "리아는 누나가 유저를 예전에 시장에서 봤다고 말했다.",
+          evidence_type: "explicit_character_claim",
+        },
+        { source_role: "assistant", source_quote: "누나가 널 예전에 시장에서 봤대." }
+      ),
+    ]);
+    assert.equal(result.inserted, 1);
+    const injected = injectedMemory(turn.chatId, "리아 누나 시장 봤다고 말했다");
+    assert.ok(injected.includes("[캐릭터 발언(미확정 주장)] “누나가 널 예전에 시장에서 봤대.”"));
+  });
+
+  it("a gloss that asserts user-linked history rejects the fact even when the quote itself is innocuous", () => {
+    const turn = seedChat({
+      userText: PLAIN_USER,
+      assistantText: '리아가 웃었다. "우린 어릴 때부터 친구였잖아."',
+    });
+    const result = reconcile(
+      turn,
+      [
+        fact(
+          {
+            category: "relationship",
+            subject: "lia_ren",
+            attribute: "history",
+            value: "childhood_friends",
+            fact_text: "리아와 렌은 어릴 때부터 친구였다.",
+          },
+          { source_role: "assistant", source_quote: "우린 어릴 때부터 친구였잖아." }
+        ),
+      ],
+      { userPersona: REN_PERSONA }
+    );
+    assert.equal(result.inserted, 0);
+  });
+
+  it("legacy rows and rows with malformed evidence metadata keep injecting fact_text", () => {
+    const legacy = { fact_text: "에녹은 창문을 열었다.", metadata: JSON.stringify({ memory_evidence_type: "legacy_unknown" }) };
+    const malformed = {
+      fact_text: "에녹은 문을 열었다.",
+      metadata: JSON.stringify({ evidence: { role: "assistant", message_id: 0, quote: "x", authority: "CURRENT_SCENE", match: "normalized_exact" } }),
+    };
+    const notJson = { fact_text: "에녹은 문을 닫았다.", metadata: "{" };
+    assert.equal(resolveEpisodicPromptFactText(legacy), legacy.fact_text);
+    assert.equal(resolveEpisodicPromptFactText(malformed), malformed.fact_text);
+    assert.equal(resolveEpisodicPromptFactText(notJson), notJson.fact_text);
+  });
+
+  it("regen replaces the injected quote with the new variant's verified quote", () => {
+    const turn = seedChat({ userText: PLAIN_USER, assistantText: "라이크는 문을 잠갔다." });
+    reconcile(turn, [
+      fact(
+        { subject: "laike", value: "locked_door", fact_text: "라이크는 문을 잠그고 창문을 열었다." },
+        { source_role: "assistant", source_quote: "라이크는 문을 잠갔다." }
+      ),
+    ]);
+    getDb()
+      .prepare("UPDATE messages SET content=? WHERE id=?")
+      .run("라이크는 커튼을 쳤다.", turn.assistantMessageId);
+    reconcile(
+      turn,
+      [
+        fact(
+          { subject: "laike", value: "closed_curtain", fact_text: "라이크는 커튼을 치고 불을 껐다." },
+          { source_role: "assistant", source_quote: "라이크는 커튼을 쳤다." }
+        ),
+      ],
+      { isRegeneration: true }
+    );
+    const injected = injectedMemory(turn.chatId, "라이크 문 잠갔다 커튼 쳤다 불 껐다 창문");
+    assert.ok(injected.includes("라이크는 커튼을 쳤다."));
+    assert.equal(injected.includes("잠갔다"), false);
+    assert.equal(injected.includes("불을 껐다"), false);
+  });
+
+  it("prompt contract: the model is told only the verified quote is remembered and fact_text is a gloss", () => {
+    assert.match(EPISODIC_FACTS_EXTRACT_INSTRUCTIONS, /remembers ONLY that quote/);
+    assert.match(EPISODIC_FACTS_EXTRACT_INSTRUCTIONS, /search gloss/);
+  });
+
+  it("the variant-switch writer never stamps verified evidence (alternate mutation is identified, not trusted)", () => {
+    const turn = seedChat({ userText: PLAIN_USER, assistantText: "라이크는 문을 잠갔다." });
+    const parsed = parseSharedEpisodicSection({
+      extracted_facts: [
+        fact(
+          { subject: "laike", value: "burned_book", fact_text: "라이크는 문을 잠근 뒤 중요한 책을 불태웠다." },
+          { source_role: "assistant", source_quote: "라이크는 문을 잠갔다." }
+        ),
+      ],
+    });
+    replaceEpisodicMemoryFactsForCanonicalMutation(getDb(), {
+      chatId: turn.chatId,
+      characterId: CHAR,
+      userId: USER,
+      sourceTurn: 1,
+      sourceUserMessageId: turn.userMessageId,
+      facts: parsed.facts,
+      metadata: { variant_switch: true, assistant_message_id: turn.assistantMessageId },
+    });
+    const stored = rows(turn.chatId);
+    assert.equal(stored.length, 1);
+    assert.equal(evidenceOf(stored[0]!), undefined);
   });
 });

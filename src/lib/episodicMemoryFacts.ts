@@ -3,6 +3,8 @@ import { sanitizeEpisodicExtractedFacts } from "@/lib/memory/memory-episodic-nor
 import {
   evaluateEpisodicFactEvidence,
   loadEpisodicEvidenceSources,
+  readVerifiedEvidence,
+  renderVerifiedEvidenceText,
   type EpisodicEvidenceBinding,
   type EpisodicVerifiedEvidence,
 } from "@/lib/memory/memory-episodic-evidence";
@@ -2764,6 +2766,19 @@ function resolveLatestFactsByLogicalKey(rows: EpisodicMemoryFactRecord[]): Episo
   return result;
 }
 
+/**
+ * Single owner of the text an episodic row contributes to the prompt (and to its
+ * budget). Rows with server-verified evidence inject only their verbatim quote:
+ * their LLM `fact_text` is a retrieval gloss that the quote may not entail.
+ * Legacy rows without evidence keep injecting `fact_text`.
+ */
+export function resolveEpisodicPromptFactText(
+  fact: Pick<EpisodicMemoryFactRecord, "fact_text"> & { metadata?: string | null }
+): string {
+  const verified = readVerifiedEvidence(fact.metadata);
+  return verified ? renderVerifiedEvidenceText(verified) : fact.fact_text;
+}
+
 export function formatEpisodicMemoryPromptSection(
   facts: EpisodicMemoryFactRecord[],
   maxFacts = EPISODIC_MEMORY_PROMPT_MAX_FACTS,
@@ -2774,7 +2789,7 @@ export function formatEpisodicMemoryPromptSection(
   const lines: string[] = [];
   let usedChars = 0;
   for (const fact of facts.slice(0, maxFacts)) {
-    const safeText = sanitizeRecalledMemoryFactText(fact.fact_text);
+    const safeText = sanitizeRecalledMemoryFactText(resolveEpisodicPromptFactText(fact));
     if (!safeText) continue;
     const nextChars = usedChars + safeText.length;
     // Never inject a truncated/incomplete fact_text — skip this fact only and
@@ -3033,7 +3048,7 @@ export function getEpisodicMemoryForPrompt(
         budgetReason = "dynamic_memory_total_budget";
       } else if (selected.length >= maxFacts) {
         budgetReason = "max_facts";
-      } else if (usedChars + fact.fact_text.length > effectiveMaxChars) {
+      } else if (usedChars + resolveEpisodicPromptFactText(fact).length > effectiveMaxChars) {
         budgetReason = "max_chars";
       }
 
@@ -3043,7 +3058,7 @@ export function getEpisodicMemoryForPrompt(
       }
 
       selected.push(fact);
-      usedChars += fact.fact_text.length;
+      usedChars += resolveEpisodicPromptFactText(fact).length;
       if (debug) debug.would_inject = true;
     }
 
@@ -3240,14 +3255,16 @@ export function inspectEpisodicMemoryFactsForDebug(
     let budgetReason: EpisodicMemoryBudgetReason | null = null;
     if (effectiveMaxChars <= 0) budgetReason = "dynamic_memory_total_budget";
     else if (selectedIds.size >= maxFacts) budgetReason = "max_facts";
-    else if (usedChars + fact.fact_text.length > effectiveMaxChars) budgetReason = "max_chars";
+    else if (usedChars + resolveEpisodicPromptFactText(fact).length > effectiveMaxChars) {
+      budgetReason = "max_chars";
+    }
 
     if (budgetReason) {
       fact.budget_reason = budgetReason;
       continue;
     }
     selectedIds.add(fact.id);
-    usedChars += fact.fact_text.length;
+    usedChars += resolveEpisodicPromptFactText(fact).length;
     fact.would_inject = true;
   }
 

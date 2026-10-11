@@ -20,6 +20,7 @@ import {
 import {
   getEpisodicMemoryForPrompt,
   reconcileEpisodicMemoryFactsForGeneration,
+  resolveEpisodicPromptFactText,
 } from "@/lib/episodicMemoryFacts";
 import { normalizeEvidenceSpan } from "./memory-episodic-evidence";
 import {
@@ -324,6 +325,48 @@ const ADVERSARIAL: Adversarial[] = [
   },
 ];
 
+/**
+ * Quote is real and matches its message, but the LLM gloss adds an event the quote
+ * does not state. `added` is the unsupported clause that must never reach the prompt.
+ */
+const OVERREACH: Array<Adversarial & { added: string }> = [
+  {
+    id: "O1 coffee quote, unrelated kiss (user role)",
+    userText: "나는 오늘 커피를 마실래.",
+    assistantText: "라이크가 고개를 끄덕였다.",
+    fact: f("character", "ren", "action", "kissed_laike", "important", "렌은 라이크에게 먼저 입을 맞췄다.", "explicit_scene_event", "user", "나는 오늘 커피를 마실래."),
+    added: "입을 맞췄",
+  },
+  {
+    id: "O2 door-lock quote, extra book burning (assistant role)",
+    userText: NEUTRAL_USER,
+    assistantText: "라이크는 문을 잠갔다.",
+    fact: f("character", "laike", "action", "burned_book", "important", "라이크는 문을 잠근 뒤 중요한 책을 불태웠다.", "explicit_scene_event", "assistant", "라이크는 문을 잠갔다."),
+    added: "불태웠",
+  },
+  {
+    id: "O3 user preference quote, extra consent claim",
+    userText: "나는 커피에 시럽을 넣어 마셔.",
+    assistantText: NEUTRAL_ASSISTANT,
+    fact: f("preference", "user", "favorite_drink", "syrup_coffee", "important", "사용자는 시럽 커피를 좋아하고 에녹의 청혼을 수락했다.", "explicit_user_statement", "user", "커피에 시럽을 넣어 마셔."),
+    added: "청혼",
+  },
+  {
+    id: "O4 scene quote, extra injury",
+    userText: NEUTRAL_USER,
+    assistantText: "에녹이 칼을 뽑아 들었다.",
+    fact: f("character", "enoch", "action", "drew_sword", "important", "에녹은 칼을 뽑아 들고 리아의 팔을 베었다.", "explicit_scene_event", "assistant", "에녹이 칼을 뽑아 들었다."),
+    added: "리아의 팔",
+  },
+  {
+    id: "O5 persona-subject scene quote, extra history",
+    userText: NEUTRAL_USER,
+    assistantText: "에녹은 창문을 열었다.",
+    fact: f("character", "enoch", "action", "opened_window", "important", "에녹은 창문을 열고 렌에게 비밀 편지를 건넸다.", "explicit_scene_event", "assistant", "에녹은 창문을 열었다."),
+    added: "비밀 편지",
+  },
+];
+
 let chatCounter = 0;
 
 function seedExchange(userText: string, assistantText: string) {
@@ -504,6 +547,76 @@ describe("B-1 golden fixtures: recall loss and unsupported-event acceptance", ()
   });
 });
 
+function storedPromptTexts(chatId: number): string[] {
+  const rows = getDb()
+    .prepare("SELECT fact_text, metadata FROM episodic_memory_facts WHERE chat_id=? ORDER BY id")
+    .all(chatId) as { fact_text: string; metadata: string }[];
+  return rows.map((row) => resolveEpisodicPromptFactText(row));
+}
+
+describe("B-1 round 2 golden: verified quote that does not entail the LLM gloss", () => {
+  it("added events never reach the prompt under the gate, while the previous behavior injected them", () => {
+    const results = OVERREACH.map((c) => {
+      const baselineTurn = seedExchange(c.userText, c.assistantText);
+      const { evidence: _evidence, ...legacyFact } = c.fact;
+      void _evidence;
+      const baselineParsed = parseSharedEpisodicSection({
+        extracted_facts: [{ ...legacyFact, evidence: { source_role: "user", source_quote: "baseline placeholder" } }],
+      });
+      reconcileEpisodicMemoryFactsForGeneration(getDb(), {
+        chatId: baselineTurn.chatId,
+        userId: USER,
+        characterId: CHAR,
+        sourceTurn: 1,
+        sourceUserMessageId: baselineTurn.userMessageId,
+        sourceUserText: c.userText,
+        facts: baselineParsed.facts,
+        isRegeneration: false,
+        metadata: { extraction: "shared_initial_per_turn", assistant_message_id: baselineTurn.assistantMessageId },
+      });
+      const baselineInjected = storedPromptTexts(baselineTurn.chatId).join("\n");
+      const gated = acceptedWithEvidenceGate(c);
+      const gatedInjected = storedPromptTexts(gated.turn.chatId).join("\n");
+      return {
+        id: c.id,
+        baselineInjectsAdded: baselineInjected.includes(c.added),
+        gatedStored: gated.accepted,
+        gatedInjectsAdded: gatedInjected.includes(c.added),
+        gatedInjectsQuote: gatedInjected.includes(
+          (c.fact.evidence as { source_quote: string }).source_quote
+        ),
+      };
+    });
+    console.log("B1R2_GOLDEN_OVERREACH " + JSON.stringify(results));
+    assert.deepEqual(results.filter((r) => !r.baselineInjectsAdded).map((r) => r.id), []);
+    assert.deepEqual(results.filter((r) => r.gatedInjectsAdded).map((r) => r.id), []);
+    assert.deepEqual(results.filter((r) => r.gatedStored && !r.gatedInjectsQuote).map((r) => r.id), []);
+  });
+
+  it("bona fide facts inject exactly their verified quote; reports the injected size versus the gloss", () => {
+    let injectedChars = 0;
+    let glossChars = 0;
+    for (const c of BONA_FIDE) {
+      const { accepted, turn } = acceptedWithEvidenceGate(c);
+      assert.equal(accepted, true, c.id);
+      const [text] = storedPromptTexts(turn.chatId);
+      const quote = (c.fact.evidence as { source_quote: string }).source_quote;
+      assert.ok(text!.includes(`“${quote}”`), c.id);
+      assert.ok(/^\[[^\]]+\] “/.test(text!), c.id);
+      injectedChars += text!.length;
+      glossChars += String(c.fact.fact_text).length;
+    }
+    console.log(
+      "B1R2_GOLDEN_INJECTED_SIZE " +
+        JSON.stringify({
+          bonaFide: BONA_FIDE.length,
+          avgInjectedChars: Number((injectedChars / BONA_FIDE.length).toFixed(1)),
+          avgGlossChars: Number((glossChars / BONA_FIDE.length).toFixed(1)),
+        })
+    );
+  });
+});
+
 describe("B-1 80-turn continuous scenario: emotional callback from correctly attributed memory", () => {
   it("stores verified important memories during the run, rejects invented ones, and recalls the verified one at turn 80", () => {
     const db = getDb();
@@ -584,7 +697,10 @@ describe("B-1 80-turn continuous scenario: emotional callback from correctly att
       },
       { EPISODIC_MEMORY_RECALL_ENABLED: "1" } as NodeJS.ProcessEnv
     );
-    assert.ok(recall.promptBlock.includes("어머니의 기일"), "verified user statement is recalled with correct attribution");
+    assert.ok(
+      recall.promptBlock.includes("[유저가 직접 쓴 원문] “오늘은 어머니 기일이라서 마음이 무거워.”"),
+      "verified user statement is recalled as the user's own quoted words"
+    );
     assert.equal(recall.promptBlock.includes("직접 만난 적"), false, "invented shared history never reaches the prompt");
   });
 });
