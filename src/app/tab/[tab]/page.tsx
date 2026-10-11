@@ -181,7 +181,8 @@ export default async function TabPage({
       notFound();
   }
 
-  chars = decorateCharactersWithCreatorTiers(db, chars);
+  // `new` comes from fetchNewestCharacters, which already decorates creator tiers.
+  if (tab !== "new") chars = decorateCharactersWithCreatorTiers(db, chars);
   bookmarkedChars = decorateCharactersWithCreatorTiers(db, bookmarkedChars);
   followingCreatorChars = decorateCharactersWithCreatorTiers(db, followingCreatorChars);
 
