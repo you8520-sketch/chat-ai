@@ -11,7 +11,11 @@ import {
   projectOtherRelationshipsToCharacterLorebook,
   resolveOfficialCharacterLorebooks,
 } from "@/lib/officialSupply/lorebookAttach";
-import { evaluateOfficialStagedSaveLength, officialSubstantiveCharCount } from "@/lib/officialSupply/characterText";
+import {
+  composeOfficialSystemPrompt,
+  evaluateOfficialStagedSaveLength,
+  officialSubstantiveCharCount,
+} from "@/lib/officialSupply/characterText";
 import { evaluateSharedLorebook } from "@/lib/officialSupply/worldQa";
 import {
   buildCharacterBondsSystem,
@@ -111,5 +115,34 @@ describe("official otherRelationships lorebook attach", () => {
     assert.doesNotMatch(system, /0~3명/);
     assert.match(user, /자동으로 채우지 않는다/);
     assert.match(user, /없으면 \[\]/);
+  });
+
+  it("author bonds prompt allows zero secrets and does not seed secret slots", () => {
+    const system = buildCharacterBondsSystem();
+    const user = buildCharacterBondsUser({
+      name: "볼프강",
+      age: 34,
+      rpHook: "위조 처형 명령서",
+      adultCandidate: false,
+      castList: [],
+      part1Recap: "북부 방벽 지휘관",
+    });
+    assert.doesNotMatch(system, /secrets 1~3개/);
+    assert.match(system, /필요한 비밀이 없으면 \[\]/);
+    assert.match(system, /개수를 채우지 않는다/);
+    assert.match(user, /"secrets": \[\]/);
+  });
+
+  it("compiles a draft with zero secrets without a secret section", () => {
+    const source = loadCompiledOfficialCharacterSource("pilot-rf-02");
+    const noSecrets = composeOfficialSystemPrompt({ ...source.draft, secrets: [] }, source.appearanceBlock);
+    assert.doesNotMatch(noSecrets, /\[비밀 — 캐릭터는 앎\]/);
+    assert.match(noSecrets, /\[관계·갈등·행동원리\]/);
+  });
+
+  it("pilot author does not push NPC creation by default", () => {
+    const script = fs.readFileSync(path.join(process.cwd(), "scripts/official-supply-pilot-author.ts"), "utf8");
+    assert.doesNotMatch(script, /특별한 이유가 없으면 1~2명을 만든다/);
+    assert.match(script, /필요 없으면 0명\(\[\]\)이 정상이다/);
   });
 });

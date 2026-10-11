@@ -424,8 +424,19 @@ describe("official author adapter", () => {
         { adultExpected: false }
       ).ok
     );
-    assert.ok(!validateCharacterBible({ ...base, secrets: [] }, { adultExpected: false }).ok);
     assert.ok(!validateCharacterBible({ ...base, behaviorRules: ["하나"] }, { adultExpected: false }).ok);
+  });
+
+  it("bible QA accepts zero secrets and only rejects an over-filled list", () => {
+    const base = fakeBible(false);
+    const zero = validateCharacterBible({ ...base, secrets: [] }, { adultExpected: false });
+    assert.equal(zero.errors.some((issue) => issue.code === "bible_secrets"), false);
+    assert.equal(zero.ok, true);
+    const over = validateCharacterBible(
+      { ...base, secrets: ["a", "b", "c", "d", "e"] },
+      { adultExpected: false }
+    );
+    assert.equal(over.errors.some((issue) => issue.code === "bible_secrets"), true);
   });
 
   it("SFW bible with adult authoring content is rejected; 19+ without adult section is rejected", () => {

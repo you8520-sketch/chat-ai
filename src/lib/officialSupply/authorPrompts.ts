@@ -513,7 +513,7 @@ export function buildCharacterBondsSystem(): string {
     "  다른 공식 캐릭터를 관계 목록에 자동으로 채우지 않는다. 같은 세계관에 존재하거나 나중에 만날 수 있다는 이유만으로는 넣지 않는다.",
     "  인원 수를 채우는 목표는 없다. 출연진 전체를 채우지 않는다. 현재 RP와 무관한 인물을 넣지 않는다.",
     "  otherRelationships는 메인 시스템 프롬프트에 상시 주입하지 않는다. hidden은 로어북이나 새 비밀로 옮기지 않는다. 정말 필요한 비밀만 유지한다.",
-    "- secrets 1~3개. 캐릭터 자신이 알고 있으나 공개하지 않는 핵심 사실만. RP progression·갈등·관계 변화에 실제 영향을 주는 것만 남기고 trivial 반전은 금지.",
+    "- secrets: 캐릭터 자신이 알고 있으나 공개하지 않는 핵심 사실 중 RP progression·갈등·관계 변화에 실제 영향을 주는 것만 최대 3개. 필요한 비밀이 없으면 []이며 개수를 채우지 않는다. trivial 반전은 금지.",
     "- rpEngine: immediateHook + repeatable 반드시 3개 이상(비사건성 일상 포함) + mediumConflict + longTermChange.",
     "  엔딩 고정 금지.",
     "",
@@ -553,7 +553,7 @@ const BIBLE_1_SKELETON = `{"identity": {"name": "", "gender": "male", "age": 27,
 
 const VOICE_SKELETON_HEAD = `{"speech": {"register": "", "sentenceLength": "", "tempo": "", "vocabulary": "", "frequentPhrases": ["", ""], "rarePhrases": [""], "profanity": "", "humorStyle": "", "addressStyle": "", "hiddenEmotionStyle": "", "angryStyle": "", "intimateStyle": "", "keywords": ["", "", "", ""], "description": "", "examples": "대사1\\n대사2\\n대사3\\n대사4", "forbidden": ""}, "behaviorRules": ["", "", ""], "greeting": "", "publicProfile": {"tagline": "", "description": "", "tags": ["", "", "", ""]}, "npcs": [], "nsfw": `;
 
-const BONDS_SKELETON_HEAD = `{"userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [], "secrets": ["", ""], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "nsfw": `;
+const BONDS_SKELETON_HEAD = `{"userRelationship": {"initialView": "", "userRole": "", "startingPoint": "", "progression": ["", "", ""]}, "otherRelationships": [], "secrets": [], "rpEngine": {"immediateHook": "", "repeatable": ["", "", ""], "mediumConflict": "", "longTermChange": ""}, "nsfw": `;
 
 /** Shape mirrors the adult QA bands in `validateCharacterBible` (prefs 4-8, scenarios 2-3). */
 const ADULT_SECTION_SKELETON = `{"orientation": "", "hookSummary": "", "dialogueProfile": "", "consentModes": [""], "tone": "", "preferenceKeywords": ["", "", "", ""], "boundaries": [], "consentBehavior": "", "scenarioExamples": ["", ""]}`;

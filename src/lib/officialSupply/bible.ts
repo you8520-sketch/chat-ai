@@ -1020,8 +1020,8 @@ export function validateCharacterBible(
   }
 
   const secrets = bible.secrets ?? [];
-  if (secrets.length < 1 || secrets.length > 4) {
-    errors.push(err("bible_secrets", `secrets 1-4 required, got ${secrets.length}`));
+  if (secrets.length > 4) {
+    errors.push(err("bible_secrets", `secrets at most 4 allowed, got ${secrets.length}`));
   }
   const npcs = bible.npcs ?? [];
   const PLACEHOLDERS = new Set(["이름", "역할", "외모", "말투", "성격", "관계", "대사1", "예시"]);
