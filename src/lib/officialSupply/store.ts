@@ -935,6 +935,16 @@ export class OfficialSupplyStore {
     if (rows.length !== 14) {
       throw new OfficialSupplyGateError("locked_snapshot_assets_drift", `${draftKey}: expected 14 asset rows, found ${rows.length}`);
     }
+    const nextSlotKinds = new Map(input.nextPlan.slots.map((slot) => [slot.slotKey, slot.kind]));
+    if (
+      nextSlotKinds.size !== 14 ||
+      rows.some((row) => nextSlotKinds.get(row.slot_key) !== row.kind)
+    ) {
+      throw new OfficialSupplyGateError(
+        "locked_snapshot_assets_drift",
+        `${draftKey}: persisted asset keys/kinds must match the approved 14-slot plan`
+      );
+    }
     const kinds = { representative: 0, signature: 0, emotion: 0, scene: 0 };
     let inFlight = 0;
     let startedNonRep = 0;
@@ -1008,10 +1018,7 @@ export class OfficialSupplyStore {
       next.name !== expectedDraft.name ||
       next.gender !== expectedDraft.gender ||
       next.age !== expectedDraft.age ||
-      next.adult.nsfw !== expectedDraft.adult.nsfw ||
-      (next.adult.nsfw &&
-        expectedDraft.adult.nsfw &&
-        next.adult.participantMinAge !== expectedDraft.adult.participantMinAge)
+      canonicalJson(next.adult) !== canonicalJson(expectedDraft.adult)
     ) {
       throw new OfficialSupplyGateError("locked_snapshot_identity_changed", `${row.draft_key}: identity/world/style/adult drifted`);
     }
