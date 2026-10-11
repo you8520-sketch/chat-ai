@@ -279,6 +279,7 @@ export default function ChatSessionList({
           branches={pickerGroup.sessions}
           blurNsfw={blurNsfw}
           nsfw={pickerGroup.nsfw === 1}
+          avatar={pickerGroup}
           onDeleteRequest={setPendingDelete}
           onRenameSuccess={handleRenameSuccess}
           deletingId={deletingId}

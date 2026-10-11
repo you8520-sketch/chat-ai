@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import {
   formatChatListTime,
   formatChatPreview,
   formatChatSessionStats,
   getBranchDisplayTitle,
+  type CharacterChatGroup,
   type UserChatSession,
 } from "@/lib/recentChats";
 import { chatEntryHref, characterPageHref } from "@/lib/chatLinks";
+import { CHAT_RESUME_THUMB_ATTR, chatResumeAttrs } from "@/lib/chatResumeTransition";
 import { chatRoomHref, requestExplicitChatSession } from "@/lib/chatSessionStartClient";
+import { isPlainLeftClick } from "@/lib/menuTransitionSpec";
 
 type Props = {
   open: boolean;
@@ -21,10 +24,52 @@ type Props = {
   branches: UserChatSession[];
   blurNsfw: boolean;
   nsfw: boolean;
+  /** 대표 이미지·색·이모지. D-2 전환이 이 원에서 시작한다. */
+  avatar: Pick<CharacterChatGroup, "images" | "hue" | "emoji">;
   onDeleteRequest?: (session: UserChatSession) => void;
   onRenameSuccess?: (session: UserChatSession) => void;
   deletingId?: number | null;
 };
+
+function parseThumb(images: string): string | null {
+  try {
+    const arr = JSON.parse(images || "[]") as string[];
+    return arr[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function BranchAvatar({
+  avatar,
+  hidden,
+  className,
+}: {
+  avatar: Pick<CharacterChatGroup, "images" | "hue" | "emoji">;
+  hidden: boolean;
+  className: string;
+}) {
+  const thumb = parseThumb(avatar.images);
+  return (
+    <span
+      {...{ [CHAT_RESUME_THUMB_ATTR]: "" }}
+      aria-hidden="true"
+      className={`relative block shrink-0 overflow-hidden rounded-full ring-1 ring-white/15 ${className}`}
+      style={{ background: `hsl(${avatar.hue} 60% 22%)` }}
+    >
+      {thumb ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={thumb}
+          alt=""
+          className={`h-full w-full object-cover object-top ${hidden ? "blur-md" : ""}`}
+        />
+      ) : (
+        <span className="flex h-full w-full items-center justify-center text-sm">{avatar.emoji}</span>
+      )}
+    </span>
+  );
+}
 
 export default function CharacterChatBranchModal({
   open,
@@ -34,6 +79,7 @@ export default function CharacterChatBranchModal({
   branches,
   blurNsfw,
   nsfw,
+  avatar,
   onDeleteRequest,
   onRenameSuccess,
   deletingId = null,
@@ -51,13 +97,15 @@ export default function CharacterChatBranchModal({
   const multi = branches.length > 1;
   const latest = branches[0];
 
-  function enter(chatId?: number) {
-    onClose();
-    if (hidden) {
-      router.push("/verify");
-      return;
-    }
-    router.push(chatEntryHref(characterId, { chatId }));
+  /** 실제 방 확정은 native Link. 전환 마커는 성인 가림(/verify)에는 붙지 않는다. */
+  function enterLinkProps(chatId: number) {
+    return {
+      href: hidden ? "/verify" : chatEntryHref(characterId, { chatId }),
+      onClick: (e: MouseEvent<HTMLAnchorElement>) => {
+        if (isPlainLeftClick(e)) onClose();
+      },
+      ...chatResumeAttrs({ characterId, chatId, name: characterName, hidden }),
+    };
   }
 
   async function startFreshChat() {
@@ -160,26 +208,14 @@ export default function CharacterChatBranchModal({
               {branches.map((b) => (
                 <li key={b.chat_id}>
                   <div className="flex items-stretch gap-1 rounded-xl transition hover:bg-white/5">
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => {
-                        if (editingId !== b.chat_id) enter(b.chat_id);
-                      }}
-                      onKeyDown={(e) => {
-                        if (editingId !== b.chat_id && (e.key === "Enter" || e.key === " ")) enter(b.chat_id);
-                      }}
-                      className="min-w-0 flex-1 px-3 py-3 text-left"
-                    >
-                      {editingId === b.chat_id ? (
+                    {editingId === b.chat_id ? (
+                      <div className="min-w-0 flex-1 px-3 py-3 text-left">
                         <form
                           className="flex gap-2"
                           onSubmit={(e) => {
                             e.preventDefault();
                             void saveRename(b);
                           }}
-                          onClick={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => e.stopPropagation()}
                         >
                           <input
                             autoFocus
@@ -207,23 +243,37 @@ export default function CharacterChatBranchModal({
                             취소
                           </button>
                         </form>
-                      ) : (
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="truncate text-sm font-semibold text-white">
-                            {getBranchDisplayTitle(b)}
+                        <p className="mt-0.5 text-[11px] text-violet-400/80">
+                          {formatChatSessionStats(b)}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-500">
+                          {formatChatPreview(b.last_role, b.last_content, characterName)}
+                        </p>
+                      </div>
+                    ) : (
+                      <Link
+                        {...enterLinkProps(b.chat_id)}
+                        className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-3 text-left"
+                      >
+                        <BranchAvatar avatar={avatar} hidden={hidden} className="h-8 w-8" />
+                        <span className="block min-w-0 flex-1">
+                          <span className="flex items-baseline justify-between gap-2">
+                            <span className="truncate text-sm font-semibold text-white">
+                              {getBranchDisplayTitle(b)}
+                            </span>
+                            <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">
+                              {formatChatListTime(b.last_at)}
+                            </span>
                           </span>
-                          <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">
-                            {formatChatListTime(b.last_at)}
+                          <span className="mt-0.5 block text-[11px] text-violet-400/80">
+                            {formatChatSessionStats(b)}
                           </span>
-                        </div>
-                      )}
-                      <p className="mt-0.5 text-[11px] text-violet-400/80">
-                        {formatChatSessionStats(b)}
-                      </p>
-                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-500">
-                        {formatChatPreview(b.last_role, b.last_content, characterName)}
-                      </p>
-                    </div>
+                          <span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-zinc-500">
+                            {formatChatPreview(b.last_role, b.last_content, characterName)}
+                          </span>
+                        </span>
+                      </Link>
+                    )}
                     {editingId !== b.chat_id && (
                       <button
                         type="button"
@@ -258,13 +308,13 @@ export default function CharacterChatBranchModal({
 
         <div className="flex flex-col gap-2 border-t border-white/5 p-4">
           {!multi && latest && (
-            <button
-              type="button"
-              onClick={() => enter(latest.chat_id)}
-              className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white hover:bg-violet-500"
+            <Link
+              {...enterLinkProps(latest.chat_id)}
+              className="flex items-center justify-center gap-2.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500"
             >
+              <BranchAvatar avatar={avatar} hidden={hidden} className="h-8 w-8" />
               이어서 대화
-            </button>
+            </Link>
           )}
           {!multi && latest && onDeleteRequest && !hidden && (
             <button
