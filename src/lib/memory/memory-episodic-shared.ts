@@ -96,6 +96,7 @@ export function buildSharedEpisodicSectionJsonSchema(): Record<string, unknown> 
       "importance",
       "fact_text",
       "evidence_type",
+      "evidence",
     ],
     properties: {
       category: {
@@ -120,6 +121,15 @@ export function buildSharedEpisodicSectionJsonSchema(): Record<string, unknown> 
       evidence_type: {
         type: "string",
         enum: ["explicit_user_statement", "explicit_scene_event", "explicit_character_claim"],
+      },
+      evidence: {
+        type: "object",
+        additionalProperties: false,
+        required: ["source_role", "source_quote"],
+        properties: {
+          source_role: { type: "string", enum: ["user", "assistant"] },
+          source_quote: { type: "string" },
+        },
       },
     },
   };
@@ -158,7 +168,10 @@ export function parseSharedEpisodicSection(raw: unknown): EpisodicSectionParse {
   if (rawFacts.length === 0) {
     return { present: true, valid: true, facts: [] };
   }
-  const facts = sanitizeEpisodicExtractedFacts(rawFacts, { requireEvidence: true });
+  const facts = sanitizeEpisodicExtractedFacts(rawFacts, {
+    requireEvidence: true,
+    requireSourceQuote: true,
+  });
   if (facts.length === 0) {
     return { present: true, valid: false, facts: [] };
   }
@@ -172,6 +185,7 @@ export type ReconcileSharedEpisodicFactsInput = {
   assistantMessageId: number;
   sourceUserMessageId?: number | null;
   sourceUserText: string;
+  userPersona?: string | null;
   boundarySnapshot?: MemorySourceBoundary;
   episodic: EpisodicSectionParse;
   isRegeneration: boolean;
@@ -207,6 +221,10 @@ export function reconcileSharedEpisodicFactsForTurn(
     input.assistantMessageId
   );
   if (!identity) {
+    return { replaced: false, inserted: 0, skipped: true };
+  }
+
+  if (identity.sourceAssistantMessageId !== input.assistantMessageId) {
     return { replaced: false, inserted: 0, skipped: true };
   }
 
@@ -281,6 +299,11 @@ export function reconcileSharedEpisodicFactsForTurn(
     boundarySnapshot: boundary,
     facts,
     isRegeneration,
+    userPersona: input.userPersona,
+    evidenceBinding: {
+      userMessageId: identity.sourceUserMessageId,
+      assistantMessageId: identity.sourceAssistantMessageId,
+    },
     metadata: {
       extraction: SHARED_EPISODIC_EXTRACTION,
       assistant_message_id: input.assistantMessageId,

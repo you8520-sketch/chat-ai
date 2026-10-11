@@ -56,7 +56,7 @@ export function isAttributedMemoryClaim(text: string): boolean {
   return ATTRIBUTED_CLAIM_MARKER.test(text);
 }
 
-function mentionsUser(text: string, personaName: string | null): boolean {
+export function mentionsUser(text: string, personaName: string | null): boolean {
   if (/(?:유저|사용자)/.test(text)) return true;
   return Boolean(personaName && text.includes(personaName));
 }

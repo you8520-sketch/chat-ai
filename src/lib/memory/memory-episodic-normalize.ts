@@ -1,5 +1,6 @@
 import type {
   EpisodicExtractedFact,
+  EpisodicFactEvidenceClaim,
   EpisodicFactCategory,
   EpisodicFactEvidenceType,
   EpisodicFactImportance,
@@ -35,6 +36,16 @@ const FORBIDDEN_FACT_FIELDS = new Set(["source_turn", "id", "uuid", "timestamp"]
 function cleanString(value: unknown): string {
   if (typeof value !== "string" && typeof value !== "number") return "";
   return String(value).replace(/\s+/g, " ").trim();
+}
+
+function parseEvidenceClaim(raw: unknown): EpisodicFactEvidenceClaim | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const obj = raw as Record<string, unknown>;
+  const role = obj.source_role;
+  const quote = obj.source_quote;
+  if (role !== "user" && role !== "assistant") return null;
+  if (typeof quote !== "string" || !quote.trim()) return null;
+  return { source_role: role, source_quote: quote };
 }
 
 function koreanCharCount(value: string): number {
@@ -73,7 +84,7 @@ function isConciseFactValue(value: string): boolean {
 
 export function sanitizeEpisodicExtractedFacts(
   raw: unknown,
-  opts: { requireEvidence?: boolean } = {}
+  opts: { requireEvidence?: boolean; requireSourceQuote?: boolean } = {}
 ): EpisodicExtractedFact[] {
   if (!Array.isArray(raw)) return [];
 
@@ -101,6 +112,8 @@ export function sanitizeEpisodicExtractedFacts(
     if (!isCompleteKoreanSentence(factText)) continue;
     if (evidenceRaw && !FACT_EVIDENCE_TYPES.has(evidenceType)) continue;
     if (opts.requireEvidence && !FACT_EVIDENCE_TYPES.has(evidenceType)) continue;
+    const evidenceClaim = parseEvidenceClaim(obj.evidence);
+    if (opts.requireSourceQuote && !evidenceClaim) continue;
 
     const dedupeKey = `${category}:${subject}:${attribute}:${value}:${factText}`;
     if (seen.has(dedupeKey)) continue;
@@ -113,6 +126,7 @@ export function sanitizeEpisodicExtractedFacts(
       importance,
       fact_text: factText,
       ...(FACT_EVIDENCE_TYPES.has(evidenceType) ? { evidence_type: evidenceType } : {}),
+      ...(evidenceClaim ? { evidence: evidenceClaim } : {}),
     });
     if (out.length >= 3) break;
   }

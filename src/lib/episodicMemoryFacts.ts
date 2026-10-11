@@ -1,5 +1,11 @@
 import type Database from "better-sqlite3";
 import { sanitizeEpisodicExtractedFacts } from "@/lib/memory/memory-episodic-normalize";
+import {
+  evaluateEpisodicFactEvidence,
+  loadEpisodicEvidenceSources,
+  type EpisodicEvidenceBinding,
+  type EpisodicVerifiedEvidence,
+} from "@/lib/memory/memory-episodic-evidence";
 import type {
   EpisodicBatchUserSource,
   EpisodicExtractedFact,
@@ -79,6 +85,13 @@ export type PersistEpisodicMemoryFactsInput = {
   boundarySnapshot?: MemorySourceBoundary;
   facts?: EpisodicExtractedFact[] | null;
   metadata?: Record<string, unknown>;
+  /**
+   * Shared Initial live path: when set, every fact must carry an extractor quote that
+   * is proven verbatim in the canonical USER / finalized ASSISTANT message of this turn
+   * (resolved here, inside the write transaction). Unverified facts are dropped.
+   * Absent for legacy / non-Shared-Initial callers, whose rows stay evidence-less.
+   */
+  evidenceBinding?: EpisodicEvidenceBinding;
   /**
    * Regeneration: delete existing facts for this chat/source_turn (same character/user)
    * before inserting the new attempt. Unrelated turns are never touched.
@@ -1049,12 +1062,33 @@ export function persistEpisodicMemoryFactsCore(
     batchUserSources: batchUserSources.length > 0 ? batchUserSources : undefined,
     userPersona: input.userPersona,
   };
-  const facts = dedupeFactsWithinResponse(
+  let facts = dedupeFactsWithinResponse(
     filterUnsafeEpisodicFactsForSave(
       sanitizeEpisodicExtractedFacts(input.facts ?? []),
       evidenceOpts
     )
   );
+  const verifiedEvidence = new Map<EpisodicExtractedFact, EpisodicVerifiedEvidence>();
+  if (input.evidenceBinding && facts.length > 0) {
+    const sources = loadEpisodicEvidenceSources(db, chatId, input.evidenceBinding);
+    facts = facts.filter((fact) => {
+      const decision = evaluateEpisodicFactEvidence(fact, sources, {
+        userPersona: input.userPersona,
+      });
+      if (decision.accepted) {
+        verifiedEvidence.set(fact, decision.evidence);
+        return true;
+      }
+      console.info("EPISODIC_EVIDENCE_REJECTED", {
+        chat_id: chatId,
+        source_turn: sourceTurn,
+        reason: decision.reason,
+        evidence_type: fact.evidence_type ?? null,
+        category: fact.category,
+      });
+      return false;
+    });
+  }
   if (facts.length === 0) return 0;
   if (scopeIneligible) return 0;
 
@@ -1089,10 +1123,12 @@ export function persistEpisodicMemoryFactsCore(
             ? authority.sourceMessageId ?? sourceUserMessageId
             : null
           : sourceUserMessageId;
+    const verified = verifiedEvidence.get(fact);
     const metadataJson = JSON.stringify({
       ...(input.metadata ?? {}),
       memory_evidence_type: fact.evidence_type ?? "legacy_unknown",
       ...(provenance.turn != null ? { evidence_source_turn: provenance.turn } : {}),
+      ...(verified ? { evidence: verified } : {}),
     });
     insert.run(
       chatId,
@@ -1201,6 +1237,8 @@ export type ReconcileEpisodicMemoryFactsInput = {
   facts?: EpisodicExtractedFact[] | null;
   isRegeneration: boolean;
   metadata?: Record<string, unknown>;
+  userPersona?: string | null;
+  evidenceBinding?: EpisodicEvidenceBinding;
 };
 
 export function reconcileEpisodicMemoryFactsForGeneration(
@@ -1242,6 +1280,8 @@ export function reconcileEpisodicMemoryFactsForGeneration(
         facts,
         replaceSourceTurn: input.isRegeneration,
         metadata: input.metadata,
+        userPersona: input.userPersona,
+        evidenceBinding: input.evidenceBinding,
       });
       return { replaced: input.isRegeneration, inserted };
     };

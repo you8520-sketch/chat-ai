@@ -25,6 +25,17 @@ export type EpisodicFactEvidenceType =
   /** Legacy metadata only; new model output must never duplicate canon into episodic memory. */
   | "canon";
 
+export type EpisodicEvidenceRole = "user" | "assistant";
+
+/**
+ * Extractor-proposed source span. Model output only: the server resolves the
+ * message id and decides authority from the canonical message row.
+ */
+export type EpisodicFactEvidenceClaim = {
+  source_role: EpisodicEvidenceRole;
+  source_quote: string;
+};
+
 export type EpisodicExtractedFact = {
   category: EpisodicFactCategory;
   subject: string;
@@ -34,6 +45,8 @@ export type EpisodicExtractedFact = {
   fact_text: string;
   /** Optional only for legacy stored facts and internal fixtures. New model output requires it. */
   evidence_type?: EpisodicFactEvidenceType;
+  /** Required for Shared Initial output; absent on legacy stored facts and internal fixtures. */
+  evidence?: EpisodicFactEvidenceClaim;
 };
 
 /** Batch user source for 5-turn seal evidence provenance validation. */
