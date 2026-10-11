@@ -41,8 +41,11 @@ import {
   type MechanicsResolution,
   type RecoveryRollRecord,
   type SafeRestRecord,
+  type ThreatStrikeRecord,
   type TrpgOngoingEffect,
 } from "./mechanicsTypes";
+import { formatThreatStrikeLines, resolveThreatStrikes } from "./encounterStrikes";
+import type { TrpgScenarioEncounter } from "./scenarioPlan";
 
 export type MechanicsResolveInput = {
   campaignId: number;
@@ -66,6 +69,11 @@ export type MechanicsResolveInput = {
   recoveryRng?: () => number;
   preActionOnly?: boolean;
   lastSafeRestByParticipant?: Record<string, number>;
+  /** Author-approved encounters (trusted source only). Non-empty switches the campaign to server HP authority. */
+  encounters?: readonly TrpgScenarioEncounter[];
+  priorThreatStrikes?: Record<string, number>;
+  /** Encounter ids retired by an accepted GM commit in an earlier round. */
+  endedEncounterIds?: readonly string[];
 };
 
 export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsResolution {
@@ -613,6 +621,20 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
     });
   }
 
+  const encounterAuthority = (input.encounters?.length ?? 0) > 0;
+  const threatStrikes = encounterAuthority
+    ? resolveThreatStrikes({
+        encounters: input.encounters ?? [],
+        roundNumber: input.roundNumber,
+        priorStrikes: input.priorThreatStrikes ?? {},
+        endedEncounterIds: input.endedEncounterIds ?? [],
+        sheets,
+        rng,
+        rollD20: recoveryRng,
+        baseDc: input.baseDc,
+      })
+    : [];
+
   const original = new Map(input.effects.map((row) => [row.id, row]));
   const ongoingUpdates: MechanicsResolution["ongoingUpdates"] = [];
   for (const effect of liveEffects) {
@@ -667,6 +689,8 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
     safeRests,
     fallback: input.fallback,
     calledFlash: input.calledFlash,
+    threatStrikes,
+    encounterAuthority,
   });
 
   const harmCount = actors.filter((row) => row.direct?.effect === "harm").length;
@@ -700,7 +724,9 @@ export function resolveRoundMechanics(input: MechanicsResolveInput): MechanicsRe
       actors,
       ongoingTicks,
       safeRests,
+      threatStrikes,
     }),
+    ...(encounterAuthority ? { threatStrikes, encounterAuthority: true } : {}),
     applied: false,
     flashRaw: input.flashRaw ?? input.existing?.flashRaw ?? null,
     packet,
@@ -1119,7 +1145,11 @@ function formatAuthoritativePacket(opts: {
   safeRests: SafeRestRecord[];
   fallback: MechanicsResolution["fallback"];
   calledFlash: boolean;
+  threatStrikes: readonly ThreatStrikeRecord[];
+  encounterAuthority: boolean;
 }): string {
+  const nameOf = (participantId: number) =>
+    opts.sheets.find((sheet) => sheet.participantId === participantId)?.name ?? String(participantId);
   const blocks = opts.sheets.map((sheet) => {
     const name = sheet.name;
     const ticks = opts.ongoingTicks.filter((row) => row.participantId === sheet.participantId);
@@ -1152,6 +1182,12 @@ function formatAuthoritativePacket(opts: {
     if (opts.preActionIncap.has(sheet.participantId)) {
       lines.push("PRE_ACTION_HP_ZERO incapacitated; current physical action skipped");
     }
+    lines.push(
+      ...formatThreatStrikeLines(
+        opts.threatStrikes.filter((row) => row.targetParticipantId === sheet.participantId),
+        nameOf
+      )
+    );
     const rest = opts.safeRests.find((row) => row.participantId === sheet.participantId);
     if (rest?.allowed) {
       lines.push(`SAFE REST +${rest.amount} HP ${rest.hpBefore} → ${rest.hpAfter} (no d20)`);
@@ -1182,7 +1218,10 @@ function formatAuthoritativePacket(opts: {
     lines.push(`최종: HP ${sheet.hp}/${sheet.maxHp}`);
     return lines.join("\n");
   });
-  return `[AUTHORITATIVE MECHANICS]\n${blocks.join("\n\n")}`;
+  const authorityNote = opts.encounterAuthority
+    ? "\n\nENCOUNTER_AUTHORITY: HP loss this round is only what THREAT_STRIKE / ONGOING lines above state. Narrate any other peril without HP numbers — use position, time, pursuit or new obstacles. Narrate every THREAT_STRIKE result exactly (hit or miss). 중독/출혈 labels you add are narrative only here and do not tick HP. If this round's story ends a listed threat (defeated, fled, truce), put its [id] in delta.encountersEnded; that only stops its later strikes and never grants damage, hits, rewards or healing."
+    : "";
+  return `[AUTHORITATIVE MECHANICS]\n${blocks.join("\n\n")}${authorityNote}`;
 }
 
 function buildHpOwnership(opts: {
@@ -1190,6 +1229,7 @@ function buildHpOwnership(opts: {
   actors: MechanicsResolution["actors"];
   ongoingTicks: MechanicsResolution["ongoingTicks"];
   safeRests: SafeRestRecord[];
+  threatStrikes: readonly ThreatStrikeRecord[];
 }): Record<string, HpOwnershipFlags> {
   const out: Record<string, HpOwnershipFlags> = {};
   for (const sheet of opts.sheets) {
@@ -1215,6 +1255,7 @@ function buildHpOwnership(opts: {
       GM_LEGACY: opts.actors.some(
         (row) => row.participantId === participantId && row.directHpOwner === "GM_LEGACY"
       ),
+      SERVER_THREAT: opts.threatStrikes.some((row) => row.targetParticipantId === participantId && row.hit),
     };
   }
   return out;

@@ -204,6 +204,12 @@ export type TrpgStateDelta = {
   threadsAdd?: string[];
   threadsResolve?: string[];
   endingConditionId?: string;
+  /**
+   * Suppress-only: ids of already-approved scenario encounters this round's story ended (defeat,
+   * flight, truce). The server validates and applies it for later rounds; it can never add a threat,
+   * damage, hit, reward or heal.
+   */
+  encountersEnded?: string[];
   /** Optional local multi-round scene progress mutations. Omission is not deletion. */
   localScene?: TrpgLocalSceneProgressDelta;
 };

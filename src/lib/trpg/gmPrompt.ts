@@ -86,6 +86,8 @@ function asDelta(raw: unknown): TrpgStateDelta {
   const threadsResolve = stringList(src.threadsResolve) ?? stringList(src.threads_resolve);
   if (threadsAdd) delta.threadsAdd = threadsAdd;
   if (threadsResolve) delta.threadsResolve = threadsResolve;
+  const encountersEnded = stringList(src.encountersEnded);
+  if (encountersEnded) delta.encountersEnded = encountersEnded;
   if (typeof src.endingConditionId === "string") delta.endingConditionId = src.endingConditionId;
   else if (typeof src.ending_condition_id === "string") delta.endingConditionId = src.ending_condition_id;
   const localScene =
@@ -143,7 +145,7 @@ export const TRPG_GM_SYSTEM = `You are the TRPG Game Master. Korean novelistic n
 
 Rules:
 - You NEVER roll dice or change dice results. Use the provided roll outcomes exactly.
-- When [AUTHORITATIVE MECHANICS] is supplied, that packet is mechanics canon for SERVER_PREACTION (ongoing ticks/control), SERVER_RECOVERY (safe rest, authorized first aid, valid treatment-item HP heal), and FLASH_REFEREE (Flash-classified direct HP). Do not change those HP, heal, tick, ongoing add/remove/recovery, or dice numbers. If the packet marks GM_LEGACY_DIRECT, current-action HP is not mechanics-classified — you may write that current-action HP as before. Do not invent or overwrite SERVER_PREACTION / SERVER_RECOVERY / FLASH_REFEREE HP. Realize classified results in fiction. Do not paste the packet, internal reasons, or hidden numbers into narration. Inventory, location, quests, NPCs, flags, and story progress remain yours unless they conflict with mechanics HP, ongoing effects, or item consumption — mechanics wins those conflicts. You may surface already-canon treatment opportunities; do not invent a specific cure that mechanics did not authorize.
+- When [AUTHORITATIVE MECHANICS] is supplied, that packet is mechanics canon for SERVER_PREACTION (ongoing ticks/control), SERVER_RECOVERY (safe rest, authorized first aid, valid treatment-item HP heal), and FLASH_REFEREE (Flash-classified direct HP). Do not change those HP, heal, tick, ongoing add/remove/recovery, or dice numbers. If the packet marks GM_LEGACY_DIRECT, current-action HP is not mechanics-classified — you may write that current-action HP as before. Do not invent or overwrite SERVER_PREACTION / SERVER_RECOVERY / FLASH_REFEREE HP. When ENCOUNTER_AUTHORITY is present, only THREAT_STRIKE / ONGOING lines change HP: narrate each THREAT_STRIKE (hit or miss) as stated, and do not write HP loss for any other cause — peril without a strike line becomes position, time, pursuit or new obstacles. Realize classified results in fiction. Do not paste the packet, internal reasons, or hidden numbers into narration. Inventory, location, quests, NPCs, flags, and story progress remain yours unless they conflict with mechanics HP, ongoing effects, or item consumption — mechanics wins those conflicts. You may surface already-canon treatment opportunities; do not invent a specific cure that mechanics did not authorize.
 - Honor supplied roll tiers exactly; realize outcomes in fiction per ROUND CRAFT below.
 - Resolve conflicting results in [RESOLUTION ORDER] when present. Acting first is not an automatic success. If that block is missing, use the listed action order. Later PCs react to what earlier resolved actions already did this round.
 - The campaign is a single linear timeline — no alternate worldlines, IF routes, or chat-style forks.

@@ -16,6 +16,7 @@ import {
 import {
   countScenarioPlanChars,
   hasPlayableScenarioPlan,
+  assertAuthoredEncountersValid,
   parseTrpgScenarioPlan,
   type TrpgScenarioPlan,
 } from "./scenarioPlan";
@@ -263,6 +264,7 @@ export function normalizeScenarioTemplateInput(
 } {
   const title = clip(String(input.title ?? ""), TRPG_SCENARIO_TITLE_LIMIT);
   const content = clip(String(input.content ?? ""), TRPG_SCENARIO_CONTENT_LIMIT);
+  assertAuthoredEncountersValid(input.scenarioPlan);
   const scenarioPlan = parseTrpgScenarioPlan(input.scenarioPlan);
   if (!title) throw new Error("시나리오 제목을 입력해 주세요.");
   if (!content && !hasPlayableScenarioPlan(scenarioPlan)) {

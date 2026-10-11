@@ -149,6 +149,61 @@ export function loadLastSafeRestRounds(
   return out;
 }
 
+/** Strikes already committed per encounter id. Derived from applied resolutions, so no extra state exists. */
+export function loadThreatStrikeCounts(
+  db: Database.Database,
+  campaignId: number,
+  beforeRoundId: number
+): Record<string, number> {
+  if (!hasTable(db, "trpg_mechanics_resolutions")) return {};
+  const rows = db
+    .prepare(
+      `SELECT m.resolution_json
+       FROM trpg_mechanics_resolutions m
+       WHERE m.campaign_id=? AND m.round_id<>?`
+    )
+    .all(campaignId, beforeRoundId) as Array<{ resolution_json: string }>;
+  const out: Record<string, number> = {};
+  for (const row of rows) {
+    const parsed = parseJson(row.resolution_json, null as MechanicsResolution | null);
+    if (parsed?.v !== 1 || !parsed.applied) continue;
+    for (const strike of parsed.threatStrikes ?? []) {
+      out[strike.encounterId] = (out[strike.encounterId] ?? 0) + 1;
+    }
+  }
+  return out;
+}
+
+/**
+ * Encounter ids retired by accepted GM commits in rounds before `beforeRoundNumber`. The committed
+ * state-change log is the single store: the commit owner writes only server-validated ids there, and a
+ * row exists only once its round committed (regeneration and failed commits never write one).
+ */
+export function loadEndedEncounterIds(
+  db: Database.Database,
+  campaignId: number,
+  beforeRoundNumber: number
+): string[] {
+  if (!hasTable(db, "trpg_state_change_log")) return [];
+  const rows = db
+    .prepare(
+      `SELECT l.applied_json
+       FROM trpg_state_change_log l
+       JOIN trpg_rounds r ON r.id = l.round_id
+       WHERE l.campaign_id=? AND r.round_number < ?`
+    )
+    .all(campaignId, beforeRoundNumber) as Array<{ applied_json: string }>;
+  const ended = new Set<string>();
+  for (const row of rows) {
+    const parsed = parseJson(row.applied_json, null as { encountersEnded?: unknown } | null);
+    if (!Array.isArray(parsed?.encountersEnded)) continue;
+    for (const id of parsed.encountersEnded) {
+      if (typeof id === "string" && id) ended.add(id);
+    }
+  }
+  return [...ended];
+}
+
 export function loadLatestCompleteMechanics(
   db: Database.Database,
   campaignId: number

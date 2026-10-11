@@ -47,6 +47,43 @@ export const TRPG_PLAN_FIELD_LIMITS = {
   factionChanges: 8,
 } as const;
 
+export const TRPG_ENCOUNTER_KINDS = ["enemy", "hazard"] as const;
+export type TrpgEncounterKind = (typeof TRPG_ENCOUNTER_KINDS)[number];
+export const TRPG_ENCOUNTER_DAMAGE_CLASSES = ["CHIP", "LIGHT", "MEDIUM", "HEAVY", "SEVERE", "CRITICAL"] as const;
+export type TrpgEncounterDamageClass = (typeof TRPG_ENCOUNTER_DAMAGE_CLASSES)[number];
+export const TRPG_ENCOUNTER_LIMITS = {
+  maxEncounters: 6,
+  maxStrikesCap: 6,
+  defaultMaxStrikes: 3,
+  nameChars: 40,
+  idChars: 40,
+  locationChars: 80,
+  minHitDc: 5,
+  maxHitDc: 25,
+  maxActivateRound: 999,
+} as const;
+
+/**
+ * Author-defined hostile source. Lives in the scenario template plan (human-authored) and is
+ * copied into the campaign snapshot. Only the server may turn it into HP damage: the GM can
+ * narrate it freely but never declares it.
+ *
+ * It can only strike seats whose server-bound location (the campaignLedger movement owner) is
+ * `location`, and only from `activateRound` (earliest server round) while strikes remain.
+ * `maxStrikes` bounds the total server-rolled attempts, misses included. There is no
+ * defeat/flee signal yet: leaving `location` is the only way a party escapes it.
+ */
+export type TrpgScenarioEncounter = {
+  id: string;
+  name: string;
+  kind: TrpgEncounterKind;
+  damageClass: TrpgEncounterDamageClass;
+  activateRound: number;
+  maxStrikes: number;
+  hitDc?: number;
+  location: string;
+};
+
 export type TrpgScenarioPlanProvenance = {
   generatorModel: string;
   schemaVersion: string;
@@ -75,6 +112,8 @@ export type TrpgScenarioPlan = {
   gmDirection: string;
   playLength: TrpgScenarioPlayLength;
   provenance?: TrpgScenarioPlanProvenance | null;
+  /** Typed, author-approved threats. Omitted when the scenario defines none. */
+  encounters?: TrpgScenarioEncounter[];
 };
 
 export type TrpgScenarioPlanLintIssue = {
@@ -142,6 +181,118 @@ export function emptyTrpgScenarioPlan(): TrpgScenarioPlan {
   };
 }
 
+/**
+ * Single row/limit evaluator. The lenient reader (`parseScenarioEncounters`) skips what is invalid; the
+ * scenario save boundary (`assertAuthoredEncountersValid`) rejects the same findings, so an author can
+ * never silently lose a threat and fall back to GM-owned HP.
+ */
+export function evaluateScenarioEncounters(raw: unknown): { encounters: TrpgScenarioEncounter[]; issues: string[] } {
+  const issues: string[] = [];
+  if (!Array.isArray(raw)) return { encounters: [], issues };
+  const out: TrpgScenarioEncounter[] = [];
+  const seen = new Set<string>();
+  if (raw.length > TRPG_ENCOUNTER_LIMITS.maxEncounters) {
+    issues.push(`위협은 최대 ${TRPG_ENCOUNTER_LIMITS.maxEncounters}개까지 설정할 수 있습니다.`);
+  }
+  raw.forEach((item, index) => {
+    const label = `위협 #${index + 1}`;
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      issues.push(`${label}: 객체 형식이 아닙니다.`);
+      return;
+    }
+    const row = item as Record<string, unknown>;
+    const rawId = String(row.id ?? "").trim();
+    const rawName = String(row.name ?? "").trim();
+    const rawLocation = String(row.location ?? "").trim();
+    const id = clip(rawId, TRPG_ENCOUNTER_LIMITS.idChars);
+    const name = clip(rawName, TRPG_ENCOUNTER_LIMITS.nameChars);
+    const location = clip(rawLocation, TRPG_ENCOUNTER_LIMITS.locationChars);
+    const kind = String(row.kind ?? "");
+    const damageClass = String(row.damageClass ?? "LIGHT");
+    const fatal: string[] = [];
+    const clamped: string[] = [];
+    if (!id) fatal.push("id가 없습니다");
+    else if (seen.has(id)) fatal.push(`id "${id}"가 중복됩니다`);
+    if (rawId.length > TRPG_ENCOUNTER_LIMITS.idChars) clamped.push(`id는 ${TRPG_ENCOUNTER_LIMITS.idChars}자 이하여야 합니다`);
+    if (!name) fatal.push("name이 없습니다");
+    if (rawName.length > TRPG_ENCOUNTER_LIMITS.nameChars) clamped.push(`name은 ${TRPG_ENCOUNTER_LIMITS.nameChars}자 이하여야 합니다`);
+    if (!location) fatal.push("장소(location)가 없습니다");
+    if (rawLocation.length > TRPG_ENCOUNTER_LIMITS.locationChars) clamped.push(`location은 ${TRPG_ENCOUNTER_LIMITS.locationChars}자 이하여야 합니다`);
+    if (!(TRPG_ENCOUNTER_KINDS as readonly string[]).includes(kind)) fatal.push(`kind는 ${TRPG_ENCOUNTER_KINDS.join("/")} 중 하나여야 합니다`);
+    if (!(TRPG_ENCOUNTER_DAMAGE_CLASSES as readonly string[]).includes(damageClass)) {
+      fatal.push(`damageClass는 ${TRPG_ENCOUNTER_DAMAGE_CLASSES.join("/")} 중 하나여야 합니다`);
+    }
+    const activateRound = Number(row.activateRound ?? 1);
+    if (!Number.isInteger(activateRound) || activateRound < 1 || activateRound > TRPG_ENCOUNTER_LIMITS.maxActivateRound) {
+      fatal.push(`activateRound는 1~${TRPG_ENCOUNTER_LIMITS.maxActivateRound} 정수여야 합니다`);
+    }
+    const maxStrikesRaw = row.maxStrikes == null ? TRPG_ENCOUNTER_LIMITS.defaultMaxStrikes : Number(row.maxStrikes);
+    if (!Number.isInteger(maxStrikesRaw) || maxStrikesRaw < 1) fatal.push("maxStrikes는 1 이상의 정수여야 합니다");
+    else if (maxStrikesRaw > TRPG_ENCOUNTER_LIMITS.maxStrikesCap) {
+      clamped.push(`maxStrikes는 ${TRPG_ENCOUNTER_LIMITS.maxStrikesCap} 이하여야 합니다`);
+    }
+    let hitDc: number | undefined;
+    if (row.hitDc != null) {
+      hitDc = Number(row.hitDc);
+      if (!Number.isInteger(hitDc) || hitDc < TRPG_ENCOUNTER_LIMITS.minHitDc || hitDc > TRPG_ENCOUNTER_LIMITS.maxHitDc) {
+        fatal.push(`hitDc는 ${TRPG_ENCOUNTER_LIMITS.minHitDc}~${TRPG_ENCOUNTER_LIMITS.maxHitDc} 정수여야 합니다`);
+      }
+    }
+    const problems = [...fatal, ...clamped];
+    if (problems.length > 0) {
+      issues.push(`${label}${id ? ` (${id})` : ""}: ${problems.join(", ")}.`);
+    }
+    const unusable = fatal.length > 0;
+    if (unusable || out.length >= TRPG_ENCOUNTER_LIMITS.maxEncounters) return;
+    const encounter: TrpgScenarioEncounter = {
+      id,
+      name,
+      kind: kind as TrpgEncounterKind,
+      damageClass: damageClass as TrpgEncounterDamageClass,
+      activateRound,
+      maxStrikes: Math.min(maxStrikesRaw, TRPG_ENCOUNTER_LIMITS.maxStrikesCap),
+      location,
+    };
+    if (hitDc !== undefined) encounter.hitDc = hitDc;
+    seen.add(id);
+    out.push(encounter);
+  });
+  return { encounters: out, issues };
+}
+
+export function parseScenarioEncounters(raw: unknown): TrpgScenarioEncounter[] {
+  return evaluateScenarioEncounters(raw).encounters;
+}
+
+/**
+ * Save-boundary guard. `encounters` absent/null/[] means the author set none (legacy campaign semantics
+ * stay), and so does an empty plan string. A non-empty plan string must be parseable JSON, any explicit
+ * plan must be an object (a parsed `[]`/`123`/`null` or a direct array/number/boolean would read as "no plan"
+ * and overwrite the stored one), and any explicit encounters must be fully valid: a partly or wholly
+ * dropped list would otherwise leave the campaign on GM-owned HP without telling the author.
+ */
+export function assertAuthoredEncountersValid(rawPlan: unknown): void {
+  if (rawPlan == null) return;
+  let plan: unknown = rawPlan;
+  if (typeof rawPlan === "string") {
+    const text = rawPlan.trim();
+    if (!text) return;
+    try {
+      plan = JSON.parse(text);
+    } catch {
+      throw new Error("시나리오 계획(scenarioPlan) JSON을 읽을 수 없습니다. 형식을 확인해 주세요.");
+    }
+  }
+  if (!plan || typeof plan !== "object" || Array.isArray(plan)) {
+    throw new Error("시나리오 계획(scenarioPlan)은 JSON 객체여야 합니다. 형식을 확인해 주세요.");
+  }
+  const raw = (plan as Record<string, unknown>).encounters;
+  if (raw == null) return;
+  if (!Array.isArray(raw)) throw new Error("위협(encounters) 설정 오류: 목록 형식이어야 합니다.");
+  const { issues } = evaluateScenarioEncounters(raw);
+  if (issues.length > 0) throw new Error(`위협(encounters) 설정 오류: ${issues.join(" ")}`);
+}
+
 function parseProvenance(raw: unknown): TrpgScenarioPlanProvenance | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const row = raw as Record<string, unknown>;
@@ -193,6 +344,8 @@ export function parseTrpgScenarioPlan(raw: unknown): TrpgScenarioPlan | null {
     playLength: parseTrpgScenarioPlayLength(row.playLength),
     provenance: parseProvenance(row.provenance),
   };
+  const encounters = parseScenarioEncounters(row.encounters);
+  if (encounters.length) plan.encounters = encounters;
   return isTrpgScenarioPlanEmpty(plan) ? null : plan;
 }
 
@@ -212,7 +365,8 @@ export function isTrpgScenarioPlanEmpty(plan: TrpgScenarioPlan | null | undefine
     plan.climax ||
     plan.endingCandidates.length ||
     plan.factionChanges.length ||
-    plan.gmDirection
+    plan.gmDirection ||
+    plan.encounters?.length
   );
 }
 
@@ -314,6 +468,10 @@ export function serializeTrpgScenarioPlanForGm(
     bullets("단서:", plan.clues),
     bullets("금지 사건:", plan.forbiddenEvents),
     skipBoss ? "" : line("보스:", plan.boss),
+    bullets(
+      "승인된 위협 (해당 장소에서만 서버가 공격을 판정; 결과는 THREAT_STRIKE로 주어진다):",
+      (plan.encounters ?? []).map((encounter) => `[${encounter.id}] ${encounter.name} @ ${encounter.location}`)
+    ),
     bullets("특별 규칙:", plan.specialRules),
     plan.difficulty ? `난이도: ${plan.difficulty}` : "",
     line("클라이맥스:", plan.climax),
