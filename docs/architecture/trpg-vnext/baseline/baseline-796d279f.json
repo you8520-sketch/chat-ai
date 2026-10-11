@@ -1,0 +1,1030 @@
+{
+  "schema": "trpg-vnext.baseline.v1",
+  "baseCommit": "796d279f",
+  "providerCalls": 0,
+  "dbWrites": 0,
+  "hp": [
+    {
+      "id": "H1",
+      "situation": "PC listens (no hazard, no threat provenance). GM writes hp 30 -> 8 in structured output.",
+      "gmDelta": "players[1].hp=8",
+      "startHp": 30,
+      "endHp": 8,
+      "expectedByContract": 30,
+      "verdict": "DEFECT",
+      "note": "GM_LEGACY owner is permissive: any in-range integer below start HP commits. This is the #1494 class-C gap."
+    },
+    {
+      "id": "H2",
+      "situation": "PC attacks and FAILS; GM narrates a counter-hit but omits hp (server has no hit-damage owner while referee is OFF).",
+      "gmDelta": "players[1].hp omitted",
+      "startHp": 30,
+      "endHp": 30,
+      "expectedByContract": 30,
+      "verdict": "DECISION_NEEDED",
+      "note": "Server has no pre-approved damage source for NPC attacks, so a legitimate counter-hit omitted by the GM is silently lost. Contract needs a server-owned threat event (RFC §5)."
+    },
+    {
+      "id": "H3",
+      "situation": "PC attacks and fails; GM writes hp 30 -> 22 (legitimate counter-hit).",
+      "gmDelta": "players[1].hp=22",
+      "startHp": 30,
+      "endHp": 22,
+      "expectedByContract": 22,
+      "verdict": "PRESERVED",
+      "note": "Legitimate combat damage must keep working. Same code path as H1 — the owner cannot distinguish H1 from H3."
+    },
+    {
+      "id": "H4",
+      "situation": "Non-actor seat (렌) gets hp 30 -> 12 from GM with no scene threat.",
+      "gmDelta": "players[2].hp=12",
+      "startHp": 30,
+      "endHp": 12,
+      "expectedByContract": 30,
+      "verdict": "DEFECT",
+      "note": "hpOwnership(p2)={\"SERVER_PREACTION\":false,\"SERVER_RECOVERY\":false,\"FLASH_REFEREE\":false,\"GM_LEGACY\":false}. The merge accepts GM hp for a seat that submitted no action and has no server layer."
+    },
+    {
+      "id": "H5",
+      "situation": "Mechanics resolution incomplete (referee failure path) + GM hp 8.",
+      "gmDelta": "players[1].hp=8",
+      "startHp": 30,
+      "endHp": 8,
+      "expectedByContract": 30,
+      "verdict": "DEFECT",
+      "note": "The incomplete path assigns clampHp(gmHp) unconditionally; failure recovery widens GM authority."
+    },
+    {
+      "id": "H6",
+      "situation": "PC at hp 10 only listens; GM writes hp 30 (free full heal).",
+      "gmDelta": "players[1].hp=30",
+      "startHp": 10,
+      "endHp": 30,
+      "expectedByContract": 10,
+      "verdict": "DEFECT",
+      "note": "GM heal without a server recovery roll or item provenance is accepted (fallbackHpAfterTickAndGmHeal / direct assign)."
+    },
+    {
+      "id": "H7",
+      "situation": "GM adds condition '중독' to a PC with no hazard provenance.",
+      "gmDelta": "players[1].conditions=['중독']",
+      "startHp": 30,
+      "endHp": null,
+      "expectedByContract": 0,
+      "verdict": "DEFECT",
+      "note": "derivePostGmOngoingSeeds returned [{\"participantId\":1,\"family\":\"POISON\"}] — a GM-only condition string self-authorizes a server DOT effect that will tick HP in later rounds."
+    },
+    {
+      "id": "H8",
+      "situation": "GM adds inventory item '용의 심장' on a listen action.",
+      "gmDelta": "players[1].inventoryAdd=['용의 심장']",
+      "startHp": 30,
+      "endHp": null,
+      "expectedByContract": 0,
+      "verdict": "DECISION_NEEDED",
+      "note": "inventory after merge: [\"용의 심장\"]. Item grants have no provenance check either; same authority class as HP."
+    },
+    {
+      "id": "H9",
+      "situation": "Referee ON (default OFF): authoritative harm exists; GM tries a milder hp.",
+      "gmDelta": "players[1].hp=29",
+      "startHp": 30,
+      "endHp": 26,
+      "expectedByContract": 26,
+      "verdict": "PRESERVED",
+      "note": "hpOwnership={\"SERVER_PREACTION\":false,\"SERVER_RECOVERY\":false,\"FLASH_REFEREE\":true,\"GM_LEGACY\":false}. Server-owned harm beats the GM when a server owner exists."
+    },
+    {
+      "id": "H10",
+      "situation": "PC heals self (server recovery roll); GM writes a lower stale hp.",
+      "gmDelta": "players[1].hp=3",
+      "startHp": 10,
+      "endHp": 14,
+      "expectedByContract": 14,
+      "verdict": "PRESERVED",
+      "note": "recovery floor=14; a stale lower GM hp does not undercut the server recovery floor when the seat is a recovery actor."
+    }
+  ],
+  "hpSummary": {
+    "total": 10,
+    "defects": [
+      "H1",
+      "H4",
+      "H5",
+      "H6",
+      "H7"
+    ],
+    "decisionNeeded": [
+      "H2",
+      "H8"
+    ],
+    "preserved": [
+      "H3",
+      "H9",
+      "H10"
+    ]
+  },
+  "actions": {
+    "total": 32,
+    "scored": 31,
+    "freeMatch": 23,
+    "chipAttackMatch": 11,
+    "noRollItems": 20,
+    "noRollItemsChipForcedRoll": 20,
+    "rollItems": 11,
+    "rollItemsMissedWhenFree": 1,
+    "clarifyItems": 1,
+    "clarifyPathExistsInCurrentOwner": false,
+    "probeContext": "localScene=null, intent=null (production passes both; absolute rates are indicative, not production rates)"
+  },
+  "actionItems": [
+    {
+      "id": "A01",
+      "text": "그 자리에 서서 골목 소리를 듣는다.",
+      "target": "no_roll",
+      "class": "observation",
+      "confidence": "clear",
+      "ref": "#1494 repro action",
+      "free": {
+        "needsCheck": false,
+        "reason": "no_meaningful_uncertainty"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "A02",
+      "text": "이름을 외운다.",
+      "target": "no_roll",
+      "class": "noun_hint",
+      "confidence": "clear",
+      "ref": "#1523 meaning contract",
+      "free": {
+        "needsCheck": false,
+        "reason": "no_meaningful_uncertainty"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "A03",
+      "text": "공격은 끝났다.",
+      "target": "no_roll",
+      "class": "completed_status",
+      "confidence": "clear",
+      "ref": "#1523 meaning contract",
+      "free": {
+        "needsCheck": false,
+        "reason": "no_meaningful_uncertainty"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "A04",
+      "text": "방어가 끝났다.",
+      "target": "no_roll",
+      "class": "completed_status",
+      "confidence": "clear",
+      "ref": "#1523 meaning contract",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": false,
+      "chipMatches": false
+    },
+    {
+      "id": "A05",
+      "text": "문 앞에서 잠시 기다린다.",
+      "target": "no_roll",
+      "class": "waiting",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": false,
+      "chipMatches": false
+    },
+    {
+      "id": "A06",
+      "text": "\"문을 부수겠어!\" 하고 소리친다.",
+      "target": "no_roll",
+      "class": "quoted_speech",
+      "confidence": "judgment",
+      "free": {
+        "needsCheck": false,
+        "reason": "no_meaningful_uncertainty"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "A07",
+      "text": "칼을 뽑지 않고 두 손을 펼쳐 보인다.",
+      "target": "no_roll",
+      "class": "negation",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": false,
+      "chipMatches": false
+    },
+    {
+      "id": "A08",
+      "text": "방패를 내려놓고 숨을 고른다.",
+      "target": "no_roll",
+      "class": "ordinary_prep",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": false,
+        "reason": "flavor"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "A09",
+      "text": "렌에게 지금 어떻게 할지 묻는다.",
+      "target": "no_roll",
+      "class": "party_talk",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": false,
+        "reason": "talk"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "A10",
+      "text": "창가에 앉아 차를 마신다.",
+      "target": "no_roll",
+      "class": "daily_life",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": false,
+        "reason": "no_meaningful_uncertainty"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "A11",
+      "text": "문을 열고 복도로 나간다.",
+      "target": "no_roll",
+      "class": "routine_move",
+      "confidence": "judgment",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": false,
+      "chipMatches": false
+    },
+    {
+      "id": "A12",
+      "text": "골목을 따라 걸어 광장으로 간다.",
+      "target": "no_roll",
+      "class": "routine_move",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": false,
+        "reason": "no_meaningful_uncertainty"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "A13",
+      "text": "문을 닫는다.",
+      "target": "no_roll",
+      "class": "routine_object",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": false,
+      "chipMatches": false
+    },
+    {
+      "id": "A14",
+      "text": "화물 목록을 읽는다.",
+      "target": "no_roll",
+      "class": "noun_hint",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": false,
+      "chipMatches": false
+    },
+    {
+      "id": "A15",
+      "text": "그가 칼을 들고 다가온다는 것을 알아차린다.",
+      "target": "no_roll",
+      "class": "perception_of_other",
+      "confidence": "judgment",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": false,
+      "chipMatches": false
+    },
+    {
+      "id": "A16",
+      "text": "벽에 기대어 서서 상대의 말을 끝까지 듣는다.",
+      "target": "no_roll",
+      "class": "observation",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": false,
+        "reason": "no_meaningful_uncertainty"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "A17",
+      "text": "방 안을 천천히 둘러본다.",
+      "target": "no_roll",
+      "class": "observation",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": false,
+        "reason": "no_meaningful_uncertainty"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "A18",
+      "text": "그녀에게 다가가 손을 잡는다.",
+      "target": "no_roll",
+      "class": "relationship",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": false,
+        "reason": "ordinary_free"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "A19",
+      "text": "\"안녕하세요.\" 하고 인사한다.",
+      "target": "no_roll",
+      "class": "dialogue",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": false,
+        "reason": "no_meaningful_uncertainty"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "A20",
+      "text": "공격이 끝난 뒤 숨을 고르며 주변을 본다.",
+      "target": "no_roll",
+      "class": "completed_status",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": false,
+        "reason": "ordinary_free"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": false
+    },
+    {
+      "id": "R01",
+      "text": "잠긴 문을 어깨로 부순다.",
+      "target": "roll",
+      "class": "force",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": true,
+        "reason": "hazard"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "hazard"
+      },
+      "freeMatches": true,
+      "chipMatches": true
+    },
+    {
+      "id": "R02",
+      "text": "경비병에게 달려들어 칼로 벤다.",
+      "target": "roll",
+      "class": "attack",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": true,
+      "chipMatches": true
+    },
+    {
+      "id": "R03",
+      "text": "날아오는 칼날을 방패로 막는다.",
+      "target": "roll",
+      "class": "defend",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": true,
+      "chipMatches": true
+    },
+    {
+      "id": "R04",
+      "text": "경비병을 속여 통과하려 한다.",
+      "target": "roll",
+      "class": "contested",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": true,
+        "reason": "contested"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "contested"
+      },
+      "freeMatches": true,
+      "chipMatches": true
+    },
+    {
+      "id": "R05",
+      "text": "무너지는 잔해 틈으로 뛰어든다.",
+      "target": "roll",
+      "class": "hazard",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": true,
+        "reason": "hazard"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "hazard"
+      },
+      "freeMatches": true,
+      "chipMatches": true
+    },
+    {
+      "id": "R06",
+      "text": "독이 묻은 병을 맨손으로 집는다.",
+      "target": "roll",
+      "class": "hazard",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": true,
+        "reason": "hazard"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "hazard"
+      },
+      "freeMatches": true,
+      "chipMatches": true
+    },
+    {
+      "id": "R07",
+      "text": "단서를 찾으려고 잠긴 서랍을 억지로 뒤진다.",
+      "target": "roll",
+      "class": "investigate_risky",
+      "confidence": "judgment",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": true,
+      "chipMatches": true
+    },
+    {
+      "id": "R08",
+      "text": "숨을 고르고 문을 걷어찬다.",
+      "target": "roll",
+      "class": "compound",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": true,
+      "chipMatches": true
+    },
+    {
+      "id": "R09",
+      "text": "조용히 뒤로 물러나 어둠 속에 몰래 숨는다.",
+      "target": "roll",
+      "class": "stealth",
+      "confidence": "judgment",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": true,
+      "chipMatches": true
+    },
+    {
+      "id": "R10",
+      "text": "아이를 안고 불타는 복도를 가로질러 달린다.",
+      "target": "roll",
+      "class": "hazard",
+      "confidence": "clear",
+      "free": {
+        "needsCheck": false,
+        "reason": "no_meaningful_uncertainty"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": false,
+      "chipMatches": true
+    },
+    {
+      "id": "R11",
+      "text": "총을 겨눈 채 천천히 문을 연다.",
+      "target": "roll",
+      "class": "hazard",
+      "confidence": "judgment",
+      "free": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "challenge"
+      },
+      "freeMatches": true,
+      "chipMatches": true
+    },
+    {
+      "id": "C01",
+      "text": "그를 처리한다.",
+      "target": "clarify",
+      "class": "ambiguous_high_stakes",
+      "confidence": "judgment",
+      "free": {
+        "needsCheck": false,
+        "reason": "no_meaningful_uncertainty"
+      },
+      "chipAttack": {
+        "needsCheck": true,
+        "reason": "explicit_resolution"
+      },
+      "freeMatches": true,
+      "chipMatches": true
+    }
+  ],
+  "memory": {
+    "seed": [
+      {
+        "id": 1,
+        "round": 3,
+        "type": "relationship",
+        "scope": "party_observed",
+        "importance": "important",
+        "fact": "렌은 유나를 처음으로 신뢰한다고 말했다."
+      },
+      {
+        "id": 2,
+        "round": 12,
+        "type": "item",
+        "scope": "party_observed",
+        "importance": "important",
+        "fact": "현이 은색 열쇠를 얻었다."
+      },
+      {
+        "id": 3,
+        "round": 30,
+        "type": "betrayal",
+        "scope": "actor_only",
+        "importance": "critical",
+        "fact": "렌은 몰래 길드에 파티 위치를 넘겼다."
+      },
+      {
+        "id": 4,
+        "round": 45,
+        "type": "item",
+        "scope": "party_observed",
+        "importance": "important",
+        "fact": "현이 은색 열쇠를 잃어버렸다."
+      },
+      {
+        "id": 5,
+        "round": 60,
+        "type": "reveal",
+        "scope": "party_observed",
+        "importance": "critical",
+        "fact": "길드장이 렌의 배신을 공개적으로 폭로했다."
+      }
+    ],
+    "rows": [
+      {
+        "round": 5,
+        "sealedEventCount": 0,
+        "gm": [],
+        "botRen": [],
+        "botYuna": [],
+        "sections": {
+          "relevantCount": 0,
+          "anchorsCount": 0,
+          "botCount": 0
+        }
+      },
+      {
+        "round": 20,
+        "sealedEventCount": 2,
+        "gm": [
+          {
+            "id": 2,
+            "round": 12,
+            "score": 239.6,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 얻었다."
+          },
+          {
+            "id": 1,
+            "round": 3,
+            "score": 179.2,
+            "scope": "party_observed",
+            "fact": "렌은 유나를 처음으로 신뢰한다고 말했다."
+          }
+        ],
+        "botRen": [
+          {
+            "id": 2,
+            "round": 12,
+            "score": 239.6,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 얻었다."
+          },
+          {
+            "id": 1,
+            "round": 3,
+            "score": 179.2,
+            "scope": "party_observed",
+            "fact": "렌은 유나를 처음으로 신뢰한다고 말했다."
+          }
+        ],
+        "botYuna": [
+          {
+            "id": 2,
+            "round": 12,
+            "score": 239.6,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 얻었다."
+          },
+          {
+            "id": 1,
+            "round": 3,
+            "score": 179.2,
+            "scope": "party_observed",
+            "fact": "렌은 유나를 처음으로 신뢰한다고 말했다."
+          }
+        ],
+        "sections": {
+          "relevantCount": 0,
+          "anchorsCount": 2,
+          "botCount": 2
+        }
+      },
+      {
+        "round": 50,
+        "sealedEventCount": 4,
+        "gm": [
+          {
+            "id": 4,
+            "round": 45,
+            "score": 239.8,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 잃어버렸다."
+          },
+          {
+            "id": 2,
+            "round": 12,
+            "score": 238.1,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 얻었다."
+          },
+          {
+            "id": 3,
+            "round": 30,
+            "score": 214,
+            "scope": "actor_only",
+            "fact": "렌은 몰래 길드에 파티 위치를 넘겼다."
+          },
+          {
+            "id": 1,
+            "round": 3,
+            "score": 177.7,
+            "scope": "party_observed",
+            "fact": "렌은 유나를 처음으로 신뢰한다고 말했다."
+          }
+        ],
+        "botRen": [
+          {
+            "id": 4,
+            "round": 45,
+            "score": 239.8,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 잃어버렸다."
+          },
+          {
+            "id": 2,
+            "round": 12,
+            "score": 238.1,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 얻었다."
+          },
+          {
+            "id": 3,
+            "round": 30,
+            "score": 214,
+            "scope": "actor_only",
+            "fact": "렌은 몰래 길드에 파티 위치를 넘겼다."
+          },
+          {
+            "id": 1,
+            "round": 3,
+            "score": 177.7,
+            "scope": "party_observed",
+            "fact": "렌은 유나를 처음으로 신뢰한다고 말했다."
+          }
+        ],
+        "botYuna": [
+          {
+            "id": 4,
+            "round": 45,
+            "score": 239.8,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 잃어버렸다."
+          },
+          {
+            "id": 2,
+            "round": 12,
+            "score": 238.1,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 얻었다."
+          },
+          {
+            "id": 1,
+            "round": 3,
+            "score": 177.7,
+            "scope": "party_observed",
+            "fact": "렌은 유나를 처음으로 신뢰한다고 말했다."
+          }
+        ],
+        "sections": {
+          "relevantCount": 0,
+          "anchorsCount": 4,
+          "botCount": 3
+        }
+      },
+      {
+        "round": 100,
+        "sealedEventCount": 5,
+        "gm": [
+          {
+            "id": 4,
+            "round": 45,
+            "score": 237.3,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 잃어버렸다."
+          },
+          {
+            "id": 2,
+            "round": 12,
+            "score": 235.6,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 얻었다."
+          },
+          {
+            "id": 5,
+            "round": 60,
+            "score": 213,
+            "scope": "party_observed",
+            "fact": "길드장이 렌의 배신을 공개적으로 폭로했다."
+          },
+          {
+            "id": 3,
+            "round": 30,
+            "score": 211.5,
+            "scope": "actor_only",
+            "fact": "렌은 몰래 길드에 파티 위치를 넘겼다."
+          },
+          {
+            "id": 1,
+            "round": 3,
+            "score": 175.2,
+            "scope": "party_observed",
+            "fact": "렌은 유나를 처음으로 신뢰한다고 말했다."
+          }
+        ],
+        "botRen": [
+          {
+            "id": 4,
+            "round": 45,
+            "score": 237.3,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 잃어버렸다."
+          },
+          {
+            "id": 2,
+            "round": 12,
+            "score": 235.6,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 얻었다."
+          },
+          {
+            "id": 5,
+            "round": 60,
+            "score": 213,
+            "scope": "party_observed",
+            "fact": "길드장이 렌의 배신을 공개적으로 폭로했다."
+          },
+          {
+            "id": 3,
+            "round": 30,
+            "score": 211.5,
+            "scope": "actor_only",
+            "fact": "렌은 몰래 길드에 파티 위치를 넘겼다."
+          },
+          {
+            "id": 1,
+            "round": 3,
+            "score": 175.2,
+            "scope": "party_observed",
+            "fact": "렌은 유나를 처음으로 신뢰한다고 말했다."
+          }
+        ],
+        "botYuna": [
+          {
+            "id": 4,
+            "round": 45,
+            "score": 237.3,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 잃어버렸다."
+          },
+          {
+            "id": 2,
+            "round": 12,
+            "score": 235.6,
+            "scope": "party_observed",
+            "fact": "현이 은색 열쇠를 얻었다."
+          },
+          {
+            "id": 5,
+            "round": 60,
+            "score": 213,
+            "scope": "party_observed",
+            "fact": "길드장이 렌의 배신을 공개적으로 폭로했다."
+          },
+          {
+            "id": 1,
+            "round": 3,
+            "score": 175.2,
+            "scope": "party_observed",
+            "fact": "렌은 유나를 처음으로 신뢰한다고 말했다."
+          }
+        ],
+        "sections": {
+          "relevantCount": 0,
+          "anchorsCount": 5,
+          "botCount": 4
+        }
+      }
+    ],
+    "recallChronologicalAtR100": false,
+    "recallRoundOrderAtR100": [
+      45,
+      12,
+      60,
+      30,
+      3
+    ],
+    "visibility": {
+      "gmSeesActorOnly": true,
+      "botRenSeesOwn": true,
+      "botYunaSeesRenSecret": false,
+      "knownParticipantIdsConsultedByVisibility": false,
+      "note": "knownParticipantIds is persisted (memoryHorizon.persistMemoryEvents) but eventVisibleToViewer filters by scope + actor-name overlap only."
+    },
+    "contradictions": {
+      "itemGainedAndLostBothRecalledAtR100": true,
+      "note": "Events are append-only facts with no supersede/closure link; a gain (R12) and a loss (R45) both rank into recall with no state resolution."
+    },
+    "humanViewerFilter": "none — viewerKind is only 'gm' | 'bot'; there is no per-human-participant view in TrpgMemoryQuery"
+  }
+}
