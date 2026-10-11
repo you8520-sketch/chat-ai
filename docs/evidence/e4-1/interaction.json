@@ -1,0 +1,104 @@
+{
+ "focus": {
+  "info": {
+   "tag": "A",
+   "href": "/character/687",
+   "boxShadow": true,
+   "inArticle": true
+  },
+  "afterTabs": {
+   "tag": "A",
+   "ring": true
+  }
+ },
+ "hover-no-preference": {
+  "frameTransform": "none",
+  "transition": "0.3s",
+  "running": 0
+ },
+ "hover-reduce": {
+  "frameTransform": "none",
+  "transition": "0.3s",
+  "running": 0
+ },
+ "d1": {
+  "marker": {
+   "id": "687",
+   "name": "강이현",
+   "genre": "아포칼립스",
+   "hasTags": true
+  },
+  "overlaySeen": true,
+  "landed": "/character/687"
+ },
+ "adult-new-390": {
+  "status": "하브 - AI 캐릭터 채팅",
+  "cards": 7,
+  "adultBadges": 0,
+  "gated": 0,
+  "overflowX": 0
+ },
+ "adult-new-1440": {
+  "status": "하브 - AI 캐릭터 채팅",
+  "cards": 7,
+  "adultBadges": 0,
+  "gated": 0,
+  "overflowX": 0
+ },
+ "guest-new-390": {
+  "status": "하브 - AI 캐릭터 채팅",
+  "cards": 7,
+  "adultBadges": 0,
+  "gated": 0,
+  "overflowX": 0
+ },
+ "guest-new-1440": {
+  "status": "하브 - AI 캐릭터 채팅",
+  "cards": 7,
+  "adultBadges": 0,
+  "gated": 0,
+  "overflowX": 0
+ },
+ "creator-390": {
+  "status": "하브 - AI 캐릭터 채팅",
+  "cards": 6,
+  "adultBadges": 4,
+  "gated": 1,
+  "overflowX": 0
+ },
+ "creator-1440": {
+  "status": "하브 - AI 캐릭터 채팅",
+  "cards": 6,
+  "adultBadges": 4,
+  "gated": 1,
+  "overflowX": 0
+ },
+ "official-390": {
+  "status": "하브 - AI 캐릭터 채팅",
+  "cards": 2,
+  "adultBadges": 0,
+  "gated": 0,
+  "overflowX": 0
+ },
+ "official-1440": {
+  "status": "하브 - AI 캐릭터 채팅",
+  "cards": 2,
+  "adultBadges": 0,
+  "gated": 0,
+  "overflowX": 0
+ },
+ "adult-creator-390": {
+  "status": "하브 - AI 캐릭터 채팅",
+  "cards": 6,
+  "adultBadges": 4,
+  "gated": 1,
+  "overflowX": 0
+ },
+ "adult-creator-1440": {
+  "status": "하브 - AI 캐릭터 채팅",
+  "cards": 6,
+  "adultBadges": 4,
+  "gated": 1,
+  "overflowX": 0
+ }
+}

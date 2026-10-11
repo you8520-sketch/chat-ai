@@ -1,0 +1,326 @@
+{
+ "n0-new-360": {
+  "cards": 0,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 0,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n0-search-360": {
+  "cards": 0,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 0,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n0-new-390": {
+  "cards": 0,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 0,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n0-search-390": {
+  "cards": 0,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 0,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n0-new-1440": {
+  "cards": 0,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 0,
+  "lowContrast": [],
+  "cls": 0.0103,
+  "errors": 0
+ },
+ "n0-search-1440": {
+  "cards": 0,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 0,
+  "lowContrast": [],
+  "cls": 0.0103,
+  "errors": 0
+ },
+ "n1-new-360": {
+  "cards": 1,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 1,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n1-search-360": {
+  "cards": 1,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 1,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n1-new-390": {
+  "cards": 1,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 1,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n1-search-390": {
+  "cards": 1,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 1,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n1-new-1440": {
+  "cards": 1,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 1,
+  "lowContrast": [],
+  "cls": 0.0103,
+  "errors": 0
+ },
+ "n1-search-1440": {
+  "cards": 1,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 1,
+  "lowContrast": [],
+  "cls": 0.0103,
+  "errors": 0
+ },
+ "n2-new-360": {
+  "cards": 2,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 2,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n2-search-360": {
+  "cards": 2,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 2,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n2-new-390": {
+  "cards": 2,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 2,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n2-search-390": {
+  "cards": 2,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 2,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n2-new-1440": {
+  "cards": 2,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 2,
+  "lowContrast": [],
+  "cls": 0.0103,
+  "errors": 0
+ },
+ "n2-search-1440": {
+  "cards": 2,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 2,
+  "lowContrast": [],
+  "cls": 0.0103,
+  "errors": 0
+ },
+ "n6-new-360": {
+  "cards": 5,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 4,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n6-search-360": {
+  "cards": 5,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 4,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n6-new-390": {
+  "cards": 5,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 4,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n6-search-390": {
+  "cards": 5,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 4,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n6-new-1440": {
+  "cards": 5,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 4,
+  "lowContrast": [],
+  "cls": 0.0103,
+  "errors": 0
+ },
+ "n6-search-1440": {
+  "cards": 5,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 4,
+  "lowContrast": [],
+  "cls": 0.0103,
+  "errors": 0
+ },
+ "n25-new-360": {
+  "cards": 22,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 19,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n25-search-360": {
+  "cards": 22,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 19,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n25-new-390": {
+  "cards": 22,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 19,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n25-search-390": {
+  "cards": 22,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 19,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n25-new-1440": {
+  "cards": 22,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 19,
+  "lowContrast": [],
+  "cls": 0.0103,
+  "errors": 0
+ },
+ "n25-search-1440": {
+  "cards": 22,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 19,
+  "lowContrast": [],
+  "cls": 0.0103,
+  "errors": 0
+ },
+ "n50-new-360": {
+  "cards": 44,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 38,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n50-search-360": {
+  "cards": 44,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 38,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n50-new-390": {
+  "cards": 44,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 38,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n50-search-390": {
+  "cards": 44,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 38,
+  "lowContrast": [],
+  "cls": 0,
+  "errors": 0
+ },
+ "n50-new-1440": {
+  "cards": 44,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 38,
+  "lowContrast": [],
+  "cls": 0.0103,
+  "errors": 0
+ },
+ "n50-search-1440": {
+  "cards": 44,
+  "overflowX": 0,
+  "cardOverflow": 0,
+  "reveal": 38,
+  "lowContrast": [],
+  "cls": 0.0103,
+  "errors": 0
+ }
+}
