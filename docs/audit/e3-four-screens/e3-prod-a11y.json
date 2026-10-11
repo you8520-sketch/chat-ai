@@ -1,0 +1,200 @@
+{
+  "home": {
+    "lowContrast": [
+      {
+        "t": "03",
+        "fs": 56,
+        "ratio": 4.02
+      }
+    ],
+    "focus": [
+      {
+        "el": "a:하브 홈",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "button:알림",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:로그인",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:제작 이벤트 참여→",
+        "outline": false,
+        "shadow": true,
+        "inView": true
+      },
+      {
+        "el": "a:인기 이야기 둘러보기",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:추천",
+        "outline": true,
+        "shadow": true,
+        "inView": true
+      },
+      {
+        "el": "a:신작랭킹",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      }
+    ],
+    "reducedMotionRunningAnimations": []
+  },
+  "new": {
+    "lowContrast": [],
+    "focus": [
+      {
+        "el": "a:하브 홈",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "button:알림",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:로그인",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:강이현",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:by 공식계정",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:아포칼립스의 루트 브로커",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      }
+    ],
+    "reducedMotionRunningAnimations": []
+  },
+  "ranking": {
+    "lowContrast": [],
+    "focus": [
+      {
+        "el": "a:하브 홈",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "button:알림",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:로그인",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "button:전체",
+        "outline": true,
+        "shadow": true,
+        "inView": true
+      },
+      {
+        "el": "button:여성향",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "button:남성향",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:로그인 후 저장",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      }
+    ],
+    "reducedMotionRunningAnimations": []
+  },
+  "search": {
+    "lowContrast": [],
+    "focus": [
+      {
+        "el": "a:하브 홈",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "button:알림",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:로그인",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "input:",
+        "outline": false,
+        "shadow": true,
+        "inView": true
+      },
+      {
+        "el": "button:검색",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:전체",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      },
+      {
+        "el": "a:로맨스",
+        "outline": true,
+        "shadow": false,
+        "inView": true
+      }
+    ],
+    "reducedMotionRunningAnimations": []
+  }
+}
