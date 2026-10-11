@@ -1330,7 +1330,7 @@ export default function CreateCharacter({
                 ))}
               </div>
               {isEditMode && (
-                <p className="text-[11px] text-zinc-500">기존 콘텐츠의 유형은 수정 중 변경할 수 없습니다.</p>
+                <p className="text-xs text-zinc-400">기존 콘텐츠의 유형은 수정 중 변경할 수 없습니다.</p>
               )}
             </section>
 
@@ -1720,7 +1720,7 @@ export default function CreateCharacter({
                   </span>{" "}
                   / {AI_LEARNING_LIMIT.toLocaleString()}자 · 최소{" "}
                   {AI_LEARNING_MIN.toLocaleString()}자
-                  <span className="mt-1 block text-[11px] text-zinc-500">
+                  <span className="mt-1 block text-xs text-zinc-400">
                     대사 예시·상황별 말투·금지 말투는 각{" "}
                     {SPEECH_EXAMPLES_LIMIT.toLocaleString()}자 한도(합산 제외)
                   </span>
@@ -1758,7 +1758,7 @@ export default function CreateCharacter({
 
                 <div className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-zinc-100">추가 캐릭터 불러오기 <span className="font-normal text-zinc-500">· 선택</span></h3>
+                    <h3 className="text-sm font-semibold text-zinc-100">추가 캐릭터 불러오기 <span className="font-normal text-zinc-400">· 선택</span></h3>
                     <p className="mt-1 text-xs leading-relaxed text-zinc-400">
                       직접 작성만으로도 완성됩니다. 필요할 때 내가 만든 캐릭터를 추가하세요. TRPG 사용 허용과 관계없이 내 캐릭터는 내 시뮬레이션에서 쓸 수 있습니다.
                     </p>
@@ -1808,7 +1808,7 @@ export default function CreateCharacter({
                           )}
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-bold text-white">{character.name}</span>
-                            <span className="block truncate text-[10px] text-zinc-500">
+                            <span className="block truncate text-[10px] text-zinc-400">
                               내 캐릭터
                             </span>
                           </span>
@@ -1817,7 +1817,7 @@ export default function CreateCharacter({
                       );
                     })}
                   </div>
-                  <p className="text-[11px] text-zinc-500">가져온 원본 설정은 화면에 공개되지 않으며 AI 설정 글자 수에는 포함됩니다.</p>
+                  <p className="text-xs text-zinc-400">가져온 원본 설정은 화면에 공개되지 않으며 AI 설정 글자 수에는 포함됩니다.</p>
                 </div>
 
                 <p className="text-right text-xs text-zinc-400">
@@ -1836,7 +1836,7 @@ export default function CreateCharacter({
                   수 있습니다.
                 </p>
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs text-zinc-500">
+                  <span className="text-xs text-zinc-400">
                     선택 {selectedLorebookIds.length} / {CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT}
                   </span>
                   {!lorebooksLoading && savedLorebooks.length === 0 ? (
@@ -1849,7 +1849,7 @@ export default function CreateCharacter({
                   ) : (
                     <Link
                       href="/lorebook"
-                      className="text-xs text-zinc-500 hover:text-zinc-300"
+                      className="text-xs text-zinc-400 hover:text-zinc-300"
                     >
                       관리
                     </Link>
@@ -1857,9 +1857,9 @@ export default function CreateCharacter({
                 </div>
                 <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-[#161922] p-3">
                   {lorebooksLoading ? (
-                    <p className="text-xs text-zinc-500">불러오는 중...</p>
+                    <p className="text-xs text-zinc-400">불러오는 중...</p>
                   ) : savedLorebooks.length === 0 ? (
-                    <p className="text-xs text-zinc-500">등록된 로어북이 없습니다.</p>
+                    <p className="text-xs text-zinc-400">등록된 로어북이 없습니다.</p>
                   ) : (
                     savedLorebooks.map((lb) => {
                       const checked = selectedLorebookIds.includes(lb.id);
@@ -1898,7 +1898,7 @@ export default function CreateCharacter({
                           <span>
                             <span className="font-medium">{lb.name}</span>
                             {lb.summary ? (
-                              <span className="text-zinc-500"> — {lb.summary}</span>
+                              <span className="text-zinc-400"> — {lb.summary}</span>
                             ) : null}
                           </span>
                         </label>
@@ -1915,7 +1915,7 @@ export default function CreateCharacter({
                   <div>
                     <h2 className="text-sm font-semibold text-zinc-100">
                       이미지 인물 설정{" "}
-                      <span className="font-normal text-zinc-500">· 선택</span>
+                      <span className="font-normal text-zinc-400">· 선택</span>
                     </h2>
                     <VisibilityBadge kind="private" />
                   </div>
@@ -2185,7 +2185,7 @@ export default function CreateCharacter({
             <section className={sectionMuted}>
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold text-zinc-100">
-                  서술·문체 지침 <span className="font-normal text-zinc-500">· 선택</span>
+                  서술·문체 지침 <span className="font-normal text-zinc-400">· 선택</span>
                 </h2>
                 <VisibilityBadge kind="private" />
               </div>
@@ -2216,7 +2216,7 @@ export default function CreateCharacter({
                     })
                   }
                 />
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-xs text-zinc-400">
                   {AI_LEARNING_LIMIT.toLocaleString()}자 합산 한도에 포함 · 최소 작성 분량(세계관+설정+말투)에는
                   포함되지 않음
                 </p>
@@ -2383,7 +2383,7 @@ export default function CreateCharacter({
                         : ""}
                     </span>
                   </span>
-                  <span className="shrink-0 text-xs text-zinc-500">
+                  <span className="shrink-0 text-xs text-zinc-400">
                     {chatJsxEditorOpen ? "닫기" : "편집"}
                   </span>
                 </button>
@@ -2772,7 +2772,7 @@ function PublicDossierFields({
             onChange({ world_public_name: event.target.value.slice(0, WORLD_PUBLIC_NAME_MAX) })
           }
         />
-        <p className="text-right text-xs text-zinc-500">
+        <p className="text-right text-xs text-zinc-400">
           {form.world_public_name.trim().length} / {WORLD_PUBLIC_NAME_MAX}자
         </p>
         <ToggleSwitch
@@ -2787,7 +2787,7 @@ function PublicDossierFields({
           {form.world_public && worldPreview ? (
             <span className="font-semibold text-[#f0e7d4]">WORLD / {worldPreview}</span>
           ) : (
-            <span className="text-zinc-500">표시하지 않음</span>
+            <span className="text-zinc-400">표시하지 않음</span>
           )}
         </p>
       </div>
@@ -2823,7 +2823,7 @@ function PublicDossierFields({
             onChange={(event) => onChange({ height_cm: event.target.value })}
           />
           {heightError ? <p className="mt-1 text-xs text-rose-400">{heightError}</p> : null}
-          <p className="mt-1 text-xs text-zinc-500">공란이면 미표시</p>
+          <p className="mt-1 text-xs text-zinc-400">공란이면 미표시</p>
         </div>
         <div>
           <label className={studioType.label}>몸무게 · kg</label>
@@ -2836,19 +2836,19 @@ function PublicDossierFields({
             onChange={(event) => onChange({ weight_kg: event.target.value })}
           />
           {weightError ? <p className="mt-1 text-xs text-rose-400">{weightError}</p> : null}
-          <p className="mt-1 text-xs text-zinc-500">공란이면 미표시</p>
+          <p className="mt-1 text-xs text-zinc-400">공란이면 미표시</p>
         </div>
       </div>
 
       {publicDossierHasItems(preview) ? (
         <div className="rounded-xl border border-white/10 bg-[#0e1120] p-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
             공개 미리보기
           </p>
           <PublicDossierBlock dossier={preview} />
         </div>
       ) : (
-        <p className="text-xs text-zinc-500">공개할 인물 정보가 없으면 프로필에서 이 영역은 생략됩니다.</p>
+        <p className="text-xs text-zinc-400">공개할 인물 정보가 없으면 프로필에서 이 영역은 생략됩니다.</p>
       )}
     </div>
   );

@@ -138,7 +138,7 @@ function ChatCharacterCard({
             {group.name}
           </h2>
           {lastLabel && (
-            <span className="shrink-0 text-[9px] tabular-nums text-zinc-500 @min-[30rem]/chats:text-[10px] @min-[48rem]/chats:text-[11px] @min-[64rem]/chats:text-xs">
+            <span className="shrink-0 text-[9px] tabular-nums text-zinc-400 @min-[30rem]/chats:text-[10px] @min-[48rem]/chats:text-[11px] @min-[64rem]/chats:text-xs">
               {lastLabel}
             </span>
           )}
@@ -150,7 +150,7 @@ function ChatCharacterCard({
             : `${latest?.user_turn_count.toLocaleString() ?? 0}턴`}
         </p>
 
-        <p className="line-clamp-2 text-[10px] leading-snug text-zinc-500 @min-[30rem]/chats:text-[11px] @min-[48rem]/chats:text-xs @min-[64rem]/chats:line-clamp-3 @min-[64rem]/chats:text-sm">
+        <p className="line-clamp-2 text-[10px] leading-snug text-zinc-400 @min-[30rem]/chats:text-[11px] @min-[48rem]/chats:text-xs @min-[64rem]/chats:line-clamp-3 @min-[64rem]/chats:text-sm">
           {multi && latest
             ? formatChatPreview(latest.last_role, latest.last_content, group.name)
             : formatChatPreview(latest?.last_role ?? null, latest?.last_content ?? null, group.name)}
@@ -215,7 +215,7 @@ function TrpgChatCard({
           {campaign.title}
         </span>
         {lastLabel ? (
-          <span className="shrink-0 text-[9px] tabular-nums text-zinc-500 @min-[30rem]/chats:text-[10px] @min-[48rem]/chats:text-[11px] @min-[64rem]/chats:text-xs">
+          <span className="shrink-0 text-[9px] tabular-nums text-zinc-400 @min-[30rem]/chats:text-[10px] @min-[48rem]/chats:text-[11px] @min-[64rem]/chats:text-xs">
             {lastLabel}
           </span>
         ) : null}
@@ -223,7 +223,7 @@ function TrpgChatCard({
       <span className="text-[10px] font-bold text-violet-300 @min-[30rem]/chats:text-[11px] @min-[48rem]/chats:text-xs @min-[64rem]/chats:text-sm">
         TRPG 캠페인
       </span>
-      <span className="line-clamp-2 text-[10px] leading-snug text-zinc-500 @min-[30rem]/chats:text-[11px] @min-[48rem]/chats:text-xs @min-[64rem]/chats:text-sm">
+      <span className="line-clamp-2 text-[10px] leading-snug text-zinc-400 @min-[30rem]/chats:text-[11px] @min-[48rem]/chats:text-xs @min-[64rem]/chats:text-sm">
         참여했던 방의 장면과 캐릭터 시트를 이어서 확인하세요.
       </span>
       <span className="mt-0.5 text-[10px] font-bold text-violet-400 group-hover:text-violet-300 @min-[30rem]/chats:text-[11px] @min-[48rem]/chats:text-xs @min-[64rem]/chats:text-sm">
@@ -484,7 +484,7 @@ export default function ChatsPageGrid({ sessions, campaigns, blurNsfw }: Props) 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-bold text-white">삭제할 대화와 TRPG 방을 선택하세요</p>
-                <p className="mt-0.5 text-xs text-zinc-500">
+                <p className="mt-0.5 text-xs text-zinc-400">
                   선택한 캐릭터의 모든 대화방과 TRPG 방이 삭제됩니다. 캐릭터 자체는 유지됩니다.
                 </p>
               </div>
@@ -524,7 +524,7 @@ export default function ChatsPageGrid({ sessions, campaigns, blurNsfw }: Props) 
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-zinc-400">
                 캐릭터 대화와 TRPG 방을 한꺼번에 정리할 수 있습니다.
               </p>
               <button

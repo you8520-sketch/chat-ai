@@ -73,7 +73,7 @@ function KeywordInput({
           </span>
         ))}
         <input
-          className="min-h-11 min-w-[10rem] flex-1 bg-transparent px-1 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 disabled:cursor-not-allowed"
+          className="min-h-11 min-w-[10rem] flex-1 bg-transparent px-1 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-400 disabled:cursor-not-allowed"
           placeholder={
             keywords.length >= LOREBOOK_KEYWORDS_PER_ENTRY
               ? "키워드는 최대 10개까지 등록할 수 있어요."

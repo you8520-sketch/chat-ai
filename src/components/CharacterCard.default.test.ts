@@ -104,6 +104,20 @@ describe("default CharacterCard", () => {
     assert.ok(html.includes("hidden=true"));
   });
 
+  it("keeps creator, genre and tag meta readable on both card families", async () => {
+    for (const variant of ["default", "index"] as const) {
+      const html = await render(row(), { variant, loggedIn: true });
+      assert.match(html, /<a[^>]*text-\[11px\][^>]*>/, `${variant} creator link is at least 11px`);
+      assert.doesNotMatch(html, /<span className="text-(zinc-[56]00|emerald-600\/80)">by<\/span>/, variant);
+    }
+    const index = await render(row(), { variant: "index", loggedIn: true });
+    assert.doesNotMatch(index, /text-\[1[01]px\][^"]*text-zinc-[56]00/);
+    for (const tier of ["sprout", "standard", "pro"] as const) {
+      const html = await render(row({ creator_tier_level: tier }), { loggedIn: true });
+      assert.doesNotMatch(html, /className="text-(zinc-[56]00|emerald-600\/80)">by/, tier);
+    }
+  });
+
   it("does not leak the default chrome into the home index variant", async () => {
     const html = await render(row(), { variant: "index" });
     assert.match(html, /home-card--index/);

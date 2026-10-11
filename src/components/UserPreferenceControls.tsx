@@ -130,7 +130,7 @@ export function TasteFilterDropdown({
         className={chipClass}
       >
         <span
-          className={`font-bold uppercase tracking-wide text-zinc-500 ${tone === "settings" ? "text-xs" : "text-[10px]"}`}
+          className={`font-bold uppercase tracking-wide text-zinc-400 ${tone === "settings" ? "text-xs" : "text-[10px]"}`}
         >
           취향
         </span>

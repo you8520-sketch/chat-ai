@@ -103,7 +103,7 @@ function CharacterChatRow({
           )}
         </p>
         <span
-          className={`shrink-0 tabular-nums text-zinc-500 ${isPage ? "text-xs" : "text-[11px]"}`}
+          className={`shrink-0 tabular-nums text-zinc-400 ${isPage ? "text-xs" : "text-[11px]"}`}
         >
           {formatChatListTime(latest?.last_at ?? null)}
         </span>
@@ -114,7 +114,7 @@ function CharacterChatRow({
           : formatChatSessionStats(latest)}
       </p>
       <p
-        className={`mt-1.5 line-clamp-2 leading-relaxed text-zinc-500 ${
+        className={`mt-1.5 line-clamp-2 leading-relaxed text-zinc-400 ${
           isPage ? "text-sm" : "text-xs"
         }`}
       >
