@@ -1,0 +1,506 @@
+{
+ "home-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 352,
+  "cardMax": 384,
+  "cardN": 13,
+  "input": 0,
+  "button": 30,
+  "docH": 2839,
+  "errs": []
+ },
+ "new-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 365,
+  "cardMax": 385,
+  "cardN": 7,
+  "input": 0,
+  "button": 0,
+  "docH": 2067,
+  "errs": []
+ },
+ "search-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 368,
+  "cardMax": 388,
+  "cardN": 7,
+  "input": 46,
+  "button": 36,
+  "docH": 2732,
+  "errs": []
+ },
+ "create-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 46,
+  "button": 44,
+  "docH": 5197,
+  "errs": []
+ },
+ "settings-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 46,
+  "button": 28,
+  "docH": 2182,
+  "errs": []
+ },
+ "points-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 158,
+  "cardMax": 158,
+  "cardN": 5,
+  "input": 46,
+  "button": 36,
+  "docH": 2184,
+  "errs": []
+ },
+ "chats-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 122,
+  "cardMax": 122,
+  "cardN": 1,
+  "input": 0,
+  "button": 120,
+  "docH": 819,
+  "errs": []
+ },
+ "character-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 0,
+  "button": 42,
+  "docH": 1732,
+  "errs": []
+ },
+ "chat-small-360": {
+  "fs": "13.125px",
+  "ta": [
+   8,
+   530,
+   230,
+   67
+  ],
+  "send": [
+   244,
+   564,
+   108,
+   30
+  ],
+  "note": 13,
+  "ovX": 0,
+  "phColor": "oklch(0.442 0.017 285.786)"
+ },
+ "chat-medium-360": {
+  "fs": "15px",
+  "ta": [
+   8,
+   617,
+   230,
+   75
+  ],
+  "send": [
+   244,
+   651,
+   108,
+   30
+  ],
+  "note": 13,
+  "ovX": 0,
+  "phColor": "oklch(0.442 0.017 285.786)"
+ },
+ "chat-large-360": {
+  "fs": "16.875px",
+  "ta": [
+   8,
+   692,
+   230,
+   83
+  ],
+  "send": [
+   244,
+   726,
+   108,
+   30
+  ],
+  "note": 13,
+  "ovX": 0,
+  "phColor": "oklch(0.442 0.017 285.786)"
+ },
+ "chat-xlarge-360": {
+  "fs": "18.75px",
+  "ta": [
+   8,
+   689,
+   230,
+   91
+  ],
+  "send": [
+   244,
+   723,
+   108,
+   30
+  ],
+  "note": 13,
+  "ovX": 0,
+  "phColor": "oklch(0.442 0.017 285.786)"
+ },
+ "home-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 356,
+  "cardMax": 384,
+  "cardN": 13,
+  "input": 0,
+  "button": 30,
+  "docH": 2919,
+  "errs": []
+ },
+ "new-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 388,
+  "cardMax": 407,
+  "cardN": 7,
+  "input": 0,
+  "button": 0,
+  "docH": 2157,
+  "errs": []
+ },
+ "search-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 386,
+  "cardMax": 410,
+  "cardN": 7,
+  "input": 46,
+  "button": 36,
+  "docH": 2817,
+  "errs": []
+ },
+ "create-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 46,
+  "button": 44,
+  "docH": 5107,
+  "errs": []
+ },
+ "settings-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 46,
+  "button": 28,
+  "docH": 2102,
+  "errs": []
+ },
+ "points-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 158,
+  "cardMax": 158,
+  "cardN": 5,
+  "input": 46,
+  "button": 36,
+  "docH": 2065,
+  "errs": []
+ },
+ "chats-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 122,
+  "cardMax": 122,
+  "cardN": 1,
+  "input": 0,
+  "button": 120,
+  "docH": 819,
+  "errs": []
+ },
+ "character-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 0,
+  "button": 42,
+  "docH": 1776,
+  "errs": []
+ },
+ "chat-small-390": {
+  "fs": "13.125px",
+  "ta": [
+   8,
+   509,
+   260,
+   67
+  ],
+  "send": [
+   274,
+   543,
+   108,
+   30
+  ],
+  "note": 13,
+  "ovX": 0,
+  "phColor": "oklch(0.442 0.017 285.786)"
+ },
+ "chat-medium-390": {
+  "fs": "15px",
+  "ta": [
+   8,
+   568,
+   260,
+   75
+  ],
+  "send": [
+   274,
+   602,
+   108,
+   30
+  ],
+  "note": 13,
+  "ovX": 0,
+  "phColor": "oklch(0.442 0.017 285.786)"
+ },
+ "chat-large-390": {
+  "fs": "16.875px",
+  "ta": [
+   8,
+   692,
+   260,
+   83
+  ],
+  "send": [
+   274,
+   726,
+   108,
+   30
+  ],
+  "note": 13,
+  "ovX": 0,
+  "phColor": "oklch(0.442 0.017 285.786)"
+ },
+ "chat-xlarge-390": {
+  "fs": "18.75px",
+  "ta": [
+   8,
+   689,
+   260,
+   91
+  ],
+  "send": [
+   274,
+   723,
+   108,
+   30
+  ],
+  "note": 13,
+  "ovX": 0,
+  "phColor": "oklch(0.442 0.017 285.786)"
+ },
+ "home-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 474,
+  "cardMax": 480,
+  "cardN": 13,
+  "input": 0,
+  "button": 40,
+  "docH": 2258,
+  "errs": []
+ },
+ "new-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 446,
+  "cardMax": 446,
+  "cardN": 7,
+  "input": 0,
+  "button": 0,
+  "docH": 1208,
+  "errs": []
+ },
+ "search-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 451,
+  "cardMax": 451,
+  "cardN": 7,
+  "input": 46,
+  "button": 36,
+  "docH": 1638,
+  "errs": []
+ },
+ "create-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 46,
+  "button": 44,
+  "docH": 4297,
+  "errs": []
+ },
+ "settings-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.02,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 46,
+  "button": 28,
+  "docH": 1745,
+  "errs": []
+ },
+ "points-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 158,
+  "cardMax": 158,
+  "cardN": 5,
+  "input": 46,
+  "button": 36,
+  "docH": 1344,
+  "errs": []
+ },
+ "chats-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 155,
+  "cardMax": 155,
+  "cardN": 1,
+  "input": 0,
+  "button": 153,
+  "docH": 900,
+  "errs": []
+ },
+ "character-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 0,
+  "button": 42,
+  "docH": 1234,
+  "errs": []
+ },
+ "chat-small-1440": {
+  "fs": "14.875px",
+  "ta": [
+   688,
+   497,
+   551,
+   71
+  ],
+  "send": [
+   1245,
+   531,
+   108,
+   30
+  ],
+  "note": 13,
+  "ovX": 0,
+  "phColor": "oklch(0.442 0.017 285.786)"
+ },
+ "chat-medium-1440": {
+  "fs": "17px",
+  "ta": [
+   688,
+   533,
+   551,
+   79
+  ],
+  "send": [
+   1245,
+   567,
+   108,
+   30
+  ],
+  "note": 13,
+  "ovX": 0,
+  "phColor": "oklch(0.442 0.017 285.786)"
+ },
+ "chat-large-1440": {
+  "fs": "19.125px",
+  "ta": [
+   688,
+   571,
+   551,
+   88
+  ],
+  "send": [
+   1245,
+   605,
+   108,
+   30
+  ],
+  "note": 13,
+  "ovX": 0,
+  "phColor": "oklch(0.442 0.017 285.786)"
+ },
+ "chat-xlarge-1440": {
+  "fs": "21.25px",
+  "ta": [
+   688,
+   647,
+   551,
+   98
+  ],
+  "send": [
+   1245,
+   681,
+   108,
+   30
+  ],
+  "note": 13,
+  "ovX": 0,
+  "phColor": "oklch(0.442 0.017 285.786)"
+ }
+}

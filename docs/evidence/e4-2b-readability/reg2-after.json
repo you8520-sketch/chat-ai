@@ -1,0 +1,506 @@
+{
+ "home-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 355,
+  "cardMax": 385,
+  "cardN": 13,
+  "input": 0,
+  "button": 30,
+  "docH": 2853,
+  "errs": []
+ },
+ "new-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 367,
+  "cardMax": 386,
+  "cardN": 7,
+  "input": 0,
+  "button": 0,
+  "docH": 2073,
+  "errs": []
+ },
+ "search-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 370,
+  "cardMax": 389,
+  "cardN": 7,
+  "input": 46,
+  "button": 36,
+  "docH": 2738,
+  "errs": []
+ },
+ "create-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 46,
+  "button": 44,
+  "docH": 5200,
+  "errs": []
+ },
+ "settings-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 46,
+  "button": 28,
+  "docH": 2182,
+  "errs": []
+ },
+ "points-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 158,
+  "cardMax": 158,
+  "cardN": 5,
+  "input": 46,
+  "button": 36,
+  "docH": 2185,
+  "errs": []
+ },
+ "chats-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 122,
+  "cardMax": 122,
+  "cardN": 1,
+  "input": 0,
+  "button": 120,
+  "docH": 819,
+  "errs": []
+ },
+ "character-360": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 0,
+  "button": 42,
+  "docH": 1732,
+  "errs": []
+ },
+ "chat-small-360": {
+  "fs": "13.125px",
+  "ta": [
+   8,
+   531,
+   230,
+   67
+  ],
+  "send": [
+   244,
+   565,
+   108,
+   30
+  ],
+  "note": 14,
+  "ovX": 0,
+  "phColor": "oklab(0.705 0.00415142 -0.0144141 / 0.8)"
+ },
+ "chat-medium-360": {
+  "fs": "15px",
+  "ta": [
+   8,
+   619,
+   230,
+   75
+  ],
+  "send": [
+   244,
+   653,
+   108,
+   30
+  ],
+  "note": 14,
+  "ovX": 0,
+  "phColor": "oklab(0.705 0.00415142 -0.0144141 / 0.8)"
+ },
+ "chat-large-360": {
+  "fs": "16.875px",
+  "ta": [
+   8,
+   693,
+   230,
+   83
+  ],
+  "send": [
+   244,
+   727,
+   108,
+   30
+  ],
+  "note": 14,
+  "ovX": 0,
+  "phColor": "oklab(0.705 0.00415142 -0.0144141 / 0.8)"
+ },
+ "chat-xlarge-360": {
+  "fs": "18.75px",
+  "ta": [
+   8,
+   689,
+   230,
+   91
+  ],
+  "send": [
+   244,
+   723,
+   108,
+   30
+  ],
+  "note": 14,
+  "ovX": 0,
+  "phColor": "oklab(0.705 0.00415142 -0.0144141 / 0.8)"
+ },
+ "home-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 357,
+  "cardMax": 385,
+  "cardN": 13,
+  "input": 0,
+  "button": 30,
+  "docH": 2933,
+  "errs": []
+ },
+ "new-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 389,
+  "cardMax": 409,
+  "cardN": 7,
+  "input": 0,
+  "button": 0,
+  "docH": 2163,
+  "errs": []
+ },
+ "search-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 388,
+  "cardMax": 412,
+  "cardN": 7,
+  "input": 46,
+  "button": 36,
+  "docH": 2823,
+  "errs": []
+ },
+ "create-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 46,
+  "button": 44,
+  "docH": 5110,
+  "errs": []
+ },
+ "settings-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 46,
+  "button": 28,
+  "docH": 2102,
+  "errs": []
+ },
+ "points-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 158,
+  "cardMax": 158,
+  "cardN": 5,
+  "input": 46,
+  "button": 36,
+  "docH": 2066,
+  "errs": []
+ },
+ "chats-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 122,
+  "cardMax": 122,
+  "cardN": 1,
+  "input": 0,
+  "button": 120,
+  "docH": 819,
+  "errs": []
+ },
+ "character-390": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 0,
+  "button": 42,
+  "docH": 1776,
+  "errs": []
+ },
+ "chat-small-390": {
+  "fs": "13.125px",
+  "ta": [
+   8,
+   510,
+   260,
+   67
+  ],
+  "send": [
+   274,
+   544,
+   108,
+   30
+  ],
+  "note": 14,
+  "ovX": 0,
+  "phColor": "oklab(0.705 0.00415142 -0.0144141 / 0.8)"
+ },
+ "chat-medium-390": {
+  "fs": "15px",
+  "ta": [
+   8,
+   569,
+   260,
+   75
+  ],
+  "send": [
+   274,
+   603,
+   108,
+   30
+  ],
+  "note": 14,
+  "ovX": 0,
+  "phColor": "oklab(0.705 0.00415142 -0.0144141 / 0.8)"
+ },
+ "chat-large-390": {
+  "fs": "16.875px",
+  "ta": [
+   8,
+   693,
+   260,
+   83
+  ],
+  "send": [
+   274,
+   727,
+   108,
+   30
+  ],
+  "note": 14,
+  "ovX": 0,
+  "phColor": "oklab(0.705 0.00415142 -0.0144141 / 0.8)"
+ },
+ "chat-xlarge-390": {
+  "fs": "18.75px",
+  "ta": [
+   8,
+   689,
+   260,
+   91
+  ],
+  "send": [
+   274,
+   723,
+   108,
+   30
+  ],
+  "note": 14,
+  "ovX": 0,
+  "phColor": "oklab(0.705 0.00415142 -0.0144141 / 0.8)"
+ },
+ "home-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 475,
+  "cardMax": 483,
+  "cardN": 13,
+  "input": 0,
+  "button": 40,
+  "docH": 2266,
+  "errs": []
+ },
+ "new-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 448,
+  "cardMax": 448,
+  "cardN": 7,
+  "input": 0,
+  "button": 0,
+  "docH": 1211,
+  "errs": []
+ },
+ "search-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 452,
+  "cardMax": 452,
+  "cardN": 7,
+  "input": 46,
+  "button": 36,
+  "docH": 1641,
+  "errs": []
+ },
+ "create-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 46,
+  "button": 44,
+  "docH": 4299,
+  "errs": []
+ },
+ "settings-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.02,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 46,
+  "button": 28,
+  "docH": 1745,
+  "errs": []
+ },
+ "points-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 158,
+  "cardMax": 158,
+  "cardN": 5,
+  "input": 46,
+  "button": 36,
+  "docH": 1344,
+  "errs": []
+ },
+ "chats-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 155,
+  "cardMax": 155,
+  "cardN": 1,
+  "input": 0,
+  "button": 153,
+  "docH": 900,
+  "errs": []
+ },
+ "character-1440": {
+  "ovX": 0,
+  "clippedText": 0,
+  "cls": 0.01,
+  "cardMed": 0,
+  "cardMax": 0,
+  "cardN": 0,
+  "input": 0,
+  "button": 42,
+  "docH": 1234,
+  "errs": []
+ },
+ "chat-small-1440": {
+  "fs": "14.875px",
+  "ta": [
+   688,
+   499,
+   551,
+   71
+  ],
+  "send": [
+   1245,
+   533,
+   108,
+   30
+  ],
+  "note": 14,
+  "ovX": 0,
+  "phColor": "oklab(0.705 0.00415142 -0.0144141 / 0.8)"
+ },
+ "chat-medium-1440": {
+  "fs": "17px",
+  "ta": [
+   688,
+   535,
+   551,
+   79
+  ],
+  "send": [
+   1245,
+   569,
+   108,
+   30
+  ],
+  "note": 14,
+  "ovX": 0,
+  "phColor": "oklab(0.705 0.00415142 -0.0144141 / 0.8)"
+ },
+ "chat-large-1440": {
+  "fs": "19.125px",
+  "ta": [
+   688,
+   572,
+   551,
+   88
+  ],
+  "send": [
+   1245,
+   606,
+   108,
+   30
+  ],
+  "note": 14,
+  "ovX": 0,
+  "phColor": "oklab(0.705 0.00415142 -0.0144141 / 0.8)"
+ },
+ "chat-xlarge-1440": {
+  "fs": "21.25px",
+  "ta": [
+   688,
+   649,
+   551,
+   98
+  ],
+  "send": [
+   1245,
+   683,
+   108,
+   30
+  ],
+  "note": 14,
+  "ovX": 0,
+  "phColor": "oklab(0.705 0.00415142 -0.0144141 / 0.8)"
+ }
+}
