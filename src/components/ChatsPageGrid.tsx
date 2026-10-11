@@ -21,6 +21,7 @@ import {
   type CharacterChatGroup,
   type UserChatSession,
 } from "@/lib/recentChats";
+import { TRPG_RESUME_GLYPH_ATTR, trpgResumeAttrs } from "@/lib/trpgResumeTransition";
 
 type Props = {
   sessions: UserChatSession[];
@@ -179,7 +180,10 @@ function TrpgChatCard({
     "relative flex w-20 shrink-0 items-center justify-center bg-violet-500/10 text-violet-300 @min-[30rem]/chats:w-[4.25rem] @min-[48rem]/chats:w-20 @min-[64rem]/chats:w-24 @min-[80rem]/chats:w-28";
   const thumbnail = (
     <>
-      <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-violet-300/25 bg-violet-500/15 @min-[64rem]/chats:h-14 @min-[64rem]/chats:w-14">
+      <span
+        {...{ [TRPG_RESUME_GLYPH_ATTR]: "" }}
+        className="flex h-11 w-11 items-center justify-center rounded-xl border border-violet-300/25 bg-violet-500/15 @min-[64rem]/chats:h-14 @min-[64rem]/chats:w-14"
+      >
         <svg viewBox="0 0 24 24" fill="none" aria-hidden className="h-6 w-6 @min-[64rem]/chats:h-7 @min-[64rem]/chats:w-7">
           <path
             d="M12 2.4 20.2 7v10L12 21.6 3.8 17V7L12 2.4Z"
@@ -238,31 +242,36 @@ function TrpgChatCard({
       }`}
     >
       {selectionMode ? (
-        <button
-          type="button"
-          aria-label={`${campaign.title} 선택`}
-          aria-pressed={selected}
-          onClick={onToggleSelection}
-          className={imageClass}
-        >
-          {thumbnail}
-        </button>
+        <>
+          <button
+            type="button"
+            aria-label={`${campaign.title} 선택`}
+            aria-pressed={selected}
+            onClick={onToggleSelection}
+            className={imageClass}
+          >
+            {thumbnail}
+          </button>
+          <button
+            type="button"
+            aria-pressed={selected}
+            onClick={onToggleSelection}
+            className="flex min-w-0 flex-1 text-left transition hover:bg-white/[0.03]"
+          >
+            {body}
+          </button>
+        </>
       ) : (
-        <Link href={campaign.href} className={imageClass}>
-          {thumbnail}
-        </Link>
-      )}
-      {selectionMode ? (
-        <button
-          type="button"
-          aria-pressed={selected}
-          onClick={onToggleSelection}
-          className="flex min-w-0 flex-1 text-left transition hover:bg-white/[0.03]"
+        <Link
+          href={campaign.href}
+          {...trpgResumeAttrs({
+            campaignId: campaign.campaignId,
+            title: campaign.title,
+            href: campaign.href,
+          })}
+          className="flex min-w-0 flex-1"
         >
-          {body}
-        </button>
-      ) : (
-        <Link href={campaign.href} className="flex min-w-0 flex-1">
+          <span className={imageClass}>{thumbnail}</span>
           {body}
         </Link>
       )}
@@ -568,6 +577,7 @@ export default function ChatsPageGrid({ sessions, campaigns, blurNsfw }: Props) 
           branches={pickerGroup.sessions}
           blurNsfw={blurNsfw}
           nsfw={pickerGroup.nsfw === 1}
+          avatar={pickerGroup}
           onDeleteRequest={setPendingDelete}
           onRenameSuccess={handleRenameSuccess}
           deletingId={deletingId}
