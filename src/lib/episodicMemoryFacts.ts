@@ -730,16 +730,16 @@ function filterUnsafeEpisodicFactsForSave(
     sourceUserText?: string | null;
     batchUserSources?: readonly EpisodicBatchUserSource[];
     userPersona?: string | null;
+    /** Evidence-bound writes are authorized by the server quote gate, not by gloss-token overlap. */
+    evidenceBound?: boolean;
   } = {}
 ): EpisodicExtractedFact[] {
-  return filterUnsupportedEvidenceFactsForSave(
-    filterUnverifiedCanonicalizationFactsForSave(
-      filterAbstractPsychologicalInferenceFactsForSave(
-        filterRelationshipLedgerOwnedFactsForSave(filterContaminatedFactsForSave(facts))
-      )
-    ),
-    opts
+  const screened = filterUnverifiedCanonicalizationFactsForSave(
+    filterAbstractPsychologicalInferenceFactsForSave(
+      filterRelationshipLedgerOwnedFactsForSave(filterContaminatedFactsForSave(facts))
+    )
   );
+  return opts.evidenceBound ? screened : filterUnsupportedEvidenceFactsForSave(screened, opts);
 }
 
 export type SummarizeEpisodicFactPersistCandidatesOptions = {
@@ -1063,6 +1063,7 @@ export function persistEpisodicMemoryFactsCore(
     sourceUserText,
     batchUserSources: batchUserSources.length > 0 ? batchUserSources : undefined,
     userPersona: input.userPersona,
+    evidenceBound: input.evidenceBinding != null,
   };
   let facts = dedupeFactsWithinResponse(
     filterUnsafeEpisodicFactsForSave(
@@ -1499,15 +1500,19 @@ function tokenizeForSimpleBoost(text: string): string[] {
   return tokens;
 }
 
-function factSearchText(
-  fact: Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text">
-): string {
+type FactSearchFields = Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text"> & {
+  metadata?: string | null;
+};
+
+/** Relevance is judged against the text that would actually be injected: the gloss plus a verified row's verbatim quote. */
+function factSearchText(fact: FactSearchFields): string {
   const safeFactText = sanitizeRecalledMemoryFactText(fact.fact_text);
-  return `${fact.subject} ${fact.attribute} ${fact.value} ${safeFactText}`.toLowerCase();
+  const quote = readVerifiedEvidence(fact.metadata)?.quote ?? "";
+  return `${fact.subject} ${fact.attribute} ${fact.value} ${safeFactText} ${quote}`.toLowerCase();
 }
 
 function lexicalRelevance(
-  fact: Pick<EpisodicExtractedFact, "subject" | "attribute" | "value" | "fact_text">,
+  fact: FactSearchFields,
   currentUserMessage: string
 ): number {
   const tokens = tokenizeForSimpleBoost(currentUserMessage);
@@ -1595,6 +1600,12 @@ function textLooksDuplicated(fact: EpisodicMemoryFactRecord, sourceText?: string
   if (!sourceText) return false;
   const normalizedSource = normalizeForMemoryDedupe(sourceText);
   if (normalizedSource.length < 8) return false;
+
+  const verified = readVerifiedEvidence(fact.metadata);
+  if (verified) {
+    const normalizedQuote = normalizeForMemoryDedupe(verified.quote);
+    return normalizedQuote.length >= 6 && normalizedSource.includes(normalizedQuote);
+  }
 
   const safeFactText = sanitizeRecalledMemoryFactText(fact.fact_text);
   const normalizedFact = normalizeForMemoryDedupe(safeFactText);
@@ -2317,12 +2328,13 @@ function fetchEpisodicMemoryCandidateRows(
     }
     const tokenClauses = tokens.map(
       () =>
-        "(LOWER(fact_text) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(attribute) LIKE ? OR LOWER(value) LIKE ?)"
+        `(LOWER(fact_text) LIKE ? OR LOWER(subject) LIKE ? OR LOWER(attribute) LIKE ? OR LOWER(value) LIKE ?
+          OR LOWER(CASE WHEN json_valid(metadata) THEN json_extract(metadata, '$.evidence.quote') END) LIKE ?)`
     );
     relevanceWhere.push(`(${tokenClauses.join(" OR ")})`);
     for (const token of tokens) {
       const pattern = `%${token.toLowerCase()}%`;
-      relevanceParams.push(pattern, pattern, pattern, pattern);
+      relevanceParams.push(pattern, pattern, pattern, pattern, pattern);
     }
     relevanceRows = (db
       .prepare(

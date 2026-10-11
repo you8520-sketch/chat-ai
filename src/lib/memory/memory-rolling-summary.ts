@@ -52,6 +52,7 @@ import {
   earliestMissingBatchStart,
   highestContiguousCompletedTurn,
   isRollingSummaryGroundedInDialogue,
+  unquoteUnverifiedSummaryQuotes,
   resolveBatchStartForTurnNumber,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
@@ -330,7 +331,10 @@ export async function summarizeTurnBatch(opts: {
     : "";
   const userContent = `${openingBlock}[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n[요약 대상 RP source 턴]\n${sourceCoverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. OPENING/PRELUDE CONTEXT가 있으면 턴 1~${opts.endTurn} 이해에 필요한 설정·사실만 보존하고 장식적 인사만은 요약하지 않는다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${sourceTurnCount}턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
   const finishSummary = (raw: string): string => {
-    const cleaned = normalizeSummaryText(raw);
+    const cleaned = unquoteUnverifiedSummaryQuotes(
+      normalizeSummaryText(raw),
+      opts.dialogue
+    ).text;
     if (!cleaned) return "";
     return clampMemoryRecordSummary(cleaned, ROLLING_SUMMARY_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS);
   };
@@ -477,7 +481,7 @@ export async function compactCurrentMemory(
       turnTrace,
       expandFrom ? "background-lorebook-compact-retry" : "background-lorebook-compact"
     );
-    const merged = normalizeSummaryText(text);
+    const merged = unquoteUnverifiedSummaryQuotes(normalizeSummaryText(text), combined).text;
     if (!merged) return "";
     return clampMemoryRecordSummary(merged, targetMax, ROLLING_SUMMARY_MIN_CHARS);
   }
