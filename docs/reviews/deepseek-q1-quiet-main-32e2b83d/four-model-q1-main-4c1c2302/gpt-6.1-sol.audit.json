@@ -1,0 +1,37 @@
+{
+  "model": "gpt-6.1-sol",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "stream": false,
+  "options": {
+    "model": "gpt-6.1-sol",
+    "stream": false,
+    "temperature": 0.7,
+    "stream_options": {
+      "include_usage": true
+    },
+    "reasoning": {
+      "effort": "low"
+    },
+    "reasoning_effort": "low"
+  },
+  "noMaxTokens": true,
+  "roles": [
+    "system",
+    "user",
+    "assistant",
+    "user"
+  ],
+  "currentUserAnchorOnce": 1,
+  "lengthSentenceCount": 1,
+  "scenePacingCount": 1,
+  "commonProseCount": 1,
+  "terminalDialogueBudgetCount": 1,
+  "허용된변화": 0,
+  "전개초점": 0,
+  "creatorNote": 0,
+  "deepseekOnlyLine": 0,
+  "keyEnv": "CHEAPER_INFERENCE_BENCHMARK_API_KEY",
+  "keyPresent": true,
+  "compactSha256": "1b973ce9698842be170a7bb57a9e5253459f438a5020d14e75c993d4f3d53b39"
+}

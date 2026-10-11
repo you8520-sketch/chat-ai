@@ -15,7 +15,7 @@ Same: messages[1..3] (history and final user tail, including `[이번 응답 대
 Different (model adapter and normal per-model provider options only):
 
 - Provider options. DeepSeek: temperature 0.92, `top_p` 0.92, `reasoning_effort` none. Claude: temperature 0.82, no `top_p`, `output_config.effort` low, `reasoning_effort` low.
-- System message content blocks. Claude's system is split into blocks carrying `cache_control: ephemeral` on the first two; DeepSeek's is a different split.
+- System message content blocks. Both wires use three system blocks with `cache_control: ephemeral` on the first two; the block boundaries fall at different text positions because the system texts differ (corrected: an earlier version of this line said DeepSeek had no cache markers).
 - System text, see `wire/system.deepseek-to-claude.diff`: the DeepSeek-only line `Qwen/DeepSeek 보강: …` is absent for Claude; `<WORLD_LORE>` tags and one appearance-variation line are absent for Claude; the `[PRIVATE OUTPUT HYGIENE]`, `[NO STAGE DIRECTIONS]` and `[SPEECH METADATA — INVISIBLE INSTRUCTIONS]` sections sit after the common/layout sections for Claude instead of before the authoring policy.
 - `estimateTokens`: system 5,857 (Claude) vs 5,989 (DeepSeek); total input 7,016 vs 7,153.
 

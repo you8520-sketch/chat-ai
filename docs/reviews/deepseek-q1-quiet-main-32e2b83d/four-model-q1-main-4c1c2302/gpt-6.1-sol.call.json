@@ -1,0 +1,40 @@
+{
+  "label": "CONTROLLED_FIXTURE_NOT_LIVE_PRODUCTION",
+  "model": "gpt-6.1-sol",
+  "route": "cheaperinference",
+  "endpoint": "POST https://api.cheaperinference.com/v1/chat/completions (non-stream)",
+  "httpStatus": 200,
+  "finishReason": "stop",
+  "nativeFinishReason": null,
+  "promptTokens": 3935,
+  "completionTokens": 2786,
+  "usage": {
+    "prompt_tokens": 3935,
+    "completion_tokens": 2786,
+    "total_tokens": 6721,
+    "is_byok": true,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_write_tokens": 3933,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 31,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    },
+    "cost": 0.024502,
+    "cost_details": {
+      "upstream_inference_cost": 0.024502
+    }
+  },
+  "upstreamProvider": null,
+  "requestId": "gen-1791728353-s0ax7btTy6UpqijZBjCQ",
+  "rawChars": 4149,
+  "visibleChars": 3045,
+  "seconds": 96.234,
+  "requestCompactSha256": "1b973ce9698842be170a7bb57a9e5253459f438a5020d14e75c993d4f3d53b39",
+  "rawFileSha256": "ddd5d371d74acb846dbebd2f645515b0141ecc6e0b659464250bdb77024bebf0",
+  "error": null
+}
