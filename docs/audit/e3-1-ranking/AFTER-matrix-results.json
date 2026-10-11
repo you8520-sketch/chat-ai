@@ -1,0 +1,480 @@
+[
+  {
+    "name": "guest ?p=all: active chip \"전체\", description \"누적 대화 턴\", URL kept",
+    "ok": true,
+    "info": {
+      "path": "/tab/ranking?p=all",
+      "desc": "누적 대화 턴",
+      "active": [
+        "전체"
+      ],
+      "names": [
+        "남성향전용",
+        "강이현",
+        "루시안 바스케스"
+      ],
+      "rows": 3,
+      "panel": null,
+      "cta": []
+    }
+  },
+  {
+    "name": "guest ?p=all: private / pending / adult characters never listed",
+    "ok": true,
+    "info": [
+      "남성향전용",
+      "강이현",
+      "루시안 바스케스"
+    ]
+  },
+  {
+    "name": "guest ?p=all: audience=male character visible without preference",
+    "ok": true,
+    "info": [
+      "남성향전용",
+      "강이현",
+      "루시안 바스케스"
+    ]
+  },
+  {
+    "name": "guest ?p=realtime: active chip \"실시간\", description \"최근 6시간 대화 시작 수\", URL kept",
+    "ok": true,
+    "info": {
+      "path": "/tab/ranking?p=realtime",
+      "desc": "최근 6시간 대화 시작 수",
+      "active": [
+        "실시간"
+      ],
+      "names": [],
+      "rows": 0,
+      "panel": "최근 6시간 동안 대화가 시작된 캐릭터가 없습니다.전체 랭킹 보기",
+      "cta": [
+        "전체 랭킹 보기->/tab/ranking?p=all"
+      ]
+    }
+  },
+  {
+    "name": "guest ?p=realtime: private / pending / adult characters never listed",
+    "ok": true,
+    "info": []
+  },
+  {
+    "name": "guest ?p=daily: active chip \"일간\", description \"최근 24시간\", URL kept",
+    "ok": true,
+    "info": {
+      "path": "/tab/ranking?p=daily",
+      "desc": "최근 24시간",
+      "active": [
+        "일간"
+      ],
+      "names": [],
+      "rows": 0,
+      "panel": "최근 24시간 동안 대화가 시작된 캐릭터가 없습니다.전체 랭킹 보기",
+      "cta": [
+        "전체 랭킹 보기->/tab/ranking?p=all"
+      ]
+    }
+  },
+  {
+    "name": "guest ?p=daily: private / pending / adult characters never listed",
+    "ok": true,
+    "info": []
+  },
+  {
+    "name": "guest ?p=weekly: active chip \"주간\", description \"최근 7일\", URL kept",
+    "ok": true,
+    "info": {
+      "path": "/tab/ranking?p=weekly",
+      "desc": "최근 7일",
+      "active": [
+        "주간"
+      ],
+      "names": [],
+      "rows": 0,
+      "panel": "최근 7일 동안 대화가 시작된 캐릭터가 없습니다.전체 랭킹 보기",
+      "cta": [
+        "전체 랭킹 보기->/tab/ranking?p=all"
+      ]
+    }
+  },
+  {
+    "name": "guest ?p=weekly: private / pending / adult characters never listed",
+    "ok": true,
+    "info": []
+  },
+  {
+    "name": "guest ?p=monthly: active chip \"월간\", description \"최근 30일\", URL kept",
+    "ok": true,
+    "info": {
+      "path": "/tab/ranking?p=monthly",
+      "desc": "최근 30일",
+      "active": [
+        "월간"
+      ],
+      "names": [
+        "강이현"
+      ],
+      "rows": 1,
+      "panel": null,
+      "cta": []
+    }
+  },
+  {
+    "name": "guest ?p=monthly: private / pending / adult characters never listed",
+    "ok": true,
+    "info": [
+      "강이현"
+    ]
+  },
+  {
+    "name": "viewer(pref=female) ?p=all: active chip \"전체\", description \"누적 대화 턴\", URL kept",
+    "ok": true,
+    "info": {
+      "path": "/tab/ranking?p=all",
+      "desc": "누적 대화 턴",
+      "active": [
+        "전체"
+      ],
+      "names": [
+        "강이현",
+        "루시안 바스케스"
+      ],
+      "rows": 2,
+      "panel": null,
+      "cta": []
+    }
+  },
+  {
+    "name": "viewer(pref=female) ?p=all: private / pending / adult characters never listed",
+    "ok": true,
+    "info": [
+      "강이현",
+      "루시안 바스케스"
+    ]
+  },
+  {
+    "name": "viewer(pref=female) ?p=all: audience filter keeps male-only character hidden",
+    "ok": true,
+    "info": [
+      "강이현",
+      "루시안 바스케스"
+    ]
+  },
+  {
+    "name": "viewer(pref=female) ?p=realtime: active chip \"실시간\", description \"최근 6시간 대화 시작 수\", URL kept",
+    "ok": true,
+    "info": {
+      "path": "/tab/ranking?p=realtime",
+      "desc": "최근 6시간 대화 시작 수",
+      "active": [
+        "실시간"
+      ],
+      "names": [],
+      "rows": 0,
+      "panel": "최근 6시간 동안 대화가 시작된 캐릭터가 없습니다.전체 랭킹 보기",
+      "cta": [
+        "전체 랭킹 보기->/tab/ranking?p=all"
+      ]
+    }
+  },
+  {
+    "name": "viewer(pref=female) ?p=realtime: private / pending / adult characters never listed",
+    "ok": true,
+    "info": []
+  },
+  {
+    "name": "viewer(pref=female) ?p=realtime: audience filter keeps male-only character hidden",
+    "ok": true,
+    "info": []
+  },
+  {
+    "name": "viewer(pref=female) ?p=daily: active chip \"일간\", description \"최근 24시간\", URL kept",
+    "ok": true,
+    "info": {
+      "path": "/tab/ranking?p=daily",
+      "desc": "최근 24시간",
+      "active": [
+        "일간"
+      ],
+      "names": [],
+      "rows": 0,
+      "panel": "최근 24시간 동안 대화가 시작된 캐릭터가 없습니다.전체 랭킹 보기",
+      "cta": [
+        "전체 랭킹 보기->/tab/ranking?p=all"
+      ]
+    }
+  },
+  {
+    "name": "viewer(pref=female) ?p=daily: private / pending / adult characters never listed",
+    "ok": true,
+    "info": []
+  },
+  {
+    "name": "viewer(pref=female) ?p=daily: audience filter keeps male-only character hidden",
+    "ok": true,
+    "info": []
+  },
+  {
+    "name": "viewer(pref=female) ?p=weekly: active chip \"주간\", description \"최근 7일\", URL kept",
+    "ok": true,
+    "info": {
+      "path": "/tab/ranking?p=weekly",
+      "desc": "최근 7일",
+      "active": [
+        "주간"
+      ],
+      "names": [],
+      "rows": 0,
+      "panel": "최근 7일 동안 대화가 시작된 캐릭터가 없습니다.전체 랭킹 보기",
+      "cta": [
+        "전체 랭킹 보기->/tab/ranking?p=all"
+      ]
+    }
+  },
+  {
+    "name": "viewer(pref=female) ?p=weekly: private / pending / adult characters never listed",
+    "ok": true,
+    "info": []
+  },
+  {
+    "name": "viewer(pref=female) ?p=weekly: audience filter keeps male-only character hidden",
+    "ok": true,
+    "info": []
+  },
+  {
+    "name": "viewer(pref=female) ?p=monthly: active chip \"월간\", description \"최근 30일\", URL kept",
+    "ok": true,
+    "info": {
+      "path": "/tab/ranking?p=monthly",
+      "desc": "최근 30일",
+      "active": [
+        "월간"
+      ],
+      "names": [
+        "강이현"
+      ],
+      "rows": 1,
+      "panel": null,
+      "cta": []
+    }
+  },
+  {
+    "name": "viewer(pref=female) ?p=monthly: private / pending / adult characters never listed",
+    "ok": true,
+    "info": [
+      "강이현"
+    ]
+  },
+  {
+    "name": "viewer(pref=female) ?p=monthly: audience filter keeps male-only character hidden",
+    "ok": true,
+    "info": [
+      "강이현"
+    ]
+  },
+  {
+    "name": "default/unknown \"/tab/ranking\" shows 전체 with 누적 대화 턴",
+    "ok": true,
+    "info": {
+      "active": [
+        "전체"
+      ],
+      "desc": "누적 대화 턴",
+      "rows": 3
+    }
+  },
+  {
+    "name": "default/unknown \"/tab/ranking?p=\" shows 전체 with 누적 대화 턴",
+    "ok": true,
+    "info": {
+      "active": [
+        "전체"
+      ],
+      "desc": "누적 대화 턴",
+      "rows": 3
+    }
+  },
+  {
+    "name": "default/unknown \"/tab/ranking?p=bogus\" shows 전체 with 누적 대화 턴",
+    "ok": true,
+    "info": {
+      "active": [
+        "전체"
+      ],
+      "desc": "누적 대화 턴",
+      "rows": 3
+    }
+  },
+  {
+    "name": "default/unknown \"/tab/ranking?p=ALL\" shows 전체 with 누적 대화 턴",
+    "ok": true,
+    "info": {
+      "active": [
+        "전체"
+      ],
+      "desc": "누적 대화 턴",
+      "rows": 3
+    }
+  },
+  {
+    "name": "default/unknown \"/tab/ranking?p=__proto__\" shows 전체 with 누적 대화 턴",
+    "ok": true,
+    "info": {
+      "active": [
+        "전체"
+      ],
+      "desc": "누적 대화 턴",
+      "rows": 3
+    }
+  },
+  {
+    "name": "all-time order by accumulated turns: 남성향전용(200) > 강이현(24) > 루시안(0)",
+    "ok": true,
+    "info": [
+      "남성향전용",
+      "강이현",
+      "루시안 바스케스"
+    ]
+  },
+  {
+    "name": "monthly counts chat starts in the last 30 days (강이현 2)",
+    "ok": true,
+    "info": [
+      "강이현"
+    ]
+  },
+  {
+    "name": "monthly shows the aggregated count 2",
+    "ok": true,
+    "info": "1  강이현  아포칼립스의 루트 브로커  💬 2"
+  },
+  {
+    "name": "realtime empty: exact window copy and 전체 랭킹 보기 -> ?p=all (no fake rows)",
+    "ok": true,
+    "info": {
+      "path": "/tab/ranking?p=realtime",
+      "desc": "최근 6시간 대화 시작 수",
+      "active": [
+        "실시간"
+      ],
+      "names": [],
+      "rows": 0,
+      "panel": "최근 6시간 동안 대화가 시작된 캐릭터가 없습니다.전체 랭킹 보기",
+      "cta": [
+        "전체 랭킹 보기->/tab/ranking?p=all"
+      ]
+    }
+  },
+  {
+    "name": "clicking 전체 랭킹 보기 shows the all-time list with 전체 active",
+    "ok": true,
+    "info": {
+      "rows": 3,
+      "active": [
+        "전체"
+      ]
+    }
+  },
+  {
+    "name": "browser back from the CTA returns to the empty realtime period",
+    "ok": true,
+    "info": "http://localhost:3012/tab/ranking?p=realtime"
+  },
+  {
+    "name": "default ranking with 1 row: shows 1 rows",
+    "ok": true,
+    "info": {
+      "rows": 1
+    }
+  },
+  {
+    "name": "default ranking with 12 rows: shows 12 rows",
+    "ok": true,
+    "info": {
+      "rows": 12
+    }
+  },
+  {
+    "name": "default ranking with 50 rows: shows 50 rows",
+    "ok": true,
+    "info": {
+      "rows": 50
+    }
+  },
+  {
+    "name": "default ranking with 0 characters: shows 0 rows",
+    "ok": true,
+    "info": {
+      "rows": 0
+    }
+  },
+  {
+    "name": "fully empty data: default shows empty panel with 홈으로 and no fake rows",
+    "ok": true,
+    "info": {
+      "path": "/tab/ranking",
+      "desc": "누적 대화 턴",
+      "active": [
+        "전체"
+      ],
+      "names": [],
+      "rows": 0,
+      "panel": "아직 랭킹에 표시할 캐릭터가 없습니다.홈으로",
+      "cta": [
+        "홈으로->/"
+      ]
+    }
+  },
+  {
+    "name": "fully empty data: realtime empty offers 전체 랭킹 보기",
+    "ok": true,
+    "info": [
+      "전체 랭킹 보기->/tab/ranking?p=all"
+    ]
+  },
+  {
+    "name": "rapid chip taps end on the last tapped period with matching chip and description",
+    "ok": true,
+    "info": {
+      "q": "?p=monthly",
+      "desc": "최근 30일",
+      "active": [
+        "월간"
+      ],
+      "veil": false
+    }
+  },
+  {
+    "name": "browser back after rapid taps returns to a consistent earlier period (chip, description agree)",
+    "ok": true,
+    "info": {
+      "q": "?p=daily",
+      "desc": "최근 24시간"
+    }
+  },
+  {
+    "name": "ranking row click opens the exact character profile",
+    "ok": true,
+    "info": {
+      "href": "/character/347",
+      "url": "http://localhost:3012/character/347"
+    }
+  },
+  {
+    "name": "back from the profile returns to the ranking (default 전체)",
+    "ok": true,
+    "info": "http://localhost:3012/tab/ranking"
+  },
+  {
+    "name": "menu cinematic into ranking plays and lands on 전체 with data, veil closed",
+    "ok": true,
+    "info": {
+      "veil": true,
+      "act": {
+        "desc": "누적 대화 턴",
+        "rows": 3,
+        "veil": false
+      }
+    }
+  }
+]
