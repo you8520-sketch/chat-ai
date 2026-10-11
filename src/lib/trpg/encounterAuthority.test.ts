@@ -1070,6 +1070,48 @@ describe("encounter authority: malformed author config is rejected at the save b
     db.close();
   });
 
+  it("rejects an explicitly passed unparsable JSON plan string instead of saving it without the plan", () => {
+    const db = memoryDb();
+    for (const broken of ['{"encounters":[{"id":"x"', "not json", '{"encounters": [}', "{'encounters': []}"]) {
+      assert.throws(
+        () => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: broken as never }),
+        /시나리오 계획\(scenarioPlan\) JSON을 읽을 수 없습니다/,
+        broken
+      );
+    }
+    assert.equal(count(db), 0, "nothing was stored");
+    db.close();
+  });
+
+  it("an update with a broken JSON plan string is rejected and the stored valid encounters are preserved", () => {
+    const db = memoryDb();
+    const id = tryInsert(db, [WOLF]);
+    const before = (db.prepare(`SELECT scenario_plan_json, updated_at FROM trpg_scenario_templates WHERE id=?`).get(id) as { scenario_plan_json: string; updated_at: string });
+    assert.throws(
+      () => updateScenarioTemplate(db, id, 7, { ...base, title: "바뀐 제목", scenarioPlan: '{"encounters":[{"id":"x"' as never }),
+      /JSON을 읽을 수 없습니다/
+    );
+    const after = db.prepare(`SELECT title, scenario_plan_json, updated_at FROM trpg_scenario_templates WHERE id=?`).get(id) as { title: string; scenario_plan_json: string; updated_at: string };
+    assert.equal(after.scenario_plan_json, before.scenario_plan_json);
+    assert.equal(after.title, "폐역", "the rejected update changed nothing");
+    assert.deepEqual(parseTrpgScenarioPlan(after.scenario_plan_json)?.encounters, [WOLF]);
+    db.close();
+  });
+
+  it("valid JSON strings, empty/whitespace strings, and unset/null/empty encounters keep working", () => {
+    const db = memoryDb();
+    assert.doesNotThrow(() => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: JSON.stringify({ ...PLAN, encounters: [WOLF] }) as never }));
+    assert.doesNotThrow(() => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: JSON.stringify(PLAN) as never }));
+    assert.doesNotThrow(() => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: JSON.stringify({ ...PLAN, encounters: null }) as never }));
+    assert.doesNotThrow(() => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: JSON.stringify({ ...PLAN, encounters: [] }) as never }));
+    assert.doesNotThrow(() => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: "   " as never }));
+    assert.doesNotThrow(() => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: "" as never }));
+    assert.doesNotThrow(() => insertScenarioTemplate(db, 7, { ...base, scenarioPlan: undefined }));
+    const stored = db.prepare(`SELECT scenario_plan_json FROM trpg_scenario_templates WHERE id=1`).get() as { scenario_plan_json: string };
+    assert.deepEqual(parseTrpgScenarioPlan(stored.scenario_plan_json)?.encounters, [WOLF]);
+    db.close();
+  });
+
   it("a valid config still reaches governed play, and model drafts still cannot create or overwrite it", () => {
     const db = memoryDb();
     const id = tryInsert(db, [WOLF]);

@@ -266,16 +266,19 @@ export function parseScenarioEncounters(raw: unknown): TrpgScenarioEncounter[] {
 
 /**
  * Save-boundary guard. `encounters` absent/null/[] means the author set none (legacy campaign semantics
- * stay). Anything else must be fully valid: a partly or wholly dropped list would otherwise leave the
+ * stay), and so does an empty plan string. A non-empty plan string must be parseable JSON, and any
+ * explicit encounters must be fully valid: a partly or wholly dropped list would otherwise leave the
  * campaign on GM-owned HP without telling the author.
  */
 export function assertAuthoredEncountersValid(rawPlan: unknown): void {
   let plan: unknown = rawPlan;
   if (typeof rawPlan === "string") {
+    const text = rawPlan.trim();
+    if (!text) return;
     try {
-      plan = JSON.parse(rawPlan);
+      plan = JSON.parse(text);
     } catch {
-      return;
+      throw new Error("시나리오 계획(scenarioPlan) JSON을 읽을 수 없습니다. 형식을 확인해 주세요.");
     }
   }
   if (!plan || typeof plan !== "object" || Array.isArray(plan)) return;
