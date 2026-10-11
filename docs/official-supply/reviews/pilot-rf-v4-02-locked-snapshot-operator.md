@@ -80,7 +80,7 @@ Default CLI is inspect or `NOT_RUN`. Inspect never instantiates `OfficialSupplyS
 
 Fail-closed gates after GPT #1533 review:
 
-1. Apply refuses Railway `RAILWAY_ENVIRONMENT_NAME=production` and any path whose `realpath`/inode resolves to `/data/app.db`.
+1. Apply refuses Railway `RAILWAY_ENVIRONMENT_NAME=production` and any path whose `realpath`/inode resolves to `/data/app.db`, unless all three Wolfgang-only confirm envs are exact: `OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CAS=1`, `OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_DRAFT_KEY=pilot-rf-v4-02`, `OFFICIAL_LOCKED_SNAPSHOT_PRODUCTION_CONFIRM=pilot-rf-v4-02`. That override still uses `OfficialSupplyStore.reconcileLockedSnapshot` and still requires backup + deploy SHA match. It does not open Lucian or any other draft.
 2. `ready_for_cas` requires the observed live `draft_json`/`asset_plan_json` SHA-256 pair. Hook-only or plan-only drift STOPs. `already_current` requires the full compiled draft+plan, including hook.
 3. Backup must be a distinct `VACUUM INTO` file whose Wolfgang row and 14 asset rows match the live pre-CAS source. Integrity-only unrelated SQLite is rejected.
 4. Apply requires independently provided `OFFICIAL_LOCKED_SNAPSHOT_EXPECTED_DEPLOY_SHA` and matching `RAILWAY_GIT_COMMIT_SHA`. Inspect still reports runtime SHA.
@@ -99,7 +99,7 @@ Fail-closed gates after GPT #1533 review:
 2. Deploy so `/app/scripts/official-supply-reconcile-locked-snapshot.ts` exists next to `tsx`.
 3. Re-run inspect on live `/data/app.db`. STOP if hashes/stage/rep drift.
 4. Create a `VACUUM INTO` snapshot and record its path + integrity.
-5. Separate user approval for **exactly one** live CAS (`apply` + env), after the production-path refuse is deliberately lifted in a later ticket.
+5. After GPT/user approval of this production-CAS gate and a matching deploy: one live apply with `apply` + `OFFICIAL_LOCKED_SNAPSHOT_APPLY=1` + independently observed `OFFICIAL_LOCKED_SNAPSHOT_EXPECTED_DEPLOY_SHA` + existing verified backup path + the three Wolfgang confirm envs. Re-inspect first; STOP on hash/stage/rep drift. Do not create a second backup if the existing PASS file still matches live.
 6. Later, separately: `reviewAnchor`, 13 paid images, publish.
 
 ## POST=0 / PROD WRITE=0
