@@ -81,7 +81,8 @@ export function compatibleStatsForAction(actionType: string | null): readonly st
 }
 
 /**
- * Map the strongest existing method-hint family back to an action type.
+ * Type-grade method families only. Short stat nouns (창, 활, 총, 독) stay on
+ * pickStat via scoreActionMethodHints — they must not lock EXPLICIT_ALWAYS_ROLL.
  * Omitted on purpose (not a second mechanics owner):
  * - DEX: free-action fallback; movement words would become stealth/attack.
  * - INT: too many generic words (정리/확인/흐름) that appear in flavor.
@@ -106,13 +107,31 @@ const METHOD_STAT_TO_ACTION = {
   emp: "persuade",
 } as const;
 
+const TYPE_HINT_MIN_LEN = 2;
+const TYPE_HINT_PARTICLE = /(?:을|를|이|가|은|는|과|와|도|만|으로|로|에게|한테)/;
+
+function hintOccursAsTypeLock(hay: string, hint: string): boolean {
+  const token = hint.toLowerCase();
+  if (hint.length >= TYPE_HINT_MIN_LEN) return hay.includes(token);
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`${escaped}${TYPE_HINT_PARTICLE.source}`).test(hay);
+}
+
+function scoreActionTypeHints(text: string, key: string): number {
+  const hay = text.toLowerCase();
+  const hints = ACTION_METHOD_STAT_HINTS[key];
+  if (!hints?.length) return 0;
+  return hints.reduce((n, hint) => n + (hintOccursAsTypeLock(hay, hint) ? 1 : 0), 0);
+}
+
+/** Visible action prose only. Caller strips quotes / talk / flavor / safe travel first. */
 export function inferActionTypeFromMethodHints(body: string): keyof typeof ACTION_COMPATIBLE_STATS | null {
   const text = body.trim();
   if (!text) return null;
   let bestType: keyof typeof ACTION_COMPATIBLE_STATS | null = null;
   let bestScore = 0;
   for (const [stat, actionType] of Object.entries(METHOD_STAT_TO_ACTION)) {
-    const score = scoreActionMethodHints(text, stat);
+    const score = scoreActionTypeHints(text, stat);
     if (score > bestScore) {
       bestScore = score;
       bestType = actionType;

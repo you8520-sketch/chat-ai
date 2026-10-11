@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { resolveTrpgActionCheckDecision } from "./actionCheck";
+import { inferActionTypeFromMethodHints, scoreActionMethodHints } from "./actionMethodHints";
 import {
   pickStatForActionDetailed,
   resolveHumanSubmittedActionType,
@@ -13,7 +14,11 @@ import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet } from "./engineCreate";
 import { startTrpgCampaign, submitTrpgAction } from "./engineAdvance";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
-import { adjudicateLockedHumanSubmissions, ensureRoundAdjudicationContext } from "./roundAdjudication";
+import {
+  adjudicateLockedHumanSubmissions,
+  ensureRoundAdjudicationContext,
+  loadFrozenAdjudicationDecision,
+} from "./roundAdjudication";
 import { ensureTrpgTables } from "./schema";
 import { loadLatestRound } from "./store";
 import { DEFAULT_TRPG_STAT_DEFS, defsFromKeys } from "./stats";
@@ -99,6 +104,14 @@ const KOREAN_FIXTURES: Array<{
   { id: "status-treat", body: "마비 상태를 치료한다.", actionType: "free", needsCheck: true, statKey: "wis" },
   { id: "hazard-item", body: "연막탄을 적에게 던진다.", actionType: "free", needsCheck: true, statKey: "dex" },
   { id: "compound-cut", body: "고개를 끄덕인 뒤 검으로 벤다.", actionType: "attack", needsCheck: true, statKey: "str" },
+  { id: "travel-warehouse", body: "창고로 간다.", actionType: "free", needsCheck: false, statKey: "str" },
+  { id: "talk-magic-ask", body: "「마법을 쓸 수 있어?」", actionType: "free", needsCheck: false, statKey: "dex" },
+  { id: "talk-dont-lie", body: "「거짓말하지 마.」", actionType: "free", needsCheck: false, statKey: "dex" },
+  { id: "flavor-window-look", body: "창문 밖을 바라본다.", actionType: "free", needsCheck: false, statKey: "str" },
+  { id: "attack-spear", body: "창으로 적을 찌른다.", actionType: "attack", needsCheck: true, statKey: "str" },
+  { id: "attack-magic-bolt", body: "마법 주문으로 적을 공격한다.", actionType: "attack", needsCheck: true, statKey: "str" },
+  { id: "open-teahouse", body: "열린 찻집 문으로 들어간다.", actionType: "free", needsCheck: false, statKey: "dex" },
+  { id: "first-aid-bandage", body: "붕대로 상처를 응급처치한다.", actionType: "free", needsCheck: true, statKey: "wis" },
 ];
 
 describe("human auto adjudication fixtures", () => {
@@ -125,6 +138,18 @@ describe("human auto adjudication fixtures", () => {
     });
     assert.equal(highCha.statKey, "str");
     assert.notEqual(highCha.statKey, "cha");
+  });
+
+  it("stat hints may still match 창, but type inference does not lock warehouse travel", () => {
+    assert.ok(scoreActionMethodHints("창고로 간다.", "str") > 0);
+    assert.equal(inferActionTypeFromMethodHints("창고로 간다."), null);
+    assert.equal(resolveHumanSubmittedActionType("창고로 간다."), "free");
+    assert.equal(resolveHumanSubmittedActionType("「마법을 쓸 수 있어?」"), "free");
+    assert.equal(resolveHumanSubmittedActionType("「거짓말하지 마.」"), "free");
+    assert.equal(resolveHumanSubmittedActionType("창문 밖을 바라본다."), "free");
+    assert.equal(inferActionTypeFromMethodHints("창으로 적을 찌른다."), "attack");
+    assert.equal(inferActionTypeFromMethodHints("마법 주문으로 적을 공격한다."), "attack");
+    assert.equal(inferActionTypeFromMethodHints("경비병에게 거짓말로 통과하려 한다."), "persuade");
   });
 
   it("client selectedStat and invalid keys do not change human resolution", () => {
@@ -203,6 +228,80 @@ describe("human submit authority", () => {
       | undefined;
     assert.equal(roll?.stat_key, "cha");
     db.close();
+  });
+
+  it("live path: noun/talk false-positives stay free with no dice; combat/persuade/heal still roll", async () => {
+    const rows: Array<{
+      body: string;
+      actionType: TrpgActionType;
+      needsCheck: boolean;
+      rollStat: string | null;
+    }> = [
+      { body: "창고로 간다.", actionType: "free", needsCheck: false, rollStat: null },
+      { body: "「마법을 쓸 수 있어?」", actionType: "free", needsCheck: false, rollStat: null },
+      { body: "「거짓말하지 마.」", actionType: "free", needsCheck: false, rollStat: null },
+      { body: "창문 밖을 바라본다.", actionType: "free", needsCheck: false, rollStat: null },
+      { body: "창으로 적을 찌른다.", actionType: "attack", needsCheck: true, rollStat: "str" },
+      { body: "마법 주문으로 적을 공격한다.", actionType: "attack", needsCheck: true, rollStat: "str" },
+      { body: "경비병에게 거짓말로 통과하려 한다.", actionType: "persuade", needsCheck: true, rollStat: "cha" },
+      { body: "잠긴 문을 억지로 연다.", actionType: "free", needsCheck: true, rollStat: "dex" },
+      { body: "열린 찻집 문으로 들어간다.", actionType: "free", needsCheck: false, rollStat: null },
+      { body: "붕대로 상처를 응급처치한다.", actionType: "free", needsCheck: true, rollStat: "wis" },
+    ];
+    for (const row of rows) {
+      const db = new Database(":memory:");
+      ensureTrpgTables(db);
+      const deps = {
+        skipBilling: true,
+        rollD20: () => 16,
+        gmCall: async () => ({
+          text: buildTrpgGmStructuredWireText("장면이 이어진다.", {
+            players: [],
+            location: "",
+            next_round_context: "",
+            questsAdd: [],
+            flagsAdd: [],
+            campaign_finished: false,
+          }),
+        }),
+      };
+      const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+      saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+      await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+      submitTrpgAction(db, { campaignId, userId: 1, body: row.body });
+      const stored = db
+        .prepare(`SELECT id, body, action_type, selected_stat FROM trpg_action_submissions`)
+        .get() as { id: number; body: string; action_type: string; selected_stat: string | null };
+      assert.equal(stored.body, row.body);
+      assert.equal(stored.action_type, row.actionType);
+      assert.equal(stored.selected_stat, null);
+      const snap = loadTrpgSnapshot(db, campaignId, 1);
+      assert.equal(snap?.myDraft?.body, row.body);
+      const round = loadLatestRound(db, campaignId)!;
+      const ctx = ensureRoundAdjudicationContext(db, {
+        campaignId,
+        roundId: round.id,
+        roundNumber: round.round_number,
+        deps,
+      });
+      adjudicateLockedHumanSubmissions(db, {
+        campaignId,
+        roundId: round.id,
+        pre: ctx.pre,
+        deps,
+      });
+      const frozen = loadFrozenAdjudicationDecision(db, round.id, stored.id);
+      assert.equal(frozen?.needsCheck, row.needsCheck, row.body);
+      const roll = db
+        .prepare(`SELECT stat_key FROM trpg_dice_rolls WHERE round_id=?`)
+        .get(round.id) as { stat_key: string } | undefined;
+      if (row.needsCheck) {
+        assert.equal(roll?.stat_key, row.rollStat, row.body);
+      } else {
+        assert.equal(roll, undefined, row.body);
+      }
+      db.close();
+    }
   });
 
   it("preserves explicit bot ACTION_TYPE and INTENT", () => {

@@ -131,6 +131,8 @@ describe("TRPG no-check dialogue and flavor", () => {
 
   it("ordinary free movement resolves without a roll", () => {
     assert.equal(actionNeedsCheck({ body: "갑자기 그쪽으로 간다.", actionType: "free" }), false);
+    assert.equal(actionNeedsCheck({ body: "창문 밖을 바라본다.", actionType: "free" }), false);
+    assert.equal(actionNeedsCheck({ body: "창문을 연다.", actionType: "free" }), true);
   });
 
   it("explicit resolution types cannot be skipped by vague or cosmetic prose", () => {
