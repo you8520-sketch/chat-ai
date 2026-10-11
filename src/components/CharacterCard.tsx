@@ -180,7 +180,7 @@ function CardBadges({ c, officialClassName = HOME_OFFICIAL_BADGE }: { c: Charact
   );
 }
 
-function CreatorLine({ view, className }: { view: CardView; className?: string }) {
+function CreatorLine({ view, className, byClassName }: { view: CardView; className?: string; byClassName?: string }) {
   if (!view.creatorName) return null;
   const { creatorStyle } = view;
   const inner = (
@@ -190,7 +190,7 @@ function CreatorLine({ view, className }: { view: CardView; className?: string }
           {creatorStyle.medal}
         </span>
       )}
-      <span className={creatorStyle.byClassName}>by</span> {view.creatorName}
+      <span className={byClassName ?? creatorStyle.byClassName}>by</span> {view.creatorName}
     </>
   );
   if (view.creatorHref) {
@@ -378,7 +378,7 @@ const DEFAULT_CHROME = {
     "group/card relative flex h-full flex-col overflow-hidden rounded-[1.15rem] border border-indigo-200/[0.09] bg-[#0f1124] shadow-[inset_0_1px_0_rgba(255,255,255,.06),0_18px_44px_-20px_rgba(6,4,28,.95)] transition duration-300 hover:-translate-y-1 hover:border-violet-300/30 hover:shadow-[inset_0_1px_0_rgba(255,255,255,.08),0_26px_56px_-22px_rgba(139,92,246,.42)] focus-within:border-violet-300/40 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
   media: "h-full w-full transition duration-500 group-hover/card:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover/card:scale-100",
   fade: "pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-[34%] bg-gradient-to-t from-[#0f1124] via-[#0f1124]/45 to-transparent",
-  keyline: "pointer-events-none absolute inset-0 z-[2] rounded-t-[1.15rem] ring-1 ring-inset ring-white/[0.08]",
+  keyline: "pointer-events-none absolute inset-0 z-[2] rounded-t-[1.15rem] border-x border-t border-white/[0.08]",
   overlay:
     "absolute inset-0 z-[3] flex items-center justify-center bg-[#07081a]/65 px-2 text-center text-[11px] font-semibold text-white sm:text-xs",
   official:
@@ -386,6 +386,7 @@ const DEFAULT_CHROME = {
   body: "relative z-[2] -mt-7 flex min-h-[9.5rem] flex-1 flex-col gap-1.5 px-4 pb-4",
   eyebrow: "line-clamp-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-200/70",
   name: "line-clamp-2 text-[16.5px] font-bold leading-[1.2] tracking-[-0.03em] text-white transition group-hover/card:text-violet-100 [overflow-wrap:anywhere]",
+  creatorBy: "text-zinc-400",
   tagline: "line-clamp-2 min-h-[2.5rem] text-[12.5px] leading-5 text-zinc-300/90",
   tagsWrap: "mt-auto flex max-h-[1.9rem] flex-wrap gap-1.5 overflow-hidden pt-1.5",
   tag: "max-w-full truncate rounded-full bg-white/[0.05] px-2 py-0.5 text-[10.5px] font-medium text-zinc-300 ring-1 ring-inset ring-white/10 transition hover:bg-violet-400/20 hover:text-white hover:ring-violet-300/30",
@@ -420,12 +421,12 @@ function DefaultCard({ c, view }: { c: CharacterRow; view: CardView }) {
         <Link href={view.href} className={cn("min-w-0", FOCUS)}>
           <h3 className={chrome.name}>{c.name}</h3>
         </Link>
-        <CreatorLine view={view} />
+        <CreatorLine view={view} byClassName={chrome.creatorBy} />
         <Link href={view.href} className={cn("min-w-0", FOCUS)}>
           {view.displayTagline ? (
             <p className={chrome.tagline}>{view.displayTagline}</p>
           ) : (
-            <p className="min-h-[2.5rem] text-xs leading-5 text-zinc-600">한 줄 소개 없음</p>
+            <p className="min-h-[2.5rem] text-xs leading-5 text-zinc-400">한 줄 소개 없음</p>
           )}
         </Link>
         <CardTags tags={view.tags} max={4} className={chrome.tagsWrap} tagClassName={chrome.tag} />
