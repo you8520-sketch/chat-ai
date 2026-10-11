@@ -177,8 +177,17 @@ function libsqlIntegrityMessages(file: string): string[] {
   }
 }
 
-function writeHippAlterRealFixture(file: string): void {
-  const result = spawnSync(
+function writeSimpleSqliteFixture(file: string): void {
+  const db = new Database(file);
+  try {
+    db.exec("CREATE TABLE t (id INTEGER PRIMARY KEY); INSERT INTO t (id) VALUES (1);");
+  } finally {
+    db.close();
+  }
+}
+
+function writeHippAlterRealFixture(file: string): ReturnType<typeof spawnSync> {
+  return spawnSync(
     "python3",
     [
       "-I",
@@ -188,7 +197,6 @@ function writeHippAlterRealFixture(file: string): void {
     ],
     { encoding: "utf8" }
   );
-  assert.equal(result.status, 0, result.stderr || result.stdout);
 }
 
 function writeForeignKeyViolationFixture(file: string): void {
@@ -769,7 +777,15 @@ describe("Wolfgang v4 independent SQLite backup engine", () => {
     } finally {
       libsqlDb.close();
     }
-    writeHippAlterRealFixture(live);
+    const created = writeHippAlterRealFixture(live);
+    if (!isPatchedIndependentSqliteVersion(
+      spawnSync("python3", ["-I", "-c", "import sqlite3; print(sqlite3.sqlite_version)"], { encoding: "utf8" }).stdout.trim()
+    )) {
+      assert.match(created.stderr || created.stdout, /NOT NULL constraint failed/);
+      assert.equal(created.status, 1);
+      return;
+    }
+    assert.equal(created.status, 0, created.stderr || created.stdout);
     const libsqlMessages = libsqlIntegrityMessages(live);
     assert.ok(
       libsqlMessages.some((message) => message.includes("NULL value in t.b")),
@@ -783,17 +799,7 @@ describe("Wolfgang v4 independent SQLite backup engine", () => {
       src.close();
     }
     const before = fs.readFileSync(backup);
-    const probe = spawnSync("python3", ["-I", "-c", "import sqlite3; print(sqlite3.sqlite_version)"], {
-      encoding: "utf8",
-    });
-    if (isPatchedIndependentSqliteVersion(probe.stdout.trim())) {
-      assertIndependentSqliteIntegrity(live, backup);
-    } else {
-      assert.throws(
-        () => assertIndependentSqliteIntegrity(live, backup),
-        (error: OfficialSupplyGateError) => error.code === "locked_snapshot_backup_invalid"
-      );
-    }
+    assertIndependentSqliteIntegrity(live, backup);
     assert.deepEqual(fs.readFileSync(backup), before);
     assert.equal(fs.existsSync(`${backup}-wal`), false);
     assert.ok(libsqlIntegrityMessages(backup).some((message) => message.includes("NULL value in t.b")));
@@ -802,7 +808,7 @@ describe("Wolfgang v4 independent SQLite backup engine", () => {
   it("stops on a tampered backup, a foreign-key violation, missing python, unpatched sqlite, and timeout", () => {
     const live = path.join(root, "clean-live.db");
     const backup = path.join(root, "clean-backup.db");
-    writeHippAlterRealFixture(live);
+    writeSimpleSqliteFixture(live);
     const src = new Database(live);
     try {
       src.exec(`VACUUM INTO '${backup.replaceAll("'", "''")}'`);
