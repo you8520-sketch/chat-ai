@@ -1,0 +1,138 @@
+{
+  "schema": "trpg-vnext.outcome-contract-cases.v1",
+  "labelStatus": "proposed-not-approved",
+  "gate": false,
+  "executable": "H-series already runs in scripts/trpg-vnext-baseline.ts (P1). O-series is a SPEC for Slice 1a/1b tests; nothing here is executable against current main because the server threat ledger does not exist yet.",
+  "provenanceClasses": {
+    "AUTHORED": "Entity defined by the scenario author (today: scenario-template NPCs with npcKey/role/stats, read LIVE from the template each round; no structured authored hazard exists in main). vNext copies npcKey/role/severityCeiling into the threat ledger on first use so the grounding is fixed.",
+    "ESTABLISHED": "Threat ledger entry that passed server validation in an EARLIER committed round and is active.",
+    "CURRENT_CHECK": "Server-approved consequence of a check in THIS round (frozen decision + persisted d20/tier).",
+    "ONGOING": "Existing trpg_ongoing_effects tick/recovery (SERVER_PREACTION / SERVER_RECOVERY).",
+    "GM_PROPOSAL": "GM-suggested new threat/state. Never authority. Archived; may become ESTABLISHED only after server validation.",
+    "UNGROUNDED": "GM hp/conditions/inventory/threat with no mapping to the classes above. Rejected; archived."
+  },
+  "hpResultVocabulary": {
+    "unchanged": "HP equals the server-computed value with no new direct event.",
+    "server_approved": "HP equals the server-computed value after exactly ONE approved direct event for that target; the number comes from the existing mechanics owner (directClass), never from the GM."
+  },
+  "cases": [
+    {
+      "id": "O01", "relatesTo": ["H1"],
+      "situation": "PC listens; no threat in scene; GM writes hp 30->8.",
+      "provenance": "UNGROUNDED", "expectedHp": "unchanged", "expectedLog": "gm_hp_rejected(reason=no_grounding)"
+    },
+    {
+      "id": "O02", "relatesTo": ["H2", "H3"],
+      "situation": "Authored boss is engaged. PC attack check FAILURE this round. GM writes hp 22 (or 28, or omits hp entirely).",
+      "provenance": "AUTHORED+CURRENT_CHECK", "expectedHp": "server_approved",
+      "invariant": "All three GM variants (22 / 28 / omitted) produce the same HP. Legitimate counter-hit survives GM omission and GM disagreement."
+    },
+    {
+      "id": "O03", "relatesTo": ["H9"],
+      "situation": "Same as O02 but GM writes a higher hp or a heal.",
+      "provenance": "AUTHORED+CURRENT_CHECK", "expectedHp": "server_approved",
+      "invariant": "GM cannot soften or heal past server-approved harm."
+    },
+    {
+      "id": "O04", "relatesTo": ["H1"],
+      "situation": "Authored boss engaged; PC attack check SUCCESS; GM writes the PC's hp lower.",
+      "provenance": "UNGROUNDED(for this trigger)", "expectedHp": "unchanged",
+      "invariant": "A grounded entity alone is not a trigger. The server needs a trigger (failed check / exposure / filled clock / ongoing tick)."
+    },
+    {
+      "id": "O05", "relatesTo": [],
+      "situation": "Hazard (trap) established in an earlier round and active. PC attempts to cross it this round (risky), check FAILURE. GM omits hp.",
+      "provenance": "ESTABLISHED+CURRENT_CHECK", "expectedHp": "server_approved",
+      "invariant": "Existing trap damage applies in the SAME round when a trigger exists."
+    },
+    {
+      "id": "O06", "relatesTo": [],
+      "situation": "Same trap; PC does something unrelated and safe elsewhere; GM writes hp lower.",
+      "provenance": "UNGROUNDED(for this trigger)", "expectedHp": "unchanged"
+    },
+    {
+      "id": "O07", "relatesTo": ["H4"],
+      "situation": "GM narrates 'a hidden assassin stabs 렌'; no authored or established entity matches; GM writes 렌 hp 30->12.",
+      "provenance": "GM_PROPOSAL", "expectedHp": "unchanged",
+      "expectedLog": "threat_proposed(status=proposed, canHarm=false)",
+      "invariant": "Hallucinated NPC attack is rejected for HP in this round."
+    },
+    {
+      "id": "O08", "relatesTo": [],
+      "situation": "GM adds a NEW threat via localScene.threatsAdd and also lowers hp in the same response.",
+      "provenance": "GM_PROPOSAL", "expectedHp": "unchanged",
+      "invariant": "New proposal: no same-round damage before server validation + state confirmation. Earliest damage is a later round with a server trigger."
+    },
+    {
+      "id": "O09", "relatesTo": [],
+      "situation": "GM threatsAdd references a threat id that does not exist in the server ledger, or a cause string such as 'enemy_counter', or a valid id bound to a different target.",
+      "provenance": "UNGROUNDED", "expectedHp": "unchanged",
+      "invariant": "GM-supplied id / cause / narration never confers authority. Ids are minted by the server only."
+    },
+    {
+      "id": "O10", "relatesTo": [],
+      "situation": "GM proposal names an entity that DOES match an authored NPC (npcKey/name) and the NPC is engaged in the scene.",
+      "provenance": "AUTHORED", "expectedHp": "unchanged-until-trigger",
+      "invariant": "Not 'new': it is an existing authored attacker. Damage still needs a server trigger (O02) but no extra round of delay."
+    },
+    {
+      "id": "O11", "relatesTo": ["H7"],
+      "situation": "GM adds condition '중독' with no hazard source.",
+      "provenance": "UNGROUNDED", "expectedHp": "unchanged", "expectedEffects": "no ongoing effect seed",
+      "variant": "Established poison hazard + failed check -> ongoing effect is created through the existing ongoing-effect owner (CURRENT_CHECK + ESTABLISHED)."
+    },
+    {
+      "id": "O12", "relatesTo": ["H8"],
+      "situation": "GM inventoryAdd '용의 심장' on a listen action.",
+      "provenance": "UNGROUNDED", "expectedInventory": "unchanged", "policy": "DECISION_NEEDED — item-grant provenance (authored reward vs success on an interact attempt vs participant-to-participant transfer) needs GPT/user approval before 1b."
+    },
+    {
+      "id": "O13", "relatesTo": ["H10"],
+      "situation": "Existing recovery, DOT tick, item consume paths.",
+      "provenance": "ONGOING", "expectedHp": "server_approved",
+      "invariant": "Behavior identical to main (hpDamageOwnership.repro.test.ts L1-L4, ONGOING-1..3, M7, M8)."
+    },
+    {
+      "id": "O14", "relatesTo": [],
+      "situation": "2 humans + 2 AI. Boss counter-hits 현 (failed check) and 렌 (failed check). 하나 and 유나 are safe.",
+      "provenance": "AUTHORED+CURRENT_CHECK", "expectedHp": "server_approved(현), server_approved(렌), unchanged(하나), unchanged(유나)",
+      "invariant": "Per-target separation; no cross-target leakage."
+    },
+    {
+      "id": "O15", "relatesTo": [],
+      "situation": "Two failed attackers' counter-hits both point at 현 in one round.",
+      "provenance": "AUTHORED+CURRENT_CHECK", "expectedHp": "server_approved",
+      "invariant": "At most ONE direct HP event per (target, round); the extra failure becomes a non-HP cost."
+    },
+    {
+      "id": "O16", "relatesTo": [],
+      "situation": "GM provider 5xx then retry.",
+      "expected": "Events are loaded from the persisted mechanics resolution; d20 not re-rolled; HP applied once; billed once.",
+      "evidenceTodayInMain": "trpg_mechanics_resolutions row per round (ON CONFLICT(round_id)), resolution.applied guard, trpg_dice_rolls rows, frozen adjudication snapshot, trpg_rounds.billed"
+    },
+    {
+      "id": "O17", "relatesTo": [],
+      "situation": "Regeneration of the GM narration.",
+      "expected": "State untouched (regenerate path returns before any state mutation); the regenerated GM receives the SAME approved-outcome packet read from the persisted resolution.",
+      "evidenceTodayInMain": "commitPendingGmResult: `if (opts.regenerate) return;` right after the trpg_gm_messages upsert"
+    },
+    {
+      "id": "O18", "relatesTo": [],
+      "situation": "Duplicate commit (stale generation owner / double click).",
+      "expected": "Second commit throws StaleGmGenerationOwnerError or sees resolution.applied=true; no second HP/effect/inventory application.",
+      "evidenceTodayInMain": "gmGenerationOwnsToken + markGmGenerationCommitted inside the commit db.transaction; applyPersistedMechanicsEffects early-returns on resolution.applied"
+    },
+    {
+      "id": "O19", "relatesTo": [],
+      "situation": "Concurrent actors: a submission arrives after the round locked.",
+      "expected": "Events are computed once from the locked submission set; a late submission is excluded and cannot add or remove events.",
+      "evidenceTodayInMain": "adjudicate* functions read trpg_action_submissions WHERE locked=1"
+    },
+    {
+      "id": "O20", "relatesTo": [],
+      "situation": "needsRoll=false action ('문을 닫는다') with a GM response that adds hp/items/threat.",
+      "provenance": "UNGROUNDED", "expectedHp": "unchanged",
+      "invariant": "no_check is not an effect grant."
+    }
+  ]
+}
