@@ -679,8 +679,8 @@ describe("TRPG P0-5 / P1 recovery UX + threat", () => {
     });
     assert.equal(out.safeRests?.[0]?.amount, 1);
     assert.equal(out.hpAfter["1"], 25);
-    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(room, /HP \+\$\{rest\.healAmount\}/);
+    const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
+    assert.match(dock, /HP \+\$\{rest\.healAmount\}/);
   });
 
   it("POST_COMBAT_REST_AVAILABLE — ended combat is safe, resumed combat is not", () => {
@@ -718,9 +718,9 @@ describe("TRPG P0-5 / P1 recovery UX + threat", () => {
     assert.equal(contextualStatusTreatDraft(["마비"]).body, CONTEXTUAL_PARALYSIS_TREAT_DRAFT);
     assert.equal(contextualStatusTreatDraft(["혼란"]).body, CONTEXTUAL_STATUS_TREAT_DRAFT);
     assert.equal(PARALYSIS_DRAFT_CORRECT, true);
-    const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(room, /🩹 응급처치/);
-    assert.match(room, /💊 상태 치료/);
+    const dock = readFileSync("src/app/trpg/TrpgCommandDock.tsx", "utf8");
+    assert.match(dock, /🩹 응급처치/);
+    assert.match(dock, /💊 상태 치료/);
   });
 
   it("STATUS_TREATMENT_DOES_NOT_HEAL_HP", () => {

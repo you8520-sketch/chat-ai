@@ -131,6 +131,8 @@ describe("TRPG no-check dialogue and flavor", () => {
 
   it("ordinary free movement resolves without a roll", () => {
     assert.equal(actionNeedsCheck({ body: "갑자기 그쪽으로 간다.", actionType: "free" }), false);
+    assert.equal(actionNeedsCheck({ body: "창문 밖을 바라본다.", actionType: "free" }), false);
+    assert.equal(actionNeedsCheck({ body: "창문을 연다.", actionType: "free" }), true);
   });
 
   it("explicit resolution types cannot be skipped by vague or cosmetic prose", () => {
@@ -178,12 +180,12 @@ describe("TRPG M1 roll economy fixtures", () => {
   });
 
   it("explicit attack / investigate / persuade / dangerous defense roll", () => {
-    assert.equal(resolveTrpgActionCheckDecision({ body: "형체를 벤다.", actionType: "attack" }).reason, "explicit_resolution");
+    assert.equal(resolveTrpgActionCheckDecision({ body: "형체를 벤다.", actionType: "attack" }).reason, "challenge");
     assert.equal(
       resolveTrpgActionCheckDecision({ body: "발자국을 살핀다.", actionType: "investigate" }).reason,
       "challenge"
     );
-    assert.equal(resolveTrpgActionCheckDecision({ body: "경비병을 설득한다.", actionType: "persuade" }).reason, "explicit_resolution");
+    assert.equal(resolveTrpgActionCheckDecision({ body: "경비병을 설득한다.", actionType: "persuade" }).reason, "contested");
     assert.equal(resolveTrpgActionCheckDecision({ body: "출입구를 가로막는다.", actionType: "defend" }).needsCheck, true);
   });
 
