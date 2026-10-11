@@ -64,7 +64,7 @@ function usd(tokens: number, perMillion: number): number {
 describe("50-turn memory A/B preflight (provider-free)", () => {
   it("builds the script, summary requests, and arm difference without a provider POST", async () => {
     assert.equal(AB_CALL_PLAN.paidPostsExecutedInThisPrep, 0);
-    assert.equal(AI_LEARNING_LIMIT, 10000);
+    assert.equal(AI_LEARNING_LIMIT, 12000);
     assert.equal(MEMORY_CAPACITY_FIXED, 10000);
     assert.equal(ARCHIVE_CAPACITY_FIXED, 3000);
     assert.ok(AB_CHARACTER_CARD.length < AI_LEARNING_LIMIT);

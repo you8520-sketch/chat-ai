@@ -35,6 +35,8 @@ export const OFFICIAL_TEXT_LENGTH_BANDS = {
 export const OFFICIAL_TEXT_THIN_FLOOR = 3000;
 /** Reserved for the `[외형]` block rendered from the Appearance Lock at staging. */
 export const OFFICIAL_APPEARANCE_BLOCK_RESERVE = 600;
+/** Compiled sheet ceiling before the Appearance Lock is appended. */
+export const OFFICIAL_COMPILED_CHAR_CEILING = AI_LEARNING_LIMIT - OFFICIAL_APPEARANCE_BLOCK_RESERVE;
 /** Non-adult canon must dominate an adult sheet. */
 export const ADULT_SECTION_MAX_SHARE = 0.25;
 
@@ -217,13 +219,30 @@ export function evaluateOfficialTextLength(draft: OfficialCharacterDraft): QaRes
   if (total < OFFICIAL_TEXT_THIN_FLOOR) {
     errors.push({ code: "text_too_thin", message: `total ${total} < ${OFFICIAL_TEXT_THIN_FLOOR}` });
   }
-  if (total + OFFICIAL_APPEARANCE_BLOCK_RESERVE > AI_LEARNING_LIMIT) {
+  if (total > OFFICIAL_COMPILED_CHAR_CEILING) {
     errors.push({
       code: "text_exceeds_canonical_ceiling",
       message: `total ${total} + appearance reserve ${OFFICIAL_APPEARANCE_BLOCK_RESERVE} exceeds ${AI_LEARNING_LIMIT}`,
     });
   }
   return qaResult(errors, warnings);
+}
+
+/** Actual staged save length: world + composed prompt (including appearance) + speech. */
+export function evaluateOfficialStagedSaveLength(
+  draft: OfficialCharacterDraft,
+  appearanceBlock: string
+): QaResult {
+  const total = officialSubstantiveCharCount(draft, appearanceBlock);
+  if (total > AI_LEARNING_LIMIT) {
+    return qaResult([
+      {
+        code: "text_exceeds_canonical_ceiling",
+        message: `staged save ${total} exceeds ${AI_LEARNING_LIMIT}`,
+      },
+    ]);
+  }
+  return qaResult([]);
 }
 
 export function evaluateSupportingNpcs(draft: OfficialCharacterDraft): QaResult {

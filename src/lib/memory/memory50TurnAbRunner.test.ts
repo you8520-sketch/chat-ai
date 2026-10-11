@@ -238,7 +238,7 @@ describe("50-turn memory A/B runner preflight (provider-free)", () => {
   });
 
   it("seals 10 batches and assembles A from stored memory, B from oracle only", async () => {
-    assert.equal(AI_LEARNING_LIMIT, 10000);
+    assert.equal(AI_LEARNING_LIMIT, 12000);
     assert.equal(MEMORY_CAPACITY_FIXED, 10000);
     assert.equal(ARCHIVE_CAPACITY_FIXED, 3000);
     assert.equal(AB_EXPERIMENT_SCOPE, "summary_only");

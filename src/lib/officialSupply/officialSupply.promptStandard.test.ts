@@ -8,10 +8,13 @@ import { isPublicVisibleChunk } from "@/lib/canonPlan/canonVisibility";
 import { renderPrivateCharacterSecretBlock } from "@/lib/canonPlan/privateCharacterSecretRenderer";
 import { compileOfficialDraftFromBible, type OfficialCharacterBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
 import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compiledOfficialSource";
+import { parseCharacterFormBody, type SessionUser } from "@/lib/characterFormSave";
 import {
   buildOfficialCharacterFormBody,
   composeOfficialSystemPrompt,
   computeTextLockHash,
+  evaluateOfficialStagedSaveLength,
+  evaluateOfficialTextLength,
 } from "@/lib/officialSupply/characterText";
 import {
   renderAppearanceBlock,
@@ -281,8 +284,22 @@ describe("official character prompt standard v1", () => {
     const formBody = buildOfficialCharacterFormBody({
       draft,
       appearanceBlock: source.appearanceBlock,
-      assets: [],
+      assets: [
+        {
+          url: "/uploads/official-supply-dry-run.webp",
+          tag: "dry-run",
+          width: 1024,
+          height: 1536,
+          viewerBlur: false,
+          representativeRank: 1,
+        },
+      ],
     });
+    const stagingUser: SessionUser = { id: 9001, nickname: "pilot-staging", is_adult: 1 };
+    const parsed = parseCharacterFormBody(formBody, stagingUser);
+    assert.equal(parsed.ok, true, parsed.ok ? "" : parsed.error);
+    assert.equal(evaluateOfficialTextLength(draft).ok, true);
+    assert.equal(evaluateOfficialStagedSaveLength(draft, source.appearanceBlock).ok, true);
     assert.equal(formBody.visibility, "private");
     assert.equal(formBody.world_id, undefined);
     assert.match(String(formBody.world), /에테르노스/);

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { estimateTokens } from "@/lib/tokenEstimate";
-import { AI_LEARNING_LIMIT } from "@/lib/characterFormLimits";
+import { AI_LEARNING_LIMIT, aiLearningLimitExceededMessage } from "@/lib/characterFormLimits";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
@@ -571,12 +571,13 @@ function assemble(model: (typeof MODELS)[number], chunks: CharacterChunk[], hist
 describe("character setting expansion readiness (no limit change, no provider)", () => {
   const ten = settingFor(10_000);
   const twelve = settingFor(12_000);
+  const twelveAndOne = settingFor(12_001);
   const fifteen = settingFor(15_000);
   const history = historyOf(50);
 
-  it("keeps the live 10000 authoring ceiling and rejects 12k/15k before any save", () => {
+  it("keeps the live 12000 authoring ceiling and rejects 12001/15k before any save", () => {
     assert.equal(AUDIT_SCOPE.saveAndChunk, "MEASURED");
-    assert.equal(AI_LEARNING_LIMIT, 10_000);
+    assert.equal(AI_LEARNING_LIMIT, 12_000);
     assert.equal(new Set(DETAIL_FACTS).size, DETAIL_FACTS.length);
     assert.equal(DETAIL_FACTS.some((line) => line.includes("겨울의 보급로는 강이 얼기 전에")), false);
     for (const [length, coda] of Object.entries(CODA_BY_LENGTH)) {
@@ -605,13 +606,15 @@ describe("character setting expansion readiness (no limit change, no provider)",
       MAIN_RP_MODEL_IDS,
       MODELS.map((m) => m.id)
     );
-    const accepted = parseCharacterFormBody(formBody(ten.systemPrompt), ADULT);
-    assert.equal(accepted.ok, true, accepted.ok ? "" : accepted.error);
-    for (const candidate of [twelve, fifteen]) {
+    const acceptedTen = parseCharacterFormBody(formBody(ten.systemPrompt), ADULT);
+    const acceptedTwelve = parseCharacterFormBody(formBody(twelve.systemPrompt), ADULT);
+    assert.equal(acceptedTen.ok, true, acceptedTen.ok ? "" : acceptedTen.error);
+    assert.equal(acceptedTwelve.ok, true, acceptedTwelve.ok ? "" : acceptedTwelve.error);
+    for (const candidate of [twelveAndOne, fifteen]) {
       const rejected = parseCharacterFormBody(formBody(candidate.systemPrompt), ADULT);
       assert.equal(rejected.ok, false);
       if (!rejected.ok) {
-        assert.match(rejected.error, /10,000자 이하/);
+        assert.equal(rejected.error, aiLearningLimitExceededMessage());
         assert.equal(rejected.status, 400);
       }
     }

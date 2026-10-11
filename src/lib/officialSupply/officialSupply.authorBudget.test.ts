@@ -3,8 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { AI_LEARNING_LIMIT } from "@/lib/characterFormLimits";
+import { AI_LEARNING_LIMIT, aiLearningLimitExceededMessage } from "@/lib/characterFormLimits";
+import { parseCharacterFormBody, type SessionUser } from "@/lib/characterFormSave";
 import { validatePilotDraftForTextLock } from "@/lib/officialSupply/author";
+import { renderAppearanceBlock } from "@/lib/officialSupply/appearance";
 import {
   buildCharacterBible1System,
   buildCharacterBondsSystem,
@@ -14,12 +16,15 @@ import {
 } from "@/lib/officialSupply/authorPrompts";
 import { compileOfficialDraftFromBible, type OfficialCharacterBible, type OfficialWorldBible } from "@/lib/officialSupply/bible";
 import {
+  buildOfficialCharacterFormBody,
   OFFICIAL_APPEARANCE_BLOCK_RESERVE,
+  OFFICIAL_COMPILED_CHAR_CEILING,
   OFFICIAL_TEXT_THIN_FLOOR,
+  evaluateOfficialStagedSaveLength,
   evaluateOfficialTextLength,
   officialSubstantiveCharCount,
 } from "@/lib/officialSupply/characterText";
-import type { OfficialCharacterDraft } from "@/lib/officialSupply/types";
+import type { OfficialAppearanceLock, OfficialCharacterDraft } from "@/lib/officialSupply/types";
 
 const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
 const PART1_KEYS = [
@@ -106,8 +111,9 @@ describe("Part1 / Bonds false total caps removed", () => {
     assert.equal(OFFICIAL_AUTHOR_MAX_TOKENS.character_bible_1, 10000);
     assert.equal(OFFICIAL_AUTHOR_MAX_TOKENS.character_bible_voice, 8000);
     assert.equal(OFFICIAL_AUTHOR_MAX_TOKENS.character_bible_bonds, 8000);
-    assert.equal(AI_LEARNING_LIMIT, 10000);
+    assert.equal(AI_LEARNING_LIMIT, 12000);
     assert.equal(OFFICIAL_APPEARANCE_BLOCK_RESERVE, 600);
+    assert.equal(OFFICIAL_COMPILED_CHAR_CEILING, AI_LEARNING_LIMIT - OFFICIAL_APPEARANCE_BLOCK_RESERVE);
     assert.equal(OFFICIAL_TEXT_THIN_FLOOR, 3000);
   });
 
@@ -123,9 +129,9 @@ describe("Part1 / Bonds false total caps removed", () => {
     assert.equal(codes(draft).includes("text_too_thin"), false);
   });
 
-  it("a compiled body over 9400 chars fails closed on the canonical ceiling, and under 3000 on the floor", () => {
+  it("a compiled body over the shared compiled ceiling fails closed, and under 3000 on the floor", () => {
     const { draft } = compileCanonical();
-    const ceiling = AI_LEARNING_LIMIT - OFFICIAL_APPEARANCE_BLOCK_RESERVE;
+    const ceiling = OFFICIAL_COMPILED_CHAR_CEILING;
     const over = structuredClone(draft);
     over.sections.worldAndSituation += "가".repeat(ceiling - officialSubstantiveCharCount(draft) + 1);
     const overChars = officialSubstantiveCharCount(over);
@@ -147,5 +153,101 @@ describe("Part1 / Bonds false total caps removed", () => {
     assert.ok(thinChars < OFFICIAL_TEXT_THIN_FLOOR, `${thinChars}`);
     assert.ok(codes(thin).includes("text_too_thin"));
     assert.equal(validatePilotDraftForTextLock(thin, []).ok, false);
+  });
+});
+
+const STAGING_USER: SessionUser = { id: 9001, nickname: "pilot-staging", is_adult: 1 };
+const DRY_RUN_ASSET = {
+  url: "/uploads/official-supply-dry-run.webp",
+  tag: "dry-run",
+  width: 1024,
+  height: 1536,
+  viewerBlur: false,
+  representativeRank: 1,
+};
+
+type PilotFile = {
+  slot: number;
+  draftKey: string;
+  draft: OfficialCharacterDraft;
+  appearance: OfficialAppearanceLock;
+};
+
+function loadPilot(slot: number): PilotFile {
+  return readJson(path.join(PILOT_DIR, "characters", `pilot-rf-${String(slot).padStart(2, "0")}.json`));
+}
+
+function saveDryRun(file: PilotFile) {
+  const appearanceBlock = renderAppearanceBlock(file.appearance);
+  const body = buildOfficialCharacterFormBody({
+    draft: file.draft,
+    appearanceBlock,
+    assets: [DRY_RUN_ASSET],
+    lorebookIds: [],
+  });
+  return {
+    appearanceBlock,
+    parsed: parseCharacterFormBody(body, STAGING_USER),
+    staged: evaluateOfficialStagedSaveLength(file.draft, appearanceBlock),
+    compiled: evaluateOfficialTextLength(file.draft),
+  };
+}
+
+function limitFormBody(total: number) {
+  const speechPersonality = "말투";
+  const speechTraits = "특징";
+  const world = "세계관";
+  const systemPrompt = "가".repeat(total - world.length - speechPersonality.length - speechTraits.length);
+  return {
+    content_kind: "character",
+    name: "한도",
+    tagline: "한도",
+    description: "공개",
+    greeting: "인사합니다.",
+    system_prompt: systemPrompt,
+    world,
+    speech_personality: speechPersonality,
+    speech_traits: speechTraits,
+    speech_examples: "예시",
+    speech_forbidden: "금지",
+    genres: ["로맨스"],
+    gender: "male",
+    nsfw: false,
+    participant_min_age: 28,
+    assets: [{ url: "/uploads/test.png", tag: "neutral", representativeRank: 1 }],
+  };
+}
+
+describe("canonical 12k save owner", () => {
+  it("accepts 12000 and rejects 12001 with the shared error", () => {
+    const accepted = parseCharacterFormBody(limitFormBody(12_000), STAGING_USER);
+    const rejected = parseCharacterFormBody(limitFormBody(12_001), STAGING_USER);
+    assert.equal(accepted.ok, true, accepted.ok ? "" : accepted.error);
+    assert.equal(rejected.ok, false);
+    if (!rejected.ok) {
+      assert.equal(rejected.error, aiLearningLimitExceededMessage());
+      assert.equal(rejected.status, 400);
+    }
+  });
+
+  it("Wolfgang and Bastian pass compiled QA and actual-appearance save dry-run", () => {
+    for (const slot of [2, 5]) {
+      const file = loadPilot(slot);
+      const result = saveDryRun(file);
+      assert.equal(result.compiled.ok, true, JSON.stringify(result.compiled.errors));
+      assert.equal(result.staged.ok, true, JSON.stringify(result.staged.errors));
+      assert.equal(result.parsed.ok, true, result.parsed.ok ? "" : result.parsed.error);
+      assert.ok(officialSubstantiveCharCount(file.draft) <= OFFICIAL_COMPILED_CHAR_CEILING);
+      assert.ok(officialSubstantiveCharCount(file.draft, result.appearanceBlock) <= AI_LEARNING_LIMIT);
+    }
+  });
+
+  it("detects a staged-save overflow before image generation", () => {
+    const file = loadPilot(2);
+    const overAppearance = `${renderAppearanceBlock(file.appearance)}\n${"가".repeat(2_000)}`;
+    const staged = evaluateOfficialStagedSaveLength(file.draft, overAppearance);
+    assert.equal(staged.ok, false);
+    assert.ok(staged.errors.some((error) => error.code === "text_exceeds_canonical_ceiling"));
+    assert.equal(evaluateOfficialTextLength(file.draft).ok, true);
   });
 });

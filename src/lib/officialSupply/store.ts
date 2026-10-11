@@ -16,6 +16,7 @@ import {
   computeTextLockHash,
   evaluateAgeAndAdultConsistency,
   evaluateDraftSchema,
+  evaluateOfficialStagedSaveLength,
   evaluateOfficialTextLength,
   evaluateSupportingNpcs,
   mergeQa,
@@ -819,7 +820,11 @@ export class OfficialSupplyStore {
       throw new OfficialSupplyGateError("character_stage", `draft ${draftKey} is ${record.stage}`);
     }
     this.assertTextLockCurrent(record);
-    const qa = evaluateAppearanceLock(record.draft, lock);
+    const appearanceBlock = this.appearanceBlockForDraft(record.draft, lock);
+    const qa = mergeQa(
+      evaluateAppearanceLock(record.draft, lock),
+      evaluateOfficialStagedSaveLength(record.draft, appearanceBlock)
+    );
     if (!qa.ok) return qa;
     this.db
       .prepare(
@@ -838,7 +843,10 @@ export class OfficialSupplyStore {
       throw new OfficialSupplyGateError("character_stage", `draft ${draftKey} is ${record.stage}`);
     }
     this.assertTextLockCurrent(record);
-    const qa = evaluateAssetPlan(record.draft, plan);
+    const qa = mergeQa(
+      evaluateAssetPlan(record.draft, plan),
+      evaluateOfficialStagedSaveLength(record.draft, this.appearanceBlockFor(record))
+    );
     if (!qa.ok) return qa;
     const tx = this.db.transaction(() => {
       this.db.prepare("DELETE FROM official_supply_assets WHERE draft_key=?").run(draftKey);
@@ -1201,6 +1209,14 @@ export class OfficialSupplyStore {
       throw new OfficialSupplyGateError("character_stage", `draft ${draftKey} is ${character.stage}; TEXT/APPEARANCE lock + asset plan required`);
     }
     this.assertTextLockCurrent(character);
+    const saveLength = evaluateOfficialStagedSaveLength(character.draft, this.appearanceBlockFor(character));
+    if (!saveLength.ok) {
+      throw new OfficialSupplyGateError(
+        "canonical_save_over_limit",
+        saveLength.errors[0]?.message ?? `${draftKey}: staged save exceeds the canonical character limit`,
+        saveLength
+      );
+    }
     const asset = this.getAsset(draftKey, slotKey);
     if (!character.appearanceLockHash || asset.appearanceLockHash !== character.appearanceLockHash) {
       throw new OfficialSupplyGateError("appearance_lock_stale", `${draftKey}/${slotKey} was planned for another appearance lock`);
@@ -1921,8 +1937,15 @@ export class OfficialSupplyStore {
 
   appearanceBlockFor(record: OfficialCharacterRecord): string {
     if (!record.appearance) throw new OfficialSupplyGateError("appearance_missing", `${record.draftKey} has no appearance lock`);
-    return record.draft.promptStandard === "compact_rp_v1"
-      ? renderRuntimeAppearanceBlock(record.appearance)
-      : renderAppearanceBlock(record.appearance);
+    return this.appearanceBlockForDraft(record.draft, record.appearance);
+  }
+
+  private appearanceBlockForDraft(
+    draft: Pick<OfficialCharacterDraft, "promptStandard">,
+    lock: OfficialAppearanceLock
+  ): string {
+    return draft.promptStandard === "compact_rp_v1"
+      ? renderRuntimeAppearanceBlock(lock)
+      : renderAppearanceBlock(lock);
   }
 }

@@ -76,6 +76,7 @@ import {
   SPEECH_EXAMPLES_LIMIT,
   SPEECH_FORBIDDEN_LIMIT,
   TAGLINE_LIMIT,
+  aiLearningLimitExceededMessage,
 } from "@/lib/characterFormLimits";
 import TagChipInput from "@/components/TagChipInput";
 import StudioSaveBar from "@/components/studio/StudioSaveBar";
@@ -1069,7 +1070,7 @@ export default function CreateCharacter({
     }
     if (!promptUnchangedForEdit && aiLearningTotal > AI_LEARNING_LIMIT) {
       setError(
-        `세계관/배경 + 캐릭터 설정 + 기본 말투는 합쳐서 ${AI_LEARNING_LIMIT.toLocaleString()}자 이하여야 합니다.`,
+        aiLearningLimitExceededMessage(),
       );
       return;
     }
@@ -1558,7 +1559,7 @@ export default function CreateCharacter({
                   />
                   <p className="mt-1 text-xs text-zinc-400">
                     캐릭터 대사만 한 줄씩 · 유저 대사 불필요 · 따옴표 있어도
-                    없어도 됩니다 · 10,000자 합산 제외 · 최대{" "}
+                    없어도 됩니다 · {AI_LEARNING_LIMIT.toLocaleString()}자 합산 제외 · 최대{" "}
                     {SPEECH_EXAMPLES_LIMIT.toLocaleString()}자
                   </p>
                 </div>
@@ -1570,7 +1571,7 @@ export default function CreateCharacter({
                       </h4>
                       <p className="mt-0.5 text-xs text-zinc-400">
                         공적 자리, 친밀도 상승, 적대 상황처럼 말투가 달라지는 조건을 추가합니다.
-                        · 10,000자 합산 제외 · 전체 합계 최대{" "}
+                        · {AI_LEARNING_LIMIT.toLocaleString()}자 합산 제외 · 전체 합계 최대{" "}
                         {SPEECH_CONTEXTUAL_LIMIT.toLocaleString()}자
                       </p>
                     </div>
@@ -1702,7 +1703,7 @@ export default function CreateCharacter({
                   />
                   <p className="mt-1 text-xs text-zinc-400">
                     쉼표·줄바꿈으로 구분 · 비우면 기본 금지 목록(혼합 존댓말·밈
-                    등)이 적용됩니다 · 10,000자 합산 제외 · 최대{" "}
+                    등)이 적용됩니다 · {AI_LEARNING_LIMIT.toLocaleString()}자 합산 제외 · 최대{" "}
                     {SPEECH_FORBIDDEN_LIMIT.toLocaleString()}자
                   </p>
                 </div>
@@ -2216,7 +2217,7 @@ export default function CreateCharacter({
                   }
                 />
                 <p className="mt-1 text-xs text-zinc-500">
-                  10,000자 합산 한도에 포함 · 최소 작성 분량(세계관+설정+말투)에는
+                  {AI_LEARNING_LIMIT.toLocaleString()}자 합산 한도에 포함 · 최소 작성 분량(세계관+설정+말투)에는
                   포함되지 않음
                 </p>
               </div>
