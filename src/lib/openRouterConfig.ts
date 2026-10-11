@@ -38,6 +38,29 @@ export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 /** chat/completions 전체 URL (경로 누락 방지) */
 export const OPENROUTER_CHAT_COMPLETIONS_URL = `${OPENROUTER_BASE_URL}/chat/completions`;
 
+/** Official OpenRouter key-auth probe. GET /models is a public catalog, not auth. */
+export const OPENROUTER_KEY_AUTH_URL = `${OPENROUTER_BASE_URL}/key`;
+
+/** Public model catalog. HTTP 200 here does not prove the API key is valid. */
+export const OPENROUTER_MODELS_CATALOG_URL = `${OPENROUTER_BASE_URL}/models`;
+
+/** Sole production / Main RP OpenRouter credential owner. */
+export const OPENROUTER_PRODUCTION_API_KEY_ENV = "OPENROUTER_API_KEY";
+
+/** Benchmark-only OpenRouter credentials. Never a Main RP fallback. */
+export const OPENROUTER_NON_PRODUCTION_KEY_ENVS = [
+  "OPENROUTER_EMBEDDINGS_BENCHMARK_API_KEY",
+  "OPENROUTER_JEV_BENCHMARK_API_KEY",
+] as const;
+
+export type OpenRouterReadOnlyProbeKind = "key-auth" | "models-catalog" | "other";
+
+export function classifyOpenRouterReadOnlyProbe(url: string): OpenRouterReadOnlyProbeKind {
+  if (url === OPENROUTER_KEY_AUTH_URL) return "key-auth";
+  if (url === OPENROUTER_MODELS_CATALOG_URL) return "models-catalog";
+  return "other";
+}
+
 /** @deprecated OPENROUTER_CHAT_COMPLETIONS_URL 사용 */
 export const OPENROUTER_CHAT_URL = OPENROUTER_CHAT_COMPLETIONS_URL;
 
@@ -159,7 +182,7 @@ export function resolveMainRpOpenRouterRoutePolicy(
 }
 
 export function resolveOpenRouterApiKey(): string {
-  const key = process.env.OPENROUTER_API_KEY?.trim();
+  const key = process.env[OPENROUTER_PRODUCTION_API_KEY_ENV]?.trim();
   if (!key) {
     throw new Error("NO_OPENROUTER_KEY");
   }
