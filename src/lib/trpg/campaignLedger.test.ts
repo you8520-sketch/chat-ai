@@ -4,6 +4,7 @@ import {
   acceptedSceneLocationFromBoundState,
   applyCampaignLedger,
   bindGmLocationToSubmittedMovement,
+  countQuestAddsOverCap,
   emptyCampaignLedger,
 } from "./campaignLedger";
 
@@ -391,5 +392,17 @@ describe("accepted scene location from bound state", () => {
       }),
       null
     );
+  });
+
+  it("reports quest additions lost to the 12-quest cap without changing what is stored", () => {
+    const full = Array.from({ length: 12 }, (_, i) => `퀘스트 ${i + 1}`);
+    const ledger = { ...emptyCampaignLedger(), quests: full };
+    assert.equal(countQuestAddsOverCap(ledger, { questsAdd: ["새 퀘스트", "퀘스트 3", "또 새 퀘스트"] }), 2);
+    assert.equal(countQuestAddsOverCap(ledger, { questsAdd: ["새 퀘스트"], questsRemove: ["퀘스트 1"] }), 0);
+    assert.equal(countQuestAddsOverCap(ledger, { questsAdd: ["새 퀘스트"], questsRemove: ["퀘스트"] }), 1);
+    assert.equal(countQuestAddsOverCap(ledger, {}), 0);
+    assert.equal(countQuestAddsOverCap({ ...emptyCampaignLedger(), quests: ["a"] }, { questsAdd: ["b"] }), 0);
+    const next = applyCampaignLedger(ledger, { players: [], questsAdd: ["새 퀘스트"] });
+    assert.deepEqual(next.quests, full);
   });
 });

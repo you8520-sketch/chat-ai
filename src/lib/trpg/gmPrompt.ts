@@ -5,9 +5,10 @@ import {
 } from "./gmNarrationBudget";
 import type { TrpgActionCheckReason } from "./actionCheck";
 import { statModifier } from "./stats";
+import { clipTrpgChars } from "./clip";
 import { parseLocalSceneProgressDelta } from "./localSceneProgress";
 import { isTrpgGmStructuredShape, parseTrpgGmStructuredJson } from "./gmStructuredOutput";
-import type { TrpgStateDelta, TrpgStatDefinition } from "./types";
+import { TRPG_LEDGER_ITEM_MAX_CHARS, type TrpgStateDelta, type TrpgStatDefinition } from "./types";
 
 /** GM user-block labels — actor authority boundaries for round resolution. */
 export const TRPG_GM_LABEL_HUMAN_ACTION =
@@ -21,7 +22,11 @@ export type ParsedTrpgGmOutput = {
   location: string | null;
   campaignFinished: boolean;
   nextRoundContext: string;
+  /** Parse-time observations only. Not persisted: the committed delta and pending result never carry it. */
+  diagnostics?: TrpgGmParseDiagnostics;
 };
+
+export type TrpgGmParseDiagnostics = { questsAddRejected: number };
 
 function emptyDelta(): TrpgStateDelta {
   return { players: [] };
@@ -33,7 +38,38 @@ function stringList(raw: unknown): string[] | undefined {
   return out.length ? out : undefined;
 }
 
-function asDelta(raw: unknown): TrpgStateDelta {
+/**
+ * Quest additions arrive as plain strings or as `{id?, title, desc?}` objects. The ledger stores
+ * one string per quest (`quests_json: string[]`), so objects are folded into that same string here.
+ * `id` and any other field are not stored. Rejected items are counted, never echoed.
+ */
+function questLine(item: unknown): string | null {
+  if (typeof item === "string") return item.trim() ? item : null;
+  if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+  const { title, desc } = item as Record<string, unknown>;
+  if (typeof title !== "string") return null;
+  const head = clipTrpgChars(title, TRPG_LEDGER_ITEM_MAX_CHARS);
+  if (!head) return null;
+  if (typeof desc !== "string") return head;
+  const tail = clipTrpgChars(desc, TRPG_LEDGER_ITEM_MAX_CHARS);
+  const joined = tail ? `${head}: ${tail}` : head;
+  return Array.from(joined).length <= TRPG_LEDGER_ITEM_MAX_CHARS ? joined : head;
+}
+
+function questAddList(raw: unknown): { items: string[] | undefined; rejected: number } {
+  if (raw == null) return { items: undefined, rejected: 0 };
+  if (!Array.isArray(raw)) return { items: undefined, rejected: 1 };
+  const items: string[] = [];
+  let rejected = 0;
+  for (const entry of raw) {
+    const line = questLine(entry);
+    if (line == null) rejected += 1;
+    else items.push(line);
+  }
+  return { items: items.length ? items : undefined, rejected };
+}
+
+function asDelta(raw: unknown, diagnostics?: TrpgGmParseDiagnostics): TrpgStateDelta {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return emptyDelta();
   const obj = raw as Record<string, unknown>;
   const nested =
@@ -68,7 +104,10 @@ function asDelta(raw: unknown): TrpgStateDelta {
   if (typeof src.next_round_context === "string") delta.nextRoundContext = src.next_round_context;
   else if (typeof obj.next_round_context === "string") delta.nextRoundContext = obj.next_round_context;
   if (src.campaign_finished === true || obj.campaign_finished === true) delta.campaignFinished = true;
-  const questsAdd = stringList(src.questsAdd) ?? stringList(src.quests);
+  const primaryQuests = questAddList(src.questsAdd);
+  const aliasQuests = primaryQuests.items ? null : questAddList(src.quests);
+  const questsAdd = primaryQuests.items ?? aliasQuests?.items;
+  if (diagnostics) diagnostics.questsAddRejected += primaryQuests.rejected + (aliasQuests?.rejected ?? 0);
   const npcsAdd = stringList(src.npcsAdd) ?? stringList(src.npcs);
   const flagsAdd = stringList(src.flagsAdd) ?? stringList(src.flags) ?? stringList(src.world_flags);
   if (questsAdd) delta.questsAdd = questsAdd;
@@ -101,7 +140,8 @@ export function parseTrpgGmOutput(raw: string): ParsedTrpgGmOutput {
   const text = raw.trim();
   const structured = parseTrpgGmStructuredJson(text);
   if (isTrpgGmStructuredShape(structured)) {
-    const delta = asDelta(structured.delta);
+    const diagnostics: TrpgGmParseDiagnostics = { questsAddRejected: 0 };
+    const delta = asDelta(structured.delta, diagnostics);
     const deltaRaw = structured.delta as Record<string, unknown>;
     let location: string | null = null;
     let campaignFinished = false;
@@ -114,7 +154,14 @@ export function parseTrpgGmOutput(raw: string): ParsedTrpgGmOutput {
     if (delta.nextRoundContext) nextRoundContext = delta.nextRoundContext;
     let narration = structured.narration.trim();
     if (!narration) narration = "장면이 잠시 멈췄다. 다음 행동을 고르라.";
-    return { narration, delta, location, campaignFinished, nextRoundContext };
+    return {
+      narration,
+      delta,
+      location,
+      campaignFinished,
+      nextRoundContext,
+      ...(diagnostics.questsAddRejected > 0 ? { diagnostics } : {}),
+    };
   }
 
   let narration = text;
@@ -205,6 +252,7 @@ Let tonal shifts arise from the fiction and character voice.
 [OUTPUT]
 Respond as JSON with exactly two top-level keys: narration (Korean prose per ROUND NARRATION BUDGET; last beat is 1–2 GM: sentences on immediate unresolved pressure) and delta (state changes object). The API enforces this schema.
 Example delta shape: {"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"localScene":{}}
+questsAdd items are plain strings of at most 80 characters, e.g. "등대 조사: 사라진 어선의 단서를 찾는다"; not objects. questsRemove copies an exact existing quest string.
 `;
 
 export function formatTrpgSheetCanon(opts: {

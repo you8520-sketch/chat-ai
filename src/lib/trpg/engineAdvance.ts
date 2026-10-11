@@ -52,6 +52,7 @@ import {
   applyCampaignLedger,
   bindGmLocationToSubmittedMovement,
   clipTrpgChars,
+  countQuestAddsOverCap,
   loadCampaignLedger,
   persistAcceptedRoundLocationIfAbsent,
   persistCampaignLedger,
@@ -204,7 +205,7 @@ import {
 } from "./roundAdjudication";
 import { parseTrpgInputOrigin, type TrpgInputOrigin } from "./replySuggestions";
 import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
-import { isTrpgRoundPhase, isTrpgSuccessTier } from "./types";
+import { isTrpgRoundPhase, isTrpgSuccessTier, TRPG_LEDGER_QUEST_MAX } from "./types";
 import {
   clearGmNarrationDraft,
   clearGmNarrationDraftForGeneration,
@@ -1415,6 +1416,9 @@ async function runGmForRound(
     assertGmCompletionCanCommit(text, { finishReason }, integrity);
     stage = "gm_output_parse";
     const parsed = parseTrpgGmOutput(text);
+    if (parsed.diagnostics?.questsAddRejected) {
+      console.info("[TRPG][gm] quest_add_rejected", { count: parsed.diagnostics.questsAddRejected });
+    }
     stage = "asset_tagging";
     const usedNpcKeys = collectUsedNpcKeys(loadCampaignGmNarrations(db, opts.campaignId, opts.regenerate ? opts.roundId : undefined));
     const npcImageKeys = new Set(npcsWithImages(scenarioNpcs).map((npc) => npc.npcKey));
@@ -1625,6 +1629,10 @@ function commitPendingGmResult(
     : (opts.postGmOngoingSeeds ?? []);
   let postGmOngoingResult = { candidates: 0, promoted: 0, deduped: 0 };
   let stage: TrpgFailureStage = "ledger_apply";
+  const questsDroppedAtCap = countQuestAddsOverCap(currentLedger, boundLocation.delta);
+  if (questsDroppedAtCap > 0) {
+    console.info("[TRPG][gm] quest_add_capped", { dropped: questsDroppedAtCap, max: TRPG_LEDGER_QUEST_MAX });
+  }
   const ledger = applyCampaignLedger(currentLedger, {
     ...boundLocation.delta,
     location: boundLocation.location || scenario.startLocation,

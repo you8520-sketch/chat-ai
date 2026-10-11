@@ -32,18 +32,37 @@ function clipItem(raw: string): string {
   return clipTrpgChars(raw, TRPG_LEDGER_ITEM_MAX_CHARS);
 }
 
-function mergeFacts(current: string[], add: string[] | undefined, remove: string[] | undefined, maxItems: number): string[] {
+function mergeFactsCounted(
+  current: string[],
+  add: string[] | undefined,
+  remove: string[] | undefined,
+  maxItems: number
+): { next: string[]; overflow: number } {
   const drop = new Set((remove ?? []).map(clipItem).filter(Boolean));
   const next: string[] = [];
   const seen = new Set<string>();
-  for (const item of [...current, ...(add ?? [])]) {
+  let overflow = 0;
+  const addStart = current.length;
+  [...current, ...(add ?? [])].forEach((item, index) => {
     const t = clipItem(item);
-    if (!t || drop.has(t) || seen.has(t)) continue;
+    if (!t || drop.has(t) || seen.has(t)) return;
     seen.add(t);
-    next.push(t);
-    if (next.length >= maxItems) break;
-  }
-  return next;
+    if (next.length < maxItems) next.push(t);
+    else if (index >= addStart) overflow += 1;
+  });
+  return { next, overflow };
+}
+
+function mergeFacts(current: string[], add: string[] | undefined, remove: string[] | undefined, maxItems: number): string[] {
+  return mergeFactsCounted(current, add, remove, maxItems).next;
+}
+
+/** How many new quests `applyCampaignLedger` will drop only because the ledger is at its quest cap. */
+export function countQuestAddsOverCap(
+  current: TrpgCampaignLedger,
+  delta: Pick<TrpgStateDelta, "questsAdd" | "questsRemove">
+): number {
+  return mergeFactsCounted(current.quests, delta.questsAdd, delta.questsRemove, TRPG_LEDGER_QUEST_MAX).overflow;
 }
 
 export function emptyCampaignLedger(): TrpgCampaignLedger {

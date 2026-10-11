@@ -338,7 +338,7 @@ export function serializeLocalSceneStateForGm(progress: TrpgLocalSceneProgressV1
 
 export function serializeLocalSceneDeltaContract(): string {
   return `[LOCAL SCENE DELTA CONTRACT]
-Optional nested "localScene" in <<<DELTA>>> JSON. Omission is not deletion — persist prior routes/obstacles unless explicitly removed.
+Optional nested "localScene" in the delta object. Omission is not deletion — persist prior routes/obstacles unless explicitly removed.
 Fields: objectiveSet (refine objective only), sceneTransitionTo (new local scene — resets collections), resolvedObstaclesAdd/Remove, openRoutesAdd/Remove, remainingBlockersAdd/Remove, sceneStateSet ("active"|"transition_ready").
 When removing an item, copy the exact label from [LOCAL SCENE STATE]; non-matching remove values are no-ops.
 When the submitted action establishes entry into a genuinely new local dramatic situation, include sceneTransitionTo in localScene.
