@@ -1,0 +1,6 @@
+deployed shas (all environments): 1602
+PR-branch-only commits (origin/main..PR): 10
+PR-branch commits that appear in any deployment: 0
+git log origin/main -S goals_json -- src: 0 commits
+main src/lib/trpg/schema.ts goals_json occurrences: 0
+non-main shas deployed to *production* environments: 20 (14 fetched locally + 6 via contents API); goals_json in src/lib/trpg/schema.ts at each: 0

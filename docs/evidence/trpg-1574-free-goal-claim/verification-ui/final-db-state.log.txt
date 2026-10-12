@@ -1,0 +1,4 @@
+seedC valid campaign 16 [{"status":"completed","claimedRound":1,"evidence":"host_confirmed"},{"status":"active"}]
+seedC stale campaign 17 [{"status":"active","claimedRound":1,"declinedRound":1},{"status":"active"}]
+seedD valid campaign 18 [{"status":"completed","claimedRound":1,"evidence":"host_confirmed"},{"status":"active"}]
+seedD stale campaign 19 [{"status":"active","claimedRound":1,"declinedRound":1},{"status":"active"}]

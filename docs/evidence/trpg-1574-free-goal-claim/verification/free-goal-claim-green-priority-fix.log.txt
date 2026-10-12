@@ -1,0 +1,2776 @@
+▶ campaignGoals
+  ✔ reconciles legacy quest strings into criterion-free active goals and survives a JSON round trip (1.511657ms)
+  ✔ retires a goal an older build removed without credit and adopts a string it added (0.186736ms)
+  ✔ drops a criterion that is already true or names an encounter the scenario does not define (0.392003ms)
+  ✔ completes reach_location only for a later round and a human seat that actually arrived (0.241843ms)
+  ✔ completes end_encounter only when the server accepted the end (0.405006ms)
+  ✔ treats a GM claim as unverified and a removal as retirement, never completion (0.225464ms)
+  ✔ closes verified goals first, so their slots take the same round's new goals and a removal cannot undo a completion (1.772041ms)
+  ✔ projects only player-safe fields (0.235819ms)
+✔ campaignGoals (5.921548ms)
+▶ GM output goal fields
+  ✔ parses a typed criterion and a completion claim, and counts a malformed criterion (0.70278ms)
+✔ GM output goal fields (0.901687ms)
+▶ TRPG campaign ledger
+  ✔ adds and removes quests, NPCs, and flags without dropping unrelated facts (1.510572ms)
+✔ TRPG campaign ledger (2.121581ms)
+▶ TRPG location persist bind
+  ✔ #1468 F: undeclared moon action does not accept tavern location or next-round lock-in (4.211806ms)
+  ✔ declared traversal still accepts the named destination (2.896232ms)
+  ✔ C_1465: declared tea-house entry accepts 석등 골목 찻집 내부 (0.440311ms)
+  ✔ C_1480: declared tea-house entry accepts 석등 골목 찻집 안 (0.239864ms)
+  ✔ declared tea-house entry does not accept alley-only dest (0.19782ms)
+  ✔ 걸어간다 naming the destination still accepts (0.169575ms)
+  ✔ 말을 걸어본다 does not accept an open-route destination (0.299302ms)
+  ✔ 우측 환풍구로 걸어간다 still accepts that destination (0.358892ms)
+  ✔ T9/L5: NPC/world event without submitted movement does not persist relocation (0.370103ms)
+  ✔ opening may set the starting place with no locked submissions (0.105917ms)
+  ✔ keeps a second PC at the current place when only the first declared movement (0.215168ms)
+  ✔ A: 밖으로 나간다 does not accept an unnamed 성소 (0.122844ms)
+  ✔ B: 주점을 바라본다 does not accept tavern relocation (0.069728ms)
+  ✔ B extra: 회린의 날씨를 살핀다 does not accept 회린 주점 (0.051871ms)
+  ✔ C: tavern declaration does not keep a sanctuary player location (0.10422ms)
+  ✔ D: stationary PC is compared to sheet location, not campaign location (0.077027ms)
+  ✔ dest-only 주점으로 does not accept tavern relocation (0.055946ms)
+  ✔ lookalike 북쪽 창고 does not accept 남쪽 창고 (0.109282ms)
+  ✔ A: 우측 환풍구 안으로 들어간다 does not accept 좌측 환풍구 (0.091577ms)
+  ✔ B: 북쪽 창고 안으로 들어간다 does not accept 남쪽 창고 (0.074321ms)
+  ✔ C: 붉은 창고로 간다 does not accept 푸른 창고 (0.077103ms)
+  ✔ lookalike 우측 환풍구 does not accept 좌측 환풍구 (0.070234ms)
+  ✔ negation 주점으로 가지 않는다 does not accept tavern relocation (0.045699ms)
+  ✔ investigation 주점으로 가는지 살핀다 does not accept tavern relocation (0.048917ms)
+  ✔ acceptedRoute 찻집 accepts more-specific 석등 골목 찻집 내부 (0.10602ms)
+  ✔ acceptedRoute 우측 환풍구 does not authorize GM 좌측 환풍구 (0.087423ms)
+  ✔ E: FAILURE does not persist the declared destination (0.06863ms)
+✔ TRPG location persist bind (11.320176ms)
+▶ accepted scene location from bound state
+  ✔ records the campaign place when every sheet agrees (0.114745ms)
+  ✔ omits a split-party scene instead of claiming one place for every PC (0.058309ms)
+  ✔ omits an empty campaign place (0.036446ms)
+  ✔ reports quest additions lost to the 12-quest cap without changing what is stored (0.65383ms)
+✔ accepted scene location from bound state (0.952956ms)
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'talk',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'talk',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+▶ free goal claim: real model outputs through the goal transition
+  ✔ the fixtures are the real outputs: A claims, removes and adds in one output; B does none of them (1.094021ms)
+  ✔ A: claim + remove of the same goal keeps it active and awaiting confirmation, and the next goal is registered (0.430347ms)
+  ✔ B: a clue-only output leaves the goal active with no claim (0.104017ms)
+  ✔ remove alone retires without credit; claim alone stays active and pending (0.13632ms)
+  ✔ a server-verified completion still wins over a claim + remove of the same goal in the same round (0.269771ms)
+  ✔ at 12 active goals a claim + remove frees no slot: the new goal is dropped and counted, nothing is replaced (0.381066ms)
+  ✔ removal stays an exact clipped-title match: a different title is not removed by a claim of another goal (0.1513ms)
+✔ free goal claim: real model outputs through the goal transition (3.410056ms)
+▶ free goal claim: through the real engine commit path
+  ✔ A: the real R0 goal, then the real claim + remove + add output: the goal is kept pending and every reader agrees (76.359508ms)
+  ✔ B: the real R0 goal, then the real clue-only output: the goal stays active and unclaimed (35.851135ms)
+✔ free goal claim: through the real engine commit path (112.585999ms)
+[exchangeRate] refreshed {
+  mode: 'daily_kst',
+  dateKey: '2026-10-13',
+  usdToKrw: 1340.705374,
+  effectiveKrwPerUsd: 1367.51948148
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 2,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 1
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 2,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 1
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 2,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 2,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 1
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-memory] {
+  kind: 'trpg_memory',
+  campaignId: 1,
+  round: 0,
+  memoryEventsTotal: 0,
+  anchorsInjected: 0,
+  historicalRecalled: 0,
+  historicalRecalledChars: 0,
+  botRecalled: 0,
+  sealSuccess: false,
+  sealFallback: true
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 1
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 1
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-encounter-ended] {
+  proposed: 1,
+  accepted: [],
+  rejected: [ { id: 'enc_watch', reason: 'not_in_scene' } ]
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-memory] {
+  kind: 'trpg_memory',
+  campaignId: 1,
+  round: 0,
+  memoryEventsTotal: 0,
+  anchorsInjected: 0,
+  historicalRecalled: 0,
+  historicalRecalledChars: 0,
+  botRecalled: 0,
+  sealSuccess: false,
+  sealFallback: true
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 4,
+  created: 0,
+  withCriterion: 0,
+  completed: [ 'goal-0-1' ],
+  retired: 0,
+  activeAfter: 0,
+  criteriaProposed: 0
+}
+[trpg-encounter-ended] { proposed: 1, accepted: [ 'enc_watch' ], rejected: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-memory] {
+  kind: 'trpg_memory',
+  campaignId: 1,
+  round: 1,
+  memoryEventsTotal: 0,
+  anchorsInjected: 0,
+  historicalRecalled: 0,
+  historicalRecalledChars: 0,
+  botRecalled: 0,
+  sealSuccess: false,
+  sealFallback: true
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 1
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 2,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 0
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'talk',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 2,
+  created: 0,
+  withCriterion: 0,
+  completed: [],
+  retired: 1,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] missing_after_opening { round: 0 }
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 3,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 3,
+  criteriaProposed: 1
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 0,
+  withCriterion: 0,
+  completed: [ 'goal-0-2' ],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 1
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-memory] {
+  kind: 'trpg_memory',
+  campaignId: 1,
+  round: 0,
+  memoryEventsTotal: 0,
+  anchorsInjected: 0,
+  historicalRecalled: 0,
+  historicalRecalledChars: 0,
+  botRecalled: 0,
+  sealSuccess: null,
+  sealFallback: null
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-memory] {
+  kind: 'trpg_memory',
+  campaignId: 1,
+  round: 0,
+  memoryEventsTotal: 0,
+  anchorsInjected: 0,
+  historicalRecalled: 0,
+  historicalRecalledChars: 0,
+  botRecalled: 0,
+  sealSuccess: null,
+  sealFallback: null
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-memory] {
+  kind: 'trpg_memory',
+  campaignId: 1,
+  round: 1,
+  memoryEventsTotal: 0,
+  anchorsInjected: 0,
+  historicalRecalled: 0,
+  historicalRecalledChars: 0,
+  botRecalled: 0,
+  sealSuccess: null,
+  sealFallback: null
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-memory] {
+  kind: 'trpg_memory',
+  campaignId: 1,
+  round: 1,
+  memoryEventsTotal: 0,
+  anchorsInjected: 0,
+  historicalRecalled: 0,
+  historicalRecalledChars: 0,
+  botRecalled: 0,
+  sealSuccess: null,
+  sealFallback: null
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 2,
+  created: 0,
+  withCriterion: 0,
+  completed: [ 'goal-0-1' ],
+  retired: 0,
+  activeAfter: 0,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 2,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 1
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 0,
+  withCriterion: 0,
+  completed: [ 'goal-0-2' ],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 1,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: 3500
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 1
+}
+[database] runtime diagnostics {
+  nodeEnv: '',
+  nextPhase: '',
+  cwd: '/workspace',
+  dataDir: '/workspace/data',
+  databasePath: '/workspace/data/app.db',
+  dataDirExists: true,
+  dataDirIsMounted: false,
+  productionRuntime: false
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: 3500
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 0,
+  withCriterion: 0,
+  completed: [ 'goal-0-1' ],
+  retired: 0,
+  activeAfter: 0,
+  criteriaProposed: 0
+}
+[TRPG][economics] {
+  billingMode: 'split_even',
+  modelSubtotalPoints: 23,
+  partyPremiumPoints: 0,
+  serviceSubtotalPoints: 23,
+  quotedCreatorFundingPoints: 0,
+  roundTotalPoints: 23,
+  paidPointsSpent: 23,
+  freePointsSpent: 0,
+  actualCreatorCpCredited: 0,
+  providerCostUsd: 0.005177,
+  providerCostKrw: 7.9,
+  costSource: 'estimated',
+  humanCount: 1,
+  botCount: 0,
+  netContributionPoints: 15.1,
+  pointContributionMargin: 0.6565217391304348,
+  paidCoverageRate: 1,
+  paidContribution: 15.1,
+  actualProviderCostKrw: 7.9,
+  platformAbsorbedFailureCostKrw: 0,
+  paidContributionNote: 'ops approximation; not accounting net profit'
+}
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 0,
+  withCriterion: 0,
+  completed: [ 'goal-0-1' ],
+  retired: 0,
+  activeAfter: 0,
+  criteriaProposed: 0
+}
+[TRPG][economics] {
+  billingMode: 'split_even',
+  modelSubtotalPoints: 23,
+  partyPremiumPoints: 0,
+  serviceSubtotalPoints: 23,
+  quotedCreatorFundingPoints: 0,
+  roundTotalPoints: 23,
+  paidPointsSpent: 23,
+  freePointsSpent: 0,
+  actualCreatorCpCredited: 0,
+  providerCostUsd: 0.005177,
+  providerCostKrw: 7.9,
+  costSource: 'estimated',
+  humanCount: 1,
+  botCount: 0,
+  netContributionPoints: 15.1,
+  pointContributionMargin: 0.6565217391304348,
+  paidCoverageRate: 1,
+  paidContribution: 15.1,
+  actualProviderCostKrw: 7.9,
+  platformAbsorbedFailureCostKrw: 0,
+  paidContributionNote: 'ops approximation; not accounting net profit'
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 12,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 12,
+  criteriaProposed: 1
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 12,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 12,
+  criteriaProposed: 1
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 1
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 0,
+  withCriterion: 0,
+  completed: [ 'goal-0-1' ],
+  retired: 0,
+  activeAfter: 0,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 12,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 12,
+  criteriaProposed: 1
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-memory] {
+  kind: 'trpg_memory',
+  campaignId: 1,
+  round: 0,
+  memoryEventsTotal: 0,
+  anchorsInjected: 0,
+  historicalRecalled: 0,
+  historicalRecalledChars: 0,
+  botRecalled: 0,
+  sealSuccess: false,
+  sealFallback: true
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 4,
+  created: 1,
+  withCriterion: 0,
+  completed: [ 'goal-0-12' ],
+  retired: 0,
+  activeAfter: 12,
+  criteriaProposed: 0
+}
+[trpg-encounter-ended] { proposed: 1, accepted: [ 'enc_watch' ], rejected: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-memory] {
+  kind: 'trpg_memory',
+  campaignId: 1,
+  round: 1,
+  memoryEventsTotal: 0,
+  anchorsInjected: 0,
+  historicalRecalled: 0,
+  historicalRecalledChars: 0,
+  botRecalled: 0,
+  sealSuccess: false,
+  sealFallback: true
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 2,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 1
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 0,
+  withCriterion: 0,
+  completed: [ 'goal-0-2' ],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 2,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 1
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 0,
+  withCriterion: 0,
+  completed: [ 'goal-0-1' ],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 2,
+  withCriterion: 1,
+  completed: [],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 1
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 0,
+  withCriterion: 0,
+  completed: [ 'goal-0-1' ],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 2,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+▶ goal lifecycle: first goal
+  ✔ world-only start: the one existing opening GM call is asked for a goal and the real R0 object becomes the active goal (51.275762ms)
+  ✔ world-only start where the GM gives no goal: no goal is invented, and the defect is logged (24.529374ms)
+✔ goal lifecycle: first goal (76.526073ms)
+▶ goal lifecycle: server-verified completion
+  ✔ a GM-proposed reach_location goal is stored with its criterion and is not complete at creation (25.498975ms)
+  ✔ an approved explicit move to the place completes it; the goal leaves the active list and the next state is consistent everywhere (67.075413ms)
+  ✔ a GM that only narrates the move, a move to a look-alike place, and an unrelated move complete nothing (67.023137ms)
+  ✔ a place that is already true when the goal is created never completes it by staying; the criterion is dropped (30.802464ms)
+  ✔ an approved scenario encounter end completes an end_encounter goal; a GM proposal outside the threat's place does not (63.22102ms)
+  ✔ an end_encounter criterion naming a threat the scenario does not define is dropped; no threat is invented for a world-only start (14.871636ms)
+✔ goal lifecycle: server-verified completion (268.890009ms)
+▶ goal lifecycle: narrative goals are never confirmed by the model
+  ✔ a GM resolution claim is kept as an unverified claim; removal retires without credit; a successful roll changes nothing (37.425821ms)
+✔ goal lifecycle: narrative goals are never confirmed by the model (37.634431ms)
+▶ goal lifecycle: stored data compatibility
+  ✔ an existing row of plain quest strings loads as unverified active goals, never as completed, and stays readable (23.295928ms)
+  ✔ an old database without goals_json gets the column on upgrade and keeps every existing row (14.88389ms)
+  ✔ rollback to the old build and re-upgrade: removed goals retire without credit, added strings become goals, untouched goals keep their criterion and still complete (25.177881ms)
+✔ goal lifecycle: stored data compatibility (63.514181ms)
+▶ goal lifecycle: 2 humans + 2 AI companions
+  ✔ only a human seat's own approved arrival completes the goal: an AI companion's move, a stay-behind and GM group placement do not (62.806711ms)
+✔ goal lifecycle: 2 humans + 2 AI companions (62.918776ms)
+▶ goal lifecycle: retry, regeneration and duplicate commit
+  ✔ regeneration after completion neither re-applies nor undoes it (35.87323ms)
+  ✔ a billing fault then retry completes the goal once, bills once and never recalls the GM (78.610312ms)
+✔ goal lifecycle: retry, regeneration and duplicate commit (114.592837ms)
+▶ goal lifecycle: same-round precedence
+  ✔ a verified arrival frees its slot for the next goal the GM adds in the same output, at the 12-goal cap (23.310213ms)
+  ✔ a goal added past the cap with no slot freed is still dropped and reported, and no goal is replaced (24.353031ms)
+  ✔ a GM questsRemove in the same round cannot undo a server-verified arrival (23.823146ms)
+  ✔ an accepted encounter end, a GM removal and the next goal land in one commit, at the cap (58.585253ms)
+✔ goal lifecycle: same-round precedence (130.268649ms)
+▶ goal lifecycle: a GM-only plan goal is not a player-visible goal
+  ✔ a scenario whose plan.goal states a twist never shows that sentence; the goal comes from the opening GM output (15.590486ms)
+✔ goal lifecycle: a GM-only plan goal is not a player-visible goal (15.687669ms)
+▶ goal lifecycle: the goal update contract on the final wire
+  ✔ the quest contract is stated once, in the system text, and the goal state once, in the user text (32.601047ms)
+  ✔ a real post-completion output that adds no goal leaves the active goals and their projection untouched (31.830494ms)
+  ✔ a new goal proposed after the completion is registered while the unfinished goal stays active (36.674306ms)
+✔ goal lifecycle: the goal update contract on the final wire (101.256244ms)
+[exchangeRate] refreshed {
+  mode: 'daily_kst',
+  dateKey: '2026-10-13',
+  usdToKrw: 1340.705374,
+  effectiveKrwPerUsd: 1367.51948148
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'no_meaningful_uncertainty',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 2,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 12,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 12,
+  criteriaProposed: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 2,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 1,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] missing_after_opening { round: 0 }
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 3,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] missing_after_opening { round: 0 }
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: 3500
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] missing_after_opening { round: 0 }
+[database] runtime diagnostics {
+  nodeEnv: '',
+  nextPhase: '',
+  cwd: '/workspace',
+  dataDir: '/workspace/data',
+  databasePath: '/workspace/data/app.db',
+  dataDirExists: true,
+  dataDirIsMounted: false,
+  productionRuntime: false
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: true,
+  check_reason: 'challenge',
+  difficulty_band: 'STANDARD',
+  base_dc: 11,
+  effective_dc: 9,
+  stat_key: 'dex',
+  stat_selection_reason: 'action_pref',
+  stat_modifier: 1,
+  condition_modifier: 0,
+  final_score: 16,
+  dc: 9,
+  tier: 'SUCCESS'
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: 3500
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[TRPG][economics] {
+  billingMode: 'split_even',
+  modelSubtotalPoints: 23,
+  partyPremiumPoints: 0,
+  serviceSubtotalPoints: 23,
+  quotedCreatorFundingPoints: 0,
+  roundTotalPoints: 23,
+  paidPointsSpent: 23,
+  freePointsSpent: 0,
+  actualCreatorCpCredited: 0,
+  providerCostUsd: 0.005177,
+  providerCostKrw: 7.9,
+  costSource: 'estimated',
+  humanCount: 1,
+  botCount: 0,
+  netContributionPoints: 15.1,
+  pointContributionMargin: 0.6565217391304348,
+  paidCoverageRate: 1,
+  paidContribution: 15.1,
+  actualProviderCostKrw: 7.9,
+  platformAbsorbedFailureCostKrw: 0,
+  paidContributionNote: 'ops approximation; not accounting net profit'
+}
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[TRPG][economics] {
+  billingMode: 'split_even',
+  modelSubtotalPoints: 23,
+  partyPremiumPoints: 0,
+  serviceSubtotalPoints: 23,
+  quotedCreatorFundingPoints: 0,
+  roundTotalPoints: 23,
+  paidPointsSpent: 23,
+  freePointsSpent: 0,
+  actualCreatorCpCredited: 0,
+  providerCostUsd: 0.005177,
+  providerCostKrw: 7.9,
+  costSource: 'estimated',
+  humanCount: 1,
+  botCount: 0,
+  netContributionPoints: 15.1,
+  pointContributionMargin: 0.6565217391304348,
+  paidCoverageRate: 1,
+  paidContribution: 15.1,
+  actualProviderCostKrw: 7.9,
+  platformAbsorbedFailureCostKrw: 0,
+  paidContributionNote: 'ops approximation; not accounting net profit'
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+▶ quest add normalization at the GM parser (#1541 PR-1)
+  ✔ real R0: the {id,title,desc} object is kept as the existing one-line string; sibling fields are untouched (1.785427ms)
+  ✔ real R1: a plain string quest is unchanged (0.162109ms)
+  ✔ mixed strings and objects keep their order; id and status are never stored (0.162935ms)
+  ✔ an object without a usable title is rejected and counted; valid siblings still pass (0.249171ms)
+  ✔ a non-array quest field is rejected as one item; an all-invalid list stores nothing (0.273423ms)
+  ✔ desc is kept only while the whole line fits the ledger limit; the title is clipped to it (0.388398ms)
+  ✔ the legacy `quests` alias accepts the same shapes (0.154626ms)
+  ✔ questsRemove stays an exact-string contract: objects and ids are not interpreted (0.182072ms)
+✔ quest add normalization at the GM parser (#1541 PR-1) (4.190474ms)
+▶ GM delta contract wording (#1541 PR-1)
+  ✔ names the quest shape in one place, and no injected owner still names the retired <<<DELTA>>> wire (0.39905ms)
+✔ GM delta contract wording (#1541 PR-1) (0.57905ms)
+▶ quest objects through the real engine path (#1541 PR-1)
+  ✔ real R0 object quest persists, reloads, and reaches GM and bot memory; real R1 string quest is appended (69.600953ms)
+  ✔ rejected quest items log a count only, never the raw title or description (19.452647ms)
+  ✔ a new quest past the 12-quest cap is dropped as before but is now observable; nothing existing is replaced (37.253852ms)
+  ✔ exact-string removal frees a slot for a new object quest; near-text removal changes nothing (44.502427ms)
+  ✔ an existing saved row of plain strings loads and merges unchanged (37.603627ms)
+  ✔ regeneration of an accepted round does not duplicate the object quest or change the ledger (35.574724ms)
+  ✔ a billing fault then retry stores the object quest once, bills once and never recalls the GM (85.026895ms)
+✔ quest objects through the real engine path (#1541 PR-1) (329.312556ms)
+[exchangeRate] refreshed {
+  mode: 'daily_kst',
+  dateKey: '2026-10-13',
+  usdToKrw: 1340.705374,
+  effectiveKrwPerUsd: 1367.51948148
+}
+ℹ tests 89
+ℹ suites 19
+ℹ pass 89
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3059.597456

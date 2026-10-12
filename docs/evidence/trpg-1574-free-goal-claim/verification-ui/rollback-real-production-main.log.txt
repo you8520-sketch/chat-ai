@@ -1,0 +1,11 @@
+# rollback to real production main 1945e2de986b8b9668f4e02c3ed2567fdf0de8e3, then re-upgrade to 8c42b503ad1d0fe25cdd8364ea1e7fb23c1f37df
+STEP1 new build: host confirmed -> confirmed
+STEP1 goals_json: {"version":1,"goals":[{"id":"goal-0-1","title":"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다","status":"completed","source":"gm","createdRound":0,"claimedRound":1,"claimSource":{"generationId":"222bf4b1aac7a68ad05fa9d5","narrationDigest":"f0b72fa6d264e9a0ced1cec91bf8122e"},"closedRound":1,"evidence":{"kind":"host_confirmed","round":1,"participantId":1}},{"id":"goal-1-1","title":"곶 끝 등대 또는 세관 기록 조사: 실종 당일 해오라기호와 세관 감시정의 접촉 흔적을 찾는다","status":"active","source":"gm","createdRound":1}]}
+STEP1 quests_json: ["곶 끝 등대 또는 세관 기록 조사: 실종 당일 해오라기호와 세관 감시정의 접촉 흔적을 찾는다"]
+CAMPAIGN_ID 1
+STEP2 production main (1945e2de) played round 2
+STEP2 quests_json: ["곶 끝 등대 또는 세관 기록 조사: 실종 당일 해오라기호와 세관 감시정의 접촉 흔적을 찾는다","등대지기의 장부를 확인한다"]
+STEP2 goals_json byte-identical to before: true
+STEP3 new build re-upgrade: completed goal basis = host evidence = {"kind":"host_confirmed","round":1,"participantId":1}
+STEP3 active goals: ["곶 끝 등대 또는 세관 기록 조사: 실종 당일 해오라기호와 세관 감시정의 접촉 흔적을 찾는다","등대지기의 장부를 확인한다"]
+STEP3 public goals: [{"title":"곶 끝 등대 또는 세관","status":"active","claimed":false},{"title":"등대지기의 장부를 확인","status":"active","claimed":false},{"title":"해오라기호의 행방 추적","status":"completed","basis":"host","claimed":false}]

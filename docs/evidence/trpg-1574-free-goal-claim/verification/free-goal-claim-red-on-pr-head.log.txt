@@ -1,0 +1,228 @@
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'talk',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 1,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 1,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[TRPG][goal] lifecycle {
+  round: 0,
+  created: 1,
+  withCriterion: 0,
+  completed: [],
+  retired: 0,
+  activeAfter: 1,
+  criteriaProposed: 0
+}
+[trpg-mechanics-check] {
+  kind: 'trpg_mechanics_check',
+  action_type: 'free',
+  check_required: false,
+  check_reason: 'talk',
+  difficulty_band: null,
+  base_dc: null,
+  effective_dc: null,
+  stat_key: null,
+  stat_selection_reason: null,
+  stat_modifier: null,
+  condition_modifier: null,
+  final_score: null,
+  dc: null,
+  tier: null
+}
+[trpg-mechanics] {
+  MECHANICS_CALLED: false,
+  MECHANICS_MODEL: null,
+  MECHANICS_LATENCY_MS: 0,
+  MECHANICS_EFFECT_COUNT: 0,
+  MECHANICS_HARM_COUNT: 0,
+  MECHANICS_HEAL_COUNT: 0,
+  ONGOING_ACTIVE_COUNT: 0,
+  ONGOING_TICK_COUNT: 0,
+  ONGOING_DAMAGE_TOTAL: 0,
+  ONGOING_CLEARED_COUNT: 0,
+  RECOVERY_ROLL_COUNT: 0,
+  RECOVERY_SUCCESS_COUNT: 0,
+  MECHANICS_VALIDATION_RESULT: 'ok',
+  MECHANICS_FALLBACK: 'gm_legacy',
+  FLASH_CALLS_PER_ROUND: 0
+}
+[TRPG][gm] completion_integrity {
+  status: 'HEALTHY',
+  finishReason: null,
+  semanticDone: false,
+  outputTokens: null
+}
+[trpg-post-gm-ongoing-candidates] { POST_GM_ONGOING_CANDIDATES: 0, effects: [] }
+[trpg-post-gm-ongoing] {
+  POST_GM_ONGOING_CANDIDATES: 0,
+  POST_GM_ONGOING_PROMOTED: 0,
+  POST_GM_ONGOING_DEDUPED: 0,
+  effects: []
+}
+▶ free goal claim: real model outputs through the goal transition
+  ✔ the fixtures are the real outputs: A claims, removes and adds in one output; B does none of them (0.88357ms)
+  ✖ A: claim + remove of the same goal keeps it active and awaiting confirmation, and the next goal is registered (2.064179ms)
+  ✔ B: a clue-only output leaves the goal active with no claim (0.114648ms)
+  ✔ remove alone retires without credit; claim alone stays active and pending (0.122333ms)
+  ✔ a server-verified completion still wins over a claim + remove of the same goal in the same round (0.283187ms)
+  ✖ at 12 active goals a claim + remove frees no slot: the new goal is dropped and counted, nothing is replaced (0.378027ms)
+  ✔ removal stays an exact clipped-title match: a different title is not removed by a claim of another goal (0.144381ms)
+✖ free goal claim: real model outputs through the goal transition (4.772241ms)
+▶ free goal claim: through the real engine commit path
+  ✖ A: the real R0 goal, then the real claim + remove + add output: the goal is kept pending and every reader agrees (60.954531ms)
+  ✔ B: the real R0 goal, then the real clue-only output: the goal stays active and unclaimed (29.108847ms)
+✖ free goal claim: through the real engine commit path (90.351579ms)
+[exchangeRate] refreshed {
+  mode: 'daily_kst',
+  dateKey: '2026-10-13',
+  usdToKrw: 1340.705374,
+  effectiveKrwPerUsd: 1367.51948148
+}
+ℹ tests 9
+ℹ suites 2
+ℹ pass 6
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1387.717738
+
+✖ failing tests:
+
+test at src/lib/trpg/freeGoalClaim.test.ts:2:5076
+✖ A: claim + remove of the same goal keeps it active and awaiting confirmation, and the next goal is registered (2.064179ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'retired'
+  - 'active'
+  
+      at TestContext.<anonymous> (/workspace/src/lib/trpg/freeGoalClaim.test.ts:101:12)
+      at Test.runInAsyncScope (node:async_hooks:211:14)
+      at Test.run (node:internal/test_runner/test:979:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:677:18)
+      at Test.postRun (node:internal/test_runner/test:1090:19)
+      at Test.run (node:internal/test_runner/test:1018:12)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1358:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'retired',
+    expected: 'active',
+    operator: 'strictEqual'
+  }
+
+test at src/lib/trpg/freeGoalClaim.test.ts:2:7330
+✖ at 12 active goals a claim + remove frees no slot: the new goal is dropped and counted, nothing is replaced (0.378027ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'retired'
+  - 'active'
+  
+      at TestContext.<anonymous> (/workspace/src/lib/trpg/freeGoalClaim.test.ts:144:12)
+      at Test.runInAsyncScope (node:async_hooks:211:14)
+      at Test.run (node:internal/test_runner/test:979:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:677:18)
+      at Test.postRun (node:internal/test_runner/test:1090:19)
+      at Test.run (node:internal/test_runner/test:1018:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:677:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'retired',
+    expected: 'active',
+    operator: 'strictEqual'
+  }
+
+test at src/lib/trpg/freeGoalClaim.test.ts:2:9083
+✖ A: the real R0 goal, then the real claim + remove + add output: the goal is kept pending and every reader agrees (60.954531ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'retired'
+  - 'active'
+  
+      at TestContext.<anonymous> (/workspace/src/lib/trpg/freeGoalClaim.test.ts:174:12)
+      at async Test.run (node:internal/test_runner/test:980:9)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1358:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:677:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'retired',
+    expected: 'active',
+    operator: 'strictEqual'
+  }

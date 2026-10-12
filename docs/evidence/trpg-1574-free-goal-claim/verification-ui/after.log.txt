@@ -1,0 +1,8 @@
+{"phase":"after","dev":"pc","scenario":"host-valid","cardCount":1,"buttons":["해결 확인","아직 진행 중"],"notice":"목표
+{"phase":"after","dev":"pc","scenario":"host-stale","cardCount":1,"buttons":["제안 정리"],"notice":"목표 해결 확인 |  | 
+{"phase":"after","dev":"pc","scenario":"guest-valid","cardCount":1,"buttons":[],"notice":"목표 해결 확인 |  | 해오라기�
+{"phase":"after","dev":"pc","scenario":"guest-stale","cardCount":1,"buttons":[],"notice":"목표 해결 확인 |  | 해오라기�
+{"phase":"after","dev":"mobile","scenario":"host-valid","cardCount":1,"buttons":["해결 확인","아직 진행 중"],"notice":"�
+{"phase":"after","dev":"mobile","scenario":"host-stale","cardCount":1,"buttons":["제안 정리"],"notice":"목표 해결 확인 |
+{"phase":"after","dev":"mobile","scenario":"guest-valid","cardCount":1,"buttons":[],"notice":"목표 해결 확인 |  | 해오라�
+{"phase":"after","dev":"mobile","scenario":"guest-stale","cardCount":1,"buttons":[],"notice":"목표 해결 확인 |  | 해오라�
