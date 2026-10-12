@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 /** 변형별 카드 폭 — 추천은 일러스트 중심의 세로형, 공모전은 더 넓은 전시 프레임 */
 const CARD_WIDTH = {
-  editorial: "w-[172px] sm:w-[208px] xl:w-[232px]",
+  editorial: "w-[clamp(8.5rem,calc((100cqw-1rem)/2.3),11rem)] sm:w-[208px] xl:w-[232px]",
   exhibit: "w-[224px] sm:w-[268px] xl:w-[300px]",
 } as const;
 
@@ -66,7 +66,7 @@ function SectionHeader({
   const meta = SECTION_META[title];
   const Heading = level;
   return (
-    <div className="mb-6 flex flex-wrap items-end gap-x-4 gap-y-2 @xl:flex-nowrap">
+    <div className="mb-4 flex flex-wrap items-end gap-x-4 gap-y-2 @xl:mb-6 @xl:flex-nowrap">
       {meta ? (
         <span
           aria-hidden="true"
@@ -133,7 +133,7 @@ function ScrollSection({
 }) {
   if (chars.length === 0) return null;
   return (
-    <section className={cn("@container", first ? "mt-8 sm:mt-10" : "mt-12 sm:mt-16", band && "home-band -mx-3 px-3 sm:-mx-5 sm:px-5")}>
+    <section className={cn("@container", first ? "mt-5 sm:mt-10" : "mt-10 sm:mt-16", band && "home-band -mx-3 px-3 sm:-mx-5 sm:px-5")}>
       <SectionHeader title={title} number={number} headerLink={headerLink} level={level} />
       <HorizontalScrollRow
         className={cn(
@@ -174,7 +174,7 @@ function GridSection({
 }) {
   if (chars.length === 0) return null;
   return (
-    <section className="@container mt-12 sm:mt-16">
+    <section className="@container mt-10 sm:mt-16">
       <SectionHeader title={title} number={number} headerLink={headerLink} />
       <div className="home-card-group home-grid-stagger grid grid-cols-2 gap-x-3.5 gap-y-7 @lg:grid-cols-3 @lg:gap-x-5 @4xl:grid-cols-4">
         {chars.map((c, index) => (
@@ -211,7 +211,7 @@ export default async function Home() {
     <div className="pb-6">
       <HomePopupNotice notice={popupNotice} />
       <HomeCreateEventBanner />
-      <div className="border-b border-white/[0.07] py-4 md:hidden">
+      <div className="py-2.5 md:hidden">
         <div className="flex min-h-9 items-center justify-between gap-3 px-1">
           <UserPreferenceControls
             isAdult={!!user?.is_adult}

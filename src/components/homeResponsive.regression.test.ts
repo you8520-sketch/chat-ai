@@ -72,3 +72,21 @@ describe("E4-3C home column responsive layout", () => {
     assert.doesNotMatch(css, /@media \(min-width: (?:640|1280)px\)\s*\{\s*\.home-grid-stagger/);
   });
 });
+
+describe("E4-3C candidate A quiet editorial rhythm", () => {
+  const home = read("src/app/page.tsx");
+
+  it("sizes the recommended card from the section width so the next card always peeks", () => {
+    const widths = between(home, "const CARD_WIDTH = {", "} as const;");
+    assert.match(widths, /editorial: "w-\[clamp\(8\.5rem,calc\(\(100cqw-1rem\)\/2\.3\),11rem\)\]/);
+  });
+
+  it("keeps one compact vertical rhythm between event, preferences and the first section", () => {
+    assert.match(home, /first \? "mt-5 sm:mt-10" : "mt-10 sm:mt-16"/);
+    assert.match(home, /<div className="py-2\.5 md:hidden">/);
+  });
+
+  it("does not bring back the removed mobile discovery nav or a second tab set", () => {
+    assert.doesNotMatch(home, /MobileDiscoveryNav|MOBILE_DISCOVERY_TABS|aria-label="콘텐츠 탐색"/);
+  });
+});
