@@ -445,6 +445,12 @@ function DefaultCard({ c, view }: { c: CharacterRow; view: CardView }) {
   );
 }
 
+/** Cover art for decorative home backdrops. Null when the card would be adult-hidden, so no hidden art leaks. */
+export function characterCardAmbientUrl(c: CharacterRow, blurNsfw: boolean): string | null {
+  const view = cardView(c, blurNsfw, false);
+  return view.hidden ? null : (view.thumb ?? null);
+}
+
 export default function CharacterCard({ c, blurNsfw, loggedIn = false, variant = "default", order }: Props) {
   const view = cardView(c, blurNsfw, loggedIn);
   if (variant !== "default") {

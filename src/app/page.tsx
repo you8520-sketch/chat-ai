@@ -4,7 +4,7 @@ import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import HomeCreateEventBanner from "@/components/HomeCreateEventBanner";
 import HomePopupNotice from "@/components/HomePopupNotice";
-import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
+import CharacterCard, { characterCardAmbientUrl, type CharacterRow } from "@/components/CharacterCard";
 import HorizontalScrollRow from "@/components/HorizontalScrollRow";
 import UserPreferenceControls from "@/components/UserPreferenceControls";
 import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerification";
@@ -106,6 +106,22 @@ function SectionHeader({
   );
 }
 
+/** First card art that is safe to show, as a static blurred wash that ties a section title to its characters. */
+function HomeAmbient({ chars, blurNsfw }: { chars: CharacterRow[]; blurNsfw: boolean }) {
+  let url: string | null = null;
+  for (const c of chars) {
+    url = characterCardAmbientUrl(c, blurNsfw);
+    if (url) break;
+  }
+  if (!url) return null;
+  return (
+    <span aria-hidden className="home-ambient">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt="" decoding="async" />
+    </span>
+  );
+}
+
 function ScrollSection({
   title,
   number,
@@ -118,6 +134,7 @@ function ScrollSection({
   staggered = false,
   band = false,
   first = false,
+  ambient = false,
 }: {
   title: string;
   number: string;
@@ -130,10 +147,12 @@ function ScrollSection({
   staggered?: boolean;
   band?: boolean;
   first?: boolean;
+  ambient?: boolean;
 }) {
   if (chars.length === 0) return null;
   return (
-    <section className={cn("@container", first ? "mt-5 sm:mt-10" : "mt-10 sm:mt-16", band && "home-band -mx-3 px-3 sm:-mx-5 sm:px-5")}>
+    <section className={cn("@container relative", first ? "mt-5 sm:mt-10" : "mt-10 sm:mt-16", band && "home-band -mx-3 px-3 sm:-mx-5 sm:px-5")}>
+      {ambient ? <HomeAmbient chars={chars} blurNsfw={blurNsfw} /> : null}
       <SectionHeader title={title} number={number} headerLink={headerLink} level={level} />
       <HorizontalScrollRow
         className={cn(
@@ -164,6 +183,7 @@ function GridSection({
   blurNsfw,
   loggedIn,
   headerLink,
+  ambient = false,
 }: {
   title: string;
   number: string;
@@ -171,10 +191,12 @@ function GridSection({
   blurNsfw: boolean;
   loggedIn: boolean;
   headerLink?: { href: string; label: string };
+  ambient?: boolean;
 }) {
   if (chars.length === 0) return null;
   return (
-    <section className="@container mt-10 sm:mt-16">
+    <section className="@container relative mt-10 sm:mt-16">
+      {ambient ? <HomeAmbient chars={chars} blurNsfw={blurNsfw} /> : null}
       <SectionHeader title={title} number={number} headerLink={headerLink} />
       <div className="home-card-group home-grid-stagger grid grid-cols-2 gap-x-3.5 gap-y-7 @lg:grid-cols-3 @lg:gap-x-5 @4xl:grid-cols-4">
         {chars.map((c, index) => (
@@ -250,6 +272,7 @@ export default async function Home() {
         level="h1"
         staggered
         first
+        ambient
       />
       <ScrollSection
         title="공모전 당선작"
@@ -268,6 +291,7 @@ export default async function Home() {
         blurNsfw={blurNsfw}
         loggedIn={loggedIn}
         headerLink={{ href: "/tab/new", label: "더보기" }}
+        ambient
       />
       {recommended.length === 0 && contest.length === 0 && newest.length === 0 ? (
         <div className="mt-10 border border-white/10 px-6 py-12 text-center">

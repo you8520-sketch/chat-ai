@@ -54,8 +54,8 @@ describe("E4-3C home column responsive layout", () => {
   it("makes each home section a size container so headers and grids can query it", () => {
     const scroll = between(home, "function ScrollSection(", "function GridSection(");
     const grid = between(home, "function GridSection(", "export default async function Home");
-    assert.match(scroll, /"@container"/);
-    assert.match(grid, /<section className="@container/);
+    assert.match(scroll, /"@container(?: relative)?"/);
+    assert.match(grid, /<section className="@container(?: relative)? /);
   });
 
   it("chooses grid columns from the section width, not the viewport", () => {
