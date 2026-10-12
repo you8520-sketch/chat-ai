@@ -1334,6 +1334,7 @@ export async function runPaidRunner(input: {
   reconcile?: {
     fetchImpl: typeof fetch;
     keys: PaidRunnerReconcileKeys;
+    sleep?: (ms: number) => Promise<void>;
   };
 }): Promise<PaidRunnerRunResult> {
   const publicResults: PaidRunnerPublicResult[] = [];
@@ -1532,45 +1533,33 @@ export async function runPaidRunner(input: {
           elapsedMs,
           fetchImpl: input.reconcile.fetchImpl,
           keys: input.reconcile.keys,
+          sleep: input.reconcile.sleep,
         });
       }
       if (result.ok && !result.text.trim()) {
         usage = { ...usage, finishReason: "empty_content", settlementSource: "unsettled" };
       }
       const status = journalStatusForTransport(result, usage);
-      if (status !== "SETTLED") {
-        writeJournalEntry(journal, sealed, {
-          status,
-          settlementSource: usage.settlementSource,
-          providerRequestId: usage.providerRequestId,
-          billedUsd: usage.billedUsd,
-          httpResult: usage.httpResult,
-          finishReason: usage.finishReason,
-          elapsedMs,
-          generationId: result.ok ? result.generationId ?? null : null,
-        });
-        persist();
-        return closed({
-          authorized: true,
-          denialReason: result.ok && input.transport.kind === "live" && usage.settlementSource !== "provider_exact"
-            ? usage.settlementSource === "missing"
-              ? "COST_EVIDENCE_MISSING"
-              : "RECONCILIATION_FAILED"
-            : denialForUnresolvedUsage(usage),
-          journal,
-          transportPosts,
-          providerPosts: paidRunnerReportedProviderPosts(input.transport, transportPosts),
-        });
-      }
       const artifacts = input.artifactStore ?? createMemoryPaidRunnerArtifactStore();
+      const preserveText =
+        result.ok &&
+        usage.finishReason !== "wrong_provider_model" &&
+        usage.finishReason !== "http" &&
+        usage.finishReason !== "empty_content";
       const fingerprint = paidRunnerArtifactFingerprint(result.ok ? result.text : "");
-      try {
-        artifacts.persist({
-          requestOrder: sealed.requestOrder,
-          fingerprint,
-          text: result.ok ? result.text : "",
-        });
-      } catch {
+      let artifactPersistFailed = false;
+      if (preserveText) {
+        try {
+          artifacts.persist({
+            requestOrder: sealed.requestOrder,
+            fingerprint,
+            text: result.ok ? result.text : "",
+          });
+        } catch {
+          artifactPersistFailed = true;
+        }
+      }
+      if (artifactPersistFailed) {
         writeJournalEntry(journal, sealed, {
           status: "UNKNOWN_UNRESOLVED",
           settlementSource: usage.settlementSource,
@@ -1583,6 +1572,31 @@ export async function runPaidRunner(input: {
         return closed({
           authorized: true,
           denialReason: "ARTIFACT_STORE_UNAVAILABLE",
+          journal,
+          transportPosts,
+          providerPosts: paidRunnerReportedProviderPosts(input.transport, transportPosts),
+        });
+      }
+      if (status !== "SETTLED") {
+        writeJournalEntry(journal, sealed, {
+          status,
+          settlementSource: usage.settlementSource,
+          providerRequestId: usage.providerRequestId,
+          billedUsd: usage.billedUsd,
+          httpResult: usage.httpResult,
+          finishReason: usage.finishReason,
+          elapsedMs,
+          artifactFingerprint: preserveText ? fingerprint : null,
+          generationId: result.ok ? result.generationId ?? null : null,
+        });
+        persist();
+        return closed({
+          authorized: true,
+          denialReason: result.ok && input.transport.kind === "live" && usage.settlementSource !== "provider_exact"
+            ? usage.settlementSource === "missing"
+              ? "COST_EVIDENCE_MISSING"
+              : "RECONCILIATION_FAILED"
+            : denialForUnresolvedUsage(usage),
           journal,
           transportPosts,
           providerPosts: paidRunnerReportedProviderPosts(input.transport, transportPosts),

@@ -44,6 +44,8 @@ import {
   livePaidRunnerUsesCanonicalModels,
 } from "@/lib/rpQualityPaidRunnerLiveTransport";
 import {
+  PAID_RUNNER_OPENROUTER_GENERATION_RETRY_DELAYS_MS,
+  PAID_RUNNER_OPENROUTER_GENERATION_TOTAL_BUDGET_MS,
   openRouterGenerationModelMatchesExpected,
   reconcilePaidRunnerSettlement,
 } from "@/lib/rpQualityPaidRunnerReconciliation";
@@ -61,6 +63,7 @@ const KEYS = {
   openRouterKey: "or-exp-test-key-not-production",
   cheaperInferenceKey: "ci-exp-test-key-not-production",
 };
+const noWait = async () => undefined;
 
 function pack() {
   const calls: PaidRunnerSealedCall[] = [];
@@ -385,7 +388,7 @@ describe("rp quality paid runner live transport integration", () => {
         sealedCalls,
         authorization: auth(manifest),
         transport: simulatedLive(fetchImpl),
-        reconcile: { fetchImpl, keys: KEYS },
+        reconcile: { fetchImpl, keys: KEYS, sleep: noWait },
       });
       assert.ok(result.transportPosts <= maxPosts, `${label} posts=${result.transportPosts}`);
       assert.equal(counts.posts, result.transportPosts, label);
@@ -761,6 +764,7 @@ describe("rp quality paid runner live transport integration", () => {
       elapsedMs: 10,
       fetchImpl,
       keys: KEYS,
+      sleep: noWait,
     });
     assert.equal(orUsage.settlementSource, "unsettled");
     assert.notEqual(orUsage.settlementSource, "provider_exact");
@@ -1504,5 +1508,220 @@ describe("rp quality paid runner live transport integration", () => {
     assert.equal(ciGets.n, 0);
     assert.equal(ciMissing.settlementSource, "missing");
     assert.equal(ciMissing.billedUsd, null);
+  });
+});
+
+describe("rp quality paid runner OpenRouter settlement recovery", () => {
+  const generationUrlId = (input: RequestInfo | URL): string =>
+    new URL(String(input), "https://openrouter.ai").searchParams.get("id") ?? "";
+
+  /**
+   * Real Gemini shape from the 2026-10-12 live run: stream ends with HTTP 200, no
+   * x-request-id header, and the first /generation GETs land before the record exists.
+   */
+  function gatedGenerationFetch(options: { notReadyGets: number; notReadyStatus?: number }) {
+    const base = createScenarioFetch();
+    const gets = { generation: 0 };
+    const fetchImpl: typeof fetch = async (input, init) => {
+      const url = String(input);
+      const method = String(init?.method ?? "GET").toUpperCase();
+      if (method === "GET" && url.includes("/generation")) {
+        gets.generation += 1;
+        if (gets.generation <= options.notReadyGets) {
+          return new Response(JSON.stringify({ error: { code: options.notReadyStatus ?? 404 } }), {
+            status: options.notReadyStatus ?? 404,
+          });
+        }
+      }
+      const response = await base.fetchImpl(input, init);
+      if (method === "POST" && url.includes("openrouter.ai")) {
+        const headers = new Headers(response.headers);
+        headers.delete("x-request-id");
+        return new Response(response.body, { status: response.status, headers });
+      }
+      return response;
+    };
+    return { fetchImpl, gets, counts: base.counts };
+  }
+
+  function recordSleeps() {
+    const waits: number[] = [];
+    return {
+      waits,
+      sleep: async (ms: number) => {
+        waits.push(ms);
+      },
+    };
+  }
+
+  it("1/2. back-to-back 404s used to lose settlement; delayed metadata now settles with bounded GET-only retries", async () => {
+    const { manifest, sealedCalls } = pack();
+    const { fetchImpl, gets, counts } = gatedGenerationFetch({ notReadyGets: 2 });
+    const { waits, sleep } = recordSleeps();
+    const artifacts = createMemoryPaidRunnerArtifactStore();
+    const result = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls,
+      authorization: auth(manifest),
+      transport: simulatedLive(fetchImpl),
+      artifactStore: artifacts,
+      reconcile: { fetchImpl, keys: KEYS, sleep },
+    });
+    assert.equal(result.denialReason, null);
+    assert.equal(result.journal.entries.every((entry) => entry.status === "SETTLED"), true);
+    assert.equal(counts.posts, 12);
+    assert.equal(result.transportPosts, 12);
+    assert.deepEqual(waits.slice(0, 2), [2_000, 4_000]);
+    assert.equal(gets.generation, 2 + 3);
+    for (const entry of result.journal.entries) {
+      assert.ok(artifacts.load(entry.artifactFingerprint!));
+    }
+  });
+
+  it("3/4. HTTP 200 text survives a never-ready generation record and blocks every later POST", async () => {
+    const { manifest, sealedCalls } = pack();
+    const { fetchImpl, gets, counts } = gatedGenerationFetch({ notReadyGets: Number.MAX_SAFE_INTEGER });
+    const { waits, sleep } = recordSleeps();
+    const artifacts = createMemoryPaidRunnerArtifactStore();
+    const store = createMemoryPaidRunnerJournalStore();
+    const run = () =>
+      runPaidRunner({
+        mode: "AUTHORIZED",
+        manifest,
+        sealedCalls,
+        authorization: auth(manifest),
+        transport: simulatedLive(fetchImpl),
+        journalStore: store,
+        artifactStore: artifacts,
+        reconcile: { fetchImpl, keys: KEYS, sleep },
+      });
+    const first = await run();
+    assert.equal(first.denialReason, "COST_EVIDENCE_MISSING");
+    assert.equal(counts.posts, 2);
+    assert.equal(first.transportPosts, 2);
+    assert.equal(gets.generation, PAID_RUNNER_OPENROUTER_GENERATION_RETRY_DELAYS_MS.length + 1);
+    assert.deepEqual(waits, [...PAID_RUNNER_OPENROUTER_GENERATION_RETRY_DELAYS_MS]);
+    assert.ok(
+      waits.reduce((sum, ms) => sum + ms, 0) < PAID_RUNNER_OPENROUTER_GENERATION_TOTAL_BUDGET_MS
+    );
+
+    const [deepseek, gemini, next] = first.journal.entries;
+    assert.equal(deepseek?.status, "SETTLED");
+    assert.equal(gemini?.status, "UNKNOWN_UNRESOLVED");
+    assert.equal(gemini?.settlementSource, "missing");
+    assert.equal(gemini?.billedUsd, null);
+    assert.equal(next?.status, "PREPARED");
+    const preserved = artifacts.load(gemini!.artifactFingerprint!);
+    assert.equal(preserved, "라이브 모의 google/gemini-3.8-flash");
+    assert.equal(paidRunnerArtifactFingerprint(preserved!), gemini!.artifactFingerprint);
+    assert.equal(JSON.stringify(first.journal).includes(preserved!), false);
+
+    const replay = await run();
+    assert.notEqual(replay.denialReason, null);
+    assert.equal(replay.transportPosts, 0);
+    assert.equal(counts.posts, 2);
+  });
+
+  it("5. forged generation id, request id, and model are rejected immediately without waiting", async () => {
+    const { sealedCalls } = pack();
+    const gemini = sealedCalls.find((call) => call.provider === "openrouter")!;
+    const generationId = "gen-1791805405-sjMuOf8odbGPP9ucumMD";
+    const result = {
+      ok: true as const,
+      httpStatus: 200,
+      text: "모의",
+      finishReason: "stop",
+      requestId: "",
+      generationId,
+      headers: { "x-generation-id": generationId },
+      body: { id: generationId, model: gemini.wireModel },
+      usage: {
+        promptTokens: 1,
+        completionTokens: 1,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        reasoningTokens: 0,
+        billedUsd: null,
+      },
+    };
+    const genuine = {
+      id: generationId,
+      request_id: "req-1791805405-h7knpPISZld8XDwVGUOG",
+      model: "google/gemini-3.8-flash-20260902",
+      total_cost: 0.004702375,
+    };
+    const forgeries: Array<[string, Record<string, unknown>, string | undefined]> = [
+      ["other generation id", { ...genuine, id: "gen-other" }, undefined],
+      ["missing request id", { ...genuine, request_id: undefined }, undefined],
+      ["other request id", genuine, "req-transport-other"],
+      ["other model", { ...genuine, model: "google/gemini-3.8-pro" }, undefined],
+      ["non-positive cost", { ...genuine, total_cost: 0 }, undefined],
+    ];
+    for (const [label, data, transportRequestId] of forgeries) {
+      let getCount = 0;
+      const { waits, sleep } = recordSleeps();
+      const usage = await reconcilePaidRunnerSettlement({
+        call: gemini,
+        result: { ...result, requestId: transportRequestId ?? "" },
+        elapsedMs: 10,
+        fetchImpl: (async (input) => {
+          assert.equal(generationUrlId(input), generationId);
+          getCount += 1;
+          return Response.json({ data });
+        }) as typeof fetch,
+        keys: KEYS,
+        sleep,
+      });
+      assert.notEqual(usage.settlementSource, "provider_exact", label);
+      assert.equal(usage.billedUsd, null, label);
+      assert.equal(getCount, 1, label);
+      assert.equal(waits.length, 0, label);
+    }
+
+    for (const status of [400, 401, 402, 403]) {
+      let getCount = 0;
+      const { waits, sleep } = recordSleeps();
+      const usage = await reconcilePaidRunnerSettlement({
+        call: gemini,
+        result,
+        elapsedMs: 10,
+        fetchImpl: (async () => {
+          getCount += 1;
+          return new Response("no", { status });
+        }) as typeof fetch,
+        keys: KEYS,
+        sleep,
+      });
+      assert.equal(usage.settlementSource, "missing", String(status));
+      assert.equal(getCount, 1, String(status));
+      assert.equal(waits.length, 0, String(status));
+    }
+  });
+
+  it("6. artifact store failure stops the run even when settlement is also unresolved", async () => {
+    const { manifest, sealedCalls } = pack();
+    const { fetchImpl, counts } = gatedGenerationFetch({ notReadyGets: Number.MAX_SAFE_INTEGER });
+    const { sleep } = recordSleeps();
+    const broken = createMemoryPaidRunnerArtifactStore();
+    const realPersist = broken.persist.bind(broken);
+    broken.persist = (record) => {
+      if (record.requestOrder === 2) throw new Error("artifact disk full");
+      return realPersist(record);
+    };
+    const result = await runPaidRunner({
+      mode: "AUTHORIZED",
+      manifest,
+      sealedCalls,
+      authorization: auth(manifest),
+      transport: simulatedLive(fetchImpl),
+      artifactStore: broken,
+      reconcile: { fetchImpl, keys: KEYS, sleep },
+    });
+    assert.equal(result.denialReason, "ARTIFACT_STORE_UNAVAILABLE");
+    assert.equal(counts.posts, 2);
+    assert.equal(result.journal.entries[1]?.status, "UNKNOWN_UNRESOLVED");
+    assert.equal(result.journal.entries[1]?.finishReason, "artifact_persist_failed");
+    assert.equal(result.journal.entries[2]?.status, "PREPARED");
   });
 });
