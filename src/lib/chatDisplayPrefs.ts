@@ -567,8 +567,11 @@ export const CHAT_PORTRAIT_COLUMN_CLASS =
 export const CHAT_PORTRAIT_CHAT_COLUMN_CLASS =
   "chat-room-portrait-chat-column flex min-h-0 min-w-0 w-full flex-1 flex-col min-[576px]:max-w-[780px] min-[768px]:min-w-[var(--chat-portrait-min-chat-w)]";
 
-/** Minimum chat column width when portrait is ON (768+ side layout). */
+/** Preferred (maximum) minimum chat column width when portrait is ON; CSS clamps down to 360px on narrow grids. */
 export const CHAT_PORTRAIT_MIN_CHAT_WIDTH_PX = 440;
+
+/** Lower bound of the responsive minimum chat column width (768–900 grids). */
+export const CHAT_PORTRAIT_MIN_CHAT_WIDTH_FLOOR_PX = 360;
 
 /** Chat column max width — matches portrait OFF policy. */
 export const CHAT_PORTRAIT_CHAT_MAX_WIDTH_PX = 780;

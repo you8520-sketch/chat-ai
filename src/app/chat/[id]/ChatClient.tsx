@@ -6089,7 +6089,7 @@ export default function ChatClient({
         <SitePromotionChatNotice promotion={selectedModelSitePromotion} />
         <div className="mb-1 flex items-center gap-1.5 overflow-visible">
           <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-zinc-400 min-[576px]:flex-none">
-            <span className="shrink-0 font-semibold text-zinc-400">AI</span>
+            <span className="shrink-0 font-semibold text-zinc-400 max-[399px]:sr-only">AI</span>
             <select
               value={selectedAI}
               onChange={(e) => void handleSelectedAIChange(e.target.value as SelectedAI)}

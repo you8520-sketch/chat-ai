@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 
 import {
   CHAT_PORTRAIT_MIN_CHAT_WIDTH_PX,
+  CHAT_PORTRAIT_MIN_CHAT_WIDTH_FLOOR_PX,
   mobilePortraitScrimOpacity,
 } from "../lib/chatDisplayPrefs";
 
@@ -25,7 +26,11 @@ function cssBlock(source: string, selector: string): string {
 describe("E4-3E chat room — reading column", () => {
   it("keeps the TS constant and the CSS custom property for the minimum chat column in sync", () => {
     assert.equal(CHAT_PORTRAIT_MIN_CHAT_WIDTH_PX, 440);
-    assert.match(css, /--chat-portrait-min-chat-w: 440px;/);
+    assert.equal(CHAT_PORTRAIT_MIN_CHAT_WIDTH_FLOOR_PX, 360);
+    assert.match(
+      css,
+      /--chat-portrait-min-chat-w: clamp\(360px, calc\(100cqw - 1\.5rem - 273px\), 440px\);/
+    );
   });
 
   it("scopes Korean eojeol line breaking to the chat room so other NovelText owners are unchanged", () => {
@@ -36,7 +41,7 @@ describe("E4-3E chat room — reading column", () => {
   });
 
   it("anchors the composer to the viewport bottom for short chats at every width", () => {
-    const mobile = css.slice(css.indexOf("@media (max-width: 575px) {\n  html.chat-room-active .chat-readability-root"));
+    const mobile = css.slice(css.indexOf("@media (max-width: 767px) {\n  /* 짧은 대화에서도"));
     assert.match(mobile.slice(0, 200), /min-height:\s*100dvh/);
     const desktop = css.slice(css.indexOf("@media (min-width: 768px) {\n  html.chat-room-active .chat-room-portrait-grid"));
     assert.match(

@@ -1953,7 +1953,8 @@ html[data-keyboard-open] .mobile-bottom-nav {
   html.chat-room-active .chat-room-portrait-grid {
     container-type: inline-size;
     container-name: portrait-chat;
-    --chat-portrait-min-chat-w: 440px;
+    /* 읽기 열은 최대 440px까지 넓히되, 좁은 그리드(768~900)에서는 기존 360px 하한으로 줄여 레일과 겹치지 않게 한다. 273px = 인물 열 최소 폭 */
+    --chat-portrait-min-chat-w: clamp(360px, calc(100cqw - 1.5rem - 273px), 440px);
     --chat-portrait-max-w: min(
       820px,
       max(0px, calc(100cqw - 1.5rem - var(--chat-portrait-min-chat-w)))
@@ -2059,11 +2060,14 @@ html[data-keyboard-open] .mobile-bottom-nav {
   }
 }
 
-@media (max-width: 575px) {
+@media (max-width: 767px) {
+  /* 짧은 대화에서도 입력창이 화면 하단에 고정되도록 (래퍼는 block이라 flex-1이 먹지 않는다) */
   html.chat-room-active .chat-readability-root {
     min-height: 100dvh;
   }
+}
 
+@media (max-width: 575px) {
   html:not(.chat-room-active) .app-left-rail-spacer,
   html:not(.chat-room-active) aside.app-left-rail {
     display: none !important;
