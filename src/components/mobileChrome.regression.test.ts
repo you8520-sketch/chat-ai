@@ -51,10 +51,8 @@ describe("E4-3B fixed bottom chrome", () => {
     assert.match(saveBar, /pb-0 min-\[576px\]:pb-\[env\(safe-area-inset-bottom\)\]/);
   });
 
-  it("hides the home discovery tabs from 576px where the header row already shows them", () => {
-    const nav = home.slice(home.indexOf("function MobileDiscoveryNav"), home.indexOf("function ScrollSection"));
-    assert.match(nav, /min-\[576px\]:hidden/);
-    assert.doesNotMatch(nav, /md:hidden/);
+  it("leaves discovery to the header row, so the home page carries no second tab set", () => {
+    assert.doesNotMatch(home, /MobileDiscoveryNav|MOBILE_DISCOVERY_TABS/);
   });
 
   it("registers the keyboard inset publisher once in the layout", () => {
@@ -87,5 +85,22 @@ describe("computeKeyboardInset", () => {
 
   it("is 0 while pinch-zoomed", () => {
     assert.equal(computeKeyboardInset({ ...base, viewportHeight: 400, scale: 2 }), 0);
+  });
+});
+
+describe("E4-3B candidate A — header strip owns mobile discovery", () => {
+  const mainNav = read("src/components/HeaderMainNavRow.tsx");
+  const header = read("src/components/Header.tsx");
+
+  it("renders the strip below lg at every width, inside the sticky header, and still hides it in chat rooms", () => {
+    assert.match(mainNav, /"flex border-t border-white\/\[0\.06\] lg:hidden"/);
+    assert.doesNotMatch(mainNav, /min-\[576px\]:flex/);
+    assert.match(header.slice(header.indexOf("<header"), header.indexOf("</header>")), /variant="strip"/);
+    assert.match(mainNav, /isChatRoomPathname\(pathname\)/);
+  });
+
+  it("keeps the active tab in view when the strip scrolls", () => {
+    assert.match(mainNav, /\[aria-current="page"\]/);
+    assert.match(mainNav, /nav\.scrollLeft = /);
   });
 });
