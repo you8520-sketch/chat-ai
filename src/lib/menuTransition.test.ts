@@ -95,7 +95,7 @@ describe("menu click scope", () => {
     assert.match(read("src/components/HeaderMainNavRow.tsx"), attr);
     assert.match(read("src/components/MobileBottomNav.tsx"), attr);
     assert.match(read("src/components/Header.tsx"), attr);
-    assert.match(read("src/app/page.tsx"), attr);
+    assert.doesNotMatch(read("src/app/page.tsx"), attr, "home content carries no second menu set");
     const side = read("src/components/SidebarShell.tsx");
     assert.match(side, /<nav className="flex shrink-0 flex-col gap-0\.5" data-menu-transition="">/);
     for (const content of [
@@ -158,8 +158,7 @@ describe("menu transition invariants", () => {
     assert.match(read("src/components/Sidebar.tsx"), /href: "\/creator"/);
     assert.match(read("src/components/Sidebar.tsx"), /\/login\?redirect=\/chats/);
     assert.match(read("src/components/MobileBottomNav.tsx"), /href: "\/settings"/);
-    assert.match(read("src/app/page.tsx"), /href: "\/tab\/new"/);
-    assert.match(read("src/app/page.tsx"), /href: "\/trpg"/);
+    assert.match(read("src/components/HeaderMainNavRow.tsx"), /href: "\/trpg"/);
     assert.match(read("src/components/Header.tsx"), /href="\/"/);
   });
 

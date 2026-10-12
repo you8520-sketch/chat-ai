@@ -51,10 +51,8 @@ describe("E4-3B fixed bottom chrome", () => {
     assert.match(saveBar, /pb-0 min-\[576px\]:pb-\[env\(safe-area-inset-bottom\)\]/);
   });
 
-  it("hides the home discovery tabs from 576px where the header row already shows them", () => {
-    const nav = home.slice(home.indexOf("function MobileDiscoveryNav"), home.indexOf("function ScrollSection"));
-    assert.match(nav, /min-\[576px\]:hidden/);
-    assert.doesNotMatch(nav, /md:hidden/);
+  it("leaves discovery to the header row, so the home page carries no second tab set", () => {
+    assert.doesNotMatch(home, /MobileDiscoveryNav|MOBILE_DISCOVERY_TABS/);
   });
 
   it("registers the keyboard inset publisher once in the layout", () => {
@@ -87,5 +85,32 @@ describe("computeKeyboardInset", () => {
 
   it("is 0 while pinch-zoomed", () => {
     assert.equal(computeKeyboardInset({ ...base, viewportHeight: 400, scale: 2 }), 0);
+  });
+});
+
+describe("E4-3B candidate B — unified bottom nav owns mobile discovery and account", () => {
+  const bottomNav = read("src/components/MobileBottomNav.tsx");
+  const mainNav = read("src/components/HeaderMainNavRow.tsx");
+
+  it("splits discovery and account into labelled groups and keeps every existing destination", () => {
+    assert.match(bottomNav, /role="group" aria-label="콘텐츠 탐색"/);
+    assert.match(bottomNav, /role="group"\s+aria-label="내 계정"/);
+    for (const href of ["/", "/tab/new", "/tab/ranking", "/trpg", "/search", "/chats", "/studio", "/settings", "/login"]) {
+      assert.match(bottomNav, new RegExp(`href: "${href.replace(/\//g, "\\/")}"`), href);
+    }
+  });
+
+  it("serves guests too, swapping the account group for 로그인", () => {
+    assert.doesNotMatch(bottomNav, /if \(!loggedIn/);
+    assert.match(bottomNav, /loggedIn \? ACCOUNT_ITEMS : GUEST_ACCOUNT_ITEMS/);
+  });
+
+  it("stays off chat and TRPG rooms and the login/signup forms", () => {
+    assert.match(bottomNav, /isCompactRoomPathname\(pathname\) \|\| isAuthFormPathname\(pathname\)/);
+  });
+
+  it("keeps the 576px hand-off to the header strip", () => {
+    assert.match(bottomNav, /min-\[576px\]:hidden/);
+    assert.match(mainNav, /"hidden border-t border-white\/\[0\.06\] min-\[576px\]:flex lg:hidden"/);
   });
 });
