@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { isCompactRoomPathname } from "@/lib/chatDisplayPrefs";
 import { cn } from "@/lib/studioDesign";
 
 type Props = {
@@ -13,10 +14,10 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** md 미만: 하단 고정 네비. 드롭다운/시트 없음. */
+/** 576px 미만: 하단 고정 네비. 드롭다운/시트 없음. DOM 은 본문·푸터 뒤(layout)에 둬 Tab 순서가 화면 순서를 따른다. */
 export default function MobileBottomNav({ loggedIn }: Props) {
   const pathname = usePathname();
-  if (!loggedIn) return null;
+  if (!loggedIn || isCompactRoomPathname(pathname)) return null;
 
   const items = [
     { href: "/", label: "홈" },

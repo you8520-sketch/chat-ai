@@ -38,14 +38,10 @@ describe("content controls and navigation regression", () => {
     assert.doesNotMatch(mobileNav, /unreadCount/);
   });
 
-  it("shows public discovery tabs in the mobile home content", () => {
+  it("keeps public discovery tabs in the header row only, not duplicated in the home content", () => {
     const home = read("src/app/page.tsx");
     const desktopNav = read("src/components/HeaderMainNavRow.tsx");
-    assert.match(home, /MOBILE_DISCOVERY_TABS/);
-    assert.match(home, /\{ href: "\/tab\/new", label: "신작랭킹" \}/);
-    assert.match(home, /\{ href: "\/tab\/ranking", label: "랭킹" \}/);
-    assert.match(home, /\{ href: "\/trpg", label: "TRPG" \}/);
-    assert.match(home, /\{ href: "\/search", label: "검색" \}/);
+    assert.doesNotMatch(home, /MOBILE_DISCOVERY_TABS|MobileDiscoveryNav/);
     assert.match(home, /variant="homeBanner"/);
     assert.match(home, />\s*취향 설정\s*<\/Link>/);
     assert.match(desktopNav, /\{ href: "\/trpg", label: "TRPG" \}/);

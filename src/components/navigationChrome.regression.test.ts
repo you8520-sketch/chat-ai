@@ -34,17 +34,13 @@ describe("E4-3A navigation chrome", () => {
   const profileMenu = read("src/components/HeaderProfileMenu.tsx");
   const header = read("src/components/Header.tsx");
 
-  it("never leaves a viewport width without a main-tab row (inline from lg, strip 576-1023)", () => {
+  it("shows exactly one main-tab row at every width (inline from lg, strip below lg)", () => {
     const inline = navClassName(mainNav, /"hidden shrink lg:inline-flex"/);
-    const strip = navClassName(mainNav, /"hidden (?:border-t border-white\/\[0\.06\] )?min-\[576px\]:flex lg:hidden"/);
+    const strip = navClassName(mainNav, /"flex border-t border-white\/\[0\.06\] lg:hidden"/);
     for (const width of NAV_WIDTHS) {
       const inlineShown = resolveDisplay(inline, width) === "shown";
       const stripShown = resolveDisplay(strip, width) === "shown";
-      if (width < 576) {
-        assert.equal(inlineShown || stripShown, false, `${width}px uses the bottom nav / home tabs instead`);
-      } else {
-        assert.equal(inlineShown !== stripShown, true, `${width}px must show exactly one tab row`);
-      }
+      assert.equal(inlineShown !== stripShown, true, `${width}px must show exactly one tab row`);
     }
   });
 
@@ -67,7 +63,7 @@ describe("E4-3A navigation chrome", () => {
     }
     assert.match(bottomNav, /min-\[576px\]:hidden/);
     assert.match(bottomNav, /pb-\[env\(safe-area-inset-bottom\)\]/);
-    assert.match(read("src/app/layout.tsx"), /pb-24 pt-4 min-\[576px\]:pb-6/);
+    assert.match(read("src/app/layout.tsx"), /app-shell[^"]*pb-6 pt-4/);
   });
 
   it("exposes settings and logout from 576px so no width loses account access", () => {

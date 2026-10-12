@@ -187,7 +187,7 @@ describe("TRPG follow-latest scroll", () => {
   it("keeps mobile campaign tabs fixed, visible, and touch friendly", () => {
     const room = readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
     const rail = readFileSync("src/app/trpg/TrpgCampaignRail.tsx", "utf8");
-    assert.match(room, /fixed left-3 right-3 top-\[4\.5rem\]/);
+    assert.match(room, /fixed left-3 right-3 top-\[calc\(var\(--site-header-height,4rem\)\+0\.5rem\)\]/);
     assert.match(room, /aria-label="캠페인 도구"/);
     assert.match(room, /pt-\[5\.25rem\] min-\[576px\]:pt-0/);
     assert.doesNotMatch(room, /mobileMenuOpen/);

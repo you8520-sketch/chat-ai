@@ -2032,7 +2032,7 @@ export default function TrpgCampaignRoom({
       data-trpg-declaration-growth-observer-attached={declarationGrowthObserverAttached ? "true" : "false"}
     >
       <aside
-        className="fixed left-3 right-3 top-[4.5rem] z-[60] rounded-2xl border border-white/10 bg-[#101010]/95 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur min-[576px]:hidden"
+        className="fixed left-3 right-3 top-[calc(var(--site-header-height,4rem)+0.5rem)] z-[60] rounded-2xl border border-white/10 bg-[#101010]/95 p-2 shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur min-[576px]:hidden"
         aria-label="캠페인 도구"
       >
         <TrpgCampaignRail {...railProps} compact />

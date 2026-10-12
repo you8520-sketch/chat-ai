@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 import { isChatRoomPathname } from "@/lib/chatDisplayPrefs";
 import { cn } from "@/lib/studioDesign";
@@ -21,22 +22,33 @@ function isTabActive(pathname: string, href: string): boolean {
 }
 
 type Props = {
-  /** inline: lg 이상 로고 옆 · strip: 576–1023px 헤더 둘째 줄 (모바일은 하단 탭 사용) */
+  /** inline: lg 이상 로고 옆 · strip: 1023px 이하 헤더 둘째 줄 (360px 부터 가로 스크롤) */
   variant?: "inline" | "strip";
 };
 
 /** 상단 주요 탭 — 채팅방에서는 숨김 */
 export default function HeaderMainNavRow({ variant = "inline" }: Props) {
   const pathname = usePathname();
-  if (isChatRoomPathname(pathname)) return null;
+  const navRef = useRef<HTMLElement>(null);
+  const hidden = isChatRoomPathname(pathname);
+
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !active || nav.scrollWidth <= nav.clientWidth) return;
+    nav.scrollLeft = active.offsetLeft - (nav.clientWidth - active.offsetWidth) / 2;
+  }, [pathname, hidden]);
+
+  if (hidden) return null;
 
   return (
     <nav
+      ref={navRef}
       className={cn(
         "scrollbar-hide items-stretch gap-0.5 overflow-x-auto overscroll-x-contain",
         variant === "inline"
           ? "hidden shrink lg:inline-flex"
-          : "hidden border-t border-white/[0.06] min-[576px]:flex lg:hidden",
+          : "flex border-t border-white/[0.06] lg:hidden",
       )}
       aria-label="주요 메뉴"
       data-menu-transition=""
