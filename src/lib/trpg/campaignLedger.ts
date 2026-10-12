@@ -14,6 +14,7 @@ import {
   reconcileGoals,
   serializeGoals,
   type TrpgGoal,
+  type TrpgGoalClaimSource,
   type TrpgGoalRoundFacts,
   type TrpgGoalTransition,
 } from "./campaignGoals";
@@ -263,6 +264,8 @@ export type TrpgLedgerGoalContext = {
   round: number;
   /** Absent: typed criteria cannot be checked, so none is attached and nothing completes. */
   facts?: TrpgGoalRoundFacts;
+  /** The committed GM message a new claim comes from. Absent: the claim cannot be confirmed by the host. */
+  claimSource?: TrpgGoalClaimSource;
 };
 
 function transitionCampaignGoals(
@@ -270,10 +273,11 @@ function transitionCampaignGoals(
   delta: TrpgStateDelta,
   goalContext: TrpgLedgerGoalContext
 ): TrpgGoalTransition {
-  const { round, facts } = goalContext;
+  const { round, facts, claimSource } = goalContext;
   return applyGoalTransition(reconcileGoals(current.goals, current.quests, round), delta, {
     round,
     facts,
+    claimSource,
     placeMatches: destinationRefinesDeclared,
   });
 }
@@ -383,18 +387,73 @@ export function loadAcceptedRoundLocation(
   return value || null;
 }
 
+/** The stored goal state exactly as written (`null`: a legacy row). The compare value for conditional writes. */
+export function loadStoredGoalsJson(db: Database.Database, campaignId: number): string | null {
+  const row = db.prepare(`SELECT goals_json FROM trpg_campaign_state WHERE campaign_id=?`).get(campaignId) as
+    | { goals_json?: string | null }
+    | undefined;
+  return row?.goals_json ?? null;
+}
+
+/** Another writer changed the goal state after this writer read it; nothing was written. */
+export class CampaignGoalsConflictError extends Error {
+  constructor() {
+    super("campaign goal state changed during the write");
+    this.name = "CampaignGoalsConflictError";
+  }
+}
+
+/**
+ * Inside the caller's write transaction: if the goal state stored now differs from what the caller loaded
+ * before the transaction, the ledger is recomputed from the stored state, so a host answer written in between
+ * is kept and the GM delta is applied on top of it. Returns the compare value for the conditional write.
+ */
+export function settleLedgerForCommit(
+  db: Database.Database,
+  campaignId: number,
+  loaded: { ledger: TrpgCampaignLedger; goalsJson: string | null },
+  recompute: (current: TrpgCampaignLedger) => TrpgCampaignLedger,
+  computed: TrpgCampaignLedger
+): { ledger: TrpgCampaignLedger; expectedGoalsJson: string | null; recomputed: boolean } {
+  const storedNow = loadStoredGoalsJson(db, campaignId);
+  if (storedNow === loaded.goalsJson) {
+    return { ledger: computed, expectedGoalsJson: storedNow, recomputed: false };
+  }
+  return { ledger: recompute(loadCampaignLedger(db, campaignId)), expectedGoalsJson: storedNow, recomputed: true };
+}
+
+/** Writes goal state only if it is still the value the caller read. Returns whether it wrote. */
+export function persistGoalsIfUnchanged(
+  db: Database.Database,
+  campaignId: number,
+  expectedGoalsJson: string | null,
+  goals: readonly TrpgGoal[]
+): boolean {
+  const info = db
+    .prepare(
+      `UPDATE trpg_campaign_state
+       SET quests_json=?, goals_json=?, updated_at=datetime('now')
+       WHERE campaign_id=? AND goals_json IS ?`
+    )
+    .run(JSON.stringify(activeGoalTitles(goals)), serializeGoals(goals), campaignId, expectedGoalsJson);
+  return info.changes === 1;
+}
+
 export function persistCampaignLedger(
   db: Database.Database,
   campaignId: number,
   roundNumber: number,
-  ledger: TrpgCampaignLedger
+  ledger: TrpgCampaignLedger,
+  /** When given (even `null`), the write only happens if the stored goal state still equals it. */
+  expectedGoalsJson?: string | null
 ): void {
   const goals = reconcileGoals(ledger.goals, ledger.quests, roundNumber);
-  db.prepare(
+  const conditional = expectedGoalsJson !== undefined;
+  const info = db.prepare(
     `UPDATE trpg_campaign_state
      SET location=?, quests_json=?, goals_json=?, npcs_json=?, world_flags_json=?, next_round_context=?,
          round_number=?, updated_at=datetime('now')
-     WHERE campaign_id=?`
+     WHERE campaign_id=?${conditional ? " AND goals_json IS ?" : ""}`
   ).run(
     ledger.location,
     JSON.stringify(activeGoalTitles(goals)),
@@ -403,6 +462,8 @@ export function persistCampaignLedger(
     JSON.stringify(ledger.worldFlags),
     ledger.nextRoundContext,
     roundNumber,
-    campaignId
+    campaignId,
+    ...(conditional ? [expectedGoalsJson] : [])
   );
+  if (conditional && info.changes !== 1) throw new CampaignGoalsConflictError();
 }

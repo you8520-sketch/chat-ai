@@ -54,9 +54,12 @@ import {
   clipTrpgChars,
   countQuestAddsOverCap,
   loadCampaignLedger,
+  loadStoredGoalsJson,
   persistAcceptedRoundLocationIfAbsent,
   persistCampaignLedger,
+  settleLedgerForCommit,
 } from "./campaignLedger";
+import { goalClaimSource } from "./goalClaimProvenance";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm, type TrpgGmStreamCallbacks } from "./gmCall";
@@ -1556,6 +1559,7 @@ function commitPendingGmResult(
   const sheets = loadSheetSnapshots(db, campaign.id);
   const mechanics = loadMechanicsResolution(db, opts.roundId);
   const currentLedger = loadCampaignLedger(db, campaign.id);
+  const loadedGoalsJson = loadStoredGoalsJson(db, campaign.id);
   const campaignContext = loadCampaignContext(db, campaign.id);
   const openRoutes = campaignContext?.localSceneProgress.openRoutes ?? [];
   const lockedSubs = db
@@ -1656,7 +1660,11 @@ function commitPendingGmResult(
     nextRoundContext: boundLocation.nextRoundContext,
     campaignFinished: parsed.campaignFinished,
   };
-  const goalContext = { round: roundNumber, facts: goalFacts };
+  const goalContext = {
+    round: roundNumber,
+    facts: goalFacts,
+    claimSource: provenanceId ? goalClaimSource(provenanceId, parsed.narration) : undefined,
+  };
   const questsDroppedAtCap = countQuestAddsOverCap(currentLedger, ledgerDelta, goalContext);
   if (questsDroppedAtCap > 0) {
     console.info("[TRPG][gm] quest_add_capped", { dropped: questsDroppedAtCap, max: TRPG_LEDGER_QUEST_MAX });
@@ -1731,7 +1739,14 @@ function commitPendingGmResult(
            VALUES (?,?,?,?)`
         ).run(campaign.id, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(committedDelta));
       }
-      persistCampaignLedger(db, campaign.id, roundNumber, ledger);
+      const settled = settleLedgerForCommit(
+        db,
+        campaign.id,
+        { ledger: currentLedger, goalsJson: loadedGoalsJson },
+        (stored) => applyCampaignLedger(stored, ledgerDelta, goalContext),
+        ledger
+      );
+      persistCampaignLedger(db, campaign.id, roundNumber, settled.ledger, settled.expectedGoalsJson);
       persistAcceptedRoundLocationIfAbsent(
         db,
         opts.roundId,
@@ -1766,7 +1781,7 @@ function commitPendingGmResult(
       }
       clearPendingGmResult(db, opts.roundId);
       stage = "round_complete";
-    })();
+    }).immediate();
     if (encounterEnding.accepted.length || encounterEnding.rejected.length) {
       console.info("[trpg-encounter-ended]", {
         proposed: endedProposals?.length ?? 0,

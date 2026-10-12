@@ -19,9 +19,18 @@ export type { TrpgGoalCriterion };
 export type TrpgGoalStatus = "active" | "completed" | "retired";
 export type TrpgGoalSource = "gm" | "legacy";
 
+/**
+ * Why a goal is `completed`. `reach_location` and `end_encounter` are server-verified facts; `host_confirmed`
+ * is the campaign host's attestation of a GM resolution proposal. A completed goal with no evidence lost it
+ * (an older build rewrote `goals_json`) and is reported as unrecorded, never as verified.
+ */
 export type TrpgGoalEvidence =
   | { kind: "reach_location"; round: number; participantId: number; location: string }
-  | { kind: "end_encounter"; round: number; encounterId: string };
+  | { kind: "end_encounter"; round: number; encounterId: string }
+  | { kind: "host_confirmed"; round: number; participantId: number };
+
+/** Which committed GM message a claim came from. A reroll replaces the message, so the claim stops matching. */
+export type TrpgGoalClaimSource = { generationId: string; narrationDigest: string };
 
 export type TrpgGoal = {
   id: string;
@@ -32,6 +41,9 @@ export type TrpgGoal = {
   criterion?: TrpgGoalCriterion;
   /** The GM said this goal is resolved. Unverified: it never changes `status`. */
   claimedRound?: number;
+  claimSource?: TrpgGoalClaimSource;
+  /** The host answered "not yet" to the claim of this round or earlier. A later claim is a new proposal. */
+  declinedRound?: number;
   closedRound?: number;
   evidence?: TrpgGoalEvidence;
 };
@@ -52,11 +64,19 @@ export type TrpgGoalRoundFacts = {
   acceptedEncounterIds: readonly string[];
 };
 
+export type TrpgGoalCompletionBasis = "server" | "host" | "unrecorded";
+
 export type TrpgPublicGoal = {
   id: string;
   title: string;
   status: "active" | "completed";
+  /** An unanswered GM resolution proposal. */
   claimed: boolean;
+  claimedRound?: number;
+  /** Completed goals only: who established the completion. */
+  basis?: TrpgGoalCompletionBasis;
+  /** Host viewer only: the proposal still matches the committed GM message and can be answered. */
+  confirmable?: boolean;
 };
 
 export const TRPG_GOALS_VERSION = 1;
@@ -127,6 +147,16 @@ function parseGoal(raw: unknown): TrpgGoal | null {
   const criterion = normalizeGoalCriterion(obj.criterion);
   if (criterion) goal.criterion = criterion;
   if (Number.isInteger(obj.claimedRound)) goal.claimedRound = obj.claimedRound as number;
+  if (Number.isInteger(obj.declinedRound)) goal.declinedRound = obj.declinedRound as number;
+  const claimSource = obj.claimSource as Record<string, unknown> | undefined;
+  if (
+    claimSource &&
+    typeof claimSource === "object" &&
+    typeof claimSource.generationId === "string" &&
+    typeof claimSource.narrationDigest === "string"
+  ) {
+    goal.claimSource = { generationId: claimSource.generationId, narrationDigest: claimSource.narrationDigest };
+  }
   if (Number.isInteger(obj.closedRound)) goal.closedRound = obj.closedRound as number;
   const evidence = obj.evidence as Record<string, unknown> | undefined;
   if (status === "completed" && evidence && typeof evidence === "object") {
@@ -148,6 +178,16 @@ function parseGoal(raw: unknown): TrpgGoal | null {
       typeof evidence.encounterId === "string"
     ) {
       goal.evidence = { kind: "end_encounter", round: evidence.round as number, encounterId: evidence.encounterId };
+    } else if (
+      evidence.kind === "host_confirmed" &&
+      Number.isInteger(evidence.round) &&
+      Number.isInteger(evidence.participantId)
+    ) {
+      goal.evidence = {
+        kind: "host_confirmed",
+        round: evidence.round as number,
+        participantId: evidence.participantId as number,
+      };
     }
   }
   return goal;
@@ -246,6 +286,22 @@ export type TrpgGoalTransition = {
   addsDroppedAtCap: number;
 };
 
+/** A claim of a later round replaces the earlier one (it describes the newest scene); the same round never does. */
+function recordClaim(goal: TrpgGoal, round: number, source: TrpgGoalClaimSource | undefined): TrpgGoal {
+  if (goal.claimedRound != null && goal.claimedRound >= round) return goal;
+  const { claimSource: _previous, ...rest } = goal;
+  return { ...rest, claimedRound: round, ...(source ? { claimSource: source } : {}) };
+}
+
+/** A GM resolution proposal the host has not answered. */
+export function hasPendingClaim(goal: TrpgGoal): boolean {
+  return (
+    goal.status === "active" &&
+    goal.claimedRound != null &&
+    (goal.declinedRound == null || goal.claimedRound > goal.declinedRound)
+  );
+}
+
 /**
  * The one per-round goal transition. Precedence, fixed:
  * 1. server-verified completions (facts of this round) close their goals first;
@@ -258,7 +314,7 @@ export type TrpgGoalTransition = {
 export function applyGoalTransition(
   goals: readonly TrpgGoal[],
   delta: TrpgGoalDelta,
-  ctx: { round: number; facts?: TrpgGoalRoundFacts; placeMatches: PlaceMatcher }
+  ctx: { round: number; facts?: TrpgGoalRoundFacts; placeMatches: PlaceMatcher; claimSource?: TrpgGoalClaimSource }
 ): TrpgGoalTransition {
   const verified = ctx.facts ? completeVerifiedGoals(goals, ctx.facts, ctx.placeMatches) : [...goals];
   const closedNow = new Set(
@@ -268,7 +324,7 @@ export function applyGoalTransition(
   const claim = new Set((delta.questsClaimDone ?? []).map(clipTitle).filter(Boolean));
   const next: TrpgGoal[] = verified.map((goal) => {
     if (goal.status !== "active") return goal;
-    if (claim.has(goal.title)) return goal.claimedRound == null ? { ...goal, claimedRound: ctx.round } : goal;
+    if (claim.has(goal.title)) return recordClaim(goal, ctx.round, ctx.claimSource);
     if (drop.has(goal.title)) return { ...goal, status: "retired" as const, closedRound: ctx.round };
     return goal;
   });
@@ -347,16 +403,86 @@ export function completeVerifiedGoals(
   });
 }
 
+export function goalCompletionBasis(goal: TrpgGoal): TrpgGoalCompletionBasis {
+  if (goal.evidence?.kind === "host_confirmed") return "host";
+  return goal.evidence ? "server" : "unrecorded";
+}
+
+export type TrpgGoalAnswer =
+  | { decision: "confirm"; round: number; hostSeatId: number }
+  | { decision: "decline" };
+
+export type TrpgGoalAnswerResult =
+  | { outcome: "confirmed" | "declined"; goals: TrpgGoal[] }
+  | { outcome: "already_confirmed" | "already_declined" }
+  | { outcome: "rejected"; reason: "unknown_goal" | "closed" | "stale_claim" | "no_claim" };
+
+/**
+ * The host's answer to one GM resolution proposal. Pure: the caller proves the proposal still matches the
+ * committed GM message and writes the result. `claimedRound` is the proposal the host actually saw.
+ * - confirm: completed, with `host_confirmed` evidence (never a server-verified kind);
+ * - decline: the goal stays active and the proposal stops being pending; a later claim is a new one;
+ * - answering the same proposal twice is a no-op.
+ */
+export function answerGoalClaim(
+  goals: readonly TrpgGoal[],
+  goalId: string,
+  claimedRound: number,
+  answer: TrpgGoalAnswer
+): TrpgGoalAnswerResult {
+  const goal = goals.find((item) => item.id === goalId);
+  if (!goal) return { outcome: "rejected", reason: "unknown_goal" };
+  if (goal.status === "completed") {
+    return goal.evidence?.kind === "host_confirmed" && goal.evidence.round === claimedRound && answer.decision === "confirm"
+      ? { outcome: "already_confirmed" }
+      : { outcome: "rejected", reason: "closed" };
+  }
+  if (goal.status === "retired") return { outcome: "rejected", reason: "closed" };
+  if (goal.claimedRound == null) return { outcome: "rejected", reason: "no_claim" };
+  if (goal.claimedRound !== claimedRound) return { outcome: "rejected", reason: "stale_claim" };
+  if (!hasPendingClaim(goal)) {
+    return answer.decision === "decline"
+      ? { outcome: "already_declined" }
+      : { outcome: "rejected", reason: "stale_claim" };
+  }
+  const next = goals.map((item): TrpgGoal => {
+    if (item.id !== goalId) return item;
+    if (answer.decision === "decline") return { ...item, declinedRound: claimedRound };
+    return {
+      ...item,
+      status: "completed",
+      closedRound: answer.round,
+      evidence: { kind: "host_confirmed", round: claimedRound, participantId: answer.hostSeatId },
+    };
+  });
+  return { outcome: answer.decision === "confirm" ? "confirmed" : "declined", goals: next };
+}
+
 /** Player-safe projection: no criterion, no evidence, no source. */
 export function publicGoals(goals: readonly TrpgGoal[] | undefined): TrpgPublicGoal[] {
   const list = goals ?? [];
   const active = list
     .filter((goal) => goal.status === "active")
-    .map((goal) => ({ id: goal.id, title: goal.title, status: "active" as const, claimed: goal.claimedRound != null }));
+    .map((goal): TrpgPublicGoal => {
+      const pending = hasPendingClaim(goal);
+      return {
+        id: goal.id,
+        title: goal.title,
+        status: "active",
+        claimed: pending,
+        ...(pending ? { claimedRound: goal.claimedRound } : {}),
+      };
+    });
   const done = list
     .filter((goal) => goal.status === "completed")
     .slice(-TRPG_GOAL_RECENT_DONE_SHOWN)
-    .map((goal) => ({ id: goal.id, title: goal.title, status: "completed" as const, claimed: false }));
+    .map((goal): TrpgPublicGoal => ({
+      id: goal.id,
+      title: goal.title,
+      status: "completed",
+      claimed: false,
+      basis: goalCompletionBasis(goal),
+    }));
   return [...active, ...done];
 }
 
@@ -367,7 +493,7 @@ export function goalMemoryLines(goals: readonly TrpgGoal[] | undefined): string[
     .filter((goal) => goal.status === "completed")
     .slice(-TRPG_GOAL_RECENT_DONE_SHOWN)
     .map((goal) => goal.title);
-  const claimed = list.filter((goal) => goal.status === "active" && goal.claimedRound != null).map((goal) => goal.title);
+  const claimed = list.filter(hasPendingClaim).map((goal) => goal.title);
   return [
     done.length ? `goals_done: ${done.join("; ")}` : "",
     claimed.length ? `goals_claimed_unverified: ${claimed.join("; ")}` : "",
