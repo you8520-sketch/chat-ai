@@ -253,6 +253,35 @@ export default async function CharacterPage({
 
 
 
+  const startRow = (
+    <CharacterStartRow
+      characterId={c.id}
+      characterName={c.name}
+      loggedIn={!!user}
+      branches={characterBranches}
+      personas={personaList}
+      initialPersonaId={defaultPersonaId}
+      primary
+      trpgHref={
+        canAccessTrpg(user) &&
+        canUseCharacterInTrpg(
+          {
+            id: c.id,
+            creator_id: c.creator_id,
+            visibility: c.visibility ?? "public",
+            moderation_status: c.moderation_status ?? "approved",
+            share_slug: c.share_slug,
+            official: c.official,
+            trpg_reuse_allowed: (c as { trpg_reuse_allowed?: number | null }).trpg_reuse_allowed,
+          },
+          user.id
+        )
+          ? `/trpg?characterId=${c.id}`
+          : null
+      }
+    />
+  );
+
   return (
 
     <div className="mt-8 space-y-4">
@@ -325,35 +354,10 @@ export default async function CharacterPage({
         heroVariant="poster"
         genre={c.genre}
         dossier={dossier}
+        heroActions={startRow}
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <CharacterStartRow
-          characterId={c.id}
-          characterName={c.name}
-          loggedIn={!!user}
-          branches={characterBranches}
-          personas={personaList}
-          initialPersonaId={defaultPersonaId}
-          trpgHref={
-            canAccessTrpg(user) &&
-            canUseCharacterInTrpg(
-              {
-                id: c.id,
-                creator_id: c.creator_id,
-                visibility: c.visibility ?? "public",
-                moderation_status: c.moderation_status ?? "approved",
-                share_slug: c.share_slug,
-                official: c.official,
-                trpg_reuse_allowed: (c as { trpg_reuse_allowed?: number | null }).trpg_reuse_allowed,
-              },
-              user.id
-            )
-              ? `/trpg?characterId=${c.id}`
-              : null
-          }
-        />
-
         <LikeFollowButtons characterId={c.id} liked={liked} followed={followed} loggedIn={!!user} />
 
         {creatorId > 0 && !isOwner && !creatorIsOfficialStudio && (
