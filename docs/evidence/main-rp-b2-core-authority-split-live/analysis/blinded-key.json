@@ -1,0 +1,82 @@
+{
+ "S1_false_past_probe|deepseek-v4.1-flash|r1": {
+  "X": "cur",
+  "Y": "cand"
+ },
+ "S1_false_past_probe|deepseek-v4.1-flash|r2": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S1_false_past_probe|deepseek-v4.1-flash|r3": {
+  "X": "cur",
+  "Y": "cand"
+ },
+ "S1_false_past_probe|gemini-3.8-flash|r1": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S1_false_past_probe|gpt-6.1-sol|r1": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S2_user_remark_emotion|deepseek-v4.1-flash|r1": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S2_user_remark_emotion|deepseek-v4.1-flash|r2": {
+  "X": "cur",
+  "Y": "cand"
+ },
+ "S2_user_remark_emotion|deepseek-v4.1-flash|r3": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S2_user_remark_emotion|gemini-3.8-flash|r1": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S2_user_remark_emotion|gpt-6.1-sol|r1": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S3_npc_event_no_cue|deepseek-v4.1-flash|r1": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S3_npc_event_no_cue|deepseek-v4.1-flash|r2": {
+  "X": "cur",
+  "Y": "cand"
+ },
+ "S3_npc_event_no_cue|deepseek-v4.1-flash|r3": {
+  "X": "cur",
+  "Y": "cand"
+ },
+ "S3_npc_event_no_cue|gemini-3.8-flash|r1": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S3_npc_event_no_cue|gpt-6.1-sol|r1": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S4_temporal_state|deepseek-v4.1-flash|r1": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S4_temporal_state|deepseek-v4.1-flash|r2": {
+  "X": "cur",
+  "Y": "cand"
+ },
+ "S4_temporal_state|deepseek-v4.1-flash|r3": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S4_temporal_state|gemini-3.8-flash|r1": {
+  "X": "cand",
+  "Y": "cur"
+ },
+ "S4_temporal_state|gpt-6.1-sol|r1": {
+  "X": "cand",
+  "Y": "cur"
+ }
+}
