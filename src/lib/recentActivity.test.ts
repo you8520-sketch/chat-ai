@@ -157,7 +157,7 @@ describe("unified recent activity", () => {
         last_content: "hi",
         last_role: "user",
         last_at: "2026-07-01 10:00:00",
-        msg_count: 1,
+        masked: false,
         user_turn_count: 1,
         character_session_count: 1,
         session_ordinal: 1,
@@ -224,13 +224,13 @@ describe("unified recent activity", () => {
       updatedAt: "2026-08-02 10:00:00",
       sourceCharacterId: charId,
     });
-    const entries = fetchRecentActivity(db, userId, 40);
+    const entries = fetchRecentActivity(db, userId, 40, { hideAdult: false });
     assert.equal(entries[0]?.kind, "trpg_campaign");
     assert.equal(entries[0]?.href, `/trpg/${campaignId}`);
     assert.equal(entries[1]?.kind, "character_chat");
     assert.equal(entries.filter((entry) => entry.kind === "character_chat").length, 1);
     assert.equal(entries.filter((entry) => entry.kind === "trpg_campaign").length, 1);
-    const chatsOnly = fetchRecentActivity(db, userId, 40, { includeTrpg: false });
+    const chatsOnly = fetchRecentActivity(db, userId, 40, { hideAdult: false, includeTrpg: false });
     assert.equal(chatsOnly.every((entry) => entry.kind === "character_chat"), true);
   });
 

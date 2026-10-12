@@ -19,6 +19,9 @@ import {
   fetchGithubSupplyAutoDraftProjection,
   fetchPostDeployVerificationProjection,
 } from "@/lib/adminAutomationReports";
+import { GithubAutomationCoverageSection } from "@/components/admin/GithubAutomationCoverageSection";
+import { buildAutomationCoverage } from "@/lib/adminAutomationCoverage";
+import { scanScheduledWorkflowDefinitions } from "@/lib/codeHealth/automationHealth";
 import {
   fetchCodeHealthAdminProjection,
   formatCodeHealthDeltaLines,
@@ -1158,11 +1161,14 @@ export default async function AdminAutomationReportsPage() {
   const ttlReports = listMainRpCacheTtlReports(db, 12);
   const schedulers = listSchedulerRunOverview(db);
   const latestTtl = ttlReports[0] ?? null;
-  const githubFailures = github.groups.filter(
-    (group) => group.latest.conclusion && group.latest.conclusion !== "success"
-  ).length;
+  const automationCoverage = buildAutomationCoverage({
+    definitions: scanScheduledWorkflowDefinitions(process.cwd()),
+    github,
+  });
+  const githubFailures = automationCoverage.attentionCount;
   const githubLookupProblems =
     (github.status === "UNAVAILABLE" ? 1 : 0) +
+    (github.status === "OK" && automationCoverage.status === "UNAVAILABLE" ? 1 : 0) +
     (supplyDrafts.status === "UNAVAILABLE" ? 1 : 0) +
     (postDeploy.status === "UNAVAILABLE" ? 1 : 0);
   const schedulerProblems = schedulers.filter((row) =>
@@ -1218,8 +1224,17 @@ export default async function AdminAutomationReportsPage() {
       <section className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-white/10 bg-[#11131a] p-4">
           <p className="text-xs text-zinc-500">GitHub 정기 자동화</p>
-          <p className="mt-2 text-2xl font-black">{github.groups.length}개</p>
-          <p className="mt-1 text-xs text-zinc-600">최근 scheduled run 기준</p>
+          <p className="mt-2 text-2xl font-black">
+            {automationCoverage.status === "OK"
+              ? automationCoverage.rows.length
+              : github.groups.length}
+            개
+          </p>
+          <p className="mt-1 text-xs text-zinc-600">
+            {automationCoverage.status === "OK"
+              ? "main에 등록된 schedule 기준"
+              : "최근 scheduled run 기준"}
+          </p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#11131a] p-4">
           <p className="text-xs text-zinc-500">사이트 내부 scheduler</p>
@@ -1587,83 +1602,7 @@ export default async function AdminAutomationReportsPage() {
         )}
       </section>
 
-      <section className="mt-6">
-        <h2 className="text-lg font-black">GitHub 정기 자동감사</h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          GitHub Actions의 schedule 이벤트 실행을 자동 수집합니다. 결과 원문은 각 실행 링크에서
-          artifact와 job summary까지 확인할 수 있습니다.
-        </p>
-        {github.status !== "OK" ? (
-          <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-950/10 p-4 text-sm text-amber-200">
-            GitHub 자동감사 목록을 읽지 못했습니다: {github.error ?? "unknown"}
-          </div>
-        ) : github.groups.length === 0 ? (
-          <div className="mt-3 rounded-xl border border-white/10 bg-[#11131a] p-4 text-sm text-zinc-500">
-            최근 scheduled run이 없습니다.
-          </div>
-        ) : (
-          <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {github.groups.map((group) => {
-              const latestState = group.latest.conclusion ?? group.latest.status;
-              return (
-                <article
-                  key={group.key}
-                  className="rounded-2xl border border-white/10 bg-[#11131a] p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="font-bold">{group.name}</h3>
-                      <p className="mt-1 truncate font-mono text-[11px] text-zinc-600">
-                        {group.path}
-                      </p>
-                    </div>
-                    <span
-                      className={
-                        "shrink-0 rounded px-2 py-1 text-[11px] font-bold " +
-                        badgeClass(latestState)
-                      }
-                    >
-                      {latestState}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-xs text-zinc-500">
-                    최근 실행 #{group.latest.runNumber} · {fmtDate(group.latest.createdAt)}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <a
-                      href={group.latest.htmlUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-white/5"
-                    >
-                      최신 보고서/실행 보기 ↗
-                    </a>
-                  </div>
-                  <details className="mt-3 border-t border-white/5 pt-3">
-                    <summary className="cursor-pointer text-xs font-semibold text-zinc-400">
-                      최근 실행 기록
-                    </summary>
-                    <div className="mt-2 space-y-1.5">
-                      {group.history.slice(0, 6).map((run) => (
-                        <a
-                          key={run.id}
-                          href={run.htmlUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center justify-between gap-2 rounded px-2 py-1 text-xs text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
-                        >
-                          <span>#{run.runNumber} · {fmtDate(run.createdAt)}</span>
-                          <span>{run.conclusion ?? run.status}</span>
-                        </a>
-                      ))}
-                    </div>
-                  </details>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      <GithubAutomationCoverageSection view={automationCoverage} formatDate={fmtDate} />
 
       <section className="mt-8">
         <h2 className="text-lg font-black">사이트 내부 자동 작업</h2>

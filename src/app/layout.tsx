@@ -3,12 +3,15 @@ import Script from "next/script";
 import { Suspense } from "react";
 import "./globals.css";
 import Header from "@/components/Header";
+import MobileBottomNav from "@/components/MobileBottomNav";
+import VirtualKeyboardInset from "@/components/VirtualKeyboardInset";
 import Sidebar from "@/components/Sidebar";
 import ChatRoomDocumentClass from "@/components/ChatRoomDocumentClass";
 import MenuTransitionHost from "@/components/MenuTransition";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import { SiteLegalFooter } from "@/components/SiteLegalFooter";
 import { SITE_DESCRIPTION, SITE_DISPLAY_NAME, SITE_PAGE_TITLE } from "@/lib/siteBrand";
+import { getSessionUser } from "@/lib/auth";
 import { getConfiguredPublicOrigin } from "@/lib/publicOrigin";
 
 const configuredPublicOrigin = getConfiguredPublicOrigin();
@@ -45,7 +48,8 @@ export const viewport: Viewport = {
   themeColor: "#070910",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getSessionUser();
   return (
     <html lang="ko" className="h-full">
       <head>
@@ -67,16 +71,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {`(function(){try{var p=location.pathname;if(/^\\/chat\\/\\d+/.test(p))document.documentElement.classList.add("chat-room-active");if(/^\\/character\\/\\d+/.test(p)&&/(?:^|[?&])embed=chat-intro(?:&|$)/.test(location.search))document.documentElement.classList.add("character-intro-embed-active");}catch(e){}})();`}
         </Script>
         <ChatRoomDocumentClass />
+        <VirtualKeyboardInset />
         <PwaInstallPrompt />
         <Suspense fallback={null}>
           <MenuTransitionHost />
         </Suspense>
-        <Header />
-        <div className="app-shell mx-auto flex w-full max-w-7xl flex-1 items-start gap-6 px-4 pb-24 pt-4 md:pb-6">
+        <Header user={user} />
+        <div className="app-shell mx-auto flex w-full max-w-7xl flex-1 items-start gap-6 px-4 pb-6 pt-4">
           <Sidebar />
           <main className="flex min-w-0 flex-1 flex-col">{children}</main>
         </div>
         <SiteLegalFooter />
+        <MobileBottomNav loggedIn={!!user} />
       </body>
     </html>
   );

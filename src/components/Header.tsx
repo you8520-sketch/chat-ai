@@ -2,12 +2,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { cookies } from "next/headers";
 import { canAccessAdultContent } from "@/lib/adultVerification";
-import { getSessionUser } from "@/lib/auth";
+import type { User } from "@/lib/auth-types";
 import { getDb } from "@/lib/db";
 import { readGuestNoticeReadState } from "@/lib/noticeGuestReadCookies";
 import { getTotalUnreadCount } from "@/lib/userNotifications";
 import AnimatedPointsBadge from "./AnimatedPointsBadge";
-import MobileBottomNav from "./MobileBottomNav";
 import NotificationBell from "./NotificationBell";
 import PointsShopLink from "./PointsShopLink";
 import HeaderMainNavRow from "./HeaderMainNavRow";
@@ -18,8 +17,7 @@ import { getPointBalance } from "@/lib/points";
 import { canAccessPortoneCheckout } from "@/lib/portoneReviewerAccount";
 import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
-export default async function Header() {
-  const user = await getSessionUser();
+export default async function Header({ user }: { user: User | null }) {
   const db = getDb();
   const cookieStore = await cookies();
   const guestState = readGuestNoticeReadState({
@@ -80,7 +78,7 @@ export default async function Header() {
                 {!canAccessAdultContent(user) && (
                   <Link
                     href="/verify"
-                    className="hidden text-xs font-medium text-zinc-400 transition hover:text-violet-300 sm:inline"
+                    className="hidden min-h-9 items-center rounded-lg px-1.5 text-xs font-medium text-zinc-400 transition hover:text-violet-300 sm:inline-flex"
                   >
                     성인인증
                   </Link>
@@ -100,8 +98,10 @@ export default async function Header() {
             )}
           </div>
         </div>
+        <div className="mx-auto max-w-7xl px-3 sm:px-4">
+          <HeaderMainNavRow variant="strip" />
+        </div>
       </header>
-      <MobileBottomNav loggedIn={!!user} />
       {user && <ExpiringPointsPopup />}
     </>
   );

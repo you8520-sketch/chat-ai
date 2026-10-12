@@ -13,6 +13,8 @@ type Props = {
   className?: string;
   /** true면 클릭 시 툴팁 토글. Link 등 자체 클릭 동작이 있으면 false */
   enableClickToggle?: boolean;
+  /** end: 툴팁 오른쪽 끝을 칩 오른쪽에 맞춤 (헤더 우측 칩이 좁은 화면에서 잘리지 않도록) */
+  align?: "center" | "end";
 };
 
 export default function PointsBalanceTooltip({
@@ -22,6 +24,7 @@ export default function PointsBalanceTooltip({
   children,
   className = "",
   enableClickToggle = true,
+  align = "center",
 }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -52,7 +55,9 @@ export default function PointsBalanceTooltip({
       {open && (
         <div
           role="tooltip"
-          className="absolute left-1/2 top-full z-50 mt-1.5 w-max -translate-x-1/2 rounded-lg border border-white/10 bg-[#1a1a1a]/95 px-2.5 py-1.5 text-[11px] text-zinc-300 shadow-lg shadow-black/40 backdrop-blur-sm"
+          className={`absolute top-full z-50 mt-1.5 w-max max-w-[calc(100vw-1.5rem)] rounded-lg ${
+            align === "end" ? "right-0" : "left-1/2 -translate-x-1/2"
+          } border border-white/10 bg-[#1a1a1a]/95 px-2.5 py-1.5 text-[11px] text-zinc-300 shadow-lg shadow-black/40 backdrop-blur-sm`}
         >
           (유료: {formatPoints(paid)} P / 무료: {formatPoints(free)} P)
           <br />

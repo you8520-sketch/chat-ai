@@ -4,7 +4,10 @@
  * through preparePaidRunnerPack, and never writes request bodies to disk.
  */
 import { isFullGitSha, validateLiveProof } from "@/lib/rpQualityPrecall";
-import type { PaidRunnerDenialReason } from "@/lib/rpQualityPaidRunner";
+import type {
+  PaidRunnerDenialReason,
+  PaidRunnerExecutionScope,
+} from "@/lib/rpQualityPaidRunner";
 import { PrecallRowsStop, loadPrecallProductionRows } from "./rpQualityPrecallProductionRows";
 import {
   paidRunnerIdentityHashesMatchProof,
@@ -21,6 +24,7 @@ export function loadInProcessPaidRunnerPack(input: {
   expectedProductionSha: string;
   originalDataDir: string;
   env: NodeJS.ProcessEnv;
+  executionScope?: PaidRunnerExecutionScope;
 }):
   | { ok: true; pack: PaidRunnerPreparedPack }
   | { ok: false; reason: PaidRunnerDenialReason } {
@@ -51,6 +55,7 @@ export function loadInProcessPaidRunnerPack(input: {
       rows: loaded.rows,
       mainSha: input.runtimeSha,
       productionDeploySha: loaded.proof.deployedGitSha,
+      executionScope: input.executionScope,
     });
     const identityOk = paidRunnerIdentityHashesMatchProof(pack.manifest.identityHashes, {
       greetingSha256: loaded.proof.greetingSha256,

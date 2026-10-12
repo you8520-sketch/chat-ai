@@ -208,6 +208,95 @@ describe("MAIN_RP_STYLE_LENGTH golden operator", () => {
     assert.equal(report.source.sealedSha256, persisted.sealedSha256);
   });
 
+  it("CURRENT_LIVE binds the live SHA and mock-posts only A_relationship_emotion", async () => {
+    const dbFile = path.join(dir, "current-live-a4.db");
+    buildSyntheticDb(dbFile);
+    const loaded = loadPrecallProductionRows({
+      dbPath: dbFile,
+      deployedGitSha: DEPLOY_SHA,
+      env: {},
+    });
+    const assembled = assembleMainRpStyleLengthSnapshot({
+      rows: loaded.rows,
+      deployedGitSha: DEPLOY_SHA,
+      version: 11,
+      listing: { nsfwListing: 1, officialListing: 0, greetingChars: 2 },
+      personaPublicChars: loaded.proof.personaPublicChars,
+      fixtureKind: "CURRENT_LIVE",
+      adminVerified: true,
+    });
+    const root = path.join(dir, "current-live-a4-root");
+    persistMainRpStyleLengthGolden({
+      root,
+      version: 11,
+      sealed: assembled.sealed,
+      publicManifest: { ...assembled.publicManifest, privateStore: `${root}/v11` },
+    });
+    const liveSha = "efea11182d43abba4af31af10f461f160d97b923";
+    const dry = await dryRunMainRpStyleLengthEvaluation({
+      mode: "CURRENT_LIVE",
+      version: 11,
+      root,
+      dbPath: dbFile,
+      deployedGitSha: liveSha,
+      env: {},
+    });
+    assert.equal(dry.sealedCalls.length, RP_QUALITY_PRECALL_PLANNED_CALLS);
+    assert.equal(dry.seal.ok, true);
+    assert.equal(dry.paidManifest.calls.length, 12);
+    assert.equal(dry.paidManifest.productionDeploySha, liveSha);
+    assert.equal(dry.paidManifest.mainSha, liveSha);
+    assert.notEqual(dry.paidManifest.productionDeploySha, assembled.publicManifest.deployedGitSha);
+    assert.equal(dry.paidManifest.executionScope, "A_relationship_emotion");
+    assert.equal(dry.transportPosts, 4);
+    assert.equal(dry.providerPosts, 0);
+    assert.equal(dry.networkAttempts, 0);
+    assert.equal(dry.dbWrites, 0);
+    assert.equal(dry.compare?.sourceDrift, false);
+    assert.equal(dry.compare?.deployShaChanged, true);
+    assert.equal(dry.compare?.identityHashMatch, true);
+    assert.equal(dry.compare?.finalWireMatch, true);
+    const stdout = publicGoldenStdout({
+      action: "evaluate",
+      publicManifest: dry.publicManifest,
+      sealedSha256: dry.sealedSha256,
+      compare: dry.compare,
+      providerPosts: dry.providerPosts,
+      dbWrites: dry.dbWrites,
+      evaluation: {
+        mode: dry.mode,
+        sealOk: dry.seal.ok,
+        requestBodiesPresent: dry.requestBodiesPresent,
+        fingerprintsMatchPinnedV1: dry.fingerprintsMatchPinnedV1,
+        transportPosts: dry.transportPosts,
+        networkAttempts: dry.networkAttempts,
+        paidApproval: {
+          manifestFingerprint: dry.paidManifest.manifestFingerprint,
+          identityHash: dry.paidManifest.identityHash,
+          productionDeploySha: dry.paidManifest.productionDeploySha,
+          executionScope: dry.paidManifest.executionScope ?? null,
+        },
+      },
+    });
+    const parsed = JSON.parse(stdout) as {
+      evaluationDryRun: {
+        paidApproval: {
+          manifestFingerprint: string;
+          identityHash: string;
+          productionDeploySha: string;
+          executionScope: string | null;
+        };
+      };
+    };
+    assert.equal(parsed.evaluationDryRun.paidApproval.manifestFingerprint, dry.paidManifest.manifestFingerprint);
+    assert.equal(parsed.evaluationDryRun.paidApproval.identityHash, dry.paidManifest.identityHash);
+    assert.equal(parsed.evaluationDryRun.paidApproval.productionDeploySha, liveSha);
+    assert.equal(parsed.evaluationDryRun.paidApproval.executionScope, "A_relationship_emotion");
+    assert.match(parsed.evaluationDryRun.paidApproval.manifestFingerprint, /^[a-f0-9]{64}$/);
+    assert.match(parsed.evaluationDryRun.paidApproval.identityHash, /^[a-f0-9]{64}$/);
+    assert.doesNotMatch(stdout, /hidden@example.invalid|시스템|세계관|조용한 사람/);
+  });
+
   it("rejects historical id=10 rows before assembly", () => {
     assert.throws(
       () =>

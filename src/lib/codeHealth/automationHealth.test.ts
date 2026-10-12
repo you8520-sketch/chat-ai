@@ -205,6 +205,30 @@ describe("scheduled automation health", () => {
     assert.equal(row.state, "HEALTHY");
   });
 
+  it("does not tighten the stale threshold from mixed weekly+monthly cron gaps", () => {
+    const mixed = {
+      name: "Weekly + Monthly Test",
+      path: ".github/workflows/mixed.yml",
+      crons: ["17 1 * * 1", "43 2 1 * *"],
+    };
+    const report = buildScheduledAutomationHealthReport({
+      definitions: [mixed],
+      now: new Date("2026-10-12T09:20:00.000Z"),
+      groups: [
+        group(mixed.path, [
+          run(5, mixed.path, "2026-10-12T07:20:00.000Z", "success"),
+          run(4, mixed.path, "2026-10-05T11:27:00.000Z", "success"),
+          run(3, mixed.path, "2026-10-01T05:00:00.000Z", "success"),
+          run(2, mixed.path, "2026-09-28T07:00:00.000Z", "success"),
+          run(1, mixed.path, "2026-09-21T06:00:00.000Z", "success"),
+        ]),
+      ],
+    });
+    const row = report.rows[0]!;
+    assert.equal(row.staleAfterHours, 240);
+    assert.equal(row.state, "HEALTHY");
+  });
+
   it("fails closed as warning when GitHub scheduled-run projection is unavailable", () => {
     const report = buildScheduledAutomationHealthReport({
       definitions: [definitions[0]!],

@@ -20,14 +20,6 @@ const CARD_WIDTH = {
   exhibit: "w-[224px] sm:w-[268px] xl:w-[300px]",
 } as const;
 
-const MOBILE_DISCOVERY_TABS = [
-  { href: "/", label: "추천" },
-  { href: "/tab/new", label: "신작랭킹" },
-  { href: "/tab/ranking", label: "랭킹" },
-  { href: "/trpg", label: "TRPG" },
-  { href: "/search", label: "검색" },
-] as const;
-
 type SectionMeta = {
   eyebrow: string;
   description: string;
@@ -111,32 +103,6 @@ function SectionHeader({
         </Link>
       ) : null}
     </div>
-  );
-}
-
-function MobileDiscoveryNav() {
-  return (
-    <nav
-      className="grid grid-cols-5 gap-1 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-1.5 md:hidden"
-      aria-label="콘텐츠 탐색"
-      data-menu-transition=""
-    >
-      {MOBILE_DISCOVERY_TABS.map((tab, index) => (
-        <Link
-          key={tab.href}
-          href={tab.href}
-          aria-current={index === 0 ? "page" : undefined}
-          className={cn(
-            "flex min-h-11 min-w-0 items-center justify-center rounded-xl px-1 text-center text-xs font-semibold tracking-[-0.03em] transition",
-            index === 0
-              ? "bg-violet-600 text-white shadow-[0_6px_18px_rgba(124,58,237,.22)]"
-              : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100",
-          )}
-        >
-          {tab.label}
-        </Link>
-      ))}
-    </nav>
   );
 }
 
@@ -246,8 +212,7 @@ export default async function Home() {
       <HomePopupNotice notice={popupNotice} />
       <HomeCreateEventBanner />
       <div className="border-b border-white/[0.07] py-4 md:hidden">
-        <MobileDiscoveryNav />
-        <div className="mt-3 flex min-h-9 items-center justify-between gap-3 px-1">
+        <div className="flex min-h-9 items-center justify-between gap-3 px-1">
           <UserPreferenceControls
             isAdult={!!user?.is_adult}
             canDisableSafetyFilter={canDisableSafetyFilter}

@@ -159,7 +159,9 @@ function staleThresholdHours(
   const stats = group
     ? observedGapStats(group)
     : { latestGapHours: null, medianGapHours: null };
-  if (stats.medianGapHours != null) {
+  // Gaps between runs of different cron cadences (e.g. weekly + monthly) are
+  // not one distribution, so the observed median cannot tighten the threshold.
+  if (stats.medianGapHours != null && definition.crons.length <= 1) {
     return {
       observedGapHours: stats.latestGapHours,
       staleAfterHours: Math.min(

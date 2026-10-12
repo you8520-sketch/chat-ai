@@ -19,6 +19,7 @@ import {
   paidRunnerIdentityHash,
   paidRunnerRegistrySnapshot,
   verifyPaidRunnerDispatchSeal,
+  type PaidRunnerExecutionScope,
   type PaidRunnerIdentityHashes,
   type PaidRunnerPublicManifest,
   type PaidRunnerSealedCall,
@@ -70,6 +71,7 @@ export function preparePaidRunnerPack(input: {
   rows: PrecallAssemblyRows;
   mainSha: string;
   productionDeploySha: string;
+  executionScope?: PaidRunnerExecutionScope;
 }): PaidRunnerPreparedPack {
   paidRunnerRegistrySnapshot();
   if (input.rows.character.id !== RP_QUALITY_PRECALL_TARGET_SELECTOR.characterId) {
@@ -116,6 +118,7 @@ export function preparePaidRunnerPack(input: {
     productionDeploySha: input.productionDeploySha,
     identityHashes,
     sealedCalls,
+    ...(input.executionScope ? { executionScope: input.executionScope } : {}),
   });
   return {
     manifest,

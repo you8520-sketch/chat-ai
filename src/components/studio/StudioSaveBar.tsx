@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import StudioButton from "@/components/studio/StudioButton";
 import { cn } from "@/lib/studioDesign";
 
@@ -26,7 +26,9 @@ type Props = {
 
 /**
  * Sticky bottom save bar — visible on every create tab.
- * Sits above mobile bottom nav (pb safe).
+ * Docks directly above the mobile bottom nav (--mobile-nav-offset) and above the
+ * on-screen keyboard (--keyboard-inset) so the save/cancel buttons stay reachable, and
+ * publishes its height as --studio-save-bar-h so the page footer can reserve room for it.
  */
 export default function StudioSaveBar({
   onSave,
@@ -39,12 +41,30 @@ export default function StudioSaveBar({
   className,
   children,
 }: Props) {
+  const barRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const root = document.documentElement;
+    const publish = () =>
+      root.style.setProperty("--studio-save-bar-h", `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(bar);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--studio-save-bar-h");
+    };
+  }, []);
+
   return (
     <div
+      ref={barRef}
       data-testid="studio-save-bar"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur-md",
-        "pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-[env(safe-area-inset-bottom)]",
+        "fixed inset-x-0 bottom-[calc(var(--mobile-nav-offset)+var(--keyboard-inset))] z-40 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur-md",
+        "pb-0 min-[576px]:pb-[env(safe-area-inset-bottom)]",
         className,
       )}
     >

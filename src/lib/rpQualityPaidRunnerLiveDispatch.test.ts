@@ -448,6 +448,11 @@ describe("rp quality paid runner live dispatch boundary", () => {
     assert.equal(defaultRun.report.denialReason, "LIVE_EXECUTE_NOT_APPROVED");
     assert.equal(defaultRun.report.approvalStatus, "NOT_APPROVED");
 
+    const emptyScope = runLiveCli(["--execution-scope"]);
+    assert.equal(emptyScope.report.providerPosts, 0);
+    assert.equal(emptyScope.report.denialReason, "EXECUTION_SCOPE_MISMATCH");
+    assert.equal(emptyScope.report.dbWrites, 0);
+
     const liveEnvNoAccept = runLiveCli(["--user-cost-approved", "--accept-paid-execution"], {
       RP_QUALITY_PAID_LIVE_EXECUTE: "1",
       RP_QUALITY_PAID_OPENROUTER_KEY: KEYS.openRouterKey,
