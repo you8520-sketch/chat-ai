@@ -1,0 +1,32 @@
+{
+  "delta": {
+    "players": [
+      {
+        "participantId": 10,
+        "hp": 28,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "곶 끝의 등대"
+      }
+    ],
+    "location": "곶 끝의 등대",
+    "nextRoundContext": "렌은 세관의 하수인인 감시자의 정체와 사흘 전 밤 등대 소등 지시가 적힌 일지 요철을 밝혀냈으나, 추가 공격을 받아 부상을 입었다. 감시자는 헐거운 바닥을 딛고 마지막 일격을 준비하고 있다.",
+    "flagsAdd": [
+      "세관의_해오라기호_항로차단_흔적_확인",
+      "감시자의_세관소속_확인"
+    ],
+    "storyPhase": "DEVELOPMENT",
+    "threadsAdd": [
+      "세관 순시선의 해오라기호 침몰 개입"
+    ],
+    "threadsResolve": [
+      "등대 신호등 기록 공백의 진실"
+    ],
+    "endingConditionId": ""
+  },
+  "location": "곶 끝의 등대",
+  "campaignFinished": false,
+  "diagnostics": null,
+  "narrationChars": 2628
+}

@@ -1,0 +1,32 @@
+{
+  "delta": {
+    "players": [
+      {
+        "participantId": 9,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "마레노 중앙 부두"
+      }
+    ],
+    "location": "마레노 중앙 부두",
+    "nextRoundContext": "마레노 부두에서 선원 조합과 세관이 대립하는 가운데, 곶 끝 등대의 장치가 고장 났다고 호소하는 등대 조수가 나타났다.",
+    "questsAdd": [
+      "곶 끝 등대 조사: 고장 위기에 처한 등대의 문제를 확인하거나 해결 방도를 찾는다."
+    ],
+    "flagsAdd": [
+      "등대_장치_이상_발생",
+      "세관_조합_갈등_목격"
+    ],
+    "storyPhase": "도입",
+    "threadsAdd": [
+      "등대 회전 장치 결함",
+      "세관과 선원 조합의 항로 갈등"
+    ]
+  },
+  "location": "마레노 중앙 부두",
+  "campaignFinished": false,
+  "diagnostics": null,
+  "narrationChars": 3259
+}

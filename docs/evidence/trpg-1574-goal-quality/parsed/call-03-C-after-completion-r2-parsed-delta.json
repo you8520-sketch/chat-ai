@@ -1,0 +1,28 @@
+{
+  "delta": {
+    "players": [
+      {
+        "participantId": 10,
+        "hp": 34,
+        "conditions": [],
+        "inventoryAdd": [
+          "공백이 있는 등대 일지 조각"
+        ],
+        "inventoryRemove": [],
+        "location": "곶 끝의 등대"
+      }
+    ],
+    "location": "곶 끝의 등대",
+    "nextRoundContext": "등대 내부에서 감시자의 습격을 받아 부상을 입었으며, 사흘 전 기록이 누락된 등대 일지를 확보했다. 감시자가 퇴로와 계단을 가로막고 있다.",
+    "storyPhase": "DEVELOPMENT",
+    "threadsAdd": [
+      "등대 신호등 기록 공백의 진실",
+      "위층에 숨어 있는 등대지기"
+    ],
+    "endingConditionId": ""
+  },
+  "location": "곶 끝의 등대",
+  "campaignFinished": false,
+  "diagnostics": null,
+  "narrationChars": 1806
+}

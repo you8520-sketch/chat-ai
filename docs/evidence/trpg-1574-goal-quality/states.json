@@ -1,0 +1,300 @@
+{
+  "A_after_R0": {
+    "stored": {
+      "location": "마레노 부두",
+      "quests_json": "[]",
+      "goals_json": null,
+      "world_flags_json": "[]",
+      "next_round_context": ""
+    },
+    "storedGoals": null,
+    "ledgerActiveTitles": [],
+    "playerVisibleGoals": [],
+    "sheets": [
+      {
+        "participantId": 8,
+        "location": "마레노 부두"
+      }
+    ]
+  },
+  "B_after_R0": {
+    "stored": {
+      "location": "마레노 중앙 부두",
+      "quests_json": "[\"곶 끝 등대 조사: 고장 위기에 처한 등대의 문제를 확인하거나 해결 방도를 찾는다.\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"곶 끝 등대 조사: 고장 위기에 처한 등대의 문제를 확인하거나 해결 방도를 찾는다.\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[\"등대_장치_이상_발생\",\"세관_조합_갈등_목격\"]",
+      "next_round_context": "마레노 부두에서 선원 조합과 세관이 대립하는 가운데, 곶 끝 등대의 장치가 고장 났다고 호소하는 등대 조수가 나타났다."
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "곶 끝 등대 조사: 고장 위기에 처한 등대의 문제를 확인하거나 해결 방도를 찾는다.",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "곶 끝 등대 조사: 고장 위기에 처한 등대의 문제를 확인하거나 해결 방도를 찾는다."
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-1",
+        "title": "곶 끝 등대 조사: 고장 위기에 처한 등대의 문제를 확인하거나 해결 방도를 찾는다.",
+        "status": "active",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 9,
+        "location": "마레노 중앙 부두"
+      }
+    ]
+  },
+  "C_after_R0_scripted": {
+    "stored": {
+      "location": "마레노 부두",
+      "quests_json": "[\"등대로 가서 상황을 살핀다\",\"부두 사람들에게 해오라기호 소문을 묻는다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"등대로 가서 상황을 살핀다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0,\"criterion\":{\"type\":\"reach_location\",\"place\":\"곶 끝의 등대\"}},{\"id\":\"goal-0-2\",\"title\":\"부두 사람들에게 해오라기호 소문을 묻는다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[]",
+      "next_round_context": ""
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "등대로 가서 상황을 살핀다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0,
+          "criterion": {
+            "type": "reach_location",
+            "place": "곶 끝의 등대"
+          }
+        },
+        {
+          "id": "goal-0-2",
+          "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "등대로 가서 상황을 살핀다",
+      "부두 사람들에게 해오라기호 소문을 묻는다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-1",
+        "title": "등대로 가서 상황을 살핀다",
+        "status": "active",
+        "claimed": false
+      },
+      {
+        "id": "goal-0-2",
+        "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+        "status": "active",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 10,
+        "location": "마레노 부두"
+      }
+    ]
+  },
+  "C_after_R1_scripted_move_completed": {
+    "stored": {
+      "location": "곶 끝의 등대",
+      "quests_json": "[\"부두 사람들에게 해오라기호 소문을 묻는다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"등대로 가서 상황을 살핀다\",\"status\":\"completed\",\"source\":\"gm\",\"createdRound\":0,\"criterion\":{\"type\":\"reach_location\",\"place\":\"곶 끝의 등대\"},\"closedRound\":1,\"evidence\":{\"kind\":\"reach_location\",\"round\":1,\"participantId\":10,\"location\":\"곶 끝의 등대\"}},{\"id\":\"goal-0-2\",\"title\":\"부두 사람들에게 해오라기호 소문을 묻는다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[]",
+      "next_round_context": ""
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "등대로 가서 상황을 살핀다",
+          "status": "completed",
+          "source": "gm",
+          "createdRound": 0,
+          "criterion": {
+            "type": "reach_location",
+            "place": "곶 끝의 등대"
+          },
+          "closedRound": 1,
+          "evidence": {
+            "kind": "reach_location",
+            "round": 1,
+            "participantId": 10,
+            "location": "곶 끝의 등대"
+          }
+        },
+        {
+          "id": "goal-0-2",
+          "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "부두 사람들에게 해오라기호 소문을 묻는다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-2",
+        "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+        "status": "active",
+        "claimed": false
+      },
+      {
+        "id": "goal-0-1",
+        "title": "등대로 가서 상황을 살핀다",
+        "status": "completed",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 10,
+        "location": "곶 끝의 등대"
+      }
+    ]
+  },
+  "C_after_R2_real": {
+    "stored": {
+      "location": "곶 끝의 등대",
+      "quests_json": "[\"부두 사람들에게 해오라기호 소문을 묻는다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"등대로 가서 상황을 살핀다\",\"status\":\"completed\",\"source\":\"gm\",\"createdRound\":0,\"criterion\":{\"type\":\"reach_location\",\"place\":\"곶 끝의 등대\"},\"closedRound\":1,\"evidence\":{\"kind\":\"reach_location\",\"round\":1,\"participantId\":10,\"location\":\"곶 끝의 등대\"}},{\"id\":\"goal-0-2\",\"title\":\"부두 사람들에게 해오라기호 소문을 묻는다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[]",
+      "next_round_context": "등대 내부에서 감시자의 습격을 받아 부상을 입었으며, 사흘 전 기록이 누락된 등대 일지를 확보했다. 감시자가 퇴로와 계단을 가로막고 있다."
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "등대로 가서 상황을 살핀다",
+          "status": "completed",
+          "source": "gm",
+          "createdRound": 0,
+          "criterion": {
+            "type": "reach_location",
+            "place": "곶 끝의 등대"
+          },
+          "closedRound": 1,
+          "evidence": {
+            "kind": "reach_location",
+            "round": 1,
+            "participantId": 10,
+            "location": "곶 끝의 등대"
+          }
+        },
+        {
+          "id": "goal-0-2",
+          "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "부두 사람들에게 해오라기호 소문을 묻는다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-2",
+        "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+        "status": "active",
+        "claimed": false
+      },
+      {
+        "id": "goal-0-1",
+        "title": "등대로 가서 상황을 살핀다",
+        "status": "completed",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 10,
+        "location": "곶 끝의 등대"
+      }
+    ]
+  },
+  "C_after_R3_real": {
+    "stored": {
+      "location": "곶 끝의 등대",
+      "quests_json": "[\"부두 사람들에게 해오라기호 소문을 묻는다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"등대로 가서 상황을 살핀다\",\"status\":\"completed\",\"source\":\"gm\",\"createdRound\":0,\"criterion\":{\"type\":\"reach_location\",\"place\":\"곶 끝의 등대\"},\"closedRound\":1,\"evidence\":{\"kind\":\"reach_location\",\"round\":1,\"participantId\":10,\"location\":\"곶 끝의 등대\"}},{\"id\":\"goal-0-2\",\"title\":\"부두 사람들에게 해오라기호 소문을 묻는다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[\"세관의_해오라기호_항로차단_흔적_확인\",\"감시자의_세관소속_확인\"]",
+      "next_round_context": "렌은 세관의 하수인인 감시자의 정체와 사흘 전 밤 등대 소등 지시가 적힌 일지 요철을 밝혀냈으나, 추가 공격을 받아 부상을 입었다. 감시자는 헐거운 바닥을 딛고 마지막 일격을 준비하고 있다."
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "등대로 가서 상황을 살핀다",
+          "status": "completed",
+          "source": "gm",
+          "createdRound": 0,
+          "criterion": {
+            "type": "reach_location",
+            "place": "곶 끝의 등대"
+          },
+          "closedRound": 1,
+          "evidence": {
+            "kind": "reach_location",
+            "round": 1,
+            "participantId": 10,
+            "location": "곶 끝의 등대"
+          }
+        },
+        {
+          "id": "goal-0-2",
+          "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "부두 사람들에게 해오라기호 소문을 묻는다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-2",
+        "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+        "status": "active",
+        "claimed": false
+      },
+      {
+        "id": "goal-0-1",
+        "title": "등대로 가서 상황을 살핀다",
+        "status": "completed",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 10,
+        "location": "곶 끝의 등대"
+      }
+    ]
+  }
+}

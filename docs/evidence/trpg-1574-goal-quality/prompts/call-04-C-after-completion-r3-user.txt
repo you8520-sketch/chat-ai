@@ -1,0 +1,166 @@
+[RESOLVE THIS ROUND]
+
+[WORLD]
+해무의 항구에서 돌아오지 않는 어선의 행방을 쫓는 이야기.
+
+마레노는 해무가 자주 끼는 항구도시다. 부두에는 선원 조합 회관과 세관이 마주 보고 있고, 곶 끝에는 오래된 등대가 서 있다. 사흘 전 출항한 어선 해오라기호가 돌아오지 않아 부두의 분위기가 무겁다.
+
+[SCENARIO PLAN]
+시작 상황:
+안개 낀 새벽, 마레노 부두. 어선 해오라기호가 사흘째 돌아오지 않고 있다.
+
+중심 갈등:
+사라진 어선의 진실을 두고 세관과 선원 조합이 서로를 의심한다.
+
+목표:
+세관장 강도현이 해오라기호를 침몰시킨 범인임을 밝혀 낸다.
+
+종료 조건:
+- 밀수 장부가 공개되고 강도현이 체포된다
+- 강도현이 증거를 모두 없애고 도주한다
+
+현재 사용 가능한 주요 사건 (강제 순서가 아님):
+- 부두에서 해오라기호 선원의 가족이 울며 호소한다
+- 등대 신호등 기록에서 사건 당일의 공백이 드러난다
+
+단서:
+- 찢긴 장부 조각
+- 등대 신호등 기록의 공백
+- 세관 입항 기록의 수정 흔적
+
+금지 사건:
+- 첫 장면에서 범인을 직접 지목하는 장면
+
+승인된 위협 (해당 장소에서만 서버가 공격을 판정; 결과는 THREAT_STRIKE로 주어진다):
+- [enc_watch] 등대 감시자 @ 곶 끝의 등대
+
+난이도: normal
+
+클라이맥스:
+등대에서 오 노인이 진실을 털어놓고 강도현이 나타난다.
+
+GM 연출:
+단서는 플레이어가 조사해서 얻게 하고, 범인과 동기는 중반 이후에 드러낸다.
+
+플레이 길이: medium
+
+[STORY DIRECTION — GM only]
+- Prefer unresolved conflicts and recover dangling threads. Do not keep adding new main villains.
+- Major events are possibilities, not a railroad.
+- Do not decide player or AI-player feelings or future actions.
+- In CLIMAX, do not suddenly add a new world-scale crisis.
+- If the core conflict is resolved, allow EPILOGUE. In EPILOGUE do not start a new long plot.
+- campaign_finished may be true only when an ending condition is actually met by play, or an existing forced end applies.
+- Never skip INTRO to FINISHED in one hop unless the campaign is actually ending.
+
+[DIRECTOR DELTA CONTRACT]
+Every delta object must include the 이야기 단계 as the current value or one adjacent step.
+Include thread add/resolve lists and an endingConditionId when they apply.
+Example:
+{"players":[],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"storyPhase":"DEVELOPMENT","threadsAdd":[],"threadsResolve":[],"endingConditionId":""}
+Soft hint only: 3 completed scenes and the current 이야기 단계는 DEVELOPMENT. If the fiction already moved on, you MAY emit one adjacent step. Do not advance by count alone.
+
+[CAMPAIGN DIRECTOR STATE]
+이야기 단계: DEVELOPMENT
+
+진행 중 실마리:
+- 등대 신호등 기록 공백의 진실
+- 위층에 숨어 있는 등대지기
+
+[LOCAL SCENE DELTA CONTRACT]
+Optional nested "localScene" in the delta object. Omission is not deletion — persist prior routes/obstacles unless explicitly removed.
+Fields: objectiveSet (refine objective only), sceneTransitionTo (new local scene — resets collections), resolvedObstaclesAdd/Remove, openRoutesAdd/Remove, remainingBlockersAdd/Remove, sceneStateSet ("active"|"transition_ready").
+When removing an item, copy the exact label from [LOCAL SCENE STATE]; non-matching remove values are no-ops.
+When the submitted action establishes entry into a genuinely new local dramatic situation, include sceneTransitionTo in localScene.
+Record world/scene availability only — not unsubmitted PC decisions or movement.
+Example:
+{"players":[],"location":"","next_round_context":"","localScene":{"objectiveSet":"건물 탈출 경로 확보","openRoutesAdd":["우측 환풍구"],"remainingBlockersAdd":["환풍구 앞 기생종"],"sceneStateSet":"active"}}
+
+[TONE CONTEXT] No listed WORLD genres. Data only — follow the system TONE owner.
+
+[SCENARIO SHEET STATS — only these exist; pick from this list]
+- 힘 (str): 근접·완력·파괴  5–15
+- 민첩 (dex): 은신·선공·잔기술  5–15
+- 체력 (con): 지구력·HP  5–15
+- 지능 (int): 조사·지식·추론  5–15
+- 지혜 (wis): 통찰·감지·판단  5–15
+- 매력 (cha): 설득·사교·위압  5–15
+
+[PARTY SHEETS — canon; use these values for checks and competence]
+[PC 렌]
+힘 8(+1) · 민첩 8(+1) · 체력 8(+1) · 지능 7(+1) · 지혜 7(+1) · 매력 7(+1)
+
+[GM SECRET — never quote, never tell players, use only to drive events]
+해오라기호는 세관장 강도현이 밀수 장부를 없애려고 침몰시켰다. 등대지기 오 노인은 그 장면을 목격했지만 강도현의 협박 때문에 입을 다물고 있다. 강도현과 오 노인은 사실 형제다.
+
+[PLAYER PERSONAS — portray these human PCs as written. Do not invent a different identity.]
+[PLAYER PERSONA participantId=10 name=렌]
+이름/호칭: 렌
+
+[TRPG STRUCTURED STATE — authoritative; do not contradict HP/items/location/flags]
+round=2
+location=곶 끝의 등대
+[NEXT DECISION]
+등대 내부에서 감시자의 습격을 받아 부상을 입었으며, 사흘 전 기록이 누락된 등대 일지를 확보했다. 감시자가 퇴로와 계단을 가로막고 있다.
+- 렌: HP 34/40 items=공백이 있는 등대 일지 조각 stats=cha:7,con:8,dex:8,int:7,str:8,wis:7
+quests: 부두 사람들에게 해오라기호 소문을 묻는다
+goals_done: 등대로 가서 상황을 살핀다
+[RECENT ROUNDS — RAW]
+[ROUND 0]
+  (행동 없음)
+  GM: 안개 낀 새벽 부두에 어부들이 모여 웅성거린다. 사흘째 돌아오지 않은 해오라기호의 소식을 기다리는 사람들이다. 안개 낀 새벽 부두에 어부들이 모여 웅성거린다. 사흘째 돌아오지 않은 해오라기호의 소식을 기다리는 사람들이다. 안개 낀 새벽 부두에 어부들이 모여 웅성거린다. 사흘째 돌아오지 않은 해오라기호의 소식을 기다리는 사람들이다. GM: 무엇을 하겠는가.
+
+[ROUND 1]
+  렌: 곶 끝의 등대로 이동한다.
+  GM: 해무 속 곶 길을 따라 걸어 등대 앞에 닿았다. 짠 바람이 불고 등대 문은 닫혀 있다. 해무 속 곶 길을 따라 걸어 등대 앞에 닿았다. 짠 바람이 불고 등대 문은 닫혀 있다. 해무 속 곶 길을 따라 걸어 등대 앞에 닿았다. 짠 바람이 불고 등대 문은 닫혀 있다. GM: 무엇을 하겠는가.
+
+[ROUND 2]
+  렌: 등대 안을 둘러본다.
+  GM: 철제 문을 밀어붙이자 녹슨 경첩이 비명을 지르며 둔탁하게 열렸다. 안쪽에서 뿜어져 나오는 비린 바닷바람과 오래된 기름 냄새, 그리고 퀴퀴한 곰팡내에 섞인 종이 타는 냄새가 렌의 코를 찔렀다. 바깥의 짙은 해무보다 더 어두침침한 등대 내부의 나선형 계단 밑동에는 바닥으로 떨어진 빗물과 소금기 어린 이슬이 흥건하게 고여 있었다. 렌은 발걸음을 조심스럽게 옮기며 등대 관리실로 쓰이는 저층부 공간 안으로 시선을 던졌다. 탁자 위에는 식어 말라붙은 보리차 한 잔과 반쯤 깎다 만 나무 조각, 그리고 무언가를 급하게 치우다 엎지른 듯한 잉크병이 놓여 있었다.
+
+렌의 날카로운 눈길이 어질러진 바닥 구석의 난로 곁에 멈췄다. 흙먼지가 묻은 발자국이 난로 주변을 서성인 흔적이 역력했다. 재가 수북이 쌓인 난로 안쪽을 조사하자, 완전히 타지 못한 채 그을음만 먹은 두꺼운 서류철의 모서리가 삐져나와 있었다. 렌은 손가락 끝을 집어넣어 그을린 종이 뭉치를 조심스럽게 끄집어냈다. 그것은 항만 출입과 등대 점등 시각을 날짜별로 꼼꼼하게 기록해 두던 등대 신호등 일지였다. 누군가 증거를 없애려 불을 붙였으나, 등대 특유의 습기 때문에 불씨가 중간에 꺼져버린 형국이었다.
+
+재를 털어내며 장부를 넘기던 렌의 시선이 사흘 전 날짜, 바로 해오라기호가 출항했다가 흔적도 없이 사라진 그날 밤의 기록에서 멎었다. 자정부터 새벽 네 시까지의 칸이 통째로 칼로 도려내져 있거나, 검은 잉크로 덧칠해져 완전한 공백으로 남아 있었다. 주변의 바람 세기나 조류, 타 선박의 통과 신호는 평소와 다름없이 빼곡히 적혀 있었지만, 오직 해오라기호가 지나갔어야 할 그 시간대만 인위적으로 지워져 있었다. 명백한 은폐의 흔적이었다. 이 일지를 관리하는 자, 즉 등대지기가 침몰 당일 밤 벌어진 일에 깊숙이 연루되어 있거나 침묵을 강요받고 있다는 결정적인 정황이었다.
+
+그 비밀의 단서를 손에 쥔 바로 그 순간, 위쪽 나선형 계단에서 삐걱거리는 금속 마찰음이 들려왔다. 뒤를 돌아볼 틈도 없이, 어둠 속에서 거친 호흡을 몰아쉬는 그림자가 곤봉을 치켜들고 계단 난간을 박차며 뛰어내렸다. 등대를 감시하고 있던 자였다.
+
+쿵 하는 육중한 소리와 함께 둔기가 렌의 어깨와 쇄골 사이를 사정없이 내리찍었다. 뼈마디가 울리는 날카로운 격통이 전신을 꿰뚫었고, 렌의 몸이 거칠게 휘청거리며 등대 벽면으로 내동댕이쳐졌다. 벽면에 부딪힌 등 뒤로 차가운 석회 가루가 부서져 내렸고, 입안에 비릿한 쇠맛이 감돌았다. 렌은 반사적으로 자세를 낮추며 옆으로 굴러 연타로 쏟아지는 둔기의 궤적을 벗어났다. 바닥의 돌바닥이 깨져 나가며 파편이 사방으로 튀었다.
+
+습격자는 거친 모직 코트를 입고 모자를 푹 눌러쓴 사내였다. 그의 눈빛은 맹목적인 적의와 초조함으로 가득 차 있었다. 사내는 렌이 손에 쥔 그을린 일지 조각을 노려보더니 낮게 으르렁거렸다.
+
+감시자: "쥐새끼처럼 여길 뒤지고 다녀? 그걸 넘겨라. 묻지 말아야 할 것에 코를 들이민 대가를 치르고 싶지 않다면!"
+
+사내는 다시 곤봉을 고쳐 쥐며 나선 계단의 유일한 퇴로를 막아섰다. 그의 등 뒤, 나선형 계단 꼭대기의 랜턴 룸 쪽에서는 또 다른 작은 소척거림이 들려왔다. 등대지기 오 노인이 위층에 숨어 이 참상을 떨리는 숨소리로 지켜보고 있는 기척이었다. 바깥에서는 해무가 더욱 짙어지며 등대 창문을 두드리는 파도 소리가 귀를 먹먹하게 울렸다.
+
+GM: 어깨를 강타당한 부위에서 둔중한 격통이 번져오고, 감시자는 물러설 기색 없이 나선 계단 입구를 완전히 차단한 채 다시 둔기를 치켜든다. 당장 이 감시자를 제압하거나 따돌리지 못하면 위층에 있을 등대지기에게 닿을 수도, 손에 넣은 공백의 기록을 온전히 지킬 수도 없다.
+
+[RESOLUTION ORDER]
+1. 렌 — 민첩 8
+- Resolve conflicting action results in this order.
+- Acting first is not an automatic success. Dice results still decide success/failure.
+- Later actions may react to earlier resolved results.
+- Do not add actions a player did not declare.
+
+[ACTION participantId=10 name=렌 actorKind=human density=BRIEF]
+[CHECK check_required d20=14 total=15 DC=9 tier=SUCCESS stat=지능(int) value=7 modifier=1]
+[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only]
+더 자세히 살펴본다.
+
+[AUTHORITATIVE MECHANICS]
+렌
+PRE_ACTION_HP 34
+THREAT_STRIKE 등대 감시자 → 렌: d20 14 vs DC 10 HIT, 1d6 = 3, HP 34 → 28
+CURRENT ACTION: investigate SUCCESS
+GM_LEGACY_DIRECT current action HP is not mechanics-classified
+최종: HP 28/40
+
+ENCOUNTER_AUTHORITY: HP loss this round is only what THREAT_STRIKE / ONGOING lines above state. Narrate any other peril without HP numbers — use position, time, pursuit or new obstacles. Narrate every THREAT_STRIKE result exactly (hit or miss). 중독/출혈 labels you add are narrative only here and do not tick HP. If this round's story ends a listed threat (defeated, fled, truce), put its [id] in delta.encountersEnded; that only stops its later strikes and never grants damage, hits, rewards or healing.
+
+[ROUND EXECUTION — binding]
+Apply [GM SCENE CRAFT — ADAPTIVE NARRATION] and [ROUND CRAFT] from system to the submitted actions above.
+Return JSON with narration and delta per system OUTPUT contract.
+[ROUND NARRATION BUDGET]
+Input density: SPARSE
+Minimum new GM narration: 2800 Korean characters
+Target new GM narration: 3600–4600 Korean characters
+Finish at or above Minimum; TARGET is the normal complete-scene range.
