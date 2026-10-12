@@ -1,0 +1,23 @@
+{
+ "tokens": {
+  "std": "<redacted>",
+  "minor": "<redacted>",
+  "adult": "<redacted>"
+ },
+ "chats": {
+  "new": 11,
+  "short": 12,
+  "c3200": 13,
+  "c5200": 14,
+  "rich": 15,
+  "table": 16,
+  "failed": 17,
+  "long": 18,
+  "adult": 19,
+  "blocked": 20
+ },
+ "chars": {
+  "main": 16,
+  "adult": 17
+ }
+}

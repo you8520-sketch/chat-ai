@@ -1,0 +1,292 @@
+### Scenario matrix (bottom view) — hOverflow / dock bottom==viewport / send h / toolbar min / chars-per-line
+| scenario@width | variant | hOverflow | dock h | dock bottom gap | send h | toolbar min h | chars/line | last msg gap to dock |
+|---|---|---|---|---|---|---|---|---|
+| new-360 | before | False | 150.2 | 448.3 | 30 | 32 | 36.6 | 68 |
+| new-360 | a | False | 149 | 0 | 40 | 32 | 36.6 | 484.8 |
+| new-360 | b | False | 149 | 0 | 40 | 32 | 35.7 | 472.8 |
+| short-360 | before | False | 150.2 | 0.3 | 30 | 32 | 36.6 | 68 |
+| short-360 | a | False | 149 | 0 | 40 | 32 | 36.6 | 67.7 |
+| short-360 | b | False | 149 | 0 | 40 | 32 | 35.7 | 67.7 |
+| c3200-360 | before | False | 150.2 | 0.2 | 30 | 32 | 36.6 | 68 |
+| c3200-360 | a | False | 149 | 0.1 | 40 | 32 | 36.6 | 68 |
+| c3200-360 | b | False | 149 | 0 | 40 | 32 | 35.7 | 67.6 |
+| c5200-360 | before | False | 150.2 | 0 | 30 | 32 | 36.6 | 68 |
+| c5200-360 | a | False | 149 | 0 | 40 | 32 | 36.6 | 67.9 |
+| c5200-360 | b | False | 149 | 0 | 40 | 32 | 35.7 | 67.8 |
+| rich-360 | before | False | 150.2 | 0.4 | 30 | 32 | 36.6 | 68 |
+| rich-360 | a | False | 149 | 0 | 40 | 32 | 36.6 | 67.8 |
+| rich-360 | b | False | 149 | 0 | 40 | 32 | 35.7 | 67.8 |
+| long-360 | before | False | 150.2 | 0 | 30 | 32 | 36.6 | 67.7 |
+| long-360 | a | False | 149 | 0.1 | 40 | 32 | 36.6 | 68 |
+| long-360 | b | False | 149 | 0 | 40 | 32 | 35.7 | 67.6 |
+| adult-360 | before | False | None | None | None | None | None | None |
+| adult-360 | a | False | None | None | None | None | None | None |
+| adult-360 | b | False | None | None | None | None | None | None |
+| table-360 | before | False | 150.2 | 0 | 30 | 32 | 36.6 | 67.6 |
+| table-360 | a | False | 149 | 0 | 40 | 32 | 36.6 | 68 |
+| table-360 | b | False | 149 | 0 | 40 | 32 | 35.7 | 68 |
+| failed-360 | before | False | 150.2 | 0.3 | 30 | 32 | 36.6 | 68 |
+| failed-360 | a | False | 149 | 0 | 40 | 32 | 36.6 | 68 |
+| failed-360 | b | False | 149 | 0 | 40 | 32 | 35.7 | 68 |
+| new-390 | before | False | 150.2 | 492.3 | 30 | 32 | 39.8 | 68 |
+| new-390 | a | False | 149 | 0 | 40 | 32 | 39.8 | 553.5 |
+| new-390 | b | False | 149 | 0 | 40 | 32 | 38.9 | 541.5 |
+| short-390 | before | False | 150.2 | 78.8 | 30 | 32 | 39.8 | 68 |
+| short-390 | a | False | 149 | 0 | 40 | 32 | 39.8 | 117 |
+| short-390 | b | False | 149 | 0 | 40 | 32 | 38.9 | 93 |
+| c3200-390 | before | False | 150.2 | 0.2 | 30 | 32 | 39.8 | 68 |
+| c3200-390 | a | False | 149 | 0 | 40 | 32 | 39.8 | 67.9 |
+| c3200-390 | b | False | 149 | 0.1 | 40 | 32 | 38.9 | 68 |
+| c5200-390 | before | False | 150.2 | 0 | 30 | 32 | 39.8 | 68 |
+| c5200-390 | a | False | 149 | 0.1 | 40 | 32 | 39.8 | 68 |
+| c5200-390 | b | False | 149 | 0 | 40 | 32 | 38.9 | 67.6 |
+| rich-390 | before | False | 150.2 | 0.2 | 30 | 32 | 39.8 | 68 |
+| rich-390 | a | False | 149 | 0.3 | 40 | 32 | 39.8 | 68 |
+| rich-390 | b | False | 149 | 0.3 | 40 | 32 | 38.9 | 68 |
+| long-390 | before | False | 150.2 | 0 | 30 | 32 | 39.8 | 67.5 |
+| long-390 | a | False | 149 | 0.4 | 40 | 32 | 39.8 | 68 |
+| long-390 | b | False | 149 | 0 | 40 | 32 | 38.9 | 67.6 |
+| adult-390 | before | False | None | None | None | None | None | None |
+| adult-390 | a | False | None | None | None | None | None | None |
+| adult-390 | b | False | None | None | None | None | None | None |
+| table-390 | before | False | 150.2 | 0 | 30 | 32 | 39.8 | 67.8 |
+| table-390 | a | False | 149 | 0 | 40 | 32 | 39.8 | 68 |
+| table-390 | b | False | 149 | 0.2 | 40 | 32 | 38.9 | 68 |
+| failed-390 | before | False | 150.2 | 0 | 30 | 32 | 39.8 | 67.8 |
+| failed-390 | a | False | 149 | 0 | 40 | 32 | 39.8 | 68 |
+| failed-390 | b | False | 149 | 0 | 40 | 32 | 38.9 | 68 |
+| new-576 | before | False | 150.2 | 556.3 | 30 | 32 | 39.7 | 52 |
+| new-576 | a | False | 135.5 | 0 | 30 | 32 | 39.7 | 623 |
+| new-576 | b | False | 135.5 | 0 | 30 | 32 | 39.7 | 623 |
+| short-576 | before | False | 150.2 | 102.8 | 30 | 32 | 39.7 | 52 |
+| short-576 | a | False | 135.5 | 0 | 30 | 32 | 39.7 | 170.4 |
+| short-576 | b | False | 135.5 | 0 | 30 | 32 | 39.7 | 170.4 |
+| c3200-576 | before | False | 150.2 | 0.2 | 30 | 32 | 39.7 | 52 |
+| c3200-576 | a | False | 135.5 | 0.3 | 30 | 32 | 39.7 | 52 |
+| c3200-576 | b | False | 135.5 | 0.3 | 30 | 32 | 39.7 | 52 |
+| c5200-576 | before | False | 150.2 | 0 | 30 | 32 | 39.7 | 52 |
+| c5200-576 | a | False | 135.5 | 0 | 30 | 32 | 39.7 | 51.6 |
+| c5200-576 | b | False | 135.5 | 0 | 30 | 32 | 39.7 | 51.6 |
+| rich-576 | before | False | 150.2 | 0.3 | 30 | 32 | 39.7 | 52 |
+| rich-576 | a | False | 135.5 | 0 | 30 | 32 | 39.7 | 51.9 |
+| rich-576 | b | False | 135.5 | 0 | 30 | 32 | 39.7 | 51.9 |
+| long-576 | before | False | 150.2 | 0 | 30 | 32 | 39.7 | 51.5 |
+| long-576 | a | False | 135.5 | 0 | 30 | 32 | 39.7 | 51.9 |
+| long-576 | b | False | 135.5 | 0 | 30 | 32 | 39.7 | 51.8 |
+| adult-576 | before | False | None | None | None | None | None | None |
+| adult-576 | a | False | None | None | None | None | None | None |
+| adult-576 | b | False | None | None | None | None | None | None |
+| table-576 | before | False | 150.2 | 0 | 30 | 32 | 39.7 | 51.8 |
+| table-576 | a | False | 135.5 | 0.5 | 30 | 32 | 39.7 | 52 |
+| table-576 | b | False | 135.5 | 0.5 | 30 | 32 | 39.7 | 52 |
+| failed-576 | before | False | 150.2 | 0 | 30 | 32 | 39.7 | 51.8 |
+| failed-576 | a | False | 135.5 | 0.4 | 30 | 32 | 39.7 | 52 |
+| failed-576 | b | False | 135.5 | 0.4 | 30 | 32 | 39.7 | 52 |
+| new-768 | before | False | 193.1 | 652.2 | 30 | 32 | 32.6 | 0 |
+| new-768 | a | False | 149.7 | 0 | 30 | 32 | 32.6 | 695.6 |
+| new-768 | b | False | 149.7 | 0 | 30 | 32 | 32.6 | 695.6 |
+| short-768 | before | False | 193.1 | 33.9 | 30 | 32 | 32.6 | 0 |
+| short-768 | a | False | 149.7 | 0 | 30 | 32 | 32.6 | 72.4 |
+| short-768 | b | False | 149.7 | 0 | 30 | 32 | 32.6 | 72.4 |
+| c3200-768 | before | False | 193.1 | 0.2 | 30 | 32 | 32.6 | 0 |
+| c3200-768 | a | False | 149.7 | 0 | 30 | 32 | 32.6 | -0.2 |
+| c3200-768 | b | False | 149.7 | 0 | 30 | 32 | 32.6 | -0.1 |
+| c5200-768 | before | False | 193.1 | 0 | 30 | 32 | 32.6 | -0.1 |
+| c5200-768 | a | False | 149.7 | 0 | 30 | 32 | 32.6 | 0 |
+| c5200-768 | b | False | 149.7 | 0.1 | 30 | 32 | 32.6 | 0 |
+| rich-768 | before | False | 193.1 | 0 | 30 | 32 | 32.6 | -0.2 |
+| rich-768 | a | False | 149.7 | 0.4 | 30 | 32 | 32.6 | 0 |
+| rich-768 | b | False | 149.7 | 0.4 | 30 | 32 | 32.6 | 0 |
+| long-768 | before | False | 193.1 | 0.1 | 30 | 32 | 32.6 | 0 |
+| long-768 | a | False | 149.7 | 0.4 | 30 | 32 | 32.6 | 0 |
+| long-768 | b | False | 149.7 | 0 | 30 | 32 | 32.6 | -0.5 |
+| adult-768 | before | False | None | None | None | None | None | None |
+| adult-768 | a | False | None | None | None | None | None | None |
+| adult-768 | b | False | None | None | None | None | None | None |
+| table-768 | before | False | 193.1 | 0 | 30 | 32 | 32.6 | -0.2 |
+| table-768 | a | False | 149.7 | 0.4 | 30 | 32 | 32.6 | 0 |
+| table-768 | b | False | 149.7 | 0.4 | 30 | 32 | 32.6 | 0 |
+| failed-768 | before | False | 193.1 | 0 | 30 | 32 | 32.6 | -0.1 |
+| failed-768 | a | False | 149.7 | 0 | 30 | 32 | 32.6 | -0.4 |
+| failed-768 | b | False | 149.7 | 0 | 30 | 32 | 32.6 | -0.4 |
+| new-1024 | before | False | 193.1 | 428.2 | 30 | 32 | 32.6 | 0 |
+| new-1024 | a | False | 141.9 | 0 | 30 | 32 | 40.2 | 508.3 |
+| new-1024 | b | False | 141.9 | 0 | 30 | 32 | 40.2 | 508.3 |
+| short-1024 | before | False | 193.1 | 0 | 30 | 32 | 32.6 | -0.1 |
+| short-1024 | a | False | 141.9 | 0 | 30 | 32 | 40.2 | 0.6 |
+| short-1024 | b | False | 141.9 | 0 | 30 | 32 | 40.2 | 0.6 |
+| c3200-1024 | before | False | 193.1 | 0.2 | 30 | 32 | 32.6 | 0 |
+| c3200-1024 | a | False | 141.9 | 0 | 30 | 32 | 40.2 | -0.5 |
+| c3200-1024 | b | False | 141.9 | 0 | 30 | 32 | 40.2 | -0.4 |
+| c5200-1024 | before | False | 193.1 | 0 | 30 | 32 | 32.6 | -0.1 |
+| c5200-1024 | a | False | 141.9 | 0 | 30 | 32 | 40.2 | -0.5 |
+| c5200-1024 | b | False | 141.9 | 0 | 30 | 32 | 40.2 | -0.3 |
+| rich-1024 | before | False | 193.1 | 0 | 30 | 32 | 32.6 | -0.2 |
+| rich-1024 | a | False | 141.9 | 0.5 | 30 | 32 | 40.2 | 0 |
+| rich-1024 | b | False | 141.9 | 0.5 | 30 | 32 | 40.2 | 0 |
+| long-1024 | before | False | 193.1 | 0.1 | 30 | 32 | 32.6 | 0 |
+| long-1024 | a | False | 141.9 | 0.5 | 30 | 32 | 40.2 | 0 |
+| long-1024 | b | False | 141.9 | 0 | 30 | 32 | 40.2 | -0.1 |
+| adult-1024 | before | False | None | None | None | None | None | None |
+| adult-1024 | a | False | None | None | None | None | None | None |
+| adult-1024 | b | False | None | None | None | None | None | None |
+| table-1024 | before | False | 193.1 | 0 | 30 | 32 | 32.6 | -0.2 |
+| table-1024 | a | False | 141.9 | 0.4 | 30 | 32 | 40.2 | 0 |
+| table-1024 | b | False | 141.9 | 0.4 | 30 | 32 | 40.2 | 0 |
+| failed-1024 | before | False | 193.1 | 0 | 30 | 32 | 32.6 | -0.1 |
+| failed-1024 | a | False | 141.9 | 0.2 | 30 | 32 | 40.2 | 0 |
+| failed-1024 | b | False | 141.9 | 0.2 | 30 | 32 | 40.2 | 0 |
+| new-1440 | before | False | 157.1 | 593.1 | 30 | 32 | 61.9 | 0 |
+| new-1440 | a | False | 141.9 | 0 | 30 | 32 | 61.9 | 608.3 |
+| new-1440 | b | False | 141.9 | 0 | 30 | 32 | 61.9 | 608.3 |
+| short-1440 | before | False | 157.1 | 175 | 30 | 32 | 61.9 | 0 |
+| short-1440 | a | False | 141.9 | 0 | 30 | 32 | 61.9 | 214.2 |
+| short-1440 | b | False | 141.9 | 0 | 30 | 32 | 61.9 | 214.2 |
+| c3200-1440 | before | False | 157.1 | 0 | 30 | 32 | 61.9 | 0 |
+| c3200-1440 | a | False | 141.9 | 0.2 | 30 | 32 | 61.9 | 0 |
+| c3200-1440 | b | False | 141.9 | 0.3 | 30 | 32 | 61.9 | 0 |
+| c5200-1440 | before | False | 157.1 | 0 | 30 | 32 | 61.9 | -0.5 |
+| c5200-1440 | a | False | 141.9 | 0 | 30 | 32 | 61.9 | -0.3 |
+| c5200-1440 | b | False | 141.9 | 0 | 30 | 32 | 61.9 | -0.2 |
+| rich-1440 | before | False | 157.1 | 0 | 30 | 32 | 61.9 | -0.5 |
+| rich-1440 | a | False | 141.9 | 0 | 30 | 32 | 61.9 | -0.3 |
+| rich-1440 | b | False | 141.9 | 0 | 30 | 32 | 61.9 | -0.3 |
+| long-1440 | before | False | 157.1 | 0 | 30 | 32 | 61.9 | 0 |
+| long-1440 | a | False | 141.9 | 0.2 | 30 | 32 | 61.9 | 0 |
+| long-1440 | b | False | 141.9 | 0.3 | 30 | 32 | 61.9 | 0 |
+| adult-1440 | before | False | None | None | None | None | None | None |
+| adult-1440 | a | False | None | None | None | None | None | None |
+| adult-1440 | b | False | None | None | None | None | None | None |
+| table-1440 | before | False | 157.1 | 13.5 | 30 | 32 | 61.9 | 0 |
+| table-1440 | a | False | 141.9 | 0 | 30 | 32 | 61.9 | 52.7 |
+| table-1440 | b | False | 141.9 | 0 | 30 | 32 | 61.9 | 52.7 |
+| failed-1440 | before | False | 157.1 | 0 | 30 | 32 | 61.9 | -0.2 |
+| failed-1440 | a | False | 141.9 | 0 | 30 | 32 | 61.9 | 0 |
+| failed-1440 | b | False | 141.9 | 0 | 30 | 32 | 61.9 | 0 |
+
+before issues: [('new-360', 'dock-gap 448.3'), ('new-390', 'dock-gap 492.3'), ('short-390', 'dock-gap 78.8'), ('new-576', 'dock-gap 556.3'), ('short-576', 'dock-gap 102.8'), ('new-768', 'dock-gap 652.2'), ('short-768', 'dock-gap 33.9'), ('new-1024', 'dock-gap 428.2'), ('new-1440', 'dock-gap 593.1'), ('short-1440', 'dock-gap 175'), ('table-1440', 'dock-gap 13.5')]
+a issues: []
+b issues: []
+
+### States
+dock-hidden-360 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=68
+dock-hidden-360 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+dock-hidden-360 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=67.6
+dock-shown-360 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=68
+dock-shown-360 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+dock-shown-360 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=67.6
+dock-hidden-390 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=68
+dock-hidden-390 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=67.9
+dock-hidden-390 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+dock-shown-390 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=68
+dock-shown-390 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=67.9
+dock-shown-390 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+dock-hidden-576 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=52
+dock-hidden-576 | a | ovf=False | dockH=135.5 | sendH=30 | selTrunc=False | gapToDock=52
+dock-hidden-576 | b | ovf=False | dockH=135.5 | sendH=30 | selTrunc=False | gapToDock=52
+dock-shown-576 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=52
+dock-shown-576 | a | ovf=False | dockH=135.5 | sendH=30 | selTrunc=False | gapToDock=52
+dock-shown-576 | b | ovf=False | dockH=135.5 | sendH=30 | selTrunc=False | gapToDock=52
+dock-hidden-768 | before | ovf=False | dockH=193.1 | sendH=30 | selTrunc=False | gapToDock=0
+dock-hidden-768 | a | ovf=False | dockH=149.7 | sendH=30 | selTrunc=False | gapToDock=-0.2
+dock-hidden-768 | b | ovf=False | dockH=149.7 | sendH=30 | selTrunc=False | gapToDock=-0.1
+dock-shown-768 | before | ovf=False | dockH=193.1 | sendH=30 | selTrunc=False | gapToDock=0
+dock-shown-768 | a | ovf=False | dockH=149.7 | sendH=30 | selTrunc=False | gapToDock=-0.2
+dock-shown-768 | b | ovf=False | dockH=149.7 | sendH=30 | selTrunc=False | gapToDock=-0.1
+dock-hidden-1440 | before | ovf=False | dockH=157.1 | sendH=30 | selTrunc=False | gapToDock=0
+dock-hidden-1440 | a | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=0
+dock-hidden-1440 | b | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=0
+dock-shown-1440 | before | ovf=False | dockH=157.1 | sendH=30 | selTrunc=False | gapToDock=0
+dock-shown-1440 | a | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=0
+dock-shown-1440 | b | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=0
+longinput-360 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=68
+longinput-360 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=67.7
+longinput-360 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=67.7
+longinput-390 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=68
+longinput-390 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=117
+longinput-390 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=93
+longinput-1440 | before | ovf=False | dockH=157.1 | sendH=30 | selTrunc=False | gapToDock=0
+longinput-1440 | a | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=214.2
+longinput-1440 | b | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=214.2
+locked-390 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=554.8
+locked-390 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=547
+locked-390 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=547
+locked-1440 | before | ovf=False | dockH=157.1 | sendH=30 | selTrunc=False | gapToDock=556
+locked-1440 | a | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=532.2
+locked-1440 | b | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=532.2
+kb-closed-short | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=68
+kb-closed-short | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=117
+kb-closed-short | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=93
+kb-open-short | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=67.8
+kb-open-short | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+kb-open-short | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+kb-closed-c5200 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=68
+kb-closed-c5200 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+kb-closed-c5200 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=67.6
+kb-open-c5200 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=68
+kb-open-c5200 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+kb-open-c5200 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=67.6
+fail-390 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=91.8
+fail-390 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=92
+fail-390 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=92
+fail-1440 | before | ovf=False | dockH=157.1 | sendH=30 | selTrunc=False | gapToDock=28
+fail-1440 | a | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=35.3
+fail-1440 | b | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=35.3
+font-small-390 | before | ovf=False | dockH=142.6 | sendH=30 | selTrunc=False | gapToDock=68
+font-small-390 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=67.6
+font-small-390 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=67.8
+font-medium-390 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=68
+font-medium-390 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=67.9
+font-medium-390 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+font-large-390 | before | ovf=False | dockH=158.4 | sendH=30 | selTrunc=False | gapToDock=68
+font-large-390 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+font-large-390 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+font-xlarge-390 | before | ovf=False | dockH=167 | sendH=30 | selTrunc=False | gapToDock=68
+font-xlarge-390 | a | ovf=False | dockH=155.6 | sendH=40 | selTrunc=False | gapToDock=68
+font-xlarge-390 | b | ovf=False | dockH=155.6 | sendH=40 | selTrunc=False | gapToDock=67.9
+font-small-1440 | before | ovf=False | dockH=148 | sendH=30 | selTrunc=False | gapToDock=-0.2
+font-small-1440 | a | ovf=False | dockH=133.3 | sendH=30 | selTrunc=False | gapToDock=0
+font-small-1440 | b | ovf=False | dockH=133.3 | sendH=30 | selTrunc=False | gapToDock=0
+font-medium-1440 | before | ovf=False | dockH=157.1 | sendH=30 | selTrunc=False | gapToDock=0
+font-medium-1440 | a | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=0
+font-medium-1440 | b | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=0
+font-large-1440 | before | ovf=False | dockH=166.6 | sendH=30 | selTrunc=False | gapToDock=-0.5
+font-large-1440 | a | ovf=False | dockH=150.9 | sendH=30 | selTrunc=False | gapToDock=0
+font-large-1440 | b | ovf=False | dockH=150.9 | sendH=30 | selTrunc=False | gapToDock=0
+font-xlarge-1440 | before | ovf=False | dockH=176.4 | sendH=30 | selTrunc=False | gapToDock=-0.1
+font-xlarge-1440 | a | ovf=False | dockH=160.3 | sendH=30 | selTrunc=False | gapToDock=-0.2
+font-xlarge-1440 | b | ovf=False | dockH=160.3 | sendH=30 | selTrunc=False | gapToDock=-0.2
+mode-left-390 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=68
+mode-left-390 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+mode-left-390 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=68
+mode-inline-390 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=52
+mode-inline-390 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=52
+mode-inline-390 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=52
+mode-off-390 | before | ovf=False | dockH=150.2 | sendH=30 | selTrunc=False | gapToDock=51.7
+mode-off-390 | a | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=51.8
+mode-off-390 | b | ovf=False | dockH=149 | sendH=40 | selTrunc=False | gapToDock=51.8
+mode-left-768 | before | ovf=False | dockH=193.1 | sendH=30 | selTrunc=False | gapToDock=-0.2
+mode-left-768 | a | ovf=False | dockH=149.7 | sendH=30 | selTrunc=False | gapToDock=0
+mode-left-768 | b | ovf=False | dockH=149.7 | sendH=30 | selTrunc=False | gapToDock=0
+mode-inline-768 | before | ovf=False | dockH=155.1 | sendH=30 | selTrunc=False | gapToDock=0
+mode-inline-768 | a | ovf=False | dockH=139.9 | sendH=30 | selTrunc=False | gapToDock=-0.5
+mode-inline-768 | b | ovf=False | dockH=139.9 | sendH=30 | selTrunc=False | gapToDock=-0.5
+mode-off-768 | before | ovf=False | dockH=155.1 | sendH=30 | selTrunc=False | gapToDock=0
+mode-off-768 | a | ovf=False | dockH=139.9 | sendH=30 | selTrunc=False | gapToDock=0
+mode-off-768 | b | ovf=False | dockH=139.9 | sendH=30 | selTrunc=False | gapToDock=0
+mode-left-1440 | before | ovf=False | dockH=157.1 | sendH=30 | selTrunc=False | gapToDock=-0.5
+mode-left-1440 | a | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=-0.3
+mode-left-1440 | b | ovf=False | dockH=141.9 | sendH=30 | selTrunc=False | gapToDock=-0.3
+mode-inline-1440 | before | ovf=False | dockH=155.1 | sendH=30 | selTrunc=False | gapToDock=0
+mode-inline-1440 | a | ovf=False | dockH=139.9 | sendH=30 | selTrunc=False | gapToDock=-0.5
+mode-inline-1440 | b | ovf=False | dockH=139.9 | sendH=30 | selTrunc=False | gapToDock=-0.5
+mode-off-1440 | before | ovf=False | dockH=155.1 | sendH=30 | selTrunc=False | gapToDock=0
+mode-off-1440 | a | ovf=False | dockH=139.9 | sendH=30 | selTrunc=False | gapToDock=-0.5
+mode-off-1440 | b | ovf=False | dockH=139.9 | sendH=30 | selTrunc=False | gapToDock=-0.5
+
+stream 390 before {"y0": 5, "y1": 5, "stayed": true, "attr": "true"} [(500, 'true', 118), (1500, 'true', 79), (3000, 'true', 56), (6000, 'true', 38)]
+stream 390 a {"y0": 4, "y1": 4, "stayed": true, "attr": "true"} [(500, 'true', 116), (1500, 'true', 79), (3000, 'true', 37), (6000, 'true', 42)]
+stream 390 b {"y0": 4, "y1": 4, "stayed": true, "attr": "true"} [(500, 'true', 102), (1500, 'true', 74), (3000, 'true', 38), (6000, 'true', 40)]
+stream 1440 before {"y0": 5, "y1": 5, "stayed": true, "attr": "true"} [(500, 'true', 130), (1500, 'true', 99), (3000, 'true', 86), (6000, 'true', 54)]
+stream 1440 a {"y0": 4, "y1": 4, "stayed": true, "attr": "true"} [(500, 'true', 167), (1500, 'true', 98), (3000, 'true', 87), (6000, 'true', 83)]
+stream 1440 b {"y0": 4, "y1": 4, "stayed": true, "attr": "true"} [(500, 'true', 167), (1500, 'true', 104), (3000, 'true', 102), (6000, 'true', 93)]

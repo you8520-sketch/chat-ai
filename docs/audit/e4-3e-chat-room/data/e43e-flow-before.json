@@ -1,0 +1,185 @@
+[
+ {
+  "name": "send-button-390",
+  "pass": true,
+  "detail": {
+   "posts": 1
+  }
+ },
+ {
+  "name": "ctrl-enter-390",
+  "pass": true,
+  "detail": null
+ },
+ {
+  "name": "continue-390",
+  "pass": true,
+  "detail": {
+   "body": "{\"characterId\":16,\"chatId\":12,\"isContinue\":true,\"clientRequestId\":\"cr_mv5osx1p_0wigkb1o\",\"selectedAI\":\"gemini-3.8-flash\""
+  }
+ },
+ {
+  "name": "draft-recovery-390",
+  "pass": true,
+  "detail": {
+   "restored": "복구될 초안 문장"
+  }
+ },
+ {
+  "name": "regenerate-confirm-390",
+  "pass": true,
+  "detail": null
+ },
+ {
+  "name": "edit-mode-390",
+  "pass": true,
+  "detail": null
+ },
+ {
+  "name": "toolbar-targets-390",
+  "pass": true,
+  "detail": {
+   "toolbars": 2,
+   "last": [
+    "재생성",
+    "수정",
+    "턴 삭제",
+    "분기 생성",
+    "북마크",
+    "이미지 생성",
+    "포인트 차감 상태"
+   ]
+  }
+ },
+ {
+  "name": "suggest-switch-390",
+  "pass": false,
+  "detail": "locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('[role=\"switch\"]').first()\n    - locator resolved to <button type=\"button\" role=\"switch\" aria-checked=\"true\" aria-label=\"추천 메시지\" class=\"shrink-0 rounded-md border px-1.5 py-1 text-[11px] font-semibold transition border-violet-400/50 bg-violet-500/15 text-violet-200\">추천 켜짐</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <button type=\"button\" aria-pressed=\"false\" aria-label=\"성인인증 후 성인모드를 사용할 수 있습니다\" class=\"relative h-4 w-7 shrink-0 rounded-full transition-colors disabled:opacity-40 bg-zinc-700\">…</button> from <label class=\"flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-zinc-400 sm:flex-none\">…</label> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <button type=\"button\" aria-pressed=\"false\" aria-label=\"성인인증 후 성인모드를 사용할 수 있습니다\" "
+ },
+ {
+  "name": "model-select-390",
+  "pass": true,
+  "detail": {
+   "label": "Gemini 3.8 Flash · 약 38P"
+  }
+ },
+ {
+  "name": "scroll-detach-follow-390",
+  "pass": true,
+  "detail": {
+   "up": 4568
+  }
+ },
+ {
+  "name": "send-button-1440",
+  "pass": true,
+  "detail": {
+   "posts": 1
+  }
+ },
+ {
+  "name": "ctrl-enter-1440",
+  "pass": true,
+  "detail": null
+ },
+ {
+  "name": "continue-1440",
+  "pass": true,
+  "detail": {
+   "body": "{\"characterId\":16,\"chatId\":12,\"isContinue\":true,\"clientRequestId\":\"cr_mv5ouexn_vtaetl7z\",\"selectedAI\":\"gemini-3.8-flash\""
+  }
+ },
+ {
+  "name": "draft-recovery-1440",
+  "pass": true,
+  "detail": {
+   "restored": "복구될 초안 문장"
+  }
+ },
+ {
+  "name": "regenerate-confirm-1440",
+  "pass": true,
+  "detail": null
+ },
+ {
+  "name": "edit-mode-1440",
+  "pass": true,
+  "detail": null
+ },
+ {
+  "name": "toolbar-targets-1440",
+  "pass": true,
+  "detail": {
+   "toolbars": 2,
+   "last": [
+    "재생성",
+    "수정",
+    "턴 삭제",
+    "분기 생성",
+    "북마크",
+    "이미지 생성",
+    "포인트 차감 상태"
+   ]
+  }
+ },
+ {
+  "name": "suggest-switch-1440",
+  "pass": true,
+  "detail": {
+   "v0": "true",
+   "v1": "false"
+  }
+ },
+ {
+  "name": "model-select-1440",
+  "pass": true,
+  "detail": {
+   "label": "Gemini 3.8 Flash · 약 38P"
+  }
+ },
+ {
+  "name": "scroll-detach-follow-1440",
+  "pass": true,
+  "detail": {
+   "up": 3773
+  }
+ },
+ {
+  "name": "rich-parity",
+  "pass": true,
+  "detail": {
+   "rich": {
+    "imgs": 1,
+    "tables": 0,
+    "widgets": 0,
+    "articles": 2,
+    "paragraphs": 8,
+    "textLen": 835
+   },
+   "table": {
+    "imgs": 0,
+    "tables": 0,
+    "widgets": 0,
+    "articles": 2,
+    "paragraphs": 5,
+    "textLen": 619
+   }
+  }
+ },
+ {
+  "name": "adult-toggle-admin",
+  "pass": true,
+  "detail": {
+   "v0": "false",
+   "v1": "true",
+   "v2": "false"
+  }
+ },
+ {
+  "name": "adult-blocked-minor",
+  "pass": true,
+  "detail": {
+   "url": "/verify"
+  }
+ }
+]

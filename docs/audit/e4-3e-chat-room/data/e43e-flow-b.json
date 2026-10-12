@@ -1,0 +1,188 @@
+[
+ {
+  "name": "send-button-390",
+  "pass": true,
+  "detail": {
+   "posts": 1
+  }
+ },
+ {
+  "name": "ctrl-enter-390",
+  "pass": true,
+  "detail": null
+ },
+ {
+  "name": "continue-390",
+  "pass": true,
+  "detail": {
+   "body": "{\"characterId\":16,\"chatId\":12,\"isContinue\":true,\"clientRequestId\":\"cr_mv5oxj6m_u83hoadt\",\"selectedAI\":\"gemini-3.8-flash\""
+  }
+ },
+ {
+  "name": "draft-recovery-390",
+  "pass": true,
+  "detail": {
+   "restored": "복구될 초안 문장"
+  }
+ },
+ {
+  "name": "regenerate-confirm-390",
+  "pass": true,
+  "detail": null
+ },
+ {
+  "name": "edit-mode-390",
+  "pass": true,
+  "detail": null
+ },
+ {
+  "name": "toolbar-targets-390",
+  "pass": true,
+  "detail": {
+   "toolbars": 2,
+   "last": [
+    "재생성",
+    "수정",
+    "턴 삭제",
+    "분기 생성",
+    "북마크",
+    "이미지 생성",
+    "포인트 차감 상태"
+   ]
+  }
+ },
+ {
+  "name": "suggest-switch-390",
+  "pass": true,
+  "detail": {
+   "v0": "true",
+   "v1": "false"
+  }
+ },
+ {
+  "name": "model-select-390",
+  "pass": true,
+  "detail": {
+   "label": "Gemini 3.8 Flash · 약 38P"
+  }
+ },
+ {
+  "name": "scroll-detach-follow-390",
+  "pass": true,
+  "detail": {
+   "up": 4770
+  }
+ },
+ {
+  "name": "send-button-1440",
+  "pass": true,
+  "detail": {
+   "posts": 1
+  }
+ },
+ {
+  "name": "ctrl-enter-1440",
+  "pass": true,
+  "detail": null
+ },
+ {
+  "name": "continue-1440",
+  "pass": true,
+  "detail": {
+   "body": "{\"characterId\":16,\"chatId\":12,\"isContinue\":true,\"clientRequestId\":\"cr_mv5oye8h_6j3bikuj\",\"selectedAI\":\"gemini-3.8-flash\""
+  }
+ },
+ {
+  "name": "draft-recovery-1440",
+  "pass": true,
+  "detail": {
+   "restored": "복구될 초안 문장"
+  }
+ },
+ {
+  "name": "regenerate-confirm-1440",
+  "pass": true,
+  "detail": null
+ },
+ {
+  "name": "edit-mode-1440",
+  "pass": true,
+  "detail": null
+ },
+ {
+  "name": "toolbar-targets-1440",
+  "pass": true,
+  "detail": {
+   "toolbars": 2,
+   "last": [
+    "재생성",
+    "수정",
+    "턴 삭제",
+    "분기 생성",
+    "북마크",
+    "이미지 생성",
+    "포인트 차감 상태"
+   ]
+  }
+ },
+ {
+  "name": "suggest-switch-1440",
+  "pass": true,
+  "detail": {
+   "v0": "true",
+   "v1": "false"
+  }
+ },
+ {
+  "name": "model-select-1440",
+  "pass": true,
+  "detail": {
+   "label": "Gemini 3.8 Flash · 약 38P"
+  }
+ },
+ {
+  "name": "scroll-detach-follow-1440",
+  "pass": true,
+  "detail": {
+   "up": 3761
+  }
+ },
+ {
+  "name": "rich-parity",
+  "pass": true,
+  "detail": {
+   "rich": {
+    "imgs": 1,
+    "tables": 0,
+    "widgets": 0,
+    "articles": 2,
+    "paragraphs": 8,
+    "textLen": 835
+   },
+   "table": {
+    "imgs": 0,
+    "tables": 0,
+    "widgets": 0,
+    "articles": 2,
+    "paragraphs": 5,
+    "textLen": 619
+   }
+  }
+ },
+ {
+  "name": "adult-toggle-admin",
+  "pass": true,
+  "detail": {
+   "v0": "false",
+   "v1": "true",
+   "v2": "false"
+  }
+ },
+ {
+  "name": "adult-blocked-minor",
+  "pass": true,
+  "detail": {
+   "url": "/verify"
+  }
+ }
+]

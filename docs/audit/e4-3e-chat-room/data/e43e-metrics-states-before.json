@@ -1,0 +1,9415 @@
+{
+ "dock-hidden-360": {
+  "vw": 360,
+  "vh": 800,
+  "scrollY": 3677,
+  "docH": 4477,
+  "hOverflow": false,
+  "docScrollW": 360,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 649.6,
+   "w": 360,
+   "h": 150.2,
+   "r": 360,
+   "b": 799.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 704.5,
+   "w": 230.3,
+   "h": 74.8,
+   "r": 238.3,
+   "b": 779.3
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 686.8,
+   "w": 344,
+   "h": 13.8,
+   "r": 352,
+   "b": 700.5
+  },
+  "select": {
+   "x": 25.9,
+   "y": 651.2,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 678.2
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 244.3,
+   "y": 738.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 352,
+   "b": 768.5,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 244.3,
+   "y": 704.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 352,
+   "b": 734.5,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 291.1,
+   "y": 650.6,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 352,
+   "b": 678.8,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -3293.4,
+   "w": 340,
+   "h": 3875,
+   "r": 352,
+   "b": 581.6
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": -3293.4,
+   "w": 340,
+   "h": 3843,
+   "r": 352,
+   "b": 549.6
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 36.6,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 6,
+   "charsPerLine": 24.7,
+   "widthPx": 340
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -3523.5,
+   "w": 340,
+   "h": 210.1,
+   "r": 352,
+   "b": -3313.4
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 360,
+   "h": 800,
+   "r": 360,
+   "b": 800
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 360,
+   "h": 53,
+   "r": 360,
+   "b": 53
+  }
+ },
+ "dock-shown-360": {
+  "vw": 360,
+  "vh": 800,
+  "scrollY": 3677,
+  "docH": 4477,
+  "hOverflow": false,
+  "docScrollW": 360,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 649.6,
+   "w": 360,
+   "h": 150.2,
+   "r": 360,
+   "b": 799.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 704.5,
+   "w": 230.3,
+   "h": 74.8,
+   "r": 238.3,
+   "b": 779.3
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 686.8,
+   "w": 344,
+   "h": 13.8,
+   "r": 352,
+   "b": 700.5
+  },
+  "select": {
+   "x": 25.9,
+   "y": 651.2,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 678.2
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 14P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 244.3,
+   "y": 738.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 352,
+   "b": 768.5,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 244.3,
+   "y": 704.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 352,
+   "b": 734.5,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 291.1,
+   "y": 650.6,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 352,
+   "b": 678.8,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -3293.4,
+   "w": 340,
+   "h": 3875,
+   "r": 352,
+   "b": 581.6
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": -3293.4,
+   "w": 340,
+   "h": 3843,
+   "r": 352,
+   "b": 549.6
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 36.6,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 6,
+   "charsPerLine": 24.7,
+   "widthPx": 340
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -3523.5,
+   "w": 340,
+   "h": 210.1,
+   "r": 352,
+   "b": -3313.4
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 360,
+   "h": 800,
+   "r": 360,
+   "b": 800
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 360,
+   "h": 53,
+   "r": 360,
+   "b": 53
+  }
+ },
+ "dock-hidden-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 3435,
+  "docH": 4279,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 693.6,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 843.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 748.5,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 823.3
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 730.8,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 744.5
+  },
+  "select": {
+   "x": 25.9,
+   "y": 695.2,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 722.2
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 782.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 812.5,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 748.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 778.5,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 694.6,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 722.8,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -3051.4,
+   "w": 370,
+   "h": 3677,
+   "r": 382,
+   "b": 625.6
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": -3051.4,
+   "w": 370,
+   "h": 3645,
+   "r": 382,
+   "b": 593.6
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 5,
+   "charsPerLine": 29.6,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -3281.5,
+   "w": 370,
+   "h": 210.1,
+   "r": 382,
+   "b": -3071.4
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "r": 390,
+   "b": 844
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "dock-shown-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 3435,
+  "docH": 4279,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 693.6,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 843.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 748.5,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 823.3
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 730.8,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 744.5
+  },
+  "select": {
+   "x": 25.9,
+   "y": 695.2,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 722.2
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 14P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 782.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 812.5,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 748.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 778.5,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 694.6,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 722.8,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -3051.4,
+   "w": 370,
+   "h": 3677,
+   "r": 382,
+   "b": 625.6
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": -3051.4,
+   "w": 370,
+   "h": 3645,
+   "r": 382,
+   "b": 593.6
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 5,
+   "charsPerLine": 29.6,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -3281.5,
+   "w": 370,
+   "h": 210.1,
+   "r": 382,
+   "b": -3071.4
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "r": 390,
+   "b": 844
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "dock-hidden-576": {
+  "vw": 576,
+  "vh": 900,
+  "scrollY": 3411,
+  "docH": 4311,
+  "hOverflow": false,
+  "docScrollW": 561,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 84,
+   "y": 749.6,
+   "w": 389,
+   "h": 150.2,
+   "r": 473,
+   "b": 899.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 92,
+   "y": 804.5,
+   "w": 259.3,
+   "h": 74.8,
+   "r": 351.3,
+   "b": 879.3
+  },
+  "estimateNote": {
+   "x": 92,
+   "y": 786.8,
+   "w": 373,
+   "h": 13.8,
+   "r": 465,
+   "b": 800.5
+  },
+  "select": {
+   "x": 109.9,
+   "y": 751.2,
+   "w": 238,
+   "h": 27,
+   "r": 347.9,
+   "b": 778.2
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 357.3,
+   "y": 838.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 465,
+   "b": 868.5,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 357.3,
+   "y": 804.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 465,
+   "b": 834.5,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 404.1,
+   "y": 750.6,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 465,
+   "b": 778.8,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 96,
+   "y": -2979.4,
+   "w": 369,
+   "h": 3677,
+   "r": 465,
+   "b": 697.6
+  },
+  "lastArtBottomVsDockTop": 52,
+  "body": {
+   "x": 96,
+   "y": -2979.4,
+   "w": 369,
+   "h": 3645,
+   "r": 465,
+   "b": 665.6
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.7,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 5,
+   "charsPerLine": 29.6,
+   "widthPx": 369
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 96,
+   "y": -3229.5,
+   "w": 369,
+   "h": 210.1,
+   "r": 465,
+   "b": -3019.4
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  },
+  "msgColumn": {
+   "x": 84,
+   "y": -3359,
+   "w": 389,
+   "h": 4258.8,
+   "r": 473,
+   "b": 899.8
+  },
+  "focusable": 35,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "dock-shown-576": {
+  "vw": 576,
+  "vh": 900,
+  "scrollY": 3411,
+  "docH": 4311,
+  "hOverflow": false,
+  "docScrollW": 561,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 84,
+   "y": 749.6,
+   "w": 389,
+   "h": 150.2,
+   "r": 473,
+   "b": 899.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 92,
+   "y": 804.5,
+   "w": 259.3,
+   "h": 74.8,
+   "r": 351.3,
+   "b": 879.3
+  },
+  "estimateNote": {
+   "x": 92,
+   "y": 786.8,
+   "w": 373,
+   "h": 13.8,
+   "r": 465,
+   "b": 800.5
+  },
+  "select": {
+   "x": 109.9,
+   "y": 751.2,
+   "w": 238,
+   "h": 27,
+   "r": 347.9,
+   "b": 778.2
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 14P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 357.3,
+   "y": 838.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 465,
+   "b": 868.5,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 357.3,
+   "y": 804.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 465,
+   "b": 834.5,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 404.1,
+   "y": 750.6,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 465,
+   "b": 778.8,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 96,
+   "y": -2979.4,
+   "w": 369,
+   "h": 3677,
+   "r": 465,
+   "b": 697.6
+  },
+  "lastArtBottomVsDockTop": 52,
+  "body": {
+   "x": 96,
+   "y": -2979.4,
+   "w": 369,
+   "h": 3645,
+   "r": 465,
+   "b": 665.6
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.7,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 5,
+   "charsPerLine": 29.6,
+   "widthPx": 369
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 96,
+   "y": -3229.5,
+   "w": 369,
+   "h": 210.1,
+   "r": 465,
+   "b": -3019.4
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  },
+  "msgColumn": {
+   "x": 84,
+   "y": -3359,
+   "w": 389,
+   "h": 4258.8,
+   "r": 473,
+   "b": 899.8
+  },
+  "focusable": 35,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "dock-hidden-768": {
+  "vw": 768,
+  "vh": 1024,
+  "scrollY": 4682,
+  "docH": 5706,
+  "hOverflow": false,
+  "docScrollW": 753,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 351.1,
+   "y": 830.7,
+   "w": 356,
+   "h": 193.1,
+   "r": 707.1,
+   "b": 1023.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 351.1,
+   "y": 922.1,
+   "w": 242.3,
+   "h": 79.2,
+   "r": 593.4,
+   "b": 1001.3
+  },
+  "estimateNote": {
+   "x": 351.1,
+   "y": 904.4,
+   "w": 356,
+   "h": 13.8,
+   "r": 707.1,
+   "b": 918.1
+  },
+  "select": {
+   "x": 369,
+   "y": 832.2,
+   "w": 238,
+   "h": 27,
+   "r": 607,
+   "b": 859.2
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 599.4,
+   "y": 956.1,
+   "w": 107.7,
+   "h": 30,
+   "r": 707.1,
+   "b": 986.1,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 599.4,
+   "y": 922.1,
+   "w": 107.7,
+   "h": 30,
+   "r": 707.1,
+   "b": 952.1,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 351.1,
+   "y": 867.7,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 412,
+   "b": 896.4,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 359.1,
+   "y": -4155.5,
+   "w": 344,
+   "h": 4986.1,
+   "r": 703.1,
+   "b": 830.7
+  },
+  "lastArtBottomVsDockTop": 0,
+  "body": {
+   "x": 359.1,
+   "y": -4155.5,
+   "w": 344,
+   "h": 4954.1,
+   "r": 703.1,
+   "b": 798.7
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 32.6,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 6,
+   "charsPerLine": 24.7,
+   "widthPx": 344
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 359.1,
+   "y": -4463.3,
+   "w": 344,
+   "h": 267.9,
+   "r": 703.1,
+   "b": -4195.5
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 53.9,
+   "y": 51.8,
+   "w": 213,
+   "h": 972,
+   "r": 266.9,
+   "b": 1023.8
+  },
+  "msgColumn": {
+   "x": 351.1,
+   "y": -4630,
+   "w": 356,
+   "h": 5653.8,
+   "r": 707.1,
+   "b": 1023.8
+  },
+  "focusable": 39,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "dock-shown-768": {
+  "vw": 768,
+  "vh": 1024,
+  "scrollY": 4682,
+  "docH": 5706,
+  "hOverflow": false,
+  "docScrollW": 753,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 351.1,
+   "y": 830.7,
+   "w": 356,
+   "h": 193.1,
+   "r": 707.1,
+   "b": 1023.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 351.1,
+   "y": 922.1,
+   "w": 242.3,
+   "h": 79.2,
+   "r": 593.4,
+   "b": 1001.3
+  },
+  "estimateNote": {
+   "x": 351.1,
+   "y": 904.4,
+   "w": 356,
+   "h": 13.8,
+   "r": 707.1,
+   "b": 918.1
+  },
+  "select": {
+   "x": 369,
+   "y": 832.2,
+   "w": 238,
+   "h": 27,
+   "r": 607,
+   "b": 859.2
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 14P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 599.4,
+   "y": 956.1,
+   "w": 107.7,
+   "h": 30,
+   "r": 707.1,
+   "b": 986.1,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 599.4,
+   "y": 922.1,
+   "w": 107.7,
+   "h": 30,
+   "r": 707.1,
+   "b": 952.1,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 351.1,
+   "y": 867.7,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 412,
+   "b": 896.4,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 359.1,
+   "y": -4155.5,
+   "w": 344,
+   "h": 4986.1,
+   "r": 703.1,
+   "b": 830.7
+  },
+  "lastArtBottomVsDockTop": 0,
+  "body": {
+   "x": 359.1,
+   "y": -4155.5,
+   "w": 344,
+   "h": 4954.1,
+   "r": 703.1,
+   "b": 798.7
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 32.6,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 6,
+   "charsPerLine": 24.7,
+   "widthPx": 344
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 359.1,
+   "y": -4463.3,
+   "w": 344,
+   "h": 267.9,
+   "r": 703.1,
+   "b": -4195.5
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 53.9,
+   "y": 51.8,
+   "w": 213,
+   "h": 972,
+   "r": 266.9,
+   "b": 1023.8
+  },
+  "msgColumn": {
+   "x": 351.1,
+   "y": -4630,
+   "w": 356,
+   "h": 5653.8,
+   "r": 707.1,
+   "b": 1023.8
+  },
+  "focusable": 39,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "dock-hidden-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 2900,
+  "docH": 3800,
+  "hOverflow": false,
+  "docScrollW": 1425,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 688.2,
+   "y": 742.9,
+   "w": 664.8,
+   "h": 157.1,
+   "r": 1353,
+   "b": 900
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 688.2,
+   "y": 798.3,
+   "w": 551.1,
+   "h": 79.2,
+   "r": 1239.3,
+   "b": 877.5
+  },
+  "estimateNote": {
+   "x": 688.2,
+   "y": 780.5,
+   "w": 664.8,
+   "h": 13.8,
+   "r": 1353,
+   "b": 794.3
+  },
+  "select": {
+   "x": 706.1,
+   "y": 744.7,
+   "w": 238,
+   "h": 27,
+   "r": 944.1,
+   "b": 771.7
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 1245.3,
+   "y": 832.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 862.3,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 1245.3,
+   "y": 798.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 828.3,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 1048.1,
+   "y": 743.9,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 1109,
+   "b": 772.5,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 696.2,
+   "y": -2509.8,
+   "w": 652.8,
+   "h": 3252.7,
+   "r": 1349,
+   "b": 742.9
+  },
+  "lastArtBottomVsDockTop": 0,
+  "body": {
+   "x": 696.2,
+   "y": -2509.8,
+   "w": 652.8,
+   "h": 3220.7,
+   "r": 1349,
+   "b": 710.9
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 61.9,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 4,
+   "charsPerLine": 37,
+   "widthPx": 652.8
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 696.2,
+   "y": -2710.2,
+   "w": 652.8,
+   "h": 160.4,
+   "r": 1349,
+   "b": -2549.8
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 84,
+   "y": 52,
+   "w": 580.2,
+   "h": 848,
+   "r": 664.2,
+   "b": 900
+  },
+  "msgColumn": {
+   "x": 688.2,
+   "y": -2848,
+   "w": 664.8,
+   "h": 3748,
+   "r": 1353,
+   "b": 900
+  },
+  "focusable": 39,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "dock-shown-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 2900,
+  "docH": 3800,
+  "hOverflow": false,
+  "docScrollW": 1425,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 688.2,
+   "y": 742.9,
+   "w": 664.8,
+   "h": 157.1,
+   "r": 1353,
+   "b": 900
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 688.2,
+   "y": 798.3,
+   "w": 551.1,
+   "h": 79.2,
+   "r": 1239.3,
+   "b": 877.5
+  },
+  "estimateNote": {
+   "x": 688.2,
+   "y": 780.5,
+   "w": 664.8,
+   "h": 13.8,
+   "r": 1353,
+   "b": 794.3
+  },
+  "select": {
+   "x": 706.1,
+   "y": 744.7,
+   "w": 238,
+   "h": 27,
+   "r": 944.1,
+   "b": 771.7
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 14P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 1245.3,
+   "y": 832.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 862.3,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 1245.3,
+   "y": 798.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 828.3,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 1048.1,
+   "y": 743.9,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 1109,
+   "b": 772.5,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 696.2,
+   "y": -2509.8,
+   "w": 652.8,
+   "h": 3252.7,
+   "r": 1349,
+   "b": 742.9
+  },
+  "lastArtBottomVsDockTop": 0,
+  "body": {
+   "x": 696.2,
+   "y": -2509.8,
+   "w": 652.8,
+   "h": 3220.7,
+   "r": 1349,
+   "b": 710.9
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 61.9,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 4,
+   "charsPerLine": 37,
+   "widthPx": 652.8
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 696.2,
+   "y": -2710.2,
+   "w": 652.8,
+   "h": 160.4,
+   "r": 1349,
+   "b": -2549.8
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 84,
+   "y": 52,
+   "w": 580.2,
+   "h": 848,
+   "r": 664.2,
+   "b": 900
+  },
+  "msgColumn": {
+   "x": 688.2,
+   "y": -2848,
+   "w": 664.8,
+   "h": 3748,
+   "r": 1353,
+   "b": 900
+  },
+  "focusable": 39,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "longinput-360": {
+  "vw": 360,
+  "vh": 800,
+  "scrollY": 38,
+  "docH": 838,
+  "hOverflow": false,
+  "docScrollW": 360,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 649.5,
+   "w": 360,
+   "h": 150.2,
+   "r": 360,
+   "b": 799.7
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 704.4,
+   "w": 230.3,
+   "h": 74.8,
+   "r": 238.3,
+   "b": 779.2
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 686.7,
+   "w": 344,
+   "h": 13.8,
+   "r": 352,
+   "b": 700.4
+  },
+  "select": {
+   "x": 25.9,
+   "y": 651.1,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 678.1
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 19P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 244.3,
+   "y": 738.4,
+   "w": 107.7,
+   "h": 30,
+   "r": 352,
+   "b": 768.4,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "continue": {
+   "x": 244.3,
+   "y": 704.4,
+   "w": 107.7,
+   "h": 30,
+   "r": 352,
+   "b": 734.4,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 291.1,
+   "y": 650.5,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 352,
+   "b": 678.7,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": 207.5,
+   "w": 340,
+   "h": 374,
+   "r": 352,
+   "b": 581.5
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": 207.5,
+   "w": 340,
+   "h": 342,
+   "r": 352,
+   "b": 549.5
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 36.6,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5
+  ],
+  "paraCount": 3,
+  "longestPara": {
+   "chars": 127,
+   "lines": 5,
+   "charsPerLine": 25.4,
+   "widthPx": 340
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": 115.5,
+   "w": 340,
+   "h": 72,
+   "r": 352,
+   "b": 187.5
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 360,
+   "h": 800,
+   "r": 360,
+   "b": 800
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 360,
+   "h": 53,
+   "r": 360,
+   "b": 53
+  }
+ },
+ "longinput-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 0,
+  "docH": 844,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 615,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 765.2
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 669.9,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 744.7
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 652.2,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 665.9
+  },
+  "select": {
+   "x": 25.9,
+   "y": 616.6,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 643.6
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 19P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 703.9,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 733.9,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 669.9,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 699.9,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 616,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 644.2,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": 222.5,
+   "w": 370,
+   "h": 324.5,
+   "r": 382,
+   "b": 547
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": 222.5,
+   "w": 370,
+   "h": 292.5,
+   "r": 382,
+   "b": 515
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5
+  ],
+  "paraCount": 3,
+  "longestPara": {
+   "chars": 127,
+   "lines": 5,
+   "charsPerLine": 25.4,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": 153.5,
+   "w": 370,
+   "h": 49,
+   "r": 382,
+   "b": 202.5
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "r": 390,
+   "b": 844
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "longinput-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 0,
+  "docH": 900,
+  "hOverflow": false,
+  "docScrollW": 1425,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 688.2,
+   "y": 567.9,
+   "w": 664.8,
+   "h": 157.1,
+   "r": 1353,
+   "b": 725
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 688.2,
+   "y": 623.3,
+   "w": 551.1,
+   "h": 79.2,
+   "r": 1239.3,
+   "b": 702.5
+  },
+  "estimateNote": {
+   "x": 688.2,
+   "y": 605.6,
+   "w": 664.8,
+   "h": 13.8,
+   "r": 1353,
+   "b": 619.3
+  },
+  "select": {
+   "x": 706.1,
+   "y": 569.7,
+   "w": 238,
+   "h": 27,
+   "r": 944.1,
+   "b": 596.7
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 19P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 1245.3,
+   "y": 657.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 687.3,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "continue": {
+   "x": 1245.3,
+   "y": 623.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 653.3,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 1048.1,
+   "y": 568.9,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 1109,
+   "b": 597.6,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 696.2,
+   "y": 282.7,
+   "w": 652.8,
+   "h": 285.2,
+   "r": 1349,
+   "b": 567.9
+  },
+  "lastArtBottomVsDockTop": 0,
+  "body": {
+   "x": 696.2,
+   "y": 282.7,
+   "w": 652.8,
+   "h": 253.2,
+   "r": 1349,
+   "b": 535.9
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 61.9,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5
+  ],
+  "paraCount": 3,
+  "longestPara": {
+   "chars": 127,
+   "lines": 3,
+   "charsPerLine": 42.3,
+   "widthPx": 652.8
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 696.2,
+   "y": 189.8,
+   "w": 652.8,
+   "h": 52.9,
+   "r": 1349,
+   "b": 242.7
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 84,
+   "y": 52,
+   "w": 580.2,
+   "h": 848,
+   "r": 664.2,
+   "b": 900
+  },
+  "msgColumn": {
+   "x": 688.2,
+   "y": 52,
+   "w": 664.8,
+   "h": 673,
+   "r": 1353,
+   "b": 725
+  },
+  "focusable": 39,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "locked-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 408,
+  "docH": 1252,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 693.8,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 844
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 748.7,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 823.5
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 731,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 744.7
+  },
+  "select": {
+   "x": 25.9,
+   "y": 695.4,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 722.4
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 19P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 782.7,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 812.7,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 748.7,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 778.7,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 694.8,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 723,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -185.5,
+   "w": 370,
+   "h": 324.5,
+   "r": 382,
+   "b": 139
+  },
+  "lastArtBottomVsDockTop": 554.8,
+  "body": {
+   "x": 12,
+   "y": -185.5,
+   "w": 370,
+   "h": 292.5,
+   "r": 382,
+   "b": 107
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5
+  ],
+  "paraCount": 3,
+  "longestPara": {
+   "chars": 127,
+   "lines": 5,
+   "charsPerLine": 25.4,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -254.5,
+   "w": 370,
+   "h": 49,
+   "r": 382,
+   "b": -205.5
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "r": 390,
+   "b": 844
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 21,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "locked-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 389,
+  "docH": 1289,
+  "hOverflow": false,
+  "docScrollW": 1425,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 688.2,
+   "y": 742.9,
+   "w": 664.8,
+   "h": 157.1,
+   "r": 1353,
+   "b": 900
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 688.2,
+   "y": 798.3,
+   "w": 551.1,
+   "h": 79.2,
+   "r": 1239.3,
+   "b": 877.5
+  },
+  "estimateNote": {
+   "x": 688.2,
+   "y": 780.6,
+   "w": 664.8,
+   "h": 13.8,
+   "r": 1353,
+   "b": 794.3
+  },
+  "select": {
+   "x": 706.1,
+   "y": 744.7,
+   "w": 238,
+   "h": 27,
+   "r": 944.1,
+   "b": 771.7
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 19P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 1245.3,
+   "y": 832.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 862.3,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 1245.3,
+   "y": 798.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 828.3,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "suggest": {
+   "x": 1048.1,
+   "y": 743.9,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 1109,
+   "b": 772.6,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 696.2,
+   "y": -106.3,
+   "w": 652.8,
+   "h": 293.2,
+   "r": 1349,
+   "b": 186.9
+  },
+  "lastArtBottomVsDockTop": 556,
+  "body": {
+   "x": 696.2,
+   "y": -106.3,
+   "w": 652.8,
+   "h": 253.2,
+   "r": 1349,
+   "b": 146.9
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 61.9,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5
+  ],
+  "paraCount": 3,
+  "longestPara": {
+   "chars": 127,
+   "lines": 3,
+   "charsPerLine": 42.3,
+   "widthPx": 652.8
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 696.2,
+   "y": -199.2,
+   "w": 652.8,
+   "h": 52.9,
+   "r": 1349,
+   "b": -146.3
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 84,
+   "y": 52,
+   "w": 580.2,
+   "h": 848,
+   "r": 664.2,
+   "b": 900
+  },
+  "msgColumn": {
+   "x": 688.2,
+   "y": -337,
+   "w": 664.8,
+   "h": 1237.4,
+   "r": 1353,
+   "b": 900.4
+  },
+  "focusable": 37,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "kb-closed-short": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 0,
+  "docH": 844,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 615,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 765.2
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 669.9,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 744.7
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 652.2,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 665.9
+  },
+  "select": {
+   "x": 25.9,
+   "y": 616.6,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 643.6
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 19P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 703.9,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 733.9,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 669.9,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 699.9,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 616,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 644.2,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": 222.5,
+   "w": 370,
+   "h": 324.5,
+   "r": 382,
+   "b": 547
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": 222.5,
+   "w": 370,
+   "h": 292.5,
+   "r": 382,
+   "b": 515
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5
+  ],
+  "paraCount": 3,
+  "longestPara": {
+   "chars": 127,
+   "lines": 5,
+   "charsPerLine": 25.4,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": 153.5,
+   "w": 370,
+   "h": 49,
+   "r": 382,
+   "b": 202.5
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "r": 390,
+   "b": 844
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "kb-open-short": {
+  "vw": 390,
+  "vh": 508,
+  "scrollY": 257,
+  "docH": 765,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 357.8,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 508
+  },
+  "dockFrac": 0.3,
+  "textarea": {
+   "x": 8,
+   "y": 412.7,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 487.5
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 395,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 408.7
+  },
+  "select": {
+   "x": 25.9,
+   "y": 359.4,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 386.4
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 19P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 446.7,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 476.7,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 412.7,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 442.7,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 358.8,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 387,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -34.5,
+   "w": 370,
+   "h": 324.5,
+   "r": 382,
+   "b": 290
+  },
+  "lastArtBottomVsDockTop": 67.8,
+  "body": {
+   "x": 12,
+   "y": -34.5,
+   "w": 370,
+   "h": 292.5,
+   "r": 382,
+   "b": 258
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5
+  ],
+  "paraCount": 3,
+  "longestPara": {
+   "chars": 127,
+   "lines": 5,
+   "charsPerLine": 25.4,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -103.5,
+   "w": 370,
+   "h": 49,
+   "r": 382,
+   "b": -54.5
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 508,
+   "r": 390,
+   "b": 508
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "kb-closed-c5200": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 5768,
+  "docH": 6612,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 693.8,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 844
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 748.7,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 823.5
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 731,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 744.7
+  },
+  "select": {
+   "x": 25.9,
+   "y": 695.4,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 722.4
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 31P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 782.7,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 812.7,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 748.7,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 778.7,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 694.8,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 723,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -5384.4,
+   "w": 370,
+   "h": 6010.3,
+   "r": 382,
+   "b": 625.9
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": -5384.4,
+   "w": 370,
+   "h": 5978.3,
+   "r": 382,
+   "b": 593.9
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   15,
+   22.5
+  ],
+  "paraCount": 52,
+  "longestPara": {
+   "chars": 148,
+   "lines": 5,
+   "charsPerLine": 29.6,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -5614.5,
+   "w": 370,
+   "h": 210.1,
+   "r": 382,
+   "b": -5404.4
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "r": 390,
+   "b": 844
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "kb-open-c5200": {
+  "vw": 390,
+  "vh": 508,
+  "scrollY": 6104,
+  "docH": 6612,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 357.8,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 508
+  },
+  "dockFrac": 0.3,
+  "textarea": {
+   "x": 8,
+   "y": 412.7,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 487.5
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 395,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 408.7
+  },
+  "select": {
+   "x": 25.9,
+   "y": 359.4,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 386.4
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 31P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 446.7,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 476.7,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 412.7,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 442.7,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 358.8,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 387,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -5720.4,
+   "w": 370,
+   "h": 6010.3,
+   "r": 382,
+   "b": 289.9
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": -5720.4,
+   "w": 370,
+   "h": 5978.3,
+   "r": 382,
+   "b": 257.9
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   15,
+   22.5
+  ],
+  "paraCount": 52,
+  "longestPara": {
+   "chars": 148,
+   "lines": 5,
+   "charsPerLine": 29.6,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -5950.5,
+   "w": 370,
+   "h": 210.1,
+   "r": 382,
+   "b": -5740.4
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 508,
+   "r": 390,
+   "b": 508
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "stream-390": {
+  "frames": [
+   {
+    "t": 500,
+    "scrollY": 110,
+    "docH": 1228,
+    "dockTop": 693.8,
+    "lastGap": 118.3,
+    "attr": {
+     "live": "true",
+     "follow": "true",
+     "detached": "false"
+    }
+   },
+   {
+    "t": 1500,
+    "scrollY": 192,
+    "docH": 1350,
+    "dockTop": 693.8,
+    "lastGap": 78.8,
+    "attr": {
+     "live": "true",
+     "follow": "true",
+     "detached": "false"
+    }
+   },
+   {
+    "t": 3000,
+    "scrollY": 315,
+    "docH": 1496,
+    "dockTop": 693.8,
+    "lastGap": 55.5,
+    "attr": {
+     "live": "true",
+     "follow": "true",
+     "detached": "false"
+    }
+   },
+   {
+    "t": 6000,
+    "scrollY": 588,
+    "docH": 1786,
+    "dockTop": 693.8,
+    "lastGap": 38.3,
+    "attr": {
+     "live": "true",
+     "follow": "true",
+     "detached": "false"
+    }
+   }
+  ],
+  "manualDetach": {
+   "y0": 5,
+   "y1": 5,
+   "stayed": true,
+   "attr": "true"
+  }
+ },
+ "stream-1440": {
+  "frames": [
+   {
+    "t": 500,
+    "scrollY": 125,
+    "docH": 1245,
+    "dockTop": 742.9,
+    "lastGap": 130.2,
+    "attr": {
+     "live": "true",
+     "follow": "true",
+     "detached": "false"
+    }
+   },
+   {
+    "t": 1500,
+    "scrollY": 206,
+    "docH": 1357,
+    "dockTop": 742.9,
+    "lastGap": 99,
+    "attr": {
+     "live": "true",
+     "follow": "true",
+     "detached": "false"
+    }
+   },
+   {
+    "t": 3000,
+    "scrollY": 305,
+    "docH": 1469,
+    "dockTop": 742.9,
+    "lastGap": 85.9,
+    "attr": {
+     "live": "true",
+     "follow": "true",
+     "detached": "false"
+    }
+   },
+   {
+    "t": 6000,
+    "scrollY": 552,
+    "docH": 1748,
+    "dockTop": 742.9,
+    "lastGap": 54.1,
+    "attr": {
+     "live": "true",
+     "follow": "true",
+     "detached": "false"
+    }
+   }
+  ],
+  "manualDetach": {
+   "y0": 5,
+   "y1": 5,
+   "stayed": true,
+   "attr": "true"
+  }
+ },
+ "fail-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 96,
+  "docH": 940,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 693.8,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 844
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 748.7,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 823.5
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 731,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 744.7
+  },
+  "select": {
+   "x": 25.9,
+   "y": 695.4,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 722.4
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 19P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 782.7,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 812.7,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 748.7,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 778.7,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 694.8,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 723,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": 540,
+   "w": 370,
+   "h": 62,
+   "r": 382,
+   "b": 602
+  },
+  "lastArtBottomVsDockTop": 91.8,
+  "body": {
+   "x": 12,
+   "y": 540,
+   "w": 370,
+   "h": 0,
+   "r": 382,
+   "b": 540
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(244, 244, 245)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [],
+  "paraCount": 0,
+  "narrationContrastVsBodyBg": 17.66,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": 471,
+   "w": 370,
+   "h": 49,
+   "r": 382,
+   "b": 520
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "r": 390,
+   "b": 844
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 28,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "fail-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 56,
+  "docH": 956,
+  "hOverflow": false,
+  "docScrollW": 1425,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 688.2,
+   "y": 742.8,
+   "w": 664.8,
+   "h": 157.1,
+   "r": 1353,
+   "b": 899.9
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 688.2,
+   "y": 798.2,
+   "w": 551.1,
+   "h": 79.2,
+   "r": 1239.3,
+   "b": 877.4
+  },
+  "estimateNote": {
+   "x": 688.2,
+   "y": 780.5,
+   "w": 664.8,
+   "h": 13.8,
+   "r": 1353,
+   "b": 794.2
+  },
+  "select": {
+   "x": 706.1,
+   "y": 744.6,
+   "w": 238,
+   "h": 27,
+   "r": 944.1,
+   "b": 771.6
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 19P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 1245.3,
+   "y": 832.2,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 862.2,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "continue": {
+   "x": 1245.3,
+   "y": 798.2,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 828.2,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "suggest": {
+   "x": 1048.1,
+   "y": 743.8,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 1109,
+   "b": 772.5,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 696.2,
+   "y": 652.8,
+   "w": 652.8,
+   "h": 62,
+   "r": 1349,
+   "b": 714.8
+  },
+  "lastArtBottomVsDockTop": 28,
+  "body": {
+   "x": 696.2,
+   "y": 652.8,
+   "w": 652.8,
+   "h": 0,
+   "r": 1349,
+   "b": 652.8
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(244, 244, 245)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 61.9,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [],
+  "paraCount": 0,
+  "narrationContrastVsBodyBg": 17.66,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 696.2,
+   "y": 559.9,
+   "w": 652.8,
+   "h": 52.9,
+   "r": 1349,
+   "b": 612.8
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 84,
+   "y": 51.9,
+   "w": 580.2,
+   "h": 848,
+   "r": 664.2,
+   "b": 899.9
+  },
+  "msgColumn": {
+   "x": 688.2,
+   "y": -4,
+   "w": 664.8,
+   "h": 903.9,
+   "r": 1353,
+   "b": 899.9
+  },
+  "focusable": 44,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "font-small-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 2553,
+  "docH": 3397,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 701.2,
+   "w": 390,
+   "h": 142.6,
+   "r": 390,
+   "b": 843.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 756,
+   "w": 260.3,
+   "h": 67.4,
+   "r": 268.3,
+   "b": 823.3
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 738.2,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 752
+  },
+  "select": {
+   "x": 25.9,
+   "y": 702.7,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 729.7
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 790,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 820,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 756,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 786,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 702.4,
+   "w": 60.9,
+   "h": 27.7,
+   "r": 382,
+   "b": 730,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -2223.7,
+   "w": 370,
+   "h": 2856.9,
+   "r": 382,
+   "b": 633.2
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": -2223.7,
+   "w": 370,
+   "h": 2824.9,
+   "r": 382,
+   "b": 601.2
+  },
+  "bodyFont": {
+   "size": "13.125px",
+   "lh": "21.082px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 45.5,
+  "lineHeightRatio": 1.6,
+  "paraGaps": [
+   19.7,
+   19.7,
+   19.7,
+   19.7,
+   19.7,
+   19.7,
+   19.7
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 5,
+   "charsPerLine": 29.6,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "13.125px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -2406.8,
+   "w": 370,
+   "h": 163.2,
+   "r": 382,
+   "b": -2243.7
+  },
+  "userFont": {
+   "size": "13.125px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "21.082px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "r": 390,
+   "b": 844
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 17.7
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "font-medium-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 3435,
+  "docH": 4279,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 693.6,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 843.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 748.5,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 823.3
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 730.8,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 744.5
+  },
+  "select": {
+   "x": 25.9,
+   "y": 695.2,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 722.2
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 782.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 812.5,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 748.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 778.5,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 694.6,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 722.8,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -3051.4,
+   "w": 370,
+   "h": 3677,
+   "r": 382,
+   "b": 625.6
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": -3051.4,
+   "w": 370,
+   "h": 3645,
+   "r": 382,
+   "b": 593.6
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 5,
+   "charsPerLine": 29.6,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -3281.5,
+   "w": 370,
+   "h": 210.1,
+   "r": 382,
+   "b": -3071.4
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "r": 390,
+   "b": 844
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "font-large-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 4507,
+  "docH": 5351,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 685.2,
+   "w": 390,
+   "h": 158.4,
+   "r": 390,
+   "b": 843.6
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 740.6,
+   "w": 260.3,
+   "h": 82.5,
+   "r": 268.3,
+   "b": 823.1
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 722.8,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 736.6
+  },
+  "select": {
+   "x": 25.9,
+   "y": 687,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 714
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 774.6,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 804.6,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 740.6,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 770.6,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 686.2,
+   "w": 60.9,
+   "h": 28.6,
+   "r": 382,
+   "b": 714.8,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -4032.2,
+   "w": 370,
+   "h": 4649.4,
+   "r": 382,
+   "b": 617.2
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": -4032.2,
+   "w": 370,
+   "h": 4617.4,
+   "r": 382,
+   "b": 585.2
+  },
+  "bodyFont": {
+   "size": "16.875px",
+   "lh": "28.582px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 35.4,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.3,
+   25.3,
+   25.3,
+   25.3,
+   25.3,
+   25.3,
+   25.3
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 6,
+   "charsPerLine": 24.7,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "16.875px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -4317.3,
+   "w": 370,
+   "h": 265.1,
+   "r": 382,
+   "b": -4052.2
+  },
+  "userFont": {
+   "size": "16.875px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.582px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "r": 390,
+   "b": 844
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.6
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "font-xlarge-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 5772,
+  "docH": 6616,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 676.6,
+   "w": 390,
+   "h": 167,
+   "r": 390,
+   "b": 843.6
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 732.5,
+   "w": 260.3,
+   "h": 90.6,
+   "r": 268.3,
+   "b": 823.1
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 714.7,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 728.5
+  },
+  "select": {
+   "x": 25.9,
+   "y": 678.7,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 705.7
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 766.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 796.5,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 732.5,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 762.5,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 677.6,
+   "w": 60.9,
+   "h": 29.1,
+   "r": 382,
+   "b": 706.7,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -5251.6,
+   "w": 370,
+   "h": 5860.2,
+   "r": 382,
+   "b": 608.6
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": -5251.6,
+   "w": 370,
+   "h": 5828.2,
+   "r": 382,
+   "b": 576.6
+  },
+  "bodyFont": {
+   "size": "18.75px",
+   "lh": "32.5781px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 31.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   28.1,
+   28.1,
+   28.1,
+   28.1,
+   28.1,
+   28.1,
+   28.1
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 7,
+   "charsPerLine": 21.1,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "18.75px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -5570.3,
+   "w": 370,
+   "h": 298.7,
+   "r": 382,
+   "b": -5271.6
+  },
+  "userFont": {
+   "size": "18.75px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "32.5781px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "r": 390,
+   "b": 844
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 19.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "font-small-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 2207,
+  "docH": 3107,
+  "hOverflow": false,
+  "docScrollW": 1425,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 688.2,
+   "y": 752,
+   "w": 664.8,
+   "h": 148,
+   "r": 1353,
+   "b": 900
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 688.2,
+   "y": 806.9,
+   "w": 551.1,
+   "h": 70.6,
+   "r": 1239.3,
+   "b": 877.5
+  },
+  "estimateNote": {
+   "x": 688.2,
+   "y": 789.2,
+   "w": 664.8,
+   "h": 13.8,
+   "r": 1353,
+   "b": 802.9
+  },
+  "select": {
+   "x": 706.1,
+   "y": 753.6,
+   "w": 238,
+   "h": 27,
+   "r": 944.1,
+   "b": 780.6
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 1245.3,
+   "y": 840.9,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 870.9,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 1245.3,
+   "y": 806.9,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 836.9,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 1048.1,
+   "y": 753,
+   "w": 60.9,
+   "h": 28.2,
+   "r": 1109,
+   "b": 781.2,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 696.2,
+   "y": -1869.9,
+   "w": 652.8,
+   "h": 2622.1,
+   "r": 1349,
+   "b": 752.2
+  },
+  "lastArtBottomVsDockTop": -0.2,
+  "body": {
+   "x": 696.2,
+   "y": -1869.9,
+   "w": 652.8,
+   "h": 2590.1,
+   "r": 1349,
+   "b": 720.2
+  },
+  "bodyFont": {
+   "size": "14.875px",
+   "lh": "24.6367px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 70.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.3,
+   22.3,
+   22.3,
+   22.3,
+   22.3,
+   22.3,
+   22.3
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 3,
+   "charsPerLine": 49.3,
+   "widthPx": 652.8
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "14.875px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 696.2,
+   "y": -2050.4,
+   "w": 652.8,
+   "h": 140.5,
+   "r": 1349,
+   "b": -1909.9
+  },
+  "userFont": {
+   "size": "14.875px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.6367px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 84,
+   "y": 52,
+   "w": 580.2,
+   "h": 848,
+   "r": 664.2,
+   "b": 900
+  },
+  "msgColumn": {
+   "x": 688.2,
+   "y": -2155,
+   "w": 664.8,
+   "h": 3055.2,
+   "r": 1353,
+   "b": 900.2
+  },
+  "focusable": 39,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "font-medium-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 2900,
+  "docH": 3800,
+  "hOverflow": false,
+  "docScrollW": 1425,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 688.2,
+   "y": 742.9,
+   "w": 664.8,
+   "h": 157.1,
+   "r": 1353,
+   "b": 900
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 688.2,
+   "y": 798.3,
+   "w": 551.1,
+   "h": 79.2,
+   "r": 1239.3,
+   "b": 877.5
+  },
+  "estimateNote": {
+   "x": 688.2,
+   "y": 780.5,
+   "w": 664.8,
+   "h": 13.8,
+   "r": 1353,
+   "b": 794.3
+  },
+  "select": {
+   "x": 706.1,
+   "y": 744.7,
+   "w": 238,
+   "h": 27,
+   "r": 944.1,
+   "b": 771.7
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 1245.3,
+   "y": 832.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 862.3,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 1245.3,
+   "y": 798.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 828.3,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 1048.1,
+   "y": 743.9,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 1109,
+   "b": 772.5,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 696.2,
+   "y": -2509.8,
+   "w": 652.8,
+   "h": 3252.7,
+   "r": 1349,
+   "b": 742.9
+  },
+  "lastArtBottomVsDockTop": 0,
+  "body": {
+   "x": 696.2,
+   "y": -2509.8,
+   "w": 652.8,
+   "h": 3220.7,
+   "r": 1349,
+   "b": 710.9
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 61.9,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 4,
+   "charsPerLine": 37,
+   "widthPx": 652.8
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 696.2,
+   "y": -2710.2,
+   "w": 652.8,
+   "h": 160.4,
+   "r": 1349,
+   "b": -2549.8
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 84,
+   "y": 52,
+   "w": 580.2,
+   "h": 848,
+   "r": 664.2,
+   "b": 900
+  },
+  "msgColumn": {
+   "x": 688.2,
+   "y": -2848,
+   "w": 664.8,
+   "h": 3748,
+   "r": 1353,
+   "b": 900
+  },
+  "focusable": 39,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "font-large-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 3477,
+  "docH": 4377,
+  "hOverflow": false,
+  "docScrollW": 1425,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 688.2,
+   "y": 733.4,
+   "w": 664.8,
+   "h": 166.6,
+   "r": 1353,
+   "b": 900
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 688.2,
+   "y": 789.3,
+   "w": 551.1,
+   "h": 88.2,
+   "r": 1239.3,
+   "b": 877.5
+  },
+  "estimateNote": {
+   "x": 688.2,
+   "y": 771.6,
+   "w": 664.8,
+   "h": 13.8,
+   "r": 1353,
+   "b": 785.3
+  },
+  "select": {
+   "x": 706.1,
+   "y": 735.5,
+   "w": 238,
+   "h": 27,
+   "r": 944.1,
+   "b": 762.5
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 1245.3,
+   "y": 823.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 853.3,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 1245.3,
+   "y": 789.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 819.3,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 1048.1,
+   "y": 734.4,
+   "w": 60.9,
+   "h": 29.2,
+   "r": 1109,
+   "b": 763.6,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 696.2,
+   "y": -3026.3,
+   "w": 652.8,
+   "h": 3760.2,
+   "r": 1349,
+   "b": 733.9
+  },
+  "lastArtBottomVsDockTop": -0.5,
+  "body": {
+   "x": 696.2,
+   "y": -3026.3,
+   "w": 652.8,
+   "h": 3728.2,
+   "r": 1349,
+   "b": 701.9
+  },
+  "bodyFont": {
+   "size": "19.125px",
+   "lh": "33.3492px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 55.1,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   28.7,
+   28.7,
+   28.7,
+   28.7,
+   28.7,
+   28.7,
+   28.7
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 4,
+   "charsPerLine": 37,
+   "widthPx": 652.8
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "19.125px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 696.2,
+   "y": -3278.3,
+   "w": 652.8,
+   "h": 212,
+   "r": 1349,
+   "b": -3066.3
+  },
+  "userFont": {
+   "size": "19.125px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "33.3492px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 84,
+   "y": 52,
+   "w": 580.2,
+   "h": 848,
+   "r": 664.2,
+   "b": 900
+  },
+  "msgColumn": {
+   "x": 688.2,
+   "y": -3425,
+   "w": 664.8,
+   "h": 4325.5,
+   "r": 1353,
+   "b": 900.5
+  },
+  "focusable": 39,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "font-xlarge-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 4473,
+  "docH": 5373,
+  "hOverflow": false,
+  "docScrollW": 1425,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 688.2,
+   "y": 723.6,
+   "w": 664.8,
+   "h": 176.4,
+   "r": 1353,
+   "b": 900
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 688.2,
+   "y": 780,
+   "w": 551.1,
+   "h": 97.5,
+   "r": 1239.3,
+   "b": 877.5
+  },
+  "estimateNote": {
+   "x": 688.2,
+   "y": 762.2,
+   "w": 664.8,
+   "h": 13.8,
+   "r": 1353,
+   "b": 776
+  },
+  "select": {
+   "x": 706.1,
+   "y": 725.9,
+   "w": 238,
+   "h": 27,
+   "r": 944.1,
+   "b": 752.9
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 23P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 1245.3,
+   "y": 814,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 844,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 1245.3,
+   "y": 780,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 810,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 1048.1,
+   "y": 724.6,
+   "w": 60.9,
+   "h": 29.7,
+   "r": 1109,
+   "b": 754.2,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 696.2,
+   "y": -3987.1,
+   "w": 652.8,
+   "h": 4710.7,
+   "r": 1349,
+   "b": 723.7
+  },
+  "lastArtBottomVsDockTop": -0.1,
+  "body": {
+   "x": 696.2,
+   "y": -3987.1,
+   "w": 652.8,
+   "h": 4678.7,
+   "r": 1349,
+   "b": 691.7
+  },
+  "bodyFont": {
+   "size": "21.25px",
+   "lh": "37.9844px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 49.5,
+  "lineHeightRatio": 1.8,
+  "paraGaps": [
+   31.9,
+   31.9,
+   31.9,
+   31.9,
+   31.9,
+   31.9,
+   31.9
+  ],
+  "paraCount": 32,
+  "longestPara": {
+   "chars": 148,
+   "lines": 4,
+   "charsPerLine": 37,
+   "widthPx": 652.8
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "21.25px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 696.2,
+   "y": -4265,
+   "w": 652.8,
+   "h": 238,
+   "r": 1349,
+   "b": -4027.1
+  },
+  "userFont": {
+   "size": "21.25px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "37.9844px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 84,
+   "y": 52,
+   "w": 580.2,
+   "h": 848,
+   "r": 664.2,
+   "b": 900
+  },
+  "msgColumn": {
+   "x": 688.2,
+   "y": -4421,
+   "w": 664.8,
+   "h": 5321.1,
+   "r": 1353,
+   "b": 900.1
+  },
+  "focusable": 39,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "mode-left-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 1050,
+  "docH": 1894,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 693.7,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 843.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 748.6,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 823.3
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 730.8,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 744.6
+  },
+  "select": {
+   "x": 25.9,
+   "y": 695.2,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 722.2
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 20P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 782.6,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 812.6,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 748.6,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 778.6,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 694.7,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 722.8,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 12,
+   "y": -827.5,
+   "w": 370,
+   "h": 1453.2,
+   "r": 382,
+   "b": 625.7
+  },
+  "lastArtBottomVsDockTop": 68,
+  "body": {
+   "x": 12,
+   "y": -827.5,
+   "w": 370,
+   "h": 1064,
+   "r": 382,
+   "b": 236.5
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 39.8,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5,
+   304,
+   22.5,
+   22.5,
+   0
+  ],
+  "paraCount": 7,
+  "longestPara": {
+   "chars": 129,
+   "lines": 5,
+   "charsPerLine": 25.8,
+   "widthPx": 370
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 12,
+   "y": -896.5,
+   "w": 370,
+   "h": 49,
+   "r": 382,
+   "b": -847.5
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": true,
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 844,
+   "r": 390,
+   "b": 844
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "mode-inline-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 1038,
+  "docH": 1882,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 693.7,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 843.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 748.6,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 823.3
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 730.8,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 744.6
+  },
+  "select": {
+   "x": 25.9,
+   "y": 695.2,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 722.2
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 20P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 782.6,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 812.6,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 748.6,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 778.6,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 694.7,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 722.8,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 8,
+   "y": -811.5,
+   "w": 374,
+   "h": 1453.2,
+   "r": 382,
+   "b": 641.7
+  },
+  "lastArtBottomVsDockTop": 52,
+  "body": {
+   "x": 8,
+   "y": -811.5,
+   "w": 374,
+   "h": 1064,
+   "r": 382,
+   "b": 252.5
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 40.2,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5,
+   304,
+   22.5,
+   22.5,
+   0
+  ],
+  "paraCount": 7,
+  "longestPara": {
+   "chars": 129,
+   "lines": 5,
+   "charsPerLine": 25.8,
+   "widthPx": 374
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 8,
+   "y": -880.5,
+   "w": 374,
+   "h": 49,
+   "r": 382,
+   "b": -831.5
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "mode-off-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 756,
+  "docH": 1600,
+  "hOverflow": false,
+  "docScrollW": 390,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 0,
+   "y": 693.8,
+   "w": 390,
+   "h": 150.2,
+   "r": 390,
+   "b": 844
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 8,
+   "y": 748.7,
+   "w": 260.3,
+   "h": 74.8,
+   "r": 268.3,
+   "b": 823.5
+  },
+  "estimateNote": {
+   "x": 8,
+   "y": 731,
+   "w": 374,
+   "h": 13.8,
+   "r": 382,
+   "b": 744.7
+  },
+  "select": {
+   "x": 25.9,
+   "y": 695.4,
+   "w": 238,
+   "h": 27,
+   "r": 263.9,
+   "b": 722.4
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 20P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 274.3,
+   "y": 782.7,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 812.7,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 274.3,
+   "y": 748.7,
+   "w": 107.7,
+   "h": 30,
+   "r": 382,
+   "b": 778.7,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 321.1,
+   "y": 694.8,
+   "w": 60.9,
+   "h": 28.1,
+   "r": 382,
+   "b": 723,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 8,
+   "y": -529.5,
+   "w": 374,
+   "h": 1171.7,
+   "r": 382,
+   "b": 642.2
+  },
+  "lastArtBottomVsDockTop": 51.7,
+  "body": {
+   "x": 8,
+   "y": -529.5,
+   "w": 374,
+   "h": 782.5,
+   "r": 382,
+   "b": 253
+  },
+  "bodyFont": {
+   "size": "15px",
+   "lh": "24.75px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 40.2,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   22.5,
+   0
+  ],
+  "paraCount": 7,
+  "longestPara": {
+   "chars": 129,
+   "lines": 5,
+   "charsPerLine": 25.8,
+   "widthPx": 374
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "15px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 8,
+   "y": -598.5,
+   "w": 374,
+   "h": 49,
+   "r": 382,
+   "b": -549.5
+  },
+  "userFont": {
+   "size": "15px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "24.75px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 23,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 44,
+    "h": 18.1
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 390,
+   "h": 53,
+   "r": 390,
+   "b": 53
+  }
+ },
+ "mode-left-768": {
+  "vw": 768,
+  "vh": 1024,
+  "scrollY": 1243,
+  "docH": 2267,
+  "hOverflow": false,
+  "docScrollW": 753,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 351.1,
+   "y": 830.9,
+   "w": 356,
+   "h": 193.1,
+   "r": 707.1,
+   "b": 1024
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 351.1,
+   "y": 922.3,
+   "w": 242.3,
+   "h": 79.2,
+   "r": 593.4,
+   "b": 1001.5
+  },
+  "estimateNote": {
+   "x": 351.1,
+   "y": 904.6,
+   "w": 356,
+   "h": 13.8,
+   "r": 707.1,
+   "b": 918.3
+  },
+  "select": {
+   "x": 369,
+   "y": 832.4,
+   "w": 238,
+   "h": 27,
+   "r": 607,
+   "b": 859.4
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 20P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 599.4,
+   "y": 956.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 707.1,
+   "b": 986.3,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 599.4,
+   "y": 922.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 707.1,
+   "b": 952.3,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 351.1,
+   "y": 867.9,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 412,
+   "b": 896.6,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 359.1,
+   "y": -904.6,
+   "w": 344,
+   "h": 1735.7,
+   "r": 703.1,
+   "b": 831.1
+  },
+  "lastArtBottomVsDockTop": -0.2,
+  "body": {
+   "x": 359.1,
+   "y": -904.6,
+   "w": 344,
+   "h": 1307.8,
+   "r": 703.1,
+   "b": 403.3
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 32.6,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5,
+   325,
+   25.5,
+   25.5,
+   0
+  ],
+  "paraCount": 7,
+  "longestPara": {
+   "chars": 129,
+   "lines": 6,
+   "charsPerLine": 21.5,
+   "widthPx": 344
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 359.1,
+   "y": -1024.3,
+   "w": 344,
+   "h": 79.8,
+   "r": 703.1,
+   "b": -944.6
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 53.9,
+   "y": 52,
+   "w": 213,
+   "h": 972,
+   "r": 266.9,
+   "b": 1024
+  },
+  "msgColumn": {
+   "x": 351.1,
+   "y": -1191,
+   "w": 356,
+   "h": 2215.2,
+   "r": 707.1,
+   "b": 1024.2
+  },
+  "focusable": 39,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "mode-inline-768": {
+  "vw": 768,
+  "vh": 1024,
+  "scrollY": 904,
+  "docH": 1928,
+  "hOverflow": false,
+  "docScrollW": 753,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 84,
+   "y": 868.5,
+   "w": 597,
+   "h": 155.1,
+   "r": 681,
+   "b": 1023.7
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 84,
+   "y": 924,
+   "w": 483.3,
+   "h": 79.2,
+   "r": 567.3,
+   "b": 1003.2
+  },
+  "estimateNote": {
+   "x": 84,
+   "y": 906.2,
+   "w": 597,
+   "h": 13.8,
+   "r": 681,
+   "b": 920
+  },
+  "select": {
+   "x": 101.9,
+   "y": 870.4,
+   "w": 238,
+   "h": 27,
+   "r": 339.9,
+   "b": 897.4
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 20P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 573.3,
+   "y": 958,
+   "w": 107.7,
+   "h": 30,
+   "r": 681,
+   "b": 988,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 573.3,
+   "y": 924,
+   "w": 107.7,
+   "h": 30,
+   "r": 681,
+   "b": 954,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 443.9,
+   "y": 869.5,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 504.8,
+   "b": 898.2,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 84,
+   "y": -665.3,
+   "w": 597,
+   "h": 1533.9,
+   "r": 681,
+   "b": 868.5
+  },
+  "lastArtBottomVsDockTop": 0,
+  "body": {
+   "x": 84,
+   "y": -665.3,
+   "w": 597,
+   "h": 1211.4,
+   "r": 681,
+   "b": 546.1
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 56.6,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5,
+   546.4,
+   25.5,
+   25.5,
+   0
+  ],
+  "paraCount": 7,
+  "longestPara": {
+   "chars": 129,
+   "lines": 3,
+   "charsPerLine": 43,
+   "widthPx": 597
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 84,
+   "y": -738.2,
+   "w": 597,
+   "h": 52.9,
+   "r": 681,
+   "b": -685.3
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 35,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "mode-off-768": {
+  "vw": 768,
+  "vh": 1024,
+  "scrollY": 383,
+  "docH": 1407,
+  "hOverflow": false,
+  "docScrollW": 753,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 84,
+   "y": 868.7,
+   "w": 597,
+   "h": 155.1,
+   "r": 681,
+   "b": 1023.8
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 84,
+   "y": 924.1,
+   "w": 483.3,
+   "h": 79.2,
+   "r": 567.3,
+   "b": 1003.3
+  },
+  "estimateNote": {
+   "x": 84,
+   "y": 906.3,
+   "w": 597,
+   "h": 13.8,
+   "r": 681,
+   "b": 920.1
+  },
+  "select": {
+   "x": 101.9,
+   "y": 870.5,
+   "w": 238,
+   "h": 27,
+   "r": 339.9,
+   "b": 897.5
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 20P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 573.3,
+   "y": 958.1,
+   "w": 107.7,
+   "h": 30,
+   "r": 681,
+   "b": 988.1,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 573.3,
+   "y": 924.1,
+   "w": 107.7,
+   "h": 30,
+   "r": 681,
+   "b": 954.1,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 443.9,
+   "y": 869.7,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 504.8,
+   "b": 898.3,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 84,
+   "y": -144.3,
+   "w": 597,
+   "h": 1013,
+   "r": 681,
+   "b": 868.7
+  },
+  "lastArtBottomVsDockTop": 0,
+  "body": {
+   "x": 84,
+   "y": -144.3,
+   "w": 597,
+   "h": 690.5,
+   "r": 681,
+   "b": 546.2
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 56.6,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   0
+  ],
+  "paraCount": 7,
+  "longestPara": {
+   "chars": 129,
+   "lines": 3,
+   "charsPerLine": 43,
+   "widthPx": 597
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 84,
+   "y": -217.2,
+   "w": 597,
+   "h": 52.9,
+   "r": 681,
+   "b": -164.3
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 35,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "mode-left-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 1122,
+  "docH": 2022,
+  "hOverflow": false,
+  "docScrollW": 1425,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 688.2,
+   "y": 742.9,
+   "w": 664.8,
+   "h": 157.1,
+   "r": 1353,
+   "b": 900
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 688.2,
+   "y": 798.3,
+   "w": 551.1,
+   "h": 79.2,
+   "r": 1239.3,
+   "b": 877.5
+  },
+  "estimateNote": {
+   "x": 688.2,
+   "y": 780.6,
+   "w": 664.8,
+   "h": 13.8,
+   "r": 1353,
+   "b": 794.3
+  },
+  "select": {
+   "x": 706.1,
+   "y": 744.7,
+   "w": 238,
+   "h": 27,
+   "r": 944.1,
+   "b": 771.7
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 20P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 1245.3,
+   "y": 832.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 862.3,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 1245.3,
+   "y": 798.3,
+   "w": 107.7,
+   "h": 30,
+   "r": 1353,
+   "b": 828.3,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 1048.1,
+   "y": 743.9,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 1109,
+   "b": 772.6,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 696.2,
+   "y": -839.3,
+   "w": 652.8,
+   "h": 1582.7,
+   "r": 1349,
+   "b": 743.3
+  },
+  "lastArtBottomVsDockTop": -0.5,
+  "body": {
+   "x": 696.2,
+   "y": -839.3,
+   "w": 652.8,
+   "h": 1260.2,
+   "r": 1349,
+   "b": 420.9
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 61.9,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5,
+   595.2,
+   25.5,
+   25.5,
+   0
+  ],
+  "paraCount": 7,
+  "longestPara": {
+   "chars": 129,
+   "lines": 3,
+   "charsPerLine": 43,
+   "widthPx": 652.8
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 696.2,
+   "y": -932.2,
+   "w": 652.8,
+   "h": 52.9,
+   "r": 1349,
+   "b": -879.3
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": {
+   "x": 84,
+   "y": 52,
+   "w": 580.2,
+   "h": 848,
+   "r": 664.2,
+   "b": 900
+  },
+  "msgColumn": {
+   "x": 688.2,
+   "y": -1070,
+   "w": 664.8,
+   "h": 1970.5,
+   "r": 1353,
+   "b": 900.5
+  },
+  "focusable": 39,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "mode-inline-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 1104,
+  "docH": 2004,
+  "hOverflow": false,
+  "docScrollW": 1425,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 330.5,
+   "y": 744.5,
+   "w": 780,
+   "h": 155.1,
+   "r": 1110.5,
+   "b": 899.7
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 330.5,
+   "y": 800,
+   "w": 666.3,
+   "h": 79.2,
+   "r": 996.8,
+   "b": 879.2
+  },
+  "estimateNote": {
+   "x": 330.5,
+   "y": 782.2,
+   "w": 780,
+   "h": 13.8,
+   "r": 1110.5,
+   "b": 796
+  },
+  "select": {
+   "x": 348.4,
+   "y": 746.4,
+   "w": 238,
+   "h": 27,
+   "r": 586.4,
+   "b": 773.4
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 20P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 1002.8,
+   "y": 834,
+   "w": 107.7,
+   "h": 30,
+   "r": 1110.5,
+   "b": 864,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 1002.8,
+   "y": 800,
+   "w": 107.7,
+   "h": 30,
+   "r": 1110.5,
+   "b": 830,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 690.4,
+   "y": 745.5,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 751.3,
+   "b": 774.2,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 330.5,
+   "y": -894.2,
+   "w": 780,
+   "h": 1638.8,
+   "r": 1110.5,
+   "b": 744.5
+  },
+  "lastArtBottomVsDockTop": 0,
+  "body": {
+   "x": 330.5,
+   "y": -894.2,
+   "w": 780,
+   "h": 1342.6,
+   "r": 1110.5,
+   "b": 448.4
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 74,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5,
+   706.5,
+   25.5,
+   25.5,
+   0
+  ],
+  "paraCount": 7,
+  "longestPara": {
+   "chars": 129,
+   "lines": 3,
+   "charsPerLine": 43,
+   "widthPx": 780
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 330.5,
+   "y": -967.1,
+   "w": 780,
+   "h": 52.9,
+   "r": 1110.5,
+   "b": -914.2
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 35,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "mode-off-1440": {
+  "vw": 1440,
+  "vh": 900,
+  "scrollY": 423,
+  "docH": 1323,
+  "hOverflow": false,
+  "docScrollW": 1425,
+  "rightOverflowEls": [],
+  "dock": {
+   "x": 330.5,
+   "y": 744.5,
+   "w": 780,
+   "h": 155.1,
+   "r": 1110.5,
+   "b": 899.7
+  },
+  "dockFrac": 0.2,
+  "textarea": {
+   "x": 330.5,
+   "y": 800,
+   "w": 666.3,
+   "h": 79.2,
+   "r": 996.8,
+   "b": 879.2
+  },
+  "estimateNote": {
+   "x": 330.5,
+   "y": 782.2,
+   "w": 780,
+   "h": 13.8,
+   "r": 1110.5,
+   "b": 796
+  },
+  "select": {
+   "x": 348.4,
+   "y": 746.4,
+   "w": 238,
+   "h": 27,
+   "r": 586.4,
+   "b": 773.4
+  },
+  "selectLabel": "DeepSeek V4.1 Flash · 약 20P · 초기 추정",
+  "selectLabelTextW": 203.5,
+  "selectInnerW": 204,
+  "selectTruncated": false,
+  "selectFont": "11px",
+  "send": {
+   "x": 1002.8,
+   "y": 834,
+   "w": 107.7,
+   "h": 30,
+   "r": 1110.5,
+   "b": 864,
+   "fontSize": "12px",
+   "disabled": true
+  },
+  "continue": {
+   "x": 1002.8,
+   "y": 800,
+   "w": 107.7,
+   "h": 30,
+   "r": 1110.5,
+   "b": 830,
+   "fontSize": "12px",
+   "disabled": false
+  },
+  "suggest": {
+   "x": 690.4,
+   "y": 745.5,
+   "w": 60.9,
+   "h": 28.7,
+   "r": 751.3,
+   "b": 774.2,
+   "fontSize": "11px",
+   "disabled": false
+  },
+  "toolbarBtns": [
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "재생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "수정",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "턴 삭제",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "분기 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "북마크",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "이미지 생성",
+    "w": 32,
+    "h": 32
+   },
+   {
+    "label": "포인트 차감 상태",
+    "w": 32,
+    "h": 32
+   }
+  ],
+  "lastArt": {
+   "x": 330.5,
+   "y": -213.2,
+   "w": 780,
+   "h": 957.8,
+   "r": 1110.5,
+   "b": 744.5
+  },
+  "lastArtBottomVsDockTop": 0,
+  "body": {
+   "x": 330.5,
+   "y": -213.2,
+   "w": 780,
+   "h": 661.6,
+   "r": 1110.5,
+   "b": 448.4
+  },
+  "bodyFont": {
+   "size": "17px",
+   "lh": "28.9px",
+   "color": "rgb(250, 250, 250)",
+   "family": "system-ui, -apple-system, \"Segoe UI\", sa"
+  },
+  "charsPerLineEst": 74,
+  "lineHeightRatio": 1.7,
+  "paraGaps": [
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   25.5,
+   0
+  ],
+  "paraCount": 7,
+  "longestPara": {
+   "chars": 129,
+   "lines": 3,
+   "charsPerLine": 43,
+   "widthPx": 780
+  },
+  "dialogue": {
+   "color": "rgb(196, 181, 253)",
+   "weight": "600",
+   "size": "17px"
+  },
+  "narrationContrastVsBodyBg": 18.6,
+  "dialogueContrastVsBodyBg": 10.51,
+  "bodyBgRgb": [
+   11,
+   13,
+   20
+  ],
+  "userMsg": {
+   "x": 330.5,
+   "y": -286.1,
+   "w": 780,
+   "h": 52.9,
+   "r": 1110.5,
+   "b": -233.2
+  },
+  "userFont": {
+   "size": "17px",
+   "color": "rgb(244, 244, 245)",
+   "align": "start",
+   "lh": "28.9px"
+  },
+  "userVsAssistantFontRatio": 1,
+  "mobileBg": {
+   "present": false
+  },
+  "portraitRail": null,
+  "msgColumn": null,
+  "focusable": 35,
+  "tinyTargets": [
+   {
+    "label": "공식계정",
+    "w": 48,
+    "h": 16
+   },
+   {
+    "label": "성인인증 후 성인모드를 사",
+    "w": 28,
+    "h": 16
+   }
+  ],
+  "mobileNav": null,
+  "titleBar": {
+   "x": 0,
+   "y": 0,
+   "w": 0,
+   "h": 0,
+   "r": 0,
+   "b": 0
+  }
+ },
+ "bg-360-0.22": {
+  "rects": [
+   {
+    "x": 12,
+    "y": 85.625,
+    "w": 340,
+    "h": 123.75,
+    "color": "rgb(250, 250, 250)",
+    "dlg": false
+   },
+   {
+    "x": 12,
+    "y": 231.875,
+    "w": 340,
+    "h": 74.25,
+    "color": "rgb(196, 181, 253)",
+    "dlg": true
+   },
+   {
+    "x": 12,
+    "y": 328.625,
+    "w": 340,
+    "h": 99,
+    "color": "rgb(250, 250, 250)",
+    "dlg": false
+   },
+   {
+    "x": 12,
+    "y": 450.125,
+    "w": 340,
+    "h": 24.75,
+    "color": "rgb(196, 181, 253)",
+    "dlg": true
+   },
+   {
+    "x": 12,
+    "y": 497.375,
+    "w": 340,
+    "h": 99,
+    "color": "rgb(250, 250, 250)",
+    "dlg": false
+   }
+  ]
+ },
+ "bg-390-0.22": {
+  "rects": [
+   {
+    "x": 12,
+    "y": 182.375,
+    "w": 370,
+    "h": 74.25,
+    "color": "rgb(196, 181, 253)",
+    "dlg": true
+   },
+   {
+    "x": 12,
+    "y": 279.125,
+    "w": 370,
+    "h": 99,
+    "color": "rgb(250, 250, 250)",
+    "dlg": false
+   },
+   {
+    "x": 12,
+    "y": 400.625,
+    "w": 370,
+    "h": 24.75,
+    "color": "rgb(196, 181, 253)",
+    "dlg": true
+   },
+   {
+    "x": 12,
+    "y": 447.875,
+    "w": 370,
+    "h": 99,
+    "color": "rgb(250, 250, 250)",
+    "dlg": false
+   }
+  ]
+ },
+ "bg-390-0.5": {
+  "rects": [
+   {
+    "x": 12,
+    "y": 182.375,
+    "w": 370,
+    "h": 74.25,
+    "color": "rgb(196, 181, 253)",
+    "dlg": true
+   },
+   {
+    "x": 12,
+    "y": 279.125,
+    "w": 370,
+    "h": 99,
+    "color": "rgb(250, 250, 250)",
+    "dlg": false
+   },
+   {
+    "x": 12,
+    "y": 400.625,
+    "w": 370,
+    "h": 24.75,
+    "color": "rgb(196, 181, 253)",
+    "dlg": true
+   },
+   {
+    "x": 12,
+    "y": 447.875,
+    "w": 370,
+    "h": 99,
+    "color": "rgb(250, 250, 250)",
+    "dlg": false
+   }
+  ]
+ },
+ "bg-390-0.8": {
+  "rects": [
+   {
+    "x": 12,
+    "y": 182.375,
+    "w": 370,
+    "h": 74.25,
+    "color": "rgb(196, 181, 253)",
+    "dlg": true
+   },
+   {
+    "x": 12,
+    "y": 279.125,
+    "w": 370,
+    "h": 99,
+    "color": "rgb(250, 250, 250)",
+    "dlg": false
+   },
+   {
+    "x": 12,
+    "y": 400.625,
+    "w": 370,
+    "h": 24.75,
+    "color": "rgb(196, 181, 253)",
+    "dlg": true
+   },
+   {
+    "x": 12,
+    "y": 447.875,
+    "w": 370,
+    "h": 99,
+    "color": "rgb(250, 250, 250)",
+    "dlg": false
+   }
+  ]
+ },
+ "bg-390-1": {
+  "rects": [
+   {
+    "x": 12,
+    "y": 182.375,
+    "w": 370,
+    "h": 74.25,
+    "color": "rgb(196, 181, 253)",
+    "dlg": true
+   },
+   {
+    "x": 12,
+    "y": 279.125,
+    "w": 370,
+    "h": 99,
+    "color": "rgb(250, 250, 250)",
+    "dlg": false
+   },
+   {
+    "x": 12,
+    "y": 400.625,
+    "w": 370,
+    "h": 24.75,
+    "color": "rgb(196, 181, 253)",
+    "dlg": true
+   },
+   {
+    "x": 12,
+    "y": 447.875,
+    "w": 370,
+    "h": 99,
+    "color": "rgb(250, 250, 250)",
+    "dlg": false
+   }
+  ]
+ },
+ "adult-adult-390": {
+  "url": "http://localhost:3501/chat/17?chat=19"
+ },
+ "adult-adult-1440": {
+  "url": "http://localhost:3501/chat/17?chat=19"
+ },
+ "adult-blocked-390": {
+  "url": "http://localhost:3501/verify"
+ }
+}
