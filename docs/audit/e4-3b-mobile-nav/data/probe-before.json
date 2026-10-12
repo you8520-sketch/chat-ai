@@ -1,0 +1,8366 @@
+[
+ {
+  "user": "guest",
+  "w": 360,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "body"
+  ],
+  "navs": [
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2858
+ },
+ {
+  "user": "guest",
+  "w": 360,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2044
+ },
+ {
+  "user": "guest",
+  "w": 360,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": true,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1629
+ },
+ {
+  "user": "guest",
+  "w": 360,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1053
+ },
+ {
+  "user": "guest",
+  "w": 390,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "body"
+  ],
+  "navs": [
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2938
+ },
+ {
+  "user": "guest",
+  "w": 390,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2134
+ },
+ {
+  "user": "guest",
+  "w": 390,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": true,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1629
+ },
+ {
+  "user": "guest",
+  "w": 390,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1053
+ },
+ {
+  "user": "guest",
+  "w": 575,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "body"
+  ],
+  "navs": [
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 3392
+ },
+ {
+  "user": "guest",
+  "w": 575,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2649
+ },
+ {
+  "user": "guest",
+  "w": 575,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": true,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1589
+ },
+ {
+  "user": "guest",
+  "w": 575,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 929
+ },
+ {
+  "user": "guest",
+  "w": 576,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 2,
+  "discoveryNavWhere": [
+   "header",
+   "body"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2874
+ },
+ {
+  "user": "guest",
+  "w": 576,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2065
+ },
+ {
+  "user": "guest",
+  "w": 576,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1602
+ },
+ {
+  "user": "guest",
+  "w": 576,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1026
+ },
+ {
+  "user": "guest",
+  "w": 640,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 2,
+  "discoveryNavWhere": [
+   "header",
+   "body"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2998
+ },
+ {
+  "user": "guest",
+  "w": 640,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1518
+ },
+ {
+  "user": "guest",
+  "w": 640,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1582
+ },
+ {
+  "user": "guest",
+  "w": 640,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 964
+ },
+ {
+  "user": "guest",
+  "w": 767,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 2,
+  "discoveryNavWhere": [
+   "header",
+   "body"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2632
+ },
+ {
+  "user": "guest",
+  "w": 767,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1629
+ },
+ {
+  "user": "guest",
+  "w": 767,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1562
+ },
+ {
+  "user": "guest",
+  "w": 767,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 902
+ },
+ {
+  "user": "guest",
+  "w": 768,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2487
+ },
+ {
+  "user": "guest",
+  "w": 768,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1559
+ },
+ {
+  "user": "guest",
+  "w": 768,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1490
+ },
+ {
+  "user": "guest",
+  "w": 768,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "guest",
+  "w": 1024,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2719
+ },
+ {
+  "user": "guest",
+  "w": 1024,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1044
+ },
+ {
+  "user": "guest",
+  "w": 1024,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1425
+ },
+ {
+  "user": "guest",
+  "w": 1024,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "guest",
+  "w": 1440,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2247
+ },
+ {
+  "user": "guest",
+  "w": 1440,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1187
+ },
+ {
+  "user": "guest",
+  "w": 1440,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1405
+ },
+ {
+  "user": "guest",
+  "w": 1440,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": null,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "std",
+  "w": 360,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "body"
+  ],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2858
+ },
+ {
+  "user": "std",
+  "w": 360,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2044
+ },
+ {
+  "user": "std",
+  "w": 360,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": true,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1629
+ },
+ {
+  "user": "std",
+  "w": 360,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1053
+ },
+ {
+  "user": "std",
+  "w": 360,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1190
+ },
+ {
+  "user": "std",
+  "w": 360,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "std",
+  "w": 360,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": true,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "aside:null:0",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1179
+ },
+ {
+  "user": "std",
+  "w": 360,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": {
+   "top": 635,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 165
+  },
+  "overlap": 53,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 5200
+ },
+ {
+  "user": "std",
+  "w": 360,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2182
+ },
+ {
+  "user": "std",
+  "w": 390,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "body"
+  ],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2938
+ },
+ {
+  "user": "std",
+  "w": 390,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2134
+ },
+ {
+  "user": "std",
+  "w": 390,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": true,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1629
+ },
+ {
+  "user": "std",
+  "w": 390,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1053
+ },
+ {
+  "user": "std",
+  "w": 390,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1177
+ },
+ {
+  "user": "std",
+  "w": 390,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "std",
+  "w": 390,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": true,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "aside:null:0",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1179
+ },
+ {
+  "user": "std",
+  "w": 390,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": {
+   "top": 635,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 165
+  },
+  "overlap": 53,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 5110
+ },
+ {
+  "user": "std",
+  "w": 390,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2102
+ },
+ {
+  "user": "std",
+  "w": 575,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "body"
+  ],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 3392
+ },
+ {
+  "user": "std",
+  "w": 575,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2649
+ },
+ {
+  "user": "std",
+  "w": 575,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": true,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1589
+ },
+ {
+  "user": "std",
+  "w": 575,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 929
+ },
+ {
+  "user": "std",
+  "w": 575,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 902
+ },
+ {
+  "user": "std",
+  "w": 575,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "std",
+  "w": 575,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": true,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "aside:null:0",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1139
+ },
+ {
+  "user": "std",
+  "w": 575,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": {
+   "top": 635,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 165
+  },
+  "overlap": 53,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4728
+ },
+ {
+  "user": "std",
+  "w": 575,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2002
+ },
+ {
+  "user": "std",
+  "w": 576,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 2,
+  "discoveryNavWhere": [
+   "header",
+   "body"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2874
+ },
+ {
+  "user": "std",
+  "w": 576,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2065
+ },
+ {
+  "user": "std",
+  "w": 576,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1602
+ },
+ {
+  "user": "std",
+  "w": 576,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1026
+ },
+ {
+  "user": "std",
+  "w": 576,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1150
+ },
+ {
+  "user": "std",
+  "w": 576,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:5"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "std",
+  "w": 576,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "aside:null:0",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1152
+ },
+ {
+  "user": "std",
+  "w": 576,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 635,
+   "bottom": 800,
+   "left": 0,
+   "right": 576,
+   "h": 165
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 5118
+ },
+ {
+  "user": "std",
+  "w": 576,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2095
+ },
+ {
+  "user": "std",
+  "w": 640,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 2,
+  "discoveryNavWhere": [
+   "header",
+   "body"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2998
+ },
+ {
+  "user": "std",
+  "w": 640,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1518
+ },
+ {
+  "user": "std",
+  "w": 640,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1582
+ },
+ {
+  "user": "std",
+  "w": 640,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 964
+ },
+ {
+  "user": "std",
+  "w": 640,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1130
+ },
+ {
+  "user": "std",
+  "w": 640,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:5"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "std",
+  "w": 640,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "aside:null:0",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1132
+ },
+ {
+  "user": "std",
+  "w": 640,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 659,
+   "bottom": 800,
+   "left": 0,
+   "right": 625,
+   "h": 141
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4994
+ },
+ {
+  "user": "std",
+  "w": 640,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2003
+ },
+ {
+  "user": "std",
+  "w": 767,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 2,
+  "discoveryNavWhere": [
+   "header",
+   "body"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2632
+ },
+ {
+  "user": "std",
+  "w": 767,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1629
+ },
+ {
+  "user": "std",
+  "w": 767,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1562
+ },
+ {
+  "user": "std",
+  "w": 767,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 902
+ },
+ {
+  "user": "std",
+  "w": 767,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "std",
+  "w": 767,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:5"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "std",
+  "w": 767,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "aside:null:0",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1212
+ },
+ {
+  "user": "std",
+  "w": 767,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 759,
+   "bottom": 900,
+   "left": 0,
+   "right": 752,
+   "h": 141
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4776
+ },
+ {
+  "user": "std",
+  "w": 767,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1943
+ },
+ {
+  "user": "std",
+  "w": 768,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2487
+ },
+ {
+  "user": "std",
+  "w": 768,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1559
+ },
+ {
+  "user": "std",
+  "w": 768,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1490
+ },
+ {
+  "user": "std",
+  "w": 768,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "std",
+  "w": 768,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "std",
+  "w": 768,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:5"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "std",
+  "w": 768,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "aside:null:0",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1140
+ },
+ {
+  "user": "std",
+  "w": 768,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 831,
+   "bottom": 900,
+   "left": 0,
+   "right": 753,
+   "h": 69
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4704
+ },
+ {
+  "user": "std",
+  "w": 768,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1871
+ },
+ {
+  "user": "std",
+  "w": 1024,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2719
+ },
+ {
+  "user": "std",
+  "w": 1024,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1044
+ },
+ {
+  "user": "std",
+  "w": 1024,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1425
+ },
+ {
+  "user": "std",
+  "w": 1024,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "std",
+  "w": 1024,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "std",
+  "w": 1024,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:5"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "std",
+  "w": 1024,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "aside:null:0",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1075
+ },
+ {
+  "user": "std",
+  "w": 1024,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 831,
+   "bottom": 900,
+   "left": 0,
+   "right": 1009,
+   "h": 69
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4373
+ },
+ {
+  "user": "std",
+  "w": 1024,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1765
+ },
+ {
+  "user": "std",
+  "w": 1440,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2247
+ },
+ {
+  "user": "std",
+  "w": 1440,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1187
+ },
+ {
+  "user": "std",
+  "w": 1440,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1405
+ },
+ {
+  "user": "std",
+  "w": 1440,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "std",
+  "w": 1440,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "std",
+  "w": 1440,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:5"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "std",
+  "w": 1440,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "aside:null:0",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1055
+ },
+ {
+  "user": "std",
+  "w": 1440,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 831,
+   "bottom": 900,
+   "left": 0,
+   "right": 1425,
+   "h": 69
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4299
+ },
+ {
+  "user": "std",
+  "w": 1440,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1745
+ },
+ {
+  "user": "adminOn",
+  "w": 360,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "body"
+  ],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2858
+ },
+ {
+  "user": "adminOn",
+  "w": 360,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2044
+ },
+ {
+  "user": "adminOn",
+  "w": 360,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": true,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1629
+ },
+ {
+  "user": "adminOn",
+  "w": 360,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1053
+ },
+ {
+  "user": "adminOn",
+  "w": 360,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1079
+ },
+ {
+  "user": "adminOn",
+  "w": 360,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "adminOn",
+  "w": 360,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1275
+ },
+ {
+  "user": "adminOn",
+  "w": 360,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": {
+   "top": 635,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 165
+  },
+  "overlap": 53,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 5200
+ },
+ {
+  "user": "adminOn",
+  "w": 360,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2977
+ },
+ {
+  "user": "adminOn",
+  "w": 390,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "body"
+  ],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2938
+ },
+ {
+  "user": "adminOn",
+  "w": 390,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2134
+ },
+ {
+  "user": "adminOn",
+  "w": 390,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": true,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1629
+ },
+ {
+  "user": "adminOn",
+  "w": 390,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1053
+ },
+ {
+  "user": "adminOn",
+  "w": 390,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1079
+ },
+ {
+  "user": "adminOn",
+  "w": 390,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "adminOn",
+  "w": 390,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1275
+ },
+ {
+  "user": "adminOn",
+  "w": 390,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": {
+   "top": 635,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 165
+  },
+  "overlap": 53,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 5110
+ },
+ {
+  "user": "adminOn",
+  "w": 390,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2897
+ },
+ {
+  "user": "adminOn",
+  "w": 575,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "body"
+  ],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 3392
+ },
+ {
+  "user": "adminOn",
+  "w": 575,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2649
+ },
+ {
+  "user": "adminOn",
+  "w": 575,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": true,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1589
+ },
+ {
+  "user": "adminOn",
+  "w": 575,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 929
+ },
+ {
+  "user": "adminOn",
+  "w": 575,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 888
+ },
+ {
+  "user": "adminOn",
+  "w": 575,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "adminOn",
+  "w": 575,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1235
+ },
+ {
+  "user": "adminOn",
+  "w": 575,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": {
+   "top": 635,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 165
+  },
+  "overlap": 53,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4728
+ },
+ {
+  "user": "adminOn",
+  "w": 575,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2797
+ },
+ {
+  "user": "adminOn",
+  "w": 576,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 2,
+  "discoveryNavWhere": [
+   "header",
+   "body"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2874
+ },
+ {
+  "user": "adminOn",
+  "w": 576,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2065
+ },
+ {
+  "user": "adminOn",
+  "w": 576,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1602
+ },
+ {
+  "user": "adminOn",
+  "w": 576,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1026
+ },
+ {
+  "user": "adminOn",
+  "w": 576,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1052
+ },
+ {
+  "user": "adminOn",
+  "w": 576,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:4"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "adminOn",
+  "w": 576,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1248
+ },
+ {
+  "user": "adminOn",
+  "w": 576,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 635,
+   "bottom": 800,
+   "left": 0,
+   "right": 576,
+   "h": 165
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 5118
+ },
+ {
+  "user": "adminOn",
+  "w": 576,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2911
+ },
+ {
+  "user": "adminOn",
+  "w": 640,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 2,
+  "discoveryNavWhere": [
+   "header",
+   "body"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2998
+ },
+ {
+  "user": "adminOn",
+  "w": 640,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1518
+ },
+ {
+  "user": "adminOn",
+  "w": 640,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1582
+ },
+ {
+  "user": "adminOn",
+  "w": 640,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 964
+ },
+ {
+  "user": "adminOn",
+  "w": 640,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1032
+ },
+ {
+  "user": "adminOn",
+  "w": 640,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:4"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "adminOn",
+  "w": 640,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1228
+ },
+ {
+  "user": "adminOn",
+  "w": 640,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 659,
+   "bottom": 800,
+   "left": 0,
+   "right": 625,
+   "h": 141
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4994
+ },
+ {
+  "user": "adminOn",
+  "w": 640,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2504
+ },
+ {
+  "user": "adminOn",
+  "w": 767,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 2,
+  "discoveryNavWhere": [
+   "header",
+   "body"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2632
+ },
+ {
+  "user": "adminOn",
+  "w": 767,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1629
+ },
+ {
+  "user": "adminOn",
+  "w": 767,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1562
+ },
+ {
+  "user": "adminOn",
+  "w": 767,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 902
+ },
+ {
+  "user": "adminOn",
+  "w": 767,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOn",
+  "w": 767,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:4"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOn",
+  "w": 767,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1308
+ },
+ {
+  "user": "adminOn",
+  "w": 767,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 759,
+   "bottom": 900,
+   "left": 0,
+   "right": 752,
+   "h": 141
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4776
+ },
+ {
+  "user": "adminOn",
+  "w": 767,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2426
+ },
+ {
+  "user": "adminOn",
+  "w": 768,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2487
+ },
+ {
+  "user": "adminOn",
+  "w": 768,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1559
+ },
+ {
+  "user": "adminOn",
+  "w": 768,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1490
+ },
+ {
+  "user": "adminOn",
+  "w": 768,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOn",
+  "w": 768,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOn",
+  "w": 768,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:4"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOn",
+  "w": 768,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1236
+ },
+ {
+  "user": "adminOn",
+  "w": 768,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 831,
+   "bottom": 900,
+   "left": 0,
+   "right": 753,
+   "h": 69
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4704
+ },
+ {
+  "user": "adminOn",
+  "w": 768,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2354
+ },
+ {
+  "user": "adminOn",
+  "w": 1024,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2719
+ },
+ {
+  "user": "adminOn",
+  "w": 1024,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1044
+ },
+ {
+  "user": "adminOn",
+  "w": 1024,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1425
+ },
+ {
+  "user": "adminOn",
+  "w": 1024,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOn",
+  "w": 1024,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOn",
+  "w": 1024,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:4"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOn",
+  "w": 1024,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1171
+ },
+ {
+  "user": "adminOn",
+  "w": 1024,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 831,
+   "bottom": 900,
+   "left": 0,
+   "right": 1009,
+   "h": 69
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4373
+ },
+ {
+  "user": "adminOn",
+  "w": 1024,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2248
+ },
+ {
+  "user": "adminOn",
+  "w": 1440,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2247
+ },
+ {
+  "user": "adminOn",
+  "w": 1440,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1187
+ },
+ {
+  "user": "adminOn",
+  "w": 1440,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1405
+ },
+ {
+  "user": "adminOn",
+  "w": 1440,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOn",
+  "w": 1440,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOn",
+  "w": 1440,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:4"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOn",
+  "w": 1440,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1151
+ },
+ {
+  "user": "adminOn",
+  "w": 1440,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 831,
+   "bottom": 900,
+   "left": 0,
+   "right": 1425,
+   "h": 69
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4299
+ },
+ {
+  "user": "adminOn",
+  "w": 1440,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2228
+ },
+ {
+  "user": "adminOff",
+  "w": 360,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "body"
+  ],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 3199
+ },
+ {
+  "user": "adminOff",
+  "w": 360,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2422
+ },
+ {
+  "user": "adminOff",
+  "w": 360,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": true,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1747
+ },
+ {
+  "user": "adminOff",
+  "w": 360,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1053
+ },
+ {
+  "user": "adminOff",
+  "w": 360,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1079
+ },
+ {
+  "user": "adminOff",
+  "w": 360,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "adminOff",
+  "w": 360,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1275
+ },
+ {
+  "user": "adminOff",
+  "w": 360,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": {
+   "top": 635,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 165
+  },
+  "overlap": 53,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 5200
+ },
+ {
+  "user": "adminOff",
+  "w": 360,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 360,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2977
+ },
+ {
+  "user": "adminOff",
+  "w": 390,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "body"
+  ],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 3299
+ },
+ {
+  "user": "adminOff",
+  "w": 390,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2534
+ },
+ {
+  "user": "adminOff",
+  "w": 390,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": true,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1747
+ },
+ {
+  "user": "adminOff",
+  "w": 390,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1053
+ },
+ {
+  "user": "adminOff",
+  "w": 390,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1079
+ },
+ {
+  "user": "adminOff",
+  "w": 390,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "adminOff",
+  "w": 390,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1275
+ },
+ {
+  "user": "adminOff",
+  "w": 390,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": {
+   "top": 635,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 165
+  },
+  "overlap": 53,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 5110
+ },
+ {
+  "user": "adminOff",
+  "w": 390,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 390,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2897
+ },
+ {
+  "user": "adminOff",
+  "w": 575,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "body"
+  ],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 3876
+ },
+ {
+  "user": "adminOff",
+  "w": 575,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 3188
+ },
+ {
+  "user": "adminOff",
+  "w": 575,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": true,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1707
+ },
+ {
+  "user": "adminOff",
+  "w": 575,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": true
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 929
+ },
+ {
+  "user": "adminOff",
+  "w": 575,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 902
+ },
+ {
+  "user": "adminOff",
+  "w": 575,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "adminOff",
+  "w": 575,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1235
+ },
+ {
+  "user": "adminOff",
+  "w": 575,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": {
+   "top": 635,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 165
+  },
+  "overlap": 53,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4728
+ },
+ {
+  "user": "adminOff",
+  "w": 575,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "bottom:모바일 메뉴:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": {
+   "top": 747,
+   "bottom": 800,
+   "left": 0,
+   "right": 575,
+   "h": 53
+  },
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2797
+ },
+ {
+  "user": "adminOff",
+  "w": 576,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 2,
+  "discoveryNavWhere": [
+   "header",
+   "body"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 3225
+ },
+ {
+  "user": "adminOff",
+  "w": 576,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2455
+ },
+ {
+  "user": "adminOff",
+  "w": 576,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1720
+ },
+ {
+  "user": "adminOff",
+  "w": 576,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1026
+ },
+ {
+  "user": "adminOff",
+  "w": 576,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1052
+ },
+ {
+  "user": "adminOff",
+  "w": 576,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:4"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "adminOff",
+  "w": 576,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1248
+ },
+ {
+  "user": "adminOff",
+  "w": 576,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 635,
+   "bottom": 800,
+   "left": 0,
+   "right": 576,
+   "h": 165
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 5118
+ },
+ {
+  "user": "adminOff",
+  "w": 576,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2911
+ },
+ {
+  "user": "adminOff",
+  "w": 640,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 2,
+  "discoveryNavWhere": [
+   "header",
+   "body"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2998
+ },
+ {
+  "user": "adminOff",
+  "w": 640,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1518
+ },
+ {
+  "user": "adminOff",
+  "w": 640,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1700
+ },
+ {
+  "user": "adminOff",
+  "w": 640,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 964
+ },
+ {
+  "user": "adminOff",
+  "w": 640,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1032
+ },
+ {
+  "user": "adminOff",
+  "w": 640,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:4"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 800
+ },
+ {
+  "user": "adminOff",
+  "w": 640,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1228
+ },
+ {
+  "user": "adminOff",
+  "w": 640,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 659,
+   "bottom": 800,
+   "left": 0,
+   "right": 625,
+   "h": 141
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4994
+ },
+ {
+  "user": "adminOff",
+  "w": 640,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2504
+ },
+ {
+  "user": "adminOff",
+  "w": 767,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 2,
+  "discoveryNavWhere": [
+   "header",
+   "body"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:콘텐츠 탐색:5",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2632
+ },
+ {
+  "user": "adminOff",
+  "w": 767,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1629
+ },
+ {
+  "user": "adminOff",
+  "w": 767,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1680
+ },
+ {
+  "user": "adminOff",
+  "w": 767,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 902
+ },
+ {
+  "user": "adminOff",
+  "w": 767,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOff",
+  "w": 767,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:4"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOff",
+  "w": 767,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1308
+ },
+ {
+  "user": "adminOff",
+  "w": 767,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 759,
+   "bottom": 900,
+   "left": 0,
+   "right": 752,
+   "h": 141
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4776
+ },
+ {
+  "user": "adminOff",
+  "w": 767,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2426
+ },
+ {
+  "user": "adminOff",
+  "w": 768,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2487
+ },
+ {
+  "user": "adminOff",
+  "w": 768,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1559
+ },
+ {
+  "user": "adminOff",
+  "w": 768,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1608
+ },
+ {
+  "user": "adminOff",
+  "w": 768,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOff",
+  "w": 768,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOff",
+  "w": 768,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:4"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOff",
+  "w": 768,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1236
+ },
+ {
+  "user": "adminOff",
+  "w": 768,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 831,
+   "bottom": 900,
+   "left": 0,
+   "right": 753,
+   "h": 69
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4704
+ },
+ {
+  "user": "adminOff",
+  "w": 768,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2354
+ },
+ {
+  "user": "adminOff",
+  "w": 1024,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2719
+ },
+ {
+  "user": "adminOff",
+  "w": 1024,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1044
+ },
+ {
+  "user": "adminOff",
+  "w": 1024,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1543
+ },
+ {
+  "user": "adminOff",
+  "w": 1024,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOff",
+  "w": 1024,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOff",
+  "w": 1024,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:4"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOff",
+  "w": 1024,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1171
+ },
+ {
+  "user": "adminOff",
+  "w": 1024,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 831,
+   "bottom": 900,
+   "left": 0,
+   "right": 1009,
+   "h": 69
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4373
+ },
+ {
+  "user": "adminOff",
+  "w": 1024,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2248
+ },
+ {
+  "user": "adminOff",
+  "w": 1440,
+  "page": "home",
+  "finalPath": "/",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2708
+ },
+ {
+  "user": "adminOff",
+  "w": 1440,
+  "page": "new",
+  "finalPath": "/tab/new",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1187
+ },
+ {
+  "user": "adminOff",
+  "w": 1440,
+  "page": "ranking",
+  "finalPath": "/tab/ranking",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1523
+ },
+ {
+  "user": "adminOff",
+  "w": 1440,
+  "page": "search",
+  "finalPath": "/search",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOff",
+  "w": 1440,
+  "page": "chats",
+  "finalPath": "/chats",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOff",
+  "w": 1440,
+  "page": "chatroom",
+  "finalPath": "/chat/1",
+  "reach": {
+   "/tab/new": false,
+   "/tab/ranking": false,
+   "/trpg": false,
+   "/search": false
+  },
+  "discoveryNavCount": 0,
+  "discoveryNavWhere": [],
+  "navs": [
+   "aside:null:4"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 900
+ },
+ {
+  "user": "adminOff",
+  "w": 1440,
+  "page": "trpgroom",
+  "finalPath": "/trpg/1",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 1151
+ },
+ {
+  "user": "adminOff",
+  "w": 1440,
+  "page": "create",
+  "finalPath": "/create",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": {
+   "top": 831,
+   "bottom": 900,
+   "left": 0,
+   "right": 1425,
+   "h": 69
+  },
+  "overlap": 0,
+  "saveBtnCovered": false,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 4299
+ },
+ {
+  "user": "adminOff",
+  "w": 1440,
+  "page": "settings",
+  "finalPath": "/settings",
+  "reach": {
+   "/tab/new": true,
+   "/tab/ranking": true,
+   "/trpg": true,
+   "/search": true
+  },
+  "discoveryNavCount": 1,
+  "discoveryNavWhere": [
+   "header"
+  ],
+  "navs": [
+   "header:주요 메뉴:6",
+   "aside:null:4",
+   "body:법적 고지:3"
+  ],
+  "bottomBeforeMain": true,
+  "bottom": null,
+  "saveBar": null,
+  "overlap": 0,
+  "saveBtnCovered": null,
+  "overflowX": false,
+  "clippedControls": 0,
+  "docH": 2228
+ }
+]

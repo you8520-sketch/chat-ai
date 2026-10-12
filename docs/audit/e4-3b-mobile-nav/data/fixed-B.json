@@ -1,0 +1,201 @@
+[
+ {
+  "name": "create: save bar bottom meets nav top (no overlap, no gap)",
+  "ok": true,
+  "info": {
+   "nav": {
+    "top": 791,
+    "bottom": 844,
+    "h": 53
+   },
+   "bar": {
+    "top": 698,
+    "bottom": 791,
+    "h": 93
+   }
+  }
+ },
+ {
+  "name": "keyboard open: flag set, nav hidden",
+  "ok": true,
+  "info": {
+   "open": true,
+   "inset": "320px",
+   "navDisplay": "none"
+  }
+ },
+ {
+  "name": "keyboard open: save bar sits on the keyboard edge (bottom = 844-320)",
+  "ok": true,
+  "info": {
+   "top": 431,
+   "bottom": 524,
+   "h": 93
+  }
+ },
+ {
+  "name": "keyboard open: save button is hit-testable above the keyboard",
+  "ok": true
+ },
+ {
+  "name": "URL-bar sized viewport change (60px) does not count as a keyboard",
+  "ok": true,
+  "info": {
+   "open": false,
+   "navDisplay": "block"
+  }
+ },
+ {
+  "name": "keyboard closed: nav and bar restored",
+  "ok": true,
+  "info": {
+   "nav3": {
+    "top": 791,
+    "bottom": 844,
+    "h": 53
+   },
+   "bar3": {
+    "top": 698,
+    "bottom": 791,
+    "h": 93
+   }
+  }
+ },
+ {
+  "name": "safe-area 34px: nav grows by the inset, bar still meets nav top",
+  "ok": true,
+  "info": {
+   "nav": {
+    "top": 757,
+    "bottom": 844,
+    "h": 87
+   },
+   "bar": {
+    "top": 664,
+    "bottom": 757,
+    "h": 93
+   },
+   "pad": "34px"
+  }
+ },
+ {
+  "name": "scrolled to the end: footer's last line clears the save bar",
+  "ok": true,
+  "info": {
+   "lastBottom": 648,
+   "barTop": 664
+  }
+ },
+ {
+  "name": "tab order: every main control precedes the bottom nav",
+  "ok": true,
+  "info": {
+   "firstNav": 46,
+   "lastMain": 42,
+   "cycleLength": 54,
+   "regions": [
+    "header",
+    "main",
+    "footer",
+    "bottom-nav"
+   ]
+  }
+ },
+ {
+  "name": "guest@390 /tab/new → 랭킹: link hit-testable, veil, lands /tab/ranking",
+  "ok": true,
+  "info": {
+   "hit": true,
+   "veil": true,
+   "finalPath": "/tab/ranking",
+   "focus": "A",
+   "box": true
+  }
+ },
+ {
+  "name": "guest@360 /tab/ranking → 검색: link hit-testable, veil, lands /search",
+  "ok": true,
+  "info": {
+   "hit": true,
+   "veil": true,
+   "finalPath": "/search",
+   "focus": "A",
+   "box": true
+  }
+ },
+ {
+  "name": "std@390 /chats → 신작: link hit-testable, veil, lands /tab/new",
+  "ok": true,
+  "info": {
+   "hit": true,
+   "veil": true,
+   "finalPath": "/tab/new",
+   "focus": "A",
+   "box": true
+  }
+ },
+ {
+  "name": "std@360 /tab/new → 설정: link hit-testable, veil, lands /settings",
+  "ok": true,
+  "info": {
+   "hit": true,
+   "veil": true,
+   "finalPath": "/settings",
+   "focus": "A",
+   "box": true
+  }
+ },
+ {
+  "name": "std@390 /tab/ranking → 제작: link hit-testable, veil, lands /studio",
+  "ok": true,
+  "info": {
+   "hit": true,
+   "veil": true,
+   "finalPath": "/studio",
+   "focus": "A",
+   "box": true
+  }
+ },
+ {
+  "name": "reduced-motion: nav still navigates and no menu veil is painted",
+  "ok": true,
+  "info": {
+   "veilDisplay": "absent"
+  }
+ },
+ {
+  "name": "chat room: no global bottom nav, no main-tab strip, global header hidden",
+  "ok": true,
+  "info": {
+   "nav": false,
+   "strip": false,
+   "headerShown": false
+  }
+ },
+ {
+  "name": "TRPG room: no bottom nav, and no dock button is covered",
+  "ok": true,
+  "info": {
+   "nav": false,
+   "dockButtons": 4,
+   "dockCovered": 0,
+   "dockBottom": 829,
+   "innerH": 844,
+   "headerBottom": 65,
+   "panelTop": 72
+  }
+ },
+ {
+  "name": "TRPG room: campaign tools panel starts below the whole header",
+  "ok": true,
+  "info": {
+   "nav": false,
+   "dockButtons": 4,
+   "dockCovered": 0,
+   "dockBottom": 829,
+   "innerH": 844,
+   "headerBottom": 65,
+   "panelTop": 72
+  }
+ }
+]
