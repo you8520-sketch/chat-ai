@@ -1,0 +1,257 @@
+
+> hav-chat@0.1.0 build
+> tsx scripts/build-jsx-sandbox.ts && next build
+
+jsx sandbox runtime -> /workspace/public/jsx-sandbox/runtime.js
+   ▲ Next.js 15.5.25
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 32.6s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/120) ...
+   Generating static pages (30/120) 
+   Generating static pages (60/120) 
+   Generating static pages (90/120) 
+ ✓ Generating static pages (120/120)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                           Size  First Load JS
+┌ ƒ /                                              5.86 kB         112 kB
+├ ƒ /_not-found                                       1 kB         103 kB
+├ ƒ /admin/automation-reports                        179 B         106 kB
+├ ƒ /admin/beta-free-points                        2.21 kB         108 kB
+├ ƒ /admin/boards                                  1.69 kB         107 kB
+├ ƒ /admin/character-moderation                    4.25 kB         243 kB
+├ ƒ /admin/comment-banned-words                    2.13 kB         108 kB
+├ ƒ /admin/comment-reports                         1.99 kB         108 kB
+├ ƒ /admin/create-migration                        2.25 kB         108 kB
+├ ƒ /admin/finance                                 8.16 kB         114 kB
+├ ƒ /admin/home-popup-notice                       3.18 kB         109 kB
+├ ƒ /admin/official-characters                     2.55 kB         105 kB
+├ ƒ /admin/ops                                     2.57 kB         108 kB
+├ ƒ /admin/payout                                  4.11 kB         110 kB
+├ ƒ /admin/point-grant                             2.06 kB         108 kB
+├ ƒ /admin/pricing                                   997 B         103 kB
+├ ƒ /admin/report-refunds                          3.35 kB         109 kB
+├ ƒ /albums                                        3.57 kB         109 kB
+├ ƒ /api/admin/adult-scene-handoff-canary            504 B         103 kB
+├ ƒ /api/admin/beta-free-points                      504 B         103 kB
+├ ƒ /api/admin/beta-free-points/[id]                 504 B         103 kB
+├ ƒ /api/admin/character-moderation                  504 B         103 kB
+├ ƒ /api/admin/character-moderation/[id]             504 B         103 kB
+├ ƒ /api/admin/character-prompt-forensics            504 B         103 kB
+├ ƒ /api/admin/chat-turn-forensics                   504 B         103 kB
+├ ƒ /api/admin/comment-banned-words                  504 B         103 kB
+├ ƒ /api/admin/comment-banned-words/[id]             504 B         103 kB
+├ ƒ /api/admin/comment-reports                       504 B         103 kB
+├ ƒ /api/admin/comment-reports/[id]                  504 B         103 kB
+├ ƒ /api/admin/create-migration                      504 B         103 kB
+├ ƒ /api/admin/create-migration/[id]                 504 B         103 kB
+├ ƒ /api/admin/finance                               504 B         103 kB
+├ ƒ /api/admin/finance/provider-request              504 B         103 kB
+├ ƒ /api/admin/finance/provider-request/correlate    504 B         103 kB
+├ ƒ /api/admin/finance/reconcile                     504 B         103 kB
+├ ƒ /api/admin/full-db-migration                     504 B         103 kB
+├ ƒ /api/admin/home-popup-notice                     504 B         103 kB
+├ ƒ /api/admin/official-characters                   504 B         103 kB
+├ ƒ /api/admin/official-characters/[id]              504 B         103 kB
+├ ƒ /api/admin/official-characters/sync              504 B         103 kB
+├ ƒ /api/admin/payout                                504 B         103 kB
+├ ƒ /api/admin/payout/export                         504 B         103 kB
+├ ƒ /api/admin/point-grant                           504 B         103 kB
+├ ƒ /api/admin/posts                                 504 B         103 kB
+├ ƒ /api/admin/pricing-proposals/[id]                504 B         103 kB
+├ ƒ /api/admin/regen-context                         504 B         103 kB
+├ ƒ /api/admin/report-refunds                        504 B         103 kB
+├ ƒ /api/admin/report-refunds/[id]                   504 B         103 kB
+├ ƒ /api/admin/rp-qualification-fixture              504 B         103 kB
+├ ƒ /api/admin/runtime-settings                      504 B         103 kB
+├ ƒ /api/admin/status-widget-diagnostics             504 B         103 kB
+├ ƒ /api/admin/trpg-blueprint-rollout-status         504 B         103 kB
+├ ƒ /api/admin/trpg-blueprint-warmup                 504 B         103 kB
+├ ƒ /api/assets/tag                                  504 B         103 kB
+├ ƒ /api/attendance                                  504 B         103 kB
+├ ƒ /api/auth/demo-login                             504 B         103 kB
+├ ƒ /api/auth/google                                 504 B         103 kB
+├ ƒ /api/auth/google/callback                        504 B         103 kB
+├ ƒ /api/auth/google/dev                             504 B         103 kB
+├ ƒ /api/auth/login                                  504 B         103 kB
+├ ƒ /api/auth/logout                                 504 B         103 kB
+├ ƒ /api/auth/me                                     504 B         103 kB
+├ ƒ /api/auth/signup                                 504 B         103 kB
+├ ƒ /api/auth/verify-email                           504 B         103 kB
+├ ƒ /api/characters                                  504 B         103 kB
+├ ƒ /api/characters/[id]                             504 B         103 kB
+├ ƒ /api/characters/[id]/follow                      504 B         103 kB
+├ ƒ /api/characters/[id]/like                        504 B         103 kB
+├ ƒ /api/chat                                        504 B         103 kB
+├ ƒ /api/chat/admin-billing-receipt                  504 B         103 kB
+├ ƒ /api/chat/bookmark                               504 B         103 kB
+├ ƒ /api/chat/bookmarks                              504 B         103 kB
+├ ƒ /api/chat/comic-generation                       504 B         103 kB
+├ ƒ /api/chat/fork                                   504 B         103 kB
+├ ƒ /api/chat/image-album                            504 B         103 kB
+├ ƒ /api/chat/image-generation                       504 B         103 kB
+├ ƒ /api/chat/memory                                 504 B         103 kB
+├ ƒ /api/chat/message                                504 B         103 kB
+├ ƒ /api/chat/message-billing-summary                504 B         103 kB
+├ ƒ /api/chat/message/variant                        504 B         103 kB
+├ ƒ /api/chat/messages                               504 B         103 kB
+├ ƒ /api/chat/model-picker-preview                   504 B         103 kB
+├ ƒ /api/chat/next-turn-estimates                    504 B         103 kB
+├ ƒ /api/chat/ooc-scene/adopt                        504 B         103 kB
+├ ƒ /api/chat/persona                                504 B         103 kB
+├ ƒ /api/chat/report-refund                          504 B         103 kB
+├ ƒ /api/chat/session                                504 B         103 kB
+├ ƒ /api/chat/settings                               504 B         103 kB
+├ ƒ /api/chat/status-meta                            504 B         103 kB
+├ ƒ /api/chat/suggested-replies                      504 B         103 kB
+├ ƒ /api/chat/turn                                   504 B         103 kB
+├ ƒ /api/chat/user-lorebook                          504 B         103 kB
+├ ƒ /api/comments                                    504 B         103 kB
+├ ƒ /api/creator                                     504 B         103 kB
+├ ƒ /api/creator/notices                             504 B         103 kB
+├ ƒ /api/creator/withdraw                            504 B         103 kB
+├ ƒ /api/cron/subscription-renew                     504 B         103 kB
+├ ƒ /api/events/beta-free-points                     504 B         103 kB
+├ ƒ /api/events/create-migration                     504 B         103 kB
+├ ƒ /api/feedback                                    504 B         103 kB
+├ ƒ /api/format-profile                              504 B         103 kB
+├ ƒ /api/generate-profile                            504 B         103 kB
+├ ƒ /api/health                                      504 B         103 kB
+├ ƒ /api/image-gen                                   504 B         103 kB
+├ ƒ /api/lorebooks                                   504 B         103 kB
+├ ƒ /api/lorebooks/[id]                              504 B         103 kB
+├ ƒ /api/me/viewer-display                           504 B         103 kB
+├ ƒ /api/notices/read                                504 B         103 kB
+├ ƒ /api/notifications                               504 B         103 kB
+├ ƒ /api/notifications/read                          504 B         103 kB
+├ ƒ /api/payments/portone/complete                   504 B         103 kB
+├ ƒ /api/payments/portone/prepare                    504 B         103 kB
+├ ƒ /api/payments/portone/webhook                    504 B         103 kB
+├ ƒ /api/persona                                     504 B         103 kB
+├ ƒ /api/personas                                    504 B         103 kB
+├ ƒ /api/personas/[id]                               504 B         103 kB
+├ ƒ /api/personas/[id]/editor                        504 B         103 kB
+├ ƒ /api/personas/[id]/status-widget                 504 B         103 kB
+├ ƒ /api/personas/editor                             504 B         103 kB
+├ ƒ /api/points/charge                               504 B         103 kB
+├ ƒ /api/points/charge/cancel                        504 B         103 kB
+├ ƒ /api/points/expiring                             504 B         103 kB
+├ ƒ /api/points/gift                                 504 B         103 kB
+├ ƒ /api/points/logs                                 504 B         103 kB
+├ ƒ /api/points/subscribe                            504 B         103 kB
+├ ƒ /api/points/subscribe/cancel                     504 B         103 kB
+├ ƒ /api/posts                                       504 B         103 kB
+├ ƒ /api/profile-comments                            504 B         103 kB
+├ ƒ /api/profile-comments/[id]/block                 504 B         103 kB
+├ ƒ /api/profile-comments/[id]/report                504 B         103 kB
+├ ƒ /api/push                                        504 B         103 kB
+├ ƒ /api/report                                      504 B         103 kB
+├ ƒ /api/settings                                    504 B         103 kB
+├ ƒ /api/simulations/characters                      504 B         103 kB
+├ ƒ /api/status-widget-presets                       504 B         103 kB
+├ ƒ /api/status-widget-presets/[id]                  504 B         103 kB
+├ ƒ /api/status-widget-shares                        504 B         103 kB
+├ ƒ /api/status-widget-shares/[slug]                 504 B         103 kB
+├ ƒ /api/status-widget-shares/[slug]/import          504 B         103 kB
+├ ƒ /api/trpg/campaigns                              504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]                         504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/action                  504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/advance                 504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/companions              504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/fork                    504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/goal-claim              504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/illustration-cast       504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/inventory               504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/party-chat              504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/party-sheet             504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/reply-suggestions       504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/reroll                  504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/retry-bots              504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/sheet                   504 B         103 kB
+├ ƒ /api/trpg/campaigns/[id]/start                   504 B         103 kB
+├ ƒ /api/trpg/catalog                                504 B         103 kB
+├ ƒ /api/trpg/characters                             504 B         103 kB
+├ ƒ /api/trpg/join                                   504 B         103 kB
+├ ƒ /api/trpg/scenarios                              504 B         103 kB
+├ ƒ /api/trpg/scenarios/[id]                         504 B         103 kB
+├ ƒ /api/trpg/scenarios/ai-draft                     504 B         103 kB
+├ ƒ /api/upload                                      504 B         103 kB
+├ ƒ /api/user-note-presets                           504 B         103 kB
+├ ƒ /api/user-note-presets/[id]                      504 B         103 kB
+├ ƒ /api/user/chat-prefs                             504 B         103 kB
+├ ƒ /api/user/selected-ai                            504 B         103 kB
+├ ƒ /api/verify                                      504 B         103 kB
+├ ƒ /api/world-borrows/[id]                          504 B         103 kB
+├ ƒ /api/world-shares/[slug]                         504 B         103 kB
+├ ƒ /api/world-shares/[slug]/import                  504 B         103 kB
+├ ƒ /api/worlds                                      504 B         103 kB
+├ ƒ /api/worlds/[id]                                 504 B         103 kB
+├ ƒ /api/worlds/[id]/share                           504 B         103 kB
+├ ƒ /board/[slug]                                    393 B         103 kB
+├ ƒ /bookmarks                                       504 B         103 kB
+├ ƒ /c/[slug]                                        504 B         103 kB
+├ ƒ /character/[id]                                5.72 kB         154 kB
+├ ƒ /chat/[id]                                     90.9 kB         353 kB
+├ ƒ /chats                                         8.77 kB         130 kB
+├ ƒ /create                                        39.8 kB         396 kB
+├ ƒ /create/preview                                8.11 kB         149 kB
+├ ƒ /creator                                       10.4 kB         136 kB
+├ ƒ /creator/[id]                                  1.19 kB         112 kB
+├ ƒ /events/beta-free-points                       3.19 kB         109 kB
+├ ƒ /events/create-migration                       3.23 kB         122 kB
+├ ƒ /health                                          504 B         103 kB
+├ ƒ /image-gen                                     2.48 kB         108 kB
+├ ƒ /login                                         1.84 kB         118 kB
+├ ƒ /lorebook                                      2.44 kB         108 kB
+├ ƒ /lorebook/[id]/edit                              128 B         111 kB
+├ ƒ /lorebook/create                                 128 B         111 kB
+├ ○ /manifest.webmanifest                            504 B         103 kB
+├ ƒ /media/private/[filename]                        504 B         103 kB
+├ ƒ /media/public/[filename]                         504 B         103 kB
+├ ƒ /my-characters                                  3.9 kB         110 kB
+├ ƒ /notices/[id]                                    362 B         106 kB
+├ ƒ /notifications                                   416 B         106 kB
+├ ƒ /offline                                         179 B         106 kB
+├ ƒ /onboarding                                    1.89 kB         104 kB
+├ ƒ /payments/portone/callback                     3.09 kB         109 kB
+├ ƒ /persona                                       8.96 kB         203 kB
+├ ƒ /points                                        10.7 kB         116 kB
+├ ƒ /privacy                                         179 B         106 kB
+├ ƒ /refund                                          179 B         106 kB
+├ ƒ /search                                        2.68 kB         108 kB
+├ ƒ /settings                                       6.2 kB         122 kB
+├ ƒ /signup                                        1.93 kB         119 kB
+├ ƒ /signup/verify                                 1.56 kB         107 kB
+├ ƒ /simulation/create                               504 B         103 kB
+├ ƒ /studio                                        6.74 kB         256 kB
+├ ƒ /tab/[tab]                                     4.69 kB         110 kB
+├ ƒ /terms                                           179 B         106 kB
+├ ƒ /trpg                                          8.32 kB         114 kB
+├ ƒ /trpg/[id]                                     12.5 kB         310 kB
+├ ƒ /trpg/dice-lab                                 1.51 kB         117 kB
+├ ƒ /trpg/inline-asset-frame-lab                    3.9 kB         136 kB
+├ ƒ /trpg/join/[code]                               2.7 kB         111 kB
+├ ƒ /trpg/result-lab                               1.64 kB         104 kB
+├ ƒ /trpg/scenarios/[id]                             192 B         144 kB
+├ ƒ /trpg/scenarios/new                              504 B         103 kB
+├ ƒ /trpg/scroll-follow-lab                        3.94 kB         276 kB
+├ ƒ /uploads/[filename]                              504 B         103 kB
+├ ƒ /verify                                         3.4 kB         109 kB
+├ ƒ /widget/apply/[slug]                           3.57 kB         176 kB
+├ ƒ /widgets                                       3.61 kB         176 kB
+├ ƒ /world/[id]/edit                                 154 B         149 kB
+├ ƒ /world/apply/[slug]                            1.82 kB         108 kB
+└ ƒ /world/create                                    154 B         149 kB
++ First Load JS shared by all                       102 kB
+  ├ chunks/1255-623a1bc706ecd6cc.js                46.1 kB
+  ├ chunks/4bd1b696-100b9d70ed4e49c1.js            54.2 kB
+  └ other shared chunks (total)                    2.03 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

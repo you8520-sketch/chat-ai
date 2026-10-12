@@ -51,3 +51,33 @@ Command: `G_MODE=live G_BUDGET_KRW=900 REGULAR_TEST_REAL_PROVIDER_CALLS=1 node -
 - `verification/goal-host-confirm-red-no-settle.log`: the same suite with the in-transaction re-check disabled; the interleave test and the settle test fail.
 - `verification/goal-rollback-real-old-module.log` + `rollback-probe.test.ts`: the real 67f3249d `campaignGoals.ts` rewrites a host-confirmed `goals_json`; the new build reads it back as completed with basis `unrecorded` (evidence is lost, never shown as host- or server-verified) and a pending claim without `claimSource` is not confirmable.
 - `verification/full-trpg-baseline-67f3249d.log` vs `full-trpg-after-76d73058.log`: same 28 pre-existing failing tests before and after; no new failure.
+
+## UI evidence for 8c42b503 (before = PR head 76d73058; local dev server, seeded local SQLite, no deploy)
+
+Screenshots are committed at `8782f597ae86836c74b0ee25955240d7d60688dc`; each URL returned HTTP 200 image/png when checked.
+
+| state | device | before | after |
+|---|---|---|---|
+| host, valid proposal | pc | [before-host-valid-pc.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/before-host-valid-pc.png) | [after-host-valid-pc.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/after-host-valid-pc.png) |
+| host, valid proposal | mobile | [before-host-valid-mobile.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/before-host-valid-mobile.png) | [after-host-valid-mobile.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/after-host-valid-mobile.png) |
+| host, stale proposal (reroll) | pc | [before-host-stale-pc.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/before-host-stale-pc.png) | [after-host-stale-pc.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/after-host-stale-pc.png) |
+| host, stale proposal (reroll) | mobile | [before-host-stale-mobile.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/before-host-stale-mobile.png) | [after-host-stale-mobile.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/after-host-stale-mobile.png) |
+| other human, valid proposal | pc | [before-guest-valid-pc.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/before-guest-valid-pc.png) | [after-guest-valid-pc.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/after-guest-valid-pc.png) |
+| other human, valid proposal | mobile | [before-guest-valid-mobile.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/before-guest-valid-mobile.png) | [after-guest-valid-mobile.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/after-guest-valid-mobile.png) |
+
+After an answer (live click in the browser):
+
+| step | device | screenshot |
+|---|---|---|
+| host clears the stale proposal -> card gone | pc | [act-stale-host-after-clear-pc.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/act-stale-host-after-clear-pc.png) |
+| host clears the stale proposal -> card gone | mobile | [act-stale-host-after-clear-mobile.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/act-stale-host-after-clear-mobile.png) |
+| other human, same stale campaign -> card gone | pc | [act-stale-guest-after-clear-pc.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/act-stale-guest-after-clear-pc.png) |
+| other human, same stale campaign -> card gone | mobile | [act-stale-guest-after-clear-mobile.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/act-stale-guest-after-clear-mobile.png) |
+| host confirms valid proposal -> card gone | pc | [act-valid-host-after-confirm-pc.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/act-valid-host-after-confirm-pc.png) |
+| host confirms valid proposal -> card gone | mobile | [act-valid-host-after-confirm-mobile.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/act-valid-host-after-confirm-mobile.png) |
+| other human, same valid campaign -> card gone | pc | [act-valid-guest-after-confirm-pc.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/act-valid-guest-after-confirm-pc.png) |
+| other human, same valid campaign -> card gone | mobile | [act-valid-guest-after-confirm-mobile.png](https://raw.githubusercontent.com/you8520-sketch/chat-ai/8782f597ae86836c74b0ee25955240d7d60688dc/docs/evidence/trpg-1574-free-goal-claim/ui/act-valid-guest-after-confirm-mobile.png) |
+
+Database state after the clicks (`verification-ui/final-db-state.log.txt`): the cleared stale goal stays `active` (`declinedRound: 1`, no evidence); the confirmed goal is `completed` with `host_confirmed` evidence.
+
+Other logs under `verification-ui/`: view-model + host tests RED on 76d73058 / GREEN on 8c42b503, 20-test host suite on a real remote libsql server (sqld 0.24.32) through the production driver, rollback to real production main (1945e2de) and re-upgrade, deployment history check, full TRPG suite after (same 28 baseline failures), build. `*.log` is gitignored in this repo, so logs here carry a `.txt` suffix.
