@@ -2,7 +2,7 @@
 
 - Base main: `8b85f97f` (E4-3D #1581 merged)
 - Candidate A (PR head, Quiet Reading): `cursor/chat-room-e4-3e-78cc` @ `386ecf20`
-- Candidate B (A 위에 stacked, Cinematic Dialogue): `cursor/chat-room-e4-3e-cand-b-78cc` @ `463846a3`
+- Candidate B (A `b1237ddc` 위에 B 커밋 + 동일 테스트 수정 cherry-pick, Cinematic Dialogue): `cursor/chat-room-e4-3e-cand-b-78cc` @ `463846a3`
 - Evidence: 이 브랜치 `cursor/chat-room-e4-3e-evidence-78cc` @ 이 문서의 이미지 커밋 `62b4da59`
 - 측정은 **격리 fixture**(`/tmp/e43e-data`, `scripts/e43e-seed.ts`)에서 production build 3종(BEFORE/A/B)으로 했다. 모든 응답은 저장된 원문 fixture이고 `/api/chat` POST는 Playwright route가 SSE로 대신 응답한다. 서버의 `OPENROUTER_API_KEY`는 빈 값이며 브라우저에서 관측된 provider POST는 **0건**이다.
 - 점수와 후보 선택은 GPT 몫이다. 이 문서는 측정값과 화면만 기록한다.
