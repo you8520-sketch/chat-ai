@@ -102,6 +102,12 @@ describe("E4-3B candidate A — header strip owns mobile discovery", () => {
     assert.match(mainNav, /isChatRoomPathname\(pathname\)/);
   });
 
+  it("anchors the TRPG mobile tools panel to the measured header height, not a fixed 64px guess", () => {
+    const room = read("src/app/trpg/TrpgCampaignRoom.tsx");
+    assert.match(room, /top-\[calc\(var\(--site-header-height,4rem\)\+0\.5rem\)\]/);
+    assert.doesNotMatch(room, /top-\[4\.5rem\]/);
+  });
+
   it("keeps the active tab in view when the strip scrolls", () => {
     assert.match(mainNav, /\[aria-current="page"\]/);
     assert.match(mainNav, /nav\.scrollLeft = /);
