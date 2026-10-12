@@ -134,7 +134,7 @@ export function PublicDossierBlock({
   const rowClass = `flex items-baseline gap-3 text-xs ${align === "end" ? "min-[960px]:justify-end" : ""}`;
   return (
     <div
-      className={`mt-3 w-fit max-w-full space-y-2 ${align === "end" ? "min-[960px]:ml-auto min-[960px]:text-right" : ""}`}
+      className={`mt-3 w-fit max-w-full space-y-2 ${align === "end" ? "max-[959px]:mx-auto min-[960px]:ml-auto min-[960px]:text-right" : ""}`}
     >
       {dossier.world ? (
         <div
@@ -418,7 +418,7 @@ export default function CharacterPublicPagePreview({
   const heroSection = (
     <section
       data-character-hero={characterId ?? ""}
-      className="relative rounded-3xl px-5 pb-7 pt-7 sm:px-8 min-[960px]:px-10 min-[960px]:py-10"
+      className="relative rounded-3xl px-5 pb-7 pt-5 sm:px-8 min-[960px]:px-10 min-[960px]:py-10"
     >
       <span
         aria-hidden
@@ -428,8 +428,8 @@ export default function CharacterPublicPagePreview({
             "radial-gradient(38% 55% at 72% 40%, rgb(139 92 246 / 0.2), transparent 72%), radial-gradient(120% 90% at 78% 30%, #1c1825 0%, #0f0e14 55%, #08080b 100%)",
         }}
       />
-      <div className="relative grid gap-0 min-[960px]:grid-cols-[minmax(0,26rem)_minmax(15rem,21rem)] min-[960px]:items-center min-[960px]:justify-center">
-        <div className="relative z-10 order-1 mx-auto w-[min(74vw,19rem)] min-[960px]:order-2 min-[960px]:mx-0 min-[960px]:w-full min-[960px]:justify-self-end">
+      <div className="relative grid gap-0 min-[960px]:grid-cols-[minmax(0,26rem)_minmax(15rem,21rem)] min-[1280px]:grid-cols-[minmax(0,26rem)_minmax(15rem,24rem)] min-[960px]:items-center min-[960px]:justify-center">
+        <div className="relative z-10 order-1 col-start-1 row-start-1 mx-auto w-[min(72vw,18rem)] min-[960px]:order-2 min-[960px]:col-start-2 min-[960px]:mx-0 min-[960px]:w-full min-[960px]:justify-self-end">
           <span
             aria-hidden
             className="pointer-events-none absolute -inset-3 rounded-[1.15rem] border border-[#f0e7d4]/20"
@@ -463,53 +463,57 @@ export default function CharacterPublicPagePreview({
         </div>
 
         <div
-          className="relative order-2 -mt-4 min-w-0 min-[960px]:order-1 min-[960px]:mt-0 min-[960px]:-mr-14 min-[960px]:pr-[4.75rem]"
+          className="contents min-[960px]:relative min-[960px]:order-1 min-[960px]:col-start-1 min-[960px]:-mr-14 min-[960px]:block min-[960px]:min-w-0 min-[960px]:pr-[4.75rem]"
           style={{ ["--hero-chars" as string]: String(posterName.maxChars) }}
         >
-          <div
-            {...{ [HERO_ITEM_ATTR]: "eyebrow" }}
-            className="flex w-fit items-center gap-3 pt-5 text-[11px] font-bold uppercase tracking-[0.22em] min-[960px]:ml-auto min-[960px]:pt-0"
-          >
-            {genre.trim() ? <span className="text-violet-300">{genre.trim()}</span> : null}
-            <span aria-hidden className="h-px w-10 bg-[#f0e7d4]/30" />
-            <span className="text-[#f0e7d4]/55">Character</span>
-          </div>
-          <div className="[container-type:inline-size]">
-            <h1
-              className="mt-3 break-keep font-black leading-[1] tracking-[-0.04em] text-[#f0e7d4] min-[960px]:text-right"
-              style={{ fontSize: "min(8.5rem, calc(96cqw / (var(--hero-chars) * 0.98)))" }}
+          <div className="pointer-events-none relative z-20 order-1 col-start-1 row-start-1 mx-auto flex w-[min(72vw,18rem)] flex-col justify-end self-end rounded-b-[14px] bg-gradient-to-t from-black/90 via-black/55 to-transparent px-4 pb-9 pt-16 [--hero-name-cap:3.25rem] min-[960px]:pointer-events-auto min-[960px]:z-auto min-[960px]:mx-0 min-[960px]:block min-[960px]:w-auto min-[960px]:rounded-none min-[960px]:bg-none min-[960px]:p-0 min-[960px]:[--hero-name-cap:8.5rem]">
+            <div
+              {...{ [HERO_ITEM_ATTR]: "eyebrow" }}
+              className="flex w-fit items-center gap-3 text-[11px] font-bold uppercase tracking-[0.22em] min-[960px]:ml-auto"
             >
-              <span className="sr-only">{displayName}</span>
-              <span
-                aria-hidden
-                {...{ [HERO_ITEM_ATTR]: "name", [REVEAL_FIT_ATTR]: "width" }}
-                className="block w-fit min-[960px]:ml-auto"
+              {genre.trim() ? <span className="text-violet-300">{genre.trim()}</span> : null}
+              <span aria-hidden className="h-px w-10 bg-[#f0e7d4]/30" />
+              <span className="text-[#f0e7d4]/55">Character</span>
+            </div>
+            <div className="[container-type:inline-size]">
+              <h1
+                className="mt-2 break-keep font-black leading-[1] tracking-[-0.04em] text-[#f0e7d4] min-[960px]:mt-3 min-[960px]:text-right"
+                style={{ fontSize: "min(var(--hero-name-cap), calc(96cqw / (var(--hero-chars) * 0.98)))" }}
               >
-                {posterName.lines.map((line, i) => (
-                  <span key={i} className="block whitespace-nowrap pb-[0.06em] min-[960px]:text-right">
-                    {line}
-                  </span>
-                ))}
-              </span>
-            </h1>
+                <span className="sr-only">{displayName}</span>
+                <span
+                  aria-hidden
+                  {...{ [HERO_ITEM_ATTR]: "name", [REVEAL_FIT_ATTR]: "width" }}
+                  className="block w-fit min-[960px]:ml-auto"
+                >
+                  {posterName.lines.map((line, i) => (
+                    <span key={i} className="block whitespace-nowrap pb-[0.06em] min-[960px]:text-right">
+                      {line}
+                    </span>
+                  ))}
+                </span>
+              </h1>
+            </div>
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2 min-[960px]:justify-end">
-            {creatorLine}
-            {pagePath ? <CopyPageLinkButton path={pagePath} /> : null}
+          <div className="order-2 col-start-1 row-start-2 mt-5 text-center min-[960px]:mt-0 min-[960px]:text-left">
+            <div className="flex flex-wrap items-center justify-center gap-2 min-[960px]:mt-4 min-[960px]:justify-end">
+              {creatorLine}
+              {pagePath ? <CopyPageLinkButton path={pagePath} /> : null}
+            </div>
+            {resolvedTagline.trim() ? (
+              <p
+                {...{ [HERO_ITEM_ATTR]: "tagline" }}
+                className="mx-auto mt-3 w-fit max-w-full text-base font-semibold leading-snug text-[#f0e7d4]/85 min-[960px]:ml-auto min-[960px]:mr-0 min-[960px]:text-right"
+              >
+                {resolvedTagline.trim()}
+              </p>
+            ) : null}
+            {heroActions ? (
+              <div className="mt-5 flex justify-center min-[960px]:justify-end">{heroActions}</div>
+            ) : null}
+            <div className="flex justify-center min-[960px]:justify-end [&>div]:justify-center min-[960px]:[&>div]:justify-end">{tagChips}</div>
+            {dossier ? <PublicDossierBlock dossier={dossier} align="end" /> : null}
           </div>
-          {resolvedTagline.trim() ? (
-            <p
-              {...{ [HERO_ITEM_ATTR]: "tagline" }}
-              className="mt-3 w-fit max-w-full text-base font-semibold leading-snug text-[#f0e7d4]/85 min-[960px]:ml-auto min-[960px]:text-right"
-            >
-              {resolvedTagline.trim()}
-            </p>
-          ) : null}
-          {heroActions ? (
-            <div className="mt-5 min-[960px]:flex min-[960px]:justify-end">{heroActions}</div>
-          ) : null}
-          <div className="min-[960px]:flex min-[960px]:justify-end">{tagChips}</div>
-          {dossier ? <PublicDossierBlock dossier={dossier} align="end" /> : null}
         </div>
       </div>
     </section>
