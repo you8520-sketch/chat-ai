@@ -1626,6 +1626,12 @@ html:has(.rv-veil) [data-character-hero] :is([data-hero-item], [data-character-h
   color: var(--chat-narration-color, #fafafa);
 }
 
+/* 채팅방 한글 가독성 — 어절 단위 줄바꿈 (TRPG 등 다른 NovelText 사용처는 영향 없음) */
+html.chat-room-active .chat-novel-prose {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
 /* 대사 문단 왼쪽 강조선 — dialogue paragraph accent bar */
 .chat-novel-prose p:has(> .chat-dialogue-accent) {
   position: relative;
@@ -1947,7 +1953,7 @@ html[data-keyboard-open] .mobile-bottom-nav {
   html.chat-room-active .chat-room-portrait-grid {
     container-type: inline-size;
     container-name: portrait-chat;
-    --chat-portrait-min-chat-w: 360px;
+    --chat-portrait-min-chat-w: 440px;
     --chat-portrait-max-w: min(
       820px,
       max(0px, calc(100cqw - 1.5rem - var(--chat-portrait-min-chat-w)))
@@ -2023,6 +2029,11 @@ html[data-keyboard-open] .mobile-bottom-nav {
     gap: 1.5rem;
   }
 
+  /* 짧은 대화에서도 입력창이 화면 하단에 고정되도록 채팅 열을 그리드 높이까지 늘린다 */
+  html.chat-room-active .chat-room-portrait-chat-column {
+    align-self: stretch;
+  }
+
   html.chat-room-active .chat-room-portrait-column {
     width: max-content !important;
     max-width: none;
@@ -2049,6 +2060,10 @@ html[data-keyboard-open] .mobile-bottom-nav {
 }
 
 @media (max-width: 575px) {
+  html.chat-room-active .chat-readability-root {
+    min-height: 100dvh;
+  }
+
   html:not(.chat-room-active) .app-left-rail-spacer,
   html:not(.chat-room-active) aside.app-left-rail {
     display: none !important;

@@ -393,6 +393,25 @@ export function normalizeShowSuggestedReplies(value: unknown): boolean {
   return value !== false;
 }
 
+/**
+ * Image brightness the mobile background may reach at full legibility. Below this the
+ * user's opacity is untouched; above it the extra brightness is compressed so body text
+ * keeps readable contrast without the slider ever going dead.
+ */
+const MOBILE_PORTRAIT_READING_OPACITY = 0.28;
+const MOBILE_PORTRAIT_OVERSHOOT_GAIN = 0.3;
+
+/** Scrim alpha over the mobile background image (0..1) for a user opacity value. */
+export function mobilePortraitScrimOpacity(opacity: number): number {
+  const op = normalizePortraitBackgroundOpacity(opacity);
+  const base = Math.max(0, 0.18 * (1 - op));
+  if (op <= MOBILE_PORTRAIT_READING_OPACITY) return base;
+  const effective =
+    MOBILE_PORTRAIT_READING_OPACITY +
+    (op - MOBILE_PORTRAIT_READING_OPACITY) * MOBILE_PORTRAIT_OVERSHOOT_GAIN;
+  return 1 - (1 - base) * (effective / op);
+}
+
 /** Background presentation visual parameter — finite number clamped to 0..1. */
 export function normalizePortraitBackgroundOpacity(value: unknown): number {
   const fallback = DEFAULT_CHAT_DISPLAY_PREFS.portraitBackgroundOpacity;
@@ -549,7 +568,7 @@ export const CHAT_PORTRAIT_CHAT_COLUMN_CLASS =
   "chat-room-portrait-chat-column flex min-h-0 min-w-0 w-full flex-1 flex-col min-[576px]:max-w-[780px] min-[768px]:min-w-[var(--chat-portrait-min-chat-w)]";
 
 /** Minimum chat column width when portrait is ON (768+ side layout). */
-export const CHAT_PORTRAIT_MIN_CHAT_WIDTH_PX = 360;
+export const CHAT_PORTRAIT_MIN_CHAT_WIDTH_PX = 440;
 
 /** Chat column max width — matches portrait OFF policy. */
 export const CHAT_PORTRAIT_CHAT_MAX_WIDTH_PX = 780;
