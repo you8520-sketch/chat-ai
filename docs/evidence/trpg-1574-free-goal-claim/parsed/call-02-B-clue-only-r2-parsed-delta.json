@@ -1,0 +1,26 @@
+{
+  "delta": {
+    "players": [
+      {
+        "participantId": 9,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "마레노 부두"
+      }
+    ],
+    "location": "마레노 부두",
+    "nextRoundContext": "부두 사람들에게서 등대 불빛의 이상 징후와 세관 측의 입출항 장부 조작 정황을 확보함. 선원 조합과 세관 경비병 사이의 충돌이 격화되는 가운데 등대와 세관 양쪽으로의 동선이 열림.",
+    "storyPhase": "INTRO",
+    "threadsAdd": [
+      "출항 당일 밤 등대 신호의 공백과 불빛 이상",
+      "세관의 출항 허가 생략 및 장부 수정 의혹"
+    ],
+    "endingConditionId": ""
+  },
+  "location": "마레노 부두",
+  "campaignFinished": false,
+  "diagnostics": null,
+  "narrationChars": 3117
+}

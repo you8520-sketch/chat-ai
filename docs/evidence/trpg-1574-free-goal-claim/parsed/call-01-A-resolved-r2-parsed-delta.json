@@ -1,0 +1,47 @@
+{
+  "delta": {
+    "players": [
+      {
+        "participantId": 8,
+        "hp": 40,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "마레노 부두"
+      }
+    ],
+    "location": "마레노 부두",
+    "nextRoundContext": "렌은 선원 조합의 증언을 종합해 해오라기호가 실종 당일 곶 끝 등대 인근 암초 구역에서 세관 감시정과 접촉했음을 파악했다. 세관 서기가 잔교 아래로 떨어뜨린 찢긴 장부 조각과 통제령이 내려진 곶 끝 등대가 새로운 조사 경로로 드러났다.",
+    "questsAdd": [
+      "곶 끝 등대 또는 세관 기록 조사: 실종 당일 해오라기호와 세관 감시정의 접촉 흔적을 찾는다"
+    ],
+    "npcsAdd": [
+      "세관장 강도현",
+      "세관 서기",
+      "선원 조합 원로"
+    ],
+    "flagsAdd": [
+      "해오라기호_암초구역_기적_확인",
+      "세관_출항통제령_발령"
+    ],
+    "questsClaimDone": [
+      "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다"
+    ],
+    "questsRemove": [
+      "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다"
+    ],
+    "storyPhase": "DEVELOPMENT",
+    "threadsAdd": [
+      "세관 서기가 흘린 찢긴 장부 조각의 정체",
+      "곶 끝 등대 암초 구역에서 해오라기호에 일어난 일"
+    ],
+    "threadsResolve": [
+      "사흘째 실종된 어선 해오라기호의 행방"
+    ],
+    "endingConditionId": ""
+  },
+  "location": "마레노 부두",
+  "campaignFinished": false,
+  "diagnostics": null,
+  "narrationChars": 3070
+}

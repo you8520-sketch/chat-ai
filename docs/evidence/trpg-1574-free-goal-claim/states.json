@@ -1,0 +1,238 @@
+{
+  "A-resolved_after_R0_real_text_replayed": {
+    "stored": {
+      "location": "마레노 부두",
+      "quests_json": "[\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[]",
+      "next_round_context": "마레노 부두, 해무가 짙게 깔린 새벽. 실종된 해오라기호 선원 가족의 절규와 세관-선원조합 간의 대립이 격화되는 순간."
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-1",
+        "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+        "status": "active",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 8,
+        "location": "마레노 부두"
+      }
+    ]
+  },
+  "A-resolved_after_R1_scripted": {
+    "stored": {
+      "location": "마레노 부두",
+      "quests_json": "[\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[]",
+      "next_round_context": ""
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-1",
+        "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+        "status": "active",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 8,
+        "location": "마레노 부두"
+      }
+    ]
+  },
+  "A-resolved_after_R2_real": {
+    "stored": {
+      "location": "마레노 부두",
+      "quests_json": "[\"곶 끝 등대 또는 세관 기록 조사: 실종 당일 해오라기호와 세관 감시정의 접촉 흔적을 찾는다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\",\"status\":\"retired\",\"source\":\"gm\",\"createdRound\":0,\"closedRound\":2},{\"id\":\"goal-2-1\",\"title\":\"곶 끝 등대 또는 세관 기록 조사: 실종 당일 해오라기호와 세관 감시정의 접촉 흔적을 찾는다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":2}]}",
+      "world_flags_json": "[\"해오라기호_암초구역_기적_확인\",\"세관_출항통제령_발령\"]",
+      "next_round_context": "렌은 선원 조합의 증언을 종합해 해오라기호가 실종 당일 곶 끝 등대 인근 암초 구역에서 세관 감시정과 접촉했음을 파악했다. 세관 서기가 잔교 아래로 떨어뜨린 찢긴 장부 조각과 통제령이 내려진 곶 끝 등대가 새로운 조사 경로로 드러났다."
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+          "status": "retired",
+          "source": "gm",
+          "createdRound": 0,
+          "closedRound": 2
+        },
+        {
+          "id": "goal-2-1",
+          "title": "곶 끝 등대 또는 세관 기록 조사: 실종 당일 해오라기호와 세관 감시정의 접촉 흔적을 찾는다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 2
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "곶 끝 등대 또는 세관 기록 조사: 실종 당일 해오라기호와 세관 감시정의 접촉 흔적을 찾는다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-2-1",
+        "title": "곶 끝 등대 또는 세관 기록 조사: 실종 당일 해오라기호와 세관 감시정의 접촉 흔적을 찾는다",
+        "status": "active",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 8,
+        "location": "마레노 부두"
+      }
+    ]
+  },
+  "B-clue-only_after_R0_real_text_replayed": {
+    "stored": {
+      "location": "마레노 부두",
+      "quests_json": "[\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[]",
+      "next_round_context": "마레노 부두, 해무가 짙게 깔린 새벽. 실종된 해오라기호 선원 가족의 절규와 세관-선원조합 간의 대립이 격화되는 순간."
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-1",
+        "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+        "status": "active",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 9,
+        "location": "마레노 부두"
+      }
+    ]
+  },
+  "B-clue-only_after_R1_scripted": {
+    "stored": {
+      "location": "마레노 부두",
+      "quests_json": "[\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[]",
+      "next_round_context": ""
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-1",
+        "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+        "status": "active",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 9,
+        "location": "마레노 부두"
+      }
+    ]
+  },
+  "B-clue-only_after_R2_real": {
+    "stored": {
+      "location": "마레노 부두",
+      "quests_json": "[\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[]",
+      "next_round_context": "부두 사람들에게서 등대 불빛의 이상 징후와 세관 측의 입출항 장부 조작 정황을 확보함. 선원 조합과 세관 경비병 사이의 충돌이 격화되는 가운데 등대와 세관 양쪽으로의 동선이 열림."
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-1",
+        "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+        "status": "active",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 9,
+        "location": "마레노 부두"
+      }
+    ]
+  }
+}

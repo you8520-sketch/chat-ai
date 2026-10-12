@@ -1,0 +1,128 @@
+{
+  "mode": "live",
+  "campaigns": {
+    "A_resolved": 8,
+    "B_clue_only": 9
+  },
+  "maxProviderCalls": 2,
+  "calls": [
+    {
+      "seq": 1,
+      "label": "A-resolved",
+      "campaignId": 8,
+      "round": 2,
+      "model": "gemini-3.8-flash",
+      "systemSha256": "b329d0a1b30b48f1e50e1a1f77a97d58ae09d838ca8fcc0ded8118f8f003b6a0",
+      "userSha256": "dc1f489d7942ad9b963dabf27f9f3cad58264b9494b149c7ffc2858af58264dc",
+      "systemChars": 10026,
+      "userChars": 8152,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 5826,
+        "outputTokens": 2592
+      },
+      "estKrw": 10.21,
+      "responseChars": 4276,
+      "finishReason": "stop",
+      "error": null,
+      "elapsedMs": 29788
+    },
+    {
+      "seq": 2,
+      "label": "B-clue-only",
+      "campaignId": 9,
+      "round": 2,
+      "model": "gemini-3.8-flash",
+      "systemSha256": "b329d0a1b30b48f1e50e1a1f77a97d58ae09d838ca8fcc0ded8118f8f003b6a0",
+      "userSha256": "dfb35226d137f404a96ef18399328f25aa4a6652d5a4f137d51a8d42aad5b5f4",
+      "systemChars": 10026,
+      "userChars": 8049,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 5774,
+        "outputTokens": 2331
+      },
+      "estKrw": 9.48,
+      "responseChars": 3774,
+      "finishReason": "stop",
+      "error": null,
+      "elapsedMs": 26059
+    }
+  ],
+  "fetchLog": [
+    {
+      "n": 1,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 25112,
+      "status": 200,
+      "blocked": false,
+      "ms": 4289
+    },
+    {
+      "n": 2,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 24863,
+      "status": 200,
+      "blocked": false,
+      "ms": 3528
+    }
+  ],
+  "totalEstKrw": 19.69,
+  "fxAssumptionKrwPerUsd": 1450,
+  "scriptedRoundsNoProviderCall": [
+    "R0 replays the real A scenario R0 raw output (post-contract-attempt call-01)",
+    "R1 scripted NPC testimony history (A: two facts, B: one fragment)"
+  ],
+  "secretLiteralsChecked": [
+    "강도현",
+    "침몰",
+    "밀수",
+    "장부",
+    "오 노인",
+    "오노인",
+    "형제",
+    "지시"
+  ],
+  "literalContainmentOfRawOutputs": [
+    {
+      "seq": 1,
+      "label": "A-resolved",
+      "round": 2,
+      "literalsFoundInRawOutput": [
+        "강도현",
+        "밀수",
+        "장부"
+      ]
+    },
+    {
+      "seq": 2,
+      "label": "B-clue-only",
+      "round": 2,
+      "literalsFoundInRawOutput": [
+        "장부",
+        "오 노인"
+      ]
+    }
+  ],
+  "chunkTelemetry": [
+    {
+      "call": "call-01-A-resolved-r2",
+      "chunks": 102,
+      "chars": 4276,
+      "firstChunkMs": 4299,
+      "lastChunkMs": 29738,
+      "partialChars": 4276
+    },
+    {
+      "call": "call-02-B-clue-only-r2",
+      "chunks": 91,
+      "chars": 3774,
+      "firstChunkMs": 3537,
+      "lastChunkMs": 26023,
+      "partialChars": 3774
+    }
+  ],
+  "errors": []
+}

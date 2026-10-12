@@ -1,0 +1,172 @@
+[RESOLVE THIS ROUND]
+
+[WORLD]
+해무의 항구에서 돌아오지 않는 어선의 행방을 쫓는 이야기.
+
+마레노는 해무가 자주 끼는 항구도시다. 부두에는 선원 조합 회관과 세관이 마주 보고 있고, 곶 끝에는 오래된 등대가 서 있다. 사흘 전 출항한 어선 해오라기호가 돌아오지 않아 부두의 분위기가 무겁다.
+
+[SCENARIO PLAN]
+시작 상황:
+안개 낀 새벽, 마레노 부두. 어선 해오라기호가 사흘째 돌아오지 않고 있다.
+
+중심 갈등:
+사라진 어선의 진실을 두고 세관과 선원 조합이 서로를 의심한다.
+
+목표:
+세관장 강도현이 해오라기호를 침몰시킨 범인임을 밝혀 낸다.
+
+종료 조건:
+- 밀수 장부가 공개되고 강도현이 체포된다
+- 강도현이 증거를 모두 없애고 도주한다
+
+현재 사용 가능한 주요 사건 (강제 순서가 아님):
+- 부두에서 해오라기호 선원의 가족이 울며 호소한다
+- 등대 신호등 기록에서 사건 당일의 공백이 드러난다
+
+단서:
+- 찢긴 장부 조각
+- 등대 신호등 기록의 공백
+- 세관 입항 기록의 수정 흔적
+
+금지 사건:
+- 첫 장면에서 범인을 직접 지목하는 장면
+
+승인된 위협 (해당 장소에서만 서버가 공격을 판정; 결과는 THREAT_STRIKE로 주어진다):
+- [enc_watch] 등대 감시자 @ 곶 끝의 등대
+
+난이도: normal
+
+클라이맥스:
+등대에서 오 노인이 진실을 털어놓고 강도현이 나타난다.
+
+GM 연출:
+단서는 플레이어가 조사해서 얻게 하고, 범인과 동기는 중반 이후에 드러낸다.
+
+플레이 길이: medium
+
+[STORY DIRECTION — GM only]
+- Prefer unresolved conflicts and recover dangling threads. Do not keep adding new main villains.
+- Major events are possibilities, not a railroad.
+- Do not decide player or AI-player feelings or future actions.
+- In CLIMAX, do not suddenly add a new world-scale crisis.
+- If the core conflict is resolved, allow EPILOGUE. In EPILOGUE do not start a new long plot.
+- campaign_finished may be true only when an ending condition is actually met by play, or an existing forced end applies.
+- Never skip INTRO to FINISHED in one hop unless the campaign is actually ending.
+
+[DIRECTOR DELTA CONTRACT]
+Every delta object must include the 이야기 단계 as the current value or one adjacent step.
+Include thread add/resolve lists and an endingConditionId when they apply.
+Example:
+{"players":[],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"storyPhase":"INTRO","threadsAdd":[],"threadsResolve":[],"endingConditionId":""}
+
+[CAMPAIGN DIRECTOR STATE]
+이야기 단계: INTRO
+
+진행 중 실마리:
+- 사흘째 실종된 어선 해오라기호의 행방
+- 세관과 선원 조합 간의 대립
+
+[LOCAL SCENE DELTA CONTRACT]
+Optional nested "localScene" in the delta object. Omission is not deletion — persist prior routes/obstacles unless explicitly removed.
+Fields: objectiveSet (refine objective only), sceneTransitionTo (new local scene — resets collections), resolvedObstaclesAdd/Remove, openRoutesAdd/Remove, remainingBlockersAdd/Remove, sceneStateSet ("active"|"transition_ready").
+When removing an item, copy the exact label from [LOCAL SCENE STATE]; non-matching remove values are no-ops.
+When the submitted action establishes entry into a genuinely new local dramatic situation, include sceneTransitionTo in localScene.
+Record world/scene availability only — not unsubmitted PC decisions or movement.
+Example:
+{"players":[],"location":"","next_round_context":"","localScene":{"objectiveSet":"건물 탈출 경로 확보","openRoutesAdd":["우측 환풍구"],"remainingBlockersAdd":["환풍구 앞 기생종"],"sceneStateSet":"active"}}
+
+[TONE CONTEXT] No listed WORLD genres. Data only — follow the system TONE owner.
+
+[SCENARIO SHEET STATS — only these exist; pick from this list]
+- 힘 (str): 근접·완력·파괴  5–15
+- 민첩 (dex): 은신·선공·잔기술  5–15
+- 체력 (con): 지구력·HP  5–15
+- 지능 (int): 조사·지식·추론  5–15
+- 지혜 (wis): 통찰·감지·판단  5–15
+- 매력 (cha): 설득·사교·위압  5–15
+
+[PARTY SHEETS — canon; use these values for checks and competence]
+[PC 렌]
+힘 8(+1) · 민첩 8(+1) · 체력 8(+1) · 지능 7(+1) · 지혜 7(+1) · 매력 7(+1)
+
+[GM SECRET — never quote, never tell players, use only to drive events]
+해오라기호는 세관장 강도현이 밀수 장부를 없애려고 침몰시켰다. 등대지기 오 노인은 그 장면을 목격했지만 강도현의 협박 때문에 입을 다물고 있다. 강도현과 오 노인은 사실 형제다.
+
+[PLAYER PERSONAS — portray these human PCs as written. Do not invent a different identity.]
+[PLAYER PERSONA participantId=8 name=렌]
+이름/호칭: 렌
+
+[TRPG STRUCTURED STATE — authoritative; do not contradict HP/items/location/flags]
+round=1
+location=마레노 부두
+- 렌: HP 40/40 stats=cha:7,con:8,dex:8,int:7,str:8,wis:7
+quests: 해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다
+npcs: 기관수의 아내; 격앙된 동료 선원
+[RECENT ROUNDS — RAW]
+[ROUND 0]
+  (행동 없음)
+  GM: 짙은 해무가 바다와 육지의 경계를 집어삼킨 새벽이었다. 축축하고 차가운 소금기 머금은 바람이 마레노 부두의 목재 잔교를 훑고 지나갈 때마다, 삐걱거리는 마찰음이 마치 가라앉은 배의 비명처럼 길게 늘어졌다. 시야는 불과 열 걸음 앞조차 온전히 허락하지 않았다. 희미하게 흔들리는 황색 가스등 불빛만이 짙은 안개 속에서 젖은 솜처럼 번져 나가며 부두 바닥의 거친 돌 틈과 버려진 밧줄 토막들을 겨우 비출 뿐이었다.
+
+이곳 마레노 항구는 사흘 전부터 무거운 침묵과 불안에 잠겨 있었다. 보통의 새벽이라면 그물을 손질하는 어부들의 거친 고함과 생선을 실어 나르는 손수레 바퀴 소리로 활기를 띠었을 시간이지만, 지금은 음울한 긴장감만이 감돌았다. 사흘 전 짙은 바다로 나간 어선 '해오라기호'가 예정된 귀항 시간을 훌쩍 넘긴 채 아무런 소식도 없이 자취를 감추었기 때문이었다.
+
+부두 한편, 소금에 절어 검게 변한 선착장 계단 부근에서 웅성거리는 사람들의 소리가 짙은 안개를 뚫고 렌의 귓가로 낮게 파고들었다. 그 소리는 이내 찢어지는 듯한 울음소리로 변했다.
+
+어부의 아내: "사흘이에요, 사흘! 평소라면 하루 반나절이면 만선으로 돌아왔을 양반들이라고요! 바다가 뒤집힌 것도 아닌데 왜 소식 한 자 없는 겁니까! 당장 수색선을 띄워 줘요, 제발!"
+
+무릎을 꿇은 채 부두 바닥을 치며 절규하는 여인은 해오라기호에 승선한 기관수의 아내였다. 닳고 닳은 숄을 두른 그녀의 손끝은 차가운 바닥에 긁혀 붉게 물들어 있었고, 주변을 둘러싼 동료 선원들은 참담한 표정으로 입술을 깨물며 고개를 떨구고 있었다. 선원 중 한 명이 거칠게 외투를 여미며 굳은 목소리로 말했다.
+
+동료 선원: "바다 사정을 모르는 소리 마시오. 저 곶 쪽은 암초투성이요. 게다가 저 위 세관 놈들은 여태 출항 허가 도장조차 찍어주지 않고 있잖소! 수색을 나가고 싶어도 배를 묶어둔 놈들이 누구인데!"
+
+그 말끝과 함께 선원들의 험악한 시선이 부두 광장 건너편, 높다란 석조 건물로 쏠렸다. 굳게 닫힌 채 차가운 청회색 빛을 띠고 있는 세관 건물이었다. 세관의 정문 앞에는 제복을 단정히 차려입은 세관 경비병 둘이 장총을 비껴든 채 미동도 없이 서 있었다. 선원들의 거친 항의와 통곡에도 그들은 냉담한 눈초리로 정면만을 응시하며 침묵을 지키고 있었다. 세관과 마주 보고 서 있는 목조 건물인 '선원 조합 회관'의 창가에는 이미 몇몇 원로 선원들이 모여 심각한 표정으로 담배 연기를 뿜어대고 있었고, 두 건물 사이에 가로놓인 자갈길에는 언제 폭발해도 이상하지 않을 날 선 대립감이 서려 있었다.
+
+부두의 남동쪽, 길게 뻗어나간 바위 곶의 깎아지른 절벽 끝으로는 오래된 등대의 거대한 실루엣이 안개 너머로 흐릿한 그림자를 드리우고 있었다. 곶 끝의 등대는 수십 년간 험난한 암초 지대를 오가는 배들의 길잡이 역할을 해왔지만, 오늘따라 회전하는 등대 불빛의 주기마저 어딘가 둔탁하고 불길하게 느껴졌다. 뱃사람들 사이에서는 해오라기호가 실종되던 날 밤 등대의 신호에 문제가 있었다는 불길한 소문마저 돌고 있었다.
+
+선원 하나가 주먹을 쥐고 세관 건물을 향해 침을 뱉었다.
+
+동료 선원: "밀수 단속이네 뭐네 하면서 해오라기호의 항로를 트집 잡던 게 엊그제요. 세관 놈들이 무슨 꿍꿍이로 바다를 틀어막고 있는지 알아내지 못하면, 수색선이고 뭐고 띄울 수도 없어!"
+
+그의 외침에 울부짖던 아낙의 어깨가 더욱 거세게 떨렸다. 주변을 지나치던 인부들도 짐을 내려놓은 채 웅성거림에 합세하기 시작했고, 부두 경비대 쪽에서도 심상치 않은 기류를 감지했는지 호루라기를 만지작거리며 슬금슬금 거리를 좁혀오고 있었다. 소금기 밴 바람이 거세지며 파도가 방파제를 때리는 둔탁한 소리가 귓전을 울렸다. 사흘째 바다 밑바닥에 가라앉은 비밀처럼, 차가운 안개는 걷힐 기미를 보이지 않았다.
+
+해오라기호의 행방을 둘러싼 실마리는 세관의 차가운 침묵 속에 묻혀 있거나, 격앙된 선원들의 핏발 선 눈동자 속에 숨겨져 있거나, 혹은 저 멀리 안개 속에 우뚝 솟은 등대의 침묵 속에 놓여 있을 것이다. 파도 소리와 섞여 흩어지는 오열 너머로, 진실을 요구하는 부두의 침묵이 무겁게 가라앉아 있다.
+
+GM: 차가운 해무 속에서 선원의 가족이 오열하며 수색을 애원하고 세관과 선원 조합 사이의 긴장이 팽팽하게 곤두서 있다. 렌은 이 어수선한 부두에서 누구에게 다가가며 어떻게 움직이겠는가?
+
+[ROUND 1]
+  렌: 해무 속 부두에서 기관수의 아내와 선원들 곁으로 다가가 이야기를 듣는다.
+  GM: 기관수의 아내는 소매로 눈가를 훔치며 천천히 입을 열었다. 남편이 사흘 전 새벽 네 시쯤 해오라기호에 올랐고, 출항 전에 늘 하던 대로 기관 압력계를 두 번 두드리고 갔다고 했다. 배에는 선장과 갑판장, 그리고 남편까지 모두 아홉 명이 탔고, 어획이 아니라 부두 건너편 어장까지 짧게 다녀오는 항로였다고 했다.
+
+곁에서 듣던 늙은 갑판원 하나가 헛기침을 하고 말을 보탰다. 해오라기호는 출항한 날 오전 열 시경 곶 끝 등대가 보이는 암초 지대 바깥에서 기적을 한 번 울렸고, 그 소리를 부두 망루지기가 들었다는 것이다. 그 뒤로는 무전도 기적도 없었다고 했다.
+
+두 사람의 이야기가 끝나자 사람들 사이에 무거운 침묵이 흘렀다. 세관 건물 쪽에서는 여전히 아무도 나오지 않았다.
+
+GM: 기관수의 아내와 갑판원의 이야기가 이어졌다. 렌은 이제 어디에 더 귀를 기울이겠는가?
+
+[RESOLUTION ORDER]
+1. 렌 — 민첩 8
+- Resolve conflicting action results in this order.
+- Acting first is not an automatic success. Dice results still decide success/failure.
+- Later actions may react to earlier resolved results.
+- Do not add actions a player did not declare.
+
+[ACTION participantId=8 name=렌 actorKind=human density=BRIEF]
+[CHECK check_required d20=14 total=15 DC=9 tier=SUCCESS stat=지능(int) value=7 modifier=1]
+[AUTHORITATIVE HUMAN PC ACTION — canonical for this PC only]
+선원 조합 회관 창가의 원로 선원에게 다가가, 해오라기호가 마지막으로 기적을 울린 위치와 시각을 묻는다. 앞서 들은 이야기와 맞춰 보며 해오라기호가 어떻게 사라졌는지 정황을 정리한다.
+
+[AUTHORITATIVE MECHANICS]
+렌
+PRE_ACTION_HP 40
+CURRENT ACTION: investigate SUCCESS
+GM_LEGACY_DIRECT current action HP is not mechanics-classified
+최종: HP 40/40
+
+ENCOUNTER_AUTHORITY: HP loss this round is only what THREAT_STRIKE / ONGOING lines above state. Narrate any other peril without HP numbers — use position, time, pursuit or new obstacles. Narrate every THREAT_STRIKE result exactly (hit or miss). 중독/출혈 labels you add are narrative only here and do not tick HP. If this round's story ends a listed threat (defeated, fled, truce), put its [id] in delta.encountersEnded; that only stops its later strikes and never grants damage, hits, rewards or healing.
+
+[ROUND EXECUTION — binding]
+Apply [GM SCENE CRAFT — ADAPTIVE NARRATION] and [ROUND CRAFT] from system to the submitted actions above.
+Return JSON with narration and delta per system OUTPUT contract.
+[ROUND NARRATION BUDGET]
+Input density: SPARSE
+Minimum new GM narration: 2800 Korean characters
+Target new GM narration: 3600–4600 Korean characters
+Finish at or above Minimum; TARGET is the normal complete-scene range.
