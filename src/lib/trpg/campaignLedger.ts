@@ -465,5 +465,9 @@ export function persistCampaignLedger(
     campaignId,
     ...(conditional ? [expectedGoalsJson] : [])
   );
-  if (conditional && info.changes !== 1) throw new CampaignGoalsConflictError();
+  if (conditional && info.changes !== 1 && campaignStateRowExists(db, campaignId)) throw new CampaignGoalsConflictError();
+}
+
+function campaignStateRowExists(db: Database.Database, campaignId: number): boolean {
+  return db.prepare(`SELECT 1 FROM trpg_campaign_state WHERE campaign_id=?`).get(campaignId) !== undefined;
 }
