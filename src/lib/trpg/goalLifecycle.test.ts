@@ -15,6 +15,7 @@ import {
 } from "./engineAdvance";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
+import { TRPG_GM_SYSTEM, parseTrpgGmOutput } from "./gmPrompt";
 import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock } from "./memory";
 import type { TrpgScenarioEncounter } from "./scenarioPlan";
 import { insertScenarioTemplate } from "./scenarioTemplates";
@@ -729,6 +730,94 @@ describe("goal lifecycle: a GM-only plan goal is not a player-visible goal", () 
     }
     assert.deepEqual(snapshot.goals?.map((goal) => goal.title), ["부두의 소문을 들어 본다"]);
     assert.match(seen[0]!, /record it in delta\.questsAdd/, "a scenario opening asks the existing R0 call for the goal, too");
+    db.close();
+  });
+});
+
+describe("goal lifecycle: the goal update contract on the final wire", () => {
+  const CONTRACT = /questsAdd items are player-visible goals/g;
+  const REAL_C_R2_DELTA = {
+    players: [{ participantId: 10, hp: 34, conditions: [], inventoryAdd: ["공백이 있는 등대 일지 조각"], inventoryRemove: [], location: LIGHTHOUSE }],
+    location: LIGHTHOUSE,
+    next_round_context: "등대 내부에서 감시자의 습격을 받아 부상을 입었으며, 사흘 전 기록이 누락된 등대 일지를 확보했다.",
+    campaign_finished: false,
+    storyPhase: "DEVELOPMENT",
+    threadsAdd: ["등대 신호등 기록 공백의 진실", "위층에 숨어 있는 등대지기"],
+    threadsResolve: [],
+    endingConditionId: "",
+    encountersEnded: [],
+  };
+
+  it("the quest contract is stated once, in the system text, and the goal state once, in the user text", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = scenarioCampaign(db);
+    const seenUser: string[] = [];
+    const seenSystem: string[] = [];
+    const base = scriptedGm(
+      () => [hostId],
+      [
+        { location: "마레노 부두", extra: { questsAdd: [OPENING_GOAL, { title: REACH_GOAL, criterion: REACH }] } },
+        { location: LIGHTHOUSE },
+        { location: LIGHTHOUSE },
+      ],
+      seenUser
+    );
+    const deps = {
+      ...base,
+      gmCall: async (args: { system: string; user: string }) => {
+        seenSystem.push(args.system);
+        return base.gmCall(args);
+      },
+    } satisfies TrpgEngineDeps;
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    await play(db, campaignId, deps, "곶 끝의 등대로 이동한다.");
+    await play(db, campaignId, deps, "등대 안을 둘러본다.");
+
+    const last = seenUser.length - 1;
+    const wire = `${seenSystem[last]}\n${seenUser[last]}`;
+    assert.equal((wire.match(CONTRACT) ?? []).length, 1, "the contract sentence appears exactly once in system+user");
+    assert.equal((seenSystem[last]!.match(CONTRACT) ?? []).length, 1, "and it lives in the system [OUTPUT] block");
+    assert.equal((seenUser[last]!.match(/^goals_done:/gm) ?? []).length, 1);
+    assert.equal((seenUser[last]!.match(/^quests:/gm) ?? []).length, 1);
+    assert.match(seenUser[last]!, new RegExp(`goals_done: ${REACH_GOAL}`));
+    assert.doesNotMatch(seenUser[last]!, /record it in delta\.questsAdd/, "only the opening is asked for a goal");
+    assert.equal(seenSystem[last], TRPG_GM_SYSTEM);
+    assert.match(TRPG_GM_SYSTEM, /it is a claim, not a confirmation/, "completion stays with the server");
+    db.close();
+  });
+
+  it("a real post-completion output that adds no goal leaves the active goals and their projection untouched", async () => {
+    const parsed = parseTrpgGmOutput(JSON.stringify({ narration: "등대 안은 어둡다.", delta: REAL_C_R2_DELTA }));
+    assert.equal(parsed.delta.questsAdd, undefined);
+    const db = memoryDb();
+    const { campaignId, hostId } = scenarioCampaign(db, { plan: false });
+    const deps = scriptedGm(() => [hostId], [
+      { location: "마레노 부두", extra: { questsAdd: [{ title: REACH_GOAL, criterion: REACH }, "부두 소문을 묻는다"] } },
+      { location: LIGHTHOUSE },
+      { location: LIGHTHOUSE, extra: { threadsAdd: REAL_C_R2_DELTA.threadsAdd } },
+    ]);
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    await play(db, campaignId, deps, "곶 끝의 등대로 이동한다.");
+    const before = goalsOf(db, campaignId);
+    await play(db, campaignId, deps, "등대 안을 둘러본다.");
+    assert.deepEqual(goalsOf(db, campaignId), before);
+    assert.deepEqual(loadCampaignLedger(db, campaignId).quests, ["부두 소문을 묻는다"]);
+    db.close();
+  });
+
+  it("a new goal proposed after the completion is registered while the unfinished goal stays active", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = scenarioCampaign(db, { plan: false });
+    const deps = scriptedGm(() => [hostId], [
+      { location: "마레노 부두", extra: { questsAdd: [{ title: REACH_GOAL, criterion: REACH }, "부두 소문을 묻는다"] } },
+      { location: LIGHTHOUSE },
+      { location: LIGHTHOUSE, extra: { questsAdd: ["등대 위층의 등대지기를 만난다"] } },
+    ]);
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    await play(db, campaignId, deps, "곶 끝의 등대로 이동한다.");
+    await play(db, campaignId, deps, "등대 안을 둘러본다.");
+    assert.deepEqual(loadCampaignLedger(db, campaignId).quests, ["부두 소문을 묻는다", "등대 위층의 등대지기를 만난다"]);
+    assert.equal(byTitle(db, campaignId, REACH_GOAL)!.status, "completed");
     db.close();
   });
 });
