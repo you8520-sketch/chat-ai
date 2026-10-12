@@ -24,6 +24,15 @@ import type {
 export const PAID_RUNNER_OPENROUTER_GENERATION_URL = `${OPENROUTER_BASE_URL}/generation`;
 export const PAID_RUNNER_RECONCILE_GET_MAX_ATTEMPTS = 2;
 export const PAID_RUNNER_RECONCILE_GET_TIMEOUT_MS = 15_000;
+/**
+ * OpenRouter writes the generation record asynchronously, so the first GETs
+ * right after the stream ends can miss it. Only these GETs are retried; the
+ * generation POST is never repeated. Total GET time is capped by the budget.
+ */
+export const PAID_RUNNER_OPENROUTER_GENERATION_RETRY_DELAYS_MS: readonly number[] = [
+  2_000, 4_000, 6_000, 8_000, 10_000,
+];
+export const PAID_RUNNER_OPENROUTER_GENERATION_TOTAL_BUDGET_MS = 60_000;
 
 /**
  * Official OpenRouter catalog binding only. `GET /api/v1/models` reports
@@ -59,6 +68,7 @@ export type PaidRunnerReconcileInput = {
   elapsedMs: number;
   fetchImpl: typeof fetch;
   keys: PaidRunnerReconcileKeys;
+  sleep?: (ms: number) => Promise<void>;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -126,14 +136,32 @@ function cheaperInferenceEnvelopeMatchesCanonicalRequestId(input: {
   return Boolean(headerRequestId && envelopeRequestId && headerRequestId === envelopeRequestId);
 }
 
+function openRouterGenerationStatusIsTransient(status: number): boolean {
+  return status === 404 || status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
 async function lookupOpenRouterGenerationCost(input: {
   generationId: string;
   requestId: string | null;
   expectedModel: string;
   apiKey: string;
   fetchImpl: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
 }): Promise<{ billedUsd: number; model: string; requestId: string } | null> {
-  for (let attempt = 0; attempt < PAID_RUNNER_RECONCILE_GET_MAX_ATTEMPTS; attempt += 1) {
+  const sleep = input.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const startedAt = Date.now();
+  const delays = PAID_RUNNER_OPENROUTER_GENERATION_RETRY_DELAYS_MS;
+  for (let attempt = 0; attempt <= delays.length; attempt += 1) {
+    if (attempt > 0) {
+      const wait = delays[attempt - 1] ?? 0;
+      if (Date.now() - startedAt + wait >= PAID_RUNNER_OPENROUTER_GENERATION_TOTAL_BUDGET_MS) {
+        return null;
+      }
+      await sleep(wait);
+    }
+    const remainingMs =
+      PAID_RUNNER_OPENROUTER_GENERATION_TOTAL_BUDGET_MS - (Date.now() - startedAt);
+    if (remainingMs <= 0) return null;
     try {
       const url = `${PAID_RUNNER_OPENROUTER_GENERATION_URL}?id=${encodeURIComponent(input.generationId)}`;
       const response = await input.fetchImpl(url, {
@@ -142,9 +170,12 @@ async function lookupOpenRouterGenerationCost(input: {
           ...buildOpenRouterHeaders(input.apiKey),
           Accept: "application/json",
         },
-        signal: AbortSignal.timeout(PAID_RUNNER_RECONCILE_GET_TIMEOUT_MS),
+        signal: AbortSignal.timeout(Math.min(PAID_RUNNER_RECONCILE_GET_TIMEOUT_MS, remainingMs)),
       });
-      if (!response.ok) continue;
+      if (!response.ok) {
+        if (openRouterGenerationStatusIsTransient(response.status)) continue;
+        return null;
+      }
       const payload = asRecord(await response.json());
       const data = asRecord(payload?.data) ?? payload;
       if (!data) continue;
@@ -317,6 +348,7 @@ export async function reconcilePaidRunnerSettlement(
     expectedModel: call.wireModel,
     apiKey: input.keys.openRouterKey,
     fetchImpl: input.fetchImpl,
+    sleep: input.sleep,
   });
   if (!lookedUp || !(lookedUp.billedUsd > 0)) {
     return {
