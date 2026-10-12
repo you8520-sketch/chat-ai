@@ -1,0 +1,2822 @@
+[
+ {
+  "w": 360,
+  "user": "guest",
+  "hOverflow": false,
+  "scrollWidth": 360,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   16,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 0
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 27.9,
+   "firstCardTop": 426,
+   "cardsIntersecting": 2
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 144,
+    "peekPct": 84,
+    "visibleCards": 1
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 92,
+    "peekPct": 41,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 360,
+  "user": "std",
+  "hOverflow": false,
+  "scrollWidth": 360,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   16,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 27.9,
+   "firstCardTop": 426,
+   "cardsIntersecting": 2
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 144,
+    "peekPct": 84,
+    "visibleCards": 1
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 92,
+    "peekPct": 41,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 360,
+  "user": "adminOn",
+  "hOverflow": false,
+  "scrollWidth": 360,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   16,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 27.9,
+   "firstCardTop": 426,
+   "cardsIntersecting": 2
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 144,
+    "peekPct": 84,
+    "visibleCards": 1
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 92,
+    "peekPct": 41,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 360,
+  "user": "adminOff",
+  "hOverflow": false,
+  "scrollWidth": 360,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   16,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 72
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 27.9,
+   "firstCardTop": 426,
+   "cardsIntersecting": 2
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 144,
+    "peekPct": 84,
+    "visibleCards": 1
+   },
+   {
+    "cards": 6,
+    "scrollable": true,
+    "peekPx": 92,
+    "peekPct": 41,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": true,
+  "officialBadges": 36
+ },
+ {
+  "w": 390,
+  "user": "guest",
+  "hOverflow": false,
+  "scrollWidth": 390,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   16,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 0
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 27,
+   "firstCardTop": 426,
+   "cardsIntersecting": 2
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 0,
+    "peekPct": 0,
+    "visibleCards": 2
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 122,
+    "peekPct": 54,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 390,
+  "user": "std",
+  "hOverflow": false,
+  "scrollWidth": 390,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   16,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 27,
+   "firstCardTop": 426,
+   "cardsIntersecting": 2
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 0,
+    "peekPct": 0,
+    "visibleCards": 2
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 122,
+    "peekPct": 54,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 390,
+  "user": "adminOn",
+  "hOverflow": false,
+  "scrollWidth": 390,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   16,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 27,
+   "firstCardTop": 426,
+   "cardsIntersecting": 2
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 0,
+    "peekPct": 0,
+    "visibleCards": 2
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 122,
+    "peekPct": 54,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 390,
+  "user": "adminOff",
+  "hOverflow": false,
+  "scrollWidth": 390,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   16,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 72
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 27,
+   "firstCardTop": 426,
+   "cardsIntersecting": 2
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 0,
+    "peekPct": 0,
+    "visibleCards": 2
+   },
+   {
+    "cards": 6,
+    "scrollable": true,
+    "peekPx": 122,
+    "peekPct": 54,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": true,
+  "officialBadges": 36
+ },
+ {
+  "w": 575,
+  "user": "guest",
+  "hOverflow": false,
+  "scrollWidth": 575,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   16,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 0
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 27.4,
+   "firstCardTop": 426,
+   "cardsIntersecting": 3
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 0,
+    "peekPct": 0,
+    "visibleCards": 3
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 67,
+    "peekPct": 30,
+    "visibleCards": 2
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 575,
+  "user": "std",
+  "hOverflow": false,
+  "scrollWidth": 575,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   16,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 27.4,
+   "firstCardTop": 426,
+   "cardsIntersecting": 3
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 0,
+    "peekPct": 0,
+    "visibleCards": 3
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 67,
+    "peekPct": 30,
+    "visibleCards": 2
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 575,
+  "user": "adminOn",
+  "hOverflow": false,
+  "scrollWidth": 575,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   16,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 27.4,
+   "firstCardTop": 426,
+   "cardsIntersecting": 3
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 0,
+    "peekPct": 0,
+    "visibleCards": 3
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 67,
+    "peekPct": 30,
+    "visibleCards": 2
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 575,
+  "user": "adminOff",
+  "hOverflow": false,
+  "scrollWidth": 575,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   16,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 72
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 27.4,
+   "firstCardTop": 426,
+   "cardsIntersecting": 3
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 0,
+    "peekPct": 0,
+    "visibleCards": 3
+   },
+   {
+    "cards": 6,
+    "scrollable": true,
+    "peekPx": 67,
+    "peekPct": 30,
+    "visibleCards": 2
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": true,
+  "officialBadges": 36
+ },
+ {
+  "w": 576,
+  "user": "guest",
+  "hOverflow": false,
+  "scrollWidth": 576,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   216,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 0
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 18.3,
+   "firstCardTop": 426,
+   "cardsIntersecting": 2
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 160,
+    "peekPct": 93,
+    "visibleCards": 1
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 108,
+    "peekPct": 48,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 576,
+  "user": "std",
+  "hOverflow": false,
+  "scrollWidth": 576,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   216,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 18.3,
+   "firstCardTop": 426,
+   "cardsIntersecting": 2
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 160,
+    "peekPct": 93,
+    "visibleCards": 1
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 108,
+    "peekPct": 48,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 576,
+  "user": "adminOn",
+  "hOverflow": false,
+  "scrollWidth": 576,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   216,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 18.3,
+   "firstCardTop": 426,
+   "cardsIntersecting": 2
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 160,
+    "peekPct": 93,
+    "visibleCards": 1
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 108,
+    "peekPct": 48,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 576,
+  "user": "adminOff",
+  "hOverflow": false,
+  "scrollWidth": 576,
+  "charWrapped": [],
+  "bannerH": 102,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   216,
+   175,
+   143,
+   44
+  ],
+  "eventTitleW": 176,
+  "eventTitleH": 23,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 162,
+    "h": 39,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 142,
+    "h": 39,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 72
+  },
+  "firstScreen": {
+   "vh": 844,
+   "imageAreaPct": 18.3,
+   "firstCardTop": 426,
+   "cardsIntersecting": 2
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 160,
+    "peekPct": 93,
+    "visibleCards": 1
+   },
+   {
+    "cards": 6,
+    "scrollable": true,
+    "peekPx": 108,
+    "peekPct": 48,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 2,
+  "adultLabelsVisible": true,
+  "officialBadges": 36
+ },
+ {
+  "w": 640,
+  "user": "guest",
+  "hOverflow": false,
+  "scrollWidth": 629,
+  "charWrapped": [
+   {
+    "text": "CREATOR EVENT · 나만의 세계를 ",
+    "lines": 14,
+    "perLine": 1.7
+   },
+   {
+    "text": "캐릭터를 만들면 3,000P",
+    "lines": 8,
+    "perLine": 1.6
+   },
+   {
+    "text": "전체보기→",
+    "lines": 3,
+    "perLine": 1.7
+   },
+   {
+    "text": "공모전 보기→",
+    "lines": 3,
+    "perLine": 2
+   }
+  ],
+  "bannerH": 509,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   336,
+   362,
+   143,
+   44
+  ],
+  "eventTitleW": 15,
+  "eventTitleH": 240,
+  "eventTitleLines": 8,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 182,
+    "h": 110,
+    "lines": 2
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 170,
+    "h": 110,
+    "lines": 2
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 177,
+    "h": 110,
+    "lines": 2
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 0
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 0,
+   "firstCardTop": null,
+   "cardsIntersecting": 0
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 169,
+    "peekPct": 81,
+    "visibleCards": 1
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 109,
+    "peekPct": 41,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 640,
+  "user": "std",
+  "hOverflow": false,
+  "scrollWidth": 629,
+  "charWrapped": [
+   {
+    "text": "CREATOR EVENT · 나만의 세계를 ",
+    "lines": 14,
+    "perLine": 1.7
+   },
+   {
+    "text": "캐릭터를 만들면 3,000P",
+    "lines": 8,
+    "perLine": 1.6
+   },
+   {
+    "text": "전체보기→",
+    "lines": 3,
+    "perLine": 1.7
+   },
+   {
+    "text": "공모전 보기→",
+    "lines": 3,
+    "perLine": 2
+   }
+  ],
+  "bannerH": 509,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   336,
+   362,
+   143,
+   44
+  ],
+  "eventTitleW": 15,
+  "eventTitleH": 240,
+  "eventTitleLines": 8,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 182,
+    "h": 110,
+    "lines": 2
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 170,
+    "h": 110,
+    "lines": 2
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 177,
+    "h": 110,
+    "lines": 2
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 0,
+   "firstCardTop": null,
+   "cardsIntersecting": 0
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 169,
+    "peekPct": 81,
+    "visibleCards": 1
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 109,
+    "peekPct": 41,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 640,
+  "user": "adminOn",
+  "hOverflow": false,
+  "scrollWidth": 629,
+  "charWrapped": [
+   {
+    "text": "CREATOR EVENT · 나만의 세계를 ",
+    "lines": 14,
+    "perLine": 1.7
+   },
+   {
+    "text": "캐릭터를 만들면 3,000P",
+    "lines": 8,
+    "perLine": 1.6
+   },
+   {
+    "text": "전체보기→",
+    "lines": 3,
+    "perLine": 1.7
+   },
+   {
+    "text": "공모전 보기→",
+    "lines": 3,
+    "perLine": 2
+   }
+  ],
+  "bannerH": 509,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   336,
+   362,
+   143,
+   44
+  ],
+  "eventTitleW": 15,
+  "eventTitleH": 240,
+  "eventTitleLines": 8,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 182,
+    "h": 110,
+    "lines": 2
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 170,
+    "h": 110,
+    "lines": 2
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 177,
+    "h": 110,
+    "lines": 2
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 0,
+   "firstCardTop": null,
+   "cardsIntersecting": 0
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 169,
+    "peekPct": 81,
+    "visibleCards": 1
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 109,
+    "peekPct": 41,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 640,
+  "user": "adminOff",
+  "hOverflow": false,
+  "scrollWidth": 629,
+  "charWrapped": [
+   {
+    "text": "CREATOR EVENT · 나만의 세계를 ",
+    "lines": 14,
+    "perLine": 1.7
+   },
+   {
+    "text": "캐릭터를 만들면 3,000P",
+    "lines": 8,
+    "perLine": 1.6
+   },
+   {
+    "text": "전체보기→",
+    "lines": 3,
+    "perLine": 1.7
+   },
+   {
+    "text": "공모전 보기→",
+    "lines": 3,
+    "perLine": 2
+   }
+  ],
+  "bannerH": 509,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   336,
+   362,
+   143,
+   44
+  ],
+  "eventTitleW": 15,
+  "eventTitleH": 240,
+  "eventTitleLines": 8,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 182,
+    "h": 110,
+    "lines": 2
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 170,
+    "h": 110,
+    "lines": 2
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 177,
+    "h": 110,
+    "lines": 2
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 72
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 0,
+   "firstCardTop": null,
+   "cardsIntersecting": 0
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 169,
+    "peekPct": 81,
+    "visibleCards": 1
+   },
+   {
+    "cards": 6,
+    "scrollable": true,
+    "peekPx": 109,
+    "peekPct": 41,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": true,
+  "officialBadges": 36
+ },
+ {
+  "w": 767,
+  "user": "guest",
+  "hOverflow": false,
+  "scrollWidth": 756,
+  "charWrapped": [],
+  "bannerH": 149,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   463,
+   182,
+   143,
+   44
+  ],
+  "eventTitleW": 142,
+  "eventTitleH": 60,
+  "eventTitleLines": 2,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 0
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 23.1,
+   "firstCardTop": 503,
+   "cardsIntersecting": 3
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 68,
+    "peekPct": 33,
+    "visibleCards": 2
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 236,
+    "peekPct": 88,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 767,
+  "user": "std",
+  "hOverflow": false,
+  "scrollWidth": 756,
+  "charWrapped": [],
+  "bannerH": 149,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   463,
+   182,
+   143,
+   44
+  ],
+  "eventTitleW": 142,
+  "eventTitleH": 60,
+  "eventTitleLines": 2,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 23.1,
+   "firstCardTop": 503,
+   "cardsIntersecting": 3
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 68,
+    "peekPct": 33,
+    "visibleCards": 2
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 236,
+    "peekPct": 88,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 767,
+  "user": "adminOn",
+  "hOverflow": false,
+  "scrollWidth": 756,
+  "charWrapped": [],
+  "bannerH": 149,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   463,
+   182,
+   143,
+   44
+  ],
+  "eventTitleW": 142,
+  "eventTitleH": 60,
+  "eventTitleLines": 2,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 23.1,
+   "firstCardTop": 503,
+   "cardsIntersecting": 3
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 68,
+    "peekPct": 33,
+    "visibleCards": 2
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 236,
+    "peekPct": 88,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 767,
+  "user": "adminOff",
+  "hOverflow": false,
+  "scrollWidth": 756,
+  "charWrapped": [],
+  "bannerH": 149,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   463,
+   182,
+   143,
+   44
+  ],
+  "eventTitleW": 142,
+  "eventTitleH": 60,
+  "eventTitleLines": 2,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 72
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 23.1,
+   "firstCardTop": 503,
+   "cardsIntersecting": 3
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 68,
+    "peekPct": 33,
+    "visibleCards": 2
+   },
+   {
+    "cards": 6,
+    "scrollable": true,
+    "peekPx": 236,
+    "peekPct": 88,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": true,
+  "officialBadges": 36
+ },
+ {
+  "w": 768,
+  "user": "guest",
+  "hOverflow": false,
+  "scrollWidth": 757,
+  "charWrapped": [],
+  "bannerH": 149,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   464,
+   182,
+   143,
+   44
+  ],
+  "eventTitleW": 143,
+  "eventTitleH": 60,
+  "eventTitleLines": 2,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 0
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 23.1,
+   "firstCardTop": 499,
+   "cardsIntersecting": 3
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 69,
+    "peekPct": 33,
+    "visibleCards": 2
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 237,
+    "peekPct": 88,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 768,
+  "user": "std",
+  "hOverflow": false,
+  "scrollWidth": 757,
+  "charWrapped": [],
+  "bannerH": 149,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   464,
+   182,
+   143,
+   44
+  ],
+  "eventTitleW": 143,
+  "eventTitleH": 60,
+  "eventTitleLines": 2,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 23.1,
+   "firstCardTop": 499,
+   "cardsIntersecting": 3
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 69,
+    "peekPct": 33,
+    "visibleCards": 2
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 237,
+    "peekPct": 88,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 768,
+  "user": "adminOn",
+  "hOverflow": false,
+  "scrollWidth": 757,
+  "charWrapped": [],
+  "bannerH": 149,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   464,
+   182,
+   143,
+   44
+  ],
+  "eventTitleW": 143,
+  "eventTitleH": 60,
+  "eventTitleLines": 2,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 23.1,
+   "firstCardTop": 499,
+   "cardsIntersecting": 3
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 69,
+    "peekPct": 33,
+    "visibleCards": 2
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 237,
+    "peekPct": 88,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 768,
+  "user": "adminOff",
+  "hOverflow": false,
+  "scrollWidth": 757,
+  "charWrapped": [],
+  "bannerH": 149,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   464,
+   182,
+   143,
+   44
+  ],
+  "eventTitleW": 143,
+  "eventTitleH": 60,
+  "eventTitleLines": 2,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 72
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 23.1,
+   "firstCardTop": 499,
+   "cardsIntersecting": 3
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 69,
+    "peekPct": 33,
+    "visibleCards": 2
+   },
+   {
+    "cards": 6,
+    "scrollable": true,
+    "peekPx": 237,
+    "peekPct": 88,
+    "visibleCards": 1
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": true,
+  "officialBadges": 36
+ },
+ {
+  "w": 1024,
+  "user": "guest",
+  "hOverflow": false,
+  "scrollWidth": 1013,
+  "charWrapped": [],
+  "bannerH": 104,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   720,
+   115,
+   143,
+   44
+  ],
+  "eventTitleW": 399,
+  "eventTitleH": 30,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 0
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 25.3,
+   "firstCardTop": 409,
+   "cardsIntersecting": 4
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 97,
+    "peekPct": 47,
+    "visibleCards": 3
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 205,
+    "peekPct": 76,
+    "visibleCards": 2
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 1024,
+  "user": "std",
+  "hOverflow": false,
+  "scrollWidth": 1013,
+  "charWrapped": [],
+  "bannerH": 104,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   720,
+   115,
+   143,
+   44
+  ],
+  "eventTitleW": 399,
+  "eventTitleH": 30,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 25.3,
+   "firstCardTop": 409,
+   "cardsIntersecting": 4
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 97,
+    "peekPct": 47,
+    "visibleCards": 3
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 205,
+    "peekPct": 76,
+    "visibleCards": 2
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 1024,
+  "user": "adminOn",
+  "hOverflow": false,
+  "scrollWidth": 1013,
+  "charWrapped": [],
+  "bannerH": 104,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   720,
+   115,
+   143,
+   44
+  ],
+  "eventTitleW": 399,
+  "eventTitleH": 30,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 25.3,
+   "firstCardTop": 409,
+   "cardsIntersecting": 4
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 97,
+    "peekPct": 47,
+    "visibleCards": 3
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 205,
+    "peekPct": 76,
+    "visibleCards": 2
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 1024,
+  "user": "adminOff",
+  "hOverflow": false,
+  "scrollWidth": 1013,
+  "charWrapped": [],
+  "bannerH": 104,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   720,
+   115,
+   143,
+   44
+  ],
+  "eventTitleW": 399,
+  "eventTitleH": 30,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 72
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 25.3,
+   "firstCardTop": 409,
+   "cardsIntersecting": 4
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 97,
+    "peekPct": 47,
+    "visibleCards": 3
+   },
+   {
+    "cards": 6,
+    "scrollable": true,
+    "peekPx": 205,
+    "peekPct": 76,
+    "visibleCards": 2
+   }
+  ],
+  "gridCols": 3,
+  "adultLabelsVisible": true,
+  "officialBadges": 36
+ },
+ {
+  "w": 1440,
+  "user": "guest",
+  "hOverflow": false,
+  "scrollWidth": 1425,
+  "charWrapped": [],
+  "bannerH": 104,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   969,
+   115,
+   143,
+   44
+  ],
+  "eventTitleW": 575,
+  "eventTitleH": 30,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 0
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 28.8,
+   "firstCardTop": 409,
+   "cardsIntersecting": 5
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 44,
+    "peekPct": 19,
+    "visibleCards": 4
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 92,
+    "peekPct": 31,
+    "visibleCards": 3
+   }
+  ],
+  "gridCols": 4,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 1440,
+  "user": "std",
+  "hOverflow": false,
+  "scrollWidth": 1425,
+  "charWrapped": [],
+  "bannerH": 104,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   969,
+   115,
+   143,
+   44
+  ],
+  "eventTitleW": 575,
+  "eventTitleH": 30,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 28.8,
+   "firstCardTop": 409,
+   "cardsIntersecting": 5
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 44,
+    "peekPct": 19,
+    "visibleCards": 4
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 92,
+    "peekPct": 31,
+    "visibleCards": 3
+   }
+  ],
+  "gridCols": 4,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 1440,
+  "user": "adminOn",
+  "hOverflow": false,
+  "scrollWidth": 1425,
+  "charWrapped": [],
+  "bannerH": 104,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   969,
+   115,
+   143,
+   44
+  ],
+  "eventTitleW": 575,
+  "eventTitleH": 30,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 68
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 28.8,
+   "firstCardTop": 409,
+   "cardsIntersecting": 5
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 44,
+    "peekPct": 19,
+    "visibleCards": 4
+   },
+   {
+    "cards": 5,
+    "scrollable": true,
+    "peekPx": 92,
+    "peekPct": 31,
+    "visibleCards": 3
+   }
+  ],
+  "gridCols": 4,
+  "adultLabelsVisible": false,
+  "officialBadges": 34
+ },
+ {
+  "w": 1440,
+  "user": "adminOff",
+  "hOverflow": false,
+  "scrollWidth": 1425,
+  "charWrapped": [],
+  "bannerH": 104,
+  "ctaVisible": true,
+  "ctaHref": "/events/create-migration",
+  "ctaRect": [
+   969,
+   115,
+   143,
+   44
+  ],
+  "eventTitleW": 575,
+  "eventTitleH": 30,
+  "eventTitleLines": 1,
+  "bannerChildOverflow": false,
+  "heads": [
+   {
+    "t": "추천 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "공모전 당선작",
+    "w": 257,
+    "h": 60,
+    "lines": 1
+   },
+   {
+    "t": "신규 캐릭터",
+    "w": 224,
+    "h": 60,
+    "lines": 1
+   }
+  ],
+  "links": {
+   "ranking": [
+    "인기 이야기 둘러보기",
+    "전체보기→",
+    "공모전 보기→"
+   ],
+   "newTab": [
+    "더보기→"
+   ],
+   "cards": 72
+  },
+  "firstScreen": {
+   "vh": 900,
+   "imageAreaPct": 28.8,
+   "firstCardTop": 409,
+   "cardsIntersecting": 5
+  },
+  "rows": [
+   {
+    "cards": 10,
+    "scrollable": true,
+    "peekPx": 44,
+    "peekPct": 19,
+    "visibleCards": 4
+   },
+   {
+    "cards": 6,
+    "scrollable": true,
+    "peekPx": 92,
+    "peekPct": 31,
+    "visibleCards": 3
+   }
+  ],
+  "gridCols": 4,
+  "adultLabelsVisible": true,
+  "officialBadges": 36
+ }
+]

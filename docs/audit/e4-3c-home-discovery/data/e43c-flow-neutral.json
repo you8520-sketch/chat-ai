@@ -1,0 +1,202 @@
+[
+ {
+  "name": "390 event CTA href",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 event reward copy",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 ranking/new links",
+  "ok": true,
+  "detail": "[[\"/events/create-migration\",\"제작 이벤트 참여→\"],[\"/tab/ranking\",\"인기 이야기 둘러보기\"],[\"/tab/ranking\",\"전체보기→\"],[\"/tab/ranking\",\"공모전 보기→\"],[\"/tab/new\",\"더보기→\"]]"
+ },
+ {
+  "name": "390 main nav destinations",
+  "ok": true,
+  "detail": "/,/tab/new,/tab/ranking,/trpg,/search,/tab/following,/points#point-logs,/verify,/chats,/persona,/studio,/creator,/terms,/privacy,/refund,/settings"
+ },
+ {
+  "name": "390 row touch swipe",
+  "ok": true,
+  "detail": "scrollLeft 0 -> 417"
+ },
+ {
+  "name": "390 row end reachable (last card not clipped)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 keyboard focus moves between cards",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 D-1 marker on card",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "390 D-1 reveal overlay + navigation",
+  "ok": true,
+  "detail": "reveal=true url=http://localhost:3302/character/10"
+ },
+ {
+  "name": "640 event CTA href",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "640 event reward copy",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "640 ranking/new links",
+  "ok": true,
+  "detail": "[[\"/events/create-migration\",\"제작 이벤트 참여→\"],[\"/tab/ranking\",\"인기 이야기 둘러보기\"],[\"/tab/ranking\",\"전체보기→\"],[\"/tab/ranking\",\"공모전 보기→\"],[\"/tab/new\",\"더보기→\"]]"
+ },
+ {
+  "name": "640 main nav destinations",
+  "ok": true,
+  "detail": "/,/tab/new,/tab/ranking,/trpg,/search,/tab/following,/points#point-logs,/verify,/chats,/persona,/studio,/creator,/terms,/privacy,/refund,/settings"
+ },
+ {
+  "name": "640 row drag scroll",
+  "ok": true,
+  "detail": "scrollLeft 0 -> 180"
+ },
+ {
+  "name": "640 drag does not navigate",
+  "ok": true,
+  "detail": "http://localhost:3302/"
+ },
+ {
+  "name": "640 row end reachable (last card not clipped)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "640 keyboard focus moves between cards",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "640 D-1 marker on card",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "640 D-1 reveal overlay + navigation",
+  "ok": true,
+  "detail": "reveal=true url=http://localhost:3302/character/10"
+ },
+ {
+  "name": "1440 event CTA href",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "1440 event reward copy",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "1440 ranking/new links",
+  "ok": true,
+  "detail": "[[\"/events/create-migration\",\"제작 이벤트 참여→\"],[\"/tab/ranking\",\"인기 이야기 둘러보기\"],[\"/tab/ranking\",\"전체보기→\"],[\"/tab/ranking\",\"공모전 보기→\"],[\"/tab/new\",\"더보기→\"]]"
+ },
+ {
+  "name": "1440 main nav destinations",
+  "ok": true,
+  "detail": "/,/tab/new,/tab/ranking,/trpg,/search,/tab/following,/points#point-logs,/verify,/chats,/persona,/studio,/creator,/terms,/privacy,/refund,/settings"
+ },
+ {
+  "name": "1440 row drag scroll",
+  "ok": true,
+  "detail": "scrollLeft 0 -> 180"
+ },
+ {
+  "name": "1440 drag does not navigate",
+  "ok": true,
+  "detail": "http://localhost:3302/"
+ },
+ {
+  "name": "1440 row end reachable (last card not clipped)",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "1440 keyboard focus moves between cards",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "1440 D-1 marker on card",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "1440 D-1 reveal overlay + navigation",
+  "ok": true,
+  "detail": "reveal=true url=http://localhost:3302/character/10"
+ },
+ {
+  "name": "adult card visibility guest",
+  "ok": true,
+  "detail": "visible=false expected=false"
+ },
+ {
+  "name": "official cards render guest",
+  "ok": true,
+  "detail": "n=34"
+ },
+ {
+  "name": "adult card visibility std",
+  "ok": true,
+  "detail": "visible=false expected=false"
+ },
+ {
+  "name": "official cards render std",
+  "ok": true,
+  "detail": "n=34"
+ },
+ {
+  "name": "adult card visibility adminOn",
+  "ok": true,
+  "detail": "visible=false expected=false"
+ },
+ {
+  "name": "official cards render adminOn",
+  "ok": true,
+  "detail": "n=34"
+ },
+ {
+  "name": "adult card visibility adminOff",
+  "ok": true,
+  "detail": "visible=true expected=true"
+ },
+ {
+  "name": "official cards render adminOff",
+  "ok": true,
+  "detail": "n=36"
+ },
+ {
+  "name": "reduced-motion: card transitions off",
+  "ok": true,
+  "detail": "0s"
+ },
+ {
+  "name": "reduced-motion: ambient has no animation",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "name": "tab order: event CTA before first section card",
+  "ok": true,
+  "detail": "제작 이벤트 참여→ > 인기 이야기 둘러보기 > 취향전체▾ > 취향 설정 > 전체보기→ > 공식현대 판타지세라핀 에르하르트 > by 공식계정 > 달빛 아래서만 문을 여는 고서점의 > #테스트 > 공식현대 판타지오르페 > by 공식계정 > 지하철 막차에서만 만나는 악사 > #테스트 > 공식다크 판타지검은 숲의 수호자"
+ }
+]
