@@ -1,0 +1,220 @@
+{
+  "A_after_R0": {
+    "stored": {
+      "location": "마레노 부두",
+      "quests_json": "[\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[]",
+      "next_round_context": "마레노 부두, 해무가 짙게 깔린 새벽. 실종된 해오라기호 선원 가족의 절규와 세관-선원조합 간의 대립이 격화되는 순간."
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-1",
+        "title": "해오라기호의 행방 추적: 선원의 가족이나 부두 사람들에게서 실종 정황을 파악한다",
+        "status": "active",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 8,
+        "location": "마레노 부두"
+      }
+    ]
+  },
+  "C_after_R0_scripted": {
+    "stored": {
+      "location": "마레노 부두",
+      "quests_json": "[\"등대로 가서 상황을 살핀다\",\"부두 사람들에게 해오라기호 소문을 묻는다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"등대로 가서 상황을 살핀다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0,\"criterion\":{\"type\":\"reach_location\",\"place\":\"곶 끝의 등대\"}},{\"id\":\"goal-0-2\",\"title\":\"부두 사람들에게 해오라기호 소문을 묻는다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[]",
+      "next_round_context": ""
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "등대로 가서 상황을 살핀다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0,
+          "criterion": {
+            "type": "reach_location",
+            "place": "곶 끝의 등대"
+          }
+        },
+        {
+          "id": "goal-0-2",
+          "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "등대로 가서 상황을 살핀다",
+      "부두 사람들에게 해오라기호 소문을 묻는다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-1",
+        "title": "등대로 가서 상황을 살핀다",
+        "status": "active",
+        "claimed": false
+      },
+      {
+        "id": "goal-0-2",
+        "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+        "status": "active",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 9,
+        "location": "마레노 부두"
+      }
+    ]
+  },
+  "C_after_R1_scripted_move_completed": {
+    "stored": {
+      "location": "곶 끝의 등대",
+      "quests_json": "[\"부두 사람들에게 해오라기호 소문을 묻는다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"등대로 가서 상황을 살핀다\",\"status\":\"completed\",\"source\":\"gm\",\"createdRound\":0,\"criterion\":{\"type\":\"reach_location\",\"place\":\"곶 끝의 등대\"},\"closedRound\":1,\"evidence\":{\"kind\":\"reach_location\",\"round\":1,\"participantId\":9,\"location\":\"곶 끝의 등대\"}},{\"id\":\"goal-0-2\",\"title\":\"부두 사람들에게 해오라기호 소문을 묻는다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[]",
+      "next_round_context": ""
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "등대로 가서 상황을 살핀다",
+          "status": "completed",
+          "source": "gm",
+          "createdRound": 0,
+          "criterion": {
+            "type": "reach_location",
+            "place": "곶 끝의 등대"
+          },
+          "closedRound": 1,
+          "evidence": {
+            "kind": "reach_location",
+            "round": 1,
+            "participantId": 9,
+            "location": "곶 끝의 등대"
+          }
+        },
+        {
+          "id": "goal-0-2",
+          "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "부두 사람들에게 해오라기호 소문을 묻는다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-2",
+        "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+        "status": "active",
+        "claimed": false
+      },
+      {
+        "id": "goal-0-1",
+        "title": "등대로 가서 상황을 살핀다",
+        "status": "completed",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 9,
+        "location": "곶 끝의 등대"
+      }
+    ]
+  },
+  "C_after_R2_real": {
+    "stored": {
+      "location": "곶 끝의 등대",
+      "quests_json": "[\"부두 사람들에게 해오라기호 소문을 묻는다\"]",
+      "goals_json": "{\"version\":1,\"goals\":[{\"id\":\"goal-0-1\",\"title\":\"등대로 가서 상황을 살핀다\",\"status\":\"completed\",\"source\":\"gm\",\"createdRound\":0,\"criterion\":{\"type\":\"reach_location\",\"place\":\"곶 끝의 등대\"},\"closedRound\":1,\"evidence\":{\"kind\":\"reach_location\",\"round\":1,\"participantId\":9,\"location\":\"곶 끝의 등대\"}},{\"id\":\"goal-0-2\",\"title\":\"부두 사람들에게 해오라기호 소문을 묻는다\",\"status\":\"active\",\"source\":\"gm\",\"createdRound\":0}]}",
+      "world_flags_json": "[]",
+      "next_round_context": "등대 내부에서 감시자의 기습을 받았고, 일지의 훼손된 기록을 확인했다."
+    },
+    "storedGoals": {
+      "version": 1,
+      "goals": [
+        {
+          "id": "goal-0-1",
+          "title": "등대로 가서 상황을 살핀다",
+          "status": "completed",
+          "source": "gm",
+          "createdRound": 0,
+          "criterion": {
+            "type": "reach_location",
+            "place": "곶 끝의 등대"
+          },
+          "closedRound": 1,
+          "evidence": {
+            "kind": "reach_location",
+            "round": 1,
+            "participantId": 9,
+            "location": "곶 끝의 등대"
+          }
+        },
+        {
+          "id": "goal-0-2",
+          "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+          "status": "active",
+          "source": "gm",
+          "createdRound": 0
+        }
+      ]
+    },
+    "ledgerActiveTitles": [
+      "부두 사람들에게 해오라기호 소문을 묻는다"
+    ],
+    "playerVisibleGoals": [
+      {
+        "id": "goal-0-2",
+        "title": "부두 사람들에게 해오라기호 소문을 묻는다",
+        "status": "active",
+        "claimed": false
+      },
+      {
+        "id": "goal-0-1",
+        "title": "등대로 가서 상황을 살핀다",
+        "status": "completed",
+        "claimed": false
+      }
+    ],
+    "sheets": [
+      {
+        "participantId": 9,
+        "location": "곶 끝의 등대"
+      }
+    ]
+  }
+}

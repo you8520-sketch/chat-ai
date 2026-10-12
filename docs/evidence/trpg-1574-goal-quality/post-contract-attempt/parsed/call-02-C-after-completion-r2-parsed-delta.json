@@ -1,0 +1,25 @@
+{
+  "delta": {
+    "players": [
+      {
+        "participantId": 9,
+        "hp": 34,
+        "conditions": [],
+        "inventoryAdd": [],
+        "inventoryRemove": [],
+        "location": "곶 끝의 등대"
+      }
+    ],
+    "location": "곶 끝의 등대",
+    "nextRoundContext": "등대 내부에서 감시자의 기습을 받았고, 일지의 훼손된 기록을 확인했다.",
+    "storyPhase": "INTRO",
+    "threadsAdd": [
+      "등대 신호등 기록 공백의 진실"
+    ],
+    "endingConditionId": ""
+  },
+  "location": "곶 끝의 등대",
+  "campaignFinished": false,
+  "diagnostics": null,
+  "narrationChars": 1416
+}

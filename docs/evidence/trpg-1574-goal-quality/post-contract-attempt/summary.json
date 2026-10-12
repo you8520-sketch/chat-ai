@@ -1,0 +1,126 @@
+{
+  "mode": "live",
+  "campaigns": {
+    "A_scenario": 8,
+    "C_after_completion": 9
+  },
+  "maxProviderCalls": 2,
+  "calls": [
+    {
+      "seq": 1,
+      "label": "A-scenario",
+      "campaignId": 8,
+      "round": 0,
+      "model": "gemini-3.8-flash",
+      "systemSha256": "76301f32f9ec72fcf0851267dc44f169b6cea25e431c8ed3ed0b544934776c85",
+      "userSha256": "cdbae0921e3109e3c225188d3749c93d187d545cb4fada8ab323a0ed3be0edba",
+      "systemChars": 10403,
+      "userChars": 4526,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 3823,
+        "outputTokens": 1706
+      },
+      "estKrw": 6.72,
+      "responseChars": 2817,
+      "finishReason": "stop",
+      "error": null,
+      "elapsedMs": 24902
+    },
+    {
+      "seq": 2,
+      "label": "C-after-completion",
+      "campaignId": 9,
+      "round": 2,
+      "model": "gemini-3.8-flash",
+      "systemSha256": "76301f32f9ec72fcf0851267dc44f169b6cea25e431c8ed3ed0b544934776c85",
+      "userSha256": "958c8d87887edf181a729625395e483c52f6305a09eba4dca381d333406a7b53",
+      "systemChars": 10403,
+      "userChars": 5829,
+      "usage": {
+        "modelId": "gemini-3.8-flash",
+        "inputTokens": 4409,
+        "outputTokens": 1158
+      },
+      "estKrw": 5.55,
+      "responseChars": 1952,
+      "finishReason": "stop",
+      "error": null,
+      "elapsedMs": 15850
+    }
+  ],
+  "fetchLog": [
+    {
+      "n": 1,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 17750,
+      "status": 200,
+      "blocked": false,
+      "ms": 6598
+    },
+    {
+      "n": 2,
+      "url": "https://api.cheaperinference.com/v1/chat/completions",
+      "method": "POST",
+      "bodyBytes": 19723,
+      "status": 200,
+      "blocked": false,
+      "ms": 3246
+    }
+  ],
+  "totalEstKrw": 12.26,
+  "fxAssumptionKrwPerUsd": 1450,
+  "scriptedRoundsNoProviderCall": [
+    "C R0 (reach_location goal construction)",
+    "C R1 (approved move; server completes the goal)"
+  ],
+  "secretLiteralsChecked": [
+    "강도현",
+    "침몰",
+    "밀수",
+    "장부",
+    "오 노인",
+    "오노인",
+    "형제",
+    "지시"
+  ],
+  "literalContainmentOfRawOutputs": [
+    {
+      "seq": 1,
+      "label": "A-scenario",
+      "round": 0,
+      "literalsFoundInRawOutput": [
+        "밀수"
+      ]
+    },
+    {
+      "seq": 2,
+      "label": "C-after-completion",
+      "round": 2,
+      "literalsFoundInRawOutput": [
+        "장부",
+        "오 노인"
+      ]
+    }
+  ],
+  "chunkTelemetry": [
+    {
+      "call": "call-01-A-scenario-r0",
+      "chunks": 66,
+      "chars": 2817,
+      "firstChunkMs": 6600,
+      "lastChunkMs": 24841,
+      "partialChars": 2817
+    },
+    {
+      "call": "call-02-C-after-completion-r2",
+      "chunks": 44,
+      "chars": 1952,
+      "firstChunkMs": 3255,
+      "lastChunkMs": 15757,
+      "partialChars": 1952
+    }
+  ],
+  "errors": []
+}
