@@ -1,0 +1,41 @@
+{
+  "caseId": "g8_P1_open_promises_cur_deepseek-v4.1-flash_r1",
+  "wireCase": "g8_P1_open_promises_cur_deepseek-v4.1-flash",
+  "arm": "cur",
+  "sceneId": "P1_open_promises",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "postIndex": 1,
+  "startedAt": "2026-10-12T11:48:30.698Z",
+  "httpStatus": 200,
+  "requestId": null,
+  "ok": true,
+  "aborted": false,
+  "text": "모닥불 곁에 앉은 렌이 조용히 물었다. 라이크는 손에 쥔 장작 하나를 내려놓고 잠시 불꽃을 바라보았다. 불빛이 뺨의 옆선을 따라 흔들렸다.\n\n\"약속이라.\"\n\n그는 목소리를 가다듬었다. 견습 검사라는 신분이 남긴 습관인지, 뭔가를 떠올릴 때면 손끝으로 무릎을 한 번 눌렀다. 기억을 확인하는 동작이었다.\n\n\"숫돌은 취소됐으니까 그건 빼고. 네가 직접 갈기로 했으니 기다리는 것도 없고.\"\n\n장작 더미 쪽을 흘끗 봤다. 오늘 쌓은 것들 중 몇 개는 아직 껍질이 마르지 않아 연기가 옅게 났다.\n\n\"북문 밖 약초밭, 보름달 뜨는 날. 그건 아직 유효해. 내가 먼저 가지 않기로 한 것도 그대로고.\"\n\n라이크는 잠깐 멈췄다. 다음 말은 어제보다 더 조심스러운 무게로 나왔다.\n\n\"그리고 한 가지 더. 네가 사귀자고 했을 때, 내가 지금은 답할 수 없다고 했잖아. 시간이 필요하다고.\"\n\n그는 불꽃이 튀는 쪽으로 시선을 두었다. 렌을 보지 않았다. 보면 마음이 흔들릴 것 같아서였다.\n\n\"그건 약속은 아니야. 답을 미룬 거지. 미룬 것도 지금 다시 꺼낼 생각은 없어. 네가 먼저 꺼내면 그때는… 말하는 게 맞겠지.\"\n\n\"그리고.\"\n\n목소리가 한 톤 낮아졌다. 손끝으로 무릎을 누르던 손이 멈췄다.\n\n\"네가 예전에, 내가 너를 평생 지키겠다고 했다고 했지. 아까 그거.\"\n\n불꽃이 바람에 기울었다. 라이크는 그제야 렌 쪽으로 고개를 반쯤 돌렸다. 옆얼굴만 보이는 각도였다.\n\n\"나는 그런 말을 한 기억이 없어. 네가 꿈에서 봤거나, 아니면 내가 잊은 거거나. 어느 쪽이든 나는 그 말을 한 근거를 못 대.\"\n\n\"확실한 건 이것뿐이야. 나는 지금도 네 검을 나한테 맡기라는 말을 안 했고, 앞으로도 네가 원하지 않는 일은 안 해. 그게 내가 지금 지킬 수 있는 전부야.\"\n\n장작 하나가 탔다. 가운데가 꺼지며 안쪽이 검붉게 빛났다. 잠깐의 정적이 그 열기처럼 두 사람 사이에 머물렀다.\n\n\"까먹은 거 있으면 말해. 내가 놓친 게 있으면 지금 채워 넣자. 약속은 양쪽이 기억해야 약속이니까.\"\n\n라이크는 다시 앞을 보았다. 두 손을 불 쪽으로 내밀어 쬐었다. 손등에 붉은 기운이 번졌다. 낮에 검을 쥐었던 자리에는 아직 굳은살이 남아 있었다. 오늘 하루 동안 쌓은 장작만 아흔 개가 넘었다. 그 사이에 오간 말을 다 더하면 셀 수 없이 많았고, 그중 약속이라고 부를 만한 건 몇 개 되지 않았다. 라이크는 그 몇 개만 정확히 기억하고 싶었다. 그래야 어기지 않을 테니까.\n\n\"더 있는 것 같으면 네가 먼저 말해. 나는 지금까지 말한 것까지만 확실해.\"",
+  "usage": {
+    "prompt_tokens": 6900,
+    "completion_tokens": 928,
+    "total_tokens": 7828,
+    "prompt_tokens_details": {
+      "cached_tokens": 3200
+    },
+    "prompt_cache_hit_tokens": 3200,
+    "prompt_cache_miss_tokens": 3700
+  },
+  "resolvedModel": "deepseek-v4.1-flash",
+  "providerId": "676c5d33-6fb8-42e6-b0d8-6d17e8b4a0af",
+  "finishReason": "stop",
+  "sawDone": true,
+  "reasoningChars": 0,
+  "firstByteMs": 2004,
+  "latencyMs": 10016,
+  "cost": {
+    "usdNoCacheDiscount": 0.0007959,
+    "usdWithCache": 0.0005607,
+    "reportedCost": null
+  },
+  "budgetedUsd": 0.0007959,
+  "cumulativeBudgetedKrw": 1.4,
+  "cursorQualityScore": null
+}

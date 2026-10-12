@@ -1,0 +1,41 @@
+{
+  "caseId": "g8_P1_open_promises_k2_deepseek-v4.1-flash_r1",
+  "wireCase": "g8_P1_open_promises_k2_deepseek-v4.1-flash",
+  "arm": "k2",
+  "sceneId": "P1_open_promises",
+  "modelId": "deepseek-v4.1-flash",
+  "wireModel": "deepseek-v4.1-flash",
+  "provider": "cheaperinference",
+  "postIndex": 2,
+  "startedAt": "2026-10-12T11:48:41.392Z",
+  "httpStatus": 200,
+  "requestId": null,
+  "ok": true,
+  "aborted": false,
+  "text": "모닥불 앞에 앉은 라이크는 한동안 불꽃만 바라보았다. 장작이 타면서 툭, 하고 작은 소리를 냈다. 옆에 앉은 렌의 온기가 어깨 가까이까지 닿아 있었지만, 라이크는 그쪽으로 고개를 돌리지 않았다.\n\n\"약속.\"\n\n그 단어를 혀로 굴리듯 낮게 되뇌었다. 검술을 배우는 사람의 손이었다. 장작을 쌓느라 그을음이 묻은 손등, 손가락 마디에 잔뜩 박힌 굳은살. 라이크는 그 손을 무릎 위에 올린 채 천천히 말을 골랐다.\n\n\"네가 내 검을 갈아 준다고 했었지. 내일까지.\"\n\n말하고 나서 잠깐 멈췄다. 기억을 확인하는 게 아니라, 그 뒤에 무슨 일이 있었는지 순서를 세는 것처럼.\n\n\"그리고 북문 밖 약초밭. 보름달 뜨는 날. 내가 북문 앞에서 기다리기로 했어. 네가 늦어도 먼저 가진 않는다고.\"\n\n불꽃이 한 번 크게 일었다가 잦아들었다. 라이크는 이번엔 고개를 살짝 돌려 렌을 봤다. 눈이 마주치자마자 다시 불로 시선을 돌렸지만, 그 짧은 사이에 표정에 뭐라 이름 붙이기 어려운 게 스쳤다.\n\n\"그 둘이 전부야. 내가 기억하는 건.\"\n\n말끝이 흐려졌다. 그리고 잠시 침묵이 흘렀다. 장작이 타는 소리, 바람이 지붕을 스치는 소리.\n\n\"아까…… 네가 나한테 평생 지켜 주겠다고 했다고 했잖아.\"\n\n라이크는 손끝으로 무릎을 한 번 눌렀다.\n\n\"나는 그런 말을 한 기억이 없어. 네가 헷갈린 건지, 아니면…… 내가 잊은 건지. 어느 쪽인지는 나도 몰라.\"\n\n그 말을 하는 동안 목소리는 평평했다. 변명하려는 톤도, 부정하려는 톤도 아니었다. 사실을 사실대로 놓는 사람의 말투였다.\n\n\"그러니까 네가 기억하는 약속이 나랑 다른 게 있으면, 말해 줘. 내가 까먹은 게 있다면…… 그건 내 잘못이야.\"\n\n바람이 한 번 불어와 불꽃이 렌 쪽으로 기울었다. 라이크는 장작 하나를 집어 조심스럽게 불 속에 밀어 넣었다. 불씨가 튀어 올랐다가 어둠 속으로 사라졌다.",
+  "usage": {
+    "prompt_tokens": 7001,
+    "completion_tokens": 681,
+    "total_tokens": 7682,
+    "prompt_tokens_details": {
+      "cached_tokens": 3456
+    },
+    "prompt_cache_hit_tokens": 3456,
+    "prompt_cache_miss_tokens": 3545
+  },
+  "resolvedModel": "deepseek-v4.1-flash",
+  "providerId": "359b9fa0-58e0-42ec-82cb-0706a37cb841",
+  "finishReason": "stop",
+  "sawDone": true,
+  "reasoningChars": 0,
+  "firstByteMs": 1879,
+  "latencyMs": 8688,
+  "cost": {
+    "usdNoCacheDiscount": 0.000729375,
+    "usdWithCache": 0.00047535899999999996,
+    "reportedCost": null
+  },
+  "budgetedUsd": 0.000729375,
+  "cumulativeBudgetedKrw": 2.6,
+  "cursorQualityScore": null
+}

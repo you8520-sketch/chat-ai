@@ -1,0 +1,134 @@
+/**
+ * Gate 8 real-extractor capture (scratch harness; never committed to src/).
+ * Runs the LIVE shared post-turn extractor (runPostTurnSharedInitial, relationship_only,
+ * includeRelationship + includeEpisodic) on the event turns of the synthetic fixture.
+ * arm "cur": product prompt + product strict schema, unchanged.
+ * arm "k2" : same call with ONLY the relationship rules/schema extended so promisesAdd carries
+ *            evidence{source_role,source_quote} and removals carry promisesRemoveEvidence[].
+ * Model = product background default (Luna) through CheaperInference; dedicated Luna experiment key only (hav_luna_memory50_test).
+ */
+import Module from "module";
+const originalLoad = (Module as unknown as { _load: typeof Module._load })._load;
+(Module as unknown as { _load: typeof Module._load })._load = function (request: string, parent: NodeModule, isMain: boolean) {
+  if (request === "server-only") return {};
+  return originalLoad(request, parent, isMain);
+} as typeof Module._load;
+
+import { mkdirSync, writeFileSync } from "node:fs";
+import { BACKGROUND_OPENROUTER_MODEL, callBackgroundMemory } from "@/lib/ai";
+import { runPostTurnSharedInitial } from "@/lib/postTurnSharedInitial/run";
+import { buildPostTurnSharedInitialResponseFormat } from "@/lib/postTurnSharedInitial/schema";
+import type { PostTurnSharedInitialInput } from "@/lib/postTurnSharedInitial/types";
+import { assistantText, CHAR_NAME, EVENT_TURNS, PERSONA, PERSONA_NAME, userText } from "./zz-g8-fixture";
+
+const OUT = process.env.G8_OUT ?? "/opt/cursor/artifacts/gate8/data";
+const REPS = Number(process.env.G8_REPS ?? "2");
+const EXECUTE = process.env.G8_EXECUTE === "1";
+const CAP_KRW = Number(process.env.G8_EXTRACT_CAP_KRW ?? "8");
+const FX = 1700;
+
+const ORIG_ADD =
+  '- promisesAdd: newly made promises as [{ "text": "...", "deadline": "..." }].';
+const ORIG_REMOVE =
+  "- promisesRemove: active promises now fulfilled/expired (copy the promise text EXACTLY).";
+const K2_ADD =
+  '- promisesAdd: newly made promises as [{ "text": "...", "deadline": "...", "evidence": {"source_role":"user|assistant","source_quote":"..."} }]. evidence.source_quote MUST be copied character-for-character (verbatim, one clause or sentence, at least 6 characters, never paraphrased) from the [THIS TURN — USER] or [THIS TURN — ASSISTANT] block. A missing or non-verbatim quote discards the promise.';
+const K2_REMOVE =
+  "- promisesRemove: active promises now fulfilled/expired/cancelled (copy the promise text EXACTLY). promisesRemoveEvidence: one evidence object per removal, [{\"source_role\":\"user|assistant\",\"source_quote\":\"...\"}], quoted verbatim from this turn; use [] when promisesRemove is empty.";
+
+type Arm = "cur" | "k2";
+
+function buildInput(turn: number): PostTurnSharedInitialInput {
+  return {
+    mode: "relationship_only",
+    charName: CHAR_NAME,
+    personaName: PERSONA_NAME,
+    userPersona: PERSONA,
+    userMessage: userText(turn),
+    assistantProse: assistantText(turn),
+    primaryModelId: BACKGROUND_OPENROUTER_MODEL,
+    includeSuggestions: false,
+    includeRelationship: true,
+    includeEpisodic: true,
+  };
+}
+
+function patchSchemaForK2(format: any): any {
+  const clone = JSON.parse(JSON.stringify(format));
+  const rel = clone.json_schema.schema.properties.relationship;
+  const evidence = {
+    type: "object",
+    additionalProperties: false,
+    required: ["source_role", "source_quote"],
+    properties: { source_role: { type: "string", enum: ["user", "assistant"] }, source_quote: { type: "string" } },
+  };
+  rel.properties.promisesAdd.items.properties.evidence = evidence;
+  rel.properties.promisesAdd.items.required.push("evidence");
+  rel.properties.promisesRemoveEvidence = { type: "array", items: evidence };
+  rel.required.push("promisesRemoveEvidence");
+  return clone;
+}
+
+async function main() {
+  const key = process.env.CHEAPER_INFERENCE_API_KEY?.trim() ?? "";
+  const exp = process.env.hav_luna_memory50_test?.trim() ?? "";
+  if (!key || key !== exp) throw new Error("EXPERIMENT_KEY_REQUIRED: CHEAPER_INFERENCE_API_KEY must equal the dedicated Luna experiment key");
+  for (const prod of ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "CHEAPER_INFERENCE_BENCHMARK_API_KEY"]) if (process.env[prod]?.trim() === key) throw new Error("PRODUCTION_KEY_FORBIDDEN");
+  if (process.env.OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY must be unset for this run");
+  mkdirSync(OUT, { recursive: true });
+
+  const plan: { turn: number; arm: Arm; rep: number }[] = [];
+  for (const turn of EVENT_TURNS) for (const arm of ["cur", "k2"] as Arm[]) for (let rep = 1; rep <= REPS; rep++) plan.push({ turn, arm, rep });
+  console.log(`G8_EXTRACT plan=${plan.length} model=${BACKGROUND_OPENROUTER_MODEL} execute=${EXECUTE}`);
+  if (!EXECUTE) return;
+
+  const results: Record<string, unknown>[] = [];
+  let spentKrw = 0;
+  for (const p of plan) {
+    if (spentKrw > CAP_KRW) throw new Error(`COST_CAP_EXCEEDED ${spentKrw}`);
+    const input = buildInput(p.turn);
+    let sentSystem = "";
+    let sentSchema: unknown = null;
+    const caller = async (system: string, history: { role: "user" | "assistant"; content: string }[], opts: { requestKind: string; maxTokens?: number; temperature?: number; modelId: string }) => {
+      let sys = system;
+      let format: any = buildPostTurnSharedInitialResponseFormat(input);
+      if (p.arm === "k2") {
+        if (!sys.includes(ORIG_ADD) || !sys.includes(ORIG_REMOVE)) throw new Error("PROMPT_ANCHOR_MISSING");
+        sys = sys.replace(ORIG_ADD, K2_ADD).replace(ORIG_REMOVE, K2_REMOVE);
+        format = patchSchemaForK2(format);
+      }
+      sentSystem = sys;
+      sentSchema = format;
+      return callBackgroundMemory(sys, history, undefined, opts.requestKind, {
+        maxTokens: opts.maxTokens,
+        temperature: opts.temperature,
+        modelId: opts.modelId,
+        responseFormat: format,
+      });
+    };
+    const r = await runPostTurnSharedInitial(input, caller as never);
+    const usd = (r.usage as any)?.cheaperInferenceBilledCostUsd ?? null;
+    const krw = usd != null ? usd * FX : ((r.usage?.inputTokens ?? 0) * 0.3 + (r.usage?.outputTokens ?? 0) * 1.5) / 1e6 * FX;
+    spentKrw += krw;
+    results.push({
+      ...p,
+      transportOk: r.transportOk,
+      rawText: r.text,
+      parsedRelationship: r.parsed?.relationship ?? null,
+      parsedEpisodic: r.parsed?.episodic ?? null,
+      usage: r.usage,
+      budgetedKrw: krw,
+      errorCode: r.errorCode,
+      systemText: sentSystem,
+      schema: sentSchema,
+    });
+    console.log(`T${p.turn} ${p.arm} r${p.rep} ok=${r.transportOk} krw=${krw.toFixed(3)} cum=${spentKrw.toFixed(3)}`);
+  }
+  writeFileSync(`${OUT}/extractor-results.json`, JSON.stringify({ model: BACKGROUND_OPENROUTER_MODEL, spentKrw, results }, null, 2));
+  console.log(`G8_EXTRACT_DONE calls=${results.length} spentKrw=${spentKrw.toFixed(3)}`);
+}
+
+main().catch((e) => {
+  console.error("G8_EXTRACT_FAIL", e);
+  process.exit(1);
+});
