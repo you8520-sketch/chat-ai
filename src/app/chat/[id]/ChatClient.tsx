@@ -135,7 +135,6 @@ import {
 } from "@/lib/chatModels";
 import {
   acceptPickerEstimateResponse,
-  formatPickerEstimateSuffix,
   parseModelPickerEstimatePresentation,
   PICKER_ESTIMATE_VARIANCE_NOTE,
   selectedAIOptionLabel,
@@ -2070,11 +2069,6 @@ export default function ChatClient({
   }, [messages, lastAssistantIdx]);
 
   const inputLocked = loading || lastTurnInFlight;
-  const selectedEstimateShown =
-    formatPickerEstimateSuffix(
-      modelPickerEstimates[selectedAI],
-      modelPickerEstimateConfidence[selectedAI]
-    ) !== "";
 
   const suggestedRepliesTurn = useMemo(() => {
     if (!displayPrefs.showSuggestedReplies) return null;
@@ -5600,7 +5594,7 @@ export default function ChatClient({
       <div
         className={
           leftLayout || assetPresentation === "background"
-            ? "relative z-10 bg-transparent px-2 pl-3 pb-4 sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-0"
+            ? "relative z-10 flex-1 bg-transparent px-2 pl-3 pb-4 sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-0"
             : CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS
         }
         role="presentation"
@@ -6093,14 +6087,8 @@ export default function ChatClient({
       >
         <FloatingPointsDeduction amount={floatDeductionAmount} trigger={floatDeductionTrigger} />
         <SitePromotionChatNotice promotion={selectedModelSitePromotion} />
-        <div className="mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 overflow-visible">
-          <label
-            className={`flex min-w-0 items-center gap-1.5 text-[11px] text-zinc-400 ${
-              selectedEstimateShown
-                ? "basis-full min-[576px]:basis-auto"
-                : "flex-1 min-[576px]:flex-none"
-            }`}
-          >
+        <div className="mb-1 flex items-center gap-1.5 overflow-visible">
+          <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-zinc-400 min-[576px]:flex-none">
             <span className="shrink-0 font-semibold text-zinc-400">AI</span>
             <select
               value={selectedAI}
@@ -6128,20 +6116,6 @@ export default function ChatClient({
             busy={adultHandoffBusy}
             onToggle={() => void toggleAdultHandoff()}
           />
-          <button
-            type="button"
-            role="switch"
-            aria-checked={displayPrefs.showSuggestedReplies}
-            aria-label="추천 메시지"
-            onClick={handleSuggestedRepliesToggle}
-            className={`ml-auto h-8 shrink-0 rounded-md border px-2 text-[11px] font-semibold transition min-[576px]:h-auto min-[576px]:px-1.5 min-[576px]:py-1 ${
-              displayPrefs.showSuggestedReplies
-                ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
-                : "border-white/10 bg-[#1a1a1a] text-zinc-500 hover:border-white/20 hover:text-zinc-300"
-            }`}
-          >
-            {displayPrefs.showSuggestedReplies ? "추천 켜짐" : "추천 꺼짐"}
-          </button>
         </div>
 
         <div className="flex flex-col gap-0.5">
@@ -6194,7 +6168,7 @@ export default function ChatClient({
                       ? "허용"
                       : "보통"
                 }`}
-                className="min-h-11 rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 disabled:opacity-40 min-[576px]:min-h-0"
+                className="min-h-10 rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 disabled:opacity-40 min-[576px]:min-h-0"
               >
                 자동진행 · {autoProgressionAuthoringLevel === "LIMITED"
                   ? "제한"
@@ -6208,7 +6182,7 @@ export default function ChatClient({
                 disabled={inputLocked || !input.trim()}
                 aria-busy={inputLocked || undefined}
                 data-chat-send-state={inputLocked ? "generating" : input.trim() ? "ready" : "empty"}
-                className={`min-h-11 rounded-md border border-violet-500/35 bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:opacity-40 min-[576px]:min-h-0 ${
+                className={`min-h-10 rounded-md border border-violet-500/35 bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:opacity-40 min-[576px]:min-h-0 ${
                   inputLocked ? "cursor-progress motion-safe:animate-pulse" : ""
                 }`}
               >
@@ -6216,11 +6190,25 @@ export default function ChatClient({
               </button>
             </div>
           </div>
-          <p className="flex items-baseline justify-between gap-2 text-[10px] leading-tight tabular-nums">
-            <span id="picker-estimate-note" className="min-w-0 text-[11px] text-zinc-400">
+          <div className="flex items-center gap-2 text-[10px] leading-tight tabular-nums">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={displayPrefs.showSuggestedReplies}
+              aria-label="추천 메시지"
+              onClick={handleSuggestedRepliesToggle}
+              className={`-my-1.5 h-8 shrink-0 rounded-md border px-2 text-[11px] font-semibold transition min-[576px]:my-0 min-[576px]:h-auto min-[576px]:px-1.5 min-[576px]:py-0.5 ${
+                displayPrefs.showSuggestedReplies
+                  ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
+                  : "border-white/10 bg-[#1a1a1a] text-zinc-500 hover:border-white/20 hover:text-zinc-300"
+              }`}
+            >
+              {displayPrefs.showSuggestedReplies ? "추천 켜짐" : "추천 꺼짐"}
+            </button>
+            <p id="picker-estimate-note" className="min-w-0 flex-1 text-[11px] text-zinc-400">
               {PICKER_ESTIMATE_VARIANCE_NOTE}
-            </span>
-            <span className="shrink-0 text-right">
+            </p>
+            <p className="shrink-0 text-right">
               <span
                 className={`font-semibold ${
                   input.length >= CHAT_MESSAGE_MAX ? "text-rose-400" : "text-zinc-300"
@@ -6229,8 +6217,8 @@ export default function ChatClient({
                 {input.length.toLocaleString()} / {CHAT_MESSAGE_MAX.toLocaleString()}자
               </span>
               <span className="hidden text-[10px] text-zinc-400 min-[576px]:inline"> · Ctrl+Enter 전송</span>
-            </span>
-          </p>
+            </p>
+          </div>
         </div>
       </div>
         </div>

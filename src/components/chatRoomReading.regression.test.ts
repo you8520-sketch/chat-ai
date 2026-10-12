@@ -104,8 +104,8 @@ describe("E4-3E chat room — composer", () => {
     assert.match(dock, /\n\s+전송\n/);
   });
 
-  it("gives primary actions a 44px touch target on mobile only", () => {
-    assert.equal((dock.match(/min-h-11/g) ?? []).length, 2);
+  it("gives primary actions a 40px touch target on mobile only", () => {
+    assert.equal((dock.match(/min-h-10 /g) ?? []).length, 2);
     assert.equal((dock.match(/min-\[576px\]:min-h-0/g) ?? []).length, 2);
   });
 
@@ -116,13 +116,22 @@ describe("E4-3E chat room — composer", () => {
     assert.match(dock, /\{PICKER_ESTIMATE_VARIANCE_NOTE\}/);
   });
 
-  it("moves the estimate-aware row onto its own line instead of overlapping the toggles", () => {
-    assert.match(dock, /selectedEstimateShown\s*\n?\s*\? "basis-full min-\[576px\]:basis-auto"/);
+  it("keeps the model picker and adult switch in one row so a long estimate label cannot overlap them", () => {
     const labelOpen = dock.indexOf("<label");
     const labelClose = dock.indexOf("</label>");
     assert.ok(labelOpen >= 0 && labelClose > labelOpen);
-    assert.doesNotMatch(dock.slice(labelOpen, labelClose), /ChatRoomAdultModeToggle/);
-    assert.match(dock, /<ChatRoomAdultModeToggle/);
+    const label = dock.slice(labelOpen, labelClose);
+    assert.doesNotMatch(label, /ChatRoomAdultModeToggle|추천 메시지/);
+    assert.match(label, /min-w-0 max-w-full flex-1/);
+    assert.ok(dock.indexOf("<ChatRoomAdultModeToggle") > labelClose);
+  });
+
+  it("moves the suggested-replies switch next to the note and counter without changing its wiring", () => {
+    const sw = dock.indexOf('aria-label="추천 메시지"');
+    assert.ok(sw > dock.indexOf("</label>"));
+    assert.equal((dock.match(/aria-label="추천 메시지"/g) ?? []).length, 1);
+    assert.match(dock, /onClick=\{handleSuggestedRepliesToggle\}/);
+    assert.match(dock, /aria-checked=\{displayPrefs\.showSuggestedReplies\}/);
   });
 
   it("enlarges the adult-mode switch hit area without changing its size or behavior", () => {
