@@ -305,7 +305,7 @@ function HomeCard({
               {view.genreLabel}
             </p>
           ) : null}
-          <h3 className="home-card-name mt-1 line-clamp-2 w-fit text-[19px] font-extrabold leading-[1.15] tracking-[-0.035em] text-white [overflow-wrap:anywhere]">
+          <h3 className="home-card-name mt-1 line-clamp-2 w-fit break-keep text-[19px] font-extrabold leading-[1.15] tracking-[-0.035em] text-white [overflow-wrap:anywhere]">
             {c.name}
           </h3>
         </div>
@@ -338,7 +338,7 @@ function HomeCard({
             ) : null}
             <h3
               className={cn(
-                "home-card-name line-clamp-2 min-w-0 font-extrabold leading-[1.15] tracking-[-0.035em] text-white [overflow-wrap:anywhere]",
+                "home-card-name line-clamp-2 min-w-0 break-keep font-extrabold leading-[1.15] tracking-[-0.035em] text-white [overflow-wrap:anywhere]",
                 variant === "exhibit" ? "text-[22px]" : "text-[16px]",
               )}
             >
@@ -357,7 +357,7 @@ function HomeCard({
           {view.displayTagline ? (
             <p
               className={cn(
-                "text-[12px] leading-5 text-zinc-300",
+                "break-keep text-[12px] leading-5 text-zinc-300",
                 variant === "index" ? "line-clamp-1" : "line-clamp-2 min-h-[2.5rem]",
               )}
             >

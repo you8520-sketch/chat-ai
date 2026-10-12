@@ -77,7 +77,7 @@ describe("home editorial owners", () => {
     assert.match(home, /fetchHomeSections\(db, user, blurNsfw\)/);
     assert.match(home, /shouldHideAdultListings\(user\)/);
     assert.match(home, /HorizontalScrollRow/);
-    assert.match(home, /aria-label="콘텐츠 탐색"/);
+    assert.doesNotMatch(home, /aria-label="콘텐츠 탐색"/, "E4-3B removed the duplicate mobile discovery nav");
     assert.doesNotMatch(home, /TEMP-PROD-PREVIEW|\/tmp\/prod-home/);
     assert.match(card, /variant = "default"/);
     assert.match(card, /공식/);
