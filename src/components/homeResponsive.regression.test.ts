@@ -90,3 +90,15 @@ describe("E4-3C candidate A quiet editorial rhythm", () => {
     assert.doesNotMatch(home, /MobileDiscoveryNav|MOBILE_DISCOVERY_TABS|aria-label="콘텐츠 탐색"/);
   });
 });
+
+describe("E4-3C home card Korean wrapping", () => {
+  const card = read("src/components/CharacterCard.tsx");
+  const homeCard = between(card, "function HomeCard(", "const DEFAULT_CHROME");
+
+  it("keeps home card names and taglines from splitting inside a word", () => {
+    const names = homeCard.match(/<h3[\s\S]*?>/g) ?? [];
+    assert.equal(names.length, 2);
+    for (const h3 of names) assert.match(h3, /break-keep/);
+    assert.match(homeCard, /"break-keep text-\[12px\] leading-5 text-zinc-300"/);
+  });
+});
