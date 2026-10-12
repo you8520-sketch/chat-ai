@@ -17,7 +17,7 @@ export type { TrpgGoalCriterion };
  * credit (GM removal, or removed while an older build ran); it is never read as completion.
  */
 export type TrpgGoalStatus = "active" | "completed" | "retired";
-export type TrpgGoalSource = "plan" | "gm" | "legacy";
+export type TrpgGoalSource = "gm" | "legacy";
 
 export type TrpgGoalEvidence =
   | { kind: "reach_location"; round: number; participantId: number; location: string }
@@ -121,7 +121,7 @@ function parseGoal(raw: unknown): TrpgGoal | null {
   if (!id || !title) return null;
   const status: TrpgGoalStatus =
     obj.status === "completed" ? "completed" : obj.status === "retired" ? "retired" : "active";
-  const source: TrpgGoalSource = obj.source === "plan" ? "plan" : obj.source === "gm" ? "gm" : "legacy";
+  const source: TrpgGoalSource = obj.source === "gm" ? "gm" : "legacy";
   const createdRound = Number.isInteger(obj.createdRound) ? (obj.createdRound as number) : 0;
   const goal: TrpgGoal = { id, title, status, source, createdRound };
   const criterion = normalizeGoalCriterion(obj.criterion);
@@ -240,18 +240,31 @@ function criterionIsCheckable(criterion: TrpgGoalCriterion, facts: TrpgGoalRound
 
 export type TrpgGoalDelta = Pick<TrpgStateDelta, "questsAdd" | "questsRemove" | "questsClaimDone" | "questCriteria">;
 
+export type TrpgGoalTransition = {
+  goals: TrpgGoal[];
+  /** New goals refused only because 12 goals were still active after this round's completions. */
+  addsDroppedAtCap: number;
+};
+
 /**
- * Same add/remove/dedupe/cap semantics `quests_json` always had (existing first, exact clipped-title removal
- * also blocks a same-delta add, new quests past the cap are dropped), applied to goal records.
+ * The one per-round goal transition. Precedence, fixed:
+ * 1. server-verified completions (facts of this round) close their goals first;
+ * 2. GM `questsRemove` / `questsClaimDone` touch only goals still active, so a removal cannot undo a completion;
+ * 3. GM `questsAdd` fills the slots left, never replacing a goal; a title removed or completed this round is not re-added.
+ * Add/remove/dedupe/cap semantics are those `quests_json` always had (exact clipped-title removal, 12 active at most).
  */
-export function applyGoalDelta(
+export function applyGoalTransition(
   goals: readonly TrpgGoal[],
   delta: TrpgGoalDelta,
   ctx: { round: number; facts?: TrpgGoalRoundFacts; placeMatches: PlaceMatcher }
-): TrpgGoal[] {
+): TrpgGoalTransition {
+  const verified = ctx.facts ? completeVerifiedGoals(goals, ctx.facts, ctx.placeMatches) : [...goals];
+  const closedNow = new Set(
+    verified.filter((goal, index) => goal.status === "completed" && goals[index]?.status === "active").map((goal) => goal.title)
+  );
   const drop = new Set((delta.questsRemove ?? []).map(clipTitle).filter(Boolean));
   const claim = new Set((delta.questsClaimDone ?? []).map(clipTitle).filter(Boolean));
-  const next: TrpgGoal[] = goals.map((goal) => {
+  const next: TrpgGoal[] = verified.map((goal) => {
     if (goal.status !== "active") return goal;
     if (drop.has(goal.title)) return { ...goal, status: "retired" as const, closedRound: ctx.round };
     if (claim.has(goal.title) && goal.claimedRound == null) return { ...goal, claimedRound: ctx.round };
@@ -264,10 +277,14 @@ export function applyGoalDelta(
   }
   const carried = new Set(next.filter((goal) => goal.status === "active").map((goal) => goal.title));
   let activeCount = carried.size;
+  let addsDroppedAtCap = 0;
   for (const raw of delta.questsAdd ?? []) {
     const title = clipTitle(raw);
-    if (!title || drop.has(title) || carried.has(title)) continue;
-    if (activeCount >= TRPG_LEDGER_QUEST_MAX) continue;
+    if (!title || drop.has(title) || closedNow.has(title) || carried.has(title)) continue;
+    if (activeCount >= TRPG_LEDGER_QUEST_MAX) {
+      addsDroppedAtCap += 1;
+      continue;
+    }
     carried.add(title);
     activeCount += 1;
     const goal: TrpgGoal = {
@@ -283,18 +300,7 @@ export function applyGoalDelta(
     }
     next.push(goal);
   }
-  return next;
-}
-
-/** Opening only: the author-written 플레이어 목표 becomes the first goal. Narrative: no criterion. */
-export function seedPlanGoal(goals: readonly TrpgGoal[], planGoal: string, round: number): TrpgGoal[] {
-  if (goals.some((goal) => goal.source === "plan")) return [...goals];
-  const firstSentence = planGoal.trim().split(/(?<=[.!?。…])\s+|\n+/)[0] ?? "";
-  const title = clipTitle(firstSentence);
-  if (!title) return [...goals];
-  if (goals.some((goal) => goal.status === "active" && goal.title === title)) return [...goals];
-  if (goals.filter((goal) => goal.status === "active").length >= TRPG_LEDGER_QUEST_MAX) return [...goals];
-  return [...goals, { id: nextGoalId(goals, round), title, status: "active", source: "plan", createdRound: round }];
+  return { goals: next, addsDroppedAtCap };
 }
 
 /**

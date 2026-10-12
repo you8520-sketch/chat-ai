@@ -9,14 +9,13 @@ import {
 } from "./movementDeclaration";
 import {
   activeGoalTitles,
-  applyGoalDelta,
-  completeVerifiedGoals,
+  applyGoalTransition,
   parseGoalsJson,
   reconcileGoals,
-  seedPlanGoal,
   serializeGoals,
   type TrpgGoal,
   type TrpgGoalRoundFacts,
+  type TrpgGoalTransition,
 } from "./campaignGoals";
 import { clipTrpgChars } from "./clip";
 import { parseJson } from "./store";
@@ -45,37 +44,17 @@ function clipItem(raw: string): string {
   return clipTrpgChars(raw, TRPG_LEDGER_ITEM_MAX_CHARS);
 }
 
-function mergeFactsCounted(
-  current: string[],
-  add: string[] | undefined,
-  remove: string[] | undefined,
-  maxItems: number
-): { next: string[]; overflow: number } {
+function mergeFacts(current: string[], add: string[] | undefined, remove: string[] | undefined, maxItems: number): string[] {
   const drop = new Set((remove ?? []).map(clipItem).filter(Boolean));
   const next: string[] = [];
   const seen = new Set<string>();
-  let overflow = 0;
-  const addStart = current.length;
-  [...current, ...(add ?? [])].forEach((item, index) => {
+  for (const item of [...current, ...(add ?? [])]) {
     const t = clipItem(item);
-    if (!t || drop.has(t) || seen.has(t)) return;
+    if (!t || drop.has(t) || seen.has(t)) continue;
     seen.add(t);
     if (next.length < maxItems) next.push(t);
-    else if (index >= addStart) overflow += 1;
-  });
-  return { next, overflow };
-}
-
-function mergeFacts(current: string[], add: string[] | undefined, remove: string[] | undefined, maxItems: number): string[] {
-  return mergeFactsCounted(current, add, remove, maxItems).next;
-}
-
-/** How many new quests `applyCampaignLedger` will drop only because the ledger is at its quest cap. */
-export function countQuestAddsOverCap(
-  current: TrpgCampaignLedger,
-  delta: Pick<TrpgStateDelta, "questsAdd" | "questsRemove">
-): number {
-  return mergeFactsCounted(current.quests, delta.questsAdd, delta.questsRemove, TRPG_LEDGER_QUEST_MAX).overflow;
+  }
+  return next;
 }
 
 export function emptyCampaignLedger(): TrpgCampaignLedger {
@@ -284,9 +263,29 @@ export type TrpgLedgerGoalContext = {
   round: number;
   /** Absent: typed criteria cannot be checked, so none is attached and nothing completes. */
   facts?: TrpgGoalRoundFacts;
-  /** Opening only: the scenario's author-written player goal. */
-  planGoal?: string;
 };
+
+function transitionCampaignGoals(
+  current: TrpgCampaignLedger,
+  delta: TrpgStateDelta,
+  goalContext: TrpgLedgerGoalContext
+): TrpgGoalTransition {
+  const { round, facts } = goalContext;
+  return applyGoalTransition(reconcileGoals(current.goals, current.quests, round), delta, {
+    round,
+    facts,
+    placeMatches: destinationRefinesDeclared,
+  });
+}
+
+/** How many new goals this commit drops only because 12 goals are still active after its verified completions. */
+export function countQuestAddsOverCap(
+  current: TrpgCampaignLedger,
+  delta: TrpgStateDelta,
+  goalContext: TrpgLedgerGoalContext = { round: 0 }
+): number {
+  return transitionCampaignGoals(current, delta, goalContext).addsDroppedAtCap;
+}
 
 export function applyCampaignLedger(
   current: TrpgCampaignLedger,
@@ -298,11 +297,7 @@ export function applyCampaignLedger(
     delta.nextRoundContext != null
       ? clipTrpgChars(delta.nextRoundContext, TRPG_NEXT_ROUND_CONTEXT_MAX_CHARS)
       : current.nextRoundContext;
-  const { round, facts } = goalContext;
-  let goals = reconcileGoals(current.goals, current.quests, round);
-  if (goalContext.planGoal) goals = seedPlanGoal(goals, goalContext.planGoal, round);
-  goals = applyGoalDelta(goals, delta, { round, facts, placeMatches: destinationRefinesDeclared });
-  if (facts) goals = completeVerifiedGoals(goals, facts, destinationRefinesDeclared);
+  const { goals } = transitionCampaignGoals(current, delta, goalContext);
   return {
     location,
     nextRoundContext,

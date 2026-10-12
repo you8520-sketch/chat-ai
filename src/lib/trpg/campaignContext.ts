@@ -196,12 +196,6 @@ export function resolvedCampaignPlan(ctx: TrpgCampaignContext | null): TrpgScena
   return ctx.directorPlan ?? ctx.scenarioSnapshot?.plan ?? null;
 }
 
-/** The author-written 플레이어 목표 of a scenario campaign. World-only starts have none (Blueprint goals are not authored). */
-export function authoredPlayerGoal(ctx: TrpgCampaignContext | null): string {
-  if (!ctx || ctx.sourceMode !== "scenario") return "";
-  return resolvedCampaignPlan(ctx)?.goal.trim() ?? "";
-}
-
 export function applyCampaignStoryProgress(
   ctx: TrpgCampaignContext,
   opts: {

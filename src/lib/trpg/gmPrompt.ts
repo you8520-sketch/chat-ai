@@ -374,8 +374,6 @@ export function buildTrpgGmUserBlock(opts: {
   storyDirectorBlock?: string;
   localSceneBlock?: string;
   localSceneDeltaContract?: string;
-  /** The scenario's authored player goal is already the first goal; the opening need not create one. */
-  planGoalSeeded?: boolean;
   resolutionOrderBlock?: string;
   mechanicsPacket?: string;
   actions: Array<{
@@ -423,9 +421,8 @@ export function buildTrpgGmUserBlock(opts: {
             return lines.join("\n");
           })
           .join("\n\n");
-  const openingGoalClause = opts.planGoalSeeded
-    ? ""
-    : ", show one concrete event or opportunity the world offers and record it in delta.questsAdd as a short goal (the PC need not accept it)";
+  const openingGoalClause =
+    ", show one concrete event or opportunity the world offers and record it in delta.questsAdd as a short player-visible goal (the PC need not accept it)";
   const secret = opts.gmSecret?.trim() ?? "";
   const personas = opts.playerPersonas?.trim() ?? "";
   const sheets = opts.sheetCanon?.trim() ?? "";

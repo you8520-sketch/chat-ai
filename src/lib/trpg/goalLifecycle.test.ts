@@ -28,7 +28,8 @@ import { insertParticipant } from "./store";
  */
 
 const LIGHTHOUSE = "곶 끝의 등대";
-const PLAN_GOAL = "등대의 비밀을 밝힌다";
+const OPENING_GOAL = "등대의 비밀을 밝힌다";
+const SPOILER_GOAL = "세관장이 밀수의 주범임을 폭로한다";
 const SECRET = "세관장이 밀수의 주범이다";
 const ENDING = "밀수 장부를 공개한다";
 const GUARD: TrpgScenarioEncounter = {
@@ -44,7 +45,7 @@ const GUARD: TrpgScenarioEncounter = {
 const PLAN = {
   startingSituation: "항구에 도착한다",
   centralConflict: "사라진 어선",
-  goal: PLAN_GOAL,
+  goal: `${SPOILER_GOAL}. 증거는 장부에 있다.`,
   secret: SECRET,
   endingConditions: [ENDING],
   encounters: [GUARD],
@@ -96,14 +97,17 @@ function memoryDb(): Database.Database {
   return db;
 }
 
-function scenarioCampaign(db: Database.Database, opts?: { plan?: boolean; startLocation?: string }) {
+function scenarioCampaign(
+  db: Database.Database,
+  opts?: { plan?: boolean; startLocation?: string; planOverride?: Partial<typeof PLAN> }
+) {
   const templateId = insertScenarioTemplate(db, 7, {
     title: "마레노",
     summary: "해무의 항구",
     content: "항구도시에서 사건을 쫓는다.",
     visibility: "public",
     startLocation: opts?.startLocation ?? "마레노 부두",
-    ...(opts?.plan === false ? {} : { scenarioPlan: PLAN }),
+    ...(opts?.plan === false ? {} : { scenarioPlan: { ...PLAN, ...opts?.planOverride } }),
   });
   const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1, templateId });
   saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
@@ -171,30 +175,6 @@ async function play(
 }
 
 describe("goal lifecycle: first goal", () => {
-  it("scenario start: the authored player goal is the first visible goal, and nothing secret reaches the player view", async () => {
-    const db = memoryDb();
-    const { campaignId } = scenarioCampaign(db);
-    const seen: string[] = [];
-    const deps = scriptedGm(() => [], [{ location: "마레노 부두" }], seen);
-    const snapshot = await startTrpgCampaign(db, { campaignId, userId: 1, deps });
-
-    const goals = goalsOf(db, campaignId);
-    assert.equal(goals.length, 1);
-    assert.equal(goals[0]!.title, PLAN_GOAL);
-    assert.equal(goals[0]!.status, "active");
-    assert.equal(goals[0]!.source, "plan");
-    assert.equal(goals[0]!.criterion, undefined, "an authored free-text goal has no server criterion");
-    assert.deepEqual(loadCampaignLedger(db, campaignId).quests, [PLAN_GOAL]);
-    assert.match(buildCampaignMemoryPrompt(db, campaignId), new RegExp(`quests: ${PLAN_GOAL}`));
-    assert.deepEqual(snapshot.goals, [{ id: goals[0]!.id, title: PLAN_GOAL, status: "active", claimed: false }]);
-    const exposed = JSON.stringify(snapshot);
-    for (const hidden of [SECRET, ENDING, "enc_watch", "reach_location"]) {
-      assert.ok(!exposed.includes(hidden), `snapshot must not contain ${hidden}`);
-    }
-    assert.doesNotMatch(seen[0]!, /record it in delta\.questsAdd/, "the authored goal already exists; the opening is not asked for one");
-    db.close();
-  });
-
   it("world-only start: the one existing opening GM call is asked for a goal and the real R0 object becomes the active goal", async () => {
     const db = memoryDb();
     const { campaignId } = worldOnlyCampaign(db);
@@ -206,7 +186,7 @@ describe("goal lifecycle: first goal", () => {
     );
     const snapshot = await startTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(seen.length, 1, "no extra provider call");
-    assert.match(seen[0]!, /\[OPENING SCENE[^\]]*record it in delta\.questsAdd as a short goal \(the PC need not accept it\)/);
+    assert.match(seen[0]!, /\[OPENING SCENE[^\]]*record it in delta\.questsAdd as a short player-visible goal \(the PC need not accept it\)/);
     const goals = goalsOf(db, campaignId);
     assert.equal(goals.length, 1);
     assert.equal(goals[0]!.title, REAL_R0_QUEST_STRING);
@@ -235,7 +215,7 @@ describe("goal lifecycle: server-verified completion", () => {
     const db = memoryDb();
     const { campaignId, hostId } = scenarioCampaign(db);
     const deps = scriptedGm(() => [hostId], [
-      { location: "마레노 부두", extra: { questsAdd: [{ title: REACH_GOAL, criterion: REACH }], ...extra } },
+      { location: "마레노 부두", extra: { questsAdd: [OPENING_GOAL, { title: REACH_GOAL, criterion: REACH }], ...extra } },
       ...steps,
     ]);
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
@@ -266,26 +246,26 @@ describe("goal lifecycle: server-verified completion", () => {
     assert.equal(done.evidence?.kind, "reach_location");
     assert.equal(done.evidence?.kind === "reach_location" ? done.evidence.participantId : null, hostId);
     assert.equal(done.closedRound, 1);
-    assert.deepEqual(loadCampaignLedger(db, campaignId).quests, [PLAN_GOAL], "completed goal is no longer an active goal");
-    assert.equal(byTitle(db, campaignId, PLAN_GOAL)!.status, "active", "the narrative plan goal is untouched");
+    assert.deepEqual(loadCampaignLedger(db, campaignId).quests, [OPENING_GOAL], "completed goal is no longer an active goal");
+    assert.equal(byTitle(db, campaignId, OPENING_GOAL)!.status, "active", "the narrative plan goal is untouched");
     assert.ok(logs.info.some((line) => line[0] === "[TRPG][goal] lifecycle"));
 
     const gmPrompt = buildCampaignMemoryPrompt(db, campaignId);
     assert.match(gmPrompt, new RegExp(`goals_done: ${REACH_GOAL}`));
-    assert.match(gmPrompt, new RegExp(`quests: ${PLAN_GOAL}\\n`));
+    assert.match(gmPrompt, new RegExp(`quests: ${OPENING_GOAL}\\n`));
     const botBlock = buildTrpgBotMemoryBlock({ ledger: loadCampaignLedger(db, campaignId), sheets: [] });
     assert.match(botBlock, new RegExp(`goals_done: ${REACH_GOAL}`));
     const snapshot = loadTrpgSnapshot(db, campaignId, 1)!;
     assert.deepEqual(
       snapshot.goals?.map((goal) => [goal.title, goal.status]),
       [
-        [PLAN_GOAL, "active"],
+        [OPENING_GOAL, "active"],
         [REACH_GOAL, "completed"],
       ]
     );
 
     await play(db, campaignId, deps, "등대 안쪽을 살핀다.");
-    assert.deepEqual(loadCampaignLedger(db, campaignId).quests, [PLAN_GOAL, "등대 안쪽 조사"], "the GM can offer the next goal; none is invented");
+    assert.deepEqual(loadCampaignLedger(db, campaignId).quests, [OPENING_GOAL, "등대 안쪽 조사"], "the GM can offer the next goal; none is invented");
     assert.equal(byTitle(db, campaignId, REACH_GOAL)!.status, "completed", "a completed goal stays completed");
     db.close();
   });
@@ -454,7 +434,7 @@ describe("goal lifecycle: stored data compatibility", () => {
     const deps = scriptedGm(() => [hostId], [
       {
         location: "마레노 부두",
-        extra: { questsAdd: [{ title: REACH_GOAL, criterion: REACH }, "자유 목표"] },
+        extra: { questsAdd: [OPENING_GOAL, { title: REACH_GOAL, criterion: REACH }, "자유 목표"] },
       },
       { location: LIGHTHOUSE },
     ]);
@@ -484,11 +464,11 @@ describe("goal lifecycle: stored data compatibility", () => {
     const criterionGoal = reupgraded.find((goal) => goal.title === REACH_GOAL)!;
     assert.deepEqual(criterionGoal.criterion, REACH);
     assert.equal(criterionGoal.id, idsBefore.find(([, title]) => title === REACH_GOAL)![0]);
-    assert.deepEqual(loadCampaignLedger(db, campaignId).quests, [PLAN_GOAL, REACH_GOAL, "옛 빌드가 추가한 퀘스트"]);
+    assert.deepEqual(loadCampaignLedger(db, campaignId).quests, [OPENING_GOAL, REACH_GOAL, "옛 빌드가 추가한 퀘스트"]);
 
     await play(db, campaignId, deps, "곶 끝의 등대로 이동한다.");
     assert.equal(byTitle(db, campaignId, REACH_GOAL)!.status, "completed");
-    assert.deepEqual(readQuests(), [PLAN_GOAL, "옛 빌드가 추가한 퀘스트"], "projection written by the same commit");
+    assert.deepEqual(readQuests(), [OPENING_GOAL, "옛 빌드가 추가한 퀘스트"], "projection written by the same commit");
     assert.equal(byTitle(db, campaignId, "자유 목표")!.status, "retired");
     db.close();
   });
@@ -566,9 +546,9 @@ describe("goal lifecycle: retry, regeneration and duplicate commit", () => {
     const db = memoryDb();
     const { campaignId, hostId } = scenarioCampaign(db);
     const deps = scriptedGm(() => [hostId], [
-      { location: "마레노 부두", extra: { questsAdd: [{ title: REACH_GOAL, criterion: REACH }] } },
+      { location: "마레노 부두", extra: { questsAdd: [OPENING_GOAL, { title: REACH_GOAL, criterion: REACH }] } },
       { location: LIGHTHOUSE },
-      { location: "마레노 어시장", extra: { questsAdd: ["재생성이 만든 목표"], questsRemove: [PLAN_GOAL] } },
+      { location: "마레노 어시장", extra: { questsAdd: ["재생성이 만든 목표"], questsRemove: [OPENING_GOAL] } },
     ]);
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
     await play(db, campaignId, deps, "곶 끝의 등대로 이동한다.");
@@ -628,6 +608,127 @@ describe("goal lifecycle: retry, regeneration and duplicate commit", () => {
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps: mode() });
     assert.equal(before - getPointBalanceOnDb(db, 1).total, charged, "no second charge");
     assert.equal(goalsOf(db, campaignId).filter((goal) => goal.status === "completed").length, 1);
+    db.close();
+  });
+});
+
+const NEXT_GOAL = "등대 안쪽을 조사한다";
+const FILLERS = Array.from({ length: 11 }, (_, index) => `보조 목표 ${index + 1}`);
+
+describe("goal lifecycle: same-round precedence", () => {
+  const activeTitles = (db: Database.Database, campaignId: number) => loadCampaignLedger(db, campaignId).quests;
+
+  it("a verified arrival frees its slot for the next goal the GM adds in the same output, at the 12-goal cap", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = scenarioCampaign(db, { plan: false });
+    const deps = scriptedGm(() => [hostId], [
+      { location: "마레노 부두", extra: { questsAdd: [...FILLERS, { title: REACH_GOAL, criterion: REACH }] } },
+      { location: LIGHTHOUSE, extra: { questsAdd: [NEXT_GOAL] } },
+    ]);
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(activeTitles(db, campaignId).length, 12);
+
+    const { logs } = await capture(() => play(db, campaignId, deps, "곶 끝의 등대로 이동한다."));
+    assert.equal(byTitle(db, campaignId, REACH_GOAL)!.status, "completed");
+    assert.equal(byTitle(db, campaignId, NEXT_GOAL)!.status, "active", "the next goal is not lost to the cap");
+    assert.equal(activeTitles(db, campaignId).length, 12, "the cap still holds");
+    assert.deepEqual(activeTitles(db, campaignId), [...FILLERS, NEXT_GOAL]);
+    assert.ok(!logs.info.some((line) => line[0] === "[TRPG][gm] quest_add_capped"), "nothing was dropped, so nothing is reported dropped");
+    assert.deepEqual(JSON.parse(storedGoalsJson(db, campaignId)!).goals.map((goal: { title: string }) => goal.title).includes(NEXT_GOAL), true);
+    db.close();
+  });
+
+  it("a goal added past the cap with no slot freed is still dropped and reported, and no goal is replaced", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = scenarioCampaign(db, { plan: false });
+    const deps = scriptedGm(() => [hostId], [
+      { location: "마레노 부두", extra: { questsAdd: [...FILLERS, { title: REACH_GOAL, criterion: REACH }] } },
+      { location: "마레노 부두", extra: { questsAdd: [NEXT_GOAL] } },
+    ]);
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const { logs } = await capture(() => play(db, campaignId, deps, "부두를 살핀다."));
+    assert.equal(byTitle(db, campaignId, NEXT_GOAL), undefined);
+    assert.equal(activeTitles(db, campaignId).length, 12);
+    assert.deepEqual(
+      logs.info.find((line) => line[0] === "[TRPG][gm] quest_add_capped")?.[1],
+      { dropped: 1, max: 12 }
+    );
+    db.close();
+  });
+
+  it("a GM questsRemove in the same round cannot undo a server-verified arrival", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = scenarioCampaign(db, { plan: false });
+    const deps = scriptedGm(() => [hostId], [
+      { location: "마레노 부두", extra: { questsAdd: [{ title: REACH_GOAL, criterion: REACH }] } },
+      { location: LIGHTHOUSE, extra: { questsRemove: [REACH_GOAL] } },
+    ]);
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    await play(db, campaignId, deps, "곶 끝의 등대로 이동한다.");
+    const done = byTitle(db, campaignId, REACH_GOAL)!;
+    assert.equal(done.status, "completed");
+    assert.equal(done.evidence?.kind, "reach_location");
+    assert.match(buildCampaignMemoryPrompt(db, campaignId), new RegExp(`goals_done: ${REACH_GOAL}`));
+    db.close();
+  });
+
+  it("an accepted encounter end, a GM removal and the next goal land in one commit, at the cap", async () => {
+    const db = memoryDb();
+    const { campaignId, hostId } = scenarioCampaign(db, { planOverride: { goal: "" } });
+    const title = "등대 감시자를 물리친다";
+    const deps = scriptedGm(() => [hostId], [
+      {
+        location: "마레노 부두",
+        extra: { questsAdd: [...FILLERS, { title, criterion: { type: "end_encounter", encounterId: "enc_watch" } }] },
+      },
+      { location: "마레노 부두" },
+      { location: LIGHTHOUSE },
+      { location: LIGHTHOUSE },
+      { location: LIGHTHOUSE, extra: { encountersEnded: ["enc_watch"], questsRemove: [title], questsAdd: [NEXT_GOAL] } },
+    ]);
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(activeTitles(db, campaignId).length, 12);
+    await play(db, campaignId, deps, "부두를 살핀다.");
+    await play(db, campaignId, deps, "곶 끝의 등대로 이동한다.");
+    await play(db, campaignId, deps, "등대 안을 살핀다.");
+    assert.equal(byTitle(db, campaignId, title)!.status, "active");
+
+    await play(db, campaignId, deps, "감시자와 맞선다.");
+    assert.equal(byTitle(db, campaignId, title)!.status, "completed");
+    assert.deepEqual(byTitle(db, campaignId, title)!.evidence, { kind: "end_encounter", round: 4, encounterId: "enc_watch" });
+    assert.equal(byTitle(db, campaignId, NEXT_GOAL)!.status, "active");
+    assert.deepEqual(activeTitles(db, campaignId), [...FILLERS, NEXT_GOAL]);
+    const stored = JSON.parse(storedGoalsJson(db, campaignId)!).goals as Array<{ title: string; status: string }>;
+    assert.deepEqual(
+      stored.filter((goal) => goal.status === "active").map((goal) => goal.title),
+      activeTitles(db, campaignId),
+      "goals_json and quests_json come from the same commit"
+    );
+    db.close();
+  });
+});
+
+describe("goal lifecycle: a GM-only plan goal is not a player-visible goal", () => {
+  it("a scenario whose plan.goal states a twist never shows that sentence; the goal comes from the opening GM output", async () => {
+    const db = memoryDb();
+    const { campaignId } = scenarioCampaign(db);
+    const seen: string[] = [];
+    const deps = scriptedGm(() => [], [{ location: "마레노 부두", extra: { questsAdd: ["부두의 소문을 들어 본다"] } }], seen);
+    const snapshot = await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+
+    for (const hidden of [SECRET, ENDING, "enc_watch", "reach_location"]) {
+      assert.ok(!JSON.stringify(snapshot).includes(hidden), `snapshot must not contain ${hidden}`);
+    }
+    for (const surface of [
+      JSON.stringify(snapshot),
+      JSON.stringify(loadCampaignLedger(db, campaignId)),
+      buildCampaignMemoryPrompt(db, campaignId),
+      buildTrpgBotMemoryBlock({ ledger: loadCampaignLedger(db, campaignId), sheets: [] }),
+    ]) {
+      assert.ok(!surface.includes(SPOILER_GOAL), "the revealing plan sentence must not become a player-visible goal");
+    }
+    assert.deepEqual(snapshot.goals?.map((goal) => goal.title), ["부두의 소문을 들어 본다"]);
+    assert.match(seen[0]!, /record it in delta\.questsAdd/, "a scenario opening asks the existing R0 call for the goal, too");
     db.close();
   });
 });

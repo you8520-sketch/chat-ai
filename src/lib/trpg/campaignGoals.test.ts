@@ -2,12 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   activeGoalTitles,
-  applyGoalDelta,
+  applyGoalTransition,
   completeVerifiedGoals,
   parseGoalsJson,
   publicGoals,
   reconcileGoals,
-  seedPlanGoal,
   serializeGoals,
   type PlaceMatcher,
   type TrpgGoal,
@@ -50,18 +49,9 @@ describe("campaignGoals", () => {
     assert.equal(goals.find((goal) => goal.title === "새 목표")?.source, "legacy");
   });
 
-  it("seeds the plan goal once, from its first sentence, only as a narrative goal", () => {
-    const seeded = seedPlanGoal([], "등대의 불을 되찾는다. 비밀은 없다.", 0);
-    assert.equal(seeded.length, 1);
-    assert.equal(seeded[0].title, "등대의 불을 되찾는다.");
-    assert.equal(seeded[0].criterion, undefined);
-    assert.equal(seedPlanGoal(seeded, "다른 목표", 0).length, 1);
-    assert.equal(seedPlanGoal([], "   ", 0).length, 0);
-  });
-
   it("drops a criterion that is already true or names an encounter the scenario does not define", () => {
     const base = facts({ seats: [{ participantId: 1, human: true, startLocation: "등대", endLocation: "등대" }] });
-    const next = applyGoalDelta(
+    const { goals: next } = applyGoalTransition(
       [],
       {
         questsAdd: ["등대 도착", "허구 위협 격퇴"],
@@ -114,13 +104,32 @@ describe("campaignGoals", () => {
 
   it("treats a GM claim as unverified and a removal as retirement, never completion", () => {
     const goal = goalWith({ title: "자유 목표" });
-    const claimed = applyGoalDelta([goal], { questsClaimDone: ["자유 목표"] }, { round: 4, placeMatches: exact });
+    const claimed = applyGoalTransition([goal], { questsClaimDone: ["자유 목표"] }, { round: 4, placeMatches: exact }).goals;
     assert.equal(claimed[0].status, "active");
     assert.equal(claimed[0].claimedRound, 4);
-    const removed = applyGoalDelta([goal], { questsRemove: ["자유 목표"] }, { round: 4, placeMatches: exact });
+    const removed = applyGoalTransition([goal], { questsRemove: ["자유 목표"] }, { round: 4, placeMatches: exact }).goals;
     assert.equal(removed[0].status, "retired");
     assert.equal(removed[0].evidence, undefined);
     assert.deepEqual(activeGoalTitles(removed), []);
+  });
+
+  it("closes verified goals first, so their slots take the same round's new goals and a removal cannot undo a completion", () => {
+    const filler = Array.from({ length: 11 }, (_, index) => goalWith({ id: `goal-0-${index + 1}`, title: `보조 ${index + 1}`, createdRound: 0 }));
+    const reach = goalWith({ id: "goal-0-12", title: "도착", createdRound: 0, criterion: { type: "reach_location", place: "등대" } });
+    const arrived = facts({ seats: [{ participantId: 1, human: true, startLocation: "부두", endLocation: "등대" }] });
+    const ctx = { round: 3, facts: arrived, placeMatches: exact };
+
+    const next = applyGoalTransition([...filler, reach], { questsAdd: ["다음", "또 다음"], questsRemove: ["도착"] }, ctx);
+    assert.equal(next.goals.find((goal) => goal.title === "도착")?.status, "completed");
+    assert.deepEqual(activeGoalTitles(next.goals), [...filler.map((goal) => goal.title), "다음"]);
+    assert.equal(next.addsDroppedAtCap, 1, "only the add with no slot left is dropped");
+
+    const reAdded = applyGoalTransition([...filler, reach], { questsAdd: ["도착"] }, ctx);
+    assert.equal(reAdded.goals.filter((goal) => goal.title === "도착").length, 1, "the goal just achieved is not re-added");
+
+    const noFacts = applyGoalTransition([...filler, reach], { questsAdd: ["다음"] }, { round: 3, placeMatches: exact });
+    assert.equal(noFacts.addsDroppedAtCap, 1, "no verified completion, no free slot, nothing replaced");
+    assert.equal(activeGoalTitles(noFacts.goals).length, 12);
   });
 
   it("projects only player-safe fields", () => {

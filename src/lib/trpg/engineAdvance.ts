@@ -78,7 +78,6 @@ import { summarizeGoalTransition, type TrpgGoalRoundFacts } from "./campaignGoal
 import {
   applyCampaignStoryProgress,
   applyLocalSceneProgressToContext,
-  authoredPlayerGoal,
   loadCampaignContext,
   persistCampaignContext,
   resolvedCampaignPlan,
@@ -1354,7 +1353,6 @@ async function runGmForRound(
     storyDirectorBlock,
     localSceneBlock,
     localSceneDeltaContract,
-    planGoalSeeded: authoredPlayerGoal(campaignContext) !== "",
     resolutionOrderBlock: formatResolutionOrderBlock(resolutionOrder),
     mechanicsPacket: mechanics?.packet ?? "",
     actions,
@@ -1632,10 +1630,6 @@ function commitPendingGmResult(
     : (opts.postGmOngoingSeeds ?? []);
   let postGmOngoingResult = { candidates: 0, promoted: 0, deduped: 0 };
   let stage: TrpgFailureStage = "ledger_apply";
-  const questsDroppedAtCap = countQuestAddsOverCap(currentLedger, boundLocation.delta);
-  if (questsDroppedAtCap > 0) {
-    console.info("[TRPG][gm] quest_add_capped", { dropped: questsDroppedAtCap, max: TRPG_LEDGER_QUEST_MAX });
-  }
   const humanSeatIds = new Set(
     loadParticipants(db, campaign.id)
       .filter((participant) => participant.kind === "human")
@@ -1656,20 +1650,18 @@ function commitPendingGmResult(
     endedEncounterIds: loadEndedEncounterIds(db, campaign.id, roundNumber),
     acceptedEncounterIds: encounterEnding.accepted,
   };
-  const ledger = applyCampaignLedger(
-    currentLedger,
-    {
-      ...boundLocation.delta,
-      location: boundLocation.location || scenario.startLocation,
-      nextRoundContext: boundLocation.nextRoundContext,
-      campaignFinished: parsed.campaignFinished,
-    },
-    {
-      round: roundNumber,
-      facts: goalFacts,
-      planGoal: opts.opening ? authoredPlayerGoal(campaignContext) : undefined,
-    }
-  );
+  const ledgerDelta = {
+    ...boundLocation.delta,
+    location: boundLocation.location || scenario.startLocation,
+    nextRoundContext: boundLocation.nextRoundContext,
+    campaignFinished: parsed.campaignFinished,
+  };
+  const goalContext = { round: roundNumber, facts: goalFacts };
+  const questsDroppedAtCap = countQuestAddsOverCap(currentLedger, ledgerDelta, goalContext);
+  if (questsDroppedAtCap > 0) {
+    console.info("[TRPG][gm] quest_add_capped", { dropped: questsDroppedAtCap, max: TRPG_LEDGER_QUEST_MAX });
+  }
+  const ledger = applyCampaignLedger(currentLedger, ledgerDelta, goalContext);
   const goalTransition = summarizeGoalTransition(currentLedger.goals, ledger.goals, roundNumber);
   if (goalTransition.created || goalTransition.completed.length || goalTransition.retired) {
     console.info("[TRPG][goal] lifecycle", {
