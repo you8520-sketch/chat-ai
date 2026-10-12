@@ -286,9 +286,10 @@ import {
   type StatusWidgetStackOrder,
 } from "@/lib/statusWidget";
 import { cacheUserChatPrefsClient } from "@/lib/userChatPrefs";
+import { characterHueAccent } from "@/lib/characterHueAccent";
 import {
   chatReadabilityRootStyle,
-  mobilePortraitScrimOpacity,
+  mobilePortraitCaptionAlpha,
   chatMessageAreaLayoutClass,
   CHAT_MESSAGES_COLUMN_CLASS,
   CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS,
@@ -5571,7 +5572,7 @@ export default function ChatClient({
               ["--mobile-portrait-opacity" as string]:
                 displayPrefs.portraitBackgroundOpacity,
               ["--mobile-portrait-scrim-opacity" as string]:
-                mobilePortraitScrimOpacity(displayPrefs.portraitBackgroundOpacity),
+                Math.max(0, 0.18 * (1 - displayPrefs.portraitBackgroundOpacity)),
               ["--mobile-portrait-gradient-opacity" as string]:
                 Math.max(0, 0.55 * (1 - displayPrefs.portraitBackgroundOpacity)),
             }
@@ -5596,6 +5597,15 @@ export default function ChatClient({
           leftLayout || assetPresentation === "background"
             ? "relative z-10 flex-1 bg-transparent px-2 pl-3 pb-4 sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-0"
             : CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS
+        }
+        style={
+          {
+            ["--chat-scene-accent" as string]: characterHueAccent(character.hue).keyline,
+            ["--chat-caption-alpha" as string]:
+              assetPresentation === "background"
+                ? mobilePortraitCaptionAlpha(displayPrefs.portraitBackgroundOpacity)
+                : 0,
+          }
         }
         role="presentation"
       >
@@ -5686,7 +5696,7 @@ export default function ChatClient({
                   ) : (
                     <div
                       data-chat-user-message="true"
-                      className="rounded-xl border border-white/[0.06] border-l-2 border-l-zinc-500/60 bg-white/[0.035] px-3 py-2"
+                      className="ml-4 rounded-xl border border-white/[0.06] border-l-2 border-l-zinc-500/60 bg-white/[0.035] px-3 py-2 min-[576px]:ml-8"
                     >
                       <span className="sr-only">내 메시지</span>
                       <NovelText
@@ -5744,7 +5754,11 @@ export default function ChatClient({
                 }}
                 className={leftLayout && !onLastTurn ? "pb-2" : "pb-0"}
               >
-                <div className="min-w-0">
+                <div
+                  className={
+                    assetPresentation === "background" ? "chat-caption-backing min-w-0" : "min-w-0"
+                  }
+                >
                 {isEditing ? (
                   <div className="w-full min-w-0">
                     <p className="mb-1.5 text-center text-[11px] font-semibold text-zinc-500">

@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import {
   CHAT_PORTRAIT_MIN_CHAT_WIDTH_PX,
   CHAT_PORTRAIT_MIN_CHAT_WIDTH_FLOOR_PX,
-  mobilePortraitScrimOpacity,
+  mobilePortraitCaptionAlpha,
 } from "../lib/chatDisplayPrefs";
 
 const read = (path: string) => fs.readFileSync(path, "utf8");
@@ -57,36 +57,58 @@ describe("E4-3E chat room — reading column", () => {
   });
 });
 
-describe("E4-3E chat room — mobile background legibility", () => {
-  const legacy = (op: number) => Math.max(0, 0.18 * (1 - op));
-  const brightness = (op: number) => op * (1 - mobilePortraitScrimOpacity(op));
-
-  it("leaves the default and low opacities exactly as before", () => {
+describe("E4-3E chat room — mobile background legibility (candidate B caption backing)", () => {
+  it("leaves the default and low opacities without any caption backing", () => {
     for (const op of [0, 0.1, 0.22, 0.28]) {
-      assert.equal(mobilePortraitScrimOpacity(op), legacy(op));
+      assert.equal(mobilePortraitCaptionAlpha(op), 0);
     }
   });
 
-  it("caps the extra image brightness above the reading threshold without freezing the slider", () => {
-    let prev = brightness(0.28);
+  it("raises the backing monotonically with the slider and caps it so the image stays visible", () => {
+    let prev = 0;
     for (const op of [0.4, 0.5, 0.65, 0.8, 1]) {
-      const b = brightness(op);
-      assert.ok(b > prev, `brightness must keep rising with the slider (op=${op})`);
-      assert.ok(b < op, `scrim must dim the image above the threshold (op=${op})`);
-      prev = b;
+      const a = mobilePortraitCaptionAlpha(op);
+      assert.ok(a >= prev, `alpha must not fall as the slider rises (op=${op})`);
+      assert.ok(a > 0 && a <= 0.78);
+      prev = a;
     }
-    assert.ok(brightness(1) <= 0.5);
   });
 
   it("stays a valid alpha for any input", () => {
     for (const op of [-1, 0, 0.5, 1, 2, Number.NaN, Number.POSITIVE_INFINITY]) {
-      const v = mobilePortraitScrimOpacity(op);
+      const v = mobilePortraitCaptionAlpha(op);
       assert.ok(v >= 0 && v <= 1, `alpha out of range for ${String(op)}`);
     }
   });
 
-  it("feeds the background scrim from the same helper", () => {
-    assert.match(client, /mobilePortraitScrimOpacity\(displayPrefs\.portraitBackgroundOpacity\)/);
+  it("keeps the image scrim formula untouched and feeds the backing only in background mode", () => {
+    assert.match(client, /Math\.max\(0, 0\.18 \* \(1 - displayPrefs\.portraitBackgroundOpacity\)\)/);
+    assert.match(client, /assetPresentation === "background"\s*\?\s*mobilePortraitCaptionAlpha\(displayPrefs\.portraitBackgroundOpacity\)/);
+    assert.match(client, /"chat-caption-backing min-w-0"/);
+  });
+
+  it("applies the backing on phones only and never to the 576+ layout", () => {
+    const at = css.indexOf("@media (max-width: 575px) {\n  html.chat-room-active .chat-caption-backing");
+    assert.ok(at >= 0);
+    assert.match(css.slice(at, at + 400), /rgb\(18 18 18 \/ var\(--chat-caption-alpha, 0\)\)/);
+  });
+});
+
+describe("E4-3E chat room — cinematic dialogue link (candidate B)", () => {
+  it("links the dialogue bar to the character hue without touching the user's dialogue color", () => {
+    assert.match(client, /\["--chat-scene-accent" as string\]: characterHueAccent\(character\.hue\)\.keyline/);
+    assert.match(css, /html\.chat-room-active \.chat-novel-prose p:has\(> \.chat-dialogue-accent\)::before \{\s*background: var\(--chat-scene-accent/);
+    assert.doesNotMatch(css, /--chat-scene-accent[^;]*dialogueColor/);
+  });
+
+  it("keeps the dialogue tint scoped to the chat room and very light", () => {
+    const m = css.match(/color-mix\(in srgb, var\(--chat-scene-accent, #8b5cf6\) (\d+)%, transparent\)/);
+    assert.ok(m);
+    assert.ok(Number(m![1]) <= 12);
+  });
+
+  it("indents the user card so the two speakers read as separate lanes", () => {
+    assert.match(client, /data-chat-user-message="true"\s+className="ml-4 [^"]*min-\[576px\]:ml-8"/);
   });
 });
 

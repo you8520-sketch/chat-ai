@@ -394,22 +394,23 @@ export function normalizeShowSuggestedReplies(value: unknown): boolean {
 }
 
 /**
- * Image brightness the mobile background may reach at full legibility. Below this the
- * user's opacity is untouched; above it the extra brightness is compressed so body text
- * keeps readable contrast without the slider ever going dead.
+ * Mobile background mode: above this image opacity the page image is bright enough to
+ * compete with body text, so message bodies get a translucent caption backing instead of
+ * dimming the image itself.
  */
-const MOBILE_PORTRAIT_READING_OPACITY = 0.28;
-const MOBILE_PORTRAIT_OVERSHOOT_GAIN = 0.3;
+const MOBILE_CAPTION_THRESHOLD_OPACITY = 0.28;
+const MOBILE_CAPTION_BASE_ALPHA = 0.3;
+const MOBILE_CAPTION_SLOPE = 0.9;
+const MOBILE_CAPTION_MAX_ALPHA = 0.78;
 
-/** Scrim alpha over the mobile background image (0..1) for a user opacity value. */
-export function mobilePortraitScrimOpacity(opacity: number): number {
+/** Caption backing alpha (0..1) behind message bodies over the mobile background image. */
+export function mobilePortraitCaptionAlpha(opacity: number): number {
   const op = normalizePortraitBackgroundOpacity(opacity);
-  const base = Math.max(0, 0.18 * (1 - op));
-  if (op <= MOBILE_PORTRAIT_READING_OPACITY) return base;
-  const effective =
-    MOBILE_PORTRAIT_READING_OPACITY +
-    (op - MOBILE_PORTRAIT_READING_OPACITY) * MOBILE_PORTRAIT_OVERSHOOT_GAIN;
-  return 1 - (1 - base) * (effective / op);
+  if (op <= MOBILE_CAPTION_THRESHOLD_OPACITY) return 0;
+  return Math.min(
+    MOBILE_CAPTION_MAX_ALPHA,
+    MOBILE_CAPTION_BASE_ALPHA + (op - MOBILE_CAPTION_THRESHOLD_OPACITY) * MOBILE_CAPTION_SLOPE
+  );
 }
 
 /** Background presentation visual parameter — finite number clamped to 0..1. */

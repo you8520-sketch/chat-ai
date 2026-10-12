@@ -1653,6 +1653,32 @@ html.chat-room-active .chat-novel-prose {
   opacity: 0.85;
 }
 
+/* 채팅방 — 대사 막대를 캐릭터 대표색(hue)에 연결하고, 대사 문단 뒤에 아주 옅은 색 번짐만 둔다 */
+html.chat-room-active .chat-novel-prose p:has(> .chat-dialogue-accent) {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--chat-scene-accent, #8b5cf6) 11%, transparent),
+    transparent 72%
+  );
+  border-radius: 0.375rem;
+}
+html.chat-room-active .chat-novel-prose p:has(> .chat-dialogue-accent)::before {
+  background: var(--chat-scene-accent, #8b5cf6);
+}
+html.chat-room-active .chat-novel-prose p {
+  text-wrap: pretty;
+}
+
+/* 모바일 배경 이미지 모드 — 메시지 본문 뒤 캡션 패널 (알파는 사용자가 정한 배경 밝기에서 계산) */
+@media (max-width: 575px) {
+  html.chat-room-active .chat-caption-backing {
+    border-radius: 0.75rem;
+    padding: 0.375rem 0.5rem;
+    margin-inline: -0.25rem;
+    background: rgb(18 18 18 / var(--chat-caption-alpha, 0));
+  }
+}
+
 /* OOC 요청 상태창 — 마크다운 pipe table */
 .chat-md-table {
   border-collapse: separate;
