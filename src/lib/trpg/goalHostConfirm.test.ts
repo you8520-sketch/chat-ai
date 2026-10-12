@@ -32,6 +32,7 @@ import {
 } from "./goalConfirm";
 import { buildTrpgGmStructuredWireText } from "./gmStructuredOutput";
 import { parseTrpgGmOutput } from "./gmPrompt";
+import { goalClaimItems } from "@/app/trpg/goalClaimView";
 import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock } from "./memory";
 import { insertScenarioTemplate } from "./scenarioTemplates";
 import { ensureTrpgTables } from "./schema";
@@ -175,6 +176,35 @@ const answer = (
     claimedRound: over.claimedRound ?? goal.claimedRound!,
   });
 };
+
+const viewerCards = (db: Database.Database, campaignId: number, userId: number) => {
+  const snapshot = loadTrpgSnapshot(db, campaignId, userId)!;
+  return goalClaimItems(snapshot.goals, snapshot.viewerIsHost);
+};
+
+/** The host clears a proposal that lost its source; nobody else can, and the goal stays active. */
+async function assertHostClearsStaleProposal(db: Database.Database, campaignId: number) {
+  const projectionBefore = storedProjection(db, campaignId);
+  const hostCards = viewerCards(db, campaignId, 1);
+  assert.deepEqual(hostCards.map((card) => [card.mode, card.actions.map((action) => action.decision)]), [["stale", ["decline"]]]);
+  assert.deepEqual(viewerCards(db, campaignId, 2).map((card) => [card.mode, card.actions.length]), [["readonly", 0]]);
+
+  assert.throws(() => answer(db, campaignId, 2, "decline"), { message: TRPG_GOAL_HOST_ONLY_MESSAGE });
+  assert.throws(() => answer(db, campaignId, 1, "confirm"), { message: TRPG_GOAL_CLAIM_REWRITTEN_MESSAGE });
+  assert.equal(goalByTitle(db, campaignId, TITLE)?.status, "active");
+
+  const [card] = hostCards;
+  const request = { campaignId, userId: 1, goalId: card.goalId, claimedRound: card.claimedRound, decision: "decline" as const };
+  assert.equal(answerTrpgGoalClaim(db, request).outcome, "declined");
+  assert.equal(answerTrpgGoalClaim(db, request).outcome, "already_declined", "a double click is a no-op");
+
+  const cleared = goalByTitle(db, campaignId, TITLE)!;
+  assert.equal(cleared.status, "active", "the goal stays active");
+  assert.equal(cleared.evidence, undefined, "clearing never records a completion");
+  for (const userId of [1, 2]) assert.deepEqual(viewerCards(db, campaignId, userId), [], "the waiting card is gone for everyone");
+  assert.deepEqual(JSON.parse(storedProjection(db, campaignId).quests_json), JSON.parse(projectionBefore.quests_json), "active titles unchanged");
+  assert.ok(!buildCampaignMemoryPrompt(db, campaignId).includes("goals_claimed_unverified"));
+}
 
 describe("host confirmation: the proposal and who can see and answer it", () => {
   it("the real claim is stored with the committed message it came from; the host sees it answerable, another human only sees it proposed", async () => {
@@ -333,6 +363,48 @@ describe("host confirmation: a reroll that changes the GM's message invalidates 
       campaignId
     );
     assert.throws(() => answer(db, campaignId, 1, "confirm"), { message: TRPG_GOAL_CLAIM_REWRITTEN_MESSAGE });
+    db.close();
+  });
+});
+
+describe("host confirmation: the host can clear a proposal that lost its source", () => {
+  it("valid proposal: the host card offers confirm + decline, another human is read-only", async () => {
+    const db = new Database(":memory:");
+    const { campaignId } = await claimedParty(db);
+    assert.deepEqual(viewerCards(db, campaignId, 1).map((card) => [card.mode, card.actions.map((action) => action.decision)]), [["confirmable", ["confirm", "decline"]]]);
+    assert.deepEqual(viewerCards(db, campaignId, 2).map((card) => [card.mode, card.actions.length]), [["readonly", 0]]);
+    assert.equal(answer(db, campaignId, 1, "confirm").outcome, "confirmed");
+    for (const userId of [1, 2]) assert.deepEqual(viewerCards(db, campaignId, userId), []);
+    db.close();
+  });
+
+  it("after a reroll changed the GM message", async () => {
+    const db = new Database(":memory:");
+    const { campaignId, everyone } = await claimedParty(db);
+    await regenerateTrpgNarration(db, { campaignId, userId: 1, deps: gm([() => plainText(everyone, {}, "다르게 쓰인 장면이다. GM: 무엇을 하겠는가?")]) });
+    await assertHostClearsStaleProposal(db, campaignId);
+    db.close();
+  });
+
+  it("after a reroll that still names the goal but is a different generation", async () => {
+    const db = new Database(":memory:");
+    const { campaignId, everyone } = await claimedParty(db);
+    await regenerateTrpgNarration(db, {
+      campaignId,
+      userId: 1,
+      deps: gm([() => claimText(everyone, {}, "같은 목표를 다시 해결했다고 쓰지만 다른 장면이다. GM: 무엇을 하겠는가?")]),
+    });
+    await assertHostClearsStaleProposal(db, campaignId);
+    db.close();
+  });
+
+  it("a later claim after clearing is a fresh, confirmable proposal (no cooldown)", async () => {
+    const db = new Database(":memory:");
+    const { campaignId, everyone } = await claimedParty(db);
+    await regenerateTrpgNarration(db, { campaignId, userId: 1, deps: gm([() => plainText(everyone, {}, "다르게 쓰인 장면이다. GM: 무엇을 하겠는가?")]) });
+    assert.equal(answer(db, campaignId, 1, "decline").outcome, "declined");
+    await round(db, campaignId, gm([() => claimText(everyone, {}, "해오라기호의 행방이 밝혀졌다. 다시 한번 해결을 알린다. GM: 무엇을 하겠는가?")]));
+    assert.deepEqual(viewerCards(db, campaignId, 1).map((card) => card.mode), ["confirmable"]);
     db.close();
   });
 });
@@ -518,6 +590,17 @@ describe("host confirmation: rollback and re-upgrade", () => {
     assert.deepEqual([shown.claimed, shown.confirmable], [true, undefined]);
     assert.throws(() => answer(db, campaignId, 1, "confirm"), { message: TRPG_GOAL_CLAIM_REWRITTEN_MESSAGE });
     assert.equal(answer(db, campaignId, 1, "decline").outcome, "declined");
+    db.close();
+  });
+
+  it("a proposal an older build re-saved without claimSource is shown to the host as clearable and cleared without completing", async () => {
+    const db = new Database(":memory:");
+    const { campaignId } = await claimedParty(db);
+    db.prepare(`UPDATE trpg_campaign_state SET goals_json=? WHERE campaign_id=?`).run(
+      olderBuildRewrite(loadStoredGoalsJson(db, campaignId)!),
+      campaignId
+    );
+    await assertHostClearsStaleProposal(db, campaignId);
     db.close();
   });
 
