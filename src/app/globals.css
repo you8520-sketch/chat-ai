@@ -115,7 +115,7 @@ body {
   margin-top: 1.5rem;
 }
 
-@media (min-width: 640px) {
+@container (min-width: 32rem) {
   .home-grid-stagger > :nth-child(even) {
     margin-top: 0;
   }
@@ -125,7 +125,7 @@ body {
   }
 }
 
-@media (min-width: 1280px) {
+@container (min-width: 56rem) {
   .home-grid-stagger > :nth-child(3n + 2) {
     margin-top: 0;
   }

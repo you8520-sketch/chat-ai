@@ -66,11 +66,11 @@ function SectionHeader({
   const meta = SECTION_META[title];
   const Heading = level;
   return (
-    <div className="mb-6 flex flex-wrap items-end gap-x-4 gap-y-2 sm:flex-nowrap">
+    <div className="mb-6 flex flex-wrap items-end gap-x-4 gap-y-2 @xl:flex-nowrap">
       {meta ? (
         <span
           aria-hidden="true"
-          className="home-section-num text-[3.5rem] sm:text-[5.25rem]"
+          className="home-section-num text-[3.5rem] @xl:text-[4.25rem] @3xl:text-[5.25rem]"
           style={{ "--num-color": meta.numeral } as CSSProperties}
         >
           {number}
@@ -78,23 +78,23 @@ function SectionHeader({
       ) : null}
       <div className="min-w-0 pb-1">
         {meta ? (
-          <p className="text-[10px] font-bold tracking-[0.26em] text-zinc-400">{meta.eyebrow}</p>
+          <p className="break-keep text-[10px] font-bold tracking-[0.26em] text-zinc-400">{meta.eyebrow}</p>
         ) : null}
         <Heading
-          className="home-slab mt-1 text-[1.6rem] font-black leading-tight tracking-[-0.05em] sm:text-[2.5rem]"
+          className="home-slab mt-1 break-keep text-[1.6rem] font-black leading-tight tracking-[-0.05em] @xl:text-[2rem] @3xl:text-[2.5rem]"
           style={meta?.slab}
         >
           {title}
         </Heading>
       </div>
       {meta ? (
-        <p className="hidden max-w-[15rem] pb-1.5 text-xs leading-5 text-zinc-400 lg:block">{meta.description}</p>
+        <p className="hidden max-w-[15rem] break-keep pb-1.5 text-xs leading-5 text-zinc-400 @4xl:block">{meta.description}</p>
       ) : null}
-      <span aria-hidden className="mb-3 hidden h-px min-w-6 flex-1 bg-white/15 sm:block" />
+      <span aria-hidden className="mb-3 hidden h-px min-w-6 flex-1 bg-white/15 @xl:block" />
       {headerLink ? (
         <Link
           href={headerLink.href}
-          className="group relative z-10 ml-auto inline-flex min-h-11 items-center gap-1 px-1 text-xs font-semibold text-zinc-300 underline decoration-white/20 underline-offset-4 transition hover:text-white hover:decoration-white/60 sm:ml-0"
+          className="group relative z-10 ml-auto inline-flex min-h-11 items-center gap-1 px-1 text-xs font-semibold text-zinc-300 underline decoration-white/20 underline-offset-4 transition hover:text-white hover:decoration-white/60 @xl:ml-0"
         >
           {headerLink.label}
           <span className="transition-transform group-hover:translate-x-0.5" aria-hidden>
@@ -133,7 +133,7 @@ function ScrollSection({
 }) {
   if (chars.length === 0) return null;
   return (
-    <section className={cn(first ? "mt-8 sm:mt-10" : "mt-12 sm:mt-16", band && "home-band -mx-3 px-3 sm:-mx-5 sm:px-5")}>
+    <section className={cn("@container", first ? "mt-8 sm:mt-10" : "mt-12 sm:mt-16", band && "home-band -mx-3 px-3 sm:-mx-5 sm:px-5")}>
       <SectionHeader title={title} number={number} headerLink={headerLink} level={level} />
       <HorizontalScrollRow
         className={cn(
@@ -174,9 +174,9 @@ function GridSection({
 }) {
   if (chars.length === 0) return null;
   return (
-    <section className="mt-12 sm:mt-16">
+    <section className="@container mt-12 sm:mt-16">
       <SectionHeader title={title} number={number} headerLink={headerLink} />
-      <div className="home-card-group home-grid-stagger grid grid-cols-2 gap-x-3.5 gap-y-7 sm:grid-cols-3 sm:gap-x-5 xl:grid-cols-4">
+      <div className="home-card-group home-grid-stagger grid grid-cols-2 gap-x-3.5 gap-y-7 @lg:grid-cols-3 @lg:gap-x-5 @4xl:grid-cols-4">
         {chars.map((c, index) => (
           <CharacterCard
             key={c.id}
