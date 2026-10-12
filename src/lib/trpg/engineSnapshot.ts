@@ -26,6 +26,8 @@ import {
 } from "./store";
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import { loadCampaignContext } from "./campaignContext";
+import { publicGoals } from "./campaignGoals";
+import { loadCampaignLedger } from "./campaignLedger";
 import { parseResolutionOrder, sortByResolutionOrder } from "./initiative";
 import {
   deriveAdjudicatedParticipantIds,
@@ -461,6 +463,7 @@ export function loadTrpgSnapshot(
       viewerUserId
     ),
     storyPhase: loadCampaignContext(db, campaignId)?.storyPhase,
+    goals: publicGoals(loadCampaignLedger(db, campaignId).goals),
     gmFailureHint:
       campaign.host_user_id === viewerUserId && phase === "ERROR_RECOVERY"
         ? sanitizeTrpgFailureHint(parseTrpgStartFailureJson(round?.error_json))

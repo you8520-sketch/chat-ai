@@ -39,6 +39,7 @@ export const TRPG_GM_STRUCTURED_RESPONSE_FORMAT = {
             campaign_finished: { type: "boolean" },
             questsAdd: { type: "array" },
             questsRemove: { type: "array" },
+            questsClaimDone: { type: "array" },
             npcsAdd: { type: "array" },
             npcsRemove: { type: "array" },
             flagsAdd: { type: "array" },

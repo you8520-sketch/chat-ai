@@ -74,9 +74,11 @@ import {
   npcsWithImages,
 } from "./scenarioNpcAssets";
 import { loadCampaignScenarioAssets, loadScenarioTemplate } from "./scenarioTemplates";
+import { summarizeGoalTransition, type TrpgGoalRoundFacts } from "./campaignGoals";
 import {
   applyCampaignStoryProgress,
   applyLocalSceneProgressToContext,
+  authoredPlayerGoal,
   loadCampaignContext,
   persistCampaignContext,
   resolvedCampaignPlan,
@@ -1352,6 +1354,7 @@ async function runGmForRound(
     storyDirectorBlock,
     localSceneBlock,
     localSceneDeltaContract,
+    planGoalSeeded: authoredPlayerGoal(campaignContext) !== "",
     resolutionOrderBlock: formatResolutionOrderBlock(resolutionOrder),
     mechanicsPacket: mechanics?.packet ?? "",
     actions,
@@ -1633,12 +1636,51 @@ function commitPendingGmResult(
   if (questsDroppedAtCap > 0) {
     console.info("[TRPG][gm] quest_add_capped", { dropped: questsDroppedAtCap, max: TRPG_LEDGER_QUEST_MAX });
   }
-  const ledger = applyCampaignLedger(currentLedger, {
-    ...boundLocation.delta,
-    location: boundLocation.location || scenario.startLocation,
-    nextRoundContext: boundLocation.nextRoundContext,
-    campaignFinished: parsed.campaignFinished,
-  });
+  const humanSeatIds = new Set(
+    loadParticipants(db, campaign.id)
+      .filter((participant) => participant.kind === "human")
+      .map((participant) => participant.id)
+  );
+  const endLocationBySeat = new Map(
+    (persistMechanics ? nextSheets : sheets).map((sheet) => [sheet.participantId, sheet.location])
+  );
+  const goalFacts: TrpgGoalRoundFacts = {
+    round: roundNumber,
+    seats: sheets.map((sheet) => ({
+      participantId: sheet.participantId,
+      human: humanSeatIds.has(sheet.participantId),
+      startLocation: sheet.location,
+      endLocation: endLocationBySeat.get(sheet.participantId) ?? sheet.location,
+    })),
+    authoredEncounterIds: governedEncounters(campaignContext).map((encounter) => encounter.id),
+    endedEncounterIds: loadEndedEncounterIds(db, campaign.id, roundNumber),
+    acceptedEncounterIds: encounterEnding.accepted,
+  };
+  const ledger = applyCampaignLedger(
+    currentLedger,
+    {
+      ...boundLocation.delta,
+      location: boundLocation.location || scenario.startLocation,
+      nextRoundContext: boundLocation.nextRoundContext,
+      campaignFinished: parsed.campaignFinished,
+    },
+    {
+      round: roundNumber,
+      facts: goalFacts,
+      planGoal: opts.opening ? authoredPlayerGoal(campaignContext) : undefined,
+    }
+  );
+  const goalTransition = summarizeGoalTransition(currentLedger.goals, ledger.goals, roundNumber);
+  if (goalTransition.created || goalTransition.completed.length || goalTransition.retired) {
+    console.info("[TRPG][goal] lifecycle", {
+      round: roundNumber,
+      ...goalTransition,
+      criteriaProposed: parsed.delta.questCriteria?.length ?? 0,
+    });
+  }
+  if (opts.opening && goalTransition.activeAfter === 0) {
+    console.warn("[TRPG][goal] missing_after_opening", { round: roundNumber });
+  }
   // Deterministic progression floor (accepted routine traversal + GM omission).
   // Canonical owner: localSceneProgress. The server authors no new fiction — it
   // only promotes an already-accepted canonical route label when unambiguous.

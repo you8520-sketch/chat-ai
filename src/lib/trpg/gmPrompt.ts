@@ -5,6 +5,7 @@ import {
 } from "./gmNarrationBudget";
 import type { TrpgActionCheckReason } from "./actionCheck";
 import { statModifier } from "./stats";
+import { normalizeGoalCriterion } from "./campaignGoals";
 import { clipTrpgChars } from "./clip";
 import { parseLocalSceneProgressDelta } from "./localSceneProgress";
 import { isTrpgGmStructuredShape, parseTrpgGmStructuredJson } from "./gmStructuredOutput";
@@ -26,7 +27,7 @@ export type ParsedTrpgGmOutput = {
   diagnostics?: TrpgGmParseDiagnostics;
 };
 
-export type TrpgGmParseDiagnostics = { questsAddRejected: number };
+export type TrpgGmParseDiagnostics = { questsAddRejected: number; questCriteriaRejected?: number };
 
 function emptyDelta(): TrpgStateDelta {
   return { players: [] };
@@ -56,17 +57,36 @@ function questLine(item: unknown): string | null {
   return Array.from(joined).length <= TRPG_LEDGER_ITEM_MAX_CHARS ? joined : head;
 }
 
-function questAddList(raw: unknown): { items: string[] | undefined; rejected: number } {
-  if (raw == null) return { items: undefined, rejected: 0 };
-  if (!Array.isArray(raw)) return { items: undefined, rejected: 1 };
+type QuestAdds = {
+  items: string[] | undefined;
+  criteria: NonNullable<TrpgStateDelta["questCriteria"]>;
+  rejected: number;
+  criteriaRejected: number;
+};
+
+/** A proposed completion criterion rides on its quest object; a malformed one is dropped, the quest stays. */
+function questAddList(raw: unknown): QuestAdds {
+  const none: QuestAdds = { items: undefined, criteria: [], rejected: 0, criteriaRejected: 0 };
+  if (raw == null) return none;
+  if (!Array.isArray(raw)) return { ...none, rejected: 1 };
   const items: string[] = [];
+  const criteria: QuestAdds["criteria"] = [];
   let rejected = 0;
+  let criteriaRejected = 0;
   for (const entry of raw) {
     const line = questLine(entry);
-    if (line == null) rejected += 1;
-    else items.push(line);
+    if (line == null) {
+      rejected += 1;
+      continue;
+    }
+    items.push(line);
+    if (typeof entry === "object" && entry !== null && "criterion" in entry) {
+      const criterion = normalizeGoalCriterion((entry as Record<string, unknown>).criterion);
+      if (criterion) criteria.push({ title: line, criterion });
+      else criteriaRejected += 1;
+    }
   }
-  return { items: items.length ? items : undefined, rejected };
+  return { items: items.length ? items : undefined, criteria, rejected, criteriaRejected };
 }
 
 function asDelta(raw: unknown, diagnostics?: TrpgGmParseDiagnostics): TrpgStateDelta {
@@ -107,13 +127,21 @@ function asDelta(raw: unknown, diagnostics?: TrpgGmParseDiagnostics): TrpgStateD
   const primaryQuests = questAddList(src.questsAdd);
   const aliasQuests = primaryQuests.items ? null : questAddList(src.quests);
   const questsAdd = primaryQuests.items ?? aliasQuests?.items;
-  if (diagnostics) diagnostics.questsAddRejected += primaryQuests.rejected + (aliasQuests?.rejected ?? 0);
+  const questCriteria = primaryQuests.items ? primaryQuests.criteria : (aliasQuests?.criteria ?? []);
+  if (diagnostics) {
+    diagnostics.questsAddRejected += primaryQuests.rejected + (aliasQuests?.rejected ?? 0);
+    const criteriaRejected = primaryQuests.criteriaRejected + (aliasQuests?.criteriaRejected ?? 0);
+    if (criteriaRejected > 0) diagnostics.questCriteriaRejected = criteriaRejected;
+  }
+  if (questCriteria.length) delta.questCriteria = questCriteria;
   const npcsAdd = stringList(src.npcsAdd) ?? stringList(src.npcs);
   const flagsAdd = stringList(src.flagsAdd) ?? stringList(src.flags) ?? stringList(src.world_flags);
   if (questsAdd) delta.questsAdd = questsAdd;
   if (npcsAdd) delta.npcsAdd = npcsAdd;
   if (flagsAdd) delta.flagsAdd = flagsAdd;
   const questsRemove = stringList(src.questsRemove);
+  const questsClaimDone = stringList(src.questsClaimDone);
+  if (questsClaimDone) delta.questsClaimDone = questsClaimDone;
   const npcsRemove = stringList(src.npcsRemove);
   const flagsRemove = stringList(src.flagsRemove);
   if (questsRemove) delta.questsRemove = questsRemove;
@@ -160,7 +188,7 @@ export function parseTrpgGmOutput(raw: string): ParsedTrpgGmOutput {
       location,
       campaignFinished,
       nextRoundContext,
-      ...(diagnostics.questsAddRejected > 0 ? { diagnostics } : {}),
+      ...(diagnostics.questsAddRejected > 0 || diagnostics.questCriteriaRejected ? { diagnostics } : {}),
     };
   }
 
@@ -252,7 +280,7 @@ Let tonal shifts arise from the fiction and character voice.
 [OUTPUT]
 Respond as JSON with exactly two top-level keys: narration (Korean prose per ROUND NARRATION BUDGET; last beat is 1–2 GM: sentences on immediate unresolved pressure) and delta (state changes object). The API enforces this schema.
 Example delta shape: {"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false,"localScene":{}}
-questsAdd items are plain strings of at most 80 characters, e.g. "등대 조사: 사라진 어선의 단서를 찾는다"; not objects. questsRemove copies an exact existing quest string.
+questsAdd items are player-visible goals (no secrets): a string of at most 80 characters, e.g. "등대 조사: 사라진 어선의 단서를 찾는다", or {"title":"...","criterion":{"type":"reach_location","place":"곶 끝의 등대"}} / {"criterion":{"type":"end_encounter","encounterId":"<[id] of an approved threat>"}} when the goal ends by arriving at a place or by ending an approved threat; without a criterion the server never confirms it as done. questsRemove copies an exact existing quest string and only removes it. questsClaimDone copies an exact active quest string you narrate as resolved; it is a claim, not a confirmation.
 `;
 
 export function formatTrpgSheetCanon(opts: {
@@ -346,6 +374,8 @@ export function buildTrpgGmUserBlock(opts: {
   storyDirectorBlock?: string;
   localSceneBlock?: string;
   localSceneDeltaContract?: string;
+  /** The scenario's authored player goal is already the first goal; the opening need not create one. */
+  planGoalSeeded?: boolean;
   resolutionOrderBlock?: string;
   mechanicsPacket?: string;
   actions: Array<{
@@ -393,6 +423,9 @@ export function buildTrpgGmUserBlock(opts: {
             return lines.join("\n");
           })
           .join("\n\n");
+  const openingGoalClause = opts.planGoalSeeded
+    ? ""
+    : ", show one concrete event or opportunity the world offers and record it in delta.questsAdd as a short goal (the PC need not accept it)";
   const secret = opts.gmSecret?.trim() ?? "";
   const personas = opts.playerPersonas?.trim() ?? "";
   const sheets = opts.sheetCanon?.trim() ?? "";
@@ -410,7 +443,7 @@ export function buildTrpgGmUserBlock(opts: {
     opts.regenerate
       ? "[REGENERATE — same locked actions and dice. Write a different scene. Keep CHARACTER SHEETS canon. Use 이름: \"대사\" for speech.]"
       : opts.opening
-        ? "[OPENING SCENE — describe the start and ask what they do. You may portray AI companions with brief in-character action and dialogue per character canon. Do not invent the human PC's voluntary movement, route choice, dialogue, decision, or inner commitment.]"
+        ? `[OPENING SCENE — describe the start${openingGoalClause} and ask what they do. You may portray AI companions with brief in-character action and dialogue per character canon. Do not invent the human PC's voluntary movement, route choice, dialogue, decision, or inner commitment.]`
         : "[RESOLVE THIS ROUND]",
     opts.worldBrief.trim() ? `[WORLD]\n${opts.worldBrief.trim()}` : "",
     opts.scenarioPlanBlock?.trim() ?? "",
