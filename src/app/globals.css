@@ -91,13 +91,19 @@ body {
 
 .home-ambient {
   position: absolute;
-  inset: -1rem 0 auto 0;
+  inset: -2.5rem -0.5rem auto -0.5rem;
   z-index: -1;
-  height: 21rem;
+  height: 23rem;
   overflow: hidden;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.55) 55%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.55) 55%, transparent 100%);
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent 0%, #000 22%, rgba(0, 0, 0, 0.5) 62%, transparent 100%),
+    linear-gradient(to right, transparent 0%, #000 14%, #000 70%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to bottom, transparent 0%, #000 22%, rgba(0, 0, 0, 0.5) 62%, transparent 100%),
+    linear-gradient(to right, transparent 0%, #000 14%, #000 70%, transparent 100%);
+  mask-composite: intersect;
 }
 
 .home-ambient img {
@@ -105,7 +111,7 @@ body {
   height: 100%;
   object-fit: cover;
   object-position: 50% 24%;
-  opacity: 0.3;
+  opacity: 0.4;
   filter: blur(44px) saturate(1.2);
   transform: scale(1.4);
 }
