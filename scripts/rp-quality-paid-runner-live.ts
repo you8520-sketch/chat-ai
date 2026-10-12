@@ -12,7 +12,9 @@ import { RP_QUALITY_PRECALL_PLANNED_CALLS } from "@/lib/rpQualityPrecall";
 import {
   RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV,
   evaluatePaidRunnerAuthorization,
+  parsePaidRunnerExecutionScopeArg,
   type PaidRunnerAuthorizationInput,
+  type PaidRunnerExecutionScope,
   type PaidRunnerPublicManifest,
   type PaidRunnerSealedCall,
 } from "@/lib/rpQualityPaidRunner";
@@ -40,9 +42,16 @@ function loadPublicManifest(): PaidRunnerPublicManifest | null {
   return JSON.parse(raw) as PaidRunnerPublicManifest;
 }
 
+function readExecutionScopeArg():
+  | { ok: true; executionScope?: PaidRunnerExecutionScope }
+  | { ok: false; reason: "EXECUTION_SCOPE_MISMATCH" } {
+  return parsePaidRunnerExecutionScopeArg(process.argv);
+}
+
 async function loadCanonicalSealedPack(input: {
   runtimeSha: string;
   expectedProductionSha: string;
+  executionScope?: PaidRunnerExecutionScope;
 }): Promise<{
   manifest: PaidRunnerPublicManifest;
   sealedCalls: PaidRunnerSealedCall[];
@@ -61,6 +70,7 @@ async function loadCanonicalSealedPack(input: {
     expectedProductionSha: input.expectedProductionSha,
     originalDataDir,
     env: process.env,
+    executionScope: input.executionScope,
   });
   if (!loaded.ok) return null;
   return { manifest: loaded.pack.manifest, sealedCalls: loaded.pack.sealedCalls };
@@ -69,6 +79,29 @@ async function loadCanonicalSealedPack(input: {
 async function main(): Promise<void> {
   const acceptPaidExecution = process.argv.includes("--accept-paid-execution");
   const liveExecuteEnabled = paidRunnerLiveExecuteEnabled();
+  const parsedScope = readExecutionScopeArg();
+  if (!parsedScope.ok) {
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          ok: false,
+          mode: "LIVE",
+          authorized: false,
+          denialReason: parsedScope.reason,
+          providerPosts: 0,
+          transportPosts: 0,
+          networkTransmitted: 0,
+          dbWrites: 0,
+          approvalStatus: "NOT_APPROVED",
+        },
+        null,
+        2
+      )}\n`
+    );
+    process.exitCode = 2;
+    return;
+  }
+  const executionScope = parsedScope.executionScope;
   const authorization: PaidRunnerAuthorizationInput = {
     userCostApproved: process.argv.includes("--user-cost-approved"),
     approvedManifestFingerprint: readArg("--approved-manifest-fingerprint") ?? "",
@@ -77,6 +110,7 @@ async function main(): Promise<void> {
     experimentSecret: process.env[RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV] ?? null,
     allowlist: [...MAIN_RP_MODEL_IDS],
     plannedCalls: RP_QUALITY_PRECALL_PLANNED_CALLS,
+    ...(executionScope ? { executionScope } : {}),
   };
   const actualRuntimeSha = observePaidRunnerRuntimeSha();
   const keys = readPaidRunnerLiveInferenceKeys();
@@ -105,6 +139,7 @@ async function main(): Promise<void> {
       const loaded = await loadCanonicalSealedPack({
         runtimeSha: actualRuntimeSha,
         expectedProductionSha: authorization.expectedProductionSha,
+        executionScope: authorization.executionScope,
       });
       if (loaded) {
         manifest = loaded.manifest;
