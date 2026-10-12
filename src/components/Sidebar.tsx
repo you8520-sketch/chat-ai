@@ -11,9 +11,9 @@ const SIDEBAR_CHARACTER_LIMIT = RECENT_CHARACTER_LIST_LIMIT;
 
 export default async function Sidebar() {
   const user = await getSessionUser();
-  const blurNsfw = shouldHideAdultListings(user);
   const recentActivity = user
     ? fetchRecentActivity(getDb(), user.id, SIDEBAR_CHARACTER_LIMIT, {
+        hideAdult: shouldHideAdultListings(user),
         includeTrpg: canAccessTrpg(user),
       })
     : [];
@@ -37,7 +37,6 @@ export default async function Sidebar() {
     <SidebarShell
       user={user ? { nickname: user.nickname } : null}
       recentActivity={recentActivity}
-      blurNsfw={blurNsfw}
       navItems={navItems}
     />
   );

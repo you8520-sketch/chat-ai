@@ -103,7 +103,7 @@ export default function NotificationBell({ count = 0, className = "" }: Props) {
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
         {visibleCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-[#0b0d14] bg-violet-500 px-1 text-[9px] font-bold text-white shadow-sm">
+          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-[#0b0d14] bg-violet-500 px-1 text-[11px] font-bold leading-none text-white shadow-sm">
             {visibleCount > 99 ? "99+" : visibleCount}
           </span>
         )}

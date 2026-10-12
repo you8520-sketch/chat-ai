@@ -32,7 +32,6 @@ export type SidebarNavItem = {
 type Props = {
   user: { nickname: string } | null;
   recentActivity: RecentActivityEntry[];
-  blurNsfw: boolean;
   navItems: SidebarNavItem[];
 };
 
@@ -95,7 +94,7 @@ function usePinnedSidebarGeometry(isChatRoom: boolean) {
   return { spacerRef, geometry };
 }
 
-export default function SidebarShell({ user, recentActivity, blurNsfw, navItems }: Props) {
+export default function SidebarShell({ user, recentActivity, navItems }: Props) {
   const pathname = usePathname();
   const isChatRoomRoute = isChatRoomPathname(pathname);
   const isCompactRoom = isCompactRoomPathname(pathname);
@@ -216,7 +215,6 @@ export default function SidebarShell({ user, recentActivity, blurNsfw, navItems 
           <Suspense fallback={null}>
             <SidebarRecentChatIcons
               entries={recentActivity}
-              blurNsfw={blurNsfw}
               compact={collapsed}
               showHeader={!collapsed}
             />
@@ -241,7 +239,7 @@ function SideLink({
   active: boolean;
 }) {
   const tone = active
-    ? "bg-violet-600/15 text-violet-100 font-semibold"
+    ? "relative bg-violet-500/15 font-semibold text-violet-50 before:absolute before:inset-y-2.5 before:left-0 before:w-0.5 before:rounded-full before:bg-violet-400"
     : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100";
 
   if (collapsed) {
@@ -249,6 +247,7 @@ function SideLink({
       <Link
         href={href}
         title={label}
+        aria-current={active ? "page" : undefined}
         className={`flex h-11 w-full items-center justify-center rounded-xl transition ${tone}`}
       >
         <SidebarNavIcon id={icon} />
@@ -259,6 +258,7 @@ function SideLink({
   return (
     <Link
       href={href}
+      aria-current={active ? "page" : undefined}
       className={`flex min-h-11 items-center gap-2.5 rounded-xl px-2.5 text-sm font-medium transition ${tone}`}
     >
       <SidebarNavIcon id={icon} />

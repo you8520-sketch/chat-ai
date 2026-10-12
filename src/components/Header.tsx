@@ -80,7 +80,7 @@ export default async function Header() {
                 {!canAccessAdultContent(user) && (
                   <Link
                     href="/verify"
-                    className="hidden text-xs font-medium text-zinc-400 transition hover:text-violet-300 sm:inline"
+                    className="hidden min-h-9 items-center rounded-lg px-1.5 text-xs font-medium text-zinc-400 transition hover:text-violet-300 sm:inline-flex"
                   >
                     성인인증
                   </Link>
@@ -99,6 +99,9 @@ export default async function Header() {
               </>
             )}
           </div>
+        </div>
+        <div className="mx-auto max-w-7xl px-3 sm:px-4">
+          <HeaderMainNavRow variant="strip" />
         </div>
       </header>
       <MobileBottomNav loggedIn={!!user} />

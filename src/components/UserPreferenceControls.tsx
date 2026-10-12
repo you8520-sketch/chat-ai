@@ -319,30 +319,37 @@ function HeaderNsfwToggle({
   onToggle: () => void;
 }) {
   return (
-    <div
-      className="flex min-h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-[#161922] px-2 py-1"
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={busy || !canDisable}
+      aria-pressed={safetyFilterOn}
+      aria-label="세이프티 필터"
       title={canDisable ? "세이프티 필터" : "일반 회원은 세이프티 필터를 끌 수 없습니다"}
+      className="flex min-h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-2 text-[11px] font-medium text-zinc-300 transition hover:border-white/20 hover:bg-white/[0.07] disabled:cursor-not-allowed"
     >
-      <span className="text-[10px] font-medium text-zinc-300">
+      <span>
         <span className="sm:hidden">세이프티</span>
         <span className="hidden sm:inline">세이프티 필터</span>
       </span>
-      <button
-        type="button"
-        onClick={onToggle}
-        disabled={busy || !canDisable}
-        aria-pressed={safetyFilterOn}
-        aria-label="세이프티 필터"
-        className={`relative h-5 w-8 shrink-0 rounded-full transition-colors disabled:opacity-40 sm:w-9 ${
+      <span
+        aria-hidden
+        className={`w-6 text-center font-bold tabular-nums ${safetyFilterOn ? "text-violet-200" : "text-amber-200"}`}
+      >
+        {safetyFilterOn ? "ON" : "OFF"}
+      </span>
+      <span
+        aria-hidden
+        className={`relative h-5 w-8 shrink-0 rounded-full transition-colors sm:w-9 ${
           safetyFilterOn ? "bg-violet-500" : "bg-zinc-700"
-        }`}
+        } ${canDisable ? "" : "opacity-40"}`}
       >
         <span
           className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
             safetyFilterOn ? "left-[14px] sm:left-[18px]" : "left-0.5"
           }`}
         />
-      </button>
-    </div>
+      </span>
+    </button>
   );
 }

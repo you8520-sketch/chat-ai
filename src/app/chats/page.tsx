@@ -8,6 +8,7 @@ import { fetchRecentTrpgCampaigns } from "@/lib/recentActivity";
 import {
   fetchUserChatSessionsForRecentCharacters,
   RECENT_CHARACTER_LIST_LIMIT,
+  toDisplayChatSession,
 } from "@/lib/recentChats";
 
 export const dynamic = "force-dynamic";
@@ -16,13 +17,13 @@ export default async function ChatsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?redirect=/chats");
 
-  const blurNsfw = shouldHideAdultListings(user);
+  const hideAdult = shouldHideAdultListings(user);
   const db = getDb();
   const sessions = fetchUserChatSessionsForRecentCharacters(
     db,
     user.id,
     RECENT_CHARACTER_LIST_LIMIT
-  );
+  ).map((session) => toDisplayChatSession(session, hideAdult));
   const campaigns = fetchRecentTrpgCampaigns(db, user.id, RECENT_CHARACTER_LIST_LIMIT);
 
   const characterCount = new Set(sessions.map((s) => s.character_id)).size;
@@ -33,7 +34,7 @@ export default async function ChatsPage() {
       description={`${sessions.length}개 일반 대화 · ${characterCount}명 캐릭터 · ${campaigns.length}개 TRPG`}
       className="pb-16"
     >
-      <ChatsPageGrid sessions={sessions} campaigns={campaigns} blurNsfw={blurNsfw} />
+      <ChatsPageGrid sessions={sessions} campaigns={campaigns} />
     </AppPageShell>
   );
 }

@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 
 import AdultContentBadge from "@/components/AdultContentBadge";
 import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
+import MaskedChatGlyph from "@/components/MaskedChatGlyph";
 import CharacterChatBranchModal from "@/components/CharacterChatBranchModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { characterPageHref } from "@/lib/chatLinks";
@@ -15,18 +16,17 @@ import {
 } from "@/lib/recentActivity";
 import {
   formatChatListTime,
-  formatChatPreview,
+  chatPreviewLabel,
   getBranchDisplayTitle,
   groupSessionsByCharacter,
   type CharacterChatGroup,
-  type UserChatSession,
+  type DisplayChatSession,
 } from "@/lib/recentChats";
 import { TRPG_RESUME_GLYPH_ATTR, trpgResumeAttrs } from "@/lib/trpgResumeTransition";
 
 type Props = {
-  sessions: UserChatSession[];
+  sessions: DisplayChatSession[];
   campaigns: RecentTrpgCampaignEntry[];
-  blurNsfw: boolean;
 };
 
 type ChatListEntry =
@@ -42,23 +42,21 @@ function formatLastChatLabel(iso: string | null): string {
 
 function ChatCharacterCard({
   group,
-  blurNsfw,
   onOpenBranches,
   selectionMode,
   selected,
   onToggleSelection,
 }: {
   group: CharacterChatGroup;
-  blurNsfw: boolean;
   onOpenBranches: () => void;
   selectionMode: boolean;
   selected: boolean;
   onToggleSelection: () => void;
 }) {
-  const hidden = group.nsfw === 1 && blurNsfw;
+  const hidden = group.masked;
   const latest = group.sessions[0];
   const multi = group.sessions.length > 1;
-  const thumb = (JSON.parse(group.images || "[]") as string[])[0];
+  const thumb = hidden ? undefined : (JSON.parse(group.images || "[]") as string[])[0];
   const lastLabel = formatLastChatLabel(latest?.last_at ?? null);
 
   const thumbnail = (
@@ -66,13 +64,13 @@ function ChatCharacterCard({
       className={`relative ${CHARACTER_THUMB_ASPECT} h-full w-full overflow-hidden`}
       style={{ background: `hsl(${group.hue} 60% 20%)` }}
     >
-      {thumb ? (
+      {hidden ? (
+        <span className="flex h-full w-full items-center justify-center text-zinc-300">
+          <MaskedChatGlyph className="h-7 w-7 @min-[64rem]/chats:h-9 @min-[64rem]/chats:w-9" />
+        </span>
+      ) : thumb ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={thumb}
-          alt={group.name}
-          className={`h-full w-full object-cover object-top ${hidden ? "blur-md" : ""}`}
-        />
+        <img src={thumb} alt={group.name} className="h-full w-full object-cover object-top" />
       ) : (
         <span className="flex h-full w-full items-center justify-center text-xl @min-[48rem]/chats:text-2xl @min-[64rem]/chats:text-3xl">
           {group.emoji}
@@ -151,9 +149,7 @@ function ChatCharacterCard({
         </p>
 
         <p className="line-clamp-2 text-[10px] leading-snug text-zinc-400 @min-[30rem]/chats:text-[11px] @min-[48rem]/chats:text-xs @min-[64rem]/chats:line-clamp-3 @min-[64rem]/chats:text-sm">
-          {multi && latest
-            ? formatChatPreview(latest.last_role, latest.last_content, group.name)
-            : formatChatPreview(latest?.last_role ?? null, latest?.last_content ?? null, group.name)}
+          {chatPreviewLabel(latest ?? { masked: hidden, last_role: null, last_content: null }, group.name)}
         </p>
 
         <p className="mt-0.5 text-[10px] font-bold text-violet-400 group-hover:text-violet-300 @min-[30rem]/chats:text-[11px] @min-[48rem]/chats:text-xs @min-[64rem]/chats:text-sm">
@@ -279,7 +275,7 @@ function TrpgChatCard({
   );
 }
 
-export default function ChatsPageGrid({ sessions, campaigns, blurNsfw }: Props) {
+export default function ChatsPageGrid({ sessions, campaigns }: Props) {
   const router = useRouter();
   const groups = useMemo(() => groupSessionsByCharacter(sessions), [sessions]);
   const entries = useMemo<ChatListEntry[]>(
@@ -300,7 +296,7 @@ export default function ChatsPageGrid({ sessions, campaigns, blurNsfw }: Props) 
   );
 
   const [pickerGroup, setPickerGroup] = useState<CharacterChatGroup | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<UserChatSession | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<DisplayChatSession | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<number>>(
@@ -443,7 +439,7 @@ export default function ChatsPageGrid({ sessions, campaigns, blurNsfw }: Props) 
     }
   }
 
-  function handleRenameSuccess(updated: UserChatSession) {
+  function handleRenameSuccess(updated: DisplayChatSession) {
     setPickerGroup((current) => {
       if (!current?.sessions.some((s) => s.chat_id === updated.chat_id)) return current;
       return {
@@ -558,7 +554,6 @@ export default function ChatsPageGrid({ sessions, campaigns, blurNsfw }: Props) 
             <ChatCharacterCard
               key={`character-${entry.group.character_id}`}
               group={entry.group}
-              blurNsfw={blurNsfw}
               onOpenBranches={() => setPickerGroup(entry.group)}
               selectionMode={selectionMode}
               selected={selectedCharacterIds.has(entry.group.character_id)}
@@ -575,8 +570,7 @@ export default function ChatsPageGrid({ sessions, campaigns, blurNsfw }: Props) 
           characterId={pickerGroup.character_id}
           characterName={pickerGroup.name}
           branches={pickerGroup.sessions}
-          blurNsfw={blurNsfw}
-          nsfw={pickerGroup.nsfw === 1}
+          masked={pickerGroup.masked}
           avatar={pickerGroup}
           onDeleteRequest={setPendingDelete}
           onRenameSuccess={handleRenameSuccess}

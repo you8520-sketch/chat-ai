@@ -35,21 +35,28 @@ export default function HeaderProfileMenu({ nickname }: Props) {
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative hidden sm:block">
+    <div ref={rootRef} className="relative hidden min-[576px]:block">
       <button
         type="button"
+        aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={panelId}
         aria-label="프로필 메뉴"
         title={nickname}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex max-w-[7rem] items-center gap-1 truncate rounded-lg px-2 py-1.5 text-xs font-semibold text-zinc-300 transition hover:bg-white/[0.06] hover:text-white"
+        className="inline-flex h-9 max-w-[7rem] items-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] px-1.5 text-xs font-semibold text-zinc-200 transition hover:border-white/20 hover:bg-white/[0.07] hover:text-white sm:px-2"
       >
-        <span className="truncate">{nickname}</span>
+        <span
+          aria-hidden
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet-500/20 text-xs font-bold text-violet-100 sm:hidden"
+        >
+          {Array.from(nickname.trim())[0] ?? "?"}
+        </span>
+        <span className="hidden truncate sm:inline">{nickname}</span>
         <svg
           viewBox="0 0 20 20"
           fill="currentColor"
-          className={`h-3.5 w-3.5 shrink-0 text-zinc-500 transition ${open ? "rotate-180" : ""}`}
+          className={`hidden h-3.5 w-3.5 shrink-0 text-zinc-500 transition sm:block ${open ? "rotate-180" : ""}`}
           aria-hidden
         >
           <path
