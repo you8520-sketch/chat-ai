@@ -1,0 +1,31 @@
+{
+ "domLeaksWhileOFF": 25,
+ "domPlusFlightLeaksAfterBackToON": 0,
+ "rscByPhase": {
+  "toggling-to-OFF": {
+   "responses": 1,
+   "leaks": 0
+  },
+  "toggling-to-ON": {
+   "responses": 2,
+   "leaks": 0
+  }
+ },
+ "rscDetail": [
+  {
+   "phase": "toggling-to-OFF",
+   "url": "/character/856",
+   "leaks": 0
+  },
+  {
+   "phase": "toggling-to-ON",
+   "url": "/chats",
+   "leaks": 0
+  },
+  {
+   "phase": "toggling-to-ON",
+   "url": "/verify",
+   "leaks": 0
+  }
+ ]
+}

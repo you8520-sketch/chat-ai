@@ -1,0 +1,135 @@
+{
+ "d2": {
+  "marked": [
+   {
+    "text": "성인 콘텐츠 | 확인이 필요한 대화입니다",
+    "marker": false
+   },
+   {
+    "text": "성인 콘텐츠 | 확인이 필요한 대화입니다",
+    "marker": false
+   },
+   {
+    "text": "ZZSAFE_NAME | ZZNARR_SAFE 은밀한 서술이 이어졌다.",
+    "marker": true
+   }
+  ],
+  "veil": true,
+  "room": {
+   "path": "/chat/857?chat=212",
+   "roomChar": "857"
+  },
+  "asideWidths": [
+   44,
+   176
+  ],
+  "masked": {
+   "landed": "/verify",
+   "veil": true
+  }
+ },
+ "collapsed": {
+  "width": 44,
+  "leaks": 0,
+  "titles": [
+   "성인 콘텐츠 · 확인이 필요한 대화입니다",
+   "성인 콘텐츠 · 확인이 필요한 대화입니다",
+   "ZZSAFE_NAME · ZZNARR_SAFE 은밀한 서술이 이어졌다."
+  ],
+  "afterExpand": 176
+ },
+ "toggle": {
+  "patch": [
+   200,
+   200
+  ],
+  "onInitial": {
+   "pressed": "true",
+   "asideLeaks": 0,
+   "mainLeaks": 0,
+   "sidebarRows": [
+    "성인 콘텐츠 | 확인이 필요한 대화입니다",
+    "성인 콘텐츠 | 확인이 필요한 대화입니다",
+    "ZZSAFE_NAME | ZZNARR_SAFE 은밀한 서술이 이어졌다."
+   ],
+   "cards": 3
+  },
+  "offAfterToggleNoReload": {
+   "pressed": "false",
+   "asideLeaks": 14,
+   "mainLeaks": 13,
+   "sidebarRows": [
+    "ZZNSFW_NAME | ZZNARR_BRANCH 분기 서술이 이어졌다.",
+    "🔞 | ZZNSFW_NOIMG | ZZNARR_NOIMG 은밀한 서술이 이어졌다.",
+    "ZZSAFE_NAME | ZZNARR_SAFE 은밀한 서술이 이어졌다."
+   ],
+   "cards": 3
+  },
+  "offAfterReload": {
+   "pressed": "false",
+   "asideLeaks": 14,
+   "mainLeaks": 13,
+   "sidebarRows": [
+    "ZZNSFW_NAME | ZZNARR_BRANCH 분기 서술이 이어졌다.",
+    "🔞 | ZZNSFW_NOIMG | ZZNARR_NOIMG 은밀한 서술이 이어졌다.",
+    "ZZSAFE_NAME | ZZNARR_SAFE 은밀한 서술이 이어졌다."
+   ],
+   "cards": 3
+  },
+  "onAfterToggleNoReload": {
+   "pressed": "true",
+   "asideLeaks": 0,
+   "mainLeaks": 0,
+   "sidebarRows": [
+    "성인 콘텐츠 | 확인이 필요한 대화입니다",
+    "성인 콘텐츠 | 확인이 필요한 대화입니다",
+    "ZZSAFE_NAME | ZZNARR_SAFE 은밀한 서술이 이어졌다."
+   ],
+   "cards": 3
+  },
+  "onAfterReload": {
+   "pressed": "true",
+   "asideLeaks": 0,
+   "mainLeaks": 0,
+   "sidebarRows": [
+    "성인 콘텐츠 | 확인이 필요한 대화입니다",
+    "성인 콘텐츠 | 확인이 필요한 대화입니다",
+    "ZZSAFE_NAME | ZZNARR_SAFE 은밀한 서술이 이어졌다."
+   ],
+   "cards": 3
+  },
+  "rscResponses": 7,
+  "rscMaxLeaksWhileOn": "see per-phase",
+  "rscLeakTotal": 30,
+  "rsc": [
+   {
+    "url": "/studio?_rsc=Ud3bga2WHJinEols",
+    "leaks": 0
+   },
+   {
+    "url": "/creator?_rsc=Ud3bga2WHJinEols",
+    "leaks": 0
+   },
+   {
+    "url": "/verify?redirect=%2Fcharacter%2F855&_rsc=Ud3bga2WHJinEols",
+    "leaks": 0
+   },
+   {
+    "url": "/chats?_rsc=olp_emTkrfRjQrtg",
+    "leaks": 30
+   },
+   {
+    "url": "/privacy?_rsc=Ud3bga2WHJinEols",
+    "leaks": 0
+   },
+   {
+    "url": "/verify?_rsc=Ud3bga2WHJinEols",
+    "leaks": 0
+   },
+   {
+    "url": "/search?_rsc=Ud3bga2WHJinEols",
+    "leaks": 0
+   }
+  ]
+ }
+}

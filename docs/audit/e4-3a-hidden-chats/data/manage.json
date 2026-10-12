@@ -1,0 +1,42 @@
+{
+ "titlesBefore": [
+  "232:c860:\"ZZCHAT_TITLE_SAFE\"",
+  "233:c858:\"ZZCHAT_TITLE_NSFW\"",
+  "234:c859:\"ZZCHAT_TITLE_NOIMG\"",
+  "235:c858:\"ZZCHAT_TITLE_NSFW_BRANCH\""
+ ],
+ "rename": {
+  "prefill": "",
+  "saveDisabledWhenEmpty": true,
+  "saveEnabledAfterTyping": true,
+  "patchStatus": 200,
+  "dialogTextAfter": "성인 콘텐츠 / 2개의 대화 · 최신순 / 캐릭터 정보 / 대화 1 / 방금 / 1턴 / 확인이 필요한 대화입니다 / 이름 변경 / 대화 2 / 방금 / 1턴 / 확인이 필요한 대화입니다 / 이름 변경 / 처음부터 (새 대화) / 닫기"
+ },
+ "titlesAfterRename": [
+  "232:c860:\"ZZCHAT_TITLE_SAFE\"",
+  "233:c858:\"나만 아는 이름\"",
+  "234:c859:\"ZZCHAT_TITLE_NOIMG\"",
+  "235:c858:\"ZZCHAT_TITLE_NSFW_BRANCH\""
+ ],
+ "titlesAfterCancel": [
+  "232:c860:\"ZZCHAT_TITLE_SAFE\"",
+  "233:c858:\"나만 아는 이름\"",
+  "234:c859:\"ZZCHAT_TITLE_NOIMG\"",
+  "235:c858:\"ZZCHAT_TITLE_NSFW_BRANCH\""
+ ],
+ "singleDeleteButtonsForMasked": 0,
+ "selectableMasked": 2,
+ "selectedLabel": "선택한 대화 삭제 (1)",
+ "bulkDelete": {
+  "status": 200
+ },
+ "titlesAfterDelete": [
+  "232:c860:\"ZZCHAT_TITLE_SAFE\"",
+  "234:c859:\"ZZCHAT_TITLE_NOIMG\""
+ ],
+ "cardsAfter": [
+  "성인 / 성인 콘텐츠 / 방금 대화 / 1턴 / 확인이 필요한 대화입니다 / 대화 선택 →",
+  "ZZSAFE_NAME / 방금 대화 / 1턴 / ZZSAFE_NAME: ZZNARR_SAFE 은밀한 서술이 이어졌다. \"ZZQ"
+ ],
+ "otherUsersChats": 12
+}

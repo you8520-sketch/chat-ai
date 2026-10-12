@@ -1,0 +1,14 @@
+import { chromium } from "playwright-core";
+import fs from "fs";
+const BASE = process.env.BASE;
+const fx = JSON.parse(fs.readFileSync("/tmp/e43h-fixtures.json", "utf8"));
+const b = await chromium.launch();
+const ctx = await b.newContext({ locale: "ko-KR" });
+await ctx.addCookies([{ name: "session", value: fx.tokens.std, url: BASE }]);
+const p = await ctx.newPage();
+await p.goto(BASE + "/settings", { waitUntil: "load" });
+const flight = await p.evaluate(() => (self.__next_f ?? []).map((x) => x[1]).join(""));
+const i = flight.indexOf("ZZNSFW_NAME");
+const s = flight.lastIndexOf('{"kind"', i);
+console.log(flight.slice(s, s + 900));
+await b.close();
