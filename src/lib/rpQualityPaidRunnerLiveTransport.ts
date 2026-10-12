@@ -11,6 +11,7 @@ import {
 } from "@/lib/openRouterConfig";
 import { readCompatibleCompletionProviderRequestId } from "@/lib/openRouterCompletion";
 import {
+  createOpenAiCompatibleSseEvidence,
   decodeOpenAiCompatibleSseResponse,
   isOpenAiCompatibleSseContentType,
   reconstructOpenAiCompatibleCompletionBody,
@@ -29,6 +30,13 @@ export const RP_QUALITY_PAID_OPENROUTER_KEY_ENV = "RP_QUALITY_PAID_OPENROUTER_KE
 export const RP_QUALITY_PAID_CHEAPERINFERENCE_KEY_ENV = "RP_QUALITY_PAID_CHEAPERINFERENCE_KEY";
 export const RP_QUALITY_PAID_LIVE_EXECUTE_ENV = "RP_QUALITY_PAID_LIVE_EXECUTE";
 export const PAID_RUNNER_LIVE_TIMEOUT_MS = 90_000;
+/**
+ * Network timeout only; never an output length limit. Opus 5.5 can legitimately
+ * spend more than 90 s in provider routing plus generation (observed 91.4 s).
+ */
+export const PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL: Partial<Record<SelectedAI, number>> = {
+  "claude-opus-5.5": 240_000,
+};
 
 export type PaidRunnerLiveTransportOptions = {
   openRouterKey: string;
@@ -46,6 +54,13 @@ function headersToRecord(headers: Headers): Record<string, string> {
     record[key] = value;
   });
   return record;
+}
+
+function classifyTransportFailure(error: unknown): "timeout" | "connection_reset" | "throw" {
+  const message = error instanceof Error ? `${error.name} ${error.message}` : String(error);
+  if (/timeout|aborted|abort/i.test(message)) return "timeout";
+  if (/reset|ECONNRESET/i.test(message)) return "connection_reset";
+  return "throw";
 }
 
 function readGenerationId(body: unknown): string | null {
@@ -87,7 +102,6 @@ export function createIsolatedPaidRunnerLiveTransport(
     throw new Error("LIVE_EXECUTE_NOT_APPROVED");
   }
   const fetchImpl = options.fetchImpl ?? fetch;
-  const timeoutMs = options.timeoutMs ?? PAID_RUNNER_LIVE_TIMEOUT_MS;
   return {
     kind: "live",
     realNetwork: !simulated,
@@ -114,6 +128,10 @@ export function createIsolatedPaidRunnerLiveTransport(
         };
       }
       paidRunnerRequestBodyFingerprint(input.body);
+      const timeoutMs =
+        options.timeoutMs ??
+        PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL[input.canonicalId] ??
+        PAID_RUNNER_LIVE_TIMEOUT_MS;
       const headers =
         input.provider === "openrouter"
           ? buildOpenRouterHeaders(options.openRouterKey)
@@ -127,14 +145,14 @@ export function createIsolatedPaidRunnerLiveTransport(
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        const kind =
-          /timeout|aborted/i.test(message)
-            ? "timeout"
-            : /reset|ECONNRESET/i.test(message)
-              ? "connection_reset"
-              : "throw";
-        return { ok: false, kind, httpStatus: null, text: "", headers: {}, body: {} };
+        return {
+          ok: false,
+          kind: classifyTransportFailure(error),
+          httpStatus: null,
+          text: "",
+          headers: {},
+          body: {},
+        };
       }
       const responseHeaders = headersToRecord(response.headers);
       if (response.status < 200 || response.status >= 300) {
@@ -159,17 +177,17 @@ export function createIsolatedPaidRunnerLiveTransport(
           contentType: contentType ?? undefined,
         };
       }
-      let evidence;
+      const evidence = createOpenAiCompatibleSseEvidence();
       try {
-        evidence = await decodeOpenAiCompatibleSseResponse(response);
-      } catch {
+        await decodeOpenAiCompatibleSseResponse(response, evidence);
+      } catch (error) {
         return {
           ok: false,
-          kind: "throw",
+          kind: classifyTransportFailure(error),
           httpStatus: response.status,
-          text: "",
+          text: evidence.text,
           headers: responseHeaders,
-          body: {},
+          body: reconstructOpenAiCompatibleCompletionBody(evidence),
         };
       }
       if (evidence.schemaError === "eof before terminal SSE metadata/DONE") {

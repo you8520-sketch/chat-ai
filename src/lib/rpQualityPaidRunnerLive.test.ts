@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 
 import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
 import { CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL } from "@/lib/cheaperInferenceConfig";
@@ -40,6 +40,8 @@ import {
   paidRunnerArtifactFingerprint,
 } from "@/lib/rpQualityPaidRunnerArtifacts";
 import {
+  PAID_RUNNER_LIVE_TIMEOUT_MS,
+  PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL,
   createIsolatedPaidRunnerLiveTransport,
   livePaidRunnerUsesCanonicalModels,
 } from "@/lib/rpQualityPaidRunnerLiveTransport";
@@ -1723,5 +1725,250 @@ describe("rp quality paid runner OpenRouter settlement recovery", () => {
     assert.equal(result.journal.entries[1]?.status, "UNKNOWN_UNRESOLVED");
     assert.equal(result.journal.entries[1]?.finishReason, "artifact_persist_failed");
     assert.equal(result.journal.entries[2]?.status, "PREPARED");
+  });
+});
+
+describe("rp quality paid runner interrupted streams and Opus timeout", () => {
+  const PARTIAL_TEXT = "앞부분 원문. 두 번째 문장까지 도착했다.";
+
+  const sseFrame = (payload: unknown) => `data: ${JSON.stringify(payload)}\n\n`;
+  const textFrames = (model: string) => [
+    sseFrame({ id: "gen-partial", model, choices: [{ delta: { content: "앞부분 원문. " } }] }),
+    sseFrame({ id: "gen-partial", model, choices: [{ delta: { content: "두 번째 문장까지 도착했다." } }] }),
+  ];
+
+  function interruptedResponse(
+    model: string,
+    mode: "reader_error" | "timeout_error" | "eof" | "no_text_timeout" | "complete",
+    headers: Record<string, string> = {}
+  ): Response {
+    const encoder = new TextEncoder();
+    const chunks: string[] = mode === "no_text_timeout" ? [] : textFrames(model);
+    if (mode === "complete") {
+      chunks.push(
+        sseFrame({
+          id: "gen-partial",
+          model,
+          choices: [{ delta: {}, finish_reason: "stop" }],
+          usage: { prompt_tokens: 10, completion_tokens: 8, cost: 0.02 },
+        }),
+        "data: [DONE]\n\n"
+      );
+    }
+    let index = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (index < chunks.length) {
+          controller.enqueue(encoder.encode(chunks[index]));
+          index += 1;
+          return;
+        }
+        if (mode === "reader_error") controller.error(new Error("reader boom"));
+        else if (mode === "timeout_error" || mode === "no_text_timeout") {
+          controller.error(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+        } else {
+          controller.close();
+        }
+      },
+    });
+    return new Response(stream, {
+      status: 200,
+      headers: { "content-type": "text/event-stream", ...headers },
+    });
+  }
+
+  function callFor(canonicalId: string) {
+    const { sealedCalls } = pack();
+    return sealedCalls.find((call) => call.canonicalId === canonicalId)!;
+  }
+
+  async function postInterrupted(
+    canonicalId: string,
+    mode: Parameters<typeof interruptedResponse>[1]
+  ) {
+    const call = callFor(canonicalId);
+    const transport = simulatedLive((async () =>
+      interruptedResponse(call.wireModel, mode)) as typeof fetch);
+    return transport.post({
+      endpoint: call.endpoint,
+      body: call.requestBody,
+      canonicalId: call.canonicalId,
+      provider: call.provider,
+    });
+  }
+
+  it("timeout policy is Opus-only and is a network timeout, not an output cap", async () => {
+    const requested: Array<{ model: string; ms: number }> = [];
+    const spy = mock.method(AbortSignal, "timeout", (ms: number) => {
+      requested.push({ model: current, ms });
+      return new AbortController().signal;
+    });
+    let current = "";
+    try {
+      for (const canonicalId of MAIN_RP_MODEL_IDS) {
+        current = canonicalId;
+        const call = callFor(canonicalId);
+        const result = await simulatedLive((async () =>
+          interruptedResponse(call.wireModel, "complete")) as typeof fetch).post({
+          endpoint: call.endpoint,
+          body: call.requestBody,
+          canonicalId,
+          provider: call.provider,
+        });
+        assert.equal(result.ok, true, canonicalId);
+      }
+    } finally {
+      spy.mock.restore();
+    }
+    assert.deepEqual(
+      requested.map((row) => [row.model, row.ms]),
+      MAIN_RP_MODEL_IDS.map((id) => [id, PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL[id] ?? PAID_RUNNER_LIVE_TIMEOUT_MS])
+    );
+    assert.equal(PAID_RUNNER_LIVE_TIMEOUT_MS, 90_000);
+    assert.equal(PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL["claude-opus-5.5"], 240_000);
+    assert.deepEqual(Object.keys(PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL), ["claude-opus-5.5"]);
+  });
+
+  it("a 100 s provider response completes for Opus but times out for the 90 s models", async () => {
+    const PROVIDER_LATENCY_MS = 100_000;
+    let configuredMs = 0;
+    const spy = mock.method(AbortSignal, "timeout", (ms: number) => {
+      configuredMs = ms;
+      return new AbortController().signal;
+    });
+    try {
+      for (const canonicalId of MAIN_RP_MODEL_IDS) {
+        const call = callFor(canonicalId);
+        const result = await simulatedLive((async () =>
+          interruptedResponse(
+            call.wireModel,
+            configuredMs < PROVIDER_LATENCY_MS ? "timeout_error" : "complete"
+          )) as typeof fetch).post({
+          endpoint: call.endpoint,
+          body: call.requestBody,
+          canonicalId,
+          provider: call.provider,
+        });
+        if (canonicalId === "claude-opus-5.5") {
+          assert.equal(result.ok, true);
+          assert.equal(result.ok && result.text, PARTIAL_TEXT);
+        } else {
+          assert.equal(result.ok, false, canonicalId);
+        }
+      }
+    } finally {
+      spy.mock.restore();
+    }
+  });
+
+  it("keeps text parsed before AbortError / reader exception and never marks it complete", async () => {
+    const aborted = await postInterrupted("claude-opus-5.5", "timeout_error");
+    assert.equal(aborted.ok, false);
+    assert.equal(!aborted.ok && aborted.kind, "timeout");
+    assert.equal(aborted.text, PARTIAL_TEXT);
+    assert.equal(aborted.httpStatus, 200);
+
+    const reader = await postInterrupted("claude-opus-5.5", "reader_error");
+    assert.equal(reader.ok, false);
+    assert.equal(!reader.ok && reader.kind, "throw");
+    assert.equal(reader.text, PARTIAL_TEXT);
+
+    const eof = await postInterrupted("claude-opus-5.5", "eof");
+    assert.equal(eof.ok, false);
+    assert.equal(!eof.ok && eof.kind, "partial_stream");
+    assert.equal(eof.text, PARTIAL_TEXT);
+
+    const noText = await postInterrupted("claude-opus-5.5", "no_text_timeout");
+    assert.equal(noText.ok, false);
+    assert.equal(noText.text, "");
+  });
+
+  async function runInterrupted(
+    mode: Parameters<typeof interruptedResponse>[1],
+    extra: {
+      artifactStore?: ReturnType<typeof createMemoryPaidRunnerArtifactStore>;
+      journalStore?: ReturnType<typeof createMemoryPaidRunnerJournalStore>;
+      headers?: Record<string, string>;
+    } = {}
+  ) {
+    const { manifest, sealedCalls } = pack();
+    const posts = { n: 0 };
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(init?.method ?? "GET").toUpperCase() === "POST") {
+        posts.n += 1;
+        const model = String(JSON.parse(String(init?.body)).model);
+        return interruptedResponse(model, mode, extra.headers);
+      }
+      throw new Error(`unexpected GET ${String(input)}`);
+    }) as typeof fetch;
+    const artifactStore = extra.artifactStore ?? createMemoryPaidRunnerArtifactStore();
+    const journalStore = extra.journalStore ?? createMemoryPaidRunnerJournalStore();
+    const run = () =>
+      runPaidRunner({
+        mode: "AUTHORIZED",
+        manifest,
+        sealedCalls,
+        authorization: auth(manifest),
+        transport: simulatedLive(fetchImpl),
+        journalStore,
+        artifactStore,
+        reconcile: { fetchImpl, keys: KEYS, sleep: async () => undefined },
+      });
+    return { run, posts, artifactStore, journalStore };
+  }
+
+  it("partial text is stored privately as PARTIAL, journal keeps only the hash, next POST is 0", async () => {
+    for (const mode of ["timeout_error", "reader_error", "eof"] as const) {
+      const dir = mkdtempSync(path.join(tmpdir(), "rpq-partial-"));
+      const artifactStore = createFilePaidRunnerArtifactStore(path.join(dir, "artifacts"));
+      const { run, posts } = await runInterrupted(mode, {
+        artifactStore,
+        headers: { "x-ci-request-id": "ci-req-partial-1" },
+      });
+      const first = await run();
+      assert.equal(posts.n, 1, mode);
+      assert.equal(first.denialReason, "PRIOR_CALL_UNRESOLVED", mode);
+      const entry = first.journal.entries[0]!;
+      assert.equal(entry.status, "UNKNOWN_UNRESOLVED", mode);
+      assert.equal(entry.artifactPartial, true, mode);
+      assert.equal(entry.artifactFingerprint, paidRunnerArtifactFingerprint(PARTIAL_TEXT), mode);
+      assert.equal(entry.providerRequestId, "ci-req-partial-1", mode);
+      assert.equal(entry.settlementSource, "unsettled", mode);
+      assert.equal(artifactStore.load(entry.artifactFingerprint!), PARTIAL_TEXT, mode);
+      const file = path.join(dir, "artifacts", `${entry.artifactFingerprint}.partial.txt`);
+      assert.equal(statSync(file).mode & 0o777, 0o600, mode);
+      assert.equal(JSON.stringify(first.journal).includes("앞부분"), false, mode);
+      assert.equal(first.journal.entries.filter((row) => row.status === "SETTLED").length, 0);
+
+      const replay = await run();
+      assert.notEqual(replay.denialReason, null, mode);
+      assert.equal(replay.transportPosts, 0, mode);
+      assert.equal(posts.n, 1, mode);
+    }
+  });
+
+  it("timeout without any text stores no artifact and is not a result", async () => {
+    const { run, posts, artifactStore } = await runInterrupted("no_text_timeout");
+    const result = await run();
+    assert.equal(posts.n, 1);
+    const entry = result.journal.entries[0]!;
+    assert.equal(entry.status, "UNKNOWN_UNRESOLVED");
+    assert.equal(entry.artifactFingerprint ?? null, null);
+    assert.equal(entry.artifactPartial, undefined);
+    assert.equal(artifactStore.load(paidRunnerArtifactFingerprint("")), null);
+    assert.equal(result.privateResults.length, 0);
+  });
+
+  it("partial artifact store failure stops the run safely", async () => {
+    const broken = createMemoryPaidRunnerArtifactStore();
+    broken.persist = () => {
+      throw new Error("artifact disk full");
+    };
+    const { run, posts } = await runInterrupted("timeout_error", { artifactStore: broken });
+    const result = await run();
+    assert.equal(posts.n, 1);
+    assert.equal(result.denialReason, "ARTIFACT_STORE_UNAVAILABLE");
+    assert.equal(result.journal.entries[0]?.status, "UNKNOWN_UNRESOLVED");
+    assert.equal(result.journal.entries[0]?.finishReason, "artifact_persist_failed");
   });
 });

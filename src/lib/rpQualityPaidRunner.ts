@@ -203,6 +203,8 @@ export type PaidRunnerJournalEntry = {
   elapsedMs: number | null;
   blockReason: PaidRunnerDenialReason | null;
   artifactFingerprint?: string | null;
+  /** True when the artifact is text received before the stream was interrupted. */
+  artifactPartial?: boolean;
   generationId?: string | null;
 };
 
@@ -1056,7 +1058,14 @@ function settleFromTransport(
       canonicalId: call.canonicalId,
       provider: call.provider,
       wireModel: call.wireModel,
-      providerRequestId: null,
+      providerRequestId:
+        result.httpStatus != null && result.httpStatus >= 200 && result.httpStatus < 300
+          ? readCompatibleCompletionProviderRequestId({
+              provider: call.provider,
+              headers: new Headers(result.headers),
+              body: result.body,
+            })
+          : null,
       httpResult: result.httpStatus,
       finishReason: result.kind,
       promptTokens: null,
@@ -1541,19 +1550,22 @@ export async function runPaidRunner(input: {
       }
       const status = journalStatusForTransport(result, usage);
       const artifacts = input.artifactStore ?? createMemoryPaidRunnerArtifactStore();
+      const partialText = !result.ok && result.text.trim().length > 0;
       const preserveText =
-        result.ok &&
-        usage.finishReason !== "wrong_provider_model" &&
-        usage.finishReason !== "http" &&
-        usage.finishReason !== "empty_content";
-      const fingerprint = paidRunnerArtifactFingerprint(result.ok ? result.text : "");
+        partialText ||
+        (result.ok &&
+          usage.finishReason !== "wrong_provider_model" &&
+          usage.finishReason !== "http" &&
+          usage.finishReason !== "empty_content");
+      const fingerprint = paidRunnerArtifactFingerprint(result.text);
       let artifactPersistFailed = false;
       if (preserveText) {
         try {
           artifacts.persist({
             requestOrder: sealed.requestOrder,
             fingerprint,
-            text: result.ok ? result.text : "",
+            text: result.text,
+            ...(partialText ? { partial: true } : {}),
           });
         } catch {
           artifactPersistFailed = true;
@@ -1587,6 +1599,7 @@ export async function runPaidRunner(input: {
           finishReason: usage.finishReason,
           elapsedMs,
           artifactFingerprint: preserveText ? fingerprint : null,
+          ...(partialText ? { artifactPartial: true } : {}),
           generationId: result.ok ? result.generationId ?? null : null,
         });
         persist();
