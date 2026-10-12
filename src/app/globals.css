@@ -1877,6 +1877,31 @@ html.chat-room-active .mobile-bottom-nav {
   display: none;
 }
 
+/*
+ * Fixed bottom chrome contract: .mobile-bottom-nav is 52px of tap targets + 1px border +
+ * the iOS home-indicator inset. Other fixed bars dock on --mobile-nav-offset (nav height,
+ * 0 once the nav is hidden) plus --keyboard-inset (published by VirtualKeyboardInset).
+ */
+:root {
+  --mobile-bottom-nav-h: calc(3.25rem + 1px + env(safe-area-inset-bottom, 0px));
+  --keyboard-inset: 0px;
+  --mobile-nav-offset: var(--mobile-bottom-nav-h);
+}
+
+html[data-keyboard-open] {
+  --mobile-nav-offset: 0px;
+}
+
+html[data-keyboard-open] .mobile-bottom-nav {
+  display: none;
+}
+
+@media (min-width: 576px) {
+  :root {
+    --mobile-nav-offset: 0px;
+  }
+}
+
 @media (min-width: 576px) {
   /*
    * App shell left rail (home / non-chat). Same 576px threshold as chat chrome.

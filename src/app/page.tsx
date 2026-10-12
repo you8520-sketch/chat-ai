@@ -117,7 +117,7 @@ function SectionHeader({
 function MobileDiscoveryNav() {
   return (
     <nav
-      className="grid grid-cols-5 gap-1 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-1.5 md:hidden"
+      className="grid grid-cols-5 gap-1 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-1.5 min-[576px]:hidden"
       aria-label="콘텐츠 탐색"
       data-menu-transition=""
     >
@@ -247,7 +247,7 @@ export default async function Home() {
       <HomeCreateEventBanner />
       <div className="border-b border-white/[0.07] py-4 md:hidden">
         <MobileDiscoveryNav />
-        <div className="mt-3 flex min-h-9 items-center justify-between gap-3 px-1">
+        <div className="mt-3 flex min-h-9 items-center justify-between gap-3 px-1 min-[576px]:mt-0">
           <UserPreferenceControls
             isAdult={!!user?.is_adult}
             canDisableSafetyFilter={canDisableSafetyFilter}

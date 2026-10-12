@@ -67,7 +67,7 @@ describe("E4-3A navigation chrome", () => {
     }
     assert.match(bottomNav, /min-\[576px\]:hidden/);
     assert.match(bottomNav, /pb-\[env\(safe-area-inset-bottom\)\]/);
-    assert.match(read("src/app/layout.tsx"), /pb-24 pt-4 min-\[576px\]:pb-6/);
+    assert.match(read("src/app/layout.tsx"), /app-shell[^"]*pb-6 pt-4/);
   });
 
   it("exposes settings and logout from 576px so no width loses account access", () => {

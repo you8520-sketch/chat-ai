@@ -26,7 +26,8 @@ type Props = {
 
 /**
  * Sticky bottom save bar — visible on every create tab.
- * Sits above mobile bottom nav (pb safe).
+ * Docks directly above the mobile bottom nav (--mobile-nav-offset) and above the
+ * on-screen keyboard (--keyboard-inset) so the save/cancel buttons stay reachable.
  */
 export default function StudioSaveBar({
   onSave,
@@ -43,8 +44,8 @@ export default function StudioSaveBar({
     <div
       data-testid="studio-save-bar"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur-md",
-        "pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-[env(safe-area-inset-bottom)]",
+        "fixed inset-x-0 bottom-[calc(var(--mobile-nav-offset)+var(--keyboard-inset))] z-40 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur-md",
+        "pb-0 min-[576px]:pb-[env(safe-area-inset-bottom)]",
         className,
       )}
     >

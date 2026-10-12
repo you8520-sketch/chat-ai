@@ -9,7 +9,7 @@ import { SITE_DESCRIPTION, SITE_DISPLAY_NAME } from "@/lib/siteBrand";
  */
 export function SiteLegalFooter() {
   return (
-    <footer className="site-legal-footer mx-auto w-full max-w-7xl px-4 pb-24 pt-4 text-xs leading-relaxed text-zinc-400 md:pb-6">
+    <footer className="site-legal-footer mx-auto w-full max-w-7xl px-4 pb-[calc(var(--mobile-bottom-nav-h)+1rem)] pt-4 text-xs leading-relaxed text-zinc-400 min-[576px]:pb-6">
       <div className="border-t border-white/[0.07] pt-4 min-[576px]:pl-[200px]">
         <p>
           © {new Date().getFullYear()} {SITE_DISPLAY_NAME} · {SITE_DESCRIPTION}
