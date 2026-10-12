@@ -21,6 +21,8 @@ type Props = {
   embedMode?: boolean;
   startLabel?: string;
   trpgHref?: string | null;
+  /** Detail hero: the start button is the primary CTA; TRPG/persona stay secondary. */
+  primary?: boolean;
 };
 
 export default function CharacterStartRow({
@@ -33,6 +35,7 @@ export default function CharacterStartRow({
   embedMode = false,
   startLabel,
   trpgHref = null,
+  primary = false,
 }: Props) {
   const [personas, setPersonas] = useState(initialPersonas);
   const [selectedPersonaId, setSelectedPersonaId] = useState<number | null>(initialPersonaId);
@@ -101,6 +104,9 @@ export default function CharacterStartRow({
   const actionBtn =
     "inline-flex items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/10";
 
+  const primaryBtn =
+    "inline-flex items-center justify-center gap-1.5 rounded-full bg-violet-600 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-violet-950/50 transition hover:bg-violet-500";
+
   const resolvedTrpgHref = (() => {
     if (!trpgHref) return null;
     if (selectedPersonaId == null) return trpgHref;
@@ -121,7 +127,7 @@ export default function CharacterStartRow({
         loggedIn={loggedIn}
         branches={branches}
         selectedPersonaId={selectedPersonaId}
-        className={actionBtn}
+        className={primary ? primaryBtn : actionBtn}
         startLabel={startLabel}
         alwaysNewChat={embedMode}
         openInTop={embedMode}

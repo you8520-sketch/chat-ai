@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import CharacterIntroSection from "@/components/CharacterIntroSection";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
@@ -216,6 +216,7 @@ export default function CharacterPublicPagePreview({
   heroVariant = "default",
   genre = "",
   dossier,
+  heroActions,
 }: {
   /** 채팅에서 해금한 에셋을 공개 갤러리에도 반영할 때 사용 */
   characterId?: number;
@@ -254,6 +255,8 @@ export default function CharacterPublicPagePreview({
   heroVariant?: "default" | "poster";
   genre?: string;
   dossier?: PublicDossierView;
+  /** `poster` hero only: primary actions (start row) rendered under the tagline. */
+  heroActions?: ReactNode;
 }) {
   const [unlockedUrls, setUnlockedUrls] = useState<ReadonlySet<string>>(() => new Set());
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -415,22 +418,18 @@ export default function CharacterPublicPagePreview({
   const heroSection = (
     <section
       data-character-hero={characterId ?? ""}
-      className="relative isolate overflow-hidden rounded-3xl border border-white/10 px-5 pb-7 pt-7 sm:px-8 md:px-10 md:py-10"
-      style={{
-        background:
-          "radial-gradient(120% 90% at 78% 30%, #1c1825 0%, #0f0e14 55%, #08080b 100%)",
-      }}
+      className="relative rounded-3xl px-5 pb-7 pt-7 sm:px-8 min-[960px]:px-10 min-[960px]:py-10"
     >
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl border border-white/10"
         style={{
           background:
-            "radial-gradient(38% 55% at 72% 40%, rgb(139 92 246 / 0.2), transparent 72%)",
+            "radial-gradient(38% 55% at 72% 40%, rgb(139 92 246 / 0.2), transparent 72%), radial-gradient(120% 90% at 78% 30%, #1c1825 0%, #0f0e14 55%, #08080b 100%)",
         }}
       />
-      <div className="relative grid gap-0 md:grid-cols-[minmax(0,26rem)_minmax(15rem,21rem)] md:items-center md:justify-center">
-        <div className="relative z-10 order-1 mx-auto w-[min(74vw,19rem)] md:order-2 md:mx-0 md:w-full md:justify-self-end">
+      <div className="relative grid gap-0 min-[960px]:grid-cols-[minmax(0,26rem)_minmax(15rem,21rem)] min-[960px]:items-center min-[960px]:justify-center">
+        <div className="relative z-10 order-1 mx-auto w-[min(74vw,19rem)] min-[960px]:order-2 min-[960px]:mx-0 min-[960px]:w-full min-[960px]:justify-self-end">
           <span
             aria-hidden
             className="pointer-events-none absolute -inset-3 rounded-[1.15rem] border border-[#f0e7d4]/20"
@@ -464,47 +463,52 @@ export default function CharacterPublicPagePreview({
         </div>
 
         <div
-          className="relative z-0 order-2 -mt-4 min-w-0 [container-type:inline-size] md:order-1 md:mt-0 md:-mr-14 md:pr-[4.75rem]"
+          className="relative order-2 -mt-4 min-w-0 min-[960px]:order-1 min-[960px]:mt-0 min-[960px]:-mr-14 min-[960px]:pr-[4.75rem]"
           style={{ ["--hero-chars" as string]: String(posterName.maxChars) }}
         >
           <div
             {...{ [HERO_ITEM_ATTR]: "eyebrow" }}
-            className="flex w-fit items-center gap-3 pt-5 text-[11px] font-bold uppercase tracking-[0.22em] md:ml-auto md:pt-0"
+            className="flex w-fit items-center gap-3 pt-5 text-[11px] font-bold uppercase tracking-[0.22em] min-[960px]:ml-auto min-[960px]:pt-0"
           >
             {genre.trim() ? <span className="text-violet-300">{genre.trim()}</span> : null}
             <span aria-hidden className="h-px w-10 bg-[#f0e7d4]/30" />
             <span className="text-[#f0e7d4]/55">Character</span>
           </div>
-          <h1
-            className="mt-3 break-keep font-black leading-[1] tracking-[-0.04em] text-[#f0e7d4] md:text-right"
-            style={{ fontSize: "min(8.5rem, calc(96cqw / (var(--hero-chars) * 0.98)))" }}
-          >
-            <span className="sr-only">{displayName}</span>
-            <span
-              aria-hidden
-              {...{ [HERO_ITEM_ATTR]: "name", [REVEAL_FIT_ATTR]: "width" }}
-              className="block w-fit md:ml-auto"
+          <div className="[container-type:inline-size]">
+            <h1
+              className="mt-3 break-keep font-black leading-[1] tracking-[-0.04em] text-[#f0e7d4] min-[960px]:text-right"
+              style={{ fontSize: "min(8.5rem, calc(96cqw / (var(--hero-chars) * 0.98)))" }}
             >
-              {posterName.lines.map((line, i) => (
-                <span key={i} className="block whitespace-nowrap pb-[0.06em] md:text-right">
-                  {line}
-                </span>
-              ))}
-            </span>
-          </h1>
-          <div className="mt-4 flex flex-wrap items-center gap-2 md:justify-end">
+              <span className="sr-only">{displayName}</span>
+              <span
+                aria-hidden
+                {...{ [HERO_ITEM_ATTR]: "name", [REVEAL_FIT_ATTR]: "width" }}
+                className="block w-fit min-[960px]:ml-auto"
+              >
+                {posterName.lines.map((line, i) => (
+                  <span key={i} className="block whitespace-nowrap pb-[0.06em] min-[960px]:text-right">
+                    {line}
+                  </span>
+                ))}
+              </span>
+            </h1>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2 min-[960px]:justify-end">
             {creatorLine}
             {pagePath ? <CopyPageLinkButton path={pagePath} /> : null}
           </div>
           {resolvedTagline.trim() ? (
             <p
               {...{ [HERO_ITEM_ATTR]: "tagline" }}
-              className="mt-3 w-fit max-w-full text-base font-semibold leading-snug text-[#f0e7d4]/85 md:ml-auto md:text-right"
+              className="mt-3 w-fit max-w-full text-base font-semibold leading-snug text-[#f0e7d4]/85 min-[960px]:ml-auto min-[960px]:text-right"
             >
               {resolvedTagline.trim()}
             </p>
           ) : null}
-          <div className="md:flex md:justify-end">{tagChips}</div>
+          {heroActions ? (
+            <div className="mt-5 min-[960px]:flex min-[960px]:justify-end">{heroActions}</div>
+          ) : null}
+          <div className="min-[960px]:flex min-[960px]:justify-end">{tagChips}</div>
           {dossier ? <PublicDossierBlock dossier={dossier} align="end" /> : null}
         </div>
       </div>
