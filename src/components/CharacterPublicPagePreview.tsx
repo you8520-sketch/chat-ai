@@ -450,7 +450,7 @@ export default function CharacterPublicPagePreview({
               />
             ) : (
               <div
-                className="flex h-full w-full items-center justify-center text-7xl sm:text-8xl"
+                className="flex h-full w-full items-start justify-center pt-[18%] text-7xl sm:text-8xl min-[960px]:items-center min-[960px]:pt-0"
                 style={{
                   background: `linear-gradient(135deg, hsl(${hue} 60% 24%), hsl(${(hue + 60) % 360} 60% 12%))`,
                 }}
