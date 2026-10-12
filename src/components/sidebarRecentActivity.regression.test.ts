@@ -7,10 +7,12 @@ const read = (path: string) => fs.readFileSync(path, "utf8");
 describe("sidebar recent activity hierarchy", () => {
   const recent = read("src/components/SidebarRecentChatIcons.tsx");
 
-  it("shows the character name above the preview, but never for rows hidden by the safety filter", () => {
-    assert.match(recent, /\{hidden \? null : \(\s*<span className="truncate text-xs font-semibold text-zinc-100">\{characterName\}<\/span>/);
-    assert.match(recent, /hidden \? "line-clamp-2" : "truncate"/);
-    assert.match(recent, /const href = hidden \? "\/verify"/);
+  it("shows the name above the preview for every row; masked rows carry only the neutral server text and /verify", () => {
+    assert.match(recent, /<span className="truncate text-xs font-semibold text-zinc-100">\{characterName\}<\/span>/);
+    assert.match(recent, /const hidden = session\.masked/);
+    assert.match(recent, /<MaskedChatGlyph/);
+    assert.doesNotMatch(recent, /blurNsfw|blur-md/);
+    assert.match(recent, /href=\{href\}/);
   });
 
   it("keeps the section label separated from the nav links and the active row on the brand tint", () => {

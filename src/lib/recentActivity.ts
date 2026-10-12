@@ -2,7 +2,8 @@ import type Database from "better-sqlite3";
 import {
   fetchLatestSessionsPerCharacter,
   RECENT_CHARACTER_LIST_LIMIT,
-  type UserChatSession,
+  toDisplayChatSession,
+  type DisplayChatSession,
 } from "@/lib/recentChats";
 
 export type RecentActivityKind = "character_chat" | "trpg_campaign";
@@ -12,7 +13,7 @@ export type RecentCharacterChatEntry = {
   lastActivityAt: string;
   href: string;
   title: string;
-  session: UserChatSession;
+  session: DisplayChatSession;
 };
 
 export type RecentTrpgCampaignEntry = {
@@ -43,21 +44,26 @@ export function compareActivityAtDesc(a: string, b: string): number {
   return normalizeActivityAt(b).localeCompare(normalizeActivityAt(a));
 }
 
-export function recentCharacterChatHref(session: Pick<UserChatSession, "character_id" | "chat_id">): string {
+export function recentCharacterChatHref(
+  session: Pick<DisplayChatSession, "character_id" | "chat_id">
+): string {
   return `/chat/${session.character_id}?chat=${session.chat_id}`;
 }
+
+/** 성인 가림 행은 실제 방 URL 대신 기존 `/verify`만 노출한다. */
+export const MASKED_RECENT_CHAT_HREF = "/verify";
 
 export function recentTrpgCampaignHref(campaignId: number): string {
   return `/trpg/${campaignId}`;
 }
 
 export function characterChatsToActivity(
-  sessions: readonly UserChatSession[]
+  sessions: readonly DisplayChatSession[]
 ): RecentCharacterChatEntry[] {
   return sessions.map((session) => ({
     kind: "character_chat",
     lastActivityAt: session.last_at ?? session.chat_created_at,
-    href: recentCharacterChatHref(session),
+    href: session.masked ? MASKED_RECENT_CHAT_HREF : recentCharacterChatHref(session),
     title: session.name,
     session,
   }));
@@ -116,12 +122,16 @@ export function mergeRecentActivity(
 export function fetchRecentActivity(
   db: Database.Database,
   userId: number,
-  limit = RECENT_CHARACTER_LIST_LIMIT,
-  opts?: { includeTrpg?: boolean }
+  limit: number,
+  opts: { hideAdult: boolean; includeTrpg?: boolean }
 ): RecentActivityEntry[] {
-  const chats = characterChatsToActivity(fetchLatestSessionsPerCharacter(db, userId, limit));
+  const chats = characterChatsToActivity(
+    fetchLatestSessionsPerCharacter(db, userId, limit).map((session) =>
+      toDisplayChatSession(session, opts.hideAdult)
+    )
+  );
   const campaigns =
-    opts?.includeTrpg === false ? [] : fetchRecentTrpgCampaigns(db, userId, limit);
+    opts.includeTrpg === false ? [] : fetchRecentTrpgCampaigns(db, userId, limit);
   return mergeRecentActivity(chats, campaigns, limit);
 }
 

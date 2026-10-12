@@ -122,9 +122,10 @@ describe("chats list: ownership and regression guards", () => {
     assert.match(modal, /if \(isPlainLeftClick\(e\)\) onClose\(\)/);
   });
 
-  it("starts from a visible, non-private avatar and blurs it for adult-hidden rooms", () => {
+  it("starts from a visible, non-private avatar and swaps adult-hidden rooms for a neutral glyph", () => {
     assert.match(modal, /\{\.\.\.\{ \[CHAT_RESUME_THUMB_ATTR\]: "" \}\}/);
-    assert.match(modal, /hidden \? "blur-md" : ""/);
+    assert.match(modal, /hidden \? \(\s*<span[^>]*>\s*<MaskedChatGlyph/);
+    assert.doesNotMatch(modal, /blur-md/);
     assert.match(host, /includes\("\/media\/private\/"\)/);
   });
 
@@ -134,7 +135,7 @@ describe("chats list: ownership and regression guards", () => {
     assert.match(avatar, /img\.complete && img\.naturalWidth === 0/);
     assert.match(avatar, /showImage \?/);
     assert.match(avatar, /\{avatar\.emoji\}/);
-    assert.match(avatar, /hidden \? "blur-md" : ""/);
+    assert.match(avatar, /const thumb = hidden \? null : parseThumb\(avatar\.images\)/);
   });
 
   it("keeps the character photo link to the profile and the card body as the picker opener", () => {

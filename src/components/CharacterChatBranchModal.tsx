@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import {
+  chatPreviewLabel,
   formatChatListTime,
-  formatChatPreview,
   formatChatSessionStats,
   getBranchDisplayTitle,
   type CharacterChatGroup,
-  type UserChatSession,
+  type DisplayChatSession,
 } from "@/lib/recentChats";
+import MaskedChatGlyph from "@/components/MaskedChatGlyph";
 import { chatEntryHref, characterPageHref } from "@/lib/chatLinks";
 import { CHAT_RESUME_THUMB_ATTR, chatResumeAttrs } from "@/lib/chatResumeTransition";
 import { chatRoomHref, requestExplicitChatSession } from "@/lib/chatSessionStartClient";
@@ -21,13 +22,13 @@ type Props = {
   onClose: () => void;
   characterId: number;
   characterName: string;
-  branches: UserChatSession[];
-  blurNsfw: boolean;
-  nsfw: boolean;
+  branches: DisplayChatSession[];
+  /** 서버가 성인 가림으로 변환한 캐릭터인지 (`toDisplayChatSession`). */
+  masked: boolean;
   /** 대표 이미지·색·이모지. D-2 전환이 이 원에서 시작한다. */
   avatar: Pick<CharacterChatGroup, "images" | "hue" | "emoji">;
-  onDeleteRequest?: (session: UserChatSession) => void;
-  onRenameSuccess?: (session: UserChatSession) => void;
+  onDeleteRequest?: (session: DisplayChatSession) => void;
+  onRenameSuccess?: (session: DisplayChatSession) => void;
   deletingId?: number | null;
 };
 
@@ -49,7 +50,7 @@ function BranchAvatar({
   hidden: boolean;
   className: string;
 }) {
-  const thumb = parseThumb(avatar.images);
+  const thumb = hidden ? null : parseThumb(avatar.images);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const showImage = thumb !== null && thumb !== failedSrc;
@@ -66,14 +67,18 @@ function BranchAvatar({
       className={`relative block shrink-0 overflow-hidden rounded-full ring-1 ring-white/15 ${className}`}
       style={{ background: `hsl(${avatar.hue} 60% 22%)` }}
     >
-      {showImage ? (
+      {hidden ? (
+        <span className="flex h-full w-full items-center justify-center text-zinc-300">
+          <MaskedChatGlyph className="h-4 w-4" />
+        </span>
+      ) : showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           ref={imgRef}
           src={thumb}
           alt=""
           onError={() => setFailedSrc(thumb)}
-          className={`h-full w-full object-cover object-top ${hidden ? "blur-md" : ""}`}
+          className="h-full w-full object-cover object-top"
         />
       ) : (
         <span className="flex h-full w-full items-center justify-center text-sm">{avatar.emoji}</span>
@@ -88,8 +93,7 @@ export default function CharacterChatBranchModal({
   characterId,
   characterName,
   branches,
-  blurNsfw,
-  nsfw,
+  masked,
   avatar,
   onDeleteRequest,
   onRenameSuccess,
@@ -104,7 +108,7 @@ export default function CharacterChatBranchModal({
   const [startError, setStartError] = useState("");
   if (!open) return null;
 
-  const hidden = nsfw && blurNsfw;
+  const hidden = masked;
   const multi = branches.length > 1;
   const latest = branches[0];
 
@@ -141,14 +145,15 @@ export default function CharacterChatBranchModal({
     }
   }
 
-  function startRename(session: UserChatSession) {
+  function startRename(session: DisplayChatSession) {
     setEditingId(session.chat_id);
-    setEditingTitle(getBranchDisplayTitle(session));
+    setEditingTitle(session.masked ? "" : getBranchDisplayTitle(session));
     setRenameError("");
   }
 
-  async function saveRename(session: UserChatSession) {
+  async function saveRename(session: DisplayChatSession) {
     const nextTitle = editingTitle.trim();
+    if (session.masked && !nextTitle) return;
     setSavingId(session.chat_id);
     setRenameError("");
     try {
@@ -162,7 +167,7 @@ export default function CharacterChatBranchModal({
         setRenameError(data.error || "대화방 이름 변경에 실패했습니다.");
         return;
       }
-      const updated = { ...session, title: data.title ?? nextTitle };
+      const updated = session.masked ? session : { ...session, title: data.title ?? nextTitle };
       onRenameSuccess?.(updated);
       setEditingId(null);
       setEditingTitle("");
@@ -199,7 +204,7 @@ export default function CharacterChatBranchModal({
               </p>
             </div>
             <Link
-              href={characterPageHref(characterId, blurNsfw, nsfw)}
+              href={characterPageHref(characterId, masked, masked)}
               onClick={onClose}
               className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-white/5"
             >
@@ -234,11 +239,11 @@ export default function CharacterChatBranchModal({
                             maxLength={32}
                             onChange={(e) => setEditingTitle(e.target.value)}
                             className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sm font-semibold text-white outline-none focus:border-violet-400"
-                            placeholder="대화방 이름"
+                            placeholder={b.masked ? "새 대화방 이름" : "대화방 이름"}
                           />
                           <button
                             type="submit"
-                            disabled={savingId === b.chat_id}
+                            disabled={savingId === b.chat_id || (b.masked && !editingTitle.trim())}
                             className="shrink-0 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-violet-500 disabled:opacity-50"
                           >
                             저장
@@ -258,7 +263,7 @@ export default function CharacterChatBranchModal({
                           {formatChatSessionStats(b)}
                         </p>
                         <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-500">
-                          {formatChatPreview(b.last_role, b.last_content, characterName)}
+                          {chatPreviewLabel(b, characterName)}
                         </p>
                       </div>
                     ) : (
@@ -280,7 +285,7 @@ export default function CharacterChatBranchModal({
                             {formatChatSessionStats(b)}
                           </span>
                           <span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-zinc-500">
-                            {formatChatPreview(b.last_role, b.last_content, characterName)}
+                            {chatPreviewLabel(b, characterName)}
                           </span>
                         </span>
                       </Link>
@@ -309,9 +314,9 @@ export default function CharacterChatBranchModal({
               ))}
             </ul>
           ) : (
-            latest?.last_content && (
+            (latest?.masked || latest?.last_content) && (
               <p className="mx-2 line-clamp-3 rounded-xl bg-white/5 px-3 py-3 text-sm leading-relaxed text-gray-300">
-                {formatChatPreview(latest.last_role, latest.last_content, characterName)}
+                {chatPreviewLabel(latest, characterName)}
               </p>
             )
           )}

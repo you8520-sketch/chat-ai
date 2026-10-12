@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import type { RecentActivityEntry, RecentTrpgCampaignEntry } from "@/lib/recentActivity";
-import type { UserChatSession } from "@/lib/recentChats";
+import { chatPreviewLabel, type DisplayChatSession } from "@/lib/recentChats";
+import MaskedChatGlyph from "./MaskedChatGlyph";
 import { CHAT_RESUME_THUMB_ATTR, chatResumeAttrs } from "@/lib/chatResumeTransition";
 import { TRPG_RESUME_GLYPH_ATTR, trpgResumeAttrs } from "@/lib/trpgResumeTransition";
 
@@ -64,20 +65,20 @@ function recentActivityActive(pathname: string, chatId: string | null, entry: Re
 
 function RecentChatRow({
   session,
+  href,
   characterName,
-  hidden,
   active,
   compact,
 }: {
-  session: UserChatSession;
+  session: DisplayChatSession;
+  href: string;
   characterName: string;
-  hidden: boolean;
   active: boolean;
   compact: boolean;
 }) {
-  const thumb = parseThumb(session.images);
-  const href = hidden ? "/verify" : `/chat/${session.character_id}?chat=${session.chat_id}`;
-  const preview = lastNarrationSnippet(session.last_content);
+  const hidden = session.masked;
+  const thumb = hidden ? null : parseThumb(session.images);
+  const preview = hidden ? chatPreviewLabel(session, characterName) : lastNarrationSnippet(session.last_content);
 
   return (
     <Link
@@ -101,12 +102,16 @@ function RecentChatRow({
         }`}
         style={{ background: `hsl(${session.hue} 60% 22%)` }}
       >
-        {thumb ? (
+        {hidden ? (
+          <span className="flex h-full w-full items-center justify-center text-zinc-300">
+            <MaskedChatGlyph className="h-4 w-4" />
+          </span>
+        ) : thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={thumb}
             alt=""
-            className={`h-full w-full object-cover ${compact ? "object-center" : "object-top"} ${hidden ? "blur-md" : ""}`}
+            className={`h-full w-full object-cover ${compact ? "object-center" : "object-top"}`}
           />
         ) : (
           <span className="flex h-full w-full items-center justify-center text-sm">{session.emoji}</span>
@@ -114,14 +119,8 @@ function RecentChatRow({
       </span>
       {!compact && (
         <span className="flex min-w-0 flex-1 flex-col text-left leading-snug">
-          {hidden ? null : (
-            <span className="truncate text-xs font-semibold text-zinc-100">{characterName}</span>
-          )}
-          <span
-            className={`text-[11px] text-zinc-400 ${hidden ? "line-clamp-2" : "truncate"}`}
-          >
-            {preview}
-          </span>
+          <span className="truncate text-xs font-semibold text-zinc-100">{characterName}</span>
+          <span className="truncate text-[11px] text-zinc-400">{preview}</span>
         </span>
       )}
     </Link>
@@ -167,13 +166,11 @@ function RecentTrpgRow({
 
 function RecentActivityRow({
   entry,
-  blurNsfw,
   compact,
   pathname,
   chatId,
 }: {
   entry: RecentActivityEntry;
-  blurNsfw: boolean;
   compact: boolean;
   pathname: string;
   chatId: string | null;
@@ -184,8 +181,8 @@ function RecentActivityRow({
       return (
         <RecentChatRow
           session={entry.session}
+          href={entry.href}
           characterName={entry.title}
-          hidden={entry.session.nsfw === 1 && blurNsfw}
           active={active}
           compact={compact}
         />
@@ -201,7 +198,6 @@ function RecentActivityRow({
 
 type Props = {
   entries: RecentActivityEntry[];
-  blurNsfw: boolean;
   compact?: boolean;
   maxIcons?: number;
   showHeader?: boolean;
@@ -209,7 +205,6 @@ type Props = {
 
 export default function SidebarRecentChatIcons({
   entries,
-  blurNsfw,
   compact = false,
   maxIcons,
   showHeader = false,
@@ -242,7 +237,6 @@ export default function SidebarRecentChatIcons({
           <RecentActivityRow
             key={entry.kind === "character_chat" ? entry.session.chat_id : `trpg-${entry.campaignId}`}
             entry={entry}
-            blurNsfw={blurNsfw}
             compact={compact}
             pathname={pathname}
             chatId={activeChatId}

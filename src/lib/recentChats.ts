@@ -34,17 +34,99 @@ export type UserChatSession = {
   title: string;
 };
 
-export type CharacterChatGroup = {
+/**
+ * 클라이언트 컴포넌트로 넘기는 최근 대화 표시 모델 (명시적 allowlist).
+ * 성인 가림(`masked`) 행에는 이름·제목·이모지·이미지·마지막 메시지가 없다.
+ * DB 행(`UserChatSession`)을 그대로 전개하지 말고 `toDisplayChatSession`만 통해 만든다.
+ */
+export type DisplayChatSession = {
+  masked: boolean;
+  chat_id: number;
   character_id: number;
   name: string;
   emoji: string;
   hue: number;
   nsfw: number;
   images: string;
-  sessions: UserChatSession[];
+  title: string;
+  last_content: string | null;
+  last_role: string | null;
+  last_at: string | null;
+  user_turn_count: number;
+  character_session_count: number;
+  session_ordinal: number;
+  chat_created_at: string;
+};
+
+export type CharacterChatGroup = {
+  character_id: number;
+  masked: boolean;
+  name: string;
+  emoji: string;
+  hue: number;
+  nsfw: number;
+  images: string;
+  sessions: DisplayChatSession[];
   latest_at: string | null;
   total_turns: number;
 };
+
+export const MASKED_CHAT_NAME = "성인 콘텐츠";
+export const MASKED_CHAT_PREVIEW = "확인이 필요한 대화입니다";
+const MASKED_CHAT_HUE = 265;
+
+/**
+ * 최근 대화 → 표시 모델의 유일한 변환 경로.
+ * `hideAdult`는 `shouldHideAdultListings(user)` 결과를 그대로 받는다 (정책 판정은 그쪽이 owner).
+ */
+export function toDisplayChatSession(session: UserChatSession, hideAdult: boolean): DisplayChatSession {
+  if (session.nsfw === 1 && hideAdult) {
+    return {
+      masked: true,
+      chat_id: session.chat_id,
+      character_id: session.character_id,
+      name: MASKED_CHAT_NAME,
+      emoji: "",
+      hue: MASKED_CHAT_HUE,
+      nsfw: 1,
+      images: "[]",
+      title: "",
+      last_content: null,
+      last_role: null,
+      last_at: session.last_at,
+      user_turn_count: session.user_turn_count,
+      character_session_count: session.character_session_count,
+      session_ordinal: session.session_ordinal,
+      chat_created_at: session.chat_created_at,
+    };
+  }
+  return {
+    masked: false,
+    chat_id: session.chat_id,
+    character_id: session.character_id,
+    name: session.name,
+    emoji: session.emoji,
+    hue: session.hue,
+    nsfw: session.nsfw,
+    images: session.images,
+    title: session.title,
+    last_content: session.last_content,
+    last_role: session.last_role,
+    last_at: session.last_at,
+    user_turn_count: session.user_turn_count,
+    character_session_count: session.character_session_count,
+    session_ordinal: session.session_ordinal,
+    chat_created_at: session.chat_created_at,
+  };
+}
+
+export function chatPreviewLabel(
+  session: Pick<DisplayChatSession, "masked" | "last_role" | "last_content">,
+  characterName: string
+): string {
+  if (session.masked) return MASKED_CHAT_PREVIEW;
+  return formatChatPreview(session.last_role, session.last_content, characterName);
+}
 
 const RECENT_CHAT_LIMIT = 20;
 const SESSION_LIST_LIMIT = 50;
@@ -224,7 +306,7 @@ export function fetchCharacterChatSessions(
 }
 
 /** 대화 목록 — 캐릭터별 그룹 (그룹 내 최근 활동 순) */
-export function groupSessionsByCharacter(sessions: UserChatSession[]): CharacterChatGroup[] {
+export function groupSessionsByCharacter(sessions: DisplayChatSession[]): CharacterChatGroup[] {
   const map = new Map<number, CharacterChatGroup>();
 
   for (const s of sessions) {
@@ -232,6 +314,7 @@ export function groupSessionsByCharacter(sessions: UserChatSession[]): Character
     if (!g) {
       g = {
         character_id: s.character_id,
+        masked: s.masked,
         name: s.name,
         emoji: s.emoji,
         hue: s.hue,
@@ -257,7 +340,7 @@ export function groupSessionsByCharacter(sessions: UserChatSession[]): Character
   return Array.from(map.values()).sort((a, b) => (b.latest_at ?? "").localeCompare(a.latest_at ?? ""));
 }
 
-export function getBranchDisplayTitle(session: UserChatSession): string {
+export function getBranchDisplayTitle(session: Pick<UserChatSession, "title" | "session_ordinal">): string {
   return formatBranchTitle(session.title, session.session_ordinal);
 }
 
@@ -289,13 +372,15 @@ export function formatChatPreview(
   return `${characterName}: ${trimmed}`;
 }
 
-export function formatChatSessionStats(session: UserChatSession): string {
+export function formatChatSessionStats(session: Pick<UserChatSession, "user_turn_count">): string {
   const parts: string[] = [`${session.user_turn_count.toLocaleString()}턴`];
   return parts.join(" · ");
 }
 
 /** 동일 캐릭터의 채팅방이 여러 개일 때 시작일 라벨 */
-export function chatSessionLabel(session: UserChatSession): string | null {
+export function chatSessionLabel(
+  session: Pick<UserChatSession, "character_session_count" | "chat_created_at">
+): string | null {
   if (session.character_session_count <= 1) return null;
   const d = new Date(
     session.chat_created_at.includes("T")

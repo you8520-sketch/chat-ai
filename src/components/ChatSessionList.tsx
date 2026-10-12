@@ -12,16 +12,16 @@ import { characterPageHref } from "@/lib/chatLinks";
 import { chatRoomHref, requestExplicitChatSession } from "@/lib/chatSessionStartClient";
 import {
   formatChatListTime,
-  formatChatPreview,
+  chatPreviewLabel,
   formatChatSessionStats,
   getBranchDisplayTitle,
   groupSessionsByCharacter,
   type CharacterChatGroup,
-  type UserChatSession,
+  type DisplayChatSession,
 } from "@/lib/recentChats";
 
 type Props = {
-  sessions: UserChatSession[];
+  sessions: DisplayChatSession[];
   blurNsfw: boolean;
   activeChatId?: number | null;
   variant?: "sidebar" | "page";
@@ -119,8 +119,8 @@ function CharacterChatRow({
         }`}
       >
         {multi && latest
-          ? `${getBranchDisplayTitle(latest)} · ${formatChatPreview(latest.last_role, latest.last_content, group.name)}`
-          : formatChatPreview(latest?.last_role ?? null, latest?.last_content ?? null, group.name)}
+          ? `${getBranchDisplayTitle(latest)} · ${chatPreviewLabel(latest, group.name)}`
+          : latest ? chatPreviewLabel(latest, group.name) : "대화를 시작해 보세요"}
       </p>
       {isPage && (
         <p className="mt-3 text-xs font-semibold text-violet-400/70 group-hover:text-violet-300">
@@ -170,7 +170,7 @@ export default function ChatSessionList({
   const groups = useMemo(() => groupSessionsByCharacter(sessions), [sessions]);
 
   const [pickerGroup, setPickerGroup] = useState<CharacterChatGroup | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<UserChatSession | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<DisplayChatSession | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState("");
 
@@ -217,7 +217,7 @@ export default function ChatSessionList({
     }
   }
 
-  function handleRenameSuccess(updated: UserChatSession) {
+  function handleRenameSuccess(updated: DisplayChatSession) {
     setPickerGroup((current) => {
       if (!current?.sessions.some((s) => s.chat_id === updated.chat_id)) return current;
       return {
@@ -277,8 +277,7 @@ export default function ChatSessionList({
           characterId={pickerGroup.character_id}
           characterName={pickerGroup.name}
           branches={pickerGroup.sessions}
-          blurNsfw={blurNsfw}
-          nsfw={pickerGroup.nsfw === 1}
+          masked={pickerGroup.masked}
           avatar={pickerGroup}
           onDeleteRequest={setPendingDelete}
           onRenameSuccess={handleRenameSuccess}
