@@ -170,10 +170,14 @@ export function reconstructOpenAiCompatibleCompletionBody(
   };
 }
 
+/**
+ * `evidence` may be supplied by the caller so text parsed before a reader
+ * exception or abort stays readable after this function throws.
+ */
 export async function decodeOpenAiCompatibleSseResponse(
-  res: Response
+  res: Response,
+  evidence: OpenAiCompatibleSseEvidence = createOpenAiCompatibleSseEvidence()
 ): Promise<OpenAiCompatibleSseEvidence> {
-  const evidence = createOpenAiCompatibleSseEvidence();
   if (!res.body) {
     evidence.schemaError = "empty response body";
     evidence.streamCompleted = true;

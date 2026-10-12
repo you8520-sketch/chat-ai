@@ -22,6 +22,8 @@ export type PaidRunnerArtifactRecord = {
   requestOrder: number;
   fingerprint: string;
   text: string;
+  /** Text received before an interrupted stream; never a completed output. */
+  partial?: boolean;
 };
 
 export type PaidRunnerArtifactStore = {
@@ -29,6 +31,8 @@ export type PaidRunnerArtifactStore = {
   persist(record: PaidRunnerArtifactRecord): string;
   load(fingerprint: string): string | null;
 };
+
+const PARTIAL_ARTIFACT_SUFFIX = ".partial.txt";
 
 function assertSafeFingerprint(fingerprint: string): void {
   if (!/^[a-f0-9]{64}$/.test(fingerprint)) {
@@ -76,7 +80,10 @@ export function createFilePaidRunnerArtifactStore(directory: string): PaidRunner
         throw new Error("ARTIFACT_FINGERPRINT_MISMATCH");
       }
       assertSafeFingerprint(fingerprint);
-      const dest = path.join(directory, `${fingerprint}.txt`);
+      const dest = path.join(
+        directory,
+        record.partial ? `${fingerprint}${PARTIAL_ARTIFACT_SUFFIX}` : `${fingerprint}.txt`
+      );
       const tmp = `${dest}.${process.pid}.${Date.now()}.tmp`;
       const fd = openSync(tmp, "w", 0o600);
       try {
@@ -106,9 +113,11 @@ export function createFilePaidRunnerArtifactStore(directory: string): PaidRunner
     },
     load(fingerprint) {
       assertSafeFingerprint(fingerprint);
-      const file = path.join(directory, `${fingerprint}.txt`);
-      if (!existsSync(file)) return null;
-      return readFileSync(file, "utf8");
+      for (const name of [`${fingerprint}.txt`, `${fingerprint}${PARTIAL_ARTIFACT_SUFFIX}`]) {
+        const file = path.join(directory, name);
+        if (existsSync(file)) return readFileSync(file, "utf8");
+      }
+      return null;
     },
   };
 }
