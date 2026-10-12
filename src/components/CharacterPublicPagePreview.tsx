@@ -131,16 +131,16 @@ export function PublicDossierBlock({
 }) {
   if (!publicDossierHasItems(dossier)) return null;
   const records = publicDossierRecordLines(dossier);
-  const rowClass = `flex items-baseline gap-3 text-xs ${align === "end" ? "md:justify-end" : ""}`;
+  const rowClass = `flex items-baseline gap-3 text-xs ${align === "end" ? "min-[960px]:justify-end" : ""}`;
   return (
     <div
-      className={`mt-3 w-fit max-w-full space-y-2 ${align === "end" ? "md:ml-auto md:text-right" : ""}`}
+      className={`mt-3 w-fit max-w-full space-y-2 ${align === "end" ? "min-[960px]:ml-auto min-[960px]:text-right" : ""}`}
     >
       {dossier.world ? (
         <div
           {...{ [HERO_ITEM_ATTR]: "world" }}
           className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] ${
-            align === "end" ? "md:justify-end" : ""
+            align === "end" ? "min-[960px]:justify-end" : ""
           }`}
         >
           <span aria-hidden className="h-px w-6 bg-[#f0e7d4]/30" />

@@ -35,6 +35,8 @@ describe("E4-3D character detail hero", () => {
   it("switches to the two-column poster layout by rail-aware width, not the bare md breakpoint", () => {
     assert.doesNotMatch(hero, /\bmd:/);
     assert.match(hero, /min-\[960px\]:grid-cols-\[/);
+    const dossier = preview.slice(preview.indexOf("export function PublicDossierBlock"), preview.indexOf("/** 홈 → 캐릭터 카드"));
+    assert.doesNotMatch(dossier, /\bmd:/, "dossier alignment follows the same breakpoint as the hero");
   });
 
   it("does not trap the start dialog or persona popover inside the hero", () => {
