@@ -12,7 +12,7 @@ import { RP_QUALITY_PRECALL_PLANNED_CALLS } from "@/lib/rpQualityPrecall";
 import {
   RP_QUALITY_PAID_EXPERIMENT_SECRET_ENV,
   evaluatePaidRunnerAuthorization,
-  isPaidRunnerARelationshipEmotionScope,
+  parsePaidRunnerExecutionScopeArg,
   type PaidRunnerAuthorizationInput,
   type PaidRunnerExecutionScope,
   type PaidRunnerPublicManifest,
@@ -42,13 +42,10 @@ function loadPublicManifest(): PaidRunnerPublicManifest | null {
   return JSON.parse(raw) as PaidRunnerPublicManifest;
 }
 
-function readExecutionScopeArg(): PaidRunnerExecutionScope | undefined {
-  const raw = readArg("--execution-scope");
-  if (!raw) return undefined;
-  if (!isPaidRunnerARelationshipEmotionScope(raw)) {
-    throw new Error("EXECUTION_SCOPE_MISMATCH");
-  }
-  return raw;
+function readExecutionScopeArg():
+  | { ok: true; executionScope?: PaidRunnerExecutionScope }
+  | { ok: false; reason: "EXECUTION_SCOPE_MISMATCH" } {
+  return parsePaidRunnerExecutionScopeArg(process.argv);
 }
 
 async function loadCanonicalSealedPack(input: {
@@ -82,7 +79,29 @@ async function loadCanonicalSealedPack(input: {
 async function main(): Promise<void> {
   const acceptPaidExecution = process.argv.includes("--accept-paid-execution");
   const liveExecuteEnabled = paidRunnerLiveExecuteEnabled();
-  const executionScope = readExecutionScopeArg();
+  const parsedScope = readExecutionScopeArg();
+  if (!parsedScope.ok) {
+    process.stdout.write(
+      `${JSON.stringify(
+        {
+          ok: false,
+          mode: "LIVE",
+          authorized: false,
+          denialReason: parsedScope.reason,
+          providerPosts: 0,
+          transportPosts: 0,
+          networkTransmitted: 0,
+          dbWrites: 0,
+          approvalStatus: "NOT_APPROVED",
+        },
+        null,
+        2
+      )}\n`
+    );
+    process.exitCode = 2;
+    return;
+  }
+  const executionScope = parsedScope.executionScope;
   const authorization: PaidRunnerAuthorizationInput = {
     userCostApproved: process.argv.includes("--user-cost-approved"),
     approvedManifestFingerprint: readArg("--approved-manifest-fingerprint") ?? "",

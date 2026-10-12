@@ -120,6 +120,12 @@ async function main(): Promise<void> {
           fingerprintsMatchPinnedV1: dry.fingerprintsMatchPinnedV1,
           transportPosts: dry.transportPosts,
           networkAttempts: dry.networkAttempts,
+          paidApproval: {
+            manifestFingerprint: dry.paidManifest.manifestFingerprint,
+            identityHash: dry.paidManifest.identityHash,
+            productionDeploySha: dry.paidManifest.productionDeploySha,
+            executionScope: dry.paidManifest.executionScope ?? null,
+          },
         },
       })
     );

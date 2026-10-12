@@ -331,6 +331,23 @@ export function isPaidRunnerARelationshipEmotionScope(
   return value === PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE;
 }
 
+export function parsePaidRunnerExecutionScopeArg(
+  argv: readonly string[]
+):
+  | { ok: true; executionScope?: PaidRunnerExecutionScope }
+  | { ok: false; reason: "EXECUTION_SCOPE_MISMATCH" } {
+  const index = argv.indexOf("--execution-scope");
+  if (index < 0) return { ok: true };
+  const raw = argv[index + 1];
+  if (typeof raw !== "string" || raw.length === 0 || raw.startsWith("-")) {
+    return { ok: false, reason: "EXECUTION_SCOPE_MISMATCH" };
+  }
+  if (!isPaidRunnerARelationshipEmotionScope(raw)) {
+    return { ok: false, reason: "EXECUTION_SCOPE_MISMATCH" };
+  }
+  return { ok: true, executionScope: raw };
+}
+
 export function selectPaidRunnerExecutableSealedCalls(
   sealedCalls: readonly PaidRunnerSealedCall[],
   executionScope?: PaidRunnerExecutionScope

@@ -39,6 +39,7 @@ import {
   PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE,
   paidRunnerManifestDraft,
   paidRunnerManifestFingerprint,
+  parsePaidRunnerExecutionScopeArg,
   paidRunnerRequestBodyFingerprint,
   paidRunnerRegistrySnapshot,
   paidRunnerSoftAimUncapped,
@@ -268,6 +269,26 @@ describe("rp quality paid runner prepare and mock execution", () => {
     );
     assert.equal(staleSha.authorized, false);
     if (!staleSha.authorized) assert.equal(staleSha.reason, "PRODUCTION_SHA_MISMATCH");
+  });
+
+  it("parses --execution-scope absent as 12-call and empty value as mismatch", () => {
+    assert.deepEqual(parsePaidRunnerExecutionScopeArg(["node", "cli"]), { ok: true });
+    assert.deepEqual(
+      parsePaidRunnerExecutionScopeArg(["node", "cli", "--execution-scope", "A_relationship_emotion"]),
+      { ok: true, executionScope: PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE }
+    );
+    assert.deepEqual(parsePaidRunnerExecutionScopeArg(["node", "cli", "--execution-scope"]), {
+      ok: false,
+      reason: "EXECUTION_SCOPE_MISMATCH",
+    });
+    assert.deepEqual(parsePaidRunnerExecutionScopeArg(["node", "cli", "--execution-scope", ""]), {
+      ok: false,
+      reason: "EXECUTION_SCOPE_MISMATCH",
+    });
+    assert.deepEqual(
+      parsePaidRunnerExecutionScopeArg(["node", "cli", "--execution-scope", "--user-cost-approved"]),
+      { ok: false, reason: "EXECUTION_SCOPE_MISMATCH" }
+    );
   });
 
   it("D. same fixture/model replay is blocked", () => {

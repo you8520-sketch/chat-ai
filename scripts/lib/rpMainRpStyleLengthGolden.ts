@@ -16,6 +16,7 @@ import {
   paidRunnerIdentityHash,
   runPaidRunner,
   verifyPaidRunnerDispatchSeal,
+  type PaidRunnerExecutionScope,
   type PaidRunnerIdentityHashes,
   type PaidRunnerSealedCall,
 } from "@/lib/rpQualityPaidRunner";
@@ -714,6 +715,12 @@ export function publicGoldenStdout(input: {
     fingerprintsMatchPinnedV1: boolean;
     transportPosts: number;
     networkAttempts: number;
+    paidApproval?: {
+      manifestFingerprint: string;
+      identityHash: string;
+      productionDeploySha: string;
+      executionScope: PaidRunnerExecutionScope | null;
+    };
   };
 }): string {
   return `${JSON.stringify(

@@ -256,6 +256,45 @@ describe("MAIN_RP_STYLE_LENGTH golden operator", () => {
     assert.equal(dry.compare?.deployShaChanged, true);
     assert.equal(dry.compare?.identityHashMatch, true);
     assert.equal(dry.compare?.finalWireMatch, true);
+    const stdout = publicGoldenStdout({
+      action: "evaluate",
+      publicManifest: dry.publicManifest,
+      sealedSha256: dry.sealedSha256,
+      compare: dry.compare,
+      providerPosts: dry.providerPosts,
+      dbWrites: dry.dbWrites,
+      evaluation: {
+        mode: dry.mode,
+        sealOk: dry.seal.ok,
+        requestBodiesPresent: dry.requestBodiesPresent,
+        fingerprintsMatchPinnedV1: dry.fingerprintsMatchPinnedV1,
+        transportPosts: dry.transportPosts,
+        networkAttempts: dry.networkAttempts,
+        paidApproval: {
+          manifestFingerprint: dry.paidManifest.manifestFingerprint,
+          identityHash: dry.paidManifest.identityHash,
+          productionDeploySha: dry.paidManifest.productionDeploySha,
+          executionScope: dry.paidManifest.executionScope ?? null,
+        },
+      },
+    });
+    const parsed = JSON.parse(stdout) as {
+      evaluationDryRun: {
+        paidApproval: {
+          manifestFingerprint: string;
+          identityHash: string;
+          productionDeploySha: string;
+          executionScope: string | null;
+        };
+      };
+    };
+    assert.equal(parsed.evaluationDryRun.paidApproval.manifestFingerprint, dry.paidManifest.manifestFingerprint);
+    assert.equal(parsed.evaluationDryRun.paidApproval.identityHash, dry.paidManifest.identityHash);
+    assert.equal(parsed.evaluationDryRun.paidApproval.productionDeploySha, liveSha);
+    assert.equal(parsed.evaluationDryRun.paidApproval.executionScope, "A_relationship_emotion");
+    assert.match(parsed.evaluationDryRun.paidApproval.manifestFingerprint, /^[a-f0-9]{64}$/);
+    assert.match(parsed.evaluationDryRun.paidApproval.identityHash, /^[a-f0-9]{64}$/);
+    assert.doesNotMatch(stdout, /hidden@example.invalid|시스템|세계관|조용한 사람/);
   });
 
   it("rejects historical id=10 rows before assembly", () => {
