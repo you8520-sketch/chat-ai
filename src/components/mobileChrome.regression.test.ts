@@ -40,7 +40,8 @@ describe("E4-3B fixed bottom chrome", () => {
     assert.match(css, /--mobile-nav-offset: var\(--mobile-bottom-nav-h\)/);
     assert.match(css, /html\[data-keyboard-open\] \.mobile-bottom-nav \{\s*display: none;/);
     assert.match(css, /@media \(min-width: 576px\) \{\s*:root \{\s*--mobile-nav-offset: 0px;/);
-    assert.match(footer, /pb-\[calc\(var\(--mobile-bottom-nav-h\)\+1rem\)\][^"]*min-\[576px\]:pb-6/);
+    assert.match(footer, /pb-\[calc\(var\(--mobile-bottom-nav-h\)\+var\(--studio-save-bar-h,0px\)\+1rem\)\]/);
+    assert.match(footer, /min-\[576px\]:pb-\[calc\(var\(--studio-save-bar-h,0px\)\+1\.5rem\)\]/);
     assert.doesNotMatch(footer, /md:pb-6/);
   });
 
@@ -48,6 +49,8 @@ describe("E4-3B fixed bottom chrome", () => {
     assert.match(saveBar, /bottom-\[calc\(var\(--mobile-nav-offset\)\+var\(--keyboard-inset\)\)\]/);
     assert.doesNotMatch(saveBar, /4\.5rem/);
     assert.match(saveBar, /z-40/);
+    assert.match(saveBar, /--studio-save-bar-h/);
+    assert.match(saveBar, /root\.style\.removeProperty\("--studio-save-bar-h"\)/);
     assert.match(saveBar, /pb-0 min-\[576px\]:pb-\[env\(safe-area-inset-bottom\)\]/);
   });
 
