@@ -249,7 +249,9 @@ export type TrpgGoalTransition = {
 /**
  * The one per-round goal transition. Precedence, fixed:
  * 1. server-verified completions (facts of this round) close their goals first;
- * 2. GM `questsRemove` / `questsClaimDone` touch only goals still active, so a removal cannot undo a completion;
+ * 2. GM `questsRemove` / `questsClaimDone` touch only goals still active, so a removal cannot undo a completion.
+ *    A claim, alone or together with a removal of the same goal ("resolved, take it off the list"), keeps the goal
+ *    active as an unconfirmed resolution proposal; only a removal with no claim retires it, without credit;
  * 3. GM `questsAdd` fills the slots left, never replacing a goal; a title removed or completed this round is not re-added.
  * Add/remove/dedupe/cap semantics are those `quests_json` always had (exact clipped-title removal, 12 active at most).
  */
@@ -266,8 +268,8 @@ export function applyGoalTransition(
   const claim = new Set((delta.questsClaimDone ?? []).map(clipTitle).filter(Boolean));
   const next: TrpgGoal[] = verified.map((goal) => {
     if (goal.status !== "active") return goal;
+    if (claim.has(goal.title)) return goal.claimedRound == null ? { ...goal, claimedRound: ctx.round } : goal;
     if (drop.has(goal.title)) return { ...goal, status: "retired" as const, closedRound: ctx.round };
-    if (claim.has(goal.title) && goal.claimedRound == null) return { ...goal, claimedRound: ctx.round };
     return goal;
   });
   const criteria = new Map<string, TrpgGoalCriterion>();
