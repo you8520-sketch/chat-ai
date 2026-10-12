@@ -1,0 +1,4765 @@
+[
+ {
+  "w": 360,
+  "char": "rich",
+  "vw": 360,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 360,
+  "docH": 2258,
+  "hero": {
+   "x": 16,
+   "y": 196,
+   "w": 328,
+   "h": 902,
+   "b": 1098
+  },
+  "poster": {
+   "x": 47,
+   "y": 225,
+   "w": 266,
+   "h": 400,
+   "b": 625
+  },
+  "h1": {
+   "x": 37,
+   "y": 657,
+   "w": 286,
+   "h": 119,
+   "b": 776
+  },
+  "h1Lines": 2,
+  "h1Font": 56.0327,
+  "h1Text": "세라핀 에르하르트세라핀에르하르트",
+  "tagline": {
+   "x": 37,
+   "y": 830,
+   "w": 244,
+   "h": 22,
+   "b": 852
+  },
+  "taglineLines": 1,
+  "nav": {
+   "h": 53,
+   "top": 791
+  },
+  "effVh": 791,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 16,
+   "y": 1734,
+   "w": 117,
+   "h": 42,
+   "b": 1776
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 943,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 16,
+   "y": 1122,
+   "w": 328,
+   "h": 184,
+   "b": 1306
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 86,
+    "y": 1788,
+    "w": 90,
+    "h": 42,
+    "b": 1830
+   },
+   {
+    "t": "포인트 선물",
+    "x": 188,
+    "y": 1788,
+    "w": 127,
+    "h": 42,
+    "b": 1830
+   }
+  ],
+  "actionRow": {
+   "x": 16,
+   "y": 1734,
+   "w": 328,
+   "h": 96,
+   "b": 1830
+  },
+  "buttonsBelowStart": 3,
+  "clipped": [],
+  "offscreenX": [
+   {
+    "tag": "DIV",
+    "cls": "grid w-max auto-cols-[4.75rem] grid-flow",
+    "l": 37,
+    "r": 533
+   },
+   {
+    "tag": "DIV",
+    "cls": "aspect-[2/3] flex w-[4.75rem] items-cent",
+    "l": 289,
+    "r": 365
+   },
+   {
+    "tag": "DIV",
+    "cls": "flex h-full w-full items-center justify-",
+    "l": 290,
+    "r": 364
+   },
+   {
+    "tag": "DIV",
+    "cls": "aspect-[2/3] flex w-[4.75rem] items-cent",
+    "l": 373,
+    "r": 449
+   },
+   {
+    "tag": "DIV",
+    "cls": "flex h-full w-full items-center justify-",
+    "l": 374,
+    "r": 448
+   },
+   {
+    "tag": "DIV",
+    "cls": "aspect-[2/3] flex w-[4.75rem] items-cent",
+    "l": 457,
+    "r": 533
+   }
+  ],
+  "order": [
+   [
+    "h1",
+    657
+   ],
+   [
+    "tagline",
+    830
+   ],
+   [
+    "gallery",
+    1122
+   ],
+   [
+    "start",
+    1734
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 360,
+  "char": "long",
+  "vw": 360,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 360,
+  "docH": 2444,
+  "hero": {
+   "x": 16,
+   "y": 196,
+   "w": 328,
+   "h": 989,
+   "b": 1185
+  },
+  "poster": {
+   "x": 47,
+   "y": 225,
+   "w": 266,
+   "h": 400,
+   "b": 625
+  },
+  "h1": {
+   "x": 37,
+   "y": 657,
+   "w": 286,
+   "h": 89,
+   "b": 746
+  },
+  "h1Lines": 4,
+  "h1Font": 28.0163,
+  "h1Text": "아르카디아 연맹 총사령관 레이첼 폰 슈바르츠발트 3세아르카디아 연맹총사령관 레이첼 폰슈바르츠발트 3세",
+  "tagline": {
+   "x": 37,
+   "y": 800,
+   "w": 286,
+   "h": 88,
+   "b": 888
+  },
+  "taglineLines": 4,
+  "nav": {
+   "h": 53,
+   "top": 791
+  },
+  "effVh": 791,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 16,
+   "y": 1919,
+   "w": 117,
+   "h": 42,
+   "b": 1961
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 1128,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 16,
+   "y": 1209,
+   "w": 328,
+   "h": 184,
+   "b": 1393
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 86,
+    "y": 1973,
+    "w": 90,
+    "h": 42,
+    "b": 2015
+   },
+   {
+    "t": "포인트 선물",
+    "x": 188,
+    "y": 1973,
+    "w": 127,
+    "h": 42,
+    "b": 2015
+   }
+  ],
+  "actionRow": {
+   "x": 16,
+   "y": 1919,
+   "w": 328,
+   "h": 96,
+   "b": 2015
+  },
+  "buttonsBelowStart": 3,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    657
+   ],
+   [
+    "tagline",
+    800
+   ],
+   [
+    "gallery",
+    1209
+   ],
+   [
+    "start",
+    1919
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 360,
+  "char": "noimg",
+  "vw": 360,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 360,
+  "docH": 1782,
+  "hero": {
+   "x": 16,
+   "y": 196,
+   "w": 328,
+   "h": 919,
+   "b": 1115
+  },
+  "poster": {
+   "x": 47,
+   "y": 225,
+   "w": 266,
+   "h": 400,
+   "b": 625
+  },
+  "h1": {
+   "x": 37,
+   "y": 657,
+   "w": 286,
+   "h": 297,
+   "b": 954
+  },
+  "h1Lines": 3,
+  "h1Font": 93.3878,
+  "h1Text": "이름만 있는 캐릭터이름만있는캐릭터",
+  "tagline": {
+   "x": 37,
+   "y": 1008,
+   "w": 184,
+   "h": 22,
+   "b": 1030
+  },
+  "taglineLines": 1,
+  "nav": {
+   "h": 53,
+   "top": 791
+  },
+  "effVh": 791,
+  "posterVisPct": 100,
+  "h1VisPct": 45,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 16,
+   "y": 1257,
+   "w": 117,
+   "h": 42,
+   "b": 1299
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 466,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 86,
+    "y": 1311,
+    "w": 90,
+    "h": 42,
+    "b": 1353
+   },
+   {
+    "t": "포인트 선물",
+    "x": 188,
+    "y": 1311,
+    "w": 127,
+    "h": 42,
+    "b": 1353
+   }
+  ],
+  "actionRow": {
+   "x": 16,
+   "y": 1257,
+   "w": 328,
+   "h": 96,
+   "b": 1353
+  },
+  "buttonsBelowStart": 3,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    657
+   ],
+   [
+    "tagline",
+    1008
+   ],
+   [
+    "start",
+    1257
+   ]
+  ],
+  "imgs": 0
+ },
+ {
+  "w": 360,
+  "char": "single",
+  "vw": 360,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 360,
+  "docH": 1676,
+  "hero": {
+   "x": 16,
+   "y": 196,
+   "w": 328,
+   "h": 813,
+   "b": 1009
+  },
+  "poster": {
+   "x": 47,
+   "y": 225,
+   "w": 266,
+   "h": 400,
+   "b": 625
+  },
+  "h1": {
+   "x": 37,
+   "y": 657,
+   "w": 286,
+   "h": 144,
+   "b": 801
+  },
+  "h1Lines": 1,
+  "h1Font": 136,
+  "h1Text": "윤하윤하",
+  "tagline": {
+   "x": 37,
+   "y": 855,
+   "w": 184,
+   "h": 22,
+   "b": 877
+  },
+  "taglineLines": 1,
+  "nav": {
+   "h": 53,
+   "top": 791
+  },
+  "effVh": 791,
+  "posterVisPct": 100,
+  "h1VisPct": 93,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 16,
+   "y": 1152,
+   "w": 117,
+   "h": 42,
+   "b": 1194
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 361,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 86,
+    "y": 1206,
+    "w": 90,
+    "h": 42,
+    "b": 1248
+   },
+   {
+    "t": "포인트 선물",
+    "x": 188,
+    "y": 1206,
+    "w": 127,
+    "h": 42,
+    "b": 1248
+   }
+  ],
+  "actionRow": {
+   "x": 16,
+   "y": 1152,
+   "w": 328,
+   "h": 96,
+   "b": 1248
+  },
+  "buttonsBelowStart": 3,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    657
+   ],
+   [
+    "tagline",
+    855
+   ],
+   [
+    "start",
+    1152
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 360,
+  "char": "official",
+  "vw": 360,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 360,
+  "docH": 2058,
+  "hero": {
+   "x": 16,
+   "y": 196,
+   "w": 328,
+   "h": 788,
+   "b": 984
+  },
+  "poster": {
+   "x": 47,
+   "y": 225,
+   "w": 266,
+   "h": 400,
+   "b": 625
+  },
+  "h1": {
+   "x": 37,
+   "y": 657,
+   "w": 286,
+   "h": 74,
+   "b": 731
+  },
+  "h1Lines": 2,
+  "h1Font": 70.0408,
+  "h1Text": "카이로스카이로스",
+  "tagline": {
+   "x": 37,
+   "y": 785,
+   "w": 212,
+   "h": 22,
+   "b": 807
+  },
+  "taglineLines": 1,
+  "nav": {
+   "h": 53,
+   "top": 791
+  },
+  "effVh": 791,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 27,
+  "start": {
+   "x": 16,
+   "y": 1484,
+   "w": 117,
+   "h": 42,
+   "b": 1526
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 693,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": {
+   "x": 141,
+   "y": 1484,
+   "w": 119,
+   "h": 42,
+   "b": 1526
+  },
+  "gallery": {
+   "x": 16,
+   "y": 1008,
+   "w": 328,
+   "h": 184,
+   "b": 1192
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 86,
+    "y": 1588,
+    "w": 90,
+    "h": 42,
+    "b": 1630
+   },
+   {
+    "t": "포인트 선물",
+    "x": 188,
+    "y": 1588,
+    "w": 127,
+    "h": 42,
+    "b": 1630
+   }
+  ],
+  "actionRow": {
+   "x": 16,
+   "y": 1484,
+   "w": 328,
+   "h": 146,
+   "b": 1630
+  },
+  "buttonsBelowStart": 4,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    657
+   ],
+   [
+    "tagline",
+    785
+   ],
+   [
+    "gallery",
+    1008
+   ],
+   [
+    "start",
+    1484
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 360,
+  "char": "sim",
+  "vw": 360,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 360,
+  "docH": 1753,
+  "hero": {
+   "x": 16,
+   "y": 196,
+   "w": 328,
+   "h": 741,
+   "b": 937
+  },
+  "poster": {
+   "x": 47,
+   "y": 225,
+   "w": 266,
+   "h": 400,
+   "b": 625
+  },
+  "h1": {
+   "x": 37,
+   "y": 657,
+   "w": 286,
+   "h": 119,
+   "b": 776
+  },
+  "h1Lines": 2,
+  "h1Font": 56.0327,
+  "h1Text": "도시 괴담 시뮬레이션도시 괴담시뮬레이션",
+  "tagline": {
+   "x": 37,
+   "y": 830,
+   "w": 240,
+   "h": 22,
+   "b": 852
+  },
+  "taglineLines": 1,
+  "nav": {
+   "h": 53,
+   "top": 791
+  },
+  "effVh": 791,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 16,
+   "y": 1229,
+   "w": 117,
+   "h": 42,
+   "b": 1271
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 438,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 86,
+    "y": 1283,
+    "w": 90,
+    "h": 42,
+    "b": 1325
+   },
+   {
+    "t": "포인트 선물",
+    "x": 188,
+    "y": 1283,
+    "w": 127,
+    "h": 42,
+    "b": 1325
+   }
+  ],
+  "actionRow": {
+   "x": 16,
+   "y": 1229,
+   "w": 328,
+   "h": 96,
+   "b": 1325
+  },
+  "buttonsBelowStart": 3,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    657
+   ],
+   [
+    "tagline",
+    830
+   ],
+   [
+    "start",
+    1229
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 390,
+  "char": "rich",
+  "vw": 390,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 390,
+  "docH": 2298,
+  "hero": {
+   "x": 16,
+   "y": 196,
+   "w": 358,
+   "h": 948,
+   "b": 1144
+  },
+  "poster": {
+   "x": 51,
+   "y": 225,
+   "w": 289,
+   "h": 433,
+   "b": 658
+  },
+  "h1": {
+   "x": 37,
+   "y": 690,
+   "w": 316,
+   "h": 131,
+   "b": 822
+  },
+  "h1Lines": 2,
+  "h1Font": 61.9102,
+  "h1Text": "세라핀 에르하르트세라핀에르하르트",
+  "tagline": {
+   "x": 37,
+   "y": 876,
+   "w": 244,
+   "h": 22,
+   "b": 898
+  },
+  "taglineLines": 1,
+  "nav": {
+   "h": 53,
+   "top": 791
+  },
+  "effVh": 791,
+  "posterVisPct": 100,
+  "h1VisPct": 77,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 16,
+   "y": 1773,
+   "w": 117,
+   "h": 42,
+   "b": 1815
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 982,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 16,
+   "y": 1168,
+   "w": 358,
+   "h": 184,
+   "b": 1352
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 16,
+    "y": 1827,
+    "w": 90,
+    "h": 42,
+    "b": 1869
+   },
+   {
+    "t": "포인트 선물",
+    "x": 118,
+    "y": 1827,
+    "w": 127,
+    "h": 42,
+    "b": 1869
+   }
+  ],
+  "actionRow": {
+   "x": 16,
+   "y": 1773,
+   "w": 358,
+   "h": 96,
+   "b": 1869
+  },
+  "buttonsBelowStart": 2,
+  "clipped": [],
+  "offscreenX": [
+   {
+    "tag": "DIV",
+    "cls": "grid w-max auto-cols-[4.75rem] grid-flow",
+    "l": 37,
+    "r": 533
+   },
+   {
+    "tag": "DIV",
+    "cls": "aspect-[2/3] flex w-[4.75rem] items-cent",
+    "l": 373,
+    "r": 449
+   },
+   {
+    "tag": "DIV",
+    "cls": "flex h-full w-full items-center justify-",
+    "l": 374,
+    "r": 448
+   },
+   {
+    "tag": "DIV",
+    "cls": "aspect-[2/3] flex w-[4.75rem] items-cent",
+    "l": 457,
+    "r": 533
+   },
+   {
+    "tag": "DIV",
+    "cls": "flex h-full w-full items-center justify-",
+    "l": 458,
+    "r": 532
+   }
+  ],
+  "order": [
+   [
+    "h1",
+    690
+   ],
+   [
+    "tagline",
+    876
+   ],
+   [
+    "gallery",
+    1168
+   ],
+   [
+    "start",
+    1773
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 390,
+  "char": "long",
+  "vw": 390,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 390,
+  "docH": 2474,
+  "hero": {
+   "x": 16,
+   "y": 196,
+   "w": 358,
+   "h": 1031,
+   "b": 1227
+  },
+  "poster": {
+   "x": 51,
+   "y": 225,
+   "w": 289,
+   "h": 433,
+   "b": 658
+  },
+  "h1": {
+   "x": 37,
+   "y": 690,
+   "w": 316,
+   "h": 98,
+   "b": 789
+  },
+  "h1Lines": 3,
+  "h1Font": 30.9551,
+  "h1Text": "아르카디아 연맹 총사령관 레이첼 폰 슈바르츠발트 3세아르카디아 연맹총사령관 레이첼 폰슈바르츠발트 3세",
+  "tagline": {
+   "x": 37,
+   "y": 843,
+   "w": 316,
+   "h": 88,
+   "b": 931
+  },
+  "taglineLines": 4,
+  "nav": {
+   "h": 53,
+   "top": 791
+  },
+  "effVh": 791,
+  "posterVisPct": 100,
+  "h1VisPct": 101,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 16,
+   "y": 1950,
+   "w": 117,
+   "h": 42,
+   "b": 1992
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 1159,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 16,
+   "y": 1251,
+   "w": 358,
+   "h": 184,
+   "b": 1435
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 16,
+    "y": 2004,
+    "w": 90,
+    "h": 42,
+    "b": 2046
+   },
+   {
+    "t": "포인트 선물",
+    "x": 118,
+    "y": 2004,
+    "w": 127,
+    "h": 42,
+    "b": 2046
+   }
+  ],
+  "actionRow": {
+   "x": 16,
+   "y": 1950,
+   "w": 358,
+   "h": 96,
+   "b": 2046
+  },
+  "buttonsBelowStart": 2,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    690
+   ],
+   [
+    "tagline",
+    843
+   ],
+   [
+    "gallery",
+    1251
+   ],
+   [
+    "start",
+    1950
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 390,
+  "char": "noimg",
+  "vw": 390,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 390,
+  "docH": 1847,
+  "hero": {
+   "x": 16,
+   "y": 196,
+   "w": 358,
+   "h": 984,
+   "b": 1180
+  },
+  "poster": {
+   "x": 51,
+   "y": 225,
+   "w": 289,
+   "h": 433,
+   "b": 658
+  },
+  "h1": {
+   "x": 37,
+   "y": 690,
+   "w": 316,
+   "h": 328,
+   "b": 1019
+  },
+  "h1Lines": 3,
+  "h1Font": 103.184,
+  "h1Text": "이름만 있는 캐릭터이름만있는캐릭터",
+  "tagline": {
+   "x": 37,
+   "y": 1073,
+   "w": 184,
+   "h": 22,
+   "b": 1095
+  },
+  "taglineLines": 1,
+  "nav": {
+   "h": 53,
+   "top": 791
+  },
+  "effVh": 791,
+  "posterVisPct": 100,
+  "h1VisPct": 31,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 16,
+   "y": 1322,
+   "w": 117,
+   "h": 42,
+   "b": 1364
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 531,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 16,
+    "y": 1376,
+    "w": 90,
+    "h": 42,
+    "b": 1418
+   },
+   {
+    "t": "포인트 선물",
+    "x": 118,
+    "y": 1376,
+    "w": 127,
+    "h": 42,
+    "b": 1418
+   }
+  ],
+  "actionRow": {
+   "x": 16,
+   "y": 1322,
+   "w": 358,
+   "h": 96,
+   "b": 1418
+  },
+  "buttonsBelowStart": 2,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    690
+   ],
+   [
+    "tagline",
+    1073
+   ],
+   [
+    "start",
+    1322
+   ]
+  ],
+  "imgs": 0
+ },
+ {
+  "w": 390,
+  "char": "single",
+  "vw": 390,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 390,
+  "docH": 1710,
+  "hero": {
+   "x": 16,
+   "y": 196,
+   "w": 358,
+   "h": 847,
+   "b": 1043
+  },
+  "poster": {
+   "x": 51,
+   "y": 225,
+   "w": 289,
+   "h": 433,
+   "b": 658
+  },
+  "h1": {
+   "x": 37,
+   "y": 690,
+   "w": 316,
+   "h": 144,
+   "b": 835
+  },
+  "h1Lines": 1,
+  "h1Font": 136,
+  "h1Text": "윤하윤하",
+  "tagline": {
+   "x": 37,
+   "y": 889,
+   "w": 184,
+   "h": 22,
+   "b": 911
+  },
+  "taglineLines": 1,
+  "nav": {
+   "h": 53,
+   "top": 791
+  },
+  "effVh": 791,
+  "posterVisPct": 100,
+  "h1VisPct": 70,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 16,
+   "y": 1185,
+   "w": 117,
+   "h": 42,
+   "b": 1227
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 394,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 16,
+    "y": 1239,
+    "w": 90,
+    "h": 42,
+    "b": 1281
+   },
+   {
+    "t": "포인트 선물",
+    "x": 118,
+    "y": 1239,
+    "w": 127,
+    "h": 42,
+    "b": 1281
+   }
+  ],
+  "actionRow": {
+   "x": 16,
+   "y": 1185,
+   "w": 358,
+   "h": 96,
+   "b": 1281
+  },
+  "buttonsBelowStart": 2,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    690
+   ],
+   [
+    "tagline",
+    889
+   ],
+   [
+    "start",
+    1185
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 390,
+  "char": "official",
+  "vw": 390,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 390,
+  "docH": 2093,
+  "hero": {
+   "x": 16,
+   "y": 196,
+   "w": 358,
+   "h": 829,
+   "b": 1025
+  },
+  "poster": {
+   "x": 51,
+   "y": 225,
+   "w": 289,
+   "h": 433,
+   "b": 658
+  },
+  "h1": {
+   "x": 37,
+   "y": 690,
+   "w": 316,
+   "h": 82,
+   "b": 772
+  },
+  "h1Lines": 2,
+  "h1Font": 77.3878,
+  "h1Text": "카이로스카이로스",
+  "tagline": {
+   "x": 37,
+   "y": 826,
+   "w": 212,
+   "h": 22,
+   "b": 848
+  },
+  "taglineLines": 1,
+  "nav": {
+   "h": 53,
+   "top": 791
+  },
+  "effVh": 791,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 16,
+   "y": 1519,
+   "w": 117,
+   "h": 42,
+   "b": 1561
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 728,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": {
+   "x": 141,
+   "y": 1519,
+   "w": 119,
+   "h": 42,
+   "b": 1561
+  },
+  "gallery": {
+   "x": 16,
+   "y": 1049,
+   "w": 358,
+   "h": 184,
+   "b": 1233
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 86,
+    "y": 1623,
+    "w": 90,
+    "h": 42,
+    "b": 1665
+   },
+   {
+    "t": "포인트 선물",
+    "x": 188,
+    "y": 1623,
+    "w": 127,
+    "h": 42,
+    "b": 1665
+   }
+  ],
+  "actionRow": {
+   "x": 16,
+   "y": 1519,
+   "w": 358,
+   "h": 146,
+   "b": 1665
+  },
+  "buttonsBelowStart": 4,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    690
+   ],
+   [
+    "tagline",
+    826
+   ],
+   [
+    "gallery",
+    1049
+   ],
+   [
+    "start",
+    1519
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 390,
+  "char": "sim",
+  "vw": 390,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 390,
+  "docH": 1793,
+  "hero": {
+   "x": 16,
+   "y": 196,
+   "w": 358,
+   "h": 787,
+   "b": 983
+  },
+  "poster": {
+   "x": 51,
+   "y": 225,
+   "w": 289,
+   "h": 433,
+   "b": 658
+  },
+  "h1": {
+   "x": 37,
+   "y": 690,
+   "w": 316,
+   "h": 131,
+   "b": 822
+  },
+  "h1Lines": 2,
+  "h1Font": 61.9102,
+  "h1Text": "도시 괴담 시뮬레이션도시 괴담시뮬레이션",
+  "tagline": {
+   "x": 37,
+   "y": 876,
+   "w": 240,
+   "h": 22,
+   "b": 898
+  },
+  "taglineLines": 1,
+  "nav": {
+   "h": 53,
+   "top": 791
+  },
+  "effVh": 791,
+  "posterVisPct": 100,
+  "h1VisPct": 77,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 16,
+   "y": 1268,
+   "w": 117,
+   "h": 42,
+   "b": 1310
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 477,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 16,
+    "y": 1322,
+    "w": 90,
+    "h": 42,
+    "b": 1364
+   },
+   {
+    "t": "포인트 선물",
+    "x": 118,
+    "y": 1322,
+    "w": 127,
+    "h": 42,
+    "b": 1364
+   }
+  ],
+  "actionRow": {
+   "x": 16,
+   "y": 1268,
+   "w": 358,
+   "h": 96,
+   "b": 1364
+  },
+  "buttonsBelowStart": 2,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    690
+   ],
+   [
+    "tagline",
+    876
+   ],
+   [
+    "start",
+    1268
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 576,
+  "char": "rich",
+  "vw": 576,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 576,
+  "docH": 2271,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 344,
+   "h": 966,
+   "b": 1162
+  },
+  "poster": {
+   "x": 237,
+   "y": 225,
+   "w": 304,
+   "h": 456,
+   "b": 681
+  },
+  "h1": {
+   "x": 237,
+   "y": 714,
+   "w": 304,
+   "h": 126,
+   "b": 840
+  },
+  "h1Lines": 2,
+  "h1Font": 59.5592,
+  "h1Text": "세라핀 에르하르트세라핀에르하르트",
+  "tagline": {
+   "x": 237,
+   "y": 894,
+   "w": 244,
+   "h": 22,
+   "b": 916
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 844,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 216,
+   "y": 1792,
+   "w": 117,
+   "h": 42,
+   "b": 1834
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 948,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 1186,
+   "w": 344,
+   "h": 184,
+   "b": 1370
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 286,
+    "y": 1846,
+    "w": 90,
+    "h": 42,
+    "b": 1888
+   },
+   {
+    "t": "포인트 선물",
+    "x": 388,
+    "y": 1846,
+    "w": 127,
+    "h": 42,
+    "b": 1888
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1792,
+   "w": 344,
+   "h": 96,
+   "b": 1888
+  },
+  "buttonsBelowStart": 3,
+  "clipped": [],
+  "offscreenX": [
+   {
+    "tag": "DIV",
+    "cls": "grid w-max auto-cols-[4.75rem] grid-flow",
+    "l": 237,
+    "r": 733
+   },
+   {
+    "tag": "DIV",
+    "cls": "aspect-[2/3] flex w-[4.75rem] items-cent",
+    "l": 573,
+    "r": 649
+   },
+   {
+    "tag": "DIV",
+    "cls": "flex h-full w-full items-center justify-",
+    "l": 574,
+    "r": 648
+   },
+   {
+    "tag": "DIV",
+    "cls": "aspect-[2/3] flex w-[4.75rem] items-cent",
+    "l": 657,
+    "r": 733
+   },
+   {
+    "tag": "DIV",
+    "cls": "flex h-full w-full items-center justify-",
+    "l": 658,
+    "r": 732
+   }
+  ],
+  "order": [
+   [
+    "h1",
+    714
+   ],
+   [
+    "tagline",
+    894
+   ],
+   [
+    "gallery",
+    1186
+   ],
+   [
+    "start",
+    1792
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 576,
+  "char": "long",
+  "vw": 576,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 576,
+  "docH": 2449,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 344,
+   "h": 1051,
+   "b": 1247
+  },
+  "poster": {
+   "x": 237,
+   "y": 225,
+   "w": 304,
+   "h": 456,
+   "b": 681
+  },
+  "h1": {
+   "x": 237,
+   "y": 714,
+   "w": 304,
+   "h": 95,
+   "b": 808
+  },
+  "h1Lines": 4,
+  "h1Font": 29.7796,
+  "h1Text": "아르카디아 연맹 총사령관 레이첼 폰 슈바르츠발트 3세아르카디아 연맹총사령관 레이첼 폰슈바르츠발트 3세",
+  "tagline": {
+   "x": 237,
+   "y": 862,
+   "w": 304,
+   "h": 88,
+   "b": 950
+  },
+  "taglineLines": 4,
+  "nav": null,
+  "effVh": 844,
+  "posterVisPct": 100,
+  "h1VisPct": 99,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 216,
+   "y": 1969,
+   "w": 117,
+   "h": 42,
+   "b": 2011
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 1125,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 1271,
+   "w": 344,
+   "h": 184,
+   "b": 1455
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 286,
+    "y": 2023,
+    "w": 90,
+    "h": 42,
+    "b": 2065
+   },
+   {
+    "t": "포인트 선물",
+    "x": 388,
+    "y": 2023,
+    "w": 127,
+    "h": 42,
+    "b": 2065
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1969,
+   "w": 344,
+   "h": 96,
+   "b": 2065
+  },
+  "buttonsBelowStart": 3,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    714
+   ],
+   [
+    "tagline",
+    862
+   ],
+   [
+    "gallery",
+    1271
+   ],
+   [
+    "start",
+    1969
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 576,
+  "char": "noimg",
+  "vw": 576,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 576,
+  "docH": 1812,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 344,
+   "h": 994,
+   "b": 1190
+  },
+  "poster": {
+   "x": 237,
+   "y": 225,
+   "w": 304,
+   "h": 456,
+   "b": 681
+  },
+  "h1": {
+   "x": 237,
+   "y": 714,
+   "w": 304,
+   "h": 316,
+   "b": 1029
+  },
+  "h1Lines": 3,
+  "h1Font": 99.2653,
+  "h1Text": "이름만 있는 캐릭터이름만있는캐릭터",
+  "tagline": {
+   "x": 237,
+   "y": 1083,
+   "w": 184,
+   "h": 22,
+   "b": 1105
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 844,
+  "posterVisPct": 100,
+  "h1VisPct": 41,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 216,
+   "y": 1333,
+   "w": 117,
+   "h": 42,
+   "b": 1375
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 489,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 286,
+    "y": 1387,
+    "w": 90,
+    "h": 42,
+    "b": 1429
+   },
+   {
+    "t": "포인트 선물",
+    "x": 388,
+    "y": 1387,
+    "w": 127,
+    "h": 42,
+    "b": 1429
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1333,
+   "w": 344,
+   "h": 96,
+   "b": 1429
+  },
+  "buttonsBelowStart": 3,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    714
+   ],
+   [
+    "tagline",
+    1083
+   ],
+   [
+    "start",
+    1333
+   ]
+  ],
+  "imgs": 0
+ },
+ {
+  "w": 576,
+  "char": "single",
+  "vw": 576,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 576,
+  "docH": 1688,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 344,
+   "h": 870,
+   "b": 1066
+  },
+  "poster": {
+   "x": 237,
+   "y": 225,
+   "w": 304,
+   "h": 456,
+   "b": 681
+  },
+  "h1": {
+   "x": 237,
+   "y": 714,
+   "w": 304,
+   "h": 144,
+   "b": 858
+  },
+  "h1Lines": 1,
+  "h1Font": 136,
+  "h1Text": "윤하윤하",
+  "tagline": {
+   "x": 237,
+   "y": 912,
+   "w": 184,
+   "h": 22,
+   "b": 934
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 844,
+  "posterVisPct": 100,
+  "h1VisPct": 90,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 216,
+   "y": 1208,
+   "w": 117,
+   "h": 42,
+   "b": 1250
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 364,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 286,
+    "y": 1262,
+    "w": 90,
+    "h": 42,
+    "b": 1304
+   },
+   {
+    "t": "포인트 선물",
+    "x": 388,
+    "y": 1262,
+    "w": 127,
+    "h": 42,
+    "b": 1304
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1208,
+   "w": 344,
+   "h": 96,
+   "b": 1304
+  },
+  "buttonsBelowStart": 3,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    714
+   ],
+   [
+    "tagline",
+    912
+   ],
+   [
+    "start",
+    1208
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 576,
+  "char": "official",
+  "vw": 576,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 576,
+  "docH": 2068,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 344,
+   "h": 849,
+   "b": 1045
+  },
+  "poster": {
+   "x": 237,
+   "y": 225,
+   "w": 304,
+   "h": 456,
+   "b": 681
+  },
+  "h1": {
+   "x": 237,
+   "y": 714,
+   "w": 304,
+   "h": 79,
+   "b": 792
+  },
+  "h1Lines": 1,
+  "h1Font": 74.449,
+  "h1Text": "카이로스카이로스",
+  "tagline": {
+   "x": 237,
+   "y": 846,
+   "w": 212,
+   "h": 22,
+   "b": 868
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 844,
+  "posterVisPct": 100,
+  "h1VisPct": 99,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 216,
+   "y": 1539,
+   "w": 117,
+   "h": 42,
+   "b": 1581
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 695,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": {
+   "x": 341,
+   "y": 1539,
+   "w": 119,
+   "h": 42,
+   "b": 1581
+  },
+  "gallery": {
+   "x": 216,
+   "y": 1069,
+   "w": 344,
+   "h": 184,
+   "b": 1253
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 286,
+    "y": 1643,
+    "w": 90,
+    "h": 42,
+    "b": 1685
+   },
+   {
+    "t": "포인트 선물",
+    "x": 388,
+    "y": 1643,
+    "w": 127,
+    "h": 42,
+    "b": 1685
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1539,
+   "w": 344,
+   "h": 146,
+   "b": 1685
+  },
+  "buttonsBelowStart": 4,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    714
+   ],
+   [
+    "tagline",
+    846
+   ],
+   [
+    "gallery",
+    1069
+   ],
+   [
+    "start",
+    1539
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 576,
+  "char": "sim",
+  "vw": 576,
+  "vh": 844,
+  "hOverflow": false,
+  "scrollWidth": 576,
+  "docH": 1766,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 344,
+   "h": 805,
+   "b": 1001
+  },
+  "poster": {
+   "x": 237,
+   "y": 225,
+   "w": 304,
+   "h": 456,
+   "b": 681
+  },
+  "h1": {
+   "x": 237,
+   "y": 714,
+   "w": 304,
+   "h": 126,
+   "b": 840
+  },
+  "h1Lines": 2,
+  "h1Font": 59.5592,
+  "h1Text": "도시 괴담 시뮬레이션도시 괴담시뮬레이션",
+  "tagline": {
+   "x": 237,
+   "y": 894,
+   "w": 240,
+   "h": 22,
+   "b": 916
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 844,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 216,
+   "y": 1287,
+   "w": 117,
+   "h": 42,
+   "b": 1329
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 443,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 286,
+    "y": 1341,
+    "w": 90,
+    "h": 42,
+    "b": 1383
+   },
+   {
+    "t": "포인트 선물",
+    "x": 388,
+    "y": 1341,
+    "w": 127,
+    "h": 42,
+    "b": 1383
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1287,
+   "w": 344,
+   "h": 96,
+   "b": 1383
+  },
+  "buttonsBelowStart": 3,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    714
+   ],
+   [
+    "tagline",
+    894
+   ],
+   [
+    "start",
+    1287
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 640,
+  "char": "rich",
+  "vw": 640,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 625,
+  "docH": 2275,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 393,
+   "h": 976,
+   "b": 1172
+  },
+  "poster": {
+   "x": 261,
+   "y": 225,
+   "w": 304,
+   "h": 456,
+   "b": 681
+  },
+  "h1": {
+   "x": 249,
+   "y": 714,
+   "w": 327,
+   "h": 136,
+   "b": 849
+  },
+  "h1Lines": 2,
+  "h1Font": 64.0653,
+  "h1Text": "세라핀 에르하르트세라핀에르하르트",
+  "tagline": {
+   "x": 249,
+   "y": 903,
+   "w": 244,
+   "h": 22,
+   "b": 925
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 99,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 216,
+   "y": 1815,
+   "w": 117,
+   "h": 42,
+   "b": 1857
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 915,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 1196,
+   "w": 393,
+   "h": 196,
+   "b": 1392
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 216,
+    "y": 1869,
+    "w": 90,
+    "h": 42,
+    "b": 1911
+   },
+   {
+    "t": "포인트 선물",
+    "x": 318,
+    "y": 1869,
+    "w": 127,
+    "h": 42,
+    "b": 1911
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1815,
+   "w": 393,
+   "h": 96,
+   "b": 1911
+  },
+  "buttonsBelowStart": 2,
+  "clipped": [],
+  "offscreenX": [
+   {
+    "tag": "DIV",
+    "cls": "grid w-max auto-cols-[4.75rem] grid-flow",
+    "l": 237,
+    "r": 781
+   },
+   {
+    "tag": "DIV",
+    "cls": "aspect-[2/3] flex w-[4.75rem] items-cent",
+    "l": 605,
+    "r": 689
+   },
+   {
+    "tag": "DIV",
+    "cls": "flex h-full w-full items-center justify-",
+    "l": 606,
+    "r": 688
+   },
+   {
+    "tag": "DIV",
+    "cls": "aspect-[2/3] flex w-[4.75rem] items-cent",
+    "l": 697,
+    "r": 781
+   },
+   {
+    "tag": "DIV",
+    "cls": "flex h-full w-full items-center justify-",
+    "l": 698,
+    "r": 780
+   }
+  ],
+  "order": [
+   [
+    "h1",
+    714
+   ],
+   [
+    "tagline",
+    903
+   ],
+   [
+    "gallery",
+    1196
+   ],
+   [
+    "start",
+    1815
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 640,
+  "char": "long",
+  "vw": 640,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 625,
+  "docH": 2444,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 393,
+   "h": 1058,
+   "b": 1254
+  },
+  "poster": {
+   "x": 261,
+   "y": 225,
+   "w": 304,
+   "h": 456,
+   "b": 681
+  },
+  "h1": {
+   "x": 249,
+   "y": 714,
+   "w": 327,
+   "h": 102,
+   "b": 815
+  },
+  "h1Lines": 4,
+  "h1Font": 32.0327,
+  "h1Text": "아르카디아 연맹 총사령관 레이첼 폰 슈바르츠발트 3세아르카디아 연맹총사령관 레이첼 폰슈바르츠발트 3세",
+  "tagline": {
+   "x": 249,
+   "y": 869,
+   "w": 327,
+   "h": 88,
+   "b": 957
+  },
+  "taglineLines": 4,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 99,
+  "taglineVisPct": 35,
+  "start": {
+   "x": 216,
+   "y": 1984,
+   "w": 117,
+   "h": 42,
+   "b": 2026
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 1084,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 1278,
+   "w": 393,
+   "h": 196,
+   "b": 1474
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 216,
+    "y": 2038,
+    "w": 90,
+    "h": 42,
+    "b": 2080
+   },
+   {
+    "t": "포인트 선물",
+    "x": 318,
+    "y": 2038,
+    "w": 127,
+    "h": 42,
+    "b": 2080
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1984,
+   "w": 393,
+   "h": 96,
+   "b": 2080
+  },
+  "buttonsBelowStart": 2,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    714
+   ],
+   [
+    "tagline",
+    869
+   ],
+   [
+    "gallery",
+    1278
+   ],
+   [
+    "start",
+    1984
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 640,
+  "char": "noimg",
+  "vw": 640,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 625,
+  "docH": 1824,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 393,
+   "h": 1018,
+   "b": 1214
+  },
+  "poster": {
+   "x": 261,
+   "y": 225,
+   "w": 304,
+   "h": 456,
+   "b": 681
+  },
+  "h1": {
+   "x": 249,
+   "y": 714,
+   "w": 327,
+   "h": 340,
+   "b": 1053
+  },
+  "h1Lines": 4,
+  "h1Font": 106.776,
+  "h1Text": "이름만 있는 캐릭터이름만있는캐릭터",
+  "tagline": {
+   "x": 249,
+   "y": 1107,
+   "w": 184,
+   "h": 22,
+   "b": 1129
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 55,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 216,
+   "y": 1364,
+   "w": 117,
+   "h": 42,
+   "b": 1406
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 464,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 216,
+    "y": 1418,
+    "w": 90,
+    "h": 42,
+    "b": 1460
+   },
+   {
+    "t": "포인트 선물",
+    "x": 318,
+    "y": 1418,
+    "w": 127,
+    "h": 42,
+    "b": 1460
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1364,
+   "w": 393,
+   "h": 96,
+   "b": 1460
+  },
+  "buttonsBelowStart": 2,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    714
+   ],
+   [
+    "tagline",
+    1107
+   ],
+   [
+    "start",
+    1364
+   ]
+  ],
+  "imgs": 0
+ },
+ {
+  "w": 640,
+  "char": "single",
+  "vw": 640,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 625,
+  "docH": 1676,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 393,
+   "h": 870,
+   "b": 1066
+  },
+  "poster": {
+   "x": 261,
+   "y": 225,
+   "w": 304,
+   "h": 456,
+   "b": 681
+  },
+  "h1": {
+   "x": 249,
+   "y": 714,
+   "w": 327,
+   "h": 144,
+   "b": 858
+  },
+  "h1Lines": 1,
+  "h1Font": 136,
+  "h1Text": "윤하윤하",
+  "tagline": {
+   "x": 249,
+   "y": 912,
+   "w": 184,
+   "h": 22,
+   "b": 934
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 216,
+   "y": 1216,
+   "w": 117,
+   "h": 42,
+   "b": 1258
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 316,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 216,
+    "y": 1270,
+    "w": 90,
+    "h": 42,
+    "b": 1312
+   },
+   {
+    "t": "포인트 선물",
+    "x": 318,
+    "y": 1270,
+    "w": 127,
+    "h": 42,
+    "b": 1312
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1216,
+   "w": 393,
+   "h": 96,
+   "b": 1312
+  },
+  "buttonsBelowStart": 2,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    714
+   ],
+   [
+    "tagline",
+    912
+   ],
+   [
+    "start",
+    1216
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 640,
+  "char": "official",
+  "vw": 640,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 625,
+  "docH": 2068,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 393,
+   "h": 855,
+   "b": 1051
+  },
+  "poster": {
+   "x": 261,
+   "y": 225,
+   "w": 304,
+   "h": 456,
+   "b": 681
+  },
+  "h1": {
+   "x": 249,
+   "y": 714,
+   "w": 327,
+   "h": 85,
+   "b": 798
+  },
+  "h1Lines": 1,
+  "h1Font": 80.0816,
+  "h1Text": "카이로스카이로스",
+  "tagline": {
+   "x": 249,
+   "y": 852,
+   "w": 212,
+   "h": 22,
+   "b": 874
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 99,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1558,
+   "w": 117,
+   "h": 42,
+   "b": 1600
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 658,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": {
+   "x": 341,
+   "y": 1558,
+   "w": 119,
+   "h": 42,
+   "b": 1600
+  },
+  "gallery": {
+   "x": 216,
+   "y": 1075,
+   "w": 393,
+   "h": 196,
+   "b": 1271
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 286,
+    "y": 1662,
+    "w": 90,
+    "h": 42,
+    "b": 1704
+   },
+   {
+    "t": "포인트 선물",
+    "x": 388,
+    "y": 1662,
+    "w": 127,
+    "h": 42,
+    "b": 1704
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1558,
+   "w": 393,
+   "h": 146,
+   "b": 1704
+  },
+  "buttonsBelowStart": 4,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    714
+   ],
+   [
+    "tagline",
+    852
+   ],
+   [
+    "gallery",
+    1075
+   ],
+   [
+    "start",
+    1558
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 640,
+  "char": "sim",
+  "vw": 640,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 625,
+  "docH": 1758,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 393,
+   "h": 814,
+   "b": 1010
+  },
+  "poster": {
+   "x": 261,
+   "y": 225,
+   "w": 304,
+   "h": 456,
+   "b": 681
+  },
+  "h1": {
+   "x": 249,
+   "y": 714,
+   "w": 327,
+   "h": 136,
+   "b": 849
+  },
+  "h1Lines": 2,
+  "h1Font": 64.0653,
+  "h1Text": "도시 괴담 시뮬레이션도시 괴담시뮬레이션",
+  "tagline": {
+   "x": 249,
+   "y": 903,
+   "w": 240,
+   "h": 22,
+   "b": 925
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 99,
+  "taglineVisPct": 0,
+  "start": {
+   "x": 216,
+   "y": 1298,
+   "w": 117,
+   "h": 42,
+   "b": 1340
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 398,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 216,
+    "y": 1352,
+    "w": 90,
+    "h": 42,
+    "b": 1394
+   },
+   {
+    "t": "포인트 선물",
+    "x": 318,
+    "y": 1352,
+    "w": 127,
+    "h": 42,
+    "b": 1394
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1298,
+   "w": 393,
+   "h": 96,
+   "b": 1394
+  },
+  "buttonsBelowStart": 2,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    714
+   ],
+   [
+    "tagline",
+    903
+   ],
+   [
+    "start",
+    1298
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 768,
+  "char": "rich",
+  "vw": 768,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 753,
+  "docH": 2064,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 521,
+   "h": 826,
+   "b": 1022
+  },
+  "poster": {
+   "x": 360,
+   "y": 357,
+   "w": 336,
+   "h": 504,
+   "b": 861
+  },
+  "h1": {
+   "x": 257,
+   "y": 299,
+   "w": 83,
+   "h": 34,
+   "b": 333
+  },
+  "h1Lines": 2,
+  "h1Font": 16.2612,
+  "h1Text": "세라핀 에르하르트세라핀에르하르트",
+  "tagline": {
+   "x": 257,
+   "y": 411,
+   "w": 83,
+   "h": 88,
+   "b": 499
+  },
+  "taglineLines": 4,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1624,
+   "w": 117,
+   "h": 42,
+   "b": 1666
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 724,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 1046,
+   "w": 521,
+   "h": 196,
+   "b": 1242
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1624,
+    "w": 90,
+    "h": 42,
+    "b": 1666
+   },
+   {
+    "t": "포인트 선물",
+    "x": 216,
+    "y": 1678,
+    "w": 127,
+    "h": 42,
+    "b": 1720
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1624,
+   "w": 521,
+   "h": 96,
+   "b": 1720
+  },
+  "buttonsBelowStart": 1,
+  "clipped": [],
+  "offscreenX": [
+   {
+    "tag": "DIV",
+    "cls": "grid w-max auto-cols-[4.75rem] grid-flow",
+    "l": 237,
+    "r": 781
+   },
+   {
+    "tag": "DIV",
+    "cls": "aspect-[2/3] flex w-[4.75rem] items-cent",
+    "l": 697,
+    "r": 781
+   },
+   {
+    "tag": "DIV",
+    "cls": "flex h-full w-full items-center justify-",
+    "l": 698,
+    "r": 780
+   }
+  ],
+  "order": [
+   [
+    "h1",
+    299
+   ],
+   [
+    "tagline",
+    411
+   ],
+   [
+    "gallery",
+    1046
+   ],
+   [
+    "start",
+    1624
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 768,
+  "char": "long",
+  "vw": 768,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 753,
+  "docH": 2799,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 521,
+   "h": 1469,
+   "b": 1665
+  },
+  "poster": {
+   "x": 360,
+   "y": 679,
+   "w": 336,
+   "h": 504,
+   "b": 1183
+  },
+  "h1": {
+   "x": 257,
+   "y": 299,
+   "w": 83,
+   "h": 26,
+   "b": 324
+  },
+  "h1Lines": 3,
+  "h1Font": 8.13061,
+  "h1Text": "아르카디아 연맹 총사령관 레이첼 폰 슈바르츠발트 3세아르카디아 연맹총사령관 레이첼 폰슈바르츠발트 3세",
+  "tagline": {
+   "x": 257,
+   "y": 402,
+   "w": 83,
+   "h": 308,
+   "b": 710
+  },
+  "taglineLines": 14,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 44,
+  "h1VisPct": 96,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 2359,
+   "w": 117,
+   "h": 42,
+   "b": 2401
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 1459,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 1689,
+   "w": 521,
+   "h": 196,
+   "b": 1885
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 2359,
+    "w": 90,
+    "h": 42,
+    "b": 2401
+   },
+   {
+    "t": "포인트 선물",
+    "x": 216,
+    "y": 2413,
+    "w": 127,
+    "h": 42,
+    "b": 2455
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 2359,
+   "w": 521,
+   "h": 96,
+   "b": 2455
+  },
+  "buttonsBelowStart": 1,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    299
+   ],
+   [
+    "tagline",
+    402
+   ],
+   [
+    "gallery",
+    1689
+   ],
+   [
+    "start",
+    2359
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 768,
+  "char": "noimg",
+  "vw": 768,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 753,
+  "docH": 1372,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 521,
+   "h": 586,
+   "b": 782
+  },
+  "poster": {
+   "x": 360,
+   "y": 237,
+   "w": 336,
+   "h": 504,
+   "b": 741
+  },
+  "h1": {
+   "x": 257,
+   "y": 377,
+   "w": 83,
+   "h": 86,
+   "b": 463
+  },
+  "h1Lines": 3,
+  "h1Font": 27.102,
+  "h1Text": "이름만 있는 캐릭터이름만있는캐릭터",
+  "tagline": {
+   "x": 257,
+   "y": 541,
+   "w": 83,
+   "h": 66,
+   "b": 607
+  },
+  "taglineLines": 3,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 932,
+   "w": 117,
+   "h": 42,
+   "b": 974
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 32,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 932,
+    "w": 90,
+    "h": 42,
+    "b": 974
+   },
+   {
+    "t": "포인트 선물",
+    "x": 216,
+    "y": 986,
+    "w": 127,
+    "h": 42,
+    "b": 1028
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 932,
+   "w": 521,
+   "h": 96,
+   "b": 1028
+  },
+  "buttonsBelowStart": 1,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    377
+   ],
+   [
+    "tagline",
+    541
+   ],
+   [
+    "start",
+    932
+   ]
+  ],
+  "imgs": 0
+ },
+ {
+  "w": 768,
+  "char": "single",
+  "vw": 768,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 753,
+  "docH": 1372,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 521,
+   "h": 586,
+   "b": 782
+  },
+  "poster": {
+   "x": 360,
+   "y": 237,
+   "w": 336,
+   "h": 504,
+   "b": 741
+  },
+  "h1": {
+   "x": 257,
+   "y": 342,
+   "w": 83,
+   "h": 43,
+   "b": 385
+  },
+  "h1Lines": 1,
+  "h1Font": 40.6531,
+  "h1Text": "윤하윤하",
+  "tagline": {
+   "x": 257,
+   "y": 463,
+   "w": 83,
+   "h": 66,
+   "b": 529
+  },
+  "taglineLines": 3,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 932,
+   "w": 117,
+   "h": 42,
+   "b": 974
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 32,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 932,
+    "w": 90,
+    "h": 42,
+    "b": 974
+   },
+   {
+    "t": "포인트 선물",
+    "x": 216,
+    "y": 986,
+    "w": 127,
+    "h": 42,
+    "b": 1028
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 932,
+   "w": 521,
+   "h": 96,
+   "b": 1028
+  },
+  "buttonsBelowStart": 1,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    342
+   ],
+   [
+    "tagline",
+    463
+   ],
+   [
+    "start",
+    932
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 768,
+  "char": "official",
+  "vw": 768,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 753,
+  "docH": 1862,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 521,
+   "h": 737,
+   "b": 933
+  },
+  "poster": {
+   "x": 360,
+   "y": 312,
+   "w": 336,
+   "h": 504,
+   "b": 816
+  },
+  "h1": {
+   "x": 257,
+   "y": 299,
+   "w": 83,
+   "h": 22,
+   "b": 320
+  },
+  "h1Lines": 1,
+  "h1Font": 20.3265,
+  "h1Text": "카이로스카이로스",
+  "tagline": {
+   "x": 257,
+   "y": 398,
+   "w": 83,
+   "h": 66,
+   "b": 464
+  },
+  "taglineLines": 3,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 95,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1422,
+   "w": 117,
+   "h": 42,
+   "b": 1464
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 522,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": {
+   "x": 341,
+   "y": 1422,
+   "w": 119,
+   "h": 42,
+   "b": 1464
+  },
+  "gallery": {
+   "x": 216,
+   "y": 957,
+   "w": 521,
+   "h": 196,
+   "b": 1153
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 216,
+    "y": 1476,
+    "w": 90,
+    "h": 42,
+    "b": 1518
+   },
+   {
+    "t": "포인트 선물",
+    "x": 318,
+    "y": 1476,
+    "w": 127,
+    "h": 42,
+    "b": 1518
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1422,
+   "w": 521,
+   "h": 96,
+   "b": 1518
+  },
+  "buttonsBelowStart": 2,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    299
+   ],
+   [
+    "tagline",
+    398
+   ],
+   [
+    "gallery",
+    957
+   ],
+   [
+    "start",
+    1422
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 768,
+  "char": "sim",
+  "vw": 768,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 753,
+  "docH": 1491,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 521,
+   "h": 586,
+   "b": 782
+  },
+  "poster": {
+   "x": 360,
+   "y": 237,
+   "w": 336,
+   "h": 504,
+   "b": 741
+  },
+  "h1": {
+   "x": 257,
+   "y": 367,
+   "w": 83,
+   "h": 34,
+   "b": 401
+  },
+  "h1Lines": 2,
+  "h1Font": 16.2612,
+  "h1Text": "도시 괴담 시뮬레이션도시 괴담시뮬레이션",
+  "tagline": {
+   "x": 257,
+   "y": 479,
+   "w": 83,
+   "h": 88,
+   "b": 567
+  },
+  "taglineLines": 4,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1051,
+   "w": 117,
+   "h": 42,
+   "b": 1093
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 151,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1051,
+    "w": 90,
+    "h": 42,
+    "b": 1093
+   },
+   {
+    "t": "포인트 선물",
+    "x": 216,
+    "y": 1105,
+    "w": 127,
+    "h": 42,
+    "b": 1147
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1051,
+   "w": 521,
+   "h": 96,
+   "b": 1147
+  },
+  "buttonsBelowStart": 1,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    367
+   ],
+   [
+    "tagline",
+    479
+   ],
+   [
+    "start",
+    1051
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 1024,
+  "char": "rich",
+  "vw": 1024,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 1009,
+  "docH": 1687,
+  "hero": {
+   "x": 216,
+   "y": 151,
+   "w": 777,
+   "h": 586,
+   "b": 737
+  },
+  "poster": {
+   "x": 616,
+   "y": 192,
+   "w": 336,
+   "h": 504,
+   "b": 696
+  },
+  "h1": {
+   "x": 257,
+   "y": 241,
+   "w": 339,
+   "h": 141,
+   "b": 382
+  },
+  "h1Lines": 3,
+  "h1Font": 66.4163,
+  "h1Text": "세라핀 에르하르트세라핀에르하르트",
+  "tagline": {
+   "x": 352,
+   "y": 436,
+   "w": 244,
+   "h": 22,
+   "b": 458
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1321,
+   "w": 117,
+   "h": 42,
+   "b": 1363
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 421,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 761,
+   "w": 777,
+   "h": 196,
+   "b": 957
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1321,
+    "w": 90,
+    "h": 42,
+    "b": 1363
+   },
+   {
+    "t": "포인트 선물",
+    "x": 685,
+    "y": 1321,
+    "w": 127,
+    "h": 42,
+    "b": 1363
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1321,
+   "w": 777,
+   "h": 42,
+   "b": 1363
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    241
+   ],
+   [
+    "tagline",
+    436
+   ],
+   [
+    "gallery",
+    761
+   ],
+   [
+    "start",
+    1321
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 1024,
+  "char": "long",
+  "vw": 1024,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 1009,
+  "docH": 1800,
+  "hero": {
+   "x": 216,
+   "y": 151,
+   "w": 777,
+   "h": 626,
+   "b": 777
+  },
+  "poster": {
+   "x": 616,
+   "y": 212,
+   "w": 336,
+   "h": 504,
+   "b": 716
+  },
+  "h1": {
+   "x": 257,
+   "y": 221,
+   "w": 339,
+   "h": 106,
+   "b": 326
+  },
+  "h1Lines": 3,
+  "h1Font": 33.2082,
+  "h1Text": "아르카디아 연맹 총사령관 레이첼 폰 슈바르츠발트 3세아르카디아 연맹총사령관 레이첼 폰슈바르츠발트 3세",
+  "tagline": {
+   "x": 257,
+   "y": 380,
+   "w": 339,
+   "h": 88,
+   "b": 468
+  },
+  "taglineLines": 4,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 99,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1434,
+   "w": 117,
+   "h": 42,
+   "b": 1476
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 534,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 801,
+   "w": 777,
+   "h": 196,
+   "b": 997
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1434,
+    "w": 90,
+    "h": 42,
+    "b": 1476
+   },
+   {
+    "t": "포인트 선물",
+    "x": 685,
+    "y": 1434,
+    "w": 127,
+    "h": 42,
+    "b": 1476
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1434,
+   "w": 777,
+   "h": 42,
+   "b": 1476
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    221
+   ],
+   [
+    "tagline",
+    380
+   ],
+   [
+    "gallery",
+    801
+   ],
+   [
+    "start",
+    1434
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 1024,
+  "char": "noimg",
+  "vw": 1024,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 1009,
+  "docH": 1262,
+  "hero": {
+   "x": 216,
+   "y": 151,
+   "w": 777,
+   "h": 594,
+   "b": 745
+  },
+  "poster": {
+   "x": 616,
+   "y": 196,
+   "w": 336,
+   "h": 504,
+   "b": 700
+  },
+  "h1": {
+   "x": 257,
+   "y": 221,
+   "w": 339,
+   "h": 352,
+   "b": 572
+  },
+  "h1Lines": 3,
+  "h1Font": 110.694,
+  "h1Text": "이름만 있는 캐릭터이름만있는캐릭터",
+  "tagline": {
+   "x": 412,
+   "y": 626,
+   "w": 184,
+   "h": 22,
+   "b": 648
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 896,
+   "w": 117,
+   "h": 42,
+   "b": 938
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": -4,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 896,
+    "w": 90,
+    "h": 42,
+    "b": 938
+   },
+   {
+    "t": "포인트 선물",
+    "x": 685,
+    "y": 896,
+    "w": 127,
+    "h": 42,
+    "b": 938
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 896,
+   "w": 777,
+   "h": 42,
+   "b": 938
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    221
+   ],
+   [
+    "tagline",
+    626
+   ],
+   [
+    "start",
+    896
+   ]
+  ],
+  "imgs": 0
+ },
+ {
+  "w": 1024,
+  "char": "single",
+  "vw": 1024,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 1009,
+  "docH": 1253,
+  "hero": {
+   "x": 216,
+   "y": 151,
+   "w": 777,
+   "h": 586,
+   "b": 737
+  },
+  "poster": {
+   "x": 616,
+   "y": 192,
+   "w": 336,
+   "h": 504,
+   "b": 696
+  },
+  "h1": {
+   "x": 257,
+   "y": 297,
+   "w": 339,
+   "h": 144,
+   "b": 441
+  },
+  "h1Lines": 1,
+  "h1Font": 136,
+  "h1Text": "윤하윤하",
+  "tagline": {
+   "x": 412,
+   "y": 495,
+   "w": 184,
+   "h": 22,
+   "b": 517
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 887,
+   "w": 117,
+   "h": 42,
+   "b": 929
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": -13,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 887,
+    "w": 90,
+    "h": 42,
+    "b": 929
+   },
+   {
+    "t": "포인트 선물",
+    "x": 685,
+    "y": 887,
+    "w": 127,
+    "h": 42,
+    "b": 929
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 887,
+   "w": 777,
+   "h": 42,
+   "b": 929
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    297
+   ],
+   [
+    "tagline",
+    495
+   ],
+   [
+    "start",
+    887
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 1024,
+  "char": "official",
+  "vw": 1024,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 1009,
+  "docH": 1574,
+  "hero": {
+   "x": 216,
+   "y": 151,
+   "w": 777,
+   "h": 586,
+   "b": 737
+  },
+  "poster": {
+   "x": 616,
+   "y": 192,
+   "w": 336,
+   "h": 504,
+   "b": 696
+  },
+  "h1": {
+   "x": 257,
+   "y": 303,
+   "w": 339,
+   "h": 88,
+   "b": 390
+  },
+  "h1Lines": 2,
+  "h1Font": 83.0204,
+  "h1Text": "카이로스카이로스",
+  "tagline": {
+   "x": 384,
+   "y": 444,
+   "w": 212,
+   "h": 22,
+   "b": 466
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 99,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1208,
+   "w": 117,
+   "h": 42,
+   "b": 1250
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 308,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": {
+   "x": 341,
+   "y": 1208,
+   "w": 119,
+   "h": 42,
+   "b": 1250
+  },
+  "gallery": {
+   "x": 216,
+   "y": 761,
+   "w": 777,
+   "h": 196,
+   "b": 957
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 710,
+    "y": 1208,
+    "w": 90,
+    "h": 42,
+    "b": 1250
+   },
+   {
+    "t": "포인트 선물",
+    "x": 812,
+    "y": 1208,
+    "w": 127,
+    "h": 42,
+    "b": 1250
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1208,
+   "w": 777,
+   "h": 42,
+   "b": 1250
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    303
+   ],
+   [
+    "tagline",
+    444
+   ],
+   [
+    "gallery",
+    761
+   ],
+   [
+    "start",
+    1208
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 1024,
+  "char": "sim",
+  "vw": 1024,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 1009,
+  "docH": 1354,
+  "hero": {
+   "x": 216,
+   "y": 151,
+   "w": 777,
+   "h": 586,
+   "b": 737
+  },
+  "poster": {
+   "x": 616,
+   "y": 192,
+   "w": 336,
+   "h": 504,
+   "b": 696
+  },
+  "h1": {
+   "x": 257,
+   "y": 322,
+   "w": 339,
+   "h": 141,
+   "b": 463
+  },
+  "h1Lines": 3,
+  "h1Font": 66.4163,
+  "h1Text": "도시 괴담 시뮬레이션도시 괴담시뮬레이션",
+  "tagline": {
+   "x": 356,
+   "y": 517,
+   "w": 240,
+   "h": 22,
+   "b": 539
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 988,
+   "w": 117,
+   "h": 42,
+   "b": 1030
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 88,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 988,
+    "w": 90,
+    "h": 42,
+    "b": 1030
+   },
+   {
+    "t": "포인트 선물",
+    "x": 685,
+    "y": 988,
+    "w": 127,
+    "h": 42,
+    "b": 1030
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 988,
+   "w": 777,
+   "h": 42,
+   "b": 1030
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    322
+   ],
+   [
+    "tagline",
+    517
+   ],
+   [
+    "start",
+    988
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 1440,
+  "char": "rich",
+  "vw": 1440,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 1425,
+  "docH": 1655,
+  "hero": {
+   "x": 289,
+   "y": 151,
+   "w": 1048,
+   "h": 586,
+   "b": 737
+  },
+  "poster": {
+   "x": 853,
+   "y": 192,
+   "w": 336,
+   "h": 504,
+   "b": 696
+  },
+  "h1": {
+   "x": 437,
+   "y": 254,
+   "w": 396,
+   "h": 164,
+   "b": 419
+  },
+  "h1Lines": 3,
+  "h1Font": 77.5837,
+  "h1Text": "세라핀 에르하르트세라핀에르하르트",
+  "tagline": {
+   "x": 589,
+   "y": 473,
+   "w": 244,
+   "h": 22,
+   "b": 495
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 101,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 289,
+   "y": 1309,
+   "w": 117,
+   "h": 42,
+   "b": 1351
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 409,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 289,
+   "y": 761,
+   "w": 1048,
+   "h": 196,
+   "b": 957
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 656,
+    "y": 1309,
+    "w": 90,
+    "h": 42,
+    "b": 1351
+   },
+   {
+    "t": "포인트 선물",
+    "x": 758,
+    "y": 1309,
+    "w": 127,
+    "h": 42,
+    "b": 1351
+   }
+  ],
+  "actionRow": {
+   "x": 289,
+   "y": 1309,
+   "w": 1048,
+   "h": 42,
+   "b": 1351
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    254
+   ],
+   [
+    "tagline",
+    473
+   ],
+   [
+    "gallery",
+    761
+   ],
+   [
+    "start",
+    1309
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 1440,
+  "char": "long",
+  "vw": 1440,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 1425,
+  "docH": 1716,
+  "hero": {
+   "x": 289,
+   "y": 151,
+   "w": 1048,
+   "h": 586,
+   "b": 737
+  },
+  "poster": {
+   "x": 853,
+   "y": 192,
+   "w": 336,
+   "h": 504,
+   "b": 696
+  },
+  "h1": {
+   "x": 437,
+   "y": 228,
+   "w": 396,
+   "h": 123,
+   "b": 351
+  },
+  "h1Lines": 3,
+  "h1Font": 38.7918,
+  "h1Text": "아르카디아 연맹 총사령관 레이첼 폰 슈바르츠발트 3세아르카디아 연맹총사령관 레이첼 폰슈바르츠발트 3세",
+  "tagline": {
+   "x": 437,
+   "y": 405,
+   "w": 396,
+   "h": 66,
+   "b": 471
+  },
+  "taglineLines": 3,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 289,
+   "y": 1370,
+   "w": 117,
+   "h": 42,
+   "b": 1412
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 470,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 289,
+   "y": 761,
+   "w": 1048,
+   "h": 196,
+   "b": 957
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 656,
+    "y": 1370,
+    "w": 90,
+    "h": 42,
+    "b": 1412
+   },
+   {
+    "t": "포인트 선물",
+    "x": 758,
+    "y": 1370,
+    "w": 127,
+    "h": 42,
+    "b": 1412
+   }
+  ],
+  "actionRow": {
+   "x": 289,
+   "y": 1370,
+   "w": 1048,
+   "h": 42,
+   "b": 1412
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    228
+   ],
+   [
+    "tagline",
+    405
+   ],
+   [
+    "gallery",
+    761
+   ],
+   [
+    "start",
+    1370
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 1440,
+  "char": "noimg",
+  "vw": 1440,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 1425,
+  "docH": 1301,
+  "hero": {
+   "x": 289,
+   "y": 151,
+   "w": 1048,
+   "h": 654,
+   "b": 805
+  },
+  "poster": {
+   "x": 853,
+   "y": 226,
+   "w": 336,
+   "h": 504,
+   "b": 730
+  },
+  "h1": {
+   "x": 437,
+   "y": 221,
+   "w": 396,
+   "h": 411,
+   "b": 632
+  },
+  "h1Lines": 3,
+  "h1Font": 129.306,
+  "h1Text": "이름만 있는 캐릭터이름만있는캐릭터",
+  "tagline": {
+   "x": 649,
+   "y": 686,
+   "w": 184,
+   "h": 22,
+   "b": 708
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 289,
+   "y": 955,
+   "w": 117,
+   "h": 42,
+   "b": 997
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 55,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 656,
+    "y": 955,
+    "w": 90,
+    "h": 42,
+    "b": 997
+   },
+   {
+    "t": "포인트 선물",
+    "x": 758,
+    "y": 955,
+    "w": 127,
+    "h": 42,
+    "b": 997
+   }
+  ],
+  "actionRow": {
+   "x": 289,
+   "y": 955,
+   "w": 1048,
+   "h": 42,
+   "b": 997
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    221
+   ],
+   [
+    "tagline",
+    686
+   ],
+   [
+    "start",
+    955
+   ]
+  ],
+  "imgs": 0
+ },
+ {
+  "w": 1440,
+  "char": "single",
+  "vw": 1440,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 1425,
+  "docH": 1234,
+  "hero": {
+   "x": 289,
+   "y": 151,
+   "w": 1048,
+   "h": 586,
+   "b": 737
+  },
+  "poster": {
+   "x": 853,
+   "y": 192,
+   "w": 336,
+   "h": 504,
+   "b": 696
+  },
+  "h1": {
+   "x": 437,
+   "y": 297,
+   "w": 396,
+   "h": 144,
+   "b": 441
+  },
+  "h1Lines": 1,
+  "h1Font": 136,
+  "h1Text": "윤하윤하",
+  "tagline": {
+   "x": 649,
+   "y": 495,
+   "w": 184,
+   "h": 22,
+   "b": 517
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 289,
+   "y": 887,
+   "w": 117,
+   "h": 42,
+   "b": 929
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": -13,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 656,
+    "y": 887,
+    "w": 90,
+    "h": 42,
+    "b": 929
+   },
+   {
+    "t": "포인트 선물",
+    "x": 758,
+    "y": 887,
+    "w": 127,
+    "h": 42,
+    "b": 929
+   }
+  ],
+  "actionRow": {
+   "x": 289,
+   "y": 887,
+   "w": 1048,
+   "h": 42,
+   "b": 929
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    297
+   ],
+   [
+    "tagline",
+    495
+   ],
+   [
+    "start",
+    887
+   ]
+  ],
+  "imgs": 1
+ },
+ {
+  "w": 1440,
+  "char": "official",
+  "vw": 1440,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 1425,
+  "docH": 1542,
+  "hero": {
+   "x": 289,
+   "y": 151,
+   "w": 1048,
+   "h": 586,
+   "b": 737
+  },
+  "poster": {
+   "x": 853,
+   "y": 192,
+   "w": 336,
+   "h": 504,
+   "b": 696
+  },
+  "h1": {
+   "x": 437,
+   "y": 295,
+   "w": 396,
+   "h": 103,
+   "b": 398
+  },
+  "h1Lines": 2,
+  "h1Font": 96.9796,
+  "h1Text": "카이로스카이로스",
+  "tagline": {
+   "x": 621,
+   "y": 452,
+   "w": 212,
+   "h": 22,
+   "b": 474
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 289,
+   "y": 1196,
+   "w": 117,
+   "h": 42,
+   "b": 1238
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 296,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": {
+   "x": 414,
+   "y": 1196,
+   "w": 119,
+   "h": 42,
+   "b": 1238
+  },
+  "gallery": {
+   "x": 289,
+   "y": 761,
+   "w": 1048,
+   "h": 196,
+   "b": 957
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 783,
+    "y": 1196,
+    "w": 90,
+    "h": 42,
+    "b": 1238
+   },
+   {
+    "t": "포인트 선물",
+    "x": 885,
+    "y": 1196,
+    "w": 127,
+    "h": 42,
+    "b": 1238
+   }
+  ],
+  "actionRow": {
+   "x": 289,
+   "y": 1196,
+   "w": 1048,
+   "h": 42,
+   "b": 1238
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    295
+   ],
+   [
+    "tagline",
+    452
+   ],
+   [
+    "gallery",
+    761
+   ],
+   [
+    "start",
+    1196
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 1440,
+  "char": "sim",
+  "vw": 1440,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 1425,
+  "docH": 1322,
+  "hero": {
+   "x": 289,
+   "y": 151,
+   "w": 1048,
+   "h": 586,
+   "b": 737
+  },
+  "poster": {
+   "x": 853,
+   "y": 192,
+   "w": 336,
+   "h": 504,
+   "b": 696
+  },
+  "h1": {
+   "x": 437,
+   "y": 310,
+   "w": 396,
+   "h": 164,
+   "b": 474
+  },
+  "h1Lines": 3,
+  "h1Font": 77.5837,
+  "h1Text": "도시 괴담 시뮬레이션도시 괴담시뮬레이션",
+  "tagline": {
+   "x": 593,
+   "y": 528,
+   "w": 240,
+   "h": 22,
+   "b": 550
+  },
+  "taglineLines": 1,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 289,
+   "y": 976,
+   "w": 117,
+   "h": 42,
+   "b": 1018
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 76,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": null,
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 656,
+    "y": 976,
+    "w": 90,
+    "h": 42,
+    "b": 1018
+   },
+   {
+    "t": "포인트 선물",
+    "x": 758,
+    "y": 976,
+    "w": 127,
+    "h": 42,
+    "b": 1018
+   }
+  ],
+  "actionRow": {
+   "x": 289,
+   "y": 976,
+   "w": 1048,
+   "h": 42,
+   "b": 1018
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    310
+   ],
+   [
+    "tagline",
+    528
+   ],
+   [
+    "start",
+    976
+   ]
+  ],
+  "imgs": 1
+ }
+]

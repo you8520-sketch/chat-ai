@@ -1,0 +1,74 @@
+[
+ {
+  "w": 390,
+  "user": "std",
+  "shown": true,
+  "rect": [
+   16,
+   326,
+   358,
+   192
+  ],
+  "centerX": 195,
+  "centerY": 422,
+  "inViewport": true,
+  "closedByX": true,
+  "reappearsAfterX": true,
+  "closedByToday": true,
+  "hiddenAfterToday": true
+ },
+ {
+  "w": 390,
+  "user": "guest",
+  "shown": true,
+  "rect": [
+   16,
+   326,
+   358,
+   192
+  ],
+  "centerX": 195,
+  "centerY": 422,
+  "inViewport": true,
+  "closedByX": true,
+  "reappearsAfterX": true,
+  "closedByToday": true,
+  "hiddenAfterToday": true
+ },
+ {
+  "w": 1440,
+  "user": "std",
+  "shown": true,
+  "rect": [
+   521,
+   354,
+   384,
+   192
+  ],
+  "centerX": 713,
+  "centerY": 450,
+  "inViewport": true,
+  "closedByX": true,
+  "reappearsAfterX": true,
+  "closedByToday": true,
+  "hiddenAfterToday": true
+ },
+ {
+  "w": 768,
+  "user": "std",
+  "shown": true,
+  "rect": [
+   185,
+   354,
+   384,
+   192
+  ],
+  "centerX": 377,
+  "centerY": 450,
+  "inViewport": true,
+  "closedByX": true,
+  "reappearsAfterX": true,
+  "closedByToday": true,
+  "hiddenAfterToday": true
+ }
+]

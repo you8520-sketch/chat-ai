@@ -1,0 +1,272 @@
+[
+ {
+  "name": "start dialog opens, all buttons on top @390",
+  "ok": true,
+  "btns": 4,
+  "rect": [
+   0,
+   0,
+   390,
+   844
+  ]
+ },
+ {
+  "name": "Escape closes start dialog @390",
+  "ok": true
+ },
+ {
+  "name": "existing chat continue navigates @390",
+  "ok": true,
+  "url": "/chat/10?chat=1"
+ },
+ {
+  "name": "persona dropdown visible without scrolling @390 (info)",
+  "ok": true,
+  "visibleWithoutScroll": true,
+  "personaY": 738
+ },
+ {
+  "name": "persona dropdown not clipped @390",
+  "ok": true,
+  "opts": [
+   {
+    "t": "기기본 페르소나✓",
+    "inView": true,
+    "onTop": true
+   },
+   {
+    "t": "두두 번째 페르소나",
+    "inView": true,
+    "onTop": true
+   }
+  ]
+ },
+ {
+  "name": "persona change persists @390",
+  "ok": true,
+  "stored": "2",
+  "name2": "두두 번째 페르"
+ },
+ {
+  "name": "gallery lightbox opens @390",
+  "ok": true,
+  "thumbs": 2
+ },
+ {
+  "name": "locked gallery assets still locked @390",
+  "ok": true,
+  "lockedCount": 5
+ },
+ {
+  "name": "like/follow/gift/share/comments present @390",
+  "ok": true,
+  "like": true,
+  "follow": true,
+  "gift": true,
+  "share": true,
+  "comments": true
+ },
+ {
+  "name": "action row measured @390",
+  "ok": true,
+  "rowH": 42,
+  "rowW": 358,
+  "btns": [
+   38,
+   42,
+   42
+  ]
+ },
+ {
+  "name": "bottom nav does not cover last content @390",
+  "ok": true,
+  "navTop": 791,
+  "covered": []
+ },
+ {
+  "name": "start button reachable above bottom nav @390",
+  "ok": true,
+  "onTop": true,
+  "bottom": 444
+ },
+ {
+  "name": "keyboard reaches start button early @390",
+  "ok": true,
+  "tabsToStart": 14,
+  "order": "하브 > 1 > 2,000P > 홈 > 신작 > 랭킹 > TRPG > 검색 > 북마크/팔로잉 > 북마크 > 클릭하여 확대 > @소설가하루 > 🔗링크 > 대화 시작하기"
+ },
+ {
+  "name": "start dialog opens, all buttons on top @1440",
+  "ok": true,
+  "btns": 4,
+  "rect": [
+   0,
+   0,
+   1425,
+   900
+  ]
+ },
+ {
+  "name": "Escape closes start dialog @1440",
+  "ok": true
+ },
+ {
+  "name": "existing chat continue navigates @1440",
+  "ok": true,
+  "url": "/chat/10?chat=1"
+ },
+ {
+  "name": "persona dropdown visible without scrolling @1440 (info)",
+  "ok": true,
+  "visibleWithoutScroll": true,
+  "personaY": 519
+ },
+ {
+  "name": "persona dropdown not clipped @1440",
+  "ok": true,
+  "opts": [
+   {
+    "t": "기기본 페르소나✓",
+    "inView": true,
+    "onTop": true
+   },
+   {
+    "t": "두두 번째 페르소나",
+    "inView": true,
+    "onTop": true
+   }
+  ]
+ },
+ {
+  "name": "persona change persists @1440",
+  "ok": true,
+  "stored": "2",
+  "name2": "두두 번째 페르"
+ },
+ {
+  "name": "gallery lightbox opens @1440",
+  "ok": true,
+  "thumbs": 2
+ },
+ {
+  "name": "locked gallery assets still locked @1440",
+  "ok": true,
+  "lockedCount": 5
+ },
+ {
+  "name": "like/follow/gift/share/comments present @1440",
+  "ok": true,
+  "like": true,
+  "follow": true,
+  "gift": true,
+  "share": true,
+  "comments": true
+ },
+ {
+  "name": "action row measured @1440",
+  "ok": true,
+  "rowH": 42,
+  "rowW": 1048,
+  "btns": [
+   38,
+   42,
+   42
+  ]
+ },
+ {
+  "name": "keyboard reaches start button early @1440",
+  "ok": true,
+  "tabsToStart": 22,
+  "order": "하브 > 홈 > 신작 > 랭킹 > TRPG > 검색 > 북마크/팔로잉 > 1 > 2,000P > 성인인증 > 일일반회원 > 대화 목록 > 페르소나·노트 > 제작 > 크리에이터 > 성인인증 > 세라핀 에르하르트서 > 북마크 > 클릭하여 확대 > @소설가하루 > 🔗링크 > 대화 시작하기"
+ },
+ {
+  "name": "guest detail redirects to login",
+  "ok": true,
+  "url": "/login?redirect=%2Fcharacter%2F10"
+ },
+ {
+  "name": "private character blocked for non-owner",
+  "ok": true,
+  "url": "/character/15"
+ },
+ {
+  "name": "adult character access state recorded",
+  "ok": true,
+  "url": "/verify?redirect=%2Fcharacter%2F14",
+  "hero": 0
+ },
+ {
+  "name": "chat-intro embed unchanged (no poster hero, 새 대화 시작)",
+  "ok": true,
+  "hero": 0,
+  "start": true,
+  "h1": "세라핀 에르하르트",
+  "hOverflow": false
+ },
+ {
+  "name": "owner sees edit + 공개 설정, no self gift",
+  "ok": true,
+  "edit": true,
+  "toggle": true,
+  "gift": false
+ },
+ {
+  "name": "creator edit/preview page loads, no poster hero",
+  "ok": true,
+  "hero": 0,
+  "hOverflow": false
+ },
+ {
+  "name": "admin sees official manage links",
+  "ok": true,
+  "full": true,
+  "manage": true
+ },
+ {
+  "name": "TRPG start link present with characterId",
+  "ok": true,
+  "l": [
+   "/trpg?characterId=10&personaId=3"
+  ]
+ },
+ {
+  "name": "D-1 reveal runs and lands on hero @1440",
+  "ok": true,
+  "sawReveal": true,
+  "veilGone": true,
+  "hiddenItems": 0,
+  "posterAtReveal": [
+   829,
+   191,
+   384,
+   576
+  ],
+  "finalPoster": [
+   829,
+   191,
+   384,
+   576
+  ],
+  "stable": true
+ },
+ {
+  "name": "D-1 reveal runs and lands on hero @390",
+  "ok": true,
+  "sawReveal": true,
+  "veilGone": true,
+  "hiddenItems": 0,
+  "posterAtReveal": [
+   55,
+   216,
+   281,
+   421
+  ],
+  "finalPoster": [
+   55,
+   216,
+   281,
+   421
+  ],
+  "stable": true
+ }
+]

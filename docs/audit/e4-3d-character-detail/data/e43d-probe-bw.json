@@ -1,0 +1,1151 @@
+[
+ {
+  "w": 768,
+  "char": "rich",
+  "vw": 768,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 753,
+  "docH": 2064,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 521,
+   "h": 826,
+   "b": 1022
+  },
+  "poster": {
+   "x": 360,
+   "y": 357,
+   "w": 336,
+   "h": 504,
+   "b": 861
+  },
+  "h1": {
+   "x": 257,
+   "y": 299,
+   "w": 83,
+   "h": 34,
+   "b": 333
+  },
+  "h1Lines": 2,
+  "h1Font": 16.2612,
+  "h1Text": "세라핀 에르하르트세라핀에르하르트",
+  "tagline": {
+   "x": 257,
+   "y": 411,
+   "w": 83,
+   "h": 88,
+   "b": 499
+  },
+  "taglineLines": 4,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1624,
+   "w": 117,
+   "h": 42,
+   "b": 1666
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 724,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 1046,
+   "w": 521,
+   "h": 196,
+   "b": 1242
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1624,
+    "w": 90,
+    "h": 42,
+    "b": 1666
+   },
+   {
+    "t": "포인트 선물",
+    "x": 216,
+    "y": 1678,
+    "w": 127,
+    "h": 42,
+    "b": 1720
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1624,
+   "w": 521,
+   "h": 96,
+   "b": 1720
+  },
+  "buttonsBelowStart": 1,
+  "clipped": [],
+  "offscreenX": [
+   {
+    "tag": "DIV",
+    "cls": "grid w-max auto-cols-[4.75rem] grid-flow",
+    "l": 237,
+    "r": 781
+   },
+   {
+    "tag": "DIV",
+    "cls": "aspect-[2/3] flex w-[4.75rem] items-cent",
+    "l": 697,
+    "r": 781
+   },
+   {
+    "tag": "DIV",
+    "cls": "flex h-full w-full items-center justify-",
+    "l": 698,
+    "r": 780
+   }
+  ],
+  "order": [
+   [
+    "h1",
+    299
+   ],
+   [
+    "tagline",
+    411
+   ],
+   [
+    "gallery",
+    1046
+   ],
+   [
+    "start",
+    1624
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 768,
+  "char": "long",
+  "vw": 768,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 753,
+  "docH": 2799,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 521,
+   "h": 1469,
+   "b": 1665
+  },
+  "poster": {
+   "x": 360,
+   "y": 679,
+   "w": 336,
+   "h": 504,
+   "b": 1183
+  },
+  "h1": {
+   "x": 257,
+   "y": 299,
+   "w": 83,
+   "h": 26,
+   "b": 324
+  },
+  "h1Lines": 3,
+  "h1Font": 8.13061,
+  "h1Text": "아르카디아 연맹 총사령관 레이첼 폰 슈바르츠발트 3세아르카디아 연맹총사령관 레이첼 폰슈바르츠발트 3세",
+  "tagline": {
+   "x": 257,
+   "y": 402,
+   "w": 83,
+   "h": 308,
+   "b": 710
+  },
+  "taglineLines": 14,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 44,
+  "h1VisPct": 96,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 2359,
+   "w": 117,
+   "h": 42,
+   "b": 2401
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 1459,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 1689,
+   "w": 521,
+   "h": 196,
+   "b": 1885
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 2359,
+    "w": 90,
+    "h": 42,
+    "b": 2401
+   },
+   {
+    "t": "포인트 선물",
+    "x": 216,
+    "y": 2413,
+    "w": 127,
+    "h": 42,
+    "b": 2455
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 2359,
+   "w": 521,
+   "h": 96,
+   "b": 2455
+  },
+  "buttonsBelowStart": 1,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    299
+   ],
+   [
+    "tagline",
+    402
+   ],
+   [
+    "gallery",
+    1689
+   ],
+   [
+    "start",
+    2359
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 800,
+  "char": "rich",
+  "vw": 800,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 785,
+  "docH": 1966,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 553,
+   "h": 734,
+   "b": 930
+  },
+  "poster": {
+   "x": 392,
+   "y": 311,
+   "w": 336,
+   "h": 504,
+   "b": 815
+  },
+  "h1": {
+   "x": 257,
+   "y": 299,
+   "w": 115,
+   "h": 48,
+   "b": 346
+  },
+  "h1Lines": 2,
+  "h1Font": 22.5306,
+  "h1Text": "세라핀 에르하르트세라핀에르하르트",
+  "tagline": {
+   "x": 257,
+   "y": 424,
+   "w": 115,
+   "h": 66,
+   "b": 490
+  },
+  "taglineLines": 3,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 98,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1526,
+   "w": 117,
+   "h": 42,
+   "b": 1568
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 626,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 954,
+   "w": 553,
+   "h": 196,
+   "b": 1150
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1526,
+    "w": 90,
+    "h": 42,
+    "b": 1568
+   },
+   {
+    "t": "포인트 선물",
+    "x": 216,
+    "y": 1580,
+    "w": 127,
+    "h": 42,
+    "b": 1622
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1526,
+   "w": 553,
+   "h": 96,
+   "b": 1622
+  },
+  "buttonsBelowStart": 1,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    299
+   ],
+   [
+    "tagline",
+    424
+   ],
+   [
+    "gallery",
+    954
+   ],
+   [
+    "start",
+    1526
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 800,
+  "char": "long",
+  "vw": 800,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 785,
+  "docH": 2376,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 553,
+   "h": 1059,
+   "b": 1255
+  },
+  "poster": {
+   "x": 392,
+   "y": 474,
+   "w": 336,
+   "h": 504,
+   "b": 978
+  },
+  "h1": {
+   "x": 257,
+   "y": 299,
+   "w": 115,
+   "h": 36,
+   "b": 334
+  },
+  "h1Lines": 3,
+  "h1Font": 11.2653,
+  "h1Text": "아르카디아 연맹 총사령관 레이첼 폰 슈바르츠발트 3세아르카디아 연맹총사령관 레이첼 폰슈바르츠발트 3세",
+  "tagline": {
+   "x": 257,
+   "y": 412,
+   "w": 115,
+   "h": 220,
+   "b": 632
+  },
+  "taglineLines": 10,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 85,
+  "h1VisPct": 97,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1937,
+   "w": 117,
+   "h": 42,
+   "b": 1979
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 1037,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 1279,
+   "w": 553,
+   "h": 196,
+   "b": 1475
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1937,
+    "w": 90,
+    "h": 42,
+    "b": 1979
+   },
+   {
+    "t": "포인트 선물",
+    "x": 216,
+    "y": 1991,
+    "w": 127,
+    "h": 42,
+    "b": 2033
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1937,
+   "w": 553,
+   "h": 96,
+   "b": 2033
+  },
+  "buttonsBelowStart": 1,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    299
+   ],
+   [
+    "tagline",
+    412
+   ],
+   [
+    "gallery",
+    1279
+   ],
+   [
+    "start",
+    1937
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 830,
+  "char": "rich",
+  "vw": 830,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 815,
+  "docH": 1792,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 583,
+   "h": 586,
+   "b": 782
+  },
+  "poster": {
+   "x": 422,
+   "y": 237,
+   "w": 336,
+   "h": 504,
+   "b": 741
+  },
+  "h1": {
+   "x": 257,
+   "y": 307,
+   "w": 145,
+   "h": 60,
+   "b": 367
+  },
+  "h1Lines": 2,
+  "h1Font": 28.4082,
+  "h1Text": "세라핀 에르하르트세라핀에르하르트",
+  "tagline": {
+   "x": 257,
+   "y": 421,
+   "w": 145,
+   "h": 44,
+   "b": 465
+  },
+  "taglineLines": 2,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1372,
+   "w": 117,
+   "h": 42,
+   "b": 1414
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 472,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 806,
+   "w": 583,
+   "h": 196,
+   "b": 1002
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1372,
+    "w": 90,
+    "h": 42,
+    "b": 1414
+   },
+   {
+    "t": "포인트 선물",
+    "x": 216,
+    "y": 1426,
+    "w": 127,
+    "h": 42,
+    "b": 1468
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1372,
+   "w": 583,
+   "h": 96,
+   "b": 1468
+  },
+  "buttonsBelowStart": 1,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    307
+   ],
+   [
+    "tagline",
+    421
+   ],
+   [
+    "gallery",
+    806
+   ],
+   [
+    "start",
+    1372
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 830,
+  "char": "long",
+  "vw": 830,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 815,
+  "docH": 2154,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 583,
+   "h": 869,
+   "b": 1065
+  },
+  "poster": {
+   "x": 422,
+   "y": 379,
+   "w": 336,
+   "h": 504,
+   "b": 883
+  },
+  "h1": {
+   "x": 257,
+   "y": 299,
+   "w": 145,
+   "h": 45,
+   "b": 344
+  },
+  "h1Lines": 3,
+  "h1Font": 14.2041,
+  "h1Text": "아르카디아 연맹 총사령관 레이첼 폰 슈바르츠발트 3세아르카디아 연맹총사령관 레이첼 폰슈바르츠발트 3세",
+  "tagline": {
+   "x": 257,
+   "y": 398,
+   "w": 145,
+   "h": 176,
+   "b": 574
+  },
+  "taglineLines": 8,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1734,
+   "w": 117,
+   "h": 42,
+   "b": 1776
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 834,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 1089,
+   "w": 583,
+   "h": 196,
+   "b": 1285
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1734,
+    "w": 90,
+    "h": 42,
+    "b": 1776
+   },
+   {
+    "t": "포인트 선물",
+    "x": 216,
+    "y": 1788,
+    "w": 127,
+    "h": 42,
+    "b": 1830
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1734,
+   "w": 583,
+   "h": 96,
+   "b": 1830
+  },
+  "buttonsBelowStart": 1,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    299
+   ],
+   [
+    "tagline",
+    398
+   ],
+   [
+    "gallery",
+    1089
+   ],
+   [
+    "start",
+    1734
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 860,
+  "char": "rich",
+  "vw": 860,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 845,
+  "docH": 1732,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 613,
+   "h": 586,
+   "b": 782
+  },
+  "poster": {
+   "x": 452,
+   "y": 237,
+   "w": 336,
+   "h": 504,
+   "b": 741
+  },
+  "h1": {
+   "x": 257,
+   "y": 301,
+   "w": 175,
+   "h": 73,
+   "b": 373
+  },
+  "h1Lines": 2,
+  "h1Font": 34.2857,
+  "h1Text": "세라핀 에르하르트세라핀에르하르트",
+  "tagline": {
+   "x": 257,
+   "y": 427,
+   "w": 175,
+   "h": 44,
+   "b": 471
+  },
+  "taglineLines": 2,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 99,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1366,
+   "w": 117,
+   "h": 42,
+   "b": 1408
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 466,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 806,
+   "w": 613,
+   "h": 196,
+   "b": 1002
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1366,
+    "w": 90,
+    "h": 42,
+    "b": 1408
+   },
+   {
+    "t": "포인트 선물",
+    "x": 685,
+    "y": 1366,
+    "w": 127,
+    "h": 42,
+    "b": 1408
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1366,
+   "w": 613,
+   "h": 42,
+   "b": 1408
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    301
+   ],
+   [
+    "tagline",
+    427
+   ],
+   [
+    "gallery",
+    806
+   ],
+   [
+    "start",
+    1366
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 860,
+  "char": "long",
+  "vw": 860,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 845,
+  "docH": 2009,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 613,
+   "h": 790,
+   "b": 986
+  },
+  "poster": {
+   "x": 452,
+   "y": 339,
+   "w": 336,
+   "h": 504,
+   "b": 843
+  },
+  "h1": {
+   "x": 257,
+   "y": 299,
+   "w": 175,
+   "h": 54,
+   "b": 353
+  },
+  "h1Lines": 3,
+  "h1Font": 17.1429,
+  "h1Text": "아르카디아 연맹 총사령관 레이첼 폰 슈바르츠발트 3세아르카디아 연맹총사령관 레이첼 폰슈바르츠발트 3세",
+  "tagline": {
+   "x": 257,
+   "y": 407,
+   "w": 175,
+   "h": 154,
+   "b": 561
+  },
+  "taglineLines": 7,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1643,
+   "w": 117,
+   "h": 42,
+   "b": 1685
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 743,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 1010,
+   "w": 613,
+   "h": 196,
+   "b": 1206
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1643,
+    "w": 90,
+    "h": 42,
+    "b": 1685
+   },
+   {
+    "t": "포인트 선물",
+    "x": 685,
+    "y": 1643,
+    "w": 127,
+    "h": 42,
+    "b": 1685
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1643,
+   "w": 613,
+   "h": 42,
+   "b": 1685
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    299
+   ],
+   [
+    "tagline",
+    407
+   ],
+   [
+    "gallery",
+    1010
+   ],
+   [
+    "start",
+    1643
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 880,
+  "char": "rich",
+  "vw": 880,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 865,
+  "docH": 1732,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 633,
+   "h": 586,
+   "b": 782
+  },
+  "poster": {
+   "x": 472,
+   "y": 237,
+   "w": 336,
+   "h": 504,
+   "b": 741
+  },
+  "h1": {
+   "x": 257,
+   "y": 288,
+   "w": 195,
+   "h": 81,
+   "b": 369
+  },
+  "h1Lines": 2,
+  "h1Font": 38.2041,
+  "h1Text": "세라핀 에르하르트세라핀에르하르트",
+  "tagline": {
+   "x": 257,
+   "y": 423,
+   "w": 195,
+   "h": 44,
+   "b": 467
+  },
+  "taglineLines": 2,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1366,
+   "w": 117,
+   "h": 42,
+   "b": 1408
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 466,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 806,
+   "w": 633,
+   "h": 196,
+   "b": 1002
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1366,
+    "w": 90,
+    "h": 42,
+    "b": 1408
+   },
+   {
+    "t": "포인트 선물",
+    "x": 685,
+    "y": 1366,
+    "w": 127,
+    "h": 42,
+    "b": 1408
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1366,
+   "w": 633,
+   "h": 42,
+   "b": 1408
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    288
+   ],
+   [
+    "tagline",
+    423
+   ],
+   [
+    "gallery",
+    806
+   ],
+   [
+    "start",
+    1366
+   ]
+  ],
+  "imgs": 2
+ },
+ {
+  "w": 880,
+  "char": "long",
+  "vw": 880,
+  "vh": 900,
+  "hOverflow": false,
+  "scrollWidth": 865,
+  "docH": 1977,
+  "hero": {
+   "x": 216,
+   "y": 196,
+   "w": 633,
+   "h": 758,
+   "b": 954
+  },
+  "poster": {
+   "x": 472,
+   "y": 323,
+   "w": 336,
+   "h": 504,
+   "b": 827
+  },
+  "h1": {
+   "x": 257,
+   "y": 282,
+   "w": 195,
+   "h": 61,
+   "b": 343
+  },
+  "h1Lines": 3,
+  "h1Font": 19.102,
+  "h1Text": "아르카디아 연맹 총사령관 레이첼 폰 슈바르츠발트 3세아르카디아 연맹총사령관 레이첼 폰슈바르츠발트 3세",
+  "tagline": {
+   "x": 257,
+   "y": 397,
+   "w": 195,
+   "h": 132,
+   "b": 529
+  },
+  "taglineLines": 6,
+  "nav": null,
+  "effVh": 900,
+  "posterVisPct": 100,
+  "h1VisPct": 100,
+  "taglineVisPct": 100,
+  "start": {
+   "x": 216,
+   "y": 1611,
+   "w": 117,
+   "h": 42,
+   "b": 1653
+  },
+  "startText": "대화 시작하기",
+  "startVisibleFirstScreen": false,
+  "startFoldPx": 711,
+  "startBg": "oklab(0.999994 0.0000455678 0.0000200868 / 0.05)",
+  "trpg": null,
+  "gallery": {
+   "x": 216,
+   "y": 978,
+   "w": 633,
+   "h": 196,
+   "b": 1174
+  },
+  "introHead": null,
+  "actions": [
+   {
+    "t": "+ 팔로우",
+    "x": 583,
+    "y": 1611,
+    "w": 90,
+    "h": 42,
+    "b": 1653
+   },
+   {
+    "t": "포인트 선물",
+    "x": 685,
+    "y": 1611,
+    "w": 127,
+    "h": 42,
+    "b": 1653
+   }
+  ],
+  "actionRow": {
+   "x": 216,
+   "y": 1611,
+   "w": 633,
+   "h": 42,
+   "b": 1653
+  },
+  "buttonsBelowStart": 0,
+  "clipped": [],
+  "offscreenX": [],
+  "order": [
+   [
+    "h1",
+    282
+   ],
+   [
+    "tagline",
+    397
+   ],
+   [
+    "gallery",
+    978
+   ],
+   [
+    "start",
+    1611
+   ]
+  ],
+  "imgs": 2
+ }
+]
