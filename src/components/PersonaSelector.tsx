@@ -17,6 +17,8 @@ type Props = {
   triggerClassName?: string;
   /** 페르소나 추가 링크 target (iframe embed에서는 `_top`) */
   linkTarget?: "_self" | "_top";
+  /** Dropdown/notice anchor classes. Default opens below the trigger. */
+  menuPlacementClassName?: string;
 };
 
 const DEFAULT_ADD_PERSONA_HREF = "/persona#personas";
@@ -58,6 +60,7 @@ export default function PersonaSelector({
   addPersonaHref = DEFAULT_ADD_PERSONA_HREF,
   triggerClassName = "",
   linkTarget,
+  menuPlacementClassName = "top-full mt-1",
 }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -230,7 +233,7 @@ export default function PersonaSelector({
         </button>
 
         {open && (
-          <div className="absolute left-0 top-full z-30 mt-1 max-h-56 w-56 overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a1a] py-1 shadow-xl">
+          <div className={`absolute left-0 z-30 ${menuPlacementClassName} max-h-56 w-56 overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a1a] py-1 shadow-xl`}>
             {personas.map((p) => (
               <button
                 key={p.id}
@@ -268,7 +271,7 @@ export default function PersonaSelector({
         )}
 
         {notice && (
-          <p className="absolute left-0 top-full z-40 mt-1 w-56 rounded-lg border border-amber-500/30 bg-[#2a2418] px-2.5 py-2 text-[10px] leading-relaxed text-amber-200 shadow-lg">
+          <p className={`absolute left-0 z-40 ${menuPlacementClassName} w-56 rounded-lg border border-amber-500/30 bg-[#2a2418] px-2.5 py-2 text-[10px] leading-relaxed text-amber-200 shadow-lg`}>
             {notice}
           </p>
         )}

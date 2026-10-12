@@ -57,6 +57,22 @@ describe("E4-3D character detail hero", () => {
     assert.match(hero, /\[REVEAL_FIT_ATTR\]: "width"/);
   });
 
+  it("candidate B overlays the name on the poster below 960px", () => {
+    assert.match(hero, /--hero-name-cap:3\.25rem/);
+    assert.match(hero, /min-\[960px\]:\[--hero-name-cap:8\.5rem\]/);
+    assert.match(hero, /pointer-events-none[^"]*bg-gradient-to-t/);
+    assert.match(hero, /min\(var\(--hero-name-cap\), calc\(96cqw/);
+    const name = hero.indexOf('[HERO_ITEM_ATTR]: "name"');
+    const poster = hero.indexOf("[CHARACTER_HERO_IMAGE_ATTR]");
+    assert.ok(poster > 0 && name > poster, "name layer follows the poster so it paints above it");
+  });
+
+  it("opens the persona menu upward only for the primary hero row on narrow screens", () => {
+    assert.match(startRow, /menuPlacementClassName=\{\s*primary \? "bottom-full mb-1 min-\[960px\]:bottom-auto min-\[960px\]:top-full min-\[960px\]:mt-1" : undefined/);
+    const selector = read("src/components/PersonaSelector.tsx");
+    assert.match(selector, /menuPlacementClassName = "top-full mt-1"/);
+  });
+
   it("limits the primary start styling to the detail row; embed and preview keep their layout", () => {
     assert.match(startRow, /primary\?: boolean/);
     assert.match(startRow, /className=\{primary \? primaryBtn : actionBtn\}/);

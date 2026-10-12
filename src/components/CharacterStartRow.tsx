@@ -146,6 +146,9 @@ export default function CharacterStartRow({
           triggerClassName={`${actionBtn} max-w-[14rem]`}
           addPersonaHref="/persona#personas"
           linkTarget={embedMode ? "_top" : undefined}
+          menuPlacementClassName={
+            primary ? "bottom-full mb-1 min-[960px]:bottom-auto min-[960px]:top-full min-[960px]:mt-1" : undefined
+          }
         />
       )}
     </div>
