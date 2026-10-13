@@ -58,7 +58,10 @@ import {
   savedShareWorldLibraryRef,
   worldLibraryRef,
 } from "@/lib/worlds";
-import { CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT } from "@/lib/creatorLorebook";
+import {
+  CHARACTER_CREATOR_LOREBOOK_ATTACH_LIMIT,
+  type AttachedCreatorLorebookSummary,
+} from "@/lib/creatorLorebook";
 import type { KeywordLorebookListItem } from "@/lib/keywordLorebooks";
 import GenrePicker from "@/components/GenrePicker";
 import ToggleSwitch from "@/components/ToggleSwitch";
@@ -224,6 +227,8 @@ type ImportCharacter = {
   thumbnail: string | null;
 };
 
+type SharedAttachedLorebook = AttachedCreatorLorebookSummary;
+
 type SelectedImport = {
   characterId: number;
   name: string;
@@ -320,6 +325,7 @@ export default function CreateCharacter({
     KeywordLorebookListItem[]
   >([]);
   const [selectedLorebookIds, setSelectedLorebookIds] = useState<number[]>([]);
+  const [sharedAttachedLorebooks, setSharedAttachedLorebooks] = useState<SharedAttachedLorebook[]>([]);
   const [lorebooksLoading, setLorebooksLoading] = useState(true);
   const [editLoading, setEditLoading] = useState(isEditMode);
   const [editLoadError, setEditLoadError] = useState("");
@@ -1053,6 +1059,11 @@ export default function CreateCharacter({
         );
         setWorldSourceKind((data.world_source_kind as CharacterWorldSourceKind | undefined) ?? null);
         setWorldDetach(false);
+        setSharedAttachedLorebooks(
+          Array.isArray(data.attached_lorebooks)
+            ? (data.attached_lorebooks as SharedAttachedLorebook[]).filter((item) => item.readOnly)
+            : []
+        );
         setSelectedLorebookIds(
           Array.isArray(data.lorebook_ids)
             ? data.lorebook_ids.map(Number).filter((id: number) => Number.isFinite(id) && id > 0)
@@ -2165,9 +2176,50 @@ export default function CreateCharacter({
                     )}
                   </div>
                   <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-[#161922] p-3">
+                    {sharedAttachedLorebooks.map((lb) => {
+                      const checked = selectedLorebookIds.includes(lb.id);
+                      return (
+                        <label
+                          key={`shared-${lb.id}`}
+                          data-testid={`shared-lorebook-${lb.id}`}
+                          className={cn(
+                            "flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 text-sm",
+                            checked
+                              ? "border-amber-500/40 bg-amber-500/10 text-zinc-100"
+                              : "border-white/5 text-zinc-300 hover:border-white/15"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-1"
+                            checked={checked}
+                            onChange={(e) => {
+                              setSelectedLorebookIds((prev) =>
+                                e.target.checked
+                                  ? prev.includes(lb.id)
+                                    ? prev
+                                    : [...prev, lb.id]
+                                  : prev.filter((id) => id !== lb.id)
+                              );
+                            }}
+                          />
+                          <span className="min-w-0">
+                            <span className="font-medium">
+                              #{lb.id} {lb.name}
+                            </span>
+                            <span className="ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-zinc-300">
+                              공유 · 읽기 전용 · {checked ? "연결됨" : "연결 해제 예정"}
+                            </span>
+                            <span className="block text-xs text-zinc-400">
+                              키워드 {lb.keywords.join(", ") || "없음"} · 항목 {lb.entryCount}개
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
                     {lorebooksLoading ? (
                       <p className="text-xs text-zinc-400">불러오는 중...</p>
-                    ) : savedLorebooks.length === 0 ? (
+                    ) : savedLorebooks.length === 0 && sharedAttachedLorebooks.length === 0 ? (
                       <p className="text-xs text-zinc-400">등록된 로어북이 없습니다.</p>
                     ) : (
                       savedLorebooks.map((lb) => {

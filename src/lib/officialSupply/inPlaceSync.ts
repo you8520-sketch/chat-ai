@@ -29,6 +29,7 @@ import {
   canAdminManageOfficialCharacter,
   isOfficialAdminActor,
   loadOfficialOwnerSession,
+  resolveOfficialSupplyAssetOwnerId,
   sqliteTableExists,
 } from "@/lib/officialAdminAccess";
 import {
@@ -61,7 +62,6 @@ import {
 } from "@/lib/officialSupply/officialSharedWorld";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import { isStageAtLeast, type OfficialCharacterStage, type OfficialWorldLorebookEntry } from "@/lib/officialSupply/types";
-import { isSiteManagedUser } from "@/lib/siteManagedAccounts";
 import { composeExampleDialog } from "@/lib/speechCreatorFields";
 
 export const OFFICIAL_IN_PLACE_APPLY_ENV = "OFFICIAL_IN_PLACE_APPLY_ENABLED";
@@ -780,10 +780,12 @@ function inspectTarget(input: {
   if (!canAdminManageOfficialCharacter(input.admin, row)) {
     throw new OfficialSupplyGateError("not_official_manageable", `character ${row.id} is not an official-managed row`);
   }
-  if (!row.creator_id || !isSiteManagedUser(row.creator_id)) {
+  const attachedIds = listCharacterCreatorLorebookAttachmentIds(db, row.id);
+  const studioOwnerId = resolveOfficialSupplyAssetOwnerId(db, row, attachedIds);
+  if (!row.creator_id || studioOwnerId == null) {
     throw new OfficialSupplyGateError(
       "owner_not_site_managed",
-      `character ${row.id} owner is not the site-managed official account`
+      `character ${row.id} owner is neither the site-managed official account nor an admin-owned supply character with a single studio lorebook owner`
     );
   }
   if (input.draftKey === LUCIAN_DRAFT_KEY && row.name.trim() !== LUCIAN_CANONICAL_NAME) {
@@ -823,7 +825,7 @@ function inspectTarget(input: {
     );
   }
 
-  const owner = loadOfficialOwnerSession(row.creator_id);
+  const owner = loadOfficialOwnerSession(studioOwnerId);
   if (!owner) {
     throw new OfficialSupplyGateError("owner_missing", "site-managed official owner session is unavailable");
   }
@@ -841,7 +843,6 @@ function inspectTarget(input: {
     throw new OfficialSupplyGateError("publish_assets_missing", "existing representative assets are required");
   }
 
-  const attachedIds = listCharacterCreatorLorebookAttachmentIds(db, row.id);
   const beforeKeys = existingLorebookKeys(db, source.worldKey, owner.id, attachedIds);
   const sharedKeys = new Set(source.sharedLorebook.map((entry) => entry.entryKey));
   const lorebookPlan = planWorldLorebooks({
@@ -868,8 +869,8 @@ function inspectTarget(input: {
     systemPrompt: source.systemPrompt,
     world: source.draft.sections.worldAndSituation,
     worldId:
-      officialDraftUsesSharedWorld(source.draft) && row.creator_id
-        ? findOfficialSharedWorldLibraryRow(db, row.creator_id)?.id ?? null
+      officialDraftUsesSharedWorld(source.draft)
+        ? findOfficialSharedWorldLibraryRow(db, owner.id)?.id ?? null
         : row.world_id,
     creatorComment: composeOfficialCreatorComment(source.draft),
     exampleDialog: composeExampleDialog({

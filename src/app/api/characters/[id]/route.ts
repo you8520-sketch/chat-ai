@@ -15,7 +15,10 @@ import { listCharacterStatusWidgetTriggers } from "@/lib/statusWidgetTriggers";
 import type { SimulationImportSnapshot } from "@/lib/simulationMode";
 import { parseSimulationVisualSubjectsJson } from "@/lib/simulationVisualSubjects";
 import { parseVisualSubjectsJson } from "@/lib/visualSubjects";
-import { listCharacterCreatorLorebookAttachmentIds } from "@/lib/creatorLorebook";
+import {
+  listAttachedCreatorLorebookSummaries,
+  listCharacterCreatorLorebookAttachmentIds,
+} from "@/lib/creatorLorebook";
 import { deriveCharacterWorldSourceKind } from "@/lib/worldPermissions";
 import {
   loadOfficialOwnerSession,
@@ -178,6 +181,9 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     source_world_share_id: c.source_world_share_id,
     world_source_kind: worldSourceKind,
     lorebook_ids: listCharacterCreatorLorebookAttachmentIds(db, c.id),
+    ...(editorAccess === "official_admin"
+      ? { attached_lorebooks: listAttachedCreatorLorebookSummaries(db, c.id, user.id) }
+      : {}),
     status_window_prompt: c.status_window_prompt ?? "",
     status_widget_json: c.status_widget_json ?? "",
     jsx_components_json: c.jsx_components_json ?? "",
@@ -249,7 +255,7 @@ export async function PUT(req: Request, ctx: RouteCtx) {
     if (!row.creator_id) {
       return NextResponse.json({ error: "공식 소유 계정을 찾을 수 없습니다." }, { status: 400 });
     }
-    const owner = loadOfficialOwnerSession(row.creator_id);
+    const owner = row.creator_id === user.id ? user : loadOfficialOwnerSession(row.creator_id);
     if (!owner) {
       return NextResponse.json({ error: "사이트 관리 공식 계정을 찾을 수 없습니다." }, { status: 400 });
     }
@@ -297,7 +303,20 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
 
   const body = await req.json();
   if (body.scope === "public_profile") {
-    const result = await updateCharacterPublicProfileFromForm(user, characterId, body);
+    const result = await updateCharacterPublicProfileFromForm(
+      user,
+      characterId,
+      body,
+      resolveOfficialCharacterEditorAccess(user, row) === "official_admin"
+        ? {
+            actor: "official_admin",
+            adminUser: user,
+            preserveListingState: true,
+            preserveAdultFlags: true,
+            skipFollowerNotify: true,
+          }
+        : undefined
+    );
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }

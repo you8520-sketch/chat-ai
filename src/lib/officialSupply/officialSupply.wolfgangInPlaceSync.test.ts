@@ -32,6 +32,10 @@ import {
   syncOfficialCharacterInPlace,
 } from "@/lib/officialSupply/inPlaceSync";
 import { WOLFGANG_IN_PLACE_TARGET } from "@/lib/officialSupply/inPlaceWolfgang";
+import {
+  OFFICIAL_OWNER_TRANSFER_ENV,
+  transferOfficialCharacterOwnerToAdmin,
+} from "@/lib/officialSupply/ownerTransfer";
 import { OfficialSupplyGateError, OfficialSupplyStore } from "@/lib/officialSupply/store";
 import type { OfficialCharacterDraft } from "@/lib/officialSupply/types";
 
@@ -802,5 +806,85 @@ describe("Wolfgang #51 approved manuscript in-place sync", () => {
     ]) {
       assert.equal(after[column], before[column], column);
     }
+  });
+  describe("after the admin owner transfer (#1589)", () => {
+    function transferToAdmin(characterId: number, adminId: number) {
+      const admin = { id: adminId, email: ADMIN.email!, is_admin: 1 };
+      const preview = transferOfficialCharacterOwnerToAdmin({ admin, characterId, mode: "dry_run" });
+      process.env[OFFICIAL_OWNER_TRANSFER_ENV] = "1";
+      try {
+        return transferOfficialCharacterOwnerToAdmin({
+          admin,
+          characterId,
+          mode: "apply",
+          preflightSnapshot: preview.preflightSnapshot,
+        });
+      } finally {
+        delete process.env[OFFICIAL_OWNER_TRANSFER_ENV];
+      }
+    }
+
+    it("dry-run reports the same manuscript transition and apply reuses the studio lorebooks without duplicates", async () => {
+      const seed = seedProductionShapedWolfgang();
+      const adminId = insertAdmin();
+      const beforeTransfer = await dryRun(seed.characterId, adminId);
+      transferToAdmin(seed.characterId, adminId);
+      assert.equal(characterRow(seed.characterId).creator_id, adminId);
+
+      const preview = await dryRun(seed.characterId, adminId);
+      assert.deepEqual(preview.changedFields, beforeTransfer.changedFields);
+      assert.deepEqual(
+        preview.lorebookPlan.map((item) => item.action),
+        Array(8).fill("skip_identical")
+      );
+      const lorebooksBefore = lorebookRows();
+      const worldLorebooksBefore = JSON.stringify(
+        getDb().prepare("SELECT * FROM official_supply_world_lorebooks ORDER BY world_key, entry_key").all()
+      );
+      const siblingBefore = characterRow(seed.siblingId);
+
+      const result = await apply(seed.characterId, adminId);
+      assert.equal(result.applied, true);
+      const after = characterRow(seed.characterId);
+      assert.equal(after.creator_id, adminId, "owner stays the admin");
+      assert.equal(after.system_prompt, source().systemPrompt);
+      assert.equal(after.official, 0);
+      assert.equal(after.visibility, "private");
+      assert.equal(supplyRow().text_lock_hash, WOLFGANG_IN_PLACE_TARGET.approvedTextLockHash);
+      assert.deepEqual(lorebookRows(), lorebooksBefore, "no lorebook rows created or edited");
+      assert.equal(
+        JSON.stringify(getDb().prepare("SELECT * FROM official_supply_world_lorebooks ORDER BY world_key, entry_key").all()),
+        worldLorebooksBefore
+      );
+      assert.deepEqual(listCharacterCreatorLorebookAttachmentIds(getDb(), seed.characterId), seed.lorebookIds);
+      assert.deepEqual(characterRow(seed.siblingId), siblingBefore);
+      assert.equal(JSON.parse(after.assets as string).length, 14);
+    });
+
+    it("STOPs when an admin-owned row is not linked to the supply or its lorebooks have mixed owners", async () => {
+      const seed = seedProductionShapedWolfgang();
+      const adminId = insertAdmin();
+      transferToAdmin(seed.characterId, adminId);
+
+      const other = createSiteManagedStudioAccount({
+        nickname: "다른 스튜디오",
+        email: "other-owner@site-managed.invalid",
+      });
+      const mixed = insertCreatorLorebookForOwner(getDb(), {
+        creatorId: other.id,
+        name: "다른 소유 로어북",
+        summary: "",
+        keywords: ["다른"],
+        content: "다른 소유 본문",
+      });
+      assert.equal(mixed.ok, true);
+      if (!mixed.ok) return;
+      replaceCharacterCreatorLorebookAttachments(getDb(), seed.characterId, [...seed.lorebookIds, mixed.id]);
+      await assertGateCode(dryRun(seed.characterId, adminId), "owner_not_site_managed");
+
+      replaceCharacterCreatorLorebookAttachments(getDb(), seed.characterId, seed.lorebookIds);
+      getDb().prepare("UPDATE official_supply_characters SET staged_character_id=NULL WHERE draft_key=?").run(SUPPLY_KEY);
+      await assertGateCode(dryRun(seed.characterId, adminId), "not_official_manageable");
+    });
   });
 });

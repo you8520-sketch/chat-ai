@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 
 import { resolveCreatorRewardRate } from "@/lib/creatorPoints";
 import { isCreatorMonetizationEligible } from "@/lib/creatorMonetization";
+import { isOfficialSupplyLinkedCharacter } from "@/lib/officialAdminAccess";
 
 /** Fixed creator reward for an eligible image generation. */
 export const CHAT_ROOM_IMAGE_CREATOR_REWARD_CP = 15;
@@ -23,6 +24,7 @@ export function creditChatRoomImageCreatorReward(
       .prepare("SELECT official FROM characters WHERE id=?")
       .get(opts.characterId) as { official: number } | undefined;
     if (character?.official === 1) return 0;
+    if (isOfficialSupplyLinkedCharacter(db, opts.characterId)) return 0;
   }
   if (resolveCreatorRewardRate(opts.creatorId) <= 0) return 0;
 

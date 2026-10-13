@@ -483,7 +483,7 @@ describe("official character owner transfer to the acting admin", () => {
     const s = seed();
     const tierBefore = getCreatorTierInfo(s.adminId);
     applyTransfer(s);
-    assert.deepEqual(getCreatorTierInfo(s.adminId), { ...tierBefore, characterCount: tierBefore.characterCount + 1 });
+    assert.deepEqual(getCreatorTierInfo(s.adminId), tierBefore, "supply-linked #51 never counts as a regular character");
     assert.equal(getCreatorTierInfo(s.adminId).rewardRate, tierBefore.rewardRate);
     assert.equal(getCreatorTierInfo(s.adminId).tierLevel, tierBefore.tierLevel);
 
@@ -551,7 +551,7 @@ describe("official character owner transfer to the acting admin", () => {
     assert.equal(listCharacterCreatorLorebookAttachmentIds(getDb(), s.characterId).length, 2);
   });
 
-  it("known follow-up: shared lorebooks stay studio-owned, so the generic editor cannot re-attach them as admin", () => {
+  it("shared lorebooks stay studio-owned, so only the official admin editor path may keep them attached", () => {
     const s = seed();
     applyTransfer(s);
     const validation = validateCreatorLorebookAttachmentIds(getDb(), s.adminId, s.lorebookIds);
