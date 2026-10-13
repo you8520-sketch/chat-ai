@@ -1,0 +1,52 @@
+{
+ "label": "before",
+ "case": {
+  "id": "CTL_user_promise",
+  "user": "내일까지 검을 갈아다 줄게. 약속이야.",
+  "assistant": "라이크는 고개를 끄덕이며 작게 웃었다."
+ },
+ "rep": 5,
+ "model": "gpt-6-luna",
+ "ok": true,
+ "usage": {
+  "inputTokens": 2273,
+  "outputTokens": 56,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2270,
+  "standardInputTokens": 3,
+  "cheaperInferenceBilledCostUsd": 0.000033,
+  "upstreamCostUsd": 0.000033,
+  "debugRawUsage": {
+   "prompt_tokens": 2273,
+   "completion_tokens": 56,
+   "total_tokens": 2329,
+   "prompt_tokens_details": {
+    "cached_tokens": 2270,
+    "cache_write_tokens": 0,
+    "audio_tokens": 0
+   },
+   "completion_tokens_details": {
+    "reasoning_tokens": 0,
+    "audio_tokens": 0,
+    "accepted_prediction_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "cost": 0.000033,
+   "cost_details": {
+    "upstream_inference_cost": 0.000033
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "a84cbb41-da0d-43d1-9d77-ae450d631d31"
+ },
+ "billed": 0.000033,
+ "episodicPresent": true,
+ "episodicValid": true,
+ "verdicts": [],
+ "text": "{\"relationship\":{\"items\":[],\"itemsRemove\":[],\"promisesAdd\":[{\"text\":\"검을 갈아다 주기\",\"deadline\":\"내일\"}],\"promisesRemove\":[]},\"episodic\":{\"extracted_facts\":[]}}"
+}

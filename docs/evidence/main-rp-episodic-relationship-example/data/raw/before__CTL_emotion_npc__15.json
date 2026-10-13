@@ -1,0 +1,52 @@
+{
+ "label": "before",
+ "case": {
+  "id": "CTL_emotion_npc",
+  "user": "서린이 건넨 꿀차를 고맙게 받아 마신다.",
+  "assistant": "서린은 렌에게만 꿀차를 한 잔 더 따라 주었다. 라이크는 말없이 그 모습을 지켜보다 칼집을 움켜쥐고, 퉁명스럽게 자리를 재촉했다. \"먹었으면 가자.\""
+ },
+ "rep": 15,
+ "model": "gpt-6-luna",
+ "ok": true,
+ "usage": {
+  "inputTokens": 2318,
+  "outputTokens": 41,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2316,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000028,
+  "upstreamCostUsd": 0.000028,
+  "debugRawUsage": {
+   "completion_tokens": 41,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2318,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2316
+   },
+   "total_tokens": 2359,
+   "cost": 0.000028,
+   "cost_details": {
+    "upstream_inference_cost": 0.000028
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "26f4037a-fd66-4d03-925f-a692461aba56"
+ },
+ "billed": 0.000028,
+ "episodicPresent": true,
+ "episodicValid": true,
+ "verdicts": [],
+ "text": "{\"relationship\":{\"items\":[],\"itemsRemove\":[],\"promisesAdd\":[],\"promisesRemove\":[]},\"episodic\":{\"extracted_facts\":[]}}"
+}

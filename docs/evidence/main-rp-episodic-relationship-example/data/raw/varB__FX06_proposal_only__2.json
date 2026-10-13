@@ -1,0 +1,71 @@
+{
+ "label": "varB",
+ "case": {
+  "id": "FX06_proposal_only",
+  "user": "좋아, 우리 오늘부터 연인하자.",
+  "assistant": "라이크는 놀란 얼굴로 한참 말이 없다가 손을 맞잡았다."
+ },
+ "rep": 2,
+ "model": "gpt-6-luna",
+ "ok": true,
+ "usage": {
+  "inputTokens": 2261,
+  "outputTokens": 116,
+  "estimated": false,
+  "finishReason": "stop",
+  "cacheReadTokens": 2259,
+  "standardInputTokens": 2,
+  "cheaperInferenceBilledCostUsd": 0.000052,
+  "upstreamCostUsd": 0.000052,
+  "debugRawUsage": {
+   "completion_tokens": 116,
+   "completion_tokens_details": {
+    "accepted_prediction_tokens": 0,
+    "audio_tokens": 0,
+    "reasoning_tokens": 0,
+    "rejected_prediction_tokens": 0
+   },
+   "prompt_tokens": 2261,
+   "prompt_tokens_details": {
+    "audio_tokens": 0,
+    "cache_write_tokens": 0,
+    "cached_tokens": 2259
+   },
+   "total_tokens": 2377,
+   "cost": 0.000052,
+   "cost_details": {
+    "upstream_inference_cost": 0.000052
+   }
+  },
+  "usageReportingEvidence": {
+   "cacheRead": "reported_valid",
+   "cacheWrite": "reported_valid",
+   "reasoning": "reported_valid"
+  },
+  "providerRequestId": "ae603ef8-7cb4-433e-8b49-12d292d0fdb1"
+ },
+ "billed": 0.000052,
+ "episodicPresent": true,
+ "episodicValid": true,
+ "verdicts": [
+  {
+   "fact": {
+    "category": "relationship",
+    "subject": "user",
+    "attribute": "relationship_proposal",
+    "value": "proposed",
+    "importance": "important",
+    "fact_text": "사용자는 라이크에게 오늘부터 연인이 되자고 제안했다.",
+    "evidence_type": "explicit_user_statement",
+    "evidence": {
+     "source_role": "user",
+     "source_quote": "좋아, 우리 오늘부터 연인하자."
+    }
+   },
+   "accepted": true,
+   "reason": null,
+   "injected": "[유저가 직접 쓴 원문] “좋아, 우리 오늘부터 연인하자.”"
+  }
+ ],
+ "text": "{\"relationship\":{\"items\":[],\"itemsRemove\":[],\"promisesAdd\":[],\"promisesRemove\":[]},\"episodic\":{\"extracted_facts\":[{\"category\":\"relationship\",\"subject\":\"user\",\"attribute\":\"relationship_proposal\",\"value\":\"proposed\",\"importance\":\"important\",\"fact_text\":\"사용자는 라이크에게 오늘부터 연인이 되자고 제안했다.\",\"evidence_type\":\"explicit_user_statement\",\"evidence\":{\"source_role\":\"user\",\"source_quote\":\"좋아, 우리 오늘부터 연인하자.\"}}]}}"
+}

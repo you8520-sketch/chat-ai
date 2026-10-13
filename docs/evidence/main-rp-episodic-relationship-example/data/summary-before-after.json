@@ -1,0 +1,122 @@
+{
+ "before/FX06_proposal_only": {
+  "reps": 6,
+  "any_fact_stored": 6,
+  "value_lovers_stored": 6,
+  "gloss_agreement_stored": 3,
+  "proposal_fact_stored": 3,
+  "acceptance_quote_injected": 0,
+  "response_accepted_stored_on_handgrab": 0,
+  "example_subject_enoch_leak": 2,
+  "char_claim_stored_as_claim": 0,
+  "npc_event_stored": 0
+ },
+ "before/CTL_explicit_accept": {
+  "reps": 6,
+  "any_fact_stored": 6,
+  "value_lovers_stored": 6,
+  "gloss_agreement_stored": 6,
+  "proposal_fact_stored": 0,
+  "acceptance_quote_injected": 0,
+  "response_accepted_stored_on_handgrab": 0,
+  "example_subject_enoch_leak": 0,
+  "char_claim_stored_as_claim": 0,
+  "npc_event_stored": 0
+ },
+ "before/CTL_char_claim": {
+  "reps": 6,
+  "any_fact_stored": 3,
+  "value_lovers_stored": 0,
+  "gloss_agreement_stored": 0,
+  "proposal_fact_stored": 0,
+  "acceptance_quote_injected": 0,
+  "response_accepted_stored_on_handgrab": 0,
+  "example_subject_enoch_leak": 0,
+  "char_claim_stored_as_claim": 3,
+  "npc_event_stored": 0
+ },
+ "before/CTL_emotion_npc": {
+  "reps": 6,
+  "any_fact_stored": 1,
+  "value_lovers_stored": 0,
+  "gloss_agreement_stored": 0,
+  "proposal_fact_stored": 0,
+  "acceptance_quote_injected": 0,
+  "response_accepted_stored_on_handgrab": 0,
+  "example_subject_enoch_leak": 0,
+  "char_claim_stored_as_claim": 0,
+  "npc_event_stored": 1
+ },
+ "before/CTL_user_promise": {
+  "reps": 6,
+  "any_fact_stored": 0,
+  "value_lovers_stored": 0,
+  "gloss_agreement_stored": 0,
+  "proposal_fact_stored": 0,
+  "acceptance_quote_injected": 0,
+  "response_accepted_stored_on_handgrab": 0,
+  "example_subject_enoch_leak": 0,
+  "char_claim_stored_as_claim": 0,
+  "npc_event_stored": 0
+ },
+ "after/FX06_proposal_only": {
+  "reps": 16,
+  "any_fact_stored": 16,
+  "value_lovers_stored": 0,
+  "gloss_agreement_stored": 0,
+  "proposal_fact_stored": 16,
+  "acceptance_quote_injected": 0,
+  "response_accepted_stored_on_handgrab": 1,
+  "example_subject_enoch_leak": 0,
+  "char_claim_stored_as_claim": 0,
+  "npc_event_stored": 0
+ },
+ "after/CTL_explicit_accept": {
+  "reps": 16,
+  "any_fact_stored": 16,
+  "value_lovers_stored": 0,
+  "gloss_agreement_stored": 0,
+  "proposal_fact_stored": 16,
+  "acceptance_quote_injected": 4,
+  "response_accepted_stored_on_handgrab": 0,
+  "example_subject_enoch_leak": 0,
+  "char_claim_stored_as_claim": 0,
+  "npc_event_stored": 0
+ },
+ "after/CTL_char_claim": {
+  "reps": 6,
+  "any_fact_stored": 2,
+  "value_lovers_stored": 0,
+  "gloss_agreement_stored": 0,
+  "proposal_fact_stored": 0,
+  "acceptance_quote_injected": 0,
+  "response_accepted_stored_on_handgrab": 0,
+  "example_subject_enoch_leak": 0,
+  "char_claim_stored_as_claim": 2,
+  "npc_event_stored": 0
+ },
+ "after/CTL_emotion_npc": {
+  "reps": 6,
+  "any_fact_stored": 0,
+  "value_lovers_stored": 0,
+  "gloss_agreement_stored": 0,
+  "proposal_fact_stored": 0,
+  "acceptance_quote_injected": 0,
+  "response_accepted_stored_on_handgrab": 0,
+  "example_subject_enoch_leak": 0,
+  "char_claim_stored_as_claim": 0,
+  "npc_event_stored": 0
+ },
+ "after/CTL_user_promise": {
+  "reps": 6,
+  "any_fact_stored": 0,
+  "value_lovers_stored": 0,
+  "gloss_agreement_stored": 0,
+  "proposal_fact_stored": 0,
+  "acceptance_quote_injected": 0,
+  "response_accepted_stored_on_handgrab": 0,
+  "example_subject_enoch_leak": 0,
+  "char_claim_stored_as_claim": 0,
+  "npc_event_stored": 0
+ }
+}
