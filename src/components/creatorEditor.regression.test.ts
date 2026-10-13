@@ -16,6 +16,7 @@ import {
 } from "@/lib/characterFormLimits";
 import {
   AiLearningMeter,
+  CreatorGuideRail,
   FieldCounter,
   RequirementSummary,
   aiLearningMeterState,
@@ -237,5 +238,43 @@ describe("creator editor: wiring keeps one owner per responsibility", () => {
     assert.match(editor, /<form id="studio-character-form" onSubmit=\{submit\} noValidate/);
     assert.match(editor, /if \(!form\.name\.trim\(\)\)/);
     assert.match(editor, /if \(files\.length > 0\)/);
+  });
+});
+
+describe("creator editor: guided layout (candidate B)", () => {
+  it("renders numbered steps with completion state and jump buttons", () => {
+    const tree = CreatorGuideRail({
+      steps: [
+        { id: "name", n: 1, label: "카드 정보", done: true },
+        { id: "system_prompt", n: 2, label: "AI 설정", done: false },
+      ],
+      onJumpStep: () => {},
+      preview: null,
+      previewJumps: [{ id: "name", label: "이름" }],
+      onJumpPreview: () => {},
+    });
+    const text = textOf(tree);
+    assert.match(text, /1 \/ 2/);
+    assert.match(text, /✓카드 정보완료/);
+    assert.match(text, /2AI 설정필요/);
+    assert.equal(countElements(tree, "button"), 3);
+  });
+
+  it("previews the home card through the existing CharacterCard, inert and hidden from AT", () => {
+    assert.match(editor, /import CharacterCard, \{ type CharacterRow \} from "@\/components\/CharacterCard"/);
+    assert.equal(editor.split("<CharacterCard").length - 1, 1);
+    assert.match(parts, /inert aria-hidden="true"/);
+    assert.doesNotMatch(editor, /function\s+\w*CardPreview/);
+  });
+
+  it("puts required sections before optional ones and keeps optional fields reachable", () => {
+    const order = ["캐릭터 성별", "첫 메세지", "감정 에셋 이미지", "더 다듬기", "이미지 인물 설정", "서술·문체 지침"].map(
+      (title) => editor.indexOf(`title="${title}"`) >= 0 ? editor.indexOf(`title="${title}"`) : editor.indexOf(title),
+    );
+    assert.ok(order.every((at) => at > 0));
+    assert.deepEqual([...order].sort((a, b) => a - b), order);
+    assert.match(editor, /<details\s+open=\{optionalOpen\}/);
+    assert.match(editor, /OPTIONAL_GROUP_FIELDS[^;]*"narration"/);
+    assert.match(editor, /if \(hasOptionalContent\) setOptionalOpen\(true\)/);
   });
 });

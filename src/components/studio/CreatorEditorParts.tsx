@@ -343,3 +343,89 @@ export function AiLearningMeter({
     </div>
   );
 }
+
+export type GuideStep<K extends string = string> = {
+  id: K;
+  n: number;
+  label: string;
+  done: boolean;
+};
+
+export function CreatorGuideRail<K extends string, P extends string>({
+  steps,
+  onJumpStep,
+  preview,
+  previewJumps,
+  onJumpPreview,
+}: {
+  steps: readonly GuideStep<K>[];
+  onJumpStep: (id: K) => void;
+  preview: ReactNode;
+  previewJumps: readonly { id: P; label: string }[];
+  onJumpPreview: (id: P) => void;
+}) {
+  const doneCount = steps.filter((step) => step.done).length;
+  return (
+    <aside
+      aria-label="제작 가이드"
+      data-testid="creator-guide-rail"
+      className="hidden lg:sticky lg:top-[calc(var(--site-header-height,44px)+4.75rem)] lg:block lg:self-start"
+    >
+      <div className="space-y-5">
+        <nav aria-label="제작 순서" className="rounded-xl border border-white/10 bg-[#131626] p-4">
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold text-zinc-100">제작 순서</h2>
+            <span className="text-xs tabular-nums text-zinc-400">
+              {doneCount} / {steps.length}
+            </span>
+          </div>
+          <ol className="space-y-1">
+            {steps.map((step) => (
+              <li key={step.id}>
+                <button
+                  type="button"
+                  onClick={() => onJumpStep(step.id)}
+                  className="flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-sm text-zinc-200 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60"
+                >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums ring-1",
+                      step.done
+                        ? "bg-emerald-400/15 text-emerald-200 ring-emerald-300/30"
+                        : "bg-violet-500/20 text-violet-100 ring-violet-400/30",
+                    )}
+                  >
+                    {step.done ? "✓" : step.n}
+                  </span>
+                  <span className="min-w-0 flex-1">{step.label}</span>
+                  <span className="sr-only">{step.done ? "완료" : "필요"}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </nav>
+        <section aria-label="홈 카드 미리보기" className="rounded-xl border border-white/10 bg-[#131626] p-4">
+          <h2 className="text-sm font-semibold text-zinc-100">홈 카드 미리보기</h2>
+          <p className={cn(studioType.helper, "mb-3 mt-1")}>입력한 내용이 카드에 이렇게 보여요.</p>
+          <div inert aria-hidden="true" className="pointer-events-none mx-auto w-48 select-none">
+            {preview}
+          </div>
+          <ul className="mt-3 flex flex-wrap justify-center gap-1.5">
+            {previewJumps.map((jump) => (
+              <li key={jump.id}>
+                <button
+                  type="button"
+                  onClick={() => onJumpPreview(jump.id)}
+                  className="inline-flex min-h-9 items-center rounded-full border border-white/12 px-3 text-xs font-medium text-zinc-300 transition hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60"
+                >
+                  {jump.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </aside>
+  );
+}
