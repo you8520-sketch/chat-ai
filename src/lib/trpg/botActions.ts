@@ -5,7 +5,7 @@ import {
   TRPG_BOT_ACTION_TYPE_OPEN,
   TRPG_BOT_INTENT_OPEN,
 } from "./botActionParse";
-import { clipTrpgChars } from "./clip";
+import { clipTrpgChars, clipTrpgHeadTail } from "./clip";
 import { formatTrpgCharacterIdentityBlock, stripTrpgAssetControlMarkers } from "./gmSceneAssets";
 import { TRPG_MEMORY_BOT_CONTINUITY_BUDGET } from "./memoryHorizon";
 import { TRPG_BOT_SCENE_MAX_CHARS } from "./types";
@@ -155,7 +155,7 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
   const sceneBudget = recent
     ? Math.max(400, TRPG_MEMORY_BOT_CONTINUITY_BUDGET - Array.from(recent).length)
     : TRPG_BOT_SCENE_MAX_CHARS;
-  const scene = clipTrpgChars(ctx.previousGmNarration, Math.min(TRPG_BOT_SCENE_MAX_CHARS, sceneBudget)) || "(캠페인 시작)";
+  const scene = clipTrpgHeadTail(ctx.previousGmNarration, Math.min(TRPG_BOT_SCENE_MAX_CHARS, sceneBudget)) || "(캠페인 시작)";
   return [
     "[TRPG BOT ACTION — you are this PC.]",
     `[SPEAK ORDER] Human already acted. You are companion ${speakIndex} of ${speakCount} this round. Do not talk over earlier companions.`,

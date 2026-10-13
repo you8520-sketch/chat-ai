@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { resolveTrpgCanonicalAttempt } from "./canonicalAttempt";
 import { goalMemoryLines } from "./campaignGoals";
+import { clipTrpgHeadTail } from "./clip";
 import { clipTrpgChars, loadCampaignLedger, type TrpgCampaignLedger } from "./campaignLedger";
 import { loadSheetSnapshots } from "./engineSheets";
 import { inventoryUnits } from "./inventory";
@@ -173,13 +174,7 @@ function compactActionLine(actorName: string, text: string): string {
 }
 
 function compactSceneResult(narration: string): string {
-  const trimmed = narration.replace(/\s+/g, " ").trim();
-  if (!trimmed) return "";
-  const chars = Array.from(trimmed);
-  if (chars.length <= TRPG_BOT_CONTINUITY_SCENE_CHARS) return trimmed;
-  const head = Math.floor(TRPG_BOT_CONTINUITY_SCENE_CHARS * 0.55);
-  const tail = TRPG_BOT_CONTINUITY_SCENE_CHARS - head - 1;
-  return `${chars.slice(0, head).join("")}…${chars.slice(-tail).join("")}`;
+  return clipTrpgHeadTail(narration, TRPG_BOT_CONTINUITY_SCENE_CHARS);
 }
 
 /**

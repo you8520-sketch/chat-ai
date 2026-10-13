@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { clipTrpgChars } from "./clip";
+import { clipTrpgChars, clipTrpgHeadTail } from "./clip";
 import { loadParticipants } from "./store";
 
 export const TRPG_MEMORY_EVENT_TYPES = [
@@ -545,7 +545,7 @@ export function buildBotCompactContinuity(
   const compactClipped = clipTrpgChars(compact, Math.min(1500, budget));
   const sceneBudget = Math.max(400, budget - Array.from(compactClipped).length);
   return {
-    previousScene: clipTrpgChars(previousScene, sceneBudget),
+    previousScene: clipTrpgHeadTail(previousScene, sceneBudget),
     compact: compactClipped,
   };
 }
