@@ -13,7 +13,7 @@ import {
   UnitLegend,
 } from "@/components/creator/CreatorDashboardParts";
 import { ExchangeCard, NextActions } from "@/components/creator/CreatorActionParts";
-import { ScopedNotice, type PageNotice } from "@/components/studio/PersonaPageParts";
+import { ScopedNotice, useWideLayout, type PageNotice } from "@/components/studio/PersonaPageParts";
 import {
   CREATOR_NOTICE_CONTENT_MAX,
   CREATOR_NOTICE_TITLE_MAX,
@@ -38,6 +38,13 @@ const TABS: ReadonlyArray<readonly [TabId, string]> = [
   ["comments", "댓글·알림"],
 ];
 
+const JUMP_LINKS = [
+  ["creator-exchange", "교환"],
+  ["creator-withdraw", "출금"],
+  ["creator-share", "캐릭터별 비중"],
+  ["creator-earnings", "적립 내역"],
+] as const;
+
 const tabDomId = (id: TabId) => `creator-tab-${id}`;
 const panelDomId = (id: TabId) => `creator-panel-${id}`;
 
@@ -49,6 +56,7 @@ export default function CreatorClient({
   creatorId: number;
 }) {
   const router = useRouter();
+  const wide = useWideLayout();
   const [data, setData] = useState(initial);
   const [tab, setTab] = useState<TabId>("dashboard");
   const [earningPeriod, setEarningPeriod] = useState<CreatorEarningPeriod>("week");
@@ -198,14 +206,18 @@ export default function CreatorClient({
     }
   }
 
+  function jumpTo(id: string) {
+    const el = document.getElementById(id);
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+  }
+
   function goTo(target: NonNullable<CreatorNextAction["target"]>) {
     if (target === "profile") {
       setTab("profile");
       return;
     }
-    const el = document.getElementById(target === "exchange" ? "creator-exchange" : "creator-withdraw");
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+    jumpTo(target === "exchange" ? "creator-exchange" : "creator-withdraw");
   }
 
   function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -234,9 +246,70 @@ export default function CreatorClient({
   const nextActions = creatorNextActions(data);
   const profilePreviewHtml = sanitizeCreatorHtml(profileHtml);
   const profileDirty = profileHtml !== data.creatorProfileHtml;
+  const belowThreshold = data.tier.rewardRate <= 0;
+
+  const summary = (
+    <CreatorSummary
+      tier={data.tier}
+      creatorPoints={data.creatorPoints}
+      totalReward={data.totalReward}
+      totalSpentOnChars={data.totalSpentOnChars}
+    >
+      <UnitLegend className="mt-3 border-t border-white/10 pt-3" />
+    </CreatorSummary>
+  );
+  const ladder = <TierLadder rows={tierRows} />;
+  const nextCard = <NextActions actions={nextActions} onTarget={goTo} />;
+  const exchangeCard = (
+    <ExchangeCard
+      creatorPoints={data.creatorPoints}
+      amount={exchangeAmount}
+      busy={busy}
+      notice={exchangeNotice}
+      onAmountChange={setExchangeAmount}
+      onFillAll={() => setExchangeAmount(String(data.creatorPoints))}
+      onSubmit={exchange}
+    />
+  );
+  const withdrawCard = (
+    <div className="space-y-3">
+      <WithdrawalForm
+        creatorPoints={data.creatorPoints}
+        hasPendingWithdrawal={data.hasPendingWithdrawal}
+        recentWithdrawals={data.recentWithdrawals}
+        withdrawal={data.withdrawal}
+        onSuccess={(message) => {
+          setWithdrawMsg(message);
+          router.refresh();
+        }}
+        onError={() => setWithdrawMsg("")}
+        onRefresh={refresh}
+      />
+      <ScopedNotice notice={withdrawMsg ? { kind: "ok", text: withdrawMsg } : null} />
+    </div>
+  );
+  const shareChart = (
+    <div id="creator-share" className="scroll-mt-32">
+      <CharacterEarningShareChart
+        rows={data.characterEarningShares[earningPeriod]}
+        period={earningPeriod}
+        selectedId={selectedEarningCharacterId}
+        onPeriodChange={(nextPeriod) => {
+          setEarningPeriod(nextPeriod);
+          setSelectedEarningCharacterId(null);
+        }}
+        onSelect={setSelectedEarningCharacterId}
+      />
+    </div>
+  );
+  const earningsList = (
+    <div id="creator-earnings" className="scroll-mt-32">
+      <RecentEarningsList rows={data.recentEarnings} />
+    </div>
+  );
 
   return (
-    <div className="mx-auto mt-6 max-w-3xl space-y-5">
+    <div className="mx-auto mt-6 max-w-6xl space-y-5">
       <header className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -283,7 +356,7 @@ export default function CreatorClient({
           role="tabpanel"
           id={panelDomId("profile")}
           aria-labelledby={tabDomId("profile")}
-          className="space-y-5"
+          className="space-y-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0"
         >
           <section className={cn(studioSurface.card, "p-4 sm:p-5")}>
             <h2 className={studioType.sectionTitle}>크리에이터 소개</h2>
@@ -425,7 +498,7 @@ export default function CreatorClient({
           role="tabpanel"
           id={panelDomId("comments")}
           aria-labelledby={tabDomId("comments")}
-          className="space-y-4"
+          className="space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-5 lg:space-y-0"
         >
           <section className={cn(studioSurface.card, "p-4 sm:p-5")}>
             <h2 className={studioType.sectionTitle}>댓글 설정</h2>
@@ -463,55 +536,43 @@ export default function CreatorClient({
           aria-labelledby={tabDomId("dashboard")}
           className="space-y-5"
         >
-          <CreatorSummary
-            tier={data.tier}
-            creatorPoints={data.creatorPoints}
-            totalReward={data.totalReward}
-            totalSpentOnChars={data.totalSpentOnChars}
-          >
-            <UnitLegend className="mt-3 border-t border-white/10 pt-3" />
-          </CreatorSummary>
-
-          <NextActions actions={nextActions.slice(0, 1)} onTarget={goTo} />
-
-          <TierLadder rows={tierRows} />
-
-          <ExchangeCard
-            creatorPoints={data.creatorPoints}
-            amount={exchangeAmount}
-            busy={busy}
-            notice={exchangeNotice}
-            onAmountChange={setExchangeAmount}
-            onFillAll={() => setExchangeAmount(String(data.creatorPoints))}
-            onSubmit={exchange}
-          />
-
-          <WithdrawalForm
-            creatorPoints={data.creatorPoints}
-            hasPendingWithdrawal={data.hasPendingWithdrawal}
-            recentWithdrawals={data.recentWithdrawals}
-            withdrawal={data.withdrawal}
-            onSuccess={(message) => {
-              setWithdrawMsg(message);
-              router.refresh();
-            }}
-            onError={() => setWithdrawMsg("")}
-            onRefresh={refresh}
-          />
-          <ScopedNotice notice={withdrawMsg ? { kind: "ok", text: withdrawMsg } : null} />
-
-          <CharacterEarningShareChart
-            rows={data.characterEarningShares[earningPeriod]}
-            period={earningPeriod}
-            selectedId={selectedEarningCharacterId}
-            onPeriodChange={(nextPeriod) => {
-              setEarningPeriod(nextPeriod);
-              setSelectedEarningCharacterId(null);
-            }}
-            onSelect={setSelectedEarningCharacterId}
-          />
-
-          <RecentEarningsList rows={data.recentEarnings} />
+          {wide ? (
+            <>
+              <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5">
+                {summary}
+                {ladder}
+              </div>
+              <div className="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start gap-5">
+                <div className="min-w-0 space-y-5">
+                  {nextCard}
+                  {shareChart}
+                  {earningsList}
+                </div>
+                <div className="min-w-0 space-y-5">
+                  {exchangeCard}
+                  {withdrawCard}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {summary}
+              {nextCard}
+              <nav aria-label="대시보드 바로가기" className="grid grid-cols-2 gap-2">
+                {JUMP_LINKS.map(([id, label]) => (
+                  <StudioButton key={id} type="button" variant="secondary" size="sm" onClick={() => jumpTo(id)}>
+                    {label}
+                  </StudioButton>
+                ))}
+              </nav>
+              {belowThreshold ? ladder : null}
+              {shareChart}
+              {earningsList}
+              {exchangeCard}
+              {withdrawCard}
+              {belowThreshold ? null : ladder}
+            </>
+          )}
         </div>
       )}
     </div>
