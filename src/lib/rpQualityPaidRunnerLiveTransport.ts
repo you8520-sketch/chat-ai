@@ -33,9 +33,12 @@ export const PAID_RUNNER_LIVE_TIMEOUT_MS = 90_000;
 /**
  * Network timeout only; never an output length limit. Opus 5.5 can legitimately
  * spend more than 90 s in provider routing plus generation (observed 91.4 s).
+ * GPT-6.1 Sol hit the 90 s abort mid-stream in run4 (HTTP 200, partial text)
+ * while the provider still settled the request, so it shares the 240 s policy.
  */
 export const PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL: Partial<Record<SelectedAI, number>> = {
   "claude-opus-5.5": 240_000,
+  "gpt-6.1-sol": 240_000,
 };
 
 export type PaidRunnerLiveTransportOptions = {
