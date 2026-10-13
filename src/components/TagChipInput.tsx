@@ -12,6 +12,7 @@ type Props = {
   inputClassName?: string;
   disabled?: boolean;
   placeholder?: string;
+  inputId?: string;
 };
 
 export default function TagChipInput({
@@ -20,6 +21,7 @@ export default function TagChipInput({
   inputClassName = "",
   disabled = false,
   placeholder = "태그 입력 후 Enter",
+  inputId,
 }: Props) {
   const [draft, setDraft] = useState("");
 
@@ -44,6 +46,7 @@ export default function TagChipInput({
   return (
     <div className="space-y-2">
       <input
+        id={inputId}
         type="text"
         className={inputClassName}
         value={draft}
