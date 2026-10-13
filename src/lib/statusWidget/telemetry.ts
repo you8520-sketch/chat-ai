@@ -160,6 +160,8 @@ export type ResolveStatusWidgetTurnValuesInput = {
   shareEpisodic?: boolean;
   /** Regen: rejected assistant draft for the shared relationship section. */
   relationshipRegenContext?: { previousAssistantMessage: string } | null;
+  /** Stored text of the canonical active promises for the shared relationship section. */
+  activePromises: readonly string[];
   /** Phase B1-B shadow eligibility (optional; fail-closed when absent). */
   userId?: number | null;
   characterId?: number | null;
@@ -447,6 +449,7 @@ export async function resolveStatusWidgetTurnValues(
         shareRelationshipDelta: input.shareRelationshipDelta === true,
         shareEpisodic: input.shareEpisodic === true,
         relationshipRegenContext: input.relationshipRegenContext ?? null,
+        activePromises: input.activePromises,
       });
       widgetExtractDiagnostics = {
         exhausted: v3Result.meta.exhausted,

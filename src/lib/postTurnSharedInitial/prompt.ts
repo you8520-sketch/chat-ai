@@ -16,18 +16,21 @@ Write as the USER persona named in [USER] — match voice from [SUGGESTED REPLIE
 ${buildSuggestedReplyCoreGenerationRules()}
 Use [SUGGESTED REPLIES VOICE CONTEXT] only for suggestedReplies voice/style — never as evidence for statusWidget field values.`;
 
+const SHARED_PROMISES_REMOVE_RULE = `- promisesRemove: copy EXACTLY the [ACTIVE PROMISES] string(s) this turn's prose explicitly cancels, withdraws, fulfils, or expires. Unclear or several possible targets → []. Never remove another promise; a cancellation is never a promisesAdd.`;
+
 const SHARED_RELATIONSHIP_OUTPUT_RULES = `RELATIONSHIP section — durable relationship memory only, from this turn's prose.
 Return these arrays; empty arrays are correct when nothing changed:
 - items: new/changed possessions only ("name: item1, item2"); gifts/transfers as "from→to: item" or the receiver's updated line.
 - itemsRemove: current possession lines that are no longer true (copy the previous line EXACTLY).
 - promisesAdd: newly made promises as [{ "text": "...", "deadline": "..." }].
-- promisesRemove: active promises now fulfilled/expired (copy the promise text EXACTLY).
+${SHARED_PROMISES_REMOVE_RULE}
 Never extract honorifics, nicknames, inner thoughts, emotion, relationship stage, speech style, gender, or current location.`;
 
 const SHARED_RELATIONSHIP_REGEN_RULES = `RELATIONSHIP section — the assistant reply for this turn was REGENERATED.
 Compare the rejected assistant draft and the new canonical assistant in the user block.
 - itemsRemove: current possession lines no longer true in the new canonical reply (copy the line EXACTLY), including transfers that existed only in the rejected draft.
 - items / promisesAdd / promisesRemove: only changes introduced by the NEW canonical reply.
+${SHARED_PROMISES_REMOVE_RULE}
 Never extract honorifics, nicknames, inner thoughts, emotion, relationship stage, speech style, gender, or current location.`;
 
 export type SharedWidgetRequiredKeys = {
@@ -92,6 +95,15 @@ function buildSharedOutputEnvelope(input: PostTurnSharedInitialInput): string {
 export function buildSharedStatusWidgetEnvelope(input: PostTurnSharedInitialInput): string | null {
   if (input.mode === "relationship_only") return null;
   return "statusWidget: populate every required field with one scene-grounded string derived from this turn.";
+}
+
+function buildActivePromisesBlock(input: PostTurnSharedInitialInput): string {
+  if (!input.includeRelationship) return "";
+  const promises = (input.activePromises ?? []).map((text) => text.trim()).filter(Boolean);
+  const header = "[ACTIVE PROMISES — promisesRemove may only copy these]";
+  return promises.length
+    ? `${header}\n${promises.map((text) => `- ${text}`).join("\n")}`
+    : `${header}\n(none → promisesRemove [])`;
 }
 
 function buildSharedSuggestionVoiceContext(input: PostTurnSharedInitialInput): string {
@@ -202,17 +214,20 @@ export function buildPostTurnSharedInitialUserBlock(input: PostTurnSharedInitial
   const voiceContext = input.includeSuggestions
     ? buildSharedSuggestionVoiceContext(input)
     : "";
+  const activePromisesBlock = buildActivePromisesBlock(input);
 
   if (widgetBlock) {
     const rejectedDraftBlock =
       input.relationshipRegenContext?.previousAssistantMessage?.trim()
         ? `[REJECTED ASSISTANT DRAFT — RELATIONSHIP COMPARISON ONLY; NOT EPISODIC EVIDENCE]\n${input.relationshipRegenContext.previousAssistantMessage}`
         : "";
-    return [widgetBlock, rejectedDraftBlock, voiceContext].filter(Boolean).join("\n\n");
+    return [widgetBlock, rejectedDraftBlock, activePromisesBlock, voiceContext]
+      .filter(Boolean)
+      .join("\n\n");
   }
   // No widget consumer (status OFF). Always include the current turn so
   // suggestions-only work does not depend on the relationship section.
-  return [currentTurnBlock, voiceContext].filter(Boolean).join("\n\n");
+  return [currentTurnBlock, activePromisesBlock, voiceContext].filter(Boolean).join("\n\n");
 }
 
 /** @internal tests — standalone combined flat-top contract must not appear in shared system. */

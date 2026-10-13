@@ -121,6 +121,8 @@ export async function runPostTurnRelationshipOnlyInitial(
     assistantProse: string;
     primaryModelId: string;
     previousAssistantMessage?: string | null;
+    /** Stored text of the canonical active promises (see PostTurnSharedInitialInput). */
+    activePromises: readonly string[];
     /** Also produce suggested replies in the same inference (status OFF + suggestions ON). */
     includeSuggestions?: boolean;
     /** Relationship consumer active (default true for the relationship owner). */
@@ -151,6 +153,7 @@ export async function runPostTurnRelationshipOnlyInitial(
       relationshipRegenContext: input.previousAssistantMessage?.trim()
         ? { previousAssistantMessage: input.previousAssistantMessage }
         : null,
+      activePromises: input.activePromises,
     },
     caller,
     ledgerContext
