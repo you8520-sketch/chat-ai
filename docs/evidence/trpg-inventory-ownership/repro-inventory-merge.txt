@@ -1,0 +1,6 @@
+INVALID_GM_INVENTORY_DELTA false
+렌 ["그을린 장부 조각","민우의 놋쇠 회중시계"]
+현 ["세관 밀수 원본 장부","강도현의 친필 격침 지시서"]
+서하 []
+도윤 []
+same pre-state twice equal: true
