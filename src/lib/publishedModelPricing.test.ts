@@ -249,6 +249,7 @@ describe("publishedModelPricing", () => {
       { id: "gemini-3.1-pro-preview", target: 0.09, floor: 0.05, in: 2, out: 12, ver: 2 },
       { id: "gemini-3.7-flash", target: 0.55, floor: 0.5, in: 0.375, out: 1.875, ver: 2 },
       { id: "gemini-3.8-flash", target: 0.55, floor: 0.5, in: 0.375, out: 1.875, ver: 1 },
+      { id: "gemini-4-argon", target: 0.55, floor: 0.5, in: 2, out: 10, ver: 1 },
       { id: "qwen-3-8-max", target: 0.5, floor: 0.35, in: 1.4, out: 4.2, ver: 1 },
       { id: "z-ai/glm-5.2", target: 0.5, floor: 0.35, in: 0.532, out: 1.672, ver: 1 },
       { id: "glm-5.2", target: 0.5, floor: 0.35, in: 0.532, out: 1.672, ver: 1 },

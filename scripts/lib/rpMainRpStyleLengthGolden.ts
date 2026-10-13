@@ -5,7 +5,11 @@
  */
 import { createHash } from "node:crypto";
 
-import { MAIN_RP_MODEL_IDS, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
+import {
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
+  selectedAIProvider,
+  type SelectedAI,
+} from "@/lib/chatModels";
 import { readRailwayDeploymentSha } from "@/lib/opsRequestIncidents";
 import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
 import {
@@ -134,7 +138,7 @@ export function buildMainRpStyleLengthPublicManifest(input: {
     identityHashes: input.identityHashes,
     combinedIdentityHash: paidRunnerIdentityHash(input.identityHashes),
     fixtureIds: RP_QUALITY_PRECALL_FIXTURE_IDS,
-    models: MAIN_RP_MODEL_IDS,
+    models: MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
     calls: publicCalls(input.sealedRequests),
     sealedRequestCount: input.sealedRequests.length,
     sourceKind: "railway-production-readonly-in-process-v1",
@@ -177,7 +181,7 @@ export function assembleMainRpStyleLengthSnapshot(input: {
     adminUserId: assembledIdentity.adminUserId,
     adminVerified: assembledIdentity.adminVerified,
     personaCount: assembledIdentity.personaCount,
-    models: MAIN_RP_MODEL_IDS,
+    models: MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   });
   const assembled = assemblePrecallFinalWireWithSealedRequests(input.rows);
   if (assembled.sealedRequests.length === 0) {
@@ -194,7 +198,7 @@ export function assembleMainRpStyleLengthSnapshot(input: {
     });
   }
   for (const request of assembled.sealedRequests) {
-    if (!MAIN_RP_MODEL_IDS.includes(request.canonicalId as SelectedAI)) {
+    if (!MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.includes(request.canonicalId as SelectedAI)) {
       assertMainRpStyleLengthIdentity({
         characterId: MAIN_RP_STYLE_LENGTH_TARGET.characterId,
         characterName: MAIN_RP_STYLE_LENGTH_TARGET.characterName,
@@ -341,7 +345,7 @@ export function createLiveMainRpStyleLengthGolden(input: {
     adminUserId: liveIdentity.adminUserId,
     adminVerified: liveIdentity.adminVerified,
     personaCount: liveIdentity.personaCount,
-    models: MAIN_RP_MODEL_IDS,
+    models: MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   });
   const assembled = assembleMainRpStyleLengthSnapshot({
     rows: loaded.rows,
@@ -679,7 +683,7 @@ export async function dryRunMainRpStyleLengthEvaluation(
       expectedProductionSha: prepared.paidManifest.productionDeploySha,
       expectedIdentityHash: prepared.paidManifest.identityHash,
       experimentSecret: "rpq-paid-style-length-dryrun-0000001",
-      allowlist: [...MAIN_RP_MODEL_IDS],
+      allowlist: [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS],
       plannedCalls: prepared.sealedCalls.length,
       ...(prepared.paidManifest.executionScope
         ? { executionScope: prepared.paidManifest.executionScope }

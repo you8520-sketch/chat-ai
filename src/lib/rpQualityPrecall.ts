@@ -11,7 +11,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
   GEMINI_37_FLASH_DISPLAY_NAME,
-  MAIN_RP_MODEL_IDS,
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   selectedAIProvider,
   type SelectedAI,
@@ -167,15 +167,16 @@ export type RpQualityPrecallOwnerRow = {
 export const RP_QUALITY_PRECALL_OWNER_MAP: readonly RpQualityPrecallOwnerRow[] = [
   {
     responsibility: "active model registry",
-    canonicalOwner: "chatModels.MAIN_RP_USER_SELECTABLE_OPTIONS",
-    effectiveValueSource: "MAIN_RP_USER_SELECTABLE_OPTIONS → MAIN_RP_MODEL_IDS",
-    scope: "user-selectable Main RP picker only",
+    canonicalOwner: "chatModels.MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS",
+    effectiveValueSource: "MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS (frozen 4-model paid-quality roster)",
+    scope: "approved PRECALL / paid-runner A-scope only; user picker may be larger",
     otherReaders: [
       "rpQualityEvaluationPacket.RP_QUALITY_BENCHMARK_MODELS",
       "scripts/lib/rpActiveModelQualityLive.RP_ACTIVE_MODEL_QUALITY_MODEL_IDS",
       "this PRECALL plan",
     ],
-    duplicateOrStaleOwner: "none — PRECALL derives, does not invent a second list",
+    duplicateOrStaleOwner:
+      "none — picker growth must not expand sealed 12-call / 4-call verification",
   },
   {
     responsibility: "deployed character/persona snapshot",
@@ -674,33 +675,42 @@ export function hasApprovedCostBound(input?: {
 }
 
 export function rpQualityPrecallBenchmarkModels(): readonly RpQualityPrecallModelPlan[] {
-  return MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => ({
-    canonicalId: option.id,
-    displayLabel: option.label,
-    provider: selectedAIProvider(option.id),
-    wireModel: resolveMainRpPrimaryWireModelId(option.id),
-  }));
+  return MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.map((id) => {
+    const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find((row) => row.id === id);
+    if (!option) {
+      throw new Error(`PRECALL quality model missing from picker: ${id}`);
+    }
+    return {
+      canonicalId: option.id,
+      displayLabel: option.label,
+      provider: selectedAIProvider(option.id),
+      wireModel: resolveMainRpPrimaryWireModelId(option.id),
+    };
+  });
 }
 
 export function assertActiveMainRpBenchmarkSet(
   models: readonly RpQualityPrecallModelPlan[] = rpQualityPrecallBenchmarkModels()
 ): void {
-  if (models.length !== MAIN_RP_USER_SELECTABLE_OPTIONS.length) {
+  if (models.length !== MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.length) {
     throw new Error(
-      `PRECALL model count drifted from MAIN_RP_USER_SELECTABLE_OPTIONS: ${models.length}`
+      `PRECALL model count drifted from MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS: ${models.length}`
     );
   }
   if (models.length !== 4) {
-    throw new Error(`Expected 4 active Main RP models, got ${models.length}`);
+    throw new Error(`Expected 4 active Main RP quality models, got ${models.length}`);
   }
   const ids = models.map((row) => row.canonicalId);
-  if (JSON.stringify(ids) !== JSON.stringify([...MAIN_RP_MODEL_IDS])) {
-    throw new Error("PRECALL model set is not MAIN_RP_MODEL_IDS");
+  if (JSON.stringify(ids) !== JSON.stringify([...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS])) {
+    throw new Error("PRECALL model set is not MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS");
   }
   const labels = models.map((row) => row.displayLabel);
-  const registryLabels = MAIN_RP_USER_SELECTABLE_OPTIONS.map((option) => option.label);
+  const registryLabels = MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.map((id) => {
+    const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find((row) => row.id === id);
+    return option?.label;
+  });
   if (JSON.stringify(labels) !== JSON.stringify(registryLabels)) {
-    throw new Error("PRECALL labels are not MAIN_RP_USER_SELECTABLE_OPTIONS labels");
+    throw new Error("PRECALL labels are not MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS labels");
   }
   const retiredIds = [
     CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,

@@ -41,7 +41,7 @@ export type CurrentBaselinePlanEntry = {
   currentProvider: CurrentBaselineProvider;
   currentProviderName: string;
   currentProviderSlug: string | null;
-  currentServiceTier: "flex" | null;
+  currentServiceTier: "flex" | "default" | null;
   estimatedPairCurrentRateUsd: number;
   openRouterRouteCandidate: SupplyLiveCandidate | null;
 };
@@ -66,7 +66,7 @@ export type CurrentBaselineResult = {
   currentProvider: CurrentBaselineProvider;
   currentProviderName: string;
   currentProviderSlug: string | null;
-  currentServiceTier: "flex" | null;
+  currentServiceTier: "flex" | "default" | null;
   turns: SupplyLiveTurnResult[];
   providerGenerationCalls: number;
   livePairComplete: boolean;
@@ -81,7 +81,7 @@ export type SupplyTransportComparisonRow = {
   currentProvider: CurrentBaselineProvider;
   currentProviderName: string;
   currentProviderSlug: string | null;
-  currentServiceTier: "flex" | null;
+  currentServiceTier: "flex" | "default" | null;
   candidatePairComplete: boolean;
   currentBaselinePairComplete: boolean;
   candidateSecondTurnCacheReadObserved: boolean;
@@ -130,7 +130,7 @@ function currentOpenRouterRouteCandidate(input: {
 }): {
   providerName: string;
   providerSlug: string;
-  serviceTier: "flex" | null;
+  serviceTier: "flex" | "default" | null;
   candidate: SupplyLiveCandidate;
 } | null {
   const route = resolveMainRpOpenRouterRoutePolicy(input.candidate.modelId);

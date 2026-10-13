@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { describe, it } from "node:test";
 
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS } from "@/lib/chatModels";
 import { getPublishedPricing } from "@/lib/publishedModelPricing";
 import { OPUS55_CI_PROCUREMENT_INPUT_USD_PER_MILLION, OPUS55_CI_PROCUREMENT_OUTPUT_USD_PER_MILLION } from "@/lib/opus55ProcurementPricing";
 import {
@@ -132,8 +132,11 @@ describe("rp quality paid runner preapproval evidence", () => {
     });
     assert.equal(pack.manifest.calls.length, RP_QUALITY_PRECALL_PLANNED_CALLS);
     assert.equal(new Set(pack.manifest.calls.map((call) => call.fixtureId)).size, RP_QUALITY_PRECALL_FIXTURE_IDS.length);
-    assert.equal(new Set(pack.manifest.calls.map((call) => call.canonicalId)).size, MAIN_RP_MODEL_IDS.length);
-    assert.deepEqual([...MAIN_RP_MODEL_IDS], [
+    assert.equal(
+      new Set(pack.manifest.calls.map((call) => call.canonicalId)).size,
+      MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.length
+    );
+    assert.deepEqual([...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS], [
       "deepseek-v4.1-flash",
       "gemini-3.8-flash",
       "gpt-6.1-sol",
@@ -167,7 +170,10 @@ describe("rp quality paid runner preapproval evidence", () => {
       assert.equal("max_completion_tokens" in call.requestBody, false);
       assert.equal(call.maxTokensPresent, false);
     }
-    assert.equal(resolveOpenRouterMaxTokens(3200, 8192, MAIN_RP_MODEL_IDS[0]), undefined);
+    assert.equal(
+      resolveOpenRouterMaxTokens(3200, 8192, MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS[0]),
+      undefined
+    );
     assert.equal(resolveStreamCharCap({}), Number.MAX_SAFE_INTEGER);
   });
 

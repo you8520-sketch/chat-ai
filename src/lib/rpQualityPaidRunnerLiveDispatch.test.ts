@@ -6,7 +6,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, it } from "node:test";
 
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS } from "@/lib/chatModels";
 import {
   createMemoryPaidRunnerArtifactStore,
 } from "@/lib/rpQualityPaidRunnerArtifacts";
@@ -96,7 +96,7 @@ function auth(
     expectedProductionSha: manifest.productionDeploySha,
     expectedIdentityHash: manifest.identityHash,
     experimentSecret: SECRET,
-    allowlist: [...MAIN_RP_MODEL_IDS],
+    allowlist: [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS],
     plannedCalls: 12,
     ...extra,
   };

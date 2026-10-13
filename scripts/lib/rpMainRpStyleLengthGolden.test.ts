@@ -6,7 +6,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { DatabaseSync } from "node:sqlite";
 
-import { MAIN_RP_MODEL_IDS } from "@/lib/chatModels";
+import { MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS } from "@/lib/chatModels";
 import { RP_QUALITY_PRECALL_PLANNED_CALLS } from "@/lib/rpQualityPrecall";
 import {
   MainRpStyleLengthFixtureError,
@@ -152,7 +152,7 @@ describe("MAIN_RP_STYLE_LENGTH golden operator", () => {
     assert.equal(assembled.publicManifest.personaId, 1);
     assert.equal(assembled.publicManifest.personaName, "렌");
     assert.equal(assembled.publicManifest.sealedRequestCount, RP_QUALITY_PRECALL_PLANNED_CALLS);
-    assert.deepEqual(assembled.publicManifest.models, [...MAIN_RP_MODEL_IDS]);
+    assert.deepEqual(assembled.publicManifest.models, [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS]);
     assert.equal(assembled.publicManifest.qualityScores, null);
     const root = path.join(dir, "private");
     const persisted = persistMainRpStyleLengthGolden({

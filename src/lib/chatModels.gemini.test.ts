@@ -6,6 +6,8 @@ import {
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   DEFAULT_SELECTED_AI,
   GEMINI_38_FLASH_MODEL,
+  GEMINI_4_ARGON_MODEL,
+  OPENROUTER_GEMINI_4_ARGON_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -17,6 +19,8 @@ import {
   isCheaperInferenceGemini37FlashModel,
   isCheaperInferenceModel,
   isGemini31ProModel,
+  isGemini4ArgonModel,
+  isGeminiChatOpenRouterModel,
   isGeminiFlashOpenRouterModel,
   isGemini36FlashModel,
   isValidSelectedAI,
@@ -152,6 +156,32 @@ describe("Gemini route-rate compatibility", () => {
     assert.equal(isValidSelectedAI(OPENROUTER_GEMINI_31_PRO_MODEL), false);
     assert.ok(isGemini31ProModel(OPENROUTER_GEMINI_31_PRO_MODEL));
     assert.equal(selectedAILabel(OPENROUTER_GEMINI_31_PRO_MODEL), "Gemini 3.1 Pro");
+  });
+
+  it("adds Gemini 4 Argon as a fifth OpenRouter Standard picker model", () => {
+    assert.ok(USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === GEMINI_4_ARGON_MODEL));
+    assert.equal(isValidSelectedAI(GEMINI_4_ARGON_MODEL), true);
+    assert.equal(resolveSelectedAI(GEMINI_4_ARGON_MODEL), GEMINI_4_ARGON_MODEL);
+    assert.equal(selectedAIProvider(GEMINI_4_ARGON_MODEL), "openrouter");
+    assert.equal(selectedAILabel(GEMINI_4_ARGON_MODEL), "Gemini 4 Argon");
+    assert.equal(isGemini4ArgonModel(GEMINI_4_ARGON_MODEL), true);
+    assert.equal(isGemini4ArgonModel(OPENROUTER_GEMINI_4_ARGON_MODEL), true);
+    assert.equal(isGeminiChatOpenRouterModel(GEMINI_4_ARGON_MODEL), true);
+    assert.equal(isGeminiFlashOpenRouterModel(GEMINI_4_ARGON_MODEL), false);
+    assert.equal(isCheaperInferenceModel(GEMINI_4_ARGON_MODEL), false);
+    assert.equal(
+      resolveOpenRouterModelId(GEMINI_4_ARGON_MODEL),
+      OPENROUTER_GEMINI_4_ARGON_MODEL
+    );
+    const policy = resolveMainRpOpenRouterRoutePolicy(GEMINI_4_ARGON_MODEL);
+    assert.ok(policy);
+    assert.equal(policy.serviceTier, "default");
+    assert.deepEqual(policy.provider.only, ["google-ai-studio"]);
+    assert.equal(policy.provider.allow_fallbacks, false);
+    const rates = resolveOpenRouterModelRates(OPENROUTER_GEMINI_4_ARGON_MODEL);
+    assert.equal(rates.inputUsdPerM, 2);
+    assert.equal(rates.outputUsdPerM, 10);
+    assert.equal(rates.cacheReadUsdPerM, 0.1);
   });
 
   it("default remains DeepSeek V4.1 Flash", () => {

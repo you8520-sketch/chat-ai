@@ -59,7 +59,10 @@ function main() {
       assert.equal(casePacket.wireControls.stream, true);
       if (model.provider === "openrouter") {
         assert.ok(casePacket.requestBodyKeys.includes("provider"));
-        assert.equal(casePacket.wireControls.service_tier, "flex");
+        assert.equal(
+          casePacket.wireControls.service_tier,
+          model.modelId === "gemini-4-argon" ? "default" : "flex"
+        );
       }
       assert.ok(casePacket.requestBodyKeys.includes("messages"));
       assert.ok(casePacket.requestBodyKeys.includes("model"));

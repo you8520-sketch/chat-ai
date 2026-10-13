@@ -2,6 +2,7 @@ import { normalizeOpenRouterModelId } from "@/lib/openRouterConfig";
 import {
   isAnthropicModel,
   isGemini36FlashModel,
+  isGemini4ArgonModel,
   isGeminiFlashOpenRouterModel,
   isGeminiProOpenRouterModel,
 } from "@/lib/chatModels";
@@ -176,6 +177,16 @@ export const OPENROUTER_RP_REASONING_GEMINI_3_PRO = {
   effort: "low",
 } as const;
 
+/**
+ * Gemini 4 Argon RP — OpenRouter maps reasoning.effort to thinkingLevel.
+ * Supported wire params: reasoning, include_reasoning, reasoning_effort.
+ * Do not send native thinking_level / thinkingConfig / thinkingBudget.
+ */
+export const OPENROUTER_RP_REASONING_GEMINI_4_ARGON = {
+  effort: "low",
+  exclude: true,
+} as const;
+
 /** Gemini Pro — creative expansion (RP primary) */
 export const GEMINI_PRO_GENERATION_PARAMS = {
   temperature: 0.95,
@@ -201,6 +212,18 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
 
   if (isGeminiProOpenRouterModel(modelId)) {
     applyGeminiProReasoning(body, modelId);
+    return;
+  }
+
+  if (isGemini4ArgonModel(modelId)) {
+    const reasoning = OPENROUTER_RP_REASONING_GEMINI_4_ARGON;
+    body.reasoning = { ...reasoning };
+    console.log("[openrouter-reasoning] gemini-4-argon", {
+      model: normalized,
+      effort: reasoning.effort,
+      exclude: true,
+      include_reasoning: false,
+    });
     return;
   }
 
@@ -324,7 +347,13 @@ export function normalizeOpenRouterGenerationParams(
 
   // Gemini 3.6 / 3.8 official API guidance: sampling parameters are omitted.
   // 3.8 explicitly rejects migration configs that retain temperature/top_p.
-  if (isGemini36FlashModel(modelId ?? "") || isGemini38FlashModel(modelId)) {
+  // Gemini 4 Argon lists temperature/top_p as supported, but RP uses provider
+  // defaults so we do not invent a dedicated Argon sampling profile.
+  if (
+    isGemini36FlashModel(modelId ?? "") ||
+    isGemini38FlashModel(modelId) ||
+    isGemini4ArgonModel(modelId ?? "")
+  ) {
     delete base.temperature;
     delete base.top_p;
   }
@@ -346,7 +375,11 @@ export function resolveRegenerateGenerationOverrides(
   modelId: string,
   targetResponseChars?: number | null
 ): OpenRouterGenerationOverrides {
-  if (isGemini36FlashModel(modelId) || isGemini38FlashModel(modelId)) {
+  if (
+    isGemini36FlashModel(modelId) ||
+    isGemini38FlashModel(modelId) ||
+    isGemini4ArgonModel(modelId)
+  ) {
     return { seed: Math.floor(Math.random() * 2_147_483_647) };
   }
   const base = normalizeOpenRouterGenerationParams(
@@ -422,7 +455,8 @@ export function buildOpenRouterRequestBody(
     isOpenRouterRpReasoningMandatoryModel(modelId) ||
     isOpenRouterRpReasoningDisabledModel(modelId) ||
     isOpenRouterRpReasoningMuseModel(modelId) ||
-    isGeminiFlashOpenRouterModel(modelId)
+    isGeminiFlashOpenRouterModel(modelId) ||
+    isGemini4ArgonModel(modelId)
   ) {
     applyOpenRouterRpReasoningPolicy(body, modelId);
   }

@@ -13,6 +13,7 @@ import {
   GEMINI_PRO_GENERATION_PARAMS,
   OPENROUTER_RP_REASONING_GEMINI_FLASH,
   OPENROUTER_RP_REASONING_GEMINI_37_38_FLASH,
+  OPENROUTER_RP_REASONING_GEMINI_4_ARGON,
   OPENROUTER_RP_REASONING_GEMINI_3_PRO,
   OPENROUTER_RP_REASONING_MUSE_SPARK,
   OPENROUTER_RP_REASONING_OFF,
@@ -21,12 +22,14 @@ import {
 } from "@/lib/openRouterClient";
 import { resolveMaxOutputTokensForTarget } from "@/lib/responseLength";
 import {
+  GEMINI_4_ARGON_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_GEMINI_37_FLASH_MODEL,
   OPENROUTER_GEMINI_38_FLASH_MODEL,
+  OPENROUTER_GEMINI_4_ARGON_MODEL,
   OPENROUTER_GLM_52_MODEL,
   OPENROUTER_KIMI_K3_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
@@ -139,6 +142,27 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.equal(body.include_reasoning, false);
     assert.equal(body.temperature, undefined);
     assert.equal(body.top_p, undefined);
+  });
+
+  it("uses low excluded reasoning for Gemini 4 Argon and omits sampling", () => {
+    for (const modelId of [OPENROUTER_GEMINI_4_ARGON_MODEL, GEMINI_4_ARGON_MODEL]) {
+      const body = buildOpenRouterRequestBody(
+        modelId,
+        [{ role: "user", content: "test" }],
+        true,
+        3500,
+        "chat-1"
+      ) as Record<string, unknown>;
+      assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_GEMINI_4_ARGON);
+      assert.equal(body.include_reasoning, false);
+      assert.equal(body.reasoning_effort, undefined);
+      assert.equal(body.max_tokens, undefined);
+      assert.equal(body.temperature, undefined);
+      assert.equal(body.top_p, undefined);
+      assert.equal(body.thinking_level, undefined);
+      assert.equal(body.thinkingConfig, undefined);
+    }
+    assert.equal(OPENROUTER_RP_REASONING_GEMINI_4_ARGON.effort, "low");
   });
 
   it("uses low reasoning for Gemini 3.7 and 3.8 Flash because minimal is unsupported", () => {

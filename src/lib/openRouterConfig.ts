@@ -4,6 +4,8 @@ import {
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_GEMINI_38_FLASH_MODEL,
   GEMINI_38_FLASH_MODEL,
+  GEMINI_4_ARGON_MODEL,
+  OPENROUTER_GEMINI_4_ARGON_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   coerceUserSelectableAI,
   isOpenRouterSelectedAI,
@@ -26,6 +28,8 @@ const DEPRECATED_OPENROUTER_MODELS: Record<string, string> = {
   "google/gemini-3.7-flash": OPENROUTER_GEMINI_38_FLASH_MODEL,
   [GEMINI_38_FLASH_MODEL]: OPENROUTER_GEMINI_38_FLASH_MODEL,
   [OPENROUTER_GEMINI_38_FLASH_MODEL]: OPENROUTER_GEMINI_38_FLASH_MODEL,
+  [GEMINI_4_ARGON_MODEL]: OPENROUTER_GEMINI_4_ARGON_MODEL,
+  [OPENROUTER_GEMINI_4_ARGON_MODEL]: OPENROUTER_GEMINI_4_ARGON_MODEL,
   [OPENROUTER_MUSE_SPARK_11_MODEL]: OPENROUTER_GEMINI_36_FLASH_MODEL,
 };
 
@@ -107,18 +111,20 @@ export function resolveMainRpPrimaryWireModelId(selected: SelectedAI): string {
     : selected;
 }
 
+export type MainRpOpenRouterServiceTier = "flex" | "default";
+
 export type MainRpOpenRouterRoutePolicy = {
   provider: {
     only: [string];
     allow_fallbacks: false;
     require_parameters: true;
   };
-  serviceTier: "flex";
+  serviceTier: MainRpOpenRouterServiceTier;
 };
 
 type MainRpOpenRouterRoutePolicySource = {
   providerSlug: string;
-  serviceTier: "flex";
+  serviceTier: MainRpOpenRouterServiceTier;
 };
 
 /**
@@ -134,6 +140,10 @@ export const MAIN_RP_OPENROUTER_ROUTE_POLICY_SOURCE: Readonly<
   "google/gemini-3.8-flash": {
     providerSlug: "google-ai-studio",
     serviceTier: "flex",
+  },
+  "google/gemini-4-argon": {
+    providerSlug: "google-ai-studio",
+    serviceTier: "default",
   },
 };
 

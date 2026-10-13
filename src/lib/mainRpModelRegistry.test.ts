@@ -1,9 +1,9 @@
 /**
- * Main RP model registry — canonical 4-model role invariant.
+ * Main RP model registry — picker vs frozen paid-quality roster.
  *
- * ONE source of truth: MAIN_RP_MODEL_IDS / MAIN_RP_USER_SELECTABLE_OPTIONS.
- * Exactly 4 Main RP models; all others are MainRP=false (auxiliary/vision/
- * historical only). API=0.
+ * User picker: MAIN_RP_USER_SELECTABLE_OPTIONS → MAIN_RP_MODEL_IDS.
+ * Paid-quality / PRECALL: MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS (frozen 4).
+ * All others are MainRP=false (auxiliary/vision/historical only). API=0.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -21,8 +21,10 @@ import {
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   GEMINI_38_FLASH_MODEL,
+  GEMINI_4_ARGON_MODEL,
   CLAUDE_OPUS_MODEL,
   MAIN_RP_MODEL_IDS,
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   SELECTED_AI_OPTIONS,
@@ -36,24 +38,35 @@ import {
 const REPO_ROOT = resolve(process.cwd());
 
 describe("Main RP canonical 4-model registry", () => {
-  it("MAIN_RP_MODEL_COUNT=4 and picker count=4 (single source of truth)", () => {
-    assert.equal(MAIN_RP_MODEL_IDS.length, 4);
-    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 4);
-    assert.equal(SELECTED_AI_OPTIONS.length, 4);
-    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 4);
-    assert.equal(userSelectableAIOptionsForUser(false).length, 4);
-    assert.equal(userSelectableAIOptionsForUser(true).length, 4);
+  it("picker count=5 and paid-quality roster stays 4", () => {
+    assert.equal(MAIN_RP_MODEL_IDS.length, 5);
+    assert.equal(MAIN_RP_USER_SELECTABLE_OPTIONS.length, 5);
+    assert.equal(SELECTED_AI_OPTIONS.length, 5);
+    assert.equal(USER_SELECTABLE_AI_OPTIONS.length, 5);
+    assert.equal(userSelectableAIOptionsForUser(false).length, 5);
+    assert.equal(userSelectableAIOptionsForUser(true).length, 5);
+    assert.equal(MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.length, 4);
   });
 
-  it("canonical 4 are the exact expected ids and all selectable", () => {
+  it("canonical picker ids include Gemini 4 Argon and the frozen quality 4", () => {
     assert.deepEqual(
       [...MAIN_RP_MODEL_IDS].sort(),
       [
         CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
         CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
         GEMINI_38_FLASH_MODEL,
+        GEMINI_4_ARGON_MODEL,
         CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
       ].sort()
+    );
+    assert.deepEqual(
+      [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS],
+      [
+        CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
+        GEMINI_38_FLASH_MODEL,
+        CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
+        CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
+      ]
     );
     for (const modelId of MAIN_RP_MODEL_IDS) {
       assert.equal(isMainRpModel(modelId), true, modelId);

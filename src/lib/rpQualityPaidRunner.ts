@@ -21,7 +21,7 @@ import {
 import path from "node:path";
 
 import {
-  MAIN_RP_MODEL_IDS,
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   selectedAIProvider,
   type SelectedAI,
 } from "@/lib/chatModels";
@@ -453,7 +453,7 @@ export function verifyPaidRunnerDispatchSeal(input: {
 
   const expectedPairs: Array<{ fixtureId: RpQualityPrecallFixtureId; canonicalId: SelectedAI }> = [];
   for (const fixtureId of RP_QUALITY_PRECALL_FIXTURE_IDS) {
-    for (const canonicalId of MAIN_RP_MODEL_IDS) {
+    for (const canonicalId of MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS) {
       expectedPairs.push({ fixtureId, canonicalId });
     }
   }
@@ -525,7 +525,7 @@ export function verifyPaidRunnerDispatchSeal(input: {
 }
 
 export function assertCurrentMainRpPaidAllowlist(allowlist: readonly string[]): void {
-  if (JSON.stringify([...allowlist]) !== JSON.stringify([...MAIN_RP_MODEL_IDS])) {
+  if (JSON.stringify([...allowlist]) !== JSON.stringify([...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS])) {
     throw new Error("PAID_RUNNER_MODEL_REGISTRY_DRIFT");
   }
 }
@@ -623,8 +623,8 @@ export function evaluatePaidRunnerAuthorization(
       (call) => call.fixtureId === PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE
     );
     if (
-      scoped.length !== MAIN_RP_MODEL_IDS.length ||
-      !MAIN_RP_MODEL_IDS.every((canonicalId, index) => scoped[index]?.canonicalId === canonicalId) ||
+      scoped.length !== MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.length ||
+      !MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.every((canonicalId, index) => scoped[index]?.canonicalId === canonicalId) ||
       scoped.some((call, index) => call.requestOrder !== index + 1)
     ) {
       return deny("EXECUTION_SCOPE_MISMATCH");
@@ -921,7 +921,7 @@ export function journalCanStartNextCall(
   if (
     executionScope === PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE &&
     (call.fixtureId !== PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE ||
-      call.requestOrder > MAIN_RP_MODEL_IDS.length)
+      call.requestOrder > MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.length)
   ) {
     return { ok: false, reason: "FIFTH_CALL_FORBIDDEN" };
   }
@@ -1455,7 +1455,7 @@ export async function runPaidRunner(input: {
     );
     if (
       input.manifest.executionScope === PAID_RUNNER_A_RELATIONSHIP_EMOTION_SCOPE &&
-      executableCalls.length !== MAIN_RP_MODEL_IDS.length
+      executableCalls.length !== MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.length
     ) {
       return closed({
         authorized: false,
@@ -1703,7 +1703,7 @@ export function paidRunnerSoftAimUncapped(): {
 } {
   return {
     softAimChars: UNIFIED_TIER_AIM_CHARS,
-    applicationMaxTokens: resolveOpenRouterMaxTokens(3200, 8192, MAIN_RP_MODEL_IDS[0]),
+    applicationMaxTokens: resolveOpenRouterMaxTokens(3200, 8192, MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS[0]),
   };
 }
 

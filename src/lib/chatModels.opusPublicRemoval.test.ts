@@ -46,9 +46,9 @@ function memoryDb() {
 }
 
 describe("Claude Opus 5 Main RP retirement (R-01..R-14)", () => {
-  it("R-01 MAIN_RP_MODEL_IDS count follows the current four-model registry", () => {
+  it("R-01 MAIN_RP_MODEL_IDS count follows the current picker registry", () => {
     assert.equal(MAIN_RP_MODEL_IDS.length, MAIN_RP_USER_SELECTABLE_OPTIONS.length);
-    assert.equal(MAIN_RP_MODEL_IDS.length, 4);
+    assert.equal(MAIN_RP_MODEL_IDS.length, 5);
   });
 
   it("R-02 picker aliases project the canonical current registry", () => {

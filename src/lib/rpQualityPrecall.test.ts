@@ -9,7 +9,7 @@ import {
   GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
   GEMINI_37_FLASH_DISPLAY_NAME,
   GEMINI_38_FLASH_MODEL,
-  MAIN_RP_MODEL_IDS,
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   MAIN_RP_USER_SELECTABLE_OPTIONS,
 } from "@/lib/chatModels";
 import { resolveOpenRouterMaxTokens } from "@/lib/openRouterClient";
@@ -313,17 +313,23 @@ describe("rp quality PRECALL plan", () => {
 
   it("M. active models remain canonical picker derived", () => {
     const models = rpQualityPrecallBenchmarkModels();
-    assert.deepEqual(models.map((row) => row.canonicalId), [...MAIN_RP_MODEL_IDS]);
+    assert.deepEqual(models.map((row) => row.canonicalId), [...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS]);
     assert.deepEqual(
       models.map((row) => row.displayLabel),
-      MAIN_RP_USER_SELECTABLE_OPTIONS.map((row) => row.label)
+      MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.map((id) => {
+        const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find((row) => row.id === id);
+        return option?.label;
+      })
     );
     assert.deepEqual(RP_QUALITY_BENCHMARK_MODELS, [
-      ...MAIN_RP_USER_SELECTABLE_OPTIONS.map((row) => row.label),
+      ...MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.map((id) => {
+        const option = MAIN_RP_USER_SELECTABLE_OPTIONS.find((row) => row.id === id);
+        return option?.label;
+      }),
     ]);
     assert.match(
       LIVE_QUALITY_SRC,
-      /export const RP_ACTIVE_MODEL_QUALITY_MODEL_IDS: readonly SelectedAI\[\s*\] =\s*MAIN_RP_MODEL_IDS;/
+      /export const RP_ACTIVE_MODEL_QUALITY_MODEL_IDS: readonly SelectedAI\[\s*\] =\s*MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS;/
     );
     assert.equal(models.length, 4);
     assert.doesNotMatch(PRECALL_SRC, /const expected = \[/);

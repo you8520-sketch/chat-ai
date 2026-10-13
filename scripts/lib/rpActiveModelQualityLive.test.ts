@@ -7,7 +7,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_61_SOL_MODEL,
   GEMINI_38_FLASH_MODEL,
-  MAIN_RP_MODEL_IDS,
+  MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS,
   selectedAIProvider,
 } from "@/lib/chatModels";
 import { MainRpStyleLengthFixtureError } from "@/lib/rpMainRpStyleLengthFixture";
@@ -30,8 +30,8 @@ import {
 } from "./rpActiveModelQualityLive";
 
 describe("rpActiveModelQualityLive", () => {
-  it("derives the quality model set exactly from the active Main RP picker", () => {
-    assert.deepEqual(RP_ACTIVE_MODEL_QUALITY_MODEL_IDS, MAIN_RP_MODEL_IDS);
+  it("derives the quality model set from the frozen 4-model paid-quality roster", () => {
+    assert.deepEqual(RP_ACTIVE_MODEL_QUALITY_MODEL_IDS, MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS);
     assert.deepEqual(RP_ACTIVE_MODEL_QUALITY_EXCLUDED, []);
   });
 
@@ -67,7 +67,7 @@ describe("rpActiveModelQualityLive", () => {
     ]);
     assert.equal(
       plan.length,
-      MAIN_RP_MODEL_IDS.length * RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS.length
+      MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS.length * RP_ACTIVE_MODEL_QUALITY_DEFAULT_CASE_IDS.length
     );
     assert.ok(plan.length <= RP_ACTIVE_MODEL_QUALITY_MAX_CALLS);
     for (const modelId of RP_ACTIVE_MODEL_QUALITY_MODEL_IDS) {
