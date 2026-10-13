@@ -1,0 +1,51 @@
+{
+  "afterCommitItems": {
+    "렌": [],
+    "현": [
+      "세관 밀수 원본 장부"
+    ],
+    "서하": [],
+    "도윤": []
+  },
+  "afterCommitNarration": "현이 철제 서류함을 열고 세관 밀수 원본 장부를 챙겼다. GM: 무엇을 하겠는가?",
+  "afterRegenItems": {
+    "렌": [],
+    "현": [
+      "세관 밀수 원본 장부"
+    ],
+    "서하": [],
+    "도윤": []
+  },
+  "afterRegenNarration": "현이 철제 서류함을 열고 세관 밀수 원본 장부를 챙겼다. GM: 무엇을 하겠는가?",
+  "structuredInventoryAdds": [
+    {
+      "participantId": 3,
+      "inventoryAdd": [
+        "세관 밀수 원본 장부"
+      ]
+    }
+  ],
+  "split": {
+    "sheetsStillHyun": true,
+    "sheetsSeohaEmpty": true,
+    "narrationSaysSeoha": false,
+    "jsonGivesSeoha": true
+  },
+  "regenInput": {
+    "header": "[REGENERATE — same locked actions and dice. Write a different scene. Keep CHARACTER SHEETS canon. Use 이름: \"대사\" for speech.]",
+    "sheetsCanon": true,
+    "hyunAlreadyHoldsLedger": true,
+    "sameHyunAction": true
+  },
+  "nextGm": {
+    "hyunItems": true,
+    "seohaNarration": false,
+    "hyunCommitNarration": true
+  },
+  "nextBot": {
+    "count": 2,
+    "seohaNarration": false,
+    "botMemoryHasItems": false
+  },
+  "memoryAfterRegenHasBoth": false
+}
