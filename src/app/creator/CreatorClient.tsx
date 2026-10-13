@@ -13,7 +13,7 @@ import {
   UnitLegend,
 } from "@/components/creator/CreatorDashboardParts";
 import { ExchangeCard, NextActions } from "@/components/creator/CreatorActionParts";
-import { ScopedNotice, useWideLayout, type PageNotice } from "@/components/studio/PersonaPageParts";
+import { ScopedNotice, type PageNotice } from "@/components/studio/PersonaPageParts";
 import {
   CREATOR_NOTICE_CONTENT_MAX,
   CREATOR_NOTICE_TITLE_MAX,
@@ -56,7 +56,6 @@ export default function CreatorClient({
   creatorId: number;
 }) {
   const router = useRouter();
-  const wide = useWideLayout();
   const [data, setData] = useState(initial);
   const [tab, setTab] = useState<TabId>("dashboard");
   const [earningPeriod, setEarningPeriod] = useState<CreatorEarningPeriod>("week");
@@ -534,47 +533,38 @@ export default function CreatorClient({
           role="tabpanel"
           id={panelDomId("dashboard")}
           aria-labelledby={tabDomId("dashboard")}
-          className="space-y-5"
+          className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start"
         >
-          {wide ? (
-            <>
-              <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5">
-                <div className="min-w-0 space-y-5">
-                  {summary}
-                  {nextCard}
-                </div>
-                {ladder}
-              </div>
-              <div className="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start gap-5">
-                <div className="min-w-0 space-y-5">
-                  {shareChart}
-                  {earningsList}
-                </div>
-                <div className="min-w-0 space-y-5">
-                  {exchangeCard}
-                  {withdrawCard}
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              {summary}
-              {nextCard}
-              <nav aria-label="대시보드 바로가기" className="grid grid-cols-2 gap-2">
-                {JUMP_LINKS.map(([id, label]) => (
-                  <StudioButton key={id} type="button" variant="secondary" size="sm" onClick={() => jumpTo(id)}>
-                    {label}
-                  </StudioButton>
-                ))}
-              </nav>
-              {belowThreshold ? ladder : null}
+          <div className="min-w-0 space-y-5 lg:col-start-1 lg:row-start-1">
+            {summary}
+            {nextCard}
+            <nav aria-label="대시보드 바로가기" className="grid grid-cols-2 gap-2 lg:hidden">
+              {JUMP_LINKS.map(([id, label]) => (
+                <StudioButton key={id} type="button" variant="secondary" size="sm" onClick={() => jumpTo(id)}>
+                  {label}
+                </StudioButton>
+              ))}
+            </nav>
+          </div>
+          <div
+            className={cn(
+              "min-w-0",
+              belowThreshold ? "order-2" : "order-4",
+              "lg:order-none lg:col-start-2 lg:row-start-1",
+            )}
+          >
+            {ladder}
+          </div>
+          <div className="order-3 min-w-0 space-y-5 lg:col-span-2 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start lg:gap-5 lg:space-y-0">
+            <div className="min-w-0 space-y-5">
               {shareChart}
               {earningsList}
+            </div>
+            <div className="min-w-0 space-y-5">
               {exchangeCard}
               {withdrawCard}
-              {belowThreshold ? null : ladder}
-            </>
-          )}
+            </div>
+          </div>
         </div>
       )}
     </div>

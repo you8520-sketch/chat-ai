@@ -335,4 +335,13 @@ describe("creator dashboard: owners and contracts are untouched", () => {
     assert.match(withdrawalForm, /htmlFor=\{ids\.amount\}/);
     assert.match(withdrawalForm, /ScopedNotice/);
   });
+
+  it("keeps one withdrawal and exchange tree across the 1024px layout", () => {
+    assert.doesNotMatch(client, /useWideLayout/);
+    assert.doesNotMatch(client, /\{wide \?/);
+    assert.equal([...client.matchAll(/<WithdrawalForm/g)].length, 1);
+    assert.equal([...client.matchAll(/<ExchangeCard/g)].length, 1);
+    assert.match(client, /lg:grid-cols-\[minmax\(0,3fr\)_minmax\(0,2fr\)\]/);
+    assert.match(client, /lg:grid-cols-\[minmax\(0,1\.15fr\)_minmax\(0,1fr\)\]/);
+  });
 });
