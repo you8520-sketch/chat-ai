@@ -9,9 +9,14 @@ Module._load = function (request, parent, isMain) {
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { afterEach, describe, it } from "node:test";
+import { after, afterEach, before, describe, it } from "node:test";
 
 import { getDb } from "@/lib/db";
+import {
+  assertIsolatedTestDatabaseActive,
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import { createCharacterFromForm, updateCharacterFromForm } from "@/lib/characterFormSave";
 import {
   loadCharacterChunksForPrompt,
@@ -58,6 +63,19 @@ import {
   borrowWorldShareToUser,
   createWorldShare,
 } from "@/lib/worldShares";
+
+before(() => {
+  installIsolatedTestDatabase();
+  assertIsolatedTestDatabaseActive();
+});
+
+after(() => {
+  try {
+    assertIsolatedTestDatabaseActive();
+  } finally {
+    uninstallIsolatedTestDatabase();
+  }
+});
 
 function seedUser(id: number, nickname = `user${id}`) {
   getDb()
