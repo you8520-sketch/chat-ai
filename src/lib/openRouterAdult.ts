@@ -1368,7 +1368,8 @@ export function reprojectControlledTextOntoStructuredContent(
 
 function applyProductionServerControlsPreservingCacheBoundaries(
   messages: OpenRouterChatMessage[],
-  controls: NonNullable<OpenRouterMessageOpts["sceneServerControls"]>
+  controls: NonNullable<OpenRouterMessageOpts["sceneServerControls"]>,
+  modelId: string
 ): OpenRouterChatMessage[] {
   const flatBefore = messages.map((m) => ({
     role: m.role,
@@ -1377,6 +1378,7 @@ function applyProductionServerControlsPreservingCacheBoundaries(
   const applied = applyProductionServerControlsToMessages({
     messages: flatBefore,
     ...controls,
+    modelId,
   });
 
   return applied.messages.map((message, index) => {
@@ -1442,7 +1444,8 @@ export function assemblePrimaryRpRequest(opts: {
   if (controls) {
     messages = applyProductionServerControlsPreservingCacheBoundaries(
       messages,
-      controls
+      controls,
+      modelId
     );
   }
   if (transport.provider === "cheaperinference") {
