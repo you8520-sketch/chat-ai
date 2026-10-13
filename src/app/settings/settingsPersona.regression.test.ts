@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { canAccessAdultContent, shouldHideAdultListings } from "@/lib/adultVerification";
 import { AI_LEARNING_LIMIT } from "@/lib/characterFormLimits";
 import {
   UNSAVED_DRAFT_CONFIRM_MESSAGE,
@@ -47,13 +48,41 @@ describe("E4-3G settings: permissions and values stay intact", () => {
     assert.match(settingsSource, /disabled=\{!user\.canDisableSafetyFilter\}/);
   });
 
-  it("explains why the filter is locked for accounts without adult access", () => {
-    const locked = safetyFilterView({ nsfwOn: false, isAdult: false, canDisableSafetyFilter: false });
-    assert.match(locked.help, /일반 회원은 끌 수 없습니다/);
-    assert.match(locked.lockedNote ?? "", /성인인증이 완료된 계정에서만/);
+  it("locked note names the real policy and never promises unlock through adult verification", () => {
+    const LOCKED = "현재는 관리자 베타 테스트 계정에서만 세이프티 필터를 끌 수 있어요.";
+    for (const isAdult of [false, true]) {
+      const locked = safetyFilterView({ nsfwOn: false, isAdult, canDisableSafetyFilter: false });
+      assert.equal(locked.lockedNote, LOCKED);
+      assert.doesNotMatch(locked.lockedNote ?? "", /성인인증/);
+      assert.match(locked.help, /일반 회원은 끌 수 없습니다/);
+      assert.equal(locked.filterOn, true);
+    }
     const admin = safetyFilterView({ nsfwOn: false, isAdult: false, canDisableSafetyFilter: true });
     assert.match(admin.help, /관리자 베타 테스트 접근/);
     assert.equal(admin.lockedNote, null);
+  });
+
+  it("only the existing admin policy unlocks the filter; stored is_adult does not", () => {
+    const regular = { email: "member@example.test", is_admin: 0, is_adult: 1 };
+    assert.equal(canAccessAdultContent(regular), false);
+    assert.equal(canAccessAdultContent({ ...regular, is_adult: 0 }), false);
+    assert.equal(canAccessAdultContent({ ...regular, is_admin: 1 }), true);
+    assert.equal(shouldHideAdultListings({ ...regular, nsfw_on: 1 }), true);
+    assert.equal(shouldHideAdultListings({ ...regular, is_admin: 1, nsfw_on: 1 }), false);
+    assert.equal(shouldHideAdultListings({ ...regular, is_admin: 1, nsfw_on: 0 }), true);
+    assert.match(settingsPage, /canDisableSafetyFilter: canAccessAdultContent\(/);
+  });
+
+  it("admin toggle keeps the stored value mapping and regular accounts cannot toggle", () => {
+    const view = (nsfwOn: boolean, canDisableSafetyFilter: boolean) =>
+      safetyFilterView({ nsfwOn, isAdult: false, canDisableSafetyFilter });
+    assert.equal(view(false, true).stateLabel, "켜짐");
+    assert.equal(view(true, true).stateLabel, "꺼짐");
+    assert.equal(view(true, false).filterOn, false);
+    assert.match(settingsSource, /if \(!user\.canDisableSafetyFilter\) return;/);
+    assert.match(settingsSource, /disabled=\{!user\.canDisableSafetyFilter\}/);
+    assert.match(settingsSource, /nsfw_on: nextSafetyOn \? 0 : 1/);
+    assert.match(settingsSource, /safety\.lockedNote \?/);
   });
 
   it("keeps the settings API contract and never adds a /profile route", () => {

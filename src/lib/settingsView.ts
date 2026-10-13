@@ -69,6 +69,6 @@ export function safetyFilterView(input: {
     help,
     lockedNote: input.canDisableSafetyFilter
       ? null
-      : "성인인증이 완료된 계정에서만 필터를 끌 수 있어요.",
+      : "현재는 관리자 베타 테스트 계정에서만 세이프티 필터를 끌 수 있어요.",
   };
 }
