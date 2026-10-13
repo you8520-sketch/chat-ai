@@ -1,0 +1,18 @@
+{
+ "12000": {
+  "summary": null,
+  "barBefore": "임시저장 마지막 임시저장: 10. 13. 오전 09:05 캐릭터 만들기",
+  "saves": 1,
+  "barAfter": null,
+  "claimsSavable": false,
+  "providerPosts": 0
+ },
+ "12001": {
+  "summary": null,
+  "barBefore": "임시저장 마지막 임시저장: 10. 13. 오전 09:06 캐릭터 만들기",
+  "saves": 0,
+  "barAfter": "세계관/배경 + 캐릭터 설정 + 기본 말투는 합쳐서 12,000자 이하여야 합니다. 임시저장 마지막 임시저장: 10. 13. 오전 09:06 캐릭터 만들기",
+  "claimsSavable": false,
+  "providerPosts": 0
+ }
+}

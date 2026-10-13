@@ -11,7 +11,8 @@ SMALL = ImageFont.truetype("/usr/share/fonts/truetype/wqy/wqy-microhei.ttc", 22)
 
 
 def load(variant, name, scale):
-    im = Image.open(f"{SRC}/{variant}/{name}.png").convert("RGB")
+    folder = f"final-{variant}" if name.startswith("limit-") else variant
+    im = Image.open(f"{SRC}/{folder}/{name}.png").convert("RGB")
     if scale != 1:
         im = im.resize((round(im.width * scale), round(im.height * scale)), Image.LANCZOS)
     return im
@@ -74,7 +75,8 @@ compare("09-create-1440-full-valid12000", "new-valid12000-1440-full", scale=0.3)
 # long text
 compare("10-long-12000-input-390", "long-12000-390-viewport", scale=0.6)
 compare("11-long-12000-input-1440", "long-12000-1440-viewport", scale=0.55)
-compare("12-over-12000-390", "over-12000-390-viewport", scale=0.6)
+compare("12-over-12000-390", "limit-12000-before-save-390-viewport", scale=0.6)
+compare("12b-limit-12001-before-save-390", "limit-12001-before-save-390-viewport", scale=0.6)
 compare("13-over-12001-rejected-390", "over-12001-390-viewport", scale=0.6)
 # preview
 compare("14-preview-tab-390", "tab-preview-390-viewport", scale=0.6)

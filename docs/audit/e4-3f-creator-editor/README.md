@@ -5,8 +5,9 @@ Evidence only. No application code lives on this branch.
 | Item | SHA |
 | --- | --- |
 | BEFORE (base of both candidates) | `d981d1c0a3aa1e2f8b4264df9b3dba847d6aeb8e` |
-| Candidate A `cursor/creator-editor-e4-3f-78cc` (PR head) | `ac243b0c9276ca2c22281aa573a8ffb1e25ed92a` |
-| Candidate B `cursor/creator-editor-e4-3f-cand-b-78cc` (A + guidance) | `d2262e17f27cc1be2d022ad55b37e432c0644ae2` |
+| Candidate A `cursor/creator-editor-e4-3f-cand-a-78cc` equivalent (old A head, not selected) | `ac243b0c9276ca2c22281aa573a8ffb1e25ed92a` |
+| Candidate B selected, previous PR head (`cursor/creator-editor-e4-3f-cand-b-78cc`) | `d2262e17f27cc1be2d022ad55b37e432c0644ae2` |
+| Final PR head `cursor/creator-editor-e4-3f-78cc` (B + completion-copy fix) | `708ed27ad2b758eff4573b567ca1351383e704f3` |
 
 ## Layout
 
@@ -36,3 +37,12 @@ States: widths 360 / 390 / 576 / 640 / 768 / 1024 / 1440 (overflow, clipped cont
 - `officialCharacterAdmin.1367.test.ts` has 3 failing tests that fail identically on BEFORE `d981d1c0` (Lucian in-place sync); unrelated to this change.
 - The 12,000-limit tests pass on A and B; the old 10,000 limit is not present anywhere.
 - Cursor does not score A against B.
+
+## Final correction (E4-3F final fix)
+
+- Completion copy changed to "필수 항목은 모두 입력했어요. 저장 전 분량과 다른 조건도 확인해 주세요." (`RequirementSummary`). Required list and progress unchanged; no savability calculation added.
+- `raw/b/` and `compare/` were regenerated from the final build (`708ed27a`). `raw/before`, `raw/a` are unchanged from the first capture; A therefore still shows the old copy.
+- `compare/12-over-12000-390.webp` previously showed three 404 pages (the stubbed save redirected to a non-existent page). It is replaced by the state just before saving 12,000 characters (`raw/limit-*`). `compare/12b-limit-12001-before-save-390.webp` is the 12,001 state. `13-over-12001-rejected-390.webp` is unchanged in intent.
+- `raw/limit-*/limit-data.json`: with all required items filled, 12,000 -> 1 save request, 12,001 -> 0 save requests and the 12,000-char error; B copy never says it can be saved (`claimsSavable: false`), old A copy does (`true`).
+- B design unchanged: matrix and tab/bar metrics identical to the first B capture except 640px valid-12,000 page height +20px (the new sentence wraps one extra line).
+- `logs/lucian-baseline-*.log`: the 3 `officialCharacterAdmin.1367` Lucian failures are identical on `d981d1c0` and current main.
