@@ -34,12 +34,15 @@ export type BuildSceneMomentumRouteInputOpts = {
 /**
  * Build the COMMON SceneMomentumInput passed through ContextBuildInput on `/api/chat`.
  * Opening greeting uses the same peel helper as contextBuilder (no second parser).
+ * The peeled opening pair is the cold-start greeting source only — it is not
+ * recent-scene evidence, so it is excluded from `recentHistory`.
  */
 export function buildSceneMomentumInputFromRoute(
   opts: BuildSceneMomentumRouteInputOpts
 ): SceneMomentumInput {
-  const { openingGreeting } = peelCreatorOpeningGreetingFromHistory(opts.shortTermHistory);
-  const recentHistory = toSceneMomentumTurns(opts.shortTermHistory).slice(
+  const { openingGreeting, history: sceneHistory } =
+    peelCreatorOpeningGreetingFromHistory(opts.shortTermHistory);
+  const recentHistory = toSceneMomentumTurns(sceneHistory).slice(
     -SCENE_MOMENTUM_RECENT_WINDOW
   );
   const meta = opts.normalizedMemoryMeta;

@@ -169,7 +169,7 @@ describe("official shared world owner — BEFORE vs AFTER", () => {
     assert.equal(draft.sections.worldAndSituation.includes(file.bible.situation.personalSituation), false);
     assert.equal(draft.sections.worldAndSituation.includes(file.bible.situation.userEntry), false);
     assert.doesNotMatch(draft.sections.worldAndSituation, /황제는 이미 거동이|수도로 진격|인위적으로 부추|건국 당시의 원죄|고대 신의 유해|세계의 리셋/);
-    assert.match(draft.sections.worldAndSituation, /배급제가 시행되고 있다는 사실/);
+    assert.match(draft.sections.worldAndSituation, /배급제가 시행되고 있다/);
     assert.match(draft.sections.worldAndSituation, /황권 강화 및 에테르 통제권 수복/);
     assert.doesNotMatch(draft.sections.worldAndSituation, /남은 에테르와 패권을 두고 경쟁한다/);
     assert.doesNotMatch(draft.sections.worldAndSituation, /허가 없는 고대 마법 연구는 금지된다/);
@@ -316,8 +316,8 @@ describe("official shared world owner — BEFORE vs AFTER", () => {
     const worldDelta = draft.sections.worldAndSituation.length - beforeWorld.length;
     const situationDelta = (draft.sections.currentSituation ?? "").length;
     const tokenDelta = estimateTokens(draft.sections.worldAndSituation) - estimateTokens(beforeWorld);
-    assert.ok(draft.sections.worldAndSituation.length >= 1500);
-    assert.ok(draft.sections.worldAndSituation.length <= 2300);
+    assert.ok(draft.sections.worldAndSituation.length >= 2000);
+    assert.ok(draft.sections.worldAndSituation.length <= 3000);
     assert.ok(afterChars > beforeChars);
     assert.ok(worldDelta > 800, `world delta ${worldDelta}`);
     assert.ok(situationDelta > 100);

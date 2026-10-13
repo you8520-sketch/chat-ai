@@ -749,6 +749,9 @@ export default function TrpgRoomClient({
           onReroll={(roundNumber) =>
             void run(`/api/trpg/campaigns/${snap.id}/reroll`, { roundNumber })
           }
+          onAnswerGoalClaim={(goalId, claimedRound, decision) =>
+            void run(`/api/trpg/campaigns/${snap.id}/goal-claim`, { goalId, claimedRound, decision })
+          }
           onTitleSaved={(title) => setSnap((prev) => ({ ...prev, title }))}
           onBillingModeChange={(mode) => void saveBillingMode(mode)}
         />

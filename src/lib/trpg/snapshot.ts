@@ -2,6 +2,7 @@ import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgPublicAiCharacterAssets } from "./aiCharacterContext";
 import type { TrpgPublicScenarioNpcImage } from "./scenarioNpcAssets";
 import type { TrpgActionType } from "./actionTypes";
+import type { TrpgPublicGoal } from "./campaignGoals";
 import type { TrpgResolutionOrderEntry } from "./initiative";
 import type { TrpgParticipantAdjudicationOutcome } from "./roundAdjudication";
 import type { TrpgSheetHudCard } from "./sheetView";
@@ -161,6 +162,8 @@ export type TrpgCampaignSnapshot = {
   scenarioNpcImages: TrpgPublicScenarioNpcImage[];
   /** Long-form story stage. Independent from round.phase. */
   storyPhase?: string;
+  /** Player-safe goal projection of the server's goal state: no criterion, evidence, or source. */
+  goals?: TrpgPublicGoal[];
   /** Host-only sanitized GM failure line. Never includes prompt, key, or raw provider body. */
   gmFailureHint?: string | null;
   gmFailureKind?: string | null;

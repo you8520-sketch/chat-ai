@@ -20,6 +20,7 @@ type UserNoteSplitEditorProps = {
   focusMaxChars?: number;
   focusFooter?: ReactNode;
   userLorebookSlot?: ReactNode;
+  textareaAriaLabel?: string;
 };
 
 const readOnlyBoxClass =
@@ -38,6 +39,7 @@ export default function UserNoteSplitEditor({
   focusMaxChars = 1_000,
   focusFooter,
   userLorebookSlot,
+  textareaAriaLabel,
 }: UserNoteSplitEditorProps) {
   const canEditFocus = editingFocus ?? editing;
   const { body } = parseUserNoteCombined(userNote);
@@ -63,6 +65,7 @@ export default function UserNoteSplitEditor({
         {canEditFocus ? (
           <textarea
             className={textareaClassName}
+            aria-label={textareaAriaLabel}
             rows={focusRows}
             value={focusBody}
             placeholder={focusPlaceholder}

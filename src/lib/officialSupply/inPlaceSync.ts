@@ -57,6 +57,7 @@ import { loadCompiledOfficialCharacterSource } from "@/lib/officialSupply/compil
 import {
   ensureOfficialSharedWorldLibraryRow,
   findOfficialSharedWorldLibraryRow,
+  officialDraftUsesSharedWorld,
 } from "@/lib/officialSupply/officialSharedWorld";
 import { OfficialSupplyGateError } from "@/lib/officialSupply/store";
 import { isStageAtLeast, type OfficialCharacterStage, type OfficialWorldLorebookEntry } from "@/lib/officialSupply/types";
@@ -867,7 +868,7 @@ function inspectTarget(input: {
     systemPrompt: source.systemPrompt,
     world: source.draft.sections.worldAndSituation,
     worldId:
-      source.draft.promptStandard === "compact_rp_v1" && row.creator_id
+      officialDraftUsesSharedWorld(source.draft) && row.creator_id
         ? findOfficialSharedWorldLibraryRow(db, row.creator_id)?.id ?? null
         : row.world_id,
     creatorComment: composeOfficialCreatorComment(source.draft),
@@ -1029,7 +1030,7 @@ function applyGuardedCanonicalFields(input: {
     }
 
     const nextWorldId =
-      source.draft.promptStandard === "compact_rp_v1"
+      officialDraftUsesSharedWorld(source.draft)
         ? ensureOfficialSharedWorldLibraryRow({
             db: input.db,
             creatorId: owner.id,

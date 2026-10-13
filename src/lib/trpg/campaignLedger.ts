@@ -7,6 +7,17 @@ import {
   isPlacePartWord,
   spatialPolarity,
 } from "./movementDeclaration";
+import {
+  activeGoalTitles,
+  applyGoalTransition,
+  parseGoalsJson,
+  reconcileGoals,
+  serializeGoals,
+  type TrpgGoal,
+  type TrpgGoalClaimSource,
+  type TrpgGoalRoundFacts,
+  type TrpgGoalTransition,
+} from "./campaignGoals";
 import { clipTrpgChars } from "./clip";
 import { parseJson } from "./store";
 import {
@@ -23,7 +34,9 @@ export { clipTrpgChars };
 export type TrpgCampaignLedger = {
   location: string;
   nextRoundContext: string;
+  /** Active goal titles. Projection of `goals`; never written on its own. */
   quests: string[];
+  goals: TrpgGoal[];
   npcs: string[];
   worldFlags: string[];
 };
@@ -32,41 +45,21 @@ function clipItem(raw: string): string {
   return clipTrpgChars(raw, TRPG_LEDGER_ITEM_MAX_CHARS);
 }
 
-function mergeFactsCounted(
-  current: string[],
-  add: string[] | undefined,
-  remove: string[] | undefined,
-  maxItems: number
-): { next: string[]; overflow: number } {
+function mergeFacts(current: string[], add: string[] | undefined, remove: string[] | undefined, maxItems: number): string[] {
   const drop = new Set((remove ?? []).map(clipItem).filter(Boolean));
   const next: string[] = [];
   const seen = new Set<string>();
-  let overflow = 0;
-  const addStart = current.length;
-  [...current, ...(add ?? [])].forEach((item, index) => {
+  for (const item of [...current, ...(add ?? [])]) {
     const t = clipItem(item);
-    if (!t || drop.has(t) || seen.has(t)) return;
+    if (!t || drop.has(t) || seen.has(t)) continue;
     seen.add(t);
     if (next.length < maxItems) next.push(t);
-    else if (index >= addStart) overflow += 1;
-  });
-  return { next, overflow };
-}
-
-function mergeFacts(current: string[], add: string[] | undefined, remove: string[] | undefined, maxItems: number): string[] {
-  return mergeFactsCounted(current, add, remove, maxItems).next;
-}
-
-/** How many new quests `applyCampaignLedger` will drop only because the ledger is at its quest cap. */
-export function countQuestAddsOverCap(
-  current: TrpgCampaignLedger,
-  delta: Pick<TrpgStateDelta, "questsAdd" | "questsRemove">
-): number {
-  return mergeFactsCounted(current.quests, delta.questsAdd, delta.questsRemove, TRPG_LEDGER_QUEST_MAX).overflow;
+  }
+  return next;
 }
 
 export function emptyCampaignLedger(): TrpgCampaignLedger {
-  return { location: "", nextRoundContext: "", quests: [], npcs: [], worldFlags: [] };
+  return { location: "", nextRoundContext: "", quests: [], goals: [], npcs: [], worldFlags: [] };
 }
 
 export type TrpgLocationPersistSubmission = {
@@ -267,16 +260,53 @@ export function bindGmLocationToSubmittedMovement(opts: {
   };
 }
 
-export function applyCampaignLedger(current: TrpgCampaignLedger, delta: TrpgStateDelta): TrpgCampaignLedger {
+export type TrpgLedgerGoalContext = {
+  round: number;
+  /** Absent: typed criteria cannot be checked, so none is attached and nothing completes. */
+  facts?: TrpgGoalRoundFacts;
+  /** The committed GM message a new claim comes from. Absent: the claim cannot be confirmed by the host. */
+  claimSource?: TrpgGoalClaimSource;
+};
+
+function transitionCampaignGoals(
+  current: TrpgCampaignLedger,
+  delta: TrpgStateDelta,
+  goalContext: TrpgLedgerGoalContext
+): TrpgGoalTransition {
+  const { round, facts, claimSource } = goalContext;
+  return applyGoalTransition(reconcileGoals(current.goals, current.quests, round), delta, {
+    round,
+    facts,
+    claimSource,
+    placeMatches: destinationRefinesDeclared,
+  });
+}
+
+/** How many new goals this commit drops only because 12 goals are still active after its verified completions. */
+export function countQuestAddsOverCap(
+  current: TrpgCampaignLedger,
+  delta: TrpgStateDelta,
+  goalContext: TrpgLedgerGoalContext = { round: 0 }
+): number {
+  return transitionCampaignGoals(current, delta, goalContext).addsDroppedAtCap;
+}
+
+export function applyCampaignLedger(
+  current: TrpgCampaignLedger,
+  delta: TrpgStateDelta,
+  goalContext: TrpgLedgerGoalContext = { round: 0 }
+): TrpgCampaignLedger {
   const location = (delta.location ?? current.location).trim();
   const nextRoundContext =
     delta.nextRoundContext != null
       ? clipTrpgChars(delta.nextRoundContext, TRPG_NEXT_ROUND_CONTEXT_MAX_CHARS)
       : current.nextRoundContext;
+  const { goals } = transitionCampaignGoals(current, delta, goalContext);
   return {
     location,
     nextRoundContext,
-    quests: mergeFacts(current.quests, delta.questsAdd, delta.questsRemove, TRPG_LEDGER_QUEST_MAX),
+    quests: activeGoalTitles(goals),
+    goals,
     npcs: mergeFacts(current.npcs, delta.npcsAdd, delta.npcsRemove, TRPG_LEDGER_NPC_MAX),
     worldFlags: mergeFacts(current.worldFlags, delta.flagsAdd, delta.flagsRemove, TRPG_LEDGER_FLAG_MAX),
   };
@@ -285,23 +315,31 @@ export function applyCampaignLedger(current: TrpgCampaignLedger, delta: TrpgStat
 export function loadCampaignLedger(db: Database.Database, campaignId: number): TrpgCampaignLedger {
   const row = db
     .prepare(
-      `SELECT location, quests_json, npcs_json, world_flags_json, next_round_context
+      `SELECT location, quests_json, goals_json, npcs_json, world_flags_json, next_round_context, round_number
        FROM trpg_campaign_state WHERE campaign_id=?`
     )
     .get(campaignId) as
     | {
         location: string;
         quests_json: string;
+        goals_json?: string | null;
+        round_number?: number | null;
         npcs_json: string;
         world_flags_json: string;
         next_round_context?: string | null;
       }
     | undefined;
   if (!row) return emptyCampaignLedger();
+  const goals = reconcileGoals(
+    parseGoalsJson(row.goals_json),
+    parseJson(row.quests_json, [] as string[]),
+    row.round_number ?? 0
+  );
   return {
     location: row.location ?? "",
     nextRoundContext: row.next_round_context ?? "",
-    quests: parseJson(row.quests_json, [] as string[]),
+    quests: activeGoalTitles(goals),
+    goals,
     npcs: parseJson(row.npcs_json, [] as string[]),
     worldFlags: parseJson(row.world_flags_json, [] as string[]),
   };
@@ -349,24 +387,87 @@ export function loadAcceptedRoundLocation(
   return value || null;
 }
 
+/** The stored goal state exactly as written (`null`: a legacy row). The compare value for conditional writes. */
+export function loadStoredGoalsJson(db: Database.Database, campaignId: number): string | null {
+  const row = db.prepare(`SELECT goals_json FROM trpg_campaign_state WHERE campaign_id=?`).get(campaignId) as
+    | { goals_json?: string | null }
+    | undefined;
+  return row?.goals_json ?? null;
+}
+
+/** Another writer changed the goal state after this writer read it; nothing was written. */
+export class CampaignGoalsConflictError extends Error {
+  constructor() {
+    super("campaign goal state changed during the write");
+    this.name = "CampaignGoalsConflictError";
+  }
+}
+
+/**
+ * Inside the caller's write transaction: if the goal state stored now differs from what the caller loaded
+ * before the transaction, the ledger is recomputed from the stored state, so a host answer written in between
+ * is kept and the GM delta is applied on top of it. Returns the compare value for the conditional write.
+ */
+export function settleLedgerForCommit(
+  db: Database.Database,
+  campaignId: number,
+  loaded: { ledger: TrpgCampaignLedger; goalsJson: string | null },
+  recompute: (current: TrpgCampaignLedger) => TrpgCampaignLedger,
+  computed: TrpgCampaignLedger
+): { ledger: TrpgCampaignLedger; expectedGoalsJson: string | null; recomputed: boolean } {
+  const storedNow = loadStoredGoalsJson(db, campaignId);
+  if (storedNow === loaded.goalsJson) {
+    return { ledger: computed, expectedGoalsJson: storedNow, recomputed: false };
+  }
+  return { ledger: recompute(loadCampaignLedger(db, campaignId)), expectedGoalsJson: storedNow, recomputed: true };
+}
+
+/** Writes goal state only if it is still the value the caller read. Returns whether it wrote. */
+export function persistGoalsIfUnchanged(
+  db: Database.Database,
+  campaignId: number,
+  expectedGoalsJson: string | null,
+  goals: readonly TrpgGoal[]
+): boolean {
+  const info = db
+    .prepare(
+      `UPDATE trpg_campaign_state
+       SET quests_json=?, goals_json=?, updated_at=datetime('now')
+       WHERE campaign_id=? AND goals_json IS ?`
+    )
+    .run(JSON.stringify(activeGoalTitles(goals)), serializeGoals(goals), campaignId, expectedGoalsJson);
+  return info.changes === 1;
+}
+
 export function persistCampaignLedger(
   db: Database.Database,
   campaignId: number,
   roundNumber: number,
-  ledger: TrpgCampaignLedger
+  ledger: TrpgCampaignLedger,
+  /** When given (even `null`), the write only happens if the stored goal state still equals it. */
+  expectedGoalsJson?: string | null
 ): void {
-  db.prepare(
+  const goals = reconcileGoals(ledger.goals, ledger.quests, roundNumber);
+  const conditional = expectedGoalsJson !== undefined;
+  const info = db.prepare(
     `UPDATE trpg_campaign_state
-     SET location=?, quests_json=?, npcs_json=?, world_flags_json=?, next_round_context=?,
+     SET location=?, quests_json=?, goals_json=?, npcs_json=?, world_flags_json=?, next_round_context=?,
          round_number=?, updated_at=datetime('now')
-     WHERE campaign_id=?`
+     WHERE campaign_id=?${conditional ? " AND goals_json IS ?" : ""}`
   ).run(
     ledger.location,
-    JSON.stringify(ledger.quests),
+    JSON.stringify(activeGoalTitles(goals)),
+    serializeGoals(goals),
     JSON.stringify(ledger.npcs),
     JSON.stringify(ledger.worldFlags),
     ledger.nextRoundContext,
     roundNumber,
-    campaignId
+    campaignId,
+    ...(conditional ? [expectedGoalsJson] : [])
   );
+  if (conditional && info.changes !== 1 && campaignStateRowExists(db, campaignId)) throw new CampaignGoalsConflictError();
+}
+
+function campaignStateRowExists(db: Database.Database, campaignId: number): boolean {
+  return db.prepare(`SELECT 1 FROM trpg_campaign_state WHERE campaign_id=?`).get(campaignId) !== undefined;
 }

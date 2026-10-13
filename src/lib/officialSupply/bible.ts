@@ -10,6 +10,12 @@ import {
   evaluateOfficialPlayerGenderNeutral,
 } from "@/lib/officialSupply/publicProfileText";
 import {
+  compileUserRelationPrinciple,
+  userEntryWithoutFixedRestatement,
+  evaluateUserRelationStart,
+  type OfficialUserRelationStart,
+} from "@/lib/officialSupply/userRelationStart";
+import {
   qaResult,
   type OfficialCharacterDraft,
   type OfficialSupportingNpc,
@@ -262,9 +268,18 @@ export type BibleAdultSection = {
   scenarioExamples: string[];
 };
 
+/**
+ * Checklist items 4/17/18 as one compact block: what the character pursues
+ * without the user, the move it makes on its own, and what that costs when it
+ * fails. Absent on legacy bibles.
+ */
+export type BibleSelfDrive = { goal: string; ownMove: string; setback: string };
+
 export type OfficialCharacterBible = {
   /** New official characters use the compact RP prompt standard; absent = legacy pilot source. */
   promptStandard?: "compact_rp_v1";
+  /** Legacy-standard manuscripts that still use the shared world + per-character currentSituation split. */
+  usesSharedWorld?: true;
   identity: {
     name: string;
     gender: string;
@@ -303,7 +318,7 @@ export type OfficialCharacterBible = {
   situation: { worldContext: string; personalSituation: string; userEntry: string };
   speech: BibleSpeech;
   behaviorRules: string[];
-  userRelationship: {
+  userRelationship: OfficialUserRelationStart & {
     initialView: string;
     userRole: string;
     startingPoint: string;
@@ -316,6 +331,7 @@ export type OfficialCharacterBible = {
     repeatable: string[];
     mediumConflict: string;
     longTermChange: string;
+    selfDrive?: BibleSelfDrive;
   };
   greeting: string;
   publicProfile: {
@@ -324,6 +340,8 @@ export type OfficialCharacterBible = {
     tags: string[];
     /** GPT-authored public-page body. When present, compiler uses it as draft.description. */
     detailedDescription?: string;
+    /** GPT-authored creator comment. When present, compiler uses it as draft.creatorComment. */
+    creatorComment?: string;
   };
   npcs: OfficialSupportingNpc[];
   nsfw: boolean;
@@ -484,6 +502,7 @@ export const CHARACTER_VOICE_SCHEMA: Record<string, unknown> = {
         description: { type: "string" },
         tags: { type: "array", items: { type: "string" } },
         detailedDescription: { type: "string" },
+        creatorComment: { type: "string" },
       },
     },
     npcs: {
@@ -513,6 +532,9 @@ export const CHARACTER_BONDS_SCHEMA: Record<string, unknown> = {
     userRelationship: {
       type: "object",
       properties: {
+        type: { type: "string" },
+        fixedFacts: { type: "string" },
+        userDecides: { type: "string" },
         initialView: { type: "string" },
         userRole: { type: "string" },
         startingPoint: { type: "string" },
@@ -539,6 +561,14 @@ export const CHARACTER_BONDS_SCHEMA: Record<string, unknown> = {
         repeatable: { type: "array", items: { type: "string" } },
         mediumConflict: { type: "string" },
         longTermChange: { type: "string" },
+        selfDrive: {
+          type: "object",
+          properties: {
+            goal: { type: "string" },
+            ownMove: { type: "string" },
+            setback: { type: "string" },
+          },
+        },
       },
     },
     nsfw: { type: "boolean" },
@@ -764,6 +794,61 @@ export function evaluateVoiceStructureContract(
   const tagline = bible.publicProfile?.tagline ?? "";
   if (!nonEmpty(tagline)) errors.push(err("bible_tagline_missing", "publicProfile.tagline is required"));
   else if (tagline.length > 50) errors.push(err("bible_tagline_limit", "tagline must fit the 50-char canonical limit"));
+  return qaResult(errors);
+}
+
+/**
+ * Common RP directives (output length, memory, auto-progression, per-turn
+ * inner monologue) belong to the shared prompt. Repeating them inside a
+ * character's setting duplicates tokens and fights the shared owner.
+ * Speech fields are excluded: sentence length/tempo are the character's voice.
+ */
+const COMMON_DIRECTIVE_RE =
+  /분량|글자\s*수|\d+\s*자\s*이상|문단\s*(?:수|구성|나눔)|출력\s*(?:형식|분량|길이)|응답\s*(?:형식|분량|길이)|웹소설\s*문체|묘사\s*비중|(?:이전|지난)\s*대화를\s*(?:기억|참조)|자동(?:으로)?\s*(?:진행|이어)|알아서\s*(?:진행|이어)|매\s*턴|턴마다|속마음을\s*(?:매|항상|늘)/u;
+
+function commonDirectiveTexts(bible: OfficialCharacterBible): { field: string; text: string }[] {
+  const rel = bible.userRelationship;
+  const engine = bible.rpEngine;
+  return [
+    { field: "personality.behavioral", text: bible.personality?.behavioral ?? "" },
+    { field: "behaviorRules", text: (bible.behaviorRules ?? []).join("\n") },
+    { field: "userRelationship", text: [rel.initialView, rel.userRole, rel.startingPoint, rel.fixedFacts ?? "", rel.userDecides ?? "", ...(rel.progression ?? [])].join("\n") },
+    { field: "rpEngine", text: [engine.immediateHook, ...(engine.repeatable ?? []), engine.mediumConflict, engine.longTermChange, engine.selfDrive?.goal ?? "", engine.selfDrive?.ownMove ?? "", engine.selfDrive?.setback ?? ""].join("\n") },
+    { field: "situation", text: [bible.situation?.personalSituation ?? "", bible.situation?.userEntry ?? ""].join("\n") },
+  ];
+}
+
+/**
+ * Checklist (items 4/13/14/17/18) contract for bibles that declare a
+ * `userRelationship.type`: start-type facts, self-drive, no forced outcome,
+ * no duplicated common directives. Legacy bibles are not re-judged.
+ */
+export function evaluateRelationBibleContract(bible: OfficialCharacterBible): QaResult {
+  if (bible.userRelationship?.type == null && bible.rpEngine?.selfDrive == null) return qaResult([]);
+  const errors: QaIssue[] = [];
+  const drive = bible.rpEngine?.selfDrive;
+  const driveTexts = drive ? [drive.goal, drive.ownMove, drive.setback] : [];
+  errors.push(
+    ...evaluateUserRelationStart({
+      userRelationship: bible.userRelationship,
+      forcedOutcomeTexts: [bible.rpEngine?.mediumConflict ?? "", bible.rpEngine?.longTermChange ?? "", ...driveTexts],
+    }).errors
+  );
+
+  if (!drive || !nonEmpty(drive.goal) || !nonEmpty(drive.ownMove) || !nonEmpty(drive.setback)) {
+    errors.push(err("bible_self_drive_missing", "rpEngine.selfDrive needs goal + ownMove + setback"));
+  } else {
+    const short = (["goal", "ownMove", "setback"] as const).filter((key) => drive[key].trim().length < 20);
+    if (short.length) errors.push(err("bible_self_drive_thin", `selfDrive ${short.join(",")} must be concrete (>=20 chars)`));
+    if (USER_CUE_RE.test(drive.goal) || USER_CUE_RE.test(drive.ownMove)) {
+      errors.push(err("bible_self_drive_user_dependent", "selfDrive goal/ownMove must stand without the user (no 당신/{{user}})"));
+    }
+  }
+
+  for (const { field, text } of commonDirectiveTexts(bible)) {
+    const hit = COMMON_DIRECTIVE_RE.exec(text);
+    if (hit) errors.push(err("bible_common_directive", `${field} repeats a shared RP directive ("${hit[0]}"); keep it out of the character setting`));
+  }
   return qaResult(errors);
 }
 
@@ -1001,6 +1086,7 @@ export function validateCharacterBible(
   if (!nonEmpty(engine.mediumConflict) || !nonEmpty(engine.longTermChange)) {
     errors.push(err("bible_engine_missing", "rpEngine needs mediumConflict + longTermChange"));
   }
+  errors.push(...evaluateRelationBibleContract(bible).errors);
 
   if (bible.greeting && bible.greeting.length > 2000) {
     errors.push(err("bible_greeting_limit", "greeting must fit the 2000-char canonical limit"));
@@ -1115,6 +1201,7 @@ export function compileOfficialDraftFromBible(
   const id = bible.identity;
   const task = "bible_compile";
   const compactRpV1 = bible.promptStandard === "compact_rp_v1";
+  const sharedWorldSplit = compactRpV1 || bible.usesSharedWorld === true;
 
   const tagline = bible.publicProfile.tagline.trim();
   if (!tagline || tagline.length > 50) {
@@ -1175,27 +1262,36 @@ export function compileOfficialDraftFromBible(
     habitsText,
   ]);
 
-  const relationshipPrinciple =
-    "유저 관계 원칙: 유저의 이름·신분·성별과 유저-캐릭터 간 기존 관계는 유저 페르소나와 대화에서 명시된 설정을 우선한다. 도입부가 관계를 명시적으로 고정하지 않는 한 현재 장면만 고정한다.";
+  const relationshipPrinciple = compileUserRelationPrinciple(bible.userRelationship);
+  const situation = {
+    ...bible.situation,
+    userEntry: userEntryWithoutFixedRestatement(bible.situation.userEntry, bible.userRelationship.fixedFacts),
+  };
+  const selfDrive = bible.rpEngine.selfDrive;
+  const selfDriveText = selfDrive
+    ? `자기 추진 — 목표: ${cleanSentence(selfDrive.goal)} / 스스로 택하는 행동: ${cleanSentence(selfDrive.ownMove)} / 막힘·대가: ${cleanSentence(selfDrive.setback)}`
+    : "";
   const actionChangeConditions = bible.userRelationship.progression
     .map((step) => `· ${step}`)
     .join("\n");
   const relationshipsAndDrives = compactRpV1
     ? joinParagraphs([
-        relationshipPrinciple,
+        ...relationshipPrinciple,
         `첫인식: ${bible.userRelationship.initialView}`,
         `유저 역할: ${bible.userRelationship.userRole}`,
         `시작점: ${bible.userRelationship.startingPoint}`,
         `관계 진행: ${bible.userRelationship.progression.join(" → ")}`,
+        selfDriveText,
         `중기 갈등: ${bible.rpEngine.mediumConflict}`,
         `장기 변화: ${bible.rpEngine.longTermChange}`,
       ])
     : joinParagraphs([
-        relationshipPrinciple,
+        ...relationshipPrinciple,
         `첫인식: ${bible.userRelationship.initialView}`,
         `유저 역할: ${bible.userRelationship.userRole}`,
         `시작점: ${bible.userRelationship.startingPoint}`,
         actionChangeConditions ? `관계 변화 조건:\n${actionChangeConditions}` : "",
+        selfDriveText,
         `중기 갈등(선택 소재): ${bible.rpEngine.mediumConflict}`,
         `장기 변화(선택 소재): ${bible.rpEngine.longTermChange}`,
       ]);
@@ -1256,9 +1352,13 @@ export function compileOfficialDraftFromBible(
       appearance: bible.appearance,
       personality: bible.personality,
       abilities: bible.abilities,
-      situation: bible.situation,
+      situation,
       userRole: bible.userRelationship.userRole,
       personaFlexible: compactRpV1,
+      fixedRelation:
+        bible.userRelationship.type && bible.userRelationship.type !== "free"
+          ? bible.userRelationship.fixedFacts
+          : undefined,
       detailedDescription: bible.publicProfile.detailedDescription,
     }),
     greeting: bible.greeting,
@@ -1268,18 +1368,18 @@ export function compileOfficialDraftFromBible(
     tags: bible.publicProfile.tags,
     audience: keys.audience,
     sections: {
-      worldAndSituation: compactRpV1
+      worldAndSituation: sharedWorldSplit
         ? projectOfficialSharedWorld(requireCompactWorldBible(keys, task))
         : joinParagraphs([
             bible.situation.worldContext,
             bible.situation.personalSituation,
-            bible.situation.userEntry,
+            situation.userEntry,
           ]),
-      ...(compactRpV1
+      ...(sharedWorldSplit
         ? {
             currentSituation: composeOfficialCurrentSituation({
               personalSituation: bible.situation.personalSituation,
-              userEntry: bible.situation.userEntry,
+              userEntry: situation.userEntry,
             }),
           }
         : {}),
@@ -1297,5 +1397,8 @@ export function compileOfficialDraftFromBible(
     hook: compactRpV1 ? { ...keys.hook, rpHook: effectiveRpHook } : keys.hook,
     secrets: compactRpV1 ? [...bible.secrets] : [...bible.secrets, ...hiddenRels],
     adult: adult as OfficialCharacterDraft["adult"],
+    ...(bible.publicProfile.creatorComment?.trim()
+      ? { creatorComment: bible.publicProfile.creatorComment.trim() }
+      : {}),
   };
 }

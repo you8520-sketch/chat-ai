@@ -323,7 +323,7 @@ async function clickSendWithoutOverlayHitTest(page: Page) {
 }
 
 function userRowForText(page: Page, text: string) {
-  return page.locator("div.my-10, div.my-5").filter({ hasText: text }).first();
+  return page.locator('[data-chat-user-message="true"]').filter({ hasText: text }).first();
 }
 
 async function prepareDetachedHistory(page: Page, seedText: string) {

@@ -336,6 +336,41 @@ const AFFORDANCE_NOUNS = [
   "필터", "저격총", "권총", "마체테", "상자", "바늘", "레몬",
 ] as const;
 
+const HANGUL_SYLLABLE = /[\uAC00-\uD7A3]/;
+
+/** Josa that may directly follow a standalone noun (longest first). */
+const AFFORDANCE_JOSA = [
+  "에서", "으로", "부터", "까지", "처럼", "보다", "이랑",
+  "을", "를", "이", "가", "은", "는", "도", "만", "의", "에", "로", "과", "와", "랑",
+] as const;
+
+function isHangul(ch: string | undefined): boolean {
+  return ch != null && HANGUL_SYLLABLE.test(ch);
+}
+
+/**
+ * Single-syllable nouns (물, 차) also occur inside unrelated words (물건, 인물,
+ * 차가운, 차량, 조차). They count only as a standalone word: not attached to a
+ * preceding Hangul syllable, and followed by a word boundary, optionally after
+ * one josa that itself ends at a word boundary (물을, 차가 있다). "차이" is a
+ * different word, so 이 is not accepted after 차.
+ */
+function mentionsAffordanceNoun(text: string, noun: string): boolean {
+  if ([...noun].length > 1) return text.includes(noun);
+  let from = 0;
+  for (;;) {
+    const at = text.indexOf(noun, from);
+    if (at < 0) return false;
+    from = at + 1;
+    if (isHangul(text[at - 1])) continue;
+    const rest = text.slice(at + 1);
+    if (!isHangul(rest[0])) return true;
+    const josa = AFFORDANCE_JOSA.find((j) => rest.startsWith(j));
+    if (josa == null || (noun === "차" && josa === "이")) continue;
+    if (!isHangul(rest[josa.length])) return true;
+  }
+}
+
 /**
  * AVAILABLE AFFORDANCES: concrete objects/physical givens already present in the scene
  * (from recent history + current cue's offered object). Bounded to
@@ -349,7 +384,7 @@ function extractAffordances(
   const texts = [...recent.map((m) => m.content), currentUserMessage];
   for (const noun of AFFORDANCE_NOUNS) {
     if (found.length >= SCENE_MOMENTUM_AFFORDANCES_MAX) break;
-    if (texts.some((t) => t.includes(noun)) && !found.includes(noun)) {
+    if (texts.some((t) => mentionsAffordanceNoun(t, noun)) && !found.includes(noun)) {
       found.push(noun);
     }
   }

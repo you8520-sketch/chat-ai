@@ -2,6 +2,9 @@ import crypto from "crypto";
 import { characterAdultTextBlob, findAdultTermsInText } from "@/lib/characterAdultText";
 import { AI_LEARNING_LIMIT } from "@/lib/characterFormLimits";
 import { sanitizeCharacterGenres } from "@/lib/characterGenres";
+import { buildCompiledCreatorDescriptionForSave } from "@/lib/characterFormSave";
+import { composeExampleDialog } from "@/lib/speechCreatorFields";
+import { characterSettingSourceOverflowChars } from "@/utils/characterParser";
 import { ADULT_SCENE_MIN_AGE, validateNsfwParticipantAgeContract } from "@/lib/participantMinAge";
 import { composeOfficialCreatorComment } from "@/lib/officialSupply/publicProfileText";
 import {
@@ -24,7 +27,7 @@ export const SUPPORTING_NPC_LINE_HARD_MAX = 240;
  */
 export const OFFICIAL_TEXT_LENGTH_BANDS = {
   total: [6000, 8000],
-  worldAndSituation: [1500, 2300],
+  worldAndSituation: [1500, 3000],
   characterCore: [2500, 3500],
   relationshipsAndDrives: [700, 1000],
   speech: [500, 900],
@@ -198,6 +201,7 @@ export function computeTextLockHash(draft: OfficialCharacterDraft): string {
     supportingNpcs: draft.supportingNpcs,
     secrets: draft.secrets,
     adult: draft.adult,
+    creatorComment: draft.creatorComment,
   });
   return crypto.createHash("sha256").update(canonical).digest("hex");
 }
@@ -260,7 +264,48 @@ export function evaluateOfficialStagedSaveLength(
       },
     ]);
   }
+  const overflow = officialRpSettingOverflowChars(draft, appearanceBlock);
+  if (overflow > 0) {
+    return qaResult([
+      {
+        code: "rp_setting_truncated",
+        message: `RP setting source exceeds its injection cap by ${overflow} chars; core settings would be cut before reaching the model`,
+      },
+    ]);
+  }
   return qaResult([]);
+}
+
+/**
+ * Chars the RP wire would drop from this draft once saved. Mirrors the canonical save:
+ * world + system_prompt compile into the runtime canon, the speech fields compose the
+ * example dialog, and `characterSettingSourceOverflowChars` applies the injection cap.
+ */
+export function officialRpSettingOverflowChars(
+  draft: OfficialCharacterDraft,
+  appearanceBlock: string
+): number {
+  const form = buildOfficialCharacterFormBody({ draft, appearanceBlock, assets: [] });
+  const { safeRuntimeCanon } = buildCompiledCreatorDescriptionForSave({
+    description: "",
+    world: String(form.world ?? ""),
+    systemPrompt: String(form.system_prompt ?? ""),
+    statusWidgetJson: "",
+    statusWidgetTriggers: [],
+  });
+  return characterSettingSourceOverflowChars({
+    characterId: "official-qa",
+    characterName: draft.name,
+    gender: draft.gender,
+    world: "",
+    systemPrompt: safeRuntimeCanon,
+    exampleDialog: composeExampleDialog({
+      speech_personality: draft.speech.personality,
+      speech_traits: draft.speech.traits,
+      speech_examples: draft.speech.examples,
+      speech_forbidden: draft.speech.forbidden,
+    }),
+  });
 }
 
 export function evaluateSupportingNpcs(draft: OfficialCharacterDraft): QaResult {

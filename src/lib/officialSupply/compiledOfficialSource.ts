@@ -15,7 +15,17 @@ import type {
   OfficialWorldLorebookEntry,
 } from "@/lib/officialSupply/types";
 
-const PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
+const DEFAULT_PILOT_DIR = path.join(process.cwd(), "src/lib/officialSupply/pilot");
+
+/**
+ * The pilot manuscript directory. Tests may point it at a frozen copy (for example the
+ * previously approved Wolfgang manuscript) to exercise sync mechanics against a pinned
+ * Text Lock; the override is ignored outside the Node test runner.
+ */
+function pilotDir(): string {
+  const override = process.env.NODE_TEST_CONTEXT != null ? process.env.OFFICIAL_SUPPLY_PILOT_DIR?.trim() : "";
+  return override || DEFAULT_PILOT_DIR;
+}
 
 type PilotCharacterFile = {
   slot: number;
@@ -37,7 +47,7 @@ function readJson<T>(file: string): T {
 }
 
 export function loadOfficialPilotWorldBible(): OfficialWorldBible {
-  return readJson<{ bible: OfficialWorldBible }>(path.join(PILOT_DIR, "world-bible.json")).bible;
+  return readJson<{ bible: OfficialWorldBible }>(path.join(pilotDir(), "world-bible.json")).bible;
 }
 
 export function officialAppearanceBlockForDraft(
@@ -59,9 +69,9 @@ export function loadCompiledOfficialCharacterSource(draftKey: string): {
   characterLorebook: OfficialWorldLorebookEntry[];
   resolvedLorebook: OfficialWorldLorebookEntry[];
 } {
-  const manifest = readJson<{ worldKey: string; styleKey: string }>(path.join(PILOT_DIR, "manifest.json"));
-  const world = readJson<{ bible: OfficialWorldBible }>(path.join(PILOT_DIR, "world-bible.json"));
-  const file = readJson<PilotCharacterFile>(path.join(PILOT_DIR, "characters", `${draftKey}.json`));
+  const manifest = readJson<{ worldKey: string; styleKey: string }>(path.join(pilotDir(), "manifest.json"));
+  const world = readJson<{ bible: OfficialWorldBible }>(path.join(pilotDir(), "world-bible.json"));
+  const file = readJson<PilotCharacterFile>(path.join(pilotDir(), "characters", `${draftKey}.json`));
   if (file.draftKey !== draftKey) {
     throw new Error(`official source draftKey mismatch: ${file.draftKey} != ${draftKey}`);
   }

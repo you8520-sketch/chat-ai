@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { estimateTokens } from "@/lib/tokenEstimate";
-import { AI_LEARNING_LIMIT, aiLearningLimitExceededMessage } from "@/lib/characterFormLimits";
+import {
+  AI_LEARNING_LIMIT,
+  CHARACTER_SETTING_SOURCE_LIMIT,
+  aiLearningLimitExceededMessage,
+} from "@/lib/characterFormLimits";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_55_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V41_FLASH_MODEL,
@@ -16,7 +20,11 @@ import { selectActiveCanonChunks } from "@/lib/canonPlan/activeSelector";
 import { matchKeywordLorebookEntries, type KeywordLorebookEntry } from "@/lib/keywordLorebooks";
 import { parseCharacterFormBody, type SessionUser } from "@/lib/characterFormSave";
 import { substantiveAiLearningCharCount } from "@/lib/creatorNarrationStyle";
-import { buildCombinedCharacterSettingSource, parseCharacterSetting } from "@/utils/characterParser";
+import {
+  buildCombinedCharacterSettingSource,
+  CHARACTER_SETTING_SOURCE_CHAR_CAP,
+  parseCharacterSetting,
+} from "@/utils/characterParser";
 import { buildContext } from "@/services/contextBuilder";
 import type { ChatMsg } from "@/lib/ai";
 import type { CharacterChunk } from "@/types";
@@ -620,7 +628,7 @@ describe("character setting expansion readiness (no limit change, no provider)",
     }
   });
 
-  it("the production chunk combiner silently drops everything past 10000 chars", () => {
+  it("the production chunk combiner keeps every save-accepted setting and only cuts past the canonical cap", () => {
     for (const candidate of [ten, twelve, fifteen]) {
       const combined = buildCombinedCharacterSettingSource({
         characterId: "audit",
@@ -630,7 +638,7 @@ describe("character setting expansion readiness (no limit change, no provider)",
         characterName: "카엘",
         gender: "male",
       });
-      assert.ok(combined.length <= 10_000, `${candidate.substantive} combined ${combined.length}`);
+      assert.ok(combined.length <= CHARACTER_SETTING_SOURCE_CHAR_CAP, `${candidate.substantive} combined ${combined.length}`);
       assert.match(combined, /MARK_IDENTITY/);
       assert.match(combined, /MARK_BEHAVIOR/);
       const chunks = parseCharacterSetting({
@@ -642,21 +650,22 @@ describe("character setting expansion readiness (no limit change, no provider)",
         gender: "male",
       });
       const joined = chunks.map((c) => c.content).join("\n");
-      assert.equal(joined.includes("MARK_TAIL"), candidate.substantive === 10_000);
+      assert.equal(joined.includes("MARK_TAIL"), combined.includes("MARK_TAIL"));
+      if (candidate.substantive <= AI_LEARNING_LIMIT) assert.ok(joined.includes("MARK_TAIL"));
     }
+    assert.equal(CHARACTER_SETTING_SOURCE_CHAR_CAP, CHARACTER_SETTING_SOURCE_LIMIT);
+    const oversized = `${fifteen.systemPrompt}\n${"추가 설정 줄. ".repeat(400)}\nMARK_PAST_CAP`;
     const over = buildCombinedCharacterSettingSource({
       characterId: "audit",
-      systemPrompt: fifteen.systemPrompt,
+      systemPrompt: oversized,
       world: fifteen.world,
       exampleDialog: "",
       characterName: "카엘",
       gender: "male",
     });
-    assert.equal(over.includes("MARK_TAIL"), false);
-    assert.ok(fifteen.systemPrompt.includes("MARK_TAIL"));
-    const dropped = detailLines(fifteen.systemPrompt).filter((line) => !over.includes(line));
-    assert.ok(dropped.length > 0);
-    assert.equal(dropped.some((line) => line.includes("겨울의 보급로는 강이 얼기 전에")), false);
+    assert.ok(over.length <= CHARACTER_SETTING_SOURCE_CHAR_CAP);
+    assert.equal(over.includes("MARK_PAST_CAP"), false);
+    assert.match(over, /MARK_IDENTITY/);
   });
 
   it("unsliced test-only assembly injects the whole setting and does not shrink memory or history", () => {

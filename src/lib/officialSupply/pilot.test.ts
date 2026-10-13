@@ -193,7 +193,7 @@ describe("official pilot content (romance fantasy 01)", () => {
     assert.ok(lucian);
 
     assert.match(lucian!.draft.description, /증권거래소 지하 금고/);
-    assert.match(lucian!.draft.description, /기존 관계는 페르소나 설정을 따르며/);
+    assert.match(lucian!.draft.description, /기존 관계는 페르소나 설정을 따른다/);
     assert.match(lucian!.draft.greeting, /증권거래소 지하 금고/);
     assert.match(lucian!.draft.greeting, /경보/);
     assert.match(lucian!.bible.situation.userEntry, /증권거래소 지하 금고/);

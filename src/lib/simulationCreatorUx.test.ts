@@ -15,7 +15,10 @@ const assetGridSource = readFileSync(
 
 describe("simulation creator simplified UX", () => {
   it("uses one character settings field with visible appearance guidance", () => {
-    assert.match(creatorSource, />캐릭터 설정 \*<\/label>/);
+    assert.match(
+      creatorSource,
+      /htmlFor=\{fieldId\("simulation_cast"\)\}\s+requirement="required"[\s\S]{0,160}캐릭터 설정\s*<\/FieldLabel>/
+    );
     assert.match(creatorSource, /이름, 외형, 성격, 말투, 관계,/);
     assert.match(creatorSource, /배경\(과거\)/);
     assert.match(creatorSource, /외형:&apos; \/ &apos;외모:&apos; \//);

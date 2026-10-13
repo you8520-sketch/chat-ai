@@ -184,6 +184,62 @@ describe("Scene Momentum — extractor determinism (A-H)", () => {
     assert.ok(!r.block!.includes(MODERN_CURRENT_CUE.slice(0, 24)));
   });
 
+  it("affordance nouns match standalone words, not Hangul compounds", () => {
+    const compounds = buildSceneMomentumBlock({
+      recentHistory: [],
+      currentUserMessage: "다른 인물은 없다. 처음 보는 사람조차 조용했다.",
+      currentLocation: null,
+      promises: [],
+      openingGreeting: null,
+    });
+    assert.deepEqual(compounds.fields.availableAffordances, []);
+    assert.equal(compounds.block, null);
+
+    const standalone = buildSceneMomentumBlock({
+      recentHistory: [],
+      currentUserMessage: "물 마셔. 차를 따랐다.",
+      currentLocation: null,
+      promises: [],
+      openingGreeting: null,
+    });
+    assert.deepEqual(standalone.fields.availableAffordances, ["물", "차"]);
+  });
+
+  it("물·차 affordance: Hangul word boundary and particles", () => {
+    const affordancesOf = (cue: string) =>
+      buildSceneMomentumBlock({
+        recentHistory: [],
+        currentUserMessage: cue,
+        currentLocation: null,
+        promises: [],
+        openingGreeting: null,
+      }).fields.availableAffordances;
+
+    const negatives = [
+      "물건", "물결", "물음", "차가운", "차갑다", "차량", "차림", "차이를 느꼈다",
+      "다른 인물은 없다", "처음 보는 사람조차 조용했다",
+      "그는 물건을 내려놓았다", "차가운 바람이 불었다", "차량이 지나갔다",
+    ];
+    for (const cue of negatives) {
+      assert.deepEqual(affordancesOf(cue), [], `must not detect: ${cue}`);
+    }
+
+    const positives: [string, string[]][] = [
+      ["물 마셔", ["물"]],
+      ["물을 마셔", ["물"]],
+      ["물이 끓는다", ["물"]],
+      ["물은 식었다.", ["물"]],
+      ["차를 따랐다", ["차"]],
+      ["차가 있다", ["차"]],
+      ["차 한 잔 해.", ["차"]],
+      ["\"물\"", ["물"]],
+      ["물, 차", ["물", "차"]],
+    ];
+    for (const [cue, expected] of positives) {
+      assert.deepEqual(affordancesOf(cue), expected, `must detect: ${cue}`);
+    }
+  });
+
   it("F. dormant greeting hook excluded", () => {
     const greetingWithHook =
       "준서의 자취방. 그가 물을 따른다. 다음에 마더가 나타난다."; // dormant hook embedded

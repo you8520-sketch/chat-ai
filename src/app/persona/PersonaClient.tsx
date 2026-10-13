@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
 import {
   PERSONA_NAME_LIMIT,
@@ -53,6 +53,20 @@ import {
 } from "@/lib/statusWidget";
 import { estimateStatusWidgetContextChars, formatWidgetBudgetHint, STATUS_WIDGET_USER_CONTEXT_MAX } from "@/lib/statusWidget/contextBudget";
 import type { StatusWidgetShareVisibility } from "@/lib/statusWidgetShareTypes";
+import StudioButton from "@/components/studio/StudioButton";
+import {
+  EditingBadge,
+  EditorActionBar,
+  ScopedNotice,
+  SectionPanes,
+  useWideLayout,
+  type PageNotice,
+} from "@/components/studio/PersonaPageParts";
+import {
+  UNSAVED_DRAFT_CONFIRM_MESSAGE,
+  isPersonaDraftDirty,
+  isTitledDraftDirty,
+} from "@/lib/personaDraftDirty";
 import {
   cn,
   studioInputClass,
@@ -60,6 +74,8 @@ import {
   studioTextareaClass,
   studioType,
 } from "@/lib/studioDesign";
+
+type NoticeScope = "persona" | "note" | "widget";
 
 const DEFAULT_SECRET_SETTINGS: PersonaSecretSettingsCapability = {
   canEdit: false,
@@ -111,9 +127,22 @@ export default function PersonaClient({
   const [widgetDraft, setWidgetDraft] = useState<StatusWidget>(() =>
     characterStatusWidgetOrDefault(null)
   );
-  const [msg, setMsg] = useState("");
-  const [error, setError] = useState("");
+  const [notice, setNotice] = useState<(PageNotice & { scope: NoticeScope }) | null>(null);
+  const noticeScopeRef = useRef<NoticeScope>("persona");
+  const [noticeAnchor, setNoticeAnchor] = useState<{ scope: NoticeScope; id: number | null } | null>(
+    null
+  );
   const [busy, setBusy] = useState(false);
+  const wide = useWideLayout();
+  const widgetBaselineRef = useRef("");
+  const personaEditorRef = useRef<HTMLDivElement>(null);
+  const noteEditorRef = useRef<HTMLDivElement>(null);
+  const widgetEditorRef = useRef<HTMLDivElement>(null);
+  const formIds = useId();
+  const setMsg = (text: string) =>
+    setNotice(text ? { scope: noticeScopeRef.current, kind: "ok", text } : null);
+  const setError = (text: string) =>
+    setNotice(text ? { scope: noticeScopeRef.current, kind: "error", text } : null);
   const [widgetShare, setWidgetShare] = useState<{
     slug: string;
     path: string;
@@ -176,7 +205,36 @@ export default function PersonaClient({
     };
   }, []);
 
+  function personaDraftHasUnsavedChanges() {
+    if (!creating && editingId == null) return false;
+    return isPersonaDraftDirty(
+      {
+        name: draftName,
+        memo: draftMemo,
+        gender: draftGender,
+        description: draftDesc,
+        imageUrl: draftImageUrl,
+        imageFocusX: draftImageFocusX,
+        imageFocusY: draftImageFocusY,
+        secretDescription: draftSecretDescription,
+        secretDirty: draftSecretDescriptionDirty,
+      },
+      editingId != null ? (personas.find((item) => item.id === editingId) ?? null) : null
+    );
+  }
+
+  function requestCancelForm() {
+    if (personaDraftHasUnsavedChanges() && !confirm(UNSAVED_DRAFT_CONFIRM_MESSAGE)) return;
+    cancelForm();
+  }
+
   function startEdit(p: PublicPersonaListItem) {
+    noticeScopeRef.current = "persona";
+    if (editingId === p.id && !creating) {
+      personaEditorRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (personaDraftHasUnsavedChanges() && !confirm(UNSAVED_DRAFT_CONFIRM_MESSAGE)) return;
     setEditingId(p.id);
     setDraftName(p.name);
     setDraftMemo(p.memo ?? "");
@@ -198,6 +256,8 @@ export default function PersonaClient({
   }
 
   function startCreate() {
+    noticeScopeRef.current = "persona";
+    if (personaDraftHasUnsavedChanges() && !confirm(UNSAVED_DRAFT_CONFIRM_MESSAGE)) return;
     if (personas.length >= USER_PERSONA_MAX_COUNT) {
       setError(`페르소나는 최대 ${USER_PERSONA_MAX_COUNT.toLocaleString()}개까지 만들 수 있습니다.`);
       setMsg("");
@@ -261,6 +321,24 @@ export default function PersonaClient({
     secretSettings.canEdit,
   ]);
 
+  useEffect(() => {
+    if (!creating && editingId == null) return;
+    personaEditorRef.current?.scrollIntoView({ block: wide ? "nearest" : "start" });
+    personaEditorRef.current?.focus({ preventScroll: true });
+  }, [creating, editingId]);
+
+  useEffect(() => {
+    if (!noteCreating && noteEditingId == null) return;
+    noteEditorRef.current?.scrollIntoView({ block: wide ? "nearest" : "start" });
+    noteEditorRef.current?.focus({ preventScroll: true });
+  }, [noteCreating, noteEditingId]);
+
+  useEffect(() => {
+    if (!widgetCreating && widgetEditingId == null) return;
+    widgetEditorRef.current?.scrollIntoView({ block: wide ? "nearest" : "start" });
+    widgetEditorRef.current?.focus({ preventScroll: true });
+  }, [widgetCreating, widgetEditingId]);
+
   async function refreshList() {
     try {
       const res = await fetch("/api/personas", { cache: "no-store" });
@@ -292,6 +370,8 @@ export default function PersonaClient({
   }
 
   async function savePersona() {
+    noticeScopeRef.current = "persona";
+    setNoticeAnchor({ scope: "persona", id: editingId });
     setBusy(true);
     setError("");
     setMsg("");
@@ -393,6 +473,8 @@ export default function PersonaClient({
   }
 
   async function deletePersona(id: number) {
+    noticeScopeRef.current = "persona";
+    setNoticeAnchor({ scope: "persona", id: null });
     if (!confirm("이 페르소나를 삭제할까요?")) return;
     setBusy(true);
     setError("");
@@ -410,6 +492,8 @@ export default function PersonaClient({
   }
 
   async function selectPersonaStatusWidget(personaId: number, presetId: number | null) {
+    noticeScopeRef.current = "persona";
+    setNoticeAnchor({ scope: "persona", id: personaId });
     setBusy(true);
     setError("");
     setMsg("");
@@ -445,7 +529,23 @@ export default function PersonaClient({
     if (res.ok) setNotePresets(data.presets ?? []);
   }
 
+  function noteDraftHasUnsavedChanges() {
+    if (!noteCreating && noteEditingId == null) return false;
+    const saved = noteEditingId != null ? notePresets.find((item) => item.id === noteEditingId) : null;
+    return isTitledDraftDirty(
+      { title: noteDraftTitle, content: noteDraftContent },
+      saved ? { title: saved.title, content: saved.content } : null
+    );
+  }
+
+  function requestCancelNoteForm() {
+    if (noteDraftHasUnsavedChanges() && !confirm(UNSAVED_DRAFT_CONFIRM_MESSAGE)) return;
+    cancelNoteForm();
+  }
+
   function startNoteCreate() {
+    noticeScopeRef.current = "note";
+    if (noteDraftHasUnsavedChanges() && !confirm(UNSAVED_DRAFT_CONFIRM_MESSAGE)) return;
     setNoteCreating(true);
     setNoteEditingId(null);
     setNoteDraftTitle("");
@@ -455,6 +555,12 @@ export default function PersonaClient({
   }
 
   function startNoteEdit(preset: UserNotePresetItem) {
+    noticeScopeRef.current = "note";
+    if (noteEditingId === preset.id && !noteCreating) {
+      noteEditorRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (noteDraftHasUnsavedChanges() && !confirm(UNSAVED_DRAFT_CONFIRM_MESSAGE)) return;
     setNoteEditingId(preset.id);
     setNoteCreating(false);
     setNoteDraftTitle(preset.title);
@@ -476,23 +582,50 @@ export default function PersonaClient({
     if (res.ok) setStatusWidgetPresets(data.presets ?? []);
   }
 
+  function widgetDraftHasUnsavedChanges() {
+    if (!widgetCreating && widgetEditingId == null) return false;
+    const saved =
+      widgetEditingId != null
+        ? statusWidgetPresets.find((item) => item.id === widgetEditingId)
+        : null;
+    return (
+      widgetDraftTitle !== (saved?.title ?? "") ||
+      serializeStatusWidget(widgetDraft) !== widgetBaselineRef.current
+    );
+  }
+
+  function requestCancelWidgetForm() {
+    if (widgetDraftHasUnsavedChanges() && !confirm(UNSAVED_DRAFT_CONFIRM_MESSAGE)) return;
+    cancelWidgetForm();
+  }
+
   function startWidgetCreate() {
+    noticeScopeRef.current = "widget";
+    if (widgetDraftHasUnsavedChanges() && !confirm(UNSAVED_DRAFT_CONFIRM_MESSAGE)) return;
+    const initial = characterStatusWidgetOrDefault(null);
+    widgetBaselineRef.current = serializeStatusWidget(initial);
     setWidgetCreating(true);
     setWidgetEditingId(null);
     setWidgetDraftTitle("");
-    setWidgetDraft(characterStatusWidgetOrDefault(null));
+    setWidgetDraft(initial);
     setWidgetShare(null);
     setError("");
     setMsg("");
   }
 
   function startWidgetEdit(preset: StatusWidgetPresetItem) {
+    noticeScopeRef.current = "widget";
+    if (widgetEditingId === preset.id && !widgetCreating) {
+      widgetEditorRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (widgetDraftHasUnsavedChanges() && !confirm(UNSAVED_DRAFT_CONFIRM_MESSAGE)) return;
+    const loaded = parseStatusWidgetJson(preset.widget_json) ?? characterStatusWidgetOrDefault(null);
+    widgetBaselineRef.current = serializeStatusWidget(loaded);
     setWidgetEditingId(preset.id);
     setWidgetCreating(false);
     setWidgetDraftTitle(preset.title);
-    setWidgetDraft(
-      parseStatusWidgetJson(preset.widget_json) ?? characterStatusWidgetOrDefault(null)
-    );
+    setWidgetDraft(loaded);
     setWidgetShare(null);
     setError("");
     setMsg("");
@@ -512,6 +645,8 @@ export default function PersonaClient({
     widget_json?: string;
     visibility?: StatusWidgetShareVisibility;
   }) {
+    noticeScopeRef.current = "widget";
+    setNoticeAnchor({ scope: "widget", id: body.presetId ?? widgetEditingId });
     setBusy(true);
     setError("");
     setMsg("");
@@ -537,6 +672,7 @@ export default function PersonaClient({
   }
 
   async function unpublishWidgetShare() {
+    noticeScopeRef.current = "widget";
     if (!widgetShare) return;
     setBusy(true);
     setError("");
@@ -556,6 +692,8 @@ export default function PersonaClient({
   }
 
   async function saveWidgetPreset() {
+    noticeScopeRef.current = "widget";
+    setNoticeAnchor({ scope: "widget", id: widgetEditingId });
     if (!widgetDraftTitle.trim()) {
       setError("상태창 제목을 입력하세요.");
       return;
@@ -591,6 +729,8 @@ export default function PersonaClient({
   }
 
   async function deleteWidgetPreset(id: number) {
+    noticeScopeRef.current = "widget";
+    setNoticeAnchor({ scope: "widget", id: null });
     if (!confirm("이 상태창을 삭제할까요?")) return;
     setBusy(true);
     setError("");
@@ -609,6 +749,8 @@ export default function PersonaClient({
   }
 
   async function saveNotePreset() {
+    noticeScopeRef.current = "note";
+    setNoticeAnchor({ scope: "note", id: noteEditingId });
     const focusContent = readStoredFocus(noteDraftContent);
     const noteCheck = validateUserNoteFocusPreset(focusContent, focusMaxChars);
     if (!noteCheck.ok) {
@@ -653,6 +795,8 @@ export default function PersonaClient({
   }
 
   async function deleteNotePreset(id: number) {
+    noticeScopeRef.current = "note";
+    setNoticeAnchor({ scope: "note", id: null });
     if (!confirm("이 유저 노트를 삭제할까요?")) return;
     setBusy(true);
     setError("");
@@ -676,38 +820,391 @@ export default function PersonaClient({
     router.refresh();
   }
 
-  return (
-    <div className="mx-auto mt-6 max-w-2xl space-y-6">
-      <div>
-        <h1 className={studioType.heading}>페르소나·노트 제작</h1>
-        <p className={`mt-1 ${studioType.body}`}>
-          원하는 만큼 페르소나를 만들고 채팅방 상단에서 선택해 사용합니다.
-        </p>
+  const personaFormOpen = creating || editingId != null;
+  const noteFormOpen = noteCreating || noteEditingId != null;
+  const widgetFormOpen = widgetCreating || widgetEditingId != null;
+  const combinedChars = personaCombinedContentLength(draftDesc, draftSecretDescription);
+  const personaMissing = [!draftName.trim() ? "이름" : null, !draftGender ? "성별" : null].filter(
+    Boolean
+  );
+
+  function noticeFor(scope: NoticeScope): PageNotice | null {
+    return notice && notice.scope === scope ? { kind: notice.kind, text: notice.text } : null;
+  }
+  function itemNotice(scope: NoticeScope, id: number, formOpen: boolean) {
+    if (formOpen || !noticeAnchor || noticeAnchor.scope !== scope || noticeAnchor.id !== id) return null;
+    return noticeFor(scope);
+  }
+  function headerNotice(scope: NoticeScope, formOpen: boolean, ids: number[]) {
+    if (formOpen) return null;
+    if (noticeAnchor?.scope === scope && noticeAnchor.id != null && ids.includes(noticeAnchor.id)) {
+      return null;
+    }
+    return noticeFor(scope);
+  }
+
+  const editorShellClass = (inline: boolean) =>
+    cn(
+      "scroll-mt-32 space-y-4 outline-none lg:scroll-mt-24",
+      inline
+        ? "border-t border-white/10 pt-4"
+        : "rounded-xl border border-violet-400/30 bg-[#0b0d14]/70 p-4 sm:p-5"
+    );
+
+  const personaEditor = personaFormOpen ? (
+    <div
+      ref={personaEditorRef}
+      id="persona-editor"
+      tabIndex={-1}
+      role="group"
+      aria-labelledby={`${formIds}-persona-title`}
+      className={editorShellClass(!creating && !wide)}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 id={`${formIds}-persona-title`} className={studioType.sectionTitle}>
+          {creating
+            ? "새 페르소나 만들기"
+            : `‘${personas.find((item) => item.id === editingId)?.name || "이름 없음"}’ 수정 중`}
+        </h3>
+        <span
+          className={cn(
+            "text-xs font-semibold tabular-nums",
+            combinedChars >= PERSONA_CONTENT_MAX
+              ? "text-rose-400"
+              : combinedChars >= PERSONA_CONTENT_MAX * 0.9
+                ? "text-zinc-200"
+                : "text-zinc-400"
+          )}
+        >
+          합계 {combinedChars.toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
+        </span>
       </div>
-
-      {error && <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{error}</p>}
-      {msg && <p className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-sm text-violet-200">{msg}</p>}
-
-      <section id="personas" className={cn(studioSurface.sectionAccent, "scroll-mt-4")}>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className={studioType.sectionTitle}>
-              내 페르소나 ({personas.length} / {USER_PERSONA_MAX_COUNT})
-            </h2>
-            <p className="mt-0.5 text-xs text-zinc-400">
-              최대 {USER_PERSONA_MAX_COUNT.toLocaleString()}개 · 기본+비밀 합계 최대{" "}
-              {PERSONA_CONTENT_MAX.toLocaleString()}자
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={startCreate}
-            disabled={busy || creating || personas.length >= USER_PERSONA_MAX_COUNT}
-            className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
-          >
-            + 새 페르소나
-          </button>
+      <p className={studioType.helper}>
+        기본 설정과 비밀 설정의 합계는 {PERSONA_CONTENT_MAX.toLocaleString()}자까지입니다.
+      </p>
+      <PersonaImageEditor
+        disabled={busy}
+        value={{
+          image_url: draftImageUrl,
+          image_focus_x: draftImageFocusX,
+          image_focus_y: draftImageFocusY,
+        }}
+        onChange={(next) => {
+          setDraftImageUrl(next.image_url);
+          setDraftImageFocusX(next.image_focus_x);
+          setDraftImageFocusY(next.image_focus_y);
+        }}
+      />
+      <div>
+        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+          <label htmlFor={`${formIds}-name`} className="text-sm font-medium text-zinc-300">
+            이름
+          </label>
+          <span className={studioType.counter}>
+            {draftName.length} / {PERSONA_NAME_LIMIT}자
+          </span>
         </div>
+        <input
+          id={`${formIds}-name`}
+          className={studioInputClass}
+          maxLength={PERSONA_NAME_LIMIT}
+          placeholder={`비우면 안 됨 · 닉네임: ${nickname}`}
+          value={draftName}
+          onChange={(e) => setDraftName(e.target.value.slice(0, PERSONA_NAME_LIMIT))}
+        />
+      </div>
+      <div role="group" aria-labelledby={`${formIds}-gender`}>
+        <p id={`${formIds}-gender`} className={studioType.label}>
+          성별 <span className="text-rose-300">필수</span>
+        </p>
+        <p className={`mb-2 ${studioType.caption}`}>
+          AI가 이 페르소나를 지칭·묘사할 때 반드시 따릅니다.
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {(["male", "female", "other"] as const).map((value) => (
+            <button
+              type="button"
+              key={value}
+              aria-pressed={draftGender === value}
+              onClick={() => setDraftGender(value)}
+              className={cn(
+                "min-h-11 rounded-xl border py-2.5 text-sm font-semibold transition",
+                draftGender === value ? studioSurface.choiceActive : studioSurface.choiceIdle
+              )}
+            >
+              {draftGender === value ? (
+                <span aria-hidden="true" className="mr-1">
+                  ✓
+                </span>
+              ) : null}
+              {GENDER_LABELS[value]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+          <label htmlFor={`${formIds}-memo`} className="text-sm font-medium text-zinc-300">
+            메모 (참고용 · AI 미전달)
+          </label>
+          <span className={studioType.counter}>{draftMemo.length.toLocaleString()}자</span>
+        </div>
+        <input
+          id={`${formIds}-memo`}
+          className={studioInputClass}
+          placeholder="예: 메인 RP용"
+          value={draftMemo}
+          onChange={(e) => setDraftMemo(e.target.value)}
+        />
+      </div>
+      <div>
+        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+          <label htmlFor={`${formIds}-desc`} className="text-sm font-medium text-zinc-300">
+            기본 페르소나 설정 <span className="font-normal text-zinc-400">· 공개 설명</span>
+          </label>
+          <span className={studioType.counter}>
+            {personaContentLength(draftDesc).toLocaleString()}자
+          </span>
+        </div>
+        <textarea
+          id={`${formIds}-desc`}
+          rows={8}
+          maxLength={Math.max(
+            draftDesc.length,
+            PERSONA_CONTENT_MAX - personaContentLength(draftSecretDescription)
+          )}
+          className={studioTextareaClass}
+          placeholder="나이, 외모, 성격, 배경, 말투, AI에게 알려줄 공개 역할 설정…"
+          value={draftDesc}
+          onChange={(e) =>
+            setDraftDesc(capPersonaFieldToSharedBudget(draftSecretDescription, e.target.value))
+          }
+        />
+      </div>
+      {secretSettings.canEdit ? (
+        <div className="space-y-2 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <label htmlFor={`${formIds}-secret`} className="text-sm font-medium text-zinc-300">
+              비밀 설정 (선택)
+            </label>
+            <span className={studioType.counter}>
+              {personaContentLength(draftSecretDescription).toLocaleString()}자
+            </span>
+          </div>
+          <p className={studioType.caption}>
+            캐릭터가 대화 시작 시점에는 모르는 설정입니다. 외형, 성격, 직업, 평소 말투처럼
+            처음부터 알아야 하는 내용은 일반 설정에 작성하세요.
+          </p>
+          {secretSettings.discoveryActive ? (
+            <p className={studioType.caption}>
+              직접 공개하거나, 목격·조사·전달을 통해 알게 될 수 있습니다.
+            </p>
+          ) : null}
+          <textarea
+            id={`${formIds}-secret`}
+            rows={6}
+            maxLength={Math.max(
+              draftSecretDescription.length,
+              PERSONA_CONTENT_MAX - personaContentLength(draftDesc)
+            )}
+            disabled={!creating && !draftSecretDescriptionLoaded}
+            className={`${studioTextareaClass} disabled:opacity-50`}
+            placeholder="예: 과거 포드 감염 실험에 자원했으며, 오른팔의 감염 흔적을 긴 장갑으로 숨기고 있다."
+            value={draftSecretDescription}
+            onChange={(e) => {
+              setDraftSecretDescription(capPersonaFieldToSharedBudget(draftDesc, e.target.value));
+              setDraftSecretDescriptionDirty(true);
+            }}
+          />
+          {!creating && !draftSecretDescriptionLoaded && (
+            <p className="text-xs text-zinc-400">비밀 설정을 불러오는 중…</p>
+          )}
+          {compileSummary && (
+            <details className="text-[13px] text-zinc-400">
+              <summary>
+                비밀 설정이 저장되었습니다. 발견 가능한 비밀 {compileSummary.compiledSecretCount}
+                개가 정리되었습니다.
+              </summary>
+              <p className="mt-1">
+                {compileSummary.titles.join(" · ") || "정리된 비밀 없음"}
+                {compileSummary.needsReview ? " · 검토 필요" : ""}
+                {compileSummary.reused ? " · 기존 분석 재사용" : ""}
+              </p>
+              {compileSummary.warnings.length > 0 && (
+                <p className="mt-1">{compileSummary.warnings.join(" · ")}</p>
+              )}
+            </details>
+          )}
+          {compilePreservedPrior && (
+            <p className="text-xs leading-relaxed text-amber-300">
+              페르소나 설정은 저장됐지만 비밀 설정 분석에 실패했습니다. 기존 분석 결과는
+              보존되었으며, 같은 내용을 다시 저장하면 분석을 재시도합니다.
+            </p>
+          )}
+        </div>
+      ) : (
+        <p className="rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2 text-xs text-zinc-400">
+          비밀 설정은 현재 일부 사용자에게 순차 공개 중입니다.
+        </p>
+      )}
+      <EditorActionBar
+        onSave={savePersona}
+        onCancel={requestCancelForm}
+        saving={busy}
+        saveDisabled={busy || personaMissing.length > 0}
+        disabledReason={
+          personaMissing.length > 0 ? `${personaMissing.join("과 ")}은(는) 필수 항목이에요.` : null
+        }
+        notice={noticeFor("persona")}
+      />
+    </div>
+  ) : null;
+
+  const noteSavedForEdit =
+    noteEditingId != null ? notePresets.find((item) => item.id === noteEditingId) : null;
+  const noteEditor = noteFormOpen ? (
+    <div
+      ref={noteEditorRef}
+      tabIndex={-1}
+      role="group"
+      aria-labelledby={`${formIds}-note-title`}
+      className={editorShellClass(!noteCreating && !wide)}
+    >
+      <h3 id={`${formIds}-note-title`} className={studioType.sectionTitle}>
+        {noteCreating ? "새 유저 노트 만들기" : `‘${noteSavedForEdit?.title || "유저 노트"}’ 수정 중`}
+      </h3>
+      <div>
+        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+          <label htmlFor={`${formIds}-note-name`} className="text-sm font-medium text-zinc-300">
+            제목
+          </label>
+          <span className={studioType.counter}>
+            {noteDraftTitle.length} / {USER_NOTE_PRESET_TITLE_MAX}자
+          </span>
+        </div>
+        <input
+          id={`${formIds}-note-name`}
+          className={studioInputClass}
+          maxLength={USER_NOTE_PRESET_TITLE_MAX}
+          placeholder="예: 본편 설정, 로맨스 루트"
+          value={noteDraftTitle}
+          onChange={(e) => setNoteDraftTitle(e.target.value.slice(0, USER_NOTE_PRESET_TITLE_MAX))}
+        />
+      </div>
+      <UserNoteSplitEditor
+        userNote={noteDraftContent}
+        onUserNoteChange={setNoteDraftContent}
+        focusOnly
+        focusMaxChars={focusMaxChars}
+        focusRows={5}
+        textareaClassName={studioTextareaClass}
+        textareaAriaLabel="중요 기억 내용"
+      />
+      <EditorActionBar
+        onSave={() => void saveNotePreset()}
+        onCancel={requestCancelNoteForm}
+        saving={busy}
+        saveDisabled={busy || !noteDraftTitle.trim()}
+        disabledReason="제목은 필수 항목이에요."
+        notice={noticeFor("note")}
+      />
+    </div>
+  ) : null;
+
+  const widgetEditor = widgetFormOpen ? (
+    <div
+      ref={widgetEditorRef}
+      tabIndex={-1}
+      role="group"
+      aria-labelledby={`${formIds}-widget-title`}
+      className={editorShellClass(!widgetCreating && !wide)}
+    >
+      <h3 id={`${formIds}-widget-title`} className={studioType.sectionTitle}>
+        {widgetCreating
+          ? "새 상태창 만들기"
+          : `‘${statusWidgetPresets.find((item) => item.id === widgetEditingId)?.title || "상태창"}’ 수정 중`}
+      </h3>
+      <div>
+        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+          <label htmlFor={`${formIds}-widget-name`} className="text-sm font-medium text-zinc-300">
+            제목
+          </label>
+          <span className={studioType.counter}>
+            {widgetDraftTitle.length} / {STATUS_WIDGET_PRESET_TITLE_MAX}자
+          </span>
+        </div>
+        <input
+          id={`${formIds}-widget-name`}
+          className={studioInputClass}
+          maxLength={STATUS_WIDGET_PRESET_TITLE_MAX}
+          placeholder="예: 다크 카드, 미니멀 HUD"
+          value={widgetDraftTitle}
+          onChange={(e) =>
+            setWidgetDraftTitle(e.target.value.slice(0, STATUS_WIDGET_PRESET_TITLE_MAX))
+          }
+        />
+      </div>
+      <StatusWidgetEditor
+        key={
+          widgetEditingId != null
+            ? `status-widget-preset-${widgetEditingId}`
+            : "status-widget-preset-new"
+        }
+        value={widgetDraft}
+        onChange={setWidgetDraft}
+        disabled={busy}
+        contextLimit={STATUS_WIDGET_USER_CONTEXT_MAX}
+        showSharedDesignEntry={false}
+      />
+      <EditorActionBar
+        onSave={() => void saveWidgetPreset()}
+        onCancel={requestCancelWidgetForm}
+        saving={busy}
+        saveDisabled={busy || !widgetDraftTitle.trim()}
+        disabledReason="제목은 필수 항목이에요."
+        notice={noticeFor("widget")}
+        extra={
+          <>
+            <StudioButton
+              type="button"
+              variant="secondary"
+              disabled={busy || !widgetDraftTitle.trim()}
+              onClick={() =>
+                void createWidgetShareLink({
+                  title: widgetDraftTitle,
+                  widget_json: serializeStatusWidget(widgetDraft),
+                  visibility: "unlisted",
+                })
+              }
+            >
+              링크 공유
+            </StudioButton>
+            <StudioButton
+              type="button"
+              variant="secondary"
+              disabled={busy || !widgetDraftTitle.trim()}
+              onClick={() =>
+                void createWidgetShareLink({
+                  title: widgetDraftTitle,
+                  widget_json: serializeStatusWidget(widgetDraft),
+                  visibility: "public",
+                })
+              }
+            >
+              커뮤니티 공개
+            </StudioButton>
+          </>
+        }
+      />
+    </div>
+  ) : null;
+
+  const rowButtonClass = "min-w-[4.5rem]";
+  const dangerButtonClass =
+    "min-w-[4.5rem] border-rose-500/30 text-rose-300 hover:bg-rose-500/10 disabled:hover:bg-transparent";
+
+  const personaList = (
+    <>
 
         {personas.length === 0 ? (
           <p className="rounded-xl border border-dashed border-white/15 bg-[#0e1120] px-4 py-6 text-center text-sm text-zinc-400">
@@ -715,16 +1212,22 @@ export default function PersonaClient({
           </p>
         ) : null}
 
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {personas.map((p) => {
             const desc = (p.description ?? "").trim();
+            const isEditing = editingId === p.id && !creating;
             return (
-            <li
-              key={p.id}
-              className="rounded-xl border border-white/10 bg-[#0e1120] px-4 py-3"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
+              <li
+                key={p.id}
+                aria-current={isEditing ? "true" : undefined}
+                className={cn(
+                  "rounded-xl border px-4 py-3 transition-colors sm:px-5",
+                  isEditing
+                    ? "border-violet-400/60 bg-violet-500/[0.07] ring-1 ring-violet-400/30"
+                    : "border-white/10 bg-[#0e1120]"
+                )}
+              >
+                <div className="flex min-w-0 items-start gap-3">
                   <PersonaAvatar
                     name={p.name}
                     imageUrl={p.image_url}
@@ -733,549 +1236,423 @@ export default function PersonaClient({
                     sizeClassName="h-12 w-12"
                   />
                   <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 font-semibold text-white">
-                    {p.name || "(이름 없음)"}
-                    <span className="text-[11px] font-normal text-zinc-400">
-                      · {GENDER_LABELS[p.gender ?? "other"]}
-                    </span>
-                  </p>
-                  {p.memo?.trim() && (
-                    <p className="mt-0.5 text-xs text-zinc-400">
-                      {p.memo}
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold text-white">
+                      <span className="break-words">{p.name || "(이름 없음)"}</span>
+                      <span className="text-xs font-normal text-zinc-400">
+                        · {GENDER_LABELS[p.gender ?? "other"]}
+                      </span>
+                      {isEditing ? <EditingBadge /> : null}
                     </p>
-                  )}
-                  <p className={`mt-1 line-clamp-2 ${studioType.caption}`}>
-                    {desc || "(설명 없음)"}
-                  </p>
-                  <p className="mt-1 text-[11px] text-zinc-400">
-                    {desc.length.toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
-                  </p>
+                    {p.memo?.trim() && (
+                      <p className="mt-0.5 break-words text-xs text-zinc-400">{p.memo}</p>
+                    )}
+                    <p className={`mt-1 line-clamp-2 break-words ${studioType.caption}`}>
+                      {desc || "(설명 없음)"}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-400">
+                      {desc.length.toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
+                    </p>
                   </div>
                 </div>
-                <div className="flex shrink-0 gap-1.5">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => startEdit(p)}
-                    className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-white/5"
-                  >
-                    수정
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy || personas.length <= 1}
-                    onClick={() => deletePersona(p.id)}
-                    className="rounded-lg border border-rose-500/20 px-2.5 py-1 text-[11px] text-rose-400 hover:bg-rose-500/10 disabled:opacity-40"
-                  >
-                    삭제
-                  </button>
+                <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-white/5 pt-3">
+                  <label className="block min-w-[11rem] flex-1 text-xs text-zinc-400">
+                    사용할 상태창
+                    <select
+                      value={p.active_status_widget_preset_id ?? ""}
+                      disabled={busy}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        void selectPersonaStatusWidget(p.id, value ? Number(value) : null);
+                      }}
+                      className={`${studioInputClass} mt-1 w-full`}
+                    >
+                      <option value="">사용 안 함</option>
+                      {statusWidgetPresets.map((preset) => (
+                        <option key={preset.id} value={preset.id}>
+                          {preset.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="flex shrink-0 gap-2">
+                    <StudioButton
+                      size="sm"
+                      variant="secondary"
+                      className={rowButtonClass}
+                      disabled={busy}
+                      aria-label={`${p.name || "이름 없음"} 수정`}
+                      onClick={() => startEdit(p)}
+                    >
+                      수정
+                    </StudioButton>
+                    <StudioButton
+                      size="sm"
+                      variant="secondary"
+                      className={dangerButtonClass}
+                      disabled={busy || personas.length <= 1}
+                      aria-label={`${p.name || "이름 없음"} 삭제`}
+                      onClick={() => deletePersona(p.id)}
+                    >
+                      삭제
+                    </StudioButton>
+                  </div>
                 </div>
-              </div>
-              <label className="mt-3 block border-t border-white/5 pt-3 text-[11px] text-zinc-400">
-                사용할 상태창
-                <select
-                  value={p.active_status_widget_preset_id ?? ""}
-                  disabled={busy}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    void selectPersonaStatusWidget(p.id, value ? Number(value) : null);
-                  }}
-                  className={`${studioInputClass} mt-1 w-full`}
-                >
-                  <option value="">사용 안 함</option>
-                  {statusWidgetPresets.map((preset) => (
-                    <option key={preset.id} value={preset.id}>
-                      {preset.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </li>
+                <ScopedNotice
+                  notice={itemNotice("persona", p.id, personaFormOpen)}
+                  className="mt-3"
+                  revealOnChange
+                />
+                {isEditing && !wide ? <div className="mt-3">{personaEditor}</div> : null}
+              </li>
             );
           })}
         </ul>
+        {personas.length === 1 ? (
+          <p className={studioType.caption}>
+            페르소나는 최소 1개가 필요해서 지금은 삭제할 수 없어요. 새로 만든 뒤 삭제할 수 있어요.
+          </p>
+        ) : null}
+    </>
+  );
 
-        {(creating || editingId != null) && (
-          <div className={`space-y-3 ${studioSurface.cardMuted} p-4`}>
-            <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
-              <p className={studioType.label}>{creating ? "새 페르소나" : "페르소나 수정"}</p>
-              <span
-                className={`text-xs font-semibold tabular-nums ${
-                  personaCombinedContentLength(draftDesc, draftSecretDescription) >=
-                  PERSONA_CONTENT_MAX
-                    ? "text-rose-400"
-                    : personaCombinedContentLength(draftDesc, draftSecretDescription) >=
-                        PERSONA_CONTENT_MAX * 0.9
-                      ? "text-zinc-300"
-                      : "text-zinc-400"
-                }`}
-              >
-                {personaCombinedContentLength(draftDesc, draftSecretDescription).toLocaleString()} /{" "}
-                {PERSONA_CONTENT_MAX.toLocaleString()}자
-              </span>
-            </div>
-            <p className="text-xs text-zinc-400">
-              기본 설정과 비밀 설정의 합계는 {PERSONA_CONTENT_MAX.toLocaleString()}자까지입니다.
-            </p>
-            <PersonaImageEditor
-              disabled={busy}
-              value={{
-                image_url: draftImageUrl,
-                image_focus_x: draftImageFocusX,
-                image_focus_y: draftImageFocusY,
-              }}
-              onChange={(next) => {
-                setDraftImageUrl(next.image_url);
-                setDraftImageFocusX(next.image_focus_x);
-                setDraftImageFocusY(next.image_focus_y);
-              }}
-            />
-            <div>
-              <label className={studioType.label}>이름</label>
-              <input
-                className={studioInputClass}
-                maxLength={PERSONA_NAME_LIMIT}
-                placeholder={`비우면 안 됨 · 닉네임: ${nickname}`}
-                value={draftName}
-                onChange={(e) => setDraftName(e.target.value.slice(0, PERSONA_NAME_LIMIT))}
-              />
-            </div>
-            <div>
-              <label className={studioType.label}>성별</label>
-              <p className={`mb-2 ${studioType.caption}`}>
-                AI가 이 페르소나를 지칭·묘사할 때 반드시 따릅니다 · 필수
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {(["male", "female", "other"] as const).map((value) => (
-                  <button
-                    type="button"
-                    key={value}
-                    onClick={() => setDraftGender(value)}
-                    className={cn(
-                      "rounded-xl border py-2.5 text-sm font-semibold transition",
-                      draftGender === value ? studioSurface.choiceActive : studioSurface.choiceIdle,
-                    )}
-                  >
-                    {GENDER_LABELS[value]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="mb-1 flex justify-between">
-                <label className={studioType.label}>메모 (참고용 · AI 미전달)</label>
-                <span className={studioType.counter}>{draftMemo.length.toLocaleString()}자</span>
-              </div>
-              <input
-                className={studioInputClass}
-                placeholder="예: 메인 RP용"
-                value={draftMemo}
-                onChange={(e) => setDraftMemo(e.target.value)}
-              />
-            </div>
-            <div>
-              <div className="mb-1 flex justify-between">
-                <label className={studioType.label}>기본 페르소나 설정</label>
-                <span className={studioType.counter}>
-                  {personaContentLength(draftDesc).toLocaleString()}자
-                </span>
-              </div>
-              <textarea
-                rows={8}
-                maxLength={Math.max(
-                  draftDesc.length,
-                  PERSONA_CONTENT_MAX - personaContentLength(draftSecretDescription)
-                )}
-                className={studioTextareaClass}
-                placeholder="나이, 외모, 성격, 배경, 말투, AI에게 알려줄 공개 역할 설정…"
-                value={draftDesc}
-                onChange={(e) =>
-                  setDraftDesc(
-                    capPersonaFieldToSharedBudget(draftSecretDescription, e.target.value)
-                  )
-                }
-              />
-            </div>
-            {secretSettings.canEdit ? (
-              <div className="space-y-2 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3">
-                <div className="flex justify-between gap-2">
-                  <label className={studioType.label}>비밀 설정 (선택)</label>
-                  <span className={studioType.counter}>
-                    {personaContentLength(draftSecretDescription).toLocaleString()}자
-                  </span>
-                </div>
-                <p className={studioType.caption}>
-                  캐릭터가 대화 시작 시점에는 모르는 설정입니다. 외형, 성격, 직업, 평소 말투처럼
-                  처음부터 알아야 하는 내용은 일반 설정에 작성하세요.
-                </p>
-                {secretSettings.discoveryActive ? (
-                  <p className={studioType.caption}>
-                    직접 공개하거나, 목격·조사·전달을 통해 알게 될 수 있습니다.
-                  </p>
-                ) : null}
-                <textarea
-                  rows={6}
-                  maxLength={Math.max(
-                    draftSecretDescription.length,
-                    PERSONA_CONTENT_MAX - personaContentLength(draftDesc)
-                  )}
-                  disabled={!creating && !draftSecretDescriptionLoaded}
-                  className={`${studioTextareaClass} disabled:opacity-50`}
-                  placeholder="예: 과거 포드 감염 실험에 자원했으며, 오른팔의 감염 흔적을 긴 장갑으로 숨기고 있다."
-                  value={draftSecretDescription}
-                  onChange={(e) => {
-                    setDraftSecretDescription(
-                      capPersonaFieldToSharedBudget(draftDesc, e.target.value)
-                    );
-                    setDraftSecretDescriptionDirty(true);
-                  }}
-                />
-                {!creating && !draftSecretDescriptionLoaded && (
-                  <p className="text-xs text-zinc-400">비밀 설정을 불러오는 중…</p>
-                )}
-                {compileSummary && (
-                  <details className="text-[11px] text-zinc-400">
-                    <summary>
-                      비밀 설정이 저장되었습니다. 발견 가능한 비밀{" "}
-                      {compileSummary.compiledSecretCount}개가 정리되었습니다.
-                    </summary>
-                    <p className="mt-1">
-                      {compileSummary.titles.join(" · ") || "정리된 비밀 없음"}
-                      {compileSummary.needsReview ? " · 검토 필요" : ""}
-                      {compileSummary.reused ? " · 기존 분석 재사용" : ""}
-                    </p>
-                    {compileSummary.warnings.length > 0 && (
-                      <p className="mt-1">{compileSummary.warnings.join(" · ")}</p>
-                    )}
-                  </details>
-                )}
-                {compilePreservedPrior && (
-                  <p className="text-xs leading-relaxed text-amber-300">
-                    페르소나 설정은 저장됐지만 비밀 설정 분석에 실패했습니다. 기존 분석 결과는
-                    보존되었으며, 같은 내용을 다시 저장하면 분석을 재시도합니다.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2 text-xs text-zinc-400">
-                비밀 설정은 현재 일부 사용자에게 순차 공개 중입니다.
-              </p>
-            )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={busy || !draftName.trim() || !draftGender}
-                onClick={savePersona}
-                className="rounded-lg bg-violet-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
-              >
-                {busy ? "저장 중…" : "저장"}
-              </button>
-              <button
-                type="button"
-                onClick={cancelForm}
-                className="rounded-lg border border-white/10 px-4 py-2 text-xs text-zinc-400"
-              >
-                취소
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+  const noteList = (
+    <>
 
-      <section id="user-note-presets" className={cn(studioSurface.sectionAccent, "scroll-mt-4")}>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className={studioType.sectionTitle}>유저 노트 보관함 ({notePresets.length})</h2>
-            <p className="mt-0.5 text-xs text-zinc-400">
-              고집중(중요 기억) 구간만 저장 · 채팅에서 불러와 사용
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={startNoteCreate}
-            disabled={busy || noteCreating}
-            className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
-          >
-            + 새 노트
-          </button>
-        </div>
-
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {notePresets.map((preset) => {
             const parsed = parseUserNoteCombined(preset.content);
             const chars = userNoteCombinedCharCount(parsed.body, parsed.statusTemplate);
+            const isEditing = noteEditingId === preset.id && !noteCreating;
             return (
-              <li key={preset.id} className="rounded-xl border border-white/10 bg-[#0e1120] px-4 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-white">{preset.title}</p>
-                    <p className={`mt-0.5 ${studioType.caption} text-zinc-500`}>고집중 구간</p>
-                    <p className={`mt-1 line-clamp-2 ${studioType.caption}`}>
-                      {parsed.body.trim() || "(내용 없음)"}
-                    </p>
-                    <p className="mt-1 text-[11px] text-zinc-400">
-                      {chars.toLocaleString()} / {focusMaxChars.toLocaleString()}자
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 gap-1.5">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => startNoteEdit(preset)}
-                      className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-white/5"
-                    >
-                      수정
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void deleteNotePreset(preset.id)}
-                      className="rounded-lg border border-rose-500/20 px-2.5 py-1 text-[11px] text-rose-400 hover:bg-rose-500/10"
-                    >
-                      삭제
-                    </button>
-                  </div>
+              <li
+                key={preset.id}
+                aria-current={isEditing ? "true" : undefined}
+                className={cn(
+                  "rounded-xl border px-4 py-3 transition-colors sm:px-5",
+                  isEditing
+                    ? "border-violet-400/60 bg-violet-500/[0.07] ring-1 ring-violet-400/30"
+                    : "border-white/10 bg-[#0e1120]"
+                )}
+              >
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 font-semibold text-white">
+                    <span className="break-words">{preset.title}</span>
+                    {isEditing ? <EditingBadge /> : null}
+                  </p>
+                  <p className={`mt-0.5 ${studioType.caption}`}>중요 기억 · 고집중 구간</p>
+                  <p className={`mt-1 line-clamp-2 break-words ${studioType.caption}`}>
+                    {parsed.body.trim() || "(내용 없음)"}
+                  </p>
+                  <p
+                    className={cn(
+                      "mt-1 text-xs",
+                      chars > focusMaxChars ? "text-rose-300" : "text-zinc-400"
+                    )}
+                  >
+                    {chars.toLocaleString()} / {focusMaxChars.toLocaleString()}자
+                    {chars > focusMaxChars
+                      ? ` · 현재 요금제로는 앞 ${focusMaxChars.toLocaleString()}자만 주입됩니다`
+                      : ""}
+                  </p>
                 </div>
+                <div className="mt-3 flex gap-2">
+                  <StudioButton
+                    size="sm"
+                    variant="secondary"
+                    className={rowButtonClass}
+                    disabled={busy}
+                    aria-label={`${preset.title} 수정`}
+                    onClick={() => startNoteEdit(preset)}
+                  >
+                    수정
+                  </StudioButton>
+                  <StudioButton
+                    size="sm"
+                    variant="secondary"
+                    className={dangerButtonClass}
+                    disabled={busy}
+                    aria-label={`${preset.title} 삭제`}
+                    onClick={() => void deleteNotePreset(preset.id)}
+                  >
+                    삭제
+                  </StudioButton>
+                </div>
+                <ScopedNotice
+                  notice={itemNotice("note", preset.id, noteFormOpen)}
+                  className="mt-3"
+                  revealOnChange
+                />
+                {isEditing && !wide ? <div className="mt-3">{noteEditor}</div> : null}
               </li>
             );
           })}
           {notePresets.length === 0 && (
-            <li className="rounded-xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-zinc-400">
+            <li className="rounded-xl border border-dashed border-white/10 px-4 py-6 text-center text-sm text-zinc-400">
               저장된 유저 노트가 없습니다. 채팅 설정에서 작성·저장하거나 여기서 추가하세요.
             </li>
           )}
         </ul>
+    </>
+  );
 
-        {(noteCreating || noteEditingId != null) && (
-          <div className={`space-y-3 ${studioSurface.cardMuted} p-4`}>
-            <p className={studioType.sectionTitle}>
-              {noteCreating ? "새 유저 노트" : "유저 노트 수정"}
-            </p>
-            <div>
-              <label className={studioType.label}>제목</label>
-              <input
-                className={studioInputClass}
-                maxLength={USER_NOTE_PRESET_TITLE_MAX}
-                placeholder="예: 본편 설정, 로맨스 루트"
-                value={noteDraftTitle}
-                onChange={(e) => setNoteDraftTitle(e.target.value.slice(0, USER_NOTE_PRESET_TITLE_MAX))}
-              />
-            </div>
-            <UserNoteSplitEditor
-              userNote={noteDraftContent}
-              onUserNoteChange={setNoteDraftContent}
-              focusOnly
-              focusMaxChars={focusMaxChars}
-              focusRows={5}
-              textareaClassName={studioTextareaClass}
-            />
-            <p className={studioType.caption}>
-              {(() => {
-                const parsed = parseUserNoteCombined(readStoredFocus(noteDraftContent));
-                return userNoteCombinedCharCount(parsed.body, parsed.statusTemplate).toLocaleString();
-              })()}{" "}
-              / {focusMaxChars.toLocaleString()}자 (고집중)
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={busy || !noteDraftTitle.trim()}
-                onClick={() => void saveNotePreset()}
-                className="rounded-lg bg-violet-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40"
-              >
-                {busy ? "저장 중…" : "저장"}
-              </button>
-              <button
-                type="button"
-                onClick={cancelNoteForm}
-                className="rounded-lg border border-white/10 px-4 py-2 text-xs text-zinc-400"
-              >
-                취소
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+  const widgetList = (
+    <>
 
-      <section
-        id="status-widget-presets"
-        className={cn(studioSurface.sectionAccent, "scroll-mt-4")}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className={studioType.sectionTitle}>
-              상태창 보관함 ({statusWidgetPresets.length})
-            </h2>
-            <p className="mt-0.5 text-xs text-zinc-400">
-              디자인과 상태값으로 만들거나, 직접 제작에서 HTML·JSX를 작성합니다
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href={STATUS_WIDGET_SHARED_DESIGN_HREF}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-white/5"
-            >
-              {STATUS_WIDGET_SHARED_DESIGN_LABEL}
-            </Link>
-            <button
-              type="button"
-              onClick={startWidgetCreate}
-              disabled={busy || widgetCreating}
-              className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
-            >
-              + 새 상태창
-            </button>
-          </div>
-        </div>
-
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {statusWidgetPresets.map((preset) => {
             const reserved = estimateStatusWidgetContextChars(
               parseStatusWidgetJson(preset.widget_json)
             );
+            const isEditing = widgetEditingId === preset.id && !widgetCreating;
             return (
-              <li key={preset.id} className="rounded-xl border border-white/10 bg-[#0e1120] px-4 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-white">{preset.title}</p>
-                    <p className={`mt-0.5 ${studioType.caption}`}>
-                      {formatWidgetBudgetHint(reserved, STATUS_WIDGET_USER_CONTEXT_MAX)}
-                    </p>
-                  </div>
-                  <div className="flex max-w-full shrink-0 flex-wrap justify-end gap-1.5">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() =>
-                        void createWidgetShareLink({ presetId: preset.id, visibility: "unlisted" })
-                      }
-                      className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-white/5"
-                    >
-                      링크 공유
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() =>
-                        void createWidgetShareLink({ presetId: preset.id, visibility: "public" })
-                      }
-                      className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-white/5"
-                    >
-                      커뮤니티 공개
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => startWidgetEdit(preset)}
-                      className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-white/5"
-                    >
-                      수정
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void deleteWidgetPreset(preset.id)}
-                      className="rounded-lg border border-rose-500/20 px-2.5 py-1 text-[11px] text-rose-400 hover:bg-rose-500/10"
-                    >
-                      삭제
-                    </button>
-                  </div>
+              <li
+                key={preset.id}
+                aria-current={isEditing ? "true" : undefined}
+                className={cn(
+                  "rounded-xl border px-4 py-3 transition-colors sm:px-5",
+                  isEditing
+                    ? "border-violet-400/60 bg-violet-500/[0.07] ring-1 ring-violet-400/30"
+                    : "border-white/10 bg-[#0e1120]"
+                )}
+              >
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 font-semibold text-white">
+                    <span className="break-words">{preset.title}</span>
+                    {isEditing ? <EditingBadge /> : null}
+                  </p>
+                  <p className={`mt-0.5 ${studioType.caption}`}>
+                    {formatWidgetBudgetHint(reserved, STATUS_WIDGET_USER_CONTEXT_MAX)}
+                  </p>
                 </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <StudioButton
+                    size="sm"
+                    variant="secondary"
+                    disabled={busy}
+                    aria-label={`${preset.title} 수정`}
+                    onClick={() => startWidgetEdit(preset)}
+                  >
+                    수정
+                  </StudioButton>
+                  <StudioButton
+                    size="sm"
+                    variant="secondary"
+                    disabled={busy}
+                    aria-label={`${preset.title} 링크 공유`}
+                    onClick={() =>
+                      void createWidgetShareLink({ presetId: preset.id, visibility: "unlisted" })
+                    }
+                  >
+                    링크 공유
+                  </StudioButton>
+                  <StudioButton
+                    size="sm"
+                    variant="secondary"
+                    disabled={busy}
+                    aria-label={`${preset.title} 커뮤니티 공개`}
+                    onClick={() =>
+                      void createWidgetShareLink({ presetId: preset.id, visibility: "public" })
+                    }
+                  >
+                    커뮤니티 공개
+                  </StudioButton>
+                  <StudioButton
+                    size="sm"
+                    variant="secondary"
+                    className={dangerButtonClass}
+                    disabled={busy}
+                    aria-label={`${preset.title} 삭제`}
+                    onClick={() => void deleteWidgetPreset(preset.id)}
+                  >
+                    삭제
+                  </StudioButton>
+                </div>
+                <ScopedNotice
+                  notice={itemNotice("widget", preset.id, widgetFormOpen)}
+                  className="mt-3"
+                  revealOnChange
+                />
+                {isEditing && !wide ? <div className="mt-3">{widgetEditor}</div> : null}
               </li>
             );
           })}
           {statusWidgetPresets.length === 0 && (
-            <li className="rounded-xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-zinc-400">
-              저장된 상태창이 없습니다. 아래에서 새로 만들 수 있습니다.
+            <li className="rounded-xl border border-dashed border-white/10 px-4 py-6 text-center text-sm text-zinc-400">
+              저장된 상태창이 없습니다. 위 버튼으로 새로 만들 수 있습니다.
             </li>
           )}
         </ul>
 
-        {(widgetCreating || widgetEditingId != null) && (
-          <div className={`space-y-3 ${studioSurface.cardMuted} p-4`}>
-            <p className={studioType.sectionTitle}>
-              {widgetCreating ? "새 상태창" : "상태창 수정"}
-            </p>
-            <div>
-              <label className={studioType.label}>제목</label>
-              <input
-                className={studioInputClass}
-                maxLength={STATUS_WIDGET_PRESET_TITLE_MAX}
-                placeholder="예: 다크 카드, 미니멀 HUD"
-                value={widgetDraftTitle}
-                onChange={(e) =>
-                  setWidgetDraftTitle(e.target.value.slice(0, STATUS_WIDGET_PRESET_TITLE_MAX))
-                }
-              />
-            </div>
-            <StatusWidgetEditor
-              key={widgetEditingId != null ? `status-widget-preset-${widgetEditingId}` : "status-widget-preset-new"}
-              value={widgetDraft}
-              onChange={setWidgetDraft}
-              disabled={busy}
-              contextLimit={STATUS_WIDGET_USER_CONTEXT_MAX}
-              showSharedDesignEntry={false}
-            />
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={busy || !widgetDraftTitle.trim()}
-                onClick={() => void saveWidgetPreset()}
-                className="rounded-lg bg-violet-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
-              >
-                {busy ? "저장 중…" : "저장"}
-              </button>
-              <button
-                type="button"
-                disabled={busy || !widgetDraftTitle.trim()}
-                onClick={() =>
-                  void createWidgetShareLink({
-                    title: widgetDraftTitle,
-                    widget_json: serializeStatusWidget(widgetDraft),
-                    visibility: "unlisted",
-                  })
-                }
-                className="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-white/5 disabled:opacity-40"
-              >
-                링크 공유
-              </button>
-              <button
-                type="button"
-                disabled={busy || !widgetDraftTitle.trim()}
-                onClick={() =>
-                  void createWidgetShareLink({
-                    title: widgetDraftTitle,
-                    widget_json: serializeStatusWidget(widgetDraft),
-                    visibility: "public",
-                  })
-                }
-                className="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-white/5 disabled:opacity-40"
-              >
-                커뮤니티 공개
-              </button>
-              <button
-                type="button"
-                onClick={cancelWidgetForm}
-                className="rounded-lg border border-white/10 px-4 py-2 text-xs text-zinc-400"
-              >
-                취소
-              </button>
-            </div>
-          </div>
-        )}
+    </>
+  );
 
+  const guideCards = [
+    {
+      href: "#personas",
+      title: "페르소나",
+      count: `${personas.length}개`,
+      description: "채팅에서 내가 연기하는 인물입니다. 이름·성별·공개 설명을 담아요.",
+    },
+    {
+      href: "#user-note-presets",
+      title: "유저 노트",
+      count: `${notePresets.length}개`,
+      description: `AI가 매 턴 기억할 중요 기억입니다. 현재 요금제 최대 ${focusMaxChars.toLocaleString()}자.`,
+    },
+    {
+      href: "#status-widget-presets",
+      title: "상태창",
+      count: `${statusWidgetPresets.length}개`,
+      description: "채팅 화면에 보이는 상태 카드입니다. 페르소나마다 하나를 골라 써요.",
+    },
+  ];
+
+  return (
+    <div className="mx-auto mt-6 max-w-2xl space-y-6 lg:max-w-5xl">
+      <div>
+        <h1 className={studioType.heading}>페르소나·노트 제작</h1>
+        <p className={`mt-1 ${studioType.body}`}>
+          원하는 만큼 페르소나를 만들고 채팅방 상단에서 선택해 사용합니다.
+        </p>
+      </div>
+
+      <nav aria-label="이 화면의 구성" className="grid grid-cols-3 gap-2">
+        {guideCards.map((card) => (
+          <a
+            key={card.href}
+            href={card.href}
+            className="group min-h-11 rounded-xl border border-white/10 bg-[#131626] px-3 py-3 transition hover:border-violet-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70 sm:px-4"
+          >
+            <span className="flex flex-col items-start gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
+              <span className="text-sm font-semibold text-zinc-50">{card.title}</span>
+              <span className="text-xs tabular-nums text-violet-300">{card.count}</span>
+            </span>
+            <span className={cn(studioType.helper, "mt-1 hidden sm:block")}>{card.description}</span>
+          </a>
+        ))}
+      </nav>
+
+      <section id="personas" className={cn(studioSurface.sectionAccent, "scroll-mt-28 lg:scroll-mt-20")}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className={studioType.sectionTitle}>
+              내 페르소나 ({personas.length} / {USER_PERSONA_MAX_COUNT})
+            </h2>
+            <p className={cn(studioType.helper, "mt-0.5")}>
+              채팅에서 내가 연기하는 인물입니다 · 최대 {USER_PERSONA_MAX_COUNT.toLocaleString()}개 ·
+              기본+비밀 합계 최대 {PERSONA_CONTENT_MAX.toLocaleString()}자
+            </p>
+          </div>
+          <StudioButton
+            size="sm"
+            onClick={startCreate}
+            disabled={busy || creating || personas.length >= USER_PERSONA_MAX_COUNT}
+          >
+            + 새 페르소나
+          </StudioButton>
+        </div>
+
+        <ScopedNotice
+          notice={headerNotice(
+            "persona",
+            personaFormOpen,
+            personas.map((item) => item.id)
+          )}
+          revealOnChange
+        />
+
+        <SectionPanes
+          wide={wide}
+          list={personaList}
+          editor={personaEditor}
+          creating={creating}
+          placeholder="왼쪽 목록에서 ‘수정’을 누르거나 ‘+ 새 페르소나’로 시작하세요. 편집 내용은 이 영역에 열립니다."
+        />
+      </section>
+
+      <section id="user-note-presets" className={cn(studioSurface.sectionAccent, "scroll-mt-28 lg:scroll-mt-20")}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className={studioType.sectionTitle}>유저 노트 보관함 ({notePresets.length})</h2>
+            <p className={cn(studioType.helper, "mt-0.5")}>
+              AI가 매 턴 기억할 중요 기억을 저장해 두고 채팅에서 불러와 씁니다 · 현재 요금제 최대{" "}
+              {focusMaxChars.toLocaleString()}자
+            </p>
+          </div>
+          <StudioButton size="sm" onClick={startNoteCreate} disabled={busy || noteCreating}>
+            + 새 노트
+          </StudioButton>
+        </div>
+
+        <ScopedNotice
+          notice={headerNotice(
+            "note",
+            noteFormOpen,
+            notePresets.map((item) => item.id)
+          )}
+          revealOnChange
+        />
+
+        <SectionPanes
+          wide={wide}
+          list={noteList}
+          editor={noteEditor}
+          creating={noteCreating}
+          placeholder="왼쪽 목록에서 ‘수정’을 누르거나 ‘+ 새 노트’로 시작하세요. 편집 내용은 이 영역에 열립니다."
+        />
+      </section>
+
+      <section
+        id="status-widget-presets"
+        className={cn(studioSurface.sectionAccent, "scroll-mt-28 lg:scroll-mt-20")}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className={studioType.sectionTitle}>
+              상태창 보관함 ({statusWidgetPresets.length})
+            </h2>
+            <p className={cn(studioType.helper, "mt-0.5")}>
+              디자인과 상태값으로 만들거나, 직접 제작에서 HTML·JSX를 작성합니다
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <StudioButton size="sm" variant="secondary" href={STATUS_WIDGET_SHARED_DESIGN_HREF}>
+              {STATUS_WIDGET_SHARED_DESIGN_LABEL}
+            </StudioButton>
+            <StudioButton size="sm" onClick={startWidgetCreate} disabled={busy || widgetCreating}>
+              + 새 상태창
+            </StudioButton>
+          </div>
+        </div>
+
+        <ScopedNotice
+          notice={headerNotice(
+            "widget",
+            widgetFormOpen,
+            statusWidgetPresets.map((item) => item.id)
+          )}
+          revealOnChange
+        />
+
+        <SectionPanes
+          wide={wide}
+          list={widgetList}
+          editor={widgetEditor}
+          creating={widgetCreating}
+          placeholder="왼쪽 목록에서 ‘수정’을 누르거나 ‘+ 새 상태창’으로 시작하세요. 편집 내용은 이 영역에 열립니다."
+        />
         {widgetShare && (
           <div className="space-y-2">
             <ShareLinkBox path={widgetShare.path} label="위젯 적용 링크 (열어서 내 위젯에 추가)" />
             {widgetShare.visibility === "public" ? (
-              <button
-                type="button"
+              <StudioButton
+                size="sm"
+                variant="secondary"
                 disabled={busy}
                 onClick={() => void unpublishWidgetShare()}
-                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5 disabled:opacity-40"
               >
                 커뮤니티에서 내리기
-              </button>
+              </StudioButton>
             ) : (
               <p className="text-xs text-zinc-400">이 링크는 커뮤니티 목록에 보이지 않습니다.</p>
             )}
@@ -1284,7 +1661,7 @@ export default function PersonaClient({
       </section>
 
       <p className={`text-center ${studioType.body} text-zinc-500`}>
-        <Link href="/" className="text-violet-400 hover:underline">
+        <Link href="/" className="inline-flex min-h-11 items-center text-violet-400 hover:underline">
           홈으로
         </Link>
       </p>
