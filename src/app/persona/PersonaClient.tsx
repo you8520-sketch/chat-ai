@@ -1516,18 +1516,18 @@ export default function PersonaClient({
         </p>
       </div>
 
-      <nav aria-label="이 화면의 구성" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <nav aria-label="이 화면의 구성" className="grid grid-cols-3 gap-2">
         {guideCards.map((card) => (
           <a
             key={card.href}
             href={card.href}
-            className="group rounded-xl border border-white/10 bg-[#131626] px-4 py-3 transition hover:border-violet-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
+            className="group min-h-11 rounded-xl border border-white/10 bg-[#131626] px-3 py-3 transition hover:border-violet-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70 sm:px-4"
           >
-            <span className="flex items-baseline justify-between gap-2">
+            <span className="flex flex-col items-start gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
               <span className="text-sm font-semibold text-zinc-50">{card.title}</span>
               <span className="text-xs tabular-nums text-violet-300">{card.count}</span>
             </span>
-            <span className={cn(studioType.helper, "mt-1 block")}>{card.description}</span>
+            <span className={cn(studioType.helper, "mt-1 hidden sm:block")}>{card.description}</span>
           </a>
         ))}
       </nav>
