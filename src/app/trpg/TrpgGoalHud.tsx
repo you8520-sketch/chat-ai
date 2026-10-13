@@ -5,15 +5,21 @@ import type { TrpgPublicGoal } from "@/lib/trpg/campaignGoals";
 import { goalHudView, nextShownGoals, type TrpgGoalHudBadge, type TrpgGoalHudItem } from "./goalHudView";
 
 const PANEL_MAX_PX = 416;
-const PANEL_MIN_PX = 96;
-const PANEL_DOCK_GAP_PX = 8;
+const PANEL_VIEWPORT_MARGIN_PX = 12;
+const PANEL_BAR_GAP_PX = 4;
 
-/** The open list ends above the input dock, so reading the goals never covers the box the player types in. */
-function fitPanelAboveDock(panel: HTMLElement) {
-  const dock = document.querySelector("[data-trpg-command-dock]");
-  const floor = Math.min(dock ? dock.getBoundingClientRect().top : window.innerHeight, window.innerHeight);
-  const room = floor - panel.getBoundingClientRect().top - PANEL_DOCK_GAP_PX;
-  panel.style.maxHeight = `${Math.max(PANEL_MIN_PX, Math.min(PANEL_MAX_PX, room))}px`;
+/**
+ * The open list is a sheet fixed under the bar. On a phone the input dock fills most of the screen, so a list
+ * that had to end above the dock would have no room to be read. The sheet floats above the page and the dock
+ * without moving either, and closes on Escape, on an outside tap, or on the bar again.
+ */
+function placePanelUnderBar(panel: HTMLElement, bar: HTMLElement) {
+  const rect = bar.getBoundingClientRect();
+  const top = rect.bottom + PANEL_BAR_GAP_PX;
+  panel.style.top = `${top}px`;
+  panel.style.left = `${rect.left}px`;
+  panel.style.width = `${rect.width}px`;
+  panel.style.maxHeight = `${Math.max(120, Math.min(PANEL_MAX_PX, window.innerHeight - top - PANEL_VIEWPORT_MARGIN_PX))}px`;
 }
 
 function badgeClass(badge: TrpgGoalHudBadge): string {
@@ -69,6 +75,7 @@ export function TrpgGoalHud({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
 
   useEffect(() => {
@@ -97,7 +104,7 @@ export function TrpgGoalHud({
   useLayoutEffect(() => {
     if (!panelVisible) return;
     const fit = () => {
-      if (panelRef.current) fitPanelAboveDock(panelRef.current);
+      if (panelRef.current && barRef.current) placePanelUnderBar(panelRef.current, barRef.current);
     };
     fit();
     window.addEventListener("resize", fit);
@@ -145,9 +152,9 @@ export function TrpgGoalHud({
       data-trpg-goal-hud
       data-trpg-goal-hud-open={open ? "true" : "false"}
       data-trpg-goal-hud-held={hold ? "true" : "false"}
-      className={`z-30 ${stickyClassName}`}
+      className={`${open ? "z-[70]" : "z-30"} ${stickyClassName}`}
     >
-      <div className="relative">
+      <div ref={barRef}>
         {expandable ? (
           <button
             type="button"
@@ -165,7 +172,7 @@ export function TrpgGoalHud({
           <div
             id={panelId}
             ref={panelRef}
-            className="absolute inset-x-0 top-full z-40 mt-1 space-y-4 overflow-y-auto rounded-xl border border-white/10 bg-[#161616] p-3 shadow-[0_14px_36px_rgba(0,0,0,0.6)]"
+            className="fixed z-[70] space-y-4 overflow-y-auto rounded-xl border border-white/10 bg-[#161616] p-3 shadow-[0_14px_36px_rgba(0,0,0,0.6)]"
           >
             <div className="space-y-2">
               <p className="text-xs font-medium text-zinc-300">진행 중 ({view.activeCount})</p>

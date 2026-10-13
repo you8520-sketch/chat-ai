@@ -70,7 +70,7 @@ test.describe("TRPG goal HUD — production browser", () => {
       }
     });
 
-    test(`${name}: expanding lists every goal with its status, floats over the page, and never moves the reading position`, async ({ page }) => {
+    test(`${name}: expanding lists every goal with its status, floats over the page and dock, and never moves the reading position`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await openLab(page, "action-examples");
       await page.evaluate(() => window.scrollTo(0, 500));
@@ -102,11 +102,25 @@ test.describe("TRPG goal HUD — production browser", () => {
       expect(contentTopOpen, "the dock/input does not move").toBe(contentTopBefore);
       const panelBox = await hud.locator("[id]").first().boundingBox();
       expect(panelBox).not.toBeNull();
-      expect(panelBox!.y + panelBox!.height, "the list never covers the input dock").toBeLessThanOrEqual(open.dockTop + 1);
+      expect(panelBox!.y, "the list opens under the bar, never over it").toBeGreaterThanOrEqual(open.barBottom);
+      expect(panelBox!.y + panelBox!.height, "the list stays on screen").toBeLessThanOrEqual(open.viewportHeight);
+      expect(panelBox!.height, "all three goals are readable without scrolling the list").toBeGreaterThan(200);
+      expect(panelBox!.x).toBeGreaterThanOrEqual(0);
+      expect(panelBox!.x + panelBox!.width).toBeLessThanOrEqual(viewport.width);
+      const topmost = await page.evaluate(
+        ({ x, y }) => document.elementFromPoint(x, y)?.closest("[data-trpg-goal-hud]") !== null,
+        { x: panelBox!.x + panelBox!.width / 2, y: panelBox!.y + panelBox!.height - 8 }
+      );
+      expect(topmost, "the list is above the input dock, not hidden behind it").toBe(true);
 
       await page.keyboard.press("Escape");
       await expect(hud).toHaveAttribute("data-trpg-goal-hud-open", "false");
       expect((await hudGeometry(page)).scrollY).toBe(before.scrollY);
+
+      await hud.locator("button").first().click();
+      await expect(hud).toHaveAttribute("data-trpg-goal-hud-open", "true");
+      await page.evaluate(() => document.querySelector("h1, input")?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })));
+      await expect(hud).toHaveAttribute("data-trpg-goal-hud-open", "false");
     });
   }
 
