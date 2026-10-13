@@ -286,8 +286,10 @@ import {
   type StatusWidgetStackOrder,
 } from "@/lib/statusWidget";
 import { cacheUserChatPrefsClient } from "@/lib/userChatPrefs";
+import { characterHueAccent } from "@/lib/characterHueAccent";
 import {
   chatReadabilityRootStyle,
+  mobilePortraitCaptionAlpha,
   chatMessageAreaLayoutClass,
   CHAT_MESSAGES_COLUMN_CLASS,
   CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS,
@@ -5593,8 +5595,17 @@ export default function ChatClient({
       <div
         className={
           leftLayout || assetPresentation === "background"
-            ? "relative z-10 bg-transparent px-2 pl-3 pb-4 sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-0"
+            ? "relative z-10 flex-1 bg-transparent px-2 pl-3 pb-4 sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-0"
             : CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS
+        }
+        style={
+          {
+            ["--chat-scene-accent" as string]: characterHueAccent(character.hue).keyline,
+            ["--chat-caption-alpha" as string]:
+              assetPresentation === "background"
+                ? mobilePortraitCaptionAlpha(displayPrefs.portraitBackgroundOpacity)
+                : 0,
+          }
         }
         role="presentation"
       >
@@ -5665,9 +5676,8 @@ export default function ChatClient({
                       pendingSubmitViewportRowRef.current = el;
                     }
                   }}
-                  className={leftLayout ? "my-10 first:mt-2" : "my-5 first:mt-1 last:mb-0"}
+                  className={leftLayout ? "my-8 first:mt-2" : "my-5 first:mt-1 last:mb-0"}
                 >
-                  <div className="mb-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                   {isUserTurnEdit ? (
                     <div className="px-2">
                       <p className="mb-1.5 text-center text-[11px] font-semibold text-zinc-500">유저 입력</p>
@@ -5684,18 +5694,23 @@ export default function ChatClient({
                   ) : isContinueUserMessage(m.content) ? (
                     <p className="px-2 text-center text-xs italic text-zinc-500">⟳ {CONTINUE_USER_DISPLAY}</p>
                   ) : (
-                    <NovelText
-                      content={toDisplay(m.content)}
-                      display={displayPrefs}
-                      variant="user"
-                    />
+                    <div
+                      data-chat-user-message="true"
+                      className="ml-4 rounded-xl border border-white/[0.06] border-l-2 border-l-zinc-500/60 bg-white/[0.035] px-3 py-2 min-[576px]:ml-8"
+                    >
+                      <span className="sr-only">내 메시지</span>
+                      <NovelText
+                        content={toDisplay(m.content)}
+                        display={displayPrefs}
+                        variant="user"
+                      />
+                    </div>
                   )}
                   {waitingForAssistant && (
                     <p className="mt-2 px-2 text-center text-xs text-zinc-500">
                       응답 생성 대기 중
                     </p>
                   )}
-                  <div className="mt-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 </div>
               );
             }
@@ -5739,7 +5754,11 @@ export default function ChatClient({
                 }}
                 className={leftLayout && !onLastTurn ? "pb-2" : "pb-0"}
               >
-                <div className="min-w-0">
+                <div
+                  className={
+                    assetPresentation === "background" ? "chat-caption-backing min-w-0" : "min-w-0"
+                  }
+                >
                 {isEditing ? (
                   <div className="w-full min-w-0">
                     <p className="mb-1.5 text-center text-[11px] font-semibold text-zinc-500">
@@ -6082,16 +6101,16 @@ export default function ChatClient({
       >
         <FloatingPointsDeduction amount={floatDeductionAmount} trigger={floatDeductionTrigger} />
         <SitePromotionChatNotice promotion={selectedModelSitePromotion} />
-        <div className={`flex flex-wrap items-center gap-2 overflow-visible ${leftLayout ? "mb-1" : "mb-1"}`}>
-          <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-zinc-400 sm:flex-none">
-            <span className="shrink-0 font-semibold text-zinc-400">AI</span>
+        <div className="mb-1 flex items-center gap-1.5 overflow-visible">
+          <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-zinc-400 min-[576px]:flex-none">
+            <span className="shrink-0 font-semibold text-zinc-400 max-[399px]:sr-only">AI</span>
             <select
               value={selectedAI}
               onChange={(e) => void handleSelectedAIChange(e.target.value as SelectedAI)}
               onFocus={() => refreshPickerEstimates(chatId ?? initialChatId)}
               disabled={inputLocked}
               aria-describedby="picker-estimate-note"
-              className="max-w-full rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="h-8 min-w-0 max-w-full flex-1 rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60 min-[576px]:h-auto min-[576px]:flex-none min-[576px]:py-1"
             >
               {selectableAIOptions.map((o) => (
                 <option key={o.id} value={o.id}>
@@ -6104,33 +6123,13 @@ export default function ChatClient({
                 </option>
               ))}
             </select>
-            <ChatRoomAdultModeToggle
-              isAdult={isAdult}
-              enabled={adultHandoffOn}
-              busy={adultHandoffBusy}
-              onToggle={() => void toggleAdultHandoff()}
-            />
           </label>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={displayPrefs.showSuggestedReplies}
-            aria-label="추천 메시지"
-            onClick={handleSuggestedRepliesToggle}
-            className={`shrink-0 rounded-md border px-1.5 py-1 text-[11px] font-semibold transition ${
-              displayPrefs.showSuggestedReplies
-                ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
-                : "border-white/10 bg-[#1a1a1a] text-zinc-500 hover:border-white/20 hover:text-zinc-300"
-            }`}
-          >
-            {displayPrefs.showSuggestedReplies ? "추천 켜짐" : "추천 꺼짐"}
-          </button>
-          <p
-            id="picker-estimate-note"
-            className="w-full text-[11px] leading-tight text-zinc-400"
-          >
-            {PICKER_ESTIMATE_VARIANCE_NOTE}
-          </p>
+          <ChatRoomAdultModeToggle
+            isAdult={isAdult}
+            enabled={adultHandoffOn}
+            busy={adultHandoffBusy}
+            onToggle={() => void toggleAdultHandoff()}
+          />
         </div>
 
         <div className="flex flex-col gap-0.5">
@@ -6183,7 +6182,7 @@ export default function ChatClient({
                       ? "허용"
                       : "보통"
                 }`}
-                className="rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 disabled:opacity-40"
+                className="min-h-10 rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 disabled:opacity-40 min-[576px]:min-h-0"
               >
                 자동진행 · {autoProgressionAuthoringLevel === "LIMITED"
                   ? "제한"
@@ -6195,22 +6194,45 @@ export default function ChatClient({
                 type="button"
                 onClick={send}
                 disabled={inputLocked || !input.trim()}
-                className="rounded-md border border-violet-500/35 bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:opacity-40"
+                aria-busy={inputLocked || undefined}
+                data-chat-send-state={inputLocked ? "generating" : input.trim() ? "ready" : "empty"}
+                className={`min-h-10 rounded-md border border-violet-500/35 bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:opacity-40 min-[576px]:min-h-0 ${
+                  inputLocked ? "cursor-progress motion-safe:animate-pulse" : ""
+                }`}
               >
                 전송
               </button>
             </div>
           </div>
-          <p className="text-right text-[10px] leading-tight tabular-nums">
-            <span
-              className={`font-semibold ${
-                input.length >= CHAT_MESSAGE_MAX ? "text-rose-400" : "text-zinc-300"
+          <div className="flex items-center gap-2 text-[10px] leading-tight tabular-nums">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={displayPrefs.showSuggestedReplies}
+              aria-label="추천 메시지"
+              onClick={handleSuggestedRepliesToggle}
+              className={`-my-1.5 h-8 shrink-0 rounded-md border px-2 text-[11px] font-semibold transition min-[576px]:my-0 min-[576px]:h-auto min-[576px]:px-1.5 min-[576px]:py-0.5 ${
+                displayPrefs.showSuggestedReplies
+                  ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
+                  : "border-white/10 bg-[#1a1a1a] text-zinc-500 hover:border-white/20 hover:text-zinc-300"
               }`}
             >
-              {input.length.toLocaleString()} / {CHAT_MESSAGE_MAX.toLocaleString()}자
-            </span>
-            <span className="hidden text-[10px] text-zinc-400 min-[576px]:inline"> · Ctrl+Enter 전송</span>
-          </p>
+              {displayPrefs.showSuggestedReplies ? "추천 켜짐" : "추천 꺼짐"}
+            </button>
+            <p id="picker-estimate-note" className="min-w-0 flex-1 text-[11px] text-zinc-400">
+              {PICKER_ESTIMATE_VARIANCE_NOTE}
+            </p>
+            <p className="shrink-0 text-right">
+              <span
+                className={`font-semibold ${
+                  input.length >= CHAT_MESSAGE_MAX ? "text-rose-400" : "text-zinc-300"
+                }`}
+              >
+                {input.length.toLocaleString()} / {CHAT_MESSAGE_MAX.toLocaleString()}자
+              </span>
+              <span className="hidden text-[10px] text-zinc-400 min-[576px]:inline"> · Ctrl+Enter 전송</span>
+            </p>
+          </div>
         </div>
       </div>
         </div>

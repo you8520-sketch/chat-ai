@@ -9,9 +9,14 @@ Module._load = function (request, parent, isMain) {
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { afterEach, describe, it, mock } from "node:test";
+import { after, afterEach, before, describe, it, mock } from "node:test";
 
 import { getDb } from "@/lib/db";
+import {
+  assertIsolatedTestDatabaseActive,
+  installIsolatedTestDatabase,
+  uninstallIsolatedTestDatabase,
+} from "@/lib/test/isolatedTestDatabase";
 import {
   claimNextDerivedCacheJob,
   completeDerivedCacheJob,
@@ -35,6 +40,19 @@ import {
   startDerivedCacheWakeup,
 } from "@/lib/derivedCache/wakeupScheduler";
 import { canExecuteWorldBlueprintPregen, WORLD_BLUEPRINT_PREGEN_JOB_KIND } from "@/lib/derivedCache/worldBlueprintPregen";
+
+before(() => {
+  installIsolatedTestDatabase();
+  assertIsolatedTestDatabaseActive();
+});
+
+after(() => {
+  try {
+    assertIsolatedTestDatabaseActive();
+  } finally {
+    uninstallIsolatedTestDatabase();
+  }
+});
 
 function clearDerivedJobs(db: ReturnType<typeof getDb>): void {
   ensureDerivedCacheJobsTable(db);
