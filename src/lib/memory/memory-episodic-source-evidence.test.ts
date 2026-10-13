@@ -347,7 +347,7 @@ describe("B-1 Shared Initial episodic evidence gate (live reconcile path)", () =
     assert.equal(reconcile(turn, [relationship, userAction]).inserted, 0);
   });
 
-  it("USER evidence authorizes the user's own consent and records the user message id", () => {
+  it("USER evidence authorizes the user's own proposal statement and records the user message id", () => {
     const turn = seedChat({
       userText: "좋아, 우리 오늘부터 연인하자.",
       assistantText: "에녹은 환하게 웃었다.",
@@ -356,10 +356,11 @@ describe("B-1 Shared Initial episodic evidence gate (live reconcile path)", () =
       fact(
         {
           category: "relationship",
-          subject: "enoch_user",
-          attribute: "relationship_status",
-          value: "lovers",
-          fact_text: "에녹과 유저는 서로 연인이 되기로 명시적으로 합의했다.",
+          subject: "user",
+          attribute: "relationship_proposal",
+          value: "proposed",
+          fact_text: "유저는 에녹에게 연인이 되자고 제안했다.",
+          evidence_type: "explicit_user_statement",
         },
         { source_role: "user", source_quote: "좋아, 우리 오늘부터 연인하자." }
       ),

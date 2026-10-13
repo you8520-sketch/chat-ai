@@ -56,4 +56,20 @@ describe("episodic prompt Allowed examples obey the evidence contract", () => {
       "acceptance example quotes the character"
     );
   });
+
+  it("a character claim example verifies as CHARACTER_CLAIM, never as an objective scene fact", () => {
+    const claims = facts.filter((fact) => fact.evidence_type === "explicit_character_claim");
+    assert.ok(claims.length >= 1, "an attributed character-claim example exists");
+    for (const fact of claims) {
+      const quote = fact.evidence?.source_quote ?? "";
+      const decision = evaluateEpisodicFactEvidence(
+        fact,
+        { user: { id: 1, text: "..." }, assistant: { id: 2, text: quote } },
+        {}
+      );
+      assert.ok(decision.accepted);
+      assert.equal(decision.evidence.authority, "CHARACTER_CLAIM");
+      assert.match(fact.fact_text, /주장했|말했|밝혔/u);
+    }
+  });
 });
