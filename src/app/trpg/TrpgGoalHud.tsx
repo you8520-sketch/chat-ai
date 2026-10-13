@@ -1,8 +1,20 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { TrpgPublicGoal } from "@/lib/trpg/campaignGoals";
 import { goalHudView, nextShownGoals, type TrpgGoalHudBadge, type TrpgGoalHudItem } from "./goalHudView";
+
+const PANEL_MAX_PX = 416;
+const PANEL_MIN_PX = 96;
+const PANEL_DOCK_GAP_PX = 8;
+
+/** The open list ends above the input dock, so reading the goals never covers the box the player types in. */
+function fitPanelAboveDock(panel: HTMLElement) {
+  const dock = document.querySelector("[data-trpg-command-dock]");
+  const floor = Math.min(dock ? dock.getBoundingClientRect().top : window.innerHeight, window.innerHeight);
+  const room = floor - panel.getBoundingClientRect().top - PANEL_DOCK_GAP_PX;
+  panel.style.maxHeight = `${Math.max(PANEL_MIN_PX, Math.min(PANEL_MAX_PX, room))}px`;
+}
 
 function badgeClass(badge: TrpgGoalHudBadge): string {
   switch (badge) {
@@ -56,6 +68,7 @@ export function TrpgGoalHud({
   const [shown, setShown] = useState(goals);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
 
   useEffect(() => {
@@ -79,6 +92,22 @@ export function TrpgGoalHud({
   }, [open]);
 
   const view = goalHudView(shown);
+  const panelVisible = open && view !== null && (view.lead !== null || view.done.length > 0);
+
+  useLayoutEffect(() => {
+    if (!panelVisible) return;
+    const fit = () => {
+      if (panelRef.current) fitPanelAboveDock(panelRef.current);
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    window.addEventListener("scroll", fit, { passive: true });
+    return () => {
+      window.removeEventListener("resize", fit);
+      window.removeEventListener("scroll", fit);
+    };
+  }, [panelVisible]);
+
   if (!view) return null;
 
   const expandable = view.lead !== null || view.done.length > 0;
@@ -135,7 +164,8 @@ export function TrpgGoalHud({
         {open && expandable ? (
           <div
             id={panelId}
-            className="absolute inset-x-0 top-full z-40 mt-1 max-h-[min(60dvh,26rem)] space-y-4 overflow-y-auto rounded-xl border border-white/10 bg-[#161616] p-3 shadow-[0_14px_36px_rgba(0,0,0,0.6)]"
+            ref={panelRef}
+            className="absolute inset-x-0 top-full z-40 mt-1 space-y-4 overflow-y-auto rounded-xl border border-white/10 bg-[#161616] p-3 shadow-[0_14px_36px_rgba(0,0,0,0.6)]"
           >
             <div className="space-y-2">
               <p className="text-xs font-medium text-zinc-300">진행 중 ({view.activeCount})</p>

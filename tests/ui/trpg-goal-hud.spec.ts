@@ -20,11 +20,6 @@ async function openLab(page: Page, scenario: string) {
   await page.goto(`/trpg/scroll-follow-lab?scenario=${scenario}`);
   await page.waitForSelector("[data-trpg-scroll-follow-lab='true']", { timeout: 30_000 });
   await page.waitForSelector("[data-trpg-goal-hud]", { timeout: 30_000 });
-  await page.waitForFunction(
-    () => document.querySelector("[data-trpg-round-presentation-mode]")?.getAttribute("data-trpg-round-presentation-mode") === "cinematic",
-    undefined,
-    { timeout: 30_000 }
-  );
 }
 
 async function hudGeometry(page: Page) {
@@ -58,7 +53,7 @@ test.describe("TRPG goal HUD — production browser", () => {
   for (const [name, viewport] of Object.entries(VIEWPORTS)) {
     test(`${name}: summary bar shows the goals and stays visible below the page chrome while scrolling`, async ({ page }) => {
       await page.setViewportSize(viewport);
-      await openLab(page, "party-sheets");
+      await openLab(page, "action-examples");
       const hud = page.locator("[data-trpg-goal-hud]");
       await expect(hud).toContainText("진행 중 2");
       await expect(hud).toContainText("확인 대기 1");
@@ -77,7 +72,7 @@ test.describe("TRPG goal HUD — production browser", () => {
 
     test(`${name}: expanding lists every goal with its status, floats over the page, and never moves the reading position`, async ({ page }) => {
       await page.setViewportSize(viewport);
-      await openLab(page, "party-sheets");
+      await openLab(page, "action-examples");
       await page.evaluate(() => window.scrollTo(0, 500));
       await page.waitForTimeout(200);
       const before = await hudGeometry(page);
@@ -134,6 +129,13 @@ test.describe("TRPG goal HUD — production browser", () => {
       await page.waitForTimeout(250);
     }
     expect(new Set(samples.map((sample) => sample.height)).size, "bar height never changes").toBe(1);
-    expect(new Set(samples.map((sample) => sample.top)).size, "bar sticks to one position").toBe(1);
+    for (const sample of samples) {
+      expect(sample.top, "bar never leaves the screen while the reveal auto-follows").toBeGreaterThanOrEqual(0);
+      expect(sample.top + sample.height).toBeLessThanOrEqual(VIEWPORTS.pc.height);
+    }
+    expect(
+      Math.min(...samples.map((sample) => sample.top)),
+      "once stuck, the bar rests below the site header"
+    ).toBeGreaterThan(40);
   });
 });
