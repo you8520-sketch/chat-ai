@@ -780,6 +780,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   shareEpisodic?: boolean;
   /** Regen: rejected assistant draft for the shared relationship section. */
   relationshipRegenContext?: { previousAssistantMessage: string } | null;
+  /** Stored text of the canonical active promises for the shared relationship section. */
+  activePromises: readonly string[];
 }): Promise<{
   values: ParsedStatusWidgetTurnValues;
   usage: TokenUsage | null;
@@ -918,29 +920,31 @@ export async function extractStatusWidgetValuesForTurn(opts: {
             requestKind: POST_TURN_SHARED_INITIAL_REQUEST_KIND,
           })
         : undefined;
+    const sharedInput = {
+      mode: sharedMode,
+      charName: opts.charName,
+      characterIdentity: opts.characterIdentity,
+      characterCriticalContext: opts.characterCriticalContext,
+      personaName: opts.personaName,
+      userPersona: opts.userPersona,
+      personaDescription: opts.personaDescription,
+      personaSpeechExamples: opts.personaSpeechExamples,
+      userMessage: opts.userMessage,
+      assistantProse: opts.assistantProse,
+      previousAssistantProse: opts.previousAssistantProse,
+      characterWidget: charWidget,
+      userWidget: userWidget,
+      previousCharacterValues: opts.previousValues?.character ?? null,
+      previousUserValues: opts.previousValues?.user ?? null,
+      primaryModelId,
+      includeSuggestions: shareSuggestedReplies,
+      includeRelationship: shareRelationshipDelta,
+      includeEpisodic: shareEpisodic,
+      relationshipRegenContext: opts.relationshipRegenContext ?? null,
+      activePromises: opts.activePromises,
+    };
     const shared = await runPostTurnSharedInitial(
-      {
-        mode: sharedMode,
-        charName: opts.charName,
-        characterIdentity: opts.characterIdentity,
-        characterCriticalContext: opts.characterCriticalContext,
-        personaName: opts.personaName,
-        userPersona: opts.userPersona,
-        personaDescription: opts.personaDescription,
-        personaSpeechExamples: opts.personaSpeechExamples,
-        userMessage: opts.userMessage,
-        assistantProse: opts.assistantProse,
-        previousAssistantProse: opts.previousAssistantProse,
-        characterWidget: charWidget,
-        userWidget: userWidget,
-        previousCharacterValues: opts.previousValues?.character ?? null,
-        previousUserValues: opts.previousValues?.user ?? null,
-        primaryModelId,
-        includeSuggestions: shareSuggestedReplies,
-        includeRelationship: shareRelationshipDelta,
-        includeEpisodic: shareEpisodic,
-        relationshipRegenContext: opts.relationshipRegenContext ?? null,
-      },
+      sharedInput,
       opts.caller,
       syncLedgerContext
     );
@@ -953,28 +957,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       sharedInitialTransportStatus = shared.transportOk ? "success" : "failed";
       sharedInitialFinishReason = shared.finishReason ?? shared.usage?.finishReason ?? null;
       sharedInitialOutputChars = (shared.text ?? "").length;
-      const sharedInput = {
-        mode: sharedMode,
-        charName: opts.charName,
-        characterIdentity: opts.characterIdentity,
-        characterCriticalContext: opts.characterCriticalContext,
-        personaName: opts.personaName,
-        userPersona: opts.userPersona,
-        personaDescription: opts.personaDescription,
-        personaSpeechExamples: opts.personaSpeechExamples,
-        userMessage: opts.userMessage,
-        assistantProse: opts.assistantProse,
-        previousAssistantProse: opts.previousAssistantProse,
-        characterWidget: charWidget,
-        userWidget: userWidget,
-        previousCharacterValues: opts.previousValues?.character ?? null,
-        previousUserValues: opts.previousValues?.user ?? null,
-        primaryModelId,
-        includeSuggestions: shareSuggestedReplies,
-        includeRelationship: shareRelationshipDelta,
-        includeEpisodic: shareEpisodic,
-        relationshipRegenContext: opts.relationshipRegenContext ?? null,
-      };
       sharedInitialWidgetShape = analyzePostTurnSharedInitialWidgetShape(
         shared.text ?? "",
         sharedInput

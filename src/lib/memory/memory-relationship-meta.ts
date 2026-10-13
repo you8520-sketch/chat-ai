@@ -568,6 +568,7 @@ async function extractRelationshipDeltaViaSharedOwner(opts: {
   userMessage: string;
   assistantMessage: string;
   previousAssistantMessage?: string | null;
+  activePromises: readonly string[];
   primaryModelId?: string;
   ledgerOpts?: {
     chatId: number;
@@ -596,6 +597,7 @@ async function extractRelationshipDeltaViaSharedOwner(opts: {
       assistantProse: opts.assistantMessage,
       primaryModelId: opts.primaryModelId ?? BACKGROUND_OPENROUTER_MODEL,
       previousAssistantMessage: opts.previousAssistantMessage ?? null,
+      activePromises: opts.activePromises,
     },
     undefined,
     ledgerContext
@@ -727,6 +729,7 @@ export async function mergeRelationshipMetaFromTurn(opts: {
             userName: names.userName,
             userMessage: opts.userMessage,
             assistantMessage: opts.assistantMessage,
+            activePromises: prevNormalized.promises.map((p) => p.text),
             ledgerOpts:
               opts.assistantMessageId && opts.generationScope
                 ? {
@@ -824,6 +827,9 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
             userMessage: opts.userMessage,
             assistantMessage: opts.newAssistantMessage,
             previousAssistantMessage: opts.previousAssistantMessage,
+            activePromises: loadChatRelationshipMeta(opts.chatId, names).promises.map(
+              (p) => p.text
+            ),
             ledgerOpts:
               opts.assistantMessageId && opts.generationScope
                 ? {

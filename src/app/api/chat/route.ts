@@ -1958,6 +1958,7 @@ export async function POST(req: Request) {
   const relationshipMemoryForPrompt = memoryFeatureOn
     ? formatMemoryMetaForPrompt(normalizedRelationshipMemoryMeta!)
     : "";
+  const activePromiseTexts = normalizedRelationshipMemoryMeta?.promises.map((p) => p.text) ?? [];
   const recentChatTextForEpisodicMemory = recentHistory
     .map((m) => m.content)
     .filter(Boolean)
@@ -5268,6 +5269,7 @@ export async function POST(req: Request) {
               regenerateMessageId && rejectedAssistantDraft
                 ? { previousAssistantMessage: rejectedAssistantDraft }
                 : null,
+            activePromises: activePromiseTexts,
           });
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
@@ -6480,6 +6482,7 @@ export async function POST(req: Request) {
                     regenerateMessageId && rejectedAssistantDraft
                       ? rejectedAssistantDraft
                       : null,
+                  activePromises: activePromiseTexts,
                 },
                 undefined,
                 ledgerContext

@@ -52,6 +52,12 @@ export type PostTurnSharedInitialInput = {
   includeEpisodic: boolean;
   /** Regen: rejected assistant draft for relationship comparison (relationship section only). */
   relationshipRegenContext?: { previousAssistantMessage: string } | null;
+  /**
+   * Stored `MemoryPromise.text` values of the canonical ledger as of this turn
+   * (relationship section only). `promisesRemove` must copy one of these
+   * verbatim — `mergePromises` removes by exact stored text.
+   */
+  activePromises: readonly string[];
 };
 
 export type PostTurnSharedSingleWidgetParse = {
