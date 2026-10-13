@@ -102,12 +102,38 @@ describe("A: explicit OOC scene transition outranks opening narration", () => {
     assert.equal(directive.motionDecision, "ESCALATE");
   });
 
-  it("an OOC without a transition leaves the live danger in the signal", () => {
-    const signal = buildSceneSignalText({
-      recentMessages: [{ role: "assistant", content: "경보가 울린다. 지금 위험해!" }],
-      currentUserMessage: "OOC: 조금 천천히 진행해줘.\n\n알겠어.",
-    });
-    assert.equal(resolveSceneKind(signal), "operation");
+  it("style, length or pacing OOC with a bare adverb leaves the live danger in the signal", () => {
+    const ongoingCombat: ChatMsg[] = [
+      { role: "assistant", content: "적의 칼날이 스쳤다. 전투는 아직 끝나지 않았다." },
+    ];
+    const ongoingDanger: ChatMsg[] = [{ role: "assistant", content: "\"지금 위험해. 벽 쪽으로 붙어.\"" }];
+    for (const [history, ooc] of [
+      [ongoingCombat, "OOC: 지금부터 대사를 짧게 써줘"],
+      [ongoingDanger, "OOC: 이제부터 묘사를 줄여줘"],
+      [ongoingDanger, "OOC: 여기서부터 속도를 천천히 가줘"],
+      [ongoingDanger, "OOC: 조금 천천히 진행해줘."],
+    ] as const) {
+      const message = `${ooc}\n\n알겠어.`;
+      assert.equal(resolveSceneKind(buildSceneSignalText({ recentMessages: history, currentUserMessage: message })), "operation", ooc);
+      assert.equal(
+        buildSceneDirective(input({ recentMessages: history, currentUserMessage: message })).motionDecision,
+        "ESCALATE",
+        ooc
+      );
+    }
+  });
+
+  it("real scene, place and time transitions are recognised", () => {
+    const history: ChatMsg[] = [{ role: "assistant", content: "경보가 울린다. 지금 위험해!" }];
+    for (const ooc of [
+      "OOC: 여기서부터 장면 계속.",
+      "OOC: 장면 전환. 다음 날 아침 숙소.",
+      "OOC: 다음 장면으로 넘어가자.",
+      "OOC: 장소 이동, 옥상으로.",
+    ]) {
+      const signal = buildSceneSignalText({ recentMessages: history, currentUserMessage: `${ooc}\n\n창가에 선다.` });
+      assert.equal(resolveSceneKind(signal), "neutral", ooc);
+    }
   });
 });
 

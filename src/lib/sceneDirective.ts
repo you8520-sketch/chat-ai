@@ -256,8 +256,12 @@ function stripConcludedEventSpans(text: string): string {
   return text.replace(CONCLUDED_EVENT_SPAN, " ");
 }
 
-/** User OOC that restarts the scene from here: earlier turns stop being scene evidence. */
-const OOC_SCENE_TRANSITION = /여기서부터|지금부터|이제부터|장면\s*(?:전환|이동|시작|계속)|다음\s*장면/;
+/**
+ * User OOC that restarts the scene: a scene/place/time shift or "from here, the scene
+ * continues". Bare "지금부터/이제부터/여기서부터" are style or pacing adverbs and do not count.
+ */
+const OOC_SCENE_TRANSITION =
+  /(?:장면|장소|시간)\s*(?:전환|이동|경과|점프|시작)|다음\s*장면|(?:여기서|지금|이제)부터\s*장면\s*(?:을\s*)?(?:계속|시작|이어)/;
 
 function declaresSceneTransition(userMessage: string | null | undefined): boolean {
   return extractOocSnippets(userMessage ?? "").some((snippet) => OOC_SCENE_TRANSITION.test(snippet));
