@@ -725,6 +725,7 @@ async function generateOneCharacter(
           speechDirection: brief.speechDirection,
           npcDemand: "이야기에 반복 역할이 실제로 필요할 때만 1~2명을 만든다. 필요 없으면 0명([])이 정상이다.",
           marketFit: brief.marketFit,
+          userRelation: brief.userRelation,
           feedback,
         },
         bonds: {
@@ -733,6 +734,7 @@ async function generateOneCharacter(
           rpHook: brief.rpHook,
           adultCandidate: brief.adultCandidate,
           castList: [],
+          userRelation: brief.userRelation,
           feedback,
         },
         modelId,
@@ -761,6 +763,7 @@ async function generateOneCharacter(
             speechDirection: brief.speechDirection,
             npcDemand: "기존 NPC를 유지한다(새로 만들지 않는다).",
             marketFit: brief.marketFit,
+            userRelation: brief.userRelation,
           },
           fields,
           reasons: issues.map((e) => `${e.code}: ${e.message}`),
