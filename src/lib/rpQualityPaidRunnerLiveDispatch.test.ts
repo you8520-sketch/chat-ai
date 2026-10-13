@@ -14,6 +14,7 @@ import {
   createMemoryPaidRunnerJournalStore,
   createMockPaidRunnerTransport,
   evaluatePaidRunnerAuthorizationPrerequisites,
+  paidRunnerManifestFingerprint,
   type PaidRunnerAuthorizationInput,
   type PaidRunnerPublicManifest,
 } from "@/lib/rpQualityPaidRunner";
@@ -29,9 +30,13 @@ import {
   resolveCanonicalProductionDbPath,
 } from "../../scripts/lib/rpQualityPaidRunnerInProcessPack";
 import {
+  PUBLISHED_1587_A_SCOPE_MANIFEST_FINGERPRINT,
   compareToPublished1466Seal,
+  compareToPublishedPaidRunnerSeals,
   paidRunnerPublicSealFromManifest,
   published1466ComparableSeal,
+  published1587ComparableSeal,
+  type Published1466ComparableSeal,
 } from "../../scripts/lib/rpQualityPaidRunnerPublished1466Seal";
 
 const SECRET = "rpq-paid-dispatch-secret-0000000001";
@@ -253,6 +258,130 @@ describe("rp quality paid runner live dispatch boundary", () => {
       ),
     });
     assert.equal(drifted.verdict, "BODY_DRIFT");
+  });
+
+  it("#1587 successor seal: only the pinned pacing change is approved, #1466 stays historical", () => {
+    const base1466 = published1466ComparableSeal();
+    assert.equal(base1466.productionDeploySha, "88d277f868c4a445e8dd7d24ea50f322fff1483d");
+    assert.equal(
+      base1466.manifestFingerprint,
+      "a600358fcc7bc6772945f62a36bb7d7c2c57b2b7eeb2191e822d816353f01b1e"
+    );
+    assert.equal(base1466.calls[0]?.finalWireFingerprint.slice(0, 8), "d86943df");
+
+    const seal1587 = published1587ComparableSeal();
+    const changedOrders = seal1587.calls
+      .filter((call, index) => {
+        const old = base1466.calls[index]!;
+        return (
+          call.requestBodyFingerprint !== old.requestBodyFingerprint ||
+          call.finalWireFingerprint !== old.finalWireFingerprint
+        );
+      })
+      .map((call) => call.requestOrder);
+    assert.deepEqual(changedOrders, [1, 2, 3, 4, 9, 10, 11, 12]);
+    for (const [index, call] of seal1587.calls.entries()) {
+      const old = base1466.calls[index]!;
+      assert.equal(call.requestOrder, old.requestOrder);
+      assert.equal(call.fixtureId, old.fixtureId);
+      assert.equal(call.canonicalId, old.canonicalId);
+      assert.equal(call.provider, old.provider);
+      assert.equal(call.wireModel, old.wireModel);
+      assert.equal(call.effectiveCanonMode, old.effectiveCanonMode);
+      assert.equal(call.maxTokensPresent, false);
+    }
+    assert.equal(seal1587.identityHash, base1466.identityHash);
+
+    const draft = {
+      version: 1 as const,
+      mainSha: seal1587.productionDeploySha,
+      productionDeploySha: seal1587.productionDeploySha,
+      characterId: 18,
+      personaName: "렌",
+      identityHash: seal1587.identityHash,
+      calls: seal1587.calls,
+    };
+    assert.equal(
+      paidRunnerManifestFingerprint({ ...draft, executionScope: "A_relationship_emotion" } as never),
+      PUBLISHED_1587_A_SCOPE_MANIFEST_FINGERPRINT
+    );
+    assert.equal(
+      paidRunnerManifestFingerprint(draft as never),
+      "f9abe8368d91efa08aa013fcdc735aa575b3251c04fcdaa646312640bc55f051"
+    );
+    assert.notEqual(
+      PUBLISHED_1587_A_SCOPE_MANIFEST_FINGERPRINT,
+      "f9abe8368d91efa08aa013fcdc735aa575b3251c04fcdaa646312640bc55f051"
+    );
+
+    assert.equal(compareToPublishedPaidRunnerSeals(base1466).verdict, "MATCH");
+    assert.equal(compareToPublished1466Seal(seal1587).verdict, "BODY_DRIFT");
+    const approved = compareToPublishedPaidRunnerSeals(seal1587);
+    assert.equal(approved.verdict, "MATCH");
+    assert.equal(approved.bodyDrift, false);
+
+    const laterDeploy = compareToPublishedPaidRunnerSeals({
+      ...seal1587,
+      productionDeploySha: MAIN_SHA,
+      mainSha: MAIN_SHA,
+      manifestFingerprint: "ee".repeat(32),
+    });
+    assert.equal(laterDeploy.verdict, "EXPECTED_DEPLOY_SHA_ROTATION");
+    assert.equal(
+      compareToPublishedPaidRunnerSeals({ ...seal1587, manifestFingerprint: "ee".repeat(32) }).verdict,
+      "UNEXPECTED_FINGERPRINT_ROTATION"
+    );
+
+    const tamper = (
+      order: number,
+      patch: Partial<Published1466ComparableSeal["calls"][number]>
+    ): Published1466ComparableSeal => ({
+      ...seal1587,
+      calls: seal1587.calls.map((call) => (call.requestOrder === order ? { ...call, ...patch } : call)),
+    });
+    const wrong = "ab".repeat(32);
+    for (const order of [1, 4, 5, 8, 9, 12]) {
+      assert.equal(
+        compareToPublishedPaidRunnerSeals(tamper(order, { requestBodyFingerprint: wrong })).verdict,
+        "BODY_DRIFT",
+        `body order ${order}`
+      );
+      assert.equal(
+        compareToPublishedPaidRunnerSeals(tamper(order, { finalWireFingerprint: wrong })).verdict,
+        "BODY_DRIFT",
+        `wire order ${order}`
+      );
+    }
+    assert.equal(compareToPublishedPaidRunnerSeals(tamper(2, { provider: "cheaperinference" })).verdict, "BODY_DRIFT");
+    assert.equal(compareToPublishedPaidRunnerSeals(tamper(3, { wireModel: "gpt-other" })).verdict, "BODY_DRIFT");
+    assert.equal(compareToPublishedPaidRunnerSeals(tamper(4, { canonicalId: "gpt-6.1-sol" })).verdict, "BODY_DRIFT");
+    assert.equal(compareToPublishedPaidRunnerSeals(tamper(1, { effectiveCanonMode: "FULL_LEGACY" })).verdict, "BODY_DRIFT");
+    assert.equal(compareToPublishedPaidRunnerSeals(tamper(1, { maxTokensPresent: true })).verdict, "BODY_DRIFT");
+    assert.equal(compareToPublishedPaidRunnerSeals(tamper(6, { fixtureId: "A_relationship_emotion" })).verdict, "BODY_DRIFT");
+
+    const mixedAWith1466C: Published1466ComparableSeal = {
+      ...seal1587,
+      calls: seal1587.calls.map((call, index) => (call.fixtureId[0] === "C" ? base1466.calls[index]! : call)),
+    };
+    assert.equal(compareToPublishedPaidRunnerSeals(mixedAWith1466C).verdict, "BODY_DRIFT");
+    assert.equal(
+      compareToPublishedPaidRunnerSeals({ ...seal1587, calls: seal1587.calls.slice(0, 4) }).verdict,
+      "BODY_DRIFT"
+    );
+    assert.equal(
+      compareToPublishedPaidRunnerSeals({
+        ...seal1587,
+        identityHash: "dd".repeat(32),
+      }).verdict,
+      "BODY_DRIFT"
+    );
+    assert.equal(
+      compareToPublishedPaidRunnerSeals({
+        ...seal1587,
+        identityHashes: { ...seal1587.identityHashes, worldSha256: "dd".repeat(32) },
+      }).verdict,
+      "BODY_DRIFT"
+    );
   });
 
   it("승인 없음 / SHA / fingerprint / identity / 운영키 fallback 모두 POST 0", async () => {

@@ -1,5 +1,6 @@
 /**
- * Public #1466 preapproval fingerprints only. No request bodies, no secrets.
+ * Public #1466 preapproval fingerprints (plus the #1587 successor baseline
+ * below) only. No request bodies, no secrets.
  * Live deployed reseal must rematch identity / body / wire / provider / canon /
  * uncapped fields. Manifest fingerprint rotation after a deploy SHA change is
  * expected and is not body drift.
@@ -159,6 +160,56 @@ export const PUBLISHED_1466_CALLS = [
   },
 ] as const;
 
+/**
+ * #1587 intentionally rewrote only the `[SCENE PACING]` block of the quiet
+ * A and C scenes (ESCALATE/OPERATION -> MICRO_MOTION/DYAD). The historical
+ * #1466 constants above stay untouched; this is the verified successor
+ * baseline. B calls are inherited from #1466 on purpose so any B change is
+ * still drift. `manifestFingerprint` is the A_relationship_emotion-scoped
+ * manifest (the 12-call unscoped precall manifest has a different fingerprint).
+ */
+export const PUBLISHED_1587_PRODUCTION_SHA =
+  "41808ea8ba2d952838bac27c553910d68e8be43d" as const;
+export const PUBLISHED_1587_A_SCOPE_MANIFEST_FINGERPRINT =
+  "ec7688de27127d114210eb262aef54a76ca653a20738b3d8293daa652596db06" as const;
+
+const PUBLISHED_1587_PACING_CALL_FINGERPRINTS: Readonly<
+  Record<number, { requestBodyFingerprint: string; finalWireFingerprint: string }>
+> = {
+  1: {
+    requestBodyFingerprint: "c4535f138ef2fac3a81c90444d8d838fa14e512e317dabf539d11e05f10cb924",
+    finalWireFingerprint: "e4b4e276aa6802f98ed39dcf9a23fd44fadad1c79933225f001df6afed57c46c",
+  },
+  2: {
+    requestBodyFingerprint: "2bb24a1fb60bc378c65450f876f7b260fceee510ada2e1b0c7314229f4fec7ef",
+    finalWireFingerprint: "e2b407a47fc5bf9d2632bad6a90b7fd660be2aba245b2a7262780922700a5c27",
+  },
+  3: {
+    requestBodyFingerprint: "a321ef6089c8cf1a2e1dabf36c51fc7404daa404c87e77db268686679dfae5a6",
+    finalWireFingerprint: "ac3eaebda257175a0f5b47b2e331b703a5705134647db31d7b9e59ed768158e8",
+  },
+  4: {
+    requestBodyFingerprint: "d212cf2966369132aa04ffae01a9d40d39caaaed2169e9b06646be5407eb2252",
+    finalWireFingerprint: "2720e9cc3354a53828bf7a0bb8664bfa0140004886762f303021aafbe2af8d4d",
+  },
+  9: {
+    requestBodyFingerprint: "6819bd94858f253c135513e2213710d052d5a7983c7d69c6326259132bfccb46",
+    finalWireFingerprint: "2f32db5f47bfcbfb092035d214cfc59c3c7e34d4d048ca930bf8fb199d456666",
+  },
+  10: {
+    requestBodyFingerprint: "b7b0c7ae2b4dec7e4b986d9e9c82e8be069806c8bb7405e10c41af471597c180",
+    finalWireFingerprint: "b8773c8f5a33d4309aac3f6b10038bfd5bf751f4e56c31a2952c5474325f697a",
+  },
+  11: {
+    requestBodyFingerprint: "53cf28991779cafee3ccb5db2b6e35acffd4f386e7e4a2b6af4f8b2afe3ab12f",
+    finalWireFingerprint: "50498aab67a34962eee794c056f7e425cf22d77337dab39feb2ebc4289a7d11f",
+  },
+  12: {
+    requestBodyFingerprint: "ece7bd0cbfe42f0f4ddeb10ef9a217b4074d12e42d7630d84bdcd018264226b6",
+    finalWireFingerprint: "a09b4c5b64ab05111040e44f70613723df115a824ae65df085561e927e0f9774",
+  },
+};
+
 export type Published1466ComparableCall = {
   requestOrder: number;
   fixtureId: string;
@@ -205,6 +256,20 @@ export function published1466ComparableSeal(): Published1466ComparableSeal {
     identityHashes: { ...PUBLISHED_1466_IDENTITY_HASHES },
     manifestFingerprint: PUBLISHED_1466_MANIFEST_FINGERPRINT,
     calls: PUBLISHED_1466_CALLS.map((call) => ({ ...call })),
+  };
+}
+
+export function published1587ComparableSeal(): Published1466ComparableSeal {
+  return {
+    mainSha: PUBLISHED_1587_PRODUCTION_SHA,
+    productionDeploySha: PUBLISHED_1587_PRODUCTION_SHA,
+    identityHash: PUBLISHED_1466_IDENTITY_HASH,
+    identityHashes: { ...PUBLISHED_1466_IDENTITY_HASHES },
+    manifestFingerprint: PUBLISHED_1587_A_SCOPE_MANIFEST_FINGERPRINT,
+    calls: PUBLISHED_1466_CALLS.map((call) => ({
+      ...call,
+      ...PUBLISHED_1587_PACING_CALL_FINGERPRINTS[call.requestOrder],
+    })),
   };
 }
 
@@ -309,4 +374,12 @@ export function compareToPublished1466Seal(
   current: Published1466ComparableSeal
 ): Published1466CompareResult {
   return comparePaidRunnerPublicSeal(current, published1466ComparableSeal());
+}
+
+export function compareToPublishedPaidRunnerSeals(
+  current: Published1466ComparableSeal
+): Published1466CompareResult {
+  const vs1466 = compareToPublished1466Seal(current);
+  if (vs1466.verdict !== "BODY_DRIFT") return vs1466;
+  return comparePaidRunnerPublicSeal(current, published1587ComparableSeal());
 }
