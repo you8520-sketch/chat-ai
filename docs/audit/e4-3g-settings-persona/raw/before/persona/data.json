@@ -1,0 +1,678 @@
+{
+ "measure-sub-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 0,
+  "docH": 5501,
+  "hOverflow": false,
+  "mobileNavTop": 791,
+  "smallTargets": [
+   {
+    "l": "+ 새 페르소나",
+    "w": 88,
+    "h": 28
+   },
+   {
+    "l": "수정",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "삭제",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "수정",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "삭제",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "수정",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "삭제",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "수정",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "삭제",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "수정",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "삭제",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "수정",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "삭제",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "수정",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "삭제",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "수정",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "삭제",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "+ 새 노트",
+    "w": 68,
+    "h": 28
+   },
+   {
+    "l": "수정",
+    "w": 42,
+    "h": 26.5
+   },
+   {
+    "l": "삭제",
+    "w": 42,
+    "h": 26.5
+   }
+  ],
+  "smallTargetCount": 49,
+  "clipped": [],
+  "controls": {
+   "visible": 8,
+   "named": 8,
+   "unnamed": []
+  },
+  "tinyTextCount": 74
+ },
+ "matrix": {
+  "360-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 47,
+   "tiny": 74,
+   "docH": 6088,
+   "unnamed": 0
+  },
+  "360-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 5,
+   "tiny": 5,
+   "docH": 1379,
+   "unnamed": 0
+  },
+  "360-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 5,
+   "tiny": 5,
+   "docH": 1448,
+   "unnamed": 0
+  },
+  "360-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 13,
+   "tiny": 17,
+   "docH": 2025,
+   "unnamed": 0
+  },
+  "390-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 49,
+   "tiny": 74,
+   "docH": 5501,
+   "unnamed": 0
+  },
+  "390-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 7,
+   "tiny": 5,
+   "docH": 1307,
+   "unnamed": 0
+  },
+  "390-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 7,
+   "tiny": 5,
+   "docH": 1376,
+   "unnamed": 0
+  },
+  "390-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 15,
+   "tiny": 17,
+   "docH": 1866,
+   "unnamed": 0
+  },
+  "576-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 47,
+   "tiny": 74,
+   "docH": 6043,
+   "unnamed": 0
+  },
+  "576-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 5,
+   "tiny": 5,
+   "docH": 1334,
+   "unnamed": 0
+  },
+  "576-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 5,
+   "tiny": 5,
+   "docH": 1403,
+   "unnamed": 0
+  },
+  "576-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 13,
+   "tiny": 17,
+   "docH": 1980,
+   "unnamed": 0
+  },
+  "640-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 49,
+   "tiny": 74,
+   "docH": 4492,
+   "unnamed": 0
+  },
+  "640-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 7,
+   "tiny": 5,
+   "docH": 1227,
+   "unnamed": 0
+  },
+  "640-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 7,
+   "tiny": 5,
+   "docH": 1274,
+   "unnamed": 0
+  },
+  "640-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 15,
+   "tiny": 17,
+   "docH": 1654,
+   "unnamed": 0
+  },
+  "768-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 49,
+   "tiny": 74,
+   "docH": 3962,
+   "unnamed": 0
+  },
+  "768-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 7,
+   "tiny": 5,
+   "docH": 1192,
+   "unnamed": 0
+  },
+  "768-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 7,
+   "tiny": 5,
+   "docH": 1237,
+   "unnamed": 0
+  },
+  "768-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 15,
+   "tiny": 17,
+   "docH": 1547,
+   "unnamed": 0
+  },
+  "1024-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 49,
+   "tiny": 74,
+   "docH": 3723,
+   "unnamed": 0
+  },
+  "1024-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 7,
+   "tiny": 5,
+   "docH": 1085,
+   "unnamed": 0
+  },
+  "1024-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 7,
+   "tiny": 5,
+   "docH": 1106,
+   "unnamed": 0
+  },
+  "1024-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 15,
+   "tiny": 17,
+   "docH": 1419,
+   "unnamed": 0
+  },
+  "1440-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 49,
+   "tiny": 74,
+   "docH": 3703,
+   "unnamed": 0
+  },
+  "1440-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 7,
+   "tiny": 5,
+   "docH": 1065,
+   "unnamed": 0
+  },
+  "1440-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 7,
+   "tiny": 5,
+   "docH": 1086,
+   "unnamed": 0
+  },
+  "1440-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 15,
+   "tiny": 17,
+   "docH": 1399,
+   "unnamed": 0
+  }
+ },
+ "edit-390": {
+  "itemBefore": {
+   "top": 638,
+   "bottom": 844,
+   "h": 206,
+   "inView": true,
+   "vh": 844
+  },
+  "itemAfter": {
+   "top": 638,
+   "bottom": 844,
+   "h": 206,
+   "inView": true,
+   "vh": 844
+  },
+  "nameInput": {
+   "top": 2607,
+   "bottom": 2653,
+   "h": 46,
+   "inView": false,
+   "vh": 844
+  },
+  "marked": {
+   "ariaCurrent": null,
+   "text": false,
+   "cls": "rounded-xl border border-white/10 bg-[#0e1120] px-4 py-3"
+  },
+  "scrollY": 156,
+  "secretVisible": 1,
+  "nameValue": "카일"
+ },
+ "edit-1440": {
+  "itemBefore": {
+   "top": 693,
+   "bottom": 900,
+   "h": 206,
+   "inView": true,
+   "vh": 900
+  },
+  "itemAfter": {
+   "top": 693,
+   "bottom": 900,
+   "h": 206,
+   "inView": true,
+   "vh": 900
+  },
+  "nameInput": {
+   "top": 2460,
+   "bottom": 2506,
+   "h": 46,
+   "inView": false,
+   "vh": 900
+  },
+  "marked": {
+   "ariaCurrent": null,
+   "text": false,
+   "cls": "rounded-xl border border-white/10 bg-[#0e1120] px-4 py-3"
+  },
+  "scrollY": 37,
+  "secretVisible": 1,
+  "nameValue": "카일"
+ },
+ "save-success": {
+  "count": 1,
+  "where": {
+   "top": -3000,
+   "bottom": -2962,
+   "h": 38,
+   "inView": false,
+   "vh": 844
+  },
+  "saveRectBefore": {
+   "top": 405,
+   "bottom": 439,
+   "h": 34,
+   "inView": true,
+   "vh": 844
+  },
+  "role": null,
+  "calls": [
+   "PUT /api/personas/44"
+  ]
+ },
+ "save-reload": {
+  "memoShown": 1
+ },
+ "save-error": {
+  "pendingLabel": "저장 중…",
+  "pendingDisabled": true,
+  "puts": 1,
+  "where": {
+   "top": -3000,
+   "bottom": -2962,
+   "h": 38,
+   "inView": false,
+   "vh": 844
+  },
+  "role": null,
+  "draftKept": "실패 확인"
+ },
+ "switch-dismiss": {
+  "dialogs": [],
+  "nameNow": "서윤",
+  "memoNow": "저장 후 확인 메모",
+  "draftLost": true
+ },
+ "switch-accept": {
+  "dialogs": [],
+  "nameNow": "서윤",
+  "memoNow": "저장 후 확인 메모",
+  "draftLost": true
+ },
+ "cancel-dirty": {
+  "dialogs": [],
+  "formOpen": 0
+ },
+ "create-open": {
+  "nameRect": {
+   "top": 1234,
+   "bottom": 1280,
+   "h": 46,
+   "inView": false,
+   "vh": 844
+  },
+  "scrollY": 0,
+  "saveDisabled": true,
+  "reasonText": 1
+ },
+ "create-saved": {
+  "pressed": {
+   "pressed": null,
+   "cls": true
+  },
+  "count": 1,
+  "msg": 1,
+  "msgWhere": {
+   "top": -1709,
+   "bottom": -1671,
+   "h": 38,
+   "inView": false,
+   "vh": 844
+  },
+  "calls": [
+   "POST /api/personas"
+  ]
+ },
+ "create-deleted": {
+  "count": 0,
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "이 페르소나를 삭제할까요?"
+   }
+  ],
+  "calls": [
+   {
+    "m": "DELETE",
+    "p": "/api/personas/58",
+    "body": null
+   }
+  ]
+ },
+ "only-persona": {
+  "disabled": true,
+  "reason": 0,
+  "items": 1
+ },
+ "secret": {
+  "secretOff": false,
+  "textareaPresent": 1,
+  "textareaHasFixtureSecret": true,
+  "markerInHtml": true,
+  "markerInPublicApi": false,
+  "noticeText": "캐릭터가 대화 시작 시점에는 모르는 설정입니다. 외형, 성격, 직업, 평소 말투처럼 처음부터 알아야 하는 내용은 일반 설정에 작성하세요."
+ },
+ "long-input": {
+  "counters": [
+   "1,200 / 1,200자"
+  ],
+  "descLen": 1181
+ },
+ "long-save-visible": {
+  "top": 405,
+  "bottom": 439,
+  "h": 34,
+  "inView": true,
+  "vh": 844
+ },
+ "keyboard": {
+  "textarea": {
+   "top": 161,
+   "bottom": 347,
+   "h": 186,
+   "inView": true,
+   "vh": 508
+  },
+  "save": {
+   "top": 712,
+   "bottom": 746,
+   "h": 34,
+   "inView": false,
+   "vh": 508
+  },
+  "navTop": 455,
+  "saveReachableByScroll": {
+   "top": 474,
+   "bottom": 508
+  }
+ },
+ "notes-member": {
+  "counterBefore": [
+   "300 / 1,000자",
+   "300 / 1,000자",
+   "300 / 1,000자 (고집중)"
+  ],
+  "counterAfter": [
+   "300 / 1,000자",
+   "2,600 / 1,000자 · 현재 요금제 한도 초과 (저장하려면 줄여 주세요)",
+   "2,600 / 1,000자 (고집중)"
+  ],
+  "errCount": 1,
+  "errWhere": {
+   "top": 294,
+   "bottom": 324,
+   "h": 30,
+   "inView": true,
+   "vh": 844
+  },
+  "errRole": null,
+  "taLabel": {
+   "labels": 0,
+   "aria": null
+  },
+  "puts": []
+ },
+ "notes-sub": {
+  "counterBefore": [
+   "380 / 2,000자",
+   "900 / 2,000자",
+   "1,900 / 2,000자"
+  ],
+  "counterAfter": [
+   "380 / 2,000자",
+   "900 / 2,000자",
+   "1,900 / 2,000자"
+  ],
+  "errCount": 2,
+  "errWhere": {
+   "top": 494,
+   "bottom": 524,
+   "h": 30,
+   "inView": true,
+   "vh": 844
+  },
+  "errRole": null,
+  "taLabel": {
+   "labels": 0,
+   "aria": null
+  },
+  "puts": []
+ },
+ "note-created": {
+  "count": 1,
+  "msg": 1,
+  "msgWhere": {
+   "top": -843,
+   "bottom": -805,
+   "h": 38,
+   "inView": false,
+   "vh": 844
+  }
+ },
+ "note-deleted": {
+  "count": 0,
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "이 유저 노트를 삭제할까요?"
+   }
+  ]
+ },
+ "widget-new": {
+  "saveDisabled": true,
+  "reason": 0,
+  "formTop": {
+   "top": 2306,
+   "bottom": 2352,
+   "h": 46,
+   "inView": false,
+   "vh": 844
+  }
+ },
+ "widget-saved": {
+  "count": 1,
+  "msgWhere": {
+   "top": -4833,
+   "bottom": -4795,
+   "h": 38,
+   "inView": false,
+   "vh": 844
+  }
+ },
+ "persona-widget-select": {
+  "calls": [
+   "PATCH /api/personas/43/status-widget"
+  ],
+  "value": "16",
+  "msgWhere": {
+   "top": 257,
+   "bottom": 295,
+   "h": 38,
+   "inView": true,
+   "vh": 844
+  }
+ },
+ "tab-order-1440": [
+  "프로필 메뉴",
+  "대화 목록",
+  "페르소나·노트",
+  "제작",
+  "크리에이터",
+  "성인인증",
+  "+ 새 페르소나",
+  "수정",
+  "삭제",
+  "사용 안 함다크 카드미니멀 H",
+  "수정",
+  "삭제",
+  "사용 안 함다크 카드미니멀 H",
+  "수정"
+ ],
+ "providerPostsTotal": 0
+}

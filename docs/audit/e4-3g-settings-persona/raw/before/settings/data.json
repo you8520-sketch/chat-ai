@@ -1,0 +1,438 @@
+{
+ "measure-member-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 0,
+  "docH": 2021,
+  "hOverflow": false,
+  "mobileNavTop": 791,
+  "smallTargets": [
+   {
+    "l": "12,840P",
+    "w": 56,
+    "h": 16
+   },
+   {
+    "l": "로그아웃",
+    "w": 48,
+    "h": 20
+   },
+   {
+    "l": "",
+    "w": 52,
+    "h": 28
+   },
+   {
+    "l": "좋아요 푸시",
+    "w": 44,
+    "h": 24
+   },
+   {
+    "l": "댓글 푸시",
+    "w": 44,
+    "h": 24
+   },
+   {
+    "l": "세이프티 필터",
+    "w": 52,
+    "h": 28
+   }
+  ],
+  "smallTargetCount": 6,
+  "clipped": [],
+  "controls": {
+   "visible": 1,
+   "named": 0,
+   "unnamed": [
+    "INPUT"
+   ]
+  },
+  "tinyTextCount": 0
+ },
+ "matrix": {
+  "360-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 2081,
+   "unnamed": 1
+  },
+  "360-adminOn": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 2923,
+   "unnamed": 1
+  },
+  "390-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 2021,
+   "unnamed": 1
+  },
+  "390-adminOn": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 2843,
+   "unnamed": 1
+  },
+  "576-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 2036,
+   "unnamed": 1
+  },
+  "576-adminOn": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 2878,
+   "unnamed": 1
+  },
+  "640-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 1884,
+   "unnamed": 1
+  },
+  "640-adminOn": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 2432,
+   "unnamed": 1
+  },
+  "768-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 1824,
+   "unnamed": 1
+  },
+  "768-adminOn": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 2354,
+   "unnamed": 1
+  },
+  "1024-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 1738,
+   "unnamed": 1
+  },
+  "1024-adminOn": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 2248,
+   "unnamed": 1
+  },
+  "1440-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 1718,
+   "unnamed": 1
+  },
+  "1440-adminOn": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 6,
+   "tiny": 0,
+   "docH": 2228,
+   "unnamed": 1
+  }
+ },
+ "states": {
+  "adminOn-390": {
+   "safety": {
+    "role": null,
+    "pressed": "true",
+    "checked": null,
+    "disabled": false,
+    "text": ""
+   },
+   "adminLinks": 13,
+   "hOverflow": false
+  },
+  "adminOn-1440": {
+   "safety": {
+    "role": null,
+    "pressed": "true",
+    "checked": null,
+    "disabled": false,
+    "text": ""
+   },
+   "adminLinks": 13,
+   "hOverflow": false
+  },
+  "adminOff-390": {
+   "safety": {
+    "role": null,
+    "pressed": "false",
+    "checked": null,
+    "disabled": false,
+    "text": ""
+   },
+   "adminLinks": 13,
+   "hOverflow": false
+  },
+  "adminOff-1440": {
+   "safety": {
+    "role": null,
+    "pressed": "false",
+    "checked": null,
+    "disabled": false,
+    "text": ""
+   },
+   "adminLinks": 13,
+   "hOverflow": false
+  },
+  "minor-390": {
+   "safety": {
+    "role": null,
+    "pressed": "true",
+    "checked": null,
+    "disabled": true,
+    "text": ""
+   },
+   "adminLinks": 0,
+   "hOverflow": false
+  },
+  "minor-1440": {
+   "safety": {
+    "role": null,
+    "pressed": "true",
+    "checked": null,
+    "disabled": true,
+    "text": ""
+   },
+   "adminLinks": 0,
+   "hOverflow": false
+  },
+  "fresh-390": {
+   "safety": {
+    "role": null,
+    "pressed": "true",
+    "checked": null,
+    "disabled": true,
+    "text": ""
+   },
+   "adminLinks": 0,
+   "hOverflow": false
+  },
+  "fresh-1440": {
+   "safety": {
+    "role": null,
+    "pressed": "true",
+    "checked": null,
+    "disabled": true,
+    "text": ""
+   },
+   "adminLinks": 0,
+   "hOverflow": false
+  },
+  "longname-390": {
+   "safety": {
+    "role": null,
+    "pressed": "true",
+    "checked": null,
+    "disabled": true,
+    "text": ""
+   },
+   "adminLinks": 0,
+   "hOverflow": false
+  },
+  "longname-1440": {
+   "safety": {
+    "role": null,
+    "pressed": "true",
+    "checked": null,
+    "disabled": true,
+    "text": ""
+   },
+   "adminLinks": 0,
+   "hOverflow": false
+  }
+ },
+ "nickname-success": {
+  "visibleText": 1,
+  "where": {
+   "top": 742,
+   "bottom": 788,
+   "inView": true,
+   "vh": 844
+  },
+  "calls": [
+   {
+    "m": "PATCH",
+    "p": "/api/settings",
+    "body": "{\"nickname\":\"새닉네임확인\"}"
+   },
+   {
+    "m": "PATCH",
+    "p": "/api/settings",
+    "body": "{\"nickname\":\"달빛독자\"}"
+   }
+  ]
+ },
+ "nickname-after-reload": {
+  "value": "새닉네임확인",
+  "heading": "새닉네임확인"
+ },
+ "nickname-error": {
+  "pendingDisabled": true,
+  "patchCalls": 1,
+  "where": {
+   "top": 742,
+   "bottom": 786,
+   "inView": true,
+   "vh": 844
+  },
+  "alertRole": null,
+  "inputValue": "실패테스트"
+ },
+ "taste": {
+  "calls": [
+   {
+    "m": "PATCH",
+    "p": "/api/settings",
+    "body": "{\"pref\":\"female\"}"
+   }
+  ],
+  "msg": 1
+ },
+ "safety-toggle": {
+  "before": {
+   "pressed": "true",
+   "checked": null,
+   "text": ""
+  },
+  "after": {
+   "pressed": "false",
+   "checked": null,
+   "text": ""
+  },
+  "calls": [
+   {
+    "m": "PATCH",
+    "p": "/api/settings",
+    "body": "{\"nsfw_on\":1}"
+   }
+  ]
+ },
+ "safety-toggle-restore": [
+  {
+   "m": "PATCH",
+   "p": "/api/settings",
+   "body": "{\"nsfw_on\":0}"
+  }
+ ],
+ "safety-error-rollback": {
+  "s0": {
+   "pressed": "true",
+   "checked": null,
+   "text": ""
+  },
+  "s1": {
+   "pressed": "true",
+   "checked": null,
+   "text": ""
+  },
+  "where": {
+   "top": 534,
+   "bottom": 578,
+   "inView": true,
+   "vh": 844
+  }
+ },
+ "links-member": [
+  {
+   "t": "12,840P",
+   "h": "/points"
+  },
+  {
+   "t": "앨범 전체 보기",
+   "h": "/albums"
+  },
+  {
+   "t": "페르소나 · 유저노트",
+   "h": "/persona"
+  },
+  {
+   "t": "크리에이터 페이지",
+   "h": "/creator"
+  }
+ ],
+ "admin-links": [
+  "/admin/point-grant",
+  "/admin/create-migration",
+  "/admin/report-refunds",
+  "/admin/character-moderation",
+  "/admin/official-characters",
+  "/admin/comment-banned-words",
+  "/admin/comment-reports",
+  "/admin/ops",
+  "/admin/automation-reports",
+  "/admin/payout",
+  "/admin/finance",
+  "/admin/boards",
+  "/admin/home-popup-notice"
+ ],
+ "member-admin-links": 0,
+ "keyboard-nickname": {
+  "input": {
+   "top": 231,
+   "bottom": 277,
+   "inView": true,
+   "vh": 508
+  },
+  "save": {
+   "top": 231,
+   "bottom": 277,
+   "inView": true,
+   "vh": 508
+  }
+ },
+ "tab-order-1440": [
+  "하브 홈",
+  "홈",
+  "신작",
+  "랭킹",
+  "TRPG",
+  "검색",
+  "북마크/팔로잉",
+  "알림 1건",
+  "보유 포인트 12,840P — 사",
+  "성인인증",
+  "프로필 메뉴",
+  "대화 목록",
+  "페르소나·노트",
+  "제작",
+  "크리에이터",
+  "성인인증",
+  "12,840P",
+  "로그아웃"
+ ],
+ "providerPostsTotal": 0
+}

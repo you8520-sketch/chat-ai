@@ -1,0 +1,11 @@
+{
+ "secret": {
+  "secretOff": true,
+  "textareaPresent": 0,
+  "textareaHasFixtureSecret": false,
+  "markerInHtml": false,
+  "markerInPublicApi": false,
+  "noticeText": "비밀 설정은 현재 일부 사용자에게 순차 공개 중입니다."
+ },
+ "providerPostsTotal": 0
+}

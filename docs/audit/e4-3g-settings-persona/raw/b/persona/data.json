@@ -1,0 +1,593 @@
+{
+ "measure-sub-390": {
+  "vw": 390,
+  "vh": 844,
+  "scrollY": 0,
+  "docH": 5544,
+  "hOverflow": false,
+  "mobileNavTop": 791,
+  "smallTargets": [],
+  "smallTargetCount": 0,
+  "clipped": [],
+  "controls": {
+   "visible": 8,
+   "named": 8,
+   "unnamed": []
+  },
+  "tinyTextCount": 0
+ },
+ "matrix": {
+  "360-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 5544,
+   "unnamed": 0
+  },
+  "360-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1746,
+   "unnamed": 0
+  },
+  "360-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1811,
+   "unnamed": 0
+  },
+  "360-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 2193,
+   "unnamed": 0
+  },
+  "390-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 5544,
+   "unnamed": 0
+  },
+  "390-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1746,
+   "unnamed": 0
+  },
+  "390-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1811,
+   "unnamed": 0
+  },
+  "390-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 2193,
+   "unnamed": 0
+  },
+  "576-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 5499,
+   "unnamed": 0
+  },
+  "576-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1701,
+   "unnamed": 0
+  },
+  "576-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1766,
+   "unnamed": 0
+  },
+  "576-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 2148,
+   "unnamed": 0
+  },
+  "640-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 5572,
+   "unnamed": 0
+  },
+  "640-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1774,
+   "unnamed": 0
+  },
+  "640-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1839,
+   "unnamed": 0
+  },
+  "640-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 2221,
+   "unnamed": 0
+  },
+  "768-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 4759,
+   "unnamed": 0
+  },
+  "768-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1536,
+   "unnamed": 0
+  },
+  "768-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1557,
+   "unnamed": 0
+  },
+  "768-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1939,
+   "unnamed": 0
+  },
+  "1024-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 5193,
+   "unnamed": 0
+  },
+  "1024-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1466,
+   "unnamed": 0
+  },
+  "1024-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1531,
+   "unnamed": 0
+  },
+  "1024-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1841,
+   "unnamed": 0
+  },
+  "1440-sub": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 4485,
+   "unnamed": 0
+  },
+  "1440-fresh": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1373,
+   "unnamed": 0
+  },
+  "1440-longname": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1394,
+   "unnamed": 0
+  },
+  "1440-member": {
+   "hOverflow": false,
+   "clipped": 0,
+   "small": 0,
+   "tiny": 0,
+   "docH": 1666,
+   "unnamed": 0
+  }
+ },
+ "edit-390": {
+  "itemBefore": {
+   "top": 293,
+   "bottom": 551,
+   "h": 257,
+   "inView": true,
+   "vh": 844
+  },
+  "itemAfter": {
+   "top": -129,
+   "bottom": 1606,
+   "h": 1735,
+   "inView": true,
+   "vh": 844
+  },
+  "nameInput": {
+   "top": 680,
+   "bottom": 726,
+   "h": 46,
+   "inView": true,
+   "vh": 844
+  },
+  "marked": {
+   "ariaCurrent": "true",
+   "text": true,
+   "cls": "rounded-xl border px-4 py-3 transition-colors sm:px-5 border-violet-400/60 bg-vi"
+  },
+  "scrollY": 1203,
+  "secretVisible": 1,
+  "nameValue": "카일"
+ },
+ "edit-1440": {
+  "itemBefore": {
+   "top": 695,
+   "bottom": 900,
+   "h": 205,
+   "inView": true,
+   "vh": 900
+  },
+  "itemAfter": {
+   "top": 583,
+   "bottom": 788,
+   "h": 205,
+   "inView": true,
+   "vh": 900
+  },
+  "nameInput": {
+   "top": 586,
+   "bottom": 632,
+   "h": 46,
+   "inView": true,
+   "vh": 900
+  },
+  "marked": {
+   "ariaCurrent": "true",
+   "text": true,
+   "cls": "rounded-xl border px-4 py-3 transition-colors sm:px-5 border-violet-400/60 bg-vi"
+  },
+  "scrollY": 275,
+  "secretVisible": 1,
+  "nameValue": "카일"
+ },
+ "save-success": {
+  "count": 1,
+  "where": {
+   "top": 682,
+   "bottom": 727,
+   "h": 45,
+   "inView": true,
+   "vh": 844
+  },
+  "saveRectBefore": {
+   "top": 735,
+   "bottom": 779,
+   "h": 44,
+   "inView": true,
+   "vh": 844
+  },
+  "role": "status",
+  "calls": [
+   "PUT /api/personas/264"
+  ]
+ },
+ "save-reload": {
+  "memoShown": 1
+ },
+ "save-error": {
+  "pendingLabel": "저장 중…",
+  "pendingDisabled": true,
+  "puts": 1,
+  "where": {
+   "top": 660,
+   "bottom": 727,
+   "h": 68,
+   "inView": true,
+   "vh": 844
+  },
+  "role": "alert",
+  "draftKept": "실패 확인"
+ },
+ "switch-dismiss": {
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "저장하지 않은 변경 사항이 있어요. 버리고 계속할까요?"
+   }
+  ],
+  "nameNow": "하루",
+  "memoNow": "저장하지 않은 메모",
+  "draftLost": false
+ },
+ "switch-accept": {
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "저장하지 않은 변경 사항이 있어요. 버리고 계속할까요?"
+   }
+  ],
+  "nameNow": "서윤",
+  "memoNow": "저장 후 확인 메모",
+  "draftLost": true
+ },
+ "cancel-dirty": {
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "저장하지 않은 변경 사항이 있어요. 버리고 계속할까요?"
+   }
+  ],
+  "formOpen": 1
+ },
+ "create-open": {
+  "nameRect": {
+   "top": 573,
+   "bottom": 619,
+   "h": 46,
+   "inView": true,
+   "vh": 844
+  },
+  "scrollY": 372,
+  "saveDisabled": true,
+  "reasonText": 1
+ },
+ "create-saved": {
+  "pressed": {
+   "pressed": "true",
+   "cls": true
+  },
+  "count": 1,
+  "msg": 1,
+  "msgWhere": {
+   "top": 682,
+   "bottom": 727,
+   "h": 45,
+   "inView": true,
+   "vh": 844
+  },
+  "calls": [
+   "POST /api/personas"
+  ]
+ },
+ "create-deleted": {
+  "count": 0,
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "이 페르소나를 삭제할까요?"
+   }
+  ],
+  "calls": [
+   {
+    "m": "DELETE",
+    "p": "/api/personas/278",
+    "body": null
+   }
+  ]
+ },
+ "only-persona": {
+  "disabled": true,
+  "reason": 1,
+  "items": 1
+ },
+ "secret": {
+  "secretOff": false,
+  "textareaPresent": 1,
+  "textareaHasFixtureSecret": true,
+  "markerInHtml": true,
+  "markerInPublicApi": false,
+  "noticeText": "캐릭터가 대화 시작 시점에는 모르는 설정입니다. 외형, 성격, 직업, 평소 말투처럼 처음부터 알아야 하는 내용은 일반 설정에 작성하세요."
+ },
+ "long-input": {
+  "counters": [
+   "합계 1,200 / 1,200자",
+   "2 / 30자"
+  ],
+  "descLen": 1181
+ },
+ "long-save-visible": {
+  "top": 735,
+  "bottom": 779,
+  "h": 44,
+  "inView": true,
+  "vh": 844
+ },
+ "keyboard": {
+  "textarea": {
+   "top": 161,
+   "bottom": 347,
+   "h": 186,
+   "inView": true,
+   "vh": 508
+  },
+  "save": {
+   "top": 399,
+   "bottom": 443,
+   "h": 44,
+   "inView": true,
+   "vh": 508
+  },
+  "navTop": 455,
+  "saveReachableByScroll": {
+   "top": 399,
+   "bottom": 443
+  }
+ },
+ "notes-member": {
+  "counterBefore": [
+   "300 / 1,000자",
+   "5 / 40자",
+   "300 / 1,000자"
+  ],
+  "counterAfter": [
+   "300 / 1,000자",
+   "5 / 40자",
+   "2,600 / 1,000자 · 현재 요금제 한도 초과 (저장하려면 줄여 주세요)"
+  ],
+  "errCount": 1,
+  "errWhere": {
+   "top": 468,
+   "bottom": 498,
+   "h": 30,
+   "inView": true,
+   "vh": 844
+  },
+  "errRole": null,
+  "taLabel": {
+   "labels": 0,
+   "aria": "중요 기억 내용"
+  },
+  "puts": []
+ },
+ "notes-sub": {
+  "counterBefore": [
+   "380 / 2,000자",
+   "5 / 40자",
+   "380 / 2,000자"
+  ],
+  "counterAfter": [
+   "380 / 2,000자",
+   "5 / 40자",
+   "2,600 / 2,000자 · 현재 요금제 한도 초과 (저장하려면 줄여 주세요)"
+  ],
+  "errCount": 2,
+  "errWhere": {
+   "top": 468,
+   "bottom": 498,
+   "h": 30,
+   "inView": true,
+   "vh": 844
+  },
+  "errRole": null,
+  "taLabel": {
+   "labels": 0,
+   "aria": "중요 기억 내용"
+  },
+  "puts": []
+ },
+ "note-created": {
+  "count": 1,
+  "msg": 1,
+  "msgWhere": {
+   "top": 128,
+   "bottom": 172,
+   "h": 45,
+   "inView": true,
+   "vh": 844
+  }
+ },
+ "note-deleted": {
+  "count": 0,
+  "dialogs": [
+   {
+    "type": "confirm",
+    "message": "이 유저 노트를 삭제할까요?"
+   }
+  ]
+ },
+ "widget-new": {
+  "saveDisabled": true,
+  "reason": 1,
+  "formTop": {
+   "top": 209,
+   "bottom": 255,
+   "h": 46,
+   "inView": true,
+   "vh": 844
+  }
+ },
+ "widget-saved": {
+  "count": 1,
+  "msgWhere": {
+   "top": 703,
+   "bottom": 748,
+   "h": 45,
+   "inView": true,
+   "vh": 844
+  }
+ },
+ "persona-widget-select": {
+  "calls": [
+   "PATCH /api/personas/263/status-widget"
+  ],
+  "value": "96",
+  "msgWhere": {
+   "top": 703,
+   "bottom": 748,
+   "h": 45,
+   "inView": true,
+   "vh": 844
+  }
+ },
+ "tab-order-1440": [
+  "프로필 메뉴",
+  "대화 목록",
+  "페르소나·노트",
+  "제작",
+  "크리에이터",
+  "성인인증",
+  "페르소나8개채팅에서 내가 연기",
+  "유저 노트6개AI가 매 턴 기",
+  "상태창4개채팅 화면에 보이는 ",
+  "+ 새 페르소나",
+  "사용 안 함다크 카드미니멀 H",
+  "하루 수정",
+  "하루 삭제",
+  "사용 안 함다크 카드미니멀 H"
+ ],
+ "providerPostsTotal": 0
+}
