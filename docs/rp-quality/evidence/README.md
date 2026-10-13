@@ -59,3 +59,42 @@ SHA-256은 저장소에 커밋된 파일 바이트에서 계산했고, 해당 ru
 5. 태그·형식 규칙 준수.
 6. 길이 변화가 품질에 미친 영향 (과소 또는 과다).
 7. 모델별 전후 차이와 어느 모델이 개선, 유지, 악화되었는가.
+
+## VERIFY — post-#1612 A-scope reseal (`08711b9d`)
+
+#1602 / #1595 입력이 반영된 최신 canonical seal(#1612)을 배포 SHA `08711b9d97d2309f26f5ca7631a26b28f9fe55b1`에서 재조립했다. 12호출 body/wire는 봉인과 일치했고, 판정은 `EXPECTED_DEPLOY_SHA_ROTATION`이었다. 기존 검증 경로로 라이크·렌 A 장면 4모델을 각 1회 실행했다. Gemini 4 Argon은 선택 목록에만 있고 이번 실행에는 넣지 않았다.
+
+| 항목 | 값 |
+| --- | --- |
+| Railway | SUCCESS, 컨테이너 SHA `08711b9d97d2309f26f5ca7631a26b28f9fe55b1` |
+| 사용자 선택 모델 | 5 (DeepSeek / Gemini 3.8 / GPT-6.1 Sol / Opus 5.5 / Gemini 4 Argon) |
+| 품질 검증 모델 | 4 (`MAIN_RP_QUALITY_BENCHMARK_MODEL_IDS`) |
+| PRECALL | 12호출 (Gemini 4 없음) |
+| A-scope manifest fingerprint | `fe446e442c0218c8fa711aade78fe6db76c83ab0cf915135a20f09a653957d21` |
+| identity hash | `5f400d361ffd7eba0747cada89726d43ee38a36677768beac048c8732af02ded` (변경 없음) |
+| seal verdict | `EXPECTED_DEPLOY_SHA_ROTATION` (12/12 body·wire 일치) |
+| Provider POST | 4 (retry 0) |
+| 정산 | 4회 모두 `SETTLED` / `provider_exact` |
+| 합계 billed USD | 0.207194 (약 290원, 1 USD = 1,400원 가정) |
+
+### 원문 파일과 검증된 SHA-256
+
+SHA-256은 저장소에 커밋된 파일 바이트에서 계산했고, 해당 run Journal `artifactFingerprint` 및 `visibleChars`와 모두 일치했다. 대사 블록 수는 `extractDialogueBlockSpans` 집계이며 품질 점수가 아니다.
+
+| 모델 | 파일 | 전체 글자 수 | 한글 음절 수 | 대사 블록 | SHA-256 |
+| --- | --- | ---: | ---: | ---: | --- |
+| DeepSeek V4.1 Flash | [VERIFY_08711b9d_deepseek-v4.1-flash.txt](VERIFY_08711b9d_deepseek-v4.1-flash.txt) | 2,811 | 1,884 | 13 | `6c12b8d1dded3725d189e4f34352dc5185b64bab26e53a56a10988c988a27b82` |
+| Gemini 3.8 Flash | [VERIFY_08711b9d_gemini-3.8-flash.txt](VERIFY_08711b9d_gemini-3.8-flash.txt) | 4,796 | 3,348 | 13 | `290e75c608dee5df5f95d679f82542228114151261575119a2e875db52230344` |
+| GPT-6.1 Sol | [VERIFY_08711b9d_gpt-6.1-sol.txt](VERIFY_08711b9d_gpt-6.1-sol.txt) | 4,186 | 2,921 | 4 | `869856d45fc77cc35ae73722a9f40f59b25348debe6b113f7240228ca2dc7aca` |
+| Claude Opus 5.5 | [VERIFY_08711b9d_claude-opus-5.5.txt](VERIFY_08711b9d_claude-opus-5.5.txt) | 3,819 | 2,635 | 6 | `8b781196366a434643977da1916948bfc2867ea47650e86455906cbf29db6255` |
+
+### 토큰·비용·시간
+
+| 모델 | prompt | completion | cache read | cache write | reasoning | billed USD | elapsed ms |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| DeepSeek V4.1 Flash | 8,035 | 2,176 | — | — | — | 0.001255 | 16,652 |
+| Gemini 3.8 Flash | 12,028 | 3,125 | 10,487 | — | — | 0.007049 | 37,664 |
+| GPT-6.1 Sol | 12,502 | 2,699 | — | 12,499 | 25 | 0.039628 | 69,550 |
+| Claude Opus 5.5 | 20,109 | 5,109 | — | 14,595 | — | 0.159262 | 72,219 |
+
+Cursor는 문체 점수를 매기지 않는다. GPT가 위 원문을 읽고 기존 평가 항목으로 판단한다.
