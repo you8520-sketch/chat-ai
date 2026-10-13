@@ -8,6 +8,7 @@ import {
   encodeScopePayload,
   normalizeSummaryScope,
   parseScopePayload,
+  resolveSummaryRowScopes,
   type BranchControlMutation,
   type BranchControlMutationPrevious,
   type MemorySummaryScope,
@@ -99,7 +100,7 @@ function listBranchControlRows(chatId: number): BranchControlRowSnapshot[] {
   const rows = getDb()
     .prepare(
       `SELECT id, summary, summary_kind, scope_payload, branch_id, branch_status,
-              promoted_by, promoted_at, COALESCE(inactive,0) AS inactive
+              promoted_by, promoted_at, COALESCE(inactive,0) AS inactive, user_edited
        FROM chat_turn_summaries WHERE chat_id=? ORDER BY turn_number ASC`
     )
     .all(chatId) as Array<{
@@ -112,17 +113,13 @@ function listBranchControlRows(chatId: number): BranchControlRowSnapshot[] {
     promoted_by: string | null;
     promoted_at: string | null;
     inactive: number;
+    user_edited: number;
   }>;
 
   return rows.map((r) => {
     const summaryKind = normalizeSummaryScope(r.summary_kind);
     const payload = parseScopePayload(r.scope_payload);
-    const scopes: Partial<Record<MemorySummaryScope, string>> = {
-      ...(payload?.scopes ?? {}),
-    };
-    if (!scopes[summaryKind] && r.summary?.trim() && summaryKind !== "empty_ooc") {
-      scopes[summaryKind] = r.summary.trim();
-    }
+    const scopes = resolveSummaryRowScopes(r, payload);
     return {
       id: r.id,
       summaryKind,

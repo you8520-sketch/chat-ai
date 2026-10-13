@@ -18,6 +18,7 @@ import {
   lorebookTextFromScopes,
   normalizeSummaryScope,
   parseScopePayload,
+  resolveSummaryRowScopes,
   scopesInjectedIntoPrompt,
   scopesVisibleInHistory,
   type BranchStatus,
@@ -85,12 +86,7 @@ function rowToViewOrNull(r: MemoryRecordRow): MemoryRecordView | null {
   const turnEnd = span.turnEnd;
   const summaryKind = normalizeSummaryScope(r.summary_kind);
   const payload = parseScopePayload(r.scope_payload);
-  const scopes: Partial<Record<MemorySummaryScope, string>> = {
-    ...(payload?.scopes ?? {}),
-  };
-  if (!scopes[summaryKind] && r.summary?.trim() && summaryKind !== "empty_ooc") {
-    scopes[summaryKind] = r.summary.trim();
-  }
+  const scopes = resolveSummaryRowScopes(r, payload);
   const branchStatus =
     (r.branch_status as BranchStatus | null) ||
     payload?.branchStatus ||
@@ -253,13 +249,33 @@ export function updateMemoryRecordById(
 
   const db = getDb();
   const row = db
-    .prepare("SELECT id, turn_number, summary_kind FROM chat_turn_summaries WHERE id=? AND chat_id=?")
-    .get(recordId, chatId) as { id: number; turn_number: number; summary_kind?: string } | undefined;
+    .prepare(
+      "SELECT id, summary, summary_kind, scope_payload FROM chat_turn_summaries WHERE id=? AND chat_id=?"
+    )
+    .get(recordId, chatId) as
+    | { id: number; summary: string; summary_kind?: string | null; scope_payload?: string | null }
+    | undefined;
   if (!row) return null;
-  // User edits become main_canon content
+  // User edits become main_canon content. The sealed scope_payload carries the same main_canon text, so it is
+  // replaced in the same write; other scopes and branch state stay untouched.
+  const payload = parseScopePayload(row.scope_payload);
+  let scopePayload = row.scope_payload ?? null;
+  if (payload) {
+    const scopes = { ...payload.scopes };
+    const previousKind = normalizeSummaryScope(row.summary_kind);
+    if (
+      previousKind !== "main_canon" &&
+      previousKind !== "empty_ooc" &&
+      scopes[previousKind]?.trim() === row.summary.trim()
+    ) {
+      delete scopes[previousKind];
+    }
+    scopes.main_canon = text.trim();
+    scopePayload = encodeScopePayload({ ...payload, scopes });
+  }
   db.prepare(
-    `UPDATE chat_turn_summaries SET summary=?, summary_kind='main_canon', user_edited=1, updated_at=datetime('now') WHERE id=?`
-  ).run(text, recordId);
+    `UPDATE chat_turn_summaries SET summary=?, summary_kind='main_canon', scope_payload=?, user_edited=1, updated_at=datetime('now') WHERE id=?`
+  ).run(text, scopePayload, recordId);
 
   refreshGlobalMemoryMirrorFromRecords(chatId);
 
