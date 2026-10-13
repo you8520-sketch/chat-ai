@@ -41,6 +41,7 @@ import {
   isRollingSummaryGroundedInDialogue,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
+import { looksLikePriorSharedHistoryClaim, looksLikePriorSharedUserHistory } from "@/lib/sharedHistoryEvidence";
 import { EMPTY_OOC_SUMMARY_MARKER } from "./memory-summary-scope";
 import { listMemoryRecordsForChat } from "./memory-turn-summary";
 
@@ -292,7 +293,97 @@ describe("rolling summary seal stall on real Luna sparse windows", () => {
   });
 });
 
-describe("real Luna sparse seals reach the final wire at 30 / 50 / 80 turns", () => {
+describe("persona 이름/호칭: 렌 — real Luna windows 1 / 21 / 36 are not rejected by sequencing 이후", () => {
+  const groundedWithPersona = (start: number, summary?: string) => {
+    const window = fixture.windows.find((w) => w.turnStart === start)!;
+    return isRollingSummaryGroundedInDialogue(
+      summary ?? window.lunaOutput,
+      dialogueOf(window),
+      USER_PERSONA,
+      CHAR_NAME
+    );
+  };
+
+  it("every real Luna window is grounded with the production persona string", () => {
+    for (const window of fixture.windows) {
+      assert.equal(groundedWithPersona(window.turnStart), true, `window ${window.turnStart}`);
+    }
+  });
+
+  it("seals all 16 real windows with the persona and keeps the NPC claim attributed", async () => {
+    seedRealWindows(TOTAL_WINDOWS);
+    const { sealedRounds, callsPerStart } = await sealAllWindows(USER_PERSONA);
+    assert.equal(sealedRounds, TOTAL_WINDOWS, `lastError=${__getLastSummarizeTurnBatchError()}`);
+    for (const [start, calls] of callsPerStart) {
+      assert.equal(calls, 1, `window ${start} sealed on the first attempt`);
+    }
+    const records = listMemoryRecordsForChat(CHAT).filter((record) => !record.inactive);
+    assert.equal(highestContiguousCompletedTurn(records, TOTAL_WINDOWS * 5), TOTAL_WINDOWS * 5);
+    const friend = records.find((r) => r.turnStart === 21)!;
+    assert.match(friend.summary, /아는 사이라고 말했다/);
+    assert.equal(friend.summary.includes("서린") || friend.summary.includes("누나"), true);
+    const npc = records.find((r) => r.turnStart === 16)!;
+    assert.match(npc.summary, /서린이 들어와/);
+  });
+
+  it("window 1 and 36: the user's own promise and breakup stay accepted", () => {
+    assert.equal(groundedWithPersona(1), true);
+    assert.equal(groundedWithPersona(36), true);
+    assert.equal(
+      groundedWithPersona(
+        36,
+        "렌이 “미안, 우리 그만 헤어지자”고 이별을 통보하자 라이크는 말없이 시선을 떨굼."
+      ),
+      true,
+      "a quoted comma must not make the clause need user authority"
+    );
+  });
+
+  it("window 21: an unattributed false friendship is still rejected", () => {
+    const tail =
+      " 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 주었고 렌은 시장 이야기를 이어 감.";
+    const control = `렌이 시장에 다녀왔다고 함. 이후 라이크는 장작을 쌓음.${tail}`;
+    assert.ok(control.length >= 80);
+    assert.equal(groundedWithPersona(21, control), true, "control without a friendship claim");
+
+    const unattributed = [
+      `이후 렌이 시장에 다녀왔다고 하자 누나가 렌과 예전부터 아는 사이였음을 확인함.${tail}`,
+      `렌이 시장에 다녀옴. 이후 렌과 누나는 예전부터 아는 사이였음.${tail}`,
+      `렌이 시장에 다녀옴. 그날 이후 렌과 누나는 친구가 되어 자주 만나게 됨.${tail}`,
+    ];
+    for (const summary of unattributed) {
+      assert.ok(summary.length >= 80, summary);
+      assert.equal(groundedWithPersona(21, summary), false, summary);
+    }
+  });
+
+  it("claim-side cue ignores only a clause-initial 이후; evidence-side cue is unchanged", () => {
+    assert.equal(looksLikePriorSharedHistoryClaim("이후 라이크는 장작을 쌓음"), false);
+    assert.equal(looksLikePriorSharedHistoryClaim("렌이 웃음, 이후 라이크는 장작을 쌓음"), false);
+    assert.equal(looksLikePriorSharedHistoryClaim("그날 이후 두 사람은 연인이 되었음"), true);
+    assert.equal(looksLikePriorSharedHistoryClaim("두 사람이 만난 이후 친해짐"), true);
+    assert.equal(looksLikePriorSharedHistoryClaim("이후 두 사람은 예전부터 아는 사이였음"), true);
+    assert.equal(looksLikePriorSharedUserHistory("이후 라이크는 장작을 쌓음"), true);
+  });
+
+  it("a clause-initial 이후 does not hide a prior-history claim in the same clause", () => {
+    assert.equal(
+      groundedWithPersona(
+        21,
+        "렌이 시장에 다녀옴. 이후 렌과 누나가 예전부터 알던 사이임이 드러남. 라이크는 장작을 차례로 쌓으며 렌의 잡담을 계속 받아 줌."
+      ),
+      false
+    );
+  });
+});
+
+const WIRE_PERSONAS: { label: string; persona: string | undefined }[] = [
+  { label: "no persona", persona: undefined },
+  { label: "persona 이름/호칭: 렌", persona: USER_PERSONA },
+];
+
+for (const { label, persona } of WIRE_PERSONAS) {
+describe(`real Luna sparse seals reach the final wire at 30 / 50 / 80 turns (${label})`, () => {
   const EVENT_SENTENCES: { start: number; needle: string }[] = [
     { start: 6, needle: "연인이 되자고 제안" },
     { start: 11, needle: "약속을 취소하고 검은 자신이 직접 가겠다고" },
@@ -304,7 +395,7 @@ describe("real Luna sparse seals reach the final wire at 30 / 50 / 80 turns", ()
     const turns = windowCount * 5;
     it(`${turns} turns: every sealed window is linked into current-memory on the final wire`, async () => {
       seedRealWindows(windowCount);
-      const { sealedRounds } = await sealAllWindows();
+      const { sealedRounds } = await sealAllWindows(persona);
       assert.equal(sealedRounds, windowCount, `lastError=${__getLastSummarizeTurnBatchError()}`);
       const records = listMemoryRecordsForChat(CHAT).filter((record) => !record.inactive);
       const summarized = highestContiguousCompletedTurn(records, turns);
@@ -372,3 +463,4 @@ describe("real Luna sparse seals reach the final wire at 30 / 50 / 80 turns", ()
     });
   }
 });
+}

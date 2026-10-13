@@ -80,6 +80,19 @@ export function looksLikePriorSharedUserHistory(text: string): boolean {
   return PRIOR_SHARED_HISTORY_CUE.test(text);
 }
 
+/**
+ * Claim-side cue for memory text being validated (rolling summary, episodic fact).
+ * A clause-initial bare "이후" only sequences events inside that same text, so it
+ * is not a prior-history cue by itself; "그날 이후 …", "만난 이후 …" and every other
+ * cue still count. Evidence-side and generation callers keep the unmodified cue.
+ */
+export function looksLikePriorSharedHistoryClaim(text: string): boolean {
+  const clauses = splitSharedHistoryClauses(text);
+  return (clauses.length > 0 ? clauses : [text]).some((clause) =>
+    looksLikePriorSharedUserHistory(clause.replace(/^이후\s+/u, ""))
+  );
+}
+
 export function looksLikeHardPriorSharedUserRelationship(text: string): boolean {
   return HARD_PRIOR_SHARED_RELATIONSHIP_CUE.test(text);
 }
@@ -242,14 +255,14 @@ export function userTextSupportsPriorSharedHistoryClaim(
   userText: string
 ): boolean {
   const user = userText.trim();
-  if (!user) return !looksLikePriorSharedUserHistory(claimText);
+  if (!user) return !looksLikePriorSharedHistoryClaim(claimText);
 
   const units = userSharedHistoryEvidenceUnits(user);
   const parts = splitSharedHistoryClauses(claimText);
   const clauses = parts.length > 0 ? parts : [claimText];
   const linked = clauses.filter(
     (clause) =>
-      looksLikePriorSharedUserHistory(clause) ||
+      looksLikePriorSharedHistoryClaim(clause) ||
       looksLikeHardPriorSharedUserRelationship(clause) ||
       FAMILY_PARTICIPANT.test(clause)
   );
@@ -271,7 +284,7 @@ export function assistantSuppliesUnsupportedSharedHistoryDetail(
   assistantText: string,
   userText: string
 ): boolean {
-  if (!looksLikePriorSharedUserHistory(claimText)) return false;
+  if (!looksLikePriorSharedHistoryClaim(claimText)) return false;
   if (userTextSupportsPriorSharedHistoryClaim(claimText, userText)) return false;
 
   const assistantMatches = matchingClaimTokens(claimText, assistantText);

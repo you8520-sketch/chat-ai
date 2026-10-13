@@ -11,7 +11,7 @@ import {
 import { isFallbackMemoryRecordSummary } from "./memory-summary-clamp";
 import {
   assistantSuppliesUnsupportedSharedHistoryDetail,
-  looksLikePriorSharedUserHistory,
+  looksLikePriorSharedHistoryClaim,
 } from "@/lib/sharedHistoryEvidence";
 import {
   hasUnsupportedObjectiveUserLinkedFact,
@@ -279,7 +279,7 @@ function summaryInventsUnsupportedUserRelationship(
   ) {
     return true;
   }
-  if (!looksLikePriorSharedUserHistory(summary)) return false;
+  if (!looksLikePriorSharedHistoryClaim(summary)) return false;
   if (ATTRIBUTED_RELATIONSHIP_CLAIM_MARKER.test(summary)) return false;
 
   const userName = personaName;
