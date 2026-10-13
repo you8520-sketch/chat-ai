@@ -8,12 +8,13 @@ import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 type Props = {
   icon?: ReactNode;
   message: string;
+  description?: string;
   href: string;
   cta: string;
   className?: string;
 };
 
-export default function StudioEmptyState({ icon, message, href, cta, className }: Props) {
+export default function StudioEmptyState({ icon, message, description, href, cta, className }: Props) {
   return (
     <div className={cn(studioSurface.cardDashed, "mt-6 p-10 text-center", className)}>
       {icon ? (
@@ -21,7 +22,10 @@ export default function StudioEmptyState({ icon, message, href, cta, className }
           {icon}
         </div>
       ) : null}
-      <p className={cn(studioType.body, "mt-3 text-zinc-400")}>{message}</p>
+      <p className={cn(studioType.body, "mt-3 text-zinc-300")}>{message}</p>
+      {description ? (
+        <p className={cn(studioType.helper, "mx-auto mt-1.5 max-w-sm")}>{description}</p>
+      ) : null}
       <StudioButton href={href} className="mt-5">
         {cta}
       </StudioButton>

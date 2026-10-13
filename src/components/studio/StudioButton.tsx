@@ -38,6 +38,7 @@ type AsButton = Common &
 type AsLink = Common & {
   href: string;
   disabled?: boolean;
+  "aria-label"?: string;
 };
 
 export type StudioButtonProps = AsButton | AsLink;
@@ -47,6 +48,7 @@ export default function StudioButton(props: StudioButtonProps) {
     const {
       href,
       disabled,
+      "aria-label": ariaLabel,
       variant = "primary",
       size = "md",
       className,
@@ -66,7 +68,7 @@ export default function StudioButton(props: StudioButtonProps) {
       );
     }
     return (
-      <Link href={href} className={classes}>
+      <Link href={href} className={classes} aria-label={ariaLabel}>
         {children}
       </Link>
     );

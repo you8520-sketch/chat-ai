@@ -1,6 +1,6 @@
 import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import MyCharacterCardActions from "@/components/MyCharacterCardActions";
-import { moderationLabel, visibilityLabel } from "@/lib/characterVisibility";
+import { StudioWorkNotice, StudioWorkStatus } from "@/components/studio/StudioWorkMeta";
 import type { CharacterVisibility, ModerationStatus } from "@/lib/characterVisibility";
 
 export type MyCharacterRow = CharacterRow & {
@@ -18,30 +18,33 @@ type Props = {
 
 export default function MyCharacterCard({ c, blurNsfw, editHref, contentLabel }: Props) {
   return (
-    <div className="relative">
-      <CharacterCard c={c} blurNsfw={blurNsfw} loggedIn />
-      <MyCharacterCardActions
-        characterId={c.id}
-        characterName={c.name}
-        official={c.official}
-        editHref={editHref}
-        contentLabel={contentLabel}
-      />
-      <div className="pointer-events-none absolute bottom-[3.5rem] left-2 flex flex-wrap gap-1">
-        <span className="rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-200">
-          {visibilityLabel(c.visibility)}
-        </span>
-        {c.moderation_status !== "approved" && (
-          <span className="rounded bg-amber-900/80 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">
-            {moderationLabel(c.moderation_status)}
-          </span>
-        )}
+    <div
+      className="row-span-3 grid grid-rows-subgrid gap-y-2.5"
+      data-testid="studio-work-card"
+      data-work-kind={c.content_kind === "simulation" ? "simulation" : "character"}
+      data-visibility={c.visibility}
+      data-moderation={c.moderation_status}
+    >
+      <div className="min-w-0">
+        <CharacterCard c={c} blurNsfw={blurNsfw} loggedIn />
       </div>
-      {c.moderation_status === "rejected" && c.moderation_note?.trim() && (
-        <p className="mt-1 line-clamp-2 px-0.5 text-[10px] leading-snug text-amber-200/80">
-          {c.moderation_note}
-        </p>
-      )}
+      <div className="flex min-w-0 flex-col gap-2.5">
+        <StudioWorkStatus
+          isSimulation={c.content_kind === "simulation"}
+          visibility={c.visibility}
+          moderation={c.moderation_status}
+        />
+        <StudioWorkNotice moderation={c.moderation_status} note={c.moderation_note ?? ""} />
+      </div>
+      <div className="min-w-0 pb-6">
+        <MyCharacterCardActions
+          characterId={c.id}
+          characterName={c.name}
+          official={c.official}
+          editHref={editHref}
+          contentLabel={contentLabel}
+        />
+      </div>
     </div>
   );
 }
