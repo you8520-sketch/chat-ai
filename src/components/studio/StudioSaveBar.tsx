@@ -47,14 +47,18 @@ export default function StudioSaveBar({
     const bar = barRef.current;
     if (!bar) return;
     const root = document.documentElement;
-    const publish = () =>
-      root.style.setProperty("--studio-save-bar-h", `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+    const publish = () => {
+      const height = `${Math.ceil(bar.getBoundingClientRect().height)}px`;
+      root.style.setProperty("--studio-save-bar-h", height);
+      root.style.setProperty("scroll-padding-bottom", `calc(${height} + 1rem)`);
+    };
     publish();
     const observer = new ResizeObserver(publish);
     observer.observe(bar);
     return () => {
       observer.disconnect();
       root.style.removeProperty("--studio-save-bar-h");
+      root.style.removeProperty("scroll-padding-bottom");
     };
   }, []);
 
@@ -70,7 +74,11 @@ export default function StudioSaveBar({
     >
       <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
-          {error ? <p className="text-sm text-rose-400">{error}</p> : null}
+          {error ? (
+            <p role="alert" className="text-sm font-medium text-rose-300">
+              {error}
+            </p>
+          ) : null}
           {children}
         </div>
         <div className="flex shrink-0 items-center gap-2">

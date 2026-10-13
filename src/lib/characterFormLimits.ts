@@ -5,7 +5,7 @@ export const AI_LEARNING_MIN = 1500;
 export function aiLearningLimitExceededMessage(): string {
   return `세계관/배경 + 캐릭터 설정 + 기본 말투는 합쳐서 ${AI_LEARNING_LIMIT.toLocaleString()}자 이하여야 합니다.`;
 }
-/** 대사 예시 / 상황별 말투 / 금지 말투 — 10k AI 학습 합산에서 제외, 필드별 한도 */
+/** 대사 예시 / 상황별 말투 / 금지 말투 — 12,000자 AI 학습 합산에서 제외, 필드별 한도 */
 export const SPEECH_EXAMPLES_LIMIT = 500;
 export const SPEECH_FORBIDDEN_LIMIT = 500;
 export const SPEECH_CONTEXTUAL_LIMIT = 500;

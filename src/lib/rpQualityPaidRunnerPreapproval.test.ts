@@ -290,22 +290,22 @@ describe("rp quality paid runner preapproval evidence", () => {
     }
 
     assert.equal(matched.manifest.identityHash, "ce23d16dac7e90ce792ada3c8a4c8cab572b40979307a8d81ea2c1449bdd1937");
-    assert.equal(matched.manifest.manifestFingerprint, "885133f416e8804a5fa5653f02d7c6a91cd3806b5c5dd1648e9bcf517db49288");
+    assert.equal(matched.manifest.manifestFingerprint, "36851212bec66c0f6944b1afc5781ab8dd22ac5068708a99495fc3a61c6b3266");
     assert.deepEqual(
       matched.manifest.calls.map((call) => call.requestBodyFingerprint),
       [
-        "da3166b02cc85bea6d767dec10f87066997e881beddd7c15c70c7d5a7d8dba6b",
-        "e93e2c69405d1d38b98aec53ac8a9b1b94d4449b8c93087c28aff8e4f2362f0d",
-        "6e85834609be2e28c1f16802e85ea6819bccdcd908de2bf071c491931c5cc59d",
-        "55824569c292d9df7c38c2a8f0497bc2827bb1a4f7d052e19ea644c8451df186",
-        "743828c884ff697f3681c61a6a7709bdbdd83bcb8c6898b58135a822731e148c",
-        "d9ce7a386577ffe4d15ece50c91c0208c69b108123cd8c419d0b19e911e550d8",
-        "004b5609a6feabd70df5f69f9b927870be4d74446be5ec7330d3eb75be834760",
-        "954961a6c46fa0f28cff40739369f5bfbe618f0bcfac353cdeafd83e56aa0b5f",
-        "730fcfd2565491781ed74efcb13b659e48e5c8686e9e3cd54af90524fd375f55",
-        "d0f88cccd091a6321eab690be408a854a8ee18343e605e966eba33c0ae6e3536",
-        "a5846f034597a3bc52f7eb7e95213a75e584ff49773044f92056639656ffec09",
-        "12ba6ef7994f779794016873ade00ef3fe28f3105e3d6b7c9f3352ee37b36573",
+        "c529fbd4d1539a11b02f9d04f5fb671dee71fe0047ff298e7f19fb5c98b833e3",
+        "64305e5f85a72d8f15c5ddf5c4b1aa294a0eeb23145d95454a62909835ed563a",
+        "eed6055734f105bfd66833793a8891b022d4dea07b11498f0ae2ab70090277d4",
+        "2b4b1b2219a89dcaa75f9117e562d56945c2014e6b091ce8ac41df53f15d5b7b",
+        "d6ce53505b8cf8ef13a3347957c05932fe906cc622b01aac2bd14cfb8fd33e09",
+        "592bd5bd2e2e4f4215b65bc2096033f700d073ff8cb425d9793ffc6f637c437e",
+        "c2585878c439bef76caca1c9f6d231f890067d33227c1ed20e7237a9ccbe298d",
+        "a93dfdc97ca06d979f937d918d86ef09a68db6eea4af334877bd059b41618910",
+        "bca1a9b1ad50d11e9ea91fa6588216e9795441b3ce5099c2b9ada70f2ce6ec9f",
+        "059ab44b829be403cdd874bbd182d3473b19d8c2bb3e3ad7aa212737dbdfe221",
+        "91129a3ea401f2cd8e34b0036e9f508c2780e5714e7b5213111058938b8a55b4",
+        "7a2a48ab7c337fc4008a94be7f32116c392bf78b6f59696e067e2d91197fd0b5",
       ]
     );
     const publicJson = JSON.stringify({

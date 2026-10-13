@@ -1728,7 +1728,7 @@ describe("rp quality paid runner OpenRouter settlement recovery", () => {
   });
 });
 
-describe("rp quality paid runner interrupted streams and Opus timeout", () => {
+describe("rp quality paid runner interrupted streams and Opus/Sol timeout", () => {
   const PARTIAL_TEXT = "앞부분 원문. 두 번째 문장까지 도착했다.";
 
   const sseFrame = (payload: unknown) => `data: ${JSON.stringify(payload)}\n\n`;
@@ -1797,7 +1797,7 @@ describe("rp quality paid runner interrupted streams and Opus timeout", () => {
     });
   }
 
-  it("timeout policy is Opus-only and is a network timeout, not an output cap", async () => {
+  it("timeout policy is Opus and Sol only and is a network timeout, not an output cap", async () => {
     const requested: Array<{ model: string; ms: number }> = [];
     const spy = mock.method(AbortSignal, "timeout", (ms: number) => {
       requested.push({ model: current, ms });
@@ -1808,8 +1808,12 @@ describe("rp quality paid runner interrupted streams and Opus timeout", () => {
       for (const canonicalId of MAIN_RP_MODEL_IDS) {
         current = canonicalId;
         const call = callFor(canonicalId);
-        const result = await simulatedLive((async () =>
-          interruptedResponse(call.wireModel, "complete")) as typeof fetch).post({
+        const result = await simulatedLive((async (_url: RequestInfo | URL, init?: RequestInit) => {
+          const sent = String(init?.body);
+          assert.equal(sent, JSON.stringify(call.requestBody), canonicalId);
+          assert.doesNotMatch(sent, /max_tokens|max_completion_tokens/, canonicalId);
+          return interruptedResponse(call.wireModel, "complete");
+        }) as typeof fetch).post({
           endpoint: call.endpoint,
           body: call.requestBody,
           canonicalId,
@@ -1826,10 +1830,17 @@ describe("rp quality paid runner interrupted streams and Opus timeout", () => {
     );
     assert.equal(PAID_RUNNER_LIVE_TIMEOUT_MS, 90_000);
     assert.equal(PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL["claude-opus-5.5"], 240_000);
-    assert.deepEqual(Object.keys(PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL), ["claude-opus-5.5"]);
+    assert.equal(PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL["gpt-6.1-sol"], 240_000);
+    assert.deepEqual(Object.keys(PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL).sort(), [
+      "claude-opus-5.5",
+      "gpt-6.1-sol",
+    ]);
+    for (const canonicalId of ["deepseek-v4.1-flash", "gemini-3.8-flash"] as const) {
+      assert.equal(PAID_RUNNER_LIVE_TIMEOUT_MS_BY_MODEL[canonicalId] ?? PAID_RUNNER_LIVE_TIMEOUT_MS, 90_000);
+    }
   });
 
-  it("a 100 s provider response completes for Opus but times out for the 90 s models", async () => {
+  it("a 100 s provider response completes for Opus and Sol but times out for the 90 s models", async () => {
     const PROVIDER_LATENCY_MS = 100_000;
     let configuredMs = 0;
     const spy = mock.method(AbortSignal, "timeout", (ms: number) => {
@@ -1849,12 +1860,43 @@ describe("rp quality paid runner interrupted streams and Opus timeout", () => {
           canonicalId,
           provider: call.provider,
         });
-        if (canonicalId === "claude-opus-5.5") {
-          assert.equal(result.ok, true);
-          assert.equal(result.ok && result.text, PARTIAL_TEXT);
+        if (canonicalId === "claude-opus-5.5" || canonicalId === "gpt-6.1-sol") {
+          assert.equal(result.ok, true, canonicalId);
+          assert.equal(result.ok && result.text, PARTIAL_TEXT, canonicalId);
         } else {
           assert.equal(result.ok, false, canonicalId);
         }
+      }
+    } finally {
+      spy.mock.restore();
+    }
+  });
+
+  it("a provider response slower than 240 s still times out for Sol and Opus with the partial text kept", async () => {
+    const PROVIDER_LATENCY_MS = 250_000;
+    let configuredMs = 0;
+    const spy = mock.method(AbortSignal, "timeout", (ms: number) => {
+      configuredMs = ms;
+      return new AbortController().signal;
+    });
+    try {
+      for (const canonicalId of ["gpt-6.1-sol", "claude-opus-5.5"] as const) {
+        const call = callFor(canonicalId);
+        const result = await simulatedLive((async () =>
+          interruptedResponse(
+            call.wireModel,
+            configuredMs < PROVIDER_LATENCY_MS ? "timeout_error" : "complete"
+          )) as typeof fetch).post({
+          endpoint: call.endpoint,
+          body: call.requestBody,
+          canonicalId,
+          provider: call.provider,
+        });
+        assert.equal(configuredMs, 240_000, canonicalId);
+        assert.equal(result.ok, false, canonicalId);
+        assert.equal(!result.ok && result.kind, "timeout", canonicalId);
+        assert.equal(result.text, PARTIAL_TEXT, canonicalId);
+        assert.equal(result.httpStatus, 200, canonicalId);
       }
     } finally {
       spy.mock.restore();
@@ -1945,6 +1987,57 @@ describe("rp quality paid runner interrupted streams and Opus timeout", () => {
       assert.equal(replay.transportPosts, 0, mode);
       assert.equal(posts.n, 1, mode);
     }
+  });
+
+  it("Sol timeout stops the runner at order 3: partial kept as PARTIAL, never SETTLED, Opus and replay POST 0", async () => {
+    const { manifest, sealedCalls } = pack();
+    const solWireModel = sealedCalls.find((call) => call.canonicalId === "gpt-6.1-sol")!.wireModel;
+    const scenario = createScenarioFetch();
+    const posts: string[] = [];
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(init?.method ?? "GET").toUpperCase() === "POST") {
+        const model = String(JSON.parse(String(init?.body)).model);
+        posts.push(model);
+        if (model === solWireModel) {
+          return interruptedResponse(model, "timeout_error", { "x-ci-request-id": "ci-req-sol-timeout" });
+        }
+      }
+      return scenario.fetchImpl(input, init);
+    }) as typeof fetch;
+    const artifactStore = createMemoryPaidRunnerArtifactStore();
+    const journalStore = createMemoryPaidRunnerJournalStore();
+    const run = () =>
+      runPaidRunner({
+        mode: "AUTHORIZED",
+        manifest,
+        sealedCalls,
+        authorization: auth(manifest),
+        transport: simulatedLive(fetchImpl),
+        journalStore,
+        artifactStore,
+        reconcile: { fetchImpl, keys: KEYS, sleep: async () => undefined },
+      });
+    const first = await run();
+    assert.equal(first.denialReason, "PRIOR_CALL_UNRESOLVED");
+    assert.equal(posts.length, 3);
+    assert.equal(posts.includes(sealedCalls.find((call) => call.canonicalId === "claude-opus-5.5")!.wireModel), false);
+    const sol = first.journal.entries[2]!;
+    assert.equal(sol.canonicalId, "gpt-6.1-sol");
+    assert.equal(sol.status, "UNKNOWN_UNRESOLVED");
+    assert.equal(sol.finishReason, "timeout");
+    assert.equal(sol.artifactPartial, true);
+    assert.equal(sol.artifactFingerprint, paidRunnerArtifactFingerprint(PARTIAL_TEXT));
+    assert.equal(sol.providerRequestId, "ci-req-sol-timeout");
+    assert.equal(sol.billedUsd, null);
+    assert.equal(first.journal.entries[3]?.status, "PREPARED");
+    assert.deepEqual(
+      first.journal.entries.filter((row) => row.status === "SETTLED").map((row) => row.canonicalId),
+      ["deepseek-v4.1-flash", "gemini-3.8-flash"]
+    );
+    const replay = await run();
+    assert.notEqual(replay.denialReason, null);
+    assert.equal(replay.transportPosts, 0);
+    assert.equal(posts.length, 3);
   });
 
   it("timeout without any text stores no artifact and is not a result", async () => {

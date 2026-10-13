@@ -306,7 +306,7 @@ export default function StatusWidgetEditor({
                 }`}
               >
                 <span className="block text-xs font-bold">{option.label}</span>
-                <span className="mt-0.5 block text-[10px] opacity-75">{option.desc}</span>
+                <span className="mt-0.5 block text-xs opacity-80">{option.desc}</span>
               </button>
             ))}
           </div>
@@ -344,7 +344,7 @@ export default function StatusWidgetEditor({
                 }`}
               >
                 <span className="block text-xs font-bold">{option.label}</span>
-                <span className="mt-0.5 block text-[10px] opacity-75">{option.desc}</span>
+                <span className="mt-0.5 block text-xs opacity-80">{option.desc}</span>
               </button>
             ))}
           </div>
