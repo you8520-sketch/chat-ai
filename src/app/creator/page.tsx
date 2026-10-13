@@ -11,5 +11,5 @@ export default async function CreatorPage() {
 
   // Non-creators can open the page to see tiers / how to start (sidebar is always visible).
   const dashboard = getCreatorDashboard(user.id);
-  return <CreatorClient initial={dashboard} />;
+  return <CreatorClient initial={dashboard} creatorId={user.id} />;
 }

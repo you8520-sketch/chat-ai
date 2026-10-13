@@ -46,7 +46,11 @@ export default function CommentsEnabledToggle({
         label={label}
         description={description}
       />
-      {error && <p className="mt-2 text-xs text-rose-400">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-2 text-sm text-rose-300">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
