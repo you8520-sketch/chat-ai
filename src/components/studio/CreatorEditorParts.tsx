@@ -83,7 +83,7 @@ export function FieldLabel({
 export function FieldError({ id, message }: { id: string; message: string | null }) {
   if (!message) return null;
   return (
-    <p id={id} role="alert" className="mt-1.5 text-sm font-medium text-rose-300">
+    <p id={id} className="mt-1.5 text-sm font-medium text-rose-300">
       {message}
     </p>
   );
@@ -152,13 +152,18 @@ export type RequirementEntry<K extends string = string> = {
 export function RequirementSummary<K extends string>({
   entries,
   onJump,
+  expanded,
+  onToggleExpanded,
 }: {
   entries: readonly RequirementEntry<K>[];
   onJump: (id: K) => void;
+  expanded: boolean;
+  onToggleExpanded: () => void;
 }) {
   const doneCount = entries.filter((entry) => entry.done).length;
   const missing = entries.filter((entry) => !entry.done);
-  if (missing.length === 0) {
+  const next = missing[0];
+  if (!next) {
     return (
       <div
         data-testid="creator-requirements"
@@ -182,7 +187,7 @@ export function RequirementSummary<K extends string>({
       className="space-y-3 rounded-xl border border-white/10 bg-[#131626] px-4 py-3.5"
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-zinc-100">저장 전에 필요한 항목</h2>
+        <h2 className="text-sm font-semibold text-zinc-100">저장 전 필수 항목</h2>
         <span className="text-xs font-semibold tabular-nums text-zinc-300">
           {doneCount} / {entries.length} 완료
         </span>
@@ -200,20 +205,43 @@ export function RequirementSummary<K extends string>({
           style={{ width: `${(doneCount / entries.length) * 100}%` }}
         />
       </div>
-      <ul className="flex flex-wrap gap-2">
-        {missing.map((entry) => (
-          <li key={entry.id}>
-            <button
-              type="button"
-              onClick={() => onJump(entry.id)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/[0.08] px-3.5 text-sm font-medium text-amber-100 transition hover:bg-amber-300/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60"
-            >
-              <span>{entry.label}</span>
-              <span className="text-xs font-normal text-amber-200/70">{entry.tabLabel}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onJump(next.id)}
+          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-amber-300/35 bg-amber-300/[0.08] px-4 text-sm font-medium text-amber-100 transition hover:bg-amber-300/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60"
+        >
+          <span className="text-xs font-normal text-amber-200/70">다음</span>
+          <span>{next.label}</span>
+          <span aria-hidden>→</span>
+        </button>
+        {missing.length > 1 ? (
+          <button
+            type="button"
+            aria-expanded={expanded}
+            onClick={onToggleExpanded}
+            className="inline-flex min-h-11 items-center rounded-full px-3 text-sm text-zinc-300 underline decoration-white/25 underline-offset-4 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60"
+          >
+            {expanded ? "접기" : `남은 ${missing.length}개 보기`}
+          </button>
+        ) : null}
+      </div>
+      {expanded ? (
+        <ul className="flex flex-wrap gap-2">
+          {missing.map((entry) => (
+            <li key={entry.id}>
+              <button
+                type="button"
+                onClick={() => onJump(entry.id)}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-3.5 text-sm font-medium text-zinc-100 transition hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60"
+              >
+                <span>{entry.label}</span>
+                <span className="text-xs font-normal text-zinc-400">{entry.tabLabel}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </section>
   );
 }

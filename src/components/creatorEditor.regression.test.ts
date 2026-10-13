@@ -154,11 +154,20 @@ describe("creator editor: required summary", () => {
     { id: "genres", label: "장르 1개 이상", done: false, tabLabel: "공개 설정" },
   ];
 
-  it("lists only the missing items as jump buttons with the owning tab", () => {
-    const tree = RequirementSummary({ entries, onJump: () => {} });
+  it("shows progress, the next missing item and a toggle while collapsed", () => {
+    const tree = RequirementSummary({ entries, onJump: () => {}, expanded: false, onToggleExpanded: () => {} });
     assert.equal(countElements(tree, "button"), 2);
     const text = textOf(tree);
     assert.match(text, /1 \/ 3 완료/);
+    assert.match(text, /다음첫 메세지→/);
+    assert.match(text, /남은 2개 보기/);
+    assert.doesNotMatch(text, /캐릭터명/);
+  });
+
+  it("lists every missing item with its owning tab when expanded", () => {
+    const tree = RequirementSummary({ entries, onJump: () => {}, expanded: true, onToggleExpanded: () => {} });
+    assert.equal(countElements(tree, "button"), 4);
+    const text = textOf(tree);
     assert.match(text, /첫 메세지제작/);
     assert.match(text, /장르 1개 이상공개 설정/);
     assert.doesNotMatch(text, /캐릭터명/);
@@ -168,6 +177,8 @@ describe("creator editor: required summary", () => {
     const tree = RequirementSummary({
       entries: entries.map((entry) => ({ ...entry, done: true })),
       onJump: () => {},
+      expanded: false,
+      onToggleExpanded: () => {},
     });
     assert.equal(countElements(tree, "button"), 0);
     assert.match(textOf(tree), /필수 항목을 모두 채웠어요/);

@@ -331,6 +331,7 @@ export default function CreateCharacter({
   const [chatJsxEditorOpen, setChatJsxEditorOpen] = useState(false);
   const [pageTab, setPageTab] = useState<PageTab>("create");
   const [fieldError, setFieldError] = useState<{ key: FieldKey; message: string } | null>(null);
+  const [requirementsExpanded, setRequirementsExpanded] = useState(false);
   const [jump, setJump] = useState<{ key: FieldKey; n: number } | null>(null);
   const fieldUid = useId();
   const tabListRef = useRef<HTMLDivElement>(null);
@@ -1484,9 +1485,16 @@ export default function CreateCharacter({
         })}
       </div>
 
-      <div className="mt-4">
-        <RequirementSummary entries={requirementEntries} onJump={jumpToField} />
-      </div>
+      {!editLoadError ? (
+        <div className="mt-4">
+          <RequirementSummary
+            entries={requirementEntries}
+            onJump={jumpToField}
+            expanded={requirementsExpanded}
+            onToggleExpanded={() => setRequirementsExpanded((open) => !open)}
+          />
+        </div>
+      ) : null}
 
       <form id="studio-character-form" onSubmit={submit} noValidate className="mt-6">
         <div>
@@ -1620,7 +1628,6 @@ export default function CreateCharacter({
                     : `세계관 + 캐릭터 설정 + 기본 말투 + 서술·문체 지침을 합산 · 대사 예시·상황별 말투·금지 말투는 각 ${SPEECH_EXAMPLES_LIMIT.toLocaleString()}자(합산 제외)`
                 }
               />
-              <FieldError id={`${fieldId("ai_total")}-error`} message={errorFor("ai_total")} />
               <div>
                 <FieldLabel
                   htmlFor={fieldId("world")}
@@ -1631,6 +1638,7 @@ export default function CreateCharacter({
                 </FieldLabel>
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <select
+                    aria-label="저장된 세계관 불러오기"
                     className={selectCls}
                     value={selectedWorldRef}
                     disabled={worldsLoading}
@@ -2245,20 +2253,29 @@ export default function CreateCharacter({
                   </span>
                 }
               />
-              <p className="text-xs text-zinc-400">
-                대화 중 AI가 [태그: …]를 출력하면 세로로 긴 이미지는 좌측 초상(모바일은
-                채팅 배경)으로 바뀌고, 가로로 긴 이미지는 본문 가로폭에 맞춰 스트리밍
-                중에 바로 뜹니다. 태그는 표정·포즈·상황 모두 가능합니다(예: 부끄러움,
-                침대에 누움). 업로드 시 Gemini Vision이 태그를 자동 분석하며, 잘못된
-                태그는 에셋 하단 태그를 클릭해 직접 수정할 수 있습니다.
-                <br />
-                <span className="text-zinc-300">가리기</span>를 켠 이미지는
-                제작자에게만 선명하게 보이고, 다른 유저에게는 블러 처리됩니다.
-                올린 이미지는 모두 소개·대화에 쓰이며,{" "}
-                <strong className="text-zinc-400">1번</strong>이 카드 대표
-                이미지입니다. 새로 올린 장은 첫 번째만 비가림, 나머지는 가림
-                ON이 기본입니다.
+              <p className={studioType.helper}>
+                대화 중 AI가 출력하는 [태그]에 맞는 이미지가 표시됩니다.{" "}
+                <strong className="text-zinc-200">1번</strong>이 카드 대표 이미지입니다.
               </p>
+              <details className="rounded-xl border border-white/10 bg-[#0e1120] px-4">
+                <summary className="min-h-11 cursor-pointer py-2.5 text-sm font-semibold text-zinc-200">
+                  태그·가리기 사용 안내
+                </summary>
+                <p className={cn(studioType.helper, "pb-3")}>
+                  대화 중 AI가 [태그: …]를 출력하면 세로로 긴 이미지는 좌측 초상(모바일은
+                  채팅 배경)으로 바뀌고, 가로로 긴 이미지는 본문 가로폭에 맞춰 스트리밍
+                  중에 바로 뜹니다. 태그는 표정·포즈·상황 모두 가능합니다(예: 부끄러움,
+                  침대에 누움). 업로드 시 Gemini Vision이 태그를 자동 분석하며, 잘못된
+                  태그는 에셋 하단 태그를 클릭해 직접 수정할 수 있습니다.
+                  <br />
+                  <span className="text-zinc-300">가리기</span>를 켠 이미지는
+                  제작자에게만 선명하게 보이고, 다른 유저에게는 블러 처리됩니다.
+                  올린 이미지는 모두 소개·대화에 쓰이며,{" "}
+                  <strong className="text-zinc-200">1번</strong>이 카드 대표
+                  이미지입니다. 새로 올린 장은 첫 번째만 비가림, 나머지는 가림
+                  ON이 기본입니다.
+                </p>
+              </details>
               <input
                 ref={fileRef}
                 type="file"
@@ -2878,16 +2895,16 @@ export default function CreateCharacter({
             : "공개되지 않고 이 브라우저에만 보관",
         }}
       >
-        {!loading && !editLoading && missingRequirements[0] ? (
+        {!loading && !editLoading && !editLoadError && missingRequirements[0] ? (
           <button
             type="button"
             onClick={() => jumpToField(missingRequirements[0].id)}
-            className="min-h-9 text-left text-sm text-zinc-300 underline decoration-amber-300/60 underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60"
+            className="min-h-8 text-left text-[13px] text-zinc-300 underline decoration-amber-300/60 underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60"
           >
             필수 {missingRequirements.length}개 남음 ·{" "}
             <span className="font-semibold text-amber-200">{missingRequirements[0].label}</span> 채우러 가기
           </button>
-        ) : !loading && !editLoading ? (
+        ) : !loading && !editLoading && !editLoadError ? (
           <p className="text-xs text-zinc-400">
             {isEditMode ? "변경사항은 저장 즉시 반영돼요" : VISIBILITY_SAVE_NOTE[form.visibility]}
           </p>
