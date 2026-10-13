@@ -371,9 +371,9 @@ export function CreatorGuideRail<K extends string, P extends string>({
       data-testid="creator-guide-rail"
       className="hidden lg:sticky lg:top-[calc(var(--site-header-height,44px)+4.75rem)] lg:block lg:self-start"
     >
-      <div className="space-y-5">
-        <nav aria-label="제작 순서" className="rounded-xl border border-white/10 bg-[#131626] p-4">
-          <div className="mb-3 flex items-baseline justify-between gap-2">
+      <div className="space-y-4 lg:max-h-[calc(100dvh-var(--site-header-height,44px)-10rem)] lg:overflow-y-auto lg:pr-1">
+        <nav aria-label="제작 순서" className="rounded-xl border border-white/10 bg-[#131626] p-3.5">
+          <div className="mb-2 flex items-baseline justify-between gap-2">
             <h2 className="text-sm font-semibold text-zinc-100">제작 순서</h2>
             <span className="text-xs tabular-nums text-zinc-400">
               {doneCount} / {steps.length}
@@ -385,7 +385,7 @@ export function CreatorGuideRail<K extends string, P extends string>({
                 <button
                   type="button"
                   onClick={() => onJumpStep(step.id)}
-                  className="flex min-h-10 w-full items-center gap-3 rounded-lg px-2 text-left text-sm text-zinc-200 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60"
+                  className="flex min-h-9 w-full items-center gap-3 rounded-lg px-2 text-left text-sm text-zinc-200 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60"
                 >
                   <span
                     aria-hidden
@@ -405,10 +405,10 @@ export function CreatorGuideRail<K extends string, P extends string>({
             ))}
           </ol>
         </nav>
-        <section aria-label="홈 카드 미리보기" className="rounded-xl border border-white/10 bg-[#131626] p-4">
+        <section aria-label="홈 카드 미리보기" className="rounded-xl border border-white/10 bg-[#131626] p-3.5">
           <h2 className="text-sm font-semibold text-zinc-100">홈 카드 미리보기</h2>
           <p className={cn(studioType.helper, "mb-3 mt-1")}>입력한 내용이 카드에 이렇게 보여요.</p>
-          <div inert aria-hidden="true" className="pointer-events-none mx-auto w-48 select-none">
+          <div inert aria-hidden="true" className="pointer-events-none mx-auto w-40 select-none">
             {preview}
           </div>
           <ul className="mt-3 flex flex-wrap justify-center gap-1.5">
