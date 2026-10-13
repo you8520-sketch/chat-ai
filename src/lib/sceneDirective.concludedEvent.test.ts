@@ -1,6 +1,7 @@
 /**
- * Quiet-scene ESCALATE regression: a concluded mission / habitual "위험" in the
- * opening narration must not read as a present operation.
+ * Quiet-scene ESCALATE regression: finished missions and an explicit OOC scene
+ * transition must not be overridden by opening-narration keywords, while a live
+ * danger, trigger or auto progression keeps its strong pacing.
  * Deterministic — synthetic names and text only, no provider calls.
  */
 import assert from "node:assert/strict";
@@ -13,18 +14,22 @@ import {
   resolveSceneKind,
   type SceneDirectiveInput,
 } from "@/lib/sceneDirective";
-import { renderCompactScenePacingCue } from "@/lib/scenePacingController";
+import {
+  applyProductionServerControlsToMessages,
+  renderCompactScenePacingCue,
+} from "@/lib/scenePacingController";
 
 const QUIET_NIGHT_OOC = `OOC: 임무가 끝난 밤. 둘만 본부 숙소 창가에 있다. 다른 인물은 없다. 여기서부터 장면 계속.
 
 주인공은 창틀에서 한 걸음 떨어져 유리 너머의 불빛만 본다. "오늘은 그냥 이렇게 있자."`;
 
-const GREETING_WITH_PAST_MISSION: ChatMsg[] = [
+/** Lobby greeting that carries generic investigation / danger / mission wording. */
+const LOBBY_GREETING: ChatMsg[] = [
   { role: "user", content: "(대화 시작)" },
   {
     role: "assistant",
     content:
-      "복도는 오늘도 붐볐다. 임무를 마치고 복귀한 요원들이 지나갔다. 그들은 늘 위험과 긴장 속에 놓여 있었다.",
+      "로비는 오늘도 붐볐다. 임무를 마치고 복귀한 요원들이 기록을 넘기고 단서 목록을 확인했다. 그들은 늘 위험과 긴장 속에 놓여 있었다. 데스크 위에는 조사 보고서와 메시지 쪽지가 쌓여 있었다.",
   },
 ];
 
@@ -42,18 +47,72 @@ function input(overrides: Partial<SceneDirectiveInput>): SceneDirectiveInput {
   };
 }
 
-describe("concluded events are not present scene signals", () => {
-  it("A: quiet night after a finished mission is not ESCALATE", () => {
-    const directive = buildSceneDirective(
-      input({ recentMessages: GREETING_WITH_PAST_MISSION, currentUserMessage: QUIET_NIGHT_OOC })
+function productionPacing(sceneInput: SceneDirectiveInput) {
+  const directive = buildSceneDirective(sceneInput);
+  const applied = applyProductionServerControlsToMessages({
+    messages: [
+      { role: "system", content: "BASE SYSTEM" },
+      ...(sceneInput.recentMessages ?? []),
+      { role: "user", content: sceneInput.currentUserMessage ?? "" },
+    ],
+    mode: sceneInput.mode,
+    contentKind: sceneInput.contentKind,
+    party: false,
+    primaryCharacterName: sceneInput.primaryCharacterName,
+    currentUserMessage: sceneInput.currentUserMessage,
+    recentMessages: sceneInput.recentMessages,
+    triggeredEventText: sceneInput.triggeredEventText,
+    chatId: sceneInput.chatId,
+    currentTurn: sceneInput.currentTurn,
+    progressionHistory: [],
+    canonicalSceneDirective: directive,
+  });
+  return { directive, decision: applied.decision, system: applied.messages[0]?.content ?? "" };
+}
+
+describe("A: explicit OOC scene transition outranks opening narration", () => {
+  it("lobby greeting full of generic keywords does not override the declared quiet night", () => {
+    const { directive, decision, system } = productionPacing(
+      input({ recentMessages: LOBBY_GREETING, currentUserMessage: QUIET_NIGHT_OOC })
     );
-    assert.notEqual(directive.motionDecision, "ESCALATE");
     assert.equal(directive.motionDecision, "MICRO_MOTION");
+    assert.equal(decision.pacingMode, "DYAD");
+    assert.equal(decision.sceneKind, "neutral");
     assert.ok(!directive.progressionTypes.includes("tactical_planning"));
+    assert.ok(!directive.progressionTypes.includes("lore_clue"));
     assert.ok(!renderCompactScenePacingCue(directive).includes("ESCALATE"));
+    assert.ok(!system.includes("ESCALATE"));
   });
 
-  it("strips concluded spans in either word order, from every signal source", () => {
+  it("the greeting alone, without a transition, still feeds the signal", () => {
+    const signal = buildSceneSignalText({
+      recentMessages: LOBBY_GREETING,
+      currentUserMessage: "조용히 차를 마신다.",
+    });
+    assert.notEqual(resolveSceneKind(signal), "neutral");
+  });
+
+  it("a transition that restates a live operation still escalates", () => {
+    const directive = buildSceneDirective(
+      input({
+        recentMessages: LOBBY_GREETING,
+        currentUserMessage: "OOC: 지금부터 제한시간 십 분짜리 침투 장면.\n\n\"신호 줘.\"",
+      })
+    );
+    assert.equal(directive.motionDecision, "ESCALATE");
+  });
+
+  it("an OOC without a transition leaves the live danger in the signal", () => {
+    const signal = buildSceneSignalText({
+      recentMessages: [{ role: "assistant", content: "경보가 울린다. 지금 위험해!" }],
+      currentUserMessage: "OOC: 조금 천천히 진행해줘.\n\n알겠어.",
+    });
+    assert.equal(resolveSceneKind(signal), "operation");
+  });
+});
+
+describe("finished events are not present scene signals (per message)", () => {
+  it("strips concluded spans in either word order", () => {
     for (const text of [
       "임무가 끝난 밤이다.",
       "작전이 끝나고 숙소로 돌아왔다.",
@@ -62,8 +121,7 @@ describe("concluded events are not present scene signals", () => {
       "임무를 마치고 복귀했다.",
       "추적이 종료된 새벽이다.",
     ]) {
-      const signal = buildSceneSignalText({ currentUserMessage: text });
-      assert.equal(resolveSceneKind(signal), "neutral", text);
+      assert.equal(resolveSceneKind(buildSceneSignalText({ currentUserMessage: text })), "neutral", text);
     }
     const viaHistory = buildSceneSignalText({
       recentMessages: [{ role: "assistant", content: "임무가 끝난 밤이다." }],
@@ -71,7 +129,7 @@ describe("concluded events are not present scene signals", () => {
     assert.equal(resolveSceneKind(viaHistory), "neutral");
   });
 
-  it("an unfinished or ongoing operation still classifies as operation", () => {
+  it("unfinished or ongoing wording still classifies as operation", () => {
     for (const text of [
       "임무가 끝나기 전에 문을 잠가야 한다.",
       "작전 중이다. 제한시간이 얼마 안 남았다.",
@@ -82,37 +140,27 @@ describe("concluded events are not present scene signals", () => {
     }
   });
 
-  it("a concluded mention does not hide a separate live danger in the same text", () => {
+  it("a concluded mention does not hide a separate live danger in the same message", () => {
     const signal = buildSceneSignalText({
       currentUserMessage: "임무가 끝난 밤이었는데 갑자기 경보가 울린다.",
     });
     assert.equal(resolveSceneKind(signal), "operation");
   });
-});
 
-describe("habitual 위험 in older narration vs present-turn danger", () => {
-  it("history-only 위험 does not make the scene an operation", () => {
+  it("words from neighbouring messages never combine into a fake conclusion", () => {
     const signal = buildSceneSignalText({
-      recentMessages: [{ role: "assistant", content: "그들은 늘 위험과 긴장 속에 놓여 있었다." }],
-      currentUserMessage: "조용히 차를 마신다.",
+      recentMessages: [
+        { role: "assistant", content: "경보" },
+        { role: "user", content: "이후 상황을 보자." },
+      ],
+      currentUserMessage: "",
     });
-    assert.equal(resolveSceneKind(signal), "neutral");
-  });
-
-  it("present-turn 위험 still counts", () => {
-    const directive = buildSceneDirective(input({ currentUserMessage: "위험해, 물러서." }));
-    assert.equal(directive.motionDecision, "ESCALATE");
-  });
-
-  it("history 위험 still counts toward the recent-high-intensity cooldown", () => {
-    const directive = buildSceneDirective(
-      input({
-        recentMessages: [{ role: "assistant", content: "경보가 울렸다. 복도는 위험하다." }],
-        currentUserMessage: "숨을 고른다.",
-      })
-    );
-    assert.equal(directive.recommendedIntensity, 0);
-    assert.equal(directive.motionDecision, "HOLD");
+    assert.equal(resolveSceneKind(signal), "operation");
+    const reversed = buildSceneSignalText({
+      recentMessages: [{ role: "assistant", content: "끝난" }],
+      currentUserMessage: "임무를 확인한다.",
+    });
+    assert.equal(resolveSceneKind(reversed), "operation");
   });
 });
 
@@ -121,12 +169,22 @@ describe("real operation, danger, trigger, auto progression stay strong", () => 
     { role: "assistant", content: "무전기가 울렸다. \"침투 시작. 제한시간 십 분.\"" },
   ];
 
+  it("B: live danger announced by the previous assistant survives a dialogue-only reply", () => {
+    const directive = buildSceneDirective(
+      input({
+        recentMessages: [{ role: "assistant", content: "\"지금 위험해. 벽 쪽으로 붙어.\"" }],
+        currentUserMessage: "알겠어.",
+      })
+    );
+    assert.equal(directive.motionDecision, "ESCALATE");
+    assert.ok(directive.motionReasons.includes("scene_kind_escalation"));
+  });
+
   it("B: live operation with a dialogue-only user turn escalates", () => {
     const directive = buildSceneDirective(
       input({ recentMessages: liveOperation, currentUserMessage: "알겠어. 신호를 기다릴게." })
     );
     assert.equal(directive.motionDecision, "ESCALATE");
-    assert.ok(directive.motionReasons.includes("scene_kind_escalation"));
   });
 
   it("B: user-led action in a live operation still holds for the user's move", () => {
@@ -137,7 +195,7 @@ describe("real operation, danger, trigger, auto progression stay strong", () => 
     assert.ok(directive.motionReasons.includes("user_led_progress"));
   });
 
-  it("C: ordinary daily conversation keeps a small motion, not a hold or escalation", () => {
+  it("C: ordinary daily conversation keeps a small motion", () => {
     const directive = buildSceneDirective(
       input({
         recentMessages: [{ role: "assistant", content: "식탁에 국이 놓였다." }],
@@ -147,7 +205,7 @@ describe("real operation, danger, trigger, auto progression stay strong", () => 
     assert.equal(directive.motionDecision, "MICRO_MOTION");
   });
 
-  it("D: an explicit trigger still escalates a strong event", () => {
+  it("D: an explicit trigger still escalates a strong event over a declared quiet scene", () => {
     const directive = buildSceneDirective(
       input({
         recentMessages: [{ role: "assistant", content: "숙소 창가에 불빛이 번졌다." }],
@@ -166,22 +224,22 @@ describe("real operation, danger, trigger, auto progression stay strong", () => 
     assert.equal(directive.motionDecision, "ESCALATE");
   });
 
-  it("E: auto progression of a quiet night after a mission stays a small motion", () => {
+  it("E: auto progression after a finished mission stays a small motion", () => {
     const directive = buildSceneDirective(
       input({
         mode: "auto_progression",
-        recentMessages: GREETING_WITH_PAST_MISSION,
+        recentMessages: LOBBY_GREETING,
         currentUserMessage: "임무가 끝난 밤.",
       })
     );
-    assert.equal(directive.motionDecision, "MICRO_MOTION");
+    assert.notEqual(directive.motionDecision, "HOLD");
   });
 
   it("E: simulation content is never held for a quiet night", () => {
     const directive = buildSceneDirective(
       input({
         contentKind: "simulation",
-        recentMessages: GREETING_WITH_PAST_MISSION,
+        recentMessages: [{ role: "assistant", content: "숙소 복도에 불이 꺼졌다." }],
         currentUserMessage: "임무가 끝난 밤.",
       })
     );
